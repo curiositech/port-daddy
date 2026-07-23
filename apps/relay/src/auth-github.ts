@@ -282,7 +282,8 @@ export async function handleGithubCallback(request: Request, env: Env): Promise<
     userAgent: request.headers.get('User-Agent'),
   });
 
-  const dest = (env.PUBLIC_BASE_URL ?? '/').replace(/\/+$/, '') + '/';
+  // Land the freshly-signed-in user on their account page (not the bare root).
+  const dest = (env.PUBLIC_BASE_URL ?? '').replace(/\/+$/, '') + '/account';
   return new Response(null, {
     status: 302,
     headers: { Location: dest, 'Set-Cookie': sessionSetCookie(sessionValue, SESSION_TTL_SECONDS) },
