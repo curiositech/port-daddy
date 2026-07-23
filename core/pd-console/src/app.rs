@@ -6561,6 +6561,7 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
     let previous_receipt = view.shell.previous_receipt().cloned();
     let terminal_failure = view.shell.failure().cloned();
     let recovery_failure = view.shell.recovery_failure().cloned();
+    let scrollback_offset = view.shell.scrollback_offset();
 
     let lines = view.shell.styled_lines(15);
     let output_rows = lines.into_iter().map(|line| {
@@ -6670,6 +6671,28 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
                         .text_size(px(12.0))
                         .child(view.shell.status_label()),
                 )
+                .when(scrollback_offset > 0, |header| {
+                    header.child(
+                        div()
+                            .id("cli-return-live")
+                            .ml(px(10.0))
+                            .px(px(7.0))
+                            .h(px(22.0))
+                            .flex()
+                            .items_center()
+                            .border_1()
+                            .border_color(rgba(0xffffff88))
+                            .cursor_pointer()
+                            .font_family("IBM Plex Mono")
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_size(px(11.0))
+                            .child(format!("HISTORY ↑ {scrollback_offset} · RETURN LIVE"))
+                            .on_click(cx.listener(|this, _event, _window, cx| {
+                                this.shell.scroll_to_live();
+                                cx.notify();
+                            })),
+                    )
+                })
                 .child(
                     div()
                         .id("cycle-cli-receipt-retention")
@@ -6732,10 +6755,34 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
                 .child(state_stripe("cli-output-state", status_color, 3.0, 256.0))
                 .child(
                     div()
+                        .id("cli-output-scrollback")
                         .flex_1()
                         .overflow_hidden()
                         .py(px(8.0))
                         .font_family("JetBrainsMono Nerd Font Mono")
+                        .on_scroll_wheel(cx.listener(
+                            |this, event: &ScrollWheelEvent, _window, cx| {
+                                let pixels = match event.delta {
+                                    ScrollDelta::Pixels(delta) => f32::from(delta.y),
+                                    ScrollDelta::Lines(delta) => delta.y * 17.0,
+                                };
+                                if this.shell.is_alternate_screen() {
+                                    // Full-screen terminal programs own their viewport.
+                                    // Translate wheel intent into the conventional cursor
+                                    // keys instead of moving the primary-shell history.
+                                    let sequence = if pixels >= 0.0 { b"\x1b[A" } else { b"\x1b[B" };
+                                    let repeats = ((pixels.abs() / 17.0).ceil() as usize).clamp(1, 12);
+                                    let mut bytes = Vec::with_capacity(sequence.len() * repeats);
+                                    for _ in 0..repeats {
+                                        bytes.extend_from_slice(sequence);
+                                    }
+                                    this.shell.send(bytes);
+                                } else {
+                                    this.shell.scroll_wheel_pixels(pixels, 17.0);
+                                }
+                                cx.notify();
+                            },
+                        ))
                         .children(output_rows),
                 ),
         )

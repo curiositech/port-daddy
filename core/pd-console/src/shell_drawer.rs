@@ -270,6 +270,7 @@ pub struct ShellTerminal {
     previous_receipt: Option<ShellRecoveryReceipt>,
     recovery_failure: Option<ShellFailure>,
     last_checkpoint_at: Option<Instant>,
+    wheel_remainder: f32,
 }
 
 impl ShellTerminal {
@@ -424,6 +425,7 @@ impl ShellTerminal {
             previous_receipt: recovery.receipt,
             recovery_failure,
             last_checkpoint_at: None,
+            wheel_remainder: 0.0,
         };
         terminal.checkpoint(true);
         Ok((terminal, event_rx))
@@ -444,6 +446,7 @@ impl ShellTerminal {
             previous_receipt: None,
             recovery_failure: None,
             last_checkpoint_at: None,
+            wheel_remainder: 0.0,
         }
     }
 
@@ -464,6 +467,7 @@ impl ShellTerminal {
             previous_receipt: recovery.receipt,
             recovery_failure,
             last_checkpoint_at: None,
+            wheel_remainder: 0.0,
         };
         terminal.checkpoint(true);
         terminal
@@ -490,6 +494,44 @@ impl ShellTerminal {
         self.input_tx
             .as_ref()
             .is_some_and(|tx| tx.send(ShellInput::Bytes(bytes.into())).is_ok())
+    }
+
+    /// Current distance from the live bottom of the primary-screen scrollback.
+    pub fn scrollback_offset(&self) -> usize {
+        self.parser.screen().scrollback()
+    }
+
+    pub fn is_alternate_screen(&self) -> bool {
+        self.parser.screen().alternate_screen()
+    }
+
+    /// Move through retained primary-screen history. Positive rows move toward
+    /// older output; negative rows move back toward the live prompt.
+    pub fn scroll_rows(&mut self, rows: i32) {
+        let current = self.scrollback_offset();
+        let next = if rows >= 0 {
+            current.saturating_add(rows as usize)
+        } else {
+            current.saturating_sub(rows.unsigned_abs() as usize)
+        };
+        self.parser.set_scrollback(next);
+    }
+
+    /// Fold high-resolution touchpad pixels into terminal rows without losing
+    /// sub-row deltas. Returns the number of rows consumed this event.
+    pub fn scroll_wheel_pixels(&mut self, pixels: f32, row_height: f32) -> i32 {
+        self.wheel_remainder += pixels / row_height.max(1.0);
+        let rows = self.wheel_remainder.trunc() as i32;
+        self.wheel_remainder -= rows as f32;
+        if rows != 0 {
+            self.scroll_rows(rows);
+        }
+        rows
+    }
+
+    pub fn scroll_to_live(&mut self) {
+        self.parser.set_scrollback(0);
+        self.wheel_remainder = 0.0;
     }
 
     pub fn resize(&mut self, rows: u16, cols: u16) -> bool {
@@ -1063,6 +1105,38 @@ mod tests {
             span.foreground == TerminalColor::Rgb(12, 34, 56)
                 && &line.text[span.range.clone()] == "PORT"
         }));
+    }
+
+    #[test]
+    fn wheel_scrolls_primary_history_and_can_return_live() {
+        let mut terminal = ShellTerminal::disconnected(PathBuf::from("/tmp"), "offline");
+        for index in 0..40 {
+            terminal.apply(ShellEvent::Bytes(format!("line {index}\r\n").into_bytes()));
+        }
+        assert_eq!(terminal.scrollback_offset(), 0);
+
+        assert_eq!(terminal.scroll_wheel_pixels(34.0, 17.0), 2);
+        assert_eq!(terminal.scrollback_offset(), 2);
+        assert!(terminal
+            .styled_lines(24)
+            .iter()
+            .any(|line| line.text.contains("line 36")));
+
+        terminal.scroll_rows(-1);
+        assert_eq!(terminal.scrollback_offset(), 1);
+        terminal.scroll_to_live();
+        assert_eq!(terminal.scrollback_offset(), 0);
+    }
+
+    #[test]
+    fn high_resolution_wheel_deltas_accumulate_to_a_row() {
+        let mut terminal = ShellTerminal::disconnected(PathBuf::from("/tmp"), "offline");
+        for index in 0..40 {
+            terminal.apply(ShellEvent::Bytes(format!("line {index}\r\n").into_bytes()));
+        }
+        assert_eq!(terminal.scroll_wheel_pixels(8.0, 17.0), 0);
+        assert_eq!(terminal.scroll_wheel_pixels(9.0, 17.0), 1);
+        assert_eq!(terminal.scrollback_offset(), 1);
     }
 
     #[test]
