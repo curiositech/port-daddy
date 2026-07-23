@@ -156,6 +156,57 @@ describe('pd roadmap', () => {
     expect(JSON.parse(opts.body)).toMatchObject({ rootDir: '/Users/test/port-daddy' });
   });
 
+  test('import-markdown resolves harbor via resolveRoadmapHarbor instead of falling back to the daemon default', async () => {
+    // Regression test for the second root cause behind the Planner pane's
+    // "harbor split": import-markdown used to send NO harbor when unflagged,
+    // so the daemon fell back to its own DEFAULT_HARBOR ('fleet') while every
+    // other write (pd roadmap upsert/add) resolved the real project harbor.
+    pdFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        candidates: [],
+        inserted: [],
+        updated: [],
+        parsed: { nextCuts: 0, ideasNow: 0, dogfood: 0 },
+        missingFiles: [],
+        dryRun: false,
+      }),
+    });
+
+    await handleRoadmap(['import-markdown'], { dir: '/Users/test/port-daddy', harbor: 'explicit-harbor', json: true });
+
+    const opts = pdFetch.mock.calls[0][1];
+    expect(JSON.parse(opts.body)).toMatchObject({ harbor: 'explicit-harbor' });
+  });
+
+  test('import-markdown honors $PD_HARBOR the same way pd roadmap upsert does', async () => {
+    const previousHarbor = process.env.PD_HARBOR;
+    process.env.PD_HARBOR = 'env-resolved-harbor';
+    try {
+      pdFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          success: true,
+          candidates: [],
+          inserted: [],
+          updated: [],
+          parsed: { nextCuts: 0, ideasNow: 0, dogfood: 0 },
+          missingFiles: [],
+          dryRun: false,
+        }),
+      });
+
+      await handleRoadmap(['import-markdown'], { dir: '/Users/test/port-daddy', json: true });
+
+      const opts = pdFetch.mock.calls[0][1];
+      expect(JSON.parse(opts.body)).toMatchObject({ harbor: 'env-resolved-harbor' });
+    } finally {
+      if (previousHarbor === undefined) delete process.env.PD_HARBOR;
+      else process.env.PD_HARBOR = previousHarbor;
+    }
+  });
+
   test('upsert writes a roadmap item receipt into the table', async () => {
     pdFetch.mockResolvedValue({
       ok: true,

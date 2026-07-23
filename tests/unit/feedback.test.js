@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
 import { createTupleSpace } from '../../lib/tuples.js';
 import { createFeedback } from '../../lib/feedback.js';
@@ -177,5 +178,46 @@ describe('harbor scoping', () => {
     feedback.drop({ slug: 'b', summary: 'y', droppedBy: 'agent-1', harbor: 'project-b' });
     expect(feedback.list({ harbor: 'project-a' }).map((e) => e.slug)).toEqual(['a']);
     expect(feedback.list({ harbor: 'project-b' }).map((e) => e.slug)).toEqual(['b']);
+  });
+});
+
+describe('harbor guard — rejects caller-supplied per-run ids', () => {
+  let warnSpy;
+
+  beforeEach(() => {
+    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+  });
+
+  test('a harbor shaped like a session id is rejected, falling back to the project harbor', () => {
+    const entry = feedback.drop({
+      slug: 's',
+      summary: 'x',
+      droppedBy: 'agent-1',
+      project: 'port-daddy',
+      harbor: 'session-roadmap-dedup-cleanup-script-prevent-recurrence-b9f79b15dff0',
+    });
+    expect(entry.harbor).toBe('port-daddy:fleet');
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('rejected suspicious harbor'));
+  });
+
+  test('a harbor shaped like a workflow-run number is rejected, falling back to the default harbor', () => {
+    const entry = feedback.drop({ slug: 's', summary: 'x', droppedBy: 'agent-1', harbor: '17604542' });
+    expect(entry.harbor).toBe('fleet');
+  });
+
+  test('a project value shaped like a PR id is rejected too', () => {
+    const entry = feedback.drop({ slug: 's', summary: 'x', droppedBy: 'agent-1', project: 'pr-3143' });
+    expect(entry.harbor).toBe('fleet');
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('rejected suspicious project'));
+  });
+
+  test('a clean project-shaped harbor is never rejected', () => {
+    const entry = feedback.drop({ slug: 's', summary: 'x', droppedBy: 'agent-1', harbor: 'workgroup-ai:fleet' });
+    expect(entry.harbor).toBe('workgroup-ai:fleet');
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 });

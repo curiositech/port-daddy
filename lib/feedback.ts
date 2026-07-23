@@ -34,6 +34,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { guardHarborInput } from './harbor-guard.js';
 
 interface TupleRow {
   id: number;
@@ -178,7 +179,24 @@ export function createFeedback(deps: FeedbackDeps) {
       throw new Error('feedback.drop: droppedBy is required (string)');
     }
 
-    const harbor = input.harbor ?? harborForProject(input.project) ?? DEFAULT_HARBOR;
+    // `harbor`/`project` are unauthenticated, caller-supplied free text here —
+    // any MCP/API caller can pass anything. Left unchecked, a session id, PR
+    // number, or workflow-run id passed as `harbor` fragments the feedback/
+    // roadmap board into one-off harbors that never accumulate signal (the
+    // "harbor split" the Planner pane flags). guardHarborInput rejects values
+    // shaped like a per-run id and falls back to the project-derived harbor.
+    const harbor = guardHarborInput({
+      harbor: input.harbor,
+      project: input.project,
+      fallback: DEFAULT_HARBOR,
+      harborForProject,
+      onReject: ({ field, value, usedInstead }) => {
+        console.warn(
+          `feedback.drop: rejected suspicious ${field} '${value}' (looks like a session/PR/` +
+            `workflow-run id, not a project name) — using '${usedInstead}' instead.`,
+        );
+      },
+    });
     const ttlMs = input.ttlMs ?? DEFAULT_TTL_MS;
     const at = now();
     const feedbackId = randomUUID();
