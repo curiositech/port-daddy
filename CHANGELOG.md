@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.26.4] - 2026-07-23
+
+### Fixed
+- **Completes the "Bosun watchdog survives `brew upgrade`" fix (3.26.3).** 3.26.3 made the plist's `ExecStart` reference the stable `<prefix>/bin/pd-bosun` symlink, but three OTHER launch-critical fields — `WorkingDirectory`, `StandardOutPath`, and `StandardErrorPath` — still embedded the versioned Cellar keg path (`join(__dirname, …)`), which the next `brew upgrade` deletes. launchd cannot `chdir` to a missing WorkingDirectory or open a log file under a deleted keg, so the watchdog would still fail to launch (`EX_CONFIG`) on the upgrade after next. Those now use the version-independent durable home (`~/.port-daddy/pd-bosun.log`, WorkingDirectory `~/.port-daddy`), so every launch-critical field in `com.portdaddy.bosun.plist` is now upgrade-stable.
+
 ## [3.26.3] - 2026-07-23
 
 ### Fixed
