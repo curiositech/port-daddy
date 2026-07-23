@@ -1046,3 +1046,19 @@ describe('Giant Squid Harness — multi-vendor tentacle contracts', () => {
     expect(vals.some((v) => v.includes('mutated via apply_patch') && v.includes('codex_agent'))).toBe(true);
   });
 });
+
+describe('tentaclePath resolution (regression: compiled-binary /bin/ bug)', () => {
+  for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool'] as const) {
+    it(`${name} resolves to an existing tentacle, not a bogus /bin path`, () => {
+      const p = tentaclePath(name);
+      // In dev the execPath-relative candidates don't exist, so it must fall
+      // back to the real repo bin/ — a file that actually exists.
+      expect(existsSync(p)).toBe(true);
+      expect(p).toBe(bin(name));
+      // The old bug returned `/bin/<name>` from a compiled binary's synthetic
+      // import.meta.url; guard against ever resolving to the system /bin.
+      expect(p).not.toBe(`/bin/${name}`);
+      expect(p.endsWith(`/bin/${name}`)).toBe(true); // repo bin/, absolute
+    });
+  }
+});
