@@ -253,6 +253,54 @@ function writeEmbeddedNativeCoreModule(target) {
   };
 }
 
+/**
+ * `bun build --compile` embeds onnxruntime-node's `.node` N-API binding and
+ * extracts it to a fresh temp directory on first use — but its sibling
+ * runtime library (`libonnxruntime.*.dylib` / `libonnxruntime.so.1`), linked
+ * via a Mach-O/ELF `@rpath`-relative entry, is NOT extracted alongside it.
+ * The result: `@huggingface/transformers`' local embedder fails every
+ * daemon boot with "Library not loaded: @rpath/libonnxruntime.*.dylib".
+ *
+ * Fix: ship the real runtime library as a plain file next to the compiled
+ * binary (onnxruntime-node ships prebuilt binaries for every platform, so
+ * this works even cross-target) and point `DYLD_FALLBACK_LIBRARY_PATH` /
+ * `LD_LIBRARY_PATH` at it at runtime (lib/semantic-resolver.ts) — dyld's
+ * fallback path is consulted at the actual `dlopen()` call, so it works
+ * regardless of where Bun's own extraction puts the `.node` binding.
+ */
+function packageOnnxRuntimeNative(target) {
+  const requestedPlatform = targetPlatform(target);
+  const requestedArch = targetArch(target);
+  if (!requestedPlatform || !requestedArch) {
+    return { status: 'skipped', reason: 'unresolvable target' };
+  }
+  if (requestedPlatform === 'win32') {
+    return { status: 'skipped', reason: 'windows onnxruntime.dll is not @rpath-linked; not applicable' };
+  }
+
+  const sourceDir = join(ROOT_DIR, 'node_modules', 'onnxruntime-node', 'bin', 'napi-v6', requestedPlatform, requestedArch);
+  if (!existsSync(sourceDir)) {
+    return { status: 'skipped', reason: `no onnxruntime-node binaries at ${sourceDir}` };
+  }
+
+  const destDir = join(DIST_DIR, 'native', 'onnxruntime-node', `${requestedPlatform}-${requestedArch}`);
+  mkdirSync(destDir, { recursive: true });
+
+  const runtimeLibFiles = readdirSync(sourceDir).filter(name => !name.endsWith('.node'));
+  for (const name of runtimeLibFiles) {
+    copyFileSync(join(sourceDir, name), join(destDir, name));
+  }
+
+  return {
+    status: runtimeLibFiles.length > 0 ? 'packaged' : 'skipped',
+    reason: runtimeLibFiles.length > 0 ? null : 'no runtime library files found alongside the .node binding',
+    platform: requestedPlatform,
+    arch: requestedArch,
+    dir: destDir,
+    files: runtimeLibFiles,
+  };
+}
+
 async function reservePort() {
   return new Promise((resolvePort, reject) => {
     const server = createServer();
@@ -405,6 +453,7 @@ const companionFiles = launcherOutfile ? [binaryOutfile] : [];
 run(process.execPath, ['scripts/build-public-samples.mjs'], { stdio: 'inherit' });
 const embeddedNativeCore = writeEmbeddedNativeCoreModule(target);
 const embeddedAssets = writeEmbeddedAssetsModule();
+const onnxRuntimeNative = packageOnnxRuntimeNative(target);
 
 if (canSmokeTarget && embeddedNativeCore.status !== 'embedded') {
   throw new Error(`Expected embedded native core for same-runner target ${target || 'host'}; got ${embeddedNativeCore.status}`);
@@ -465,6 +514,7 @@ const manifest = {
   bunVersion: run('bun', ['--version']).stdout.trim(),
   embeddedPublicAssets: embeddedAssets.length,
   embeddedNativeCore,
+  onnxRuntimeNative,
   surfaces: {
     cli: 'bundled',
     daemon: 'self-hosted via hidden __daemon entrypoint; companion dist/daemon binary remains available for daemon-only installs',

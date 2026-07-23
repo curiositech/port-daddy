@@ -2,7 +2,7 @@
   "generatedAt": 1784417300739,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 232,
+  "count": 233,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -938,6 +938,11 @@
       "slug": "nightshift-overnight-autonomy",
       "status": "now",
       "summaryMd": "Revive Nightshift as overnight autonomy. Nightshift was never deleted — it was renamed to `pd dispatch` (ADR-0035) and folded into the Conductor (ADR-0060), so the queue/HITL/worker path is MORE built than the original. The one lost capability is the unattended overnight run: the `dispatch-runner` ship is commented out in pd-fleet.yml AND parseCronInterval (lib/fleet-engine.ts ~2452) coerces cron like `0 1 * * *` into a fixed ~10-min interval, so it can never fire at an absolute hour. MAKE IT WORK: (1) implement real cron field parsing (absolute hour/minute) in fleet-engine, (2) re-enable the dispatch-runner ship with a nightly schedule, (3) surface it on the FleetBar Nightshift/Conductor surface, (4) soak one real overnight cycle before declaring done. Operator explicitly wants this feature back."
+    },
+    {
+      "slug": "onnxruntime-node-rpath-dylib-fix",
+      "status": "done",
+      "summaryMd": "Every daemon boot failed semantic resolution (skill-graft search, semantic term resolution, skill index) with 'Library not loaded: @rpath/libonnxruntime.*.dylib' — bun build --compile extracts onnxruntime-node's .node binding but drops its @rpath-linked sibling runtime library. Fixed: build-single-binary.mjs packages the real dylib to dist/native/onnxruntime-node/<platform>-<arch>/, semantic-resolver.ts points DYLD_FALLBACK_LIBRARY_PATH/LD_LIBRARY_PATH at it before the transformers import, release.yml ships the dir. Verified by reproducing the bug in isolation + building/booting the real compiled binary. PR #3561. Companion Formula fix (prefix.install \"native\") in curiositech/homebrew-tap#26, held until a release with #3561 ships."
     },
     {
       "slug": "operator-surface-consolidation",
