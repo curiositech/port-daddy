@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.26.3] - 2026-07-23
+
+### Fixed
+- **The Bosun watchdog survives `brew upgrade` — it no longer points at a deleted keg.** The generated `com.portdaddy.bosun.plist` embedded a **versioned** Cellar path (e.g. `.../3.26.1_2/bin/pd-bosun`); the next `brew upgrade` deletes that keg, so launchd's `ExecStart` failed with `EX_CONFIG` and a crashing daemon (the known upstream Bun 1.2.21 #676 segfault family) no longer auto-restarted — turning an ordinary crash into a silent outage until someone re-ran `port-daddy install-bosun` by hand. The plist now references the **version-stable `<prefix>/bin/pd-bosun` symlink** that Homebrew repoints on every upgrade, so it stays valid across upgrades. The formula's `post_install` already calls `install-bosun`, so this makes that regeneration produce a durable plist (derived from `process.execPath`, covering both the brew-symlink invocation and the brew-keg invocation during `post_install`). Non-Homebrew/source installs are unchanged (they fall back to the existing resolver).
+
 ## [3.26.2] - 2026-07-23
 
 ### Fixed

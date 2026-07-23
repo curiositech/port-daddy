@@ -65,7 +65,7 @@ const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 // Baked-in CLI version. The compiled `pd` binary has no sibling package.json to read, so the
 // version checks below fell back to 'unknown' (reported "CLI vunknown" then advised a pointless
 // restart). Stamped every release by scripts/sync-version.ts — do not hand-edit.
-const EMBEDDED_PACKAGE_VERSION: string = '3.26.2';
+const EMBEDDED_PACKAGE_VERSION: string = '3.26.3';
 
 interface StatusCommandResponse {
   status?: string;

@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.26.2)
+# ⚓ Port Daddy (v3.26.3)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">

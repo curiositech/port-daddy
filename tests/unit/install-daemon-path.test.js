@@ -142,3 +142,26 @@ describe('daemon installer service PATH', () => {
     });
   });
 });
+
+// Regression (3.26.2/.3): the Bosun watchdog plist embedded a VERSIONED Cellar keg path
+// (.../3.26.1_2/bin/pd-bosun), which the next `brew upgrade` deletes → launchd ExecStart points
+// at a dead keg (EX_CONFIG) and a crashing daemon stops auto-restarting. The plist must instead
+// reference the version-STABLE `<prefix>/bin/pd-bosun` symlink that brew repoints every upgrade.
+describe('Bosun plist references the version-stable symlink, not a versioned Cellar keg', () => {
+  test('a brew KEG execPath (post_install) maps to <prefix>/bin/pd-bosun', async () => {
+    const { stableBosunPathFromExec } = await import('../../install-daemon.js');
+    expect(stableBosunPathFromExec('/opt/homebrew/Cellar/port-daddy/3.26.2_2/bin/port-daddy', () => true))
+      .toBe('/opt/homebrew/bin/pd-bosun');
+  });
+
+  test('a brew SYMLINK execPath maps to the co-located <prefix>/bin/pd-bosun', async () => {
+    const { stableBosunPathFromExec } = await import('../../install-daemon.js');
+    expect(stableBosunPathFromExec('/opt/homebrew/bin/port-daddy', () => true))
+      .toBe('/opt/homebrew/bin/pd-bosun');
+  });
+
+  test('returns null when the stable symlink is absent, so non-brew/dev falls back to the resolver', async () => {
+    const { stableBosunPathFromExec } = await import('../../install-daemon.js');
+    expect(stableBosunPathFromExec('/usr/local/opt/node/bin/node', () => false)).toBeNull();
+  });
+});
