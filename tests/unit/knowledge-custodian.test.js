@@ -9,6 +9,7 @@ import { createTestDb } from '../setup-unit.js';
 import { KnowledgeCustodian } from '../../lib/knowledge-custodian.js';
 import { createEpisodicMemory } from '../../lib/episodic-memory.js';
 import { createOperatorPermissions } from '../../lib/operator-permissions.js';
+import { appendEvent, ensureEventLedgerSchema, readEvents } from '../../lib/agent-harbor/event-ledger.js';
 
 let db;
 let episodicMemory;
@@ -210,6 +211,106 @@ describe('Duty: contextPressure', () => {
     const advisoryMsg = messages.find(m => m.channel === 'agent:agent-warn:inbox');
     expect(advisoryMsg).toBeTruthy();
     expect(advisoryMsg.payload.type).toBe('context_advisory');
+  });
+
+  // Gap 1 (durable-agents research brief follow-on): runContextPressureDuty
+  // previously only published the inbox warning above; buildCompactionPacket
+  // (lib/agent-harbor/compaction.ts) was never called from anywhere in
+  // production. These tests exercise the real wiring end to end.
+  test('actually builds and appends a compaction_packet event for a critical agent with a harbor transcript', () => {
+    ensureEventLedgerSchema(db);
+    const NODE = 'agent-critical-1';
+    db.prepare(
+      `INSERT OR IGNORE INTO sessions (id, agent_id, purpose, status, created_at, updated_at)
+       VALUES (?, ?, ?, 'active', ?, ?)`
+    ).run('sess-critical-1', NODE, 'wire the webhook receiver', Date.now(), Date.now());
+
+    const evtBase = (seq, kind, payloadJson = {}) => ({
+      eventId: `evt_sess-critical-1_${seq}`,
+      sessionId: 'sess-critical-1',
+      agentNodeId: NODE,
+      sequence: seq,
+      occurredAt: new Date(Date.UTC(2026, 6, 6, 12, 0, seq)).toISOString(),
+      schemaVersion: 1,
+      kind,
+      payloadJson,
+    });
+    appendEvent(db, { streamType: 'transcript-event', payload: evtBase(1, 'session_started') });
+    appendEvent(db, { streamType: 'transcript-event', payload: evtBase(2, 'shell_command', { command: 'npm test', exitCode: 0 }) });
+
+    const custodian = makeCustodian({
+      contextTracker: {
+        getSwarmContextSummary() {
+          return [{ agentId: NODE, pressureLevel: 'critical', usedPct: 0.75, effectiveMax: 120_000, tokensUsed: 90_000 }];
+        },
+      },
+    });
+
+    custodian.runContextPressureDuty();
+
+    // The pre-existing warning still fires — this wiring is additive, not a replacement.
+    const warning = messages.find(m => m.channel === `agent:${NODE}:inbox` && m.payload.type === 'context_pressure');
+    expect(warning).toBeTruthy();
+
+    // A compaction_packet event was actually appended to the ledger — the
+    // gap this task closes (buildCompactionPacket was called nowhere in production).
+    const rows = readEvents(db, { streamType: 'transcript-event', sessionId: 'sess-critical-1' });
+    const packetRow = rows.find(r => r.kind === 'compaction_packet');
+    expect(packetRow).toBeTruthy();
+
+    const stored = JSON.parse(packetRow.payload_json);
+    const packet = stored.payloadJson;
+    expect(packet.schema).toBe('pd.agent-harbor.compaction-packet.v0');
+    expect(packet.sessionId).toBe('sess-critical-1');
+    expect(packet.agentNodeId).toBe(NODE);
+    expect(packet.createdBy.kind).toBe('daemon');
+    expect(packet.identity.task).toBe('wire the webhook receiver');
+    // Never fabricated: the duty cannot read the conversation, so both stay empty.
+    expect(packet.factualClaims).toEqual([]);
+    expect(packet.obligations).toEqual([]);
+    expect(packet.validator.passed).toBe(true);
+  });
+
+  test('does not throw and still sends the warning when the harbor ledger has no transcript for the session yet', () => {
+    ensureEventLedgerSchema(db);
+    const NODE = 'agent-critical-empty';
+    db.prepare(
+      `INSERT OR IGNORE INTO sessions (id, agent_id, purpose, status, created_at, updated_at)
+       VALUES (?, ?, ?, 'active', ?, ?)`
+    ).run('sess-critical-empty', NODE, 'some task', Date.now(), Date.now());
+    // No harbor transcript rows for this session — the production sortie/session
+    // harness does not feed the Agent Harbor ledger yet, so this is expected
+    // for most real agents until that separate wiring lands.
+
+    const custodian = makeCustodian({
+      contextTracker: {
+        getSwarmContextSummary() {
+          return [{ agentId: NODE, pressureLevel: 'critical', usedPct: 0.8, effectiveMax: 120_000, tokensUsed: 96_000 }];
+        },
+      },
+    });
+
+    expect(() => custodian.runContextPressureDuty()).not.toThrow();
+
+    const warning = messages.find(m => m.channel === `agent:${NODE}:inbox` && m.payload.type === 'context_pressure');
+    expect(warning).toBeTruthy();
+
+    const rows = readEvents(db, { streamType: 'transcript-event', sessionId: 'sess-critical-empty' });
+    expect(rows.find(r => r.kind === 'compaction_packet')).toBeUndefined();
+  });
+
+  test('skips compaction cleanly (no throw, no ledger write) when the critical agent has no matching session at all', () => {
+    const custodian = makeCustodian({
+      contextTracker: {
+        getSwarmContextSummary() {
+          return [{ agentId: 'agent-no-session', pressureLevel: 'critical', usedPct: 0.9, effectiveMax: 120_000, tokensUsed: 108_000 }];
+        },
+      },
+    });
+
+    expect(() => custodian.runContextPressureDuty()).not.toThrow();
+    const warning = messages.find(m => m.channel === 'agent:agent-no-session:inbox' && m.payload.type === 'context_pressure');
+    expect(warning).toBeTruthy();
   });
 });
 

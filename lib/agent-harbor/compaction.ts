@@ -383,6 +383,133 @@ export function extractCommandsRun(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Tool-call/tool-result boundary rule (ch04 "How Longshoremen compact
+// Voyagers" — see docs/architecture/agent-harbor-technical-binder/
+// 04-context-memory-and-skills.md, "Boundary rule" paragraph):
+//
+//   "a compaction range must never split a tool-call/tool-result pair. The
+//    macro summarizer shifts range boundaries so a tool_use event and its
+//    matching tool_result are always compacted together or left together —
+//    never one without the other. This is the direct defense against the
+//    orphaned-pair failure class documented in the field (claude-code
+//    #14173, #40305): drop a tool_use while retaining its tool_result (or
+//    the reverse) and the resulting message array is malformed, the
+//    provider rejects it with a hard 400, and /clear becomes the only
+//    recovery. The boundary check belongs in the validator alongside the
+//    uncited-claim check."
+//
+// The chapter's own prose uses the Claude-API vocabulary "tool_use" /
+// "tool_result"; the transcript-event kinds this ledger actually stores are
+// `tool_call` and `tool_result` (transcript-event.schema.json's tool/shell
+// family) paired by a shared `payloadJson.toolCallId` — the same pairing key
+// memory-episodes.ts already uses (extractCommandFailure). Same rule, this
+// codebase's field names.
+//
+// Currently moot: `buildCompactionPacket` always covers the FULL session
+// prefix (session-start through the current chain head — see
+// `sessionTranscriptRows`), so no interior range boundary can exist yet and
+// a split cannot occur today. This function exists ahead of that need —
+// load-bearing the moment any windowed/partial-range compactor is added —
+// per the binder's own framing ("belongs in the validator").
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** One tool_call/tool_result pair whose members fall on opposite sides of a proposed range boundary. */
+export interface ToolPairBoundarySplit {
+  toolCallId: string;
+  toolCallEventId: string;
+  toolCallSequence: number | null;
+  toolResultEventId: string;
+  toolResultSequence: number | null;
+}
+
+/** A proposed compaction range over transcript-event `sequence` numbers, half-open [startSeq, endSeq). */
+export interface CompactionRange {
+  startSeq: number;
+  endSeq: number;
+}
+
+export interface ToolPairBoundaryCheck {
+  /** True when no tool_call/tool_result pair is split by the range. */
+  ok: boolean;
+  /** Every pair split by the proposed range (empty when ok). */
+  splits: ToolPairBoundarySplit[];
+  /**
+   * The smallest range that covers the requested range AND every split
+   * pair in full (never partial) — "shifts range boundaries" per ch04.
+   * Equal to the input range when ok is true. Apply this instead of the
+   * proposed range to satisfy the boundary rule without dropping either
+   * member of a pair.
+   */
+  adjustedRange: CompactionRange;
+}
+
+/**
+ * Check (and compute a fix for) whether a proposed compaction range would
+ * split a tool_call from its matching tool_result. Pairing is by
+ * `payloadJson.toolCallId`, present on both events when the adapter tags
+ * them (untagged tool events have nothing to pair against and are not this
+ * validator's concern — they can't be "split" if they were never linked).
+ *
+ * Pure and read-only: never mutates `rows`, never appends to the ledger.
+ * Pairing scans the FULL `rows` array regardless of the proposed range,
+ * because a pair can only be judged split by comparing both halves against
+ * the boundary — a half-visible row tells you nothing.
+ */
+export function checkToolPairBoundary(rows: LedgerRow[], range: CompactionRange): ToolPairBoundaryCheck {
+  const pairs = new Map<string, { call?: LedgerRow; result?: LedgerRow }>();
+  for (const row of rows) {
+    if (row.kind !== 'tool_call' && row.kind !== 'tool_result') continue;
+    let toolCallId: string | null = null;
+    try {
+      const outer = JSON.parse(row.payload_json) as Record<string, unknown>;
+      const payloadJson = (outer.payloadJson ?? {}) as Record<string, unknown>;
+      toolCallId = nonEmptyString(payloadJson.toolCallId) ? payloadJson.toolCallId : null;
+    } catch {
+      toolCallId = null;
+    }
+    if (!toolCallId) continue;
+    const entry = pairs.get(toolCallId) ?? {};
+    if (row.kind === 'tool_call') entry.call = row;
+    else entry.result = row;
+    pairs.set(toolCallId, entry);
+  }
+
+  const inRange = (seq: number | null): boolean => seq !== null && seq >= range.startSeq && seq < range.endSeq;
+
+  const splits: ToolPairBoundarySplit[] = [];
+  let adjustedStart = range.startSeq;
+  let adjustedEnd = range.endSeq;
+
+  for (const [toolCallId, { call, result }] of pairs) {
+    if (!call || !result) continue; // an unmatched half is not a "split pair"
+    const callIn = inRange(call.sequence);
+    const resultIn = inRange(result.sequence);
+    if (callIn === resultIn) continue; // both in or both out — not split
+
+    splits.push({
+      toolCallId,
+      toolCallEventId: call.event_id,
+      toolCallSequence: call.sequence,
+      toolResultEventId: result.event_id,
+      toolResultSequence: result.sequence,
+    });
+
+    const seqs = [call.sequence, result.sequence].filter((s): s is number => s !== null);
+    if (seqs.length > 0) {
+      adjustedStart = Math.min(adjustedStart, ...seqs);
+      // endSeq is exclusive, so the widened end must clear the max sequence by one.
+      adjustedEnd = Math.max(adjustedEnd, Math.max(...seqs) + 1);
+    }
+  }
+
+  return {
+    ok: splits.length === 0,
+    splits,
+    adjustedRange: { startSeq: adjustedStart, endSeq: adjustedEnd },
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // The Longshoreman builder
 // ─────────────────────────────────────────────────────────────────────────────
 

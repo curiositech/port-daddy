@@ -19,6 +19,7 @@ import type { Database } from 'better-sqlite3';
 import { harvestSession } from './session-harvest.js';
 import { createOperatorPermissions, type OperatorPermissions } from './operator-permissions.js';
 import { isSubscriptionBackend } from './backend-catalog.js';
+import { buildCompactionPacket, CompactionValidationError } from './agent-harbor/compaction.js';
 
 /** Capability tier the escalation guard reasons about. `high` always forces HITL. */
 export type ResurrectTier = 'fast' | 'high';
@@ -421,6 +422,7 @@ export class KnowledgeCustodian {
             `Consider spawning a continuation agent or executing a handoff. ` +
             `Remaining effective capacity: ~${Math.round((agent.effectiveMax - agent.tokensUsed) / 1000)}k tokens.`,
         });
+        this.buildCriticalCompactionPacket(agent);
       } else if (agent.pressureLevel === 'warn') {
         deps.messaging.publish(`agent:${agent.agentId}:inbox`, {
           type: 'context_advisory',
@@ -433,6 +435,78 @@ export class KnowledgeCustodian {
     }
 
     this.lastDuty.contextPressure = Date.now();
+  }
+
+  /**
+   * Gap 1 (custodian → compactor wiring): actually invoke the M6
+   * Longshoreman compactor (lib/agent-harbor/compaction.ts#buildCompactionPacket)
+   * for a critical-pressure agent, in addition to the inbox warning above.
+   * Previously this duty only published the warning message — the ledger
+   * never got a compaction_packet event, and `buildCompactionPacket` was
+   * called nowhere in production (only from compaction.ts's own tests).
+   *
+   * Honesty constraint: this duty is a bare setInterval loop with no view
+   * into the agent's actual reasoning or work, so it MUST NOT fabricate
+   * `factualClaims` or `obligations` — the ch04 validator (rightly) treats
+   * an uncited claim as a hallucination risk, and an empty array is
+   * schema-valid (no minItems on the arrays themselves, only on each
+   * claim's `citations`). The only "content" here is what
+   * `buildCompactionPacket` extracts mechanically and cites by
+   * construction: trailing transcript excerpts and any `shell_command`
+   * rows, exactly as the M6 compaction tests exercise.
+   *
+   * Known limitation, surfaced rather than hidden: the Agent Harbor event
+   * ledger (`harbor_events`, ADR-0095) is not yet fed transcript events by
+   * the production sortie/session harness — nothing in server.ts appends
+   * `transcript-event` rows today. Until that separate wiring lands, this
+   * will find no ledger session to pin `sourceTranscript` to for most
+   * agents and skip; if a matching session *does* have harbor transcript
+   * rows but none of them chain-head successfully, `buildCompactionPacket`
+   * throws `CompactionValidationError`, which is caught and logged at
+   * `info` (expected until the harness lands, not a bug) rather than
+   * crashing the duty loop or the daemon.
+   */
+  private buildCriticalCompactionPacket(agent: {
+    agentId: string;
+    usedPct: number;
+    effectiveMax: number;
+    tokensUsed: number;
+  }): void {
+    const { db, deps } = this;
+    try {
+      const session = db.prepare(`
+        SELECT id, purpose FROM sessions
+        WHERE agent_id = ? AND status = 'active'
+        ORDER BY updated_at DESC LIMIT 1
+      `).get(agent.agentId) as { id: string; purpose: string | null } | undefined;
+      // No session to pin sourceTranscript to — nothing safe to build yet.
+      if (!session) return;
+
+      buildCompactionPacket(db, {
+        sessionId: session.id,
+        agentNodeId: agent.agentId,
+        createdBy: { kind: 'daemon' },
+        trigger: { kind: 'context-threshold', pressure: Math.min(1, Math.max(0, agent.usedPct)) },
+        identity: { task: session.purpose?.trim() || 'unknown task' },
+        // Never fabricate claims/obligations from a duty that cannot read the
+        // conversation — see the honesty constraint above.
+        factualClaims: [],
+        obligations: [],
+        nextAction: {
+          recommendation:
+            'Context critical — spawn a continuation agent or execute a handoff before further broad work.',
+        },
+      });
+    } catch (err) {
+      if (err instanceof CompactionValidationError) {
+        deps.logger.info('Custodian critical-pressure compaction skipped (no compactable harbor transcript yet)', {
+          agentId: agent.agentId,
+          error: err.message,
+        });
+        return;
+      }
+      deps.logger.error('Custodian critical-pressure compaction failed', { agentId: agent.agentId, err });
+    }
   }
 
   // ─── Duty: archiveTTL ────────────────────────────────────────────────────────

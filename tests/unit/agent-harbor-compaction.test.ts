@@ -46,6 +46,7 @@ import {
   CompactionValidationError,
   ResumeVerificationError,
   buildCompactionPacket,
+  checkToolPairBoundary,
   extractCommandsRun,
   resumeFromPacket,
   validateCitation,
@@ -451,6 +452,98 @@ describe('agent-harbor M6 Longshoreman compactor', () => {
     const commands = extractCommandsRun(rows);
     expect(commands).toHaveLength(1);
     expect(commands[0].resultSummary).toBe('12 passed');
+  });
+});
+
+describe('agent-harbor M6 tool_call/tool_result boundary rule (binder ch04 "Boundary rule")', () => {
+  let db: DatabaseInstance;
+  const TOOL_SESSION = 'session_toolpair_test_01';
+
+  function toolEvt(seq: number, kind: 'tool_call' | 'tool_result', toolCallId: string): HarborPayload {
+    return {
+      eventId: `evt_${TOOL_SESSION}_${seq}`,
+      sessionId: TOOL_SESSION,
+      agentNodeId: NODE,
+      sequence: seq,
+      occurredAt: new Date(Date.UTC(2026, 6, 6, 12, 0, seq)).toISOString(),
+      schemaVersion: 1,
+      kind,
+      payloadJson: { toolCallId },
+    };
+  }
+
+  beforeEach(() => {
+    db = initDatabase({ inMemory: true });
+    ensureEventLedgerSchema(db);
+    // 1: session_started, 2: tool_call(A), 3: tool_result(A), 4: tool_call(B),
+    // 5: tool_result(B), 6: assistant_message. Pair A is entirely inside
+    // [2,4); pair B straddles [2,4) — call in, result out.
+    appendEvent(db, { streamType: 'transcript-event', payload: evt(1, 'session_started') });
+    appendEvent(db, { streamType: 'transcript-event', payload: toolEvt(2, 'tool_call', 'toolcall_a') });
+    appendEvent(db, { streamType: 'transcript-event', payload: toolEvt(3, 'tool_result', 'toolcall_a') });
+    appendEvent(db, { streamType: 'transcript-event', payload: toolEvt(4, 'tool_call', 'toolcall_b') });
+    appendEvent(db, { streamType: 'transcript-event', payload: toolEvt(5, 'tool_result', 'toolcall_b') });
+    appendEvent(db, { streamType: 'transcript-event', payload: evt(6, 'assistant_message', { text: 'done' }) });
+  });
+
+  afterEach(() => {
+    closeDatabase(db);
+  });
+
+  it('rejects a range that splits a tool_call/tool_result pair, and names the split', () => {
+    const rows = readEvents(db, { streamType: 'transcript-event', sessionId: TOOL_SESSION });
+    // [1, 5) covers sequences 1..4 → pair B's tool_call (seq 4) is in range,
+    // its tool_result (seq 5) is not: a split.
+    const result = checkToolPairBoundary(rows, { startSeq: 1, endSeq: 5 });
+
+    expect(result.ok).toBe(false);
+    expect(result.splits).toHaveLength(1);
+    expect(result.splits[0]).toEqual(expect.objectContaining({
+      toolCallId: 'toolcall_b',
+      toolCallEventId: `evt_${TOOL_SESSION}_4`,
+      toolResultEventId: `evt_${TOOL_SESSION}_5`,
+    }));
+    // The adjusted range widens to swallow the whole pair (endSeq exclusive, so 6 covers seq 5).
+    expect(result.adjustedRange).toEqual({ startSeq: 1, endSeq: 6 });
+  });
+
+  it('accepts a range where every tool_call/tool_result pair is fully inside or fully outside', () => {
+    const rows = readEvents(db, { streamType: 'transcript-event', sessionId: TOOL_SESSION });
+    // [1, 4) covers sequences 1..3 → pair A (2,3) is fully inside, pair B (4,5) fully outside.
+    const result = checkToolPairBoundary(rows, { startSeq: 1, endSeq: 4 });
+
+    expect(result.ok).toBe(true);
+    expect(result.splits).toEqual([]);
+    expect(result.adjustedRange).toEqual({ startSeq: 1, endSeq: 4 });
+  });
+
+  it('accepts the full-session range (session-start through head) — the shape every real packet uses today', () => {
+    const rows = readEvents(db, { streamType: 'transcript-event', sessionId: TOOL_SESSION });
+    const head = rows[rows.length - 1];
+    const result = checkToolPairBoundary(rows, { startSeq: 0, endSeq: (head.sequence ?? rows.length) + 1 });
+    expect(result.ok).toBe(true);
+    expect(result.splits).toEqual([]);
+  });
+
+  it('ignores unpaired tool events (no toolCallId, or only one side present) — nothing to split', () => {
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: {
+        eventId: `evt_${TOOL_SESSION}_7`,
+        sessionId: TOOL_SESSION,
+        agentNodeId: NODE,
+        sequence: 7,
+        occurredAt: new Date(Date.UTC(2026, 6, 6, 12, 0, 7)).toISOString(),
+        schemaVersion: 1,
+        kind: 'tool_call',
+        payloadJson: {}, // no toolCallId — untagged
+      },
+    });
+    const rows = readEvents(db, { streamType: 'transcript-event', sessionId: TOOL_SESSION });
+    // [7, 8) isolates the untagged tool_call alone.
+    const result = checkToolPairBoundary(rows, { startSeq: 7, endSeq: 8 });
+    expect(result.ok).toBe(true);
+    expect(result.splits).toEqual([]);
   });
 });
 
