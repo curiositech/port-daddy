@@ -59,16 +59,26 @@ impl DropEdge {
     }
 }
 
-/// Why a [`Workspace::move_leaf`] was rejected. A small matchable enum (callers
-/// in the GPUI shell branch on the variant), never a bare `bool` or `anyhow`.
+/// Why a [`Workspace::move_leaf`] (within-tab) or a cross-tab move
+/// ([`move_leaf_across`]/[`move_pane_across`]) was rejected. A small matchable
+/// enum (callers in the GPUI shell branch on the variant), never a bare `bool`
+/// or `anyhow`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MoveError {
     /// `from` and `target` are the same pane — a move onto itself.
     SamePane,
-    /// No leaf with the `from` id exists in the workspace.
+    /// No leaf with the `from` id exists in the (source) workspace.
     FromNotFound,
     /// No leaf with the `target` id exists in the workspace.
     TargetNotFound,
+    /// Cross-tab: the destination tab index is out of range.
+    DestTabOutOfRange,
+    /// Cross-tab: the destination tab is the source tab — that is a *within*-tab
+    /// move, which belongs to [`Workspace::move_leaf`], not the cross-tab op.
+    SameTab,
+    /// Cross-tab: the move would empty the source tab and it is the only tab —
+    /// so it would destroy the last pane of the last tab. Never allowed.
+    LastPaneOfLastTab,
 }
 
 impl fmt::Display for MoveError {
@@ -77,6 +87,9 @@ impl fmt::Display for MoveError {
             MoveError::SamePane => "cannot move a pane onto itself",
             MoveError::FromNotFound => "the dragged pane no longer exists",
             MoveError::TargetNotFound => "the drop-target pane no longer exists",
+            MoveError::DestTabOutOfRange => "the destination tab does not exist",
+            MoveError::SameTab => "the destination tab is the source tab",
+            MoveError::LastPaneOfLastTab => "cannot move the last pane of the last tab",
         };
         f.write_str(msg)
     }
@@ -452,6 +465,149 @@ impl Workspace {
         self.focused = from;
         Ok(())
     }
+
+    /// Adopt an owned pane subtree from *another* workspace, appending it as a
+    /// flat [`Dir::Row`] sibling of this workspace's root (if the root is already
+    /// a Row split it appends an even sibling; otherwise it wraps the current
+    /// root and the newcomer in a fresh Row split). Focus moves to the adopted
+    /// pane. Returns the adopted leaf's id in *this* workspace.
+    ///
+    /// The incoming [`PaneId`] travels with the subtree and is preserved — *un­less*
+    /// it collides with an id this workspace already uses (PaneIds are only unique
+    /// within a single [`Workspace`], and a cross-tab move can carry an id this
+    /// tab already holds). On collision the relocated pane is re-minted from
+    /// [`next_id`](Self); the pane has no persistent per-id state, so this is safe
+    /// and keeps the tree's id-uniqueness invariant. `next_id` is then advanced
+    /// past every live id so future splits never collide.
+    pub fn absorb(&mut self, mut moved: Node) -> PaneId {
+        let existing = self.leaves();
+        remint_collisions(&mut moved, &existing, &mut self.next_id);
+        let focus_id = first_leaf_id(&moved);
+        match &mut self.root {
+            Node::Split { dir: Dir::Row, children } => {
+                let avg = children.iter().map(|c| c.weight).sum::<f32>() / children.len() as f32;
+                children.push(Child { weight: avg, node: moved });
+            }
+            _ => {
+                let old = std::mem::replace(&mut self.root, Node::leaf(0, SurfaceKind::Roadmap));
+                self.root = Node::Split {
+                    dir: Dir::Row,
+                    children: vec![
+                        Child { weight: 1.0, node: old },
+                        Child { weight: 1.0, node: moved },
+                    ],
+                };
+            }
+        }
+        // Keep next_id strictly above every live id (a preserved id may exceed it).
+        let max = self.leaves().into_iter().max().unwrap_or(0);
+        if self.next_id <= max {
+            self.next_id = max + 1;
+        }
+        self.focused = focus_id;
+        focus_id
+    }
+}
+
+/// What a completed cross-tab move did. `source_closed` = the source workspace
+/// was emptied (the dragged pane was its only pane), so the caller must drop the
+/// source tab — never leave an empty tab behind. `landed` is the pane's id in
+/// the destination (equal to the original id unless it was re-minted on collision).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CrossTabMove {
+    pub source_closed: bool,
+    pub landed: PaneId,
+}
+
+/// Pure rejection policy for a cross-tab pane move, factored out so the
+/// slice-level [`move_pane_across`] and the GPUI shell (`ConsoleView`) share one
+/// source of truth. Order matters: a would-empty last-tab move is rejected
+/// before the same-tab / out-of-range checks so the operator gets the most
+/// meaningful reason.
+pub fn check_cross_tab_move(
+    from_in_active: bool,
+    active_is_single: bool,
+    tab_count: usize,
+    active: usize,
+    dest: usize,
+) -> Result<(), MoveError> {
+    if !from_in_active {
+        return Err(MoveError::FromNotFound);
+    }
+    if active_is_single && tab_count <= 1 {
+        return Err(MoveError::LastPaneOfLastTab);
+    }
+    if dest == active {
+        return Err(MoveError::SameTab);
+    }
+    if dest >= tab_count {
+        return Err(MoveError::DestTabOutOfRange);
+    }
+    Ok(())
+}
+
+/// Move the leaf `from` out of `from_ws` and into `to_ws` — the cross-tab
+/// keystone. GPUI-free and unit-tested without a window.
+///
+/// The dragged leaf is excised as an owned subtree via the same
+/// [`take_leaf`]/[`collapse`] path [`Workspace::move_leaf`] uses (its [`PaneId`]
+/// travels with it, and the source remnant collapses so no degenerate split is
+/// left behind), then [`absorb`](Workspace::absorb)ed into `to_ws`. If `from`
+/// was the sole pane of `from_ws`, the returned [`CrossTabMove::source_closed`]
+/// is `true` and `from_ws` is left as a throwaway placeholder for the caller to
+/// drop (close the tab). Rejects only with [`MoveError::FromNotFound`]; tab-level
+/// guards live in [`check_cross_tab_move`].
+pub fn move_leaf_across(
+    from_ws: &mut Workspace,
+    from: PaneId,
+    to_ws: &mut Workspace,
+) -> Result<CrossTabMove, MoveError> {
+    if !from_ws.leaves().contains(&from) {
+        return Err(MoveError::FromNotFound);
+    }
+    let single = from_ws.pane_count() == 1;
+    let moved = if single {
+        // The whole workspace is this one leaf: take the root wholesale. The
+        // source is now a placeholder; the caller closes its tab.
+        std::mem::replace(&mut from_ws.root, Node::leaf(0, SurfaceKind::Roadmap))
+    } else {
+        let m = take_leaf(&mut from_ws.root, from).expect("from validated as a leaf above");
+        collapse(&mut from_ws.root);
+        // Repair source focus if it pointed at the pane that just left.
+        let survivors = from_ws.leaves();
+        if !survivors.contains(&from_ws.focused) {
+            from_ws.focused = survivors[0];
+        }
+        m
+    };
+    let landed = to_ws.absorb(moved);
+    Ok(CrossTabMove { source_closed: single, landed })
+}
+
+/// Slice-level cross-tab move: guard via [`check_cross_tab_move`] then dispatch
+/// to [`move_leaf_across`] with two disjoint `&mut Workspace` obtained by
+/// [`slice::split_at_mut`]. Convenience for callers holding the tabs' workspaces
+/// as one slice (and the primary unit-test entry point). The caller still owns
+/// closing the source tab when [`CrossTabMove::source_closed`] is `true`.
+pub fn move_pane_across(
+    workspaces: &mut [Workspace],
+    active: usize,
+    from: PaneId,
+    dest: usize,
+) -> Result<CrossTabMove, MoveError> {
+    let from_in = workspaces
+        .get(active)
+        .is_some_and(|w| w.leaves().contains(&from));
+    let single = workspaces.get(active).is_some_and(|w| w.pane_count() == 1);
+    check_cross_tab_move(from_in, single, workspaces.len(), active, dest)?;
+    // active != dest and both in range (guard passed) → split_at_mut is safe.
+    if active < dest {
+        let (left, right) = workspaces.split_at_mut(dest);
+        move_leaf_across(&mut left[active], from, &mut right[0])
+    } else {
+        let (left, right) = workspaces.split_at_mut(active);
+        move_leaf_across(&mut right[0], from, &mut left[dest])
+    }
 }
 
 /// The console's first-screen workspace. Deep-linked panes are user experiences,
@@ -654,6 +810,35 @@ fn take_leaf(node: &mut Node, target: PaneId) -> Option<Node> {
         }
     }
     None
+}
+
+/// The id of the first leaf (reading order) under `node` — the pane focus lands
+/// on after an [`absorb`](Workspace::absorb).
+fn first_leaf_id(node: &Node) -> PaneId {
+    match node {
+        Node::Leaf { id, .. } => *id,
+        Node::Split { children, .. } => first_leaf_id(&children[0].node),
+    }
+}
+
+/// Re-mint any leaf id in `node` that already appears in `existing`, drawing
+/// fresh ids from `*next_id` (advancing it). Non-colliding ids are preserved.
+/// Used by [`absorb`](Workspace::absorb) to keep id-uniqueness across a cross-tab
+/// move, where the incoming subtree may carry an id the destination already uses.
+fn remint_collisions(node: &mut Node, existing: &[PaneId], next_id: &mut PaneId) {
+    match node {
+        Node::Leaf { id, .. } => {
+            if existing.contains(id) {
+                *id = *next_id;
+                *next_id += 1;
+            }
+        }
+        Node::Split { children, .. } => {
+            for c in children.iter_mut() {
+                remint_collisions(&mut c.node, existing, next_id);
+            }
+        }
+    }
 }
 
 /// Insert `moved` beside the leaf `target`, on the `before` side, in a split of
@@ -1213,5 +1398,141 @@ mod tests {
         assert_eq!(DropEdge::Center.orientation(), None);
         assert!(DropEdge::Left.before() && DropEdge::Top.before());
         assert!(!DropEdge::Right.before() && !DropEdge::Bottom.before());
+    }
+
+    // ── cross-tab move (drag a pane into another tab) ────────────────────────
+
+    /// A two-tab set: tab 0 has a Row[fleet, a1] (2 panes), tab 1 a single roadmap.
+    fn two_tabs() -> Vec<Workspace> {
+        let mut t0 = Workspace::new(SurfaceKind::Fleet);
+        t0.split(Dir::Row, agent("a1")); // ROW[fleet, a1], ids 1,2
+        let t1 = Workspace::new(SurfaceKind::Roadmap); // id 1
+        vec![t0, t1]
+    }
+
+    #[test]
+    fn cross_tab_move_relocates_pane_into_destination() {
+        let mut tabs = two_tabs();
+        let a1 = tabs[0].leaves()[1]; // the "a1" pane in tab 0
+        let out = move_pane_across(&mut tabs, 0, a1, 1).expect("valid cross-tab move");
+        assert!(!out.source_closed, "tab 0 still had fleet — not emptied");
+        // Source lost a1, destination gained it as a flat Row sibling.
+        assert_eq!(tabs[0].pane_count(), 1, "tab 0 now just fleet");
+        assert_eq!(tabs[1].pane_count(), 2, "tab 1 now roadmap + a1");
+        assert!(matches!(
+            &tabs[1].root,
+            Node::Split { dir: Dir::Row, children } if children.len() == 2
+        ));
+        assert_eq!(tabs[1].focused_surface(), &agent("a1"), "focus follows the pane");
+        assert_valid_tree(&tabs[0]);
+        assert_valid_tree(&tabs[1]);
+    }
+
+    #[test]
+    fn cross_tab_move_preserves_pane_id_when_no_collision() {
+        let mut tabs = two_tabs();
+        let a1 = tabs[0].leaves()[1]; // id 2
+        let out = move_pane_across(&mut tabs, 0, a1, 1).unwrap();
+        assert_eq!(out.landed, a1, "PaneId 2 travels unchanged (no collision in tab 1)");
+        assert_eq!(tabs[1].surface_at(a1), Some(&agent("a1")), "findable by original id");
+    }
+
+    #[test]
+    fn cross_tab_move_remints_on_id_collision_keeping_tree_valid() {
+        // Both tabs are fresh single-leaf workspaces → both hold PaneId 1.
+        let mut tabs = vec![
+            Workspace::new(agent("src")),
+            Workspace::new(SurfaceKind::Roadmap),
+        ];
+        // Give tab 0 a second pane so moving one does not empty it.
+        tabs[0].split(Dir::Row, agent("keep")); // tab0 ids 1(src),2(keep)
+        let src = tabs[0].leaves()[0]; // id 1
+        let out = move_pane_across(&mut tabs, 0, src, 1).unwrap();
+        // Tab 1 already owned id 1 (roadmap), so the newcomer was re-minted.
+        assert_ne!(out.landed, src, "colliding id was re-minted in the destination");
+        assert_eq!(tabs[1].surface_at(out.landed), Some(&agent("src")));
+        assert_valid_tree(&tabs[1]); // no duplicate ids
+    }
+
+    #[test]
+    fn cross_tab_move_emptying_source_flags_it_closed() {
+        // Tab 0 is a single pane; moving it empties tab 0 (source_closed=true).
+        let mut tabs = vec![
+            Workspace::new(agent("solo")),
+            Workspace::new(SurfaceKind::Roadmap),
+        ];
+        let solo = tabs[0].leaves()[0];
+        let out = move_pane_across(&mut tabs, 0, solo, 1).unwrap();
+        assert!(out.source_closed, "source tab was emptied and must be closed by caller");
+        assert_eq!(tabs[1].pane_count(), 2, "destination absorbed the pane");
+        assert_valid_tree(&tabs[1]);
+    }
+
+    #[test]
+    fn cross_tab_move_rejects_last_pane_of_last_tab() {
+        let mut tabs = vec![Workspace::new(agent("only"))]; // one tab, one pane
+        let only = tabs[0].leaves()[0];
+        assert_eq!(
+            move_pane_across(&mut tabs, 0, only, 0),
+            Err(MoveError::LastPaneOfLastTab)
+        );
+        assert_eq!(tabs[0].pane_count(), 1, "the sole pane is untouched");
+    }
+
+    #[test]
+    fn cross_tab_move_rejects_dest_equals_source() {
+        let mut tabs = two_tabs();
+        let a1 = tabs[0].leaves()[1];
+        assert_eq!(
+            move_pane_across(&mut tabs, 0, a1, 0),
+            Err(MoveError::SameTab),
+            "dropping onto the source tab is a within-tab move, not cross-tab",
+        );
+    }
+
+    #[test]
+    fn cross_tab_move_rejects_dest_out_of_range() {
+        let mut tabs = two_tabs();
+        let a1 = tabs[0].leaves()[1];
+        assert_eq!(
+            move_pane_across(&mut tabs, 0, a1, 9),
+            Err(MoveError::DestTabOutOfRange)
+        );
+    }
+
+    #[test]
+    fn cross_tab_move_rejects_unknown_source_pane() {
+        let mut tabs = two_tabs();
+        assert_eq!(
+            move_pane_across(&mut tabs, 0, 999, 1),
+            Err(MoveError::FromNotFound)
+        );
+    }
+
+    #[test]
+    fn cross_tab_move_lower_dest_index_direction() {
+        // Exercise the active > dest split_at_mut branch (drag left, into tab 0).
+        let mut tabs = two_tabs();
+        tabs[1].split(Dir::Row, agent("b1")); // tab 1: ROW[roadmap, b1]
+        let b1 = tabs[1].leaves()[1];
+        let out = move_pane_across(&mut tabs, 1, b1, 0).unwrap();
+        assert!(!out.source_closed);
+        assert_eq!(tabs[0].pane_count(), 3, "tab 0 gained b1");
+        assert_eq!(tabs[0].focused_surface(), &agent("b1"));
+        assert_valid_tree(&tabs[0]);
+        assert_valid_tree(&tabs[1]);
+    }
+
+    #[test]
+    fn absorb_into_row_root_appends_flat_sibling() {
+        let mut ws = Workspace::new(SurfaceKind::Fleet);
+        ws.split(Dir::Row, agent("a1")); // ROW[fleet, a1]
+        let landed = ws.absorb(Node::leaf(77, SurfaceKind::Roadmap));
+        assert_eq!(landed, 77);
+        match &ws.root {
+            Node::Split { dir: Dir::Row, children } => assert_eq!(children.len(), 3),
+            other => panic!("expected flat 3-way row, got {other:?}"),
+        }
+        assert_valid_tree(&ws);
     }
 }

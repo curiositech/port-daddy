@@ -21,7 +21,9 @@ use gpui::*;
 pub use crate::chat::ChatUpdate;
 use crate::chat::{chat_display_text, chat_error_display_text, ChatLog, ChatMsg, ChatState};
 use crate::dispatch_pane::DispatchHead;
-use crate::mux::{default_operator_workspace, Dir, DropEdge, Node, PaneId, SurfaceKind, Workspace};
+use crate::mux::{
+    default_operator_workspace, Dir, DropEdge, MoveError, Node, PaneId, SurfaceKind, Workspace,
+};
 use crate::palette::{Theme, ThemeMode};
 use crate::pane::{Alert, AlertLevel, Block, OperatorTurn, Pane, Tone};
 use crate::shell_drawer::{
@@ -570,13 +572,17 @@ struct DragState {
     dir: Dir,
 }
 
-/// The pane a snap-drag is currently hovering, and which edge zone the cursor is
-/// in (the ghost-outline preview and the eventual [`Workspace::move_leaf`] both
-/// read this). All fields are `Copy` stable ids — never a cached tree path.
+/// Where a live snap-drag would land if released now — the ghost-outline preview
+/// and the eventual move op both read this. Two exhaustive cases (no bool/Option
+/// soup): a drop onto another **pane** (edge → within-tab [`Workspace::move_leaf`])
+/// or onto another **tab** chip (index → cross-tab [`ConsoleView::move_pane_to_tab`]).
+/// All fields are `Copy` stable ids/indices — never a cached tree path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct DropTarget {
-    target: PaneId,
-    edge: DropEdge,
+enum DropTarget {
+    /// Hovering a drop-target pane, in the given edge zone (split or center-swap).
+    Pane { target: PaneId, edge: DropEdge },
+    /// Hovering a (non-active) tab chip — releasing moves the pane into that tab.
+    Tab { index: usize },
 }
 
 /// The snap-drag state machine — a single enum so illegal combinations (e.g.
@@ -1881,9 +1887,15 @@ pub struct ConsoleView {
     /// to find the hovered drop-target pane + edge. Keyed by id (not path) so the
     /// drag never caches a positional path across frames.
     leaf_bounds: Rc<RefCell<HashMap<PaneId, Bounds<Pixels>>>>,
+    /// Laid-out screen bounds of each tab-bar chip, keyed by tab index, captured
+    /// per frame via a canvas overlay (same paint-only idiom as `leaf_bounds`).
+    /// The snap-drag hit-test scans this so a pane can be dropped *into another
+    /// tab*. Cleared each render so a closed tab's index never lingers stale.
+    tab_bounds: Rc<RefCell<HashMap<usize, Bounds<Pixels>>>>,
     /// The snap-drag state machine — grab a pane by its title bar, hover an edge
-    /// of another pane to preview the split, release to `move_leaf`. A `Cell`
-    /// because `PaneDrag` is `Copy` and the view is single-threaded.
+    /// of another pane to preview the split (or a tab chip to move it cross-tab),
+    /// release to commit. A `Cell` because `PaneDrag` is `Copy` and the view is
+    /// single-threaded.
     pane_drag: Cell<PaneDrag>,
     /// Read-only visual projection of the daemon-owned WorkPlan. Empty daemon
     /// nodeSpecs stay empty; this state never manufactures a runnable plan.
@@ -2131,6 +2143,7 @@ impl ConsoleView {
             dragging: None,
             split_bounds: Rc::new(RefCell::new(HashMap::new())),
             leaf_bounds: Rc::new(RefCell::new(HashMap::new())),
+            tab_bounds: Rc::new(RefCell::new(HashMap::new())),
             pane_drag: Cell::new(PaneDrag::Idle),
             work_plan_graph: crate::work_plan::empty_work_projection(),
             work_graph_png_path: None,
@@ -2262,12 +2275,69 @@ impl ConsoleView {
             }
             let rx = (x - ox) / w.max(1.0);
             let ry = (y - oy) / h.max(1.0);
-            return Some(DropTarget {
+            return Some(DropTarget::Pane {
                 target: id,
                 edge: drop_zone(rx, ry),
             });
         }
         None
+    }
+
+    /// Snap-drag hit-test against the tab-bar chips: which (non-active) tab is the
+    /// cursor over? A cheap read-only borrow-scan of the per-frame `tab_bounds`
+    /// (O(tabs), no allocation). The active tab is skipped — dropping onto your
+    /// own tab is a within-tab move, handled by the pane hit-test instead.
+    fn hit_test_tab(&self, pos: Point<Pixels>) -> Option<usize> {
+        let x = f32::from(pos.x);
+        let y = f32::from(pos.y);
+        for (&i, b) in self.tab_bounds.borrow().iter() {
+            if i == self.active_tab {
+                continue;
+            }
+            let ox = f32::from(b.origin.x);
+            let oy = f32::from(b.origin.y);
+            let w = f32::from(b.size.width);
+            let h = f32::from(b.size.height);
+            if x >= ox && x <= ox + w && y >= oy && y <= oy + h {
+                return Some(i);
+            }
+        }
+        None
+    }
+
+    /// Drag a pane out of the active tab and into `dest` tab (cross-tab move).
+    /// Delegates the tree surgery + rejection policy to the GPUI-free mux layer
+    /// ([`check_cross_tab_move`] + [`move_leaf_across`]); this method only owns
+    /// the tab-vector bookkeeping the mux layer cannot see: dropping an emptied
+    /// source tab and re-homing the active-tab cursor onto the pane's new tab.
+    fn move_pane_to_tab(&mut self, from: PaneId, dest: usize) -> Result<(), MoveError> {
+        let active = self.active_tab;
+        let from_in = self.tabs[active].workspace.leaves().contains(&from);
+        let single = self.tabs[active].workspace.pane_count() == 1;
+        crate::mux::check_cross_tab_move(from_in, single, self.tabs.len(), active, dest)?;
+        // Two disjoint &mut into the tabs' workspaces (active != dest, both valid).
+        let outcome = if active < dest {
+            let (left, right) = self.tabs.split_at_mut(dest);
+            crate::mux::move_leaf_across(&mut left[active].workspace, from, &mut right[0].workspace)
+        } else {
+            let (left, right) = self.tabs.split_at_mut(active);
+            crate::mux::move_leaf_across(&mut right[0].workspace, from, &mut left[dest].workspace)
+        }?;
+        if outcome.source_closed {
+            // The source tab is empty now — never leave an empty tab. Drop it and
+            // land the cursor on the destination (its index shifts if it sat after
+            // the removed source).
+            self.tabs.remove(active);
+            self.active_tab = if dest > active { dest - 1 } else { dest };
+        } else {
+            // A stale zoom on the pane that just left would dangle — clear it.
+            if self.tabs[active].zoomed == Some(from) {
+                self.tabs[active].zoomed = None;
+            }
+            // Follow the dragged pane to its new home so it never silently vanishes.
+            self.active_tab = dest;
+        }
+        Ok(())
     }
     /// Toggle maximize on a pane within the active tab.
     fn toggle_zoom(&mut self, id: PaneId) {
@@ -3821,9 +3891,10 @@ impl ConsoleView {
         // this pane is the one currently being hovered by a drag.
         let leaf_bounds = self.leaf_bounds.clone();
         let ghost_edge = match self.pane_drag.get() {
-            PaneDrag::Dragging { from, hover: Some(dt) } if dt.target == id && dt.target != from => {
-                Some(dt.edge)
-            }
+            PaneDrag::Dragging {
+                from,
+                hover: Some(DropTarget::Pane { target, edge }),
+            } if target == id && target != from => Some(edge),
             _ => None,
         };
         let ghost_accent = current_theme().accent;
@@ -6925,6 +6996,16 @@ impl Render for ConsoleView {
             .enumerate()
             .map(|(i, t)| (i, t.name.clone(), i == self.active_tab))
             .collect();
+        // Which tab chip (if any) a live cross-tab drag is hovering — drives the
+        // static drop-preview highlight on that chip.
+        let drag_tab_hover: Option<usize> = match self.pane_drag.get() {
+            PaneDrag::Dragging { hover: Some(DropTarget::Tab { index }), .. } => Some(index),
+            _ => None,
+        };
+        // Stale tab-chip bounds (e.g. after a tab close) must never linger; the
+        // paint-only canvases below repopulate the live set this same frame.
+        self.tab_bounds.borrow_mut().clear();
+        let tab_bounds = self.tab_bounds.clone();
         // Body: a single maximized pane, or the full tree.
         let body: AnyElement =
             match zoomed.and_then(|zid| self.ws().surface_at(zid).cloned().map(|s| (zid, s))) {
@@ -6972,7 +7053,13 @@ impl Render for ConsoleView {
                         cx.notify();
                         return;
                     }
-                    let next = this.hit_test_drop(ev.position, from);
+                    // Tab-bar chips win over panes (they sit above the body and
+                    // never overlap it): hovering a non-active chip previews a
+                    // cross-tab move; otherwise fall back to the pane edge zones.
+                    let next = this
+                        .hit_test_tab(ev.position)
+                        .map(|index| DropTarget::Tab { index })
+                        .or_else(|| this.hit_test_drop(ev.position, from));
                     if next != hover {
                         this.pane_drag.set(PaneDrag::Dragging { from, hover: next });
                         cx.notify();
@@ -7039,8 +7126,16 @@ impl Render for ConsoleView {
                 // mutating the workspace. Incoherent drops (onto itself / a
                 // vanished pane) are silently no-ops via move_leaf's Result.
                 if let PaneDrag::Dragging { from, hover } = this.pane_drag.replace(PaneDrag::Idle) {
-                    if let Some(dt) = hover {
-                        let _ = this.ws_mut().move_leaf(from, dt.target, dt.edge);
+                    match hover {
+                        // Dropped onto another pane → within-tab reparent.
+                        Some(DropTarget::Pane { target, edge }) => {
+                            let _ = this.ws_mut().move_leaf(from, target, edge);
+                        }
+                        // Dropped onto another tab chip → cross-tab move.
+                        Some(DropTarget::Tab { index }) => {
+                            let _ = this.move_pane_to_tab(from, index);
+                        }
+                        None => {}
                     }
                     cx.notify();
                 }
@@ -7212,8 +7307,14 @@ impl Render for ConsoleView {
                             ),
                     )
                     .children(tabs.into_iter().map(|(i, name, active)| {
+                        // Cross-tab snap-drop preview: a static, low-opacity accent
+                        // wash + accent underline on the hovered destination chip.
+                        // No transform, no animation loop — reduced-motion safe.
+                        let ghosted = drag_tab_hover == Some(i);
+                        let tab_bounds = tab_bounds.clone();
                         div()
                             .id(SharedString::from(format!("tab-{i}")))
+                            .relative()
                             .px(px(10.0))
                             .py(px(3.0))
                             .font_family("IBM Plex Mono")
@@ -7225,13 +7326,34 @@ impl Render for ConsoleView {
                             .when(active, |s| {
                                 s.border_b_2().border_color(rgb(current_theme().accent))
                             })
+                            // Drop-preview: accent wash + underline while a drag hovers this chip.
+                            .when(ghosted, |s| {
+                                let t = current_theme();
+                                s.bg(tone_wash(t.accent, 0x33))
+                                    .border_b_2()
+                                    .border_color(rgb(t.accent))
+                                    .text_color(rgb(t.accent_ink))
+                            })
                             .cursor_pointer()
-                            .when(!active, |s| {
+                            .when(!active && !ghosted, |s| {
                                 s.hover(|h| {
                                     let t = current_theme();
                                     h.bg(rgb(t.raised)).text_color(rgb(t.ink2))
                                 })
                             })
+                            // Publish this chip's screen bounds (keyed by tab index) so a
+                            // snap-drag can hit-test the cursor to a cross-tab drop target.
+                            // Paint-only canvas: never intercepts the chip's own clicks.
+                            .child(
+                                canvas(
+                                    move |bounds: Bounds<Pixels>, _window, _cx| {
+                                        tab_bounds.borrow_mut().insert(i, bounds);
+                                    },
+                                    |_bounds, _prepaint, _window, _cx| {},
+                                )
+                                .absolute()
+                                .size_full(),
+                            )
                             .child(name)
                             .on_click(cx.listener(move |this, _ev, _window, cx| {
                                 this.active_tab = i;
