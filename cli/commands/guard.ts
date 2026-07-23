@@ -231,8 +231,47 @@ function gitPath(path: string, cwd = process.cwd()): string | null {
   return resolved ? resolve(cwd, resolved) : null;
 }
 
-function stagedFiles(cwd = process.cwd()): string[] {
-  return gitOutput(['diff', '--cached', '--name-only', '--diff-filter=ACMRDTU'], cwd);
+/**
+ * The SHA of the other parent during an in-progress merge (`git merge` with
+ * a real conflict, mid-resolution), or null when not merging. `rev-parse`
+ * (not a raw `.git/MERGE_HEAD` read) so this resolves correctly across
+ * worktrees, where `--git-path` points at the per-worktree git dir.
+ */
+function mergeHeadSha(cwd = process.cwd()): string | null {
+  const result = spawnSync('git', ['rev-parse', '--verify', '-q', 'MERGE_HEAD'], { cwd, encoding: 'utf8' });
+  if (result.status !== 0) return null;
+  const sha = result.stdout.trim();
+  return sha || null;
+}
+
+/**
+ * Files staged for the next commit, scoped to what THIS commit actually
+ * authors — not what merely arrives via a merge.
+ *
+ * A plain `git diff --cached` against HEAD is correct for a normal commit,
+ * but during an in-progress merge (`.git/MERGE_HEAD` set) it compares the
+ * post-merge tree to the STALE pre-merge HEAD, so every file the other
+ * branch touched shows up as "staged" — even ones this session never edited
+ * and that arrived unchanged from the branch being merged in. On a
+ * rebase-forward of a stale PR branch onto origin/main, that swept in
+ * hundreds of main's files, each still under some OTHER live session's
+ * active claim, and the coordination guard correctly-but-wrongly refused the
+ * commit as if this session were overwriting their work.
+ *
+ * Fix: when merging, diff the staged tree against MERGE_HEAD (the tip being
+ * merged in) instead of HEAD. A file whose resolved content equals
+ * MERGE_HEAD's is a pure pass-through — not authored here, exempt from
+ * claim checks. A file that differs (an actual conflict resolution) still
+ * counts, correctly. `commitFiles()` below needs no equivalent fix: git's
+ * own default combined-diff for `git show <merge-commit>` already applies
+ * this exact rule post-commit.
+ */
+export function stagedFiles(cwd = process.cwd()): string[] {
+  const mergeHead = mergeHeadSha(cwd);
+  const diffArgs = mergeHead
+    ? ['diff', '--cached', '--name-only', '--diff-filter=ACMRDTU', mergeHead]
+    : ['diff', '--cached', '--name-only', '--diff-filter=ACMRDTU'];
+  return gitOutput(diffArgs, cwd);
 }
 
 /**
