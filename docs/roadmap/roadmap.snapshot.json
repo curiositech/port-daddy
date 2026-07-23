@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1784177784166,
+  "generatedAt": 1784790157105,
   "harbor": "port-daddy",
-  "source": "http://127.0.0.1:9877",
-  "count": 226,
+  "source": "http://127.0.0.1:9876",
+  "count": 239,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -16,8 +16,8 @@
     },
     {
       "slug": "actor-identity-minimal-slice",
-      "status": "backlog",
-      "summaryMd": "0040 minimal build — the SINGLE unbuilt dependency blocking FIVE subsystems (phonebook reputation, commitments, budget-ledger integrity, parley --as trust, Lookout continuity). Today identity is 100% forgeable: actor-roster.ts is a static alias table not a minting system, budget-guard keys on raw self-asserted agentId, commitments.ts self-admits the gap. Slice: daemon POST /actors/register mints a ULID bound to the actor-souls credential (ADR-0022) or a per-machine keypair; budget/commitments/parley key on the minted id; --as becomes a display alias over the minted id, never the identity. Owner: identity dispatch. Decision-type: empirical. Blocked-by: daemon-down-hard-stop-mandate (identity minting must itself refuse when the daemon door is not real). Acceptance: an agent cannot pay/commit/parley under an id it did not register; a reset produces a NEW id (Sybil is visible, not free)."
+      "status": "now",
+      "summaryMd": "ADR-0040 keystone: daemon-minted, non-forgeable actor identity (actor-souls). Selector.verifier lookup-token credential, fail-closed above newcomer floor / fail-open-at-bounded-shared-pool below it. Anti-launder core: minting fresh ids buys no new budget. Full guarantee depends on door (PR #2582) write-boundary being fully enforced."
     },
     {
       "slug": "adr-0019-declarative-fleet-yaml",
@@ -365,6 +365,11 @@
       "summaryMd": "Second device: pair, R2 snapshot pull, replay since HLC, revocation <=5s"
     },
     {
+      "slug": "adr-0091-0051-reconcile",
+      "status": "now",
+      "summaryMd": "Reconcile ADR-0091 (Giant Squid Harness) into ADR-0051 (Port Daddy Harness): ADR-0051 made Accepted/canonical, ADR-0091 reduced to a Superseded stub, all lib/squid + bin/pd-hook-* + test citations repointed to ADR-0051. Branch: claude/reconcile-adr-0091-0051."
+    },
+    {
       "slug": "adr-0092-l2-local-edit-gate",
       "status": "now",
       "summaryMd": "ADR-0092 first local L2 slice: PreToolUse edit-moment suggestibility dial enforces coordinate-before-you-cut before cloud federation."
@@ -575,6 +580,11 @@
       "summaryMd": "Mechanical binder truth fixes from the 2026-07-14 AoR run: (1) add maturity status headers (shipped/partial/target) to ch01-08 and ch10; (2) fix ch19:56 false verified path apps/pd-console -> core/pd-console (CR-10); (3) define or delete the undefined Antigravity body kind in ch07:81 (CR-9); (4) name an accountable owner in the 7 ownerless work-packets; (5) adopt the rule that every binder-aor-log pd note is mirrored into ch17 or a repo ledger file (the 2026-07-10 note was lost to daemon DB churn). Acceptance: grep for 'Status:' hits all 21 chapters; grep apps/pd-console in binder returns 0; every work-packet names an owner; the mirroring rule is written into ch16."
     },
     {
+      "slug": "binder-skills-durable-agents-vocabulary",
+      "status": "backlog",
+      "summaryMd": "Graft the durable-agents-landscape research vocabulary (micro/macro compaction, wake-source taxonomy, hibernate-vs-resume, context-reconstruction tiers) into the agent-harbor technical binder chapters and the context-economics / agent-identity skills. Tracked by PR #3138."
+    },
+    {
       "slug": "boot-migrator-schema-epoch",
       "status": "backlog",
       "summaryMd": "Spawned by ADR-0090 Amendment 1 (PR #2156): Replace scattered warn-and-continue ALTER blocks with PRAGMA user_version epoch + ordered MIGRATIONS registry (up+verify per entry), fail-closed boot, automatic pre-migration VACUUM INTO stamp, version-skew rule (newer-epoch DB puts older binary in read-only). Acceptance: user_version stamps advance per migration; a gutted verify probe aborts boot; an older binary opening a newer-epoch DB refuses writes with a loud warning."
@@ -585,6 +595,16 @@
       "summaryMd": "feat(booty): S4a artifact harvest — provenance over the blob store"
     },
     {
+      "slug": "build-integrity-spine-drift-checks",
+      "status": "backlog",
+      "summaryMd": "From fleetbot review on #2566 (pd-lookout HIGH): automate drift checks for the build-integrity spine (the single-source codegen registry the coarsened architecture doc names as the fix for the model-tiers.json duplication rot). Ties directly to the model-abstraction-audit work already on the roadmap."
+    },
+    {
+      "slug": "claude-squid-mode-visual-20260716",
+      "status": "backlog",
+      "summaryMd": "fix(squid): honest pd squid on reporting + centralized capability tokens"
+    },
+    {
       "slug": "cloudflare-agent-telemetry-unified-reporting",
       "status": "now",
       "summaryMd": "Cloudflare/GitHub App remote agent telemetry appears in the same fleet, agent, and spend reports as local agents."
@@ -593,6 +613,11 @@
       "slug": "codex-backend-live-transcripts-budget-hard-cap",
       "status": "backlog",
       "summaryMd": "fix(spawner): enforce hard backend budget caps"
+    },
+    {
+      "slug": "codex-cartographer-conversation-transcripts",
+      "status": "backlog",
+      "summaryMd": "Console: scrollable Cartographer chat and transcript conformance"
     },
     {
       "slug": "codex-daemon-claude-bin-resolution",
@@ -643,6 +668,16 @@
       "slug": "dev-berth-daemon-registration",
       "status": "now",
       "summaryMd": "WIP (operator flagged unfinished 2026-07-14): every daemon launched locally for a dev berth must self-register in ~/.port-daddy/dev-daemons.json so FleetBar/Control Center can see it — else dev daemons are invisible in the sanctioned shell (the show-me-runbook hard rule: dev-triple launches with PD_DAEMON_TIER/LABEL/SOURCE_DIR so the berth registers). Evidence tonight: lsof showed a dev-latest daemon on :9886 and multiple dispatch-worktree daemons that FleetBar has no view of. Finish: on daemon boot, if a non-prod tier/label is set, upsert the berth into dev-daemons.json (pid, port, tier, label, sourceDir, gitRev, health-url); prune dead berths on read; every dev-berth launch path (pd dev up, package-console --devbuild, dispatch worktree daemons, dev-triple) goes through it. Acceptance: launch a dev berth by any path and it appears in FleetBar's Daemons list with correct tier/label; killing it prunes it. Owner: dev-berth dispatch. Decision-type: empirical."
+    },
+    {
+      "slug": "door-generalize-write-boundary-enforcement",
+      "status": "backlog",
+      "summaryMd": "From fleetbot review on #2582: generalize the isMutatingSql SQL-keyword scanner and guardWrites() prepare/exec override into a reusable write-barrier utility, rather than something specific to lib/db.ts. Two fleetbot lenses (pd-code-reviewer HIGH, pd-snipe HIGH) both independently proposed this."
+    },
+    {
+      "slug": "door-resurrection-fail-closed-parley",
+      "status": "backlog",
+      "summaryMd": "From fleetbot review on #2582 (pd-lookout HIGH): the door's fail-closed guard-rent logic and the resurrection/reaper's deliberate fail-open lease-facts logic sit in tension -- both are individually correct (documented in the PR itself) but a real parley/reconciliation pass to confirm the boundary between them holds under a live daemon-down scenario hasn't happened. Worth a dedicated review once ADR-0040 identity lands."
     },
     {
       "slug": "durable-agent-continuation-conformance-matrix",
@@ -820,9 +855,19 @@
       "summaryMd": "Coordination Guard messaging is inconsistent with its enforcement, training agents into alarm fatigue: observed repeatedly 2026-07-14 that (a) 'Port Daddy: commit blocked by Coordination Guard' prints while the commit actually LANDS (verified by git log immediately after, multiple times), and (b) the '1 commit(s) have no coordination note' rent complaint keeps firing after the note was paid (stale count). An enforcement gate whose 'blocked' means 'proceeded anyway' and whose debt counter doesn't clear teaches every agent to ignore it — the worst possible property for a guard. Fix: make the block message truthful (if the hook allows the commit, say ADVISORY; if it blocks, actually exit non-zero before the commit object is created), and recompute the unpaid-rent count after note writes within the same session. Acceptance: a deliberately rent-unpaid commit either lands with an ADVISORY-labeled message or is actually absent from git log — never 'blocked'+landed; paying a note clears the counter on the next check."
     },
     {
+      "slug": "guard-merge-blast-radius-fix",
+      "status": "now",
+      "summaryMd": "Fix coordination-guard stagedFiles() misattributing a merge's pass-through files to the merging session's blast radius. Shipped as PR #3130 (this commit resolves a real content conflict with a concurrently-regenerated main roadmap snapshot)."
+    },
+    {
       "slug": "guard-stash-pop-interception",
       "status": "backlog",
       "summaryMd": "Coordination Guard shim intercepts git stash PUSH but not POP/APPLY — live incident 2026-07-14: a session in worktree daemon-single-truth ran git stash pop, the shim let it through, and it partially applied ANOTHER session's stash (stash@{0}, codex-gpui-harness-mux 72 files) into the worktree: staged foreign changes + conflict markers across pd-console/skills/cli. The stash stack is shared mutable state across ALL worktrees (lives in .git), so pop/apply without an explicit stash ref is exactly as cross-session-dangerous as push. Fix: shim intercepts bare 'git stash pop/apply' (no ref) with the same refuse+bypass pattern as push; allow 'apply <sha>' / 'pop stash@{n}' with explicit refs; message points at the SHA-capture workflow already documented in the repo worktree guidance. Acceptance: bare pop in a worktree is refused with PD_SHIM_OFF bypass offered; explicit-ref apply passes."
+    },
+    {
+      "slug": "harbor-console-vs-pr1960-reconciliation",
+      "status": "now",
+      "summaryMd": "From fleetbot review on #2566 (pd-lookout MEDIUM) AND independently confirmed by a separate verification pass: feat/harbor-console (unlanded branch) needs to be diffed against PR #1960 (live, open, reskinning the same cooperative Harbor editor) before either lands -- may overlap, may be complementary. Two independent sources flagged the same real gap."
     },
     {
       "slug": "harbor-editor",
@@ -980,9 +1025,19 @@
       "summaryMd": "Land the pd sortie CLI surface (one-shot multi-agent mission: run/list/status/logs) recovered from the April 2026 parked work; thin client over the existing daemon /sorties endpoints, aligned with ADR-0060 conductor consolidation."
     },
     {
+      "slug": "plan-and-sitrep-accountability",
+      "status": "now",
+      "summaryMd": "Implement pd plan command, versioned todo list history, and interactive done check + sitrep resumption UI"
+    },
+    {
       "slug": "port-policy-registry",
       "status": "backlog",
       "summaryMd": "Spawned by ADR-0090 Amendment 1 (PR #2156): Generalize registry-reunify into a per-table port-policy registry keyed by the ADR-0090 replication classes: LOCAL-ONLY never ports, G-Set unions with dedup keys, LWW merges by unique key with tombstones; schema-skew normalization (missing->dest default, dropped->discarded with logged count); never cross-file transactions. Acceptance: porting a mixed-epoch shard folds session_notes (G-Set) and roadmap_items (LWW) correctly in one run with a plan receipt."
+    },
+    {
+      "slug": "pr2596-qa-gap-fixes",
+      "status": "now",
+      "summaryMd": "Fix PR #2596 pd-qa gaps: onSessionEnd wiring test coverage + capsule validation at agent:dead call site"
     },
     {
       "slug": "provable-action-adjudicator",
@@ -998,6 +1053,11 @@
       "slug": "rent-at-claim-begin-gate",
       "status": "now",
       "summaryMd": "S3 rent-at-claim: pd begin requires a roadmap link (--roadmap), draft genesis (--roadmap-new), or an explicit sidequest opt-out (--sidequest); persisted on the session record and surfaced in whoami/listings."
+    },
+    {
+      "slug": "research-durable-agents-landscape",
+      "status": "backlog",
+      "summaryMd": "docs(research): durable long-running agents landscape brief (2026-07)"
     },
     {
       "slug": "resume-flow-joins",
@@ -1123,6 +1183,11 @@
       "slug": "visual-task-agent-intake",
       "status": "now",
       "summaryMd": "Port Daddy Scout visual task intake: Chrome extension and website install surface for screenshot/DOM-backed issues routed through the local daemon and spawn-first follow-up."
+    },
+    {
+      "slug": "wire-agent-nodes-control-route",
+      "status": "now",
+      "summaryMd": "Wire POST /agent-nodes/:id/control to authorizeControl/applyControlGate + fix compliance-probe.ts present-field bug + build LiveNodeProbeTarget (safe subset) + live pause/steer/cooperation/checkpoint exercises (queued explicitly, not deferred-and-forgotten). Blocked-by: none. Blocks: pd-console control buttons actually working end to end."
     },
     {
       "slug": "workintent-dispatch-intake",
