@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1784177784166,
+  "generatedAt": 1784417300739,
   "harbor": "port-daddy",
-  "source": "http://127.0.0.1:9877",
-  "count": 226,
+  "source": "http://127.0.0.1:9876",
+  "count": 232,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -16,8 +16,8 @@
     },
     {
       "slug": "actor-identity-minimal-slice",
-      "status": "backlog",
-      "summaryMd": "0040 minimal build — the SINGLE unbuilt dependency blocking FIVE subsystems (phonebook reputation, commitments, budget-ledger integrity, parley --as trust, Lookout continuity). Today identity is 100% forgeable: actor-roster.ts is a static alias table not a minting system, budget-guard keys on raw self-asserted agentId, commitments.ts self-admits the gap. Slice: daemon POST /actors/register mints a ULID bound to the actor-souls credential (ADR-0022) or a per-machine keypair; budget/commitments/parley key on the minted id; --as becomes a display alias over the minted id, never the identity. Owner: identity dispatch. Decision-type: empirical. Blocked-by: daemon-down-hard-stop-mandate (identity minting must itself refuse when the daemon door is not real). Acceptance: an agent cannot pay/commit/parley under an id it did not register; a reset produces a NEW id (Sybil is visible, not free)."
+      "status": "now",
+      "summaryMd": "ADR-0040 keystone: daemon-minted, non-forgeable actor identity (actor-souls). Selector.verifier lookup-token credential, fail-closed above newcomer floor / fail-open-at-bounded-shared-pool below it. Anti-launder core: minting fresh ids buys no new budget. Full guarantee depends on door (PR #2582) write-boundary being fully enforced."
     },
     {
       "slug": "adr-0019-declarative-fleet-yaml",
@@ -575,6 +575,11 @@
       "summaryMd": "Mechanical binder truth fixes from the 2026-07-14 AoR run: (1) add maturity status headers (shipped/partial/target) to ch01-08 and ch10; (2) fix ch19:56 false verified path apps/pd-console -> core/pd-console (CR-10); (3) define or delete the undefined Antigravity body kind in ch07:81 (CR-9); (4) name an accountable owner in the 7 ownerless work-packets; (5) adopt the rule that every binder-aor-log pd note is mirrored into ch17 or a repo ledger file (the 2026-07-10 note was lost to daemon DB churn). Acceptance: grep for 'Status:' hits all 21 chapters; grep apps/pd-console in binder returns 0; every work-packet names an owner; the mirroring rule is written into ch16."
     },
     {
+      "slug": "binder-skills-durable-agents-vocabulary",
+      "status": "backlog",
+      "summaryMd": "Graft the durable-agents-landscape research vocabulary (micro/macro compaction, wake-source taxonomy, hibernate-vs-resume, context-reconstruction tiers) into the agent-harbor technical binder chapters and the context-economics / agent-identity skills. Tracked by PR #3138."
+    },
+    {
       "slug": "boot-migrator-schema-epoch",
       "status": "backlog",
       "summaryMd": "Spawned by ADR-0090 Amendment 1 (PR #2156): Replace scattered warn-and-continue ALTER blocks with PRAGMA user_version epoch + ordered MIGRATIONS registry (up+verify per entry), fail-closed boot, automatic pre-migration VACUUM INTO stamp, version-skew rule (newer-epoch DB puts older binary in read-only). Acceptance: user_version stamps advance per migration; a gutted verify probe aborts boot; an older binary opening a newer-epoch DB refuses writes with a loud warning."
@@ -583,6 +588,11 @@
       "slug": "booty-artifact-harvest",
       "status": "backlog",
       "summaryMd": "feat(booty): S4a artifact harvest — provenance over the blob store"
+    },
+    {
+      "slug": "claude-squid-mode-visual-20260716",
+      "status": "backlog",
+      "summaryMd": "fix(squid): honest pd squid on reporting + centralized capability tokens"
     },
     {
       "slug": "cloudflare-agent-telemetry-unified-reporting",
@@ -820,6 +830,11 @@
       "summaryMd": "Coordination Guard messaging is inconsistent with its enforcement, training agents into alarm fatigue: observed repeatedly 2026-07-14 that (a) 'Port Daddy: commit blocked by Coordination Guard' prints while the commit actually LANDS (verified by git log immediately after, multiple times), and (b) the '1 commit(s) have no coordination note' rent complaint keeps firing after the note was paid (stale count). An enforcement gate whose 'blocked' means 'proceeded anyway' and whose debt counter doesn't clear teaches every agent to ignore it — the worst possible property for a guard. Fix: make the block message truthful (if the hook allows the commit, say ADVISORY; if it blocks, actually exit non-zero before the commit object is created), and recompute the unpaid-rent count after note writes within the same session. Acceptance: a deliberately rent-unpaid commit either lands with an ADVISORY-labeled message or is actually absent from git log — never 'blocked'+landed; paying a note clears the counter on the next check."
     },
     {
+      "slug": "guard-merge-blast-radius-fix",
+      "status": "now",
+      "summaryMd": "Fix coordination-guard stagedFiles() misattributing a merge's pass-through files (from origin/main) to the merging session's blast radius, causing false claim-collision blocks on rebase-forward commits. Root cause: pre-commit diff against stale HEAD instead of MERGE_HEAD during an in-progress merge. Shipped as PR #3130."
+    },
+    {
       "slug": "guard-stash-pop-interception",
       "status": "backlog",
       "summaryMd": "Coordination Guard shim intercepts git stash PUSH but not POP/APPLY — live incident 2026-07-14: a session in worktree daemon-single-truth ran git stash pop, the shim let it through, and it partially applied ANOTHER session's stash (stash@{0}, codex-gpui-harness-mux 72 files) into the worktree: staged foreign changes + conflict markers across pd-console/skills/cli. The stash stack is shared mutable state across ALL worktrees (lives in .git), so pop/apply without an explicit stash ref is exactly as cross-session-dangerous as push. Fix: shim intercepts bare 'git stash pop/apply' (no ref) with the same refuse+bypass pattern as push; allow 'apply <sha>' / 'pop stash@{n}' with explicit refs; message points at the SHA-capture workflow already documented in the repo worktree guidance. Acceptance: bare pop in a worktree is refused with PD_SHIM_OFF bypass offered; explicit-ref apply passes."
@@ -1000,6 +1015,11 @@
       "summaryMd": "S3 rent-at-claim: pd begin requires a roadmap link (--roadmap), draft genesis (--roadmap-new), or an explicit sidequest opt-out (--sidequest); persisted on the session record and surfaced in whoami/listings."
     },
     {
+      "slug": "research-durable-agents-landscape",
+      "status": "backlog",
+      "summaryMd": "docs(research): durable long-running agents landscape brief (2026-07)"
+    },
+    {
       "slug": "resume-flow-joins",
       "status": "backlog",
       "summaryMd": "Resume-story ground truth (2026-07-14, link-by-link with file:line evidence): the roadmap->agent->transcript->resume walk is ~60 percent substrate, zero percent wired — every gap is a JOIN or INVOCATION, not new storage. Bundle: (L1) roadmap_item_status_events is append-only + indexed but has NO read path (only INSERT and DELETE touch it) — add listStatusEvents(slug) + a roadmap history surface (~15 lines); (L2) fleet_transcripts records full conversations for daemon-spawned ships (indexed by spawned_agent_id) but nothing performs the item->agent->transcript walk, and interactive Claude-Code sessions are unlinked — add getTranscriptByAgentId join + capture the CC session id/jsonl path in the sessionstart hook; (L3) sessions.takeover() restores notes+claims but never attaches the predecessor's fleet_transcripts id (the link is available at :1293) — attach it so successors can load prior messages; wire the orphaned telos-salvage capsule (normalizeSelfSalvage has zero external callers); (L5) the advisor's context-integrity checks (ownership mismatch, salvage overlap, claim conflicts, symbol staleness) exist but are never invoked at resume — call advisor.evaluate inside takeover()/claim_salvage and return the advice: that IS the 'lookout briefs you on contradictions at reopen' the operator asked for. (L4 true execution checkpoints remain ABSENT — only WAL checkpoints + control-ladder capability labels; approximate belief-state = transcript pointer + last note + claims, which L3 provides.) Owner: resume-flow dispatch. Decision-type: empirical. Priority: high — this moves the operator's 'throw open any old session and continue' from Wave-3-blocked to Wave-1/2-buildable since the read-path joins need neither control-contract nor ADR-0040. Acceptance: pd roadmap history <slug> names agents/sessions; takeover response includes predecessor transcript id + advisor advice; an interactive CC session leaves a queryable transcript anchor."
@@ -1125,6 +1145,11 @@
       "summaryMd": "Port Daddy Scout visual task intake: Chrome extension and website install surface for screenshot/DOM-backed issues routed through the local daemon and spawn-first follow-up."
     },
     {
+      "slug": "wire-agent-nodes-control-route",
+      "status": "now",
+      "summaryMd": "Wire POST /agent-nodes/:id/control to authorizeControl/applyControlGate + fix compliance-probe.ts present-field bug + build LiveNodeProbeTarget (safe subset) + live pause/steer/cooperation/checkpoint exercises (queued explicitly, not deferred-and-forgotten). Blocked-by: none. Blocks: pd-console control buttons actually working end to end."
+    },
+    {
       "slug": "workintent-dispatch-intake",
       "status": "backlog",
       "summaryMd": "WorkIntent-first dispatch intake runtime blocker follow-up for PR #895"
@@ -1133,6 +1158,11 @@
       "slug": "workintent-dispatch-isolation",
       "status": "backlog",
       "summaryMd": "fix(dispatch): isolate WorkIntent worktrees"
+    },
+    {
+      "slug": "pr2596-qa-gap-fixes",
+      "status": "now",
+      "summaryMd": "fix(wiring): close PR #2596 pd-qa gaps — onSessionEnd wiring test + capsule validation. Adds a test proving Custodian.onSessionEnd is actually wired at the real call site, plus hardens normalizeSelfSalvage so a malformed/forged self-salvage capsule (undefined, wrong-typed fields, invalid enum, forged identityProject) never crashes onAgentDead and never reaches the resurrection queue unsanitized. Shipped as PR #3141."
     }
   ]
 }
