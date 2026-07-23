@@ -127,8 +127,38 @@ printf '%s' "$DOCTOR_JSON" | node -e '
     if (r.summary.critical > 0) {
       console.error("FAIL: doctor reports " + r.summary.critical + " CRITICAL check(s)"); process.exit(1);
     }
+    // ── HONESTY INVARIANTS (a health check that lies is worse than none) ───────
+    // The doctor must actually have run its checks, not short-circuit to a tiny
+    // green report (the empty-registry-reads-green failure class).
+    if (r.checks.length < 20) {
+      console.error("FAIL: doctor only ran " + r.checks.length + " checks — suspiciously short (short-circuit?)");
+      process.exit(1);
+    }
+    // NO check may report ok:true while its own detail admits a probe FAILED.
+    // Match only failure phrasings ("could not", "unable to") — NOT legitimate
+    // platform skips ("Skipped on linux", "macOS-only"), which are honest N/A, not lies.
+    const CANT = /\b(could ?not|couldn.t|unable to)\b/i;
+    const liars = r.checks.filter(c => c.ok === true && CANT.test(c.detail || ""));
+    if (liars.length) {
+      console.error("FAIL: " + liars.length + " check(s) report OK while admitting they could not check:");
+      for (const c of liars) console.error("  - " + c.name + ": " + c.detail);
+      process.exit(1);
+    }
+    // The Bosun watchdog is REQUIRED and was built above — it must be present and
+    // must NOT emit the old "binary not built" false-negative on a healthy daemon.
+    const bosun = r.checks.find(c => c.name === "Bosun watchdog");
+    if (!bosun) { console.error("FAIL: no Bosun watchdog check present"); process.exit(1); }
+    if (bosun.severity !== "ok") {
+      console.error("FAIL: Bosun watchdog is REQUIRED but not ok: " + bosun.severity + " — " + bosun.detail);
+      process.exit(1);
+    }
+    if (/not built/i.test(bosun.detail || "")) {
+      console.error("FAIL: Bosun watchdog reported the false-negative \"not built\" while the watchdog was built");
+      process.exit(1);
+    }
     console.log("OK: pd doctor --json severity=" + r.severity +
-      " (" + r.summary.ok + " ok, " + r.summary.warn + " warn, " + r.summary.critical + " critical)");
+      " (" + r.summary.ok + " ok, " + r.summary.warn + " warn, " + r.summary.critical + " critical); " +
+      "honesty invariants held across " + r.checks.length + " checks");
   });
 '
 
@@ -138,5 +168,16 @@ if ! "$CLI_BIN" doctor --ci; then
   echo "FAIL: pd doctor --ci exited non-zero (a CRITICAL health failure)" >&2
   exit 1
 fi
+
+# 4. HONESTY (3.26.2): `pd doctor` against a DOWN daemon must EXIT NON-ZERO. Previously a
+#    dead daemon was only a WARN, so `pd doctor --ci/--json` exited 0 over a corpse — a green
+#    build atop a dead daemon. Point doctor at a port with no daemon and require a failure.
+DEAD_URL="http://127.0.0.1:59991"
+echo "Running: pd doctor --ci against a DEAD daemon at $DEAD_URL (must fail)"
+if PORT_DADDY_URL="$DEAD_URL" "$CLI_BIN" doctor --ci >/dev/null 2>&1; then
+  echo "FAIL: pd doctor --ci exited 0 while the daemon was unreachable — the exit-code lie is back" >&2
+  exit 1
+fi
+echo "OK: pd doctor gates exit non-zero when the daemon is down"
 
 echo "Doctor gate PASSED"
