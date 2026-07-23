@@ -158,6 +158,48 @@ describe('list and get', () => {
     expect(roadmap.get('real', 'fleet')?.slug).toBe('real');
     expect(roadmap.get('absent', 'fleet')).toBeNull();
   });
+
+  describe('estimate column (ADR-0086 PD Planner)', () => {
+    // upsert() has no `estimate` input yet — no write path exists (see lib/roadmap-items.ts's
+    // RoadmapItem doc comment). These tests seed the column directly, the same way any future
+    // write path or a manual operator edit would, and prove the READ side (list/get/rowToItem)
+    // actually surfaces it instead of silently dropping it — the root cause of routes/roadmap.ts's
+    // hardcoded `estimate: 1` Gantt bug.
+    test('a freshly-upserted item has estimate: null (genuinely unset)', () => {
+      const item = roadmap.upsert({ slug: 'no-estimate-yet', summaryMd: 'x', harbor: 'fleet' });
+      expect(item.estimate).toBeNull();
+      expect(roadmap.get('no-estimate-yet', 'fleet').estimate).toBeNull();
+    });
+
+    test('list() and get() surface a real estimate value written directly to the DB column', () => {
+      roadmap.upsert({ slug: 'has-estimate', summaryMd: 'x', harbor: 'fleet' });
+      db.prepare('UPDATE roadmap_items SET estimate = ? WHERE slug = ? AND harbor = ?').run(
+        5,
+        'has-estimate',
+        'fleet',
+      );
+
+      expect(roadmap.get('has-estimate', 'fleet').estimate).toBe(5);
+      const listed = roadmap.list({ harbor: 'fleet' }).find((i) => i.slug === 'has-estimate');
+      expect(listed.estimate).toBe(5);
+    });
+
+    test('re-upserting an item with a real estimate preserves it (no write path overwrites the column)', () => {
+      roadmap.upsert({ slug: 'keep-estimate', summaryMd: 'x', harbor: 'fleet' });
+      db.prepare('UPDATE roadmap_items SET estimate = ? WHERE slug = ? AND harbor = ?').run(
+        8,
+        'keep-estimate',
+        'fleet',
+      );
+      const reupserted = roadmap.upsert({
+        slug: 'keep-estimate',
+        summaryMd: 'x updated',
+        harbor: 'fleet',
+      });
+      expect(reupserted.estimate).toBe(8);
+      expect(roadmap.get('keep-estimate', 'fleet').estimate).toBe(8);
+    });
+  });
 });
 
 describe('updateStatus', () => {
