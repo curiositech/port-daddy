@@ -61,8 +61,13 @@ function resolveStableBosunBinaryPath(): string {
   }
 }
 const BOSUN_BINARY_PATH: string = resolveStableBosunBinaryPath();
-const BOSUN_LOG_PATH: string = join(__dirname, 'pd-bosun.log');
-const BOSUN_ERROR_LOG_PATH: string = join(__dirname, 'pd-bosun-error.log');
+// Logs go to the DURABLE home (~/.port-daddy), NOT the versioned keg (`join(__dirname, …)`).
+// A keg-relative StandardOutPath is deleted by the next `brew upgrade`, so launchd can no longer
+// open the log file and the watchdog job fails to launch — the same stale-Cellar-path outage the
+// stable-symlink ExecStart fix targets. `~/.port-daddy` is checkout- and version-independent.
+const DURABLE_HOME: string = join(homedir(), '.port-daddy');
+const BOSUN_LOG_PATH: string = join(DURABLE_HOME, 'pd-bosun.log');
+const BOSUN_ERROR_LOG_PATH: string = join(DURABLE_HOME, 'pd-bosun-error.log');
 const DARWIN_OPERATOR_TOOL_PATHS = [
   '/Applications/Codex.app/Contents/Resources',
   '/opt/homebrew/bin',
@@ -345,7 +350,7 @@ export function generateBosunPlist(daemonLabel: string): string {
     <string>${BOSUN_ERROR_LOG_PATH}</string>
 
     <key>WorkingDirectory</key>
-    <string>${__dirname}</string>
+    <string>${DURABLE_HOME}</string>
 
     <key>EnvironmentVariables</key>
     <dict>

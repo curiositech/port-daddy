@@ -15,7 +15,7 @@ export interface ReferenceGroup {
   items: ReferenceItem[]
 }
 
-export const PORT_DADDY_VERSION = '3.26.3'
+export const PORT_DADDY_VERSION = '3.26.4'
 
 export function referenceAnchor(name: string): string {
   return name
