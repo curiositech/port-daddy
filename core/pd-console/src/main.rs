@@ -1051,6 +1051,50 @@ fn main() {
                                 editor = Some(pane);
                                 editor_stream = None; // resubscribe to the new file's channels
                             }
+                            // Cloud reviewer kill switch: pause/resume the REMOTE
+                            // relay (distinct from the LOCAL conductor's FleetPause).
+                            // The pane's mutate POSTs to the relay and re-fetches
+                            // health so the toggle flips to the confirmed state.
+                            // Refusals surface in FULL on the alert bus.
+                            app::ControlMsg::CloudFleetPause { paused } => {
+                                let verb = if paused { "cloud-pause" } else { "cloud-resume" };
+                                match cloud_fleet
+                                    .mutate(
+                                        &client,
+                                        SurfaceAction::Control {
+                                            verb: verb.into(),
+                                            argument: None,
+                                        },
+                                    )
+                                    .await
+                                {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            if paused {
+                                                "cloud reviewer paused"
+                                            } else {
+                                                "cloud reviewer resumed"
+                                            },
+                                            "the relay acknowledged; health refreshed",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            if paused {
+                                                "cloud pause refused"
+                                            } else {
+                                                "cloud resume refused"
+                                            },
+                                            e.to_string(),
+                                        ));
+                                    }
+                                }
+                            }
+                            // Cloud Fleet list paging — a local pane-state step
+                            // (client-side over the fetched window); no daemon call.
+                            app::ControlMsg::CloudFleetPage { list, forward } => {
+                                cloud_fleet.page(list, forward);
+                            }
                         }
                     }
 

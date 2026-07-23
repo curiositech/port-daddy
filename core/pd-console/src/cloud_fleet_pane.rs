@@ -1,27 +1,134 @@
-//! Cloud Fleet pane — remote relay observability (Phase C).
+//! Cloud Fleet pane — remote relay observability + operator control (Phase C).
 //!
 //! Unlike every other pane (which polls the LOCAL daemon), this one watches a
 //! REMOTE Cloudflare relay: the cloud fleet-executor that reviews GitHub PRs.
-//! Configure it with two env vars:
-//!   - `PD_CONSOLE_RELAY_URL`   — e.g. `https://relay.port-daddy.dev`
-//!   - `PD_CONSOLE_RELAY_TOKEN` — the operator bearer token
-//! When either is unset the pane renders a clear "not configured" hint instead
-//! of erroring — the console still boots without a relay.
+//! Configure it with two operator secrets, resolved in this order:
+//!   1. env `PD_CONSOLE_RELAY_URL` / `PD_CONSOLE_RELAY_TOKEN`
+//!   2. `~/.port-daddy/console.env` (simple `KEY=VALUE` lines) as a fallback
+//! When still unset the pane renders a clear, actionable "not configured" hint
+//! (naming both vars AND the file path) instead of erroring — the console still
+//! boots without a relay.
 //!
 //! It reuses the shared `DaemonClient::http_client()` (a plain reqwest client) to
-//! issue bearer-authenticated GETs against the operator-gated relay endpoints:
-//!   - `GET /v1/fleet/health`            → paused flag, last-run age, DLQ depth
-//!   - `GET /v1/fleet/activity?limit=30` → recent `fleet_runs` (PR review runs)
-//!   - `GET /v1/fleet/config`            → declared ships (read-only prompts + roles)
+//! issue bearer-authenticated calls against the operator-gated relay endpoints:
+//!   - `GET  /v1/fleet/health`            → paused flag, last-run age, DLQ depth
+//!   - `GET  /v1/fleet/activity?limit=N`  → recent `fleet_runs` (PR review runs)
+//!   - `GET  /v1/fleet/config`            → declared ships (read-only prompts + roles)
+//!   - `POST /v1/fleet/pause` `{paused}`  → operator kill switch (pause/resume)
+//! and fetches local HITL proposals from the LOCAL daemon `/fleet-proposals`.
+//!
+//! Operator control (this pane is no longer read-only):
+//!   - a pause/resume TOGGLE whose label reflects `health.paused`, dispatched via
+//!     `mutate(SurfaceAction::Control { verb: "cloud-pause"|"cloud-resume" })`;
+//!   - client-side PAGINATION over both the activity and proposals lists (a large
+//!     window is fetched once; the pane pages it) so nothing is silently truncated.
 //!
 //! Render-agnostic on purpose (emits `Block`s); the GPUI and ratatui renderers
 //! paint the same blocks in the locked maritime theme.
 
 use crate::agent::DaemonClient;
-use crate::pane::{Block, Pane, Tone};
+use crate::pane::{Block, Pane, SurfaceAction, Tone};
 use crate::util::{age_short, arr, b, n, s, trunc};
 use anyhow::Result;
 use serde_json::Value;
+
+/// Default rows per page for both paged lists (operator ruling: 25).
+const DEFAULT_PAGE_SIZE: usize = 25;
+/// One larger window we fetch from the relay/daemon, then page client-side. The
+/// relay `/v1/fleet/activity` takes only `limit` (no offset/cursor), so paging
+/// past this window is not possible without a relay change — this keeps a deep
+/// scrollback available while staying one round-trip.
+const FETCH_WINDOW: usize = 200;
+
+/// The actionable hint shown when no relay is configured. Names the EXACT env
+/// vars AND the fallback file to set them in — never a bare "set X / Y".
+const CONFIG_HINT: &str = "not configured — set PD_CONSOLE_RELAY_URL and \
+PD_CONSOLE_RELAY_TOKEN (env vars), or add them as KEY=VALUE lines to \
+~/.port-daddy/console.env";
+
+/// Which paged list an operator page action targets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CloudFleetList {
+    Activity,
+    Proposals,
+}
+
+/// Pure pagination math over a list length — 0-based `page`, fixed `size`. No
+/// I/O, no view coupling: unit-testable in isolation.
+#[derive(Debug, Clone, Copy)]
+struct Pager {
+    page: usize,
+    size: usize,
+}
+
+impl Pager {
+    fn new(size: usize) -> Self {
+        Self {
+            page: 0,
+            size: size.max(1),
+        }
+    }
+
+    /// Total pages for `total` items — always at least 1 (an empty list is "page
+    /// 1 of 1", never 0 pages).
+    fn page_count(&self, total: usize) -> usize {
+        if total == 0 {
+            1
+        } else {
+            total.div_ceil(self.size)
+        }
+    }
+
+    /// Keep `page` in range after the underlying list shrinks.
+    fn clamp(&mut self, total: usize) {
+        let last = self.page_count(total) - 1;
+        if self.page > last {
+            self.page = last;
+        }
+    }
+
+    fn offset(&self) -> usize {
+        self.page * self.size
+    }
+
+    /// 1-based inclusive `(start, end)` for a "showing start–end of total"
+    /// indicator; `(0, 0)` when the list is empty.
+    fn window(&self, total: usize) -> (usize, usize) {
+        if total == 0 {
+            return (0, 0);
+        }
+        let start = self.page * self.size;
+        let end = ((self.page + 1) * self.size).min(total);
+        (start + 1, end)
+    }
+
+    fn prev(&mut self) {
+        if self.page > 0 {
+            self.page -= 1;
+        }
+    }
+
+    fn next(&mut self, total: usize) {
+        if self.page + 1 < self.page_count(total) {
+            self.page += 1;
+        }
+    }
+
+    fn has_prev(&self) -> bool {
+        self.page > 0
+    }
+
+    fn has_next(&self, total: usize) -> bool {
+        self.page + 1 < self.page_count(total)
+    }
+
+    /// The slice of `items` this page covers (empty if the page is past the end).
+    fn slice<'a, T>(&self, items: &'a [T]) -> &'a [T] {
+        let start = self.offset().min(items.len());
+        let end = (start + self.size).min(items.len());
+        &items[start..end]
+    }
+}
 
 /// One remote fleet run (a GitHub PR review the cloud executor performed).
 #[derive(Debug, Clone)]
@@ -92,6 +199,79 @@ fn conclusion_tone(conclusion: &str) -> Tone {
     }
 }
 
+/// Resolve `(relay_url, relay_token)`: env vars first, then the
+/// `~/.port-daddy/console.env` fallback for whichever value the env didn't set.
+fn resolve_relay_config() -> (String, String) {
+    let mut url = std::env::var("PD_CONSOLE_RELAY_URL").unwrap_or_default();
+    let mut token = std::env::var("PD_CONSOLE_RELAY_TOKEN").unwrap_or_default();
+    if url.trim().is_empty() || token.trim().is_empty() {
+        if let Some(map) = read_console_env() {
+            if url.trim().is_empty() {
+                if let Some(v) = map.get("PD_CONSOLE_RELAY_URL") {
+                    url = v.clone();
+                }
+            }
+            if token.trim().is_empty() {
+                if let Some(v) = map.get("PD_CONSOLE_RELAY_TOKEN") {
+                    token = v.clone();
+                }
+            }
+        }
+    }
+    (url, token)
+}
+
+fn console_env_path() -> Option<std::path::PathBuf> {
+    dirs::home_dir().map(|h| h.join(".port-daddy/console.env"))
+}
+
+/// Read + parse `~/.port-daddy/console.env`. Any failure (missing file, unreadable
+/// HOME) yields `None` — this is a best-effort fallback, never a hard error.
+fn read_console_env() -> Option<std::collections::HashMap<String, String>> {
+    let content = std::fs::read_to_string(console_env_path()?).ok()?;
+    Some(parse_console_env(&content))
+}
+
+/// Pure `KEY=VALUE` parser: skips blank lines and `#` comments, tolerates an
+/// `export ` prefix, trims whitespace, strips one layer of matching surrounding
+/// quotes on the value. Last assignment wins on a duplicate key.
+fn parse_console_env(content: &str) -> std::collections::HashMap<String, String> {
+    let mut map = std::collections::HashMap::new();
+    for raw in content.lines() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let line = line.strip_prefix("export ").unwrap_or(line);
+        if let Some((k, v)) = line.split_once('=') {
+            let key = k.trim();
+            if key.is_empty() {
+                continue;
+            }
+            let mut val = v.trim();
+            if val.len() >= 2 {
+                let bytes = val.as_bytes();
+                let first = bytes[0];
+                let last = bytes[val.len() - 1];
+                if (first == b'"' && last == b'"') || (first == b'\'' && last == b'\'') {
+                    val = &val[1..val.len() - 1];
+                }
+            }
+            map.insert(key.to_string(), val.to_string());
+        }
+    }
+    map
+}
+
+/// Build the `(url, body)` for a relay pause/resume POST — pure, so the URL
+/// joining and body shape are unit-testable without a live relay.
+fn pause_request(base: &str, paused: bool) -> (String, Value) {
+    (
+        format!("{}/v1/fleet/pause", base.trim_end_matches('/')),
+        serde_json::json!({ "paused": paused }),
+    )
+}
+
 pub struct CloudFleetPane {
     relay_url: String,
     relay_token: String,
@@ -103,13 +283,16 @@ pub struct CloudFleetPane {
     dlq_depth: Option<i64>,
     last_error: Option<String>,
     proposal_error: Option<String>,
+    activity_pager: Pager,
+    proposals_pager: Pager,
 }
 
 impl Default for CloudFleetPane {
     fn default() -> Self {
+        let (relay_url, relay_token) = resolve_relay_config();
         Self {
-            relay_url: std::env::var("PD_CONSOLE_RELAY_URL").unwrap_or_default(),
-            relay_token: std::env::var("PD_CONSOLE_RELAY_TOKEN").unwrap_or_default(),
+            relay_url,
+            relay_token,
             ships: Vec::new(),
             activity: Vec::new(),
             pending_proposals: Vec::new(),
@@ -118,6 +301,8 @@ impl Default for CloudFleetPane {
             dlq_depth: None,
             last_error: None,
             proposal_error: None,
+            activity_pager: Pager::new(DEFAULT_PAGE_SIZE),
+            proposals_pager: Pager::new(DEFAULT_PAGE_SIZE),
         }
     }
 }
@@ -137,6 +322,74 @@ impl CloudFleetPane {
         self.paused || self.dlq_depth.map(|d| d > 0).unwrap_or(false)
     }
 
+    /// Step a paged list. Local pane-state only — no daemon round-trip; the new
+    /// window is reflected on the next view() render.
+    pub fn page(&mut self, list: CloudFleetList, forward: bool) {
+        match list {
+            CloudFleetList::Activity => {
+                let total = self.activity.len();
+                if forward {
+                    self.activity_pager.next(total);
+                } else {
+                    self.activity_pager.prev();
+                }
+            }
+            CloudFleetList::Proposals => {
+                let total = self.pending_proposals.len();
+                if forward {
+                    self.proposals_pager.next(total);
+                } else {
+                    self.proposals_pager.prev();
+                }
+            }
+        }
+    }
+
+    /// Emit the "showing N–M of T" indicator plus prev/next controls for a paged
+    /// list. Controls are honestly gated — disabled at the first/last page carry
+    /// their reason (never a dead affordance).
+    fn push_pager(&self, blocks: &mut Vec<Block>, list: CloudFleetList, pager: &Pager, total: usize) {
+        let (start, end) = pager.window(total);
+        blocks.push(Block::KeyVal(
+            "showing".into(),
+            if total == 0 {
+                "0 of 0".into()
+            } else {
+                format!(
+                    "{start}–{end} of {total} (page {}/{})",
+                    pager.page + 1,
+                    pager.page_count(total)
+                )
+            },
+        ));
+        let (prev_verb, next_verb) = match list {
+            CloudFleetList::Activity => ("cloud-activity-prev", "cloud-activity-next"),
+            CloudFleetList::Proposals => ("cloud-proposals-prev", "cloud-proposals-next"),
+        };
+        blocks.push(Block::ControlButton {
+            verb: prev_verb.into(),
+            label: "‹ Prev".into(),
+            enabled: pager.has_prev(),
+            why_disabled: if pager.has_prev() {
+                None
+            } else {
+                Some("first page".into())
+            },
+            primary: false,
+        });
+        blocks.push(Block::ControlButton {
+            verb: next_verb.into(),
+            label: "Next ›".into(),
+            enabled: pager.has_next(total),
+            why_disabled: if pager.has_next(total) {
+                None
+            } else {
+                Some("last page".into())
+            },
+            primary: false,
+        });
+    }
+
     fn push_pending_proposals(&self, blocks: &mut Vec<Block>) {
         blocks.push(Block::Gap);
         blocks.push(Block::Header("Pending Proposals".into()));
@@ -144,11 +397,12 @@ impl CloudFleetPane {
             blocks.push(Block::KeyVal("error".into(), err.clone()));
             return;
         }
-        if self.pending_proposals.is_empty() {
+        let total = self.pending_proposals.len();
+        if total == 0 {
             blocks.push(Block::KeyVal("status".into(), "no ship proposals awaiting approval".into()));
             return;
         }
-        for proposal in self.pending_proposals.iter().take(10) {
+        for proposal in self.proposals_pager.slice(&self.pending_proposals) {
             let source = if proposal.repo.is_empty() {
                 proposal.source_ship.clone()
             } else if proposal.pr_number > 0 {
@@ -167,6 +421,14 @@ impl CloudFleetPane {
                 tone: Tone::Gated,
             });
         }
+        self.push_pager(blocks, CloudFleetList::Proposals, &self.proposals_pager, total);
+    }
+
+    /// Fold a `/v1/fleet/health` body into the pane's health fields.
+    fn apply_health(&mut self, data: &Value) {
+        self.paused = b(data, "paused");
+        self.last_run_age_sec = data.get("lastRunAgeSec").and_then(Value::as_i64);
+        self.dlq_depth = data.get("queueDepthEstimate").and_then(Value::as_i64);
     }
 }
 
@@ -196,6 +458,32 @@ async fn fetch_json(
     }
 }
 
+/// Defensive POST `{"paused": <bool>}` to `<base>/v1/fleet/pause` with bearer
+/// auth. Returns a short error string on any failure (transport or non-2xx) so
+/// the operator sees a real cause instead of a panic (mirrors [`fetch_json`]).
+async fn relay_pause(
+    daemon: &DaemonClient,
+    base: &str,
+    token: &str,
+    paused: bool,
+) -> std::result::Result<(), String> {
+    let (url, body) = pause_request(base, paused);
+    let mut req = daemon.http_client().post(&url).json(&body);
+    if !token.trim().is_empty() {
+        req = req.bearer_auth(token);
+    }
+    match req.send().await {
+        Err(e) => Err(format!("relay unreachable: {e}")),
+        Ok(resp) => {
+            let status = resp.status();
+            if !status.is_success() {
+                return Err(format!("POST {url} → {status}"));
+            }
+            Ok(())
+        }
+    }
+}
+
 impl Pane for CloudFleetPane {
     fn id(&self) -> &str {
         "cloud-fleet"
@@ -209,10 +497,16 @@ impl Pane for CloudFleetPane {
         let mut blocks = vec![Block::Header("Cloud Fleet".into())];
 
         if !self.is_configured() {
-            blocks.push(Block::KeyVal(
-                "status".into(),
-                "not configured — set PD_CONSOLE_RELAY_URL / PD_CONSOLE_RELAY_TOKEN".into(),
-            ));
+            blocks.push(Block::KeyVal("status".into(), CONFIG_HINT.into()));
+            // Show the toggle so the affordance is discoverable — greyed, with an
+            // honest reason (never a live button that silently no-ops).
+            blocks.push(Block::ControlButton {
+                verb: "cloud-pause".into(),
+                label: "Pause reviewer".into(),
+                enabled: false,
+                why_disabled: Some("relay not configured".into()),
+                primary: false,
+            });
             self.push_pending_proposals(&mut blocks);
             return blocks;
         }
@@ -260,16 +554,34 @@ impl Pane for CloudFleetPane {
             ));
         }
 
+        // ── Operator kill switch: pause / resume the cloud reviewer ────────────
+        // The label reflects live health: "Pause reviewer" while running,
+        // "Resume reviewer" while paused. Clicking POSTs the OPPOSITE state.
+        let (verb, label) = if self.paused {
+            ("cloud-resume", "Resume reviewer")
+        } else {
+            ("cloud-pause", "Pause reviewer")
+        };
+        blocks.push(Block::ControlButton {
+            verb: verb.into(),
+            label: label.into(),
+            enabled: true,
+            why_disabled: None,
+            // Resuming a paused fleet is the primary call-to-action.
+            primary: self.paused,
+        });
+
         // ── Local HITL proposals ──────────────────────────────────────────────
         self.push_pending_proposals(&mut blocks);
 
-        // ── Recent runs (transitions / exceptions) ─────────────────────────────
+        // ── Recent runs (transitions / exceptions), paged ──────────────────────
         blocks.push(Block::Gap);
         blocks.push(Block::Header("Recent Runs".into()));
-        if self.activity.is_empty() {
+        let total = self.activity.len();
+        if total == 0 {
             blocks.push(Block::KeyVal("status".into(), "no PR reviews yet".into()));
         } else {
-            for run in self.activity.iter().take(20) {
+            for run in self.activity_pager.slice(&self.activity) {
                 // age · PR # · repo · conclusion · elapsed.
                 blocks.push(Block::Row(vec![
                     age_short(run.created_at * 1000),
@@ -294,6 +606,7 @@ impl Pane for CloudFleetPane {
                     tone: conclusion_tone(&run.conclusion),
                 });
             }
+            self.push_pager(&mut blocks, CloudFleetList::Activity, &self.activity_pager, total);
         }
 
         // ── Ship prompts (read-only) ───────────────────────────────────────────
@@ -318,6 +631,45 @@ impl Pane for CloudFleetPane {
         blocks
     }
 
+    /// Operator mutation: pause / resume the CLOUD reviewer. Only
+    /// `SurfaceAction::Control { verb: "cloud-pause"|"cloud-resume" }` is handled;
+    /// anything else is a no-op. On success we re-fetch health so the toggle label
+    /// flips to the confirmed state.
+    fn mutate<'a>(
+        &'a mut self,
+        daemon: &'a DaemonClient,
+        action: SurfaceAction,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+        Box::pin(async move {
+            let SurfaceAction::Control { verb, .. } = action else {
+                return Ok(());
+            };
+            let paused = match verb.as_str() {
+                "cloud-pause" => true,
+                "cloud-resume" => false,
+                _ => return Ok(()),
+            };
+            if !self.is_configured() {
+                return Err(anyhow::anyhow!(
+                    "relay not configured — set PD_CONSOLE_RELAY_URL / PD_CONSOLE_RELAY_TOKEN"
+                ));
+            }
+            let base = self.relay_url.trim_end_matches('/').to_string();
+            let token = self.relay_token.clone();
+            if let Err(e) = relay_pause(daemon, &base, &token, paused).await {
+                return Err(anyhow::anyhow!(e));
+            }
+            // Optimistic reflect, then confirm from the relay's own health so a
+            // divergence (e.g. relay ignored the flag) is visible next render.
+            self.paused = paused;
+            if let Ok(data) = fetch_json(daemon, &format!("{base}/v1/fleet/health"), &token).await {
+                self.apply_health(&data);
+                self.last_error = None;
+            }
+            Ok(())
+        })
+    }
+
     fn refresh<'a>(
         &'a mut self,
         daemon: &'a DaemonClient,
@@ -325,12 +677,17 @@ impl Pane for CloudFleetPane {
         Box::pin(async move {
             // Local proposal queue: always try it, even when the remote relay is
             // not configured. These packets live in the daemon DB and power the
-            // Rust/FleetBar HITL surfaces.
+            // Rust/FleetBar HITL surfaces. Fetch a large window; page client-side.
             match fetch_json(
                 daemon,
-                &format!("{}/fleet-proposals?status=pending&limit=10", daemon.base()),
+                &format!(
+                    "{}/fleet-proposals?status=pending&limit={FETCH_WINDOW}",
+                    daemon.base()
+                ),
                 "",
-            ).await {
+            )
+            .await
+            {
                 Err(e) => {
                     self.proposal_error = Some(e);
                     self.pending_proposals.clear();
@@ -343,6 +700,7 @@ impl Pane for CloudFleetPane {
                         .collect();
                 }
             }
+            self.proposals_pager.clamp(self.pending_proposals.len());
 
             // Unconfigured → no-op; view() shows the actionable hint instead.
             if !self.is_configured() {
@@ -361,22 +719,16 @@ impl Pane for CloudFleetPane {
                 }
                 Ok(data) => {
                     self.last_error = None;
-                    self.paused = b(&data, "paused");
-                    self.last_run_age_sec = match data.get("lastRunAgeSec") {
-                        Some(Value::Number(x)) => x.as_i64(),
-                        _ => None,
-                    };
-                    self.dlq_depth = match data.get("queueDepthEstimate") {
-                        Some(Value::Number(x)) => x.as_i64(),
-                        _ => None,
-                    };
+                    self.apply_health(&data);
                 }
             }
 
-            // Recent activity (tolerated independently — a failure here keeps health).
+            // Recent activity (tolerated independently — a failure here keeps
+            // health). Fetch a large window once; the pane pages it client-side
+            // (the relay route takes only `limit`, no offset/cursor).
             match fetch_json(
                 daemon,
-                &format!("{base}/v1/fleet/activity?limit=30"),
+                &format!("{base}/v1/fleet/activity?limit={FETCH_WINDOW}"),
                 &token,
             )
             .await
@@ -389,6 +741,7 @@ impl Pane for CloudFleetPane {
                         .collect();
                 }
             }
+            self.activity_pager.clamp(self.activity.len());
 
             // Ship config (read-only prompts/roles). Tolerate either {ships:[...]}
             // or {config:{ships:[...]}} drift; pull name + role defensively.
@@ -429,6 +782,19 @@ mod tests {
         p
     }
 
+    fn sample_runs(n: usize) -> Vec<FleetRun> {
+        (0..n)
+            .map(|i| FleetRun {
+                pr_number: i as i64,
+                repo: "port-daddy/relay".into(),
+                conclusion: "success".into(),
+                ships: vec![],
+                elapsed_ms: 1,
+                created_at: 1_719_432_000,
+            })
+            .collect()
+    }
+
     #[test]
     fn unconfigured_shows_hint_not_error() {
         let mut p = CloudFleetPane::default();
@@ -445,6 +811,31 @@ mod tests {
                 tone: Tone::Gated,
                 ..
             }
+        )));
+    }
+
+    #[test]
+    fn unconfigured_hint_names_both_vars_and_the_file() {
+        let mut p = CloudFleetPane::default();
+        p.relay_url = String::new();
+        let blocks = p.view();
+        assert!(blocks.iter().any(|b| matches!(
+            b,
+            Block::KeyVal(_, v)
+                if v.contains("PD_CONSOLE_RELAY_URL")
+                    && v.contains("PD_CONSOLE_RELAY_TOKEN")
+                    && v.contains("~/.port-daddy/console.env")
+        )));
+    }
+
+    #[test]
+    fn unconfigured_pause_button_is_disabled_with_reason() {
+        let mut p = CloudFleetPane::default();
+        p.relay_url = String::new();
+        let blocks = p.view();
+        assert!(blocks.iter().any(|b| matches!(
+            b,
+            Block::ControlButton { enabled: false, why_disabled: Some(_), .. }
         )));
     }
 
@@ -472,6 +863,21 @@ mod tests {
         let blocks = p.view();
         assert!(blocks.iter().any(|b| matches!(
             b, Block::Chip { label, tone: Tone::Conflicted } if label.contains("PAUSED")
+        )));
+    }
+
+    #[test]
+    fn pause_toggle_label_reflects_health() {
+        let mut p = configured();
+        p.paused = false;
+        assert!(p.view().iter().any(|b| matches!(
+            b, Block::ControlButton { verb, label, enabled: true, .. }
+            if verb == "cloud-pause" && label == "Pause reviewer"
+        )));
+        p.paused = true;
+        assert!(p.view().iter().any(|b| matches!(
+            b, Block::ControlButton { verb, label, .. }
+            if verb == "cloud-resume" && label == "Resume reviewer"
         )));
     }
 
@@ -576,5 +982,135 @@ mod tests {
         assert!(blocks.iter().any(|b| matches!(
             b, Block::Row(cells) if cells.iter().any(|c| c.contains("Spider"))
         )));
+    }
+
+    // ── Pagination ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn pager_math_offsets_windows_and_counts() {
+        let mut pg = Pager::new(25);
+        assert_eq!(pg.page_count(0), 1);
+        assert_eq!(pg.page_count(25), 1);
+        assert_eq!(pg.page_count(26), 2);
+        assert_eq!(pg.page_count(60), 3);
+        assert_eq!(pg.window(0), (0, 0));
+        assert_eq!(pg.window(10), (1, 10));
+        assert_eq!(pg.offset(), 0);
+        assert!(!pg.has_prev());
+        assert!(pg.has_next(60));
+
+        pg.next(60);
+        assert_eq!(pg.offset(), 25);
+        assert_eq!(pg.window(60), (26, 50));
+        assert!(pg.has_prev());
+        assert!(pg.has_next(60));
+
+        pg.next(60);
+        assert_eq!(pg.window(60), (51, 60));
+        assert!(!pg.has_next(60));
+
+        // Next past the end is a clamp, not an overflow.
+        pg.next(60);
+        assert_eq!(pg.window(60), (51, 60));
+
+        // Shrinking the list clamps the page back into range.
+        pg.clamp(10);
+        assert_eq!(pg.page, 0);
+        assert_eq!(pg.window(10), (1, 10));
+    }
+
+    #[test]
+    fn pager_slice_covers_the_page() {
+        let items: Vec<usize> = (0..60).collect();
+        let mut pg = Pager::new(25);
+        assert_eq!(pg.slice(&items), &items[0..25]);
+        pg.next(60);
+        assert_eq!(pg.slice(&items), &items[25..50]);
+        pg.next(60);
+        assert_eq!(pg.slice(&items), &items[50..60]);
+    }
+
+    #[test]
+    fn activity_over_a_page_is_paged_not_truncated() {
+        let mut p = configured();
+        p.activity = sample_runs(60);
+        let blocks = p.view();
+        // The "showing" indicator names the full total — no silent truncation.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::KeyVal(k, v) if k == "showing" && v.contains("of 60")
+        )));
+        // Page 0 renders exactly one page of rows (25), not all 60.
+        let rows = blocks
+            .iter()
+            .filter(|b| matches!(b, Block::Row(_)))
+            .count();
+        assert_eq!(rows, 25);
+        // A Next control exists and is enabled; Prev is disabled on page 0.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::ControlButton { verb, enabled: true, .. } if verb == "cloud-activity-next"
+        )));
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::ControlButton { verb, enabled: false, .. } if verb == "cloud-activity-prev"
+        )));
+    }
+
+    #[test]
+    fn page_action_moves_window_forward_and_back() {
+        let mut p = configured();
+        p.activity = sample_runs(60);
+        p.page(CloudFleetList::Activity, true);
+        assert_eq!(p.activity_pager.window(60), (26, 50));
+        p.page(CloudFleetList::Activity, true);
+        assert_eq!(p.activity_pager.window(60), (51, 60));
+        // Clamped at the last page.
+        p.page(CloudFleetList::Activity, true);
+        assert_eq!(p.activity_pager.window(60), (51, 60));
+        p.page(CloudFleetList::Activity, false);
+        assert_eq!(p.activity_pager.window(60), (26, 50));
+    }
+
+    // ── Pause request construction ─────────────────────────────────────────────
+
+    #[test]
+    fn pause_request_builds_clean_url_and_body() {
+        // Trailing slash on the base must not produce a double slash.
+        let (url, body) = pause_request("https://relay.example.dev/", true);
+        assert_eq!(url, "https://relay.example.dev/v1/fleet/pause");
+        assert_eq!(body, json!({ "paused": true }));
+
+        let (url2, body2) = pause_request("https://relay.example.dev", false);
+        assert_eq!(url2, "https://relay.example.dev/v1/fleet/pause");
+        assert_eq!(body2, json!({ "paused": false }));
+    }
+
+    // ── console.env fallback parser ────────────────────────────────────────────
+
+    #[test]
+    fn console_env_parser_reads_keyvals_ignoring_noise() {
+        let content = "\
+# operator relay secrets
+\n\
+PD_CONSOLE_RELAY_URL=https://r.dev
+export PD_CONSOLE_RELAY_TOKEN=\"tok-123\"
+UNRELATED=keep
+PD_CONSOLE_RELAY_URL=https://last.dev
+";
+        let m = parse_console_env(content);
+        // Last assignment wins.
+        assert_eq!(m.get("PD_CONSOLE_RELAY_URL").unwrap(), "https://last.dev");
+        // `export ` prefix tolerated; surrounding quotes stripped.
+        assert_eq!(m.get("PD_CONSOLE_RELAY_TOKEN").unwrap(), "tok-123");
+        assert_eq!(m.get("UNRELATED").unwrap(), "keep");
+        // Comments/blank lines never become keys.
+        assert!(!m.contains_key("# operator relay secrets"));
+    }
+
+    #[test]
+    fn console_env_parser_handles_single_quotes_and_empty() {
+        let m = parse_console_env("PD_CONSOLE_RELAY_TOKEN='abc'\nEMPTY=\n=novalue\n");
+        assert_eq!(m.get("PD_CONSOLE_RELAY_TOKEN").unwrap(), "abc");
+        assert_eq!(m.get("EMPTY").unwrap(), "");
+        // A blank key is dropped.
+        assert!(!m.contains_key(""));
     }
 }

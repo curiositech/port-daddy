@@ -186,6 +186,20 @@ pub enum ControlMsg {
         path: String,
         region: Option<(u32, u32)>,
     },
+    /// Pause or resume the CLOUD reviewer (the remote relay's fleet-executor).
+    /// DISTINCT from `FleetPause`/`FleetResume`, which target the LOCAL conductor:
+    /// this is dispatched to the Cloud Fleet pane's `mutate`, which POSTs
+    /// `{paused}` to `<relay>/v1/fleet/pause`. `paused=true` engages the kill
+    /// switch; `paused=false` reopens it.
+    CloudFleetPause {
+        paused: bool,
+    },
+    /// Page the Cloud Fleet pane's activity or proposals list (client-side over a
+    /// fetched window). Local pane-state only — no daemon round-trip.
+    CloudFleetPage {
+        list: crate::cloud_fleet_pane::CloudFleetList,
+        forward: bool,
+    },
 }
 
 /// A push from the daemon worker back to the Work surface. Runtime truth is a
@@ -5852,6 +5866,38 @@ fn render_harbor_control(
                         // Steer needs a message: open the entry line; submit
                         // sends ControlMsg::HarborControl with the text.
                         this.command = Some(CommandLine::new(CmdKind::HarborSteer));
+                    } else if verb_for_click.starts_with("cloud-") {
+                        // Cloud Fleet controls route to the Cloud Fleet pane, NOT
+                        // Harbor: pause/resume the remote reviewer, or page its
+                        // activity/proposals lists.
+                        if let Some(tx) = &this.control_tx {
+                            use crate::cloud_fleet_pane::CloudFleetList;
+                            let msg = match verb_for_click.as_str() {
+                                "cloud-pause" => Some(ControlMsg::CloudFleetPause { paused: true }),
+                                "cloud-resume" => Some(ControlMsg::CloudFleetPause { paused: false }),
+                                "cloud-activity-prev" => Some(ControlMsg::CloudFleetPage {
+                                    list: CloudFleetList::Activity,
+                                    forward: false,
+                                }),
+                                "cloud-activity-next" => Some(ControlMsg::CloudFleetPage {
+                                    list: CloudFleetList::Activity,
+                                    forward: true,
+                                }),
+                                "cloud-proposals-prev" => Some(ControlMsg::CloudFleetPage {
+                                    list: CloudFleetList::Proposals,
+                                    forward: false,
+                                }),
+                                "cloud-proposals-next" => Some(ControlMsg::CloudFleetPage {
+                                    list: CloudFleetList::Proposals,
+                                    forward: true,
+                                }),
+                                _ => None,
+                            };
+                            if let Some(msg) = msg {
+                                let _ = tx.send(msg);
+                                this.control_flash = Some(format!("{verb_for_click} queued"));
+                            }
+                        }
                     } else if let Some(tx) = &this.control_tx {
                         let _ = tx.send(ControlMsg::HarborControl {
                             verb: verb_for_click.clone(),
