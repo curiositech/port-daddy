@@ -62,6 +62,11 @@ import { gatherHarborFacts } from '../utils/harbor-facts.js';
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 
+// Baked-in CLI version. The compiled `pd` binary has no sibling package.json to read, so the
+// version checks below fell back to 'unknown' (reported "CLI vunknown" then advised a pointless
+// restart). Stamped every release by scripts/sync-version.ts — do not hand-edit.
+const EMBEDDED_PACKAGE_VERSION: string = '3.26.4';
+
 interface StatusCommandResponse {
   status?: string;
   severity?: Severity;
@@ -691,7 +696,7 @@ export async function handleVersion(): Promise<void> {
     const pkgFallback: string = join(libDir, 'package.json');
     const ver: string = existsSync(pkgFallback)
       ? (JSON.parse(readFileSync(pkgFallback, 'utf8')) as { version: string }).version
-      : process.env.PORT_DADDY_PACKAGE_VERSION || 'unknown';
+      : process.env.PORT_DADDY_PACKAGE_VERSION || EMBEDDED_PACKAGE_VERSION;
     console.log(`Port Daddy v${ver} (server not running)`);
   }
 }
@@ -1239,7 +1244,7 @@ export function assessCrashSignature(
   }
   return {
     severity: 'critical',
-    detail: `${crashCount} Bun native-crash banners found in the recent daemon log${where} — the daemon is crash-looping`,
+    detail: `${crashCount} Bun native-crash banners in the daemon log${where} — the daemon has crashed repeatedly (scans the possibly-unrotated log tail, so some may be historical; check \`pd status\` uptime for the live state)`,
     hint,
     crashCount,
   };
@@ -1673,13 +1678,16 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
         daemonRunning = true;
         check('Network', true, `${getDaemonUrl()} is reachable`);
       } else {
-        check('Network', false, `${getDaemonUrl()} returned an invalid /health payload`, 'Run: port-daddy restart');
+        // A health check whose SUBJECT is broken must gate the exit code, not warn.
+        // `pd doctor --ci/--json` exiting 0 while the daemon is down/broken is the
+        // single worst doctor lie (a green build over a dead daemon).
+        criticalFail('Network', `${getDaemonUrl()} returned an invalid /health payload`, 'Run: port-daddy restart');
       }
     } else {
-      check('Network', false, `${getDaemonUrl()} returned status ${res.status}`, 'Run: port-daddy start');
+      criticalFail('Network', `${getDaemonUrl()} returned status ${res.status}`, 'Run: port-daddy start');
     }
   } catch {
-    check('Network', false, `Cannot connect to ${getDaemonUrl()}`, 'Run: port-daddy start');
+    criticalFail('Network', `Cannot connect to ${getDaemonUrl()}`, 'Run: port-daddy start');
   }
 
   // -------------------------------------------------------------------------
@@ -1688,7 +1696,9 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   if (daemonRunning && daemonData) {
     check('Daemon running', true, `PID ${daemonData.pid}, v${daemonData.version}`);
   } else {
-    check('Daemon running', false, 'Daemon is not running', 'Run: port-daddy start');
+    // Daemon down = CRITICAL. This is the exit-code gate: a doctor run over a
+    // non-running daemon must exit non-zero, never 0-with-a-warning.
+    criticalFail('Daemon running', 'Daemon is not running', 'Run: port-daddy start');
   }
 
   // -------------------------------------------------------------------------
@@ -1869,31 +1879,47 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     // packaged/brew install even when Bosun was genuinely installed and
     // healthy (found live during the v3.25.1/3.25.2 brew rollout).
     const bosun = resolveBosunBinary(resolveDistributionRoot(libDir));
+    // The DAEMON is authoritative about its own watchdog: it resolves the binary
+    // from its real runtime root and reports live state. Trust it over the CLI's
+    // local resolver, which can guess a wrong distribution root under an unusual
+    // install layout. Only fall back to the local resolver when the daemon is
+    // unreachable.
+    let daemonBinaryExists: boolean | null = null;
+    let daemonBinaryPath: string | null = null;
     let bosunRunning: boolean | null = null;
     let bosunReason: string | null = null;
     if (daemonRunning) {
       try {
         const statusRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/status`);
         if (statusRes.ok) {
-          const statusData = await statusRes.json() as { guardians?: { bosun?: { state?: string; reason?: string } } };
+          const statusData = await statusRes.json() as {
+            guardians?: { bosun?: { state?: string; reason?: string; binaryExists?: boolean; binaryPath?: string } };
+          };
           const g = statusData?.guardians?.bosun;
           if (g) {
             bosunReason = g.reason ?? g.state ?? null;
             bosunRunning = g.state === 'healthy' || g.state === 'idle';
+            if (typeof g.binaryExists === 'boolean') daemonBinaryExists = g.binaryExists;
+            if (g.binaryPath) daemonBinaryPath = g.binaryPath;
           }
         }
-      } catch { /* daemon guardians unavailable — fall back to binary presence */ }
+      } catch { /* daemon guardians unavailable — fall back to local binary presence */ }
     }
-    if (!bosun.exists) {
-      warn('Bosun watchdog',
-        'pd-bosun binary not built — the daemon has no independent heartbeat/PID watchdog',
-        'Build it: (cd core/pd-bosun && cargo build --release)   or: npm run build');
+    const bosunPresent = daemonBinaryExists ?? bosun.exists;
+    const bosunPath = daemonBinaryPath ?? bosun.binaryPath;
+    if (!bosunPresent) {
+      // Required (halt-mandate): a brew/tarball install with NO watchdog binary
+      // leaves the daemon with no independent heartbeat/PID supervisor. This is a
+      // shipping defect, not a warning — fail the doctor so it can't reach users.
+      criticalFail('Bosun watchdog',
+        'pd-bosun watchdog binary is MISSING — the daemon has no independent heartbeat/PID supervisor',
+        'Reinstall so the supervisor ships: `brew reinstall port-daddy` (or `npm run build:bosun` in a source checkout)');
     } else if (bosunRunning === false) {
       warn('Bosun watchdog',
-        `pd-bosun binary present but not active${bosunReason ? ` (${bosunReason})` : ''}`,
-        'Heartbeat writer is the daemon-side fallback; install the supervisor for resurrection coverage');
+        `pd-bosun binary present at ${bosunPath} but not active${bosunReason ? ` (${bosunReason})` : ''}`,
+        'Heartbeat writer is the daemon-side fallback; run `port-daddy install-bosun` to wire the supervisor');
     } else {
-      check('Bosun watchdog', true, `pd-bosun present at ${bosun.binaryPath}${bosunReason ? ` (${bosunReason})` : ''}`);
+      check('Bosun watchdog', true, `pd-bosun present at ${bosunPath}${bosunReason ? ` (${bosunReason})` : ''}`);
     }
   } catch (err: unknown) {
     check('Bosun watchdog', false, `Error: ${(err as Error).message}`);
@@ -1949,11 +1975,9 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
         const svcList = (servicesData.services || []) as Array<{ pid?: number }>;
         for (const svc of svcList) {
           if (svc.pid) {
-            try {
-              process.kill(svc.pid, 0);
-            } catch {
-              staleCount++;
-            }
+            // Use isPidAlive (EPERM = alive-but-other-owner), not a bare process.kill —
+            // a live service owned by another uid must not be miscounted as "stale".
+            if (!isPidAlive(svc.pid)) staleCount++;
           }
         }
 
@@ -2027,7 +2051,10 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
         `Active registry is ${activeDb}; consolidate or remove the stale copies`);
     }
   } catch (err: unknown) {
-    check('DB fragmentation', true, `Could not check (skipped): ${(err as Error).message}`);
+    // "Could not check" is UNKNOWN, never healthy — a permissions failure on PD_HOME
+    // must not read as a green "no fragmentation".
+    warn('DB fragmentation', `Could not check registry fragmentation: ${(err as Error).message}`,
+      'Check read permissions on the Port Daddy home directory');
   }
 
   // -------------------------------------------------------------------------
@@ -2060,8 +2087,9 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
       if (isNaN(pid)) {
         check('PID file', false, `${pidFilePath} contains invalid PID: "${pidStr}"`, `Remove: rm ${pidFilePath}`);
       } else {
-        let processAlive = false;
-        try { process.kill(pid, 0); processAlive = true; } catch { /* not running */ }
+        // isPidAlive treats EPERM as alive — a live daemon PID owned by another uid must
+        // not be reported "stale" with advice to delete a running daemon's pidfile.
+        const processAlive = isPidAlive(pid);
         check('PID file', processAlive, processAlive ? `PID ${pid} is running` : `PID ${pid} is not running (stale)`,
           processAlive ? undefined : `Remove: rm ${pidFilePath}`);
       }
@@ -2087,8 +2115,10 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     } else {
       check('Stuck lsof processes', true, `${lsofCount} lsof process(es) running`);
     }
-  } catch {
-    check('Stuck lsof processes', true, 'Could not check (skipped)');
+  } catch (err: unknown) {
+    // A failed probe is unknown, not clean — don't report ✓ when we never looked.
+    warn('Stuck lsof processes', `Could not check for stuck lsof processes: ${(err as Error).message}`,
+      'The ps/grep probe failed; check manually with `ps aux | grep lsof`');
   }
 
   // -------------------------------------------------------------------------
@@ -2162,7 +2192,9 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
       );
     }
   } catch (err: unknown) {
-    check('Shell-idiom .env.local', true, `Could not check (skipped): ${(err as Error).message}`);
+    // Unknown, not clean — a read failure here must not read as "no mute-pd trap present".
+    warn('Shell-idiom .env.local', `Could not scan the current directory for a bun-crashing .env.local: ${(err as Error).message}`,
+      'Check read permissions on the current directory');
   }
 
   // -------------------------------------------------------------------------
@@ -2236,12 +2268,17 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
         'Build the daemon binary: npm run build:daemon:dist',
       );
     } else {
-      // Binary missing without an override — typical fresh dev clone.
-      // Not a failure; it just means the developer hasn't built yet.
+      // "Missing" means different things packaged vs source, and the old message lied to
+      // brew users ("run npm run build:daemon:dist" — there is no source tree). A compiled/
+      // Homebrew `pd` has NO separate dist/daemon binary; the daemon is bundled INTO the
+      // compiled binary, which is correct. Only a source checkout is genuinely "not built".
+      const isPackaged = !existsSync(join(libDir, 'package.json'));
       check(
         'Resource directory',
         true,
-        `${lines.join('; ')} (binary not built — run npm run build:daemon:dist when you need it)`,
+        isPackaged
+          ? `${lines.join('; ')} (packaged install — the daemon is bundled in the compiled binary; no separate dist/daemon binary is expected)`
+          : `${lines.join('; ')} (binary not built — run npm run build:daemon:dist when you need it)`,
       );
     }
   } catch (err: unknown) {
@@ -2335,7 +2372,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     const pkgPathForVersion = join(libDir, 'package.json');
     const cliVersion: string = existsSync(pkgPathForVersion)
       ? (JSON.parse(readFileSync(pkgPathForVersion, 'utf8')) as { version?: string }).version ?? 'unknown'
-      : process.env.PORT_DADDY_PACKAGE_VERSION || 'unknown';
+      : process.env.PORT_DADDY_PACKAGE_VERSION || EMBEDDED_PACKAGE_VERSION;
     const facts = await gatherHarborFacts({
       daemonReachable: daemonRunning,
       daemonVersion: daemonRunning && daemonData ? String(daemonData.version ?? '') || null : null,

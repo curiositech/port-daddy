@@ -247,7 +247,8 @@
         "GET /actors/:param/inbox",
         "GET /actors/:param/inbox/stats",
         "PUT /actors/:param/inbox/read-all",
-        "POST /actors/:param/message"
+        "POST /actors/:param/message",
+        "POST /actors/register"
       ],
       "completions": [
         "actor",

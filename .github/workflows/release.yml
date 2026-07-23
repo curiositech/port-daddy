@@ -53,6 +53,16 @@ jobs:
       - name: Build dedicated daemon binary
         run: npm run build:daemon:dist
 
+      # Bosun is now a REQUIRED watchdog: the compiled-daemon smoke runs `pd doctor`,
+      # which criticals a missing supervisor. Build it BEFORE the smoke so the booted
+      # daemon resolves core/target/release/pd-bosun. (The step below also stages it
+      # flat into dist/ for the release tarball.)
+      - name: Install Rust toolchain (for pd-bosun watchdog)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build pd-bosun before the smoke (required watchdog)
+        run: npm run build:bosun
+
       - name: Smoke dedicated daemon binary
         run: bash scripts/smoke-compiled-daemon.sh
 

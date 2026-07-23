@@ -133,6 +133,18 @@ async function ensureDaemonInstalledAndRunning(): Promise<boolean> {
     return true;
   }
 
+  // A packaged / Homebrew install has no source `tsx` or `install-daemon.ts` — PROJECT_ROOT
+  // resolves off the compiled binary (often `/`), so those paths don't exist. The tsx-based
+  // install below only works in a source checkout; attempting it from a brew build fails and
+  // printed a FAKE remediation (`pd daemon install`, which is not a real subcommand — see
+  // `pd daemon <list|status|start|stop|env>`). A packaged daemon is supervised by Homebrew,
+  // not installed via `pd setup`. Detect that and give an honest, REAL command instead.
+  if (!existsSync(TSX_BIN) || !existsSync(INSTALL_DAEMON_SCRIPT)) {
+    ui.error('Daemon is not reachable, and `pd setup` cannot install it from a packaged build');
+    installRemediation('Daemon', 'brew services restart port-daddy');
+    return false;
+  }
+
   ui.step('Installing Port Daddy daemon');
   const install = spawnSync(TSX_BIN, [INSTALL_DAEMON_SCRIPT, 'install'], {
     cwd: PROJECT_ROOT,
@@ -141,7 +153,7 @@ async function ensureDaemonInstalledAndRunning(): Promise<boolean> {
 
   if ((install.status ?? 1) !== 0) {
     ui.error('Daemon install failed');
-    installRemediation('Daemon', 'pd daemon install && pd daemon start');
+    installRemediation('Daemon', 'pd daemon start   (or: brew services restart port-daddy)');
     return false;
   }
 

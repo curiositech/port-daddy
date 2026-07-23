@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.26.4] - 2026-07-23
+
+### Fixed
+- **Completes the "Bosun watchdog survives `brew upgrade`" fix (3.26.3).** 3.26.3 made the plist's `ExecStart` reference the stable `<prefix>/bin/pd-bosun` symlink, but three OTHER launch-critical fields — `WorkingDirectory`, `StandardOutPath`, and `StandardErrorPath` — still embedded the versioned Cellar keg path (`join(__dirname, …)`), which the next `brew upgrade` deletes. launchd cannot `chdir` to a missing WorkingDirectory or open a log file under a deleted keg, so the watchdog would still fail to launch (`EX_CONFIG`) on the upgrade after next. Those now use the version-independent durable home (`~/.port-daddy/pd-bosun.log`, WorkingDirectory `~/.port-daddy`), so every launch-critical field in `com.portdaddy.bosun.plist` is now upgrade-stable.
+
+## [3.26.3] - 2026-07-23
+
+### Fixed
+- **The Bosun watchdog survives `brew upgrade` — it no longer points at a deleted keg.** The generated `com.portdaddy.bosun.plist` embedded a **versioned** Cellar path (e.g. `.../3.26.1_2/bin/pd-bosun`); the next `brew upgrade` deletes that keg, so launchd's `ExecStart` failed with `EX_CONFIG` and a crashing daemon (the known upstream Bun 1.2.21 #676 segfault family) no longer auto-restarted — turning an ordinary crash into a silent outage until someone re-ran `port-daddy install-bosun` by hand. The plist now references the **version-stable `<prefix>/bin/pd-bosun` symlink** that Homebrew repoints on every upgrade, so it stays valid across upgrades. The formula's `post_install` already calls `install-bosun`, so this makes that regeneration produce a durable plist (derived from `process.execPath`, covering both the brew-symlink invocation and the brew-keg invocation during `post_install`). Non-Homebrew/source installs are unchanged (they fall back to the existing resolver).
+
+## [3.26.2] - 2026-07-23
+
+### Fixed
+- **`pd doctor` no longer exits 0 while the daemon is DOWN.** The biggest doctor lie: a failed check only ever emitted `warn`, never `critical`, so `pd doctor --ci`/`--json` returned exit 0 (a green build) over an unreachable or not-running daemon. Daemon-unreachable / invalid-health / not-running are now CRITICAL and gate the exit code. A CI honesty-gate assertion (`scripts/ci-doctor-gate.sh`) runs `pd doctor` against a dead port and fails the build if it exits 0.
+- **`pd setup` works from a Homebrew install instead of failing with a fake remediation, and the "Resource directory" check stops lying.** Root cause: for a compiled `pd` binary, `__dirname` collapses to `/`, so `resolveDistributionRoot` returned `/` — making everything resolve under the filesystem root (`resolvedRoot=/`, `expectedBinary=/dist/daemon/… MISSING`). That made `pd setup` run a non-existent `/node_modules/.bin/tsx install-daemon.ts` (→ "Daemon install failed" → the fake `pd daemon install` remediation, which is not a real subcommand), and made doctor's "Resource directory" check report a green ✓ while broken. `resolveDistributionRoot` now routes `/` through execPath resolution (like a bun-virtual path), `pd setup` detects a packaged build and gives a real remediation (`brew services restart port-daddy`), and the Resource-directory check reports "packaged install — the daemon is bundled in the compiled binary" instead of the source-only "run npm run build:daemon:dist".
+- **`pd doctor` stops overstating "the daemon is crash-looping".** The Bun-crash check scans the (possibly unrotated) daemon-log tail, so historical crash banners made it assert a present-tense crash-loop even on a stable daemon. It now says the daemon "has crashed repeatedly … check `pd status` uptime for the live state" — still CRITICAL when banners are present, but no longer a false present-tense claim.
+- **`pd doctor` version checks stop reading "CLI vunknown".** The compiled `pd` has no sibling `package.json`, so the CLI self-version fell back to `unknown` and then advised a pointless restart. It now reads a stamped `EMBEDDED_PACKAGE_VERSION` (synced every release by `scripts/sync-version.ts`, same mechanism as `server.ts`).
+
+## [3.26.1] - 2026-07-23
+
+### Fixed
+- **The Bosun watchdog is now correctly detected on a Homebrew install, and a genuinely-missing watchdog is a REQUIRED (critical) doctor failure, not a warning.** `resolveBosunBinaryPath` only looked for the supervisor flat at `<root>/pd-bosun` plus source/dist fallbacks — never `<root>/bin/pd-bosun`, which is exactly where brew installs it next to `pd`. So `pd doctor` reported "pd-bosun binary not built" on every brew install *even while the daemon's own `guardians.bosun` reported the binary present and the heartbeat healthy* (reproduced live on 3.26.0). Two fixes: (1) the resolver now also checks `<root>/bin/pd-bosun` and `<root>/libexec/bin/pd-bosun`; (2) the doctor check trusts the daemon's authoritative `guardians.bosun.binaryExists`/state over its own local path guess when the daemon is reachable, and escalates a truly-absent watchdog to CRITICAL so a supervisor-less build fails `pd doctor` (non-zero exit) instead of shipping with a silent warning. The CI release + smoke jobs now build `pd-bosun` before the doctor gate, so CI proves the watchdog actually ships.
+- **`pd doctor` can no longer report ✓ healthy for a check it never actually ran.** Three checks — DB fragmentation, Stuck lsof processes, and Shell-idiom `.env.local` — caught their own probe failure and reported `✓ "Could not check (skipped)"`, turning "I couldn't look" into "it's fine." They now surface as a WARN (unknown), never a green pass.
+- **`pd doctor` no longer calls a live process "stale".** Stale-services and PID-file checks used a bare `process.kill(pid,0)` that treats **EPERM** (a live process owned by another uid) as dead — advising deletion of a running daemon's pidfile. Both now reuse `isPidAlive`, which correctly treats EPERM as alive.
+- **A CI honesty gate (`scripts/ci-doctor-gate.sh`) now fails the build if `pd doctor` lies:** it runs the *compiled* `pd doctor --json` against a freshly-booted daemon and asserts no check reports OK while admitting it could not check, the Bosun watchdog is present (never the "not built" false-negative), and the report actually ran its full check set (no short-circuit to a tiny green report).
+
 ## [3.26.0] - 2026-07-23
 
 ### Added
