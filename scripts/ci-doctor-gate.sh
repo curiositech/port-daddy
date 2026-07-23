@@ -127,8 +127,38 @@ printf '%s' "$DOCTOR_JSON" | node -e '
     if (r.summary.critical > 0) {
       console.error("FAIL: doctor reports " + r.summary.critical + " CRITICAL check(s)"); process.exit(1);
     }
+    // ── HONESTY INVARIANTS (a health check that lies is worse than none) ───────
+    // The doctor must actually have run its checks, not short-circuit to a tiny
+    // green report (the empty-registry-reads-green failure class).
+    if (r.checks.length < 20) {
+      console.error("FAIL: doctor only ran " + r.checks.length + " checks — suspiciously short (short-circuit?)");
+      process.exit(1);
+    }
+    // NO check may report ok:true while its own detail admits a probe FAILED.
+    // Match only failure phrasings ("could not", "unable to") — NOT legitimate
+    // platform skips ("Skipped on linux", "macOS-only"), which are honest N/A, not lies.
+    const CANT = /\b(could ?not|couldn.t|unable to)\b/i;
+    const liars = r.checks.filter(c => c.ok === true && CANT.test(c.detail || ""));
+    if (liars.length) {
+      console.error("FAIL: " + liars.length + " check(s) report OK while admitting they could not check:");
+      for (const c of liars) console.error("  - " + c.name + ": " + c.detail);
+      process.exit(1);
+    }
+    // The Bosun watchdog is REQUIRED and was built above — it must be present and
+    // must NOT emit the old "binary not built" false-negative on a healthy daemon.
+    const bosun = r.checks.find(c => c.name === "Bosun watchdog");
+    if (!bosun) { console.error("FAIL: no Bosun watchdog check present"); process.exit(1); }
+    if (bosun.severity !== "ok") {
+      console.error("FAIL: Bosun watchdog is REQUIRED but not ok: " + bosun.severity + " — " + bosun.detail);
+      process.exit(1);
+    }
+    if (/not built/i.test(bosun.detail || "")) {
+      console.error("FAIL: Bosun watchdog reported the false-negative \"not built\" while the watchdog was built");
+      process.exit(1);
+    }
     console.log("OK: pd doctor --json severity=" + r.severity +
-      " (" + r.summary.ok + " ok, " + r.summary.warn + " warn, " + r.summary.critical + " critical)");
+      " (" + r.summary.ok + " ok, " + r.summary.warn + " warn, " + r.summary.critical + " critical); " +
+      "honesty invariants held across " + r.checks.length + " checks");
   });
 '
 
