@@ -159,17 +159,13 @@ files held by which other sessions. Then:
    claim holder, or post in the project channel. Resolve by file
    partition, symbol partition, or merge order — never by force.
 
-`PD_SHIM_OFF=1 git <verb>` exists as an emergency escape (recovery,
-guard debugging, the rare integration commit the user explicitly
-sanctions). Using it without explicit user direction is the same class
-of mistake as `--no-verify` on commit hooks: it bypasses a safety the
-user installed deliberately. If the shim is wrong about your situation,
-fix the guard input (claim more files; release a stale claim; explain
-why with a `pd note`); do not disable the shim.
-
-If you ever catch yourself typing `PD_SHIM_OFF=1` reflexively, stop and
-read the refusal again. It is almost always pointing at a real
-coordination problem, not at itself.
+**There is no in-band escape.** A refused verb is refused. The shim
+gives you no environment flag to stand it down, because a refusal
+almost always points at a real coordination problem, not at itself. If
+the shim is wrong about your situation, fix the *guard input* — claim
+more files, release a stale claim, explain why with a `pd note` — and
+retry. Do not look for a way around the refusal; there isn't one, and
+searching for one is itself the mistake.
 
 ## See also
 
