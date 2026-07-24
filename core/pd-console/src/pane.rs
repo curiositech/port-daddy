@@ -140,6 +140,18 @@ pub enum Block {
         label: String,
         tone: Tone,
     },
+    /// A [`Block::Chip`] that additionally asserts "this is happening right now" —
+    /// a small breathing dot ahead of the label, not the whole chip pulsing (label
+    /// text stays fully legible and doesn't strobe). Static renderers (ratatui,
+    /// the CPU raster) paint it identically to `Chip`; only the GPUI face animates
+    /// it, since neither of the others has a frame loop to animate against. Use
+    /// this sparingly — reach for it only when the tone alone doesn't already
+    /// communicate liveness (an "alive" agent, an in-flight run), not as a default
+    /// upgrade over `Chip`.
+    PulseChip {
+        label: String,
+        tone: Tone,
+    },
     /// A maritime ICS signal flag: a colored square bearing the single letter,
     /// followed by a label (e.g. the agent identity + state). The console paints
     /// the square in the flag's semantic tone — a real flag, not `[A]` text.

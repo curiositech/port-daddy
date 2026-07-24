@@ -132,14 +132,16 @@ impl Pane for ActiveAgentsPane {
 
         blocks.push(Block::Gap);
         for agent in &self.agents {
-            let tone = if agent.liveness == "alive" {
-                Tone::Engaged
+            let alive = agent.liveness == "alive";
+            let tone = if alive { Tone::Engaged } else { Tone::Gated };
+            let label = format!("{} - {}", trunc(&agent.label, 28), agent.liveness);
+            // Alive agents get the breathing-dot chip (this IS happening right now);
+            // anything else is a plain Chip — pulsing a dead/gated entry would be a
+            // false liveness signal, not decoration.
+            blocks.push(if alive {
+                Block::PulseChip { label, tone }
             } else {
-                Tone::Gated
-            };
-            blocks.push(Block::Chip {
-                label: format!("{} - {}", trunc(&agent.label, 28), agent.liveness),
-                tone,
+                Block::Chip { label, tone }
             });
             blocks.push(Block::KeyVal(
                 "  harness".into(),
@@ -295,5 +297,55 @@ mod tests {
         let blocks = pane.view();
         assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  stream" && v.contains("pd agent stream agent-1"))));
         assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  takeover" && v.contains("session-1"))));
+    }
+
+    /// Alive agents get the breathing-dot chip (a false liveness pulse on a dead
+    /// entry would be worse than no pulse at all); anything else stays a plain
+    /// Chip.
+    #[test]
+    fn alive_agents_get_pulse_chip_others_get_plain_chip() {
+        let mut pane = ActiveAgentsPane::default();
+        pane.agents = vec![
+            ActiveAgentEntry {
+                id: "agent-1".into(),
+                label: "builder".into(),
+                purpose: String::new(),
+                liveness: "alive".into(),
+                harness: String::new(),
+                backend: String::new(),
+                worktree: String::new(),
+                branch: String::new(),
+                session_id: String::new(),
+                touched: vec![],
+                last_heartbeat_ms: 0,
+            },
+            ActiveAgentEntry {
+                id: "agent-2".into(),
+                label: "idle-one".into(),
+                purpose: String::new(),
+                liveness: "stale".into(),
+                harness: String::new(),
+                backend: String::new(),
+                worktree: String::new(),
+                branch: String::new(),
+                session_id: String::new(),
+                touched: vec![],
+                last_heartbeat_ms: 0,
+            },
+        ];
+
+        let blocks = pane.view();
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::PulseChip { label, tone: Tone::Engaged } if label.contains("builder")
+        )));
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::Chip { label, tone: Tone::Gated } if label.contains("idle-one")
+        )));
+        assert!(
+            !blocks.iter().any(|block| matches!(block, Block::PulseChip { label, .. } if label.contains("idle-one"))),
+            "a non-alive agent must never get the breathing-dot chip"
+        );
     }
 }

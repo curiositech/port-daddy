@@ -386,7 +386,13 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
                     y += ROW_H;
                 }
             }
-            Block::Chip { label, tone } => {
+            Block::Chip { label, tone } | Block::PulseChip { label, tone } => {
+                // This is the Block-model raster, not the GPUI/Metal framebuffer — it
+                // has no frame loop to animate against, so PulseChip paints exactly
+                // like Chip here. The pulse is a GPUI-only affordance (see app.rs's
+                // render_block); this face renders its static final state, which is
+                // the correct "reduced motion" resolution for a renderer that can't
+                // move at all.
                 let col = tone_rgb(*tone, t);
                 let w = label_w(label, 2).min(inner);
                 c.fill_rect(x0, y + 4, w, ROW_H - 10, col);

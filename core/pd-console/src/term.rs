@@ -519,7 +519,10 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                 ));
                 i += 1;
             }
-            Block::Chip { label, tone } => {
+            // A terminal has no frame loop either — PulseChip's breathing dot is a
+            // GPUI-only affordance (see app.rs's render_block); here it paints
+            // exactly like Chip, its correct static final state.
+            Block::Chip { label, tone } | Block::PulseChip { label, tone } => {
                 let sem = tone.sem();
                 out.push_str(&format!(
                     "  {} {}\n",
@@ -653,6 +656,28 @@ mod tests {
         assert!(!out.contains('\x1b'), "plain mode leaked ANSI: {out:?}");
         assert!(out.contains("Fleet"));
         assert!(out.contains("✓ ok"));
+    }
+
+    /// A terminal has no frame loop — PulseChip must render identically to a
+    /// plain Chip here (the GPUI breathing dot is the only face that animates).
+    #[test]
+    fn pulse_chip_renders_identically_to_chip_in_a_static_face() {
+        let s = plain();
+        let chip = render_blocks(
+            &[Block::Chip {
+                label: "agent-x - alive".into(),
+                tone: Tone::Engaged,
+            }],
+            &s,
+        );
+        let pulse_chip = render_blocks(
+            &[Block::PulseChip {
+                label: "agent-x - alive".into(),
+                tone: Tone::Engaged,
+            }],
+            &s,
+        );
+        assert_eq!(chip, pulse_chip);
     }
 
     #[test]

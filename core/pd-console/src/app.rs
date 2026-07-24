@@ -1620,6 +1620,27 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                 .child(label)
                 .into_any_element()
         }
+        Block::PulseChip { label, tone } => {
+            let color_u32 = tone_rgb(&tone);
+            let ink_u32 = knockout_ink(color_u32);
+            let dot_id = SharedString::from(format!("pulse-chip/{label}"));
+            div()
+                .mx(px(tokens::SPACE_3))
+                .my(px(tokens::SPACE_1))
+                .px(px(8.0))
+                .py(px(3.0))
+                .bg(rgb(color_u32))
+                .text_color(rgb(ink_u32))
+                .font_family("IBM Plex Mono")
+                .text_size(px(tokens::TEXT_CAPTION))
+                .font_weight(FontWeight::BOLD)
+                .flex()
+                .items_center()
+                .gap(px(5.0))
+                .child(pulse_dot(ink_u32, dot_id, reduced_motion()))
+                .child(label)
+                .into_any_element()
+        }
         Block::Flag {
             letter,
             label,
@@ -5357,6 +5378,34 @@ fn chat_error_banner(reason: &str) -> AnyElement {
                 .child(chat_error_display_text(reason)),
         )
         .into_any_element()
+}
+
+/// A breathing status dot for [`Block::PulseChip`] — "this is happening right
+/// now," painted at a fixed size in the chip's own ink color so it reads on
+/// any tone. Deliberately animates *only* this small leaf (opacity, via the
+/// same `pulsating_between` primitive as [`chat_caret`]) rather than the whole
+/// chip — pulsing the chip's opacity would make the label text strobe along
+/// with it, which trades readability for flourish. `id` must be stable and
+/// unique per call site across re-renders (the caller derives one from the
+/// chip's label) so gpui keeps animating the same logical dot instead of
+/// restarting a fresh one every frame. Under reduced motion, resolves to a
+/// static filled dot: the liveness cue survives, only the journey is dropped.
+fn pulse_dot(color_u32: u32, id: SharedString, reduced: bool) -> AnyElement {
+    let dot = div()
+        .size(px(6.0))
+        .rounded_full()
+        .bg(rgb(color_u32));
+    if reduced {
+        return dot.into_any_element();
+    }
+    dot.with_animation(
+        id,
+        Animation::new(Duration::from_millis(1400))
+            .repeat()
+            .with_easing(pulsating_between(0.35, 1.0)),
+        |el, delta| el.opacity(delta),
+    )
+    .into_any_element()
 }
 
 /// The blinking composer caret — a painted "▏" in accent, pulsed over 1100ms

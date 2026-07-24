@@ -187,6 +187,7 @@ pub fn block_to_json(block: &Block) -> Value {
             json!({"type": "image", "label": label, "path": path, "imagePath": image_path})
         }
         Block::Chip { label, .. } => json!({"type": "chip", "label": label}),
+        Block::PulseChip { label, .. } => json!({"type": "pulse-chip", "label": label}),
         Block::Flag { letter, label, .. } => {
             json!({"type": "flag", "letter": letter.to_string(), "label": label})
         }
