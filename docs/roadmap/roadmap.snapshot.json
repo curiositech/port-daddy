@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1784407352800,
+  "generatedAt": 1784417300739,
   "harbor": "port-daddy",
-  "source": "http://127.0.0.1:9877",
-  "count": 229,
+  "source": "http://127.0.0.1:9876",
+  "count": 232,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -16,8 +16,8 @@
     },
     {
       "slug": "actor-identity-minimal-slice",
-      "status": "backlog",
-      "summaryMd": "0040 minimal build — the SINGLE unbuilt dependency blocking FIVE subsystems (phonebook reputation, commitments, budget-ledger integrity, parley --as trust, Lookout continuity). Today identity is 100% forgeable: actor-roster.ts is a static alias table not a minting system, budget-guard keys on raw self-asserted agentId, commitments.ts self-admits the gap. Slice: daemon POST /actors/register mints a ULID bound to the actor-souls credential (ADR-0022) or a per-machine keypair; budget/commitments/parley key on the minted id; --as becomes a display alias over the minted id, never the identity. Owner: identity dispatch. Decision-type: empirical. Blocked-by: daemon-down-hard-stop-mandate (identity minting must itself refuse when the daemon door is not real). Acceptance: an agent cannot pay/commit/parley under an id it did not register; a reset produces a NEW id (Sybil is visible, not free)."
+      "status": "now",
+      "summaryMd": "ADR-0040 keystone: daemon-minted, non-forgeable actor identity (actor-souls). Selector.verifier lookup-token credential, fail-closed above newcomer floor / fail-open-at-bounded-shared-pool below it. Anti-launder core: minting fresh ids buys no new budget. Full guarantee depends on door (PR #2582) write-boundary being fully enforced."
     },
     {
       "slug": "adr-0019-declarative-fleet-yaml",
@@ -575,6 +575,11 @@
       "summaryMd": "Mechanical binder truth fixes from the 2026-07-14 AoR run: (1) add maturity status headers (shipped/partial/target) to ch01-08 and ch10; (2) fix ch19:56 false verified path apps/pd-console -> core/pd-console (CR-10); (3) define or delete the undefined Antigravity body kind in ch07:81 (CR-9); (4) name an accountable owner in the 7 ownerless work-packets; (5) adopt the rule that every binder-aor-log pd note is mirrored into ch17 or a repo ledger file (the 2026-07-10 note was lost to daemon DB churn). Acceptance: grep for 'Status:' hits all 21 chapters; grep apps/pd-console in binder returns 0; every work-packet names an owner; the mirroring rule is written into ch16."
     },
     {
+      "slug": "binder-skills-durable-agents-vocabulary",
+      "status": "backlog",
+      "summaryMd": "Graft the durable-agents-landscape research vocabulary (micro/macro compaction, wake-source taxonomy, hibernate-vs-resume, context-reconstruction tiers) into the agent-harbor technical binder chapters and the context-economics / agent-identity skills. Tracked by PR #3138."
+    },
+    {
       "slug": "boot-migrator-schema-epoch",
       "status": "backlog",
       "summaryMd": "Spawned by ADR-0090 Amendment 1 (PR #2156): Replace scattered warn-and-continue ALTER blocks with PRAGMA user_version epoch + ordered MIGRATIONS registry (up+verify per entry), fail-closed boot, automatic pre-migration VACUUM INTO stamp, version-skew rule (newer-epoch DB puts older binary in read-only). Acceptance: user_version stamps advance per migration; a gutted verify probe aborts boot; an older binary opening a newer-epoch DB refuses writes with a loud warning."
@@ -823,6 +828,11 @@
       "slug": "guard-enforcement-messaging-integrity",
       "status": "backlog",
       "summaryMd": "Coordination Guard messaging is inconsistent with its enforcement, training agents into alarm fatigue: observed repeatedly 2026-07-14 that (a) 'Port Daddy: commit blocked by Coordination Guard' prints while the commit actually LANDS (verified by git log immediately after, multiple times), and (b) the '1 commit(s) have no coordination note' rent complaint keeps firing after the note was paid (stale count). An enforcement gate whose 'blocked' means 'proceeded anyway' and whose debt counter doesn't clear teaches every agent to ignore it — the worst possible property for a guard. Fix: make the block message truthful (if the hook allows the commit, say ADVISORY; if it blocks, actually exit non-zero before the commit object is created), and recompute the unpaid-rent count after note writes within the same session. Acceptance: a deliberately rent-unpaid commit either lands with an ADVISORY-labeled message or is actually absent from git log — never 'blocked'+landed; paying a note clears the counter on the next check."
+    },
+    {
+      "slug": "guard-merge-blast-radius-fix",
+      "status": "now",
+      "summaryMd": "Fix coordination-guard stagedFiles() misattributing a merge's pass-through files (from origin/main) to the merging session's blast radius, causing false claim-collision blocks on rebase-forward commits. Root cause: pre-commit diff against stale HEAD instead of MERGE_HEAD during an in-progress merge. Shipped as PR #3130."
     },
     {
       "slug": "guard-stash-pop-interception",
@@ -1148,6 +1158,11 @@
       "slug": "workintent-dispatch-isolation",
       "status": "backlog",
       "summaryMd": "fix(dispatch): isolate WorkIntent worktrees"
+    },
+    {
+      "slug": "pr2596-qa-gap-fixes",
+      "status": "now",
+      "summaryMd": "fix(wiring): close PR #2596 pd-qa gaps — onSessionEnd wiring test + capsule validation. Adds a test proving Custodian.onSessionEnd is actually wired at the real call site, plus hardens normalizeSelfSalvage so a malformed/forged self-salvage capsule (undefined, wrong-typed fields, invalid enum, forged identityProject) never crashes onAgentDead and never reaches the resurrection queue unsanitized. Shipped as PR #3141."
     }
   ]
 }

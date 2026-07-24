@@ -98,11 +98,31 @@ async function fetchSessionSignal(sessionId: string): Promise<SessionSignal> {
 }
 
 /**
+ * The outcome of a commit-time rent probe. A discriminated union so the caller
+ * can distinguish "verified: N un-noted commits" from "coordination truth could
+ * NOT be read." The old signature returned `0` for both, which fails OPEN: a
+ * daemon that is down (or up-but-erroring on the notes endpoint) looked identical
+ * to "all commits are noted," so the note-per-commit invariant silently
+ * evaporated exactly when the coordination layer was broken.
+ *
+ * Discriminant is the `ok` literal (literal-tagged union, narrowed via
+ * `if (!probe.ok)`, never `as`).
+ */
+export type RentProbe =
+  | { readonly ok: true; readonly commitsSinceLastNote: number }
+  | { readonly ok: false; readonly reason: string };
+
+/**
  * The guard's narrow need: how many commits on this lease have NO coordination
  * note published after them. A commit "after the last note" is un-noted rent.
- * Fails open (returns 0) on any daemon/git failure.
+ *
+ * FAILS CLOSED at commit time: if coordination truth cannot be read (daemon down,
+ * or up-but-erroring), returns `{ ok:false }` so the caller blocks the commit
+ * rather than silently charging zero rent. The reaper's fuller `gatherLeaseFacts`
+ * deliberately stays fail-OPEN (it must never reclaim a live sandbox on a daemon
+ * hiccup) — only this commit-time probe flips to fail-closed.
  */
-export async function gatherCommitsSinceLastNote(sessionId: string, cwd: string): Promise<number> {
+export async function gatherCommitsSinceLastNote(sessionId: string, cwd: string): Promise<RentProbe> {
   try {
     const { noteTimesMs } = await fetchSessionSignal(sessionId);
     const latestNote = noteTimesMs.length ? noteTimesMs[noteTimesMs.length - 1] : 0;
@@ -110,11 +130,12 @@ export async function gatherCommitsSinceLastNote(sessionId: string, cwd: string)
     // A commit pays its rent when a note is published AFTER it. Count commits
     // with no later note — i.e. commits strictly after the latest note (a commit
     // at the exact note timestamp is treated as noted, the lenient choice).
-    return commitTimes.filter((t) => t > latestNote).length;
-  } catch {
-    // Fail open: if coordination truth can't be read, charge no rent rather than
-    // wedge the commit (the claim discipline still bites).
-    return 0;
+    return { ok: true, commitsSinceLastNote: commitTimes.filter((t) => t > latestNote).length };
+  } catch (err) {
+    // Coordination truth is unreadable during a commit — surface it as an
+    // explicit failure so `pd guard check` fails CLOSED, instead of the old
+    // silent "0 rent owed" that let a broken daemon wave every commit through.
+    return { ok: false, reason: (err as Error)?.message || 'daemon coordination read failed' };
   }
 }
 

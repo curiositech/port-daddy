@@ -267,6 +267,20 @@ The PR template (`.github/PULL_REQUEST_TEMPLATE.md`) pre-stubs both — keep the
 headings and the trailer line, fill in the prose. Both report on `merge_group`
 as pass-throughs, so a PR that is green at PR time never hangs the queue.
 
+**Branch protection on `main` is a ruleset** (`main merge queue`, id `17604542`),
+not classic protection — 18 required checks with `strict` off, merge queue
+(REBASE), linear history, and an admin `pull_request` bypass valve (never remove
+it: a stuck required check would otherwise freeze every merge). Full runbook:
+[`docs/operator/branch-protection-ruleset.md`](docs/operator/branch-protection-ruleset.md).
+Two rules learned the hard way when touching it:
+- **Edit the ruleset with `PUT`, not `PATCH`** — `PATCH` returns a misleading
+  `404`. Build the full body from a live `GET` (a partial body wipes the required
+  checks). The operator runs the mutation via `!` (auto-mode blocks ruleset edits).
+- **Never require a workflow filtered only by `on.*.paths`** — it never reports on
+  unrelated PRs and freezes the queue. A required workflow must also trigger on
+  `merge_group` (always-run, or skip = pass). `proofs`, `whitepaper-build`, and
+  `whitepaper-metadata` are now `merge_group`-safe for exactly this reason.
+
 Every PR opened in this repo MUST go through skeptical adversarial review
 before merging. The author cannot self-approve by typing "looks good." The
 flow is:

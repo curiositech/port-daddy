@@ -96,6 +96,7 @@ import { createCostTracker } from './lib/cost-tracker.js';
 import { createCloudAppTelemetry } from './lib/cloud-app-telemetry.js';
 import { createContextWindowTracker } from './lib/context-window-tracker.js';
 import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
+import { normalizeSelfSalvage } from './lib/telos-salvage.js';
 import { createOperatorPermissions } from './lib/operator-permissions.js';
 import { createCounters } from './lib/counters.js';
 import { createMetricsRegistry } from './lib/metrics-registry.js';
@@ -115,6 +116,8 @@ import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
 import { createLocalEmbedder, createSemanticResolver, defaultTransformersCacheDir } from './lib/semantic-resolver.js';
+import { installGovernor } from './lib/observability/index.js';
+import { createObservabilityMaintenance } from './lib/observability/maintenance.js';
 import { createGalaxy } from './lib/galaxy.js';
 import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
@@ -189,7 +192,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.25.2';
+const EMBEDDED_PACKAGE_VERSION: string = '3.26.0';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -330,6 +333,11 @@ if (!isSilent && process.env.NODE_ENV !== 'production') {
   }));
 }
 
+// Install the process-wide governed logger over winston. Loop/tick call sites log through this
+// (dedup + rate-limit + sampling + correlation) so a persistently-failing operation can never again
+// storm the logs the way `semantic_resolution_failed` did (7,182 lines → a 255 MB stdout capture).
+const governor = installGovernor(logger, { windowMs: 60_000, burst: 3 });
+
 // =============================================================================
 // DATABASE + PATHS (identical to server.ts)
 // =============================================================================
@@ -452,7 +460,10 @@ function isInSleepGracePeriod(): boolean {
   return Date.now() < sleepGraceUntil;
 }
 
-const db: DatabaseInstance = initDatabase({ dbPath: DB_PATH });
+// The daemon IS the write-boundary (the Door): it opens with owner semantics and
+// is the single legitimate writer of the registry. Non-daemon openers use
+// role:'client' and get a write-guarded handle.
+const db: DatabaseInstance = initDatabase({ dbPath: DB_PATH, role: 'daemon' });
 
 // =============================================================================
 // MODULE INITIALIZATION (identical to server.ts)
@@ -474,6 +485,7 @@ const semanticResolver = createSemanticResolver(db, {
   graphEdges,
   tuples,
   logger,
+  governor,
 });
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
 const quorum = createQuorum({ tuples });
@@ -488,6 +500,23 @@ const locks = createLocks(db);
 const health = createHealth(db, services as Parameters<typeof createHealth>[1]);
 const agents = createAgents(db, { semanticIndex });
 const activityLog = createActivityLog(db);
+
+// Observability maintenance: on each cleanup tick, prune the audit-identified unbounded tables
+// (harbor_issued_tokens, semantic_resolution_events), reclaim freed pages, and sample the daemon's
+// own DB/WAL/row footprint — raising a durable RESOURCE_ALARM before a runaway can reach 313 GB.
+const observabilityMaintenance = createObservabilityMaintenance({
+  db,
+  dbPath: DB_PATH,
+  governor,
+  onCritAlarm: (alarm) => {
+    try {
+      activityLog.log(ActivityType.RESOURCE_ALARM, {
+        details: `resource ceiling crossed: ${alarm.metric}`,
+        metadata: { metric: alarm.metric, value: alarm.value, threshold: alarm.threshold, severity: alarm.severity },
+      });
+    } catch { /* durable-audit best effort; the governed log already fired */ }
+  },
+});
 // Durable commitments + obligation monitor (ADR-0041 first slice). The
 // obligation half of accountability: resurrection watches heartbeats, this
 // watches promises. The monitor is a PURE runtime check over SQLite (Law 4 —
@@ -944,8 +973,21 @@ resurrection.on('agent:dead', (agent) => {
     // verified StaleAgent record — never from the forgeable capsule. Passing scope as a
     // distinct argument makes a forged `capsule.identityProject` structurally unable to
     // influence the operator-permission check (ADR-0040 trust boundary).
-    const capsule = resurrection.getSalvageCapsule(agent.id);
-    void custodian.onAgentDead(agent.id, agent.identityProject ?? '', capsule);
+    //
+    // The raw capsule read back from resurrection.getSalvageCapsule() is only guaranteed
+    // to be *some* plain object (see resurrection.ts's getSalvageCapsule — it just checks
+    // `typeof === 'object'`), never that it matches SelfSalvageCapsule's shape. Run it
+    // through the same normalizeSelfSalvage() producer contract that governs the capsule
+    // elsewhere (telos-salvage.ts) before handing it to the custodian, so a malformed or
+    // corrupted capsule degrades to `undefined` respawn context instead of propagating an
+    // arbitrary shape into the resurrection_context inbox message / operator approval
+    // payload.
+    const rawCapsule = resurrection.getSalvageCapsule(agent.id);
+    const salvage = normalizeSelfSalvage(rawCapsule);
+    if (rawCapsule && !salvage.success) {
+      logger.warn('salvage_capsule_invalid', { agentId: agent.id, error: salvage.error });
+    }
+    void custodian.onAgentDead(agent.id, agent.identityProject ?? '', salvage.capsule as Record<string, unknown> | undefined);
   }
 });
 
@@ -1088,6 +1130,10 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
   sessions.cleanup();
   agentInbox.cleanup();
   resurrection.cleanup();
+  // Unified retention sweep + page reclaim + self-footprint sample (see createObservabilityMaintenance).
+  try { observabilityMaintenance.tick(); } catch (err) {
+    governor.governed({ key: 'observability_maintenance_failed', level: 'error', message: 'observability_maintenance_failed', meta: { error: (err as Error).message } });
+  }
   db.pragma('wal_checkpoint(PASSIVE)');
   metrics.total_cleanups++;
   return serviceResult;
@@ -1477,6 +1523,8 @@ function shutdown(signal: string): void {
   }
   // Flush counters before closing DB (pending in-memory batches)
   try { counters.shutdown(); } catch {}
+  // Flush any pending log-suppression rollups so a governed tail isn't lost on exit.
+  try { governor.flushAll(); } catch {}
   try { tunnel.stopAll(); } catch {}
   try { tunnel.dispose?.(); } catch {}
   try { bosunHeartbeat.stop(); } catch {}
@@ -1502,6 +1550,27 @@ process.on('SIGHUP', () => {
   } catch (err) {
     logger.error('fleet_reload_failed', { error: (err as Error).message });
   }
+});
+
+// Global failure visibility — previously ABSENT (the audit's top dev-dogfooding gap). Without these,
+// an unhandled rejection crashed the daemon with a terse message (Node ≥15 terminates by default) and
+// a corrupting exception went unlogged. Governed so a flapping async fault can't itself become spam.
+process.on('unhandledRejection', (reason: unknown) => {
+  governor.governed({
+    key: 'unhandled_rejection',
+    level: 'error',
+    message: 'unhandled_rejection',
+    meta: {
+      error: reason instanceof Error ? reason.message : String(reason),
+      stack: reason instanceof Error ? reason.stack : undefined,
+    },
+  });
+});
+process.on('uncaughtException', (err: Error) => {
+  // Undefined state: log loudly (bypass dedup — this is fatal + singular), flush, and let the
+  // supervisor (launchd/brew KeepAlive) respawn cleanly rather than limp on in a corrupt state.
+  logger.error('uncaught_exception', { error: err.message, stack: err.stack });
+  shutdown('uncaughtException');
 });
 
 function onReady(): void {
