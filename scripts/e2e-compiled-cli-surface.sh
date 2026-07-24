@@ -169,6 +169,7 @@ echo "=== READ commands (must run + print) ============================"
 run_read "status"            status      -- status
 run_read "version"           version     -- version
 run_read "whoami"            whoami      -- whoami
+run_read "account"           account     -- account status
 run_read "ports"             ports       -- ports
 run_read "locks"             locks       -- locks
 run_read "sessions"          sessions    -- sessions

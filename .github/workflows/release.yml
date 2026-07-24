@@ -53,6 +53,16 @@ jobs:
       - name: Build dedicated daemon binary
         run: npm run build:daemon:dist
 
+      # Bosun is now a REQUIRED watchdog: the compiled-daemon smoke runs `pd doctor`,
+      # which criticals a missing supervisor. Build it BEFORE the smoke so the booted
+      # daemon resolves core/target/release/pd-bosun. (The step below also stages it
+      # flat into dist/ for the release tarball.)
+      - name: Install Rust toolchain (for pd-bosun watchdog)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build pd-bosun before the smoke (required watchdog)
+        run: npm run build:bosun
+
       - name: Smoke dedicated daemon binary
         run: bash scripts/smoke-compiled-daemon.sh
 
@@ -171,7 +181,22 @@ jobs:
         # dist/core/pd-bosun, then core/pd-bosun/... — the extracted `core/`
         # dir satisfies the daemon-relative fallback). Without this the tarball
         # had no watchdog and the KeepAlive supervisor job was silently skipped.
-        run: cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json pd-bosun
+        #
+        # Also ship native/ — scripts/build-single-binary.mjs packages
+        # onnxruntime-node's runtime library (libonnxruntime.*.dylib /
+        # libonnxruntime.so.1) there (#3561). bun build --compile extracts the
+        # .node N-API binding at runtime but not its @rpath-linked sibling;
+        # lib/semantic-resolver.ts points DYLD_FALLBACK_LIBRARY_PATH /
+        # LD_LIBRARY_PATH at this directory before the embedding model loads.
+        #
+        # And ship the Giant Squid Harness tentacles (bin/pd-hook-*) next to
+        # `pd` so `pd squid`/`pd hooks` work from a compiled install — the
+        # adapter resolves them from dirname(process.execPath). Portable POSIX
+        # shell scripts (no runtime), so a flat copy is enough.
+        run: |
+          cp bin/pd-hook-prompt bin/pd-hook-pre-tool bin/pd-hook-post-tool dist/
+          chmod +x dist/pd-hook-prompt dist/pd-hook-pre-tool dist/pd-hook-post-tool
+          cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json pd-bosun native pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2

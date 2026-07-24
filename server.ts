@@ -96,11 +96,15 @@ import { createCostTracker } from './lib/cost-tracker.js';
 import { createCloudAppTelemetry } from './lib/cloud-app-telemetry.js';
 import { createContextWindowTracker } from './lib/context-window-tracker.js';
 import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
+import { normalizeSelfSalvage } from './lib/telos-salvage.js';
 import { createOperatorPermissions } from './lib/operator-permissions.js';
 import { createCounters } from './lib/counters.js';
 import { createMetricsRegistry } from './lib/metrics-registry.js';
 import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
+import { createActorSouls } from './lib/actor-souls.js';
+import { migrateActorSouls } from './scripts/migrate-actor-souls.js';
+import { homedir } from 'node:os';
 import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
 import { createParley } from './lib/parley.js';
@@ -191,7 +195,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.25.2';
+const EMBEDDED_PACKAGE_VERSION: string = '3.27.0';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -459,7 +463,10 @@ function isInSleepGracePeriod(): boolean {
   return Date.now() < sleepGraceUntil;
 }
 
-const db: DatabaseInstance = initDatabase({ dbPath: DB_PATH });
+// The daemon IS the write-boundary (the Door): it opens with owner semantics and
+// is the single legitimate writer of the registry. Non-daemon openers use
+// role:'client' and get a write-guarded handle.
+const db: DatabaseInstance = initDatabase({ dbPath: DB_PATH, role: 'daemon' });
 
 // =============================================================================
 // MODULE INITIALIZATION (identical to server.ts)
@@ -588,8 +595,28 @@ const bonds = createBonds(db, {
   harbors, noteEncryption,
   broadcast: (channel, event) => messaging.publish(channel, event),
 });
+// ADR-0040 keystone: daemon-minted, non-forgeable actor identity. The souls
+// store is the spend-choke input for budget-guard — it resolves each agentId
+// (minted id or display alias) to a soul + class, soul-sources the ceiling, and
+// meters newcomers against the SHARED per-project pool so minting fresh ids buys
+// no new budget. HONEST LIMIT: the anti-launder only fully bites once the `door`
+// lane makes the SQLite write-boundary real (a same-UID agent can otherwise
+// write a ledger/pool row directly). This is ADR-0040's explicit non-goal.
+const actorSouls = createActorSouls(db);
+// Grandfather EXISTING agents (from budget_ledger/bond_escrow/agents) into
+// trusted souls before budgetGuard starts routing spend through the souls
+// choke below -- otherwise every already-running agent looks like a brand
+// new "unknown" soul on this boot and gets capped at the newcomer pool floor
+// instead of its real budget. Idempotent (see scripts/migrate-actor-souls.ts);
+// safe to run on every boot, not just the first one after this lands.
+try {
+  migrateActorSouls(db, { apply: true, credentialsDir: join(homedir(), '.port-daddy', 'actor-credentials') });
+} catch (err) {
+  console.error('[actor-souls] grandfather migration failed (spend routing may throttle pre-existing agents until this is fixed):', err);
+}
 const budgetGuard = createBudgetGuard(db, {}, {
   broadcast: (channel, event) => messaging.publish(channel, event),
+  souls: actorSouls,
 });
 
 // Late-binding spawner ref: cost-tracker needs to trigger spawner.kill() on
@@ -969,8 +996,21 @@ resurrection.on('agent:dead', (agent) => {
     // verified StaleAgent record — never from the forgeable capsule. Passing scope as a
     // distinct argument makes a forged `capsule.identityProject` structurally unable to
     // influence the operator-permission check (ADR-0040 trust boundary).
-    const capsule = resurrection.getSalvageCapsule(agent.id);
-    void custodian.onAgentDead(agent.id, agent.identityProject ?? '', capsule);
+    //
+    // The raw capsule read back from resurrection.getSalvageCapsule() is only guaranteed
+    // to be *some* plain object (see resurrection.ts's getSalvageCapsule — it just checks
+    // `typeof === 'object'`), never that it matches SelfSalvageCapsule's shape. Run it
+    // through the same normalizeSelfSalvage() producer contract that governs the capsule
+    // elsewhere (telos-salvage.ts) before handing it to the custodian, so a malformed or
+    // corrupted capsule degrades to `undefined` respawn context instead of propagating an
+    // arbitrary shape into the resurrection_context inbox message / operator approval
+    // payload.
+    const rawCapsule = resurrection.getSalvageCapsule(agent.id);
+    const salvage = normalizeSelfSalvage(rawCapsule);
+    if (rawCapsule && !salvage.success) {
+      logger.warn('salvage_capsule_invalid', { agentId: agent.id, error: salvage.error });
+    }
+    void custodian.onAgentDead(agent.id, agent.identityProject ?? '', salvage.capsule as Record<string, unknown> | undefined);
   }
 });
 
@@ -1384,7 +1424,7 @@ await registerAllRoutes(
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     commitments, obligationMonitor, suggestions,
-    bonds, budgetGuard, budgetPause,
+    bonds, budgetGuard, budgetPause, actorSouls,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,

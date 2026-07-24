@@ -247,7 +247,8 @@
         "GET /actors/:param/inbox",
         "GET /actors/:param/inbox/stats",
         "PUT /actors/:param/inbox/read-all",
-        "POST /actors/:param/message"
+        "POST /actors/:param/message",
+        "POST /actors/register"
       ],
       "completions": [
         "actor",
@@ -964,13 +965,14 @@
       "_note": "ADR-0039 first slice (claim-overlap-headsup only). Out of scope (next slices): the Haiku/embedding topical classifier (group-chat-proposal, prior-art-doc), the periodic/reactive auto-trigger (today scan is on-demand via `pd nudge scan`), and the per-kind mute CLI surface (route exists; CLI flag deferred)."
     },
     "sugar": {
-      "description": "Compound commands for common workflows (begin/done/whoami)",
+      "description": "Compound commands for common workflows (begin/done/whoami) plus cloud account sign-in (pd account, ADR-0101 device flow)",
       "cli": [
         "begin",
         "b",
         "done",
         "whoami",
         "w",
+        "account",
         "with-lock",
         "n",
         "u",
@@ -993,6 +995,7 @@
         "done",
         "whoami",
         "w",
+        "account",
         "with-lock"
       ],
       "docs": {
