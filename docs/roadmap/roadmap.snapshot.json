@@ -2,7 +2,7 @@
   "generatedAt": 1784417300739,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 233,
+  "count": 235,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -548,6 +548,11 @@
       "slug": "ast-a4-1-go-rust-grammars",
       "status": "parked",
       "summaryMd": "A4.1 (optional) Wire tree-sitter-go / tree-sitter-rust + extraction (symbols, imports, intra-file calls). Done when a Go and Rust file parse with symbols + call edges."
+    },
+    {
+      "slug": "audit-git-hooks-env-bypass",
+      "status": "backlog",
+      "summaryMd": "CI auditor: scan all git hooks + shim/hook installers for in-band env-var security bypasses (binary-agnostic-wall, ADR-0053/0102); non-zero exit gates CI; fixes pre-push hook silent PD_SHIM_OFF stand-down."
     },
     {
       "slug": "beacon-durable-agent-roster",
