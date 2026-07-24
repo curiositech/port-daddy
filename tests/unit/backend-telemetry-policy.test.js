@@ -27,14 +27,19 @@ describe('backend telemetry policy', () => {
     }));
   });
 
-  test.each(['cli:gemini', 'cli:groq', 'cli:grok'])('%s is flat-rate subscription — launch allowed without per-token telemetry', (backend) => {
+  test.each(['cli:agy', 'cli:gemini', 'cli:groq', 'cli:grok'])('%s is flat-rate subscription — launch allowed without per-token telemetry', (backend) => {
     const policy = assessBackendTelemetryPolicy(backend);
     expect(policy).toEqual(expect.objectContaining({
       backend,
       launchAllowed: true,
-      effectiveModel: backend.slice('cli:'.length),
+      effectiveModel: backend === 'cli:agy' ? null : backend.slice('cli:'.length),
     }));
     expect(policy.summary).toContain('flat-rate');
+  });
+
+  test('cli:agy preserves an explicit operator model string without inventing a default', () => {
+    expect(assessBackendTelemetryPolicy('cli:agy').effectiveModel).toBeNull();
+    expect(assessBackendTelemetryPolicy('cli:agy', 'real-agy-model').effectiveModel).toBe('real-agy-model');
   });
 
   test('allows Codex when the model has an exact rate entry', () => {

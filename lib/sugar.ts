@@ -44,6 +44,10 @@ interface SessionsModule {
   claimFiles(sessionId: string, filePaths: string[], options?: Record<string, unknown>): Record<string, unknown>;
   /** Flip an abandoned durable session back to active. Optional: older deps may not provide it. */
   resurrect?(sessionId: string): void;
+  /** Shallow-merge a patch into the session's metadata JSON. Optional: older deps may not provide it. */
+  updateMetadata?(sessionId: string, patch: Record<string, unknown>): Record<string, unknown>;
+  /** Append an immutable session note. Optional: older deps may not provide it. */
+  addNote?(sessionId: string, content: string, options?: Record<string, unknown>): Record<string, unknown>;
 }
 
 interface ActivityLogModule {
@@ -55,10 +59,34 @@ interface ActivityLogModule {
   }): void;
 }
 
+/**
+ * Minimal structural view of lib/roadmap-items.ts used by the rent-at-claim
+ * gate: slug validation (--roadmap), draft genesis (--roadmap-new).
+ */
+interface RoadmapItemsModule {
+  list(options?: { harbor?: string; status?: 'all'; limit?: number }): Array<{ slug: string; harbor: string }>;
+  /** Exact existence check across all harbors — no list() cap involved. */
+  slugExists(slug: string): boolean;
+  upsert(input: {
+    slug: string;
+    summaryMd: string;
+    status?: 'now' | 'backlog' | 'parked' | 'merge' | 'done';
+    promotedByAgentId?: string;
+    project?: string;
+    notes?: Array<{ at: number; by: string; text: string }>;
+  }): { slug: string; harbor: string };
+}
+
 interface SugarDeps {
   agents: AgentsModule;
   sessions: SessionsModule;
   activityLog: ActivityLogModule;
+  /**
+   * Optional roadmap store. When present, `begin` can validate --roadmap
+   * slugs and create draft items for --roadmap-new. When absent, those two
+   * paths fail closed with ROADMAP_ITEMS_UNAVAILABLE (sidequest still works).
+   */
+  roadmapItems?: RoadmapItemsModule;
   /**
    * Optional git-origin checker. Defaults to a real-git implementation.
    * Tests inject a stub to simulate ahead / no-upstream / clean states
@@ -81,6 +109,15 @@ interface BeginOptions {
   allowMainWorktree?: boolean;
   /** Session retention behavior. Durable survives without a live heartbeat process. */
   lifecycle?: 'durable' | 'ephemeral';
+  /**
+   * Rent-at-claim (S3): link the session to an EXISTING roadmap item by slug.
+   * Validated against the roadmap store; mutually exclusive with the other two.
+   */
+  roadmapLink?: string;
+  /** Rent-at-claim opt-out: one-line reason this work is off-roadmap (min 12 chars). */
+  sidequestReason?: string;
+  /** Rent-at-claim genesis: create a DRAFT roadmap item with this title and link it. */
+  roadmapNewTitle?: string;
   /**
    * Skip the crowded-main-worktree collision check. Set by the CLI when
    * allowMainWorktree was triggered by the long-standing env var
@@ -110,6 +147,56 @@ interface WhoamiOptions {
   sessionId?: string;
 }
 
+/**
+ * Anti-Goodhart valve for rent-at-claim: `relink` re-points the ACTIVE
+ * session's rent fields. A wrong link picked just to satisfy the begin gate
+ * must never be sticky — fixing it is one command, and the fix is audited.
+ */
+interface RelinkOptions {
+  agentId?: string;
+  sessionId?: string;
+  /** Link to an EXISTING roadmap item by slug (validated, did-you-mean on miss). */
+  roadmapLink?: string;
+  /** Opt out with a one-line reason (min 12 chars). */
+  sidequestReason?: string;
+}
+
+// Rent-at-claim (S3): the one-line cost of starting a session is either a
+// roadmap link or an explicit opt-out reason. 12 chars forces a real sentence
+// fragment ("fixing CI flake") instead of "stuff" / "work" / "misc".
+export const SIDEQUEST_REASON_MIN_CHARS = 12;
+
+function slugifyRoadmapTitle(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+
+function commonPrefixLen(a: string, b: string): number {
+  const n = Math.min(a.length, b.length);
+  let i = 0;
+  while (i < n && a[i] === b[i]) i += 1;
+  return i;
+}
+
+/**
+ * Did-you-mean for roadmap slugs: rank candidates by shared prefix length
+ * with the requested slug. Deliberately dumb — plain string prefixes only,
+ * no similarity scoring (operator ruling 2026-07-09).
+ */
+export function nearestSlugsByPrefix(input: string, slugs: string[], max = 5): string[] {
+  const seen = new Set<string>();
+  return slugs
+    .map((slug) => ({ slug, lcp: commonPrefixLen(input, slug) }))
+    .filter((entry) => entry.lcp >= 3)
+    .sort((a, b) => b.lcp - a.lcp || a.slug.localeCompare(b.slug))
+    .filter((entry) => (seen.has(entry.slug) ? false : (seen.add(entry.slug), true)))
+    .slice(0, max)
+    .map((entry) => entry.slug);
+}
+
 function lifecycleForSession(session: Record<string, unknown>): 'durable' | 'ephemeral' {
   return session.durable === true || session.is_durable === 1 || session.is_durable === true
     ? 'durable'
@@ -137,6 +224,9 @@ export function createSugar(deps: SugarDeps) {
   ) {
     const sessionId = session.id as string;
     const startedAt = typeof session.createdAt === 'number' ? session.createdAt : Date.now();
+    const sessionMeta = session.metadata && typeof session.metadata === 'object'
+      ? session.metadata as Record<string, unknown>
+      : null;
 
     return {
       success: true,
@@ -155,6 +245,9 @@ export function createSugar(deps: SugarDeps) {
       noteCount: notes.length,
       startedAt,
       duration: Date.now() - startedAt,
+      // Rent-at-claim (S3): surface the roadmap link / sidequest opt-out.
+      roadmapLink: typeof sessionMeta?.roadmapLink === 'string' ? sessionMeta.roadmapLink : null,
+      sidequestReason: typeof sessionMeta?.sidequestReason === 'string' ? sessionMeta.sidequestReason : null,
     };
   }
 
@@ -193,6 +286,131 @@ export function createSugar(deps: SugarDeps) {
         worktree: worktreePolicy.worktree,
       };
     }
+
+    // =========================================================================
+    // Rent-at-claim (S3): resolve the roadmap link / sidequest opt-out BEFORE
+    // the resume decision so a bogus --roadmap slug fails loudly instead of
+    // silently resuming. Enforcement (refusing when none is given) lives in
+    // the pd CLI and the MCP begin_session tool — the daemon's raw HTTP
+    // surface stays lenient for direct programmatic callers in v1.
+    // =========================================================================
+    const rent: {
+      roadmapLink?: string;
+      sidequestReason?: string;
+      roadmapCreated?: boolean;
+      roadmapExisting?: boolean;
+    } = {};
+    // Deferred --roadmap-new write. Validation happens up front (fail loudly
+    // before any other work), but the roadmap INSERT is deferred until the
+    // begin actually succeeds — a begin that dies at the crowded-worktree
+    // gate or at agent/session registration must not leave an orphan roadmap
+    // item behind (there is no rollback for it).
+    let pendingRoadmapNew: { slug: string; title: string; by: string; project?: string } | null = null;
+    {
+      const givenRentFields = [options.roadmapLink, options.sidequestReason, options.roadmapNewTitle]
+        .filter((v) => v !== undefined && v !== null);
+      if (givenRentFields.length > 1) {
+        return {
+          success: false,
+          error: 'roadmapLink, sidequestReason, and roadmapNewTitle are mutually exclusive — pass exactly one.',
+          code: 'ROADMAP_RENT_CONFLICT',
+        };
+      }
+
+      const rentParsedIdentity = identity ? parseIdentity(identity) : null;
+      const rentProject = rentParsedIdentity && rentParsedIdentity.valid ? rentParsedIdentity.project : undefined;
+
+      if (options.sidequestReason !== undefined) {
+        const reason = typeof options.sidequestReason === 'string' ? options.sidequestReason.trim() : '';
+        if (reason.length < SIDEQUEST_REASON_MIN_CHARS) {
+          return {
+            success: false,
+            error: `sidequest reason must be at least ${SIDEQUEST_REASON_MIN_CHARS} characters — say what the work actually is.`,
+            code: 'SIDEQUEST_REASON_TOO_SHORT',
+          };
+        }
+        rent.sidequestReason = reason;
+      }
+
+      if (options.roadmapLink !== undefined) {
+        if (!deps.roadmapItems) {
+          return {
+            success: false,
+            error: 'roadmap linking requires the roadmap service, which is not available on this daemon.',
+            code: 'ROADMAP_ITEMS_UNAVAILABLE',
+          };
+        }
+        const requested = typeof options.roadmapLink === 'string' ? options.roadmapLink.trim() : '';
+        // Validate across ALL harbors: items are created under project-scoped
+        // harbors ('port-daddy', 'demo:fleet', 'fleet') by different writers,
+        // and a link to any of them is a real link. Existence is an exact
+        // indexed lookup (slugExists) — never a capped list() scan, which
+        // would reject valid slugs once the table outgrows the cap. The
+        // capped list feeds ONLY the did-you-mean suggestions.
+        if (!requested || !deps.roadmapItems.slugExists(requested)) {
+          const slugs = deps.roadmapItems.list({ status: 'all', limit: 5000 }).map((item) => item.slug);
+          const didYouMean = nearestSlugsByPrefix(requested, slugs);
+          return {
+            success: false,
+            error: `Unknown roadmap slug "${requested}".`
+              + (didYouMean.length > 0 ? ` Did you mean: ${didYouMean.join(', ')}?` : ''),
+            code: 'ROADMAP_SLUG_UNKNOWN',
+            didYouMean,
+          };
+        }
+        rent.roadmapLink = requested;
+      }
+
+      if (options.roadmapNewTitle !== undefined) {
+        const title = typeof options.roadmapNewTitle === 'string' ? options.roadmapNewTitle.trim() : '';
+        const slug = slugifyRoadmapTitle(title);
+        if (!title || !slug) {
+          return {
+            success: false,
+            error: 'roadmapNewTitle must be a non-empty title.',
+            code: 'ROADMAP_TITLE_REQUIRED',
+          };
+        }
+        if (!deps.roadmapItems) {
+          return {
+            success: false,
+            error: 'roadmap item creation requires the roadmap service, which is not available on this daemon.',
+            code: 'ROADMAP_ITEMS_UNAVAILABLE',
+          };
+        }
+        const by = options.agentId || 'pd-begin';
+        if (deps.roadmapItems.slugExists(slug)) {
+          // Slug collision: the item already exists (possibly in another
+          // harbor). LINK to it instead of upserting — an upsert here would
+          // silently rewrite the existing item's summary/status/notes from a
+          // begin() call that never intended an edit.
+          rent.roadmapLink = slug;
+          rent.roadmapExisting = true;
+        } else {
+          pendingRoadmapNew = { slug, title, by, project: rentProject };
+          rent.roadmapLink = slug;
+          rent.roadmapCreated = true;
+        }
+      }
+    }
+    const rentMetadata: Record<string, unknown> = {};
+    if (rent.roadmapLink) rentMetadata.roadmapLink = rent.roadmapLink;
+    if (rent.sidequestReason) rentMetadata.sidequestReason = rent.sidequestReason;
+    // Materialize the deferred --roadmap-new item. Called ONLY on the two
+    // success paths (resume, fresh start) after the begin can no longer fail.
+    const materializePendingRoadmapNew = () => {
+      if (!pendingRoadmapNew || !deps.roadmapItems) return;
+      const { slug, title, by, project } = pendingRoadmapNew;
+      pendingRoadmapNew = null;
+      deps.roadmapItems.upsert({
+        slug,
+        summaryMd: title,
+        status: 'backlog',
+        promotedByAgentId: by,
+        project,
+        notes: [{ at: Date.now(), by, text: 'genesis-at-begin' }],
+      });
+    };
 
     // Idempotent resume. A re-begin for the SAME identity in the SAME worktree
     // must RESUME the existing active session, not fork a parallel one. Forking
@@ -273,6 +491,21 @@ export function createSugar(deps: SugarDeps) {
               if (Array.isArray(claim.conflicts) && claim.conflicts.length > 0) resumed.fileConflicts = claim.conflicts;
             }
           }
+          // Rent-at-claim: a fresh link/reason on re-begin updates the
+          // resumed session's record (the link is session state, not call state).
+          // Switching rent MODE clears the other field — a session is either
+          // roadmap-linked or a sidequest, never ambiguously both.
+          if (Object.keys(rentMetadata).length > 0) {
+            materializePendingRoadmapNew();
+            const rentPatch: Record<string, unknown> = { ...rentMetadata };
+            if (rent.roadmapLink) rentPatch.sidequestReason = undefined;
+            if (rent.sidequestReason) rentPatch.roadmapLink = undefined;
+            sessions.updateMetadata?.(resumedSessionId, rentPatch);
+          }
+          if (rent.roadmapLink) resumed.roadmapLink = rent.roadmapLink;
+          if (rent.sidequestReason) resumed.sidequestReason = rent.sidequestReason;
+          if (rent.roadmapCreated) resumed.roadmapCreated = true;
+          if (rent.roadmapExisting) resumed.roadmapExisting = true;
           if (decision.warn === 'driven-elsewhere') {
             resumed.warn = 'Another live process is already driving this session; attaching anyway (worktree isolation is the real guard).';
           }
@@ -341,10 +574,13 @@ export function createSugar(deps: SugarDeps) {
       }
     }
 
-    const metadata = mergeSessionWorktreeMetadata(options.metadata, worktreePolicy.worktree, {
+    const worktreeMetadata = mergeSessionWorktreeMetadata(options.metadata, worktreePolicy.worktree, {
       requireLinkedWorktree: options.requireLinkedWorktree,
       allowMainWorktree: options.allowMainWorktree,
     });
+    const metadata = Object.keys(rentMetadata).length > 0
+      ? { ...(worktreeMetadata && typeof worktreeMetadata === 'object' ? worktreeMetadata : {}), ...rentMetadata }
+      : worktreeMetadata;
 
     const name = deriveAgentDisplayName({
       name: options.name,
@@ -415,6 +651,9 @@ export function createSugar(deps: SugarDeps) {
       };
     }
 
+    // Begin succeeded — safe to materialize the deferred --roadmap-new item.
+    materializePendingRoadmapNew();
+
     // Build response
     const response: Record<string, unknown> = {
       success: true,
@@ -430,6 +669,10 @@ export function createSugar(deps: SugarDeps) {
       sessionStarted: true,
     };
     if (worktreePolicy.worktree) response.worktree = worktreePolicy.worktree;
+    if (rent.roadmapLink) response.roadmapLink = rent.roadmapLink;
+    if (rent.sidequestReason) response.sidequestReason = rent.sidequestReason;
+    if (rent.roadmapCreated) response.roadmapCreated = true;
+    if (rent.roadmapExisting) response.roadmapExisting = true;
 
     // Include file claims if present
     if (sessionResult.files) {
@@ -791,5 +1034,172 @@ export function createSugar(deps: SugarDeps) {
     return (session.agentId as string) || null;
   }
 
-  return { begin, done, whoami };
+  /**
+   * Relink — update the ACTIVE session's rent-at-claim fields.
+   *
+   * Same validation as begin: an existing roadmap slug (with prefix
+   * did-you-mean) OR a sidequest reason (min 12 chars), mutually exclusive.
+   * Switching mode clears the other field — a session is either
+   * roadmap-linked or a sidequest, never ambiguously both. Every relink
+   * appends an audit note recording old -> new.
+   */
+  function relink(options: RelinkOptions) {
+    const { agentId } = options;
+    let { sessionId } = options;
+
+    // ------------------------------------------------------------------
+    // Validate the rent fields FIRST (same semantics as begin).
+    // ------------------------------------------------------------------
+    const given = [options.roadmapLink, options.sidequestReason]
+      .filter((v) => v !== undefined && v !== null);
+    if (given.length > 1) {
+      return {
+        success: false,
+        error: 'roadmapLink and sidequestReason are mutually exclusive — pass exactly one.',
+        code: 'ROADMAP_RENT_CONFLICT',
+      };
+    }
+    if (given.length === 0) {
+      return {
+        success: false,
+        error: 'relink needs a roadmap link or a sidequest reason — pass exactly one.',
+        code: 'ROADMAP_RENT_REQUIRED',
+      };
+    }
+
+    let newRoadmapLink: string | undefined;
+    let newSidequestReason: string | undefined;
+
+    if (options.sidequestReason !== undefined) {
+      const reason = typeof options.sidequestReason === 'string' ? options.sidequestReason.trim() : '';
+      if (reason.length < SIDEQUEST_REASON_MIN_CHARS) {
+        return {
+          success: false,
+          error: `sidequest reason must be at least ${SIDEQUEST_REASON_MIN_CHARS} characters — say what the work actually is.`,
+          code: 'SIDEQUEST_REASON_TOO_SHORT',
+        };
+      }
+      newSidequestReason = reason;
+    }
+
+    if (options.roadmapLink !== undefined) {
+      if (!deps.roadmapItems) {
+        return {
+          success: false,
+          error: 'roadmap linking requires the roadmap service, which is not available on this daemon.',
+          code: 'ROADMAP_ITEMS_UNAVAILABLE',
+        };
+      }
+      const requested = typeof options.roadmapLink === 'string' ? options.roadmapLink.trim() : '';
+      if (!requested || !deps.roadmapItems.slugExists(requested)) {
+        const slugs = deps.roadmapItems.list({ status: 'all', limit: 5000 }).map((item) => item.slug);
+        const didYouMean = nearestSlugsByPrefix(requested, slugs);
+        return {
+          success: false,
+          error: `Unknown roadmap slug "${requested}".`
+            + (didYouMean.length > 0 ? ` Did you mean: ${didYouMean.join(', ')}?` : ''),
+          code: 'ROADMAP_SLUG_UNKNOWN',
+          didYouMean,
+        };
+      }
+      newRoadmapLink = requested;
+    }
+
+    // ------------------------------------------------------------------
+    // Resolve the active session (same resolution order as done()).
+    // ------------------------------------------------------------------
+    if (!sessionId && agentId) {
+      const listResult = sessions.list({ agentId, status: 'active', allWorktrees: true });
+      const sessionsList = (listResult.sessions || []) as Array<{ id: string }>;
+      if (sessionsList.length > 0) sessionId = sessionsList[0].id;
+    }
+    if (!sessionId && !agentId) {
+      const listResult = sessions.list({ status: 'active', allWorktrees: true, limit: 1 });
+      const sessionsList = (listResult.sessions || []) as Array<{ id: string }>;
+      if (sessionsList.length > 0) sessionId = sessionsList[0].id;
+    }
+    if (!sessionId) {
+      return {
+        success: false,
+        error: 'No active session found — relink needs an active session (pd begin first).',
+        code: 'NO_ACTIVE_SESSION',
+      };
+    }
+
+    const sessionInfo = sessions.get(sessionId);
+    if (!sessionInfo.success || !sessionInfo.session) {
+      return {
+        success: false,
+        error: `Session ${sessionId} not found`,
+        code: 'NO_ACTIVE_SESSION',
+      };
+    }
+    const session = sessionInfo.session as Record<string, unknown>;
+
+    // Ownership: an explicit sessionId must belong to the calling agent.
+    if (agentId && options.sessionId && session.agentId && session.agentId !== agentId) {
+      return {
+        success: false,
+        error: `Session ${sessionId} belongs to agent ${session.agentId}, not ${agentId}`,
+        code: 'SESSION_OWNERSHIP_MISMATCH',
+      };
+    }
+
+    const meta = session.metadata && typeof session.metadata === 'object'
+      ? session.metadata as Record<string, unknown>
+      : null;
+    const previousRoadmapLink = typeof meta?.roadmapLink === 'string' ? meta.roadmapLink : null;
+    const previousSidequestReason = typeof meta?.sidequestReason === 'string' ? meta.sidequestReason : null;
+
+    // ------------------------------------------------------------------
+    // Apply: switching rent MODE clears the other field.
+    // ------------------------------------------------------------------
+    const patch: Record<string, unknown> = {};
+    if (newRoadmapLink) {
+      patch.roadmapLink = newRoadmapLink;
+      patch.sidequestReason = undefined;
+    }
+    if (newSidequestReason) {
+      patch.sidequestReason = newSidequestReason;
+      patch.roadmapLink = undefined;
+    }
+    sessions.updateMetadata?.(sessionId, patch);
+
+    // Audit trail: old -> new, as an immutable session note + activity event.
+    const describeRent = (link: string | null | undefined, reason: string | null | undefined) =>
+      link ? `roadmap:${link}` : reason ? `sidequest:${reason}` : 'none';
+    const oldDesc = describeRent(previousRoadmapLink, previousSidequestReason);
+    const newDesc = describeRent(newRoadmapLink, newSidequestReason);
+    sessions.addNote?.(sessionId, `rent-relink: ${oldDesc} -> ${newDesc}`, { type: 'relink' });
+
+    const identityProject = typeof session.identityProject === 'string' ? session.identityProject : null;
+    const effectiveAgentId = agentId || (typeof session.agentId === 'string' ? session.agentId : null);
+    activityLog.log('sugar_relink', {
+      agentId: effectiveAgentId,
+      targetId: sessionTarget(identityProject, sessionId),
+      details: `Agent ${effectiveAgentId || 'unknown'} relinked rent: ${oldDesc} -> ${newDesc}`,
+      metadata: {
+        sessionId,
+        agentId: effectiveAgentId || undefined,
+        identityProject: identityProject || undefined,
+        previousRoadmapLink: previousRoadmapLink || undefined,
+        previousSidequestReason: previousSidequestReason || undefined,
+        roadmapLink: newRoadmapLink || undefined,
+        sidequestReason: newSidequestReason || undefined,
+      } as unknown as Record<string, unknown>,
+    });
+
+    const response: Record<string, unknown> = {
+      success: true,
+      sessionId,
+      agentId: effectiveAgentId,
+      previousRoadmapLink,
+      previousSidequestReason,
+    };
+    if (newRoadmapLink) response.roadmapLink = newRoadmapLink;
+    if (newSidequestReason) response.sidequestReason = newSidequestReason;
+    return response;
+  }
+
+  return { begin, done, whoami, relink };
 }

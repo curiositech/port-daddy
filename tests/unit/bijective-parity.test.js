@@ -332,6 +332,9 @@ describe('Test Group 3: API -> CLI Parity', () => {
     tuples: ['tuple'],
     cockpit: ['cockpit'],
     graph: ['graph'],
+    // booty: artifact harvest provenance over the blob store (slice S4a).
+    // routes/booty.ts (POST/GET /booty); `pd booty <add|list>` is its CLI surface.
+    booty: ['booty'],
     memory: ['memory'],
     cartographer: ['roadmap'],
     roadmap: ['roadmap'],

@@ -3,6 +3,7 @@
  *
  * Read paths:
  *   GET    /transcripts                List recent (filter: ship, pr, since, limit, status)
+ *   GET    /transcripts/compliance     Backend matrix + live transcript-flow health
  *   GET    /transcripts/cost           Cost rollup (?since=ms&until=ms)
  *   GET    /transcripts/stream         SSE — live tail of start/update/end events
  *   GET    /transcripts/:id            Full transcript with messages + outputs
@@ -22,9 +23,24 @@ import type {
   TranscriptOutput,
   TranscriptFilter,
 } from '../lib/transcripts.js';
+import {
+  assessTranscriptRun,
+  buildTranscriptComplianceReport,
+  findLatestTranscriptForAgent,
+  type TranscriptTrackedRun,
+} from '../lib/transcript-compliance.js';
+import {
+  buildTranscriptEmergencyFromSources,
+  parseTranscriptEmergencyPositiveIntQuery,
+  type TranscriptEmergencySourceDeps,
+} from '../lib/transcript-emergency.js';
 
 interface TranscriptRouteDeps {
   transcripts?: Transcripts;
+  spawner?: {
+    list(): TranscriptTrackedRun[];
+  };
+  cloudAppTelemetry?: TranscriptEmergencySourceDeps['cloudAppTelemetry'];
   metrics: { errors: number };
   logger: {
     info(msg: string, meta?: Record<string, unknown>): void;
@@ -41,11 +57,23 @@ export const transcriptsPlugin: FastifyPluginAsync<{ deps: TranscriptRouteDeps }
   fastify,
   opts,
 ) => {
-  const { transcripts, metrics, logger } = opts.deps;
+  const { transcripts, spawner, metrics, logger } = opts.deps;
 
   function notWired(reply: FastifyReply): unknown {
     reply.code(501);
     return { success: false, error: 'transcripts module not wired into this daemon' };
+  }
+
+  function complianceReport(stallAfterMs?: number) {
+    if (!transcripts) return null;
+    const runs = (spawner?.list() || []).map((run) =>
+      assessTranscriptRun(
+        run,
+        findLatestTranscriptForAgent(transcripts, run.agentId),
+        { now: Date.now(), stallAfterMs },
+      ),
+    );
+    return buildTranscriptComplianceReport(runs, { stallAfterMs });
   }
 
   // ── GET /transcripts ─────────────────────────────────────────────────────
@@ -78,6 +106,58 @@ export const transcriptsPlugin: FastifyPluginAsync<{ deps: TranscriptRouteDeps }
     } catch (error) {
       metrics.errors++;
       logger.error('transcripts_list_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: 'internal server error' };
+    }
+  });
+
+  // ── GET /transcripts/compliance ──────────────────────────────────────────
+  fastify.get('/transcripts/compliance', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!transcripts) return notWired(reply);
+    try {
+      const q = (request.query as Record<string, string>) || {};
+      const stallAfterMs = parseTranscriptEmergencyPositiveIntQuery(q.stallAfterMs);
+      if (q.stallAfterMs !== undefined && stallAfterMs === undefined) {
+        reply.code(400);
+        return { success: false, error: 'stallAfterMs must be a positive integer duration in milliseconds' };
+      }
+      const report = complianceReport(stallAfterMs);
+      return { success: true, ...(report || buildTranscriptComplianceReport([])) };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('transcripts_compliance_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: 'internal server error' };
+    }
+  });
+
+  // ── GET /transcripts/emergency ───────────────────────────────────────────
+  fastify.get('/transcripts/emergency', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!transcripts) return notWired(reply);
+    try {
+      const q = (request.query as Record<string, string>) || {};
+      const stallAfterMs = parseTranscriptEmergencyPositiveIntQuery(q.stallAfterMs);
+      if (q.stallAfterMs !== undefined && stallAfterMs === undefined) {
+        reply.code(400);
+        return { success: false, error: 'stallAfterMs must be a positive integer duration in milliseconds' };
+      }
+      const cloudSinceMs = parseTranscriptEmergencyPositiveIntQuery(q.since);
+      if (q.since !== undefined && cloudSinceMs === undefined) {
+        reply.code(400);
+        return { success: false, error: 'since must be a positive integer duration in milliseconds' };
+      }
+      const report = buildTranscriptEmergencyFromSources({
+        transcripts,
+        spawner,
+        cloudAppTelemetry: opts.deps.cloudAppTelemetry,
+      }, {
+        stallAfterMs,
+        cloudSinceMs,
+      });
+      return { success: true, ...report };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('transcripts_emergency_error', { error: (error as Error).message });
       reply.code(500);
       return { success: false, error: 'internal server error' };
     }

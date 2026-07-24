@@ -1,234 +1,28 @@
-//! The conversation multiplexer — ON THE PD BUS, backend-agnostic (ADR-0046).
+//! Daemon client for pd-console.
 //!
-//! "Why can't we create new top-level agents? I want to talk to you from inside
-//! pd-console." This is the answer — and it does it the *Port Daddy* way, not by
-//! shelling out to one vendor:
-//!
-//!   create_agent(backend, prompt)  → daemon `POST /spawn` on ANY backend
-//!     (ollama | claude | claude-cli | gemini | cloudflare | codex | aider | custom),
-//!     bound to a per-agent **tube** channel.
-//!   send(text)   → `POST /msg/<channel>`   (a turn up the tube)
-//!   poll()       → `GET  /msg/<channel>?after=<cursor>`  (replies down the tube)
-//!
-//! On-bus means: the agent is a real voyage (observable in the Ledger/manifest),
-//! steerable, and any backend works — the console never re-implements a vendor.
+//! New work enters through one Surface Gateway WorkIntent command. The console
+//! supplies intent, constraints, and provenance; the daemon owns WorkPlan,
+//! AgentNode, AgentRun, and Squid-governed Body decisions. The console has no
+//! backend/model selection or direct spawn, sortie, or dispatch launch path.
 
 use anyhow::{anyhow, Context, Result};
-use std::collections::BTreeMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 
-/// Every backend the daemon's spawner accepts (mirrors routes/spawn.ts VALID_BACKENDS).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Backend {
-    Claude,
-    Gemini,
-    Groq,
-    Deepseek,
-    Xai,
-    Openai,
-    ClaudeCli,
-    Codex,
-    Cloudflare,
-    Ollama,
-    LmStudio,
-    Aider,
-    Custom,
+static NEXT_WORK_TOKEN: AtomicU64 = AtomicU64::new(1);
+
+fn work_token() -> String {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let sequence = NEXT_WORK_TOKEN.fetch_add(1, Ordering::Relaxed);
+    format!("{:x}-{}-{sequence}", nanos, std::process::id())
 }
 
-impl Backend {
-    pub const ALL: [Backend; 13] = [
-        Backend::Claude,
-        Backend::Gemini,
-        Backend::Groq,
-        Backend::Deepseek,
-        Backend::Xai,
-        Backend::Openai,
-        Backend::ClaudeCli,
-        Backend::Codex,
-        Backend::Cloudflare,
-        Backend::Ollama,
-        Backend::LmStudio,
-        Backend::Aider,
-        Backend::Custom,
-    ];
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Backend::Claude => "claude",
-            Backend::Gemini => "gemini",
-            Backend::Groq => "groq",
-            Backend::Deepseek => "deepseek",
-            Backend::Xai => "xai",
-            Backend::Openai => "openai",
-            Backend::ClaudeCli => "claude-cli",
-            Backend::Codex => "codex",
-            Backend::Cloudflare => "cloudflare",
-            Backend::Ollama => "ollama",
-            Backend::LmStudio => "lmstudio",
-            Backend::Aider => "aider",
-            Backend::Custom => "custom",
-        }
-    }
-
-    pub fn parse(s: &str) -> Option<Backend> {
-        Backend::ALL.into_iter().find(|b| b.as_str() == s)
-    }
-
-    /// Human label for the inline picker chips (the operator never types the
-    /// wire id; they pick a labelled option).
-    pub fn label(self) -> &'static str {
-        match self {
-            Backend::Claude => "Claude (API)",
-            Backend::Gemini => "Gemini",
-            Backend::Groq => "Groq",
-            Backend::Deepseek => "DeepSeek",
-            Backend::Xai => "Grok (xAI)",
-            Backend::Openai => "OpenAI",
-            Backend::ClaudeCli => "Claude Code",
-            Backend::Codex => "Codex",
-            Backend::Cloudflare => "Cloudflare",
-            Backend::Ollama => "Ollama (local)",
-            Backend::LmStudio => "LM Studio",
-            Backend::Aider => "Aider",
-            Backend::Custom => "Custom",
-        }
-    }
-}
-
-/// THE MULTI-VENDOR MAP — route a Conjure node's free-string `model_tier`
-/// (`"opus"` / `"sonnet"` / `"haiku"` / `"gemini"` / `"codex"` / `"groq"` /
-/// `"gpt"` / …) to the daemon spawner Backend that should run it.
-///
-/// This is what makes Conjure dispatch genuinely multi-vendor instead of
-/// Claude-only: a node tagged `gemini` spawns on Gemini, a node tagged `codex`
-/// spawns on Codex, a node tagged `groq` on Groq — each through the SAME
-/// `DaemonClient::spawn` path the operator's manual Spawn command uses, which
-/// hits the daemon's existing vendor spawner (`lib/spawner.ts`). That spawner
-/// launches the vendor CLI backends that are installed + pass readiness
-/// (codex / claude-cli already do; gemini if installed). It does NOT require
-/// the unbuilt Giant Squid Harness (ADR-0091, Proposed) — that is the FUTURE
-/// upgrade for richer in-loop vendor-hook coordination, not a prerequisite here.
-///
-/// `model_tier` is a CAPABILITY string ("opus") or a VENDOR string ("gemini"),
-/// because the planner emits both shapes. Claude tiers (opus/sonnet/haiku) map
-/// to `ClaudeCli` — Claude Code (Max) is the Prime default and is launchable
-/// without an API key. An unknown / empty tier also falls back to `ClaudeCli`,
-/// so a node can never fail to route: the worst case is "the default vendor".
-pub fn backend_for_tier(model_tier: &str) -> Backend {
-    match model_tier.trim().to_ascii_lowercase().as_str() {
-        // Claude capability tiers + the bare vendor name → Claude Code (Max).
-        "opus" | "sonnet" | "haiku" | "claude" | "claude-cli" | "claude-code" => Backend::ClaudeCli,
-        "gemini" | "google" => Backend::Gemini,
-        "codex" => Backend::Codex,
-        "groq" => Backend::Groq,
-        "deepseek" => Backend::Deepseek,
-        "xai" | "grok" => Backend::Xai,
-        "openai" | "gpt" | "gpt-4" | "gpt-4o" | "o1" | "o3" => Backend::Openai,
-        "ollama" | "local" => Backend::Ollama,
-        "lmstudio" | "lm-studio" | "lm_studio" => Backend::LmStudio,
-        "aider" => Backend::Aider,
-        // Unknown / empty: the Prime default. Claude Max never bounces on a
-        // missing API key, so this is the safe "still launchable" fallback.
-        _ => Backend::ClaudeCli,
-    }
-}
-
-/// A capability tier the operator picks instead of memorising model ids. The
-/// tier is provider-agnostic; the concrete model is resolved at spawn time from
-/// the [`ModelCatalog`] config — never hard-coded — so the model list never goes
-/// stale in the binary.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Tier {
-    High,
-    Mid,
-    Low,
-}
-
-impl Tier {
-    pub const ALL: [Tier; 3] = [Tier::High, Tier::Mid, Tier::Low];
-
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Tier::High => "high",
-            Tier::Mid => "mid",
-            Tier::Low => "low",
-        }
-    }
-
-    /// The chip label — tier plus a hint at what it buys.
-    pub fn label(self) -> &'static str {
-        match self {
-            Tier::High => "High · most capable",
-            Tier::Mid => "Mid · balanced",
-            Tier::Low => "Low · fast & cheap",
-        }
-    }
-}
-
-/// The seed shipped with the binary, overridden by any on-disk config. Kept as
-/// raw JSON (data, not Rust logic) so it reads like the editable file.
-const BUNDLED_MODEL_TIERS: &str = include_str!("../config/model-tiers.json");
-
-/// Provider capability tiers loaded from a JSON config — NOT compiled-in logic —
-/// so the tier→model map can change without a rebuild. Load order:
-///   `$PD_CONSOLE_MODEL_TIERS` → `~/.port-daddy/model-tiers.json` → bundled seed.
-/// The on-disk file (the installer writes it; the operator edits it) wins. A
-/// model id absent from the daemon's cost-rate registry fails the launch closed,
-/// which is the signal to fix the id in the config.
-#[derive(Debug, Clone, Default)]
-pub struct ModelCatalog {
-    providers: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
-}
-
-impl ModelCatalog {
-    pub fn load() -> ModelCatalog {
-        let raw = std::env::var("PD_CONSOLE_MODEL_TIERS")
-            .ok()
-            .and_then(|p| std::fs::read_to_string(p).ok())
-            .or_else(|| {
-                dirs::home_dir()
-                    .map(|h| h.join(".port-daddy/model-tiers.json"))
-                    .and_then(|p| std::fs::read_to_string(p).ok())
-            })
-            .unwrap_or_else(|| BUNDLED_MODEL_TIERS.to_string());
-        Self::parse(&raw).unwrap_or_default()
-    }
-
-    /// Parse the `{ "providers": { "<backend>": { "<tier>": "<model>" } } }` shape.
-    pub fn parse(raw: &str) -> Option<ModelCatalog> {
-        let v: serde_json::Value = serde_json::from_str(raw).ok()?;
-        let mut providers = std::collections::HashMap::new();
-        if let Some(obj) = v.get("providers").and_then(|p| p.as_object()) {
-            for (backend, tiers) in obj {
-                if let Some(tobj) = tiers.as_object() {
-                    let map = tobj
-                        .iter()
-                        .filter_map(|(t, m)| Some((t.clone(), m.as_str()?.to_string())))
-                        .collect();
-                    providers.insert(backend.clone(), map);
-                }
-            }
-        }
-        Some(ModelCatalog { providers })
-    }
-
-    /// Whether this backend offers capability tiers (i.e. the config maps it).
-    /// CLI backends (Claude Code, Codex, Aider) are intentionally absent — they
-    /// run whatever model they're configured with, so a tier would be a lie.
-    pub fn has_tiers(&self, backend: Backend) -> bool {
-        self.providers
-            .get(backend.as_str())
-            .map(|m| !m.is_empty())
-            .unwrap_or(false)
-    }
-
-    /// Resolve (backend, tier) → model id from the config, or `None` to let the
-    /// daemon pick its own per-backend default.
-    pub fn resolve(&self, backend: Backend, tier: Tier) -> Option<String> {
-        self.providers
-            .get(backend.as_str())?
-            .get(tier.as_str())
-            .cloned()
-    }
+fn now_iso8601() -> String {
+    time::OffsetDateTime::now_utc()
+        .format(&time::format_description::well_known::Rfc3339)
+        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
 }
 
 /// One message off the tube.
@@ -262,48 +56,6 @@ impl TubeMsg {
                 .to_string(),
             text: extract_text(Some(payload)),
         })
-    }
-}
-
-/// Per-spawn options that ride alongside the four positional `spawn` args.
-///
-/// Today this carries exactly one knob — `inject_squid_hooks` — but it is a
-/// struct (not a bare `bool`) so future opt-ins land here without re-threading
-/// every call site. `Default` is the byte-for-byte historical behaviour: no
-/// squid hooks, so the manual Spawn command and `create_agent` are unchanged.
-///
-/// `inject_squid_hooks` → the daemon body's `"injectSquidHooks": true`. When the
-/// daemon runs an updated `routes/spawn.ts` + `lib/spawner.ts`, that flag makes a
-/// `claude-cli` / `cli:claude-code` launch FIRST sink the Giant Squid Harness
-/// (ADR-0091) pd-hook-* tentacles into the workspace's `.claude/settings.json`,
-/// so the conjure-dispatched vendor CLI runs UNDER PD coordination — its
-/// UserPromptSubmit / PreToolUse / PostToolUse turns fire the lock gate +
-/// pheromone hooks inside Claude Code's own loop (Claude Max Prime). codex /
-/// gemini remain validate-then-add: their squid adapters throw, so the flag is a
-/// no-op there until those adapters are written.
-#[derive(Debug, Clone, Default)]
-pub struct SpawnOpts {
-    /// Inject the Giant Squid pd-hook tentacles for this spawn (default false).
-    pub inject_squid_hooks: bool,
-    /// Explicit workdir for this spawn. When `Some`, [`build_spawn_body`] emits it
-    /// as the `workdir` field verbatim (overriding the `PD_CONSOLE_WORKDIR` env
-    /// fallback). The console-chat responder sets this to a dedicated ephemeral
-    /// worktree (see [`resolve_console_chat_workdir`]) so the daemon's main-checkout
-    /// isolation guard (`assessSpawnIsolation`) is SATISFIED, not bypassed — a bare
-    /// spawn used to omit workdir and bounce off that guard, so no responder ever
-    /// bound and the operator chat stayed silent.
-    pub workdir: Option<String>,
-}
-
-impl SpawnOpts {
-    /// The conjure-dispatch posture: run the vendor agent UNDER squid
-    /// coordination (lock-gating + pheromones via the injected pd-hook-*
-    /// tentacles). The conjurer's vendor agents always dispatch with this on.
-    pub fn squid() -> Self {
-        SpawnOpts {
-            inject_squid_hooks: true,
-            ..Default::default()
-        }
     }
 }
 
@@ -462,6 +214,155 @@ pub struct DaemonClient {
     http: reqwest::Client,
 }
 
+/// Durable daemon truth returned for one operator WorkIntent. `intent` and
+/// `plan` remain tolerant JSON objects so additive v0 fields survive a newer
+/// daemon without crashing an older console.
+#[derive(Debug, Clone)]
+pub struct WorkSnapshot {
+    pub intent: serde_json::Value,
+    pub plan: Option<serde_json::Value>,
+}
+
+impl WorkSnapshot {
+    pub fn intent_id(&self) -> &str {
+        self.intent
+            .get("intentId")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown-intent")
+    }
+
+    pub fn goal(&self) -> &str {
+        self.intent
+            .get("goal")
+            .and_then(|v| v.get("text"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("Untitled work")
+    }
+
+    pub fn plan_state(&self) -> &str {
+        self.plan
+            .as_ref()
+            .and_then(|v| v.get("state"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown")
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct WorkIntentReceipt {
+    pub status: String,
+    pub duplicate: bool,
+    pub correlation_id: String,
+    pub snapshot: WorkSnapshot,
+    pub next_action: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct WorkExecutionReceipt {
+    pub status: String,
+    pub duplicate: bool,
+    pub correlation_id: String,
+    pub snapshot: WorkSnapshot,
+    pub projection: String,
+    pub dispatch_id: String,
+    pub state: String,
+    pub session_id: Option<String>,
+    pub worktree_path: Option<String>,
+    pub launched_this_tick: usize,
+    pub next_action: String,
+}
+
+fn work_snapshot(value: &serde_json::Value) -> Result<WorkSnapshot> {
+    let intent = value
+        .get("intent")
+        .filter(|v| v.is_object())
+        .cloned()
+        .ok_or_else(|| anyhow!("Surface Gateway response omitted WorkIntent truth"))?;
+    let plan = value.get("plan").filter(|v| v.is_object()).cloned();
+    Ok(WorkSnapshot { intent, plan })
+}
+
+fn build_work_intent_envelope(
+    goal: &str,
+    token: &str,
+    issued_at: &str,
+    workdir: Option<&str>,
+) -> serde_json::Value {
+    let idempotency_key = format!("pd-console:work:{token}");
+    let mut constraints = serde_json::json!({
+        "placement": "local-only",
+        "maxCostUsd": 10.0,
+        "parallelism": "planner-decides",
+        "reviewRequired": true,
+        "destructiveActions": "human-approval"
+    });
+    if let (Some(workdir), Some(map)) = (workdir, constraints.as_object_mut()) {
+        map.insert(
+            "workdir".to_string(),
+            serde_json::Value::String(workdir.to_string()),
+        );
+    }
+    let mut source = serde_json::json!({
+        "kind": "console",
+        "surface": "pd-console",
+        "actorId": "operator:local"
+    });
+    if let (Some(workdir), Some(map)) = (workdir, source.as_object_mut()) {
+        map.insert(
+            "worktree".to_string(),
+            serde_json::Value::String(workdir.to_string()),
+        );
+    }
+    serde_json::json!({
+        "schema": "pd.agent-harbor.surface-gateway.v0",
+        "envelopeId": format!("surface_gateway_console_{token}"),
+        "correlationId": format!("corr_console_{token}"),
+        "surface": "pd-console",
+        "direction": "surface-to-daemon",
+        "mode": "command",
+        "noun": "WorkIntent",
+        "operation": "work-intent.capture",
+        "issuedBy": "pd-console:operator:local",
+        "issuedAt": issued_at,
+        "idempotencyKey": idempotency_key,
+        "payload": {
+            "schema": "pd.agent-harbor.work-intent.v0",
+            "intentId": format!("work_intent_console_{token}"),
+            "idempotencyKey": idempotency_key,
+            "source": source,
+            "goal": { "text": goal },
+            "constraints": constraints,
+            "startPolicy": "queued",
+            "attachExisting": false,
+            "operator": "operator:local",
+            "status": "captured",
+            "createdAt": issued_at
+        }
+    })
+}
+
+fn build_work_intent_start_envelope(
+    snapshot: &WorkSnapshot,
+    token: &str,
+    issued_at: &str,
+) -> serde_json::Value {
+    let intent_id = snapshot.intent_id();
+    serde_json::json!({
+        "schema": "pd.agent-harbor.surface-gateway.v0",
+        "envelopeId": format!("surface_gateway_console_start_{token}"),
+        "correlationId": format!("corr_console_start_{token}"),
+        "surface": "pd-console",
+        "direction": "surface-to-daemon",
+        "mode": "command",
+        "noun": "WorkIntent",
+        "operation": "work-intent.start",
+        "issuedBy": "pd-console:operator:local",
+        "issuedAt": issued_at,
+        "idempotencyKey": format!("pd-console:start:{intent_id}"),
+        "payload": snapshot.intent.clone()
+    })
+}
+
 /// Funnel a daemon response through a status check. reqwest treats 4xx/5xx as
 /// `Ok`, so any call that cares whether the daemon accepted the request must
 /// pass through here before reading the body — otherwise a rejection reads as
@@ -553,49 +454,205 @@ impl DaemonClient {
         &self.base
     }
 
+    /// Submit the console's one work-creation command. The console supplies
+    /// intent, constraints, and provenance only; it cannot name a backend,
+    /// provider, model, body, node, or run. The daemon binds berth authority,
+    /// writes WorkIntent + initial WorkPlan atomically, and returns a durable
+    /// receipt. A single timeout retry reuses the exact same idempotency key.
+    pub async fn capture_work_intent(&self, goal: &str) -> Result<WorkIntentReceipt> {
+        let goal = goal.trim();
+        if goal.is_empty() {
+            return Err(anyhow!("WorkIntent needs a non-empty goal"));
+        }
+        let token = work_token();
+        let issued_at = now_iso8601();
+        let workdir = std::env::var("PD_CONSOLE_WORKDIR")
+            .ok()
+            .filter(|value| !value.trim().is_empty());
+        let body = build_work_intent_envelope(goal, &token, &issued_at, workdir.as_deref());
+
+        let mut response = None;
+        for attempt in 0..2 {
+            match self
+                .http
+                .post(format!("{}/agent-harbor/surface-gateway", self.base))
+                .json(&body)
+                .send()
+                .await
+            {
+                Ok(value) => {
+                    response = Some(value);
+                    break;
+                }
+                Err(error) if attempt == 0 && error.is_timeout() => continue,
+                Err(error) => return Err(error).context("POST Surface Gateway WorkIntent"),
+            }
+        }
+        let response =
+            response.ok_or_else(|| anyhow!("Surface Gateway request produced no response"))?;
+        let response = ensure_success(response, "capture_work_intent").await?;
+        let value: serde_json::Value = response
+            .json()
+            .await
+            .context("Surface Gateway WorkIntent receipt")?;
+        let snapshot = work_snapshot(&value)?;
+        Ok(WorkIntentReceipt {
+            status: value
+                .get("status")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            duplicate: value
+                .get("duplicate")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
+            correlation_id: value
+                .get("correlationId")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown-correlation")
+                .to_string(),
+            next_action: value
+                .get("nextAction")
+                .and_then(|v| v.get("message"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("Inspect the daemon-owned WorkPlan before continuing.")
+                .to_string(),
+            snapshot,
+        })
+    }
+
+    /// Start one already-durable WorkIntent through the daemon's governed
+    /// runtime. The GUI still chooses no provider, model, body, node, or legacy
+    /// launch verb. A timeout retry reuses the same WorkIntent command key, so
+    /// an unknown caller state cannot create a second execution projection.
+    pub async fn start_work_intent(&self, snapshot: &WorkSnapshot) -> Result<WorkExecutionReceipt> {
+        let token = work_token();
+        let body = build_work_intent_start_envelope(snapshot, &token, &now_iso8601());
+        let mut response = None;
+        for attempt in 0..2 {
+            match self
+                .http
+                .post(format!("{}/agent-harbor/surface-gateway", self.base))
+                .json(&body)
+                .send()
+                .await
+            {
+                Ok(value) => {
+                    response = Some(value);
+                    break;
+                }
+                Err(error) if attempt == 0 && error.is_timeout() => continue,
+                Err(error) => return Err(error).context("POST Surface Gateway WorkIntent start"),
+            }
+        }
+        let response =
+            response.ok_or_else(|| anyhow!("Surface Gateway start produced no response"))?;
+        let response = ensure_success(response, "start_work_intent").await?;
+        let value: serde_json::Value = response
+            .json()
+            .await
+            .context("Surface Gateway WorkIntent start receipt")?;
+        let execution = value
+            .get("execution")
+            .filter(|candidate| candidate.is_object())
+            .ok_or_else(|| anyhow!("Surface Gateway start receipt omitted execution truth"))?;
+        let snapshot = work_snapshot(&value)?;
+        Ok(WorkExecutionReceipt {
+            status: value
+                .get("status")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            duplicate: value
+                .get("duplicate")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
+            correlation_id: value
+                .get("correlationId")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown-correlation")
+                .to_string(),
+            projection: execution
+                .get("projection")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            dispatch_id: execution
+                .get("dispatchId")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow!("Surface Gateway start receipt omitted execution id"))?
+                .to_string(),
+            state: execution
+                .get("state")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            session_id: execution
+                .get("sessionId")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            worktree_path: execution
+                .get("worktreePath")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            launched_this_tick: execution
+                .get("launchedThisTick")
+                .and_then(|v| v.as_u64())
+                .and_then(|value| usize::try_from(value).ok())
+                .unwrap_or(0),
+            next_action: value
+                .get("nextAction")
+                .and_then(|v| v.get("message"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("Inspect the active-agent roster and transcript stream.")
+                .to_string(),
+            snapshot,
+        })
+    }
+
+    /// Rehydrate recent WorkIntent/WorkPlan truth after a console restart. This
+    /// is a Surface Gateway query, not reconstruction from frontend state.
+    pub async fn list_work_intents(&self, limit: usize) -> Result<Vec<WorkSnapshot>> {
+        let token = work_token();
+        let body = serde_json::json!({
+            "schema": "pd.agent-harbor.surface-gateway.v0",
+            "envelopeId": format!("surface_gateway_console_query_{token}"),
+            "correlationId": format!("corr_console_query_{token}"),
+            "surface": "pd-console",
+            "direction": "surface-to-daemon",
+            "mode": "query",
+            "noun": "WorkIntent",
+            "operation": "work-intent.list",
+            "issuedBy": "pd-console:operator:local",
+            "issuedAt": now_iso8601(),
+            "idempotencyKey": null,
+            "payload": { "limit": limit.clamp(1, 100) }
+        });
+        let response = self
+            .http
+            .post(format!("{}/agent-harbor/surface-gateway", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST Surface Gateway WorkIntent query")?;
+        let response = ensure_success(response, "list_work_intents").await?;
+        let value: serde_json::Value = response
+            .json()
+            .await
+            .context("Surface Gateway WorkIntent query result")?;
+        value
+            .get("data")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| anyhow!("Surface Gateway WorkIntent query omitted data"))?
+            .iter()
+            .map(work_snapshot)
+            .collect()
+    }
+
     /// Expose the underlying reqwest client so panes can issue arbitrary requests
     /// to the daemon without re-implementing discovery.
     pub fn http_client(&self) -> &reqwest::Client {
         &self.http
-    }
-
-    /// Create a top-level agent on `backend`, bound to `channel`. The daemon
-    /// enforces real launch guards — a positive budget ceiling, a model for
-    /// model-backends, and a worktree workdir (NOT a main checkout). We satisfy
-    /// all three here so the command actually launches instead of bouncing off a
-    /// precondition. `workdir` comes from `PD_CONSOLE_WORKDIR` (an isolated
-    /// worktree); the daemon blocks main-checkout spawns by design.
-    /// Returns the outcome incl. one-shot inline `output` (ollama et al. reply in
-    /// the spawn response, not on the tube).
-    ///
-    /// `opts.inject_squid_hooks` adds `"injectSquidHooks": true` to the POST body
-    /// (see [`build_spawn_body`]); conjure-dispatch sets it so the vendor CLI runs
-    /// under PD coordination. `Default` opts keep the historical body unchanged.
-    pub async fn spawn(
-        &self,
-        backend: Backend,
-        prompt: &str,
-        channel: &str,
-        model: Option<&str>,
-        opts: SpawnOpts,
-    ) -> Result<SpawnOutcome> {
-        let body = build_spawn_body(backend, prompt, channel, model, opts);
-        let resp = self
-            .http
-            .post(format!("{}/spawn", self.base))
-            .json(&body)
-            .send()
-            .await
-            .context("POST /spawn")?;
-        let resp = ensure_success(resp, "spawn").await?;
-        let v: serde_json::Value = resp.json().await.context("spawn response")?;
-        let s = |k: &str| v.get(k).and_then(|x| x.as_str()).map(String::from);
-        Ok(SpawnOutcome {
-            id: s("agentId").unwrap_or_else(|| "?".into()),
-            status: s("status").unwrap_or_default(),
-            output: s("output"),
-            error: s("error"),
-        })
     }
 
     /// Post a turn up the tube.
@@ -963,73 +1020,6 @@ impl DaemonClient {
         Ok(())
     }
 
-    /// Propose a dispatch: `POST /dispatches` with `{ goal, requestedBy,
-    /// mergePolicy, baseBranch }`. The daemon requires a non-empty `goal` string
-    /// and returns 201 with the queued dispatch. `requestedBy` defaults to
-    /// `operator` (matching the route default) so the proposal is attributed to
-    /// the console operator. The new proposal lands in the Dispatch pane's
-    /// `review_pending` queue on the next refresh.
-    pub async fn propose_dispatch(&self, goal: &str) -> Result<()> {
-        let goal = goal.trim();
-        if goal.is_empty() {
-            return Err(anyhow!("propose_dispatch needs a non-empty goal"));
-        }
-        let body = serde_json::json!({ "goal": goal, "requestedBy": "operator" });
-        let resp = self
-            .http
-            .post(format!("{}/dispatches", self.base))
-            .json(&body)
-            .send()
-            .await
-            .context("POST /dispatches")?;
-        ensure_success(resp, "propose_dispatch").await?;
-        Ok(())
-    }
-
-    /// Launch a sortie: `POST /sorties` with `{ goal, projectDir, backend,
-    /// budgetUsd }`. The daemon validates ALL four — `projectDir` must exist and
-    /// pass the project-root guard, `backend` must be a known runtime, and
-    /// `budgetUsd` must be a positive ceiling. `projectDir` comes from
-    /// `PD_CONSOLE_WORKDIR` (the same operator-provided worktree `spawn` uses);
-    /// without it the launch is refused loudly rather than guessing a directory.
-    /// `backend` defaults to `claude-cli` and the budget to $0.25. Sortie pane
-    /// reads `/sorties`, so the mission appears on the next refresh.
-    pub async fn launch_sortie(&self, goal: &str) -> Result<()> {
-        let goal = goal.trim();
-        if goal.is_empty() {
-            return Err(anyhow!("launch_sortie needs a non-empty goal"));
-        }
-        let project_dir = std::env::var("PD_CONSOLE_WORKDIR").map_err(|_| {
-            anyhow!(
-                "launch_sortie needs a project directory: set PD_CONSOLE_WORKDIR \
-                 to the worktree the sortie should run in (the daemon refuses an \
-                 unknown/main checkout)"
-            )
-        })?;
-        let backend =
-            std::env::var("PD_CONSOLE_SORTIE_BACKEND").unwrap_or_else(|_| "claude-cli".into());
-        let budget: f64 = std::env::var("PD_CONSOLE_SORTIE_BUDGET")
-            .ok()
-            .and_then(|s| s.trim().parse().ok())
-            .filter(|b: &f64| *b > 0.0)
-            .unwrap_or(0.25);
-        let body = serde_json::json!({
-            "goal": goal,
-            "projectDir": project_dir,
-            "backend": backend,
-            "budgetUsd": budget,
-        });
-        let resp = self
-            .http
-            .post(format!("{}/sorties", self.base))
-            .json(&body)
-            .send()
-            .await
-            .context("POST /sorties")?;
-        ensure_success(resp, "launch_sortie").await?;
-        Ok(())
-    }
-
     /// Claim a port: `POST /claim` with `{ id }` where `id` is the semantic
     /// identity (`project:stack:context`). Port Daddy's core verb — same identity
     /// always maps to the same port (deterministic hashing). The route's body
@@ -1282,7 +1272,12 @@ pub fn body_text(body: &serde_json::Value) -> String {
 /// (exempt from the lint) that is not yet invoked from `main.rs` — the same
 /// not-yet-live status the slice-1 receive path had. The test exercises it.
 #[allow(dead_code)]
-fn region_claim_body(path: &str, start_line: u32, end_line: u32, agent_id: &str) -> serde_json::Value {
+fn region_claim_body(
+    path: &str,
+    start_line: u32,
+    end_line: u32,
+    agent_id: &str,
+) -> serde_json::Value {
     serde_json::json!({
         "regions": [{
             "path": path,
@@ -1325,400 +1320,123 @@ fn extract_text(payload: Option<&serde_json::Value>) -> String {
     }
 }
 
-/// Result of a spawn: the agent id, its lifecycle status, any one-shot inline
-/// output, and a daemon error/block reason when the launch was refused.
-pub struct SpawnOutcome {
-    pub id: String,
-    pub status: String,
-    pub output: Option<String>,
-    pub error: Option<String>,
-}
-
-/// Error resolving a workdir for the console-chat responder. Its message is shown
-/// VERBATIM in the chat pane, so it must name an ACTIONABLE cause (which directory,
-/// which IO failure) instead of collapsing into a bare "spawn refused".
-#[derive(Debug)]
-pub struct ChatWorkdirError(pub String);
-
-impl std::fmt::Display for ChatWorkdirError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-impl std::error::Error for ChatWorkdirError {}
-
-/// The git repo the console is running in, if any (`git rev-parse --show-toplevel`).
-/// Returns `None` when the console is launched outside a checkout (the production
-/// case — an installed binary), which is not an error: the responder then gets a
-/// plain scratch dir instead of a linked worktree.
-fn git_toplevel() -> Option<std::path::PathBuf> {
-    let out = std::process::Command::new("git")
-        .args(["rev-parse", "--show-toplevel"])
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let path = String::from_utf8(out.stdout).ok()?.trim().to_string();
-    if path.is_empty() {
-        None
-    } else {
-        Some(std::path::PathBuf::from(path))
-    }
-}
-
-/// Resolve the workdir the console-chat responder should run in, GUARANTEEING a
-/// path the daemon's isolation guard (`assessSpawnIsolation`, lib/spawner.ts)
-/// accepts — i.e. never a repository main checkout. Before this existed, a bare
-/// `POST /spawn` omitted `workdir`, the daemon defaulted it to its own main
-/// checkout, the guard blocked it, and NO responder ever bound → the operator chat
-/// was silent. This makes the guard SATISFIED, not bypassed (we never touch the
-/// `PD_SPAWN_ISOLATION_OFF` escape hatch).
-///
-/// Precedence:
-///   1. `PD_CONSOLE_WORKDIR`, if set & non-empty — honour the operator override.
-///   2. A dedicated ephemeral **git worktree** under `~/coding/tmp/pd-console-chat/<id>`,
-///      detached off the console's own repo HEAD. A linked worktree's `.git` is a
-///      FILE, so `detectGitCheckout` reads 'worktree' (allowed) and any file the
-///      responder writes stays isolated & disposable.
-///   3. When the console is NOT inside a git repo (nothing to check out) or the
-///      worktree add fails, a plain **scratch directory** at the same path. With no
-///      `.git` the guard reads 'none' (allowed) — the read-only posture the guard
-///      legitimately exempts. A conversational responder writes nothing to a repo;
-///      if the operator asks it to, writes land in this disposable dir, never a
-///      shared checkout (the exact clobber the guard exists to prevent).
-///
-/// Only a genuine filesystem failure (can't create the dir at all) is fatal; it
-/// returns a [`ChatWorkdirError`] the caller renders as an actionable chat error.
-///
-/// NEVER `/tmp` — macOS purges it on a timer and reboot. Always `~/coding/tmp`.
-pub fn resolve_console_chat_workdir() -> std::result::Result<String, ChatWorkdirError> {
-    // 1. Operator override wins.
-    if let Ok(wd) = std::env::var("PD_CONSOLE_WORKDIR") {
-        if !wd.trim().is_empty() {
-            return Ok(wd);
-        }
-    }
-
-    let home = dirs::home_dir().ok_or_else(|| {
-        ChatWorkdirError(
-            "cannot resolve $HOME to place a chat worktree; set PD_CONSOLE_WORKDIR \
-             to an existing worktree instead"
-                .into(),
-        )
-    })?;
-    let root = home.join("coding/tmp/pd-console-chat");
-    make_chat_workdir(&root, git_toplevel().as_deref())
-}
-
-/// Create a dedicated, NON-main workdir under `root`: a linked git worktree off
-/// `base_repo` when one is given (`.git` is a FILE → `detectGitCheckout` reads
-/// 'worktree'), else a plain scratch dir (no `.git` → reads 'none'). Either way
-/// `assessSpawnIsolation` accepts it. Pure w.r.t. env, so unit tests drive it with
-/// a temp repo + temp root and NO live daemon. The sole production caller roots it
-/// under `~/coding/tmp` — NEVER `/tmp` (macOS purges that).
-fn make_chat_workdir(
-    root: &std::path::Path,
-    base_repo: Option<&std::path::Path>,
-) -> std::result::Result<String, ChatWorkdirError> {
-    // Per-responder id: pid + a nanosecond stamp. Unique enough for one operator's
-    // console; avoids colliding with a stale directory from a prior run.
-    let id = format!(
-        "{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    );
-    let dest = root.join(&id);
-
-    // Prefer a real linked worktree off the base repo, when we have one.
-    if let Some(repo) = base_repo {
-        std::fs::create_dir_all(root).map_err(|e| {
-            ChatWorkdirError(format!(
-                "couldn't create the chat-worktree root {}: {e}. Set \
-                 PD_CONSOLE_WORKDIR to an existing worktree, or ensure ~/coding/tmp \
-                 is writable.",
-                root.display()
-            ))
-        })?;
-        // `--detach` off HEAD: an isolated checkout with NO new branch (throwaway
-        // conversational worktree — no branch pollution, no re-run name collision,
-        // and no rebase/commit replay, so the coordination-guard pre-commit hook
-        // never fires here).
-        let out = std::process::Command::new("git")
-            .current_dir(repo)
-            .args(["worktree", "add", "--detach"])
-            .arg(&dest)
-            .arg("HEAD")
-            .output();
-        if let Ok(o) = out {
-            if o.status.success() {
-                return Ok(dest.to_string_lossy().into_owned());
-            }
-            // else: bare repo / locked index / etc. Fall through to the scratch
-            // posture, which still binds a responder and keeps writes isolated.
-        }
-    }
-
-    // Scratch dir (read-only posture; `detectGitCheckout` reads 'none'). Wipe
-    // `dest` first: a `git worktree add` that failed AFTER creating the target
-    // could leave a partial `.git` behind, and a stale checkout there would make
-    // the guard misread the posture — defeating the isolation fix on the error
-    // path. A clean, empty dir guarantees 'none'. (Ignore a not-found error.)
-    let _ = std::fs::remove_dir_all(&dest);
-    std::fs::create_dir_all(&dest).map_err(|e| {
-        ChatWorkdirError(format!(
-            "couldn't create a chat workdir at {}: {e}. Set PD_CONSOLE_WORKDIR to an \
-             existing worktree, or ensure ~/coding/tmp is writable.",
-            dest.display()
-        ))
-    })?;
-    Ok(dest.to_string_lossy().into_owned())
-}
-
-/// Build the `POST /spawn` request body. Factored out of [`DaemonClient::spawn`]
-/// as a PURE function (env reads aside) so the wire shape is unit-testable without
-/// a live daemon — the proof that a conjure dispatch carries `injectSquidHooks`.
-///
-/// When `opts.inject_squid_hooks` is set, the body gains `"injectSquidHooks":
-/// true`. The daemon's `routes/spawn.ts` reads that flag into the spawner spec
-/// (`spec.injectSquidHooks`), and `lib/spawner.ts`'s `runClaudeCli` then injects
-/// the Giant Squid Harness (ADR-0091) pd-hook-* tentacles into the workspace's
-/// `.claude/settings.json` before the CLI boots — so a conjure-dispatched vendor
-/// CLI runs UNDER PD coordination (lock-gating + pheromones) inside Claude Code's
-/// own loop (Claude Max Prime). codex / gemini remain validate-then-add: their
-/// squid adapters throw, so the flag is a harmless no-op for those backends.
-pub fn build_spawn_body(
-    backend: Backend,
-    prompt: &str,
-    channel: &str,
-    model: Option<&str>,
-    opts: SpawnOpts,
-) -> serde_json::Value {
-    let mut body = serde_json::json!({
-        "backend": backend.as_str(),
-        "task": prompt,
-        "identity": format!("console:agent:{channel}"),
-        "purpose": "Top-level console agent (tube conversation)",
-        "tubeChannel": channel,
-        "budgetUsd": 0.25,
-    });
-    // An operator-chosen capability tier resolves to a model id; honour it.
-    if let Some(m) = model {
-        body["model"] = serde_json::json!(m);
-    } else if matches!(backend, Backend::Ollama) {
-        // Model-backends (ollama) require an explicit model even with no tier.
-        let m = std::env::var("PD_CONSOLE_OLLAMA_MODEL").unwrap_or_else(|_| "llama3.1:8b".into());
-        body["model"] = serde_json::json!(m);
-    }
-    // Worktree isolation: the daemon refuses to run an agent in a main
-    // checkout (`assessSpawnIsolation` in lib/spawner.ts). An explicit
-    // `opts.workdir` wins (the console-chat responder resolves its own dedicated
-    // ephemeral worktree — see `resolve_console_chat_workdir`); otherwise fall
-    // back to the operator-provided `PD_CONSOLE_WORKDIR`. Emitting NEITHER is what
-    // let a bare spawn default to the daemon's own main checkout and bounce.
-    if let Some(wd) = opts.workdir.as_deref().filter(|w| !w.trim().is_empty()) {
-        body["workdir"] = serde_json::json!(wd);
-    } else if let Some(wd) = std::env::var("PD_CONSOLE_WORKDIR")
-        .ok()
-        .filter(|w| !w.trim().is_empty())
-    {
-        // Same non-empty guard as the opts branch: a set-but-blank env var must NOT
-        // emit an empty `workdir` (routes/spawn.ts rejects it, and it would surface
-        // as a confusing daemon error rather than the clean default posture).
-        body["workdir"] = serde_json::json!(wd);
-    }
-    // Giant Squid Harness opt-in (ADR-0091): only emit the flag when set, so a
-    // default spawn's body is byte-for-byte what it has always been (the daemon
-    // defaults the absent flag to false). Conjure dispatch sets it true so its
-    // vendor CLIs run under PD coordination via the injected pd-hook tentacles.
-    if opts.inject_squid_hooks {
-        body["injectSquidHooks"] = serde_json::json!(true);
-    }
-    body
-}
-
-/// One hosted top-level agent.
-pub struct TopLevelAgent {
-    pub id: String,
-    pub backend: Backend,
-    pub channel: String,
-    pub cursor: u64,
-}
-
-/// The console's conversation registry — create / switch / converse, all on-bus.
-pub struct AgentManager {
-    client: DaemonClient,
-    pub agents: BTreeMap<u64, TopLevelAgent>,
-    pub active: Option<u64>,
-    next: u64,
-}
-
-impl AgentManager {
-    pub fn new() -> Result<Self> {
-        Ok(Self {
-            client: DaemonClient::discover()?,
-            agents: BTreeMap::new(),
-            active: None,
-            next: 1,
-        })
-    }
-
-    pub fn daemon(&self) -> &DaemonClient {
-        &self.client
-    }
-
-    async fn create_agent_with_opts(
-        &mut self,
-        backend: Backend,
-        prompt: &str,
-        opts: SpawnOpts,
-    ) -> Result<(u64, SpawnOutcome)> {
-        let local = self.next;
-        self.next += 1;
-        let channel = format!("console-agent-{local}");
-        let outcome = self
-            .client
-            .spawn(backend, prompt, &channel, None, opts)
-            .await?;
-        self.agents.insert(
-            local,
-            TopLevelAgent {
-                id: outcome.id.clone(),
-                backend,
-                channel,
-                cursor: 0,
-            },
-        );
-        self.active = Some(local);
-        Ok((local, outcome))
-    }
-
-    /// Create a NEW top-level agent on `backend`. The thing iterm2 was for.
-    pub async fn create_agent(
-        &mut self,
-        backend: Backend,
-        prompt: &str,
-    ) -> Result<(u64, SpawnOutcome)> {
-        // Plain spawn: no squid hooks. Use create_harnessed_agent for the
-        // Port-Daddy-compliant launch posture.
-        self.create_agent_with_opts(backend, prompt, SpawnOpts::default())
-            .await
-    }
-
-    /// Create a top-level agent under the Giant Squid harness. This keeps the
-    /// same tube-bound conversation path as create_agent, but requests hook
-    /// injection at daemon spawn time so turn-start/tool/post-tool affordances
-    /// can reach the vendor CLI loop.
-    pub async fn create_harnessed_agent(
-        &mut self,
-        backend: Backend,
-        prompt: &str,
-    ) -> Result<(u64, SpawnOutcome)> {
-        self.create_agent_with_opts(backend, prompt, SpawnOpts::squid())
-            .await
-    }
-
-    pub async fn send(&mut self, text: &str) -> Result<()> {
-        let a = self
-            .active
-            .and_then(|i| self.agents.get(&i))
-            .ok_or_else(|| anyhow!("no active agent"))?;
-        self.client.tube_send(&a.channel, text, "operator").await
-    }
-
-    pub async fn poll_active(&mut self) -> Result<Vec<TubeMsg>> {
-        let local = self.active.ok_or_else(|| anyhow!("no active agent"))?;
-        let (channel, cursor) = {
-            let a = self.agents.get(&local).unwrap();
-            (a.channel.clone(), a.cursor)
-        };
-        let (new_cursor, msgs) = self.client.tube_poll(&channel, cursor).await?;
-        if let Some(a) = self.agents.get_mut(&local) {
-            a.cursor = new_cursor;
-        }
-        // Don't echo the operator's own turns back as replies.
-        Ok(msgs
-            .into_iter()
-            .filter(|m| m.sender != "operator")
-            .collect())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn all_backends_round_trip() {
-        for b in Backend::ALL {
-            assert_eq!(Backend::parse(b.as_str()), Some(b));
-        }
-        // DeepSeek + xAI are first-class backends alongside Groq + LM Studio.
-        assert_eq!(Backend::parse("deepseek"), Some(Backend::Deepseek));
-        assert_eq!(Backend::Deepseek.as_str(), "deepseek");
-        assert_eq!(Backend::Deepseek.label(), "DeepSeek");
-        assert!(Backend::ALL.contains(&Backend::Deepseek));
-        assert_eq!(Backend::parse("xai"), Some(Backend::Xai));
-        assert_eq!(Backend::Xai.as_str(), "xai");
-        assert_eq!(Backend::Xai.label(), "Grok (xAI)");
-        assert!(Backend::ALL.contains(&Backend::Xai));
-        assert!(Backend::parse("nope").is_none());
+    fn work_intent_envelope_has_one_creation_authority() {
+        let body = build_work_intent_envelope(
+            "Repair the broken receipt path",
+            "fixed-token",
+            "2026-07-12T00:00:00Z",
+            Some("/worktrees/receipt-repair"),
+        );
+        let payload = body.get("payload").expect("WorkIntent payload");
 
-        // app.rs::spawn_backend_hint() is GENERATED by joining Backend::ALL
-        // (minus Custom) on " · ". Replicate that exact derivation here (agent.rs
-        // is the unit-tested binary; app.rs only compiles under the gpui build)
-        // to prove the Spawn suggestion now advertises deepseek + xai.
-        let hint = Backend::ALL
-            .into_iter()
-            .filter(|b| *b != Backend::Custom)
-            .map(|b| b.as_str())
-            .collect::<Vec<_>>()
-            .join(" · ");
-        assert!(
-            hint.contains("deepseek"),
-            "spawn hint must advertise deepseek: {hint}"
+        assert_eq!(
+            body.get("noun").and_then(|v| v.as_str()),
+            Some("WorkIntent")
         );
-        assert!(
-            hint.contains("xai"),
-            "spawn hint must advertise xai: {hint}"
+        assert_eq!(
+            body.get("operation").and_then(|v| v.as_str()),
+            Some("work-intent.capture")
         );
-        assert!(
-            hint.contains("groq"),
-            "spawn hint must still advertise groq: {hint}"
+        assert_eq!(
+            payload.pointer("/source/kind").and_then(|v| v.as_str()),
+            Some("console")
         );
+        assert_eq!(
+            payload.pointer("/source/worktree").and_then(|v| v.as_str()),
+            Some("/worktrees/receipt-repair")
+        );
+        assert_eq!(
+            payload
+                .pointer("/constraints/maxCostUsd")
+                .and_then(|v| v.as_f64()),
+            Some(10.0)
+        );
+        assert_eq!(
+            payload.get("startPolicy").and_then(|v| v.as_str()),
+            Some("queued")
+        );
+        assert_eq!(body.get("idempotencyKey"), payload.get("idempotencyKey"));
+
+        let wire = serde_json::to_string(&body).expect("serialize WorkIntent");
+        for forbidden in [
+            "backend",
+            "provider",
+            "model",
+            "bodyPreference",
+            "legacyVerb",
+        ] {
+            assert!(
+                !wire.contains(&format!("\"{forbidden}\"")),
+                "pd-console must not author {forbidden}: {wire}"
+            );
+        }
         assert!(
-            !hint.contains("custom"),
-            "spawn hint must exclude custom: {hint}"
+            !payload
+                .as_object()
+                .expect("payload object")
+                .contains_key("body"),
+            "pd-console must not author a Body"
         );
     }
 
     #[test]
-    fn backend_for_tier_is_multi_vendor() {
-        // Claude capability tiers all route to Claude Code (the Prime/Max default).
-        assert_eq!(backend_for_tier("opus"), Backend::ClaudeCli);
-        assert_eq!(backend_for_tier("sonnet"), Backend::ClaudeCli);
-        assert_eq!(backend_for_tier("haiku"), Backend::ClaudeCli);
-        assert_eq!(backend_for_tier("claude"), Backend::ClaudeCli);
-        // The actual multi-vendor proof: non-Claude tiers route to OTHER vendors.
-        assert_eq!(backend_for_tier("gemini"), Backend::Gemini);
-        assert_eq!(backend_for_tier("codex"), Backend::Codex);
-        assert_eq!(backend_for_tier("groq"), Backend::Groq);
-        assert_eq!(backend_for_tier("deepseek"), Backend::Deepseek);
-        assert_eq!(backend_for_tier("xai"), Backend::Xai);
-        assert_eq!(backend_for_tier("grok"), Backend::Xai);
-        assert_eq!(backend_for_tier("openai"), Backend::Openai);
-        assert_eq!(backend_for_tier("gpt"), Backend::Openai);
-        assert_eq!(backend_for_tier("ollama"), Backend::Ollama);
-        assert_eq!(backend_for_tier("lmstudio"), Backend::LmStudio);
-        assert_eq!(backend_for_tier("lm-studio"), Backend::LmStudio);
-        // Case + whitespace tolerant (planner output is a free string).
-        assert_eq!(backend_for_tier("  GEMINI "), Backend::Gemini);
-        // Unknown / empty falls back to the launchable default, never panics.
-        assert_eq!(backend_for_tier("frobnicate"), Backend::ClaudeCli);
-        assert_eq!(backend_for_tier(""), Backend::ClaudeCli);
+    fn work_intent_envelope_omits_unknown_worktree_instead_of_sending_null() {
+        let body = build_work_intent_envelope(
+            "Audit the roadmap",
+            "no-worktree-token",
+            "2026-07-13T00:00:00Z",
+            None,
+        );
+        let source = body
+            .pointer("/payload/source")
+            .and_then(serde_json::Value::as_object)
+            .expect("WorkIntent source");
+
+        assert!(!source.contains_key("worktree"), "source={source:?}");
+        assert!(!body
+            .pointer("/payload/constraints")
+            .and_then(serde_json::Value::as_object)
+            .expect("WorkIntent constraints")
+            .contains_key("workdir"));
+    }
+
+    #[test]
+    fn work_intent_start_envelope_reuses_durable_noun_without_provider_authority() {
+        let snapshot = WorkSnapshot {
+            intent: build_work_intent_envelope(
+                "Take the next roadmap slice",
+                "capture-token",
+                "2026-07-12T00:00:00Z",
+                Some("/worktrees/roadmap-slice"),
+            )["payload"]
+                .clone(),
+            plan: None,
+        };
+        let body =
+            build_work_intent_start_envelope(&snapshot, "start-token", "2026-07-12T00:00:05Z");
+
+        assert_eq!(body["noun"], "WorkIntent");
+        assert_eq!(body["operation"], "work-intent.start");
+        assert_eq!(
+            body["idempotencyKey"],
+            format!("pd-console:start:{}", snapshot.intent_id())
+        );
+        assert_eq!(body["payload"], snapshot.intent);
+        let wire = serde_json::to_string(&body).expect("serialize WorkIntent start");
+        for forbidden in [
+            "backend",
+            "provider",
+            "model",
+            "bodyPreference",
+            "legacyVerb",
+        ] {
+            assert!(!wire.contains(&format!("\"{forbidden}\"")), "{wire}");
+        }
     }
 
     #[test]
@@ -1822,244 +1540,6 @@ mod tests {
     }
 
     #[test]
-    fn model_catalog_resolves_from_config_not_hardcode() {
-        // The catalog is parsed from JSON data, never compiled-in logic.
-        let cat = ModelCatalog::parse(
-            r#"{ "providers": {
-                   "claude":   { "high": "claude-opus-4-8", "low": "claude-haiku-4-5-20251001" },
-                   "groq":     { "high": "llama-3.3-70b-versatile" },
-                   "deepseek": { "high": "deepseek-reasoner", "low": "deepseek-chat" },
-                   "xai":      { "high": "grok-2-latest", "low": "grok-code-fast-1" }
-                 } }"#,
-        )
-        .expect("valid catalog");
-        assert_eq!(
-            cat.resolve(Backend::Claude, Tier::High).as_deref(),
-            Some("claude-opus-4-8")
-        );
-        assert_eq!(
-            cat.resolve(Backend::Groq, Tier::High).as_deref(),
-            Some("llama-3.3-70b-versatile")
-        );
-        assert_eq!(
-            cat.resolve(Backend::Deepseek, Tier::High).as_deref(),
-            Some("deepseek-reasoner")
-        );
-        assert_eq!(
-            cat.resolve(Backend::Deepseek, Tier::Low).as_deref(),
-            Some("deepseek-chat")
-        );
-        assert_eq!(
-            cat.resolve(Backend::Xai, Tier::High).as_deref(),
-            Some("grok-2-latest")
-        );
-        assert_eq!(
-            cat.resolve(Backend::Xai, Tier::Low).as_deref(),
-            Some("grok-code-fast-1")
-        );
-        // A tier absent from the config → None (daemon picks its default).
-        assert_eq!(cat.resolve(Backend::Claude, Tier::Mid), None);
-        // A backend absent from the config offers no tiers (CLI backends, etc.).
-        assert!(cat.has_tiers(Backend::Claude));
-        assert!(!cat.has_tiers(Backend::ClaudeCli));
-        // The bundled seed is valid JSON and maps the model-backends.
-        let seed = ModelCatalog::parse(BUNDLED_MODEL_TIERS).expect("bundled seed parses");
-        assert!(seed.has_tiers(Backend::Claude));
-        assert!(seed.resolve(Backend::Gemini, Tier::Low).is_some());
-        // Every backend still has a non-empty picker label.
-        assert!(Backend::ALL.iter().all(|b| !b.label().is_empty()));
-    }
-
-    #[test]
-    fn conjure_dispatch_body_carries_inject_squid_hooks() {
-        // The conjure-dispatch posture runs the vendor agent UNDER squid
-        // coordination: the POST /spawn body must carry injectSquidHooks=true so
-        // the daemon injects the pd-hook tentacles (lock-gating + pheromones).
-        let body = build_spawn_body(
-            Backend::ClaudeCli,
-            "do the thing",
-            "operator",
-            None,
-            SpawnOpts::squid(),
-        );
-        assert_eq!(
-            body.get("injectSquidHooks").and_then(|v| v.as_bool()),
-            Some(true),
-            "conjure dispatch must opt into the Giant Squid Harness"
-        );
-
-        // A manual Spawn (default opts) must NOT carry the flag — the body is the
-        // historical shape, so the daemon defaults it to false (unchanged spawn).
-        let manual = build_spawn_body(
-            Backend::ClaudeCli,
-            "do the thing",
-            "operator",
-            None,
-            SpawnOpts::default(),
-        );
-        assert!(
-            manual.get("injectSquidHooks").is_none(),
-            "the manual Spawn body must omit injectSquidHooks (backward-compatible)"
-        );
-
-        // SpawnOpts::squid is the one true source of the true flag.
-        assert!(SpawnOpts::squid().inject_squid_hooks);
-        assert!(!SpawnOpts::default().inject_squid_hooks);
-    }
-
-    // ── Console-chat responder workdir (the silent-chat fix) ──────────────────
-    //
-    // The bug: the ChatSend spawn omitted `workdir`, so the daemon defaulted it to
-    // its own MAIN checkout and `assessSpawnIsolation` (lib/spawner.ts) blocked the
-    // spawn — no responder ever bound, the operator chat stayed silent. The fix
-    // gives the responder a dedicated, NON-main workdir. These tests prove the
-    // ChatSend body now carries such a workdir — no live daemon needed.
-    //
-    // We mirror the guard's OWN predicate here: `detectGitCheckout` reads a `.git`
-    // DIRECTORY as 'main' (blocked) and a `.git` FILE (linked worktree) or NO `.git`
-    // as 'worktree'/'none' (allowed). So "assessSpawnIsolation returns allowed" ==
-    // "the workdir's `.git` is not a directory".
-
-    /// A unique scratch root under ~/coding/tmp (NEVER /tmp — macOS purges it).
-    fn chat_test_scratch(tag: &str) -> std::path::PathBuf {
-        let base = dirs::home_dir()
-            .expect("home dir")
-            .join("coding/tmp/pd-console-chat-tests");
-        let uniq = format!(
-            "{tag}-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_nanos())
-                .unwrap_or(0)
-        );
-        base.join(uniq)
-    }
-
-    /// True when `assessSpawnIsolation` would ACCEPT this workdir: its `.git` (if any)
-    /// is NOT a directory. (A bare non-git dir has none → 'none'; a linked worktree
-    /// has a `.git` FILE → 'worktree'. Only a `.git` dir is a blocked main checkout.)
-    fn guard_would_allow(workdir: &std::path::Path) -> bool {
-        !workdir.join(".git").is_dir()
-    }
-
-    #[test]
-    fn chat_send_body_carries_explicit_workdir_over_env() {
-        // The console resolves a dedicated workdir and passes it via SpawnOpts. The
-        // body must emit it VERBATIM as `workdir`, and it must win over any ambient
-        // PD_CONSOLE_WORKDIR (opts is the console's resolved decision).
-        let wd = "/Users/agent/coding/tmp/pd-console-chat/12345-678";
-        let body = build_spawn_body(
-            Backend::ClaudeCli,
-            "what does this function do?",
-            "console-chat",
-            None,
-            SpawnOpts {
-                workdir: Some(wd.to_string()),
-                ..Default::default()
-            },
-        );
-        assert_eq!(
-            body.get("workdir").and_then(|v| v.as_str()),
-            Some(wd),
-            "ChatSend body must carry the resolved workdir so the daemon does not \
-             default to its own main checkout"
-        );
-        // It targets the console-chat channel (the responder's tube).
-        assert_eq!(
-            body.get("tubeChannel").and_then(|v| v.as_str()),
-            Some("console-chat")
-        );
-    }
-
-    #[test]
-    fn make_chat_workdir_scratch_posture_is_guard_allowed() {
-        // No base repo → the read-only scratch posture: a plain dir with no `.git`.
-        // `detectGitCheckout` reads 'none' → assessSpawnIsolation ALLOWS it, and it
-        // is NOT the daemon's main checkout. Fully hermetic (no git invoked).
-        let root = chat_test_scratch("scratch");
-        let workdir = make_chat_workdir(&root, None).expect("scratch workdir");
-        let p = std::path::Path::new(&workdir);
-        assert!(p.is_dir(), "scratch workdir must exist: {workdir}");
-        // Concrete structural fact (not the guard-predicate helper): a scratch
-        // workdir has NO `.git` at all, so `detectGitCheckout` reads 'none' and
-        // assessSpawnIsolation allows it. Asserting the real filesystem shape keeps
-        // this from being a round-trip through our own predicate replica.
-        assert!(
-            !p.join(".git").exists(),
-            "a scratch workdir must have no `.git` (→ guard reads 'none'): {workdir}"
-        );
-
-        // And the ChatSend body carries exactly this workdir.
-        let body = build_spawn_body(
-            Backend::ClaudeCli,
-            "hi",
-            "console-chat",
-            None,
-            SpawnOpts {
-                workdir: Some(workdir.clone()),
-                ..Default::default()
-            },
-        );
-        assert_eq!(body.get("workdir").and_then(|v| v.as_str()), Some(workdir.as_str()));
-
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    #[test]
-    fn make_chat_workdir_prefers_a_linked_worktree() {
-        // With a base repo, the responder gets a real linked git worktree — `.git`
-        // is a FILE, so `detectGitCheckout` reads 'worktree' (allowed), and any file
-        // the responder writes stays isolated. Requires `git` (the repo's baseline).
-        let root = chat_test_scratch("wt");
-        let repo = root.join("repo");
-        std::fs::create_dir_all(&repo).expect("mk repo dir");
-
-        let git = |args: &[&str]| {
-            std::process::Command::new("git")
-                .current_dir(&repo)
-                .args(args)
-                .output()
-                .map(|o| o.status.success())
-                .unwrap_or(false)
-        };
-        let ready = git(&["init", "-q"])
-            && git(&["config", "user.email", "t@t.t"])
-            && git(&["config", "user.name", "t"])
-            && git(&["commit", "--allow-empty", "-q", "-m", "seed"]);
-        if !ready {
-            // git unavailable/misconfigured: don't assert on a preferred-path we
-            // could not set up. The scratch posture (tested above) still binds.
-            let _ = std::fs::remove_dir_all(&root);
-            return;
-        }
-
-        let wt_root = root.join("wt");
-        let workdir = make_chat_workdir(&wt_root, Some(&repo)).expect("worktree workdir");
-        let p = std::path::Path::new(&workdir);
-        assert!(p.is_dir(), "worktree must exist: {workdir}");
-        let git_marker = p.join(".git");
-        if git_marker.exists() {
-            assert!(
-                git_marker.is_file(),
-                "a linked worktree's `.git` must be a FILE (→ guard reads 'worktree'): {workdir}"
-            );
-        }
-        assert!(
-            guard_would_allow(p),
-            "the chat workdir must be guard-allowed, whether git produced a linked \
-             worktree or make_chat_workdir fell back to scratch: {workdir}"
-        );
-
-        // Detach the worktree, then remove the whole temp tree.
-        let _ = std::process::Command::new("git")
-            .current_dir(&repo)
-            .args(["worktree", "remove", "--force", &workdir])
-            .output();
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    #[test]
     fn sse_parser_captures_sticky_last_event_id() {
         let mut p = SseParser::new();
         assert_eq!(p.last_id(), None);
@@ -2132,22 +1612,39 @@ mod tests {
     /// so it reuses the durable claims table rather than a parallel presence store.
     #[test]
     fn region_claim_body_matches_the_sessions_files_region_schema() {
-        let body = region_claim_body("core/pd-console/src/editor_pane.rs", 12, 20, "port-daddy:editor:agent-A");
-        let regions = body.get("regions").and_then(|r| r.as_array()).expect("regions array");
+        let body = region_claim_body(
+            "core/pd-console/src/editor_pane.rs",
+            12,
+            20,
+            "port-daddy:editor:agent-A",
+        );
+        let regions = body
+            .get("regions")
+            .and_then(|r| r.as_array())
+            .expect("regions array");
         assert_eq!(regions.len(), 1, "one region per selection mirror");
         let region = &regions[0];
-        assert_eq!(region.get("path").and_then(|p| p.as_str()), Some("core/pd-console/src/editor_pane.rs"));
+        assert_eq!(
+            region.get("path").and_then(|p| p.as_str()),
+            Some("core/pd-console/src/editor_pane.rs")
+        );
         // The route requires startLine >= 1 and endLine >= startLine.
         assert_eq!(region.get("startLine").and_then(|n| n.as_u64()), Some(12));
         assert_eq!(region.get("endLine").and_then(|n| n.as_u64()), Some(20));
-        assert!(region.get("startLine").and_then(|n| n.as_u64()).unwrap() >= 1, "startLine is 1-based");
+        assert!(
+            region.get("startLine").and_then(|n| n.as_u64()).unwrap() >= 1,
+            "startLine is 1-based"
+        );
         assert!(
             region.get("endLine").and_then(|n| n.as_u64()).unwrap()
                 >= region.get("startLine").and_then(|n| n.as_u64()).unwrap(),
             "endLine >= startLine (the route's contract)"
         );
         // The claim is attributed to the acting replica's PD identity.
-        assert_eq!(body.get("agentId").and_then(|a| a.as_str()), Some("port-daddy:editor:agent-A"));
+        assert_eq!(
+            body.get("agentId").and_then(|a| a.as_str()),
+            Some("port-daddy:editor:agent-A")
+        );
     }
 
     /// `put_blob` reads the content address out of routes/blob.ts's response shape
@@ -2156,11 +1653,24 @@ mod tests {
     fn parse_blob_id_reads_the_blob_stat_id() {
         let id = "e".repeat(64);
         let ok = serde_json::json!({ "success": true, "blob": { "id": id, "size": 128 } });
-        assert_eq!(parse_blob_id(&ok).as_deref(), Some(id.as_str()), "reads blob.id (the sha256 content address)");
+        assert_eq!(
+            parse_blob_id(&ok).as_deref(),
+            Some(id.as_str()),
+            "reads blob.id (the sha256 content address)"
+        );
         // A bare {id} is tolerated; a body with no id yields None (never invented).
-        assert_eq!(parse_blob_id(&serde_json::json!({ "id": "abc" })).as_deref(), Some("abc"));
-        assert_eq!(parse_blob_id(&serde_json::json!({ "success": false, "error": "boom" })), None);
-        assert_eq!(parse_blob_id(&serde_json::json!({ "blob": { "size": 1 } })), None);
+        assert_eq!(
+            parse_blob_id(&serde_json::json!({ "id": "abc" })).as_deref(),
+            Some("abc")
+        );
+        assert_eq!(
+            parse_blob_id(&serde_json::json!({ "success": false, "error": "boom" })),
+            None
+        );
+        assert_eq!(
+            parse_blob_id(&serde_json::json!({ "blob": { "size": 1 } })),
+            None
+        );
     }
 
     /// The SSE reconnect policy is a checked contract: a 429 (connection-limit
@@ -2172,13 +1682,34 @@ mod tests {
     fn sse_retry_policy_retries_429_and_5xx_but_stops_on_other_4xx() {
         use reqwest::StatusCode;
         // Transient → retry.
-        assert!(sse_status_is_retryable(StatusCode::TOO_MANY_REQUESTS), "429 Retry-After is transient");
-        assert!(sse_status_is_retryable(StatusCode::INTERNAL_SERVER_ERROR), "500 is transient");
-        assert!(sse_status_is_retryable(StatusCode::BAD_GATEWAY), "502 (daemon restart) is transient");
-        assert!(sse_status_is_retryable(StatusCode::SERVICE_UNAVAILABLE), "503 is transient");
+        assert!(
+            sse_status_is_retryable(StatusCode::TOO_MANY_REQUESTS),
+            "429 Retry-After is transient"
+        );
+        assert!(
+            sse_status_is_retryable(StatusCode::INTERNAL_SERVER_ERROR),
+            "500 is transient"
+        );
+        assert!(
+            sse_status_is_retryable(StatusCode::BAD_GATEWAY),
+            "502 (daemon restart) is transient"
+        );
+        assert!(
+            sse_status_is_retryable(StatusCode::SERVICE_UNAVAILABLE),
+            "503 is transient"
+        );
         // Permanent → stop.
-        assert!(!sse_status_is_retryable(StatusCode::BAD_REQUEST), "400 invalid channel is permanent");
-        assert!(!sse_status_is_retryable(StatusCode::FORBIDDEN), "403 is permanent");
-        assert!(!sse_status_is_retryable(StatusCode::NOT_FOUND), "404 unknown agent is permanent");
+        assert!(
+            !sse_status_is_retryable(StatusCode::BAD_REQUEST),
+            "400 invalid channel is permanent"
+        );
+        assert!(
+            !sse_status_is_retryable(StatusCode::FORBIDDEN),
+            "403 is permanent"
+        );
+        assert!(
+            !sse_status_is_retryable(StatusCode::NOT_FOUND),
+            "404 unknown agent is permanent"
+        );
     }
 }

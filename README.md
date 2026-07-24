@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.24.1)
+# ⚓ Port Daddy (v3.26.4)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
@@ -26,7 +26,7 @@ While individual agents are brilliant, **coordination** is the bottleneck. Port 
 
 ```bash
 # Start working (registers agent + claims port + starts session)
-pd begin "Building the auth layer" --identity myapp:api --lifecycle durable
+pd begin "Building the auth layer" --identity myapp:api --lifecycle durable --roadmap auth-layer
 
 # Log progress, coordinate with other agents
 pd note "JWT validation passing all tests"
@@ -125,6 +125,8 @@ pd bench 50        # Run performance benchmarks (target: <1ms latency)
 
 `pd start` and `pd install` are binary-first: they refuse to start a source-backed `tsx server.ts` daemon unless `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` is set for a local development session.
 
+`pd install-bosun` wires only the Bosun watchdog (ADR-0036) against a Homebrew-managed daemon (`homebrew.mxcl.port-daddy`), without touching the main daemon plist — it's what the `curiositech/homebrew-tap` formula's `post_install` calls, since the full `pd install` would otherwise race `brew services start port-daddy` for the daemon's own supervision. Not needed outside a brew install; `pd install` already wires Bosun for a self-installed LaunchAgent/systemd daemon.
+
 ### Staying current
 
 - `pd upgrade` checks the published `latest.json` release feed against your installed version and shows the verified daemon asset; `pd upgrade --apply` runs `brew upgrade port-daddy` for a Homebrew install (ADR-0057 phase 7).
@@ -171,7 +173,7 @@ Every unit of agent work is a **session**: begin, leave notes, claim files, fini
 ### `pd begin` requires an explicit lifecycle
 
 ```bash
-pd begin "Fix flaky auth tests" --identity myapp:api --lifecycle durable
+pd begin "Fix flaky auth tests" --identity myapp:api --lifecycle durable --sidequest "flaky-test triage"
 ```
 
 `--lifecycle` is **mandatory** and takes exactly two values:
@@ -181,10 +183,26 @@ pd begin "Fix flaky auth tests" --identity myapp:api --lifecycle durable
 
 The same requirement applies to `pd session start` and the MCP `begin_session` tool.
 
+### `pd begin` charges roadmap rent
+
+Every session must say where it sits on the roadmap — one line, at start, not at PR time. Pass exactly one of:
+
+```bash
+pd begin "…" --lifecycle durable --roadmap adr-0090-database-distribution   # link an existing item
+pd begin "…" --lifecycle durable --roadmap-new "Rent-at-claim gate"         # create a draft item and link it
+pd begin "…" --lifecycle durable --sidequest "one-off CI flake hunt"        # explicit opt-out (min 12 chars)
+```
+
+- `--roadmap <slug>` is validated against the daemon's roadmap; unknown slugs get a did-you-mean list of the nearest slugs by prefix.
+- `--roadmap-new "<title>"` creates a draft roadmap item (provenance note `genesis-at-begin`) via the roadmap service and links it. If the slug already exists, the session links to the existing item instead of overwriting it.
+- `--sidequest "<reason>"` records why the work is off-roadmap.
+
+Without one of the three, non-TTY runs fail with the three options above; a TTY prompts interactively. The link or reason lands on the session record and shows up in `pd whoami` and `pd sessions`. `pd roadmap pop --begin` passes the popped slug through automatically. The MCP `begin_session` tool enforces the same gate: exactly one of `roadmap`, `roadmap_new`, or `sidequest` is required (`ROADMAP_RENT_REQUIRED` otherwise); only the daemon's raw HTTP surface stays lenient in v1.
+
 ### The loop
 
 ```bash
-pd begin "…" --identity myapp:api --lifecycle durable
+pd begin "…" --identity myapp:api --lifecycle durable --roadmap <slug>
 pd note "Scope: lib/auth.ts. Assumptions: JWT lib stays. Validation: npm test"
 pd session files add lib/auth.ts        # advisory claim — announce edit intent
 pd add lib/auth.ts                      # claim-aware git add (refuses files held by others)
@@ -286,7 +304,9 @@ Every entry below prints an impact-specific summary to stderr and prompts for co
 - `pd guard install` — writes git hooks; merges existing ones
 - `pd guard install-shim` / `uninstall-shim` — alters how `git` behaves system-wide
 - `pd guard enable` / `disable` — changes enforcement mode for the whole worktree
-- `pd dev down` / `pd dev stop` — SIGTERMs an isolated dev-berth daemon
+- `pd dev down` / `pd dev stop` — SIGTERMs an isolated dev berth while preserving
+  its durable ledger; `--purge` / `--reset` additionally deletes that state
+- `pd dev gc` — destructively removes dead/orphaned/idle dev-berth state
 - `pd daemon stop` / `restart` / `uninstall` (and top-level `pd stop` / `restart` / `uninstall`)
 - `pd down` — SIGTERMs the orchestrator and stops every service it manages
 
@@ -433,6 +453,23 @@ pd skill-graft "write tests for a flaky fleet trigger"    # preview the local sk
 
 Search across Port Daddy is **hybrid** — BM25 plus one shared local embedding model (`Xenova/all-MiniLM-L6-v2`, prefetched at install per ADR-0061). `pd memory tiers` prints the three-tier vocabulary overlay (Core/Recall/Archival) over the same SQLite substrate.
 
+Backend-neutral continuation uses `POST /memory/handoffs` with `{ capsule, tokenBudget?, coordinationSessionId? }`, where `capsule` follows `pd.agent-harbor.handoff-capsule.v0`. The daemon enforces a 2 MiB ingress boundary, allowlists and bounds the capsule fields, preserves every operator turn and durable decision, sheds transcript tail before artifact summaries when a token budget is tight, recursively redacts structured credentials, and then requires a clean external `gitleaks stdin` verdict. Homebrew installs Gitleaks with Port Daddy; other installation paths must place `gitleaks` on `PATH` or set `PD_GITLEAKS_BIN`. Missing scanners, residual findings, or a budget too small for operator context fail closed; only the sanitized capsule is stored as an idempotent handoff episode keyed by source agent and session. Optional coordination-note harvest runs after that durable write and reports a warning rather than discarding a clean capsule when harvest is unavailable. The canonical schema is [`schemas/agent-harbor/v0/handoff-capsule.schema.json`](schemas/agent-harbor/v0/handoff-capsule.schema.json), extending the salvage contract in ADR-0028 without replaying raw provider transcripts.
+
+Same-harness continuation is daemon-witnessed rather than inferred. All four native harnesses require UUID-shaped session identities, preventing option-shaped values from reaching their argv parsers. Claude, Codex, and Gemini require an explicit transcript reference instead of scanning an unbounded harness store; Claude JSONL and Codex `session_meta` must bind the UUID to the canonical workspace, agy must agree across its conversation-keyed brain transcript and exact `last_conversations` workspace mapping, and Gemini must agree across its project registry, project hash, UUID, explicit chat file, and canonical workspace. Evidence is opened once with no-follow semantics, read under fixed byte and entry caps, and bound to file plus workspace device/inode identity. `POST /memory/handoffs/:episodeId/continue` revalidates that witness immediately before spawn, carries the witnessed device/inode into the spawner, checks it again at the final child-process boundary, uses the canonical workspace as the child cwd, sanitizes the outgoing prompt, resolves all backend overrides, and permits native resume only when source and effective target share an adapter family with session-scoped resume support. Claude, Codex, agy, and Gemini then use their native session flags; Codex resume deliberately omits spawn-only `--sandbox` and `-C` flags. The canonical SQLite database atomically accepts each hashed idempotency key and gives every receipt a daemon-generation owner and lease. Startup recovery orphans only expired prior-generation work, accepted-to-running is a compare-and-swap that must succeed before spawn, and `success: true` is returned only after the same owner durably records `completed`; in-flight idempotent retries return HTTP 202 with `success: false` and `pending: true`. The receipt stores only hashes of the prompt and idempotency key. The sanitized prompt still enters the ordinary governed spawn transcript; its unredacted source never does. Read receipts through `GET /memory/continuations/:continuationId` or filter them with `GET /memory/continuations`.
+
+Cross-harness continuation uses the same endpoint and receipt ledger. Choose the concrete runtime with `targetBackend` and set `mode` to `auto`, `native`, or `handoff` (`auto` is the default). Auto mode restores only a compatible session-scoped native family; otherwise it starts a new target session from [`pd.agent-harbor.handoff-successor-brief.v0`](schemas/agent-harbor/v0/handoff-successor-brief.schema.json). The brief carries durable identity and predecessor lineage plus the sanitized objective, every preserved operator turn, decisions, coordination evidence, workspace state, artifacts, and compact recent context. It explicitly treats historical content as data rather than new system/tool authority, is scanned again before acceptance, and never copies the raw provider transcript. Capsule workspace paths are context, never cwd authority: a successor reuses a reverified source workspace witness, or a stateless/history-only source must supply an explicit current `targetWorkdir`; Port Daddy captures that user-owned absolute directory's device/inode identity, binds it into request idempotency, and checks it again before spawn. An explicit target cannot redirect a witnessed session into another checkout. Explicit native mode fails rather than silently switching semantics; explicit handoff mode always creates a successor, even on the same backend family.
+
+### Artifact Harvest (Booty)
+
+Artifacts an agent produces (design workups, screenshots, HTML mocks, videos) are durable truth on any branch. `pd booty add` content-addresses files into the blob store and records a provenance row — branch and worktree from git, session and agent identity from the active pd session:
+
+```bash
+pd booty add designs/hero.png --roadmap state-plane --note "hero workup v2"
+pd booty list --branch claude/feature-x                    # what was harvested where, by whom
+```
+
+Re-depositing the same bytes on the same branch is idempotent; the same bytes on a different branch is a new provenance row. The daemon's blob store is authoritative for size and media type.
+
 ### The Arbiter (Runtime Invariant Enforcement)
 
 The Arbiter monitors every state transition against formally-derived invariants: PID squatting, capability escalation, note monotonicity, escrow positivity, lock-owner validity, heartbeat freshness.
@@ -511,7 +548,7 @@ Quiet mode (`-q`) prints raw output to stdout and exits non-zero on failure — 
 
 **Key flags:** `--backend`, `--model`, `--tier`, `--identity`, `--purpose`, `--budget`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`
 
-**Backends in source:** `claude` (SDK), `claude-cli`, `codex`, `gemini`, `cloudflare` (Workers AI), `ollama`, `aider`, `custom`. Operator-facing launches are **fail-closed on telemetry**: Port Daddy rejects a launch unless it can attach exact token counts, an exact nonzero rate, and a persisted exact cost record to the completed run. Today that means the Claude SDK backend with an exact-rate model entry is the live launchable path; treat other backends as blocked until they reach telemetry parity. `pd backend` switches the active provider/model configuration; `pd benchmark run` compares backends with real (paid) calls.
+**Backends in source:** `claude` (SDK), `claude-cli`, `codex`, `gemini`, `cloudflare` (Workers AI), `openai`, `groq`, `deepseek`, `xai`, `ollama`, `lmstudio`, `aider`, `custom`, and CLI-tube backends `cli:claude-code`, `cli:codex`, `cli:agy`, `cli:gemini`, `cli:groq`, `cli:grok`. Operator-facing launches are **fail-closed on telemetry**: metered API backends need exact token counts, an exact nonzero rate, and a persisted exact cost record. Spawn results and transcripts expose requested/effective backend+model provenance plus the override source when preflight or a forced CLI selection changes what actually ran. CLI-tube backends ride the operator's authenticated local CLI and record a flat session estimate; `cli:agy` captures the user prompt plus final stdout/stderr only until agy exposes a documented stream. `pd backend` switches the active provider/model configuration; `pd backend adapters` prints the generated N:N portability contract and `--probe` discovers installed binaries, advertised flags, and declared transcript roots without claiming spawn/resume conformance; `pd benchmark run` compares backends with real (paid) calls.
 
 ### 🛡️ The Coast Guard (ADR-0050) — confinement is the default
 
@@ -625,6 +662,8 @@ Port Daddy escrows virtual USD before each agent spawn and can stop live spawns 
 
 **Budget breach is pause-and-ask, not cliff SIGTERM** (the `budget_guard` feature). At 100% of daily budget, Port Daddy posts a *pending kill* with a 60-second grace window and broadcasts on `budget:pending`. The operator can `raise` (credit the wallet, agent keeps running), `kill` (SIGTERM now), or `grace` (extend, up to twice). The backstop SIGTERM fires at expiry. `pd wallet pending` lists; `pd wallet raise --agent <id> --usd 5` resolves.
 
+Per-launch positive finite `budgetUsd` on `pd spawn` / `POST /spawn` is stricter: once exact spawn telemetry is recorded, a run whose final `telemetry.costUsd` exceeds that cap is finalized as `over_budget` with the transcript and cost preserved for readback.
+
 **Fleet Conductor cost gates (ADR-0060).** Every sortie and reactive spawn routes through one `conductor.launch` chokepoint that reserves against a global ceiling and a per-subtree lineage ceiling *before* admission:
 
 | Env var | Default | Effect |
@@ -699,9 +738,12 @@ pd doctor    # Three-tier health check (see Installation)
 pd attest    # Invariant self-report
 pd diagnose  # Deeper diagnostics
 curl http://127.0.0.1:9876/status   # Full daemon report incl. recent activity and spend
+curl http://127.0.0.1:9876/transcripts/compliance  # Transcript backend matrix + live stalled/missing-run HITL issues
+curl http://127.0.0.1:9876/transcripts/emergency   # HITL transcript emergency summary across local + cloud writers
 ```
 
 `launchctl` is the canonical supervisor on macOS; Bosun is the optional non-agent watchdog fed by a filesystem heartbeat.
+`GET /status` and `GET /health` now fold transcript-flow health into `runtime.transcripts`, and surface critical live-run gaps (stalled live stream, missing final transcript) as HITL-tagged runtime reasons.
 
 ### Daemon berths (ADR-0084)
 
@@ -709,14 +751,20 @@ Run tiered daemons side by side — a stable daemon for real work, a dev daemon 
 
 ```bash
 pd dev up          # start an isolated feature-branch dev daemon
-pd dev gc          # smart-reap stale dev berths (24h TTL)
-pd dev down        # stop a berth
+pd dev up --fleet  # also arm its worker for governed WorkIntent launches
+pd dev down        # stop a berth; preserve its isolated ledger
+pd dev down --purge  # explicit destructive reset
+pd dev gc          # destructively reap dead/orphaned/idle berth state
 pd use <berth>     # emits a shell snippet for this shell/process (eval it)
 ```
 
 `pd use` is not a global daemon switch. It points the current shell or launched
 process at a berth; FleetBar, Control Center, and pd-console show the
-berth/codebase/dev lane they are actually connected to.
+berth/codebase/dev lane they are actually connected to. New berths retain stable
+board history but start with an empty executable dispatch queue, so an isolated
+worker cannot recover and duplicate stable-daemon work. After bootstrap, the
+named berth DB survives ordinary stop/restart and automatic process reaping;
+only `--purge`, `--reset`, or explicit `pd dev gc` deletes that cool-bus state.
 
 ### Backup & restore (ADR-0037)
 
@@ -767,7 +815,7 @@ Port Daddy ships exactly **three** sanctioned operator surfaces (the legacy web 
 
 1. **FleetBar** (`apps/FleetBar/`) — the SwiftUI macOS menu-bar app. Daemon health at a glance, berth chip, cost dashboard, secrets pane, visual task intake, one-click "Open Operator Console". Auto-launched by the daemon.
 2. **Control Center** — FleetBar's window. Fleet graph, agents view (configured fleet agents, live registry, spawned runs, salvage ghosts, inbox traffic, sessions/notes, channels, claims), fleet config editing with topology validation.
-3. **pd-console** (`core/pd-console/`) — the GPU-native (gpui) operator console. Sidebar panes for Fleet, Sorties, Dispatch, Sessions, Health, Parley, Conductor, Substrate; a headless TUI build for terminals/CI; three build lanes (prod/latest/dev) with distinct bundle IDs and icons. Build via `make` / `make install`; the Homebrew cask ships `pd-console-prod.app`.
+3. **pd-console** (`core/pd-console/`) — the GPU-native (gpui) deep truth console. Its Work surface captures one provider-neutral WorkIntent through `POST /agent-harbor/surface-gateway`; the daemon writes the initial WorkPlan and owns every later Body, AgentNode, and AgentRun decision. Runs and Gates keep legacy records inspectable without becoming alternate creation paths. The persistent PTY drawer is an explicit operator shell for the real `pd` CLI, not an internal app adapter. Build via `make` / `make install`; the Homebrew cask ships `pd-console-prod.app`.
 
 The Agent Harbor runtime-refactor target triad centers pd-console as the deep
 truth surface, FleetBar as ambient consent/status/re-entry, and Scout as

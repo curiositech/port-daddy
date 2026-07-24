@@ -1,0 +1,133 @@
+{
+  "generatedAt": "2026-07-09T09:27:00Z",
+  "branch": "codex/pd-console-live-chat-attach-proof",
+  "headAtCapture": "d3a33a62b0b6af3e3641b76fbe8b15bdedc43276",
+  "worktree": "/private/tmp/pd-console-live-chat-proof",
+  "pdConsole": {
+    "pid": 54305,
+    "command": "./core/target/release/pd-console --pane chat --display 2 --control-sock /private/tmp/pd-console-live-chat.sock",
+    "controlSocket": "/private/tmp/pd-console-live-chat.sock",
+    "controlSocketPing": {
+      "ok": true,
+      "daemonBeforeRebind": "http://127.0.0.1:9893",
+      "focused": "cartographer"
+    },
+    "reboundDaemon": "http://127.0.0.1:9876",
+    "windowId": 61348,
+    "cleanup": "kill 54305; subsequent ps -p 54305 returned no process"
+  },
+  "daemon": {
+    "url": "http://127.0.0.1:9876",
+    "pid": 70530,
+    "command": "/opt/homebrew/opt/port-daddy/bin/port-daddy start --foreground",
+    "health": "status ok, version 3.24.1, runtime nominal, canonical true"
+  },
+  "managerGuardrailCleanup": {
+    "found": {
+      "pid": 51139,
+      "command": "zsh /private/tmp/iterm-start-proof-daemon.sh"
+    },
+    "action": "kill 51139",
+    "verification": [
+      "ps -p 51139 -o pid,ppid,command: no live process row after cleanup",
+      "pgrep -af /private/tmp/iterm-: no matches after cleanup",
+      "pgrep -af /private/tmp/term-: no matches after cleanup"
+    ],
+    "notTouched": "Other broad pattern matches were Logi Tune and Chrome renderer helpers containing unrelated ScreenCaptureKit feature flags."
+  },
+  "displayInventory": [
+    {
+      "index": 0,
+      "id": 5,
+      "uuid": "129011e6-a8f0-4007-a1a3-6df3b1b7eb6d",
+      "origin": [0, 0],
+      "size": "2304x960"
+    },
+    {
+      "index": 1,
+      "id": 20,
+      "uuid": "104115ce-748a-4d96-afa9-170076c0e4b4",
+      "origin": [0, 0],
+      "size": "2560x1440"
+    },
+    {
+      "index": 2,
+      "id": 21,
+      "uuid": "8e8555aa-6ca0-4267-a91b-0a0913aa2d2d",
+      "origin": [0, 0],
+      "size": "2560x1440"
+    }
+  ],
+  "operatorTurn": {
+    "sentThrough": "pd-console control socket command {\"cmd\":\"chat\",\"text\":\"...\"}",
+    "response": {
+      "ok": true,
+      "chat": {
+        "sent": true,
+        "text": "Proof turn 2026-07-09T09:25Z: are you attached live in pd-console?",
+        "controlPlane": true
+      }
+    }
+  },
+  "daemonMessages": [
+    {
+      "id": 127529,
+      "channel": "console-chat",
+      "sender": "cli-tube/codex",
+      "payload": {
+        "kind": "cli-tube.result",
+        "ok": false,
+        "error": "codex binary \"codex\" not found on PATH. Install it and retry. Set OPENAI_API_KEY in ~/.codex/config or `codex auth login`."
+      },
+      "note": "The built-in first-turn responder path was live but blocked by environment PATH/auth, so it is not counted as the agent reply."
+    },
+    {
+      "id": 127533,
+      "channel": "console-chat",
+      "sender": "spawned-eb212c52f645",
+      "payload": {
+        "text": "Live agent spawned-eb212c52f645 received the pd-console operator turn and is replying on console-chat via the daemon tube."
+      },
+      "note": "This is the live spawned proof agent answering on the same daemon tube that pd-console polls."
+    }
+  ],
+  "capture": {
+    "method": "exact pd-console window capture",
+    "windowId": 61348,
+    "pidFilter": 54305,
+    "noDesktopFallback": true,
+    "noTerminalOrAppleScriptControl": true,
+    "artifacts": {
+      "png": {
+        "path": "pd-console-live-chat.png",
+        "size": "2400x1600",
+        "sha256": "3ea63049c6911e0821469eb581ec359180374171aa5c50dae2bb99a109e68269"
+      },
+      "mov": {
+        "path": "pd-console-live-chat.mov",
+        "sha256": "1b2f10b69cf7bfa37cd4b8d1f19b51957bfdc16536d569d46e696045fcaae5f8"
+      },
+      "mp4": {
+        "path": "pd-console-live-chat.mp4",
+        "sha256": "83cdc3a1b5e2be1add15b6e46fc4e36f3e8abd21bb45d7622ce3ed513720725c"
+      },
+      "gif": {
+        "path": "pd-console-live-chat.gif",
+        "size": "960x640",
+        "sha256": "c9257ef1644b9bbcbc82db94bff62ec7b2d12289ef31a526acd3b081f9033603"
+      }
+    }
+  },
+  "validation": [
+    "cargo test --manifest-path core/pd-console/Cargo.toml chat: passed",
+    "cargo test --manifest-path core/pd-console/Cargo.toml subscribe_agent_streams_typed_envelopes_over_a_socket: passed",
+    "cargo test --manifest-path core/pd-console/Cargo.toml folds_status_transcript_and_tube: passed",
+    "cargo test --manifest-path core/pd-console/Cargo.toml parses_every_command: passed",
+    "cargo test --manifest-path core/pd-console/Cargo.toml rejects_malformed_input_with_a_reason: passed",
+    "cargo build --release --features gpui --bin pd-console: passed after escalation for Clang/Metal module cache"
+  ],
+  "unresolvedRisks": [
+    "The built-in automatic chat responder could not bind on this machine because the daemon-spawned environment reported codex binary not found on PATH.",
+    "Display selector 2 was used for launch, but the committed capture is exact-window by pd-console PID/window id, not a full display capture."
+  ]
+}

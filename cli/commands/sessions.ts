@@ -19,6 +19,7 @@ import {
   attachCliSessionWorktreePolicy,
   resolveCliSessionWorktreePolicy,
 } from '../utils/session-worktree-policy.js';
+import { resolveRelinkRent, formatRentReceipt, RELINK_GATE_MESSAGE } from './sugar.js';
 
 type SessionStartResult = Awaited<ReturnType<PortDaddy['startSession']>>;
 type SessionEndResult = Awaited<ReturnType<PortDaddy['endSession']>>;
@@ -210,7 +211,7 @@ export async function handleSession(
   useDirect = false
 ): Promise<void> {
   if (!subcommand) {
-    console.error('Usage: port-daddy session <start|end|done|abandon|takeover|rm|files|phase> [args]');
+    console.error('Usage: port-daddy session <start|end|done|abandon|takeover|rm|files|phase|relink> [args]');
     console.error('');
     console.error('Commands:');
     console.error('  start <purpose> [--files file1 file2...] [--agent AGENT_ID] [--force]');
@@ -222,6 +223,7 @@ export async function handleSession(
     console.error('  files add <paths...> [--session ID]  # Claim files in active session');
     console.error('  files rm <paths...> [--session ID]   # Release files in active session');
     console.error('  phase <id> <phase>    # Set session phase');
+    console.error('  relink --roadmap <slug> | --sidequest "<reason>"  # Fix the active session\'s roadmap rent');
     console.error('');
     console.error('Phases: planning, in_progress, testing, reviewing, completed, abandoned');
     process.exit(1);
@@ -248,6 +250,8 @@ export async function handleSession(
       return sessionFiles(rest, options);
     case 'phase':
       return sessionPhase(rest, options);
+    case 'relink':
+      return sessionRelink(options);
     default:
       console.error(`Unknown session command: ${subcommand}`);
       console.error('Run "port-daddy session" for usage');
@@ -351,6 +355,23 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
     console.log(JSON.stringify(data, null, 2));
   } else if (isQuiet(options)) {
     console.log(sessionId);
+  } else if (ui.lineworkEnabled({ json: isJson(options), quiet: isQuiet(options) })) {
+    const rows: ui.LineworkRow[] = [
+      { state: 'confirmed', label: 'session', text: sessionId },
+      { state: 'pending', label: 'purpose', text: purpose },
+      { state: lifecycle === 'durable' ? 'healthy' : 'info', label: 'lifecycle', text: lifecycle },
+    ];
+    if (files.length > 0) {
+      rows.push({ state: 'confirmed', label: 'files', text: `${files.length} claimed` });
+    }
+    console.log(ui.renderLineworkPanel({
+      title: 'Session Start',
+      subtitle: sessionId,
+      tone: 'healthy',
+      zone: 'session anchored',
+      rows,
+      footer: 'notes and file claims are now attached to this session',
+    }));
   } else {
     ui.success(`Started session: ${sessionId}`);
     console.log(`  Purpose: ${purpose}`);
@@ -628,6 +649,69 @@ async function sessionPhase(rest: string[], options: CLIOptions): Promise<void> 
 }
 
 /**
+ * `pd session relink --roadmap <slug> | --sidequest "<reason>"`
+ *
+ * Anti-Goodhart valve for rent-at-claim: fixes the ACTIVE session's roadmap
+ * link / sidequest opt-out. Same validation as pd begin (slug must exist,
+ * with did-you-mean; sidequest min 12 chars; mutually exclusive). The daemon
+ * records an old -> new audit note on the session.
+ */
+async function sessionRelink(options: CLIOptions): Promise<void> {
+  const rent = resolveRelinkRent(options);
+  if (!rent.ok) {
+    ui.error(rent.error || RELINK_GATE_MESSAGE);
+    process.exit(1);
+  }
+
+  const ctx = readCurrentContext();
+  const agentId = (typeof options.agent === 'string' ? options.agent : undefined) || ctx?.agentId;
+  const sessionId = (typeof options.session === 'string' ? options.session : undefined) || ctx?.sessionId;
+
+  const body: Record<string, unknown> = {};
+  if (agentId) body.agentId = agentId;
+  if (sessionId) body.sessionId = sessionId;
+  if (rent.roadmapLink) body.roadmapLink = rent.roadmapLink;
+  if (rent.sidequestReason) body.sidequestReason = rent.sidequestReason;
+
+  const res: PdFetchResponse = await pdFetch('/sugar/relink', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    ui.error((data.error as string) || 'Failed to relink session');
+    process.exit(1);
+  }
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  if (isQuiet(options)) {
+    console.log(data.sessionId);
+    return;
+  }
+
+  const oldDesc = data.previousRoadmapLink
+    ? `roadmap:${data.previousRoadmapLink}`
+    : data.previousSidequestReason
+      ? `sidequest:${data.previousSidequestReason}`
+      : 'none';
+  const newDesc = data.roadmapLink
+    ? `roadmap:${data.roadmapLink}`
+    : `sidequest:${data.sidequestReason}`;
+  ui.success(`Session ${data.sessionId} relinked: ${oldDesc} → ${newDesc}`);
+  const receipt = formatRentReceipt({
+    roadmapLink: data.roadmapLink as string | undefined,
+    sidequestReason: data.sidequestReason as string | undefined,
+  });
+  if (receipt) console.error(`  ${receipt}`);
+}
+
+/**
  * Handle `pd files` command — list all active file claims
  */
 export async function handleFiles(options: CLIOptions): Promise<void> {
@@ -877,6 +961,7 @@ export async function handleSessions(options: CLIOptions): Promise<void> {
     createdAt: number;
     fileCount?: number;
     noteCount?: number;
+    metadata?: { roadmapLink?: string; sidequestReason?: string } | null;
   }>;
 
   if (sessions.length === 0) {
@@ -894,14 +979,58 @@ export async function handleSessions(options: CLIOptions): Promise<void> {
     console.log(`Showing sessions for worktree ${data.worktreeId} (use --all-worktrees for all)`);
     console.log('');
   }
-  console.log('ID              PURPOSE                    STATUS    FILES  NOTES  AGE');
-  console.log('─'.repeat(75));
+  if (ui.lineworkEnabled({ json: isJson(options), quiet: isQuiet(options) })) {
+    const rows = sessions.map((s): ui.LineworkRow => {
+      const meta = s.metadata && typeof s.metadata === 'object' ? s.metadata : null;
+      const link = typeof meta?.roadmapLink === 'string' && meta.roadmapLink
+        ? `roadmap ${meta.roadmapLink}`
+        : typeof meta?.sidequestReason === 'string' && meta.sidequestReason
+          ? `sidequest ${meta.sidequestReason}`
+          : 'no link';
+      const status = s.status.toLowerCase();
+      const state: ui.LineworkState = status === 'active'
+        ? 'active'
+        : status === 'completed'
+          ? 'confirmed'
+          : status === 'abandoned'
+            ? 'recovering'
+            : status.includes('block')
+              ? 'blocked'
+              : 'unknown';
+      const age = formatAge(now - s.createdAt);
+      return {
+        state,
+        label: s.id.slice(0, 10),
+        text: `${s.purpose} · ${s.status} · files ${s.fileCount || 0} · notes ${s.noteCount || 0} · ${age} · ${link}`,
+      };
+    });
+    console.log(ui.renderLineworkPanel({
+      title: 'Sessions',
+      subtitle: showingAll ? 'all worktrees' : (data.worktreeId ? `worktree ${data.worktreeId}` : 'active'),
+      tone: rows.some((row) => row.state === 'blocked') ? 'blocked' : 'running',
+      zone: `${sessions.length} session(s)`,
+      rows,
+      footer: showingAll
+        ? `${sessions.length} session(s) shown across all worktrees`
+        : `${sessions.length} session(s) shown · use --all-worktrees for the full fleet`,
+    }));
+    return;
+  }
+  console.log('ID              PURPOSE                    STATUS    FILES  NOTES  AGE      LINK');
+  console.log('─'.repeat(95));
 
   for (const s of sessions) {
     const age = formatAge(now - s.createdAt);
     const purposeStr = s.purpose.length > 26 ? s.purpose.slice(0, 23) + '...' : s.purpose.padEnd(26);
+    // Rent-at-claim (S3): show the roadmap link or the sidequest opt-out.
+    const meta = s.metadata && typeof s.metadata === 'object' ? s.metadata : null;
+    const link = typeof meta?.roadmapLink === 'string' && meta.roadmapLink
+      ? meta.roadmapLink
+      : typeof meta?.sidequestReason === 'string' && meta.sidequestReason
+        ? `sidequest: ${meta.sidequestReason.length > 32 ? meta.sidequestReason.slice(0, 29) + '...' : meta.sidequestReason}`
+        : '—';
     console.log(
-      `${s.id.padEnd(16)}${purposeStr} ${s.status.padEnd(10)}${String(s.fileCount || 0).padStart(5)}  ${String(s.noteCount || 0).padStart(5)}  ${age}`
+      `${s.id.padEnd(16)}${purposeStr} ${s.status.padEnd(10)}${String(s.fileCount || 0).padStart(5)}  ${String(s.noteCount || 0).padStart(5)}  ${age.padEnd(8)} ${link}`
     );
   }
 }

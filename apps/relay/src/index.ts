@@ -16,6 +16,12 @@
  *   GET  /v1/fleet/activity                    (operator; recent fleet runs)
  *   GET  /v1/fleet/health                      (operator; paused flag + last-run age)
  *   GET  /v1/fleet/runs/:id                    (operator; one run + transcript)
+ *   GET  /fleet/runs/:id                        (HTML run page; HMAC capability
+ *                                                token or operator; ADR-0101)
+ *   POST /billing/checkout                     (session; Stripe Checkout for a credit pack)
+ *   POST /billing/webhook                      (Stripe-Signature HMAC; credit ledger writes)
+ *   GET  /billing/balance/:installationId      (operator or session; prepaid balance)
+ *   POST /billing/portal                       (session; Stripe Billing Portal link)
  *   POST /v1/exchange                        (OIDC → PD card)
  *   POST /v1/revoke
  *   POST /v1/revoke-by-issuer               (operator; acceptance criterion #2)
@@ -55,7 +61,26 @@ import {
   handleFleetRun,
   handleFleetHealth,
   handleFleetPause,
+  handleDeleteFleetRun,
 } from './fleet-observability.js';
+import { handleFleetRunPage } from './fleet-run-page.js';
+import { runRetentionSweep } from './retention-sweep.js';
+import {
+  handleGithubLogin,
+  handleGithubCallback,
+  handleAuthMe,
+  handleLogout,
+  handleAccountExport,
+  handleAccountDelete,
+} from './auth-github.js';
+import { handleLoginPage, handleAccountPage } from './account-page.js';
+import { handleDeviceStart, handleDeviceToken, handleWhoami } from './device-flow.js';
+import {
+  handleCreateCheckout,
+  handleStripeWebhook,
+  handleBillingBalance,
+  handlePortalLink,
+} from './billing.js';
 
 // Re-export Durable Object class for wrangler to pick up
 export { HarborChannel };
@@ -142,6 +167,76 @@ export default {
       const runId = decodeURIComponent(pathname.slice('/v1/fleet/runs/'.length));
       response = await handleFleetRun(request, env, runId);
     }
+    // DELETE one run + transcript (ADR-0101 export/delete per-tier, repo tier).
+    else if (pathname.startsWith('/v1/fleet/runs/') && method === 'DELETE') {
+      const runId = decodeURIComponent(pathname.slice('/v1/fleet/runs/'.length));
+      response = await handleDeleteFleetRun(request, env, runId);
+    }
+
+    // ── Fleet run page (HTML; check-run details_url target, ADR-0101) ────────
+    else if (pathname.startsWith('/fleet/runs/') && method === 'GET') {
+      const runId = decodeURIComponent(pathname.slice('/fleet/runs/'.length));
+      response = await handleFleetRunPage(request, env, runId);
+    }
+
+    // ── Storefront account surfaces (ADR-0101 Phase 1) ───────────────────────
+    // Root lands the operator on their account (which redirects to /login when
+    // signed out) instead of a bare 404.
+    else if (pathname === '/' && method === 'GET') {
+      response = new Response(null, { status: 302, headers: { Location: '/account' } });
+    }
+    else if (pathname === '/login' && method === 'GET') {
+      response = handleLoginPage();
+    }
+    else if (pathname === '/account' && method === 'GET') {
+      response = await handleAccountPage(request, env);
+    }
+
+    // ── GitHub login BFF (ADR-0101 Phase 1) ──────────────────────────────────
+    else if (pathname === '/auth/github/login' && method === 'GET') {
+      response = await handleGithubLogin(request, env);
+    }
+    else if (pathname === '/auth/github/callback' && method === 'GET') {
+      response = await handleGithubCallback(request, env);
+    }
+    else if (pathname === '/auth/me' && method === 'GET') {
+      response = await handleAuthMe(request, env);
+    }
+    // Device-flow login for CLI / FleetBar / pd-console (ADR-0101 Phase 1).
+    else if (pathname === '/auth/device/start' && method === 'POST') {
+      response = await handleDeviceStart(request, env);
+    }
+    else if (pathname === '/auth/device/token' && method === 'POST') {
+      response = await handleDeviceToken(request, env);
+    }
+    else if (pathname === '/auth/whoami' && method === 'GET') {
+      response = await handleWhoami(request, env);
+    }
+    else if (pathname === '/auth/logout' && method === 'POST') {
+      response = await handleLogout(request, env);
+    }
+    // Self-service account export + erasure (ADR-0101 team-tier export/delete).
+    else if (pathname === '/account/export' && method === 'GET') {
+      response = await handleAccountExport(request, env);
+    }
+    else if (pathname === '/account/delete' && method === 'POST') {
+      response = await handleAccountDelete(request, env);
+    }
+
+    // ── Stripe billing + prepaid credits (ADR-0116) ──────────────────────────
+    else if (pathname === '/billing/checkout' && method === 'POST') {
+      response = await handleCreateCheckout(request, env);
+    }
+    else if (pathname === '/billing/webhook' && method === 'POST') {
+      response = await handleStripeWebhook(request, env);
+    }
+    else if (pathname.startsWith('/billing/balance/') && method === 'GET') {
+      const installationId = decodeURIComponent(pathname.slice('/billing/balance/'.length));
+      response = await handleBillingBalance(request, env, installationId);
+    }
+    else if (pathname === '/billing/portal' && method === 'POST') {
+      response = await handlePortalLink(request, env);
+    }
 
     // ── OIDC exchange ────────────────────────────────────────────────────────
     else if (pathname === '/v1/exchange' && method === 'POST') {
@@ -207,5 +302,21 @@ export default {
     }
 
     return cors(response);
+  },
+
+  // Cron Trigger (ADR-0101; runtime-verification-for-agents). The Worker has no
+  // long-running Arbiter loop, so retention + session-reaping + erasure-
+  // completion run here on a schedule. Best-effort: the sweep never throws.
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(
+      runRetentionSweep(env, Math.floor(Date.now() / 1000)).then((r) => {
+        if (r.errors.length) console.error('[relay] retention sweep errors:', r.errors.join('; '));
+        else
+          console.log(
+            `[relay] retention sweep: pruned ${r.runStepsPruned} steps / ${r.runsPruned} runs / ` +
+              `${r.eventsPruned} events, reaped ${r.sessionsReaped} sessions, hard-deleted ${r.usersHardDeleted} users`,
+          );
+      }),
+    );
   },
 } satisfies ExportedHandler<Env>;

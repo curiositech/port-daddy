@@ -261,7 +261,9 @@ export const geminiAdapter: LLMAdapter = async ({ prompt, model, maxTokens, sign
       return { ok: false, error: `Gemini API error: ${data.error.message || JSON.stringify(data.error)}` };
     }
     const candidate = data?.candidates?.[0];
-    const text = (candidate?.content?.parts ?? [])
+    const parts = Array.isArray(candidate?.content?.parts) ? candidate.content.parts : [];
+    const text = parts
+      .filter((p: { thought?: boolean }) => p?.thought !== true)
       .map((p: { text?: string }) => p?.text ?? '')
       .join('');
     if (!text) {

@@ -11,6 +11,7 @@ import type {
   IssuerConfig,
   RelayEvent,
 } from './types.js';
+import { randomHex } from './crypto.js';
 
 // ── Identity registry ─────────────────────────────────────────────────────────
 
@@ -579,4 +580,218 @@ export class ChainError extends Error {
     super(message);
     this.name = 'ChainError';
   }
+}
+
+// ── Users + web sessions (ADR-0101 Phase 1) ───────────────────────────────────
+
+export interface UserRow {
+  id: string;
+  github_user_id: number;
+  login: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  primary_email: string | null;
+  email_verified: number;
+  created_at: number;
+  last_login_at: number | null;
+  deleted_at: number | null;
+}
+
+/**
+ * Upsert a user by durable github_user_id (logins can be renamed). Refreshes
+ * the display fields + email + last_login_at on every login; un-deletes a
+ * previously soft-deleted account on re-login. Returns the row.
+ */
+export async function upsertUser(
+  db: D1Database,
+  u: {
+    githubUserId: number;
+    login: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    primaryEmail: string | null;
+    emailVerified: boolean;
+    now: number;
+  },
+): Promise<UserRow> {
+  const existing = await db
+    .prepare('SELECT * FROM users WHERE github_user_id = ?')
+    .bind(u.githubUserId)
+    .first<UserRow>();
+  const id = existing?.id ?? `u_${randomHex(16)}`;
+  await db
+    .prepare(
+      `INSERT INTO users
+         (id, github_user_id, login, display_name, avatar_url, primary_email, email_verified, created_at, last_login_at, deleted_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+       ON CONFLICT(github_user_id) DO UPDATE SET
+         login = excluded.login,
+         display_name = excluded.display_name,
+         avatar_url = excluded.avatar_url,
+         primary_email = excluded.primary_email,
+         email_verified = excluded.email_verified,
+         last_login_at = excluded.last_login_at,
+         deleted_at = NULL`,
+    )
+    .bind(
+      id,
+      u.githubUserId,
+      u.login,
+      u.displayName,
+      u.avatarUrl,
+      u.primaryEmail,
+      u.emailVerified ? 1 : 0,
+      existing?.created_at ?? u.now,
+      u.now,
+    )
+    .run();
+  const row = await db
+    .prepare('SELECT * FROM users WHERE github_user_id = ?')
+    .bind(u.githubUserId)
+    .first<UserRow>();
+  // We just INSERT..ON CONFLICT'd this row; a null read means the write silently
+  // failed — surface it rather than returning a non-null lie via `!`.
+  if (!row) throw new Error(`upsertUser: user ${u.githubUserId} not found after upsert`);
+  return row;
+}
+
+export interface WebSessionRow {
+  user: UserRow;
+  gh_token_enc: string | null;
+  gh_token_iv: string | null;
+  expires_at: number;
+}
+
+export async function createWebSession(
+  db: D1Database,
+  row: {
+    tokenHash: string;
+    userId: string;
+    ghTokenEnc: string | null;
+    ghTokenIv: string | null;
+    createdAt: number;
+    expiresAt: number;
+    userAgent: string | null;
+  },
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO web_sessions (token_hash, user_id, gh_token_enc, gh_token_iv, created_at, expires_at, user_agent)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(row.tokenHash, row.userId, row.ghTokenEnc, row.ghTokenIv, row.createdAt, row.expiresAt, row.userAgent)
+    .run();
+}
+
+/** Resolve a session token hash to its (unexpired-agnostic) row + joined user. */
+export async function getWebSession(db: D1Database, tokenHash: string): Promise<WebSessionRow | null> {
+  const s = await db
+    .prepare('SELECT user_id, gh_token_enc, gh_token_iv, expires_at FROM web_sessions WHERE token_hash = ?')
+    .bind(tokenHash)
+    .first<{ user_id: string; gh_token_enc: string | null; gh_token_iv: string | null; expires_at: number }>();
+  if (!s) return null;
+  const user = await db.prepare('SELECT * FROM users WHERE id = ? AND deleted_at IS NULL').bind(s.user_id).first<UserRow>();
+  if (!user) return null;
+  return { user, gh_token_enc: s.gh_token_enc, gh_token_iv: s.gh_token_iv, expires_at: s.expires_at };
+}
+
+export async function deleteWebSession(db: D1Database, tokenHash: string): Promise<void> {
+  await db.prepare('DELETE FROM web_sessions WHERE token_hash = ?').bind(tokenHash).run();
+}
+
+// ── user_tokens: pdu_ personal access tokens (ADR-0101 Phase 1 device flow) ───
+
+export interface UserTokenRow {
+  token_hash: string;
+  user_id: string;
+  label: string;
+  created_at: number;
+  last_used_at: number | null;
+  expires_at: number | null;
+  revoked_at: number | null;
+}
+
+/** Store a minted pdu_ token (only its SHA-256). */
+export async function createUserToken(
+  db: D1Database,
+  row: { tokenHash: string; userId: string; label: string; createdAt: number; expiresAt: number | null },
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO user_tokens (token_hash, user_id, label, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+    .bind(row.tokenHash, row.userId, row.label, row.createdAt, row.expiresAt)
+    .run();
+}
+
+/**
+ * Resolve a pdu_ token hash to its live (non-revoked, unexpired) user, bumping
+ * last_used_at. Returns null for unknown/revoked/expired tokens or deleted users.
+ */
+export async function resolveUserToken(db: D1Database, tokenHash: string, now: number): Promise<UserRow | null> {
+  const t = await db
+    .prepare('SELECT user_id, expires_at, revoked_at FROM user_tokens WHERE token_hash = ?')
+    .bind(tokenHash)
+    .first<{ user_id: string; expires_at: number | null; revoked_at: number | null }>();
+  if (!t || t.revoked_at != null) return null;
+  if (t.expires_at != null && t.expires_at <= now) return null;
+  const user = await db.prepare('SELECT * FROM users WHERE id = ? AND deleted_at IS NULL').bind(t.user_id).first<UserRow>();
+  if (!user) return null;
+  await db.prepare('UPDATE user_tokens SET last_used_at = ? WHERE token_hash = ?').bind(now, tokenHash).run();
+  return user;
+}
+
+/** A user's tokens (metadata only — never the token). */
+export async function listUserTokens(db: D1Database, userId: string): Promise<UserTokenRow[]> {
+  const r = await db
+    .prepare('SELECT * FROM user_tokens WHERE user_id = ? AND revoked_at IS NULL ORDER BY created_at DESC')
+    .bind(userId)
+    .all<UserTokenRow>();
+  return r.results ?? [];
+}
+
+/** Revoke one of a user's tokens by hash (scoped to the user; idempotent). */
+export async function revokeUserToken(db: D1Database, userId: string, tokenHash: string, now: number): Promise<boolean> {
+  const r = await db
+    .prepare('UPDATE user_tokens SET revoked_at = ? WHERE token_hash = ? AND user_id = ? AND revoked_at IS NULL')
+    .bind(now, tokenHash, userId)
+    .run();
+  return (r.meta?.changes ?? 0) > 0;
+}
+
+/** Count a user's live sessions (metadata for the self-service account export). */
+export async function countUserSessions(db: D1Database, userId: string): Promise<number> {
+  const r = await db
+    .prepare('SELECT COUNT(*) AS n FROM web_sessions WHERE user_id = ?')
+    .bind(userId)
+    .first<{ n: number }>();
+  return r?.n ?? 0;
+}
+
+/**
+ * Account erasure (ADR-0101 team-tier delete control): soft-delete the user row
+ * NOW and purge every session immediately (log the account out everywhere); a
+ * separate retention job hard-deletes soft-deleted rows within 30 days. Returns
+ * how many sessions were purged.
+ */
+export async function eraseUser(db: D1Database, userId: string, now: number): Promise<number> {
+  const sessions = await db.prepare('DELETE FROM web_sessions WHERE user_id = ?').bind(userId).run();
+  // Revoke every pdu_ device token too — erasure logs out browsers AND devices.
+  await db.prepare('UPDATE user_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').bind(now, userId).run();
+  await db
+    .prepare('UPDATE users SET deleted_at = ?, primary_email = NULL, avatar_url = NULL WHERE id = ?')
+    .bind(now, userId)
+    .run();
+  return sessions.meta?.changes ?? 0;
+}
+
+/**
+ * Delete one fleet run + its transcript (ADR-0101 export/delete per-tier gate,
+ * repo tier). Returns how many run rows were removed (0 if unknown id).
+ */
+export async function deleteFleetRun(db: D1Database, runId: string): Promise<number> {
+  await db.prepare('DELETE FROM fleet_run_steps WHERE run_id = ?').bind(runId).run();
+  const res = await db.prepare('DELETE FROM fleet_runs WHERE id = ?').bind(runId).run();
+  return res.meta?.changes ?? 0;
 }

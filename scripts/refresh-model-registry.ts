@@ -58,11 +58,14 @@ const PROVIDERS: Record<string, () => Promise<string[] | null>> = {
   },
 };
 
-/** Which backends in the registry map onto which queryable provider family. */
+/**
+ * Which backends in the registry map onto which queryable provider family.
+ * `anthropic`/`claude-cli` no longer have their own `.backends` table entry
+ * (ADR-0057 collapsed them into `backendAliases` pointing at `claude`), so
+ * only the canonical family key needs a provider mapping here.
+ */
 const BACKEND_PROVIDER: Record<string, string> = {
-  anthropic: 'anthropic',
   claude: 'anthropic',
-  'claude-cli': 'anthropic',
   openai: 'openai',
   codex: 'openai',
   aider: 'openai',

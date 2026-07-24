@@ -9,6 +9,7 @@ import http from 'node:http';
 import type { IncomingMessage, ClientRequest } from 'node:http';
 
 import { DEFAULT_SOCK, DEFAULT_PORT_FILE } from '../../shared/paths.js';
+import { maybeWarnNonProdPlane, isMutatingMethod, PLANE_PROBE_TIMEOUT_MS } from './plane-banner.js';
 import { CANONICAL_TCP_PORT, LOOPBACK_TCP_HOST, getDaemonTcpUrl, readDaemonPort, resolveDaemonTarget, resolveDaemonTcpTarget } from '../../shared/daemon-discovery.js';
 import type { DaemonTarget } from '../../shared/daemon-discovery.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
@@ -31,7 +32,7 @@ export interface PdFetchResponse {
 export interface FetchOptions {
   method?: string;
   headers?: Record<string, string | number>;
-  body?: string | null;
+  body?: string | Buffer | null;
   timeout?: number;
   transport?: 'auto' | 'tcp';
 }
@@ -170,6 +171,22 @@ export async function pdFetch(urlOrPath: string, options: FetchOptions = {}): Pr
     } catch {
       path = urlOrPath;
     }
+  }
+
+  // S1 plane banner: before this process's FIRST mutating request, probe
+  // /version once and warn on stderr when the resolved daemon's state plane
+  // is not `prod` ("⚠ writes → dev-latest (http://…)"). Read-only commands
+  // skip outright; the probe is once-per-process, short-timeout, and silent
+  // on any failure — see cli/utils/plane-banner.ts for the full contract.
+  if (isMutatingMethod(options.method)) {
+    await maybeWarnNonProdPlane({
+      method: options.method,
+      fetchVersion: async () => {
+        const res = await singleRequest('/version', { timeout: PLANE_PROBE_TIMEOUT_MS });
+        return res.ok ? await res.json() : null;
+      },
+      daemonUrl: getDaemonUrl,
+    });
   }
 
   const noRetry = process.env.PORT_DADDY_NO_RETRY === '1';

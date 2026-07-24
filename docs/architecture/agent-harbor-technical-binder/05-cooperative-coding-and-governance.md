@@ -132,6 +132,47 @@ Minimum game model:
 The first version can be simple ledger events and UI badges. The important part
 is that the daemon can measure and compare cooperation outcomes.
 
+## Rent at claim: the session start gate
+
+Status: shipped behind PR #1729, pending merge.
+
+Sessions must not float free of the roadmap. `pd begin` charges one line of
+rent at session start: link the work to the roadmap, or say why you are off it.
+Three mutually exclusive options:
+
+- `--roadmap <slug>`: link an existing roadmap item. Unknown slugs fail with a
+  did-you-mean list;
+- `--roadmap-new "<title>"`: draft genesis — creates a backlog roadmap item
+  with `genesis-at-begin` provenance and links it;
+- `--sidequest "<one-line reason>"`: explicit opt-out with a stated reason.
+
+Rules:
+
+- the link or reason persists on the session record and surfaces in
+  `pd whoami` and the session roster;
+- non-TTY invocations with none of the three fail closed with a message that
+  names only the three correct actions, no bypass;
+- `PD_RENT_EXEMPT` accepts a bounded list (`hotfix`, `chore`) and is recorded
+  as the sidequest reason, never silently;
+- the daemon validates the fields when present but does not require them, so
+  programmatic callers keep working until MCP enforcement parity lands;
+- `pd session relink` is the correction valve for a mislinked or drifted
+  session (follow-up in flight);
+- with rent charged at begin, the PR-time roadmap gate becomes a consistency
+  check — does the PR's roadmap trailer match what the session claimed —
+  rather than the first moment the question is asked.
+
+Design rulings, so later slices do not regress them:
+
+- the rent is ONE LINE. Never grow the start gate into a heavyweight form;
+- NO similarity-threshold gates. Retrieval may nominate candidate roadmap
+  items, but a similarity score never blocks a begin;
+- prefer structural overlap signals (same files, same symbols, same roadmap
+  item) over semantic guesses when warning about duplicate work.
+
+This is the incentive model made concrete at the cheapest possible point: the
+moment of intent, priced at one line.
+
 ## Harbor Staff and Voyagers
 
 Recommended role split:

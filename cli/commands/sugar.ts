@@ -53,6 +53,185 @@ function printBeginUsage(): void {
   console.error('Usage: pd begin <purpose> --lifecycle durable|ephemeral [--purpose "text"] [-P "text"]');
   console.error('       pd begin --identity ID --agent AGENT_ID --files f1 f2... --lifecycle durable|ephemeral');
   console.error('       pd begin                                 # interactive (TTY only)');
+  console.error('');
+  console.error('Roadmap rent (one required):');
+  console.error('  --roadmap <slug>              link to an existing roadmap item');
+  console.error('  --roadmap-new "<title>"       create a draft roadmap item and link it');
+  console.error('  --sidequest "<reason>"        opt out with a one-line reason (min 12 chars)');
+}
+
+// =============================================================================
+// Rent-at-claim (S3) — roadmap link-or-opt-out at session start
+// =============================================================================
+
+const SIDEQUEST_MIN_CHARS = 12;
+const RENT_EXEMPT_VALUES = ['hotfix', 'chore'] as const;
+
+/**
+ * The rent message. Names ONLY the correct actions — never a bypass.
+ */
+export const RENT_GATE_MESSAGE = [
+  'pd begin needs a roadmap link or an explicit opt-out. Pass exactly one:',
+  '  --roadmap <slug>              link this session to an existing roadmap item',
+  '  --roadmap-new "<title>"       create a draft roadmap item and link it',
+  `  --sidequest "<reason>"        opt out with a one-line reason (min ${SIDEQUEST_MIN_CHARS} chars)`,
+].join('\n');
+
+export interface BeginRentResolution {
+  ok: boolean;
+  roadmapLink?: string;
+  sidequestReason?: string;
+  roadmapNewTitle?: string;
+  /** TTY path: caller should run the interactive prompt. */
+  needsPrompt?: boolean;
+  error?: string;
+}
+
+/**
+ * Pure resolver behind the rent gate. `interactive` is the canPrompt() result,
+ * injected so tests can exercise both TTY and non-TTY paths.
+ */
+export function resolveBeginRent(
+  options: Pick<CLIOptions, 'roadmap' | 'sidequest'> & Record<string, unknown>,
+  env: Record<string, string | undefined> = process.env,
+  interactive: boolean = canPrompt(),
+): BeginRentResolution {
+  const roadmap = options.roadmap;
+  const sidequest = options.sidequest;
+  const roadmapNew = options['roadmap-new'] ?? options.roadmapNew;
+
+  const given = [roadmap, sidequest, roadmapNew].filter((v) => v !== undefined && v !== null);
+  if (given.length > 1) {
+    return { ok: false, error: '--roadmap, --sidequest, and --roadmap-new are mutually exclusive — pass exactly one.' };
+  }
+
+  if (roadmap !== undefined) {
+    if (typeof roadmap !== 'string' || !roadmap.trim()) {
+      return { ok: false, error: '--roadmap requires a slug, e.g. --roadmap adr-0090-database-distribution' };
+    }
+    return { ok: true, roadmapLink: roadmap.trim() };
+  }
+
+  if (sidequest !== undefined) {
+    const reason = typeof sidequest === 'string' ? sidequest.trim() : '';
+    if (reason.length < SIDEQUEST_MIN_CHARS) {
+      return { ok: false, error: `--sidequest needs a real one-line reason (min ${SIDEQUEST_MIN_CHARS} chars) — say what the work actually is.` };
+    }
+    return { ok: true, sidequestReason: reason };
+  }
+
+  if (roadmapNew !== undefined) {
+    if (typeof roadmapNew !== 'string' || !roadmapNew.trim()) {
+      return { ok: false, error: '--roadmap-new requires a title, e.g. --roadmap-new "Rent at claim gate"' };
+    }
+    return { ok: true, roadmapNewTitle: roadmapNew.trim() };
+  }
+
+  // None given — a bounded env exemption is a sanctioned opt-out (never named
+  // in the rent message itself).
+  const exempt = typeof env.PD_RENT_EXEMPT === 'string' ? env.PD_RENT_EXEMPT.trim().toLowerCase() : '';
+  if (exempt) {
+    if (!(RENT_EXEMPT_VALUES as readonly string[]).includes(exempt)) {
+      return { ok: false, error: `PD_RENT_EXEMPT must be one of: ${RENT_EXEMPT_VALUES.join(', ')} (got "${exempt}").` };
+    }
+    return { ok: true, sidequestReason: `PD_RENT_EXEMPT: ${exempt}` };
+  }
+
+  if (interactive) {
+    return { ok: false, needsPrompt: true };
+  }
+
+  return { ok: false, error: RENT_GATE_MESSAGE };
+}
+
+/**
+ * Anti-Goodhart valve: the relink message. Two options — relink never
+ * creates roadmap items (use pd begin --roadmap-new / pd roadmap for that).
+ */
+export const RELINK_GATE_MESSAGE = [
+  'pd session relink updates the ACTIVE session\'s roadmap rent. Pass exactly one:',
+  '  --roadmap <slug>              re-link to an existing roadmap item',
+  `  --sidequest "<reason>"        switch to an opt-out with a one-line reason (min ${SIDEQUEST_MIN_CHARS} chars)`,
+].join('\n');
+
+export interface RelinkRentResolution {
+  ok: boolean;
+  roadmapLink?: string;
+  sidequestReason?: string;
+  error?: string;
+}
+
+/**
+ * Pure resolver behind `pd session relink`. Same validation as begin, minus
+ * roadmap-new / env exemptions / prompting — relinking is always deliberate.
+ */
+export function resolveRelinkRent(
+  options: Pick<CLIOptions, 'roadmap' | 'sidequest'> & Record<string, unknown>,
+): RelinkRentResolution {
+  const roadmap = options.roadmap;
+  const sidequest = options.sidequest;
+
+  const given = [roadmap, sidequest].filter((v) => v !== undefined && v !== null);
+  if (given.length > 1) {
+    return { ok: false, error: '--roadmap and --sidequest are mutually exclusive — pass exactly one.' };
+  }
+
+  if (roadmap !== undefined) {
+    if (typeof roadmap !== 'string' || !roadmap.trim()) {
+      return { ok: false, error: '--roadmap requires a slug, e.g. --roadmap adr-0090-database-distribution' };
+    }
+    return { ok: true, roadmapLink: roadmap.trim() };
+  }
+
+  if (sidequest !== undefined) {
+    const reason = typeof sidequest === 'string' ? sidequest.trim() : '';
+    if (reason.length < SIDEQUEST_MIN_CHARS) {
+      return { ok: false, error: `--sidequest needs a real one-line reason (min ${SIDEQUEST_MIN_CHARS} chars) — say what the work actually is.` };
+    }
+    return { ok: true, sidequestReason: reason };
+  }
+
+  return { ok: false, error: RELINK_GATE_MESSAGE };
+}
+
+/**
+ * The rent receipt line. Printed after every successful rent payment
+ * (pd begin, pd session relink) so agents know a wrong link is not sticky —
+ * that's the anti-Goodhart valve that keeps slugs honest.
+ */
+export function formatRentReceipt(rent: { roadmapLink?: string | null; sidequestReason?: string | null }): string | null {
+  const target = rent.roadmapLink
+    ? rent.roadmapLink
+    : rent.sidequestReason
+      ? `sidequest: ${rent.sidequestReason}`
+      : null;
+  if (!target) return null;
+  return `rent paid -> ${target} (change anytime: pd session relink)`;
+}
+
+/**
+ * TTY path: ask for the missing rent field. One line, three choices.
+ */
+async function promptBeginRent(): Promise<BeginRentResolution> {
+  const choice = await promptSelect({
+    label: 'Link this session to the roadmap?',
+    choices: [
+      { value: 'roadmap', label: 'Link an existing roadmap item (slug)' },
+      { value: 'roadmap-new', label: 'Create a draft roadmap item (title)' },
+      { value: 'sidequest', label: 'Sidequest — opt out with a reason' },
+    ],
+    default: 'roadmap',
+  });
+  if (choice === 'roadmap') {
+    const slug = await promptText({ label: 'Roadmap slug:', required: true });
+    return resolveBeginRent({ roadmap: slug || '' }, {}, false);
+  }
+  if (choice === 'roadmap-new') {
+    const title = await promptText({ label: 'New roadmap item title:', required: true });
+    return resolveBeginRent({ 'roadmap-new': title || '' }, {}, false);
+  }
+  const reason = await promptText({ label: `Sidequest reason (min ${SIDEQUEST_MIN_CHARS} chars):`, required: true });
+  return resolveBeginRent({ sidequest: reason || '' }, {}, false);
 }
 
 // =============================================================================
@@ -114,6 +293,16 @@ export async function handleBegin(
     process.exit(1);
   }
 
+  // Rent-at-claim (S3): one line — link if obvious, opt-out reason if not.
+  let rent = resolveBeginRent(options, process.env);
+  if (!rent.ok && rent.needsPrompt) {
+    rent = await promptBeginRent();
+  }
+  if (!rent.ok) {
+    ui.error(rent.error || RENT_GATE_MESSAGE);
+    process.exit(1);
+  }
+
   // Auto-detect identity from package.json if not provided
   const identity = (options.identity as string) || autoIdentityFromPackageJson() || undefined;
 
@@ -124,6 +313,9 @@ export async function handleBegin(
   if (options.type) body.type = options.type;
   if (options.force) body.force = true;
   body.lifecycle = lifecycle.lifecycle;
+  if (rent.roadmapLink) body.roadmapLink = rent.roadmapLink;
+  if (rent.sidequestReason) body.sidequestReason = rent.sidequestReason;
+  if (rent.roadmapNewTitle) body.roadmapNewTitle = rent.roadmapNewTitle;
 
   // Collect files from --files option or remaining positional args
   const files: string[] = [];
@@ -210,10 +402,62 @@ export async function handleBegin(
   const agentLabel = agentName ? `${agentName} (${data.agentId as string})` : (data.agentId as string);
   const sessionName = data.sessionName as string | undefined;
   const sessionLabel = sessionName ? `${sessionName} (${data.sessionId as string})` : (data.sessionId as string);
+  const rentReceipt = formatRentReceipt({
+    roadmapLink: data.roadmapLink as string | undefined,
+    sidequestReason: data.sidequestReason as string | undefined,
+  });
+  if (ui.lineworkEnabled({ stream: 'stderr' })) {
+    const rows: ui.LineworkRow[] = [
+      { state: 'confirmed', label: 'agent', text: String(agentLabel) },
+      { state: 'active', label: 'session', text: String(sessionLabel) },
+      { state: 'pending', label: 'purpose', text: String(purpose) },
+      { state: lifecycle.lifecycle === 'durable' ? 'healthy' : 'info', label: 'lifecycle', text: lifecycle.lifecycle },
+    ];
+    if (identity) rows.push({ state: 'active', label: 'identity', text: identity });
+    if (data.roadmapLink) rows.push({ state: 'confirmed', label: 'roadmap', text: String(data.roadmapLink) });
+    if (data.sidequestReason) rows.push({ state: 'info', label: 'sidequest', text: String(data.sidequestReason) });
+    if (rentReceipt) rows.push({ state: 'confirmed', label: 'rent', text: rentReceipt });
+    if (data.worktree && typeof data.worktree === 'object') {
+      const worktree = data.worktree as { name?: string; branch?: string | null; id?: string };
+      const branch = worktree.branch ? `:${worktree.branch}` : '';
+      rows.push({ state: 'active', label: 'worktree', text: `${worktree.name || worktree.id || 'linked'}${branch}` });
+    }
+    if (data.fileClaims) {
+      const claims = data.fileClaims as string[];
+      rows.push({ state: 'confirmed', label: 'files', text: `${claims.length} claimed` });
+    }
+    if (data.fileConflicts) {
+      const conflicts = data.fileConflicts as Array<{ filePath: string; sessionId: string }>;
+      rows.push({ state: 'conflict', label: 'conflicts', text: `${conflicts.length} file(s) claimed by other sessions` });
+    }
+    if (data.salvageHint) rows.push({ state: 'recovering', label: 'salvage', text: String(data.salvageHint) });
+    if (data.approvalsHint) rows.push({ state: 'awaiting-human', label: 'approval', text: String(data.approvalsHint) });
+    console.error(ui.renderLineworkPanel({
+      title: 'Session Anchored',
+      subtitle: identity || String(data.agentId || 'agent'),
+      tone: 'healthy',
+      zone: 'agent ready',
+      rows,
+      footer: 'claim files next with pd session files add <path>',
+      colorLevel: ui.lineworkColorLevel('stderr'),
+    }));
+    return;
+  }
   ui.success(`Agent ${highlightChannel(agentLabel)} ready`);
   console.error(`  Session: ${sessionLabel}`);
   console.error(`  Purpose: ${purpose}`);
   console.error(`  Lifecycle: ${lifecycle.lifecycle}`);
+  if (data.roadmapLink) {
+    const suffix = data.roadmapCreated
+      ? ' (draft created)'
+      : data.roadmapExisting
+        ? ' (existing item — linked instead of creating a duplicate)'
+        : '';
+    console.error(`  Roadmap: ${data.roadmapLink}${suffix}`);
+  }
+  if (data.sidequestReason) console.error(`  Sidequest: ${data.sidequestReason}`);
+  // Rent receipt — a wrong link is never sticky (anti-Goodhart valve).
+  if (rentReceipt) console.error(`  ${rentReceipt}`);
   if (identity) console.error(`  Identity: ${identity}`);
   if (data.worktree && typeof data.worktree === 'object') {
     const worktree = data.worktree as { name?: string; branch?: string | null; id?: string };
@@ -393,6 +637,8 @@ export async function handleWhoami(options: CLIOptions): Promise<void> {
   console.error(`  Agent:    ${agentName ? `${agentName} (${data.agentId})` : data.agentId}`);
   console.error(`  Session:  ${sessionName ? `${sessionName} (${data.sessionId})` : data.sessionId}`);
   console.error(`  Purpose:  ${data.purpose}`);
+  if (data.roadmapLink) console.error(`  Roadmap:  ${data.roadmapLink}`);
+  if (data.sidequestReason) console.error(`  Sidequest: ${data.sidequestReason}`);
   if (data.identity) console.error(`  Identity: ${data.identity}`);
   console.error(`  Phase:    ${data.phase}`);
   if (data.duration != null) {

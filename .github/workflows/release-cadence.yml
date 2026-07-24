@@ -1,0 +1,96 @@
+name: Release Cadence
+
+# Operator directive (2026-07-14): we do not publish daemon versions to
+# Homebrew often enough, and stale installed daemons drift from main. This
+# workflow makes the drift loud: every Monday it measures how long daemon
+# surfaces on main have gone unreleased and files/updates a single
+# "Homebrew release overdue" issue when the cadence slips.
+#
+# It nags; it does not release. Releases stay human-triggered because every
+# release artifact must be soaked (run, not just built) before publishing —
+# see the soak gate introduced with PR #681.
+
+on:
+  schedule:
+    - cron: '0 15 * * 1' # Mondays 15:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-cadence:
+    runs-on: ubuntu-latest
+    env:
+      MAX_UNRELEASED_DAYS: '7'
+      ISSUE_TITLE: 'Homebrew release overdue'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Measure unreleased daemon changes
+        id: measure
+        run: |
+          set -euo pipefail
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$latest_tag" ]; then
+            echo "No release tags found — treating as overdue."
+            echo "overdue=true" >> "$GITHUB_OUTPUT"
+            echo "latest_tag=none" >> "$GITHUB_OUTPUT"
+            echo "days=∞" >> "$GITHUB_OUTPUT"
+            echo "commits=all" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          tag_date=$(git log -1 --format=%ct "$latest_tag")
+          now=$(date +%s)
+          days=$(( (now - tag_date) / 86400 ))
+          # Only daemon-facing surfaces count toward the cadence.
+          commits=$(git rev-list --count "$latest_tag"..HEAD -- server.ts lib/ cli/ shared/ package.json)
+          echo "latest_tag=$latest_tag" >> "$GITHUB_OUTPUT"
+          echo "days=$days" >> "$GITHUB_OUTPUT"
+          echo "commits=$commits" >> "$GITHUB_OUTPUT"
+          if [ "$days" -gt "$MAX_UNRELEASED_DAYS" ] && [ "$commits" -gt 0 ]; then
+            echo "overdue=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "overdue=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: File or refresh the overdue issue
+        if: steps.measure.outputs.overdue == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LATEST_TAG: ${{ steps.measure.outputs.latest_tag }}
+          DAYS: ${{ steps.measure.outputs.days }}
+          COMMITS: ${{ steps.measure.outputs.commits }}
+        run: |
+          set -euo pipefail
+          body=$(cat <<EOF
+          **The last release (\`$LATEST_TAG\`) is $DAYS days old with $COMMITS unreleased commits touching daemon surfaces** (server.ts, lib/, cli/, shared/).
+
+          Operator standing order: publish daemon versions to Homebrew regularly. Stale installed daemons drift from main and fork machine truth.
+
+          Release checklist:
+          1. Cut the release per the repo release process (\`.github/workflows/release.yml\` builds binaries on tag publish).
+          2. **Soak the built artifacts before publishing** — run them, do not just build them (hard rule; see the PR #681 soak gate).
+          3. Update the Homebrew formula and \`brew upgrade\` the operator machine.
+          4. Verify \`pd doctor\` passes on the upgraded install — especially the "Database home" durability check.
+
+          This issue is refreshed weekly by \`.github/workflows/release-cadence.yml\` and should be closed by the release that clears the backlog.
+          EOF
+          )
+          existing=$(gh issue list --state open --search "in:title \"$ISSUE_TITLE\"" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$ISSUE_TITLE" --body "$body" --label release
+          fi
+
+      - name: Cadence healthy
+        if: steps.measure.outputs.overdue == 'false'
+        env:
+          LATEST_TAG: ${{ steps.measure.outputs.latest_tag }}
+          DAYS: ${{ steps.measure.outputs.days }}
+          COMMITS: ${{ steps.measure.outputs.commits }}
+        run: echo "Release cadence healthy — $DAYS days since $LATEST_TAG, $COMMITS unreleased daemon commits."

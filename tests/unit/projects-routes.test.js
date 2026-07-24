@@ -1,5 +1,7 @@
 import { jest } from '@jest/globals';
 import Fastify from 'fastify';
+import { createTestDb } from '../setup-unit.js';
+import { createTranscripts } from '../../lib/transcripts.js';
 
 const mockLoadFleetConfig = jest.fn();
 const mockValidateTopology = jest.fn(() => ({ valid: true, cycles: [], warnings: [] }));
@@ -184,6 +186,96 @@ describe('projects routes', () => {
     expect(body.projects[0].operatorSummary).toContain('launches fail closed');
 
     await app.close();
+  });
+
+  test('GET /projects preserves remediation next action when folding transcript emergency', async () => {
+    const db = createTestDb();
+    const transcripts = createTranscripts(db);
+    const startedAt = Date.now() - 120_000;
+    const id = transcripts.start({
+      ship: 'spawn:cli:codex',
+      spawned_agent_id: 'spawned-project-hitl',
+      trigger: 'manual',
+      backend: 'cli:codex',
+      model: 'codex-cli',
+      started_at: startedAt,
+    });
+    transcripts.appendMessage(id, {
+      role: 'assistant',
+      content: 'stale project delta',
+      timestamp: startedAt,
+    });
+
+    mockLoadFleetConfig.mockReturnValue({
+      name: 'alpha',
+      agents: [{ name: 'spark' }],
+      watchers: [],
+      channels: {},
+    });
+
+    const app = Fastify();
+    await app.register(projectsPlugin, {
+      deps: {
+        projects: {
+          register: jest.fn(),
+          get: jest.fn(),
+          list: jest.fn(() => []),
+          listKnown: jest.fn(() => [
+            {
+              id: 'alpha',
+              displayName: 'alpha',
+              root: '/repo/alpha',
+              type: 'fleet',
+              services: null,
+              config: null,
+              tags: [],
+              last_scanned: 0,
+              created_at: 0,
+              metadata: null,
+              signals: ['fleet'],
+              sources: ['discovered'],
+              exists: true,
+            },
+          ]),
+          remove: jest.fn(),
+        },
+        fleetDaemon: {
+          getStatus() {
+            return { fleets: [] };
+          },
+        },
+        transcripts,
+        spawner: {
+          list: jest.fn(() => [{
+            agentId: 'spawned-project-hitl',
+            backend: 'cli:codex',
+            status: 'running',
+            startedAt,
+            completedAt: null,
+          }]),
+        },
+        metrics: { errors: 0 },
+        logger: { info: jest.fn(), error: jest.fn() },
+        activityLog: {},
+      },
+    });
+
+    const res = await app.inject({ method: 'GET', url: '/projects' });
+    const body = res.json();
+
+    expect(res.statusCode).toBe(200);
+    expect(body.projects[0]).toMatchObject({
+      operatorState: 'blocked',
+      fleetConfigStatus: 'missing_budget',
+      remediation: { action: 'set_budget' },
+    });
+    expect(body.projects[0].transcriptEmergency.hitlEmergency).toBe(true);
+    expect(body.projects[0].operatorSummary).toContain('Transcript emergency');
+    expect(body.projects[0].operatorNextAction).toContain('/transcripts/emergency');
+    expect(body.projects[0].operatorNextAction).toContain('Set a positive daily budget');
+
+    await app.close();
+    db.close();
   });
 
   test('GET /projects marks .portdaddyrc-only projects as service config, not fleet ready', async () => {

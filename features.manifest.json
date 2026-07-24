@@ -247,7 +247,8 @@
         "GET /actors/:param/inbox",
         "GET /actors/:param/inbox/stats",
         "PUT /actors/:param/inbox/read-all",
-        "POST /actors/:param/message"
+        "POST /actors/:param/message",
+        "POST /actors/register"
       ],
       "completions": [
         "actor",
@@ -730,6 +731,7 @@
         "stop",
         "restart",
         "install",
+        "install-bosun",
         "uninstall",
         "dev",
         "use",
@@ -747,6 +749,7 @@
         "stop",
         "restart",
         "install",
+        "install-bosun",
         "uninstall",
         "dev",
         "use",
@@ -962,13 +965,14 @@
       "_note": "ADR-0039 first slice (claim-overlap-headsup only). Out of scope (next slices): the Haiku/embedding topical classifier (group-chat-proposal, prior-art-doc), the periodic/reactive auto-trigger (today scan is on-demand via `pd nudge scan`), and the per-kind mute CLI surface (route exists; CLI flag deferred)."
     },
     "sugar": {
-      "description": "Compound commands for common workflows (begin/done/whoami)",
+      "description": "Compound commands for common workflows (begin/done/whoami) plus cloud account sign-in (pd account, ADR-0101 device flow)",
       "cli": [
         "begin",
         "b",
         "done",
         "whoami",
         "w",
+        "account",
         "with-lock",
         "n",
         "u",
@@ -982,6 +986,7 @@
       "routes": [
         "POST /sugar/begin",
         "POST /sugar/done",
+        "POST /sugar/relink",
         "GET /sugar/whoami"
       ],
       "completions": [
@@ -990,6 +995,7 @@
         "done",
         "whoami",
         "w",
+        "account",
         "with-lock"
       ],
       "docs": {
@@ -1075,7 +1081,7 @@
       }
     },
     "spawn": {
-      "description": "Spawn AI runs (Ollama, Claude, Gemini, Aider) with Port Daddy coordination",
+      "description": "Spawn AI runs (Ollama, Claude, Gemini, Aider) with Port Daddy coordination and post-run hard budgetUsd cap enforcement from exact telemetry",
       "cli": [
         "spawn",
         "spawned"
@@ -1401,6 +1407,7 @@
       "sdk": [],
       "routes": [
         "GET /agent-harbor/surface-gateway/capabilities",
+        "POST /agent-harbor/surface-gateway",
         "GET /agent-nodes",
         "GET /agent-nodes/:param",
         "GET /agent-nodes/:param/files",
@@ -1417,7 +1424,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "C1 shipped the CLI + library slice; the C-routes wave added the daemon read API (routes/agent-harbor.ts) serving C1's projections"
+      "_note": "C1 shipped the CLI + library slice; the C-routes wave added daemon projections plus the local Surface Gateway WorkIntent command/query ingress in routes/agent-harbor.ts"
     },
     "bonds": {
       "description": "Bond escrow state machine \u2014 daemon escrows money before spawn, refunds on clean exit, slashes on violation. Enforcement half of the cost-tracker/bonds split.",
@@ -1667,6 +1674,25 @@
       },
       "_note": "API-only \u2014 Phase 0 substrate. CLI/SDK surfaces follow in Phase 1."
     },
+    "booty": {
+      "description": "Artifact harvest provenance over the content-addressed blob store (slice S4a). `pd booty add` content-addresses files via POST /blob and records provenance rows (branch, worktree, session, agent, roadmap link); `pd booty list` and GET /booty read them back.",
+      "module": "lib/booty.ts",
+      "cli": [
+        "booty"
+      ],
+      "sdk": [],
+      "routes": [
+        "POST /booty",
+        "GET /booty"
+      ],
+      "completions": [
+        "booty"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "graph": {
       "description": "Semantic graph edges and aggregate graph stats for merge queue and symbol-index relationships",
       "cli": [
@@ -1719,14 +1745,18 @@
       }
     },
     "memory": {
-      "description": "Episodic memory entries and aggregate memory stats promoted from sessions and spawned runs",
+      "description": "Episodic memory, sanitized handoff capsules, UUID- and workspace-bound native-session witnesses, and owner-leased native or cross-harness successor continuation receipts",
       "cli": [
         "memory"
       ],
       "sdk": [],
       "routes": [
         "GET /memory/episodes",
-        "GET /memory/stats"
+        "GET /memory/stats",
+        "POST /memory/handoffs",
+        "POST /memory/handoffs/:episodeId/continue",
+        "GET /memory/continuations/:continuationId",
+        "GET /memory/continuations"
       ],
       "completions": [
         "memory"
@@ -2326,6 +2356,8 @@
       "sdk": [],
       "routes": [
         "GET /transcripts",
+        "GET /transcripts/compliance",
+        "GET /transcripts/emergency",
         "GET /transcripts/cost",
         "GET /transcripts/stream",
         "GET /transcripts/:id",

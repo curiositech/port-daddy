@@ -112,8 +112,23 @@ export async function gitWorktreeAdd(
   worktreePath: string,
   branch: string,
   baseRef: string,
+  options: {
+    execFileFn?: (file: string, args: string[]) => Promise<unknown>;
+    existsFn?: (path: string) => boolean;
+    sleepFn?: (delayMs: number) => Promise<void>;
+    randomFn?: () => number;
+    maxAttempts?: number;
+  } = {},
 ): Promise<void> {
-  if (existsSync(worktreePath)) {
+  const run = options.execFileFn ?? ((file: string, args: string[]) => execFileAsync(file, args));
+  const pathExists = options.existsFn ?? existsSync;
+  const sleep = options.sleepFn ?? ((delayMs: number) => new Promise<void>((resolveSleep) => {
+    setTimeout(resolveSleep, delayMs);
+  }));
+  const random = options.randomFn ?? Math.random;
+  const maxAttempts = Math.max(1, options.maxAttempts ?? 4);
+
+  if (pathExists(worktreePath)) {
     // Already exists — may be from a previous interrupted run. Re-use it.
     return;
   }
@@ -128,19 +143,49 @@ export async function gitWorktreeAdd(
     const remote = baseRef.slice(0, slash);
     const branchName = baseRef.slice(slash + 1);
     try {
-      await execFileAsync('git', ['fetch', remote, branchName]);
+      await run('git', ['fetch', remote, branchName]);
     } catch {
       /* offline or no remote — branch from the local tracking ref */
     }
   }
   // git worktree add <path> -b <branch> <baseRef>
   // Run from the repo root (process.cwd() when running as the pd CLI).
-  await execFileAsync('git', [
-    'worktree', 'add',
-    worktreePath,
-    '-b', branch,
-    baseRef,
-  ]);
+  let reuseCreatedBranch = false;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await run('git', reuseCreatedBranch
+        ? ['worktree', 'add', worktreePath, branch]
+        : [
+            'worktree', 'add',
+            '--no-track',
+            worktreePath,
+            '-b', branch,
+            baseRef,
+          ]);
+      return;
+    } catch (error) {
+      // Concurrent worktree creation briefly contends on the repository-wide
+      // .git/config.lock while Git writes branch tracking metadata. The
+      // checkout may already be complete even when that metadata write loses
+      // the race, so accept a materialized path before considering a retry.
+      if (pathExists(worktreePath)) return;
+
+      const details = error instanceof Error
+        ? `${error.message}\n${String((error as Error & { stdout?: unknown }).stdout ?? '')}\n${String((error as Error & { stderr?: unknown }).stderr ?? '')}`
+        : String(error);
+      const transientConfigLock = /could not lock config file[\s\S]*\.git\/config[\s\S]*File exists|unable to write upstream branch configuration|\.git\/config\.lock/i.test(details);
+      if (!transientConfigLock || attempt === maxAttempts) throw error;
+
+      // Git creates the local branch before attempting to persist upstream
+      // metadata. If that config write loses a race, retry by attaching the
+      // worktree to the branch that now exists instead of asking `-b` to create
+      // the same branch again.
+      reuseCreatedBranch = true;
+      const ceilingMs = Math.min(800, 100 * (2 ** (attempt - 1)));
+      const delayMs = Math.max(25, Math.round(random() * ceilingMs));
+      await sleep(delayMs);
+    }
+  }
 }
 
 /**
@@ -190,7 +235,11 @@ export async function gitPushBranch(
   branch: string,
   timeoutMs: number = PUBLISH_EXEC_TIMEOUT_MS,
 ): Promise<void> {
-  await execFileAsync('git', ['-C', worktreePath, 'push', '-u', 'origin', branch], {
+  // The branch is always explicit in the publish receipt/PR request, so no
+  // upstream config is required. Avoid `-u`: concurrent completions would all
+  // contend on the repository-wide .git/config.lock merely to record tracking
+  // metadata that this lifecycle never reads.
+  await execFileAsync('git', ['-C', worktreePath, 'push', 'origin', branch], {
     timeout: timeoutMs,
     killSignal: 'SIGKILL',
   });

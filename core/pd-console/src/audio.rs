@@ -66,7 +66,7 @@ pub fn toggle_mute() -> bool {
 /// The console's earcon vocabulary. Each maps to one meaningful state change.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Cue {
-    /// A predicted DAG just bloomed from a prompt — the signature "magic" sting:
+    /// A daemon-authored WorkPlan became available:
     /// a soft ascending arpeggio. The one cue allowed to run long (~620 ms).
     Bloom,
     /// Committed nodes dispatched to live agents — a confident rising sweep.

@@ -1941,6 +1941,47 @@ _pd_cmd_graph() {
   esac
 }
 
+_pd_cmd_booty() {
+  local -a booty_subcmds
+  booty_subcmds=(
+    'add:content-address files into the blob store + record provenance'
+    'list:list harvested artifacts'
+    'help:show booty help'
+  )
+
+  local state
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'booty subcommand' booty_subcmds
+      ;;
+    args)
+      case "${words[2]}" in
+        add)
+          _arguments \
+            '--roadmap[link the artifact to a roadmap item]:slug:' \
+            '--note[freeform provenance note]:text:' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]' \
+            '*:file:_files'
+          ;;
+        list)
+          _arguments \
+            '--branch[filter by branch]:branch:' \
+            '--session[filter by session]:session id:' \
+            '--limit[max rows]:limit:' \
+            '(-j --json)'{-j,--json}'[output JSON]' \
+            '(-q --quiet)'{-q,--quiet}'[quiet output]'
+          ;;
+        *)
+          _describe 'booty subcommand' booty_subcmds
+          ;;
+      esac
+      ;;
+  esac
+}
+
 _pd_cmd_memory() {
   local -a memory_subcmds
   memory_subcmds=(
@@ -2231,6 +2272,7 @@ _port_daddy() {
     'done:end a work session (end session + unregister agent)'
     'whoami:show current agent/session context'
     'w:show current context (alias for whoami)'
+    'account:sign in to your Port Daddy cloud account (GitHub device flow)'
     'attention:read inbox + subscribed channels in one call (run first thing every session)'
     'nudge:suggestibility nudges — claim-overlap heads-up (list/accept/decline/scan)'
     'with-lock:run a command while holding a lock'
@@ -2309,6 +2351,8 @@ _port_daddy() {
     'skillgraft:alias for skill-graft'
     'graph:inspect semantic graph edges and stats'
     'memory:inspect episodic memory entries and stats'
+    # Artifact harvest provenance (slice S4a)
+    'booty:harvest artifacts into the blob store with provenance'
     'ideas:search the canonical ideas trove and local residue'
     # Cartographer roadmap projection
     'roadmap:show and write the roadmap_items DB-of-record'
@@ -2354,6 +2398,7 @@ _port_daddy() {
     'restart:restart the Port Daddy daemon'
     'status:show daemon status'
     'install:install daemon as a system service'
+    'install-bosun:wire only the Bosun watchdog (brew-managed daemon)'
     'uninstall:uninstall the system service'
     'dev:daemon berths — up/down/list tiered side-by-side daemons (ADR-0055)'
     'use:target this shell at a daemon berth (eval "$(pd use dev)")'
@@ -2479,6 +2524,7 @@ _port_daddy() {
         embed)                  _pd_cmd_embed ;;
         skill-graft|skillgraft) _pd_cmd_skill_graft ;;
         graph)                  _pd_cmd_graph ;;
+        booty)                  _pd_cmd_booty ;;
         memory)                 _pd_cmd_memory ;;
         ideas)                  _pd_cmd_ideas ;;
         roadmap)                _pd_cmd_roadmap ;;

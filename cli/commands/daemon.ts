@@ -739,6 +739,23 @@ export async function handleDaemon(action: string, options: Record<string, unkno
       break;
     }
 
+    // Wires ONLY the Bosun watchdog (+ freshness) for a Homebrew-managed
+    // install — no confirmation prompt, non-destructive, and safe to call
+    // at any point in the brew install/upgrade lifecycle (see
+    // install-daemon.ts installBosunOnly() for why the ordering hazard that
+    // affects the full `install` path doesn't apply here). This is what the
+    // Homebrew formula's post_install calls.
+    case 'install-bosun': {
+      if (process.env.PORT_DADDY_CAN_SELF_DAEMON === '1') {
+        const { runInstallDaemonCli } = await import('../../install-daemon.js');
+        runInstallDaemonCli('install-bosun');
+      } else {
+        const result: SpawnSyncReturns<Buffer> = spawnSync(tsxBin, [installScript, 'install-bosun'], { stdio: 'inherit' });
+        process.exit(result.status ?? 1);
+      }
+      break;
+    }
+
     case 'uninstall': {
       const okUn = await requireConfirmation({
         summary: 'Daemon uninstall will remove the launchd / brew-services daemon entry. Port Daddy will no longer auto-start on login until you run pd install again.',

@@ -960,6 +960,92 @@ describe('cost gates ARMED on the live (no-bond) path', () => {
   });
 });
 
+// ─── BUG 1 (2026-07-14 halt-mandate): flat-rate CLI backends exempt from the ──
+//     dollar breaker; an UNSET global ceiling is UNBOUNDED, not $0.
+//
+// Root cause of the incident: the Conductor reserved a real-dollar bond against
+// EVERY dispatch — including `cli:claude-code`/`cli:codex`, which ride the
+// operator's flat-rate subscription at $0 marginal cost. A burst of ordinary
+// free CLI dispatches slowly consumed the finite global ceiling and then
+// GLOBAL_BREAKER refused every subsequent dispatch ("global budget would be
+// exceeded"), metered or not — a phantom dollar meter deadlocking free work.
+// These tests pin the fix: a subscription backend reserves $0 (never consumes a
+// ceiling), and metered backends are unchanged.
+describe('BUG 1 — flat-rate subscription backends are exempt from the dollar breaker', () => {
+  test('a cli:claude-code launch admits even with the global ceiling FUNDED and (near-)exhausted', async () => {
+    // Default (immediately-resolving) spawner so `await launch` completes.
+    const { conductor, breaker } = makeConductor({
+      defaultLineageCeilingUsd: 5,
+      defaultBondUsd: 1, // metered launches WOULD reserve $1
+    });
+    conductor.setGlobalCeiling(3);
+    // Pre-exhaust the global scope as if metered spend had already filled it.
+    breaker.reserve(GLOBAL_SCOPE, 3);
+
+    // A flat-rate CLI launch must STILL admit — it reserves $0, so a full
+    // dollar meter is irrelevant to it.
+    const res = await conductor.launch({
+      goal: 'free cli work',
+      backend: 'cli:claude-code',
+      source: 'dispatch',
+      worktree: 'inherit',
+      mergePolicy: 'never',
+      // Even an explicit bondUsd must be ignored for a subscription backend —
+      // there is no operator override that makes a $0-marginal backend cost $.
+      bondUsd: 2,
+      lineageCeilingUsd: 5,
+    });
+    expect(res.admitted).toBe(true);
+    expect(res.launch.bondUsd).toBeNull(); // reserved $0, so nothing stored
+  });
+
+  test('a cli:codex launch admits with the global ceiling UNSET (unbounded, not $0)', async () => {
+    // No setGlobalCeiling call → GLOBAL_SCOPE is never registered → unbounded.
+    const { conductor } = makeConductor({ defaultBondUsd: 1 });
+    const res = await conductor.launch({
+      goal: 'codex work',
+      backend: 'cli:codex',
+      source: 'dispatch',
+      worktree: 'inherit',
+      mergePolicy: 'never',
+    });
+    expect(res.admitted).toBe(true);
+    expect(res.refusedReason).toBeNull();
+  });
+
+  test('an unset global ceiling admits a METERED launch too (unbounded, never a phantom $0 cap)', async () => {
+    const { conductor } = makeConductor({ defaultBondUsd: 1 });
+    // No global ceiling registered. A metered launch with a real bond must be
+    // admitted — an UNSET ceiling is unbounded, not a $0 wall that refuses
+    // every bond>0 (the exact deadlock the incident described).
+    const res = await conductor.launch({
+      goal: 'metered work',
+      backend: 'claude',
+      source: 'operator',
+      bondUsd: 50,
+      lineageCeilingUsd: 100,
+    });
+    expect(res.admitted).toBe(true);
+  });
+
+  test('a METERED launch is still gated by the funded global ceiling (regression guard)', async () => {
+    const { spawner, releaseAll } = makePendingSpawner();
+    const { conductor } = makeConductor({ spawner, defaultBondUsd: 2 });
+    conductor.setGlobalCeiling(3);
+    const a = conductor.launch({
+      goal: 'a', backend: 'claude', source: 'operator', bondUsd: 2, lineageCeilingUsd: 100,
+    });
+    await tick();
+    const over = await conductor.launch({
+      goal: 'b', backend: 'claude', source: 'operator', bondUsd: 2, lineageCeilingUsd: 100,
+    });
+    expect(over.admitted).toBe(false);
+    expect(over.refusedReason).toMatch(/GLOBAL_BREAKER|global budget/);
+    releaseAll();
+    await a.catch(() => {});
+  });
+});
+
 // ─── ADR-0060 dispatch fold-in: mintWorktree (async) + publishArtifact ────────
 //
 // The dispatch surface folds into the Conductor as a `worktree:'create',

@@ -217,6 +217,10 @@ export function runCli(args, options = {}) {
     PORT_DADDY_ALLOW_MAIN_WORKTREE_SESSION: '1',
     // Force non-interactive mode
     PORT_DADDY_NON_INTERACTIVE: '1',
+    // Rent-at-claim (S3): integration tests exercise begin mechanics, not the
+    // roadmap-link gate — opt out via the bounded env exemption. Tests that
+    // cover the gate itself clear this via extraEnv.
+    PD_RENT_EXEMPT: 'chore',
     NO_COLOR: '1',
     CI: '1'
   };

@@ -69,6 +69,7 @@ export function deriveWorktreePath(id: string): string {
 const SUPPORTED_BACKENDS: ReadonlySet<DispatchBackend> = new Set<DispatchBackend>([
   'cli:claude-code',
   'cli:codex',
+  'cli:agy',
   'cli:gemini',
   'cli:groq',
   'cli:grok',

@@ -62,9 +62,17 @@ export const TIER_CAPABILITY: Partial<Record<ModelTier, Capability>> = {
 };
 
 /**
- * Adapter kind → model-registry backend key. Only hosted adapters with a
- * registry entry appear here; local/custom adapters have no defensible
- * default and always require an explicit model name.
+ * Adapter kind → model-registry backend key. Only HOSTED adapters (a fixed
+ * model is always reachable) appear here. `ollama`/`lmstudio` DO have a
+ * registry entry now (lib/model-registry-data.ts), but stay deliberately
+ * excluded: the tag/model actually available on an operator's box varies by
+ * hardware and what they've pulled/loaded, so a fixed default can silently
+ * fail on a machine that doesn't have it — this is a policy choice (fail
+ * toward an explicit model name), not a registry gap.
+ *
+ * 'claude-code' resolves through the registry's 'claude-cli' key, which is a
+ * backendAlias for the canonical 'claude' family (lib/model-registry-data.ts)
+ * — resolved once in resolveModel(), not re-derived here.
  */
 export const ADAPTER_REGISTRY_BACKEND: Partial<Record<AdapterKind, string>> = {
   'claude-code': 'claude-cli',

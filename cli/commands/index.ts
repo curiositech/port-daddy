@@ -16,6 +16,7 @@ export * from './orchestration.js';
 export * from './diagnostics.js';
 export * from './daemon.js';
 export * from './resurrection.js';
+export * from './booty.js';
 export * from './changelog.js';
 export * from './tunnel.js';
 export * from './dns.js';

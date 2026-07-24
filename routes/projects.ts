@@ -12,6 +12,12 @@ import { scanProject, buildConfigFromScan } from '../lib/scan.js';
 import { saveConfig } from '../lib/config.js';
 import type { PortDaddyRcConfig } from '../lib/config.js';
 import { loadFleetConfig, validateTopology } from '../lib/fleet-engine.js';
+import type { Transcripts } from '../lib/transcripts.js';
+import {
+  buildTranscriptEmergencyFromSources,
+  type TranscriptEmergencyReport,
+  type TranscriptEmergencySourceDeps,
+} from '../lib/transcript-emergency.js';
 
 interface ProjectEntry {
   id: string;
@@ -60,6 +66,7 @@ interface ProjectReadiness {
   configError: string | null;
   configWarnings: string[];
   remediation: ProjectRemediation | null;
+  transcriptEmergency?: TranscriptEmergencyReport;
 }
 
 interface ProjectsRouteDeps {
@@ -90,6 +97,9 @@ interface ProjectsRouteDeps {
       fleets: Array<{ projectDir: string }>;
     };
   };
+  transcripts?: Pick<Transcripts, 'listTranscripts' | 'getTranscript'>;
+  spawner?: TranscriptEmergencySourceDeps['spawner'];
+  cloudAppTelemetry?: TranscriptEmergencySourceDeps['cloudAppTelemetry'];
   metrics: { errors: number };
   logger: {
     info(msg: string, meta?: Record<string, unknown>): void;
@@ -136,6 +146,7 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
     running: boolean,
     config: ReturnType<typeof loadFleetConfig>,
     configError: string | null,
+    transcriptEmergency?: TranscriptEmergencyReport,
   ): ProjectReadiness {
     const signals = project.signals ?? [];
     const hasFleetSignal = signals.includes('fleet');
@@ -145,8 +156,21 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
     const configWarnings = config ? validateTopology(config).warnings : [];
     const cd = `cd ${shellQuotePath(project.root)}`;
 
-    if (configError) {
+    function foldTranscriptEmergency(readiness: ProjectReadiness): ProjectReadiness {
+      if (!transcriptEmergency?.hitlEmergency) return readiness;
+      const emergencyNextAction = 'Open /transcripts/emergency and restore transcript flow before launching more agents.';
       return {
+        ...readiness,
+        transcriptEmergency,
+        operatorSummary: `Transcript emergency: ${transcriptEmergency.summary.hitl} HITL issue${transcriptEmergency.summary.hitl === 1 ? '' : 's'} need attention. ${readiness.operatorSummary}`,
+        operatorNextAction: readiness.operatorNextAction
+          ? `${readiness.operatorNextAction} ${emergencyNextAction}`
+          : emergencyNextAction,
+      };
+    }
+
+    if (configError) {
+      return foldTranscriptEmergency({
         operatorState: 'blocked',
         operatorSummary: 'Fleet YAML is present but cannot be parsed.',
         operatorNextAction: 'Fix pd-fleet.yml before starting this fleet.',
@@ -160,11 +184,11 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
           detail: configError,
           command: `${cd}\npd fleet validate`,
         },
-      };
+      });
     }
 
     if (config && config.agents.length > 0 && budgetUsdPerDay === null) {
-      return {
+      return foldTranscriptEmergency({
         operatorState: 'blocked',
         operatorSummary: `${config.agents.length} agents configured, but launches fail closed without limits.budget_usd_per_day.`,
         operatorNextAction: 'Set a positive daily budget, then start the fleet.',
@@ -179,11 +203,11 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
           command: `${cd}\n# Add under fleet.limits or limits:\n# budget_usd_per_day: 5\npd fleet validate\npd fleet up`,
           suggestedBudgetUsdPerDay: 5,
         },
-      };
+      });
     }
 
     if (config) {
-      return {
+      return foldTranscriptEmergency({
         operatorState: running ? 'running' : 'ready',
         operatorSummary: running
           ? `${config.agents.length} configured agents are visible to the daemon.`
@@ -199,11 +223,11 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
           detail: 'Starts this pd-fleet.yml on the current daemon.',
           command: `${cd}\npd fleet up`,
         },
-      };
+      });
     }
 
     if (hasFleetSignal) {
-      return {
+      return foldTranscriptEmergency({
         operatorState: 'blocked',
         operatorSummary: 'Fleet marker exists, but no usable fleet config was loaded.',
         operatorNextAction: 'Open pd-fleet.yml and validate it.',
@@ -217,11 +241,11 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
           detail: 'Port Daddy found a fleet marker but could not load a usable config.',
           command: `${cd}\npd fleet validate`,
         },
-      };
+      });
     }
 
     if (hasServiceConfig) {
-      return {
+      return foldTranscriptEmergency({
         operatorState: 'service_only',
         operatorSummary: 'This repo has pd up service config, but no agent fleet yet.',
         operatorNextAction: 'Create pd-fleet.yml when you want agent automation here.',
@@ -235,11 +259,11 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
           detail: '.portdaddyrc remains useful for service orchestration; pd-fleet.yml is the agent control surface.',
           command: `${cd}\npd fleet init\npd fleet up`,
         },
-      };
+      });
     }
 
     if (hasContext) {
-      return {
+      return foldTranscriptEmergency({
         operatorState: 'context_only',
         operatorSummary: 'Only Port Daddy context state was found.',
         operatorNextAction: 'Add .portdaddyrc or pd-fleet.yml to make this actionable.',
@@ -253,10 +277,10 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
           detail: 'Generate .portdaddyrc service config first, or create pd-fleet.yml for agents.',
           command: `${cd}\npd scan\npd fleet init`,
         },
-      };
+      });
     }
 
-    return {
+    return foldTranscriptEmergency({
       operatorState: 'missing',
       operatorSummary: 'No actionable Port Daddy config was found.',
       operatorNextAction: 'Run pd scan or create pd-fleet.yml.',
@@ -270,7 +294,7 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
         detail: 'Create durable Port Daddy config so this repo can be managed.',
         command: `${cd}\npd scan\npd fleet init`,
       },
-    };
+    });
   }
 
   function extractServiceRoots(): string[] {
@@ -402,6 +426,7 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
       const runningRoots = new Set(runtimeRoots);
       const readinessByRoot = new Map<string, ProjectReadiness>();
       const fleetConfigByRoot = new Map<string, ReturnType<typeof loadFleetConfig>>();
+      const transcriptEmergency = buildTranscriptEmergencyFromSources(opts.deps);
 
       for (const project of all) {
         let config: ReturnType<typeof loadFleetConfig> = null;
@@ -412,7 +437,10 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
           configError = (err as Error).message;
         }
         fleetConfigByRoot.set(project.root, config);
-        readinessByRoot.set(project.root, buildProjectReadiness(project, runningRoots.has(project.root), config, configError));
+        readinessByRoot.set(
+          project.root,
+          buildProjectReadiness(project, runningRoots.has(project.root), config, configError, transcriptEmergency),
+        );
       }
 
       const body = {

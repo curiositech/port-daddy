@@ -169,6 +169,7 @@ echo "=== READ commands (must run + print) ============================"
 run_read "status"            status      -- status
 run_read "version"           version     -- version
 run_read "whoami"            whoami      -- whoami
+run_read "account"           account     -- account status
 run_read "ports"             ports       -- ports
 run_read "locks"             locks       -- locks
 run_read "sessions"          sessions    -- sessions
@@ -313,6 +314,14 @@ run_read "say (no session)"  say          -- say "e2e cli-surface say probe"
 run_read "attest"            attest       -- attest
 run_read "backend list"      backend      -- backend list
 run_read "squid (usage)"     squid        -- squid
+# S4a artifact harvest (booty): `pd booty list` is a pure GET /booty read.
+# The scratch daemon has no harvested artifacts, so the CLI prints a friendly
+# "No harvested artifacts yet" banner rather than empty output — that's real
+# non-empty output proving the compiled booty module loaded and ran. The
+# mutating subform (`booty add`) content-addresses real files into the blob
+# store and isn't exercised here; unit-tested in tests/unit/booty.test.js and
+# tests/unit/booty-routes.test.js.
+run_read "booty list"        booty        -- booty list
 run_read "backup list"       backup       -- backup list
 run_read "restore (usage)"   restore      -- restore
 run_read "popper status"     popper       -- popper status
@@ -348,8 +357,11 @@ run_ok  "lock $LOCK"         lock     -- lock "$LOCK"
 run_ok  "unlock $LOCK"       unlock   -- unlock "$LOCK"
 
 # begin -> whoami(active) -> note -> notes -> done
-# (--allow-main-worktree: CI runs on the main worktree)
-run_ok  "begin"              begin    -- begin e2e:surface:ci --lifecycle durable --allow-main-worktree
+# (--allow-main-worktree: CI runs on the main worktree; --sidequest: ADR
+# rent-at-claim (S3) requires --roadmap/--roadmap-new/--sidequest on every
+# `pd begin` — this is a surface probe, not roadmap-linked work, so it opts
+# out with an explicit reason, same pattern as the website-GIF CI job fix.)
+run_ok  "begin"              begin    -- begin e2e:surface:ci --lifecycle durable --allow-main-worktree --sidequest "compiled CLI surface E2E probe"
 run_ok  "note"               note     -- note "e2e cli-surface round-trip note"
 run_read "session (usage)"   session  -- session
 run_read "takeover (usage)"  takeover -- takeover
@@ -431,6 +443,7 @@ covered start;     skip "start"     "would start the daemon process; lifecycle, 
 covered stop;      skip "stop"      "would stop a daemon; lifecycle, not surface-tested here"
 covered restart;   skip "restart"   "would restart a daemon; lifecycle, not surface-tested here"
 covered install;   skip "install"   "would register a launchd service on the host"
+covered install-bosun; skip "install-bosun" "would register the Bosun watchdog launchd/systemd job on the host"
 covered uninstall; skip "uninstall" "would deregister a launchd service on the host"
 covered up;        skip "up"        "would START services declared in .portdaddyrc (real child processes)"
 covered down;      skip "down"      "would stop an 'up' session (system processes)"

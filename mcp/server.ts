@@ -318,7 +318,8 @@ const TOOLS = [
       '[Essential] Register agent + start session in one atomic step. Use this at the start of every ' +
       'coding session instead of calling register_agent and start_session separately. ' +
       'Returns agentId, sessionId, and a salvageHint if dead agents need attention. ' +
-      'Usage: begin_session({purpose: "Building auth system", identity: "myapp:api:main", lifecycle: "ephemeral"})',
+      'Rent-at-claim: exactly ONE of roadmap / roadmap_new / sidequest is REQUIRED. ' +
+      'Usage: begin_session({purpose: "Building auth system", identity: "myapp:api:main", lifecycle: "ephemeral", roadmap: "adr-0090-database-distribution"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -349,6 +350,24 @@ const TOOLS = [
           type: 'array',
           items: { type: 'string' },
           description: 'Files to claim for this session (advisory — shows conflicts to other agents)',
+        },
+        roadmap: {
+          type: 'string',
+          description:
+            'Rent-at-claim: slug of an EXISTING roadmap item to link this session to. ' +
+            'Mutually exclusive with sidequest and roadmap_new.',
+        },
+        sidequest: {
+          type: 'string',
+          description:
+            'Rent-at-claim opt-out: one-line reason this work is off-roadmap (min 12 chars). ' +
+            'Mutually exclusive with roadmap and roadmap_new.',
+        },
+        roadmap_new: {
+          type: 'string',
+          description:
+            'Rent-at-claim genesis: title for a NEW draft roadmap item to create and link. ' +
+            'Mutually exclusive with roadmap and sidequest.',
         },
       },
       required: ['purpose', 'lifecycle'],
@@ -2812,7 +2831,7 @@ const TOOLS = [
         task: { type: 'string', description: 'What the agent should do' },
         identity: { type: 'string', description: 'Semantic identity (e.g. "myapp:fleet:custom-agent")' },
         budget_usd: { type: 'number', description: 'Required spend ceiling for this launch in USD' },
-        backend: { type: 'string', description: 'LLM backend: cloudflare, claude, claude-cli, gemini, codex, aider, custom, or another setup-ready backend' },
+        backend: { type: 'string', description: 'LLM backend: cloudflare, claude, claude-cli, gemini, codex, cli:claude-code, cli:codex, cli:agy, aider, custom, or another setup-ready backend' },
         model: { type: 'string', description: 'Optional explicit model override' },
         model_tier: { type: 'string', description: 'Optional model tier shortcut: low, mid, or high' },
         purpose: { type: 'string', description: 'Optional short human-readable label for the run' },
@@ -3290,6 +3309,33 @@ async function handleTool(
       if (args.agent_id) body.agentId = args.agent_id;
       if (args.type) body.type = args.type;
       if (args.files) body.files = args.files;
+      // Rent-at-claim (S3): the gate is enforced HERE, at the MCP boundary,
+      // with the same semantics as the pd CLI — agents are the dominant
+      // programmatic caller and must pay roadmap rent too. Only the daemon's
+      // raw HTTP surface stays lenient in v1 (documented in lib/sugar.ts).
+      if (args.roadmap) body.roadmapLink = args.roadmap;
+      if (args.sidequest) body.sidequestReason = args.sidequest;
+      if (args.roadmap_new) body.roadmapNewTitle = args.roadmap_new;
+      if (!body.roadmapLink && !body.sidequestReason && !body.roadmapNewTitle) {
+        // Bounded env exemption (server-side env, operator-controlled) —
+        // mirrors cli/commands/sugar.ts resolveBeginRent.
+        const exempt = typeof process.env.PD_RENT_EXEMPT === 'string'
+          ? process.env.PD_RENT_EXEMPT.trim().toLowerCase()
+          : '';
+        if (exempt === 'hotfix' || exempt === 'chore') {
+          body.sidequestReason = `PD_RENT_EXEMPT: ${exempt}`;
+        } else {
+          return JSON.stringify({
+            success: false,
+            error:
+              'begin_session needs a roadmap link or an explicit opt-out. Pass exactly one:\n' +
+              '  roadmap: "<slug>"        link this session to an existing roadmap item\n' +
+              '  roadmap_new: "<title>"   create a draft roadmap item and link it\n' +
+              '  sidequest: "<reason>"    opt out with a one-line reason (min 12 chars)',
+            code: 'ROADMAP_RENT_REQUIRED',
+          }, null, 2);
+        }
+      }
       res = await POST('/sugar/begin', body);
 
       // Attach salvage context — check if any dead agents share this project
@@ -4903,7 +4949,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.24.1',
+    version: '3.26.4',
   },
   {
     capabilities: {

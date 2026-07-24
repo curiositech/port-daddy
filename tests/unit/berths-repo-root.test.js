@@ -2,7 +2,11 @@ import { describe, expect, test } from '@jest/globals';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { resolveRepoRoot, defaultFrom } from '../../cli/commands/berths.js';
+import {
+  resolveRepoRoot,
+  defaultFrom,
+  shouldPurgeBerthState,
+} from '../../cli/commands/berths.js';
 
 // Regression for `pd dev up` crashing with
 //   "build script missing in source tree: /scripts/build-daemon-binary.mjs"
@@ -47,5 +51,17 @@ describe('defaultFrom (the --label-without---from footgun fix)', () => {
     expect(defaultFrom(undefined, 'master', ROOT)).toBe('main');
     expect(defaultFrom(undefined, 'HEAD', ROOT)).toBe('main');
     expect(defaultFrom(undefined, null, ROOT)).toBe('main');
+  });
+});
+
+describe('named berth state lifecycle', () => {
+  test('ordinary stop preserves the isolated durable ledger', () => {
+    expect(shouldPurgeBerthState({})).toBe(false);
+    expect(shouldPurgeBerthState({ all: true })).toBe(false);
+  });
+
+  test('state destruction requires an explicit purge or reset flag', () => {
+    expect(shouldPurgeBerthState({ purge: true })).toBe(true);
+    expect(shouldPurgeBerthState({ reset: true })).toBe(true);
   });
 });

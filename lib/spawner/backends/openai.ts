@@ -16,10 +16,11 @@
  * tests / proxies / Azure deployments redirect without code changes
  * (default `https://api.openai.com/v1`).
  *
- * The wire format is the Chat Completions API (`/chat/completions`).
- * Reasoning models (o-series, gpt-5) accept `max_completion_tokens`
- * instead of `max_tokens`; the adapter sets both — OpenAI ignores the
- * irrelevant one per the API contract.
+ * Native OpenAI reasoning models (o-series, gpt-5) use the Responses API
+ * (`/responses`) with `max_output_tokens`. OpenAI-compatible providers and
+ * explicit base URL redirects (tests, proxies, Azure, Groq, DeepSeek, LM Studio,
+ * etc.) keep the Chat Completions path because that is the compatibility
+ * contract they serve.
  */
 
 import { getSecret } from '../../secret-env.js';
@@ -27,14 +28,115 @@ import type { LLMCompletionRequest, LLMCompletionResult } from '../../llm-call.j
 
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
 
-/** Models that route via the responses/reasoning path. They accept
- *  `max_completion_tokens` and ignore `max_tokens`. The Chat Completions
- *  endpoint still accepts them; we just need to send the right field. */
+/** Models that use Responses API on native OpenAI, or `max_completion_tokens`
+ *  when an OpenAI-compatible Chat Completions endpoint is explicitly selected. */
 const REASONING_MODEL_PREFIXES = ['o1', 'o3', 'o4', 'gpt-5'];
 
 function isReasoningModel(model: string): boolean {
   const lc = model.toLowerCase();
   return REASONING_MODEL_PREFIXES.some((p) => lc.startsWith(p));
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function textFromContentPart(part: unknown): string {
+  if (typeof part === 'string') return part;
+  if (!isObject(part)) return '';
+  const text = part.text;
+  if (typeof text === 'string') return text;
+  const nestedText = part.output_text;
+  return typeof nestedText === 'string' ? nestedText : '';
+}
+
+function extractOpenAIText(data: Record<string, unknown>): string {
+  if (typeof data.output_text === 'string' && data.output_text) {
+    return data.output_text;
+  }
+
+  const output = data.output;
+  if (Array.isArray(output)) {
+    const chunks: string[] = [];
+    for (const item of output) {
+      if (!isObject(item)) continue;
+      if (item.type && item.type !== 'message') continue;
+      const content = item.content;
+      if (typeof content === 'string') {
+        chunks.push(content);
+      } else if (Array.isArray(content)) {
+        for (const part of content) {
+          chunks.push(textFromContentPart(part));
+        }
+      }
+    }
+    const text = chunks.join('');
+    if (text) return text;
+  }
+
+  const choices = data.choices as Array<{ message?: { content?: unknown }; text?: string }> | undefined;
+  const chunks: string[] = [];
+  for (const choice of choices ?? []) {
+    const content = choice.message?.content;
+    if (typeof content === 'string') {
+      chunks.push(content);
+    } else if (Array.isArray(content)) {
+      for (const part of content) {
+        chunks.push(textFromContentPart(part));
+      }
+    } else if (typeof choice.text === 'string') {
+      chunks.push(choice.text);
+    }
+  }
+  return chunks.join('');
+}
+
+function extractOpenAIUsage(data: Record<string, unknown>): {
+  inputTokens?: number;
+  outputTokens?: number;
+  cachedInputTokens?: number;
+} {
+  const usage = data.usage as
+    | {
+      input_tokens?: number;
+      output_tokens?: number;
+      prompt_tokens?: number;
+      completion_tokens?: number;
+      input_tokens_details?: { cached_tokens?: number };
+      prompt_tokens_details?: { cached_tokens?: number };
+    }
+    | undefined;
+
+  return {
+    inputTokens:
+      typeof usage?.input_tokens === 'number'
+        ? usage.input_tokens
+        : typeof usage?.prompt_tokens === 'number'
+          ? usage.prompt_tokens
+          : undefined,
+    outputTokens:
+      typeof usage?.output_tokens === 'number'
+        ? usage.output_tokens
+        : typeof usage?.completion_tokens === 'number'
+          ? usage.completion_tokens
+          : undefined,
+    cachedInputTokens:
+      typeof usage?.input_tokens_details?.cached_tokens === 'number'
+        ? usage.input_tokens_details.cached_tokens
+        : typeof usage?.prompt_tokens_details?.cached_tokens === 'number'
+          ? usage.prompt_tokens_details.cached_tokens
+          : undefined,
+  };
+}
+
+function noTextResponseError(data: Record<string, unknown>): string {
+  const status = typeof data.status === 'string' ? data.status : '';
+  const details = isObject(data.incomplete_details) ? data.incomplete_details : undefined;
+  const reason = typeof details?.reason === 'string' ? details.reason : '';
+  if (status === 'incomplete' && reason) {
+    return `OpenAI returned no text response (response incomplete: ${reason})`;
+  }
+  return 'OpenAI returned no text response';
 }
 
 /**
@@ -76,16 +178,27 @@ export const openaiAdapter = async (
   };
   if (organization) headers['OpenAI-Organization'] = organization;
 
-  const body: Record<string, unknown> = {
-    model: req.model,
-    messages: [{ role: 'user', content: req.prompt }],
-    stream: false,
-  };
-  // Reasoning models reject `max_tokens`; chat models reject
-  // `max_completion_tokens` on older endpoints. Send the appropriate
-  // field; OpenAI's API accepts the right one for each family.
+  const hasExplicitBaseUrl = Boolean(override.baseUrl || e.OPENAI_BASE_URL);
+  const useResponsesApi = isReasoningModel(req.model) && !hasExplicitBaseUrl;
+  const body: Record<string, unknown> = useResponsesApi
+    ? {
+      model: req.model,
+      input: [{ role: 'user', content: req.prompt }],
+      // Port Daddy's live transcript smokes use tiny caps for cost control.
+      // Responses API caps include reasoning tokens, so keep default effort
+      // minimal unless a future request shape exposes an explicit knob.
+      reasoning: { effort: 'minimal' },
+      store: false,
+    }
+    : {
+      model: req.model,
+      messages: [{ role: 'user', content: req.prompt }],
+      stream: false,
+    };
   if (typeof req.maxTokens === 'number' && req.maxTokens > 0) {
-    if (isReasoningModel(req.model)) {
+    if (useResponsesApi) {
+      body.max_output_tokens = req.maxTokens;
+    } else if (isReasoningModel(req.model)) {
       body.max_completion_tokens = req.maxTokens;
     } else {
       body.max_tokens = req.maxTokens;
@@ -94,7 +207,7 @@ export const openaiAdapter = async (
 
   let res: Response;
   try {
-    res = await fetch(`${baseUrl}/chat/completions`, {
+    res = await fetch(`${baseUrl}/${useResponsesApi ? 'responses' : 'chat/completions'}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
@@ -116,25 +229,20 @@ export const openaiAdapter = async (
     return { ok: false, error: `OpenAI returned non-JSON response: ${(err as Error).message}` };
   }
 
-  const choices = data.choices as Array<{ message?: { content?: string } }> | undefined;
-  const text = choices?.[0]?.message?.content ?? '';
+  const text = extractOpenAIText(data);
   if (!text) {
-    return { ok: false, error: 'OpenAI returned no text response' };
+    return { ok: false, error: noTextResponseError(data) };
   }
 
-  const usage = data.usage as
-    | { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } }
-    | undefined;
+  const usage = extractOpenAIUsage(data);
 
   return {
     ok: true,
     text,
-    inputTokens: typeof usage?.prompt_tokens === 'number' ? usage.prompt_tokens : undefined,
-    outputTokens: typeof usage?.completion_tokens === 'number' ? usage.completion_tokens : undefined,
-    cachedInputTokens:
-      typeof usage?.prompt_tokens_details?.cached_tokens === 'number'
-        ? usage.prompt_tokens_details.cached_tokens
-        : undefined,
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+    cachedInputTokens: usage.cachedInputTokens,
+    raw: data,
   };
 };
 

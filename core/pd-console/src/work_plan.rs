@@ -1,32 +1,18 @@
-//! Conjure — the prompt → predicted-DAG surface (foundation slice).
+//! Read-only WorkPlan projection for the native operator surface.
 //!
-//! The operator types intent; windags blooms a hypertree DAG of skill-equipped
-//! agent nodes. This module is the *foundation* slice: the serde-portable
-//! `PredictedDag`/`PredictedWave`/`PredictedNode` types (ported from
-//! `workgroup-ai/packages/core/src/types/next-move.ts`, field names matching the
-//! JSON so a future `windags_next_move` response deserializes straight in) and a
-//! render that turns a DAG into the console's render-agnostic [`Block`]s.
-//!
-//! Explicitly NOT in this slice (later rungs, per `docs/CONJURE-DAG-SURFACE.md`):
-//!   - the network call to `windags_next_move`,
-//!   - the Vello/GPU node-graph,
-//!   - agent dispatch.
-//! The surface renders a hardcoded [`fixture`] DAG through the existing Block UI.
-//!
-//! Vendor-agnostic on purpose: `model_tier` is a free string ("opus" / "sonnet"
-//! / "haiku" / "gemini" / "codex" / …) — rendered generically. Dispatch (a later
-//! slice) routes through pd's multi-vendor spawner / the Giant Squid Harness
-//! (ADR-0091), never a Claude-only assumption.
+//! The daemon owns WorkIntent capture, planning, node materialization, Body
+//! attachment, and execution. This module only converts durable daemon facts
+//! into the existing DAG-shaped visual model. An absent plan stays absent and
+//! an empty node list stays empty: the console never invents a provider, model,
+//! node, run, or fixture to make the surface look busy.
 
 use crate::pane::{Block, Tone};
 use serde::{Deserialize, Serialize};
 
-/// Top-level planner output. Mirrors the TS `PredictedDAG`. Optional/extra fields
-/// carry `#[serde(default)]` so a partial windags payload still deserializes.
-/// `Serialize` is what closes the loop to the Vello renderer: the console
-/// serializes its live `PredictedDag` back out to the exact JSON shape
-/// `pd-conjure-proto` reads (`fixture.json`), so a prompt-derived DAG renders to
-/// a PNG without any second source of truth.
+/// Top-level daemon WorkPlan projection. Optional/extra fields carry
+/// `#[serde(default)]` so a partial durable plan remains inspectable.
+/// `Serialize` closes the loop to the Vello renderer: the console serializes
+/// daemon truth to the renderer's JSON shape without creating a second planner.
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct PredictedDag {
     /// "Ship API endpoint with tests".
@@ -103,63 +89,156 @@ pub struct PredictedNode {
     pub ask_user_before_proceeding: bool,
 }
 
-/// Parse a windags `next_move` JSON payload into a [`PredictedDag`]. Tolerant of
-/// missing optional fields (all carry `#[serde(default)]`), so a partial response
-/// still yields a renderable DAG rather than an error.
+/// Parse a daemon WorkPlan projection into a [`PredictedDag`]. Missing optional
+/// fields are tolerated so partial durable truth stays visible rather than being
+/// replaced with frontend fixtures.
 pub fn parse(json: &str) -> anyhow::Result<PredictedDag> {
     let dag = serde_json::from_str::<PredictedDag>(json)?;
     Ok(dag)
 }
 
-/// Serialize a [`PredictedDag`] to the exact JSON shape `pd-conjure-proto` reads
-/// (its `fixture.json` / first CLI arg). Pretty-printed so a written handoff file
-/// is human-legible. This is the other half of the render handoff: the console
-/// owns the live DAG, writes it here, and the Vello proto renders it to a PNG —
-/// one source of truth, round-tripped through serde.
+/// Serialize a [`PredictedDag`] to the JSON shape the Vello renderer reads.
+/// Pretty-printing keeps the render handoff inspectable; the daemon snapshot
+/// remains the sole source of plan truth.
 pub fn to_json(dag: &PredictedDag) -> anyhow::Result<String> {
     Ok(serde_json::to_string_pretty(dag)?)
 }
 
-/// Build a [`PredictedDag`] for an operator prompt.
-///
-/// LIVE WINDAGS HOOK (TODO — this slice ships the fixture path):
-///   The real planner is `windags_next_move` (the MCP tool) /
-///   `workgroup-ai` `next-move --json --legacy-predictor`. Neither is a clean
-///   one-shot from this binary today:
-///     - the MCP server is stdio and gathers repo context itself (no prompt arg
-///       on the CLI — it auto-derives intent from git/files), and is deprecated
-///       behind `--legacy-predictor`;
-///     - it needs a *valid* provider key. In the build environment the stored
-///       `~/.windags/providers.json` anthropic key returned 401 invalid x-api-key,
-///       so no live DAG could be produced for this slice.
-///   When a clean hook lands, replace the body below with:
-///     1. spawn `windags next-move --json --legacy-predictor` (or POST the MCP
-///        tool) with `ANTHROPIC_API_KEY` in env and the prompt as the
-///        conversation summary,
-///     2. read stdout, `parse(json)` it,
-///     3. on any error fall back to `seeded_from_prompt(prompt)` (below) so the
-///        surface is never empty.
-///   The prompt → PredictedDag → Block UI → PNG wiring is identical either way;
-///   only this function's body swaps from fixture-seeded to live.
-///
-/// Until then this returns the real 3-wave [`fixture`] DAG re-titled with the
-/// operator's prompt, so the typed intent visibly drives the rendered graph
-/// (the title header + the PNG caption both echo it) instead of a static label.
-pub fn from_prompt(prompt: &str) -> PredictedDag {
-    seeded_from_prompt(prompt)
+/// The Work surface before a daemon-backed intent has been selected.
+pub fn empty_work_projection() -> PredictedDag {
+    PredictedDag {
+        title: "No work selected".into(),
+        problem_classification: "daemon truth".into(),
+        confidence: 0.0,
+        halt_reason: Some(
+            "Submit a WorkIntent to the daemon. The console will not synthesize a plan.".into(),
+        ),
+        topology: Some("unplanned".into()),
+        ..Default::default()
+    }
 }
 
-/// The deterministic fixture-seeded DAG for a prompt: the [`fixture`] topology
-/// with its title replaced by the (trimmed) operator prompt. Pulled out so the
-/// future live path can call it as the offline fallback, and so it is unit-test
-/// targetable without a network/provider.
-pub fn seeded_from_prompt(prompt: &str) -> PredictedDag {
-    let mut dag = fixture();
-    let trimmed = prompt.trim();
-    if !trimmed.is_empty() {
-        dag.title = trimmed.to_string();
+/// Honest foreground state while the idempotent Surface Gateway command is in flight.
+pub fn pending_work_projection() -> PredictedDag {
+    PredictedDag {
+        title: "Capturing work intent".into(),
+        problem_classification: "pending".into(),
+        confidence: 0.0,
+        halt_reason: Some(
+            "Waiting for the daemon receipt; no plan, provider, node, or run is confirmed.".into(),
+        ),
+        topology: Some("pending".into()),
+        ..Default::default()
     }
-    dag
+}
+
+fn value_string(value: &serde_json::Value, keys: &[&str]) -> String {
+    keys.iter()
+        .find_map(|key| value.get(*key).and_then(|field| field.as_str()))
+        .unwrap_or_default()
+        .to_string()
+}
+
+fn value_f64(value: &serde_json::Value, keys: &[&str]) -> f64 {
+    keys.iter()
+        .find_map(|key| value.get(*key).and_then(|field| field.as_f64()))
+        .unwrap_or(0.0)
+}
+
+/// Project one durable WorkIntent/WorkPlan snapshot into the visual DAG model.
+/// Only daemon-supplied `nodeSpecs` become nodes. Provider/model fields are not
+/// interpreted here; the Squid-governed Body attachment remains runtime truth.
+pub fn from_work_snapshot(snapshot: &crate::agent::WorkSnapshot) -> PredictedDag {
+    let plan = snapshot.plan.as_ref();
+    let state = plan
+        .and_then(|value| value.get("state"))
+        .and_then(|value| value.as_str())
+        .unwrap_or("unplanned");
+    let shape = plan
+        .and_then(|value| value.get("shape"))
+        .and_then(|value| value.as_str())
+        .unwrap_or("unplanned");
+    let evidence = plan
+        .and_then(|value| value.get("evidence"))
+        .and_then(|value| value.as_str())
+        .unwrap_or("The daemon has not returned a WorkPlan.")
+        .to_string();
+
+    let mut by_wave = std::collections::BTreeMap::<u32, Vec<PredictedNode>>::new();
+    if let Some(specs) = plan
+        .and_then(|value| value.get("nodeSpecs"))
+        .and_then(|value| value.as_array())
+    {
+        for (index, spec) in specs.iter().enumerate() {
+            let wave = spec
+                .get("wave")
+                .or_else(|| spec.get("waveNumber"))
+                .and_then(|value| value.as_u64())
+                .unwrap_or(1) as u32;
+            let id = {
+                let candidate = value_string(spec, &["nodeId", "id"]);
+                if candidate.is_empty() {
+                    format!("daemon-node-{}", index + 1)
+                } else {
+                    candidate
+                }
+            };
+            by_wave.entry(wave.max(1)).or_default().push(PredictedNode {
+                id,
+                skill_id: value_string(spec, &["skillId", "skill"]),
+                role_description: value_string(spec, &["roleDescription", "goal", "role"]),
+                why: value_string(spec, &["why", "evidence"]),
+                commitment_level: value_string(spec, &["commitmentLevel", "commitment"]),
+                input_contract: value_string(spec, &["inputContract"]),
+                output_contract: value_string(spec, &["outputContract"]),
+                model_tier: value_string(spec, &["capabilityTier"]),
+                estimated_minutes: value_f64(spec, &["estimatedMinutes"]),
+                estimated_cost_usd: value_f64(spec, &["estimatedCostUsd"]),
+                cascade_depth: spec
+                    .get("cascadeDepth")
+                    .and_then(|value| value.as_u64())
+                    .unwrap_or(0) as u32,
+                ask_user_before_proceeding: spec
+                    .get("requiresApproval")
+                    .or_else(|| spec.get("askUserBeforeProceeding"))
+                    .and_then(|value| value.as_bool())
+                    .unwrap_or(false),
+            });
+        }
+    }
+
+    let waves = by_wave
+        .into_iter()
+        .map(|(wave_number, nodes)| PredictedWave {
+            wave_number,
+            parallelizable: nodes.len() > 1,
+            nodes,
+        })
+        .collect::<Vec<_>>();
+    let estimated_total_minutes = waves
+        .iter()
+        .flat_map(|wave| &wave.nodes)
+        .map(|node| node.estimated_minutes)
+        .sum();
+    let estimated_total_cost_usd = waves
+        .iter()
+        .flat_map(|wave| &wave.nodes)
+        .map(|node| node.estimated_cost_usd)
+        .sum();
+
+    PredictedDag {
+        title: snapshot.goal().to_string(),
+        problem_classification: format!("{state} / {shape}"),
+        confidence: plan
+            .and_then(|value| value.get("confidence"))
+            .and_then(|value| value.as_f64())
+            .unwrap_or(0.0),
+        halt_reason: waves.is_empty().then_some(evidence),
+        waves,
+        estimated_total_minutes,
+        estimated_total_cost_usd,
+        topology: Some(shape.to_string()),
+    }
 }
 
 /// Map a commitment level to a semantic [`Tone`]. Matches windags' own stroke
@@ -193,7 +272,7 @@ fn context_hint(node: &PredictedNode) -> String {
 /// The plan-time **scoped context** for one node — the agent-context-partitioner
 /// SLICE, computed purely from the DAG structure (no runtime, no model call).
 ///
-/// The partitioner's contract (from the Conjure design / `ScopedAccumulator`):
+/// The partitioner's contract (from the Work design / `ScopedAccumulator`):
 /// each node sees a *partitioned* view of the run's accumulated context, never
 /// the whole transcript:
 ///   - **FULL** — the direct-dependency outputs, verbatim. In the feed-forward
@@ -283,12 +362,12 @@ pub fn scoped_context(dag: &PredictedDag, wave_index: usize, _node: &PredictedNo
 /// then per wave a header (marked `∥` when parallelizable) and per node a
 /// commitment-toned chip plus role / model-cost / scoped-context detail, with a
 /// HITL gate chip when the node asks for approval.
-pub fn blocks_for_conjure(dag: &PredictedDag) -> Vec<Block> {
+pub fn blocks_for_work(dag: &PredictedDag) -> Vec<Block> {
     let mut blocks = Vec::new();
 
     // Title.
     let title = if dag.title.is_empty() {
-        "Conjure \u{2014} predicted DAG".to_string()
+        "Work plan".to_string()
     } else {
         dag.title.clone()
     };
@@ -372,7 +451,7 @@ pub fn blocks_for_conjure(dag: &PredictedDag) -> Vec<Block> {
 /// The INSPECTOR block group for one node: its input/output contracts (only when
 /// non-empty) plus the scoped-context slice — what the agent-context-partitioner
 /// would hand this node, derived from the DAG structure. Pulled out of
-/// [`blocks_for_conjure`] so it is independently legible and testable.
+/// [`blocks_for_work`] so it is independently legible and testable.
 ///
 /// Renders, under the node's existing chip/role/model lines:
 ///   - `  ⊢ in`  / `  ⊣ out`  — the contracts (KeyVals, skipped when empty),
@@ -444,277 +523,11 @@ fn inspector_blocks(dag: &PredictedDag, wave_index: usize, node: &PredictedNode)
     blocks
 }
 
-// ── DISPATCH ──────────────────────────────────────────────────────────────────
-//
-// Turn predicted nodes into real spawn requests, routed by `model_tier` to the
-// right vendor, and run them through the console's EXISTING spawn path (the same
-// `DaemonClient::spawn` the operator's manual Spawn command uses, which calls the
-// daemon's existing multi-vendor spawner `lib/spawner.ts`). This module owns only
-// the pure request-shaping + HITL gating; `app.rs`/`main.rs` own the transport.
-//
-// HONEST FRAMING: live dispatch is env-dependent — it needs the daemon up and the
-// target vendor CLI installed + launchable (codex / claude-cli already pass
-// readiness; gemini if installed). The Giant Squid Harness (ADR-0091, Proposed /
-// NOT BUILT) is the FUTURE coordination upgrade for richer in-loop vendor-hook
-// orchestration. This slice wires + tests the spawn path; it does not depend on
-// the daemon being up to compile or to unit-test the request shaping.
-
-use crate::agent::{backend_for_tier, Backend};
-
-/// A spawn request shaped from one [`PredictedNode`], ready to hand to the
-/// console's existing spawn path. The fields map 1:1 onto `DaemonClient::spawn`
-/// args: `backend` (vendor chosen by `model_tier`), `goal` (the agent's task
-/// prompt, built from the node's role + why), and `skill_id` (the skill the
-/// agent loads). The transport layer adds the project/channel and calls `spawn`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DispatchRequest {
-    /// Stable node id this request came from (for the dispatched-note + alerts).
-    pub node_id: String,
-    /// The vendor to spawn on, resolved from `model_tier` via the multi-vendor map.
-    pub backend: Backend,
-    /// The skill the spawned agent loads (e.g. "api-architect").
-    pub skill_id: String,
-    /// The agent's task prompt: the node's role plus its rationale.
-    pub goal: String,
-    /// The capability/vendor tier string the node carried (for display).
-    pub model_tier: String,
-}
-
-/// Build the spawn request for a single node — the multi-vendor routing happens
-/// here: `backend = backend_for_tier(node.model_tier)`. The goal is the node's
-/// `role_description` (what to do) plus its `why` (the rationale) so the spawned
-/// agent has the same grounding the operator sees in the Conjure surface. The
-/// skill id is passed straight through so the agent loads the predicted skill.
-pub fn dispatch_request_for(node: &PredictedNode) -> DispatchRequest {
-    let mut goal = node.role_description.trim().to_string();
-    let why = node.why.trim();
-    if !why.is_empty() {
-        // Keep the prompt self-describing: the role is the instruction, the
-        // why is the context. A spawned agent reads both.
-        goal = format!("{goal}\n\nWhy this matters: {why}");
-    }
-    DispatchRequest {
-        node_id: node.id.clone(),
-        backend: backend_for_tier(&node.model_tier),
-        skill_id: node.skill_id.clone(),
-        goal,
-        model_tier: node.model_tier.clone(),
-    }
-}
-
-/// Select the nodes that "Dispatch DAG" should auto-spawn, RESPECTING THE HITL
-/// GATE: a node with `ask_user_before_proceeding` is **excluded** here (it must
-/// be dispatched one at a time via an explicit confirm, never swept up in a
-/// dispatch-all). Returns one [`DispatchRequest`] per eligible node, in wave
-/// order, so the caller can fire them through the existing spawn path.
-pub fn dispatch_targets(dag: &PredictedDag) -> Vec<DispatchRequest> {
-    dag.waves
-        .iter()
-        .flat_map(|w| w.nodes.iter())
-        .filter(|n| !n.ask_user_before_proceeding)
-        .map(dispatch_request_for)
-        .collect()
-}
-
-/// How many nodes in the DAG are HITL-gated (held back from dispatch-all) — used
-/// to honestly tell the operator "dispatched N, held back M for your approval".
-pub fn gated_node_count(dag: &PredictedDag) -> usize {
-    dag.waves
-        .iter()
-        .flat_map(|w| w.nodes.iter())
-        .filter(|n| n.ask_user_before_proceeding)
-        .count()
-}
-
-// ── LIVE GENERATION (claude:cli, the Max seat — NO API key) ─────────────────────
-//
-// The operator types intent; we ask `claude -p "<DAG_GEN_PROMPT>"` to bloom a real
-// PredictedDAG tailored to that intent. This runs the Max-seat CLI in print mode
-// (headless, no API key — the user's interactive Claude Code login), parses ONLY
-// the JSON it returns, and on ANY error falls back to `seeded_from_prompt(prompt)`
-// (the fixture) so the surface is NEVER empty/broken. The pure pieces below
-// (`augmented_path`, `dag_gen_prompt`, `parse_claude_dag_output`) are unit-tested
-// in the headless repl bin; the live spawn in `generate_dag_via_cli` is an
-// integration path (env-dependent on the claude binary) and is not unit-tested.
-
-/// Build a PATH that finds developer tools even when the process did NOT inherit a
-/// login shell's PATH — the exact failure mode of a macOS .app launched from
-/// Finder (no `cargo`, no `claude`: "command not found"). We PREPEND the canonical
-/// tool dirs (`~/.cargo/bin`, `~/.local/bin`, Homebrew, the system bins) to
-/// whatever PATH we did inherit, so a shelled `cargo`/`claude` resolves. Returns a
-/// single `:`-joined string suitable for `.env("PATH", …)`.
-pub fn augmented_path() -> String {
-    let home = std::env::var("HOME").unwrap_or_default();
-    // Highest-priority dirs first; these are the homes of cargo + the claude CLI.
-    let mut dirs: Vec<String> = Vec::new();
-    if !home.is_empty() {
-        dirs.push(format!("{home}/.cargo/bin"));
-        dirs.push(format!("{home}/.local/bin"));
-    }
-    for sys in ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"] {
-        dirs.push(sys.to_string());
-    }
-    // Append the inherited PATH (deduplicated) so nothing the user already had is lost.
-    if let Ok(existing) = std::env::var("PATH") {
-        for seg in existing.split(':') {
-            let seg = seg.trim();
-            if !seg.is_empty() && !dirs.iter().any(|d| d == seg) {
-                dirs.push(seg.to_string());
-            }
-        }
-    }
-    dirs.join(":")
-}
-
-/// Resolve the `claude` CLI binary: prefer the known install path
-/// (`~/.local/bin/claude`), then fall back to the bare name `claude` (resolved
-/// against [`augmented_path`] by the spawned process). Returns the absolute path
-/// when it exists on disk, else the bare name so PATH resolution can take over.
-pub fn claude_binary() -> String {
-    if let Ok(home) = std::env::var("HOME") {
-        let local = std::path::PathBuf::from(&home).join(".local/bin/claude");
-        if local.exists() {
-            return local.to_string_lossy().into_owned();
-        }
-    }
-    "claude".to_string()
-}
-
-/// The prompt handed to `claude -p` to bloom a tailored DAG. It pins the EXACT
-/// serde schema of [`PredictedDag`]/[`PredictedWave`]/[`PredictedNode`] and demands
-/// raw JSON (no prose, no code fences) so [`parse_claude_dag_output`] can read it.
-/// It asks for a small, real plan (3–5 nodes across 2–4 waves) that VARIES the
-/// `model_tier` across vendors and gates EXACTLY ONE node behind the HITL flag.
-pub fn dag_gen_prompt(prompt: &str) -> String {
-    let intent = prompt.trim();
-    format!(
-        "You are a planning oracle for a multi-agent orchestrator. The operator's \
-intent is:\n\n\"{intent}\"\n\n\
-Output ONLY a single JSON object (no prose, no markdown, no code fences) that is a \
-predicted DAG of skill-equipped agent nodes tailored to that intent. Use EXACTLY \
-this schema (snake_case keys):\n\
-{{\n\
-  \"title\": string (echo/refine the operator intent),\n\
-  \"problem_classification\": \"well-structured\" | \"ill-structured\" | \"wicked\",\n\
-  \"confidence\": number in 0..1,\n\
-  \"estimated_total_minutes\": number,\n\
-  \"estimated_total_cost_usd\": number,\n\
-  \"topology\": \"dag\",\n\
-  \"waves\": [\n\
-    {{\n\
-      \"wave_number\": integer (1-based),\n\
-      \"parallelizable\": boolean,\n\
-      \"nodes\": [\n\
-        {{\n\
-          \"id\": string (kebab-case, stable),\n\
-          \"skill_id\": string (a concrete skill, e.g. \"api-architect\"),\n\
-          \"role_description\": string (what this agent does in context),\n\
-          \"why\": string (why this skill, why now),\n\
-          \"commitment_level\": \"COMMITTED\" | \"TENTATIVE\" | \"EXPLORATORY\",\n\
-          \"input_contract\": string (what it needs from upstream),\n\
-          \"output_contract\": string (what it delivers),\n\
-          \"model_tier\": one of \"sonnet\", \"opus\", \"gemini\", \"codex\" (VARY across nodes),\n\
-          \"estimated_minutes\": number,\n\
-          \"estimated_cost_usd\": number,\n\
-          \"cascade_depth\": integer (how many downstream nodes depend on this one),\n\
-          \"ask_user_before_proceeding\": boolean\n\
-        }}\n\
-      ]\n\
-    }}\n\
-  ]\n\
-}}\n\n\
-Constraints: 3 to 5 nodes total across 2 to 4 waves; the `model_tier` values must \
-span at least two different vendors (mix sonnet/opus with gemini and/or codex); \
-set `ask_user_before_proceeding` to true on EXACTLY ONE node (the riskiest, e.g. a \
-ship/deploy/irreversible step) and false on all others. Respond with the JSON only."
-    )
-}
-
-/// Robustly extract a [`PredictedDag`] from whatever `claude -p` printed. Handles:
-///   - a clean raw JSON object,
-///   - a ```json … ``` (or bare ``` … ```) fenced block,
-///   - leading/trailing prose around an embedded `{ … }` object.
-/// Strategy: strip code fences, then take the substring from the FIRST `{` to the
-/// LAST `}` (the outer object) and [`parse`] it. Returns an error on anything that
-/// does not yield a valid DAG, so the caller can fall back to the fixture.
-pub fn parse_claude_dag_output(raw: &str) -> anyhow::Result<PredictedDag> {
-    use anyhow::{anyhow, Context};
-    let mut text = raw.trim().to_string();
-
-    // Strip a fenced block if present: ```json\n … \n``` or ```\n … \n```.
-    if let Some(start) = text.find("```") {
-        // Drop everything up to and including the opening fence line.
-        let after_open = &text[start + 3..];
-        // The opening fence may carry a language tag (e.g. "json"); skip to EOL.
-        let body_start = after_open.find('\n').map(|i| i + 1).unwrap_or(0);
-        let body = &after_open[body_start..];
-        // Drop the closing fence (and anything after it).
-        let body = match body.find("```") {
-            Some(end) => &body[..end],
-            None => body,
-        };
-        text = body.trim().to_string();
-    }
-
-    // Take the outer object: first '{' through last '}'.
-    let open = text
-        .find('{')
-        .ok_or_else(|| anyhow!("no JSON object found in claude output"))?;
-    let close = text
-        .rfind('}')
-        .ok_or_else(|| anyhow!("no closing brace found in claude output"))?;
-    if close < open {
-        return Err(anyhow!("malformed JSON braces in claude output"));
-    }
-    let json = &text[open..=close];
-    let dag = parse(json).context("parsing the claude-emitted DAG JSON")?;
-    // A DAG with no waves is not useful — treat it as a failure so we fall back.
-    if dag.waves.is_empty() {
-        return Err(anyhow!("claude returned a DAG with no waves"));
-    }
-    Ok(dag)
-}
-
-/// Generate a real [`PredictedDag`] for `prompt` by shelling the Max-seat `claude`
-/// CLI in print mode (`claude -p "<DAG_GEN_PROMPT>"`). MUST run off the gpui render
-/// thread (a CLI round-trip is multi-second). Resolves the binary via
-/// [`claude_binary`] and runs it with an augmented PATH (so a Finder-launched .app
-/// still finds `claude`). On ANY failure — binary missing, non-zero exit, garbage
-/// output — it returns [`seeded_from_prompt`] (the fixture, re-titled with the
-/// prompt) so the Conjure surface is never empty or broken.
-pub fn generate_dag_via_cli(prompt: &str) -> anyhow::Result<PredictedDag> {
-    let bin = claude_binary();
-    let gen_prompt = dag_gen_prompt(prompt);
-    let output = std::process::Command::new(&bin)
-        .arg("-p")
-        .arg(&gen_prompt)
-        .env("PATH", augmented_path())
-        .output();
-
-    match output {
-        Ok(out) if out.status.success() => {
-            let stdout = String::from_utf8_lossy(&out.stdout);
-            match parse_claude_dag_output(&stdout) {
-                Ok(mut dag) => {
-                    // Keep the operator's exact intent as the title if claude blanked it.
-                    if dag.title.trim().is_empty() {
-                        dag.title = prompt.trim().to_string();
-                    }
-                    Ok(dag)
-                }
-                Err(_) => Ok(seeded_from_prompt(prompt)),
-            }
-        }
-        // Non-zero exit or spawn failure (e.g. binary missing) → the fixture fallback.
-        _ => Ok(seeded_from_prompt(prompt)),
-    }
-}
-
-/// A real 3-wave fixture DAG mirroring `docs/CONJURE-DAG-SURFACE.md` — the
-/// foundation surface renders this until the windags call lands (later slice).
-/// foundation surface renders this until the windags call lands (later slice).
+/// A representative plan used by rendering tests and isolated visual tooling.
+/// The live Work surface never calls this function.
 /// The three nodes deliberately span the three commitment levels so the toned
 /// chips are visible, and one node carries the HITL gate.
+#[cfg(test)]
 pub fn fixture() -> PredictedDag {
     PredictedDag {
         title: "Ship provider settings flow".into(),
@@ -866,7 +679,7 @@ mod tests {
     fn empty_dag_renders_a_title_header_and_no_chips() {
         // The empty (populated-but-no-waves) case still renders cleanly.
         let dag = PredictedDag::default();
-        let blocks = blocks_for_conjure(&dag);
+        let blocks = blocks_for_work(&dag);
         assert!(
             !blocks.is_empty(),
             "even an empty DAG renders its header line"
@@ -885,7 +698,7 @@ mod tests {
     #[test]
     fn fixture_renders_non_empty_with_title_and_a_chip_per_node() {
         let dag = fixture();
-        let blocks = blocks_for_conjure(&dag);
+        let blocks = blocks_for_work(&dag);
         assert!(!blocks.is_empty(), "fixture must render blocks");
 
         // The first block is the title Header.
@@ -932,7 +745,7 @@ mod tests {
     #[test]
     fn parallelizable_wave_marks_the_header() {
         let dag = fixture();
-        let blocks = blocks_for_conjure(&dag);
+        let blocks = blocks_for_work(&dag);
         // Wave 2 is parallelizable in the fixture — its header carries the ∥ mark.
         let has_parallel_marker = blocks.iter().any(|b| {
             matches!(b, Block::Header(t)
@@ -990,39 +803,59 @@ mod tests {
     }
 
     #[test]
-    fn from_prompt_titles_the_dag_with_the_operator_intent() {
-        // The prompt visibly drives the rendered DAG: the title header echoes it.
-        let dag = from_prompt("  Add a retry budget to the dispatcher  ");
+    fn captured_intent_does_not_invent_nodes_or_provider_truth() {
+        let snapshot = crate::agent::WorkSnapshot {
+            intent: serde_json::json!({
+                "intentId": "work_intent_1",
+                "goal": { "text": "Consolidate work creation" }
+            }),
+            plan: Some(serde_json::json!({
+                "state": "intent-captured",
+                "shape": "unshaped",
+                "confidence": 0,
+                "evidence": "Intent is durable; planner unavailable.",
+                "nodeSpecs": []
+            })),
+        };
+        let dag = from_work_snapshot(&snapshot);
+        assert_eq!(dag.title, "Consolidate work creation");
+        assert!(dag.waves.is_empty(), "an empty daemon plan stays empty");
+        assert_eq!(dag.confidence, 0.0);
         assert_eq!(
-            dag.title, "Add a retry budget to the dispatcher",
-            "trimmed prompt becomes the title"
+            dag.halt_reason.as_deref(),
+            Some("Intent is durable; planner unavailable.")
         );
-        // It's a real, renderable multi-wave DAG (the fixture topology), not empty.
-        assert!(
-            dag.waves.len() >= 3,
-            "a prompt-derived DAG carries the real wave structure"
-        );
-        let blocks = blocks_for_conjure(&dag);
-        match &blocks[0] {
-            Block::Header(t) => assert_eq!(t, "Add a retry budget to the dispatcher"),
-            other => panic!("first block must be the prompt title header, got {other:?}"),
-        }
-        // And it round-trips to the proto's JSON shape with the prompt title intact.
-        let json = to_json(&dag).expect("prompt-derived DAG serializes");
-        let back = parse(&json).expect("prompt-derived DAG round-trips");
-        assert_eq!(back.title, "Add a retry budget to the dispatcher");
+        let json = to_json(&dag).expect("projection serializes");
+        assert!(!json.contains("claude"));
+        assert!(!json.contains("provider"));
     }
 
     #[test]
-    fn from_prompt_empty_keeps_the_fixture_title() {
-        // An empty/whitespace prompt must not blank the title — keep the fixture's.
-        let dag = from_prompt("   ");
-        assert_eq!(
-            dag.title,
-            fixture().title,
-            "empty prompt falls back to the fixture title"
-        );
-        assert!(!dag.waves.is_empty());
+    fn only_daemon_node_specs_become_visual_nodes() {
+        let snapshot = crate::agent::WorkSnapshot {
+            intent: serde_json::json!({
+                "intentId": "work_intent_2",
+                "goal": { "text": "Build one governed node" }
+            }),
+            plan: Some(serde_json::json!({
+                "state": "planned",
+                "shape": "single-node",
+                "confidence": 0.91,
+                "nodeSpecs": [{
+                    "nodeId": "agent_node_1",
+                    "wave": 1,
+                    "roleDescription": "Inspect daemon truth",
+                    "capabilityTier": "reasoning",
+                    "requiresApproval": true
+                }]
+            })),
+        };
+        let dag = from_work_snapshot(&snapshot);
+        assert_eq!(dag.waves.len(), 1);
+        assert_eq!(dag.waves[0].nodes.len(), 1);
+        assert_eq!(dag.waves[0].nodes[0].id, "agent_node_1");
+        assert_eq!(dag.waves[0].nodes[0].model_tier, "reasoning");
+        assert!(dag.waves[0].nodes[0].ask_user_before_proceeding);
     }
 
     #[test]
@@ -1031,7 +864,7 @@ mod tests {
         // TS PredictedDAG -> serde) parses into a renderable DAG. This is the exact
         // shape the live windags hook will hand back when a provider key is valid.
         let json = r#"{
-            "title": "Wire the Conjure prompt box to the Vello renderer",
+            "title": "Wire the Work prompt box to the Vello renderer",
             "problem_classification": "well-structured",
             "confidence": 0.78,
             "halt_reason": null,
@@ -1067,7 +900,7 @@ mod tests {
                             "id": "render-action",
                             "skill_id": "beautiful-gui-design",
                             "role_description": "Add the Render graph action that shells capture.sh",
-                            "why": "Operator needs the PNG of the DAG they conjured",
+                            "why": "Operator needs a PNG receipt of the daemon WorkPlan",
                             "commitment_level": "TENTATIVE",
                             "input_contract": "A serialized DAG on disk",
                             "output_contract": "An opened PNG",
@@ -1082,10 +915,7 @@ mod tests {
             ]
         }"#;
         let dag = parse(json).expect("a windags next_move payload parses");
-        assert_eq!(
-            dag.title,
-            "Wire the Conjure prompt box to the Vello renderer"
-        );
+        assert_eq!(dag.title, "Wire the Work prompt box to the Vello renderer");
         assert_eq!(dag.problem_classification, "well-structured");
         assert_eq!(dag.waves.len(), 2);
         assert!(dag.waves[1].parallelizable);
@@ -1096,7 +926,7 @@ mod tests {
             "the HITL gate parsed"
         );
         // It renders to blocks (title header + a chip per node) without panicking.
-        let blocks = blocks_for_conjure(&dag);
+        let blocks = blocks_for_work(&dag);
         let node_count: usize = dag.waves.iter().map(|w| w.nodes.len()).sum();
         let chip_count = blocks
             .iter()
@@ -1221,7 +1051,7 @@ mod tests {
         // The INSPECTOR slice surfaces: the contracts (in/out KeyVals) and the
         // four partition markers (full / compressed / shared / budget).
         let dag = fixture();
-        let blocks = blocks_for_conjure(&dag);
+        let blocks = blocks_for_work(&dag);
 
         let has_full = blocks
             .iter()
@@ -1280,7 +1110,7 @@ mod tests {
         // The deepest node's FULL marker lists the wave-1 node ids by name — the
         // operator can read exactly which upstream outputs it gets verbatim.
         let dag = fixture();
-        let blocks = blocks_for_conjure(&dag);
+        let blocks = blocks_for_work(&dag);
         let wave1_first = dag.waves[1].nodes[0].id.clone();
         let names_a_dep = blocks.iter().any(|b| {
             matches!(b, Block::KeyVal(k, v)
@@ -1317,7 +1147,7 @@ mod tests {
                 ..Default::default()
             }],
         });
-        let blocks = blocks_for_conjure(&dag);
+        let blocks = blocks_for_work(&dag);
         let has_in = blocks
             .iter()
             .any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("in")));
@@ -1348,7 +1178,7 @@ mod tests {
                 ..Default::default()
             }],
         });
-        let blocks = blocks_for_conjure(&dag);
+        let blocks = blocks_for_work(&dag);
         let has_gemini = blocks.iter().any(|b| {
             matches!(b, Block::KeyVal(k, v)
             if k.contains("model") && v.contains("gemini"))
@@ -1357,237 +1187,5 @@ mod tests {
             has_gemini,
             "model_tier renders generically (gemini, not just claude)"
         );
-    }
-
-    // ── DISPATCH ──────────────────────────────────────────────────────────────
-
-    #[test]
-    fn dispatch_request_builds_backend_goal_and_skill() {
-        // A fixture node → a spawn request: vendor from model_tier, goal carrying
-        // the role_description, skill_id passed through.
-        let node = PredictedNode {
-            id: "build-panel".into(),
-            skill_id: "beautiful-gui-design".into(),
-            role_description: "Build the provider-settings panel".into(),
-            why: "The flow needs a real, accessible surface".into(),
-            model_tier: "gemini".into(),
-            ..Default::default()
-        };
-        let req = dispatch_request_for(&node);
-        // The vendor is chosen by the tier (multi-vendor: gemini, not claude).
-        assert_eq!(req.backend, Backend::Gemini);
-        // The skill the agent loads is the node's skill.
-        assert_eq!(req.skill_id, "beautiful-gui-design");
-        // The goal contains the role_description AND the rationale.
-        assert!(req.goal.contains("Build the provider-settings panel"));
-        assert!(req
-            .goal
-            .contains("The flow needs a real, accessible surface"));
-        // The node id is carried for the dispatched-note / alert.
-        assert_eq!(req.node_id, "build-panel");
-    }
-
-    #[test]
-    fn dispatch_request_goal_survives_empty_why() {
-        let node = PredictedNode {
-            id: "n".into(),
-            skill_id: "research".into(),
-            role_description: "Survey the codebase".into(),
-            why: String::new(),
-            model_tier: "opus".into(),
-            ..Default::default()
-        };
-        let req = dispatch_request_for(&node);
-        assert_eq!(req.backend, Backend::ClaudeCli, "opus → Claude Code");
-        assert_eq!(
-            req.goal, "Survey the codebase",
-            "no why ⇒ goal is just the role"
-        );
-    }
-
-    #[test]
-    fn dispatch_all_excludes_hitl_gated_nodes() {
-        // The fixture's release node is HITL-gated; dispatch-all must skip it and
-        // count it as held back, while every un-gated node produces a request.
-        let dag = fixture();
-        let total: usize = dag.waves.iter().map(|w| w.nodes.len()).sum();
-        let gated = gated_node_count(&dag);
-        assert!(gated >= 1, "the fixture has at least one HITL-gated node");
-
-        let targets = dispatch_targets(&dag);
-        assert_eq!(
-            targets.len(),
-            total - gated,
-            "dispatch-all skips the gated node(s)"
-        );
-
-        // None of the produced requests come from a gated node id.
-        let gated_ids: Vec<String> = dag
-            .waves
-            .iter()
-            .flat_map(|w| w.nodes.iter())
-            .filter(|n| n.ask_user_before_proceeding)
-            .map(|n| n.id.clone())
-            .collect();
-        for req in &targets {
-            assert!(
-                !gated_ids.contains(&req.node_id),
-                "a HITL-gated node ({}) must never be auto-dispatched",
-                req.node_id
-            );
-        }
-    }
-
-    #[test]
-    fn dispatch_targets_span_multiple_vendors() {
-        // The fixture spans Claude tiers (opus/sonnet/haiku) → ClaudeCli; a synthetic
-        // gemini node proves the targets really route to different vendors.
-        let mut dag = fixture();
-        dag.waves[0].nodes[0].model_tier = "gemini".into();
-        let backends: Vec<Backend> = dispatch_targets(&dag).iter().map(|r| r.backend).collect();
-        assert!(
-            backends.contains(&Backend::Gemini),
-            "a gemini node routes to Gemini"
-        );
-        assert!(
-            backends.contains(&Backend::ClaudeCli),
-            "the claude-tier nodes route to Claude Code"
-        );
-        // Genuinely multi-vendor: at least two distinct backends in the dispatch set.
-        let distinct = backends.iter().filter(|&&b| b == Backend::Gemini).count() >= 1
-            && backends
-                .iter()
-                .filter(|&&b| b == Backend::ClaudeCli)
-                .count()
-                >= 1;
-        assert!(
-            distinct,
-            "dispatch spans Gemini AND Claude Code — multi-vendor"
-        );
-    }
-
-    // ── LIVE GENERATION (claude:cli) — pure-helper tests ────────────────────────
-
-    #[test]
-    fn augmented_path_contains_the_developer_tool_dirs() {
-        // The Finder-launched-.app fix: the PATH we hand a subprocess must include
-        // ~/.cargo/bin (for `cargo`) and ~/.local/bin (for `claude`) even when the
-        // process inherited a bare PATH.
-        let path = augmented_path();
-        assert!(
-            path.contains(".cargo/bin"),
-            "PATH must include ~/.cargo/bin (cargo): {path}"
-        );
-        assert!(
-            path.contains(".local/bin"),
-            "PATH must include ~/.local/bin (claude): {path}"
-        );
-        // The system bins are present too, so basic tooling resolves.
-        assert!(path.contains("/usr/bin"), "PATH must include /usr/bin");
-        // It is a colon-joined, non-empty list.
-        assert!(
-            path.split(':').count() >= 4,
-            "PATH should carry several dirs: {path}"
-        );
-    }
-
-    #[test]
-    fn dag_gen_prompt_is_non_empty_and_embeds_the_intent_and_schema() {
-        let p = dag_gen_prompt("  Add a retry budget to the dispatcher  ");
-        assert!(
-            !p.trim().is_empty(),
-            "the generation prompt must be non-empty"
-        );
-        // The operator intent is woven in (trimmed).
-        assert!(
-            p.contains("Add a retry budget to the dispatcher"),
-            "prompt embeds the intent"
-        );
-        // It pins the serde schema keys so claude emits the right shape.
-        assert!(p.contains("problem_classification"));
-        assert!(p.contains("ask_user_before_proceeding"));
-        assert!(p.contains("model_tier"));
-        // It demands raw JSON (no fences).
-        assert!(
-            p.to_lowercase().contains("json only")
-                || p.to_lowercase().contains("only a single json")
-        );
-    }
-
-    #[test]
-    fn parse_claude_output_reads_a_fenced_json_block() {
-        // The common case: claude wraps the object in a ```json fence.
-        let raw = "Here is the plan:\n\n```json\n{\n  \"title\": \"Ship it\",\n  \"waves\": [\n    { \"wave_number\": 1, \"parallelizable\": false, \"nodes\": [ { \"id\": \"n1\", \"skill_id\": \"api-architect\", \"model_tier\": \"sonnet\" } ] }\n  ]\n}\n```\n\nHope that helps!";
-        let dag = parse_claude_dag_output(raw).expect("a fenced JSON block parses");
-        assert_eq!(dag.title, "Ship it");
-        assert_eq!(dag.waves.len(), 1);
-        assert_eq!(dag.waves[0].nodes[0].skill_id, "api-architect");
-        assert_eq!(dag.waves[0].nodes[0].model_tier, "sonnet");
-    }
-
-    #[test]
-    fn parse_claude_output_reads_a_raw_object() {
-        // A clean raw object (no fence, no prose) parses directly.
-        let raw = r#"{ "title": "Raw plan", "problem_classification": "well-structured", "waves": [ { "wave_number": 1, "parallelizable": true, "nodes": [ { "id": "x", "skill_id": "research", "model_tier": "gemini" } ] } ] }"#;
-        let dag = parse_claude_dag_output(raw).expect("a raw JSON object parses");
-        assert_eq!(dag.title, "Raw plan");
-        assert_eq!(dag.waves[0].nodes[0].model_tier, "gemini");
-    }
-
-    #[test]
-    fn parse_claude_output_reads_an_object_with_surrounding_prose() {
-        // Prose on both sides of an unfenced object — take first '{' .. last '}'.
-        let raw = "Sure! {\"title\":\"Inline\",\"waves\":[{\"wave_number\":1,\"parallelizable\":false,\"nodes\":[{\"id\":\"a\",\"skill_id\":\"s\",\"model_tier\":\"opus\"}]}]} Done.";
-        let dag = parse_claude_dag_output(raw).expect("an embedded object parses");
-        assert_eq!(dag.title, "Inline");
-        assert_eq!(dag.waves[0].nodes[0].model_tier, "opus");
-    }
-
-    #[test]
-    fn parse_claude_output_errors_on_garbage() {
-        // Non-JSON garbage must error (so the caller falls back to the fixture).
-        assert!(parse_claude_dag_output("I'm sorry, I can't help with that.").is_err());
-        assert!(parse_claude_dag_output("").is_err());
-        // A JSON object with no waves is also a failure (not a useful DAG).
-        assert!(parse_claude_dag_output(r#"{ "title": "empty" }"#).is_err());
-    }
-
-    #[test]
-    fn generate_dag_via_cli_falls_back_to_the_fixture_when_claude_is_unavailable() {
-        // Point HOME at a temp dir with no claude binary so the spawn fails; the
-        // function must still return a renderable, prompt-titled DAG (never error).
-        // (~/coding/tmp is the durable scratch root per house rules — never /tmp.)
-        let scratch = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-            .join("coding/tmp/pd-console-conjure-test-home");
-        let _ = std::fs::create_dir_all(&scratch);
-        let prev_home = std::env::var("HOME").ok();
-        // SAFETY: single-threaded test; we restore HOME immediately after.
-        unsafe {
-            std::env::set_var("HOME", &scratch);
-        }
-        // Also blank PATH so the bare `claude` name can't resolve to a real install.
-        let prev_path = std::env::var("PATH").ok();
-        unsafe {
-            std::env::set_var("PATH", "");
-        }
-
-        let dag = generate_dag_via_cli("Add a retry budget to the dispatcher")
-            .expect("generation must never error — it falls back to the fixture");
-        // The fallback is the fixture re-titled with the operator intent.
-        assert_eq!(dag.title, "Add a retry budget to the dispatcher");
-        assert!(!dag.waves.is_empty(), "the fallback DAG is renderable");
-
-        // Restore the environment.
-        unsafe {
-            match prev_home {
-                Some(h) => std::env::set_var("HOME", h),
-                None => std::env::remove_var("HOME"),
-            }
-            match prev_path {
-                Some(p) => std::env::set_var("PATH", p),
-                None => std::env::remove_var("PATH"),
-            }
-        }
-        let _ = std::fs::remove_dir_all(&scratch);
     }
 }

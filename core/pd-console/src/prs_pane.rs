@@ -84,7 +84,7 @@ impl Pane for PrsPane {
             ));
             blocks.push(Block::KeyVal(
                 "action".into(),
-                "Spawn agent: review PR <number>".into(),
+                "Start work: review PR <number>".into(),
             ));
             blocks.push(Block::KeyVal(
                 "action".into(),

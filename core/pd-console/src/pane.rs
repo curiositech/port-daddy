@@ -590,6 +590,23 @@ pub trait Pane: Send {
     fn on_stream(&mut self, env: &crate::agent::StreamEnvelope) {
         let _ = env;
     }
+
+    /// Fold one raw message off the **edit-sync** channel of a
+    /// [`Subscription::Editor`] (the durable-op + lossy-presence lane). Default:
+    /// ignore — only the Harbor Editor surface consumes it. Sync, mirroring
+    /// [`on_stream`](Self::on_stream): the producer drains its `subscribe_channel`
+    /// receiver and hands each `TubeMsg::text` here on the producer thread, so
+    /// `view()` stays IO-free.
+    fn on_edit_frame(&mut self, text: &str) {
+        let _ = text;
+    }
+
+    /// Fold one raw message off the **coordination** channel of a
+    /// [`Subscription::Editor`] (the claims / guard / conflict-predict control
+    /// plane, deliberately isolated from the edit lane). Default: ignore.
+    fn on_coord_frame(&mut self, text: &str) {
+        let _ = text;
+    }
 }
 
 /// Marker alias so call sites and docs can speak of a "Surface" — the evolved,

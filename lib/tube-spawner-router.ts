@@ -54,6 +54,7 @@ const DEFAULT_ALLOWED_BACKENDS: ReadonlyArray<SpawnSpec['backend']> = [
   'cli:claude-code',
   'codex',
   'cli:codex',
+  'cli:agy',
   'ollama',
 ];
 
@@ -76,6 +77,7 @@ const KNOWN_BACKENDS: ReadonlyArray<SpawnSpec['backend']> = [
   'groq',
   'cli:claude-code',
   'cli:codex',
+  'cli:agy',
   'cli:gemini',
   'cli:groq',
   'cli:grok',

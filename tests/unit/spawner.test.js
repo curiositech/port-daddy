@@ -10,8 +10,9 @@
  */
 
 import { jest } from '@jest/globals';
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 
 // ---------------------------------------------------------------------------
 // Mock child_process.spawn before importing spawner
@@ -34,6 +35,9 @@ jest.unstable_mockModule('node:child_process', () => ({
 // Import after mocking
 const { spawn: cpSpawn } = await import('node:child_process');
 const { createSpawner: createSpawnerBase } = await import('../../lib/spawner.js');
+const { captureWorkspaceIdentity } = await import('../../lib/workspace-identity.js');
+const TEST_WORKSPACE_IDENTITY = captureWorkspaceIdentity(process.cwd());
+if (!TEST_WORKSPACE_IDENTITY) throw new Error('test workspace identity unavailable');
 // Note: the worktree-isolation guard is disabled suite-wide in tests/jest.env.js
 // (this file tests spawner mechanics, not isolation). See that file for why.
 
@@ -1380,12 +1384,30 @@ describe('spawn — claude-cli backend', () => {
     expect(result.output).toContain('Claude output here');
     expect(result.backend).toBe('claude-cli');
     expect(cpSpawn).toHaveBeenCalledWith(
-      'claude',
+      expect.stringMatching(/(?:^|[/\\])claude$/),
       ['-p', '--output-format', 'json', 'Write a hello world program'],
       expect.objectContaining({
         timeout: 300000,
       })
     );
+  });
+
+  test('resumes the exact Claude harness session when adapter ownership matches', async () => {
+    const spawner = createSpawner();
+    resolveChildProcess(0, 'resumed');
+    const sessionId = '11111111-1111-4111-8111-111111111111';
+
+    const result = await spawner.spawn({
+      backend: 'claude-cli',
+      task: 'Continue this session',
+      workdir: TEST_WORKSPACE_IDENTITY.canonicalPath,
+      nativeResume: { adapterFamily: 'claude-code', sessionId, workspaceIdentity: TEST_WORKSPACE_IDENTITY },
+    });
+
+    expect(cpSpawn.mock.calls[0][1]).toEqual([
+      '--resume', sessionId, '-p', '--output-format', 'json', 'Continue this session',
+    ]);
+    expect(result.harnessSessionId).toBe(sessionId);
   });
 
   test('passes --allowedTools when specified', async () => {
@@ -1494,8 +1516,8 @@ describe('spawn — claude-cli backend', () => {
     });
 
     expect(result.status).toBe('failed');
-    // After runChild refactor (0df9155), error uses opts.cmd ('claude') not 'claude CLI'
-    expect(result.error).toContain('Failed to start claude');
+    // The CLI resolver may pass either the bare command or a discovered path.
+    expect(result.error).toMatch(/Failed to start (?:.*[/\\])?claude/);
     expect(result.error).toContain('ENOENT');
   });
 
@@ -1567,6 +1589,145 @@ describe('spawn — codex backend', () => {
         timeout: 300000,
       })
     );
+  });
+
+  test('uses codex exec resume without unsupported spawn-only sandbox or cwd flags', async () => {
+    const spawner = createSpawner();
+    resolveChildProcess(0, 'Codex resumed output');
+    const sessionId = '22222222-2222-4222-8222-222222222222';
+
+    const result = await spawner.spawn({
+      backend: 'codex',
+      task: 'Continue this Codex session',
+      workdir: TEST_WORKSPACE_IDENTITY.canonicalPath,
+      nativeResume: { adapterFamily: 'codex-cli', sessionId, workspaceIdentity: TEST_WORKSPACE_IDENTITY },
+    });
+
+    const args = cpSpawn.mock.calls[0][1];
+    expect(args.slice(0, 2)).toEqual(['exec', 'resume']);
+    expect(args).toEqual(expect.arrayContaining([sessionId, 'Continue this Codex session']));
+    expect(args).not.toContain('--sandbox');
+    expect(args).not.toContain('-C');
+    expect(cpSpawn.mock.calls[0][2].cwd).toBe(TEST_WORKSPACE_IDENTITY.canonicalPath);
+    expect(result.harnessSessionId).toBe(sessionId);
+  });
+
+  test('blocks option-shaped native session ids before starting a child', async () => {
+    const spawner = createSpawner();
+
+    const result = await spawner.spawn({
+      backend: 'codex',
+      task: 'Do not run',
+      nativeResume: { adapterFamily: 'codex-cli', sessionId: '--last' },
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.error).toMatch(/canonical UUID/);
+    expect(cpSpawn).not.toHaveBeenCalled();
+  });
+
+  test('rechecks the witnessed workspace inode after coordination and before child launch', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'pd-native-workspace-swap-'));
+    const workspace = join(root, 'workspace');
+    const movedWorkspace = join(root, 'moved-workspace');
+    mkdirSync(workspace);
+    const workspaceIdentity = captureWorkspaceIdentity(workspace);
+    if (!workspaceIdentity) throw new Error('workspace identity unavailable');
+    const sessionId = '33333333-3333-4333-8333-333333333333';
+    let swapped = false;
+    mockFetch.mockImplementation(async () => {
+      if (!swapped) {
+        renameSync(workspace, movedWorkspace);
+        mkdirSync(workspace);
+        swapped = true;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+        text: async () => 'OK',
+      };
+    });
+
+    try {
+      const spawner = createSpawner();
+      const result = await spawner.spawn({
+        backend: 'claude-cli',
+        task: 'Do not run in a replaced workspace.',
+        workdir: workspaceIdentity.canonicalPath,
+        nativeResume: {
+          adapterFamily: 'claude-code',
+          sessionId,
+          workspaceIdentity,
+        },
+      });
+
+      expect(result.status).toBe('failed');
+      expect(result.error).toMatch(/workspace identity changed before child launch/);
+      expect(cpSpawn).not.toHaveBeenCalled();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('rechecks a handoff workspace inode at the child-launch boundary', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'pd-handoff-workspace-swap-'));
+    const workspace = join(root, 'workspace');
+    const movedWorkspace = join(root, 'moved-workspace');
+    mkdirSync(workspace);
+    const workspaceIdentity = captureWorkspaceIdentity(workspace);
+    if (!workspaceIdentity) throw new Error('workspace identity unavailable');
+    let swapped = false;
+    mockFetch.mockImplementation(async () => {
+      if (!swapped) {
+        renameSync(workspace, movedWorkspace);
+        mkdirSync(workspace);
+        swapped = true;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+        text: async () => 'OK',
+      };
+    });
+
+    try {
+      const spawner = createSpawner();
+      const result = await spawner.spawn({
+        backend: 'codex',
+        task: 'Do not run a successor in a replaced workspace.',
+        workdir: workspaceIdentity.canonicalPath,
+        workspaceIdentity,
+      });
+
+      expect(result.status).toBe('failed');
+      expect(result.error).toMatch(/workspace identity changed before child launch/);
+      expect(cpSpawn).not.toHaveBeenCalled();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('blocks cross-family and non-session native resume before starting a child', async () => {
+    const spawner = createSpawner();
+
+    const crossFamily = await spawner.spawn({
+      backend: 'codex',
+      task: 'Do not run',
+      nativeResume: { adapterFamily: 'claude-code', sessionId: 'claude-session-42' },
+    });
+    const stateless = await spawner.spawn({
+      backend: 'openai',
+      task: 'Do not run',
+      nativeResume: { adapterFamily: 'openai-api', sessionId: 'provider-call-42' },
+    });
+
+    expect(crossFamily.status).toBe('failed');
+    expect(crossFamily.error).toMatch(/cannot resume through effective adapter codex-cli/);
+    expect(stateless.status).toBe('failed');
+    expect(stateless.error).toMatch(/does not preserve native session identity/);
+    expect(cpSpawn).not.toHaveBeenCalled();
   });
 
   test('does not pass ambient Codex thread context into daemon-spawned codex exec', async () => {

@@ -1,10 +1,10 @@
 import { resolve, basename } from 'node:path';
-import { execFileSync } from 'node:child_process';
 
 import type { RoadmapProgress, FeedbackEntry, RoadmapFeedbackStatus } from '../../lib/roadmap-progress.js';
 import type { RoadmapClaim, RoadmapEntry, RoadmapPopKind } from '../../lib/roadmap-pop.js';
 import type { RoadmapItem, RoadmapStatus } from '../../lib/roadmap-items.js';
 import type { ImportMarkdownResult } from '../../lib/roadmap-import.js';
+import { getWorktreeInfo } from '../../lib/worktree.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { readCurrentContext } from '../utils/current-context.js';
@@ -373,6 +373,15 @@ async function handleRoadmapPop(args: string[], options: CLIOptions): Promise<vo
     const identity = readOption(options, 'identity') ?? defaultClaimedBy(options);
     if (identity) beginOptions.identity = identity;
     if (!beginOptions.lifecycle) beginOptions.lifecycle = 'durable';
+    // Rent-at-claim (S3): the popped slug IS the roadmap link — pass it
+    // through unless the caller already chose a rent flag explicitly.
+    if (
+      beginOptions.roadmap === undefined
+      && beginOptions.sidequest === undefined
+      && beginOptions['roadmap-new'] === undefined
+    ) {
+      beginOptions.roadmap = popped.entry.slug;
+    }
     try {
       await handleBegin(purpose, [], beginOptions);
     } catch (err) {
@@ -581,8 +590,8 @@ async function deleteRoadmapItem(slug: string, harbor?: string): Promise<Roadmap
 
 /**
  * Resolve the harbor a `pd roadmap` write should target. Precedence:
- *   --harbor flag, then $PD_HARBOR, then the repo/project name
- *   (git toplevel basename), then cwd basename, then undefined.
+ *   --harbor flag, then $PD_HARBOR, then the canonical repo/project name,
+ *   then cwd basename, then undefined.
  *
  * Defaulting to the project name fixes the "harbor split" the Planner pane
  * flags: the daemon's own fallback is the global `fleet` harbor, so a bare
@@ -595,15 +604,14 @@ export function resolveRoadmapHarbor(options: CLIOptions): string | undefined {
   if (explicit) return explicit;
   const env = process.env.PD_HARBOR?.trim();
   if (env) return env;
-  try {
-    const top = execFileSync('git', ['rev-parse', '--show-toplevel'], {
-      stdio: ['ignore', 'pipe', 'ignore'],
-    })
-      .toString()
-      .trim();
-    if (top) return basename(top);
-  } catch {
-    /* not a git repo — fall through to cwd */
+  const worktree = getWorktreeInfo(process.cwd());
+  if (worktree) {
+    const commonDir = resolve(worktree.root, worktree.commonDir);
+    const canonicalRoot = basename(commonDir) === '.git'
+      ? resolve(commonDir, '..')
+      : worktree.root;
+    const projectName = basename(canonicalRoot);
+    if (projectName) return projectName;
   }
   const cwdBase = basename(process.cwd());
   return cwdBase || undefined;

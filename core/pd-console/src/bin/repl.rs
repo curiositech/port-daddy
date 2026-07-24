@@ -1,13 +1,8 @@
 #![recursion_limit = "1024"]
-//! pd-console — the operator console. Engine milestone: a headless conversation
-//! multiplexer, on the PD bus, backend-agnostic. The GPUI shell renders this next.
+//! pd-console — headless emergency face for daemon truth.
 //!
-//!   :new <backend> <prompt>   create a plain top-level agent
-//!   :harness <backend> <prompt>
-//!                             create a Squid-harnessed tube-bound agent
-//!   :agents                   list hosted agents
-//!   :switch <n>               make agent n active
-//!   :dispatch                 show the dispatch queue (sorties awaiting review)
+//!   :work <goal>              capture one provider-neutral WorkIntent
+//!   :gates                    show pending human review gates
 //!   :lane                     show the watched agent's live work chat
 //!   :lane-message <text>      send an operator turn to the watched agent
 //!                             supports @file/@photo/@skill/@tool markers
@@ -16,11 +11,9 @@
 //!   :harbor control <verb> [arg]
 //!                             issue a compliance-gated control (steer/pause/
 //!                             interrupt/checkpoint/successor/retire)
-//!   <text>                    send a turn to the active agent (over tube)
+//!   :edit <path>              open the Harbor Editor on a file and drain its
+//!                             live edit-sync + coordination channels (P3)
 //!   :quit
-//!
-//! This is the answer to "I want to talk to you from inside pd-console, not
-//! iterm2" — at the engine layer, runnable today.
 
 #[path = "../active_agents_pane.rs"]
 mod active_agents_pane;
@@ -54,9 +47,6 @@ mod daemon_pane; // daemon picker surface (tests)
 mod cloud_fleet_pane;
 #[path = "../cockpit_pane.rs"]
 mod cockpit_pane;
-#[allow(dead_code)]
-#[path = "../conjure.rs"]
-mod conjure;
 #[path = "../dispatch_pane.rs"]
 mod dispatch_pane;
 #[allow(dead_code)]
@@ -74,6 +64,9 @@ mod editor_sync;
 #[allow(dead_code)]
 #[path = "../editor_wedge.rs"]
 mod editor_wedge;
+#[allow(dead_code)]
+#[path = "../work_plan.rs"]
+mod work_plan;
 // maritime's gpui FlagBadge is now #[cfg(feature = "gpui")]-gated, so the pure
 // Flag/flag_for_state compile here and the fleet pane renders in the REPL too.
 #[path = "../fleet_pane.rs"]
@@ -138,7 +131,7 @@ mod util;
 mod headless_capture;
 
 use active_agents_pane::ActiveAgentsPane;
-use agent::{AgentManager, Backend};
+use agent::DaemonClient;
 use anyhow::Result;
 use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
@@ -151,7 +144,7 @@ use parley_pane::ParleyPane;
 use std::io::{self, Write};
 use std::time::Duration;
 use substrate_pane::SubstratePane;
-use term::{ColorMode, Sem, TermStyle};
+use term::{Sem, TermStyle};
 
 /// Left-rail banner (Clack idiom) in the locked theme. Plain mode degrades
 /// to the same layout without escapes — no width math, no broken boxes.
@@ -173,34 +166,73 @@ fn banner(style: &TermStyle, daemon_url: &str) {
         "{}  {}",
         rail("└"),
         style.paint(
-            ":harness <backend> <prompt> · :new <backend> <prompt> · :agents · :switch <n> · :lane · :lane-message <text> · :harbor · :quit",
+            ":work <goal> · :roster · :lane · :lane-message <text> · :harbor · :edit <path> · :quit",
             Sem::Muted
         )
     );
     println!();
 }
 
-async fn drain_active_subscription(reg: &mut PaneRegistry, mgr: &AgentManager, window: Duration) {
-    let Some(Subscription::Agent { agent_id }) = reg.active().and_then(|p| p.subscription()) else {
-        return;
-    };
-
-    let active = reg.active;
-    let mut rx = mgr.daemon().subscribe_agent(&agent_id);
-    let deadline = tokio::time::Instant::now() + window;
-    loop {
-        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
-        if remaining.is_zero() {
-            break;
-        }
-        match tokio::time::timeout(remaining, rx.recv()).await {
-            Ok(Some(env)) => {
-                if let Some(p) = reg.panes.get_mut(active) {
-                    p.on_stream(&env);
+async fn drain_active_subscription(
+    reg: &mut PaneRegistry,
+    daemon: &DaemonClient,
+    window: Duration,
+) {
+    match reg.active().and_then(|p| p.subscription()) {
+        Some(Subscription::Agent { agent_id }) => {
+            let active = reg.active;
+            let mut rx = daemon.subscribe_agent(&agent_id);
+            let deadline = tokio::time::Instant::now() + window;
+            loop {
+                let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+                if remaining.is_zero() {
+                    break;
+                }
+                match tokio::time::timeout(remaining, rx.recv()).await {
+                    Ok(Some(env)) => {
+                        if let Some(p) = reg.panes.get_mut(active) {
+                            p.on_stream(&env);
+                        }
+                    }
+                    Ok(None) | Err(_) => break,
                 }
             }
-            Ok(None) | Err(_) => break,
         }
+        // The Harbor Editor lane (P3 wire stage 1) — the headless twin of the gpui
+        // producer's editor drain. Follow the file's TWO isolated channels: the
+        // edit-sync lane (durable Loro ops + lossy presence → `on_edit_frame`) and the
+        // coordination lane (region claims → `on_coord_frame`). One `subscribe_channel`
+        // per channel is the isolation; a single `window` deadline bounds the drain, and
+        // either channel closing ends it — mirroring the Agent arm's `None => break`.
+        Some(Subscription::Editor { channel, coord_channel }) => {
+            let active = reg.active;
+            let mut edit_rx = daemon.subscribe_channel(&channel);
+            let mut coord_rx = daemon.subscribe_channel(&coord_channel);
+            let sleep = tokio::time::sleep(window);
+            tokio::pin!(sleep);
+            loop {
+                tokio::select! {
+                    _ = &mut sleep => break,
+                    m = edit_rx.recv() => match m {
+                        Some(msg) => {
+                            if let Some(p) = reg.panes.get_mut(active) {
+                                p.on_edit_frame(&msg.text);
+                            }
+                        }
+                        None => break,
+                    },
+                    m = coord_rx.recv() => match m {
+                        Some(msg) => {
+                            if let Some(p) = reg.panes.get_mut(active) {
+                                p.on_coord_frame(&msg.text);
+                            }
+                        }
+                        None => break,
+                    },
+                }
+            }
+        }
+        None => {}
     }
 }
 
@@ -215,14 +247,14 @@ fn retired_repl_command_guidance(line: &str) -> Option<&'static str> {
 #[tokio::main]
 async fn main() -> Result<()> {
     let style = TermStyle::detect(&theme::DARK);
-    let mut mgr = match AgentManager::new() {
-        Ok(m) => m,
+    let daemon = match DaemonClient::discover() {
+        Ok(client) => client,
         Err(e) => {
             eprintln!("  {} daemon discovery failed: {e}", "✗");
             return Ok(());
         }
     };
-    banner(&style, mgr.daemon().base());
+    banner(&style, daemon.base());
 
     // Build the pane registry — register all panes once at startup.
     let mut reg = PaneRegistry::default();
@@ -256,16 +288,57 @@ async fn main() -> Result<()> {
             err(&style, message);
         } else if line == ":quit" || line == ":q" {
             break;
-        } else if line == ":dispatch" {
-            // Refresh the dispatch pane then render it.
+        } else if line == ":gates" {
+            // Refresh the legacy dispatch projection as a human-gate queue.
             reg.active = reg
                 .panes
                 .iter()
                 .position(|p| p.id() == "dispatch")
                 .unwrap_or(0);
-            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+            if let Err(e) = reg.refresh_active(&daemon).await {
                 err(&style, &format!("refresh failed: {e}"));
             }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
+        } else if line == ":dispatch" {
+            err(
+                &style,
+                ":dispatch is retired; use :gates for review truth or :work <goal> to start work",
+            );
+        } else if let Some(path) = line
+            .strip_prefix(":edit ")
+            .map(str::trim)
+            .filter(|p| !p.is_empty())
+        {
+            // The Harbor Editor surface (P3 wire stage 1). Bind a real EditorPane to the
+            // file, load its Loro buffer, then drain its live edit-sync + coordination
+            // channels exactly as `:lane` drains an agent stream — the headless proof
+            // that the editor lane is wired end to end (the same `drain_active_subscription`
+            // path the gpui producer runs). Reuse the single "editor" slot so repeated
+            // `:edit`s rebind rather than pile up panes. Key the local Loro replica to
+            // the operator's LIVE `pd whoami` identity (same as the GPUI producer's
+            // OpenEditor), so authorship + claims agree across the two faces — never the
+            // DEFAULT_IDENTITY fallback (Copilot #729).
+            let pane = editor_pane::EditorPane::new_with_identity(
+                path.to_string(),
+                None,
+                editor_pane::resolve_operator_identity(),
+            );
+            match reg.panes.iter().position(|p| p.id() == "editor") {
+                Some(pos) => {
+                    reg.panes[pos] = Box::new(pane);
+                    reg.active = pos;
+                }
+                None => {
+                    reg.register(Box::new(pane));
+                    reg.active = reg.panes.len() - 1;
+                }
+            }
+            if let Err(e) = reg.refresh_active(&daemon).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            drain_active_subscription(&mut reg, &daemon, Duration::from_millis(1_200)).await;
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
@@ -279,13 +352,13 @@ async fn main() -> Result<()> {
             // POST /agents/:id/interrupt on the watched agent (the closed loop).
             // `:lane-message` sends a normal operator turn up agent:<id>.
             reg.active = reg.panes.iter().position(|p| p.id() == "lane").unwrap_or(0);
-            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+            if let Err(e) = reg.refresh_active(&daemon).await {
                 err(&style, &format!("refresh failed: {e}"));
             }
             if line == ":interrupt" {
                 match reg
                     .mutate_active(
-                        mgr.daemon(),
+                        &daemon,
                         SurfaceAction::Interrupt {
                             reason: Some("operator stop".into()),
                         },
@@ -306,7 +379,7 @@ async fn main() -> Result<()> {
             {
                 match reg
                     .mutate_active(
-                        mgr.daemon(),
+                        &daemon,
                         SurfaceAction::OperatorTurn {
                             turn: OperatorTurn::parse(text),
                         },
@@ -320,7 +393,7 @@ async fn main() -> Result<()> {
                     Err(e) => err(&style, &format!("message failed: {e}")),
                 }
             }
-            drain_active_subscription(&mut reg, &mgr, Duration::from_millis(1_200)).await;
+            drain_active_subscription(&mut reg, &daemon, Duration::from_millis(1_200)).await;
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
@@ -337,19 +410,19 @@ async fn main() -> Result<()> {
                 .iter()
                 .position(|p| p.id() == "harbor")
                 .unwrap_or(0);
-            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+            if let Err(e) = reg.refresh_active(&daemon).await {
                 err(&style, &format!("refresh failed: {e}"));
             }
             if let Some(rest) = line.strip_prefix(":harbor select ") {
                 match rest.trim().parse::<usize>() {
                     Ok(index) => {
                         match reg
-                            .mutate_active(mgr.daemon(), SurfaceAction::SelectRow { index })
+                            .mutate_active(&daemon, SurfaceAction::SelectRow { index })
                             .await
                         {
                             Ok(()) => {
                                 // Repopulate the detail for the new selection.
-                                if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+                                if let Err(e) = reg.refresh_active(&daemon).await {
                                     err(&style, &format!("refresh failed: {e}"));
                                 }
                             }
@@ -368,7 +441,7 @@ async fn main() -> Result<()> {
                     .map(String::from);
                 match reg
                     .mutate_active(
-                        mgr.daemon(),
+                        &daemon,
                         SurfaceAction::Control {
                             verb: verb.clone(),
                             argument,
@@ -394,7 +467,7 @@ async fn main() -> Result<()> {
                 .iter()
                 .position(|p| p.id() == "lineage")
                 .unwrap_or(0);
-            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+            if let Err(e) = reg.refresh_active(&daemon).await {
                 err(&style, &format!("refresh failed: {e}"));
             }
             if let Some(p) = reg.active() {
@@ -408,7 +481,7 @@ async fn main() -> Result<()> {
                 .iter()
                 .position(|p| p.id() == "substrate")
                 .unwrap_or(0);
-            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+            if let Err(e) = reg.refresh_active(&daemon).await {
                 err(&style, &format!("refresh failed: {e}"));
             }
             if let Some(p) = reg.active() {
@@ -421,7 +494,7 @@ async fn main() -> Result<()> {
                 .iter()
                 .position(|p| p.id() == "parley")
                 .unwrap_or(0);
-            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+            if let Err(e) = reg.refresh_active(&daemon).await {
                 err(&style, &format!("refresh failed: {e}"));
             }
             if let Some(p) = reg.active() {
@@ -435,7 +508,7 @@ async fn main() -> Result<()> {
                 .iter()
                 .position(|p| p.id() == "sextant")
                 .unwrap_or(0);
-            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+            if let Err(e) = reg.refresh_active(&daemon).await {
                 err(&style, &format!("refresh failed: {e}"));
             }
             if let Some(p) = reg.active() {
@@ -447,7 +520,7 @@ async fn main() -> Result<()> {
                 .iter()
                 .position(|p| p.id() == "active-agents")
                 .unwrap_or(0);
-            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+            if let Err(e) = reg.refresh_active(&daemon).await {
                 err(&style, &format!("refresh failed: {e}"));
             }
             if let Some(p) = reg.active() {
@@ -461,192 +534,65 @@ async fn main() -> Result<()> {
                 .iter()
                 .position(|p| p.id() == "fleet")
                 .unwrap_or(0);
-            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+            if let Err(e) = reg.refresh_active(&daemon).await {
                 err(&style, &format!("refresh failed: {e}"));
             }
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
         } else if line == ":agents" {
-            if mgr.agents.is_empty() {
-                println!(
-                    "  {}",
-                    style.paint("(no agents — :harness <backend> <prompt>)", Sem::Muted)
-                );
-            }
-            for (n, a) in &mgr.agents {
-                let mark = if mgr.active == Some(*n) {
-                    style.paint("●", Sem::Engaged)
-                } else {
-                    " ".into()
-                };
-                println!(
-                    "  {mark} {} {:<11} {}  {}",
-                    style.paint(&n.to_string(), Sem::Accent),
-                    a.backend.as_str(),
-                    a.id,
-                    style.paint(&format!("[{}]", a.channel), Sem::Muted),
-                );
-            }
+            err(
+                &style,
+                ":agents was a local hosted-agent list; use :roster for daemon truth",
+            );
         } else if let Some(rest) = line.strip_prefix(":switch ") {
-            match rest.trim().parse::<u64>() {
-                Ok(n) if mgr.agents.contains_key(&n) => {
-                    mgr.active = Some(n);
-                    ok(&style, &format!("active: agent {n}"));
-                }
-                _ => err(&style, "no such agent"),
-            }
+            let _ = rest;
+            err(
+                &style,
+                ":switch was local-only state; select an AgentNode in Harbor instead",
+            );
         } else if let Some(rest) = line.strip_prefix(":new ") {
-            let mut it = rest.splitn(2, ' ');
-            let bk = it.next().unwrap_or("");
-            let prompt = it.next().unwrap_or("").trim();
-            match Backend::parse(bk) {
-                None => err(
-                    &style,
-                    &format!(
-                        "unknown backend '{bk}'. one of: {}",
-                        Backend::ALL
-                            .iter()
-                            .map(|b| b.as_str())
-                            .collect::<Vec<_>>()
-                            .join(" ")
-                    ),
-                ),
-                Some(backend) => match mgr.create_agent(backend, prompt).await {
-                    Ok((n, out)) => {
-                        // Surface the real launch result — including the inline
-                        // output one-shot backends return in the spawn response,
-                        // and any guard block (budget / worktree / wallet).
-                        if let Some(reason) = out
-                            .error
-                            .filter(|_| out.status == "failed" || out.status == "blocked")
-                        {
-                            err(&style, &format!("agent {n} {} — {reason}", out.status));
-                        } else {
-                            ok(
-                                &style,
-                                &format!(
-                                    "created agent {n} on {} ({})",
-                                    backend.as_str(),
-                                    out.status
-                                ),
-                            );
-                            if let Some(text) = out.output.filter(|t| !t.trim().is_empty()) {
-                                println!(
-                                    "  {} {}",
-                                    style.paint(&format!("{}:", backend.as_str()), Sem::Engaged),
-                                    text,
-                                );
-                            }
-                        }
-                    }
-                    Err(e) => err(&style, &format!("spawn failed: {e}")),
-                },
-            }
+            let _ = rest;
+            err(
+                &style,
+                ":new is retired; use :work <goal> so the daemon owns planning and Body selection",
+            );
         } else if let Some(rest) = line.strip_prefix(":harness ") {
-            let mut it = rest.splitn(2, ' ');
-            let bk = it.next().unwrap_or("");
-            let prompt = it.next().unwrap_or("").trim();
-            match Backend::parse(bk) {
-                None => err(
+            let _ = rest;
+            err(
+                &style,
+                ":harness is retired; Squid attachment belongs to the daemon WorkPlan path",
+            );
+        } else if let Some(goal) = line.strip_prefix(":work ") {
+            match daemon.capture_work_intent(goal).await {
+                Ok(receipt) => {
+                    let duplicate = if receipt.duplicate {
+                        " · idempotent replay"
+                    } else {
+                        ""
+                    };
+                    ok(
+                        &style,
+                        &format!(
+                            "WorkIntent {} · plan {} · trace {}{}",
+                            receipt.snapshot.intent_id(),
+                            receipt.snapshot.plan_state(),
+                            receipt.correlation_id,
+                            duplicate
+                        ),
+                    );
+                    println!("  {}", style.paint(&receipt.next_action, Sem::Muted));
+                }
+                Err(error) => err(
                     &style,
-                    &format!(
-                        "unknown backend '{bk}'. one of: {}",
-                        Backend::ALL
-                            .iter()
-                            .map(|b| b.as_str())
-                            .collect::<Vec<_>>()
-                            .join(" ")
-                    ),
+                    &format!("WorkIntent capture failed: {error} · no AgentRun started"),
                 ),
-                Some(backend) => match mgr.create_harnessed_agent(backend, prompt).await {
-                    Ok((n, out)) => {
-                        if let Some(reason) = out
-                            .error
-                            .filter(|_| out.status == "failed" || out.status == "blocked")
-                        {
-                            err(
-                                &style,
-                                &format!("harnessed agent {n} {} — {reason}", out.status),
-                            );
-                        } else {
-                            ok(
-                                &style,
-                                &format!(
-                                    "harnessed agent {n} on {} ({})",
-                                    backend.as_str(),
-                                    out.status
-                                ),
-                            );
-                            println!(
-                                "  {}",
-                                style.paint(
-                                    "squid hooks requested · use :agents then talk normally",
-                                    Sem::Muted
-                                )
-                            );
-                            if let Some(text) = out.output.filter(|t| !t.trim().is_empty()) {
-                                println!(
-                                    "  {} {}",
-                                    style.paint(&format!("{}:", backend.as_str()), Sem::Engaged),
-                                    text,
-                                );
-                            }
-                        }
-                    }
-                    Err(e) => err(&style, &format!("harness spawn failed: {e}")),
-                },
             }
         } else {
-            // a turn to the active agent
-            if let Err(e) = mgr.send(&line).await {
-                err(&style, &e.to_string());
-                continue;
-            }
-            // Drain replies for a short window — braille spinner while waiting.
-            // No cursor-hide escapes, so an interrupt can never ghost the cursor.
-            const FRAMES: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-            let spin = style.mode != ColorMode::Plain;
-            for tick in 0..20 {
-                if spin {
-                    print!(
-                        "\r  {} {}",
-                        style.paint(FRAMES[tick % FRAMES.len()], Sem::Accent),
-                        style.paint("waiting for reply…", Sem::Muted),
-                    );
-                    io::stdout().flush().ok();
-                }
-                tokio::time::sleep(Duration::from_millis(250)).await;
-                match mgr.poll_active().await {
-                    Ok(msgs) => {
-                        let msgs: Vec<agent::TubeMsg> = msgs;
-                        if !msgs.is_empty() && spin {
-                            print!("\r{}\r", " ".repeat(30)); // clear spinner line
-                        }
-                        for m in &msgs {
-                            println!(
-                                "  {} {}",
-                                style.paint(&format!("{}:", m.sender), Sem::Engaged),
-                                m.text
-                            );
-                        }
-                        if !msgs.is_empty() {
-                            break;
-                        }
-                    }
-                    Err(e) => {
-                        if spin {
-                            print!("\r{}\r", " ".repeat(30));
-                        }
-                        err(&style, &format!("poll: {e}"));
-                        break;
-                    }
-                }
-            }
-            if spin {
-                print!("\r{}\r", " ".repeat(30));
-                io::stdout().flush().ok();
-            }
+            err(
+                &style,
+                "unknown command; use :work <goal>, :roster, :lane, :harbor, or :quit",
+            );
         }
     }
     println!("{}", style.paint("out.", Sem::Muted));

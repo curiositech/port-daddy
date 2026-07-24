@@ -27,7 +27,9 @@ export interface GitHubState {
   checkRunsCreated: number;
   /** existing check runs returned by the commit check-runs lookup. */
   existingCheckRuns: Array<{ id: number; name: string }>;
-  completed: Array<{ id: number; conclusion: string; summary: string }>;
+  completed: Array<{ id: number; conclusion: string; summary: string; detailsUrl?: string }>;
+  /** details_url values sent on check-run CREATE (undefined when omitted). */
+  createdDetailsUrls: Array<string | undefined>;
   /** GitHub Reviews created via POST /pulls/{n}/reviews (inline comments). */
   reviews: Array<{
     event: string;
@@ -59,6 +61,7 @@ export function freshState(): GitHubState {
     existingComments: [],
     checkRunsCreated: 0,
     existingCheckRuns: [],
+    createdDetailsUrls: [],
     completed: [],
     reviews: [],
     prDiff: undefined,
@@ -186,6 +189,7 @@ export function installGitHubFetch(state: GitHubState): void {
         return text('check-run create failed', 500);
       }
       state.checkRunsCreated += 1;
+      state.createdDetailsUrls.push((body as { details_url?: string })?.details_url);
       const id = ++CHECK_ID_SEQ;
       // Future lookups for this head SHA now find it.
       const headSha = (body as { head_sha?: string })?.head_sha ?? '';
@@ -201,6 +205,7 @@ export function installGitHubFetch(state: GitHubState): void {
         id: Number(completeMatch[1]),
         conclusion: (body as { conclusion?: string })?.conclusion ?? '',
         summary: (body as { output?: { summary?: string } })?.output?.summary ?? '',
+        detailsUrl: (body as { details_url?: string })?.details_url,
       });
       return json({ ok: true });
     }
@@ -260,12 +265,42 @@ export interface CapturedStep {
   detail: unknown;
 }
 
+/** Captured fleet_run_spend row (one per ship that ran). */
+export interface CapturedSpend {
+  runId: unknown;
+  ship: unknown;
+  installationId: unknown;
+  model: unknown;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+}
+
+/** A seeded credit_ledger row (the relay writes these; the executor only reads). */
+export interface LedgerRow {
+  installationId: number;
+  deltaUsd: number;
+}
+
 export interface D1Capture {
   db: D1Database;
   /** fleet_runs rows, in id order of first insert. */
   runs: CapturedRun[];
   /** fleet_run_steps rows, in insertion order. */
   steps: CapturedStep[];
+  /** fleet_run_spend rows, in insertion order. */
+  spend: CapturedSpend[];
+  /**
+   * Seeded credit_ledger rows the circuit-breaker SELECT reads. Empty ⇒ the
+   * installation has no ledger rows (fail-open, run proceeds). Populate to
+   * simulate a configured / negative balance.
+   */
+  ledger: LedgerRow[];
+  /**
+   * When true, any `credit_ledger` read throws (simulates the table not existing
+   * yet — billing not deployed). The breaker must fail-OPEN and run anyway.
+   */
+  creditTableMissing: boolean;
   /** Set true to make EVERY `.run()` throw (transcript-write failure path). */
   failAll: boolean;
   /** Number of `.run()` calls attempted (including the ones that threw). */
@@ -286,6 +321,9 @@ export function memoryD1(): D1Capture {
       return [...runsById.values()];
     },
     steps: [],
+    spend: [],
+    ledger: [],
+    creditTableMissing: false,
     failAll: false,
     runCalls: 0,
   };
@@ -295,7 +333,17 @@ export function memoryD1(): D1Capture {
       async run() {
         cap.runCalls += 1;
         if (cap.failAll) throw new Error('D1 unavailable');
-        if (/INTO fleet_runs/i.test(sql)) {
+        if (/INTO fleet_run_spend/i.test(sql)) {
+          cap.spend.push({
+            runId: args[0],
+            ship: args[1],
+            installationId: args[2],
+            model: args[3],
+            inputTokens: Number(args[4]),
+            outputTokens: Number(args[5]),
+            costUsd: Number(args[6]),
+          });
+        } else if (/INTO fleet_runs/i.test(sql)) {
           runsById.set(String(args[0]), {
             id: args[0],
             deliveryId: args[1],
@@ -327,6 +375,14 @@ export function memoryD1(): D1Capture {
         return { success: true, meta: {} };
       },
       async first() {
+        // Circuit-breaker balance read: COUNT(*) + SUM(delta_usd) for one install.
+        if (/FROM credit_ledger/i.test(sql)) {
+          if (cap.creditTableMissing) throw new Error('no such table: credit_ledger');
+          const installId = args[0];
+          const rows = cap.ledger.filter(r => r.installationId === installId);
+          const bal = rows.reduce((acc, r) => acc + r.deltaUsd, 0);
+          return { n: rows.length, bal } as unknown as Record<string, unknown>;
+        }
         return null;
       },
       async all() {
@@ -363,8 +419,15 @@ export function aiStub(opts: {
   managerOutput?: string | Record<string, string>;
   throwForShip?: string;
   fleetParser?: string;
+  /**
+   * Optional Workers AI `usage` block returned on every run() so cost/token
+   * tests can assert on it. Omitted by default (existing tests see no usage).
+   */
+  usage?: { prompt_tokens: number; completion_tokens: number; cached_tokens?: number };
 }): AiStub {
   const calls: AiStub['calls'] = [];
+  const withUsage = (response: string): Record<string, unknown> =>
+    opts.usage ? { response, usage: opts.usage } : { response };
 
   const matchShip = (sys: string): string | null => {
     for (const ship of Object.keys(opts.perShip)) {
@@ -387,16 +450,16 @@ export function aiStub(opts: {
       const mgr = opts.managerOutput;
       const out =
         typeof mgr === 'string' ? mgr : ship && mgr ? mgr[ship] : undefined;
-      return { response: out ?? (ship ? opts.perShip[ship] : 'merged\n\nFLEET-VERDICT: PASS') };
+      return withUsage(out ?? (ship ? opts.perShip[ship] : 'merged\n\nFLEET-VERDICT: PASS'));
     }
 
     // --- MAP call ---
     calls.push({ model, phase: 'map', ship, temperature: args.temperature });
     if (ship) {
       if (opts.throwForShip === ship) throw new Error('AI exploded');
-      return { response: opts.perShip[ship] };
+      return withUsage(opts.perShip[ship]);
     }
-    return { response: 'no match\n\nFLEET-VERDICT: PASS' };
+    return withUsage('no match\n\nFLEET-VERDICT: PASS');
   };
 
   const ai = { run: vi.fn(run) } as unknown as Ai;

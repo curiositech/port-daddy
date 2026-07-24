@@ -38,6 +38,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   attest: 'silent', // honest self-report (ADR-0045); read-only introspection
   version: 'silent',
   whoami: 'silent',
+  account: 'notify', // login/pair/logout mint or drop a device token; status/token refined silent below
   w: 'silent',
   find: 'silent',
   f: 'silent',
@@ -91,6 +92,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   'skill-graft': 'notify', // worst case: `skill-graft warm` refreshes the local graft cache; reads are silent
   skillgraft: 'notify',    // alias of skill-graft
   memory: 'silent',
+  booty: 'notify',          // worst case: `booty add` writes blobs + provenance rows; `booty list` is silent (refined below)
   'who-owns': 'silent',
   harbors: 'silent',
   'harbor-ledger': 'notify', // worst case: `harbor-ledger rebuild` truncates+replays DISPOSABLE projection tables (the event log is never touched); refined below
@@ -215,6 +217,11 @@ export const TIER_REGISTRY: Record<string, Tier> = {
  * by best-effort prefix.
  */
 export const SUBCOMMAND_TIERS: Record<string, Tier> = {
+  // account: login/pair mint a device token, logout drops it (notify); the
+  // read-only introspection subcommands are silent.
+  'account status': 'silent',
+  'account whoami': 'silent',
+  'account token': 'silent',
   // embed: local reads/embeddings are silent; prefetch performs a one-time
   // ~27 MB network download into the shared cache
   'embed': 'silent',                // default subcommand = status
@@ -233,6 +240,13 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'skillgraft query': 'silent',
   'skillgraft reference': 'silent',
   'skillgraft warm': 'notify',
+
+  // booty: default/list/help are read-only; add writes artifact bytes into the
+  // blob store plus a provenance row (slice S4a).
+  'booty': 'silent',                // default subcommand = list
+  'booty list': 'silent',
+  'booty help': 'silent',
+  'booty add': 'notify',
 
   // salvage: list is read-only, mutations are destructive
   'salvage': 'silent',              // default subcommand = listing
@@ -487,6 +501,8 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   // backend: status/list are read-only; clear/off reset caller config
   'backend status': 'silent',
   'backend list': 'silent',
+  'backend adapters': 'silent',
+  'backend capabilities': 'silent',
   'backend clear': 'notify',
   'backend off': 'notify',
 

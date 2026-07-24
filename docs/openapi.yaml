@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Port Daddy API
-  version: 3.24.1
+  version: 3.26.4
   description: >
     Authoritative port management and service orchestration for multi-agent
     development. Provides atomic port assignment, pub/sub messaging, distributed
@@ -63,6 +63,8 @@ tags:
     description: Deterministic coordination preflight and suggestibility
   - name: actors
     description: Durable maritime actor directory
+  - name: memory
+    description: Episodic memory, session harvest, and backend-neutral continuation handoffs
 
 paths:
   # ===========================================================================
@@ -3863,7 +3865,7 @@ paths:
               properties:
                 backend:
                   type: string
-                  enum: [ollama, claude, claude-cli, gemini, cloudflare, codex, aider, custom]
+                  enum: [ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, deepseek, xai, codex, aider, custom, cli:claude-code, cli:codex, cli:agy, cli:gemini, cli:groq, cli:grok]
                 model:
                   type: string
                   description: Model name (backend-specific)
@@ -3876,7 +3878,8 @@ paths:
                   description: Semantic identity for the spawned agent and project budget attribution
                 budgetUsd:
                   type: number
-                  description: Positive spend ceiling for this launch in USD
+                  exclusiveMinimum: 0
+                  description: Positive finite hard spend ceiling for this launch in USD. Final telemetry over this cap returns status=over_budget with transcript telemetry preserved.
                 purpose:
                   type: string
                 task:
@@ -3910,8 +3913,33 @@ paths:
                     type: string
                   backend:
                     type: string
+                    enum: [ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, deepseek, xai, codex, aider, custom, cli:claude-code, cli:codex, cli:agy, cli:gemini, cli:groq, cli:grok]
+                    description: Effective backend that actually ran after preflight and forced-backend resolution.
+                  model:
+                    type: string
+                    description: Effective model used for telemetry/cost/result provenance.
+                  requestedBackend:
+                    type: string
+                    enum: [ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, deepseek, xai, codex, aider, custom, cli:claude-code, cli:codex, cli:agy, cli:gemini, cli:groq, cli:grok]
+                    description: Backend requested by the caller before any forced-backend override.
+                  effectiveBackend:
+                    type: string
+                    enum: [ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, deepseek, xai, codex, aider, custom, cli:claude-code, cli:codex, cli:agy, cli:gemini, cli:groq, cli:grok]
+                    description: Backend that actually ran after preflight and forced-backend resolution.
+                  requestedModel:
+                    type: string
+                    description: Model requested by the caller before any forced-backend override.
+                  effectiveModel:
+                    type: string
+                    description: Model used by the effective runtime for telemetry/cost/result provenance.
+                  backendOverrideSource:
+                    type: string
+                    enum: [none, env, persisted, preflight]
+                    description: Source that selected a different effective backend, or none when requested/effective are identical.
                   status:
                     type: string
+                    enum: [running, completed, failed, killed, over_budget]
+                    description: Spawn lifecycle status. over_budget is terminal and occurs when final exact telemetry cost exceeds the request budgetUsd hard cap after transcript telemetry is recorded.
         '400':
           $ref: '#/components/responses/ValidationError'
         '500':
@@ -4822,6 +4850,270 @@ paths:
         '200':
           description: Panic cleared
 
+  /memory/handoffs:
+    post:
+      tags: [memory]
+      summary: Sanitize and persist a backend-neutral session handoff
+      operationId: createMemoryHandoff
+      description: >
+        Reconstructs an allowlisted handoff capsule, preserves operator turns and
+        durable decisions, applies deterministic context budgeting, redacts
+        structured credentials, and requires a clean external gitleaks stdin
+        verdict before storing the sanitized capsule as episodic memory. The
+        request body is capped at 2 MiB. If a coordination session id is supplied,
+        that session's notes are harvested after the durable write; harvest
+        failures are returned as warnings and never discard a clean capsule.
+        Missing scanners and residual findings fail closed. Native-resume
+        identifiers must be UUID-shaped. Claude, Codex, and Gemini require an
+        explicit transcript reference; agy additionally requires an exact
+        workspace mapping in its local last-conversations metadata. Evidence is
+        descriptor-read under fixed bounds and checked against canonical
+        workspace identity. An unavailable witness does not discard the
+        sanitized handoff but is reported in the response and blocks later
+        native resume.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [capsule]
+              properties:
+                capsule:
+                  $ref: '../schemas/agent-harbor/v0/handoff-capsule.schema.json'
+                tokenBudget:
+                  type: integer
+                  minimum: 1
+                  maximum: 200000
+                coordinationSessionId:
+                  type: string
+                  minLength: 1
+                  maxLength: 1024
+      responses:
+        '201':
+          description: Sanitized capsule stored as an idempotent handoff episode
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, capsule, episode, harvest, nativeResume]
+                properties:
+                  success:
+                    const: true
+                  capsule:
+                    $ref: '../schemas/agent-harbor/v0/handoff-capsule.schema.json'
+                  episode:
+                    type: object
+                  harvest:
+                    type: object
+                  nativeResume:
+                    type: object
+                    additionalProperties: false
+                    required: [verified, adapterFamily, method, reason]
+                    properties:
+                      verified:
+                        type: boolean
+                      adapterFamily:
+                        type: string
+                      method:
+                        type: [string, 'null']
+                      reason:
+                        type: [string, 'null']
+        '400':
+          description: Malformed or incomplete capsule provenance
+        '413':
+          description: Token budget cannot fit mandatory operator context
+        '422':
+          description: Capsule quarantined by secret scanning
+        '503':
+          description: Required external scanner unavailable
+
+  /memory/handoffs/{episodeId}/continue:
+    post:
+      tags: [memory]
+      summary: Continue a handoff episode natively or through a successor runtime
+      operationId: continueMemoryHandoff
+      description: >
+        Revalidates the stored sanitized capsule and outgoing operator prompt,
+        resolves the effective backend after overrides, and selects auto, native,
+        or handoff execution. Auto restores a daemon-witnessed native session
+        only for a matching session-scoped adapter family; otherwise it creates
+        a successor from a versioned sanitized brief containing durable identity,
+        lineage, operator turns, decisions, coordination evidence, workspace,
+        artifacts, and compact recent context. Explicit native mode never falls
+        back, while explicit handoff mode always starts a successor. A per-daemon
+        generation lease and compare-and-swap gate the child side effect, and
+        success is returned only after durable completion by the same owner. The
+        receipt stores only prompt and idempotency hashes; raw provider
+        transcripts never cross the runtime boundary. Historical capsule paths
+        never authorize the child cwd: handoff mode reuses a reverified source
+        workspace witness or requires an explicit current targetWorkdir, captures
+        its canonical device/inode identity, and checks it again before spawn.
+      parameters:
+        - name: episodeId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [targetBackend, idempotencyKey]
+              properties:
+                targetBackend:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                mode:
+                  type: string
+                  enum: [auto, native, handoff]
+                  default: auto
+                idempotencyKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 512
+                prompt:
+                  type: string
+                  minLength: 1
+                  maxLength: 131072
+                model:
+                  type: string
+                  minLength: 1
+                  maxLength: 512
+                durableAgentId:
+                  type: string
+                  minLength: 1
+                  maxLength: 1024
+                targetWorkdir:
+                  type: string
+                  minLength: 1
+                  maxLength: 32768
+                  description: >
+                    Current operator-selected user-owned absolute directory.
+                    Required for handoff successors when the source adapter has
+                    no daemon-witnessed local workspace. It may not conflict
+                    with an available source witness.
+                timeoutMs:
+                  type: integer
+                  minimum: 1000
+                  maximum: 21600000
+      responses:
+        '201':
+          description: Native restoration or handoff successor completed with a durable receipt
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, replayed, receipt]
+                properties:
+                  success:
+                    const: true
+                  replayed:
+                    const: false
+                  receipt:
+                    $ref: '#/components/schemas/ContinuationReceipt'
+        '200':
+          description: Idempotent replay of a completed request
+        '202':
+          description: Idempotent replay of an accepted or running request; never a completed success
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, pending, replayed, receipt]
+                properties:
+                  success:
+                    const: false
+                  pending:
+                    const: true
+                  replayed:
+                    const: true
+                  receipt:
+                    $ref: '#/components/schemas/ContinuationReceipt'
+        '400':
+          description: Invalid episode id, backend, prompt, or request boundary
+        '404':
+          description: Sanitized handoff episode not found
+        '409':
+          description: Idempotency drift, orphaned replay, or continuation lease ownership conflict
+        '422':
+          description: Secret quarantine, unsupported requested mode, target without handoff input, or unavailable native-session witness
+        '502':
+          description: Target harness failed after durable acceptance
+        '503':
+          description: Continuation store, spawner, or required scanner unavailable
+
+  /memory/continuations:
+    get:
+      tags: [memory]
+      summary: List durable continuation receipts
+      operationId: listMemoryContinuations
+      parameters:
+        - name: sourceEpisodeId
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: durableAgentId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [accepted, running, completed, failed, unsupported, orphaned]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+      responses:
+        '200':
+          description: Matching continuation receipts
+        '400':
+          description: Invalid filter
+        '503':
+          description: Continuation store unavailable
+
+  /memory/continuations/{continuationId}:
+    get:
+      tags: [memory]
+      summary: Read one durable continuation receipt
+      operationId: getMemoryContinuation
+      parameters:
+        - name: continuationId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 1024
+      responses:
+        '200':
+          description: Continuation receipt
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, receipt]
+                properties:
+                  success:
+                    const: true
+                  receipt:
+                    $ref: '#/components/schemas/ContinuationReceipt'
+        '404':
+          description: Continuation receipt not found
+        '503':
+          description: Continuation store unavailable
+
 components:
   parameters:
     XAgentId:
@@ -4839,6 +5131,82 @@ components:
       description: Process ID of the calling process
 
   schemas:
+    ContinuationReceipt:
+      type: object
+      required:
+        - schema
+        - id
+        - sourceEpisodeId
+        - sourceCapsuleId
+        - mode
+        - sourceAdapter
+        - sourceSessionId
+        - targetAdapter
+        - requestedBackend
+        - status
+        - promptHash
+        - requestHash
+        - createdAt
+        - updatedAt
+        - leaseExpiresAt
+      properties:
+        schema:
+          const: pd.agent-harbor.continuation-receipt.v0
+        id:
+          type: string
+        sourceEpisodeId:
+          type: integer
+        sourceCapsuleId:
+          type: string
+        durableAgentId:
+          type: [string, 'null']
+        mode:
+          type: string
+          enum: [native, handoff]
+        sourceAdapter:
+          type: string
+        sourceSessionId:
+          type: string
+        sourceAgentId:
+          type: [string, 'null']
+        predecessorRunId:
+          type: [string, 'null']
+        targetAdapter:
+          type: string
+        requestedBackend:
+          type: string
+        effectiveBackend:
+          type: [string, 'null']
+        requestedModel:
+          type: [string, 'null']
+        effectiveModel:
+          type: [string, 'null']
+        successorRunId:
+          type: [string, 'null']
+        successorSessionId:
+          type: [string, 'null']
+        status:
+          type: string
+          enum: [accepted, running, completed, failed, unsupported, orphaned]
+        promptHash:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+        requestHash:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+        createdAt:
+          type: integer
+        updatedAt:
+          type: integer
+        startedAt:
+          type: [integer, 'null']
+        completedAt:
+          type: [integer, 'null']
+        leaseExpiresAt:
+          type: integer
+        error:
+          type: [string, 'null']
+
     Service:
       type: object
       properties:

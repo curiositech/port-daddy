@@ -57,6 +57,110 @@ If the user still needs to open raw Claude Code or Codex to answer "what did it
 do?", "what files changed?", "can I stop it?", or "can I trust this result?",
 Agent Harbor has not crossed the replacement threshold.
 
+## Cross-LLM Adapter Contract
+
+Agent Harbor must treat Claude Code as one provider body, not as the product
+shape. The core object is `AgentNode`; the replaceable part is the body adapter
+that can launch, attach, observe, control, and persist evidence for a specific
+tool or model runtime.
+
+Provider bodies should be described by capability, not brand:
+
+| Adapter capability | Required fields | Examples |
+| --- | --- | --- |
+| `managed-local-cli` | executable path, version, auth state, hook pack, worktree root, transcript fidelity, control support | Claude Code, Codex CLI, Gemini CLI, Aider, Cursor/Windsurf CLI bridges |
+| `managed-local-server` | endpoint, auth custody, model catalog, tool gateway, transcript stream, shutdown control | Ollama/OpenAI-compatible local server, Port Daddy-owned loop |
+| `hosted-provider` | provider id, model id, billing path, upload state, region, retention, budget cap | OpenAI, Anthropic, Google, Groq, Cloudflare Workers AI |
+| `custom-sdk-body` | SDK version, event append endpoint, control ack endpoint, capability manifest, receipt signer | internal agents, third-party agents, CI workers |
+| `observed-import` | source path or process, import confidence, transcript gaps, disabled controls | pasted transcript, terminal log, unmanaged existing session |
+| `fixture` | fixture id, scenario, source label, non-production guard | demo data, regression UI fixture |
+
+The launch proposal must be generated from those fields, not from hard-coded
+Claude/Codex branches. It should show:
+
+- provider/body kind, model id or tier, auth custody, billing path, local/cloud
+  data boundary, and expected transcript fidelity before launch;
+- the control matrix (`pause`, `interrupt`, `steer`, `checkpoint`, `fork`,
+  `resume`, `retire`) with enabled/disabled reasons;
+- tool authority: direct shell, MCP-mediated, daemon preflight, or observed
+  only;
+- receipt strength: expected transcript hash, diff/file evidence, validation
+  capture, and signature policy;
+- fallback ladder when the preferred body is not ready.
+
+The adapter contract is additive. A provider that cannot stream tool results is
+still usable, but it lands at T1/T2 and renders as observed or weak until a
+stronger adapter exists. A provider that exposes private reasoning is not more
+official by default; official status comes from persisted visible events,
+governed tool results, hash chains, controls, and receipts.
+
+Hard rule:
+  The UI may name brands in labels, but the daemon contract must never require
+  a Claude-shaped transcript, hook, model id, or control protocol as the only
+  path to official work.
+
+## Single-Agent Run Rendering
+
+The first great Agent Harbor screen is not a fleet map. It is one run rendered
+so well that a developer trusts it more than the raw tool transcript.
+
+Render a single `AgentRun` as five locked panes over one daemon event chain:
+
+1. **Run header**
+   - Work intent, status, provider body, model tier, worktree, branch/base,
+     spend cap, elapsed time, fidelity level, receipt state, and privacy mode.
+   - No "LIVE" badge unless a recent heartbeat or transcript/control event
+     proves liveness.
+2. **Transcript timeline**
+   - Chronological operator messages, assistant messages, reasoning summaries
+     when available, tool calls, tool results, control events, denials,
+     approvals, cost warnings, checkpoints, errors, and stop reason.
+   - Tool calls render as compact rows with status, duration, exit code, files
+     touched, and a one-step zoom to stdout/stderr/blob/diff evidence.
+   - Provider narration is labeled as narration; the canonical proof is the
+     persisted artifact, command result, diff, or receipt hash.
+3. **Work ledger**
+   - Files read, files changed, claims, commands, MCP/tool calls, approvals,
+     denials, and validation artifacts grouped by reviewer task, each linking
+     back to the timeline event that produced it.
+4. **Control rail**
+   - Pause, interrupt, steer, checkpoint, fork, resume, retire, approve, deny,
+     and publish receipt.
+   - Disabled controls stay visible with exact daemon reasons: observed body,
+     unsupported adapter, no active session, missing hook, stale heartbeat,
+     policy block, or receipt already sealed.
+5. **Receipt and proof drawer**
+   - Work Receipt summary, risk to check first, validation evidence, transcript
+     head hash, diff/file hashes, cost summary, visual-evidence manifests, PR
+     links, replay command, and verification status.
+
+Default view:
+  Open on the transcript timeline plus run header. The work ledger and proof
+  drawer are visible as tabs or side panels, not hidden in a separate product.
+
+Digest-with-zoom rule:
+  Summary cards may rank what matters, but every number, badge, and claim must
+  zoom to the exact event, blob, command output, diff, manifest, or receipt row
+  that produced it in at most two steps.
+
+Empty and degraded states are first-class:
+
+| State | Render as | Primary action |
+| --- | --- | --- |
+| T0 registered only | `registered, no transcript` | Open Doctor or attach as observed |
+| T1 run log | `run log` with structured steps only | Upgrade adapter or inspect step metadata |
+| T2 chat only | `chat transcript` with weak coding proof | Install tool hooks / route tools through gateway |
+| T3 tool-backed | `tool-backed transcript` | Generate weak/strong receipt depending on hashes |
+| T4 verified | `verified transcript` | Publish receipt or continue/fork |
+| T5 resumable | `resumable transcript` | Fork successor, replay, or rollback |
+| observed import | `observed` | Relaunch through Work Intent for managed controls |
+| fixture/mock | `fixture` or `mock` | Use for UI/testing only, never production proof |
+
+Visual evidence for this screen must carry manifests that bind screenshots or
+recordings to daemon port, run id, transcript head hash, agent node id, commit,
+and honest source label. Fixture screenshots are fine when labeled; unlabeled
+"live-looking" screenshots are not proof.
+
 ## Surface Responsibilities
 
 All surfaces must render daemon truth. They may differ in density and
@@ -323,6 +427,18 @@ Proof:
   Every user-visible control maps to daemon authority or an explicit unsupported
   state.
 
+### P0. Make The Body Adapter Contract Cross-LLM
+
+Define provider bodies by capabilities and fidelity levels, not by Claude Code
+assumptions. The first implementation may support one or two bodies, but the
+schema must already fit Codex, Claude Code, Gemini, Aider, Cursor/Windsurf,
+local servers, hosted providers, SDK agents, observed imports, and fixtures.
+
+Proof:
+  A fixture matrix renders launch proposals and run details for managed local,
+  hosted, SDK, observed, and fixture bodies without code paths that special-case
+  Claude as the only official shape.
+
 ### P0. Prove One Local Managed Body
 
 Pick Codex or Claude Code first. Show one local body registering, emitting or
@@ -341,6 +457,17 @@ with reason, compliance downgrade, and repair path.
 Proof:
   Fixtures for managed transcript, observed/no transcript, broken hook, and
   unwritable path render distinct states.
+
+### P0. Ship The Single-Agent Run View Before Fleet Views
+
+The run view is the product's trust proof. It must render header, transcript
+timeline, work ledger, control rail, and receipt/proof drawer from persisted
+daemon events.
+
+Proof:
+  A skeptical reviewer can answer what changed, why, which tools ran, what
+  evidence exists, what controls are enforceable, and what risk to inspect
+  first without opening the raw provider app.
 
 ### P0. Gate Controls By Real Authority
 
@@ -421,14 +548,16 @@ Proof:
 Build in this order:
 
 1. F0 contract freeze.
-2. One local managed Agent Node proof.
-3. Transcript absence and compliance downgrade states.
-4. Setup/Doctor readiness and provider fallback.
-5. `pd-console` roster/detail for active plus historical runs.
-6. Work Receipt verification.
-7. SDK/MCP minimal custom-body contract.
-8. Public website first-run story backed by the proof.
-9. VS Code, mobile, cloud, teams, marketplace, and richer Fleet/Shipwright
+2. Cross-LLM body adapter contract.
+3. One local managed Agent Node proof.
+4. Single-agent run view with digest-with-zoom.
+5. Transcript absence and compliance downgrade states.
+6. Setup/Doctor readiness and provider fallback.
+7. `pd-console` roster/detail for active plus historical runs.
+8. Work Receipt verification.
+9. SDK/MCP minimal custom-body contract.
+10. Public website first-run story backed by the proof.
+11. VS Code, mobile, cloud, teams, marketplace, and richer Fleet/Shipwright
    narratives.
 
 The product should earn the right to talk about fleets by first making one

@@ -98,7 +98,8 @@ describe('Duty: harvest', () => {
 describe('Duty: resurrect', () => {
   test('publishes to operator:approvals when policy is "ask" (default)', async () => {
     const custodian = makeCustodian();
-    await custodian.onAgentDead('dead-agent-1', { identityProject: 'port-daddy', nextPlan: 'Continue auth work' });
+    // Scope is now a distinct authenticated argument; the capsule is context-only.
+    await custodian.onAgentDead('dead-agent-1', 'port-daddy', { nextPlan: 'Continue auth work' });
 
     const approval = messages.find(m => m.channel === 'operator:approvals');
     expect(approval).toBeTruthy();
@@ -115,14 +116,14 @@ describe('Duty: resurrect', () => {
     ).run();
 
     const custodian = makeCustodian();
-    await custodian.onAgentDead('dead-agent-deny', { identityProject: 'deny-project' });
+    await custodian.onAgentDead('dead-agent-deny', 'deny-project');
 
     expect(messages.filter(m => m.channel === 'operator:approvals')).toHaveLength(0);
   });
 
   test('resolveResurrection records decision and sends inbox message on approved', async () => {
     const custodian = makeCustodian();
-    await custodian.resolveResurrection('agent-resurrect', 'approved', { identityProject: 'port-daddy', nextPlan: 'Continue' });
+    await custodian.resolveResurrection('agent-resurrect', 'port-daddy', 'approved', { nextPlan: 'Continue' });
 
     // Should record the approval
     const patterns = operatorPermissions.list();
@@ -231,6 +232,33 @@ describe('Duty: archiveTTL', () => {
     const all = db.prepare('SELECT metadata FROM episodic_memory').get();
     const meta = JSON.parse(all.metadata || '{}');
     expect(meta.archived).toBe(1);
+  });
+
+  // Regression test: runArchiveTTLDuty previously called deps.resurrection
+  // .getQueue()/.markDead(), neither of which exist on the real resurrection
+  // module (lib/resurrection.ts only exposes .cleanup()). An `as any` cast at
+  // the server.ts wiring site hid the mismatch from the type checker, and the
+  // TypeError crashed the whole daemon the first time this duty ran with a
+  // real `resurrection` dep wired in. No prior test exercised this branch —
+  // every other test in this file omits `resurrection` from extraDeps, so
+  // `if (deps.resurrection)` was always falsy and the bug shipped silently.
+  test('purges stale resurrection queue entries via cleanup(), not a nonexistent getQueue/markDead pair', () => {
+    let cleanupArg;
+    const resurrection = {
+      cleanup(olderThan) {
+        cleanupArg = olderThan;
+        return { cleaned: 3 };
+      },
+    };
+    const custodian = makeCustodian({ resurrection });
+
+    expect(() => custodian.runArchiveTTLDuty()).not.toThrow();
+    expect(cleanupArg).toBe(30 * 24 * 60 * 60 * 1000);
+  });
+
+  test('archiveTTL duty is a no-op (never throws) when resurrection dep is absent', () => {
+    const custodian = makeCustodian();
+    expect(() => custodian.runArchiveTTLDuty()).not.toThrow();
   });
 });
 

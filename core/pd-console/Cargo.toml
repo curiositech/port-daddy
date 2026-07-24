@@ -1,6 +1,6 @@
 [package]
 name = "pd-console"
-version = "3.24.1"
+version = "3.26.4"
 edition = "2021"
 description = "Port Daddy operator console — GPU-native standalone app (ADR-0046 Phase 1). GPUI shell over the engine; a headless TUI repl renders the same panes."
 
@@ -17,11 +17,18 @@ name = "pd-console"
 path = "src/main.rs"
 required-features = ["gpui"]
 
+# The drawer unit target imports the native PTY implementation directly. Keep
+# it out of the headless/Linux test graph for the same reason as the GPUI bin.
+[[test]]
+name = "shell_drawer_unit"
+path = "tests/shell_drawer_unit.rs"
+required-features = ["gpui"]
+
 [features]
 # Pulls in the GPU shell. Off by default so the lib + repl compile fast on Linux.
 # `gpui` also pulls in `rodio` for the procedural UI sound layer (macOS CoreAudio),
 # so the headless repl + Linux CI never compile an audio backend.
-gpui = ["dep:gpui", "dep:rodio"]
+gpui = ["dep:gpui", "dep:rodio", "dep:portable-pty", "dep:vt100"]
 
 [dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util", "sync", "time"] }
@@ -36,12 +43,21 @@ gpui = { version = "0.2.2", optional = true }
 # behind `gpui`; `default-features = false` drops the MP3/Vorbis/FLAC decoders we
 # never use, keeping the build lean (we only synth raw f32 sample buffers).
 rodio = { version = "0.20", optional = true, default-features = false }
+# The always-available CLI drawer is a real native PTY, not a command-shaped
+# daemon adapter. Both dependencies stay behind `gpui`, preserving the headless
+# REPL/Linux build boundary.
+portable-pty = { version = "0.9", optional = true }
+vt100 = { version = "0.15", optional = true }
 loro = "1.13"
 # Base64 for the Harbor Editor tube frame codec (editor_sync.rs): a Loro update is
 # raw bytes, the PD tube carries JSON text, so an op frame's `ops` field is base64.
 # Already resolved in Cargo.lock (0.22.1, transitively via reqwest/rustls) — no new
 # fetch — promoted to a direct dep so the non-gpui repl/lib build compiles it.
 base64 = "0.22"
+time = { workspace = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
+# P3.5 salvage foundation: property tests on Loro op-replay convergence
+# (tests/loro_replay_convergence.rs). Same pin as core/harbor-card-rs.
+proptest = "1.4"

@@ -27,7 +27,8 @@ export type CoordinationState =
 //   spawning       → A, not P — A is "diver down, keep clear" (vulnerable boot window)
 //                                P is "Blue Peter, ready to sail" → fleet-healthy
 //   mayday         → J        — J is "on fire + dangerous cargo" (operational disaster)
-//   inform         → R        — R is "received" (acknowledgement)
+//   inform         → R        — Port Daddy uses the procedure signal "Received" as an
+//                                acknowledgement. R has no 1969 single-letter meaning.
 //   burning-cash   → B, not U — B is "carrying dangerous cargo" (hazardous spend)
 export const SIGNAL_FOR_STATE: Record<CoordinationState, SignalCode> = {
   'claim-active': 'H', 'claim-stale': 'Y', 'awaiting-human': 'F',
@@ -75,7 +76,7 @@ export const ICS_MEANING: Record<SignalCode, string> = {
   O: 'Man overboard',
   P: 'Blue Peter — about to put to sea (in harbor); nets caught (at sea, fishing)',
   Q: 'My vessel is healthy and I request free pratique',
-  R: 'The way is off my ship; you may feel your way past me',
+  R: 'No 1969 single-letter meaning; procedure signal: Received',
   S: 'I am operating astern propulsion',
   T: 'Keep clear of me; I am engaged in pair trawling',
   U: 'You are running into danger',

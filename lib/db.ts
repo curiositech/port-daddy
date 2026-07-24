@@ -12,9 +12,9 @@
  */
 
 import Database, { type DatabaseInstance } from './sqlite-runtime.js';
-import { chmodSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readdirSync, renameSync, statSync } from 'node:fs';
 import { dirname, join, resolve as resolvePath, sep } from 'path';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { fileURLToPath } from 'url';
 import { resolveDistributionRoot } from '../shared/daemon-binary.js';
 import { CLAIM_FOREST_SCHEMA_SQL } from './claim-forest.js';
@@ -35,17 +35,233 @@ export function resolveDefaultDbRoot(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * The machine-durable home for the registry. Survives brew upgrades, repo
+ * checkouts, and worktrees — every daemon on this machine that does not
+ * explicitly isolate itself (PORT_DADDY_DB, instance profiles, test DBs)
+ * converges on this one file. Daemons must not own different truths.
+ */
+export function durableDbHomePath(): string {
+  return join(homedir(), '.port-daddy', 'port-registry.db');
+}
+
+/**
+ * Where the pre-durable-home default would have put the registry: next to the
+ * distribution root. For a Homebrew install that is the VERSIONED Cellar
+ * directory, which is deleted on every `brew upgrade` — the root cause of
+ * repeated registry data loss (roadmap items, notes, receipts). Kept only so
+ * boot can migrate data out of it.
+ */
+export function legacyDbPath(
+  moduleDir: string = MODULE_DIR,
+  env: NodeJS.ProcessEnv = process.env,
+  execPath: string = process.execPath,
+): string {
+  return join(resolveDefaultDbRoot(moduleDir, env, execPath), 'port-registry.db');
+}
+
+/**
  * Resolve the path to the SQLite database file.
  * Priority:
  *   1. Explicit override (parameter)
  *   2. PORT_DADDY_DB environment variable
- *   3. Default: <project-root>/port-registry.db
+ *   3. Default: ~/.port-daddy/port-registry.db (durable home)
+ *
+ * The default deliberately does NOT depend on the binary location or the
+ * current checkout: a version-pinned or checkout-relative default is how the
+ * registry kept dying (Cellar wipe on brew upgrade, one truth per worktree).
  */
 export function resolveDbPath(overridePath?: string): string {
   if (overridePath) return overridePath;
   if (process.env.PORT_DADDY_DB) return process.env.PORT_DADDY_DB;
-  // lib/ is one level below the project root
-  return join(resolveDefaultDbRoot(), 'port-registry.db');
+  return durableDbHomePath();
+}
+
+/** True when a path sits inside a version-volatile install location (deleted on upgrade). */
+export function isVersionVolatileDbPath(path: string): boolean {
+  const p = resolvePath(path);
+  return p.includes(`${sep}Cellar${sep}`) || p.includes(`${sep}homebrew${sep}Cellar${sep}`);
+}
+
+/**
+ * Registries left behind in OTHER kegs of the same Homebrew formula.
+ *
+ * After `brew upgrade`, the running binary's own distribution root is the NEW
+ * (empty) keg — the previous version's data sits in the old keg until
+ * Homebrew's cleanup deletes it. Given any path inside a Cellar keg (the exec
+ * path or a legacy DB path), return existing sibling-keg registries, newest
+ * mtime first.
+ */
+export function siblingKegDbPaths(refPath: string): string[] {
+  const p = resolvePath(refPath);
+  const marker = `${sep}Cellar${sep}`;
+  const idx = p.indexOf(marker);
+  if (idx === -1) return [];
+  // .../Cellar/<formula>/<version>/...
+  const formula = p.slice(idx + marker.length).split(sep)[0];
+  if (!formula) return [];
+  const formulaDir = p.slice(0, idx + marker.length) + formula;
+  let versions: string[];
+  try {
+    versions = readdirSync(formulaDir);
+  } catch {
+    return [];
+  }
+  const withMtime: Array<{ path: string; mtime: number }> = [];
+  for (const v of versions) {
+    const candidate = join(formulaDir, v, 'bin', 'port-registry.db');
+    try {
+      withMtime.push({ path: candidate, mtime: statSync(candidate).mtimeMs });
+    } catch {
+      /* keg has no registry */
+    }
+  }
+  return withMtime.sort((a, b) => b.mtime - a.mtime).map((c) => c.path);
+}
+
+/**
+ * All places a legacy registry could be, best candidate first: the current
+ * distribution-root default, then sibling Homebrew kegs (newest first) —
+ * because after `brew upgrade` the data lives in the PREVIOUS keg, not the
+ * one the new binary resolves to.
+ */
+export function legacyDbCandidates(
+  primary: string = legacyDbPath(),
+  execPath: string = process.execPath,
+): string[] {
+  const candidates = [primary, ...siblingKegDbPaths(execPath), ...siblingKegDbPaths(primary)];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const c of candidates) {
+    const r = resolvePath(c);
+    if (!seen.has(r)) {
+      seen.add(r);
+      out.push(c);
+    }
+  }
+  return out;
+}
+
+/**
+ * One-time rescue of a legacy registry into the durable home.
+ *
+ * Runs only when the destination does not exist yet and a legacy registry
+ * does; takes the first existing candidate (current distribution root, then
+ * sibling brew kegs newest-first). Uses `VACUUM INTO`, which produces a
+ * consistent snapshot even while an old daemon still holds the legacy DB
+ * open in WAL mode (a plain file copy of db+wal+shm would not be safe
+ * there). Best-effort: a failed migration logs loudly and boot continues
+ * with a fresh DB rather than crashing the daemon.
+ *
+ * @returns true when a migration was performed.
+ */
+export function migrateLegacyRegistry(
+  destPath: string = durableDbHomePath(),
+  sourcePaths: string | string[] = legacyDbCandidates(),
+): boolean {
+  if (existsSync(destPath)) return false;
+  const candidates = Array.isArray(sourcePaths) ? sourcePaths : [sourcePaths];
+  const sourcePath = candidates.find(
+    (c) => resolvePath(c) !== resolvePath(destPath) && existsSync(c),
+  );
+  if (!sourcePath) return false;
+
+  try {
+    mkdirSync(dirname(destPath), { recursive: true });
+    const legacy = new Database(sourcePath, { readonly: true });
+    try {
+      legacy.exec(`VACUUM INTO '${destPath.replace(/'/g, "''")}'`);
+    } finally {
+      legacy.close();
+    }
+    // Post-apply verification: a rescue that produced an unopenable or
+    // tableless file must not become the registry. Quarantine it (rename,
+    // never delete — it is evidence) and start fresh instead.
+    if (!verifyRescuedRegistry(destPath)) {
+      const quarantine = `${destPath}.failed-rescue-${Date.now()}`;
+      renameSync(destPath, quarantine);
+      console.warn(
+        `[port-daddy] WARNING: rescued registry from ${sourcePath} failed post-apply ` +
+          `verification; quarantined at ${quarantine}. Starting fresh at ${destPath}.`,
+      );
+      return false;
+    }
+    console.warn(
+      `[port-daddy] Migrated registry from legacy location into the durable home:\n` +
+        `  from: ${sourcePath}\n` +
+        `  to:   ${destPath}\n` +
+        `The legacy file was left in place (read-only rescue); it is no longer used.`,
+    );
+    return true;
+  } catch (err) {
+    console.warn(
+      `[port-daddy] WARNING: could not migrate legacy registry from ${sourcePath}: ` +
+        `${(err as Error).message}. Starting with a fresh database at ${destPath}.`,
+    );
+    return false;
+  }
+}
+
+/**
+ * Post-apply probe for a rescued registry file: it must open and contain at
+ * least one table. Probes the real schema object, never bookkeeping — a
+ * rescue is not "applied" because VACUUM INTO exited 0.
+ */
+export function verifyRescuedRegistry(path: string): boolean {
+  try {
+    const probe = new Database(path, { readonly: true });
+    try {
+      const row = probe
+        .prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table'")
+        .get() as { n: number };
+      return row.n > 0;
+    } finally {
+      probe.close();
+    }
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Post-apply verification of the boot migrations: probe the actual schema
+ * objects the daemon is about to serve from — never trust that CREATE/ALTER
+ * statements "ran" because no exception surfaced (the ALTER blocks above
+ * warn-and-continue by design).
+ *
+ * Throws with remediation on failure: a daemon serving on a broken schema
+ * silently corrupts coordination truth, which is worse than not starting.
+ */
+export function verifyCoreSchema(db: DatabaseInstance): void {
+  const requiredTables = [
+    'services',
+    'sessions',
+    'session_files',
+    'session_notes',
+    'roadmap_items',
+    'roadmap_item_status_events',
+  ];
+  const missing: string[] = [];
+  for (const table of requiredTables) {
+    const row = db
+      .prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name = ?")
+      .get(table) as { n: number };
+    if (row.n === 0) missing.push(table);
+  }
+  // Column sentinels: the ALTER blocks are warn-and-continue, so probe their
+  // target columns directly (ADR-0086 planner columns via `kind`; soft-delete
+  // tombstones via `deleted_at`).
+  if (!missing.includes('roadmap_items')) {
+    const cols = db.prepare('PRAGMA table_info(roadmap_items)').all() as Array<{ name: string }>;
+    if (!cols.some((c) => c.name === 'kind')) missing.push('roadmap_items.kind');
+    if (!cols.some((c) => c.name === 'deleted_at')) missing.push('roadmap_items.deleted_at');
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `[port-daddy] Schema verification failed after boot migrations — missing: ` +
+        `${missing.join(', ')}. The registry is not safe to serve from. ` +
+        `Run: pd doctor --repair (or restore a backup via pd restore).`,
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -312,10 +528,20 @@ export const CORE_SCHEMA_SQL = `
     started_at INTEGER,
     due_at INTEGER,
     estimate INTEGER,
+    -- Soft-delete tombstone. The registry is a multi-replica system reconciled
+    -- by union-merge (scripts/registry-reunify.ts); a hard DELETE in one
+    -- replica silently resurrects from any replica still carrying the row.
+    -- Deletion is an UPDATE that sets deleted_at and bumps last_touched_at, so
+    -- the tombstone wins last-write-wins merges. Existing DBs get the column
+    -- via the PRAGMA-guarded ALTER in initDatabase.
+    deleted_at INTEGER,
     UNIQUE(slug, harbor)
   );
   CREATE INDEX IF NOT EXISTS idx_roadmap_items_harbor_status
     ON roadmap_items(harbor, status);
+  -- idx_roadmap_items_live (partial, WHERE deleted_at IS NULL) is created in
+  -- initDatabase AFTER the PRAGMA-guarded ALTER adds deleted_at on legacy DBs —
+  -- creating it here would fail on a pre-tombstone database.
   CREATE INDEX IF NOT EXISTS idx_roadmap_items_last_touched
     ON roadmap_items(last_touched_at);
 
@@ -339,11 +565,126 @@ export const CORE_SCHEMA_SQL = `
 // Database initialization
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * The Door — one enforced write-boundary (architecture-of-record seam 3).
+ *
+ * The daemon is the single legitimate WRITER of the registry: it IS the door.
+ * Any other process that opens the DB directly and mutates it is a bypass — and
+ * the dangerous one is the CLI's silent direct-DB fallback when the daemon is
+ * down, because those writes are invisible to every other agent (the "two agents
+ * one file 3am" failure). This class is thrown when a `role:'client'` handle
+ * attempts a mutation, so a killed daemon HALTS the write loudly instead of
+ * silently editing shared truth behind the dead daemon's back.
+ *
+ * HONESTY (b0): this boundary is ADVISORY. `role` is a plain option and the
+ * `PD_DIRECT_DB_OK` env hatch is a plain env var; nothing here binds authorization
+ * to the daemon's identity keystone (ADR-0040). It is defense-in-depth against
+ * accidental/silent bypass — it converts "silently mutates a dead daemon's
+ * registry" into "must consciously assert ownership" — NOT a cryptographic
+ * guarantee against a hostile in-process actor. Binding to an identity-issued
+ * capability is the follow-up that upgrades advisory → enforced.
+ */
+export class DaemonDoorError extends Error {
+  constructor(sql: string) {
+    super(
+      'Port Daddy: direct SQLite WRITE refused — the daemon owns the write-boundary. ' +
+        'Route this mutation through the daemon (pd / MCP). If the daemon is down, start it ' +
+        '(brew services start port-daddy). Maintenance-only escape hatch: PD_DIRECT_DB_OK=1. ' +
+        `Offending statement: ${sql.slice(0, 80)}`,
+    );
+    this.name = 'DaemonDoorError';
+  }
+}
+
+/**
+ * Strip string / quoted-identifier literals and comments so we scan SQL
+ * *keywords*, never data. This is a STRUCTURED strip of SQL we author — not
+ * keyword-NLP over free text — so a `SELECT` whose literal happens to contain the
+ * word DELETE is not misread as a mutation.
+ *
+ * ORDER MATTERS: literals are stripped BEFORE comments. A line-comment regex
+ * (`--` to end-of-line) can't tell a real `--` from one sitting inside a
+ * `'string'` — if comments strip first, a literal like `'--'` in
+ * `SELECT '--'; DELETE FROM foo;` gets misread as "the rest of the line is a
+ * comment" and the regex eats the trailing `DELETE FROM foo;` right along
+ * with the quote, hiding a real mutation from the scanner (a false NEGATIVE —
+ * the dangerous direction for a fail-closed boundary) even though `db.exec`
+ * would still literally execute it. Stripping balanced-quote literals first
+ * removes the `'--'` token as a unit before the comment regex ever runs, so
+ * it has nothing left to misfire on.
+ */
+function stripSqlNoise(sql: string): string {
+  return sql
+    .replace(/'(?:''|[^'])*'/g, ' ') // 'string literals'
+    .replace(/"(?:""|[^"])*"/g, ' ') // "quoted identifiers"
+    .replace(/--[^\n]*/g, ' ') // line comments
+    .replace(/\/\*[\s\S]*?\*\//g, ' '); // block comments
+}
+
+/**
+ * Does this SQL mutate? Scans the WHOLE statement (post-strip) for a mutating
+ * keyword as a whole word, so it catches fail-CLOSED:
+ *   • leading INSERT/UPDATE/DELETE/REPLACE/CREATE/DROP/ALTER/TRUNCATE/VACUUM/REINDEX
+ *   • `… RETURNING …` mutations (verb still leads, matches)
+ *   • CTE writes:  WITH cte AS (…) DELETE/UPDATE/INSERT …
+ *   • multi-statement scripts:  SELECT …; DELETE …   (exec only)
+ * A read (SELECT/PRAGMA/EXPLAIN) never contains these as bare words, so the only
+ * false positive is the rare unquoted reserved word used as an identifier — the
+ * safe bias for a write boundary.
+ */
+export function isMutatingSql(sql: string): boolean {
+  return /\b(?:INSERT|UPDATE|DELETE|REPLACE|CREATE|DROP|ALTER|TRUNCATE|VACUUM|REINDEX)\b/i.test(
+    stripSqlNoise(sql),
+  );
+}
+
+/**
+ * Wrap a handle so every MUTATION throws `DaemonDoorError` while reads pass.
+ * Overrides `prepare` (guarding run/get/all/iterate — a `… RETURNING …` mutation
+ * is executed via `.get()`/`.all()`, not `.run()`, so guarding only `.run` would
+ * leave that bypass open) and `exec` (multi-statement scripts). Statements inside
+ * a `db.transaction(fn)` go through the wrapped `prepare` and are refused too.
+ */
+export function guardWrites(db: DatabaseInstance): DatabaseInstance {
+  const origPrepare = db.prepare.bind(db);
+  const origExec = db.exec.bind(db);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (db as any).prepare = (sql: string) => {
+    const stmt = origPrepare(sql);
+    if (isMutatingSql(sql)) {
+      const refuse = (): never => {
+        throw new DaemonDoorError(sql);
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const s = stmt as any;
+      s.run = refuse;
+      s.get = refuse;
+      s.all = refuse;
+      s.iterate = refuse;
+    }
+    return stmt;
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (db as any).exec = (sql: string) => {
+    if (isMutatingSql(sql)) throw new DaemonDoorError(sql);
+    return origExec(sql);
+  };
+  return db;
+}
+
 export interface InitDbOptions {
   /** Override the default DB file path */
   dbPath?: string;
   /** Use ':memory:' for tests (ignores dbPath) */
   inMemory?: boolean;
+  /** Who is opening the DB. The daemon is the sole authorized writer (it IS the
+   *  write-boundary / door). A `client` open returns a write-guarded handle:
+   *  reads pass, mutations throw `DaemonDoorError`. Default `daemon` so existing
+   *  callers are unchanged; the CLI direct-DB fallback is migrated to `client`
+   *  separately (a shipped integration test asserts today's direct-write feature,
+   *  so flipping it is a staged product decision, not a drop-in). The
+   *  `PD_DIRECT_DB_OK=1` env hatch restores owner semantics for maintenance. */
+  role?: 'daemon' | 'client';
 }
 
 /**
@@ -361,6 +702,22 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
     isTest: isTestContext(),
     inMemory: options.inMemory,
   });
+
+  if (!options.inMemory) {
+    // Only the durable-home default gets the legacy rescue; explicit
+    // overrides (PORT_DADDY_DB, instance profiles, tests) mean isolation
+    // was chosen on purpose.
+    if (path === durableDbHomePath()) {
+      migrateLegacyRegistry(path);
+    } else if (isVersionVolatileDbPath(path)) {
+      console.warn(
+        `[port-daddy] WARNING: registry path ${path} sits inside a version-pinned ` +
+          `install directory and WILL BE DELETED on the next upgrade. ` +
+          `Point PORT_DADDY_DB at a durable location (default: ${durableDbHomePath()}).`,
+      );
+    }
+    mkdirSync(dirname(path), { recursive: true });
+  }
 
   const db = new Database(path);
 
@@ -410,6 +767,16 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
   // Checkpoint every 200 pages instead of the default 1000.
   // Keeps the WAL file from growing unbounded between periodic cleanups.
   db.pragma('wal_autocheckpoint = 200');
+
+  // Incremental auto-vacuum so pruned rows actually return pages to the OS. Without this, retention
+  // DELETEs free pages onto the freelist but the FILE never shrinks — the root cause of a 231 MB
+  // registry DB that stayed 231 MB after pruning. INCREMENTAL (not FULL) keeps checkpoints cheap;
+  // the RetentionRegistry.reclaim() step calls `PRAGMA incremental_vacuum` to hand pages back.
+  // CAVEAT: on an ALREADY-POPULATED DB created with auto_vacuum=NONE this pragma is a no-op until a
+  // one-time `VACUUM` rewrites the file — new per-instance DBs get it for free; existing DBs need
+  // that one-time VACUUM (see the retention migration note). Setting it before schema creation makes
+  // every fresh daemon DB incremental-vacuum-capable from birth.
+  db.pragma('auto_vacuum = INCREMENTAL');
 
   // Busy timeout: wait up to 5 seconds for locks instead of failing immediately
   // This is critical for concurrent CLI invocations sharing the same DB
@@ -493,7 +860,42 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
     );
   }
 
-  return db;
+  // Soft-delete tombstone (multi-replica union-merge cannot propagate hard
+  // deletes — a row deleted in one replica resurrects from a stale one).
+  // Idempotent, PRAGMA-guarded like the planner columns above; the partial
+  // index is created here (not in CORE_SCHEMA_SQL) so legacy DBs get the
+  // column first.
+  try {
+    const roadmapColumns = db.prepare("PRAGMA table_info(roadmap_items)").all() as Array<{ name: string }>;
+    const hasDeletedAt = roadmapColumns.some(column => column.name === 'deleted_at');
+    if (!hasDeletedAt) {
+      db.prepare('ALTER TABLE roadmap_items ADD COLUMN deleted_at INTEGER').run();
+    }
+    db.prepare(
+      'CREATE INDEX IF NOT EXISTS idx_roadmap_items_live ON roadmap_items(harbor, status) WHERE deleted_at IS NULL'
+    ).run();
+  } catch (err) {
+    console.warn(
+      `[port-daddy] WARNING: Could not migrate roadmap_items deleted_at tombstone column: ${(err as Error).message}`
+    );
+  }
+
+  // Post-apply verification: probe the real schema objects before handing the
+  // handle out. The migration blocks above warn-and-continue; this is the
+  // fail-closed gate that stops a daemon from serving a broken registry.
+  verifyCoreSchema(db);
+
+  // The Door: a non-daemon opener gets a write-guarded handle so a mutation
+  // attempted while the daemon is down (or by any non-owner) throws loudly
+  // instead of silently editing shared coordination truth. The daemon (default
+  // role) and the explicit PD_DIRECT_DB_OK=1 maintenance hatch keep raw write
+  // access. Idempotent schema DDL above runs on the raw handle during init and
+  // is intentionally NOT gated — a client that bootstraps a fresh DB still needs
+  // the schema; the door blocks the caller's subsequent coordination mutations,
+  // which is the actual bypass.
+  const role = options.role ?? 'daemon';
+  const ownerSemantics = role === 'daemon' || options.inMemory || process.env.PD_DIRECT_DB_OK === '1';
+  return ownerSemantics ? db : guardWrites(db);
 }
 
 /**

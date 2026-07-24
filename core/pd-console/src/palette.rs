@@ -103,37 +103,40 @@ const LIGHT: Theme = Theme {
     syn_number: 0xaa432e,
 };
 
-/// DARK — website dark cobalt/kelp plus coral heat and amber warning.
+/// DARK — the exact story-linework console roles from `ports/port.css`.
+/// Filled controls use the deep slab colors; text uses the brighter dark-mode
+/// counterparts. Keeping those two jobs separate is what stops the shell from
+/// collapsing into a generic bright-blue developer tool.
 const DARK: Theme = Theme {
     mode: ThemeMode::Dark,
-    bg: 0x101216,
-    panel: 0x181c22,
-    raised: 0x222833,
+    bg: 0x0b0d11,
+    panel: 0x101216,
+    raised: 0x181c22,
     sunken: 0x0b0d11,
     ink: 0xf5f3ed,
     ink2: 0xd3cec2,
     muted: 0xa59f93,
-    line: 0x3b4654,
-    line2: 0x6d7888,
-    accent: 0x7db4ff,
-    accent_ink: 0xa6cbff,
-    engaged: 0xf2be51,
-    gated: 0xff9c85,
-    landed: 0x8fd0a7,
-    resting: 0x7e8ba3,
+    line: 0x2a2f3a,
+    line2: 0x4a4f5c,
+    accent: 0x003fb8,
+    accent_ink: 0x7db4ff,
+    engaged: 0xcad900,
+    gated: 0xe0a5ed,
+    landed: 0x5fce97,
+    resting: 0x6f6a5f,
     conflict: 0xff7d7d,
     mayday: 0xff7d7d,
     cobalt: 0x7db4ff,
-    flag_charlie: 0x8fd0a7,
-    flag_kilo: 0x7db4ff,
+    flag_charlie: 0x5fce97,
+    flag_kilo: 0x003fb8,
     flag_uniform: 0xf2be51,
-    flag_november: 0xff9c85,
-    flag_lima: 0xa59f93,
+    flag_november: 0xff7d7d,
+    flag_lima: 0xe0a5ed,
     syn_keyword: 0x7db4ff,
     syn_type: 0xf2be51,
-    syn_string: 0x8fd0a7,
+    syn_string: 0x5fce97,
     syn_comment: 0xa59f93,
-    syn_number: 0xff9c85,
+    syn_number: 0xe0a5ed,
 };
 
 impl Theme {

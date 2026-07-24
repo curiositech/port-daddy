@@ -818,6 +818,7 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
           tagline: backend.tagline,
           recommended: Boolean(backend.recommended),
           pdUseCliBackendValue: backend.pdUseCliBackendValue,
+          adapter: backend.adapter,
           isForcedByEnv: forcedCliBackend === backend.id,
           readinessStatus: readiness.status,
           readinessSummary: readiness.summary,

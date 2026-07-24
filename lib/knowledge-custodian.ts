@@ -18,6 +18,16 @@
 import type { Database } from 'better-sqlite3';
 import { harvestSession } from './session-harvest.js';
 import { createOperatorPermissions, type OperatorPermissions } from './operator-permissions.js';
+import { isSubscriptionBackend } from './backend-catalog.js';
+
+/** Capability tier the escalation guard reasons about. `high` always forces HITL. */
+export type ResurrectTier = 'fast' | 'high';
+
+/** Real projected cost/tier of a resurrect respawn (replaces the old $0.02 constant). */
+export interface ResurrectCostProjection {
+  estimatedCostUsd: number;
+  tier: ResurrectTier;
+}
 
 interface CustodianLogger {
   info(msg: string, meta?: Record<string, unknown>): void;
@@ -36,14 +46,9 @@ interface CustodianDeps {
   messaging?: {
     publish(channel: string, payload: Record<string, unknown>): void;
   };
-  /** resurrection module for listing stale agents */
+  /** resurrection module — used here only to purge long-stale queue entries */
   resurrection?: {
-    getQueue(filter?: { status?: string }): Array<{
-      id: string;
-      agentId: string;
-      metadata?: Record<string, unknown>;
-    }>;
-    markDead(id: string): void;
+    cleanup(olderThan?: number): { cleaned: number };
   };
   /** context window tracker for pressure-level queries */
   contextTracker?: {
@@ -202,44 +207,119 @@ export class KnowledgeCustodian {
 
   // ─── Duty: resurrect (event-driven on agent:dead) ────────────────────────────
 
-  async onAgentDead(agentId: string, capsule?: Record<string, unknown>): Promise<void> {
+  async onAgentDead(
+    agentId: string,
+    identityProject: string,            // AUTHENTICATED scope from the StaleAgent record — trusted
+    capsule?: Record<string, unknown>,  // FORGEABLE self-salvage payload — respawn context ONLY
+  ): Promise<void> {
     const { deps } = this;
     if (!deps.messaging) return;
 
-    const estimatedCostUsd = 0.02;
-    const identityProject = (capsule?.identityProject as string) ?? '';
-    const policy = this.operatorPermissions.check('resurrect', identityProject, estimatedCostUsd);
+    // TRUST BOUNDARY (ADR-0040): the authorization scope comes from the daemon-owned
+    // StaleAgent.identityProject, NEVER from the attacker-controllable capsule. A forged
+    // `capsule.identityProject` cannot influence the permission check because scope is a
+    // distinct positional argument the caller supplies from the verified agent record.
+    const scope = identityProject ?? '';
 
-    if (policy === 'deny') {
-      deps.logger.info('Custodian resurrect blocked by policy', { agentId });
-      return;
+    // Real projected cost/tier for THIS resurrect spawn (replaces the hardcoded $0.02
+    // constant that operator-permissions.check() ignored entirely).
+    const { estimatedCostUsd, tier } = this.projectResurrectCost(agentId);
+
+    let policy = this.operatorPermissions.check('resurrect', scope, estimatedCostUsd);
+
+    // Escalation guard (defense-in-depth): an empty/unknown identity — which the
+    // operator-permissions store matches with the wildcard `''` → `'%'` prefix, i.e.
+    // every project — or a high-cost tier can NEVER silently auto-resurrect. Force HITL.
+    // This closes the empty-prefix escalation-by-aggregation path even if an `''` pattern
+    // was somehow flipped to `'auto'`.
+    if (policy === 'auto' && (!scope || tier === 'high')) policy = 'ask';
+
+    switch (policy) {
+      case 'deny':
+        deps.logger.info('Custodian resurrect blocked by policy', { agentId, scope });
+        return;
+      case 'ask':
+        deps.messaging.publish('operator:approvals', {
+          type: 'resurrect_request',
+          agentId,
+          identityProject: scope,
+          estimatedCostUsd,
+          tier,
+          capsule,
+          requestedAt: new Date().toISOString(),
+          message: `Agent ${agentId} died. Resurrect ${scope || '(unknown project)'}? (est. $${estimatedCostUsd.toFixed(3)}, tier: ${tier})`,
+        });
+        this.lastDuty.resurrect = Date.now();
+        return;
+      case 'auto':
+        // capsule is passed through as respawn context ONLY — never as identity.
+        await this.doResurrect(agentId, capsule);
+        this.lastDuty.resurrect = Date.now();
+        return;
+      default: {
+        // Exhaustiveness: every PermissionPolicy is handled above.
+        const _exhaustive: never = policy;
+        return _exhaustive;
+      }
     }
-
-    if (policy === 'ask') {
-      deps.messaging.publish('operator:approvals', {
-        type: 'resurrect_request',
-        agentId,
-        identityProject,
-        estimatedCostUsd,
-        capsule,
-        requestedAt: new Date().toISOString(),
-        message: `Agent ${agentId} died. Resurrect? (est. cost: $${estimatedCostUsd.toFixed(3)})`,
-      });
-      this.lastDuty.resurrect = Date.now();
-      return;
-    }
-
-    // auto: spawn immediately with capsule in context
-    await this.doResurrect(agentId, capsule);
-    this.lastDuty.resurrect = Date.now();
   }
 
-  async resolveResurrection(agentId: string, decision: 'approved' | 'denied', capsule?: Record<string, unknown>): Promise<void> {
-    const identityProject = (capsule?.identityProject as string) ?? '';
-    this.operatorPermissions.record('resurrect', identityProject, 0.02, decision);
+  async resolveResurrection(
+    agentId: string,
+    identityProject: string,             // AUTHENTICATED scope echoed back from the stored request
+    decision: 'approved' | 'denied',
+    capsule?: Record<string, unknown>,   // respawn context ONLY
+    costUsd = 0,
+  ): Promise<void> {
+    // Scope is the trusted `identityProject` from the approval request we published
+    // (which carried the authenticated scope), NOT re-derived from the forgeable capsule.
+    this.operatorPermissions.record('resurrect', identityProject ?? '', costUsd, decision);
 
     if (decision === 'approved') {
       await this.doResurrect(agentId, capsule);
+    }
+  }
+
+  /**
+   * Project the cost/tier of resurrecting `agentId`, grounded in the agent's most recent
+   * real spend rather than a hardcoded constant. Subscription (`cli:*`) backends project
+   * ~$0 at `fast` tier (marginal cost to the operator's wallet is zero); metered backends
+   * project their recent per-spawn spend and escalate to `high` tier once that spend
+   * crosses the HITL threshold. The `tier` is what the escalation guard gates on, so a
+   * high-cost or unknown resurrect always requires an operator gate.
+   */
+  private projectResurrectCost(agentId: string): ResurrectCostProjection {
+    const HIGH_TIER_USD = 0.10;
+    try {
+      const agent = this.db.prepare(
+        `SELECT identity_project FROM agents WHERE id = ?`
+      ).get(agentId) as { identity_project: string | null } | undefined;
+
+      const project = agent?.identity_project ?? null;
+      // Most recent settled spend for this agent's project — the best available signal
+      // for what a respawn under the same backend will cost.
+      const recent = project
+        ? (this.db.prepare(
+            `SELECT backend, cost_usd FROM cost_events
+             WHERE project_name = ? ORDER BY ts DESC LIMIT 1`
+          ).get(project) as { backend: string; cost_usd: number } | undefined)
+        : undefined;
+
+      if (!recent) {
+        // No spend history — conservative default. `fast` tier, small nonzero estimate.
+        return { estimatedCostUsd: 0.05, tier: 'fast' };
+      }
+
+      if (isSubscriptionBackend(recent.backend)) {
+        return { estimatedCostUsd: 0.001, tier: 'fast' };
+      }
+
+      const estimatedCostUsd = recent.cost_usd > 0 ? recent.cost_usd : 0.05;
+      return { estimatedCostUsd, tier: estimatedCostUsd >= HIGH_TIER_USD ? 'high' : 'fast' };
+    } catch {
+      // Any query failure fails cautious: a small estimate at `fast` tier still gates on
+      // the empty-scope branch of the escalation guard when scope is unknown.
+      return { estimatedCostUsd: 0.05, tier: 'fast' };
     }
   }
 
@@ -363,16 +443,16 @@ export class KnowledgeCustodian {
     // Archive expired episodes
     const archived = deps.episodicMemory.archiveExpired();
 
-    // Mark stale resurrection queue entries (pending > 30 days)
+    // Purge resurrection queue entries older than 30 days. This previously
+    // hand-rolled a filter+mark loop against a `getQueue`/`markDead` interface
+    // that never existed on the real resurrection module (lib/resurrection.ts
+    // exposes `cleanup`, not those two) — an `as any` cast at the server.ts
+    // wiring site hid the type mismatch, and the resulting TypeError crashed
+    // the whole daemon process the first time this 6-hourly duty fired after
+    // any entry aged past the threshold. `cleanup()` is the module's own
+    // purpose-built method for exactly this.
     if (deps.resurrection) {
-      const staleThreshold = Date.now() - 30 * 24 * 60 * 60 * 1000;
-      const pending = deps.resurrection.getQueue({ status: 'pending' });
-      for (const entry of pending) {
-        const detectedAt = entry.metadata?.detectedAt;
-        if (typeof detectedAt === 'number' && detectedAt < staleThreshold) {
-          deps.resurrection.markDead(entry.id);
-        }
-      }
+      deps.resurrection.cleanup(30 * 24 * 60 * 60 * 1000);
     }
 
     // Harvest + abandon sessions inactive > 7 days

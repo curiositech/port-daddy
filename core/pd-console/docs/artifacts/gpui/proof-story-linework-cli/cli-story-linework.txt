@@ -1,0 +1,9 @@
+┌  pd-console  conversation multiplexer · on the PD bus
+│  daemon http://127.0.0.1:9876
+└  :harness <backend> <prompt> · :new <backend> <prompt> · :agents · :switch <n> · :lane · :lane-message <text> · :harbor · :quit
+
+»
+  ┌▉▉ Fleet — Ship Lifecycle ────────────────────────
+  ▏ status             no fleet running — `pd fleet up` to launch ships
+  └
+» out.

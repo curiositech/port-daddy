@@ -237,6 +237,20 @@ describe('Daemon berth registry (self-registration)', () => {
     });
   });
 
+  test('registerDaemonBerth carries the state plane into the registry record (S1)', () => {
+    const file = tempRegistryFile();
+    registerDaemonBerth(identity({ plane: 'ephemeral:pd-feat-x' }), process.pid, { registryFile: file });
+    const records = readDaemonBerthRegistry(file);
+    expect(records).toHaveLength(1);
+    expect(records[0].plane).toBe('ephemeral:pd-feat-x');
+  });
+
+  test('registerDaemonBerth omits plane when the identity has none (legacy)', () => {
+    const file = tempRegistryFile();
+    registerDaemonBerth(identity(), process.pid, { registryFile: file });
+    expect(readDaemonBerthRegistry(file)[0].plane).toBeUndefined();
+  });
+
   test('registerDaemonBerth is a no-op for the stable tier (never recorded)', () => {
     const file = tempRegistryFile();
     registerDaemonBerth(identity({ tier: 'stable', label: 'stable' }), process.pid, { registryFile: file });

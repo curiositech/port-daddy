@@ -49,6 +49,19 @@ export function capabilityForTier(tier: string | null | undefined): Capability {
   return (alias as Capability) || DEFAULT_CAPABILITY;
 }
 
+/**
+ * Resolve a backend alias (`anthropic`, `claude-cli`, …) to its canonical
+ * family key (`claude`) via `backendAliases`. Unaliased backends pass
+ * through unchanged. This is the ONE place backend-name aliasing happens —
+ * every caller (registry lookups, the Rust console's generated tier table,
+ * agent-harbor's tier policy) goes through here rather than re-deriving its
+ * own claude/anthropic/claude-cli equivalence.
+ */
+export function canonicalBackend(backend: string): string {
+  const reg = load();
+  return reg.backendAliases[backend] || backend;
+}
+
 export interface ResolveModelOptions {
   /** The backend/provider key, e.g. 'anthropic' | 'claude-cli' | 'cloudflare'. */
   backend: string;
@@ -68,6 +81,8 @@ const BACKEND_NAME_PLACEHOLDERS = new Set([
   'claude-code',
   'claude-cli',
   'codex',
+  'agy',
+  'agy-cli',
   'gemini',
   'groq',
   'grok',
@@ -90,11 +105,12 @@ export function resolveModel(opts: ResolveModelOptions): string {
   }
 
   const reg = load();
-  const table = reg.backends[opts.backend];
+  const table = reg.backends[canonicalBackend(opts.backend)];
   if (!table) {
     throw new Error(
       `model-registry: no backend "${opts.backend}" in lib/model-registry-data.ts. ` +
-        `Known backends: ${Object.keys(reg.backends).join(', ')}. ` +
+        `Known backends: ${Object.keys(reg.backends).join(', ')} ` +
+        `(plus aliases: ${Object.keys(reg.backendAliases).join(', ')}). ` +
         `Add it to the registry — do not hardcode a model ID at the call site.`,
     );
   }

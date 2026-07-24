@@ -53,8 +53,45 @@ jobs:
       - name: Build dedicated daemon binary
         run: npm run build:daemon:dist
 
+      # Bosun is now a REQUIRED watchdog: the compiled-daemon smoke runs `pd doctor`,
+      # which criticals a missing supervisor. Build it BEFORE the smoke so the booted
+      # daemon resolves core/target/release/pd-bosun. (The step below also stages it
+      # flat into dist/ for the release tarball.)
+      - name: Install Rust toolchain (for pd-bosun watchdog)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build pd-bosun before the smoke (required watchdog)
+        run: npm run build:bosun
+
       - name: Smoke dedicated daemon binary
         run: bash scripts/smoke-compiled-daemon.sh
+
+      # Bosun is the daemon's out-of-process supervisor (ADR-0036). It MUST ship
+      # in the same artifact as the daemon so `port-daddy install` can co-load a
+      # KeepAlive launchd/systemd job that restarts a dead daemon (2026-07-14
+      # halt-mandate). Before this step the release tar carried only pd +
+      # port-daddy, so a brew install had NO bosun binary — install-daemon.ts's
+      # BOSUN_BINARY_PATH resolved to a missing binary and the supervisor was
+      # silently skipped. The binary is tiny (~200kB, zero-dep Rust).
+      - name: Install Rust toolchain (for pd-bosun)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build + stage pd-bosun (daemon supervisor)
+        run: |
+          set -euo pipefail
+          cargo build --manifest-path core/pd-bosun/Cargo.toml --release -j 1
+          # `core/` is a Cargo WORKSPACE → the member build lands in the shared
+          # workspace target dir core/target/release, NOT core/pd-bosun/target.
+          # Stage FLAT as dist/pd-bosun (next to pd/port-daddy) — a collision-free
+          # install path that does NOT shadow the source-tree `core/pd-bosun/`
+          # DIRECTORY. install-daemon.ts resolves `<root>/pd-bosun` first.
+          cp core/target/release/pd-bosun dist/pd-bosun
+          chmod +x dist/pd-bosun
+          # Fail the release if the supervisor binary is missing/empty — a daemon
+          # that ships without its watchdog is exactly the silent-death regression
+          # this PR closes.
+          test -s dist/pd-bosun
+          ./dist/pd-bosun status || true  # smoke: the binary at least runs
 
       # Sign the macOS daemon + launcher with the Curiositech LLC (P5H9P59X2M)
       # Developer ID, reusing scripts/sign-and-notarize.mjs — the same proven path
@@ -138,7 +175,28 @@ jobs:
         run: bash scripts/soak-binary.sh dist/port-daddy
 
       - name: Package binary
-        run: cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json
+        # Ship pd-bosun (core/pd-bosun) inside the same tar as the daemon so a
+        # brew/tarball install lands the supervisor at <root>/core/pd-bosun,
+        # exactly where install-daemon.ts's BOSUN_BINARY_PATH looks (it prefers
+        # dist/core/pd-bosun, then core/pd-bosun/... — the extracted `core/`
+        # dir satisfies the daemon-relative fallback). Without this the tarball
+        # had no watchdog and the KeepAlive supervisor job was silently skipped.
+        #
+        # Also ship native/ — scripts/build-single-binary.mjs packages
+        # onnxruntime-node's runtime library (libonnxruntime.*.dylib /
+        # libonnxruntime.so.1) there (#3561). bun build --compile extracts the
+        # .node N-API binding at runtime but not its @rpath-linked sibling;
+        # lib/semantic-resolver.ts points DYLD_FALLBACK_LIBRARY_PATH /
+        # LD_LIBRARY_PATH at this directory before the embedding model loads.
+        #
+        # And ship the Giant Squid Harness tentacles (bin/pd-hook-*) next to
+        # `pd` so `pd squid`/`pd hooks` work from a compiled install — the
+        # adapter resolves them from dirname(process.execPath). Portable POSIX
+        # shell scripts (no runtime), so a flat copy is enough.
+        run: |
+          cp bin/pd-hook-prompt bin/pd-hook-pre-tool bin/pd-hook-post-tool dist/
+          chmod +x dist/pd-hook-prompt dist/pd-hook-pre-tool dist/pd-hook-post-tool
+          cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json pd-bosun native pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2
@@ -216,9 +274,21 @@ jobs:
         # secret is present, the produced .app MUST carry a Developer ID signature.
         # Without this, a future regression silently reverts to an unsigned,
         # Gatekeeper-quarantined .app (the v3.21.0 state this PR fixes).
-        if: ${{ secrets.APPLE_CERT_P12_BASE64 != '' }}
+        #
+        # GATE IN BASH, NOT IN `if:`. A step-level `if: ${{ secrets.X != '' }}`
+        # is rejected by GitHub's workflow parser ("Unrecognized named-value:
+        # 'secrets'") — this exact line made the whole workflow invalid and
+        # silently killed the v3.25.0 release trigger (an invalid workflow
+        # produces NO run on release.published). Same env-gated pattern as
+        # the packaging step above.
+        env:
+          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
         run: |
           set -euo pipefail
+          if [ -z "${APPLE_CERT_P12_BASE64:-}" ]; then
+            echo "APPLE_CERT_P12_BASE64 unset — signature guard skipped (unsigned build path)."
+            exit 0
+          fi
           zip="$(ls dist/fleetbar/PortDaddy-FleetBar-macOS-*.zip | head -n1)"
           work="$RUNNER_TEMP/fleetbar-verify"; rm -rf "$work"; mkdir -p "$work"
           ditto -x -k "$zip" "$work"

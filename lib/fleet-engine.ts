@@ -10,8 +10,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
-import { DEFAULT_OPERATOR_CLAUDE_MODEL, DEFAULT_OPERATOR_CODEX_MODEL } from './backend-telemetry-policy.js';
-import { resolveModel } from './model-registry.js';
 import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import { get as httpGet } from 'node:http';
 import { parse as parseYaml } from 'yaml';
@@ -24,7 +22,7 @@ import type { SemanticResolver } from './semantic-resolver.js';
 import type { Tuple, TupleSpace } from './tuples.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { buildPortDaddyShellCommand, resolvePortDaddyInvocation } from './port-daddy-command.js';
-import { resolveRawBackendName, resolveLLMBackend } from './llm-backend-resolver.js';
+import { resolveLLMBackend } from './llm-backend-resolver.js';
 import { createLLMClient } from './llm-call.js';
 import { transportToAdapter } from './coordination-judge.js';
 import { IoDispatch, type DispatchOutputResult, type IoDispatchDeps } from './fleet/io-dispatch.js';
@@ -39,6 +37,24 @@ import {
   toExecSnippet,
   getCommandLineForPid,
 } from './watcher-pid-registry.js';
+import {
+  cleanEnvValue,
+  parseModelTier,
+  parseYamlModelTier,
+  resolveFleetAgentRuntime,
+  type FleetModelTier,
+  type FleetRuntimeTarget,
+  type ResolvedFleetAgentRuntime,
+} from './fleet-runtime.js';
+export {
+  BUILTIN_MODEL_TIERS,
+  getFleetRuntimeDefaults,
+  resolveFleetAgentRuntime,
+  type FleetModelTier,
+  type FleetRuntimeDefaults,
+  type FleetRuntimeTarget,
+  type ResolvedFleetAgentRuntime,
+} from './fleet-runtime.js';
 
 /**
  * Durable sidecar tracking external `pd watch --exec` children spawned by
@@ -140,28 +156,6 @@ export interface FleetConfig {
  */
 export interface FleetTrustConfig {
   allowlistedAuthors?: string[];
-}
-
-export interface FleetRuntimeDefaults {
-  backend?: string;
-  model?: string;
-}
-
-export type FleetModelTier = 'low' | 'mid' | 'high';
-
-export interface FleetRuntimeTarget {
-  backend?: string;
-  model?: string;
-  modelTier?: FleetModelTier;
-}
-
-export interface ResolvedFleetAgentRuntime {
-  backend: string | null;
-  model?: string;
-  modelTier?: FleetModelTier;
-  backendSource: 'agent' | 'env' | 'missing';
-  modelSource: 'agent' | 'tier' | 'env' | 'unset';
-  warnings: string[];
 }
 
 export interface FleetRunContext {
@@ -325,43 +319,6 @@ function getTemplateVars(projectDir: string, projectName?: string, includeGitVar
 // ─── Fleet Config Loader ────────────────────────────────────────────────────
 
 const FLEET_CONFIG_NAMES = ['pd-fleet.yml', 'pd-fleet.yaml', '.portdaddy/fleet.yml', '.portdaddy/fleet.yaml'];
-const MODEL_TIERS = new Set<FleetModelTier>(['low', 'mid', 'high']);
-
-// API-backed backends derive their low/mid/high tiers from the declarative
-// registry (lib/model-registry-data.ts) via resolveModel — NO hardcoded model
-// IDs here (operator directive 2026-06-15; see lib/model-registry.ts + ADR-0057).
-// The map shape is preserved for back-compat with routes/fleet.ts importers.
-const REGISTRY_TIER_BACKENDS = ['claude', 'codex', 'gemini', 'openai', 'groq', 'cloudflare', 'aider'] as const;
-
-// Genuinely-special forms the registry does NOT govern: claude-cli takes the
-// CLI's short aliases (`--model sonnet`), ollama takes LOCAL model names, custom
-// is a placeholder triple. These are stable CLI/local identifiers, not churning
-// API model IDs, so they stay literal (and are allowlisted in the
-// no-hardcoded-model-ids guard).
-const SPECIAL_FORM_MODEL_TIERS: Record<string, Record<FleetModelTier, string>> = {
-  'claude-cli': { low: 'haiku', mid: 'sonnet', high: 'opus' },
-  ollama: { low: 'qwen2.5-coder:7b', mid: 'llama3.1:8b', high: 'qwen2.5-coder:14b' },
-  custom: { low: 'custom-low', mid: 'custom-mid', high: 'custom-high' },
-};
-
-function tierMapFromRegistry(backend: string): Record<FleetModelTier, string> {
-  return {
-    low: resolveModel({ backend, tier: 'low' }),
-    mid: resolveModel({ backend, tier: 'mid' }),
-    high: resolveModel({ backend, tier: 'high' }),
-  };
-}
-
-export const BUILTIN_MODEL_TIERS: Partial<Record<string, Record<FleetModelTier, string>>> = {
-  ...Object.fromEntries(REGISTRY_TIER_BACKENDS.map((b) => [b, tierMapFromRegistry(b)])),
-  ...SPECIAL_FORM_MODEL_TIERS,
-};
-
-function cleanEnvValue(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
-}
-
 function normalizeBudgetUsdPerDay(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value > 0
     ? value
@@ -380,39 +337,6 @@ function normalizeBackoffMultiplier(value: unknown): number | undefined {
     : undefined;
 }
 
-function parseModelTier(value: string | undefined): FleetModelTier | undefined {
-  const normalized = cleanEnvValue(value)?.toLowerCase() as FleetModelTier | undefined;
-  return normalized && MODEL_TIERS.has(normalized) ? normalized : undefined;
-}
-
-function parseYamlModelTier(value: { model_tier?: string; modelTier?: string } | undefined): FleetModelTier | undefined {
-  return parseModelTier(value?.model_tier) || parseModelTier(value?.modelTier);
-}
-
-function normalizeBackendEnvKey(backend: string): string {
-  return backend.replace(/[^a-zA-Z0-9]+/g, '_').toUpperCase();
-}
-
-function resolveTierModel(backend: string, modelTier: FleetModelTier): string | undefined {
-  const envKey = `PD_MODEL_TIER_${normalizeBackendEnvKey(backend)}_${modelTier.toUpperCase()}`;
-  const legacyEnvKey = `PORT_DADDY_MODEL_TIER_${normalizeBackendEnvKey(backend)}_${modelTier.toUpperCase()}`;
-  return cleanEnvValue(process.env[envKey])
-    || cleanEnvValue(process.env[legacyEnvKey])
-    || BUILTIN_MODEL_TIERS[backend]?.[modelTier];
-}
-
-export function getFleetRuntimeDefaults(): FleetRuntimeDefaults {
-  // Backend name comes from the unified resolver in lib/llm-backend-resolver.ts
-  // — same env cascade every actor uses. Spawn-shape needs the raw form so it
-  // can distinguish "claude" (SDK) from "claude-cli" (CLI subprocess).
-  const { raw } = resolveRawBackendName();
-  return {
-    backend: raw ?? undefined,
-    model: cleanEnvValue(process.env.PD_FLEET_DEFAULT_MODEL)
-      || cleanEnvValue(process.env.PORT_DADDY_FLEET_DEFAULT_MODEL),
-  };
-}
-
 function mergeRuntimeTarget(agent: Pick<FleetAgent, 'backend' | 'model' | 'modelTier'>, override?: FleetRuntimeTarget): FleetRuntimeTarget {
   const overrideBackend = cleanEnvValue(override?.backend);
   const baseBackend = cleanEnvValue(agent.backend);
@@ -421,51 +345,6 @@ function mergeRuntimeTarget(agent: Pick<FleetAgent, 'backend' | 'model' | 'model
     backend: overrideBackend || baseBackend,
     model: cleanEnvValue(override?.model) || (sameBackend ? cleanEnvValue(agent.model) : undefined),
     modelTier: parseModelTier(override?.modelTier) || (sameBackend ? parseModelTier(agent.modelTier) : undefined),
-  };
-}
-
-export function resolveFleetAgentRuntime(agent: Pick<FleetAgent, 'backend' | 'model' | 'modelTier'> | FleetRuntimeTarget): ResolvedFleetAgentRuntime {
-  const defaults = getFleetRuntimeDefaults();
-  const explicitBackend = cleanEnvValue(agent.backend);
-  const explicitModel = cleanEnvValue(agent.model);
-  const explicitModelTier = parseModelTier(agent.modelTier);
-  const backend = explicitBackend || defaults.backend || null;
-  const tierModel = backend && explicitModelTier ? resolveTierModel(backend, explicitModelTier) : undefined;
-  let model = explicitModel || tierModel || defaults.model;
-
-  // A local-CLI backend with no real model resolves its model to the backend's
-  // own bare name ("cli:claude-code" → "claude-code"). That placeholder has no
-  // cost-rate entry, so pricing falls back to an estimate and the exact-telemetry
-  // gate blocks the launch — and the CLI itself rejects it ("model not
-  // supported"). Substitute the rate-backed operator default so the CLI
-  // invocation and the cost calculation agree on a real, priceable model.
-  const CLI_MODEL_PLACEHOLDERS = new Set(['claude-code', 'codex', 'gemini', 'groq', 'grok']);
-  if (backend && (!model || CLI_MODEL_PLACEHOLDERS.has(model))) {
-    if (backend === 'cli:claude-code' || backend === 'claude-cli' || backend === 'claude') {
-      model = DEFAULT_OPERATOR_CLAUDE_MODEL;
-    } else if (backend === 'cli:codex' || backend === 'codex') {
-      model = DEFAULT_OPERATOR_CODEX_MODEL;
-    }
-  }
-
-  const warnings: string[] = [];
-
-  if (!backend) {
-    warnings.push('missing backend; set agent.backend or PD_FLEET_DEFAULT_BACKEND');
-  }
-  if (backend && explicitModelTier && !tierModel) {
-    warnings.push(`no model mapping for ${backend}/${explicitModelTier}; set model explicitly or define PD_MODEL_TIER_${normalizeBackendEnvKey(backend)}_${explicitModelTier.toUpperCase()}`);
-  } else if (backend === 'claude-cli' && !model) {
-    warnings.push('model not pinned; claude-cli will use its local default');
-  }
-
-  return {
-    backend,
-    model,
-    modelTier: explicitModelTier,
-    backendSource: explicitBackend ? 'agent' : defaults.backend ? 'env' : 'missing',
-    modelSource: explicitModel ? 'agent' : tierModel ? 'tier' : defaults.model ? 'env' : 'unset',
-    warnings,
   };
 }
 

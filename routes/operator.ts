@@ -17,6 +17,14 @@ import { readMissions } from '../lib/cockpit-missions.js';
 import type { CoordinationState } from '../lib/maritime-signals.js';
 import { signalFor, ICS_MEANING } from '../lib/maritime-signals.js';
 import type { createBonds } from '../lib/bonds.js';
+import type { Transcripts } from '../lib/transcripts.js';
+import {
+  buildTranscriptEmergencyFromSources,
+  parseTranscriptEmergencyPositiveIntQuery,
+  TRANSCRIPT_EMERGENCY_STATE,
+  type TranscriptEmergencyReport,
+  type TranscriptEmergencySourceDeps,
+} from '../lib/transcript-emergency.js';
 
 type AgentsManager = ReturnType<typeof createAgents>;
 type RegistryAgentEntry = ReturnType<AgentsManager['list']>['agents'][number];
@@ -88,6 +96,8 @@ interface OperatorRouteDeps {
   dispatchQueue?: DispatchQueueManager;
   roadmapItems?: RoadmapItemsManager;
   bonds?: BondsManager;
+  transcripts?: Pick<Transcripts, 'listTranscripts' | 'getTranscript'>;
+  cloudAppTelemetry?: TranscriptEmergencySourceDeps['cloudAppTelemetry'];
 }
 
 interface OpenFileBody {
@@ -1198,7 +1208,7 @@ function buildOperatorActors(
  */
 interface NeedsYouItem {
   /** Machine-readable code for the consumer to key on. */
-  code: 'dispatch_review' | 'guard_violation' | 'budget_ceiling' | 'salvage' | 'stuck_agent' | 'roadmap_now' | 'inbox';
+  code: 'dispatch_review' | 'transcript_emergency' | 'guard_violation' | 'budget_ceiling' | 'salvage' | 'stuck_agent' | 'roadmap_now' | 'inbox';
   /** Human-readable label for FleetBar / console. */
   label: string;
   /** Concrete next step — a pd command or a URL route. */
@@ -1316,6 +1326,7 @@ function cachedGuardCheck(projectDir: string): CoordinationGuardCheck | null {
  *
  * Rules (applied in order; lower `priority` = more urgent):
  *   0 · dispatch_review  — dispatches in `review_pending` state (operator must accept/reject)
+ *   1 · transcript_emergency — transcript flow/write failures require HITL
  *   1 · guard_violation  — guard is installed+enforcing but its last check found violations
  *   2 · budget_ceiling   — any active project is at or over its daily budget
  *   3 · salvage          — agents in the salvage queue
@@ -1333,6 +1344,7 @@ function buildNeedsYou(
   projectName: string | null,
   projectDir: string | null,
   guardStatus: (CoordinationGuardStatus & { available: boolean }) | null,
+  transcriptEmergency: TranscriptEmergencyReport,
 ): NeedsYouItem[] {
   const items: NeedsYouItem[] = [];
 
@@ -1349,6 +1361,23 @@ function buildNeedsYou(
         meta: { count: awaitingReview.length, ids },
       });
     }
+  }
+
+  // 1 · transcript_emergency — transcript flow/write failures require HITL.
+  if (transcriptEmergency.hitlEmergency) {
+    const emergencyRecords = transcriptEmergency.records.filter((record) => record.state === TRANSCRIPT_EMERGENCY_STATE.EMERGENCY);
+    items.push({
+      code: 'transcript_emergency',
+      label: `Transcript emergency: ${transcriptEmergency.summary.hitl} HITL issue${transcriptEmergency.summary.hitl === 1 ? '' : 's'}`,
+      action: '/transcripts/emergency',
+      priority: 1,
+      meta: {
+        state: transcriptEmergency.state,
+        issues: transcriptEmergency.summary.issues,
+        hitl: transcriptEmergency.summary.hitl,
+        kinds: emergencyRecords.map((record) => record.kind),
+      },
+    });
   }
 
   // 1 · guard_violation — guard is enforcing and has current violations.
@@ -1521,6 +1550,8 @@ interface OperatorStateQuery {
   project?: string;
   projectDir?: string;
   limit?: string;
+  stallAfterMs?: string;
+  transcriptSinceMs?: string;
 }
 
 export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = async (fastify, opts) => {
@@ -1738,7 +1769,11 @@ export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = a
       }
 
       // ── needsYou ranking ─────────────────────────────────────────────────────
-      const needsYou = buildNeedsYou(opts.deps, projectName, projectDir, guard);
+      const transcriptEmergency = buildTranscriptEmergencyFromSources(opts.deps, {
+        stallAfterMs: parseTranscriptEmergencyPositiveIntQuery(query.stallAfterMs),
+        cloudSinceMs: parseTranscriptEmergencyPositiveIntQuery(query.transcriptSinceMs),
+      });
+      const needsYou = buildNeedsYou(opts.deps, projectName, projectDir, guard, transcriptEmergency);
 
       // ── maritime signals ─────────────────────────────────────────────────────
       // Actionable signals only (non-idle, non-fleet-healthy), derived from the
@@ -1759,6 +1794,7 @@ export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = a
           count: actorsResult.actors.length,
         },
         needsYou,
+        transcriptEmergency,
         guard,
         fleetSignal,
       };

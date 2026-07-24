@@ -7,11 +7,12 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify';
-import type { SpawnSpec, Spawner } from '../lib/spawner.js';
+import type { BackendOverrideSource, SpawnSpec, Spawner } from '../lib/spawner.js';
 import { assessSpawnPreflight } from '../lib/spawn-preflight.js';
 import type { CostTracker } from '../lib/cost-tracker.js';
-import type { FleetModelTier, FleetRuntimeTarget } from '../lib/fleet-engine.js';
+import { resolveFleetAgentRuntime, type FleetModelTier, type FleetRuntimeTarget } from '../lib/fleet-runtime.js';
 import { validateChannel } from '../shared/validators.js';
+import { KNOWN_BACKEND_IDS } from '../lib/backend-catalog.js';
 
 interface SpawnRouteDeps {
   spawner: Spawner;
@@ -23,8 +24,32 @@ interface SpawnRouteDeps {
   };
 }
 
-const VALID_BACKENDS = new Set(['ollama', 'lmstudio', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'openai', 'groq', 'deepseek', 'xai', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok']);
+// The backend-id set is declared ONCE in lib/backend-catalog.ts
+// (BACKEND_CATALOG / KNOWN_BACKEND_IDS) — this used to be a hand-maintained
+// duplicate that drifted from routes/sorties.ts, cli/commands/spawn.ts, and
+// lib/spawner.ts's own list (ADR-0057 model-abstraction unification).
+const VALID_BACKENDS = KNOWN_BACKEND_IDS;
 
+function backendOverrideSourceFromPreflight(source: unknown, forced: boolean): BackendOverrideSource {
+  if (!forced) return 'none';
+  if (source === 'env') return 'env';
+  if (source === 'persisted') return 'persisted';
+  return 'preflight';
+}
+
+function isFleetModelTier(value: unknown): value is FleetModelTier {
+  return value === 'low' || value === 'mid' || value === 'high';
+}
+
+function requestedModelFromRequest(
+  backend: string,
+  model: unknown,
+  modelTier: unknown,
+): string | undefined {
+  if (typeof model === 'string' && model.trim()) return model;
+  if (!isFleetModelTier(modelTier)) return undefined;
+  return resolveFleetAgentRuntime({ backend, modelTier }).model ?? undefined;
+}
 
 // ==========================================================================
 // Fastify plugin (dual-export)
@@ -43,6 +68,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         : typeof body.budgetUsd === 'string' && body.budgetUsd.trim()
           ? parseFloat(body.budgetUsd)
           : undefined;
+      const parsedBudgetUsd = Number.isFinite(budgetUsd) ? budgetUsd : undefined;
 
       const preflight = await assessSpawnPreflight({
         backend: typeof body.backend === 'string' ? body.backend : undefined,
@@ -50,7 +76,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         modelTier: typeof body.modelTier === 'string' ? body.modelTier as FleetModelTier : undefined,
         fallbacks,
         identity: typeof body.identity === 'string' ? body.identity : undefined,
-        budgetUsd: Number.isFinite(budgetUsd) ? budgetUsd : undefined,
+        ...(parsedBudgetUsd === undefined ? {} : { budgetUsd: parsedBudgetUsd }),
       }, { costTracker });
 
       return { success: true, ...preflight };
@@ -171,12 +197,13 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         : typeof rawBudgetUsd === 'string' && rawBudgetUsd.trim()
           ? parseFloat(rawBudgetUsd)
           : undefined;
+      const validBudgetUsd = Number.isFinite(parsedBudgetUsd) ? parsedBudgetUsd : undefined;
       const preflight = await assessSpawnPreflight({
         backend,
         model,
         modelTier: typeof modelTier === 'string' ? modelTier as FleetModelTier : undefined,
         identity,
-        budgetUsd: Number.isFinite(parsedBudgetUsd) ? parsedBudgetUsd : undefined,
+        ...(validBudgetUsd === undefined ? {} : { budgetUsd: validBudgetUsd }),
       }, { costTracker });
 
       if (!preflight.launchReady) {
@@ -189,15 +216,24 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         };
       }
 
+      const selectedAttempt = preflight.attempts[0];
+      const effectiveBackend = selectedAttempt?.backend || backend;
+      const backendWasForced = effectiveBackend !== backend;
       const spec: SpawnSpec = {
-        backend: backend as SpawnSpec['backend'],
+        backend: effectiveBackend as SpawnSpec['backend'],
         task: task.trim(),
       };
+      if (validBudgetUsd !== undefined) spec.budgetUsd = validBudgetUsd;
+      if (backendWasForced) {
+        spec.requestedBackend = backend as SpawnSpec['backend'];
+        spec.requestedModel = requestedModelFromRequest(backend, model, modelTier);
+        spec.backendOverrideSource = backendOverrideSourceFromPreflight(selectedAttempt?.backendSource, true);
+      }
 
-      if (model && typeof model === 'string') spec.model = model;
+      if (!backendWasForced && model && typeof model === 'string') spec.model = model;
       else if (preflight.attempts[0]?.model) spec.model = preflight.attempts[0].model;
       if (name && typeof name === 'string') spec.name = name;
-      if (typeof modelTier === 'string') spec.modelTier = modelTier as FleetModelTier;
+      if (!backendWasForced && typeof modelTier === 'string') spec.modelTier = modelTier as FleetModelTier;
       else if (preflight.attempts[0]?.modelTier) spec.modelTier = preflight.attempts[0].modelTier as FleetModelTier;
       if (identity && typeof identity === 'string') spec.identity = identity;
       if (purpose && typeof purpose === 'string') spec.purpose = purpose;
@@ -243,7 +279,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         status: result.status,
       });
 
-      return { success: true, ...result };
+      return { success: result.status === 'completed', ...result };
     } catch (error) {
       metrics.errors++;
       logger.error('spawn_error', { error: (error as Error).message });

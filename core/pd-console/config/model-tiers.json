@@ -1,21 +1,25 @@
 {
-  "_comment": "Single source of truth for provider capability tiers. The console reads this at spawn time and resolves (provider, tier) -> model id; nothing is compiled into the binary. Edit this file (or ~/.port-daddy/model-tiers.json, which overrides it) and the change takes effect on the next spawn — no rebuild. Every model id MUST exist in the daemon's cost-rate registry (lib/cost-tracker MODEL_RATES) or the launch fails closed with a 'no cost rate entry' message; when that happens, fix the id here. The 'low' tier of each provider mirrors the daemon's DEFAULT_OPERATOR_*_MODEL, which is guaranteed priced.",
-  "_tiers": ["high = most capable", "mid = balanced", "low = fast & cheap (daemon operator default)"],
+  "_comment": "Single source of truth for provider capability tiers. GENERATED from lib/model-registry-data.ts by scripts/generate-console-model-tiers.ts — do not hand-edit; run `npx tsx scripts/generate-console-model-tiers.ts --write` after changing the registry. Every model id MUST exist in the daemon's cost-rate registry (lib/cost-tracker MODEL_RATES) or the launch fails closed with a 'no cost rate entry' message; when that happens, fix the id in lib/model-registry-data.ts. The 'low' tier of each provider mirrors the daemon's DEFAULT_OPERATOR_*_MODEL, which is guaranteed priced.",
+  "_tiers": [
+    "high = most capable",
+    "mid = balanced",
+    "low = fast & cheap (daemon operator default)"
+  ],
   "providers": {
     "claude": {
-      "high": "claude-opus-4-8",
-      "mid": "claude-sonnet-4-6",
+      "high": "claude-opus-4-1-20250805",
+      "mid": "claude-sonnet-4-5-20250929",
       "low": "claude-haiku-4-5-20251001"
     },
     "gemini": {
-      "high": "gemini-3-pro",
+      "high": "gemini-2.5-pro",
       "mid": "gemini-2.5-flash",
       "low": "gemini-2.5-flash"
     },
     "groq": {
-      "high": "llama-3.3-70b-versatile",
+      "high": "openai/gpt-oss-120b",
       "mid": "llama-3.3-70b-versatile",
-      "low": "llama-3.1-8b-instant"
+      "low": "llama-3.3-70b-versatile"
     },
     "deepseek": {
       "_comment": "DeepSeek OpenAI-compatible API. deepseek-chat = V3 (general+coder), deepseek-reasoner = R1 (reasoning). 'low' mirrors DEFAULT_DEEPSEEK_MODEL (deepseek-chat) and is priced in cost-tracker MODEL_RATES.",
@@ -35,14 +39,14 @@
       "low": "gpt-5-mini"
     },
     "cloudflare": {
-      "high": "@cf/zai-org/glm-4.7-flash",
-      "mid": "@cf/zai-org/glm-4.7-flash",
+      "high": "@cf/moonshotai/kimi-k2-instruct",
+      "mid": "@cf/openai/gpt-oss-120b",
       "low": "@cf/zai-org/glm-4.7-flash"
     },
     "ollama": {
-      "high": "llama3.1:70b",
+      "high": "qwen2.5-coder:14b",
       "mid": "llama3.1:8b",
-      "low": "llama3.2:3b"
+      "low": "qwen2.5-coder:7b"
     },
     "lmstudio": {
       "_comment": "LM Studio serves whatever model is loaded in the app; the concrete id is resolved at runtime (GET /v1/models reports it). 'local-model' is the conventional placeholder and is priced by the daemon's lmstudio catch-all electricity-proxy rate, so every tier launches. Load 'Qwen 3 Next Coder' as the prime in LM Studio.",

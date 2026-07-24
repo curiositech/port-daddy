@@ -166,6 +166,10 @@ Contributor gotchas specific to these:
   the scratch root — the Coast Guard reclaim gate (`isReclaimableSandbox`)
   assumes disposable sandboxes live there and the operator's main checkout
   does not.
+- **No artifact means no reap.** A review launch may finish with useful dirty
+  files while push/PR publication returns no URL. The Conductor adapter must
+  route that outcome to `salvage` and preserve the worktree plus transcript.
+  `settled` is disposable only when `resultArtifact` proves the work is durable.
 - **`pd nightshift` must keep delegating.** The alias rewrites legacy flags
   (`--auto-queue` → `--auto-claim`, `--status` → `--state`) before calling
   `handleDispatch`. If you add a dispatch flag, check the alias still maps it.

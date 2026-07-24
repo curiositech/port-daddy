@@ -17,7 +17,7 @@
  */
 
 import { describe, expect, test, beforeEach, afterEach } from '@jest/globals';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, symlinkSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
@@ -467,17 +467,20 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     ).length;
 
     const procs = Array.from({ length: 8 }, (_, i) =>
-      new Promise<number>((res) => {
-        const child = spawnSync(bin('pd-hook-post-tool'), [], {
-          input: JSON.stringify({
+      new Promise<number>((resolveStatus) => {
+        const child = spawn(bin('pd-hook-post-tool'), [], {
+          env: { ...process.env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: `agent_${i}` },
+          stdio: ['pipe', 'ignore', 'ignore'],
+        });
+        child.once('error', () => resolveStatus(1));
+        child.once('close', (code) => resolveStatus(code ?? 1));
+        child.stdin.end(
+          JSON.stringify({
             tool_name: 'Edit',
             tool_input: { file_path: `/repo/src/file_${i}.ts` },
             cwd: '/repo',
           }),
-          env: { ...process.env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: `agent_${i}` },
-          encoding: 'utf8',
-        });
-        res(child.status ?? 1);
+        );
       }),
     );
     const codes = await Promise.all(procs);
@@ -492,6 +495,42 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     }
     const after = Object.keys(parseMatrix(raw)).filter((k) => k.startsWith('PD_PHEROMONE_')).length;
     expect(after).toBe(before + 8); // all 8 appends survived, none torn
+  });
+
+  test('post-tool lock retry exhaustion fails open with exactly one append', () => {
+    const matrix = seed();
+    mkdirSync(`${matrix}.lock`);
+    const fakeBin = join(SCRATCH, 'no-flock-fast-sleep-bin');
+    mkdirSync(fakeBin, { recursive: true });
+    for (const name of ['cat', 'sed', 'head', 'grep', 'cut', 'tr', 'date', 'mkdir', 'find', 'rmdir']) {
+      symlinkSync(commandPath(name), join(fakeBin, name));
+    }
+    writeFileSync(join(fakeBin, 'sleep'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+
+    const event = {
+      tool_name: 'Edit',
+      tool_input: { file_path: '/repo/src/retry-exhausted.ts' },
+      cwd: '/repo',
+    };
+    const result = spawnSync(bin('pd-hook-post-tool'), [], {
+      input: JSON.stringify(event),
+      env: {
+        ...process.env,
+        PATH: fakeBin,
+        PD_MATRIX_FILE: matrix,
+        PD_HOME: dirname(matrix),
+        PD_ACTOR: 'retry_exhaustion_agent',
+      },
+      encoding: 'utf8',
+      timeout: 5000,
+    });
+    expect(result.status).toBe(0);
+
+    const rows = readFileSync(matrix, 'utf8')
+      .split('\n')
+      .filter((line) => line.includes('/repo/src/retry-exhausted.ts'));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toContain('actor:retry_exhaustion_agent');
   });
 });
 
@@ -580,7 +619,7 @@ describe('Giant Squid Harness — GeminiSquidAdapter.injectHooks', () => {
 });
 
 describe('Giant Squid Harness — CodexSquidAdapter.injectHooks', () => {
-  // Codex CLI (v0.139.0) reads `[hooks]` from config.toml with [[hooks.PreToolUse]]
+  // Codex CLI (v0.144.4) reads `[hooks]` from config.toml with [[hooks.PreToolUse]]
   // (matcher) + [[hooks.PreToolUse.hooks]] (type/command/timeout/async). Schema
   // confirmed by reading the codex rust binary's HookEventsToml structs.
   test('hand-emits a valid Codex [hooks] TOML block with sync PreToolUse', async () => {
@@ -597,10 +636,11 @@ describe('Giant Squid Harness — CodexSquidAdapter.injectHooks', () => {
     expect(toml).toMatch(/\[\[hooks\.PreToolUse\.hooks\]\]/);
     expect(toml).toMatch(/async = false/);
     expect(toml).toMatch(new RegExp(`command = "${tentaclePath('pd-hook-pre-tool')}"`.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')));
-    // PostToolUse (async pheromone) + UserPromptSubmit (sync envelope) present.
+    // PostToolUse + UserPromptSubmit are present and synchronous. Codex skips
+    // command hooks configured with async=true.
     expect(toml).toMatch(/\[\[hooks\.PostToolUse\]\]/);
     expect(toml).toMatch(/\[\[hooks\.UserPromptSubmit\]\]/);
-    expect(toml).toMatch(/async = true/); // post-tool is fire-and-forget
+    expect(toml).not.toMatch(/async = true/);
     expect(toml).toContain(SQUID_HOOK_PRIVACY_NOTICE);
     expect(toml).toContain(SQUID_HOOK_METADATA.prompt.displayName);
     expect(toml).toContain(SQUID_HOOK_METADATA.preTool.displayName);
@@ -626,6 +666,29 @@ describe('Giant Squid Harness — CodexSquidAdapter.injectHooks', () => {
     const toml = readFileSync(cfgPath, 'utf8');
     expect(toml).toMatch(/model = "gpt-5.5"/); // prior content survives
     expect(toml).toMatch(/\[\[hooks\.PreToolUse\]\]/); // block appended
+  });
+
+  test('injectHooks replaces a stale legacy Codex block', async () => {
+    const cfgPath = join(WORKSPACE, '.codex', 'config.toml');
+    mkdirSync(dirname(cfgPath), { recursive: true });
+    writeFileSync(cfgPath, [
+      'model = "gpt-5.5"',
+      '# Port Daddy Giant Squid Harness tentacles (ADR-0091).',
+      '[[hooks.PostToolUse]]',
+      'matcher = "shell"',
+      '[[hooks.PostToolUse.hooks]]',
+      'type = "command"',
+      `command = "${tentaclePath('pd-hook-post-tool')}"`,
+      'async = true',
+      '',
+    ].join('\n'));
+
+    await new CodexSquidAdapter().injectHooks(WORKSPACE);
+    const toml = readFileSync(cfgPath, 'utf8');
+    expect(toml).toContain('model = "gpt-5.5"');
+    expect(toml).not.toContain('async = true');
+    expect(toml).toContain('PD_SQUID_TENTACLES_END');
+    expect((toml.match(/Giant Squid Harness tentacles/g) ?? [])).toHaveLength(1);
   });
 
   // spawnVoyage must pass the vetted-automation bypass flag (so untrusted hooks
@@ -982,4 +1045,20 @@ describe('Giant Squid Harness — multi-vendor tentacle contracts', () => {
     expect(vals.some((v) => v.includes('mutated via replace') && v.includes('gemini_agent'))).toBe(true);
     expect(vals.some((v) => v.includes('mutated via apply_patch') && v.includes('codex_agent'))).toBe(true);
   });
+});
+
+describe('tentaclePath resolution (regression: compiled-binary /bin/ bug)', () => {
+  for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool'] as const) {
+    it(`${name} resolves to an existing tentacle, not a bogus /bin path`, () => {
+      const p = tentaclePath(name);
+      // In dev the execPath-relative candidates don't exist, so it must fall
+      // back to the real repo bin/ — a file that actually exists.
+      expect(existsSync(p)).toBe(true);
+      expect(p).toBe(bin(name));
+      // The old bug returned `/bin/<name>` from a compiled binary's synthetic
+      // import.meta.url; guard against ever resolving to the system /bin.
+      expect(p).not.toBe(`/bin/${name}`);
+      expect(p.endsWith(`/bin/${name}`)).toBe(true); // repo bin/, absolute
+    });
+  }
 });

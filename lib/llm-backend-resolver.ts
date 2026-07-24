@@ -51,6 +51,7 @@ import {
   DEFAULT_OPERATOR_CLOUDFLARE_MODEL,
 } from './backend-telemetry-policy.js';
 import { cloudflareAdapter, ollamaAdapter, type LLMAdapter } from './llm-call.js';
+import { resolveModel } from './model-registry.js';
 
 export type LLMBackend = 'claude' | 'codex' | 'cloudflare' | 'ollama' | 'custom';
 
@@ -198,7 +199,13 @@ export function defaultModelFor(backend: LLMBackend, env: NodeJS.ProcessEnv = pr
     case 'claude': return DEFAULT_OPERATOR_CLAUDE_MODEL;
     case 'codex': return DEFAULT_OPERATOR_CODEX_MODEL;
     case 'cloudflare': return DEFAULT_OPERATOR_CLOUDFLARE_MODEL;
-    case 'ollama': return readEnv(env, 'PD_OLLAMA_DEFAULT_MODEL') || 'qwen2.5-coder:1.5b';
+    // PD_OLLAMA_DEFAULT_MODEL is an explicit operator override (the tag
+    // pinned on their local box varies); absent that, resolve the registry's
+    // one canonical ollama/cheap default instead of a locally-hardcoded tag —
+    // this used to disagree with lib/spawner.ts and lib/fleet-runtime.ts's
+    // own literal ollama defaults (ADR-0057 model-abstraction unification).
+    case 'ollama': return readEnv(env, 'PD_OLLAMA_DEFAULT_MODEL')
+      || resolveModel({ backend: 'ollama', capability: 'cheap' });
     default: return '';
   }
 }

@@ -21,6 +21,7 @@
  */
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
+import { TRANSCRIPT_EMERGENCY_EVENT } from '../../../lib/transcript-emergency-constants.js';
 import {
   getInstallationTokenCached,
   invalidateInstallationToken,
@@ -62,6 +63,10 @@ import {
 import type { Proposal } from './proposals.js';
 import { decideShipGate, isDocsOnly } from './gates.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
+import { runDetailsUrl } from './run-page.js';
+import { costUsdForModel } from './spend.js';
+
+const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 
 // ---------------------------------------------------------------------------
 
@@ -86,9 +91,20 @@ const MAX_OUTPUT_TOKENS = 2048;
  * model instance and hits the prefix cache — cached input tokens bill lower.
  * Keyed per ship (not per run) to maximize hits on the shared prefix.
  * (Cloudflare Workers AI prompt caching, `extraHeaders` binding option.)
+ *
+ * When `env.AI_GATEWAY_ID` is set, the call is ALSO routed through Cloudflare AI
+ * Gateway (`{ gateway: { id } }`) for token/cost/latency logging (ADR-0116/0117).
+ * Unset ⇒ the gateway key is omitted ⇒ exactly today's direct Workers AI call.
  */
-function aiOptions(shipName: string): { extraHeaders: Record<string, string> } {
-  return { extraHeaders: { 'x-session-affinity': `pd-fleet-${shipName}` } };
+function aiOptions(
+  env: ExecutorEnv,
+  shipName: string,
+): { extraHeaders: Record<string, string>; gateway?: { id: string } } {
+  const opts: { extraHeaders: Record<string, string>; gateway?: { id: string } } = {
+    extraHeaders: { 'x-session-affinity': `pd-fleet-${shipName}` },
+  };
+  if (env.AI_GATEWAY_ID) opts.gateway = { id: env.AI_GATEWAY_ID };
+  return opts;
 }
 
 /**
@@ -236,6 +252,7 @@ class Transcript {
   constructor(
     private readonly db: D1Database | undefined,
     readonly runId: string,
+    private readonly onWriteFailure?: (failure: TranscriptWriteFailure) => Promise<void>,
   ) {}
 
   async step(kind: string, ship: string | null, title: string, detail: unknown): Promise<void> {
@@ -250,11 +267,92 @@ class Transcript {
         .bind(this.runId, seq, kind, ship, title, detail == null ? null : JSON.stringify(detail), nowSec())
         .run();
     } catch (err) {
+      const error = String(err);
       console.error(
-        `[fleet-executor] transcript step failed run=${this.runId} seq=${seq}: ${String(err)}`,
+        `[fleet-executor] transcript step failed run=${this.runId} seq=${seq}: ${error}`,
       );
+      this.reportWriteFailure({ runId: this.runId, seq, kind, ship, title, error });
     }
   }
+
+  private reportWriteFailure(failure: TranscriptWriteFailure): void {
+    if (!this.onWriteFailure) return;
+    let telemetry: Promise<void>;
+    try {
+      telemetry = this.onWriteFailure(failure);
+    } catch (telemetryErr) {
+      console.error(`[fleet-executor] transcript failure telemetry failed run=${this.runId}: ${String(telemetryErr)}`);
+      return;
+    }
+    void withTranscriptFailureTelemetryTimeout(telemetry, failure.runId).catch((telemetryErr) => {
+      console.error(`[fleet-executor] transcript failure telemetry failed run=${failure.runId}: ${String(telemetryErr)}`);
+    });
+  }
+}
+
+interface TranscriptWriteFailure {
+  runId: string;
+  seq: number;
+  kind: string;
+  ship: string | null;
+  title: string;
+  error: string;
+}
+
+function withTranscriptFailureTelemetryTimeout(
+  telemetry: Promise<void>,
+  runId: string,
+): Promise<void> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<void>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`transcript failure telemetry timed out after ${TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS}ms for ${runId}`));
+    }, TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS);
+    (timer as unknown as { unref?: () => void }).unref?.();
+  });
+  telemetry.then(
+    () => clearTimeout(timer),
+    () => clearTimeout(timer),
+  );
+  return Promise.race([telemetry, timeout]);
+}
+
+async function emitTranscriptWriteFailureTelemetry(
+  env: ExecutorEnv,
+  job: FleetRunJob,
+  failure: TranscriptWriteFailure,
+): Promise<void> {
+  const [owner, repo] = (job.repoFullName || '').split('/');
+  const prPayload = (job.payloadMinimal.pull_request as Record<string, unknown>) ?? {};
+  const head = prPayload.head && typeof prPayload.head === 'object'
+    ? prPayload.head as Record<string, unknown>
+    : {};
+  await emitCloudTelemetry(
+    {
+      deliveryId: job.deliveryId,
+      event: TRANSCRIPT_EMERGENCY_EVENT.WRITE_FAILED,
+      action: job.action,
+      owner: owner || null,
+      repo: repo || null,
+      prNumber: job.prNumber ?? null,
+      sha: typeof head.sha === 'string' ? head.sha : null,
+      ship: failure.ship,
+      status: 'error',
+      conclusion: 'failure',
+      backend: 'cloudflare',
+      model: null,
+      metadata: {
+        transcriptWriteFailure: true,
+        table: 'fleet_run_steps',
+        runId: failure.runId,
+        seq: failure.seq,
+        kind: failure.kind,
+        title: failure.title,
+        error: failure.error,
+      },
+    },
+    env,
+  );
 }
 
 /**
@@ -315,6 +413,78 @@ async function recordRunEnd(
   }
 }
 
+/**
+ * Per-installation SPEND CIRCUIT-BREAKER (ADR-0116/0117). Returns true ONLY when
+ * the `credit_ledger` table exists, this installation HAS ledger rows, and its
+ * balance (SUM(delta_usd)) is <= 0 — i.e. billing is configured for them and
+ * they are out of credit. FAIL-OPEN everywhere else:
+ *   - DB binding absent               ⇒ false (allow)
+ *   - `credit_ledger` table absent    ⇒ query throws ⇒ false (allow)
+ *   - installation has NO ledger rows ⇒ false (allow: trial / billing not live)
+ *   - any read error                  ⇒ false (allow)
+ * Inert until the relay starts writing credit_ledger; then it is the
+ * per-installation abuse gate once billing is live.
+ */
+async function creditsExhausted(env: ExecutorEnv, installationId: number): Promise<boolean> {
+  if (!env.DB) return false;
+  try {
+    const row = await env.DB.prepare(
+      `SELECT COUNT(*) AS n, COALESCE(SUM(delta_usd), 0) AS bal
+         FROM credit_ledger
+        WHERE installation_id = ?`,
+    )
+      .bind(installationId)
+      .first<{ n: number; bal: number }>();
+    if (!row) return false;
+    const n = Number(row.n) || 0;
+    if (n <= 0) return false; // no ledger rows ⇒ billing not configured ⇒ allow
+    return Number(row.bal) <= 0; // rows exist AND balance spent ⇒ skip
+  } catch {
+    // Table absent (billing not deployed) or any read error ⇒ fail-open.
+    return false;
+  }
+}
+
+/**
+ * Record ONE `fleet_run_spend` row for a completed ship (best-effort). The
+ * per-ship input/output tokens come from the ship's {@link ShipMetrics}; cost is
+ * derived from {@link costUsdForModel} at the ship's model rate. A failed insert
+ * (missing table / D1 down) is swallowed and NEVER changes the run — the same
+ * best-effort contract the transcript writes hold to.
+ */
+async function recordShipSpend(
+  env: ExecutorEnv,
+  runId: string,
+  ship: ShipConfig,
+  installationId: number | null,
+  metrics: ShipMetrics,
+): Promise<void> {
+  if (!env.DB) return;
+  const cost = costUsdForModel(ship.cfModel, metrics.inputTokens, metrics.outputTokens);
+  try {
+    await env.DB.prepare(
+      `INSERT INTO fleet_run_spend
+         (run_id, ship, installation_id, model, input_tokens, output_tokens, cost_usd, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        runId,
+        ship.name,
+        installationId,
+        ship.cfModel,
+        metrics.inputTokens,
+        metrics.outputTokens,
+        cost,
+        nowSec(),
+      )
+      .run();
+  } catch (err) {
+    console.error(
+      `[fleet-executor] fleet_run_spend insert failed run=${runId} ship=${ship.name}: ${String(err)}`,
+    );
+  }
+}
+
 const REVIEWABLE_PR_ACTIONS = new Set(['opened', 'synchronize', 'reopened', 'ready_for_review']);
 
 /** The fleet trigger used by reviewable pull_request deliveries. */
@@ -360,8 +530,13 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // Deterministic run id from the delivery id so a retried delivery rewrites its
   // own audit row + transcript (INSERT OR REPLACE) instead of duplicating.
   const runId = `run:${deliveryId}`;
+  // Capability URL for the human-facing run page (ADR-0101 Phase 0). Null when
+  // RUN_DETAILS_BASE_URL / RUN_PAGE_SECRET are unconfigured; never throws.
+  const detailsUrl = await runDetailsUrl(env, runId);
   const startMs = Date.now();
-  const transcript = new Transcript(env.DB, runId);
+  const transcript = new Transcript(env.DB, runId, (failure) =>
+    emitTranscriptWriteFailureTelemetry(env, job, failure)
+  );
 
   // --- Token (KV-cached; remint once on 401) -------------------------------
   let token: string;
@@ -428,7 +603,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   );
   if (!checkRunId) {
     // No swallow: a createCheckRun failure must propagate so the job RETRIES.
-    checkRunId = await createCheckRun(owner, repo, CHECK_NAME, prCtx.headSha, token);
+    checkRunId = await createCheckRun(owner, repo, CHECK_NAME, prCtx.headSha, token, detailsUrl);
   }
   if (!checkRunId) {
     // Fail closed: never proceed (and never ack) when we could not establish the
@@ -446,6 +621,27 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // the audit trail records every attempt that got far enough to gate. A
   // write failure is swallowed and never changes the run or the gate.
   await recordRunStart(env, runId, job, prCtx, prNumber, cloudShips);
+
+  // --- SPEND CIRCUIT-BREAKER (pre-spend, before any ship runs) --------------
+  // The per-installation abuse gate: if this installation has a credit_ledger and
+  // its balance is spent (SUM(delta_usd) <= 0), skip ALL AI spend and complete
+  // the gating check NEUTRAL (never falsely-green, never blocking) so the PR is
+  // not gated by an unpaid bill. FAIL-OPEN: absent table / no ledger rows / trial
+  // installs run normally (see creditsExhausted). Runs after the check is
+  // established so we can complete it, but BEFORE any ship inference.
+  if (job.installationId != null && (await creditsExhausted(env, job.installationId))) {
+    const summary =
+      'Fleet skipped: this installation is out of credits. Top up credits to resume automated reviews.';
+    await transcript.step('check-completed', null, 'Check concluded: neutral (credits exhausted)', {
+      checkRunId,
+      conclusion: 'neutral',
+      reason: 'credits-exhausted',
+      installationId: job.installationId,
+    });
+    await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+    await recordRunEnd(env, runId, 'neutral', startMs);
+    return;
+  }
 
   // --- Run ships sequentially (Workers AI rate limits) ---------------------
   // Each ship is a map-reduce over the diff: MAP one call per diff chunk, then
@@ -475,7 +671,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         conclusion: 'neutral',
         pausedBeforeShip: ship.name,
       });
-      await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token);
+      await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
       await recordRunEnd(env, runId, 'neutral', startMs);
       return;
     }
@@ -501,6 +697,9 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     const result = await runShip(ship, prCtx, token, env, branch, transcript, metrics);
     results.push(result);
     await emitShipTelemetry(env, job, prCtx, ship, result, metrics, checkRunId, shipStartMs);
+    // Per-run spend: one fleet_run_spend row per ship that actually ran, so the
+    // relay can bill per installation. Best-effort — never changes the run.
+    await recordShipSpend(env, runId, ship, job.installationId, metrics);
   }
 
   // --- Conclusion (verdict logic is REAL; see verdict.ts) ------------------
@@ -522,7 +721,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     await createReview(owner, repo, prNumber, 'COMMENT', summary, reviewComments, prCtx.headSha, token);
   }
 
-  await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token);
+  await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token, detailsUrl);
 
   // --- Transcript: check completion + final run header (best-effort) --------
   await transcript.step('check-completed', null, `Check concluded: ${conclusion}`, {
@@ -601,7 +800,7 @@ async function runShip(
       const res = await env.AI.run(
         ship.cfModel as Parameters<typeof env.AI.run>[0],
         request,
-        aiOptions(ship.name),
+        aiOptions(env, ship.name),
       );
       const { text, shape } = extractAiText(res);
       accumulateUsage(metrics, res, text);
@@ -911,7 +1110,7 @@ async function reduceFindings(
   const res = await env.AI.run(
     ship.cfModel as Parameters<typeof env.AI.run>[0],
     request,
-    aiOptions(ship.name),
+    aiOptions(env, ship.name),
   );
   const { text } = extractAiText(res);
   accumulateUsage(metrics, res, text);

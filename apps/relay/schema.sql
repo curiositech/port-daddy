@@ -175,3 +175,108 @@ CREATE TABLE IF NOT EXISTS fleet_ideas (
 );
 -- Dedup scan reads only canonical rows (duplicate_of IS NULL); index that predicate.
 CREATE INDEX IF NOT EXISTS fleet_ideas_canonical_idx ON fleet_ideas (duplicate_of);
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- User accounts + web sessions (ADR-0101 Phase 1)
+--
+-- GitHub-login BFF: the relay is a confidential OAuth client. The browser only
+-- ever holds an opaque __Host-pd_session cookie; the GitHub user-to-server
+-- token is stored server-side, envelope-encrypted, and used only for repo-
+-- access checks that gate run-page visibility. Email is stored for login
+-- continuity + security notices; erasure soft-deletes then hard-deletes.
+-- These live in the TEAM tier of the scope ladder (operator infrastructure).
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS users (
+  id             TEXT    PRIMARY KEY,            -- 'u_' || randomHex(16)
+  github_user_id INTEGER NOT NULL UNIQUE,        -- durable; survives login renames
+  login          TEXT    NOT NULL,               -- display handle, refreshed each login
+  display_name   TEXT,
+  avatar_url     TEXT,
+  primary_email  TEXT,                            -- verified primary from /user/emails
+  email_verified INTEGER NOT NULL DEFAULT 0,
+  created_at     INTEGER NOT NULL,
+  last_login_at  INTEGER,
+  deleted_at     INTEGER                          -- soft delete; erasure job hard-deletes
+);
+
+CREATE TABLE IF NOT EXISTS web_sessions (
+  token_hash   TEXT    PRIMARY KEY,              -- SHA-256(cookie value); the value itself is NEVER stored
+  user_id      TEXT    NOT NULL REFERENCES users(id),
+  gh_token_enc TEXT,                              -- AES-GCM(user-to-server token); iv||ct, base64url; repo-access checks only
+  gh_token_iv  TEXT,                              -- AES-GCM iv (base64url)
+  created_at   INTEGER NOT NULL,
+  expires_at   INTEGER NOT NULL,
+  user_agent   TEXT
+);
+CREATE INDEX IF NOT EXISTS web_sessions_user_idx ON web_sessions (user_id);
+
+-- Personal access tokens for non-browser surfaces (FleetBar, pd-console, CLI),
+-- minted by the GitHub device flow (ADR-0101 Phase 1). Only the SHA-256 of the
+-- 'pdu_' token is stored; the token itself is shown once and lives in the
+-- client's Keychain. Revocable per-device; optional expiry.
+CREATE TABLE IF NOT EXISTS user_tokens (
+  token_hash  TEXT    PRIMARY KEY,              -- SHA-256('pdu_' token); the token is NEVER stored
+  user_id     TEXT    NOT NULL REFERENCES users(id),
+  label       TEXT    NOT NULL,                 -- e.g. 'pd CLI on MacBook Pro M4'
+  created_at  INTEGER NOT NULL,
+  last_used_at INTEGER,
+  expires_at  INTEGER,
+  revoked_at  INTEGER
+);
+CREATE INDEX IF NOT EXISTS user_tokens_user_idx ON user_tokens (user_id);
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Fleet monetization — Stripe prepaid credits + spend metering (ADR-0116)
+--
+-- The relay is the billing authority: it holds STRIPE_SECRET_KEY, sells one-time
+-- credit packs via Stripe Checkout, and records every grant/refund as an
+-- append-only credit_ledger row. An installation's balance is the SUM of its
+-- delta_usd (positive grants from checkout, negative from refunds/spend). Fleet
+-- runs meter their token spend into fleet_run_spend, which a negative ledger
+-- entry mirrors when a run is billed. stripe_customers / subscriptions map an
+-- installation to its Stripe customer + (future) recurring plan.
+--
+-- credit_ledger is APPEND-ONLY: balance = SUM(delta_usd) WHERE installation_id=?.
+-- All amounts are USD (REAL); a "credit-cent" pack of $20 grants delta_usd=20.0.
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS credit_ledger (
+  id              TEXT    PRIMARY KEY,           -- 'cl_' || randomHex(16)
+  installation_id INTEGER NOT NULL,              -- GitHub App installation (the billed tenant)
+  delta_usd       REAL    NOT NULL,              -- +grant (checkout) / -debit (refund, spend)
+  reason          TEXT    NOT NULL,              -- 'stripe:checkout' | 'stripe:refund' | 'fleet:spend' | ...
+  stripe_ref      TEXT,                           -- Stripe session/charge id (idempotency + audit)
+  run_id          TEXT,                           -- fleet run this debit belongs to (spend entries)
+  created_at      INTEGER NOT NULL               -- unix seconds
+);
+CREATE INDEX IF NOT EXISTS credit_ledger_installation_idx ON credit_ledger (installation_id);
+
+-- Per-run token spend metering. cost_usd is what the run consumed; a matching
+-- negative credit_ledger row (reason='fleet:spend') decrements the balance.
+CREATE TABLE IF NOT EXISTS fleet_run_spend (
+  run_id          TEXT    NOT NULL,
+  ship            TEXT,
+  installation_id INTEGER,
+  model           TEXT,
+  input_tokens    INTEGER NOT NULL DEFAULT 0,
+  output_tokens   INTEGER NOT NULL DEFAULT 0,
+  cost_usd        REAL    NOT NULL DEFAULT 0,
+  created_at      INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS fleet_run_spend_installation_idx ON fleet_run_spend (installation_id, created_at);
+
+-- One Stripe customer per installation (created lazily at first checkout/portal).
+CREATE TABLE IF NOT EXISTS stripe_customers (
+  installation_id    INTEGER PRIMARY KEY,
+  stripe_customer_id TEXT    NOT NULL,
+  created_at         INTEGER NOT NULL
+);
+
+-- Future recurring plans (seats/tier). Prepaid credits work without a row here.
+CREATE TABLE IF NOT EXISTS subscriptions (
+  installation_id    INTEGER PRIMARY KEY,
+  stripe_sub_id      TEXT,
+  plan               TEXT,
+  status             TEXT,
+  seats              INTEGER,
+  current_period_end INTEGER
+);

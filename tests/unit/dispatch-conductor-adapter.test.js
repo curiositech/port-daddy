@@ -233,6 +233,27 @@ describe('createConductorSpawnAdapter — result mapping', () => {
     expect(res.costUsd).toBe(1.0);
   });
 
+  test.each(['produced', 'settled'])(
+    '%s without an artifact → salvage so dirty work cannot be reaped',
+    async (state) => {
+      const conductor = makeFakeConductor({
+        admitted: true,
+        refusedReason: null,
+        launch: launch({ state, costUsd: 0.6, resultArtifact: null }),
+        spawn: { agentId: 'agent-1', status: 'completed', output: 'ok', error: null },
+      });
+      const adapter = createConductorSpawnAdapter(conductor);
+      const { plan, queue } = makePlan();
+
+      const res = await adapter({ plan, queue });
+
+      expect(res.state).toBe('salvage');
+      expect(res.costUsd).toBe(0.6);
+      expect(res.resultArtifact).toBeUndefined();
+      expect(res.errorMessage).toMatch(/without a reviewable artifact.*preserved/i);
+    },
+  );
+
   test('failed → failed (carries cost + error, no artifact)', async () => {
     const conductor = makeFakeConductor({
       admitted: true,

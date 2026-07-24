@@ -37,9 +37,15 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import { randomUUID } from 'node:crypto';
 import type { DatabaseInstance } from '../lib/sqlite-runtime.js';
+import type { DaemonBerthIdentity } from '../shared/daemon-berths.js';
 import { getBlackboard } from '../lib/agent-harbor/blackboard.js';
-import { sessionChainHeadHash, verifySessionChain } from '../lib/agent-harbor/event-ledger.js';
+import {
+  ensureEventLedgerSchema,
+  sessionChainHeadHash,
+  verifySessionChain,
+} from '../lib/agent-harbor/event-ledger.js';
 import {
   ensureProjectionSchema,
   getCompliance,
@@ -51,10 +57,20 @@ import {
   projectPending,
   type ProjectionName,
 } from '../lib/agent-harbor/projections.js';
-import { surfaceGatewayCapabilityProjection } from '../lib/agent-harbor/surface-gateway.js';
+import {
+  surfaceGatewayCapabilityProjection,
+  validateSurfaceGatewayEnvelope,
+} from '../lib/agent-harbor/surface-gateway.js';
+import type { WorkIntentService } from '../lib/agent-harbor/work-intent-service.js';
+import type { DispatchQueue } from '../lib/dispatch/queue.js';
+import type { DispatchWorker } from '../lib/dispatch/worker.js';
 
 interface AgentHarborRouteDeps {
   db: DatabaseInstance;
+  workIntentService?: WorkIntentService;
+  dispatchQueue?: DispatchQueue;
+  dispatchWorker?: DispatchWorker;
+  daemonBerth?: DaemonBerthIdentity;
   metrics: { errors: number };
   logger: {
     info(msg: string, meta?: Record<string, unknown>): void;
@@ -113,6 +129,45 @@ function parseSequence(raw: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isLoopback(address: string): boolean {
+  const normalized = address.replace(/^::ffff:/, '');
+  return normalized === '127.0.0.1' || normalized === '::1' || normalized === 'localhost';
+}
+
+function gatewayBerthTarget(berth?: DaemonBerthIdentity) {
+  const tier = berth?.tier ?? 'stable';
+  const canonical = berth?.canonical ?? tier === 'stable';
+  const domain = tier === 'stable'
+    ? 'canonical-local'
+    : tier === 'dev-latest'
+      ? 'dev-lane'
+      : 'worktree-lane';
+  return {
+    targetId: `berth_target_${tier}_${berth?.port ?? 'local'}`,
+    tier,
+    label: berth?.label ?? tier,
+    canonical,
+    authority: {
+      domain,
+      canCommand: true,
+      canQuery: true,
+      canSubscribeEvents: true,
+    },
+  } as const;
+}
+
+function ledgerHead(db: DatabaseInstance): number {
+  ensureEventLedgerSchema(db);
+  const row = db.prepare('SELECT COALESCE(MAX(ledger_seq), 0) AS head FROM harbor_events').get() as
+    | { head: number }
+    | undefined;
+  return row?.head ?? 0;
+}
+
 interface TimelineRow {
   session_id: string;
   sequence: number;
@@ -165,6 +220,277 @@ export const agentHarborPlugin: FastifyPluginAsync<AgentHarborPluginOpts> = asyn
     '/agent-harbor/surface-gateway/capabilities',
     async () => surfaceGatewayCapabilityProjection({ mounted: true }),
   );
+
+  // ── POST /agent-harbor/surface-gateway ──
+  //
+  // One ingress for native surface commands and queries. The daemon, not the
+  // caller, binds the actual berth, projection freshness, and allow decision.
+  // WorkIntent.start is the only executable surface command: it materializes
+  // the durable intent into the existing compatibility queue and nudges the
+  // Conductor-backed worker. The compatibility projection is returned in the
+  // receipt and never becomes a second frontend launch vocabulary.
+  fastify.post('/agent-harbor/surface-gateway', async (request, reply) => {
+    const raw = request.body;
+    if (!isRecord(raw)) {
+      reply.code(400);
+      return { code: 'SURFACE_GATEWAY_REJECTED', errors: ['surface gateway request must be an object'] };
+    }
+    if (!isLoopback(request.ip)) {
+      reply.code(403);
+      return {
+        code: 'SURFACE_GATEWAY_REMOTE_AUTH_REQUIRED',
+        error: 'remote Surface Gateway ingress is unavailable without device/account authority',
+      };
+    }
+
+    const now = new Date();
+    const target = gatewayBerthTarget(opts.deps.daemonBerth);
+    const head = ledgerHead(db);
+    const operation = typeof raw.operation === 'string' ? raw.operation : '';
+    const surface = typeof raw.surface === 'string' ? raw.surface : '';
+    const mode = typeof raw.mode === 'string' ? raw.mode : '';
+    const admitted = {
+      ...raw,
+      surfaceIssuedAt: raw.issuedAt,
+      issuedAt: now.toISOString(),
+      berthTarget: target,
+      projection: { stale: false, lastLedgerSeq: head, headSeq: head },
+      ...(mode === 'command'
+        ? {
+            capabilityDecision: {
+              schema: 'pd.agent-harbor.capability-decision.v0',
+              decisionId: `cap_decision_${randomUUID()}`,
+              agentNodeId: null,
+              runId: null,
+              bodyId: null,
+              surface,
+              operation,
+              capability: 'work-intent',
+              decision: 'allow',
+              authority: {
+                domain: 'policy',
+                decidedBy: 'daemon:local-surface-gateway',
+                leaseId: null,
+              },
+              reason: 'A local operator surface may command a WorkIntent on the addressed daemon berth.',
+              evidence: { berthTargetId: target.targetId },
+              issuedAt: now.toISOString(),
+              expiresAt: new Date(now.getTime() + 30_000).toISOString(),
+            },
+          }
+        : {}),
+    };
+    const validation = validateSurfaceGatewayEnvelope(admitted);
+    if (!validation.ok) {
+      reply.code(400);
+      return { code: 'SURFACE_GATEWAY_REJECTED', errors: validation.errors };
+    }
+    if (validation.envelope.noun !== 'WorkIntent') {
+      reply.code(501);
+      return {
+        code: 'SURFACE_GATEWAY_OPERATION_UNSUPPORTED',
+        error: `${validation.envelope.noun} ${validation.envelope.operation} has no daemon-owned runtime service yet`,
+      };
+    }
+    if (!opts.deps.workIntentService) {
+      reply.code(503);
+      return {
+        code: 'WORK_INTENT_SERVICE_UNAVAILABLE',
+        error: 'WorkIntent service is unavailable; no side effect was started',
+        correlationId: validation.envelope.correlationId ?? validation.envelope.envelopeId,
+      };
+    }
+
+    if (validation.envelope.mode === 'query') {
+      const payload = validation.envelope.payload as Record<string, unknown>;
+      if (validation.envelope.operation === 'work-intent.list') {
+        const limit = typeof payload.limit === 'number' ? payload.limit : 100;
+        return {
+          schema: 'pd.agent-harbor.surface-gateway.query-result.v0',
+          correlationId: validation.envelope.correlationId ?? validation.envelope.envelopeId,
+          data: opts.deps.workIntentService.list(limit),
+          projection: validation.envelope.projection,
+        };
+      }
+      if (validation.envelope.operation === 'work-intent.get') {
+        const intentId = typeof payload.intentId === 'string' ? payload.intentId : '';
+        const snapshot = intentId ? opts.deps.workIntentService.get(intentId) : null;
+        if (!snapshot) {
+          reply.code(404);
+          return { code: 'WORK_INTENT_NOT_FOUND', error: `WorkIntent ${intentId || '(missing id)'} not found` };
+        }
+        return {
+          schema: 'pd.agent-harbor.surface-gateway.query-result.v0',
+          correlationId: validation.envelope.correlationId ?? validation.envelope.envelopeId,
+          data: snapshot,
+          projection: validation.envelope.projection,
+        };
+      }
+      reply.code(501);
+      return {
+        code: 'SURFACE_GATEWAY_OPERATION_UNSUPPORTED',
+        error: `WorkIntent query ${validation.envelope.operation} is not implemented`,
+      };
+    }
+
+    if (
+      validation.envelope.mode !== 'command'
+      || !['work-intent.capture', 'work-intent.start'].includes(validation.envelope.operation)
+    ) {
+      reply.code(501);
+      return {
+        code: 'SURFACE_GATEWAY_OPERATION_UNSUPPORTED',
+        error: `WorkIntent ${validation.envelope.mode} ${validation.envelope.operation} is not implemented`,
+      };
+    }
+
+    const payload = validation.envelope.payload as Record<string, unknown>;
+    if (validation.envelope.operation === 'work-intent.start') {
+      const intentId = typeof payload.intentId === 'string' ? payload.intentId.trim() : '';
+      if (!intentId) {
+        reply.code(400);
+        return {
+          code: 'WORK_INTENT_PAYLOAD_REJECTED',
+          error: 'WorkIntent start requires payload.intentId',
+        };
+      }
+      if (!opts.deps.dispatchQueue || !opts.deps.dispatchWorker) {
+        reply.code(503);
+        return {
+          code: 'WORK_INTENT_RUNTIME_UNAVAILABLE',
+          error: 'The addressed daemon has no governed WorkIntent runtime worker; no side effect was started',
+          correlationId: validation.envelope.correlationId ?? validation.envelope.envelopeId,
+        };
+      }
+      const snapshot = opts.deps.workIntentService.get(intentId);
+      if (!snapshot) {
+        reply.code(404);
+        return { code: 'WORK_INTENT_NOT_FOUND', error: `WorkIntent ${intentId} not found` };
+      }
+      try {
+        const started = opts.deps.workIntentService.start(intentId, opts.deps.dispatchQueue);
+        let launchedThisTick = 0;
+        if (started.dispatch.state === 'proposed') {
+          launchedThisTick = await opts.deps.dispatchWorker.poll();
+        }
+        const runtime = opts.deps.dispatchQueue.get(started.dispatch.id) ?? started.dispatch;
+        reply.code(started.duplicate ? 200 : 202);
+        return {
+          schema: 'pd.agent-harbor.surface-gateway.command-receipt.v0',
+          correlationId: validation.envelope.correlationId ?? validation.envelope.envelopeId,
+          status: started.duplicate ? 'confirmed' : 'accepted',
+          duplicate: started.duplicate,
+          intent: started.intent,
+          plan: started.plan,
+          execution: {
+            projection: 'dispatches-compatibility',
+            dispatchId: runtime.id,
+            state: runtime.state,
+            sessionId: runtime.sessionId,
+            worktreePath: runtime.worktreePath,
+            launchedThisTick,
+          },
+          nextAction: {
+            code: 'WORK_RUNTIME_STARTED',
+            message:
+              'The daemon accepted this WorkIntent for Conductor-governed execution. Watch the active-agent roster and transcript stream for its bound body.',
+          },
+        };
+      } catch (error) {
+        return fail(reply, 'surface_gateway_work_intent_start', error);
+      }
+    }
+
+    if (
+      !isRecord(payload.source)
+      || !isRecord(payload.goal)
+      || typeof payload.goal.text !== 'string'
+      || payload.goal.text.trim().length === 0
+    ) {
+      reply.code(400);
+      return {
+        code: 'WORK_INTENT_PAYLOAD_REJECTED',
+        error: 'WorkIntent capture requires a structured source and a non-empty goal.text',
+      };
+    }
+    const source = payload.source;
+    const goal = payload.goal;
+    if (payload.idempotencyKey !== validation.idempotency.key) {
+      reply.code(400);
+      return {
+        code: 'WORK_INTENT_IDEMPOTENCY_MISMATCH',
+        error: 'WorkIntent payload idempotencyKey must match the Surface Gateway command key',
+      };
+    }
+    if (validation.envelope.surface === 'pd-console') {
+      if (source.kind !== 'console' || source.legacyVerb != null) {
+        reply.code(400);
+        return {
+          code: 'WORK_INTENT_SOURCE_REJECTED',
+          error: 'pd-console creates console-sourced WorkIntent records; legacy launch verbs are not runtime commands',
+        };
+      }
+      const constraints = isRecord(payload.constraints) ? payload.constraints : {};
+      const providerOwnedFields = ['backend', 'body', 'bodyPreference', 'model', 'provider'];
+      const suppliedProviderField = providerOwnedFields.find(
+        (field) => payload[field] != null || constraints[field] != null,
+      );
+      if (suppliedProviderField) {
+        reply.code(400);
+        return {
+          code: 'WORK_INTENT_PROVIDER_AUTHORITY_REJECTED',
+          error: `pd-console cannot choose ${suppliedProviderField}; provider and body attachment belong to the daemon planner and Squid harness`,
+        };
+      }
+      const materializationFields = ['agentNode', 'agentRun', 'nodeSpecs', 'run'];
+      const suppliedMaterializationField = materializationFields.find((field) => payload[field] != null);
+      if (suppliedMaterializationField) {
+        reply.code(400);
+        return {
+          code: 'WORK_INTENT_MATERIALIZATION_AUTHORITY_REJECTED',
+          error: `pd-console cannot author ${suppliedMaterializationField}; AgentNode and AgentRun materialization belong to the daemon planner`,
+        };
+      }
+    }
+
+    try {
+      const captured = opts.deps.workIntentService.captureWithInitialPlan({
+        intentId: payload.intentId as string,
+        idempotencyKey: validation.idempotency.key!,
+        source: source as Parameters<WorkIntentService['capture']>[0]['source'],
+        goalText: goal.text as string,
+        contextRefs: Array.isArray(goal.contextRefs)
+          ? goal.contextRefs.filter(isRecord)
+          : undefined,
+        constraints: isRecord(payload.constraints) ? payload.constraints : undefined,
+        startPolicy: payload.startPolicy as Parameters<WorkIntentService['capture']>[0]['startPolicy'],
+        attachExisting: payload.attachExisting === true,
+        operator: typeof payload.operator === 'string' ? payload.operator : undefined,
+        status: payload.status as Parameters<WorkIntentService['capture']>[0]['status'],
+        createdAt: payload.createdAt as string,
+      });
+      reply.code(captured.append.duplicate && captured.planAppend.duplicate ? 200 : 202);
+      return {
+        schema: 'pd.agent-harbor.surface-gateway.command-receipt.v0',
+        correlationId: validation.envelope.correlationId ?? validation.envelope.envelopeId,
+        status: captured.append.duplicate && captured.planAppend.duplicate ? 'confirmed' : 'accepted',
+        duplicate: captured.append.duplicate && captured.planAppend.duplicate,
+        intent: captured.intent,
+        plan: captured.plan,
+        ledger: {
+          intentSeq: captured.append.ledgerSeq,
+          planSeq: captured.planAppend.ledgerSeq,
+        },
+        nextAction: {
+          code: 'WORK_PLANNER_REQUIRED',
+          message:
+            'Intent is durable. Execution is blocked until the daemon can shape and materialize a governed WorkPlan through AgentNode/AgentRun.',
+        },
+      };
+    } catch (error) {
+      return fail(reply, 'surface_gateway_work_intent', error);
+    }
+  });
 
   // ── GET /agent-nodes — the roster projection (binder ch09 agent registry) ──
   fastify.get('/agent-nodes', async (request: FastifyRequest, reply: FastifyReply) => {

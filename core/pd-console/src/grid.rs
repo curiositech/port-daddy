@@ -27,7 +27,7 @@ pub struct NavItem {
 pub const NAV: &[NavItem] = &[
     NavItem { id: "fleet",    label: "Fleet",    icon: "icons/nav/fleet.svg",    key: "1" },
     NavItem { id: "cockpit",  label: "Cockpit",  icon: "icons/nav/cockpit.svg",  key: "2" },
-    NavItem { id: "sorties",  label: "Sorties",  icon: "icons/nav/sorties.svg",  key: "3" },
+    NavItem { id: "sorties",  label: "Runs",     icon: "icons/nav/sorties.svg",  key: "3" },
     NavItem { id: "claims",   label: "Claims",   icon: "icons/nav/claims.svg",   key: "4" },
     NavItem { id: "peek",     label: "Peek",     icon: "icons/nav/peek.svg",     key: "5" },
     NavItem { id: "planner",  label: "Planner",  icon: "icons/nav/roadmap.svg",  key: "6" },
@@ -40,7 +40,7 @@ pub const NAV: &[NavItem] = &[
     NavItem { id: "prs",      label: "PRs",      icon: "icons/nav/prs.svg",      key: "p" },
     NavItem { id: "health",   label: "Health",   icon: "icons/nav/health.svg",   key: "h" },
     NavItem { id: "coast-guard", label: "C.Guard", icon: "icons/nav/coast.svg", key: "c" },
-    NavItem { id: "dispatch", label: "Dispatch", icon: "icons/nav/dispatch.svg", key: "d" },
+    NavItem { id: "dispatch", label: "Gates",    icon: "icons/nav/dispatch.svg", key: "d" },
     NavItem { id: "lane",     label: "Lane",     icon: "icons/nav/lane.svg",     key: "l" },
     NavItem { id: "ledger",   label: "Cost",     icon: "icons/nav/ledger.svg",   key: "b" },
     NavItem { id: "lineage",  label: "Lineage",  icon: "icons/nav/lineage.svg",  key: "g" },

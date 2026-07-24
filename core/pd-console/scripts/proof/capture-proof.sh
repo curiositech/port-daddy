@@ -27,6 +27,8 @@
 #   PD_PROOF_VIDEO_PANE     pane to record a clip of (default: "fleet")
 #   PD_PROOF_DURATION       video length in seconds (default: 10)
 #   PD_PROOF_FPS            video frame rate (default: 30)
+#   PD_PROOF_SETTLE         seconds of settled ScreenCaptureKit frames before a
+#                           still is extracted (default: 2)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"            # core/pd-console
@@ -41,6 +43,7 @@ PANES="${PD_PROOF_PANES:-fleet sorties dispatch sessions health lane}"
 VIDEO_PANE="${PD_PROOF_VIDEO_PANE:-fleet}"
 DURATION="${PD_PROOF_DURATION:-10}"
 FPS="${PD_PROOF_FPS:-30}"
+SETTLE="${PD_PROOF_SETTLE:-2}"
 APP_PID=""
 
 require_cmd() {
@@ -164,7 +167,18 @@ for p in $PANES; do
   launch_pane "$p"
   id="$(wait_for_windowid)" || true
   if [[ "${id:-}" =~ ^[0-9]+$ ]]; then
-    screencapture -x -o -l"$id" "$OUT/pane-$p.png"
+    if command -v ffmpeg >/dev/null 2>&1; then
+      # Quartz occasionally captures GPUI while individual cached layers are
+      # absent. ScreenCaptureKit sees the complete composited window, so record
+      # a short settled sample and extract its final frame as the still.
+      still_mov="$TARGET/proof/still-$p-$$.mov"
+      "$REC" --window-id "$id" --duration "$SETTLE" --fps 15 --out "$still_mov"
+      ffmpeg -y -loglevel error -sseof -0.1 -i "$still_mov" -frames:v 1 "$OUT/pane-$p.png"
+      rm -f "$still_mov"
+    else
+      sleep "$SETTLE"
+      screencapture -x -o -l"$id" "$OUT/pane-$p.png"
+    fi
     if [[ -s "$OUT/pane-$p.png" ]]; then
       echo "    ✓ pane-$p.png  (window $id)"
     else

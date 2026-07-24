@@ -17,7 +17,10 @@
  */
 
 import type { Database } from 'better-sqlite3';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
+import { isSubscriptionBackend } from './backend-catalog.js';
+import { appendEvent } from './agent-harbor/event-ledger.js';
+import type { CostAccrualEvent } from './agent-harbor/types.js';
 
 // ─── Model Rate Table (USD per 1M tokens) ─────────────────────────────────────
 
@@ -196,6 +199,7 @@ const SESSION_ESTIMATES_USD: Record<string, number> = {
   // count usage and a daily project budget can still rate-limit.
   'cli:claude-code': 0.001,
   'cli:codex':       0.001,
+  'cli:agy':         0.001,
   'cli:gemini':      0.001,
   'cli:groq':        0.001,
   'cli:grok':        0.001,
@@ -221,7 +225,7 @@ function estimateOpaqueSessionCost(backend: string, model: string): number {
 }
 
 function hasKnownPaidRemoteBackend(backend: string): boolean {
-  return ['claude', 'claude-cli', 'gemini', 'codex', 'aider', 'cloudflare', 'openai', 'groq', 'deepseek', 'xai', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok'].includes(backend);
+  return ['claude', 'claude-cli', 'gemini', 'codex', 'aider', 'cloudflare', 'openai', 'groq', 'deepseek', 'xai', 'cli:claude-code', 'cli:codex', 'cli:agy', 'cli:gemini', 'cli:groq', 'cli:grok'].includes(backend);
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -454,6 +458,62 @@ export function createCostTracker(db: Database, hooks: CostTrackerHooks = {}) {
   `);
 
   /**
+   * Append a durable Agent Harbor CostAccrualEvent (ADR-0095, lib/agent-harbor)
+   * for a just-recorded cost_events row. Best-effort and NEVER throws — cost
+   * recording (cost_events) is the primary, older ledger; this is an additive
+   * durable-fact sink layered on top per the 2026-07-14 halt-mandate BUG 2
+   * ("built but unfed": CostAccrualLedger/appendEvent existed with zero
+   * production writers, so harbor_events was always empty).
+   *
+   * EXEMPTION: a `costModel:'subscription'` backend (cli:claude-code,
+   * cli:codex, …) has $0 real spend by construction — appending a cost fact
+   * for it would be recording a fiction. Every metered backend (claude,
+   * gemini, cloudflare, openai, groq, deepseek, xai, ollama, lmstudio, aider,
+   * custom, and any backend absent from the catalog) accrues, even when the
+   * computed cost is an estimate or $0 — the FACT that a metered call
+   * happened is itself worth a durable record.
+   *
+   * Gated on `spawnId` being present: `agentNodeId` is a required field on
+   * CostAccrualEvent (schemas/agent-harbor/v0/cost-accrual-event.schema.json)
+   * and a cost_events row recorded without a spawnId cannot be attributed to
+   * any agent node, so there is nothing honest to append.
+   */
+  function emitCostAccrualEvent(opts: CostRecordOpts, costUsd: number, isEstimate: boolean, ts: number): void {
+    if (!opts.spawnId) return;
+    if (isSubscriptionBackend(opts.backend)) return;
+    try {
+      const quantity = (opts.inputTokens ?? 0) + (opts.outputTokens ?? 0);
+      const event: CostAccrualEvent = {
+        schema: 'pd.agent-harbor.cost-accrual-event.v0',
+        costEventId: `cost_${randomUUID()}`,
+        agentNodeId: opts.spawnId,
+        sessionId: opts.identity ?? null,
+        runId: null,
+        provider: opts.backend,
+        modelTier: null,
+        modelName: opts.model,
+        meter: 'tokens',
+        // A cost-tracker record() call is the SETTLED total for a completed
+        // spawn (spawner.ts calls it once, after the run finishes), so
+        // 'finalization' is the correct phase — not a mid-stream 'stream' tick.
+        phase: 'finalization',
+        quantity,
+        unit: 'total-tokens',
+        estimatedCostUsd: isEstimate ? costUsd : null,
+        actualCostUsd: isEstimate ? null : costUsd,
+        budgetId: null,
+        budgetAction: 'none',
+        idempotencyKey: `cost-tracker:${opts.spawnId}:${ts}`,
+        occurredAt: new Date(ts).toISOString(),
+      };
+      appendEvent(db, { streamType: 'cost-accrual-event', payload: event });
+    } catch {
+      // The durable ledger is additive observability — a schema/db failure
+      // here must never block or fail the primary cost_events recording.
+    }
+  }
+
+  /**
    * Record a cost event for a completed spawn.
    * Safe to call fire-and-forget — never throws.
    */
@@ -470,6 +530,8 @@ export function createCostTracker(db: Database, hooks: CostTrackerHooks = {}) {
         opts.inputTokens ?? null, opts.cachedInputTokens ?? null, opts.outputTokens ?? null,
         costUsd, isEstimate ? 1 : 0,
       );
+
+      emitCostAccrualEvent(opts, costUsd, isEstimate, ts);
 
       // Budget-guard enforcement hook — the record above is observability,
       // this is the teeth. If the project crosses 100% of its daily budget,

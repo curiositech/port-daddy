@@ -544,6 +544,7 @@ export async function createCheckRun(
   name: string,
   headSha: string,
   token: string,
+  detailsUrl?: string | null,
 ): Promise<number> {
   const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs`, {
     method: 'POST',
@@ -553,6 +554,7 @@ export async function createCheckRun(
       head_sha: headSha,
       status: 'in_progress',
       started_at: new Date().toISOString(),
+      ...(detailsUrl ? { details_url: detailsUrl } : {}),
     }),
   });
   if (!res.ok) return 0;
@@ -567,8 +569,11 @@ export async function completeCheckRun(
   conclusion: 'success' | 'failure' | 'neutral',
   summary: string,
   token: string,
+  detailsUrl?: string | null,
 ): Promise<void> {
   if (!checkRunId) return;
+  // details_url is (re)stamped on completion too, so a run that REUSED an
+  // older check run (idempotent retry path) still links to its own page.
   await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
     method: 'PATCH',
     headers: ghHeaders(token),
@@ -577,6 +582,7 @@ export async function completeCheckRun(
       conclusion,
       completed_at: new Date().toISOString(),
       output: { title: 'Port Daddy Fleet', summary },
+      ...(detailsUrl ? { details_url: detailsUrl } : {}),
     }),
   });
 }

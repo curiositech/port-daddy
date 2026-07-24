@@ -103,7 +103,7 @@ describe('dispatch routes WorkIntent contract', () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/budgetUsd must be a positive number/);
+    expect(res.json().error).toMatch(/budgetUsd must be a non-negative number/);
     expect(dispatchQueue.list({ state: 'all' })).toHaveLength(0);
     expect(readEvents(db, { streamType: 'work-intent' })).toHaveLength(1);
     await app.close();

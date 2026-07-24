@@ -39,11 +39,12 @@ beforeEach(() => {
 });
 
 describe('dispatch publish exec-level timeout (orphan-kill hardening)', () => {
-  test('gitPushBranch passes a finite timeout + SIGKILL to execFile', async () => {
+  test('gitPushBranch avoids repository-wide upstream writes and bounds execFile', async () => {
     await gitPushBranch('/tmp/wt', 'dispatch/foo-abc123');
     const push = execFileCalls.find((c) => c.cmd === 'git');
     expect(push).toBeDefined();
-    expect(push.args).toEqual(['-C', '/tmp/wt', 'push', '-u', 'origin', 'dispatch/foo-abc123']);
+    expect(push.args).toEqual(['-C', '/tmp/wt', 'push', 'origin', 'dispatch/foo-abc123']);
+    expect(push.args).not.toContain('-u');
     expect(push.options.timeout).toBe(PUBLISH_EXEC_TIMEOUT_MS);
     expect(Number.isFinite(push.options.timeout)).toBe(true);
     expect(push.options.timeout).toBeGreaterThan(0);

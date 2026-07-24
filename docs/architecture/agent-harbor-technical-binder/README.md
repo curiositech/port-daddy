@@ -235,6 +235,13 @@ Work Receipt:
   Gateway, WorkIntent migration, `pd-supervisor`, native proof, and RC/Homebrew
   gates.
 
+Current build-start work packets:
+
+- [Cross-LLM Single-Agent Run Build Plan](./work-packets/cross-llm-single-agent-run-build-plan.md):
+  the concrete slice plan for turning provider-neutral `AgentBody` and
+  single-run `AgentRun` rendering into schemas, ledger/projection support,
+  adapter fixtures, routes, `pd-console` UI, and receipt/proof gates.
+
 ## Architecture in one diagram
 
 ```mermaid

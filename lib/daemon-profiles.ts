@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PD_HOME } from '../shared/paths.js';
+import { STATE_PLANE_ENV } from './state-plane.js';
 
 export const DAEMON_PROFILE_DIRNAME = 'instances';
 export const RESERVED_DAEMON_PROFILES = new Set(['canonical', 'default', 'stable']);
@@ -143,6 +144,7 @@ export function buildDaemonProfileEnv(
   const env: NodeJS.ProcessEnv = { ...(opts.baseEnv ?? process.env) };
   for (const key of [
     'PD_URL',
+    'PD_ACTIVE_DAEMON',
     'PORT_DADDY_URL',
     'PORT_DADDY_DB',
     'PORT_DADDY_SOCK',
@@ -150,6 +152,10 @@ export function buildDaemonProfileEnv(
     'PORT_DADDY_PID_FILE',
     'PORT_DADDY_PORT_FILE',
     'PORT_DADDY_HEARTBEAT_FILE',
+    // An inherited plane override (PORT_DADDY_PLANE) would poison the child
+    // daemon's state-plane classification — strip it so the berth self-classifies
+    // from its own prefix/port/profile signals (lib/state-plane.ts).
+    STATE_PLANE_ENV,
   ]) {
     delete env[key];
   }
@@ -158,8 +164,15 @@ export function buildDaemonProfileEnv(
   env.PORT_DADDY_PREFIX = profile.runtimeDir;
   env.PORT_DADDY_NO_FLEET = opts.enableFleet ? '0' : '1';
   env.PORT_DADDY_NO_FLEETBAR = opts.enableFleetBar ? '0' : '1';
+  env.PD_ACTIVE_DAEMON = profile.name;
   if (typeof opts.port === 'number') {
     env.PORT_DADDY_PORT = String(opts.port);
+    // The daemon is also the parent of hooks and provider-neutral spawned
+    // bodies. Give those descendants the address of THIS profile, not the
+    // caller shell's canonical/default daemon. Without this a named berth can
+    // register a body locally while the body's own `pd` calls mutate another
+    // state plane.
+    env.PORT_DADDY_URL = `http://127.0.0.1:${opts.port}`;
   }
   if (opts.nodeEnv) {
     env.NODE_ENV = opts.nodeEnv;

@@ -83,8 +83,8 @@ impl Sem {
             Sem::Ink => "39", // default foreground
             Sem::Ink2 => "39",
             Sem::Muted => "90",   // bright black
-            Sem::Accent => "33",  // yellow (amber)
-            Sem::Engaged => "34", // blue
+            Sem::Accent => "34",  // cobalt system accent
+            Sem::Engaged => "33", // yellow/chartreuse activity
             Sem::Gated => "31",   // red
             Sem::Resting => "90",
             Sem::Landed => "32", // green
@@ -301,6 +301,13 @@ fn spark_line(values: &[f32]) -> String {
         .collect()
 }
 
+/// The CLI shadow of an International Code of Signals flag: two adjacent
+/// blocks, system color first and state/actor color second. It remains a stable
+/// two-character token in Plain mode.
+fn micro_flag(style: &TermStyle, sem: Sem) -> String {
+    format!("{}{}", style.paint("▉", Sem::Accent), style.paint("▉", sem))
+}
+
 /// Render blocks to a styled string, reflowed to the detected terminal width.
 pub fn render_blocks(blocks: &[Block], style: &TermStyle) -> String {
     render_blocks_width(blocks, style, detect_cols(style))
@@ -313,22 +320,30 @@ pub fn render_blocks(blocks: &[Block], style: &TermStyle) -> String {
 pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usize>) -> String {
     let mut out = String::new();
     let mut i = 0;
+    let mut section_open = false;
 
     while i < blocks.len() {
         match &blocks[i] {
             Block::Header(text) => {
                 let rule_len = 46usize.saturating_sub(text.chars().count());
+                if section_open {
+                    out.push_str(&format!("  {}\n", style.paint("└", Sem::Accent)));
+                }
                 out.push('\n');
                 out.push_str(&format!(
-                    "  {} {}\n",
+                    "  {}{} {} {}\n",
+                    style.paint("┌", Sem::Accent),
+                    micro_flag(style, Sem::Engaged),
                     style.bold_paint(text, Sem::Accent),
                     style.paint(&"─".repeat(rule_len), Sem::Resting),
                 ));
+                section_open = true;
                 i += 1;
             }
             Block::KeyVal(key, val) => {
                 out.push_str(&format!(
-                    "  {} {}\n",
+                    "  {} {} {}\n",
+                    style.paint("▏", Sem::Resting),
                     style.paint(&pad(key, 18), Sem::Muted),
                     style.paint(val, Sem::Ink),
                 ));
@@ -368,7 +383,11 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                             }
                         })
                         .collect();
-                    out.push_str(&format!("  {}\n", line.join(&format!(" {sep} "))));
+                    out.push_str(&format!(
+                        "  {} {}\n",
+                        style.paint("▏", Sem::Resting),
+                        line.join(&format!(" {sep} "))
+                    ));
                 }
             }
             Block::CodeBuffer {
@@ -514,12 +533,13 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                 label,
                 tone,
             } => {
-                // TUI hoist: a bracketed signal letter painted in the flag tone,
-                // then the label. (The GPU face draws the colored square.)
+                // TUI hoist: the same two-block micro-flag as the GPU face,
+                // followed by its signal letter and operator label.
                 let sem = tone.sem();
                 out.push_str(&format!(
-                    "  {} {}\n",
-                    style.paint(&format!("⚑{letter}"), sem),
+                    "  {} {} {}\n",
+                    micro_flag(style, sem),
+                    style.bold_paint(&letter.to_string(), sem),
                     style.paint(label, sem),
                 ));
                 i += 1;
@@ -556,9 +576,10 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                 // meta, age. Live and historical stay visually distinct.
                 let sem = tone.sem();
                 out.push_str(&format!(
-                    "  {}{} {} {} {}  {}  {}\n",
+                    "  {} {}{} {} {} {}  {}  {}\n",
+                    micro_flag(style, sem),
                     style.paint(if *selected { "▸" } else { " " }, Sem::Accent),
-                    style.paint(&format!("⚑{flag}"), sem),
+                    style.bold_paint(&flag.to_string(), sem),
                     style.paint(if *live { "●" } else { "○" }, sem),
                     style.bold_paint(name, if *selected { Sem::Accent } else { Sem::Ink }),
                     style.paint(&format!("[{badge}]"), badge_tone.sem()),
@@ -592,6 +613,9 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                 i += 1;
             }
         }
+    }
+    if section_open {
+        out.push_str(&format!("  {}\n", style.paint("└", Sem::Accent)));
     }
     // Reflow: truncate each emitted line to the terminal width (TTY only; pipes
     // pass None and stay whole). ANSI-aware so color never bleeds past the cut.
@@ -629,6 +653,16 @@ mod tests {
         assert!(!out.contains('\x1b'), "plain mode leaked ANSI: {out:?}");
         assert!(out.contains("Fleet"));
         assert!(out.contains("✓ ok"));
+    }
+
+    #[test]
+    fn story_linework_header_uses_ticks_and_two_block_flag() {
+        let out = render_blocks_width(&[Block::Header("Fleet".into())], &plain(), None);
+        assert!(
+            out.contains("┌▉▉ Fleet"),
+            "missing corner/flag grammar: {out}"
+        );
+        assert!(out.trim_end().ends_with('└'), "missing closing tick: {out}");
     }
 
     #[test]

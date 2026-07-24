@@ -72,6 +72,9 @@ pd dev up --from main
 # spin a berth from YOUR branch on a claimed port
 pd dev up --from feat/my-thing --label my-thing
 
+# arm that isolated berth's fleet worker for governed WorkIntent launches
+pd dev up --from feat/my-thing --label my-thing --fleet
+
 # see every berth (stable + each dev berth)
 pd dev list
 
@@ -84,14 +87,25 @@ eval "$(pd use stable)"        # reset to :9876
 pd --daemon dev status
 pd --daemon my-thing roadmap items
 
-# stop a berth (never touches the brew/stable daemon)
+# stop a berth and preserve its isolated DB (never touches brew/stable)
 pd dev down my-thing           # or: pd dev down --all
+
+# explicit destructive reset of that named berth
+pd dev down my-thing --purge   # --reset is an alias
 ```
 
 `pd dev up` builds the daemon **binary** via `scripts/build-daemon-binary.mjs` (never
 `tsx`), launches it detached with its berth identity env, smokes `/health`, and records
 it in `~/.port-daddy/dev-daemons.json`. Each berth gets an isolated runtime dir / DB /
-socket under `~/.port-daddy/instances/<label>/`. Binding `:9876` is refused.
+socket under `~/.port-daddy/instances/<label>/`. A new berth copies durable board
+history from stable, but clears machine-local bindings and executable dispatch rows;
+the berth can launch only work explicitly submitted to that berth. Binding `:9876`
+is refused. Fleet work is off by default; `--fleet` arms the named berth worker and
+records that state in its profile without changing the berth's codebase identity.
+Ordinary `pd dev down` and automatic dead/idle-process reaping preserve the
+profile DB, so restarting the same label resumes its durable commands, events,
+transcripts, and receipts. State deletion is explicit: `pd dev down --purge`,
+`--reset`, or `pd dev gc`.
 
 Because `pd use` exports `PORT_DADDY_URL`, every consumer that resolves the daemon
 through it follows the berth automatically — the CLI, MCP, the SDK, **and the Rust

@@ -25,13 +25,14 @@ const SHUTDOWN_TIMEOUT_MS = 3000;
  *
  * @param {Object} [options]
  * @param {number} [options.startupTimeout=30000] - Max ms to wait for daemon ready
+ * @param {Record<string, string | undefined>} [options.env] - Extra daemon env overrides
  * @returns {Promise<EphemeralDaemon>}
  */
 export async function startEphemeralDaemon(options = {}) {
   // Cold TypeScript + daemon boot on this repo can legitimately take longer
   // than 15s on the first run. Keep the harness above that threshold so we
   // fail on real hangs, not on normal cold-start variance.
-  const { startupTimeout = 30000 } = options;
+  const { startupTimeout = 30000, env = {} } = options;
 
   // Create temp directory for DB and socket
   const tmpDir = mkdtempSync(join(tmpdir(), 'port-daddy-test-'));
@@ -47,9 +48,11 @@ export async function startEphemeralDaemon(options = {}) {
   mkdirSync(contextDir, { recursive: true });
 
   // Spawn daemon process (use tsx to handle .ts imports)
-  const child = spawn(TSX_PATH, [SERVER_PATH], {
+  const child = spawn(process.execPath, [TSX_PATH, SERVER_PATH], {
     env: {
       ...process.env,
+      HOME: homeDir,
+      ...env,
       PORT_DADDY_DB: dbPath,
       PORT_DADDY_SOCK: sockPath,
       PORT_DADDY_IPC: ipcPath,
@@ -170,7 +173,8 @@ function daemonRequest(sockPath, path, options = {}) {
   const {
     method = 'GET',
     body = null,
-    headers = {}
+    headers = {},
+    timeout = 10000
   } = options;
 
   const jsonBody = body ? JSON.stringify(body) : null;
@@ -188,7 +192,7 @@ function daemonRequest(sockPath, path, options = {}) {
       path,
       method,
       headers: reqHeaders,
-      timeout: 10000
+      timeout
     }, (res) => {
       const chunks = [];
       res.on('data', chunk => chunks.push(chunk));

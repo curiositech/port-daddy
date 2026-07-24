@@ -1,15 +1,24 @@
 import { assessBackendReadiness, type BackendReadiness } from './backend-readiness.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
+import { resolveEffectiveSpawnBackend } from './backend-catalog.js';
 import type { BudgetStatus, CostTracker } from './cost-tracker.js';
 import {
   resolveFleetAgentRuntime,
   type FleetModelTier,
   type FleetRuntimeTarget,
-} from './fleet-engine.js';
+} from './fleet-runtime.js';
 
-export const LOCAL_EXECUTION_BACKENDS = new Set(['claude-cli', 'codex', 'ollama', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok']);
+export const LOCAL_EXECUTION_BACKENDS = new Set(['claude-cli', 'codex', 'ollama', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:agy', 'cli:gemini', 'cli:groq', 'cli:grok']);
 
 const LOCAL_EXECUTION_NOTE = 'Local CLI backends and Port Daddy socket/IPC operations may need unsandboxed approval in restricted runners.';
+
+const FORCED_CLI_BACKEND_MODELS: Record<string, string | undefined> = {
+  'cli:claude-code': 'claude-cli',
+  'cli:codex': 'codex-cli',
+  'cli:gemini': 'gemini-cli',
+  'cli:groq': 'groq-cli',
+  'cli:grok': 'grok-cli',
+};
 
 export interface SpawnPreflightInput {
   backend?: string | null;
@@ -39,7 +48,7 @@ export interface SpawnPreflightAttempt {
   backend: string | null;
   model: string | null;
   modelTier: FleetModelTier | null;
-  backendSource: 'agent' | 'env' | 'missing';
+  backendSource: 'agent' | 'env' | 'persisted' | 'missing';
   modelSource: 'agent' | 'tier' | 'env' | 'unset';
   warnings: string[];
   readinessStatus: BackendReadiness['status'];
@@ -118,16 +127,35 @@ function uniqueWarnings(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))];
 }
 
+function forcedRuntimeTarget(target: FleetRuntimeTarget): FleetRuntimeTarget {
+  const effective = resolveEffectiveSpawnBackend(target.backend);
+  if (!effective.forced || effective.backend === target.backend) {
+    return target;
+  }
+  return {
+    backend: effective.backend || undefined,
+    model: effective.backend ? FORCED_CLI_BACKEND_MODELS[effective.backend] : undefined,
+    modelTier: undefined,
+  };
+}
+
 export async function assessSpawnPreflight(
   input: SpawnPreflightInput,
   deps: { costTracker?: CostTracker } = {},
 ): Promise<SpawnPreflightResult> {
   const attempts = await Promise.all(
     buildAttemptTargets(input).map(async (target, index): Promise<SpawnPreflightAttempt> => {
-      const runtime = resolveFleetAgentRuntime(target);
+      const effective = resolveEffectiveSpawnBackend(target.backend);
+      const targetForRuntime = forcedRuntimeTarget(target);
+      const runtime = resolveFleetAgentRuntime(targetForRuntime);
       const telemetryPolicy = runtime.backend
         ? assessBackendTelemetryPolicy(runtime.backend, runtime.model ?? null)
         : null;
+      const forcedWarning = effective.forced && effective.requestedBackend !== effective.backend
+        ? effective.forcedSource === 'persisted'
+          ? `Persisted CLI backend selection forces ${effective.backend}; requested backend ${effective.requestedBackend ?? 'none'} will be preflighted and spawned as ${effective.backend}.`
+          : `PD_USE_CLI_BACKEND forces ${effective.backend}; requested backend ${effective.requestedBackend ?? 'none'} will be preflighted and spawned as ${effective.backend}.`
+        : '';
       const readiness = runtime.backend
         ? await assessBackendReadiness(runtime.backend, { model: telemetryPolicy?.effectiveModel ?? runtime.model ?? null })
         : {
@@ -142,9 +170,12 @@ export async function assessSpawnPreflight(
         backend: runtime.backend,
         model: runtime.model ?? telemetryPolicy?.effectiveModel ?? null,
         modelTier: runtime.modelTier ?? null,
-        backendSource: runtime.backendSource,
+        backendSource: effective.forced ? effective.forcedSource ?? 'env' : runtime.backendSource,
         modelSource: runtime.modelSource,
-        warnings: runtime.warnings,
+        warnings: uniqueWarnings([
+          ...runtime.warnings,
+          forcedWarning,
+        ]),
         readinessStatus: readiness.status,
         readinessLaunchableUnverified: readiness.launchableUnverified === true,
         readinessSummary: readiness.summary,

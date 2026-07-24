@@ -66,6 +66,82 @@ describe('transcripts module', () => {
       expect(tx).not.toBeNull();
       expect(tx.ship).toBe('code-reviewer');
     });
+
+    it('migrates old fleet_transcripts rows with runtime provenance defaults', () => {
+      const oldDb = createTestDb();
+      try {
+        oldDb.exec(`
+          CREATE TABLE fleet_transcripts (
+            id TEXT PRIMARY KEY,
+            ship TEXT NOT NULL,
+            session_id TEXT,
+            spawned_agent_id TEXT NOT NULL,
+            pr_number INTEGER,
+            issue_number INTEGER,
+            trigger TEXT NOT NULL,
+            backend TEXT NOT NULL,
+            model TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'running',
+            started_at INTEGER NOT NULL,
+            ended_at INTEGER,
+            cost_usd REAL,
+            tokens_in INTEGER,
+            tokens_out INTEGER,
+            error TEXT,
+            project TEXT,
+            identity TEXT
+          );
+          INSERT INTO fleet_transcripts (
+            id, ship, spawned_agent_id, trigger, backend, model, status, started_at
+          ) VALUES (
+            'tx_old_runtime', 'spawn:openai', 'agent-old', 'manual', 'openai', 'gpt-5-mini', 'completed', 1700000000000
+          );
+        `);
+
+        const migrated = createTranscripts(oldDb, { now });
+        const columns = oldDb.prepare('PRAGMA table_info(fleet_transcripts)').all().map((row) => row.name);
+        expect(columns).toEqual(expect.arrayContaining([
+          'requested_backend',
+          'effective_backend',
+          'requested_model',
+          'effective_model',
+          'backend_override_source',
+        ]));
+
+        const oldTx = migrated.getTranscript('tx_old_runtime');
+        expect(oldTx).toEqual(expect.objectContaining({
+          backend: 'openai',
+          model: 'gpt-5-mini',
+          requested_backend: 'openai',
+          effective_backend: 'openai',
+          requested_model: 'gpt-5-mini',
+          effective_model: 'gpt-5-mini',
+          backend_override_source: 'none',
+        }));
+
+        const newId = migrated.start({
+          ship: 'spawn:cli:codex',
+          spawned_agent_id: 'agent-new',
+          trigger: 'manual',
+          backend: 'cli:codex',
+          model: 'codex-cli',
+          requested_backend: 'openai',
+          effective_backend: 'cli:codex',
+          requested_model: 'gpt-5-mini',
+          effective_model: 'codex-cli',
+          backend_override_source: 'env',
+        });
+        expect(migrated.getTranscript(newId)).toEqual(expect.objectContaining({
+          requested_backend: 'openai',
+          effective_backend: 'cli:codex',
+          requested_model: 'gpt-5-mini',
+          effective_model: 'codex-cli',
+          backend_override_source: 'env',
+        }));
+      } finally {
+        oldDb.close();
+      }
+    });
   });
 
   // ───────────────────────────────────────────────────────────────────────────

@@ -81,6 +81,7 @@ import { createJsonlForensicsArchive } from './lib/forensics-archive.js';
 import { createSemanticIndex } from './lib/semantic-index.js';
 import { createTupleSpace } from './lib/tuples.js';
 import { createBlobStore } from './lib/blob.js';
+import { createBootyStore } from './lib/booty.js';
 import { createNoteEncryption } from './lib/note-encryption.js';
 import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 import { createIpcServer } from './lib/ipc-server.js';
@@ -95,11 +96,15 @@ import { createCostTracker } from './lib/cost-tracker.js';
 import { createCloudAppTelemetry } from './lib/cloud-app-telemetry.js';
 import { createContextWindowTracker } from './lib/context-window-tracker.js';
 import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
+import { normalizeSelfSalvage } from './lib/telos-salvage.js';
 import { createOperatorPermissions } from './lib/operator-permissions.js';
 import { createCounters } from './lib/counters.js';
 import { createMetricsRegistry } from './lib/metrics-registry.js';
 import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
+import { createActorSouls } from './lib/actor-souls.js';
+import { migrateActorSouls } from './scripts/migrate-actor-souls.js';
+import { homedir } from 'node:os';
 import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
 import { createParley } from './lib/parley.js';
@@ -114,6 +119,8 @@ import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
 import { createLocalEmbedder, createSemanticResolver, defaultTransformersCacheDir } from './lib/semantic-resolver.js';
+import { installGovernor } from './lib/observability/index.js';
+import { createObservabilityMaintenance } from './lib/observability/maintenance.js';
 import { createGalaxy } from './lib/galaxy.js';
 import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
@@ -130,8 +137,10 @@ import {
   resolveDaemonBerthIdentity,
   registerDaemonBerth,
   deregisterDaemonBerth,
+  BERTH_ENV,
   type DaemonBerthIdentity,
 } from './shared/daemon-berths.js';
+import { classifyPlane, STATE_PLANE_ENV, type StatePlane } from './lib/state-plane.js';
 import { calculateRuntimeCodeHash } from './shared/code-hash.js';
 import { snapshotRunningBinary, detectDrift, type BinaryDriftSnapshot } from './lib/binary-drift-detector.js';
 import { resolveDistributionRoot } from './shared/daemon-binary.js';
@@ -186,7 +195,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.24.1';
+const EMBEDDED_PACKAGE_VERSION: string = '3.26.4';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -327,6 +336,11 @@ if (!isSilent && process.env.NODE_ENV !== 'production') {
   }));
 }
 
+// Install the process-wide governed logger over winston. Loop/tick call sites log through this
+// (dedup + rate-limit + sampling + correlation) so a persistently-failing operation can never again
+// storm the logs the way `semantic_resolution_failed` did (7,182 lines → a 255 MB stdout capture).
+const governor = installGovernor(logger, { windowMs: 60_000, burst: 3 });
+
 // =============================================================================
 // DATABASE + PATHS (identical to server.ts)
 // =============================================================================
@@ -337,14 +351,31 @@ const IS_DEV_MODE: boolean = !!PREFIX;
 const DB_PATH: string = resolveDbPath(PREFIX ? join(PREFIX, 'port-daddy.db') : undefined);
 const PORT: number = parseInt(process.env.PORT_DADDY_PORT as string, 10) || (IS_DEV_MODE ? 9877 : config.service.port);
 
+// State plane (S1): classify once at boot which state this daemon mutates —
+// 'prod' | 'dev-latest' | 'ephemeral:<label>'. Pure inference from the same
+// signals used above (PORT_DADDY_PLANE override > canonical prefix > the
+// dev-latest lane > ephemeral). Surfaced on /version, /health, the berth
+// registry, and the Bosun heartbeat file.
+const DAEMON_PLANE: StatePlane = classifyPlane({
+  prefixPath: PREFIX,
+  port: PORT,
+  profileName: process.env[BERTH_ENV.label]?.trim() || null,
+  envOverride: process.env[STATE_PLANE_ENV],
+});
+
 // Berth identity (ADR-0084): self-report which berth this daemon is. Defaults
 // to the stable, canonical berth when PD_DAEMON_* env is unset, so the existing
 // brew daemon transparently reports as `stable` with no launch change.
-const DAEMON_BERTH: DaemonBerthIdentity = resolveDaemonBerthIdentity({
-  env: process.env,
-  port: PORT,
-  gitSnapshot: snapshotDaemonGit(process.env.PD_DAEMON_SOURCE_DIR?.trim() || null),
-});
+const DAEMON_BERTH: DaemonBerthIdentity = {
+  ...resolveDaemonBerthIdentity({
+    env: process.env,
+    port: PORT,
+    gitSnapshot: snapshotDaemonGit(process.env.PD_DAEMON_SOURCE_DIR?.trim() || null),
+  }),
+  // Plane rides with the berth identity so `registerDaemonBerth` records it
+  // (shared/ cannot import lib/, so classification happens here, not there).
+  plane: DAEMON_PLANE,
+};
 
 import { DEFAULT_SOCK, DEFAULT_IPC, DEFAULT_PID_FILE, DEFAULT_PORT_FILE } from './shared/paths.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || (PREFIX ? join(PREFIX, 'port-daddy.sock') : DEFAULT_SOCK);
@@ -432,7 +463,10 @@ function isInSleepGracePeriod(): boolean {
   return Date.now() < sleepGraceUntil;
 }
 
-const db: DatabaseInstance = initDatabase({ dbPath: DB_PATH });
+// The daemon IS the write-boundary (the Door): it opens with owner semantics and
+// is the single legitimate writer of the registry. Non-daemon openers use
+// role:'client' and get a write-guarded handle.
+const db: DatabaseInstance = initDatabase({ dbPath: DB_PATH, role: 'daemon' });
 
 // =============================================================================
 // MODULE INITIALIZATION (identical to server.ts)
@@ -443,6 +477,7 @@ const graphEdges = createGraphEdges(db);
 const symbolIndex = createSymbolIndex(db, { graphEdges });
 const tuples = createTupleSpace(db);
 const blobs = createBlobStore();
+const booty = createBootyStore(db);
 const counters = createCounters(db);
 const metricsRegistry = createMetricsRegistry();
 const semanticResolver = createSemanticResolver(db, {
@@ -453,6 +488,7 @@ const semanticResolver = createSemanticResolver(db, {
   graphEdges,
   tuples,
   logger,
+  governor,
 });
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
 const quorum = createQuorum({ tuples });
@@ -467,6 +503,23 @@ const locks = createLocks(db);
 const health = createHealth(db, services as Parameters<typeof createHealth>[1]);
 const agents = createAgents(db, { semanticIndex });
 const activityLog = createActivityLog(db);
+
+// Observability maintenance: on each cleanup tick, prune the audit-identified unbounded tables
+// (harbor_issued_tokens, semantic_resolution_events), reclaim freed pages, and sample the daemon's
+// own DB/WAL/row footprint — raising a durable RESOURCE_ALARM before a runaway can reach 313 GB.
+const observabilityMaintenance = createObservabilityMaintenance({
+  db,
+  dbPath: DB_PATH,
+  governor,
+  onCritAlarm: (alarm) => {
+    try {
+      activityLog.log(ActivityType.RESOURCE_ALARM, {
+        details: `resource ceiling crossed: ${alarm.metric}`,
+        metadata: { metric: alarm.metric, value: alarm.value, threshold: alarm.threshold, severity: alarm.severity },
+      });
+    } catch { /* durable-audit best effort; the governed log already fired */ }
+  },
+});
 // Durable commitments + obligation monitor (ADR-0041 first slice). The
 // obligation half of accountability: resurrection watches heartbeats, this
 // watches promises. The monitor is a PURE runtime check over SQLite (Law 4 —
@@ -528,7 +581,7 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const sugar = createSugar({ agents, sessions, activityLog });
+const sugar = createSugar({ agents, sessions, activityLog, roadmapItems });
 const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
@@ -542,8 +595,28 @@ const bonds = createBonds(db, {
   harbors, noteEncryption,
   broadcast: (channel, event) => messaging.publish(channel, event),
 });
+// ADR-0040 keystone: daemon-minted, non-forgeable actor identity. The souls
+// store is the spend-choke input for budget-guard — it resolves each agentId
+// (minted id or display alias) to a soul + class, soul-sources the ceiling, and
+// meters newcomers against the SHARED per-project pool so minting fresh ids buys
+// no new budget. HONEST LIMIT: the anti-launder only fully bites once the `door`
+// lane makes the SQLite write-boundary real (a same-UID agent can otherwise
+// write a ledger/pool row directly). This is ADR-0040's explicit non-goal.
+const actorSouls = createActorSouls(db);
+// Grandfather EXISTING agents (from budget_ledger/bond_escrow/agents) into
+// trusted souls before budgetGuard starts routing spend through the souls
+// choke below -- otherwise every already-running agent looks like a brand
+// new "unknown" soul on this boot and gets capped at the newcomer pool floor
+// instead of its real budget. Idempotent (see scripts/migrate-actor-souls.ts);
+// safe to run on every boot, not just the first one after this lands.
+try {
+  migrateActorSouls(db, { apply: true, credentialsDir: join(homedir(), '.port-daddy', 'actor-credentials') });
+} catch (err) {
+  console.error('[actor-souls] grandfather migration failed (spend routing may throttle pre-existing agents until this is fixed):', err);
+}
 const budgetGuard = createBudgetGuard(db, {}, {
   broadcast: (channel, event) => messaging.publish(channel, event),
+  souls: actorSouls,
 });
 
 // Late-binding spawner ref: cost-tracker needs to trigger spawner.kill() on
@@ -813,7 +886,7 @@ const custodian = CUSTODIAN_ENABLED
       logger,
       episodicMemory: episodicMemory as any,
       messaging: messaging as any,
-      resurrection: resurrection as any,
+      resurrection,
       contextTracker: contextTracker as any,
       operatorPermissions,
       blobs: blobs as any,
@@ -835,6 +908,7 @@ const mergeQueue = createMergeQueue(db, {
 const bosunHeartbeat = createBosunHeartbeat({
   heartbeatPath: HEARTBEAT_FILE,
   version: VERSION,
+  plane: DAEMON_PLANE,
   codeHash: CODE_HASH,
   startedAt: STARTED_AT,
   installDir: __dirname,
@@ -885,6 +959,12 @@ resurrection.on('agent:stale', (agent) => {
 
 resurrection.on('agent:dead', (agent) => {
   harbors.leaveAll(agent.id);
+
+  // Capture the agent's active session ids BEFORE abandoning them, so the custodian
+  // can harvest each session's notes into episodic memory while they remain queryable
+  // (Item 6 — on-death fast path; without it, notes wait up to a poll interval or are
+  // lost when the zombie protocol abandons the session first).
+  const abandonedSessionIds = sessions.activeSessionIdsByAgent(agent.id);
   const zombied = sessions.abandonByAgent(agent.id);
   if (zombied > 0) {
     logger.warn('zombie_sessions_abandoned', { agentId: agent.id, count: zombied });
@@ -906,6 +986,32 @@ resurrection.on('agent:dead', (agent) => {
     details: `Agent ${agent.name || agent.id} detected as dead, queued for resurrection`,
     metadata: { agentId: agent.id, staleSince: agent.staleSince }
   });
+
+  if (custodian) {
+    // Item 6 (on-death harvest): promote each abandoned session's notes immediately.
+    for (const sid of abandonedSessionIds) void custodian.onSessionEnd(sid);
+
+    // Items 1b + 2 (auto-resurrect): read the dying agent's self-salvage capsule as
+    // untrusted respawn CONTEXT, and hand the custodian the AUTHENTICATED scope from the
+    // verified StaleAgent record — never from the forgeable capsule. Passing scope as a
+    // distinct argument makes a forged `capsule.identityProject` structurally unable to
+    // influence the operator-permission check (ADR-0040 trust boundary).
+    //
+    // The raw capsule read back from resurrection.getSalvageCapsule() is only guaranteed
+    // to be *some* plain object (see resurrection.ts's getSalvageCapsule — it just checks
+    // `typeof === 'object'`), never that it matches SelfSalvageCapsule's shape. Run it
+    // through the same normalizeSelfSalvage() producer contract that governs the capsule
+    // elsewhere (telos-salvage.ts) before handing it to the custodian, so a malformed or
+    // corrupted capsule degrades to `undefined` respawn context instead of propagating an
+    // arbitrary shape into the resurrection_context inbox message / operator approval
+    // payload.
+    const rawCapsule = resurrection.getSalvageCapsule(agent.id);
+    const salvage = normalizeSelfSalvage(rawCapsule);
+    if (rawCapsule && !salvage.success) {
+      logger.warn('salvage_capsule_invalid', { agentId: agent.id, error: salvage.error });
+    }
+    void custodian.onAgentDead(agent.id, agent.identityProject ?? '', salvage.capsule as Record<string, unknown> | undefined);
+  }
 });
 
 resurrection.on('agent:resurrected', (oldAgentId, newAgentId) => {
@@ -1047,6 +1153,10 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
   sessions.cleanup();
   agentInbox.cleanup();
   resurrection.cleanup();
+  // Unified retention sweep + page reclaim + self-footprint sample (see createObservabilityMaintenance).
+  try { observabilityMaintenance.tick(); } catch (err) {
+    governor.governed({ key: 'observability_maintenance_failed', level: 'error', message: 'observability_maintenance_failed', meta: { error: (err as Error).message } });
+  }
   db.pragma('wal_checkpoint(PASSIVE)');
   metrics.total_cleanups++;
   return serviceResult;
@@ -1308,17 +1418,18 @@ await registerAllRoutes(
     routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
-    harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
+    harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, booty, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, cloudAppTelemetry, counters, metricsRegistry,
     contextTracker,
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     commitments, obligationMonitor, suggestions,
-    bonds, budgetGuard, budgetPause,
+    bonds, budgetGuard, budgetPause, actorSouls,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,
     daemonBerth: DAEMON_BERTH,
+    plane: DAEMON_PLANE,
     cleanupStale, getSystemPorts,
     // Relay (ADR-0049) connection status. The daemon does not yet start the
     // outbound RelayConnectionManager (lib/relay-client.ts), so this honestly
@@ -1435,6 +1546,8 @@ function shutdown(signal: string): void {
   }
   // Flush counters before closing DB (pending in-memory batches)
   try { counters.shutdown(); } catch {}
+  // Flush any pending log-suppression rollups so a governed tail isn't lost on exit.
+  try { governor.flushAll(); } catch {}
   try { tunnel.stopAll(); } catch {}
   try { tunnel.dispose?.(); } catch {}
   try { bosunHeartbeat.stop(); } catch {}
@@ -1460,6 +1573,27 @@ process.on('SIGHUP', () => {
   } catch (err) {
     logger.error('fleet_reload_failed', { error: (err as Error).message });
   }
+});
+
+// Global failure visibility — previously ABSENT (the audit's top dev-dogfooding gap). Without these,
+// an unhandled rejection crashed the daemon with a terse message (Node ≥15 terminates by default) and
+// a corrupting exception went unlogged. Governed so a flapping async fault can't itself become spam.
+process.on('unhandledRejection', (reason: unknown) => {
+  governor.governed({
+    key: 'unhandled_rejection',
+    level: 'error',
+    message: 'unhandled_rejection',
+    meta: {
+      error: reason instanceof Error ? reason.message : String(reason),
+      stack: reason instanceof Error ? reason.stack : undefined,
+    },
+  });
+});
+process.on('uncaughtException', (err: Error) => {
+  // Undefined state: log loudly (bypass dedup — this is fatal + singular), flush, and let the
+  // supervisor (launchd/brew KeepAlive) respawn cleanly rather than limp on in a corrupt state.
+  logger.error('uncaught_exception', { error: err.message, stack: err.stack });
+  shutdown('uncaughtException');
 });
 
 function onReady(): void {

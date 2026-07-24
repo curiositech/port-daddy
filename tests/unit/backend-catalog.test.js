@@ -9,13 +9,17 @@ import {
   detectForcedCliBackend,
   detectForcedCliBackendValue,
   getBackendCatalogEntry,
+  harnessAdapterCapabilityRows,
   recommendedBackendIds,
+  renderHarnessAdapterMarkdown,
+  resolveEffectiveSpawnBackend,
 } from '../../lib/backend-catalog.js';
 
 describe('backend-catalog', () => {
   test('includes the cli-tube backends introduced in PR #109', () => {
     expect(KNOWN_BACKEND_IDS.has('cli:claude-code')).toBe(true);
     expect(KNOWN_BACKEND_IDS.has('cli:codex')).toBe(true);
+    expect(KNOWN_BACKEND_IDS.has('cli:agy')).toBe(true);
   });
 
   test('cli-tube entries advertise the free-via-subscription framing', () => {
@@ -32,6 +36,15 @@ describe('backend-catalog', () => {
     expect(codex.framing).toMatch(/ChatGPT Pro/i);
     expect(codex.pdUseCliBackendValue).toBe('codex');
     expect(codex.recommended).toBe(true);
+
+    const agy = getBackendCatalogEntry('cli:agy');
+    expect(agy).toBeDefined();
+    expect(agy.costModel).toBe('subscription');
+    expect(agy.framing).toMatch(/agy/i);
+    expect(agy.pdUseCliBackendValue).toBe('agy');
+    // Do not advertise a synthetic default model. The agy CLI should receive
+    // no --model flag unless the operator explicitly picks a real agy model id.
+    expect(agy.models).toEqual([]);
   });
 
   test('all entries expose a non-empty framing string', () => {
@@ -48,6 +61,53 @@ describe('backend-catalog', () => {
     }
   });
 
+  test('every backend declares a shell-free N:N adapter contract', () => {
+    for (const entry of BACKEND_CATALOG) {
+      expect(entry.adapter.family).toMatch(/^[a-z0-9-]+$/);
+      expect(entry.adapter.acceptsInitialPrompt).toBe(true);
+      expect(entry.adapter.authModes.length).toBeGreaterThan(0);
+      expect(entry.adapter.limitations.length).toBeGreaterThan(0);
+      for (const command of [entry.adapter.spawn.command, entry.adapter.resume.command]) {
+        if (!command) continue;
+        expect(command.executable).not.toMatch(/\s|[;&|]/);
+        expect(command.args).not.toContain('-c');
+        expect(command.args.join(' ')).not.toMatch(/\s(?:&&|\|\||;)\s/);
+      }
+    }
+  });
+
+  test('capability rows collapse provider routes onto one adapter family', () => {
+    const rows = harnessAdapterCapabilityRows();
+    expect(rows.length).toBeLessThan(BACKEND_CATALOG.length);
+    expect(rows.find((row) => row.family === 'claude-code')).toMatchObject({
+      backendIds: ['cli:claude-code', 'claude-cli'],
+      resume: 'session',
+      transcript: 'harness:claude-jsonl',
+    });
+    expect(rows.find((row) => row.family === 'codex-cli')).toMatchObject({
+      backendIds: ['cli:codex', 'codex'],
+      resume: 'session',
+      transcript: 'harness:codex-rollout-jsonl',
+    });
+    expect(rows.find((row) => row.family === 'cloudflare-workers-ai')).toMatchObject({
+      resume: 'handoff-only',
+      transcript: 'port-daddy:port-daddy-jsonl',
+    });
+    expect(rows.find((row) => row.family === 'aider')).toMatchObject({ resume: 'history' });
+  });
+
+  test('ADR-0118 generated adapter table matches the executable catalog', () => {
+    const adr = readFileSync(new URL('../../docs/adr/0118-harness-adapter-contract.md', import.meta.url), 'utf8');
+    const beginMarker = '<!-- BEGIN GENERATED HARNESS ADAPTER TABLE -->';
+    const endMarker = '<!-- END GENERATED HARNESS ADAPTER TABLE -->';
+    const begin = adr.indexOf(beginMarker);
+    const end = adr.indexOf(endMarker);
+    expect(begin).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(begin);
+    const checkedIn = adr.slice(begin + beginMarker.length, end).trim();
+    expect(checkedIn).toBe(renderHarnessAdapterMarkdown().trim());
+  });
+
   test('detectForcedCliBackend maps env values to catalog ids', () => {
     expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'claude-code' })).toBe(
       'cli:claude-code',
@@ -56,6 +116,8 @@ describe('backend-catalog', () => {
       'cli:claude-code',
     );
     expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'CODEX' })).toBe('cli:codex');
+    expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'agy' })).toBe('cli:agy');
+    expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'antigravity' })).toBe('cli:agy');
     expect(detectForcedCliBackend({})).toBeNull();
     expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: '' })).toBeNull();
     expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'bogus' })).toBeNull();
@@ -98,6 +160,31 @@ describe('backend-catalog', () => {
       const env = { PD_USE_CLI_BACKEND: 'claude-code' };
       expect(detectForcedCliBackend(env, { persistedPath: path })).toBe('cli:claude-code');
       expect(detectForcedCliBackendValue(env, { persistedPath: path })).toBe('claude-code');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('resolveEffectiveSpawnBackend reports whether a forced backend came from env or persisted selection', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-backend-catalog-'));
+    const path = join(dir, 'selection');
+    try {
+      writeFileSync(path, 'codex\n');
+
+      expect(resolveEffectiveSpawnBackend('openai', {}, { persistedPath: path })).toMatchObject({
+        requestedBackend: 'openai',
+        backend: 'cli:codex',
+        forcedBackend: 'cli:codex',
+        forcedSource: 'persisted',
+        forced: true,
+      });
+      expect(resolveEffectiveSpawnBackend('openai', { PD_USE_CLI_BACKEND: 'agy' }, { persistedPath: path })).toMatchObject({
+        requestedBackend: 'openai',
+        backend: 'cli:agy',
+        forcedBackend: 'cli:agy',
+        forcedSource: 'env',
+        forced: true,
+      });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -156,6 +243,7 @@ describe('backend-catalog', () => {
     expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'gemini' })).toBe('cli:gemini');
     expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'GROQ' })).toBe('cli:groq');
     expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'grok' })).toBe('cli:grok');
+    expect(detectForcedCliBackendValue({ PD_USE_CLI_BACKEND: 'Antigravity' })).toBe('agy');
   });
 
   test('claude SDK ladder uses current undated model ids', () => {

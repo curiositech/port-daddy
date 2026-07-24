@@ -236,6 +236,69 @@ describe('spawner telemetry enforcement', () => {
     }));
   });
 
+  test('allows flat-rate cli:agy estimated telemetry when a nonzero cost record persists', async () => {
+    const costTracker = {
+      computeCost: jest.fn(() => ({ costUsd: 0.001, isEstimate: true })),
+      record: jest.fn((opts) => ({
+        id: 'evt-agy-1',
+        ts: 1,
+        backend: opts.backend,
+        model: opts.model,
+        projectName: opts.projectName ?? null,
+        projectDir: opts.projectDir ?? null,
+        identity: opts.identity ?? null,
+        spawnId: opts.spawnId ?? null,
+        inputTokens: opts.inputTokens ?? null,
+        cachedInputTokens: opts.cachedInputTokens ?? null,
+        outputTokens: opts.outputTokens ?? null,
+        costUsd: 0.001,
+        isEstimate: true,
+      })),
+    };
+    const spawner = createSpawner({
+      costTracker,
+      enforceTelemetryPolicy: true,
+      runnerOverrides: {
+        'cli:agy': jest.fn(async () => ({
+          output: 'done',
+          error: null,
+          inputTokens: 12,
+          outputTokens: 3,
+          estimatedTelemetry: true,
+        })),
+      },
+    });
+
+    const result = await spawner.spawn({
+      backend: 'cli:agy',
+      identity: 'port-daddy:fleet:agy',
+      task: 'Summarize agy output',
+      workdir: '/tmp/port-daddy-agy-telemetry-test',
+    });
+
+    expect(result.status).toBe('completed');
+    expect(result.error).toBeNull();
+    expect(result.telemetry).toEqual({
+      inputTokens: 12,
+      outputTokens: 3,
+      costUsd: 0.001,
+      rateMode: 'estimated',
+    });
+    expect(costTracker.computeCost).toHaveBeenCalledWith(
+      'cli:agy',
+      'agy-cli',
+      12,
+      3,
+    );
+    expect(costTracker.record).toHaveBeenCalledWith(expect.objectContaining({
+      backend: 'cli:agy',
+      model: 'agy-cli',
+      identity: 'port-daddy:fleet:agy',
+      inputTokens: 12,
+      outputTokens: 3,
+    }));
+  });
+
   test('fails Claude launches that return text without usage telemetry', async () => {
     const costTracker = {
       computeCost: jest.fn(),

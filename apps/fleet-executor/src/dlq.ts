@@ -22,6 +22,7 @@ import {
   completeCheckRun,
 } from './github.js';
 import { emitCloudTelemetry } from './telemetry.js';
+import { runDetailsUrl } from './run-page.js';
 import { CHECK_NAME } from './execute.js';
 
 interface DlqTarget {
@@ -66,7 +67,10 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
     );
     const checkRunId = await findFleetCheckRun(owner, repo, headSha, CHECK_NAME, token);
     if (checkRunId) {
-      await completeCheckRun(owner, repo, checkRunId, 'failure', summary, token);
+      // Same deterministic run id the main consumer used, so the failed gate
+      // still links to whatever transcript the lost run managed to write.
+      const detailsUrl = await runDetailsUrl(env, `run:${job.deliveryId}`);
+      await completeCheckRun(owner, repo, checkRunId, 'failure', summary, token, detailsUrl);
     } else {
       console.error(
         `[fleet-executor] DLQ: no '${CHECK_NAME}' check run found for ${owner}/${repo}@${headSha}`,

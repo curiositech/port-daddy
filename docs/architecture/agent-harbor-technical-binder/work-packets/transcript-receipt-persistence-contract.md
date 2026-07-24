@@ -143,6 +143,81 @@ Required event families:
 | Receipts | `receipt_started`, `receipt_completed`, `receipt_verified`, `receipt_failed` |
 | Errors | `adapter_error`, `provider_error`, `transcript_gap`, `retention_failure` |
 
+## Body Adapter Normalization
+
+The event model is provider-neutral. Claude Code, Codex, Gemini, Aider,
+Cursor/Windsurf, local OpenAI-compatible servers, hosted providers, SDK agents,
+observed imports, and fixtures all enter the same chain through a body adapter.
+
+`AgentBody` minimum fields:
+
+```json
+{
+  "bodyId": "body_...",
+  "agentNodeId": "agent_...",
+  "adapterKind": "managed-local-cli",
+  "provider": "codex",
+  "model": "gpt-...",
+  "modelTier": "strong",
+  "launchMode": "managed",
+  "authCustody": "keychain",
+  "billingPath": "operator-subscription",
+  "dataBoundary": "local-only",
+  "capabilities": {
+    "streamingTranscript": true,
+    "toolCalls": true,
+    "toolResults": true,
+    "fileEvents": true,
+    "costEvents": true,
+    "pause": true,
+    "interrupt": true,
+    "steer": true,
+    "checkpoint": false,
+    "fork": false,
+    "receiptSigning": false
+  },
+  "expectedFidelity": "T3",
+  "hookPack": {
+    "kind": "vendor-hooks",
+    "version": "2026-07-08",
+    "verified": true
+  }
+}
+```
+
+Adapter rules:
+
+- `adapterKind` is one of `managed-local-cli`, `managed-local-server`,
+  `hosted-provider`, `custom-sdk-body`, `observed-import`, or `fixture`.
+- `launchMode` is one of `managed`, `attached`, `observed`, `imported`, or
+  `fixture`.
+- `modelTier` is one of `fast`, `mid`, `strong`, `local`, or `custom`.
+  Subscription, metered, and local payment differences belong in `billingPath`,
+  not in `modelTier`.
+- `expectedFidelity` is a promise made before launch; the final run fidelity is
+  computed from persisted events and may downgrade.
+- A body cannot self-upgrade official status. It can append evidence; the daemon
+  computes compliance.
+- Provider-private reasoning is optional evidence, never required evidence. If
+  unavailable, the adapter records visible messages, tool traces, and summaries
+  without inventing hidden thought.
+- Tool and shell side effects must route through daemon preflight when the
+  adapter claims governed tool authority. Direct, unwitnessed calls are recorded
+  as observed and weaken the receipt.
+- Fixture and mock bodies are legitimate for UI regression and demos, but their
+  events and visual artifacts must carry explicit fixture/mock source labels.
+
+Minimum adapter conformance fixtures:
+
+| Fixture | Must prove |
+| --- | --- |
+| `managed-local-cli-codex` | CLI launch, event stream, tool result, file touch, stop reason, receipt draft |
+| `managed-local-cli-claude` | Same shape as Codex without Claude-only schema assumptions |
+| `hosted-provider-openai-compatible` | billing path, upload state, budget cap, transcript events, governed tools |
+| `custom-sdk-body` | SDK registration, event append, control ack, partial receipt |
+| `observed-import` | imported transcript/log, disabled controls, observed label, weak receipt |
+| `fixture-body` | fixture source labels, no production controls, no strong receipt |
+
 Large payload policy:
 
 - Inline `payloadJson` is for structured metadata and small text.
@@ -170,11 +245,89 @@ Rules:
 
 - Do not call T1 step metadata "transcript excerpts." If it only has sequence,
   kind, title, detail, or output length, label it `run log`.
+- Final fidelity is computed from evidence actually persisted, not from provider
+  brand or launch intent.
 - T2 is enough to inspect what was said, but not enough to trust coding work.
 - T3 is the minimum for a coding agent to claim artifact-backed work.
 - T4 is the minimum for an official Port Daddy agent.
 - T5 is required before the UI offers "fork successor from here" as a strong
   resume action.
+
+## Single-Agent Run Projection
+
+`AgentRun` is the read model for rendering one agent from intent to receipt. It
+is a projection over `AgentNode`, `AgentBody`, `TranscriptEvent`, control
+records, file/diff evidence, cost events, and Work Receipt rows. It is not a
+separate ledger.
+
+Minimum projection fields:
+
+```json
+{
+  "runId": "run_...",
+  "agentNodeId": "agent_...",
+  "sessionId": "session_...",
+  "status": "running",
+  "workIntent": {},
+  "body": {},
+  "worktree": {},
+  "branch": {},
+  "fidelity": "T4",
+  "liveness": {
+    "state": "live",
+    "lastHeartbeatAt": "2026-07-08T12:00:00.000Z",
+    "lastEventAt": "2026-07-08T12:00:01.000Z",
+    "evidence": "heartbeat-and-transcript"
+  },
+  "timeline": [],
+  "workLedger": {
+    "filesRead": [],
+    "filesChanged": [],
+    "commands": [],
+    "toolCalls": [],
+    "approvals": [],
+    "denials": [],
+    "validationArtifacts": []
+  },
+  "controlAffordances": [],
+  "receipt": {
+    "receiptId": "receipt_...",
+    "status": "draft-or-verified-or-failed",
+    "transcriptHeadHash": "sha256:...",
+    "diffHash": "sha256:...",
+    "filesHash": "sha256:...",
+    "checkFirstRisk": {}
+  },
+  "renderClaims": []
+}
+```
+
+Projection rules:
+
+- `timeline[]` stores render blocks keyed by canonical event ids. Blocks may be
+  compacted for display, but each compact block keeps constituent event ids for
+  zoom.
+- `workLedger` groups facts by reviewer task, not by provider transcript shape.
+- `controlAffordances[]` includes disabled controls with daemon reasons. Absence
+  of a control is reserved for surfaces that cannot physically render it.
+- `renderClaims[]` records every high-level badge or summary claim with the
+  event ids, artifact ids, hashes, or receipt rows that justify it.
+- "LIVE" requires `liveness.evidence` from heartbeat, transcript event, or
+  acknowledged control within the configured freshness window.
+- A projection with only T1 step rows must render as `run log`, never as a chat
+  transcript.
+- Receipt and visual-evidence drawers read manifests from persisted artifacts;
+  the UI must distinguish `real`, `fixture`, and `mock`.
+
+Runtime monitor candidates:
+
+| Invariant | Strategy | Violation response |
+| --- | --- | --- |
+| `EventSequenceMonotonicity` | synchronous per append plus sweep | reject duplicate/out-of-order append; alert on sweep |
+| `RunProjectionReferencesOnlyPersistedEvents` | sampled/projection test | mark projection stale, do not render strong proof claims |
+| `LiveBadgeRequiresFreshEvidence` | synchronous when status changes | suppress badge, emit compliance finding |
+| `ControlEnabledRequiresAdapterCapability` | synchronous on projection/control request | disable control or reject request |
+| `ReceiptClaimsMatchHashes` | verify on receipt publish and after restart | fail receipt verification |
 
 ## Work Receipt Mapping
 
@@ -402,51 +555,61 @@ Required automated fixtures:
    - Launch canary through Work Intent.
    - Verify Agent Node, body, session, transcript id, worktree, and retention
      policy exist before first model turn.
-2. `non-null-session-join`
+2. `cross-llm-body-adapter-matrix`
+   - Render and validate managed local CLI, hosted provider, custom SDK body,
+     observed import, and fixture bodies.
+   - Verify the same `AgentBody`, `TranscriptEvent`, `AgentRun`, and receipt
+     shapes work without Claude-only assumptions.
+3. `non-null-session-join`
    - Start a spawner-backed run.
    - Verify every transcript row/event for that run has non-null `sessionId`.
    - If a historical import cannot join, verify it stays observed.
-3. `canonical-event-schema`
+4. `canonical-event-schema`
    - Emit operator, assistant, tool call, tool result, shell, file, denial,
      approval, cost, checkpoint, and end events.
    - Validate required fields, unknown-field tolerance, sequence monotonicity,
      idempotent retry, and hash chain.
-4. `wal-and-path`
+5. `single-agent-run-projection`
+   - Project one run from persisted events into header, timeline, work ledger,
+     control affordances, receipt, and render claims.
+   - Verify every summary claim zooms to event ids, artifacts, hashes, or
+     receipt rows in at most two steps.
+6. `wal-and-path`
    - Open a throwaway DB through `initDatabase`.
    - Verify path guard, `journal_mode`, `busy_timeout`, `foreign_keys`, and
      checkpoint behavior.
-5. `jsonl-retention`
+7. `jsonl-retention`
    - Finalize a transcript.
    - Verify a day-partitioned JSONL line exists, is parseable, includes full
      messages/outputs, and survives DB deletion in the fixture.
-6. `redaction-before-persistence`
+8. `redaction-before-persistence`
    - Feed bearer token, GitHub token, OpenAI/Anthropic key, private key, and env
      dump examples.
    - Verify stored transcript and archive contain redacted values and metadata.
-7. `artifact-backed-validation`
+9. `artifact-backed-validation`
    - Run one passing command with exit code, one claimed pass without output,
      and one truncated log.
    - Verify receipt marks only captured evidence as `passed: true` and sets
      `artifactBacked: false` for self-reported validation.
-8. `receipt-verifies-hashes`
+10. `receipt-verifies-hashes`
    - Complete a canary diff.
    - Generate receipt.
    - Restart daemon.
    - Verify transcript head hash, diff hash, file hash, receipt body hash, PR
      refs, and replay command.
-9. `stream-replay-dedupe`
+11. `stream-replay-dedupe`
    - Connect to `/sessions/:id/stream`, disconnect, reconnect from cursor.
    - Verify replay does not duplicate completed tool blocks or lose terminal
      status changes.
-10. `missing-capture-downgrade`
+12. `missing-capture-downgrade`
     - Disable hooks/archive or launch unmanaged provider.
     - Verify the node cannot claim official C1/T4, UI says what is missing, and
       receipt carries a high-severity transcript risk.
-11. `provider-no-private-reasoning`
+13. `provider-no-private-reasoning`
     - Use a provider that exposes only visible messages.
     - Verify the transcript does not fabricate hidden reasoning and labels any
       summary as visible/operator-provided.
-12. `operator-control-panel-honesty`
+14. `operator-control-panel-honesty`
     - Render active, historical, stale, observed, and non-compliant states.
     - Verify "LIVE" requires heartbeat or transcript events, and T1 run logs are
       not labeled transcript excerpts.
@@ -498,16 +661,19 @@ Receipt behavior during absence:
 ## Build Order
 
 1. Freeze this contract in the binder.
-2. Add a canonical `TranscriptEvent` schema and validation fixture.
-3. Patch current spawner transcript/session joins so `session_id` is non-null.
-4. Make `fleet_transcripts` project into canonical events for current runs.
-5. Add Work Receipt body persistence and verification.
-6. Add compliance probes for Codex and Claude Code canaries.
-7. Teach `pd-console`/dashboard to show fidelity level, transcript gaps,
+2. Add `AgentBody` and adapter capability schema plus matrix fixtures.
+3. Add a canonical `TranscriptEvent` schema and validation fixture.
+4. Add the single-agent `AgentRun` projection and render-claim evidence links.
+5. Patch current spawner transcript/session joins so `session_id` is non-null.
+6. Make `fleet_transcripts` project into canonical events for current runs.
+7. Add Work Receipt body persistence and verification.
+8. Add compliance probes for Codex, Claude Code, and one hosted/custom-body
+   canary.
+9. Teach `pd-console`/dashboard to show fidelity level, transcript gaps,
    receipt verification, and remediation.
-8. Mirror Cloudflare run steps into canonical events without calling T1 logs
+10. Mirror Cloudflare run steps into canonical events without calling T1 logs
    transcript excerpts.
-9. Promote Agent Node APIs to source of truth and leave `/agents`,
+11. Promote Agent Node APIs to source of truth and leave `/agents`,
    `/agent-roster`, and `/transcripts` as compatibility projections.
 
 ## Open Decisions

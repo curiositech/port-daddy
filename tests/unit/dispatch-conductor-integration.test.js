@@ -32,26 +32,6 @@ import { createConductor } from '../../lib/fleet/conductor.js';
 
 // ─── Fakes ─────────────────────────────────────────────────────────────────────
 
-/** A spawner whose spawn never resolves until released — keeps a launch RUNNING
- *  so its lineage/global reservation stays outstanding (lets us prove (a)). */
-function makePendingSpawner() {
-  const calls = [];
-  const resolvers = [];
-  let counter = 0;
-  const spawner = {
-    calls,
-    spawn: jest.fn((spec) => {
-      calls.push(spec);
-      const agentId = `agent-${++counter}`;
-      return new Promise((resolve) => {
-        resolvers.push(() => resolve({ agentId, status: 'completed', output: 'ok', error: null }));
-      });
-    }),
-    kill: jest.fn(),
-  };
-  return { spawner, releaseAll: () => resolvers.forEach((fn) => fn()) };
-}
-
 /** A spawner that completes immediately (for the success/publish path). */
 function makeImmediateSpawner() {
   let counter = 0;
@@ -66,7 +46,7 @@ function makeImmediateSpawner() {
 }
 
 /** Build a REAL dispatch-shaped LaunchIntent the way the production adapter does:
- *  propose → plan → planToLaunchIntent. budgetUsd flows to bond AND ceiling. */
+ *  propose → plan → planToLaunchIntent. budgetUsd flows to cap, bond, AND ceiling. */
 function dispatchIntent({ goal = 'ship the feature', budgetUsd = 5, baseBranch = 'main' } = {}) {
   const db = createTestDb();
   const queue = createDispatchQueue({ db });
@@ -102,7 +82,6 @@ function makeRealConductor(over = {}) {
   return { conductor, broadcasts, advance: (ms) => (clock += ms) };
 }
 
-const tick = () => new Promise((r) => setTimeout(r, 0));
 
 // ─── (a) + (b): the bond reserves against global+lineage and the ceiling gates ──
 
@@ -111,48 +90,64 @@ describe('dispatch-shaped intent through the REAL conductor — admission gates'
     const intent = dispatchIntent({ budgetUsd: 6 });
     expect(intent.source).toBe('dispatch');
     expect(intent.worktree).toBe('create');
-    // The whole gate story hinges on bond===ceiling===budget for a dispatch root.
+    // Admission uses bond+ceiling; finalization uses budgetUsd as the hard cap.
+    expect(intent.budgetUsd).toBe(6);
     expect(intent.bondUsd).toBe(6);
     expect(intent.lineageCeilingUsd).toBe(6);
     expect(intent.mergePolicy).toBe('review');
   });
 
-  test('(a) the budget bond is RESERVED against global+lineage before spawn (held while running)', async () => {
-    // Global ceiling of $5. The first dispatch ($5) is admitted and stays in
-    // flight (pending spawner), holding its $5 reservation against the global
-    // scope. A second $1 dispatch then has NO room (5+1 > 5) → refused. If the
-    // bond were NOT reserved before spawn, the second would wrongly be admitted.
-    const { spawner, releaseAll } = makePendingSpawner();
+  // A METERED launch (operator, backend 'claude') that DOES reserve a real
+  // dollar bond — used to prove the dollar breaker still gates the spend that
+  // actually costs money, after BUG 1 exempted flat-rate CLI dispatches.
+  const meteredIntent = ({ goal = 'metered', bondUsd, ceiling = 1000 }) => ({
+    goal, backend: 'claude', source: 'operator', worktree: 'inherit',
+    mergePolicy: 'never', bondUsd, lineageCeilingUsd: ceiling,
+  });
+
+  test('(a) flat-rate CLI dispatches reserve $0 and are NOT dollar-gated (BUG 1); metered launches ARE', async () => {
+    // BUG 1 (2026-07-14 halt-mandate): a dispatch runs on cli:codex — a flat-rate
+    // subscription at $0 marginal cost. It must reserve $0 and admit regardless of
+    // the dollar ceiling. Under a $5 global ceiling, TWO $5 cli:codex dispatches
+    // both admit (pre-fix, the first would have wrongly locked the ceiling and
+    // refused the second — the exact deadlock that killed the daemon). Flat-rate
+    // reserves nothing, so there is no "held while running" window to model — an
+    // immediate spawner keeps the assertion about admission, not lifecycle.
+    const spawner = makeImmediateSpawner();
     const { conductor } = makeRealConductor({ spawner });
     conductor.setGlobalCeiling(5);
 
-    const firstP = conductor.launch(dispatchIntent({ budgetUsd: 5, goal: 'first' }));
-    await tick(); // let the first reach `running` (reservation outstanding)
-    expect(spawner.spawn).toHaveBeenCalledTimes(1); // it DID spawn → bond cleared admission
+    const first = await conductor.launch(dispatchIntent({ budgetUsd: 5, goal: 'first' }));
+    expect(first.admitted).toBe(true);
+    expect(first.launch.bondUsd).toBeNull();      // flat-rate → $0 reserved
 
-    // Second dispatch: its $1 bond cannot fit under the already-$5-reserved $5
-    // global ceiling. It must be refused at admission and never spawn.
-    const second = await conductor.launch(dispatchIntent({ budgetUsd: 1, goal: 'second' }));
-    expect(second.admitted).toBe(false);
-    expect(second.refusedReason).toMatch(/global|GLOBAL/i);
-    expect(spawner.spawn).toHaveBeenCalledTimes(1); // still only the first spawned
+    const second = await conductor.launch(dispatchIntent({ budgetUsd: 5, goal: 'second' }));
+    expect(second.admitted).toBe(true);           // NOT locked out by the first
+    expect(second.launch.bondUsd).toBeNull();
 
-    releaseAll();
-    await firstP;
+    // A METERED launch that overshoots the $5 ceiling IS still refused — the
+    // breaker governs real dollars, it just no longer governs free CLI work.
+    const metered = await conductor.launch(meteredIntent({ goal: 'metered-over', bondUsd: 6, ceiling: 100 }));
+    expect(metered.admitted).toBe(false);
+    expect(metered.refusedReason).toMatch(/global|GLOBAL/i);
   });
 
-  test('(b) a dispatch whose budget exceeds the global ceiling is REFUSED with the breaker reason', async () => {
+  test('(b) a flat-rate dispatch "exceeding" the ceiling is ADMITTED (reserves $0); a metered one is REFUSED', async () => {
     const spawner = makeImmediateSpawner();
     const { conductor } = makeRealConductor({ spawner });
     conductor.setGlobalCeiling(3); // tight global ceiling
 
-    // A single $10 dispatch overshoots the $3 global ceiling outright.
-    const res = await conductor.launch(dispatchIntent({ budgetUsd: 10, goal: 'too big' }));
-    expect(res.admitted).toBe(false);
-    expect(res.refusedReason).toMatch(/global|GLOBAL/i);
-    expect(res.launch.state).toBe('refused');
-    // The gate fired BEFORE any spawn — no body for a refused dispatch.
-    expect(spawner.spawn).not.toHaveBeenCalled();
+    // A $10 cli:codex dispatch nominally "exceeds" $3 — but it is flat-rate, so
+    // it reserves $0 and ADMITS (the corrected behavior).
+    const flat = await conductor.launch(dispatchIntent({ budgetUsd: 10, goal: 'flat big' }));
+    expect(flat.admitted).toBe(true);
+    expect(flat.launch.bondUsd).toBeNull();
+
+    // A METERED $10 launch against the same $3 ceiling is refused at admission.
+    const metered = await conductor.launch(meteredIntent({ goal: 'metered big', bondUsd: 10, ceiling: 100 }));
+    expect(metered.admitted).toBe(false);
+    expect(metered.refusedReason).toMatch(/global|GLOBAL/i);
+    expect(metered.launch.state).toBe('refused');
   });
 });
 
@@ -180,6 +175,25 @@ describe('dispatch-shaped intent through the REAL conductor — review publish',
     // The spawn ran on the minted OFF-MAIN worktree, not a main checkout.
     expect(spawner.spawn).toHaveBeenCalledTimes(1);
     expect(spawner.spawn.mock.calls[0][0].workdir).not.toBe('/repo-main');
+    expect(spawner.spawn.mock.calls[0][0].budgetUsd).toBe(4);
+  });
+
+  test('an operator launch may omit budgetUsd without synthesizing a hard cap', async () => {
+    const spawner = makeImmediateSpawner();
+    const { conductor } = makeRealConductor({ spawner });
+    conductor.setGlobalCeiling(100);
+
+    const res = await conductor.launch({
+      goal: 'manual operator launch',
+      backend: 'claude',
+      source: 'operator',
+      worktree: 'inherit',
+      lineageCeilingUsd: 100,
+    });
+
+    expect(res.admitted).toBe(true);
+    expect(spawner.spawn).toHaveBeenCalledTimes(1);
+    expect(spawner.spawn.mock.calls[0][0].budgetUsd).toBeUndefined();
   });
 
   test('a dispatch never spawns on a main checkout (I2 holds for the dispatch shape)', async () => {

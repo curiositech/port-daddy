@@ -67,6 +67,7 @@ export function planToLaunchIntent(plan: RunnerPlan): LaunchIntent {
     // ceiling before admission. Ceiling = the SAME budget because a dispatch is
     // its OWN lineage root (source:'dispatch' is a root-minting source), so the
     // whole subtree it heads is bounded by exactly the budget the operator set.
+    budgetUsd: plan.budgetUsd,
     bondUsd: plan.budgetUsd,
     lineageCeilingUsd: plan.budgetUsd,
     timeoutMs: plan.timeoutMs,
@@ -138,8 +139,20 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
 
       case 'produced':
       case 'settled':
-        // A successful run. On the review path the Conductor's publishArtifact
-        // hook has already attached the draft-PR URL to resultArtifact.
+        // A review launch is only disposable once the Conductor proves a
+        // durable artifact exists. Agents can finish with dirty files but no
+        // commit; in that case push/PR publication returns null. Calling that
+        // settled lets DispatchWorker reap the only copy of the work. Route it
+        // to salvage so the worktree and transcript remain recoverable.
+        if (!r.launch.resultArtifact) {
+          return {
+            state: 'salvage',
+            costUsd: r.launch.costUsd ?? undefined,
+            errorMessage:
+              r.launch.errorMessage
+              ?? 'run completed without a reviewable artifact; worktree preserved for recovery',
+          };
+        }
         return {
           state: 'settled',
           costUsd: r.launch.costUsd ?? undefined,

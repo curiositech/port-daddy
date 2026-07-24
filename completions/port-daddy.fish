@@ -97,14 +97,14 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'takeover' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' 'send' 'sent' \
-    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'work' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'harbor-ledger' 'tuple' 'graph' 'embed' 'skill-graft' 'skillgraft' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
+    'begin' 'b' 'done' 'whoami' 'w' 'account' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'work' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'harbor-ledger' 'tuple' 'graph' 'booty' 'embed' 'skill-graft' 'skillgraft' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
     'say' 'look' 'sitrep' 'whois' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
     'bench' 'benchmark' 'demo' 'fleet' 'backend' 'squid' 'relay' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
-    'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'self-update' 'upgrade' 'mcp' \
+    'start' 'stop' 'restart' 'status' 'install' 'install-bosun' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'self-update' 'upgrade' 'mcp' \
     'setup' 'init' 'cut' 'hooks' \
     'version' 'help'
 
@@ -175,6 +175,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a embed -d 'Shared local embedding model: status, prefetch, embed text'
     complete -c $prog -n __pd_needs_command -a skill-graft -d 'Query and warm the native local skill-graft index'
     complete -c $prog -n __pd_needs_command -a skillgraft -d 'Alias for skill-graft'
+    complete -c $prog -n __pd_needs_command -a booty -d 'Harvest artifacts into the blob store with provenance'
     complete -c $prog -n __pd_needs_command -a memory -d 'Inspect episodic memory entries and stats'
     complete -c $prog -n __pd_needs_command -a ideas -d 'Search ideas, notes, tuples, and repo markdown'
     complete -c $prog -n __pd_needs_command -a roadmap -d 'Show and write the roadmap_items DB-of-record'
@@ -479,6 +480,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a restart -d 'Restart the daemon'
     complete -c $prog -n __pd_needs_command -a status -d 'Show daemon status'
     complete -c $prog -n __pd_needs_command -a install -d 'Install as system service'
+    complete -c $prog -n __pd_needs_command -a install-bosun -d 'Wire only the Bosun watchdog (brew-managed daemon)'
     complete -c $prog -n __pd_needs_command -a uninstall -d 'Uninstall system service'
     complete -c $prog -n __pd_needs_command -a dev -d 'Daemon berths: up/down/list (ADR-0055)'
     complete -c $prog -n __pd_needs_command -a use -d 'Target this shell at a daemon berth (eval "$(pd use dev)")'
@@ -503,6 +505,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a done -d 'End a work session (end + unregister)'
     complete -c $prog -n __pd_needs_command -a whoami -d 'Show current agent/session context'
     complete -c $prog -n __pd_needs_command -a w -d 'Show current context (alias for whoami)'
+    complete -c $prog -n __pd_needs_command -a account -d 'Sign in to your Port Daddy cloud account (device flow)'
     complete -c $prog -n __pd_needs_command -a attention -d 'Inbox + subscribed channels in one call (run first thing every session)'
     complete -c $prog -n __pd_needs_command -a nudge -d 'Suggestibility nudges — claim-overlap heads-up (list/accept/decline/scan)'
     complete -c $prog -n __pd_needs_command -a with-lock -d 'Run a command while holding a lock'
@@ -912,6 +915,16 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command graph; and __fish_seen_subcommand_from edges" -l limit -x -d 'Max edges'
     complete -c $prog -n "__pd_using_command graph" -s j -l json -d 'JSON output'
     complete -c $prog -n "__pd_using_command graph" -s q -l quiet -d 'Suppress output'
+
+    # booty
+    complete -c $prog -n "__pd_using_command booty" -a 'add list help'
+    complete -c $prog -n "__pd_using_command booty; and __fish_seen_subcommand_from add" -l roadmap -x -d 'Link the artifact to a roadmap item'
+    complete -c $prog -n "__pd_using_command booty; and __fish_seen_subcommand_from add" -l note -x -d 'Freeform provenance note'
+    complete -c $prog -n "__pd_using_command booty; and __fish_seen_subcommand_from list" -l branch -x -d 'Filter by branch'
+    complete -c $prog -n "__pd_using_command booty; and __fish_seen_subcommand_from list" -l session -x -d 'Filter by session'
+    complete -c $prog -n "__pd_using_command booty; and __fish_seen_subcommand_from list" -l limit -x -d 'Max rows (default 50)'
+    complete -c $prog -n "__pd_using_command booty" -s j -l json -d 'JSON output'
+    complete -c $prog -n "__pd_using_command booty" -s q -l quiet -d 'Suppress output'
 
     # memory
     complete -c $prog -n "__pd_using_command memory" -x -a 'episodes stats help'

@@ -25,6 +25,7 @@ import {
   mkdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -38,6 +39,7 @@ export const STATUSLINE_BIN = 'pd-statusline';
 /** Marker substring identifying OUR statusLine command (mirror of PD_HOOK_MARKER). */
 export const STATUSLINE_MARKER = 'pd-statusline';
 export const SLASH_COMMAND_FILENAME = 'squid.md';
+export const SQUID_DAEMON_HEARTBEAT_STALE_MS = 30_000;
 
 /** Where the statusline script gets staged (next to the hook gate wrappers). */
 export function stagedStatuslinePath(binDir = join(PD_HOME, 'bin')): string {
@@ -194,27 +196,31 @@ export interface IdentityStatus {
   daemonAlive: boolean;
 }
 
+/** Filesystem-only daemon liveness for callers that may run inside a CLI sandbox. */
+export function isSquidDaemonHeartbeatFresh(
+  heartbeatPath = join(PD_HOME, 'heartbeat'),
+  now = Date.now(),
+  staleAfterMs = SQUID_DAEMON_HEARTBEAT_STALE_MS,
+): boolean {
+  try {
+    const age = now - statSync(heartbeatPath).mtimeMs;
+    return age >= -staleAfterMs && age <= staleAfterMs;
+  } catch {
+    return false;
+  }
+}
+
 export function readIdentityStatus(projectDir: string, home = process.env.HOME || ''): IdentityStatus {
   const wired = (scopeDir: string): boolean => {
     const settings = readSettings(join(scopeDir, '.claude', 'settings.json'));
     const cmd = settings?.statusLine?.command;
     return typeof cmd === 'string' && cmd.includes(STATUSLINE_MARKER);
   };
-  let daemonAlive = false;
-  try {
-    const pid = parseInt(readFileSync(join(PD_HOME, 'daemon.pid'), 'utf8').trim(), 10);
-    if (Number.isFinite(pid)) {
-      process.kill(pid, 0);
-      daemonAlive = true;
-    }
-  } catch {
-    daemonAlive = false;
-  }
   return {
     statuslineStaged: existsSync(stagedStatuslinePath()),
     statuslineProject: wired(projectDir),
     statuslineUser: home ? wired(home) : false,
     slashCommand: existsSync(join(projectDir, '.claude', 'commands', SLASH_COMMAND_FILENAME)),
-    daemonAlive,
+    daemonAlive: isSquidDaemonHeartbeatFresh(),
   };
 }

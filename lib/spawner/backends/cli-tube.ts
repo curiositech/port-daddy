@@ -1,10 +1,11 @@
 /**
- * CLI-tube backend — wrap a local CLI tool (claude-code or codex) so it
+ * CLI-tube backend — wrap a local agent CLI tool so it
  * looks like any other spawner backend.
  *
  * Economic motivation:
  *   A Claude Max subscriber ($200/mo flat) already has unmetered
- *   claude-code on their machine. Same shape for ChatGPT Pro + codex.
+ *   claude-code on their machine. Same shape for ChatGPT Pro + codex or
+ *   other authenticated local agent CLIs such as agy.
  *   Routing fleet work through the local CLI means zero marginal cost
  *   for those operators — the daemon delegates to a process that
  *   doesn't bill per-token from this app's wallet.
@@ -17,8 +18,9 @@
  *   exchange in real time.
  *
  * What this is NOT:
- *   A reimplementation of the CLI. We don't parse claude-code's
- *   internal protocol or codex's session state — we just invoke them.
+ *   A reimplementation of the CLI. We don't parse private CLI state; we
+ *   invoke documented non-interactive surfaces and only parse streams that are
+ *   explicitly documented/verified.
  *
  * Auth caveats (documented for operators):
  *   - `claude-code` is the user's local Claude Code CLI; on this machine
@@ -28,7 +30,7 @@
  *   - `codex` is OpenAI's Codex CLI. Needs `OPENAI_API_KEY` or a
  *     ChatGPT Pro session. Same failure shape on missing auth.
  *
- * Both CLIs run with `OTEL_SDK_DISABLED=true` and inherit a sanitized
+ * Wrapped CLIs run with `OTEL_SDK_DISABLED=true` and inherit a sanitized
  * env (the spawner's existing dotenv loader handles credential
  * surfacing).
  */
@@ -38,11 +40,33 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { cliBinDirs } from '../../cli-bin-dirs.js';
+import { cliBinarySearchPath, resolveCliBinary } from '../../cli-bin-dirs.js';
+import {
+  sameWorkspaceIdentity,
+  type WorkspaceIdentity,
+} from '../../workspace-identity.js';
+import {
+  buildCliTubeArgs,
+  CLI_TUBE_PROVIDER_SPECS,
+  CLI_TUBE_TOOLS,
+  normalizeCodexConfigOverrides,
+  type CliTubePermissionMode,
+  type CliTubeProviderSpec,
+  type CliTubeTool,
+} from './cli-tube-provider-specs.js';
+import {
+  waitForCliChildProcess,
+  type CliChildWaitResult,
+} from './cli-tube-lifecycle.js';
+
+export {
+  CLI_TUBE_PROVIDER_SPECS,
+  CLI_TUBE_TOOLS,
+  normalizeCodexConfigOverrides,
+};
+export type { CliTubeProviderSpec, CliTubeTool };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-export type CliTubeTool = 'claude-code' | 'codex' | 'gemini' | 'groq' | 'grok';
 
 export interface CliTubeOptions {
   /** Which local CLI to drive. */
@@ -63,7 +87,7 @@ export interface CliTubeOptions {
   env?: Record<string, string | undefined>;
   /**
    * Optional model override. Forwarded to the CLI when supported
-   * (`--model` for claude-code, `--model` for codex).
+   * (`--model` for claude-code, codex, agy, and other compatible CLIs).
    */
   model?: string;
   /**
@@ -83,7 +107,7 @@ export interface CliTubeOptions {
   /** Hook for tests / observers to capture the underlying ChildProcess. */
   onChild?: (child: ChildProcess) => void;
   /**
-   * Live per-line hook. Both wrapped CLIs emit JSONL on stdout (claude-code
+   * Live per-line hook. Streaming CLI backends emit JSONL on stdout (claude-code
    * `stream-json`, codex `--json`); stdout arrives in arbitrary chunks that may
    * split a line or carry several. This hook is called ONCE per COMPLETE line
    * (newline-terminated) as it arrives — so the caller can map each event to a
@@ -100,7 +124,11 @@ export interface CliTubeOptions {
    * Unset = the CLI's default (interactive prompts), preserving prior behavior.
    * Ignored for CLIs that don't support the flag.
    */
-  permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions';
+  permissionMode?: CliTubePermissionMode;
+  /** Validated harness-owned session id for native resume. */
+  resumeSessionId?: string;
+  /** Canonical workspace identity rechecked immediately before child spawn. */
+  workspaceIdentity?: WorkspaceIdentity;
 }
 
 export interface CliTubeResult {
@@ -133,41 +161,8 @@ export interface TubeClientLike {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
-
-/**
- * The binary name used to invoke each tool. On this user's machine
- * `claude-code` is installed as `claude` (per `claude install`). Code
- * paths that need a different binary name set `PD_CLI_CLAUDE_CODE_BIN`
- * / `PD_CLI_CODEX_BIN`.
- */
-const DEFAULT_BINARIES: Record<CliTubeTool, string> = {
-  'claude-code': 'claude',
-  codex: 'codex',
-  gemini: 'gemini',
-  groq: 'groq',
-  grok: 'grok',
-};
-
-// Environment override key per tool — operators can swap the binary
-// without code edits (helpful for `claude-stable` vs `claude-beta`).
-const BINARY_ENV_OVERRIDE: Record<CliTubeTool, string> = {
-  'claude-code': 'PD_CLI_CLAUDE_CODE_BIN',
-  codex: 'PD_CLI_CODEX_BIN',
-  gemini: 'PD_CLI_GEMINI_BIN',
-  groq: 'PD_CLI_GROQ_BIN',
-  grok: 'PD_CLI_GROK_BIN',
-};
-
-// Auth-error sentinels we surface verbatim so the operator sees
-// actionable guidance. The CLIs themselves are the source of truth for
-// their auth flows; we just map their errors to a helpful next step.
-const AUTH_NEXT_STEP: Record<CliTubeTool, string> = {
-  'claude-code': 'Run `claude setup-token` or `claude auth` to authenticate.',
-  codex: 'Set OPENAI_API_KEY in ~/.codex/config or `codex auth login`.',
-  gemini: 'Run `gemini` once interactively to sign in, or set GEMINI_API_KEY.',
-  groq: 'Run `groq` once interactively to sign in, or set GROQ_API_KEY.',
-  grok: 'Run `grok` once interactively to sign in, or set GROK_API_KEY / XAI_API_KEY.',
-};
+const TIMEOUT_KILL_GRACE_MS = 5_000;
+const TIMEOUT_KILL_CLOSE_DEADLINE_MS = 1_000;
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -189,109 +184,20 @@ export function buildArgs(
   prompt: string,
   outputPath?: string,
   model?: string,
-  permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions',
+  permissionMode?: CliTubePermissionMode,
   codexConfig?: string[],
+  timeoutMs?: number,
+  resumeSessionId?: string,
 ): { args: string[]; stdin: string | null } {
-  // A model equal to the backend/CLI's own name is a placeholder that leaked
-  // from default resolution (backend "cli:claude-code" → model "claude-code").
-  // The CLIs reject it with "model not supported". Map the placeholder to a real
-  // per-CLI default so spawns get EXACT, billable telemetry instead of an
-  // estimate (which the cost gate then rejects); for CLIs without a known good
-  // default, drop `--model` so the CLI uses its authenticated account's default.
-  //
-  // `claude-cli` / `codex-cli` are the OTHER placeholder spelling: lib/spawner.ts
-  // DEFAULT_MODELS maps `cli:claude-code` → "claude-cli" and `cli:codex` →
-  // "codex-cli" ("the CLI manages its own model"). When that sentinel reaches
-  // here as the model it must be treated as a placeholder too — otherwise
-  // `claude --model claude-cli` fails with "model may not exist" and every
-  // sentinel-model spawn dies (the bug that made cli:claude-code look broken).
-  const PLACEHOLDER_MODELS = new Set([
-    'claude-code', 'codex', 'gemini', 'groq', 'grok',
-    'claude-cli', 'codex-cli', 'cli',
-  ]);
-  const CLI_DEFAULT_MODEL: Partial<Record<CliTubeTool, string>> = {
-    'claude-code': 'sonnet', // a real Claude model the CLI + rate table both accept
-  };
-  const isPlaceholder = !model || PLACEHOLDER_MODELS.has(model);
-  const effModel = isPlaceholder ? CLI_DEFAULT_MODEL[cli] : model;
-
-  if (cli === 'claude-code') {
-    // `claude -p` runs non-interactively. `--output-format stream-json
-    // --verbose` emits one JSON object per line, including thinking /
-    // tool_use / tool_result blocks, so the spawner can record the FULL
-    // conversation (not just the final answer). The caller recovers the
-    // final answer from the terminal `result` line (extractClaudeCodeFinal).
-    // OAuth-safe: works with no ANTHROPIC_API_KEY (spawnViaCliTube strips it).
-    const args = ['-p', '--output-format', 'stream-json', '--verbose'];
-    if (effModel) args.push('--model', effModel);
-    // `--permission-mode acceptEdits` lets the spawned agent edit files in its
-    // workdir without an interactive prompt (non-interactive `-p` runs would
-    // otherwise block on the permission gate). Only forwarded when set, so the
-    // default spawn keeps the CLI's default gating.
-    if (permissionMode) args.push('--permission-mode', permissionMode);
-    args.push(prompt);
-    return { args, stdin: null };
-  }
-
-  if (cli === 'codex') {
-    // `codex exec` is the non-interactive entry point. Mirror the
-    // spawner's existing codex invocation: skip-git-repo-check +
-    // full-auto + workspace-write sandbox so the tube wrapper behaves
-    // like the codex backend operators are used to.
-    const args = [
-      'exec',
-      '--skip-git-repo-check',
-      '--full-auto',
-      '--sandbox', 'workspace-write',
-      '--json',
-    ];
-    if (outputPath) args.push('--output-last-message', outputPath);
-    if (effModel) args.push('--model', effModel);
-    for (const config of normalizeCodexConfigOverrides(codexConfig)) {
-      args.push('-c', config);
-    }
-    args.push(prompt);
-    return { args, stdin: null };
-  }
-
-  if (cli === 'gemini' || cli === 'groq' || cli === 'grok') {
-    // All three agent CLIs share the claude-code-style headless surface:
-    // `-p <prompt>` runs one non-interactive turn and prints the response
-    // to stdout; `--model` overrides the model. (Gemini CLI, Groq Code
-    // CLI, and Grok CLI all follow this convention.)
-    const args = ['-p'];
-    if (effModel) args.push('--model', effModel);
-    args.push(prompt);
-    return { args, stdin: null };
-  }
-
-  throw new Error(`unknown cli tool: ${cli}`);
-}
-
-const CODEX_CONFIG_KEY = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;
-const MAX_CODEX_CONFIG_OVERRIDES = 32;
-const MAX_CODEX_CONFIG_OVERRIDE_LENGTH = 512;
-
-export function normalizeCodexConfigOverrides(configs: readonly string[] | undefined | null): string[] {
-  const normalized: string[] = [];
-  for (const raw of configs ?? []) {
-    if (typeof raw !== 'string') continue;
-    const config = raw.trim();
-    if (!config) continue;
-    if (normalized.length >= MAX_CODEX_CONFIG_OVERRIDES) {
-      throw new Error(`Too many Codex config overrides; maximum is ${MAX_CODEX_CONFIG_OVERRIDES}`);
-    }
-    if (config.length > MAX_CODEX_CONFIG_OVERRIDE_LENGTH || /[\0\r\n]/.test(config)) {
-      throw new Error(`Invalid Codex config override "${config}": value is too long or contains a control character`);
-    }
-    const separator = config.indexOf('=');
-    const key = separator > 0 ? config.slice(0, separator).trim() : '';
-    if (!key || !CODEX_CONFIG_KEY.test(key)) {
-      throw new Error(`Invalid Codex config override "${config}": expected key=value with a simple key`);
-    }
-    normalized.push(config);
-  }
-  return normalized;
+  return buildCliTubeArgs(cli, {
+    prompt,
+    outputPath,
+    model,
+    permissionMode,
+    codexConfig,
+    timeoutMs,
+    resumeSessionId,
+  });
 }
 
 /**
@@ -309,26 +215,56 @@ export async function spawnViaCliTube(
   opts: CliTubeOptions,
 ): Promise<CliTubeResult> {
   const cli = opts.cli;
+  const provider = (CLI_TUBE_PROVIDER_SPECS as Partial<Record<string, CliTubeProviderSpec<CliTubeTool>>>)[cli];
+  if (!provider) {
+    return {
+      output: '',
+      exitCode: 127,
+      error: `Unknown CLI tube tool "${String(cli)}". Supported tools: ${CLI_TUBE_TOOLS.join(', ')}.`,
+      tube: null,
+      durationMs: 0,
+      rawStdout: '',
+    };
+  }
   // Binary override is OPERATOR-scoped: read PD_CLI_*_BIN from process.env
   // only, never from per-spawn opts.env/spec.env — a caller-supplied env
   // must not be able to redirect which executable runs.
-  const binary = process.env[BINARY_ENV_OVERRIDE[cli]] || DEFAULT_BINARIES[cli];
-  // Augment PATH with the same per-user install dirs backend-readiness
-  // checks, so a binary the readiness gate found is also findable at spawn
-  // time under launchd's bare PATH.
-  const basePath = (opts.env?.PATH as string | undefined) ?? process.env.PATH ?? '';
-  const augmentedPath = [basePath, ...cliBinDirs()].filter(Boolean).join(':');
+  // Empty or malformed PATH is acceptable here: cliBinarySearchPath filters
+  // blank entries and appends PD_CLI_BIN_DIRS plus the standard user CLI dirs.
+  const operatorPath = process.env.PATH ?? '';
+  const resolution = resolveCliBinary(provider.defaultBinary, {
+    envOverride: provider.binaryEnvOverride,
+    basePath: operatorPath,
+  });
+  const fallbackToDefaultCommand = provider.stalePathOverrideFallback === 'default-command'
+    && !resolution.found
+    && isPathLikeCliOverride(resolution.override);
+  const binary = fallbackToDefaultCommand ? provider.defaultBinary : resolution.command;
+  if (!resolution.found && !fallbackToDefaultCommand) {
+    const reason = resolution.warning || `${provider.defaultBinary} binary was not found in PATH or standard user CLI dirs.`;
+    return {
+      output: '',
+      exitCode: 127,
+      error: `${cli} CLI binary unavailable: ${reason} ${provider.authNextStep}`,
+      tube: null,
+      durationMs: 0,
+      rawStdout: '',
+    };
+  }
+  // Augment PATH with the same per-user install dirs backend-readiness checks.
+  // The binary command itself comes from the same resolver readiness uses:
+  // an executable operator override wins, a stale override falls back to the
+  // discovered default, and per-spawn opts.env cannot redirect executable choice.
+  const basePath = fallbackToDefaultCommand ? operatorPath : ((opts.env?.PATH as string | undefined) ?? operatorPath);
+  const augmentedPath = cliBinarySearchPath(basePath);
   const env = {
     ...process.env,
     ...(opts.env || {}),
     PATH: augmentedPath,
     OTEL_SDK_DISABLED: 'true',
   } as Record<string, string>;
-  // claude-code manages its own OAuth (Claude Max). An ANTHROPIC_API_KEY in
-  // the environment overrides OAuth and breaks auth ("Invalid API key"), so
-  // strip it for this CLI — mirrors runClaudeCli's handling.
-  if (cli === 'claude-code') {
-    delete env.ANTHROPIC_API_KEY;
+  for (const key of provider.stripEnvKeys ?? []) {
+    delete env[key];
   }
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const tubeChannel = opts.tube === null ? null : (opts.tube ?? generateTubeChannel(cli));
@@ -339,21 +275,48 @@ export async function spawnViaCliTube(
   // timer and could yank the file out from under an in-flight run).
   let tempDir: string | null = null;
   let outputPath: string | undefined;
-  if (cli === 'codex') {
+  if (provider.outputCapture === 'last-message-file') {
     const scratchRoot = join(homedir(), '.port-daddy', 'cli-tube-scratch');
     mkdirSync(scratchRoot, { recursive: true });
     tempDir = mkdtempSync(join(scratchRoot, 'codex-'));
     outputPath = join(tempDir, 'last-message.txt');
   }
 
-  const { args } = buildArgs(cli, opts.prompt, outputPath, opts.model, opts.permissionMode, opts.codexConfig);
+  const { args } = provider.buildArgs({
+    prompt: opts.prompt,
+    outputPath,
+    model: opts.model,
+    permissionMode: opts.permissionMode,
+    codexConfig: opts.codexConfig,
+    timeoutMs,
+    resumeSessionId: opts.resumeSessionId,
+  });
 
   const startedAt = Date.now();
+
+  if (
+    opts.resumeSessionId
+    && (
+      !opts.workspaceIdentity
+      || !opts.cwd
+      || !sameWorkspaceIdentity(opts.cwd, opts.workspaceIdentity)
+    )
+  ) {
+    if (tempDir) rmSync(tempDir, { recursive: true, force: true });
+    return {
+      output: '',
+      exitCode: 1,
+      error: 'Native resume blocked: canonical workspace identity changed before child launch.',
+      tube: tubeChannel,
+      durationMs: Date.now() - startedAt,
+      rawStdout: '',
+    };
+  }
 
   const child = spawnChild(binary, args, {
     cwd: opts.cwd || process.cwd(),
     env,
-    detached: false,
+    detached: true,
     shell: false,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -388,36 +351,29 @@ export async function spawnViaCliTube(
     }
   }
 
-  child.stdout?.on('data', (d: Buffer) => {
+  const onStdoutData = (d: Buffer): void => {
     const text = d.toString();
     stdoutChunks.push(text);
     pumpStdout(text);
-  });
-  child.stderr?.on('data', (d: Buffer) => stderrChunks.push(d.toString()));
+  };
+  const onStderrData = (d: Buffer): void => {
+    stderrChunks.push(d.toString());
+  };
 
-  const result = await new Promise<{ code: number; timedOut: boolean; spawnErr: string | null }>((resolve) => {
-    let settled = false;
-    let timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      try { child.kill('SIGTERM'); } catch {}
-      setTimeout(() => { try { child.kill('SIGKILL'); } catch {} }, 5000).unref?.();
-    }, timeoutMs);
-    timer.unref?.();
+  child.stdout?.on('data', onStdoutData);
+  child.stderr?.on('data', onStderrData);
 
-    child.on('close', (code) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve({ code: typeof code === 'number' ? code : -1, timedOut, spawnErr: null });
+  let result: CliChildWaitResult;
+  try {
+    result = await waitForCliChildProcess(child, {
+      timeoutMs,
+      killGraceMs: TIMEOUT_KILL_GRACE_MS,
+      killCloseDeadlineMs: TIMEOUT_KILL_CLOSE_DEADLINE_MS,
     });
-    child.on('error', (err) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve({ code: -1, timedOut: false, spawnErr: err.message });
-    });
-  });
+  } finally {
+    child.stdout?.off('data', onStdoutData);
+    child.stderr?.off('data', onStderrData);
+  }
 
   // Flush any trailing partial line (a final JSONL line without a terminating
   // newline) so the last event is still delivered live.
@@ -430,7 +386,7 @@ export async function spawnViaCliTube(
   // Codex: prefer the `--output-last-message` file (clean final
   // payload) and fall back to sanitized stdout.
   let cleanOutput = rawStdout;
-  if (cli === 'codex' && outputPath && existsSync(outputPath)) {
+  if (provider.outputCapture === 'last-message-file' && outputPath && existsSync(outputPath)) {
     try {
       const fileOut = readFileSync(outputPath, 'utf8').trim();
       if (fileOut) cleanOutput = fileOut;
@@ -444,19 +400,27 @@ export async function spawnViaCliTube(
   let error: string | null = null;
   if (result.spawnErr) {
     if (result.spawnErr.includes('ENOENT') || result.spawnErr.includes('not found')) {
-      error = `${cli} binary "${binary}" not found on PATH. Install it and retry. ${AUTH_NEXT_STEP[cli]}`;
+      error = `${cli} binary "${binary}" not found on PATH. Install it and retry. ${provider.authNextStep}`;
+    } else if (result.timedOut) {
+      error = `${cli} timed out after ${timeoutMs}ms: ${result.spawnErr}`;
     } else {
       error = `Failed to spawn ${binary}: ${result.spawnErr}`;
     }
   } else if (result.timedOut) {
-    error = `${cli} timed out after ${timeoutMs}ms${stderrText ? `: ${stderrText.trim()}` : ''}`;
+    const detail = formatCliErrorDetail(stderrText || rawStdout);
+    error = `${cli} timed out after ${timeoutMs}ms${detail ? `: ${detail}` : ''}`;
   } else if (result.code !== 0) {
-    const stderrLc = stderrText.toLowerCase();
-    if (stderrLc.includes('unauthorized') || stderrLc.includes('not authenticated') || stderrLc.includes('please log in') || stderrLc.includes('api key')) {
-      error = `${cli} authentication failed. ${AUTH_NEXT_STEP[cli]} (stderr: ${stderrText.trim()})`;
+    const failureText = stderrText || rawStdout;
+    const failureLc = failureText.toLowerCase();
+    if (failureLc.includes('unauthorized') || failureLc.includes('not authenticated') || failureLc.includes('please log in') || failureLc.includes('api key')) {
+      error = `${cli} authentication failed. ${provider.authNextStep} (${stderrText ? 'stderr' : 'stdout'}: ${formatCliErrorDetail(failureText)})`;
     } else {
-      error = `${cli} exited with code ${result.code}${stderrText ? `: ${stderrText.trim()}` : ''}`;
+      const detail = formatCliErrorDetail(failureText);
+      error = `${cli} exited with code ${result.code}${detail ? `: ${detail}` : ''}`;
     }
+  } else if (provider.emptySuccess === 'fail' && !rawStdout.trim() && !stderrText.trim()) {
+    const emptySuccessError = provider.emptySuccessError ?? `${cli} produced no stdout or stderr.`;
+    error = `${emptySuccessError} ${provider.authNextStep}`;
   }
 
   // Optional: publish the result on the tube so subscribed observers
@@ -488,6 +452,17 @@ export async function spawnViaCliTube(
     durationMs,
     rawStdout,
   };
+}
+
+function isPathLikeCliOverride(value: string | undefined): boolean {
+  return !!value && (value.startsWith('~') || value.includes('/') || value.includes('\\'));
+}
+
+function formatCliErrorDetail(text: string): string {
+  const trimmed = text.trim();
+  const max = 1_200;
+  if (trimmed.length <= max) return trimmed;
+  return `[truncated ${trimmed.length - max} chars] ${trimmed.slice(-max)}`;
 }
 
 // ─── Convenience: factory bound to a specific CLI ────────────────────────────

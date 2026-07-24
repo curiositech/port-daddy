@@ -164,7 +164,7 @@ pub(crate) fn render_galaxy(
                 .text_size(px(tokens::TEXT_EYEBROW))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(rgb(t.accent_ink))
-                .child("\u{2693} SEXTANT \u{00b7} SESSION ORIENTATION MAP"),
+                .child("SEXTANT \u{00b7} SESSION ORIENTATION MAP"),
         )
         .child(meta_row(snapshot, &base_meta, &computed_meta, &t, cx));
 

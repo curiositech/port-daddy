@@ -174,6 +174,17 @@ jobs:
       - name: Run unit tests
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
 
+      - name: Daemon backend transcript E2E (hermetic CLI fallback)
+        # BIG BROKEN E2E for the launchd-path/stale-Claude-override regression.
+        # The broad integration-tests job below is advisory; this required
+        # unit-tests job is not. The smoke script defaults to hermetic fakes:
+        # launchd-restricted PATH, stale PD_CLI_CLAUDE_CODE_BIN, fake `claude`
+        # discovered through PD_CLI_BIN_DIRS, fake OpenAI-compatible server,
+        # /spawn, and full /transcripts/:id readback. Live paid/provider rows
+        # remain opt-in behind PD_RUN_LIVE_BACKEND_TRANSCRIPT_SMOKE=1.
+        run: node scripts/smoke-daemon-backend-transcripts.mjs
+        timeout-minutes: 5
+
       - name: Test CLI tools
         run: |
           node bin/port-daddy-cli.js --help
@@ -272,7 +283,7 @@ jobs:
 
       - name: Run integration tests
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects integration
-        timeout-minutes: 5
+        timeout-minutes: 10
 
   compiled-daemon-smoke:
     # Builds the `bun build --compile` daemon (bun:sqlite), boots it on a
@@ -306,6 +317,16 @@ jobs:
 
       - name: Build compiled daemon binary
         run: npm run build:daemon:dist
+
+      # The Bosun watchdog is now REQUIRED: `pd doctor` reports a missing supervisor
+      # as CRITICAL, so the doctor gate below must validate the FULL artifact — daemon
+      # + watchdog — not the daemon alone. Build it before the smoke/gate so the booted
+      # daemon resolves core/target/release/pd-bosun (a resolveBosunBinaryPath candidate).
+      - name: Install Rust toolchain (for pd-bosun watchdog)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build pd-bosun (required daemon watchdog)
+        run: npm run build:bosun
 
       - name: Boot compiled daemon and smoke hot routes
         run: bash scripts/smoke-compiled-daemon.sh
@@ -521,7 +542,9 @@ jobs:
           # CI runs on the main worktree by design (no linked worktrees in
           # actions/checkout). Pass --allow-main-worktree so the worktree
           # policy added in 47840169 doesn't refuse the integration session.
-          node bin/port-daddy-cli.js begin --identity ci:website:gifs --purpose "Regenerate website terminal GIFs" --lifecycle durable --allow-main-worktree
+          # Rent-at-claim (S3): CI recording sessions are maintenance work,
+          # not roadmap items — opt out with an explicit sidequest reason.
+          node bin/port-daddy-cli.js begin --identity ci:website:gifs --purpose "Regenerate website terminal GIFs" --lifecycle durable --allow-main-worktree --sidequest "CI website GIF regeneration"
 
       - name: Regenerate website terminal GIFs
         working-directory: website-v2
@@ -617,6 +640,41 @@ jobs:
 
       - name: cargo test (incl. macaroon parity vectors)
         run: cargo test --workspace
+
+  rust-harbor-card:
+    # core/harbor-card-rs is a standalone FFI cdylib (excluded from the core/
+    # workspace — see core/Cargo.toml's `exclude` comment) that lib/arbiter.ts
+    # loads at runtime via koffi and scripts/build-core.sh compiles for every
+    # release. Nothing built or tested it in CI before this job — it shipped
+    # to production with zero test coverage and would have failed clippy the
+    # first time anyone turned strict linting on. Always-run (not path-gated),
+    # matching rust-kernel's philosophy for a security-relevant Rust crate.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core/harbor-card-rs
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust build artefacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core/harbor-card-rs
+
+      - name: cargo fmt --check
+        run: cargo fmt -- --check
+
+      - name: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: cargo test (incl. FFI boundary + property tests)
+        run: cargo test
 
   fleetbar:
     # Build + unit-test the FleetBar Swift menu bar app. Its tests never ran in

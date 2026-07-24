@@ -1,0 +1,85 @@
+# COMMITTED deploy config — used by CI (`wrangler deploy --config wrangler.deploy.toml`).
+# Contains ONLY non-credential values: Cloudflare resource ids (useless without
+# an API token), bindings, and plaintext vars. Runtime secrets are set via
+# `wrangler secret put` and survive deploys. This file IS the source of truth
+# for what CI ships; the gitignored wrangler.toml is for local hand-deploys.
+
+# Port Daddy Relay — Cloudflare Worker
+#
+# Prerequisites before `wrangler deploy`:
+#
+#   1. Create D1 database:
+#        wrangler d1 create port-daddy-relay
+#      Copy the database_id into [d1_databases] below.
+#
+#   2. Apply schema:
+#        wrangler d1 execute port-daddy-relay --file=./schema.sql
+#
+#   3. Set secrets:
+#        echo "<value>" | wrangler secret put RELAY_OPERATOR_TOKEN
+#        echo "<value>" | wrangler secret put RELAY_ED25519_PRIVATE_KEY_HEX
+#        # GitHub login (ADR-0101 Phase 1) — login stays DISABLED (503) until all
+#        # four of GITHUB_OAUTH_CLIENT_ID (var, below), PUBLIC_BASE_URL (var,
+#        # below), and these two secrets are present:
+#        cat client-secret.txt        | wrangler secret put GITHUB_OAUTH_CLIENT_SECRET
+#        openssl rand -hex 32         | wrangler secret put USER_TOKEN_WRAPPING_KEY
+#        # Also register the OAuth callback on the GitHub App:
+#        #   https://<relay-origin>/auth/github/callback
+#
+#   4. Deploy:
+#        wrangler deploy
+#
+# Local dev:
+#   wrangler dev --local   (uses local D1 sqlite, local DO)
+
+name = "port-daddy-relay"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+RELAY_VERSION = "0.1.0"
+EVENT_RETENTION_DAYS = "7"
+SESSION_TTL_SECONDS = "3600"
+JWKS_CACHE_TTL_SECONDS = "600"
+JWKS_FAIL_SOFT_SECONDS = "3600"
+REVOCATION_BROADCAST_TIMEOUT_MS = "5000"
+RATE_LIMIT_WINDOW_MS = "60000"
+# GitHub login BFF (ADR-0101 Phase 1). Public, non-secret values. The client id
+# is the existing GitHub App's OAuth client id (public); PUBLIC_BASE_URL is the
+# relay's own origin and is the exact base of the registered redirect_uri.
+# Login is disabled until the two matching secrets are also set (see header).
+GITHUB_OAUTH_CLIENT_ID = "Iv23litgGckMU4QVW4i8"
+PUBLIC_BASE_URL = "https://port-daddy-relay.erich-owens.workers.dev"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "port-daddy-relay"
+database_id = "0907431b-9af0-48b5-b2b0-07e6b660bd41"
+
+[durable_objects]
+bindings = [
+  { name = "HARBOR_CHANNEL", class_name = "HarborChannel" },
+]
+
+[[migrations]]
+tag = "v0001"
+new_classes = ["HarborChannel"]
+
+[[kv_namespaces]]
+# JWKS cache and pinned relay key cache
+binding = "KV"
+id = "4dc3eaaefbf14b1b90c0d60621b610ae"
+
+# Fleet-executor handoff: relay enqueues one FleetRunJob per GitHub delivery.
+[[queues.producers]]
+binding = "FLEET_RUNS"
+queue = "fleet-runs"
+
+[observability]
+enabled = true
+
+# Cron Trigger (ADR-0101): retention + session-reap + erasure hard-delete sweep
+# runs the scheduled() handler. Every 6 hours.
+[triggers]
+crons = ["0 */6 * * *"]

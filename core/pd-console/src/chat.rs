@@ -75,7 +75,7 @@ pub enum ChatState {
     Empty,
     /// At least one turn — render the bubbles.
     Populated,
-    /// The last transport action failed — surface the reason (a send/spawn refusal).
+    /// The last transport action failed; surface the refusal reason.
     Error,
 }
 
@@ -85,7 +85,7 @@ pub enum ChatState {
 #[derive(Debug, Clone, Default)]
 pub struct ChatLog {
     pub messages: Vec<ChatMsg>,
-    /// Set when a send/spawn was refused; cleared the moment a new turn lands so a
+    /// Set when a transport or WorkIntent capture was refused; cleared when a new turn lands so a
     /// stale failure never sticks once the channel recovers.
     pub error: Option<String>,
 }

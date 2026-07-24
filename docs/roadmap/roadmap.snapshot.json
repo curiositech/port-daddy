@@ -1,18 +1,23 @@
 {
-  "generatedAt": 1783315035961,
+  "generatedAt": 1784417300739,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 146,
+  "count": 233,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
       "status": "now",
-      "summaryMd": "Wedge 1 launch assets from the GTM strategy (\u00a76): Show HN post + founder note, and the portdaddy.dev /accountability launch page (hero, before/after, compliance ladder, git-guard demo, install CTA). Spawned by distribution-dogfood-gtm-strategy."
+      "summaryMd": "Wedge 1 launch assets from the GTM strategy (§6): Show HN post + founder note, and the portdaddy.dev /accountability launch page (hero, before/after, compliance ladder, git-guard demo, install CTA). Spawned by distribution-dogfood-gtm-strategy."
     },
     {
       "slug": "active-agent-roster",
       "status": "backlog",
       "summaryMd": "Add live active agent roster surfaces"
+    },
+    {
+      "slug": "actor-identity-minimal-slice",
+      "status": "now",
+      "summaryMd": "ADR-0040 keystone: daemon-minted, non-forgeable actor identity (actor-souls). Selector.verifier lookup-token credential, fail-closed above newcomer floor / fail-open-at-bounded-shared-pool below it. Anti-launder core: minting fresh ids buys no new budget. Full guarantee depends on door (PR #2582) write-boundary being fully enforced."
     },
     {
       "slug": "adr-0019-declarative-fleet-yaml",
@@ -366,38 +371,93 @@
     },
     {
       "slug": "adr-0096-signed-guidance-envelope",
+      "status": "backlog",
+      "summaryMd": "feat(agent-harbor): M5 turn-start suggestibility — signed guidance channel, fail-closed verifier, ProVerif-gated C3 (ADR-0096)"
+    },
+    {
+      "slug": "adr-0097-m6-context-memory-search-contracts",
       "status": "now",
-      "summaryMd": "M5 turn-start suggestibility: signed GuidanceEnvelope channel, forged-guidance probe, ProVerif-gated C3 (ADR-0096, binder ch18 M5)"
+      "summaryMd": "M6 F0-delta: freeze CompactionPacket, MemoryEpisode, TranscriptSearchQuery/Result, read-only BlackboardItem v0 contracts (ADR-0097, binder ch04/ch07 M6)"
+    },
+    {
+      "slug": "adr-0097-phase-1-compaction-chain",
+      "status": "now",
+      "summaryMd": "M6 phase 1: context-pressure tracking (ch04 thresholds over the F0 ContextEnvelope) + Longshoreman compactor emitting validated cited CompactionPackets; successor resume verifies sourceTranscript against the session hash chain (ADR-0097 Implementation Matrix)"
+    },
+    {
+      "slug": "adr-0097-phase-2-transcript-search",
+      "status": "now",
+      "summaryMd": "M6 phase 2: hybrid (BM25 + shared MiniLM, RRF) transcript search over the C1 event ledger returning budget-audited, always-cited TranscriptSearchResult objects; pd memory search CLI (ADR-0097, binder ch04/ch07 M6 gate lines 3-4)"
+    },
+    {
+      "slug": "adr-0097-phase-3-episode-extraction",
+      "status": "now",
+      "summaryMd": "M6 phase 3: episode/graph-fact extraction with bi-temporal validity, supersession closure, distilled-source tombstones, and budget-capped task-conditioned recall (ADR-0097 Implementation Matrix phase 3)"
+    },
+    {
+      "slug": "adr-0101-fleet-run-pages",
+      "status": "now",
+      "summaryMd": "ADR-0101: user-account wedge — capability-URL fleet run pages (details_url, Phase 0 shipped), GitHub OAuth login + user/session schema (Phase 1), BYOK + Stripe-credit + anchor-macaroon fleet funding (Phases 2-3)."
+    },
+    {
+      "slug": "adr-0101-phase-1-github-login",
+      "status": "backlog",
+      "summaryMd": "ADR-0101 Phase 1: GitHub OAuth login on the App + users/web_sessions/user_tokens D1 schema; repo-access authz on run pages; pd account login for FleetBar/pd-console."
+    },
+    {
+      "slug": "adr-0101-phase-2-byok-funding",
+      "status": "backlog",
+      "summaryMd": "BYOK fleet funding: envelope-encrypted per-user keys OR own-GHA; funding tenant = GitHub installation (MT2). Blocked-by: fleet-stripe-billing-layer, fleet-spend-circuit-breaker. Blocks: adr-0101-phase-3-credits-anchor."
+    },
+    {
+      "slug": "adr-0101-phase-3-credits-anchor",
+      "status": "backlog",
+      "summaryMd": "Stripe credits + anchor spend-cap caveats (reuse pd-anchor macaroon spend_usd<=n; verify at spend site). Blocked-by: adr-0101-phase-2-byok-funding. Blocks: none."
+    },
+    {
+      "slug": "adr-0116-fleet-monetization",
+      "status": "now",
+      "summaryMd": "ADR-0116 fleet monetization: managed-primary Stripe prepaid credits (positive float) + BYOK-secondary; usage/per-review pricing; complexity-escalation routing; transparency-moat positioning."
+    },
+    {
+      "slug": "adr-0117-fleet-v2-execution",
+      "status": "now",
+      "summaryMd": "ADR-0117 Fleet v2: AI Gateway cost observability + Cloudflare Sandbox execution ships + adversarial prosecutor test-writer (falsify PR objective) + remediation loop."
+    },
+    {
+      "slug": "adr-doc-reconciliation-sweep",
+      "status": "now",
+      "summaryMd": "Doc rot sweep from wf_74723755 (39 documentation lies + 9-collision numbering crisis). Concrete punch list: supersede-in-place 0030(whois)/0031(Spider)/0032(Lookout)/0038(claim_forest) with 'Superseded (implemented differently)' status + pointer to shipped mechanism; fix FALSE-GREEN attestations 0045:74 (identity check 'enabled' — does not exist) and 0053 (Relay 'verifies discharges/ProVerif' — zero macaroon wiring in apps/relay/src); flip 0037/0091 Proposed->Partial-Ship with shipped/gap tables; annotate 0090 phases 0-4 SUPERSEDED-by-durable-home-wave; correct 0086/0085 Implementation Matrix to ground truth (schema-only-shipped, edge-writers zero-callers); rename 0090-the-harbor->0097, pd-adr-090-hook-installer->next-free, 0091 roadmap slugs adr-0089->adr-0091; RECOVER orphaned ADR-0096 (signed-guidance, Accepted but trapped in ~20 worktrees); author a docs/adr/REGISTRY.md + pre-commit collision gate; binder reconciliation deltas ch02/05/06/09 (whois/claim_forest/squid/halt/durable-home all uncovered). Owner: doc-reconciliation dispatch. Decision-type: empirical (mechanical truth-fixes). Acceptance: every ADR status matches ground truth; zero number collisions; 0096 on main; binder covers the shipped substrate."
     },
     {
       "slug": "agent-harbor-c1-event-ledger",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C1 \u2014 event ledger and projections (binder ch18 Work Order C1)"
+      "summaryMd": "Agent Harbor C1 — event ledger and projections (binder ch18 Work Order C1)"
     },
     {
       "slug": "agent-harbor-c2-compliance-probes",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C2 \u2014 adapter compliance probes (binder ch18 Work Order C2)"
+      "summaryMd": "Agent Harbor C2 — adapter compliance probes (binder ch18 Work Order C2)"
     },
     {
       "slug": "agent-harbor-c3-operator-control-panel",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C3 \u2014 operator control panel (binder ch18 Work Order C3)"
+      "summaryMd": "Agent Harbor C3 — operator control panel (binder ch18 Work Order C3)"
     },
     {
       "slug": "agent-harbor-c5-governance-tool-gates",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C5 \u2014 governance and tool gates (binder ch18 Work Order C5)"
+      "summaryMd": "Agent Harbor C5 — governance and tool gates (binder ch18 Work Order C5)"
     },
     {
       "slug": "agent-harbor-c8-setup-doctor-remediation",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C8 \u2014 setup and doctor remediation (binder ch18 Work Order C8)"
+      "summaryMd": "Agent Harbor C8 — setup and doctor remediation (binder ch18 Work Order C8)"
     },
     {
       "slug": "agent-harbor-daemon-routes",
       "status": "backlog",
-      "summaryMd": "feat(agent-harbor): C-routes daemon HTTP layer \u2014 ch09 read API over C1 projections (closes I0 Contradiction 1)"
+      "summaryMd": "feat(agent-harbor): C-routes daemon HTTP layer — ch09 read API over C1 projections (closes I0 Contradiction 1)"
     },
     {
       "slug": "agent-harbor-docs-skill-collision-hygiene",
@@ -407,7 +467,7 @@
     {
       "slug": "agent-harbor-f0-contract-freeze",
       "status": "now",
-      "summaryMd": "Agent Harbor v0 contract freeze \u2014 ADR-0095 + 11 schemas + fixture tests (binder ch18 Work Order F0)"
+      "summaryMd": "Agent Harbor v0 contract freeze — ADR-0095 + 11 schemas + fixture tests (binder ch18 Work Order F0)"
     },
     {
       "slug": "agent-harbor-runtime-refactor-contract-dag",
@@ -417,7 +477,7 @@
     {
       "slug": "agent-harness-installer-roster",
       "status": "backlog",
-      "summaryMd": "Expose Giant Squid hook installation and spawn hook injection as the enforceable Port Daddy agent harness layer. PR #624 now documents runtime setup, project hook arming, Squid bridge launch, MCP/Pilot install, and FleetBar as separate install surfaces, with tests for Claude/Codex/Gemini/Antigravity hook config writes."
+      "summaryMd": "Expose Giant Squid hook installation and spawn hook injection as the enforceable Port Daddy agent harness layer. This slice adds one-command pd agent harness launch, stable tubeChannel plumbing through /spawn, and pd-console REPL :harness for Squid-requested launches."
     },
     {
       "slug": "app-lane-auto-refresh",
@@ -431,8 +491,8 @@
     },
     {
       "slug": "ast-a1-1-cross-file-resolution",
-      "status": "merge",
-      "summaryMd": "A1.1 cross-file import resolution — KEYSTONE. PR #576: resolveImportSpecifier (filesystem-verified relative+baseUrl; externals stay raw). Unblocks ast-a1-3/a2-1/a3-1. Follow-ups: tsconfig paths globs, Python module resolution."
+      "status": "done",
+      "summaryMd": "A1.1 cross-file import resolution — DONE (#576 + #593 hardening: NodeNext .js->.ts, boundary clamp, dropped bogus baseUrl probe). Cross-file IMPORT edges resolve. Unblocks ast-a1-3."
     },
     {
       "slug": "ast-a1-2-references-edges",
@@ -441,8 +501,8 @@
     },
     {
       "slug": "ast-a1-3-cross-file-call-resolution",
-      "status": "backlog",
-      "summaryMd": "A1.3 Extend extractCallEdges to resolve callees imported from other files via ast-a1-1's resolver. Done when blast-radius includes callers in other files + integration test."
+      "status": "done",
+      "summaryMd": "A1.3 cross-file CALL resolution — DONE (#594). extractCallEdges resolves imported callees via importMap; cross-file blast-radius + signature conflicts fire (proven). Follow-up: aliased/namespace imports."
     },
     {
       "slug": "ast-a1-4-incremental-index-refresh",
@@ -462,7 +522,7 @@
     {
       "slug": "ast-a2-2-symbol-graph-visualization",
       "status": "backlog",
-      "summaryMd": "A2.2 Render graph_edges as a navigable symbol/dependency graph (pd-console pane + GET /symbols/graph). Done when an operator sees a symbol, its blast radius, and contended claims; visual artifact on PR."
+      "summaryMd": "Cross-file symbol-graph overlay in the Harbor Editor: Layer A (syntax.rs) calls the daemon symbol-index (Layer B: lib/symbol-index.ts, routes/symbols.ts — GET /symbols, /symbols/blast-radius, POST /conflicts/predict) over HTTP and projects what-calls-this / who-imports / blast-radius results into the open buffer, anchored on Loro cursors at render time. Fast-follow to harbor-editor-p1-loro-buffer. Agreed in parley daff1056 (COLLAPSED)."
     },
     {
       "slug": "ast-a2-3-predict-conflicts-session-preflight",
@@ -490,9 +550,49 @@
       "summaryMd": "A4.1 (optional) Wire tree-sitter-go / tree-sitter-rust + extraction (symbols, imports, intra-file calls). Done when a Go and Rust file parse with symbols + call edges."
     },
     {
+      "slug": "beacon-durable-agent-roster",
+      "status": "backlog",
+      "summaryMd": "Turn machine-local sessions into durable, meaningful named agents with system and repo remits, prompt and tool policy, episodic learning, searchable transcript lineage, and Port Daddy discovery."
+    },
+    {
+      "slug": "beacon-live-agent-interaction",
+      "status": "backlog",
+      "summaryMd": "Attach Workflow Beacon to a still-running receptive agent with bidirectional interactive input, ordered transcript events, acknowledgement state, and honest unsupported controls."
+    },
+    {
       "slug": "binder-aor-reconciliation-2026-07-06",
       "status": "backlog",
       "summaryMd": "feat(fleetbar): add native Cloud Fleet surface"
+    },
+    {
+      "slug": "binder-baseline-ambition-archaeology",
+      "status": "backlog",
+      "summaryMd": "Execute the Harbor AoR baseline ambition-archaeology sweep per work-packets/harbor-architect-baseline-ambition-archaeology.md: classify all 18 seed families from ch16 (absorbed/superseded/deferred/contradicted/orphaned/rejected) with rationale + destination + source links, and fold the 2026-07-14 contradiction register (CR-5 ch03-vs-ch09 event-schema fork; CR-6 spawn-dissolve vs spawn-live; CR-8 C2-Governed same-UID containment overclaim; CR-11 ch18-shipped vs ch07-silent; CR-12 console-control-socket absent) into ch17. Acceptance: ch17 contains a classification table with 18/18 rows populated + CR register updated; binder-aor-log note written; node scripts/check-doc-citations.mjs clean on changed chapters. NOTE: existing slug binder-aor-reconciliation-2026-07-06 has a mismatched summary (mis-upsert) and does not cover this."
+    },
+    {
+      "slug": "binder-mechanical-truth-fixes",
+      "status": "backlog",
+      "summaryMd": "Mechanical binder truth fixes from the 2026-07-14 AoR run: (1) add maturity status headers (shipped/partial/target) to ch01-08 and ch10; (2) fix ch19:56 false verified path apps/pd-console -> core/pd-console (CR-10); (3) define or delete the undefined Antigravity body kind in ch07:81 (CR-9); (4) name an accountable owner in the 7 ownerless work-packets; (5) adopt the rule that every binder-aor-log pd note is mirrored into ch17 or a repo ledger file (the 2026-07-10 note was lost to daemon DB churn). Acceptance: grep for 'Status:' hits all 21 chapters; grep apps/pd-console in binder returns 0; every work-packet names an owner; the mirroring rule is written into ch16."
+    },
+    {
+      "slug": "binder-skills-durable-agents-vocabulary",
+      "status": "backlog",
+      "summaryMd": "Graft the durable-agents-landscape research vocabulary (micro/macro compaction, wake-source taxonomy, hibernate-vs-resume, context-reconstruction tiers) into the agent-harbor technical binder chapters and the context-economics / agent-identity skills. Tracked by PR #3138."
+    },
+    {
+      "slug": "boot-migrator-schema-epoch",
+      "status": "backlog",
+      "summaryMd": "Spawned by ADR-0090 Amendment 1 (PR #2156): Replace scattered warn-and-continue ALTER blocks with PRAGMA user_version epoch + ordered MIGRATIONS registry (up+verify per entry), fail-closed boot, automatic pre-migration VACUUM INTO stamp, version-skew rule (newer-epoch DB puts older binary in read-only). Acceptance: user_version stamps advance per migration; a gutted verify probe aborts boot; an older binary opening a newer-epoch DB refuses writes with a loud warning."
+    },
+    {
+      "slug": "booty-artifact-harvest",
+      "status": "backlog",
+      "summaryMd": "feat(booty): S4a artifact harvest — provenance over the blob store"
+    },
+    {
+      "slug": "claude-squid-mode-visual-20260716",
+      "status": "backlog",
+      "summaryMd": "fix(squid): honest pd squid on reporting + centralized capability tokens"
     },
     {
       "slug": "cloudflare-agent-telemetry-unified-reporting",
@@ -500,9 +600,34 @@
       "summaryMd": "Cloudflare/GitHub App remote agent telemetry appears in the same fleet, agent, and spend reports as local agents."
     },
     {
+      "slug": "codex-backend-live-transcripts-budget-hard-cap",
+      "status": "backlog",
+      "summaryMd": "fix(spawner): enforce hard backend budget caps"
+    },
+    {
+      "slug": "codex-daemon-claude-bin-resolution",
+      "status": "backlog",
+      "summaryMd": "Fix daemon Claude CLI binary resolution"
+    },
+    {
+      "slug": "codex-durable-agent-cross-harness-20260715",
+      "status": "backlog",
+      "summaryMd": "feat(memory): add safe cross-harness continuation"
+    },
+    {
+      "slug": "codex-effective-runtime-truth",
+      "status": "backlog",
+      "summaryMd": "fix(spawner): report effective runtime provenance"
+    },
+    {
       "slug": "codex-homepage-hero-followup",
       "status": "backlog",
       "summaryMd": "Harden marketing visuals and asset integrity"
+    },
+    {
+      "slug": "codex-pd-console-visual-proof-lane",
+      "status": "backlog",
+      "summaryMd": "test(pd-console): harden exact-window visual proof"
     },
     {
       "slug": "codex-session-takeover-legibility",
@@ -510,9 +635,79 @@
       "summaryMd": "fix(sessions): make takeover successor the active context"
     },
     {
+      "slug": "control-contract-wirer",
+      "status": "backlog",
+      "summaryMd": "Wave-2 owner of binder CR-1 + CR-2: wire the operator control verbs to a real contract. CURRENT STATE (audited 2026-07-14, control_contract_audit: FAIL 56/100): pd-console buttons POST a generic F0 ControlCommand with no control_commands table or daemon ingress (CR-1, zero hits on main), single collapsed 'control' verb, no terminal states, authorization from ui-state — plus the live interrupt route is lease-less fire-and-forget contradicting lib/agent-harbor/control-gate.ts doctrine (CR-2). TARGET CONTRACT (audited: PASS 100/100, spec at the session ledger): six distinct verbs (steer/interrupt/pause/kill/checkpoint/fork) each with queued/delivered/acknowledged/failed/expired/unsupported terminals; four backends honestly declared (local-process: all six; cloud-worker-body: steer/interrupt/kill; hook-only-session: steer/interrupt; observed-import: NONE — buttons render disabled with reason, never false affordances); authorization re-checks authoritative lease at delivery time per control-gate doctrine, never the roster projection. Acceptance: control_commands table + ingress exist; ch02 remote-interrupt race test passes; control_contract_audit on the SHIPPED spec passes; every unsupported verb x backend pair renders a disabled control with stated reason. Unblocks: roadmap-reconciler-agent unattended mode (dependency 2 of 3)."
+    },
+    {
+      "slug": "daemon-down-hard-stop-mandate",
+      "status": "now",
+      "summaryMd": "KEYSTONE (operator top mandate 2026-07-14: 'it is insane port-daddy does not grind to a halt when the daemon is down — it MUST, super loud'). Reconciliation confirms: every enforcement claim is theatrical while ~30 lib/*.ts modules open SQLite directly and only 4 command files call isDaemonRunning; guard.ts note-per-commit rent check FAILS OPEN (daemon/git failure => no rent owed); 6 quiet-degrade surfaces (dispatch.ts:270 silent direct-DB fallback, post-commit-hook curl discarded, MCP text-not-McpError server.ts:4995, FleetBar dot, brew Running:true lie with no watchdog). Build: (1) new ADR 'Daemon-Down Hard-Stop Mandate' generalizing guard structural-escalation to all write surfaces; (2) guard rent check fail CLOSED+loud; (3) a shared daemon-liveness precondition on direct-SQLite writes (loud refuse, not silent fallback); (4) supervision watchdog reconciling brew/launchd Running:true vs actual liveness. Owner: halt-mandate dispatch. Decision-type: HITL (the fail-closed policy is an operator call) + empirical (the wiring). Acceptance: with daemon killed, a pd write refuses loudly instead of hitting local SQLite; the rent check blocks; pd doctor is not the only thing that catches the brew lie."
+    },
+    {
+      "slug": "daemon-reliability-release",
+      "status": "backlog",
+      "summaryMd": "Daemon reliability release hardens Homebrew launch defaults, crash diagnostics, compiled-daemon smoke and doctor gates, route self-degradation, and the documented Port Daddy daemon authority model."
+    },
+    {
+      "slug": "dev-berth-daemon-registration",
+      "status": "now",
+      "summaryMd": "WIP (operator flagged unfinished 2026-07-14): every daemon launched locally for a dev berth must self-register in ~/.port-daddy/dev-daemons.json so FleetBar/Control Center can see it — else dev daemons are invisible in the sanctioned shell (the show-me-runbook hard rule: dev-triple launches with PD_DAEMON_TIER/LABEL/SOURCE_DIR so the berth registers). Evidence tonight: lsof showed a dev-latest daemon on :9886 and multiple dispatch-worktree daemons that FleetBar has no view of. Finish: on daemon boot, if a non-prod tier/label is set, upsert the berth into dev-daemons.json (pid, port, tier, label, sourceDir, gitRev, health-url); prune dead berths on read; every dev-berth launch path (pd dev up, package-console --devbuild, dispatch worktree daemons, dev-triple) goes through it. Acceptance: launch a dev berth by any path and it appears in FleetBar's Daemons list with correct tier/label; killing it prunes it. Owner: dev-berth dispatch. Decision-type: empirical."
+    },
+    {
+      "slug": "durable-agent-continuation-conformance-matrix",
+      "status": "backlog",
+      "summaryMd": "Probe and publish an honest N:N backend continuation matrix spanning discovery, spawn, live control, native resume, and handoff successor conformance."
+    },
+    {
+      "slug": "durable-agent-cross-harness-continuation",
+      "status": "now",
+      "summaryMd": "Runtime-selectable cross-harness continuation through a versioned sanitized successor brief with durable identity and predecessor lineage."
+    },
+    {
+      "slug": "durable-agent-cross-harness-resumption",
+      "status": "backlog",
+      "summaryMd": "Resume a sanitized handoff capsule in a different harness or backend without replaying raw transcripts, with explicit capability loss and source-to-target lineage."
+    },
+    {
+      "slug": "durable-agent-handoff-capsule",
+      "status": "now",
+      "summaryMd": "Build a compact, versioned, provenance-rich handoff capsule that preserves operator turns, decisions, repo and branch state, Port Daddy coordination notes, and artifacts while failing closed on secret egress."
+    },
+    {
+      "slug": "durable-agent-n-n-conformance-matrix",
+      "status": "backlog",
+      "summaryMd": "Exercise source and target harness pairs through a shared conformance ladder for handoff import, native continuation, live control, transcript provenance, redaction, and negative cases."
+    },
+    {
+      "slug": "durable-agent-n-n-harness-adapter-contract",
+      "status": "now",
+      "summaryMd": "Make agent sessions portable across CLI, API, cloud, and local runtimes through one honest adapter contract per harness, generated capability evidence, and handoff-only fallback when native resume is unavailable."
+    },
+    {
+      "slug": "durable-agent-roster",
+      "status": "backlog",
+      "summaryMd": "Build Beacon's durable named agent roster with system and repo scopes, promotable sessions, memory policy, backend preferences, permissions, triggers, and searchable expertise."
+    },
+    {
+      "slug": "durable-agent-same-harness-continuation",
+      "status": "now",
+      "summaryMd": "Daemon-witnessed same-harness session continuation with UUID and workspace-bound evidence, owner-leased receipts, and truthful native resume semantics."
+    },
+    {
       "slug": "feat-backend-dropdown-spawn-forecast",
       "status": "backlog",
       "summaryMd": "feat(fleet): backend dropdown in FleetBar popover + GET /fleet/forecast spawn-rate estimator"
+    },
+    {
+      "slug": "feat-harbor-editor-fast",
+      "status": "backlog",
+      "summaryMd": "perf(pd-console): rebuild Harbor editor — virtualized tight code surface, syntax color, author column"
+    },
+    {
+      "slug": "feat-native-skill-graft-fleet-ships",
+      "status": "backlog",
+      "summaryMd": "feat(fleet): native local skill-graft library for autonomous fleet ships"
     },
     {
       "slug": "feat-pd-console-operator-chat",
@@ -520,9 +715,74 @@
       "summaryMd": "feat(pd-console): operator chat surface (real tube transport + GPUI text input)"
     },
     {
+      "slug": "fix-skill-graft-tool2vec-vocabulary-gap",
+      "status": "merge",
+      "summaryMd": "PR #723 skill-graft.ts shipped with a vocabulary-mismatch bug: ranking compared task embeddings to a skill's OWN description embedding (cosine(task, description)), which fails when a task is phrased in user language different from the skill's own description wording. Fix: real Tool2Vec synthetic-query-centroid generation (lib/skill-graft-tool2vec.ts) + BM25/Porter-stemming lexical signal (lib/skill-graft-bm25.ts), fused via reciprocal rank fusion (k=60) in lib/skill-graft.ts. lib/coordination-judge.ts's transportToAdapter helper exported (no behavior change) for reuse by lib/fleet-engine.ts's new skill-graft LLM-backend wiring."
+    },
+    {
+      "slug": "fleet-ai-gateway-cost-observability",
+      "status": "now",
+      "summaryMd": "Route all fleet inference through Cloudflare AI Gateway for real per-request token/cost logging (ADR-0117 D1). Blocked-by: none. Blocks: fleet-spend-circuit-breaker, fleet-v2-sandbox-execution. IN PROGRESS (billing workflow)."
+    },
+    {
+      "slug": "fleet-backend-runtime-aliases",
+      "status": "now",
+      "summaryMd": "Keep fleet backend ids, model-registry provider ids, readiness gates, and spawner runtime dispatch aligned so cloud/local fleet fallback rungs cannot resolve to a backend the daemon cannot launch."
+    },
+    {
+      "slug": "fleet-complexity-escalation-routing",
+      "status": "backlog",
+      "summaryMd": "Confidence/complexity model cascade: start cheap, escalate to pricey/frontier on low-confidence/high-risk/large-diff (ADR-0116 D2, ~40-70% cost cut + a sellable Deep-Review tier). Blocked-by: none (parallel). Blocks: none."
+    },
+    {
       "slug": "fleet-hitl-proposal-queue",
       "status": "backlog",
       "summaryMd": "Add fleet HITL proposal queue"
+    },
+    {
+      "slug": "fleet-respawn-breaker-durability",
+      "status": "backlog",
+      "summaryMd": "Respawn circuit breaker does not survive the crash class it guards: respawnCounts (lib/fleet-engine.ts:2195) is an in-memory Map, so a fleet-engine process restart resets every agent's death count to zero — the 345-respawn zombie failure shape at the layer above (launchd KeepAlive) can reproduce here whenever the engine itself is churned. Also: (a) respawn fires immediately on the death event with no jittered backoff (bounded only by maxRespawns=3); (b) dead-agent matching uses substring deadId.includes(name), which can respawn the wrong agent when one name is a substring of another identity. Fix: persist respawn counts (or derive from resurrection-event history in the registry) with a TTL window; add full-jitter backoff before respawn; exact-match on identity. Acceptance: restarting the fleet engine mid-storm does not reset the breaker (test proves count survives); agents named 'scout' and 'scout-2' never cross-respawn."
+    },
+    {
+      "slug": "fleet-run-spend-recording",
+      "status": "now",
+      "summaryMd": "Persist per-run/per-ship tokens+cost to fleet_run_spend (ADR-0116). Blocked-by: none. Blocks: fleet-spend-circuit-breaker. IN PROGRESS (billing workflow)."
+    },
+    {
+      "slug": "fleet-spend-circuit-breaker",
+      "status": "now",
+      "summaryMd": "Per-installation pre-spend balance gate = abuse gate + billing draw-down; fail-open until billing configured (ADR-0116; convergent w/ PR #2640 spend circuit breakers). Blocked-by: fleet-run-spend-recording, fleet-stripe-billing-layer. Blocks: adr-0101-phase-2-byok-funding. IN PROGRESS (billing workflow)."
+    },
+    {
+      "slug": "fleet-stripe-billing-layer",
+      "status": "now",
+      "summaryMd": "Relay Stripe prepaid-credits layer: credit_ledger + Checkout + signed webhook + balance/portal (ADR-0116 D5). Blocked-by: none. Blocks: fleet-spend-circuit-breaker, adr-0101-phase-2-byok-funding. IN PROGRESS (billing workflow)."
+    },
+    {
+      "slug": "fleet-trigger-fire-time-gate",
+      "status": "backlog",
+      "summaryMd": "Duplicate-execution defect (open since PR #655, still unfixed 2026-07-14): armed fleet triggers have no fire-time gate or idempotency key — zero lastFired/dedup hits in lib/fleet-engine.ts — so a daemon restart or double evaluation double-fires a trigger and spawns duplicate agents (duplicate spend). Fix per at-least-once queue discipline: persist last_fired_at per trigger in the registry (survives restarts, unlike in-memory state); derive a spawn idempotency key from (trigger-id, scheduled-fire-time) and dedupe at the spawn preflight — the DB row is the dedup primitive, not process memory. Acceptance: kill and restart the daemon around a trigger's fire window; exactly one spawn occurs; a unit test proves the (trigger, fire-time) key dedupes."
+    },
+    {
+      "slug": "fleet-v2-adversarial-prosecutor",
+      "status": "backlog",
+      "summaryMd": "The prosecutor ship: write+run tests to FALSIFY the PR's stated objective, post red evidence (ADR-0117 D3; confirmed white space). Blocked-by: fleet-v2-sandbox-execution. Blocks: fleet-v2-remediation-loop."
+    },
+    {
+      "slug": "fleet-v2-remediation-loop",
+      "status": "backlog",
+      "summaryMd": "Closed loop: falsify -> red test -> refactor touched backend + add logging -> return green (ADR-0117 D4; unclaimed). Blocked-by: fleet-v2-adversarial-prosecutor. Blocks: none."
+    },
+    {
+      "slug": "fleet-v2-sandbox-execution",
+      "status": "backlog",
+      "summaryMd": "Cloudflare Sandbox SDK execution path for needsExecution ships (run PR tests in isolated containers; premium tier). Blocked-by: fleet-v2-sandbox-threat-model, fleet-ai-gateway-cost-observability, fleet-spend-circuit-breaker. Blocks: fleet-v2-adversarial-prosecutor."
+    },
+    {
+      "slug": "fleet-v2-sandbox-threat-model",
+      "status": "backlog",
+      "summaryMd": "Threat-model sandboxed execution of untrusted PR code before any exec ship ships (ADR-0117; agentic-zero-trust-security). Blocked-by: none. Blocks: fleet-v2-sandbox-execution."
     },
     {
       "slug": "fleetbar-developer-id-signing",
@@ -535,14 +795,89 @@
       "summaryMd": "feat(fleetbar): add visual task intake"
     },
     {
+      "slug": "github-webhook-delivery-dedup",
+      "status": "backlog",
+      "summaryMd": "Inbound webhook receiver (routes/github-webhook.ts, io-wiring Phase 2) has no idempotency and no replay protection: X-GitHub-Delivery is extracted (line ~222) but never used as a dedup key, and the handler publishes to fleet channels unconditionally — every GitHub redelivery (automatic retry, manual Redeliver, or attacker replay of a captured request, which stays valid forever since GitHub HMAC signs no timestamp) re-fires fleet triggers and duplicates spawns/spend. The 500-on-publish-failure path invites retries that re-publish already-succeeded channels (partial-publish duplication). Composes with fleet-trigger-fire-time-gate: two layers between GitHub and a spawn, neither idempotent. Fix per receiver discipline: durable inbound_webhook_deliveries table keyed UNIQUE(provider, delivery_id) in the registry (safe post-#2067 durable home — pre-fix this table would have been wiped every brew upgrade, erasing replay memory); insert-first with status, publish, then mark published; redelivery of a published id acks 204 without republishing; redelivery of an unpublished id retries only unpublished channels. Signature layer needs NO change (raw-body HMAC + timingSafeEqual + two-tier auth verified sound 2026-07-14). Acceptance: replaying a captured valid request twice publishes fleet events exactly once (unit test); a redelivery after simulated partial publish completes only the missing channels."
+    },
+    {
       "slug": "gpui-agent-observatory",
       "status": "backlog",
       "summaryMd": "Build a Rust GPUI agent observatory after daemon endpoints exist: list daemon-launched harnessed sessions, distinguish fleet infrastructure agents from merchant task agents, stream persisted transcripts, show Port Daddy hook activity and operator-only fleet overlays, and allow jumping into a live harnessed agent REPL without losing auditability."
     },
     {
+      "slug": "gpui-component-0-5-x-dependability-verify",
+      "status": "backlog",
+      "summaryMd": "Verify whether gpui-component published 0.5.x (crates.io) safely pins registry gpui 0.2.2 vs the main-branch git-pin trap; decides copy-vs-depend for the pd tube text-input (blocks it). Surface: pd-console pd-tube cockpit input. Source: longbridge/gpui-component (2026-07-08 awesome-gpui survey)."
+    },
+    {
+      "slug": "gpui-flow-fleet-dag-canvas",
+      "status": "backlog",
+      "summaryMd": "Fleet DAG canvas via pacifio/gpui-flow (bezier edges, drag-connect, box-select, viewport-culled at 1000 nodes, minimap; node_renderer returns any GPUI element). Copy-not-depend (git-pin trap). Surface: pd-console fleet view + Harbor. From the 2026-07-08 awesome-gpui survey."
+    },
+    {
+      "slug": "gpui-px-metrics-charts",
+      "status": "backlog",
+      "summaryMd": "Health/metrics charts via pierreaubert/gpui-toolkit gpui-px (Plotly-express scatter/line/bar/heatmap, Viridis scales). Copy (zed git tag v1.9.0). Surface: pd-console health/metrics panes. From the 2026-07-08 awesome-gpui survey."
+    },
+    {
+      "slug": "gpui-symbols-icon-integration",
+      "status": "backlog",
+      "summaryMd": "Integrate AprilNEA/gpui-symbols (native SF Symbols, type-safe Icon + define_icons!, crates.io gpui 0.2.2 exact) to replace pd-console's no-icons/emoji-ban gap. Surface: pd-console (all panes/badges). From the 2026-07-08 awesome-gpui survey (docs/design/2026-07-08-gpui-ecosystem-steals.md)."
+    },
+    {
+      "slug": "guard-enforcement-messaging-integrity",
+      "status": "backlog",
+      "summaryMd": "Coordination Guard messaging is inconsistent with its enforcement, training agents into alarm fatigue: observed repeatedly 2026-07-14 that (a) 'Port Daddy: commit blocked by Coordination Guard' prints while the commit actually LANDS (verified by git log immediately after, multiple times), and (b) the '1 commit(s) have no coordination note' rent complaint keeps firing after the note was paid (stale count). An enforcement gate whose 'blocked' means 'proceeded anyway' and whose debt counter doesn't clear teaches every agent to ignore it — the worst possible property for a guard. Fix: make the block message truthful (if the hook allows the commit, say ADVISORY; if it blocks, actually exit non-zero before the commit object is created), and recompute the unpaid-rent count after note writes within the same session. Acceptance: a deliberately rent-unpaid commit either lands with an ADVISORY-labeled message or is actually absent from git log — never 'blocked'+landed; paying a note clears the counter on the next check."
+    },
+    {
+      "slug": "guard-merge-blast-radius-fix",
+      "status": "now",
+      "summaryMd": "Fix coordination-guard stagedFiles() misattributing a merge's pass-through files (from origin/main) to the merging session's blast radius, causing false claim-collision blocks on rebase-forward commits. Root cause: pre-commit diff against stale HEAD instead of MERGE_HEAD during an in-progress merge. Shipped as PR #3130."
+    },
+    {
+      "slug": "guard-stash-pop-interception",
+      "status": "backlog",
+      "summaryMd": "Coordination Guard shim intercepts git stash PUSH but not POP/APPLY — live incident 2026-07-14: a session in worktree daemon-single-truth ran git stash pop, the shim let it through, and it partially applied ANOTHER session's stash (stash@{0}, codex-gpui-harness-mux 72 files) into the worktree: staged foreign changes + conflict markers across pd-console/skills/cli. The stash stack is shared mutable state across ALL worktrees (lives in .git), so pop/apply without an explicit stash ref is exactly as cross-session-dangerous as push. Fix: shim intercepts bare 'git stash pop/apply' (no ref) with the same refuse+bypass pattern as push; allow 'apply <sha>' / 'pop stash@{n}' with explicit refs; message points at the SHA-capture workflow already documented in the repo worktree guidance. Acceptance: bare pop in a worktree is refused with PD_SHIM_OFF bypass offered; explicit-ref apply passes."
+    },
+    {
+      "slug": "harbor-card-rs-ffi-hardening",
+      "status": "done",
+      "summaryMd": "core/harbor-card-rs (the FFI cdylib lib/arbiter.ts loads at runtime, shipped in every release via build-core.sh) was excluded from the core/ Cargo workspace and had zero CI coverage: no unit tests, and clippy -D warnings didn't even compile (missing catch_unwind at the extern C boundary, 2 needless-borrow lints). Fixed: catch_unwind on both FFI exports, unsafe extern C per clippy (verified symbol table unchanged via nm), 22 tests (unit + FFI-boundary + proptest), new rust-harbor-card CI job. PR #3304."
+    },
+    {
       "slug": "harbor-editor",
       "status": "now",
       "summaryMd": "Harbor Editor — cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
+    },
+    {
+      "slug": "harbor-replicaid-agent-branch-clock",
+      "status": "backlog",
+      "summaryMd": "Adopt zed crates/text+clock ReplicaId model reserving LOCAL/REMOTE_SERVER/AGENT/LOCAL_BRANCH constants as Harbor's agent-as-peer OT/CRDT clock foundation. Surface: Harbor editor. Source: zed-industries/zed (2026-07-08 awesome-gpui survey)."
+    },
+    {
+      "slug": "harbor-salvage-replay-convergence",
+      "status": "backlog",
+      "summaryMd": "test(harbor): P3.5 salvage foundation — Loro op-replay convergence property tests"
+    },
+    {
+      "slug": "harbormaster-mcp-parity",
+      "status": "done",
+      "summaryMd": "Expose the read-only harbormaster status route through MCP and manifest parity so routed-feature coverage remains honest."
+    },
+    {
+      "slug": "idea-mining-pipeline",
+      "status": "backlog",
+      "summaryMd": "R2b, spec'd by corpus survey (2026-07-14): ~750 raw ideas across 12 sources; the dominant vein is 400+ open GitHub issues labeled fleet-idea (pd-spark 172 / pd-spider 111 / pd-lookout 83 / pd-snipe 33 — Spark/Spider write ISSUES not files; the 'missing' S41-S43 + 05-16 exhaust live there). Pipeline: normalize to {id,title,body,source,date} reusing the existing MD slug parsers (roadmap-progress.ts/ideas-trove); dedupe vs committed snapshot slugs + within-corpus via EMBEDDINGS (pd embed/MiniLM, cos>=0.85 dup, 0.65-0.85 EXTENDS:slug, else novel) with BM25 recall blocker — NEVER keyword lists; batch 15-25 by embedding-cluster, gh-issues first, Trove/Next-Cuts last (already curated); Haiku-class filter scores viability/duplication-confirm/decision-type; funnel ~750 -> 180-250 -> 60-100 clean candidates for expensive ranking into the new schema. Owner: idea-miner dispatch. Decision-type: empirical. Blocked-by: roadmap-schema-wiring (candidates land with owner/priority/decision-type fields)."
+    },
+    {
+      "slug": "ideas-search-keyword-nlp-defect",
+      "status": "backlog",
+      "summaryMd": "Hard-rule violation found by corpus survey: lib/ideas-search.ts dedupe (scoreFields/tokenize) is naive token-overlap KEYWORD matching — the exact approach banned by the no-keyword-NLP rule (catastrophic recall). Replace with the shared-embedder path (pd embed / MiniLM per the hybrid-search directive) + BM25 baseline; the idea-mining-pipeline must not extend the current matcher. Acceptance: ideas-search dedupe uses embeddings or BM25; a paraphrase pair that token-overlap misses is caught in a regression test. Owner: idea-miner dispatch (same wave). Decision-type: empirical."
+    },
+    {
+      "slug": "ideas-trove-queryable-surface",
+      "status": "backlog",
+      "summaryMd": "[dispatch] Take roadmap slice ideas-trove-queryable-surface. Audit the ..."
     },
     {
       "slug": "io-wiring",
@@ -575,6 +910,46 @@
       "summaryMd": "PHASE 5: iMessage (macOS FDA) + Calendar (CalDAV / OAuth / EventKit). Platform-gated."
     },
     {
+      "slug": "land-694-galaxy-main-merge",
+      "status": "merge",
+      "summaryMd": "Landing PR #694: merged 65 commits of main into worktree-session-galaxy. Coordination-arch files (cli/commands/parley.ts, docs/adr/0052, 0090) enter the branch via merge (main's already-reviewed work), not authored edits. Reconciled galaxy+harbor console union + control-plane serialization; validated green."
+    },
+    {
+      "slug": "local-first-tenancy-boundary-hardening",
+      "status": "backlog",
+      "summaryMd": "Tenancy-boundary audit 2026-07-14: FAIL 24/100, six criticals against the local-first promise. (1-3) tier-crossing-no-consent on fleet-cloud-pr-review (PR diffs to Workers AI via one-time YAML config, no boundary moment), email-out (public-tier sends, trust-gated but no crossing screen), and recovery-runbooks-in-public-docs (machine paths/username/backup schedule merged to the PUBLIC repo in #2129 — operator decision D3: intentional open-operations posture, or scrub/relocate policy needed?). (4) local-mode-uploads-not-testable: no runtime egress assertion proving a daemon without cloud config uploads nothing — add a CI blocked-socket test. (5) no-export-delete-per-tier: registry has backup/restore + tombstones now, but D1/KV/R2 cloud tiers have no verified export/delete tooling. (6) scope-ladder-unordered: private->repo->team->public is implied across binder ch06 but declared nowhere as the single source consent/role logic derives from — declare it once in ch06 (feeds binder customer-axis coverage). Repo visibility confirmed PUBLIC, so the snapshot/docs crossings are real, not theoretical. Acceptance: re-run tenancy_boundary_audit.mjs -> pass, with the egress test in CI and the ladder declared in ch06."
+    },
+    {
+      "slug": "mcp-roadmap-receipt-parity",
+      "status": "backlog",
+      "summaryMd": "Surface-parity gap (developer-surface review 2026-07-14, verified via pd_discover): the MCP roadmap category is read+promote only (roadmap_list/get/progress/claims/promote) — no roadmap_touch, no upsert. But the Coordination Guard's receipt rent demands a roadmap touch/upsert before commits on coordination surfaces, and rent-at-claim requires a roadmap link at begin — so MCP-only agents (claude.ai web sessions, shell-less surfaces) are STRUCTURALLY unable to pay rent; only Bash-wielding agents can comply, via CLI shell-out. Fix the narrow gap: add roadmap_touch to the MCP roadmap category (receipt notes on existing items), and a governance-gated upsert if item creation is intended for MCP at all — otherwise keep creation behind the sanctioned drop_feedback -> roadmap_promote funnel and say so in the guard's error message. Acceptance: an MCP-only session can satisfy the guard's roadmap-receipt requirement end-to-end without Bash; the guard's rent error names the MCP path."
+    },
+    {
+      "slug": "migration-fixture-rehearsal-ci",
+      "status": "backlog",
+      "summaryMd": "Spawned by ADR-0090 Amendment 1 (PR #2156): CI keeps fixture DBs of the last 3 released schema epochs + a scrubbed real-registry copy; boots the migrator over each asserting counts-never-shrink, verify probes green, user_version at max; wire into the PR #681 release soak. Acceptance: a migration lacking a verify probe or shrinking a count fails CI."
+    },
+    {
+      "slug": "model-abstraction-audit",
+      "status": "backlog",
+      "summaryMd": "ADR-0057: unify all model/backend selection to declarative (handle, tier) resolved once via lib/model-registry.ts resolveModel(). PR #2477 fixes the model-abstraction audit (wf_e15eef22) findings: collapsed anthropic/claude/claude-cli duplicate tables, ollama/lmstudio registry entries, single backend-id source, regenerated Rust console model-tiers.json, fixed Rust keyword-substring vendor-color classifiers, broadened the no-hardcoded-model-ids guard."
+    },
+    {
+      "slug": "mutation-policy-hitl-gate",
+      "status": "backlog",
+      "summaryMd": "DBFlux-style mutation policies (read-only / approval-required + chunked cancellable execution) as a human-in-the-loop gate for agents mutating shared state. Surface: pd-console controls + Harbor governance. Source: 0xErwin1/dbflux (2026-07-08 awesome-gpui survey)."
+    },
+    {
+      "slug": "nightshift-overnight-autonomy",
+      "status": "now",
+      "summaryMd": "Revive Nightshift as overnight autonomy. Nightshift was never deleted — it was renamed to `pd dispatch` (ADR-0035) and folded into the Conductor (ADR-0060), so the queue/HITL/worker path is MORE built than the original. The one lost capability is the unattended overnight run: the `dispatch-runner` ship is commented out in pd-fleet.yml AND parseCronInterval (lib/fleet-engine.ts ~2452) coerces cron like `0 1 * * *` into a fixed ~10-min interval, so it can never fire at an absolute hour. MAKE IT WORK: (1) implement real cron field parsing (absolute hour/minute) in fleet-engine, (2) re-enable the dispatch-runner ship with a nightly schedule, (3) surface it on the FleetBar Nightshift/Conductor surface, (4) soak one real overnight cycle before declaring done. Operator explicitly wants this feature back."
+    },
+    {
+      "slug": "onnxruntime-node-rpath-dylib-fix",
+      "status": "done",
+      "summaryMd": "Every daemon boot failed semantic resolution (skill-graft search, semantic term resolution, skill index) with 'Library not loaded: @rpath/libonnxruntime.*.dylib' — bun build --compile extracts onnxruntime-node's .node binding but drops its @rpath-linked sibling runtime library. Fixed: build-single-binary.mjs packages the real dylib to dist/native/onnxruntime-node/<platform>-<arch>/, semantic-resolver.ts points DYLD_FALLBACK_LIBRARY_PATH/LD_LIBRARY_PATH at it before the transformers import, release.yml ships the dir. Verified by reproducing the bug in isolation + building/booting the real compiled binary. PR #3561. Companion Formula fix (prefix.install \"native\") in curiositech/homebrew-tap#26, held until a release with #3561 ships."
+    },
+    {
       "slug": "operator-surface-consolidation",
       "status": "backlog",
       "summaryMd": "feat(surfaces): consolidate operator surfaces to FleetBar, Control Center, pd-console"
@@ -582,12 +957,37 @@
     {
       "slug": "operator-surface-triad-binder",
       "status": "backlog",
-      "summaryMd": "binder: ch19 operator surface triad (Scout/FleetBar/pd-console), technical specs, Hypatia's audit"
+      "summaryMd": "binder: ch19 operator surface triad (Scout/FleetBar/pd-console), technical specs, Hypatia's audit. AMENDED 2026-07-14 with surface-authority audit + D2 decision brief: audit scored session capabilities 88/100 with one critical (agent-control-verbs on pd-console, daemonEnforceable false — CR-1, gated on control-contract-wirer; render disabled-with-reason until then). Passing placements: registry-durability-status, release-overdue-signal, tier-crossing-consent-prompts -> FleetBar ambient (1 screen, cool bus); reunification-plan-approval, roadmap-curation-planner -> pd-console deep (multi-screen, cool); pr-review-intake-annotations -> Scout intake. D2 RECOMMENDATION (resolves CR-7): triad = Scout/FleetBar/pd-console; Fleet Control Center is NOT a fourth surface but FleetBar's deep-window FACE (fleet-ui as webview content), ambient/consent only, deep-linking to pd-console for anything >1 evidence screen; edit ch01+ch20 to state this. Awaiting operator ratification."
     },
     {
       "slug": "parley-sugar-fanout-receipts",
       "status": "backlog",
       "summaryMd": "Parley usability: turns fan out to participants' inboxes (parley_turn via pd attention), per-party read receipts with unseen counts, and CLI sugar verbs (propose/critique/revise/agree/refuse/say) with identity inferred from the active session."
+    },
+    {
+      "slug": "pd-console-cull-and-defects",
+      "status": "backlog",
+      "summaryMd": "pd-console: cull 14 dead/thin/redundant panes (26→13) + fix 5 operator-named defects"
+    },
+    {
+      "slug": "pd-console-file-navigator",
+      "status": "backlog",
+      "summaryMd": "feat(pd-console): file-navigator — history, up/back, metadata columns, dynamic sort"
+    },
+    {
+      "slug": "pd-console-live-chat-attach-proof",
+      "status": "backlog",
+      "summaryMd": "Prove pd-console live chat/session attach with exact-window artifacts and a same-process control path."
+    },
+    {
+      "slug": "pd-console-story-linework-shell",
+      "status": "now",
+      "summaryMd": "Rebuild pd-console around the story-linework operator shell: flat L0-L3 navigation, honest state framing, Conjure wave blocks, persistent native PTY, and motion/reduced-motion proof."
+    },
+    {
+      "slug": "pd-roadmap-dependency-write-path",
+      "status": "backlog",
+      "summaryMd": "Roadmap model HAS dependencies[]+blocked status but the CLI upsert can't SET them (only summary/status now|backlog|parked|merge|done). Add 'pd roadmap upsert --depends-on <slug> --status blocked' write path + the pd-console editable/Gantt surface (planner_pane Track-B Vello Gantt is designed, not shipped). Blocked-by: none. Blocks: honest dependency tracking."
     },
     {
       "slug": "pd-safe-scan",
@@ -605,14 +1005,69 @@
       "summaryMd": "Land the pd sortie CLI surface (one-shot multi-agent mission: run/list/status/logs) recovered from the April 2026 parked work; thin client over the existing daemon /sorties endpoints, aligned with ADR-0060 conductor consolidation."
     },
     {
+      "slug": "port-policy-registry",
+      "status": "backlog",
+      "summaryMd": "Spawned by ADR-0090 Amendment 1 (PR #2156): Generalize registry-reunify into a per-table port-policy registry keyed by the ADR-0090 replication classes: LOCAL-ONLY never ports, G-Set unions with dedup keys, LWW merges by unique key with tombstones; schema-skew normalization (missing->dest default, dropped->discarded with logged count); never cross-file transactions. Acceptance: porting a mixed-epoch shard folds session_notes (G-Set) and roadmap_items (LWW) correctly in one run with a plan receipt."
+    },
+    {
+      "slug": "provable-action-adjudicator",
+      "status": "backlog",
+      "summaryMd": "Fully build out infrastructure for the provable action adjudicator (north-star Ledger RCP-9): a tamper-resistant reference monitor at the tool-call boundary that compiles natural-language policy into a Datalog/Souffle policy DAG (plus Lean 4 decide-proofs for arithmetic constraints, compiled offline, checked at ~us latency at runtime) and adjudicates every agent action Permit/Deny/Permit-with-Obligation before execution, recording verdicts into a provenance DAG. Builds on shipped substrate: ADR-0093 event-spawn trust gate, Agent Harbor gate+probes+ledger, Coordination Guard enforce mode. Production baselines now exist in the literature (FORGE arxiv:2602.16708, AgentSpec ICSE'26, AgentBC, Lean-Agent Protocol) and the skills/provable-action-adjudicator bundle documents the architecture. Ledger classifies RCP-9 as OPEN research feeding IMP-7/IMP-9 (machine-side containment); promote to a build lane once an ADR scopes the interception point (fleet-engine spawn path + MCP tool boundary) and the policy-compilation pipeline."
+    },
+    {
+      "slug": "release-safety-pipeline",
+      "status": "now",
+      "summaryMd": "Operator mandate 2026-07-14 ('I'm not doing shit with brew'): every Homebrew cut must be atomic, automated, self-healing, gated — and NO gate may ever report a failure as success. HONEST SCORECARD (verified tonight): (a) SHADOW TRAFFIC before promotion = NONE (soak-binary.sh is synthetic load only; no replay of mirrored real requests at the candidate). (b) AUTO LOCAL INSTALL = PARTIAL (release.yml builds+rolls tap; no automated post-release brew-upgrade+verify loop on the operator machine). (c) SOAK UNDER LOAD = YES (soak-binary.sh); TEST-DB POISON PROTECTION = YES (assertNotProdInTest fail-closed); TEST-TRAFFIC TELEMETRY ISOLATION = NONE (no test-context filter in cost-tracker/activity/counters — test requests would pollute prod cost/activity/event streams). (d) ATOMIC + SELF-HEALING = NONE (no promote-only-if-all-green; no auto-rollback via brew-pin-previous + restore durable-home backup stamp + scream when a promoted build misbehaves under a watch window). The kill-daemon acceptance test from #2381 (kill -> restart+alert+doctor-red) is the template for the daemon-liveness portion of the battery; tonight's wedged-alive daemon (fresh heartbeat, dead HTTP, held the socket so restarts refused) is the proof the battery must probe /health not heartbeat age. Owner: release-safety dispatch. Decision-type: HITL (promote/rollback policy) + empirical (harness). Acceptance: a candidate failing the live battery (shadow traffic + kill-daemon-recovers + soak) CANNOT promote; a promoted build misbehaving in the watch window auto-rolls-back and screams; test traffic never reaches prod telemetry; every gate verifies authoritative state and can never pass on an error."
+    },
+    {
+      "slug": "rent-at-claim-begin-gate",
+      "status": "now",
+      "summaryMd": "S3 rent-at-claim: pd begin requires a roadmap link (--roadmap), draft genesis (--roadmap-new), or an explicit sidequest opt-out (--sidequest); persisted on the session record and surfaced in whoami/listings."
+    },
+    {
+      "slug": "research-durable-agents-landscape",
+      "status": "backlog",
+      "summaryMd": "docs(research): durable long-running agents landscape brief (2026-07)"
+    },
+    {
+      "slug": "resume-flow-joins",
+      "status": "backlog",
+      "summaryMd": "Resume-story ground truth (2026-07-14, link-by-link with file:line evidence): the roadmap->agent->transcript->resume walk is ~60 percent substrate, zero percent wired — every gap is a JOIN or INVOCATION, not new storage. Bundle: (L1) roadmap_item_status_events is append-only + indexed but has NO read path (only INSERT and DELETE touch it) — add listStatusEvents(slug) + a roadmap history surface (~15 lines); (L2) fleet_transcripts records full conversations for daemon-spawned ships (indexed by spawned_agent_id) but nothing performs the item->agent->transcript walk, and interactive Claude-Code sessions are unlinked — add getTranscriptByAgentId join + capture the CC session id/jsonl path in the sessionstart hook; (L3) sessions.takeover() restores notes+claims but never attaches the predecessor's fleet_transcripts id (the link is available at :1293) — attach it so successors can load prior messages; wire the orphaned telos-salvage capsule (normalizeSelfSalvage has zero external callers); (L5) the advisor's context-integrity checks (ownership mismatch, salvage overlap, claim conflicts, symbol staleness) exist but are never invoked at resume — call advisor.evaluate inside takeover()/claim_salvage and return the advice: that IS the 'lookout briefs you on contradictions at reopen' the operator asked for. (L4 true execution checkpoints remain ABSENT — only WAL checkpoints + control-ladder capability labels; approximate belief-state = transcript pointer + last note + claims, which L3 provides.) Owner: resume-flow dispatch. Decision-type: empirical. Priority: high — this moves the operator's 'throw open any old session and continue' from Wave-3-blocked to Wave-1/2-buildable since the read-path joins need neither control-contract nor ADR-0040. Acceptance: pd roadmap history <slug> names agents/sessions; takeover response includes predecessor transcript id + advisor advice; an interactive CC session leaves a queryable transcript anchor."
+    },
+    {
+      "slug": "roadmap-delete-tombstones",
+      "status": "backlog",
+      "summaryMd": "Zombie-resurrection defect: pd roadmap delete hard-deletes the row AND its status-event audit rows, but the registry is now a multi-replica system (durable home, instance shards, committed snapshot, backups) reconciled by union-merge (scripts/registry-reunify.ts, #2109) — a delete in one replica silently resurrects from any replica that still carries the row. Fix per offline-first discipline: soft-delete tombstones. Add deleted_at INTEGER NULL to roadmap_items (PRAGMA-guarded ALTER + verifyCoreSchema sentinel); pd roadmap delete sets deleted_at + appends a status event instead of DELETE; reads filter deleted_at IS NULL via partial index; reunify/sync treats a newer deleted_at as a winning write (tombstone beats resurrection); snapshot export carries tombstones; GC purges tombstones older than the longest replica lag (>= 90d). Acceptance: deleting an item in replica A, then reunifying a replica B that still has the live row, leaves the item deleted; unit test proves it; audit rows preserved."
+    },
+    {
       "slug": "roadmap-delete-verb-and-harbor-fix",
       "status": "backlog",
       "summaryMd": "Shepherd PR #558: roadmap delete verb, DELETE route, and project-harbor default; takeover rebase after stale session release."
     },
     {
+      "slug": "roadmap-harbor-default-worktree-trap",
+      "status": "backlog",
+      "summaryMd": "pd roadmap upsert defaults harbor to the repo/project dir name, so agents working in worktrees silently file items under the WORKTREE name as harbor — live incident 2026-07-14: three items landed under harbor 'daemon-single-truth-2' and had to be deleted and re-filed under port-daddy. The reunification run exposed the accumulated damage: items scattered under accidental harbors like 'port-daddy-backend-budget-hard-cap' and 'parley-sugar'. Fix: derive the default harbor from the MAIN repo identity (git common-dir / origin remote name), never the worktree dir; warn loudly when the derived harbor has never been seen before ('new harbor <x> — intentional? pass --harbor to confirm'); the reconciler's curation pass re-harbors existing strays (already in roadmap-reconciler-agent scope). Acceptance: pd roadmap upsert from inside .claude/worktrees/<name> without --harbor lands in the parent repo's harbor; a brand-new harbor name requires explicit --harbor."
+    },
+    {
       "slug": "roadmap-link-gate",
       "status": "now",
       "summaryMd": "Non-blocking CI gate: every PR declares its roadmap item (committed snapshot + label→human-approval fallback + loud-on-broken). Daemon is the only writer; CI reads the mirror."
+    },
+    {
+      "slug": "roadmap-linked-worktree-harbor-resolution",
+      "status": "now",
+      "summaryMd": "Keep roadmap receipts on the canonical project board from every linked worktree"
+    },
+    {
+      "slug": "roadmap-reconciler-agent",
+      "status": "backlog",
+      "summaryMd": "Wave-2 registry steward owning CR-3 (roadmap single system of record). Architecture decided + audited (agentic-app-architecture, 100/100 all five axes, 2026-07-14): TRANSPARENCY — headless fleet agent whose plan IS the dry-run (registry-reunify --dry-run posted as note/PR body before any apply); every run leaves the plan, superseded-row attribution, and counts in the receipt. STATE — pd sessions/notes durable history; per-run reconciliation receipts promoted to episodic memory/booty; decisions append-only (revise by new event, never edit). CONTEXT — deterministic merge stays LLM-FREE (the shipped script is the merge engine); LLM only for curation proposals (re-harboring the accidental harbors, demoting the 70 status-now items) with a stable cached system prefix. CAPABILITIES — tools: registry-reunify, sqlite read, gh, pd notes/roadmap; MCP: pd core only; secrets: gh keychain credential store (secret-store custody), token never in argv/env/transcript. EXECUTION — coding-agent finish line: union snapshot export committed via worktree-isolated PR with Roadmap-Item trailer; DB apply gated on dry-run receipt; HUMAN GATE on anything destructive (deletes, re-harboring, status demotions); pure union-append may auto-apply. DEPENDENCIES: (1) roadmap-delete-tombstones before any RECURRING reconciliation (zombie-resurrection); (2) control-contract-wirer (CR-1/CR-2) before long-running unattended mode — until control commands have a real counterparty, runs must be short atomic bursts; (3) v3.25.0 cutover complete (docs/recovery/V3.25.0-DURABLE-HOME-CUTOVER.md). Acceptance: one full reconcile cycle leaves live daemon, committed snapshot, and gate universe reporting identical item counts, with a receipt PR."
+    },
+    {
+      "slug": "roadmap-schema-wiring",
+      "status": "now",
+      "summaryMd": "R1b, rescoped by schema-archaeology evidence (2026-07-14): the structured-roadmap schema mostly EXISTS but is unwired — ADR-0086's 7 planner columns (kind/priority/assignee_id/description_md/started_at/due_at/estimate) live in db.ts but the CRUD layer ignores all of them, writePlanEdges/parentEdge/dependsOnEdge/linkEdge have ZERO callers, and the live planner UI derives hierarchy from ADR-slug tokens + priority from status instead of reading columns/edges. Work: (1) wire all 7 columns through RoadmapItem/upsert/routes; (2) wire writePlanEdges into upsert + backfill dependencies_json -> graph_edges depends_on (ADR-0086 rules graph_edges wins; retire the JSON after popper refactor at roadmap-popper.ts:171); (3) make panes prefer stored priority/kind with derivation as null-fallback; (4) ADD what is genuinely missing: decision_kind column (HITL|empirical|aesthetic), tags, widened ArtifactType (issue/worktree/branch/manifest/binder/agent/skill/script), POST /roadmap/items/:slug/links endpoint, itemLegitimacy(item,edges) scorer (owner+priority+estimate+parent+link = legit); (5) feed stored estimate + persisted edges into the CPM scheduler (Gantt substrate already built: planner-schedule.ts criticalPath/makespan + planner-board HTML Gantt). Owner: roadmap-schema dispatch. Decision-type: empirical (HITL only on the decision_kind enum naming). Acceptance: an item created via route with owner+deps+priority renders in the planner pane from STORED fields; popper honors edge-based deps; legitimacy chip visible."
     },
     {
       "slug": "seeded-daemon-fleet-console-lanes",
@@ -630,9 +1085,24 @@
       "summaryMd": "Make non-destructive session takeover legible and operational: successor sessions preserve agent identity and become the CLI current context, so subsequent whoami, note, file-claim, and done commands target the successor rather than stale predecessor state."
     },
     {
+      "slug": "skill-graft-hermetic-test-isolation",
+      "status": "backlog",
+      "summaryMd": "tests/unit/skill-graft-cli.test.js 'shorthand query renders guidance and lexical fallback note' fails on any machine with a warm ~/.port-daddy/skill-index.sqlite: the test expects the 'Semantic Tool2Vec tier is cold or unconfigured' note but the CLI under test finds the developer's real warm index (machine-state leak; reproduced on clean origin/main 2026-07-14, passes in CI only because runners are cold). Acceptance: the test pins its index location to a temp dir (or PD-test env override) and passes on a machine with a warm real index; full tests/unit suite green locally."
+    },
+    {
       "slug": "squid-contract-harness-daemon-boot-fix",
       "status": "backlog",
       "summaryMd": "feat(squid): harden bridge and document agent harness"
+    },
+    {
+      "slug": "startup-sugar-collapse",
+      "status": "backlog",
+      "summaryMd": "Collapse pd begin startup flow: begin now fetches brief and attention; pd brief alias and parity surfaces updated."
+    },
+    {
+      "slug": "state-plane-s1-daemon-plane-identity",
+      "status": "backlog",
+      "summaryMd": "S1 — Daemon state-plane identity: classifyPlane at boot, surfaced on /version, /health, berth registry, heartbeat, and CLI write banner"
     },
     {
       "slug": "suggest-b1-1-suggestions-table",
@@ -670,14 +1140,24 @@
       "summaryMd": "design: surface-triad redesign + portdaddy.dev accounts/login + remote harbor co-op"
     },
     {
+      "slug": "transcript-compliance-hitl-health",
+      "status": "backlog",
+      "summaryMd": "Make transcript-flow compliance explicit across major backends and fail loud when live runs lose transcript truth. Add a backend support/degraded/missing matrix for Cloudflare, Claude/Claude CLI, Codex, Gemini, agy metadata-only, and OpenAI-compatible/custom paths; expose runtime transcript health in /transcripts/compliance plus /health and /status; raise HITL-tagged critical issues when a claimed-live run has no transcript heartbeat or no terminal transcript; cover present, stalled, and missing cases with focused tests."
+    },
+    {
       "slug": "visual-evidence-doctrine",
       "status": "backlog",
-      "summaryMd": "docs(skill): visual-evidence doctrine \u2014 non-interruptive screenshot capture for every agent"
+      "summaryMd": "docs(skill): visual-evidence doctrine — non-interruptive screenshot capture for every agent"
     },
     {
       "slug": "visual-task-agent-intake",
       "status": "now",
-      "summaryMd": "FleetBar/Fleet Control Center visual task intake should let operators send annotated screenshots or page context to agents without exposing dispatch/worker internals."
+      "summaryMd": "Port Daddy Scout visual task intake: Chrome extension and website install surface for screenshot/DOM-backed issues routed through the local daemon and spawn-first follow-up."
+    },
+    {
+      "slug": "wire-agent-nodes-control-route",
+      "status": "now",
+      "summaryMd": "Wire POST /agent-nodes/:id/control to authorizeControl/applyControlGate + fix compliance-probe.ts present-field bug + build LiveNodeProbeTarget (safe subset) + live pause/steer/cooperation/checkpoint exercises (queued explicitly, not deferred-and-forgotten). Blocked-by: none. Blocks: pd-console control buttons actually working end to end."
     },
     {
       "slug": "workintent-dispatch-intake",
@@ -685,59 +1165,14 @@
       "summaryMd": "WorkIntent-first dispatch intake runtime blocker follow-up for PR #895"
     },
     {
-      "slug": "adr-0097-m6-context-memory-search-contracts",
+      "slug": "workintent-dispatch-isolation",
+      "status": "backlog",
+      "summaryMd": "fix(dispatch): isolate WorkIntent worktrees"
+    },
+    {
+      "slug": "pr2596-qa-gap-fixes",
       "status": "now",
-      "summaryMd": "M6 F0-delta: freeze CompactionPacket, MemoryEpisode, TranscriptSearchQuery/Result, read-only BlackboardItem v0 contracts (ADR-0097, binder ch04/ch07 M6)"
-    },
-    {
-      "slug": "adr-0097-phase-2-transcript-search",
-      "status": "now",
-      "summaryMd": "M6 phase 2: hybrid (BM25 + shared MiniLM, RRF) transcript search over the C1 event ledger returning budget-audited, always-cited TranscriptSearchResult objects; pd memory search CLI (ADR-0097, binder ch04/ch07 M6 gate lines 3-4)"
-    },
-    {
-      "slug": "adr-0097-phase-1-compaction-chain",
-      "status": "now",
-      "summaryMd": "M6 phase 1: context-pressure tracking (ch04 thresholds over the F0 ContextEnvelope) + Longshoreman compactor emitting validated cited CompactionPackets; successor resume verifies sourceTranscript against the session hash chain (ADR-0097 Implementation Matrix)"
-    },
-    {
-      "slug": "adr-0097-phase-3-episode-extraction",
-      "status": "now",
-      "summaryMd": "M6 phase 3: episode/graph-fact extraction with bi-temporal validity, supersession closure, distilled-source tombstones, and budget-capped task-conditioned recall (ADR-0097 Implementation Matrix phase 3)"
-    },
-    {
-      "slug": "gpui-symbols-icon-integration",
-      "status": "backlog",
-      "summaryMd": "Integrate AprilNEA/gpui-symbols (native SF Symbols, type-safe Icon + define_icons!, crates.io gpui 0.2.2 exact) to replace pd-console's no-icons/emoji-ban gap. Surface: pd-console (all panes/badges). From the 2026-07-08 awesome-gpui survey (docs/design/2026-07-08-gpui-ecosystem-steals.md)."
-    },
-    {
-      "slug": "mutation-policy-hitl-gate",
-      "status": "backlog",
-      "summaryMd": "DBFlux-style mutation policies (read-only / approval-required + chunked cancellable execution) as a human-in-the-loop gate for agents mutating shared state. Surface: pd-console controls + Harbor governance. Source: 0xErwin1/dbflux (2026-07-08 awesome-gpui survey)."
-    },
-    {
-      "slug": "gpui-flow-fleet-dag-canvas",
-      "status": "backlog",
-      "summaryMd": "Fleet DAG canvas via pacifio/gpui-flow (bezier edges, drag-connect, box-select, viewport-culled at 1000 nodes, minimap; node_renderer returns any GPUI element). Copy-not-depend (git-pin trap). Surface: pd-console fleet view + Harbor. From the 2026-07-08 awesome-gpui survey."
-    },
-    {
-      "slug": "harbor-replicaid-agent-branch-clock",
-      "status": "backlog",
-      "summaryMd": "Adopt zed crates/text+clock ReplicaId model reserving LOCAL/REMOTE_SERVER/AGENT/LOCAL_BRANCH constants as Harbor's agent-as-peer OT/CRDT clock foundation. Surface: Harbor editor. Source: zed-industries/zed (2026-07-08 awesome-gpui survey)."
-    },
-    {
-      "slug": "gpui-px-metrics-charts",
-      "status": "backlog",
-      "summaryMd": "Health/metrics charts via pierreaubert/gpui-toolkit gpui-px (Plotly-express scatter/line/bar/heatmap, Viridis scales). Copy (zed git tag v1.9.0). Surface: pd-console health/metrics panes. From the 2026-07-08 awesome-gpui survey."
-    },
-    {
-      "slug": "gpui-component-0-5-x-dependability-verify",
-      "status": "backlog",
-      "summaryMd": "Verify whether gpui-component published 0.5.x (crates.io) safely pins registry gpui 0.2.2 vs the main-branch git-pin trap; decides copy-vs-depend for the pd tube text-input (blocks it). Surface: pd-console pd-tube cockpit input. Source: longbridge/gpui-component (2026-07-08 awesome-gpui survey)."
-    },
-    {
-      "slug": "feat-harbor-editor-fast",
-      "status": "now",
-      "summaryMd": "Rebuild the Harbor editor into a real editor surface: Block::CodeBuffer (Arc-shared pre-tokenized lines), uniform_list virtualization, syntax highlighting, claim/wedge bands as background, always-visible author column, notify-on-change. PR #883."
+      "summaryMd": "fix(wiring): close PR #2596 pd-qa gaps — onSessionEnd wiring test + capsule validation. Adds a test proving Custodian.onSessionEnd is actually wired at the real call site, plus hardens normalizeSelfSalvage so a malformed/forged self-salvage capsule (undefined, wrong-typed fields, invalid enum, forged identityProject) never crashes onAgentDead and never reaches the resurrection queue unsanitized. Shipped as PR #3141."
     }
   ]
 }

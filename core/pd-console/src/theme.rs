@@ -1,5 +1,5 @@
 //! The locked operator-console design system (operator-decided 2026-06-05).
-//! Editorial: General Sans + IBM Plex Mono, warm-dark high-contrast, one amber
+//! Editorial: General Sans + IBM Plex Mono, warm-dark high-contrast, one cobalt
 //! accent, color = meaning only.
 //!
 //! Colors are defined in **OKLCH** (perceptually uniform — harmonious ramps,
@@ -54,7 +54,7 @@ pub struct Theme {
     pub ink: Oklch,
     pub ink2: Oklch,
     pub muted: Oklch,
-    pub accent: Oklch, // the single brand color (amber)
+    pub accent: Oklch, // the single system accent (cobalt)
     // status = meaning only; matched chroma, paired lightness
     pub engaged: Oklch,
     pub gated: Oklch,
@@ -76,8 +76,8 @@ pub const DARK: Theme = Theme {
     ink: Oklch::new(0.95, 0.012, 85.0),
     ink2: Oklch::new(0.84, 0.012, 82.0),
     muted: Oklch::new(0.70, 0.012, 80.0),
-    accent: Oklch::new(0.80, 0.105, 78.0),
-    engaged: Oklch::new(0.74, 0.085, 248.0),
+    accent: Oklch::new(0.66, 0.18, 258.0),
+    engaged: Oklch::new(0.84, 0.15, 110.0),
     gated: Oklch::new(0.72, 0.10, 25.0),
     resting: Oklch::new(0.50, 0.008, 80.0),
     landed: Oklch::new(0.78, 0.10, 150.0),
@@ -101,9 +101,9 @@ mod tests {
         // near-black bg should be low
         let bg = DARK.bg.to_srgb8();
         assert!((bg >> 16) < 40 && (bg & 0xff) < 40, "bg not dark: {bg:06x}");
-        // amber accent: red ≥ green ≥ blue (warm)
+        // cobalt accent: blue is the dominant channel.
         let ac = DARK.accent.to_srgb8();
         let (ar, ag, ab) = ((ac >> 16) & 0xff, (ac >> 8) & 0xff, ac & 0xff);
-        assert!(ar >= ag && ag >= ab, "accent not warm: {ac:06x}");
+        assert!(ab > ar && ab > ag, "accent not cobalt: {ac:06x}");
     }
 }

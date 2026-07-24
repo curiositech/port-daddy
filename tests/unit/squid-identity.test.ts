@@ -11,11 +11,12 @@
  * Sandbox lives under the repo's .scratch/ — NEVER /tmp.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   installSlashCommand,
   installStatusline,
+  isSquidDaemonHeartbeatFresh,
   readMatrixSnapshot,
   stageStatusline,
   uninstallSlashCommand,
@@ -113,6 +114,14 @@ describe('readMatrixSnapshot (the non-diegetic readout source)', () => {
 });
 
 describe('pd-statusline script (the real sh, end-to-end)', () => {
+  const writeHeartbeat = (ageMs = 0): string => {
+    const heartbeat = join(FAKE_PD_HOME, 'heartbeat');
+    writeFileSync(heartbeat, '{}');
+    const modified = new Date(Date.now() - ageMs);
+    utimesSync(heartbeat, modified, modified);
+    return heartbeat;
+  };
+
   const runStatusline = (env: Record<string, string> = {}): string => {
     const staged = stageStatusline(REPO_BIN, PD_BIN)!;
     return execFileSync(staged, [], {
@@ -146,7 +155,7 @@ describe('pd-statusline script (the real sh, end-to-end)', () => {
   });
 
   test('live daemon + matrix counters show up', () => {
-    writeFileSync(join(FAKE_PD_HOME, 'daemon.pid'), String(process.pid));
+    writeHeartbeat();
     writeFileSync(join(FAKE_PD_HOME, 'matrix.env'), [
       'PD_ALERT_ONE="a"',
       'PD_ALERT_TWO="b"',
@@ -160,6 +169,30 @@ describe('pd-statusline script (the real sh, end-to-end)', () => {
     expect(out).toContain('1 trace');
     expect(out).toContain('1 lock');
     expect(out).toContain('Opus');
+  });
+
+  test('stale heartbeat renders daemon down in both TypeScript and shell probes', () => {
+    const heartbeat = writeHeartbeat(60_000);
+    expect(isSquidDaemonHeartbeatFresh(heartbeat)).toBe(false);
+    expect(runStatusline()).toContain('daemon down');
+  });
+
+  test('fresh heartbeat is visible without probing the daemon process', () => {
+    const heartbeat = writeHeartbeat();
+    expect(isSquidDaemonHeartbeatFresh(heartbeat)).toBe(true);
+    expect(runStatusline()).not.toContain('daemon down');
+  });
+
+  test('missing or unreadable heartbeat stays fail-open and renders daemon down', () => {
+    const missing = join(FAKE_PD_HOME, 'missing-heartbeat');
+    expect(isSquidDaemonHeartbeatFresh(missing)).toBe(false);
+    expect(runStatusline()).toContain('daemon down');
+
+    const fakeBin = join(SANDBOX, 'broken-stat-bin');
+    mkdirSync(fakeBin, { recursive: true });
+    writeFileSync(join(fakeBin, 'stat'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+    writeHeartbeat();
+    expect(runStatusline({ PATH: `${fakeBin}:${process.env.PATH ?? ''}` })).toContain('daemon down');
   });
 });
 

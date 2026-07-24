@@ -102,7 +102,7 @@ _port_daddy() {
     # File Claims & Integration
     files add who-owns integration
     # Sugar (compound commands)
-    begin b done whoami w attention nudge with-lock n u d learn tutorial
+    begin b done whoami w account attention nudge with-lock n u d learn tutorial
     # Briefing & History
     briefing history
     # Consolidated read/write (3.8.4)
@@ -141,6 +141,8 @@ _port_daddy() {
     tuple
     # Semantic graph + episodic memory
     graph memory ideas skill-graft skillgraft
+    # Artifact harvest provenance (slice S4a)
+    booty
     # Shared local embedder (ADR-0061)
     embed
     # Cartographer roadmap projection
@@ -164,7 +166,7 @@ _port_daddy() {
     # Project onboarding
     setup init cut
     # Daemon lifecycle
-    start stop restart install uninstall dev use daemon ci-gate self-update upgrade mcp
+    start stop restart install install-bosun uninstall dev use daemon ci-gate self-update upgrade mcp
     # Bonds / Wallets — FleetControl hardening
     wallet bond
     # Info
@@ -1951,6 +1953,25 @@ _port_daddy() {
           ;;
         stats)
           _pd_opts '--dir --json --quiet'
+          ;;
+        *) _pd_opts '' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # booty  add|list  [options]  — artifact harvest provenance (slice S4a)
+    # -----------------------------------------------------------------------
+    booty)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "add list help" -- "$cur") )
+          ;;
+        add)
+          _pd_opts '--roadmap --note --json --quiet'
+          ;;
+        list)
+          _pd_opts '--branch --session --limit --json --quiet'
           ;;
         *) _pd_opts '' ;;
       esac

@@ -16,6 +16,7 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { autoIdentityFromPackageJson } from './services.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
+import { KNOWN_BACKEND_IDS } from '../../lib/backend-catalog.js';
 
 function parseBudgetValue(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -86,7 +87,10 @@ export async function handleSpawn(
   const backend = (options.backend as string) || 'ollama';
   const budgetUsd = parseBudgetValue(options.budget);
 
-  const validBackends = ['ollama', 'lmstudio', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'openai', 'groq', 'deepseek', 'xai', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok'];
+  // Single source of truth: lib/backend-catalog.ts (ADR-0057 model-abstraction
+  // unification) — this used to be a hand-maintained array duplicating
+  // routes/spawn.ts's own list, which had already drifted from it.
+  const validBackends = [...KNOWN_BACKEND_IDS];
   if (!validBackends.includes(backend)) {
     console.error(`Invalid backend "${backend}". Valid: ${validBackends.join(', ')}`);
     process.exit(1);
@@ -96,7 +100,7 @@ export async function handleSpawn(
     console.error('Usage: pd spawn --backend <backend> -- <task>');
     console.error('       pd spawn --backend claude -- "Write a hello world program"');
     console.error('');
-    console.error('Backends: ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, deepseek, xai, codex, aider, custom, cli:claude-code, cli:codex, cli:gemini, cli:groq, cli:grok');
+    console.error(`Backends: ${validBackends.join(', ')}`);
     console.error('');
     console.error('Options:');
     console.error('  --backend <name>      AI backend to use (default: ollama)');
@@ -174,7 +178,7 @@ export async function handleSpawn(
     process.exit(1);
   }
 
-  const failed = data.status === 'failed';
+  const failed = data.success === false || data.status === 'failed';
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));

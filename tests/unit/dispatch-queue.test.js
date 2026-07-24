@@ -120,9 +120,14 @@ describe('propose', () => {
     expect(() => queue.propose({ goal: huge })).toThrow(/4000/);
   });
 
-  test('rejects non-positive budget', () => {
-    expect(() => queue.propose({ goal: 'foo', budgetUsd: 0 })).toThrow(/budget/);
+  test('rejects negative / non-finite budget but ACCEPTS 0 (flat-rate CLI, BUG 1)', () => {
+    // BUG 1 (2026-07-14 halt-mandate): budgetUsd 0 is a legitimate "flat-rate
+    // backend, no real-dollar bond" budget — the Conductor's effectiveBond()
+    // decides the actual reservation from the backend, not this number. Only
+    // negative / non-finite is a caller error now.
     expect(() => queue.propose({ goal: 'foo', budgetUsd: -5 })).toThrow(/budget/);
+    expect(() => queue.propose({ goal: 'foo', budgetUsd: Number.NaN })).toThrow(/budget/);
+    expect(() => queue.propose({ goal: 'foo', budgetUsd: 0 })).not.toThrow();
   });
 
   test('rejects non-positive timeout', () => {
@@ -176,6 +181,16 @@ describe('claim (proposed -> claimed)', () => {
     expect(reclaim.claimedAt).toBe(d.claimedAt); // not overwritten
   });
 
+  test('claimProposed reports only the worker that won the state transition', () => {
+    const d = queue.propose({ goal: 'single winner' });
+    const first = queue.claimProposed({ id: d.id, worktreePath: '/w1', branch: 'b1', sessionId: 's1' });
+    const second = queue.claimProposed({ id: d.id, worktreePath: '/w2', branch: 'b2', sessionId: 's2' });
+
+    expect(first?.state).toBe('claimed');
+    expect(second).toBeNull();
+    expect(queue.get(d.id)).toMatchObject({ worktreePath: '/w1', branch: 'b1', sessionId: 's1' });
+  });
+
   test('refuses to claim a terminal dispatch', () => {
     const d = queue.propose({ goal: 'foo', autoClaim: true });
     queue.settle({ id: d.id, state: 'settled' });
@@ -192,6 +207,29 @@ describe('claim (proposed -> claimed)', () => {
 });
 
 describe('nextProposed (atomic pop)', () => {
+  test('peekNextProposed uses the same oldest-row ordering without claiming', () => {
+    const first = queue.propose({ goal: 'first' });
+    advance(1000);
+    queue.propose({ goal: 'second' });
+
+    const peeked = queue.peekNextProposed();
+    expect(peeked.id).toBe(first.id);
+    expect(peeked.state).toBe('proposed');
+    expect(queue.get(first.id).state).toBe('proposed');
+  });
+
+  test('peekNextProposed scopes the oldest row to the requested base branch', () => {
+    queue.propose({ goal: 'main lane', baseBranch: 'main' });
+    advance(1000);
+    const release = queue.propose({ goal: 'release lane', baseBranch: 'release/2026.05' });
+
+    const peeked = queue.peekNextProposed('release/2026.05');
+
+    expect(peeked.id).toBe(release.id);
+    expect(peeked.baseBranch).toBe('release/2026.05');
+    expect(queue.get(release.id).state).toBe('proposed');
+  });
+
   test('picks oldest proposed and marks it claimed', () => {
     const first = queue.propose({ goal: 'first' });
     advance(1000);

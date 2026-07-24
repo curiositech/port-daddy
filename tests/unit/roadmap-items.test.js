@@ -68,6 +68,37 @@ describe('upsert', () => {
     expect(item.status).toBe('backlog');
   });
 
+  test('notes are append-only across upserts — re-upsert merges, never wipes', () => {
+    roadmap.upsert({
+      slug: 'noted',
+      summaryMd: 'v1',
+      harbor: 'fleet',
+      notes: [{ at: 1, by: 'agent-a', text: 'first note' }],
+    });
+    const after = roadmap.upsert({
+      slug: 'noted',
+      summaryMd: 'v2',
+      harbor: 'fleet',
+      notes: [{ at: 2, by: 'agent-b', text: 'second note' }],
+    });
+    expect(after.notes.map((n) => n.text)).toEqual(['first note', 'second note']);
+    // Idempotent retry: replaying the same note does not duplicate it.
+    const retried = roadmap.upsert({
+      slug: 'noted',
+      summaryMd: 'v2',
+      harbor: 'fleet',
+      notes: [{ at: 2, by: 'agent-b', text: 'second note' }],
+    });
+    expect(retried.notes).toHaveLength(2);
+  });
+
+  test('slugExists is an exact any-harbor check', () => {
+    roadmap.upsert({ slug: 'exists-here', summaryMd: 'x', harbor: 'fleet' });
+    expect(roadmap.slugExists('exists-here')).toBe(true);
+    expect(roadmap.slugExists('exists-her')).toBe(false);
+    expect(roadmap.slugExists('nope')).toBe(false);
+  });
+
   test('preserves id and promotion provenance across upserts of the same slug', () => {
     const first = roadmap.upsert({
       slug: 'durable',
@@ -215,14 +246,50 @@ describe('remove', () => {
     expect(roadmap.get('dupe', 'fleet')).toBeNull();
   });
 
-  test('also deletes the append-only status-event audit rows (no orphans)', () => {
+  test('PRESERVES the append-only status-event audit rows (tombstone is the deletion record)', () => {
     roadmap.upsert({ slug: 'withaudit', summaryMd: 'x', status: 'backlog', harbor: 'fleet' });
     roadmap.updateStatus({ slug: 'withaudit', status: 'now', by: 'agent-1', harbor: 'fleet' });
     const id = roadmap.get('withaudit', 'fleet').id;
     expect(db.prepare('SELECT count(*) c FROM roadmap_item_status_events WHERE item_id = ?').get(id).c).toBe(1);
 
     roadmap.remove('withaudit', 'fleet');
-    expect(db.prepare('SELECT count(*) c FROM roadmap_item_status_events WHERE item_id = ?').get(id).c).toBe(0);
+    expect(db.prepare('SELECT count(*) c FROM roadmap_item_status_events WHERE item_id = ?').get(id).c).toBe(1);
+  });
+
+  test('is a soft delete: the row survives with deleted_at set and last_touched_at bumped past the live row', () => {
+    roadmap.upsert({ slug: 'soft', summaryMd: 'x', status: 'now', harbor: 'fleet' });
+    const before = db.prepare("SELECT last_touched_at FROM roadmap_items WHERE slug = 'soft'").get();
+    advance(500);
+    roadmap.remove('soft', 'fleet');
+
+    const raw = db.prepare("SELECT deleted_at, last_touched_at FROM roadmap_items WHERE slug = 'soft'").get();
+    expect(raw).toBeDefined();
+    expect(raw.deleted_at).toBe(clock);
+    expect(raw.last_touched_at).toBeGreaterThan(before.last_touched_at);
+    // Dead to every read surface:
+    expect(roadmap.get('soft', 'fleet')).toBeNull();
+    expect(roadmap.slugExists('soft')).toBe(false);
+    expect(roadmap.list({ harbor: 'fleet', status: 'all' }).map((i) => i.slug)).not.toContain('soft');
+    expect(roadmap.touch('soft', 'fleet')).toBeNull();
+    expect(() => roadmap.updateStatus({ slug: 'soft', status: 'done', by: 'a', harbor: 'fleet' })).toThrow();
+  });
+
+  test('remove on an already-tombstoned item reports removed: false', () => {
+    roadmap.upsert({ slug: 'twice', summaryMd: 'x', status: 'now', harbor: 'fleet' });
+    expect(roadmap.remove('twice', 'fleet').removed).toBe(true);
+    expect(roadmap.remove('twice', 'fleet')).toEqual({ removed: false, item: null });
+  });
+
+  test('upsert resurrects a tombstoned item (clears deleted_at)', () => {
+    roadmap.upsert({ slug: 'phoenix', summaryMd: 'v1', status: 'now', harbor: 'fleet' });
+    roadmap.remove('phoenix', 'fleet');
+    expect(roadmap.get('phoenix', 'fleet')).toBeNull();
+
+    advance(1000);
+    const revived = roadmap.upsert({ slug: 'phoenix', summaryMd: 'v2', status: 'backlog', harbor: 'fleet' });
+    expect(revived.deletedAt ?? null).toBeNull();
+    expect(roadmap.get('phoenix', 'fleet')?.summaryMd).toBe('v2');
+    expect(roadmap.slugExists('phoenix')).toBe(true);
   });
 
   test('emits a roadmap:removed tuple', () => {

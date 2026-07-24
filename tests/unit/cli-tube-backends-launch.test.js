@@ -85,6 +85,18 @@ describe('resolveFleetAgentRuntime — cli backend default model is rate-backed'
     expect(r.model).toBe(DEFAULT_OPERATOR_CODEX_MODEL);
   });
 
+  test('cli:agy with no model leaves model unset for the CLI account default', () => {
+    const r = resolveFleetAgentRuntime({ backend: 'cli:agy' });
+    expect(r.model).toBeUndefined();
+  });
+
+  test('cli:agy synthetic placeholders are treated as unset, not real models', () => {
+    for (const model of ['agy', 'agy-cli', 'agy-default']) {
+      const r = resolveFleetAgentRuntime({ backend: 'cli:agy', model });
+      expect(r.model).toBeUndefined();
+    }
+  });
+
   test('a leaked backend-name placeholder model is replaced', () => {
     const r = resolveFleetAgentRuntime({ backend: 'cli:claude-code', model: 'claude-code' });
     expect(r.model).toBe(DEFAULT_OPERATOR_CLAUDE_MODEL);
@@ -108,6 +120,11 @@ describe('cli-tube buildArgs — placeholder model never reaches the CLI', () =>
   test('codex placeholder drops --model (CLI uses its account default)', () => {
     const { args } = buildArgs('codex', 'hi', undefined, 'codex');
     expect(args).not.toContain('--model');
+  });
+
+  test('agy placeholder drops --model (CLI uses its account default)', () => {
+    const { args } = buildArgs('agy', 'hi', undefined, 'agy-cli');
+    expect(args).toEqual(['--print', 'hi']);
   });
 
   test('a real explicit model is forwarded unchanged', () => {

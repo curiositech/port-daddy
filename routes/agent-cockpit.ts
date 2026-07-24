@@ -34,6 +34,8 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { validateAgentId } from '../shared/validators.js';
+import { assessTranscriptEntry } from '../lib/transcript-compliance.js';
+import type { TranscriptEntry } from '../lib/transcripts.js';
 import {
   canOpenConnection,
   trackConnection,
@@ -76,10 +78,7 @@ interface AgentCockpitAgents {
   get(id: string): { success: boolean; agent?: Record<string, unknown>; error?: string };
 }
 
-interface AgentCockpitTranscriptEntry extends Record<string, unknown> {
-  id?: string;
-  spawned_agent_id?: string;
-}
+type AgentCockpitTranscriptEntry = TranscriptEntry;
 
 interface AgentCockpitTranscripts {
   subscribe(listener: (event: { type: 'start' | 'update' | 'end'; entry: AgentCockpitTranscriptEntry }) => void): () => void;
@@ -171,7 +170,7 @@ export const agentCockpitPlugin: FastifyPluginAsync<{ deps: AgentCockpitRouteDep
               writeEnvelope(raw, {
                 kind: 'agent.transcript',
                 agentId,
-                body: { type: event.type, entry: event.entry },
+                body: transcriptEnvelopeBody(event.type, event.entry),
               });
             }
           })
@@ -351,9 +350,20 @@ function writeInitialSnapshots(
     writeEnvelope(raw, {
       kind: 'agent.transcript',
       agentId,
-      body: { type: 'snapshot', entry: tx },
+      body: transcriptEnvelopeBody('snapshot', tx),
     });
   }
+}
+
+function transcriptEnvelopeBody(
+  type: 'snapshot' | 'start' | 'update' | 'end',
+  entry: AgentCockpitTranscriptEntry,
+): Record<string, unknown> {
+  return {
+    type,
+    entry,
+    compliance: assessTranscriptEntry(entry),
+  };
 }
 
 function latestTranscriptForAgent(

@@ -102,12 +102,13 @@ async function probeLastActivity(port: number): Promise<number | null> {
   }
 }
 
-/** Fully tear down one berth: SIGTERM, release its port, delete its profile dir. */
-async function reapBerth(rec: DevDaemonRecord): Promise<void> {
+/** Stop one berth and release its port. Profile state survives unless the caller
+ * explicitly requested destructive garbage collection. */
+async function reapBerth(rec: DevDaemonRecord, purgeState = false): Promise<void> {
   if (rec.port === DEFAULT_DAEMON_PORT) return; // never the stable lane
   try { process.kill(rec.pid, 'SIGTERM'); } catch { /* already gone */ }
   if (rec.tier === 'codebase') await releaseCodebasePort(rec.label);
-  removeProfileDir(rec.label);
+  if (purgeState) removeProfileDir(rec.label);
 }
 
 export interface BerthReapResult { label: string; tier: BerthTier; port: number; verdict: BerthVerdict }
@@ -118,7 +119,12 @@ export interface BerthReapResult { label: string; tier: BerthTier; port: number;
  * survivors. Returns what was reaped. Pure-ish: the decision is {@link classifyBerth}
  * (unit-tested); this only gathers signals + performs the teardown.
  */
-async function gcBerths(opts: { now?: number; ttlMs?: number; sweepOrphanDirs?: boolean } = {}): Promise<BerthReapResult[]> {
+async function gcBerths(opts: {
+  now?: number;
+  ttlMs?: number;
+  sweepOrphanDirs?: boolean;
+  purgeState?: boolean;
+} = {}): Promise<BerthReapResult[]> {
   const now = opts.now ?? Date.now();
   const ttlMs = opts.ttlMs ?? BERTH_IDLE_TTL_MS;
   const records = readRegistry();
@@ -133,7 +139,7 @@ async function gcBerths(opts: { now?: number; ttlMs?: number; sweepOrphanDirs?: 
       pidAlive && worktreeExists && rec.tier === 'codebase' ? await probeLastActivity(rec.port) : null;
     const verdict = classifyBerth(rec, { pidAlive, worktreeExists, lastActivityMs }, now, ttlMs);
     if (shouldReap(verdict)) {
-      await reapBerth(rec);
+      await reapBerth(rec, opts.purgeState === true);
       reaped.push({ label: rec.label, tier: rec.tier, port: rec.port, verdict });
     } else {
       survivors.push(rec);
@@ -141,11 +147,9 @@ async function gcBerths(opts: { now?: number; ttlMs?: number; sweepOrphanDirs?: 
   }
   writeRegistry(survivors);
 
-  // Explicit `pd dev gc` also reaps profile dirs left in ~/.port-daddy/instances/
-  // with no surviving registry entry — the graveyard a pre-GC `dev down`
-  // accumulated (it killed the process but never deleted the dir). Gated off the
-  // auto-sweep path to avoid racing a concurrent launch whose dir exists before
-  // its registry entry is written.
+  // Explicit destructive GC also removes offline profile dirs with no surviving
+  // registry entry. Automatic sweeps never do this: an offline named berth is a
+  // resumable durable ledger, not garbage.
   if (opts.sweepOrphanDirs) {
     const keep = new Set(survivors.map((r) => profileNameFor(r.label)));
     reaped.push(...sweepOrphanProfileDirs(keep));
@@ -181,7 +185,7 @@ async function autoSweep(): Promise<void> {
 
 /** `pd dev gc` — explicit sweep with a summary; also clears the profile-dir graveyard. */
 async function devGc(): Promise<void> {
-  const reaped = await gcBerths({ sweepOrphanDirs: true });
+  const reaped = await gcBerths({ sweepOrphanDirs: true, purgeState: true });
   if (reaped.length === 0) {
     ui.success('No stale berths — every dev berth is live.');
     return;
@@ -420,7 +424,12 @@ async function devUp(options: CLIOptions): Promise<void> {
     ui.warn(`  DB seed skipped (${(err as Error).message}); berth starts empty.`);
   }
 
-  const env = buildDaemonProfileEnv(profile, { port, nodeEnv: 'development' });
+  const enableFleet = options.fleet === true;
+  const env = buildDaemonProfileEnv(profile, {
+    port,
+    nodeEnv: 'development',
+    enableFleet,
+  });
   env[BERTH_ENV.tier] = tier;
   env[BERTH_ENV.label] = label;
   env[BERTH_ENV.color] = color;
@@ -459,12 +468,13 @@ async function devUp(options: CLIOptions): Promise<void> {
     name: profile.name, pid: child.pid ?? null, port, preferredPort: port,
     runtimeDir: profile.runtimeDir, socketPath: profile.sockPath, ipcPath: profile.ipcPath,
     dbPath: profile.dbPath, startedAt: record.startedAt, cwd: sourceDir,
-    fleetEnabled: false, fleetBarEnabled: false,
+    fleetEnabled: enableFleet, fleetBarEnabled: false,
   });
 
   const berth = (health.daemon ?? {}) as Record<string, unknown>;
   ui.success(`${tier} berth "${label}" up — :${port}  pid ${child.pid}  ${gitRev ? `@${gitRev}` : ''}`);
   ui.info(`  version ${health.version ?? '?'}  •  branch ${berth.gitBranch ?? '?'}`);
+  ui.info(`  fleet worker ${enableFleet ? 'armed' : 'disabled'}${enableFleet ? '  •  governed launches enabled' : '  •  add --fleet for governed launches'}`);
   ui.info(`  Target this shell at it:  eval "$(pd use ${label})"`);
   ui.info(`  One command against it:   pd --daemon ${label} status`);
   ui.info(`  Stop it:                  pd dev down ${label}`);
@@ -474,9 +484,15 @@ async function devUp(options: CLIOptions): Promise<void> {
 // pd dev down
 // ---------------------------------------------------------------------------
 
+/** Destructive berth state removal is always explicit. */
+export function shouldPurgeBerthState(options: CLIOptions): boolean {
+  return options.purge === true || options.reset === true;
+}
+
 async function devDown(positional: string[], options: CLIOptions): Promise<void> {
   const records = pruneRegistry();
   const all = options.all === true;
+  const purgeState = shouldPurgeBerthState(options);
   const label = positional[0];
 
   if (!all && !label) {
@@ -502,10 +518,15 @@ async function devDown(positional: string[], options: CLIOptions): Promise<void>
     } catch {
       ui.warn(`Berth "${rec.label}" was not running (cleaning registry).`);
     }
-    // Release the claimed codebase port + delete the isolated profile dir so a
-    // stopped berth leaves nothing behind (the instances/<label>/ graveyard).
+    // A stop releases execution resources but preserves the cool-bus ledger.
+    // State destruction is a separate, explicit operator action.
     if (rec.tier === 'codebase') await releaseCodebasePort(rec.label);
-    removeProfileDir(rec.label);
+    if (purgeState) {
+      removeProfileDir(rec.label);
+      ui.info(`  state purged: ${rec.label}`);
+    } else {
+      ui.info(`  state preserved: ${resolveDaemonProfile(profileNameFor(rec.label)).runtimeDir}`);
+    }
   }
 
   const remaining = records.filter((r) => !targets.some((t) => t.label === r.label));
@@ -628,14 +649,16 @@ export async function handleDevBerth(positional: string[], options: CLIOptions):
     default:
       ui.info('Daemon Berths (ADR-0084) — tiered, colour-coded, side-by-side daemons.');
       ui.info('');
-      ui.info('  pd dev up [--from main|<branch>|<worktree-path>] [--label <name>] [--port <n>]');
+      ui.info('  pd dev up [--from main|<branch>|<worktree-path>] [--label <name>] [--port <n>] [--fleet]');
       ui.info('      Build the daemon binary from the source and launch a berth.');
       ui.info('      (no --from on a feature branch → codebase berth for THIS worktree)');
       ui.info('      --from main      → dev-latest berth on :' + DEV_LATEST_PORT + ' (blue)');
       ui.info('      --from <branch>  → codebase berth on a claimed port (purple)');
-      ui.info('  pd dev down <label> | --all   Stop a berth (never the stable daemon).');
+      ui.info('      --fleet          → arm the berth fleet worker for governed launches');
+      ui.info('  pd dev down <label> | --all   Stop a berth and preserve its ledger.');
+      ui.info('      --purge | --reset             Explicitly delete that berth ledger.');
       ui.info('  pd dev ensure                 Guarantee the standing fleet (prod + dev-latest) is up.');
-      ui.info('  pd dev gc                     Reap dead/orphaned/idle berths + free their state.');
+      ui.info('  pd dev gc                     Destructively reap dead/orphaned/idle berth state.');
       ui.info('  pd dev list                   Show the stable berth + every dev berth.');
       ui.info('');
       ui.info('  Target a shell:   eval "$(pd use <tier|label>)"');

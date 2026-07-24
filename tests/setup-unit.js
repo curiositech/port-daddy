@@ -269,12 +269,15 @@ export function createTestDb() {
       notes_json TEXT NOT NULL DEFAULT '[]',
       harbor TEXT NOT NULL,
       created_at INTEGER NOT NULL,
+      deleted_at INTEGER,
       UNIQUE(slug, harbor)
     );
     CREATE INDEX IF NOT EXISTS idx_roadmap_items_harbor_status
       ON roadmap_items(harbor, status);
     CREATE INDEX IF NOT EXISTS idx_roadmap_items_last_touched
       ON roadmap_items(last_touched_at);
+    CREATE INDEX IF NOT EXISTS idx_roadmap_items_live
+      ON roadmap_items(harbor, status) WHERE deleted_at IS NULL;
 
     CREATE TABLE IF NOT EXISTS roadmap_item_status_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -1,0 +1,72 @@
+{
+  "surfaces": [
+    {
+      "name": "cli-drawer-reveal",
+      "kind": "transition",
+      "usesTransform": false,
+      "animatesLayoutInHotRender": false,
+      "owners": 1,
+      "reducedMotion": {
+        "handled": true,
+        "preservesOrientation": true
+      },
+      "repeat": {
+        "present": false
+      },
+      "easing": "ease_in_out",
+      "interruptible": true
+    },
+    {
+      "name": "terminal-output-arrival",
+      "kind": "micro",
+      "usesTransform": false,
+      "animatesLayoutInHotRender": false,
+      "owners": 1,
+      "reducedMotion": {
+        "handled": true,
+        "preservesOrientation": true
+      },
+      "repeat": {
+        "present": false
+      },
+      "easing": "ease_in_out",
+      "interruptible": true
+    },
+    {
+      "name": "active-state-dot",
+      "kind": "micro",
+      "usesTransform": false,
+      "animatesLayoutInHotRender": false,
+      "owners": 1,
+      "reducedMotion": {
+        "handled": true,
+        "preservesOrientation": true
+      },
+      "repeat": {
+        "present": true,
+        "scopedToLeaf": true,
+        "pausesWhenIdle": true
+      },
+      "easing": "pulsating_between",
+      "interruptible": true
+    },
+    {
+      "name": "living-harbor-waterline",
+      "kind": "bespoke",
+      "usesTransform": false,
+      "animatesLayoutInHotRender": false,
+      "owners": 1,
+      "reducedMotion": {
+        "handled": true,
+        "preservesOrientation": true
+      },
+      "repeat": {
+        "present": true,
+        "scopedToLeaf": true,
+        "pausesWhenIdle": true
+      },
+      "easing": "linear",
+      "interruptible": true
+    }
+  ]
+}

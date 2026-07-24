@@ -53,6 +53,7 @@ import { arbiterPlugin } from './arbiter.js';
 import { pheromonePlugin } from './pheromone.js';
 import { tuplesPlugin } from './tuples.js';
 import { blobPlugin } from './blob.js';
+import { bootyPlugin } from './booty.js';
 import { fleetPlugin } from './fleet.js';
 import { observabilityPlugin } from './observability.js';
 import { metricsPromPlugin } from './metrics-prom.js';
@@ -218,6 +219,13 @@ export async function registerAllRoutes(
   // Filesystem-only — registers iff a blob store dep was constructed.
   if ((deps as any).blobs) {
     await fastify.register(blobPlugin, { deps } as any);
+  }
+
+  // Booty — artifact harvest provenance over the blob store (slice S4a).
+  // Requires both the provenance table (booty) and the blob store (blobs):
+  // a booty row must never point at bytes the store cannot produce.
+  if ((deps as any).booty && (deps as any).blobs) {
+    await fastify.register(bootyPlugin, { deps } as any);
   }
 
   // Fleet daemon (always-on fleet management) — fleetDaemon, messaging, logger are in deps
