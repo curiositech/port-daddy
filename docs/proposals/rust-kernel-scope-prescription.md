@@ -164,15 +164,65 @@ Node" by default, at which point the 10ms local-IPC-hop budget is dead on arriva
 event loop and GC pauses alone make sub-10ms guarantees unreliable under load, and Bun
 doesn't change that fundamentally (same V8-family scheduling model).
 
-**Prescription:** build the hot bus as a real Rust component — an in-process pub/sub core
-(likely `pd-mesh`'s actual job, see item 2) that the TS daemon calls into over the same
-FFI convention as everything else, not a separate process and not a rewrite of the daemon.
-Durable-append backs onto `pd-eventlog` (again, see item 2 — this is the concrete answer
-to "what is `pd-eventlog` for"). Loopback WebSocket and local-IPC hops are the two numbers
-worth instrumenting first, since they're the ones most directly falsified by "it's all
-just Node" — build a benchmark harness that asserts the p95 budgets in CI before writing a
-line of the bus itself, so "meets the budget" is a testable claim and not a vibe (this
-matches this repo's own TDD instinct — a measurable target for when a thing is done).
+**Prescription:** "hot bus" and "cool bus" are two different engineering problems wearing
+one name, and they should be designed — and staffed — as two different pieces of work, not
+one crate.
+
+### 4a. Hot bus (local IPC < 10ms, loopback WS < 25ms, steering p95 < 100ms) — not a queue
+
+These numbers rule out anything with queue semantics: no broker round-trip, no persistence
+on the hot path, no retry/backoff — a retry alone can burn the entire 10ms budget. This is
+real-time in-process pub/sub, the same category as a UI event bus or a game engine's
+message loop, not a job system. Build it as a real Rust component (likely `pd-mesh`'s
+actual job, see item 2) that the TS daemon calls into over the same FFI convention as
+everything else — not a separate process, not a rewrite of the daemon, and explicitly not
+built on top of a queue library or BullMQ-shaped abstraction, since every one of those
+trades latency for durability guarantees this leg doesn't need. Loopback WebSocket and
+local-IPC hops are the two numbers worth instrumenting first, since they're the ones most
+directly falsified by "it's all just Node" — Node's event loop and GC pauses alone make
+sub-10ms guarantees unreliable under load, and Bun doesn't change that fundamentally (same
+V8-family scheduling model). Build a benchmark harness that asserts the p95 budgets in CI
+before writing a line of the bus itself, so "meets the budget" is a testable claim and not
+a vibe (this matches this repo's own TDD instinct — a measurable target for when a thing is
+done).
+
+### 4b. Cool bus (durable append < 500ms) — this IS a job-queue design problem
+
+500ms is a generous budget by real-time standards but a normal one for "write it and make
+sure it survives a crash" — this leg is honestly a durable-write/background-job problem,
+and should be designed using that field's actual playbook rather than reinvented from
+scratch. Concretely, applying the queue-design decision criterion ("how complex is the
+recovery story?"):
+
+- **At-least-once, not exactly-once, is the only honest delivery semantic** for durable
+  append — don't design `pd-eventlog` (again, see item 2 — this is the concrete answer to
+  "what is `pd-eventlog` for") around an exactly-once guarantee it can't actually keep
+  under a crash between write-and-ack. Make every event handler/projection idempotent
+  instead (this is exactly the fix already prescribed for `KernelProjection::apply`'s
+  double-count-on-replay bug found during the rustdoc backfill — that bug is a preview of
+  what happens when this principle isn't followed).
+- **Idempotency key, not just a queue-local id**: derive each event's dedup key from the
+  business event itself (the roadmap slug + action, the session id + note sequence — the
+  same shape as `send-receipt:${orderId}` in the standard pattern), not from an
+  eventlog-internal counter alone. This is what makes "did this already get durably
+  appended" answerable after a crash mid-write, not just "did this get queued."
+- **Reliable-fetch / visibility-timeout thinking applies to the write side too**: if
+  `pd-eventlog`'s append path is going to be called from multiple daemon threads/requests
+  concurrently, it needs the same "what happens if the writer dies mid-append" story a
+  queue's visibility timeout solves — measure real p99 append latency once the crate is
+  real, not before, and size any lock/lease duration around that measurement rather than
+  guessing.
+- **This is a queue, not a workflow** — per the field's own decision criterion, a
+  single-hop durable append with no multi-step external fan-out doesn't earn
+  Temporal-style durable-execution machinery. Keep `pd-eventlog` a focused append-log +
+  idempotent-projection crate; resist the temptation to grow it into a general workflow
+  engine just because the vocabulary is adjacent.
+
+The two legs share nothing at the design level — 4a needs to be fast and can be lossy under
+extreme load (a dropped steering update at p99.9 is recoverable by the next tick), 4b needs
+to survive a crash and can afford queue-grade latency. Building them as one undifferentiated
+"bus" crate is how you end up with something too slow for steering and too fragile for
+durable append. Split ownership at the design stage, not after the first incident.
 
 **Why this is priority 4 and not priority 1:** it's real, multi-week work, not a
 caller-swap. But it's also the one item on this list where *not* doing it leaves the
