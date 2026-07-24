@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
-import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import type { GraphEdges } from './graph-edges.js';
 import type { Counters } from './counters.js';
@@ -591,6 +591,44 @@ export function createLocalEmbedder(
 }
 
 /**
+ * `bun build --compile` extracts onnxruntime-node's `.node` N-API binding to
+ * a fresh temp directory on first use, but does not carry along its sibling
+ * runtime library (`libonnxruntime.*.dylib` / `libonnxruntime.so.1`), which
+ * the binding links via an `@rpath`-relative (macOS) / rpath-relative
+ * (Linux) entry expecting it to sit right next to it. Without this, every
+ * daemon boot fails semantic resolution with "Library not loaded:
+ * @rpath/libonnxruntime.*.dylib".
+ *
+ * Fix: point the dynamic linker's fallback search path at wherever the real
+ * runtime library actually lives — dyld/the ELF loader consult
+ * DYLD_FALLBACK_LIBRARY_PATH / LD_LIBRARY_PATH at the actual dlopen() call,
+ * so this works regardless of where Bun's own extraction puts the `.node`
+ * binding. Checked in order: a source/dev override, the location
+ * scripts/build-single-binary.mjs packages the library into (a sibling of
+ * the compiled executable), and the plain node_modules layout for
+ * non-compiled (npm/source) installs.
+ */
+export function ensureOnnxRuntimeNativeLibFindable(): void {
+  if (process.platform !== 'darwin' && process.platform !== 'linux') return;
+
+  const platformArch = `${process.platform}-${process.arch}`;
+  const candidates = [
+    process.env.PORT_DADDY_RESOURCE_DIR?.trim()
+      ? join(process.env.PORT_DADDY_RESOURCE_DIR.trim(), 'dist', 'native', 'onnxruntime-node', platformArch)
+      : null,
+    process.execPath ? join(dirname(process.execPath), 'native', 'onnxruntime-node', platformArch) : null,
+    join(process.cwd(), 'node_modules', 'onnxruntime-node', 'bin', 'napi-v6', process.platform, process.arch),
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  const nativeDir = candidates.find(candidate => existsSync(candidate));
+  if (!nativeDir) return;
+
+  const envVar = process.platform === 'darwin' ? 'DYLD_FALLBACK_LIBRARY_PATH' : 'LD_LIBRARY_PATH';
+  const existing = process.env[envVar];
+  process.env[envVar] = existing ? `${nativeDir}:${existing}` : nativeDir;
+}
+
+/**
  * Lazily load the local embedding pipeline with persistent filesystem cache.
  *
  * The first use may download model artifacts. Subsequent uses on the same
@@ -598,6 +636,7 @@ export function createLocalEmbedder(
  */
 async function createDefaultEmbedder(cacheDir: string, modelId: string): Promise<{ modelId: string; embed(texts: string[]): Promise<number[][]> }> {
   mkdirSync(cacheDir, { recursive: true });
+  ensureOnnxRuntimeNativeLibFindable();
   const { env, pipeline } = await import('@huggingface/transformers');
   env.cacheDir = cacheDir;
   env.useFSCache = true;

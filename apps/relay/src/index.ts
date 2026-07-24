@@ -74,6 +74,7 @@ import {
   handleAccountDelete,
 } from './auth-github.js';
 import { handleLoginPage, handleAccountPage } from './account-page.js';
+import { handleDeviceStart, handleDeviceToken, handleWhoami } from './device-flow.js';
 import {
   handleCreateCheckout,
   handleStripeWebhook,
@@ -200,6 +201,16 @@ export default {
     }
     else if (pathname === '/auth/me' && method === 'GET') {
       response = await handleAuthMe(request, env);
+    }
+    // Device-flow login for CLI / FleetBar / pd-console (ADR-0101 Phase 1).
+    else if (pathname === '/auth/device/start' && method === 'POST') {
+      response = await handleDeviceStart(request, env);
+    }
+    else if (pathname === '/auth/device/token' && method === 'POST') {
+      response = await handleDeviceToken(request, env);
+    }
+    else if (pathname === '/auth/whoami' && method === 'GET') {
+      response = await handleWhoami(request, env);
     }
     else if (pathname === '/auth/logout' && method === 'POST') {
       response = await handleLogout(request, env);

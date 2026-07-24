@@ -164,4 +164,18 @@ describe('Bosun plist references the version-stable symlink, not a versioned Cel
     const { stableBosunPathFromExec } = await import('../../install-daemon.js');
     expect(stableBosunPathFromExec('/usr/local/opt/node/bin/node', () => false)).toBeNull();
   });
+
+  test('Bosun plist WorkingDirectory + logs use the durable home, not the versioned keg (__dirname)', () => {
+    const source = readFileSync(join(process.cwd(), 'install-daemon.ts'), 'utf8');
+    // A brew install's __dirname is the versioned Cellar keg, deleted by the next `brew upgrade`.
+    // launchd cannot chdir to a missing WorkingDirectory or open a StandardOutPath under a deleted
+    // keg — so these launch-critical fields must point at the version-independent durable home.
+    expect(source).toContain('const BOSUN_LOG_PATH: string = join(DURABLE_HOME');
+    expect(source).toContain('const BOSUN_ERROR_LOG_PATH: string = join(DURABLE_HOME');
+    const bosunPlist = source.slice(source.indexOf('export function generateBosunPlist'));
+    const wdIdx = bosunPlist.indexOf('<key>WorkingDirectory</key>');
+    expect(wdIdx).toBeGreaterThan(-1);
+    expect(bosunPlist.slice(wdIdx, wdIdx + 120)).toContain('${DURABLE_HOME}');
+    expect(bosunPlist.slice(wdIdx, wdIdx + 120)).not.toContain('${__dirname}');
+  });
 });

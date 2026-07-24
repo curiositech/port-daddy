@@ -210,6 +210,21 @@ CREATE TABLE IF NOT EXISTS web_sessions (
 );
 CREATE INDEX IF NOT EXISTS web_sessions_user_idx ON web_sessions (user_id);
 
+-- Personal access tokens for non-browser surfaces (FleetBar, pd-console, CLI),
+-- minted by the GitHub device flow (ADR-0101 Phase 1). Only the SHA-256 of the
+-- 'pdu_' token is stored; the token itself is shown once and lives in the
+-- client's Keychain. Revocable per-device; optional expiry.
+CREATE TABLE IF NOT EXISTS user_tokens (
+  token_hash  TEXT    PRIMARY KEY,              -- SHA-256('pdu_' token); the token is NEVER stored
+  user_id     TEXT    NOT NULL REFERENCES users(id),
+  label       TEXT    NOT NULL,                 -- e.g. 'pd CLI on MacBook Pro M4'
+  created_at  INTEGER NOT NULL,
+  last_used_at INTEGER,
+  expires_at  INTEGER,
+  revoked_at  INTEGER
+);
+CREATE INDEX IF NOT EXISTS user_tokens_user_idx ON user_tokens (user_id);
+
 -- ──────────────────────────────────────────────────────────────────────────
 -- Fleet monetization — Stripe prepaid credits + spend metering (ADR-0116)
 --

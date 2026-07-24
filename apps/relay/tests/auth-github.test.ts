@@ -24,6 +24,7 @@ import {
   handleAccountDelete,
   resolveSession,
   userCanReadRepo,
+  userOwnsInstallation,
   isSameOrigin,
 } from '../src/auth-github.js';
 import type { Env } from '../src/types.js';
@@ -257,6 +258,27 @@ describe('/auth/me, logout, and session resolution', () => {
     expect(await userCanReadRepo(env, session, 'me', 'allowed')).toBe(true); // cached, no 2nd fetch
     expect(calls).toBe(1);
     expect(await userCanReadRepo(env, session, 'someone', 'private')).toBe(false);
+  });
+
+  it('userOwnsInstallation: gates billing on GitHub-confirmed ownership, fail-closed', async () => {
+    const kv = makeKV();
+    const env = makeEnv({}, kv, makeDb().db);
+    const cookie = await loginAndGetCookie(env, kv);
+    const session = (await resolveSession(new Request(`${BASE}/x`, { headers: { Cookie: cookie } }), env))!;
+
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: any) => {
+      calls++;
+      expect(String(input)).toContain('/user/installations');
+      return new Response(JSON.stringify({ installations: [{ id: 42 }, { id: 7 }] }), { status: 200 });
+    }));
+    expect(await userOwnsInstallation(env, session, 42)).toBe(true);
+    expect(await userOwnsInstallation(env, session, 42)).toBe(true); // cached, no 2nd fetch
+    expect(calls).toBe(1);
+    // an installation the user does NOT own → false (the cross-tenant leak this closes)
+    expect(await userOwnsInstallation(env, session, 99)).toBe(false);
+    // fail-closed: a session with no gh token can prove nothing
+    expect(await userOwnsInstallation(env, { user: session.user, ghToken: null }, 42)).toBe(false);
   });
 });
 
