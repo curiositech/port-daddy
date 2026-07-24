@@ -446,3 +446,37 @@ export async function userCanReadRepo(
   await env.KV.put(cacheKey, ok ? '1' : '0', { expirationTtl: 300 });
   return ok;
 }
+
+/**
+ * Does the session's user have access to GitHub App installation `installationId`?
+ * GitHub is the single source of truth: `GET /user/installations` lists exactly
+ * the app installations the authenticated user can act on. Fail-closed (no token
+ * → false), cached in KV for 5 minutes keyed by (user_id, installationId). This
+ * is the tenant-ownership gate for the billing endpoints (ADR-0116): a signed-in
+ * user may only touch billing for an installation GitHub says they own.
+ */
+export async function userOwnsInstallation(
+  env: Env,
+  session: ResolvedSession,
+  installationId: number,
+): Promise<boolean> {
+  if (!session.ghToken) return false;
+  const cacheKey = `inst_owner:${session.user.id}:${installationId}`;
+  const cached = await env.KV.get(cacheKey);
+  if (cached === '1') return true;
+  if (cached === '0') return false;
+  // Paginate defensively; a user with 100+ installations is unusual but possible.
+  let ok = false;
+  for (let page = 1; page <= 5 && !ok; page++) {
+    const res = await fetch(`${GH_API}/user/installations?per_page=100&page=${page}`, {
+      headers: ghHeaders(session.ghToken),
+    });
+    if (!res.ok) break;
+    const body = (await res.json()) as { installations?: Array<{ id?: number }> };
+    const list = Array.isArray(body.installations) ? body.installations : [];
+    if (list.some((i) => i.id === installationId)) ok = true;
+    if (list.length < 100) break; // last page
+  }
+  await env.KV.put(cacheKey, ok ? '1' : '0', { expirationTtl: 300 });
+  return ok;
+}
