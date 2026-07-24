@@ -1,53 +1,158 @@
+//! Harbor Card verification — the in-repo reference for Port Daddy's Rust ⇄ TypeScript FFI.
+//!
+//! A *Harbor Card* is a compact, signed capability token shaped like a JWT
+//! (`header.payload.signature`, each segment URL-safe base64, the signature an Ed25519
+//! signature over `header.payload`). A Port Daddy daemon issues one to an agent to prove
+//! "harbor `H` granted subject `S` capabilities `C` until instant `exp`". This crate does
+//! two jobs with that token: it **verifies** a card ([`HarborCardVerifier::verify`]) and it
+//! answers **capability-attenuation** questions — is this narrower set of caps a subset of
+//! what the parent held? ([`HarborCardVerifier::verify_capability_subset`]).
+//!
+//! The crate is compiled two ways at once (`crate-type = ["cdylib", "rlib"]`, see
+//! `Cargo.toml`). As an **rlib** it is unit-tested in-process and can be reused by other
+//! Rust crates. As a **cdylib** it is loaded by the Bun/TypeScript daemon over the C ABI
+//! through koffi (`lib/arbiter.ts` is the loader; `scripts/build-core.sh` builds and copies
+//! the `.dylib`/`.so`). The TypeScript side treats the native library as an *upgrade*: if
+//! it fails to load, the daemon falls back to a pure-TS path, so nothing here may ever
+//! `panic!` its way into the host process.
+//!
+//! # Why this file is the FFI exemplar
+//!
+//! The whole repo's `extern "C"` convention is meant to be legible from here. The one rule
+//! that prevents most disasters: **a panic unwinding across an `extern "C"` boundary is
+//! undefined behavior**, and a security kernel must never crash its host on hostile input.
+//! Every export in the *FFI / Shared Library Boundary* section below therefore obeys the
+//! same four-part discipline:
+//!
+//! 1. Wrap the entire body in [`catch_unwind`] and return a fail-closed sentinel (`false`)
+//!    if anything panics — defense in depth.
+//! 2. Guard every raw pointer *before* dereferencing it: reject null, reject `len == 0`,
+//!    reject absurd lengths (a denial-of-service guard), reject non-UTF-8, reject
+//!    unparseable JSON. Real logic runs only once all guards pass.
+//! 3. Never move a Rust `struct`/`enum`/`String` across the boundary — the Rust ABI is not
+//!    C-stable. Structured data crosses as JSON over `*const c_char` + a `usize` length.
+//! 4. Compare secret-derived bytes in constant time (fold-XOR, never an early return) so
+//!    verification cannot leak byte positions through timing.
+//!
+//! Raw-pointer exports cannot be exercised from a Rust doctest, so each is documented below
+//! with a worked JSON request/response example instead. The pure-Rust core they wrap —
+//! [`HarborCardVerifier::constant_time_compare`] and
+//! [`HarborCardVerifier::verify_capability_subset`] — carries the runnable doctests.
+//!
+//! # Fail-closed contract
+//!
+//! Everything here fails closed. [`HarborCardVerifier::verify`] returns `Err` (never a
+//! partially-trusted `Ok`) on any of: wrong segment count, bad base64, bad signature,
+//! a tampered payload, or an expired token. The FFI exports return `false` on *any* error.
+//! No code path treats "I could not check it" as "it is fine".
+
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use zeroize::Zeroize;
 
+/// Every way verifying a Harbor Card can fail — the whole error surface of this crate.
+///
+/// Each variant is a distinct *reason to distrust* a token. They exist as separate variants
+/// (rather than a single opaque `bool`) so callers can log precisely why a card was rejected
+/// without leaking secret material. Deliberately, none of them carry the token bytes.
+///
+/// Note that across the FFI boundary this rich enum collapses to a single `false`: C callers
+/// only ever learn "trusted / not trusted", never *which* check failed. That coarsening is
+/// intentional — it keeps the boundary minimal and side-channel-free.
 #[derive(Error, Debug)]
 pub enum HarborError {
+    /// A base64 segment did not decode, or the public key was not a valid Ed25519 encoding.
     #[error("Invalid encoding")]
     InvalidEncoding,
+    /// The signature did not verify against the payload under this verifier's public key —
+    /// the token was forged, tampered with, or signed by a different key.
     #[error("Invalid signature")]
     InvalidSignature,
+    /// The token's `exp` claim is at or before the caller-supplied "now"; it is stale.
     #[error("Token expired")]
     Expired,
+    /// The token was not three `.`-separated segments — it is not even shaped like a card.
     #[error("Malformed token")]
     Malformed,
+    /// The decoded payload was not valid [`HarborCardClaims`] JSON. Carries the serde error.
     #[error("JSON error: {0}")]
     JsonError(#[from] serde_json::Error),
 }
 
+/// The verified claim set carried in a Harbor Card's payload segment.
+///
+/// This is the *content* of the token — who it is for, which harbor issued it, what it may
+/// do, and when it expires. The short field names (`sub`, `iat`, `exp`, `jti`) mirror the
+/// JWT registered-claim conventions so the same wire bytes are legible to JWT tooling.
+/// A value of this type is only ever handed back by [`HarborCardVerifier::verify`] *after*
+/// the signature and expiry have been checked, so holding one means "these claims are
+/// authentic", not merely "these claims were parsed".
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HarborCardClaims {
+    /// Subject: the id of the agent/actor the card was minted for.
     pub sub: String,
+    /// The harbor (Port Daddy realm) that issued and vouches for this card.
     pub harbor: String,
+    /// Granted capabilities, as opaque capability strings (e.g. `"read"`, `"room:route"`).
     pub cap: Vec<String>,
+    /// Issued-at, Unix time in seconds.
     pub iat: i64,
+    /// Expiry, Unix time in seconds. Compared against the caller's clock in `verify`.
     pub exp: i64,
+    /// JWT id: a unique token identifier, usable by callers for replay tracking.
     pub jti: String,
 }
 
+/// Holds the single Ed25519 public key a harbor's cards are checked against.
+///
+/// Construct one with [`HarborCardVerifier::new`] from the issuing harbor's 32-byte public
+/// key, then call [`HarborCardVerifier::verify`] on incoming tokens. The type is deliberately
+/// tiny and stateless beyond the key: verification is a pure function of `(key, token, now)`,
+/// which is what makes it safe to expose across the FFI boundary and to reason about.
 pub struct HarborCardVerifier {
+    /// The Ed25519 verifying (public) key that legitimate cards must be signed under.
     pub public_key: VerifyingKey,
 }
 
 impl HarborCardVerifier {
+    /// Build a verifier from a harbor's raw 32-byte Ed25519 public key.
+    ///
+    /// # Errors
+    /// Returns [`HarborError::InvalidEncoding`] if `pk_bytes` cannot be decompressed to an
+    /// Ed25519 point. This is the *only* place the key is validated: once you hold a
+    /// `HarborCardVerifier`, its key is known-well-formed, so [`verify`](Self::verify) never
+    /// has to re-check it. (Ed25519 decompression accepts non-canonical encodings, so most
+    /// arbitrary 32-byte arrays parse — real rejection is rare.)
+    ///
+    /// ```
+    /// use harbor_card_rs::HarborCardVerifier;
+    ///
+    /// // Build a verifier from a harbor's 32-byte public key.
+    /// let verifier = HarborCardVerifier::new([0u8; 32]).expect("well-formed key");
+    /// // It fails closed on anything that is not a real card: "not-a-token" is not three
+    /// // dot-separated segments, so verification rejects it rather than trusting it.
+    /// assert!(verifier.verify("not-a-token", 0).is_err());
+    /// ```
     pub fn new(pk_bytes: [u8; 32]) -> Result<Self, HarborError> {
         let public_key = Self::internal_pk_from_bytes(pk_bytes)?;
         Ok(Self { public_key })
     }
 
+    /// Decode a 32-byte public key, mapping any curve/length error to `InvalidEncoding`.
     fn internal_pk_from_bytes(bytes: [u8; 32]) -> Result<VerifyingKey, HarborError> {
         VerifyingKey::from_bytes(&bytes).map_err(|_| HarborError::InvalidEncoding)
     }
 
+    /// Decode one URL-safe, unpadded base64 token segment to bytes.
     fn internal_decode_b64(input: &str) -> Result<Vec<u8>, HarborError> {
         URL_SAFE_NO_PAD
             .decode(input)
             .map_err(|_| HarborError::InvalidEncoding)
     }
 
+    /// Verify a raw Ed25519 signature over `msg` under this verifier's public key.
     fn internal_verify_sig(&self, msg: &[u8], sig_bytes: &[u8]) -> Result<(), HarborError> {
         let signature =
             Signature::from_slice(sig_bytes).map_err(|_| HarborError::InvalidSignature)?;
@@ -56,6 +161,28 @@ impl HarborCardVerifier {
             .map_err(|_| HarborError::InvalidSignature)
     }
 
+    /// Compare two byte slices in constant time — `true` iff they are byte-for-byte equal.
+    ///
+    /// # Why constant time
+    /// A naive `a == b` returns as soon as it hits the first differing byte, so an attacker
+    /// who can time the comparison learns *how many* leading bytes they guessed correctly and
+    /// can recover a secret (a MAC, a token) byte by byte. This implementation instead folds
+    /// the XOR of every byte pair into an accumulator and only checks it at the end, so the
+    /// running time depends on the *length* of the inputs but not on *where* they differ.
+    /// Length is not treated as secret: unequal lengths short-circuit to `false` immediately.
+    ///
+    /// This is a static method (no key needed) and is exactly the logic the FFI export
+    /// [`harbor_constant_time_compare`] wraps, which is why it carries the doctest and the
+    /// export does not.
+    ///
+    /// ```
+    /// use harbor_card_rs::HarborCardVerifier;
+    ///
+    /// assert!(HarborCardVerifier::constant_time_compare(b"s3cr3t", b"s3cr3t"));
+    /// assert!(!HarborCardVerifier::constant_time_compare(b"s3cr3t", b"s3cr3T"));
+    /// assert!(!HarborCardVerifier::constant_time_compare(b"short", b"longer"));
+    /// assert!(HarborCardVerifier::constant_time_compare(b"", b"")); // empty == empty
+    /// ```
     pub fn constant_time_compare(a: &[u8], b: &[u8]) -> bool {
         if a.len() != b.len() {
             return false;
@@ -67,6 +194,27 @@ impl HarborCardVerifier {
         result == 0
     }
 
+    /// Return `true` iff every capability in `sub_caps` is also present in `root_caps`.
+    ///
+    /// This is the enforcement point for **capability attenuation**: a delegated card may
+    /// only ever narrow, never widen, the authority it descends from. Delegation is safe
+    /// exactly when the child's caps are a subset of the parent's, so any capability the
+    /// child claims that the parent never held (`"admin"` sneaking in) makes this return
+    /// `false`. The empty set is a subset of everything, so a child that requests no caps
+    /// always passes. Comparison is exact string equality on opaque capability tokens — there
+    /// is no wildcard or prefix logic here by design.
+    ///
+    /// ```
+    /// use harbor_card_rs::HarborCardVerifier;
+    ///
+    /// let root = vec!["read".to_string(), "write".to_string()];
+    /// // Narrowing to a subset is allowed:
+    /// assert!(HarborCardVerifier::verify_capability_subset(&root, &["read".to_string()]));
+    /// // Escalating to a capability the parent never held is rejected:
+    /// assert!(!HarborCardVerifier::verify_capability_subset(&root, &["admin".to_string()]));
+    /// // The empty set attenuates from anything:
+    /// assert!(HarborCardVerifier::verify_capability_subset(&root, &[]));
+    /// ```
     pub fn verify_capability_subset(root_caps: &[String], sub_caps: &[String]) -> bool {
         for sub in sub_caps {
             if !root_caps.contains(sub) {
@@ -76,6 +224,36 @@ impl HarborCardVerifier {
         true
     }
 
+    /// Verify a Harbor Card token and return its authenticated claims, or fail closed.
+    ///
+    /// The token must be exactly three `.`-separated base64 segments
+    /// (`header.payload.signature`). Verification proceeds in a deliberate order:
+    ///
+    /// 1. Split into three segments — anything else is [`HarborError::Malformed`].
+    /// 2. Verify the Ed25519 signature over `header.payload` *before* trusting the payload,
+    ///    so tampered or forged content never even gets deserialized as "claims".
+    /// 3. Only then decode and parse the payload into [`HarborCardClaims`].
+    /// 4. Reject the token if `claims.exp < now_ts` ([`HarborError::Expired`]).
+    ///
+    /// The decoded signature and payload buffers are [`zeroize`](zeroize::Zeroize)d after use
+    /// so raw token bytes do not linger in freed memory.
+    ///
+    /// # Errors
+    /// [`HarborError::Malformed`] (wrong segment count), [`HarborError::InvalidEncoding`]
+    /// (bad base64), [`HarborError::InvalidSignature`] (forged/tampered/wrong-key),
+    /// [`HarborError::JsonError`] (payload is not valid claims JSON), or
+    /// [`HarborError::Expired`]. It never returns a partially-trusted `Ok`.
+    ///
+    /// # Example (worked token, not a doctest)
+    /// A valid call looks like `verifier.verify("eyJhbGc...".., 1_700_000_000)` and yields
+    /// claims such as:
+    /// ```json
+    /// { "sub": "agent-1", "harbor": "local", "cap": ["read"],
+    ///   "iat": 0, "exp": 9999999999, "jti": "abc123" }
+    /// ```
+    /// A runnable end-to-end round trip (mint with a `SigningKey`, then verify) lives in this
+    /// crate's `tests` module — see `verify_roundtrip_valid_token` — because minting requires
+    /// the Ed25519 signing half that a doctest would otherwise have to reconstruct.
     pub fn verify(&self, token: &str, now_ts: i64) -> Result<HarborCardClaims, HarborError> {
         let parts: Vec<&str> = token.split('.').collect();
         if parts.len() != 3 {
@@ -176,7 +354,27 @@ fn proof_capability_attenuation() {
 use std::os::raw::c_char;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
-/// FFI: Constant-time byte comparison.
+/// FFI: constant-time byte comparison, callable from C / TypeScript-over-koffi.
+///
+/// This is the C-ABI wrapper around [`HarborCardVerifier::constant_time_compare`] (which
+/// holds the doctest and the "why constant time" rationale). It exists so the TypeScript
+/// daemon can do timing-safe tag comparison in native code. Beyond the pure comparison it
+/// adds two boundary guards: null/empty inputs return `false`, and inputs longer than 1024
+/// bytes return `false` (a denial-of-service guard against a caller passing a pathological
+/// length that turns a compare into a multi-gigabyte read).
+///
+/// # Returns
+/// `true` iff both pointers are non-null, both lengths are in `1..=1024` and equal, and the
+/// two byte ranges are identical. `false` in every other case — including any panic, which
+/// [`catch_unwind`] converts to `false` rather than letting it unwind into the host
+/// (undefined behavior).
+///
+/// # Example (conceptual C call)
+/// ```text
+/// harbor_constant_time_compare(tag_a, 32, tag_b, 32) -> true   // identical 32-byte tags
+/// harbor_constant_time_compare(NULL,  32, tag_b, 32) -> false  // null guard
+/// harbor_constant_time_compare(tag_a, 4096, ...)     -> false  // oversize DoS guard
+/// ```
 ///
 /// # Safety
 /// `a` must point to at least `a_len` readable bytes (or be null); same for `b`/`b_len`.
@@ -204,8 +402,25 @@ pub unsafe extern "C" fn harbor_constant_time_compare(
     .unwrap_or(false)
 }
 
-/// FFI: Verify if sub_caps JSON string is a subset of root_caps JSON string.
-/// Returns true if valid, false if escalation detected or malformed.
+/// FFI: capability-attenuation check with both cap sets marshalled as JSON arrays.
+///
+/// This is the C-ABI wrapper around [`HarborCardVerifier::verify_capability_subset`] and the
+/// canonical demonstration of the repo's "structured data crosses as JSON over
+/// `*const c_char` + `usize`" rule. Each argument is a UTF-8 JSON array of capability
+/// strings; the function returns `true` iff the `sub` set attenuates from (is a subset of)
+/// the `root` set.
+///
+/// It fails closed through the full guard chain before running any logic: null pointer →
+/// `false`; zero length → `false`; non-UTF-8 bytes → `false`; JSON that does not parse as a
+/// `Vec<String>` → `false`; and any panic is caught and reported as `false`.
+///
+/// # Worked example (JSON in → bool out)
+/// ```text
+/// root_json = ["read","write"]   sub_json = ["read"]          -> true   (valid attenuation)
+/// root_json = ["read"]           sub_json = ["read","admin"]  -> false  (privilege escalation)
+/// root_json = not json           sub_json = ["read"]          -> false  (malformed → fail closed)
+/// root_json = NULL               sub_json = ["read"]          -> false  (null guard)
+/// ```
 ///
 /// # Safety
 /// `root_json` must point to at least `root_len` readable bytes (or be null); same for
