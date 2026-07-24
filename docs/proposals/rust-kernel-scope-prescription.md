@@ -55,9 +55,10 @@ resolution, graceful fallback, the works. It has **zero importers** anywhere in 
 `routes/`. The live verify path is pure-TS `verifyPushGrant()` in `lib/macaroon/gate.ts:36`.
 
 This is the same shape of gap PR #3828 just closed for the CPM scheduler
-(`pd_schedule_dag_json` was built, wrapped, and uncalled — now it's live in
-`routes/roadmap.ts` via `lib/planner-schedule-ffi.ts`). Do the exact same thing to the
-macaroon path: write `lib/macaroon-verify-ffi.ts` mirroring `lib/planner-schedule-ffi.ts`'s
+(`pd_schedule_dag_json` was built, wrapped, and uncalled — now it's live, once #3828
+lands, in `routes/roadmap.ts` via `lib/planner-schedule-ffi.ts` (PR #3828, not yet shipped)).
+Do the exact same thing to the macaroon path: write `lib/macaroon-verify-ffi.ts` (proposed
+— not yet shipped), mirroring `lib/planner-schedule-ffi.ts` (PR #3828, not yet shipped)'s
 kernel-preferred/TS-fallback pattern, swap `gate.ts`'s import, keep the TS implementation
 as the fallback (never delete it — it's the CI-safe path when the dylib isn't built).
 
@@ -67,9 +68,10 @@ crate from "compiled but inert" into "actually protecting something." There is n
 argument for leaving free, already-audited work on the table while chasing greenfield
 targets.
 
-**Scope:** one file (`lib/macaroon-verify-ffi.ts`), one caller-swap in `gate.ts`, one test
-file mirroring `tests/unit/planner-schedule-ffi.test.js`'s dual-path structure (fallback
-always runs in CI, kernel-path test skipped unless the dylib exists locally).
+**Scope:** one file (`lib/macaroon-verify-ffi.ts`, proposed — not yet shipped), one
+caller-swap in `gate.ts`, one test file mirroring the dual-path structure of
+`tests/unit/planner-schedule-ffi.test.js` (PR #3828, not yet shipped) — fallback always
+runs in CI, kernel-path test skipped unless the dylib exists locally.
 
 ---
 
