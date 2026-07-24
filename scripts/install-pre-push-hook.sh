@@ -4,9 +4,12 @@
 # (--mirror via push.default config).
 #
 # This is the second layer of the destructive-git-ban defense. The
-# pd-shim (~/.port-daddy/bin/git) is the first layer; this hook survives
-# PD_SHIM_OFF=1 because git always runs pre-push hooks regardless of which
-# binary called it.
+# pd-shim (~/.port-daddy/bin/git) is the first, in-band advisory layer; this
+# hook is the binary-agnostic WALL — git always runs pre-push hooks regardless
+# of which binary called it, and (per ADR-0053) the wall must NOT stand down on
+# an in-band environment variable. It therefore does NOT honor PD_SHIM_OFF: the
+# only skip is git's own `--no-verify`, a deliberate, visible, non-agent-mintable
+# flag. Setting PD_SHIM_OFF=1 bypasses the *shim*; this hook still fires.
 #
 # Usage:
 #   bash scripts/install-pre-push-hook.sh           # current repo
@@ -44,12 +47,11 @@ cat > "$HOOK" <<'HOOK_EOF'
 #     <remote_sha>, refuse.
 #   - If <local_sha> is all-zeros (deletion push), refuse on protected.
 #
-# Bypass: PD_SHIM_OFF=1 git push ... (will write an audit log entry).
+# Binary-agnostic wall (ADR-0053): this hook does NOT honor PD_SHIM_OFF or any
+# other in-band env var. A guardrail that stands down on a flag the agent's own
+# shell can set is not a wall. git's `--no-verify` remains the sole, universal,
+# non-mintable skip.
 set -euo pipefail
-
-if [ "${PD_SHIM_OFF:-}" = "1" ]; then
-  exit 0
-fi
 
 ZERO="0000000000000000000000000000000000000000"
 refused=0
@@ -69,7 +71,7 @@ while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
         # path for spinning up a new protected branch.
         echo "pd-pre-push: REFUSED — creating $remote_ref from local ref. Protected branch." >&2
         echo "pd-pre-push:   protected: main|master|release/*" >&2
-        echo "pd-pre-push:   bypass with PD_SHIM_OFF=1 git push ..." >&2
+        echo "pd-pre-push:   open a PR from a feature branch; new protected refs go through GitHub." >&2
         refused=1
         continue
       fi
@@ -77,7 +79,7 @@ while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
         echo "pd-pre-push: REFUSED — non-fast-forward push to $remote_ref." >&2
         echo "pd-pre-push:   local=$local_sha remote=$remote_sha" >&2
         echo "pd-pre-push:   protected: main|master|release/*" >&2
-        echo "pd-pre-push:   bypass with PD_SHIM_OFF=1 git push ..." >&2
+        echo "pd-pre-push:   rebase onto the remote head and open a PR; do not force-push protected refs." >&2
         refused=1
       fi
       ;;

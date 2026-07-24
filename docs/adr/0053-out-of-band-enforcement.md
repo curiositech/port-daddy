@@ -572,6 +572,59 @@ The macaroon makes the gate **unforgeable** and the audit a **verifiable
 transcript**; **only Layer 3 (separate-UID/VM) confines the holder.** Stated here
 so the schema is never mistaken for the vault.
 
+## Hook-bypass auditor — the binary-agnostic wall, enforced in CI (pd-spark)
+
+The distinction this ADR draws between the **shim** (in-band advisory tripwire,
+bypassable-but-audited) and a **git hook** (the binary-agnostic wall git runs
+regardless of which `git` binary called it) is only load-bearing if hooks
+actually hold the line. A hook that honors an in-band environment variable is
+not a wall — it hands the agent a free, self-minted escape, which is precisely
+the failure mode ADR-0102 ("no agent-mintable git escape") names.
+
+`scripts/audit-hook-bypass.mjs` is a standing auditor for that class. It scans:
+
+- **installed hooks** — `<git-common-dir>/hooks/*` (skipping git's `*.sample`
+  examples and our `*.pd-bak.*` backups); and
+- **tracked source** — the hook/shim *installers* and embedded templates under
+  `scripts/` and `cli/` (`install-pre-push-hook.sh`, `cli/commands/guard.ts`,
+  `cli/commands/init.ts`, `cli/utils/git-shim.ts`, …).
+
+It flags the **structural** stand-down shape, not a keyword list: an env-var
+guard (`[ "${VAR:-}" = "1" ]`, `[ -n "$VAR" ]`) whose block neutralizes
+enforcement via `exit 0` or `exec <real-binary>` before its `fi`. Quality/UX
+gates that merely advertise a flag and then `exit 1` (the README-freshness
+`PD_README_OK` message, whose env check lives in a node script, not the hook
+body) do **not** match. The git shim's `PD_SHIM_OFF` is the one allowlisted
+entry — structured, commented, and ADR-referenced — because the shim is the
+PATH-wrapper binary, not a hook, and its bypass is deliberate **and audited**
+(it appends to `~/.port-daddy/destructive-ops.log` before exec-ing real git).
+A hook bypass is never allowlisted.
+
+Findings print `file:line`, the offending env var, the matched shape, and why
+it is unsafe; the auditor exits non-zero on any non-allowlisted finding so it
+gates CI. Tests live in `tests/unit/audit-hook-bypass.test.js` (synthetic
+bypass flagged, clean hook passes, real tree passes as a regression).
+
+**First catch.** Running it surfaced that the generated **pre-push hook** in
+`scripts/install-pre-push-hook.sh` honored `PD_SHIM_OFF=1 -> exit 0` —
+silently, and in direct contradiction of its own header ("this hook survives
+PD_SHIM_OFF=1 because git always runs pre-push hooks"). Setting one env var
+therefore disabled *both* defense layers at once. The stand-down and its
+bypass-advertising refusal copy were removed (aligning the code with its header
+and this ADR's Phase 0b "a guardrail must not advertise its bypass" rule);
+git's native `--no-verify` remains the sole, visible, non-mintable skip.
+
+**CI wiring.** Add a required check that runs the auditor from the repo root:
+
+```yaml
+# .github/workflows/ci.yml (job step)
+- name: Hook bypass wall (ADR-0053)
+  run: node scripts/audit-hook-bypass.mjs
+```
+
+Locally it is also a natural pre-commit gate; keep it in the versioned
+`hooks/pre-commit` alongside the README-freshness and skill-hygiene guards.
+
 ## Composes with
 
 - **ADR-0037** (`docs/adr/0037-git-access-control-and-pd-feature-verbs.md`) — the
