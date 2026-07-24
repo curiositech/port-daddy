@@ -92,7 +92,13 @@ export function resolveDistributionRoot(
 ): string {
   const explicit = env.PORT_DADDY_RESOURCE_DIR?.trim();
   if (explicit) return explicit;
-  if (!isBunVirtualPath(moduleDir)) return moduleDir;
+  // A compiled `bun build --compile` binary reports `__dirname` as a bun-virtual path OR,
+  // on some builds, literally `/` — so `join(__dirname,'..','..')` collapses to `/`. Treating
+  // `/` as a real distribution root made everything resolve under the filesystem root
+  // (`resolvedRoot=/`, `expectedBinary=/dist/daemon/...` MISSING) — which reported a green
+  // "Resource directory" check AND broke `pd setup` (it looked for `/node_modules/.bin/tsx`).
+  // `/` is never a real Port Daddy root: fall through to execPath-based resolution.
+  if (moduleDir !== '/' && !isBunVirtualPath(moduleDir)) return moduleDir;
 
   const execDir = dirname(execPath);
   const parentDir = dirname(execDir);

@@ -202,9 +202,25 @@ jobs:
         # dist/core/pd-bosun, then core/pd-bosun/... — the extracted `core/`
         # dir satisfies the daemon-relative fallback). Without this the tarball
         # had no watchdog and the KeepAlive supervisor job was silently skipped.
-        # bin/ (see "Stage squid tentacles" above) ships pd-hook-*/pd-statusline
-        # at <root>/bin/<name>, matching lib/squid/adapter.ts's tentaclePath().
-        run: cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json pd-bosun bin
+        #
+        # Also ship native/ — scripts/build-single-binary.mjs packages
+        # onnxruntime-node's runtime library (libonnxruntime.*.dylib /
+        # libonnxruntime.so.1) there (#3561). bun build --compile extracts the
+        # .node N-API binding at runtime but not its @rpath-linked sibling;
+        # lib/semantic-resolver.ts points DYLD_FALLBACK_LIBRARY_PATH /
+        # LD_LIBRARY_PATH at this directory before the embedding model loads.
+        #
+        # Squid tentacles ship in BOTH layouts lib/squid/adapter.ts's
+        # tentaclePath() resolves: FLAT next to `pd` (execDir/<name>, its first
+        # candidate) AND under bin/ (execDir/bin/<name>, the fallback) — the
+        # "Stage squid tentacles" step above populates dist/bin/ (incl.
+        # pd-statusline). A flat copy here covers the preferred candidate. What
+        # MUST be present is declared in release-artifacts.json; `pd batten
+        # verify` (below) is the single fail-loud gate over all of it.
+        run: |
+          cp bin/pd-hook-prompt bin/pd-hook-pre-tool bin/pd-hook-post-tool dist/
+          chmod +x dist/pd-hook-prompt dist/pd-hook-pre-tool dist/pd-hook-post-tool
+          cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json pd-bosun native pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool bin
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2

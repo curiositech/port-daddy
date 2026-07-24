@@ -132,10 +132,27 @@ export const SQUID_HOOK_METADATA: Record<SquidHookPurpose, SquidHookMetadata> = 
 
 const __adapter_dir = dirname(fileURLToPath(import.meta.url));
 
-/** Absolute path to a pd-hook-* tentacle binary shipped in `bin/`. */
+/**
+ * Absolute path to a pd-hook-* tentacle binary. Resolves across the layouts we
+ * actually ship in, because a compiled single-file `pd` binary has a SYNTHETIC
+ * `import.meta.url` — the old `../../bin` walk from it collapsed to a bogus
+ * `/bin/pd-hook-*`. We therefore prefer the running binary's own directory
+ * (where the release tarball co-locates the tentacles next to `pd`, exactly as
+ * it does `pd-bosun`), then a `bin/` beside it, then the dev-from-source path.
+ */
 export function tentaclePath(name: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool'): string {
-  // lib/squid/adapter.ts → ../../bin/<name>
-  return resolve(__adapter_dir, '..', '..', 'bin', name);
+  const execDir = dirname(process.execPath);
+  const candidates = [
+    join(execDir, name), // installed: next to the `pd` binary (brew/tarball)
+    join(execDir, 'bin', name), // installed variant: a bin/ beside the binary
+    resolve(__adapter_dir, '..', '..', 'bin', name), // dev-from-source: repo bin/
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  // Nothing found — return the installed-layout path so the error names the
+  // place a user would actually look, not a bogus `/bin/...`.
+  return candidates[0];
 }
 
 /** Assert the tentacles exist and are executable; throws a clear error if not. */
