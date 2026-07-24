@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://port-daddy.dev/schemas/stage-release-artifact/release-artifacts.schema.json",
+  "title": "Release Artifacts Manifest",
+  "description": "Declarative, single-source-of-truth list of every binary/file that must ship in a release cargo. One manifest replaces N scattered `test -s <path>` checks hand-added to a release workflow each time a missing artifact causes an outage.",
+  "type": "object",
+  "required": ["artifacts"],
+  "additionalProperties": false,
+  "properties": {
+    "$schemaVersion": {
+      "type": "string",
+      "description": "Manifest schema version, for forward-compatible parsing.",
+      "default": "1"
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/artifact" }
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "required": ["id", "stagedPath"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "description": "Stable identifier for this artifact, used in verify/imprint reports. Matches the binary's canonical name where practical (e.g. pd-bosun)."
+        },
+        "sourcePath": {
+          "type": "string",
+          "description": "Where the build step produces this artifact (relative to repo root, or absolute). Optional -- some artifacts are staged directly by the build step and never read back from sourcePath."
+        },
+        "stagedPath": {
+          "type": "string",
+          "description": "Where the artifact must exist in the sealed release cargo (the directory that gets tarred/zipped/uploaded). This is the path `verify` checks -- it is the contract with the installer, not with the build step."
+        },
+        "required": {
+          "type": "boolean",
+          "default": true,
+          "description": "If true, a missing artifact fails the release (fail-loud). If false, absence is recorded as SKIP, not FAIL -- for genuinely optional/platform-conditional artifacts."
+        },
+        "executable": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, verify also checks the file has at least one execute bit set (chmod +x was not silently dropped by an archive/copy step)."
+        },
+        "minBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "Minimum acceptable file size. Catches truncated uploads, zero-byte placeholder files, and empty-stub builds -- not just total absence. Set close to (but below) the artifact's known real size; do not leave at the default 1 for anything that has ever shipped empty."
+        },
+        "description": {
+          "type": "string",
+          "description": "One line: what this artifact is and why it must ship. Shows up in verify failure output so the person reading CI logs knows the blast radius, not just a path."
+        }
+      }
+    }
+  }
+}

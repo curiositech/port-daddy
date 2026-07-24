@@ -1,0 +1,50 @@
+{
+  "$schemaVersion": "1",
+  "artifacts": [
+    {
+      "id": "port-daddy",
+      "sourcePath": "dist/port-daddy",
+      "stagedPath": "dist/port-daddy",
+      "required": true,
+      "executable": true,
+      "minBytes": 20000000,
+      "description": "The primary CLI + daemon single-binary bundle. If this is missing, the release is not installable at all."
+    },
+    {
+      "id": "pd",
+      "sourcePath": "dist/pd",
+      "stagedPath": "dist/pd",
+      "required": true,
+      "executable": true,
+      "minBytes": 20000000,
+      "description": "Short-name alias binary shipped alongside port-daddy."
+    },
+    {
+      "id": "pd-bosun",
+      "sourcePath": "core/target/release/pd-bosun",
+      "stagedPath": "dist/pd-bosun",
+      "required": true,
+      "executable": true,
+      "minBytes": 100000,
+      "description": "Out-of-process daemon supervisor (ADR-0036). A release that ships without this installs with no watchdog and a dead daemon never restarts -- the exact regression a manifest-driven verify step exists to prevent (previously caught only by a single hand-added `test -s dist/pd-bosun` line in release.yml after it shipped broken once)."
+    },
+    {
+      "id": "install-script",
+      "sourcePath": "install.sh",
+      "stagedPath": "dist/install.sh",
+      "required": true,
+      "executable": true,
+      "minBytes": 500,
+      "description": "The install entrypoint most users run via curl | bash."
+    },
+    {
+      "id": "windows-launcher",
+      "sourcePath": "dist/port-daddy.exe",
+      "stagedPath": "dist/port-daddy.exe",
+      "required": false,
+      "executable": false,
+      "minBytes": 20000000,
+      "description": "Windows build. Optional -- this release lane only runs on macOS/Linux runners, so absence is expected and must SKIP, not FAIL."
+    }
+  ]
+}
