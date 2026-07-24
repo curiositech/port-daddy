@@ -74,103 +74,124 @@ fn dur(n: &SchedNode) -> i64 {
 
 /// Critical Path Method over a dependency DAG. Pure and deterministic (id-ordered).
 /// Fails closed: duplicate ids, edges to unknown nodes, and cycles all return `ok:false`.
+///
+/// # Determinism / parity
+/// Node ids are interned once into integer indices assigned in *sorted id order*,
+/// so index order is byte-for-byte the same traversal order the old
+/// `BTreeMap<String, _>` produced — every output (`order`, `nodes`,
+/// `criticalPath`) matches `lib/planner-schedule.ts` and the canonical parity
+/// vectors. The interning is a pure performance change: it removes ~10·N
+/// short-`String` heap allocations and the per-lookup `BTreeMap<String, _>`
+/// string comparisons in favour of flat `Vec` indexing (measured ~2.7× faster
+/// at 195 nodes; see `benches/schedule_bench.rs`). Strings are re-materialized
+/// only for the owned output fields, which are unavoidable.
 pub fn schedule(nodes: &[SchedNode], edges: &[SchedEdge]) -> ScheduleResult {
-    // Index nodes; reject duplicates.
-    let mut by_id: BTreeMap<String, &SchedNode> = BTreeMap::new();
-    for n in nodes {
-        if by_id.insert(n.id.clone(), n).is_some() {
-            return fail(format!("duplicate node id: {}", n.id), false);
+    // ── Intern ids → sorted integer indices ────────────────────────────────
+    // A borrowed BTreeSet gives us both duplicate detection (in input order,
+    // preserving the original's first-duplicate message) and, once collected,
+    // the sorted id spine that fixes the deterministic index assignment.
+    let mut seen: BTreeSet<&str> = BTreeSet::new();
+    for node in nodes {
+        if !seen.insert(node.id.as_str()) {
+            return fail(format!("duplicate node id: {}", node.id), false);
         }
     }
+    let ids: Vec<&str> = seen.into_iter().collect(); // sorted, unique
+    let n = ids.len();
+    let index_of = |id: &str| ids.binary_search(&id).ok();
 
-    // Adjacency + indegree (BTreeMap keys stay id-sorted). Reject edges to unknown nodes.
-    let mut succ: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    let mut pred: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    let mut indeg: BTreeMap<String, i64> = BTreeMap::new();
-    for id in by_id.keys() {
-        succ.insert(id.clone(), Vec::new());
-        pred.insert(id.clone(), Vec::new());
-        indeg.insert(id.clone(), 0);
+    // Durations indexed by sorted position.
+    let mut dur_idx = vec![0i64; n];
+    for node in nodes {
+        // Safe: every node id is in `ids` (we just built it from these nodes).
+        let i = index_of(node.id.as_str()).expect("node id was interned");
+        dur_idx[i] = dur(node);
     }
+
+    // Adjacency + indegree by index. Reject edges to unknown nodes in input
+    // order (from-first, then to), matching the original messages exactly.
+    let mut succ: Vec<Vec<usize>> = vec![Vec::new(); n];
+    let mut pred: Vec<Vec<usize>> = vec![Vec::new(); n];
+    let mut indeg: Vec<i64> = vec![0i64; n];
     for e in edges {
-        if !by_id.contains_key(&e.from) {
-            return fail(format!("edge references unknown node: {}", e.from), false);
-        }
-        if !by_id.contains_key(&e.to) {
-            return fail(format!("edge references unknown node: {}", e.to), false);
-        }
-        succ.get_mut(&e.from).unwrap().push(e.to.clone());
-        pred.get_mut(&e.to).unwrap().push(e.from.clone());
-        *indeg.get_mut(&e.to).unwrap() += 1;
+        let from = match index_of(e.from.as_str()) {
+            Some(i) => i,
+            None => return fail(format!("edge references unknown node: {}", e.from), false),
+        };
+        let to = match index_of(e.to.as_str()) {
+            Some(i) => i,
+            None => return fail(format!("edge references unknown node: {}", e.to), false),
+        };
+        // Parallel edges are kept (not deduped): indegree counts each, matching
+        // the original's push-per-edge accounting so the topo sort is identical.
+        succ[from].push(to);
+        pred[to].push(from);
+        indeg[to] += 1;
     }
-    for v in succ.values_mut() {
-        v.sort();
+    // Sorting index lists ascending == sorting by id (index order = sorted id
+    // order), so successor/predecessor iteration stays deterministic.
+    for v in succ.iter_mut() {
+        v.sort_unstable();
     }
-    for v in pred.values_mut() {
-        v.sort();
+    for v in pred.iter_mut() {
+        v.sort_unstable();
     }
 
-    // Kahn topological sort, id-ordered ready set.
-    let ids: Vec<String> = by_id.keys().cloned().collect();
-    let mut order: Vec<String> = Vec::new();
-    let mut ready: BTreeSet<String> = ids
-        .iter()
-        .filter(|id| indeg[*id] == 0)
-        .cloned()
-        .collect();
-    let mut work = indeg.clone();
-    while let Some(id) = ready.iter().next().cloned() {
-        ready.remove(&id);
-        order.push(id.clone());
-        for s in &succ[&id] {
-            let w = work.get_mut(s).unwrap();
-            *w -= 1;
-            if *w == 0 {
-                ready.insert(s.clone());
+    // ── Kahn topological sort, smallest-index (== smallest id) ready first ──
+    let mut order: Vec<usize> = Vec::with_capacity(n);
+    let mut ready: BTreeSet<usize> = (0..n).filter(|&i| indeg[i] == 0).collect();
+    // `indeg` is unused after seeding `ready`, so reuse it as the mutable work
+    // array (avoids cloning a whole map as the original did).
+    let mut work = indeg;
+    while let Some(&i) = ready.iter().next() {
+        ready.remove(&i);
+        order.push(i);
+        for &s in &succ[i] {
+            work[s] -= 1;
+            if work[s] == 0 {
+                ready.insert(s);
             }
         }
     }
-    if order.len() != ids.len() {
+    if order.len() != n {
         return fail("cycle detected in dependency graph", true);
     }
 
-    // Forward pass: earliest start/finish.
-    let mut es: BTreeMap<String, i64> = BTreeMap::new();
-    let mut ef: BTreeMap<String, i64> = BTreeMap::new();
-    for id in &order {
+    // ── Forward pass: earliest start/finish ────────────────────────────────
+    let mut es = vec![0i64; n];
+    let mut ef = vec![0i64; n];
+    for &i in &order {
         let mut start = 0i64;
-        for p in &pred[id] {
+        for &p in &pred[i] {
             start = start.max(ef[p]);
         }
-        es.insert(id.clone(), start);
-        ef.insert(id.clone(), start + dur(by_id[id]));
+        es[i] = start;
+        ef[i] = start + dur_idx[i];
     }
-    let makespan = ids.iter().map(|id| ef[id]).max().unwrap_or(0);
+    let makespan = ef.iter().copied().max().unwrap_or(0);
 
-    // Backward pass: latest finish/start (reverse topological order).
-    let mut lf: BTreeMap<String, i64> = BTreeMap::new();
-    let mut ls: BTreeMap<String, i64> = BTreeMap::new();
-    for id in order.iter().rev() {
-        let s = &succ[id];
-        let finish = if s.is_empty() {
+    // ── Backward pass: latest finish/start (reverse topological order) ─────
+    let mut lf = vec![0i64; n];
+    let mut ls = vec![0i64; n];
+    for &i in order.iter().rev() {
+        let finish = if succ[i].is_empty() {
             makespan
         } else {
-            s.iter().map(|c| ls[c]).min().unwrap()
+            succ[i].iter().map(|&c| ls[c]).min().unwrap()
         };
-        lf.insert(id.clone(), finish);
-        ls.insert(id.clone(), finish - dur(by_id[id]));
+        lf[i] = finish;
+        ls[i] = finish - dur_idx[i];
     }
 
-    let node_schedules: Vec<NodeSchedule> = ids
-        .iter()
-        .map(|id| {
-            let slack = ls[id] - es[id];
+    let node_schedules: Vec<NodeSchedule> = (0..n)
+        .map(|i| {
+            let slack = ls[i] - es[i];
             NodeSchedule {
-                id: id.clone(),
-                earliest_start: es[id],
-                earliest_finish: ef[id],
-                latest_start: ls[id],
-                latest_finish: lf[id],
+                id: ids[i].to_string(),
+                earliest_start: es[i],
+                earliest_finish: ef[i],
+                latest_start: ls[i],
+                latest_finish: lf[i],
                 slack,
                 critical: slack == 0,
             }
@@ -178,13 +199,14 @@ pub fn schedule(nodes: &[SchedNode], edges: &[SchedEdge]) -> ScheduleResult {
         .collect();
 
     let critical_path = critical_chain(&ids, &succ, &es, &ef, &ls);
+    let order_ids: Vec<String> = order.iter().map(|&i| ids[i].to_string()).collect();
 
     ScheduleResult {
         ok: true,
         reason: String::new(),
         cyclic: false,
         makespan,
-        order,
+        order: order_ids,
         nodes: node_schedules,
         critical_path,
     }
@@ -193,41 +215,41 @@ pub fn schedule(nodes: &[SchedNode], edges: &[SchedEdge]) -> ScheduleResult {
 /// A single deterministic critical chain: start at the id-smallest zero-slack node with
 /// earliestStart 0, then follow the id-smallest zero-slack successor whose start is bound by this
 /// node's finish (EF[cur] == ES[succ]).
+///
+/// Operates in the interned index space (`ids[i]` is the sorted id for index
+/// `i`), so "id-smallest" == "smallest index"; results are byte-identical to the
+/// former string-keyed traversal.
 fn critical_chain(
-    ids: &[String],
-    succ: &BTreeMap<String, Vec<String>>,
-    es: &BTreeMap<String, i64>,
-    ef: &BTreeMap<String, i64>,
-    ls: &BTreeMap<String, i64>,
+    ids: &[&str],
+    succ: &[Vec<usize>],
+    es: &[i64],
+    ef: &[i64],
+    ls: &[i64],
 ) -> Vec<String> {
-    let is_critical = |id: &String| ls[id] - es[id] == 0;
-    let mut starts: Vec<String> = ids
-        .iter()
-        .filter(|id| is_critical(id) && es[*id] == 0)
-        .cloned()
-        .collect();
-    starts.sort();
-    if starts.is_empty() {
-        return Vec::new();
-    }
-    let mut path: Vec<String> = Vec::new();
-    let mut seen: BTreeSet<String> = BTreeSet::new();
-    let mut cur = Some(starts[0].clone());
-    while let Some(id) = cur {
-        if seen.contains(&id) {
+    let is_critical = |i: usize| ls[i] - es[i] == 0;
+    // Smallest index (== smallest id) that is critical and starts at 0.
+    let start = (0..ids.len()).find(|&i| is_critical(i) && es[i] == 0);
+    let mut cur = match start {
+        Some(s) => Some(s),
+        None => return Vec::new(),
+    };
+    let mut path: Vec<usize> = Vec::new();
+    let mut on_path = vec![false; ids.len()];
+    while let Some(i) = cur {
+        if on_path[i] {
             break;
         }
-        seen.insert(id.clone());
-        path.push(id.clone());
-        let mut next: Vec<String> = succ[&id]
+        on_path[i] = true;
+        path.push(i);
+        // Smallest-index critical successor bound by this node's finish. `succ`
+        // is sorted ascending, so `.min()` picks the id-smallest match.
+        cur = succ[i]
             .iter()
-            .filter(|s| is_critical(s) && es[*s] == ef[&id])
-            .cloned()
-            .collect();
-        next.sort();
-        cur = next.into_iter().next();
+            .copied()
+            .filter(|&s| is_critical(s) && es[s] == ef[i])
+            .min();
     }
-    path
+    path.into_iter().map(|i| ids[i].to_string()).collect()
 }
 
 // ─── Fixed Jira ladder (hierarchy) ───────────────────────────────────────────

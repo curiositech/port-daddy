@@ -23,3 +23,17 @@ serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+# Criterion baseline for the kernel hot paths (schedule CPM + macaroon verify).
+# default-features off drops the plotters/gnuplot HTML-report machinery we don't
+# need in CI; the statistical timing + confidence intervals are unaffected.
+criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }
+
+[[bench]]
+name = "schedule_bench"
+harness = false
+
+[[bench]]
+name = "macaroon_bench"
+harness = false
