@@ -1,13 +1,62 @@
-//! C ABI for the macaroon gate (ADR-0054 — the kernel is canonical, called over
-//! FFI). The TypeScript daemon loads `libpd_anchor.{dylib,so}` via koffi and calls
-//! these instead of re-deriving the macaroon construction in TS (the deprecated
-//! `lib/macaroon` is a byte-parity fallback for when this dylib is absent).
+//! The C ABI of the security kernel — the one place `pd-anchor`'s Rust logic is
+//! reachable from outside the address space that compiled it (ADR-0054: the kernel
+//! is canonical and is *called over FFI*, never re-derived in the daemon).
 //!
-//! Conventions (mirroring `core/harbor-card-rs/src/lib.rs`): JSON in over a
-//! `*const c_char` + length; JSON out as a heap `*mut c_char` the caller frees with
-//! `pd_string_free`. Every export is wrapped in `catch_unwind` and guards
-//! null/length/utf8/parse — a panic must never unwind across the boundary (UB), and
-//! malformed input returns a clean error JSON, never a crash. Fail closed.
+//! # Why this boundary exists
+//!
+//! The TypeScript daemon loads `libpd_anchor.{dylib,so}` via koffi and calls these
+//! `extern "C"` exports instead of re-implementing the macaroon construction and the
+//! critical-path scheduler in TS. The deprecated `lib/macaroon` and
+//! `lib/planner-schedule.ts` remain as *byte-parity fallbacks* for source installs
+//! and CI, where the dylib is not built (shared test vectors lock the two impls to
+//! identical output, so the FFI is a performance/trust upgrade, never a behavior
+//! change). The koffi loaders live in `lib/macaroon-ffi.ts` and
+//! `lib/planner-schedule.ts`; both degrade gracefully to the TS path when
+//! `koffi.load` throws.
+//!
+//! # The wire convention (mirrors `core/harbor-card-rs/src/lib.rs`)
+//!
+//! Structured data crosses as **JSON, never as a Rust struct** (Rust's `repr` is not
+//! a stable ABI). Every export has the same shape:
+//! `fn(req: *const c_char, len: usize) -> *mut c_char`. The request is `len` bytes of
+//! UTF-8 JSON borrowed from the caller; the response is a **heap-owned** C string this
+//! library allocates and hands back, which the caller must return with
+//! [`pd_string_free`] exactly once (see that function for the leak-not-crash contract).
+//!
+//! # The five-guard fail-closed discipline (read this before touching an export)
+//!
+//! A Rust panic that unwinds across an `extern "C"` frame is **undefined behavior** —
+//! it can corrupt the host process, not merely error. So every export body is a total
+//! function of its raw inputs: it converts *every* way the input can be malformed into
+//! a clean error response, and it wraps the whole thing in `catch_unwind` so even an
+//! unforeseen panic becomes a sentinel rather than UB. The guards, in order, are:
+//!
+//! 1. **null pointer** (`req.is_null()`) → error JSON. koffi can hand us null.
+//! 2. **empty or oversized** (`len == 0 || len > MAX_REQUEST_BYTES`) → error JSON.
+//!    The upper bound fails a pathological length fast, before any allocation.
+//! 3. **not UTF-8** (`std::str::from_utf8`) → error JSON. Raw bytes need not be text.
+//! 4. **not parseable** (`serde_json::from_str`) → error JSON carrying the parse error.
+//! 5. **panic anywhere inside** (`catch_unwind`) → the outermost sentinel error JSON.
+//!
+//! "Fail closed" is literal here: on *any* malformed input the answer is a valid
+//! `{"ok":false,...}` document (a denied authorization / a failed schedule), never a
+//! crash and never a silent success. The only way to get null back is a catastrophic
+//! allocation failure while encoding the response — the `respond` family is written
+//! so that even an interior-NUL in the body degrades to a NUL-free static string, so in
+//! practice null is unreachable and the koffi loaders treat a null return as a
+//! kernel bug worth logging, not a routine "denied".
+//!
+//! # Two families of export
+//!
+//! - **Key-taking (byte-parity fallback):** [`pd_macaroon_verify_json`] and
+//!   [`pd_schedule_dag_json`] are stateless — every key or graph they need arrives in
+//!   the request. These mirror the TS fallbacks 1:1 and exist so the daemon can prefer
+//!   Rust without moving key custody.
+//! - **Key-custody (ADR-0057, the teeth):** [`pd_keystore_issue_grant_json`],
+//!   [`pd_keystore_issue_discharge_json`], and [`pd_keystore_authorize_json`] route
+//!   through [`crate::keystore`], where the root and caveat keys are generated and
+//!   retained. **No forging material ever appears in a request or response** on this
+//!   family — the daemon asks the kernel to issue/authorize and never sees the keys.
 
 use crate::keystore;
 use crate::macaroon::{check_caveat, verify, Macaroon, RentVerdict, RequestContext, DISCHARGE_TTL_MS};
@@ -65,10 +114,61 @@ fn respond(ok: bool, reason: impl Into<String>) -> *mut c_char {
         .unwrap_or(std::ptr::null_mut())
 }
 
-/// Verify a macaroon push grant. Input JSON:
-/// `{ macaroon, root_key_hex, discharges, ctx:{op,repo,branch,host,spend_usd,session,now_ms}, caveat_keys:{<id>:<hex>} }`.
-/// Output JSON: `{ ok, reason }`. Returns null only on a catastrophic allocation
-/// failure; every other path returns a `{ok:false,...}` JSON (fail closed).
+/// Verify a macaroon push grant against a caller-supplied root key.
+///
+/// This is the **key-taking** verifier — the byte-parity fallback path. The TS side
+/// that invokes it is `verifyPushGrantPreferKernel` in `lib/macaroon-ffi.ts`, which
+/// loads the dylib, calls this export, and (only if the dylib is absent) falls back to
+/// the deprecated pure-TS verifier in `lib/macaroon`. Because the caller passes the
+/// root key here, this export moves no custody into the kernel; the custody family
+/// below ([`pd_keystore_authorize_json`]) is the version where the keys never leave.
+///
+/// # Wire contract
+///
+/// Input JSON:
+/// ```json
+/// {
+///   "macaroon":     { /* the grant Macaroon */ },
+///   "root_key_hex": "<hex of the 32-byte root key>",
+///   "discharges":   [ /* zero or more discharge Macaroons, request-bound */ ],
+///   "ctx": { "op": "push", "repo": "acme/api", "branch": "feat/x",
+///            "host": null, "spend_usd": null, "session": "sess-1", "now_ms": 1500000 },
+///   "caveat_keys": { "<caveat-id>": "<hex discharge key>" }
+/// }
+/// ```
+/// Output JSON: `{ "ok": <bool>, "reason": "<human string>" }`. A null return means a
+/// catastrophic response-encoding failure and nothing else; `lib/macaroon-ffi.ts` logs
+/// null as a kernel bug rather than treating it as a denial.
+///
+/// # Worked example
+///
+/// Request (a paid, request-bound grant pushing to a non-protected branch):
+/// ```json
+/// { "macaroon": { "identifier": "g-1", "location": "pd://push", "caveats": [...], "signature_hex": "…" },
+///   "root_key_hex": "70642d63616e6f6e6963616c2d726f6f742d6b65792d30303030303030303031",
+///   "discharges": [ { "identifier": "rent:g-1", "caveats": [...], "signature_hex": "…" } ],
+///   "ctx": { "op": "push", "repo": "curiositech/port-daddy", "branch": "feat/x", "session": "s1", "now_ms": 1500000 },
+///   "caveat_keys": { "rent:g-1": "70642d63616e6f6e6963616c2d63617665…" } }
+/// ```
+/// Response: `{"ok":true,"reason":"verified"}`. Point `ctx.branch` at the protected
+/// branch (`"main"`) and the same request returns `{"ok":false,"reason":"…deny branch…"}` —
+/// a denial, not a crash.
+///
+/// # Fail-closed
+///
+/// Fails closed on every malformed input: null/empty/oversized request, non-UTF-8
+/// bytes, unparseable JSON, non-hex `root_key_hex`, and any panic inside the verifier
+/// all return `{"ok":false,...}` (see the module header's five-guard discipline). A bad
+/// hex value inside `caveat_keys` silently drops that one key, so the third-party caveat
+/// it would have resolved fails to discharge — again, closed.
+///
+/// # Wrapped pure logic
+///
+/// The actual signature recomputation lives in [`crate::macaroon::verify`], a pure Rust
+/// function with no FFI in its signature; that is where the per-hop discharge discipline
+/// and the request-binding check are unit-tested (see that module's tests). This export
+/// is only the JSON/pointer marshalling shell around it.
+///
 /// # Safety
 /// `req` must be null or a valid pointer to `len` readable bytes (the C-ABI
 /// contract koffi upholds). The null/len/utf8/parse guards below enforce the rest;
@@ -157,11 +257,40 @@ fn schedule_error(reason: impl Into<String>) -> ScheduleResult {
     }
 }
 
-/// Schedule a dependency DAG (Critical Path Method). Input JSON:
-/// `{ nodes:[{id,estimate?}], edges:[{from,to}] }` (an edge means `from` finishes before `to`
-/// starts). Output JSON is the full `ScheduleResult` (ok/cyclic/makespan/order/nodes/criticalPath).
-/// Returns null only on catastrophic allocation failure; every other path returns a JSON result
-/// (fail closed — malformed input yields `ok:false`).
+/// Schedule a dependency DAG by the Critical Path Method (ADR-0086).
+///
+/// The TS caller is the `scheduleViaFfi`/`schedule` path in `lib/planner-schedule.ts`,
+/// which prefers this export and falls back to its own byte-parity TS scheduler when the
+/// dylib is absent; pd-console (the Rust GPUI Gantt) calls the underlying pure
+/// [`crate::schedule::schedule`] natively. All three produce identical output because the
+/// traversal is id-ordered and deterministic (see `schedule.rs`).
+///
+/// # Wire contract
+///
+/// Input JSON: `{ "nodes": [ { "id": "a", "estimate": 2 }, … ], "edges": [ { "from": "a", "to": "b" }, … ] }`.
+/// An edge `{from,to}` means `from` must finish before `to` starts (`from` is the
+/// predecessor); a missing or non-positive `estimate` is treated as duration 0. Output
+/// JSON is the full `ScheduleResult`:
+/// `{ ok, reason, cyclic, makespan, order, nodes:[{id,earliestStart,earliestFinish,latestStart,latestFinish,slack,critical}], criticalPath }`
+/// (camelCase — the struct is `#[serde(rename_all = "camelCase")]`). Null return means only
+/// a catastrophic response-encoding failure.
+///
+/// # Worked example
+///
+/// Request: `{"nodes":[{"id":"a","estimate":2},{"id":"b","estimate":3},{"id":"c","estimate":1}],`
+/// `"edges":[{"from":"a","to":"b"},{"from":"b","to":"c"}]}` — a linear chain.
+/// Response (abridged): `{"ok":true,"cyclic":false,"makespan":6,"order":["a","b","c"],`
+/// `"criticalPath":["a","b","c"], "nodes":[…]}` — every node is on the critical path and the
+/// makespan is `2+3+1`.
+///
+/// # Fail-closed
+///
+/// Malformed input yields `ok:false`, never a crash: null/empty/oversized request,
+/// non-UTF-8, or unparseable JSON return an error `ScheduleResult`; and the scheduler
+/// itself fails closed on duplicate node ids, edges to unknown nodes, and cycles (a cycle
+/// additionally sets `cyclic:true`). See the doctest on [`crate::schedule::schedule`] for
+/// the pure-Rust version of these guarantees.
+///
 /// # Safety
 /// `req` must be null or a valid pointer to `len` readable bytes (the C-ABI contract koffi
 /// upholds). The guards below enforce the rest; the body never panics across the boundary.
@@ -215,7 +344,37 @@ fn read_request(req: *const c_char, len: usize) -> Result<String, *mut c_char> {
         .map_err(|_| respond(false, "request is not valid UTF-8"))
 }
 
-fn parse_verdict(s: &str) -> Option<RentVerdict> {
+/// Parse the daemon's rent verdict string into a [`RentVerdict`], accepting either the
+/// hyphen or underscore spelling of `rent-due`. Returns `None` for anything unrecognized —
+/// and [`pd_keystore_issue_discharge_json`] turns that `None` into a fail-closed error, so a
+/// typo or an attacker-chosen string can never be mistaken for `Paid`.
+///
+/// This is a small, total, pure helper — no FFI, no I/O — so it is the one piece of this
+/// module that carries a real runnable doctest (`cargo test --doc`). The `extern "C"` exports
+/// cannot: their raw-pointer signatures need `unsafe` and a live C string, so they are
+/// documented with worked JSON examples in prose instead.
+///
+/// # Examples
+///
+/// ```
+/// use pd_anchor::ffi::parse_verdict;
+/// use pd_anchor::macaroon::RentVerdict;
+///
+/// // Both spellings of the "rent due" verdict are accepted.
+/// assert_eq!(parse_verdict("rent-due"), Some(RentVerdict::RentDue));
+/// assert_eq!(parse_verdict("rent_due"), Some(RentVerdict::RentDue));
+/// assert_eq!(parse_verdict("paid"), Some(RentVerdict::Paid));
+///
+/// // Only "paid" ever unlocks a discharge; every other known verdict is a non-Paid state.
+/// assert_eq!(parse_verdict("idle"), Some(RentVerdict::Idle));
+/// assert_eq!(parse_verdict("stale"), Some(RentVerdict::Stale));
+///
+/// // Anything unrecognized fails closed (the caller rejects it, never defaults to Paid).
+/// assert_eq!(parse_verdict("Paid"), None);           // case-sensitive on purpose
+/// assert_eq!(parse_verdict("definitely-paid"), None);
+/// assert_eq!(parse_verdict(""), None);
+/// ```
+pub fn parse_verdict(s: &str) -> Option<RentVerdict> {
     match s {
         "paid" => Some(RentVerdict::Paid),
         "rent-due" | "rent_due" => Some(RentVerdict::RentDue),
@@ -233,8 +392,35 @@ struct FfiIssueGrant {
     protected_branch: String,
 }
 
-/// Issue a push grant. In: `{repo, session, expires_ms, protected_branch}`.
-/// Out: `{ok, grant_id, macaroon}` — the keys stay in the kernel store.
+/// Issue a push grant whose keys the kernel mints and keeps (ADR-0057, custody family).
+///
+/// The kernel generates the root key and the caveat (discharge) key, mints the grant, stores
+/// both keys in [`crate::keystore`] keyed by a fresh `grant_id`, and returns only the grant
+/// macaroon and that id. **No key is ever in the response** — that is the whole point of this
+/// family versus [`pd_macaroon_verify_json`]. This export is the FFI shell over
+/// [`crate::keystore::issue_grant`]. It is wired for ADR-0057 enforcement slice 1; the daemon
+/// migrates onto it (and off the key-taking verify path) in slice 2, so there is not yet a
+/// koffi caller in `lib/` — the in-process Rust tests below exercise it end-to-end.
+///
+/// # Wire contract
+///
+/// Input JSON: `{ "repo": "acme/api", "session": "sess-1", "expires_ms": 2000060000, "protected_branch": "main" }`.
+/// Output JSON: `{ "ok": true, "grant_id": "<hex>", "macaroon": { … } }` on success, or
+/// `{ "ok": false, "reason": "<why>" }` on failure.
+///
+/// # Worked example
+///
+/// Request: `{"repo":"acme/api","session":"sess-ffi","expires_ms":2060000,"protected_branch":"main"}`.
+/// Response: `{"ok":true,"grant_id":"9f3c…","macaroon":{"identifier":"9f3c…","location":"pd://push","caveats":[…],"signature_hex":"…"}}`.
+/// Feed that `grant_id` to [`pd_keystore_issue_discharge_json`] to obtain a discharge once rent
+/// is paid.
+///
+/// # Fail-closed
+///
+/// Null/empty/oversized/non-UTF-8/unparseable requests return `{"ok":false,...}`; a keystore
+/// error (e.g. RNG failure while generating keys) also returns `{"ok":false,...}`; a panic is
+/// caught and returned as `internal error`. Never a crash.
+///
 /// # Safety
 /// `req` must be null or point to `len` readable bytes (the koffi C-ABI contract).
 #[no_mangle]
@@ -264,8 +450,37 @@ struct FfiIssueDischarge {
     ttl_ms: Option<i64>,
 }
 
-/// Issue a discharge for a stored grant — only when verdict == "paid". In:
-/// `{grant_id, verdict, now_ms, ttl_ms?}`. Out: `{ok, discharge|null, reason}`.
+/// Mint a discharge for a stored grant — and ONLY when rent is `Paid` (ADR-0057).
+///
+/// This is where custody earns its keep: the caveat key is read from the kernel store, never
+/// supplied by the caller, and a discharge is minted only if the verdict parses to
+/// [`RentVerdict::Paid`]. Any other verdict — or an unknown/revoked grant — yields no discharge,
+/// which the gate reads as "not authorized". The verdict string is parsed by [`parse_verdict`]
+/// (see its doctest); the discharge itself is minted by [`crate::keystore::issue_discharge`].
+/// Like the rest of this family it has no koffi caller yet (slice 2 wiring); the tests below
+/// drive it in-process.
+///
+/// # Wire contract
+///
+/// Input JSON: `{ "grant_id": "<hex>", "verdict": "paid"|"rent-due"|"idle"|"stale", "now_ms": 2000000, "ttl_ms": 1200000 }`
+/// (`ttl_ms` is optional and defaults to [`crate::macaroon::DISCHARGE_TTL_MS`]). Output JSON:
+/// `{ "ok": <bool>, "discharge": <Macaroon>|null, "reason": "<string>" }`.
+///
+/// # Worked example
+///
+/// Paid — request `{"grant_id":"9f3c…","verdict":"paid","now_ms":2000000}` →
+/// `{"ok":true,"discharge":{"identifier":"rent:9f3c…","caveats":[…],"signature_hex":"…"},"reason":"discharged"}`.
+///
+/// Not paid — request `{"grant_id":"9f3c…","verdict":"rent-due","now_ms":2000000}` →
+/// `{"ok":false,"discharge":null,"reason":"no discharge (rent not paid, or unknown/revoked grant)"}`.
+/// The push that would have used this discharge is therefore refused.
+///
+/// # Fail-closed
+///
+/// Malformed request, unknown verdict string, unknown/revoked grant, or a non-`Paid` verdict all
+/// produce a no-discharge response; a panic is caught and returned as `internal error`. The
+/// keystore never mints a discharge from a verdict it did not recognize.
+///
 /// # Safety
 /// `req` must be null or point to `len` readable bytes (the koffi C-ABI contract).
 #[no_mangle]
@@ -299,8 +514,34 @@ struct FfiAuthorize {
     ctx: FfiCtx,
 }
 
-/// Authorize a push using the kernel-held keys (looked up by the grant's own
-/// identifier). In: `{macaroon, discharges, ctx}` — NO keys. Out: `{ok, reason}`.
+/// Authorize a push using the kernel-held keys, looked up by the grant's own identifier (ADR-0057).
+///
+/// The custody-family counterpart to [`pd_macaroon_verify_json`]: the daemon presents the grant,
+/// its request-bound discharges, and the request context — but **no keys**. The kernel looks the
+/// root and caveat keys up in [`crate::keystore`] by `macaroon.identifier` and runs the same
+/// per-hop verification via [`crate::keystore::authorize`]. So a compromised daemon cannot forge
+/// authorization: it never holds the material to mint or re-sign. No koffi caller yet (slice 2);
+/// the `keystore_custody_roundtrip_carries_no_keys` test below proves the whole issue → discharge
+/// → authorize loop over the FFI with no key in any payload.
+///
+/// # Wire contract
+///
+/// Input JSON: `{ "macaroon": { … }, "discharges": [ … ], "ctx": { "op", "repo", "branch", "host",
+/// "spend_usd", "session", "now_ms" } }`. Output JSON: `{ "ok": <bool>, "reason": "<string>" }`.
+///
+/// # Worked example
+///
+/// Request: `{"macaroon":{"identifier":"9f3c…",…},"discharges":[{…request-bound…}],`
+/// `"ctx":{"op":"push","repo":"acme/api","branch":"feat/x","session":"sess-ffi","now_ms":2000000}}`.
+/// Response: `{"ok":true,"reason":"verified"}` when the grant is known, unrevoked, rent-discharged,
+/// and the context satisfies every caveat. An unknown grant returns `{"ok":false,"reason":"unknown grant"}`;
+/// a revoked one, `{"ok":false,"reason":"grant has been revoked"}`.
+///
+/// # Fail-closed
+///
+/// Malformed request, unknown/revoked grant, missing/invalid discharge, or any caveat violation
+/// all return `{"ok":false,...}`; a panic is caught and returned as `internal error`. Never a crash.
+///
 /// # Safety
 /// `req` must be null or point to `len` readable bytes (the koffi C-ABI contract).
 #[no_mangle]
@@ -329,8 +570,23 @@ pub unsafe extern "C" fn pd_keystore_authorize_json(req: *const c_char, len: usi
     .unwrap_or_else(|_| respond(false, "internal error"))
 }
 
-/// Reclaim a string returned by this library. The caller MUST call this exactly
-/// once for every non-null pointer received.
+/// Reclaim a string this library handed out. **The caller MUST call this exactly once for
+/// every non-null pointer any export returned — no more, no less.**
+///
+/// Every JSON-out export allocates its response with `CString::into_raw`, which *leaks* the
+/// allocation on purpose so the pointer can safely cross into C/TS. Ownership is now the
+/// caller's, and the only way to give it back to Rust's allocator is to pass the pointer here:
+/// this reconstitutes the `CString` with `from_raw` and drops it. The koffi loaders in
+/// `lib/macaroon-ffi.ts` and `lib/planner-schedule.ts` do this in a `finally` so the string is
+/// freed even when JSON parsing of the response throws.
+///
+/// Contract and consequences:
+/// - **Forget to call it** → the response allocation leaks. RSS grows one string per call; the
+///   host process keeps running (a leak, **not** a crash). This is the failure the `finally`
+///   guards against.
+/// - **Call it twice on the same pointer** → double free: undefined behavior. Don't.
+/// - **Passing null is fine** and is a no-op, so callers need not null-check first.
+///
 /// # Safety
 /// `ptr` must be null or a pointer previously returned by this library and not
 /// yet freed; it must not be used again after this call.
