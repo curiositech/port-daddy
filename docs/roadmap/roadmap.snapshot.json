@@ -2,7 +2,7 @@
   "generatedAt": 1784417300739,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 233,
+  "count": 235,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -793,6 +793,11 @@
       "slug": "fleetbar-visual-task-intake",
       "status": "backlog",
       "summaryMd": "feat(fleetbar): add visual task intake"
+    },
+    {
+      "slug": "git-guard-no-agent-escape",
+      "status": "backlog",
+      "summaryMd": "ADR-0102: remove agent-mintable PD_SHIM_OFF git-guard escape"
     },
     {
       "slug": "github-webhook-delivery-dedup",
