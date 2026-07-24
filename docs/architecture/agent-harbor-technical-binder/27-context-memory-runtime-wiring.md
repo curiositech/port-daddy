@@ -399,6 +399,16 @@ New work items surfaced by the critique:
   predecessor->successor in an append-only ledger; packet consumption is a
   single-successor lease (claimed->committed, reclaimable on missed heartbeat).
   This is checkpoint + memory, explicitly not an outcome ledger.
+- **W16 — Governed skill-script runner (`pd drill`).** Operator-directed. Agents
+  must be able to run a skill's bundled script and read its verdict without
+  loading the source into context. Today that works only via raw Bash
+  (`python3 skills/<s>/scripts/x.py`) — ungoverned, undiscoverable, shell-bound,
+  and unlogged. `pd drill <skill>/<script>` runs the script under the daemon
+  budget/kill chain (as `pd shipwright` does), allowlisted to manifest-declared
+  scripts, and appends a `skill_drill` usage event — which is exactly the
+  out-of-band outcome signal W9 needs. Serves W9 (usage log) and reuses W8's
+  output-spill. Full spec:
+  [pd-drill-skill-script-runner](../../proposals/pd-drill-skill-script-runner.md).
 
 Top risks the critique flags (full register in the synthesis record): grounding
 every claim on the hot 30s custodian loop can dominate the very COGS the ledger
@@ -502,3 +512,20 @@ The reconciliation:
 
 Net: **minor drift, one latent conflict (the creation path), now cross-linked.**
 W13's decisions ledger tracks closure of items 1–4 here alongside O1–O4.
+
+**The single decision that dissolves all of this.** All five points above are one
+question wearing five masks: *does the M6 build target the legacy runtime or the
+post-refactor one?* Decide it once —
+
+> There is exactly **one** creation path (`WorkIntent -> WorkPlan -> AgentNode ->
+> AnodeAdapter`) and the `schemas/agent-harbor/v0` contract (including the
+> `ContextEnvelope`) is frozen **once**, and both land as hard prerequisites
+> (**26/N1 + 26/N6**) *before* any M6 runtime-touching item. Ch. 27 never calls
+> `spawn` / `conductor.launch` / raw `LaunchIntent` directly.
+
+— and every drift point collapses: W2's envelope is an item inside the one
+freeze, W5/W10 boot/realize `AgentNode`s through the WorkIntent path, W15's
+ledger is 26/N7's ledger, and the `WorkIntent`/`LaunchIntent` fork disappears.
+This is the decision to record first in W13's ledger; O1 (one episodic store) is
+its M6-local twin. Until it is made, W2/W5/W10/W15 carry a "targets:
+post-refactor" assumption that a late 25/26 change can silently invalidate.
