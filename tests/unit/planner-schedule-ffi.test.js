@@ -97,6 +97,12 @@ ffiDescribe('planner-schedule-ffi — Rust kernel path (dylib present) agrees wi
   });
 
   test('the kernel fails closed on a cyclic graph identically to TS', () => {
+    // Assert the dylib actually loaded FIRST. Without this, a silent koffi load
+    // failure under Jest would route this "kernel path" test through the TS
+    // fallback, which fails closed on cycles identically — so the test would
+    // pass while proving nothing about the kernel. (The describe.skip guard is
+    // existsSync-only; file-present != koffi-loadable.)
+    expect(schedulerKernelAvailable()).toBe(true);
     const { nodes, edges } = cyclic();
     const res = scheduleDagPreferKernel(nodes, edges);
     expect(res.ok).toBe(false);
