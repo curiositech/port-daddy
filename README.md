@@ -827,6 +827,10 @@ pd restore <id>                    # roll the DB back (destructive tier, prompts
 
 `pd cut` orchestrates a local release cut — daemon binary, Rust kernel cdylib, FleetBar.app — with honest `signed:false` marking unless `--require-sign` (fail-closed signing, ADR-0057). For Port Daddy itself, the release boundary is the signed-binary cut: tagging `v<version>` triggers `release.yml`, which rebuilds daemon, CLI, and MCP server as signed/notarized binaries (ADR-0028) and publishes a `latest.json` update feed (version + per-artifact URL + SHA-256 + signed flag). The brew tap (`curiositech/homebrew-tap`) is bumped via `publish.yml`.
 
+### Batten down the release (`pd batten`)
+
+`release-artifacts.json` is the declarative manifest of every binary that MUST ship inside a release tarball (`pd`, `port-daddy`, its manifest, the `pd-bosun` watchdog, the squid tentacles, `pd-statusline`). `pd batten verify --staged-dir dist` asserts each staged artifact is present, executable where declared, and at least its `minBytes` — collecting **every** failure and exiting nonzero with a per-artifact report, so a release can never silently ship with a missing watchdog or missing hooks (the failure class that shipped GREEN when each binary had its own scattered `test -s`). `pd batten imprint --staged-dir dist --out <file>` sha256s the sealed cargo into a `release-imprint.json` record. `release.yml` runs `verify` as the single fail-loud gate after staging and uploads the imprint as a release asset. Both subcommands are offline (node stdlib only) and never touch the daemon.
+
 ### Single-binary distribution
 
 `npm run build:bin` emits `dist/port-daddy` plus a manifest; the binary carries the CLI, the MCP stdio server, and a hidden `__daemon` entrypoint in-process — Fleet UI and public samples are embedded via a generated asset table and smoke-tested at build time. The standalone daemon companion `dist/daemon/port-daddy-daemon` remains for daemon-only installs.
