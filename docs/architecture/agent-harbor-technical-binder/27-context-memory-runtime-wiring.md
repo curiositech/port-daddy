@@ -226,7 +226,7 @@ skills that most need discovery.
 
 ### W10 — Subagent context partitioning
 
-Today PD does fan-out and governance, not partitioning. `fleet/conductor.ts`
+Today PD does fan-out and governance, not partitioning. `lib/fleet/conductor.ts`
 launches **one agent per `LaunchIntent`, one goal each**, with depth/lineage/
 capability caps; `swarm-coordination.ts:evaluateSwarmFit` recommends a topology
 but is a pure advisory oracle whose inputs are hand-supplied CLI flags, wired
@@ -474,7 +474,7 @@ The reconciliation:
    `WorkIntent -> WorkPlan -> AgentNode -> AnodeAdapter.attach` the mandatory,
    only creation path and migrate `spawn` / `dispatch` / `conjure` / raw
    `LaunchIntent` into it (25 "Execution Order"; 26/N6). W5 (`resumeFromPacket`
-   into spawn) and W10 (`NodeSpec -> LaunchIntent` via `fleet/conductor.ts`)
+   into spawn) and W10 (`NodeSpec -> LaunchIntent` via `lib/fleet/conductor.ts`)
    therefore target the **post-refactor** shape: the packet is the payload a
    successor `AgentNode` boots from, and a `NodeSpec` is realized as an
    `AgentNode` through the WorkIntent path, not the legacy `spawn` surface. This
