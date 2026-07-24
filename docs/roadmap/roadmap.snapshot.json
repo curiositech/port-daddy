@@ -2,7 +2,7 @@
   "generatedAt": 1784417300739,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 233,
+  "count": 235,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -833,6 +833,11 @@
       "slug": "guard-merge-blast-radius-fix",
       "status": "now",
       "summaryMd": "Fix coordination-guard stagedFiles() misattributing a merge's pass-through files (from origin/main) to the merging session's blast radius, causing false claim-collision blocks on rebase-forward commits. Root cause: pre-commit diff against stale HEAD instead of MERGE_HEAD during an in-progress merge. Shipped as PR #3130."
+    },
+    {
+      "slug": "guard-refusal-escalation-skill",
+      "status": "backlog",
+      "summaryMd": "Agent-skill decision tree: correct escalation path on a coordination-guard / pd-shim refusal — fix the guard input or escalate to operator; no in-band bypass (ADR-0102)."
     },
     {
       "slug": "guard-stash-pop-interception",
