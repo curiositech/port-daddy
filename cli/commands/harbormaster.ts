@@ -21,6 +21,7 @@ import {
   HARBORMASTER_ACTOR_ID,
   DEFAULT_POLL_INTERVAL_MS,
 } from '../../lib/harbormaster.js';
+import { jscSafeModeEnv } from '../../shared/daemon-binary.js';
 import type { CLIOptions } from '../types.js';
 
 const PID_FILE = join(homedir(), '.port-daddy', 'harbormaster.pid');
@@ -122,10 +123,12 @@ async function cmdStart(options: CLIOptions): Promise<void> {
 
   // Fork a detached child running this same CLI in --foreground mode.
   // Using the operator's own pd binary keeps the dependency chain honest.
+  // JSC safe-mode (#676): harbormaster is a long-lived Bun polling daemon, same native-crash
+  // surface as the main daemon. Bake BUN_JSC_* into the detached child at spawn (JSC reads at init).
   const child = spawn(process.argv[0]!, [process.argv[1]!, 'harbormaster', 'start', '--foreground'], {
     detached: true,
     stdio: 'ignore',
-    env: process.env,
+    env: { ...process.env, ...jscSafeModeEnv() },
   });
   child.unref();
   writePidFile(child.pid ?? 0);

@@ -15,7 +15,7 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import { printBanner, printCompactHeader, printFarewell, WHEEL, ANCHOR, ANSI } from '../../lib/banner.js';
 import { autoFixStartupBlockers, diagnoseStartupBlockers } from '../utils/startup-doctor.js';
 import { LOOPBACK_TCP_HOST, readDaemonPort } from '../../shared/daemon-discovery.js';
-import { resolveDaemonLaunchCommand, isBunCompiledRuntime, type DaemonLaunchCommand } from '../../shared/daemon-binary.js';
+import { resolveDaemonLaunchCommand, isBunCompiledRuntime, jscSafeModeEnv, type DaemonLaunchCommand } from '../../shared/daemon-binary.js';
 import { calculateRuntimeCodeHash, listRuntimeSourceFiles } from '../../shared/code-hash.js';
 import {
   buildDaemonProfileEnv,
@@ -262,10 +262,15 @@ function daemonLaunchCommand(libDir: string): DaemonLaunchCommand {
 }
 
 function spawnDaemon(command: DaemonLaunchCommand, options: Parameters<typeof spawn>[2] = {}): ChildProcess {
+  // JSC safe-mode (#676) must be baked in FIRST — JavaScriptCore reads BUN_JSC_* only at process
+  // init, so a CLI-started daemon that doesn't inherit these runs unmitigated and keeps crashing.
+  // Layer it under the caller's env so an explicit override (or PORT_DADDY_JSC_SAFE_MODE=0, which
+  // makes jscSafeModeEnv() return {}) still wins.
   return spawn(command.program, command.args, {
     ...options,
     env: {
       ...process.env,
+      ...jscSafeModeEnv(),
       ...(command.env ?? {}),
       ...((options.env ?? {}) as NodeJS.ProcessEnv),
     },
@@ -555,9 +560,13 @@ async function attemptDaemonStart(command: DaemonLaunchCommand): Promise<boolean
   // the compiled binary.
   let child: ChildProcess;
   if (isBunCompiledBinary()) {
+    // Inject JSC safe-mode (#676) into the re-exec'd child — the ONLY chance to set BUN_JSC_*
+    // for the long-lived daemon process, since JSC reads them at init. The `else` branch below
+    // goes through spawnDaemon(), which already merges them in.
     child = spawn(process.execPath, ['start', '--foreground'], {
       stdio: 'ignore',
       detached: true,
+      env: { ...process.env, ...jscSafeModeEnv() },
     });
   } else {
     child = spawnDaemon(command, {

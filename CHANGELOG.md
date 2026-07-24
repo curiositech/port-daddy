@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.27.1] - 2026-07-23
+
+### Fixed
+- **Bun JSC concurrent-GC crash (#676) on CLI-started daemons.** The mitigation for the Bun 1.2.21 JavaScriptCore concurrent-GC native segfault — `BUN_JSC_useConcurrentGC=0` / `BUN_JSC_useConcurrentJIT=0`, which JSC reads **only** at process init — was previously wired into the launchd plist alone. Any daemon **not** started by launchd (`pd start`, the compiled-binary `start --foreground` re-exec, and the `harbormaster` polling daemon) inherited a plain `process.env` with those vars absent and ran **unmitigated**, so it kept crash-looping. A single shared source of truth, `jscSafeModeEnv()` in `shared/daemon-binary.ts`, is now merged into every daemon spawn path; the launchd plist renders its XML from the same helper (byte-identical). Opt out with `PORT_DADDY_JSC_SAFE_MODE=0`. Source-level regression tests assert the merge on each spawn path so a future refactor can't silently drop it. Honest scope: the underlying JSC crash is upstream and this env-var mitigation is the best-available workaround (bumping Bun to 1.3.x trades it for that line's own JSC GC segfaults) — this fix closes the gap where the workaround simply wasn't being applied to non-launchd daemons.
+
 ## [3.27.0] - 2026-07-23
 
 ### Added

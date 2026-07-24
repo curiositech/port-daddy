@@ -85,6 +85,24 @@ export function isBunCompiledRuntime(signals: BunRuntimeSignals): boolean {
  */
 let warnedUnconventionalLayout = false;
 
+/**
+ * JSC safe-mode env vars — the mitigation for the Bun 1.2.21 concurrent-GC native crash (#676:
+ * segfault in `MarkedBlock::Handle::sweep`/`SlotVisitor::drain` under concurrent-connection load).
+ * `BUN_JSC_useConcurrentGC`/`useConcurrentJIT` force GC marking/sweep + JIT compilation back onto
+ * the main thread, removing the background-thread/mutator race the crash traces point at.
+ *
+ * CRITICAL: JavaScriptCore reads these ONLY at process init — a running process cannot re-apply
+ * them to itself. So the daemon must INHERIT them from whatever launches it. The launchd plist
+ * sets them (jscSafeModeEnvXml), but until now the CLI spawn paths (`pd start`, `pd relay status`
+ * auto-start, the `--foreground` re-exec) inherited a plain `process.env` with no BUN_JSC vars —
+ * so any daemon NOT started by launchd ran UNMITIGATED and kept crashing. This is the single
+ * source of truth, merged into every spawn path. Opt out with PORT_DADDY_JSC_SAFE_MODE=0.
+ */
+export function jscSafeModeEnv(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  if (env.PORT_DADDY_JSC_SAFE_MODE === '0') return {};
+  return { BUN_JSC_useConcurrentGC: '0', BUN_JSC_useConcurrentJIT: '0' };
+}
+
 export function resolveDistributionRoot(
   moduleDir: string,
   env: NodeJS.ProcessEnv = process.env,

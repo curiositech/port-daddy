@@ -18,7 +18,7 @@ import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { homedir, platform } from 'os';
 import { getDaemonTcpUrl } from './shared/daemon-discovery.js';
-import { daemonBinaryName, resolveDaemonLaunchCommand, resolveDistributionRoot, resolveBosunBinaryPath, type DaemonLaunchCommand } from './shared/daemon-binary.js';
+import { daemonBinaryName, resolveDaemonLaunchCommand, resolveDistributionRoot, resolveBosunBinaryPath, jscSafeModeEnv, type DaemonLaunchCommand } from './shared/daemon-binary.js';
 
 const MODULE_DIR: string = dirname(fileURLToPath(import.meta.url));
 const __dirname: string = resolveDistributionRoot(MODULE_DIR);
@@ -292,11 +292,11 @@ ${jscSafeModeEnvXml()}
  * (requires reinstalling the LaunchAgent to take effect).
  */
 export function jscSafeModeEnvXml(): string {
-  if (process.env.PORT_DADDY_JSC_SAFE_MODE === '0') return '';
-  return `        <key>BUN_JSC_useConcurrentGC</key>
-        <string>0</string>
-        <key>BUN_JSC_useConcurrentJIT</key>
-        <string>0</string>`;
+  // Render the shared jscSafeModeEnv() (single source of truth) as launchd plist entries.
+  // Byte-identical to the previous hand-written block; opt-out returns '' (empty entries).
+  return Object.entries(jscSafeModeEnv())
+    .map(([k, v]) => `        <key>${k}</key>\n        <string>${v}</string>`)
+    .join('\n');
 }
 
 /**
