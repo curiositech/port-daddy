@@ -161,6 +161,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   backend: 'notify',        // sets the active CLI/subscription backend (caller config); status form is read-only
   backup: 'notify',         // writes a durable snapshot of the registry DB; reversible, caller-scoped
   cut: 'notify',            // cuts a release: runs builds, writes dist/release/<v>, optional sign — local, caller-scoped
+  batten: 'silent',         // verify staged release artifacts (pure read); `batten imprint` writes a local release-imprint.json (caller-scoped, offline, no daemon/shared-state mutation)
   benchmark: 'notify',      // `benchmark run` makes paid multi-backend LLM calls; refined: list-models/list-conditions/report are silent reads
   // ── approval: mutates another agent's state, no data loss ────────────────
   // Top-level entries; subcommand refinement may downgrade.

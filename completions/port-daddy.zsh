@@ -2409,6 +2409,7 @@ _port_daddy() {
     'daemon:daemon lifecycle subcommands (status, log, doctor)'
     'setup:install daemon, MCP, FleetBar, and initialize a project'
     'cut:cut a release — build daemon + Rust + FleetBar, hash, optionally sign (pd cut)'
+    'batten:verify + imprint staged release artifacts against release-artifacts.json (pd batten)'
     'init:set up Port Daddy for this project (scan, fleet, MCP, git hook)'
     # Bonds / Wallets — FleetControl hardening
     'wallet:manage project USD wallets (show/top-up/history)'

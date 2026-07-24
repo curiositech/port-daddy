@@ -332,6 +332,10 @@ run_read "harbormaster status" harbormaster -- harbormaster status
 run_read "hm status"         hm           -- hm status
 run_read "review (usage)"    review       -- review
 run_read "dispatch (usage)"  dispatch     -- dispatch
+# batten: offline release-artifact gate. `batten help` prints usage (exit 0);
+# `verify`/`imprint` need a --staged-dir and are exercised in tests/unit/batten.test.js
+# + release.yml. The usage read proves the compiled batten module loaded and ran.
+run_read "batten (usage)"    batten       -- batten help
 # Relay status (ADR-0049). `relay status` is a pure GET /relay/status read; the
 # mutating subforms (relay url <value>, relay exchange) are NOT run. Against the
 # scratch daemon relay is unconfigured, so it prints the "disabled" banner. If

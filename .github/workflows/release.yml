@@ -87,10 +87,11 @@ jobs:
           # DIRECTORY. install-daemon.ts resolves `<root>/pd-bosun` first.
           cp core/target/release/pd-bosun dist/pd-bosun
           chmod +x dist/pd-bosun
-          # Fail the release if the supervisor binary is missing/empty — a daemon
-          # that ships without its watchdog is exactly the silent-death regression
-          # this PR closes.
-          test -s dist/pd-bosun
+          # NOTE: the old per-binary `test -s dist/pd-bosun` fail-loud check moved
+          # into the declarative `pd batten verify` gate below (release-artifacts.json
+          # declares pd-bosun required+executable). A daemon that ships without its
+          # watchdog is the silent-death regression #3496 closed — batten now guards
+          # it alongside every other required artifact instead of a one-off assert.
           ./dist/pd-bosun status || true  # smoke: the binary at least runs
 
       # Sign the macOS daemon + launcher with the Curiositech LLC (P5H9P59X2M)
@@ -176,24 +177,41 @@ jobs:
 
       - name: Stage squid tentacles (pd-hook-* + statusline)
         # Same failure class as the pd-bosun omission above: lib/squid/adapter.ts's
-        # tentaclePath() resolves pd-hook-{prompt,pre-tool,post-tool} at
-        # <install-root>/bin/<name> (SQUID_PROJECT_ROOT = __dirname/../.. , then
-        # bin/<name> — a subdirectory, NOT flat like pd-bosun). Nothing ever
-        # staged this bin/ subdirectory into dist/, so every packaged release
-        # shipped with the tentacles simply absent — `pd squid on`/`pd hooks
-        # install` fail with "missing tentacle binary" on every brew/tarball
-        # install, on every version, silently. Fail the release if any are
-        # missing/empty: a harness that ships with no hooks is exactly the
-        # silent-capability-loss regression the pd-bosun fix above exists to
-        # prevent, for a different binary.
+        # tentaclePath() resolves pd-hook-{prompt,pre-tool,post-tool} at execDir/<name>
+        # (flat, next to `pd`) OR execDir/bin/<name> (a bin/ subdirectory). Nothing
+        # ever staged the tentacles, so every packaged release shipped with them
+        # simply absent — `pd squid on`/`pd hooks install` fail with "missing
+        # tentacle binary" on every brew/tarball install, silently.
+        #
+        # Stage BOTH layouts the adapter accepts: flat next to `pd` (the preferred
+        # candidate) AND under bin/ (the fallback, which also carries pd-statusline).
+        # The old per-file `test -s` asserts are gone — release-artifacts.json now
+        # declares each tentacle required+executable and `pd batten verify` below is
+        # the single fail-loud gate for the whole cargo.
         run: |
           set -euo pipefail
           mkdir -p dist/bin
           for f in pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool pd-statusline; do
             cp "bin/$f" "dist/bin/$f"
             chmod +x "dist/bin/$f"
-            test -s "dist/bin/$f"
           done
+          for f in pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool; do
+            cp "bin/$f" "dist/$f"
+            chmod +x "dist/$f"
+          done
+
+      # THE generalized gate. Every required artifact (pd, port-daddy, its
+      # manifest, pd-bosun, the squid tentacles, pd-statusline) is declared in
+      # release-artifacts.json; `pd batten verify` asserts each is present,
+      # executable where required, and >= minBytes — collecting ALL failures and
+      # exiting nonzero with a per-artifact report. This REPLACES the scattered
+      # per-binary `test -s dist/<name>` asserts that each drifted silently and
+      # let releases ship with a missing watchdog / missing hooks GREEN. Running
+      # the just-built ./dist/pd also dogfoods that the shipped binary can run
+      # the gate offline. release-artifacts.json is resolved from the repo-root
+      # cwd, so no --manifest is needed.
+      - name: Batten — verify staged release artifacts (fail-loud gate)
+        run: ./dist/pd batten verify --staged-dir dist
 
       - name: Package binary
         # Ship pd-bosun (core/pd-bosun) inside the same tar as the daemon so a
@@ -203,24 +221,27 @@ jobs:
         # dir satisfies the daemon-relative fallback). Without this the tarball
         # had no watchdog and the KeepAlive supervisor job was silently skipped.
         #
-        # Also ship native/ — scripts/build-single-binary.mjs packages
-        # onnxruntime-node's runtime library (libonnxruntime.*.dylib /
-        # libonnxruntime.so.1) there (#3561). bun build --compile extracts the
-        # .node N-API binding at runtime but not its @rpath-linked sibling;
-        # lib/semantic-resolver.ts points DYLD_FALLBACK_LIBRARY_PATH /
-        # LD_LIBRARY_PATH at this directory before the embedding model loads.
-        #
-        # Squid tentacles ship in BOTH layouts lib/squid/adapter.ts's
-        # tentaclePath() resolves: FLAT next to `pd` (execDir/<name>, its first
-        # candidate) AND under bin/ (execDir/bin/<name>, the fallback) — the
-        # "Stage squid tentacles" step above populates dist/bin/ (incl.
-        # pd-statusline). A flat copy here covers the preferred candidate. What
-        # MUST be present is declared in release-artifacts.json; `pd batten
-        # verify` (below) is the single fail-loud gate over all of it.
-        run: |
-          cp bin/pd-hook-prompt bin/pd-hook-pre-tool bin/pd-hook-post-tool dist/
-          chmod +x dist/pd-hook-prompt dist/pd-hook-pre-tool dist/pd-hook-post-tool
-          cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json pd-bosun native pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool bin
+        # native/ (onnxruntime-node runtime libs, #3561) and the squid tentacles
+        # in BOTH layouts (flat + bin/, staged in the "Stage squid tentacles"
+        # step above) are packed here too. `pd batten verify` (above) already
+        # proved every required member is present before we seal the tar.
+        run: cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json pd-bosun native pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool bin
+
+      # Content-address the sealed cargo: sha256 every staged artifact into
+      # release-imprint.json and ship it as a release asset. This is the
+      # verifiable record of exactly which bytes went into the tarball — a
+      # downstream check (or `pd upgrade`) can confirm an install matches the
+      # imprint. Runs after Package so it hashes the same files that were tarred.
+      # Per-matrix filename (darwin/linux both run this job → same-named asset
+      # would clobber on the shared Release). Name it after the tarball it seals.
+      - name: Batten — imprint sealed release artifacts (sha256 record)
+        run: ./dist/pd batten imprint --staged-dir dist --out dist/${{ matrix.artifact }}-imprint.json
+
+      - name: Upload release imprint to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          files: dist/${{ matrix.artifact }}-imprint.json
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2

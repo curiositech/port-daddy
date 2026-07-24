@@ -2255,6 +2255,22 @@
       },
       "_note": "CLI / CI-only release engineering \u2014 a deliberate human or pipeline act, not an agent action, so no daemon routes or MCP surface (MCP_EXEMPT)."
     },
+    "batten": {
+      "description": "Declarative release-artifact packing gate. `pd batten verify --staged-dir dist` asserts every artifact declared in release-artifacts.json is present, executable where required, and >= minBytes \u2014 collecting ALL failures and exiting nonzero with a per-artifact report (generalizes the scattered per-binary `test -s` asserts). `pd batten imprint` sha256s the sealed cargo into release-imprint.json. Offline (node stdlib only), no daemon.",
+      "cli": [
+        "batten"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "batten"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "CLI / CI-only release engineering \u2014 runs in release.yml against the staged dist/ dir, not an agent action, so no daemon routes or MCP surface (MCP_EXEMPT)."
+    },
     "secrets": {
       "description": "Managed provider secret store \u2014 keychain-backed CRUD over allow-listed provider keys (generalizes /fleet/backend-secrets)",
       "cli": [
