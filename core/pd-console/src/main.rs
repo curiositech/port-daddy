@@ -336,6 +336,33 @@ fn main() {
         }
     }
 
+    // `--headless-capture-board-list <path>` — the "before a click" sibling of
+    // `--headless-capture-board`: same seeded cards, no card selected (no detail
+    // panel). Run both flags to get a genuine two-frame list→detail capture pair
+    // for PR visual evidence — real rendered pixels for both real pane states,
+    // not a single static screenshot standing in for "the feature works".
+    {
+        let args: Vec<String> = std::env::args().collect();
+        if let Some(i) = args.iter().position(|a| a == "--headless-capture-board-list") {
+            let out = args
+                .get(i + 1)
+                .map(String::as_str)
+                .filter(|a| !a.starts_with('-'))
+                .unwrap_or("headless-capture-board-list.png");
+            let png = headless_capture::render_blocks(&board_pane::sample_board_blocks_list_only(), &theme::DARK, 960).to_png();
+            match std::fs::write(out, &png) {
+                Ok(()) => {
+                    println!("pd-console headless-capture-board-list -> {out} ({} bytes)", png.len());
+                    return;
+                }
+                Err(e) => {
+                    eprintln!("pd-console headless-capture-board-list failed: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+    }
+
     // Seed operator presentation preferences before the window opens.
     app::init_theme_from_env();
     app::init_motion_from_env();

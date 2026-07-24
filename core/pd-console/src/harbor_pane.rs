@@ -1373,6 +1373,7 @@ impl Pane for HarborPane {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::util::block_on;
     use serde_json::json;
 
     /// Load a frozen F0 fixture from schemas/agent-harbor/v0/fixtures/ — the
@@ -1954,22 +1955,4 @@ mod tests {
         )));
     }
 
-    /// Minimal block_on for the no-yield futures in these tests (gated mutate
-    /// paths return before any IO).
-    fn block_on<F: std::future::Future>(mut fut: F) -> F::Output {
-        use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
-        fn noop(_: *const ()) {}
-        fn clone(_: *const ()) -> RawWaker {
-            RawWaker::new(std::ptr::null(), &VTABLE)
-        }
-        static VTABLE: RawWakerVTable = RawWakerVTable::new(clone, noop, noop, noop);
-        let waker = unsafe { Waker::from_raw(RawWaker::new(std::ptr::null(), &VTABLE)) };
-        let mut cx = Context::from_waker(&waker);
-        let mut fut = unsafe { std::pin::Pin::new_unchecked(&mut fut) };
-        loop {
-            if let Poll::Ready(v) = fut.as_mut().poll(&mut cx) {
-                return v;
-            }
-        }
-    }
 }

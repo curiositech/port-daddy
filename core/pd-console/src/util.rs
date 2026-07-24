@@ -74,6 +74,29 @@ pub fn age_short(epoch_ms: i64) -> String {
     }
 }
 
+/// Minimal `block_on` for panes' gated-mutate tests, whose futures never
+/// actually yield (the gated paths return before any real IO) — so a full
+/// executor (tokio, futures) would be pure overhead just to poll once.
+/// Shared here because `board_pane.rs` and `harbor_pane.rs` each defined a
+/// byte-identical copy (code review caught the duplication on PR #3657).
+#[cfg(test)]
+pub(crate) fn block_on<F: std::future::Future>(mut fut: F) -> F::Output {
+    use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
+    fn noop(_: *const ()) {}
+    fn clone(_: *const ()) -> RawWaker {
+        RawWaker::new(std::ptr::null(), &VTABLE)
+    }
+    static VTABLE: RawWakerVTable = RawWakerVTable::new(clone, noop, noop, noop);
+    let waker = unsafe { Waker::from_raw(RawWaker::new(std::ptr::null(), &VTABLE)) };
+    let mut cx = Context::from_waker(&waker);
+    let mut fut = unsafe { std::pin::Pin::new_unchecked(&mut fut) };
+    loop {
+        if let Poll::Ready(v) = fut.as_mut().poll(&mut cx) {
+            return v;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

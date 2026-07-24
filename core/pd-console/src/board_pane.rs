@@ -175,11 +175,12 @@ impl BoardPane {
     }
 }
 
-/// Deterministic seeded blocks for offscreen visual proof (`--headless-capture-gpui`)
-/// — no daemon round-trip, so capture runs from any agent shell in seconds.
-/// Mirrors real API shapes exactly (same fields `BoardItem::from_value` reads).
+/// Shared seed data for the two offscreen visual-proof entrypoints below — the
+/// same six cards either project renders, so a "list → detail" capture pair
+/// shows a genuine before/after of the one real interaction (`selected`
+/// toggling on a card click), not two unrelated snapshots.
 #[cfg(feature = "gpui")]
-pub fn sample_board_blocks() -> Vec<Block> {
+fn seeded_board_pane() -> BoardPane {
     let mut p = BoardPane::new();
     p.items = vec![
         BoardItem { slug: "adr-0086-phase-1-planner-schema".into(), summary: "Add kind/priority/estimate columns to roadmap_items.".into(), status: "done".into(), harbor: "port-daddy".into(), deps: vec![] },
@@ -190,7 +191,27 @@ pub fn sample_board_blocks() -> Vec<Block> {
         BoardItem { slug: "gantt-real-estimates".into(), summary: "Wire roadmap_items.estimate into the Gantt scheduler.".into(), status: "merge".into(), harbor: "port-daddy".into(), deps: vec![] },
     ];
     p.claims.insert("roadmap-dedup-cleanup".into(), "agent-dedup-cleanup-9f2a".into());
+    p
+}
+
+/// Deterministic seeded blocks for offscreen visual proof (`--headless-capture-board`)
+/// — no daemon round-trip, so capture runs from any agent shell in seconds.
+/// Mirrors real API shapes exactly (same fields `BoardItem::from_value` reads).
+/// Detail panel open (card 1 selected) — the "after a click" half of the pair.
+#[cfg(feature = "gpui")]
+pub fn sample_board_blocks() -> Vec<Block> {
+    let mut p = seeded_board_pane();
     p.selected = Some(1);
+    p.view()
+}
+
+/// Same seed, no card selected — the "before a click" half of the pair, used by
+/// `--headless-capture-board-list` alongside [`sample_board_blocks`] to produce
+/// a genuine two-frame list→detail capture (real rendered pixels, not fabricated
+/// motion) for PR visual-artifact evidence.
+#[cfg(feature = "gpui")]
+pub fn sample_board_blocks_list_only() -> Vec<Block> {
+    let p = seeded_board_pane();
     p.view()
 }
 
@@ -322,6 +343,7 @@ impl Pane for BoardPane {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::util::block_on;
     use serde_json::json;
 
     fn item(slug: &str, status: &str) -> BoardItem {
@@ -378,26 +400,6 @@ mod tests {
         // clicking the same row again deselects
         block_on(p.mutate(&daemon, SurfaceAction::SelectRow { index: 0 })).unwrap();
         assert_eq!(p.selected, None);
-    }
-
-    /// Minimal block_on for the no-yield futures in these tests (mirrors
-    /// harbor_pane.rs's identical helper — mutate's gated paths return before
-    /// any real IO, so no real executor is needed).
-    fn block_on<F: std::future::Future>(mut fut: F) -> F::Output {
-        use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
-        fn noop(_: *const ()) {}
-        fn clone(_: *const ()) -> RawWaker {
-            RawWaker::new(std::ptr::null(), &VTABLE)
-        }
-        static VTABLE: RawWakerVTable = RawWakerVTable::new(clone, noop, noop, noop);
-        let waker = unsafe { Waker::from_raw(RawWaker::new(std::ptr::null(), &VTABLE)) };
-        let mut cx = Context::from_waker(&waker);
-        let mut fut = unsafe { std::pin::Pin::new_unchecked(&mut fut) };
-        loop {
-            if let Poll::Ready(v) = fut.as_mut().poll(&mut cx) {
-                return v;
-            }
-        }
     }
 
     #[test]
