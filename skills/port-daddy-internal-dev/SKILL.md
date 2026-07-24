@@ -324,7 +324,7 @@ work; never reset or clobber the main checkout.
 
 - **`git add -A` is refused by the pd-shim.** Stage explicit paths — ideally
   `git add $(git diff --cached --name-only)` for exactly what your session
-  claims. There is no in-band escape (ADR-0102); the refusal wants a narrower,
+  claims. There is no in-band escape (ADR-0119); the refusal wants a narrower,
   claimed stage set, not a way around itself.
 - **The `~/.port-daddy/bin/git` shim sets `core.pager=delta` → `bat`.** If
   `bat` is absent, `git log` / `git show` / `git commit` emit `command not
@@ -368,7 +368,7 @@ The friction below costs every fresh session real time. Internalize it.
   guard … could not be verified"** (not the routine advisory refusal) means the
   daemon-side guard couldn't confirm your session. Re-run `pd begin`, then
   retry. If the daemon is genuinely down, that is an operator escalation —
-  there is no agent-side flag that stands the guard down (ADR-0102).
+  there is no agent-side flag that stands the guard down (ADR-0119).
 
 ## Distribution Mirror Sync
 

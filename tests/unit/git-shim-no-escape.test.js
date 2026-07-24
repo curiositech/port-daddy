@@ -1,4 +1,4 @@
-// ADR-0102 red-team fixture: the git-guard has NO agent-mintable, agent-
+// ADR-0119 red-team fixture: the git-guard has NO agent-mintable, agent-
 // documented in-band escape. These assertions keep the removed PD_SHIM_OFF
 // bypass removed — a future re-introduction (in the shim body, the pre-push
 // hook, the guard denial path, or any agent-facing skill doc) fails CI.
@@ -19,7 +19,7 @@ const NO_ESCAPE_SURFACES = [
   'skills/port-daddy-internal-dev/SKILL.md',
 ];
 
-describe('ADR-0102: no agent-mintable git-guard escape', () => {
+describe('ADR-0119: no agent-mintable git-guard escape', () => {
   test.each(NO_ESCAPE_SURFACES)('%s names no in-band bypass', (rel) => {
     // The escape env var must appear NOWHERE on these surfaces — not as a
     // mechanism, not as documentation, not as an example.

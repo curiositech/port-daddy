@@ -1,4 +1,4 @@
-# ADR-0102 — Provenance-Gated Git Guard: No Agent-Mintable Escape
+# ADR-0119 — Provenance-Gated Git Guard: No Agent-Mintable Escape
 
 - **Status:** Proposed
 - **Date:** 2026-07-22

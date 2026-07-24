@@ -6,7 +6,7 @@
 # This is the second layer of the destructive-git-ban defense. The
 # pd-shim (~/.port-daddy/bin/git) is the first (advisory) layer; this hook
 # is the enforced layer — it runs from ANY git binary, honors no env flag,
-# and cannot be stood down in-band (ADR-0102).
+# and cannot be stood down in-band (ADR-0119).
 #
 # Usage:
 #   bash scripts/install-pre-push-hook.sh           # current repo
@@ -44,7 +44,7 @@ cat > "$HOOK" <<'HOOK_EOF'
 #     <remote_sha>, refuse.
 #   - If <local_sha> is all-zeros (deletion push), refuse on protected.
 #
-# No in-band bypass (ADR-0102): this hook is the binary-agnostic wall — it
+# No in-band bypass (ADR-0119): this hook is the binary-agnostic wall — it
 # fires from any git binary, so it must NOT honor an env flag. Protected-
 # branch force-push/deletion refusal holds regardless of environment.
 set -euo pipefail

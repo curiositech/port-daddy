@@ -42,7 +42,7 @@ export const GIT_SHIM_CONTENT = `#!/usr/bin/env bash
 #   update-ref refs/heads/main|master|release/*  (direct ref rewrite)
 #   branch -D main|master|release/*          (protected branch deletion)
 #
-# There is NO in-band escape (see ADR-0102). A refused verb is refused;
+# There is NO in-band escape (see ADR-0119). A refused verb is refused;
 # coordinate through the daemon and retry. The shim is advisory working-tree
 # hygiene — the protected-branch wall is the binary-agnostic pre-push hook,
 # and the real enforcement of record is off-box (branch protection).
@@ -73,7 +73,7 @@ if [ -z "$real_git" ]; then
   exit 127
 fi
 
-# No in-band escape (ADR-0102): the shim never stands down on an env flag.
+# No in-band escape (ADR-0119): the shim never stands down on an env flag.
 # An agent-settable env var was a hole through both this layer and the
 # pre-push hook, taught to agents in the skill docs — removed.
 

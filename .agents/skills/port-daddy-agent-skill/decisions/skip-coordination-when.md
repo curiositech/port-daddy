@@ -66,7 +66,7 @@ START: I'm tempted to skip pd ceremony for this task
 ## Bypassing the git shim
 
 You can't, and you shouldn't want to. The shim exposes no agent-usable
-escape (ADR-0102). A refused destructive verb means: fix the guard input
+escape (ADR-0119). A refused destructive verb means: fix the guard input
 (claim the files, release a stale claim, add a pd note) and retry — or,
 if you believe the refusal is genuinely wrong, escalate to the operator.
 "Make the warning go away" is exactly how anti-patterns harden.
