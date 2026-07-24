@@ -512,7 +512,7 @@ const EMPTY_TRANSCRIPT = `<div class="empty">
   full transcript.</p>
 </div>`;
 
-function renderRunPage(run: FleetRunRow, steps: FleetRunStepRow[]): string {
+export function renderRunPage(run: FleetRunRow, steps: FleetRunStepRow[]): string {
   const distinctShips = [
     ...new Set((run.ships_csv ? run.ships_csv.split(',') : []).map(s => s.trim()).filter(Boolean)),
   ];
@@ -527,9 +527,9 @@ function renderRunPage(run: FleetRunRow, steps: FleetRunStepRow[]): string {
     : prLabel;
   const inner = `<main class="page">
     <div class="masthead">
-      <span class="eyebrow">Port Daddy Fleet · deliberation transcript</span>
-      <h1 class="ko">Receipts — <span class="rec">verifiable</span>, not promised<span class="ko-over" aria-hidden="true">Receipts — <span class="rec">verifiable</span>, not promised</span></h1>
-      <span class="lede">The Strava-map of code work: which agents deliberated, what they found, and what it cost — never your source. This page mirrors exactly what the fleet posted to the pull request.</span>
+      <span class="eyebrow">Port Daddy Fleet · review receipt</span>
+      <h1 class="ko">What the fleet <span class="rec">found</span><span class="ko-over" aria-hidden="true">What the fleet <span class="rec">found</span></span></h1>
+      <span class="lede">Every review bot's pass on this PR — the files it read, the problems it raised, the calls it made. It's the same thing they posted in the comments, gathered in one place. Your code never leaves GitHub; the bots only see the diff.</span>
     </div>
 
     <div class="receipt-id">
@@ -557,13 +557,13 @@ function renderRunPage(run: FleetRunRow, steps: FleetRunStepRow[]): string {
       <span class="eyebrow">Deliberation</span>
       <h2>The transcript</h2>
     </div>
-    <p class="tx-sub">Each agent&rsquo;s reasoning, in order — map &rarr; reduce &rarr; finding &rarr; verdict.
-    Terminal markers show what was posted back to GitHub.</p>
+    <p class="tx-sub">Read it top to bottom. Each bot chunks the diff, weighs it, and files what it found;
+    the last rows are what it posted back to GitHub.</p>
     ${steps.length ? renderShips(steps, run.created_at) : EMPTY_TRANSCRIPT}
 
     <footer class="receipt-foot">Run <code>${esc(run.id)}</code> · delivery <code>${esc(run.delivery_id)}</code>.
-    This is a capability link — anyone holding this exact URL can view the page, and its contents match
-    what the fleet posted as PR comments. It never exposes your source code.</footer>
+    Anyone with this exact link can open it — it shows the review, not your source. Same contents the
+    fleet posted in the PR.</footer>
   </main>`;
   return shell(`${run.repo_full_name} PR #${run.pr_number} — Port Daddy Fleet`, inner);
 }
