@@ -2272,6 +2272,7 @@ _port_daddy() {
     'done:end a work session (end session + unregister agent)'
     'whoami:show current agent/session context'
     'w:show current context (alias for whoami)'
+    'account:sign in to your Port Daddy cloud account (GitHub device flow)'
     'attention:read inbox + subscribed channels in one call (run first thing every session)'
     'nudge:suggestibility nudges — claim-overlap heads-up (list/accept/decline/scan)'
     'with-lock:run a command while holding a lock'

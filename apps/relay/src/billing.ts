@@ -25,7 +25,7 @@ import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha256';
 import { timingSafeEqual, toHex, randomHex } from './crypto.js';
 import { operatorOnly } from './handlers.js';
-import { resolveSession } from './auth-github.js';
+import { resolveSession, userOwnsInstallation } from './auth-github.js';
 import type { Env, RelayError } from './types.js';
 
 // ── Credit packs (predefined; amounts in USD dollars) ─────────────────────────
@@ -252,6 +252,11 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
   if (!pack) {
     return err('BAD_PACK', `Unknown pack '${packId}'; choose one of ${Object.keys(CREDIT_PACKS).join(', ')}`, 400);
   }
+  // Tenant-ownership gate: don't let a session seed a Stripe customer / credit
+  // attribution for an installation it doesn't own.
+  if (!(await userOwnsInstallation(env, session, installationId))) {
+    return err('FORBIDDEN', 'you do not own this installation', 403);
+  }
 
   const customerId = await getOrCreateCustomer(env, installationId);
   if (!customerId) return err('STRIPE_ERROR', 'Could not create a Stripe customer', 502);
@@ -440,9 +445,14 @@ export async function handleBillingBalance(
   }
   const operatorReject = operatorOnly(request, env);
   if (operatorReject) {
-    // Not the operator — allow a signed-in session instead.
+    // Not the operator — allow a signed-in session, but ONLY for an installation
+    // GitHub confirms this user owns (else any session could enumerate every
+    // tenant's balance/spend by installation id).
     const session = await resolveSession(request, env);
     if (!session) return err('UNAUTHENTICATED', 'operator token or session required', 401);
+    if (!(await userOwnsInstallation(env, session, installationId))) {
+      return err('FORBIDDEN', 'you do not own this installation', 403);
+    }
   }
   const balanceUsd = await getBalance(env.DB, installationId);
   return Response.json({ installationId, balanceUsd });
@@ -472,6 +482,11 @@ export async function handlePortalLink(request: Request, env: Env): Promise<Resp
   const installationId = Number(body.installationId);
   if (!Number.isInteger(installationId) || installationId <= 0) {
     return err('BAD_REQUEST', 'installationId (positive integer) required', 400);
+  }
+  // Tenant-ownership gate: without this, any signed-in user could open ANOTHER
+  // tenant's Stripe Billing Portal (invoices, payment methods) by id.
+  if (!(await userOwnsInstallation(env, session, installationId))) {
+    return err('FORBIDDEN', 'you do not own this installation', 403);
   }
 
   const customer = await env.DB.prepare(

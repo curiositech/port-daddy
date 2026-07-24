@@ -386,10 +386,14 @@ describe('countBunCrashSignatures / assessCrashSignature', () => {
     expect(a.hint).toContain('#676');
   });
 
-  test('assessCrashSignature: multiple crashes is CRITICAL (crash-looping)', () => {
+  test('assessCrashSignature: multiple crashes is CRITICAL but does not overstate a possibly-historical scan', () => {
     const a = assessCrashSignature({ crashCount: 4 });
     expect(a.severity).toBe('critical');
-    expect(a.detail).toContain('crash-looping');
+    expect(a.detail).toContain('crashed repeatedly');
+    // Honesty (3.26.2): a log-tail scan (possibly unrotated) must NOT assert present-tense
+    // "the daemon is crash-looping" as fact — it points at live uptime instead.
+    expect(a.detail).not.toMatch(/is crash-looping/);
+    expect(a.detail).toMatch(/pd status/);
   });
 
   test('assessCrashSignature hint says downgrading does not fix it', () => {
@@ -711,6 +715,17 @@ describe('resolveBosunBinary', () => {
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
+  });
+
+  // Regression (3.26.2): a compiled `pd` whose `__dirname` collapses to `/` (so
+  // `join(__dirname,'..','..')` is `/`) must NOT resolve the distribution root to `/`. That
+  // made doctor print `resolvedRoot=/`, `expectedBinary=/dist/daemon/... (MISSING)` yet report
+  // a GREEN "Resource directory" check, AND broke `pd setup` (it looked for `/node_modules/.bin/tsx`).
+  // `/` now routes through execPath-based resolution like a bun-virtual path.
+  test('resolveDistributionRoot("/") does not return "/" — routes through execPath', () => {
+    const root = resolveDistributionRoot('/', {}, '/opt/homebrew/Cellar/port-daddy/3.26.2/bin/pd');
+    expect(root).not.toBe('/');
+    expect(root).toBe('/opt/homebrew/Cellar/port-daddy/3.26.2/bin');
   });
 
   // Regression (2026-07-23): Homebrew installs the watchdog at `<root>/bin/pd-bosun`

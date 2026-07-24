@@ -102,6 +102,9 @@ import { createCounters } from './lib/counters.js';
 import { createMetricsRegistry } from './lib/metrics-registry.js';
 import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
+import { createActorSouls } from './lib/actor-souls.js';
+import { migrateActorSouls } from './scripts/migrate-actor-souls.js';
+import { homedir } from 'node:os';
 import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
 import { createParley } from './lib/parley.js';
@@ -192,7 +195,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.26.1';
+const EMBEDDED_PACKAGE_VERSION: string = '3.27.0';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -592,8 +595,28 @@ const bonds = createBonds(db, {
   harbors, noteEncryption,
   broadcast: (channel, event) => messaging.publish(channel, event),
 });
+// ADR-0040 keystone: daemon-minted, non-forgeable actor identity. The souls
+// store is the spend-choke input for budget-guard — it resolves each agentId
+// (minted id or display alias) to a soul + class, soul-sources the ceiling, and
+// meters newcomers against the SHARED per-project pool so minting fresh ids buys
+// no new budget. HONEST LIMIT: the anti-launder only fully bites once the `door`
+// lane makes the SQLite write-boundary real (a same-UID agent can otherwise
+// write a ledger/pool row directly). This is ADR-0040's explicit non-goal.
+const actorSouls = createActorSouls(db);
+// Grandfather EXISTING agents (from budget_ledger/bond_escrow/agents) into
+// trusted souls before budgetGuard starts routing spend through the souls
+// choke below -- otherwise every already-running agent looks like a brand
+// new "unknown" soul on this boot and gets capped at the newcomer pool floor
+// instead of its real budget. Idempotent (see scripts/migrate-actor-souls.ts);
+// safe to run on every boot, not just the first one after this lands.
+try {
+  migrateActorSouls(db, { apply: true, credentialsDir: join(homedir(), '.port-daddy', 'actor-credentials') });
+} catch (err) {
+  console.error('[actor-souls] grandfather migration failed (spend routing may throttle pre-existing agents until this is fixed):', err);
+}
 const budgetGuard = createBudgetGuard(db, {}, {
   broadcast: (channel, event) => messaging.publish(channel, event),
+  souls: actorSouls,
 });
 
 // Late-binding spawner ref: cost-tracker needs to trigger spawner.kill() on
@@ -1401,7 +1424,7 @@ await registerAllRoutes(
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     commitments, obligationMonitor, suggestions,
-    bonds, budgetGuard, budgetPause,
+    bonds, budgetGuard, budgetPause, actorSouls,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,
