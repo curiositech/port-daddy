@@ -25,9 +25,13 @@ START: I'm tempted to skip pd ceremony for this task
 │   └─ NO  → don't skip.
 │
 ├─ Am I in EMERGENCY MODE (production down, security hot, user says "now")?
-│   ├─ YES → use PD_SHIM_OFF=1 for the immediate operation, BUT:
-│   │        - drop a pd note describing what you bypassed and why.
-│   │        - publish to coordination:inconsistency that you went off-protocol.
+│   ├─ YES → skip the SLOW parts (deep briefing, worktree ceremony) — but
+│   │        emergency is not a self-serve bypass of the git guard/shim.
+│   │        - drop a pd note describing the emergency and what you're doing.
+│   │        - publish to coordination:inconsistency that you went fast-path.
+│   │        - if a guarded destructive verb is genuinely the move, that is
+│   │          an OPERATOR call — escalate (see guard-or-shim-refused-me.md),
+│   │          don't mint your own PD_SHIM_OFF.
 │   │        - re-engage normal ceremony as soon as the fire is out.
 │   └─ NO  → don't skip. The task feels urgent but isn't.
 │
@@ -63,21 +67,25 @@ START: I'm tempted to skip pd ceremony for this task
 - Reading documentation to answer a question (no edits planned).
 - Sanity-checking that a command exists with `which` or `command -v`.
 
-## Bypassing the git shim (PD_SHIM_OFF=1)
+## The git shim and the guard have no agent-mintable bypass
 
-Only use when:
+This is the ADR-0102 rule: a documented bypass is not a control. If you can
+mint your own escape from the guard, the guard protects nothing. So do not
+reach for `PD_SHIM_OFF=1`, `git --no-verify`, `-c core.hooksPath=/dev/null`,
+or absolute-path git (`/usr/bin/git ...`) to get past a refusal. The
+mechanism may still exist in your installed build; that is not permission —
+only the operator authorizes it, through their own surface.
 
-- You're in an active recovery and the shim refusal is blocking the recovery.
-- The destructive verb is the right move and you've verified no active claims.
-- You will leave a pd note describing the bypass within the same session.
+When the shim or Coordination Guard refuses you, the refusal is almost always
+pointing at a real coordination problem:
 
-Never use to "make the warning go away." That's how anti-patterns harden.
+1. Your shell lost its session anchor (likely a cwd mismatch). Run
+   `pd begin "<task>" --lifecycle durable` here.
+2. You staged a path you never claimed. `pd session files add <path>`.
+3. A live or dead session holds the surface. Salvage the dead; coordinate
+   with the live.
 
-## Bypassing Coordination Guard
-
-There is no built-in bypass. If you NEED to commit without an active session, that's a signal that:
-
-1. Your shell lost its session anchor (likely due to cwd mismatch). Run `pd begin "<task>" --lifecycle durable` here.
-2. The repo's guard mode shouldn't be `enforce` for this surface. Discuss before downgrading.
-
-Don't `git commit -c core.hooksPath=/dev/null`. That bypass is itself a violation worth a coordination:inconsistency post.
+Fix the guard INPUT, or — if you're genuinely blocked (daemon down, or you
+believe the refusal is wrong) — escalate to the operator. The full tree is
+[guard-or-shim-refused-me.md](guard-or-shim-refused-me.md). Never "make the
+warning go away"; that's how anti-patterns harden.

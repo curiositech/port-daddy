@@ -9,6 +9,7 @@ Branching from a vague situation to the right next move. Tables answer "what doe
 | [who-do-i-message.md](who-do-i-message.md) | You have a fact, blocker, or escalation. Picks the right durable surface (actor / channel / note / tuple / pheromone). |
 | [should-i-fork-subagent.md](should-i-fork-subagent.md) | Considering delegating to a sub-agent. Picks the fork pattern, or skips it. |
 | [skip-coordination-when.md](skip-coordination-when.md) | Tempted to skip `pd briefing`/`pd begin`/claims. Lists the genuine exceptions (small) and look-alikes that still require ceremony. |
+| [guard-or-shim-refused-me.md](guard-or-shim-refused-me.md) | The Coordination Guard blocked your commit, or the pd-shim refused a destructive verb. Fix the guard INPUT or escalate — there is no agent-mintable bypass (ADR-0102). |
 
 These trees are intentionally opinionated. They reflect the real decision points seen in this repo, not theoretical maximums.
 
