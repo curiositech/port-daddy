@@ -2,7 +2,7 @@
   "generatedAt": 1784417300739,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 233,
+  "count": 235,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -653,6 +653,11 @@
       "slug": "dev-berth-daemon-registration",
       "status": "now",
       "summaryMd": "WIP (operator flagged unfinished 2026-07-14): every daemon launched locally for a dev berth must self-register in ~/.port-daddy/dev-daemons.json so FleetBar/Control Center can see it — else dev daemons are invisible in the sanctioned shell (the show-me-runbook hard rule: dev-triple launches with PD_DAEMON_TIER/LABEL/SOURCE_DIR so the berth registers). Evidence tonight: lsof showed a dev-latest daemon on :9886 and multiple dispatch-worktree daemons that FleetBar has no view of. Finish: on daemon boot, if a non-prod tier/label is set, upsert the berth into dev-daemons.json (pid, port, tier, label, sourceDir, gitRev, health-url); prune dead berths on read; every dev-berth launch path (pd dev up, package-console --devbuild, dispatch worktree daemons, dev-triple) goes through it. Acceptance: launch a dev berth by any path and it appears in FleetBar's Daemons list with correct tier/label; killing it prunes it. Owner: dev-berth dispatch. Decision-type: empirical."
+    },
+    {
+      "slug": "document-operator-raw-git-escape",
+      "status": "backlog",
+      "summaryMd": "Operator-only guide for the emergency raw-git escape path (real git by absolute path) when the daemon is down; kept out of all agent-facing skill surfaces per ADR-0102, with an anti-leak guard test."
     },
     {
       "slug": "durable-agent-continuation-conformance-matrix",
