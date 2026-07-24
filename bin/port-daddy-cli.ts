@@ -136,6 +136,7 @@ import {
   // Durable backups of port-registry.db (ADR-0037)
   handleBackup,
   handleCut,
+  handleBatten,
   handleRestore,
   // Honest attestation / loud-fail invariants (ADR-0045)
   handleAttest,
@@ -1372,7 +1373,7 @@ Run: pd learn`,
 const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'tube', 'wait', 'lock', 'unlock', 'locks',
-  'up', 'down', 'setup', 'init', 'cut', 'scan', 's', 'projects', 'p',
+  'up', 'down', 'setup', 'init', 'cut', 'batten', 'scan', 's', 'projects', 'p',
   'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'send', 'sent', 'log', 'activity',
   'wallet', 'bond',
   'session', 'sessions', 'takeover', 'note', 'notes', 'say',
@@ -2975,6 +2976,10 @@ export async function main(): Promise<void> {
 
       case 'cut':
         await handleCut(positional, options);
+        break;
+
+      case 'batten':
+        await handleBatten(positional, options);
         break;
 
       case 'attest':

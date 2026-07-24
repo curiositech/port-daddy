@@ -105,7 +105,7 @@ set -l __pd_commands \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
     'start' 'stop' 'restart' 'status' 'install' 'install-bosun' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'self-update' 'upgrade' 'mcp' \
-    'setup' 'init' 'cut' 'hooks' \
+    'setup' 'init' 'cut' 'batten' 'hooks' \
     'version' 'help'
 
 # Register each command for both `port-daddy` and `pd`
@@ -498,6 +498,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a setup -d 'Install daemon, MCP, FleetBar, and init a project'
     complete -c $prog -n __pd_needs_command -a init -d 'Set up Port Daddy for this project (scan, fleet, MCP, git hook)'
     complete -c $prog -n __pd_needs_command -a cut -d 'Cut a release — build daemon + Rust + FleetBar, hash, optionally sign'
+    complete -c $prog -n __pd_needs_command -a batten -d 'Verify + imprint staged release artifacts against release-artifacts.json'
 
     # Sugar (compound commands)
     complete -c $prog -n __pd_needs_command -a begin -d 'Begin a work session (register + start)'
