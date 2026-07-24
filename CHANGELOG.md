@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.27.0] - 2026-07-23
+
+### Added
+- **`pd account` — GitHub device-flow login for the CLI (ADR-0101 Phase 1).** `pd account login` (alias `pair`) runs the GitHub device flow, opens the browser, and stores a `pdu_` personal access token at `~/.port-daddy/account.json` (0600); `pd account status | logout | token` round it out. This gives the CLI (and, next, FleetBar / pd-console) a real cloud identity. Relay-side: a `user_tokens` table (SHA-256 of the token only, revocable), `POST /auth/device/start` + `/auth/device/token` (GitHub device-flow proxy — GitHub tokens never leave the relay), and `GET /auth/whoami` (accepts a `pdu_` bearer or the browser session cookie). Requires "Enable Device Flow" on the GitHub App and the `user_tokens` D1 migration.
+- **Storefront account surfaces (ADR-0101 Phase 1).** Server-rendered, script-free `/login` and `/account` pages on the relay, built to the ch20 story-linework design (warm substrate, cobalt knockout slab, ICS signal flags). GitHub login now lands on a real signed-in `/account` page (identity plate, export/delete) instead of a 404; `/` redirects to `/account`.
+- **`activate-accounts.sh`** — one-shot operator helper to set the six accounts/login/run-page Worker secrets across the relay + fleet-executor.
+- **Runtime egress-assertion gate** (`lib/safe/egress-assertion.ts`, ADR-0101 Critical 1) — fail-closed "local-only uploads nothing" check with a `verified` flag so an unobservable host is never a silent pass.
+
+### Fixed
+- **`pd squid hooks` on a compiled install** — the `pd-hook-*` tentacles are now shipped in the release tarball next to `pd`, and `tentaclePath()` resolves them relative to `process.execPath` instead of a synthetic `import.meta.url` (which collapsed to a bogus `/bin/pd-hook-prompt` in the single-file binary).
+- **CSRF defense-in-depth** on `POST /account/delete` + `/auth/logout` — cross-origin requests are refused (403) on top of the existing `SameSite=Lax` session cookie.
+
 ## [3.26.4] - 2026-07-23
 
 ### Fixed
