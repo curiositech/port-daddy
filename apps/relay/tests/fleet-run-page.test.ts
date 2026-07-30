@@ -206,6 +206,91 @@ describe('fleet run page rendering', () => {
     expect(html).not.toContain('href="javascript:');
   });
 
+  // ── English narratives, findings review, and MAP consolidation ─────────────
+
+  function makeRichSteps(): FleetRunStepRow[] {
+    const t0 = 1_700_000_000;
+    return [
+      // Three MAP chunks that should collapse into ONE consolidated line.
+      { run_id: RUN_ID, seq: 1, kind: 'map-chunk', ship: 'code-reviewer', title: 'MAP chunk 1/3',
+        detail: JSON.stringify({ chunkIndex: 0, chunkCount: 3, outputLength: 300 }), created_at: t0 + 5 },
+      { run_id: RUN_ID, seq: 2, kind: 'map-chunk', ship: 'code-reviewer', title: 'MAP chunk 2/3',
+        detail: JSON.stringify({ chunkIndex: 1, chunkCount: 3, outputLength: 200 }), created_at: t0 + 6 },
+      { run_id: RUN_ID, seq: 3, kind: 'map-chunk', ship: 'code-reviewer', title: 'MAP chunk 3/3',
+        detail: JSON.stringify({ chunkIndex: 2, chunkCount: 3, outputLength: 100 }), created_at: t0 + 7 },
+      { run_id: RUN_ID, seq: 4, kind: 'reduce', ship: 'code-reviewer', title: 'REDUCE pd-code-reviewer',
+        detail: JSON.stringify({ chunkCount: 3, outputLength: 512 }), created_at: t0 + 8 },
+      // Reviewer verdict stores the raw Finding[] as detail.
+      { run_id: RUN_ID, seq: 5, kind: 'ship-verdict', ship: 'code-reviewer', title: 'pd-code-reviewer: BLOCK',
+        detail: JSON.stringify([
+          { path: 'src/a.ts', line: 42, severity: 'HIGH', body: 'Null deref when x is undefined' },
+          { path: 'src/b.ts', line: 7, severity: 'LOW', body: 'Nit: rename foo' },
+        ]), created_at: t0 + 9 },
+      { run_id: RUN_ID, seq: 6, kind: 'review-posted', ship: 'code-reviewer', title: 'Posted review for pd-code-reviewer',
+        detail: JSON.stringify({ posted: true }), created_at: t0 + 10 },
+      { run_id: RUN_ID, seq: 7, kind: 'ship-skipped', ship: 'red-team', title: 'pd-red-team: skipped — off-surface diff',
+        detail: JSON.stringify({ reason: 'off-surface diff', changedPathCount: 3 }), created_at: t0 + 11 },
+      { run_id: RUN_ID, seq: 8, kind: 'check-completed', ship: null, title: 'Check concluded: failure',
+        detail: JSON.stringify({ conclusion: 'failure' }), created_at: t0 + 12 },
+    ];
+  }
+
+  it('consolidates repetitive MAP-chunk steps into one line, preserving the per-chunk breakdown', async () => {
+    const html = await openPage(makeRun(), makeRichSteps());
+    // One English summary line instead of three near-identical rows.
+    expect(html).toContain('Scanned the diff across 3 chunks');
+    expect(html).toContain('600 chars of analysis'); // 300 + 200 + 100
+    expect((html.match(/Scanned the diff across/g) ?? []).length).toBe(1);
+    // The detail is not lost — each original chunk title survives in the breakdown.
+    expect(html).toContain('Per-chunk breakdown');
+    expect(html).toContain('MAP chunk 1/3');
+    expect(html).toContain('MAP chunk 3/3');
+    // The old generic uppercase "kind" chip is gone.
+    expect(html).not.toContain('class="kind"');
+  });
+
+  it('describes each step in plain English instead of a bare machine kind', async () => {
+    const html = await openPage(makeRun(), makeRichSteps());
+    expect(html).toContain('Merged the findings from 3 diff chunks');
+    expect(html).toContain('reviewed the diff and returned BLOCK with 2 findings');
+    // The apostrophe is HTML-escaped (&#39;) — assert around it.
+    expect(html).toContain('Posted pd-code-reviewer');
+    expect(html).toContain('review to the pull request');
+    expect(html).toContain('Skipped pd-red-team — off-surface diff');
+    expect(html).toContain('Fleet check concluded: failure');
+  });
+
+  it('renders findings as a review with line annotations, not a raw JSON dump', async () => {
+    const html = await openPage(makeRun(), makeRichSteps());
+    expect(html).toContain('src/a.ts:42');
+    expect(html).toContain('Null deref when x is undefined');
+    expect(html).toContain('🔴 HIGH');
+    expect(html).toContain('src/b.ts:7');
+    expect(html).toContain('⚪ LOW');
+    expect(html).toContain('class="review"');
+    // HIGH sorts before LOW regardless of input order.
+    expect(html.indexOf('src/a.ts:42')).toBeLessThan(html.indexOf('src/b.ts:7'));
+  });
+
+  it('shows an at-a-glance ship outcome badge', async () => {
+    const html = await openPage(makeRun(), makeRichSteps());
+    expect(html).toContain('outcome tone-block');
+    expect(html).toContain('BLOCK · 2 findings');
+  });
+
+  it('escapes finding paths and bodies (model output never becomes markup)', async () => {
+    const steps: FleetRunStepRow[] = [
+      { run_id: RUN_ID, seq: 1, kind: 'ship-verdict', ship: 'code-reviewer', title: 'pd-code-reviewer: BLOCK',
+        detail: JSON.stringify([
+          { path: '<img src=x onerror=alert(1)>', line: 1, severity: 'HIGH', body: '<script>alert(2)</script>' },
+        ]), created_at: 1_700_000_005 },
+    ];
+    const html = await openPage(makeRun(), steps);
+    expect(html).not.toContain('<img src=x onerror');
+    expect(html).not.toContain('<script>alert(2)</script>');
+    expect(html).toContain('&lt;script&gt;');
+  });
+
   it('serves a no-script CSP, no-store, and noindex on every response', async () => {
     const t = await runPageToken(SECRET, RUN_ID);
     for (const r of [
