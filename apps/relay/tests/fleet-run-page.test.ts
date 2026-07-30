@@ -375,6 +375,32 @@ describe('fleet run page rendering', () => {
     expect(html).not.toContain('chars of analysis');
   });
 
+  // ── Hardening raised by the pd-code-reviewer review on this PR ─────────────
+
+  it('does not crash rendering a malformed row whose title is not a string', async () => {
+    // Schema is `title TEXT NOT NULL`, but a bad/legacy row must degrade, not
+    // take the endpoint down. `ideas-captured` does a `.replace` on the title.
+    const steps: FleetRunStepRow[] = [
+      { run_id: RUN_ID, seq: 1, kind: 'ideas-captured', ship: 'spark',
+        title: undefined as unknown as string, detail: JSON.stringify({ results: [] }), created_at: 1_700_000_005 },
+      { run_id: RUN_ID, seq: 2, kind: 'ship-verdict', ship: 'code-reviewer',
+        title: null as unknown as string, detail: '[]', created_at: 1_700_000_006 },
+    ];
+    const t = await runPageToken(SECRET, RUN_ID);
+    const res = await handleFleetRunPage(req(RUN_ID, { t }), makeEnv({ db: makeDb(makeRun(), steps) }), RUN_ID);
+    expect(res.status).toBe(200); // renders instead of throwing a 500
+  });
+
+  it('escapes a ship-skipped reason (model-influenced) before it reaches the narrative', async () => {
+    const steps: FleetRunStepRow[] = [
+      { run_id: RUN_ID, seq: 1, kind: 'ship-skipped', ship: 'red-team', title: 'pd-red-team: skipped',
+        detail: JSON.stringify({ reason: '<script>alert(9)</script>' }), created_at: 1_700_000_005 },
+    ];
+    const html = await openPage(makeRun(), steps);
+    expect(html).not.toContain('<script>alert(9)</script>');
+    expect(html).toContain('&lt;script&gt;');
+  });
+
   it('serves a no-script CSP, no-store, and noindex on every response', async () => {
     const t = await runPageToken(SECRET, RUN_ID);
     for (const r of [

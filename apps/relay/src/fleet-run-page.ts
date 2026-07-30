@@ -332,9 +332,14 @@ function extractFindings(detail: unknown): Finding[] {
   return out;
 }
 
-/** Last PASS/BLOCK token in a step title, e.g. "pd-code-reviewer: BLOCK". */
-function verdictFromTitle(title: string): 'PASS' | 'BLOCK' | null {
-  const m = /:\s*(PASS|BLOCK)\b/i.exec(title);
+/**
+ * Last PASS/BLOCK token in a step title, e.g. "pd-code-reviewer: BLOCK".
+ * Accepts a possibly-absent title defensively: the schema declares
+ * `title TEXT NOT NULL`, but this page treats every stored value as hostile, so
+ * a malformed row must degrade to `null`, never throw.
+ */
+function verdictFromTitle(title: string | undefined | null): 'PASS' | 'BLOCK' | null {
+  const m = /:\s*(PASS|BLOCK)\b/i.exec(title ?? '');
   const token = m?.[1];
   return token ? (token.toUpperCase() as 'PASS' | 'BLOCK') : null;
 }
@@ -373,6 +378,9 @@ interface StepView {
 function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
   const detail = parseDetail(step);
   const obj = asObject(detail);
+  // Defensive: `title` is NOT NULL in the schema, but a malformed/legacy row must
+  // never take the whole page down (this endpoint treats stored data as hostile).
+  const title = typeof step.title === 'string' ? step.title : '';
 
   switch (step.kind) {
     case 'reduce': {
@@ -407,10 +415,10 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
       };
 
     case 'ship-verdict': {
-      const verdict = verdictFromTitle(step.title);
+      const verdict = verdictFromTitle(title);
 
       // Ideation ships propose forward work rather than gating.
-      if (/ideation/i.test(step.title) || 'proposals' in obj) {
+      if (/ideation/i.test(title) || 'proposals' in obj) {
         const proposals = obj.proposals;
         if (Array.isArray(proposals)) {
           const items = proposals
@@ -477,7 +485,7 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
       return {
         icon: '📥',
         tone: 'info',
-        headline: step.title.replace(/^pd-\S+:\s*/, `${shipLabel} captured `),
+        headline: title.replace(/^pd-\S+:\s*/, `${shipLabel} captured `),
         bodyHtml: '',
       };
 
@@ -493,7 +501,7 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
     }
 
     default:
-      return { icon: '•', tone: 'info', headline: step.title || step.kind, bodyHtml: '' };
+      return { icon: '•', tone: 'info', headline: title || step.kind, bodyHtml: '' };
   }
 }
 
@@ -563,7 +571,7 @@ function shipOutcome(list: FleetRunStepRow[]): { text: string; tone: StepView['t
     const s = list[i];
     if (!s || (s.kind !== 'ship-verdict' && s.kind !== 'ship-finding')) continue;
     if (s.kind === 'ship-finding') return { text: 'errored · unparseable output', tone: 'block' };
-    if (/ideation/i.test(s.title)) return { text: 'advisory · ideation', tone: 'neutral' };
+    if (/ideation/i.test(s.title ?? '')) return { text: 'advisory · ideation', tone: 'neutral' };
     if (asObject(parseDetail(s)).errored === true) return { text: 'errored · fail-closed', tone: 'block' };
     const verdict = verdictFromTitle(s.title);
     const count = extractFindings(parseDetail(s)).length;
