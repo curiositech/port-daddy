@@ -291,6 +291,90 @@ describe('fleet run page rendering', () => {
     expect(html).toContain('&lt;script&gt;');
   });
 
+  // ── Branch coverage raised by the pd-qa review on this PR ──────────────────
+
+  it('narrates a malformed (ship-finding) reviewer output as fail-closed errored', async () => {
+    const steps: FleetRunStepRow[] = [
+      { run_id: RUN_ID, seq: 1, kind: 'ship-finding', ship: 'code-reviewer', title: 'pd-code-reviewer: MALFORMED',
+        detail: JSON.stringify({ error: 'failed to parse findings' }), created_at: 1_700_000_005 },
+    ];
+    const html = await openPage(makeRun(), steps);
+    expect(html).toContain('could not parse');
+    expect(html).toContain('treated as errored');
+    expect(html).toContain('errored · unparseable output');
+    expect(html).toContain('outcome tone-block');
+  });
+
+  it('narrates an ideation ship whose proposal block was malformed', async () => {
+    const steps: FleetRunStepRow[] = [
+      { run_id: RUN_ID, seq: 1, kind: 'ship-verdict', ship: 'spark', title: 'pd-spark: PASS (ideation)',
+        detail: JSON.stringify({ proposals: 'malformed', posted: false }), created_at: 1_700_000_005 },
+    ];
+    const html = await openPage(makeRun(), steps);
+    expect(html).toContain('proposal block was malformed');
+    expect(html).toContain('advisory · ideation');
+  });
+
+  it('derives the ship outcome from the verdict step even when it is not the last step', async () => {
+    // review-posted / ideas-captured follow the verdict — shipOutcome must scan
+    // back to the verdict, not read the trailing step.
+    const steps: FleetRunStepRow[] = [
+      { run_id: RUN_ID, seq: 1, kind: 'ship-verdict', ship: 'code-reviewer', title: 'pd-code-reviewer: BLOCK',
+        detail: JSON.stringify([{ path: 'x.ts', line: 3, severity: 'HIGH', body: 'boom' }]), created_at: 1_700_000_005 },
+      { run_id: RUN_ID, seq: 2, kind: 'review-posted', ship: 'code-reviewer', title: 'Posted review for pd-code-reviewer',
+        detail: JSON.stringify({ posted: true }), created_at: 1_700_000_006 },
+    ];
+    const html = await openPage(makeRun(), steps);
+    expect(html).toContain('BLOCK · 1 finding');
+    expect(html).toContain('outcome tone-block');
+  });
+
+  it('treats a ship-verdict whose detail is non-finding-shaped as "no findings" (extractFindings tolerance)', async () => {
+    const steps: FleetRunStepRow[] = [
+      // Object without a valid Finding[] under `findings` — must not throw and
+      // must not fabricate a review block.
+      { run_id: RUN_ID, seq: 1, kind: 'ship-verdict', ship: 'code-reviewer', title: 'pd-code-reviewer: PASS',
+        detail: JSON.stringify({ findings: 'not-an-array', misc: 1 }), created_at: 1_700_000_005 },
+    ];
+    const html = await openPage(makeRun(), steps);
+    expect(html).toContain('returned PASS — no findings');
+    expect(html).not.toContain('class="review"');
+    expect(html).toContain('PASS · clean');
+  });
+
+  it('extracts the verdict from a title with extra colons after PASS/BLOCK', async () => {
+    const steps: FleetRunStepRow[] = [
+      { run_id: RUN_ID, seq: 1, kind: 'ship-verdict', ship: 'code-reviewer', title: 'pd-code-reviewer: BLOCK: merge blocked',
+        detail: '[]', created_at: 1_700_000_005 },
+    ];
+    const html = await openPage(makeRun(), steps);
+    expect(html).toContain('returned BLOCK');
+    expect(html).toContain('BLOCK · clean');
+  });
+
+  it('escapes ampersands and angle brackets in a finding body inside the review block', async () => {
+    const steps: FleetRunStepRow[] = [
+      { run_id: RUN_ID, seq: 1, kind: 'ship-verdict', ship: 'code-reviewer', title: 'pd-code-reviewer: BLOCK',
+        detail: JSON.stringify([{ path: 'a.ts', line: 1, severity: 'LOW', body: 'foo & bar <baz>' }]),
+        created_at: 1_700_000_005 },
+    ];
+    const html = await openPage(makeRun(), steps);
+    expect(html).toContain('foo &amp; bar &lt;baz&gt;');
+    expect(html).not.toContain('foo & bar <baz>');
+  });
+
+  it('consolidates MAP chunks that all returned empty without inventing an analysis size', async () => {
+    const empty = (i: number): FleetRunStepRow => ({
+      run_id: RUN_ID, seq: i, kind: 'map-chunk', ship: 'code-reviewer', title: `MAP chunk ${i}/2`,
+      detail: JSON.stringify({ chunkIndex: i - 1, chunkCount: 2, outputLength: 0, responseShape: 'empty:responses' }),
+      created_at: 1_700_000_000 + i,
+    });
+    const html = await openPage(makeRun(), [empty(1), empty(2)]);
+    expect(html).toContain('Scanned the diff across 2 chunks');
+    expect(html).toContain('2 chunks returned empty');
+    expect(html).not.toContain('chars of analysis');
+  });
+
   it('serves a no-script CSP, no-store, and noindex on every response', async () => {
     const t = await runPageToken(SECRET, RUN_ID);
     for (const r of [
