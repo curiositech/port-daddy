@@ -9,9 +9,9 @@
  * The pure functions (loadManifest/verifyArtifacts/imprintArtifacts) take a
  * staged dir and never touch the daemon, so a synthetic fixture dir is enough.
  */
-import { describe, expect, test, beforeEach, afterEach } from '@jest/globals';
+import { describe, expect, jest, test, beforeEach, afterEach } from '@jest/globals';
 import { createHash } from 'node:crypto';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -19,6 +19,7 @@ import {
   resolveManifestPath,
   verifyArtifacts,
   imprintArtifacts,
+  handleBatten,
 } from '../../cli/commands/batten.js';
 
 // A synthetic manifest mirroring the real shape: a required exec binary, a
@@ -68,6 +69,19 @@ describe('loadManifest', () => {
     // The silent-failure class this system closes: watchdog + tentacles.
     for (const id of ['pd', 'port-daddy', 'pd-bosun', 'pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool']) {
       expect(ids).toContain(id);
+    }
+  });
+
+  test('falls back to the module-relative repo manifest outside the repo cwd', () => {
+    const previousCwd = process.cwd();
+    process.chdir(dir);
+    try {
+      const fallback = resolveManifestPath();
+      expect(fallback).toMatch(/release-artifacts\.json$/);
+      expect(existsSync(fallback)).toBe(true);
+      expect(loadManifest(fallback).artifacts.length).toBeGreaterThan(0);
+    } finally {
+      process.chdir(previousCwd);
     }
   });
 
@@ -226,5 +240,49 @@ describe('imprintArtifacts — content-addressed seal', () => {
     const record = imprintArtifacts(fixtureManifest(), staged);
     expect(record.missingRequired).toContain('pd');
     expect(record.artifacts.pd).toBeUndefined();
+  });
+});
+
+describe('handleBatten imprint — fail-loud CLI contract', () => {
+  let root;
+  let staged;
+  let manifestPath;
+  let outPath;
+  let realExit;
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'pd-batten-cli-imprint-'));
+    staged = join(root, 'dist');
+    mkdirSync(staged);
+    manifestPath = join(root, 'release-artifacts.json');
+    outPath = join(staged, 'release-imprint.json');
+    writeFileSync(manifestPath, JSON.stringify(fixtureManifest()));
+    realExit = process.exit;
+  });
+
+  afterEach(() => {
+    process.exit = realExit;
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  test('writes the incomplete receipt, warns, and exits 1 when required cargo is absent', async () => {
+    const exit = jest.fn((code) => {
+      throw new Error(`exit:${code}`);
+    });
+    process.exit = exit;
+    const stderr = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(handleBatten(['imprint'], {
+      manifest: manifestPath,
+      'staged-dir': staged,
+      out: outPath,
+    })).rejects.toThrow('exit:1');
+
+    expect(exit).toHaveBeenCalledWith(1);
+    expect(stderr.mock.calls.flat().join(' ')).toMatch(/required artifacts absent/i);
+    expect(existsSync(outPath)).toBe(true);
+    const record = JSON.parse(readFileSync(outPath, 'utf8'));
+    expect(record.missingRequired.sort()).toEqual(['hook', 'manifest', 'pd']);
+    stderr.mockRestore();
   });
 });
