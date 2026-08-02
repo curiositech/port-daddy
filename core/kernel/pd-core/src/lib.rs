@@ -143,6 +143,91 @@ impl Claim {
     }
 }
 
+/// Decide whether two [`Claim`]s conflict — the primitive scope-overlap check the
+/// kernel's governance chokepoint is meant to consult before it admits mutating work.
+///
+/// The predicate is short-circuiting and deliberately ordered from cheapest,
+/// most-selective test to most expensive:
+/// 1. **Different `path`** — no conflict. An exact path match is *required* before any
+///    other test runs, so `path` is the natural partition key for a claim set (see the
+///    structural note below).
+/// 2. **Both [`ClaimMode::Read`]** — no conflict. Readers never exclude readers.
+/// 3. **Both name a `symbol_path`** — conflict iff the symbols are equal. Two writes to
+///    distinct symbols in the same file coexist.
+/// 4. **Both carry a line range** — conflict iff the ranges overlap (inclusive).
+/// 5. **Otherwise** — a same-path, non-both-read claim with no finer scope is treated
+///    as whole-file and conflicts.
+///
+/// The check is `O(1)` per pair. Cheap enough that no structure is warranted at the
+/// pairwise level.
+///
+/// # Wiring status (as of this writing)
+///
+/// This function is **not yet called on any live path**. Its only callers are this
+/// crate's own tests. The intended governance chain — store [`Claim`]s on a
+/// [`WorkTransaction`], test a proposed claim against the existing set, raise an
+/// [`ObligationKind::ClaimConflict`] obligation on overlap, and let
+/// [`WorkTransaction::can_mutate`] refuse the mutation while that obligation is
+/// pending — is only half-built: the [`WorkTransaction::claims`] field, the
+/// [`ObligationKind::ClaimConflict`] variant, and this predicate all exist, but nothing
+/// populates `claims`, nothing constructs the obligation, and `can_mutate` never
+/// consults either. Treat this as a "kill or wire it up" leaf, not a hot path.
+///
+/// # Structural prescription for when it *is* wired up
+///
+/// The real question a chokepoint asks is not "do these two claims conflict?" but "does
+/// this **new** claim conflict with **anything** in the transaction's existing set?".
+/// Answered naively that is `O(n)` per admission and `O(n²)` to validate a whole set
+/// against itself. Because rule (1) rejects on a `path` mismatch before any other work,
+/// a set indexed by path —
+///
+/// ```text
+/// std::collections::HashMap<String, Vec<Claim>>   // path -> claims on that path
+/// ```
+///
+/// — turns each admission into "hash the path, scan only the claims on that same path,"
+/// i.e. `O(k)` where `k` is the claim count on that one file rather than `n` across the
+/// whole transaction. This is a real win **only if** transactions realistically hold
+/// claims spanning many distinct paths (so the per-path buckets are small); if a
+/// transaction's claims cluster on one or two files it degenerates to the linear scan
+/// and the map is pure overhead — verify the claim-count distribution against the real
+/// orchestration flow before reaching for it. Everything needed is in `std`; no new
+/// crate dependency is justified. If, at realistic claim counts, line-range overlap
+/// within a single path+symbol bucket ever became the bottleneck, an interval structure
+/// would be the next candidate — but that is speculative until a bucket is measurably
+/// large, and should not be built ahead of evidence.
+///
+/// # Examples
+///
+/// ```
+/// use pd_core::{Claim, ClaimMode, claims_conflict};
+///
+/// // Different files never conflict.
+/// assert!(!claims_conflict(
+///     &Claim::file_write("src/a.rs"),
+///     &Claim::file_write("src/b.rs"),
+/// ));
+///
+/// // Same file, distinct symbols coexist; identical symbols conflict.
+/// assert!(!claims_conflict(
+///     &Claim::symbol_write("src/a.rs", "alpha"),
+///     &Claim::symbol_write("src/a.rs", "beta"),
+/// ));
+/// assert!(claims_conflict(
+///     &Claim::symbol_write("src/a.rs", "alpha"),
+///     &Claim::symbol_write("src/a.rs", "alpha"),
+/// ));
+///
+/// // Two whole-file reads of the same file never exclude each other.
+/// let read = |path: &str| Claim {
+///     path: path.to_owned(),
+///     symbol_path: None,
+///     start_line: None,
+///     end_line: None,
+///     mode: ClaimMode::Read,
+/// };
+/// assert!(!claims_conflict(&read("src/a.rs"), &read("src/a.rs")));
+/// ```
 pub fn claims_conflict(left: &Claim, right: &Claim) -> bool {
     if left.path != right.path {
         return false;
