@@ -19,6 +19,12 @@
  * Rendering is strictly server-side with every interpolated value HTML-escaped
  * (transcript content is model output — attacker-influenced text), and the
  * response carries a no-script CSP. No JavaScript is served at all.
+ *
+ * Content semantics (English narratives, severity-ranked findings review,
+ * MAP-chunk consolidation, per-ship outcome badges) come from the legibility
+ * rewrite; the visual system (story-linework tokens, masthead, receipt strip,
+ * stat ledger, timeline cards, IBM Plex / Recursive fonts, light+dark theming)
+ * is the shared ch20 design language.
  */
 
 import { timingSafeEqual } from './crypto.js';
@@ -92,9 +98,11 @@ function htmlResponse(body: string, status: number): Response {
     status,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      // No scripts, ever: transcript content is model output.
+      // No scripts, ever: transcript content is model output. Google Fonts is
+      // the only third-party origin (style + font files); nothing else.
       'Content-Security-Policy':
-        "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+        "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; " +
+        "font-src https://fonts.gstatic.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
       'Referrer-Policy': 'no-referrer',
       'X-Content-Type-Options': 'nosniff',
       // Capability URLs must not end up in caches or search indexes.
@@ -104,114 +112,217 @@ function htmlResponse(body: string, status: number): Response {
   });
 }
 
+// ── story-linework design tokens (ch20; shared with account-page.ts) ─────────
+const HEAD = `<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Recursive:CASL,slnt,wght@1,-8,400..800&display=swap" rel="stylesheet">`;
+
 const PAGE_CSS = `
-  :root { color-scheme: dark; }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 2rem 1.25rem 4rem;
-    background: #0c131f; color: #dce5f1;
-    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  }
-  main { max-width: 60rem; margin: 0 auto; }
-  a { color: #7fb4ff; }
-  h1 { font-size: 1.5rem; margin: 0 0 0.25rem; letter-spacing: -0.01em; }
-  .eyebrow {
-    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.14em; color: #8fa3bd; margin-bottom: 0.75rem;
-  }
-  .meta { color: #97a8c0; font-size: 0.875rem; }
-  .badge {
-    display: inline-block; padding: 0.2rem 0.65rem; border-radius: 999px;
-    font-size: 0.875rem; font-weight: 700; vertical-align: middle; margin-left: 0.5rem;
-  }
-  .badge.success { background: #14351f; color: #6fd692; border: 1px solid #2c6b42; }
-  .badge.failure { background: #3b1720; color: #ff9aa8; border: 1px solid #7c3040; }
-  .badge.neutral, .badge.other { background: #2a2f3a; color: #b8c2d4; border: 1px solid #4a5468; }
-  .statgrid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-    gap: 1px; background: #223047; border: 1px solid #223047; margin: 1.5rem 0 2rem;
-  }
-  .stat { background: #101a2a; padding: 0.9rem 1rem; }
-  .stat .k { font-size: 0.8125rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #8fa3bd; }
-  .stat .v { font-size: 1.25rem; font-weight: 700; margin-top: 0.15rem; font-variant-numeric: tabular-nums; }
-  section.ship { border: 1px solid #223047; background: #101a2a; margin-bottom: 1.25rem; }
-  section.ship > header {
-    display: flex; justify-content: space-between; align-items: baseline;
-    padding: 0.75rem 1rem; border-bottom: 1px solid #223047; background: #132033;
-  }
-  section.ship > header h2 { margin: 0; font-size: 1.0625rem; }
-  section.ship > header .ship-title { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
-  .outcome {
-    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
-    padding: 0.1rem 0.55rem; border-radius: 999px;
-  }
-  .outcome.tone-pass    { background: #14351f; color: #6fd692; border: 1px solid #2c6b42; }
-  .outcome.tone-block   { background: #3b1720; color: #ff9aa8; border: 1px solid #7c3040; }
-  .outcome.tone-neutral { background: #2a2f3a; color: #b8c2d4; border: 1px solid #4a5468; }
-  ol.steps { list-style: none; margin: 0; padding: 0; }
-  li.step { padding: 0.7rem 1rem; border-bottom: 1px solid #1a2638; border-left: 3px solid transparent; }
-  li.step:last-child { border-bottom: none; }
-  li.step.tone-pass  { border-left-color: #2c6b42; }
-  li.step.tone-block { border-left-color: #7c3040; }
-  li.step.tone-skip  { border-left-color: #3a4560; }
-  .step-head { display: flex; gap: 0.6rem; align-items: baseline; flex-wrap: wrap; }
-  .step-icon { font-size: 1rem; line-height: 1.2; flex: none; }
-  .narrative { color: #dce5f1; font-size: 0.9375rem; flex: 1 1 20rem; }
-  .t { color: #718096; font-size: 0.8125rem; font-variant-numeric: tabular-nums; margin-left: auto; }
-  details { margin-top: 0.45rem; }
-  summary { cursor: pointer; color: #8fa3bd; font-size: 0.8125rem; }
-  pre {
-    margin: 0.5rem 0 0; padding: 0.75rem; overflow-x: auto;
-    background: #0a1017; border: 1px solid #1a2638;
-    font: 0.8125rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
-    white-space: pre-wrap; word-break: break-word;
-  }
-  .review { margin-top: 0.55rem; display: flex; flex-direction: column; gap: 0.5rem; }
-  .finding {
-    background: #0d1522; border: 1px solid #223047; border-left-width: 3px;
-    padding: 0.5rem 0.7rem; border-radius: 4px;
-  }
-  .finding.sev-high   { border-left-color: #ff6b7f; }
-  .finding.sev-medium { border-left-color: #e8c15a; }
-  .finding.sev-low    { border-left-color: #6a7a92; }
-  .finding-head { display: flex; gap: 0.6rem; align-items: baseline; flex-wrap: wrap; font-size: 0.8125rem; }
-  .finding-head .sev { font-weight: 700; }
-  .floc {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #9db7dc;
-    background: #0a1017; padding: 0.05rem 0.4rem; border-radius: 3px; border: 1px solid #1a2638;
-  }
-  .finding-body { margin-top: 0.35rem; color: #c3cfe0; font-size: 0.9rem; white-space: pre-wrap; word-break: break-word; }
-  ol.breakdown { list-style: none; margin: 0.4rem 0 0; padding: 0; }
-  ol.breakdown li {
-    padding: 0.15rem 0; color: #97a8c0; font-size: 0.8125rem;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  }
-  footer { margin-top: 2.5rem; color: #718096; font-size: 0.875rem; border-top: 1px solid #223047; padding-top: 1rem; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;border-radius:0}
+:root,:root[data-theme="light"]{
+  --surface-base:#f2eee6;--surface-raised:#f7f3eb;--surface-strong:#e9e2d5;
+  --text-primary:#121212;--text-secondary:#403b34;--text-muted:#47423a;--text-ghost:#98928a;
+  --cobalt:#003fb8;--teal:#006b5f;--health:#1f7a4d;--amber:#a66f00;--error:#bf2f2f;
+  --violet:#933fa5;--rust:#7a4514;--gold:#666a00;
+  --hair:rgba(18,18,18,.14);--hair-strong:rgba(18,18,18,.34);--border-strong:#121212;
+  --surface-card:#e9e2d5;--on-accent:#fbf7ef;}
+:root{--cobalt-slab:#003fb8;--lime:#cad900;--cream:#fbf7ef;--ink:#17191d;--flag-white:#fbf7ef;
+  --lw-weight:1.5px;--lw-stripe:3px;}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --surface-base:#101216;--surface-raised:#181c22;--surface-strong:#222833;
+  --text-primary:#f5f3ed;--text-secondary:#d3cec2;--text-muted:#a59f93;--text-ghost:#5c574e;
+  --cobalt:#7db4ff;--teal:#8fd0a7;--health:#5fce97;--amber:#f2be51;--error:#ff7d7d;
+  --violet:#e0a5ed;--rust:#b98e6b;--gold:#d8dd3c;
+  --hair:rgba(245,243,237,.14);--hair-strong:rgba(245,243,237,.34);--border-strong:#f5f3ed;
+  --surface-card:#181c22;--on-accent:#121212;}}
+:root[data-theme="dark"]{
+  --surface-base:#101216;--surface-raised:#181c22;--surface-strong:#222833;
+  --text-primary:#f5f3ed;--text-secondary:#d3cec2;--text-muted:#a59f93;--text-ghost:#5c574e;
+  --cobalt:#7db4ff;--teal:#8fd0a7;--health:#5fce97;--amber:#f2be51;--error:#ff7d7d;
+  --violet:#e0a5ed;--rust:#b98e6b;--gold:#d8dd3c;
+  --hair:rgba(245,243,237,.14);--hair-strong:rgba(245,243,237,.34);--border-strong:#f5f3ed;
+  --surface-card:#181c22;--on-accent:#121212;}
+html,body{overflow-x:clip}
+body{background:var(--surface-base);color:var(--text-primary);
+  font-family:"IBM Plex Sans","Helvetica Neue",Helvetica,Arial,sans-serif;font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.mono,code{font-family:"IBM Plex Mono","SFMono-Regular",Consolas,monospace;font-variant-numeric:tabular-nums slashed-zero}
+h1,h2,h3{text-wrap:balance;letter-spacing:-0.02em}p{text-wrap:pretty}
+a{color:var(--cobalt);text-underline-offset:3px}a:hover{color:var(--teal)}
+:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
+.rec{font-family:"Recursive","IBM Plex Sans",sans-serif;font-variation-settings:"CASL" 1,"slnt" -8;font-weight:660}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--text-muted)}
+.caption{font-size:14px;line-height:1.55;color:var(--text-muted)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+
+/* masthead / chrome */
+.site-header{display:flex;justify-content:space-between;align-items:baseline;gap:20px;padding:14px clamp(20px,4vw,40px);background:var(--surface-base);border-bottom:2px solid var(--border-strong)}
+.sh-brand{display:flex;align-items:baseline;gap:10px;font-weight:700;font-size:17px;letter-spacing:-.01em;color:var(--text-primary);text-decoration:none}
+.sh-mark{color:var(--cobalt);font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:19px}
+.sh-status{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:500;color:var(--text-muted)}
+.page{max-width:74rem;margin:0 auto;padding:0 clamp(20px,4vw,40px) 88px}
+
+/* the cobalt knockout masthead — Receipts, verifiable */
+.masthead{padding:40px 0 8px}
+.masthead .eyebrow{display:block;margin-bottom:16px}
+.ko{position:relative;z-index:0;display:inline-block;--ko-r:66%;font-size:clamp(30px,4.4vw,52px);font-weight:700;line-height:1.08;letter-spacing:-.03em;max-width:18ch}
+.ko::before{content:"";position:absolute;z-index:-1;left:-56px;right:calc(100% - var(--ko-r));top:-14px;bottom:-14px;background:var(--cobalt-slab)}
+.ko .ko-over{position:absolute;inset:0;color:var(--cream);pointer-events:none;clip-path:inset(-14px calc(100% - var(--ko-r)) -14px -56px)}
+.ko .rec{color:var(--cobalt)}
+.ko .ko-over .rec{color:var(--cream)}
+.lede{display:block;margin-top:22px;max-width:60ch;font-size:15px;color:var(--text-secondary);line-height:1.6}
+
+/* receipt identity strip */
+.receipt-id{margin-top:30px;border:2px solid var(--border-strong);background:var(--surface-card)}
+.rid-top{display:flex;flex-wrap:wrap;gap:14px 20px;align-items:baseline;justify-content:space-between;padding:18px 22px;border-bottom:var(--lw-weight) solid var(--hair-strong)}
+.rid-repo{font-size:clamp(19px,2.4vw,26px);font-weight:700;letter-spacing:-.02em;min-width:0;word-break:break-word}
+.rid-repo a{color:var(--text-primary);text-decoration:none;box-shadow:inset 0 -2px 0 var(--cobalt)}
+.rid-repo a:hover{color:var(--cobalt)}
+.rid-repo .pr{color:var(--cobalt);font-family:"IBM Plex Mono",monospace;font-weight:600}
+.badge{display:inline-flex;align-items:center;gap:8px;font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:6px 13px;border:2px solid var(--border-strong);white-space:nowrap}
+.badge .dot{width:9px;height:9px;flex:none;border:1px solid rgba(0,0,0,.35)}
+.badge.success{background:var(--health);color:var(--on-accent)}.badge.success .dot{background:var(--on-accent)}
+.badge.failure{background:var(--error);color:var(--on-accent)}.badge.failure .dot{background:var(--on-accent)}
+.badge.neutral,.badge.other{background:var(--amber);color:var(--ink)}.badge.neutral .dot,.badge.other .dot{background:var(--ink)}
+.rid-facts{display:flex;flex-wrap:wrap;gap:10px 12px;padding:16px 22px}
+.fact{display:inline-flex;align-items:baseline;gap:8px;font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:var(--text-secondary);border:1px solid var(--hair-strong);padding:5px 11px;max-width:100%;overflow:hidden}
+.fact .fk{color:var(--text-muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11.5px}
+.fact code{color:var(--text-primary);word-break:break-all}
+
+/* stat ledger */
+.statrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:var(--lw-weight);background:var(--hair-strong);border:2px solid var(--border-strong);border-top:none;margin-bottom:44px}
+.stat{background:var(--surface-card);padding:16px 18px}
+.stat .k{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted)}
+.stat .v{font-size:26px;font-weight:700;margin-top:6px;letter-spacing:-.01em;line-height:1.05}
+.stat-money .v{color:var(--gold)}
+
+/* transcript */
+.tx-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:4px}
+.tx-head h2{font-size:22px;font-weight:700}
+.tx-head .eyebrow{color:var(--teal)}
+.tx-sub{margin:0 0 22px;font-size:14px;color:var(--text-muted);max-width:64ch}
+.ship-card{border:2px solid var(--border-strong);background:var(--surface-raised);margin-bottom:22px}
+.ship-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:15px 20px;border-bottom:2px solid var(--border-strong);background:var(--surface-strong)}
+.ship-id{display:flex;align-items:center;gap:12px;min-width:0;flex-wrap:wrap}
+.ship-tick{width:14px;height:14px;flex:none;border:2px solid var(--border-strong);background:var(--cobalt)}
+.ship-card.fleet .ship-tick{background:var(--violet)}
+.ship-id h2{font-size:18px;font-weight:700;letter-spacing:-.01em;word-break:break-word}
+.ship-count{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:var(--text-muted);white-space:nowrap}
+
+.timeline{list-style:none}
+.tl-step{display:grid;grid-template-columns:34px 1fr;column-gap:2px}
+.tl-rail{position:relative;display:flex;justify-content:center}
+.tl-rail::before{content:"";position:absolute;top:0;bottom:0;width:2px;background:var(--hair-strong)}
+.tl-step:first-child .tl-rail::before{top:22px}
+.tl-step:last-child .tl-rail::before{bottom:calc(100% - 22px)}
+.tl-node{position:relative;z-index:1;margin-top:16px;width:11px;height:11px;flex:none;border:2px solid var(--border-strong);background:var(--surface-raised)}
+.tl-verdict .tl-node{background:var(--cobalt)}
+.tl-terminal .tl-node{width:13px;height:13px;background:var(--border-strong)}
+.tl-body{padding:14px 20px 16px 6px;border-bottom:var(--lw-weight) solid var(--hair);min-width:0}
+.tl-step:last-child .tl-body{border-bottom:none}
+.tl-topline{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.tl-title{font-size:15.5px;font-weight:600;color:var(--text-primary);min-width:0;word-break:break-word}
+.tl-time{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--text-ghost);white-space:nowrap}
+
+/* empty + not-found + error states */
+.empty{border:2px dashed var(--hair-strong);background:transparent;padding:26px 26px}
+.empty .e-title{font-weight:700;font-size:17px}
+.empty p{font-size:14.5px;color:var(--text-secondary);line-height:1.6;margin-top:8px;max-width:66ch}
+.empty .cmd{font-family:"IBM Plex Mono",monospace;font-size:13.5px;color:var(--teal);font-weight:600}
+.notice{max-width:52rem;margin:0 auto;padding:64px 0}
+.notice h1{font-size:clamp(28px,4vw,40px);font-weight:700;margin:14px 0 16px;letter-spacing:-.03em}
+.notice p{font-size:16px;color:var(--text-secondary);line-height:1.62;max-width:56ch}
+
+footer.receipt-foot{margin-top:40px;padding-top:20px;border-top:2px solid var(--border-strong);font-size:13.5px;line-height:1.6;color:var(--text-muted);max-width:70ch}
+footer.receipt-foot code{color:var(--text-secondary);word-break:break-all}
+
+/* ── legibility content: English narratives, findings review, outcome badges,
+      MAP consolidation — themed onto the story-linework tokens. The .step /
+      .narrative / .review / .outcome / .finding.sev-* classes are also test
+      hooks, kept alongside the .tl-* timeline scaffold. ── */
+li.step{border-left:var(--lw-stripe) solid transparent}
+li.step.tone-pass{border-left-color:var(--health)}
+li.step.tone-block{border-left-color:var(--error)}
+li.step.tone-skip{border-left-color:var(--text-ghost)}
+li.step.tone-neutral{border-left-color:var(--amber)}
+li.step.tone-info{border-left-color:var(--hair-strong)}
+.step-icon{font-size:1rem;line-height:1.2;flex:none}
+.narrative{color:var(--text-primary);font-size:15.5px;font-weight:600;min-width:0;word-break:break-word}
+.narrative .meta{font-weight:400}
+.meta{color:var(--text-muted);font-size:13px}
+.t{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--text-ghost);white-space:nowrap}
+.outcome{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:4px 10px;border:2px solid var(--border-strong);white-space:nowrap}
+.outcome.tone-pass{background:var(--health);color:var(--on-accent)}
+.outcome.tone-block{background:var(--error);color:var(--on-accent)}
+.outcome.tone-neutral{background:var(--surface-strong);color:var(--text-secondary);border-color:var(--hair-strong)}
+.review{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.finding{position:relative;padding:9px 12px 9px 16px;background:var(--surface-card);box-shadow:inset var(--lw-stripe) 0 0 var(--text-ghost);font-size:14.5px;line-height:1.55;color:var(--text-primary);word-break:break-word}
+.finding.sev-high{box-shadow:inset var(--lw-stripe) 0 0 var(--error)}
+.finding.sev-medium{box-shadow:inset var(--lw-stripe) 0 0 var(--amber)}
+.finding.sev-low{box-shadow:inset var(--lw-stripe) 0 0 var(--text-ghost)}
+.finding-head{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;font-size:13px}
+.finding-head .sev{font-weight:700;font-family:"IBM Plex Mono",monospace}
+.floc{font-family:"IBM Plex Mono",monospace;color:var(--text-muted);background:var(--surface-strong);padding:1px 6px;border:1px solid var(--hair-strong);word-break:break-all}
+.finding-body{margin-top:6px;color:var(--text-secondary);font-size:14px;white-space:pre-wrap;word-break:break-word}
+ol.breakdown{list-style:none;margin-top:8px}
+ol.breakdown li{padding:2px 0;color:var(--text-muted);font-size:13px;font-family:"IBM Plex Mono",monospace}
+details.consolidated,details.raw{margin-top:10px}
+details.consolidated summary,details.raw summary{cursor:pointer;color:var(--text-muted);font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600}
+details.raw pre{margin:8px 0 0;padding:12px;overflow-x:auto;background:var(--surface-strong);border:1px solid var(--hair-strong);
+  font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+
+@media (max-width:640px){
+  .ko{--ko-r:82%}
+  .ko::before{left:-20px}
+  .ko .ko-over{clip-path:inset(-14px calc(100% - var(--ko-r)) -14px -20px)}
+  .sh-status{display:none}
+  .rid-top{padding:15px 16px}.rid-facts{padding:14px 16px}
+  .ship-head{padding:13px 16px}.tl-body{padding:12px 14px 14px 4px}
+  .tl-step{grid-template-columns:28px 1fr}
+}
 `;
 
 function shell(title: string, inner: string): string {
   return `<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow">
+${HEAD}
 <title>${esc(title)}</title>
 <style>${PAGE_CSS}</style>
 </head>
-<body><main>${inner}</main></body>
+<body>
+<header class="site-header">
+  <span class="sh-brand"><span class="sh-mark" aria-hidden="true">pd</span>Port Daddy Fleet</span>
+  <span class="sh-status">receipt · <span style="color:var(--health);font-weight:700">verifiable</span></span>
+</header>
+${inner}
+</body>
 </html>`;
 }
 
-function notFoundPage(): Response {
+/** A centered single-message page (not found / error), in the run-page shell. */
+function noticePage(title: string, heading: string, body: string, status: number): Response {
   return htmlResponse(
     shell(
-      'Run not found — Port Daddy Fleet',
-      `<div class="eyebrow">Port Daddy Fleet</div>
-       <h1>Run not found</h1>
-       <p class="meta">This run does not exist, or the link is missing its access token.
-       Open the page from the pull request's <strong>“View more details on Port Daddy Fleet”</strong> link.</p>`,
+      title,
+      `<main class="page"><div class="notice">
+        <span class="eyebrow">Port Daddy Fleet</span>
+        <h1>${esc(heading)}</h1>
+        <p>${body}</p>
+      </div></main>`,
     ),
+    status,
+  );
+}
+
+function notFoundPage(): Response {
+  return noticePage(
+    'Run not found — Port Daddy Fleet',
+    'Run not found',
+    `This run does not exist, or the link is missing its access token. Open the page from the
+     pull request&rsquo;s <strong>&ldquo;View more details on Port Daddy Fleet&rdquo;</strong> link.`,
     404,
   );
 }
@@ -505,19 +616,34 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
   }
 }
 
-/** One rendered `<li>` for a described step, with a collapsed raw-data escape. */
-function renderStepLi(view: StepView, offsetSec: number, rawJson: string | null): string {
+/** Node styling keyed off a step view's tone / kind (story-linework rail). */
+function nodeClass(tone: StepView['tone'], kind?: string): string {
+  if (kind === 'ship-verdict') return ' tl-verdict';
+  if (kind === 'review-posted' || kind === 'check-completed') return ' tl-terminal';
+  if (tone === 'pass' || tone === 'block') return ' tl-verdict';
+  return '';
+}
+
+/**
+ * One rendered timeline `<li>` for a described step, with a collapsed raw-data
+ * escape. Carries the story-linework `.tl-*` scaffold AND the legibility test
+ * hooks (`step tone-<tone>`, `.narrative`) on the same elements.
+ */
+function renderStepLi(view: StepView, offsetSec: number, rawJson: string | null, kind?: string): string {
   const raw = rawJson
     ? `<details class="raw"><summary>raw step data</summary><pre>${esc(rawJson)}</pre></details>`
     : '';
-  return `<li class="step tone-${view.tone}">
-    <div class="step-head">
-      <span class="step-icon">${view.icon}</span>
-      <span class="narrative">${esc(view.headline)}</span>
-      <span class="t">+${esc(String(offsetSec))}s</span>
+  return `<li class="tl-step step tone-${view.tone}${nodeClass(view.tone, kind)}">
+    <div class="tl-rail"><span class="tl-node" aria-hidden="true"></span></div>
+    <div class="tl-body">
+      <div class="tl-topline step-head">
+        <span class="step-icon" aria-hidden="true">${view.icon}</span>
+        <span class="tl-title narrative">${esc(view.headline)}</span>
+        <span class="tl-time t">+${esc(String(offsetSec))}s</span>
+      </div>
+      ${view.bodyHtml}
+      ${raw}
     </div>
-    ${view.bodyHtml}
-    ${raw}
   </li>`;
 }
 
@@ -553,15 +679,18 @@ function renderConsolidatedMap(chunks: FleetRunStepRow[], runStartSec: number): 
       : `Scanned the diff across ${n} chunks${size} — mapped in parallel, then reduced.`;
   const emptyNote = empties > 0 ? ` <span class="meta">(${empties} chunk${empties === 1 ? '' : 's'} returned empty)</span>` : '';
 
-  return `<li class="step tone-info">
-    <div class="step-head">
-      <span class="step-icon">🗺️</span>
-      <span class="narrative">${esc(headline)}${emptyNote}</span>
-      <span class="t">+${esc(String(offset))}s</span>
+  return `<li class="tl-step step tone-info">
+    <div class="tl-rail"><span class="tl-node" aria-hidden="true"></span></div>
+    <div class="tl-body">
+      <div class="tl-topline step-head">
+        <span class="step-icon" aria-hidden="true">🗺️</span>
+        <span class="tl-title narrative">${esc(headline)}${emptyNote}</span>
+        <span class="tl-time t">+${esc(String(offset))}s</span>
+      </div>
+      <details class="consolidated"><summary>${esc(n === 1 ? 'Chunk detail' : `Per-chunk breakdown · ${n} steps`)}</summary>
+        <ol class="breakdown">${breakdown}</ol>
+      </details>
     </div>
-    <details class="consolidated"><summary>${esc(n === 1 ? 'Chunk detail' : `Per-chunk breakdown · ${n} steps`)}</summary>
-      <ol class="breakdown">${breakdown}</ol>
-    </details>
   </li>`;
 }
 
@@ -581,7 +710,12 @@ function shipOutcome(list: FleetRunStepRow[]): { text: string; tone: StepView['t
   return null;
 }
 
-/** Group transcript steps per ship, preserving order; null ship ⇒ "fleet". */
+/**
+ * Group transcript steps per ship, preserving order; null ship ⇒ "Fleet".
+ * Each group renders as a story-linework `.ship-card` with a `.timeline`; each
+ * step (and each consolidated MAP entry) is a `.tl-step` timeline node whose
+ * body is the English narrative + findings review + raw-data affordance.
+ */
 function renderShips(steps: FleetRunStepRow[], runStartSec: number): string {
   const groups = new Map<string, FleetRunStepRow[]>();
   for (const s of steps) {
@@ -592,8 +726,9 @@ function renderShips(steps: FleetRunStepRow[], runStartSec: number): string {
   }
   let html = '';
   for (const [ship, list] of groups) {
-    const label = ship === 'fleet' ? 'Fleet' : `pd-${ship}`;
-    const outcome = ship === 'fleet' ? null : shipOutcome(list);
+    const isFleet = ship === 'fleet';
+    const label = isFleet ? 'Fleet' : `pd-${ship}`;
+    const outcome = isFleet ? null : shipOutcome(list);
     const outcomeHtml = outcome ? `<span class="outcome tone-${outcome.tone}">${esc(outcome.text)}</span>` : '';
 
     const lis: string[] = [];
@@ -610,50 +745,83 @@ function renderShips(steps: FleetRunStepRow[], runStartSec: number): string {
         i = j;
       } else {
         const offset = Math.max(0, cur.created_at - runStartSec);
-        lis.push(renderStepLi(describeStep(cur, label), offset, prettyDetail(cur)));
+        lis.push(renderStepLi(describeStep(cur, label), offset, prettyDetail(cur), cur.kind));
         i += 1;
       }
     }
 
-    html += `<section class="ship">
-      <header>
-        <div class="ship-title"><h2>${esc(label)}</h2>${outcomeHtml}</div>
-        <span class="meta">${list.length} step${list.length === 1 ? '' : 's'}</span>
+    html += `<section class="ship-card${isFleet ? ' fleet' : ''}">
+      <header class="ship-head">
+        <div class="ship-id"><span class="ship-tick" aria-hidden="true"></span><h2>${esc(label)}</h2>${outcomeHtml}</div>
+        <span class="ship-count">${list.length} step${list.length === 1 ? '' : 's'}</span>
       </header>
-      <ol class="steps">${lis.join('')}</ol>
+      <ol class="timeline">${lis.join('')}</ol>
     </section>`;
   }
   return html;
 }
 
+const EMPTY_TRANSCRIPT = `<div class="empty">
+  <div class="e-title">No transcript steps recorded for this run.</div>
+  <p>This run concluded without emitting per-ship deliberation steps — either it short-circuited
+  before the fleet mapped the diff, or step recording was disabled for this delivery. The verdict
+  above is still authoritative. Re-run with <span class="cmd">pd fleet review</span> to capture a
+  full transcript.</p>
+</div>`;
+
 function renderRunPage(run: FleetRunRow, steps: FleetRunStepRow[]): string {
-  const ships = run.ships_csv ? run.ships_csv.split(',') : [];
+  const distinctShips = [
+    ...new Set((run.ships_csv ? run.ships_csv.split(',') : []).map(s => s.trim()).filter(Boolean)),
+  ];
   const inputTokens = sumDetailField(steps, 'inputTokens');
   const outputTokens = sumDetailField(steps, 'outputTokens');
+  const shipsLabel = distinctShips.length ? distinctShips.map(s => `pd-${s}`).join(', ') : '—';
   // Defense-in-depth: only ever link an https URL (a poisoned row must not
-  // become a javascript: href).
+  // become a javascript: href). The repo/PR label is escaped inside the link.
+  const prLabel = `${esc(run.repo_full_name)} <span class="pr">#${esc(run.pr_number)}</span>`;
   const prLink = /^https:\/\//.test(run.pr_url)
-    ? `<a href="${esc(run.pr_url)}">#${esc(run.pr_number)}</a>`
-    : `#${esc(run.pr_number)}`;
-  const inner = `
-    <div class="eyebrow">Port Daddy Fleet — deliberation transcript</div>
-    <h1>${esc(run.repo_full_name)} <span class="meta">PR</span> ${prLink}
-      <span class="badge ${badgeClass(run.conclusion)}">${esc(run.conclusion || 'pending')}</span></h1>
-    <p class="meta">head <code>${esc(run.head_sha.slice(0, 12))}</code>
-      · ${esc(fmtUtc(run.created_at))}
-      · wall-clock ${esc(fmtMs(run.ms))}
-      · ships: ${ships.length ? esc(ships.map(s => `pd-${s}`).join(', ')) : '—'}</p>
-    <div class="statgrid">
-      <div class="stat"><div class="k">Ships</div><div class="v">${ships.length}</div></div>
-      <div class="stat"><div class="k">Transcript steps</div><div class="v">${steps.length}</div></div>
-      <div class="stat"><div class="k">Input tokens</div><div class="v">${inputTokens.toLocaleString('en-US')}</div></div>
-      <div class="stat"><div class="k">Output tokens</div><div class="v">${outputTokens.toLocaleString('en-US')}</div></div>
-      <div class="stat"><div class="k">Neurons</div><div class="v">${run.neurons == null ? '—' : run.neurons.toLocaleString('en-US')}</div></div>
+    ? `<a href="${esc(run.pr_url)}">${prLabel}</a>`
+    : prLabel;
+  const inner = `<main class="page">
+    <div class="masthead">
+      <span class="eyebrow">Port Daddy Fleet · review receipt</span>
+      <h1 class="ko">What the fleet <span class="rec">found</span><span class="ko-over" aria-hidden="true">What the fleet <span class="rec">found</span></span></h1>
+      <span class="lede">Every review bot's pass on this PR — the files it read, the problems it raised, the calls it made. It's the same thing they posted in the comments, gathered in one place. Your code never leaves GitHub; the bots only see the diff.</span>
     </div>
-    ${renderShips(steps, run.created_at)}
-    <footer>Run <code>${esc(run.id)}</code> · delivery <code>${esc(run.delivery_id)}</code>.
-    This is a capability link: anyone holding this exact URL can view the page. Its contents match
-    what the fleet posted as PR comments.</footer>`;
+
+    <div class="receipt-id">
+      <div class="rid-top">
+        <div class="rid-repo">${prLink}</div>
+        <span class="badge ${badgeClass(run.conclusion)}"><span class="dot" aria-hidden="true"></span>${esc(run.conclusion || 'pending')}</span>
+      </div>
+      <div class="rid-facts">
+        <span class="fact"><span class="fk">head</span><code>${esc(run.head_sha.slice(0, 12))}</code></span>
+        <span class="fact"><span class="fk">concluded</span><code>${esc(fmtUtc(run.created_at))}</code></span>
+        <span class="fact"><span class="fk">ships</span><code>${esc(shipsLabel)}</code></span>
+      </div>
+    </div>
+
+    <div class="statrow">
+      <div class="stat"><div class="k">Agents</div><div class="v mono">${distinctShips.length}</div></div>
+      <div class="stat"><div class="k">Transcript steps</div><div class="v mono">${steps.length}</div></div>
+      <div class="stat"><div class="k">Input tokens</div><div class="v mono">${inputTokens.toLocaleString('en-US')}</div></div>
+      <div class="stat"><div class="k">Output tokens</div><div class="v mono">${outputTokens.toLocaleString('en-US')}</div></div>
+      <div class="stat stat-money"><div class="k">Neurons</div><div class="v mono">${run.neurons == null ? '—' : run.neurons.toLocaleString('en-US')}</div></div>
+      <div class="stat"><div class="k">Wall-clock</div><div class="v mono">${esc(fmtMs(run.ms))}</div></div>
+    </div>
+
+    <div class="tx-head">
+      <span class="eyebrow">Deliberation</span>
+      <h2>The transcript</h2>
+    </div>
+    <p class="tx-sub">Read it top to bottom. Each bot chunks the diff, weighs it, and files what it found;
+    the last rows are what it posted back to GitHub.</p>
+    ${steps.length ? renderShips(steps, run.created_at) : EMPTY_TRANSCRIPT}
+
+    <footer class="receipt-foot">Run <code>${esc(run.id)}</code> · delivery <code>${esc(run.delivery_id)}</code>.
+    Anyone with this exact link can open it — it shows the review, not your source. Same contents the
+    fleet posted in the PR.</footer>
+  </main>`;
   return shell(`${run.repo_full_name} PR #${run.pr_number} — Port Daddy Fleet`, inner);
 }
 
@@ -687,12 +855,10 @@ export async function handleFleetRunPage(
 
     return htmlResponse(renderRunPage(found.run, found.steps), 200);
   } catch {
-    return htmlResponse(
-      shell(
-        'Error — Port Daddy Fleet',
-        `<div class="eyebrow">Port Daddy Fleet</div><h1>Temporarily unavailable</h1>
-         <p class="meta">The transcript store could not be read. Try again shortly.</p>`,
-      ),
+    return noticePage(
+      'Error — Port Daddy Fleet',
+      'Temporarily unavailable',
+      'The transcript store could not be read. Try again shortly.',
       500,
     );
   }
