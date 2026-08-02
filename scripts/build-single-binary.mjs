@@ -3,7 +3,7 @@
 import { createHash } from 'node:crypto';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { tmpdir } from 'node:os';
+import { homedir } from 'node:os';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 
@@ -12,6 +12,8 @@ const DIST_DIR = join(ROOT_DIR, 'dist');
 const DEFAULT_OUTFILE = join(DIST_DIR, process.platform === 'win32' ? 'port-daddy.exe' : 'port-daddy');
 const EMBEDDED_ASSETS_MODULE = join(DIST_DIR, 'embedded-public-assets.generated.js');
 const EMBEDDED_NATIVE_CORE_MODULE = join(DIST_DIR, 'embedded-native-core.generated.js');
+const DURABLE_SCRATCH_DIR = process.env.PD_SCRATCH_ROOT || join(homedir(), 'coding', 'tmp');
+mkdirSync(DURABLE_SCRATCH_DIR, { recursive: true });
 
 function readArg(name) {
   const prefix = `${name}=`;
@@ -347,7 +349,7 @@ async function waitForText(url, child, stderrChunks, timeoutMs = 15000) {
 
 async function smokeSelfHostedDaemon(outfile, companionFiles = []) {
   const port = await reservePort();
-  const prefix = join(tmpdir(), `pd-sb-${process.pid}`);
+  const prefix = join(DURABLE_SCRATCH_DIR, `pd-sb-${process.pid}`);
   const isolatedBinDir = join(prefix, 'isolated-bin');
   const isolatedOutfile = join(isolatedBinDir, basename(outfile));
   const resourceDir = join(prefix, 'empty-resource-root');
@@ -478,7 +480,7 @@ if (launcherOutfile) {
 
 let smoke = { status: 'skipped', reason: 'cross-target build' };
 if (canSmokeTarget) {
-  const smokePrefix = join(tmpdir(), `pd-single-binary-smoke-${process.pid}`);
+  const smokePrefix = join(DURABLE_SCRATCH_DIR, `pd-single-binary-smoke-${process.pid}`);
   const result = run(entrypointOutfile, ['help'], {
     timeout: 15_000,
     env: {

@@ -356,7 +356,7 @@ export function assessHooks(diagnoses: SquidProviderHookDiagnosis[]): Remediatio
   return issueCard('hooks', status, 'warn',
     `${broken.length}/${diagnoses.length} provider hook contract(s) missing or stale (${names}). ` +
     'Hooks that vanish after launch drop the body to observed mode — the daemon will not overclaim governance.',
-    { command: 'pd squid hooks', description: 'Re-installs the named Port Daddy hooks (with privacy metadata) for every detected provider.', oneClick: true });
+    { command: 'pd squid on', description: 'Stages the harness and wires daemon-gated hooks for every detected provider.', oneClick: true });
 }
 
 export function assessMcp(f: McpFacts): RemediationCard {

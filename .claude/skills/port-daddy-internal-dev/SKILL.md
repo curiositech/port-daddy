@@ -103,6 +103,14 @@ repo-specific mechanics:
   that summarize operator preferences or cross-repo tactics must carry
   provenance, redaction/sync posture, account/team authority, and staleness.
 - **Keep `README.md` current** in the same PR when a slice changes a documented surface.
+- **Prove Squid from release cargo.** Adding a hook to source is not enough.
+  Declare every required tentacle/identity/steering asset in
+  `release-artifacts.json`, stage it in `release.yml`, then run
+  `scripts/smoke-squid-release.mjs` against the compiled binary outside the
+  source tree. The proof must cover Claude/Gemini project config, Codex/agy
+  user config, exact-root gating, statusline, Pilot SessionStart, `/squid`, and
+  machine-readable READY/LIVE state. A source-suite pass cannot substitute for
+  this artifact-boundary proof.
 
 ## Core Decision Tree
 

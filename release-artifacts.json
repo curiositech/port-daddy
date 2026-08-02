@@ -75,6 +75,15 @@
       "minBytes": 1
     },
     {
+      "id": "sessionstart-pilot",
+      "buildCmd": "cp hooks/sessionstart-pilot.mjs dist/hooks/sessionstart-pilot.mjs (dependency-free Pilot steering hook)",
+      "sourcePath": "hooks/sessionstart-pilot.mjs",
+      "stagedPath": "hooks/sessionstart-pilot.mjs",
+      "required": true,
+      "executable": false,
+      "minBytes": 100
+    },
+    {
       "id": "native-onnxruntime",
       "_comment": "onnxruntime-node runtime libs (libonnxruntime.*.dylib / libonnxruntime.so.1) staged by scripts/build-single-binary.mjs (#3561). Filenames are platform-specific, so this asserts the directory exists and is non-empty rather than a single file. required:false — it is a semantic-search perf enhancement, NOT a silent-capability regression of the pd-bosun/tentacle class; a build without onnxruntime-node must still be able to release.",
       "sourcePath": "dist/native",

@@ -29,11 +29,8 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { PD_HOME } from '../../shared/paths.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = join(__dirname, '..', '..');
+import { resolveSquidAsset } from './assets.js';
 
 export const STATUSLINE_BIN = 'pd-statusline';
 /** Marker substring identifying OUR statusLine command (mirror of PD_HOOK_MARKER). */
@@ -56,11 +53,12 @@ export interface IdentityResult {
 
 /** Copy bin/pd-statusline → ~/.port-daddy/bin/. Returns null if not on this build. */
 export function stageStatusline(
-  sourceDir = join(PROJECT_ROOT, 'bin'),
+  sourceDir?: string,
   destBinDir = join(PD_HOME, 'bin'),
 ): string | null {
-  const src = join(sourceDir, STATUSLINE_BIN);
-  if (!existsSync(src)) return null;
+  const explicit = sourceDir ? join(sourceDir, STATUSLINE_BIN) : null;
+  const src = explicit ? (existsSync(explicit) ? explicit : null) : resolveSquidAsset(join('bin', STATUSLINE_BIN));
+  if (!src) return null;
   const dst = stagedStatuslinePath(destBinDir);
   mkdirSync(dirname(dst), { recursive: true });
   copyFileSync(src, dst);
@@ -195,6 +193,7 @@ export interface IdentityStatus {
   statuslineProject: boolean;
   statuslineUser: boolean;
   slashCommand: boolean;
+  pilotSessionStart: boolean;
   daemonAlive: boolean;
 }
 
@@ -218,11 +217,14 @@ export function readIdentityStatus(projectDir: string, home = process.env.HOME |
     const cmd = settings?.statusLine?.command;
     return typeof cmd === 'string' && cmd.includes(STATUSLINE_MARKER);
   };
+  const projectSettings = readSettings(join(projectDir, '.claude', 'settings.json'));
+  const pilotSessionStart = JSON.stringify(projectSettings?.hooks ?? {}).includes('sessionstart-pilot.mjs');
   return {
     statuslineStaged: existsSync(stagedStatuslinePath()),
     statuslineProject: wired(projectDir),
     statuslineUser: home ? wired(home) : false,
     slashCommand: existsSync(join(projectDir, '.claude', 'commands', SLASH_COMMAND_FILENAME)),
+    pilotSessionStart,
     daemonAlive: isSquidDaemonHeartbeatFresh(),
   };
 }

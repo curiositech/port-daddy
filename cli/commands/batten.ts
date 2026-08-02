@@ -342,9 +342,11 @@ async function runImprint(options: CLIOptions): Promise<void> {
       console.log(`  ${imp.sha256}  ${imp.bytes.toString().padStart(9)}  ${id} (${imp.stagedPath})`);
     }
     console.log('');
-    ui.success(`Wrote imprint for ${Object.keys(record.artifacts).length} artifact(s) -> ${outPath}`);
     if (record.missingRequired.length > 0) {
+      ui.warn(`Wrote an INCOMPLETE imprint for ${Object.keys(record.artifacts).length} artifact(s) -> ${outPath}`);
       ui.warn(`required artifacts absent (not imprinted): ${record.missingRequired.join(', ')}`);
+    } else {
+      ui.success(`Wrote imprint for ${Object.keys(record.artifacts).length} artifact(s) -> ${outPath}`);
     }
   }
   // A seal over absent required cargo is not a seal.

@@ -164,7 +164,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   backend: 'notify',        // sets the active CLI/subscription backend (caller config); status form is read-only
   backup: 'notify',         // writes a durable snapshot of the registry DB; reversible, caller-scoped
   cut: 'notify',            // cuts a release: runs builds, writes dist/release/<v>, optional sign — local, caller-scoped
-  batten: 'silent',         // verify staged release artifacts (pure read); `batten imprint` writes a local release-imprint.json (caller-scoped, offline, no daemon/shared-state mutation)
+  batten: 'notify',         // worst case: `batten imprint` writes a caller-scoped receipt; verify is refined silent below
   benchmark: 'notify',      // `benchmark run` makes paid multi-backend LLM calls; refined: list-models/list-conditions/report are silent reads
   // ── approval: mutates another agent's state, no data loss ────────────────
   // Top-level entries; subcommand refinement may downgrade.
@@ -405,7 +405,6 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'squid arm': 'notify',
   'squid off': 'notify',            // removes only pd-authored entries
   'squid disarm': 'notify',
-  'squid hooks': 'notify',
 
   // agent-CLI hooks installer
   'hooks list': 'silent',
@@ -451,6 +450,10 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
 
   // mcp
   'mcp install': 'notify',
+
+  // batten: verify is pure read; imprint writes the caller-selected receipt.
+  'batten verify': 'silent',
+  'batten imprint': 'notify',
 
   // attention: default fetch marks items read; peek/list forms are read-only
   'attention --peek': 'silent',

@@ -18,6 +18,9 @@ set -u
 
 PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
 MATRIX="${PD_MATRIX_FILE:-$PD_HOME/matrix.env}"
+MAX_ENTRIES="${PD_SQUID_PROMPT_MAX_ENTRIES:-12}"
+MAX_BYTES="${PD_SQUID_PROMPT_MAX_BYTES:-4096}"
+TTL_SECONDS="${PD_SQUID_PROMPT_TTL_SECONDS:-1800}"
 
 # Drain stdin so the CLI's pipe write never blocks, capturing it for cwd parsing.
 EVENT="$(cat 2>/dev/null || true)"
@@ -37,35 +40,67 @@ if [ -f "$MATRIX" ]; then
   PHER="$(grep -E '^PD_PHEROMONE_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
 fi
 
-# Relevance: a pheromone is relevant if its value mentions the cwd basename or
-# the cwd itself. Alerts are always relevant (operator steering is global).
+# Relevance: use the exact pd project root (or cwd when no marker is available),
+# never a basename substring. `app` must not receive traces from `other-app`.
 BASENAME="$(basename "$CWD" 2>/dev/null || echo "$CWD")"
+PROJECT_ROOT="$CWD"
+d="$CWD"
+while [ -n "$d" ] && [ "$d" != "/" ]; do
+  if [ -d "$d/.portdaddy" ]; then PROJECT_ROOT="$d"; break; fi
+  d="$(dirname "$d" 2>/dev/null || true)"
+done
 
 emit_value() {
   # $1 = a `KEY="val"` matrix line → print just the unquoted value.
   printf '%s\n' "$1" | sed -E 's/^[A-Za-z0-9_]+="?//; s/"$//'
 }
 
+is_fresh() {
+  # Untagged legacy entries remain visible; every new writer includes ts:<ISO>.
+  ts="$(printf '%s\n' "$1" | sed -nE 's/.*\| ts:([^ |]+).*/\1/p')"
+  [ -n "$ts" ] || return 0
+  compact="$(printf '%s' "$ts" | sed -E 's/\.[0-9]+Z$/Z/')"
+  epoch="$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$compact" '+%s' 2>/dev/null || true)"
+  [ -n "$epoch" ] || epoch="$(date -u -d "$compact" '+%s' 2>/dev/null || true)"
+  case "$epoch" in ''|*[!0-9]*) return 1 ;; esac
+  now="$(date +%s 2>/dev/null || true)"
+  case "$now" in ''|*[!0-9]*) return 1 ;; esac
+  age=$((now - epoch))
+  [ "$age" -ge 0 ] 2>/dev/null && [ "$age" -le "$TTL_SECONDS" ] 2>/dev/null
+}
+
 OUT=""
 OUT="${OUT}[PORT DADDY — STEERING ALERTS]\n"
 OUT="${OUT}- Agent must maintain an active pd plan and run pd sitrep to synthesize state.\n"
-
+COUNT=1
 if [ -n "$ALERTS" ]; then
+  SECTION=""
   while IFS= read -r line; do
     [ -n "$line" ] || continue
-    OUT="${OUT}- $(emit_value "$line")\n"
+    [ "$COUNT" -lt "$MAX_ENTRIES" ] 2>/dev/null || break
+    val="$(emit_value "$line")"
+    is_fresh "$val" || continue
+    SECTION="${SECTION}- ${val}\n"
+    COUNT=$((COUNT + 1))
   done <<EOF
 $ALERTS
 EOF
+  [ -z "$SECTION" ] || OUT="${OUT}${SECTION}"
 fi
 
 REL=""
 if [ -n "$PHER" ]; then
   while IFS= read -r line; do
     [ -n "$line" ] || continue
+    [ "$COUNT" -lt "$MAX_ENTRIES" ] 2>/dev/null || break
     val="$(emit_value "$line")"
-    case "$val" in
-      *"$CWD"*|*"$BASENAME"*) REL="${REL}- ${val}\n" ;;
+    is_fresh "$val" || continue
+    subject="${val%% | *}"
+    case "$subject" in
+      "$PROJECT_ROOT"|"$PROJECT_ROOT"/*)
+        REL="${REL}- ${val}\n"
+        COUNT=$((COUNT + 1))
+        ;;
     esac
   done <<EOF
 $PHER
@@ -83,7 +118,7 @@ fi
 # injection. Same structured shape the pre-tool tentacle already uses.
 # Fail-open: no jq → fall back to raw stdout (degraded framing, still advisory).
 if [ -n "$OUT" ]; then
-  BLOCK="$(printf '%b' "$OUT")"
+  BLOCK="$(printf '%b' "$OUT" | head -c "$MAX_BYTES" 2>/dev/null)"
   if command -v jq >/dev/null 2>&1; then
     jq -cn --arg ctx "$BLOCK" \
       '{hookSpecificOutput:{hookEventName:"UserPromptSubmit",additionalContext:$ctx}}'
