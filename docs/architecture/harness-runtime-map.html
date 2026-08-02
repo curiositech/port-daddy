@@ -1,0 +1,160 @@
+<style>
+  :root {
+    --ground:#eef2f6; --surface:#fff; --surface-2:#f4f7fa; --ink:#0d1b28; --ink-soft:#3d5163;
+    --muted:#64798c; --hair:#d6dfe8; --hair-strong:#b9c8d6; --accent:#d2661d; --accent-ink:#b4560f;
+    --local:#3f7fd2; --daemon:#1f8f68; --cf:#d2661d; --gha:#7a5cc0; --mcp:#0d9488;
+    --broken:#c0433d; --broken-bg:#f7e2e0; --planned:#a7791a; --planned-bg:#f6ecd4;
+    --shadow:0 1px 2px rgba(13,27,40,.06),0 8px 24px rgba(13,27,40,.06);
+    --mono:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Menlo,monospace;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --ground:#0a1420; --surface:#101f2e; --surface-2:#16273a; --ink:#e7eef4; --ink-soft:#b3c4d3;
+    --muted:#8298ab; --hair:#21384d; --hair-strong:#2e4863; --accent:#ff9152; --accent-ink:#ffab78;
+    --local:#6ea8ff; --daemon:#46c393; --cf:#ff9152; --gha:#b39bff; --mcp:#2dd4bf;
+    --broken:#ec6a63; --broken-bg:#35201f; --planned:#e0b34a; --planned-bg:#33290f;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 32px rgba(0,0,0,.32);
+  }}
+  :root[data-theme="light"]{--ground:#eef2f6;--surface:#fff;--surface-2:#f4f7fa;--ink:#0d1b28;--ink-soft:#3d5163;--muted:#64798c;--hair:#d6dfe8;--hair-strong:#b9c8d6;--accent:#d2661d;--accent-ink:#b4560f;--local:#3f7fd2;--daemon:#1f8f68;--cf:#d2661d;--gha:#7a5cc0;--mcp:#0d9488;--broken:#c0433d;--broken-bg:#f7e2e0;--planned:#a7791a;--planned-bg:#f6ecd4;--shadow:0 1px 2px rgba(13,27,40,.06),0 8px 24px rgba(13,27,40,.06);}
+  :root[data-theme="dark"]{--ground:#0a1420;--surface:#101f2e;--surface-2:#16273a;--ink:#e7eef4;--ink-soft:#b3c4d3;--muted:#8298ab;--hair:#21384d;--hair-strong:#2e4863;--accent:#ff9152;--accent-ink:#ffab78;--local:#6ea8ff;--daemon:#46c393;--cf:#ff9152;--gha:#b39bff;--mcp:#2dd4bf;--broken:#ec6a63;--broken-bg:#35201f;--planned:#e0b34a;--planned-bg:#33290f;--shadow:0 1px 2px rgba(0,0,0,.4),0 12px 32px rgba(0,0,0,.32);}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:1.0625rem;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 clamp(1.1rem,4vw,2.4rem)}
+  .eyebrow{font-family:var(--mono);font-size:.76rem;font-weight:700;text-transform:uppercase;letter-spacing:.16em;color:var(--accent-ink)}
+  h1,h2,h3{text-wrap:balance;line-height:1.15;margin:0}
+  code,.mono{font-family:var(--mono)}
+  header.top{border-bottom:1px solid var(--hair);background:var(--surface);position:sticky;top:0;z-index:5;backdrop-filter:blur(6px)}
+  .top-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.85rem 0;flex-wrap:wrap}
+  .brand{font-family:var(--mono)}.brand .mark{color:var(--accent);font-weight:700;letter-spacing:.05em}.brand .sub{color:var(--muted);font-size:.85rem}
+  .legend{display:flex;gap:.9rem;flex-wrap:wrap;font-family:var(--mono);font-size:.74rem}
+  .legend span{display:inline-flex;align-items:center;gap:.4rem;color:var(--ink-soft)}
+  .sw{width:.75rem;height:.75rem;border-radius:3px;display:inline-block}
+  .hero{padding:clamp(2rem,5vw,3.4rem) 0 1.6rem}
+  h1{font-size:clamp(1.9rem,4.6vw,2.9rem);letter-spacing:-.02em;font-weight:800}
+  .lede{font-size:clamp(1.05rem,2.1vw,1.25rem);color:var(--ink-soft);margin-top:1rem;max-width:60ch}
+  .plane{border-top:1px solid var(--hair);padding:clamp(1.5rem,3.5vw,2.4rem) 0}
+  .plane-head{display:flex;align-items:baseline;gap:.7rem;margin-bottom:1.1rem;flex-wrap:wrap}
+  .plane-head .tag{font-family:var(--mono);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--surface);padding:.2rem .55rem;border-radius:5px}
+  .plane-head h2{font-size:clamp(1.25rem,2.6vw,1.7rem);font-weight:800}
+  .plane-head .where{font-family:var(--mono);font-size:.8rem;color:var(--muted)}
+  .flow{font-family:var(--mono);font-size:.82rem;color:var(--muted);margin:0 0 1rem}
+  .flow b{color:var(--accent-ink)}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.85rem}
+  .card{background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:.9rem 1.05rem;box-shadow:var(--shadow);border-left:3px solid var(--pc,var(--hair-strong));display:flex;flex-direction:column;gap:.4rem;min-width:0}
+  .card.broken{border-left-color:var(--broken);box-shadow:0 0 0 1.5px var(--broken),var(--shadow)}
+  .card .nm{font-family:var(--mono);font-weight:700;font-size:.96rem;color:var(--ink);overflow-wrap:anywhere}
+  .card .why{font-size:.9rem;color:var(--ink-soft);overflow-wrap:anywhere}
+  .card .meta{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.1rem}
+  .chip{font-family:var(--mono);font-size:.68rem;font-weight:700;letter-spacing:.03em;padding:.14rem .42rem;border-radius:5px;text-transform:uppercase;background:var(--surface-2);color:var(--muted)}
+  .chip.t{color:var(--broken);background:var(--broken-bg)}
+  .chip.plan{color:var(--planned);background:var(--planned-bg)}
+  .chip.broke{color:var(--broken);background:var(--broken-bg)}
+  .p-local{--pc:var(--local)} .p-daemon{--pc:var(--daemon)} .p-cf{--pc:var(--cf)} .p-gha{--pc:var(--gha)} .p-mcp{--pc:var(--mcp)}
+  .tag-local{background:var(--local)}.tag-daemon{background:var(--daemon)}.tag-cf{background:var(--cf)}.tag-gha{background:var(--gha)}.tag-mcp{background:var(--mcp)}
+  .overlay{background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:1.3rem 1.4rem;box-shadow:var(--shadow);margin-top:.5rem}
+  .overlay h3{font-family:var(--mono);font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:1rem}
+  .plan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.8rem}
+  .plan-item{border-left:3px solid var(--planned);background:var(--surface-2);border-radius:10px;padding:.75rem .95rem}
+  .plan-item .pid{font-family:var(--mono);font-weight:800;color:var(--accent-ink);font-size:.9rem}
+  .plan-item .pd{font-size:.9rem;color:var(--ink-soft);margin-top:.2rem}
+  footer{padding:2.2rem 0 3rem;color:var(--muted);font-size:.9rem;border-top:1px solid var(--hair)}
+</style>
+
+<header class="top">
+  <div class="wrap top-row">
+    <div class="brand"><span class="mark">PORT DADDY</span> <span class="sub">· harness runtime map — what runs, where, and why</span></div>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--local)"></i>local</span>
+      <span><i class="sw" style="background:var(--daemon)"></i>daemon</span>
+      <span><i class="sw" style="background:var(--cf)"></i>cloudflare</span>
+      <span><i class="sw" style="background:var(--gha)"></i>gh actions</span>
+      <span><i class="sw" style="background:var(--mcp)"></i>mcp</span>
+      <span><i class="sw" style="background:var(--broken)"></i>broken</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="hero">
+    <span class="eyebrow">Runtime map · 2026-08-02</span>
+    <h1>Everything the harness runs, and the plane it runs on.</h1>
+    <p class="lede">Five execution planes carry Port Daddy: your local Claude-Code hooks, the local daemon, two Cloudflare Workers, GitHub Actions, and the MCP rail. Two things are on fire (marked red); the planned changes are overlaid at the bottom.</p>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section class="plane p-local">
+    <div class="plane-head"><span class="tag tag-local">Plane 1</span><h2>Claude-Code hooks</h2><span class="where">runs: your local shell, per session / prompt / tool</span></div>
+    <p class="flow">why: slide coordination in around the agent without asking it to remember — <b>inject context, enforce guards, record traces</b>.</p>
+    <div class="cards">
+      <div class="card"><span class="nm">SessionStart · pilot</span><span class="why">Injects the persona + steering blob (the 50 KB pheromone/remember/memory context) and runs <code>pd attention</code>.</span><div class="meta"><span class="chip">sessionstart-pilot.mjs</span></div></div>
+      <div class="card broken"><span class="nm">UserPromptSubmit · skill-sync</span><span class="why">Runs <code>npx tsx scripts/sync-skills.ts</code> on <em>every prompt</em> — measured ~28.5 s cold-start. This is the hook timeout.</span><div class="meta"><span class="chip broke">~28.5s / prompt</span><span class="chip plan">fix planned</span></div></div>
+      <div class="card"><span class="nm">Pre / Post-tool · pd</span><span class="why"><code>pd-hook-pre-tool</code> / <code>pd-hook-post-tool</code> record pheromone traces + coordination; isolation guard (10s) + destructive-git block (5s).</span><div class="meta"><span class="chip">pd-hook-*</span></div></div>
+      <div class="card"><span class="nm">PostToolUse · typecheck</span><span class="why"><code>npx tsc --noEmit</code> on every tool use (30 s cap) — a latency tax on a hot path.</span><div class="meta"><span class="chip t">30s cap</span></div></div>
+    </div>
+  </section>
+
+  <section class="plane p-daemon">
+    <div class="plane-head"><span class="tag tag-daemon">Plane 2</span><h2>Port Daddy daemon</h2><span class="where">runs: local process, :9876 / :9886</span></div>
+    <p class="flow">why: the single source of coordination truth — <b>sessions, claims, notes, salvage, memory</b> — one per developer, never a server.</p>
+    <div class="cards">
+      <div class="card"><span class="nm">Coordination</span><span class="why">sessions · file claims · notes · salvage queue · locks · Coordination Guard (blocks uncoordinated commits).</span><div class="meta"><span class="chip">pd begin / note / guard</span></div></div>
+      <div class="card"><span class="nm">Knowledge custodian</span><span class="why">Heartbeating loop: harvests notes→episodes, archives on TTL, warns on context pressure.</span><div class="meta"><span class="chip">knowledge-custodian.ts</span></div></div>
+      <div class="card"><span class="nm">Context + memory</span><span class="why">Context-window tracker (COGS ledger) + episodic memory (LIKE recall today). The M6 ladder is built-but-unwired.</span><div class="meta"><span class="chip plan">ch.27 W1–W7</span></div></div>
+      <div class="card"><span class="nm">Local fleet</span><span class="why"><code>pd-fleet.yml</code> ~19 ships (gardener, cartographer, steward…) — the daemon-run review swarm.</span><div class="meta"><span class="chip">pd-fleet.yml</span></div></div>
+    </div>
+  </section>
+
+  <section class="plane p-cf">
+    <div class="plane-head"><span class="tag tag-cf">Plane 3</span><h2>Cloudflare Workers</h2><span class="where">runs: the edge — relay + fleet-executor</span></div>
+    <p class="flow">flow: GitHub webhook → <b>relay verifies + enqueues</b> → <code>FLEET_RUNS</code> queue → <b>fleet-executor runs the ships</b> → sets the required check.</p>
+    <div class="cards">
+      <div class="card"><span class="nm">Relay</span><span class="why">Verifies the GitHub webhook, enqueues one fleet job, serves run pages (<code>workers.dev/fleet/runs/…</code>). Central by default; self-host = enterprise.</span><div class="meta"><span class="chip">apps/relay</span></div></div>
+      <div class="card"><span class="nm">Fleet executor</span><span class="why">Queues consumer runs 8 cloud ships on a PR (4 reviewers + 4 ideation), embeds via bge, posts comments.</span><div class="meta"><span class="chip">apps/fleet-executor</span></div></div>
+      <div class="card broken"><span class="nm">"Port Daddy Fleet" check</span><span class="why">Required gate. Sets pass/fail — but an infra hiccup (empty AI envelope, DLQ) fails <em>identically</em> to a real block. Dishonest gate.</span><div class="meta"><span class="chip broke">errored = BLOCK</span><span class="chip plan">fix planned</span></div></div>
+      <div class="card broken"><span class="nm">PR comment spam</span><span class="why">4 ideation ships emit 0–4 ideas each, no cross-ship dedup, no cap → ~25 redundant comments per PR.</span><div class="meta"><span class="chip broke">~25 / PR</span><span class="chip plan">dedup planned</span></div></div>
+    </div>
+  </section>
+
+  <section class="plane p-gha">
+    <div class="plane-head"><span class="tag tag-gha">Plane 4</span><h2>GitHub Actions + merge queue</h2><span class="where">runs: GitHub CI, ruleset 17604542</span></div>
+    <p class="flow">why: the shippability gate — <b>one aggregator + three meta-guards</b>, ALLGREEN/REBASE queue. Fixed after the path-filter deadlock (#4297).</p>
+    <div class="cards">
+      <div class="card"><span class="nm">ci-gate (aggregator)</span><span class="why">Single required Actions check: <code>if: always()</code>, needs all 14 jobs, fails on failure/cancelled, passes on skipped. Killed the deadlock.</span><div class="meta"><span class="chip">ci.yml</span></div></div>
+      <div class="card"><span class="nm">doc-citation-guard</span><span class="why">Every <code>file:line</code> / repo-path citation in changed docs must resolve, or carry a proposal marker.</span><div class="meta"><span class="chip">required</span></div></div>
+      <div class="card"><span class="nm">roadmap-link · pr-requirements</span><span class="why">A <code>Roadmap-Item:</code> trailer + a real Summary/Test-Plan; visual surfaces need screenshot + motion.</span><div class="meta"><span class="chip">required</span></div></div>
+      <div class="card"><span class="nm">merge queue</span><span class="why">ALLGREEN grouping, REBASE, max 5, 60-min check timeout. Flowing (merges 08-02).</span><div class="meta"><span class="chip">ruleset 17604542</span></div></div>
+    </div>
+  </section>
+
+  <section class="plane p-mcp">
+    <div class="plane-head"><span class="tag tag-mcp">Rail</span><h2>MCP servers</h2><span class="where">runs: local, per-session tool rail</span></div>
+    <p class="flow">why: the agent-facing tool surface — coordination and planning as callable tools, not shell muscle-memory.</p>
+    <div class="cards">
+      <div class="card"><span class="nm">port-daddy MCP</span><span class="why">sessions · claims · notes · ports · salvage · sitrep · memory episodes · pd_discover (DNS/locks/pubsub/inbox/tunnels/webhooks).</span><div class="meta"><span class="chip">begin_session…</span></div></div>
+      <div class="card"><span class="nm">windags MCP</span><span class="why">skill search / graft / next-move meta-DAG. Ranks skills (BM25 + Tool2Vec + RRF); reads references, does not execute them.</span><div class="meta"><span class="chip">windags_*</span></div></div>
+    </div>
+  </section>
+
+  <section class="plane">
+    <div class="overlay">
+      <h3>Planned changes overlaid (roadmap / binder)</h3>
+      <div class="plan-grid">
+        <div class="plan-item"><div class="pid">ch.27 W1–W16</div><div class="pd">Context/memory runtime wiring: emit the ContextEnvelope keystone, wire the compaction ladder, hybrid cited recall, packet-as-checkpoint, eager tool2vec build, subagent partitioning (+ W11–15 hardening).</div></div>
+        <div class="plan-item"><div class="pid">25 / 26 / 27</div><div class="pd">Runtime refactor: one creation path (WorkIntent→AgentNode), one <code>v0</code> contract freeze — the single decision that dissolves the cross-chapter conflict.</div></div>
+        <div class="plan-item"><div class="pid">pd drill (W16)</div><div class="pd">Governed skill-script runner — run a skill's tool without reading its source; feeds the W9 usage log. Specced, recon'd.</div></div>
+        <div class="plan-item"><div class="pid">Fleet fix</div><div class="pd">Semantic dedup before posting, honest gate (errored≠BLOCK), real accept/request-changes verdict + definition-of-done, adversarial test-writers, meta-review of fleet-authored code.</div></div>
+        <div class="plan-item"><div class="pid">Hook fix</div><div class="pd">Get skill-sync off per-prompt <code>npx tsx</code> (~28.5 s) — compiled/hash-guarded/async fast path.</div></div>
+        <div class="plan-item"><div class="pid">Intent-first onboarding</div><div class="pd">Redesign <code>pd begin</code>/attention/briefing/whoami: agent declares intent → PD suggests salvage, roadmap items, files, parley, and auto-subscribes it to live channels + a PR feed. (In design.)</div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p class="mono">Port Daddy · harness runtime map · as-of 2026-08-02</p>
+    <p>Built from this session's audits (hooks from settings.json, cloud/local fleet, CI ruleset 17604542, daemon surfaces). Red = live problem with a planned fix. Verified with layout-overflow-guard.</p>
+  </div>
+</footer>

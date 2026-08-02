@@ -229,6 +229,16 @@ Work Receipt:
   the executable skillful-agent DAG for the runtime refactor: node prompts,
   dependency order, blackboard keys, skeptical review nodes, smoke/shadow test
   gates, and release responsibilities.
+- [28 Agent Coordination And Onboarding](./28-agent-coordination-and-onboarding.md):
+  intent-first onboarding — the agent declares its purpose and Port Daddy pushes
+  back a tailored Arrival Brief (ranked salvage, semantic roadmap match, hot
+  files, peers, pre-drafted parley), inverting the pull loop (`attention`/
+  `briefing`/`sitrep`) into push. Built only on verified primitives (tuples,
+  pheromones, inbox, pub/sub, locks, manual parley, episodic, blobs); rejects the
+  aspirational ones (Contract-Net, ICP, the orphaned blackboard module). Adds
+  harnessed-reality logging (`context_injection`), the buffer/page/summarize
+  invariant (= ch.27 W8), the MCP navigation surface, and Fleet-grade anti-spam
+  guardrails. Keystone new build: the semantic Intent Matcher.
 - [Work packet: Destructive Daemon Runtime Refactor](./work-packets/destructive-daemon-runtime-refactor.md):
   the Wave 2 Lane A authority packet for implementation lanes: destructive
   legacy entry disposition, local/cloud authority, `harbor_events`, Surface
