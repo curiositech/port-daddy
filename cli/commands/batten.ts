@@ -26,7 +26,10 @@ import {
   createHash,
 } from 'node:crypto';
 import {
+  closeSync,
   existsSync,
+  openSync,
+  readSync,
   readFileSync,
   readdirSync,
   statSync,
@@ -169,32 +172,41 @@ export function verifyArtifacts(manifest: ReleaseManifest, stagedDir: string): V
       present = false;
       failures.push(`missing: expected ${type} at ${entry.stagedPath} (${absPath})`);
     } else {
-      const st = statSync(absPath);
-      present = true;
-      if (type === 'dir') {
-        if (!st.isDirectory()) {
-          failures.push(`expected a directory at ${entry.stagedPath}, found a file`);
+      try {
+        const st = statSync(absPath);
+        present = true;
+        if (type === 'dir') {
+          if (!st.isDirectory()) {
+            failures.push(`expected a directory at ${entry.stagedPath}, found a file`);
+          } else {
+            try {
+              const kids = readdirSync(absPath);
+              bytes = kids.length; // reuse bytes field as entry count for dirs
+              if (kids.length === 0) {
+                failures.push(`directory ${entry.stagedPath} is empty`);
+              }
+            } catch (error) {
+              failures.push(`cannot read directory ${entry.stagedPath}: ${(error as Error).message}`);
+            }
+          }
         } else {
-          const kids = readdirSync(absPath);
-          bytes = kids.length; // reuse bytes field as entry count for dirs
-          if (kids.length === 0) {
-            failures.push(`directory ${entry.stagedPath} is empty`);
+          if (st.isDirectory()) {
+            failures.push(`expected a file at ${entry.stagedPath}, found a directory`);
+          } else {
+            bytes = st.size;
+            isExecutable = isExecutableMode(st.mode);
+            const floor = typeof entry.minBytes === 'number' ? entry.minBytes : 1;
+            if (st.size < floor) {
+              failures.push(`too small: ${st.size} bytes < required minimum ${floor}`);
+            }
+            if (wantExecutable && !isExecutable) {
+              failures.push(`not executable: ${entry.stagedPath} is missing an execute bit (mode ${(st.mode & 0o777).toString(8)})`);
+            }
           }
         }
-      } else {
-        if (st.isDirectory()) {
-          failures.push(`expected a file at ${entry.stagedPath}, found a directory`);
-        } else {
-          bytes = st.size;
-          isExecutable = isExecutableMode(st.mode);
-          const floor = typeof entry.minBytes === 'number' ? entry.minBytes : 1;
-          if (st.size < floor) {
-            failures.push(`too small: ${st.size} bytes < required minimum ${floor}`);
-          }
-          if (wantExecutable && !isExecutable) {
-            failures.push(`not executable: ${entry.stagedPath} is missing an execute bit (mode ${(st.mode & 0o777).toString(8)})`);
-          }
-        }
+      } catch (error) {
+        present = true;
+        failures.push(`cannot inspect ${entry.stagedPath}: ${(error as Error).message}`);
       }
     }
 
@@ -226,9 +238,21 @@ export function verifyArtifacts(manifest: ReleaseManifest, stagedDir: string): V
 }
 
 function sha256File(absPath: string): { sha256: string; bytes: number } {
-  const buf = readFileSync(absPath);
-  const sha256 = createHash('sha256').update(buf).digest('hex');
-  return { sha256, bytes: buf.byteLength };
+  const hash = createHash('sha256');
+  const chunk = Buffer.allocUnsafe(1024 * 1024);
+  const descriptor = openSync(absPath, 'r');
+  let bytes = 0;
+  try {
+    for (;;) {
+      const read = readSync(descriptor, chunk, 0, chunk.byteLength, null);
+      if (read === 0) break;
+      hash.update(chunk.subarray(0, read));
+      bytes += read;
+    }
+  } finally {
+    closeSync(descriptor);
+  }
+  return { sha256: hash.digest('hex'), bytes };
 }
 
 /**

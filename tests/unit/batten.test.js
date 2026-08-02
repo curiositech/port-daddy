@@ -150,6 +150,16 @@ describe('verifyArtifacts — passing path', () => {
     expect(nativeResult.present).toBe(false);
     expect(nativeResult.failures).toEqual([]);
   });
+
+  test('a present optional directory is still inspected and reports when empty', () => {
+    rmSync(join(staged, 'native'), { recursive: true, force: true });
+    mkdirSync(join(staged, 'native'));
+    const report = verifyArtifacts(fixtureManifest(), staged);
+    expect(report.ok).toBe(true);
+    const nativeResult = report.results.find((r) => r.id === 'native');
+    expect(nativeResult.present).toBe(true);
+    expect(nativeResult.failures.join(' ')).toMatch(/empty/i);
+  });
 });
 
 describe('verifyArtifacts — FAILS LOUD (anti-silent-failure)', () => {
@@ -198,6 +208,22 @@ describe('verifyArtifacts — FAILS LOUD (anti-silent-failure)', () => {
     const report = verifyArtifacts(manifest, staged);
     expect(report.ok).toBe(false);
     expect(report.results[0].failures.join(' ')).toMatch(/empty/i);
+  });
+
+  (process.platform === 'win32' ? test.skip : test)('an unreadable required directory is reported instead of crashing', () => {
+    const manifest = {
+      artifacts: [{ id: 'native', stagedPath: 'native', type: 'dir', required: true }],
+    };
+    mkdirSync(join(staged, 'native'));
+    chmodSync(join(staged, 'native'), 0o000);
+    try {
+      expect(() => verifyArtifacts(manifest, staged)).not.toThrow();
+      const report = verifyArtifacts(manifest, staged);
+      expect(report.ok).toBe(false);
+      expect(report.results[0].failures.join(' ')).toMatch(/cannot read directory/i);
+    } finally {
+      chmodSync(join(staged, 'native'), 0o755);
+    }
   });
 });
 
@@ -265,7 +291,40 @@ describe('handleBatten imprint — fail-loud CLI contract', () => {
 
   afterEach(() => {
     process.exit = realExit;
+    jest.restoreAllMocks();
     rmSync(root, { recursive: true, force: true });
+  });
+
+  test('help names both canonical subcommands without exiting', async () => {
+    const stdout = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await handleBatten(['help'], {});
+    const output = stdout.mock.calls.flat().join('\n');
+    expect(output).toMatch(/pd batten verify/);
+    expect(output).toMatch(/pd batten imprint/);
+  });
+
+  test('unknown subcommands print usage and exit 1', async () => {
+    process.exit = jest.fn((code) => { throw new Error(`exit:${code}`); });
+    const stdout = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const stderr = jest.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(handleBatten(['wat'], {})).rejects.toThrow('exit:1');
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect([...stdout.mock.calls, ...stderr.mock.calls].flat().join(' ')).toMatch(/unknown batten subcommand: wat/i);
+    expect(stdout.mock.calls.flat().join(' ')).toMatch(/pd batten verify/i);
+  });
+
+  test('verify subcommand parses options and runs the real artifact gate', async () => {
+    writeExec(join(staged, 'pd'), 'binary-A');
+    writeData(join(staged, 'port-daddy-manifest.json'), '{"files":[1]}');
+    mkdirSync(join(staged, 'bin'));
+    writeExec(join(staged, 'bin', 'pd-hook-prompt'), '#!/bin/sh\n');
+    const exit = jest.fn();
+    process.exit = exit;
+    const stdout = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const stderr = jest.spyOn(console, 'error').mockImplementation(() => {});
+    await handleBatten(['verify'], { manifest: manifestPath, 'staged-dir': staged });
+    expect(exit).not.toHaveBeenCalled();
+    expect([...stdout.mock.calls, ...stderr.mock.calls].flat().join(' ')).toMatch(/All required release artifacts present and valid/i);
   });
 
   test('writes the incomplete receipt, warns, and exits 1 when required cargo is absent', async () => {
