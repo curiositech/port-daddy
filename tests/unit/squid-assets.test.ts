@@ -1,3 +1,4 @@
+import { afterAll, beforeEach, expect, test } from '@jest/globals';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { resolveSquidAsset, squidAssetCandidates } from '../../lib/squid/assets.js';

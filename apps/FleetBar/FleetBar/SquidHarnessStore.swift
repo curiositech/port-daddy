@@ -150,13 +150,18 @@ final class SquidHarnessStore: ObservableObject {
         message = nil
         let result = await runner(arguments)
         isWorking = false
-        if result.status == 0 {
-            message = success
-        } else {
-            let detail = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-            message = detail.isEmpty ? "The Squid action failed." : detail
-        }
+        let detail = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+        let actionMessage = result.status == 0
+            ? success
+            : (detail.isEmpty ? "The Squid action failed." : detail)
         await refresh(projectDir: projectDir)
+        if result.status != 0 {
+            // A refresh can update the snapshot, but it must never erase the
+            // actionable stderr that explains why Arm/Repair/Disarm failed.
+            message = actionMessage
+        } else if snapshot != nil {
+            message = actionMessage
+        }
     }
 }
 
