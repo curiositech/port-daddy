@@ -65,6 +65,19 @@ final class SquidHarnessStoreTests: XCTestCase {
         XCTAssertEqual(recorded[0], ["squid", "on", "--cwd", "/work/repo"])
         XCTAssertEqual(recorded[1], ["squid", "status", "--json", "--cwd", "/work/repo"])
         XCTAssertEqual(store.snapshot?.state, .ready)
+        XCTAssertEqual(store.message, "Squid armed. New agent sessions will show ◆ PD.")
+    }
+
+    func testMutationFailureSurvivesStatusRefresh() async {
+        let json = readyJSON
+        let store = SquidHarnessStore { arguments in
+            return arguments.contains("status")
+                ? SquidCommandResult(status: 0, stdout: json, stderr: "")
+                : SquidCommandResult(status: 1, stdout: "", stderr: "Pilot asset is missing; run Repair again.")
+        }
+        await store.arm(projectDir: "/work/repo")
+        XCTAssertEqual(store.snapshot?.state, .ready)
+        XCTAssertEqual(store.message, "Pilot asset is missing; run Repair again.")
     }
 
     func testInvalidStatusBecomesVisibleInsteadOfPretendingOff() async {
