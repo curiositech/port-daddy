@@ -41,9 +41,10 @@ import {
   resolveBosunBinaryPath,
 } from '../../shared/daemon-binary.js';
 import {
-  diagnoseSquidHookInstall,
   SQUID_HOOK_PRIVACY_NOTICE,
+  type SquidProviderHookDiagnosis,
 } from '../../lib/squid/adapter.js';
+import { inspectHookTargets } from './hooks-install.js';
 import { isEmbeddingModelCached, prefetchEmbeddingModel } from './embed.js';
 import { DEFAULT_SEMANTIC_MODEL_ID, defaultTransformersCacheDir } from '../../lib/semantic-resolver.js';
 import { isStdinInteractive, isStdoutInteractive } from '../utils/tty.js';
@@ -2302,7 +2303,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     configured: false,
     detail: 'Agent runtime wiring could not be probed',
   };
-  let hookDiagnosesForHarbor: ReturnType<typeof diagnoseSquidHookInstall> = [];
+  let hookDiagnosesForHarbor: SquidProviderHookDiagnosis[] = [];
 
   try {
     const runtime = diagnoseAgentRuntimeInstall(homedir());
@@ -2314,7 +2315,18 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   }
 
   try {
-    const hookChecks = diagnoseSquidHookInstall(process.cwd());
+    const hookChecks: SquidProviderHookDiagnosis[] = inspectHookTargets(homedir(), process.cwd())
+      .filter((target) => target.detected)
+      .map((target) => ({
+      providerName: target.slug === 'claude' ? 'claude-code' : target.slug === 'agy' ? 'antigravity' : target.slug,
+      binaryName: target.slug,
+      configPath: target.expectedScope === 'project' ? target.projectPath ?? '' : target.userPath,
+      ok: target.wired,
+      detail: target.wired
+          ? `${target.expectedScope} hook config is wired and this exact project root is armed`
+          : `${target.expectedScope} hook config missing, stale, or this exact project root is not armed`,
+      hint: 'Run: pd squid on',
+    }));
     hookDiagnosesForHarbor = hookChecks;
     const okHooks = hookChecks.filter((result) => result.ok);
     if (okHooks.length === hookChecks.length) {
@@ -2324,7 +2336,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
         'Agent lifecycle hooks',
         false,
         `${okHooks.length}/${hookChecks.length} provider hook contract(s) healthy`,
-        'Run: pd setup   (or pd squid hooks)',
+        'Run: pd setup   (or pd squid on)',
       );
       for (const result of hookChecks.filter((item) => !item.ok)) {
         check(`Agent hooks: ${result.providerName}`, false, `${result.detail} at ${result.configPath}`, result.hint);
@@ -2332,7 +2344,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     }
     check('Hook privacy disclosure', true, SQUID_HOOK_PRIVACY_NOTICE);
   } catch (err: unknown) {
-    check('Agent lifecycle hooks', false, `Error: ${(err as Error).message}`, 'Run: pd squid hooks');
+    check('Agent lifecycle hooks', false, `Error: ${(err as Error).message}`, 'Run: pd squid on');
   }
 
   // -------------------------------------------------------------------------

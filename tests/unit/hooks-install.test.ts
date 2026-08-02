@@ -17,6 +17,10 @@ import {
   buildTargets,
   configureTarget,
   uninstallTarget,
+  clearArmedSquidProjects,
+  isSquidProjectArmed,
+  registerSquidProject,
+  unregisterSquidProject,
 } from '../../cli/commands/hooks-install.js';
 import {
   TENTACLES,
@@ -118,6 +122,8 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(wrapper).not.toContain('kill -0');
     expect(wrapper).not.toContain('ps -p');
     expect(wrapper).toContain('.portdaddy');
+    expect(wrapper).toContain('squid/projects');
+    expect(wrapper).toContain('grep -Fqx "$project_root"');
     expect(wrapper).toContain('exec "$PD_HOME/bin/squid/${0##*/}"');
     expect(wrapper.trim().endsWith('exit 0')).toBe(true); // fail-open default
   });
@@ -129,6 +135,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     stageTentacles(SRC, binDir);
     const heartbeat = join(pdHome, 'heartbeat');
     writeFileSync(heartbeat, '{}');
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
 
     const run = (): string => execFileSync(join(binDir, 'pd-hook-prompt'), [], {
       cwd: REPO,
@@ -151,6 +158,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     mkdirSync(fakeBin, { recursive: true });
     stageTentacles(SRC, binDir);
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
     writeFileSync(join(fakeBin, 'stat'), [
       '#!/bin/sh',
       'if [ "$1" = "-f" ]; then printf "not-a-number\\n"; exit 0; fi',
@@ -166,6 +174,17 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
       encoding: 'utf8',
     });
     expect(out).toContain('pd-hook-prompt');
+  });
+
+  test('user-level hooks are inert until this exact project root is armed', () => {
+    const registry = join(SANDBOX, 'registry-home', 'squid', 'projects');
+    expect(isSquidProjectArmed(REPO, registry)).toBe(false);
+    expect(registerSquidProject(REPO, registry)).toBe(REPO);
+    expect(isSquidProjectArmed(REPO, registry)).toBe(true);
+    expect(isSquidProjectArmed(`${REPO}-copy`, registry)).toBe(false);
+    expect(unregisterSquidProject(REPO, registry)).toBe(true);
+    expect(isSquidProjectArmed(REPO, registry)).toBe(false);
+    clearArmedSquidProjects(registry);
   });
 
   test('fails open when the heartbeat is absent or neither stat probe can read it', () => {

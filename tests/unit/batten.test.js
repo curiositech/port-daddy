@@ -12,7 +12,7 @@
 import { describe, expect, jest, test, beforeEach, afterEach } from '@jest/globals';
 import { createHash } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
   loadManifest,
@@ -21,6 +21,9 @@ import {
   imprintArtifacts,
   handleBatten,
 } from '../../cli/commands/batten.js';
+
+const DURABLE_SCRATCH = join(homedir(), 'coding', 'tmp');
+mkdirSync(DURABLE_SCRATCH, { recursive: true });
 
 // A synthetic manifest mirroring the real shape: a required exec binary, a
 // required non-exec data file, a required tentacle under bin/, an optional dir.
@@ -49,7 +52,7 @@ function writeData(path, contents, mode = 0o644) {
 describe('loadManifest', () => {
   let dir;
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), 'pd-batten-manifest-'));
+    dir = mkdtempSync(join(DURABLE_SCRATCH, 'pd-batten-manifest-'));
   });
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
@@ -67,7 +70,7 @@ describe('loadManifest', () => {
     const real = loadManifest(resolveManifestPath());
     const ids = real.artifacts.map((a) => a.id);
     // The silent-failure class this system closes: watchdog + tentacles.
-    for (const id of ['pd', 'port-daddy', 'pd-bosun', 'pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool']) {
+    for (const id of ['pd', 'port-daddy', 'pd-bosun', 'pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'sessionstart-pilot']) {
       expect(ids).toContain(id);
     }
   });
@@ -118,7 +121,7 @@ describe('loadManifest', () => {
 describe('verifyArtifacts — passing path', () => {
   let staged;
   beforeEach(() => {
-    staged = mkdtempSync(join(tmpdir(), 'pd-batten-ok-'));
+    staged = mkdtempSync(join(DURABLE_SCRATCH, 'pd-batten-ok-'));
     writeExec(join(staged, 'pd'), 'ELF-ish binary bytes');
     writeData(join(staged, 'port-daddy-manifest.json'), '{"files":[]}');
     mkdirSync(join(staged, 'bin'));
@@ -152,7 +155,7 @@ describe('verifyArtifacts — passing path', () => {
 describe('verifyArtifacts — FAILS LOUD (anti-silent-failure)', () => {
   let staged;
   beforeEach(() => {
-    staged = mkdtempSync(join(tmpdir(), 'pd-batten-fail-'));
+    staged = mkdtempSync(join(DURABLE_SCRATCH, 'pd-batten-fail-'));
     // pd: MISSING entirely (do not write it)
     // manifest: present but TOO SMALL (< minBytes 2)
     writeData(join(staged, 'port-daddy-manifest.json'), 'x'); // 1 byte < 2
@@ -201,7 +204,7 @@ describe('verifyArtifacts — FAILS LOUD (anti-silent-failure)', () => {
 describe('imprintArtifacts — content-addressed seal', () => {
   let staged;
   beforeEach(() => {
-    staged = mkdtempSync(join(tmpdir(), 'pd-batten-imprint-'));
+    staged = mkdtempSync(join(DURABLE_SCRATCH, 'pd-batten-imprint-'));
     writeExec(join(staged, 'pd'), 'binary-A');
     writeData(join(staged, 'port-daddy-manifest.json'), '{"files":[1]}');
     mkdirSync(join(staged, 'bin'));
@@ -251,7 +254,7 @@ describe('handleBatten imprint — fail-loud CLI contract', () => {
   let realExit;
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), 'pd-batten-cli-imprint-'));
+    root = mkdtempSync(join(DURABLE_SCRATCH, 'pd-batten-cli-imprint-'));
     staged = join(root, 'dist');
     mkdirSync(staged);
     manifestPath = join(root, 'release-artifacts.json');
@@ -271,6 +274,7 @@ describe('handleBatten imprint — fail-loud CLI contract', () => {
     });
     process.exit = exit;
     const stderr = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const stdout = jest.spyOn(console, 'log').mockImplementation(() => {});
 
     await expect(handleBatten(['imprint'], {
       manifest: manifestPath,
@@ -280,9 +284,12 @@ describe('handleBatten imprint — fail-loud CLI contract', () => {
 
     expect(exit).toHaveBeenCalledWith(1);
     expect(stderr.mock.calls.flat().join(' ')).toMatch(/required artifacts absent/i);
+    expect([...stdout.mock.calls, ...stderr.mock.calls].flat().join(' ')).not.toMatch(/SUCCESS: Wrote imprint/i);
+    expect([...stdout.mock.calls, ...stderr.mock.calls].flat().join(' ')).toMatch(/INCOMPLETE imprint/i);
     expect(existsSync(outPath)).toBe(true);
     const record = JSON.parse(readFileSync(outPath, 'utf8'));
     expect(record.missingRequired.sort()).toEqual(['hook', 'manifest', 'pd']);
+    stdout.mockRestore();
     stderr.mockRestore();
   });
 });

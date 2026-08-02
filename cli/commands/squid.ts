@@ -4,17 +4,14 @@
 
 import { spawn as spawnChild, execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import {
   DEFAULT_SQUID_MAX_REQUEST_BYTES,
   listenClaudeCodexBridge,
 } from '../../lib/squid/claude-codex-bridge.js';
 import {
-  SQUID_HOOK_METADATA,
-  SQUID_HOOK_PRIVACY_NOTICE,
   squidAdapters,
 } from '../../lib/squid/adapter.js';
 import { normalizeCodexConfigOverrides } from '../../lib/spawner/backends/cli-tube.js';
@@ -29,16 +26,14 @@ import {
 } from '../../lib/squid/identity.js';
 import {
   installPilotSessionStartHook,
+  stagePilotSessionStartHook,
   uninstallPilotSessionStartHook,
 } from '../../lib/pilot-sessionstart-hook.js';
-import { PD_HOOK_MARKER } from '../../lib/squid/hook-shape.js';
 import { ensureSquidClaudeHome } from '../../lib/squid/bridge-client-home.js';
 import { squidTokens } from '../../lib/squid/terminal.js';
+import { resolveSquidAsset } from '../../lib/squid/assets.js';
 import type { CLIOptions } from '../types.js';
 import * as ui from '../utils/ui.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const SQUID_PROJECT_ROOT = join(__dirname, '..', '..');
 
 const LEGACY_SQUID_TOKEN = 'squid-local';
 const GENERATED_TOKEN_BYTES = 24;
@@ -93,10 +88,6 @@ export async function handleSquid(args: string[], options: CLIOptions): Promise<
     case 'serve':
       await handleCodexBridge(rest, options, { serveOnly: true });
       return;
-    case 'hooks':
-    case 'install-hooks':
-      await handleInstallHooks(rest, options);
-      return;
     case 'on':
     case 'arm':
       await handleSquidOn(options);
@@ -114,8 +105,12 @@ export async function handleSquid(args: string[], options: CLIOptions): Promise<
     case 'help':
     case '--help':
     case '-h':
-    default:
       printHelp();
+      return;
+    default:
+      ui.error(`Unknown squid command: ${sub}`);
+      console.log('Use `pd squid on|off|status|tap`, or `pd hooks install` for hook-only repair.');
+      process.exitCode = 1;
       return;
   }
 }
@@ -287,7 +282,8 @@ export function resolveClientLaunch(
  * gets .claude/settings.json, Codex gets .codex/config.toml, Gemini gets
  * .gemini/settings.json, and Antigravity gets GeminiDir/hooks.json.
  */
-export async function installSquidHooks(
+/** Headless voyage adapters only. Interactive sessions must use `pd hooks install`. */
+export async function installHeadlessSquidHooks(
   workspaceRoot: string,
   providerNames: string[] = [...DEFAULT_HOOK_PROVIDERS],
 ): Promise<SquidHookInstallResult[]> {
@@ -329,31 +325,6 @@ function resolveHookProviders(values: string[]): Set<string> {
     else resolved.add(name);
   }
   return resolved;
-}
-
-async function handleInstallHooks(args: string[], options: CLIOptions): Promise<void> {
-  const workspaceRoot = String(options.cwd ?? options.workdir ?? process.cwd());
-  const providers = [
-    ...normalizeStringArray(options.provider),
-    ...normalizeStringArray(options.providers),
-    ...args.filter((arg) => !arg.startsWith('-')),
-  ];
-  const results = await installSquidHooks(workspaceRoot, providers);
-
-  ui.success('Giant Squid hooks installed');
-  console.log(`  workspace: ${workspaceRoot}`);
-  for (const result of results) {
-    const proof = result.verified ? 'verified live' : 'contract installed';
-    console.log(`  ${result.providerName.padEnd(13)} ${result.binaryName.padEnd(8)} ${proof}`);
-  }
-  console.log('');
-  console.log('Installed local tentacles:');
-  for (const meta of Object.values(SQUID_HOOK_METADATA)) {
-    console.log(`  - ${meta.displayName}: ${meta.description} ${meta.privacy}`);
-  }
-  console.log(`Privacy: ${SQUID_HOOK_PRIVACY_NOTICE}`);
-  console.log('Repair check: pd doctor');
-  console.log('Use pd squid codex --tier strong when you also want Anthropic-compatible traffic bridged to Codex CLI.');
 }
 
 async function handleCodexBridge(clientPassthrough: string[], options: CLIOptions, mode: { serveOnly: boolean }): Promise<void> {
@@ -441,13 +412,18 @@ async function handleSquidOn(options: CLIOptions): Promise<void> {
   const cwd = String(options.cwd ?? options.workdir ?? process.cwd());
   const t = squidTokens('stdout');
 
-  const { stageTentacles, silentHooksInstall } = await import('./hooks-install.js');
+  const { stageTentacles, silentHooksInstall, unregisterSquidProject } = await import('./hooks-install.js');
   const stage = stageTentacles();
   const problems: string[] = [];
   if (stage.missing.length > 0) {
     problems.push(`tentacles missing on this build (${stage.missing.join(', ')}) — hooks skipped`);
   }
   const hooks = stage.missing.length === 0 ? silentHooksInstall(undefined, { cwd }) : null;
+  if (hooks && hooks.detected.length === 0) problems.push('no supported agent CLIs detected');
+  if (hooks?.failures.length) problems.push(...hooks.failures.map((failure) => `hook wiring: ${failure}`));
+  if (hooks && hooks.detected.length > hooks.configured) {
+    problems.push(`only ${hooks.configured}/${hooks.detected.length} detected agent CLIs were wired`);
+  }
 
   const stagedStatusline = stageStatusline();
   const statusline = stagedStatusline ? installStatusline(cwd) : null;
@@ -455,9 +431,14 @@ async function handleSquidOn(options: CLIOptions): Promise<void> {
     problems.push('statusline script missing on this build — no ◆ PD badge will render');
   } else if (statusline && !statusline.ok) {
     problems.push(`statusline: ${statusline.reason}`);
+  } else if (statusline?.reason.includes('user statusLine')) {
+    problems.push('statusline: user-owned statusLine preserved, so the ◆ PD identity is not visible');
   }
 
-  const sessionStart = installPilotSessionStartHook({ projectDir: cwd, projectRoot: SQUID_PROJECT_ROOT });
+  const stagedPilot = stagePilotSessionStartHook();
+  const sessionStart = stagedPilot
+    ? installPilotSessionStartHook({ projectDir: cwd, scriptPath: stagedPilot })
+    : { changed: false, settingsPath: join(cwd, '.claude', 'settings.json'), command: null, reason: 'hook script missing on this build', ok: false };
   if (!sessionStart.ok) problems.push(`steering hook: ${sessionStart.reason}`);
 
   const slash = installSlashCommand(cwd);
@@ -472,7 +453,8 @@ async function handleSquidOn(options: CLIOptions): Promise<void> {
   if (armed) {
     ui.success('Giant Squid harness ARMED for this project');
   } else {
-    ui.warn(`Giant Squid harness PARTIALLY ARMED for this project — ${problems.length} asset(s) missing`);
+    unregisterSquidProject(cwd);
+    ui.warn(`Giant Squid harness NOT ARMED for this project — ${problems.length} problem(s)`);
     process.exitCode = 1;
   }
   console.log(`  workspace:   ${cwd}`);
@@ -484,19 +466,21 @@ async function handleSquidOn(options: CLIOptions): Promise<void> {
   const statuslineLabel = !stagedStatusline
     ? t.bad('script missing on this build')
     : statusline
-      ? `${statusline.ok ? t.ok(statusline.reason) : t.bad(statusline.reason)} — ◆ PD badge in Claude Code`
+      ? `${statusline.ok && !statusline.reason.includes('user statusLine') ? t.ok(statusline.reason) : t.bad(statusline.reason)} — ◆ PD badge in Claude Code`
       : t.bad('not wired');
   console.log(`  statusline:  ${statuslineLabel}`);
   console.log(`  steering:    SessionStart pilot hook ${sessionStart.ok ? t.ok(sessionStart.reason) : t.bad(sessionStart.reason)}`);
   console.log(`  /squid:      slash command ${slash.ok ? t.ok(slash.reason) : t.bad(slash.reason)}`);
   console.log('');
   if (armed) {
-    console.log('  New Claude Code sessions in this project are visibly Port-Daddy-harnessed.');
+    printSquidValueCard(t);
+    console.log('  New agent sessions in this project are visibly Port-Daddy-harnessed.');
     console.log('  Inspect the background machinery any time: pd squid status · pd squid tap');
     console.log('  Disarm: pd squid off');
   } else {
-    console.log(`  ${t.warn('This build is missing packaged assets — the harness is NOT fully wired:')}`);
+    console.log(`  ${t.warn('The harness is NOT fully wired:')}`);
     for (const problem of problems) console.log(`    ${t.bad('✗')} ${problem}`);
+    console.log('  Safety: the exact project-root gate was removed, so staged hooks remain inert.');
     console.log('  Repair: pd doctor, or reinstall/rebuild the pd binary — see pd squid status for live detail.');
   }
 }
@@ -508,7 +492,7 @@ async function handleSquidOn(options: CLIOptions): Promise<void> {
  */
 async function handleSquidOff(options: CLIOptions): Promise<void> {
   const cwd = String(options.cwd ?? options.workdir ?? process.cwd());
-  const { buildTargets, uninstallTarget } = await import('./hooks-install.js');
+  const { buildTargets, clearArmedSquidProjects, unregisterSquidProject, uninstallTarget } = await import('./hooks-install.js');
   const home = process.env.HOME || process.env.USERPROFILE || '';
 
   const cleared: string[] = [];
@@ -519,6 +503,8 @@ async function handleSquidOff(options: CLIOptions): Promise<void> {
       if (r.success && !r.skipped) cleared.push(`${target.slug} (${scope})`);
     }
   }
+  if (options.all || options.user) clearArmedSquidProjects();
+  else unregisterSquidProject(cwd);
   const statusline = uninstallStatusline(cwd);
   const sessionStart = uninstallPilotSessionStartHook(cwd);
   const slash = uninstallSlashCommand(cwd);
@@ -530,8 +516,8 @@ async function handleSquidOff(options: CLIOptions): Promise<void> {
   console.log(`  /squid:      ${slash.reason}`);
   if (!options.all && !options.user) {
     console.log('');
-    console.log('  User-level codex/agy configs were left in place (runtime gate keeps them');
-    console.log('  inert outside pd projects). Clear those too: pd squid off --all');
+    console.log('  User-level codex/agy configs remain installed, but this project was removed');
+    console.log('  from the exact-root arm registry, so every tentacle is inert here.');
   }
   console.log('  Re-arm any time: pd squid on');
 }
@@ -540,32 +526,65 @@ async function handleSquidOff(options: CLIOptions): Promise<void> {
 async function handleSquidStatus(options: CLIOptions): Promise<void> {
   const cwd = String(options.cwd ?? options.workdir ?? process.cwd());
   const home = process.env.HOME || process.env.USERPROFILE || '';
-  const { buildTargets, tentacleBinDir } = await import('./hooks-install.js');
+  const { inspectHookTargets, tentacleBinDir } = await import('./hooks-install.js');
   const identity = readIdentityStatus(cwd, home);
   const matrix = readMatrixSnapshot();
+  const providers = inspectHookTargets(home, cwd);
+  const tentacles = ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool']
+    .every((name) => existsSync(join(tentacleBinDir(), name)) && existsSync(join(tentacleBinDir(), 'squid', name)));
+  const detected = providers.filter((provider) => provider.detected);
+  const allDetectedWired = detected.length > 0 && detected.every((provider) => provider.wired);
+  const identityReady = identity.statuslineProject && identity.slashCommand && identity.pilotSessionStart;
+  const anyWiring = providers.some((provider) => provider.projectWired || provider.userWired) || identityReady;
+  const state = !tentacles && !anyWiring
+    ? 'OFF'
+    : tentacles && allDetectedWired && identityReady
+      ? (identity.daemonAlive ? 'LIVE' : 'READY')
+      : tentacles && detected.length === 0
+        ? 'PARTIAL'
+        : 'DEGRADED';
+  const snapshot = {
+    schemaVersion: 1,
+    state,
+    workspace: cwd,
+    daemonAlive: identity.daemonAlive,
+    tentaclesStaged: tentacles,
+    providers,
+    identity,
+    matrix,
+    value: {
+      beforeTurn: 'Inject only fresh, project-relevant coordination context.',
+      beforeEdit: 'Warn or block when another agent owns the target.',
+      afterTool: 'Leave a compact trace so the fleet can coordinate without transcript replay.',
+    },
+  };
+
+  if (options.json || options.j) {
+    console.log(JSON.stringify(snapshot, null, 2));
+    if (state === 'DEGRADED') process.exitCode = 1;
+    return;
+  }
   const c = squidTokens('stdout');
   const yes = (v: boolean, on = 'armed', off = 'not armed'): string => (v ? c.ok(`✓ ${on}`) : c.dim(`✗ ${off}`));
 
   console.log('');
-  ui.info('Giant Squid harness — background machinery (non-diegetic readout)');
+  ui.info(`Giant Squid harness — ${state}`);
+  console.log('');
+  printSquidValueCard(c);
   console.log('');
   console.log(`  Daemon        ${identity.daemonAlive ? c.ok('✓ alive') : c.bad('✗ down — every hook no-ops (gate fails open)')}`);
   console.log(`  Tentacles     ${yes(existsSync(join(tentacleBinDir(), 'pd-hook-prompt')), `staged at ${tentacleBinDir()}`, 'not staged — pd squid on')}`);
   console.log('');
   console.log('  Interactive hook wiring (config carries the pd-hook- marker):');
-  for (const target of buildTargets(home)) {
-    const wiredAt = (path: string): boolean => {
-      try { return existsSync(path) && readFileSync(path, 'utf8').includes(PD_HOOK_MARKER); } catch { return false; }
-    };
-    const user = wiredAt(target.userConfigPath);
-    const project = target.projectConfigPath ? wiredAt(target.projectConfigPath(cwd)) : false;
-    const marks = [project ? c.ok('project') : null, user ? c.ok('user') : null].filter(Boolean).join(' + ');
-    console.log(`    ${target.name.padEnd(20)} ${target.detect() ? (marks || c.dim('detected, not wired')) : c.dim('not installed')}`);
+  for (const target of providers) {
+    const marks = [target.projectWired ? c.ok('project') : null, target.userWired ? c.ok('user') : null].filter(Boolean).join(' + ');
+    console.log(`    ${target.name.padEnd(20)} ${target.detected ? (marks || c.bad(`detected, ${target.expectedScope} hook missing`)) : c.dim('not installed')}`);
   }
   console.log('');
   console.log('  Visual identity:');
   console.log(`    statusline        ${yes(identity.statuslineProject, 'project ◆ PD badge', 'not wired')}${identity.statuslineUser ? ` ${c.dim('(+user)')}` : ''}`);
   console.log(`    /squid command    ${yes(identity.slashCommand, 'installed', 'not installed')}`);
+  console.log(`    Pilot steering    ${yes(identity.pilotSessionStart, 'SessionStart installed', 'not installed')}`);
   console.log('');
   console.log(`  Ink Cloud matrix ${c.dim(`(${matrix.path})`)}:`);
   if (!matrix.exists) {
@@ -580,6 +599,14 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   console.log('');
   console.log(`  ${c.dim('Next-turn injection preview: pd squid tap')}`);
   console.log('');
+  if (state === 'DEGRADED') process.exitCode = 1;
+}
+
+function printSquidValueCard(c: ReturnType<typeof squidTokens>): void {
+  console.log(`  ${c.pilot('◆ PORT DADDY IS ADDING VALUE OUTSIDE THE CONVERSATION')}`);
+  console.log(`    ${c.ok('BEFORE TURN')}  fresh coordination context enters the next prompt`);
+  console.log(`    ${c.warn('BEFORE EDIT')}  foreign ownership becomes visible before a collision`);
+  console.log(`    ${c.dim('AFTER TOOL')}   compact traces keep the fleet legible without replaying transcripts`);
 }
 
 /** Probe the local Claude⇄Codex bridge so status shows whether a pilot is live. */
@@ -608,11 +635,8 @@ function handleSquidTap(options: CLIOptions): void {
   const home = process.env.HOME || process.env.USERPROFILE || '';
   // Honor a PD_HOME override the same way the tentacles themselves do.
   const pdHome = process.env.PD_HOME || join(home, '.port-daddy');
-  const candidates = [
-    join(pdHome, 'bin', 'squid', 'pd-hook-prompt'),
-    join(SQUID_PROJECT_ROOT, 'bin', 'pd-hook-prompt'),
-  ];
-  const tentacle = candidates.find((p) => existsSync(p));
+  const staged = join(pdHome, 'bin', 'squid', 'pd-hook-prompt');
+  const tentacle = existsSync(staged) ? staged : resolveSquidAsset('bin/pd-hook-prompt');
   if (!tentacle) {
     ui.warn('pd-hook-prompt not found (neither staged nor on this build).');
     return;
@@ -772,9 +796,8 @@ function printHelp(): void {
   console.log(`Usage:
   pd squid on     [--cwd <repo>]                 Arm the FULL harness for this project
   pd squid off    [--all] [--cwd <repo>]         Disarm it (hooks, statusline, /squid)
-  pd squid status                                Non-diegetic readout of every surface
+  pd squid status [--json]                       Non-diegetic readout of every surface
   pd squid tap                                   Preview the next-turn injection envelope
-  pd squid hooks  [--provider <name>] [--cwd <repo>]
   pd squid bridge [bridge options] [-- <client> <args...>]
   pd squid codex  [bridge options] [-- <client> <args...>]
   pd squid pro    [bridge options] [-- <client> <args...>]
@@ -785,10 +808,6 @@ Toggle:
         statusline, the Pilot SessionStart steering hook, and /squid — one shot.
   off   Remove all of it from this project. --all also clears user-level
         codex/agy configs (otherwise the runtime gate just keeps them inert).
-
-Hook options:
-  --provider <name>           Hook provider: all, claude, codex, gemini, antigravity; repeatable
-  --cwd <repo>                Repository/workspace whose agent hook configs should be armed
 
 Bridge options:
   --port <n>                  Local bridge port (default: 8765)
@@ -812,8 +831,7 @@ Bridge options:
                               auth conflict; only use if you need your global MCP/login)
 
 Examples:
-  pd squid hooks
-  pd squid hooks --provider claude --provider codex
+  pd hooks install
   pd squid codex --tier strong
   pd squid pro --thinking strong
   pd squid bridge --tier mid -- your-client

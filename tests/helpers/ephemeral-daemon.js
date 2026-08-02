@@ -52,6 +52,11 @@ export async function startEphemeralDaemon(options = {}) {
     env: {
       ...process.env,
       HOME: homeDir,
+      // A source-run test daemon executes under Node, not the installed `pd`
+      // binary that may also be on the developer's PATH. Compare like with
+      // like so a local Homebrew install cannot create synthetic binary drift.
+      // Callers can still override this when explicitly testing drift.
+      PORT_DADDY_BIN_OVERRIDE: process.execPath,
       ...env,
       PORT_DADDY_DB: dbPath,
       PORT_DADDY_SOCK: sockPath,

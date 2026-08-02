@@ -577,6 +577,35 @@ pd harbormaster      # the coordinating overseer surface (alias: pd hm)
 pd cockpit           # mission overview
 ```
 
+### Giant Squid — visible, project-scoped agent coordination
+
+`pd squid on` arms the complete harness for the current project. It stages the
+three local tentacles, wires every detected agent CLI in its real interactive
+scope, registers the exact project root, and adds a visible `◆ PD` identity,
+Pilot SessionStart steering, and `/squid` control inside Claude Code:
+
+```bash
+pd squid on                 # full harness: Claude, Codex, Gemini, and agy
+pd squid status             # LIVE / READY / PARTIAL / DEGRADED readout
+pd squid status --json      # stable FleetBar/automation contract
+pd squid tap                # exact bounded context entering the next turn
+pd squid off                # disarm this project without breaking other repos
+pd hooks install            # hook-only repair surface
+```
+
+Claude and Gemini use project config; Codex and agy require user config because
+their interactive hook engines do not honor a project-local equivalent. Those
+user-level entries are still project-scoped at runtime: the wrapper requires a
+fresh daemon heartbeat, a `.portdaddy/` marker, and an exact match in the Squid
+project registry. Outside an armed root they no-op. The prompt envelope accepts
+only fresh, exact-project traces and is capped at 12 entries / 4 KiB.
+
+The non-diegetic value is explicit in both CLI and FleetBar: fresh coordination
+context before a turn, foreign-ownership warning or blocking before an edit,
+and a compact fleet trace after a tool. FleetBar's selected-project strip shows
+the live state and provider count and exposes Arm, Repair, and Disarm buttons;
+routine operation does not require the operator to open a terminal.
+
 ### Giant Squid — Claude-to-Codex bridge
 
 Want Claude-shaped local orchestration while spending against the OpenAI Codex CLI auth already on the machine? `pd squid` serves a small Anthropic-Messages-compatible endpoint on localhost, generates a fresh local token, injects `ANTHROPIC_BASE_URL`/`ANTHROPIC_AUTH_TOKEN` into a launched client, and forwards each request to `codex exec`:
@@ -783,7 +812,7 @@ pd restore <id>                    # roll the DB back (destructive tier, prompts
 
 ### Batten down the release (`pd batten`)
 
-`release-artifacts.json` is the declarative manifest of every binary that MUST ship inside a release tarball (`pd`, `port-daddy`, its manifest, the `pd-bosun` watchdog, the squid tentacles, `pd-statusline`). `pd batten verify --staged-dir dist` asserts each staged artifact is present, executable where declared, and at least its `minBytes` — collecting **every** failure and exiting nonzero with a per-artifact report, so a release can never silently ship with a missing watchdog or missing hooks (the failure class that shipped GREEN when each binary had its own scattered `test -s`). `pd batten imprint --staged-dir dist --out <file>` sha256s the sealed cargo into a `release-imprint.json` record. `release.yml` runs `verify` as the single fail-loud gate after staging and uploads the imprint as a release asset. Both subcommands are offline (node stdlib only) and never touch the daemon.
+`release-artifacts.json` is the declarative manifest of every binary and runtime asset that MUST ship inside a release tarball (`pd`, `port-daddy`, its manifest, the `pd-bosun` watchdog, the squid tentacles, `pd-statusline`, and the Pilot SessionStart hook). `pd batten verify --staged-dir dist` asserts each staged artifact is present, executable where declared, and at least its `minBytes` — collecting **every** failure and exiting nonzero with a per-artifact report, so a release can never silently ship with a missing watchdog or missing hooks (the failure class that shipped GREEN when each binary had its own scattered `test -s`). The release job then launches the staged `pd` from outside the source tree and proves `pd squid on` writes the canonical Claude, Codex, Gemini, and agy configs plus every identity asset. `pd batten imprint --staged-dir dist --out <file>` sha256s the sealed cargo into a `release-imprint.json` record. Both subcommands are offline (node stdlib only) and never touch the daemon.
 
 ### Single-binary distribution
 

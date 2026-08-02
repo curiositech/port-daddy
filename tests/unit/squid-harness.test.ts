@@ -16,7 +16,7 @@
  *      .claude/settings.json with absolute paths.
  */
 
-import { describe, expect, test, beforeEach, afterEach } from '@jest/globals';
+import { describe, expect, jest, test, beforeEach, afterEach } from '@jest/globals';
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, symlinkSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
@@ -27,6 +27,7 @@ import {
   setLock,
   appendPheromone,
   setAlert,
+  setKey,
   readPheromones,
   parseMatrix,
 } from '../../lib/squid/matrix.js';
@@ -40,7 +41,7 @@ import {
   diagnoseSquidHookInstall,
   tentaclePath,
 } from '../../lib/squid/adapter.js';
-import { installSquidHooks } from '../../cli/commands/squid.js';
+import { handleSquid, installHeadlessSquidHooks } from '../../cli/commands/squid.js';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dir, '..', '..');
@@ -460,6 +461,37 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(r.stdout).toMatch(/deprecated v1_hook/);
   });
 
+  test('prompt envelope is fresh, exact-project scoped, and bounded to 12 entries / 4 KiB', () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    const fresh = new Date().toISOString();
+    const stale = new Date(Date.now() - 31 * 60_000).toISOString();
+    for (let i = 0; i < 14; i++) {
+      setKey(
+        `PD_PHEROMONE_FRESH_${i}`,
+        `${WORKSPACE}/src/file-${i}.ts | fresh-${i} | intensity:1 | ts:${fresh}`,
+      );
+    }
+    setKey('PD_PHEROMONE_STALE', `${WORKSPACE}/src/stale.ts | must-not-appear | ts:${stale}`);
+    setKey('PD_PHEROMONE_NEIGHBOR', `${WORKSPACE}-copy/src/nope.ts | wrong-project | ts:${fresh}`);
+
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: {
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SQUID_PROMPT_MAX_ENTRIES: '12',
+        PD_SQUID_PROMPT_MAX_BYTES: '4096',
+      },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    expect(Buffer.byteLength(r.stdout)).toBeLessThanOrEqual(4096);
+    expect(r.stdout.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(12);
+    expect(r.stdout).not.toContain('must-not-appear');
+    expect(r.stdout).not.toContain('wrong-project');
+  });
+
   test('K=8 concurrent post-tool appends produce 8 intact pheromone lines (Jamie Madrox)', async () => {
     const matrix = seed();
     const before = Object.keys(parseMatrix(readFileSync(matrix, 'utf8'))).filter((k) =>
@@ -777,13 +809,13 @@ describe('Giant Squid Harness — AntigravitySquidAdapter.injectHooks', () => {
   });
 });
 
-describe('Giant Squid Harness — pd squid hooks installer', () => {
-  test('installs hook tentacles into all supported agent configs from one command surface', async () => {
+describe('Giant Squid Harness — headless voyage adapter wiring', () => {
+  test('installs hook tentacles into all supported headless workspace configs', async () => {
     const savedGeminiDir = process.env.GEMINI_DIR;
     const agyGeminiDir = join(SCRATCH, 'agy-gemini-dir');
     process.env.GEMINI_DIR = agyGeminiDir;
     try {
-      const results = await installSquidHooks(WORKSPACE);
+      const results = await installHeadlessSquidHooks(WORKSPACE);
 
       expect(results.map((result) => result.providerName).sort()).toEqual([
         'antigravity',
@@ -802,7 +834,7 @@ describe('Giant Squid Harness — pd squid hooks installer', () => {
   });
 
   test('can install only the Claude Code hook contract when scoped by provider', async () => {
-    const results = await installSquidHooks(WORKSPACE, ['claude']);
+    const results = await installHeadlessSquidHooks(WORKSPACE, ['claude']);
 
     expect(results).toEqual([{ providerName: 'claude-code', binaryName: 'claude', verified: true }]);
     expect(existsSync(join(WORKSPACE, '.claude', 'settings.json'))).toBe(true);
@@ -811,7 +843,7 @@ describe('Giant Squid Harness — pd squid hooks installer', () => {
   });
 
   test('rejects unknown hook providers instead of silently pretending compliance', async () => {
-    await expect(installSquidHooks(WORKSPACE, ['mystery-agent'])).rejects.toThrow(/Unsupported Squid hook provider/);
+    await expect(installHeadlessSquidHooks(WORKSPACE, ['mystery-agent'])).rejects.toThrow(/Unsupported Squid hook provider/);
   });
 
   test('diagnoses installed hooks and flags stale user-edited metadata', async () => {
@@ -819,7 +851,7 @@ describe('Giant Squid Harness — pd squid hooks installer', () => {
     const agyGeminiDir = join(SCRATCH, 'agy-gemini-dir');
     process.env.GEMINI_DIR = agyGeminiDir;
     try {
-      await installSquidHooks(WORKSPACE);
+      await installHeadlessSquidHooks(WORKSPACE);
       let diagnosis = diagnoseSquidHookInstall(WORKSPACE);
       expect(diagnosis.every((result) => result.ok)).toBe(true);
 
@@ -832,10 +864,28 @@ describe('Giant Squid Harness — pd squid hooks installer', () => {
       const claude = diagnosis.find((result) => result.providerName === 'claude-code');
       expect(claude?.ok).toBe(false);
       expect(claude?.detail).toMatch(/stale Port Daddy hook metadata/);
-      expect(claude?.hint).toBe('Run: pd squid hooks --provider claude');
+      expect(claude?.hint).toBe('Run: pd squid on');
     } finally {
       if (savedGeminiDir === undefined) delete process.env.GEMINI_DIR;
       else process.env.GEMINI_DIR = savedGeminiDir;
+    }
+  });
+});
+
+describe('Giant Squid command surface', () => {
+  test('removed pd squid hooks command fails and points to the canonical surfaces', async () => {
+    const log = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const error = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const previous = process.exitCode;
+    process.exitCode = undefined;
+    try {
+      await handleSquid(['hooks'], {});
+      expect(process.exitCode).toBe(1);
+      expect([...log.mock.calls, ...error.mock.calls].flat().join('\n')).toContain('pd hooks install');
+    } finally {
+      process.exitCode = previous;
+      log.mockRestore();
+      error.mockRestore();
     }
   });
 });

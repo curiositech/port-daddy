@@ -265,6 +265,12 @@ describe('resolveTier', () => {
     expect(resolveTier('attention', [], ['unsubscribe'])).toBe('notify');
   });
 
+  test('pd batten verify is read-only while imprint reports its local write', () => {
+    expect(resolveTier('batten', [])).toBe('notify');
+    expect(resolveTier('batten', ['verify'])).toBe('silent');
+    expect(resolveTier('batten', ['imprint'])).toBe('notify');
+  });
+
   test('unmapped command falls back to silent (read-friendly default)', () => {
     expect(resolveTier('this-command-does-not-exist', [])).toBe('silent');
   });
