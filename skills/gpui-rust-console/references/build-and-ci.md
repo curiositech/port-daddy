@@ -4,6 +4,29 @@
 > `rust-console-gpui` jobs in `.github/workflows/ci.yml`. This page **corrects** folklore
 > that circulated in earlier drafts of this skill.
 
+## The dependency: a pinned zed-industries/zed git rev, not crates.io
+
+`Cargo.toml` no longer pins the crates.io `gpui = "0.2.2"` release. It tracks
+zed-industries/zed's `main` branch via a pinned git `rev`, plus the sibling
+`gpui_platform` crate the same rev split out:
+
+```toml
+gpui = { git = "https://github.com/zed-industries/zed", rev = "<pinned sha>", optional = true, features = ["test-support"] }
+gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "<pinned sha>", optional = true }
+```
+
+This means the API can move whenever the pin is bumped — bumping it is gated by
+**the Test-Battery Law** (see `SKILL.md`): re-run `cargo test --bin pd-console-repl`
+(the full battery, 376+ tests as of the initial adoption) against the new rev first,
+and only commit the bump if it's still 100% green, with the pass count documented in
+the commit/PR. `cargo check` alone is not sufficient evidence. This also means the
+crate needs whatever Rust toolchain floor the pinned gpui-main rev itself requires
+(check for compiler errors referencing new-ish `std` APIs — e.g. `std::hint::cold_path`
+required a bump past Rust 1.95 at the time of the initial adoption) — if `cargo
+build --features gpui` fails with an "unstable/unknown" std item, that's a toolchain
+floor issue, not a code bug; bump the local/CI Rust version to match what the pinned
+rev needs.
+
 ## The feature-gate is the whole trick
 
 `Cargo.toml` declares gpui as an **optional** dependency behind a `gpui` feature:

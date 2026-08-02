@@ -2,8 +2,9 @@
 name: gpui-rust-console
 version: 0.2.0
 description: >
-  Build and extend pd-console — Port Daddy's GPU-native macOS operator console (GPUI
-  0.2.x, Zed's Rust UI). Covers the render-agnostic Block/Pane(Surface) contract, the
+  Build and extend pd-console — Port Daddy's GPU-native macOS operator console (gpui,
+  Zed's Rust UI framework — tracked live off zed-industries/zed main via a pinned git
+  rev, not the retired crates.io 0.2.2 release). Covers the render-agnostic Block/Pane(Surface) contract, the
   two-thread reqwest↔smol refresh pipeline, Taffy flexbox layout, uniform_list virtual
   scroll, focus + keyboard nav, the OKLCH theme and ICS maritime flag badges, GPUI's
   missing text-input, and the real feature-gated cargo/CI gate. Use when adding panes,
@@ -47,10 +48,24 @@ metadata:
 # gpui-rust-console
 
 Authoritative skill for `core/pd-console` (crate `pd-console` v0.2.0, ADR-0046): a
-GPU-native standalone macOS operator console built on GPUI 0.2.2, plus a headless ratatui
+GPU-native standalone macOS operator console built on gpui — **live off
+zed-industries/zed's `main` branch via a pinned git rev in `Cargo.toml`, not the
+crates.io `0.2.2` release** (adopted after `376/376` cargo test --bin pd-console-repl
+passed against it — see "The Test-Battery Law" below), plus a headless ratatui
 REPL that renders the *same* panes. The defining idea: **a pane emits render-agnostic
 `Block`s; two renderers paint them.** One pane, two faces — which is why every pane is
 unit-tested on cheap Linux runners while the Metal window builds only on macOS.
+
+## The Test-Battery Law (standing rule for any future gpui/Zed/Rust bump)
+
+Because gpui now tracks zed's `main` instead of a stable crates.io release, this
+crate's dependency can move under us at any time upstream cuts a new commit. The
+standing rule, established after adopting this git-rev pin: **a gpui/Zed git-rev
+bump, or a Rust toolchain bump this crate needs, is authorized ONLY when validated
+against the full test battery — `cargo test --bin pd-console-repl` (376+ tests as
+of the git-rev adoption), not `cargo check` alone.** Document the pass count in the
+commit/PR. No battery, no upgrade — if the battery doesn't cover the surface you're
+changing, build the missing tests first rather than upgrading around the gap.
 
 ## When to Use
 
@@ -138,9 +153,14 @@ thread stack and does nothing for a compile error. CI sets neither — it runs p
 **Timeline**: this corrected an earlier draft of this very skill; see `references/build-and-ci.md`.
 
 ### Expecting a built-in text input
-**Novice**: "Use GPUI's text field for the cockpit."
-**Expert**: GPUI 0.2.x ships **no** text-input widget. Use the full-screen entry overlay
-pattern (state on the view, not the busy stream pane) or build an `Element` (~300 LOC).
+**Novice**: "Use GPUI's text field for the cockpit — we depend on Zed's own `gpui` now,
+surely they expose the widget the Zed editor itself uses."
+**Expert**: They don't. Zed's app-level text editor is built on top of `gpui`'s primitives
+inside the `zed` binary crate, not exposed as a reusable public widget in the `gpui`
+library crate we depend on — the git-rev pin gets us their rendering/layout engine, not
+their editor UI. `gpui` still ships **no** public text-input widget. Use the full-screen
+entry overlay pattern (state on the view, not the busy stream pane) or build an
+`Element` (~300 LOC).
 **Detection**: searching the API for `text_input()`; cursor state bolted onto the Lane pane.
 
 ## Quality Gates
@@ -217,8 +237,8 @@ pattern (state on the view, not the busy stream pane) or build an `Element` (~30
 - [`references/build-and-ci.md`](references/build-and-ci.md) — Building pd-console & the Real CI Gate — > Source of truth: `core/pd-console/Cargo.toml` and the `rust-console` / > `rust-console-gpui` jobs in `.github/workflows/ci.yml`.
 - [`references/console-architecture.md`](references/console-architecture.md) — pd-console Architecture — The Unified Model — > Source of truth: `core/pd-console/src/` (crate `pd-console` v0.2.0, ADR-0046).
 - [`references/maritime-flags.md`](references/maritime-flags.md) — ICS Maritime Flags & the OKLCH Theme — > Source: `core/pd-console/src/maritime.rs` and `core/pd-console/src/theme.rs`.
-- [`references/render-and-layout.md`](references/render-and-layout.md) — GPUI 0.2.x Rendering & Layout — the idioms that compile — > GPUI 0.2.2 (`Cargo.toml`: `gpui = { version = "0.2.2", optional = true }`).
-- [`references/text-input.md`](references/text-input.md) — Text Input in GPUI 0.2.x — There Is No Widget — > The single most surprising gap for anyone coming from web/Qt/SwiftUI: **GPUI 0.2.x ships > no text-input widget.** Zed builds its own.
+- [`references/render-and-layout.md`](references/render-and-layout.md) — gpui Rendering & Layout — the idioms that compile — > `Cargo.toml`: `gpui = { git = "https://github.com/zed-industries/zed", rev = "<pinned sha>" }` — not the retired crates.io `0.2.2` release.
+- [`references/text-input.md`](references/text-input.md) — Text Input in gpui — There Is No Widget (Even Though We Depend on Zed's Own Copy) — > the `gpui` library crate ships no text-input widget, even pinned off zed's own `main`; their editor is app-level, not a public gpui widget.
 
 **`schemas/`**
 - [`schemas/script-io.schema.json`](schemas/script-io.schema.json) — script io.schema (data/schema)

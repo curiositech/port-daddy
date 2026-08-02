@@ -1,8 +1,12 @@
-# GPUI 0.2.x Rendering & Layout — the idioms that compile
+# gpui Rendering & Layout — the idioms that compile
 
-> GPUI 0.2.2 (`Cargo.toml`: `gpui = { version = "0.2.2", optional = true }`). The crate
-> is Metal-centric; everything here is what actually compiles against that pin, not the
-> shifting `main`-branch API.
+> `Cargo.toml`: `gpui = { git = "https://github.com/zed-industries/zed", rev = "<pinned
+> sha>" }` — **not** the retired crates.io `0.2.2` release. This crate deliberately
+> tracks zed's `main` branch (see the Test-Battery Law in `SKILL.md`): the pin is
+> re-validated against the full `cargo test --bin pd-console-repl` battery before any
+> bump, so "shifting main-branch API" is a controlled, tested event, not surprise drift.
+> The crate is Metal-centric; everything here is what actually compiles against the
+> currently-pinned rev.
 
 ## Render vs RenderOnce — pick by mutability, not by "is it small"
 

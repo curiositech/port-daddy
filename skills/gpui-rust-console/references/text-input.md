@@ -1,14 +1,20 @@
-# Text Input in GPUI 0.2.x — There Is No Widget
+# Text Input in gpui — There Is No Widget (Even Though We Depend on Zed's Own Copy)
 
-> The single most surprising gap for anyone coming from web/Qt/SwiftUI: **GPUI 0.2.x ships
-> no text-input widget.** Zed builds its own. You must too. This page is the decision tree
-> and the cheapest correct path for pd-console (the `pd tube` cockpit chat input).
+> The single most surprising gap for anyone coming from web/Qt/SwiftUI: **the `gpui`
+> library crate ships no text-input widget** — and this stays true even now that we
+> pin `gpui` directly off zed-industries/zed's `main` branch. The `zed` app builds its
+> own text-editor element on top of `gpui`'s primitives, inside the `zed` binary crate;
+> that editor is not re-exported as a public, reusable `gpui` widget. Depending on
+> their git rev gets you their rendering/layout engine, not their editor UI. We must
+> build our own too. This page is the decision tree and the cheapest correct path for
+> pd-console (the `pd tube` cockpit chat input).
 
 ## Why there's no `text_input()`
 
 GPUI gives you `div()`, text *rendering*, `KeyDownEvent`, `MouseDownEvent`, and
 `TextLayout` for glyph measurement — the *primitives*. A text field is cursor state +
-selection model + IME + clipboard + hit-testing, which Zed implements as a bespoke element.
+selection model + IME + clipboard + hit-testing, which Zed implements as a bespoke
+element inside its own app, not inside the `gpui` library we depend on.
 There is no batteries-included field to drop in. Accept this before you design the cockpit.
 
 ## Decision tree
