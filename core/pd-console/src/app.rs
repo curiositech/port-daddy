@@ -2933,6 +2933,21 @@ impl ConsoleView {
             "j" => self.command = Some(CommandLine::new(CmdKind::Claim)),
             "Q" => self.command = Some(CommandLine::new(CmdKind::Release)),
             "X" => self.command = Some(CommandLine::new(CmdKind::Kill)),
+            // Summon the Voyage Timeline as a Vello/wgpu companion window
+            // (ADR-0112 path 3, "ship now"): the gpui shell execs the proven
+            // `pd-timeline-proto` binary detached against the current berth, so
+            // the operator gets the scrubbed playhead + causal-thread beziers
+            // with zero stack-mixing risk. `v` for "Voyage Timeline".
+            "v" => match crate::timeline::launch_timeline_companion(&self.daemon_url) {
+                Ok(bin) => {
+                    self.control_flash = Some(format!(
+                        "\u{2693} Voyage Timeline launched · {} · berth {}",
+                        bin.display(),
+                        self.daemon_url
+                    ));
+                }
+                Err(msg) => self.control_flash = Some(msg),
+            },
             // The visual pane launcher — an animated grid of surface tiles.
             "space" => self.launcher_open = true,
             // Any launcher key swaps the focused pane's surface — "hop context".
