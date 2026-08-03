@@ -232,7 +232,7 @@ Work Receipt:
 - [27 Context, Memory And Runtime Wiring](./27-context-memory-runtime-wiring.md):
   addendum of record to ch. 04/07 — the shipped-versus-designed reality of the
   M6 context/memory stack, the ContextEnvelope keystone that starves the rest,
-  and the keystone-first wiring DAG (W1-W10): land/reconcile Tier B, emit the
+  and the keystone-first wiring DAG (W1-W16): land/reconcile Tier B, emit the
   envelope, retire the legacy tracker, custodian-built cited compaction packets,
   packet-as-checkpoint with `resumeFromPacket`, hybrid FTS5+MiniLM+RRF cited
   recall, packet-fed briefings, agent input buffering/paging/cheap-summarization,
