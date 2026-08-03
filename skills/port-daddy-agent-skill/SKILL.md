@@ -483,6 +483,12 @@ Authority rules:
 - Stable Homebrew (`:9876`) is the operator's canonical local runtime. Dev
   berths are proof for a branch, not proof that FleetBar's stable surface is
   fixed.
+- On canonical macOS, launchd is the only process lifecycle owner. `pd start`,
+  `pd restart`, and `pd stop` control that launchd job and verify one generation;
+  they must never create a detached fallback. The daemon owns readiness, Bosun
+  only requests launchd replacement for a dead/stale heartbeat, and
+  status/Doctor/native UIs only observe their shared PID, port, heartbeat, and
+  binary identity. If those facts disagree, call the control plane diverged.
 - Cross-machine coordination should sync durable events, receipts, leases, and
   replayable intent through a harbor/relay ledger. Do not pretend SQLite files
   merge peer-to-peer or share a writable registry across machines.

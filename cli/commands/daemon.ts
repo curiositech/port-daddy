@@ -14,7 +14,7 @@ import { pdFetch, PORT_DADDY_URL, getDaemonUrl } from '../utils/fetch.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import { printBanner, printCompactHeader, printFarewell, WHEEL, ANCHOR, ANSI } from '../../lib/banner.js';
 import { autoFixStartupBlockers, diagnoseStartupBlockers } from '../utils/startup-doctor.js';
-import { LOOPBACK_TCP_HOST, readDaemonPort } from '../../shared/daemon-discovery.js';
+import { DEFAULT_DAEMON_PORT, LOOPBACK_TCP_HOST, readDaemonPort } from '../../shared/daemon-discovery.js';
 import { resolveDaemonLaunchCommand, isBunCompiledRuntime, type DaemonLaunchCommand } from '../../shared/daemon-binary.js';
 import { calculateRuntimeCodeHash, listRuntimeSourceFiles } from '../../shared/code-hash.js';
 import {
@@ -32,6 +32,15 @@ import {
 import * as ui from '../utils/ui.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 import { posixShellQuote } from '../../lib/shell-quote.js';
+import {
+  collectRuntimeIdentity,
+  inspectCanonicalLaunchdSupervisor,
+  probeCanonicalHealth,
+  runCanonicalLaunchdAction,
+  waitForCanonicalRuntime,
+  type LaunchdSupervisorSnapshot,
+  type RuntimeIdentityAssessment,
+} from '../../lib/daemon-runtime.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
@@ -250,6 +259,171 @@ function getLocalCodeHash(): string {
 
 function isCanonicalDaemonTarget(): boolean {
   return !process.env.PORT_DADDY_URL && !process.env.PORT_DADDY_SOCK && !process.env.PORT_DADDY_PORT_FILE;
+}
+
+function canonicalSupervisor(): LaunchdSupervisorSnapshot | null {
+  if (!isCanonicalDaemonTarget()) return null;
+  return inspectCanonicalLaunchdSupervisor();
+}
+
+function printRuntimeIdentity(assessment: RuntimeIdentityAssessment): void {
+  const facts = assessment.facts;
+  console.log(`  ${ANSI.fgGray}Supervisor:${ANSI.reset} launchd ${facts.supervisor?.label ?? 'not applicable'} (PID ${facts.supervisor?.pid ?? '-'})`);
+  console.log(`  ${ANSI.fgGray}Generation:${ANSI.reset} PID ${facts.healthPid ?? '-'} · heartbeat ${facts.heartbeatPid ?? '-'} · pid file ${facts.pidFilePid ?? '-'}`);
+  console.log(`  ${ANSI.fgGray}Control:${ANSI.reset}    http://${LOOPBACK_TCP_HOST}:${facts.expectedPort} · port file ${facts.portFilePort ?? '-'}`);
+}
+
+async function terminateVerifiedDaemonPid(pid: number | null): Promise<void> {
+  if (!pid || !Number.isInteger(pid) || pid <= 0) return;
+  try {
+    process.kill(pid, 'SIGTERM');
+  } catch {
+    return;
+  }
+  let exited = await waitForProcessExit(pid, SHUTDOWN_TIMEOUT_MS);
+  if (!exited) {
+    ui.warn(`Duplicate daemon PID ${pid} did not exit after SIGTERM; forcing stop`);
+    try { process.kill(pid, 'SIGKILL'); } catch {}
+    exited = await waitForProcessExit(pid, 2_000);
+  }
+  if (!exited) throw new Error(`duplicate daemon PID ${pid} did not stop`);
+}
+
+async function waitForSupervisedReadiness(previousPid: number | null = null): Promise<RuntimeIdentityAssessment> {
+  return waitForCanonicalRuntime({
+    previousPid,
+    onProgress: (elapsedMs, assessment) => {
+      const seconds = Math.max(0, Math.floor(elapsedMs / 1_000));
+      const phase = assessment.facts.supervisor?.running
+        ? assessment.facts.healthPid
+          ? assessment.state === 'converged' ? 'stabilizing identity' : 'reconciling runtime identity'
+          : 'initializing daemon'
+        : 'waiting for launchd process';
+      console.log(`  ${WHEEL} ${phase} (${seconds}s) — ${assessment.summary}`);
+    },
+  });
+}
+
+/**
+ * Handle the canonical macOS daemon entirely through launchd. Returns false
+ * when this is not the Homebrew-managed canonical target, allowing the named
+ * berth/Linux fallback paths below to retain their existing behavior.
+ */
+async function handleCanonicalSupervisedAction(
+  action: 'start' | 'stop' | 'restart',
+  supervisor: LaunchdSupervisorSnapshot,
+): Promise<boolean> {
+  const health = await probeCanonicalHealth();
+  const current = collectRuntimeIdentity(health, {
+    endpointPort: health ? DEFAULT_DAEMON_PORT : null,
+    supervisor,
+  });
+  const healthPid = current.facts.healthPid;
+  const supervisorPid = supervisor.pid;
+  const splitBrain = healthPid !== null && supervisorPid !== null && healthPid !== supervisorPid;
+
+  // A canonical macOS daemon without its launchd job has no safe start path.
+  // Falling through to the legacy detached spawner would immediately recreate
+  // the two-supervisor split brain this command exists to prevent.
+  if (!supervisor.installed) {
+    if (action === 'stop') {
+      await terminateVerifiedDaemonPid(healthPid);
+      printFarewell();
+      ui.success(healthPid
+        ? `Stopped unsupervised Port Daddy PID ${healthPid}; no launchd job was installed`
+        : 'Daemon is already stopped; no launchd job is installed');
+      return true;
+    }
+    ui.error(`Canonical launchd job is not installed at ${supervisor.plistPath}`);
+    console.log(`  ${ANSI.fgGray}Repair:${ANSI.reset} port-daddy install`);
+    console.log(`  ${ANSI.fgGray}Safety:${ANSI.reset} refusing to create a detached canonical daemon`);
+    process.exit(1);
+  }
+
+  if (action === 'start' && current.state === 'converged') {
+    ui.info(`Port Daddy already running under launchd (PID ${healthPid})`);
+    printRuntimeIdentity(current);
+    return true;
+  }
+
+  if (action === 'stop') {
+    const stopResult = runCanonicalLaunchdAction('stop', supervisor);
+    if (stopResult.status !== 0) {
+      ui.error(`launchd could not stop ${supervisor.label}: ${stopResult.stderr.trim() || `exit ${stopResult.status}`}`);
+      process.exit(1);
+    }
+    // If /health belonged to a detached sibling, bootout cannot stop it. It is
+    // safe to terminate because the canonical /health response identified it
+    // as Port Daddy and launchd has already been stood down.
+    if (splitBrain || (!supervisor.loaded && healthPid !== null)) {
+      await terminateVerifiedDaemonPid(healthPid);
+    } else if (supervisorPid) {
+      await waitForProcessExit(supervisorPid, SHUTDOWN_TIMEOUT_MS);
+    }
+    printFarewell();
+    ui.success('Daemon stopped; launchd is unloaded and no detached replacement was spawned');
+    return true;
+  }
+
+  // A split brain cannot be repaired by kickstart alone: launchd would replace
+  // only its own child while the detached listener kept the canonical port.
+  // Stand down the supervisor, terminate the verified sibling, then bootstrap
+  // exactly one generation.
+  let launchResult;
+  let previousPid = action === 'restart' ? healthPid ?? supervisorPid : null;
+  if (splitBrain || (!supervisor.loaded && healthPid !== null)) {
+    ui.warn(`Collapsing daemon split brain: launchd PID ${supervisorPid ?? '-'}, listener PID ${healthPid ?? '-'}`);
+    if (supervisor.loaded) {
+      const stopResult = runCanonicalLaunchdAction('stop', supervisor);
+      if (stopResult.status !== 0) {
+        ui.error(`launchd could not stand down ${supervisor.label}: ${stopResult.stderr.trim() || `exit ${stopResult.status}`}`);
+        process.exit(1);
+      }
+      if (supervisorPid) await waitForProcessExit(supervisorPid, SHUTDOWN_TIMEOUT_MS);
+    }
+    await terminateVerifiedDaemonPid(healthPid);
+    const unloaded = inspectCanonicalLaunchdSupervisor() ?? { ...supervisor, loaded: false, running: false, pid: null };
+    launchResult = runCanonicalLaunchdAction('start', unloaded);
+  } else if (action === 'start' && supervisor.running && !health) {
+    // A launchd child can spend close to a minute loading the compiled Bun
+    // runtime. Wait for that already-owned generation instead of creating a
+    // second child after the old 10-second timeout.
+    const pending = await waitForSupervisedReadiness(null);
+    if (pending.state === 'converged') {
+      ui.success(`Daemon ready under launchd (PID ${pending.facts.healthPid})`);
+      printRuntimeIdentity(pending);
+      return true;
+    }
+    ui.warn('Existing launchd generation did not become ready within 120s; replacing it once through launchd');
+    previousPid = supervisorPid;
+    launchResult = runCanonicalLaunchdAction('restart', supervisor);
+  } else if (action === 'start' && supervisor.running) {
+    // The job is alive but its identity facts disagree. Replace that launchd
+    // generation once; a plain kickstart would be a no-op for a running job.
+    previousPid = healthPid ?? supervisorPid;
+    launchResult = runCanonicalLaunchdAction('restart', supervisor);
+  } else {
+    launchResult = runCanonicalLaunchdAction(action === 'restart' ? 'restart' : 'start', supervisor);
+  }
+
+  if (launchResult.status !== 0) {
+    ui.error(`launchd ${action} failed for ${supervisor.label}: ${launchResult.stderr.trim() || `exit ${launchResult.status}`}`);
+    process.exit(1);
+  }
+
+  printBanner();
+  console.log(`  ${WHEEL} launchd accepted ${action}; waiting for one verified generation...`);
+  const ready = await waitForSupervisedReadiness(previousPid);
+  if (ready.state !== 'converged') {
+    ui.error(`Daemon did not converge within 120s: ${ready.summary}`);
+    printRuntimeIdentity(ready);
+    console.log(`  ${ANSI.fgGray}Inspect:${ANSI.reset} port-daddy doctor --json`);
+    process.exit(1);
+  }
+  ui.success(`Daemon ready under launchd (PID ${ready.facts.healthPid})`);
+  printRuntimeIdentity(ready);
+  console.log(`  ${ANSI.fgGray}Dashboard:${ANSI.reset} http://${LOOPBACK_TCP_HOST}:${DEFAULT_DAEMON_PORT}`);
+  return true;
 }
 
 function daemonLaunchCommand(libDir: string): DaemonLaunchCommand {
@@ -590,6 +764,9 @@ export async function handleDaemon(action: string, options: Record<string, unkno
 
   switch (action) {
     case 'start': {
+      const supervisor = canonicalSupervisor();
+      if (supervisor && await handleCanonicalSupervisedAction('start', supervisor)) return;
+
       const localCodeHash = getLocalCodeHash();
       const daemonPort = readDaemonPort();
 
@@ -685,10 +862,13 @@ export async function handleDaemon(action: string, options: Record<string, unkno
 
     case 'stop': {
       const okStop = await requireConfirmation({
-        summary: 'Daemon stop will SIGTERM the running Port Daddy daemon. Every active CLI/MCP/SDK connection drops; sessions remain in the DB but lose their live coordination heartbeat.',
+        summary: 'Daemon stop will unload the canonical supervisor and stop its verified daemon generation. Every active CLI/MCP/SDK connection drops; sessions remain in the DB but lose their live coordination heartbeat.',
         args: options,
       });
       if (!okStop) process.exit(DESTRUCTIVE_EXIT_CODE);
+
+      const supervisor = canonicalSupervisor();
+      if (supervisor && await handleCanonicalSupervisedAction('stop', supervisor)) return;
 
       try {
         const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
@@ -715,10 +895,13 @@ export async function handleDaemon(action: string, options: Record<string, unkno
 
     case 'restart': {
       const okRestart = await requireConfirmation({
-        summary: 'Daemon restart will stop the running daemon and start it again. All live SSE/socket connections drop and reconnect.',
+        summary: 'Daemon restart asks the canonical supervisor for exactly one replacement generation, then verifies launchd PID, health PID, heartbeat, pid file, and port file agree. All live SSE/socket connections drop and reconnect.',
         args: options,
       });
       if (!okRestart) process.exit(DESTRUCTIVE_EXIT_CODE);
+
+      const supervisor = canonicalSupervisor();
+      if (supervisor && await handleCanonicalSupervisedAction('restart', supervisor)) return;
 
       // Already confirmed at this layer — propagate as --yes to avoid a
       // second prompt from the recursive 'stop' call.
