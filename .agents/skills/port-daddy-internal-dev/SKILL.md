@@ -73,6 +73,13 @@ repo-specific mechanics:
   surface that should serve it, and prove cold start (daemon down → elegant
   operator instruction, never a stack trace), worktrees, a second user, and the
   GitHub round-trip. A green exit code is not evidence.
+- **Keep daemon actuation singular.** On canonical macOS, launchd alone starts,
+  stops, replaces, and resurrects the daemon. The daemon publishes readiness;
+  Bosun detects a dead/stale generation and asks launchd for replacement;
+  Doctor/status/native UIs observe the same snapshot. Never add a detached
+  fallback to `pd start` or `pd restart`, never silently walk the canonical port,
+  and do not call runtime health green unless launchd PID, `/health`, PID/port
+  files, heartbeat, listener, and binary hash converge.
 - **Confirm the telemetry trail.** Calls must show up in `pd usage` AND in the
   transcript saves (`lib/transcripts.ts`), and durable state must ride the
   Cloudflare fabric (`lib/relay-client.ts`) so posterity is cheap and survives the
