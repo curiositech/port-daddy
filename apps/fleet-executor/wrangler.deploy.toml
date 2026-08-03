@@ -100,10 +100,12 @@ new_sqlite_classes = ["Sandbox"]
 # follow-up handler completes the check run as 'failure' (fail-closed).
 [[queues.consumers]]
 queue = "fleet-runs"
-# Fleet reviews can consume the full Worker wall-clock budget. Keep one delivery
-# per invocation so an expensive/stuck head cannot strand newer PR heads in the
-# same serial batch before their required check run is even created.
+# Fleet reviews can consume the full Worker wall-clock budget and each run has
+# its own bounded model fan-out. Keep one delivery per invocation AND one active
+# invocation so obsolete/current heads cannot multiply that fan-out, exhaust
+# model capacity, or race the stale-head check before either run finishes.
 max_batch_size = 1
+max_concurrency = 1
 max_batch_timeout = 30
 max_retries = 3
 dead_letter_queue = "fleet-runs-dlq"

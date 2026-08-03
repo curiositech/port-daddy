@@ -16,9 +16,10 @@ function consumerBlock(config: string, queue: string): string {
 }
 
 describe.each(['wrangler.deploy.toml', 'wrangler.toml.example'])('%s queue contract', (name) => {
-  it('isolates main deliveries so one long review cannot block newer heads', () => {
+  it('serializes main deliveries across batches and Worker invocations', () => {
     const main = consumerBlock(readConfig(name), 'fleet-runs');
     expect(main).toMatch(/^\s*max_batch_size\s*=\s*1\s*$/m);
+    expect(main).toMatch(/^\s*max_concurrency\s*=\s*1\s*$/m);
     expect(main).toMatch(/^\s*dead_letter_queue\s*=\s*"fleet-runs-dlq"\s*$/m);
   });
 
