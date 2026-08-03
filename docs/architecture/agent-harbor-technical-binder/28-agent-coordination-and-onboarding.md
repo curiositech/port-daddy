@@ -56,9 +56,11 @@ and parley's auto-convener (unbuilt; convene explicitly).
 
 ## 28.3 The new happy path
 
-1. **Arrive.** The SessionStart hook (`hooks/sessionstart-pilot.mjs`) stops
-   injecting a static persona; it reads `buildActiveAgentRoster()`, auto-subscribes
-   the newcomer to live peers' `steeringChannel`s plus `repo:<slug>:prs` and
+1. **Arrive — *(proposed; not yet wired).*** Today the SessionStart hook
+   (`hooks/sessionstart-pilot.mjs`) injects steering text and `.claude/settings.json`
+   runs `pd attention --json`. Under this design the hook instead stops injecting a
+   static persona; it reads `buildActiveAgentRoster()`, auto-subscribes the newcomer
+   to live peers' `steeringChannel`s plus `repo:<slug>:prs` and
    `repo:<slug>:activity`, and injects a live "who is here, what is hot" note.
 2. **Declare intent — `pd begin "<what I'm here to do>"`.** `purpose` becomes
    load-bearing: the Intent Matcher (28.4) embeds it and returns an **Arrival

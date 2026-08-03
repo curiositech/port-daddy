@@ -72,7 +72,7 @@
 
 <div class="wrap">
   <section>
-    <div class="sec-head"><span class="eyebrow">The new loop</span><h2>begin → work</h2><p>Four moments. Only the first is a command the agent must call; the rest arrive on their own.</p></div>
+    <div class="sec-head"><span class="eyebrow">The new loop</span><h2>begin → work</h2><p><b>Proposed — none of this loop is wired yet.</b> Four moments. Only the first is a command the agent must call; the rest arrive on their own. Today the SessionStart hook only injects steering text and runs <code>pd attention --json</code>; the roster read, auto-subscribe, Arrival Brief, and envelope below are the target design.</p></div>
     <div class="steps">
       <div class="step"><div class="n">1</div><div><h3>Arrive</h3><div class="d">The SessionStart hook reads the live roster, auto-subscribes the newcomer to peers' channels + <code>repo:&lt;slug&gt;:prs</code> + <code>:activity</code>, and injects a live "who's here, what's hot" note instead of a static persona.</div><div class="prim"><span class="chip">sessionstart-pilot</span><span class="chip">active-agent-roster</span><span class="chip">channels</span></div></div></div>
       <div class="step"><div class="n">2</div><div><h3>Declare intent — <code>pd begin "&lt;what I'm here to do&gt;"</code></h3><div class="d">The one command. Purpose becomes load-bearing: the Intent Matcher embeds it and ranks candidates by cosine (semantic, never keyword lists).</div><div class="prim"><span class="chip new">★ intent matcher</span><span class="chip">semantic-resolver</span><span class="chip">pd begin</span></div></div></div>

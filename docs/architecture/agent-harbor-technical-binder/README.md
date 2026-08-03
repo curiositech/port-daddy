@@ -235,7 +235,7 @@ Work Receipt:
   files, peers, pre-drafted parley), inverting the pull loop (`attention`/
   `briefing`/`sitrep`) into push. Built only on verified primitives (tuples,
   pheromones, inbox, pub/sub, locks, manual parley, episodic, blobs); rejects the
-  aspirational ones (Contract-Net, ICP, the orphaned blackboard module). Adds
+  aspirational ones (Contract-Net, ICP, the orphaned blackboard module). Specifies
   harnessed-reality logging (`context_injection`), the buffer/page/summarize
   invariant (= ch.27 W8), the MCP navigation surface, and Fleet-grade anti-spam
   guardrails. Keystone new build: the semantic Intent Matcher.
