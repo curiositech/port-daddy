@@ -99,6 +99,34 @@ try {
     if (!provider?.detected || !provider?.wired) fail(`${slug} was not detected and wired in its canonical scope`);
   }
 
+  // Prove the staged user-level gate is scoped to the exact armed root. A
+  // sibling Port Daddy project must stay inert even while the heartbeat is
+  // fresh and the underlying prompt tentacle has context it could emit.
+  const sibling = join(root, 'sibling-project');
+  const exactRootMarker = 'exact-root-only-release-smoke';
+  mkdirSync(join(sibling, '.portdaddy'), { recursive: true });
+  writeFileSync(join(pdHome, 'heartbeat'), '{}\n');
+  writeFileSync(
+    join(pdHome, 'matrix.env'),
+    `PD_ALERT_RELEASE_SMOKE="${exactRootMarker} | ts:${new Date().toISOString()}"\n`,
+  );
+
+  const runPromptGate = (cwd) => spawnSync(join(pdHome, 'bin', 'pd-hook-prompt'), [], {
+    cwd,
+    env,
+    input: JSON.stringify({ cwd }),
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  const armedProbe = runPromptGate(project);
+  if (armedProbe.status !== 0 || !armedProbe.stdout.includes(exactRootMarker)) {
+    fail(`armed root did not activate the staged prompt gate: ${armedProbe.stderr || armedProbe.stdout}`);
+  }
+  const siblingProbe = runPromptGate(sibling);
+  if (siblingProbe.status !== 0 || siblingProbe.stdout.trim() !== '') {
+    fail(`unarmed sibling project crossed the exact-root gate: ${siblingProbe.stderr || siblingProbe.stdout}`);
+  }
+
   process.stdout.write(`SQUID RELEASE SMOKE PASS: ${snapshot.providers.length} providers, state ${snapshot.state}\n`);
 } finally {
   rmSync(root, { recursive: true, force: true });
