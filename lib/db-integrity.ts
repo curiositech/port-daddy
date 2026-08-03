@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import Database from './sqlite-runtime.js';
+import { assertNotProdInTest, isTestContext } from './db-open-guard.js';
 
 export interface DbFileStamp {
   path: string;
@@ -67,6 +68,7 @@ function sameDurableFamily(left: DbFileStamp[], right: DbFileStamp[]): boolean {
  */
 export function createDbIntegrityProof(dbPath: string): DbIntegrityProof {
   const canonical = resolve(dbPath);
+  assertNotProdInTest(canonical, { isTest: isTestContext() });
   const before = dbFileFamilyStamp(canonical);
   if (!before[0]?.exists) {
     throw new Error(`database does not exist: ${canonical}`);

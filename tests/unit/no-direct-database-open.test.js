@@ -30,6 +30,10 @@
  *                              source read-only for VACUUM INTO and then opens
  *                              the target copy to scrub local-only tables before
  *                              the dev daemon starts.
+ *   - lib/db-integrity.ts    — packaged daemon helper that opens one existing
+ *                              DB read-only, runs PRAGMA integrity_check, and
+ *                              content-binds the proof to DB/WAL file stamps.
+ *                              It runs the shared prod-in-test guard first.
  *
  * Test files are exempt: they use in-memory DBs (createTestDb / new
  * Database(':memory:')) and explicit scratch paths, which is the intended
@@ -54,6 +58,7 @@ const ALLOWED_FILES = new Set([
   'cli/commands/diagnostics.ts',
   'lib/backup.ts',
   'lib/seed-berth-db.ts',
+  'lib/db-integrity.ts',
 ]);
 
 // `new Database(` in any whitespace form.
