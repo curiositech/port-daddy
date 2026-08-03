@@ -353,6 +353,22 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
     }
 
     default: {
+      // `pd agent` is the registry/control namespace, not a second launch
+      // primitive. Older help/docs advertised launch-shaped forms such as
+      // `pd agent "task"`, `pd agent run ...`, and `pd agent harness ...`.
+      // Treating the first token as an agent id sent those forms to GET
+      // /agents/:id and surfaced the daemon's opaque "Not Found" response.
+      // Refuse them locally with the one canonical, budgeted replacement.
+      const launchShaped = subcommand === 'run'
+        || subcommand === 'harness'
+        || /\s/.test(subcommand)
+        || args.length > 0;
+      if (launchShaped) {
+        ui.error('pd agent controls registered agents; it does not start work.');
+        ui.info('Use: pd spawn --backend <backend> --budget <usd> --identity <project:stack:context> -- "task text"');
+        process.exit(1);
+      }
+
       // Treat as agent ID lookup
       const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agents/${encodeURIComponent(subcommand)}`);
       const data = await res.json();
