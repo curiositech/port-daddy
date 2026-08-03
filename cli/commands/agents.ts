@@ -11,6 +11,7 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { readCurrentContext } from '../utils/current-context.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
+import { inboxMessagePreview } from '../utils/message-preview.js';
 
 /**
  * Handle `pd agent <subcommand>` command
@@ -237,7 +238,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
         const messages = data.messages as Array<{
           id: number;
           from: string | null;
-          content: string;
+          content: unknown;
           type: string;
           read: boolean;
           createdAt: number;
@@ -253,7 +254,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
           const readMark = msg.read ? ' ' : '\u2709';
           const time = new Date(msg.createdAt).toISOString().slice(11, 19);
           const from = msg.from || 'system';
-          console.log(`${readMark} [${time}] <${from}> ${msg.content.slice(0, 60)}${msg.content.length > 60 ? '...' : ''}`);
+          console.log(`${readMark} [${time}] <${from}> ${inboxMessagePreview(msg.content)}`);
         }
         console.log('');
         console.log(`${data.count} message(s)`);

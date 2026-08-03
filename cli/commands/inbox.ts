@@ -8,6 +8,7 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import { handleSub } from './messaging.js';
 import { readCurrentContext } from '../utils/current-context.js';
 import * as ui from '../utils/ui.js';
+import { inboxMessagePreview } from '../utils/message-preview.js';
 
 /**
  * Handle `pd inbox <subcommand>` command — top-level standalone inbox access.
@@ -50,7 +51,7 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     const messages = data.messages as Array<{
       id: number;
       from: string | null;
-      content: string;
+      content: unknown;
       type: string;
       read: boolean;
       createdAt: number;
@@ -66,7 +67,7 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
       const readMark = msg.read ? ' ' : '\u2709';
       const time = new Date(msg.createdAt).toISOString().slice(11, 19);
       const from = msg.from || 'system';
-      console.log(`${readMark} [${time}] <${from}> ${msg.content.slice(0, 60)}${msg.content.length > 60 ? '...' : ''}`);
+      console.log(`${readMark} [${time}] <${from}> ${inboxMessagePreview(msg.content)}`);
     }
     console.log('');
     console.log(`${data.count} message(s)`);
@@ -216,7 +217,7 @@ export async function handleSent(options: CLIOptions): Promise<void> {
   const messages = data.messages as Array<{
     id: number;
     agentId: string;
-    content: string;
+    content: unknown;
     read: boolean;
     readAt: number | null;
     createdAt: number;
@@ -232,8 +233,7 @@ export async function handleSent(options: CLIOptions): Promise<void> {
     const receipt = msg.read
       ? `✓ read ${msg.readAt ? new Date(msg.readAt).toISOString().slice(11, 19) : ''}`.trim()
       : '✉ unread';
-    const preview = String(msg.content).slice(0, 50);
-    console.log(`${receipt}  → ${msg.agentId}  ${preview}${String(msg.content).length > 50 ? '...' : ''}`);
+    console.log(`${receipt}  → ${msg.agentId}  ${inboxMessagePreview(msg.content, 50)}`);
   }
   console.log('');
   const count = (data as { count: number }).count;
