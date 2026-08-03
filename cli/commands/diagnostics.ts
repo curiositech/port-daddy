@@ -62,6 +62,7 @@ import { gatherHarborFacts } from '../utils/harbor-facts.js';
 import {
   collectRuntimeIdentity,
   inspectCanonicalLaunchdSupervisor,
+  resolveRuntimeIdentityScope,
   type RuntimeHealthSnapshot,
   type RuntimeIdentityAssessment,
 } from '../../lib/daemon-runtime.js';
@@ -154,6 +155,21 @@ function resolveDiagnosticPort(): number {
   } catch {
     return CANONICAL_TCP_PORT;
   }
+}
+
+function collectDiagnosticRuntimeIdentity(
+  health: RuntimeHealthSnapshot | null,
+  endpointPort = resolveDiagnosticPort(),
+): RuntimeIdentityAssessment {
+  const scope = resolveRuntimeIdentityScope(health, {
+    endpointPort,
+    runtimePrefix: process.env.PORT_DADDY_PREFIX,
+    canonicalSupervisor: inspectCanonicalLaunchdSupervisor(),
+  });
+  return collectRuntimeIdentity(health, {
+    endpointPort,
+    ...scope,
+  });
 }
 
 /**
@@ -677,10 +693,7 @@ export async function runStatus(
     if (deps.runtimeIdentity) {
       data.controlPlane = deps.runtimeIdentity(health as RuntimeHealthSnapshot);
     } else if (!deps.fetch) {
-      data.controlPlane = collectRuntimeIdentity(health as RuntimeHealthSnapshot, {
-        endpointPort: resolveDiagnosticPort(),
-        supervisor: inspectCanonicalLaunchdSupervisor(),
-      });
+      data.controlPlane = collectDiagnosticRuntimeIdentity(health as RuntimeHealthSnapshot);
     }
 
     const visualState = statusLineworkState(data);
@@ -1867,10 +1880,10 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   //     healthy merely because each component looks plausible in isolation.
   // -------------------------------------------------------------------------
   try {
-    const identity = collectRuntimeIdentity(daemonData as RuntimeHealthSnapshot | null, {
-      endpointPort: daemonRunning ? daemonPort : null,
-      supervisor: inspectCanonicalLaunchdSupervisor(),
-    });
+    const identity = collectDiagnosticRuntimeIdentity(
+      daemonData as RuntimeHealthSnapshot | null,
+      daemonPort,
+    );
     recordAssessment('Runtime identity', {
       severity: identity.severity,
       detail: `${identity.state}: ${identity.summary}`,
