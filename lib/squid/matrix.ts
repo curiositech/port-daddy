@@ -35,6 +35,7 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
+import { logInjection } from '../harness-injection-log.js';
 
 // ─── Paths ───────────────────────────────────────────────────────────────────
 
@@ -345,6 +346,11 @@ export function readAlerts(fleet?: string): Record<string, string> {
 export function setAlert(id: string, message: string, fleet?: string): string {
   const key = `PD_ALERT_${keySuffix(id)}`;
   setKey(key, message, fleet);
+  // This alert is content the per-prompt "Suggestibility Envelope" tentacle
+  // (bin/pd-hook-prompt) injects into the agent's turn. Record it so a
+  // transcript explorer can attribute that injected context (ch.28 §28.5).
+  // Fail-open — logInjection never throws.
+  logInjection({ source: 'matrix-envelope', payload: message, turnHint: key });
   return key;
 }
 

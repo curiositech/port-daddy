@@ -19,6 +19,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { logInjection } from '../harness-injection-log.js';
 
 export const INK_CLOUD_PATH = join(homedir(), '.port-daddy', 'matrix.env');
 
@@ -157,5 +158,10 @@ export function buildInjectionBlock(cloud: InkCloud, opts: InjectionOptions = {}
     for (const k of pheromoneKeys) lines.push(`  - PD_PHEROMONE_${k}: ${cloud.pheromones[k]}`);
   }
   lines.push('=== END LIVE COORDINATION STATE ===');
-  return lines.join('\n');
+  const block = lines.join('\n');
+  // This block is injected into a hookless runner's transcript each turn.
+  // Record it so a transcript explorer can attribute that injected context
+  // (ch.28 §28.5). Only non-empty blocks reach here. Fail-open.
+  logInjection({ source: 'ink-cloud', payload: block, agentId: self });
+  return block;
 }

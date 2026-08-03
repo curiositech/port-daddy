@@ -17,8 +17,46 @@
  * disrupts a session it doesn't apply to.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, appendFileSync, mkdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
+
+/**
+ * Harness-injection logging (ch.28 §28.5). Records WHAT the harness feeds the
+ * agent so a transcript explorer can attribute per-turn input context to its
+ * source. The canonical shared appender is `lib/harness-injection-log.ts`; this
+ * hook is deliberately dependency-free ESM that runs on a cold session before
+ * any build/lib is importable, so we inline a tiny, byte-compatible append.
+ * FAIL-OPEN: best-effort, never throws into the SessionStart path. Stores
+ * bytes + sha256, never the payload (full spill-to-blob is the ch.28 W8 job).
+ */
+function logInjection(payload, source) {
+  try {
+    const home = (process.env.PD_HOME && process.env.PD_HOME.trim())
+      ? process.env.PD_HOME
+      : join(homedir(), '.port-daddy');
+    const path = (process.env.PD_HARNESS_INJECTION_LOG && process.env.PD_HARNESS_INJECTION_LOG.trim())
+      ? process.env.PD_HARNESS_INJECTION_LOG
+      : join(home, 'harness-injections.jsonl');
+    const runtime = process.env.CLAUDECODE || process.env.CLAUDE_CODE_ENTRYPOINT
+      ? 'claude'
+      : (process.env.CODEX || process.env.CODEX_HOME ? 'codex' : 'unknown');
+    const line = {
+      ts: new Date().toISOString(),
+      runtime,
+      source,
+      bytes: Buffer.byteLength(payload, 'utf8'),
+      sha256: createHash('sha256').update(payload, 'utf8').digest('hex'),
+    };
+    const sid = process.env.CLAUDE_SESSION_ID || process.env.PD_SESSION_ID;
+    if (sid) line.sessionId = sid;
+    mkdirSync(dirname(path), { recursive: true });
+    appendFileSync(path, JSON.stringify(line) + '\n', { mode: 0o600 });
+  } catch {
+    // best-effort observability — must never disrupt session steering
+  }
+}
 
 function readStdin() {
   // Read the whole SessionStart payload (small JSON) from fd 0 in one shot.
@@ -106,6 +144,9 @@ function main() {
 
   const cwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
   if (!isPortDaddyActive(cwd)) return;
+
+  // Record what the harness is about to inject into this session (ch.28 §28.5).
+  logInjection(STEERING, 'sessionstart-pilot');
 
   const out = {
     hookSpecificOutput: {
