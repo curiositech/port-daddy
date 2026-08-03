@@ -83,6 +83,8 @@ const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 
 /** Per-chunk diff budget for the MAP fan-out (chars). */
 const MAP_CHUNK_CHAR_LIMIT = 12_000;
+/** Bound Workers AI fan-out so large diffs finish without a rate-limit stampede. */
+const MAP_CONCURRENCY = 8;
 /** The umbrella check-run name. Exported so the DLQ handler targets the same run. */
 export const CHECK_NAME = 'Port Daddy Fleet';
 
@@ -948,9 +950,8 @@ async function runShip(
     }
 
     // --- MAP: one ship call per diff chunk ---------------------------------
-    const partials: string[] = [];
-    for (let i = 0; i < chunks.length; i++) {
-      const userMessage = buildUserMessage(prCtx, chunks[i], i, chunks.length, fleetContext);
+    const partials = await mapWithConcurrency(chunks, MAP_CONCURRENCY, async (chunk, i) => {
+      const userMessage = buildUserMessage(prCtx, chunk, i, chunks.length, fleetContext);
       const request = {
         messages: [
           { role: 'system', content: systemPrompt },
@@ -966,7 +967,6 @@ async function runShip(
       );
       const { text, shape } = extractAiText(res);
       accumulateUsage(metrics, res, text);
-      partials.push(text);
 
       // Diagnose the silent-blank case: an empty result makes a ship post nothing
       // and resolve PASS. Log the model + response shape so an empty-returning
@@ -989,7 +989,8 @@ async function runShip(
         shape,
         ...(text ? {} : { responseShape: describeResponseShape(res) }),
       });
-    }
+      return text;
+    });
 
     // --- REDUCE: manager merges the partials (only when fan-out > 1) --------
     const output =
@@ -1390,6 +1391,25 @@ export function chunkDiff(diff: string): string[] {
   }
   if (cur) chunks.push(cur);
   return chunks.length > 0 ? chunks : [diff];
+}
+
+/** Ordered async map with a hard in-flight cap. */
+export async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  work: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  if (!Number.isInteger(limit) || limit < 1) throw new Error('concurrency limit must be a positive integer');
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const worker = async (): Promise<void> => {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      results[index] = await work(items[index], index);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+  return results;
 }
 
 /**
