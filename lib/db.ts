@@ -14,11 +14,18 @@
 import Database, { type DatabaseInstance } from './sqlite-runtime.js';
 import { chmodSync, existsSync, mkdirSync, readdirSync, renameSync, statSync } from 'node:fs';
 import { dirname, join, resolve as resolvePath, sep } from 'path';
-import { homedir, tmpdir } from 'node:os';
+import { homedir } from 'node:os';
 import { fileURLToPath } from 'url';
 import { resolveDistributionRoot } from '../shared/daemon-binary.js';
 import { CLAIM_FOREST_SCHEMA_SQL } from './claim-forest.js';
 import { isCurrentDbIntegrityProof, type DbIntegrityProof } from './db-integrity.js';
+import { assertNotProdInTest, isTestContext } from './db-open-guard.js';
+
+export {
+  assertNotProdInTest,
+  isAllowedTestDbPath,
+  isTestContext,
+} from './db-open-guard.js';
 
 const MODULE_DIR: string = dirname(fileURLToPath(import.meta.url));
 
@@ -263,90 +270,6 @@ export function verifyCoreSchema(db: DatabaseInstance): void {
         `Run: pd doctor --repair (or restore a backup via pd restore).`,
     );
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Fail-closed production-DB guard (Rails ProtectedEnvironment analogue)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Detect whether the current process is running under a test runner.
- *
- * The chokepoint guard refuses to open the live production database from a
- * test context. We treat any of the standard test markers as "this is a test":
- *   - NODE_ENV === 'test'        (generic)
- *   - JEST_WORKER_ID set         (jest worker subprocess)
- *   - BUN_TEST set               (bun:test runner)
- *   - PD_TEST set                (explicit Port Daddy test marker)
- */
-export function isTestContext(env: NodeJS.ProcessEnv = process.env): boolean {
-  return (
-    env.NODE_ENV === 'test' ||
-    env.JEST_WORKER_ID !== undefined ||
-    env.BUN_TEST !== undefined ||
-    env.PD_TEST !== undefined
-  );
-}
-
-/** True when `child` is `parent` itself or nested anywhere beneath it. */
-function isPathUnder(child: string, parent: string): boolean {
-  const c = resolvePath(child);
-  const p = resolvePath(parent);
-  if (c === p) return true;
-  const prefix = p.endsWith(sep) ? p : p + sep;
-  return c.startsWith(prefix);
-}
-
-/**
- * A resolved DB path is an allowed scratch target in a test context when it is:
- *   - an in-memory DB (':memory:')
- *   - exactly the path named by PORT_DADDY_TEST_DB, or nested beneath its dir
- *   - anywhere under the OS temp dir (os.tmpdir() / mkdtemp output)
- * Anything else (the real production registry) is refused.
- */
-export function isAllowedTestDbPath(
-  resolvedPath: string,
-  env: NodeJS.ProcessEnv = process.env,
-): boolean {
-  if (resolvedPath === ':memory:' || resolvedPath === '') return true;
-
-  const testDb = env.PORT_DADDY_TEST_DB;
-  if (testDb) {
-    if (resolvePath(resolvedPath) === resolvePath(testDb)) return true;
-    // Allow sibling WAL/SHM files and a throwaway dir rooted at the test DB's dir.
-    if (isPathUnder(resolvedPath, dirname(testDb))) return true;
-  }
-
-  if (isPathUnder(resolvedPath, tmpdir())) return true;
-
-  return false;
-}
-
-/**
- * Fail-closed assertion run BEFORE the SQLite handle is opened.
- *
- * Throws when a test context is about to open a real, on-disk database that is
- * NOT an explicitly-allowed throwaway path. This is the analogue of Rails'
- * ProtectedEnvironmentError: it stops a stray CLI command or a misconfigured
- * test from writing to the live production registry.
- *
- * Exported so it can be unit-tested directly without opening a handle.
- */
-export function assertNotProdInTest(
-  resolvedPath: string,
-  ctx: { isTest: boolean; inMemory?: boolean },
-): void {
-  if (!ctx.isTest) return;
-  if (ctx.inMemory) return;
-  if (isAllowedTestDbPath(resolvedPath)) return;
-
-  throw new Error(
-    `[port-daddy] Refusing to open the production database from a test context.\n` +
-      `  path: ${resolvedPath}\n` +
-      `Tests must not touch the live registry. Set PORT_DADDY_TEST_DB to a ` +
-      `throwaway path (e.g. one created with fs.mkdtempSync) or use ` +
-      `createTestDb() from tests/setup-unit.js for an in-memory database.`,
-  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

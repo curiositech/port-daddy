@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from '@jest/globals';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import {
@@ -59,5 +59,12 @@ describe('database integrity proof', () => {
       execPath: process.execPath,
       bunVersion: undefined,
     })).resolves.toBeNull();
+  });
+
+  test('refuses a non-scratch database before the read-only helper opens it in tests', () => {
+    const productionLikePath = join(homedir(), '.port-daddy', 'must-not-open-from-jest.db');
+    expect(() => createDbIntegrityProof(productionLikePath)).toThrow(
+      'Refusing to open the production database from a test context',
+    );
   });
 });
