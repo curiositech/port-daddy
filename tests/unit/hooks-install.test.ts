@@ -16,6 +16,7 @@ import {
   stageTentacles,
   buildTargets,
   configureTarget,
+  isHooksStatusRequest,
   uninstallTarget,
   clearArmedSquidProjects,
   isSquidProjectArmed,
@@ -220,6 +221,13 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
 // ─── Per-project scoping + config writing ────────────────────────────────────
 
 describe('configureTarget — per-project scope, gate-pointed commands', () => {
+  test('status selects the read-only list path instead of installation', () => {
+    expect(isHooksStatusRequest('status', {})).toBe(true);
+    expect(isHooksStatusRequest('list', {})).toBe(true);
+    expect(isHooksStatusRequest('install', { status: true })).toBe(true);
+    expect(isHooksStatusRequest('install', {})).toBe(false);
+  });
+
   test('hook commands point at the GATE wrappers, not the raw tentacles', () => {
     const claude = buildTargets(HOME).find((t) => t.slug === 'claude')!;
     const res = configureTarget(claude, { scope: 'project', cwd: REPO });
