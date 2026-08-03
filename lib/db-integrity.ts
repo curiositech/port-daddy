@@ -42,10 +42,6 @@ function sameStamp(entry: DbFileStamp | undefined, candidate: DbFileStamp | unde
     && entry.mtimeMs === candidate.mtimeMs;
 }
 
-function sameFamily(left: DbFileStamp[], right: DbFileStamp[]): boolean {
-  return left.length === right.length && left.every((entry, index) => sameStamp(entry, right[index]));
-}
-
 // The main database and WAL contain durable database state. The SHM sidecar is
 // SQLite's mutable coordination area: a read-only connection updates reader
 // marks and lock bookkeeping there, so requiring its mtime to remain stable
