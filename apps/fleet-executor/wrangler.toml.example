@@ -100,7 +100,9 @@ database_id = "REPLACE_WITH_YOUR_RELAY_D1_DATABASE_ID"
 # follow-up handler completes the check run as 'failure' (fail-closed).
 [[queues.consumers]]
 queue = "fleet-runs"
-max_batch_size = 10
+# Isolate long reviews: the Worker processes a batch serially, so batching main
+# jobs lets one expensive head prevent newer heads from establishing a check.
+max_batch_size = 1
 max_batch_timeout = 30
 max_retries = 3
 dead_letter_queue = "fleet-runs-dlq"
