@@ -660,6 +660,21 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     }
   }
 
+  // A synchronize delivery can sit behind an expensive review long enough for
+  // several newer commits to arrive. Its payload SHA is immutable, while the PR
+  // files/diff endpoints above describe the current head. Never spend AI on that
+  // mismatched combination or attach a current-diff verdict to an obsolete SHA.
+  // Acknowledge stale deliveries; the newest synchronize event owns the gate.
+  const eventHead = prPayload.head && typeof prPayload.head === 'object'
+    ? (prPayload.head as Record<string, unknown>).sha
+    : null;
+  if (typeof eventHead === 'string' && eventHead && eventHead !== prCtx.headSha) {
+    console.log(
+      `[fleet-executor] delivery=${deliveryId} stale head ${eventHead.slice(0, 12)}; current=${prCtx.headSha.slice(0, 12)}; skipping`,
+    );
+    return;
+  }
+
   // --- Resolve ships -------------------------------------------------------
   // Deterministic parse of the WHOLE pd-fleet.yml, exactly once. A 404 (no
   // fleetYaml) or an unparseable/empty doc falls back to defaultPRShips() once —
