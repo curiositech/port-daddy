@@ -126,6 +126,7 @@ import { createObservabilityMaintenance } from './lib/observability/maintenance.
 import { createDurableAgentRoster } from './lib/durable-agent-roster.js';
 import { createGalaxy } from './lib/galaxy.js';
 import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
+import { createDbIntegrityProofOutOfProcess } from './lib/db-integrity.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
 import { createDaemonCorsOptions } from './lib/daemon-cors.js';
@@ -452,6 +453,46 @@ if (existsSync(SOCK_PATH)) {
   try { unlinkSync(PID_FILE); } catch {}
 }
 
+// Publish the launchd-owned generation BEFORE opening the production-sized DB
+// or constructing the service graph. Bosun previously saw only the prior
+// generation's dead heartbeat during this boot window and repeatedly ran
+// `launchctl kickstart -k`, killing each new child before it could bind. The
+// PID file + atomic heartbeat are the generation lease: once duplicate-owner
+// checks have passed, both move to this PID together and keep advancing while
+// initialization runs. The HTTP wedge probe is armed only after the Unix
+// listener exists; connection-refused during bootstrap is not a wedge.
+try { writeFileSync(PID_FILE, String(process.pid)); } catch {}
+const bosunHeartbeat = createBosunHeartbeat({
+  heartbeatPath: HEARTBEAT_FILE,
+  version: VERSION,
+  plane: DAEMON_PLANE,
+  codeHash: CODE_HASH,
+  startedAt: STARTED_AT,
+  installDir: __dirname,
+  pidFile: PID_FILE,
+  portFile: PORT_FILE,
+  requirePidFileMatch: true,
+  selfProbe: createSocketHealthProbe({ socketPath: SOCK_PATH }),
+  deferSelfProbeUntilReady: true,
+  logger,
+});
+bosunHeartbeat.start();
+
+// The full SQLite integrity scan remains a fail-closed boot gate, but the
+// packaged daemon runs it in a read-only child so this generation's heartbeat
+// can keep advancing. initDatabase accepts the result only while the durable
+// DB/WAL stamps still match the helper's proof; otherwise it repeats the full
+// check in-process rather than trusting stale evidence. SQLite's SHM sidecar is
+// excluded from freshness because readers legitimately mutate its lock state.
+const dbIntegrityProof = await createDbIntegrityProofOutOfProcess(DB_PATH);
+if (dbIntegrityProof) {
+  logger.info('database_integrity_verified', {
+    path: DB_PATH,
+    checkedAt: dbIntegrityProof.checkedAt,
+    mode: 'out-of-process',
+  });
+}
+
 // =============================================================================
 // SLEEP DETECTION (identical to server.ts)
 // =============================================================================
@@ -469,7 +510,11 @@ function isInSleepGracePeriod(): boolean {
 // The daemon IS the write-boundary (the Door): it opens with owner semantics and
 // is the single legitimate writer of the registry. Non-daemon openers use
 // role:'client' and get a write-guarded handle.
-const db: DatabaseInstance = initDatabase({ dbPath: DB_PATH, role: 'daemon' });
+const db: DatabaseInstance = initDatabase({
+  dbPath: DB_PATH,
+  role: 'daemon',
+  integrityProof: dbIntegrityProof ?? undefined,
+});
 
 // =============================================================================
 // MODULE INITIALIZATION (identical to server.ts)
@@ -941,23 +986,6 @@ const mergeQueue = createMergeQueue(db, {
   graphEdges,
   tuples,
   semanticResolver,
-});
-
-const bosunHeartbeat = createBosunHeartbeat({
-  heartbeatPath: HEARTBEAT_FILE,
-  version: VERSION,
-  plane: DAEMON_PLANE,
-  codeHash: CODE_HASH,
-  startedAt: STARTED_AT,
-  installDir: __dirname,
-  pidFile: PID_FILE,
-  portFile: PORT_FILE,
-  requirePidFileMatch: true,
-  // Loopback probe of our own request pipeline over the primary Unix socket.
-  // If HTTP wedges while the event loop keeps turning, the heartbeat halts and
-  // Bosun restarts us (Bosun is HTTP-free by design and can't see this itself).
-  selfProbe: createSocketHealthProbe({ socketPath: SOCK_PATH }),
-  logger,
 });
 
 const orchestrator = createReactiveOrchestrator(db, messaging, spawner, conductor);
@@ -1751,7 +1779,9 @@ try { unlinkSync(SOCK_PATH); } catch {}
 const sockServer = http.createServer((req, res) => { app.routing(req, res); });
 sockServer.listen(SOCK_PATH, async () => {
   try { writeFileSync(PID_FILE, String(process.pid)); } catch {}
-  bosunHeartbeat.start();
+  // Bootstrap kept the process heartbeat fresh while the service graph was
+  // loading. Now that /health can answer, arm the independent wedge detector.
+  bosunHeartbeat.startProbing();
   logger.info('socket_started', { socket: SOCK_PATH, version: VERSION });
 
   // Tertiary: Binary IPC socket for agent hot path
@@ -1800,16 +1830,16 @@ sockServer.listen(SOCK_PATH, async () => {
                 if (!isSilent) {
                   console.error(`Port Daddy v${VERSION} refusing to start: ${decision.reason}`);
                   console.error(`  Existing daemon pid: ${decision.foreignPid ?? '(unknown)'}`);
-                  console.error('  Resolve by killing the stale daemon or unsetting PD_ALLOW_TCP_FALLBACK only after verifying it is safe.');
+                  console.error('  Resolve the port owner, or set PD_ALLOW_TCP_FALLBACK=1 only for an explicitly isolated non-canonical runtime.');
                 }
                 process.exit(1);
               }
               logger.warn('tcp_port_busy', { port: tryPort, nextAttempt: tryPort + 1, reason: decision.reason });
               tryListenTcp(attempt + 1);
             }).catch((probeErr: Error) => {
-              // If the probe itself fails unexpectedly, fall back rather
-              // than refuse — refusing on probe failure would be a worse
-              // failure mode than the legacy behavior.
+              // Preserve the same explicit-only fallback policy even when the
+              // probe itself throws. decideTakeover refuses by default and
+              // walks only when PD_ALLOW_TCP_FALLBACK=1 was deliberately set.
               logger.warn('tcp_port_busy', { port: tryPort, nextAttempt: tryPort + 1, probeError: probeErr.message });
               tryListenTcp(attempt + 1);
             });
@@ -1827,6 +1857,10 @@ sockServer.listen(SOCK_PATH, async () => {
       });
       tcpServer.on('listening', () => {
         try { writeFileSync(PORT_FILE, String(tryPort), { mode: 0o644 }); } catch {}
+        // The health route holds this object by reference. Keep its advertised
+        // identity equal to the listener and port file even when an operator
+        // explicitly opts an isolated runtime into fallback-port walking.
+        DAEMON_BERTH.port = tryPort;
         logger.info('tcp_started', { port: tryPort, host: tcpHost, version: VERSION });
         // Self-register this berth (ADR-0084) so FleetBar's berth picker can
         // see it regardless of how this daemon was launched — registration

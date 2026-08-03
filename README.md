@@ -123,7 +123,7 @@ pd bench 50        # Run performance benchmarks (target: <1ms latency)
 
 `pd attest` (ADR-0045) runs the loud-fail invariant registry — daemon liveness, DB integrity/schema, crypto, brew-hash provenance, and more. "All good" is conjunctive and scoped: green only when every checked invariant passed, and the report always lists what it could NOT verify. Exits non-zero on any critical problem.
 
-`pd start` and `pd install` are binary-first: they refuse to start a source-backed `tsx server.ts` daemon unless `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` is set for a local development session.
+`pd start` and `pd install` are binary-first: they refuse to start a source-backed `tsx server.ts` daemon unless `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` is set for a local development session. On a canonical macOS install, launchd is the sole lifecycle owner: `pd start`, `pd restart`, and `pd stop` control `homebrew.mxcl.port-daddy`, wait for one verified generation, and refuse a detached fallback when the launchd job is missing.
 
 `pd install-bosun` wires only the Bosun watchdog (ADR-0036) against a Homebrew-managed daemon (`homebrew.mxcl.port-daddy`), without touching the main daemon plist — it's what the `curiositech/homebrew-tap` formula's `post_install` calls, since the full `pd install` would otherwise race `brew services start port-daddy` for the daemon's own supervision. Not needed outside a brew install; `pd install` already wires Bosun for a self-installed LaunchAgent/systemd daemon.
 
@@ -817,7 +817,7 @@ curl http://127.0.0.1:9876/transcripts/compliance  # Transcript backend matrix +
 curl http://127.0.0.1:9876/transcripts/emergency   # HITL transcript emergency summary across local + cloud writers
 ```
 
-`launchctl` is the canonical supervisor on macOS; Bosun is the optional non-agent watchdog fed by a filesystem heartbeat.
+`launchctl` is the sole canonical process supervisor on macOS. The daemon owns readiness and publishes one generation identity across `/health`, `daemon.pid`, `daemon.port`, its listener, binary hash, and filesystem heartbeat. Bosun is the independent non-agent watchdog: it can ask launchd to replace a dead or wedged generation, but it never spawns one. `pd status`, Doctor, FleetBar, and pd-console are observers of that shared snapshot, not additional supervisors.
 `GET /status` and `GET /health` now fold transcript-flow health into `runtime.transcripts`, and surface critical live-run gaps (stalled live stream, missing final transcript) as HITL-tagged runtime reasons.
 
 ### Daemon berths (ADR-0084)

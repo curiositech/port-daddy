@@ -18,6 +18,7 @@ import { homedir, tmpdir } from 'node:os';
 import { fileURLToPath } from 'url';
 import { resolveDistributionRoot } from '../shared/daemon-binary.js';
 import { CLAIM_FOREST_SCHEMA_SQL } from './claim-forest.js';
+import { isCurrentDbIntegrityProof, type DbIntegrityProof } from './db-integrity.js';
 
 const MODULE_DIR: string = dirname(fileURLToPath(import.meta.url));
 
@@ -685,6 +686,12 @@ export interface InitDbOptions {
    *  so flipping it is a staged product decision, not a drop-in). The
    *  `PD_DIRECT_DB_OK=1` env hatch restores owner semantics for maintenance. */
   role?: 'daemon' | 'client';
+  /**
+   * Content-bound result from the packaged daemon's read-only helper process.
+   * It skips the duplicate in-process full scan only when the durable DB/WAL
+   * stamps still match the successful scan. SHM is mutable reader-lock state.
+   */
+  integrityProof?: DbIntegrityProof;
 }
 
 /**
@@ -719,6 +726,8 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
     mkdirSync(dirname(path), { recursive: true });
   }
 
+  const integrityPreverified = !options.inMemory
+    && isCurrentDbIntegrityProof(path, options.integrityProof);
   const db = new Database(path);
 
   // Tighten filesystem permissions so OTHER UNIX USERS cannot read the DB.
@@ -735,7 +744,7 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
   // narrows to the owner. Does NOT protect against same-user process
   // adversaries; see docs/shipwright/SECURITY-ASSESSMENT.md for the full
   // threat model and follow-up items.
-  if (!options.inMemory) {
+  if (!options.inMemory && !integrityPreverified) {
     try {
       chmodSync(path, 0o600);
     } catch (err) {
