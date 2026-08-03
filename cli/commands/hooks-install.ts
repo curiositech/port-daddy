@@ -490,7 +490,7 @@ export async function handleHooks(
   const sub = positional[0] ?? 'install';
   const targets = buildTargets(home);
 
-  if (sub === 'list' || options.list) {
+  if (isHooksStatusRequest(sub, options)) {
     console.log('');
     ui.info('Port Daddy agent-CLI hooks (per-project, daemon-gated)');
     console.log('');
@@ -594,4 +594,8 @@ export async function handleHooks(
   }
   console.log('  Verify:  pd hooks list   ·   Remove:  pd hooks uninstall');
   console.log('');
+}
+
+export function isHooksStatusRequest(sub: string, options: Record<string, unknown>): boolean {
+  return sub === 'list' || sub === 'status' || !!options.list || !!options.status;
 }
