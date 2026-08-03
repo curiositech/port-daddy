@@ -33,16 +33,16 @@ There are **two parallel memory/context stacks**:
   Pressure bands here are coarse: warn >= 50%, critical >= 70% of an *effective*
   window defined as 60% of the advertised window (`context-window-tracker.ts:73`).
 
-- **Tier B — DESIGNED, tested, UNWIRED, and currently untracked in git.**
+- **Tier B — DESIGNED, tested, UNWIRED (tracked, but zero non-test callers).**
   `lib/agent-harbor/context-pressure.ts`, `compaction.ts`, and
   `memory-episodes.ts` implement chapter 04 exactly: the 0.60/0.75/0.85/0.92
   ladder (`classifyPressure`), cited compaction packets with a validator that
   fails uncited factual claims (`buildCompactionPacket`,
   `validateCompactionPacket`), hash-chain-verified successor resume
   (`resumeFromPacket`), and a second episodic schema (`ensureMemoryEpisodeSchema`).
-  Every one of these functions has **zero non-test callers**, and the files
-  themselves are `??` (untracked) in the working checkout. Their tests live only
-  in worktrees, not the main tree.
+  Every one of these functions has **zero non-test callers**: the code lives under
+  `lib/agent-harbor/` with unit tests under `tests/unit/` (both tracked), yet
+  nothing in the runtime path invokes it — it is built and tested but unwired.
 
 **The keystone.** Nothing emits a schema-valid `ContextEnvelope` on agent
 heartbeats. The envelope (04.60-113) is the signal that is supposed to fire

@@ -94,7 +94,7 @@
   .keystone-callout { margin-top: 1.5rem; padding: 1rem 1.15rem; border-radius: 12px;
     background: var(--surface); border: 1px solid var(--hair); border-left: 3px solid var(--keystone);
     box-shadow: var(--shadow); }
-  .keystone-callout .k { font-family: var(--mono); font-size: 0.74rem; font-weight: 700;
+  .keystone-callout .k { font-family: var(--mono); font-size: 0.75rem; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.14em; color: var(--keystone); }
   .keystone-callout p { margin: 0.4rem 0 0; font-size: 1rem; color: var(--ink); }
   .keystone-callout code { color: var(--accent-ink); background: var(--surface-2); padding: 0.05em 0.35em; border-radius: 4px; }
@@ -149,7 +149,7 @@
   .card .title { font-weight: 700; font-size: 1rem; line-height: 1.3; }
   .card .body { font-size: 0.92rem; color: var(--ink-soft); }
   .card .meta { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: auto; padding-top: 0.3rem; }
-  .chip { font-family: var(--mono); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+  .chip { font-family: var(--mono); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em;
     padding: 0.15rem 0.45rem; border-radius: 5px; text-transform: uppercase; }
   .chip.state-unwired { background: var(--partial-bg); color: var(--partial); }
   .chip.state-absent { background: var(--absent-bg); color: var(--absent); }
@@ -162,7 +162,7 @@
   .table-scroll { overflow-x: auto; border: 1px solid var(--hair); border-radius: 12px; box-shadow: var(--shadow); }
   table { border-collapse: collapse; width: 100%; min-width: 720px; background: var(--surface); }
   th, td { text-align: left; padding: 0.8rem 1rem; border-bottom: 1px solid var(--hair); vertical-align: top; }
-  th { font-family: var(--mono); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.1em;
+  th { font-family: var(--mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em;
     color: var(--muted); font-weight: 700; background: var(--surface-2); position: sticky; top: 0; }
   tbody tr:last-child td { border-bottom: none; }
   td .topic { font-weight: 700; }
@@ -245,7 +245,7 @@
     <div class="sec-head">
       <span class="eyebrow">Two stacks, one keystone</span>
       <h2>Where the code actually stands</h2>
-      <p>A live, wired stack (Tier A) runs a coarse 50/70% warner. A designed, tested stack (Tier B) implements the full 60/75/85/92 ladder, cited compaction packets, and verifiable successor-resume — with zero non-test callers, currently untracked in git.</p>
+      <p>A live, wired stack (Tier A) runs a coarse 50/70% warner. A designed, tested stack (Tier B) implements the full 60/75/85/92 ladder, cited compaction packets, and verifiable successor-resume — tracked and unit-tested, but with zero non-test callers, so nothing in the runtime path invokes it.</p>
     </div>
     <div class="ribbon">
       <div class="stat s">
@@ -279,8 +279,8 @@
         <div class="card st-partial">
           <div class="id-row"><span class="id">W1</span></div>
           <div class="title">Land &amp; reconcile Tier B</div>
-          <div class="body">Commit the untracked <code>agent-harbor/*</code> stack with tests; collapse two episodic schemas into one store of record.</div>
-          <div class="meta"><span class="chip state-partial">untracked</span></div>
+          <div class="body">Reconcile the tracked-but-unwired <code>agent-harbor/*</code> stack with the live tree; collapse two episodic schemas into one store of record.</div>
+          <div class="meta"><span class="chip state-partial">unwired</span></div>
         </div>
         <div class="card st-absent keystone">
           <div class="id-row"><span class="id">W2</span><span class="chip ks">Keystone</span></div>
