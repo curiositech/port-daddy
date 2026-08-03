@@ -2,6 +2,7 @@ import { describe, expect, test } from '@jest/globals';
 import {
   assessRuntimeIdentity,
   parseLaunchctlPrint,
+  resolveRuntimeIdentityScope,
   runCanonicalLaunchdAction,
   waitForCanonicalRuntime,
 } from '../../lib/daemon-runtime.js';
@@ -80,6 +81,50 @@ describe('runtime identity convergence', () => {
     expect(result.state).toBe('incomplete');
     expect(result.severity).toBe('warn');
     expect(result.missing).toEqual(expect.arrayContaining(['daemon advertised port', 'Bosun heartbeat']));
+  });
+});
+
+describe('runtime identity scope', () => {
+  test('keeps production strict when the selected endpoint points at another port', () => {
+    expect(resolveRuntimeIdentityScope({
+      plane: 'prod',
+      daemon: { port: 19890, canonical: true },
+    }, {
+      endpointPort: 19890,
+      runtimePrefix: '/work/isolated',
+      canonicalSupervisor: supervisor,
+    })).toEqual({
+      expectedPort: 9876,
+      pidFile: expect.stringMatching(/\.port-daddy\/daemon\.pid$/),
+      portFile: expect.stringMatching(/\.port-daddy\/daemon\.port$/),
+      heartbeatFile: expect.stringMatching(/\.port-daddy\/heartbeat$/),
+      supervisor,
+    });
+  });
+
+  test('moves port, files, and supervisor together for an ephemeral runtime', () => {
+    expect(resolveRuntimeIdentityScope({
+      plane: 'ephemeral:pd-doctor-gate',
+      daemon: { port: 19890, canonical: true },
+    }, {
+      endpointPort: 19890,
+      runtimePrefix: '/work/pd-doctor-gate',
+      canonicalSupervisor: supervisor,
+    })).toEqual({
+      expectedPort: 19890,
+      pidFile: '/work/pd-doctor-gate/daemon.pid',
+      portFile: '/work/pd-doctor-gate/daemon.port',
+      heartbeatFile: '/work/pd-doctor-gate/heartbeat',
+      supervisor: null,
+    });
+  });
+
+  test('uses the legacy canonical flag only when state-plane identity is absent', () => {
+    expect(resolveRuntimeIdentityScope({ daemon: { canonical: false } }, {
+      endpointPort: 9886,
+      runtimePrefix: '/work/dev-latest',
+      canonicalSupervisor: supervisor,
+    }).expectedPort).toBe(9886);
   });
 });
 

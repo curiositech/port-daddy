@@ -36,7 +36,16 @@ export interface RuntimeHealthSnapshot {
   pid?: number;
   version?: string;
   daemon?: { port?: number; canonical?: boolean; builtAt?: string | null };
+  plane?: string;
   binaryDrift?: { drifted?: boolean; reason?: string };
+}
+
+export interface RuntimeIdentityScope {
+  expectedPort: number;
+  pidFile: string;
+  portFile: string;
+  heartbeatFile: string;
+  supervisor: LaunchdSupervisorSnapshot | null;
 }
 
 export interface RuntimeIdentityFacts {
@@ -218,6 +227,39 @@ function readHeartbeat(path: string): { pid: number; writtenAt: number } | null 
   } catch {
     return null;
   }
+}
+
+/**
+ * Resolve every authority used to assess one daemon generation.
+ *
+ * The production plane is intentionally strict: even when a caller points at
+ * another endpoint, its expected port and supervisor remain the canonical
+ * ones. Named and ephemeral berths instead own a private runtime directory and
+ * have no relationship to the production launchd job. Selecting only their
+ * endpoint while retaining production files creates a guaranteed false split
+ * brain, so the port, files, and supervisor move as one scope.
+ */
+export function resolveRuntimeIdentityScope(
+  health: RuntimeHealthSnapshot | null,
+  opts: {
+    endpointPort: number;
+    runtimePrefix?: string | null;
+    canonicalSupervisor?: LaunchdSupervisorSnapshot | null;
+  },
+): RuntimeIdentityScope {
+  const plane = typeof health?.plane === 'string' ? health.plane : null;
+  const nonCanonical = plane !== null
+    ? plane !== 'prod'
+    : health?.daemon?.canonical === false;
+  const runtimePrefix = opts.runtimePrefix?.trim() || null;
+  const runtimeDir = nonCanonical && runtimePrefix ? runtimePrefix : PD_HOME;
+  return {
+    expectedPort: nonCanonical ? opts.endpointPort : DEFAULT_DAEMON_PORT,
+    pidFile: join(runtimeDir, 'daemon.pid'),
+    portFile: join(runtimeDir, 'daemon.port'),
+    heartbeatFile: join(runtimeDir, 'heartbeat'),
+    supervisor: nonCanonical ? null : (opts.canonicalSupervisor ?? null),
+  };
 }
 
 export function assessRuntimeIdentity(facts: RuntimeIdentityFacts): RuntimeIdentityAssessment {
