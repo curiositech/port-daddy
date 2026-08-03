@@ -29,6 +29,17 @@ test('retains the legacy flat fallback for released tentacles', () => {
     .toBe(join(execDir, 'pd-hook-prompt'));
 });
 
+test('resolves package-share assets declared by the canonical resource root', () => {
+  const resourceDir = join(ROOT, 'share', 'port-daddy');
+  mkdirSync(join(resourceDir, 'hooks'), { recursive: true });
+  writeFileSync(join(resourceDir, 'hooks', 'sessionstart-pilot.mjs'), 'export {};\n');
+  expect(resolveSquidAsset('hooks/sessionstart-pilot.mjs', {
+    execDir: join(ROOT, 'bin'),
+    moduleDir: join(ROOT, 'none'),
+    resourceDir,
+  })).toBe(join(resourceDir, 'hooks', 'sessionstart-pilot.mjs'));
+});
+
 test('explicit source directories keep hermetic installer tests possible', () => {
   const sourceDir = join(ROOT, 'fixture-bin');
   mkdirSync(sourceDir, { recursive: true });

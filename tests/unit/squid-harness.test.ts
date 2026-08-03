@@ -583,6 +583,7 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     // Absolute paths only (the CLI runs hooks from arbitrary cwds).
     expect(cmd('PreToolUse').startsWith('/')).toBe(true);
     const gate = settings.hooks.PreToolUse[settings.hooks.PreToolUse.length - 1];
+    expect(gate.hooks[0].statusMessage).toBe('◆ PD EDIT · checking ownership before mutation');
     expect(gate.name).toBe(SQUID_HOOK_METADATA.preTool.displayName);
     expect(gate.description).toBe(SQUID_HOOK_METADATA.preTool.description);
     expect(gate.privacy).toBe(SQUID_HOOK_METADATA.preTool.privacy);
@@ -623,6 +624,8 @@ describe('Giant Squid Harness — GeminiSquidAdapter.injectHooks', () => {
     expect(matcher).toMatch(/write_file/);
     expect(matcher).toMatch(/run_shell_command/);
     expect(cmd('BeforeTool').startsWith('/')).toBe(true);
+    expect(cfg.hooks.AfterTool[cfg.hooks.AfterTool.length - 1].hooks[0].statusMessage)
+      .toBe('◆ PD TRACE · adding the outcome to fleet context');
     expect(cfg.hooks.BeforeTool[cfg.hooks.BeforeTool.length - 1].name).toBe(SQUID_HOOK_METADATA.preTool.displayName);
   });
 
@@ -673,6 +676,9 @@ describe('Giant Squid Harness — CodexSquidAdapter.injectHooks', () => {
     expect(toml).toMatch(/\[\[hooks\.PostToolUse\]\]/);
     expect(toml).toMatch(/\[\[hooks\.UserPromptSubmit\]\]/);
     expect(toml).not.toMatch(/async = true/);
+    expect(toml).toContain('statusMessage = "◆ PD TURN · adding fresh coordination context"');
+    expect(toml).toContain('statusMessage = "◆ PD EDIT · checking ownership before mutation"');
+    expect(toml).toContain('statusMessage = "◆ PD TRACE · adding the outcome to fleet context"');
     expect(toml).toContain(SQUID_HOOK_PRIVACY_NOTICE);
     expect(toml).toContain(SQUID_HOOK_METADATA.prompt.displayName);
     expect(toml).toContain(SQUID_HOOK_METADATA.preTool.displayName);

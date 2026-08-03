@@ -11,6 +11,8 @@ describe('single binary distribution path', () => {
     expect(script).toContain("bin/port-daddy-bundle.ts");
     expect(script).toContain('writeEmbeddedAssetsModule');
     expect(script).toContain('writeEmbeddedNativeCoreModule');
+    expect(script).toContain('stageSquidReleaseAssets');
+    expect(script).toContain("scripts/smoke-squid-release.mjs");
     expect(script).toContain('targetArch');
     expect(script).toContain('requestedArch !== process.arch');
     expect(script).toContain("run('bash', ['scripts/build-core.sh']");
@@ -102,6 +104,7 @@ describe('single binary distribution path', () => {
     expect(buildScript).toContain('isolated-bin');
     expect(buildScript).toContain('copyFileSync(outfile, isolatedOutfile)');
     expect(buildScript).toContain('companionFiles');
+    expect(buildScript).toContain('repair-capable companion scripts staged beside every locally built artifact');
   });
 
   test('compiled CLI relaunches short pd binary through sibling port-daddy before daemon work', () => {

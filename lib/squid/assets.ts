@@ -20,6 +20,8 @@ export interface SquidAssetResolveOptions {
   execDir?: string;
   /** Override the module location in tests. */
   moduleDir?: string;
+  /** Override the daemon/package resource root in tests. */
+  resourceDir?: string | null;
 }
 
 function unique(paths: string[]): string[] {
@@ -36,6 +38,9 @@ export function squidAssetCandidates(
   const leaf = basename(assetPath);
   const family = assetPath.includes('/') ? dirname(assetPath) : 'bin';
   const execDir = options.execDir ?? dirname(process.execPath);
+  const resourceDir = options.resourceDir === undefined
+    ? (process.env.PORT_DADDY_RESOURCE_DIR?.trim() || null)
+    : options.resourceDir;
   const candidates: string[] = [];
 
   if (options.sourceDir) {
@@ -50,6 +55,20 @@ export function squidAssetCandidates(
     join(execDir, 'bin', leaf),
     join(execDir, 'hooks', leaf),
   );
+
+  // launchd/Homebrew can keep executable code in bin/ and durable assets in a
+  // package share root. PORT_DADDY_RESOURCE_DIR is the canonical launch-time
+  // declaration; the relative share path covers ordinary Homebrew CLI use.
+  for (const root of [resourceDir, join(execDir, '..', 'share', 'port-daddy')]) {
+    if (!root) continue;
+    candidates.push(
+      join(root, assetPath),
+      join(root, family, leaf),
+      join(root, leaf),
+      join(root, 'bin', leaf),
+      join(root, 'hooks', leaf),
+    );
+  }
 
   // Source and transpiled-module fallback: walk upward to a repository root.
   let dir = options.moduleDir ?? MODULE_DIR;
