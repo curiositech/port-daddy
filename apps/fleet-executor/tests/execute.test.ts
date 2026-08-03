@@ -116,6 +116,25 @@ describe('zero-trust config + contract fetching', () => {
 });
 
 describe('pull_request action routing', () => {
+  it('acks an obsolete synchronize delivery before creating a check or spending AI', async () => {
+    state.prHeadSha = 'NEWESTSHA';
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'should not run\n\nFLEET-VERDICT: PASS' },
+    });
+
+    await executeFleet(
+      makeJob({ action: 'synchronize' }),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }),
+    );
+
+    expect(state.checkRunsCreated).toBe(0);
+    expect(state.completed).toHaveLength(0);
+    expect(ai.calls).toHaveLength(0);
+  });
+
   it.each(['opened', 'synchronize', 'reopened', 'ready_for_review'] as const)(
     'runs the fleet for %s deliveries',
     async action => {

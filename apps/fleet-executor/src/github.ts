@@ -197,7 +197,7 @@ export async function fetchPRContext(
   prPayload: Record<string, unknown>,
   token: string,
 ): Promise<PRContext> {
-  const pr = prPayload as {
+  const eventPr = prPayload as {
     number: number;
     title: string;
     body: string;
@@ -205,7 +205,10 @@ export async function fetchPRContext(
     base: { sha: string };
   };
 
-  const [filesRes, diffRes] = await Promise.all([
+  const [prRes, filesRes, diffRes] = await Promise.all([
+    fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
+      headers: ghHeaders(token),
+    }),
     fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=100`, {
       headers: ghHeaders(token),
     }),
@@ -214,6 +217,10 @@ export async function fetchPRContext(
     }),
   ]);
 
+  if (!prRes.ok) {
+    throw new Error(`fetch pull request failed ${prRes.status}: ${await prRes.text()}`);
+  }
+  const livePr = (await prRes.json()) as typeof eventPr;
   const files: PRFile[] = filesRes.ok ? ((await filesRes.json()) as PRFile[]) : [];
   const diff = diffRes.ok ? await diffRes.text() : '';
 
@@ -221,10 +228,10 @@ export async function fetchPRContext(
     owner,
     repo,
     prNumber,
-    title: pr.title ?? '',
-    body: pr.body ?? '',
-    headSha: pr.head?.sha ?? '',
-    baseSha: pr.base?.sha ?? '',
+    title: livePr.title ?? '',
+    body: livePr.body ?? '',
+    headSha: livePr.head?.sha ?? '',
+    baseSha: livePr.base?.sha ?? '',
     installationId: 0,
     files,
     diff,
