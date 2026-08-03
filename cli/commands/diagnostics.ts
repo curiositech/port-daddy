@@ -62,6 +62,11 @@ import { gatherHarborFacts } from '../utils/harbor-facts.js';
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 
+// Baked-in CLI version. The compiled `pd` binary has no sibling package.json to read, so the
+// version checks below fell back to 'unknown' (reported "CLI vunknown" then advised a pointless
+// restart). Stamped every release by scripts/sync-version.ts — do not hand-edit.
+const EMBEDDED_PACKAGE_VERSION: string = '3.27.0';
+
 interface StatusCommandResponse {
   status?: string;
   severity?: Severity;
@@ -691,7 +696,7 @@ export async function handleVersion(): Promise<void> {
     const pkgFallback: string = join(libDir, 'package.json');
     const ver: string = existsSync(pkgFallback)
       ? (JSON.parse(readFileSync(pkgFallback, 'utf8')) as { version: string }).version
-      : process.env.PORT_DADDY_PACKAGE_VERSION || 'unknown';
+      : process.env.PORT_DADDY_PACKAGE_VERSION || EMBEDDED_PACKAGE_VERSION;
     console.log(`Port Daddy v${ver} (server not running)`);
   }
 }
@@ -1239,7 +1244,7 @@ export function assessCrashSignature(
   }
   return {
     severity: 'critical',
-    detail: `${crashCount} Bun native-crash banners found in the recent daemon log${where} — the daemon is crash-looping`,
+    detail: `${crashCount} Bun native-crash banners in the daemon log${where} — the daemon has crashed repeatedly (scans the possibly-unrotated log tail, so some may be historical; check \`pd status\` uptime for the live state)`,
     hint,
     crashCount,
   };
@@ -1673,13 +1678,16 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
         daemonRunning = true;
         check('Network', true, `${getDaemonUrl()} is reachable`);
       } else {
-        check('Network', false, `${getDaemonUrl()} returned an invalid /health payload`, 'Run: port-daddy restart');
+        // A health check whose SUBJECT is broken must gate the exit code, not warn.
+        // `pd doctor --ci/--json` exiting 0 while the daemon is down/broken is the
+        // single worst doctor lie (a green build over a dead daemon).
+        criticalFail('Network', `${getDaemonUrl()} returned an invalid /health payload`, 'Run: port-daddy restart');
       }
     } else {
-      check('Network', false, `${getDaemonUrl()} returned status ${res.status}`, 'Run: port-daddy start');
+      criticalFail('Network', `${getDaemonUrl()} returned status ${res.status}`, 'Run: port-daddy start');
     }
   } catch {
-    check('Network', false, `Cannot connect to ${getDaemonUrl()}`, 'Run: port-daddy start');
+    criticalFail('Network', `Cannot connect to ${getDaemonUrl()}`, 'Run: port-daddy start');
   }
 
   // -------------------------------------------------------------------------
@@ -1688,7 +1696,9 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   if (daemonRunning && daemonData) {
     check('Daemon running', true, `PID ${daemonData.pid}, v${daemonData.version}`);
   } else {
-    check('Daemon running', false, 'Daemon is not running', 'Run: port-daddy start');
+    // Daemon down = CRITICAL. This is the exit-code gate: a doctor run over a
+    // non-running daemon must exit non-zero, never 0-with-a-warning.
+    criticalFail('Daemon running', 'Daemon is not running', 'Run: port-daddy start');
   }
 
   // -------------------------------------------------------------------------
@@ -2258,12 +2268,17 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
         'Build the daemon binary: npm run build:daemon:dist',
       );
     } else {
-      // Binary missing without an override — typical fresh dev clone.
-      // Not a failure; it just means the developer hasn't built yet.
+      // "Missing" means different things packaged vs source, and the old message lied to
+      // brew users ("run npm run build:daemon:dist" — there is no source tree). A compiled/
+      // Homebrew `pd` has NO separate dist/daemon binary; the daemon is bundled INTO the
+      // compiled binary, which is correct. Only a source checkout is genuinely "not built".
+      const isPackaged = !existsSync(join(libDir, 'package.json'));
       check(
         'Resource directory',
         true,
-        `${lines.join('; ')} (binary not built — run npm run build:daemon:dist when you need it)`,
+        isPackaged
+          ? `${lines.join('; ')} (packaged install — the daemon is bundled in the compiled binary; no separate dist/daemon binary is expected)`
+          : `${lines.join('; ')} (binary not built — run npm run build:daemon:dist when you need it)`,
       );
     }
   } catch (err: unknown) {
@@ -2357,7 +2372,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     const pkgPathForVersion = join(libDir, 'package.json');
     const cliVersion: string = existsSync(pkgPathForVersion)
       ? (JSON.parse(readFileSync(pkgPathForVersion, 'utf8')) as { version?: string }).version ?? 'unknown'
-      : process.env.PORT_DADDY_PACKAGE_VERSION || 'unknown';
+      : process.env.PORT_DADDY_PACKAGE_VERSION || EMBEDDED_PACKAGE_VERSION;
     const facts = await gatherHarborFacts({
       daemonReachable: daemonRunning,
       daemonVersion: daemonRunning && daemonData ? String(daemonData.version ?? '') || null : null,

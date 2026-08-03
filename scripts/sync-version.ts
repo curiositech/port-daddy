@@ -77,6 +77,18 @@ serverContent = serverContent.replace(embeddedVersionRe, `$1${version}$2`);
 writeFileSync(serverPath, serverContent);
 console.log(`  ✓ server.ts EMBEDDED_PACKAGE_VERSION → ${version}`);
 
+// cli/commands/diagnostics.ts EMBEDDED_PACKAGE_VERSION — the compiled CLI binary has no
+// sibling package.json, so `pd doctor`'s version checks read this stamped literal instead of
+// falling back to 'unknown' (the "CLI vunknown" bug). Same const shape as server.ts.
+const diagnosticsPath = join(ROOT, 'cli', 'commands', 'diagnostics.ts');
+let diagnosticsContent = readFileSync(diagnosticsPath, 'utf-8');
+if (!embeddedVersionRe.test(diagnosticsContent)) {
+  throw new Error(`sync-version.ts: EMBEDDED_PACKAGE_VERSION literal not found in cli/commands/diagnostics.ts — the CLI self-version would silently rot to 'unknown'. Restore the const before releasing.`);
+}
+diagnosticsContent = diagnosticsContent.replace(embeddedVersionRe, `$1${version}$2`);
+writeFileSync(diagnosticsPath, diagnosticsContent);
+console.log(`  ✓ cli/commands/diagnostics.ts EMBEDDED_PACKAGE_VERSION → ${version}`);
+
 // website-v2/src/data/referenceCatalog.ts PORT_DADDY_VERSION
 const referenceCatalogPath = join(ROOT, 'website-v2', 'src', 'data', 'referenceCatalog.ts');
 const referenceVersionRe = /(export const PORT_DADDY_VERSION = ['"])[\w.\-+]+(['"])/;

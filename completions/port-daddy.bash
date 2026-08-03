@@ -102,7 +102,7 @@ _port_daddy() {
     # File Claims & Integration
     files add who-owns integration
     # Sugar (compound commands)
-    begin b done whoami w attention nudge with-lock n u d learn tutorial
+    begin b done whoami w account attention nudge with-lock n u d learn tutorial
     # Briefing & History
     briefing history
     # Consolidated read/write (3.8.4)

@@ -73,6 +73,8 @@ import {
   handleAccountExport,
   handleAccountDelete,
 } from './auth-github.js';
+import { handleLoginPage, handleAccountPage } from './account-page.js';
+import { handleDeviceStart, handleDeviceToken, handleWhoami } from './device-flow.js';
 import {
   handleCreateCheckout,
   handleStripeWebhook,
@@ -177,6 +179,19 @@ export default {
       response = await handleFleetRunPage(request, env, runId);
     }
 
+    // ── Storefront account surfaces (ADR-0101 Phase 1) ───────────────────────
+    // Root lands the operator on their account (which redirects to /login when
+    // signed out) instead of a bare 404.
+    else if (pathname === '/' && method === 'GET') {
+      response = new Response(null, { status: 302, headers: { Location: '/account' } });
+    }
+    else if (pathname === '/login' && method === 'GET') {
+      response = handleLoginPage();
+    }
+    else if (pathname === '/account' && method === 'GET') {
+      response = await handleAccountPage(request, env);
+    }
+
     // ── GitHub login BFF (ADR-0101 Phase 1) ──────────────────────────────────
     else if (pathname === '/auth/github/login' && method === 'GET') {
       response = await handleGithubLogin(request, env);
@@ -186,6 +201,16 @@ export default {
     }
     else if (pathname === '/auth/me' && method === 'GET') {
       response = await handleAuthMe(request, env);
+    }
+    // Device-flow login for CLI / FleetBar / pd-console (ADR-0101 Phase 1).
+    else if (pathname === '/auth/device/start' && method === 'POST') {
+      response = await handleDeviceStart(request, env);
+    }
+    else if (pathname === '/auth/device/token' && method === 'POST') {
+      response = await handleDeviceToken(request, env);
+    }
+    else if (pathname === '/auth/whoami' && method === 'GET') {
+      response = await handleWhoami(request, env);
     }
     else if (pathname === '/auth/logout' && method === 'POST') {
       response = await handleLogout(request, env);

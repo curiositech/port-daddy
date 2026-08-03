@@ -641,6 +641,41 @@ jobs:
       - name: cargo test (incl. macaroon parity vectors)
         run: cargo test --workspace
 
+  rust-harbor-card:
+    # core/harbor-card-rs is a standalone FFI cdylib (excluded from the core/
+    # workspace — see core/Cargo.toml's `exclude` comment) that lib/arbiter.ts
+    # loads at runtime via koffi and scripts/build-core.sh compiles for every
+    # release. Nothing built or tested it in CI before this job — it shipped
+    # to production with zero test coverage and would have failed clippy the
+    # first time anyone turned strict linting on. Always-run (not path-gated),
+    # matching rust-kernel's philosophy for a security-relevant Rust crate.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core/harbor-card-rs
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust build artefacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core/harbor-card-rs
+
+      - name: cargo fmt --check
+        run: cargo fmt -- --check
+
+      - name: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: cargo test (incl. FFI boundary + property tests)
+        run: cargo test
+
   fleetbar:
     # Build + unit-test the FleetBar Swift menu bar app. Its tests never ran in
     # CI before, so FleetPopoverTests rotted red on main unnoticed (the
@@ -670,3 +705,49 @@ jobs:
 
       - name: Test FleetBar
         run: swift test
+
+  # ---------------------------------------------------------------------------
+  # ci-gate: the single required check for branch protection / the merge queue.
+  #
+  # Every other job above is path-filtered or matrix-conditional, so on any
+  # given PR some of them legitimately *skip*. A skipped job never reports the
+  # "success" that a required-status-check rule waits for, so requiring those
+  # jobs individually deadlocks the merge queue (it waits forever for a check
+  # that will never arrive). This job depends on all of them, always runs, and
+  # passes when each dependency either succeeded or was skipped — failing only
+  # on a real failure or cancellation. Point branch protection at THIS check
+  # alone and the queue converges without dropping any actual enforcement.
+  ci-gate:
+    name: ci-gate
+    if: always()
+    runs-on: ubuntu-latest
+    needs:
+      - brand-color-guard
+      - compiled-daemon-smoke
+      - doc-citation-guard
+      - fleet-ui
+      - fleetbar
+      - integration-tests
+      - lint
+      - rust-console
+      - rust-console-gpui
+      - rust-kernel
+      - skill-hygiene
+      - unit-tests
+      - version-drift-guard
+      - website-terminal-recordings
+    steps:
+      - name: Verify no required job failed or was cancelled
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS"
+          echo "$RESULTS" | python3 -c '
+          import json, sys
+          needs = json.load(sys.stdin)
+          bad = sorted(n for n, v in needs.items() if v["result"] in ("failure", "cancelled"))
+          if bad:
+              print("ci-gate FAILED — these jobs failed or were cancelled: " + ", ".join(bad))
+              sys.exit(1)
+          print("ci-gate OK — all %d dependencies succeeded or were skipped" % len(needs))
+          '
