@@ -14,6 +14,11 @@ struct ActiveAgentEntry {
     liveness: String,
     harness: String,
     backend: String,
+    squid_level: String,
+    squid_score: i64,
+    squid_capabilities: Vec<String>,
+    squid_missing: Vec<String>,
+    squid_repair: String,
     worktree: String,
     branch: String,
     session_id: String,
@@ -58,6 +63,27 @@ impl ActiveAgentEntry {
             })
             .take(4)
             .collect();
+        let squid = v.get("squid").unwrap_or(&Value::Null);
+        let capabilities = squid.get("capabilities").unwrap_or(&Value::Null);
+        let squid_capabilities = [
+            ("TURN suggestibility", "suggestibility"),
+            ("EDIT protection", "editProtection"),
+            ("TRACE", "trace"),
+            ("INBOX", "inbox"),
+            ("PARLEY delivery", "parleyDelivery"),
+        ]
+        .iter()
+        .filter(|(_, key)| capabilities.get(*key).and_then(Value::as_bool) == Some(true))
+        .map(|(label, _)| (*label).to_string())
+        .collect();
+        let squid_missing = squid
+            .get("missing")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .map(str::to_string)
+            .collect();
 
         Self {
             id: s(v, "id"),
@@ -66,6 +92,15 @@ impl ActiveAgentEntry {
             liveness: s(v, "liveness"),
             harness: nested_s(v, "harness", "label"),
             backend: nested_s(v, "harness", "backend"),
+            squid_level: nested_s(v, "squid", "level"),
+            squid_score: v
+                .get("squid")
+                .and_then(|squid| squid.get("score"))
+                .and_then(Value::as_i64)
+                .unwrap_or(0),
+            squid_capabilities,
+            squid_missing,
+            squid_repair: nested_s(v, "squid", "repair"),
             worktree: nested_s(v, "worktree", "root"),
             branch: nested_s(v, "worktree", "branch"),
             session_id,
@@ -95,6 +130,16 @@ impl ActiveAgentsPane {
     pub fn new() -> Self {
         Self::default()
     }
+
+    fn squid_tone(level: &str) -> Tone {
+        match level {
+            "LIVE" => Tone::Engaged,
+            "READY" => Tone::Landed,
+            "PARTIAL" => Tone::Gated,
+            "UNPROTECTED" => Tone::Alarm,
+            _ => Tone::Resting,
+        }
+    }
 }
 
 impl Pane for ActiveAgentsPane {
@@ -115,6 +160,26 @@ impl Pane for ActiveAgentsPane {
         }
 
         blocks.push(Block::KeyVal("live".into(), self.agents.len().to_string()));
+        let count = |level: &str| {
+            self.agents
+                .iter()
+                .filter(|agent| agent.squid_level == level)
+                .count()
+        };
+        blocks.push(Block::Chip {
+            label: format!(
+                "◆ SQUID  LIVE {}  READY {}  PARTIAL {}  UNPROTECTED {}",
+                count("LIVE"),
+                count("READY"),
+                count("PARTIAL"),
+                count("UNPROTECTED")
+            ),
+            tone: if count("PARTIAL") + count("UNPROTECTED") > 0 {
+                Tone::Gated
+            } else {
+                Tone::Engaged
+            },
+        });
         if self.generated_at_ms > 0 {
             blocks.push(Block::KeyVal(
                 "refreshed".into(),
@@ -132,15 +197,40 @@ impl Pane for ActiveAgentsPane {
 
         blocks.push(Block::Gap);
         for agent in &self.agents {
-            let tone = if agent.liveness == "alive" {
-                Tone::Engaged
-            } else {
-                Tone::Gated
-            };
             blocks.push(Block::Chip {
-                label: format!("{} - {}", trunc(&agent.label, 28), agent.liveness),
-                tone,
+                label: format!(
+                    "◆ SQUID {:<11} {:>3}%  {} - {}",
+                    if agent.squid_level.is_empty() {
+                        "UNKNOWN"
+                    } else {
+                        &agent.squid_level
+                    },
+                    agent.squid_score,
+                    trunc(&agent.label, 28),
+                    agent.liveness
+                ),
+                tone: Self::squid_tone(&agent.squid_level),
             });
+            blocks.push(Block::KeyVal(
+                "  adds".into(),
+                if agent.squid_capabilities.is_empty() {
+                    "no active Squid capabilities".into()
+                } else {
+                    agent.squid_capabilities.join(" · ")
+                },
+            ));
+            if !agent.squid_missing.is_empty() {
+                blocks.push(Block::KeyVal(
+                    "  missing".into(),
+                    trunc(&agent.squid_missing.join("; "), 92),
+                ));
+            }
+            if !agent.squid_repair.is_empty() {
+                blocks.push(Block::KeyVal(
+                    "  repair".into(),
+                    trunc(&agent.squid_repair, 92),
+                ));
+            }
             blocks.push(Block::KeyVal(
                 "  harness".into(),
                 format!(
@@ -264,6 +354,19 @@ mod tests {
             "liveness": "alive",
             "lastHeartbeat": 123,
             "harness": { "label": "Claude Code with Codex backend", "backend": "codex" },
+            "squid": {
+                "level": "LIVE",
+                "score": 100,
+                "capabilities": {
+                    "suggestibility": true,
+                    "editProtection": true,
+                    "trace": true,
+                    "inbox": true,
+                    "parleyDelivery": true
+                },
+                "missing": [],
+                "repair": null
+            },
             "worktree": { "root": "/tmp/work", "branch": "codex/feature" },
             "activeSession": { "id": "session-1" },
             "touchedFiles": [{ "filePath": "src/a.ts", "symbolPath": "run" }]
@@ -271,6 +374,9 @@ mod tests {
 
         assert_eq!(entry.id, "agent-1");
         assert_eq!(entry.harness, "Claude Code with Codex backend");
+        assert_eq!(entry.squid_level, "LIVE");
+        assert_eq!(entry.squid_score, 100);
+        assert_eq!(entry.squid_capabilities.len(), 5);
         assert_eq!(entry.touched, vec!["src/a.ts#run"]);
         assert_eq!(entry.session_id, "session-1");
     }
@@ -285,6 +391,11 @@ mod tests {
             liveness: "alive".into(),
             harness: "Claude Code with Codex backend".into(),
             backend: "codex".into(),
+            squid_level: "PARTIAL".into(),
+            squid_score: 72,
+            squid_capabilities: vec!["EDIT protection".into(), "TRACE".into()],
+            squid_missing: vec!["Pilot SessionStart hook is not installed".into()],
+            squid_repair: "pd squid on".into(),
             worktree: "/tmp/work".into(),
             branch: "codex/feature".into(),
             session_id: "session-1".into(),
@@ -295,5 +406,7 @@ mod tests {
         let blocks = pane.view();
         assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  stream" && v.contains("pd agent stream agent-1"))));
         assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  takeover" && v.contains("session-1"))));
+        assert!(blocks.iter().any(|block| matches!(block, Block::Chip { label, tone: Tone::Gated } if label.contains("SQUID PARTIAL") && label.contains("72%"))));
+        assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  missing" && v.contains("SessionStart"))));
     }
 }

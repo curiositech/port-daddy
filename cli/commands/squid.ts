@@ -18,12 +18,12 @@ import { normalizeCodexConfigOverrides } from '../../lib/spawner/backends/cli-tu
 import {
   installSlashCommand,
   installStatusline,
-  readIdentityStatus,
   readMatrixSnapshot,
   stageStatusline,
   uninstallSlashCommand,
   uninstallStatusline,
 } from '../../lib/squid/identity.js';
+import { readSquidConformance } from '../../lib/squid/conformance.js';
 import {
   installPilotSessionStartHook,
   stagePilotSessionStartHook,
@@ -526,31 +526,30 @@ async function handleSquidOff(options: CLIOptions): Promise<void> {
 async function handleSquidStatus(options: CLIOptions): Promise<void> {
   const cwd = String(options.cwd ?? options.workdir ?? process.cwd());
   const home = process.env.HOME || process.env.USERPROFILE || '';
-  const { inspectHookTargets, tentacleBinDir } = await import('./hooks-install.js');
-  const identity = readIdentityStatus(cwd, home);
+  const { tentacleBinDir } = await import('./hooks-install.js');
+  const conformance = readSquidConformance(cwd, { home });
   const matrix = readMatrixSnapshot();
-  const providers = inspectHookTargets(home, cwd);
-  const tentacles = ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool']
-    .every((name) => existsSync(join(tentacleBinDir(), name)) && existsSync(join(tentacleBinDir(), 'squid', name)));
-  const detected = providers.filter((provider) => provider.detected);
-  const allDetectedWired = detected.length > 0 && detected.every((provider) => provider.wired);
-  const identityReady = identity.statuslineProject && identity.slashCommand && identity.pilotSessionStart;
-  const anyWiring = providers.some((provider) => provider.projectWired || provider.userWired) || identityReady;
-  const state = !tentacles && !anyWiring
+  // Preserve the FleetBar lifecycle enum while publishing the richer shared
+  // conformance level used by the roster and pd-console.
+  const state = conformance.level === 'UNPROTECTED'
     ? 'OFF'
-    : tentacles && allDetectedWired && identityReady
-      ? (identity.daemonAlive ? 'LIVE' : 'READY')
-      : tentacles && detected.length === 0
-        ? 'PARTIAL'
-        : 'DEGRADED';
+    : conformance.level === 'PARTIAL' && conformance.detectedProviders > 0
+      ? 'DEGRADED'
+      : conformance.level;
   const snapshot = {
     schemaVersion: 1,
     state,
+    level: conformance.level,
+    score: conformance.score,
     workspace: cwd,
-    daemonAlive: identity.daemonAlive,
-    tentaclesStaged: tentacles,
-    providers,
-    identity,
+    daemonAlive: conformance.daemonAlive,
+    tentaclesStaged: conformance.tentaclesStaged,
+    providers: conformance.providers,
+    identity: conformance.identity,
+    capabilities: conformance.capabilities,
+    missing: conformance.missing,
+    repair: conformance.repair,
+    truth: conformance.truth,
     matrix,
     value: {
       beforeTurn: 'Inject only fresh, project-relevant coordination context.',
@@ -561,30 +560,43 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
 
   if (options.json || options.j) {
     console.log(JSON.stringify(snapshot, null, 2));
-    if (state === 'DEGRADED') process.exitCode = 1;
+    if (conformance.level === 'PARTIAL') process.exitCode = 1;
     return;
   }
   const c = squidTokens('stdout');
   const yes = (v: boolean, on = 'armed', off = 'not armed'): string => (v ? c.ok(`✓ ${on}`) : c.dim(`✗ ${off}`));
 
   console.log('');
-  ui.info(`Giant Squid harness — ${state}`);
+  ui.info(`Giant Squid harness — ${conformance.level} · ${conformance.score}% conformance`);
   console.log('');
   printSquidValueCard(c);
   console.log('');
-  console.log(`  Daemon        ${identity.daemonAlive ? c.ok('✓ alive') : c.bad('✗ down — every hook no-ops (gate fails open)')}`);
-  console.log(`  Tentacles     ${yes(existsSync(join(tentacleBinDir(), 'pd-hook-prompt')), `staged at ${tentacleBinDir()}`, 'not staged — pd squid on')}`);
+  console.log(`  Daemon        ${conformance.daemonAlive ? c.ok('✓ alive') : c.bad('✗ down — every hook no-ops (gate fails open)')}`);
+  console.log(`  Tentacles     ${yes(conformance.tentaclesStaged, `staged at ${tentacleBinDir()}`, 'not fully staged — pd squid on')}`);
   console.log('');
   console.log('  Interactive hook wiring (config carries the pd-hook- marker):');
-  for (const target of providers) {
-    const marks = [target.projectWired ? c.ok('project') : null, target.userWired ? c.ok('user') : null].filter(Boolean).join(' + ');
-    console.log(`    ${target.name.padEnd(20)} ${target.detected ? (marks || c.bad(`detected, ${target.expectedScope} hook missing`)) : c.dim('not installed')}`);
+  for (const target of conformance.providers) {
+    const mark = target.wired
+      ? c.ok(`${target.expectedScope} wired`)
+      : target.configured
+        ? c.warn(`${target.expectedScope} configured, project gate inactive`)
+        : c.bad(`detected, ${target.expectedScope} hook incomplete`);
+    console.log(`    ${target.name.padEnd(20)} ${target.detected ? mark : c.dim('not installed')}`);
   }
   console.log('');
   console.log('  Visual identity:');
-  console.log(`    statusline        ${yes(identity.statuslineProject, 'project ◆ PD badge', 'not wired')}${identity.statuslineUser ? ` ${c.dim('(+user)')}` : ''}`);
-  console.log(`    /squid command    ${yes(identity.slashCommand, 'installed', 'not installed')}`);
-  console.log(`    Pilot steering    ${yes(identity.pilotSessionStart, 'SessionStart installed', 'not installed')}`);
+  console.log(`    statusline        ${yes(conformance.identity.statuslineProject, 'project ◆ PD badge', 'not wired')}${conformance.identity.statuslineUser ? ` ${c.dim('(+user)')}` : ''}`);
+  console.log(`    /squid command    ${yes(conformance.identity.slashCommand, 'installed', 'not installed')}`);
+  console.log(`    Pilot steering    ${yes(conformance.identity.pilotSessionStart, 'SessionStart installed', 'not installed')}`);
+  console.log(`    attention inbox   ${yes(conformance.capabilities.inbox, 'SessionStart watch live', 'not auto-read by this harness')}`);
+  console.log('');
+  console.log('  What this actually gives the agent:');
+  console.log(`    TURN   ${yes(conformance.capabilities.suggestibility, 'fresh suggestibility envelope', 'inactive')}`);
+  console.log(`    EDIT   ${yes(conformance.capabilities.editProtection, 'claim/lock collision gate', 'inactive')}`);
+  console.log(`    TRACE  ${yes(conformance.capabilities.trace, 'post-tool pheromone trace', 'inactive')}`);
+  console.log(`    INBOX  ${yes(conformance.capabilities.inbox, 'direct attention at SessionStart', 'manual pd attention only')}`);
+  console.log(`    PARLEY ${yes(conformance.capabilities.parleyDelivery, 'turn delivery to inbox', 'daemon unavailable')}`);
+  console.log(`    ${c.dim('Not claimed: automatic Parley convening, unsaved-buffer backup, or skill grafting.')}`);
   console.log('');
   console.log(`  Ink Cloud matrix ${c.dim(`(${matrix.path})`)}:`);
   if (!matrix.exists) {
@@ -597,9 +609,15 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   console.log('');
   await printBridgeProbe(options);
   console.log('');
+  if (conformance.missing.length > 0) {
+    console.log('  Missing for full conformance:');
+    for (const item of conformance.missing) console.log(`    ${c.bad('✗')} ${item}`);
+    if (conformance.repair) console.log(`  Repair: ${conformance.repair}`);
+    console.log('');
+  }
   console.log(`  ${c.dim('Next-turn injection preview: pd squid tap')}`);
   console.log('');
-  if (state === 'DEGRADED') process.exitCode = 1;
+  if (conformance.level === 'PARTIAL') process.exitCode = 1;
 }
 
 function printSquidValueCard(c: ReturnType<typeof squidTokens>): void {

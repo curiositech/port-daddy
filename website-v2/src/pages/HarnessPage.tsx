@@ -34,14 +34,14 @@ import { useTheme } from '@/lib/theme-context'
  * Standalone marquee page at /harness. The argument: a bare vendor CLI is a
  * lone agent typing into the void. The harness sinks tentacles into that
  * CLI's own hook surface and turns it into a citizen of the fleet: it starts
- * each turn with the latest messages, joins the right channels, checks for
- * edit conflicts, gets CI failures back, calls a parley when work overlaps,
- * stops at budget, works in its own tree, and has destructive commands vetoed
- * with the safe alternative named.
+ * each turn with a bounded suggestibility envelope, exposes attention and
+ * ownership before work, and leaves a compact trace after tools. Adjacent Port
+ * Daddy controls (Parley delivery, worktrees, Coast Guard, skill grafting) are
+ * named separately so the page never credits a tentacle for work it does not do.
  *
- * Source: ADR-0051 (eight harness capabilities). Tone is honest infrastructure,
- * not hype: Claude is fully wired today; Gemini and Codex hook surfaces are
- * mapped and being validated.
+ * Source: ADR-0051 plus the live Squid conformance schema. Tone is honest
+ * infrastructure: Claude, Codex, Gemini, and agy are wired through their native
+ * hook surfaces, with exact-root and daemon gates.
  *
  * Idiom matches SecurityPage / PdTube: lives under MainLayout (header only),
  * renders its own <Footer />, built entirely from site/primitives so every
@@ -50,6 +50,7 @@ import { useTheme } from '@/lib/theme-context'
 
 type Capability = {
   n: string
+  scope: string
   icon: ComponentType<{ size?: number | string; className?: string }>
   title: string
   cardTitle?: string
@@ -66,122 +67,130 @@ type Capability = {
 const CAPABILITIES: readonly Capability[] = [
   {
     n: '01',
+    scope: 'Squid · before turn',
     icon: Ear,
-    title: 'Starts with the latest messages',
-    cardTitle: 'Starts with the latest messages',
-    oneLiner: 'Every turn begins with the project notes and tube messages the agent missed.',
+    title: 'Fresh context arrives before the model decides.',
+    cardTitle: 'Suggestibility before the turn',
+    oneLiner: 'The prompt tentacle injects a bounded, fresh, project-scoped envelope.',
     detail:
-      'Before the model decides what to do, Port Daddy adds unread notes, tube messages, and channel updates to the prompt. The agent sees what changed before it edits, tests, or replies.',
+      'The prompt hook reads only fresh steering alerts and nearby pheromone traces for the exact armed project. The envelope is capped at 12 entries and 4 KiB, so coordination can influence the next decision without swallowing the conversation.',
     figure: {
-      input: 'Unread notes',
-      hook: 'Before reply',
-      output: 'Fresh context',
-      proof: 'Attention, inbox, and subscribed channels are read before the agent gets its next turn.',
+      input: 'Fresh matrix facts',
+      hook: 'Prompt tentacle',
+      output: 'Next-turn envelope',
+      proof: 'pd squid tap runs the real prompt tentacle and prints the exact envelope.',
     },
   },
   {
     n: '02',
+    scope: 'Session hook · attention',
     icon: Radio,
-    title: 'Joins the right channels',
-    cardTitle: 'Joins the right channels',
-    oneLiner: 'A new session is subscribed to the project and fleet channels before work starts.',
+    title: 'An empty inbox tells the agent what to watch next.',
+    cardTitle: 'Inbox with useful subscriptions',
+    oneLiner: 'Attention ranks exact channels by protocol, scope, and live activity.',
     detail:
-      'When a session starts, the harness subscribes it to the places its work will happen. A teammate can broadcast once, and every relevant agent hears it without hand-wiring another subscription.',
+      'Direct messages already reach the agent. When no channel watches exist, pd attention now recommends concrete worktree and fleet channels, explains why each matters, shows observed activity, and offers one command to arm the ranked set.',
     figure: {
-      input: 'New session',
-      hook: 'Subscribe',
-      output: 'Project + fleet',
-      proof: 'The project lane and fleet lane are attached before the first useful turn.',
+      input: 'No channel watches',
+      hook: 'Rank exact channels',
+      output: 'One-command watch set',
+      proof: 'No placeholder: every suggestion carries a real channel, scope, reason, and literal command.',
     },
   },
   {
     n: '03',
+    scope: 'Squid · before edit',
     icon: Users,
-    title: 'Checks who is editing',
-    cardTitle: 'Checks who is editing',
-    oneLiner: 'Before a write, the agent sees active sessions, file claims, and nearby work.',
+    title: 'A foreign claim becomes visible before the write.',
+    cardTitle: 'Collision protection before edit',
+    oneLiner: 'The pre-tool tentacle warns or blocks when another actor owns the target.',
     detail:
-      'Before the agent touches a file, the harness shows it who already claimed that surface and what depends on it. The agent can wait, pick another path, or start a parley before it creates a merge mess.',
+      'The edit gate resolves the target path, checks the live lock and claim matrix, and names the holder. In enforce mode it blocks; in warn mode it leaves the decision visible. This protects shared files—it is not a backup system for unsaved editor buffers.',
     figure: {
       input: 'Edit request',
-      hook: 'Claim check',
-      output: 'Clear path',
-      proof: 'File claims, active sessions, and nearby work are surfaced before the write path.',
+      hook: 'Pre-tool claim gate',
+      output: 'Allow, warn, or block',
+      proof: 'The real hook exits 2 on a foreign lock in enforce mode and names the owner.',
     },
   },
   {
     n: '04',
+    scope: 'Squid · after tool',
     icon: SignalHigh,
-    title: 'Gets CI failures back',
-    cardTitle: 'Gets CI failures back',
-    oneLiner: 'A red check is sent to the session that pushed the branch.',
+    title: 'The fleet can see what changed without replaying a transcript.',
+    cardTitle: 'Compact trace after tools',
+    oneLiner: 'The post-tool tentacle appends a lock-safe pheromone trace.',
     detail:
-      'A failing run lands with the agent that earned it. The session gets the error, fixes the branch, reruns the check, and pushes again without a human playing dispatcher.',
+      'After a write or edit, the hook records the actor, target, tool, intensity, and timestamp in the Ink Cloud. Concurrent writers use a lock-safe append path, leaving a compact coordination trail instead of copying private transcript content.',
     figure: {
-      input: 'CI failure',
-      hook: 'Branch route',
-      output: 'Fix request',
-      proof: 'CI verdicts are routed back to the session that produced the branch.',
+      input: 'Completed tool',
+      hook: 'Post-tool tentacle',
+      output: 'Pheromone trace',
+      proof: 'Eight concurrent appenders are covered by the real hook test with no torn lines.',
     },
   },
   {
     n: '05',
+    scope: 'Port Daddy · Parley',
     icon: MessagesSquare,
-    title: 'Calls a meeting when work overlaps',
-    cardTitle: 'Calls a meeting when work overlaps',
-    oneLiner: 'Overlapping agents get a structured conversation instead of stray chat.',
+    title: 'Parley turns arrive through the same durable inbox.',
+    cardTitle: 'Parley delivery, not auto-convening',
+    oneLiner: 'Summons and turns fan out to participant inboxes; convening remains explicit.',
     detail:
-      'When agents disagree or reach for the same surface, Port Daddy opens a conversation with named participants, turn order, and a way to end. The output is a decision another agent can read later.',
+      'Port Daddy can recommend a Parley when work overlaps, and an opened Parley delivers every summon and turn to the named participants. The current trigger recommends; it does not silently convene a meeting behind the operator’s back.',
     figure: {
-      input: 'Overlap',
-      hook: 'Parley',
-      output: 'Written decision',
-      proof: 'The conversation has participants, order, exit criteria, and a durable result.',
+      input: 'Parley turn',
+      hook: 'Inbox fan-out',
+      output: 'Durable delivery',
+      proof: 'Automated delivery is real. Automated convening is deliberately not claimed.',
     },
   },
   {
     n: '06',
-    icon: CircleDollarSign,
-    title: 'Stops when budget is gone',
-    cardTitle: 'Stops when budget is gone',
-    oneLiner: 'Every agent runs under a spend cap and a posted bond.',
+    scope: 'Port Daddy · worktree',
+    icon: GitBranch,
+    title: 'Agent work stays out of the checkout you are using.',
+    cardTitle: 'A linked berth for every slice',
+    oneLiner: 'Sessions carry an explicit worktree, branch, purpose, claims, and controls.',
     detail:
-      'Each agent has a spending cap and a bond. If the next tool call would exceed the limit, the call is stopped before money leaves the account.',
+      'This is a Port Daddy session guarantee around the harness, not a hook event. A registered agent works in a linked git worktree and appears in the roster with the exact branch, touched files, stream, interrupt, and takeover paths.',
     figure: {
-      input: 'Tool call',
-      hook: 'Spend check',
-      output: 'Allowed or stopped',
-      proof: 'Spend is checked at the call boundary where the expensive action would happen.',
+      input: 'Work request',
+      hook: 'Session berth',
+      output: 'Own branch + claims',
+      proof: 'The operator’s checkout remains untouched while the agent’s slice stays recoverable.',
     },
   },
   {
     n: '07',
-    icon: GitBranch,
-    title: 'Works outside your checkout',
-    cardTitle: 'Works outside your checkout',
-    oneLiner: 'Agent work is redirected into a linked git worktree.',
+    scope: 'Coast Guard · runtime',
+    icon: CircleDollarSign,
+    title: 'Spawned work runs under confinement, timeout, and spend limits.',
+    cardTitle: 'Budget and sandbox protection',
+    oneLiner: 'Coast Guard wraps spawned processes; it is adjacent to the Squid hooks.',
     detail:
-      'The harness keeps agents out of the working copy you are sitting in. Their work happens in a linked git worktree, so an experiment can branch, fail, or be thrown away without disturbing your checkout.',
+      'Port Daddy’s spawner applies the operating-system sandbox, secret scrubbing, timeout, and hard spend cap. Those controls protect daemon-launched work, but the page does not pretend the prompt or edit tentacle implements them.',
     figure: {
-      input: 'Work request',
-      hook: 'Worktree check',
-      output: 'Own branch',
-      proof: 'The live operator tree stays untouched while the agent works in a linked berth.',
+      input: 'Spawn request',
+      hook: 'Coast Guard',
+      output: 'Bounded process',
+      proof: 'The spend boundary is enforced where Port Daddy launches and supervises the process.',
     },
   },
   {
     n: '08',
+    scope: 'Adjacent tool · explicit',
     icon: Ban,
-    title: 'Blocks irreversible commands',
-    cardTitle: 'Blocks irreversible commands',
-    oneLiner: 'Dangerous shell and git commands are intercepted before they run.',
+    title: 'Skill grafting is offered explicitly, never smuggled into a turn.',
+    cardTitle: 'Skill grafting stays separate',
+    oneLiner: 'pd skill-graft previews native guidance; Squid does not auto-install skills.',
     detail:
-      'Commands like rm -rf and force push are caught before they run. The refusal names the reversible command the agent should use instead, so the agent can recover without guessing.',
+      'Skill selection can improve an agent’s method, but it changes what guidance the agent receives. Port Daddy keeps that action visible and previewable. Today it is an adjacent command, not a hidden fourth tentacle and not part of LIVE conformance.',
     figure: {
-      input: 'Risky command',
-      hook: 'Guard check',
-      output: 'Safer command',
-      proof: 'The refusal names the reversible action, so the agent can recover without guessing.',
+      input: 'Task description',
+      hook: 'Explicit skill-graft preview',
+      output: 'Named guidance',
+      proof: 'LIVE means hook conformance. It does not claim automatic skill grafting.',
     },
   },
 ] as const
@@ -307,11 +316,14 @@ function CapabilityExplainer({ capability }: { capability: Capability }) {
           <span className="inline-flex h-11 w-11 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] font-mono text-[length:var(--type-meta-size)] font-black text-[var(--brand-primary)]">
             {capability.n}
           </span>
-          <PanelEyebrow>{capability.oneLiner}</PanelEyebrow>
+          <PanelEyebrow>{capability.scope}</PanelEyebrow>
         </div>
         <PanelTitle as="h3" size="display" className="max-w-[14ch]">
           {capability.title}
         </PanelTitle>
+        <PanelBody size="compact" className="max-w-[42rem] font-bold text-[var(--text-primary)]">
+          {capability.oneLiner}
+        </PanelBody>
         <PanelBody className="max-w-[42rem]">
           {capability.detail}
         </PanelBody>
@@ -324,17 +336,22 @@ const VENDOR_ROWS: readonly { vendor: string; status: 'live' | 'mapped'; note: s
   {
     vendor: 'Claude Code',
     status: 'live',
-    note: 'Fully wired. All eight capabilities run against Claude’s own hook surface, verified end to end.',
-  },
-  {
-    vendor: 'Gemini CLI',
-    status: 'mapped',
-    note: 'Hook surface mapped. The same tentacles are being seated and validated against it now.',
+    note: 'Project-native UserPromptSubmit, PreToolUse, and PostToolUse hooks, plus the visible ◆ PD statusline and Pilot SessionStart identity.',
   },
   {
     vendor: 'Codex CLI',
-    status: 'mapped',
-    note: 'Hook surface mapped. Validation in progress — honest status, not a promise.',
+    status: 'live',
+    note: 'User-level Codex hook config with the same three synchronous tentacles; the exact-project runtime gate keeps it inert elsewhere. One-time /hooks trust is required.',
+  },
+  {
+    vendor: 'Gemini CLI',
+    status: 'live',
+    note: 'Project-native BeforeAgent, BeforeTool, and AfterTool events carry the shared prompt, edit, and trace tentacles.',
+  },
+  {
+    vendor: 'Antigravity (agy)',
+    status: 'live',
+    note: 'Home-scoped Claude-shaped hook engine, constrained to exact armed Port Daddy projects by the same daemon heartbeat gate.',
   },
 ] as const
 
@@ -348,44 +365,36 @@ type BackendLane = {
 
 const BACKEND_LANES: readonly BackendLane[] = [
   {
-    runtime: 'Claude Code native',
-    backend: 'Claude via Claude Code login or an official Anthropic gateway',
+    runtime: 'LIVE · 100%',
+    backend: 'The exact worktree is armed and the daemon heartbeat is fresh.',
     contract:
-      'The Articles bind to Claude Code hooks: turn-start attention, pre-tool vetoes, post-tool telemetry, MCP replies.',
+      'All detected provider configs carry all three tentacles, identity surfaces are visible, and TURN / EDIT / TRACE are active now.',
     status: 'live',
-    command: 'pd begin --identity myapp:api\nclaude',
+    command: 'pd squid status --json  # level: LIVE, missing: []',
   },
   {
-    runtime: 'Claude Code shape, Codex behind',
-    backend: 'OpenAI Codex CLI through the Squid compatibility bridge',
+    runtime: 'READY',
+    backend: 'Every hook and identity surface is wired, but the daemon is down.',
     contract:
-      'Claude-shaped requests hit a local Anthropic-compatible bridge; provenance records the backend tier actually used.',
-    status: 'live',
-    command: 'pd squid codex --tier strong',
-  },
-  {
-    runtime: 'Claude Code shape, open weights behind',
-    backend: 'vLLM serving Gemma, Qwen, Llama, DeepSeek, or another tool-capable model',
-    contract:
-      'Claude Code keeps the hook layer; the gateway provides Anthropic Messages compatibility and tool-call shape.',
+      'The gate fails open while offline, so the agent can still work but receives no Squid injection or edit protection until the heartbeat returns.',
     status: 'mapped',
-    command: 'surface required: streamed turns, tool calls, and hook verdicts in CLI + FleetBar before promotion',
+    command: 'port-daddy start',
   },
   {
-    runtime: 'Ollama / Gemma adapter lane',
-    backend: 'Local Ollama models behind a router that speaks Anthropic Messages',
+    runtime: 'PARTIAL',
+    backend: 'Some real wiring exists, but one or more required surfaces are missing.',
     contract:
-      'The Articles still bind to the harness; this lane stays experimental until streaming and tool-loop fixtures pass.',
+      'The roster names each missing provider hook or identity surface and supplies one concrete repair command. This state exits non-zero in the CLI.',
     status: 'mapped',
-    command: 'surface required: ollama turn stream + Port Daddy hook verdicts visible in the roster',
+    command: 'pd squid on  # full repair\npd hooks install  # hook-only repair',
   },
   {
-    runtime: 'Cloudflare Agent',
-    backend: 'Durable cloud actor using Workers AI or provider APIs',
+    runtime: 'UNPROTECTED',
+    backend: 'No exact project arm or no local worktree root can be proven.',
     contract:
-      'The remote agent gets a Harbor identity, relay channel, PR duties, budget, and the same review/merge obligations.',
+      'The operator sees the absence instead of a neutral-looking row. Remote agents without a local worktree remain visibly unprotected by local tentacles.',
     status: 'mapped',
-    command: 'surface required: Cloudflare actor appears beside local agents with relay status and transcript tail',
+    command: 'pd squid on --cwd /path/to/worktree',
   },
 ] as const
 
@@ -402,51 +411,40 @@ type ProofMedia = {
 
 const PROOF_MEDIA: readonly ProofMedia[] = [
   {
-    eyebrow: 'Rust GPUI app',
-    title: 'The operator sees the harness roster in the native app.',
+    eyebrow: 'Fresh conformance run',
+    title: 'Watch a project move from PARTIAL to LIVE.',
     body:
-      'The current GPUI control center opens the active-agent roster beside the live lane and planner, with stream, steer, takeover, worktree, and harness labels visible in one window.',
-    src: '/img/app-screens/pd-console-gpui/active-agents-harness-roster.png',
-    alt: 'Rust GPUI Port Daddy control center showing the active agent harness roster beside a live lane and planner pane.',
-    kind: 'image',
+      'This recording uses the branch-built CLI against the live daemon. The first status names every missing tentacle and identity surface, pd squid on repairs them, and the final status reads the same project back as LIVE.',
+    src: '/demos/harness/harness-conformance-live.gif',
+    alt: 'Fresh terminal recording showing a Port Daddy project at PARTIAL Squid conformance, pd squid on wiring the missing hooks and identity, and the final LIVE status.',
+    kind: 'gif',
     featured: true,
   },
   {
-    eyebrow: 'CLI multiplexer',
-    title: 'The same roster exists without the native window.',
+    eyebrow: 'Fresh attention run',
+    title: 'An empty inbox explains what is worth watching.',
     body:
-      'The headless console face shows the same active-agent contract: backend, worktree, current task, touched files, stream command, steer command, and takeover handle.',
-    src: '/img/app-screens/pd-console-gpui/active-agent-roster-repl.gif',
-    alt: 'Animated terminal console showing the Port Daddy active-agent harness roster with stream, steer, and takeover commands.',
+      'Nothing new is no longer a dead end. The command ranks exact coordination channels, explains their value and observed activity, arms the set in one action, then reads the subscriptions back.',
+    src: '/demos/harness/harness-attention-activation.gif',
+    alt: 'Fresh terminal recording of pd attention ranking coordination channels, subscribing to the recommended set, and reading the active subscriptions back.',
     kind: 'gif',
   },
   {
-    eyebrow: 'CLI multiplexor',
-    title: 'Terminal streams show agent traffic in motion.',
+    eyebrow: 'FleetBar · before',
+    title: 'Missing protection stays visibly broken.',
     body:
-      'The CLI needs to show the working agent and Port Daddy side by side: stream, inbox injections, hook verdicts, and jump-in controls for daemon-launched work.',
-    src: '/demos/pd-tube/pd-tube-multiplex.gif',
-    alt: 'Terminal recording of Port Daddy tube multiplexing multiple agent messages and replies.',
-    kind: 'gif',
-  },
-  {
-    eyebrow: 'FleetBar',
-    title: 'The menu-bar app is part of the harness.',
-    body:
-      'FleetBar is the quick operator surface for daemon health, session state, credentials, remediation, and opening the fuller control center.',
-    src: '/img/app-screens/fleetbar-native-shell-light.webp',
-    darkSrc: '/img/app-screens/fleetbar-native-shell-dark.webp',
-    alt: 'FleetBar native shell showing Port Daddy app controls and status.',
+      'A failed or incomplete harness is not flattened into a neutral row. The card retains its evidence and gives the operator a repair action.',
+    src: '/demos/harness/harness-fleetbar-needs-repair.png',
+    alt: 'Fresh FleetBar screenshot showing a Giant Squid harness that needs repair and the specific missing state.',
     kind: 'image',
   },
   {
-    eyebrow: 'Live dashboard',
-    title: 'The web app shows claims, notes, and active agents.',
+    eyebrow: 'FleetBar · after',
+    title: 'Green means a fresh read-back, not a clicked button.',
     body:
-      'The same harness evidence should read in the dashboard: who is active, what they claimed, what they heard, and where their transcript lives.',
-    src: '/media/landing-live-glory/live-agents-panel-light.webp',
-    darkSrc: '/media/landing-live-glory/live-agents-panel-dark.webp',
-    alt: 'Port Daddy dashboard live agents panel showing active sessions, notes, and file claims.',
+      'The live state is rendered only after the daemon, tentacles, provider wiring, status identity, and Pilot steering surface are read back as present.',
+    src: '/demos/harness/harness-fleetbar-live.png',
+    alt: 'Fresh FleetBar screenshot showing the Giant Squid harness confirmed live after repair.',
     kind: 'image',
   },
 ] as const
@@ -468,6 +466,25 @@ type RunItMedia = {
  */
 const RUN_IT_MEDIA: readonly RunItMedia[] = [
   {
+    eyebrow: 'Conformance activation · fresh',
+    title: 'PARTIAL is a diagnosis. LIVE is a verified transition.',
+    body:
+      'The first read names what is missing. The arm command prints the non-diegetic value it is adding before turns, before edits, and after tools. The final read proves all four detected agent CLIs are wired for the exact project.',
+    src: '/demos/harness/harness-conformance-live.gif',
+    darkSrc: '/demos/harness/harness-conformance-live-dark.gif',
+    alt: 'Terminal recording of the Squid harness moving from PARTIAL to LIVE conformance with explicit PD TURN, EDIT, and TRACE narration.',
+    featured: true,
+  },
+  {
+    eyebrow: 'Attention activation · fresh',
+    title: '“Nothing new” now has a useful next move.',
+    body:
+      'The agent still receives direct inbox messages. When it has no channel watches, attention ranks the worktree inconsistency channel and active fleet channels, explains why they matter, and arms them with one command.',
+    src: '/demos/harness/harness-attention-activation.gif',
+    darkSrc: '/demos/harness/harness-attention-activation-dark.gif',
+    alt: 'Terminal recording of an empty attention read suggesting useful channels and arming the recommended subscriptions.',
+  },
+  {
     eyebrow: 'Codex pilots Claude Code — live',
     title: 'The real Claude Code TUI, answered by Codex.',
     body:
@@ -475,7 +492,6 @@ const RUN_IT_MEDIA: readonly RunItMedia[] = [
     src: '/demos/harness/harness-codex-pilot-live.gif',
     darkSrc: '/demos/harness/harness-codex-pilot-live-dark.gif',
     alt: 'Interactive Claude Code terminal session launched through the Codex bridge, showing a magenta PD-to-CODEX badge and the codex (strong) backend label in the status line while Claude answers a question.',
-    featured: true,
   },
   {
     eyebrow: 'The arm switch',
@@ -577,7 +593,7 @@ export default function HarnessPage() {
                 <div className="space-y-[var(--space-5)]">
                   <BracketLabel>The harness</BracketLabel>
                   <PanelTitle as="h1" size="hero" className="max-w-[15ch]">
-                    A control plane for every coding agent.
+                    Know which agents are protected before they act.
                   </PanelTitle>
                   <HarnessArtFigure
                     src="/img/generated/harness-hero.webp"
@@ -587,10 +603,10 @@ export default function HarnessPage() {
                     className="lg:hidden"
                   />
                   <PanelBody className="max-w-[46rem] text-[length:var(--type-panel-body-size)]">
-                    Port Daddy Harness gives each agent the coordination layer it
-                    needs: messages before each turn, project channels, edit-conflict
-                    checks, CI feedback, parley when work overlaps, budget stops,
-                    isolated worktrees, and command guardrails.
+                    Giant Squid wires the agent CLI you already use into one visible
+                    fleet contract: fresh context before a turn, ownership before an
+                    edit, a compact trace after tools, durable attention and Parley
+                    delivery, and an honest LIVE / READY / PARTIAL / UNPROTECTED state.
                   </PanelBody>
                   <div className="flex flex-wrap gap-[var(--space-3)]">
                     <Button asChild variant="primary" size="lg">
@@ -627,7 +643,7 @@ export default function HarnessPage() {
                 <SectionIntro
                   eyebrow="The spine"
                   title="It hooks into the CLI you already run."
-                  description="The harness is not a fork of your agent and not a wrapper that re-implements it. It seats itself into the vendor CLI’s own hook surface — the turn-start, pre-tool, post-tool, and command-intercept points the tool already exposes. Every capability below rides one of those hooks. There is no new agent to learn; the agent you have becomes a citizen of the fleet."
+                  description="The harness is not a fork of your agent. It seats three shared tentacles into each provider’s native events: prompt, pre-tool, and post-tool. The exact project-root registry and daemon heartbeat gate decide whether they activate. Port Daddy’s inbox, Parley, worktree, and Coast Guard controls stay adjacent and are labeled as such."
                   titleAs="h2"
                   titleSize="display"
                   titleClassName="max-w-[18ch]"
@@ -640,10 +656,10 @@ export default function HarnessPage() {
                       <PanelEyebrow>Honest status</PanelEyebrow>
                     </div>
                     <PanelBody size="compact" className="max-w-none">
-                      Claude Code is fully wired today — every capability verified against
-                      its hooks. Gemini and Codex expose comparable hook surfaces; those
-                      are mapped and being validated. This is real infrastructure, named
-                      where it stands.
+                      A live read-back on this slice found Claude Code, Codex CLI, Gemini
+                      CLI, and agy: four detected, four configured, four wired, 100%
+                      conformance. Codex uses a gated user config and needs one-time
+                      <code> /hooks</code> trust; Claude and Gemini use project config.
                     </PanelBody>
                   </SurfacePanel>
                 </div>
@@ -663,7 +679,7 @@ export default function HarnessPage() {
                     </picture>
                   </div>
                   <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-                    The daemon seats into the CLI’s hook ports. One coupling is verified; the others are validating.
+                    One hook shape, translated to four provider-native event surfaces and gated to an exact armed root.
                   </figcaption>
                 </figure>
               </SwissGridItem>
@@ -679,8 +695,8 @@ export default function HarnessPage() {
           <PageContainer width="wide">
             <SectionIntro
               eyebrow="What the harness grants"
-              title="Eight jobs the harness does before an agent acts."
-              description="These are practical jobs, not slogans. The harness gives every agent the messages, channels, claims, CI feedback, meetings, budget checks, worktree routing, and command guardrails it needs to work with the fleet."
+              title="Three tentacles, five adjacent controls, zero mystery."
+              description="The first four cards are direct hook behavior. The rest show the Port Daddy services around the hooks—and say plainly where automation stops."
               titleAs="h2"
               titleSize="display"
               titleClassName="max-w-[20ch]"
@@ -732,7 +748,7 @@ export default function HarnessPage() {
           </PageContainer>
         </section>
 
-        {/* ── Veto deep-dive ─────────────────────────────────────────── */}
+        {/* ── Truth boundary deep-dive ───────────────────────────────── */}
         <section className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
           <PageContainer width="wide">
             <SwissGrid className="items-center">
@@ -740,17 +756,17 @@ export default function HarnessPage() {
                 <figure className="space-y-[var(--space-2)]">
                   <div className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
                     <picture>
-                      <source srcSet="/img/generated/harness-veto-dark.png" media="(prefers-color-scheme: dark)" />
+                      <source srcSet="/img/generated/harness-contract-topology-dark.png" media="(prefers-color-scheme: dark)" />
                       <img
-                        src="/img/generated/harness-veto.png"
-                        alt="A destructive command lane carrying a hazard mark arrives and is stopped by an amber guard gate while a clean safe lane departs."
+                        src="/img/generated/harness-contract-topology-light.png"
+                        alt="A topology diagram separating Squid hook events from the adjacent Port Daddy coordination and runtime controls."
                         className="aspect-video w-full object-cover"
                         loading="eager"
                       />
                     </picture>
                   </div>
                   <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-                    The hazard lane is stopped at the gate; a safe lane is offered in its place.
+                    Hook behavior and adjacent control-plane behavior remain separate, visible contracts.
                   </figcaption>
                 </figure>
               </SwissGridItem>
@@ -759,25 +775,26 @@ export default function HarnessPage() {
                 <div className="space-y-[var(--space-4)]">
                   <div className="inline-flex items-center gap-[var(--space-2)]">
                     <ShieldAlert size={18} className="text-[var(--brand-primary)]" />
-                    <BracketLabel>A veto that teaches</BracketLabel>
+                    <BracketLabel>The honest boundary</BracketLabel>
                   </div>
                   <PanelTitle as="h2" size="display" className="max-w-[18ch]">
-                    Blocking is easy. Naming the safe move is the point.
+                    The value is clearer when the limits are visible.
                   </PanelTitle>
                   <PanelBody className="max-w-[44rem]">
-                    A guard that only says “no” leaves the agent stuck and likely to
-                    try again, harder. The harness intercepts the irreversible command
-                    and answers with the reversible one — the move the agent should
-                    have reached for. The lesson travels with the refusal.
+                    Squid owns prompt suggestibility, edit collision checks, and
+                    post-tool traces. Port Daddy owns durable inbox delivery, explicit
+                    Parley, linked worktrees, and Coast Guard. The current product does
+                    not claim automatic Parley convening, unsaved-buffer backup, or
+                    automatic skill grafting.
                   </PanelBody>
-                  <CodeBlock language="bash" filename="intercepted at the tool call">
-                    {`# agent tries:
-$ rm -rf build/ .git/
+                  <CodeBlock language="text" filename="the contract, without marketing blur">
+                    {`SQUID HOOKS   TURN · EDIT · TRACE
+PORT DADDY    INBOX · PARLEY DELIVERY · WORKTREES · BUDGETS
 
-# harness vetoes, and names the safe path:
-✗ Refused: this would delete tracked history.
-→ Try: git clean -xfd build/   (build artifacts only,
-        leaves .git and working tree intact)`}
+NOT CLAIMED
+  automatic Parley convening
+  unsaved editor-buffer backup
+  automatic skill installation or grafting`}
                   </CodeBlock>
                 </div>
               </SwissGridItem>
@@ -791,7 +808,7 @@ $ rm -rf build/ .git/
             <SectionIntro
               eyebrow="Where it runs"
               title="One harness, mapped to each vendor CLI’s hooks."
-              description="The capabilities are the same across vendors because they ride hook points every modern coding CLI exposes. What differs is how far each integration has been verified. Here is the honest state."
+              description="Port Daddy maps one TURN / EDIT / TRACE contract onto the hook events each supported CLI actually provides. The rows below name those exact event shapes and scopes; they do not imply that every coding CLI exposes the same lifecycle."
               titleAs="h2"
               titleSize="display"
               titleClassName="max-w-[22ch]"
@@ -827,7 +844,7 @@ $ rm -rf build/ .git/
             <SectionIntro
               eyebrow="What finished means"
               title="A harnessed agent must be visible, controllable, and pleasant to run."
-              description="A backend lane is not real because a command fits in a code block. It is real when the operator can watch the stream, see Port Daddy's hook decisions, jump into the session, stop or steer the work, and see the same agent beside the standing fleet in CLI, FleetBar, and the Rust GPUI app."
+              description="A backend lane is not real because a command fits in a code block. It is real when the operator can see the conformance level, understand the repair, watch the value narration, and read the repaired state back in CLI, FleetBar, and the Rust GPUI app."
               titleAs="h2"
               titleSize="display"
               titleClassName="max-w-[26ch]"
@@ -843,13 +860,13 @@ $ rm -rf build/ .git/
                   Watch the working agent and Port Daddy at once.
                 </PanelTitle>
                 <PanelBody size="compact" className="max-w-none">
-                  The terminal surface needs a live transcript tail, hook verdicts, inbox and parley injections, budget state,
-                  and a jump-in path for every daemon-launched agent.
+                  The CLI names the three hook moments as they happen: PD TURN adds bounded context, PD EDIT checks ownership,
+                  and PD TRACE leaves compact fleet evidence. Attention makes inbox and channel delivery actionable.
                 </PanelBody>
                 <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
                   <img
-                    src="/demos/pd-tube/pd-tube-multiplex.gif"
-                    alt="Terminal recording of Port Daddy tube multiplexing agent streams and replies."
+                    src="/demos/harness/harness-attention-activation.gif"
+                    alt="Fresh terminal recording of Port Daddy attention recommending and arming useful coordination channels."
                     className="aspect-video w-full object-cover"
                     loading="eager"
                   />
@@ -865,19 +882,16 @@ $ rm -rf build/ .git/
                   See fleet agents and task agents in one place.
                 </PanelTitle>
                 <PanelBody size="compact" className="max-w-none">
-                  FleetBar should show full-time infrastructure agents beside task agents, with model tier, worktree,
-                  hook health, transcript tail, and remediation when part of the harness is missing.
+                  FleetBar keeps failure visible, offers the repair, and waits for a fresh read-back before showing the
+                  harness as live. The operator does not need to translate daemon logs or edit config files.
                 </PanelBody>
                 <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-                  <picture>
-                    <source srcSet="/img/app-screens/fleetbar-native-shell-dark.webp" media="(prefers-color-scheme: dark)" />
-                    <img
-                      src="/img/app-screens/fleetbar-native-shell-light.webp"
-                      alt="FleetBar native shell showing the Port Daddy operator app surface."
-                      className="aspect-video w-full object-cover"
-                      loading="eager"
-                    />
-                  </picture>
+                  <img
+                    src="/demos/harness/harness-fleetbar-repair-live.gif"
+                    alt="Fresh FleetBar recording showing the harness moving from needs repair to confirmed live."
+                    className="aspect-video w-full object-cover"
+                    loading="eager"
+                  />
                 </figure>
               </SurfacePanel>
 
@@ -890,8 +904,8 @@ $ rm -rf build/ .git/
                   Control a live session without losing the fleet.
                 </PanelTitle>
                 <PanelBody size="compact" className="max-w-none">
-                  The GPUI app needs a unified roster, readable live lane, transcript anchor, daemon lane, and operator
-                  controls for attach, interrupt, remediation, and handoff.
+                  The GPUI roster consumes the same agent payload as the CLI: every row carries LIVE, READY, PARTIAL, or
+                  UNPROTECTED plus its score, missing surfaces, and repair action. No second conformance guess lives in the UI.
                 </PanelBody>
                 <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
                   <img
@@ -914,7 +928,7 @@ $ rm -rf build/ .git/
                 </div>
                 <PanelBody size="compact" className="max-w-[34rem]">
                   These are the acceptance surfaces: CLI streams, FleetBar, dashboard state, and the Rust GPUI control center.
-                  Any new backend lane has to show up here before the marketing copy can call it real.
+                  These captures were produced from the current change. A surface stays out of the gallery until its new state has been captured and inspected.
                 </PanelBody>
               </div>
               <div className="grid gap-[var(--space-4)] lg:grid-cols-2">
@@ -926,65 +940,18 @@ $ rm -rf build/ .git/
           </PageContainer>
         </section>
 
-        {/* ── Backend lanes ─────────────────────────────────────────── */}
+        {/* ── Conformance ladder ────────────────────────────────────── */}
         <section className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
           <PageContainer width="wide">
             <SectionIntro
-              eyebrow="Same Articles, many brains"
-              title="The contract binds to the runtime, then the model can vary."
-              description="Claude, Codex, Gemma, Ollama, and Cloudflare agents do not need identical brains. They need the same obligations: hear the fleet, claim before editing, pay rent, answer review, and leave memory behind. The verified state is named plainly."
+              eyebrow="One fleet truth"
+              title="Every agent gets a visible Squid conformance level."
+              description="The roster does not collapse every half-installed agent into a reassuring green dot. LIVE, READY, PARTIAL, and UNPROTECTED name what is working, what is merely installed, what is missing, and the exact repair command."
               titleAs="h2"
               titleSize="display"
-              titleClassName="max-w-[24ch]"
+              titleClassName="max-w-[22ch]"
               bodyClassName="max-w-[48rem]"
             />
-
-            <figure className="mt-[var(--space-6)] space-y-[var(--space-2)]">
-              <picture className="block">
-                <source
-                  media="(orientation: portrait) and (prefers-color-scheme: dark)"
-                  srcSet="/img/generated/harness-articles-jetpacks-portrait-dark.webp"
-                  type="image/webp"
-                />
-                <source
-                  media="(orientation: portrait) and (prefers-color-scheme: dark)"
-                  srcSet="/img/generated/harness-articles-jetpacks-portrait-dark.png"
-                />
-                <source
-                  media="(orientation: portrait)"
-                  srcSet="/img/generated/harness-articles-jetpacks-portrait-light.webp"
-                  type="image/webp"
-                />
-                <source
-                  media="(orientation: portrait)"
-                  srcSet="/img/generated/harness-articles-jetpacks-portrait-light.png"
-                />
-                <source
-                  media="(prefers-color-scheme: dark)"
-                  srcSet="/img/generated/harness-articles-jetpacks-landscape-dark.webp"
-                  type="image/webp"
-                />
-                <source
-                  media="(prefers-color-scheme: dark)"
-                  srcSet="/img/generated/harness-articles-jetpacks-landscape-dark.png"
-                />
-                <source
-                  srcSet="/img/generated/harness-articles-jetpacks-landscape-light.webp"
-                  type="image/webp"
-                />
-                <img
-                  src="/img/generated/harness-articles-jetpacks-landscape-light.png"
-                  alt="A three-part illustration of sailors joining an old ship, actively signing an open ledger together, then lifting safely from a deck launch platform with jet packs connected to abstract tool modules"
-                  className="w-full border-2 border-[var(--border-strong)] bg-[var(--surface-base)]"
-                  width={1376}
-                  height={768}
-                  loading="eager"
-                />
-              </picture>
-              <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-                The old ship is the agreement. The crew signs the ledger. The jet packs are the tools. Portrait phones get the same story stacked vertically; landscape viewports read it left to right.
-              </figcaption>
-            </figure>
 
             <div className="mt-[var(--space-6)] grid gap-[var(--space-4)]">
               {BACKEND_LANES.map((row) => (
@@ -995,7 +962,7 @@ $ rm -rf build/ .git/
                         {row.runtime}
                       </PanelTitle>
                       <StatusPill tone={row.status}>
-                        {row.status === 'live' ? 'Verified lane' : 'Mapped lane'}
+                        {row.status === 'live' ? 'Full conformance' : 'Visible repair state'}
                       </StatusPill>
                     </div>
                     <PanelBody size="compact" className="max-w-none font-semibold text-[var(--text-primary)]">
@@ -1005,7 +972,7 @@ $ rm -rf build/ .git/
                       {row.contract}
                     </PanelBody>
                   </div>
-                  <CodeBlock language="bash" filename={row.status === 'live' ? 'operator command' : 'promotion gate'}>
+                  <CodeBlock language="bash" filename={row.status === 'live' ? 'live proof' : 'repair path'}>
                     {row.command}
                   </CodeBlock>
                 </SurfacePanel>
@@ -1019,8 +986,8 @@ $ rm -rf build/ .git/
           <PageContainer width="wide">
             <SectionIntro
               eyebrow="Run it yourself"
-              title="Five commands from a clean machine to a harnessed, identifiable Claude Code."
-              description="Everything below is a real terminal recording of these exact commands — no mockups. The install stages the tentacles and the identity statusline; pd squid on is the one-shot arm switch; pd squid off removes every pd-authored entry and nothing else."
+              title="From daemon to a useful, inspectable harness."
+              description="The fresh recordings below run these commands against the real local daemon. The install is convergent: rerunning it replaces Port Daddy's canonical entry instead of multiplying hooks, and the off switch removes only Port Daddy-authored state."
               titleAs="h2"
               titleSize="display"
               titleClassName="max-w-[26ch]"
@@ -1031,28 +998,33 @@ $ rm -rf build/ .git/
               <SurfacePanel elevation="raised" padding="compact" className="space-y-[var(--space-3)]">
                 <PanelEyebrow className="text-[var(--brand-primary)]">Fresh install</PanelEyebrow>
                 <CodeBlock language="bash" filename="clean machine → armed project">
-                  {`# 1 — install the daemon + harness machinery
+                  {`# 1 — install and prove the daemon is reachable
 brew install curiositech/tap/port-daddy
-pd setup            # daemon, MCP, skills, Pilot agents, tentacles staged
+pd setup
+port-daddy start    # returns one PID + URL only after readiness
 
 # 2 — arm a project (per project, never machine-wide)
 cd ~/code/your-project
-pd squid on         # hooks + ◆ PD statusline + steering + /squid command
+pd squid on         # Claude + Codex + Gemini + agy, daemon-gated
 
-# 3 — run Claude Code, visibly harnessed
-claude              # cyan ◆ PD badge; the envelope arrives every turn
+# 3 — make attention useful before the first turn
+pd attention
+pd attention --subscribe-recommended
 
-# 4 — inspect the non-diegetic machinery any time
-pd squid status     # what is armed, live Ink Cloud, bridge probe
-pd squid tap        # the exact envelope the next turn will receive
+# 4 — inspect the non-diegetic machinery
+pd squid status     # LIVE / READY / PARTIAL / UNPROTECTED
+pd squid tap        # exact next-turn suggestibility envelope
 
-# 5 — the off switch (also /squid off inside Claude Code)
+# 5 — run an agent; the client narrates PD TURN / EDIT / TRACE
+claude              # or codex, gemini, agy
+
+# 6 — the off switch (also /squid off inside Claude Code)
 pd squid off`}
                 </CodeBlock>
                 <PanelBody size="compact" className="max-w-none">
-                  Every hook routes through a gate that no-ops unless the daemon is running and the
-                  directory is a Port Daddy project — armed hooks are inert everywhere else. A
-                  statusline or hook you wrote yourself is never touched.
+                  Every hook routes through a gate that no-ops unless the daemon heartbeat is fresh and the
+                  exact project is armed. The client may group repeated PostToolUse invocations into a rising
+                  count; that is one canonical TRACE hook firing after successive tools, not new hooks being installed.
                 </PanelBody>
               </SurfacePanel>
 
@@ -1089,17 +1061,14 @@ pd squid codex --tier strong
 
             <div className="mt-[var(--space-8)]">
               <div className="mb-[var(--space-5)] space-y-[var(--space-2)]">
-                <PanelEyebrow>Real recordings</PanelEyebrow>
-                <PanelTitle as="h3" size="display" className="max-w-[24ch]">
-                  The harness, live in a real Claude Code session.
+                <PanelEyebrow>Current recordings</PanelEyebrow>
+                <PanelTitle as="h3" size="display" className="max-w-[22ch]">
+                  Action, outcome, and read-back in the same frame.
                 </PanelTitle>
                 <PanelBody size="compact" className="max-w-[58rem]">
-                  The featured recording is the whole product in one take, inside the real Claude
-                  Code TUI: <code>pd squid codex</code> boots the bridge and Claude Code answers a
-                  question through the Codex backend, with the <code>◆ PD⇄CODEX</code> badge and the
-                  honest backend label in the status line the whole time. The rest show the arm
-                  switch, the context envelope, and the bridge boundary card — every frame captured
-                  against the live daemon, not staged.
+                  The fresh conformance and attention recordings were generated from this branch and inspected frame by frame.
+                  Older live-agent recordings remain below as behavioral examples, while the new captures prove the current
+                  CLI copy, repair flow, and read-back contract.
                 </PanelBody>
               </div>
 

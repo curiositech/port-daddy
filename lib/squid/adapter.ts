@@ -42,6 +42,7 @@ import { spawn as spawnChild } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
 import {
   CODEX_PD_MARKER,
+  SQUID_HOOK_STATUS,
   codexHooksTomlBlock,
   stripCodexHooksTomlBlock,
 } from './hook-shape.js';
@@ -348,6 +349,7 @@ function runCli(
 interface ClaudeHookCommand {
   type: 'command';
   command: string;
+  statusMessage?: string;
 }
 interface ClaudeHookMatcher {
   name?: string;
@@ -364,12 +366,13 @@ interface ClaudeSettings {
 /** A tentacle command shaped for a Claude Code settings.json hook entry. */
 function claudeHookEntry(command: string, purpose: SquidHookPurpose, matcher?: string): ClaudeHookMatcher {
   const meta = SQUID_HOOK_METADATA[purpose];
+  const statusMessage = SQUID_HOOK_STATUS[purpose];
   return {
     name: meta.displayName,
     description: meta.description,
     privacy: meta.privacy,
     ...(matcher ? { matcher } : {}),
-    hooks: [{ type: 'command', command }],
+    hooks: [{ type: 'command', command, statusMessage }],
   };
 }
 

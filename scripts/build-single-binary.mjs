@@ -203,6 +203,49 @@ function writeEmbeddedAssetsModule() {
   return files;
 }
 
+/**
+ * Make every locally built artifact repair-capable, not only release.yml.
+ * The binary is one runtime generation, while these dependency-free scripts
+ * are deliberate companion assets that it stages into PD_HOME. Keeping the
+ * staging here means `npm run build:bin`, FleetBar payload builds, release
+ * builds, and manual dogfood all receive the same complete cargo.
+ */
+function stageSquidReleaseAssets(releaseDir) {
+  const executableAssets = [
+    'pd-hook-prompt',
+    'pd-hook-pre-tool',
+    'pd-hook-post-tool',
+    'pd-statusline',
+  ];
+  const binDir = join(releaseDir, 'bin');
+  const hooksDir = join(releaseDir, 'hooks');
+  mkdirSync(binDir, { recursive: true });
+  mkdirSync(hooksDir, { recursive: true });
+
+  const files = [];
+  for (const name of executableAssets) {
+    const source = join(ROOT_DIR, 'bin', name);
+    if (!existsSync(source)) throw new Error(`Missing required Squid build asset: ${source}`);
+    for (const destination of [join(releaseDir, name), join(binDir, name)]) {
+      copyFileSync(source, destination);
+      chmodSync(destination, 0o755);
+      files.push(destination);
+    }
+  }
+
+  const pilotSource = join(ROOT_DIR, 'hooks', 'sessionstart-pilot.mjs');
+  if (!existsSync(pilotSource)) throw new Error(`Missing required Squid build asset: ${pilotSource}`);
+  for (const destination of [
+    join(hooksDir, 'sessionstart-pilot.mjs'),
+    join(releaseDir, 'sessionstart-pilot.mjs'),
+  ]) {
+    copyFileSync(pilotSource, destination);
+    chmodSync(destination, 0o755);
+    files.push(destination);
+  }
+  return files;
+}
+
 function writeEmbeddedNativeCoreModule(target) {
   const requestedPlatform = targetPlatform(target);
   const requestedArch = targetArch(target);
@@ -451,8 +494,10 @@ const binaryOutfile = needsPdLauncher ? join(dirname(requestedOutfile), 'port-da
 const launcherOutfile = needsPdLauncher ? requestedOutfile : null;
 const entrypointOutfile = launcherOutfile ?? binaryOutfile;
 const companionFiles = launcherOutfile ? [binaryOutfile] : [];
+const releaseDir = dirname(binaryOutfile);
 
 run(process.execPath, ['scripts/build-public-samples.mjs'], { stdio: 'inherit' });
+const squidAssets = stageSquidReleaseAssets(releaseDir);
 const embeddedNativeCore = writeEmbeddedNativeCoreModule(target);
 const embeddedAssets = writeEmbeddedAssetsModule();
 const onnxRuntimeNative = packageOnnxRuntimeNative(target);
@@ -496,6 +541,9 @@ if (canSmokeTarget) {
     stdout: result.stdout.trim(),
     daemon: await smokeSelfHostedDaemon(entrypointOutfile, companionFiles),
   };
+  run(process.execPath, ['scripts/smoke-squid-release.mjs', entrypointOutfile, releaseDir], {
+    stdio: 'inherit',
+  });
 }
 
 const manifest = {
@@ -517,6 +565,7 @@ const manifest = {
   embeddedPublicAssets: embeddedAssets.length,
   embeddedNativeCore,
   onnxRuntimeNative,
+  squidAssets: squidAssets.map(path => relative(releaseDir, path)),
   surfaces: {
     cli: 'bundled',
     daemon: 'self-hosted via hidden __daemon entrypoint; companion dist/daemon binary remains available for daemon-only installs',
@@ -524,6 +573,7 @@ const manifest = {
     sdk: 'compiled client modules plus package exports in npm distribution',
     fleetUi: 'embedded in the executable through a generated asset table with external public/ fallback',
     publicSamples: 'embedded in the executable through a generated asset table; manifest generated before compile',
+    squidHarness: 'repair-capable companion scripts staged beside every locally built artifact and verified by an isolated four-provider arm smoke',
   },
   smoke,
 };
