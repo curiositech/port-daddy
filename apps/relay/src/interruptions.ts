@@ -185,8 +185,6 @@ export function nextNagDelaySeconds(
   return Math.max(1, Math.floor(rand() * ceiling));
 }
 
-const URGENCY_RANK: Record<InterruptionUrgency, number> = { low: 0, normal: 1, high: 2, critical: 3 };
-
 // ── Webhook delivery: minimal breaker + bounded full-jitter retry ────────────
 
 interface BreakerState {

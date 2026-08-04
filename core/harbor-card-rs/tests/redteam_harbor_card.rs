@@ -63,7 +63,12 @@ fn forged_signature_bitflip_rejected() {
     let parts: Vec<&str> = token.split('.').collect();
     let mut sig_bytes = URL_SAFE_NO_PAD.decode(parts[2]).unwrap();
     sig_bytes[0] ^= 0x01; // flip one bit of the signature
-    let forged = format!("{}.{}.{}", parts[0], parts[1], URL_SAFE_NO_PAD.encode(&sig_bytes));
+    let forged = format!(
+        "{}.{}.{}",
+        parts[0],
+        parts[1],
+        URL_SAFE_NO_PAD.encode(&sig_bytes)
+    );
     let err = verifier.verify(&forged, 0).unwrap_err();
     assert!(matches!(err, HarborError::InvalidSignature), "got {err:?}");
 }
@@ -75,7 +80,12 @@ fn truncated_signature_rejected() {
     let parts: Vec<&str> = token.split('.').collect();
     let mut sig_bytes = URL_SAFE_NO_PAD.decode(parts[2]).unwrap();
     sig_bytes.truncate(16); // not a 64-byte Ed25519 signature
-    let forged = format!("{}.{}.{}", parts[0], parts[1], URL_SAFE_NO_PAD.encode(&sig_bytes));
+    let forged = format!(
+        "{}.{}.{}",
+        parts[0],
+        parts[1],
+        URL_SAFE_NO_PAD.encode(&sig_bytes)
+    );
     let err = verifier.verify(&forged, 0).unwrap_err();
     assert!(matches!(err, HarborError::InvalidSignature), "got {err:?}");
 }
@@ -84,8 +94,16 @@ fn truncated_signature_rejected() {
 fn signature_from_a_different_message_rejected() {
     // Sign a DIFFERENT payload, then splice that signature onto the victim payload.
     let (sk, verifier) = keypair(7);
-    let victim = sign_token(&sk, br#"{"alg":"EdDSA"}"#, &claims(&["read"], 9_999_999_999));
-    let other = sign_token(&sk, br#"{"alg":"EdDSA"}"#, &claims(&["read", "admin"], 9_999_999_999));
+    let victim = sign_token(
+        &sk,
+        br#"{"alg":"EdDSA"}"#,
+        &claims(&["read"], 9_999_999_999),
+    );
+    let other = sign_token(
+        &sk,
+        br#"{"alg":"EdDSA"}"#,
+        &claims(&["read", "admin"], 9_999_999_999),
+    );
     let vp: Vec<&str> = victim.split('.').collect();
     let op: Vec<&str> = other.split('.').collect();
     let spliced = format!("{}.{}.{}", vp[0], vp[1], op[2]); // victim body, other's sig
@@ -113,7 +131,8 @@ fn escalated_capability_in_payload_rejected() {
     let (sk, verifier) = keypair(7);
     let token = valid_token(&sk);
     let parts: Vec<&str> = token.split('.').collect();
-    let evil = URL_SAFE_NO_PAD.encode(serde_json::to_vec(&claims(&["read", "admin"], 9_999_999_999)).unwrap());
+    let evil = URL_SAFE_NO_PAD
+        .encode(serde_json::to_vec(&claims(&["read", "admin"], 9_999_999_999)).unwrap());
     let tampered = format!("{}.{}.{}", parts[0], evil, parts[2]);
     let err = verifier.verify(&tampered, 0).unwrap_err();
     assert!(matches!(err, HarborError::InvalidSignature), "got {err:?}");
@@ -122,9 +141,18 @@ fn escalated_capability_in_payload_rejected() {
 #[test]
 fn wrong_part_count_rejected_as_malformed() {
     let (_, verifier) = keypair(7);
-    assert!(matches!(verifier.verify("only.two", 0).unwrap_err(), HarborError::Malformed));
-    assert!(matches!(verifier.verify("a.b.c.d", 0).unwrap_err(), HarborError::Malformed));
-    assert!(matches!(verifier.verify("nodots", 0).unwrap_err(), HarborError::Malformed));
+    assert!(matches!(
+        verifier.verify("only.two", 0).unwrap_err(),
+        HarborError::Malformed
+    ));
+    assert!(matches!(
+        verifier.verify("a.b.c.d", 0).unwrap_err(),
+        HarborError::Malformed
+    ));
+    assert!(matches!(
+        verifier.verify("nodots", 0).unwrap_err(),
+        HarborError::Malformed
+    ));
 }
 
 // ===========================================================================
@@ -172,7 +200,10 @@ fn superset_presented_as_subset_rejected() {
 #[test]
 fn single_unauthorized_capability_rejected() {
     let root = vec!["read".to_string()];
-    assert!(!HarborCardVerifier::verify_capability_subset(&root, &["admin".to_string()]));
+    assert!(!HarborCardVerifier::verify_capability_subset(
+        &root,
+        &["admin".to_string()]
+    ));
 }
 
 #[test]
@@ -181,7 +212,10 @@ fn empty_root_grants_nothing() {
     // never derive a capability — no empty-root escalation.
     let empty: Vec<String> = vec![];
     assert!(HarborCardVerifier::verify_capability_subset(&empty, &[]));
-    assert!(!HarborCardVerifier::verify_capability_subset(&empty, &["read".to_string()]));
+    assert!(!HarborCardVerifier::verify_capability_subset(
+        &empty,
+        &["read".to_string()]
+    ));
 }
 
 #[test]
@@ -197,18 +231,39 @@ fn capability_match_is_case_sensitive_exact() {
     // If the compare were case-insensitive an attacker could slip "Admin" past an
     // "admin" grant (or vice-versa). It must be exact.
     let root = vec!["admin".to_string()];
-    assert!(!HarborCardVerifier::verify_capability_subset(&root, &["Admin".to_string()]));
-    assert!(!HarborCardVerifier::verify_capability_subset(&root, &["ADMIN".to_string()]));
+    assert!(!HarborCardVerifier::verify_capability_subset(
+        &root,
+        &["Admin".to_string()]
+    ));
+    assert!(!HarborCardVerifier::verify_capability_subset(
+        &root,
+        &["ADMIN".to_string()]
+    ));
 }
 
 #[test]
 fn capability_match_rejects_whitespace_and_nul_tricks() {
     let root = vec!["read".to_string()];
-    assert!(!HarborCardVerifier::verify_capability_subset(&root, &[" read".to_string()]));
-    assert!(!HarborCardVerifier::verify_capability_subset(&root, &["read ".to_string()]));
-    assert!(!HarborCardVerifier::verify_capability_subset(&root, &["read\t".to_string()]));
-    assert!(!HarborCardVerifier::verify_capability_subset(&root, &["read\0".to_string()]));
-    assert!(!HarborCardVerifier::verify_capability_subset(&root, &["read\nadmin".to_string()]));
+    assert!(!HarborCardVerifier::verify_capability_subset(
+        &root,
+        &[" read".to_string()]
+    ));
+    assert!(!HarborCardVerifier::verify_capability_subset(
+        &root,
+        &["read ".to_string()]
+    ));
+    assert!(!HarborCardVerifier::verify_capability_subset(
+        &root,
+        &["read\t".to_string()]
+    ));
+    assert!(!HarborCardVerifier::verify_capability_subset(
+        &root,
+        &["read\0".to_string()]
+    ));
+    assert!(!HarborCardVerifier::verify_capability_subset(
+        &root,
+        &["read\nadmin".to_string()]
+    ));
 }
 
 #[test]
@@ -229,7 +284,10 @@ fn constant_time_compare_full_width_semantics() {
     // Equal → true. Differing content at ANY single position → false, and the
     // position of the difference does not change the answer (the impl folds XOR over
     // the whole length; no early return leaks where the first mismatch is).
-    assert!(HarborCardVerifier::constant_time_compare(b"same-32-byte-tag-aaaaaaaaaaaaaaaa", b"same-32-byte-tag-aaaaaaaaaaaaaaaa"));
+    assert!(HarborCardVerifier::constant_time_compare(
+        b"same-32-byte-tag-aaaaaaaaaaaaaaaa",
+        b"same-32-byte-tag-aaaaaaaaaaaaaaaa"
+    ));
 
     let base = b"same-32-byte-tag-aaaaaaaaaaaaaaaa";
     // Differ only in the FIRST byte.
@@ -239,13 +297,22 @@ fn constant_time_compare_full_width_semantics() {
     let mut last = *base;
     let n = last.len() - 1;
     last[n] ^= 0xFF;
-    assert!(!HarborCardVerifier::constant_time_compare(base, &first), "first-byte diff must be false");
-    assert!(!HarborCardVerifier::constant_time_compare(base, &last), "last-byte diff must be false");
+    assert!(
+        !HarborCardVerifier::constant_time_compare(base, &first),
+        "first-byte diff must be false"
+    );
+    assert!(
+        !HarborCardVerifier::constant_time_compare(base, &last),
+        "last-byte diff must be false"
+    );
 }
 
 #[test]
 fn constant_time_compare_length_mismatch_is_false() {
-    assert!(!HarborCardVerifier::constant_time_compare(b"short", b"much-longer"));
+    assert!(!HarborCardVerifier::constant_time_compare(
+        b"short",
+        b"much-longer"
+    ));
     assert!(!HarborCardVerifier::constant_time_compare(b"", b"x"));
 }
 
@@ -294,7 +361,14 @@ fn ffi_caps_subset_malformed_json_fails_closed() {
 #[test]
 fn ffi_caps_subset_null_pointer_fails_closed() {
     let sub = b"[\"read\"]";
-    let r = unsafe { harbor_verify_caps_subset_json(std::ptr::null(), 0, sub.as_ptr() as *const c_char, sub.len()) };
+    let r = unsafe {
+        harbor_verify_caps_subset_json(
+            std::ptr::null(),
+            0,
+            sub.as_ptr() as *const c_char,
+            sub.len(),
+        )
+    };
     assert!(!r, "null root pointer must fail closed");
 }
 
@@ -306,7 +380,9 @@ fn ffi_constant_time_compare_guards() {
     assert!(!unsafe { harbor_constant_time_compare(std::ptr::null(), 4, std::ptr::null(), 4) });
     // oversized (> 1024 guard)
     let big = vec![0u8; 4096];
-    assert!(!unsafe { harbor_constant_time_compare(big.as_ptr(), big.len(), big.as_ptr(), big.len()) });
+    assert!(!unsafe {
+        harbor_constant_time_compare(big.as_ptr(), big.len(), big.as_ptr(), big.len())
+    });
     // zero length
     assert!(!unsafe { harbor_constant_time_compare(a.as_ptr(), 0, a.as_ptr(), 0) });
 }
@@ -350,7 +426,9 @@ proptest! {
 fn positive_control_valid_token_verifies() {
     let (sk, verifier) = keypair(7);
     let token = valid_token(&sk);
-    let out = verifier.verify(&token, 0).expect("a valid, unexpired, correctly-signed token must verify");
+    let out = verifier
+        .verify(&token, 0)
+        .expect("a valid, unexpired, correctly-signed token must verify");
     assert_eq!(out.sub, "agent-1");
     assert_eq!(out.cap, vec!["read".to_string()]);
 }
@@ -359,5 +437,8 @@ fn positive_control_valid_token_verifies() {
 fn positive_control_expired_token_rejected() {
     let (sk, verifier) = keypair(7);
     let token = sign_token(&sk, br#"{"alg":"EdDSA"}"#, &claims(&["read"], 100));
-    assert!(matches!(verifier.verify(&token, 200).unwrap_err(), HarborError::Expired));
+    assert!(matches!(
+        verifier.verify(&token, 200).unwrap_err(),
+        HarborError::Expired
+    ));
 }
