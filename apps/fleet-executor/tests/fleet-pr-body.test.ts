@@ -24,7 +24,7 @@ import {
   REQUIREMENTS_EXEMPT_MARKER,
   COMMENTS_EXEMPT_MARKER,
 } from '../src/fleet-pr-body.js';
-import { freshState, installGitHubFetch, aiStub, makeEnv, type GitHubState } from './harness.js';
+import { freshState, installGitHubFetch, makeEnv, type GitHubState } from './harness.js';
 
 // The repo root, three levels up from apps/fleet-executor/tests/.
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
