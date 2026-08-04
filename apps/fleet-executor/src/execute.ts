@@ -63,6 +63,11 @@ import { runTestsInSandbox } from './sandbox-runner.js';
 import { createSkillGraftCache, type SkillGraftCache } from './skill-graft.js';
 import { emitSquidEvent } from './squid-events.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
+import {
+  classifyShipOutput,
+  describeNoUsableOutput,
+  type NoUsableOutputReason,
+} from './usable-output.js';
 import { renderFindingsComment } from './findings-render.js';
 import {
   captureProposals,
@@ -142,10 +147,24 @@ interface ShipMetrics {
   calls: number;
   /** True if every ai.run returned empty text — the silent-blackout signal. */
   allEmpty: boolean;
+  /**
+   * How many ai.run results actually carried a readable `usage` block. Zero
+   * with `calls > 0` means the binding/model reported NO usage at all — the
+   * run page must then say "not reported", never render a 0 that reads as
+   * "this run was free". (2026-08-04: a 9-call run showed 0/0 tokens.)
+   */
+  usageReports: number;
 }
 
 function newShipMetrics(): ShipMetrics {
-  return { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, calls: 0, allEmpty: true };
+  return {
+    inputTokens: 0,
+    outputTokens: 0,
+    cachedInputTokens: 0,
+    calls: 0,
+    allEmpty: true,
+    usageReports: 0,
+  };
 }
 
 /** Fold one ai.run result's usage + emptiness into a ship's running metrics. */
@@ -155,6 +174,7 @@ function accumulateUsage(metrics: ShipMetrics, res: unknown, text: string): void
   metrics.outputTokens += u.outputTokens ?? 0;
   metrics.cachedInputTokens += u.cachedInputTokens ?? 0;
   metrics.calls += 1;
+  if (u.inputTokens != null || u.outputTokens != null) metrics.usageReports += 1;
   if (text) metrics.allEmpty = false;
 }
 
@@ -176,7 +196,11 @@ async function emitShipTelemetry(
 ): Promise<void> {
   try {
     const blackout = metrics.calls > 0 && metrics.allEmpty;
-    const errored = result.errored || blackout;
+    // A ship that produced NO USABLE OUTPUT is an operator-visible failure of
+    // the same kind as a blackout: it burned model calls and reviewed nothing.
+    // Surfacing it as `status: 'ok'` would recreate the green theater one layer
+    // down, in the daemon's errorEvents aggregation.
+    const errored = result.errored || result.noUsableOutput === true || blackout;
     await emitCloudTelemetry(
       {
         deliveryId: job.deliveryId,
@@ -464,6 +488,56 @@ async function creditsExhausted(env: ExecutorEnv, installationId: number): Promi
     // Table absent (billing not deployed) or any read error ⇒ fail-open.
     return false;
   }
+}
+
+/**
+ * Record the ship's token spend into the RUN TRANSCRIPT, so the human-facing
+ * run page can report it.
+ *
+ * Why this exists: the run page derives its "Input tokens / Output tokens"
+ * stat tiles by summing `inputTokens` / `outputTokens` out of `fleet_run_steps`
+ * detail blobs (`sumDetailField` in the relay's fleet-run-page.ts). The
+ * executor recorded token counts in TELEMETRY and in `fleet_run_spend`, but
+ * never in a transcript step — so the page summed nothing and rendered **0 / 0**
+ * for a run that made nine model calls (2026-08-04). The Workers AI usage data
+ * was there all along; the transcript was simply never told. This step closes
+ * that gap with one row per ship.
+ *
+ * `usageReported` is carried explicitly: when a binding/model returns no
+ * `usage` block at all, the page must render "not reported" rather than a zero
+ * that looks like the run was free.
+ */
+async function recordShipTokensInTranscript(
+  transcript: Transcript,
+  ship: ShipConfig,
+  metrics: ShipMetrics,
+): Promise<void> {
+  if (metrics.calls === 0) return; // gated-out ship: no spend to report
+  const usageReported = metrics.usageReports > 0;
+  await transcript.step(
+    'ship-spend',
+    ship.name,
+    usageReported
+      ? `pd-${ship.name}: ${metrics.inputTokens.toLocaleString('en-US')} in / ` +
+        `${metrics.outputTokens.toLocaleString('en-US')} out tokens over ${metrics.calls} call(s)`
+      : `pd-${ship.name}: token usage not reported by ${ship.cfModel} (${metrics.calls} call(s))`,
+    {
+      model: ship.cfModel,
+      calls: metrics.calls,
+      usageReported,
+      usageReports: metrics.usageReports,
+      // Only stamp the summable fields when usage was genuinely reported — a 0
+      // here would be indistinguishable from "free" on the run page.
+      ...(usageReported
+        ? {
+            inputTokens: metrics.inputTokens,
+            outputTokens: metrics.outputTokens,
+            cachedInputTokens: metrics.cachedInputTokens,
+            costUsd: costUsdForModel(ship.cfModel, metrics.inputTokens, metrics.outputTokens),
+          }
+        : {}),
+    },
+  );
 }
 
 /**
@@ -865,6 +939,9 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     // Per-run spend: one fleet_run_spend row per ship that actually ran, so the
     // relay can bill per installation. Best-effort — never changes the run.
     await recordShipSpend(env, runId, ship, job.installationId, metrics);
+    // …and the same numbers into the transcript, which is what the human-facing
+    // run page actually reads for its token tiles.
+    await recordShipTokensInTranscript(transcript, ship, metrics);
   }
 
   // --- Conclusion (verdict logic is REAL; see verdict.ts) ------------------
@@ -934,6 +1011,58 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * Record a ship's NO-USABLE-OUTPUT outcome and build its {@link ShipResult}.
+ *
+ * Writes one `ship-no-output` transcript step whose title is an honest English
+ * sentence ("… returned no usable output — nothing was reviewed"), never a
+ * verdict word, so neither the transcript nor the run page can render it as a
+ * pass. The returned result carries `noUsableOutput: true`, which
+ * {@link aggregateConclusion} gates on: fail-closed for a blocking ship,
+ * `neutral` (visible, non-blocking) for an advisory one.
+ *
+ * `verdict` is still populated because {@link ShipResult} requires it — BLOCK
+ * for a blocking ship (absence of a review is not approval) and PASS for an
+ * advisory one (advisory paths fail open) — but `noUsableOutput` is the
+ * authoritative signal and every renderer must key on it first.
+ *
+ * @param ship The ship whose output could not be used.
+ * @param transcript The run's best-effort step recorder.
+ * @param reason Which contract test failed (see {@link NoUsableOutputReason}).
+ * @param detail Lengths and fan-out recorded so an operator can audit the call
+ *   without re-running the model.
+ * @returns The ship's result, flagged `noUsableOutput`.
+ */
+async function recordNoUsableOutput(
+  ship: ShipConfig,
+  transcript: Transcript,
+  reason: NoUsableOutputReason,
+  detail: { strippedLength: number; rawLength: number; chunkCount: number },
+): Promise<ShipResult> {
+  await transcript.step(
+    'ship-no-output',
+    ship.name,
+    describeNoUsableOutput(`pd-${ship.name}`, reason),
+    {
+      noUsableOutput: true,
+      reason,
+      blocking: ship.blocking,
+      ideation: ship.ideation,
+      strippedLength: detail.strippedLength,
+      outputLength: detail.rawLength,
+      chunkCount: detail.chunkCount,
+    },
+  );
+  return {
+    ship: ship.name,
+    blocking: ship.blocking,
+    verdict: ship.blocking ? 'BLOCK' : 'PASS',
+    errored: false,
+    noUsableOutput: true,
+    findings: [],
+  };
+}
 
 /**
  * Run a single ship as a MAP-REDUCE over the PR diff:
@@ -1047,6 +1176,21 @@ async function runShip(
       await transcript.step('reduce', ship.name, `REDUCE pd-${ship.name}`, {
         chunkCount: chunks.length,
         outputLength: output.length,
+      });
+    }
+
+    // --- NO USABLE OUTPUT gate (src/usable-output.ts) ----------------------
+    // Before either contract is parsed: did the model say ANYTHING its contract
+    // asked for? If not, the ship reviewed nothing, and must never be folded
+    // into a clean PASS. Blocking ships fail closed here; advisory ships do not
+    // fail the merge gate but are reported honestly (aggregateConclusion turns
+    // them into `neutral`, never `success`).
+    const usability = classifyShipOutput(output, { ideation: ship.ideation });
+    if (!usability.usable) {
+      return await recordNoUsableOutput(ship, transcript, usability.reason, {
+        strippedLength: usability.strippedLength,
+        rawLength: output.length,
+        chunkCount: chunks.length,
       });
     }
 
@@ -1543,8 +1687,16 @@ async function reduceFindings(
 function buildSummary(results: ShipResult[], conclusion: string): string {
   const lines = results.map(r => {
     const tag = r.blocking ? ' [BLOCKING]' : '';
-    const state = r.errored ? 'error' : r.verdict;
-    const advisory = !r.blocking && (r.verdict === 'BLOCK' || r.errored) ? ' (advisory)' : '';
+    // A ship that produced nothing is reported as exactly that. It must never
+    // print as `PASS` here — this summary is the check-run body an operator
+    // reads before merging.
+    const state = r.noUsableOutput
+      ? 'no usable output — nothing was reviewed'
+      : r.errored
+        ? 'error'
+        : r.verdict;
+    const advisory =
+      !r.blocking && (r.verdict === 'BLOCK' || r.errored || r.noUsableOutput) ? ' (advisory)' : '';
     return `- pd-${r.ship}${tag}: ${state}${advisory}`;
   });
   lines.push('');

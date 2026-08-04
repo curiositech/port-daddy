@@ -73,8 +73,15 @@ function stackOutput(files: Array<{ path: string; contents: string }>, extra: ob
   ].join('\n');
 }
 
-/** A same-repo job whose payload carries the PR head BRANCH name. */
+/**
+ * A same-repo job whose PR carries a head BRANCH name.
+ *
+ * `fetchPRContext` reads `headRef` / `isFork` from the LIVE `GET /pulls/{n}`
+ * response, not from the webhook payload, so the harness stub is what must
+ * carry them — the payload below is kept for shape fidelity only.
+ */
 function jobWithHeadRef(over: Record<string, unknown> = {}) {
+  state.prHeadRef = 'feat/widget';
   return makeJob({
     payloadMinimal: {
       pull_request: {
@@ -177,10 +184,11 @@ describe('stack proposals — happy path', () => {
 describe('stack proposals — guards degrade honestly (no PR, transcript note)', () => {
   it('fork PR: never writes to the repo', async () => {
     const db = memoryD1();
-    await runSpark({
-      db,
-      job: jobWithHeadRef({ head: { sha: 'HEADSHA', ref: 'feat/widget', repo: { full_name: 'attacker/fork' } } }),
-    });
+    const job = jobWithHeadRef({ head: { sha: 'HEADSHA', ref: 'feat/widget', repo: { full_name: 'attacker/fork' } } });
+    // isFork is derived from the LIVE PR response, so drive the stub too.
+    state.prHeadRepoFullName = 'attacker/fork';
+    state.prBaseRepoFullName = 'erichowens/port-daddy';
+    await runSpark({ db, job });
     expect(state.records.filter(r => r.url.includes('/git/'))).toHaveLength(0);
     expect(state.stackedPrs).toHaveLength(0);
     const step = db.steps.find(s => s.kind === 'stack-posted')!;
@@ -237,10 +245,10 @@ describe('stack proposals — guards degrade honestly (no PR, transcript note)',
 
   it('a missing head branch name degrades instead of opening a misbased PR', async () => {
     const db = memoryD1();
-    await runSpark({
-      db,
-      job: jobWithHeadRef({ head: { sha: 'HEADSHA', repo: { full_name: 'erichowens/port-daddy' } } }),
-    });
+    const job = jobWithHeadRef({ head: { sha: 'HEADSHA', repo: { full_name: 'erichowens/port-daddy' } } });
+    // The LIVE PR is what `headRef` is read from — blank it there.
+    state.prHeadRef = '';
+    await runSpark({ db, job });
     expect(state.stackedPrs).toHaveLength(0);
     const step = db.steps.find(s => s.kind === 'stack-posted')!;
     expect(JSON.parse(String(step.detail)).degraded).toContain('head branch unknown');

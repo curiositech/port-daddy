@@ -102,7 +102,14 @@ function recorder(): { steps: RecordedStep[]; transcript: TranscriptLike } {
 }
 
 function freshMetrics(): PurserMetrics {
-  return { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, calls: 0, allEmpty: true };
+  return {
+    inputTokens: 0,
+    outputTokens: 0,
+    cachedInputTokens: 0,
+    calls: 0,
+    allEmpty: true,
+    usageReports: 0,
+  };
 }
 
 /** A fake Cloudflare Sandbox instance stub (structural: just `exec`). */
@@ -158,6 +165,57 @@ describe('parseSteelMan / parseAuthoredFiles — strict fenced JSON', () => {
     expect(parseAuthoredFiles('```json\n[]\n```')).toBeNull();
     expect(parseAuthoredFiles('```json\n' + JSON.stringify([{ path: 'a.ts' }]) + '\n```')).toBeNull();
     expect(parseAuthoredFiles(STEELMAN_JSON)).toBeNull(); // an object without files[]
+  });
+});
+
+describe('parseSteelMan — extraction tolerance (2026-08-04: 1416 chars discarded)', () => {
+  const contract = { purpose: 'p', contract: { obligations: ['a'] }, testTargets: ['src/x.ts'] };
+
+  it('tolerates a <think> preamble around the fenced contract', () => {
+    const out = `<think>Let me consider the diff…</think>\n\n\`\`\`json\n${JSON.stringify(contract)}\n\`\`\``;
+    expect(parseSteelMan(out)?.obligations).toEqual(['a']);
+  });
+
+  it('prefers the FINAL answer over a draft fence inside the <think> span', () => {
+    // The old regex matched the first fence anywhere, so a reasoning model's
+    // discarded draft could be parsed as the answer.
+    const draft = JSON.stringify({ purpose: 'draft', contract: { obligations: ['WRONG'] } });
+    const out =
+      `<think>maybe: \`\`\`json\n${draft}\n\`\`\` — no, revise</think>\n\n` +
+      `\`\`\`json\n${JSON.stringify(contract)}\n\`\`\``;
+    expect(parseSteelMan(out)?.obligations).toEqual(['a']);
+    expect(parseSteelMan(out)?.purpose).toBe('p');
+  });
+
+  it('tolerates an unlabelled or differently-cased fence', () => {
+    expect(parseSteelMan('```\n' + JSON.stringify(contract) + '\n```')?.obligations).toEqual(['a']);
+    expect(parseSteelMan('```JSON\n' + JSON.stringify(contract) + '\n```')?.obligations).toEqual(['a']);
+  });
+
+  it('tolerates markdown prose around a bare, unfenced JSON object', () => {
+    const out = `Here is the contract for this PR:\n\n${JSON.stringify(contract)}\n\nHope that helps.`;
+    expect(parseSteelMan(out)?.obligations).toEqual(['a']);
+  });
+
+  it('does NOT weaken shape validation — a wrong shape is still null', () => {
+    // Tolerance changes WHICH substring is parsed, never what counts as valid.
+    expect(parseSteelMan('{"contract":{"obligations":["a"]}}')).toBeNull(); // no purpose
+    expect(parseSteelMan('{"purpose":"p","contract":{"obligations":[]}}')).toBeNull(); // empty
+    expect(parseSteelMan('{"purpose":"p","contract":{"obligations":[1,2]}}')).toBeNull(); // not strings
+  });
+
+  it('never fabricates a contract when parsing genuinely fails', () => {
+    expect(parseSteelMan('I refuse to emit JSON.')).toBeNull();
+    expect(parseSteelMan('```json\n{ broken\n```')).toBeNull();
+    expect(parseSteelMan('')).toBeNull();
+  });
+
+  it('applies the same tolerance to authored test files', () => {
+    const files = { files: [{ path: 'tests/a.test.ts', contents: 'it("x", () => {});' }] };
+    const out = `<think>drafting</think>\n\n\`\`\`\n${JSON.stringify(files)}\n\`\`\``;
+    expect(parseAuthoredFiles(out)).toEqual([
+      { path: 'tests/a.test.ts', contents: 'it("x", () => {});' },
+    ]);
   });
 });
 

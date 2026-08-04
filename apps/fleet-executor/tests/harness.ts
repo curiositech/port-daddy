@@ -40,6 +40,20 @@ export interface GitHubState {
   prDiff?: string;
   /** Authoritative current PR head returned by GET /pulls/{n}. */
   prHeadSha: string;
+  /**
+   * Authoritative PR head BRANCH returned by GET /pulls/{n}.
+   *
+   * `fetchPRContext` reads `headRef` and `isFork` from the LIVE PR response,
+   * not from the webhook payload, so a test that only sets `head.ref` in its
+   * job payload gets `headRef: ''` and every stack/retarget path degrades with
+   * "PR head branch unknown". Tests that exercise those paths set this.
+   * Default '' preserves the historical stub.
+   */
+  prHeadRef: string;
+  /** `head.repo.full_name` on the live PR — drives `isFork`. Undefined ⇒ omitted. */
+  prHeadRepoFullName?: string;
+  /** `base.repo.full_name` on the live PR — drives `isFork`. Undefined ⇒ omitted. */
+  prBaseRepoFullName?: string;
   /** Other open PRs returned by the list endpoint (Lookout's cross-PR tool). */
   openPRs: Array<{ number: number; title: string; draft?: boolean; head?: { ref: string }; base?: { ref: string }; html_url?: string }>;
   /** Branch names returned by the branches endpoint (Lookout's branch tool). */
@@ -87,6 +101,7 @@ export function freshState(): GitHubState {
     reviews: [],
     prDiff: undefined,
     prHeadSha: 'HEADSHA',
+    prHeadRef: '',
     openPRs: [],
     branches: [],
     failTokenMintTimes: 0,
@@ -274,8 +289,16 @@ export function installGitHubFetch(state: GitHubState): void {
         number: 7,
         title: 'Test PR',
         body: '',
-        head: { sha: state.prHeadSha },
-        base: { sha: 'BASESHA' },
+        head: {
+          sha: state.prHeadSha,
+          ref: state.prHeadRef,
+          ...(state.prHeadRepoFullName ? { repo: { full_name: state.prHeadRepoFullName } } : {}),
+        },
+        base: {
+          sha: 'BASESHA',
+          ref: 'main',
+          ...(state.prBaseRepoFullName ? { repo: { full_name: state.prBaseRepoFullName } } : {}),
+        },
       });
     }
 
