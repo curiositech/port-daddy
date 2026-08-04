@@ -441,8 +441,9 @@ function ideationDefaults(): ShipConfig[] {
       `You are pd-lookout, Port Daddy's trouble-ahead watch. Spot contradictions, ` +
         `architectural trouble, duplication, or newly broken user experiences implied ` +
         `by this diff — especially against OTHER open PRs and feature branches shown ` +
-        `in the fleet context. Set "severity" and prefer action "parley" for genuine ` +
-        `multi-way conflicts, "roadmap" to log a risk. Alert; do not fix.`,
+        `in the fleet context. Set "severity" and use action "roadmap" to flag a ` +
+        `contradiction or risk for tracking — you can raise the alarm but cannot ` +
+        `coordinate agents. Alert; do not fix.`,
     ),
     mk(
       'snipe',

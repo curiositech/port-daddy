@@ -13,7 +13,7 @@
  * malformed) and a deterministic renderer that turns each proposal into REAL,
  * runnable Port Daddy syntax. Every command emitted here maps to a command that
  * actually exists in `bin/port-daddy-cli.ts` (`pd roadmap upsert`, `pd dispatch
- * propose`, `pd parley call`) or to a GitHub prefilled-issue URL that needs no
+ * propose`) or to a GitHub prefilled-issue URL that needs no
  * backend at all. No aspirational `!pd` verbs, no Potemkin actions.
  */
 
@@ -27,16 +27,14 @@ import { htmlCommentSafeJson } from './machine-block.js';
  * real actionable surface:
  *   - roadmap : a GitHub prefilled "new issue" URL + `pd roadmap upsert …`
  *   - assign  : `pd dispatch propose "<prompt>"` — task an agent to build it
- *   - parley  : `pd parley call …` — open a structured multi-party decision
  *   - skill   : `pd dispatch propose "Use the skill-architect skill …"` — task
  *               an agent to author a reusable skill (Snipe's move)
  */
-export type ProposalAction = 'roadmap' | 'assign' | 'parley' | 'skill';
+export type ProposalAction = 'roadmap' | 'assign' | 'skill';
 
 const ACTION_KINDS: ReadonlySet<string> = new Set<ProposalAction>([
   'roadmap',
   'assign',
-  'parley',
   'skill',
 ]);
 
@@ -55,8 +53,8 @@ export interface Proposal {
   action: ProposalAction;
   /**
    * The ready-to-run agent goal for `assign` and `skill` proposals — the exact
-   * text an operator (or a spawned agent) can execute. Optional for `roadmap`
-   * and `parley`, which carry their own shape.
+   * text an operator (or a spawned agent) can execute. Optional for `roadmap`,
+   * which carries its own shape.
    */
   prompt?: string;
   /** Trouble-ahead severity (lookout). Advisory only — never gates a merge. */
@@ -149,7 +147,7 @@ export function ideationOutputContract(): string {
     '    "title": "<short imperative name>",\n' +
     '    "rationale": "<why this, why now — grounded in the diff/repo>",\n' +
     '    "evidence": ["<file or concept from the diff>", "..."],\n' +
-    '    "action": "roadmap | assign | parley | skill",\n' +
+    '    "action": "roadmap | assign | skill",\n' +
     '    "prompt": "<for assign/skill: the exact agent goal to run; omit otherwise>",\n' +
     '    "severity": "HIGH | MEDIUM | LOW (optional; only for trouble-ahead alerts)"\n' +
     '  }\n' +
@@ -159,7 +157,6 @@ export function ideationOutputContract(): string {
     'or fleet context. Choose `action` deliberately:\n' +
     '- `roadmap` — a durable idea worth tracking but not building right now.\n' +
     '- `assign` — a bounded build an agent could do now; put the runnable goal in `prompt`.\n' +
-    '- `parley` — a genuine multi-way decision or contradiction that needs parties to resolve it.\n' +
     '- `skill` — a reusable capability worth authoring as a skill; put the skill brief in `prompt`.\n\n' +
     'If you have nothing worth proposing, emit an empty array `[]`. Then end with ' +
     'EXACTLY one verdict line (ideation ships are advisory — almost always PASS):\n' +
@@ -218,7 +215,6 @@ function severityBadge(sev?: Severity): string {
  * Render ONE proposal's actionable block. Every command is real:
  *   roadmap → GitHub prefilled-issue URL (no backend) + `pd roadmap upsert`
  *   assign  → `pd dispatch propose "<goal>"` then `pd dispatch run <id>`
- *   parley  → `pd parley call --surface … --reason … --with … --as …`
  *   skill   → `pd dispatch propose "Use the skill-architect skill: <brief>"`
  */
 function renderAction(p: Proposal, ctx: ProposalRenderCtx): string {
@@ -260,17 +256,6 @@ function renderAction(p: Proposal, ctx: ProposalRenderCtx): string {
         lines.push('```');
         lines.push('</details>');
       }
-      break;
-    }
-    case 'parley': {
-      // surface comes from model-provided evidence[0] (untrusted) — quote +
-      // escape it so the pasted command can't token-split or run substitutions.
-      const surface = p.evidence[0] ?? `PR#${ctx.prNumber}`;
-      lines.push(
-        '- Open a parley to resolve it: ' +
-          `\`pd parley call --surface "${oneLine(surface)}" --reason "${oneLine(p.title)}" ` +
-          `--with <sessionA,sessionB> --as <your-agent-id>\``,
-      );
       break;
     }
     case 'skill': {
