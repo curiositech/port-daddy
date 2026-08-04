@@ -26,6 +26,10 @@
  *   POST /billing/webhook                      (Stripe-Signature HMAC; credit ledger writes)
  *   GET  /billing/balance/:installationId      (operator or session; prepaid balance)
  *   POST /billing/portal                       (session; Stripe Billing Portal link)
+ *   POST /v1/harbors                           (session/pdu; create a remote harbor — client-supplied pubkey)
+ *   GET  /v1/harbors                           (session/pdu; harbors I belong to)
+ *   GET  /v1/harbors/:namespace/:name          (member-gated; detail + members)
+ *   POST /v1/harbors/:namespace/:name/members  (owner-gated; add a member)
  *   POST /v1/exchange                        (OIDC → PD card)
  *   POST /v1/revoke
  *   POST /v1/revoke-by-issuer               (operator; acceptance criterion #2)
@@ -87,6 +91,12 @@ import {
   handleBillingBalance,
   handlePortalLink,
 } from './billing.js';
+import {
+  handleCreateHarbor,
+  handleListMyHarbors,
+  handleGetHarbor,
+  handleAddHarborMember,
+} from './harbors.js';
 
 // Re-export Durable Object class for wrangler to pick up
 export { HarborChannel };
@@ -255,6 +265,28 @@ export default {
     }
     else if (pathname === '/billing/portal' && method === 'POST') {
       response = await handlePortalLink(request, env);
+    }
+
+    // ── Remote harbors (grand-plan X2 v1; src/harbors.ts) ────────────────────
+    else if (pathname === '/v1/harbors' && method === 'POST') {
+      response = await handleCreateHarbor(request, env);
+    }
+    else if (pathname === '/v1/harbors' && method === 'GET') {
+      response = await handleListMyHarbors(request, env);
+    }
+    else if (pathname.startsWith('/v1/harbors/')) {
+      // :name is the qualified `namespace/name` — namespace/name detail, or
+      // namespace/name/members for the owner-gated member add.
+      const parts = pathname.slice('/v1/harbors/'.length).split('/').map((p) => decodeURIComponent(p));
+      const ns = parts[0];
+      const name = parts[1];
+      if (ns && name && parts.length === 2 && method === 'GET') {
+        response = await handleGetHarbor(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && parts[2] === 'members' && method === 'POST') {
+        response = await handleAddHarborMember(request, env, ns, name);
+      } else {
+        response = notFound();
+      }
     }
 
     // ── OIDC exchange ────────────────────────────────────────────────────────

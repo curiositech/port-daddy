@@ -498,6 +498,17 @@ export async function handleMercyStatus(env: Env): Promise<Response> {
     // Health store unreadable — report honestly as unknown, not a raw 500.
     row = null;
   }
+  // X2 mercy hook: the registered remote-harbor count rides the public status
+  // page. This is the one live read here — a single COUNT(*) against a small
+  // table, bounded by the 30s public cache above; fail-safe null. (The plan's
+  // full per-harbor `remote_harbors` verdict is deferred to X2 v2.)
+  let harborCount: number | null = null;
+  try {
+    const c = await env.DB.prepare('SELECT COUNT(*) AS n FROM harbors').first<{ n: number }>();
+    harborCount = typeof c?.n === 'number' ? c.n : null;
+  } catch {
+    harborCount = null;
+  }
   if (!row) {
     return Response.json(
       {
@@ -511,6 +522,7 @@ export async function handleMercyStatus(env: Env): Promise<Response> {
         snapshotAgeSec: null,
         stale: true,
         subsystems: [],
+        harbors: { count: harborCount },
         note: 'no health snapshot available — the MERCY cron has not completed a sweep (or its table is unreadable)',
       },
       { headers: STATUS_HEADERS },
@@ -533,6 +545,7 @@ export async function handleMercyStatus(env: Env): Promise<Response> {
         status: s.status,
         latencyMs: s.latencyMs,
       })),
+      harbors: { count: harborCount },
     },
     { headers: STATUS_HEADERS },
   );

@@ -795,3 +795,148 @@ export async function deleteFleetRun(db: D1Database, runId: string): Promise<num
   const res = await db.prepare('DELETE FROM fleet_runs WHERE id = ?').bind(runId).run();
   return res.meta?.changes ?? 0;
 }
+
+// ── Remote harbors (grand-plan X2 v1: keypair + namespace + membership) ───────
+//
+// NOTE: harbor_memberships is deliberately NOT the legacy zero-trust
+// `harbor_members` daemon-admission table gated by the handshake/publish path
+// above the crypto boundary (handlers.ts). Rows here are operator-plane
+// (session/pdu auth) and grant API visibility only — never channel publish.
+
+export interface HarborRow {
+  id: string;
+  namespace: string;
+  name: string;
+  pubkey: string;
+  created_by: string;
+  created_at: number;
+}
+
+export type HarborRole = 'owner' | 'member';
+export type HarborMemberKind = 'user' | 'daemon';
+
+export interface HarborMemberListRow {
+  member_kind: HarborMemberKind;
+  member_id: string;
+  role: HarborRole;
+  added_at: number;
+  /** GitHub login for 'user' members (joined); null for daemons / erased users. */
+  login: string | null;
+}
+
+function isUniqueViolation(e: unknown): boolean {
+  const m = e instanceof Error ? e.message : String(e);
+  return m.includes('UNIQUE constraint failed') || m.includes('SQLITE_CONSTRAINT');
+}
+
+/**
+ * Create a harbor plus its creator's 'owner' membership atomically (D1 batch —
+ * a harbor without an owner could never gain members, so the two rows must
+ * land together). Returns 'duplicate' when (namespace, name) is taken.
+ */
+export async function createHarbor(
+  db: D1Database,
+  h: { id: string; namespace: string; name: string; pubkey: string; createdBy: string; createdAt: number },
+): Promise<'ok' | 'duplicate'> {
+  try {
+    await db.batch([
+      db.prepare(
+        'INSERT INTO harbors (id, namespace, name, pubkey, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      ).bind(h.id, h.namespace, h.name, h.pubkey, h.createdBy, h.createdAt),
+      db.prepare(
+        'INSERT INTO harbor_memberships (harbor_id, member_kind, member_id, role, added_at, added_by) VALUES (?, ?, ?, ?, ?, ?)',
+      ).bind(h.id, 'user', h.createdBy, 'owner', h.createdAt, h.createdBy),
+    ]);
+    return 'ok';
+  } catch (e) {
+    if (isUniqueViolation(e)) return 'duplicate';
+    throw e;
+  }
+}
+
+export async function getHarborByName(
+  db: D1Database,
+  namespace: string,
+  name: string,
+): Promise<HarborRow | null> {
+  const row = await db
+    .prepare('SELECT id, namespace, name, pubkey, created_by, created_at FROM harbors WHERE namespace = ? AND name = ?')
+    .bind(namespace, name)
+    .first<HarborRow>();
+  return row ?? null;
+}
+
+/** The caller's role in a harbor, or null when not a member (the authz gate). */
+export async function getHarborRole(
+  db: D1Database,
+  harborId: string,
+  kind: HarborMemberKind,
+  memberId: string,
+): Promise<HarborRole | null> {
+  const row = await db
+    .prepare('SELECT role FROM harbor_memberships WHERE harbor_id = ? AND member_kind = ? AND member_id = ?')
+    .bind(harborId, kind, memberId)
+    .first<{ role: HarborRole }>();
+  return row?.role ?? null;
+}
+
+/** Returns 'duplicate' when the (harbor, kind, member) row already exists. */
+export async function addHarborMembership(
+  db: D1Database,
+  m: { harborId: string; kind: HarborMemberKind; memberId: string; role: HarborRole; addedAt: number; addedBy: string },
+): Promise<'ok' | 'duplicate'> {
+  try {
+    await db
+      .prepare(
+        'INSERT INTO harbor_memberships (harbor_id, member_kind, member_id, role, added_at, added_by) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .bind(m.harborId, m.kind, m.memberId, m.role, m.addedAt, m.addedBy)
+      .run();
+    return 'ok';
+  } catch (e) {
+    if (isUniqueViolation(e)) return 'duplicate';
+    throw e;
+  }
+}
+
+/** Every member of a harbor with user logins joined in (member-gated read). */
+export async function listHarborMembers(db: D1Database, harborId: string): Promise<HarborMemberListRow[]> {
+  const r = await db
+    .prepare(
+      `SELECT m.member_kind, m.member_id, m.role, m.added_at, u.login
+       FROM harbor_memberships m
+       LEFT JOIN users u ON m.member_kind = 'user' AND u.id = m.member_id
+       WHERE m.harbor_id = ?
+       ORDER BY m.added_at ASC, m.member_id ASC`,
+    )
+    .bind(harborId)
+    .all<HarborMemberListRow>();
+  return r.results ?? [];
+}
+
+/** Harbors the user belongs to ("mine"), newest first, each with their role. */
+export async function listHarborsForUser(
+  db: D1Database,
+  userId: string,
+): Promise<Array<HarborRow & { role: HarborRole }>> {
+  const r = await db
+    .prepare(
+      `SELECT h.id, h.namespace, h.name, h.pubkey, h.created_by, h.created_at, m.role
+       FROM harbors h
+       JOIN harbor_memberships m ON m.harbor_id = h.id
+       WHERE m.member_kind = 'user' AND m.member_id = ?
+       ORDER BY h.created_at DESC, h.id ASC`,
+    )
+    .bind(userId)
+    .all<HarborRow & { role: HarborRole }>();
+  return r.results ?? [];
+}
+
+/** Live (non-deleted) user by GitHub login, case-insensitive; or null. */
+export async function getUserByLogin(db: D1Database, login: string): Promise<UserRow | null> {
+  const row = await db
+    .prepare('SELECT * FROM users WHERE login = ? COLLATE NOCASE AND deleted_at IS NULL')
+    .bind(login)
+    .first<UserRow>();
+  return row ?? null;
+}
