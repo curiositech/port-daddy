@@ -187,19 +187,32 @@ Contributor gotchas specific to these:
   (e.g. generic-typed Fastify handlers the route-parser cannot extract) — keep
   those notes accurate when you add or remove a route.
 
-### Rust surfaces — four crates, no single kernel (be honest)
+### Rust surfaces — the kernel IS landed; ADR-0120 is the boundary rule
 
-`core/` holds four separate crates on `main`: `core/pd-tui` (ratatui),
-`core/pd-bosun`, `core/harbor-card-rs`, and `core/pd-console` (the landed GPUI
-conversation-multiplexer). There is **no single landed "rust kernel."**
-`core/pd-console` is not the sibling kernel-rs runtime and is no longer only an
-old planning surface; keep prod/latest/dev pd-console lanes distinct when
-building or reviewing it. A sibling WIP build `~/coding/port-daddy-kernel-rs`
-maps the product spine (pd-anchor / pd-mesh / pd-eventlog / pd-runtime /
-pd-core) but is not this repo. **Do not scaffold a fourth Rust shell** without
-reconciling against `AGENTS.md` § *Architecture truths*. A release-cadence +
-Rust-surface-alignment ADR (ADR-0054) is being written in parallel; cite it by
-number until it lands.
+The kernel lives in-tree at `core/kernel/` (pd-anchor / pd-mesh / pd-eventlog /
+pd-runtime / pd-core / pd-compat / pd-tui / pd-rs). **ADR-0120 is the
+once-and-for-all answer to "what is Rust for"** — read it before any
+console/Rust/crypto work. The three-plane rule, compressed:
+
+1. **Security kernel (Rust, canonical, small):** `core/kernel/pd-anchor`
+   (Ed25519 cards, macaroon discharge gate, keystore), `core/pd-broker`
+   (ADR-0087 separate-UID TCB), `core/harbor-card-rs` (FFI constant-time
+   compare + caps-subset). Every security primitive is implemented ONCE, here.
+   Native TS reaches it via FFI (`lib/arbiter.ts`, `lib/macaroon-ffi.ts`).
+2. **Product planes (TypeScript, on purpose):** daemon control plane, fleet,
+   CLI, website, and BOTH Cloudflare Workers. Outside the TCB, so Rust buys no
+   security there (ADR-0087) — and Workers physically cannot call native code.
+   Where a Worker must duplicate kernel *logic*, it lands a shared test-vector
+   fixture in `tests/fixtures/*-parity-vectors.json` generated from the
+   canonical Rust impl, asserted by both suites, in the same PR. No fixture,
+   no second implementation. Never a third.
+3. **Console (Rust because GPU, not crypto):** `core/pd-console` renders; it
+   never signs/verifies. Not precedent for "write X in Rust."
+
+Fixture regeneration is a security-relevant diff — review it like a change to
+the verifier itself. **Do not scaffold new Rust crates** for non-kernel,
+non-GPU work; keep prod/latest/dev pd-console lanes distinct when building or
+reviewing the console.
 
 #### Building / installing / running `pd-console` (full detail in `AGENTS.md` § *Building, installing & running pd-console*)
 
