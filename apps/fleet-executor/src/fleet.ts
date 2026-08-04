@@ -344,6 +344,41 @@ export function parseFleetXo(fleetYaml: string): boolean {
 }
 
 /**
+ * STEWARD CONSENT: does this repo's pd-fleet.yml opt in to the auto-landing
+ * steward (src/steward.ts)?
+ *
+ * MOTIVATION / PHILOSOPHY: this is the highest-consequence consent flag in the
+ * file — it grants a machine permission to press Merge on the tenant's
+ * repository. It is therefore off by default, requires the same explicit
+ * `steward: true` under `fleet:` that `xo:` and `squidEvents:` use, and is read
+ * from the TRUSTED DEFAULT BRANCH only, never from a PR head (the zero-trust
+ * invariant). Enabling it does NOT loosen anything else: the steward still
+ * merges only PRs the fleet itself authored, still refuses on red or pending
+ * CI, on drafts, on unresolved disputes, on guardrail edits, and while the
+ * fleet is paused — see the safety argument in src/steward.ts.
+ *
+ * Strict coercion, deliberately narrower than YAML's own truthiness: only
+ * `true` / `'true'` opt in. `yes`, `on`, `1`, an absent key, an unparseable
+ * document, or a missing pd-fleet.yml all mean NO. A near-miss must never be
+ * read as permission to merge.
+ *
+ * @param fleetYaml The raw pd-fleet.yml body from the trusted default branch.
+ * @returns True only when the tenant explicitly opted in with `steward: true`.
+ */
+export function parseFleetSteward(fleetYaml: string): boolean {
+  let doc: unknown;
+  try {
+    doc = parseYaml(fleetYaml);
+  } catch {
+    return false;
+  }
+  const fleet = (doc as { fleet?: { steward?: unknown } } | null)?.fleet;
+  if (!fleet || typeof fleet !== 'object') return false;
+  const value = fleet.steward;
+  return value === true || value === 'true';
+}
+
+/**
  * Deterministically parse pd-fleet.yml and return every ship whose trigger
  * matches `trigger`. Pure (no Workers AI). Reads the ENTIRE document.
  *

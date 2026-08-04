@@ -47,6 +47,7 @@ import {
   type StackedPrResult,
 } from './stacked-pr.js';
 import { runTestsInSandbox, type SandboxRunOutcome } from './sandbox-runner.js';
+import { fleetPrBodyTrailers } from './fleet-pr-body.js';
 import { emitSquidEvent } from './squid-events.js';
 import { emitInterruption } from './interruptions.js';
 
@@ -665,6 +666,24 @@ export async function runPurser(
   }
 }
 
+/**
+ * Render the test PR's body.
+ *
+ * DESIGN / MOTIVATION: this body is not decoration — it is the thing the
+ * reviewed PR now merges through, so it must be BOTH legible to a human and
+ * acceptable to the repo's own PR gates. Before the deadlock fix it was only
+ * the former: the gates bounced it (`needs-roadmap-link`,
+ * `needs-comment-replies`, `mergeable_state: blocked`) and, because the purser
+ * retargets the reviewed PR onto this branch, a blocked test PR meant the
+ * REVIEWED PR could never merge either. {@link fleetPrBodyTrailers} appends the
+ * guards' own audited exemption markers with specific reasons, so the branch is
+ * self-clearing without any gate being weakened.
+ *
+ * @param prCtx The PR under review (supplies its number for the cross-links).
+ * @param steel The steel-manned contract these tests grill.
+ * @param files The authored test files, listed so a reader can audit the demand.
+ * @returns The full markdown body for the stacked test PR.
+ */
 function buildTestPrBody(
   prCtx: PRContext,
   steel: SteelManContract,
@@ -682,5 +701,9 @@ function buildTestPrBody(
     `#${prCtx.prNumber} is retargeted onto this branch when it lives in this repo, ` +
       `so it merges THROUGH these tests. Dispute a test here, with reasons, if it ` +
       `misreads the contract.`,
+    fleetPrBodyTrailers(
+      `adversarial test branch for #${prCtx.prNumber}; it advances no roadmap item of its own — ` +
+        `the item (if any) belongs to #${prCtx.prNumber}, and claiming it here would double-count the work`,
+    ),
   ].join('\n\n');
 }
