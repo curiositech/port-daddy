@@ -237,21 +237,22 @@ describe('installPilotSessionStartHook', () => {
       JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: 'command', command: 'pd attention --json' }] }] } }),
     );
     const r = installPilotSessionStartHook({ projectDir, projectRoot: process.cwd() });
-    expect(r).toEqual(expect.objectContaining({ changed: true, reason: 'registered new hook' }));
+    expect(r).toEqual(expect.objectContaining({ changed: true, reason: 'registered new hook', ok: true }));
     const settings = JSON.parse(readFileSync(join(projectDir, '.claude', 'settings.json'), 'utf8'));
     const commands = settings.hooks.SessionStart.flatMap((g: any) => g.hooks.map((h: any) => h.command));
     expect(commands).toContain('pd attention --json'); // preserved
     expect(commands.filter((c: string) => c.includes('sessionstart-pilot.mjs'))).toHaveLength(1);
   });
 
-  test('is idempotent', () => {
+  test('is idempotent and stays ok', () => {
     const projectDir = makeTmp();
     installPilotSessionStartHook({ projectDir, projectRoot: process.cwd() });
     const second = installPilotSessionStartHook({ projectDir, projectRoot: process.cwd() });
     expect(second.changed).toBe(false);
+    expect(second.ok).toBe(true);
   });
 
-  test('reports invalid Claude settings without overwriting them', () => {
+  test('reports invalid Claude settings without overwriting them, and flags ok:false', () => {
     const projectDir = makeTmp();
     mkdirSync(join(projectDir, '.claude'), { recursive: true });
     writeFileSync(join(projectDir, '.claude', 'settings.json'), '{not json');
@@ -261,9 +262,11 @@ describe('installPilotSessionStartHook', () => {
     expect(result).toEqual(expect.objectContaining({
       changed: false,
       reason: 'existing settings.json is not valid JSON — skipping',
+      ok: false,
     }));
     expect(readFileSync(join(projectDir, '.claude', 'settings.json'), 'utf8')).toBe('{not json');
   });
+
 });
 
 describe('managed-agent payload hashing', () => {

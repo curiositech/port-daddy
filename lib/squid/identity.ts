@@ -50,6 +50,8 @@ export interface IdentityResult {
   changed: boolean;
   path: string;
   reason: string;
+  /** False for a real failure (missing asset, unparsable config) — not merely "no-op". */
+  ok: boolean;
 }
 
 /** Copy bin/pd-statusline → ~/.port-daddy/bin/. Returns null if not on this build. */
@@ -90,23 +92,23 @@ export function installStatusline(scopeDir: string, stagedPath = stagedStatuslin
   const settingsPath = join(scopeDir, '.claude', 'settings.json');
   const staged = stagedPath;
   if (!existsSync(staged)) {
-    return { changed: false, path: settingsPath, reason: 'statusline not staged — run pd setup' };
+    return { changed: false, path: settingsPath, reason: 'statusline not staged — run pd setup', ok: false };
   }
   const settings = readSettings(settingsPath);
   if (settings === null) {
-    return { changed: false, path: settingsPath, reason: 'settings.json is not valid JSON — skipping' };
+    return { changed: false, path: settingsPath, reason: 'settings.json is not valid JSON — skipping', ok: false };
   }
   const current = settings.statusLine?.command;
   if (typeof current === 'string' && !current.includes(STATUSLINE_MARKER)) {
-    return { changed: false, path: settingsPath, reason: 'user statusLine present — not touching it' };
+    return { changed: false, path: settingsPath, reason: 'user statusLine present — not touching it', ok: true };
   }
   if (current === staged) {
-    return { changed: false, path: settingsPath, reason: 'already wired' };
+    return { changed: false, path: settingsPath, reason: 'already wired', ok: true };
   }
   settings.statusLine = { type: 'command', command: staged, padding: 0 };
   mkdirSync(dirname(settingsPath), { recursive: true });
   writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
-  return { changed: true, path: settingsPath, reason: current ? 'refreshed' : 'wired' };
+  return { changed: true, path: settingsPath, reason: current ? 'refreshed' : 'wired', ok: true };
 }
 
 /** Remove OUR statusLine (marker-matched) from <scopeDir>/.claude/settings.json. */
@@ -114,15 +116,15 @@ export function uninstallStatusline(scopeDir: string): IdentityResult {
   const settingsPath = join(scopeDir, '.claude', 'settings.json');
   const settings = readSettings(settingsPath);
   if (settings === null || !existsSync(settingsPath)) {
-    return { changed: false, path: settingsPath, reason: 'no settings' };
+    return { changed: false, path: settingsPath, reason: 'no settings', ok: true };
   }
   const current = settings.statusLine?.command;
   if (typeof current !== 'string' || !current.includes(STATUSLINE_MARKER)) {
-    return { changed: false, path: settingsPath, reason: 'no pd statusLine' };
+    return { changed: false, path: settingsPath, reason: 'no pd statusLine', ok: true };
   }
   delete settings.statusLine;
   writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
-  return { changed: true, path: settingsPath, reason: 'removed' };
+  return { changed: true, path: settingsPath, reason: 'removed', ok: true };
 }
 
 /**
@@ -150,18 +152,18 @@ export function installSlashCommand(projectDir: string): IdentityResult {
   const path = join(projectDir, '.claude', 'commands', SLASH_COMMAND_FILENAME);
   const body = slashCommandBody();
   if (existsSync(path) && readFileSync(path, 'utf8') === body) {
-    return { changed: false, path, reason: 'already installed' };
+    return { changed: false, path, reason: 'already installed', ok: true };
   }
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, body, 'utf8');
-  return { changed: true, path, reason: 'installed' };
+  return { changed: true, path, reason: 'installed', ok: true };
 }
 
 export function uninstallSlashCommand(projectDir: string): IdentityResult {
   const path = join(projectDir, '.claude', 'commands', SLASH_COMMAND_FILENAME);
-  if (!existsSync(path)) return { changed: false, path, reason: 'not installed' };
+  if (!existsSync(path)) return { changed: false, path, reason: 'not installed', ok: true };
   rmSync(path);
-  return { changed: true, path, reason: 'removed' };
+  return { changed: true, path, reason: 'removed', ok: true };
 }
 
 // ─── Status probes (the non-diegetic readout) ────────────────────────────────
