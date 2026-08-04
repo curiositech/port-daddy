@@ -564,6 +564,8 @@ pd transcripts          # durable agent transcripts (survive DB loss, ADR-0058)
 
 `pd spawn` admits the run, persists its transcript, and follows a monitor resource; Ctrl-C detaches only the client. CLI agents have no arbitrary default wall-clock deadline. Use `--timeout <ms>` only when the task itself has a real deadline, or `--detach` to return the receipt immediately. A daemon restart without a terminal event is reported as **outcome unknown**, never rewritten as agent failure. “Live” requires a direct child PID plus a fresh supervisor heartbeat.
 
+Operator surfaces continue an existing Port Daddy session through `POST /sessions/:predecessorId/continue`. The caller names the concrete harness backend, current user-owned linked worktree, direction, and an idempotency key. The predecessor stays immutable; an exact retry resolves to the same successor, while request drift returns 409. HTTP 202 is emitted only after the successor transcript and durable coordination session both exist. The response contains one successor, a stable receipt, and `GET /sessions/continuations/:receiptId` for reconnectable collection; `DELETE` cancels the owned run. A transport disconnect never cancels work, no timeout is invented when `timeoutMs` is omitted, and a restart without terminal evidence becomes **outcome unknown**.
+
 ### 🔬 Adapter conformance probes — `pd work probe`
 
 The first landing of the Work Intent command family (ADR-0095: WorkIntent is the

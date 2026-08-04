@@ -180,6 +180,8 @@ export interface SpawnSpec {
   prNumber?: number;
   issueNumber?: number;
   systemPrompt?: string; // additional system message stored in transcript
+  /** Durable session metadata supplied by an owning orchestration route. */
+  coordinationMetadata?: Record<string, unknown>;
   // ── Coast Guard (ADR-0050) ────────────────────────────────────────────────
   // Subprocess agents run under an OS sandbox + secret broker + hard egress cap
   // BY DEFAULT. Power users can opt a single spawn out with `coastGuard:false`
@@ -2097,6 +2099,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     // PD coordination: register agent
     const coordinationMetadata = {
+      ...(spec.coordinationMetadata ?? {}),
       spawn: true,
       requiresEscrow: true,
       projectName: projectName ?? null,

@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type Database from 'better-sqlite3';
+import type { SpawnResult } from './spawner.js';
 
 export const AGENT_RUN_RECEIPT_SCHEMA = 'pd.agent-run-receipt.v1' as const;
 
@@ -14,6 +15,21 @@ export type AgentRunReceiptStatus =
   | 'over_budget'
   | 'no_runtime'
   | 'unknown';
+
+export const TERMINAL_AGENT_RUN_STATUSES = new Set<AgentRunReceiptStatus>([
+  'completed',
+  'failed',
+  'cancelled',
+  'over_budget',
+  'no_runtime',
+]);
+
+export function agentRunStatusForSpawnResult(result: SpawnResult): AgentRunReceiptStatus {
+  if (result.agentId === 'blocked') return 'no_runtime';
+  if (result.status === 'killed') return 'cancelled';
+  if (result.status === 'running') return 'starting';
+  return result.status;
+}
 
 export interface AgentRunReceipt {
   schema: typeof AGENT_RUN_RECEIPT_SCHEMA;
@@ -155,6 +171,13 @@ export function createAgentRunReceiptStore(
     SET status = ?, successor_session_id = COALESCE(?, successor_session_id),
         updated_at = ?, completed_at = ?, error = ?
     WHERE id = ?
+      AND (
+        status IN ('accepted', 'starting', 'live')
+        OR (
+          status = 'unknown'
+          AND ? IN ('completed', 'failed', 'cancelled', 'over_budget', 'no_runtime')
+        )
+      )
   `);
 
   function get(id: string): AgentRunReceipt | null {
@@ -220,6 +243,7 @@ export function createAgentRunReceiptStore(
       terminal ? timestamp : null,
       input.error ?? null,
       required(id, 'receiptId'),
+      status,
     );
     const receipt = get(id);
     if (!receipt) throw new Error(`agent run receipt ${id} not found`);

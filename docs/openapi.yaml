@@ -1103,6 +1103,127 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /sessions/{id}/continue:
+    post:
+      tags: [sessions]
+      summary: Admit one durable successor for an immutable predecessor session
+      description: >-
+        Requires an explicit harness backend, current user-owned workspace, and
+        idempotency key. Exact retries return the same successor; request drift
+        returns 409. HTTP 202 is emitted only after both the successor transcript
+        and durable Port Daddy coordination session exist. Omitting timeoutMs
+        means no task wall deadline.
+      operationId: continueSession
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+          description: Immutable predecessor Port Daddy session id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [purpose, backend, idempotencyKey]
+              anyOf:
+                - required: [workdir]
+                - required: [worktree]
+              properties:
+                purpose: { type: string, minLength: 1 }
+                note:
+                  type: string
+                  description: Successor direction; defaults to purpose
+                backend:
+                  type: string
+                  description: Concrete backend catalog id such as cli:codex or cli:claude-code
+                model: { type: string }
+                identity: { type: string }
+                project: { type: string }
+                workdir:
+                  type: string
+                  description: Existing absolute user-owned workspace; file-editing agents require a linked worktree
+                worktree:
+                  type: object
+                  properties:
+                    root: { type: string }
+                  description: Compatibility shape; root is used when workdir is omitted
+                idempotencyKey: { type: string, minLength: 1 }
+                timeoutMs:
+                  type: integer
+                  minimum: 1000
+                  maximum: 21600000
+                  description: Explicit task deadline; omit for no wall deadline
+                budgetUsd:
+                  type: number
+                  exclusiveMinimum: 0
+                metadata:
+                  type: object
+                  description: Caller context; only bounded provenance is persisted in the successor lineage
+      responses:
+        '202':
+          description: Successor transcript and durable coordination session admitted
+          headers:
+            Location:
+              schema: { type: string }
+              description: Stable continuation receipt monitor
+            Retry-After:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionContinuationEnvelope' }
+        '200':
+          description: Idempotent terminal replay or a run that failed before admission
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionContinuationEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { description: Predecessor session not found }
+        '409': { description: Idempotency key was used for a different continuation request }
+        '503': { description: Continuation runtime unavailable }
+
+  /sessions/continuations/{receiptId}:
+    get:
+      tags: [sessions]
+      summary: Collect a durable session continuation
+      description: >-
+        Returns terminal, outcomeUnknown, successor lineage, transcript handle,
+        and current liveness evidence. Live requires a direct child PID and fresh
+        supervisor heartbeat; provider availability or transcript presence alone
+        never proves liveness.
+      operationId: getSessionContinuation
+      parameters:
+        - name: receiptId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Current durable continuation state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionContinuationEnvelope' }
+        '404': { description: Continuation receipt not found }
+        '503': { description: Continuation runtime unavailable }
+    delete:
+      tags: [sessions]
+      summary: Cancel the successor owned by a continuation receipt
+      operationId: cancelSessionContinuation
+      parameters:
+        - name: receiptId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Successor cancelled or already terminal
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionContinuationEnvelope' }
+        '404': { description: Continuation receipt not found }
+        '503': { description: Continuation runtime unavailable }
+
   /sessions/{id}/notes:
     post:
       tags: [sessions]
@@ -5427,6 +5548,82 @@ components:
       description: Process ID of the calling process
 
   schemas:
+    AgentRunReceipt:
+      type: object
+      required: [schema, id, kind, requestHash, status, createdAt, updatedAt]
+      properties:
+        schema: { const: pd.agent-run-receipt.v1 }
+        id: { type: string }
+        kind: { type: string, enum: [spawn, session-continuation] }
+        requestHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        predecessorSessionId: { type: [string, 'null'] }
+        successorSessionId: { type: [string, 'null'] }
+        successorAgentId: { type: [string, 'null'] }
+        transcriptId: { type: [string, 'null'] }
+        status:
+          type: string
+          enum: [accepted, starting, live, completed, failed, cancelled, over_budget, no_runtime, unknown]
+        createdAt: { type: integer }
+        updatedAt: { type: integer }
+        startedAt: { type: [integer, 'null'] }
+        completedAt: { type: [integer, 'null'] }
+        error: { type: [string, 'null'] }
+
+    SessionContinuationEnvelope:
+      type: object
+      required: [success, accepted, terminal, outcomeUnknown, status, predecessor, successor, receipt, monitorUrl]
+      properties:
+        success: { type: boolean }
+        accepted: { type: boolean }
+        replayed: { type: boolean }
+        terminal: { type: boolean }
+        outcomeUnknown: { type: boolean }
+        status:
+          type: string
+          enum: [accepted, starting, live, completed, failed, cancelled, over_budget, no_runtime, unknown]
+        predecessor:
+          type: object
+          required: [sessionId]
+          properties:
+            sessionId: { type: string }
+            purpose: { type: [string, 'null'] }
+            status: { type: [string, 'null'] }
+        successor:
+          anyOf:
+            - type: 'null'
+            - type: object
+              required: [agentId, sessionId, transcriptId]
+              properties:
+                agentId: { type: string }
+                sessionId: { type: string }
+                transcriptId: { type: string }
+        session:
+          anyOf:
+            - type: 'null'
+            - type: object
+              required: [id, agentId]
+              properties:
+                id: { type: string }
+                agentId: { type: string }
+        receipt: { $ref: '#/components/schemas/AgentRunReceipt' }
+        monitorUrl: { type: string }
+        cancelUrl: { type: [string, 'null'] }
+        transcriptUrl: { type: [string, 'null'] }
+        liveness:
+          anyOf:
+            - type: 'null'
+            - type: object
+              required: [live, evidence]
+              properties:
+                live: { type: boolean }
+                evidence:
+                  type: string
+                  enum: [pid-and-fresh-supervisor-heartbeat, not-proven-live]
+                pid: { type: [integer, 'null'] }
+                supervisorHeartbeatAt: { type: [integer, 'null'] }
+                lastActivityAt: { type: [integer, 'null'] }
+                deadlineAt: { type: [integer, 'null'] }
+
     DurableAgentProfileInput:
       type: object
       required: [slug, scope, remit, instructions]

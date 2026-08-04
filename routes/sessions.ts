@@ -5,6 +5,8 @@
  * GET    /sessions                - List sessions
  * GET    /sessions/:id            - Get session details
  * PUT    /sessions/:id            - End or abandon a session
+ * POST   /sessions/:id/continue   - Admit one durable linked successor
+ * GET    /sessions/continuations/:receiptId - Collect successor state
  * POST   /sessions/:id/takeover   - Start a successor session without deleting notes
  * DELETE /sessions/:id            - Archive session, preserving notes
  * POST   /sessions/:id/notes      - Add a note to a session (compat alias for /notes)
@@ -16,6 +18,7 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import type Database from 'better-sqlite3';
 import { checkAdversarialProjectWrite } from '../lib/coordination-route-guard.js';
 import {
   evaluateSessionWorktreePolicy,
@@ -23,8 +26,20 @@ import {
 } from '../lib/worktree-policy.js';
 import { coerceClaimType, type ClaimType } from '../lib/symbol-conflict-matrix.js';
 import type { SymbolConflict } from '../lib/symbol-claims.js';
+import { KNOWN_BACKEND_IDS } from '../lib/backend-catalog.js';
+import {
+  AgentRunIdempotencyConflictError,
+  TERMINAL_AGENT_RUN_STATUSES,
+  agentRunStatusForSpawnResult,
+  createAgentRunReceiptStore,
+  type AgentRunReceipt,
+} from '../lib/agent-run-receipts.js';
+import type { SpawnAccepted, SpawnSpec, Spawner } from '../lib/spawner.js';
+import { captureWorkspaceIdentity } from '../lib/workspace-identity.js';
 
 interface SessionsRouteDeps {
+  db?: Database.Database;
+  spawner?: Spawner;
   sessions: {
     start(purpose: string, options?: {
       agentId?: string | null;
@@ -110,6 +125,96 @@ interface SessionsRouteDeps {
 
 type SessionLifecycle = 'durable' | 'ephemeral';
 
+const CONTINUATION_HEARTBEAT_FRESH_MS = 65_000;
+
+function continuationText(value: unknown, field: string, maxBytes: number): string {
+  if (typeof value !== 'string' || !value.trim()) throw new Error(`${field} is required`);
+  const normalized = value.trim();
+  if (Buffer.byteLength(normalized, 'utf8') > maxBytes || normalized.includes('\0')) {
+    throw new Error(`${field} exceeds its safe text boundary`);
+  }
+  return normalized;
+}
+
+function optionalContinuationText(value: unknown, field: string, maxBytes: number): string | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  return continuationText(value, field, maxBytes);
+}
+
+function continuationIdentifier(value: unknown, field: string, maxBytes: number): string {
+  const normalized = continuationText(value, field, maxBytes);
+  if (/[\r\n]/.test(normalized)) throw new Error(`${field} exceeds its safe identifier boundary`);
+  return normalized;
+}
+
+function optionalContinuationIdentifier(value: unknown, field: string, maxBytes: number): string | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  return continuationIdentifier(value, field, maxBytes);
+}
+
+function continuationReceiptUrl(receipt: AgentRunReceipt): string {
+  return `/sessions/continuations/${encodeURIComponent(receipt.id)}`;
+}
+
+function continuationSuccessor(receipt: AgentRunReceipt) {
+  if (!receipt.successorAgentId || !receipt.successorSessionId || !receipt.transcriptId) return null;
+  return {
+    agentId: receipt.successorAgentId,
+    sessionId: receipt.successorSessionId,
+    transcriptId: receipt.transcriptId,
+  };
+}
+
+function continuationEnvelope(
+  receipt: AgentRunReceipt,
+  predecessor: Record<string, unknown>,
+  options: {
+    replayed?: boolean;
+    liveProven?: boolean;
+    run?: unknown;
+    liveRecord?: {
+      pid: number | null;
+      heartbeatAt: number;
+      lastActivityAt: number;
+      deadlineAt: number | null;
+    } | null;
+  } = {},
+) {
+  const terminal = TERMINAL_AGENT_RUN_STATUSES.has(receipt.status);
+  const outcomeUnknown = receipt.status === 'unknown';
+  const successor = continuationSuccessor(receipt);
+  return {
+    success: terminal ? receipt.status === 'completed' : !outcomeUnknown,
+    accepted: Boolean(successor),
+    replayed: options.replayed === true,
+    terminal,
+    outcomeUnknown,
+    status: receipt.status,
+    predecessor: {
+      sessionId: predecessor.id,
+      purpose: predecessor.purpose ?? null,
+      status: predecessor.status ?? null,
+    },
+    successor,
+    session: successor ? { id: successor.sessionId, agentId: successor.agentId } : null,
+    receipt,
+    monitorUrl: continuationReceiptUrl(receipt),
+    cancelUrl: successor ? `/sessions/continuations/${encodeURIComponent(receipt.id)}` : null,
+    transcriptUrl: successor ? `/transcripts?agentId=${encodeURIComponent(successor.agentId)}` : null,
+    liveness: successor ? {
+      live: options.liveProven === true,
+      evidence: options.liveProven === true
+        ? 'pid-and-fresh-supervisor-heartbeat'
+        : 'not-proven-live',
+      pid: options.liveRecord?.pid ?? null,
+      supervisorHeartbeatAt: options.liveRecord?.heartbeatAt ?? null,
+      lastActivityAt: options.liveRecord?.lastActivityAt ?? null,
+      deadlineAt: options.liveRecord?.deadlineAt ?? null,
+    } : null,
+    ...(options.run === undefined ? {} : { run: options.run }),
+  };
+}
+
 function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
   if (typeof value !== 'string') return null;
   const normalized = value.trim().toLowerCase();
@@ -129,7 +234,10 @@ function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
 // =============================================================================
 export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = async (fastify, opts) => {
   const { deps } = opts;
-  const { sessions, metrics, logger, activityLog, symbolClaims } = deps;
+  const { sessions, metrics, logger, activityLog, symbolClaims, db, spawner } = deps;
+  // This plugin registers before spawnPlugin and owns the one daemon-start
+  // recovery pass for the shared spawn/continuation receipt ledger.
+  const continuationReceipts = db && spawner ? createAgentRunReceiptStore(db) : null;
 
   const errorStatus = (result: Record<string, unknown>) => {
     switch (result.code) {
@@ -527,6 +635,331 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       reply.code(500);
       return { error: 'internal server error' };
     }
+  });
+
+  // POST /sessions/:id/continue — Admit exactly one durable, runnable successor.
+  // The predecessor is read-only. A 202 is not emitted until the spawner has
+  // durably opened BOTH the successor transcript and coordination session.
+  fastify.post('/sessions/:id/continue', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!continuationReceipts || !spawner) {
+      reply.code(503);
+      return { success: false, error: 'session continuation runtime unavailable', code: 'RUNTIME_UNAVAILABLE' };
+    }
+
+    try {
+      const predecessorId = String((request.params as { id?: string }).id ?? '').trim();
+      const predecessorResult = sessions.get(predecessorId) as {
+        success?: boolean;
+        session?: Record<string, unknown>;
+        error?: string;
+      };
+      if (!predecessorResult.success || !predecessorResult.session) {
+        reply.code(404);
+        return { success: false, error: 'predecessor session not found', code: 'SESSION_NOT_FOUND' };
+      }
+      const predecessor = predecessorResult.session;
+      const body = (request.body ?? {}) as Record<string, unknown>;
+      const purpose = continuationText(body.purpose, 'purpose', 16 * 1024);
+      const note = optionalContinuationText(body.note, 'note', 16 * 1024) ?? purpose;
+      const backend = continuationIdentifier(body.backend, 'backend', 128);
+      if (!KNOWN_BACKEND_IDS.has(backend)) {
+        reply.code(400);
+        return {
+          success: false,
+          error: `unknown continuation backend: ${backend}`,
+          code: 'VALIDATION_ERROR',
+        };
+      }
+      const model = optionalContinuationIdentifier(body.model, 'model', 512);
+      const idempotencyKey = continuationIdentifier(body.idempotencyKey, 'idempotencyKey', 512);
+      const worktree = body.worktree && typeof body.worktree === 'object' && !Array.isArray(body.worktree)
+        ? body.worktree as Record<string, unknown>
+        : null;
+      const requestedWorkdir = optionalContinuationText(
+        body.workdir ?? worktree?.root,
+        'workdir',
+        32 * 1024,
+      );
+      if (!requestedWorkdir) {
+        reply.code(400);
+        return { success: false, error: 'workdir is required', code: 'VALIDATION_ERROR' };
+      }
+      const workspaceIdentity = captureWorkspaceIdentity(requestedWorkdir);
+      if (!workspaceIdentity) {
+        reply.code(400);
+        return {
+          success: false,
+          error: 'workdir must resolve to a current user-owned absolute directory',
+          code: 'VALIDATION_ERROR',
+        };
+      }
+
+      let timeout: number | undefined;
+      if (body.timeoutMs !== undefined) {
+        if (typeof body.timeoutMs !== 'number'
+          || !Number.isInteger(body.timeoutMs)
+          || body.timeoutMs < 1_000
+          || body.timeoutMs > 6 * 60 * 60 * 1_000) {
+          reply.code(400);
+          return {
+            success: false,
+            error: 'timeoutMs must be an explicit integer from 1000 to 21600000; omit it for no task deadline',
+            code: 'VALIDATION_ERROR',
+          };
+        }
+        timeout = body.timeoutMs;
+      }
+      let budgetUsd: number | undefined;
+      if (body.budgetUsd !== undefined) {
+        if (typeof body.budgetUsd !== 'number' || !Number.isFinite(body.budgetUsd) || body.budgetUsd <= 0) {
+          reply.code(400);
+          return { success: false, error: 'budgetUsd must be a positive number', code: 'VALIDATION_ERROR' };
+        }
+        budgetUsd = body.budgetUsd;
+      }
+
+      const predecessorProject = typeof predecessor.identityProject === 'string'
+        ? predecessor.identityProject.trim()
+        : '';
+      const requestedProject = optionalContinuationIdentifier(body.project, 'project', 512) ?? predecessorProject;
+      const identity = optionalContinuationIdentifier(body.identity, 'identity', 512)
+        ?? (requestedProject ? `${requestedProject}:continuation` : undefined);
+      const requestMetadata = body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata)
+        ? body.metadata as Record<string, unknown>
+        : null;
+      const requestedBy = typeof requestMetadata?.source === 'string'
+        ? requestMetadata.source.replace(/[\r\n\0]/g, '').slice(0, 128)
+        : 'port-daddy';
+      const requestFingerprint = {
+        predecessorId,
+        purpose,
+        note,
+        backend,
+        model: model ?? null,
+        identity: identity ?? null,
+        workdir: workspaceIdentity.canonicalPath,
+        workspaceIdentity,
+        timeoutMs: timeout ?? null,
+        budgetUsd: budgetUsd ?? null,
+        requestedBy,
+      };
+
+      let admission;
+      try {
+        admission = continuationReceipts.accept({
+          idempotencyKey,
+          kind: 'session-continuation',
+          request: requestFingerprint,
+          predecessorSessionId: predecessorId,
+        });
+      } catch (error) {
+        if (error instanceof AgentRunIdempotencyConflictError) {
+          reply.code(409);
+          return {
+            success: false,
+            error: error.message,
+            code: 'IDEMPOTENCY_CONFLICT',
+            receiptId: error.receiptId,
+          };
+        }
+        throw error;
+      }
+
+      let receipt = admission.receipt;
+      if (admission.replayed) {
+        const response = continuationEnvelope(receipt, predecessor, { replayed: true });
+        const pending = !response.terminal && !response.outcomeUnknown;
+        reply.code(pending ? 202 : 200);
+        reply.header('Location', response.monitorUrl);
+        if (pending) reply.header('Retry-After', '1');
+        return response;
+      }
+
+      const spec: SpawnSpec = {
+        backend: backend as SpawnSpec['backend'],
+        ...(model ? { model } : {}),
+        ...(identity ? { identity } : {}),
+        ...(timeout ? { timeout } : {}),
+        ...(budgetUsd ? { budgetUsd } : {}),
+        task: note,
+        purpose,
+        workdir: workspaceIdentity.canonicalPath,
+        workspaceIdentity,
+        coordinationLifecycle: 'durable',
+        systemPrompt:
+          `You are the linked successor to Port Daddy session ${predecessorId}. `
+          + 'The predecessor transcript and evidence are immutable. Continue the stated direction in this isolated workspace, '
+          + 'leave durable Port Daddy notes, and report completion through the successor session.',
+        coordinationMetadata: {
+          continuation: {
+            schema: 'pd.session-continuation.v1',
+            predecessorSessionId: predecessorId,
+            receiptId: receipt.id,
+            requestedBy,
+          },
+        },
+      };
+
+      let acceptRun: ((accepted: SpawnAccepted) => void) | null = null;
+      const accepted = new Promise<SpawnAccepted>((resolve) => { acceptRun = resolve; });
+      const run = spawner.spawn(spec, (successor) => {
+        receipt = continuationReceipts.markStarting(receipt.id, {
+          successorAgentId: successor.agentId,
+          successorSessionId: successor.sessionId,
+          transcriptId: successor.transcriptId,
+        });
+        acceptRun?.(successor);
+      });
+      const trackedRun = run.then((result) => {
+        receipt = continuationReceipts.markStatus(
+          receipt.id,
+          agentRunStatusForSpawnResult(result),
+          { error: result.error },
+        );
+        return result;
+      }).catch((error) => {
+        receipt = continuationReceipts.markStatus(receipt.id, 'failed', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      });
+
+      const first = await Promise.race([
+        accepted.then((successor) => ({ kind: 'accepted' as const, successor })),
+        trackedRun.then((result) => ({ kind: 'completed' as const, result })),
+      ]);
+      if (first.kind === 'accepted') {
+        void trackedRun.catch((error) => {
+          metrics.errors++;
+          logger.error('session_continuation_run_error', {
+            predecessorId,
+            receiptId: receipt.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+        const response = continuationEnvelope(receipt, predecessor);
+        reply.code(202);
+        reply.header('Location', response.monitorUrl);
+        reply.header('Retry-After', '1');
+        logger.info('session_continuation_accepted', {
+          predecessorId,
+          successorSessionId: first.successor.sessionId,
+          successorAgentId: first.successor.agentId,
+          receiptId: receipt.id,
+        });
+        return response;
+      }
+
+      logger.info('session_continuation_not_admitted', {
+        predecessorId,
+        receiptId: receipt.id,
+        status: receipt.status,
+        error: first.result.error,
+      });
+      return continuationEnvelope(receipt, predecessor, { run: first.result });
+    } catch (error) {
+      if (error instanceof Error && /(is required|safe (?:text|identifier) boundary)/.test(error.message)) {
+        reply.code(400);
+        return { success: false, error: error.message, code: 'VALIDATION_ERROR' };
+      }
+      metrics.errors++;
+      logger.error('session_continuation_error', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      reply.code(500);
+      return { success: false, error: 'internal server error' };
+    }
+  });
+
+  // GET /sessions/continuations/:receiptId — Stable collection across HTTP
+  // disconnects and daemon restarts. Transcript presence alone never proves
+  // liveness; only a direct PID plus a fresh supervisor heartbeat does.
+  fastify.get('/sessions/continuations/:receiptId', async (request, reply) => {
+    if (!continuationReceipts || !spawner) {
+      reply.code(503);
+      return { success: false, error: 'session continuation runtime unavailable', code: 'RUNTIME_UNAVAILABLE' };
+    }
+    try {
+      const receiptId = String((request.params as { receiptId?: string }).receiptId ?? '');
+      let receipt = continuationReceipts.get(receiptId);
+      if (!receipt || receipt.kind !== 'session-continuation' || !receipt.predecessorSessionId) {
+        reply.code(404);
+        return { success: false, error: 'session continuation receipt not found', code: 'RECEIPT_NOT_FOUND' };
+      }
+      const predecessorResult = sessions.get(receipt.predecessorSessionId) as {
+        success?: boolean;
+        session?: Record<string, unknown>;
+      };
+      const predecessor = predecessorResult.session ?? {
+        id: receipt.predecessorSessionId,
+        purpose: null,
+        status: 'unavailable',
+      };
+      const agentId = receipt.successorAgentId;
+      const liveRecord = agentId
+        ? spawner.list().find((candidate) => candidate.agentId === agentId) ?? null
+        : null;
+      const liveProven = Boolean(
+        liveRecord?.pid
+        && liveRecord.pid > 0
+        && Date.now() - liveRecord.heartbeatAt < CONTINUATION_HEARTBEAT_FRESH_MS,
+      );
+      const run = agentId ? spawner.get(agentId) : null;
+      if (run && !['running', 'unknown'].includes(run.status)) {
+        receipt = continuationReceipts.markStatus(receipt.id, agentRunStatusForSpawnResult(run), {
+          error: run.error,
+        });
+      } else if (run?.status === 'unknown') {
+        receipt = continuationReceipts.markStatus(receipt.id, 'unknown', { error: run.error });
+      } else if (liveProven && (receipt.status === 'starting' || receipt.status === 'accepted')) {
+        receipt = continuationReceipts.markStatus(receipt.id, 'live');
+      } else if (receipt.status === 'live' && !liveProven) {
+        receipt = continuationReceipts.markStatus(receipt.id, 'unknown', {
+          error: 'The successor was previously live, but current PID and heartbeat evidence are unavailable.',
+        });
+      } else if (receipt.status === 'starting' && receipt.successorAgentId && !liveRecord && !run) {
+        receipt = continuationReceipts.markStatus(receipt.id, 'unknown', {
+          error: 'The successor was admitted, but its owning runtime is no longer observable.',
+        });
+      }
+      const response = continuationEnvelope(receipt, predecessor, { liveProven, liveRecord, run });
+      if (!response.terminal && !response.outcomeUnknown) reply.header('Retry-After', '1');
+      return response;
+    } catch (error) {
+      metrics.errors++;
+      logger.error('session_continuation_receipt_error', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      reply.code(500);
+      return { success: false, error: 'internal server error' };
+    }
+  });
+
+  fastify.delete('/sessions/continuations/:receiptId', async (request, reply) => {
+    if (!continuationReceipts || !spawner) {
+      reply.code(503);
+      return { success: false, error: 'session continuation runtime unavailable', code: 'RUNTIME_UNAVAILABLE' };
+    }
+    const receiptId = String((request.params as { receiptId?: string }).receiptId ?? '');
+    const receipt = continuationReceipts.get(receiptId);
+    if (!receipt || receipt.kind !== 'session-continuation' || !receipt.predecessorSessionId) {
+      reply.code(404);
+      return { success: false, error: 'session continuation receipt not found', code: 'RECEIPT_NOT_FOUND' };
+    }
+    if (receipt.successorAgentId && !TERMINAL_AGENT_RUN_STATUSES.has(receipt.status)) {
+      spawner.kill(receipt.successorAgentId);
+    }
+    const cancelled = TERMINAL_AGENT_RUN_STATUSES.has(receipt.status)
+      ? receipt
+      : continuationReceipts.markStatus(receipt.id, 'cancelled', { error: 'Cancelled by operator.' });
+    const predecessorResult = sessions.get(receipt.predecessorSessionId) as {
+      session?: Record<string, unknown>;
+    };
+    return continuationEnvelope(cancelled, predecessorResult.session ?? {
+      id: receipt.predecessorSessionId,
+      purpose: null,
+      status: 'unavailable',
+    });
   });
 
   // POST /sessions/:id/takeover - Non-destructively continue an existing session

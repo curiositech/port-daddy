@@ -16,9 +16,10 @@ import { KNOWN_BACKEND_IDS } from '../lib/backend-catalog.js';
 import type Database from 'better-sqlite3';
 import {
   AgentRunIdempotencyConflictError,
+  TERMINAL_AGENT_RUN_STATUSES,
+  agentRunStatusForSpawnResult,
   createAgentRunReceiptStore,
   type AgentRunReceipt,
-  type AgentRunReceiptStatus,
 } from '../lib/agent-run-receipts.js';
 
 interface SpawnRouteDeps {
@@ -64,15 +65,11 @@ function requestedModelFromRequest(
 // ==========================================================================
 export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (fastify, opts) => {
   const { metrics, logger, spawner, costTracker, db } = opts.deps;
+  // Recovery is idempotent: sessionsPlugin also opens this shared ledger so a
+  // standalone spawnPlugin and the full daemon both fail honest after restart.
   const receipts = createAgentRunReceiptStore(db);
 
   const receiptMonitorUrl = (receipt: AgentRunReceipt) => `/spawn/receipts/${encodeURIComponent(receipt.id)}`;
-  const runStatus = (result: SpawnResult): AgentRunReceiptStatus => {
-    if (result.agentId === 'blocked') return 'no_runtime';
-    if (result.status === 'killed') return 'cancelled';
-    if (result.status === 'running') return 'starting';
-    return result.status;
-  };
 
   fastify.post('/spawn/preflight', async (request, reply) => {
     try {
@@ -311,8 +308,8 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
           durableReceipt = admission.receipt;
           if (admission.replayed) {
             const monitorUrl = receiptMonitorUrl(durableReceipt);
-            const settled = ['completed', 'failed', 'cancelled', 'over_budget', 'no_runtime', 'unknown']
-              .includes(durableReceipt.status);
+            const settled = TERMINAL_AGENT_RUN_STATUSES.has(durableReceipt.status)
+              || durableReceipt.status === 'unknown';
             reply.code(settled ? 200 : 202);
             reply.header('Location', monitorUrl);
             if (!settled) reply.header('Retry-After', '1');
@@ -355,7 +352,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       });
       const trackedRun = durableReceipt
         ? run.then((result) => {
-            receipts.markStatus(durableReceipt!.id, runStatus(result), { error: result.error });
+            receipts.markStatus(durableReceipt!.id, agentRunStatusForSpawnResult(result), { error: result.error });
             return result;
           })
         : run;
@@ -431,7 +428,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       const liveProven = Boolean(live?.pid && live.pid > 0 && Date.now() - live.heartbeatAt < 65_000);
       if (liveProven && receipt.status === 'starting') receipt = receipts.markStatus(id, 'live');
       const outcomeUnknown = receipt.status === 'unknown';
-      const terminal = ['completed', 'failed', 'cancelled', 'over_budget', 'no_runtime'].includes(receipt.status);
+      const terminal = TERMINAL_AGENT_RUN_STATUSES.has(receipt.status);
       if (!terminal && !outcomeUnknown) reply.header('Retry-After', '1');
       return {
         success: terminal ? receipt.status === 'completed' : !outcomeUnknown,

@@ -75,4 +75,31 @@ describe('agent run receipt ledger', () => {
       error: expect.stringMatching(/outcome is unknown/i),
     }));
   });
+
+  test('terminal ownership is sticky while unknown may reconcile terminal evidence', () => {
+    const store = createAgentRunReceiptStore(db, { now: () => now });
+    const cancelled = store.accept({
+      idempotencyKey: 'sticky-terminal',
+      kind: 'spawn',
+      request: { backend: 'cli:codex', task: 'bounded' },
+    }).receipt;
+    store.markStatus(cancelled.id, 'cancelled', { error: 'operator cancelled' });
+    expect(store.markStatus(cancelled.id, 'completed')).toMatchObject({
+      status: 'cancelled',
+      error: 'operator cancelled',
+    });
+
+    const unknown = store.accept({
+      idempotencyKey: 'unknown-reconcile',
+      kind: 'session-continuation',
+      request: { predecessorId: 'session-a' },
+      predecessorSessionId: 'session-a',
+    }).receipt;
+    store.markStatus(unknown.id, 'unknown', { error: 'restart' });
+    expect(store.markStatus(unknown.id, 'live')).toMatchObject({ status: 'unknown' });
+    expect(store.markStatus(unknown.id, 'completed')).toMatchObject({
+      status: 'completed',
+      error: null,
+    });
+  });
 });
