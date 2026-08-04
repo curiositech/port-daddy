@@ -1,0 +1,22 @@
+{
+  "$schema": "internal://port-daddy/run-page-token-parity-vectors",
+  "description": "ADR-0120 cross-Worker parity gate for the run-page capability token. The relay (apps/relay/src/fleet-run-page.ts runPageToken) VERIFIES what the fleet-executor (apps/fleet-executor/src/run-page.ts runPageToken) MINTS: hex(HMAC-SHA256(secret, runId)). The two Workers deploy separately and each hand-implements the function, so both test suites assert these exact vectors — a divergence in either copy fails that app's CI. Regenerating these values to make a failing implementation pass is a security-relevant change; review it like a change to the verifier itself.",
+  "algorithm": "hex(HMAC-SHA256(key=utf8(secret), message=utf8(runId)))",
+  "vectors": [
+    {
+      "secret": "parity-vector-secret-0123456789abcdef",
+      "runId": "fr_0000000000000001",
+      "hmacHex": "1991d6a9bda8169cd409829310d42f26db750ceae76266d02e7d19c3c09e39af"
+    },
+    {
+      "secret": "parity-vector-secret-0123456789abcdef",
+      "runId": "a2c60bd1-52a8-4f1e-9017-8d5fd4e0a2b4",
+      "hmacHex": "d67dffac33465a3c469cf476279db28695cc3ba62fb7a8f315f35f2c4a237483"
+    },
+    {
+      "secret": "another-secret-with-32-plus-characters!",
+      "runId": "fr_deadbeefcafe",
+      "hmacHex": "cba717f1153533febd8ab3957e4f2f953a9bd99cff0c8178dcbf2377828df217"
+    }
+  ]
+}

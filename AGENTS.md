@@ -11,7 +11,7 @@ These landed on `main` in the last few weeks. The installed Homebrew `pd` binary
 - **Coast Guard — OS-sandbox confinement + compulsion rent** (`docs/adr/0050-coast-guard.md`; `lib/coast-guard.ts`, `lib/coast-guard/compulsion.ts`). Every spawned subprocess is confined (Seatbelt on macOS, bubblewrap/Landlock on Linux), managed secrets scrubbed from the child env, hard egress cap (`402 Spend Cap Exceeded`); wired into `lib/spawner.ts` as the default. The compulsion: an un-noted commit blocks the next commit (`requireNotePerCommit`); a silent, drifted sandbox becomes reclaim-eligible but reclaim never touches the live main checkout. Read path: `pd coast-guard status` (alias `pd cg`).
 - **Attest — honest self-report** (ADR-0045; `cli/commands/attest.ts`, `lib/attest.ts`). `pd attest` exits NON-ZERO when any CRITICAL invariant fails (safe for boot/CI gates); `pd attest --json` for the merged report. No subcommands.
 - **Tube — conversational pipe over channels** (`cli/commands/tube.ts`). Multi-subscriber, relay-independent. `pd tube <channel>` listens; `--send`, `--reply`, `--once`. Prefer a persistent tube channel over point-to-point inboxes for agent↔agent back-and-forth — see `## Architecture truths` below.
-- **Rust surfaces** (in `core/`): `core/pd-tui` (ratatui), `core/pd-bosun`, `core/harbor-card-rs`, and `core/pd-console` (GPUI operator console) are separate crates on `main` — there is **no single landed "rust kernel"**. `pd-console` is landed, but it is not the sibling kernel-rs runtime; reconcile against `## Architecture truths` and the pd-console lane rules before scaffolding any new Rust shell.
+- **Rust surfaces** (in `core/`): the kernel is landed at `core/kernel/` (pd-anchor / pd-mesh / pd-eventlog / pd-runtime / pd-core / pd-compat / pd-tui / pd-rs), alongside `core/pd-broker` (ADR-0087 TCB), `core/harbor-card-rs` (FFI), `core/pd-bosun`, and `core/pd-console` (GPUI operator console). **ADR-0120 is the standing boundary rule**: security primitives once, in Rust, FFI-reached, fixture-gated where FFI can't reach (Workers); product planes stay TypeScript on purpose; the console is Rust for GPU, not crypto. Reconcile against ADR-0120 and the pd-console lane rules before scaffolding any new Rust crate.
 - **Design-stage / in-flight (do NOT document as shipped):** marketplace (ADR-0051), trajectory export + RL loop (ADR-0052), out-of-band enforcement / "DOM DADDY" (ADR-0053, in-flight PR #366), and a release-cadence + Rust-surface-alignment ADR (ADR-0054, being written in parallel — the canonical answer to "is this in my installed `pd`?" once it lands). These are not on every branch; reference by number, do not invent their verbs.
 
 The PR review gate is **backend-agnostic**: any Port Daddy fleet agent — any backend, not specifically Claude — acting adversarial, skeptical, and PM-minded. Respond to every Copilot / bot review comment; create tests where you can. See `## Pull Request Operating Procedure`.
@@ -770,18 +770,20 @@ This rule has bitten us repeatedly when the daemon ran on a non-default port (CI
 
 ## Architecture truths — hard-won 2026-06-05 (read before any "console / Rust / coordination" work)
 
-- **There is already a Rust kernel: `~/coding/port-daddy-kernel-rs`** (sibling build,
-  WIP, ~2000 LOC). Crates map the product's spine: **pd-anchor** (signed cards +
-  capability envelopes + evidence roots = encryption / signed-access), **pd-mesh**
-  (anchor-authenticated mesh = *remote harbors*), **pd-eventlog** (WAL append-only =
-  the durable bus / suggestibility signal), **pd-runtime** (queue/scheduler = voyages),
-  **pd-core** (deterministic kernel transitions), **pd-tui/pd-rs** (the console).
-  **Do NOT scaffold yet-another Rust UI/daemon without reconciling here first** — the
-  TS repo's `core/pd-tui` (ratatui, landed), `core/pd-console` (the landed GPUI
-  on-bus, backend-agnostic, OKLCH conversation-multiplexer), and kernel-rs's
-  `pd-tui` are converging and must not fork into 3–4 rival shells.
-  On `main` today `core/` holds `pd-tui`, `pd-bosun`, `harbor-card-rs`, and `pd-console` —
-  there is no single landed "rust kernel," only separate crates.
+- **The Rust kernel is landed IN-TREE at `core/kernel/`** (formerly the sibling
+  `~/coding/port-daddy-kernel-rs` build — that path is history, stop citing it).
+  Crates map the product's spine: **pd-anchor** (signed cards + capability
+  envelopes + evidence roots + the CANONICAL macaroon discharge gate, ADR-0054),
+  **pd-mesh** (anchor-authenticated mesh = *remote harbors*), **pd-eventlog**
+  (WAL append-only = the durable bus), **pd-runtime** (queue/scheduler =
+  voyages), **pd-core** (deterministic kernel transitions), **pd-compat**
+  (read-only TS→Rust import bridge), **pd-tui/pd-rs** (kernel console/CLI).
+  **ADR-0120 is the standing boundary rule** — security primitives once, in
+  Rust; product planes TypeScript on purpose; parity fixtures wherever both
+  languages must speak one format. **Do NOT scaffold yet-another Rust
+  UI/daemon without reconciling against ADR-0120 first** — `core/pd-tui`
+  (ratatui, landed), `core/pd-console` (GPUI), and `core/kernel/pd-tui` must
+  not fork into rival shells.
 - **Coordinate over DURABLE ids/channels, never `cli-<pid>`.** `cli-<pid>` is ephemeral
   (new per CLI invocation) — two agents using it can never reach each other and there
   is no delivery receipt. `pd inbox`/`pd agents` now resolve `readCurrentContext().agentId`
