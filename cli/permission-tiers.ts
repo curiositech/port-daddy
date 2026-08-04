@@ -259,13 +259,18 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
 
   // Tender's operator suggestion queue. Reading and clearing are cheap; only
   // `approve` actually fires a ship run, so only it keeps the group's tier.
+  'suggest': 'silent',              // default subcommand = list
   'suggest list': 'silent',
   'suggest help': 'silent',
   'suggest dismiss': 'notify',
   'suggest approve': 'approval',
 
-  // Skill registry. The read verbs never leave the process; `sync` and `index`
-  // rewrite the on-disk catalog under ~/.port-daddy/skills.
+  // Skill registry. The read verbs mutate nothing (`outcomes` GETs
+  // /fleet/skills/outcomes from the daemon; the rest read the local catalog),
+  // while `sync` and `index` rewrite the on-disk catalog under
+  // ~/.port-daddy/skills.
+  'seamanship': 'silent',           // default subcommand = list
+  'skills': 'silent',               // default subcommand = list
   'seamanship list': 'silent',
   'seamanship search': 'silent',
   'seamanship show': 'silent',
