@@ -11,28 +11,39 @@ import time
 import urllib.request
 from pathlib import Path
 
-DAEMON = os.environ.get("PORT_DADDY_DAEMON_URL") or os.environ.get("PD_DAEMON_URL") or "http://127.0.0.1:9876"
 CHANNEL = os.environ.get("PD_TUBE_CHANNEL", "ui:clicks")
 REPO = Path(os.environ.get("PD_TUBE_REPO", os.getcwd())).resolve()
 SENDER = os.environ.get("PD_TUBE_SENDER", "sample-agent")
 PR_NUMBER = os.environ.get("PD_TUBE_PR")
 URL = ""
 
+def discover_daemon_url():
+    explicit = os.environ.get("PORT_DADDY_URL") or os.environ.get("PORT_DADDY_DAEMON_URL")
+    if explicit:
+        return explicit.rstrip("/")
+    port_file = Path(os.environ.get("PORT_DADDY_PORT_FILE", Path.home() / ".port-daddy" / "daemon.port"))
+    try:
+        port = int(port_file.read_text().strip())
+        if 1024 <= port <= 65535:
+            return f"http://127.0.0.1:{port}"
+    except (OSError, ValueError):
+        pass
+    raise RuntimeError("No Port Daddy daemon endpoint is published; select or start a daemon and retry.")
+
 def configure():
-    global DAEMON, CHANNEL, REPO, SENDER, PR_NUMBER, URL
+    global CHANNEL, REPO, SENDER, PR_NUMBER, URL
     parser = argparse.ArgumentParser(description="Respond to pd tube ui:clicks messages.")
-    parser.add_argument("--daemon", default=DAEMON, help="Port Daddy daemon URL")
+    parser.add_argument("--daemon", default=None, help="Explicit Port Daddy daemon URL; otherwise discover the selected daemon")
     parser.add_argument("--channel", default=CHANNEL, help="Tube channel to listen on")
     parser.add_argument("--repo", default=str(REPO), help="Repository path for local git/test inspection")
     parser.add_argument("--sender", default=SENDER, help="Sender name for replies")
     parser.add_argument("--pr", default=PR_NUMBER, help="Optional GitHub PR number to summarize")
     args = parser.parse_args()
-    DAEMON = args.daemon.rstrip("/")
     CHANNEL = args.channel
     REPO = Path(args.repo).expanduser().resolve()
     SENDER = args.sender
     PR_NUMBER = args.pr
-    URL = f"{DAEMON}/msg/{CHANNEL}"
+    URL = f"{(args.daemon or discover_daemon_url()).rstrip('/')}/msg/{CHANNEL}"
 
 def sh(args, timeout=20):
     try:

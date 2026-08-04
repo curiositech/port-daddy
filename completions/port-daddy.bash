@@ -17,18 +17,34 @@
 #   - curl (for dynamic completions from the running daemon)
 #
 # DYNAMIC COMPLETIONS:
-#   When the daemon is running on localhost:9876, completions for service
-#   identities, channels, locks, and agent IDs are fetched live.
+#   When a daemon endpoint is published, completions for service identities,
+#   channels, locks, and agent IDs are fetched live.
 #   If the daemon is not running, dynamic completions are silently skipped.
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-# Query the daemon with a 1-second timeout; print nothing on failure.
+# Resolve the explicit named-daemon URL or the canonical daemon's published port.
+_pd_base_url() {
+  if [[ -n "${PORT_DADDY_URL:-}" ]]; then
+    printf '%s\n' "${PORT_DADDY_URL%/}"
+    return 0
+  fi
+  local port_file="${PORT_DADDY_PORT_FILE:-${HOME}/.port-daddy/daemon.port}"
+  local port
+  [[ -r "$port_file" ]] || return 1
+  port="$(tr -cd '0-9' < "$port_file")"
+  [[ -n "$port" ]] || return 1
+  printf 'http://127.0.0.1:%s\n' "$port"
+}
+
+# Query the discovered daemon with a 1-second timeout; print nothing on failure.
 _pd_query() {
   local path="$1"
-  curl -s --max-time 1 "http://localhost:9876${path}" 2>/dev/null
+  local base
+  base="$(_pd_base_url)" || return 0
+  curl -s --max-time 1 "${base}${path}" 2>/dev/null
 }
 
 # Return a newline-separated list of active service IDs from the daemon.

@@ -12,30 +12,50 @@
 #   - curl (for dynamic completions from the running daemon)
 #
 # DYNAMIC COMPLETIONS:
-#   When the daemon is running on localhost:9876, completions for service
-#   identities, channels, locks, and agent IDs are fetched live.
+#   When a daemon endpoint is published, completions for service identities,
+#   channels, locks, and agent IDs are fetched live.
 
 # ---------------------------------------------------------------------------
 # Helpers — daemon queries
 # ---------------------------------------------------------------------------
 
+function __pd_base_url
+    if test -n "$PORT_DADDY_URL"
+        string replace -r '/$' '' -- "$PORT_DADDY_URL"
+        return 0
+    end
+    set -l port_file "$HOME/.port-daddy/daemon.port"
+    if test -n "$PORT_DADDY_PORT_FILE"
+        set port_file "$PORT_DADDY_PORT_FILE"
+    end
+    test -r "$port_file"; or return 1
+    set -l port (string replace -ar '[^0-9]' '' -- (string collect < "$port_file"))
+    test -n "$port"; or return 1
+    printf 'http://127.0.0.1:%s\n' "$port"
+end
+
+function __pd_query
+    set -l base (__pd_base_url); or return 0
+    curl -s --max-time 1 "$base$argv[1]" 2>/dev/null
+end
+
 function __pd_service_ids
-    curl -s --max-time 1 'http://localhost:9876/services' 2>/dev/null \
+    __pd_query '/services' \
         | string match -r '"id":"[^"]*"' | string replace -r '"id":"([^"]*)"' '$1'
 end
 
 function __pd_channels
-    curl -s --max-time 1 'http://localhost:9876/channels' 2>/dev/null \
+    __pd_query '/channels' \
         | string match -r '"name":"[^"]*"' | string replace -r '"name":"([^"]*)"' '$1'
 end
 
 function __pd_lock_names
-    curl -s --max-time 1 'http://localhost:9876/locks' 2>/dev/null \
+    __pd_query '/locks' \
         | string match -r '"name":"[^"]*"' | string replace -r '"name":"([^"]*)"' '$1'
 end
 
 function __pd_agent_ids
-    curl -s --max-time 1 'http://localhost:9876/agents' 2>/dev/null \
+    __pd_query '/agents' \
         | string match -r '"id":"[^"]*"' | string replace -r '"id":"([^"]*)"' '$1'
 end
 
