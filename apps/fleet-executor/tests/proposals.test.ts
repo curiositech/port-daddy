@@ -118,16 +118,6 @@ describe('renderProposalComment — REAL actionable syntax', () => {
     expect(body).toContain('Ready-to-paste agent prompt');
   });
 
-  it('parley → a real pd parley call command anchored on the evidence surface', () => {
-    const body = renderProposalComment(
-      [p({ action: 'parley', evidence: ['docs/adr/0095.md'], title: 'Resolve verb drift' })],
-      CTX,
-    );
-    // surface is quoted (it comes from untrusted evidence[0]).
-    expect(body).toContain('pd parley call --surface "docs/adr/0095.md"');
-    expect(body).toContain('--reason "Resolve verb drift"');
-  });
-
   it('skill → a pd dispatch propose that invokes the skill-architect skill', () => {
     const body = renderProposalComment(
       [p({ action: 'skill', prompt: 'make harbor fixtures trivial to author', title: 'Harbor fixture kit' })],
@@ -162,7 +152,7 @@ describe('renderProposalComment — REAL actionable syntax', () => {
 
   it('renders a severity badge for trouble-ahead proposals (lookout)', () => {
     const body = renderProposalComment(
-      [p({ action: 'parley', severity: 'HIGH', title: 'Contradiction ahead' })],
+      [p({ action: 'roadmap', severity: 'HIGH', title: 'Contradiction ahead' })],
       { ...CTX, shipName: 'lookout' },
     );
     expect(body).toContain('### ⚠ Contradiction ahead `HIGH`');
@@ -191,12 +181,12 @@ describe('slugify + contract', () => {
     expect(slugify('   ')).toBe('proposal');
   });
 
-  it('the ideation contract names the schema fields and the four actions', () => {
+  it('the ideation contract names the schema fields and the three actions', () => {
     const c = ideationOutputContract();
     for (const field of ['title', 'rationale', 'evidence', 'action', 'prompt', 'severity']) {
       expect(c).toContain(field);
     }
-    for (const action of ['roadmap', 'assign', 'parley', 'skill']) {
+    for (const action of ['roadmap', 'assign', 'skill']) {
       expect(c).toContain(action);
     }
   });
