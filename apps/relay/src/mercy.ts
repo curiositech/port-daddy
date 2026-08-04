@@ -40,6 +40,7 @@ import { lastFleetRunAt } from './db.js';
 import { randomHex } from './crypto.js';
 import { resolveSession } from './auth-github.js';
 import { HEAD, TOKENS } from './account-page.js';
+import { countOpenInterruptions } from './interruptions.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -498,6 +499,9 @@ export async function handleMercyStatus(env: Env): Promise<Response> {
     // Health store unreadable — report honestly as unknown, not a raw 500.
     row = null;
   }
+  // HITL: how many blocking asks are waiting on a human right now. A count is
+  // not a secret; titles/bodies stay off the public page. null when unreadable.
+  const openInterruptions = await countOpenInterruptions(env.DB);
   if (!row) {
     return Response.json(
       {
@@ -511,6 +515,7 @@ export async function handleMercyStatus(env: Env): Promise<Response> {
         snapshotAgeSec: null,
         stale: true,
         subsystems: [],
+        openInterruptions,
         note: 'no health snapshot available — the MERCY cron has not completed a sweep (or its table is unreadable)',
       },
       { headers: STATUS_HEADERS },
@@ -533,6 +538,7 @@ export async function handleMercyStatus(env: Env): Promise<Response> {
         status: s.status,
         latencyMs: s.latencyMs,
       })),
+      openInterruptions,
     },
     { headers: STATUS_HEADERS },
   );

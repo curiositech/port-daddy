@@ -318,3 +318,47 @@ CREATE TABLE IF NOT EXISTS mercy_incidents (
 CREATE UNIQUE INDEX IF NOT EXISTS mercy_incidents_open_uniq
   ON mercy_incidents (subsystem) WHERE resolved_at IS NULL;
 CREATE INDEX IF NOT EXISTS mercy_incidents_opened_idx ON mercy_incidents (opened_at);
+
+-- OPERATOR INTERRUPTIONS v1 — human-in-the-loop blocking asks
+-- (src/interruptions.ts). An agent that hits a blocking degradation escalates
+-- a real ask to the operator; the mercy cron nags on a decaying full-jitter
+-- schedule until answered/acked, then hard-stops (expired + one "gave up"
+-- page). next_nag_at / gave_up_paged_at advance ONLY on DELIVERED pages — the
+-- mercy paged_at dedupe pattern ("never two pages for the same stage").
+
+CREATE TABLE IF NOT EXISTS operator_interruptions (
+  id               TEXT    PRIMARY KEY,          -- 'oi_' || randomHex(8)
+  user_id          TEXT    NOT NULL,             -- operator scope (users.id)
+  installation_id  INTEGER,                      -- optional GitHub App installation scope
+  source_agent     TEXT    NOT NULL,             -- e.g. 'fleet-executor/purser'
+  source_session   TEXT,                         -- run/session id at the source
+  title            TEXT    NOT NULL,
+  body             TEXT    NOT NULL,
+  urgency          TEXT    NOT NULL CHECK (urgency IN ('low','normal','high','critical')),
+  state            TEXT    NOT NULL DEFAULT 'open'
+                           CHECK (state IN ('open','acked','answered','expired')),
+  answer           TEXT,                         -- operator's answer text (answered only)
+  created_at       INTEGER NOT NULL,             -- unix seconds
+  last_nagged_at   INTEGER,                      -- last DELIVERED page for this row
+  nag_count        INTEGER NOT NULL DEFAULT 0,   -- delivered nags (digest delivery counts)
+  decay_stage      INTEGER NOT NULL DEFAULT 0,   -- backoff stage; advances with nag_count
+  next_nag_at      INTEGER NOT NULL,             -- jittered due time; advances ONLY on delivery
+  closed_at        INTEGER,                      -- when it left 'open'
+  gave_up_paged_at INTEGER                       -- final "gave up" page delivery pin
+);
+CREATE INDEX IF NOT EXISTS interruptions_state_due_idx
+  ON operator_interruptions (state, next_nag_at);
+CREATE INDEX IF NOT EXISTS interruptions_user_idx
+  ON operator_interruptions (user_id, state);
+CREATE INDEX IF NOT EXISTS interruptions_source_idx
+  ON operator_interruptions (user_id, source_agent, created_at);
+
+-- Per-operator page-budget ledger: one row per DELIVERED page. Pruned at 24h.
+CREATE TABLE IF NOT EXISTS interruption_pages (
+  id      TEXT    PRIMARY KEY,                   -- 'ip_' || randomHex(8)
+  user_id TEXT    NOT NULL,
+  kind    TEXT    NOT NULL CHECK (kind IN ('nag','gave-up','digest')),
+  sent_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS interruption_pages_user_idx
+  ON interruption_pages (user_id, sent_at);
