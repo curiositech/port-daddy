@@ -37,6 +37,14 @@ main = "src/index.ts"
 compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Branded public origin. Requires the `portdaddy.dev` zone on this Cloudflare
+# account; `wrangler deploy` then provisions the cert + DNS for the hostname.
+# The Worker keeps its default *.workers.dev URL too, so already-minted run-page
+# links stay resolvable during the cutover.
+routes = [
+  { pattern = "relay.portdaddy.dev", custom_domain = true },
+]
+
 [vars]
 RELAY_VERSION = "0.1.0"
 EVENT_RETENTION_DAYS = "7"
@@ -50,7 +58,7 @@ RATE_LIMIT_WINDOW_MS = "60000"
 # relay's own origin and is the exact base of the registered redirect_uri.
 # Login is disabled until the two matching secrets are also set (see header).
 GITHUB_OAUTH_CLIENT_ID = "Iv23litgGckMU4QVW4i8"
-PUBLIC_BASE_URL = "https://port-daddy-relay.erich-owens.workers.dev"
+PUBLIC_BASE_URL = "https://relay.portdaddy.dev"
 
 [[d1_databases]]
 binding = "DB"
