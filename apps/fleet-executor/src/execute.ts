@@ -516,17 +516,6 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   const prNumber = job.prNumber;
   const prPayload = (job.payloadMinimal.pull_request as Record<string, unknown>) ?? {};
 
-  // --- KILL SWITCH ---------------------------------------------------------
-  // Checked at the very START, before any token mint, GitHub call, or AI spend.
-  // When paused we return normally so the queue handler acks the message: no
-  // work performed, nothing posted, no cost. (Returning early == acked.) Note:
-  // this leaves NO check run, so a paused fleet does not gate PRs at all —
-  // pausing is an explicit operator decision to stop reviewing entirely.
-  if (await isFleetPaused(env)) {
-    console.log(`[fleet-executor] delivery=${deliveryId} paused; skipping (no AI spend, no posts)`);
-    return;
-  }
-
   // Deterministic run id from the delivery id so a retried delivery rewrites its
   // own audit row + transcript (INSERT OR REPLACE) instead of duplicating.
   const runId = `run:${deliveryId}`;
@@ -537,6 +526,78 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   const transcript = new Transcript(env.DB, runId, (failure) =>
     emitTranscriptWriteFailureTelemetry(env, job, failure)
   );
+
+  // --- KILL SWITCH ---------------------------------------------------------
+  // Checked at the very START, before any AI spend or review/comment post.
+  // STILL posts a neutral 'Port Daddy Fleet' check — it must NEVER just
+  // return silently here. "Port Daddy Fleet" is a REQUIRED status check on
+  // the main-branch merge-queue ruleset (ALLGREEN grouping); an absent check
+  // blocks the WHOLE queue forever, not just this one run, and looks like
+  // nothing at all in GitHub's UI (no failing check to investigate — just
+  // permanent silence). This is exactly what happened 2026-07-16: an
+  // out-of-band `fleet:paused=true` (written straight into CONTROL_KV,
+  // bypassing the audited POST /v1/fleet/pause endpoint — no audit_log row
+  // exists for the toggle) left the check silently ABSENT on every PR for 4
+  // days, and every PR needed an admin bypass past a check that never even
+  // attempted to run. One token mint + one create/complete(neutral) check-run
+  // pair is a small, worthwhile cost to keep the gate legible while paused.
+  // Any infra failure here is swallowed (never thrown) so a broken pause path
+  // can never spiral into queue retries/DLQ churn — pausing must stay cheap.
+  if (await isFleetPaused(env)) {
+    console.log(`[fleet-executor] delivery=${deliveryId} paused; posting neutral check (no AI spend, no posts)`);
+    const head = prPayload.head as { sha?: unknown } | undefined;
+    const headSha = typeof head?.sha === 'string' ? head.sha : null;
+    if (!headSha) {
+      console.warn(`[fleet-executor] delivery=${deliveryId} paused; no head sha in payload, cannot post check`);
+      return;
+    }
+    try {
+      const token = await getInstallationTokenCached(
+        env.GITHUB_APP_ID,
+        env.GITHUB_APP_PRIVATE_KEY,
+        job.installationId,
+        env.FLEET_TOKENS,
+      );
+      let checkRunId = await findFleetCheckRun(owner, repo, headSha, CHECK_NAME, token).catch(
+        () => null,
+      );
+      if (!checkRunId) {
+        checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token, detailsUrl);
+      }
+      const summary =
+        'Fleet paused by operator; no automated review was performed for this delivery. ' +
+        'Resume the fleet (POST /v1/fleet/pause {"paused":false}) or review this PR manually.';
+      if (checkRunId) {
+        await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+      }
+      await transcript.step(
+        'check-completed',
+        null,
+        'Check concluded: neutral (paused at job start)',
+        { checkRunId, conclusion: 'neutral', reason: 'paused-at-start' },
+      );
+      const base = prPayload.base as { sha?: unknown } | undefined;
+      const stubPrCtx: PRContext = {
+        owner,
+        repo,
+        prNumber,
+        title: '',
+        body: '',
+        headSha,
+        baseSha: typeof base?.sha === 'string' ? base.sha : '',
+        installationId: job.installationId,
+        files: [],
+        diff: '',
+      };
+      await recordRunStart(env, runId, job, stubPrCtx, prNumber, []);
+      await recordRunEnd(env, runId, 'neutral', startMs);
+    } catch (err) {
+      console.error(
+        `[fleet-executor] delivery=${deliveryId} paused-check post failed: ${String(err)}`,
+      );
+    }
+    return;
+  }
 
   // --- Token (KV-cached; remint once on 401) -------------------------------
   let token: string;
