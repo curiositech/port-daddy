@@ -43,6 +43,8 @@ import {
 interface MemoryRouteDeps {
   episodicMemory: EpisodicMemory;
   db?: Database;
+  /** Note-encryption inspector — harvest skips encrypted-at-rest notes. */
+  noteEncryption?: { isEncrypted(content: string): boolean };
   blobs?: {
     store(content: string, opts: { mimeType?: string; agentId?: string; metadata?: Record<string, unknown> }): Promise<{ id: string }>;
   };
@@ -243,7 +245,7 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
               body.coordinationSessionId,
               opts.deps.db,
               {
-                episodicMemory,
+                noteEncryption: opts.deps.noteEncryption,
                 blobs: opts.deps.blobs,
               },
             );

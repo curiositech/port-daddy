@@ -70,6 +70,8 @@ import { createDispatchWorker } from './lib/dispatch/worker.js';
 import { runAutoMergeSweep } from './lib/dispatch/auto-merge.js';
 import { createConductorSpawnAdapter } from './lib/dispatch/conductor-adapter.js';
 import { createWorkIntentService } from './lib/agent-harbor/work-intent-service.js';
+import { recallEpisodes, SEARCH_QUERY_SCHEMA } from './lib/agent-harbor/memory-episodes.js';
+import { randomUUID } from 'node:crypto';
 import {
   gitWorktreeAdd,
   gitPushBranch,
@@ -586,7 +588,28 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const sugar = createSugar({ agents, sessions, activityLog, roadmapItems, feedback, commitments });
+// Task-conditioned recall closure for the welcome briefing (#3131 read path):
+// recallEpisodes over the harbor episode store, hybrid mode, with the shared
+// galaxyEmbedder (declared below; the closure only runs at request time, well
+// after startup). Budget is caller-supplied and engine-enforced.
+const recallMemoryForBriefing = async (
+  queryText: string,
+  budget: { maxResults: number; maxContextTokens: number },
+) => {
+  const result = await recallEpisodes(db, {
+    schema: SEARCH_QUERY_SCHEMA,
+    queryId: `welcome_${randomUUID()}`,
+    issuedAt: new Date().toISOString(),
+    issuedBy: { kind: 'daemon' },
+    queryText,
+    mode: 'hybrid',
+    sources: ['memory-episodes'],
+    budget,
+    retrievalHints: { fusion: 'rrf', recencyWeight: 0.2 },
+  }, { embedder: galaxyEmbedder });
+  return { hits: result.hits as unknown as Array<Record<string, unknown>>, budget: result.budget as unknown as Record<string, unknown>, engine: result.engine as unknown as Record<string, unknown> };
+};
+const sugar = createSugar({ agents, sessions, activityLog, roadmapItems, feedback, commitments, recallMemory: recallMemoryForBriefing });
 const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
@@ -923,6 +946,7 @@ const custodian = CUSTODIAN_ENABLED
       db,
       logger,
       episodicMemory: episodicMemory as any,
+      noteEncryption,
       messaging: messaging as any,
       resurrection,
       contextTracker: contextTracker as any,
@@ -1458,6 +1482,10 @@ await registerAllRoutes(
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
     harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, booty, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, durableAgentRoster, costTracker, cloudAppTelemetry, counters, metricsRegistry,
+    // Episodic-memory consolidation: harvest routes need the encryption
+    // inspector (skip encrypted-at-rest notes) and the shared embedder
+    // (hybrid recall — lexical-only is never a silent fallback).
+    noteEncryption, embedder: galaxyEmbedder,
     contextTracker,
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,

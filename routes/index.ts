@@ -383,8 +383,10 @@ export async function registerAllRoutes(
     await fastify.register(contextPlugin, { deps } as any);
   }
 
-  // Session harvest — mounts when episodicMemory dep is present (already gated above for memoryPlugin).
-  if ((deps as { episodicMemory?: unknown }).episodicMemory) {
+  // Session harvest — needs only db (harvest writes through the harbor
+  // persistEpisode gate now); embedder/noteEncryption arrive via deps when
+  // server.ts provides them, and the routes degrade honestly without them.
+  if ((deps as { db?: unknown }).db) {
     await fastify.register(harvestPlugin, { deps } as any);
   }
 

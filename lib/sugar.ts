@@ -124,6 +124,22 @@ interface SugarDeps {
   gitOriginChecker?: GitOriginChecker;
   feedback?: FeedbackModule;
   commitments?: CommitmentsModule;
+  /**
+   * Optional task-conditioned memory recall closure. server.ts wires this to
+   * recallEpisodes over the harbor episode store (ADR-0097 engine) with the
+   * shared embedder; the welcome briefing uses it so a new-shift agent's
+   * first daemon contact RECEIVES retrieved, cited episodes. When absent the
+   * relatedMemory section reports unavailable — honestly, not as an empty hit
+   * list that looks like "nothing relevant exists".
+   */
+  recallMemory?: (
+    queryText: string,
+    budget: { maxResults: number; maxContextTokens: number },
+  ) => Promise<{
+    hits: Array<Record<string, unknown>>;
+    budget: Record<string, unknown>;
+    engine?: Record<string, unknown>;
+  }>;
 }
 
 interface BeginOptions {
@@ -1446,7 +1462,7 @@ export function createSugar(deps: SugarDeps) {
     return response;
   }
 
-  function getWelcomeBriefing(harbor?: string) {
+  async function getWelcomeBriefing(harbor?: string) {
     const nextHarbor = harbor || 'fleet';
     
     // 1. Next most important thing on the roadmap
@@ -1512,12 +1528,60 @@ export function createSugar(deps: SugarDeps) {
       }
     }
 
+    // 5. Related memory — task-conditioned recall over the harbor episode
+    // store (binder ch04: recall is conditioned on the task at hand, so the
+    // query is the shift's actual work: next roadmap item + high-pri bugs).
+    // Hits carry citations — the citation is the truth, the snippet is a
+    // convenience copy.
+    const queryParts: string[] = [];
+    if (nextRoadmap) {
+      const title = String(nextRoadmap.summaryMd ?? nextRoadmap.slug ?? '').split('\n')[0].trim();
+      if (title) queryParts.push(title);
+    }
+    for (const bug of highPriBugs.slice(0, 3)) {
+      const title = String(bug.summary ?? bug.slug ?? '').split('\n')[0].trim();
+      if (title) queryParts.push(title);
+    }
+    const memoryQueryText = queryParts.join('\n').trim();
+
+    let relatedMemory: Record<string, unknown>;
+    if (!deps.recallMemory) {
+      relatedMemory = { available: false, reason: 'memory recall is not wired into this sugar provider' };
+    } else if (!memoryQueryText) {
+      relatedMemory = { available: false, reason: 'no roadmap item or high-priority bug to condition recall on' };
+    } else {
+      try {
+        const recall = await deps.recallMemory(memoryQueryText, { maxResults: 5, maxContextTokens: 1200 });
+        relatedMemory = {
+          available: true,
+          queryText: memoryQueryText,
+          budget: recall.budget,
+          hits: recall.hits.map((hit) => ({
+            episodeId: hit.episodeId ?? null,
+            snippet: hit.snippet ?? null,
+            score: hit.score ?? 0,
+            citations: hit.citations ?? [],
+            sessionId: hit.sessionId ?? null,
+            retrieve: typeof hit.sessionId === 'string' && hit.sessionId ? `pd session ${hit.sessionId}` : null,
+          })),
+        };
+      } catch (error) {
+        // The briefing must not fail because recall did; report the degraded
+        // section honestly instead of silently omitting it.
+        relatedMemory = {
+          available: false,
+          reason: `memory recall failed: ${error instanceof Error ? error.message : String(error)}`,
+        };
+      }
+    }
+
     return {
       success: true,
       nextRoadmap,
       ongoing,
       highPriBugs,
       dormant,
+      relatedMemory,
     };
   }
 

@@ -83,10 +83,12 @@ export const TIER_TABLE: ReadonlyArray<Omit<TierRow, 'count' | 'countError'>> = 
     // TODO: when /skill-index/count lands on the daemon, add a dedicated
     // `skill-index` construct here. Today's /memory/stats route emits the
     // episodic-memory total; this row honestly names what it is.
+    // (Legacy store, deprecated: harvested notes now land in the harbor
+    // episode store — see lib/agent-harbor/memory-episodes.ts.)
     construct: 'episodic-memory',
     tier: 'Archival',
-    eviction: 're-embed on edit',
-    access: 'pd skill find',
+    eviction: 'per-type TTL, read-enforced (expired rows hidden from list); custodian marks archived',
+    access: 'pd memory episodes / pd memory find',
   },
   {
     construct: 'salvageable-sessions',

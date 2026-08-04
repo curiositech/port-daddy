@@ -14,10 +14,13 @@
  * (lib/agent-harbor/event-ledger.ts): the ledger is never written here, only
  * read. Episodes live in their own tables because supersession closure
  * ("closing their validUntil is the runtime effect", memory-episode schema)
- * is a legitimate mutation of a distillation, not of a fact of record. The
- * pre-existing lib/episodic-memory.ts is Port Daddy's older note-promotion
- * system and is intentionally untouched; this module is the agent-harbor
- * contract implementation.
+ * is a legitimate mutation of a distillation, not of a fact of record.
+ *
+ * This module is THE episode store. The pre-existing lib/episodic-memory.ts
+ * is the deprecated legacy note-promotion system, now a read-only transition
+ * surface: session-note harvesting (lib/session-harvest.ts) persists through
+ * `persistEpisode` below, and the legacy table is dropped when the
+ * deprecation window closes (see lib/episodic-memory.ts header).
  *
  * Skill grafts honored (cited in the PR):
  *   - episodic-memory-algorithms: bi-temporal validity (validFrom/validUntil

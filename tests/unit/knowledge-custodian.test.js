@@ -59,6 +59,14 @@ afterEach(() => {
   db.close();
 });
 
+function harborEpisodeCount() {
+  try {
+    return db.prepare('SELECT COUNT(*) as n FROM harbor_memory_episodes').get().n;
+  } catch {
+    return 0; // table only exists once a harvest has run
+  }
+}
+
 describe('Duty: harvest', () => {
   test('harvests stale active sessions', async () => {
     const staleOffset = -(35 * 60 * 1000); // 35 minutes ago
@@ -68,8 +76,9 @@ describe('Duty: harvest', () => {
     const custodian = makeCustodian();
     await custodian.runHarvestDuty();
 
-    const episodes = db.prepare('SELECT COUNT(*) as n FROM episodic_memory').get();
-    expect(episodes.n).toBe(1);
+    expect(harborEpisodeCount()).toBe(1);
+    // The legacy store gains ZERO rows — the write path moved (P1).
+    expect(db.prepare('SELECT COUNT(*) as n FROM episodic_memory').get().n).toBe(0);
   });
 
   test('does not harvest recent sessions (< 30 min inactive)', async () => {
@@ -79,8 +88,7 @@ describe('Duty: harvest', () => {
     const custodian = makeCustodian();
     await custodian.runHarvestDuty();
 
-    const episodes = db.prepare('SELECT COUNT(*) as n FROM episodic_memory').get();
-    expect(episodes.n).toBe(0);
+    expect(harborEpisodeCount()).toBe(0);
   });
 
   test('onSessionEnd triggers immediate harvest', async () => {
@@ -90,8 +98,7 @@ describe('Duty: harvest', () => {
     const custodian = makeCustodian();
     await custodian.onSessionEnd('sess-end');
 
-    const episodes = db.prepare('SELECT COUNT(*) as n FROM episodic_memory').get();
-    expect(episodes.n).toBe(1);
+    expect(harborEpisodeCount()).toBe(1);
   });
 });
 

@@ -31,7 +31,11 @@ function sessionIdOf(startResult: any): string {
 }
 
 function episodeCount(): number {
-  return (db.prepare('SELECT COUNT(*) as n FROM episodic_memory').get() as { n: number }).n;
+  try {
+    return (db.prepare('SELECT COUNT(*) as n FROM harbor_memory_episodes').get() as { n: number }).n;
+  } catch {
+    return 0; // table only exists once a harvest has run
+  }
 }
 
 function makeCustodian(extraDeps: Record<string, unknown> = {}, logSink: Array<{ msg: string; meta?: Record<string, unknown> }> = []) {
@@ -75,8 +79,12 @@ describe('onSessionEnd — real server.ts agent:dead wiring pattern', () => {
     for (const sid of abandonedSessionIds) await custodian.onSessionEnd(sid);
 
     expect(episodeCount()).toBe(1);
-    const episode = db.prepare('SELECT source_type, source_id FROM episodic_memory').get() as any;
-    expect(episode.source_type).toBe('note');
+    const episode = db.prepare('SELECT episode_id, session_id, payload_json FROM harbor_memory_episodes').get() as any;
+    expect(episode.episode_id).toMatch(/^note-[0-9a-f]{24}$/);
+    expect(episode.session_id).toBe(sessionId);
+    // Citation discipline: the episode cites the session note it came from.
+    const payload = JSON.parse(episode.payload_json);
+    expect(payload.citations[0].claimRef).toMatch(new RegExp(`^session-note:${sessionId}:`));
   });
 
   test('harvests every session an agent had active, not just the first (matches the real for..of loop)', async () => {
@@ -135,11 +143,11 @@ describe('onSessionEnd — edge cases (per pd-qa finding)', () => {
     expect(sessions.addNote(sessionId, 'this note will fail to promote', { type: 'finding' }).success).toBe(true);
 
     const logSink: Array<{ msg: string; meta?: Record<string, unknown> }> = [];
-    const explodingEpisodicMemory = {
-      archiveExpired() { return 0; },
-      remember() { throw new Error('boom: episodic store unavailable'); },
-    };
-    const custodian = makeCustodian({ episodicMemory: explodingEpisodicMemory }, logSink);
+    // Force harvestSession itself to fail: hide the session_notes table so the
+    // note-loading query throws (the harvest no longer calls episodicMemory.
+    // remember, so an exploding legacy store can't simulate failure anymore).
+    db.exec('ALTER TABLE session_notes RENAME TO session_notes_hidden');
+    const custodian = makeCustodian({}, logSink);
 
     // server.ts calls this fire-and-forget (`void custodian.onSessionEnd(sid)`) — nothing
     // awaits or catches it there, so a rejection here would surface as an unhandled

@@ -11,8 +11,6 @@ import {
   episodeExpiresAt,
   NOTE_TYPE_TO_EPISODE,
 } from '../../lib/episodic-memory.js';
-import { harvestSession } from '../../lib/session-harvest.js';
-import { createSessions } from '../../lib/sessions.js';
 
 const DAY = 86_400_000;
 
@@ -51,6 +49,17 @@ describe('Phase 2 episode types and TTLs', () => {
   test('NOTE_TYPE_TO_EPISODE maps all core note types', () => {
     for (const [, episodeType] of Object.entries(NOTE_TYPE_TO_EPISODE)) {
       expect(EPISODE_TYPES).toContain(episodeType);
+    }
+  });
+
+  test('UNKNOWN types default to 30d expiry — unknown → forgettable, never → permanent', () => {
+    // Sortie writers use types like blocked/completed/failed that are not in
+    // EPISODE_TTLS. The old null default made them immortal.
+    for (const t of ['blocked', 'completed', 'failed', 'some-future-type']) {
+      const val = episodeExpiresAt(t);
+      expect(typeof val).toBe('string');
+      const diff = new Date(val).getTime() - Date.now();
+      expect(Math.abs(diff - 30 * DAY)).toBeLessThan(5000);
     }
   });
 });
@@ -113,7 +122,7 @@ describe('Phase 2 remember() — new columns', () => {
     expect(row.expires_at).toBe(custom);
   });
 
-  test('listExpired returns episodes past expiresAt', () => {
+  test('list() never serves expired episodes — TTL is read-enforced (P3)', () => {
     const past = new Date(Date.now() - 1000).toISOString();
     memory.remember({
       episodeType: 'note',
@@ -131,12 +140,15 @@ describe('Phase 2 remember() — new columns', () => {
       sourceId: 'note-perm-1',
     });
 
-    const expired = memory.listExpired();
-    expect(expired).toHaveLength(1);
-    expect(expired[0].title).toBe('Old note');
+    const listed = memory.list();
+    expect(listed).toHaveLength(1);
+    expect(listed[0].title).toBe('Permanent design');
+    // The expired row still exists in the table — hidden, not deleted.
+    const all = db.prepare('SELECT COUNT(*) as n FROM episodic_memory').get();
+    expect(all.n).toBe(2);
   });
 
-  test('archiveExpired marks expired episodes without deleting them', () => {
+  test('archiveExpired marks expired episodes without deleting them, and is idempotent (P3)', () => {
     const past = new Date(Date.now() - 1000).toISOString();
     memory.remember({
       episodeType: 'handoff',
@@ -156,158 +168,13 @@ describe('Phase 2 remember() — new columns', () => {
     const row = db.prepare('SELECT metadata FROM episodic_memory WHERE 1=1').get();
     const meta = JSON.parse(row.metadata || '{}');
     expect(meta.archived).toBe(1);
+
+    // Second run must NOT re-mark the same rows (the old TTL theater: every
+    // 6h duty reported phantom `changes` forever).
+    expect(memory.archiveExpired()).toBe(0);
   });
 });
 
-describe('harvestSession — recall→precision idempotency', () => {
-  let db;
-  let memory;
-  let sessions;
-
-  beforeEach(() => {
-    db = createTestDb();
-    memory = createEpisodicMemory(db);
-    sessions = createSessions(db);
-  });
-
-  afterEach(() => {
-    db.close();
-  });
-
-  function seedSession(sessionId, notes) {
-    // Insert session row directly
-    db.prepare(
-      `INSERT OR IGNORE INTO sessions (id, agent_id, purpose, status, identity_project, created_at, updated_at)
-       VALUES (?, 'agent-test', 'test purpose', 'active', 'test-project', ?, ?)`
-    ).run(sessionId, Date.now(), Date.now());
-
-    for (const { content, type } of notes) {
-      db.prepare(
-        `INSERT INTO session_notes (session_id, content, type, created_at) VALUES (?, ?, ?, ?)`
-      ).run(sessionId, content, type, Date.now());
-    }
-  }
-
-  test('promotes all session notes to episodes', async () => {
-    const sessionId = 'sess-harvest-1';
-    seedSession(sessionId, [
-      { content: 'Finding: auth tokens need rotation', type: 'finding' },
-      { content: 'Handoff: resume from token rotation PR', type: 'handoff' },
-    ]);
-
-    const result = await harvestSession(sessionId, db, { episodicMemory: memory });
-    expect(result.promoted).toBe(2);
-    expect(result.skipped).toBe(0);
-    expect(result.episodeIds).toHaveLength(2);
-  });
-
-  test('idempotent — second harvest skips already-promoted notes', async () => {
-    const sessionId = 'sess-harvest-2';
-    seedSession(sessionId, [
-      { content: 'Design decision: use FTS5 for search', type: 'finding' },
-    ]);
-
-    const r1 = await harvestSession(sessionId, db, { episodicMemory: memory });
-    expect(r1.promoted).toBe(1);
-
-    const r2 = await harvestSession(sessionId, db, { episodicMemory: memory });
-    expect(r2.promoted).toBe(0);
-    expect(r2.skipped).toBe(1);
-
-    // Only one episode in DB
-    const rows = db.prepare("SELECT COUNT(*) as n FROM episodic_memory").get();
-    expect(rows.n).toBe(1);
-  });
-
-  test('large note (>10KB) goes to blob store with pointer stub in episode', async () => {
-    const sessionId = 'sess-harvest-blob';
-    const bigContent = 'A'.repeat(12_000);
-    seedSession(sessionId, [{ content: bigContent, type: 'note' }]);
-
-    const blobWrites = [];
-    const blobs = {
-      async store(content, opts) {
-        blobWrites.push({ content, opts });
-        return { id: 'blob-test-001' };
-      },
-    };
-
-    const result = await harvestSession(sessionId, db, { episodicMemory: memory, blobs });
-    expect(result.promoted).toBe(1);
-    expect(blobWrites).toHaveLength(1);
-
-    // Episode summary should be pointer stub
-    const ep = db.prepare('SELECT summary, blob_id FROM episodic_memory WHERE 1=1').get();
-    expect(ep.summary).toContain('blob-test-001');
-    expect(ep.blob_id).toBe('blob-test-001');
-  });
-
-  test('small note does not go to blob store', async () => {
-    const sessionId = 'sess-harvest-small';
-    seedSession(sessionId, [{ content: 'Short note content', type: 'note' }]);
-
-    const blobWrites = [];
-    const blobs = {
-      async store(content, opts) {
-        blobWrites.push({ content, opts });
-        return { id: 'blob-should-not-be-used' };
-      },
-    };
-
-    await harvestSession(sessionId, db, { episodicMemory: memory, blobs });
-    expect(blobWrites).toHaveLength(0);
-  });
-
-  test('blob store failure does not fail harvest — stores inline', async () => {
-    const sessionId = 'sess-harvest-blobfail';
-    const bigContent = 'B'.repeat(12_000);
-    seedSession(sessionId, [{ content: bigContent, type: 'note' }]);
-
-    const blobs = {
-      async store() {
-        throw new Error('blob store unavailable');
-      },
-    };
-
-    const result = await harvestSession(sessionId, db, { episodicMemory: memory, blobs });
-    expect(result.promoted).toBe(1);
-  });
-
-  test('derives title from first line of note content', async () => {
-    const sessionId = 'sess-harvest-title';
-    seedSession(sessionId, [
-      { content: 'Auth system uses JWT tokens\nMore detail here\nAnd more', type: 'finding' },
-    ]);
-
-    await harvestSession(sessionId, db, { episodicMemory: memory });
-    const ep = db.prepare('SELECT title FROM episodic_memory WHERE 1=1').get();
-    expect(ep.title).toBe('Auth system uses JWT tokens');
-  });
-
-  test('falls back to session purpose for title when first line is too long', async () => {
-    const sessionId = 'sess-harvest-longtitle';
-    const longFirstLine = 'X'.repeat(200);
-    seedSession(sessionId, [
-      { content: `${longFirstLine}\nsecond line`, type: 'note' },
-    ]);
-    // Update purpose
-    db.prepare("UPDATE sessions SET purpose = 'my-session-purpose', updated_at = ? WHERE id = ?").run(Date.now(), sessionId);
-
-    await harvestSession(sessionId, db, { episodicMemory: memory });
-    const ep = db.prepare('SELECT title FROM episodic_memory WHERE 1=1').get();
-    expect(ep.title).toContain('my-session-purpose');
-  });
-
-  test('returns empty result for session with no notes', async () => {
-    const sessionId = 'sess-harvest-empty';
-    db.prepare(
-      `INSERT OR IGNORE INTO sessions (id, agent_id, purpose, status, created_at, updated_at)
-       VALUES (?, 'agent-test', 'empty', 'active', ?, ?)`
-    ).run(sessionId, Date.now(), Date.now());
-
-    const result = await harvestSession(sessionId, db, { episodicMemory: memory });
-    expect(result.episodeIds).toHaveLength(0);
-    expect(result.promoted).toBe(0);
-    expect(result.skipped).toBe(0);
-  });
-});
+// harvestSession tests moved to tests/unit/session-harvest.test.ts — the
+// harvest now persists harbor MemoryEpisodes via persistEpisode (ADR-0097
+// engine), not legacy episodic_memory rows.

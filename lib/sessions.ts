@@ -1437,17 +1437,12 @@ export function createSessions(
     const result = stmts.insertNote.run(sessionId, storedContent, type, now);
     const noteId = Number(result.lastInsertRowid);
 
-    rememberEpisode(
-      session,
-      type,
-      `${sessionId}:note:${noteId}`,
-      `${session.agent_id || 'agent'} ${type}`,
-      trimmedContent,
-      {
-        sessionId,
-        noteType: type,
-      },
-    );
+    // NOTE: no eager episode write here. Session notes are promoted to memory
+    // episodes exclusively by harvestSession (lib/session-harvest.ts) at
+    // session end / custodian duty / POST /harvest — one gate, with outcome
+    // context, citations, and encryption discipline. The old inline
+    // rememberEpisode call double-wrote every note as a citation-free legacy
+    // episode AND leaked plaintext of encrypted notes into the legacy store.
 
     if (activityLog) {
       activityLog.log(ActivityType.SESSION_NOTE, {

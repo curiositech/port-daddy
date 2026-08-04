@@ -1136,7 +1136,7 @@ describe('sugar lifecycle', () => {
     expect(beginRes2.sessionId).not.toBe(beginRes1.sessionId);
   });
 
-  it('should generate a welcome briefing with roadmap, ongoing, high-pri bugs, and dormant sessions', () => {
+  it('should generate a welcome briefing with roadmap, ongoing, high-pri bugs, and dormant sessions', async () => {
     const { sugar, feedback } = setup();
 
     // 1. Add some open high-pri feedback
@@ -1161,11 +1161,87 @@ describe('sugar lifecycle', () => {
       agentId: 'test-agent-welcome',
     });
 
-    const welcome = sugar.getWelcomeBriefing('fleet');
+    const welcome = await sugar.getWelcomeBriefing('fleet');
     expect(welcome.success).toBe(true);
     expect(welcome.ongoing.length).toBe(1);
     expect(welcome.ongoing[0].purpose).toBe('Live ongoing feature work');
     expect(welcome.highPriBugs.length).toBe(1);
     expect(welcome.highPriBugs[0].slug).toBe('critical-bug');
+    // No recallMemory dep wired in this setup — the section must say so
+    // honestly instead of pretending nothing relevant exists.
+    expect(welcome.relatedMemory.available).toBe(false);
+    expect(welcome.relatedMemory.reason).toMatch(/not wired/);
+  });
+
+  it('welcome briefing relatedMemory: task-conditioned recall with cited hits (P8 shape, budget-capped)', async () => {
+    const recallCalls = [];
+    const { feedback } = setup();
+    const recallMemory = async (queryText, budget) => {
+      recallCalls.push({ queryText, budget });
+      return {
+        hits: [
+          {
+            episodeId: 'note-abc123',
+            snippet: 'Deployed pd-console via cargo-bundle + notarytool',
+            score: 0.91,
+            citations: [{ kind: 'claim', claimRef: 'session-note:sess-1:7', sessionId: 'sess-1' }],
+            sessionId: 'sess-1',
+          },
+        ],
+        budget: { configured: { maxResults: 5, maxContextTokens: 1200 }, used: { results: 1, contextTokensEstimate: 12 }, truncated: false },
+      };
+    };
+    const { createSugar } = await import('../../lib/sugar.js');
+    feedback.list = () => [
+      {
+        feedbackId: 'fb-2',
+        slug: 'stale-recall-bug',
+        summary: 'Recall drops old exact matches',
+        severity: 'high',
+        status: 'open',
+        droppedBy: 'operator',
+        surface: 'daemon',
+        at: Date.now(),
+      },
+    ];
+    const sugarWithRecall = createSugar({
+      agents: { register: () => ({ success: true }), unregister: () => ({ success: true }), get: () => ({}) },
+      sessions: { start: () => ({}), end: () => ({}), list: () => ({ sessions: [] }), get: () => ({}), getNotes: () => ({}), claimFiles: () => ({}) },
+      activityLog: { log: () => {} },
+      feedback,
+      recallMemory,
+    });
+
+    const welcome = await sugarWithRecall.getWelcomeBriefing('fleet');
+    expect(welcome.success).toBe(true);
+    expect(welcome.relatedMemory.available).toBe(true);
+    // Task-conditioned: the query text is the shift's actual work items.
+    expect(recallCalls).toHaveLength(1);
+    expect(recallCalls[0].queryText).toContain('Recall drops old exact matches');
+    // Budget passed through as an enforced cap (P5).
+    expect(recallCalls[0].budget).toEqual({ maxResults: 5, maxContextTokens: 1200 });
+    // Hits carry citations — the citation is the truth.
+    expect(welcome.relatedMemory.hits).toHaveLength(1);
+    expect(welcome.relatedMemory.hits[0].episodeId).toBe('note-abc123');
+    expect(welcome.relatedMemory.hits[0].citations[0].claimRef).toBe('session-note:sess-1:7');
+    expect(welcome.relatedMemory.hits[0].retrieve).toBe('pd session sess-1');
+  });
+
+  it('welcome briefing reports recall failure honestly instead of failing the briefing', async () => {
+    const { createSugar } = await import('../../lib/sugar.js');
+    const sugarWithBrokenRecall = createSugar({
+      agents: { register: () => ({ success: true }), unregister: () => ({ success: true }), get: () => ({}) },
+      sessions: { start: () => ({}), end: () => ({}), list: () => ({ sessions: [] }), get: () => ({}), getNotes: () => ({}), claimFiles: () => ({}) },
+      activityLog: { log: () => {} },
+      feedback: {
+        list: () => [{ feedbackId: 'fb-3', slug: 's', summary: 'High-pri thing', severity: 'high', status: 'open', droppedBy: 'op', surface: null, at: Date.now() }],
+      },
+      recallMemory: async () => { throw new Error('embedder unavailable'); },
+    });
+
+    const welcome = await sugarWithBrokenRecall.getWelcomeBriefing('fleet');
+    expect(welcome.success).toBe(true);
+    expect(welcome.relatedMemory.available).toBe(false);
+    expect(welcome.relatedMemory.reason).toMatch(/embedder unavailable/);
   });
 });

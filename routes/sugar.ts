@@ -15,7 +15,7 @@ interface SugarRouteDeps {
     done(options: Record<string, unknown>): Record<string, unknown>;
     whoami(options: Record<string, unknown>): Record<string, unknown>;
     relink(options: Record<string, unknown>): Record<string, unknown>;
-    getWelcomeBriefing?(harbor?: string): Record<string, unknown>;
+    getWelcomeBriefing?(harbor?: string): Record<string, unknown> | Promise<Record<string, unknown>>;
   };
   metrics: { errors: number };
   logger: {
@@ -264,7 +264,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
     try {
       const harbor = typeof (request.query as any).harbor === 'string' ? (request.query as any).harbor : undefined;
       if (sugar.getWelcomeBriefing) {
-        return sugar.getWelcomeBriefing(harbor);
+        return await sugar.getWelcomeBriefing(harbor);
       }
       return { success: false, error: 'Welcome briefing not supported by this sugar provider' };
     } catch (error) {

@@ -1,3 +1,18 @@
+/**
+ * LEGACY episodic memory store — read-mostly transition surface.
+ *
+ * The surviving episode engine is lib/agent-harbor/memory-episodes.ts
+ * (`persistEpisode`/`recallEpisodes`, ADR-0097): mandatory citations,
+ * read-enforced validity, budget-capped hybrid retrieval. Session-note
+ * harvesting (lib/session-harvest.ts) writes THERE, not here.
+ *
+ * This store's rows carry no citations and no validity intervals, so they
+ * cannot be migrated losslessly into the v0 contract — we do not
+ * fake-migrate. Legacy rows stay queryable via `pd memory episodes` behind
+ * an honest expiry filter until the deprecation window closes (slice 3
+ * drops the table). Remaining writers (handoff-capsule replay, sorties,
+ * session-end handoff notes) migrate in slice 2.
+ */
 import type Database from 'better-sqlite3';
 import type { GraphEdges } from './graph-edges.js';
 import { collectSemanticAliases } from './semantic-terms.js';
@@ -31,10 +46,17 @@ export const EPISODE_TTLS: Record<EpisodeTypeName, number> = {
   note:      30 * DAY,
 };
 
-/** Compute ISO expiry for a given episode type, or null for permanent types. */
+/**
+ * Compute ISO expiry for a given episode type, or null for permanent types.
+ *
+ * Unknown types default to 30d — unknown → forgettable, never → permanent.
+ * (The old `null` default made every unrecognized type immortal, so sortie
+ * noise like `blocked`/`completed`/`failed` accumulated forever.)
+ */
 export function episodeExpiresAt(type: string): string | null {
   const ttl = EPISODE_TTLS[type as EpisodeTypeName];
-  if (!ttl || !Number.isFinite(ttl)) return null;
+  if (ttl === undefined) return new Date(Date.now() + 30 * DAY).toISOString();
+  if (!Number.isFinite(ttl)) return null;
   return new Date(Date.now() + ttl).toISOString();
 }
 
@@ -304,6 +326,7 @@ export function createEpisodicMemory(db: Database.Database, options: EpisodicMem
           summary LIKE ? OR
           source_id LIKE ?
         )
+        AND (expires_at IS NULL OR expires_at > ?)
       ORDER BY updated_at DESC, id DESC
       LIMIT ?
     `),
@@ -480,6 +503,7 @@ export function createEpisodicMemory(db: Database.Database, options: EpisodicMem
       query,
       query,
       query,
+      new Date().toISOString(),
       Math.min(Math.max(options.limit ?? 100, 1), 500),
     ) as EpisodeRow[];
     return rows.map(toEpisode);
@@ -524,21 +548,14 @@ export function createEpisodicMemory(db: Database.Database, options: EpisodicMem
     };
   }
 
-  function listExpired(before?: string): Episode[] {
-    const cutoff = before ?? new Date().toISOString();
-    const rows = db.prepare(`
-      SELECT * FROM episodic_memory
-      WHERE expires_at IS NOT NULL AND expires_at < ?
-      ORDER BY expires_at ASC
-    `).all(cutoff) as EpisodeRow[];
-    return rows.map(toEpisode);
-  }
-
   function archiveExpired(before?: string): number {
     const cutoff = before ?? new Date().toISOString();
+    // The archived-guard keeps this idempotent: without it every run
+    // re-marked the same rows and reported phantom `changes` forever.
     const result = db.prepare(`
       UPDATE episodic_memory SET metadata = json_patch(COALESCE(metadata, '{}'), json_object('archived', 1, 'archivedAt', ?))
       WHERE expires_at IS NOT NULL AND expires_at < ?
+        AND json_extract(COALESCE(metadata, '{}'), '$.archived') IS NULL
     `).run(cutoff, cutoff) as { changes: number };
     return result.changes;
   }
@@ -548,7 +565,6 @@ export function createEpisodicMemory(db: Database.Database, options: EpisodicMem
     get,
     list,
     stats,
-    listExpired,
     archiveExpired,
   };
 }

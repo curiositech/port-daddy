@@ -37,11 +37,13 @@ interface CustodianLogger {
 interface CustodianDeps {
   db: Database;
   logger: CustodianLogger;
-  /** episodicMemory module from lib/episodic-memory.ts */
+  /** LEGACY episodicMemory module (lib/episodic-memory.ts) — archiveTTL duty only. */
   episodicMemory: {
     archiveExpired(before?: string): number;
     remember(input: Record<string, unknown>): { id: number };
   };
+  /** Note-encryption inspector — harvest skips encrypted-at-rest notes. */
+  noteEncryption?: { isEncrypted(content: string): boolean };
   /** messaging module for broadcasting inbox messages */
   messaging?: {
     publish(channel: string, payload: Record<string, unknown>): void;
@@ -145,11 +147,19 @@ export class KnowledgeCustodian {
   getStatus(): CustodianStatus {
     const todayStartMs = new Date().setHours(0, 0, 0, 0);
     const tomorrowStartMs = todayStartMs + 86_400_000;
-    const episodesHarvestedToday = (this.db.prepare(`
-      SELECT COUNT(*) as n FROM episodic_memory
-      WHERE source_type = 'note'
-        AND created_at >= ? AND created_at < ?
-    `).get(todayStartMs, tomorrowStartMs) as { n: number } | undefined)?.n ?? 0;
+    // Harvested notes now live in the harbor episode store (episode ids are
+    // 'note-<hash>', ingested_at is ISO). The table may not exist before the
+    // first harvest — report 0 rather than crash the status probe.
+    let episodesHarvestedToday = 0;
+    try {
+      episodesHarvestedToday = (this.db.prepare(`
+        SELECT COUNT(*) as n FROM harbor_memory_episodes
+        WHERE episode_id LIKE 'note-%'
+          AND ingested_at >= ? AND ingested_at < ?
+      `).get(new Date(todayStartMs).toISOString(), new Date(tomorrowStartMs).toISOString()) as { n: number } | undefined)?.n ?? 0;
+    } catch {
+      episodesHarvestedToday = 0;
+    }
 
     const pendingApprovalsCount = this.operatorPermissions.listCandidates().length;
 
@@ -177,7 +187,7 @@ export class KnowledgeCustodian {
     for (const { id } of staleSessions) {
       try {
         const result = await harvestSession(id, db, {
-          episodicMemory: deps.episodicMemory as unknown as Parameters<typeof harvestSession>[2]['episodicMemory'],
+          noteEncryption: deps.noteEncryption,
           blobs: deps.blobs,
         });
         harvested += result.promoted;
@@ -197,7 +207,7 @@ export class KnowledgeCustodian {
   async onSessionEnd(sessionId: string): Promise<void> {
     try {
       await harvestSession(sessionId, this.db, {
-        episodicMemory: this.deps.episodicMemory as unknown as Parameters<typeof harvestSession>[2]['episodicMemory'],
+        noteEncryption: this.deps.noteEncryption,
         blobs: this.deps.blobs,
       });
     } catch (err) {
@@ -463,7 +473,7 @@ export class KnowledgeCustodian {
 
     for (const { id } of orphaned) {
       harvestSession(id, db, {
-        episodicMemory: deps.episodicMemory as unknown as Parameters<typeof harvestSession>[2]['episodicMemory'],
+        noteEncryption: deps.noteEncryption,
         blobs: deps.blobs,
       })
         .then(() => {

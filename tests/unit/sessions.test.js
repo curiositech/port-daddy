@@ -564,7 +564,7 @@ describe('Sessions Module', () => {
     });
   });
 
-  describe('addNote → episodic_memory projection', () => {
+  describe('addNote does NOT eagerly write episodes (single-write path)', () => {
     let episodicMemory;
     let sessionsWithEpisodic;
 
@@ -573,47 +573,26 @@ describe('Sessions Module', () => {
       sessionsWithEpisodic = createSessions(db, undefined, { episodicMemory });
     });
 
-    it('projects default-type notes (the agent loop default) into episodic_memory', () => {
+    it('addNote never calls episodicMemory.remember — harvest is the sole note promoter', () => {
       const started = sessionsWithEpisodic.start('Work item', { agentId: 'agent-x' });
-      sessionsWithEpisodic.addNote(started.id, 'Scope: lib/foo.ts. Validation: npm test.');
+      const types = ['note', 'finding', 'handoff', 'progress', 'general'];
+      types.forEach((type, i) => {
+        expect(sessionsWithEpisodic.addNote(started.id, `note ${i}`, { type }).success).toBe(true);
+      });
+
+      // The old inline rememberEpisode double-wrote every note as a
+      // citation-free legacy episode AND leaked plaintext of encrypted notes.
+      // Promotion now happens exclusively via harvestSession.
+      expect(episodicMemory.remember).not.toHaveBeenCalled();
+    });
+
+    it('the end()-with-note handoff path still projects (slice-2 retirement pending)', () => {
+      const started = sessionsWithEpisodic.start('Work item', { agentId: 'agent-x' });
+      sessionsWithEpisodic.end(started.id, { note: 'Handoff: resume here' });
 
       expect(episodicMemory.remember).toHaveBeenCalledTimes(1);
       const call = episodicMemory.remember.mock.calls[0][0];
-      expect(call.episodeType).toBe('note');
-      expect(call.summary).toMatch(/Scope: lib\/foo\.ts/);
-      expect(call.sourceType).toBe('session');
-      expect(call.sourceId).toBe(`${started.id}:note:1`);
-    });
-
-    it('projects user-facing CLI types (general/progress/blocker/question)', () => {
-      const started = sessionsWithEpisodic.start('Work item', { agentId: 'agent-x' });
-      const types = ['general', 'progress', 'blocker', 'question'];
-      types.forEach((type, i) => {
-        sessionsWithEpisodic.addNote(started.id, `note ${i}`, { type });
-      });
-
-      expect(episodicMemory.remember).toHaveBeenCalledTimes(types.length);
-      const projected = episodicMemory.remember.mock.calls.map((c) => c[0].episodeType);
-      expect(projected).toEqual(types);
-    });
-
-    it('still projects high-signal types (handoff/decision/summary/result/failure/finding)', () => {
-      const started = sessionsWithEpisodic.start('Work item', { agentId: 'agent-x' });
-      const types = ['handoff', 'decision', 'summary', 'result', 'failure', 'finding'];
-      types.forEach((type, i) => {
-        sessionsWithEpisodic.addNote(started.id, `note ${i}`, { type });
-      });
-
-      expect(episodicMemory.remember).toHaveBeenCalledTimes(types.length);
-    });
-
-    it('passes sessionId and noteType through metadata for retrieval filtering', () => {
-      const started = sessionsWithEpisodic.start('Work item', { agentId: 'agent-x' });
-      sessionsWithEpisodic.addNote(started.id, 'something', { type: 'progress' });
-
-      const call = episodicMemory.remember.mock.calls[0][0];
-      expect(call.metadata).toEqual({ sessionId: started.id, noteType: 'progress' });
-      expect(call.agentId).toBe('agent-x');
+      expect(call.episodeType).toBe('handoff');
     });
   });
 

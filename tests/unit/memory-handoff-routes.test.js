@@ -165,10 +165,12 @@ describe('POST /memory/handoffs', () => {
       skipped: 1,
       promoted: 1,
     });
+    // Harvest now writes through the harbor persistEpisode gate — the legacy
+    // episodicMemory module is no longer a harvest dep.
     expect(state.harvestSessionFn).toHaveBeenCalledWith(
       'pd-session-1',
       state.db,
-      expect.objectContaining({ episodicMemory: state.episodicMemory }),
+      expect.objectContaining({ blobs: undefined }),
     );
     expect(state.gitleaksRunner).toHaveBeenCalledTimes(1);
     expect(state.gitleaksRunner.mock.calls[0][0]).not.toContain(secret);
