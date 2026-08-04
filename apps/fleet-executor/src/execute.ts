@@ -39,7 +39,7 @@ import {
   type PRContext,
   type ReviewComment,
 } from './github.js';
-import { parseFleetShips, defaultPRShips, type ShipConfig } from './fleet.js';
+import { parseFleetShips, parseFleetSquidEvents, defaultPRShips, type ShipConfig } from './fleet.js';
 import {
   resolveVerdict,
   aggregateConclusion,
@@ -671,6 +671,13 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     ships = defaultPRShips();
   }
 
+  // TENANCY CONSENT (cloud squid): fleet-cloud events carry this repo's name,
+  // PR numbers, verdicts, and stacked-PR urls onto a shared relay channel, so
+  // they additionally require the TENANT's `squidEvents: true` in pd-fleet.yml
+  // (trusted default branch, parsed above; default false). No pd-fleet.yml ⇒
+  // no consent ⇒ no events, regardless of RELAY_PUBLISH_* wiring.
+  const squidConsent = fleetYaml ? parseFleetSquidEvents(fleetYaml) : false;
+
   // Cloud-executable ships only (execution ships dispatch to GHA elsewhere).
   const cloudShips = ships.filter(s => !s.needsExecution);
   if (cloudShips.length === 0) return;
@@ -701,8 +708,9 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   await recordRunStart(env, runId, job, prCtx, prNumber, cloudShips);
 
   // Cloud squid: announce the run (fire-and-forget; disabled unless BOTH
-  // RELAY_PUBLISH_URL and RELAY_PUBLISH_TOKEN are configured).
-  emitSquidEvent(env, 'run-started', { repo: job.repoFullName, pr: prNumber, runId });
+  // RELAY_PUBLISH_URL and RELAY_PUBLISH_TOKEN are configured AND the tenant
+  // opted in via `squidEvents: true` in pd-fleet.yml).
+  emitSquidEvent(env, 'run-started', { repo: job.repoFullName, pr: prNumber, runId }, squidConsent);
 
   // --- SPEND CIRCUIT-BREAKER (pre-spend, before any ship runs) --------------
   // The per-installation abuse gate: if this installation has a credit_ledger and
@@ -810,8 +818,8 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
 
     const metrics = newShipMetrics();
     const result = ship.purser
-      ? await runPurser(ship, prCtx, env, token, transcript, metrics, graftText, runId)
-      : await runShip(ship, prCtx, token, env, branch, transcript, metrics, graftText, runId);
+      ? await runPurser(ship, prCtx, env, token, transcript, metrics, graftText, runId, squidConsent)
+      : await runShip(ship, prCtx, token, env, branch, transcript, metrics, graftText, runId, squidConsent);
     results.push(result);
     // Cloud squid: one ship-verdict event per ship that ran (fire-and-forget).
     emitSquidEvent(env, 'ship-verdict', {
@@ -820,7 +828,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       runId,
       ship: ship.name,
       verdict: result.errored ? 'ERROR' : result.verdict,
-    });
+    }, squidConsent);
     await emitShipTelemetry(env, job, prCtx, ship, result, metrics, checkRunId, shipStartMs);
     // Per-run spend: one fleet_run_spend row per ship that actually ran, so the
     // relay can bill per installation. Best-effort — never changes the run.
@@ -854,7 +862,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     pr: prNumber,
     runId,
     verdict: conclusion,
-  });
+  }, squidConsent);
 
   // --- Transcript: check completion + final run header (best-effort) --------
   await transcript.step('check-completed', null, `Check concluded: ${conclusion}`, {
@@ -895,6 +903,8 @@ async function runShip(
   graftText = '',
   /** Run id for squid coordination events. */
   runId = '',
+  /** Tenant `squidEvents: true` consent from pd-fleet.yml (default false). */
+  squidConsent = false,
 ): Promise<ShipResult> {
   try {
     // ZERO-TRUST: ship contract is read from the trusted branch, NEVER PR head.
@@ -992,7 +1002,7 @@ async function runShip(
       // ship per run; every failure mode degrades to a transcript note.
       const stackedPr =
         proposals && proposals.length > 0
-          ? await maybeStackProposal(ship, prCtx, proposals, env, token, transcript, runId)
+          ? await maybeStackProposal(ship, prCtx, proposals, env, token, transcript, runId, squidConsent)
           : null;
       const rendered =
         proposals && proposals.length > 0
@@ -1169,6 +1179,8 @@ async function maybeStackProposal(
   token: string,
   transcript: Transcript,
   runId: string,
+  /** Tenant `squidEvents: true` consent from pd-fleet.yml (default false). */
+  squidConsent = false,
 ): Promise<StackOutcome | null> {
   const proposalIndex = proposals.findIndex(p => p.action === 'stack');
   if (proposalIndex === -1) return null;
@@ -1247,7 +1259,7 @@ async function maybeStackProposal(
       runId,
       ship: ship.name,
       url: pr.url,
-    });
+    }, squidConsent);
     return { proposalIndex, number: pr.number, url: pr.url };
   } catch (err) {
     const reason =
