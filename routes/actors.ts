@@ -10,6 +10,7 @@ import type { createAgentInbox } from '../lib/agent-inbox.js';
 import type { createResurrection } from '../lib/resurrection.js';
 import type { createSessions } from '../lib/sessions.js';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
+import type { ActorSouls } from '../lib/actor-souls.js';
 
 type AgentsManager = ReturnType<typeof createAgents>;
 type AgentInboxManager = ReturnType<typeof createAgentInbox>;
@@ -23,6 +24,21 @@ interface ActorsRouteDeps {
   sessions?: SessionsManager;
   resurrection?: ResurrectionManager;
   fleetDaemon?: FleetDaemonManager;
+  /** ADR-0040 daemon-minted actor identity store (POST /actors/register). */
+  actorSouls?: ActorSouls;
+}
+
+interface RegisterActorBody {
+  /** Multi-tenant scope. Defaults to the souls store's default harbor. */
+  harbor?: string;
+  /** Display alias ('project:stack:context'). Display-only; never a principal. */
+  alias?: string;
+  /** '<actor_id>.<secret>' lookup token from a prior mint. Re-presents a soul. */
+  credential?: string;
+  /** Operator escape hatch (advisory-above-floor; see ADR-0040 §2.4). */
+  operatorToken?: string;
+  /** Project the newcomer will spend against — bounds the admit rate-limit. */
+  project?: string;
 }
 
 interface ActorsQuery {
@@ -121,6 +137,71 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
       count: actors.length,
       actors,
     };
+  });
+
+  // ADR-0040 keystone: the ONLY path to a daemon-minted, non-forgeable
+  // principal. A minted actor_id is bound to a lookup-token credential
+  // ("<actor_id>.<secret>"); re-presenting a valid credential returns the SAME
+  // id (idempotent), a forged/mismatched one is rejected 401 (never mints), and
+  // an uncredentialed registration mints a fresh NEWCOMER that draws from the
+  // shared per-project pool — so minting fresh ids buys no new budget.
+  //
+  // This is NOT self-asserted registration. POST /agents still exists for
+  // liveness bookkeeping but its self-asserted `id` is a DISPLAY handle only;
+  // an above-floor economic ceiling requires a minted, credentialed, graduated
+  // soul, enforced at the budget-guard spend choke.
+  fastify.post('/actors/register', async (
+    request: FastifyRequest<{ Body: RegisterActorBody }>,
+    reply: FastifyReply,
+  ) => {
+    if (!deps.actorSouls) {
+      return reply.code(501).send({
+        success: false,
+        error: 'actor identity minting is unavailable',
+        code: 'ACTOR_SOULS_UNAVAILABLE',
+      });
+    }
+
+    const body = request.body ?? {};
+    const outcome = deps.actorSouls.register({
+      harbor: typeof body.harbor === 'string' ? body.harbor : undefined,
+      alias: typeof body.alias === 'string' ? body.alias : undefined,
+      credential: typeof body.credential === 'string' ? body.credential : undefined,
+      operatorToken: typeof body.operatorToken === 'string' ? body.operatorToken : undefined,
+      project: typeof body.project === 'string' ? body.project : undefined,
+    });
+
+    if (!outcome.ok) {
+      return reply.code(outcome.httpStatus).send({
+        success: false,
+        error: outcome.code === 'CREDENTIAL_INVALID'
+          ? 'credential did not verify'
+          : outcome.code === 'NEWCOMER_ADMIT_LIMIT'
+            ? 'newcomer admission limit reached for this project today'
+            : 'identity store unavailable',
+        code: outcome.code,
+      });
+    }
+
+    // The plaintext credential is returned ONCE (only on a fresh mint). The
+    // caller MUST persist it to re-authenticate the same soul; there is no
+    // recovery path (a lost credential means a new newcomer next time).
+    if (outcome.status === 'minted') {
+      return reply.code(201).send({
+        success: true,
+        status: 'minted',
+        actorId: outcome.actorId,
+        soulClass: outcome.soulClass,
+        credential: outcome.credential,
+      });
+    }
+
+    return reply.send({
+      success: true,
+      status: 'resolved',
+      actorId: outcome.actorId,
+      soulClass: outcome.soulClass,
+    });
   });
 
   fastify.get('/actors/:id', async (

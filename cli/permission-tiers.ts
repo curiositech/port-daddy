@@ -38,6 +38,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   attest: 'silent', // honest self-report (ADR-0045); read-only introspection
   version: 'silent',
   whoami: 'silent',
+  account: 'notify', // login/pair/logout mint or drop a device token; status/token refined silent below
   w: 'silent',
   find: 'silent',
   f: 'silent',
@@ -216,6 +217,11 @@ export const TIER_REGISTRY: Record<string, Tier> = {
  * by best-effort prefix.
  */
 export const SUBCOMMAND_TIERS: Record<string, Tier> = {
+  // account: login/pair mint a device token, logout drops it (notify); the
+  // read-only introspection subcommands are silent.
+  'account status': 'silent',
+  'account whoami': 'silent',
+  'account token': 'silent',
   // embed: local reads/embeddings are silent; prefetch performs a one-time
   // ~27 MB network download into the shared cache
   'embed': 'silent',                // default subcommand = status
