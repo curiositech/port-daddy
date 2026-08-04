@@ -19,16 +19,16 @@
 
   \node[stp accent box,text width=67mm,align=left,anchor=west] (conditions) at (0.3,0.9)
     {\textbf{Candidate contraction conditions} (Conj.~\ref{conj:contract})\\[3pt]
-     \textbf{1.} Re-audit is sampled with probability $\rho$.\\
-     \textbf{2.} Overturn slashes $B_J$ above the maximum single bribe.\\
-     \textbf{3.} Re-auditors come from a pool larger than any clique.\\[3pt]
-     \emph{Unproved obligation: show the corruption incentive shrinks at every level.}};
+     \textbf{1.} $q_k=\rho_k d_k$: sample and detect a corrupt grade.\\
+     \textbf{2.} $q_k B_k>G_k$: expected forfeiture beats total corrupt gain.\\
+     \textbf{3.} Derive $G_{k+1}\leq\lambda G_k$, $0\leq\lambda<1$, from the pool model.\\[3pt]
+     \emph{Unproved obligation: establish both deterrence and contraction.}};
 \end{tikzpicture}}
 \caption{\textbf{The rate-the-raters recursion.} Conjecture~\ref{conj:contract}
-asks whether sampling, a slash exceeding the maximum bribe, and a conflict-free
-re-auditor pool larger than any clique make the incentive to corrupt each level
-strictly smaller than the level below. If proved, the tower would contract toward a
-finite honest fixed point. The paper names this as an unproved obligation rather
-than depicting the desired result as established.}
+separates two obligations that a recursive audit design must prove: expected
+forfeiture $\rho_k d_k B_k$ must exceed the judge's total corrupt gain $G_k$ at
+each level, and the pool model must make the remaining corruption opportunity
+shrink by a uniform factor $\lambda<1$. A bond larger than one bribe is not enough
+when re-audit is probabilistic. Neither obligation is depicted as established.}
 \label{fig:rate-raters}
 \end{figure}

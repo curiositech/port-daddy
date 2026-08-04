@@ -1444,18 +1444,25 @@ proof; we claim the shape of one and mark the rest open.
 % --- FIGURE 12: rate-the-raters recursion ---
 \input{figures/fig-stp-rate-the-raters}
 
-\begin{conjecture}[Contractive re-audit]\label{conj:contract}
-If (i) re-audits are sampled with probability $\rho$, (ii) an overturned grade
-slashes a bond $B_J$ strictly exceeding the maximum bribe a single graded party
-can offer, and (iii) re-auditors are themselves drawn conflict-free from a pool
-larger than any single colluding clique, then the expected gain from dishonest
-grading is negative at \emph{every} level of the recursion, and the
-``rate-the-raters'' tower is \emph{contractive}: the incentive to corrupt level
-$k+1$ is strictly smaller than at level $k$, so the tower has a finite honest
-fixed point.
+\begin{conjecture}[Contractive re-audit conditions]\label{conj:contract}
+At audit level $k$, let $G_k$ bound the judge's total one-shot gain from a
+dishonest grade (bribes plus private side benefits), let $\rho_k$ be the
+probability of re-audit, let $d_k$ be the probability that a re-audit detects and
+overturns the dishonest grade, and let $B_k$ be the slashable bond. Local
+deterrence requires the expected-forfeiture inequality
+\[
+  \rho_k d_k B_k > G_k.
+\]
+Contractive re-audit additionally requires a pool-and-sampling argument that
+derives a uniform $\lambda<1$ with $G_{k+1}\leq\lambda G_k$, or a finite stopping
+rule with the same incentive effect. A conflict-free pool larger than one clique
+is a candidate ingredient, not by itself such a proof. Establishing both the
+inequality and the contraction bound at every reachable level is the open
+obligation.
 \end{conjecture}
 
-\pitfall{Conjecture~\ref{conj:contract} is \emph{conjectured}, not proven. It is
+\pitfall{Conjecture~\ref{conj:contract} states required conditions, not a proof
+that any deployed pool satisfies them. It is
 the precise statement of what the market paper's central incentive-compatibility
 result \emph{needs} and currently \emph{lacks}. The contribution here is to name the hole
 exactly, give two candidate closures, and state the termination obligation ---
