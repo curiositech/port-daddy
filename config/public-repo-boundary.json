@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "purpose": "Prevent internal ideation residue, local-only sandboxes, and model-specific instruction files from leaking into the public GitHub repo. This is an initial denylist contract, not the full future mirror/export manifest.",
+  "purpose": "Prevent internal ideation residue, local-only sandboxes, and private model-specific instruction copies from leaking into the public GitHub repo. The one tracked CLAUDE.md is a thin public entrypoint to canonical AGENTS.md, not an independent policy copy. This is an initial denylist contract, not the full future mirror/export manifest.",
   "denylistedTrackedPathRegexes": [
     "^\\.spark/",
     "^\\.spider/",
@@ -8,7 +8,6 @@
     "^\\.remember/",
     "^agentsd_mocks/",
     "^v0-agentsd-main/",
-    "^CLAUDE\\.md$",
     "^GEMINI\\.md$",
     "^\\.aider\\.chat\\.history\\.md$"
   ],
@@ -19,7 +18,6 @@
     ".remember/",
     "agentsd_mocks/",
     "v0-agentsd-main/",
-    "CLAUDE.md",
     "GEMINI.md",
     ".aider.chat.history.md"
   ]

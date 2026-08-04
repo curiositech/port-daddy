@@ -51,7 +51,6 @@ plans/
 .cache/
 .visual-audit/
 .public-export/
-CLAUDE.md
 GEMINI.md
 *.strategy.md
 *.internal.md
