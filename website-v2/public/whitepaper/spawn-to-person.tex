@@ -4,9 +4,9 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
+\usepackage{microtype}
 \usepackage{geometry}
 \usepackage{amsmath,amssymb,amsthm}
-\usepackage{hyperref}
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{booktabs}
@@ -17,6 +17,8 @@
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\captionsetup{font=small,labelfont=bf}
 
 % ─── Geometry ────────────────────────────────────────────────────────────────
 \geometry{margin=2.5cm}
@@ -33,6 +35,23 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+
+% Shared figure craft: one serif, one subtle fill, one accent, one arrow family.
+% Figure files use these styles instead of inventing local visual languages.
+\tikzset{
+  stp box/.style={draw=hhink,line width=0.55pt,fill=hhsand!22,
+    rounded corners=2pt,inner sep=7pt,align=center,minimum height=10mm},
+  stp accent box/.style={stp box,draw=hhcobalt,line width=0.9pt},
+  stp arrow/.style={-{Stealth[length=2.3mm,width=1.5mm]},draw=hhink,
+    line width=0.65pt},
+  stp accent arrow/.style={-{Stealth[length=2.3mm,width=1.5mm]},
+    draw=hhcobalt,line width=0.8pt},
+  stp dashed arrow/.style={stp accent arrow,dashed},
+  stp label/.style={fill=hhpaper,inner xsep=3pt,inner ysep=1.5pt,
+    font=\footnotesize\itshape,text=hhgray},
+  stp heading/.style={font=\footnotesize\bfseries,text=hhink},
+  stp status/.style={font=\scriptsize\scshape,text=hhgray},
+}
 
 % ─── Research-maturity scale (one key in every paper header) ──────────────────
 % A neutral, self-defined four-point scale for the maturity of each claim:
@@ -181,7 +200,7 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{July 2026\\Version 1.1 (Harbor Volume, L3 bridge)}
+\date{August 2026\\Version 1.2 (Harbor Volume, L3 bridge)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
 \begin{document}
@@ -364,19 +383,25 @@ the reputation it makes possible.
 
 We will defend exactly one dependency chain and locate precisely where Port
 Daddy's reality stops along it:
-\[
-\underbrace{\text{memory}}_{\BUILT}
-\;+\;
-\underbrace{\text{checkpoint}}_{\BUILTWEAK}
-\;\to\;
-\text{continuity}
-\;\to\;
-\underbrace{\text{a person, not a spawn}}_{\text{needs}\ \DESIGNED\ \text{ledger}}
-\;\to\;
-\text{reputation}
-\;\to\;
-\underbrace{\text{a tradeable asset}}_{\text{Paper 4}}.
-\]
+\begin{center}
+\resizebox{0.97\textwidth}{!}{%
+\begin{tikzpicture}[font=\small]
+  \node[stp box,minimum width=38mm] (foundation) at (-6,0)
+    {\textbf{memory + checkpoint}\\{\scriptsize implemented \(\cdot\) partial}};
+  \node[stp box,minimum width=26mm] (continuity) at (-2.5,0)
+    {\textbf{continuity}};
+  \node[stp accent box,minimum width=39mm] (person) at (1.1,0)
+    {\textbf{a person, not a spawn}\\{\scriptsize needs the specified ledger}};
+  \node[stp box,minimum width=29mm] (reputation) at (4.8,0)
+    {\textbf{reputation}};
+  \node[stp box,minimum width=31mm] (asset) at (8.1,0)
+    {\textbf{tradeable asset}\\{\scriptsize Paper 4}};
+  \draw[stp arrow] (foundation) -- (continuity);
+  \draw[stp accent arrow] (continuity) -- (person);
+  \draw[stp arrow] (person) -- (reputation);
+  \draw[stp arrow] (reputation) -- (asset);
+\end{tikzpicture}}
+\end{center}
 Read left-to-right it is a roadmap; read right-to-left it is a stack of
 impossibility claims --- each arrow asserts that the right-hand thing
 \emph{cannot exist without} the left-hand thing. Our refusals are as important as
@@ -1115,8 +1140,8 @@ agent-authored oracle). Generalize the lesson.
 % ═════════════════════════════════════════════════════════════════════════════
 
 It is tempting --- and the routing literature invites the temptation --- to model
-``which agent/model/skill should I pick?'' as a \textbf{multi-armed
-bandit}~\cite{lattimore2020bandit}: arms are agents, pulling an arm yields a
+``which agent, model, or skill should I pick?'' as a \textbf{multi-armed}
+\textbf{bandit}~\cite{lattimore2020bandit}: arms are agents, pulling an arm yields a
 reward, and Thompson sampling~\cite{thompson1933} or UCB balances exploration
 against exploitation. That framing is correct for one narrow internal task and
 catastrophically wrong for reputation as a whole. The distinction is load-bearing
@@ -1204,8 +1229,11 @@ over.
 \subsection{Multi-dimensional quality (different axes, different judges)}
 
 \begin{definition}[Quality vector]\label{def:qvec}
-A witnessed outcome carries a \textbf{quality vector}
-$\mathbf{q} = (q_{\text{acc}}, q_{\text{aes}}, q_{\text{eff}})$ over the axes
+A witnessed outcome carries a \textbf{quality vector} over three axes:
+\[
+\mathbf{q} = (q_{\text{acc}}, q_{\text{aes}}, q_{\text{eff}}).
+\]
+The axes are
 \emph{accuracy} (did it do the right thing, against an oracle), \emph{aesthetics}
 (is the artifact good --- code clarity, design taste --- judged by an expert), and
 \emph{efficiency} (tokens, wall-clock, dollars, drawn from a cost meter that the
@@ -1569,7 +1597,7 @@ explicitly owed.
 \centering
 \small
 \renewcommand{\arraystretch}{1.35}
-\begin{tabular}{@{}p{5.2cm} p{2.0cm} p{7.2cm}@{}}
+\begin{tabular}{@{}p{4.8cm} p{3.4cm} p{6.2cm}@{}}
 \toprule
 \textbf{Artifact} & \textbf{Maturity} & \textbf{Role in the market paper} \\
 \midrule
@@ -1577,13 +1605,13 @@ Role / person distinction (Defs.~\ref{def:role}--\ref{def:person}) & --- &
 The third side of the market is a \emph{tradeable person}, defined here. \\
 Principal-as-economic-entity (Def.~\ref{def:principal}) & \DESIGNED &
 Bonds and sanctions key on the principal; the market paper cross-references, not redefines. \\
-The three continuity organs & \BUILT/\BUILTWEAK/\DESIGNED &
+The three continuity organs & \shortstack[l]{\BUILT\\[-1pt]\BUILTWEAK\\[-1pt]\DESIGNED} &
 Reputation keys on organ~3 (the outcome ledger). \\
 Outcome ledger / oracle (Def.~\ref{def:oracle}) & \DESIGNED &
 The witnessed-outcome substrate every settlement updates. \\
-Multi-dimensional reputation (Def.~\ref{def:qvec}, Protos.~\ref{proto:judge},~\ref{proto:skill}) & \DESIGNED$\to$\VISION &
+Multi-dimensional reputation (Def.~\ref{def:qvec}, Protos.~\ref{proto:judge},~\ref{proto:skill}) & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
 The multi-dimensional score the market reads; the licensing side's signal. \\
-Neutral-judge market & \DESIGNED$\to$\VISION &
+Neutral-judge market & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
 The ``universities and rating agencies'' that keep grades honest. \\
 Grading-oracle hole (Prop.~\ref{prop:hole}, Conj.~\ref{conj:contract}) & \VISION &
 \emph{Owed back to the market paper}: its central IC theorem is conditional on closing this. \\
@@ -1688,7 +1716,7 @@ rhetorical.
 
 \begin{table}[H]
 \centering\small\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{@{}p{4.4cm} p{2.1cm} p{6.6cm}@{}}
+\begin{tabular}{@{}p{4.2cm} p{2.7cm} p{6.2cm}@{}}
 \toprule
 \textbf{Component (paper concept)} & \textbf{Maturity} & \textbf{Status in the reference system} \\
 \midrule
@@ -1706,9 +1734,9 @@ Capability jail (capability $\ne$ permission) & \DESIGNED &
 Per-agent tool-allowlist and scoped filesystem; specified. \\
 Honest-attestation discipline & \BUILT &
 ``Report all-good only when verified'' is an enforced engineering rule. \\
-Multi-dimensional reputation & \DESIGNED$\to$\VISION &
+Multi-dimensional reputation & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
 No reputation component yet; the substrate it scores over is partly built. \\
-Neutral-judge ceremony (Proto.~\ref{proto:judge}) & \DESIGNED$\to$\VISION &
+Neutral-judge ceremony (Proto.~\ref{proto:judge}) & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
 Bonding and task-planning primitives exist; the hiring ceremony is designed. \\
 Skill-helpfulness schema (Proto.~\ref{proto:skill}) & \DESIGNED &
 Skill grafting is observable; the witnessed-event schema is specified. \\
