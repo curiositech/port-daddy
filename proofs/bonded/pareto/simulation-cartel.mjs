@@ -26,8 +26,9 @@
  *     (collusion stream value) ≥ (defection one-shot gain) +
  *                                (post-defection competitive payoff)
  *
- *   Because detection happens before the current-round payoff, the
- *   collusion value satisfies
+ *   Every active cartel round credits pi_C. If detection occurs in that
+ *   round, the simulation then subtracts L and terminates future cartel
+ *   payoffs. The collusion value therefore satisfies
  *
  *     V_C = pi_C - p_d L + delta (1 - p_d) V_C.
  *
