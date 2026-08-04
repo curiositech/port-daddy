@@ -596,6 +596,12 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         body: '',
         headSha,
         baseSha: typeof base?.sha === 'string' ? base.sha : '',
+        // Stub context for a short-circuited (paused) run: no ship ever acts on
+        // it, so refs stay empty and isFork stays conservatively true (a fork is
+        // never retargeted/stacked — the safe default for an unknown PR).
+        headRef: '',
+        baseRef: '',
+        isFork: true,
         installationId: job.installationId,
         files: [],
         diff: '',
