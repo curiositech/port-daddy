@@ -223,6 +223,85 @@ export async function getBalance(db: D1Database, installationId: number): Promis
   return row?.bal ?? 0;
 }
 
+/** Row cap for the billing page's ledger-history table (mirrors the
+ *  MAX_INSTALLATIONS / MAX_REPO_CHECKS idiom elsewhere on this page). */
+export const MAX_LEDGER_ROWS = 50;
+
+/** One rendered ledger-history row, newest first. */
+export interface LedgerEntryView {
+  id: string;
+  deltaUsd: number;
+  reason: string;
+  createdAt: number;
+  /** Prepaid balance immediately AFTER this entry (i.e. as of its timestamp). */
+  runningBalance: number;
+}
+
+export interface LedgerHistoryView {
+  /** Newest-first, capped at MAX_LEDGER_ROWS. */
+  entries: LedgerEntryView[];
+  /** True when older rows exist beyond the cap — an honest "older rows exist" note. */
+  truncated: boolean;
+}
+
+/**
+ * Read an installation's recent `credit_ledger` transaction history for the
+ * billing page's ledger table (grand-plan §billing-ledger-history). No schema
+ * change: `credit_ledger` is append-only and already carries everything the
+ * page needs (delta_usd, reason, created_at) — this is a read-only query
+ * layered on top of the existing balance math in {@link getBalance}.
+ *
+ * The running balance is derived, not stored: since `credit_ledger` is
+ * append-only and the CURRENT total balance is exactly SUM(delta_usd) over
+ * EVERY row (including any older than the cap), walking the newest-first
+ * page backwards from the total and undoing each row's delta as we pass it
+ * yields the exact balance as of every visible row — without a second query
+ * over the full (unbounded) history. Motivation: an operator staring at a
+ * ledger wants "what was my balance right after this happened", not just a
+ * bare delta list; deriving it here keeps that answer honest (it is
+ * arithmetic on real numbers, not a guess) while keeping the query itself
+ * O(cap) instead of O(all-time history).
+ *
+ * @param db D1 handle (relay's control-plane database).
+ * @param installationId The GitHub App installation whose ledger to read.
+ *   Callers MUST have already established tenant ownership (userOwnsInstallation
+ *   / listUserInstallations) before calling this — it trusts the id it's given.
+ * @param limit Row cap; defaults to {@link MAX_LEDGER_ROWS}.
+ * @returns The capped, newest-first entry list plus a truncation flag. Throws
+ *   on a D1 read failure — callers render that as an honest "unknown" panel,
+ *   never a fabricated empty ledger (D12).
+ */
+export async function getLedgerHistory(
+  db: D1Database,
+  installationId: number,
+  limit: number = MAX_LEDGER_ROWS,
+): Promise<LedgerHistoryView> {
+  const total = await getBalance(db, installationId);
+  const res = await db
+    .prepare(
+      'SELECT id, delta_usd, reason, created_at FROM credit_ledger WHERE installation_id = ? ORDER BY created_at DESC, id DESC LIMIT ?',
+    )
+    .bind(installationId, limit + 1)
+    .all<{ id: string; delta_usd: number; reason: string; created_at: number }>();
+  const rows = res.results ?? [];
+  const truncated = rows.length > limit;
+  const page = truncated ? rows.slice(0, limit) : rows;
+
+  const entries: LedgerEntryView[] = [];
+  let running = total;
+  for (const r of page) {
+    entries.push({
+      id: r.id,
+      deltaUsd: r.delta_usd,
+      reason: r.reason,
+      createdAt: r.created_at,
+      runningBalance: running,
+    });
+    running -= r.delta_usd; // step back to the balance BEFORE this row, for the next (older) one
+  }
+  return { entries, truncated };
+}
+
 /**
  * Record per-run token spend AND mirror it as a negative ledger entry so the
  * balance stays authoritative. One call meters + debits.
