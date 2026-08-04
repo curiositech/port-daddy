@@ -94,7 +94,7 @@ complete -c pd -s V -l version -d 'Print version'
 set -l __pd_commands \
     'claim' 'c' 'release' 'r' 'find' 'f' 'list' 'l' 'ps' 'services' 'url' 'env' 'tunnel' \
     'pub' 'publish' 'broadcast' 'sub' 'subscribe' 'listen' 'tube' 'wait' 'lock' 'unlock' 'locks' \
-    'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
+    'agent' 'agents' 'actor' 'actors' 'roster' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'takeover' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' 'send' 'sent' \
     'begin' 'b' 'done' 'whoami' 'w' 'account' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'work' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'harbor-ledger' 'tuple' 'graph' 'booty' 'embed' 'skill-graft' 'skillgraft' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
@@ -143,6 +143,16 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a agent -d 'Manage an agent'
     complete -c $prog -n __pd_needs_command -a agents -d 'List registered agents'
     complete -c $prog -n __pd_needs_command -a swarm -d 'List registered agents (alias)'
+    complete -c $prog -n __pd_needs_command -a roster -d 'Manage durable named AgentNode experts'
+    complete -c $prog -n "__pd_using_command roster" -a 'list show search create promote update attach continue retire help'
+    complete -c $prog -n "__pd_using_command roster" -l repo -x -d 'Repository root'
+    complete -c $prog -n "__pd_using_command roster" -l scope -x -a 'system repo' -d 'Identity scope'
+    complete -c $prog -n "__pd_using_command roster" -l slug -x -d 'Meaningful human alias'
+    complete -c $prog -n "__pd_using_command roster" -l remit -x -d 'Bounded responsibility'
+    complete -c $prog -n "__pd_using_command roster" -l instructions -x -d 'Durable operating prompt'
+    complete -c $prog -n "__pd_using_command roster" -l backend -x -d 'Target backend'
+    complete -c $prog -n "__pd_using_command roster" -l episode -x -d 'Sanitized handoff episode id'
+    complete -c $prog -n "__pd_using_command roster" -l mode -x -a 'auto native handoff' -d 'Continuation mode'
 
     # Activity
     complete -c $prog -n __pd_needs_command -a log -d 'Tail the activity log'

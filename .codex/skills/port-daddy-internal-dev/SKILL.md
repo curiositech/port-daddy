@@ -601,6 +601,25 @@ pd feedback "<contributor experience report>"   # bare form; auto slug + agent
 
 **For releases** (cutting `v3.X.Y`, building binaries, rolling the brew tap): follow `docs/RELEASING.md`, not this loop. Tagging here is a footgun — feature branches must not push tags. The "binary smoke-test before merging anything in `lib/`, `routes/`, `server.ts`, or `mcp/`" rule is in RELEASING.md §3; honor it.
 
+
+## Durable Roster Architecture
+
+When editing the named-agent roster, do not add a parallel durable identity
+table. `AgentNode.agentNodeId` is the daemon-minted person. The profile rides on
+append-only `agent-node` facts; its slug is only a scoped display alias. The
+legacy `/agent-roster` remains a live process/session projection, and
+`lib/actor-roster.ts` remains the static organizational-role registry. A roster
+change must keep those three meanings separate in route names, CLI copy, tests,
+and Beacon.
+
+Session promotion must verify both the Port Daddy session and the sanitized
+handoff episode, then bind memory/continuation to the AgentNode id. Never bypass
+`/memory/handoffs/:episodeId/continue` with a second spawn path. Expertise
+retrieval must use BM25 + the shared MiniLM embedder with fused ranks, and must
+label lexical fallback degraded. Do not add reputation scores from declared
+skills, or mark stored permission/trigger declarations enforced without a
+daemon-witnessed runtime receipt.
+
 ## Anti-Patterns (port-daddy contributor edition)
 
 ### Editing The Recovery Ledger Directly

@@ -9,6 +9,7 @@ export * from './services.js';
 export * from './locks.js';
 export * from './messaging.js';
 export * from './agents.js';
+export * from './roster.js';
 export * from './activity.js';
 export * from './webhooks.js';
 export * from './projects.js';

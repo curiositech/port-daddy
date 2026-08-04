@@ -162,6 +162,21 @@ older than seven days remains visible but stale. Never turn catalog declarations
 help output, path existence, or an agent's self-report into a numeric conformance
 badge.
 
+Durable roster identity is another layer again. Use `pd roster list` and
+`pd roster search "<expertise>" [--repo <path>]` when the question is which
+long-lived named expert should receive work, even when no body is currently
+running. A roster alias such as `portdaddy-typography-expert` is a human label;
+the daemon-minted `agent_node_...` is the principal. Create one with `pd roster
+create`, or promote a proven session only after storing its sanitized handoff
+capsule, then use `pd roster promote <session-id> --episode <id> ...`. Profile
+edits append revisions. `pd roster continue <agent-node-id> --backend <id>`
+chooses a new body without changing the person and reuses the same witnessed
+native-or-successor continuation receipt path described above. Stored trigger
+and permission fields are declarations, not proof they are active or enforced.
+Roster expertise search fuses BM25 with the shared MiniLM embedder; treat a
+`degraded` lexical fallback as repair work and run `pd doctor`.
+
+
 ## Telos vs Purpose
 
 Every Port Daddy agent carries a **telos** alongside its **purpose**.

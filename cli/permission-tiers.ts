@@ -55,6 +55,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   agents: 'silent',
   swarm: 'silent',
   actors: 'silent',
+  roster: 'approval',
   actor: 'silent',
   changelog: 'silent',
   log: 'silent',
@@ -322,6 +323,20 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'agent inbox send': 'approval',
   'agent inbox clear': 'destructive',
   'agent inbox read-all': 'notify',
+
+  // durable named-agent roster: reads are silent, profile facts are notify,
+  // and continuation launches a governed child runtime.
+  'roster': 'silent',
+  'roster list': 'silent',
+  'roster ls': 'silent',
+  'roster show': 'silent',
+  'roster search': 'silent',
+  'roster create': 'notify',
+  'roster promote': 'notify',
+  'roster update': 'notify',
+  'roster attach': 'notify',
+  'roster retire': 'notify',
+  'roster continue': 'approval',
 
   // parley: list/show/fit are reads; call/respond/resolve mutate shared reconciliation state
   'parley list': 'silent',

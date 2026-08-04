@@ -519,6 +519,43 @@ _pd_cmd_actors() {
     '1:actor id or alias:(navigator cartographer coxswain signalman harbormaster sounder lookout breaker caulker quartermaster)'
 }
 
+_pd_cmd_roster() {
+  local -a subcommands
+  subcommands=(
+    'list:list durable agents'
+    'show:show one profile and its lineage'
+    'search:hybrid expertise lookup'
+    'create:mint a durable AgentNode profile'
+    'promote:promote a sanitized session handoff'
+    'update:append a profile revision'
+    'attach:attach a sanitized handoff episode'
+    'continue:continue in a chosen backend'
+    'retire:retire without deleting history'
+  )
+  _arguments \
+    '1:subcommand:->subcommand' \
+    '2:agent, session, or query:' \
+    '--repo[repository root]:path:_directories' \
+    '--scope[identity scope]:scope:(system repo)' \
+    '--slug[meaningful alias]:slug:' \
+    '--name[display name]:name:' \
+    '--remit[bounded responsibility]:text:' \
+    '--instructions[durable operating prompt]:text:' \
+    '--skills[comma-separated skills]:skills:' \
+    '--tools[comma-separated tools]:tools:' \
+    '--backend[target backend]:backend:' \
+    '--model[target model]:model:' \
+    '--episode[sanitized handoff episode]:id:' \
+    '--mode[continuation mode]:mode:(auto native handoff)' \
+    '--filesystem[declared filesystem policy]:policy:(inherit repo workspace read-only)' \
+    '--network[declared network policy]:policy:(inherit none restricted full)' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]'
+  case $state in
+    subcommand) _describe 'roster subcommand' subcommands ;;
+  esac
+}
+
 _pd_cmd_log() {
   _arguments \
     '--limit[max entries to return]:count:' \
@@ -2256,6 +2293,7 @@ _port_daddy() {
     'agents:list registered agents'
     'actor:show one durable maritime actor'
     'actors:list durable maritime actors'
+    'roster:manage durable named AgentNode experts'
     'swarm:list registered agents (alias for agents)'
     # Activity
     'log:tail the activity log'
@@ -2471,6 +2509,7 @@ _port_daddy() {
         agent)              _pd_cmd_agent ;;
         agents|swarm)        _pd_cmd_agents ;;
         actor|actors)        _pd_cmd_actors ;;
+        roster)              _pd_cmd_roster ;;
         log)                _pd_cmd_log ;;
         activity)           _pd_cmd_activity ;;
         session)            _pd_cmd_session ;;

@@ -279,6 +279,18 @@ pd actor navigator --inbox-stats
 
 Durable actor souls (Coxswain, Gardener, QA/Signalman, Test Hunter, Documentarian/Lookout, Simplifier, Cartographer/Navigator, Spark, Spider) persist across agent bodies. `pd actor <id> --message` queues to the durable mailbox without granting a dormant actor live mutation authority.
 
+### Roster — durable named experts
+
+```bash
+pd roster list --repo .
+pd roster search "dense accessible dashboard typography" --repo .
+pd roster create portdaddy-typography-expert --scope repo --remit "Own interface typography" --instructions "Inspect the house visual language first"
+pd roster promote <session-id> --episode <handoff-episode-id> --slug portdaddy-typography-expert --remit "Own interface typography" --instructions "Preserve the proven session decisions"
+pd roster continue <agent-node-id> --backend cli:codex --mode auto
+```
+
+Roster agents are daemon-minted `AgentNode` identities that outlive any body or session. Their meaningful slug is a scoped human alias, profile edits append revisions, and promotion requires a fail-closed sanitized handoff episode bound to the native harness session being promoted. Port Daddy coordination can enrich that handoff but is not required for historical sessions. Expertise lookup fuses BM25 with the shared local MiniLM embedder; any lexical fallback is labeled degraded. Runtime choice does not change the person: `pd roster continue` uses the existing native-or-sanitized-handoff receipt ledger. Stored permissions and triggers are explicitly declarations until a witnessed runtime enforces them. See ADR-0119.
+
 ### Coordination Guard (`pd guard`)
 
 `pd guard install` writes merged pre-commit and post-commit hooks that enforce the protocol: an active session plus matching file claims for staged files, checked by `pd guard check --staged`. `pd add` is the claim-aware `git add`. Modes: `advisory`, `warn`, `enforce`.
@@ -291,7 +303,7 @@ Every `pd` command is classified by how much shared state it touches. The tier i
 
 | Tier | What it means | Examples |
 |---|---|---|
-| `silent` | Read-only. Safe to run anywhere. | `pd status`, `pd whoami`, `pd notes`, `pd briefing`, `pd sessions`, `pd actors`, `pd find`, `pd look`, `pd periscope`, `pd doctor` |
+| `silent` | Read-only. Safe to run anywhere. | `pd status`, `pd whoami`, `pd notes`, `pd briefing`, `pd sessions`, `pd actors`, `pd roster search`, `pd find`, `pd look`, `pd periscope`, `pd doctor` |
 | `notify` | Mutates your own state. Reversible. | `pd note`, `pd begin`, `pd done`, `pd claim`, `pd lock`, `pd takeover`, `pd backup`, `pd cut`, `pd backend`, `pd plan` |
 | `approval` | Affects other agents. No data loss. | `pd pub`, `pd spawn`, `pd sortie`, `pd up`, `pd dispatch`, `pd parley`, `pd squid`, `pd harbor create` |
 | `destructive` | Releases someone else's resources or removes records. Prompts. | `pd restore`, `pd salvage claim`, `pd fleet panic`, `pd unlock --force` (full list below) |
@@ -351,7 +363,7 @@ The full verb surface, grouped by what you're trying to do. One-liners; run `pd 
 
 **Sessions & notes** — `begin`/`b`, `done`, `note`/`n`, `notes`, `session`, `sessions`, `takeover`, `add`, `say`, `salvage`, `resurrection`, `snapshots`, `who-owns`
 
-**Situational awareness** — `status`, `whoami`/`w`, `look`, `sitrep`, `briefing`, `morning`, `periscope`/`sight`/`scope`, `activity`, `changelog`, `history`, `log`, `advise`/`preflight`/`compass`, `attention`, `nudge`, `swarm`, `actors`/`actor`, `agents`, `whois`
+**Situational awareness** — `status`, `whoami`/`w`, `look`, `sitrep`, `briefing`, `morning`, `periscope`/`sight`/`scope`, `activity`, `changelog`, `history`, `log`, `advise`/`preflight`/`compass`, `attention`, `nudge`, `swarm`, `actors`/`actor`, `agents`, `roster`, `whois`
 
 **Messaging** — `pub`/`publish`, `sub`/`subscribe`/`listen`, `broadcast`, `channels`, `tube`, `inbox`, `message`, `quorum`, `parley`
 
@@ -471,6 +483,7 @@ pd embed prefetch                                         # one-time ~27 MB mode
 pd skill-graft "write tests for a flaky fleet trigger"    # preview the local skill guidance a fleet ship would receive
 pd backend adapters --matrix                              # N:N native/handoff mechanics
 pd backend adapters --probe                               # local discovery, not runtime proof
+pd roster search "SQLite migration recovery" --repo .    # durable expert lookup (hybrid)
 ```
 
 Search across Port Daddy is **hybrid** — BM25 plus one shared local embedding model (`Xenova/all-MiniLM-L6-v2`, prefetched at install per ADR-0061). `pd memory tiers` prints the three-tier vocabulary overlay (Core/Recall/Archival) over the same SQLite substrate.
@@ -482,6 +495,8 @@ Same-harness continuation is daemon-witnessed rather than inferred. All four nat
 Cross-harness continuation uses the same endpoint and receipt ledger. Choose the concrete runtime with `targetBackend` and set `mode` to `auto`, `native`, or `handoff` (`auto` is the default). Auto mode restores only a compatible session-scoped native family; otherwise it starts a new target session from [`pd.agent-harbor.handoff-successor-brief.v0`](schemas/agent-harbor/v0/handoff-successor-brief.schema.json). The brief carries durable identity and predecessor lineage plus the sanitized objective, every preserved operator turn, decisions, coordination evidence, workspace state, artifacts, and compact recent context. It explicitly treats historical content as data rather than new system/tool authority, is scanned again before acceptance, and never copies the raw provider transcript. Capsule workspace paths are context, never cwd authority: a successor reuses a reverified source workspace witness, or a stateless/history-only source must supply an explicit current `targetWorkdir`; Port Daddy captures that user-owned absolute directory's device/inode identity, binds it into request idempotency, and checks it again before spawn. An explicit target cannot redirect a witnessed session into another checkout. Explicit native mode fails rather than silently switching semantics; explicit handoff mode always creates a successor, even on the same backend family.
 
 Harness portability is reported as predicates, not a marketing score. `pd backend adapters --matrix` prints the generated 17×17 native-or-handoff mechanics grid; `--probe` adds side-effect-free binary/help discovery. `GET /harness-adapters/continuation-matrix` and the read-only MCP tool `harness_continuation_matrix` keep those catalog ceilings separate from completed spawn transcripts and continuation receipts, label evidence older than seven days as stale, and leave exact live interaction unverified until a dedicated control receipt exists. Neither discovery nor an agent's self-report earns runtime conformance. The canonical response schema is [`schemas/agent-harbor/v0/harness-continuation-matrix.schema.json`](schemas/agent-harbor/v0/harness-continuation-matrix.schema.json).
+
+The durable roster composes those primitives into long-lived named people. `POST /durable-agents` mints an opaque AgentNode principal with a scoped human alias; `POST /durable-agents/promote` requires a sanitized handoff episode whose source session matches the native harness session being promoted; `GET /durable-agents/search` uses BM25 + the shared MiniLM model with reciprocal-rank fusion; and `pd roster continue` passes that same AgentNode id through the existing continuation receipt ledger while choosing any catalog backend. Profile revisions remain append-only facts. Permission and trigger fields remain visibly declaration-only until a runtime can prove enforcement. The canonical profile contract is [`pd.agent-harbor.durable-agent-profile.v0`](schemas/agent-harbor/v0/durable-agent-profile.schema.json); architecture is ADR-0119.
 
 ### Artifact Harvest (Booty)
 
