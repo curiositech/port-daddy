@@ -15,7 +15,7 @@ elif [[ -n "${PORT_DADDY_URL:-}" ]]; then
 elif [[ -f "$PORT_FILE" ]]; then
   PORT_DADDY_BASE="http://localhost:$(tr -d '[:space:]' < "$PORT_FILE")"
 else
-  PORT_DADDY_BASE="http://localhost:9876"
+  exit 0
 fi
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)

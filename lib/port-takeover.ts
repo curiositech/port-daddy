@@ -1,18 +1,16 @@
 /**
- * Detect when the canonical Port Daddy TCP port is already held by a sibling
+ * Detect when Port Daddy's preferred TCP port is already held by another process
  * daemon (typically a Friday-orphan whose parent died but whose server.ts kept
  * running and got reparented to PID 1).
  *
- * The previous behavior on `EADDRINUSE` was a silent walk to ports 9877..9886.
- * That let two Port Daddy daemons run side-by-side, each listening on a
- * different TCP port but writing to the same SQLite DB. Their views of
- * sessions, fleet, and active ports diverged within minutes.
+ * A foreign owner is not allowed to take Port Daddy down: the daemon walks to
+ * the next candidate and atomically publishes the port it actually bound.
+ * A healthy Port Daddy sibling remains different because starting a second
+ * writer over the same state plane would duplicate work. That case refuses by
+ * default; an explicitly isolated named runtime may opt into sibling fallback.
  *
  * `probePortOwner` tells the caller what can be learned about the holder. The
- * default policy is stricter than the probe: a canonical daemon never walks
- * away from its declared port merely because the holder stopped answering
- * during the probe. It refuses and lets the sole supervisor retry. The legacy
- * fallback walk is available only through the explicit escape hatch.
+ * The preferred port is a starting point, never a client-side address.
  */
 
 import http from 'node:http';
@@ -42,13 +40,13 @@ interface HealthResponse {
  * Sample inputs and outputs:
  *
  * ```ts
- * await probePortOwner('127.0.0.1', 9876)
+ * await probePortOwner('127.0.0.1', preferredPort)
  * // => { kind: 'port-daddy', pid: 66221, uptimeSeconds: 75123, version: '3.12.0' }
  *
- * await probePortOwner('127.0.0.1', 9876)            // nothing listening
+ * await probePortOwner('127.0.0.1', preferredPort)   // nothing listening
  * // => { kind: 'unreachable', reason: 'ECONNREFUSED' }
  *
- * await probePortOwner('127.0.0.1', 9876)            // some other web server
+ * await probePortOwner('127.0.0.1', preferredPort)   // some other web server
  * // => { kind: 'foreign', rawStatus: 200, reason: 'non-port-daddy response' }
  * ```
  */
@@ -99,7 +97,7 @@ export function probePortOwner(
 export interface DecideTakeoverInput {
   probe: PortOwnerProbe;
   selfPid: number;
-  /** When true (env PD_ALLOW_TCP_FALLBACK=1), restore the legacy walk-to-fallback-port behavior. */
+  /** When true, an isolated runtime may also walk past a healthy Port Daddy sibling. */
   allowFallback: boolean;
 }
 
@@ -154,14 +152,9 @@ export function decideTakeover(input: DecideTakeoverInput): TakeoverDecision {
       foreignPid: probe.pid,
     };
   }
-  if (probe.kind === 'foreign') {
-    return {
-      action: 'refuse',
-      reason: 'the canonical Port Daddy port is occupied by a foreign process; refusing to advertise a different port',
-    };
-  }
+  if (probe.kind === 'foreign') return { action: 'fallback', reason: 'preferred port is occupied by a foreign process' };
   return {
-    action: 'refuse',
-    reason: 'the canonical Port Daddy port is busy but its owner could not be verified; refusing to advertise a different port',
+    action: 'fallback',
+    reason: 'preferred port is busy and its owner could not be verified',
   };
 }

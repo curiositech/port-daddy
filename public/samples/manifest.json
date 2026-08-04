@@ -1,12 +1,18 @@
 {
   "version": 1,
-  "packageVersion": "3.27.0",
+  "packageVersion": "3.28.0",
   "sources": [
     "examples",
     "templates"
   ],
-  "count": 58,
+  "count": 59,
   "files": [
+    {
+      "path": "examples/_daemon-url.ts",
+      "url": "/samples/files/examples/_daemon-url.ts",
+      "bytes": 850,
+      "sha256": "28827f210fe255f586fca24b4b6b725605b5e5ff585d217df0cc54312c2ec4af"
+    },
     {
       "path": "examples/agent-topologies/README.md",
       "url": "/samples/files/examples/agent-topologies/README.md",
@@ -16,8 +22,8 @@
     {
       "path": "examples/agent-topologies/topology-pubsub.ts",
       "url": "/samples/files/examples/agent-topologies/topology-pubsub.ts",
-      "bytes": 2802,
-      "sha256": "a8fce384b28ddc37d20832bda3e718856d55f146e457606906a3e8d57a6940c8"
+      "bytes": 2735,
+      "sha256": "e16e41477ddd20f1ef248f87a7b2ac1c301b4bf8786f00212ab70f057fbcf25d"
     },
     {
       "path": "examples/agents/sandbox/experiment-log.md",
@@ -82,8 +88,8 @@
     {
       "path": "examples/editor-lightbulb/explain-selection.html",
       "url": "/samples/files/examples/editor-lightbulb/explain-selection.html",
-      "bytes": 6641,
-      "sha256": "334621c33b4e9d0e475a662e696716f4735338e2744a98f800380ad170231cb9"
+      "bytes": 7072,
+      "sha256": "35718f4c8232fcc2ce614f8ea24cce7cff50d455234e1b5fee54bf3286ec8ecb"
     },
     {
       "path": "examples/editor-lightbulb/README.md",
@@ -136,8 +142,8 @@
     {
       "path": "examples/leader-election/leader-election.ts",
       "url": "/samples/files/examples/leader-election/leader-election.ts",
-      "bytes": 3144,
-      "sha256": "20f44841e8f1392386a012aaf91a469886d30f0bf1cf9959a5e5a8e7c26862a1"
+      "bytes": 3077,
+      "sha256": "dac707f278649a06aba7c935bd6e686773f6edf5673ca53ecbadbe6afc68d6b4"
     },
     {
       "path": "examples/leader-election/README.md",
@@ -166,20 +172,20 @@
     {
       "path": "examples/p2p-webrtc/webrtc-signaling.ts",
       "url": "/samples/files/examples/p2p-webrtc/webrtc-signaling.ts",
-      "bytes": 4565,
-      "sha256": "e414ea7b31ad29a7e8fe7b52b65a1f0fe936486d0b9498fff9cbb97e30567a86"
+      "bytes": 4498,
+      "sha256": "16b8e7a54945aee43b4f728e56c12d7b193ba3829fda08bcc30cc9fdffd7e64c"
     },
     {
       "path": "examples/pd-tube/agent-responder.py",
       "url": "/samples/files/examples/pd-tube/agent-responder.py",
-      "bytes": 3349,
-      "sha256": "db261236cf1c6b59e76029688c34323068bfc79b76e31c6236b42d2823d573f7"
+      "bytes": 5621,
+      "sha256": "dfcbaeb34e915501ab9c22f3d0b2f164e9a9deadcb7ac4f686af6a623cd67775"
     },
     {
       "path": "examples/pd-tube/button-to-agent.html",
       "url": "/samples/files/examples/pd-tube/button-to-agent.html",
-      "bytes": 6396,
-      "sha256": "43b06a8b7cdf27bcb9d3ab2bcd01ee2938b4449c1346e31b9fb8cae9ce0514af"
+      "bytes": 6779,
+      "sha256": "3b90b5e354f889a4a975358e42906fb00df712222128bef2d6d5b74e640f3a7d"
     },
     {
       "path": "examples/pd-tube/demo.sh",
@@ -190,8 +196,8 @@
     {
       "path": "examples/pd-tube/mission-control.html",
       "url": "/samples/files/examples/pd-tube/mission-control.html",
-      "bytes": 11152,
-      "sha256": "ae66ecbb09be176d4f2c1d246fb8eb8cee589a68876503664e765d07e11f33ef"
+      "bytes": 11546,
+      "sha256": "a392c1211f093ff4064ad83234440496fa19d22003d7ad2ff5f55d37a0f44649"
     },
     {
       "path": "examples/pd-tube/README.md",
@@ -262,8 +268,8 @@
     {
       "path": "examples/test-reporter/test-failure-to-agent.ts",
       "url": "/samples/files/examples/test-reporter/test-failure-to-agent.ts",
-      "bytes": 5456,
-      "sha256": "875af8d27733f4ad8850cc2eee47b9023716ae430d1038bbd7e3ec8e05a1aab8"
+      "bytes": 5413,
+      "sha256": "7350731e0c9a28a80fbbc20fd8e9bd2b6bbdecced777882f9e45dde47d2dff22"
     },
     {
       "path": "examples/tunnel/README.md",
@@ -292,8 +298,8 @@
     {
       "path": "examples/webhook-adapter/local-webhook-to-agent.ts",
       "url": "/samples/files/examples/webhook-adapter/local-webhook-to-agent.ts",
-      "bytes": 5184,
-      "sha256": "5fe0463930a2ec14b4a14158124343f9f3af0886ad80b21ad28af72233953a6c"
+      "bytes": 5117,
+      "sha256": "2f8ce2b12d089de5c2157965e71cebbf4a472e02d6bdd6ac352a9c55ba85e213"
     },
     {
       "path": "examples/webhook-adapter/README.md",
@@ -334,8 +340,8 @@
     {
       "path": "templates/pd-fleet-always-on.yml",
       "url": "/samples/files/templates/pd-fleet-always-on.yml",
-      "bytes": 4868,
-      "sha256": "6cfb779854cba780a0051b34c2b2e0c7411bb9e1efb1a44e7b719656bf76a281"
+      "bytes": 5066,
+      "sha256": "6ac195d565afe4dab684eb0b6c554dd62f9114577a66635b0f0b03877a3def61"
     },
     {
       "path": "templates/pd-fleet-starter.yml",
@@ -346,8 +352,8 @@
     {
       "path": "templates/post-commit-hook",
       "url": "/samples/files/templates/post-commit-hook",
-      "bytes": 2504,
-      "sha256": "294d7ae133e981058b9d199db6b27058247805909ee93e498a020ae1ca99bac2"
+      "bytes": 2471,
+      "sha256": "0f823506fedf0afe6691a71d632b9421add6758e780263a600568bad91fbf035"
     },
     {
       "path": "templates/swarm-researcher/README.md",

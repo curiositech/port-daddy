@@ -523,7 +523,50 @@ if (launcherOutfile) {
   }
 }
 
-let smoke = { status: 'skipped', reason: 'cross-target build' };
+const manifestPath = join(dirname(entrypointOutfile), 'port-daddy-manifest.json');
+const manifestBase = {
+  version: 1,
+  artifact: 'port-daddy',
+  entrypoint: 'bin/port-daddy-bundle.ts',
+  outfile: entrypointOutfile,
+  binaryOutfile,
+  launcherOutfile,
+  platform: process.platform,
+  arch: process.arch,
+  target: target || null,
+  sizeBytes: statSync(binaryOutfile).size,
+  sha256: sha256(binaryOutfile),
+  launcherSha256: launcherOutfile ? sha256(launcherOutfile) : null,
+  builtAt: new Date().toISOString(),
+  builder: `bun ${bunArgs.join(' ')}`,
+  bunVersion: run('bun', ['--version']).stdout.trim(),
+  embeddedPublicAssets: embeddedAssets.length,
+  embeddedNativeCore,
+  onnxRuntimeNative,
+  squidAssets: squidAssets.map(path => relative(releaseDir, path)),
+  squidAssetSha256: Object.fromEntries(squidAssets.map(path => [relative(releaseDir, path), sha256(path)])),
+  surfaces: {
+    cli: 'bundled',
+    daemon: 'self-hosted via hidden __daemon entrypoint; companion dist/daemon binary remains available for daemon-only installs',
+    mcp: 'in-process stdio import',
+    sdk: 'compiled client modules plus package exports in npm distribution',
+    fleetUi: 'embedded in the executable through a generated asset table with external public/ fallback',
+    publicSamples: 'embedded in the executable through a generated asset table; manifest generated before compile',
+    squidHarness: 'repair-capable companion scripts staged beside every locally built artifact and verified by an isolated four-provider arm smoke',
+  },
+};
+
+function writeManifest(smoke) {
+  writeFileSync(manifestPath, JSON.stringify({ ...manifestBase, smoke }, null, 2) + '\n');
+}
+
+// The artifact smoke reads this preliminary receipt and verifies the exact
+// binary and staged Squid hashes. It is overwritten with the completed smoke
+// result only after every probe passes, so a stale prior manifest can never
+// bless a newly compiled binary.
+let smoke = { status: 'pending', reason: 'artifact smoke has not completed' };
+writeManifest(smoke);
+
 if (canSmokeTarget) {
   const smokePrefix = join(DURABLE_SCRATCH_DIR, `pd-single-binary-smoke-${process.pid}`);
   const result = run(entrypointOutfile, ['help'], {
@@ -544,40 +587,9 @@ if (canSmokeTarget) {
   run(process.execPath, ['scripts/smoke-squid-release.mjs', entrypointOutfile, releaseDir], {
     stdio: 'inherit',
   });
+} else {
+  smoke = { status: 'skipped', reason: 'cross-target build' };
 }
 
-const manifest = {
-  version: 1,
-  artifact: 'port-daddy',
-  entrypoint: 'bin/port-daddy-bundle.ts',
-  outfile: entrypointOutfile,
-  binaryOutfile,
-  launcherOutfile,
-  platform: process.platform,
-  arch: process.arch,
-  target: target || null,
-  sizeBytes: statSync(binaryOutfile).size,
-  sha256: sha256(binaryOutfile),
-  launcherSha256: launcherOutfile ? sha256(launcherOutfile) : null,
-  builtAt: new Date().toISOString(),
-  builder: `bun ${bunArgs.join(' ')}`,
-  bunVersion: run('bun', ['--version']).stdout.trim(),
-  embeddedPublicAssets: embeddedAssets.length,
-  embeddedNativeCore,
-  onnxRuntimeNative,
-  squidAssets: squidAssets.map(path => relative(releaseDir, path)),
-  surfaces: {
-    cli: 'bundled',
-    daemon: 'self-hosted via hidden __daemon entrypoint; companion dist/daemon binary remains available for daemon-only installs',
-    mcp: 'in-process stdio import',
-    sdk: 'compiled client modules plus package exports in npm distribution',
-    fleetUi: 'embedded in the executable through a generated asset table with external public/ fallback',
-    publicSamples: 'embedded in the executable through a generated asset table; manifest generated before compile',
-    squidHarness: 'repair-capable companion scripts staged beside every locally built artifact and verified by an isolated four-provider arm smoke',
-  },
-  smoke,
-};
-
-const manifestPath = join(dirname(entrypointOutfile), 'port-daddy-manifest.json');
-writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+writeManifest(smoke);
 console.log(`Single binary manifest: ${manifestPath}`);

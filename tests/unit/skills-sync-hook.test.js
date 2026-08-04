@@ -5,10 +5,10 @@
  * and that script must actually resolve the repo catalog end-to-end.
  */
 import { execFileSync } from 'node:child_process';
-import { readFileSync, mkdtempSync, rmSync, readdirSync, lstatSync } from 'node:fs';
+import { readFileSync, mkdtempSync, mkdirSync, rmSync, readdirSync, lstatSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import os from 'node:os';
+import { homedir } from 'node:os';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -27,11 +27,13 @@ describe('skills sync hook', () => {
   test('sync-skills resolves the repo catalog into a fresh base (integration)', () => {
     // A throwaway base dir proves the full pipeline (catalog discovery, union
     // resolution, symlink planning) works without touching the real $HOME.
-    const base = mkdtempSync(join(os.tmpdir(), 'pd-skill-sync-'));
+    const scratchRoot = join(homedir(), 'coding', 'tmp');
+    mkdirSync(scratchRoot, { recursive: true });
+    const base = mkdtempSync(join(scratchRoot, 'pd-skill-sync-'));
     try {
       execFileSync(
-        'npx',
-        ['tsx', 'scripts/sync-skills.ts', '--scope', 'user', '--base', base],
+        process.execPath,
+        [join(REPO, 'node_modules', 'tsx', 'dist', 'cli.mjs'), 'scripts/sync-skills.ts', '--scope', 'user', '--base', base],
         { cwd: REPO, encoding: 'utf8', timeout: 120_000 },
       );
       // Assert against the filesystem, not the summary JSON (whose shape is

@@ -20,7 +20,7 @@ The PR review gate is **backend-agnostic**: any Port Daddy fleet agent — any b
 
 The CLI is for agents and emergencies. **The operator does not run `pd` commands, does not edit `.env.local` files, does not run `launchctl kickstart`, does not tail logs.** That work is yours.
 
-The operator's surface is the **FleetBar app and the dashboard at `localhost:9876`** — buttons, panels, deep-links to provider token pages. If the operator has to drop to a terminal to do something routine (configure credentials, restart the daemon, see open feedback, harvest a roadmap entry, see why the fleet is silently failing), that is a product bug — file it as `high`-severity feedback on the `FleetBar` surface so cartographer promotes it to the roadmap.
+The operator's surface is the **FleetBar app and the dashboard URL discovered from the running daemon** — buttons, panels, deep-links to provider token pages. If the operator has to drop to a terminal to do something routine (configure credentials, restart the daemon, see open feedback, harvest a roadmap entry, see why the fleet is silently failing), that is a product bug — file it as `high`-severity feedback on the `FleetBar` surface so cartographer promotes it to the roadmap.
 
 Concretely:
 - Secrets live in the macOS Keychain, surfaced through a FleetBar Credentials panel with deep links to the provider's actual token page. No `.env.local`. (See open feedback `fleetbar-secret-management-with-provider-deeplinks`.)
@@ -38,6 +38,32 @@ The two Port Daddy skills are the operating instructions for *all* future agents
 - **`skills/port-daddy-internal-dev/SKILL.md`** — the contributor-only skill. Edit when the lesson is specific to editing *this* repo (release ceremony, internal actor embodiments, drift protocol, worked contributor examples).
 
 You are explicitly invited to fix errors, sharpen inefficient passages, and add anti-patterns the moment you notice them — no issue, ticket, or permission required. Same-slice edits (landing the doc fix alongside the code change that revealed the problem) are the default; retrospective edits days later are still owed and welcome. Both skills carry their own "Maintain These Skills" sections with the small ceremony (worktree, explicit-path staging, tests, Cartographer ping). Internal agents working on port-daddy itself own *both* surfaces continuously — split-decision rule lives in `port-daddy-internal-dev`.
+
+## Instruction and release documentation are one transaction
+
+Treat `AGENTS.md`, `CLAUDE.md`, `README.md`, and the two canonical Port Daddy
+skills as one maintained instruction system, not four independent essays.
+`AGENTS.md` owns contributor policy; `CLAUDE.md` is only a short Claude entry
+point; `README.md` owns public product truth; the public skill owns reusable
+agent operation; the internal skill owns repo-only release and runtime work.
+Link to the owning surface instead of copying whole procedures.
+
+Two different agent loops protect that system:
+
+- Every GitHub push publishes `github:curiositech/port-daddy:push`, waking the
+  low-tier Documentarian in `pd-fleet.yml` for a bounded SHA-scoped repair. This
+  is continuous maintenance and may open a stacked draft PR; it is not a
+  synchronous git gate.
+- Every version that can roll Homebrew must include
+  `docs/release-reviews/v<version>.json`. The release workflow recomputes the
+  candidate-tree digest and requires four unique Port Daddy reviewer agents,
+  three cross-steelman records, no synthesis blockers, and proof from a named
+  non-stable daemon at the release version. Any later tree edit invalidates the
+  receipt and blocks every binary lane before the tap can move.
+
+For runtime-serving changes, the release candidate is incomplete until a
+compiled CLI has exercised a compiled, named feature berth. Never install a
+feature binary under the old stable version and call that release proof.
 
 ## Search & Matching Policy — hybrid, one shared embedder
 
@@ -81,7 +107,12 @@ Lifecycle: `pd setup` offers the one-time ~27 MB download (cancellable); `pd doc
 - If Port Daddy coordination primitives disagree with each other, for example active sessions exist but active-context lookup or file-claim commands say no active session, stop treating that as incidental CLI friction. Re-anchor safely, leave exact evidence in notes, and either fix the coordination bug immediately if bounded or file a targeted handoff before continuing feature work.
 - Coordination Guard is expected in enforce mode for this repo. If `pd guard status` is missing, advisory, or stale, run `pd guard install --mode enforce` before editing toward a commit. Before every commit, push, or deploy, fetch the canonical remote branch, rebase or merge current work onto it (`origin/main` here; `origin/master` only when that remote branch exists), re-read `pd sessions --all-worktrees`, `pd notes --limit 20`, activity, and relevant ownership, then run `pd guard check --staged`.
 - Durable handoffs go into Port Daddy notes, actor inboxes, tuples, or scoped channels. Chat-only coordination is not enough.
-- Agent-CLI coordination hooks: `pd hooks install` (run by `pd init`/`pd setup`) wires the Giant Squid Harness tentacles into the **interactive** sessions of `claude`/`codex`/`gemini`/`agy` for the current project. Wiring is **per-project** (claude/gemini config lives in the repo; codex/agy are user-level) and **daemon-gated** — every hook routes through a wrapper that no-ops unless the daemon is running and the cwd is inside a `.portdaddy/` project, so hooks never fire machine-wide or when Port Daddy is down. Hook shapes are defined once in `lib/squid/hook-shape.ts` and shared by the headless squid adapter and the interactive installer so they cannot drift. Codex needs a one-time `/hooks` trust. Remove with `pd hooks uninstall`. The one-command toggle is `pd squid on` / `pd squid off` (adds the `◆ PD` statusline identity, the Pilot SessionStart steering hook, and the `/squid` in-session command); inspect the live background machinery with `pd squid status` and preview the next-turn injection with `pd squid tap`.
+- Giant Squid policy lives in the public skill and product behavior lives in
+  [`README.md`](README.md#giant-squid--visible-project-scoped-agent-coordination);
+  release proof lives in [`docs/RELEASING.md`](docs/RELEASING.md). The contributor
+  invariant is short: `pd squid on` must install the managed SessionStart
+  attention hook plus Pilot steering, all detected provider tentacles, `◆ PD`,
+  and `/squid`; prove it with `pd squid status` and the compiled artifact smoke.
 
 ## Ambient Collaboration
 
@@ -137,8 +168,8 @@ Lifecycle: `pd setup` offers the one-time ~27 MB download (cancellable); `pd doc
   - `curl -sS "$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed 's#^#http://localhost:#')/fleet"` or the daemon URL surfaced by `port-daddy status`
 - `port-daddy status` proves the Unix socket path works. It does not prove the TCP/browser path works. If the control plane or FleetBar is lying, verify both the socket client and the TCP URL from the port file.
 - If those disagree, trust the live process and launchd output, not docs or memory.
-- There should be exactly one canonical daemon on `9876`.
-- If another Port Daddy daemon is already sitting on the canonical socket/port, treat it as replaceable stale runtime, not sacred state.
+- There should be exactly one canonical daemon generation. Its preferred port is only a starting point; clients use the published endpoint.
+- If another healthy Port Daddy daemon already owns the preferred endpoint, reconcile that sibling before starting a second writer. A foreign process on the preferred port is harmless: the daemon binds the next candidate and publishes it.
 - Extra daemons are only acceptable when they are explicitly opt-in on different ports/sockets/prefixes.
 - Check the shell shim too: `which port-daddy` and `realpath`/symlink inspection can still point at an old checkout even after the daemon is promoted.
 - A promoted canonical daemon plus a stale global CLI shim is an inconsistent operator state; relink the CLI if you intentionally move the canonical runtime to a different checkout.
@@ -448,8 +479,9 @@ loudly rather than dropping evidence.
    hash differs from the unsigned source — that's the embedded signature, expected.)
 
 **Run:** `pd-console` (PATH) or double-click the .app. Daemon discovery: `PORT_DADDY_URL` env →
-`~/.port-daddy/daemon.port` → default; if discovery fails it **panics**, so launch with
-`PORT_DADDY_URL=http://127.0.0.1:9876` when the port file is absent.
+`~/.port-daddy/daemon.port` → preferred default; if discovery fails it **panics**. Repair
+the port-file/discovery path or target a named berth with `pd --daemon <label>`; never
+guess a fixed URL.
 
 **Theme:** `PD_CONSOLE_THEME=light|dark` seeds startup; `Ctrl-A g` toggles live. Palette lives in
 `core/pd-console/src/palette.rs` (light+dark, maritime/neobrutalism). `theme.rs` is the *REPL's*
@@ -460,8 +492,9 @@ OKLCH system — distinct module, don't conflate. All colors are guard-safe (no 
 `task` + `identity` + `budgetUsd>0` + `model` (for ollama) + a worktree `workdir` (the daemon BLOCKS
 main-checkout spawns), and the **operator must fund the project wallet** (`pd wallet top-up <project>
 --usd N`) + set a daily budget (`pd wallet budget <project> --usd-per-day N`). One-shot backends (ollama)
-return output inline in the spawn response (not on the tube). Missing any of these = "spawn looks
-wired but does nothing" — the historical hollowness.
+return a durable `202 Accepted` receipt when the caller sends `Prefer: respond-async`;
+the caller collects the monitor resource or transcript instead of holding one HTTP request open.
+Missing any required launch field = "spawn looks wired but does nothing" — the historical hollowness.
 
 **gpui 0.2.2 idioms** (no fluent transform exists): express "lift/glow/spring" via `shadow(vec![BoxShadow{
 color:Hsla, offset:point(px,px), blur_radius, spread_radius}])` + hover color, and `with_animation(id,
@@ -723,9 +756,9 @@ Any PR that adds, rewrites, or runs a "voice pass" on a post under `website-v2/s
 - If multiple Port Daddy checkouts exist, duplicate fleet names can make project selection and routing look broken unless everything keys by `projectDir`.
 - Before concluding a UI fix "didn't work", verify the daemon being queried is the one serving this checkout's `public/fleet-ui`.
 - `docs/recovery/CURRENT-WORK.md` is the canonical in-flight queue. Update it as the active thread changes; then reflect larger closures in `.cartographer/status.md`.
-- Do not hardcode `9876` as if it is guaranteed truth. `9876` is the preferred canonical port, but runtime code must discover the live daemon via the shared socket/port-file helper because the daemon can fall back.
-- Do not hardcode `localhost` as if it is harmless truth either. TCP callers should go through the shared loopback host helper instead of sprinkling new `http://localhost:9876` literals around the repo.
-- If a runtime/helper/UI path needs the daemon URL, prefer the shared discovery helper over inline `http://localhost:9876` defaults.
+- Do not hardcode the preferred daemon port as if it is guaranteed truth. Runtime code and contributor examples must discover the live daemon via the shared socket/port-file helper because the daemon can fall back.
+- Do not hardcode `localhost` as if it is harmless truth either. TCP callers should go through the shared loopback host helper instead of sprinkling fixed loopback URLs around the repo.
+- If a runtime/helper/UI path needs the daemon URL, use the shared discovery helper rather than an inline default.
 - Bosun heartbeat truth is canonical-daemon truth, not "any server.ts process is alive" truth. A daemon must only write the shared heartbeat after it owns the canonical PID file, and `pd-bosun` must treat heartbeat/PID-file mismatches as foreign provenance rather than healthy supervision.
 - Do not `unref()` the daemon's Bosun heartbeat interval. Unlike SDK or spawner helper heartbeats, this timer is the mandatory liveness contract that keeps the external supervisor from killing an otherwise reachable but idle daemon.
 - Legacy Barnacle is gone from runtime. `pd-bosun` is authoritative; do not add HTTP Barnacle watchers, `guardians.barnacle` compatibility fields, or `PORT_DADDY_ENABLE_LEGACY_BARNACLE` escape hatches back into source.
@@ -733,7 +766,7 @@ Any PR that adds, rewrites, or runs a "voice pass" on a post under `website-v2/s
 
 ### Canonical daemon URL — enforced by CI
 
-The rule above is enforced by `tests/unit/no-hardcoded-daemon-url.test.js`. Production source paths (`lib/`, `routes/`, `cli/`, `bin/`, `mcp/`, `shared/`, `apps/FleetBar/`, `public/`, `fleet-config-ui/src/`, `dashboard/`, `website-v2/src/lib/`, plus `server.ts`) must NOT contain `http://localhost:9876` or `http://127.0.0.1:9876` literals. Use:
+The rule above is enforced by `tests/unit/no-hardcoded-daemon-url.test.js` and `tests/unit/no-hardcoded-daemon-port.test.js`. Production source paths and load-bearing contributor docs must not contain a fixed daemon URL or preferred-port literal. Use:
 
 - **Node — to CONNECT (socket-first):** `resolveDaemonTarget()` from `shared/daemon-discovery.ts`. This is the ONE canonical resolver of socket-vs-TCP for the whole repo (precedence: `PORT_DADDY_SOCK` → `PORT_DADDY_URL` → the daemon socket file → loopback TCP from `daemon.port`). `cli/utils/fetch.ts` (`pdFetch`, ~48 importers), `lib/request.ts` (`pdRequest`), and the `lib/client.ts` SDK all delegate to it — do not hand-roll a fourth `resolveTarget`.
 - **Node — to DISPLAY/log a base URL string:** `getDaemonTcpUrl(process.env.PORT_DADDY_URL)` from `shared/daemon-discovery.ts` (TCP URL only; not a connection target).

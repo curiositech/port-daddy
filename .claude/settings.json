@@ -54,6 +54,22 @@
             "command": "pd attention --json 2>/dev/null || true"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PD_SQUID_SESSIONSTART=1 \"${PORT_DADDY_CLI:-pd}\" attention --json 2>/dev/null || true"
+          },
+          {
+            "type": "command",
+            "command": "PD_SQUID_SESSIONSTART=1 pd attention --json 2>/dev/null || true"
+          },
+          {
+            "type": "command",
+            "command": "node /Users/erichowens/.port-daddy/hooks/sessionstart-pilot.mjs"
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -64,7 +80,45 @@
             "command": "npx tsx scripts/sync-skills.ts --scope user --quiet >/dev/null 2>&1 || true"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/erichowens/.port-daddy/bin/pd-hook-prompt",
+            "statusMessage": "◆ PD TURN · adding fresh coordination context"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/erichowens/.port-daddy/bin/pd-hook-pre-tool",
+            "statusMessage": "◆ PD EDIT · checking ownership before mutation"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/erichowens/.port-daddy/bin/pd-hook-post-tool",
+            "statusMessage": "◆ PD TRACE · adding the outcome to fleet context"
+          }
+        ]
       }
     ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "/Users/erichowens/.port-daddy/bin/pd-statusline",
+    "padding": 0
   }
 }

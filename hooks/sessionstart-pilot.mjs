@@ -90,6 +90,8 @@ const STEERING = [
   '4. GO MULTI-AGENT WHEN THE WORK FANS OUT. One implementer per disjoint claim, an adversarial',
   '   reviewer per diff, one long-lived coordination-keeper. Solo for a single bounded change.',
   '5. Operator surface is FleetBar / the dashboard — never tell the human to run shell commands.',
+  '6. NAMED DEV BUILDS STAY PAIRED. When `$PORT_DADDY_CLI` is set, invoke',
+  '   `"$PORT_DADDY_CLI"` instead of bare `pd`; login shells can put Homebrew first again.',
   '',
   'Tools: prefer Port Daddy MCP (sessions, claims, locks, notes, ports, sorties) and WinDAGs',
   '(skill_search, next_move, validate_dag). Search skills before hand-rolling; never write',

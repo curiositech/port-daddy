@@ -105,6 +105,17 @@ describe('single binary distribution path', () => {
     expect(buildScript).toContain('copyFileSync(outfile, isolatedOutfile)');
     expect(buildScript).toContain('companionFiles');
     expect(buildScript).toContain('repair-capable companion scripts staged beside every locally built artifact');
+    expect(buildScript).toContain('squidAssetSha256');
+    expect(buildScript).toContain("status: 'pending'");
+    expect(buildScript.indexOf('writeManifest(smoke);')).toBeLessThan(
+      buildScript.indexOf("scripts/smoke-squid-release.mjs"),
+    );
+    const squidSmoke = readFileSync(join(process.cwd(), 'scripts', 'smoke-squid-release.mjs'), 'utf8');
+    expect(squidSmoke).toContain('compiled pd hash does not match its build receipt');
+    expect(squidSmoke).toContain('staged asset hash does not match build receipt');
+    expect(squidSmoke).toContain('PD_SQUID_SESSIONSTART=1 "${PORT_DADDY_CLI:-pd}" attention --json 2>/dev/null || true');
+    expect(squidSmoke).toContain('harness-conformance-live-dark.gif');
+    expect(squidSmoke).toContain('harness-attention-activation-dark.gif');
   });
 
   test('compiled CLI relaunches short pd binary through sibling port-daddy before daemon work', () => {

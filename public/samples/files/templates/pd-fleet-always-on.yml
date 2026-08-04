@@ -19,7 +19,8 @@ fleet:
       backend: custom
       prompt: |
         PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
-        PD_URL="${PORT_DADDY_URL:-http://localhost:$(tr -d '[:space:]' < "$PORT_FILE" 2>/dev/null || echo 9876)}"
+        test -n "${PORT_DADDY_URL:-}" || test -r "$PORT_FILE" || { echo "Port Daddy endpoint is unpublished" >&2; exit 1; }
+        PD_URL="${PORT_DADDY_URL:-http://localhost:$(tr -d '[:space:]' < "$PORT_FILE")}"
         curl -sf "$PD_URL/services/health" | jq -r '.results[] | select(.healthy==false) | .id'
       on_failure: publish health:degraded
       identity: "{project}:always-on:health-monitor"
@@ -32,7 +33,8 @@ fleet:
       backend: custom
       prompt: |
         PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
-        PD_URL="${PORT_DADDY_URL:-http://localhost:$(tr -d '[:space:]' < "$PORT_FILE" 2>/dev/null || echo 9876)}"
+        test -n "${PORT_DADDY_URL:-}" || test -r "$PORT_FILE" || { echo "Port Daddy endpoint is unpublished" >&2; exit 1; }
+        PD_URL="${PORT_DADDY_URL:-http://localhost:$(tr -d '[:space:]' < "$PORT_FILE")}"
         curl -sf "$PD_URL/locks" | jq -r '.locks[] | select(.expiresAt < now) | .name' | while read name; do
           curl -sf -X DELETE "$PD_URL/locks/$name" -H 'Content-Type: application/json' -d '{"force": true}'
         done

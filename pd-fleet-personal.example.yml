@@ -131,7 +131,8 @@ fleet:
 
     # ── 5. Webhook Catchall ──────────────────────────────────────────────
     # Generic escape hatch. POST anything to
-    # http://localhost:9876/webhooks/zapier and this ship will answer.
+    # <published-daemon-url>/webhooks/zapier and this ship will answer. Read the
+    # URL from FleetBar or `pd status --json`; never assume the preferred port.
     # Lets the operator wire Zapier, Tasker, Shortcuts, etc. into the
     # fleet without writing code.
     zapier-catchall:

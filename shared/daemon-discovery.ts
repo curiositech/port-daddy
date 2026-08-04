@@ -29,8 +29,11 @@ export const LOOPBACK_TCP_HOST = process.env.PORT_DADDY_TCP_HOST?.trim() || '127
  *      (override the path with `PORT_DADDY_PORT_FILE`)
  *   3. {@link DEFAULT_DAEMON_PORT}
  */
-export function resolveDaemonPort(portFile = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE): number {
-  const envPort = process.env.PORT_DADDY_PORT?.trim();
+export function resolveDaemonPort(
+  portFile = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE,
+  env: NodeJS.ProcessEnv = process.env,
+): number {
+  const envPort = env.PORT_DADDY_PORT?.trim();
   if (envPort) {
     const parsed = Number.parseInt(envPort, 10);
     if (Number.isInteger(parsed) && parsed >= 1024 && parsed <= 65535) {
@@ -59,9 +62,14 @@ export const readDaemonPort = resolveDaemonPort;
  *
  * Resolution order: `PORT_DADDY_URL` env var → `http://<host>:<resolveDaemonPort()>`.
  */
-export function resolveDaemonUrl(explicitUrl = process.env.PORT_DADDY_URL): string {
+export function resolveDaemonUrl(
+  explicitUrl = process.env.PORT_DADDY_URL,
+  portFile = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
   if (explicitUrl && explicitUrl.trim()) return explicitUrl;
-  return `http://${LOOPBACK_TCP_HOST}:${resolveDaemonPort()}`;
+  const host = env.PORT_DADDY_TCP_HOST?.trim() || LOOPBACK_TCP_HOST;
+  return `http://${host}:${resolveDaemonPort(portFile, env)}`;
 }
 
 /**
@@ -69,11 +77,15 @@ export function resolveDaemonUrl(explicitUrl = process.env.PORT_DADDY_URL): stri
  */
 export const getDaemonTcpUrl = resolveDaemonUrl;
 
-export function resolveDaemonTcpTarget(explicitUrl = process.env.PORT_DADDY_URL): { host: string; port: number } {
-  const url = new URL(resolveDaemonUrl(explicitUrl));
+export function resolveDaemonTcpTarget(
+  explicitUrl = process.env.PORT_DADDY_URL,
+  portFile = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE,
+  env: NodeJS.ProcessEnv = process.env,
+): { host: string; port: number } {
+  const url = new URL(resolveDaemonUrl(explicitUrl, portFile, env));
   return {
     host: url.hostname,
-    port: Number.parseInt(url.port, 10) || DEFAULT_DAEMON_PORT,
+    port: Number.parseInt(url.port, 10) || (url.protocol === 'https:' ? 443 : 80),
   };
 }
 
@@ -110,9 +122,11 @@ export function resolveDaemonTarget(
   env: NodeJS.ProcessEnv = process.env,
   fileExists: (path: string) => boolean = existsSync,
 ): DaemonTarget {
-  if (env.PORT_DADDY_FORCE_TCP === '1') return resolveDaemonTcpTarget(env.PORT_DADDY_URL);
+  const portFile = env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE;
+  const tcpTarget = () => resolveDaemonTcpTarget(env.PORT_DADDY_URL, portFile, env);
+  if (env.PORT_DADDY_FORCE_TCP === '1') return tcpTarget();
   if (env.PORT_DADDY_SOCK) return { socketPath: env.PORT_DADDY_SOCK };
-  if (env.PORT_DADDY_URL) return resolveDaemonTcpTarget(env.PORT_DADDY_URL);
+  if (env.PORT_DADDY_URL) return tcpTarget();
   if (fileExists(DEFAULT_SOCK)) return { socketPath: DEFAULT_SOCK };
-  return resolveDaemonTcpTarget(env.PORT_DADDY_URL);
+  return tcpTarget();
 }

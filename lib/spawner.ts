@@ -264,7 +264,21 @@ export interface SpawnedAgent {
   purpose: string | null;
   startedAt: number;
   completedAt: number | null;
+  /** Last supervisor heartbeat. Proves the daemon still owns the run, not that the model made progress. */
+  heartbeatAt: number;
+  /** Last child start or transcript event observed for this run. */
+  lastActivityAt: number;
+  /** Current direct child PID when one exists. */
+  pid: number | null;
+  /** Explicit caller deadline. Null means no wall-clock execution deadline. */
+  deadlineAt: number | null;
 }
+
+export type SpawnAccepted = Pick<
+  SpawnedAgent,
+  'agentId' | 'name' | 'backend' | 'model' | 'status' | 'identity' | 'purpose' |
+  'startedAt' | 'completedAt' | 'heartbeatAt' | 'lastActivityAt' | 'pid' | 'deadlineAt'
+>;
 
 export interface TelemetryBypassApproval {
   humanConfirmed: true;
@@ -278,6 +292,7 @@ interface AgentRecord extends SpawnedAgent {
   childProcess: ChildProcess | null;
   bondId?: number | null;
   bondUsd?: number;
+  result?: SpawnResult;
 }
 
 export interface ResolvedSpawnRuntime {
@@ -402,11 +417,11 @@ interface ChildRunOpts {
 
 function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string | null; child: ChildProcess }> {
   return new Promise((resolve) => {
-    const timeoutMs = opts.timeout || 300000;
+    const timeoutMs = opts.timeout && opts.timeout > 0 ? opts.timeout : null;
     const child = spawnChild(opts.cmd, opts.args, {
       cwd: opts.cwd || process.cwd(),
       env: opts.env as NodeJS.ProcessEnv,
-      timeout: timeoutMs,
+      ...(timeoutMs === null ? {} : { timeout: timeoutMs }),
       detached: true,
       shell: false,
       ...(opts.stdio ? { stdio: opts.stdio as any } : {}),
@@ -418,7 +433,7 @@ function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string |
     let timedOut = false;
     let settled = false;
     let forceKillTimer: ReturnType<typeof setTimeout> | null = null;
-    const timeoutTimer = setTimeout(() => {
+    const timeoutTimer = timeoutMs === null ? null : setTimeout(() => {
       timedOut = true;
       signalChildProcess(child, 'SIGTERM');
       forceKillTimer = setTimeout(() => {
@@ -426,7 +441,7 @@ function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string |
       }, 5000);
       forceKillTimer.unref?.();
     }, Math.max(1, timeoutMs - 25));
-    timeoutTimer.unref?.();
+    timeoutTimer?.unref?.();
 
     child.stdout?.on('data', (data: Buffer) => stdout.push(data.toString()));
     child.stderr?.on('data', (data: Buffer) => stderr.push(data.toString()));
@@ -434,12 +449,12 @@ function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string |
     child.on('close', (code) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeoutTimer);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
       if (forceKillTimer) clearTimeout(forceKillTimer);
       const out = stdout.join('');
       const errText = stderr.join('');
       if (timedOut) {
-        resolve({ output: out, error: `${opts.cmd} timed out after ${timeoutMs}ms${errText ? `: ${errText}` : ''}`, child });
+        resolve({ output: out, error: `${opts.cmd} timed out after ${timeoutMs as number}ms${errText ? `: ${errText}` : ''}`, child });
       } else if (code !== 0) {
         resolve({ output: out, error: errText || `${opts.cmd} exited with code ${code}`, child });
       } else {
@@ -450,7 +465,7 @@ function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string |
     child.on('error', (err) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeoutTimer);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
       if (forceKillTimer) clearTimeout(forceKillTimer);
       resolve({ output: '', error: `Failed to start ${opts.cmd}: ${err.message}`, child });
     });
@@ -1018,6 +1033,7 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
         'resume',
         '--skip-git-repo-check',
         '--full-auto',
+        '-c', 'sandbox_workspace_write.network_access=true',
         '--output-last-message', outputPath,
         '--model', model,
         '--json',
@@ -1029,6 +1045,7 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
         '--skip-git-repo-check',
         '--full-auto',
         '--sandbox', 'workspace-write',
+        '-c', 'sandbox_workspace_write.network_access=true',
         '-C', workspace,
         '--output-last-message', outputPath,
         '--model', model,
@@ -1698,7 +1715,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
    * Spawn an AI agent with the given spec.
    * Automatically wires PD session + heartbeat + done.
    */
-  async function spawn(spec: SpawnSpec): Promise<SpawnResult> {
+  async function spawn(spec: SpawnSpec, onAccepted?: (accepted: SpawnAccepted) => void): Promise<SpawnResult> {
     cleanupStaleAgents();
 
     // Hard global limit — never exceed MAX_CONCURRENT_RUNNING processes
@@ -1998,6 +2015,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       purpose: spec.purpose || spec.task.slice(0, 80),
       startedAt,
       completedAt: null,
+      heartbeatAt: startedAt,
+      lastActivityAt: startedAt,
+      pid: null,
+      deadlineAt: spec.timeout && spec.timeout > 0 ? startedAt + spec.timeout : null,
       heartbeatInterval: null,
       childProcess: null,
       bondId,
@@ -2016,6 +2037,27 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       transcriptId = txStart(spec, runtime, agentId, startedAt);
     } catch (err) {
       transcriptStartError = (err as Error).message;
+    }
+
+    // A 202 receipt is only durable once the transcript row exists. If that
+    // write failed, do not acknowledge admission; the run resolves immediately
+    // as a terminal refusal and no backend child is launched.
+    if (!transcriptStartError) {
+      onAccepted?.({
+        agentId: record.agentId,
+        name: record.name,
+        backend: record.backend,
+        model: record.model,
+        status: record.status,
+        identity: record.identity,
+        purpose: record.purpose,
+        startedAt: record.startedAt,
+        completedAt: record.completedAt,
+        heartbeatAt: record.heartbeatAt,
+        lastActivityAt: record.lastActivityAt,
+        pid: record.pid,
+        deadlineAt: record.deadlineAt,
+      });
     }
 
     // Transition bond: escrowed → running. The markRunning call is what
@@ -2059,6 +2101,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     // Start heartbeat interval
     record.heartbeatInterval = setInterval(async () => {
+      record.heartbeatAt = Date.now();
       const pid = registryPidFor(record);
       await pdCoordinate(`/agents/${agentId}/heartbeat`, {
         pid,
@@ -2092,6 +2135,14 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         ...spec,
         backend: runtime.effectiveBackend,
         model: runtime.effectiveModel,
+        // The daemon, not the caller, owns the spawned identity. Interactive
+        // harness hooks run inside the child and resolve attention/claims from
+        // PD_AGENT_ID, so bind the registered id after spreading caller env.
+        // This also prevents a spawn request from impersonating another agent.
+        env: {
+          ...(spec.env || {}),
+          PD_AGENT_ID: agentId,
+        },
       };
       const finalContinuationWorkspaceError = validateNativeResume(executionSpec, runtime)
         ?? validateSpawnWorkspace(executionSpec);
@@ -2106,6 +2157,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           onChildProcess: (child) => {
             if (record.status === 'running') {
               record.childProcess = child;
+              record.pid = normalizeCoordinationPid(child.pid) ?? null;
+              record.lastActivityAt = Date.now();
               const pid = registryPidFor(record);
               void pdCoordinate(`/agents/${agentId}/heartbeat`, {
                 pid,
@@ -2121,6 +2174,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           onTranscriptDelta: transcriptId
             ? (msg) => {
                 streamedLiveDeltas = true;
+                record.lastActivityAt = Date.now();
                 txDelta(transcriptId, msg);
               }
             : undefined,
@@ -2239,6 +2293,9 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     record.status = status;
     record.completedAt = completedAt;
     record.childProcess = null;
+    record.pid = null;
+    record.heartbeatAt = completedAt;
+    record.lastActivityAt = completedAt;
 
     if (record.heartbeatInterval) {
       clearInterval(record.heartbeatInterval);
@@ -2360,7 +2417,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       });
     }
 
-    return {
+    const spawnResult: SpawnResult = {
       agentId,
       name: displayName,
       backend: runtime.effectiveBackend,
@@ -2379,6 +2436,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       coastGuard: coastGuardReceipt,
       ...(spec.nativeResume ? { harnessSessionId: spec.nativeResume.sessionId } : {}),
     };
+    record.result = spawnResult;
+    return spawnResult;
   }
 
   /**
@@ -2401,7 +2460,90 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       purpose: r.purpose,
       startedAt: r.startedAt,
       completedAt: r.completedAt,
+      heartbeatAt: r.heartbeatAt,
+      lastActivityAt: r.lastActivityAt,
+      pid: normalizeCoordinationPid(r.childProcess?.pid) ?? r.pid,
+      deadlineAt: r.deadlineAt,
     }));
+  }
+
+  /** Read one run from live memory, falling back to its durable transcript. */
+  function get(agentId: string): SpawnResult | null {
+    const record = agents.get(agentId);
+    if (record?.result) return record.result;
+    if (record) {
+      return {
+        agentId: record.agentId,
+        name: record.name,
+        backend: record.backend,
+        model: record.model,
+        requestedBackend: record.requestedBackend,
+        effectiveBackend: record.effectiveBackend,
+        requestedModel: record.requestedModel,
+        effectiveModel: record.effectiveModel,
+        backendOverrideSource: record.backendOverrideSource,
+        status: record.status,
+        output: null,
+        error: null,
+        telemetry: null,
+        startedAt: record.startedAt,
+        completedAt: record.completedAt,
+      };
+    }
+
+    const header = transcripts?.listTranscripts({ agentId, limit: 1 })[0];
+    if (!header) return null;
+    let transcript = transcripts?.getTranscript(header.id) ?? header;
+    if (transcript.status === 'running') {
+      // A running transcript with no live AgentRecord can only come from a
+      // previous daemon generation. We cannot honestly claim liveness or
+      // reattach to its stdio, so close the durable record as supervisor-lost
+      // instead of returning "running" forever.
+      const endedAt = Date.now();
+      const orphanError = 'Spawn supervisor state was lost before a terminal event; backend liveness can no longer be proven.';
+      try {
+        transcripts?.finalize(header.id, {
+          status: 'failed',
+          ended_at: endedAt,
+          error: orphanError,
+        });
+        transcript = transcripts?.getTranscript(header.id) ?? {
+          ...transcript,
+          status: 'failed',
+          ended_at: endedAt,
+          error: orphanError,
+        };
+      } catch {
+        transcript = {
+          ...transcript,
+          status: 'failed',
+          ended_at: endedAt,
+          error: orphanError,
+        };
+      }
+    }
+    const assistant = [...(transcript.messages || [])]
+      .reverse()
+      .find((message) => message.role === 'assistant' && !message.content.startsWith('[error]'));
+    return {
+      agentId: transcript.spawned_agent_id,
+      backend: transcript.backend as SpawnSpec['backend'],
+      model: transcript.model,
+      requestedBackend: transcript.requested_backend as SpawnSpec['backend'] | undefined,
+      effectiveBackend: transcript.effective_backend as SpawnSpec['backend'] | undefined,
+      requestedModel: transcript.requested_model,
+      effectiveModel: transcript.effective_model,
+      backendOverrideSource: transcript.backend_override_source as BackendOverrideSource | undefined,
+      status: transcript.status,
+      output: assistant?.content ?? null,
+      error: transcript.error ?? null,
+      // The transcript header persists totals, but not the rate provenance
+      // needed to distinguish exact provider usage from an estimate. Do not
+      // manufacture an "exact" claim while reconstructing a completed run.
+      telemetry: null,
+      startedAt: transcript.started_at,
+      completedAt: transcript.ended_at ?? null,
+    };
   }
 
   /**
@@ -2467,7 +2609,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     }
   }
 
-  return { spawn, list, kill };
+  return { spawn, list, get, kill };
 }
 
 export type Spawner = ReturnType<typeof createSpawner>;

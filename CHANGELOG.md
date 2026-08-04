@@ -7,13 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.28.0] - 2026-08-04
+
 ### Added
 - **FleetBar Giant Squid controls.** The selected-project header now shows an unmistakable `◆ GIANT SQUID` LIVE/READY/PARTIAL/DEGRADED strip, detected/wired provider counts, the before-turn/before-edit/after-tool value being added, and native Arm/Repair/Disarm actions.
+- **Named feature-daemon release proof.** `pd dev up --from <worktree> --label <name>` now builds and runs the dedicated daemon cargo beside stable, waits through real seeded-registry startup, and records explicit berth/version/binary identity for backend dogfood.
+- **Continuous and pre-release instruction stewardship.** Every GitHub push wakes a low-tier Documentarian pass. Homebrew release jobs now fail closed unless at least four unique Port Daddy reviewers cross-steelman the exact candidate tree and record a `SHIP` receipt covering `AGENTS.md`, `CLAUDE.md`, `README.md`, and both canonical skills.
 
 ### Fixed
 - **`pd squid on` is now the one truthful full-harness command.** The duplicate `pd squid hooks` surface was removed; setup, init, doctor, and repair guidance use the canonical interactive installer and real provider scopes. Codex/agy user-level hooks now require an exact armed-project registry match, so disarming one repo actually makes them inert there without removing hooks needed by another repo.
-- **Squid release cargo is proved end to end.** Tentacles, statusline, and the Pilot SessionStart hook share one runtime asset resolver and declarative Batten manifest. Release CI launches the staged binary outside the source tree and verifies all four provider configs, identity surfaces, and READY JSON status before packaging.
+- **Fresh projects receive attention before conversation.** `pd squid on` installs the managed `pd attention --json` SessionStart hook in the same settings transaction as Pilot steering, so a clean project reaches LIVE conformance instead of quietly reporting “manual attention only.”
+- **Squid release cargo is proved end to end.** Tentacles, statusline, and the Pilot SessionStart hook share one runtime asset resolver and declarative Batten manifest. Release CI launches the staged binary outside the source tree, binds the compiled binary and every Squid asset to its build-receipt SHA-256, preserves a manual attention hook while requiring the exact managed hook, hashes the four proof recordings, and verifies all provider configs, identity surfaces, and READY JSON status before packaging.
 - **Prompt injections are bounded and fresh.** Next-turn narration is limited to 12 exact-project entries and 4 KiB, with 30-minute TTL enforcement for timestamped alerts and pheromones.
+- **Dedicated daemon builds no longer recurse through the DB-integrity helper.** The daemon compiler now enters through a purpose-built wrapper that dispatches `__db_integrity_check` before importing the server, with a fail-closed child marker guarding future bundle drift.
+- **Named berths reject stale or foreign TCP listeners.** The allocator can require an OS-free port, the new CLI remains compatible with older stable daemons by probing the claim locally, and failed launches release their semantic assignment.
+- **The preferred daemon port is no longer a single point of failure.** A foreign owner makes the daemon bind the next available candidate and atomically publish the actual listener; CLI, FleetBar, named berths, docs, and release proof follow discovery instead of manufacturing the default URL.
+- **Spawn lifetime no longer belongs to one HTTP request.** New clients request a durable `202 Accepted` receipt, observe or detach, reconnect through `GET /spawn/:id`, and collect transcript-backed terminal state. CLI backends have no implicit wall-clock execution deadline; `--timeout` is now an explicit policy choice.
 
 ## [3.27.0] - 2026-07-23
 

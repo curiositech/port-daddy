@@ -13,7 +13,10 @@ import {
   pilotRenderTargets,
   type PilotConfig,
 } from '../../lib/pilot-agent-render.ts';
-import { installPilotSessionStartHook } from '../../lib/pilot-sessionstart-hook.ts';
+import {
+  installPilotSessionStartHook,
+  uninstallPilotSessionStartHook,
+} from '../../lib/pilot-sessionstart-hook.ts';
 import { sourceShaForPayload, stableJsonStringify } from '../../scripts/create-managed-agent.ts';
 
 const SAMPLE_CONFIG: PilotConfig = {
@@ -241,7 +244,22 @@ describe('installPilotSessionStartHook', () => {
     const settings = JSON.parse(readFileSync(join(projectDir, '.claude', 'settings.json'), 'utf8'));
     const commands = settings.hooks.SessionStart.flatMap((g: any) => g.hooks.map((h: any) => h.command));
     expect(commands).toContain('pd attention --json'); // preserved
+    expect(commands.filter((c: string) => c.includes('attention --json'))).toHaveLength(2);
+    expect(commands).toContain('PD_SQUID_SESSIONSTART=1 "${PORT_DADDY_CLI:-pd}" attention --json 2>/dev/null || true');
     expect(commands.filter((c: string) => c.includes('sessionstart-pilot.mjs'))).toHaveLength(1);
+  });
+
+  test('a fresh project gets attention and Pilot hooks in one settings write', () => {
+    const projectDir = makeTmp();
+    const result = installPilotSessionStartHook({ projectDir, projectRoot: process.cwd() });
+    const settings = JSON.parse(readFileSync(join(projectDir, '.claude', 'settings.json'), 'utf8'));
+    const commands = settings.hooks.SessionStart.flatMap((g: any) => g.hooks.map((h: any) => h.command));
+
+    expect(result.ok).toBe(true);
+    expect(commands).toEqual(expect.arrayContaining([
+      expect.stringContaining('PD_SQUID_SESSIONSTART=1 "${PORT_DADDY_CLI:-pd}" attention --json'),
+      expect.stringContaining('sessionstart-pilot.mjs'),
+    ]));
   });
 
   test('is idempotent and stays ok', () => {
@@ -250,6 +268,21 @@ describe('installPilotSessionStartHook', () => {
     const second = installPilotSessionStartHook({ projectDir, projectRoot: process.cwd() });
     expect(second.changed).toBe(false);
     expect(second.ok).toBe(true);
+  });
+
+  test('uninstall removes only managed attention while preserving a pre-existing attention hook', () => {
+    const projectDir = makeTmp();
+    mkdirSync(join(projectDir, '.claude'), { recursive: true });
+    writeFileSync(
+      join(projectDir, '.claude', 'settings.json'),
+      JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: 'command', command: 'pd attention --json' }] }] } }),
+    );
+    installPilotSessionStartHook({ projectDir, projectRoot: process.cwd() });
+
+    uninstallPilotSessionStartHook(projectDir);
+    const settings = JSON.parse(readFileSync(join(projectDir, '.claude', 'settings.json'), 'utf8'));
+    const commands = settings.hooks.SessionStart.flatMap((g: any) => g.hooks.map((h: any) => h.command));
+    expect(commands).toEqual(['pd attention --json']);
   });
 
   test('reports invalid Claude settings without overwriting them, and flags ok:false', () => {

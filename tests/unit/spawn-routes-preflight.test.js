@@ -13,17 +13,35 @@ const { spawnPlugin } = await import('../../routes/spawn.js');
 function buildApp() {
   const app = Fastify();
   const spawner = {
-    spawn: jest.fn(async () => ({
-      agentId: 'spawned-123',
-      backend: 'claude-cli',
-      model: 'claude-sonnet-4-5-20250929',
-      status: 'completed',
-      output: 'done',
-      error: null,
-      startedAt: 1,
-      completedAt: 2,
-    })),
+    spawn: jest.fn(async (_spec, onAccepted) => {
+      onAccepted?.({
+        agentId: 'spawned-123',
+        name: 'reviewer',
+        backend: 'claude-cli',
+        model: 'claude-sonnet-4-5-20250929',
+        status: 'running',
+        identity: 'port-daddy:repo:cli',
+        purpose: 'review the diff',
+        startedAt: 1,
+        completedAt: null,
+        heartbeatAt: 1,
+        lastActivityAt: 1,
+        pid: 4242,
+        deadlineAt: null,
+      });
+      return {
+        agentId: 'spawned-123',
+        backend: 'claude-cli',
+        model: 'claude-sonnet-4-5-20250929',
+        status: 'completed',
+        output: 'done',
+        error: null,
+        startedAt: 1,
+        completedAt: 2,
+      };
+    }),
     list: jest.fn(() => []),
+    get: jest.fn(() => null),
     kill: jest.fn(),
   };
 
@@ -166,6 +184,54 @@ describe('spawn routes preflight', () => {
       model: 'claude-sonnet-4-5-20250929',
       task: 'review the diff',
       budgetUsd: 0.75,
+    }), expect.any(Function));
+
+    await app.close();
+  });
+
+  test('Prefer respond-async returns 202 with a resumable monitor instead of holding the backend request open', async () => {
+    const { app, spawner, register } = buildApp();
+    spawner.get.mockReturnValue({
+      agentId: 'spawned-123',
+      backend: 'claude-cli',
+      model: 'claude-sonnet-4-5-20250929',
+      status: 'completed',
+      output: 'done',
+      error: null,
+      telemetry: null,
+      startedAt: 1,
+      completedAt: 2,
+    });
+    await register();
+
+    const accepted = await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      headers: { Prefer: 'respond-async' },
+      payload: {
+        backend: 'claude-cli',
+        identity: 'port-daddy:repo:cli',
+        task: 'review the diff',
+        budgetUsd: 0.75,
+      },
+    });
+
+    expect(accepted.statusCode).toBe(202);
+    expect(accepted.headers.location).toBe('/spawn/spawned-123');
+    expect(accepted.headers['retry-after']).toBe('1');
+    expect(accepted.json()).toEqual(expect.objectContaining({
+      accepted: true,
+      status: 'running',
+      agentId: 'spawned-123',
+      monitorUrl: '/spawn/spawned-123',
+    }));
+
+    const collected = await app.inject({ method: 'GET', url: '/spawn/spawned-123' });
+    expect(collected.statusCode).toBe(200);
+    expect(collected.json()).toEqual(expect.objectContaining({
+      terminal: true,
+      status: 'completed',
+      output: 'done',
     }));
 
     await app.close();
@@ -189,7 +255,7 @@ describe('spawn routes preflight', () => {
     expect(mockAssessSpawnPreflight.mock.calls.at(-1)[0].budgetUsd).toBe(0.75);
     expect(spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
       budgetUsd: 0.75,
-    }));
+    }), expect.any(Function));
 
     await app.close();
   });
@@ -217,7 +283,7 @@ describe('spawn routes preflight', () => {
     expect(mockAssessSpawnPreflight.mock.calls.at(-1)[0].budgetUsd).toBeUndefined();
     expect(spawner.spawn).toHaveBeenCalledWith(expect.not.objectContaining({
       budgetUsd: expect.anything(),
-    }));
+    }), expect.any(Function));
 
     await app.close();
   });
@@ -292,7 +358,7 @@ describe('spawn routes preflight', () => {
       identity: 'port-daddy:repo:cli',
       task: 'review the diff',
       budgetUsd: 0.75,
-    }));
+    }), expect.any(Function));
     expect(spawner.spawn.mock.calls[0][0].model).toBeUndefined();
 
     await app.close();
@@ -345,7 +411,7 @@ describe('spawn routes preflight', () => {
       identity: 'port-daddy:repo:cli',
       task: 'review the diff',
       budgetUsd: 0.75,
-    }));
+    }), expect.any(Function));
 
     await app.close();
   });
@@ -394,7 +460,7 @@ describe('spawn routes preflight', () => {
       requestedBackend: 'claude',
       requestedModel: resolveModel({ backend: 'claude', tier: 'high' }),
       backendOverrideSource: 'env',
-    }));
+    }), expect.any(Function));
 
     await app.close();
   });
@@ -442,7 +508,7 @@ describe('spawn routes preflight', () => {
       requestedBackend: 'openai',
       requestedModel: 'gpt-5-mini',
       backendOverrideSource: 'persisted',
-    }));
+    }), expect.any(Function));
 
     await app.close();
   });
@@ -471,7 +537,7 @@ describe('spawn routes preflight', () => {
     expect(spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
       injectSquidHooks: true,
       tubeChannel: 'harness:repo:pilot',
-    }));
+    }), expect.any(Function));
 
     await app.close();
   });

@@ -12,7 +12,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { DEFAULT_DAEMON_PORT, LOOPBACK_TCP_HOST } from '../shared/daemon-discovery.js';
+import { LOOPBACK_TCP_HOST, resolveDaemonPort } from '../shared/daemon-discovery.js';
 import { DEFAULT_PID_FILE, DEFAULT_PORT_FILE, PD_HOME } from '../shared/paths.js';
 import { BOSUN_HEARTBEAT_SCHEMA, DEFAULT_BOSUN_STALE_AFTER_MS } from './bosun-heartbeat.js';
 
@@ -42,9 +42,9 @@ export interface RuntimeHealthSnapshot {
 
 export interface RuntimeIdentityScope {
   expectedPort: number;
-  pidFile: string;
-  portFile: string;
-  heartbeatFile: string;
+  pidFile: string | null;
+  portFile: string | null;
+  heartbeatFile: string | null;
   supervisor: LaunchdSupervisorSnapshot | null;
 }
 
@@ -252,12 +252,12 @@ export function resolveRuntimeIdentityScope(
     ? plane !== 'prod'
     : health?.daemon?.canonical === false;
   const runtimePrefix = opts.runtimePrefix?.trim() || null;
-  const runtimeDir = nonCanonical && runtimePrefix ? runtimePrefix : PD_HOME;
+  const runtimeDir = nonCanonical ? runtimePrefix : PD_HOME;
   return {
-    expectedPort: nonCanonical ? opts.endpointPort : DEFAULT_DAEMON_PORT,
-    pidFile: join(runtimeDir, 'daemon.pid'),
-    portFile: join(runtimeDir, 'daemon.port'),
-    heartbeatFile: join(runtimeDir, 'heartbeat'),
+    expectedPort: opts.endpointPort,
+    pidFile: runtimeDir ? join(runtimeDir, 'daemon.pid') : null,
+    portFile: runtimeDir ? join(runtimeDir, 'daemon.port') : null,
+    heartbeatFile: runtimeDir ? join(runtimeDir, 'heartbeat') : null,
     supervisor: nonCanonical ? null : (opts.canonicalSupervisor ?? null),
   };
 }
@@ -338,25 +338,28 @@ export function collectRuntimeIdentity(
     now?: number;
     expectedPort?: number;
     endpointPort?: number | null;
-    pidFile?: string;
-    portFile?: string;
-    heartbeatFile?: string;
+    pidFile?: string | null;
+    portFile?: string | null;
+    heartbeatFile?: string | null;
     heartbeatStaleAfterMs?: number;
     supervisor?: LaunchdSupervisorSnapshot | null;
   } = {},
 ): RuntimeIdentityAssessment {
   const now = opts.now ?? Date.now();
-  const heartbeat = readHeartbeat(opts.heartbeatFile ?? join(PD_HOME, 'heartbeat'));
+  const heartbeatPath = opts.heartbeatFile === undefined ? join(PD_HOME, 'heartbeat') : opts.heartbeatFile;
+  const pidFile = opts.pidFile === undefined ? DEFAULT_PID_FILE : opts.pidFile;
+  const portFile = opts.portFile === undefined ? DEFAULT_PORT_FILE : opts.portFile;
+  const heartbeat = heartbeatPath ? readHeartbeat(heartbeatPath) : null;
   const facts: RuntimeIdentityFacts = {
     checkedAt: now,
-    expectedPort: opts.expectedPort ?? DEFAULT_DAEMON_PORT,
+    expectedPort: opts.expectedPort ?? resolveDaemonPort(portFile ?? DEFAULT_PORT_FILE),
     endpointPort: opts.endpointPort ?? null,
     healthPid: Number.isInteger(health?.pid) ? health!.pid! : null,
     healthPort: Number.isInteger(health?.daemon?.port) ? health!.daemon!.port! : null,
     healthStatus: typeof health?.status === 'string' ? health.status : null,
     binaryDrifted: typeof health?.binaryDrift?.drifted === 'boolean' ? health.binaryDrift.drifted : null,
-    pidFilePid: readNumber(opts.pidFile ?? DEFAULT_PID_FILE),
-    portFilePort: readNumber(opts.portFile ?? DEFAULT_PORT_FILE),
+    pidFilePid: pidFile ? readNumber(pidFile) : null,
+    portFilePort: portFile ? readNumber(portFile) : null,
     heartbeatPid: heartbeat?.pid ?? null,
     heartbeatWrittenAt: heartbeat?.writtenAt ?? null,
     heartbeatFresh: heartbeat
@@ -369,7 +372,7 @@ export function collectRuntimeIdentity(
 
 /** Probe the canonical TCP endpoint directly, never through a stale port file. */
 export function probeCanonicalHealth(
-  port = DEFAULT_DAEMON_PORT,
+  port = resolveDaemonPort(),
   timeoutMs = 1_500,
 ): Promise<RuntimeHealthSnapshot | null> {
   return new Promise((resolve) => {
@@ -416,7 +419,7 @@ export async function waitForCanonicalRuntime(opts: {
   const probe = opts.probeHealth ?? (() => probeCanonicalHealth());
   const inspect = opts.inspectSupervisor ?? (() => inspectCanonicalLaunchdSupervisor());
   const collect = opts.collect ?? ((health, supervisor) => collectRuntimeIdentity(health, {
-    endpointPort: DEFAULT_DAEMON_PORT,
+    endpointPort: health?.daemon?.port ?? resolveDaemonPort(),
     supervisor,
   }));
   const startedAt = Date.now();

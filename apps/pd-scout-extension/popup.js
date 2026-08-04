@@ -1,4 +1,3 @@
-const DEFAULT_DAEMON_URL = 'http://127.0.0.1:9876';
 const MANUAL_PROJECT_VALUE = '__manual__';
 
 const els = {
@@ -68,7 +67,9 @@ function setMessage(text, tone = '') {
 }
 
 function daemonBaseUrl() {
-  return (els.daemonUrl.value.trim() || DEFAULT_DAEMON_URL).replace(/\/+$/, '');
+  const value = els.daemonUrl.value.trim();
+  if (!value) throw new Error('Paste the daemon URL published by FleetBar or pd status --json.');
+  return value.replace(/\/+$/, '');
 }
 
 function projectDirValue() {
@@ -160,7 +161,8 @@ function setDaemonStatus(text, tone) {
 }
 
 function daemonScope() {
-  const value = els.daemonUrl.value.trim() || DEFAULT_DAEMON_URL;
+  const value = els.daemonUrl.value.trim();
+  if (!value) return null;
   try {
     const url = new URL(value);
     const host = url.hostname.toLowerCase();
@@ -275,7 +277,7 @@ async function load() {
     'pdScoutTargetAgent',
     'pdScoutStartAgent',
   ]);
-  els.daemonUrl.value = stored.pdScoutDaemonUrl || DEFAULT_DAEMON_URL;
+  els.daemonUrl.value = stored.pdScoutDaemonUrl || '';
   updateDaemonStatus();
   els.assignee.value = stored.pdScoutAssignee || 'review-queue';
   els.targetAgent.value = stored.pdScoutTargetAgent || '';

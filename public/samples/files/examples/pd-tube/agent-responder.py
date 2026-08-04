@@ -11,7 +11,20 @@ import time
 import urllib.request
 from pathlib import Path
 
-DAEMON = os.environ.get("PORT_DADDY_DAEMON_URL") or os.environ.get("PD_DAEMON_URL") or "http://127.0.0.1:9876"
+def discover_daemon():
+    explicit = os.environ.get("PORT_DADDY_URL") or os.environ.get("PORT_DADDY_DAEMON_URL") or os.environ.get("PD_DAEMON_URL")
+    if explicit:
+        return explicit.rstrip("/")
+    port_file = Path(os.environ.get("PORT_DADDY_PORT_FILE", "~/.port-daddy/daemon.port")).expanduser()
+    try:
+        port = int(port_file.read_text().strip())
+        if 1 <= port <= 65535:
+            return f"http://127.0.0.1:{port}"
+    except (OSError, ValueError):
+        pass
+    raise SystemExit("Port Daddy has not published an endpoint; start the daemon or pass --daemon/PORT_DADDY_URL")
+
+DAEMON = os.environ.get("PORT_DADDY_URL") or os.environ.get("PORT_DADDY_DAEMON_URL") or os.environ.get("PD_DAEMON_URL")
 CHANNEL = os.environ.get("PD_TUBE_CHANNEL", "ui:clicks")
 REPO = Path(os.environ.get("PD_TUBE_REPO", os.getcwd())).resolve()
 SENDER = os.environ.get("PD_TUBE_SENDER", "sample-agent")
@@ -21,13 +34,13 @@ URL = ""
 def configure():
     global DAEMON, CHANNEL, REPO, SENDER, PR_NUMBER, URL
     parser = argparse.ArgumentParser(description="Respond to pd tube ui:clicks messages.")
-    parser.add_argument("--daemon", default=DAEMON, help="Port Daddy daemon URL")
+    parser.add_argument("--daemon", default=DAEMON, help="Port Daddy daemon URL (otherwise discovered from the port file)")
     parser.add_argument("--channel", default=CHANNEL, help="Tube channel to listen on")
     parser.add_argument("--repo", default=str(REPO), help="Repository path for local git/test inspection")
     parser.add_argument("--sender", default=SENDER, help="Sender name for replies")
     parser.add_argument("--pr", default=PR_NUMBER, help="Optional GitHub PR number to summarize")
     args = parser.parse_args()
-    DAEMON = args.daemon.rstrip("/")
+    DAEMON = args.daemon.rstrip("/") if args.daemon else discover_daemon()
     CHANNEL = args.channel
     REPO = Path(args.repo).expanduser().resolve()
     SENDER = args.sender

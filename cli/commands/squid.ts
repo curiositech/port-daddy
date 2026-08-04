@@ -405,8 +405,8 @@ async function handleCodexBridge(clientPassthrough: string[], options: CLIOption
 
 /**
  * `pd squid on` — arm the FULL harness for this project in one shot:
- * tentacle hooks (all detected CLIs), the pd-statusline identity, the Pilot
- * SessionStart steering hook, and the /squid slash command.
+ * tentacle hooks (all detected CLIs), the pd-statusline identity, attention +
+ * Pilot SessionStart hooks, and the /squid slash command.
  */
 async function handleSquidOn(options: CLIOptions): Promise<void> {
   const cwd = String(options.cwd ?? options.workdir ?? process.cwd());
@@ -469,7 +469,7 @@ async function handleSquidOn(options: CLIOptions): Promise<void> {
       ? `${statusline.ok && !statusline.reason.includes('user statusLine') ? t.ok(statusline.reason) : t.bad(statusline.reason)} — ◆ PD badge in Claude Code`
       : t.bad('not wired');
   console.log(`  statusline:  ${statuslineLabel}`);
-  console.log(`  steering:    SessionStart pilot hook ${sessionStart.ok ? t.ok(sessionStart.reason) : t.bad(sessionStart.reason)}`);
+  console.log(`  steering:    SessionStart attention + Pilot hooks ${sessionStart.ok ? t.ok(sessionStart.reason) : t.bad(sessionStart.reason)}`);
   console.log(`  /squid:      slash command ${slash.ok ? t.ok(slash.reason) : t.bad(slash.reason)}`);
   console.log('');
   if (armed) {

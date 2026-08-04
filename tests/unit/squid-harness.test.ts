@@ -495,9 +495,37 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     });
     expect(r.status).toBe(0);
     expect(Buffer.byteLength(r.stdout)).toBeLessThanOrEqual(4096);
-    expect(r.stdout.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(12);
-    expect(r.stdout).not.toContain('must-not-appear');
-    expect(r.stdout).not.toContain('wrong-project');
+    const parsed = JSON.parse(r.stdout);
+    const ctx = parsed.hookSpecificOutput.additionalContext as string;
+    expect(ctx.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(12);
+    expect(ctx).not.toContain('must-not-appear');
+    expect(ctx).not.toContain('wrong-project');
+  });
+
+  test('prompt hook filters a large machine-wide matrix before portable TTL parsing', () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    const fresh = new Date().toISOString();
+    const noise = Array.from({ length: 500 }, (_, i) =>
+      `PD_PHEROMONE_NOISE_${String(i).padStart(3, '0')}="/other/worktree-${i}/file.ts | unrelated | intensity:1 | ts:${fresh}"`,
+    );
+    writeFileSync(MATRIX, [
+      ...noise,
+      `PD_PHEROMONE_Z_RELEVANT="${WORKSPACE}/src/owned.ts | relevant | intensity:1 | ts:${fresh}"`,
+      '',
+    ].join('\n'));
+
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX) },
+      encoding: 'utf8',
+      timeout: 3_000,
+    });
+
+    expect(r.error).toBeUndefined();
+    expect(r.status).toBe(0);
+    const ctx = JSON.parse(r.stdout).hookSpecificOutput.additionalContext as string;
+    expect(ctx).toContain('relevant');
+    expect(ctx).not.toContain('unrelated');
   });
 
   test('K=8 concurrent post-tool appends produce 8 intact pheromone lines (Jamie Madrox)', async () => {

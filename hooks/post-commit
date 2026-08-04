@@ -16,7 +16,10 @@ elif [[ -n "${PORT_DADDY_URL:-}" ]]; then
 elif [[ -f "$PORT_FILE" ]]; then
   PORT_DADDY_BASE="http://localhost:$(tr -d '[:space:]' < "$PORT_FILE")"
 else
-  PORT_DADDY_BASE="http://localhost:9876"
+  # No published endpoint means there is no daemon we can address honestly.
+  # Keep the Git hook non-blocking and skip the ambient notification.
+  command -v git-lfs >/dev/null 2>&1 && git lfs post-commit "$@"
+  exit 0
 fi
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)

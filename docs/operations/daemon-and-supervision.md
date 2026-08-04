@@ -1,261 +1,198 @@
-# Daemon, Supervisors & Toolchain — Canonical Map
+# Daemon and supervision
 
-**READ THIS BEFORE TOUCHING THE DAEMON.** It exists because agents (including the one
-that wrote it, 2026-06-01) repeatedly mis-diagnosed why the live daemon "runs stale code,"
-killed it in a loop, and fought the wrong supervisor. The root cause is mundane and is
-captured below. Verify against live state (`launchctl list | grep -iE 'portdaddy|bosun'`,
-`lsof -nP -iTCP:9876 -sTCP:LISTEN`) — this is a point-in-time map.
+Port Daddy should have one boring production lifecycle:
 
-## The one fact that explains everything: there are TWO `pd` installs
+```mermaid
+flowchart LR
+    F["Homebrew formula<br/>one service block"] --> B["brew services"]
+    B --> L["launchd LaunchAgent<br/>homebrew.mxcl.port-daddy"]
+    L --> D["one foreground daemon"]
+    D --> S["Unix socket"]
+    D --> T["TCP listener<br/>preferred port, then next free"]
+    T --> P["atomic daemon.port publication"]
+    P --> C["CLI, FleetBar, browser, SDK<br/>discover the bound endpoint"]
+    W["Bosun<br/>heartbeat observer"] --> L
+    W --> D
+```
 
-| Install | Path | Role | How it updates |
-|---|---|---|---|
-| **Homebrew** (canonical runtime) | `/opt/homebrew/opt/port-daddy/bin/pd` (and `which pd` → `/opt/homebrew/bin/pd`) | **Runs the live daemon AND is your default CLI** | `brew upgrade port-daddy` from the `curiositech/homebrew-tap` formula — **lags the repo until a release is cut** |
-| **Repo dev** | `~/coding/port-daddy` source; wrapper `~/.port-daddy/bin/pd` → `node bin/port-daddy-cli.js` | Current code, for development | instant (it *is* the repo) |
+If normal operation needs more explanation than that, it is a product defect.
 
-**Consequence:** the live daemon and your default `pd` are the **Homebrew** build. Merging PRs
-into the repo does **not** change what the daemon runs. Rebuilding `dist/daemon/` does **not**
-either. That is why `/secrets` 404s and `GET /roadmap/items` 500s on `:9876` even though the
-fixes are merged — the daemon is the older brew install. **To make current code live you must
-release + `brew upgrade`, not rebuild the repo.**
+## Is this what every Homebrew daemon does?
 
-## The daemon
+No. The normal Homebrew model is a formula `service` block that names the
+foreground command; `brew services` registers it with macOS `launchd` or Linux
+`systemd`. Homebrew documents that mapping in its
+[services command](https://docs.brew.sh/Manpage.html#services-subcommand), and
+its [service DSL](https://docs.brew.sh/rubydoc/Homebrew/Service.html) exposes
+the run command, logs, environment, and keep-alive policy. Apple expects the
+process started by `launchd` to remain in the foreground and handle `SIGTERM`;
+it must not daemonize itself. See [launchd.plist(5)](https://keith.github.io/xcode-man-pages/launchd.plist.5.html).
 
-- **Process:** launched by launchd job **`homebrew.mxcl.port-daddy`** → `pd start --foreground`
-  (the brew `pd`). Binds **`127.0.0.1:9876`**. `KeepAlive=true` → **it resurrects ~20s after any
-  `kill`.** Logs at `/opt/homebrew/var/log/port-daddy.log`.
-- **`:9876` is the well-known control port** — but it must be *resolved*, never hardcoded:
-  read `~/.port-daddy/daemon.port` (env `PORT_DADDY_URL` overrides). Hardcoding `9876` is a
-  standing defect with its own CI regiment (see the consolidation TODO).
+Port Daddy added complexity for four project-specific reasons:
 
-### The atomic lifecycle contract
+1. The installed Homebrew release and a source checkout are different builds.
+2. Named development daemons run beside stable with isolated state.
+3. Bosun observes application heartbeat/readiness that process existence alone
+   cannot prove.
+4. Releases must reconcile binary, database, CLI, UI, and route versions.
 
-The components are separate because they answer different questions, but only
-one component owns process lifecycle:
+Those are real needs. They do not justify multiple production supervisors,
+hardcoded client ports, detached canonical fallbacks, or hand-copied binaries.
 
-| Component | Authority | Must never do |
+## Production invariants
+
+- `homebrew.mxcl.port-daddy` is the only production process supervisor on macOS.
+- The daemon runs in the foreground. `launchd` owns start, stop, restart, and
+  resurrection.
+- The configured default is a preferred bind port, not an address clients may
+  assume.
+- If a foreign or unverifiable process owns the preferred port, the daemon tries
+  the next candidate and atomically publishes the port it actually bound.
+- If a healthy Port Daddy sibling owns the preferred port, stable refuses a
+  second writer. An isolated named daemon may opt into a different state plane.
+- Clients resolve an explicit `PORT_DADDY_URL` first; otherwise they use the Unix
+  socket or the published port file through `shared/daemon-discovery.ts`.
+- `daemon.pid`, `daemon.port`, `/health`, the listener, launchd PID, binary hash,
+  and Bosun heartbeat must describe one generation.
+- Bosun observes and asks the supervisor to act. It never spawns a canonical
+  daemon itself.
+
+The dynamic-port rule is enforced in runtime code and in load-bearing contributor
+docs by `tests/unit/no-hardcoded-daemon-port.test.js`. The only preferred-port
+literal lives in `shared/daemon-discovery.ts`.
+
+## Installed release versus development source
+
+| Surface | Authority | Update path |
 |---|---|---|
-| **launchd** (`homebrew.mxcl.port-daddy`) | Sole canonical process parent, start, stop, replacement, and resurrection | Compete with a detached CLI-spawned canonical daemon |
-| **daemon** | Publish readiness and one generation lease: health PID, listener port, PID file, port file, and heartbeat | Silently walk the canonical listener from `:9876` to a fallback port |
-| **Bosun** | Detect a dead/stale/wedged generation and request replacement through launchd | Spawn a daemon itself or substitute an old heartbeat PID for launchd truth |
-| **status / Doctor / FleetBar / pd-console** | Observe and explain the same generation snapshot | Become another supervisor or report isolated facts as overall health |
+| Installed `pd` and stable daemon | Homebrew keg and service | tagged release, tap update, `brew upgrade` |
+| Source checkout | current branch | edit, test, and build only |
+| Named feature daemon | compiled daemon from one worktree | `pd dev up --from <worktree> --label <name>` |
 
-On canonical macOS installs, `pd start`, `pd restart`, and `pd stop` mutate only
-the launchd job. `restart` is one `launchctl kickstart -k`, followed by a
-readiness wait of up to 120 seconds and two stable identity samples. If the
-launchd plist is missing, `start` and `restart` fail with `pd install`; they do
-not fall back to a detached process. A busy canonical port fails closed unless
-an isolated non-canonical runtime explicitly sets `PD_ALLOW_TCP_FALLBACK=1`.
+Merging source does not update the installed daemon. Building `dist/` does not
+update it either. A stable version changes only when a release artifact is cut,
+the Homebrew formula advances, the keg upgrades, and the supervised service is
+restarted.
 
-The daemon writes its PID and atomic heartbeat before opening the production
-registry. The full SQLite `integrity_check` remains a boot gate, but a packaged
-binary performs that read-only scan in a child process so the parent heartbeat
-continues while a large registry is checked. The HTTP wedge probe is armed only
-after the Unix listener exists. `pd status` and Doctor call the runtime
-**converged** only when launchd, `/health`, `daemon.pid`, `daemon.port`, the
-canonical port, the running/on-disk binary hash, and Bosun heartbeat describe
-the same generation.
+Never copy a development binary over an installed keg. That destroys provenance:
+the package manager reports one version while launchd executes unrelated bytes.
 
-## Supervisors & watchdogs (the multi-headed part)
+## Development daemons
 
-| launchd job | What it is | Runs | Touch? |
-|---|---|---|---|
-| **`homebrew.mxcl.port-daddy`** | OS supervisor (brew services). **The actual daemon launcher + resurrector.** | brew `pd start --foreground` | This is canonical — keep |
-| **`com.portdaddy.bosun`** | Port Daddy's **Rust watchdog** — `core/pd-bosun` (ADR-0021): filesystem heartbeat + PID liveness, one-way, no network. Observes; does **not** know about code-version. | repo `dist/core/pd-bosun watch` | keep (but see freshness gap) |
-| **`com.bosun.daemon`** | **RIVAL / separate project** at `~/coding/bosun` — an "always-on personal assistant" (the operator's "rust bosun"). **NOT a Port Daddy supervisor.** Name collision is real (ADR-0021 §Context). | `~/coding/bosun` server | **DO NOT TOUCH** |
-| `com.portdaddy.fleetbar` | The FleetBar menu-bar app | `dist/...fleetbar` | unrelated |
-
-**Removed 2026-06-01:** `com.portdaddy.daemon` — a **duplicate** daemon launchd job that `pd install`
-created *on top of* the brew service (the brew `KeepAlive` already supervises the daemon; `pd install`
-should detect and not duplicate it). Its `.plist.bak-*` was also deleted.
-
-**Retired (per ADR-0021), must not reappear in runtime:** `bin/watchdog.ts` <!-- cite-exempt: deliberately-removed file, named so it does not return --> (legacy TS `/health` poller);
-**Barnacle** (legacy V3 Rust reciprocal sidecar on `:9875`). "Bosun" is the single watchdog name.
-
-## Why liveness ≠ freshness (the watchdog's blind spot)
-
-`com.portdaddy.bosun` asks launchd to replace the daemon when it is **dead or its heartbeat is stale** — never when
-it runs **old code**. A stale-but-responsive daemon is "healthy" to it, so it keeps it alive forever;
-and `KeepAlive` resurrects it stale after any manual kill. `pd doctor` *detects* the drift
-("Code hash: Mismatch → run restart") but **nothing acts on it**. Detection without enforcement —
-the same gap the obligation-monitor work (ADR-0041) is about.
-
-## Dev/test the canonical way — spin a Daemon Berth (ADR-0084)
-
-**As of ADR-0084 you no longer stop the brew daemon to test.** The "stop the
-supervisor → swap → restore" dance below is superseded for development by **Daemon
-Berths**: tiered, side-by-side daemons that run *next to* the stable one on their own
-ports. Never swap the stable daemon to test — spin a dev berth.
-
-| Berth | Built from | Port | Colour | Command |
-|---|---|---|---|---|
-| **stable** (canonical) | brew release | `:9876` | amber | (already running, supervised) |
-| **dev-latest** | `origin/main` HEAD | `:9886` | blue | `pd dev up --from main` |
-| **codebase** | your worktree/branch | claimed | purple | `pd dev up --from <branch> --label <name>` |
+Backend work is proved on a named feature daemon before release:
 
 ```sh
-# spin the bleeding-edge berth (origin/main) on :9886
-pd dev up --from main
-
-# spin a berth from YOUR branch on a claimed port
-pd dev up --from feat/my-thing --label my-thing
-
-# arm that isolated berth's fleet worker for governed WorkIntent launches
-pd dev up --from feat/my-thing --label my-thing --fleet
-
-# see every berth (stable + each dev berth)
+pd dev up --from "$PWD" --label squid-release
+eval "$(pd use squid-release)"
+"$PORT_DADDY_CLI" status
+"$PORT_DADDY_CLI" squid on
 pd dev list
-
-# point THIS shell at a berth (per-shell; never global)
-eval "$(pd use dev)"          # → PORT_DADDY_URL=http://127.0.0.1:9886 + a prompt marker
-pd status                      # now hits the dev-latest berth
-eval "$(pd use stable)"        # reset to :9876
-
-# OR target one command without changing the shell
-pd --daemon dev status
-pd --daemon my-thing roadmap items
-
-# stop a berth and preserve its isolated DB (never touches brew/stable)
-pd dev down my-thing           # or: pd dev down --all
-
-# explicit destructive reset of that named berth
-pd dev down my-thing --purge   # --reset is an alias
+pd dev down squid-release
 ```
 
-`pd dev up` builds the daemon **binary** via `scripts/build-daemon-binary.mjs` (never
-`tsx`), launches it detached with its berth identity env, smokes `/health`, and records
-it in `~/.port-daddy/dev-daemons.json`. Each berth gets an isolated runtime dir / DB /
-socket under `~/.port-daddy/instances/<label>/`. A new berth copies durable board
-history from stable, but clears machine-local bindings and executable dispatch rows;
-the berth can launch only work explicitly submitted to that berth. Binding `:9876`
-is refused. Fleet work is off by default; `--fleet` arms the named berth worker and
-records that state in its profile without changing the berth's codebase identity.
-Ordinary `pd dev down` and automatic dead/idle-process reaping preserve the
-profile DB, so restarting the same label resumes its durable commands, events,
-transcripts, and receipts. State deletion is explicit: `pd dev down --purge`,
-`--reset`, or `pd dev gc`.
+Each named daemon has its own runtime directory, database, sockets, port file,
+heartbeat, and berth record under `~/.port-daddy/instances/<label>/`. Port
+assignment comes from the selected/discovered coordinator and is checked against
+the OS before launch. No named daemon may claim the stable daemon's currently
+published endpoint.
 
-Because `pd use` exports `PORT_DADDY_URL`, every consumer that resolves the daemon
-through it follows the berth automatically — the CLI, MCP, the SDK, **and the Rust
-console** (`core/pd-console/src/agent.rs` `DaemonClient::discover` honours
-`PORT_DADDY_URL`). Point a shell at a dev berth, launch the console from it, and the
-cockpit drives that berth.
+`pd dev up` builds both artifacts from the selected worktree: the daemon and its
+matching feature CLI. It publishes the CLI path as `PORT_DADDY_CLI` and also
+prepends a profile-local shim directory to `PATH`. The explicit variable is the
+authority for spawned agents. A login shell may rebuild `PATH` and put Homebrew's
+stable `pd` first again, so feature-daemon hooks and agent instructions must invoke
+`"$PORT_DADDY_CLI"`, not bare `pd`. This prevents an apparently healthy feature
+test from silently talking to the installed release.
 
-The daemon self-reports its berth on `GET /health` (`.daemon`) and `GET /whoami`. With
-no `PD_DAEMON_*` env it reports `tier=stable, canonical=true` — so the brew daemon is
-the stable berth with no launch change.
-
-## How to (re)deploy current code to the live STABLE daemon
-
-This is the **release** path (advancing the stable berth), distinct from dev berths
-above. Cutting the stable release ("RC cut") is a deliberate manual act (a future
-`pd release cut`, ADR-0084 Phase 3).
-
-1. **Never just `kill` it** — `homebrew.mxcl.port-daddy` KeepAlive resurrects it stale. Stand the
-   supervisor down first.
-2. **Live runtime is the brew install**, so currency comes from a release:
-   - bump `curiositech/homebrew-tap` `Formula/port-daddy.rb` to the new version → `brew upgrade port-daddy` → `brew services restart port-daddy`.
-3. **(Legacy dev path — prefer a dev berth above):** `brew services stop port-daddy` (stops the resurrector) → run the
-   repo daemon (`npm run build:daemon:dist` then start) → `brew services start port-daddy` to restore.
-4. The post-build smoke in `scripts/build-daemon-binary.mjs` boots the binary on a scratch port and
-   curls `/health`; it **fails on socket contention** if the live daemon still holds `:9876` — stop the
-   supervisor first.
-
-## Release gates for a daemon build
-
-Port Daddy daemon releases must pass the runtime the operator will actually run,
-not only source-level tests. The minimum gate for a stable Homebrew cut is:
+Targeting is explicit:
 
 ```sh
-npm run check:version-drift
-npm run parity
-npm test -- --runTestsByPath \
-  tests/unit/diagnostics-doctor.test.js \
-  tests/unit/fleet-routes-projects.test.js \
-  tests/unit/harbormaster-routes.test.js
-npm run build:daemon:dist
-npm run build:bin
-node scripts/build-single-binary.mjs --outfile=dist/pd
-bash scripts/smoke-compiled-daemon.sh
-bash scripts/ci-doctor-gate.sh
-SOAK_SECONDS=180 SOAK_PORT=19876 bash scripts/soak-binary.sh dist/port-daddy
+eval "$(pd use squid-release)"  # this shell follows the named daemon
+"$PORT_DADDY_CLI" status        # matching feature CLI and daemon
+eval "$(pd use stable)"         # clear the override; resume discovery
+
+pd --daemon squid-release status # one command, no shell mutation
 ```
 
-After the GitHub release updates `curiositech/homebrew-tap`, prove the installer
-path too:
+`pd use stable` does not export a guessed URL. It removes the named override so
+normal socket/port-file discovery resumes.
+
+## Read-only diagnosis
+
+Use these in order. They do not mutate the daemon:
 
 ```sh
-brew update
-brew upgrade port-daddy
-brew services restart port-daddy
-/opt/homebrew/bin/pd --version
-/opt/homebrew/bin/pd doctor --json
-curl -fsS "$(cat ~/.port-daddy/daemon.url 2>/dev/null || echo http://127.0.0.1:9876)/health"
+which pd
+pd --version
+pd status --json
+pd doctor --json
+pd dev list --json
+brew services info port-daddy --json
 launchctl print "gui/$(id -u)/homebrew.mxcl.port-daddy"
 ```
 
-If `brew info --json=v2 port-daddy` says the tap stable is newer than the
-installed keg, the operator is not actually on the release. Do not call the
-daemon upgraded until the running `/health` version, `pd --version`, Homebrew
-installed version, and FleetBar/Fleet Control Center all agree.
+Interpret the layers separately:
 
-## Reliability patterns we intentionally copy
+| Observation | What it proves | What it does not prove |
+|---|---|---|
+| launchd job has a PID | supervisor owns a process | daemon routes are responsive |
+| Unix-socket status works | local CLI transport responds | browser/TCP transport works |
+| TCP `/health` works | published listener responds | running bytes match installed bytes |
+| version/hash converge | runtime matches installed artifact | Squid hooks are installed in a project |
+| Bosun heartbeat is fresh | daemon loop is alive | every route or spawned worker is healthy |
 
-The daemon is small, but it is still a production supervisor/queue/runtime. Use
-the patterns that established daemon and worker systems converge on:
+When socket and TCP disagree, trust neither in isolation. Compare `/health`, the
+published port, listener ownership, PID files, launchd PID, and binary hash as one
+generation. The CLI status/doctor surfaces should perform that join for the
+operator; terminal archaeology is a contributor fallback.
 
-- **One supervisor owns resurrection.** launchd's `KeepAlive` is the canonical
-  macOS resurrection mechanism and `ThrottleInterval` governs respawn pressure;
-  do not create a second competing daemon LaunchAgent. Apple's launchd docs
-  describe `KeepAlive` as the always-running mode, and the launchd plist man page
-  documents restart throttling. See
-  [Apple launchd jobs](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html)
-  and [launchd.plist(5)](https://www.manpagez.com/man/5/launchd.plist/).
-- **Readiness and watchdogs are separate from process existence.** systemd's
-  `Type=notify`/`WatchdogSec` model is the reference: a service is not merely a
-  PID, it is a process that has reported readiness and continues to heartbeat.
-  Port Daddy's launchd/Bosun split should preserve that distinction. See
-  [systemd.service](https://www.freedesktop.org/software/systemd/man/systemd.service.html).
-- **Durable work requires persisted intent plus orphan recovery.** Temporal
-  persists execution state and resumes after crashes; BullMQ and Sidekiq surface
-  stalled/orphaned jobs so another worker can continue. Port Daddy dispatch,
-  popper, harbormaster, and agent launch state must be durable before side
-  effects and recoverable after an ungraceful daemon exit. See
-  [Temporal durable execution](https://docs.temporal.io/),
-  [BullMQ production guidance](https://docs.bullmq.io/guide/going-to-production),
-  and [Sidekiq reliability](https://github.com/sidekiq/sidekiq/wiki/Reliability).
-- **Retries need budgets and jitter.** Daemon reconnect loops, relay reconnects,
-  and remote harbor sync should use capped exponential backoff with jitter and a
-  retry budget so a damaged downstream does not become a thundering herd. See
-  [AWS exponential backoff and jitter](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/)
-  and [Google SRE on retry budgets](https://sre.google/sre-book/addressing-cascading-failures/).
-- **Cloud harbors are not shared SQLite.** Cloudflare Agents/Durable Objects use
-  per-object durable state plus WebSockets/scheduling; that is the right mental
-  model for planned remote harbors. Local daemons own local machine state, while
-  a remote harbor owns a durable event/lease/receipt ledger and sync protocol.
-  See [Cloudflare Agents](https://developers.cloudflare.com/agents/) and
-  [Durable Objects WebSockets](https://developers.cloudflare.com/durable-objects/best-practices/websockets/).
+## Recovery
 
-## Consolidation TODO (tracked; "stop running last-gen stuff")
+Use the smallest supervisor-owned action:
 
-1. **One `pd` install** — decide brew-canonical vs repo-canonical; `pd install` must NOT create a
-   second daemon launchd job alongside the brew service.
-   - **Partly delivered (ADR-0084, Daemon Berths).** Dev/test no longer swaps the brew daemon: spin
-     a side-by-side dev berth (`pd dev up`) and target it per-shell (`pd use`) or per-command
-     (`pd --daemon`). The brew daemon remains the single canonical *stable* install on `:9876`.
-2. **`pd redeploy`** — a supervisor-aware command that stands the supervisor down, rebuilds/upgrades,
-   restarts, verifies `/health` + a route, restores supervision.
-3. ~~**Code-hash drift → restart trigger** — make bosun (or doctor) treat stale-code as
-   restart-worthy, so freshness self-heals like liveness.~~ **Delivered (ADR-0062, auto-freshness
-   self-heal).** An hourly `com.portdaddy.freshness` LaunchAgent runs `pd self-update --tick`:
-   `brew upgrade` + `brew services restart` onto the current release and relaunch FleetBar,
-   hands-off. This finally *acts* on the `binary_drift_detected` warning instead of only logging it.
-   (Linux/systemd `.timer` equivalent is the remaining slice.)
-4. **`:9876` regiment** — single `DEFAULT_DAEMON_PORT` + `resolveDaemonUrl()` + a CI guard that fails
-   on any literal `9876` outside the one definition.
-5. **Purge legacy** — remove Barnacle/`watchdog` runtime references (ADR-0021 compliance).
+| Condition | Action |
+|---|---|
+| launchd loaded, daemon wedged or old installed bytes | `brew services restart port-daddy` |
+| service not registered | `brew services start port-daddy` |
+| installed keg is behind the released formula | `brew update && brew upgrade port-daddy` |
+| named feature daemon is stale | stop and recreate that label from its worktree |
+| production listener moved | fix the client that ignored discovery; do not force the daemon back |
+| healthy Port Daddy sibling detected | identify the duplicate state plane; do not start another writer |
 
-## Shell gotcha that mangles diagnostics
+Do not use `kill` as a restart command. Do not start a detached canonical daemon
+when the launchd service is missing. Do not let FleetBar, Doctor, Bosun, or a CLI
+freshness check become a second supervisor.
 
-This machine aliases `ps`→`procs`, `ls`→`eza`, `cat`→`bat`, `du`→`dust`, `git` pager→`delta`/`bat`.
-Use absolute paths (`/bin/ps`, `command cat`) and `git -c core.pager=cat` or these probes lie to you.
+## Release gate
+
+The exact commands live in [`docs/RELEASING.md`](../RELEASING.md). The daemon-specific
+contract is:
+
+1. Build the CLI and daemon artifacts from the release candidate.
+2. Pass the compiled daemon integrity smoke before serving runtime routes.
+3. Start a named daemon from those exact bytes and record its label, published
+   URL, PID, version, git revision, and artifact hash.
+4. Prove changed routes through that named daemon, including durable transcript
+   read-back for backend work.
+5. Run the Squid activation and attention/conformance proof when harness assets
+   changed.
+6. Tag only the reviewed candidate tree. Let the release workflow update the tap.
+7. Upgrade Homebrew and verify installed CLI version, daemon version/hash,
+   supervisor PID, discovered TCP health, and FleetBar agree.
+
+Release success is convergence, not “the build command exited zero.”
+
+## Ownership boundary
+
+| Component | Owns | Never owns |
+|---|---|---|
+| Homebrew | installed formula/keg | process health decisions |
+| launchd | canonical process lifecycle | application readiness |
+| daemon | listeners, endpoint publication, readiness, durable state | its own resurrection |
+| Bosun | heartbeat/wedge observation | direct daemon spawning |
+| FleetBar / CLI / Doctor | explanation and operator controls | hidden competing supervision |
+| named berth | isolated development runtime | stable endpoint or production state |
+
+The target architecture is deliberately uneventful: one package, one OS
+supervisor, one foreground production process, one published endpoint, and any
+number of explicitly named isolated development processes.

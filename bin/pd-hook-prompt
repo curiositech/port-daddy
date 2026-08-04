@@ -22,6 +22,19 @@ MAX_ENTRIES="${PD_SQUID_PROMPT_MAX_ENTRIES:-12}"
 MAX_BYTES="${PD_SQUID_PROMPT_MAX_BYTES:-4096}"
 TTL_SECONDS="${PD_SQUID_PROMPT_TTL_SECONDS:-1800}"
 
+# ISO-8601 UTC timestamps sort in chronological order. Compute the freshness
+# window once; per-entry `date` subprocesses made a stale project with hundreds
+# of traces exceed the hook timeout. macOS uses `date -r`, GNU uses `date -d`.
+NOW_EPOCH="$(date +%s 2>/dev/null || true)"
+case "$NOW_EPOCH" in
+  ''|*[!0-9]*) CUTOFF_ISO=""; NOW_ISO="" ;;
+  *)
+    CUTOFF_EPOCH=$((NOW_EPOCH - TTL_SECONDS))
+    NOW_ISO="$(date -u -r "$NOW_EPOCH" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -d "@$NOW_EPOCH" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)"
+    CUTOFF_ISO="$(date -u -r "$CUTOFF_EPOCH" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -d "@$CUTOFF_EPOCH" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)"
+    ;;
+esac
+
 # Drain stdin so the CLI's pipe write never blocks, capturing it for cwd parsing.
 EVENT="$(cat 2>/dev/null || true)"
 
@@ -50,23 +63,22 @@ while [ -n "$d" ] && [ "$d" != "/" ]; do
   d="$(dirname "$d" 2>/dev/null || true)"
 done
 
-emit_value() {
-  # $1 = a `KEY="val"` matrix line → print just the unquoted value.
-  printf '%s\n' "$1" | sed -E 's/^[A-Za-z0-9_]+="?//; s/"$//'
-}
-
 is_fresh() {
   # Untagged legacy entries remain visible; every new writer includes ts:<ISO>.
-  ts="$(printf '%s\n' "$1" | sed -nE 's/.*\| ts:([^ |]+).*/\1/p')"
-  [ -n "$ts" ] || return 0
-  compact="$(printf '%s' "$ts" | sed -E 's/\.[0-9]+Z$/Z/')"
-  epoch="$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$compact" '+%s' 2>/dev/null || true)"
-  [ -n "$epoch" ] || epoch="$(date -u -d "$compact" '+%s' 2>/dev/null || true)"
-  case "$epoch" in ''|*[!0-9]*) return 1 ;; esac
-  now="$(date +%s 2>/dev/null || true)"
-  case "$now" in ''|*[!0-9]*) return 1 ;; esac
-  age=$((now - epoch))
-  [ "$age" -ge 0 ] 2>/dev/null && [ "$age" -le "$TTL_SECONDS" ] 2>/dev/null
+  case "$1" in
+    *'| ts:'*) ts="${1##*| ts:}" ;;
+    *) return 0 ;;
+  esac
+  ts="${ts%% *}"
+  ts="${ts%%|*}"
+  case "$ts" in
+    *.*Z) compact="${ts%%.*}Z" ;;
+    *) compact="$ts" ;;
+  esac
+  case "$compact" in ????-??-??T??:??:??Z) ;; *) return 1 ;; esac
+  [ -n "$CUTOFF_ISO" ] && [ -n "$NOW_ISO" ] || return 1
+  { [ "$compact" = "$CUTOFF_ISO" ] || [ "$compact" \> "$CUTOFF_ISO" ]; } &&
+    { [ "$compact" = "$NOW_ISO" ] || [ "$compact" \< "$NOW_ISO" ]; }
 }
 
 OUT=""
@@ -78,7 +90,9 @@ if [ -n "$ALERTS" ]; then
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     [ "$COUNT" -lt "$MAX_ENTRIES" ] 2>/dev/null || break
-    val="$(emit_value "$line")"
+    val="${line#*=}"
+    val="${val#\"}"
+    val="${val%\"}"
     is_fresh "$val" || continue
     SECTION="${SECTION}- ${val}\n"
     COUNT=$((COUNT + 1))
@@ -93,11 +107,17 @@ if [ -n "$PHER" ]; then
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     [ "$COUNT" -lt "$MAX_ENTRIES" ] 2>/dev/null || break
-    val="$(emit_value "$line")"
-    is_fresh "$val" || continue
+    val="${line#*=}"
+    val="${val#\"}"
+    val="${val%\"}"
     subject="${val%% | *}"
     case "$subject" in
       "$PROJECT_ROOT"|"$PROJECT_ROOT"/*)
+        # Relevance is a pure shell comparison; freshness invokes portable
+        # date parsing. Filter the machine-wide matrix first so old traces from
+        # unrelated worktrees cannot turn one prompt hook into hundreds of
+        # subprocesses and exhaust the harness timeout.
+        is_fresh "$val" || continue
         REL="${REL}- ${val}\n"
         COUNT=$((COUNT + 1))
         ;;

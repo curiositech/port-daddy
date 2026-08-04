@@ -37,10 +37,10 @@ afterEach(() => {
 
 describe('resolveTarget()', () => {
   test('returns TCP target when PORT_DADDY_URL is set', () => {
-    process.env.PORT_DADDY_URL = 'http://localhost:9876';
+    process.env.PORT_DADDY_URL = 'http://localhost:39871';
     const target = resolveTarget();
     expect(target.host).toBe('localhost');
-    expect(target.port).toBe(9876);
+    expect(target.port).toBe(39871);
     expect(target.socketPath).toBeUndefined();
   });
 
@@ -51,11 +51,18 @@ describe('resolveTarget()', () => {
     expect(target.port).toBe(3000);
   });
 
-  test('uses default port 9876 when URL has no explicit port', () => {
+  test('uses the standard HTTP port when URL has no explicit port', () => {
     process.env.PORT_DADDY_URL = 'http://myhost';
     const target = resolveTarget();
     expect(target.host).toBe('myhost');
-    expect(target.port).toBe(9876);
+    expect(target.port).toBe(80);
+  });
+
+  test('uses the standard HTTPS port when URL has no explicit port', () => {
+    process.env.PORT_DADDY_URL = 'https://myhost';
+    const target = resolveTarget();
+    expect(target.host).toBe('myhost');
+    expect(target.port).toBe(443);
   });
 
   test('returns socket target when PORT_DADDY_SOCK is set', () => {
@@ -68,7 +75,7 @@ describe('resolveTarget()', () => {
 
   test('PORT_DADDY_SOCK takes priority over PORT_DADDY_URL', () => {
     process.env.PORT_DADDY_SOCK = '/tmp/custom.sock';
-    process.env.PORT_DADDY_URL = 'http://localhost:9876';
+    process.env.PORT_DADDY_URL = 'http://localhost:39871';
     const target = resolveTarget();
     // SOCK is checked first
     expect(target.socketPath).toBe('/tmp/custom.sock');
@@ -89,9 +96,9 @@ describe('resolveTarget()', () => {
 
 describe('getDisplayUrl()', () => {
   test('returns tcp URL format when using TCP target', () => {
-    process.env.PORT_DADDY_URL = 'http://localhost:9876';
+    process.env.PORT_DADDY_URL = 'http://localhost:39871';
     const url = getDisplayUrl();
-    expect(url).toBe('http://localhost:9876');
+    expect(url).toBe('http://localhost:39871');
   });
 
   test('returns unix: prefix when using socket target', () => {

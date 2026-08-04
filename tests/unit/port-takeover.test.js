@@ -126,23 +126,23 @@ describe('decideTakeover', () => {
     expect(decision.reason).toMatch(/same pid/);
   });
 
-  test('refuses when a foreign process holds the canonical port', () => {
+  test('falls back when a foreign process holds the preferred port', () => {
     const decision = decideTakeover({
       probe: { kind: 'foreign', rawStatus: 200 },
       selfPid: 12345,
       allowFallback: false,
     });
-    expect(decision.action).toBe('refuse');
+    expect(decision.action).toBe('fallback');
     expect(decision.reason).toMatch(/foreign process/);
   });
 
-  test('refuses when the busy canonical port owner cannot be verified', () => {
+  test('falls back when the busy preferred-port owner cannot be verified', () => {
     const decision = decideTakeover({
       probe: { kind: 'unreachable', reason: 'ECONNREFUSED' },
       selfPid: 12345,
       allowFallback: false,
     });
-    expect(decision.action).toBe('refuse');
+    expect(decision.action).toBe('fallback');
     expect(decision.reason).toMatch(/could not be verified/);
   });
 
@@ -157,7 +157,7 @@ describe('decideTakeover', () => {
     expect(decision.reason).toMatch(/PD_ALLOW_TCP_FALLBACK/);
   });
 
-  test('PD_ALLOW_TCP_FALLBACK is required for a foreign-process fallback', () => {
+  test('the isolation override remains accepted for a foreign-process fallback', () => {
     const decision = decideTakeover({
       probe: { kind: 'foreign', rawStatus: 200 },
       selfPid: 12345,

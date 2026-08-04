@@ -6,6 +6,7 @@
  * compiled `pd`, supplies only the staged release directory, and asserts every
  * provider's real interactive config scope plus the identity/steering assets.
  */
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { delimiter, join, resolve } from 'node:path';
@@ -24,6 +25,10 @@ function fail(message) {
   throw new Error(`[squid-release-smoke] ${message}`);
 }
 
+function sha256(path) {
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
+}
+
 function expectFile(path, needle) {
   if (!existsSync(path)) fail(`expected file was not written: ${path}`);
   if (needle && !readFileSync(path, 'utf8').includes(needle)) {
@@ -33,6 +38,17 @@ function expectFile(path, needle) {
 
 try {
   if (!existsSync(pd)) fail(`compiled pd not found: ${pd}`);
+  const manifestPath = join(staged, 'port-daddy-manifest.json');
+  if (!existsSync(manifestPath)) fail(`compiled build receipt missing: ${manifestPath}`);
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  if (!manifest.builtAt || Number.isNaN(Date.parse(manifest.builtAt))) fail('build receipt has no valid builtAt');
+  if (!String(manifest.builder ?? '').includes('bun build --compile')) fail('build receipt has no compiled builder identity');
+  const pdExpectedHash = manifest.launcherSha256 || manifest.sha256;
+  if (sha256(pd) !== pdExpectedHash) fail('compiled pd hash does not match its build receipt');
+  const companion = join(staged, 'port-daddy');
+  if (existsSync(companion) && sha256(companion) !== manifest.sha256) {
+    fail('compiled daemon/CLI companion hash does not match its build receipt');
+  }
   for (const asset of [
     'pd-hook-prompt',
     'pd-hook-pre-tool',
@@ -40,10 +56,19 @@ try {
     'bin/pd-statusline',
     'hooks/sessionstart-pilot.mjs',
   ]) {
-    if (!existsSync(join(staged, asset))) fail(`staged asset missing before smoke: ${asset}`);
+    const assetPath = join(staged, asset);
+    if (!existsSync(assetPath)) fail(`staged asset missing before smoke: ${asset}`);
+    if (manifest.squidAssetSha256?.[asset] !== sha256(assetPath)) {
+      fail(`staged asset hash does not match build receipt: ${asset}`);
+    }
   }
 
   mkdirSync(join(project, '.portdaddy'), { recursive: true });
+  mkdirSync(join(project, '.claude'), { recursive: true });
+  writeFileSync(
+    join(project, '.claude', 'settings.json'),
+    `${JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: 'command', command: 'pd attention --json' }] }] } }, null, 2)}\n`,
+  );
   mkdirSync(fakeBin, { recursive: true });
   mkdirSync(home, { recursive: true });
   for (const name of ['claude', 'codex', 'gemini', 'agy']) {
@@ -73,6 +98,12 @@ try {
   if (!arm.stdout.includes('PORT DADDY IS ADDING VALUE OUTSIDE THE CONVERSATION')) fail('arm output omitted the non-diegetic value card');
 
   expectFile(join(project, '.claude', 'settings.json'), 'pd-hook-pre-tool');
+  const claudeSettings = JSON.parse(readFileSync(join(project, '.claude', 'settings.json'), 'utf8'));
+  const sessionStartCommands = claudeSettings.hooks.SessionStart.flatMap((group) => group.hooks.map((hook) => hook.command));
+  if (!sessionStartCommands.includes('pd attention --json')) fail('pre-existing attention hook was not preserved');
+  if (!sessionStartCommands.includes('PD_SQUID_SESSIONSTART=1 "${PORT_DADDY_CLI:-pd}" attention --json 2>/dev/null || true')) {
+    fail('exact managed Squid attention hook was not installed');
+  }
   expectFile(join(project, '.claude', 'settings.json'), 'sessionstart-pilot.mjs');
   expectFile(join(project, '.claude', 'settings.json'), 'pd-statusline');
   expectFile(join(project, '.claude', 'commands', 'squid.md'), 'pd squid');
@@ -127,7 +158,20 @@ try {
     fail(`unarmed sibling project crossed the exact-root gate: ${siblingProbe.stderr || siblingProbe.stdout}`);
   }
 
+  const proofMedia = [
+    'website-v2/public/demos/harness/harness-conformance-live.gif',
+    'website-v2/public/demos/harness/harness-conformance-live-dark.gif',
+    'website-v2/public/demos/harness/harness-attention-activation.gif',
+    'website-v2/public/demos/harness/harness-attention-activation-dark.gif',
+  ];
+  const proofHashes = Object.fromEntries(proofMedia.map((path) => {
+    const absolute = resolve(process.cwd(), path);
+    if (!existsSync(absolute)) fail(`proof media missing: ${path}`);
+    return [path, sha256(absolute)];
+  }));
+
   process.stdout.write(`SQUID RELEASE SMOKE PASS: ${snapshot.providers.length} providers, state ${snapshot.state}\n`);
+  process.stdout.write(`SQUID PROOF SHA256: ${JSON.stringify(proofHashes)}\n`);
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

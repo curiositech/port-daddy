@@ -685,9 +685,7 @@ describe('spawn — backend dispatch', () => {
     expect(cpSpawn).toHaveBeenCalledWith(
       'aider',
       ['--yes', '--no-stream', '--model', 'aider', '--message', 'Fix the login bug', 'src/auth.ts', 'src/login.ts'],
-      expect.objectContaining({
-        timeout: 300000,
-      })
+      expect.not.objectContaining({ timeout: expect.anything() })
     );
   });
 
@@ -704,7 +702,7 @@ describe('spawn — backend dispatch', () => {
     expect(cpSpawn).toHaveBeenCalledWith(
       'aider',
       ['--yes', '--no-stream', '--model', 'gpt-5', '--message', 'Refactor carefully'],
-      expect.objectContaining({ timeout: 300000 })
+      expect.not.objectContaining({ timeout: expect.anything() })
     );
   });
 
@@ -1386,9 +1384,7 @@ describe('spawn — claude-cli backend', () => {
     expect(cpSpawn).toHaveBeenCalledWith(
       expect.stringMatching(/(?:^|[/\\])claude$/),
       ['-p', '--output-format', 'json', 'Write a hello world program'],
-      expect.objectContaining({
-        timeout: 300000,
-      })
+      expect.not.objectContaining({ timeout: expect.anything() })
     );
   });
 
@@ -1579,6 +1575,7 @@ describe('spawn — codex backend', () => {
         '--skip-git-repo-check',
         '--full-auto',
         '--sandbox', 'workspace-write',
+        '-c', 'sandbox_workspace_write.network_access=true',
         '-C', '/tmp/port-daddy-codex-test',
         '--model', 'gpt-5.4-mini',
         '--json',
@@ -1586,9 +1583,9 @@ describe('spawn — codex backend', () => {
       ]),
       expect.objectContaining({
         cwd: '/tmp/port-daddy-codex-test',
-        timeout: 300000,
       })
     );
+    expect(cpSpawn.mock.calls[0][2]).not.toHaveProperty('timeout');
   });
 
   test('uses codex exec resume without unsupported spawn-only sandbox or cwd flags', async () => {

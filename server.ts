@@ -55,6 +55,7 @@ import { createTunnel } from './lib/tunnel.js';
 import { createDns } from './lib/dns.js';
 import { createResolver } from './lib/resolver.js';
 import { createSpawner } from './lib/spawner.js';
+import { publishDaemonEndpoint } from './lib/daemon-port-file.js';
 import { createTranscripts } from './lib/transcripts.js';
 import { createJsonlTranscriptArchive } from './lib/transcript-archive.js';
 import { createBriefing } from './lib/briefing.js';
@@ -199,7 +200,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.27.0';
+const EMBEDDED_PACKAGE_VERSION: string = '3.28.0';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -1617,6 +1618,18 @@ function shutdown(signal: string): void {
   try { tunnel.stopAll(); } catch {}
   try { tunnel.dispose?.(); } catch {}
   try { bosunHeartbeat.stop(); } catch {}
+  // A supervised restart is a cancellation boundary for in-flight CLI runs.
+  // Kill and finalize them before closing the transcript DB so no detached
+  // child is silently orphaned by routine Homebrew/launchd operations.
+  try {
+    const runningSpawns = spawner.list().filter((run) => run.status === 'running');
+    for (const run of runningSpawns) spawner.kill(run.agentId);
+    if (runningSpawns.length > 0) {
+      logger.warn('spawn_shutdown_cancelled', { count: runningSpawns.length, signal });
+    }
+  } catch (error) {
+    logger.error('spawn_shutdown_cancel_failed', { error: (error as Error).message });
+  }
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
   try { dispatchWorker?.stop(); } catch {}
@@ -1811,10 +1824,10 @@ sockServer.listen(SOCK_PATH, async () => {
       const tcpServer = http.createServer((req, res) => { app.routing(req, res); });
       tcpServer.on('error', (err: NodeJS.ErrnoException) => {
         if (err.code === 'EADDRINUSE') {
-          // On the canonical port specifically, probe the existing owner
-          // before falling back. Two Port Daddy daemons on different TCP
-          // ports but the same SQLite DB silently corrupt each other; refuse
-          // to start instead. PD_ALLOW_TCP_FALLBACK=1 restores legacy walk.
+          // Probe the preferred-port owner. A foreign owner causes a normal
+          // fallback and the bound port is published below. A healthy sibling
+          // is refused unless this is an explicitly isolated runtime, because
+          // two daemons over one state plane would duplicate work.
           if (attempt === 0) {
             void probePortOwner(tcpHost, tryPort).then((probe) => {
               const decision = decideTakeover({ probe, selfPid: process.pid, allowFallback: ALLOW_TCP_FALLBACK });
@@ -1830,16 +1843,15 @@ sockServer.listen(SOCK_PATH, async () => {
                 if (!isSilent) {
                   console.error(`Port Daddy v${VERSION} refusing to start: ${decision.reason}`);
                   console.error(`  Existing daemon pid: ${decision.foreignPid ?? '(unknown)'}`);
-                  console.error('  Resolve the port owner, or set PD_ALLOW_TCP_FALLBACK=1 only for an explicitly isolated non-canonical runtime.');
+                  console.error('  The existing Port Daddy daemon is already the owner. Use its published endpoint or launch an isolated named runtime.');
                 }
                 process.exit(1);
               }
               logger.warn('tcp_port_busy', { port: tryPort, nextAttempt: tryPort + 1, reason: decision.reason });
               tryListenTcp(attempt + 1);
             }).catch((probeErr: Error) => {
-              // Preserve the same explicit-only fallback policy even when the
-              // probe itself throws. decideTakeover refuses by default and
-              // walks only when PD_ALLOW_TCP_FALLBACK=1 was deliberately set.
+              // A failed probe must not let an unrelated preferred-port owner
+              // take down the product; continue to the next candidate.
               logger.warn('tcp_port_busy', { port: tryPort, nextAttempt: tryPort + 1, probeError: probeErr.message });
               tryListenTcp(attempt + 1);
             });
@@ -1856,10 +1868,13 @@ sockServer.listen(SOCK_PATH, async () => {
         }
       });
       tcpServer.on('listening', () => {
-        try { writeFileSync(PORT_FILE, String(tryPort), { mode: 0o644 }); } catch {}
+        try { publishDaemonEndpoint(PORT_FILE, tryPort, process.env, LOOPBACK_TCP_HOST); } catch (error) {
+          logger.error('daemon_port_publish_failed', { port: tryPort, error: (error as Error).message });
+          tcpServer.close();
+          process.exit(1);
+        }
         // The health route holds this object by reference. Keep its advertised
-        // identity equal to the listener and port file even when an operator
-        // explicitly opts an isolated runtime into fallback-port walking.
+        // identity equal to the listener and port file after any fallback.
         DAEMON_BERTH.port = tryPort;
         logger.info('tcp_started', { port: tryPort, host: tcpHost, version: VERSION });
         // Self-register this berth (ADR-0084) so FleetBar's berth picker can

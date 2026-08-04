@@ -1,6 +1,6 @@
 {
   "name": "port-daddy",
-  "version": "3.27.0",
+  "version": "3.28.0",
   "description": "Authoritative port management and service orchestration for multi-agent development — port-daddy up/down, atomic assignment, pub/sub messaging, distributed locks, agent registry, and project:stack:context semantic identities",
   "main": "./dist/server.js",
   "type": "module",
@@ -58,6 +58,7 @@
     "build:public-samples": "node scripts/build-public-samples.mjs",
     "build:daemon": "node scripts/build-daemon-binary.mjs",
     "build:daemon:dist": "npm run build:public-samples && node scripts/build-daemon-binary.mjs",
+    "prove:daemon-port-fallback": "node scripts/prove-daemon-port-fallback.mjs",
     "build:bin": "node scripts/build-single-binary.mjs",
     "build:bin:all": "node scripts/build-single-binary.mjs --outfile=dist/port-daddy-darwin-arm64 && node scripts/build-single-binary.mjs --target=bun-linux-x64 --outfile=dist/port-daddy-linux-x64",
     "package:fleetbar-preview": "bash scripts/package-fleetbar-preview.sh",

@@ -13,6 +13,7 @@ import { resolveSquidAsset } from './squid/assets.js';
 import { PD_HOME } from '../shared/paths.js';
 
 const HOOK_FILENAME = 'sessionstart-pilot.mjs';
+const MANAGED_ATTENTION_COMMAND = 'PD_SQUID_SESSIONSTART=1 "${PORT_DADDY_CLI:-pd}" attention --json 2>/dev/null || true';
 
 /**
  * Resolve the absolute path to the shipped SessionStart hook script. Checks, in
@@ -60,16 +61,8 @@ export interface PilotHookInstallResult {
 }
 
 /**
- * Add (or refresh) the Pilot SessionStart hook in <projectDir>/.claude/settings.json.
- *
- * We match our own entry by the hook filename so we never duplicate it and so a
- * moved script path gets rewritten in place. Any other SessionStart hooks
- * (e.g. `pd attention`) are preserved untouched.
- */
-/**
- * Remove the Pilot SessionStart hook from <projectDir>/.claude/settings.json.
- * Matches by hook filename, so only our entry is dropped; other SessionStart
- * hooks are preserved untouched.
+ * Remove the Pilot SessionStart hook and the attention hook that this installer
+ * explicitly marked as managed. Pre-existing `pd attention` hooks are preserved.
  */
 export function uninstallPilotSessionStartHook(projectDir: string): PilotHookInstallResult {
   const settingsPath = join(projectDir, '.claude', 'settings.json');
@@ -90,7 +83,10 @@ export function uninstallPilotSessionStartHook(projectDir: string): PilotHookIns
   const kept: ClaudeHookGroup[] = [];
   for (const group of sessionStart) {
     const hooks = (group.hooks ?? []).filter((entry) => {
-      const ours = typeof entry.command === 'string' && entry.command.includes(HOOK_FILENAME);
+      const ours = typeof entry.command === 'string' && (
+        entry.command.includes(HOOK_FILENAME)
+        || entry.command.includes('PD_SQUID_SESSIONSTART=1')
+      );
       if (ours) changed = true;
       return !ours;
     });
@@ -135,21 +131,44 @@ export function installPilotSessionStartHook(options: {
 
   // Find an existing group that already runs our script.
   let foundEntry: ClaudeHookEntry | null = null;
+  let foundGroup: ClaudeHookGroup | null = null;
+  let managedAttentionFound = false;
   for (const group of sessionStart) {
     for (const entry of group.hooks ?? []) {
       if (typeof entry.command === 'string' && entry.command.includes(HOOK_FILENAME)) {
         foundEntry = entry;
+        foundGroup = group;
       }
+      if (entry.command === MANAGED_ATTENTION_COMMAND) managedAttentionFound = true;
     }
   }
 
+  let changed = false;
+  let reason = 'already registered';
   if (foundEntry) {
-    if (foundEntry.command === command) {
-      return { changed: false, settingsPath, command, reason: 'already registered', ok: true };
+    if (foundEntry.command !== command) {
+      foundEntry.command = command; // refresh moved path
+      changed = true;
+      reason = 'refreshed script path';
     }
-    foundEntry.command = command; // refresh moved path
   } else {
-    sessionStart.push({ hooks: [{ type: 'command', command }] });
+    foundGroup = { hooks: [{ type: 'command', command }] };
+    sessionStart.push(foundGroup);
+    changed = true;
+    reason = 'registered new hook';
+  }
+
+  // A user-authored `pd attention` hook is not equivalent to the managed Squid
+  // contract: it lacks the marker used for precise uninstall and may omit the
+  // fail-open/session-start behavior. Preserve it, but still install ours.
+  if (!managedAttentionFound) {
+    foundGroup!.hooks.unshift({ type: 'command', command: MANAGED_ATTENTION_COMMAND });
+    if (!changed) reason = 'registered attention hook';
+    changed = true;
+  }
+
+  if (!changed) {
+    return { changed: false, settingsPath, command, reason, ok: true };
   }
 
   if (!options.dryRun) {
@@ -160,7 +179,7 @@ export function installPilotSessionStartHook(options: {
     changed: true,
     settingsPath,
     command,
-    reason: foundEntry ? 'refreshed script path' : 'registered new hook',
+    reason,
     ok: true,
   };
 }

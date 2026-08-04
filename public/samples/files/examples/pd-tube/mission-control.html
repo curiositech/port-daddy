@@ -146,10 +146,12 @@
 </div>
 
 <script>
-  const DAEMON = 'http://127.0.0.1:9876';
+  const params = new URLSearchParams(window.location.search);
+  const explicitDaemon = params.get('daemon') || window.localStorage.getItem('PORT_DADDY_URL');
+  const DAEMON = explicitDaemon || (/^https?:$/.test(window.location.protocol) ? window.location.origin : null);
   const CHANNEL = 'ui:clicks';
   const KIND = 'tube.msg';
-  const url = `${DAEMON}/msg/${encodeURIComponent(CHANNEL)}`;
+  const url = DAEMON ? `${DAEMON.replace(/\/$/, '')}/msg/${encodeURIComponent(CHANNEL)}` : null;
   const $ = (id) => document.getElementById(id);
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -174,6 +176,7 @@
   }
 
   async function publish(body, sender) {
+    if (!url) throw new Error('No daemon endpoint. Serve this page from Port Daddy or add ?daemon=<published-url>.');
     const res = await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sender, payload: { v: 1, kind: KIND, body } }),

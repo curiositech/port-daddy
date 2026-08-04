@@ -45,6 +45,56 @@ interface FindResult {
   services: ServiceEntry[];
 }
 
+interface PortClaimServices {
+  claim(id: string, opts: Record<string, unknown>): Record<string, unknown>;
+  release(id: string): Record<string, unknown>;
+}
+
+/**
+ * Claim a semantic port, optionally requiring that the selected port is free
+ * at the OS level. Ordinary service renewals remain idempotent: only callers
+ * that are about to launch a new listener should set `requireFree`.
+ *
+ * A named dev berth can outlive its process in the services table. If another
+ * process subsequently occupies that port, blindly renewing the old row makes
+ * `pd dev up` wait on (and eventually kill) the wrong listener. In the opt-in
+ * path, discard that stale assignment and retry with every observed listener
+ * excluded from allocation.
+ */
+export function claimPortForRequest(
+  services: PortClaimServices,
+  project: string,
+  options: {
+    preferred?: number;
+    range: [number, number];
+    pid: number;
+    requireFree?: boolean;
+    systemPorts?: Set<number>;
+  },
+): Record<string, unknown> {
+  const systemPorts = options.requireFree
+    ? (options.systemPorts ?? new Set<number>())
+    : new Set<number>();
+  const claimOptions = {
+    port: options.preferred,
+    range: options.range,
+    pid: options.pid,
+    systemPorts,
+  };
+  let result = services.claim(project, claimOptions);
+  const claimedPort = result.port as number | undefined;
+
+  if (options.requireFree && result.success && claimedPort !== undefined && systemPorts.has(claimedPort)) {
+    services.release(project);
+    result = services.claim(project, claimOptions);
+    if (result.success) {
+      result = { ...result, reassignedFrom: claimedPort };
+    }
+  }
+
+  return result;
+}
+
 interface InfoRouteDeps {
   metrics: {
     errors: number;
@@ -540,7 +590,7 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
   // POST /ports/request
   fastify.post('/ports/request', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { project, preferred } = request.body as any;
+      const { project, preferred, requireFree } = request.body as any;
       if (!project) {
         reply.code(400);
         return { error: 'project name required' };
@@ -549,11 +599,15 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
       const PORT_RANGE_START = config.ports.range_start;
       const PORT_RANGE_END = config.ports.range_end;
 
-      const result = services.claim(project, {
-        port: preferred,
+      const systemPorts = requireFree === true
+        ? new Set(deps.getSystemPorts().map((entry) => entry.port))
+        : new Set<number>();
+      const result = claimPortForRequest(services, project, {
+        preferred,
         range: [PORT_RANGE_START, PORT_RANGE_END],
         pid: parseInt(request.headers['x-pid'] as string, 10) || process.pid,
-        systemPorts: new Set<number>()
+        requireFree: requireFree === true,
+        systemPorts,
       });
 
       if (!result.success) {
@@ -565,7 +619,8 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
       return {
         port: result.port,
         message: result.existing ? 'existing assignment renewed' : 'port assigned successfully',
-        existing: result.existing || false
+        existing: result.existing || false,
+        ...(result.reassignedFrom !== undefined ? { reassignedFrom: result.reassignedFrom } : {}),
       };
     } catch (error) {
       metrics.errors++;

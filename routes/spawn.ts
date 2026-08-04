@@ -7,7 +7,7 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify';
-import type { BackendOverrideSource, SpawnSpec, Spawner } from '../lib/spawner.js';
+import type { BackendOverrideSource, SpawnAccepted, SpawnResult, SpawnSpec, Spawner } from '../lib/spawner.js';
 import { assessSpawnPreflight } from '../lib/spawn-preflight.js';
 import type { CostTracker } from '../lib/cost-tracker.js';
 import { resolveFleetAgentRuntime, type FleetModelTier, type FleetRuntimeTarget } from '../lib/fleet-runtime.js';
@@ -271,7 +271,52 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         purpose: spec.purpose || null,
       });
 
-      const result = await spawner.spawn(spec);
+      const prefer = String(request.headers.prefer || '').toLowerCase();
+      const respondAsync = prefer.split(',').some((token) => token.trim() === 'respond-async');
+      let acceptRun: ((accepted: SpawnAccepted) => void) | null = null;
+      const accepted = new Promise<SpawnAccepted>((resolve) => { acceptRun = resolve; });
+      const run = spawner.spawn(spec, (receipt) => acceptRun?.(receipt));
+
+      if (respondAsync) {
+        const first = await Promise.race([
+          accepted.then((receipt) => ({ kind: 'accepted' as const, receipt })),
+          run.then((result) => ({ kind: 'completed' as const, result })),
+        ]);
+        if (first.kind === 'accepted') {
+          const monitorUrl = `/spawn/${encodeURIComponent(first.receipt.agentId)}`;
+          void run.then((result) => {
+            logger.info('spawn_complete', {
+              agentId: result.agentId,
+              backend: result.backend,
+              status: result.status,
+            });
+          }).catch((error) => {
+            metrics.errors++;
+            logger.error('spawn_error', { error: (error as Error).message });
+          });
+          reply.code(202);
+          reply.header('Location', monitorUrl);
+          reply.header('Retry-After', '1');
+          return {
+            success: true,
+            accepted: true,
+            ...first.receipt,
+            monitorUrl,
+            cancelUrl: monitorUrl,
+            transcriptUrl: `/transcripts?agentId=${encodeURIComponent(first.receipt.agentId)}`,
+          };
+        }
+
+        const result = first.result;
+        logger.info('spawn_complete', {
+          agentId: result.agentId,
+          backend: result.backend,
+          status: result.status,
+        });
+        return { success: result.status === 'completed', ...result };
+      }
+
+      const result = await run;
 
       logger.info('spawn_complete', {
         agentId: result.agentId,
@@ -299,6 +344,36 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
     } catch (error) {
       metrics.errors++;
       logger.error('spawn_list_error', { error: (error as Error).message });
+      reply.code(500); return { error: 'internal server error' };
+    }
+  });
+
+  // GET /spawn/:id — resumable collection for a live run or its durable transcript.
+  fastify.get('/spawn/:id', async (request, reply) => {
+    try {
+      const id = String((request.params as any).id);
+      const result: SpawnResult | null = spawner.get(id);
+      if (!result) {
+        reply.code(404);
+        return { success: false, error: `No spawned run found for ${id}` };
+      }
+      const live = spawner.list().find((agent) => agent.agentId === id);
+      const terminal = result.status !== 'running';
+      if (!terminal) reply.header('Retry-After', '1');
+      return {
+        success: terminal ? result.status === 'completed' : true,
+        terminal,
+        ...result,
+        liveness: live ? {
+          supervisorHeartbeatAt: live.heartbeatAt,
+          lastActivityAt: live.lastActivityAt,
+          pid: live.pid,
+          deadlineAt: live.deadlineAt,
+        } : null,
+      };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('spawn_get_error', { error: (error as Error).message });
       reply.code(500); return { error: 'internal server error' };
     }
   });

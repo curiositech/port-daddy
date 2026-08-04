@@ -43,8 +43,8 @@ FleetBar/Fleet Control Center evidence, validation, and recoverable handoffs.
 
 The CLI is for **you** (the agent) and for emergencies. The human operator does
 not run `pd` commands, edit `.env.local` files, run `launchctl kickstart`, or
-tail logs. Their surface is the FleetBar menu-bar app and the dashboard at
-`http://localhost:9876` — buttons, panels, deep-links to provider token pages.
+tail logs. Their surface is the FleetBar menu-bar app and the dashboard endpoint
+discovered from the running daemon — buttons, panels, deep-links to provider token pages.
 
 When you tell the operator to do something, point at the **FleetBar button or
 dashboard panel**, not at a shell command. If the surface does not exist yet,
@@ -66,6 +66,8 @@ For a Port Daddy project, `pd squid on` is the one full arm switch. It stages
 the local lifecycle tentacles, wires every detected interactive CLI in its real
 scope (Claude/Gemini project config; Codex/agy daemon-gated user config), adds
 the `◆ PD` statusline, installs Pilot SessionStart steering, and adds `/squid`.
+It also installs `pd attention --json` at SessionStart so unread direct and
+watched-channel work enters context before the first conversational turn.
 Do not use or recommend the removed `pd squid hooks` fork; `pd hooks install`
 is the narrower hook-only repair surface.
 
@@ -516,9 +518,13 @@ Authority rules:
 - A local daemon is authoritative for its own machine. Never assume another
   machine has the same DB state unless a named harbor sync/lease protocol says
   so and exposes read-back evidence.
-- Stable Homebrew (`:9876`) is the operator's canonical local runtime. Dev
+- Stable Homebrew, at its published dynamic endpoint, is the operator's canonical local runtime. Dev
   berths are proof for a branch, not proof that FleetBar's stable surface is
   fixed.
+- Treat `pd spawn` as a durable job, not a long HTTP request. Submission returns
+  a receipt/monitor; disconnecting only detaches the client. Follow with
+  `pd spawned <id> --wait`, cancel explicitly, and use `--timeout` only as an
+  intentional execution deadline. See `docs/operations/spawn-lifecycle.md`.
 - On canonical macOS, launchd is the only process lifecycle owner. `pd start`,
   `pd restart`, and `pd stop` control that launchd job and verify one generation;
   they must never create a detached fallback. The daemon owns readiness, Bosun

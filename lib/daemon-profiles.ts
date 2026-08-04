@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { delimiter, join } from 'node:path';
 import { PD_HOME } from '../shared/paths.js';
 import { STATE_PLANE_ENV } from './state-plane.js';
 
@@ -76,6 +76,70 @@ export function resolveDaemonProfile(rawName: string, opts: { homeDir?: string }
     logFile: join(runtimeDir, 'daemon.log'),
     stateFile: join(runtimeDir, 'profile.json'),
   };
+}
+
+/**
+ * Resolve the private runtime directory selected by a client-side
+ * `PD_ACTIVE_DAEMON` marker.
+ *
+ * `pd use` and the global `pd --daemon` flag intentionally do not export
+ * `PORT_DADDY_PREFIX`: that variable changes database/state ownership for the
+ * whole CLI process. Diagnostics still need the selected berth's PID, port,
+ * and heartbeat files, though, so they resolve the marker narrowly here.
+ * Unknown/raw-URL targets return null and must be reported as unverifiable;
+ * they must never fall back to the stable daemon's files.
+ */
+export function resolveActiveDaemonRuntimeDir(
+  env: NodeJS.ProcessEnv = process.env,
+  opts: { homeDir?: string } = {},
+): string | null {
+  const explicitPrefix = env.PORT_DADDY_PREFIX?.trim();
+  if (explicitPrefix) return explicitPrefix;
+
+  const marker = env.PD_ACTIVE_DAEMON?.trim();
+  if (!marker || RESERVED_DAEMON_PROFILES.has(marker.toLowerCase())) return null;
+
+  // Dev labels may contain branch separators; devUp uses the same replacement
+  // when creating ~/.port-daddy/instances/<label>.
+  const profileName = marker.replace(/[^A-Za-z0-9._-]/g, '-');
+  try {
+    const profile = resolveDaemonProfile(profileName, opts);
+    return existsSync(profile.runtimeDir) ? profile.runtimeDir : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Put a named berth's matching feature CLI ahead of Homebrew for daemon
+ * descendants. A dev daemon tested with a stale installed `pd` is not a valid
+ * backend proof: routes, flags, and discovery contracts can change together.
+ */
+export function installDaemonProfileCliShim(
+  profile: DaemonProfilePaths,
+  cliBinary: string,
+  env: NodeJS.ProcessEnv,
+  platform: NodeJS.Platform = process.platform,
+): string {
+  if (!existsSync(cliBinary)) {
+    throw new Error(`feature CLI binary is missing: ${cliBinary}`);
+  }
+  const binDir = join(profile.runtimeDir, 'feature-bin');
+  mkdirSync(binDir, { recursive: true, mode: 0o700 });
+
+  for (const command of ['pd', 'port-daddy']) {
+    const shimPath = join(binDir, platform === 'win32' ? `${command}.cmd` : command);
+    rmSync(shimPath, { force: true });
+    if (platform === 'win32') {
+      writeFileSync(shimPath, `@"${cliBinary}" %*\r\n`, { mode: 0o700 });
+    } else {
+      symlinkSync(cliBinary, shimPath);
+    }
+  }
+
+  env.PORT_DADDY_CLI = cliBinary;
+  env.PATH = [binDir, env.PATH].filter(Boolean).join(delimiter);
+  return binDir;
 }
 
 export function ensureDaemonProfileDir(profile: DaemonProfilePaths): void {
@@ -162,6 +226,15 @@ export function buildDaemonProfileEnv(
 
   env.PORT_DADDY_PROFILE = profile.name;
   env.PORT_DADDY_PREFIX = profile.runtimeDir;
+  // Publish the profile's IPC paths, not only its TCP URL. Sandboxed agent
+  // shells commonly deny loopback networking while allowing the daemon's Unix
+  // socket. Descendants must therefore inherit the exact named socket and port
+  // file or their first `pd attention` can fail despite a healthy daemon.
+  env.PORT_DADDY_SOCK = profile.sockPath;
+  env.PORT_DADDY_IPC = profile.ipcPath;
+  env.PORT_DADDY_PID_FILE = profile.pidFile;
+  env.PORT_DADDY_PORT_FILE = profile.portFile;
+  env.PORT_DADDY_HEARTBEAT_FILE = profile.heartbeatFile;
   env.PORT_DADDY_NO_FLEET = opts.enableFleet ? '0' : '1';
   env.PORT_DADDY_NO_FLEETBAR = opts.enableFleetBar ? '0' : '1';
   env.PD_ACTIVE_DAEMON = profile.name;

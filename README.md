@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.27.0)
+# ⚓ Port Daddy (v3.28.0)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
@@ -36,7 +36,11 @@ pd pub api:ready '{"endpoints": ["/login", "/register"]}'
 pd done "Auth complete"
 ```
 
-Examples in this README assume the default local daemon URL `http://localhost:9876`. If your daemon is on a different port, check `pd status` or set `PORT_DADDY_URL` before copying the HTTP examples.
+HTTP examples resolve the live endpoint once; they never assume the preferred port:
+
+```bash
+PD_URL="${PORT_DADDY_URL:-$(pd dev list --json | jq -r .stable.url)}"
+```
 
 ### ⚓ Key Primitives
 
@@ -465,7 +469,7 @@ Agents spray numeric signals (0–1) onto entities; signals decay at read time, 
 pd pheromone spray --table services --id myapp:api --key urgency --strength 0.8
 pd pheromone sniff --table services --id myapp:api
 pd pheromone list
-curl http://localhost:9876/pheromone/files    # file heat map (contention)
+curl "$PD_URL/pheromone/files"    # file heat map (contention)
 ```
 
 Use cases: adaptive Arbiter thresholds, file-contention detection, agent reputation, hot-path identification.
@@ -514,8 +518,8 @@ Re-depositing the same bytes on the same branch is idempotent; the same bytes on
 The Arbiter monitors every state transition against formally-derived invariants: PID squatting, capability escalation, note monotonicity, escrow positivity, lock-owner validity, heartbeat freshness.
 
 ```bash
-curl http://localhost:9876/arbiter/status
-curl -X POST http://localhost:9876/arbiter/test-invariant/NOTE_MONOTONICITY   # demo injection
+curl "$PD_URL/arbiter/status"
+curl -X POST "$PD_URL/arbiter/test-invariant/NOTE_MONOTONICITY"   # demo injection
 ```
 
 In strict mode, critical violations trigger man-overboard salvage.
@@ -532,7 +536,7 @@ In strict mode, critical violations trigger man-overboard salvage.
 
 Use the right surface for the job (canonical doc: [docs/DELEGATION-MODES.md](docs/DELEGATION-MODES.md)):
 
-- `pd spawn` — the low-level primitive. Explicit backend, identity, budget, task.
+- `pd spawn` — the low-level durable primitive. Explicit backend, identity, budget, task; submit returns a receipt and the daemon owns execution.
 - `pd agent` — the preferred single-agent sugar. One bounded task with coordination wrapped around it.
 - `pd sortie` — a tracked mission record with a durable id, event log, harbor, and inspectable outcome.
 - `pd fleet` — always-on project automation from `pd-fleet.yml`.
@@ -556,10 +560,18 @@ pd sortie logs sortie-abc123
 pd spawn --backend claude --model claude-haiku-4-5-20251001 \
   --budget 0.50 --identity myapp:fixer -- "Summarize the latest auth diff"
 
-pd spawned              # list running/completed agents
-pd spawn kill <id>      # terminate a running agent
-pd transcripts          # durable agent transcripts (survive DB loss, ADR-0058)
+pd spawn --detach --backend cli:codex --budget 0.50 \
+  --identity myapp:reviewer -- "Review in the background"  # return receipt now
+pd spawned                       # list running/completed agents
+pd spawned <id>                  # inspect once
+pd spawned <id> --wait           # reconnect and collect; no client wall timeout
+pd spawn kill <id>               # explicit staged cancellation
+pd transcripts                   # durable agent transcripts (survive DB loss, ADR-0058)
 ```
+
+`--timeout` is an optional hard execution deadline, not an HTTP request timeout.
+CLI backends have no default wall-clock cutoff. Full lifecycle and liveness
+semantics: [docs/operations/spawn-lifecycle.md](docs/operations/spawn-lifecycle.md).
 
 ### 🔬 Adapter conformance probes — `pd work probe`
 
@@ -716,11 +728,11 @@ pd fleet validate   # Parse YAML, resolve templates, dry-run topology checks
 pd fleet status     # View running agents
 pd fleet down       # Stop all agents
 
-curl http://localhost:9876/fleet                    # Global fleet status
-curl -X POST http://localhost:9876/fleet/reload     # Reload configs (same as SIGHUP)
-curl http://localhost:9876/fleet/events             # SSE lifecycle stream
-curl 'http://localhost:9876/fleet/prompt?project=myapp'   # One-liner for your PS1
-curl http://localhost:9876/fleet/models             # Available backends & models
+curl "$PD_URL/fleet"                    # Global fleet status
+curl -X POST "$PD_URL/fleet/reload"     # Reload configs (same as SIGHUP)
+curl "$PD_URL/fleet/events"             # SSE lifecycle stream
+curl "$PD_URL/fleet/prompt?project=myapp"   # One-liner for your PS1
+curl "$PD_URL/fleet/models"             # Available backends & models
 ```
 
 Every fleet agent gets full coordination for free: registration, sessions, heartbeats, salvage on crash. Repeated trigger bursts collapse into **queued** work (mailbox semantics — `status: queued`, non-zero `queueDepth`) instead of spawning a fresh agent per wake. Template variables (`{project}`) resolve from YAML context; lifecycle events publish on `fleet:events`. The same fail-closed telemetry policy as manual launches applies. Scheduled ships default `run_on_start: false` so a daemon restart cannot fan out a whole fleet before `/health` is stable. Ships can opt into native skill guidance with `skill_graft: true`; `pd skill-graft` previews, warms, and reads guarded references from the same local index.
@@ -753,7 +765,7 @@ Operate the live fleet with `pd fleet halt|pause|resume|inspect|tree`. `halt` is
 ```bash
 pd wallet top-up myapp --usd 20
 pd bond list --project myapp
-curl -X POST http://localhost:9876/bonds/42/slash \
+curl -X POST "$PD_URL/bonds/42/slash" \
   -H 'Content-Type: application/json' -d '{"portion": 0.5, "reason": "leaked secrets to stdout"}'
 ```
 
@@ -812,9 +824,9 @@ pd version   # Version, code hash, install dir, PID
 pd doctor    # Three-tier health check (see Installation)
 pd attest    # Invariant self-report
 pd diagnose  # Deeper diagnostics
-curl http://127.0.0.1:9876/status   # Full daemon report incl. recent activity and spend
-curl http://127.0.0.1:9876/transcripts/compliance  # Transcript backend matrix + live stalled/missing-run HITL issues
-curl http://127.0.0.1:9876/transcripts/emergency   # HITL transcript emergency summary across local + cloud writers
+curl "$PD_URL/status"   # Full daemon report incl. recent activity and spend
+curl "$PD_URL/transcripts/compliance"  # Transcript backend matrix + live stalled/missing-run HITL issues
+curl "$PD_URL/transcripts/emergency"   # HITL transcript emergency summary across local + cloud writers
 ```
 
 `launchctl` is the sole canonical process supervisor on macOS. The daemon owns readiness and publishes one generation identity across `/health`, `daemon.pid`, `daemon.port`, its listener, binary hash, and filesystem heartbeat. Bosun is the independent non-agent watchdog: it can ask launchd to replace a dead or wedged generation, but it never spawns one. `pd status`, Doctor, FleetBar, and pd-console are observers of that shared snapshot, not additional supervisors.
@@ -875,13 +887,13 @@ Three subsystems work together:
 - **Golden Signals** — RED-method metrics in a single endpoint: rate/min, error %, avg duration, cost/hr burn.
 
 ```bash
-curl http://localhost:9876/metrics/golden
+curl "$PD_URL/metrics/golden"
 # → { ratePerMin: 1.2, errorPct: 5.0, avgDurationMs: 4200, costPerHour: 0.23 }
-curl http://localhost:9876/metrics/cost                       # totals, byProject, byBackend
-curl "http://localhost:9876/metrics/cost/budget/myapp?budgetUsdPerDay=10"
-curl "http://localhost:9876/metrics/counters?key=spawn.started&groupBy=minute"
-curl "http://localhost:9876/metrics/counters/top?key=spawn.started&dim=backend&n=5"
-curl http://localhost:9876/metrics/prom                       # Prometheus scrape endpoint
+curl "$PD_URL/metrics/cost"                       # totals, byProject, byBackend
+curl "$PD_URL/metrics/cost/budget/myapp?budgetUsdPerDay=10"
+curl "$PD_URL/metrics/counters?key=spawn.started&groupBy=minute"
+curl "$PD_URL/metrics/counters/top?key=spawn.started&dim=backend&n=5"
+curl "$PD_URL/metrics/prom"                       # Prometheus scrape endpoint
 ```
 
 `pd metrics` from the CLI; `/metrics.html` serves a Prometheus dashboard.
@@ -949,7 +961,7 @@ Commit this so every developer gets the same deterministic port mapping:
 
 ### Environment variables
 
-- `PORT_DADDY_URL` — daemon address (default `http://localhost:9876`)
+- `PORT_DADDY_URL` — explicit daemon address override; otherwise clients use socket/port-file discovery
 - `PORT_DADDY_RANGE_START` — port pool start (default `3100`)
 - `PORT_DADDY_YES=1` — bypass destructive-command prompts (audited)
 - `PD_COAST_GUARD_OFF=1` — opt a spawn out of confinement
@@ -972,6 +984,23 @@ The public site uses **`/examples`** as the single source-backed catalogue. Daem
 ---
 
 ## 🛠️ Development & Testing
+
+Backend changes are tested against named compiled daemons, never by overwriting
+the Homebrew stable berth or running only `tsx` source:
+
+```bash
+pd dev up --from "$PWD" --label <feature>
+eval "$(pd use <feature>)"
+./dist/port-daddy squid on --cwd "$PWD"
+./dist/port-daddy squid status --cwd "$PWD" --json
+pd dev down <feature>                 # preserves the isolated ledger
+```
+
+Every GitHub push wakes a low-tier Documentarian review of the pushed SHA.
+Homebrew releases add a fail-closed, exact-candidate review: four or more unique
+Port Daddy agents must cross-steelman the instruction rewrite, record the named
+feature-daemon proof, and produce `docs/release-reviews/v<version>.json` before
+any binary job starts. See [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ### Setup
 

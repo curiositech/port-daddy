@@ -138,6 +138,96 @@ describe('spawner ↔ transcripts integration', () => {
     expect(tx.outputs[0].type).toBe('message');
   });
 
+  it('binds the daemon-assigned identity into the child environment', async () => {
+    let observedSpec;
+    const spawner = createSpawner({
+      transcripts,
+      enforceTelemetryPolicy: false,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+      runnerOverrides: {
+        claude: async (spec) => {
+          observedSpec = spec;
+          return {
+            output: 'attention identity inherited',
+            error: null,
+            inputTokens: 10,
+            outputTokens: 5,
+          };
+        },
+      },
+    });
+
+    const result = await spawner.spawn({
+      backend: 'claude',
+      model: 'claude-haiku-4-5',
+      task: 'check attention',
+      env: { PD_AGENT_ID: 'caller-spoof', KEEP_ME: 'yes' },
+    });
+
+    expect(observedSpec.env).toEqual(expect.objectContaining({
+      PD_AGENT_ID: result.agentId,
+      KEEP_ME: 'yes',
+    }));
+    expect(observedSpec.env.PD_AGENT_ID).not.toBe('caller-spoof');
+  });
+
+  it('acknowledges only after the durable transcript exists and can reconstruct after restart', async () => {
+    const accepted = jest.fn((receipt) => {
+      expect(receipt.status).toBe('running');
+      expect(transcripts.listTranscripts({ agentId: receipt.agentId })).toHaveLength(1);
+    });
+    const spawner = createSpawner({
+      transcripts,
+      enforceTelemetryPolicy: false,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+      runnerOverrides: {
+        claude: async () => ({ output: 'durable answer', error: null }),
+      },
+    });
+    const result = await spawner.spawn({ backend: 'claude', task: 'persist me' }, accepted);
+    expect(accepted).toHaveBeenCalledTimes(1);
+
+    const restarted = createSpawner({
+      transcripts,
+      enforceTelemetryPolicy: false,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+    });
+    expect(restarted.get(result.agentId)).toEqual(expect.objectContaining({
+      agentId: result.agentId,
+      status: 'completed',
+      output: 'durable answer',
+      telemetry: null,
+    }));
+  });
+
+  it('finalizes an unowned running transcript as supervisor-lost on collection', () => {
+    const transcriptId = transcripts.start({
+      ship: 'spawn:claude',
+      spawned_agent_id: 'spawned-orphan',
+      trigger: 'manual',
+      backend: 'claude',
+      model: 'claude-haiku-4-5',
+      started_at: 100,
+    });
+    transcripts.appendMessage(transcriptId, {
+      role: 'user',
+      content: 'work interrupted by daemon crash',
+      timestamp: 100,
+    });
+
+    const restarted = createSpawner({
+      transcripts,
+      enforceTelemetryPolicy: false,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+    });
+    const collected = restarted.get('spawned-orphan');
+    expect(collected).toEqual(expect.objectContaining({
+      status: 'failed',
+      error: expect.stringMatching(/supervisor state was lost/i),
+    }));
+    expect(transcripts.getTranscript(transcriptId).status).toBe('failed');
+  });
+
   it('passes a completed backend when exact telemetry stays under budget', async () => {
     const costTracker = exactCostTracker(0.0125);
     const spawner = createSpawner({
@@ -286,6 +376,7 @@ describe('spawner ↔ transcripts integration', () => {
 
   it('fails the spawn (and does not run the backend) when the transcript cannot be opened', async () => {
     let backendRan = false;
+    const accepted = jest.fn();
     const brokenTranscripts = {
       ...transcripts,
       start() { throw new Error('db is on fire'); },
@@ -299,10 +390,11 @@ describe('spawner ↔ transcripts integration', () => {
         claude: async () => { backendRan = true; return { output: 'hi', error: null }; },
       },
     });
-    const result = await spawner.spawn({ backend: 'claude', task: 'hi' });
+    const result = await spawner.spawn({ backend: 'claude', task: 'hi' }, accepted);
     expect(result.status).toBe('failed');
     expect(result.error).toMatch(/recording failed|must not run unless its conversation is recorded/i);
     expect(backendRan).toBe(false);
+    expect(accepted).not.toHaveBeenCalled();
   });
 
   it('marks the spawn failed when finalize throws (recording failure cannot report success)', async () => {

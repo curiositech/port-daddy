@@ -99,6 +99,10 @@ repo-specific mechanics:
   `windags_skill_graft`); until it lands, match by hand against `skills/`.
 - **Launch work through PD spawn** (`pd spawn`, SDK `spawn()`, or MCP `spawn`),
   never a raw side-channel — so the work is registered, sandboxed, budgeted, salvageable.
+  Treat the returned receipt as the durable identity: client disconnect is
+  detach, observation reconnects through the monitor, and cancellation or a
+  hard execution deadline is a separate policy decision. Read
+  `docs/operations/spawn-lifecycle.md` before changing spawn liveness.
 - **Managers orchestrate; workers author PRs.** A manager lane delegates
   implementation edits, PR body drafting, and PR authoring to worker sessions.
   The manager reads returned artifacts, checks evidence, steel-mans the strongest
@@ -110,14 +114,13 @@ repo-specific mechanics:
   that summarize operator preferences or cross-repo tactics must carry
   provenance, redaction/sync posture, account/team authority, and staleness.
 - **Keep `README.md` current** in the same PR when a slice changes a documented surface.
-- **Prove Squid from release cargo.** Adding a hook to source is not enough.
-  Declare every required tentacle/identity/steering asset in
-  `release-artifacts.json`, stage it in `release.yml`, then run
-  `scripts/smoke-squid-release.mjs` against the compiled binary outside the
-  source tree. The proof must cover Claude/Gemini project config, Codex/agy
-  user config, exact-root gating, statusline, Pilot SessionStart, `/squid`, and
-  machine-readable READY/LIVE state. A source-suite pass cannot substitute for
-  this artifact-boundary proof.
+- **Treat `docs/RELEASING.md` as the release procedure owner.** This skill keeps
+  only the contributor invariants: backend proof uses a compiled candidate CLI
+  against `pd dev up --label <feature>`, never a binary copied over stable; the
+  Homebrew-capable tree carries an exact-digest multi-agent receipt; and Squid
+  proof crosses `release-artifacts.json` plus `scripts/smoke-squid-release.mjs`.
+  The runbook owns reviewer counts, commands, version handling, tagging, and
+  Homebrew recovery so those details cannot drift between instruction files.
 
 ## Core Decision Tree
 
@@ -238,7 +241,8 @@ Build: `cargo build --release --bin pd-console --features gpui` (from `core/pd-c
 `~/.port-daddy/bin/pd-console` *and* the double-clickable `~/Applications/pd-console.app`
 (embeds its own binary — does NOT read PATH). After replacing the .app binary,
 `codesign --force --deep --sign - ~/Applications/pd-console.app` or macOS rejects it.
-Launch with `PORT_DADDY_URL=http://127.0.0.1:9876` if daemon discovery panics;
+If daemon discovery panics, repair the published port-file path or target a named
+berth explicitly; never guess a fixed `PORT_DADDY_URL`.
 `PD_CONSOLE_THEME=light|dark` / `Ctrl-A g` for theme. Spawning from the console clears real
 guards (`task`+`identity`+`budgetUsd`+`model`+ worktree `workdir`, plus a funded project wallet +
 daily budget) — miss one and spawn "looks wired but does nothing." gpui 0.2.2 has no transform:

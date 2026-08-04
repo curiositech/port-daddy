@@ -12,30 +12,55 @@
 #   - curl (for dynamic completions from the running daemon)
 #
 # DYNAMIC COMPLETIONS:
-#   When the daemon is running on localhost:9876, completions for service
+#   When the daemon has published a local endpoint, completions for service
 #   identities, channels, locks, and agent IDs are fetched live.
 
 # ---------------------------------------------------------------------------
 # Helpers — daemon queries
 # ---------------------------------------------------------------------------
 
+function __pd_daemon_url
+    if test -n "$PORT_DADDY_URL"
+        string replace -r '/$' '' -- "$PORT_DADDY_URL"
+        return 0
+    end
+    set -l port_file "$HOME/.port-daddy/daemon.port"
+    if test -n "$PORT_DADDY_PORT_FILE"
+        set port_file "$PORT_DADDY_PORT_FILE"
+    end
+    if test -r "$port_file"
+        set -l port (string trim < "$port_file")
+        if string match -qr '^[0-9]+$' -- "$port"
+            echo "http://127.0.0.1:$port"
+        end
+    end
+end
+
 function __pd_service_ids
-    curl -s --max-time 1 'http://localhost:9876/services' 2>/dev/null \
+    set -l base (__pd_daemon_url)
+    test -n "$base"; or return
+    curl -s --max-time 1 "$base/services" 2>/dev/null \
         | string match -r '"id":"[^"]*"' | string replace -r '"id":"([^"]*)"' '$1'
 end
 
 function __pd_channels
-    curl -s --max-time 1 'http://localhost:9876/channels' 2>/dev/null \
+    set -l base (__pd_daemon_url)
+    test -n "$base"; or return
+    curl -s --max-time 1 "$base/channels" 2>/dev/null \
         | string match -r '"name":"[^"]*"' | string replace -r '"name":"([^"]*)"' '$1'
 end
 
 function __pd_lock_names
-    curl -s --max-time 1 'http://localhost:9876/locks' 2>/dev/null \
+    set -l base (__pd_daemon_url)
+    test -n "$base"; or return
+    curl -s --max-time 1 "$base/locks" 2>/dev/null \
         | string match -r '"name":"[^"]*"' | string replace -r '"name":"([^"]*)"' '$1'
 end
 
 function __pd_agent_ids
-    curl -s --max-time 1 'http://localhost:9876/agents' 2>/dev/null \
+    set -l base (__pd_daemon_url)
+    test -n "$base"; or return
+    curl -s --max-time 1 "$base/agents" 2>/dev/null \
         | string match -r '"id":"[^"]*"' | string replace -r '"id":"([^"]*)"' '$1'
 end
 

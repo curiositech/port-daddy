@@ -120,7 +120,7 @@
     <div class="row">
       <label>
         Daemon URL
-        <input id="daemon" value="http://127.0.0.1:9876">
+        <input id="daemon" placeholder="Published daemon URL">
       </label>
       <label>
         File
@@ -136,7 +136,7 @@
       Selected code
       <textarea id="selection">export function getDaemonUrl(explicit?: string) {
   if (explicit) return explicit.replace(/\/+$/, '');
-  return window.localStorage.getItem('PORT_DADDY_URL') ?? 'http://127.0.0.1:9876';
+  return window.localStorage.getItem('PORT_DADDY_URL') ?? window.location.origin;
 }</textarea>
     </label>
 
@@ -148,11 +148,18 @@ $ pd tube editor:explain</pre>
 
   <script>
     const CHANNEL = 'editor:explain';
+    const daemonInput = document.getElementById('daemon');
+    const daemonParams = new URLSearchParams(window.location.search);
+    daemonInput.value = daemonParams.get('daemon')
+      || window.localStorage.getItem('PORT_DADDY_URL')
+      || (/^https?:$/.test(window.location.protocol) ? window.location.origin : '');
     const TUBE_KIND = 'tube.msg';
     const log = document.getElementById('log');
 
     function daemonUrl() {
-      return document.getElementById('daemon').value.replace(/\/+$/, '');
+      const value = daemonInput.value.trim();
+      if (!value) throw new Error('Paste the URL published by FleetBar or pd status --json.');
+      return value.replace(/\/+$/, '');
     }
 
     function channelUrl() {

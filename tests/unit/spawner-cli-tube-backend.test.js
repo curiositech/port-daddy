@@ -187,6 +187,9 @@ describe('buildArgs', () => {
     expect(args).toContain('--full-auto');
     expect(args).toContain('--sandbox');
     expect(args[args.indexOf('--sandbox') + 1]).toBe('workspace-write');
+    expect(args).toEqual(expect.arrayContaining([
+      '-c', 'sandbox_workspace_write.network_access=true',
+    ]));
     expect(args).toContain('--json');
   });
 

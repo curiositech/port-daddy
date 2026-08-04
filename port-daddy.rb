@@ -44,7 +44,7 @@ class PortDaddy < Formula
         port-daddy detect                  # Detect your framework
         port-daddy doctor                  # Check your environment
 
-      Dashboard: http://localhost:9876
+      Dashboard: run `port-daddy status --json` and open its published TCP URL.
       Docs: https://github.com/curiositech/port-daddy#readme
     EOS
   end
@@ -65,8 +65,12 @@ class PortDaddy < Formula
 
     sleep 2
 
-    # Test health endpoint
-    output = shell_output("curl -sf http://localhost:9876/health")
+    # Test the endpoint the daemon actually published; the preferred port may
+    # be occupied in the Homebrew test sandbox.
+    port_file = Pathname(Dir.home)/".port-daddy/daemon.port"
+    assert_predicate port_file, :exist?
+    port = port_file.read.strip
+    output = shell_output("curl -sf http://127.0.0.1:#{port}/health")
     assert_match "ok", output
   end
 end

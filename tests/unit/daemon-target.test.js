@@ -76,10 +76,18 @@ describe('resolveDaemonTarget (the one canonical resolver)', () => {
     expect(t.port).toBeGreaterThanOrEqual(1024);
   });
 
-  test('URL without explicit port falls back to the canonical preferred port', () => {
+  test('URL without explicit port preserves normal HTTP URL semantics', () => {
     const t = resolveDaemonTarget({ PORT_DADDY_URL: 'http://myhost' }, NEVER);
     expect(t.host).toBe('myhost');
-    expect(t.port).toBe(9876);
+    expect(t.port).toBe(80);
+  });
+
+  test('injected PORT_DADDY_PORT is honored when TCP discovery is forced', () => {
+    const t = resolveDaemonTarget({
+      PORT_DADDY_FORCE_TCP: '1',
+      PORT_DADDY_PORT: '4322',
+    }, ALWAYS);
+    expect(t).toEqual({ host: '127.0.0.1', port: 4322 });
   });
 
   test('defaults to process.env + real existsSync when called with no args', () => {

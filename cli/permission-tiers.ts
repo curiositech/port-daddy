@@ -160,6 +160,9 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   watch: 'notify',
   attention: 'notify',      // default fetch marks inbox/channel items read for this agent
   nudge: 'silent',          // bare form lists this agent's pending suggestibility nudges (read-only)
+  suggest: 'approval',      // operator queue; approve may trigger a ship run, dismiss mutates shared review state
+  seamanship: 'notify',     // worst case: sync rewrites caller-local runtime skill links
+  skills: 'notify',         // alias of seamanship
   commit: 'notify',         // records a caller-scoped commitment/obligation; `commit close` finalizes one
   backend: 'notify',        // sets the active CLI/subscription backend (caller config); status form is read-only
   backup: 'notify',         // writes a durable snapshot of the registry DB; reversible, caller-scoped
@@ -465,6 +468,30 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'nudge scan': 'notify',
   'nudge accept': 'notify',
   'nudge decline': 'notify',
+
+  // Tender suggestions: listing is read-only; actioning the operator queue can
+  // trigger a ship run or mutate shared review state.
+  'suggest': 'silent',
+  'suggest list': 'silent',
+  'suggest approve': 'approval',
+  'suggest dismiss': 'approval',
+
+  // Seamanship reads the local catalog except for sync, which rewrites the
+  // caller's runtime skill links. `skills` is an exact command alias.
+  'seamanship': 'silent',
+  'seamanship list': 'silent',
+  'seamanship search': 'silent',
+  'seamanship show': 'silent',
+  'seamanship outcomes': 'silent',
+  'seamanship index': 'silent',
+  'seamanship sync': 'notify',
+  'skills': 'silent',
+  'skills list': 'silent',
+  'skills search': 'silent',
+  'skills show': 'silent',
+  'skills outcomes': 'silent',
+  'skills index': 'silent',
+  'skills sync': 'notify',
 
   // session files claim/rm are caller-scoped
   'session files add': 'notify',

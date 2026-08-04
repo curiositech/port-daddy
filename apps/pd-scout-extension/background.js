@@ -1,4 +1,3 @@
-const DEFAULT_DAEMON_URL = 'http://127.0.0.1:9876';
 const LAST_CAPTURE_KEY = 'pdScoutLastCapture';
 
 function chromePromise(fn) {
@@ -175,7 +174,8 @@ async function uploadImageIfNeeded(daemonUrl, task) {
 }
 
 async function submitVisualTask(input) {
-  const daemonUrl = (input.daemonUrl || DEFAULT_DAEMON_URL).replace(/\/+$/, '');
+  if (!input.daemonUrl) throw new Error('Configure Scout with the daemon URL published by FleetBar or pd status --json.');
+  const daemonUrl = input.daemonUrl.replace(/\/+$/, '');
   const task = await uploadImageIfNeeded(daemonUrl, input.task);
   const res = await fetch(`${daemonUrl}/visual-tasks`, {
     method: 'POST',

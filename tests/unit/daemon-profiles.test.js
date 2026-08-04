@@ -1,13 +1,15 @@
 import { describe, test, expect, afterEach } from '@jest/globals';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readlinkSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import {
   buildDaemonProfileEnv,
   getDaemonProfilesRoot,
+  installDaemonProfileCliShim,
   listDaemonProfiles,
   readDaemonProfileState,
+  resolveActiveDaemonRuntimeDir,
   resolveDaemonProfile,
   writeDaemonProfileState,
 } from '../../lib/daemon-profiles.js';
@@ -69,8 +71,11 @@ describe('daemon profiles', () => {
     expect(env.PD_ACTIVE_DAEMON).toBe('dogfood');
     expect(env.PORT_DADDY_URL).toBe('http://127.0.0.1:9888');
     expect(env.PORT_DADDY_DB).toBeUndefined();
-    expect(env.PORT_DADDY_SOCK).toBeUndefined();
-    expect(env.PORT_DADDY_PORT_FILE).toBeUndefined();
+    expect(env.PORT_DADDY_SOCK).toBe(profile.sockPath);
+    expect(env.PORT_DADDY_IPC).toBe(profile.ipcPath);
+    expect(env.PORT_DADDY_PID_FILE).toBe(profile.pidFile);
+    expect(env.PORT_DADDY_PORT_FILE).toBe(profile.portFile);
+    expect(env.PORT_DADDY_HEARTBEAT_FILE).toBe(profile.heartbeatFile);
     // An inherited plane override must never leak into a child berth — it
     // would poison the new daemon's state-plane classification.
     expect(env.PORT_DADDY_PLANE).toBeUndefined();
@@ -92,6 +97,48 @@ describe('daemon profiles', () => {
 
     expect(env.PORT_DADDY_NO_FLEET).toBe('0');
     expect(env.PORT_DADDY_NO_FLEETBAR).toBe('0');
+  });
+
+  test('prepends a matching feature CLI shim for named-daemon children', () => {
+    const homeDir = makeHome();
+    const profile = resolveDaemonProfile('feature-cli', { homeDir });
+    const cliBinary = join(homeDir, 'port-daddy');
+    writeFileSync(cliBinary, '#!/bin/sh\n', { mode: 0o700 });
+    const env = { PATH: '/opt/homebrew/bin' };
+
+    const binDir = installDaemonProfileCliShim(profile, cliBinary, env, 'darwin');
+
+    expect(env.PORT_DADDY_CLI).toBe(cliBinary);
+    expect(env.PATH.split(':')[0]).toBe(binDir);
+    expect(existsSync(join(binDir, 'pd'))).toBe(true);
+    expect(readlinkSync(join(binDir, 'pd'))).toBe(cliBinary);
+    expect(readlinkSync(join(binDir, 'port-daddy'))).toBe(cliBinary);
+  });
+
+  test('resolves client-selected runtime files without exporting a state prefix', () => {
+    const homeDir = makeHome();
+    const profile = resolveDaemonProfile('feature-branch', { homeDir });
+    writeDaemonProfileState(profile, {
+      name: profile.name,
+      pid: 123,
+      port: 9890,
+      preferredPort: 9890,
+      runtimeDir: profile.runtimeDir,
+      socketPath: profile.sockPath,
+      ipcPath: profile.ipcPath,
+      dbPath: profile.dbPath,
+      startedAt: null,
+      cwd: null,
+      fleetEnabled: false,
+      fleetBarEnabled: false,
+    });
+
+    expect(resolveActiveDaemonRuntimeDir({ PD_ACTIVE_DAEMON: 'feature/branch' }, { homeDir }))
+      .toBe(profile.runtimeDir);
+    expect(resolveActiveDaemonRuntimeDir({ PORT_DADDY_PREFIX: '/explicit', PD_ACTIVE_DAEMON: 'feature/branch' }, { homeDir }))
+      .toBe('/explicit');
+    expect(resolveActiveDaemonRuntimeDir({ PD_ACTIVE_DAEMON: 'http://127.0.0.1:9999' }, { homeDir }))
+      .toBeNull();
   });
 
   test('persists and lists profile state', () => {

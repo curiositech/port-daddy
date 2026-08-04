@@ -119,17 +119,23 @@ function isCompiledBun(execPath: string, bunVersion: string | undefined): boolea
  */
 export async function createDbIntegrityProofOutOfProcess(
   dbPath: string,
-  options: { execPath?: string; bunVersion?: string } = {},
+  options: { execPath?: string; bunVersion?: string; env?: NodeJS.ProcessEnv } = {},
 ): Promise<DbIntegrityProof | null> {
   const canonical = resolve(dbPath);
   if (!existsSync(canonical)) return null;
   const execPath = options.execPath ?? process.execPath;
   const bunVersion = options.bunVersion ?? process.versions.bun;
+  const env = options.env ?? process.env;
   if (!isCompiledBun(execPath, bunVersion)) return null;
+  if (env.PORT_DADDY_DB_INTEGRITY_CHILD === '1') {
+    throw new Error(
+      'database integrity helper re-entered daemon boot; the compiled daemon entrypoint did not dispatch __db_integrity_check',
+    );
+  }
 
   return await new Promise<DbIntegrityProof>((resolveProof, reject) => {
     const child = spawn(execPath, ['__db_integrity_check', canonical], {
-      env: { ...process.env, PORT_DADDY_DB_INTEGRITY_CHILD: '1' },
+      env: { ...env, PORT_DADDY_DB_INTEGRITY_CHILD: '1' },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     const stdout: Buffer[] = [];

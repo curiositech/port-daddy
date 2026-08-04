@@ -11,6 +11,7 @@ const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST_DIR = join(ROOT_DIR, 'dist', 'daemon');
 const OUTFILE = join(DIST_DIR, platform() === 'win32' ? 'port-daddy-daemon.exe' : 'port-daddy-daemon');
 const MANIFEST = join(DIST_DIR, 'manifest.json');
+const ENTRYPOINT = 'bin/port-daddy-daemon-bundle.ts';
 const args = new Set(process.argv.slice(2));
 
 function run(command, commandArgs, options = {}) {
@@ -78,6 +79,23 @@ async function smokePublicSamples(port) {
   return { count: body.count };
 }
 
+function smokeIntegrityHelper(dbPath) {
+  const result = spawnSync(OUTFILE, ['__db_integrity_check', dbPath], {
+    cwd: ROOT_DIR,
+    encoding: 'utf8',
+    timeout: 30_000,
+    env: { ...process.env, PORT_DADDY_DB_INTEGRITY_CHILD: '1' },
+  });
+  if (result.status !== 0) {
+    throw new Error(`compiled integrity helper failed: ${result.stderr?.trim() || `exit ${result.status}`}`);
+  }
+  const proof = JSON.parse(result.stdout.trim());
+  if (proof?.schema !== 'port-daddy.db-integrity-proof.v1' || proof?.result !== 'ok') {
+    throw new Error('compiled integrity helper did not return a valid proof');
+  }
+  return { schema: proof.schema, result: proof.result };
+}
+
 async function smokeBinary() {
   const port = await reservePort();
   const prefix = join(tmpdir(), `port-daddy-daemon-smoke-${process.pid}`);
@@ -103,7 +121,8 @@ async function smokeBinary() {
   try {
     const health = await waitForHealth(port, child, stderrChunks);
     const samples = await smokePublicSamples(port);
-    return { health, samples };
+    const integrity = smokeIntegrityHelper(join(prefix, 'port-daddy.db'));
+    return { health, samples, integrity };
   } finally {
     if (child.exitCode === null) {
       child.kill('SIGTERM');
@@ -115,7 +134,7 @@ async function smokeBinary() {
 
 const bunVersion = run('bun', ['--version']).trim();
 mkdirSync(DIST_DIR, { recursive: true });
-run('bun', ['build', '--compile', 'server.ts', '--outfile', OUTFILE], { stdio: 'inherit' });
+run('bun', ['build', '--compile', ENTRYPOINT, '--outfile', OUTFILE], { stdio: 'inherit' });
 
 let smoke = null;
 if (!args.has('--no-smoke')) {
@@ -131,7 +150,7 @@ writeFileSync(MANIFEST, `${JSON.stringify({
   sizeBytes: stats.size,
   sha256: sha256(OUTFILE),
   builtAt: new Date().toISOString(),
-  builder: 'bun build --compile server.ts',
+  builder: `bun build --compile ${ENTRYPOINT}`,
   bunVersion,
   resourceRootEnv: 'PORT_DADDY_RESOURCE_DIR',
   sqliteBackend: 'bun:sqlite',
@@ -139,6 +158,7 @@ writeFileSync(MANIFEST, `${JSON.stringify({
     status: smoke.health.status,
     pid: smoke.health.pid ?? null,
     samples: smoke.samples,
+    integrity: smoke.integrity,
   } : null,
 }, null, 2)}\n`);
 

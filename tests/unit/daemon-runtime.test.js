@@ -57,16 +57,26 @@ describe('runtime identity convergence', () => {
     expect(result.summary).toContain('/health pid=4242');
   });
 
-  test('rejects a fallback port that disagrees with the canonical contract', () => {
+  test('accepts a fallback port when endpoint, health, and port file agree', () => {
     const result = assessRuntimeIdentity(facts({
+      expectedPort: 9877,
+      endpointPort: 9877,
+      healthPort: 9877,
+      portFilePort: 9877,
+    }));
+    expect(result.state).toBe('converged');
+  });
+
+  test('rejects a fallback port when health still advertises a different listener', () => {
+    const result = assessRuntimeIdentity(facts({
+      expectedPort: 9877,
       endpointPort: 9877,
       healthPort: 9876,
       portFilePort: 9877,
     }));
     expect(result.state).toBe('diverged');
     expect(result.issues).toEqual(expect.arrayContaining([
-      expect.stringContaining('endpoint used port 9877'),
-      expect.stringContaining('daemon.port contains 9877'),
+      expect.stringContaining('advertised port 9876'),
     ]));
   });
 
@@ -85,7 +95,7 @@ describe('runtime identity convergence', () => {
 });
 
 describe('runtime identity scope', () => {
-  test('keeps production strict when the selected endpoint points at another port', () => {
+  test('uses the discovered production endpoint instead of assuming the preferred port', () => {
     expect(resolveRuntimeIdentityScope({
       plane: 'prod',
       daemon: { port: 19890, canonical: true },
@@ -94,7 +104,7 @@ describe('runtime identity scope', () => {
       runtimePrefix: '/work/isolated',
       canonicalSupervisor: supervisor,
     })).toEqual({
-      expectedPort: 9876,
+      expectedPort: 19890,
       pidFile: expect.stringMatching(/\.port-daddy\/daemon\.pid$/),
       portFile: expect.stringMatching(/\.port-daddy\/daemon\.port$/),
       heartbeatFile: expect.stringMatching(/\.port-daddy\/heartbeat$/),
@@ -125,6 +135,22 @@ describe('runtime identity scope', () => {
       runtimePrefix: '/work/dev-latest',
       canonicalSupervisor: supervisor,
     }).expectedPort).toBe(9886);
+  });
+
+  test('never compares an unscoped non-production endpoint with stable runtime files', () => {
+    expect(resolveRuntimeIdentityScope({
+      plane: 'codebase:feature',
+      daemon: { port: 9912, canonical: false },
+    }, {
+      endpointPort: 9912,
+      canonicalSupervisor: supervisor,
+    })).toEqual({
+      expectedPort: 9912,
+      pidFile: null,
+      portFile: null,
+      heartbeatFile: null,
+      supervisor: null,
+    });
   });
 });
 

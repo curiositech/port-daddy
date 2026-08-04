@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import Fastify from 'fastify';
-import { infoPlugin } from '../../routes/info.js';
+import { claimPortForRequest, infoPlugin } from '../../routes/info.js';
 import { createTestDb } from '../setup-unit.js';
 import { createTranscripts } from '../../lib/transcripts.js';
 
@@ -79,6 +79,60 @@ function buildDeps(overrides = {}) {
     ...overrides,
   };
 }
+
+describe('free port claims for named dev berths', () => {
+  test('replaces a stale semantic assignment when another process owns its port', () => {
+    const claims = [];
+    const releases = [];
+    const services = {
+      claim(id, options) {
+        claims.push({ id, options });
+        return claims.length === 1
+          ? { success: true, id, port: 3173, existing: true }
+          : { success: true, id, port: 3174, existing: false };
+      },
+      release(id) {
+        releases.push(id);
+        return { success: true, released: 1 };
+      },
+    };
+
+    const result = claimPortForRequest(services, 'pd-dev-squid-3-28-feature', {
+      range: [3100, 3199],
+      pid: 42,
+      requireFree: true,
+      systemPorts: new Set([3173]),
+    });
+
+    expect(result).toMatchObject({ success: true, port: 3174, existing: false, reassignedFrom: 3173 });
+    expect(releases).toEqual(['pd-dev-squid-3-28-feature']);
+    expect(claims).toHaveLength(2);
+    expect(claims[1].options.systemPorts.has(3173)).toBe(true);
+  });
+
+  test('ordinary renewals preserve the existing service assignment', () => {
+    const releases = [];
+    const services = {
+      claim() {
+        return { success: true, port: 3173, existing: true };
+      },
+      release(id) {
+        releases.push(id);
+        return { success: true, released: 1 };
+      },
+    };
+
+    const result = claimPortForRequest(services, 'ordinary-service', {
+      range: [3100, 3199],
+      pid: 42,
+      requireFree: false,
+      systemPorts: new Set([3173]),
+    });
+
+    expect(result).toMatchObject({ port: 3173, existing: true });
+    expect(releases).toEqual([]);
+  });
+});
 
 function buildArbiterStatus() {
   return {

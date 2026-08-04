@@ -2,8 +2,8 @@
 
 Three workflows live here. They share the same coordination shape — Port Daddy session, file claims, scoped notes — and diverge on how far the bits travel.
 
-1. **[Public release](#1-public-release)** — `v3.14.0` → users on `brew upgrade port-daddy`.
-2. **[Candidate or hotfix build](#2-candidate-or-hotfix-build)** — `v3.14.1-rc.1` → smoke-test before promoting.
+1. **[Public release](#1-public-release)** — `vX.Y.Z` → users on `brew upgrade port-daddy`.
+2. **[Candidate or hotfix build](#2-candidate-or-hotfix-build)** — `vX.Y.Z-rc.1` → smoke-test before promoting.
 3. **[Local feature dev](#3-local-feature-dev)** — worktree work, binary smoke-test, PR. No release.
 
 See [`VERSIONING.md`](VERSIONING.md) for semver policy and the canonical list of version surfaces. See [`adr/0028-signed-binary-distribution.md`](adr/0028-signed-binary-distribution.md) for why the binary distribution flow looks the way it does.
@@ -14,20 +14,30 @@ See [`VERSIONING.md`](VERSIONING.md) for semver policy and the canonical list of
 
 The release boundary is a git tag plus a GitHub Release. The workflow `.github/workflows/release.yml` builds notarized binaries from the tagged commit and automatically dispatches to `curiositech/homebrew-tap` to roll the formula.
 
+The release candidate is one atomic tree: version surfaces, changelog,
+instructions, skills, compiled daemon/CLI behavior, proof media, and the review
+receipt move together or nothing moves. `release.yml` starts with
+`release-doc-review`; every binary lane depends on it, so a stale or missing
+receipt blocks the Homebrew dispatch before expensive packaging begins.
+
 **npm distribution is retired** (2026-07-04, operator decision): brew, the release binaries, and `latest.json` cover every supported install path; the npm token had been dead since 3.15.0 so the registry was eight releases stale anyway. `.github/workflows/publish.yml` remains as the manual path if npm is ever revived — if so, `npm deprecate` the stale versions first.
 
 ### Recipe
 
 ```bash
+# Set this once. Do not copy a stale version from this runbook.
+PD_RELEASE_VERSION=X.Y.Z
+PD_RELEASE_SLUG=${PD_RELEASE_VERSION//./-}
+
 # A. Worktree off origin/main — pd refuses the main checkout by default
 git fetch origin
-git worktree add ../pd-release-3.15.0 -b chore/release-3.15.0 origin/main
-cd ../pd-release-3.15.0
+git worktree add ../pd-release-$PD_RELEASE_VERSION -b chore/release-$PD_RELEASE_VERSION origin/main
+cd ../pd-release-$PD_RELEASE_VERSION
 
 # B. PD session
-pd begin --identity port-daddy:release-3.15.0 \
+pd begin --identity port-daddy:release-$PD_RELEASE_VERSION \
   --lifecycle durable \
-  --purpose "Cut 3.15.0: <one-line headline>"
+  --purpose "Cut $PD_RELEASE_VERSION: <one-line headline>"
 pd note "Scope: version surfaces + CHANGELOG. Validation: binary builds + distribution-freshness test."
 pd session files add package.json package-lock.json mcp-server.json \
   .claude-plugin/plugin.json .gemini/extensions/port-daddy/gemini-extension.json \
@@ -43,8 +53,30 @@ npx tsx scripts/sync-version.ts              # syncs EVERY version surface
 # distribution-freshness.test.js fails CI if any surface drifts.
 
 # D. CHANGELOG.md
-# Rename [Unreleased] → [3.15.0] - YYYY-MM-DD, prepend a fresh [Unreleased].
+# Rename [Unreleased] → [$PD_RELEASE_VERSION] - YYYY-MM-DD, prepend a fresh [Unreleased].
 $EDITOR CHANGELOG.md
+
+# D2. Major instruction rewrite + cross-steelman review
+# First make the candidate docs truthful: AGENTS.md owns contributor policy;
+# CLAUDE.md is a short routing layer; README is public truth; the public and
+# internal skills own reusable and repo-private procedure respectively.
+# Launch at least four reviewers THROUGH a named candidate daemon. At least
+# three must steelman another review before the final synthesizer can say SHIP.
+npm run build:daemon:dist
+npm run build:bin
+pd dev up --from "$PWD" --label release-$PD_RELEASE_SLUG
+eval "$(pd use release-$PD_RELEASE_SLUG)"
+./dist/port-daddy --version
+./dist/port-daddy squid on --cwd "$PWD"
+./dist/port-daddy squid status --cwd "$PWD" --json
+# Use `pd spawn --backend <ready-backend> --budget <usd> ...` for review rounds;
+# add `--timeout <ms>` only as an intentional execution deadline. Collect the
+# durable receipt with `pd spawned <id> --wait`; failed/no-output runs do not count.
+# Record unique agent + transcript ids, cross-steelman dispositions, the named
+# daemon binary hash, and all four proof-media hashes in
+# docs/release-reviews/v$PD_RELEASE_VERSION.json. The gate recomputes them.
+node scripts/check-release-doc-review.mjs --digest
+node scripts/check-release-doc-review.mjs
 
 # E. Validate locally
 npm ci
@@ -54,26 +86,26 @@ npm run build:daemon:dist                                  # → dist/daemon/por
 bash scripts/smoke-compiled-daemon.sh
 npm run build:bin                                          # → dist/port-daddy
 node scripts/build-single-binary.mjs --outfile=dist/pd     # release workflow shape
-./dist/port-daddy --version                                # reports 3.15.0
-SOAK_SECONDS=180 SOAK_PORT=19876 bash scripts/soak-binary.sh dist/port-daddy
+./dist/port-daddy --version                                # reports $PD_RELEASE_VERSION
+SOAK_SECONDS=180 SOAK_PORT=19080 bash scripts/soak-binary.sh dist/port-daddy
 
 # F. PR
 pd guard check --staged
 git add <explicit paths>
-git commit -m "chore(release): bump to 3.15.0"
-git push -u origin chore/release-3.15.0
-gh pr create --title "chore(release): bump to 3.15.0" --body-file .scratch/pr-body.md
+git commit -m "chore(release): bump to $PD_RELEASE_VERSION"
+git push -u origin chore/release-$PD_RELEASE_VERSION
+gh pr create --title "chore(release): bump to $PD_RELEASE_VERSION" --body-file .scratch/pr-body.md
 # wait for CI green, address review, then:
 gh pr merge --squash --delete-branch
 
 # G. Tag the merged commit on main
 git fetch origin
 git checkout main && git pull --ff-only
-git tag -a v3.15.0 -m "Port Daddy 3.15.0 — <headline>"
-git push origin v3.15.0
+git tag -a v$PD_RELEASE_VERSION -m "Port Daddy $PD_RELEASE_VERSION — <headline>"
+git push origin v$PD_RELEASE_VERSION
 
 # H. GitHub Release → triggers release.yml
-gh release create v3.15.0 --generate-notes --title "v3.15.0 — <headline>"
+gh release create v$PD_RELEASE_VERSION --generate-notes --title "v$PD_RELEASE_VERSION — <headline>"
 
 # I. Babysit the binary build
 gh run watch $(gh run list --workflow=release.yml --limit 1 --json databaseId --jq '.[0].databaseId')
@@ -88,7 +120,7 @@ gh run watch $(gh run list --workflow=release.yml --limit 1 --json databaseId --
 pd lock release-publish
 gh api repos/curiositech/homebrew-tap/dispatches \
   --input - <<JSON
-{"event_type":"update-formula","client_payload":{"version":"v3.15.0"}}
+{"event_type":"update-formula","client_payload":{"version":"v$PD_RELEASE_VERSION"}}
 JSON
 # wait for update-formula.yml to commit to curiositech/homebrew-tap
 pd release release-publish
@@ -96,13 +128,13 @@ pd release release-publish
 # K. Verify users can actually upgrade
 brew update && brew upgrade port-daddy
 brew services restart port-daddy
-/opt/homebrew/bin/pd --version                            # reports 3.15.0
-/opt/homebrew/bin/pd status                               # daemon reports 3.15.0
+/opt/homebrew/bin/pd --version                            # reports $PD_RELEASE_VERSION
+/opt/homebrew/bin/pd status                               # daemon reports $PD_RELEASE_VERSION
 /opt/homebrew/bin/pd doctor --json                        # supervision + crash checks are not critical
 
 # L. Close
-pd note "Result: v3.15.0 cut. Validation: <release URL>. Brew: <tap PR URL>."
-pd done "v3.15.0 shipped"
+pd note "Result: v$PD_RELEASE_VERSION cut. Validation: <release URL>. Brew: <tap PR URL>."
+pd done "v$PD_RELEASE_VERSION shipped"
 ```
 
 ### Known failure modes
@@ -110,7 +142,7 @@ pd done "v3.15.0 shipped"
 | Symptom | Cause | Fix |
 |---|---|---|
 | `Could not resolve: "@clack/prompts"` (and friends) in `release.yml` | Workflow ran `bun build --compile` without first running `bun install`. `node_modules` empty in the checkout. | `release.yml` must have a `bun install` step between `setup-bun` and `bun build`. Validated in the workflow today. |
-| `distribution-freshness.test.js` fails with `Expected: "3.15.0" / Received: "3.14.0"` | A version surface drifted — usually you forgot to run `sync-version.ts` after `npm version`. | Run `npx tsx scripts/sync-version.ts` (it stamps every surface, incl. `mcp/server.ts` + `referenceCatalog.ts`), restage, recommit. |
+| `distribution-freshness.test.js` reports two different versions | A version surface drifted — usually you forgot to run `sync-version.ts` after `npm version`. | Run `npx tsx scripts/sync-version.ts` (it stamps every surface, incl. `mcp/server.ts` + `referenceCatalog.ts`), restage, recommit. |
 | Tag pushed but `release.yml` didn't fire | Tag push alone doesn't fire release.yml — only the GitHub *Release* event does. | `gh release create v<x.y.z> --generate-notes`. |
 | Release created but binaries missing | release.yml failed; check `gh run view --log-failed`. | Fix workflow, re-run via `gh workflow run release.yml --ref v<x.y.z>` (works because workflow_dispatch is also enabled). |
 | `brew upgrade port-daddy` still serves the old version | The `update-homebrew` job in `release.yml` hasn't run or failed (common after a `workflow_dispatch` re-run, which skips that job). | Manually dispatch: `gh api repos/curiositech/homebrew-tap/dispatches --input - <<<'{"event_type":"update-formula","client_payload":{"version":"vX.Y.Z"}}'`. Until the commit lands in the tap, the bottle URL points at the previous release. |
@@ -155,27 +187,28 @@ Same shape as a public release, two shortcuts:
 # Patch bump (after a hotfix lands on main)
 npm version patch --no-git-tag-version
 npx tsx scripts/sync-version.ts
+PD_RELEASE_VERSION=$(node -p "require('./package.json').version")
 
 # Cut a PRERELEASE — does NOT trigger brew tap roll, candidates are opt-in
-gh release create v3.14.1-rc.1 --prerelease --generate-notes --title "v3.14.1-rc.1"
+gh release create v$PD_RELEASE_VERSION-rc.1 --prerelease --generate-notes --title "v$PD_RELEASE_VERSION-rc.1"
 
 # Download the candidate binary and exercise it
-gh release download v3.14.1-rc.1 -p 'pd-darwin-arm64.tar.gz' -D .scratch/rc
+gh release download v$PD_RELEASE_VERSION-rc.1 -p 'pd-darwin-arm64.tar.gz' -D .scratch/rc
 cd .scratch/rc && tar -xzf pd-darwin-arm64.tar.gz
-./pd --version                                             # 3.14.1
-./pd status                                                # talks to whatever owns localhost:9876
+./pd --version                                             # $PD_RELEASE_VERSION
+./pd status                                                # talks to the discovered installed daemon
 ./pd sitrep                                                # any deep command exercising HTTP
 
-# Promote to a real v3.14.1 once you're happy
-git tag -a v3.14.1 -m "Port Daddy 3.14.1 — <hotfix description>"
-git push origin v3.14.1
-gh release create v3.14.1 --generate-notes --title "v3.14.1 — <hotfix>"
+# Promote to a real release once you're happy
+git tag -a v$PD_RELEASE_VERSION -m "Port Daddy $PD_RELEASE_VERSION — <hotfix description>"
+git push origin v$PD_RELEASE_VERSION
+gh release create v$PD_RELEASE_VERSION --generate-notes --title "v$PD_RELEASE_VERSION — <hotfix>"
 # ... then babysit release.yml as in §1 step I/J (binaries + brew tap roll)
 ```
 
 ### Anti-pattern
 
-Don't tag `v3.14.1` directly without an `-rc` first. The brew tap pull is irreversible — once a bad formula merges, every `brew upgrade port-daddy` ships the bad bottle until you cut another release.
+Don't tag the final `vX.Y.Z` directly without an `-rc` first. The brew tap pull is irreversible — once a bad formula merges, every `brew upgrade port-daddy` ships the bad bottle until you cut another release.
 
 ---
 
@@ -203,28 +236,12 @@ npm run build:daemon:dist                            # → dist/daemon/port-dadd
 bash scripts/smoke-compiled-daemon.sh
 npm run build:bin                                    # → dist/port-daddy
 
-# Isolated test daemon on a claimed port so you don't clobber the canonical one
-PORT=$(pd claim port-daddy-feat-foo-test -q)
-SCRATCH=$(mktemp -d)
-PORT_DADDY_PORT=$PORT \
-  PORT_DADDY_DB="$SCRATCH/registry.db" \
-  PORT_DADDY_PREFIX="$SCRATCH" \
-  ./dist/daemon/port-daddy-daemon &
-TEST_DAEMON_PID=$!
-
-curl -sf "http://localhost:$PORT/your/new/route" | jq .
-PORT_DADDY_URL="http://localhost:$PORT" ./dist/port-daddy <new-subcommand>
-
-# Tear down
-kill $TEST_DAEMON_PID
-rm -rf "$SCRATCH"
-pd release port-daddy-feat-foo-test
-
-# E. If you need launchd behavior, use a dev berth or a disposable LaunchAgent.
-# Do not hot-swap the stable Homebrew daemon for feature work.
-pd dev up --from "$(git branch --show-current)" --label feat-foo
+# Named, isolated compiled daemon. Do not hot-swap the stable Homebrew daemon,
+# manually copy a feature binary over its keg, or use /tmp for runtime state.
+pd dev up --from "$PWD" --label feat-foo
 eval "$(pd use feat-foo)"
-pd status
+./dist/port-daddy status
+curl -sf "$PORT_DADDY_URL/your/new/route" | jq .
 eval "$(pd use stable)"
 pd dev down feat-foo
 
@@ -255,7 +272,7 @@ Not decoration — these primitives matter:
 | `pd begin --identity port-daddy:<work> --lifecycle durable` | Always. Session is the atomic unit of "who's editing what". |
 | `pd session files add <path>` | Before any edit. Advisory, but visible to other agents via `pd sessions --all-worktrees`. |
 | `pd lock release-publish` | **Only for §1 step J** (manual Homebrew-tap `repository_dispatch`, used when `release.yml`'s automatic roll fails). Brew formula is shared state; two agents racing here = duplicate PRs to the tap. Hold the lock until the tap PR merges. |
-| `pd note "..."` | Scope notes, milestones, blockers. Use `pd say --pin` for cross-session truths (`"3.15.0 binaries published"`). |
+| `pd note "..."` | Scope notes, milestones, blockers. Use `pd say --pin` for cross-session truths (`"vX.Y.Z binaries published"`). |
 | `pd pub promotion:release-surfaces` | Manual fire of the channel that `pd-fleet.yml`'s documentarian listens on. After a release, this kicks the docs-review fleet. |
 | `pd claim <port-name> -q` | For isolated test daemons in worktrees. Don't hardcode ports. |
 | `pd guard check --staged` | Before every commit. Coordination Guard is in enforce mode here. |
@@ -269,9 +286,9 @@ After §1 step H lands a release:
 
 ```bash
 pd pub promotion:release-surfaces "$(cat <<JSON
-{"version": "v3.15.0", "tag_sha": "$(git rev-parse v3.15.0)",
- "release_url": "https://github.com/curiositech/port-daddy/releases/tag/v3.15.0",
- "changed_files": $(git diff --name-only "$(git describe --tags --abbrev=0 HEAD^)..v3.15.0" | jq -R . | jq -s .)}
+{"version": "v$PD_RELEASE_VERSION", "tag_sha": "$(git rev-parse v$PD_RELEASE_VERSION)",
+ "release_url": "https://github.com/curiositech/port-daddy/releases/tag/v$PD_RELEASE_VERSION",
+ "changed_files": $(git diff --name-only "$(git describe --tags --abbrev=0 HEAD^)..v$PD_RELEASE_VERSION" | jq -R . | jq -s .)}
 JSON
 )"
 ```
@@ -280,7 +297,7 @@ Subscribers (per `pd-fleet.yml`):
 - `documentarian` reviews docs/CHANGELOG/README/website/tutorials/skill bundles against the diff
 - Future: `lookout` runs the release-surface drift audit
 
-If those fleet agents are not running, the channel is still durable — they pick it up on next start. You can also `pd actor message documentarian "Release v3.15.0 cut — please scan surfaces"` for explicit handoff.
+If those fleet agents are not running, the channel is still durable — they pick it up on next start. You can also `pd actor message documentarian "Release vX.Y.Z cut — please scan surfaces"` for explicit handoff.
 
 ---
 

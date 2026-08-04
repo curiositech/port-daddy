@@ -61,6 +61,15 @@ describe('database integrity proof', () => {
     })).resolves.toBeNull();
   });
 
+  test('fails closed before a compiled integrity child can recursively boot the daemon', async () => {
+    const path = makeDb();
+    await expect(createDbIntegrityProofOutOfProcess(path, {
+      execPath: '/Applications/port-daddy-daemon',
+      bunVersion: '1.2.21',
+      env: { PORT_DADDY_DB_INTEGRITY_CHILD: '1' },
+    })).rejects.toThrow(/re-entered daemon boot/);
+  });
+
   test('refuses a non-scratch database before the read-only helper opens it in tests', () => {
     const productionLikePath = join(homedir(), '.port-daddy', 'must-not-open-from-jest.db');
     expect(() => createDbIntegrityProof(productionLikePath)).toThrow(

@@ -66,6 +66,7 @@ import {
   type RuntimeHealthSnapshot,
   type RuntimeIdentityAssessment,
 } from '../../lib/daemon-runtime.js';
+import { resolveActiveDaemonRuntimeDir } from '../../lib/daemon-profiles.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
@@ -73,7 +74,7 @@ const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 // Baked-in CLI version. The compiled `pd` binary has no sibling package.json to read, so the
 // version checks below fell back to 'unknown' (reported "CLI vunknown" then advised a pointless
 // restart). Stamped every release by scripts/sync-version.ts — do not hand-edit.
-const EMBEDDED_PACKAGE_VERSION: string = '3.27.0';
+const EMBEDDED_PACKAGE_VERSION: string = '3.28.0';
 
 interface StatusCommandResponse {
   status?: string;
@@ -163,7 +164,7 @@ function collectDiagnosticRuntimeIdentity(
 ): RuntimeIdentityAssessment {
   const scope = resolveRuntimeIdentityScope(health, {
     endpointPort,
-    runtimePrefix: process.env.PORT_DADDY_PREFIX,
+    runtimePrefix: resolveActiveDaemonRuntimeDir(),
     canonicalSupervisor: inspectCanonicalLaunchdSupervisor(),
   });
   return collectRuntimeIdentity(health, {

@@ -2,8 +2,8 @@
  * CLI Daemon Berths Commands (ADR-0084)
  *
  * `pd dev up | down | list` — spin tiered, colour-coded, side-by-side daemon
- * berths next to the canonical stable daemon, without ever swapping the brew
- * daemon off its canonical lane (DEFAULT_DAEMON_PORT).
+ * berths next to the canonical stable daemon, without ever replacing the
+ * daemon endpoint currently published in its port file.
  *
  * `pd use <tier|label>` — per-shell targeting: emit a shell snippet that exports
  * PORT_DADDY_URL + a PD_ACTIVE_DAEMON marker for the prompt/console banner.
@@ -17,7 +17,12 @@
 import { existsSync, rmSync, readdirSync } from 'node:fs';
 import { join, resolve, isAbsolute, basename } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
-import { DEFAULT_DAEMON_PORT } from '../../shared/daemon-discovery.js';
+import { createConnection } from 'node:net';
+import { DEFAULT_PORT_FILE } from '../../shared/paths.js';
+import {
+  resolveDaemonPort,
+  resolveDaemonUrl,
+} from '../../shared/daemon-discovery.js';
 import {
   BERTH_COLORS,
   BERTH_ENV,
@@ -37,6 +42,7 @@ import {
   buildDaemonProfileEnv,
   ensureDaemonProfileDir,
   getDaemonProfilesRoot,
+  installDaemonProfileCliShim,
   isProcessRunning,
   resolveDaemonProfile,
   writeDaemonProfileState,
@@ -77,16 +83,41 @@ function removeProfileDir(label: string): void {
   }
 }
 
-/** Release a codebase berth's claimed port back to the stable daemon's manager. */
-async function releaseCodebasePort(label: string): Promise<void> {
+/** Local coordinators eligible to assign a port for another local berth. */
+export function codebasePortCoordinatorUrls(env: NodeJS.ProcessEnv = process.env): string[] {
+  const portFile = env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE;
+  const discovered = resolveDaemonUrl('', portFile, env);
+  const urls = [discovered];
+  if (!env.PORT_DADDY_URL) return urls;
   try {
-    await fetch(`http://127.0.0.1:${DEFAULT_DAEMON_PORT}/ports/release`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ project: `pd-dev-${label}` }),
-    });
+    const selected = new URL(env.PORT_DADDY_URL);
+    if (['127.0.0.1', 'localhost', '::1', '[::1]'].includes(selected.hostname)) {
+      const normalized = selected.origin;
+      if (!urls.includes(normalized)) urls.push(normalized);
+    }
   } catch {
-    /* stable daemon down — best effort */
+    /* malformed override is handled by the normal CLI connection path */
+  }
+  return urls;
+}
+
+/** Release a codebase berth's claim from the coordinator that granted it. */
+async function releaseCodebasePort(
+  label: string,
+  fetchImpl: typeof fetch = fetch,
+  coordinatorUrls = codebasePortCoordinatorUrls(),
+): Promise<void> {
+  for (const baseUrl of coordinatorUrls) {
+    try {
+      const response = await fetchImpl(`${baseUrl}/ports/release`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project: `pd-dev-${label}` }),
+      });
+      if (response.ok) return;
+    } catch {
+      /* try the next local coordinator */
+    }
   }
 }
 
@@ -105,7 +136,7 @@ async function probeLastActivity(port: number): Promise<number | null> {
 /** Stop one berth and release its port. Profile state survives unless the caller
  * explicitly requested destructive garbage collection. */
 async function reapBerth(rec: DevDaemonRecord, purgeState = false): Promise<void> {
-  if (rec.port === DEFAULT_DAEMON_PORT) return; // never the stable lane
+  if (rec.port === resolveDaemonPort()) return; // never the currently published stable endpoint
   try { process.kill(rec.pid, 'SIGTERM'); } catch { /* already gone */ }
   if (rec.tier === 'codebase') await releaseCodebasePort(rec.label);
   if (purgeState) removeProfileDir(rec.label);
@@ -323,30 +354,161 @@ function buildDaemonBinary(sourceDir: string): string {
   return outfile;
 }
 
-/** Claim a codebase berth port via the running stable daemon's port manager. */
-async function claimCodebasePort(label: string): Promise<number> {
-  const identity = `pd-dev-${label}`;
-  const url = `http://127.0.0.1:${DEFAULT_DAEMON_PORT}/ports/request`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ project: identity }),
+/** Build the feature CLI paired with a named daemon berth. */
+function buildFeatureCli(sourceDir: string): string {
+  const buildScript = join(sourceDir, 'scripts', 'build-single-binary.mjs');
+  const outfile = join(sourceDir, 'dist', process.platform === 'win32' ? 'port-daddy.exe' : 'port-daddy');
+  if (!existsSync(buildScript)) {
+    throw new Error(`CLI build script missing in source tree: ${buildScript}`);
+  }
+  ui.info(`Building matching feature CLI from ${sourceDir}…`);
+  const r = spawnSync('node', [buildScript], {
+    cwd: sourceDir,
+    stdio: 'inherit',
+    env: process.env,
   });
-  if (!res.ok) {
-    throw new Error(`could not claim a port for ${identity}: HTTP ${res.status} (is the stable daemon on :${DEFAULT_DAEMON_PORT}?)`);
+  if (r.status !== 0) {
+    throw new Error('feature CLI build failed (see output above)');
   }
-  const body = (await res.json()) as { port?: number };
-  if (typeof body.port !== 'number') {
-    throw new Error(`port claim returned no port for ${identity}`);
+  if (!existsSync(outfile)) {
+    throw new Error(`CLI build reported success but binary is missing: ${outfile}`);
   }
-  return body.port;
+  return outfile;
 }
 
-async function smokeHealth(port: number, deadlineMs = 15000): Promise<Record<string, unknown> | null> {
-  const deadline = Date.now() + deadlineMs;
-  while (Date.now() < deadline) {
+/** True when a TCP listener already owns the candidate port. */
+export function isTcpPortOccupied(port: number): Promise<boolean> {
+  return new Promise((resolveOccupied) => {
+    const socket = createConnection({ host: '127.0.0.1', port });
+    let settled = false;
+    const finish = (occupied: boolean) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolveOccupied(occupied);
+    };
+    socket.setTimeout(500);
+    socket.once('connect', () => finish(true));
+    socket.once('timeout', () => finish(false));
+    socket.once('error', () => finish(false));
+  });
+}
+
+interface ClaimCodebasePortOptions {
+  fetchImpl?: typeof fetch;
+  isOccupied?: (port: number) => Promise<boolean>;
+  maxAttempts?: number;
+  coordinatorUrls?: string[];
+}
+
+/**
+ * Claim a free codebase berth port through stable, falling back only to an
+ * explicitly selected loopback feature daemon when stable is unreachable.
+ * The local probe is deliberate upgrade compatibility: an older coordinator
+ * can ignore `requireFree`, so a new CLI must still reject its stale renewal.
+ */
+export async function claimCodebasePort(
+  label: string,
+  options: ClaimCodebasePortOptions = {},
+): Promise<number> {
+  const identity = `pd-dev-${label}`;
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const occupied = options.isOccupied ?? isTcpPortOccupied;
+  const maxAttempts = options.maxAttempts ?? 50;
+  const coordinatorUrls = options.coordinatorUrls ?? codebasePortCoordinatorUrls();
+  let preferred: number | undefined;
+  let coordinatorOffset = 0;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    let res: Response | null = null;
+    let coordinatorUrl: string | null = null;
+    const orderedCoordinators = [
+      ...coordinatorUrls.slice(coordinatorOffset),
+      ...coordinatorUrls.slice(0, coordinatorOffset),
+    ];
+    for (const baseUrl of orderedCoordinators) {
+      try {
+        const candidate = await fetchImpl(`${baseUrl}/ports/request`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          // A berth is about to start a new listener, so a stale semantic renewal is
+          // unsafe. New daemons honor requireFree; the probe below covers old ones.
+          body: JSON.stringify({ project: identity, requireFree: true, ...(preferred ? { preferred } : {}) }),
+        });
+        if (candidate.ok) {
+          res = candidate;
+          coordinatorUrl = baseUrl;
+          break;
+        }
+      } catch {
+        /* stable may be down; an explicit loopback feature daemon can recover */
+      }
+    }
+    if (!res || !coordinatorUrl) {
+      throw new Error(`could not claim a port for ${identity} from local coordinator(s): ${coordinatorUrls.join(', ')}`);
+    }
+    let body = (await res.json()) as { port?: number };
+    if (typeof body.port !== 'number') {
+      throw new Error(`port claim returned no port for ${identity}`);
+    }
+    let candidateOccupied = await occupied(body.port);
+
+    // Compatibility with stable daemons that understand `preferred` only on
+    // the legacy request shape. If `requireFree` made such a daemon silently
+    // ignore our preferred candidate and repeat an occupied floor port, retry
+    // once without the new flag; the local TCP probe remains the safety gate.
+    if (candidateOccupied && preferred !== undefined && body.port !== preferred) {
+      await releaseCodebasePort(label, fetchImpl, [coordinatorUrl]);
+      const legacyPreferred = await fetchImpl(`${coordinatorUrl}/ports/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project: identity, preferred }),
+      });
+      if (legacyPreferred.ok) {
+        body = (await legacyPreferred.json()) as { port?: number };
+        if (typeof body.port !== 'number') {
+          throw new Error(`legacy preferred-port claim returned no port for ${identity}`);
+        }
+        candidateOccupied = await occupied(body.port);
+      }
+    }
+    if (!candidateOccupied) return body.port;
+
+    // The semantic assignment is stale or raced with another listener. Release
+    // only this berth identity and ask for the next candidate.
+    await releaseCodebasePort(label, fetchImpl, [coordinatorUrl]);
+    const attemptedFloor = Math.max(preferred ?? body.port, body.port);
+    preferred = attemptedFloor >= 65535 ? 3100 : attemptedFloor + 1;
+    // An older stable can ignore both `requireFree` and `preferred`, returning
+    // the same occupied renewal forever. Give the explicitly selected local
+    // feature daemon first refusal on the next attempt instead of looping.
+    coordinatorOffset = (coordinatorUrls.indexOf(coordinatorUrl) + 1) % coordinatorUrls.length;
+  }
+
+  throw new Error(`could not claim a free TCP port for ${identity} after ${maxAttempts} attempts`);
+}
+
+export const DEV_BERTH_STARTUP_TIMEOUT_MS = 120_000;
+
+interface BerthHealthProbeOptions {
+  deadlineMs?: number;
+  fetchImpl?: typeof fetch;
+  now?: () => number;
+  sleep?: (ms: number) => Promise<void>;
+}
+
+export async function smokeBerthHealth(
+  port: number,
+  options: BerthHealthProbeOptions = {},
+): Promise<Record<string, unknown> | null> {
+  const deadlineMs = options.deadlineMs ?? DEV_BERTH_STARTUP_TIMEOUT_MS;
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const now = options.now ?? Date.now;
+  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolveSleep) => setTimeout(resolveSleep, ms)));
+  const deadline = now() + deadlineMs;
+  while (now() < deadline) {
     try {
-      const res = await fetch(`http://127.0.0.1:${port}/health`);
+      const res = await fetchImpl(`http://127.0.0.1:${port}/health`);
       if (res.ok) {
         const body = (await res.json()) as Record<string, unknown>;
         if (body?.status === 'ok' || body?.status === 'degraded') return body;
@@ -354,7 +516,7 @@ async function smokeHealth(port: number, deadlineMs = 15000): Promise<Record<str
     } catch {
       /* not listening yet */
     }
-    await new Promise((r) => setTimeout(r, 200));
+    await sleep(200);
   }
   return null;
 }
@@ -378,32 +540,40 @@ async function devUp(options: CLIOptions): Promise<void> {
   const label = ((options.label as string | undefined) || defaultLabel).trim();
   const color = BERTH_COLORS[tier];
 
-  // Decide the port. Fixed lanes for stable/dev-latest; claimed for codebase.
-  let port: number;
-  if (options.port) {
-    port = parseInt(String(options.port), 10);
-  } else if (tier === 'dev-latest') {
-    port = DEV_LATEST_PORT;
-  } else {
-    port = await claimCodebasePort(label);
-  }
-
-  // SAFETY RAIL: never bind the canonical stable lane.
-  if (port === DEFAULT_DAEMON_PORT) {
-    ui.error(`Refusing to bind :${DEFAULT_DAEMON_PORT} — that is the canonical stable daemon's lane.`);
-    ui.info(`The stable berth is supervised by brew; never replace it to test. Pick another --port, or use 'dev-latest' (:${DEV_LATEST_PORT}) / a codebase berth (claimed port).`);
-    process.exit(1);
-  }
-
-  // Already a berth on this label? Bail rather than double-launch.
+  // Already a berth on this label? Bail before doing an expensive build or
+  // reserving a new port.
   const existing = pruneRegistry().find((r) => r.label === label);
   if (existing) {
     ui.warn(`Berth "${label}" already running (pid ${existing.pid}, :${existing.port}). Stop it first: pd dev down ${label}`);
     process.exit(0);
   }
 
+  // Build before claiming a scarce port. A failed compile must never leave a
+  // semantic assignment behind.
   const binary = buildDaemonBinary(sourceDir);
+  const featureCli = buildFeatureCli(sourceDir);
   const gitRev = gitRevOf(sourceDir);
+
+  // Decide the port. Fixed lanes for stable/dev-latest; claimed for codebase.
+  let port: number;
+  let claimedCodebasePort = false;
+  if (options.port) {
+    port = parseInt(String(options.port), 10);
+  } else if (tier === 'dev-latest') {
+    port = DEV_LATEST_PORT;
+  } else {
+    port = await claimCodebasePort(label);
+    claimedCodebasePort = true;
+  }
+
+  // SAFETY RAIL: never bind the endpoint the stable daemon currently publishes.
+  const stablePort = resolveDaemonPort();
+  if (port === stablePort) {
+    if (claimedCodebasePort) await releaseCodebasePort(label);
+    ui.error(`Refusing to bind :${stablePort} — that is the stable daemon's discovered endpoint.`);
+    ui.info(`The stable berth is supervised by brew; never replace it to test. Pick another --port, or use 'dev-latest' (:${DEV_LATEST_PORT}) / a codebase berth (claimed port).`);
+    process.exit(1);
+  }
 
   // Each berth gets its own isolated runtime dir / DB / socket via the daemon
   // profile machinery (~/.port-daddy/instances/<label>/), plus its berth env.
@@ -434,6 +604,7 @@ async function devUp(options: CLIOptions): Promise<void> {
   env[BERTH_ENV.label] = label;
   env[BERTH_ENV.color] = color;
   env[BERTH_ENV.sourceDir] = sourceDir;
+  const featureBinDir = installDaemonProfileCliShim(profile, featureCli, env);
 
   ui.info(`Launching ${tier} berth "${label}" on :${port} (${color})`);
   const child = spawn(binary, [], {
@@ -444,10 +615,11 @@ async function devUp(options: CLIOptions): Promise<void> {
   });
   child.unref();
 
-  const health = await smokeHealth(port);
+  const health = await smokeBerthHealth(port);
   if (!health) {
-    ui.error(`Berth "${label}" did not become healthy on :${port} within 15s.`);
+    ui.error(`Berth "${label}" did not become healthy on :${port} within ${DEV_BERTH_STARTUP_TIMEOUT_MS / 1000}s.`);
     try { if (child.pid) process.kill(child.pid, 'SIGTERM'); } catch { /* already gone */ }
+    if (claimedCodebasePort) await releaseCodebasePort(label);
     process.exit(1);
   }
 
@@ -474,6 +646,7 @@ async function devUp(options: CLIOptions): Promise<void> {
   const berth = (health.daemon ?? {}) as Record<string, unknown>;
   ui.success(`${tier} berth "${label}" up — :${port}  pid ${child.pid}  ${gitRev ? `@${gitRev}` : ''}`);
   ui.info(`  version ${health.version ?? '?'}  •  branch ${berth.gitBranch ?? '?'}`);
+  ui.info(`  matching CLI ${featureCli}  •  child PATH begins ${featureBinDir}`);
   ui.info(`  fleet worker ${enableFleet ? 'armed' : 'disabled'}${enableFleet ? '  •  governed launches enabled' : '  •  add --fleet for governed launches'}`);
   ui.info(`  Target this shell at it:  eval "$(pd use ${label})"`);
   ui.info(`  One command against it:   pd --daemon ${label} status`);
@@ -508,8 +681,9 @@ async function devDown(positional: string[], options: CLIOptions): Promise<void>
 
   for (const rec of targets) {
     // NEVER touch the stable lane.
-    if (rec.port === DEFAULT_DAEMON_PORT) {
-      ui.warn(`Skipping ${rec.label}: it claims the stable lane :${DEFAULT_DAEMON_PORT} (will not stop the brew daemon).`);
+    const stablePort = resolveDaemonPort();
+    if (rec.port === stablePort) {
+      ui.warn(`Skipping ${rec.label}: it claims the discovered stable endpoint :${stablePort} (will not stop the brew daemon).`);
       continue;
     }
     try {
@@ -537,15 +711,17 @@ async function devDown(positional: string[], options: CLIOptions): Promise<void>
 // pd dev list
 // ---------------------------------------------------------------------------
 
-async function probeStable(): Promise<{ up: boolean; version?: string; gitRev?: string | null }> {
+async function probeStable(): Promise<{ up: boolean; port: number; url: string; version?: string; gitRev?: string | null }> {
+  const url = resolveDaemonUrl('');
+  const port = new URL(url).port ? Number.parseInt(new URL(url).port, 10) : resolveDaemonPort();
   try {
-    const res = await fetch(`http://127.0.0.1:${DEFAULT_DAEMON_PORT}/health`);
-    if (!res.ok) return { up: false };
+    const res = await fetch(`${url}/health`);
+    if (!res.ok) return { up: false, port, url };
     const body = (await res.json()) as Record<string, unknown>;
     const berth = (body.daemon ?? {}) as Record<string, unknown>;
-    return { up: true, version: body.version as string | undefined, gitRev: (berth.gitRev as string | null) ?? null };
+    return { up: true, port, url, version: body.version as string | undefined, gitRev: (berth.gitRev as string | null) ?? null };
   } catch {
-    return { up: false };
+    return { up: false, port, url };
   }
 }
 
@@ -562,7 +738,7 @@ async function devList(options: CLIOptions): Promise<void> {
 
   if (options.json === true || options.j === true) {
     console.log(JSON.stringify({
-      stable: { tier: 'stable', port: DEFAULT_DAEMON_PORT, canonical: true, color: BERTH_COLORS.stable, ...stable },
+      stable: { tier: 'stable', canonical: true, color: BERTH_COLORS.stable, ...stable },
       berths: records,
     }, null, 2));
     return;
@@ -571,7 +747,7 @@ async function devList(options: CLIOptions): Promise<void> {
   ui.info('BERTH         TIER         PORT    COLOR     STATE     SOURCE');
   ui.info('────────────  ───────────  ──────  ────────  ────────  ──────────────────────────');
   const stableState = stable.up ? `up v${stable.version ?? '?'}` : 'down';
-  console.log(`${pad('stable', 12)}  ${pad('stable', 11)}  ${pad(String(DEFAULT_DAEMON_PORT), 6)}  ${pad(BERTH_COLORS.stable, 8)}  ${pad(stableState, 8)}  brew release (canonical)`);
+  console.log(`${pad('stable', 12)}  ${pad('stable', 11)}  ${pad(String(stable.port), 6)}  ${pad(BERTH_COLORS.stable, 8)}  ${pad(stableState, 8)}  brew release (discovered)`);
   for (const r of records) {
     const state = isProcessRunning(r.pid) ? `up` : 'dead';
     console.log(`${pad(r.label, 12)}  ${pad(r.tier, 11)}  ${pad(String(r.port), 6)}  ${pad(r.color, 8)}  ${pad(state, 8)}  ${r.sourceDir}${r.gitRev ? ` @${r.gitRev}` : ''}`);
@@ -591,7 +767,7 @@ function pad(s: string, n: number): string {
 
 /**
  * Make sure the two always-on daemons exist:
- *   - stable/prod (DEFAULT_DAEMON_PORT) — brew/launchd-supervised; we only report it (never
+ *   - stable/prod (discovered port) — brew/launchd-supervised; we only report it (never
  *     auto-manage the brew daemon), and tell the operator how to start it.
  *   - dev-latest (:9886) — a berth built from main; brought up if it is not
  *     already running (reusing `devUp` so it gets a prod-seeded DB).
@@ -603,9 +779,9 @@ function pad(s: string, n: number): string {
 async function devEnsure(options: CLIOptions): Promise<void> {
   const stable = await probeStable();
   if (stable.up) {
-    ui.success(`stable (:${DEFAULT_DAEMON_PORT}) up — v${stable.version ?? '?'}`);
+    ui.success(`stable (:${stable.port}) up — v${stable.version ?? '?'}`);
   } else {
-    ui.warn(`stable (:${DEFAULT_DAEMON_PORT}) is down — start it with: brew services start port-daddy  (or: pd daemon start)`);
+    ui.warn(`stable (${stable.url}) is down — start it with: brew services start port-daddy  (or: pd daemon start)`);
   }
 
   const devLatest = pruneRegistry().find((r) => r.tier === 'dev-latest');
@@ -675,7 +851,7 @@ export async function handleDevBerth(positional: string[], options: CLIOptions):
  * Emit a shell snippet to `eval`. Sets PORT_DADDY_URL (so the CLI, MCP, SDK and
  * the Rust console's DaemonClient::discover all follow) + a PD_ACTIVE_DAEMON
  * marker the shell prompt / console banner can surface. `pd use stable` resets
- * to the canonical lane and clears the marker.
+ * to the daemon-discovery path and clears the marker.
  *
  * Per-shell ONLY: we never write a global file that would switch all shells. A
  * non-stable berth must never become the implicit default — it is opt-in, and
@@ -686,7 +862,7 @@ export async function handleUse(positional: string[], options: CLIOptions): Prom
   if (!target) {
     // No arg: report the current target (human-readable, to stderr so eval is safe).
     const active = process.env.PD_ACTIVE_DAEMON || 'stable';
-    const url = process.env.PORT_DADDY_URL || `http://127.0.0.1:${DEFAULT_DAEMON_PORT}`;
+    const url = resolveDaemonUrl();
     process.stderr.write(`# pd use: this shell targets "${active}" (${url})\n`);
     process.stderr.write(`# Usage: eval "$(pd use <stable|dev|dev-latest|<label>|<url>>)"\n`);
     return;
@@ -695,7 +871,7 @@ export async function handleUse(positional: string[], options: CLIOptions): Prom
   if (target.toLowerCase() === 'stable' || target.toLowerCase() === 'rc') {
     // Reset to canonical: unset the override + marker.
     process.stdout.write('unset PORT_DADDY_URL PD_ACTIVE_DAEMON;\n');
-    process.stderr.write(`# pd use: shell reset to stable (:${DEFAULT_DAEMON_PORT})\n`);
+    process.stderr.write(`# pd use: shell reset to stable discovery (${resolveDaemonUrl('')})\n`);
     return;
   }
 

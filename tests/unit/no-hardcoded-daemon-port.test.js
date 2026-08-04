@@ -40,8 +40,6 @@ const ALLOWED_FILES = new Set([
   'website-v2/src/lib/daemon-url.ts',
   // Daemon installer probes for the running listener via lsof — this IS the port number.
   'install-daemon.ts',
-  // JSDoc @example lines only (probePortOwner usage samples); runtime takes a port arg.
-  'lib/port-takeover.ts',
   // routes/sitrep.ts: literal appears only in a JSDoc curl example.
   'routes/sitrep.ts',
   // Rust console berth picker mirrors the canonical daemon port as a Rust const.
@@ -63,17 +61,42 @@ const ENFORCED_PATH_PREFIXES = [
   'fleet-config-ui/src/',
   'website-v2/src/lib/',
   'core/',
+  'examples/',
+  'templates/',
 ];
 
 const ENFORCED_FILES = new Set([
   'server.ts',
+  // Load-bearing operator/contributor instructions must teach discovery, not
+  // copy-paste a preferred-port address that becomes tomorrow's outage.
+  'AGENTS.md',
+  'CLAUDE.md',
+  'README.md',
+  'skills/port-daddy-agent-skill/SKILL.md',
+  'skills/port-daddy-internal-dev/SKILL.md',
+  'docs/RELEASING.md',
+  'docs/operations/daemon-and-supervision.md',
+  'docs/operations/spawn-lifecycle.md',
+  'docs/openapi.yaml',
+  'hooks/post-commit',
+  'completions/port-daddy.zsh',
+  'completions/port-daddy.bash',
+  'completions/port-daddy.fish',
+  'port-daddy.rb',
+  'pd-fleet.yml',
+  'pd-fleet-personal.example.yml',
+  'examples/pd-tube/agent-responder.py',
+  'examples/pd-tube/mission-control.html',
+  'apps/pd-scout-extension/background.js',
+  'apps/pd-scout-extension/popup.js',
+  'apps/pd-scout-extension/popup.html',
 ]);
 
 // Match the bare port literal `9876` not glued to other digits (so 19876 /
 // 98765 don't trip it). Word-ish boundaries via non-digit lookarounds.
 const FORBIDDEN_PATTERN = /(?<!\d)9876(?!\d)/;
 
-const INCLUDE_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.swift', '.rs']);
+const INCLUDE_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.swift', '.rs', '.md', '.py', '.html', '.rb', '.yml', '.yaml', '.zsh', '.bash', '.fish']);
 
 const EXCLUDE_DIRS = new Set([
   'node_modules', '.build', 'dist', '.git', '.serena', '.gemini',
@@ -102,9 +125,9 @@ function* walk(dir) {
       yield* walk(full);
     } else if (e.isFile()) {
       if (isTestFile(e.name)) continue;
-      const ext = e.name.slice(e.name.lastIndexOf('.'));
-      if (!INCLUDE_EXTS.has(ext)) continue;
       const rel = relative(REPO_ROOT, full);
+      const ext = e.name.slice(e.name.lastIndexOf('.'));
+      if (!INCLUDE_EXTS.has(ext) && !ENFORCED_FILES.has(rel)) continue;
       if (EXCLUDE_PATH_PREFIXES.some((p) => rel.startsWith(p))) continue;
       yield { path: full, rel };
     }
@@ -113,6 +136,10 @@ function* walk(dir) {
 
 function isEnforced(rel) {
   if (ENFORCED_FILES.has(rel)) return true;
+  // Markdown under runtime trees includes immutable historical proof manifests.
+  // Only the explicitly named load-bearing docs above are normative runtime
+  // instructions; source prefixes remain executable-code enforcement.
+  if (rel.endsWith('.md')) return false;
   return ENFORCED_PATH_PREFIXES.some((p) => rel.startsWith(p));
 }
 

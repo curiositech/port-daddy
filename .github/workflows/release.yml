@@ -10,7 +10,20 @@ on:
         required: true
 
 jobs:
+  release-doc-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Verify exact-candidate multi-agent instruction review
+        run: node scripts/check-release-doc-review.mjs
+
   build-binaries:
+    needs: release-doc-review
     strategy:
       matrix:
         include:
@@ -52,6 +65,9 @@ jobs:
 
       - name: Build dedicated daemon binary
         run: npm run build:daemon:dist
+
+      - name: Prove occupied preferred port falls back and publishes discovery
+        run: npm run prove:daemon-port-fallback -- dist/daemon/port-daddy-daemon
 
       # Bosun is now a REQUIRED watchdog: the compiled-daemon smoke runs `pd doctor`,
       # which criticals a missing supervisor. Build it BEFORE the smoke so the booted
@@ -254,6 +270,7 @@ jobs:
           files: dist/${{ matrix.artifact }}.tar.gz
 
   build-fleetbar-preview:
+    needs: release-doc-review
     runs-on: macos-latest
     permissions:
       contents: write
@@ -360,6 +377,7 @@ jobs:
             dist/fleetbar/fleetbar-preview-manifest.json
 
   build-pd-console-app:
+    needs: release-doc-review
     # Bundle the GPU-native pd-console (core/pd-console, --features gpui) into a
     # signed + notarized pd-console.app (ADR-0057 phase dist-console-app-bundle).
     # Reuses the exact Developer ID signing path proven for the daemon in #447;
@@ -537,8 +555,8 @@ jobs:
     # let FleetBar rot silently across releases. The tradeoff is deliberate: a
     # flaky FleetBar build now blocks the release, which forces FleetBar to be
     # FIXED rather than bypassed.
-    needs: [build-binaries, build-fleetbar-preview]
-    if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && github.event_name == 'release' && github.event.release.prerelease == false
+    needs: [release-doc-review, build-binaries, build-fleetbar-preview]
+    if: always() && needs.release-doc-review.result == 'success' && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && github.event_name == 'release' && github.event.release.prerelease == false
     steps:
       - name: Set release version
         id: release

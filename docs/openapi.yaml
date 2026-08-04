@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Port Daddy API
-  version: 3.27.0
+  version: 3.28.0
   description: >
     Authoritative port management and service orchestration for multi-agent
     development. Provides atomic port assignment, pub/sub messaging, distributed
@@ -11,8 +11,8 @@ info:
     name: MIT
 
 servers:
-  - url: http://localhost:9876
-    description: Local daemon default. Use `pd status` or `PORT_DADDY_URL` when your live daemon is elsewhere.
+  - url: /
+    description: Same-origin daemon. External clients discover the published URL via FleetBar, `pd status --json`, or `PORT_DADDY_URL`.
 
 tags:
   - name: services
@@ -3855,8 +3855,16 @@ paths:
   /spawn:
     post:
       tags: [spawn]
-      summary: Launch an AI agent
+      summary: Admit an AI-agent run, optionally returning a durable receipt
       operationId: spawnAgent
+      parameters:
+        - name: Prefer
+          in: header
+          required: false
+          schema:
+            type: string
+            enum: [respond-async]
+          description: Return 202 after durable admission instead of holding the request for execution.
       requestBody:
         required: true
         content:
@@ -3900,10 +3908,11 @@ paths:
                   description: Extra environment variables
                 timeout:
                   type: integer
-                  description: Timeout in milliseconds
+                  minimum: 1
+                  description: Optional hard execution deadline in milliseconds. CLI backends have no default wall-clock deadline.
       responses:
         '200':
-          description: Agent spawned
+          description: Terminal result for compatibility callers that did not request respond-async
           content:
             application/json:
               schema:
@@ -3942,6 +3951,39 @@ paths:
                     type: string
                     enum: [running, completed, failed, killed, over_budget]
                     description: Spawn lifecycle status. over_budget is terminal and occurs when final exact telemetry cost exceeds the request budgetUsd hard cap after transcript telemetry is recorded.
+        '202':
+          description: Run durably admitted; collect it from the Location monitor resource
+          headers:
+            Location:
+              schema:
+                type: string
+              description: Relative URL of the spawn monitor resource.
+            Retry-After:
+              schema:
+                type: integer
+              description: Suggested monitor polling interval in seconds.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, accepted, agentId, status, monitorUrl]
+                properties:
+                  success:
+                    type: boolean
+                  accepted:
+                    type: boolean
+                    enum: [true]
+                  agentId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [running]
+                  monitorUrl:
+                    type: string
+                  cancelUrl:
+                    type: string
+                  transcriptUrl:
+                    type: string
         '400':
           $ref: '#/components/responses/ValidationError'
         '500':
@@ -3970,6 +4012,59 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   /spawn/{id}:
+    get:
+      tags: [spawn]
+      summary: Inspect or collect a spawned run
+      operationId: getSpawnedAgent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Live liveness or transcript-backed terminal state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, terminal, agentId, status]
+                properties:
+                  success:
+                    type: boolean
+                  terminal:
+                    type: boolean
+                  agentId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [running, completed, failed, killed, over_budget]
+                  output:
+                    type: string
+                    nullable: true
+                  error:
+                    type: string
+                    nullable: true
+                  liveness:
+                    type: object
+                    nullable: true
+                    properties:
+                      supervisorHeartbeatAt:
+                        type: integer
+                      lastActivityAt:
+                        type: integer
+                      pid:
+                        type: integer
+                        nullable: true
+                      deadlineAt:
+                        type: integer
+                        nullable: true
+        '404':
+          description: No live registry or durable transcript exists for this run id
+        '500':
+          $ref: '#/components/responses/InternalError'
+
     delete:
       tags: [spawn]
       summary: Kill a spawned agent
