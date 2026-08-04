@@ -1,36 +1,24 @@
-% Fig 13 — tombstone compensation on an append-only outcome ledger (saga discipline).
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Fig 13 — append a compensating tombstone; never rewrite settled history.
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  row/.style={draw=hhebony,thick,rounded corners=1pt,inner sep=3pt,align=center,
-              minimum width=22mm,minimum height=10mm,font=\footnotesize},
-  arr/.style={->,>=Latex,thick,draw=hhink},
-]
-% the append-only ledger
-\node[row,fill=hhsand!30] (e1) at (0,0.8) {outcome $o_1$\\{\scriptsize honest}};
-\node[row,fill=hhsand!30,right=5mm of e1] (e2) {outcome $o_2$\\{\scriptsize honest}};
-\node[row,fill=hhsand!30,right=5mm of e2] (e3) {outcome $o_3$\\{\scriptsize \textcolor{hhcobalt}{fraudulent}}};
-\node[row,fill=hhsand!30,right=5mm of e3] (e4) {outcome $o_4$\\{\scriptsize honest}};
-\node[row,fill=hhsand!30,draw=hhcobalt,right=5mm of e4] (t) {\textbf{tombstone}\\{\scriptsize nullifies $o_3$}};
-\draw[arr] (e1)--(e2); \draw[arr] (e2)--(e3); \draw[arr] (e3)--(e4); \draw[arr] (e4)--(t);
-
-% tombstone points back at o3
-\draw[->,>=Latex,thick,draw=hhcobalt,dashed]
-  (t.north) .. controls ($(t.north)+(0,9mm)$) and ($(e3.north)+(0,9mm)$) .. (e3.north)
-  node[pos=0.5,above=7mm,font=\scriptsize,text=hhink] {compensates (saga)};
-
-
+\resizebox{0.94\textwidth}{!}{%
+\begin{tikzpicture}[font=\small]
+  \node[stp box,minimum width=29mm] (e1) at (-6,0)
+    {outcome $o_1$\\{\scriptsize honest}};
+  \node[stp box,minimum width=29mm] (e2) at (-3,0)
+    {outcome $o_2$\\{\scriptsize honest}};
+  \node[stp box,minimum width=29mm] (e3) at (0,0)
+    {outcome $o_3$\\{\scriptsize fraudulent}};
+  \node[stp box,minimum width=29mm] (e4) at (3,0)
+    {outcome $o_4$\\{\scriptsize honest}};
+  \node[stp accent box,minimum width=34mm] (t) at (6.4,0)
+    {\textbf{tombstone}\\{\scriptsize nullifies $o_3$}};
+  \draw[stp arrow] (e1) -- (e2);
+  \draw[stp arrow] (e2) -- (e3);
+  \draw[stp arrow] (e3) -- (e4);
+  \draw[stp accent arrow] (e4) -- (t);
+  \draw[stp dashed arrow] (t.north) .. controls +(0,12mm) and +(0,12mm) .. (e3.north);
+  \node[stp label] at (3.2,1.25) {compensating saga entry};
 \end{tikzpicture}}
 \caption{\textbf{Tombstone revocation on an append-only ledger} (never mutate in
 place). A fraudulent outcome is not deleted (that would break append-only and
