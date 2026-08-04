@@ -1,42 +1,28 @@
-% Fig 11 — the neutral-judge market: hire a conflict-free judge via PD's own bonded protocol.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{maydayred}{HTML}{8B0000}
-
+% Fig 11 — a bonded, accountable neutral-judge market.
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  ent/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,inner sep=4pt,
-              align=center,minimum width=26mm,minimum height=11mm},
-  ledger/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,inner sep=4pt,
-                 align=center,font=\footnotesize,minimum height=11mm},
-  arr/.style={->,>=Latex,thick,draw=hhink},
-  slash/.style={->,>=Latex,thick,draw=maydayred,line width=1.1pt},
-]
-% top row: work -> select -> judge -> bond
-\node[ent] (work) at (0,0) {graded\\\textbf{work}};
-\node[ent] (select) at (3.6,0) {select judge:\\\emph{conflict-free}\\\emph{influence-free}};
-\node[ent,fill=hhsand!30,draw=hhink] (judge) at (7.4,0) {\textbf{neutral judge}\\{\scriptsize ``university /}\\{\scriptsize rating agency''}};
-\node[ent] (bond) at (11.2,0) {judge posts\\\textbf{own bond}\\{\scriptsize + reputation}};
-\draw[arr] (work) -- (select);
-\draw[arr] (select) -- (judge);
-\draw[arr] (judge) -- (bond);
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[font=\small]
+  \node[stp box,minimum width=30mm] (work) at (-6,1.2)
+    {graded \textbf{work}};
+  \node[stp box,minimum width=42mm,text width=35mm] (elig) at (-2,1.2)
+    {\textbf{eligibility screen}\\{\scriptsize conflict- and influence-free}};
+  \node[stp accent box,minimum width=37mm,text width=31mm] (judge) at (2.3,1.2)
+    {\textbf{neutral judge}\\{\scriptsize posts its own bond}};
+  \node[stp box,minimum width=34mm] (ledger) at (6.3,1.2)
+    {\textbf{outcome ledger}};
+  \draw[stp arrow] (work) -- (elig);
+  \draw[stp accent arrow] (elig) -- (judge);
+  \draw[stp arrow] (judge) -- (ledger);
 
-% bottom row: grade -> outcome ledger ; re-audit slashes the bond
-\node[ledger] (out) at (7.4,-2.6) {grade enters the\\\textbf{outcome ledger}};
-\node[ent,fill=hhsand!30,draw=hhcobalt] (reaudit) at (11.2,-2.6) {sampled\\\textbf{re-audit}};
-\draw[arr,draw=hhink] (judge) -- (out);
-\draw[arr,draw=hhink] (out) -- (reaudit);
-\draw[slash] (reaudit) -- node[midway,right=1mm,font=\scriptsize,text=hhink,align=left]
-  {overturn\\$\Rightarrow$ \textbf{slash}} (bond);
+  \node[stp box,minimum width=37mm] (bond) at (2.3,-1.6)
+    {judge's \textbf{bond}};
+  \node[stp box,minimum width=37mm] (audit) at (6.3,-1.6)
+    {sampled \textbf{re-audit}};
+  \draw[stp arrow] (judge) -- (bond);
+  \draw[stp arrow] (ledger) -- (audit);
+  \draw[stp dashed arrow] (audit) -- (bond);
+  \node[stp label] at (4.3,-0.75) {overturn $\Rightarrow$ slash};
 \end{tikzpicture}}
 \caption{\textbf{The neutral-judge market.} Graded work flows to a judge selected
 for conflict- and influence-freedom; the judge posts its own bond, the grade enters
