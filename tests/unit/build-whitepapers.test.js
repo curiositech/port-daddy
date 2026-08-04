@@ -1,5 +1,6 @@
-const { execFileSync } = require('node:child_process');
-const { join } = require('node:path');
+import { describe, expect, test } from '@jest/globals';
+import { execFileSync } from 'node:child_process';
+import { join } from 'node:path';
 
 const repoRoot = process.cwd();
 const buildScript = join(repoRoot, 'scripts', 'build-whitepapers.sh');
