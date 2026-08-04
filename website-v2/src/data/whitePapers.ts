@@ -461,7 +461,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     overviewHref: '/whitepaper?paper=spawn-to-person',
     date: 'August 2026',
     pages: 34,
-    sizeKb: 615,
+    sizeKb: 618,
     status: 'Version 1.2',
     order: '03',
     chapter: 'III',
