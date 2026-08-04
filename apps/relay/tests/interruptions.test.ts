@@ -971,7 +971,7 @@ describe('/account banner', () => {
   const user = baseUser('u1', 'skipper');
 
   it('shows a red interruptions banner with count + top item when asks are open', () => {
-    const html = renderAccountPage(user, { count: 3, topTitle: 'Grant contents:write' });
+    const html = renderAccountPage(user, { interruptions: { count: 3, topTitle: 'Grant contents:write' } });
     expect(html).toContain('class="interrupt-banner"');
     expect(html).toContain('3 open asks awaiting a human');
     expect(html).toContain('Grant contents:write');
@@ -979,10 +979,10 @@ describe('/account banner', () => {
   });
 
   it('escapes the top title and renders NO banner when nothing is open', () => {
-    const hostile = renderAccountPage(user, { count: 1, topTitle: '<script>x</script>' });
+    const hostile = renderAccountPage(user, { interruptions: { count: 1, topTitle: '<script>x</script>' } });
     expect(hostile).not.toContain('<script>x</script>');
     expect(hostile).toContain('&lt;script&gt;x&lt;/script&gt;');
-    expect(renderAccountPage(user, { count: 0, topTitle: null })).not.toContain('class="interrupt-banner"');
+    expect(renderAccountPage(user, { interruptions: { count: 0, topTitle: null } })).not.toContain('class="interrupt-banner"');
     expect(renderAccountPage(user)).not.toContain('class="interrupt-banner"');
   });
 });
