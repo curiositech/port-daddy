@@ -36,7 +36,13 @@ import {
   listUserInstallations,
   type UserInstallation,
 } from './auth-github.js';
-import { billingConfigured, getBillingStatus, CREDIT_PACKS } from './billing.js';
+import {
+  billingConfigured,
+  getBillingStatus,
+  getLedgerHistory,
+  CREDIT_PACKS,
+  type LedgerHistoryView,
+} from './billing.js';
 import { HEAD, TOKENS } from './account-page.js';
 
 /** Cap on per-installation D1 balance lookups per page view. */
@@ -80,6 +86,8 @@ export interface BillingInstallationView extends UserInstallation {
   balanceUsd: number;
   /** Ledger has rows — the executor's spend breaker is armed for this install. */
   enrolled: boolean;
+  /** null = the ledger-history read failed — render "unknown", never an empty table. */
+  ledger: LedgerHistoryView | null;
 }
 
 export interface BillingPageView {
@@ -171,6 +179,18 @@ ${TOKENS}
 .degraded .d-label{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--amber);margin-bottom:8px}
 .degraded p{font-size:14.5px;line-height:1.6;color:var(--text-primary)}
 .trunc{margin-top:26px;background:var(--surface-card);border:1px solid var(--hair);padding:16px 20px;box-shadow:inset 3px 0 0 var(--amber);font-size:14.5px;color:var(--text-secondary);line-height:1.6;max-width:66ch}
+.ledger{margin-top:20px;padding-top:16px;box-shadow:inset 0 1px 0 var(--hair)}
+.ledger .ldg-label{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:10px}
+.ledger table{width:100%;border-collapse:collapse;font-size:13.5px}
+.ledger th{text-align:left;font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);padding:6px 10px;border-bottom:2px solid var(--border-strong)}
+.ledger td{padding:7px 10px;border-bottom:1px solid var(--hair);color:var(--text-primary);white-space:nowrap}
+.ledger td.ldg-reason{white-space:normal;word-break:break-word;color:var(--text-secondary)}
+.ledger td.ldg-amt,.ledger th.ldg-amt,.ledger td.ldg-bal,.ledger th.ldg-bal{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;text-align:right}
+.ledger .ldg-pos{color:var(--health)}
+.ledger .ldg-neg{color:var(--error)}
+.ledger-empty{margin-top:20px;padding:14px 16px;border:1px dashed var(--hair-strong);font-size:13.5px;color:var(--text-secondary);line-height:1.6}
+.ledger-unavail{margin-top:20px;padding:14px 16px;box-shadow:inset 3px 0 0 var(--amber);background:var(--surface-card);font-size:13.5px;color:var(--text-primary);line-height:1.6}
+.ledger-trunc{margin-top:10px;font-size:12.5px;color:var(--text-muted);line-height:1.5}
 .empty{margin-top:34px;border:2px dashed var(--hair-strong);background:transparent;padding:26px 26px}
 .empty .e-title{font-weight:700;font-size:17px}
 .empty p{font-size:14.5px;color:var(--text-secondary);line-height:1.6;margin-top:8px;max-width:66ch}
@@ -233,6 +253,78 @@ function fmtUsd(v: number): string {
   return `${sign}$${Math.abs(v).toFixed(2)}`;
 }
 
+/**
+ * Render a unix-seconds timestamp as a compact, locale-stable date+time (UTC).
+ * Design intent: a per-user locale would make two operators reading the same
+ * ledger row disagree about when it happened; a fixed UTC rendering is the
+ * only honest choice for a shared audit trail.
+ *
+ * @param unixSeconds Ledger row's `created_at` (unix seconds).
+ * @returns `YYYY-MM-DD HH:MM UTC`.
+ */
+function fmtWhen(unixSeconds: number): string {
+  return new Date(unixSeconds * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+}
+
+/**
+ * Render an installation's ledger-history table: date, kind (reason), signed
+ * amount, running balance — under the existing balance card. Renders one of
+ * three honest states (grand-plan §billing-ledger-history, D12):
+ *   - `ledger === null`  → the read failed; an "unknown" panel, never an
+ *     empty table (a D1 hiccup must not read as "this installation has no
+ *     history").
+ *   - zero entries        → an honest empty state (no transactions yet).
+ *   - entries present      → the table, newest first, with a truncation
+ *     notice when older rows exist beyond MAX_LEDGER_ROWS (mirrors the
+ *     MAX_INSTALLATIONS partial-view idiom above).
+ * Every interpolated field is esc()'d — `reason` and any future free-text
+ * ledger annotation are treated as hostile, the same posture as GitHub
+ * account names elsewhere on this page.
+ *
+ * Design rationale: three states, not two — collapsing "unknown" into
+ * "empty" would let a transient D1 outage read as "you have no history",
+ * which is a lie an operator could act on (e.g. disputing a charge that
+ * simply failed to render). Keeping the states distinct is the whole point.
+ *
+ * @param ledger The installation's ledger view, or null on a read failure.
+ * @returns An HTML fragment to place inside the installation card.
+ */
+function renderLedger(ledger: LedgerHistoryView | null): string {
+  if (ledger === null) {
+    return `<div class="ledger-unavail"><b>Ledger unknown.</b> The transaction history could not be
+    read right now, so it is not shown — never guessed. The balance above is still real; reload to
+    retry the history.</div>`;
+  }
+  if (ledger.entries.length === 0) {
+    return `<div class="ledger-empty">No transactions yet. Purchases, refunds, and metered fleet
+    spend will appear here as they happen.</div>`;
+  }
+  const rows = ledger.entries
+    .map((e) => {
+      const cls = e.deltaUsd >= 0 ? 'ldg-pos' : 'ldg-neg';
+      const sign = e.deltaUsd >= 0 ? '+' : '';
+      return `<tr>
+        <td>${esc(fmtWhen(e.createdAt))}</td>
+        <td class="ldg-reason">${esc(e.reason)}</td>
+        <td class="ldg-amt ${cls}">${sign}${esc(fmtUsd(e.deltaUsd))}</td>
+        <td class="ldg-bal">${esc(fmtUsd(e.runningBalance))}</td>
+      </tr>`;
+    })
+    .join('');
+  const trunc = ledger.truncated
+    ? `<div class="ledger-trunc"><b>Partial view.</b> Only the ${ledger.entries.length} most recent
+    transactions are shown; older rows exist and are unaffected.</div>`
+    : '';
+  return `<div class="ledger">
+    <div class="ldg-label">Transaction history</div>
+    <table>
+      <thead><tr><th>Date</th><th>Kind</th><th class="ldg-amt">Amount</th><th class="ldg-bal">Balance</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${trunc}
+  </div>`;
+}
+
 function renderBuyRow(inst: BillingInstallationView): string {
   const packs = Object.values(CREDIT_PACKS)
     .map(
@@ -272,6 +364,7 @@ function renderInstallation(inst: BillingInstallationView, configured: boolean):
           ? renderBuyRow(inst)
           : '<div class="unavail">Purchases are unavailable: Stripe is not configured on this relay, so there are no buy buttons to press. The balance above is still real.</div>'
       }
+      ${renderLedger(inst.ledger)}
     </div>
   </section>`;
 }
@@ -331,7 +424,17 @@ export async function handleBillingPage(request: Request, env: Env): Promise<Res
       installations = [];
       for (const inst of listed.slice(0, MAX_INSTALLATIONS)) {
         const status = await getBillingStatus(env.DB, inst.id);
-        installations.push({ ...inst, ...status });
+        // The ledger read is isolated from the balance read: a D1 hiccup on
+        // the history query degrades ONLY that installation's ledger panel
+        // to an honest "unknown" (D12) instead of taking down the whole page
+        // the way a GitHub failure above does.
+        let ledger: LedgerHistoryView | null = null;
+        try {
+          ledger = await getLedgerHistory(env.DB, inst.id);
+        } catch {
+          ledger = null;
+        }
+        installations.push({ ...inst, ...status, ledger });
       }
     }
     return htmlResponse(

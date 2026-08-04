@@ -28,6 +28,8 @@ import {
   SHIPWRIGHT_DEFAULT_MODEL,
   SHIPWRIGHT_SYSTEM_PROMPT,
   MAX_MESSAGE_CHARS,
+  extractFencedYamlBlocks,
+  validateEmittedYaml,
 } from '../src/shipwright.js';
 import { handleShipwrightPage, renderShipwrightPage } from '../src/shipwright-page.js';
 import { handleAccountExport } from '../src/auth-github.js';
@@ -395,6 +397,183 @@ describe('shipwright — SSE streaming pass-through', () => {
       'data: {"response":"B"}\n' +
       'data: [DONE]\n';
     expect(assembleSseText(raw)).toBe('AB');
+  });
+});
+
+// ── YAML validation badge (shipwright-yaml-validate) ─────────────────────────
+
+const VALID_FLEET_YAML = [
+  'fleet:',
+  '  name: acme-fleet',
+  '  agents:',
+  '    reviewer:',
+  '      trigger: pull_request:opened',
+  '      prompt: "Review the diff for correctness."',
+].join('\n');
+
+// Missing the required `prompt` field on the one agent — BAD_SCHEMA.
+const INVALID_FLEET_YAML = [
+  'fleet:',
+  '  name: acme-fleet',
+  '  agents:',
+  '    reviewer:',
+  '      trigger: pull_request:opened',
+].join('\n');
+
+describe('shipwright — extractFencedYamlBlocks / validateEmittedYaml (pure)', () => {
+  it('extracts only yaml/yml fenced blocks, in order, ignoring other languages', () => {
+    const content = [
+      'Here is some prose.',
+      '```js',
+      'console.log(1);',
+      '```',
+      'Then the roster:',
+      '```yaml',
+      VALID_FLEET_YAML,
+      '```',
+      'And a second one:',
+      '```yml',
+      INVALID_FLEET_YAML,
+      '```',
+    ].join('\n');
+    const blocks = extractFencedYamlBlocks(content);
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0]).toContain('fleet:');
+    expect(blocks[1]).toContain('fleet:');
+  });
+
+  it('strips <think> blocks before scanning for fences', () => {
+    const content = `<think>\n\`\`\`yaml\nfleet: {agents: {}}\n\`\`\`\n</think>\nActual reply, no roster here.`;
+    expect(extractFencedYamlBlocks(content)).toEqual([]);
+  });
+
+  it('a valid roster validates OK_VALID via the deterministic parser', () => {
+    const [result] = validateEmittedYaml('```yaml\n' + VALID_FLEET_YAML + '\n```');
+    expect(result!.code).toBe('OK_VALID');
+    expect(result!.valid).toBe(true);
+    expect(result!.ships).toHaveLength(1);
+    expect(result!.ships[0]!.name).toBe('reviewer');
+  });
+
+  it('an invalid roster fails BAD_SCHEMA with the specific field error — never silently valid', () => {
+    const [result] = validateEmittedYaml('```yaml\n' + INVALID_FLEET_YAML + '\n```');
+    expect(result!.code).toBe('BAD_SCHEMA');
+    expect(result!.valid).toBe(false);
+    expect(result!.errors).toEqual([{ field: 'reviewer.prompt', message: 'required' }]);
+  });
+
+  it('malformed YAML fails BAD_YAML with a parser message — fail-closed, not silently dropped', () => {
+    const [result] = validateEmittedYaml('```yaml\nfleet: [unterminated\n```');
+    expect(result!.code).toBe('BAD_YAML');
+    expect(result!.valid).toBe(false);
+    expect(result!.errors[0]!.field).toBe('yaml');
+  });
+
+  it('a message with no fenced yaml produces zero verdicts', () => {
+    expect(validateEmittedYaml('just a normal reply, no code')).toEqual([]);
+  });
+});
+
+describe('shipwright — chat responses carry the deterministic verdict, not the model\'s say-so', () => {
+  it('buffered mode: valid roster badges OK_VALID', async () => {
+    const { env } = sessionEnv({
+      AI: mockAi({ response: 'Here you go:\n```yaml\n' + VALID_FLEET_YAML + '\n```\n' }).ai,
+    });
+    const res = await handleShipwrightChat(chatReq({ message: 'design me a fleet', stream: false }), env);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { yaml: Array<{ code: string; valid: boolean }> };
+    expect(body.yaml).toHaveLength(1);
+    expect(body.yaml[0]!.code).toBe('OK_VALID');
+    expect(body.yaml[0]!.valid).toBe(true);
+  });
+
+  it('buffered mode: invalid roster badges BAD_SCHEMA with structured errors, not a self-reported pass', async () => {
+    const { env } = sessionEnv({
+      AI: mockAi({ response: 'Here you go:\n```yaml\n' + INVALID_FLEET_YAML + '\n```\n' }).ai,
+    });
+    const res = await handleShipwrightChat(chatReq({ message: 'design me a fleet', stream: false }), env);
+    expect(res.status).toBe(200); // the CHAT call succeeds; the ROSTER is what's flagged invalid
+    const body = (await res.json()) as {
+      yaml: Array<{ code: string; valid: boolean; errors: Array<{ field: string; message: string }> }>;
+    };
+    expect(body.yaml).toHaveLength(1);
+    expect(body.yaml[0]!.code).toBe('BAD_SCHEMA');
+    expect(body.yaml[0]!.valid).toBe(false);
+    expect(body.yaml[0]!.errors.length).toBeGreaterThan(0);
+  });
+
+  it('a message with no roster carries an empty yaml verdict list', async () => {
+    const { env } = sessionEnv({ AI: mockAi({ response: 'Tell me about your repo first.' }).ai });
+    const res = await handleShipwrightChat(chatReq({ message: 'hi', stream: false }), env);
+    const body = (await res.json()) as { yaml: unknown[] };
+    expect(body.yaml).toEqual([]);
+  });
+
+  it('history recomputes the verdict from stored content — never a stored/stale badge', async () => {
+    const { db } = makeDb({
+      sessionHash: hashHex(COOKIE_VALUE),
+      history: [
+        {
+          id: 1,
+          role: 'assistant',
+          content: 'Here:\n```yaml\n' + VALID_FLEET_YAML + '\n```\n',
+          created_at: 1,
+        },
+      ],
+    });
+    const res = await handleShipwrightHistory(req('/v1/shipwright/history'), makeEnv(db));
+    const body = (await res.json()) as { messages: Array<{ yaml: Array<{ valid: boolean }> }> };
+    expect(body.messages[0]!.yaml).toHaveLength(1);
+    expect(body.messages[0]!.yaml[0]!.valid).toBe(true);
+  });
+
+  it('user-authored messages never carry a verdict list, even if they contain a yaml fence', async () => {
+    const { db } = makeDb({
+      sessionHash: hashHex(COOKIE_VALUE),
+      history: [
+        { id: 1, role: 'user', content: 'my current file:\n```yaml\n' + VALID_FLEET_YAML + '\n```', created_at: 1 },
+      ],
+    });
+    const res = await handleShipwrightHistory(req('/v1/shipwright/history'), makeEnv(db));
+    const body = (await res.json()) as { messages: Array<{ yaml: unknown[] }> };
+    expect(body.messages[0]!.yaml).toEqual([]);
+  });
+
+  it('SSE mode: appends one synthetic verdict line after the real tokens, badging the roster', async () => {
+    const lines = [
+      'data: {"response":"Roster:\\n```yaml\\n"}\n\n',
+      `data: {"response":${JSON.stringify(VALID_FLEET_YAML)}}\n\n`,
+      'data: {"response":"\\n```"}\n\n',
+      'data: [DONE]\n\n',
+    ];
+    const { ai } = mockAi(sseStream(lines));
+    const { db, calls } = makeDb({ sessionHash: hashHex(COOKIE_VALUE) });
+    const res = await handleShipwrightChat(chatReq({ message: 'hi' }), makeEnv(db, { AI: ai }));
+    const wire = await res.text();
+    expect(wire.startsWith(lines.join(''))).toBe(true); // real bytes forwarded verbatim, untouched
+    const verdictLine = wire.slice(lines.join('').length);
+    expect(verdictLine).toContain('pdYamlVerdict');
+    const parsed = JSON.parse(verdictLine.replace(/^data: /, '').trim()) as {
+      pdYamlVerdict: Array<{ valid: boolean; code: string }>;
+    };
+    expect(parsed.pdYamlVerdict).toHaveLength(1);
+    expect(parsed.pdYamlVerdict[0]!.valid).toBe(true);
+    // Persisted content is exactly the model's text — the verdict marker
+    // never contaminates what's saved (and thus never re-shown as "content").
+    const assistantInsert = calls.find(
+      (c) => c.sql.startsWith('INSERT INTO shipwright_chats') && c.binds[1] === 'assistant',
+    );
+    expect(assistantInsert!.binds[2]).not.toContain('pdYamlVerdict');
+  });
+
+  it('SSE mode: no synthetic line is appended when the turn emits no roster', async () => {
+    const lines = ['data: {"response":"just chatting, no yaml"}\n\n', 'data: [DONE]\n\n'];
+    const { ai } = mockAi(sseStream(lines));
+    const { db } = makeDb({ sessionHash: hashHex(COOKIE_VALUE) });
+    const res = await handleShipwrightChat(chatReq({ message: 'hi' }), makeEnv(db, { AI: ai }));
+    const wire = await res.text();
+    expect(wire).toBe(lines.join(''));
+    expect(wire).not.toContain('pdYamlVerdict');
   });
 });
 
