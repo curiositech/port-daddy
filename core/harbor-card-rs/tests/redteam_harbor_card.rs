@@ -15,6 +15,8 @@
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use ed25519_dalek::{Signer, SigningKey};
 use harbor_card_rs::*;
+use serde_json::json;
+use sha2::{Digest, Sha256};
 use std::os::raw::c_char;
 
 // ─── token forging harness (we hold a signing key, i.e. we play the issuer) ──────
@@ -27,29 +29,41 @@ fn keypair(seed: u8) -> (SigningKey, HarborCardVerifier) {
     (signing_key, verifier)
 }
 
-fn claims(cap: &[&str], exp: i64) -> HarborCardClaims {
-    HarborCardClaims {
-        sub: "agent-1".into(),
-        harbor: "local".into(),
-        cap: cap.iter().map(|s| s.to_string()).collect(),
-        iat: 0,
-        exp,
-        jti: "jti-1".into(),
-    }
+/// An hv:2 payload with the given structured capabilities and expiry.
+///
+/// Built as raw JSON rather than through [`HarborCardClaims`] so an attack can
+/// mint payloads the Rust type could not express (missing `hv`, string `exp`,
+/// unknown ops) — the attacker is not constrained by our struct definitions.
+fn claims(cap: serde_json::Value, exp: i64) -> serde_json::Value {
+    json!({
+        "hv": 2,
+        "sub": "agent-1",
+        "iss": "harbor-fp",
+        "aud": "harbor-fp",
+        "exp": exp,
+        "iat": 0,
+        "jti": "jti-1",
+        "cap": cap,
+    })
 }
 
-/// Assemble `header.payload.sig`, signing over `header.payload` with `sk`.
-fn sign_token(sk: &SigningKey, header_json: &[u8], claims: &HarborCardClaims) -> String {
-    let header_b64 = URL_SAFE_NO_PAD.encode(header_json);
+/// Assemble `header.payload.sig` the way the hv:2 wire format does: Ed25519
+/// over the SHA-256 digest of `header_b64 "." payload_b64`.
+fn sign_token(sk: &SigningKey, header: &serde_json::Value, claims: &serde_json::Value) -> String {
+    let header_b64 = URL_SAFE_NO_PAD.encode(serde_json::to_vec(header).unwrap());
     let payload_b64 = URL_SAFE_NO_PAD.encode(serde_json::to_vec(claims).unwrap());
-    let msg = format!("{header_b64}.{payload_b64}");
-    let sig = sk.sign(msg.as_bytes());
+    let signing_input = format!("{header_b64}.{payload_b64}");
+    let sig = sk.sign(Sha256::digest(signing_input.as_bytes()).as_slice());
     let sig_b64 = URL_SAFE_NO_PAD.encode(sig.to_bytes());
     format!("{header_b64}.{payload_b64}.{sig_b64}")
 }
 
 fn valid_token(sk: &SigningKey) -> String {
-    sign_token(sk, br#"{"alg":"EdDSA"}"#, &claims(&["read"], 9_999_999_999))
+    sign_token(
+        sk,
+        &json!({"alg": "EdDSA", "kid": "issuer-fp"}),
+        &claims(json!([{"op": "sub", "channel": "logs.*"}]), 9_999_999_999),
+    )
 }
 
 // ===========================================================================
@@ -96,13 +110,13 @@ fn signature_from_a_different_message_rejected() {
     let (sk, verifier) = keypair(7);
     let victim = sign_token(
         &sk,
-        br#"{"alg":"EdDSA"}"#,
-        &claims(&["read"], 9_999_999_999),
+        &json!({"alg": "EdDSA"}),
+        &claims(json!([{"op": "sub", "channel": "logs.*"}]), 9_999_999_999),
     );
     let other = sign_token(
         &sk,
-        br#"{"alg":"EdDSA"}"#,
-        &claims(&["read", "admin"], 9_999_999_999),
+        &json!({"alg": "EdDSA"}),
+        &claims(json!([{"op": "admin", "channel": "*"}]), 9_999_999_999),
     );
     let vp: Vec<&str> = victim.split('.').collect();
     let op: Vec<&str> = other.split('.').collect();
@@ -131,8 +145,13 @@ fn escalated_capability_in_payload_rejected() {
     let (sk, verifier) = keypair(7);
     let token = valid_token(&sk);
     let parts: Vec<&str> = token.split('.').collect();
-    let evil = URL_SAFE_NO_PAD
-        .encode(serde_json::to_vec(&claims(&["read", "admin"], 9_999_999_999)).unwrap());
+    let evil = URL_SAFE_NO_PAD.encode(
+        serde_json::to_vec(&claims(
+            json!([{"op": "admin", "channel": "*"}]),
+            9_999_999_999,
+        ))
+        .unwrap(),
+    );
     let tampered = format!("{}.{}.{}", parts[0], evil, parts[2]);
     let err = verifier.verify(&tampered, 0).unwrap_err();
     assert!(matches!(err, HarborError::InvalidSignature), "got {err:?}");
@@ -176,12 +195,155 @@ fn tampered_alg_header_rejected_by_signature_binding() {
     );
 }
 
-// NOTE (KNOWN GAP / DEPENDENCY, not tested here): `verify` validates `exp` but does
-// NOT validate `iat` — a token with an absurdly future `iat` still verifies so long
-// as it is validly signed and unexpired. This is NOT attacker-forgeable (the issuer
-// controls `iat` and must sign it), so it is a defense-in-depth hardening gap, not an
-// exploitable bypass. The `iat`-policy fix is a sibling agent's work; when it lands, a
-// test asserting stale/future `iat` rejection belongs here. Reported as a dependency.
+// ===========================================================================
+// Category 9 — hv:2 wire-format pinning (ADR-0120)
+// ===========================================================================
+
+#[test]
+fn legacy_signing_scheme_no_longer_verifies() {
+    // Before ADR-0120's port this crate verified Ed25519 over the RAW
+    // `header.payload` bytes. hv:2 signs their SHA-256 digest. A token signed
+    // the legacy way is a token from a format nobody mints — it must not be
+    // accepted, or the port bought nothing.
+    let (sk, verifier) = keypair(7);
+    let header_b64 = URL_SAFE_NO_PAD.encode(br#"{"alg":"EdDSA"}"#);
+    let payload_b64 = URL_SAFE_NO_PAD.encode(
+        serde_json::to_vec(&claims(
+            json!([{"op": "sub", "channel": "*"}]),
+            9_999_999_999,
+        ))
+        .unwrap(),
+    );
+    let legacy_sig = sk.sign(format!("{header_b64}.{payload_b64}").as_bytes());
+    let token = format!(
+        "{header_b64}.{payload_b64}.{}",
+        URL_SAFE_NO_PAD.encode(legacy_sig.to_bytes())
+    );
+    let err = verifier.verify(&token, 0).unwrap_err();
+    assert!(matches!(err, HarborError::InvalidSignature), "got {err:?}");
+}
+
+#[test]
+fn hv_downgrade_to_an_older_format_rejected() {
+    // The version lives in the signed payload, so an issuer that mis-mints a
+    // `hv:1` card cannot have it honored under hv:2 rules. A verifier that
+    // best-effort parsed unknown versions would be a format-migration bypass.
+    let (sk, verifier) = keypair(7);
+    let mut payload = claims(json!([{"op": "admin", "channel": "*"}]), 9_999_999_999);
+    payload["hv"] = json!(1);
+    let token = sign_token(&sk, &json!({"alg": "EdDSA"}), &payload);
+    let err = verifier.verify(&token, 0).unwrap_err();
+    assert!(
+        matches!(err, HarborError::WrongVersion { .. }),
+        "got {err:?}"
+    );
+}
+
+#[test]
+fn future_dated_iat_rejected() {
+    // Was a documented gap in the legacy verifier; now closed. Not attacker-
+    // forgeable (the issuer signs `iat`), so this is defense in depth against a
+    // mis-issuing or clock-skewed issuer, not a bypass fix.
+    let (sk, verifier) = keypair(7);
+    let mut payload = claims(json!([{"op": "sub", "channel": "*"}]), 9_999_999_999);
+    payload["iat"] = json!(10_000);
+    let token = sign_token(&sk, &json!({"alg": "EdDSA"}), &payload);
+    let err = verifier.verify(&token, 1_000).unwrap_err();
+    assert!(matches!(err, HarborError::IssuedInFuture), "got {err:?}");
+}
+
+#[test]
+fn not_yet_valid_card_rejected() {
+    let (sk, verifier) = keypair(7);
+    let mut payload = claims(json!([{"op": "sub", "channel": "*"}]), 9_999_999_999);
+    payload["nbf"] = json!(5_000);
+    let token = sign_token(&sk, &json!({"alg": "EdDSA"}), &payload);
+    let err = verifier.verify(&token, 1_000).unwrap_err();
+    assert!(matches!(err, HarborError::NotYetValid), "got {err:?}");
+}
+
+#[test]
+fn structured_capability_channel_escalation_rejected() {
+    // A card scoped to `logs.*` must not admit a publish on `ops.deploy`, and
+    // the wrong op on a covered channel must not admit either.
+    let (sk, verifier) = keypair(7);
+    let token = sign_token(
+        &sk,
+        &json!({"alg": "EdDSA"}),
+        &claims(json!([{"op": "sub", "channel": "logs.*"}]), 9_999_999_999),
+    );
+    assert!(matches!(
+        verifier
+            .verify_for_channel(&token, 0, "sub", "ops.deploy")
+            .unwrap_err(),
+        HarborError::InsufficientCapability
+    ));
+    assert!(matches!(
+        verifier
+            .verify_for_channel(&token, 0, "pub", "logs.app")
+            .unwrap_err(),
+        HarborError::InsufficientCapability
+    ));
+    assert!(verifier
+        .verify_for_channel(&token, 0, "sub", "logs.app")
+        .is_ok());
+}
+
+#[test]
+fn structured_capability_prefix_glob_does_not_leak_across_a_boundary() {
+    // `logs.*` must not reach `logsx` — the glob is a prefix match on the text
+    // before the star, so the boundary character matters and a card scoped to a
+    // namespace must not spill into a same-prefixed sibling.
+    let caps = vec![CapabilityEntry {
+        op: "sub".into(),
+        channel: "logs.*".into(),
+        rate_per_min: None,
+        max_payload_bytes: None,
+    }];
+    assert!(capability_matches(&caps, "sub", "logs.a").is_some());
+    assert!(capability_matches(&caps, "sub", "logsx").is_none());
+}
+
+#[test]
+fn structured_attenuation_is_not_broadenable() {
+    // The delegation gate: a child card may narrow, never widen — not by op,
+    // not by channel pattern, not by dropping a rate ceiling.
+    let root = vec![CapabilityEntry {
+        op: "sub".into(),
+        channel: "logs.*".into(),
+        rate_per_min: Some(60),
+        max_payload_bytes: None,
+    }];
+    let widen_channel = vec![CapabilityEntry {
+        op: "sub".into(),
+        channel: "*".into(),
+        rate_per_min: Some(60),
+        max_payload_bytes: None,
+    }];
+    let widen_op = vec![CapabilityEntry {
+        op: "admin".into(),
+        channel: "logs.app".into(),
+        rate_per_min: Some(60),
+        max_payload_bytes: None,
+    }];
+    let drop_ceiling = vec![CapabilityEntry {
+        op: "sub".into(),
+        channel: "logs.app".into(),
+        rate_per_min: None,
+        max_payload_bytes: None,
+    }];
+    let narrowed = vec![CapabilityEntry {
+        op: "sub".into(),
+        channel: "logs.app".into(),
+        rate_per_min: Some(10),
+        max_payload_bytes: None,
+    }];
+
+    assert!(!verify_capability_subset_structured(&root, &widen_channel));
+    assert!(!verify_capability_subset_structured(&root, &widen_op));
+    assert!(!verify_capability_subset_structured(&root, &drop_ceiling));
+    assert!(verify_capability_subset_structured(&root, &narrowed));
+}
 
 // ===========================================================================
 // Category 7 — Capability escalation (verify_capability_subset — live hot path)
@@ -430,13 +592,20 @@ fn positive_control_valid_token_verifies() {
         .verify(&token, 0)
         .expect("a valid, unexpired, correctly-signed token must verify");
     assert_eq!(out.sub, "agent-1");
-    assert_eq!(out.cap, vec!["read".to_string()]);
+    assert_eq!(out.hv, 2);
+    assert_eq!(out.cap.len(), 1);
+    assert_eq!(out.cap[0].op, "sub");
+    assert_eq!(out.cap[0].channel, "logs.*");
 }
 
 #[test]
 fn positive_control_expired_token_rejected() {
     let (sk, verifier) = keypair(7);
-    let token = sign_token(&sk, br#"{"alg":"EdDSA"}"#, &claims(&["read"], 100));
+    let token = sign_token(
+        &sk,
+        &json!({"alg": "EdDSA"}),
+        &claims(json!([{"op": "sub", "channel": "*"}]), 100),
+    );
     assert!(matches!(
         verifier.verify(&token, 200).unwrap_err(),
         HarborError::Expired

@@ -17,6 +17,11 @@ base64 = "0.22"
 chrono = "0.4"
 thiserror = "1.0"
 zeroize = "1.8"
+# hv:2 signs the SHA-256 digest of the JWT signing input, not the input itself
+# (see the module docs). Already in the tree transitively via ed25519-dalek;
+# named directly because this crate depends on it for protocol reasons, not as
+# an incidental transitive.
+sha2 = "0.10"
 
 [dev-dependencies]
 proptest = "1.4"
