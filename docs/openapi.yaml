@@ -65,6 +65,8 @@ tags:
     description: Durable maritime actor directory
   - name: memory
     description: Episodic memory, session harvest, and backend-neutral continuation handoffs
+  - name: harness-adapters
+    description: Harness mechanics, runtime evidence, and N:N continuation compatibility
 
 paths:
   # ===========================================================================
@@ -4849,6 +4851,32 @@ paths:
       responses:
         '200':
           description: Panic cleared
+
+  /harness-adapters/continuation-matrix:
+    get:
+      tags: [harness-adapters]
+      summary: Read the N:N harness continuation matrix and runtime evidence
+      operationId: getHarnessContinuationMatrix
+      description: >
+        Expands every registered source adapter family against every target
+        family. Mechanical native and sanitized-handoff paths come from the
+        backend catalog, while completed spawn transcripts and continuation
+        receipts are reported separately as timestamped witnesses. Discovery
+        and self-report never advance runtime conformance, stale witnesses stay
+        labeled, and this endpoint never emits a numeric compliance badge.
+      responses:
+        '200':
+          description: Mechanical compatibility and daemon-witnessed evidence
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '../schemas/agent-harbor/v0/harness-continuation-matrix.schema.json'
+        '500':
+          description: Harness evidence could not be read
 
   /memory/handoffs:
     post:

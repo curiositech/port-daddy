@@ -3,8 +3,8 @@
  * extended by the ADR-0096 M5 F0-delta (GuidanceEnvelope + forged-guidance) and
  * the ADR-0097 M6 F0-delta (CompactionPacket, MemoryEpisode,
  * TranscriptSearchQuery/Result, and the read-only BlackboardItem), and the
- * ADR-0028 backend-neutral HandoffCapsule and successor-brief continuation
- * boundaries.
+ * ADR-0028 backend-neutral HandoffCapsule continuation boundary, and the
+ * ADR-0118 successor-brief and N:N harness evidence contracts.
  *
  * Locks three things:
  *   1. Every schema in schemas/agent-harbor/v0/ parses and COMPILES — the
@@ -76,6 +76,7 @@ const SCHEMA_NAMES = [
   'guidance-envelope',
   'handoff-capsule',
   'handoff-successor-brief',
+  'harness-continuation-matrix',
   'compaction-packet',
   'memory-episode',
   'transcript-search-query',
@@ -86,6 +87,7 @@ const SCHEMA_NAMES = [
 const STRICT_SCHEMA_NAMES = new Set([
   'handoff-capsule',
   'handoff-successor-brief',
+  'harness-continuation-matrix',
 ]);
 
 // ---------------------------------------------------------------------------
@@ -97,7 +99,7 @@ const VALIDATION_KEYWORDS = new Set([
   '$ref',
   'type', 'properties', 'required', 'additionalProperties', 'items',
   'enum', 'const', 'minLength', 'maxLength', 'minimum', 'maximum',
-  'minItems', 'maxItems', 'pattern',
+  'minItems', 'maxItems', 'pattern', '$defs', '$ref', 'oneOf', 'format',
 ]);
 
 function resolveLocalRef(ref) {
@@ -206,6 +208,9 @@ function validate(schema, value, path = '$', resolving = new Set()) {
     if (schema.pattern !== undefined && !new RegExp(schema.pattern).test(value)) {
       errors.push(`${path}: does not match pattern ${schema.pattern}`);
     }
+    if (schema.format === 'date-time' && !Number.isFinite(Date.parse(value))) {
+      errors.push(`${path}: invalid date-time`);
+    }
   }
   if (typeof value === 'number') {
     if (schema.minimum !== undefined && value < schema.minimum) {
@@ -269,7 +274,7 @@ function loadFixture(name) {
 // ---------------------------------------------------------------------------
 
 describe('agent-harbor v0 schema package', () => {
-  it('ships exactly the twenty-three frozen contracts plus fixtures', () => {
+  it('ships exactly the twenty-four frozen contracts plus fixtures', () => {
     const files = readdirSync(schemaDir).filter((f) => f.endsWith('.schema.json')).sort();
     expect(files).toEqual(SCHEMA_NAMES.map((n) => `${n}.schema.json`).sort());
   });

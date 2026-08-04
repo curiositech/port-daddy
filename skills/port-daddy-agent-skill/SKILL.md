@@ -163,6 +163,16 @@ receipt, not a model's claim that it resumed. A backend override that changes
 adapter family, a lost accepted-to-running lease, or a failed terminal receipt
 transition must fail closed before Port Daddy reports success.
 
+Inspect portability with `pd backend adapters --matrix` or
+`GET /harness-adapters/continuation-matrix`. Read the grid as declared mechanics,
+not proof: `N` means same-family native resume is mechanically available and `H`
+means a sanitized successor handoff is available. `--probe` is discovery only.
+Only durable completed spawn transcripts, continuation receipts, or dedicated
+live-control receipts can mark the corresponding predicate witnessed; evidence
+older than seven days remains visible but stale. Never turn catalog declarations,
+help output, path existence, or an agent's self-report into a numeric conformance
+badge.
+
 ## Telos vs Purpose
 
 Every Port Daddy agent carries a **telos** alongside its **purpose**.

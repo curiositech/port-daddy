@@ -79,6 +79,7 @@ const TOP_LEVEL_AGENT_HARBOR_SCHEMAS = [
   'guidance-envelope',
   'handoff-capsule',
   'handoff-successor-brief',
+  'harness-continuation-matrix',
   'memory-episode',
   'skill-graft',
   'surface-gateway',

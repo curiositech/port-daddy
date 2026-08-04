@@ -240,8 +240,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['cockpit_missions_list'],
   },
   'system': {
-    description: 'Daemon status, version, metrics, config, launch hints, relay, and harbormaster liveness',
-    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status', 'harbormaster_status'],
+    description: 'Daemon status, version, metrics, config, launch hints, relay, harbormaster liveness, and witnessed harness compatibility',
+    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status', 'harbormaster_status', 'harness_continuation_matrix'],
   },
   'tuples': {
     description: 'Shared tuple space for swarm coordination — write, read, take, scan, count',
@@ -2751,6 +2751,16 @@ const TOOLS = [
     },
   },
   {
+    name: 'harness_continuation_matrix',
+    description:
+      '[Standard] Read the honest N:N harness matrix. Returns catalog mechanics separately from fresh/stale ' +
+      'daemon-witnessed spawn, live-control, native-resume, and handoff evidence; never a scalar compliance badge.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
     name: 'swarm_awareness',
     description:
       '[Magic] Who else is working here? Returns all active agents with their identities, purposes, ' +
@@ -4526,6 +4536,11 @@ async function handleTool(
       const msgs = (channels.data as Record<string, unknown>)?.channels ?? [];
       const recentNotes = (notes.data as Record<string, unknown>)?.notes ?? [];
       return JSON.stringify({ agents, channels: msgs, recent_notes: recentNotes }, null, 2);
+    }
+
+    case 'harness_continuation_matrix': {
+      res = await GET('/harness-adapters/continuation-matrix');
+      break;
     }
 
     case 'active_agent_roster':
