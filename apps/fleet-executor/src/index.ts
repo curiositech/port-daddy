@@ -70,3 +70,5 @@ export default {
     }
   },
 } satisfies ExportedHandler<ExecutorEnv, FleetRunJob>;
+
+export { Sandbox } from '@cloudflare/sandbox';

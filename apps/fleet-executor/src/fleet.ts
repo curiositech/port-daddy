@@ -287,6 +287,63 @@ function triggerMatches(trigger: unknown, requested: string): boolean {
 }
 
 /**
+ * TENANCY CONSENT (cloud squid): does this repo's pd-fleet.yml opt in to
+ * fleet-cloud coordination events? The executor announces run lifecycle events
+ * (run-started / ship-verdict / pr-stacked / run-concluded — src/squid-events.ts)
+ * onto the shared relay channel; those events carry the tenant's repo name, PR
+ * numbers, ship verdicts, and stacked-PR urls, so emission requires the TENANT'S
+ * explicit consent, not just the operator's env wiring.
+ *
+ * Consent is a top-level `squidEvents: true` under `fleet:` in pd-fleet.yml,
+ * read from the TRUSTED default branch (same zero-trust fetch as the ship
+ * config — never the PR head). Strict coercion, same rules as `blocking:`:
+ * only `true` / `'true'` opt in; absent key, `yes`, `1`, an unparseable doc,
+ * or a missing pd-fleet.yml all mean NO (default false, fail-closed).
+ */
+export function parseFleetSquidEvents(fleetYaml: string): boolean {
+  let doc: unknown;
+  try {
+    doc = parseYaml(fleetYaml);
+  } catch {
+    return false;
+  }
+  const fleet = (doc as { fleet?: { squidEvents?: unknown } } | null)?.fleet;
+  if (!fleet || typeof fleet !== 'object') return false;
+  const value = fleet.squidEvents;
+  return value === true || value === 'true';
+}
+
+/**
+ * XO CONSENT: does this repo's pd-fleet.yml opt in to the XO synthesis officer
+ * (src/xo.ts)? The XO adds two ADVISORY behaviors — an editor pass that
+ * curates ideation proposals before they are filed, and an "XO's orders"
+ * triage section on the review comment — both of which spend extra Workers AI
+ * tokens and add model-judged text to the tenant's PR surfaces, so they are
+ * opt-in per tenant, never ambient.
+ *
+ * Same rules and same rationale as {@link parseFleetSquidEvents}: a top-level
+ * `xo: true` under `fleet:` in pd-fleet.yml, read from the TRUSTED default
+ * branch (never the PR head — the zero-trust invariant). Strict coercion: only
+ * `true` / `'true'` opt in; absent key, `yes`, `1`, an unparseable doc, or a
+ * missing pd-fleet.yml all mean NO (default false, fail-closed on consent).
+ *
+ * @param fleetYaml The raw pd-fleet.yml body from the trusted default branch.
+ * @returns True only when the tenant explicitly opted in with `xo: true`.
+ */
+export function parseFleetXo(fleetYaml: string): boolean {
+  let doc: unknown;
+  try {
+    doc = parseYaml(fleetYaml);
+  } catch {
+    return false;
+  }
+  const fleet = (doc as { fleet?: { xo?: unknown } } | null)?.fleet;
+  if (!fleet || typeof fleet !== 'object') return false;
+  const value = fleet.xo;
+  return value === true || value === 'true';
+}
+
+/**
  * Deterministically parse pd-fleet.yml and return every ship whose trigger
  * matches `trigger`. Pure (no Workers AI). Reads the ENTIRE document.
  *

@@ -443,7 +443,7 @@ Current code shape:
   launchd supervision, Bosun presence, launch-agent target drift, resource
   directory confusion, agent MCP wiring, skill installation, and lifecycle hooks.
 - Interactive fix handling exists for startup blockers.
-- `pd setup`, `pd squid hooks`, and `pd guard install` cover parts of runtime
+- `pd setup`, `pd squid on`, and `pd guard install` cover parts of runtime
   wiring, but the compliance plan's `pd doctor --fix harness` lane is not yet the
   explicit official-agent remediation hub.
 

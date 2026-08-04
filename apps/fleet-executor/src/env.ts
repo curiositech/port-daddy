@@ -43,6 +43,13 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
    */
   SANDBOX?: unknown;
   /**
+   * OPTIONAL XO model override (plaintext var, wrangler.deploy.toml). The XO
+   * synthesis officer (src/xo.ts) runs on Workers AI ONLY: only a `@cf/` id is
+   * honored, anything else falls back to DEFAULT_XO_MODEL — see resolveXoModel.
+   * Unset ⇒ the default deepseek-r1 distill.
+   */
+  XO_MODEL?: string;
+  /**
    * Optional Cloudflare AI Gateway id. When set, every ship's `env.AI.run(...)`
    * is routed through this gateway (`{ gateway: { id } }`) so token/cost/latency
    * is logged and cacheable in the AI Gateway dashboard (ADR-0116/0117). UNSET ⇒
@@ -72,6 +79,17 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   RELAY_PUBLISH_URL?: string;
   /** Bearer token sent with every squid-event POST. Secret; optional (see above). */
   RELAY_PUBLISH_TOKEN?: string;
+  /**
+   * OPTIONAL HITL escalation sink (src/interruptions.ts): the relay's
+   * POST /v1/interruptions endpoint. When a ship hits a BLOCKING degradation
+   * (403 on `contents: write`, blockWithoutSandbox with no SANDBOX binding) it
+   * fire-and-forgets an operator interruption there. BOTH this and
+   * INTERRUPTIONS_TOKEN must be set or the feature is silently disabled — no
+   * fetch is ever attempted. Escalations never block or change a run.
+   */
+  INTERRUPTIONS_URL?: string;
+  /** pdu_ operator token sent as the Bearer on every interruption POST. Secret. */
+  INTERRUPTIONS_TOKEN?: string;
   /**
    * Shared relay D1 database (`port-daddy-relay`). The executor writes the
    * fleet_runs audit header + the append-only fleet_run_steps transcript here.

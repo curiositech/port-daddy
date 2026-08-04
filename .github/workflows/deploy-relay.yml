@@ -1,4 +1,4 @@
-name: Deploy relay (Cloudflare Worker)
+name: Deploy relay latest (Cloudflare Worker, staging channel)
 
 # Why this workflow exists:
 #   apps/relay is the LIVE control plane for the cloud fleet — GitHub webhook
@@ -7,7 +7,18 @@ name: Deploy relay (Cloudflare Worker)
 #   that check runs link via details_url. It had NO deploy automation: it was
 #   hand-deployed 2026-06-24 and then drifted from main for weeks (the ADR-0101
 #   run page 404'd in production until 2026-07-14 because nothing redeployed
-#   it). This workflow deploys on every push to main that touches the app.
+#   it).
+#
+# RELEASE CHANNELS (ADR-0119): this workflow is the LATEST channel. On every
+# push to main touching apps/relay/** it:
+#   1. applies pending D1 migrations to the STAGING database
+#      (port-daddy-relay-staging — the [env.latest] binding),
+#   2. records them in the staging ledger
+#      (apps/relay/migrations/applied-staging.json) and commits it back, and
+#   3. deploys the relay-latest Worker (`wrangler deploy --env latest`).
+# PRODUCTION (relay.portdaddy.dev) is NOT touched here — it deploys only from
+# a v* release tag via deploy-relay-prod.yml, gated on the ledger this
+# workflow writes (staging-first, enforced).
 #
 # Config model — committed file, NOT a secret:
 #   The Worker config lives in apps/relay/wrangler.deploy.toml, committed to
@@ -17,8 +28,8 @@ name: Deploy relay (Cloudflare Worker)
 #   means main is the single source of truth (no "refresh the repo secret from
 #   my laptop" step that silently goes stale).
 #
-#   Runtime secrets are set out-of-band via `wrangler secret put` and are
-#   PRESERVED across `wrangler deploy` — this workflow never touches them:
+#   Runtime secrets are set out-of-band via `wrangler secret put --env latest`
+#   and are PRESERVED across deploys — this workflow never touches them:
 #     RELAY_OPERATOR_TOKEN, RELAY_ED25519_PRIVATE_KEY_HEX,
 #     GITHUB_WEBHOOK_SECRET, GITHUB_APP_PRIVATE_KEY (optional),
 #     RUN_PAGE_SECRET (ADR-0101 run pages; must equal the fleet-executor's).
@@ -35,7 +46,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  # contents: write — this workflow commits the staging migration ledger
+  # (apps/relay/migrations/applied-staging.json) back to main after a
+  # successful staging apply. That ledger is what the prod gate reads.
+  contents: write
 
 concurrency:
   group: deploy-relay
@@ -52,6 +66,10 @@ jobs:
         working-directory: apps/relay
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Pull the freshest main before committing the ledger (another merge
+          # may have landed while we ran).
+          ref: main
 
       - uses: actions/setup-node@v4
         with:
@@ -69,8 +87,54 @@ jobs:
       - name: Test
         run: npx vitest run
 
-      - name: Deploy Worker
+      # STAGING FIRST (ADR-0119): schema before code, staging before prod.
+      # Wrangler tracks applied files per-database, so re-running is a no-op.
+      - name: Apply D1 migrations to STAGING
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler deploy --config wrangler.deploy.toml
+        run: >
+          npx wrangler d1 migrations apply port-daddy-relay-staging
+          --config wrangler.deploy.toml --env latest --remote
+
+      # The ledger writer must itself be green before it writes gate truth.
+      - name: Test the migration-gate script
+        working-directory: .
+        run: node --test scripts/check-migrations-gate.test.mjs
+
+      # Record what staging now has. The committed ledger is the ONLY thing the
+      # prod release gate trusts (scripts/check-migrations-gate.mjs --check).
+      - name: Record staging ledger
+        working-directory: .
+        run: node scripts/check-migrations-gate.mjs --record
+
+      - name: Commit staging ledger (if changed)
+        working-directory: .
+        run: |
+          if git diff --quiet -- apps/relay/migrations/applied-staging.json; then
+            echo "ledger unchanged — nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/relay/migrations/applied-staging.json
+          git commit -m "chore(relay): record staging-applied migrations [skip ci]"
+          git push origin HEAD:main || echo "::warning::ledger push blocked by branch protection — add github-actions[bot] to the bypass list so the staging ledger stays current"
+
+      # One-time self-provisioning, idempotent on every run: the staging queue,
+      # plus staging-only secrets. Staging secrets are ROTATED on each deploy —
+      # fine for a rehearsal channel; prod secrets are never touched here.
+      - name: Provision staging queue + secrets (idempotent)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler queues create fleet-runs-staging 2>/dev/null || echo "staging queue already exists"
+          openssl rand -hex 32 | npx wrangler secret put RELAY_OPERATOR_TOKEN --config wrangler.deploy.toml --env latest
+          openssl rand -hex 32 | npx wrangler secret put RELAY_ED25519_PRIVATE_KEY_HEX --config wrangler.deploy.toml --env latest
+
+      - name: Deploy relay-latest Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --config wrangler.deploy.toml --env latest

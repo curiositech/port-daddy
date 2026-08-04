@@ -55,6 +55,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   agents: 'silent',
   swarm: 'silent',
   actors: 'silent',
+  roster: 'approval',
   actor: 'silent',
   changelog: 'silent',
   log: 'silent',
@@ -75,6 +76,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   learn: 'silent',
   tutorial: 'silent',
   sitrep: 'silent',
+  plan: 'notify',
+
   whois: 'silent',          // semantic skill-router: read-only ranking of agents by capability
   look: 'silent',
   periscope: 'silent',     // operator-loop SIGHT stage: read-only state+next-cut rollup
@@ -161,6 +164,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   backend: 'notify',        // sets the active CLI/subscription backend (caller config); status form is read-only
   backup: 'notify',         // writes a durable snapshot of the registry DB; reversible, caller-scoped
   cut: 'notify',            // cuts a release: runs builds, writes dist/release/<v>, optional sign — local, caller-scoped
+  batten: 'notify',         // worst case: `batten imprint` writes a caller-scoped receipt; verify is refined silent below
   benchmark: 'notify',      // `benchmark run` makes paid multi-backend LLM calls; refined: list-models/list-conditions/report are silent reads
   // ── approval: mutates another agent's state, no data loss ────────────────
   // Top-level entries; subcommand refinement may downgrade.
@@ -321,6 +325,20 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'agent inbox clear': 'destructive',
   'agent inbox read-all': 'notify',
 
+  // durable named-agent roster: reads are silent, profile facts are notify,
+  // and continuation launches a governed child runtime.
+  'roster': 'silent',
+  'roster list': 'silent',
+  'roster ls': 'silent',
+  'roster show': 'silent',
+  'roster search': 'silent',
+  'roster create': 'notify',
+  'roster promote': 'notify',
+  'roster update': 'notify',
+  'roster attach': 'notify',
+  'roster retire': 'notify',
+  'roster continue': 'approval',
+
   // parley: list/show/fit are reads; call/respond/resolve mutate shared reconciliation state
   'parley list': 'silent',
   'parley show': 'silent',
@@ -387,7 +405,6 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'squid arm': 'notify',
   'squid off': 'notify',            // removes only pd-authored entries
   'squid disarm': 'notify',
-  'squid hooks': 'notify',
 
   // agent-CLI hooks installer
   'hooks list': 'silent',
@@ -433,6 +450,10 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
 
   // mcp
   'mcp install': 'notify',
+
+  // batten: verify is pure read; imprint writes the caller-selected receipt.
+  'batten verify': 'silent',
+  'batten imprint': 'notify',
 
   // attention: default fetch marks items read; peek/list forms are read-only
   'attention --peek': 'silent',

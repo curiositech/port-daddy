@@ -19,6 +19,7 @@ import { locksPlugin } from './locks.js';
 import { agentsPlugin } from './agents.js';
 import { agentCockpitPlugin } from './agent-cockpit.js';
 import { agentRosterPlugin } from './agent-roster.js';
+import { durableAgentRosterPlugin } from './durable-agent-roster.js';
 import { agentHarborPlugin } from './agent-harbor.js';
 import { activityPlugin } from './activity.js';
 import { webhooksPlugin } from './webhooks.js';
@@ -121,6 +122,7 @@ export async function registerAllRoutes(
   await fastify.register(locksPlugin, { deps } as any);
   await fastify.register(agentsPlugin, { deps } as any);
   await fastify.register(agentRosterPlugin, { deps } as any);
+  await fastify.register(durableAgentRosterPlugin, { deps } as any);
 
   // Agent Harbor read API (binder ch09; work order C-routes). Serves C1's
   // projections over HTTP: GET /agent-nodes (+detail/files), paged+SSE

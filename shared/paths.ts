@@ -12,7 +12,7 @@ import { homedir } from 'os';
 import { join } from 'path';
 import { mkdirSync, chmodSync } from 'fs';
 
-const HOME = join(homedir(), '.port-daddy');
+const HOME = process.env.PD_HOME?.trim() || join(homedir(), '.port-daddy');
 
 // Ensure the directory exists with restrictive permissions
 try {

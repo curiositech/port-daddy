@@ -280,3 +280,229 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   seats              INTEGER,
   current_period_end INTEGER
 );
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- MERCY v1 — hospital-ship health system (src/mercy.ts).
+--
+-- mercy_probe     — scratch row for the D1 read-after-write latency probe.
+-- mercy_health    — one snapshot per cron sweep: per-subsystem statuses (JSON),
+--                   the overall green/yellow/red verdict, and the
+--                   remoteHarborsPossible bit. Pruned past 7 days.
+-- mercy_incidents — one row per red episode per subsystem. The partial UNIQUE
+--                   index (at most ONE unresolved incident per subsystem) IS
+--                   the paging dedupe; paged_at pins webhook delivery.
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS mercy_probe (
+  k  TEXT    PRIMARY KEY,
+  v  TEXT    NOT NULL,
+  at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS mercy_health (
+  id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+  at                      INTEGER NOT NULL,               -- unix seconds (sweep time)
+  overall                 TEXT    NOT NULL CHECK (overall IN ('green','yellow','red')),
+  remote_harbors_possible INTEGER NOT NULL,               -- 0/1 (D1 + DO channel not red)
+  subsystems_json         TEXT    NOT NULL                -- [{name,status,latencyMs,detail}]
+);
+CREATE INDEX IF NOT EXISTS mercy_health_at_idx ON mercy_health (at);
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Shipwright chat (src/shipwright.ts) — conversational fleet-config architect.
+--
+-- One row per chat message, scoped to the signed-in web user (users.id). The
+-- AUTOINCREMENT id is the conversation order (created_at is unix seconds and
+-- two messages routinely share a second). ADR-0101 lifecycle: exported with
+-- /account/export, cleared by the user's own control, purged by eraseUser,
+-- defensively purged for soft-deleted users by the erasure sweep, and
+-- age-pruned by the retention sweep (SHIPWRIGHT_RETENTION_DAYS).
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS shipwright_chats (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    TEXT    NOT NULL REFERENCES users(id),
+  role       TEXT    NOT NULL CHECK (role IN ('user','assistant')),
+  content    TEXT    NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS shipwright_chats_user_idx ON shipwright_chats (user_id, id);
+CREATE INDEX IF NOT EXISTS shipwright_chats_created_idx ON shipwright_chats (created_at);
+
+CREATE TABLE IF NOT EXISTS mercy_incidents (
+  id          TEXT    PRIMARY KEY,                        -- 'mi_' || randomHex(8)
+  subsystem   TEXT    NOT NULL,
+  opened_at   INTEGER NOT NULL,                           -- first red sweep
+  resolved_at INTEGER,                                    -- first non-red sweep after
+  paged_at    INTEGER,                                    -- when the webhook POST was DELIVERED
+  detail      TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS mercy_incidents_open_uniq
+  ON mercy_incidents (subsystem) WHERE resolved_at IS NULL;
+CREATE INDEX IF NOT EXISTS mercy_incidents_opened_idx ON mercy_incidents (opened_at);
+
+-- OPERATOR INTERRUPTIONS v1 — human-in-the-loop blocking asks
+-- (src/interruptions.ts). An agent that hits a blocking degradation escalates
+-- a real ask to the operator; the mercy cron nags on a decaying full-jitter
+-- schedule until answered/acked, then hard-stops (expired + one "gave up"
+-- page). next_nag_at / gave_up_paged_at advance ONLY on DELIVERED pages — the
+-- mercy paged_at dedupe pattern ("never two pages for the same stage").
+
+CREATE TABLE IF NOT EXISTS operator_interruptions (
+  id               TEXT    PRIMARY KEY,          -- 'oi_' || randomHex(8)
+  user_id          TEXT    NOT NULL,             -- operator scope (users.id)
+  installation_id  INTEGER,                      -- optional GitHub App installation scope
+  source_agent     TEXT    NOT NULL,             -- e.g. 'fleet-executor/purser'
+  source_session   TEXT,                         -- run/session id at the source
+  title            TEXT    NOT NULL,
+  body             TEXT    NOT NULL,
+  urgency          TEXT    NOT NULL CHECK (urgency IN ('low','normal','high','critical')),
+  state            TEXT    NOT NULL DEFAULT 'open'
+                           CHECK (state IN ('open','acked','answered','expired')),
+  answer           TEXT,                         -- operator's answer text (answered only)
+  created_at       INTEGER NOT NULL,             -- unix seconds
+  last_nagged_at   INTEGER,                      -- last DELIVERED page for this row
+  nag_count        INTEGER NOT NULL DEFAULT 0,   -- delivered nags (digest delivery counts)
+  decay_stage      INTEGER NOT NULL DEFAULT 0,   -- backoff stage; advances with nag_count
+  next_nag_at      INTEGER NOT NULL,             -- jittered due time; advances ONLY on delivery
+  closed_at        INTEGER,                      -- when it left 'open'
+  gave_up_paged_at INTEGER                       -- final "gave up" page delivery pin
+);
+CREATE INDEX IF NOT EXISTS interruptions_state_due_idx
+  ON operator_interruptions (state, next_nag_at);
+CREATE INDEX IF NOT EXISTS interruptions_user_idx
+  ON operator_interruptions (user_id, state);
+CREATE INDEX IF NOT EXISTS interruptions_source_idx
+  ON operator_interruptions (user_id, source_agent, created_at);
+
+-- Per-operator page-budget ledger: one row per DELIVERED page. Pruned at 24h.
+CREATE TABLE IF NOT EXISTS interruption_pages (
+  id      TEXT    PRIMARY KEY,                   -- 'ip_' || randomHex(8)
+  user_id TEXT    NOT NULL,
+  kind    TEXT    NOT NULL CHECK (kind IN ('nag','gave-up','digest')),
+  sent_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS interruption_pages_user_idx
+  ON interruption_pages (user_id, sent_at);
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- X2 REMOTE HARBORS v1 — keypair + namespace + membership, nothing more
+-- (docs/proposals/relay-grand-plan.md §X2; src/harbors.ts; migration
+-- 2026-08-04-remote-harbors.sql).
+--
+-- harbors            — a NAME in a NAMESPACE plus an ed25519 PUBKEY. The
+--                      keypair is generated CLIENT-side and only the public
+--                      half ever reaches the relay — the relay signs nothing
+--                      on a harbor's behalf. The namespace is the creator's
+--                      GitHub login (server-derived, never client-supplied),
+--                      so namespaces cannot be squatted.
+-- harbor_memberships — who belongs to a harbor (a relay user account or a
+--                      daemon identity) and with what role. NOT the legacy
+--                      zero-trust `harbor_members` daemon-admission table the
+--                      publish/handshake path gates on (src/handlers.ts):
+--                      a row HERE grants operator-plane API visibility only,
+--                      never channel publish rights.
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS harbors (
+  id         TEXT    PRIMARY KEY,               -- 'h_' || randomHex(16)
+  namespace  TEXT    NOT NULL,                  -- creator's GitHub login, lowercased (server-derived)
+  name       TEXT    NOT NULL,                  -- client-chosen short name, lowercased
+  pubkey     TEXT    NOT NULL,                  -- ed25519 public key, 64 hex chars (client-generated)
+  created_by TEXT    NOT NULL REFERENCES users(id),
+  created_at INTEGER NOT NULL,                  -- unix seconds
+  UNIQUE (namespace, name)
+);
+
+CREATE TABLE IF NOT EXISTS harbor_memberships (
+  harbor_id   TEXT    NOT NULL REFERENCES harbors(id),
+  member_kind TEXT    NOT NULL CHECK (member_kind IN ('user','daemon')),
+  member_id   TEXT    NOT NULL,                 -- users.id ('user') or identities.daemon_fingerprint ('daemon')
+  role        TEXT    NOT NULL CHECK (role IN ('owner','member')),
+  added_at    INTEGER NOT NULL,                 -- unix seconds
+  added_by    TEXT    NOT NULL,                 -- users.id of the operator who added the row
+  PRIMARY KEY (harbor_id, member_kind, member_id)
+);
+CREATE INDEX IF NOT EXISTS harbor_memberships_member_idx
+  ON harbor_memberships (member_kind, member_id);
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- X3 PRESENCE + HELM v1 — presence first, the Helm without ballots
+-- (docs/proposals/relay-grand-plan.md §X3, D5/D6; src/presence.ts; migration
+-- 2026-08-04-x3-presence-helm.sql).
+--
+-- Presence itself lives in the HarborChannel Durable Object (hot, TTL ~90s —
+-- not a D1 concern). D1 holds only the AUTHORITY record + its audit trail:
+--
+-- harbor_helms — one explicit authority record per harbor: holder + ORDERED
+--                succession list, owner-set. NO voting machinery, ever (D6):
+--                the helm changes only by an owner's PUT or the dead-man rule
+--                (holder presence expired past grace ⇒ next PRESENT
+--                successor). `seq` is the dead-man CAS guard.
+-- helm_events  — append-only audit rows; every helm change (owner set,
+--                dead-man pass, dead-man vacancy) lands here. A helm NEVER
+--                changes silently.
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS harbor_helms (
+  harbor_id       TEXT    PRIMARY KEY REFERENCES harbors(id),
+  holder_kind     TEXT    CHECK (holder_kind IN ('user','daemon')),  -- NULL when vacant
+  holder_id       TEXT,                          -- users.id ('user') or identities.daemon_fingerprint ('daemon')
+  holder_label    TEXT,                          -- display label captured at set time (login / fingerprint)
+  succession_json TEXT    NOT NULL,              -- ordered JSON array of {kind,id,label}
+  state           TEXT    NOT NULL CHECK (state IN ('held','vacant')),
+  vacant_flagged  INTEGER NOT NULL DEFAULT 0,    -- 1 after a dead-man pass found NO present successor
+  seq             INTEGER NOT NULL,              -- bumps on every change; dead-man CAS guard
+  updated_at      INTEGER NOT NULL,              -- unix seconds
+  updated_by      TEXT    NOT NULL               -- users.id (owner PUT) or 'relay:dead-man'
+);
+
+CREATE TABLE IF NOT EXISTS helm_events (
+  id        TEXT    PRIMARY KEY,                 -- 'he_' || randomHex(8)
+  harbor_id TEXT    NOT NULL REFERENCES harbors(id),
+  at        INTEGER NOT NULL,                    -- unix seconds
+  kind      TEXT    NOT NULL CHECK (kind IN ('helm_set','dead_man_pass','dead_man_vacant')),
+  detail    TEXT    NOT NULL                     -- JSON: {from,to,...} — who held, who took over, why
+);
+CREATE INDEX IF NOT EXISTS helm_events_harbor_idx ON helm_events (harbor_id, at);
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- X4 PARLEY v1 — signed multi-party agreements over harbors
+-- (docs/proposals/relay-grand-plan.md §X4; src/parleys.ts; migration
+-- 2026-08-04-x4-parleys.sql).
+--
+-- parleys          — one artifact per convened parley: harbor, subject,
+--                    proposer, hard deadline, and a three-state machine:
+--                    open → agreed | lapsed. AGREED requires every NAMED
+--                    party to have signed 'accept'; a non-open parley is
+--                    IMMUTABLE. Expiry is checked lazily on read/write —
+--                    parley is never a liveness hole.
+-- parley_positions — one row per participant identity. is_party=1 rows are
+--                    NAMED parties whose signed 'accept' is required;
+--                    is_party=0 rows are reserved observers — v1 reserves
+--                    the tier-labeled 'pd-mediator' seat with NO
+--                    auto-behavior (the mediator's real body is plan-gated).
+--                    A signed position (stance + text + signed_at) is
+--                    write-once: signatures are never edited.
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS parleys (
+  id             TEXT    PRIMARY KEY,            -- 'p_' || randomHex(16)
+  harbor_id      TEXT    NOT NULL REFERENCES harbors(id),
+  subject        TEXT    NOT NULL,               -- what is being agreed (free text, bounded)
+  proposer_id    TEXT    NOT NULL REFERENCES users(id),
+  proposer_label TEXT    NOT NULL,               -- login captured at convene time
+  state          TEXT    NOT NULL CHECK (state IN ('open','agreed','lapsed')),
+  deadline_at    INTEGER NOT NULL,               -- unix seconds; default now + 24h
+  created_at     INTEGER NOT NULL,               -- unix seconds
+  resolved_at    INTEGER                         -- unix seconds when agreed/lapsed; NULL while open
+);
+CREATE INDEX IF NOT EXISTS parleys_harbor_idx ON parleys (harbor_id, created_at);
+
+CREATE TABLE IF NOT EXISTS parley_positions (
+  parley_id   TEXT    NOT NULL REFERENCES parleys(id),
+  party_kind  TEXT    NOT NULL CHECK (party_kind IN ('user','daemon','mediator')),
+  party_id    TEXT    NOT NULL,                  -- users.id / identities.daemon_fingerprint / 'pd-mediator'
+  party_label TEXT    NOT NULL,                  -- login / fingerprint / 'pd-mediator'
+  tier        TEXT    NOT NULL,                  -- 'human' | identity proof_method | 'mediator'
+  is_party    INTEGER NOT NULL,                  -- 1 = named party (accept required); 0 = reserved observer
+  stance      TEXT    CHECK (stance IN ('accept','reject')),  -- NULL until signed
+  position    TEXT,                              -- free text signed alongside the stance
+  signed_at   INTEGER,                           -- unix seconds; NULL until signed (write-once)
+  PRIMARY KEY (parley_id, party_kind, party_id)
+);
