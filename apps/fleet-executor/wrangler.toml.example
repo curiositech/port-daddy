@@ -147,6 +147,14 @@ PORT_DADDY_TELEMETRY_URL = ""
 # ingest that accepts bearer-token publishes. OPTIONAL and DISABLED by default:
 # leave empty ⇒ zero fetches, feature silently off. Events are best-effort —
 # they can never block or change a run, a verdict, or the merge gate.
+#
+# TENANCY CONSENT: env wiring alone is NOT enough. Events carry the tenant
+# repo's name, PR numbers, verdicts, and stacked-PR urls onto a shared
+# channel, so the executor additionally requires the TENANT repo to opt in
+# with a top-level `squidEvents: true` under `fleet:` in its pd-fleet.yml
+# (read from the trusted default branch; default false — see
+# parseFleetSquidEvents in src/fleet.ts). Repos that haven't opted in emit
+# nothing, even with both RELAY_PUBLISH_* values set.
 RELAY_PUBLISH_URL = ""
 
 # Human-facing run page (ADR-0101 Phase 0). When BOTH this and the

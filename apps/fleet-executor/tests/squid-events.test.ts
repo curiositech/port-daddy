@@ -1,9 +1,10 @@
 /**
  * Tests for the cloud squid (src/squid-events.ts): fire-and-forget coordination
  * events on channel 'fleet-cloud'. The hard contract under test: silently
- * disabled unless BOTH vars are set, correct envelope + bearer auth when
- * enabled, and NEVER throwing — not on a rejected fetch, not on a throwing
- * fetch, not on a bogus URL.
+ * disabled unless BOTH vars are set AND the tenant repo consented via
+ * `squidEvents: true` in pd-fleet.yml (the required tenantOptIn param),
+ * correct envelope + bearer auth when enabled, and NEVER throwing — not on a
+ * rejected fetch, not on a throwing fetch, not on a bogus URL.
  */
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
@@ -24,10 +25,20 @@ const PAYLOAD = { repo: 'o/r', pr: 7, runId: 'run:d-1' };
 describe('emitSquidEvent', () => {
   it('is silently disabled when either var is missing (zero fetches)', () => {
     const fn = stubFetch();
-    emitSquidEvent({}, 'run-started', PAYLOAD);
-    emitSquidEvent({ RELAY_PUBLISH_URL: 'https://relay.example/pub' }, 'run-started', PAYLOAD);
-    emitSquidEvent({ RELAY_PUBLISH_TOKEN: 'tok' }, 'run-started', PAYLOAD);
-    emitSquidEvent({ RELAY_PUBLISH_URL: '', RELAY_PUBLISH_TOKEN: '' }, 'run-started', PAYLOAD);
+    emitSquidEvent({}, 'run-started', PAYLOAD, true);
+    emitSquidEvent({ RELAY_PUBLISH_URL: 'https://relay.example/pub' }, 'run-started', PAYLOAD, true);
+    emitSquidEvent({ RELAY_PUBLISH_TOKEN: 'tok' }, 'run-started', PAYLOAD, true);
+    emitSquidEvent({ RELAY_PUBLISH_URL: '', RELAY_PUBLISH_TOKEN: '' }, 'run-started', PAYLOAD, true);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('is silently disabled without tenant consent, even with both vars set (zero fetches)', () => {
+    const fn = stubFetch();
+    const env = { RELAY_PUBLISH_URL: 'https://relay.example/pub', RELAY_PUBLISH_TOKEN: 'tok' };
+    emitSquidEvent(env, 'run-started', PAYLOAD, false);
+    // Strict `=== true` gate: a truthy-but-not-true value is NOT consent.
+    emitSquidEvent(env, 'run-started', PAYLOAD, 1 as unknown as boolean);
+    emitSquidEvent(env, 'run-started', PAYLOAD, 'true' as unknown as boolean);
     expect(fn).not.toHaveBeenCalled();
   });
 
@@ -37,6 +48,7 @@ describe('emitSquidEvent', () => {
       { RELAY_PUBLISH_URL: 'https://relay.example/pub', RELAY_PUBLISH_TOKEN: 'sekrit' },
       'ship-verdict',
       { ...PAYLOAD, ship: 'code-reviewer', verdict: 'PASS' },
+      true,
     );
     expect(fn).toHaveBeenCalledTimes(1);
     const [url, init] = fn.mock.calls[0] as unknown as [string, RequestInit];
@@ -62,6 +74,7 @@ describe('emitSquidEvent', () => {
         { RELAY_PUBLISH_URL: 'https://relay.example/pub', RELAY_PUBLISH_TOKEN: 't' },
         'run-concluded',
         { ...PAYLOAD, verdict: 'success' },
+        true,
       ),
     ).not.toThrow();
     // Let the rejected promise settle — an unhandled rejection would fail the test.
@@ -78,6 +91,7 @@ describe('emitSquidEvent', () => {
         { RELAY_PUBLISH_URL: 'https://relay.example/pub', RELAY_PUBLISH_TOKEN: 't' },
         'pr-stacked',
         { ...PAYLOAD, ship: 'spark', url: 'https://github.com/x' },
+        true,
       ),
     ).not.toThrow();
   });
