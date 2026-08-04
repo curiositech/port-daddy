@@ -44,7 +44,7 @@ describe('reproducible whitepaper source scoping', () => {
     expect(sources.some((source) => source.includes('/figures/fig-stp-'))).toBe(false);
   });
 
-  test('paper_epoch equals the newest commit among the enumerated sources', () => {
+  test('paper_epoch equals the newest source commit author time', () => {
     const sources = bashFunction(
       'paper_sources',
       'website-v2/public/whitepaper',
@@ -52,7 +52,7 @@ describe('reproducible whitepaper source scoping', () => {
     ).split('\n');
     const expected = execFileSync(
       'git',
-      ['log', '-1', '--format=%ct', 'HEAD', '--', ...sources],
+      ['log', '-1', '--format=%at', 'HEAD', '--', ...sources],
       { cwd: repoRoot, encoding: 'utf8' },
     ).trim();
     const actual = bashFunction(
