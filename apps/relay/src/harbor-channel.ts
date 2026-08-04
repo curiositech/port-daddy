@@ -10,6 +10,15 @@
  *   - Revocation broadcast: relay calls broadcastRevocation(), DO fans out
  *   - Heartbeat emission every 25s via DO alarm
  *   - Rate limiting per publisher per minute (atomic counter)
+ *   - Per-harbor presence roster (grand-plan X3 v1): principals heartbeat via
+ *     `presence-beat` and are listed via `presence-list`. Entries live in DO
+ *     storage keyed `presence:<kind>:<id>` so the roster survives DO eviction.
+ *     The DO stores raw last_seen timestamps and does NOT decide who is
+ *     "online" — TTL/grace policy lives in the Worker (src/presence.ts),
+ *     which also authenticates every beat before it reaches this object.
+ *     Expired entries are retained (pruned only after PRESENCE_PRUNE_SECONDS)
+ *     because the Helm dead-man rule needs to measure HOW LONG a holder has
+ *     been gone, not merely that they are.
  *
  * Note: Workers environment does not support SharedMemory; the DO is the
  * serialization point for all writes to a single channel. This ensures
@@ -29,6 +38,25 @@ interface SubscriberWriter {
   writer: WritableStreamDefaultWriter<Uint8Array>;
   fromSeq: number;
 }
+
+/** One presence roster entry, as stored in DO storage (X3 v1). */
+export interface PresenceEntry {
+  kind: 'user' | 'daemon';
+  id: string;
+  /** Display label captured at beat time: GitHub login / daemon fingerprint. */
+  label: string;
+  /** Identity tier: 'human' for signed-in operators; the identity registry's
+   *  proof_method ('oidc' | 'acme' | 'wot') for daemons. */
+  tier: string;
+  /** Unix seconds of the last accepted heartbeat. */
+  last_seen: number;
+}
+
+/** Entries with last_seen older than this are pruned from DO storage. Far
+ *  larger than the online TTL (90s) on purpose — see the class doc comment. */
+export const PRESENCE_PRUNE_SECONDS = 24 * 3600;
+
+const PRESENCE_PREFIX = 'presence:';
 
 export class HarborChannel implements DurableObject {
   private subscribers = new Map<string, SubscriberWriter>();
@@ -69,6 +97,21 @@ export class HarborChannel implements DurableObject {
         return Response.json({ allowed });
       }
 
+      case 'presence-beat': {
+        // Trust boundary: the Worker (src/presence.ts) has already
+        // authenticated the principal and checked harbor membership before
+        // this call — the DO only records what the member gate admitted.
+        const body = await request.json() as PresenceEntry;
+        await this.state.storage.put(`${PRESENCE_PREFIX}${body.kind}:${body.id}`, body);
+        await this.prunePresence(body.last_seen);
+        return new Response(null, { status: 204 });
+      }
+
+      case 'presence-list': {
+        const map = await this.state.storage.list<PresenceEntry>({ prefix: PRESENCE_PREFIX });
+        return Response.json({ entries: [...map.values()] });
+      }
+
       case 'subscribe': {
         // SSE stream upgrade: return a ReadableStream the Worker pipes to the client.
         const sessionId = url.searchParams.get('session_id') ?? '';
@@ -87,6 +130,17 @@ export class HarborChannel implements DurableObject {
     await this.fanout({ type: 'heartbeat', payload });
     // Re-arm
     await this.scheduleAlarm();
+  }
+
+  /** Drop presence entries not seen for PRESENCE_PRUNE_SECONDS (bounds storage
+   *  growth; expired-but-recent entries are deliberately KEPT — dead-man). */
+  private async prunePresence(now: number): Promise<void> {
+    const map = await this.state.storage.list<PresenceEntry>({ prefix: PRESENCE_PREFIX });
+    const stale: string[] = [];
+    for (const [key, entry] of map) {
+      if (now - entry.last_seen > PRESENCE_PRUNE_SECONDS) stale.push(key);
+    }
+    if (stale.length > 0) await this.state.storage.delete(stale);
   }
 
   private async scheduleAlarm(): Promise<void> {
