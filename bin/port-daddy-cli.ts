@@ -1391,7 +1391,7 @@ const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'work', 'transcripts', 'transcript', 'relay',
-  'harbor', 'harbors', 'harbor-ledger', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'skill-graft', 'skillgraft', 'memory', 'ideas',
+  'harbor', 'harbors', 'harbor-ledger', 'whois', 'demo', 'fleet', 'backend', 'continuation', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'skill-graft', 'skillgraft', 'memory', 'ideas',
   'quorum', 'parley',
   'feedback',
   'commit', 'obligations',
@@ -3217,6 +3217,13 @@ export async function main(): Promise<void> {
       case 'backend': {
         const { handleBackend } = await import('../cli/commands/backend.js');
         await handleBackend(positional, options);
+        break;
+      }
+
+      // Continuation — witnessed N:N continuation coverage (witness-sweep, matrix).
+      case 'continuation': {
+        const { handleContinuation } = await import('../cli/commands/continuation.js');
+        await handleContinuation(positional, options);
         break;
       }
 

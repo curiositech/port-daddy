@@ -192,6 +192,35 @@ describe('POST /memory/handoffs', () => {
     state.db.close();
   });
 
+  test('tags an uncatalogued source adapter unregistered so it can never collide with a future family', async () => {
+    const state = await buildApp();
+    const response = await state.app.inject({
+      method: 'POST',
+      url: '/memory/handoffs',
+      payload: {
+        capsule: capsule({
+          source: {
+            adapter: 'totally-unknown-harness',
+            sessionId: SOURCE_SESSION_ID,
+            agentId: 'probe-agent',
+            workflowId: null,
+            transcriptRef: null,
+          },
+        }),
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json();
+    expect(body.success).toBe(true);
+    // Raw fallback would have minted a grid-orphan family named after the raw
+    // id; the explicit prefix keeps the receipt truthful and unmatchable.
+    expect(body.nativeResume.adapterFamily).toBe('unregistered:totally-unknown-harness');
+
+    await state.app.close();
+    state.db.close();
+  });
+
   test('persists the sanitized handoff when coordination harvest fails', async () => {
     const state = await buildApp({
       harvestSessionFn: jest.fn(async () => {

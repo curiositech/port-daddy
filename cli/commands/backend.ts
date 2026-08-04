@@ -28,7 +28,7 @@ import { writeFileSync, readFileSync, existsSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 
-import { pdFetch } from '../utils/fetch.js';
+import { pdFetch, isDaemonRunning } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { CLIOptions, isJson } from '../types.js';
 import {
@@ -45,6 +45,7 @@ import { probeHarnessAdapters, type HarnessProbeStatus } from '../../lib/harness
 import {
   buildHarnessContinuationMatrix,
   renderHarnessContinuationMatrix,
+  type HarnessContinuationMatrixReport,
 } from '../../lib/harness-conformance.js';
 
 interface FleetModelEntry {
@@ -140,12 +141,29 @@ function probeBadge(status: HarnessProbeStatus): string {
   }
 }
 
+async function fetchDaemonMatrix(): Promise<HarnessContinuationMatrixReport | null> {
+  try {
+    const res = await pdFetch('/harness-adapters/continuation-matrix');
+    if (!res.ok) return null;
+    const body = await res.json();
+    return (body.data as HarnessContinuationMatrixReport | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function adaptersCommand(options: CLIOptions): Promise<void> {
   const rows = harnessAdapterCapabilityRows();
   const probe = options.probe ? probeHarnessAdapters() : null;
-  const matrix = buildHarnessContinuationMatrix({ discovery: probe });
+  // Prefer the daemon's matrix: it carries durable witnesses (spawn transcripts,
+  // continuation receipts). The local build is a mechanics-only fallback that can
+  // never show a witnessed cell — rendering it while a daemon is up would keep
+  // the CLI lying "0 witnessed" forever.
+  const daemonMatrix = (await isDaemonRunning()) ? await fetchDaemonMatrix() : null;
+  const matrix = daemonMatrix ?? buildHarnessContinuationMatrix({ discovery: probe });
+  const matrixSource: 'daemon' | 'local-mechanics-only' = daemonMatrix ? 'daemon' : 'local-mechanics-only';
   if (isJson(options)) {
-    console.log(JSON.stringify({ success: true, adapters: rows, probe, matrix }, null, 2));
+    console.log(JSON.stringify({ success: true, adapters: rows, probe, matrixSource, matrix }, null, 2));
     return;
   }
 
@@ -159,6 +177,15 @@ async function adaptersCommand(options: CLIOptions): Promise<void> {
     + `${matrix.summary.nativePaths} native, ${matrix.summary.handoffPaths} sanitized handoff, `
     + `${matrix.summary.unsupportedPaths} unsupported.`,
   );
+  if (matrixSource === 'daemon') {
+    ui.info(
+      `Daemon-witnessed evidence: ${matrix.summary.witnessedPaths} witnessed path(s), `
+      + `${matrix.summary.witnessedPredicates} witnessed predicate(s). `
+      + 'Run `pd continuation matrix` for per-cell witness ids.',
+    );
+  } else {
+    ui.info('Daemon unreachable — mechanics-only local matrix; witnessed cells cannot be shown offline.');
+  }
 
   if (options.matrix) {
     console.log('');

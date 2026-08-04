@@ -12,7 +12,7 @@ import {
   type GitleaksRunner,
   type HandoffCapsuleV0,
 } from '../lib/handoff-capsule.js';
-import { getBackendCatalogEntry, type BackendCatalogEntry } from '../lib/backend-catalog.js';
+import { BACKEND_CATALOG, getBackendCatalogEntry, type BackendCatalogEntry } from '../lib/backend-catalog.js';
 import {
   ContinuationIdempotencyConflictError,
   createContinuationStore,
@@ -137,8 +137,19 @@ function continuationErrorMessage(error: unknown, gitleaksRunner?: GitleaksRunne
   }
 }
 
+const KNOWN_ADAPTER_FAMILIES: ReadonlySet<string> = new Set(
+  BACKEND_CATALOG.map((entry) => entry.adapter.family),
+);
+
 function sourceAdapterFamily(adapter: string): string {
-  return getBackendCatalogEntry(adapter)?.adapter.family ?? adapter;
+  // A backend id maps to its family; a raw family name passes through. An
+  // UNREGISTERED adapter must never silently mint a witness that could later
+  // collide with a future family name: it is tagged `unregistered:<raw>`.
+  // Receipts stay append-only truthful; the conformance matrix simply never
+  // matches an `unregistered:` family.
+  const catalogued = getBackendCatalogEntry(adapter)?.adapter.family;
+  if (catalogued) return catalogued;
+  return KNOWN_ADAPTER_FAMILIES.has(adapter) ? adapter : `unregistered:${adapter}`;
 }
 
 function requestedContinuationMode(value: unknown): RequestedContinuationMode {

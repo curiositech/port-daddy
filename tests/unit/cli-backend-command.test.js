@@ -7,6 +7,9 @@ const mockPdFetch = jest.fn();
 
 jest.unstable_mockModule('../../cli/utils/fetch.js', () => ({
   pdFetch: mockPdFetch,
+  // Offline in these tests: adaptersCommand must fall back to the
+  // mechanics-only local matrix instead of fetching daemon witnesses.
+  isDaemonRunning: async () => false,
   PORT_DADDY_URL: 'http://127.0.0.1:9876',
 }));
 
