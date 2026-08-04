@@ -183,10 +183,19 @@ function resolveDiagnosticPort(): number {
  * @returns `true` when no endpoint or runtime-path override is in effect, so
  *   the canonical local authorities genuinely describe the addressed daemon.
  */
-function isCanonicalRuntimeTarget(): boolean {
+export function isCanonicalRuntimeTarget(): boolean {
+  // Every env var that can point this CLI at a daemon other than the canonical
+  // one. The list is derived from the ACTUAL resolvers, not from memory:
+  // shared/daemon-discovery.ts resolves the TCP target from PORT_DADDY_PORT
+  // FIRST (before the daemon.port file), and PORT_DADDY_TCP_HOST moves the host
+  // — omitting either reintroduces the exact false "control plane diverged"
+  // verdict this function exists to prevent, because we would compare a
+  // redirected daemon's /health against the canonical ~/.port-daddy files.
   const overrides = [
     process.env.PORT_DADDY_URL,
     process.env.PORT_DADDY_SOCK,
+    process.env.PORT_DADDY_PORT,
+    process.env.PORT_DADDY_TCP_HOST,
     process.env.PORT_DADDY_PREFIX,
     process.env.PORT_DADDY_PID_FILE,
     process.env.PORT_DADDY_PORT_FILE,
