@@ -1,7 +1,7 @@
 ---
 license: Apache-2.0
 name: solo-operator-business-site
-description: Build a complete marketing site + phone-first "control center" for a one-person local business (estate sales, trades, services) on Cloudflare Workers + R2 with zero monthly cost — including gated third-party integrations the owner connects themselves, sample content that retires itself, printable business paperwork, and a one-command launch flip. Use when a non-technical solo operator needs to run the whole thing from their phone after handoff. NOT for multi-tenant SaaS, content-heavy publications, or teams with a developer on staff.
+description: Build a complete marketing site + phone-first "control center" for a one-person local business (estate sales, trades, services) on Cloudflare Workers + R2 at minimal ongoing cost (often $0/month on the free tier at local-business traffic) — including gated third-party integrations the owner connects themselves, sample content that retires itself, printable business paperwork, and a one-command launch flip. Use when a non-technical solo operator needs to run the whole thing from their phone after handoff. NOT for multi-tenant SaaS, content-heavy publications, or teams with a developer on staff.
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob,WebFetch
 argument-hint: '[project-dir]'
 metadata:
@@ -26,7 +26,9 @@ metadata:
     - skill: nano-banana-image-gen
       reason: generates the photography set (objects, houses, crew) with style-template reference images so future photos composite consistently
     - skill: ux-friction-analyzer
-      reason: run it AND product-reality-reviewer as agents once feature-complete; fold findings into a fixed-vs-deferred table
+      reason: run it as an agent once feature-complete; fold findings into a fixed-vs-deferred table
+    - skill: product-reality-reviewer
+      reason: the second lens of the feature-complete audit — what the site claims vs what actually works — run alongside ux-friction-analyzer
 ---
 
 # Solo-operator business site
