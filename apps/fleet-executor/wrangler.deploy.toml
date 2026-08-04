@@ -115,6 +115,12 @@ dead_letter_queue = "fleet-runs-dlq"
 RUN_DETAILS_BASE_URL = "https://relay.portdaddy.dev"
 GITHUB_APP_ID = "3810450"
 DEFAULT_BRANCH = "main"
+# XO synthesis officer model (src/xo.ts): the idea editor pass + the advisory
+# "XO's orders" triage, active only for tenants with `xo: true` in pd-fleet.yml.
+# Workers AI ONLY — must be a `@cf/` id; any other value is ignored and the
+# executor falls back to this default (resolveXoModel). The deepseek-r1 distill
+# emits <think> reasoning spans; the executor strips them before parsing.
+XO_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
 
 # ---------------------------------------------------------------------------
 # Secrets (documented; set via `wrangler secret put`, never committed):
