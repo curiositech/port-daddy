@@ -87,17 +87,8 @@ resolve_daemon_url() {
   fi
 
   local pd_home="${PORT_DADDY_HOME:-${HOME:-}/.port-daddy}"
-  local console_url_file="$pd_home/console-daemon.url"
   local daemon_port_file="${PORT_DADDY_PORT_FILE:-$pd_home/daemon.port}"
   local value=""
-
-  if [[ -r "$console_url_file" ]]; then
-    value="$(sed -n '1{s/[[:space:]]*$//;p;q;}' "$console_url_file")"
-    if [[ -n "$value" ]]; then
-      printf '%s\n' "$value"
-      return 0
-    fi
-  fi
 
   if [[ -r "$daemon_port_file" ]]; then
     value="$(sed -n 's/[^0-9].*$//; /^[0-9][0-9]*$/p; q' "$daemon_port_file")"
@@ -360,7 +351,7 @@ require_cmd cargo
 require_cmd screencapture
 require_cmd xcrun
 DAEMON_URL="$(resolve_daemon_url || true)"
-[[ -n "$DAEMON_URL" ]] || fail_intervention "Could not resolve the Port Daddy daemon URL from PORT_DADDY_URL, ~/.port-daddy/console-daemon.url, or ~/.port-daddy/daemon.port."
+[[ -n "$DAEMON_URL" ]] || fail_intervention "Could not resolve the Port Daddy daemon URL from PORT_DADDY_URL or the atomically published ~/.port-daddy/daemon.port."
 
 if [[ ! -x "$SOURCE_BIN" ]]; then
   echo "building release window (cargo build --release --features gpui)..."

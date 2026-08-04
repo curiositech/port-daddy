@@ -38,25 +38,27 @@ at 5s instead of hanging your script.
 
 ## Daemon selection for a console instance
 
-Discovery order (`DaemonClient::discover`): `PORT_DADDY_URL` env →
-`~/.port-daddy/console-daemon.url` (one-line URL file — the operator's
-"use this daemon" switch; DELETE it when done or every future console launch
-silently pins to your dev daemon) → canonical `~/.port-daddy/daemon.port`.
-Env only reaches the process on DIRECT binary launches or `open --env`;
-LaunchServices does not inherit your shell.
+Discovery order (`DaemonClient::discover`): explicit `PORT_DADDY_URL` → the
+canonical daemon's atomically published `~/.port-daddy/daemon.port`. Named
+feature daemons are selected with `pd use <label>` and passed to the launched
+console process. There is no persistent console-only selector to outlive a dev
+daemon and shadow the healthy stable endpoint. Environment only reaches the
+process on direct binary launches or `open --env`; LaunchServices does not
+inherit your shell.
 
 To serve worktree source (e.g. routes the release daemon lacks) on a named
 profile:
 
 ```bash
-PORT_DADDY_ALLOW_SOURCE_DAEMON=1 npx tsx bin/port-daddy-cli.ts daemon start <name> --port <p>
-# Profile DB is ISOLATED at ~/.port-daddy/instances/<name>/port-daddy.db —
-# seed real data with:  sqlite3 <source.db> ".backup '<profile db path>'"
+pd dev up --from "$PWD" --label <name>
+eval "$(pd use <name>)"
+open -n --env PORT_DADDY_URL="$PORT_DADDY_URL" \
+  -a ~/Applications/pd-console-dev-apps/pd-console-dev-<name>.app
 ```
 
-Beware port squatters: if a stopped profile's port starts answering again
-with 404s on your new routes, a RELEASE daemon respawned there (split-brain
-fallback). Don't fight it — move to a fresh port and `rebind` via the socket.
+The named daemon owns an isolated state plane and publishes the endpoint it
+actually bound. If an endpoint stops identifying as that label, recreate the
+berth and rebind through the new `pd use` output; never guess or preserve a port.
 
 ## The verify-then-capture doctrine
 

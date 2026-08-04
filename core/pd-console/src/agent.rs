@@ -391,41 +391,45 @@ fn sse_status_is_retryable(status: reqwest::StatusCode) -> bool {
     status == reqwest::StatusCode::TOO_MANY_REQUESTS || status.is_server_error()
 }
 
+fn discover_daemon_base(
+    explicit_url: Option<&str>,
+    home: Option<&std::path::Path>,
+) -> Result<String> {
+    if let Some(url) = explicit_url.map(str::trim).filter(|url| !url.is_empty()) {
+        return Ok(url.to_string());
+    }
+
+    let port_file = home
+        .map(|path| path.join(".port-daddy/daemon.port"))
+        .ok_or_else(|| anyhow!("cannot locate the Port Daddy home directory"))?;
+    let port = std::fs::read_to_string(&port_file)
+        .with_context(|| format!("cannot read the daemon endpoint at {}", port_file.display()))?
+        .trim()
+        .parse::<u16>()
+        .with_context(|| format!("invalid daemon port in {}", port_file.display()))?;
+    if port == 0 {
+        return Err(anyhow!("invalid daemon port in {}", port_file.display()));
+    }
+    Ok(format!("http://127.0.0.1:{port}"))
+}
+
 impl DaemonClient {
     pub fn discover() -> Result<Self> {
         // Resolution order, highest priority first:
         //   1. `PORT_DADDY_URL` env — explicit override for one launch.
-        //   2. `~/.port-daddy/console-daemon.url` — the operator's selected daemon
-        //      (a one-line URL). This is the console's "use this daemon" switch:
-        //      point it at a dev berth (e.g. http://127.0.0.1:9886) WITHOUT
-        //      clobbering the canonical daemon.port. Delete the file to fall back
-        //      to stable. The status bar shows which URL is live.
-        //   3. `~/.port-daddy/daemon.port` — the canonical (stable) daemon.
-        if let Ok(url) = std::env::var("PORT_DADDY_URL") {
-            return Ok(Self::new(url));
-        }
-        let home = dirs::home_dir();
-        if let Some(url) = home
-            .as_ref()
-            .map(|h| h.join(".port-daddy/console-daemon.url"))
-            .and_then(|p| std::fs::read_to_string(p).ok())
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-        {
-            return Ok(Self::new(url));
-        }
-        let port = home
-            .map(|h| h.join(".port-daddy/daemon.port"))
-            .and_then(|p| std::fs::read_to_string(p).ok())
-            .and_then(|s| s.trim().parse::<u16>().ok())
-            .ok_or_else(|| {
-                anyhow!(
-                    "cannot locate the Port Daddy daemon: set PORT_DADDY_URL, write \
-                     ~/.port-daddy/console-daemon.url, or start the daemon (it writes \
-                     ~/.port-daddy/daemon.port)"
-                )
-            })?;
-        Ok(Self::new(format!("http://127.0.0.1:{port}")))
+        //   2. `~/.port-daddy/daemon.port` — the endpoint atomically published by
+        //      the canonical daemon after it binds.
+        //
+        // Named feature daemons are selected explicitly with `PORT_DADDY_URL`
+        // (`pd use <label>` / `pd --daemon <label>`). There is deliberately no
+        // second console-only URL file: an abandoned selector outlived its dev
+        // daemon and made the console report "unreachable" while stable was
+        // healthy on its published dynamic port.
+        let explicit = std::env::var("PORT_DADDY_URL").ok();
+        Ok(Self::new(discover_daemon_base(
+            explicit.as_deref(),
+            dirs::home_dir().as_deref(),
+        )?))
     }
 
     /// Construct a client against an already-resolved base URL (e.g. the value
@@ -1323,6 +1327,49 @@ fn extract_text(payload: Option<&serde_json::Value>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn discovery_test_home() -> std::path::PathBuf {
+        let root = std::env::current_dir()
+            .expect("test working directory")
+            .join("target/pd-console-discovery-tests")
+            .join(work_token());
+        std::fs::create_dir_all(&root).expect("test home");
+        root
+    }
+
+    #[test]
+    fn daemon_discovery_uses_explicit_named_daemon_url() {
+        let base = discover_daemon_base(Some(" http://127.0.0.1:3174/ "), None)
+            .expect("explicit named daemon URL");
+        assert_eq!(base, "http://127.0.0.1:3174/");
+    }
+
+    #[test]
+    fn daemon_discovery_reads_the_atomically_published_port() {
+        let root = discovery_test_home();
+        let state = root.join(".port-daddy");
+        std::fs::create_dir_all(&state).expect("state dir");
+        std::fs::write(state.join("daemon.port"), "3174\n").expect("port file");
+
+        let base = discover_daemon_base(None, Some(&root)).expect("published endpoint");
+        assert_eq!(base, "http://127.0.0.1:3174");
+        std::fs::remove_dir_all(root).expect("remove test home");
+    }
+
+    #[test]
+    fn daemon_discovery_never_consults_a_stale_console_selector() {
+        let root = discovery_test_home();
+        let state = root.join(".port-daddy");
+        std::fs::create_dir_all(&state).expect("state dir");
+        let legacy_selector = ["console", "daemon", "url"].join(".");
+        std::fs::write(state.join(legacy_selector), "http://127.0.0.1:9900\n")
+            .expect("legacy selector fixture");
+        std::fs::write(state.join("daemon.port"), "3174\n").expect("port file");
+
+        let base = discover_daemon_base(None, Some(&root)).expect("published endpoint");
+        assert_eq!(base, "http://127.0.0.1:3174");
+        std::fs::remove_dir_all(root).expect("remove test home");
+    }
 
     #[test]
     fn work_intent_envelope_has_one_creation_authority() {
