@@ -21,7 +21,7 @@
 
 import type { Env } from './types.js';
 import type { UserRow } from './db.js';
-import { resolveSession } from './auth-github.js';
+import { resolveSession, type ResolvedSession } from './auth-github.js';
 
 /** Minimal HTML-escape for interpolated user data (XSS guard). */
 function esc(s: string | null | undefined): string {
@@ -294,6 +294,14 @@ section.sect::before{content:"";position:absolute;top:0;left:0;right:0;height:va
 /* prominent door into the per-account runs index (/account/runs — real page) */
 .runs-cta{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:14.5px;font-weight:700;letter-spacing:.02em;padding:12px 20px;border:2px solid var(--border-strong);background:var(--cobalt-slab);color:var(--cream);text-decoration:none;margin-bottom:18px}
 .runs-cta:hover{background:var(--border-strong);color:var(--surface-base)}
+/* free-tier upsell strip (ADR-0116): shown when none of the operator's GitHub
+   App installations has a credit_ledger row yet. Amber stripe = advisory, not
+   an error; the whole strip is one door into /account/billing. */
+.upsell{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-top:20px;padding:14px 18px;border:2px solid var(--border-strong);box-shadow:inset var(--lw-stripe) 0 0 var(--amber);text-decoration:none;color:var(--text-primary)}
+.upsell:hover{background:var(--surface-raised);color:var(--text-primary)}
+.upsell .u-label{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--amber);flex:none}
+.upsell .u-body{font-size:14.5px;line-height:1.55;color:var(--text-secondary)}
+.upsell .u-body b{font-family:"IBM Plex Mono",monospace;font-size:13.5px;font-weight:700;color:var(--cobalt);white-space:nowrap}
 /* prominent door into the MERCY report card (/account/mercy — real page) */
 .mercy-cta{display:inline-block;margin-top:18px;font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:700;letter-spacing:.02em;padding:10px 18px;border:2px solid var(--border-strong);color:var(--text-primary);text-decoration:none;box-shadow:inset var(--lw-stripe) 0 0 var(--health)}
 .mercy-cta:hover{background:var(--border-strong);color:var(--surface-base)}
@@ -307,8 +315,12 @@ section.sect::before{content:"";position:absolute;top:0;left:0;right:0;height:va
 @media (max-width:860px){.shell{grid-template-columns:1fr}.rail{position:static;min-height:0;border-right:none;border-bottom:2px solid var(--border-strong);padding-bottom:18px}.content{padding:28px 20px 64px}.identity-plate{flex-direction:column}.ko::before{left:-20px}.ko .ko-over{clip-path:inset(-13px calc(100% - var(--ko-r)) -13px -20px)}}
 `;
 
-/** GET /account — the signed-in home. `user` is the resolved session's user. */
-export function renderAccountPage(user: UserRow): string {
+/**
+ * GET /account — the signed-in home. `user` is the resolved session's user.
+ * `opts.showBillingUpsell` renders the free-tier strip (no credit_ledger row on
+ * any installation this user owns → they are running on the free tier).
+ */
+export function renderAccountPage(user: UserRow, opts: { showBillingUpsell?: boolean } = {}): string {
   const name = user.display_name || user.login;
   const created = new Date(user.created_at * 1000).toISOString().slice(0, 10);
   const emailChip = user.primary_email
@@ -345,6 +357,11 @@ export function renderAccountPage(user: UserRow): string {
       <h1 style="margin-top:8px">Your <span class="rec">account</span></h1>
       <p class="caption">Everything here mirrors your daemon. The daemon is the authority; this page is the window.</p>
       <a class="mercy-cta" href="/account/mercy">MERCY — network health report card &rarr;</a>
+      ${
+        opts.showBillingUpsell
+          ? `<a class="upsell" href="/account/billing"><span class="u-label">Free tier</span><span class="u-body">Running on the free tier — add credits and your cloud fleet keeps reviewing PRs when your laptop is closed. <b>Add credits &rarr;</b></span></a>`
+          : ''
+      }
     </div>
 
     <section class="sect first" aria-labelledby="identity-h">
@@ -427,11 +444,60 @@ export function handleLoginPage(): Response {
   return htmlPage(renderLoginPage());
 }
 
+const GH_API = 'https://api.github.com';
+
+/**
+ * Does ANY GitHub App installation this user owns have a billing row (a
+ * credit_ledger entry, ADR-0116)? Drives the free-tier upsell strip on
+ * /account. GitHub stays the source of installation ownership (same doctrine
+ * as userOwnsInstallation); the answer is cached in KV for 5 minutes keyed by
+ * user. Best-effort and fail-open-to-upsell: no gh token, an API error, or a
+ * D1 error all read as "no billing row" — the strip is advisory, never a gate,
+ * and must not be able to sink the page.
+ */
+async function userHasBillingRow(env: Env, session: ResolvedSession): Promise<boolean> {
+  try {
+    if (!session.ghToken) return false;
+    const cacheKey = `billing_row:${session.user.id}`;
+    const cached = await env.KV.get(cacheKey);
+    if (cached === '1') return true;
+    if (cached === '0') return false;
+    const res = await fetch(`${GH_API}/user/installations?per_page=100`, {
+      headers: {
+        Authorization: `Bearer ${session.ghToken}`,
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'port-daddy-relay',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+    if (!res.ok) return false;
+    const body = (await res.json()) as { installations?: Array<{ id?: number }> };
+    const ids = (Array.isArray(body.installations) ? body.installations : [])
+      .map((i) => i.id)
+      .filter((n): n is number => Number.isInteger(n));
+    let has = false;
+    if (ids.length > 0) {
+      const placeholders = ids.map(() => '?').join(',');
+      const row = await env.DB.prepare(
+        `SELECT 1 AS one FROM credit_ledger WHERE installation_id IN (${placeholders}) LIMIT 1`,
+      )
+        .bind(...ids)
+        .first<{ one: number }>();
+      has = Boolean(row);
+    }
+    await env.KV.put(cacheKey, has ? '1' : '0', { expirationTtl: 300 });
+    return has;
+  } catch {
+    return false;
+  }
+}
+
 /** GET /account — session-gated; redirects to /login when not signed in. */
 export async function handleAccountPage(request: Request, env: Env): Promise<Response> {
   const session = await resolveSession(request, env);
   if (!session) {
     return new Response(null, { status: 302, headers: { Location: '/login' } });
   }
-  return htmlPage(renderAccountPage(session.user));
+  const showBillingUpsell = !(await userHasBillingRow(env, session));
+  return htmlPage(renderAccountPage(session.user, { showBillingUpsell }));
 }

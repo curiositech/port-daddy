@@ -349,6 +349,28 @@ curl "$PD_URL/fleet/events"         # SSE stream`}
             </span>
           </li>
         </ul>
+
+        {/* Account CTA — one door into the signed-in surface, benefit first. */}
+        <div className="flex flex-wrap items-center justify-between gap-4 border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-5">
+          <div className="space-y-1">
+            <div className="font-semibold text-[var(--text-primary)]">
+              Your fleet&apos;s receipts, one sign-in away
+            </div>
+            <div className="text-sm text-[var(--text-secondary)]">
+              Every run your GitHub identity can read — ships, verdicts, cost — each with a
+              shareable link. Pair your devices —{' '}
+              <code className="font-mono text-[length:var(--type-meta-size)] text-[var(--brand-primary)]">pd account login</code>{' '}
+              — and the CLI and FleetBar see the same runs.
+            </div>
+          </div>
+          <a
+            href="https://relay.portdaddy.dev/account/runs"
+            className="flex items-center gap-2 bg-[var(--brand-primary)] px-4 py-2 font-medium text-[var(--text-inverse)]"
+          >
+            See your runs
+            <ArrowRight size={16} />
+          </a>
+        </div>
       </div>
 
       {/* 6. Operator setup — honest box */}

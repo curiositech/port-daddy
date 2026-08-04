@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion'
 import { useEffect, useRef } from 'react'
+import { ReceiptText } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
 import { PageContainer, PanelEyebrow, SectionIntro, Wordmark } from '@/components/site/primitives'
 import { ProductLogoLockup, type ProductLogoKey } from '@/components/site/ProductLogos'
 import { MarqueeTrack } from './FeaturedMarquee'
@@ -122,6 +124,17 @@ export function Hero() {
                 <span className="font-semibold uppercase tracking-[var(--tracking-meta)]">
                   + more
                 </span>
+              </div>
+
+              {/* Account CTA — secondary on purpose: install stays the primary
+                  path; signed-in operators get straight to their run receipts. */}
+              <div className="flex flex-wrap gap-[var(--space-3)]">
+                <Button asChild variant="secondary" size="lg">
+                  <a href="https://relay.portdaddy.dev/account/runs">
+                    <ReceiptText size={16} aria-hidden="true" />
+                    See your fleet&apos;s receipts
+                  </a>
+                </Button>
               </div>
 
             </div>
