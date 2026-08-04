@@ -58,9 +58,18 @@ export interface ShipConfig {
    */
   blockWithoutSandbox: boolean;
   /**
-   * Purser only, optional. Path prefixes the purser's authored test files must
-   * live under (e.g. ['tests/purser']). Empty ⇒ any path passing the global
-   * stacked-pr whitelist is allowed.
+   * Purser only, optional (`testPaths:` in pd-fleet.yml). Path prefixes the
+   * purser's authored test files must live under (e.g. ['tests/purser']).
+   * Empty ⇒ any path passing the global stacked-pr whitelist is allowed.
+   */
+  testPaths: string[];
+  /**
+   * ANY ship, optional (`graft: [skill-id, ...]` in pd-fleet.yml). Repo skill
+   * ids whose `skills/<id>/SKILL.md` is fetched from the TRUSTED default
+   * branch and prepended to the ship's prompt under `## Grafted skill: <id>`
+   * (src/skill-graft.ts). Capped at {@link MAX_GRAFTS_PER_SHIP} at parse time;
+   * unknown ids degrade to a transcript warning, never a failure. A purser
+   * declared without a graft list gets {@link PURSER_DEFAULT_GRAFT}.
    */
   graft: string[];
 }
@@ -157,6 +166,8 @@ interface RawAgent {
   /** Purser: block when tests could not be executed (default false). */
   blockWithoutSandbox?: unknown;
   /** Purser: path prefixes authored tests must live under. */
+  testPaths?: unknown;
+  /** Any ship: repo skill ids to graft onto the prompt (skill-graft.ts). */
   graft?: unknown;
 }
 
@@ -226,10 +237,34 @@ function derivePurserModel(agent: RawAgent, name: string): string {
   return deriveCfModel(agent, name);
 }
 
-/** Coerce a `graft:` value into a clean string[] of path prefixes. */
-function coerceGraft(value: unknown): string[] {
+/** Coerce a YAML list value into a clean string[] (drops non-strings/blanks). */
+function coerceStringList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+}
+
+/** Hard cap on grafted skills per ship (mirrors skill-graft.ts). */
+export const MAX_GRAFTS_PER_SHIP = 3;
+
+/**
+ * Default skill graft for a purser declared without a `graft:` list — the two
+ * repo skills that most directly sharpen its job (both verified to exist in
+ * skills/): the adversarial-test-harness playbook and the steel-man method.
+ */
+export const PURSER_DEFAULT_GRAFT: readonly string[] = [
+  'sandboxed-adversarial-test-harness',
+  'steel-man-argument',
+];
+
+/**
+ * Derive a ship's skill-graft list from its `graft:` config. Capped at
+ * {@link MAX_GRAFTS_PER_SHIP}. A purser with no configured graft gets
+ * {@link PURSER_DEFAULT_GRAFT}; every other ship defaults to none.
+ */
+function deriveGraft(value: unknown, purser: boolean): string[] {
+  const ids = coerceStringList(value).slice(0, MAX_GRAFTS_PER_SHIP);
+  if (ids.length === 0 && purser) return [...PURSER_DEFAULT_GRAFT];
+  return ids;
 }
 
 function deriveNeedsExecution(name: string, allowedTools: unknown): boolean {
@@ -306,7 +341,8 @@ export function parseFleetShips(fleetYaml: string, trigger: string): ShipConfig[
       ideation,
       purser,
       blockWithoutSandbox: purser ? coerceBlocking(agent.blockWithoutSandbox) : false,
-      graft: purser ? coerceGraft(agent.graft) : [],
+      testPaths: purser ? coerceStringList(agent.testPaths) : [],
+      graft: deriveGraft(agent.graft, purser),
     });
   }
 
@@ -351,6 +387,7 @@ Be direct. Cite specific lines. Flag ADR violations if you see them.`,
       ideation: false,
       purser: false,
       blockWithoutSandbox: false,
+      testPaths: [],
       graft: [],
     },
     {
@@ -378,6 +415,7 @@ Output:
       ideation: false,
       purser: false,
       blockWithoutSandbox: false,
+      testPaths: [],
       graft: [],
     },
     {
@@ -405,6 +443,7 @@ For each finding: write the falsifiable attack construction and its impact. Be a
       ideation: false,
       purser: false,
       blockWithoutSandbox: false,
+      testPaths: [],
       graft: [],
     },
     {
@@ -460,6 +499,7 @@ Rules:
       ideation: false,
       purser: false,
       blockWithoutSandbox: false,
+      testPaths: [],
       graft: [],
     },
     ...ideationDefaults(),
@@ -491,6 +531,7 @@ function ideationDefaults(): ShipConfig[] {
     ideation: true,
     purser: false,
     blockWithoutSandbox: false,
+    testPaths: [],
     graft: [],
   });
 

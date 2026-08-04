@@ -184,6 +184,12 @@ export interface PRContext {
   title: string;
   body: string;
   headSha: string;
+  /**
+   * The PR's head BRANCH name (e.g. 'feat/widget'). Empty when the payload
+   * omits it. Used as the BASE of an ideation ship's stacked-fix PR so the
+   * ship's code lands ON TOP of the review diff.
+   */
+  headRef: string;
   baseSha: string;
   /** The PR's base BRANCH name (e.g. 'main'). Empty when the payload omits it. */
   baseRef: string;
@@ -222,7 +228,7 @@ export async function fetchPRContext(
     number: number;
     title: string;
     body: string;
-    head: { sha: string; repo?: { full_name?: string } | null };
+    head: { sha: string; ref?: string; repo?: { full_name?: string } | null };
     base: { sha: string; ref?: string; repo?: { full_name?: string } | null };
   };
 
@@ -245,6 +251,7 @@ export async function fetchPRContext(
     title: pr.title ?? '',
     body: pr.body ?? '',
     headSha: pr.head?.sha ?? '',
+    headRef: pr.head?.ref ?? '',
     baseSha: pr.base?.sha ?? '',
     baseRef: pr.base?.ref ?? '',
     isFork: computeIsFork(pr.head?.repo?.full_name, pr.base?.repo?.full_name),

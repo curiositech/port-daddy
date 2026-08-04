@@ -432,8 +432,15 @@ fleet:
     #   blockWithoutSandbox: false # true (+blocking) ⇒ fail-closed when tests could not
     #                              # be executed; default false: never block on tests
     #                              # that were never run
-    #   graft:                     # optional: authored tests must live under these
+    #   testPaths:                 # optional: authored tests must live under these
     #     - tests/purser           # prefixes (also bounded by the global path whitelist)
+    #   graft:                     # optional on ANY ship: repo skill ids whose
+    #     - sandboxed-adversarial-test-harness   # skills/<id>/SKILL.md (trusted
+    #     - steel-man-argument     # branch only, ~6KB each, max 3) is prepended to
+    #                              # the ship prompt as '## Grafted skill: <id>'.
+    #                              # A purser with no graft list gets exactly these
+    #                              # two by default; unknown ids are a transcript
+    #                              # warning, never a failure.
     #   prompt: |                  # optional persona flavor; operational prompts are
     #     You are pd-purser, the fleet's adversarial purser. Hold every
     #     PR to its best interpretation, not its laziest. Firm, with

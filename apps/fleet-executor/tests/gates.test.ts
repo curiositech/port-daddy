@@ -15,6 +15,7 @@ const ship = (over: Partial<ShipConfig>): ShipConfig => ({
   ideation: false,
   purser: false,
   blockWithoutSandbox: false,
+  testPaths: [],
   graft: [],
   ...over,
 });
