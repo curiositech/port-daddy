@@ -69,6 +69,7 @@ const SLUG_VERB_OVERRIDES = {
   harbors: ['harbor', 'harbors'],
   bench: ['bench'],
   'hooks-install': ['hooks'],
+  'squid-voice': ['squid'], // `pd squid voice` — a squid subcommand, tiered under the squid verb
   demo: ['demo'],
   tuples: ['tuple'],
   setup: ['setup', 'init'],

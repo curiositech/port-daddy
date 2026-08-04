@@ -435,6 +435,7 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   // squid harness toggle + readouts (the bridge itself stays approval-tier)
   'squid status': 'silent',         // read-only non-diegetic readout
   'squid tap': 'silent',            // read-only envelope preview
+  'squid voice': 'silent',          // read-only VoiceLog readout (spoke/silent/suppressed)
   'squid on': 'notify',             // writes project hook/statusline config
   'squid arm': 'notify',
   'squid off': 'notify',            // removes only pd-authored entries

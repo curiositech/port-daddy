@@ -1,9 +1,17 @@
 /**
- * Failing tests written during a CORRECTNESS review of the Reconcile Loop slice.
+ * Regression net born as the evidence file for a CORRECTNESS review of the
+ * Reconcile Loop slice.
  *
  * Each `test` here encodes a bug found by review and reproduced by execution.
- * They are expected to FAIL against the current tree; they are the evidence for
- * the review findings, not a regression net for behaviour that already works.
+ * They were written to FAIL, and they did — all three findings below were real.
+ * Every one is now FIXED, so this suite is expected to PASS: it has graduated
+ * from review evidence into a permanent regression net, and a failure here
+ * means one of these bugs has come back.
+ *
+ * Do not delete this file to make a red run green — these are the exact
+ * reproductions that caught the bugs, and they are cheap to keep. (The same
+ * behaviours are additionally covered by squid-matrix-mutex.test.ts and
+ * squid-reconcile-budget-scope.test.ts.)
  *
  *   1. Per-actor isolation leaks when `actorKey()` truncates at 80 chars and the
  *      80th character is the `_` the separator claims to be unforgeable next to.

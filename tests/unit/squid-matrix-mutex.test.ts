@@ -211,6 +211,11 @@ describe('the matrix lock is ONE primitive across TypeScript and POSIX sh', () =
       .filter((l) => !/^\s*#/.test(l))
       .join('\n');
     expect(code).not.toMatch(/\bflock\b/);
+    // NOTE: single-quoted on purpose. `${MATRIX}` here is SHELL source text we
+    // assert appears verbatim in bin/pd-hook-post-tool — it is not a JS
+    // template interpolation. Converting this to a backtick string would
+    // silently assert the wrong thing (and static analysers flag it as a
+    // suspected typo; it isn't).
     expect(code).toContain('LOCKDIR="${MATRIX}.lock"');
     expect(code).toContain('mkdir "$LOCKDIR"');
   });
