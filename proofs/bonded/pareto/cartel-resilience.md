@@ -97,8 +97,9 @@ then revert to competitive."*
 
 ### Folk-theorem condition
 
-Let `L = 5 · (q_floor − μ)` be the detection penalty. Detection occurs before
-the current-round payoff in the simulation, so the collusion value obeys:
+Let `L = 5 · (q_floor − μ)` be the detection penalty. Every active cartel round
+credits `π_C`; if detection occurs in that round, the simulation then subtracts
+`L` and terminates future cartel payoffs. The collusion value therefore obeys:
 
 ```
   V_C = π_C − p_d L + δ(1 − p_d)V_C

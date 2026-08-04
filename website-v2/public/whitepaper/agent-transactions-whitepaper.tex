@@ -968,7 +968,7 @@ Figure~\ref{fig:cartel-game-inline} shows the per-round decision node and the cl
 
 \input{figures/fig-cartel-game-inline}
 
-A Monte Carlo sweep over the $(p_d, \delta)$ grid checks the closed-form threshold against the supplied timing and payoff model (Figure~\ref{fig:cartel-folk}). Let $L=5(q_{\mathrm{floor}}-\mu)$ be the one-time detection penalty, $\pi_C=(q_{\mathrm{floor}}-\mu)/3$ the per-member cartel payoff, and $\pi_D=q_{\mathrm{floor}}-\varepsilon-\mu$ the one-shot deviation payoff. Because detection occurs before the current-round payoff in the simulation,
+A Monte Carlo sweep over the $(p_d, \delta)$ grid checks the closed-form threshold against the supplied timing and payoff model (Figure~\ref{fig:cartel-folk}). Let $L=5(q_{\mathrm{floor}}-\mu)$ be the one-time detection penalty, $\pi_C=(q_{\mathrm{floor}}-\mu)/3$ the per-member cartel payoff, and $\pi_D=q_{\mathrm{floor}}-\varepsilon-\mu$ the one-shot deviation payoff. Every active cartel round credits $\pi_C$; if detection occurs in that round, the simulation then subtracts $L$ and terminates future cartel payoffs. Hence
 \[
 V_C=\pi_C-p_dL+\delta(1-p_d)V_C,
 \qquad
