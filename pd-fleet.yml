@@ -225,29 +225,44 @@ fleet:
       telos: "Surface coverage gaps as actionable GitHub issues."
 
     documentarian:
-      # Stays scheduled (promotion-driven). Output: opens a PR
-      # against docs surface when code-doc drift detected. Previously
-      # just appended notes; now ships a real diff.
-      trigger: promotion:release-surfaces
+      # Every pushed SHA gets its own cheap release-surface pass. Promotion
+      # also wakes the ship; the exact-tree release review is a separate,
+      # multi-agent gate rather than a substitute for continuous maintenance.
+      trigger:
+        - github:webhook:push
+        - promotion:release-surfaces
       backend: cli:claude-code
+      model_tier: low
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
           model: '@cf/openai/gpt-oss-120b'
-      singleton: true
-      cooldown_ms: 900000
-      dedupe_window_ms: 43200000
+      # A singleton would reject an overlapping push instead of accounting for
+      # it. Idempotency is keyed by source SHA in the durable result tuple.
+      singleton: false
+      worktree: true
+      cooldown_ms: 0
+      dedupe_window_ms: 0
       backoff_base_ms: 300000
       backoff_max_ms: 3600000
       allowedTools: "Read,Grep,Glob,Write,Edit,Bash(gh*),Bash(git*)"
       prompt: |
-        You are Lookout / Documentarian. Promotion just passed the
-        test gate. This is the high-signal moment to make release
-        surfaces match code truth.
+        You are Lookout / Documentarian. Give every pushed SHA one cheap,
+        bounded release-surface pass. Promotion events receive the same pass
+        immediately before stable integration. This continuous pass does not
+        replace the major multi-agent review required before Homebrew release.
 
-        First read the promotion trigger payload. If it includes
-        changed files or a source SHA, scope your review to that
-        promotion candidate.
+        First read the trigger payload. Resolve its exact source SHA, branch,
+        and changed files. Review that diff plus AGENTS.md, CLAUDE.md,
+        README.md, and both Port Daddy skills. An ordinary push gets the
+        smallest truthful repair, not an unbounded rewrite.
+
+        Finish every pass by publishing a durable
+        `documentarian:push-reviewed:<source-sha>` tuple. Record the exact SHA,
+        reviewer agent id, transcript id, verdict, and changed instruction
+        surfaces. Read the tuple back before declaring success. The release
+        review must cite the final candidate's tuple; missing or mismatched
+        evidence blocks Homebrew publication.
 
         Maintain ALL release-surface documentation:
         - CLAUDE.md, AGENTS.md, README.md, CHANGELOG.md
@@ -260,10 +275,12 @@ fleet:
         - apps/FleetBar user-facing behavior docs
 
         Output mechanic (NEW, 2026-05-20):
-        - When you find code-doc drift, write the fix on a new branch
+        - When you find code-doc drift, write the smallest truthful fix on a new branch
           `documentarian/<sha-short>-sync` and open a draft PR via
           lib/fleet/github-output.ts openDraftPR().
           Title: "docs(bot): sync release surfaces to <sha-short>"
+          Target the pushed feature branch while it exists; otherwise target
+          main. A feature's doc fix travels with that feature before merge.
         - For surfaces you cannot auto-fix (requires copy decisions
           from Erich), open an issue with label `docs-drift` instead.
         - Do NOT push to main. Do NOT append to COORDINATION-LOG
@@ -643,7 +660,8 @@ fleet:
         3. Run `gh issue list --label 'fleet:*' --state open --json number,title,labels`
            for open ship-generated issues.
         4. Assess each ship: healthy / dormant / blind / noisy / degraded / skill-starved.
-        5. POST suggestions to http://localhost:9876/fleet/suggestions/write for non-healthy ships.
+        5. Resolve the published daemon endpoint, then POST suggestions to its
+           `/fleet/suggestions/write` route for non-healthy ships.
         6. Write .fleet/tender-manifest.json with health scores and top suggestions.
         7. Edit (or create) the pinned [Fleet Health Board] GitHub issue.
 
@@ -1113,10 +1131,7 @@ fleet:
     # ambient awareness ping.
     pr-finding-notify:
       trigger: pull_request:finding-high
-      exec: "curl -fsS -X POST http://localhost:9876/notes
-        -H 'Content-Type: application/json'
-        -d '{\"content\":\"HIGH finding on PR\",\"type\":\"warning\"}'
-        > /dev/null 2>&1 || true"
+      exec: "pd note 'HIGH finding on PR' --type warning > /dev/null 2>&1 || true"
 
     # Preserved: coordination:inconsistency still feeds the recovery
     # log. This is INTER-agent coordination, not operator output.
@@ -1222,6 +1237,11 @@ fleet:
     git:committed:
       description: "Fired after a successful commit"
       consumers: [ gardener, test-hunter, simplifier, spark ]
+
+    github:webhook:push:
+      description: "Project-scoped verified GitHub webhook event for one pushed SHA; wakes an independent low-tier Documentarian pass"
+      external_producer: github-webhook-bridge
+      consumers: [ documentarian ]
 
     promotion:release-surfaces:
       description: "Fired by promote-stable after tests pass and before

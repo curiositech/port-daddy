@@ -725,7 +725,7 @@ curl http://localhost:9876/fleet/models             # Available backends & model
 
 Every fleet agent gets full coordination for free: registration, sessions, heartbeats, salvage on crash. Repeated trigger bursts collapse into **queued** work (mailbox semantics — `status: queued`, non-zero `queueDepth`) instead of spawning a fresh agent per wake. Template variables (`{project}`) resolve from YAML context; lifecycle events publish on `fleet:events`. The same fail-closed telemetry policy as manual launches applies. Scheduled ships default `run_on_start: false` so a daemon restart cannot fan out a whole fleet before `/health` is stable. Ships can opt into native skill guidance with `skill_graft: true`; `pd skill-graft` previews, warms, and reads guarded references from the same local index.
 
-Fleet schema: ADR-0019 (`docs/adr/0019-declarative-fleet-yaml.md`); typed AST + diagnostics: ADR-0026. This repo dogfoods its own fleet — see `pd-fleet.yml` and `docs/fleet/` for the current ship roster and known issues.
+Fleet schema: ADR-0019 (`docs/adr/0019-declarative-fleet-yaml.md`); typed AST + diagnostics: ADR-0026. This repo dogfoods its own fleet — see `pd-fleet.yml` and `docs/fleet/` for the current ship roster and known issues. Every verified GitHub push wakes an independent low-tier Documentarian in its own worktree. The pass makes the smallest truthful release-surface repair and publishes a SHA-bound agent/transcript tuple; it is deliberately separate from the larger multi-agent instruction rewrite required before a Homebrew release.
 
 ---
 
@@ -949,7 +949,7 @@ Commit this so every developer gets the same deterministic port mapping:
 
 ### Environment variables
 
-- `PORT_DADDY_URL` — daemon address (default `http://localhost:9876`)
+- `PORT_DADDY_URL` — explicit daemon-address override; otherwise clients use the endpoint published by daemon discovery
 - `PORT_DADDY_RANGE_START` — port pool start (default `3100`)
 - `PORT_DADDY_YES=1` — bypass destructive-command prompts (audited)
 - `PD_COAST_GUARD_OFF=1` — opt a spawn out of confinement
