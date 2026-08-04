@@ -49,14 +49,27 @@ async function sealForTest(token: string): Promise<{ enc: string; iv: string }> 
 interface LedgerRow {
   installation_id: number;
   delta_usd: number;
+  id?: string;
+  reason?: string;
+  created_at?: number;
 }
 
 /**
  * D1 mock answering the queries this path issues: web_sessions + users
- * (resolveSession), the COUNT+SUM billing-status read, and — for the checkout
+ * (resolveSession), the COUNT+SUM billing-status read, the plain-SUM balance
+ * read + capped history SELECT (getLedgerHistory), and — for the checkout
  * form dialect — stripe_customers reads/writes + credit_ledger inserts.
+ *
+ * `ledgerHistoryShouldFail` lets tests simulate a D1 read failure isolated to
+ * the ledger-history query (billing-status keeps answering normally), so the
+ * degraded-ledger-only panel can be exercised without faking a whole-page outage.
  */
-function makeDb(ledger: LedgerRow[], sessionHash?: string, sealed?: { enc: string; iv: string }) {
+function makeDb(
+  ledger: LedgerRow[],
+  sessionHash?: string,
+  sealed?: { enc: string; iv: string },
+  ledgerHistoryShouldFail = false,
+) {
   const customers = new Map<number, string>();
   const stmt = (sql: string) => {
     let bound: unknown[] = [];
@@ -94,6 +107,10 @@ function makeDb(ledger: LedgerRow[], sessionHash?: string, sealed?: { enc: strin
           const rows = ledger.filter((r) => r.installation_id === bound[0]);
           return { n: rows.length, bal: rows.reduce((a, r) => a + r.delta_usd, 0) } as T;
         }
+        if (sql.startsWith('SELECT COALESCE(SUM(delta_usd), 0) AS bal FROM credit_ledger')) {
+          const rows = ledger.filter((r) => r.installation_id === bound[0]);
+          return { bal: rows.reduce((a, r) => a + r.delta_usd, 0) } as T;
+        }
         if (sql.includes('FROM credit_ledger WHERE reason = ? AND stripe_ref = ?')) {
           return null;
         }
@@ -102,6 +119,26 @@ function makeDb(ledger: LedgerRow[], sessionHash?: string, sealed?: { enc: strin
           return (id ? { stripe_customer_id: id } : null) as T | null;
         }
         return null;
+      },
+      async all<T>(): Promise<{ results: T[] }> {
+        if (sql.startsWith('SELECT id, delta_usd, reason, created_at FROM credit_ledger')) {
+          if (ledgerHistoryShouldFail) throw new Error('D1 read failed (simulated)');
+          const instId = bound[0] as number;
+          const limitPlusOne = bound[1] as number;
+          const rows = ledger
+            .filter((r) => r.installation_id === instId)
+            .slice() // newest-first: reverse insertion order (tests append oldest→newest)
+            .reverse()
+            .slice(0, limitPlusOne)
+            .map((r, i) => ({
+              id: r.id ?? `cl_test_${instId}_${i}`,
+              delta_usd: r.delta_usd,
+              reason: r.reason ?? 'unspecified',
+              created_at: r.created_at ?? i,
+            }));
+          return { results: rows as unknown as T[] };
+        }
+        return { results: [] };
       },
       async run() {
         if (sql.includes('INTO stripe_customers')) {
@@ -128,9 +165,10 @@ function makeKV(): KVNamespace {
 async function makeSessionEnv(
   ledger: LedgerRow[] = [],
   over: Partial<Env> = {},
+  ledgerHistoryShouldFail = false,
 ): Promise<{ env: Env; customers: Map<number, string> }> {
   const sealed = await sealForTest('gho_token');
-  const { db, customers } = makeDb(ledger, hashHex(COOKIE_VALUE), sealed);
+  const { db, customers } = makeDb(ledger, hashHex(COOKIE_VALUE), sealed, ledgerHistoryShouldFail);
   const env = {
     DB: db,
     KV: makeKV(),
@@ -395,6 +433,90 @@ describe('GET /account/billing — installation cap', () => {
     expect(html).toContain(`org-${MAX_INSTALLATIONS}`);
     expect(html).not.toContain(`org-${MAX_INSTALLATIONS + 1}`);
     expect(html).toContain('Partial view');
+  });
+});
+
+// ── ledger history table (billing-ledger-history) ────────────────────────────
+
+describe('GET /account/billing — ledger history', () => {
+  it('renders the transaction history newest-first with a running balance', async () => {
+    stubGithubAndStripe([{ id: 11, account: { login: 'acme' } }]);
+    const { env } = await makeSessionEnv([
+      { installation_id: 11, delta_usd: 50, reason: 'stripe:checkout', created_at: 100 },
+      { installation_id: 11, delta_usd: -12.5, reason: 'fleet:spend', created_at: 200 },
+    ]);
+    const html = await (await handleBillingPage(pageReq(), env)).text();
+    expect(html).toContain('Transaction history');
+    expect(html).toContain('stripe:checkout');
+    expect(html).toContain('fleet:spend');
+    expect(html).toContain('+$50.00');
+    expect(html).toContain('-$12.50');
+    // Running balance after the newest (spend) row is the final $37.50 balance.
+    expect(html).toContain('$37.50');
+    // Newest-first: the spend row's markup precedes the checkout row's.
+    expect(html.indexOf('fleet:spend')).toBeLessThan(html.indexOf('stripe:checkout'));
+  });
+
+  it('caps rows and announces an honest "older rows exist" note', async () => {
+    stubGithubAndStripe([{ id: 11, account: { login: 'acme' } }]);
+    const many = Array.from({ length: 55 }, (_, i) => ({
+      installation_id: 11,
+      delta_usd: 1,
+      reason: `fleet:spend:${i}`,
+      created_at: i,
+    }));
+    const { env } = await makeSessionEnv(many);
+    const html = await (await handleBillingPage(pageReq(), env)).text();
+    expect(html).toContain('Partial view');
+    expect(html).toContain('older rows exist');
+  });
+
+  it('empty ledger renders an honest "no transactions yet" state, not a fabricated table', async () => {
+    stubGithubAndStripe([{ id: 11, account: { login: 'acme' } }]);
+    const { env } = await makeSessionEnv([]);
+    const html = await (await handleBillingPage(pageReq(), env)).text();
+    expect(html).toContain('No transactions yet');
+    expect(html).not.toContain('<table>');
+  });
+
+  it('a ledger read failure degrades to "unknown" — never a fabricated empty ledger', async () => {
+    stubGithubAndStripe([{ id: 11, account: { login: 'acme' } }]);
+    const { env } = await makeSessionEnv(
+      [{ installation_id: 11, delta_usd: 30, reason: 'stripe:checkout', created_at: 1 }],
+      {},
+      /* ledgerHistoryShouldFail */ true,
+    );
+    const res = await handleBillingPage(pageReq(), env);
+    // Balance still renders — only the ledger history query was made to fail.
+    const html = await res.text();
+    expect(res.status).toBe(200);
+    expect(html).toContain('$30.00');
+    expect(html).toContain('Ledger unknown');
+    expect(html).not.toContain('No transactions yet'); // never claim "empty" on a read failure
+    expect(html).not.toContain('<table>');
+  });
+
+  it("the tenant boundary holds for ledger rows too — one installation's history never shows another's", async () => {
+    stubGithubAndStripe([{ id: 11, account: { login: 'acme' } }]);
+    const { env } = await makeSessionEnv([
+      { installation_id: 11, delta_usd: 10, reason: 'stripe:checkout', created_at: 1 },
+      // Installation 22 is NOT owned by this session's user (GitHub only returned 11).
+      { installation_id: 22, delta_usd: 999, reason: 'fleet:spend', created_at: 2 },
+    ]);
+    const html = await (await handleBillingPage(pageReq(), env)).text();
+    expect(html).toContain('stripe:checkout');
+    expect(html).not.toContain('fleet:spend');
+    expect(html).not.toContain('999');
+  });
+
+  it('escapes a hostile ledger reason string (XSS guard)', async () => {
+    stubGithubAndStripe([{ id: 11, account: { login: 'acme' } }]);
+    const { env } = await makeSessionEnv([
+      { installation_id: 11, delta_usd: 5, reason: '<img src=x onerror=alert(1)>', created_at: 1 },
+    ]);
+    const html = await (await handleBillingPage(pageReq(), env)).text();
+    expect(html).not.toContain('<img src=x onerror=alert(1)>');
+    expect(html).toContain('&lt;img');
   });
 });
 

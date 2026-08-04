@@ -6,11 +6,9 @@ name: Whitepaper PDF Build & Deploy
 # render (retired cinnabar) eight days after the source moved to cobalt.
 #
 # Modes:
-#   * feature-branch push -> rebuild and COMMIT any changed PDFs back to the
-#       branch, so the merge carries fresh artifacts and the next
-#       deploy-website-v2 run (push to main) serves them.
-#   * PR -> rebuild as an advisory check (always green if it compiles); the
-#       feature-branch push above is what actually heals stale PDFs.
+#   * configured feature-branch push -> rebuild and COMMIT changed PDFs.
+#   * same-repository PR -> rebuild and COMMIT changed PDFs to the PR head;
+#       fork PRs remain advisory because their token is read-only.
 #   * main push -> rebuild and FAIL if a committed PDF is stale, since main is
 #       protected and should only ever receive fresh PDFs via merged PRs.
 #
@@ -73,13 +71,50 @@ jobs:
       - name: Trust the checkout dir (container runs as root)
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Build all whitepaper PDFs
-        run: bash scripts/build-whitepapers.sh
+      - name: Build in-scope whitepaper PDFs reproducibly
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          base=""
+          case "$EVENT_NAME" in
+            pull_request) base="$PR_BASE_SHA" ;;
+            push) base="$PUSH_BEFORE_SHA" ;;
+          esac
+          build_papers() {
+            # PRs and pushes rebuild only papers whose transitive TeX inputs
+            # changed. A builder change intentionally rebuilds the full set,
+            # because it can alter every artifact. Manual runs also build all.
+            if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ] \
+               && git cat-file -e "$base^{commit}" 2>/dev/null; then
+              if git diff --quiet "$base"...HEAD -- scripts/build-whitepapers.sh; then
+                bash scripts/build-whitepapers.sh --changed-since "$base"
+              else
+                bash scripts/build-whitepapers.sh
+              fi
+            else
+              bash scripts/build-whitepapers.sh
+            fi
+          }
 
-      - name: Commit rebuilt PDFs (feature-branch push)
-        # Auto-commit only on feature branches. main is protected and receives
-        # fresh PDFs through merged PRs, so we never push to it from CI.
-        if: github.event_name == 'push' && github.ref_name != 'main'
+          build_papers
+          hash_file="$RUNNER_TEMP/whitepaper-pdfs.sha256"
+          sha256sum website-v2/public/whitepaper/*.pdf > "$hash_file"
+          build_papers
+          sha256sum --check "$hash_file"
+
+      - name: Commit rebuilt PDFs (same-repo branch)
+        # Heal configured feature-branch pushes and same-repository PR heads.
+        # Fork PRs retain a read-only token and stay advisory; main is protected
+        # and receives the already-healed artifact through the merge queue.
+        if: >-
+          (github.event_name == 'push' && github.ref_name != 'main') ||
+          (github.event_name == 'pull_request' &&
+           github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
           set -euo pipefail
           # Loop-breaker: never stack a second build commit on our own. This
@@ -98,15 +133,16 @@ jobs:
           git add website-v2/public/whitepaper/*.pdf
           echo "Changed PDFs:"; git diff --cached --stat
           git commit -m "build(whitepaper): regenerate PDFs from source"
-          git push origin "HEAD:${{ github.ref_name }}"
+          git push origin "HEAD:$TARGET_BRANCH"
 
       - name: Freshness check (advisory on PRs, enforced on main)
-        # Skipped on feature-branch pushes (the step above already heals those).
+        # Feature-branch pushes are skipped; PRs verify the clean worktree after
+        # the healing commit above, while forks remain advisory.
         if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main')
         run: |
           set -uo pipefail
           if git diff --quiet -- 'website-v2/public/whitepaper/*.pdf'; then
-            echo "All published PDFs match a fresh render. ✔"; exit 0
+            echo "All in-scope published PDFs match a fresh render. ✔"; exit 0
           fi
           echo "Published PDFs differ from a fresh render of current source:"
           git diff --stat -- 'website-v2/public/whitepaper/*.pdf' || true

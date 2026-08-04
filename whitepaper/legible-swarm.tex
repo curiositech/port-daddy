@@ -4,12 +4,13 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
+\usepackage{microtype}
 \usepackage{geometry}
 \usepackage{amsmath,amssymb,amsthm}
-\usepackage{hyperref}
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{booktabs}
+\usepackage{tabularx}
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
@@ -17,6 +18,8 @@
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\captionsetup{font=small,labelfont=bf}
 
 % ─── Geometry ────────────────────────────────────────────────────────────────
 \geometry{margin=2.5cm}
@@ -158,14 +161,14 @@
 \fancyhf{}
 \fancyhead[L]{\small\itshape\color{hhgray} The Legible Swarm}
 \fancyhead[R]{\small\color{hhgray}\thepage}
-\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ Paper 1 of 4}
+\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter I of VII}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 % ─── Title ───────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{The Harbor Volume --- Paper 1 of 4}}\\[0.5cm]
+  {\Large\textsc{Port Daddy Coordination Papers --- Chapter I of VII}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{The Legible Swarm:}}\\[0.2cm]
   {\Large A Consented Local Leviathan, Legibility-with-Zoom,\\and the Read-Poverty Bottleneck of Agent Swarms}\\[0.3cm]
@@ -176,10 +179,11 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{June 2026\\Version 1.0 (Port Daddy Harbor Volume)}
+\date{August 2026\\Version 1.1 (revised pre-print)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
 \begin{document}
+\setlength{\emergencystretch}{2em}
 
 \maketitle
 \thispagestyle{empty}
@@ -200,7 +204,7 @@ that high-modernist \emph{over}-legibility crushes \emph{m\^etis} --- the local,
 hard-to-codify practical knowledge a system actually runs on --- so we make Scott's
 warning a buildable rule: \textbf{digest-with-zoom}, in which every summary is a
 lens onto a verifiable artifact, never a replacement for it. We then make three
-claims the volume's flagship rests on. First, the binding constraint on swarm scale
+claims the series' flagship rests on. First, the binding constraint on swarm scale
 is \emph{read-poverty}, not write-contention: the write side (claims, locks, anomaly
 detection) is solved; the read side --- finding the right agent, the relevant work,
 the trustworthy collaborator --- is where the next order of magnitude is won or
@@ -228,10 +232,10 @@ attention, Hobbes, Scott
 \vspace{0.4cm}
 \noindent\textit{Reading time: approximately 45 minutes end-to-end; about 12
 minutes for the wedge argument (\S\ref{sec:intro}--\ref{sec:zoom}) alone. This is
-the flagship of a four-paper volume. The companion papers are \emph{The Anchor
-Protocol / The Harbor Daemon} (Paper~2, the kernel and crypto substrate this paper
-assumes), \emph{From Spawn to Person} (Paper~3, identity~$\to$~reputation), and
-\emph{The Harbor Economy} (Paper~4, the market). Any paper can be read first;
+Chapter~I of a seven-chapter collection. \emph{The Single-Writer Kernel}
+(Chapter~II), \emph{From Spawn to Person} (Chapter~III), and \emph{The Harbor
+Economy} (Chapter~IV) form the core product arc; Chapters~V--VII deepen the
+protocol, economic, and federation arguments. Any chapter can be read first;
 Figure~\ref{fig:stack-map} shows how they interlock.}
 
 \vspace{0.3cm}
@@ -372,7 +376,7 @@ analogy. \textbf{Dai et al.\ 2024}, \emph{Artificial Leviathan}
 psychological drives that, starting from unrestrained conflict resembling the state
 of nature, were observed to establish social contracts, authorize a sovereign, and
 form ``a peaceful commonwealth founded on mutual cooperation.''} The arc this
-volume posits as its organizing metaphor is, in at least one controlled study, an
+series posits as its organizing metaphor is, in at least one controlled study, an
 \emph{emergent dynamic} of LLM populations (the methodological ancestor is
 \textbf{Park et al.\ 2023}, \emph{Generative Agents}~\cite{park2023}, where LLM
 agents form emergent social behavior in a sandbox town). The Leviathan is not a
@@ -998,21 +1002,18 @@ objective is
    \;+\; (1-\pi)\,C_{\text{fa}}\,P_{\text{fa}}(\beta)
    \;+\; a\,\mathbb{E}[\text{zooms}(\beta)] \,\Big].
 \end{equation}
-The forced-zoom probability $p(r,s,v)$ as a function of agent reputation $r$, action
-stakes $s$, and reversibility $v$ is set so the criterion sits where expected cost is
-minimized given the cost matrix --- \emph{not} where throughput is maximized.
+The forced-zoom policy $p(r,s,v)$ is calibrated against this loss after specifying
+the score distributions that determine $P_{\text{miss}}$ and $P_{\text{fa}}$.
+Equation~\ref{eq:sdt} is a decision objective, not by itself a fitted detector.
 \end{definition}
 
 \input{figures/legible-swarm-sdt}
 
-The miss-cost term is the fix: without $C_{\text{miss}}$, Eq.~\ref{eq:sdt} collapses
-to ``zoom as little as possible,'' the danger-optimizing degenerate the naive
-objective rewards. With it, the forced-zoom rate rises automatically as stakes and
-irreversibility rise and as agent reputation falls --- which is exactly the
-stakes-proportional-friction rule, now derived rather than asserted. The reputation
-term $r$ is a forward dependency on the identity-and-reputation layer the companion
-papers build; in the single-machine wedge, before any reputation exists, $r$ is
-simply a flat prior.
+The miss-cost term prevents the zero-review solution whenever misses have positive
+probability and cost. Monotonic response to stakes, irreversibility, and reputation
+is a policy constraint to test during calibration; it does not follow from the
+display without a model linking $(r,s,v)$ to the score distributions. Before a
+reputation layer exists, $r$ is a flat prior.
 
 \subsection{Trust calibration is multi-dimensional, and the vigilance decrement is real}\label{sec:calibration}
 
@@ -1167,28 +1168,28 @@ Section~\ref{sec:zoom} forbade the Potemkin digest by fiat. We can also state th
 prohibition as a theorem: there is an information floor below which a digest
 \emph{cannot} be a faithful zoomable index, no matter how it is written.
 
-\begin{theorem}[Legibility lower bound]\label{thm:lowerbound}
-Let a body of swarm work consist of $N$ artifacts, of which an unknown subset of size
-$k$ are \emph{load-bearing} (acting on them irreversibly while ignorant of their
-contents causes harm), and the rest are inert. A digest is \emph{zoom-faithful} if,
-from the digest alone, the operator can identify which artifacts to open before any
-irreversible act --- i.e.\ the digest induces no false negative on the load-bearing
-set. Then any zoom-faithful digest must carry at least $\log_2\binom{N}{k}$ bits that
-distinguish the load-bearing artifacts from the inert ones; a digest compressed below
-this floor must, on some input, omit a load-bearing artifact and is therefore a
-Potemkin digest.
+\begin{theorem}[Legibility lower bound with a review budget]\label{thm:lowerbound}
+Let $N$ artifacts contain an unknown load-bearing subset $S$ of size $k$. A digest
+maps each possible $S$ to a review set $\hat S$ with $S\subseteq\hat S$ and
+$|\hat S|\le m$, where $k\le m\le N$. Any such zero-miss digest needs at least
+\[
+\log_2\!\binom{N}{k}-\log_2\!\binom{m}{k}
+\]
+bits in the worst case. Exact identification ($m=k$) recovers the
+$\log_2\binom Nk$ bound; allowing the operator to open everything ($m=N$) correctly
+reduces the bound to zero.
 \end{theorem}
 
 \begin{proof}[Proof sketch]
-A zoom-faithful digest must let the operator recover the load-bearing subset
-$S\subseteq\{1,\dots,N\}$, $|S|=k$, well enough to never miss a member before acting.
-Equivalently it must, as a function of the input, select a candidate set
-$\hat S\supseteq S$. If the digest carries fewer than $\log_2\binom{N}{k}$ bits, then
-by pigeonhole two distinct load-bearing subsets $S\neq S'$ map to the same digest;
-for at least one of them the induced $\hat S$ excludes a true member, producing a
+There are $\binom Nk$ possible load-bearing subsets. One digest message whose review
+set has size at most $m$ can safely cover at most $\binom mk$ of them, namely the
+$k$-subsets contained in that review set. Therefore at least
+$\binom Nk/\binom mk$ distinct messages are required. Taking base-two logarithms
+gives the bound. If fewer messages are available, some load-bearing subset is not
+contained in its message's review set, producing a
 false negative --- an unopened load-bearing artifact. That is exactly the Potemkin
-failure of Def.~\ref{def:zoom}. Hence $\log_2\binom{N}{k}$ bits is a lower bound on
-any faithful digest. \qed
+failure of Def.~\ref{def:zoom}. Hence the stated log-ratio is a lower bound for a
+zero-miss digest with review budget $m$. \qed
 \end{proof}
 
 The bound is the formal reason \emph{forgetting must be selective, not lossy-by-volume}:
@@ -1256,12 +1257,13 @@ the fifty live agents, who should I ask about \emph{this} OAuth bug, given who
 touched these files an hour ago and who wrote the design note?'' That is a
 \emph{ranking} problem. The \textbf{discovery ranker} scores each candidate $c$
 against a query $q$ as a clamped weighted sum of normalized sub-scores:
-\begin{equation}\label{eq:fit}
-\mathrm{fit}(c,q) = \mathrm{clamp}\!\Big(
-  w_f\,\mathrm{file}(c,q) + w_n\,\mathrm{note}(c,q) + w_i\,\mathrm{ident}(c,q)
-  + w_s\,\mathrm{skill}(c,q) + w_e\,\mathrm{epis}(c,q) - w_\ell\,\mathrm{load}(c),
-  \,0,1\Big),
-\end{equation}
+\begin{align}\label{eq:fit}
+z(c,q) ={}& w_f\,\mathrm{file}(c,q) + w_n\,\mathrm{note}(c,q)
+  + w_i\,\mathrm{ident}(c,q) \nonumber\\
+ &+ w_s\,\mathrm{skill}(c,q) + w_e\,\mathrm{epis}(c,q)
+  - w_\ell\,\mathrm{load}(c), \nonumber\\
+\mathrm{fit}(c,q) ={}& \mathrm{clamp}\!\bigl(z(c,q),0,1\bigr).
+\end{align}
 where $\mathrm{file}$ rewards recent claims on the query's files, $\mathrm{note}$ and
 $\mathrm{epis}$ are text-similarity over the candidate's written notes and past
 episodes, $\mathrm{ident}$ and $\mathrm{skill}$ score declared identity and embedded
@@ -1280,18 +1282,18 @@ It is tempting to claim that this discovery ranker and the operator-facing
 is elegant and, on inspection, false: the two readers have incompatible loss
 functions. We state the distinction as a theorem.
 
-\begin{theorem}[The split ranker]\label{thm:split-ranker}
-The discovery ranker and the attention queue \emph{share} a candidate-generation and
-recency-decay substrate but apply \emph{distinct scoring heads}, and the heads are
-not weight-reparametrizations of one objective. The discovery ranker (agent-to-agent)
-maximizes expected \emph{fit} --- capability match (Eq.~\ref{eq:fit}). The
-attention queue (substrate-to-operator) maximizes expected \emph{regret-if-ignored}:
+\begin{theorem}[No universal monotone identification of the two heads]\label{thm:split-ranker}
+On any item domain containing both high-fit/low-risk and low-fit/high-risk examples,
+there is no strictly increasing scalar transform that identifies discovery fit with
+operator regret. The two rankers may share candidate generation and recency decay,
+but apply distinct scoring heads. Discovery uses capability fit
+(Eq.~\ref{eq:fit}); the attention queue uses regret-if-ignored:
 \begin{equation}\label{eq:regret}
 \mathrm{regret}(x) \;=\; \underbrace{\mathrm{stakes}(x)}_{\text{magnitude}}
    \times \underbrace{\mathrm{irreversibility}(x)}_{v^{-1}}
    \times \underbrace{\mathrm{anomaly}(x)}_{\text{surprise}}.
 \end{equation}
-No monotone reweighting of one head yields the other.
+No universal monotone transform of one scalar yields the other on that domain.
 \end{theorem}
 
 \begin{proof}[Proof sketch]
@@ -2076,7 +2078,7 @@ in this paper with no design document yet.
 \centering
 \small
 \renewcommand{\arraystretch}{1.18}
-\begin{tabular}{@{}p{0.05\textwidth}p{0.44\textwidth}p{0.13\textwidth}p{0.28\textwidth}@{}}
+\begin{tabularx}{\textwidth}{@{}p{0.04\textwidth} >{\raggedright\arraybackslash}X p{0.15\textwidth} >{\raggedright\arraybackslash}p{0.25\textwidth}@{}}
 \toprule
 & \textbf{Mechanism} & \textbf{Status} & \textbf{Evidence / location} \\
 \midrule
@@ -2084,7 +2086,7 @@ L & Attention composer (agent-facing) & \Built & \texttt{lib/attention.ts} \\
 L & Briefing projection (exemplary digest-with-zoom) & \Built & \texttt{lib/briefing.ts} \\
 L & Resurrection handoff & \BuiltWeak & \texttt{lib/resurrection.ts}; notes, not checkpoints \\
 L & Honest attestation / legible sovereign & \Built & \texttt{lib/attest.ts}; ADR-0045 \\
-L & Episodic memory; pheromone decay; skill index & \Built & \texttt{lib/episodic-memory.ts}, \texttt{lib/pheromone.ts}, \texttt{lib/shipwright/skill-index.ts} \\
+L & Episodic memory; pheromone decay; skill index & \Built & \path{lib/episodic-memory.ts}, \path{lib/pheromone.ts}, \path{lib/shipwright/skill-index.ts} \\
 L & Anomaly monitor (detect-and-compensate, post-commit) & \BuiltWeak & \texttt{lib/arbiter.ts:328} is a log subscriber (Prop.~\ref{prop:regiment}) \\
 L & Operator attention queue (regret-ranked lanes) & \Designed & ADR-0046; not yet ranked into lanes \\
 L & Discovery router (relevance ranking) & \Designed & ADR-0030; \texttt{lib/router.ts} not yet on disk \\
@@ -2100,7 +2102,7 @@ O & Consent grant + inalienable override & \Vision & Def.~\ref{def:consent}, Pro
 O & Time-axis legibility (replay, provenance) & \Designed & ADR-0046 replay scrubber; event log \Built \\
 O & Ambient legibility (menu-bar indicator on PASS$\to$FAIL) & \BuiltWeak & indicator exists; watchdog wire \Designed \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{Implementation and status of every mechanism named in this paper.
 \textbf{L} = legibility half, \textbf{A} = authority half, \textbf{O} =
 operator-model. The legibility read-surfaces are largely built; the digest layer that
@@ -2150,4 +2152,3 @@ monitor never earns the phrase.
 \end{itemize}
 
 \end{document}
-

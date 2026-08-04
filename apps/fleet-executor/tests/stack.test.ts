@@ -73,8 +73,18 @@ function stackOutput(files: Array<{ path: string; contents: string }>, extra: ob
   ].join('\n');
 }
 
-/** A same-repo job whose payload carries the PR head BRANCH name. */
+/**
+ * A same-repo job whose PR carries a head BRANCH name.
+ *
+ * `fetchPRContext` reads `headRef` / `isFork` from the LIVE `GET /pulls/{n}`
+ * response, not from the webhook payload, so the harness stub is what must
+ * carry them — the payload below is kept for shape fidelity only.
+ */
 function jobWithHeadRef(over: Record<string, unknown> = {}) {
+  // No side effect on `state` here: freshState() already defaults prHeadRef to
+  // 'feat/widget'. Setting it here would silently clobber a per-test override
+  // (e.g. the ref-less case sets prHeadRef = undefined, then calls runSpark,
+  // which builds the default job through this helper).
   return makeJob({
     payloadMinimal: {
       pull_request: {
@@ -177,10 +187,10 @@ describe('stack proposals — happy path', () => {
 describe('stack proposals — guards degrade honestly (no PR, transcript note)', () => {
   it('fork PR: never writes to the repo', async () => {
     const db = memoryD1();
-    await runSpark({
-      db,
-      job: jobWithHeadRef({ head: { sha: 'HEADSHA', ref: 'feat/widget', repo: { full_name: 'attacker/fork' } } }),
-    });
+    // isFork is computed from the LIVE PR fetch (head.repo vs base.repo), not
+    // the webhook payload — so the fork is simulated on the stub's PR body.
+    state.prHeadRepo = 'attacker/fork';
+    await runSpark({ db });
     expect(state.records.filter(r => r.url.includes('/git/'))).toHaveLength(0);
     expect(state.stackedPrs).toHaveLength(0);
     const step = db.steps.find(s => s.kind === 'stack-posted')!;
@@ -237,10 +247,10 @@ describe('stack proposals — guards degrade honestly (no PR, transcript note)',
 
   it('a missing head branch name degrades instead of opening a misbased PR', async () => {
     const db = memoryD1();
-    await runSpark({
-      db,
-      job: jobWithHeadRef({ head: { sha: 'HEADSHA', repo: { full_name: 'erichowens/port-daddy' } } }),
-    });
+    // headRef comes from the LIVE PR fetch; omit it there to reproduce a PR
+    // whose head branch GitHub did not report.
+    state.prHeadRef = undefined;
+    await runSpark({ db });
     expect(state.stackedPrs).toHaveLength(0);
     const step = db.steps.find(s => s.kind === 'stack-posted')!;
     expect(JSON.parse(String(step.detail)).degraded).toContain('head branch unknown');

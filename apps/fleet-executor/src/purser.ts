@@ -37,6 +37,7 @@ import type { ShipResult, Verdict } from './verdict.js';
 import { postShipComment, type PRContext } from './github.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
 import { extractWorkersAiUsage } from './telemetry.js';
+import { stripThinkSpans } from './xo.js';
 import {
   createOrUpdateBranch,
   openStackedPr,
@@ -68,6 +69,8 @@ export interface PurserMetrics {
   cachedInputTokens: number;
   calls: number;
   allEmpty: boolean;
+  /** ai.run results that carried a readable `usage` block (see ShipMetrics). */
+  usageReports: number;
 }
 
 /** Structural twin of execute.ts's Transcript (best-effort step recorder). */
@@ -86,16 +89,65 @@ export interface SteelManContract {
 // ---------------------------------------------------------------------------
 // Parsing (strict fenced JSON; the purser does not guess)
 
-const JSON_FENCE_RE = /```json\s*\n([\s\S]*?)\n?```/;
+/**
+ * A fenced code block, with the `json` info-string OPTIONAL and case-insensitive.
+ * Models routinely emit ```` ``` ````, ```` ```JSON ````, or ```` ```json5 ````
+ * when told "fenced json"; rejecting those threw away a well-formed contract
+ * over a label.
+ */
+const JSON_FENCE_RE = /```[ \t]*[A-Za-z0-9]*[ \t]*\r?\n([\s\S]*?)\r?\n?```/;
 
+/**
+ * Extract the purser's JSON payload from a model response.
+ *
+ * WHY TOLERANCE HERE IS SAFE: this function only decides WHICH substring to
+ * hand to `JSON.parse`. Every caller ({@link parseSteelMan},
+ * {@link parseAuthoredFiles}) then applies the SAME strict shape validation as
+ * before and returns null on any deviation, so widening extraction can only
+ * ever recover a contract the model really did emit — it can never invent one.
+ * When nothing parses, the purser still degrades honestly to an advisory PASS.
+ *
+ * The 2026-08-04 run recorded `steel-man output was not the required fenced
+ * JSON contract` with `outputLength: 1416` — 1.4KB of model output discarded
+ * because it did not match one rigid fence pattern. The three tolerances added,
+ * in the order they are tried:
+ *
+ *   1. `<think>…</think>` reasoning spans are stripped FIRST (reusing
+ *      `stripThinkSpans` from xo.ts — prior art, not a second implementation).
+ *      This matters for more than tidiness: a reasoning model drafts its answer
+ *      inside the think span, so the OLD regex would happily match the DRAFT
+ *      fence and parse a discarded intermediate instead of the final answer.
+ *   2. Any fenced block, not only one labelled exactly ```` ```json ````.
+ *   3. Markdown prose around a bare, unfenced JSON object/array — the widest
+ *      `{`…`}` / `[`…`]` slice, which must still fully parse.
+ *
+ * @param output Raw model text (possibly with think spans and prose).
+ * @returns The parsed JSON value, or undefined when nothing parseable is found.
+ */
 function parseFencedJson(output: string): unknown | undefined {
-  const m = JSON_FENCE_RE.exec(output);
-  if (!m) return undefined;
-  try {
-    return JSON.parse(m[1].trim());
-  } catch {
-    return undefined;
+  const text = stripThinkSpans(output ?? '');
+  if (!text) return undefined;
+
+  const candidates: string[] = [];
+  const fence = JSON_FENCE_RE.exec(text);
+  if (fence) candidates.push(fence[1].trim());
+  candidates.push(text.trim());
+  const firstBracket = text.search(/[[{]/);
+  if (firstBracket !== -1) {
+    const close = text[firstBracket] === '[' ? ']' : '}';
+    const last = text.lastIndexOf(close);
+    if (last > firstBracket) candidates.push(text.slice(firstBracket, last + 1));
   }
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // Try the next, wider candidate.
+    }
+  }
+  return undefined;
 }
 
 function stringArray(value: unknown): string[] | null {
@@ -244,6 +296,10 @@ function accumulate(metrics: PurserMetrics, res: unknown, text: string): void {
   metrics.outputTokens += u.outputTokens ?? 0;
   metrics.cachedInputTokens += u.cachedInputTokens ?? 0;
   metrics.calls += 1;
+  // Mirrors execute.ts's accumulateUsage: count the calls whose result actually
+  // carried a usage block, so the run page can say "not reported" instead of
+  // rendering a 0 that reads as free.
+  if (u.inputTokens != null || u.outputTokens != null) metrics.usageReports += 1;
   if (text) metrics.allEmpty = false;
 }
 
