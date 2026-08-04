@@ -5,6 +5,7 @@ export interface ActiveAgentRosterAgent {
   id: string;
   name?: string | null;
   type?: string | null;
+  pid?: number | null;
   identity?: string | null;
   identityProject?: string | null;
   identityStack?: string | null;
@@ -12,6 +13,7 @@ export interface ActiveAgentRosterAgent {
   purpose?: string | null;
   status?: string | null;
   lastHeartbeat?: number | null;
+  progress?: string | null;
   metadata?: Record<string, unknown> | null;
   worktreeId?: string | null;
   healthAssessment?: {
@@ -80,7 +82,13 @@ export interface ActiveAgentRosterItem {
   project: string | null;
   status: string | null;
   liveness: string;
+  pid: number | null;
   lastHeartbeat: number | null;
+  progress: string | null;
+  eventVerb: string | null;
+  lineageLabel: string | null;
+  costUsd: number | null;
+  budgetUsd: number | null;
   harness: ActiveAgentHarness;
   squid: SquidConformance;
   worktree: ActiveAgentWorktree;
@@ -89,9 +97,8 @@ export interface ActiveAgentRosterItem {
   touchedFiles: ActiveAgentRosterClaim[];
   control: {
     steeringChannel: string;
-    streamUrl: string;
-    interruptUrl: string;
-    takeoverUrl: string | null;
+    streamUrl: string | null;
+    interruptUrl: string | null;
     controlCenterUrl: string;
   };
 }
@@ -120,6 +127,36 @@ function stringFrom(...values: unknown[]): string | null {
 
 function boolFrom(value: unknown): boolean | null {
   return typeof value === 'boolean' ? value : null;
+}
+
+function metadataString(record: Record<string, unknown> | null | undefined, keys: string[]): string | null {
+  if (!record) return null;
+  for (const key of keys) {
+    const value = record[key];
+    const parsed = typeof value === 'string'
+      ? value.trim() || null
+      : typeof value === 'number'
+        ? Number.isFinite(value) ? String(value) : null
+        : typeof value === 'boolean'
+          ? String(value)
+          : null;
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+function metadataNumber(record: Record<string, unknown> | null | undefined, keys: string[]): number | null {
+  if (!record) return null;
+  for (const key of keys) {
+    const value = record[key];
+    const parsed = typeof value === 'number'
+      ? Number.isFinite(value) ? value : null
+      : typeof value === 'string' && value.trim()
+        ? Number.parseFloat(value.trim())
+        : null;
+    if (parsed !== null && Number.isFinite(parsed)) return parsed;
+  }
+  return null;
 }
 
 function worktreeFrom(agent: ActiveAgentRosterAgent, sessions: ActiveAgentRosterSession[]): ActiveAgentWorktree {
@@ -213,10 +250,10 @@ export function buildActiveAgentRoster(input: ActiveAgentRosterInput): ActiveAge
 
   const sessionsByAgent = new Map<string, ActiveAgentRosterSession[]>();
   for (const session of sessions) {
-    if (!session.agentId) continue;
-    const list = sessionsByAgent.get(session.agentId) ?? [];
+    const key = session.agentId && session.agentId.trim() ? session.agentId : session.id;
+    const list = sessionsByAgent.get(key) ?? [];
     list.push(session);
-    sessionsByAgent.set(session.agentId, list);
+    sessionsByAgent.set(key, list);
   }
 
   const claimsByAgent = new Map<string, ActiveAgentRosterClaim[]>();
@@ -239,17 +276,54 @@ export function buildActiveAgentRoster(input: ActiveAgentRosterInput): ActiveAge
     if (agent.id) byId.set(agent.id, agent);
   }
   for (const session of sessions) {
-    if (!session.agentId || byId.has(session.agentId)) continue;
+    if (!session.agentId) {
+      if (byId.has(session.id)) continue;
+      const receiptVerb = metadataString(session.metadata, [
+        'currentEventVerb',
+        'eventVerb',
+        'latestStatus',
+        'latest_event_verb',
+        'verb',
+      ]);
+      const shellStatus = receiptVerb === 'accepted' || receiptVerb === 'starting'
+        ? receiptVerb
+        : session.status ?? 'active';
+      byId.set(session.id, {
+        id: session.id,
+        name: session.purpose ?? null,
+        type: 'session-shell',
+        identityProject: session.identityProject ?? null,
+        purpose: session.purpose ?? null,
+        worktreeId: session.worktreeId ?? null,
+        metadata: {
+          ...(session.metadata ?? {}),
+          runtimeHarness: 'Session shell',
+        },
+        status: shellStatus,
+        lastHeartbeat: null,
+        pid: null,
+        progress: metadataString(session.metadata, ['progress', 'currentProgress']),
+        healthAssessment: { liveness: 'no_runtime', graceRemaining: 0 },
+      });
+      continue;
+    }
+    if (byId.has(session.agentId)) continue;
     byId.set(session.agentId, {
       id: session.agentId,
-      type: 'session',
+      name: session.purpose ?? null,
+      type: 'session-proxy',
       identityProject: session.identityProject ?? null,
       purpose: session.purpose ?? null,
       worktreeId: session.worktreeId ?? null,
-      metadata: session.metadata ?? null,
+      metadata: {
+        ...(session.metadata ?? {}),
+        runtimeHarness: 'Session proxy',
+      },
       status: session.status ?? null,
       lastHeartbeat: null,
-      healthAssessment: { liveness: session.status === 'active' ? 'alive' : 'stale' },
+      pid: null,
+      progress: metadataString(session.metadata, ['progress', 'currentProgress']),
+      healthAssessment: { liveness: 'no_runtime', graceRemaining: 0 },
     });
   }
 
@@ -258,6 +332,8 @@ export function buildActiveAgentRoster(input: ActiveAgentRosterInput): ActiveAge
     .map((agent): ActiveAgentRosterItem => {
       const agentSessions = latestFirst(sessionsByAgent.get(agent.id) ?? []);
       const activeSession = agentSessions.find((session) => session.status === 'active') ?? agentSessions[0] ?? null;
+      const agentMeta = asRecord(agent.metadata);
+      const sessionMeta = asRecord(activeSession?.metadata) ?? asRecord(agentSessions[0]?.metadata);
       const sessionClaims = agentSessions.flatMap((session) => claimsBySession.get(session.id) ?? []);
       const agentClaims = claimsByAgent.get(agent.id) ?? [];
       const touchedFiles = [...agentClaims, ...sessionClaims]
@@ -268,6 +344,55 @@ export function buildActiveAgentRoster(input: ActiveAgentRosterInput): ActiveAge
         .sort((left, right) => (right.claimedAt ?? 0) - (left.claimedAt ?? 0));
       const computedIdentity = [agent.identityProject, agent.identityStack, agent.identityContext].filter(Boolean).join(':') || null;
       const identity = agent.identity ?? computedIdentity;
+      const reportedLiveness = (agent.healthAssessment?.liveness ?? 'no_runtime').toString().toLowerCase();
+      const hasProcessEvidence = typeof agent.pid === 'number' && agent.pid > 0;
+      const hasFreshHeartbeatEvidence = typeof agent.lastHeartbeat === 'number'
+        && agent.lastHeartbeat > 0
+        && agent.lastHeartbeat <= now
+        && reportedLiveness === 'alive';
+      const hasRemoteProviderEvidence = (
+        typeof agent.type === 'string' && agent.type.toLowerCase().includes('cloudflare')
+      ) || agentMeta?.remote === true || agentMeta?.telemetrySource === 'cloud-app';
+      const liveness = reportedLiveness === 'alive'
+        ? (hasFreshHeartbeatEvidence && (hasProcessEvidence || hasRemoteProviderEvidence) ? 'alive' : 'no_runtime')
+        : reportedLiveness === 'stale' || reportedLiveness === 'dead'
+          ? reportedLiveness
+          : 'no_runtime';
+      const receiptVerb = metadataString(sessionMeta, [
+        'currentEventVerb',
+        'eventVerb',
+        'latestStatus',
+        'latest_event_verb',
+        'verb',
+      ]);
+      const displayStatus = agent.type === 'session-shell'
+        ? (receiptVerb === 'accepted' || receiptVerb === 'starting'
+          ? receiptVerb
+          : activeSession?.status ?? agent.status ?? null)
+        : (agent.status ?? activeSession?.status ?? null);
+      const progress = stringFrom(
+        agent.progress,
+        metadataString(agentMeta, ['progress', 'currentProgress']),
+        metadataString(sessionMeta, ['progress', 'currentProgress']),
+      );
+      const eventVerb = metadataString(sessionMeta, [
+        'currentEventVerb',
+        'eventVerb',
+        'latestStatus',
+        'latest_event_verb',
+        'verb',
+      ]) ?? activeSession?.phase ?? activeSession?.status ?? displayStatus;
+      const predecessorSessionId = metadataString(sessionMeta, ['predecessorSessionId', 'predecessor_session_id']);
+      const takenOverBySessionId = metadataString(sessionMeta, ['takenOverBySessionId', 'taken_over_by_session_id']);
+      const lineageLabel = predecessorSessionId
+        ? `${predecessorSessionId} -> ${activeSession?.id ?? agent.id}`
+        : takenOverBySessionId
+          ? `${activeSession?.id ?? agent.id} -> ${takenOverBySessionId}`
+          : activeSession?.id ?? agent.id;
+      const costUsd = metadataNumber(agentMeta, ['costUsd', 'cost_usd', 'currentCostUsd', 'current_cost_usd'])
+        ?? metadataNumber(sessionMeta, ['costUsd', 'cost_usd', 'currentCostUsd', 'current_cost_usd']);
+      const budgetUsd = metadataNumber(agentMeta, ['budgetUsd', 'budget_usd', 'budgetUsdPerDay', 'budget_usd_per_day'])
+        ?? metadataNumber(sessionMeta, ['budgetUsd', 'budget_usd', 'budgetUsdPerDay', 'budget_usd_per_day']);
 
       const worktree = worktreeFrom(agent, agentSessions);
       const squid = input.squidForWorktree
@@ -282,9 +407,15 @@ export function buildActiveAgentRoster(input: ActiveAgentRosterInput): ActiveAge
         purpose: agent.purpose ?? activeSession?.purpose ?? null,
         identity,
         project: agent.identityProject ?? activeSession?.identityProject ?? null,
-        status: agent.status ?? activeSession?.status ?? null,
-        liveness: agent.healthAssessment?.liveness ?? (activeSession?.status === 'active' ? 'alive' : 'unknown'),
+        status: displayStatus,
+        liveness,
+        pid: typeof agent.pid === 'number' ? agent.pid : null,
         lastHeartbeat: agent.lastHeartbeat ?? null,
+        progress,
+        eventVerb,
+        lineageLabel,
+        costUsd,
+        budgetUsd,
         harness: inferHarness(agent),
         squid,
         worktree,
@@ -293,9 +424,8 @@ export function buildActiveAgentRoster(input: ActiveAgentRosterInput): ActiveAge
         touchedFiles,
         control: {
           steeringChannel: `agent:${agent.id}`,
-          streamUrl: `/agents/${encodeURIComponent(agent.id)}/stream`,
-          interruptUrl: `/agents/${encodeURIComponent(agent.id)}/interrupt`,
-          takeoverUrl: activeSession ? `/sessions/${encodeURIComponent(activeSession.id)}/takeover` : null,
+          streamUrl: liveness === 'alive' ? `/agents/${encodeURIComponent(agent.id)}/stream` : null,
+          interruptUrl: liveness === 'alive' ? `/agents/${encodeURIComponent(agent.id)}/interrupt` : null,
           controlCenterUrl: `/fleet-ui/?surface=agents&agent=${encodeURIComponent(agent.id)}`,
         },
       };

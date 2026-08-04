@@ -39,6 +39,7 @@ describe('active agent roster', () => {
         id: 'agent-codex',
         name: 'Codex bridge',
         type: 'claude-code',
+        pid: 4242,
         identity: 'port-daddy:contrib:squid',
         identityProject: 'port-daddy',
         identityStack: 'contrib',
@@ -104,7 +105,6 @@ describe('active agent roster', () => {
         steeringChannel: 'agent:agent-codex',
         streamUrl: '/agents/agent-codex/stream',
         interruptUrl: '/agents/agent-codex/interrupt',
-        takeoverUrl: '/sessions/session-1/takeover',
       },
     });
     expect(roster.agents[0].touchedFiles[0].symbolPath).toBe('startBridge');
@@ -129,31 +129,140 @@ describe('active agent roster', () => {
     expect(roster.count).toBe(1);
     expect(roster.agents[0]).toMatchObject({
       id: 'agent-orphan',
-      liveness: 'alive',
+      liveness: 'no_runtime',
       activeSession: { id: 'session-orphan' },
+      status: 'active',
       worktree: { root: '/tmp/orphan', branch: 'repair' },
     });
+    expect(roster.agents[0].control.streamUrl).toBeNull();
+    expect(roster.agents[0].control.interruptUrl).toBeNull();
+  });
+
+  test('projects shell sessions without an agent id as accepted no-runtime rows', () => {
+    const roster = buildActiveAgentRoster({
+      now: 1000,
+      project: 'port-daddy',
+      sessions: [{
+        id: 'session-shell',
+        purpose: 'Accepted shell',
+        status: 'active',
+        phase: 'in_progress',
+        agentId: null,
+        worktreeId: 'wt-shell',
+        identityProject: 'port-daddy',
+        createdAt: 10,
+        updatedAt: 20,
+        metadata: {
+          currentEventVerb: 'accepted',
+          predecessorSessionId: 'session-prev',
+          costUsd: 1.25,
+          budgetUsd: 2.5,
+          worktree: { root: '/tmp/shell', branch: 'repair' },
+        },
+      }],
+    });
+
+    expect(roster.count).toBe(1);
+    expect(roster.agents[0]).toMatchObject({
+      id: 'session-shell',
+      label: 'Accepted shell',
+      status: 'accepted',
+      liveness: 'no_runtime',
+      pid: null,
+      activeSession: { id: 'session-shell' },
+      eventVerb: 'accepted',
+      lineageLabel: 'session-prev -> session-shell',
+      costUsd: 1.25,
+      budgetUsd: 2.5,
+    });
+    expect(roster.agents[0].control.streamUrl).toBeNull();
+    expect(roster.agents[0].control.interruptUrl).toBeNull();
+  });
+
+  test('projects starting shell sessions without an agent id as starting no-runtime rows', () => {
+    const roster = buildActiveAgentRoster({
+      now: 1000,
+      project: 'port-daddy',
+      sessions: [{
+        id: 'session-starting',
+        purpose: 'Starting shell',
+        status: 'active',
+        phase: 'starting',
+        agentId: null,
+        worktreeId: 'wt-starting',
+        identityProject: 'port-daddy',
+        createdAt: 10,
+        updatedAt: 20,
+        metadata: {
+          currentEventVerb: 'starting',
+          worktree: { root: '/tmp/starting', branch: 'repair' },
+        },
+      }],
+    });
+
+    expect(roster.count).toBe(1);
+    expect(roster.agents[0]).toMatchObject({
+      id: 'session-starting',
+      label: 'Starting shell',
+      status: 'starting',
+      liveness: 'no_runtime',
+      pid: null,
+      eventVerb: 'starting',
+    });
+    expect(roster.agents[0].control.streamUrl).toBeNull();
+    expect(roster.agents[0].control.interruptUrl).toBeNull();
   });
 
   test('classifies ollama and cloudflare lanes from unstructured cues', () => {
     const roster = buildActiveAgentRoster({
+      now: 1000,
       agents: [
         {
           id: 'agent-ollama',
           type: 'cli',
+          pid: 4242,
           purpose: 'claude code with olamma backend',
+          lastHeartbeat: 900,
           healthAssessment: { liveness: 'alive' },
         },
         {
           id: 'agent-cloudflare',
           type: 'cloudflare-worker',
           purpose: 'review via Workers AI',
+          lastHeartbeat: 900,
           healthAssessment: { liveness: 'alive' },
         },
       ],
     });
 
     expect(roster.agents.map((agent) => agent.harness.id)).toEqual(['ollama', 'cloudflare-ai']);
+  });
+
+  test('does not project a local process as live without fresh heartbeat evidence', () => {
+    const roster = buildActiveAgentRoster({
+      now: 10_000,
+      agents: [{
+        id: 'agent-unverified',
+        pid: 4242,
+        identityProject: 'port-daddy',
+        lastHeartbeat: null,
+        healthAssessment: { liveness: 'alive' },
+      }],
+      sessions: [{
+        id: 'session-unverified',
+        agentId: 'agent-unverified',
+        identityProject: 'port-daddy',
+        status: 'active',
+      }],
+    });
+
+    expect(roster.agents[0]).toMatchObject({
+      id: 'agent-unverified',
+      liveness: 'no_runtime',
+      pid: 4242,
+    });
+    expect(roster.agents[0].control.streamUrl).toBeNull();
+    expect(roster.agents[0].control.interruptUrl).toBeNull();
   });
 
   test('projects Cloudflare GitHub App review agents into live roster rows', () => {
@@ -203,7 +312,6 @@ describe('active agent roster', () => {
         steeringChannel: 'agent:cloudflare:curiositech.port-daddy:code-reviewer:abc12345',
         streamUrl: '/agents/cloudflare%3Acuriositech.port-daddy%3Acode-reviewer%3Aabc12345/stream',
         interruptUrl: '/agents/cloudflare%3Acuriositech.port-daddy%3Acode-reviewer%3Aabc12345/interrupt',
-        takeoverUrl: null,
       },
     });
   });
@@ -252,12 +360,14 @@ describe('active agent roster', () => {
         agents: {
           list: jest.fn(() => ({
             agents: [{
-              id: 'agent-route',
-              type: 'claude-code',
-              identity: 'port-daddy:qa:route',
-              identityProject: 'port-daddy',
-              purpose: 'Route proof',
-              healthAssessment: { liveness: 'alive' },
+          id: 'agent-route',
+          type: 'claude-code',
+          pid: 4242,
+          lastHeartbeat: Date.now(),
+          identity: 'port-daddy:qa:route',
+          identityProject: 'port-daddy',
+          purpose: 'Route proof',
+          healthAssessment: { liveness: 'alive' },
               metadata: { backend: 'codex' },
             }],
           })),
