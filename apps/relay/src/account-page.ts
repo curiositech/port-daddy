@@ -369,7 +369,9 @@ export function renderAccountPage(
       <a href="/account" aria-current="page">Overview</a>
       <a href="/account/interruptions">Interruptions</a>
       <a href="/account/runs">Fleet runs</a>
+      <a href="/account/billing">Billing &amp; credits</a>
       <a href="/account/mercy">Mercy health</a>
+      <a href="/account/shipwright">Shipwright</a>
       <a href="#devices">Devices</a>
       <a href="#receipts">Receipts</a>
       <a href="#harbors">Harbors</a>
@@ -443,14 +445,19 @@ export function renderAccountPage(
       <div class="empty">
         <div class="e-title">Personal harbor only.</div>
         <p>Your local daemon is your personal harbor — you are the only authority and nothing leaves the machine unless you say so. Team and guest harbors (RBAC, scoped guest cards) surface here once membership is linked to your account.</p>
+        <p>Team harbors carry <strong>parleys</strong> — signed multi-party agreements with a deadline. List and sign yours at <span class="cmd">GET /v1/harbors/&lt;namespace&gt;/&lt;name&gt;/parleys</span> (member-gated; a rendered list lands here next).</p>
       </div>
     </section>
 
     <section class="sect" id="plan" aria-labelledby="plan-h">
       <div class="sect-head"><div><span class="eyebrow">Plan &amp; caps</span><h2 id="plan-h">What it costs, and where it stops</h2></div></div>
+      <a class="runs-cta" href="/account/billing">Billing &amp; credits &rarr;</a>
       <div class="empty">
-        <div class="e-title">BYOK-first — no managed plan yet.</div>
-        <p>Bring your own provider key and each fleet run bills your own account. Cost caps are enforced by <strong>your daemon</strong> and will mirror here; managed prepaid credits are a later slice.</p>
+        <div class="e-title">Free until enrolled — billing fails open.</div>
+        <p>Fleet runs on a GitHub App installation with no credit history are <strong>free</strong>; nothing is
+        gated until you buy a first credit pack. <a href="/account/billing">Billing &amp; credits</a> lists your
+        installations with their prepaid balances, buy buttons, and the Stripe portal. Cost caps enforced by
+        <strong>your daemon</strong> still mirror here later.</p>
       </div>
     </section>
 

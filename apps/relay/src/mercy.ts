@@ -502,6 +502,27 @@ export async function handleMercyStatus(env: Env): Promise<Response> {
   // HITL: how many blocking asks are waiting on a human right now. A count is
   // not a secret; titles/bodies stay off the public page. null when unreadable.
   const openInterruptions = await countOpenInterruptions(env.DB);
+  // X2 mercy hook: the registered remote-harbor count rides the public status
+  // page. This is the one live read here — a single COUNT(*) against a small
+  // table, bounded by the 30s public cache above; fail-safe null. (The plan's
+  // full per-harbor `remote_harbors` verdict is deferred to X2 v2.)
+  let harborCount: number | null = null;
+  try {
+    const c = await env.DB.prepare('SELECT COUNT(*) AS n FROM harbors').first<{ n: number }>();
+    harborCount = typeof c?.n === 'number' ? c.n : null;
+  } catch {
+    harborCount = null;
+  }
+  // X4 mercy hook (v1 slice): the open-parley count rides alongside — same
+  // bounded single COUNT(*), fail-safe null. (The plan's summons-ack SLO and
+  // parley-fatigue metric are deferred with the mediator's real body.)
+  let openParleys: number | null = null;
+  try {
+    const c = await env.DB.prepare("SELECT COUNT(*) AS n FROM parleys WHERE state = 'open'").first<{ n: number }>();
+    openParleys = typeof c?.n === 'number' ? c.n : null;
+  } catch {
+    openParleys = null;
+  }
   if (!row) {
     return Response.json(
       {
@@ -516,6 +537,8 @@ export async function handleMercyStatus(env: Env): Promise<Response> {
         stale: true,
         subsystems: [],
         openInterruptions,
+        harbors: { count: harborCount },
+        parleys: { open: openParleys },
         note: 'no health snapshot available — the MERCY cron has not completed a sweep (or its table is unreadable)',
       },
       { headers: STATUS_HEADERS },
@@ -539,6 +562,8 @@ export async function handleMercyStatus(env: Env): Promise<Response> {
         latencyMs: s.latencyMs,
       })),
       openInterruptions,
+      harbors: { count: harborCount },
+      parleys: { open: openParleys },
     },
     { headers: STATUS_HEADERS },
   );

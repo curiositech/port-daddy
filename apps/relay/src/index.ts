@@ -22,12 +22,32 @@
  *                                                token or operator; ADR-0101)
  *   GET  /account/runs                          (HTML runs index; session +
  *                                                GitHub repo ACL; ADR-0101)
+ *   GET  /account/shipwright                    (HTML Shipwright chat; session;
+ *                                                the ONE page with inline JS —
+ *                                                nonce-scoped CSP)
+ *   GET  /v1/shipwright/history                 (session; own chat history)
+ *   POST /v1/shipwright/chat                    (session; Workers AI, SSE)
+ *   POST /v1/shipwright/clear                   (session; delete own history)
+ *   GET  /account/billing                       (HTML billing page; session +
+ *                                                GitHub installation ownership; ADR-0116)
  *   POST /billing/checkout                     (session; Stripe Checkout for a credit pack)
  *   POST /billing/webhook                      (Stripe-Signature HMAC; credit ledger writes)
  *   GET  /billing/balance/:installationId      (operator or session; prepaid balance)
  *   POST /billing/portal                       (session; Stripe Billing Portal link)
  *   GET  /auth/status                          (session cookie → {login, avatarUrl};
  *                                               credentialed CORS for portdaddy.dev)
+ *   POST /v1/harbors                           (session/pdu; create a remote harbor — client-supplied pubkey)
+ *   GET  /v1/harbors                           (session/pdu; harbors I belong to)
+ *   GET  /v1/harbors/:namespace/:name          (member-gated; detail + members)
+ *   POST /v1/harbors/:namespace/:name/members  (owner-gated; add a member)
+ *   POST /v1/harbors/:namespace/:name/presence (member-gated; presence heartbeat, TTL ~90s)
+ *   GET  /v1/harbors/:namespace/:name/presence (member-gated; who is online + identity tier)
+ *   PUT  /v1/harbors/:namespace/:name/helm     (owner-gated; set helm holder + succession)
+ *   GET  /v1/harbors/:namespace/:name/helm     (member-gated; read helm — runs dead-man check)
+ *   POST /v1/harbors/:namespace/:name/parleys  (member-gated; convene a parley)
+ *   GET  /v1/harbors/:namespace/:name/parleys  (member-gated; list parleys — lazy expiry)
+ *   GET  /v1/harbors/:namespace/:name/parleys/:id          (member-gated; detail + positions)
+ *   POST /v1/harbors/:namespace/:name/parleys/:id/respond  (named-party-gated; sign a position)
  *   POST /v1/exchange                        (OIDC → PD card)
  *   POST /v1/revoke
  *   POST /v1/revoke-by-issuer               (operator; acceptance criterion #2)
@@ -91,6 +111,13 @@ import {
 } from './auth-github.js';
 import { handleLoginPage, handleAccountPage } from './account-page.js';
 import { handleRunsPage } from './runs-page.js';
+import { handleShipwrightPage } from './shipwright-page.js';
+import {
+  handleShipwrightChat,
+  handleShipwrightHistory,
+  handleShipwrightClear,
+} from './shipwright.js';
+import { handleBillingPage } from './billing-page.js';
 import { handleDeviceStart, handleDeviceToken, handleWhoami } from './device-flow.js';
 import {
   handleCreateCheckout,
@@ -98,6 +125,24 @@ import {
   handleBillingBalance,
   handlePortalLink,
 } from './billing.js';
+import {
+  handleCreateHarbor,
+  handleListMyHarbors,
+  handleGetHarbor,
+  handleAddHarborMember,
+} from './harbors.js';
+import {
+  handlePresenceBeat,
+  handleGetPresence,
+  handleSetHelm,
+  handleGetHelm,
+} from './presence.js';
+import {
+  handleCreateParley,
+  handleListParleys,
+  handleGetParley,
+  handleRespondParley,
+} from './parleys.js';
 
 // Re-export Durable Object class for wrangler to pick up
 export { HarborChannel };
@@ -253,6 +298,10 @@ export default {
     else if (pathname === '/account/runs' && method === 'GET') {
       response = await handleRunsPage(request, env);
     }
+    // Billing storefront (session + GitHub installation ownership; ADR-0116).
+    else if (pathname === '/account/billing' && method === 'GET') {
+      response = await handleBillingPage(request, env);
+    }
     // MERCY report card (session-gated HTML; src/mercy.ts).
     else if (pathname === '/account/mercy' && method === 'GET') {
       response = await handleMercyPage(request, env);
@@ -260,6 +309,21 @@ export default {
     // Operator interruptions list (session-gated HTML; src/interruptions.ts).
     else if (pathname === '/account/interruptions' && method === 'GET') {
       response = await handleInterruptionsPage(request, env);
+    }
+    // Shipwright chat page (session-gated HTML; src/shipwright-page.ts).
+    else if (pathname === '/account/shipwright' && method === 'GET') {
+      response = await handleShipwrightPage(request, env);
+    }
+
+    // ── Shipwright chat API (session-scoped; src/shipwright.ts) ──────────────
+    else if (pathname === '/v1/shipwright/history' && method === 'GET') {
+      response = await handleShipwrightHistory(request, env);
+    }
+    else if (pathname === '/v1/shipwright/chat' && method === 'POST') {
+      response = await handleShipwrightChat(request, env);
+    }
+    else if (pathname === '/v1/shipwright/clear' && method === 'POST') {
+      response = await handleShipwrightClear(request, env);
     }
 
     // ── GitHub login BFF (ADR-0101 Phase 1) ──────────────────────────────────
@@ -311,6 +375,47 @@ export default {
     }
     else if (pathname === '/billing/portal' && method === 'POST') {
       response = await handlePortalLink(request, env);
+    }
+
+    // ── Remote harbors (grand-plan X2 v1; src/harbors.ts) ────────────────────
+    else if (pathname === '/v1/harbors' && method === 'POST') {
+      response = await handleCreateHarbor(request, env);
+    }
+    else if (pathname === '/v1/harbors' && method === 'GET') {
+      response = await handleListMyHarbors(request, env);
+    }
+    else if (pathname.startsWith('/v1/harbors/')) {
+      // :name is the qualified `namespace/name` — namespace/name detail, or a
+      // sub-resource: /members (X2), /presence + /helm (X3, src/presence.ts),
+      // /parleys[/:id[/respond]] (X4, src/parleys.ts).
+      const parts = pathname.slice('/v1/harbors/'.length).split('/').map((p) => decodeURIComponent(p));
+      const ns = parts[0];
+      const name = parts[1];
+      const sub = parts.length >= 3 ? parts[2] : undefined;
+      const parleyId = parts.length >= 4 ? parts[3] : undefined;
+      if (ns && name && parts.length === 2 && method === 'GET') {
+        response = await handleGetHarbor(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'members' && method === 'POST') {
+        response = await handleAddHarborMember(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'presence' && method === 'POST') {
+        response = await handlePresenceBeat(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'presence' && method === 'GET') {
+        response = await handleGetPresence(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'helm' && method === 'PUT') {
+        response = await handleSetHelm(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'helm' && method === 'GET') {
+        response = await handleGetHelm(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'parleys' && method === 'POST') {
+        response = await handleCreateParley(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'parleys' && method === 'GET') {
+        response = await handleListParleys(request, env, ns, name);
+      } else if (ns && name && sub === 'parleys' && parleyId && parts.length === 4 && method === 'GET') {
+        response = await handleGetParley(request, env, ns, name, parleyId);
+      } else if (ns && name && sub === 'parleys' && parleyId && parts.length === 5 && parts[4] === 'respond' && method === 'POST') {
+        response = await handleRespondParley(request, env, ns, name, parleyId);
+      } else {
+        response = notFound();
+      }
     }
 
     // ── OIDC exchange ────────────────────────────────────────────────────────
