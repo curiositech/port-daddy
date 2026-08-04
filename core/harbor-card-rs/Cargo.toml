@@ -20,3 +20,8 @@ zeroize = "1.8"
 
 [dev-dependencies]
 proptest = "1.4"
+# Adversarial redteam integration suite needs to forge/sign tokens and drive the
+# JSON FFI directly, so it pulls the signing + encoding crates as dev-deps.
+ed25519-dalek = "2.1"
+base64 = "0.22"
+serde_json = "1.0"

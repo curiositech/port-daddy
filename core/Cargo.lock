@@ -4720,6 +4720,7 @@ dependencies = [
  "hex",
  "hmac",
  "pd-core",
+ "proptest",
  "serde",
  "serde_json",
  "sha2",

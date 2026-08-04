@@ -18,6 +18,8 @@
  *   GET  /v1/fleet/runs/:id                    (operator; one run + transcript)
  *   GET  /fleet/runs/:id                        (HTML run page; HMAC capability
  *                                                token or operator; ADR-0101)
+ *   GET  /account/runs                          (HTML runs index; session +
+ *                                                GitHub repo ACL; ADR-0101)
  *   POST /billing/checkout                     (session; Stripe Checkout for a credit pack)
  *   POST /billing/webhook                      (Stripe-Signature HMAC; credit ledger writes)
  *   GET  /billing/balance/:installationId      (operator or session; prepaid balance)
@@ -74,6 +76,7 @@ import {
   handleAccountDelete,
 } from './auth-github.js';
 import { handleLoginPage, handleAccountPage } from './account-page.js';
+import { handleRunsPage } from './runs-page.js';
 import { handleDeviceStart, handleDeviceToken, handleWhoami } from './device-flow.js';
 import {
   handleCreateCheckout,
@@ -190,6 +193,10 @@ export default {
     }
     else if (pathname === '/account' && method === 'GET') {
       response = await handleAccountPage(request, env);
+    }
+    // Per-account fleet-runs index (session + GitHub repo ACL; ADR-0101).
+    else if (pathname === '/account/runs' && method === 'GET') {
+      response = await handleRunsPage(request, env);
     }
 
     // ── GitHub login BFF (ADR-0101 Phase 1) ──────────────────────────────────

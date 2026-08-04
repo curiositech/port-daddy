@@ -410,6 +410,44 @@ fleet:
     #   identity: "{project}:fleet:dispatch-runner"
     #   telos: "Drain the operator's dispatch queue without supervision, bounded by cost and time."
 
+    # ─── The Purser (DISABLED by default; uncomment to enable) ───────
+    # Adversarial gatekeeper, cloud-executed by apps/fleet-executor
+    # (src/purser.ts). The purser STEEL-MANS each PR into the strongest
+    # interpretation of its contract (purpose + testable obligations),
+    # authors adversarial tests against that contract, publishes them on
+    # a stacked branch `purser/pr-<n>-tests` cut from the PR's base sha,
+    # opens a test PR for the branch, and RETARGETS the reviewed PR onto
+    # it — the PR then sits on top of its own contract's tests and must
+    # satisfy them to merge. Fork PRs get the test PR + comment, never a
+    # retarget. If the GitHub App lacks `contents: write`, the purser
+    # degrades honestly: tests go inline in a comment and the verdict
+    # stays advisory. The purser is OFF unless this entry is uncommented
+    # (safe rollout) and runs AFTER the reviewer/ideation ships.
+    #
+    # purser:
+    #   class: purser
+    #   trigger: pull_request:opened
+    #   model: '@cf/qwen/qwen3-30b-a3b-fp8'  # guarded: unknown ids remap to known-good
+    #   blocking: false            # true ⇒ sandbox-executed test FAILURES fail the gate
+    #   blockWithoutSandbox: false # true (+blocking) ⇒ fail-closed when tests could not
+    #                              # be executed; default false: never block on tests
+    #                              # that were never run
+    #   testPaths:                 # optional: authored tests must live under these
+    #     - tests/purser           # prefixes (also bounded by the global path whitelist)
+    #   graft:                     # optional on ANY ship: repo skill ids whose
+    #     - sandboxed-adversarial-test-harness   # skills/<id>/SKILL.md (trusted
+    #     - steel-man-argument     # branch only, ~6KB each, max 3) is prepended to
+    #                              # the ship prompt as '## Grafted skill: <id>'.
+    #                              # A purser with no graft list gets exactly these
+    #                              # two by default; unknown ids are a transcript
+    #                              # warning, never a failure.
+    #   prompt: |                  # optional persona flavor; operational prompts are
+    #     You are pd-purser, the fleet's adversarial purser. Hold every
+    #     PR to its best interpretation, not its laziest. Firm, with
+    #     reasons; never abusive.
+    #   identity: "{project}:fleet:purser"
+    #   telos: "Steel-man the PR, then demand it satisfy its own contract."
+
     spider:
       # Syllogism engine. Spider combines two existing facts/capabilities
       # and proposes the new product or workflow that follows from them, as
