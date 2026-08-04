@@ -307,6 +307,26 @@ CREATE TABLE IF NOT EXISTS mercy_health (
 );
 CREATE INDEX IF NOT EXISTS mercy_health_at_idx ON mercy_health (at);
 
+-- ──────────────────────────────────────────────────────────────────────────
+-- Shipwright chat (src/shipwright.ts) — conversational fleet-config architect.
+--
+-- One row per chat message, scoped to the signed-in web user (users.id). The
+-- AUTOINCREMENT id is the conversation order (created_at is unix seconds and
+-- two messages routinely share a second). ADR-0101 lifecycle: exported with
+-- /account/export, cleared by the user's own control, purged by eraseUser,
+-- defensively purged for soft-deleted users by the erasure sweep, and
+-- age-pruned by the retention sweep (SHIPWRIGHT_RETENTION_DAYS).
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS shipwright_chats (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    TEXT    NOT NULL REFERENCES users(id),
+  role       TEXT    NOT NULL CHECK (role IN ('user','assistant')),
+  content    TEXT    NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS shipwright_chats_user_idx ON shipwright_chats (user_id, id);
+CREATE INDEX IF NOT EXISTS shipwright_chats_created_idx ON shipwright_chats (created_at);
+
 CREATE TABLE IF NOT EXISTS mercy_incidents (
   id          TEXT    PRIMARY KEY,                        -- 'mi_' || randomHex(8)
   subsystem   TEXT    NOT NULL,

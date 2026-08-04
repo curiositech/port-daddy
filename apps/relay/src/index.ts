@@ -22,6 +22,12 @@
  *                                                token or operator; ADR-0101)
  *   GET  /account/runs                          (HTML runs index; session +
  *                                                GitHub repo ACL; ADR-0101)
+ *   GET  /account/shipwright                    (HTML Shipwright chat; session;
+ *                                                the ONE page with inline JS —
+ *                                                nonce-scoped CSP)
+ *   GET  /v1/shipwright/history                 (session; own chat history)
+ *   POST /v1/shipwright/chat                    (session; Workers AI, SSE)
+ *   POST /v1/shipwright/clear                   (session; delete own history)
  *   POST /billing/checkout                     (session; Stripe Checkout for a credit pack)
  *   POST /billing/webhook                      (Stripe-Signature HMAC; credit ledger writes)
  *   GET  /billing/balance/:installationId      (operator or session; prepaid balance)
@@ -80,6 +86,12 @@ import {
 } from './auth-github.js';
 import { handleLoginPage, handleAccountPage } from './account-page.js';
 import { handleRunsPage } from './runs-page.js';
+import { handleShipwrightPage } from './shipwright-page.js';
+import {
+  handleShipwrightChat,
+  handleShipwrightHistory,
+  handleShipwrightClear,
+} from './shipwright.js';
 import { handleDeviceStart, handleDeviceToken, handleWhoami } from './device-flow.js';
 import {
   handleCreateCheckout,
@@ -209,6 +221,21 @@ export default {
     // MERCY report card (session-gated HTML; src/mercy.ts).
     else if (pathname === '/account/mercy' && method === 'GET') {
       response = await handleMercyPage(request, env);
+    }
+    // Shipwright chat page (session-gated HTML; src/shipwright-page.ts).
+    else if (pathname === '/account/shipwright' && method === 'GET') {
+      response = await handleShipwrightPage(request, env);
+    }
+
+    // ── Shipwright chat API (session-scoped; src/shipwright.ts) ──────────────
+    else if (pathname === '/v1/shipwright/history' && method === 'GET') {
+      response = await handleShipwrightHistory(request, env);
+    }
+    else if (pathname === '/v1/shipwright/chat' && method === 'POST') {
+      response = await handleShipwrightChat(request, env);
+    }
+    else if (pathname === '/v1/shipwright/clear' && method === 'POST') {
+      response = await handleShipwrightClear(request, env);
     }
 
     // ── GitHub login BFF (ADR-0101 Phase 1) ──────────────────────────────────

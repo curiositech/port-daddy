@@ -32,6 +32,7 @@ import {
   deleteWebSession,
   countUserSessions,
   eraseUser,
+  listShipwrightMessages,
   type UserRow,
 } from './db.js';
 import type { Env } from './types.js';
@@ -359,6 +360,13 @@ export async function handleAccountExport(request: Request, env: Env): Promise<R
   if (!resolved) return json(401, { code: 'UNAUTHENTICATED', error: 'no session' });
   const { user } = resolved;
   const sessionCount = await countUserSessions(env.DB, user.id);
+  // Shipwright conversation history is the user's own content — it leaves with
+  // them (ADR-0101 export control). Bounded to the same window the chat reads.
+  const shipwrightChats = (await listShipwrightMessages(env.DB, user.id, 500)).map((m) => ({
+    role: m.role,
+    content: m.content,
+    createdAt: m.created_at,
+  }));
   const body = {
     code: 'OK',
     error: null,
@@ -375,6 +383,7 @@ export async function handleAccountExport(request: Request, env: Env): Promise<R
       lastLoginAt: user.last_login_at,
     },
     sessions: { active: sessionCount },
+    shipwrightChats,
   };
   return new Response(JSON.stringify(body, null, 2), {
     status: 200,

@@ -84,6 +84,10 @@ function makeDb() {
         }
         return { success: true, meta: { changes } };
       },
+      // shipwright_chats export read (handleAccountExport) — none in this mock.
+      async all<T>(): Promise<{ results: T[] }> {
+        return { results: [] };
+      },
     };
     return s as unknown as D1PreparedStatement;
   };

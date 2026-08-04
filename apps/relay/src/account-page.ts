@@ -329,6 +329,7 @@ export function renderAccountPage(user: UserRow): string {
       <a href="/account" aria-current="page">Overview</a>
       <a href="/account/runs">Fleet runs</a>
       <a href="/account/mercy">Mercy health</a>
+      <a href="/account/shipwright">Shipwright</a>
       <a href="#devices">Devices</a>
       <a href="#receipts">Receipts</a>
       <a href="#harbors">Harbors</a>
