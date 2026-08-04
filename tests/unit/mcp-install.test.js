@@ -269,9 +269,9 @@ describe('pd setup integration', () => {
 
     expect(setup).toContain("await handleMcpInstall({ 'no-agents': true })");
     expect(setup).toContain('installPilotAgentDefinitions(options)');
-    expect(setup).toContain("import { installSquidHooks } from './squid.js'");
+    expect(setup).toContain("import { silentHooksInstall, unregisterSquidProject } from './hooks-install.js'");
     expect(setup).toContain('installProjectHarness(projectDir, options)');
-    expect(setup).toContain('await installSquidHooks(projectDir)');
+    expect(setup).toContain('silentHooksInstall(undefined, { cwd: projectDir })');
     expect(setup).toContain("await handleGuard(['install'], { dir: projectDir, mode: 'enforce', yes: true })");
     expect(setup).toContain('installRemediation');
 

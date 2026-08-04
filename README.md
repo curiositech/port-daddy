@@ -123,7 +123,7 @@ pd bench 50        # Run performance benchmarks (target: <1ms latency)
 
 `pd attest` (ADR-0045) runs the loud-fail invariant registry — daemon liveness, DB integrity/schema, crypto, brew-hash provenance, and more. "All good" is conjunctive and scoped: green only when every checked invariant passed, and the report always lists what it could NOT verify. Exits non-zero on any critical problem.
 
-`pd start` and `pd install` are binary-first: they refuse to start a source-backed `tsx server.ts` daemon unless `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` is set for a local development session.
+`pd start` and `pd install` are binary-first: they refuse to start a source-backed `tsx server.ts` daemon unless `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` is set for a local development session. On a canonical macOS install, launchd is the sole lifecycle owner: `pd start`, `pd restart`, and `pd stop` control `homebrew.mxcl.port-daddy`, wait for one verified generation, and refuse a detached fallback when the launchd job is missing.
 
 `pd install-bosun` wires only the Bosun watchdog (ADR-0036) against a Homebrew-managed daemon (`homebrew.mxcl.port-daddy`), without touching the main daemon plist — it's what the `curiositech/homebrew-tap` formula's `post_install` calls, since the full `pd install` would otherwise race `brew services start port-daddy` for the daemon's own supervision. Not needed outside a brew install; `pd install` already wires Bosun for a self-installed LaunchAgent/systemd daemon.
 
@@ -623,6 +623,35 @@ pd cockpit           # mission overview
 - `auto` — Port Daddy merges the PR itself once **all** hold: every required CI check is green, `gh` reports the PR `mergeable` (no conflicts), zero unresolved review threads, and the PR is not a draft. It never force-pushes, never uses `gh pr merge --admin`/`--auto`, and never touches a `review`/`never` dispatch. The daemon sweeps this on an interval (`PD_DISPATCH_AUTOMERGE_POLL_MS`, default 60s); `pd dispatch merge-sweep` and `pd done` also trigger an immediate check. See `lib/dispatch/auto-merge.ts` for the full gate. This is a separate, narrower mechanism from `pd harbormaster`'s operator-approval (`pd review --accept`) merge queue.
 - `never` — Port Daddy never merges; the PR sits for a manual close.
 
+### Giant Squid — visible, project-scoped agent coordination
+
+`pd squid on` arms the complete harness for the current project. It stages the
+three local tentacles, wires every detected agent CLI in its real interactive
+scope, registers the exact project root, and adds a visible `◆ PD` identity,
+Pilot SessionStart steering, and `/squid` control inside Claude Code:
+
+```bash
+pd squid on                 # full harness: Claude, Codex, Gemini, and agy
+pd squid status             # LIVE / READY / PARTIAL / DEGRADED readout
+pd squid status --json      # stable FleetBar/automation contract
+pd squid tap                # exact bounded context entering the next turn
+pd squid off                # disarm this project without breaking other repos
+pd hooks install            # hook-only repair surface
+```
+
+Claude and Gemini use project config; Codex and agy require user config because
+their interactive hook engines do not honor a project-local equivalent. Those
+user-level entries are still project-scoped at runtime: the wrapper requires a
+fresh daemon heartbeat, a `.portdaddy/` marker, and an exact match in the Squid
+project registry. Outside an armed root they no-op. The prompt envelope accepts
+only fresh, exact-project traces and is capped at 12 entries / 4 KiB.
+
+The non-diegetic value is explicit in both CLI and FleetBar: fresh coordination
+context before a turn, foreign-ownership warning or blocking before an edit,
+and a compact fleet trace after a tool. FleetBar's selected-project strip shows
+the live state and provider count and exposes Arm, Repair, and Disarm buttons;
+routine operation does not require the operator to open a terminal.
+
 ### Giant Squid — Claude-to-Codex bridge
 
 Want Claude-shaped local orchestration while spending against the OpenAI Codex CLI auth already on the machine? `pd squid` serves a small Anthropic-Messages-compatible endpoint on localhost, generates a fresh local token, injects `ANTHROPIC_BASE_URL`/`ANTHROPIC_AUTH_TOKEN` into a launched client, and forwards each request to `codex exec`:
@@ -788,7 +817,7 @@ curl http://127.0.0.1:9876/transcripts/compliance  # Transcript backend matrix +
 curl http://127.0.0.1:9876/transcripts/emergency   # HITL transcript emergency summary across local + cloud writers
 ```
 
-`launchctl` is the canonical supervisor on macOS; Bosun is the optional non-agent watchdog fed by a filesystem heartbeat.
+`launchctl` is the sole canonical process supervisor on macOS. The daemon owns readiness and publishes one generation identity across `/health`, `daemon.pid`, `daemon.port`, its listener, binary hash, and filesystem heartbeat. Bosun is the independent non-agent watchdog: it can ask launchd to replace a dead or wedged generation, but it never spawns one. `pd status`, Doctor, FleetBar, and pd-console are observers of that shared snapshot, not additional supervisors.
 `GET /status` and `GET /health` now fold transcript-flow health into `runtime.transcripts`, and surface critical live-run gaps (stalled live stream, missing final transcript) as HITL-tagged runtime reasons.
 
 ### Daemon berths (ADR-0084)
@@ -826,6 +855,10 @@ pd restore <id>                    # roll the DB back (destructive tier, prompts
 ### Cutting a release (`pd cut`)
 
 `pd cut` orchestrates a local release cut — daemon binary, Rust kernel cdylib, FleetBar.app — with honest `signed:false` marking unless `--require-sign` (fail-closed signing, ADR-0057). For Port Daddy itself, the release boundary is the signed-binary cut: tagging `v<version>` triggers `release.yml`, which rebuilds daemon, CLI, and MCP server as signed/notarized binaries (ADR-0028) and publishes a `latest.json` update feed (version + per-artifact URL + SHA-256 + signed flag). The brew tap (`curiositech/homebrew-tap`) is bumped via `publish.yml`.
+
+### Batten down the release (`pd batten`)
+
+`release-artifacts.json` is the declarative manifest of every binary and runtime asset that MUST ship inside a release tarball (`pd`, `port-daddy`, its manifest, the `pd-bosun` watchdog, the squid tentacles, `pd-statusline`, and the Pilot SessionStart hook). `pd batten verify --staged-dir dist` asserts each staged artifact is present, executable where declared, and at least its `minBytes` — collecting **every** failure and exiting nonzero with a per-artifact report, so a release can never silently ship with a missing watchdog or missing hooks (the failure class that shipped GREEN when each binary had its own scattered `test -s`). The release job then launches the staged `pd` from outside the source tree and proves `pd squid on` writes the canonical Claude, Codex, Gemini, and agy configs plus every identity asset. `pd batten imprint --staged-dir dist --out <file>` sha256s the sealed cargo into a `release-imprint.json` record. Both subcommands are offline (node stdlib only) and never touch the daemon.
 
 ### Single-binary distribution
 

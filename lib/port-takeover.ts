@@ -8,10 +8,11 @@
  * different TCP port but writing to the same SQLite DB. Their views of
  * sessions, fleet, and active ports diverged within minutes.
  *
- * `probePortOwner` tells the caller whether the existing port holder is itself
- * a Port Daddy daemon — in which case the new instance should refuse to start
- * (and let the supervisor sort out which one should win) instead of silently
- * binding a fallback port and corrupting shared state.
+ * `probePortOwner` tells the caller what can be learned about the holder. The
+ * default policy is stricter than the probe: a canonical daemon never walks
+ * away from its declared port merely because the holder stopped answering
+ * during the probe. It refuses and lets the sole supervisor retry. The legacy
+ * fallback walk is available only through the explicit escape hatch.
  */
 
 import http from 'node:http';
@@ -119,7 +120,7 @@ export type TakeoverDecision =
  * // => { action: 'refuse', reason: 'this process already owns ...', foreignPid: 12345 }
  *
  * decideTakeover({ probe: { kind: 'foreign' }, selfPid: 12345, allowFallback: false })
- * // => { action: 'fallback', reason: 'foreign process holds the port' }
+ * // => { action: 'refuse', reason: 'canonical port is occupied by a foreign process' }
  *
  * decideTakeover({ probe: { kind: 'unreachable' }, selfPid: 12345, allowFallback: false })
  * // => { action: 'fallback', reason: 'no Port Daddy daemon detected on the busy port' }
@@ -127,10 +128,19 @@ export type TakeoverDecision =
  */
 export function decideTakeover(input: DecideTakeoverInput): TakeoverDecision {
   const { probe, selfPid, allowFallback } = input;
+  if (allowFallback) {
+    const suffix = probe.kind === 'port-daddy'
+      ? 'sibling daemon detected'
+      : probe.kind === 'foreign'
+        ? 'foreign process detected'
+        : 'port ownership could not be verified';
+    return {
+      action: 'fallback',
+      reason: `${suffix}; PD_ALLOW_TCP_FALLBACK=1`,
+      ...(probe.pid ? { foreignPid: probe.pid } : {}),
+    } as TakeoverDecision;
+  }
   if (probe.kind === 'port-daddy') {
-    if (allowFallback) {
-      return { action: 'fallback', reason: 'sibling daemon detected; PD_ALLOW_TCP_FALLBACK=1', foreignPid: probe.pid } as TakeoverDecision;
-    }
     if (probe.pid === selfPid) {
       return {
         action: 'refuse',
@@ -145,7 +155,13 @@ export function decideTakeover(input: DecideTakeoverInput): TakeoverDecision {
     };
   }
   if (probe.kind === 'foreign') {
-    return { action: 'fallback', reason: 'foreign process holds the port' };
+    return {
+      action: 'refuse',
+      reason: 'the canonical Port Daddy port is occupied by a foreign process; refusing to advertise a different port',
+    };
   }
-  return { action: 'fallback', reason: 'no Port Daddy daemon detected on the busy port' };
+  return {
+    action: 'refuse',
+    reason: 'the canonical Port Daddy port is busy but its owner could not be verified; refusing to advertise a different port',
+  };
 }

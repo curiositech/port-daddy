@@ -60,6 +60,27 @@ profile/api-tokens?template=workers-ai)" — with the gap filed as feedback if
 the button is not built yet. Operators do not read AGENTS.md; they should not
 have to.
 
+## Giant Squid harness
+
+For a Port Daddy project, `pd squid on` is the one full arm switch. It stages
+the local lifecycle tentacles, wires every detected interactive CLI in its real
+scope (Claude/Gemini project config; Codex/agy daemon-gated user config), adds
+the `◆ PD` statusline, installs Pilot SessionStart steering, and adds `/squid`.
+Do not use or recommend the removed `pd squid hooks` fork; `pd hooks install`
+is the narrower hook-only repair surface.
+
+Read `pd squid status` before claiming the harness works. `LIVE` means complete
+wiring plus a fresh daemon heartbeat; `READY` means complete wiring with the
+daemon down; `PARTIAL` and `DEGRADED` require repair. Use `--json` when another
+surface needs the same truth and `pd squid tap` to inspect the exact bounded
+next-turn envelope. User-level Codex/agy entries do not make hooks global: the
+wrapper requires the exact project root in the arm registry. `pd squid off`
+removes that root while preserving other projects.
+
+The operator drives this through FleetBar's selected-project `◆ GIANT SQUID`
+strip. It exposes state, provider count, and Arm/Repair/Disarm without asking the
+operator to run these agent-facing commands.
+
 ## Default Agent Happy Path
 
 Use this path before you reach for advanced coordination. It is the normal
@@ -498,6 +519,12 @@ Authority rules:
 - Stable Homebrew (`:9876`) is the operator's canonical local runtime. Dev
   berths are proof for a branch, not proof that FleetBar's stable surface is
   fixed.
+- On canonical macOS, launchd is the only process lifecycle owner. `pd start`,
+  `pd restart`, and `pd stop` control that launchd job and verify one generation;
+  they must never create a detached fallback. The daemon owns readiness, Bosun
+  only requests launchd replacement for a dead/stale heartbeat, and
+  status/Doctor/native UIs only observe their shared PID, port, heartbeat, and
+  binary identity. If those facts disagree, call the control plane diverged.
 - Cross-machine coordination should sync durable events, receipts, leases, and
   replayable intent through a harbor/relay ledger. Do not pretend SQLite files
   merge peer-to-peer or share a writable registry across machines.

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { executeFleet } from '../src/execute.js';
+import { executeFleet, mapWithConcurrency } from '../src/execute.js';
 import {
   freshState,
   installGitHubFetch,
@@ -116,6 +116,25 @@ describe('zero-trust config + contract fetching', () => {
 });
 
 describe('pull_request action routing', () => {
+  it('acks an obsolete synchronize delivery before creating a check or spending AI', async () => {
+    state.prHeadSha = 'NEWESTSHA';
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'should not run\n\nFLEET-VERDICT: PASS' },
+    });
+
+    await executeFleet(
+      makeJob({ action: 'synchronize' }),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }),
+    );
+
+    expect(state.checkRunsCreated).toBe(0);
+    expect(state.completed).toHaveLength(0);
+    expect(ai.calls).toHaveLength(0);
+  });
+
   it.each(['opened', 'synchronize', 'reopened', 'ready_for_review'] as const)(
     'runs the fleet for %s deliveries',
     async action => {
@@ -154,6 +173,29 @@ describe('pull_request action routing', () => {
       expect(ai.calls).toHaveLength(0);
     },
   );
+});
+
+describe('MAP fan-out', () => {
+  it('preserves result order while enforcing the in-flight cap', async () => {
+    let active = 0;
+    let maxActive = 0;
+    const values = Array.from({ length: 19 }, (_, index) => index);
+
+    const result = await mapWithConcurrency(values, 4, async value => {
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      await new Promise(resolve => setTimeout(resolve, (value % 3) + 1));
+      active -= 1;
+      return value * 2;
+    });
+
+    expect(maxActive).toBe(4);
+    expect(result).toEqual(values.map(value => value * 2));
+  });
+
+  it('rejects a non-positive concurrency limit', async () => {
+    await expect(mapWithConcurrency([1], 0, async value => value)).rejects.toThrow(/positive integer/);
+  });
 });
 
 describe('blocking-ship verdict → check conclusion', () => {

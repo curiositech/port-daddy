@@ -121,6 +121,13 @@ export interface BosunHeartbeatOptions {
    * {@link createSocketHealthProbe} for the production wiring.
    */
   selfProbe?: () => boolean | Promise<boolean>;
+  /**
+   * Keep publishing the process heartbeat during bootstrap, but wait to arm
+   * the request-pipeline probe until the listener exists. This prevents a
+   * healthy, still-starting daemon from failing three connection probes and
+   * deliberately making its own heartbeat stale before it can bind.
+   */
+  deferSelfProbeUntilReady?: boolean;
   /** Consecutive probe failures before the heartbeat halts. Default 3. */
   probeFailureThreshold?: number;
   /** Cadence of the self-probe loop. Defaults to `intervalMs`. */
@@ -398,6 +405,25 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
     }
   }
 
+  function startProbeLoop(): void {
+    if (!selfProbe || probeTimer) return;
+    const runProbe = () => {
+      if (probeInFlight) return;
+      probeInFlight = true;
+      void probeNow().finally(() => {
+        probeInFlight = false;
+      });
+    };
+    runProbe();
+    probeTimer = setInterval(runProbe, probeIntervalMs);
+    if (typeof probeTimer.unref === 'function') probeTimer.unref();
+    options.logger?.info?.('bosun_heartbeat_probe_started', {
+      path: heartbeatPath,
+      probeIntervalMs,
+      probeFailureThreshold,
+    });
+  }
+
   return {
     start() {
       if (timer) return;
@@ -420,22 +446,9 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
       }
       timer = setInterval(heartbeatTick, intervalMs);
       // Self-probe loop runs on its own cadence and only updates the failure
-      // counter; heartbeatTick reads it synchronously. Decoupling the async HTTP
-      // probe from the heartbeat write keeps the write path non-blocking and the
-      // gating decision deterministic. Fire one immediately so a daemon that
-      // boots already-wedged is caught within probeFailureThreshold ticks.
-      if (selfProbe) {
-        const runProbe = () => {
-          if (probeInFlight) return;
-          probeInFlight = true;
-          void probeNow().finally(() => {
-            probeInFlight = false;
-          });
-        };
-        runProbe();
-        probeTimer = setInterval(runProbe, probeIntervalMs);
-        if (typeof probeTimer.unref === 'function') probeTimer.unref();
-      }
+      // counter; heartbeatTick reads it synchronously. A daemon may defer this
+      // until its listener exists while the process heartbeat keeps advancing.
+      if (!options.deferSelfProbeUntilReady) startProbeLoop();
       if (typeof timer.unref === 'function') timer.unref();
       options.logger?.info?.('bosun_heartbeat_started', {
         path: heartbeatPath,
@@ -448,6 +461,11 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
 
     stop() {
       stopInternal('manual');
+    },
+
+    /** Arm the request-pipeline probe after bootstrap has bound its listener. */
+    startProbing() {
+      startProbeLoop();
     },
 
     writeOnce,

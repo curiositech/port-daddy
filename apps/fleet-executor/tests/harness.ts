@@ -38,6 +38,8 @@ export interface GitHubState {
   }>;
   /** Override the PR diff body. Defaults to a single-file one-hunk diff. */
   prDiff?: string;
+  /** Authoritative current PR head returned by GET /pulls/{n}. */
+  prHeadSha: string;
   /** Other open PRs returned by the list endpoint (Lookout's cross-PR tool). */
   openPRs: Array<{ number: number; title: string; draft?: boolean; head?: { ref: string }; base?: { ref: string }; html_url?: string }>;
   /** Branch names returned by the branches endpoint (Lookout's branch tool). */
@@ -84,6 +86,7 @@ export function freshState(): GitHubState {
     completed: [],
     reviews: [],
     prDiff: undefined,
+    prHeadSha: 'HEADSHA',
     openPRs: [],
     branches: [],
     failTokenMintTimes: 0,
@@ -261,9 +264,19 @@ export function installGitHubFetch(state: GitHubState): void {
       });
       return json({ id: 7000 + state.reviews.length });
     }
-    // --- PR diff (Accept: diff) ---
+    // --- live PR metadata or diff, selected by Accept ---
     if (/\/pulls\/\d+$/.test(url)) {
-      return text(state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed');
+      const headers = new Headers(init?.headers);
+      if (headers.get('Accept')?.includes('diff')) {
+        return text(state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed');
+      }
+      return json({
+        number: 7,
+        title: 'Test PR',
+        body: '',
+        head: { sha: state.prHeadSha },
+        base: { sha: 'BASESHA' },
+      });
     }
 
     // --- commit check-runs lookup (idempotency) ---

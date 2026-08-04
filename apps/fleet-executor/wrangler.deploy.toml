@@ -100,10 +100,24 @@ new_sqlite_classes = ["Sandbox"]
 # follow-up handler completes the check run as 'failure' (fail-closed).
 [[queues.consumers]]
 queue = "fleet-runs"
-max_batch_size = 10
+# Fleet reviews can consume the full Worker wall-clock budget and each run has
+# its own bounded model fan-out. Keep one delivery per invocation AND one active
+# invocation so obsolete/current heads cannot multiply that fan-out, exhaust
+# model capacity, or race the stale-head check before either run finishes.
+max_batch_size = 1
+max_concurrency = 1
 max_batch_timeout = 30
 max_retries = 3
 dead_letter_queue = "fleet-runs-dlq"
+
+# DLQ consumer — the same Worker handles it (index.ts routes on batch.queue).
+# Without this production binding, dead-lettered jobs accumulate forever and
+# their required 'Port Daddy Fleet' checks remain stuck in_progress.
+[[queues.consumers]]
+queue = "fleet-runs-dlq"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 1
 
 # ---------------------------------------------------------------------------
 # Plaintext vars. GITHUB_APP_PRIVATE_KEY is a *secret*, set out-of-band:

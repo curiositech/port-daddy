@@ -2,7 +2,7 @@
   "generatedAt": 1784852769105,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 254,
+  "count": 255,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -843,6 +843,11 @@
       "slug": "gantt-real-estimate-wiring",
       "status": "now",
       "summaryMd": "Wire real roadmap_items.estimate into the Gantt scheduler (routes/roadmap.ts's GET /roadmap/board handler) instead of the hardcoded estimate:1 every task got. lib/roadmap-items.ts now exposes estimate on RoadmapItem/reads it from the DB row; routes/roadmap.ts looks it up per-task with an explicit fallback of 1 only when genuinely unset. started_at/due_at stay unwired — lib/planner-schedule.ts's schedule() is a purely relative CPM engine with no absolute-date anchor concept."
+    },
+    {
+      "slug": "giant-squid-hook-reliability-and-operator-proof",
+      "status": "backlog",
+      "summaryMd": "Make Giant Squid hooks install reliably across supported agents, ship verified assets, and expose visible honest operator proof."
     },
     {
       "slug": "github-webhook-delivery-dedup",
