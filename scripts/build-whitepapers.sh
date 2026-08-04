@@ -20,6 +20,7 @@
 # Usage:
 #   scripts/build-whitepapers.sh            # build all papers
 #   scripts/build-whitepapers.sh federated-harbor-whitepaper   # build one (by root basename)
+#   scripts/build-whitepapers.sh --changed-since <git-ref>      # build papers whose imported TeX changed
 #
 # Requires: latexmk + pdflatex (TeX Live). No bibtex/biber — all papers embed
 # \begin{thebibliography}.
@@ -44,6 +45,12 @@ PAPERS=(
   "whitepaper|single-writer-kernel.tex|$PUB/single-writer-kernel-whitepaper.pdf"
 )
 
+CHANGED_SINCE=""
+if [ "${1:-}" = "--changed-since" ]; then
+  [ -n "${2:-}" ] || { echo "--changed-since requires a git ref" >&2; exit 2; }
+  CHANGED_SINCE="$2"
+  shift 2
+fi
 FILTER="${1:-}"
 FAILED=()
 BUILT=()
@@ -93,6 +100,15 @@ paper_epoch() {
   printf '%s' "$epoch"
 }
 
+paper_changed_since() {
+  local base_ref="$1" srcdir="$2" roottex="$3"
+  local sources=()
+  while IFS= read -r source; do
+    sources+=("$source")
+  done < <(paper_sources "$srcdir" "$roottex")
+  ! git diff --quiet "$base_ref"...HEAD -- "${sources[@]}"
+}
+
 build_one() {
   local srcdir="$1" roottex="$2" dest="$3"
   local base="${roottex%.tex}"
@@ -127,6 +143,10 @@ main() {
     IFS='|' read -r srcdir roottex dest <<< "$row"
     base="${roottex%.tex}"
     if [ -n "$FILTER" ] && [ "$FILTER" != "$base" ] && [ "$FILTER" != "${dest##*/}" ]; then
+      continue
+    fi
+    if [ -n "$CHANGED_SINCE" ] && ! paper_changed_since "$CHANGED_SINCE" "$srcdir" "$roottex"; then
+      echo "skip $roottex (no imported TeX changed since $CHANGED_SINCE)"
       continue
     fi
     if build_one "$srcdir" "$roottex" "$dest"; then
