@@ -9,21 +9,43 @@ jest.unstable_mockModule('../../lib/spawn-preflight.js', () => ({
 
 const { resolveModel } = await import('../../lib/model-registry.js');
 const { spawnPlugin } = await import('../../routes/spawn.js');
+const { createTestDb } = await import('../setup-unit.js');
 
 function buildApp() {
   const app = Fastify();
+  const db = createTestDb();
+  app.addHook('onClose', async () => db.close());
   const spawner = {
-    spawn: jest.fn(async () => ({
-      agentId: 'spawned-123',
-      backend: 'claude-cli',
-      model: 'claude-sonnet-4-5-20250929',
-      status: 'completed',
-      output: 'done',
-      error: null,
-      startedAt: 1,
-      completedAt: 2,
-    })),
+    spawn: jest.fn(async (_spec, onAccepted) => {
+      onAccepted?.({
+        agentId: 'spawned-123',
+        name: 'reviewer',
+        backend: 'claude-cli',
+        model: 'claude-sonnet-4-5-20250929',
+        status: 'accepted',
+        identity: 'port-daddy:repo:cli',
+        purpose: 'review the diff',
+        startedAt: 1,
+        heartbeatAt: 1,
+        lastActivityAt: 1,
+        pid: null,
+        deadlineAt: null,
+        transcriptId: 'tx-123',
+        sessionId: 'session-123',
+      });
+      return {
+        agentId: 'spawned-123',
+        backend: 'claude-cli',
+        model: 'claude-sonnet-4-5-20250929',
+        status: 'completed',
+        output: 'done',
+        error: null,
+        startedAt: 1,
+        completedAt: 2,
+      };
+    }),
     list: jest.fn(() => []),
+    get: jest.fn(() => null),
     kill: jest.fn(),
   };
 
@@ -33,6 +55,7 @@ function buildApp() {
     register: () => app.register(spawnPlugin, {
       deps: {
         spawner,
+        db,
         costTracker: {
           budgetStatus: jest.fn(),
         },
@@ -166,6 +189,126 @@ describe('spawn routes preflight', () => {
       model: 'claude-sonnet-4-5-20250929',
       task: 'review the diff',
       budgetUsd: 0.75,
+    }), expect.any(Function));
+
+    await app.close();
+  });
+
+  test('Prefer respond-async returns a durable 202 receipt and monitor URL', async () => {
+    const { app, spawner, register } = buildApp();
+    spawner.get.mockReturnValue({
+      agentId: 'spawned-123',
+      backend: 'claude-cli',
+      model: 'claude-sonnet-4-5-20250929',
+      status: 'completed',
+      output: 'done',
+      error: null,
+      telemetry: null,
+      startedAt: 1,
+      completedAt: 2,
+    });
+    await register();
+
+    const accepted = await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      headers: { Prefer: 'respond-async', 'Idempotency-Key': 'test-async-spawn-1' },
+      payload: {
+        backend: 'claude-cli',
+        identity: 'port-daddy:repo:cli',
+        task: 'review the diff',
+        budgetUsd: 0.75,
+      },
+    });
+
+    expect(accepted.statusCode).toBe(202);
+    expect(accepted.headers.location).toMatch(/^\/spawn\/receipts\/run-/);
+    expect(accepted.json()).toEqual(expect.objectContaining({
+      accepted: true,
+      status: 'starting',
+      agentId: 'spawned-123',
+      transcriptId: 'tx-123',
+    }));
+
+    const collected = await app.inject({ method: 'GET', url: accepted.headers.location });
+    expect(collected.json()).toEqual(expect.objectContaining({
+      terminal: true,
+      outcomeUnknown: false,
+      status: 'completed',
+      output: 'done',
+    }));
+
+    await app.close();
+  });
+
+  test('asynchronous admission requires idempotency and rejects request drift', async () => {
+    const { app, spawner, register } = buildApp();
+    await register();
+    const payload = {
+      backend: 'claude-cli',
+      identity: 'port-daddy:repo:cli',
+      task: 'review the diff',
+      budgetUsd: 0.75,
+    };
+
+    const missing = await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      headers: { Prefer: 'respond-async' },
+      payload,
+    });
+    expect(missing.statusCode).toBe(400);
+    expect(missing.json().code).toBe('IDEMPOTENCY_KEY_REQUIRED');
+
+    const headers = { Prefer: 'respond-async', 'Idempotency-Key': 'stable-run-key' };
+    const first = await app.inject({ method: 'POST', url: '/spawn', headers, payload });
+    const replay = await app.inject({ method: 'POST', url: '/spawn', headers, payload });
+    expect(replay.statusCode).toBe(200);
+    expect(replay.json()).toEqual(expect.objectContaining({
+      replayed: true,
+      id: first.json().id,
+      agentId: 'spawned-123',
+    }));
+    expect(spawner.spawn).toHaveBeenCalledTimes(1);
+
+    const drift = await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      headers,
+      payload: { ...payload, task: 'a different paid task' },
+    });
+    expect(drift.statusCode).toBe(409);
+    expect(drift.json()).toEqual(expect.objectContaining({
+      code: 'IDEMPOTENCY_CONFLICT',
+      receiptId: first.json().id,
+    }));
+
+    await app.close();
+  });
+
+  test('monitor labels a lost supervisor outcome unknown instead of failed', async () => {
+    const { app, spawner, register } = buildApp();
+    spawner.get.mockReturnValue({
+      agentId: 'spawned-lost',
+      backend: 'cli:codex',
+      model: 'codex-cli',
+      status: 'unknown',
+      output: null,
+      error: 'The daemon restarted before a terminal event.',
+      telemetry: null,
+      startedAt: 1,
+      completedAt: null,
+    });
+    await register();
+
+    const response = await app.inject({ method: 'GET', url: '/spawn/spawned-lost' });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(expect.objectContaining({
+      success: false,
+      terminal: false,
+      outcomeUnknown: true,
+      status: 'unknown',
+      liveness: null,
     }));
 
     await app.close();
@@ -189,7 +332,7 @@ describe('spawn routes preflight', () => {
     expect(mockAssessSpawnPreflight.mock.calls.at(-1)[0].budgetUsd).toBe(0.75);
     expect(spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
       budgetUsd: 0.75,
-    }));
+    }), expect.any(Function));
 
     await app.close();
   });
@@ -217,7 +360,7 @@ describe('spawn routes preflight', () => {
     expect(mockAssessSpawnPreflight.mock.calls.at(-1)[0].budgetUsd).toBeUndefined();
     expect(spawner.spawn).toHaveBeenCalledWith(expect.not.objectContaining({
       budgetUsd: expect.anything(),
-    }));
+    }), expect.any(Function));
 
     await app.close();
   });
@@ -292,7 +435,7 @@ describe('spawn routes preflight', () => {
       identity: 'port-daddy:repo:cli',
       task: 'review the diff',
       budgetUsd: 0.75,
-    }));
+    }), expect.any(Function));
     expect(spawner.spawn.mock.calls[0][0].model).toBeUndefined();
 
     await app.close();
@@ -345,7 +488,7 @@ describe('spawn routes preflight', () => {
       identity: 'port-daddy:repo:cli',
       task: 'review the diff',
       budgetUsd: 0.75,
-    }));
+    }), expect.any(Function));
 
     await app.close();
   });
@@ -394,7 +537,7 @@ describe('spawn routes preflight', () => {
       requestedBackend: 'claude',
       requestedModel: resolveModel({ backend: 'claude', tier: 'high' }),
       backendOverrideSource: 'env',
-    }));
+    }), expect.any(Function));
 
     await app.close();
   });
@@ -442,7 +585,7 @@ describe('spawn routes preflight', () => {
       requestedBackend: 'openai',
       requestedModel: 'gpt-5-mini',
       backendOverrideSource: 'persisted',
-    }));
+    }), expect.any(Function));
 
     await app.close();
   });
@@ -471,7 +614,7 @@ describe('spawn routes preflight', () => {
     expect(spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
       injectSquidHooks: true,
       tubeChannel: 'harness:repo:pilot',
-    }));
+    }), expect.any(Function));
 
     await app.close();
   });

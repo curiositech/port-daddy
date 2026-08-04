@@ -42,6 +42,8 @@ import { coastGuardStatus } from './coast-guard.js';
 import { priceBond, classifyScope, scopeTierWritePolicy, pricedBondLogLines } from './bond-pricing.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
+import { getWorktreeInfo } from './worktree.js';
+import { toSessionWorktreeContext } from './worktree-policy.js';
 import { detectForcedCliBackend, getBackendCatalogEntry, resolveEffectiveSpawnBackend } from './backend-catalog.js';
 import { cliBinarySearchPath, resolveCliBinary } from './cli-bin-dirs.js';
 import { resolveFleetAgentRuntime, type FleetModelTier } from './fleet-runtime.js';
@@ -164,7 +166,10 @@ export interface SpawnSpec {
   // default spawn is unchanged (writes allowed, full-tier bond).
   capabilities?: string[];
   env?: Record<string, string>;
-  timeout?: number;    // ms, default 300000
+  /** Optional hard execution deadline in milliseconds. Omit for no task wall deadline. */
+  timeout?: number;
+  /** Coordination sessions are durable by default; explicitly opt into ephemeral for probes. */
+  coordinationLifecycle?: 'durable' | 'ephemeral';
   allowedTools?: string;  // for claude-cli backend: tool permission string
   maxTokens?: number;     // for claude/claude-cli backends
   // Transcript provenance (fleet ships set these so the dashboard surfaces
@@ -228,7 +233,7 @@ export interface SpawnResult {
   requestedModel?: string;
   effectiveModel?: string;
   backendOverrideSource?: BackendOverrideSource;
-  status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
+  status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget' | 'unknown';
   output: string | null;
   error: string | null;
   telemetry: SpawnTelemetry | null;
@@ -264,6 +269,31 @@ export interface SpawnedAgent {
   purpose: string | null;
   startedAt: number;
   completedAt: number | null;
+  /** Last supervisor heartbeat. This proves ownership, not model progress. */
+  heartbeatAt: number;
+  /** Last direct-child start or transcript event observed by this supervisor. */
+  lastActivityAt: number;
+  /** Current direct child PID. Null means admitted/starting or no direct child. */
+  pid: number | null;
+  /** Explicit task deadline. Null means the caller did not request one. */
+  deadlineAt: number | null;
+}
+
+export interface SpawnAccepted {
+  agentId: string;
+  name: string;
+  backend: SpawnSpec['backend'];
+  model: string;
+  status: 'accepted';
+  identity: string | null;
+  purpose: string | null;
+  startedAt: number;
+  heartbeatAt: number;
+  lastActivityAt: number;
+  pid: null;
+  deadlineAt: number | null;
+  transcriptId: string;
+  sessionId: string;
 }
 
 export interface TelemetryBypassApproval {
@@ -278,6 +308,8 @@ interface AgentRecord extends SpawnedAgent {
   childProcess: ChildProcess | null;
   bondId?: number | null;
   bondUsd?: number;
+  transcriptId: string | null;
+  result?: SpawnResult;
 }
 
 export interface ResolvedSpawnRuntime {
@@ -370,19 +402,48 @@ function registryPidFor(record: Pick<AgentRecord, 'childProcess'>): number {
   return normalizeCoordinationPid(record.childProcess?.pid) ?? 0;
 }
 
-async function pdCoordinate(path: string, body: Record<string, unknown>, options: PdCoordinateOptions = {}): Promise<void> {
+interface PdCoordinationResult {
+  success: boolean;
+  status: number | null;
+  data: Record<string, unknown> | null;
+  error: string | null;
+}
+
+async function pdCoordinate(
+  path: string,
+  body: Record<string, unknown>,
+  options: PdCoordinateOptions = {},
+): Promise<PdCoordinationResult> {
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     const pid = normalizeCoordinationPid(options.pid);
     if (pid !== undefined) headers['X-Pid'] = String(pid);
 
-    await fetch(`${getDaemonTcpUrl(process.env.PORT_DADDY_URL)}${path}`, {
+    const response = await fetch(`${getDaemonTcpUrl(process.env.PORT_DADDY_URL)}${path}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
     });
-  } catch {
-    // Silent — coordination failures never block spawning
+    let data: Record<string, unknown> | null = null;
+    try {
+      if (typeof response.json === 'function') data = await response.json() as Record<string, unknown>;
+    } catch {
+      data = null;
+    }
+    const success = response.ok !== false && data?.success !== false;
+    return {
+      success,
+      status: typeof response.status === 'number' ? response.status : null,
+      data,
+      error: success ? null : String(data?.error || `coordination route ${path} rejected the request`),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      status: null,
+      data: null,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
@@ -402,11 +463,11 @@ interface ChildRunOpts {
 
 function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string | null; child: ChildProcess }> {
   return new Promise((resolve) => {
-    const timeoutMs = opts.timeout || 300000;
+    const timeoutMs = opts.timeout && opts.timeout > 0 ? opts.timeout : null;
     const child = spawnChild(opts.cmd, opts.args, {
       cwd: opts.cwd || process.cwd(),
       env: opts.env as NodeJS.ProcessEnv,
-      timeout: timeoutMs,
+      ...(timeoutMs === null ? {} : { timeout: timeoutMs }),
       detached: true,
       shell: false,
       ...(opts.stdio ? { stdio: opts.stdio as any } : {}),
@@ -418,7 +479,7 @@ function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string |
     let timedOut = false;
     let settled = false;
     let forceKillTimer: ReturnType<typeof setTimeout> | null = null;
-    const timeoutTimer = setTimeout(() => {
+    const timeoutTimer = timeoutMs === null ? null : setTimeout(() => {
       timedOut = true;
       signalChildProcess(child, 'SIGTERM');
       forceKillTimer = setTimeout(() => {
@@ -426,7 +487,7 @@ function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string |
       }, 5000);
       forceKillTimer.unref?.();
     }, Math.max(1, timeoutMs - 25));
-    timeoutTimer.unref?.();
+    timeoutTimer?.unref?.();
 
     child.stdout?.on('data', (data: Buffer) => stdout.push(data.toString()));
     child.stderr?.on('data', (data: Buffer) => stderr.push(data.toString()));
@@ -434,12 +495,12 @@ function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string |
     child.on('close', (code) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeoutTimer);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
       if (forceKillTimer) clearTimeout(forceKillTimer);
       const out = stdout.join('');
       const errText = stderr.join('');
       if (timedOut) {
-        resolve({ output: out, error: `${opts.cmd} timed out after ${timeoutMs}ms${errText ? `: ${errText}` : ''}`, child });
+        resolve({ output: out, error: `${opts.cmd} timed out after ${timeoutMs as number}ms${errText ? `: ${errText}` : ''}`, child });
       } else if (code !== 0) {
         resolve({ output: out, error: errText || `${opts.cmd} exited with code ${code}`, child });
       } else {
@@ -450,7 +511,7 @@ function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string |
     child.on('error', (err) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeoutTimer);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
       if (forceKillTimer) clearTimeout(forceKillTimer);
       resolve({ output: '', error: `Failed to start ${opts.cmd}: ${err.message}`, child });
     });
@@ -1698,7 +1759,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
    * Spawn an AI agent with the given spec.
    * Automatically wires PD session + heartbeat + done.
    */
-  async function spawn(spec: SpawnSpec): Promise<SpawnResult> {
+  async function spawn(
+    spec: SpawnSpec,
+    onAccepted?: (accepted: SpawnAccepted) => void,
+  ): Promise<SpawnResult> {
     cleanupStaleAgents();
 
     // Hard global limit — never exceed MAX_CONCURRENT_RUNNING processes
@@ -1998,10 +2062,15 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       purpose: spec.purpose || spec.task.slice(0, 80),
       startedAt,
       completedAt: null,
+      heartbeatAt: startedAt,
+      lastActivityAt: startedAt,
+      pid: null,
+      deadlineAt: spec.timeout && spec.timeout > 0 ? startedAt + spec.timeout : null,
       heartbeatInterval: null,
       childProcess: null,
       bondId,
       bondUsd,
+      transcriptId: null,
     };
     agents.set(agentId, record);
 
@@ -2014,6 +2083,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     let transcriptStartError: string | null = null;
     try {
       transcriptId = txStart(spec, runtime, agentId, startedAt);
+      record.transcriptId = transcriptId;
     } catch (err) {
       transcriptStartError = (err as Error).message;
     }
@@ -2046,19 +2116,53 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     }, { pid: initialRegistryPid });
 
     // PD coordination: start session
-    await pdCoordinate('/sugar/begin', {
+    const spawnWorktree = spec.workdir ? getWorktreeInfo(resolve(spec.workdir)) : null;
+    const coordination = await pdCoordinate('/sugar/begin', {
       agentId,
       name: displayName,
       type: 'spawned',
       pid: initialRegistryPid,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
-      lifecycle: 'ephemeral',
+      lifecycle: spec.coordinationLifecycle ?? 'durable',
+      ...(spawnWorktree ? {
+        worktree: toSessionWorktreeContext(spawnWorktree),
+        requireLinkedWorktree: spec.allowSharedCheckout !== true,
+        allowMainWorktree: spec.allowSharedCheckout === true,
+      } : {}),
       metadata: coordinationMetadata,
     }, { pid: initialRegistryPid });
+    const coordinationSessionId = typeof coordination.data?.sessionId === 'string'
+      ? coordination.data.sessionId
+      : null;
+    const coordinationStartError = coordination.success && coordinationSessionId
+      ? null
+      : coordination.error || 'coordination session start did not return a durable session id';
+
+    // A receipt is not admitted until BOTH durable records exist: transcript
+    // and Port Daddy session. This is the accounting boundary, not process fork.
+    if (!transcriptStartError && transcriptId && !coordinationStartError && coordinationSessionId) {
+      onAccepted?.({
+        agentId,
+        name: displayName,
+        backend: runtime.effectiveBackend,
+        model: runtime.effectiveModel,
+        status: 'accepted',
+        identity: spec.identity || null,
+        purpose: spec.purpose || spec.task.slice(0, 80),
+        startedAt,
+        heartbeatAt: startedAt,
+        lastActivityAt: startedAt,
+        pid: null,
+        deadlineAt: record.deadlineAt,
+        transcriptId,
+        sessionId: coordinationSessionId,
+      });
+    }
 
     // Start heartbeat interval
     record.heartbeatInterval = setInterval(async () => {
+      record.heartbeatAt = Date.now();
       const pid = registryPidFor(record);
       await pdCoordinate(`/agents/${agentId}/heartbeat`, {
         pid,
@@ -2088,10 +2192,30 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           `Spawn refused: ${transcriptStartError}. A backend must not run unless its conversation is recorded.`,
         );
       }
+      if (coordinationStartError) {
+        throw new Error(`Spawn refused: durable coordination session could not start (${coordinationStartError}).`);
+      }
       const executionSpec: SpawnSpec = {
         ...spec,
         backend: runtime.effectiveBackend,
         model: runtime.effectiveModel,
+        env: {
+          ...(spec.env || {}),
+          // The selected daemon is the authority for the whole child tree.
+          // This prevents hooks and nested `pd` calls from falling back to the
+          // stable socket or an installed CLI from another release.
+          PORT_DADDY_URL: getDaemonTcpUrl(process.env.PORT_DADDY_URL),
+          ...(process.env.PORT_DADDY_CLI?.trim()
+            ? { PORT_DADDY_CLI: process.env.PORT_DADDY_CLI.trim() }
+            : process.env.PORT_DADDY_CAN_SELF_DAEMON === '1'
+              ? { PORT_DADDY_CLI: process.execPath }
+              : {}),
+          ...(process.env.PD_DAEMON_LABEL?.trim()
+            ? { PORT_DADDY_DAEMON: process.env.PD_DAEMON_LABEL.trim() }
+            : {}),
+          PD_AGENT_ID: agentId,
+          ...(coordinationSessionId ? { PD_SESSION_ID: coordinationSessionId } : {}),
+        },
       };
       const finalContinuationWorkspaceError = validateNativeResume(executionSpec, runtime)
         ?? validateSpawnWorkspace(executionSpec);
@@ -2106,6 +2230,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           onChildProcess: (child) => {
             if (record.status === 'running') {
               record.childProcess = child;
+              record.pid = normalizeCoordinationPid(child.pid) ?? null;
+              record.lastActivityAt = Date.now();
               const pid = registryPidFor(record);
               void pdCoordinate(`/agents/${agentId}/heartbeat`, {
                 pid,
@@ -2121,6 +2247,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           onTranscriptDelta: transcriptId
             ? (msg) => {
                 streamedLiveDeltas = true;
+                record.lastActivityAt = Date.now();
                 txDelta(transcriptId, msg);
               }
             : undefined,
@@ -2239,6 +2366,9 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     record.status = status;
     record.completedAt = completedAt;
     record.childProcess = null;
+    record.pid = null;
+    record.heartbeatAt = completedAt;
+    record.lastActivityAt = completedAt;
 
     if (record.heartbeatInterval) {
       clearInterval(record.heartbeatInterval);
@@ -2360,7 +2490,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       });
     }
 
-    return {
+    const spawnResult: SpawnResult = {
       agentId,
       name: displayName,
       backend: runtime.effectiveBackend,
@@ -2379,6 +2509,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       coastGuard: coastGuardReceipt,
       ...(spec.nativeResume ? { harnessSessionId: spec.nativeResume.sessionId } : {}),
     };
+    record.result = spawnResult;
+    return spawnResult;
   }
 
   /**
@@ -2401,7 +2533,62 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       purpose: r.purpose,
       startedAt: r.startedAt,
       completedAt: r.completedAt,
+      heartbeatAt: r.heartbeatAt,
+      lastActivityAt: r.lastActivityAt,
+      pid: normalizeCoordinationPid(r.childProcess?.pid) ?? r.pid,
+      deadlineAt: r.deadlineAt,
     }));
+  }
+
+  /** Read a live run, or reconstruct its durable terminal/unknown state. */
+  function get(agentId: string): SpawnResult | null {
+    const record = agents.get(agentId);
+    if (record?.result) return record.result;
+    if (record) {
+      return {
+        agentId: record.agentId,
+        name: record.name,
+        backend: record.backend,
+        model: record.model,
+        requestedBackend: record.requestedBackend,
+        effectiveBackend: record.effectiveBackend,
+        requestedModel: record.requestedModel,
+        effectiveModel: record.effectiveModel,
+        backendOverrideSource: record.backendOverrideSource,
+        status: record.status,
+        output: null,
+        error: null,
+        telemetry: null,
+        startedAt: record.startedAt,
+        completedAt: record.completedAt,
+      };
+    }
+
+    const header = transcripts?.listTranscripts({ agentId, limit: 1 })[0];
+    if (!header) return null;
+    const transcript = transcripts?.getTranscript(header.id) ?? header;
+    const assistant = [...(transcript.messages || [])]
+      .reverse()
+      .find((message) => message.role === 'assistant' && !message.content.startsWith('[error]'));
+    const status = transcript.status === 'running' ? 'unknown' : transcript.status as SpawnResult['status'];
+    return {
+      agentId: transcript.spawned_agent_id,
+      backend: transcript.backend as SpawnSpec['backend'],
+      model: transcript.model,
+      requestedBackend: transcript.requested_backend as SpawnSpec['backend'] | undefined,
+      effectiveBackend: transcript.effective_backend as SpawnSpec['backend'] | undefined,
+      requestedModel: transcript.requested_model,
+      effectiveModel: transcript.effective_model,
+      backendOverrideSource: transcript.backend_override_source as BackendOverrideSource | undefined,
+      status,
+      output: assistant?.content ?? null,
+      error: status === 'unknown'
+        ? 'The daemon restarted before a terminal event. The task outcome is unknown; no failure was inferred.'
+        : transcript.error ?? null,
+      telemetry: null,
+      startedAt: transcript.started_at,
+      completedAt: transcript.ended_at ?? null,
+    };
   }
 
   /**
@@ -2467,7 +2654,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     }
   }
 
-  return { spawn, list, kill };
+  return { spawn, list, get, kill };
 }
 
 export type Spawner = ReturnType<typeof createSpawner>;

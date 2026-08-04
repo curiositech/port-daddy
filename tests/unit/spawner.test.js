@@ -305,7 +305,7 @@ describe('spawn — instrumentation', () => {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ success: true }),
+        json: async () => ({ success: true, sessionId: 'test-session-http-error' }),
         text: async () => 'OK',
       };
     });
@@ -542,7 +542,7 @@ describe('spawn — backend dispatch', () => {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ success: true }),
+        json: async () => ({ success: true, sessionId: 'test-session-network-error' }),
         text: async () => 'OK',
       };
     });
@@ -566,7 +566,7 @@ describe('spawn — backend dispatch', () => {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ success: true }),
+        json: async () => ({ success: true, sessionId: 'test-session-result-error' }),
         text: async () => 'OK',
       };
     });
@@ -685,9 +685,7 @@ describe('spawn — backend dispatch', () => {
     expect(cpSpawn).toHaveBeenCalledWith(
       'aider',
       ['--yes', '--no-stream', '--model', 'aider', '--message', 'Fix the login bug', 'src/auth.ts', 'src/login.ts'],
-      expect.objectContaining({
-        timeout: 300000,
-      })
+      expect.not.objectContaining({ timeout: expect.anything() })
     );
   });
 
@@ -704,7 +702,7 @@ describe('spawn — backend dispatch', () => {
     expect(cpSpawn).toHaveBeenCalledWith(
       'aider',
       ['--yes', '--no-stream', '--model', 'gpt-5', '--message', 'Refactor carefully'],
-      expect.objectContaining({ timeout: 300000 })
+      expect.not.objectContaining({ timeout: expect.anything() })
     );
   });
 
@@ -773,7 +771,7 @@ describe('spawn — result shape', () => {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ success: true }),
+        json: async () => ({ success: true, sessionId: 'test-session-done-error' }),
         text: async () => 'OK',
       };
     });
@@ -1043,7 +1041,18 @@ describe('PD coordination', () => {
     expect(beginCalls.length).toBe(1);
     const body = JSON.parse(beginCalls[0][1].body);
     expect(body.identity).toBe('myapp:api:main');
-    expect(body.lifecycle).toBe('ephemeral');
+    expect(body.lifecycle).toBe('durable');
+  });
+
+  test('allows an explicit ephemeral coordination lifecycle for disposable probes', async () => {
+    const spawner = createSpawner();
+    await spawner.spawn({
+      backend: 'ollama',
+      task: 'short readiness probe',
+      coordinationLifecycle: 'ephemeral',
+    });
+    const beginCall = global.fetch.mock.calls.find(([url]) => String(url).endsWith('/sugar/begin'));
+    expect(JSON.parse(beginCall[1].body).lifecycle).toBe('ephemeral');
   });
 
   test('calls /sugar/done on successful completion', async () => {
@@ -1078,7 +1087,7 @@ describe('PD coordination', () => {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ success: true }),
+        json: async () => ({ success: true, sessionId: 'test-session-done-failure' }),
         text: async () => 'OK',
       };
     });
@@ -1096,7 +1105,7 @@ describe('PD coordination', () => {
     expect(body.note).toContain('Failed');
   });
 
-  test('PD coordination failures do not block spawning', async () => {
+  test('durable coordination failure blocks an unaccounted backend launch', async () => {
     const spawner = createSpawner();
 
     // All PD calls fail, but ollama succeeds
@@ -1118,9 +1127,9 @@ describe('PD coordination', () => {
       task: 'test without PD',
     });
 
-    // Spawn still succeeds despite PD failures
-    expect(result.status).toBe('completed');
-    expect(result.output).toBe('works');
+    expect(result.status).toBe('failed');
+    expect(result.error).toMatch(/durable coordination session could not start/i);
+    expect(mockFetch.mock.calls.some(([url]) => String(url).includes('11434'))).toBe(false);
   });
 
   test('starts heartbeat interval on spawn', async () => {
@@ -1307,7 +1316,7 @@ describe('spawn — gemini backend', () => {
 
     mockFetch.mockImplementation(async (url) => {
       if (typeof url === 'string' && (url.includes('/agents') || url.includes('/sugar'))) {
-        return { ok: true, status: 200, json: async () => ({ success: true }), text: async () => 'OK' };
+        return { ok: true, status: 200, json: async () => ({ success: true, sessionId: 'test-session-gemini' }), text: async () => 'OK' };
       }
       if (typeof url === 'string' && url.includes('generativelanguage.googleapis.com')) {
         return {
@@ -1386,9 +1395,7 @@ describe('spawn — claude-cli backend', () => {
     expect(cpSpawn).toHaveBeenCalledWith(
       expect.stringMatching(/(?:^|[/\\])claude$/),
       ['-p', '--output-format', 'json', 'Write a hello world program'],
-      expect.objectContaining({
-        timeout: 300000,
-      })
+      expect.not.objectContaining({ timeout: expect.anything() })
     );
   });
 
@@ -1586,9 +1593,9 @@ describe('spawn — codex backend', () => {
       ]),
       expect.objectContaining({
         cwd: '/tmp/port-daddy-codex-test',
-        timeout: 300000,
       })
     );
+    expect(cpSpawn.mock.calls[0][2]).not.toHaveProperty('timeout');
   });
 
   test('uses codex exec resume without unsupported spawn-only sandbox or cwd flags', async () => {
@@ -1644,7 +1651,7 @@ describe('spawn — codex backend', () => {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ success: true }),
+        json: async () => ({ success: true, sessionId: 'test-session-workspace-swap' }),
         text: async () => 'OK',
       };
     });
@@ -1687,7 +1694,7 @@ describe('spawn — codex backend', () => {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ success: true }),
+        json: async () => ({ success: true, sessionId: 'test-session-handoff-swap' }),
         text: async () => 'OK',
       };
     });

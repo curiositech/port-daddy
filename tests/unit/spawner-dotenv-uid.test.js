@@ -120,11 +120,12 @@ beforeEach(() => {
   mockStatSync.mockReturnValue({ uid: CURRENT_UID, mode: 0o100600 });
   mockReadFileSync.mockReturnValue('');
   resolveChild(0);
-  global.fetch = async () => ({
-    ok: true, status: 200,
-    json: async () => ({ success: true }),
-    text: async () => 'OK',
-  });
+  global.fetch = async (input) => {
+    const data = String(input).includes('/sugar/begin')
+      ? { success: true, sessionId: 'session-dotenv-uid-test' }
+      : { success: true };
+    return { ok: true, status: 200, json: async () => data, text: async () => JSON.stringify(data) };
+  };
 });
 
 afterAll(() => { delete global.fetch; delete process.env.PD_COAST_GUARD_OFF; });

@@ -46,7 +46,9 @@ function installFetch(routes) {
     if (route) return route.reply(href, init);
     const { hostname } = new URL(href);
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return jsonResponse({ success: true });
+      return jsonResponse(href.includes('/sugar/begin')
+        ? { success: true, sessionId: 'session-api-provider-contract' }
+        : { success: true });
     }
     throw new Error(`Unexpected provider fetch: ${href}`);
   });

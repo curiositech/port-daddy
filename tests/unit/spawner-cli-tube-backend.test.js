@@ -749,6 +749,13 @@ describe('spawnViaCliTube — failure paths', () => {
     expect(captured.pid).toBe(4242);
   });
 
+  test('omitting timeout installs no wall-clock task deadline', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'eventually done', exitCode: 0 }));
+    const result = await spawnViaCliTube({ cli: 'agy', prompt: 'long task' });
+    expect(result.error).toBeNull();
+    expect(mockSpawn.mock.calls[0][2]).not.toHaveProperty('timeout');
+  });
+
   test('timeout resolves if child exits nonzero after SIGTERM but before SIGKILL', async () => {
     jest.useFakeTimers();
     try {

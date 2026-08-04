@@ -15,7 +15,7 @@
 
 import { jest } from '@jest/globals';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 // Capture every spawn call; return a fake child that "closes" cleanly.
@@ -66,12 +66,17 @@ function createSpawner(deps = {}) {
 
 let worktree;
 beforeEach(() => {
-  worktree = mkdtempSync(join(tmpdir(), 'pd-cg-wt-'));
+  const scratchRoot = join(homedir(), 'coding', 'tmp');
+  mkdirSync(scratchRoot, { recursive: true });
+  worktree = mkdtempSync(join(scratchRoot, 'pd-cg-wt-'));
   // Make it look like a git WORKTREE so the isolation guard allows the spawn.
   writeFileSync(join(worktree, '.git'), 'gitdir: /somewhere/.git/worktrees/wt\n');
   spawnCalls.length = 0;
-  global.fetch = jest.fn().mockResolvedValue({
-    ok: true, status: 200, json: async () => ({ success: true }), text: async () => 'OK',
+  global.fetch = jest.fn(async (input) => {
+    const data = String(input).includes('/sugar/begin')
+      ? { success: true, sessionId: 'session-coast-guard-test' }
+      : { success: true };
+    return { ok: true, status: 200, json: async () => data, text: async () => JSON.stringify(data) };
   });
 });
 afterEach(() => {

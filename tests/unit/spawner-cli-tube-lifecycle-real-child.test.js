@@ -181,7 +181,7 @@ async function expectPidDead(pid) {
     if (!(await isPidAlive(pid))) return;
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  expect(await isPidAlive(pid)).toBe(false);
+  expect(await isPidAlive(pid), `PID ${pid} remained alive after process-tree cleanup`).toBe(false);
 }
 
 function killPid(pid) {

@@ -79,7 +79,7 @@ export interface CliTubeOptions {
    * `cli:<tool>:<uuid>`. Pass `null` to suppress publishing.
    */
   tube?: string | null;
-  /** Per-spawn timeout (ms). Default 5 minutes. */
+  /** Optional hard task deadline in milliseconds. No default wall deadline. */
   timeoutMs?: number;
   /** Working directory for the child process. */
   cwd?: string;
@@ -160,7 +160,6 @@ export interface TubeClientLike {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
 const TIMEOUT_KILL_GRACE_MS = 5_000;
 const TIMEOUT_KILL_CLOSE_DEADLINE_MS = 1_000;
 
@@ -266,7 +265,7 @@ export async function spawnViaCliTube(
   for (const key of provider.stripEnvKeys ?? []) {
     delete env[key];
   }
-  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const timeoutMs = opts.timeoutMs && opts.timeoutMs > 0 ? opts.timeoutMs : undefined;
   const tubeChannel = opts.tube === null ? null : (opts.tube ?? generateTubeChannel(cli));
 
   // For codex, we use --output-last-message to capture a clean final
@@ -402,13 +401,13 @@ export async function spawnViaCliTube(
     if (result.spawnErr.includes('ENOENT') || result.spawnErr.includes('not found')) {
       error = `${cli} binary "${binary}" not found on PATH. Install it and retry. ${provider.authNextStep}`;
     } else if (result.timedOut) {
-      error = `${cli} timed out after ${timeoutMs}ms: ${result.spawnErr}`;
+      error = `${cli} timed out after ${timeoutMs as number}ms: ${result.spawnErr}`;
     } else {
       error = `Failed to spawn ${binary}: ${result.spawnErr}`;
     }
   } else if (result.timedOut) {
     const detail = formatCliErrorDetail(stderrText || rawStdout);
-    error = `${cli} timed out after ${timeoutMs}ms${detail ? `: ${detail}` : ''}`;
+    error = `${cli} timed out after ${timeoutMs as number}ms${detail ? `: ${detail}` : ''}`;
   } else if (result.code !== 0) {
     const failureText = stderrText || rawStdout;
     const failureLc = failureText.toLowerCase();

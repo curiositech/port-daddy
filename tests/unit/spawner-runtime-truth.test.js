@@ -49,15 +49,20 @@ function makeCostTracker() {
 }
 
 function mockCoordinationFetch() {
-  return jest.fn().mockResolvedValue({
-    ok: true,
-    status: 200,
-    json: async () => ({ success: true }),
-    text: async () => 'OK',
+  return jest.fn(async (input) => {
+    const data = String(input).includes('/sugar/begin')
+      ? { success: true, sessionId: 'session-spawner-runtime-truth' }
+      : { success: true };
+    return {
+      ok: true,
+      status: 200,
+      json: async () => data,
+      text: async () => JSON.stringify(data),
+    };
   });
 }
 
-async function buildRouteApp({ transcripts, spawner, costTracker }) {
+async function buildRouteApp({ db, transcripts, spawner, costTracker }) {
   const app = Fastify();
   const deps = {
     metrics: { errors: 0 },
@@ -67,6 +72,7 @@ async function buildRouteApp({ transcripts, spawner, costTracker }) {
   await app.register(spawnPlugin, {
     deps: {
       ...deps,
+      db,
       spawner,
       costTracker,
     },
@@ -302,7 +308,7 @@ describe('spawner effective runtime truth', () => {
       enforceTelemetryPolicy: true,
       enforceTranscriptPolicy: true,
     });
-    const app = await buildRouteApp({ transcripts, spawner, costTracker });
+    const app = await buildRouteApp({ db, transcripts, spawner, costTracker });
 
     try {
       const spawnRes = await app.inject({

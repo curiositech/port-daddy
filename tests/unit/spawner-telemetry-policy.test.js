@@ -31,11 +31,17 @@ describe('spawner telemetry enforcement', () => {
     // assertion. The guard has dedicated coverage in
     // spawner-isolation-guard.test.js, so opt out of it here.
     process.env.PD_SPAWN_ISOLATION_OFF = '1';
-    global.fetch = jest.fn(async () => ({
-      ok: true,
-      json: async () => ({}),
-      text: async () => '',
-    }));
+    global.fetch = jest.fn(async (input) => {
+      const data = String(input).includes('/sugar/begin')
+        ? { success: true, sessionId: 'session-telemetry-policy-test' }
+        : { success: true };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => data,
+        text: async () => JSON.stringify(data),
+      };
+    });
   });
 
   afterAll(() => {

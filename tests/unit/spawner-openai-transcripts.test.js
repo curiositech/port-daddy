@@ -62,11 +62,14 @@ describe('spawner OpenAI transcript readback', () => {
           text: async () => '',
         };
       }
+      const data = href.includes('/sugar/begin')
+        ? { success: true, sessionId: 'session-openai-transcript-test' }
+        : { success: true };
       return {
         ok: true,
         status: 200,
-        json: async () => ({ success: true }),
-        text: async () => 'OK',
+        json: async () => data,
+        text: async () => JSON.stringify(data),
       };
     });
   });

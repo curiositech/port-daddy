@@ -17,6 +17,7 @@ import * as ui from '../utils/ui.js';
 import { autoIdentityFromPackageJson } from './services.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 import { KNOWN_BACKEND_IDS } from '../../lib/backend-catalog.js';
+import { randomUUID } from 'node:crypto';
 
 function parseBudgetValue(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -25,6 +26,76 @@ function parseBudgetValue(value: unknown): number | undefined {
     if (Number.isFinite(parsed)) return parsed;
   }
   return undefined;
+}
+
+const SPAWN_ADMISSION_TIMEOUT_MS = 15_000;
+const SPAWN_POLL_INTERVAL_MS = 1_000;
+
+class SpawnMonitorMissingError extends Error {}
+
+function spawnCollectionSettled(data: Record<string, unknown>): boolean {
+  return data.terminal === true || data.outcomeUnknown === true ||
+    ['completed', 'failed', 'killed', 'cancelled', 'over_budget', 'no_runtime', 'unknown'].includes(String(data.status || ''));
+}
+
+async function collectSpawn(monitorUrl: string): Promise<Record<string, unknown>> {
+  let reconnects = 0;
+  while (true) {
+    try {
+      const response = await pdFetch(monitorUrl, { method: 'GET', timeout: SPAWN_ADMISSION_TIMEOUT_MS });
+      const data = await response.json();
+      if (response.status === 404) {
+        throw new SpawnMonitorMissingError((data.error as string) || `No spawned run found at ${monitorUrl}`);
+      }
+      if (!response.ok) throw new Error((data.error as string) || `spawn monitor returned HTTP ${response.status}`);
+      reconnects = 0;
+      if (spawnCollectionSettled(data)) return data;
+    } catch (error) {
+      if (error instanceof SpawnMonitorMissingError) throw error;
+      reconnects += 1;
+      if (reconnects === 1) {
+        ui.warn(`Spawn monitor disconnected; the daemon still owns the run. Reconnecting (${(error as Error).message})…`);
+      }
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, SPAWN_POLL_INTERVAL_MS));
+  }
+}
+
+function printSpawnResult(data: Record<string, unknown>, options: CLIOptions): void {
+  const failed = data.success === false && data.outcomeUnknown !== true ||
+    ['failed', 'killed', 'cancelled', 'over_budget', 'no_runtime'].includes(String(data.status || ''));
+  const unknown = data.outcomeUnknown === true || data.status === 'unknown';
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    if (failed) process.exit(1);
+    return;
+  }
+  if (isQuiet(options)) {
+    if (data.output && typeof data.output === 'string') console.log(data.output);
+    else console.log(data.agentId);
+    if (failed) process.exit(1);
+    return;
+  }
+
+  const runLabel = String(data.agentId || data.id || 'unassigned run');
+  const agentMsg = `Agent ${runLabel}: ${data.status as string}`;
+  if (data.status === 'completed') ui.success(agentMsg);
+  else if (failed) ui.error(agentMsg);
+  else ui.warn(agentMsg);
+  if (data.backend) console.error(`  Backend: ${data.backend as string}`);
+  if (data.model) console.error(`  Model: ${data.model as string}`);
+  if (data.identity) console.error(`  Identity: ${data.identity as string}`);
+  if (data.completedAt && data.startedAt) {
+    console.error(`  Duration: ${relativeTime((data.completedAt as number) - (data.startedAt as number))}`);
+  }
+  if (data.error) console.error(`  ${unknown ? 'Reconciliation' : 'Error'}: ${data.error as string}`);
+  if (data.output && typeof data.output === 'string') {
+    console.error('');
+    console.error('--- Output ---');
+    console.log(data.output);
+  }
+  if (failed) process.exit(1);
 }
 
 // =============================================================================
@@ -52,6 +123,7 @@ export async function handleSpawn(
     const res: PdFetchResponse = await pdFetch(`/spawn/${encodeURIComponent(agentId)}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
+      body: '{}',
     });
 
     const data = await res.json();
@@ -86,6 +158,7 @@ export async function handleSpawn(
 
   const backend = (options.backend as string) || 'ollama';
   const budgetUsd = parseBudgetValue(options.budget);
+  const requestedTimeoutMs = options.timeout != null ? parseInt(String(options.timeout), 10) : undefined;
 
   // Single source of truth: lib/backend-catalog.ts (ADR-0057 model-abstraction
   // unification) — this used to be a hand-maintained array duplicating
@@ -111,6 +184,8 @@ export async function handleSpawn(
     console.error('  --budget <usd>        Required spend ceiling for this launch');
     console.error('  --allowedTools <str>  Tool permissions for claude-cli backend');
     console.error('  --maxTokens <n>       Max tokens for claude/claude-cli backends');
+    console.error('  --timeout <ms>         Optional hard task deadline; CLI agents have no default');
+    console.error('  --detach               Return the durable receipt without following the run');
     console.error('  --inject-squid-hooks  Install Giant Squid tentacles before launching supported CLI backends');
     console.error('  -j, --json            JSON output');
     console.error('  -q, --quiet           Suppress output');
@@ -154,7 +229,7 @@ export async function handleSpawn(
   }
 
   if (options.workdir) body.workdir = options.workdir;
-  if (options.timeout) body.timeout = parseInt(options.timeout as string, 10);
+  if (requestedTimeoutMs && requestedTimeoutMs > 0) body.timeout = requestedTimeoutMs;
   if (options.allowedTools) body.allowedTools = options.allowedTools;
   if (options.maxTokens) body.maxTokens = parseInt(options.maxTokens as string, 10);
   if (options['inject-squid-hooks'] === true || options.injectSquidHooks === true) {
@@ -167,8 +242,13 @@ export async function handleSpawn(
 
   const res: PdFetchResponse = await pdFetch('/spawn', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Prefer: 'respond-async',
+      'Idempotency-Key': randomUUID(),
+    },
     body: JSON.stringify(body),
+    timeout: SPAWN_ADMISSION_TIMEOUT_MS,
   });
 
   const data = await res.json();
@@ -178,45 +258,20 @@ export async function handleSpawn(
     process.exit(1);
   }
 
-  const failed = data.success === false || data.status === 'failed';
-
-  if (isJson(options)) {
-    console.log(JSON.stringify(data, null, 2));
-    if (failed) process.exit(1);
-    return;
-  }
-
-  if (isQuiet(options)) {
-    // In quiet mode, print output if available, otherwise agent ID
-    if (data.output && typeof data.output === 'string') {
-      console.log(data.output);
-    } else {
-      console.log(data.agentId);
+  if (res.status === 202 && data.monitorUrl && options.detach !== true) {
+    if (!isQuiet(options) && !isJson(options)) {
+      ui.success(`Accepted ${data.agentId as string}; following durable run (Ctrl-C detaches only this client).`);
     }
-    if (failed) process.exit(1);
+    try {
+      printSpawnResult(await collectSpawn(String(data.monitorUrl)), options);
+    } catch (error) {
+      ui.error((error as Error).message);
+      process.exit(1);
+    }
     return;
   }
 
-  const agentMsg = `Agent ${data.agentId as string}: ${data.status as string}`;
-  if (data.status === 'completed') ui.success(agentMsg);
-  else if (failed) ui.error(agentMsg);
-  else ui.warn(agentMsg);
-  console.error(`  Backend: ${data.backend as string}`);
-  if (data.model) console.error(`  Model: ${data.model as string}`);
-  if (data.identity) console.error(`  Identity: ${data.identity as string}`);
-  if (data.completedAt && data.startedAt) {
-    const duration = (data.completedAt as number) - (data.startedAt as number);
-    console.error(`  Duration: ${relativeTime(duration)}`);
-  }
-  if (data.error) {
-    console.error(`  Error: ${data.error as string}`);
-  }
-  if (data.output && typeof data.output === 'string') {
-    console.error('');
-    console.error('--- Output ---');
-    console.log(data.output);
-  }
-  if (failed) process.exit(1);
+  printSpawnResult(data, options);
 }
 
 // =============================================================================
@@ -224,9 +279,27 @@ export async function handleSpawn(
 // =============================================================================
 
 export async function handleSpawned(
-  _args: string[],
+  args: string[],
   options: CLIOptions,
 ): Promise<void> {
+  const agentId = args[0];
+  if (agentId) {
+    const monitorUrl = `/spawn/${encodeURIComponent(agentId)}`;
+    try {
+      if (options.wait === true || options.follow === true) {
+        printSpawnResult(await collectSpawn(monitorUrl), options);
+        return;
+      }
+      const one = await pdFetch(monitorUrl, { method: 'GET' });
+      const data = await one.json();
+      if (!one.ok) throw new Error((data.error as string) || `Failed to inspect ${agentId}`);
+      printSpawnResult(data, options);
+    } catch (error) {
+      ui.error((error as Error).message);
+      process.exit(1);
+    }
+    return;
+  }
   const res: PdFetchResponse = await pdFetch('/spawn', {
     method: 'GET',
   });

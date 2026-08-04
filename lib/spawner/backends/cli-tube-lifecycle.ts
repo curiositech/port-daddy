@@ -19,7 +19,8 @@ interface StdioPeerSnapshot {
 }
 
 interface WaitForCliChildOptions {
-  timeoutMs: number;
+  /** Explicit task deadline. Omit to observe until exit or cancellation. */
+  timeoutMs?: number;
   killGraceMs: number;
   killCloseDeadlineMs: number;
 }
@@ -98,22 +99,24 @@ export function waitForCliChildProcess(
     processTreePollTimer = setInterval(rememberProcessTree, PROCESS_TREE_POLL_MS);
     processTreePollTimer.unref?.();
 
-    timer = setTimeout(() => {
-      timedOut = true;
-      rememberProcessTree(true);
-      signalCliProcessTree(child, 'SIGTERM', knownTreePids);
-      forceKillTimer = setTimeout(() => {
+    if (opts.timeoutMs !== undefined && opts.timeoutMs > 0) {
+      timer = setTimeout(() => {
+        timedOut = true;
         rememberProcessTree(true);
-        signalCliProcessTree(child, 'SIGKILL', knownTreePids);
-        killCloseDeadlineTimer = setTimeout(() => {
-          const warningSuffix = processTreeWarning ? ` (${processTreeWarning})` : '';
-          settle(-1, `process tree did not close after SIGKILL; transcript may be incomplete${warningSuffix}`);
-        }, opts.killCloseDeadlineMs);
-        killCloseDeadlineTimer.unref?.();
-      }, opts.killGraceMs);
-      forceKillTimer.unref?.();
-    }, opts.timeoutMs);
-    timer.unref?.();
+        signalCliProcessTree(child, 'SIGTERM', knownTreePids);
+        forceKillTimer = setTimeout(() => {
+          rememberProcessTree(true);
+          signalCliProcessTree(child, 'SIGKILL', knownTreePids);
+          killCloseDeadlineTimer = setTimeout(() => {
+            const warningSuffix = processTreeWarning ? ` (${processTreeWarning})` : '';
+            settle(-1, `process tree did not close after SIGKILL; transcript may be incomplete${warningSuffix}`);
+          }, opts.killCloseDeadlineMs);
+          killCloseDeadlineTimer.unref?.();
+        }, opts.killGraceMs);
+        forceKillTimer.unref?.();
+      }, opts.timeoutMs);
+      timer.unref?.();
+    }
   });
 }
 

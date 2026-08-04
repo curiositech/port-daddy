@@ -3855,8 +3855,22 @@ paths:
   /spawn:
     post:
       tags: [spawn]
-      summary: Launch an AI agent
+      summary: Admit an AI-agent run, optionally returning a durable receipt
       operationId: spawnAgent
+      parameters:
+        - name: Prefer
+          in: header
+          required: false
+          schema:
+            type: string
+            enum: [respond-async]
+          description: Return 202 after durable admission instead of holding the request for execution.
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Required with Prefer=respond-async. Exact retries reuse one receipt; request drift returns 409.
       requestBody:
         required: true
         content:
@@ -3900,10 +3914,11 @@ paths:
                   description: Extra environment variables
                 timeout:
                   type: integer
-                  description: Timeout in milliseconds
+                  minimum: 1
+                  description: Optional hard task deadline in milliseconds. CLI backends have no default wall-clock deadline.
       responses:
         '200':
-          description: Agent spawned
+          description: Terminal result for compatibility callers that did not request asynchronous admission
           content:
             application/json:
               schema:
@@ -3940,8 +3955,39 @@ paths:
                     description: Source that selected a different effective backend, or none when requested/effective are identical.
                   status:
                     type: string
-                    enum: [running, completed, failed, killed, over_budget]
+                    enum: [running, completed, failed, killed, over_budget, unknown]
                     description: Spawn lifecycle status. over_budget is terminal and occurs when final exact telemetry cost exceeds the request budgetUsd hard cap after transcript telemetry is recorded.
+        '202':
+          description: Run durably admitted; collect it from the Location monitor resource
+          headers:
+            Location:
+              schema:
+                type: string
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, accepted, agentId, status, transcriptId, monitorUrl]
+                properties:
+                  success:
+                    type: boolean
+                  accepted:
+                    type: boolean
+                    enum: [true]
+                  agentId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [accepted]
+                  transcriptId:
+                    type: string
+                  monitorUrl:
+                    type: string
+                  cancelUrl:
+                    type: string
         '400':
           $ref: '#/components/responses/ValidationError'
         '500':
@@ -3970,6 +4016,47 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   /spawn/{id}:
+    get:
+      tags: [spawn]
+      summary: Inspect or reconnect to a spawned run
+      operationId: getSpawnedAgent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Live evidence, terminal result, or explicit outcome-unknown state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, terminal, outcomeUnknown, agentId, status]
+                properties:
+                  success:
+                    type: boolean
+                  terminal:
+                    type: boolean
+                  outcomeUnknown:
+                    type: boolean
+                  lifecycleState:
+                    type: string
+                    enum: [starting, live, completed, failed, killed, over_budget, unknown]
+                  agentId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [running, completed, failed, killed, over_budget, unknown]
+                  liveness:
+                    type: object
+                    nullable: true
+        '404':
+          description: No live registry or durable transcript exists for this run id
+        '500':
+          $ref: '#/components/responses/InternalError'
+
     delete:
       tags: [spawn]
       summary: Kill a spawned agent

@@ -1121,7 +1121,9 @@
       "routes": [
         "POST /spawn/preflight",
         "POST /spawn",
+        "GET /spawn/receipts/:param",
         "DELETE /spawn/:param",
+        "GET /spawn/:param",
         "GET /spawn"
       ],
       "mcp": [

@@ -557,9 +557,12 @@ pd spawn --backend claude --model claude-haiku-4-5-20251001 \
   --budget 0.50 --identity myapp:fixer -- "Summarize the latest auth diff"
 
 pd spawned              # list running/completed agents
+pd spawned <id> --follow # reconnect to a durable run monitor
 pd spawn kill <id>      # terminate a running agent
 pd transcripts          # durable agent transcripts (survive DB loss, ADR-0058)
 ```
+
+`pd spawn` admits the run, persists its transcript, and follows a monitor resource; Ctrl-C detaches only the client. CLI agents have no arbitrary default wall-clock deadline. Use `--timeout <ms>` only when the task itself has a real deadline, or `--detach` to return the receipt immediately. A daemon restart without a terminal event is reported as **outcome unknown**, never rewritten as agent failure. “Live” requires a direct child PID plus a fresh supervisor heartbeat.
 
 ### 🔬 Adapter conformance probes — `pd work probe`
 

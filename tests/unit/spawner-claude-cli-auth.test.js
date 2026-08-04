@@ -145,11 +145,12 @@ beforeEach(() => {
     String(p).endsWith('.nvm/versions/node') ? ['v22.17.1'] : []
   ));
   resolveChild(0);
-  global.fetch = async () => ({
-    ok: true, status: 200,
-    json: async () => ({ success: true }),
-    text: async () => 'OK',
-  });
+  global.fetch = async (input) => {
+    const data = String(input).includes('/sugar/begin')
+      ? { success: true, sessionId: 'session-claude-cli-auth-test' }
+      : { success: true };
+    return { ok: true, status: 200, json: async () => data, text: async () => JSON.stringify(data) };
+  };
 });
 
 afterAll(() => {

@@ -7,15 +7,23 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify';
-import type { BackendOverrideSource, SpawnSpec, Spawner } from '../lib/spawner.js';
+import type { BackendOverrideSource, SpawnAccepted, SpawnResult, SpawnSpec, Spawner } from '../lib/spawner.js';
 import { assessSpawnPreflight } from '../lib/spawn-preflight.js';
 import type { CostTracker } from '../lib/cost-tracker.js';
 import { resolveFleetAgentRuntime, type FleetModelTier, type FleetRuntimeTarget } from '../lib/fleet-runtime.js';
 import { validateChannel } from '../shared/validators.js';
 import { KNOWN_BACKEND_IDS } from '../lib/backend-catalog.js';
+import type Database from 'better-sqlite3';
+import {
+  AgentRunIdempotencyConflictError,
+  createAgentRunReceiptStore,
+  type AgentRunReceipt,
+  type AgentRunReceiptStatus,
+} from '../lib/agent-run-receipts.js';
 
 interface SpawnRouteDeps {
   spawner: Spawner;
+  db: Database.Database;
   costTracker?: CostTracker;
   metrics: { errors: number };
   logger: {
@@ -55,7 +63,16 @@ function requestedModelFromRequest(
 // Fastify plugin (dual-export)
 // ==========================================================================
 export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (fastify, opts) => {
-  const { metrics, logger, spawner, costTracker } = opts.deps;
+  const { metrics, logger, spawner, costTracker, db } = opts.deps;
+  const receipts = createAgentRunReceiptStore(db);
+
+  const receiptMonitorUrl = (receipt: AgentRunReceipt) => `/spawn/receipts/${encodeURIComponent(receipt.id)}`;
+  const runStatus = (result: SpawnResult): AgentRunReceiptStatus => {
+    if (result.agentId === 'blocked') return 'no_runtime';
+    if (result.status === 'killed') return 'cancelled';
+    if (result.status === 'running') return 'starting';
+    return result.status;
+  };
 
   fastify.post('/spawn/preflight', async (request, reply) => {
     try {
@@ -271,7 +288,119 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         purpose: spec.purpose || null,
       });
 
-      const result = await spawner.spawn(spec);
+      const prefer = String(request.headers.prefer || '').toLowerCase();
+      const respondAsync = prefer.split(',').some((token) => token.trim() === 'respond-async');
+      let durableReceipt: AgentRunReceipt | null = null;
+      if (respondAsync) {
+        const rawKey = request.headers['idempotency-key'];
+        const idempotencyKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
+        if (typeof idempotencyKey !== 'string' || !idempotencyKey.trim()) {
+          reply.code(400);
+          return {
+            success: false,
+            error: 'Idempotency-Key is required for asynchronous spawn admission',
+            code: 'IDEMPOTENCY_KEY_REQUIRED',
+          };
+        }
+        try {
+          const admission = receipts.accept({
+            idempotencyKey,
+            kind: 'spawn',
+            request: spec,
+          });
+          durableReceipt = admission.receipt;
+          if (admission.replayed) {
+            const monitorUrl = receiptMonitorUrl(durableReceipt);
+            const settled = ['completed', 'failed', 'cancelled', 'over_budget', 'no_runtime', 'unknown']
+              .includes(durableReceipt.status);
+            reply.code(settled ? 200 : 202);
+            reply.header('Location', monitorUrl);
+            if (!settled) reply.header('Retry-After', '1');
+            return {
+              success: durableReceipt.status !== 'unknown',
+              accepted: true,
+              replayed: true,
+              ...durableReceipt,
+              agentId: durableReceipt.successorAgentId,
+              monitorUrl,
+              cancelUrl: durableReceipt.successorAgentId
+                ? `/spawn/${encodeURIComponent(durableReceipt.successorAgentId)}`
+                : null,
+            };
+          }
+        } catch (error) {
+          if (error instanceof AgentRunIdempotencyConflictError) {
+            reply.code(409);
+            return {
+              success: false,
+              error: error.message,
+              code: 'IDEMPOTENCY_CONFLICT',
+              receiptId: error.receiptId,
+            };
+          }
+          throw error;
+        }
+      }
+      let acceptRun: ((accepted: SpawnAccepted) => void) | null = null;
+      const accepted = new Promise<SpawnAccepted>((resolve) => { acceptRun = resolve; });
+      const run = spawner.spawn(spec, (acceptedRun) => {
+        if (durableReceipt) {
+          durableReceipt = receipts.markStarting(durableReceipt.id, {
+            successorAgentId: acceptedRun.agentId,
+            successorSessionId: acceptedRun.sessionId,
+            transcriptId: acceptedRun.transcriptId,
+          });
+        }
+        acceptRun?.(acceptedRun);
+      });
+      const trackedRun = durableReceipt
+        ? run.then((result) => {
+            receipts.markStatus(durableReceipt!.id, runStatus(result), { error: result.error });
+            return result;
+          })
+        : run;
+
+      if (respondAsync) {
+        const first = await Promise.race([
+          accepted.then((receipt) => ({ kind: 'accepted' as const, receipt })),
+          trackedRun.then((result) => ({ kind: 'completed' as const, result })),
+        ]);
+        if (first.kind === 'accepted') {
+          const monitorUrl = receiptMonitorUrl(durableReceipt!);
+          void trackedRun.then((result) => {
+            logger.info('spawn_complete', {
+              agentId: result.agentId,
+              backend: result.backend,
+              status: result.status,
+            });
+          }).catch((error) => {
+            metrics.errors++;
+            logger.error('spawn_error', { error: (error as Error).message });
+          });
+          reply.code(202);
+          reply.header('Location', monitorUrl);
+          reply.header('Retry-After', '1');
+          return {
+            success: true,
+            accepted: true,
+            ...durableReceipt,
+            agentId: first.receipt.agentId,
+            monitorUrl,
+            cancelUrl: `/spawn/${encodeURIComponent(first.receipt.agentId)}`,
+            transcriptUrl: `/transcripts?agentId=${encodeURIComponent(first.receipt.agentId)}`,
+          };
+        }
+
+        const result = first.result;
+        logger.info('spawn_complete', {
+          agentId: result.agentId,
+          backend: result.backend,
+          status: result.status,
+        });
+        return { success: result.status === 'completed', ...result };
+      }
+
+      const result = await trackedRun;
 
       logger.info('spawn_complete', {
         agentId: result.agentId,
@@ -283,6 +412,46 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
     } catch (error) {
       metrics.errors++;
       logger.error('spawn_error', { error: (error as Error).message });
+      reply.code(500); return { error: 'internal server error' };
+    }
+  });
+
+  // GET /spawn/receipts/:id — stable collection handle across reconnects/restarts.
+  fastify.get('/spawn/receipts/:id', async (request, reply) => {
+    try {
+      const id = String((request.params as any).id);
+      let receipt = receipts.get(id);
+      if (!receipt) {
+        reply.code(404);
+        return { success: false, error: `No spawn receipt found for ${id}` };
+      }
+      const agentId = receipt.successorAgentId;
+      const run = agentId ? spawner.get(agentId) : null;
+      const live = agentId ? spawner.list().find((agent) => agent.agentId === agentId) : null;
+      const liveProven = Boolean(live?.pid && live.pid > 0 && Date.now() - live.heartbeatAt < 65_000);
+      if (liveProven && receipt.status === 'starting') receipt = receipts.markStatus(id, 'live');
+      const outcomeUnknown = receipt.status === 'unknown';
+      const terminal = ['completed', 'failed', 'cancelled', 'over_budget', 'no_runtime'].includes(receipt.status);
+      if (!terminal && !outcomeUnknown) reply.header('Retry-After', '1');
+      return {
+        success: terminal ? receipt.status === 'completed' : !outcomeUnknown,
+        terminal,
+        outcomeUnknown,
+        ...receipt,
+        agentId,
+        run,
+        output: run?.output ?? null,
+        liveness: live ? {
+          supervisorHeartbeatAt: live.heartbeatAt,
+          lastActivityAt: live.lastActivityAt,
+          pid: live.pid,
+          deadlineAt: live.deadlineAt,
+          evidence: liveProven ? 'pid-and-fresh-supervisor-heartbeat' : 'not-proven-live',
+        } : null,
+      };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('spawn_receipt_get_error', { error: (error as Error).message });
       reply.code(500); return { error: 'internal server error' };
     }
   });
@@ -299,6 +468,45 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
     } catch (error) {
       metrics.errors++;
       logger.error('spawn_list_error', { error: (error as Error).message });
+      reply.code(500); return { error: 'internal server error' };
+    }
+  });
+
+  // GET /spawn/:id — reconnectable collection from live memory or transcript.
+  fastify.get('/spawn/:id', async (request, reply) => {
+    try {
+      const id = String((request.params as any).id);
+      const result: SpawnResult | null = spawner.get(id);
+      if (!result) {
+        reply.code(404);
+        return { success: false, error: `No spawned run found for ${id}` };
+      }
+      const live = spawner.list().find((agent) => agent.agentId === id);
+      const lifecycleState = live?.pid && live.pid > 0 && Date.now() - live.heartbeatAt < 65_000
+        ? 'live'
+        : result.status === 'running'
+          ? 'starting'
+          : result.status;
+      const outcomeUnknown = result.status === 'unknown';
+      const terminal = !['running', 'unknown'].includes(result.status);
+      if (!terminal && !outcomeUnknown) reply.header('Retry-After', '1');
+      return {
+        success: terminal ? result.status === 'completed' : !outcomeUnknown,
+        terminal,
+        outcomeUnknown,
+        lifecycleState,
+        ...result,
+        liveness: live ? {
+          supervisorHeartbeatAt: live.heartbeatAt,
+          lastActivityAt: live.lastActivityAt,
+          pid: live.pid,
+          deadlineAt: live.deadlineAt,
+          evidence: lifecycleState === 'live' ? 'pid-and-fresh-supervisor-heartbeat' : 'not-proven-live',
+        } : null,
+      };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('spawn_get_error', { error: (error as Error).message });
       reply.code(500); return { error: 'internal server error' };
     }
   });

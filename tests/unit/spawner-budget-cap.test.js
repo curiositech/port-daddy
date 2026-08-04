@@ -77,11 +77,11 @@ describe('spawner hard budget cap edges', () => {
     db = createTestDb();
     transcripts = createTranscripts(db);
     originalFetch = global.fetch;
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ success: true }),
-      text: async () => 'OK',
+    global.fetch = jest.fn(async (input) => {
+      const data = String(input).includes('/sugar/begin')
+        ? { success: true, sessionId: 'session-budget-cap-test' }
+        : { success: true };
+      return { ok: true, status: 200, json: async () => data, text: async () => JSON.stringify(data) };
     });
   });
 

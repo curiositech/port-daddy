@@ -82,7 +82,7 @@ describe('spawner ↔ transcripts integration', () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ success: true }),
+      json: async () => ({ success: true, sessionId: 'test-session-transcript' }),
       text: async () => 'OK',
     });
   });
@@ -136,6 +136,78 @@ describe('spawner ↔ transcripts integration', () => {
     expect(tx.messages[2].content).toBe('Done — LGTM.');
     expect(tx.outputs).toHaveLength(1);
     expect(tx.outputs[0].type).toBe('message');
+  });
+
+  it('acknowledges only after transcript persistence and binds the selected daemon identity', async () => {
+    const previousUrl = process.env.PORT_DADDY_URL;
+    const previousCli = process.env.PORT_DADDY_CLI;
+    process.env.PORT_DADDY_URL = 'http://127.0.0.1:4317';
+    process.env.PORT_DADDY_CLI = '/opt/port-daddy-dev/pd';
+    let observedSpec;
+    const accepted = jest.fn((receipt) => {
+      expect(receipt.status).toBe('accepted');
+      expect(receipt.pid).toBeNull();
+      expect(transcripts.listTranscripts({ agentId: receipt.agentId })).toHaveLength(1);
+    });
+    try {
+      const spawner = createSpawner({
+        transcripts,
+        enforceTelemetryPolicy: false,
+        telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+        runnerOverrides: {
+          claude: async (spec) => {
+            observedSpec = spec;
+            return { output: 'durable answer', error: null };
+          },
+        },
+      });
+      const result = await spawner.spawn({
+        backend: 'claude',
+        task: 'persist me',
+        env: { PD_AGENT_ID: 'spoofed', KEEP_ME: 'yes' },
+      }, accepted);
+
+      expect(accepted).toHaveBeenCalledTimes(1);
+      expect(observedSpec.env).toEqual(expect.objectContaining({
+        PD_AGENT_ID: result.agentId,
+        PORT_DADDY_URL: 'http://127.0.0.1:4317',
+        PORT_DADDY_CLI: '/opt/port-daddy-dev/pd',
+        KEEP_ME: 'yes',
+      }));
+    } finally {
+      if (previousUrl === undefined) delete process.env.PORT_DADDY_URL;
+      else process.env.PORT_DADDY_URL = previousUrl;
+      if (previousCli === undefined) delete process.env.PORT_DADDY_CLI;
+      else process.env.PORT_DADDY_CLI = previousCli;
+    }
+  });
+
+  it('reports a transcript stranded by daemon restart as outcome unknown, not failed', () => {
+    const transcriptId = transcripts.start({
+      ship: 'spawn:claude',
+      spawned_agent_id: 'spawned-lost-supervisor',
+      trigger: 'manual',
+      backend: 'claude',
+      model: 'claude-haiku-4-5',
+      started_at: 100,
+    });
+    transcripts.appendMessage(transcriptId, {
+      role: 'user',
+      content: 'work interrupted by daemon restart',
+      timestamp: 100,
+    });
+
+    const restarted = createSpawner({
+      transcripts,
+      enforceTelemetryPolicy: false,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+    });
+    expect(restarted.get('spawned-lost-supervisor')).toEqual(expect.objectContaining({
+      status: 'unknown',
+      completedAt: null,
+      error: expect.stringMatching(/outcome is unknown/i),
+    }));
+    expect(transcripts.getTranscript(transcriptId).status).toBe('running');
   });
 
   it('passes a completed backend when exact telemetry stays under budget', async () => {
@@ -286,6 +358,7 @@ describe('spawner ↔ transcripts integration', () => {
 
   it('fails the spawn (and does not run the backend) when the transcript cannot be opened', async () => {
     let backendRan = false;
+    const accepted = jest.fn();
     const brokenTranscripts = {
       ...transcripts,
       start() { throw new Error('db is on fire'); },
@@ -299,10 +372,11 @@ describe('spawner ↔ transcripts integration', () => {
         claude: async () => { backendRan = true; return { output: 'hi', error: null }; },
       },
     });
-    const result = await spawner.spawn({ backend: 'claude', task: 'hi' });
+    const result = await spawner.spawn({ backend: 'claude', task: 'hi' }, accepted);
     expect(result.status).toBe('failed');
     expect(result.error).toMatch(/recording failed|must not run unless its conversation is recorded/i);
     expect(backendRan).toBe(false);
+    expect(accepted).not.toHaveBeenCalled();
   });
 
   it('marks the spawn failed when finalize throws (recording failure cannot report success)', async () => {
@@ -378,7 +452,7 @@ describe('spawner ↔ transcripts integration', () => {
           },
         }), { status: 200 });
       }
-      return new Response(JSON.stringify({ success: true }), { status: 200 });
+      return new Response(JSON.stringify({ success: true, sessionId: 'test-session-cloudflare' }), { status: 200 });
     });
 
     const spawner = createSpawner({
@@ -440,7 +514,7 @@ describe('spawner ↔ transcripts integration', () => {
           }, 20);
         });
       }
-      return Promise.resolve(new Response(JSON.stringify({ success: true }), { status: 200 }));
+      return Promise.resolve(new Response(JSON.stringify({ success: true, sessionId: 'test-session-cloudflare-timeout-default' }), { status: 200 }));
     });
 
     const spawner = createSpawner({
@@ -501,7 +575,7 @@ describe('spawner ↔ transcripts integration', () => {
           }, { once: true });
         });
       }
-      return Promise.resolve(new Response(JSON.stringify({ success: true }), { status: 200 }));
+      return Promise.resolve(new Response(JSON.stringify({ success: true, sessionId: 'test-session-cloudflare-timeout' }), { status: 200 }));
     });
 
     const spawner = createSpawner({

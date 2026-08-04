@@ -8,8 +8,8 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach, beforeAll, afterAll, jest } from '@jest/globals';
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 const { createSpawner } = await import('../../lib/spawner.js');
@@ -50,14 +50,16 @@ describe('cli:agy timeout transcript behavior', () => {
   beforeEach(() => {
     db = createTestDb();
     transcripts = createTranscripts(db);
-    tempDir = mkdtempSync(join(tmpdir(), 'pd-fake-agy-'));
+    const scratchRoot = join(homedir(), 'coding', 'tmp');
+    mkdirSync(scratchRoot, { recursive: true });
+    tempDir = mkdtempSync(join(scratchRoot, 'pd-fake-agy-'));
     process.env.PD_CLI_AGY_BIN = installFakeAgy(tempDir);
     originalFetch = global.fetch;
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ success: true }),
-      text: async () => 'OK',
+    global.fetch = jest.fn(async (input) => {
+      const data = String(input).includes('/sugar/begin')
+        ? { success: true, sessionId: 'session-cli-agy-transcript-test' }
+        : { success: true };
+      return { ok: true, status: 200, json: async () => data, text: async () => JSON.stringify(data) };
     });
   });
 
