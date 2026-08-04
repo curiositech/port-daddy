@@ -40,6 +40,20 @@ export interface GitHubState {
   prDiff?: string;
   /** Authoritative current PR head returned by GET /pulls/{n}. */
   prHeadSha: string;
+  /**
+   * The rest of the authoritative PR body returned by GET /pulls/{n}.
+   *
+   * buildPRContext reads head.ref / base.ref / the two repo full_names from the
+   * LIVE PR fetch, never from the webhook payload — so a stub that omits them
+   * silently yields headRef === '' and every stacking guard short-circuits on
+   * "PR head branch unknown" before reaching the behavior under test. Tests that
+   * need a fork or a ref-less PR override these fields rather than the payload.
+   */
+  prHeadRef: string | undefined;
+  prBaseRef: string;
+  /** head.repo.full_name — differs from prBaseRepo to simulate a fork PR. */
+  prHeadRepo: string;
+  prBaseRepo: string;
   /** Other open PRs returned by the list endpoint (Lookout's cross-PR tool). */
   openPRs: Array<{ number: number; title: string; draft?: boolean; head?: { ref: string }; base?: { ref: string }; html_url?: string }>;
   /** Branch names returned by the branches endpoint (Lookout's branch tool). */
@@ -87,6 +101,10 @@ export function freshState(): GitHubState {
     reviews: [],
     prDiff: undefined,
     prHeadSha: 'HEADSHA',
+    prHeadRef: 'feat/widget',
+    prBaseRef: 'main',
+    prHeadRepo: 'erichowens/port-daddy',
+    prBaseRepo: 'erichowens/port-daddy',
     openPRs: [],
     branches: [],
     failTokenMintTimes: 0,
@@ -274,8 +292,14 @@ export function installGitHubFetch(state: GitHubState): void {
         number: 7,
         title: 'Test PR',
         body: '',
-        head: { sha: state.prHeadSha },
-        base: { sha: 'BASESHA' },
+        head: {
+          sha: state.prHeadSha,
+          // undefined prHeadRef omits the key entirely, reproducing a PR whose
+          // head branch GitHub did not report (the degrade-don't-misbase case).
+          ...(state.prHeadRef === undefined ? {} : { ref: state.prHeadRef }),
+          repo: { full_name: state.prHeadRepo },
+        },
+        base: { sha: 'BASESHA', ref: state.prBaseRef, repo: { full_name: state.prBaseRepo } },
       });
     }
 

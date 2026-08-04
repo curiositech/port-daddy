@@ -96,6 +96,9 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   skillgraft: 'notify',    // alias of skill-graft
   memory: 'silent',
   booty: 'notify',          // worst case: `booty add` writes blobs + provenance rows; `booty list` is silent (refined below)
+  seamanship: 'notify',     // worst case: `seamanship sync`/`index` write the local skill catalog
+                            // under ~/.port-daddy/skills; list/search/show are silent (refined below)
+  skills: 'notify',         // alias of seamanship
   'who-owns': 'silent',
   harbors: 'silent',
   'harbor-ledger': 'notify', // worst case: `harbor-ledger rebuild` truncates+replays DISPOSABLE projection tables (the event log is never touched); refined below
@@ -185,6 +188,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   harbormaster: 'approval', // start/stop the shared merge-owning actor; affects every agent's merges
   hm: 'approval',           // alias for harbormaster
   dispatch: 'approval',     // queues/runs autonomous dev work and spawns agents on shared state
+  suggest: 'approval',      // worst case: `suggest approve` fires a one-shot ship run (spends and
+                            // spawns, same posture as dispatch); list/dismiss refined below
   nightshift: 'approval',   // kicks off autonomous overnight feature dev across the fleet
   review: 'approval',       // approves/rejects produced dispatch work — gates others' merges
 
@@ -251,6 +256,35 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'booty list': 'silent',
   'booty help': 'silent',
   'booty add': 'notify',
+
+  // Tender's operator suggestion queue. Reading and clearing are cheap; only
+  // `approve` actually fires a ship run, so only it keeps the group's tier.
+  'suggest': 'silent',              // default subcommand = list
+  'suggest list': 'silent',
+  'suggest help': 'silent',
+  'suggest dismiss': 'notify',
+  'suggest approve': 'approval',
+
+  // Skill registry. The read verbs mutate nothing (`outcomes` GETs
+  // /fleet/skills/outcomes from the daemon; the rest read the local catalog),
+  // while `sync` and `index` rewrite the on-disk catalog under
+  // ~/.port-daddy/skills.
+  'seamanship': 'silent',           // default subcommand = list
+  'skills': 'silent',               // default subcommand = list
+  'seamanship list': 'silent',
+  'seamanship search': 'silent',
+  'seamanship show': 'silent',
+  'seamanship outcomes': 'silent',
+  'seamanship help': 'silent',
+  'seamanship sync': 'notify',
+  'seamanship index': 'notify',
+  'skills list': 'silent',
+  'skills search': 'silent',
+  'skills show': 'silent',
+  'skills outcomes': 'silent',
+  'skills help': 'silent',
+  'skills sync': 'notify',
+  'skills index': 'notify',
 
   // salvage: list is read-only, mutations are destructive
   'salvage': 'silent',              // default subcommand = listing
