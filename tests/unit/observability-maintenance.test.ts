@@ -49,8 +49,24 @@ describe('observability maintenance', () => {
     bare.exec('CREATE TABLE unrelated (id INTEGER PRIMARY KEY)');
     const maint = createObservabilityMaintenance({ db: bare, dbPath: ':memory:', governor: governor(), now: () => NOW });
     expect(() => maint.tick(NOW)).not.toThrow();
-    expect(maint.registry.registered()).toEqual([]); // nothing to prune, no crash
+    // Legacy tables absent → their policies are skipped, no crash. ink_pheromones
+    // is the exception BY DESIGN (db-retention doctrine: a new table is declared
+    // bounded from day one): maintenance ensures the table itself and always
+    // registers its max-age + cap policies.
+    expect(maint.registry.registered()).toEqual(['ink_pheromones:maxage', 'ink_pheromones:cap']);
     bare.close();
+  });
+
+  test('ink_pheromones is bounded: 7d max-age + 500-row cap declared and swept', () => {
+    const maint = createObservabilityMaintenance({ db, dbPath: ':memory:', governor: governor(), now: () => NOW });
+    // The table was ensured by maintenance itself (constructed before the
+    // reconcile loop in server.ts) — seed one ancient and one fresh row.
+    const ins = db.prepare('INSERT INTO ink_pheromones (subject, note, intensity, actor, updated_at) VALUES (?,?,?,?,?)');
+    ins.run('lib/old.ts', 'ancient', 1, 'a', NOW - 8 * 24 * 60 * 60 * 1000); // > 7d
+    ins.run('lib/new.ts', 'fresh', 1, 'a', NOW - 1000);
+    maint.tick(NOW);
+    const rows = db.prepare('SELECT subject FROM ink_pheromones ORDER BY subject').all() as Array<{ subject: string }>;
+    expect(rows).toEqual([{ subject: 'lib/new.ts' }]); // ancient swept, fresh kept
   });
 
   test('tick returns a footprint sample (self-monitoring is push, not pull-only)', () => {

@@ -2,10 +2,21 @@
 # pd-hook-prompt — UserPromptSubmit tentacle (ADR-0091, Giant Squid Harness)
 # =============================================================================
 # Claude Code (and parity-verified vendors) invoke this on UserPromptSubmit with
-# the prompt event JSON on stdin. We grep the Ink Cloud matrix for steering
-# Alerts (PD_ALERT_*) and Pheromones (PD_PHEROMONE_*) relevant to the current
-# working directory and print them to stdout. Claude Code PREPENDS hook stdout to
+# the prompt event JSON on stdin. We grep the Ink Cloud matrix and print the
+# relevant coordination classes to stdout. Claude Code PREPENDS hook stdout to
 # the model's context for that turn — that is the "Suggestibility Envelope".
+#
+# Section ORDER (W1.1 — new classes render BEFORE the legacy ones):
+#   1. [PORT DADDY — HALT]     PD_HALT, only when the daemon heartbeat is FRESH.
+#      A dead daemon must not nag [HALT] forever — fail-open applies to the
+#      loudest rung first.
+#   2. [PORT DADDY — FOR YOU]  PD_INBOX_<SELF>_* / PD_PARLEY_<SELF>_* addressed
+#      to THIS actor only (PD_ACTOR → suffix mirror of lib/squid/matrix.ts
+#      actorKey()). Rendered even when stale, but labeled as historical —
+#      inbox content is still true history.
+#   3. [PORT DADDY — STEERING ALERTS] + pheromones — unchanged legacy classes;
+#      they never depended on a heartbeat (matrices seeded by tests/operators
+#      keep working).
 #
 # CONTRACT: exit 0 always (this tentacle is ADVISORY, never blocking). Any error
 # must fail OPEN — emit nothing, let the turn proceed un-steered. A hook that
@@ -13,11 +24,14 @@
 # coordination (ADR §Mitigation).
 #
 # Dependency-light: pure POSIX sh + grep/sed. jq is used only to read `cwd` from
-# the event JSON when present; we fall back to $PWD. No node required.
+# the event JSON when present and for the structured envelope; we fall back to
+# $PWD / raw stdout. No node required.
 set -u
 
 PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
 MATRIX="${PD_MATRIX_FILE:-$PD_HOME/matrix.env}"
+# This agent's identity; the daemon sets PD_ACTOR per voyage. Unknown → "".
+SELF="${PD_ACTOR:-}"
 
 # Drain stdin so the CLI's pipe write never blocks, capturing it for cwd parsing.
 EVENT="$(cat 2>/dev/null || true)"
@@ -29,24 +43,86 @@ if command -v jq >/dev/null 2>&1 && [ -n "$EVENT" ]; then
   [ -n "$J" ] && CWD="$J"
 fi
 
-# Read the matrix once if it exists (cheap, single grep over a flat file).
-ALERTS=""
-PHER=""
-if [ -f "$MATRIX" ]; then
-  ALERTS="$(grep -E '^PD_ALERT_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
-  PHER="$(grep -E '^PD_PHEROMONE_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
-fi
-
-# Relevance: a pheromone is relevant if its value mentions the cwd basename or
-# the cwd itself. Alerts are always relevant (operator steering is global).
-BASENAME="$(basename "$CWD" 2>/dev/null || echo "$CWD")"
+# ── suffix(): the sed mirror of lib/squid/matrix.ts actorKey()/keySuffix() ───
+# EXACT copy of the pipeline in pd-hook-pre-tool / pd-hook-post-tool:
+# non-alnum runs → "_", trim leading/trailing "_", UPPERCASE, cap 80.
+suffix() {
+  printf '%s' "$1" \
+    | sed -E 's/[^A-Za-z0-9]+/_/g; s/^_+//; s/_+$//' \
+    | tr '[:lower:]' '[:upper:]' \
+    | cut -c1-80
+}
+SELF_KEY=""
+[ -n "$SELF" ] && SELF_KEY="$(suffix "$SELF")"
 
 emit_value() {
   # $1 = a `KEY="val"` matrix line → print just the unquoted value.
   printf '%s\n' "$1" | sed -E 's/^[A-Za-z0-9_]+="?//; s/"$//'
 }
 
+# ── Heartbeat freshness (shared with the pre-tool HALT rung, W1.3) ───────────
+# PD_RECON_HEARTBEAT_TS is epoch MILLISECONDS; `date +%s` is SECONDS — multiply.
+# ANY parse failure ⇒ FRESH=0 (treat projections as historical, never blocking).
+FRESH=0
+if [ -f "$MATRIX" ]; then
+  HB="$(grep -E '^PD_RECON_HEARTBEAT_TS=' "$MATRIX" 2>/dev/null | head -n1 | sed -E 's/^[A-Za-z0-9_]+="?//; s/"$//' || true)"
+  case "$HB" in
+    ''|*[!0-9]*) FRESH=0 ;;
+    *)
+      NOW="$(date +%s 2>/dev/null || echo 0)"
+      case "$NOW" in
+        ''|*[!0-9]*) FRESH=0 ;;
+        *)
+          AGE_MS=$(( NOW * 1000 - HB ))
+          STALE_MS="${PD_RECON_STALE_MS:-60000}"
+          case "$STALE_MS" in ''|*[!0-9]*) STALE_MS=60000 ;; esac
+          if [ "$AGE_MS" -le "$STALE_MS" ] 2>/dev/null; then FRESH=1; fi
+          ;;
+      esac
+      ;;
+  esac
+fi
+
+# Read the matrix once if it exists (cheap greps over a flat file).
+ALERTS=""
+PHER=""
+HALT_LINE=""
+FORYOU=""
+if [ -f "$MATRIX" ]; then
+  ALERTS="$(grep -E '^PD_ALERT_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+  PHER="$(grep -E '^PD_PHEROMONE_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+  HALT_LINE="$(grep -E '^PD_HALT=' "$MATRIX" 2>/dev/null | head -n1 || true)"
+  if [ -n "$SELF_KEY" ]; then
+    FORYOU="$(grep -E "^PD_INBOX_${SELF_KEY}_[0-9]+=|^PD_PARLEY_${SELF_KEY}_[A-Za-z0-9_]+=" "$MATRIX" 2>/dev/null || true)"
+  fi
+fi
+
+# Relevance: a pheromone is relevant if its value mentions the cwd basename or
+# the cwd itself. Alerts are always relevant (operator steering is global).
+BASENAME="$(basename "$CWD" 2>/dev/null || echo "$CWD")"
+
 OUT=""
+
+# 1. HALT — only when present AND the daemon heartbeat is fresh.
+if [ -n "$HALT_LINE" ] && [ "$FRESH" -eq 1 ]; then
+  OUT="${OUT}[PORT DADDY — HALT] $(emit_value "$HALT_LINE")\n"
+fi
+
+# 2. FOR YOU — addressed classes render ONLY this actor's keys.
+if [ -n "$SELF_KEY" ] && [ -n "$FORYOU" ]; then
+  OUT="${OUT}[PORT DADDY — FOR YOU]\n"
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    OUT="${OUT}- $(emit_value "$line")\n"
+  done <<EOF
+$FORYOU
+EOF
+  if [ "$FRESH" -eq 0 ]; then
+    OUT="${OUT}  (coordination cache stale — daemon heartbeat >60s old; treat as historical)\n"
+  fi
+fi
+
+# 3. Legacy classes, unchanged.
 OUT="${OUT}[PORT DADDY — STEERING ALERTS]\n"
 OUT="${OUT}- Agent must maintain an active pd plan and run pd sitrep to synthesize state.\n"
 

@@ -27,6 +27,7 @@ import {
   setLock,
   appendPheromone,
   setAlert,
+  setKey,
   readPheromones,
   parseMatrix,
 } from '../../lib/squid/matrix.js';
@@ -1069,4 +1070,176 @@ describe('tentaclePath resolution (regression: compiled-binary /bin/ bug)', () =
       expect(p.endsWith(`/bin/${name}`)).toBe(true); // repo bin/, absolute
     });
   }
+});
+
+// ─── W1.1 addressing + W1.3 HALT rung (invokes the REAL bin scripts) ─────────
+
+describe('W1.1 — pd-hook-prompt addressed FOR-YOU classes + heartbeat gating', () => {
+  function seedAddressed(opts: { heartbeatAgeMs?: number; halt?: boolean } = {}): string {
+    process.env.PD_MATRIX_FILE = libMatrixPath();
+    // Two actors: agent-alpha (SELF) and agent-beta (the sibling who must NOT
+    // see alpha's mail and whose mail alpha must NOT see).
+    setKey('PD_INBOX_AGENT_ALPHA_1', '[FOR YOU] from:ops | msg | hello alpha | ts:2026-08-04T00:00:00Z');
+    setKey('PD_INBOX_AGENT_BETA_1', '[FOR YOU] from:ops | msg | hello beta | ts:2026-08-04T00:00:00Z');
+    setKey(
+      'PD_PARLEY_AGENT_ALPHA_P1',
+      '[FOR YOU] PARLEY SUMMONS p1: overlap | respond-by:soon | channel:parley:p1 | pd parley join p1',
+    );
+    setKey('PD_RECON_HEARTBEAT_TS', String(Date.now() - (opts.heartbeatAgeMs ?? 0)));
+    if (opts.halt) {
+      setKey('PD_HALT', 'HALT: repo migration | by:operator | since:2026-08-04T00:00:00Z | repo-wide pause');
+    }
+    return libMatrixPath();
+  }
+
+  function runPrompt(matrix: string, actor: string): string {
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ prompt: 'hi', cwd: '/repo' }),
+      env: { ...process.env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: actor },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    const parsed = JSON.parse(r.stdout);
+    return parsed.hookSpecificOutput.additionalContext as string;
+  }
+
+  test('addressing proof: SELF sees its own inbox+parley, NOT the sibling one', () => {
+    const matrix = seedAddressed();
+    const ctx = runPrompt(matrix, 'agent-alpha'); // exercises the sed suffix mirror
+    expect(ctx).toContain('[PORT DADDY — FOR YOU]');
+    expect(ctx).toContain('hello alpha');
+    expect(ctx).toContain('PARLEY SUMMONS p1');
+    expect(ctx).not.toContain('hello beta'); // the sibling does NOT leak in
+  });
+
+  test('the sibling own run sees only its own mail (symmetry)', () => {
+    const matrix = seedAddressed();
+    const ctx = runPrompt(matrix, 'agent-beta');
+    expect(ctx).toContain('hello beta');
+    expect(ctx).not.toContain('hello alpha');
+    expect(ctx).not.toContain('PARLEY SUMMONS');
+  });
+
+  test('[HALT] renders FIRST when the heartbeat is fresh', () => {
+    const matrix = seedAddressed({ halt: true });
+    const ctx = runPrompt(matrix, 'agent-alpha');
+    expect(ctx).toContain('[PORT DADDY — HALT] HALT: repo migration');
+    expect(ctx.indexOf('[PORT DADDY — HALT]')).toBeLessThan(ctx.indexOf('[PORT DADDY — FOR YOU]'));
+    expect(ctx.indexOf('[PORT DADDY — FOR YOU]')).toBeLessThan(ctx.indexOf('[PORT DADDY — STEERING ALERTS]'));
+  });
+
+  test('a 90s-old heartbeat hides [HALT] and labels FOR-YOU as historical', () => {
+    const matrix = seedAddressed({ halt: true, heartbeatAgeMs: 90_000 });
+    const ctx = runPrompt(matrix, 'agent-alpha');
+    expect(ctx).not.toContain('[PORT DADDY — HALT]'); // dead daemon must not nag
+    expect(ctx).toContain('hello alpha'); // history stays visible…
+    expect(ctx).toContain('coordination cache stale'); // …but labeled
+  });
+
+  test('no PD_ACTOR → no FOR-YOU section, legacy sections unchanged', () => {
+    const matrix = seedAddressed();
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ prompt: 'hi', cwd: '/repo' }),
+      env: { ...process.env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: '' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    const ctx = JSON.parse(r.stdout).hookSpecificOutput.additionalContext as string;
+    expect(ctx).not.toContain('[PORT DADDY — FOR YOU]');
+    expect(ctx).toContain('[PORT DADDY — STEERING ALERTS]');
+  });
+});
+
+describe('W1.3 — pd-hook-pre-tool HALT rung (dial-gated, fails OPEN on staleness)', () => {
+  function seedHalt(opts: { heartbeatAgeMs?: number } = {}): string {
+    process.env.PD_MATRIX_FILE = libMatrixPath();
+    setKey('PD_HALT', 'HALT: sev1 in flight | by:operator | since:now | repo-wide pause');
+    setKey('PD_RECON_HEARTBEAT_TS', String(Date.now() - (opts.heartbeatAgeMs ?? 0)));
+    return libMatrixPath();
+  }
+
+  function runPreTool(matrix: string, tool: string, extraEnv: Record<string, string> = {}) {
+    // cwd '/repo' does not exist on disk → the config-dial walk finds nothing,
+    // so tier defaults are exercised (no PD_SUGGESTIBILITY in the base env
+    // either — cleared in beforeEach).
+    const event = { tool_name: tool, tool_input: { file_path: '/repo/src/thing.ts' }, cwd: '/repo' };
+    return spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify(event),
+      env: { ...process.env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'agent_z', ...extraEnv },
+      encoding: 'utf8',
+    });
+  }
+
+  test('enforce + fresh: Write is BLOCKED (exit 2, reason on stderr)', () => {
+    const matrix = seedHalt();
+    const r = runPreTool(matrix, 'Write', { PD_HALT_SUGGESTIBILITY: 'enforce' });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/PORT DADDY HALT.*BLOCKED/);
+    expect(r.stderr).toContain('sev1 in flight');
+  });
+
+  test('enforce + fresh: Read is allowed (read-only exemption, every tier)', () => {
+    const matrix = seedHalt();
+    const r = runPreTool(matrix, 'Read', { PD_HALT_SUGGESTIBILITY: 'enforce' });
+    expect(r.status).toBe(0);
+    expect(r.stderr).toBe('');
+  });
+
+  test('enforce + STALE heartbeat (90s): Write is allowed — the rung fails OPEN', () => {
+    const matrix = seedHalt({ heartbeatAgeMs: 90_000 });
+    const r = runPreTool(matrix, 'Write', { PD_HALT_SUGGESTIBILITY: 'enforce' });
+    expect(r.status).toBe(0); // a dead daemon must never block a tool
+    expect(r.stderr).toBe('');
+  });
+
+  test('missing heartbeat entirely: Write is allowed (fail-open on parse failure)', () => {
+    process.env.PD_MATRIX_FILE = libMatrixPath();
+    setKey('PD_HALT', 'HALT: orphaned key from a dead daemon');
+    const r = runPreTool(libMatrixPath(), 'Write', { PD_HALT_SUGGESTIBILITY: 'enforce' });
+    expect(r.status).toBe(0);
+  });
+
+  test('no dial anywhere: HALT defaults to WARN (exit 0 + stderr warning, not a block)', () => {
+    const matrix = seedHalt();
+    const r = runPreTool(matrix, 'Write');
+    expect(r.status).toBe(0);
+    expect(r.stderr).toMatch(/PORT DADDY HALT.*WARNING/);
+    expect(r.stderr).toContain('sev1 in flight');
+  });
+
+  test('an EXPLICIT repo dial governs the HALT rung too (PD_SUGGESTIBILITY=enforce blocks)', () => {
+    const matrix = seedHalt();
+    const r = runPreTool(matrix, 'Write', { PD_SUGGESTIBILITY: 'enforce' });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/PORT DADDY HALT.*BLOCKED/);
+  });
+
+  test('advisory HALT tier is silent and falls through to the (unlocked) gate', () => {
+    const matrix = seedHalt();
+    const r = runPreTool(matrix, 'Write', { PD_HALT_SUGGESTIBILITY: 'advisory' });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+  });
+
+  test('HALT rung runs BEFORE the lock gate (locked file + halt ⇒ halt reason wins)', () => {
+    const matrix = seedHalt();
+    setLock('/repo/src/thing.ts', 'agent_other');
+    const r = runPreTool(matrix, 'Write', { PD_HALT_SUGGESTIBILITY: 'enforce' });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/PORT DADDY HALT/); // not the L2 lock message
+    expect(r.stderr).not.toMatch(/PORT DADDY L2/);
+  });
+
+  test('warn HALT falls through: a foreign lock still blocks under the lock gate', () => {
+    const matrix = seedHalt();
+    setLock('/repo/src/thing.ts', 'agent_other');
+    const r = runPreTool(matrix, 'Write', {
+      PD_HALT_SUGGESTIBILITY: 'warn',
+      PD_SUGGESTIBILITY: 'enforce',
+    });
+    expect(r.status).toBe(2); // the lock gate still enforces
+    expect(r.stderr).toMatch(/PORT DADDY HALT.*WARNING/); // halt warned first
+    expect(r.stderr).toMatch(/PORT DADDY L2.*BLOCKED/); // then the lock blocked
+  });
 });

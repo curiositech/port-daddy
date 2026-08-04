@@ -354,13 +354,200 @@ function filterByPrefix(kv: Record<string, string>, prefix: string): Record<stri
   return out;
 }
 
-// ─── RECONCILE TODO (daemon) ──────────────────────────────────────────────────
-// The Ink Cloud is the hot cache; `lib/attention.ts` + `lib/pheromone.ts` are the
-// durable truth. A daemon reconcile loop (NOT built in this vertical slice) must:
-//   1. Drain PD_PHEROMONE_* appends into the pheromone store, applying decay
-//      (lib/pheromone.ts createPheromoneManager) and then pruning faded keys.
-//   2. Project active locks / Parley alerts (lib/attention.ts AttentionItem) back
-//      OUT to PD_LOCK_* / PD_ALERT_* so the hooks read a fresh cache each turn.
-//   3. Garbage-collect PD_PHEROMONE_* entries whose intensity has decayed to ~0.
-// Until that loop exists the matrix is append-mostly and the tests below seed it
-// directly. This boundary is intentional and called out in the ADR (§1).
+// ─── Actor addressing (W1.1, per-session "FOR YOU" classes) ───────────────────
+
+/**
+ * Canonical actor→matrix-key normalizer.
+ *
+ * Motivation: three independent readers/writers address the same actor —
+ * the TS reconcile loop (writer, `lib/squid/reconcile.ts`), the POSIX shell
+ * tentacles (`bin/pd-hook-prompt` / `bin/pd-hook-pre-tool` readers), and the
+ * hookless ink-cloud reader (`lib/local-citizen/ink-cloud.ts`). One canonical
+ * mapping, byte-identical everywhere, is the only thing that makes
+ * `PD_INBOX_<actor>_*` addressing work at all.
+ *
+ * Design: this is DELIBERATELY not a new algorithm — it is {@link keySuffix}
+ * verbatim (non-alnum runs → "_", trim leading/trailing "_", UPPERCASE, cap 80,
+ * fallback 'X'). The sed mirror already deployed in pd-hook-pre-tool `suffix()`
+ * and pd-hook-post-tool `suffix()` implements exactly keySuffix(), so reusing it
+ * means the shell mirror is the EXISTING sed snippet — zero new drift surface.
+ *
+ * Collisions between distinct actor ids that normalize identically are ACCEPTED
+ * and documented: this is an advisory addressing surface, not an auth boundary.
+ * Never build enforcement on inbox addressing without a hash disambiguator.
+ *
+ * @param actor raw actor/agent id (e.g. `port-daddy:contrib:slug-1`)
+ * @returns the matrix-key-safe UPPERCASE suffix for this actor
+ */
+export function actorKey(actor: string): string {
+  return keySuffix(actor);
+}
+
+/**
+ * Compute the addressed-inbox matrix key for one actor slot.
+ *
+ * Purpose: the reconcile loop projects an actor's top attention items into a
+ * small fixed set of slots (1..3) so the prompt tentacle can grep
+ * `^PD_INBOX_<ACTOR>_[0-9]+=` and render a bounded "[FOR YOU]" block.
+ *
+ * @param actor raw actor id (normalized via {@link actorKey})
+ * @param slot 1-based slot number (the reconcile budget caps this at 3)
+ * @returns e.g. `PD_INBOX_MYAGENT_1`
+ */
+export function inboxKey(actor: string, slot: number): string {
+  return `PD_INBOX_${actorKey(actor)}_${slot}`;
+}
+
+/**
+ * Compute the addressed parley-summons matrix key for an actor + parley id.
+ *
+ * Why both parts are normalized: the actor segment must match the shell
+ * `suffix()` mirror for addressing, and the parley id segment must be
+ * matrix-key-safe; both go through the one canonical {@link keySuffix} law.
+ *
+ * @param actor raw actor id being summoned
+ * @param parleyId the parley's id (normalized via keySuffix)
+ * @returns e.g. `PD_PARLEY_MYAGENT_PARLEY_42`
+ */
+export function parleyKey(actor: string, parleyId: string): string {
+  return `PD_PARLEY_${actorKey(actor)}_${keySuffix(parleyId)}`;
+}
+
+// ─── Reconcile ownership registry (single-owner contract) ─────────────────────
+
+/** Heartbeat key the reconcile loop refreshes every tick (epoch MILLISECONDS).
+ *  Readers treat the whole projected surface as stale (and enforcement rungs
+ *  fail OPEN) when this is absent or older than PD_RECON_STALE_MS (60s). */
+export const RECON_HEARTBEAT_KEY = 'PD_RECON_HEARTBEAT_TS';
+
+/** Repo-wide pause key. Present ⇔ panic is armed; the value carries provenance. */
+export const HALT_KEY = 'PD_HALT';
+
+/**
+ * Key-class prefixes wholly OWNED by the reconcile loop: any key under one of
+ * these prefixes that is not in the current desired projection is a stray and
+ * gets garbage-collected (this is the matrix.env grows-forever fix).
+ *
+ * Deliberately NOT here: `PD_ALERT_` (owned as the EXACT key
+ * PD_ALERT_FLEET_APPROVALS only — setAlert() remains a legitimate
+ * operator/other-writer surface), `PD_LOCK_` (owned by the locks path), and
+ * `PD_PHEROMONE_` (split ownership — see {@link isRawPheromoneKey}).
+ */
+export const RECON_OWNED_PREFIXES = [
+  'PD_INBOX_',
+  'PD_PARLEY_',
+  'PD_CLAIM_',
+  'PD_CI_',
+  'PD_ACCOMPLISHMENT_',
+] as const;
+
+/**
+ * Disambiguate the two writers that share the `PD_PHEROMONE_` prefix.
+ *
+ * Motivation: shell agents APPEND raw pheromone traces (pd-hook-post-tool,
+ * key = `PD_PHEROMONE_<subject>_${TS_EPOCH}${n}` with TS_EPOCH = epoch ms) and
+ * TS {@link appendPheromone} appends `_${Date.now()}` — both carry a trailing
+ * epoch-ms (≥13-digit) run. The daemon's reconcile loop DRAINS those appends
+ * into the durable store, then re-projects the decayed top-N under
+ * deterministic keys WITHOUT a timestamp suffix. This predicate is the
+ * disambiguator that lets appenders and the GC share one prefix without eating
+ * each other's writes: raw (timestamped) keys are drained; non-raw keys are
+ * daemon projections that reconcile owns and diffs.
+ *
+ * @param key a full matrix key
+ * @returns true when the key is a raw shell/TS pheromone APPEND
+ */
+export function isRawPheromoneKey(key: string): boolean {
+  return /^PD_PHEROMONE_.*_\d{13,}$/.test(key);
+}
+
+/** The full desired state of every reconcile-owned key, for one apply pass. */
+export interface ReconcileProjection {
+  /** Exact keys the loop owns (e.g. PD_HALT, PD_RECON_HEARTBEAT_TS, PD_ALERT_FLEET_APPROVALS). */
+  ownedExactKeys: string[];
+  /** Owned key-class prefixes (RECON_OWNED_PREFIXES + projected-pheromone ownership). */
+  ownedPrefixes: string[];
+  /** Full desired key→value state for owned keys. Absence ⇒ deletion. */
+  desired: Record<string, string>;
+}
+
+/** Result of one {@link applyProjection} pass. */
+export interface ApplyProjectionResult {
+  /** Raw pheromone appends harvested (and removed) under the same lock. */
+  drainedPheromones: Array<{ key: string; value: string }>;
+  /** Number of desired keys written (changed or new). */
+  set: number;
+  /** Number of stray owned keys garbage-collected. */
+  deleted: number;
+}
+
+/**
+ * THE batched write primitive of the reconcile loop.
+ *
+ * Motivation: {@link setKey}/{@link deleteKey} are per-key (one lock + one
+ * atomic rename each); a reconcile pass touching dozens of keys must instead be
+ * ONE lock acquisition, ONE read, ONE atomic rename — the flock discipline that
+ * keeps the matrix lock-held window microscopic while K≥8 agents append.
+ *
+ * Design (all under one lock):
+ *   1. Harvest every {@link isRawPheromoneKey} key into `drainedPheromones` and
+ *      DELETE it from the map — the drain happens under the SAME lock as the
+ *      rewrite so no concurrent shell append is lost between read and write.
+ *   2. Garbage-collect strays: any remaining key that is owned (exact key, or
+ *      under an owned prefix) and not present in `desired` is deleted. This is
+ *      the fix for "matrix.env grows forever".
+ *   3. Merge `desired` over the survivors and write once, atomically.
+ *
+ * Pure with respect to everything except the matrix file itself: the caller
+ * (lib/squid/reconcile.ts) ingests the returned drains into the durable store
+ * AFTER the lock is released (no DB work under the matrix lock).
+ *
+ * @param p the ownership registry + full desired state for this pass
+ * @param fleet optional per-fleet matrix shard
+ * @returns drained raw pheromone appends + set/deleted counters
+ */
+export function applyProjection(p: ReconcileProjection, fleet?: string): ApplyProjectionResult {
+  return withLock(fleet, () => {
+    const kv = readMatrix(fleet);
+    const drainedPheromones: Array<{ key: string; value: string }> = [];
+    let deleted = 0;
+    let set = 0;
+
+    // (1) Drain raw pheromone appends (shell/TS timestamped keys).
+    for (const k of Object.keys(kv)) {
+      if (isRawPheromoneKey(k)) {
+        drainedPheromones.push({ key: k, value: kv[k] });
+        delete kv[k];
+      }
+    }
+
+    // (2) Stray-GC over owned classes. Raw pheromones are already gone, so a
+    // surviving PD_PHEROMONE_ key here is a daemon projection and is diffable.
+    const exact = new Set(p.ownedExactKeys);
+    for (const k of Object.keys(kv)) {
+      const owned = exact.has(k) || p.ownedPrefixes.some((pref) => k.startsWith(pref));
+      if (owned && !(k in p.desired)) {
+        delete kv[k];
+        deleted += 1;
+      }
+    }
+
+    // (3) Merge desired state and write once.
+    for (const [k, v] of Object.entries(p.desired)) {
+      if (kv[k] !== v) set += 1;
+      kv[k] = v;
+    }
+    writeMatrixLocked(kv, fleet);
+
+    return { drainedPheromones, set, deleted };
+  });
+}
+
+// ─── RECONCILE (daemon) — RESOLVED ────────────────────────────────────────────
+// The reconcile loop described by ADR-0108/ADR-0051 phase 0 (formerly a TODO
+// block here) is IMPLEMENTED in `lib/squid/reconcile.ts`: it drains raw
+// PD_PHEROMONE_* appends into the durable ink_pheromones store with decay,
+// projects durable state (halt, approvals, inbox, parley summons, claim
+// overlaps, CI) into the owned key classes above, garbage-collects strays via
+// {@link applyProjection}, and refreshes {@link RECON_HEARTBEAT_KEY} every tick
+// so every reader can fail OPEN on staleness.

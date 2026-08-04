@@ -88,6 +88,8 @@ import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 import { createIpcServer } from './lib/ipc-server.js';
 import { createIpcRouter } from './lib/ipc-router.js';
 import { createFleetDaemon } from './lib/fleet-daemon.js';
+import { createReconcileLoop } from './lib/squid/reconcile.js';
+import { isPanicArmed, getPanicState } from './routes/panic.js';
 import { createRepoRegistry } from './lib/github-repo-registry.js';
 import { createOrchestratorRegistry } from './lib/orchestrator-plugins.js';
 import { createSymbolIndex } from './lib/symbol-index.js';
@@ -963,6 +965,26 @@ const bosunHeartbeat = createBosunHeartbeat({
 const orchestrator = createReactiveOrchestrator(db, messaging, spawner, conductor);
 const correlationEngine = createCorrelationEngine(activityLog, sessions);
 
+// Ink Cloud reconcile loop (ADR-0108 phase 0, lib/squid/reconcile.ts): the
+// single owner of every projected matrix key class (PD_HALT, PD_INBOX_*,
+// PD_PARLEY_*, PD_CLAIM_*, PD_CI_*, PD_ALERT_FLEET_APPROVALS, pheromone
+// projections) + the PD_RECON_HEARTBEAT_TS staleness contract. Constructed
+// HERE (it needs sessions/attention/tuples/messaging/db, which fleet-daemon
+// does not hold) and handed to fleet-daemon, which owns its lifecycle
+// (start after approval-stream configure; stop on shutdown). Keep this
+// construct adjacent to createFleetDaemon — the ordering is load-bearing.
+const reconcile = createReconcileLoop({
+  sessions,
+  attention,
+  tuples,
+  messaging,
+  db,
+  logger,
+  isPanicArmed,
+  getPanicState,
+  intervalMs: Number(process.env.PD_RECONCILE_INTERVAL_MS) || undefined,
+});
+
 // Fleet daemon — always-on fleet subsystem (multi-project)
 const fleetDaemon = createFleetDaemon({
   projects,
@@ -974,6 +996,7 @@ const fleetDaemon = createFleetDaemon({
   allowStableInstallFleet: ALLOW_STABLE_FLEET,
   costTracker,
   locks,
+  reconcile,
 });
 
 // GitHub repo → project registry. Resolves a webhook's owner/repo to the
@@ -1591,6 +1614,9 @@ function shutdown(signal: string): void {
   try { bosunHeartbeat.stop(); } catch {}
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
+  // Idempotent: covers the PORT_DADDY_NO_FLEET path where fleetDaemon.start()
+  // never ran (its stop() early-returns without touching reconcile).
+  try { reconcile.stop(); } catch {}
   try { dispatchWorker?.stop(); } catch {}
   try { if (autoMergeTimer) clearInterval(autoMergeTimer); } catch {}
   systemPortsRefresh.stop();
@@ -1658,6 +1684,15 @@ function onReady(): void {
   // same project fleet as the canonical daemon.
   if (DISABLE_FLEET) {
     logger.info('fleet_daemon_disabled', { reason: 'PORT_DADDY_NO_FLEET' });
+    // The reconcile loop is matrix projection, not fleet management: a
+    // no-fleet daemon still owes agents the heartbeat + halt/inbox
+    // projections. Without this, a PORT_DADDY_NO_FLEET daemon would leave the
+    // approvals alert (and every projected class) permanently stale.
+    try {
+      reconcile.start();
+    } catch (err) {
+      logger.error('reconcile_start_failed', { error: (err as Error).message });
+    }
   } else {
     try {
       fleetDaemon.start();

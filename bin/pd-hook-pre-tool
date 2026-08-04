@@ -128,6 +128,11 @@ config_suggestibility_level() {
 EVENT_CWD="$(event_cwd)"
 SUGGESTIBILITY="$(normalize_suggestibility "${PD_SUGGESTIBILITY:-}")"
 [ -n "$SUGGESTIBILITY" ] || SUGGESTIBILITY="$(config_suggestibility_level)"
+# Track dial EXPLICITNESS before the fallback: an explicitly-set repo dial also
+# governs the HALT rung below; an absent dial leaves HALT at its own default
+# (warn) even though the lock gate keeps its legacy default of enforce.
+DIAL_EXPLICIT=0
+[ -n "$SUGGESTIBILITY" ] && DIAL_EXPLICIT=1
 # Preserve ADR-0091 behavior for repos that installed the hook before declaring
 # ADR-0092's dial: a real foreign lock remains a structural edit gate by default.
 [ -n "$SUGGESTIBILITY" ] || SUGGESTIBILITY="enforce"
@@ -167,6 +172,88 @@ fi
 if [ -z "$TOOL" ]; then
   TOOL="$(printf '%s' "$EVENT" \
     | sed -n 's/.*"tool[_N]ame"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+fi
+
+# ── W1.3 HALT rung — repo-wide pause, dial-gated, fails OPEN on staleness ────
+# Runs BEFORE lock-target extraction so no-target calls (Bash/run_shell_command)
+# are also considered. The load-bearing invariant: a dead daemon must NEVER
+# block a tool — the rung only fires when PD_RECON_HEARTBEAT_TS (epoch ms,
+# written by lib/squid/reconcile.ts every tick) is younger than
+# PD_RECON_STALE_MS (default 60s). Read-only tools are ALWAYS exempt, every
+# tier. Tier resolution: PD_HALT_SUGGESTIBILITY wins; else an EXPLICIT repo
+# dial governs HALT too; else HALT defaults to WARN (plan-recommended default —
+# distinct from the lock gate's legacy enforce default).
+HALT_LINE="$(grep -E '^PD_HALT=' "$MATRIX" 2>/dev/null | head -n1 || true)"
+if [ -n "$HALT_LINE" ]; then
+  HALT_FRESH=0
+  HB="$(grep -E '^PD_RECON_HEARTBEAT_TS=' "$MATRIX" 2>/dev/null | head -n1 | sed -E 's/^[A-Za-z0-9_]+="?//; s/"$//' || true)"
+  case "$HB" in
+    ''|*[!0-9]*) HALT_FRESH=0 ;;   # missing/non-numeric heartbeat → stale → fail open
+    *)
+      NOW_S="$(date +%s 2>/dev/null || echo 0)"
+      case "$NOW_S" in
+        ''|*[!0-9]*) HALT_FRESH=0 ;;
+        *)
+          NOW_MS=$(( NOW_S * 1000 ))
+          STALE_MS="${PD_RECON_STALE_MS:-60000}"
+          case "$STALE_MS" in ''|*[!0-9]*) STALE_MS=60000 ;; esac
+          if [ $(( NOW_MS - HB )) -le "$STALE_MS" ] 2>/dev/null; then HALT_FRESH=1; fi
+          ;;
+      esac
+      ;;
+  esac
+
+  if [ "$HALT_FRESH" -eq 1 ]; then
+    # Read-only exemption (ALWAYS, every tier). Bash/run_shell_command are NOT
+    # exempt (they mutate); an unknown/empty TOOL is NOT exempt either — we fail
+    # toward the message, not silently past the pause.
+    HALT_EXEMPT=0
+    case "$TOOL" in
+      Read|Grep|Glob|LS|NotebookRead|WebFetch|WebSearch|TodoRead|read_file|read_many_files|list_directory|glob|grep|search_file_content|codebase_search|view) HALT_EXEMPT=1 ;;
+    esac
+
+    if [ "$HALT_EXEMPT" -eq 0 ]; then
+      HALT_TIER="$(normalize_suggestibility "${PD_HALT_SUGGESTIBILITY:-}")"
+      if [ -z "$HALT_TIER" ]; then
+        if [ "$DIAL_EXPLICIT" -eq 1 ]; then HALT_TIER="$SUGGESTIBILITY"; else HALT_TIER="warn"; fi
+      fi
+      HALT_VAL="$(printf '%s' "$HALT_LINE" | sed -E 's/^[A-Za-z0-9_]+="?//; s/"$//')"
+      REASON_H="[PORT DADDY HALT] repo-wide pause is armed: ${HALT_VAL}. Non-essential mutating work should stop (dogpile prevention). Read-only tools remain allowed. Check: pd status / GET /fleet/panic."
+
+      case "$HALT_TIER" in
+        advisory)
+          # Silent pass-through: the prompt-hook [HALT] banner already informs
+          # every turn; double-printing here is noise. Fall through to lock gate.
+          : ;;
+        warn)
+          if [ "$CAMEL" -eq 1 ]; then
+            # One stdout JSON envelope max per invocation: the "ask" decision
+            # supersedes the lock gate for this call (deviation from strict
+            # fall-through, recorded — two JSON docs on one stdout would be
+            # unparseable by the vendor).
+            ESCAPED_H="$(printf '%s' "$REASON_H" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
+            printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s","decision":"ask","message":"%s"}}\n' "$ESCAPED_H" "$ESCAPED_H"
+            exit 0
+          fi
+          echo "[PORT DADDY HALT] WARNING: $REASON_H" >&2
+          echo "Suggestibility is warn; this would be blocked when PD_HALT_SUGGESTIBILITY=enforce." >&2
+          # No exit: fall through to the lock gate unchanged.
+          ;;
+        enforce)
+          if [ "$CAMEL" -eq 1 ]; then
+            ESCAPED_H="$(printf '%s' "$REASON_H" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
+            printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s","decision":"block","message":"%s"}}\n' "$ESCAPED_H" "$ESCAPED_H"
+            exit 0
+          fi
+          # Universal contract: exit 2 + non-empty stderr (Codex requires it).
+          echo "[PORT DADDY HALT] BLOCKED: $REASON_H" >&2
+          echo "Repo-wide pause armed. Resume when PD_HALT clears (pd status / POST /fleet/unpanic)." >&2
+          exit 2
+          ;;
+      esac
+    fi
+  fi
+  # Stale heartbeat or exempt tool → fall through: the rung never fires.
 fi
 
 # (1) standard single-path field (both snake_case and camelCase shapes).

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **The Ink Cloud Reconcile Loop (W1, ADR-0108 phase 0)** — `lib/squid/reconcile.ts`, the daemon tick (15s, `PD_RECONCILE_INTERVAL_MS`) + event fast-paths (approvals, panic/unpanic, GitHub CI webhooks) that finally PROJECTS durable state into `matrix.env` and OWNS every projected key class: `PD_HALT` (panic with provenance), `PD_INBOX_<actor>_*` (top-3 peeked attention items, addressed per actor), `PD_PARLEY_<actor>_*` (unexpired summonses), `PD_CLAIM_*` (claim overlaps), `PD_CI_*` (red default-branch latch, honest process-memory degradation), `PD_ALERT_FLEET_APPROVALS` (migrated byte-compatible from fleet-daemon's inline writer — single owner restored), and decayed `PD_PHEROMONE_*` projections. Raw shell pheromone appends are drained under the SAME matrix lock as the rewrite into a new durable `ink_pheromones` table (7d max-age + 500-row cap + read-path decay prune), and desired-vs-current diffing garbage-collects strays — matrix.env is no longer append-forever. `PD_RECON_HEARTBEAT_TS` (epoch ms) is stamped every tick; every reader fails OPEN past `PD_RECON_STALE_MS` (60s).
+- **Per-actor addressing in the hooks (W1.1)** — `actorKey()`/`inboxKey()`/`parleyKey()` in `lib/squid/matrix.ts` (byte-identical to the existing shell `suffix()` sed mirror), a `[PORT DADDY — FOR YOU]` section in `bin/pd-hook-prompt` that renders ONLY the `PD_ACTOR`'s own inbox/parley keys (stale heartbeat ⇒ labeled historical), and full second-reader parity in `lib/local-citizen/ink-cloud.ts` (`halt`/`inbox`/`parley`/`claims`/`ci`/`accomplishments`/`heartbeatTs`, `actorKeySuffix()`, `isFresh()`).
+- **Agent-visible repo-wide pause (W1.3)** — `bin/pd-hook-prompt` renders `[PORT DADDY — HALT]` first (only while the daemon heartbeat is fresh), and `bin/pd-hook-pre-tool` gains a dial-gated HALT rung ahead of the lock gate: read-only tools always exempt, `PD_HALT_SUGGESTIBILITY` (or an explicit repo dial) selects advisory/warn/enforce, default **warn**, and the rung fails OPEN on a stale/missing heartbeat — a dead daemon can never block a tool. `routes/panic.ts` exports `getPanicState()` so the projection carries reason/armedBy/since provenance (panic itself never writes the matrix).
+
 ## [3.27.0] - 2026-07-23
 
 ### Added

@@ -46,6 +46,39 @@ export function applyResolutionDamping(
   return out;
 }
 
+/**
+ * The one decay law, extracted from {@link createPheromoneManager}'s
+ * `decayOnRead` factor math so it is unit-testable and reusable without a
+ * database.
+ *
+ * Motivation: the reconcile loop (`lib/squid/reconcile.ts`) stores drained
+ * shell pheromone appends in its own durable `ink_pheromones` table (the DB
+ * decay engine here is keyed to entity-row metadata — services/projects/
+ * sessions — which file-subjects are not). To avoid a SECOND decay
+ * implementation drifting from this one, both consumers call this single pure
+ * function: `eff = value * decayRate^(elapsed / intervalMs)`.
+ *
+ * Design: mirrors decayOnRead's negligible-elapsed guard (`intervals < 0.1`
+ * returns the value unchanged) so read-time decay behaves identically in both
+ * stores.
+ *
+ * @param value the stored (raw) intensity
+ * @param elapsedMs milliseconds since the value was last written/decayed
+ * @param cfg decay configuration; defaults match {@link createPheromoneManager}
+ * @returns the effective (decayed) intensity — never negative, NaN-safe (0)
+ */
+export function decayedValue(
+  value: number,
+  elapsedMs: number,
+  cfg: PheromoneConfig = { decayRate: 0.95, intervalMs: 60000 },
+): number {
+  if (!Number.isFinite(value)) return 0;
+  if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) return value;
+  const intervals = elapsedMs / cfg.intervalMs;
+  if (intervals < 0.1) return value; // negligible — parity with decayOnRead
+  return value * Math.pow(cfg.decayRate, intervals);
+}
+
 export interface Coverage {
   total: number;
   seen: number;
@@ -230,12 +263,12 @@ export function createPheromoneManager(db: Database.Database, config: PheromoneC
     const intervals = elapsed / config.intervalMs;
     if (intervals < 0.1) return pheromones; // negligible
 
-    const factor = Math.pow(config.decayRate, intervals);
     let changed = false;
 
     for (const [key, value] of Object.entries(pheromones)) {
       if (typeof value !== 'number') continue;
-      const decayed = value * factor;
+      // One decay law, one implementation — see the pure `decayedValue` export.
+      const decayed = decayedValue(value, elapsed, config);
       if (decayed < 0.01) {
         delete pheromones[key];
         changed = true;

@@ -922,6 +922,9 @@ Commit this so every developer gets the same deterministic port mapping:
 - `PD_COAST_GUARD_OFF=1` — opt a spawn out of confinement
 - `PD_FLEET_*` — Conductor cost gates (see Bonds & Budgets)
 - `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` — permit a source-backed dev daemon
+- `PD_RECONCILE_INTERVAL_MS` — Ink Cloud reconcile-loop tick cadence (default `15000`)
+- `PD_RECON_STALE_MS` — heartbeat staleness horizon for matrix readers; past it every enforcement rung fails open (default `60000`)
+- `PD_HALT_SUGGESTIBILITY` — dial for the repo-wide-pause pre-tool rung (`advisory|warn|enforce`; defaults to the repo's explicit suggestibility dial, else `warn`)
 
 ---
 

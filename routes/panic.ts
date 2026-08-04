@@ -27,6 +27,30 @@ export function isPanicArmed(): boolean {
   return state.armed;
 }
 
+/**
+ * Read-only snapshot of the panic module state.
+ *
+ * Motivation: the daemon's reconcile loop (`lib/squid/reconcile.ts`) projects a
+ * repo-wide `PD_HALT` key into the Ink Cloud matrix WITH provenance (reason /
+ * armedBy / armedAt) so agents see WHY the fleet is paused, not just that it
+ * is. Panic itself never writes the matrix (single-owner rule: the reconcile
+ * loop is the only PD_HALT writer); the existing `fleet:panic`/`fleet:unpanic`
+ * messaging publishes are the fast-path signal that pokes the loop.
+ *
+ * Design: returns a copy, never the live state object, so no caller can mutate
+ * panic state through this surface.
+ *
+ * @returns the armed flag plus provenance fields when armed
+ */
+export function getPanicState(): { armed: boolean; reason?: string; armedBy?: string; armedAt?: number } {
+  return {
+    armed: state.armed,
+    reason: state.reason,
+    armedBy: state.armedBy,
+    armedAt: state.armedAt,
+  };
+}
+
 export function _resetPanicStateForTests(): void {
   state.armed = false;
   state.reason = undefined;

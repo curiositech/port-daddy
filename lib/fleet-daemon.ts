@@ -33,7 +33,6 @@ import {
 import { getSharedWebhookReceiver } from './fleet/webhook-receiver.js';
 import { getSharedApprovalStream } from './fleet/approval-stream.js';
 import { getSharedPushNotifier, setSharedPushNotifier, FleetPushNotifier } from './fleet/push-notifications.js';
-import { setKey as setMatrixKey, deleteKey as deleteMatrixKey } from './squid/matrix.js';
 import { MacOSNotificationSink } from './fleet/outputs/notify-macos.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { loadEnvFiles } from './env-loader.js';
@@ -164,6 +163,15 @@ export interface FleetDaemonDeps {
       error?: string;
     };
   };
+  /**
+   * The Ink Cloud reconcile loop (lib/squid/reconcile.ts). OPTIONAL so existing
+   * fleet-daemon unit tests (and embedded uses) construct without it. When
+   * present, fleet-daemon is its single lifecycle owner: start() after the
+   * approval stream is configured (so the first tick projects real state),
+   * stop() on daemon shutdown — a stopped loop stops heartbeating and every
+   * matrix reader fails open on staleness.
+   */
+  reconcile?: { start(): void; stop(): void; poke(reason: string): void };
 }
 
 interface ManagedFleet {
@@ -915,12 +923,30 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
 
     isRunning = true;
     startedAt = Date.now();
+
+    // Start the reconcile loop LAST: the approval stream was configured during
+    // createFleetDaemon() and projects/fleets are loaded, so the loop's
+    // immediate first tick projects real state, not a half-booted daemon's.
+    try {
+      deps.reconcile?.start();
+    } catch (err) {
+      logger.warn('reconcile_start_failed', { error: (err as Error).message });
+    }
+
     logger.info('fleet_daemon_ready', { fleets: fleets.size });
   }
 
   /** Stop all fleets. Called from daemon shutdown(). */
   function stop(): void {
     if (!isRunning) return;
+
+    // Stop the reconcile loop first: no more matrix projections (or heartbeat
+    // refreshes) once shutdown begins — readers fail open on staleness.
+    try {
+      deps.reconcile?.stop();
+    } catch {
+      /* advisory surface; never blocks shutdown */
+    }
 
     unwatchAll();
     logger.info('fleet_daemon_stopping', { fleets: fleets.size });
@@ -1360,35 +1386,13 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   }));
   getSharedPushNotifier().bindApprovalStream(getSharedApprovalStream());
 
-  // Unmissable HITL: mirror the pending-approvals count into the Ink Cloud
-  // matrix as a steering ALERT. The UserPromptSubmit hook (bin/pd-hook-
-  // prompt) prepends alerts to EVERY compliant agent turn, so a held spawn
-  // is in front of the operator/agent at the start of each turn until
-  // decided. Cleared the moment the queue empties.
-  const syncApprovalAlert = (): void => {
-    try {
-      const pending = getSharedApprovalStream().list();
-      if (pending.length === 0) {
-        deleteMatrixKey('PD_ALERT_FLEET_APPROVALS');
-        return;
-      }
-      const head = pending
-        .slice(0, 3)
-        .map((p) => `${p.agent} ← ${p.trigger}`)
-        .join('; ');
-      const more = pending.length > 3 ? ` (+${pending.length - 3} more)` : '';
-      setMatrixKey(
-        'PD_ALERT_FLEET_APPROVALS',
-        `HITL: ${pending.length} spawn approval(s) waiting — ${head}${more}. Decide: pd fleet approvals | pd fleet approve <id> | pd fleet reject <id>`,
-      );
-    } catch (err) {
-      // Advisory surface: a matrix write failure degrades steering, never
-      // the daemon.
-      logger.warn('fleet_approval_alert_sync_failed', { error: (err as Error).message });
-    }
-  };
-  getSharedApprovalStream().subscribe(() => syncApprovalAlert());
-  syncApprovalAlert();
+  // Unmissable HITL: the pending-approvals count is mirrored into the Ink
+  // Cloud matrix as PD_ALERT_FLEET_APPROVALS by the reconcile loop
+  // (lib/squid/reconcile.ts) — the single owner of every projected matrix key
+  // class. The loop subscribes to this approval stream for its event
+  // fast-path, so a held spawn still lands in front of the operator/agent
+  // within one poke. The inline syncApprovalAlert writer that used to live
+  // here was migrated there (single-owner rule) with a byte-compatible message.
 
   return {
     start,

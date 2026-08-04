@@ -19,7 +19,8 @@
  */
 
 import type Database from 'better-sqlite3';
-import { RetentionRegistry, ttlPolicy, capPolicy } from './retention-registry.js';
+import { RetentionRegistry, ttlPolicy, capPolicy, maxAgePolicy } from './retention-registry.js';
+import { ensureInkPheromonesTable } from '../squid/reconcile.js';
 import { SelfMonitor, createSqliteSources, type Alarm, type Sample } from './self-monitor.js';
 import type { LogGovernor } from './log-governor.js';
 
@@ -59,6 +60,15 @@ export function createObservabilityMaintenance(opts: ObservabilityMaintenanceOpt
   if (existing.has('semantic_resolution_events')) {
     registry.register(capPolicy(db, 'semantic_resolution_events', 'id', opts.eventsCap ?? 20_000));
   }
+  // ink_pheromones (the reconcile loop's durable pheromone drain target,
+  // lib/squid/reconcile.ts) is declared bounded from day one per the
+  // db-retention doctrine: 7-day max age on updated_at + a 500-row cap, on top
+  // of the read-path prune (effective intensity < 0.01 deleted on query). The
+  // table is ensured here because maintenance is constructed before the
+  // reconcile loop in server.ts — one shared DDL, no ordering hazard.
+  ensureInkPheromonesTable(db);
+  registry.register(maxAgePolicy(db, 'ink_pheromones', 'updated_at', 7 * 24 * 60 * 60 * 1000));
+  registry.register(capPolicy(db, 'ink_pheromones', 'updated_at', 500));
 
   // Watch row counts on the tables most likely to run away (whether or not WE prune them).
   const watchTables = ['harbor_issued_tokens', 'semantic_resolution_events', 'messages', 'tuples', 'metric_counters']
