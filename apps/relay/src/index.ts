@@ -73,6 +73,14 @@ import { handleFleetRunPage } from './fleet-run-page.js';
 import { runRetentionSweep } from './retention-sweep.js';
 import { runMercySweep, handleMercyStatus, handleMercyPage } from './mercy.js';
 import {
+  runInterruptionNagSweep,
+  handleCreateInterruption,
+  handleListInterruptions,
+  handleAnswerInterruption,
+  handleAckInterruption,
+  handleInterruptionsPage,
+} from './interruptions.js';
+import {
   handleGithubLogin,
   handleGithubCallback,
   handleAuthMe,
@@ -207,6 +215,22 @@ export default {
       response = await handleDeleteFleetRun(request, env, runId);
     }
 
+    // ── Operator interruptions — HITL blocking asks (src/interruptions.ts) ──
+    else if (pathname === '/v1/interruptions' && method === 'POST') {
+      response = await handleCreateInterruption(request, env);
+    }
+    else if (pathname === '/v1/interruptions' && method === 'GET') {
+      response = await handleListInterruptions(request, env);
+    }
+    else if (pathname.startsWith('/v1/interruptions/') && pathname.endsWith('/answer') && method === 'POST') {
+      const id = decodeURIComponent(pathname.slice('/v1/interruptions/'.length, -'/answer'.length));
+      response = await handleAnswerInterruption(request, env, id);
+    }
+    else if (pathname.startsWith('/v1/interruptions/') && pathname.endsWith('/ack') && method === 'POST') {
+      const id = decodeURIComponent(pathname.slice('/v1/interruptions/'.length, -'/ack'.length));
+      response = await handleAckInterruption(request, env, id);
+    }
+
     // ── Fleet run page (HTML; check-run details_url target, ADR-0101) ────────
     else if (pathname.startsWith('/fleet/runs/') && method === 'GET') {
       const runId = decodeURIComponent(pathname.slice('/fleet/runs/'.length));
@@ -232,6 +256,10 @@ export default {
     // MERCY report card (session-gated HTML; src/mercy.ts).
     else if (pathname === '/account/mercy' && method === 'GET') {
       response = await handleMercyPage(request, env);
+    }
+    // Operator interruptions list (session-gated HTML; src/interruptions.ts).
+    else if (pathname === '/account/interruptions' && method === 'GET') {
+      response = await handleInterruptionsPage(request, env);
     }
 
     // ── GitHub login BFF (ADR-0101 Phase 1) ──────────────────────────────────
@@ -378,6 +406,17 @@ export default {
         const line =
           `[relay] mercy sweep: overall=${r.overall} remoteHarbors=${r.remoteHarborsPossible} ` +
           `opened=${r.incidentsOpened} resolved=${r.incidentsResolved} paged=${r.pagesSent}`;
+        if (r.errors.length) console.error(`${line} errors: ${r.errors.join('; ')}`);
+        else console.log(line);
+      }),
+    );
+    // HITL interruptions: the decay/nag engine rides the same 5-min cadence
+    // (and the 6h fire — every fire nags what is due). Internally fail-safe.
+    ctx.waitUntil(
+      runInterruptionNagSweep(env, Math.floor(Date.now() / 1000)).then((r) => {
+        const line =
+          `[relay] interruption sweep: paused=${r.paused} breakerOpen=${r.breakerOpen} ` +
+          `expired=${r.expired} nags=${r.nagsSent} gaveUp=${r.gaveUpSent} digests=${r.digestsSent}`;
         if (r.errors.length) console.error(`${line} errors: ${r.errors.join('; ')}`);
         else console.log(line);
       }),
