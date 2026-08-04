@@ -511,7 +511,7 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     for (const rev of state.reviews) expect(rev.comments).toHaveLength(0);
   });
 
-  it('lookout is given cross-PR + branch context and posts a parley proposal with severity', async () => {
+  it('lookout is given cross-PR + branch context and posts a roadmap proposal with severity', async () => {
     state.files.set('main:pd-fleet.yml', ideationYaml('lookout', 0.4));
     state.openPRs = [
       { number: 700, title: 'C8 setup', draft: false, head: { ref: 'wave2-c8' }, base: { ref: 'main' } },
@@ -528,7 +528,7 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
               title: 'Route triangle: GET /agent-nodes ownership',
               rationale: 'This PR calls a route PR #700 also assumes but nobody owns.',
               evidence: ['cli/commands/diagnostics.ts'],
-              action: 'parley',
+              action: 'roadmap',
               severity: 'HIGH',
             },
           ]),
@@ -554,7 +554,7 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     const bodies = commentBodiesOf(state);
     expect(bodies.some(b => b.includes('pd-ship:lookout'))).toBe(true);
     expect(bodies.some(b => b.includes('`HIGH`'))).toBe(true);
-    expect(bodies.some(b => b.includes('pd parley call'))).toBe(true);
+    expect(bodies.some(b => b.includes('pd roadmap upsert'))).toBe(true);
     // A HIGH trouble-ahead alert is still advisory — never fails the check.
     expect(state.completed[0].conclusion).toBe('success');
   });

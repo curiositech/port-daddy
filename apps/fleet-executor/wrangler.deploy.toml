@@ -83,7 +83,7 @@ dead_letter_queue = "fleet-runs-dlq"
 # DEFAULT_BRANCH is the TRUSTED ref every config/contract file is read from.
 # It is NEVER pull_request.head — that is the zero-trust invariant.
 [vars]
-RUN_DETAILS_BASE_URL = "https://port-daddy-relay.erich-owens.workers.dev"
+RUN_DETAILS_BASE_URL = "https://relay.portdaddy.dev"
 GITHUB_APP_ID = "3810450"
 DEFAULT_BRANCH = "main"
 
