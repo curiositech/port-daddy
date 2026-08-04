@@ -35,6 +35,7 @@ interface ResurrectionRouteDeps {
     pending(options?: { project?: string; stack?: string; limit?: number }): { success: boolean; agents: StaleAgent[]; count: number; filtered?: boolean };
     list(options?: { limit?: number; project?: string; stack?: string }): { success: boolean; agents: StaleAgent[]; count: number; filtered?: boolean };
     claim(agentId: string): { success: boolean; agent?: StaleAgent; context?: Record<string, unknown>; error?: string };
+    show(agentId: string): { success: boolean; agent?: StaleAgent; capsule?: Record<string, unknown> | null; error?: string };
     complete(oldAgentId: string, newAgentId: string): { success: boolean };
     abandon(agentId: string): { success: boolean };
     dismiss(agentId: string): { success: boolean };
@@ -165,6 +166,26 @@ export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDep
     }
   }
 
+  async function fHandleShow(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const agentId = (request.params as any).agentId as string;
+      const result = resurrection.show(agentId);
+
+      if (!result.success) {
+        reply.code(404);
+        return { error: result.error };
+      }
+
+      // Read-only: no status flip, no messaging — inspect before claiming.
+      return result;
+    } catch (error) {
+      metrics.errors++;
+      logger.error('salvage_show_failed', { error: (error as Error).message });
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  }
+
   async function fHandleDismiss(request: FastifyRequest, reply: FastifyReply) {
     try {
       const agentId = (request.params as any).agentId as string;
@@ -182,6 +203,9 @@ export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDep
   // PRIMARY ROUTES: /salvage/*
   fastify.get('/salvage/pending', fHandlePending);
   fastify.get('/salvage', fHandleList);
+  // Full-capsule render for one queue entry. Fastify static routes
+  // (/salvage/pending) win over this param route, so no shadowing.
+  fastify.get('/salvage/:agentId', fHandleShow);
   fastify.post('/salvage/claim/:agentId', fHandleClaim);
   fastify.post('/salvage/complete/:agentId', fHandleComplete);
   fastify.post('/salvage/abandon/:agentId', fHandleAbandon);

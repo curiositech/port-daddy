@@ -84,6 +84,7 @@ pd briefing
 pd history
 pd changelog <command>
 pd salvage
+pd salvage show <agent>
 pd salvage claim <agent>
 pd salvage complete
 ```

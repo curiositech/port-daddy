@@ -255,6 +255,7 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'salvage': 'silent',              // default subcommand = listing
   'salvage triage': 'silent',
   'salvage next': 'silent',
+  'salvage show': 'silent',         // read-only capsule render; claim/dismiss stay destructive
   'salvage claim': 'destructive',   // claims another agent's session+files
   'salvage complete': 'destructive',// finalizes an inherited session
   'salvage abandon': 'destructive', // forces session back to queue

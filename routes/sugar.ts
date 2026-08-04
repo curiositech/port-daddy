@@ -15,7 +15,16 @@ interface SugarRouteDeps {
     done(options: Record<string, unknown>): Record<string, unknown>;
     whoami(options: Record<string, unknown>): Record<string, unknown>;
     relink(options: Record<string, unknown>): Record<string, unknown>;
-    getWelcomeBriefing?(harbor?: string): Record<string, unknown>;
+    getWelcomeBriefing?(harbor?: string, purpose?: string): Promise<Record<string, unknown>> | Record<string, unknown>;
+  };
+  /**
+   * Optional intent index (lib/intent-index.ts). Wired so a successful begin
+   * fire-and-forgets its purpose embedding — never awaited, never blocks or
+   * fails the begin response (the first call may trigger the multi-second
+   * ONNX model load).
+   */
+  intentIndex?: {
+    indexSession(id: string, purpose: string): Promise<unknown>;
   };
   metrics: { errors: number };
   logger: {
@@ -123,6 +132,20 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         lifecycle,
         purpose,
       });
+
+      // Intent index (W2.1): embed the purpose fire-and-forget. result.id
+      // covers fresh begin AND takeover-on-begin (both flow through this
+      // route); result.sessionId is the actual field sugar.begin returns —
+      // accept either so the stitch survives shape drift. NEVER awaited: the
+      // first embed after daemon start can take seconds (ONNX model load) and
+      // must not regress pd begin latency; failures are swallowed (the
+      // backfill sweep repairs missed rows).
+      const beganSessionId = typeof result.id === 'string'
+        ? result.id
+        : typeof result.sessionId === 'string' ? result.sessionId : null;
+      if (deps.intentIndex && result?.success && beganSessionId) {
+        void deps.intentIndex.indexSession(beganSessionId, String(purpose)).catch(() => {});
+      }
 
       return result;
     } catch (error) {
@@ -263,8 +286,10 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
   fastify.get('/sugar/welcome', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const harbor = typeof (request.query as any).harbor === 'string' ? (request.query as any).harbor : undefined;
+      const purpose = typeof (request.query as any).purpose === 'string' ? (request.query as any).purpose : undefined;
       if (sugar.getWelcomeBriefing) {
-        return sugar.getWelcomeBriefing(harbor);
+        // await handles both sync and async getWelcomeBriefing providers.
+        return await sugar.getWelcomeBriefing(harbor, purpose);
       }
       return { success: false, error: 'Welcome briefing not supported by this sugar provider' };
     } catch (error) {

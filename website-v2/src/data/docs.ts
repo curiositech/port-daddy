@@ -261,6 +261,13 @@ export const CLI_COMMANDS: CliCommand[] = [
   },
   {
     group: 'Agents',
+    cmd: 'pd salvage show <agentId>',
+    description: 'Read-only render of one salvage queue entry: status, identity, purpose, the full self-salvage capsule (telos verdict, next plan, evidence), and all notes with encrypted notes redacted. Inspect before claiming — unlike claim, show never changes the entry\'s status.',
+    example: 'pd salvage show agent-001',
+    output: '☠ Auth Fixer (dead, 12h)\n  Agent:   agent-001\n  Session: abc123\n  Purpose: Fix auth bug\n\nSelf-Salvage Capsule\n  Telos verdict: partial\n  Doable: yes\n  Why stopped: context window exhausted\n\nClaim: pd salvage claim agent-001   Dismiss: pd salvage dismiss agent-001',
+  },
+  {
+    group: 'Agents',
     cmd: 'pd salvage claim <agentId>',
     description: 'Claim a dead agent\'s work. Returns the full context: session ID, notes, file claims, and purpose.',
     example: 'pd salvage claim agent-001',
@@ -366,6 +373,7 @@ export const ENDPOINTS: Endpoint[] = [
   { method: 'DELETE', path: '/spawn/:agentId',          description: 'Kill a spawned agent',                        group: 'Agents' },
   { method: 'GET',    path: '/salvage',                 description: 'List resurrection queue',                     group: 'Salvage' },
   { method: 'GET',    path: '/salvage/pending',         description: 'Dead agents pending salvage',                 group: 'Salvage' },
+  { method: 'GET',    path: '/salvage/:agentId',        description: 'Full capsule render for one entry (read-only)', group: 'Salvage' },
   { method: 'POST',   path: '/salvage/claim/:agentId',  description: 'Claim dead agent\'s work',                   group: 'Salvage' },
   { method: 'POST',   path: '/salvage/complete/:agentId', description: 'Mark salvage complete',                    group: 'Salvage' },
   { method: 'DELETE', path: '/salvage/:agentId',        description: 'Dismiss agent from queue',                   group: 'Salvage' },

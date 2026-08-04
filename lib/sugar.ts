@@ -24,6 +24,7 @@ import {
   noteSentinelErrorMessage,
   type GitOriginChecker,
 } from './git-origin-check.js';
+import type { SalvageMatch } from './intent-index.js';
 
 // =============================================================================
 // Types
@@ -124,6 +125,15 @@ interface SugarDeps {
   gitOriginChecker?: GitOriginChecker;
   feedback?: FeedbackModule;
   commitments?: CommitmentsModule;
+  /**
+   * Optional intent index (lib/intent-index.ts). When present, the welcome
+   * briefing can surface semantically similar DEAD sessions (salvage matches)
+   * for the caller's declared purpose. Structural type, mirroring how
+   * roadmapItems/feedback are typed, so tests can stub it trivially.
+   */
+  intentIndex?: {
+    searchSalvage(purpose: string, opts?: { limit?: number }): Promise<SalvageMatch[]>;
+  };
 }
 
 interface BeginOptions {
@@ -1446,7 +1456,25 @@ export function createSugar(deps: SugarDeps) {
     return response;
   }
 
-  function getWelcomeBriefing(harbor?: string) {
+  /**
+   * Welcome briefing for an arriving agent: the next roadmap target, ongoing
+   * fleet missions, high-priority bugs, dormant sessions, and — when a purpose
+   * is given — semantically similar salvageable prior work (plan W2.2).
+   *
+   * Design intent: the briefing is advisory context, never a gate. Every
+   * section degrades independently — in particular the salvage section must
+   * never fail the briefing because the embedder is down (the intent index's
+   * first embed can trigger a multi-second ONNX load or a circuit-open), so
+   * it catches everything and degrades to an empty array. The return shape
+   * ALWAYS includes `salvageMatches` (empty when no purpose / no intent
+   * index) so CLI renderers never branch on undefined.
+   *
+   * @param harbor - Harbor scope for roadmap/feedback sections (default 'fleet').
+   * @param purpose - The arriving agent's declared purpose; enables the
+   *   salvage-match section when the intent index is wired.
+   * @returns success + nextRoadmap, ongoing, highPriBugs, dormant, salvageMatches.
+   */
+  async function getWelcomeBriefing(harbor?: string, purpose?: string) {
     const nextHarbor = harbor || 'fleet';
     
     // 1. Next most important thing on the roadmap
@@ -1512,12 +1540,23 @@ export function createSugar(deps: SugarDeps) {
       }
     }
 
+    // 5. Salvageable prior work — semantic match on the caller's purpose.
+    let salvageMatches: SalvageMatch[] = [];
+    if (purpose && deps.intentIndex) {
+      try {
+        salvageMatches = await deps.intentIndex.searchSalvage(purpose, { limit: 3 });
+      } catch {
+        // Briefing must never fail because the embedder is down — degrade to empty.
+      }
+    }
+
     return {
       success: true,
       nextRoadmap,
       ongoing,
       highPriBugs,
       dormant,
+      salvageMatches,
     };
   }
 

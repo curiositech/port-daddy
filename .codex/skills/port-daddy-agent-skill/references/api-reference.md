@@ -562,6 +562,9 @@ Check for dead agents with unfinished work. Returns agents that died mid-task. Q
 ### GET /salvage
 List all entries in the salvage queue. Query params: `project`, `stack`, `all`, `limit`.
 
+### GET /salvage/:agentId
+Read-only full render of one queue entry: the agent, its self-salvage capsule (untrusted, display-only), and notes. CLI: `pd salvage show <agent-id>`. Unlike claim, this never flips the entry's status. 404 when the agent is not queued.
+
 ### POST /salvage/claim/:agentId
 Claim a dead agent's session to continue their work.
 

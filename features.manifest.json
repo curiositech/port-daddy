@@ -374,12 +374,14 @@
         "DELETE /resurrection/:param",
         "GET /salvage/pending",
         "GET /salvage",
+        "GET /salvage/:param",
         "POST /salvage/claim/:param",
         "POST /salvage/complete/:param",
         "POST /salvage/abandon/:param",
         "POST /salvage/reap",
         "DELETE /salvage/:param"
       ],
+      "_note": "GET /salvage/:param is `pd salvage show <agent-id>` — a read-only full-capsule render (no status flip, unlike claim). The /resurrection/* aliases deliberately do NOT gain a GET show alias; new surfaces land on the primary /salvage family only.",
       "completions": [
         "salvage",
         "resurrection"
@@ -1015,6 +1017,7 @@
         "GET /sugar/whoami",
         "GET /sugar/welcome"
       ],
+      "_note": "GET /sugar/welcome accepts optional `harbor` and `purpose` query params (route-parser can't extract query params). `purpose` enables the salvageMatches briefing section (intent index, plan W2.2); POST /sugar/begin fire-and-forgets the purpose embedding into the intent index sidecar.",
       "completions": [
         "begin",
         "b",

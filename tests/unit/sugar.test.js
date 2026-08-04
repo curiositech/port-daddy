@@ -1136,7 +1136,7 @@ describe('sugar lifecycle', () => {
     expect(beginRes2.sessionId).not.toBe(beginRes1.sessionId);
   });
 
-  it('should generate a welcome briefing with roadmap, ongoing, high-pri bugs, and dormant sessions', () => {
+  it('should generate a welcome briefing with roadmap, ongoing, high-pri bugs, and dormant sessions', async () => {
     const { sugar, feedback } = setup();
 
     // 1. Add some open high-pri feedback
@@ -1161,11 +1161,13 @@ describe('sugar lifecycle', () => {
       agentId: 'test-agent-welcome',
     });
 
-    const welcome = sugar.getWelcomeBriefing('fleet');
+    const welcome = await sugar.getWelcomeBriefing('fleet');
     expect(welcome.success).toBe(true);
     expect(welcome.ongoing.length).toBe(1);
     expect(welcome.ongoing[0].purpose).toBe('Live ongoing feature work');
     expect(welcome.highPriBugs.length).toBe(1);
     expect(welcome.highPriBugs[0].slug).toBe('critical-bug');
+    // W2.2: return shape always includes salvageMatches (empty without purpose/intentIndex)
+    expect(welcome.salvageMatches).toEqual([]);
   });
 });

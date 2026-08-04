@@ -50,6 +50,7 @@ import { createAgentInbox } from './lib/agent-inbox.js';
 import { createAttention } from './lib/attention.js';
 import { createClaimWatcher } from './lib/claim-watcher.js';
 import { createResurrection } from './lib/resurrection.js';
+import { createIntentIndex } from './lib/intent-index.js';
 import { createChangelog } from './lib/changelog.js';
 import { createTunnel } from './lib/tunnel.js';
 import { createDns } from './lib/dns.js';
@@ -579,6 +580,9 @@ const claimWatcher = createClaimWatcher({
 });
 
 const resurrection = createResurrection(db, { sessions });
+// Intent index (W2.1): semantic search over session purposes, alive and dead.
+// Single writer of the session_purpose_embeddings disposable derivative.
+const intentIndex = createIntentIndex(db, { resolver: semanticResolver, logger });
 const changelog = createChangelog(db);
 const tunnel = createTunnel(db);
 const dns = createDns(db);
@@ -586,7 +590,7 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const sugar = createSugar({ agents, sessions, activityLog, roadmapItems, feedback, commitments });
+const sugar = createSugar({ agents, sessions, activityLog, roadmapItems, feedback, commitments, intentIndex });
 const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
@@ -1191,6 +1195,12 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
   sessions.cleanup();
   agentInbox.cleanup();
   resurrection.cleanup();
+  // Intent-index convergence (W2.1): drop orphan/wrong-model derived rows and
+  // top up missing embeddings under a small budget, so long-lived daemons
+  // converge without restart and sessions begun via non-sugar paths get
+  // indexed within one tick. Both are best-effort — never fail the tick.
+  try { intentIndex.gc(); } catch { /* derived-index gc is best-effort */ }
+  void intentIndex.backfill({ budget: 50 }).catch(() => {});
   // Unified retention sweep + page reclaim + self-footprint sample (see createObservabilityMaintenance).
   try { observabilityMaintenance.tick(); } catch (err) {
     governor.governed({ key: 'observability_maintenance_failed', level: 'error', message: 'observability_maintenance_failed', meta: { error: (err as Error).message } });
@@ -1455,7 +1465,7 @@ await registerAllRoutes(
     db, logger, metrics, config,
     routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
-    agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
+    agentInbox, resurrection, intentIndex, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
     harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, booty, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, durableAgentRoster, costTracker, cloudAppTelemetry, counters, metricsRegistry,
     contextTracker,
@@ -1652,6 +1662,18 @@ function onReady(): void {
   } catch (err) {
     logger.error('claim_watcher_start_failed', { error: (err as Error).message });
   }
+
+  // Intent-index lazy backfill (W2.1): 30s after listen so the boot path never
+  // pays the ONNX model load; idempotent on every start (second start logs
+  // embedded: 0). gc() is embedder-free and best-effort. unref()'d so the
+  // timer never keeps a shutting-down daemon alive.
+  const intentBackfillTimer = setTimeout(() => {
+    void intentIndex.backfill()
+      .then((r) => logger.info('intent_backfill_complete', r as unknown as Record<string, unknown>))
+      .catch((err) => logger.error('intent_backfill_failed', { error: (err as Error).message }));
+    try { intentIndex.gc(); } catch { /* derived-index gc is best-effort */ }
+  }, 30_000);
+  intentBackfillTimer.unref();
 
   // Start fleet daemon — auto-discovers pd-fleet.yml in registered projects.
   // Named sidecar profiles default this off so they cannot accidentally arm the

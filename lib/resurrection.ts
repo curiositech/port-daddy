@@ -414,6 +414,33 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
     },
 
     /**
+     * Read-only render of one queue entry plus its self-salvage capsule.
+     *
+     * Why a separate verb from claim(): claim() flips the row to
+     * 'resurrecting' — it is a state transition. `pd salvage show` exists so
+     * an agent can inspect the full capsule and notes BEFORE deciding to
+     * claim, so this must not mutate anything. The capsule passes through
+     * untrusted (same rule as getSalvageCapsule): it was written by the dying
+     * agent and is display context only, never an authorization surface.
+     *
+     * @param agentId - The queued agent's id (resurrection_queue.agent_id).
+     * @returns success + formatted queue entry + raw capsule (or null), or a
+     *   not-found error when the agent is not in the queue.
+     */
+    show(agentId: string) {
+      const row = stmts.get.get(agentId) as ResurrectionQueueRow | undefined;
+      if (!row) {
+        return { success: false, error: 'Agent not in resurrection queue' };
+      }
+      const metadata = parseMetadata(row.metadata);
+      return {
+        success: true,
+        agent: formatQueueEntry(row),
+        capsule: metadata.salvageCapsule ?? null,
+      };
+    },
+
+    /**
      * Mark resurrection as complete
      */
     complete(oldAgentId: string, newAgentId: string) {

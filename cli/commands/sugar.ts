@@ -239,6 +239,91 @@ async function promptBeginRent(): Promise<BeginRentResolution> {
   return resolveBeginRent({ sidequest: reason || '' }, {}, false);
 }
 
+// =============================================================================
+// Salvage-match rendering (W2.2) — 🧭 section of the welcome briefing
+// =============================================================================
+
+/** Structural mirror of lib/intent-index.ts SalvageMatch (CLI renders JSON from the daemon). */
+export interface SalvageMatchView {
+  sessionId: string;
+  purpose: string;
+  similarity: number;
+  isDead: boolean;
+  status: string;
+  updatedAt?: number;
+  completedAt?: number | null;
+  salvageAgentId: string | null;
+  queueStatus: string | null;
+  detectedAt: number | null;
+  hasCapsule: boolean;
+  capsulePreview: { telosVerdict?: string; doable?: string; whyStopped?: string; nextPlanHead?: string } | null;
+  command: string | null;
+}
+
+function truncateForBriefing(value: string, max = 120): string {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  return normalized.length > max ? `${normalized.slice(0, max - 1)}…` : normalized;
+}
+
+function briefingAge(ms: number): string {
+  const minutes = Math.max(0, Math.floor(ms / 60000));
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
+/**
+ * Pure formatter for the 🧭 "Salvageable Prior Work" briefing section.
+ *
+ * Why a pure exported function (repo pattern: triageSalvageAgents): the render
+ * logic is the W2 verification artifact — "pd begin transcript names the dead
+ * capsule" — so it must be unit-testable without a daemon or a TTY. No ANSI
+ * codes: the section is advisory transcript content, and deterministic plain
+ * text keeps assertions honest. Capsule fields arrive attacker-controlled
+ * (written by the dying agent); they were truncated daemon-side and are
+ * truncated again here — display context only, never a decision input.
+ *
+ * @param matches - Salvage matches from GET /sugar/welcome (salvageMatches).
+ * @returns Rendered lines (empty array when there are no matches — caller
+ *   skips the whole section).
+ */
+export function renderSalvageMatches(matches: SalvageMatchView[]): string[] {
+  if (!Array.isArray(matches) || matches.length === 0) return [];
+  const now = Date.now();
+  const lines: string[] = ['🧭 Salvageable Prior Work (semantic match on your purpose):'];
+  for (const m of matches) {
+    if (!m || typeof m !== 'object') continue;
+    const pct = `${Math.round((m.similarity ?? 0) * 100)}%`;
+    const purpose = truncateForBriefing(String(m.purpose ?? ''));
+    if (m.salvageAgentId) {
+      const age = m.detectedAt ? briefingAge(now - m.detectedAt) : 'unknown age';
+      const capsuleBits: string[] = [];
+      if (m.hasCapsule && m.capsulePreview) {
+        const verdict = [m.capsulePreview.telosVerdict, m.capsulePreview.doable]
+          .filter(Boolean).join('/');
+        if (verdict) capsuleBits.push(`capsule: ${verdict}`);
+        if (m.capsulePreview.whyStopped) {
+          capsuleBits.push(`why stopped: ${truncateForBriefing(m.capsulePreview.whyStopped)}`);
+        }
+      } else {
+        capsuleBits.push('no capsule');
+      }
+      lines.push(`   - [${pct}] "${purpose}" (${m.status || 'dead'} ${age}) — ${capsuleBits.join(' — ')}`);
+      lines.push(`     Next: ${m.command || `pd salvage show ${m.salvageAgentId}`}`);
+    } else {
+      const stamp = m.completedAt ?? m.updatedAt ?? null;
+      const age = typeof stamp === 'number' ? briefingAge(now - stamp) : null;
+      const label = age ? `${m.status || 'dead'} ${age} ago, no capsule` : `${m.status || 'dead'}, no capsule`;
+      lines.push(`   - [${pct}] "${purpose}" (${label}) — context: pd session show ${m.sessionId}`);
+    }
+  }
+  // Honest limitation: queue entries with no session_id are unreachable by
+  // purpose similarity — the plain queue view still lists them.
+  lines.push('   (queue entries without a session are only visible via pd salvage)');
+  return lines;
+}
+
 function formatTimeAgo(timestamp: number | null): string {
   if (!timestamp) return 'unknown';
   const diff = Date.now() - timestamp;
@@ -417,15 +502,33 @@ async function showHelpfulSuggestions(purpose: string, identity: string | undefi
   }
 }
 
-async function fetchAndRenderWelcomeBriefing(harbor?: string): Promise<void> {
+async function fetchAndRenderWelcomeBriefing(
+  harbor?: string,
+  purpose?: string,
+  sections: 'all' | 'salvage-only' = 'all',
+): Promise<void> {
   try {
-    const res = await pdFetch(`${PORT_DADDY_URL}/sugar/welcome?harbor=${encodeURIComponent(harbor || '')}`);
+    let url = `${PORT_DADDY_URL}/sugar/welcome?harbor=${encodeURIComponent(harbor || '')}`;
+    if (purpose) url += `&purpose=${encodeURIComponent(purpose)}`;
+    const res = await pdFetch(url);
     if (!res.ok) return;
     const data = (await res.json()) as any;
     if (!data || !data.success) return;
 
+    // salvage-only: post-begin transcript should name matching dead capsules
+    // (the W2 verification artifact) without re-printing the whole briefing.
+    if (sections === 'salvage-only') {
+      const salvageLines = renderSalvageMatches((data.salvageMatches || []) as SalvageMatchView[]);
+      if (salvageLines.length > 0) {
+        console.error('');
+        for (const line of salvageLines) console.error(line);
+        console.error('');
+      }
+      return;
+    }
+
     console.error(`\n👋 ${ui.fmtBold(ui.fmtCyan('WELCOME TO THE PORT DADDY HARBOR'))}`);
-    
+
     // 1. Next roadmap item
     if (data.nextRoadmap) {
       console.error(`\n📌 ${ui.fmtBold('Next Roadmap Target:')}`);
@@ -456,6 +559,13 @@ async function fetchAndRenderWelcomeBriefing(harbor?: string): Promise<void> {
       for (const d of data.dormant) {
         console.error(`   - Session ${ui.fmtYellow(d.sessionId)}: "${d.purpose}" (dormant for ${d.lastActiveAgoMinutes}m)`);
       }
+    }
+
+    // 5. Salvageable prior work (W2.2) — only populated when a purpose was sent.
+    const salvageLines = renderSalvageMatches((data.salvageMatches || []) as SalvageMatchView[]);
+    if (salvageLines.length > 0) {
+      console.error('');
+      for (const line of salvageLines) console.error(line);
     }
     console.error('');
   } catch (err) {
@@ -674,6 +784,9 @@ export async function handleBegin(
       footer: 'claim files next with pd session files add <path>',
       colorLevel: ui.lineworkColorLevel('stderr'),
     }));
+    // W2.2: name matching dead capsules in the begin transcript (salvage-only
+    // section; the full briefing already ran pre-begin when relevant).
+    await fetchAndRenderWelcomeBriefing(options.harbor as string || undefined, purpose, 'salvage-only');
     await showHelpfulSuggestions(purpose, identity);
     return;
   }
@@ -714,6 +827,8 @@ export async function handleBegin(
     console.error('');
     ui.warn(String(data.approvalsHint));
   }
+  // W2.2: name matching dead capsules in the begin transcript (salvage-only).
+  await fetchAndRenderWelcomeBriefing(options.harbor as string || undefined, purpose, 'salvage-only');
   await showHelpfulSuggestions(purpose, identity);
 }
 

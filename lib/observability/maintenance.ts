@@ -59,9 +59,14 @@ export function createObservabilityMaintenance(opts: ObservabilityMaintenanceOpt
   if (existing.has('semantic_resolution_events')) {
     registry.register(capPolicy(db, 'semantic_resolution_events', 'id', opts.eventsCap ?? 20_000));
   }
+  if (existing.has('session_purpose_embeddings')) {
+    // Retention ceiling only; orphan/model-swap GC is intent-index's own gc()
+    // (a different concern — correctness of the derivative, not size).
+    registry.register(capPolicy(db, 'session_purpose_embeddings', 'created_at', 20_000));
+  }
 
   // Watch row counts on the tables most likely to run away (whether or not WE prune them).
-  const watchTables = ['harbor_issued_tokens', 'semantic_resolution_events', 'messages', 'tuples', 'metric_counters']
+  const watchTables = ['harbor_issued_tokens', 'semantic_resolution_events', 'session_purpose_embeddings', 'messages', 'tuples', 'metric_counters']
     .filter((t) => existing.has(t));
   const tableRows = Object.fromEntries(watchTables.map((t) => [t, { warn: 200_000, crit: 1_000_000 }]));
 

@@ -37,6 +37,16 @@ function createMockDeps() {
         agent: { id: agentId, name: agentId, status: 'dead' },
         context: {},
       }),
+      show: jest.fn((agentId) => {
+        if (agentId === 'unknown-agent') {
+          return { success: false, error: 'Agent not in resurrection queue' };
+        }
+        return {
+          success: true,
+          agent: { id: agentId, name: agentId, status: 'dead' },
+          capsule: { telosVerdict: 'partial', doable: 'yes', whyStopped: 'context exhausted' },
+        };
+      }),
       complete: (oldId, newId) => ({ success: true }),
       abandon: (agentId) => ({ success: true }),
       dismiss: (agentId) => ({ success: true }),
@@ -104,6 +114,36 @@ describe('Salvage Route Aliasing', () => {
       expect(res.statusCode).toBe(200);
       const body = res.json();
       expect(body.success).toBe(true);
+    });
+  });
+
+  describe('GET /salvage/:agentId (show — full-capsule render)', () => {
+    it('returns 200 with the agent and capsule for a known id', async () => {
+      const res = await app.inject({ method: 'GET', url: '/salvage/dead-agent' });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.success).toBe(true);
+      expect(body.agent.id).toBe('dead-agent');
+      expect(body.capsule).toEqual({
+        telosVerdict: 'partial',
+        doable: 'yes',
+        whyStopped: 'context exhausted',
+      });
+      expect(deps.resurrection.show).toHaveBeenCalledWith('dead-agent');
+    });
+
+    it('returns 404 with the lib error for an unknown id', async () => {
+      const res = await app.inject({ method: 'GET', url: '/salvage/unknown-agent' });
+      expect(res.statusCode).toBe(404);
+      expect(res.json().error).toBe('Agent not in resurrection queue');
+    });
+
+    it('does not shadow the static GET /salvage/pending route', async () => {
+      const res = await app.inject({ method: 'GET', url: '/salvage/pending' });
+      expect(res.statusCode).toBe(200);
+      // The static route (pending) wins; show is never consulted.
+      expect(deps.resurrection.show).not.toHaveBeenCalled();
+      expect(res.json().success).toBe(true);
     });
   });
 

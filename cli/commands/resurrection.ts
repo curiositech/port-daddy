@@ -12,6 +12,7 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 import { readCurrentContext } from '../utils/current-context.js';
+import { normalizeSelfSalvage, formatSelfSalvageNote } from '../../lib/telos-salvage.js';
 
 interface StaleAgent {
   id: string;
@@ -407,6 +408,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
     console.error('  (none)                          Show agents awaiting salvage (filtered by --project)');
     console.error('  triage                          Cluster salvage queue into action buckets');
     console.error('  next                            Print one bounded work item for an idle agent');
+    console.error('  show <agent-id>                 Render the full self-salvage capsule + notes for one queue entry');
     console.error('  claim <agent-id>                Claim an agent\'s work');
     console.error('  complete <old-id> <new-id>      Mark salvage complete');
     console.error('  abandon <agent-id>              Return agent to queue');
@@ -535,6 +537,78 @@ export async function handleSalvage(subcommand: string | undefined, args: string
       }
 
       printSalvageTriagePlan(plan, options);
+      break;
+    }
+
+    case 'show': {
+      const agentId = args[0];
+      if (!agentId) {
+        console.error('Usage: pd salvage show <agent-id>');
+        process.exit(1);
+      }
+
+      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/salvage/${encodeURIComponent(agentId)}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        ui.error((data.error as string) || 'Failed to show salvage entry');
+        process.exit(1);
+      }
+
+      if (isJson(options)) {
+        console.log(JSON.stringify(data, null, 2));
+        return;
+      }
+
+      const agent = data.agent as StaleAgent;
+      const capsule = data.capsule as Record<string, unknown> | null;
+
+      // Header — reuse the list renderer's status icons and age formatting.
+      const statusIcon = agent.status === 'dead' ? JOLLY_ROGER_COMPACT : agent.status === 'resurrecting' ? '↻' : '⚠';
+      const ago = formatAge(Date.now() - agent.staleSince);
+      const identity = agentIdentity(agent);
+
+      console.log(`${statusIcon} ${ANSI.bold}${agent.name || agent.id}${ANSI.reset} (${agent.status}, ${ago})`);
+      console.log(`  Agent:   ${agent.id}`);
+      if (identity) console.log(`  Identity: ${ANSI.fgCyan}${identity}${ANSI.reset}`);
+      if (agent.sessionId) console.log(`  Session: ${agent.sessionId}`);
+      if (agent.purpose) console.log(`  Purpose: ${agent.purpose}`);
+      console.log('');
+
+      // Capsule — untrusted content written by the dying agent. Validate via
+      // normalizeSelfSalvage; on success render the canonical note, on failure
+      // print raw keys under an honest banner — never crash on forged fields.
+      if (capsule) {
+        const normalized = normalizeSelfSalvage(capsule);
+        if (normalized.success && normalized.capsule) {
+          console.log(`${ANSI.bold}Self-Salvage Capsule${ANSI.reset}`);
+          for (const line of formatSelfSalvageNote(normalized.capsule).split('\n')) {
+            console.log(`  ${line}`);
+          }
+        } else {
+          console.log(`${ANSI.bold}Self-Salvage Capsule${ANSI.reset} ${ANSI.fgYellow}[unverified capsule fields]${ANSI.reset}`);
+          for (const [key, value] of Object.entries(capsule)) {
+            const rendered = typeof value === 'string' ? value : JSON.stringify(value);
+            console.log(`  ${key}: ${String(rendered).slice(0, 200)}`);
+          }
+        }
+        console.log('');
+      } else {
+        console.log('No self-salvage capsule recorded for this entry.');
+        console.log('');
+      }
+
+      // Notes — ALL of them (unlike the 3-note list truncation), each through
+      // the encrypted-note redaction.
+      if (agent.notes?.length) {
+        console.log(`${ANSI.bold}Notes${ANSI.reset} (${agent.notes.length})`);
+        for (const note of agent.notes) {
+          console.log(`  - ${formatSalvageNote(note)}`);
+        }
+        console.log('');
+      }
+
+      console.log(`Claim: ${ANSI.fgCyan}pd salvage claim ${agent.id}${ANSI.reset}   Dismiss: ${ANSI.fgCyan}pd salvage dismiss ${agent.id}${ANSI.reset}`);
       break;
     }
 
