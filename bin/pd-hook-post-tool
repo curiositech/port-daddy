@@ -22,6 +22,13 @@ MATRIX="${PD_MATRIX_FILE:-$PD_HOME/matrix.env}"
 LOCKDIR="${MATRIX}.lock"
 SELF="${PD_ACTOR:-unknown}"
 
+# How many 10ms attempts to make on the matrix lock before giving up. 500 ≈ 5s,
+# which is DEFAULT_LOCK.timeoutMs in lib/squid/matrix.ts: both sides of the lock
+# wait the same amount for the other, so neither declares defeat while the other
+# still believes it may yet win.
+LOCK_TRIES="${PD_MATRIX_LOCK_TRIES:-500}"
+case "$LOCK_TRIES" in ''|*[!0-9]*) LOCK_TRIES=500 ;; esac
+
 EVENT="$(cat 2>/dev/null || true)"
 [ -n "$EVENT" ] || exit 0
 
@@ -92,11 +99,18 @@ esac
 [ -n "$TARGETS" ] || exit 0
 
 # ── subject suffix (mirror lib/squid/matrix.ts keySuffix) ───────────────────
+# The second `s/_+$//` and the X fallback are not tidying: `cut` can expose an
+# underscore that was interior before the cut, and an all-punctuation subject
+# collapses to nothing. Both cases must match keySuffix() exactly or the daemon
+# reconciles a pheromone key this hook never wrote.
 suffix() {
-  printf '%s' "$1" \
+  s=$(printf '%s' "$1" \
     | sed -E 's/[^A-Za-z0-9]+/_/g; s/^_+//; s/_+$//' \
     | tr '[:lower:]' '[:upper:]' \
-    | cut -c1-80
+    | cut -c1-80 \
+    | sed -E 's/_+$//')
+  [ -n "$s" ] || s=X
+  printf '%s' "$s"
 }
 TS_EPOCH="$(date +%s)000"
 ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u)"
@@ -127,35 +141,50 @@ $TARGETS
 INNER_EOF
 }
 
-if command -v flock >/dev/null 2>&1; then
-  # Linux fast path: flock on a sibling lock FILE.
-  ( flock 9; append_line ) 9>"${MATRIX}.flock" 2>/dev/null || append_line
-else
-  # Portable path (macOS): mkdir-atomic lock, retry briefly, break if stale.
-  i=0
-  appended=0
-  while [ "$i" -lt 200 ]; do
-    if mkdir "$LOCKDIR" 2>/dev/null; then
-      append_line
-      appended=1
+# ONE primitive, both platforms: the mkdir-atomic lock DIRECTORY that
+# lib/squid/matrix.ts acquires. There used to be an `flock` fast path here on
+# Linux — it took `flock` on ${MATRIX}.flock while every reconcile tick took
+# `mkdir` on ${MATRIX}.lock. Two disjoint lock objects are not mutual exclusion:
+# the append landed inside the tick's read-modify-rename window and the rename
+# destroyed it, which is a *silently lost* pheromone on exactly the busy fleet
+# the lock exists for. flock is faster and it is gone; correctness first.
+i=0
+appended=0
+while [ "$i" -lt "$LOCK_TRIES" ]; do
+  if mkdir "$LOCKDIR" 2>/dev/null; then
+    append_line
+    appended=1
+    rmdir "$LOCKDIR" 2>/dev/null || true
+    break
+  fi
+  # break a stale lock (> ~30s old) so a crashed agent can't wedge the cloud.
+  # 30s matches DEFAULT_LOCK.staleMs in lib/squid/matrix.ts — the two sides must
+  # agree on when a holder is presumed dead or they will break each other's live
+  # locks.
+  if [ -d "$LOCKDIR" ]; then
+    # `find -mmin` is portable enough across macOS/Linux for staleness.
+    if find "$LOCKDIR" -maxdepth 0 -mmin +0.5 2>/dev/null | grep -q .; then
       rmdir "$LOCKDIR" 2>/dev/null || true
-      break
     fi
-    # break a stale lock (> ~30s old) so a crashed agent can't wedge the cloud
-    if [ -d "$LOCKDIR" ]; then
-      # `find -mmin` is portable enough across macOS/Linux for staleness.
-      if find "$LOCKDIR" -maxdepth 0 -mmin +0.5 2>/dev/null | grep -q .; then
-        rmdir "$LOCKDIR" 2>/dev/null || true
-      fi
-    fi
-    i=$((i + 1))
-    # tiny sleep without spawning sleep(1) on the hot path when avoidable
-    sleep 0.01 2>/dev/null || :
-  done
-  # Fell through without the lock → append anyway (fail open; line is one write).
-  # Do not infer failure from LOCKDIR existing here: after we release our lock,
-  # a successor may already own the same directory.
-  [ "$appended" -eq 0 ] && append_line
+  fi
+  i=$((i + 1))
+  # tiny sleep without spawning sleep(1) on the hot path when avoidable
+  sleep 0.01 2>/dev/null || :
+done
+
+# Ran out of patience while a LIVE holder (younger than the stale threshold) had
+# the lock. We give up and drop the trace rather than appending anyway.
+#
+# The old code appended regardless, on a "fail open, a line is one write"
+# rationale. That rationale is wrong here: the holder we are waiting on is
+# mid-read-modify-rename, so an unlocked append during its window is not
+# degraded coordination, it is a write that gets deleted a moment later — the
+# same loss, minus the honesty. A tick holds this lock for about a millisecond,
+# so reaching this line at all means something is genuinely wedged, and the
+# stale-break above is the recovery path for a holder that died.
+if [ "$appended" -eq 0 ]; then
+  printf 'pd-hook-post-tool: matrix lock busy for %ss; pheromone dropped\n' \
+    "$((LOCK_TRIES / 100))" >&2
 fi
 
 exit 0

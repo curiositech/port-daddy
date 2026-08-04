@@ -222,12 +222,19 @@ TARGETS="$(printf '%s\n' "$TARGETS" | sed '/^[[:space:]]*$/d')"
 [ -n "$TARGETS" ] || exit 0
 
 # ── Compute the canonical PD_LOCK_<path> key (matches lib/squid/matrix.ts) ──
-# keySuffix(): non-alnum → "_", trim "_", uppercase, cap 80. Mirror it in sed.
+# keySuffix(): non-alnum → "_", trim "_", uppercase, cap 80, TRIM "_" AGAIN
+# (the cap can expose an underscore that was interior before the cut), and fall
+# back to the literal X when nothing survives. Every clause is load-bearing for
+# mirror parity: a key this computes differently from the TS side is a lock the
+# daemon set and this hook cannot see, i.e. two agents editing one file.
 suffix() {
-  printf '%s' "$1" \
+  s=$(printf '%s' "$1" \
     | sed -E 's/[^A-Za-z0-9]+/_/g; s/^_+//; s/_+$//' \
     | tr '[:lower:]' '[:upper:]' \
-    | cut -c1-80
+    | cut -c1-80 \
+    | sed -E 's/_+$//')
+  [ -n "$s" ] || s=X
+  printf '%s' "$s"
 }
 
 # Check every candidate path. The FIRST one foreign-locked blocks the whole call —

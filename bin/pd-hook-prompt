@@ -43,8 +43,35 @@
 # that the registry does not (yet) own. Dropping them from the log would leave
 # an operator staring at `counts:{}` on a turn that emitted ten pheromones.
 #
-# Dependency-light: pure POSIX sh + grep/sed/tr/cut/date. jq is used only to read
-# `cwd` from the event JSON and to frame the output. No node required.
+# ── THE KEYSTROKE BUDGET (why nothing here is per-line) ──────────────────────
+# This hook runs BETWEEN a human pressing Enter and the model seeing their
+# prompt. Every millisecond is a millisecond of dead keyboard. The header rule
+# above cuts both ways: a hook that degrades coordination is fine, a hook that
+# breaks the vendor loop is not — and a hook that takes 23 seconds HAS broken it.
+#
+# The trap is that the matrix is UNBOUNDED and grows precisely when the daemon is
+# dead: nothing is GCing it, while pd-hook-post-tool keeps appending a pheromone
+# per touched file per tool call, so a daemon-less workday reaches thousands of
+# keys. Two rules keep the per-turn cost flat regardless:
+#
+#   1. NO PROCESS PER LINE. Value unquoting and `| ts:` freshness are pure
+#      parameter expansion (see set_value / ts_key). The TTL cut-offs are
+#      rendered ONCE with `date` into comparable YYYYMMDDHHMMSS integers, because
+#      fixed-width ISO-8601 UTC orders identically as text and as an instant.
+#      The old shape forked ~4 processes per candidate line (sed to unquote, sed
+#      to find the stamp, up to two `date` to parse it): 2000 keys = 23s.
+#   2. THE SHELL WALKS AT MOST $SCAN_BOUND LINES PER CLASS. Anything past the
+#      bound is accounted for in ONE batched pipeline (see class_overflow), never
+#      by looping. That keeps the receipts EXACT — held counts and wanted bytes
+#      are whole-matrix truths, not truncated ones — while the shell's own work
+#      stays O(bound), not O(matrix).
+#
+# Rule 2 is also why the stale-matrix case short-circuits (see STALE below)
+# rather than projecting a full envelope and deleting it: when the heartbeat is
+# dead, every section is discarded anyway, so only the tally is worth paying for.
+#
+# Dependency-light: pure POSIX sh + grep/sed/tr/cut/head/tail/wc/date. jq is used
+# only to read `cwd` from the event JSON and to frame the output. No node needed.
 set -u
 
 PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
@@ -60,6 +87,27 @@ NAG_INTERVAL="${PD_SQUID_PLAN_NAG_INTERVAL_SECONDS:-3600}"
 VOICE_LOG="${PD_SQUID_VOICE_LOG:-$PD_HOME/squid-voice-log.jsonl}"
 VOICE_LOG_MAX_BYTES="${PD_SQUID_VOICE_LOG_MAX_BYTES:-262144}"
 NAG_DIR="${PD_SQUID_PLAN_NAG_DIR:-$PD_HOME/squid-plan-nag}"
+# Hard ceiling on how many matrix lines PER CLASS the shell loop itself may walk.
+# This is a keystroke-latency bound, not a projection budget: MAX_ENTRIES already
+# decides what gets SAID, and this only decides how much the shell may read while
+# deciding it. Overflow past the bound is still counted and still billed to the
+# operator's receipt (class_overflow), just in one pipeline instead of one loop
+# iteration. Default 128 gives ~10x headroom over the 12-entry emission budget,
+# so TTL-stale or wrong-project candidates ahead of a live one still get skipped
+# past in practice; the bound only bites on a matrix that is already pathological.
+SCAN_BOUND="${PD_SQUID_PROMPT_SCAN_BOUND:-128}"
+case "$SCAN_BOUND" in ''|*[!0-9]*) SCAN_BOUND=128 ;; esac
+[ "$SCAN_BOUND" -ge 1 ] 2>/dev/null || SCAN_BOUND=128
+# Never let the bound sit below the emission budget, or the hook could not fill
+# MAX_ENTRIES even from a matrix that plainly has the entries for it. Guarded on
+# MAX_ENTRIES being a clean integer FIRST: a mis-set PD_SQUID_PROMPT_MAX_ENTRIES
+# has always been survivable here (its comparisons are `2>/dev/null` guarded and
+# simply read as "budget not reached"), and it must not become fatal by leaking
+# a non-number into the `$(( ))` that sizes every bounded read.
+case "${MAX_ENTRIES:-}" in
+  ''|*[!0-9]*) ;;
+  *) [ "$SCAN_BOUND" -ge "$MAX_ENTRIES" ] || SCAN_BOUND="$MAX_ENTRIES" ;;
+esac
 # This agent's identity; the daemon sets PD_ACTOR per voyage. Unknown → "".
 # (pd-hook-pre-tool / pd-hook-post-tool already read it; this hook did not, which
 # is why per-actor addressing was previously impossible here.)
@@ -95,36 +143,142 @@ pd_actor_key() {
   k=$(printf '%s' "$1" \
     | sed -e 's/[^A-Za-z0-9]\{1,\}/_/g' -e 's/^_\{1,\}//' -e 's/_\{1,\}$//' \
     | tr '[:lower:]' '[:upper:]' \
-    | cut -c1-80)
+    | cut -c1-64 \
+    | sed -e 's/_\{1,\}$//')
   [ -n "$k" ] || k=X
-  printf '%s' "$k"
+  # The trailing CRC is what makes the address INJECTIVE. Normalization alone
+  # aliases `agent-one`/`agent.one`, and truncation aliases any two ids sharing
+  # a 64-char prefix — either way two agents land on one mailbox and read each
+  # other's mail. `cksum` is the one checksum POSIX specifies, so this number is
+  # identical to posixCksum() in lib/squid/matrix.ts on every platform.
+  #
+  # If `cksum` is somehow unavailable or returns junk, emit NOTHING. A partial
+  # address (`BODY_`) would be worse than no address at all: it ends in the very
+  # character the `__` separator relies on never appearing, so it would both
+  # miss this agent's real keys AND match a neighbour's anchored prefix. The
+  # caller reads the empty result as "unaddressable" and skips every per-actor
+  # class, which is the same posture as an unset PD_ACTOR.
+  d="$(printf '%s' "$1" | cksum 2>/dev/null | cut -d' ' -f1)"
+  case "${d:-}" in
+    ''|*[!0-9]*) return 0 ;;
+  esac
+  printf '%s_%s' "$k" "$d"
 }
 
 # Empty PD_ACTOR must NOT normalize to the literal "X" and start reading
 # PD_INBOX_X_* — an unidentified agent is addressed by nobody, so it reads no
-# per-actor class at all. Silence beats delivering another agent's mail.
+# per-actor class at all. Silence beats delivering another agent's mail. The
+# same rule covers an actor whose address could not be computed at all.
 ACTOR_KEY=""
 [ -n "$SELF" ] && ACTOR_KEY="$(pd_actor_key "$SELF")"
 
-emit_value() {
-  # $1 = a `KEY="val"` matrix line → print just the unquoted value.
-  printf '%s\n' "$1" | sed -E 's/^[A-Za-z0-9_]+="?//; s/"$//'
+VAL=""
+set_value() {
+  # $1 = a `KEY="val"` matrix line → leave just the unquoted value in $VAL.
+  #
+  # This is the pure-parameter-expansion twin of the sed it replaces
+  # (`s/^[A-Za-z0-9_]+="?//; s/"$//`): drop everything through the first `=`,
+  # then an optional opening quote, then a trailing quote. It sets a global
+  # instead of printing because the CALLER is what used to cost a process —
+  # `v="$(emit_value "$l")"` forks a subshell in every POSIX shell, so a
+  # fork-free body behind a command substitution would have saved nothing.
+  VAL="${1#*=}"
+  case "$VAL" in '"'*) VAL="${VAL#\"}" ;; esac
+  case "$VAL" in *'"') VAL="${VAL%\"}" ;; esac
+}
+
+# Which `date` dialect can render an epoch? Probed ONCE against a fixed instant
+# rather than by exit status, because BSD `date -d` is not GNU's "-d <datespec>"
+# — it sets the DST value — so a dialect that "succeeds" while ignoring the
+# argument must be rejected by its ANSWER, not by its status code.
+DATE_MODE=""
+if [ "$(date -u -d '@86400' '+%Y%m%d%H%M%S' 2>/dev/null || true)" = "19700102000000" ]; then
+  DATE_MODE=gnu
+elif [ "$(date -u -r 86400 '+%Y%m%d%H%M%S' 2>/dev/null || true)" = "19700102000000" ]; then
+  DATE_MODE=bsd
+fi
+
+epoch_to_key() {
+  # $1 = epoch seconds → YYYYMMDDHHMMSS on stdout, or "" if `date` cannot say.
+  case "$DATE_MODE" in
+    gnu) _ek="$(date -u -d "@$1" '+%Y%m%d%H%M%S' 2>/dev/null || true)" ;;
+    bsd) _ek="$(date -u -r "$1" '+%Y%m%d%H%M%S' 2>/dev/null || true)" ;;
+    *) _ek="" ;;
+  esac
+  case "${_ek:-}" in ''|*[!0-9]*) _ek="" ;; esac
+  printf '%s' "$_ek"
+}
+
+# The comparison basis, rendered once per process instead of once per line.
+# NOW_KEY 0 means "this machine's `date` could not answer", which reproduces the
+# old behaviour exactly: every STAMPED entry then fails the `<= NOW_KEY` test and
+# is treated as not-fresh, while unstamped legacy entries stay visible.
+NOW_KEY="$(epoch_to_key "$NOW")"
+case "${NOW_KEY:-}" in ''|*[!0-9]*) NOW_KEY=0 ;; esac
+
+cutoff_key() {
+  # $1 = ttl seconds → the oldest ts still considered fresh, as a comparable key.
+  # 0 out means "TTL checking disabled" (the HALT posture). When `date` is mute we
+  # return 1: a cut-off that no real stamp can satisfy, so the class fails closed
+  # the way the per-line `date` parse used to.
+  [ "$1" -gt 0 ] 2>/dev/null || { printf '0'; return 0; }
+  [ "$NOW_KEY" -gt 0 ] 2>/dev/null || { printf '1'; return 0; }
+  _ck="$(epoch_to_key $((NOW - $1)))"
+  case "${_ck:-}" in ''|*[!0-9]*) _ck=1 ;; esac
+  printf '%s' "$_ck"
+}
+
+CUT_TTL="$(cutoff_key "$TTL_SECONDS")"
+CUT_ACC="$(cutoff_key "$ACC_TTL_SECONDS")"
+
+TS_RAW=""
+TSK=""
+ts_key() {
+  # $1 = value → $TS_RAW is its `| ts:<stamp>` marker ("" when untagged) and $TSK
+  # is that stamp as a YYYYMMDDHHMMSS integer ("" when it is not a well-formed
+  # fixed-width ISO-8601 UTC instant). The two are separate on purpose: an
+  # UNTAGGED entry is legacy and stays visible, while a TAGGED-but-unparseable
+  # one is corrupt and must not be trusted — the same distinction the old
+  # sed-then-date pair drew, and the reason this cannot collapse to one global.
+  TS_RAW=""
+  TSK=""
+  case "$1" in
+    *"| ts:"*) _t="${1##*| ts:}" ;;
+    *) return 0 ;;
+  esac
+  # `[^ |]+` in the old regex: the stamp ends at the first space or pipe.
+  _t="${_t%%|*}"
+  _t="${_t%% *}"
+  [ -n "$_t" ] || return 0
+  TS_RAW="$_t"
+  _y="${_t%%-*}"; _t="${_t#*-}"
+  _mo="${_t%%-*}"; _t="${_t#*-}"
+  _d="${_t%%T*}"; _t="${_t#*T}"
+  _h="${_t%%:*}"; _t="${_t#*:}"
+  _mi="${_t%%:*}"; _t="${_t#*:}"
+  _s="${_t%%.*}"; _s="${_s%Z}"
+  # Exact-width validation stands in for the old `%Y-%m-%dT%H:%M:%SZ` strptime:
+  # anything else leaves TSK empty and is judged stale, never silently mis-parsed.
+  case "$_y" in [0-9][0-9][0-9][0-9]) ;; *) return 0 ;; esac
+  case "$_mo$_d$_h$_mi$_s" in
+    [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) ;;
+    *) return 0 ;;
+  esac
+  # `${x#0}` before the arithmetic: POSIX $(( )) reads a leading zero as octal.
+  TSK=$(( _y * 10000000000 + ${_mo#0} * 100000000 + ${_d#0} * 1000000 \
+        + ${_h#0} * 10000 + ${_mi#0} * 100 + ${_s#0} ))
 }
 
 is_fresh() {
-  # $1 = value, $2 = ttl seconds (0 disables the check for mirror-source classes
-  # like HALT, whose lifetime is owned by the reconcile tick, not by age).
+  # $1 = value, $2 = cut-off key from cutoff_key (0 disables the check for
+  # mirror-source classes like HALT, whose lifetime is owned by the reconcile
+  # tick, not by age).
   # Untagged legacy entries remain visible; every new writer includes ts:<ISO>.
-  _ttl="$2"
-  [ "$_ttl" -gt 0 ] 2>/dev/null || return 0
-  ts="$(printf '%s\n' "$1" | sed -nE 's/.*\| ts:([^ |]+).*/\1/p')"
-  [ -n "$ts" ] || return 0
-  compact="$(printf '%s' "$ts" | sed -E 's/\.[0-9]+Z$/Z/')"
-  epoch="$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$compact" '+%s' 2>/dev/null || true)"
-  [ -n "$epoch" ] || epoch="$(date -u -d "$compact" '+%s' 2>/dev/null || true)"
-  case "$epoch" in ''|*[!0-9]*) return 1 ;; esac
-  age=$((NOW - epoch))
-  [ "$age" -ge 0 ] 2>/dev/null && [ "$age" -le "$_ttl" ] 2>/dev/null
+  [ "$2" -gt 0 ] 2>/dev/null || return 0
+  ts_key "$1"
+  [ -n "$TS_RAW" ] || return 0
+  [ -n "$TSK" ] || return 1
+  [ "$TSK" -ge "$2" ] 2>/dev/null && [ "$TSK" -le "$NOW_KEY" ] 2>/dev/null
 }
 
 # ── Bookkeeping the VoiceLog is built from ───────────────────────────────────
@@ -133,31 +287,96 @@ HELD_TOTAL=0       # candidate entries seen, BEFORE any filter
 TTL_DROPPED=0
 ROOT_DROPPED=0
 CAP_DROPPED=0
-WANT=""            # every candidate line, raw, for the "bytes we wanted" figure
+# Bytes the projection WANTED to emit. Accumulated as an integer instead of by
+# growing a WANT string of every candidate line: repeated append to a shell
+# string is quadratic, and at 2000 pheromones that string reached 167 KB — memory
+# and memcpy spent purely so `wc -c` could measure it once at the end. `${#VAL}`
+# is the shell's own length operator, so the same figure now costs nothing per
+# line. (Under a multibyte locale a locale-aware shell counts characters rather
+# than bytes; for an observability figure that under-reports only on non-ASCII
+# notes, that is the right trade against forking a process per line.)
+WANT_BYTES=0
 
-# render_class <lines> <per-class-cap> <ttl-seconds>
-#   in : COUNT / MAX_ENTRIES / WANT / HELD_TOTAL / TTL_DROPPED / CAP_DROPPED
+# read_bounded <extended-regex> → $RB_LINES
+#   At most SCAN_BOUND+1 matching lines. The +1 is a deliberate sentinel: a
+#   walker learns it was truncated by MEETING that line, so the common (short)
+#   case pays for no separate counting pass at all.
+RB_LINES=""
+read_bounded() {
+  RB_LINES=""
+  [ -n "$1" ] || return 0
+  [ "$MATRIX_PRESENT" -eq 1 ] || return 0
+  RB_LINES="$(grep -E "$1" "$MATRIX" 2>/dev/null | head -n "$((SCAN_BOUND + 1))" 2>/dev/null || true)"
+}
+
+# class_overflow <extended-regex> → $OV_COUNT (+ HELD_TOTAL/CAP_DROPPED/WANT_BYTES)
+#   Account for every match PAST the scan bound in ONE batched pipeline.
+#
+# This is what lets the bound be a latency guard without turning the receipt into
+# a lie. The review that found the O(matrix) regression was right that a naive
+# `head` loses the HELD/CAP_DROPPED attribution the VoiceLog buys — so we buy it
+# back wholesale instead of retail: sed unquotes the entire un-walked tail in a
+# single process and `wc -lc` measures it in one more, which makes `counts` and
+# `bytes` whole-matrix EXACT. No "at least N" semantics are needed, and none are
+# claimed. The remainder is billed to CAP_DROPPED because that is what actually
+# happened: the hook's own entry bound dropped it.
+OV_COUNT=0
+class_overflow() {
+  OV_COUNT=0
+  _ovs="$(grep -E "$1" "$MATRIX" 2>/dev/null \
+        | tail -n "+$((SCAN_BOUND + 1))" 2>/dev/null \
+        | sed -E 's/^[A-Za-z0-9_]+="?//; s/"$//' 2>/dev/null \
+        | wc -lc 2>/dev/null || true)"
+  # `wc -lc` prints "<lines> <chars>". sed terminates every line it writes, so a
+  # tail entry costs value+1 bytes there against the "- value\n" = value+3 the
+  # projection would have spent on it — hence the +2 per line.
+  set -- $_ovs
+  _ovn="${1:-0}"; _ovc="${2:-0}"
+  case "$_ovn" in ''|*[!0-9]*) _ovn=0 ;; esac
+  case "$_ovc" in ''|*[!0-9]*) _ovc=0 ;; esac
+  [ "$_ovn" -gt 0 ] 2>/dev/null || return 0
+  OV_COUNT="$_ovn"
+  HELD_TOTAL=$((HELD_TOTAL + _ovn))
+  CAP_DROPPED=$((CAP_DROPPED + _ovn))
+  WANT_BYTES=$((WANT_BYTES + _ovc + 2 * _ovn))
+}
+
+# render_class <extended-regex> <per-class-cap> <ttl-cut-off-key>
+#   in : COUNT / MAX_ENTRIES / SCAN_BOUND / HELD_TOTAL / WANT_BYTES / *_DROPPED
 #   out: CLS_SECTION (printf-%b body), CLS_N (emitted), CLS_HELD (candidates)
 # A class is emitted in projection-priority order by the call sites below, so the
 # shared MAX_ENTRIES budget is consumed most-important-first and anything the cap
 # eats is necessarily the tail of RECONCILE_DROP_ORDER — an ordered, logged drop
 # rather than the silent `break` this hook used to rely on.
+#
+# The class reads itself rather than taking pre-grepped lines, so a turn that
+# never reaches a class never pays for its grep, and so the walker and
+# class_overflow can never be handed two different patterns for the same class.
 render_class() {
   CLS_SECTION=""
   CLS_N=0
   CLS_HELD=0
-  _lines="$1"
+  _pat="$1"
   _cap="$2"
-  _cttl="$3"
+  _ccut="$3"
+  read_bounded "$_pat"
+  _lines="$RB_LINES"
   [ -n "$_lines" ] || return 0
+  _seen=0
   while IFS= read -r _l; do
     [ -n "$_l" ] || continue
-    _v="$(emit_value "$_l")"
+    _seen=$((_seen + 1))
+    if [ "$_seen" -gt "$SCAN_BOUND" ]; then
+      class_overflow "$_pat"
+      CLS_HELD=$((CLS_HELD + OV_COUNT))
+      break
+    fi
+    set_value "$_l"
+    _v="$VAL"
     CLS_HELD=$((CLS_HELD + 1))
     HELD_TOTAL=$((HELD_TOTAL + 1))
-    WANT="${WANT}- ${_v}
-"
-    if ! is_fresh "$_v" "$_cttl"; then
+    WANT_BYTES=$((WANT_BYTES + ${#_v} + 3))
+    if ! is_fresh "$_v" "$_ccut"; then
       TTL_DROPPED=$((TTL_DROPPED + 1))
       continue
     fi
@@ -173,34 +392,78 @@ $_lines
 EOF
 }
 
-# ── Read the matrix once per class (cheap anchored greps over a flat file) ────
+# tally_class <extended-regex> → $TALLY_N (+ HELD_TOTAL / WANT_BYTES)
+#   The receipt-only twin of render_class, for a turn whose projection is known
+#   IN ADVANCE to be discarded. It skips freshness, project-root relevance, the
+#   caps and section assembly, because a stale-matrix turn keeps none of those —
+#   only the held counts and the size of what went unsaid reach the operator.
+TALLY_N=0
+tally_class() {
+  TALLY_N=0
+  _tpat="$1"
+  read_bounded "$_tpat"
+  _tlines="$RB_LINES"
+  [ -n "$_tlines" ] || return 0
+  _tn=0
+  while IFS= read -r _tl; do
+    [ -n "$_tl" ] || continue
+    _tn=$((_tn + 1))
+    if [ "$_tn" -gt "$SCAN_BOUND" ]; then
+      class_overflow "$_tpat"
+      _tn=$((_tn - 1 + OV_COUNT))
+      break
+    fi
+    set_value "$_tl"
+    HELD_TOTAL=$((HELD_TOTAL + 1))
+    WANT_BYTES=$((WANT_BYTES + ${#VAL} + 3))
+  done <<EOF
+$_tlines
+EOF
+  TALLY_N="$_tn"
+}
+
+# ── The one unconditional read: presence + the reconcile heartbeat ────────────
+# Every other class is read lazily by the walker that needs it, so a turn that
+# short-circuits (harness disabled, or a stale matrix whose projection would be
+# thrown away regardless) never pays for greps whose output it will discard.
 MATRIX_PRESENT=0
-L_HALT=""; L_PARLEY=""; L_INBOX=""; L_CLAIM=""; L_CI=""; L_ACC=""
-L_ALERT=""; L_PHER=""; HEARTBEAT=""
+HEARTBEAT=""
 if [ -f "$MATRIX" ]; then
   MATRIX_PRESENT=1
-  L_HALT="$(grep -E '^PD_HALT=' "$MATRIX" 2>/dev/null || true)"
-  L_CLAIM="$(grep -E '^PD_CLAIM_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
-  L_CI="$(grep -E '^PD_CI_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
-  L_ACC="$(grep -E '^PD_ACCOMPLISHMENT_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
-  L_ALERT="$(grep -E '^PD_ALERT_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
-  L_PHER="$(grep -E '^PD_PHEROMONE_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
   HEARTBEAT="$(grep -E '^PD_RECON_HEARTBEAT_TS=' "$MATRIX" 2>/dev/null | head -n1 || true)"
-  [ -n "$HEARTBEAT" ] && HEARTBEAT="$(emit_value "$HEARTBEAT")"
-  # PER-ACTOR CLASSES. The anchored prefix is the whole isolation mechanism: a
-  # message addressed to actor A is a key actor B's grep cannot match. With no
-  # PD_ACTOR we read neither class rather than guessing.
-  #
-  # The DOUBLE underscore is load-bearing (PER_ACTOR_SEPARATOR in
-  # lib/squid/reconcile-contract.ts). With a single one, actor `alpha` matched
-  # `PD_INBOX_ALPHA_TWO_M1` — actor `alpha-two`'s mail — because nothing marked
-  # where the actor address ended. pd_actor_key() collapses runs of
-  # non-alphanumerics to ONE underscore and strips the ends, so `__` is a
-  # boundary a normalized actor id can never contain.
-  if [ -n "$ACTOR_KEY" ]; then
-    L_PARLEY="$(grep -E "^PD_PARLEY_${ACTOR_KEY}__[A-Za-z0-9_]+=" "$MATRIX" 2>/dev/null || true)"
-    L_INBOX="$(grep -E "^PD_INBOX_${ACTOR_KEY}__[A-Za-z0-9_]+=" "$MATRIX" 2>/dev/null || true)"
+  if [ -n "$HEARTBEAT" ]; then
+    set_value "$HEARTBEAT"
+    HEARTBEAT="$VAL"
   fi
+fi
+
+# Per-class match patterns, named once so that the walker, the overflow tally and
+# the stale-path tally can never drift apart.
+#
+# PER-ACTOR CLASSES. The anchored prefix is the whole isolation mechanism: a
+# message addressed to actor A is a key actor B's grep cannot match. With no
+# PD_ACTOR we leave the pattern EMPTY and read neither class rather than guessing
+# — and read_bounded refuses an empty pattern outright, because `grep -E ""`
+# matches every line in the matrix.
+#
+# The DOUBLE underscore is load-bearing (PER_ACTOR_SEPARATOR in
+# lib/squid/reconcile-contract.ts). With a single one, actor `alpha` matched
+# `PD_INBOX_ALPHA_TWO_M1` — actor `alpha-two`'s mail — because nothing marked
+# where the actor address ended. pd_actor_key() collapses runs of
+# non-alphanumerics to ONE underscore and strips the ends, so `__` is a
+# boundary a normalized actor id can never contain.
+P_HALT='^PD_HALT='
+P_CLAIM='^PD_CLAIM_[A-Za-z0-9_]+='
+P_CI='^PD_CI_[A-Za-z0-9_]+='
+P_ACC='^PD_ACCOMPLISHMENT_[A-Za-z0-9_]+='
+P_ALERT='^PD_ALERT_[A-Za-z0-9_]+='
+P_FA='^PD_ALERT_FLEET_APPROVALS='
+P_PHER='^PD_PHEROMONE_[A-Za-z0-9_]+='
+P_PARLEY=""
+P_INBOX=""
+if [ -n "$ACTOR_KEY" ]; then
+  P_PARLEY="^PD_PARLEY_${ACTOR_KEY}__[A-Za-z0-9_]+="
+  P_INBOX="^PD_INBOX_${ACTOR_KEY}__[A-Za-z0-9_]+="
 fi
 
 # ── Staleness: fail OPEN, loudly in the log, silently in the context ─────────
@@ -232,34 +495,80 @@ N_CI=0; N_INBOX=0; N_ACC=0; N_PHER=0
 H_HALT=0; H_PARLEY=0; H_FA=0; H_ALERT=0; H_CLAIM=0
 H_CI=0; H_INBOX=0; H_ACC=0; H_PHER=0
 
-if [ "$DISABLED" -eq 0 ]; then
+if [ "$DISABLED" -eq 1 ]; then
+  : # Nothing is read, nothing is projected, nothing is counted.
+elif [ "$STALE" -eq 1 ]; then
+  # ── Stale matrix → COUNT the candidates, never project them ────────────────
+  # isMatrixStale() means every section built below would be built and then
+  # deleted: a ten-minute-old halt is not proof the operator still wants the
+  # fleet stopped, so nothing may reach the model. The old shape ran the full
+  # projection first anyway, purely so the VoiceLog could report what it HELD —
+  # measured at ~23 seconds of freshness parsing and section assembly for zero
+  # emitted bytes on a 2000-key matrix, which is precisely the matrix a dead
+  # daemon produces (nothing GCs it while pd-hook-post-tool keeps appending).
+  # The held counts and the size of the unsaid thing are the ONLY survivors of
+  # that work, so now they are the only things gathered.
+  tally_class "$P_HALT";   H_HALT="$TALLY_N"
+  tally_class "$P_PARLEY"; H_PARLEY="$TALLY_N"
+  tally_class "$P_ALERT";  H_ALERT="$TALLY_N"
+  tally_class "$P_CLAIM";  H_CLAIM="$TALLY_N"
+  tally_class "$P_CI";     H_CI="$TALLY_N"
+  tally_class "$P_INBOX";  H_INBOX="$TALLY_N"
+  tally_class "$P_ACC";    H_ACC="$TALLY_N"
+  tally_class "$P_PHER";   H_PHER="$TALLY_N"
+  # PD_ALERT_FLEET_APPROVALS is the registry's FLEET_APPROVALS class and every
+  # other PD_ALERT_* is a legacy steering alert; one anchored -c splits them so
+  # the VoiceLog never reports a pre-reconcile alert as a reconciled approval.
+  H_FA="$(grep -cE "$P_FA" "$MATRIX" 2>/dev/null || true)"
+  case "${H_FA:-}" in ''|*[!0-9]*) H_FA=0 ;; esac
+  [ "$H_FA" -le "$H_ALERT" ] 2>/dev/null || H_FA="$H_ALERT"
+  H_ALERT=$((H_ALERT - H_FA))
+else
   # Emission order = RECONCILE_PROJECTION_ORDER (HALT, PARLEY, FLEET_APPROVALS,
   # CLAIM, CI, INBOX, ACCOMPLISHMENT), then the legacy pheromone trail. HALT gets
-  # ttl 0: priority 1 is effectively undroppable, and a halt the operator pulled
-  # must not expire out from under the fleet on a clock technicality.
-  render_class "$L_HALT" "$CAP_HALT" 0
+  # cut-off 0: priority 1 is effectively undroppable, and a halt the operator
+  # pulled must not expire out from under the fleet on a clock technicality.
+  render_class "$P_HALT" "$CAP_HALT" 0
   SEC_HALT="$CLS_SECTION"; N_HALT="$CLS_N"; H_HALT="$CLS_HELD"
 
-  render_class "$L_PARLEY" "$CAP_PARLEY" "$TTL_SECONDS"
+  render_class "$P_PARLEY" "$CAP_PARLEY" "$CUT_TTL"
   SEC_PARLEY="$CLS_SECTION"; N_PARLEY="$CLS_N"; H_PARLEY="$CLS_HELD"
 
   # Alerts: PD_ALERT_FLEET_APPROVALS is the registry's FLEET_APPROVALS class;
   # every other PD_ALERT_* is a legacy steering alert. Counted apart so the
   # VoiceLog does not report a pre-reconcile alert as a reconciled approval.
+  read_bounded "$P_ALERT"
+  L_ALERT="$RB_LINES"
   if [ -n "$L_ALERT" ]; then
+    seen=0
     while IFS= read -r line; do
       [ -n "$line" ] || continue
+      seen=$((seen + 1))
+      if [ "$seen" -gt "$SCAN_BOUND" ]; then
+        class_overflow "$P_ALERT"
+        # The split stays exact past the bound too: FLEET_APPROVALS is a single
+        # anchored key, so one -c over the whole file says how many of the
+        # un-walked matches were approvals rather than legacy steering alerts.
+        fa_all="$(grep -cE "$P_FA" "$MATRIX" 2>/dev/null || true)"
+        case "${fa_all:-}" in ''|*[!0-9]*) fa_all=0 ;; esac
+        fa_tail=$((fa_all - H_FA))
+        [ "$fa_tail" -ge 0 ] 2>/dev/null || fa_tail=0
+        [ "$fa_tail" -le "$OV_COUNT" ] 2>/dev/null || fa_tail="$OV_COUNT"
+        H_FA=$((H_FA + fa_tail))
+        H_ALERT=$((H_ALERT + OV_COUNT - fa_tail))
+        break
+      fi
       key="${line%%=*}"
-      val="$(emit_value "$line")"
+      set_value "$line"
+      val="$VAL"
       HELD_TOTAL=$((HELD_TOTAL + 1))
-      WANT="${WANT}- ${val}
-"
+      WANT_BYTES=$((WANT_BYTES + ${#val} + 3))
       if [ "$key" = "PD_ALERT_FLEET_APPROVALS" ]; then
         H_FA=$((H_FA + 1))
       else
         H_ALERT=$((H_ALERT + 1))
       fi
-      if ! is_fresh "$val" "$TTL_SECONDS"; then
+      if ! is_fresh "$val" "$CUT_TTL"; then
         TTL_DROPPED=$((TTL_DROPPED + 1))
         continue
       fi
@@ -279,29 +588,38 @@ $L_ALERT
 EOF
   fi
 
-  render_class "$L_CLAIM" "$CAP_CLAIM" "$TTL_SECONDS"
+  render_class "$P_CLAIM" "$CAP_CLAIM" "$CUT_TTL"
   SEC_CLAIM="$CLS_SECTION"; N_CLAIM="$CLS_N"; H_CLAIM="$CLS_HELD"
 
-  render_class "$L_CI" "$CAP_CI" "$TTL_SECONDS"
+  render_class "$P_CI" "$CAP_CI" "$CUT_TTL"
   SEC_CI="$CLS_SECTION"; N_CI="$CLS_N"; H_CI="$CLS_HELD"
 
-  render_class "$L_INBOX" "$CAP_INBOX" "$TTL_SECONDS"
+  render_class "$P_INBOX" "$CAP_INBOX" "$CUT_TTL"
   SEC_INBOX="$CLS_SECTION"; N_INBOX="$CLS_N"; H_INBOX="$CLS_HELD"
 
-  render_class "$L_ACC" "$CAP_ACC" "$ACC_TTL_SECONDS"
+  render_class "$P_ACC" "$CAP_ACC" "$CUT_ACC"
   SEC_ACC="$CLS_SECTION"; N_ACC="$CLS_N"; H_ACC="$CLS_HELD"
 
   # Pheromones carry the extra exact-project-root filter: `app` must never
   # receive traces from `other-app`.
+  read_bounded "$P_PHER"
+  L_PHER="$RB_LINES"
   if [ -n "$L_PHER" ]; then
+    seen=0
     while IFS= read -r line; do
       [ -n "$line" ] || continue
-      val="$(emit_value "$line")"
+      seen=$((seen + 1))
+      if [ "$seen" -gt "$SCAN_BOUND" ]; then
+        class_overflow "$P_PHER"
+        H_PHER=$((H_PHER + OV_COUNT))
+        break
+      fi
+      set_value "$line"
+      val="$VAL"
       H_PHER=$((H_PHER + 1))
       HELD_TOTAL=$((HELD_TOTAL + 1))
-      WANT="${WANT}- ${val}
-"
-      if ! is_fresh "$val" "$TTL_SECONDS"; then
+      WANT_BYTES=$((WANT_BYTES + ${#val} + 3))
+      if ! is_fresh "$val" "$CUT_TTL"; then
         TTL_DROPPED=$((TTL_DROPPED + 1))
         continue
       fi
@@ -323,20 +641,12 @@ EOF
   fi
 fi
 
-# ── Stale matrix → throw the whole projection away, keep the receipt ─────────
-# The projection runs first even when the matrix is stale, purely so the VoiceLog
-# can report the per-class counts it HELD. Emitting them would violate the
-# fail-open rule (a 10-minute-old halt is not proof the operator still wants the
-# fleet stopped), so the sections are discarded and the held counts survive as
-# `counts` on a `suppressed / stale-matrix` line — visible to the operator,
-# invisible to the model.
-if [ "$STALE" -eq 1 ]; then
-  SEC_HALT=""; SEC_PARLEY=""; SEC_ALERT=""; SEC_CLAIM=""
-  SEC_CI=""; SEC_INBOX=""; SEC_ACC=""; SEC_PHER=""
-  N_HALT=0; N_PARLEY=0; N_FA=0; N_ALERT=0; N_CLAIM=0
-  N_CI=0; N_INBOX=0; N_ACC=0; N_PHER=0
-  COUNT=0
-fi
+# NOTE: there is no "discard the projection because the matrix was stale" step
+# here any more. A stale matrix takes the tally-only branch above, so the SEC_*
+# sections and N_* emitted counts were never built in the first place and COUNT
+# is still 0 — the held counts survive as `counts` on a `suppressed /
+# stale-matrix` line, visible to the operator and invisible to the model, which
+# is the same contract the discard step used to deliver at O(matrix) cost.
 
 # ── The conditional standing directive ───────────────────────────────────────
 HAS_CONTENT=0
@@ -417,7 +727,8 @@ fi
 # VOICE LOG — everything past this point is observability and MUST NOT be able
 # to change stdout or the exit code. stdout is already flushed above.
 # =============================================================================
-WANT_BYTES="$(printf '%s' "$WANT" | wc -c 2>/dev/null | tr -d ' ')"
+# WANT_BYTES was tallied inline by the walkers (and, past the scan bound, by
+# class_overflow's single batched pipeline), so there is nothing to measure here.
 case "$WANT_BYTES" in ''|*[!0-9]*) WANT_BYTES=0 ;; esac
 
 json_escape() {

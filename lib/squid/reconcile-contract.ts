@@ -53,7 +53,7 @@
  * @module lib/squid/reconcile-contract
  */
 
-import { keySuffix } from './matrix.js';
+import { keySuffix, posixCksum } from './matrix.js';
 
 // ─── 1. Actor key normalization ───────────────────────────────────────────────
 
@@ -69,46 +69,77 @@ import { keySuffix } from './matrix.js';
  * (`[A-Za-z_][A-Za-z0-9_]*`, enforced by `setKey` in `lib/squid/matrix.ts`).
  * This function is the one place that transformation is defined.
  *
- * **Design.** It intentionally delegates to `keySuffix()` from
- * `lib/squid/matrix.ts` rather than reimplementing the rules. Two normalizers
- * that "should" agree is a latent bug: the day one of them starts trimming at 64
- * chars, `PD_INBOX_*` keys written by the daemon stop matching the ones the
- * hooks look for, and the failure is silent (an agent simply never hears about
- * its inbox). Sharing the function makes divergence impossible by construction.
+ * **Design — a readable body plus a digest, and why the digest is mandatory.**
+ * Normalization alone cannot address an actor safely, because it is lossy: it
+ * collapses every run of non-alphanumerics to one `_` and truncates, so
+ * `agent-one`/`agent.one`/`agent_one` all become `AGENT_ONE`, and `你好`/`привет`
+ * both become `X`. Two agents on one address is not a cosmetic collision — it is
+ * one agent reading another's mail, and `PER_ACTOR_SEPARATOR` cannot help
+ * because both keys are genuinely, identically addressed. Truncation makes it
+ * worse at the boundary: with 80-char normalization, `a×79 + "-x"` and `a×79`
+ * both truncate to the same 79 `A`s.
+ *
+ * So the address is `<normalized body>_<cksum of the RAW id>`. The body keeps
+ * the key legible to an operator reading `matrix.env`; the digest is what makes
+ * distinct ids distinct. See {@link posixCksum} for why `cksum` specifically —
+ * it is the one checksum POSIX standardizes, so the shell mirror below computes
+ * the same number without a Node runtime.
  *
  * **The exact transformation**, which shell hooks MUST mirror:
  *
  * 1. every run of one-or-more non-`[A-Za-z0-9]` characters → a single `_`
  * 2. strip leading and trailing `_`
  * 3. uppercase
- * 4. truncate to 80 characters
- * 5. if the result is empty, use the literal `X`
+ * 4. truncate to {@link ACTOR_KEY_BODY_MAX} characters
+ * 5. strip trailing `_` AGAIN — step 4 can expose one that was interior before
+ *    the cut, and a body ending in `_` abutting the appended `__` separator
+ *    yields `___`, which moves the first `__` one character left of the true
+ *    boundary and hands the neighbouring address a matching anchored prefix
+ * 6. if the result is empty, use the literal `X`
+ * 7. append `_` and the decimal POSIX `cksum` CRC of the **raw, untransformed**
+ *    input — raw, because hashing the normalized form would inherit exactly the
+ *    collisions the digest exists to break
  *
  * The POSIX-sh mirror. This exact snippet is executed against the same input
  * corpus in `tests/unit/squid-reconcile-contract.test.ts` and asserted to agree
  * character-for-character with this function — the shell mirror is proven, not
  * asserted. Note the BRE interval `\{1,\}` rather than `*`: the star form would
  * close this doc comment, and more importantly the interval form is what keeps
- * the three substitutions readable as "one or more".
+ * the substitutions readable as "one or more".
  *
  * ```sh
  * pd_actor_key() {
  *   k=$(printf '%s' "$1" \
  *     | sed -e 's/[^A-Za-z0-9]\{1,\}/_/g' -e 's/^_\{1,\}//' -e 's/_\{1,\}$//' \
  *     | tr '[:lower:]' '[:upper:]' \
- *     | cut -c1-80)
+ *     | cut -c1-64 \
+ *     | sed -e 's/_\{1,\}$//')
  *   [ -n "$k" ] || k=X
- *   printf '%s' "$k"
+ *   printf '%s_%s' "$k" "$(printf '%s' "$1" | cksum | cut -d' ' -f1)"
  * }
  * ```
  *
  * @param actor Raw actor/session identifier (e.g. `port-daddy:contrib:squid-1`).
- * @returns A non-empty string matching `/^[A-Za-z0-9_]{1,80}$/`, safe to embed
- *          in a matrix key.
+ * @returns A non-empty string matching `/^[A-Za-z0-9][A-Za-z0-9_]*$/`, never
+ *          containing or ending with `_`-runs, safe to embed in a matrix key.
  */
 export function actorKey(actor: string): string {
-  return keySuffix(actor);
+  const body = keySuffix(actor).slice(0, ACTOR_KEY_BODY_MAX).replace(/_+$/g, '') || 'X';
+  return `${body}_${posixCksum(actor)}`;
 }
+
+/**
+ * How much of the human-readable actor id survives into its matrix address.
+ *
+ * **Why 64 and not 80.** The address is body + `_` + up to ten digits of CRC, and
+ * `keySuffix`'s own ceiling is 80; budgeting 64 for the body keeps the whole
+ * actor segment under 80 so it stays comfortably inside the `cut -c` arithmetic
+ * the shell hooks do and leaves the key readable at a glance. The body is a
+ * courtesy to whoever is reading `matrix.env` with their eyes — the digest, not
+ * the body, is what carries identity, so trimming the body costs legibility and
+ * never correctness.
+ */
+export const ACTOR_KEY_BODY_MAX = 64;
 
 // ─── 2. Key class registry ────────────────────────────────────────────────────
 
@@ -632,6 +663,17 @@ export const RECONCILE_TOTAL_BUDGET_BYTES = 4096;
  * reason `over-entry-cap`. If it instead lets the shell's `break` truncate, the
  * drop is silent, unordered, and invisible to the operator — the exact failure
  * this contract exists to prevent.
+ *
+ * **Scope: ONE agent's turn, never the fleet.** This number and
+ * {@link RECONCILE_TOTAL_BUDGET_BYTES} describe what fits in a single prompt, so
+ * they must be measured against a single agent's slice of the matrix — the
+ * global classes plus that actor's own `PD_INBOX_<ME>__` / `PD_PARLEY_<ME>__`
+ * entries, which is exactly what `bin/pd-hook-prompt` greps. Summing every
+ * actor's per-actor entries into one pool and comparing THAT to this number is a
+ * category error: it made five agents holding three messages each (each inside
+ * the `INBOX` cap of 3) read as a 15-entry overflow and silenced all five. The
+ * matrix is a shared cache with its own, far larger, absolute ceiling; this is a
+ * prompt budget. See `perAgentTally` in `lib/squid/reconcile.ts`.
  */
 export const RECONCILE_MAX_PROJECTED_ENTRIES = 12;
 

@@ -30,7 +30,6 @@ import {
   readFileSync,
   writeFileSync,
   renameSync,
-  existsSync,
   statSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
@@ -214,16 +213,105 @@ export function serializeMatrix(kv: Record<string, string>): string {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-/** Read and parse the matrix. Returns `{}` when the file does not exist yet. */
-export function readMatrix(fleet?: string): Record<string, string> {
+/**
+ * How a read of the matrix file turned out.
+ *
+ * **Motivation — the distinction this type exists to force.** `absent` and
+ * `unreadable` both yield an empty map, and collapsing them is a
+ * *destructive* bug rather than a cosmetic one: a reader that treats "I could
+ * not open this file" as "this file is empty" and then rewrites the whole file
+ * has just made its own ignorance authoritative, deleting every key every other
+ * writer put there. That is exactly how one transient `EACCES` / `EIO` /
+ * `EMFILE` — all reachable at the K≥8 parallelism this design targets — erased
+ * the `PD_LOCK_*` keys `bin/pd-hook-pre-tool` reads to stop two agents editing
+ * the same file. Absence is knowledge; failure is not.
+ */
+export type MatrixReadState = 'present' | 'absent' | 'unreadable';
+
+/** The outcome of {@link tryReadMatrix}: what we learned, and how much to trust it. */
+export interface MatrixReadResult {
+  /** Whether the file was read, legitimately did not exist, or could not be opened. */
+  readonly state: MatrixReadState;
+  /** Parsed contents. Empty for both `absent` and `unreadable` — hence `state`. */
+  readonly kv: Record<string, string>;
+  /** The underlying failure when `state` is `unreadable`. */
+  readonly error?: NodeJS.ErrnoException;
+}
+
+/**
+ * Read the matrix, reporting whether the answer is knowledge or ignorance.
+ *
+ * **Purpose.** This is the read every *rewriter* must use. {@link readMatrix}
+ * flattens failure into `{}` for the convenience of read-only consumers (a hook
+ * that shows nothing is merely quiet), but any caller that is about to serialize
+ * a whole new file from what it read needs to know the difference — see
+ * {@link MatrixReadState}.
+ *
+ * **Design.** It opens the file directly rather than asking `existsSync` first.
+ * Two reasons: the stat-then-open pair is a TOCTOU race (the file can be
+ * renamed into place between the two calls, which is precisely what every
+ * atomic writer here does), and `existsSync` answers `false` for a path that
+ * exists but cannot be stat'd — folding an unreadable path back into "absent",
+ * which is the exact conflation this function exists to end. `ENOENT` from the
+ * open is the one and only proof of legitimate absence.
+ *
+ * @param fleet Optional per-fleet shard name; omit for the global matrix.
+ * @returns The parsed matrix plus the state that says how much to trust it.
+ */
+export function tryReadMatrix(fleet?: string): MatrixReadResult {
   const p = matrixPath(fleet);
-  if (!existsSync(p)) return {};
+  let text: string;
   try {
-    return parseMatrix(readFileSync(p, 'utf8'));
-  } catch {
-    // Defensive: a half-written or unreadable matrix must never crash a reader.
-    return {};
+    text = readFileSync(p, 'utf8');
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException;
+    if (e?.code === 'ENOENT') return { state: 'absent', kv: {} };
+    return { state: 'unreadable', kv: {}, error: e };
   }
+  return { state: 'present', kv: parseMatrix(text) };
+}
+
+/**
+ * Read and parse the matrix. Returns `{}` when the file does not exist yet —
+ * and, for backward compatibility with every read-only consumer, also when it
+ * could not be read at all.
+ *
+ * **Read this before using it to build a write.** The two empty answers are not
+ * the same fact, and this function cannot tell you which one you got. That is
+ * safe for a consumer that only *displays* what it found (a quiet hook is the
+ * documented fail-open posture) and unsafe for anything that rewrites the file:
+ * use {@link tryReadMatrix} there and refuse to write on `unreadable`.
+ *
+ * @param fleet Optional per-fleet shard name; omit for the global matrix.
+ * @returns The parsed key→value map, or `{}` when absent or unreadable.
+ */
+export function readMatrix(fleet?: string): Record<string, string> {
+  return tryReadMatrix(fleet).kv;
+}
+
+/**
+ * Read the matrix for the purpose of rewriting it, refusing to guess.
+ *
+ * **Why this throws instead of returning `{}`.** Every writer below serializes
+ * the WHOLE file from the map it reads, so an empty map from a failed read is a
+ * delete-everything instruction. The design intent is that the failure surfaces
+ * as an exception at the moment of the bad read — where the errno is still in
+ * hand and the caller can retry — rather than as silent, unattributable data
+ * loss discovered by an agent whose lock key vanished.
+ *
+ * @param fleet Optional per-fleet shard name.
+ * @returns The current contents, or `{}` when the file legitimately does not exist.
+ * @throws When the file exists but could not be read.
+ */
+function readForRewrite(fleet?: string): Record<string, string> {
+  const snap = tryReadMatrix(fleet);
+  if (snap.state === 'unreadable') {
+    throw new Error(
+      `[squid/matrix] refusing to rewrite ${matrixPath(fleet)}: current contents are unreadable ` +
+        `(${snap.error?.code ?? 'unknown error'}) — a whole-file write from an unread file deletes every other writer's keys`,
+    );
+  }
+  return snap.kv;
 }
 
 /** Atomically write the whole matrix (lock + temp-file + rename). */
@@ -241,7 +329,7 @@ export function setKey(key: string, value: string, fleet?: string): void {
     throw new Error(`[squid/matrix] invalid matrix key: ${JSON.stringify(key)}`);
   }
   withLock(fleet, () => {
-    const kv = readMatrix(fleet);
+    const kv = readForRewrite(fleet);
     kv[key] = value;
     writeMatrixLocked(kv, fleet);
   });
@@ -250,7 +338,7 @@ export function setKey(key: string, value: string, fleet?: string): void {
 /** Delete a single KEY under the lock. No-op if absent. */
 export function deleteKey(key: string, fleet?: string): void {
   withLock(fleet, () => {
-    const kv = readMatrix(fleet);
+    const kv = readForRewrite(fleet);
     if (key in kv) {
       delete kv[key];
       writeMatrixLocked(kv, fleet);
@@ -269,13 +357,105 @@ export interface PheromoneTrace {
   actor?: string;
 }
 
-/** Normalize an arbitrary string into a matrix-key-safe suffix. */
+/** Longest key segment this normalizer will emit. Mirrored by `cut -c1-80` in the shell hooks. */
+export const KEY_SUFFIX_MAX = 80;
+
+/**
+ * Normalize an arbitrary string into a matrix-key-safe suffix.
+ *
+ * **Purpose.** Env keys are `[A-Za-z_][A-Za-z0-9_]*`; session ids, branch names
+ * and file paths are not. This is the single definition of that transformation,
+ * shared by `actorKey()` in `reconcile-contract.ts` and mirrored verbatim by the
+ * three POSIX hooks in `bin/`. One definition is the design: two normalizers
+ * that "should" agree drift silently, and the symptom (an agent never hearing
+ * about its own inbox) looks nothing like the cause.
+ *
+ * **Why the trailing-underscore strip runs TWICE — the bug this shape encodes.**
+ * The obvious order (collapse → strip → truncate) is wrong, and wrong in a way
+ * that breaks per-actor isolation rather than merely looking untidy. `slice()`
+ * can cut in the middle of the string and expose an underscore that was interior
+ * before the cut, so a key could end in `_` even though step 2 promised it never
+ * would. `PER_ACTOR_SEPARATOR` is `__` precisely *because* this function is
+ * supposed to make `__` unforgeable; a trailing `_` abutting the appended
+ * separator yields `___`, and then the first `__` in the key sits one character
+ * to the left of the real boundary — so actor `a×79 + "-x"` (which truncates to
+ * 79 `A`s plus `_`) becomes readable by the anchored prefix of actor `a×79`.
+ * That is a live cross-actor mail leak, and it is closed by stripping again
+ * *after* the cut. Truncation can only remove characters, never create a `__`,
+ * so a second strip is sufficient.
+ *
+ * **This function is deliberately still LOSSY.** `a-b`, `a.b` and `a_b` all
+ * normalize to `A_B`, and every id with no ASCII alphanumerics normalizes to
+ * `X`. For the *subject* half of a key (a path, a branch, a message id) that is
+ * acceptable and fails in the safe direction: two aliased paths share one
+ * `PD_LOCK_*` key, which over-locks rather than under-locks. For the *actor*
+ * half it is not acceptable — aliasing there is a mail leak — which is why
+ * `actorKey()` in `reconcile-contract.ts` appends a digest of the raw id on top
+ * of this normalization instead of using it bare. Do not "fix" the aliasing
+ * here; it would change every `PD_LOCK_*` / `PD_PHEROMONE_*` / `PD_CLAIM_*` key
+ * shape and the two shell hooks that mirror them, for no isolation gain.
+ *
+ * @param s Raw string (actor id, file path, branch, message id).
+ * @returns A non-empty string matching `/^[A-Za-z0-9][A-Za-z0-9_]*$/` of at most
+ *          {@link KEY_SUFFIX_MAX} characters, never beginning or ending with `_`
+ *          and never containing `__`.
+ */
 export function keySuffix(s: string): string {
-  return s
+  const collapsed = s
     .replace(/[^A-Za-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
-    .toUpperCase()
-    .slice(0, 80) || 'X';
+    .toUpperCase();
+  // Strip again AFTER the cut — see the docblock. This is the isolation fix.
+  return collapsed.slice(0, KEY_SUFFIX_MAX).replace(/_+$/g, '') || 'X';
+}
+
+/** Lookup table for the POSIX `cksum` CRC (polynomial 0x04C11DB7, MSB-first). */
+const CKSUM_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i += 1) {
+    let c = i << 24;
+    for (let k = 0; k < 8; k += 1) c = c & 0x80000000 ? (c << 1) ^ 0x04c11db7 : c << 1;
+    t[i] = c >>> 0;
+  }
+  return t;
+})();
+
+/**
+ * The checksum POSIX `cksum(1)` computes, over the UTF-8 bytes of a string.
+ *
+ * **Motivation — why a digest at all, and why *this* one.** `actorKey()` needs
+ * to be injective: two different agent ids must never land on the same matrix
+ * address, or one agent reads the other's mail. Normalization alone cannot
+ * deliver that (it is lossy by construction — see {@link keySuffix}), so the
+ * address carries a digest of the *raw* id alongside the readable form. The
+ * digest therefore has to be computable in three places that share no runtime:
+ * this module, `bin/pd-hook-prompt`, and any future non-Node reader.
+ *
+ * **Design.** `cksum` is the only checksum POSIX actually specifies — its
+ * algorithm is normative text, not an implementation detail — so a shell hook
+ * can produce the identical number with `printf '%s' "$id" | cksum` on macOS,
+ * Linux, and BusyBox alike. `md5`/`sha1` were rejected precisely because they
+ * are *not* POSIX: the binary is called `md5` on macOS and `md5sum` on GNU, with
+ * different output shapes, which is exactly the kind of per-platform drift that
+ * makes an agent silently unable to find its own inbox. CRC-32 is not and need
+ * not be cryptographic here — an actor id is not a secret, and the property
+ * being bought is collision-avoidance between honest ids, not unforgeability.
+ * `tests/unit/squid-reconcile-contract.test.ts` executes real `cksum` against
+ * this function over the shared corpus, so parity is proven rather than assumed.
+ *
+ * @param s Raw string; hashed as UTF-8 bytes.
+ * @returns The CRC as an unsigned 32-bit integer (`0`–`4294967295`), matching
+ *          the first field of `cksum` output byte-for-byte when rendered decimal.
+ */
+export function posixCksum(s: string): number {
+  const buf = Buffer.from(s, 'utf8');
+  let crc = 0;
+  for (const b of buf) crc = ((crc << 8) ^ CKSUM_TABLE[((crc >>> 24) ^ b) & 0xff]) >>> 0;
+  // POSIX folds the byte length in after the data, low-order octet first.
+  for (let len = buf.length; len !== 0; len >>>= 8) {
+    crc = ((crc << 8) ^ CKSUM_TABLE[((crc >>> 24) ^ (len & 0xff)) & 0xff]) >>> 0;
+  }
+  return ~crc >>> 0;
 }
 
 /**

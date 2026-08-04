@@ -27,10 +27,10 @@
  * ```text
  *   1. read every durable source          (OUTSIDE the lock — see below)
  *   2. build the DESIRED key set per class, apply per-class caps + TTL
- *   3. apply the turn-wide entry cap and byte budget in RECONCILE_DROP_ORDER
+ *   3. apply the per-agent-turn budget and the fleet ceiling in RECONCILE_DROP_ORDER
  *   4. take the matrix lock ONCE:
- *        read → delete strays → set desired → decay + GC pheromones
- *        → stamp PD_RECON_HEARTBEAT_TS → one atomic rename
+ *        read → delete what the SOURCES no longer justify → set the projection
+ *        → decay + GC pheromones → stamp PD_RECON_HEARTBEAT_TS → one atomic rename
  * ```
  *
  * Durable reads happen *before* the lock is taken on purpose. A tick that held
@@ -45,6 +45,13 @@
  *    `PD_CLAIM_*` key — that would flap the fleet's coordination state on a
  *    transient DB error. A degraded class is skipped entirely: not projected, not
  *    garbage-collected. Only a source that *answered* earns the right to delete.
+ *    **A budget drop is not an answer either.** "This does not fit in one agent's
+ *    prompt this turn" says nothing about whether the message still exists, so a
+ *    class the budget declined to project is DEFERRED, never collected: the GC
+ *    diffs against the post-cap `desired` set, the write uses the post-budget
+ *    `kept` set, and the two are deliberately different objects. Conflating them
+ *    is how undelivered mail got destroyed instead of waiting — see
+ *    {@link applyBudget} for the full account.
  * 2. **A tick never throws.** It is called from `setInterval` inside a daemon; an
  *    escaping rejection is an unhandled error that can take the process with it.
  *    Everything funnels into a {@link ReconcileTickReport} with `ok: false`.
@@ -61,7 +68,7 @@ import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 import { LogGovernor, type LeveledSink } from '../observability/log-governor.js';
-import { matrixPath, readMatrix, serializeMatrix, withLock } from './matrix.js';
+import { matrixPath, serializeMatrix, tryReadMatrix, withLock } from './matrix.js';
 import {
   PD_ALERT_FLEET_APPROVALS_KEY,
   PD_HALT_KEY,
@@ -189,7 +196,67 @@ export interface DrainedPheromone {
   readonly retained: boolean;
 }
 
-// ─── 2. The injected dependency surface ───────────────────────────────────────
+// ─── 2. Drop receipts — what the loop silenced, and under which bound ─────────
+
+/**
+ * Which bound sacrificed a class this tick.
+ *
+ * **Why two scopes and not one number.** The 12-entry / 4 KiB pair matches
+ * `bin/pd-hook-prompt`'s `PD_SQUID_PROMPT_MAX_ENTRIES` / `MAX_BYTES`, and those
+ * describe **one agent's prompt for one turn**. The matrix, by contrast, is a
+ * shared cache that every agent greps its own slice out of, so measuring the
+ * whole fleet's projection against a single agent's prompt budget is a category
+ * error: five agents holding three messages each is five 3-entry prompts, not a
+ * 15-entry overflow. `per-agent-turn` is therefore evaluated against the
+ * worst-case single agent's view, and `fleet-matrix-ceiling` is a separate,
+ * deliberately enormous absolute bound whose only job is to stop the flat file
+ * growing without limit if an actor-id generator runs away.
+ */
+export type ReconcileDropScope = 'per-agent-turn' | 'fleet-matrix-ceiling';
+
+/**
+ * The operator-facing record of a tick that held something and did not project
+ * all of it.
+ *
+ * **Purpose.** This bound is the only one in the harness that used to leave no
+ * operator trace at all — it emitted a governed daemon warn and nothing else, so
+ * `pd squid voice --suppressed` (which reads the hook's per-turn VoiceLog) could
+ * not see it, and an operator asking "why didn't it tell me about the claim
+ * overlap?" had no surface that would answer. The receipt is delivered through
+ * {@link ReconcileDeps.onDrop} so the daemon can route it to whichever operator
+ * surface owns loop-scoped events, rather than this module guessing.
+ *
+ * **Why this is not a {@link VoiceLogEvent}.** That contract is turn-scoped and
+ * actor-addressed (`actor`, `hookEvent`) and its summary statistics divide by
+ * *turns*; a daemon tick has neither an actor nor a hook surface, and injecting
+ * one would both require inventing values and corrupt `quietRate`/`spokeRate`
+ * for every real turn in the same file. See the module note on `onDrop`.
+ *
+ * Nothing in this receipt was deleted. A drop is a deferral by construction —
+ * the garbage collector never sees the post-budget set.
+ */
+export interface ReconcileDropReceipt {
+  /** Epoch ms of the tick (the injected clock). */
+  readonly ts: number;
+  /** Which bound fired first. */
+  readonly scope: ReconcileDropScope;
+  /** Contract reason, reusing the VoiceLog vocabulary the operator already reads. */
+  readonly reason: VoiceLogSuppressionReason;
+  /** Classes sacrificed, in {@link RECONCILE_DROP_ORDER}. */
+  readonly droppedClasses: readonly ReconcileKeyClassName[];
+  /** Entries the sources justified, per class, before the bound applied. */
+  readonly heldCounts: ReconcileClassCounts;
+  /** Entries actually projected, per class. */
+  readonly projectedCounts: ReconcileClassCounts;
+  /** Bytes the loop wanted to project, fleet-wide. */
+  readonly heldBytes: number;
+  /** Bytes actually projected, fleet-wide. */
+  readonly emittedBytes: number;
+  /** Per-fleet matrix shard the drop happened on, or `'global'`. */
+  readonly fleet: string;
+}
+
+// ─── 3. The injected dependency surface ───────────────────────────────────────
 
 /**
  * Everything {@link createReconcileLoop} needs, all optional.
@@ -238,10 +305,26 @@ export interface ReconcileDeps {
   readonly fleet?: string;
   /** Tick period for `start()`. Defaults to {@link RECONCILE_INTERVAL_MS}. */
   readonly intervalMs?: number;
-  /** Turn-wide entry ceiling. Defaults to {@link RECONCILE_MAX_PROJECTED_ENTRIES}. */
+  /**
+   * Entry ceiling for ONE agent's turn, measured against the worst-case single
+   * agent's view of the matrix. Defaults to {@link RECONCILE_MAX_PROJECTED_ENTRIES}.
+   */
   readonly maxEntries?: number;
-  /** Turn-wide byte budget. Defaults to {@link RECONCILE_TOTAL_BUDGET_BYTES}. */
+  /** Byte budget for ONE agent's turn, same scope. Defaults to {@link RECONCILE_TOTAL_BUDGET_BYTES}. */
   readonly budgetBytes?: number;
+  /** Absolute fleet-wide entry ceiling for the whole matrix. Default {@link DEFAULT_MATRIX_ENTRY_CEILING}. */
+  readonly matrixEntryCeiling?: number;
+  /** Absolute fleet-wide byte ceiling for the whole matrix. Default {@link DEFAULT_MATRIX_BYTE_CEILING}. */
+  readonly matrixByteCeiling?: number;
+  /**
+   * Operator receipt for a tick that projected less than it held.
+   *
+   * Called once per tick that dropped anything, AFTER the matrix lock is
+   * released, with a {@link ReconcileDropReceipt}. Optional and defaulted to
+   * nothing because the daemon owns the choice of operator surface; the governed
+   * log line fires either way, so an unwired daemon is quieter but never silent.
+   */
+  readonly onDrop?: (receipt: ReconcileDropReceipt) => void;
   /** How long to wait for the matrix lock before abandoning the tick. Default 2000ms. */
   readonly lockTimeoutMs?: number;
   /** Age past which a pheromone is deleted outright. Default 30 minutes. */
@@ -272,10 +355,18 @@ export interface ReconcileTickReport {
   readonly held: ReconcileClassCounts;
   /** Bytes actually projected (measured as the hook would emit them). */
   readonly bytes: number;
-  /** Classes sacrificed to the turn budget, in {@link RECONCILE_DROP_ORDER}. */
+  /**
+   * Classes sacrificed to a projection bound, in {@link RECONCILE_DROP_ORDER}.
+   *
+   * A class named here was NOT deleted from the matrix — see
+   * {@link ReconcileDropReceipt}. It was simply not projected this tick, and
+   * whatever a previous tick wrote for it stands until its source retracts it.
+   */
   readonly droppedClasses: readonly ReconcileKeyClassName[];
   /** Why the projection was cut, when it was. */
   readonly suppressionReason?: VoiceLogSuppressionReason;
+  /** Which bound did the cutting, when there was one. */
+  readonly dropScope?: ReconcileDropScope;
   /** Classes with no source, or whose source threw: neither projected nor GC'd. */
   readonly degradedClasses: readonly ReconcileKeyClassName[];
   /** Matrix keys created or changed this tick. */
@@ -286,6 +377,20 @@ export interface ReconcileTickReport {
   readonly pheromonesKept: number;
   /** Pheromone keys deleted because they faded, expired, or lost the top-N cut. */
   readonly pheromonesFaded: number;
+  /**
+   * `true` when the tick abandoned itself because the matrix file exists but
+   * could not be read.
+   *
+   * **Why this is its own flag and not just an `error` string.** It is the one
+   * failure whose correct operator response is different from every other: the
+   * loop is healthy, the sources are healthy, and the *file* is the problem
+   * (permissions, a full descriptor table, a failing disk). It is also the state
+   * in which the loop deliberately does nothing at all — no projection, no GC,
+   * not even the heartbeat — because a whole-file write derived from an unread
+   * file deletes every key the loop does not own. An operator surface must be
+   * able to say "the daemon cannot read the matrix" without grepping prose.
+   */
+  readonly matrixUnreadable?: boolean;
   /** Failure message when `ok` is false. */
   readonly error?: string;
 }
@@ -312,6 +417,40 @@ const DEFAULT_PHEROMONE_TOP_N = 6;
 const PHEROMONE_FADE_FLOOR = 0.05;
 /** Default matrix-lock patience for one tick. */
 const DEFAULT_LOCK_TIMEOUT_MS = 2_000;
+
+/**
+ * Absolute fleet-wide entry ceiling for the reconciled part of the matrix.
+ *
+ * **Why a second bound at all**, when every class already has a cap. The
+ * per-class caps for the two per-actor classes are counted *per actor*
+ * (`INBOX` 3, `PARLEY` 2), so the reconciled key count grows linearly with the
+ * number of distinct actor addresses — which is correct while those addresses
+ * are agents, and catastrophic if a source ever addresses mail by ephemeral
+ * session id. Then the fleet's "5 keys per actor" quietly becomes "5 keys per
+ * session that has ever existed", and the flat file the hooks grep on every
+ * keystroke grows without limit. This is the backstop for that class of bug.
+ *
+ * **Why 512 and not 12.** This is emphatically NOT the prompt budget. 512
+ * entries is ~100 KiB of flat file — still a trivial `grep` and roughly 100
+ * simultaneously-mailed agents, an order of magnitude past the K≥8 this module
+ * is designed for. A bound that is never reached in healthy operation is the
+ * only kind that is safe to make destructive-adjacent; a bound that fires during
+ * normal work is a bug generator, which is exactly what applying the 12-entry
+ * turn budget fleet-wide turned out to be.
+ */
+const DEFAULT_MATRIX_ENTRY_CEILING = 512;
+
+/**
+ * Absolute fleet-wide byte ceiling for the reconciled part of the matrix (256 KiB).
+ *
+ * Chosen to mirror the VoiceLog's own rotation ceiling in `bin/pd-hook-prompt`,
+ * on the same reasoning: a flat file the hooks read on every turn should stay in
+ * page cache comfortably, and any file that has grown past a quarter of a
+ * megabyte of *coordination state* is reporting a producer bug, not a busy
+ * fleet. Like {@link DEFAULT_MATRIX_ENTRY_CEILING}, it is sized never to fire in
+ * healthy operation.
+ */
+const DEFAULT_MATRIX_BYTE_CEILING = 262_144;
 
 /** A single key the loop wants the matrix to contain this tick. */
 interface DesiredEntry {
@@ -449,7 +588,59 @@ function tally(byClass: DesiredByClass): { entries: number; bytes: number } {
 }
 
 /**
- * Enforce the turn-wide entry cap and byte budget by sacrificing whole classes.
+ * Total a projection the way ONE agent will actually experience it.
+ *
+ * **This function is the correction at the heart of the module.** `matrix.env`
+ * is a shared cache; `bin/pd-hook-prompt` greps only the global classes plus its
+ * own `PD_INBOX_<ME>__` / `PD_PARLEY_<ME>__` slice and applies
+ * `PD_SQUID_PROMPT_MAX_ENTRIES` to *that*. So the prompt-sized budget must be
+ * measured against one agent's slice, not against the whole file: counting every
+ * actor's mail into one pool made five agents with three messages each look like
+ * a 15-entry overflow and silenced all five, when in truth no agent held more
+ * than three.
+ *
+ * The per-actor contribution is the **maximum** over actors rather than the sum,
+ * because that is the worst case any single hook can pull. Taking the max of
+ * entries and of bytes independently (they may belong to different actors) makes
+ * this a conservative upper bound, which is the right direction for a bound: it
+ * can only ever be stricter than reality, never laxer.
+ *
+ * @param byClass The current per-class projection.
+ * @returns Entry count and UTF-8 byte total for the worst-case single agent.
+ */
+function perAgentTally(byClass: DesiredByClass): { entries: number; bytes: number } {
+  let entries = 0;
+  let bytes = 0;
+  for (const [name, list] of byClass) {
+    if (RECONCILE_KEY_CLASSES[name].capScope !== 'per-actor') {
+      for (const e of list) {
+        entries += 1;
+        bytes += projectedBytes(e.value);
+      }
+      continue;
+    }
+    const perBucket = new Map<string, { entries: number; bytes: number }>();
+    for (const e of list) {
+      const acc = perBucket.get(e.bucket) ?? { entries: 0, bytes: 0 };
+      acc.entries += 1;
+      acc.bytes += projectedBytes(e.value);
+      perBucket.set(e.bucket, acc);
+    }
+    let maxEntries = 0;
+    let maxBytes = 0;
+    for (const acc of perBucket.values()) {
+      if (acc.entries > maxEntries) maxEntries = acc.entries;
+      if (acc.bytes > maxBytes) maxBytes = acc.bytes;
+    }
+    entries += maxEntries;
+    bytes += maxBytes;
+  }
+  return { entries, bytes };
+}
+
+/**
+ * Enforce the per-agent turn budget and the absolute fleet ceiling by
+ * sacrificing whole classes in {@link RECONCILE_DROP_ORDER}.
  *
  * **Why whole classes.** The contract is explicit that a class is either fully
  * emitted or fully dropped: a half-emitted class reads as complete while lying by
@@ -458,41 +649,303 @@ function tally(byClass: DesiredByClass): { entries: number; bytes: number } {
  * shell's cut is silent, unordered, and invisible to the operator, so a stop
  * signal can lose its place to an accomplishment note that merely sorted first.
  *
- * The sum of the registry's per-class caps (14) deliberately exceeds
- * {@link RECONCILE_MAX_PROJECTED_ENTRIES} (12): per-class caps bound each source,
- * this bounds the turn.
+ * **Why the result must never reach the garbage collector.** A dropped class is
+ * a statement about *this turn's prompt*, not about the world: the messages are
+ * still unread and their sources still assert them. Feeding this function's
+ * output into the GC diff — which the loop did before this was fixed — makes a
+ * budget drop indistinguishable from "the source says none", so the tick deletes
+ * the very mail it declined to project, permanently and on every subsequent
+ * tick. The caller therefore diffs against the pre-budget `desired` set and
+ * writes from the returned `kept` set; the sum of the registry's per-class caps
+ * (14) deliberately exceeds {@link RECONCILE_MAX_PROJECTED_ENTRIES} (12), so
+ * this bound genuinely fires in normal operation and the distinction is load
+ * bearing, not theoretical.
  *
- * @param desired Per-class projection after per-class caps.
- * @param maxEntries Turn-wide entry ceiling.
- * @param budgetBytes Turn-wide byte ceiling.
+ * The fleet ceiling is evaluated first so that, when both bounds bite, the
+ * receipt names the more serious condition — a matrix growing without limit is a
+ * producer bug, while a full prompt is Tuesday.
+ *
+ * @param desired Per-class projection after per-class caps and TTL.
+ * @param limits The two scoped bounds: one agent's turn, and the whole matrix.
  * @returns The surviving projection, the classes dropped in drop order, and the
- *          suppression reason that triggered the first sacrifice.
+ *          scope + reason that triggered the first sacrifice.
  */
 function applyBudget(
   desired: DesiredByClass,
-  maxEntries: number,
-  budgetBytes: number,
+  limits: {
+    maxEntries: number;
+    budgetBytes: number;
+    ceilingEntries: number;
+    ceilingBytes: number;
+  },
 ): {
   kept: DesiredByClass;
   dropped: ReconcileKeyClassName[];
   reason?: VoiceLogSuppressionReason;
+  scope?: ReconcileDropScope;
 } {
   const kept: DesiredByClass = new Map(desired);
   const dropped: ReconcileKeyClassName[] = [];
   let reason: VoiceLogSuppressionReason | undefined;
-  let t = tally(kept);
+  let scope: ReconcileDropScope | undefined;
 
+  /**
+   * Decide whether the current projection breaches either bound, and name it.
+   *
+   * Kept as a closure so the two bounds are evaluated in one place with one
+   * precedence rule, rather than re-derived before and inside the loop where the
+   * orderings could drift apart.
+   *
+   * @returns The breached scope and its reason, or `undefined` when both bounds hold.
+   */
+  const breach = (): { scope: ReconcileDropScope; reason: VoiceLogSuppressionReason } | undefined => {
+    const fleet = tally(kept);
+    if (fleet.entries > limits.ceilingEntries || fleet.bytes > limits.ceilingBytes) {
+      return {
+        scope: 'fleet-matrix-ceiling',
+        // Bytes are the harder physical bound, so they name the reason when both bite.
+        reason: fleet.bytes > limits.ceilingBytes ? 'over-budget' : 'over-entry-cap',
+      };
+    }
+    const agent = perAgentTally(kept);
+    if (agent.entries > limits.maxEntries || agent.bytes > limits.budgetBytes) {
+      return {
+        scope: 'per-agent-turn',
+        reason: agent.bytes > limits.budgetBytes ? 'over-budget' : 'over-entry-cap',
+      };
+    }
+    return undefined;
+  };
+
+  let over = breach();
   for (const name of RECONCILE_DROP_ORDER) {
-    if (t.entries <= maxEntries && t.bytes <= budgetBytes) break;
+    if (!over) break;
     const list = kept.get(name);
     if (!list || list.length === 0) continue;
-    // Bytes are the harder physical bound, so they name the reason when both bite.
-    if (!reason) reason = t.bytes > budgetBytes ? 'over-budget' : 'over-entry-cap';
+    if (!reason) {
+      reason = over.reason;
+      scope = over.scope;
+    }
     kept.set(name, []);
     dropped.push(name);
-    t = tally(kept);
+    over = breach();
   }
-  return { kept, dropped, reason };
+  return { kept, dropped, reason, scope };
+}
+
+// ─── 3b. Source-shape validation ──────────────────────────────────────────────
+//
+// **Why the loop validates what its own `ReconcileDeps` types already promise.**
+// Those types bind the daemon at compile time; they bind nothing at runtime. A
+// source is a closure over a durable store, and stores return `undefined` on a
+// cache miss, `null` on a closed handle, and half-built rows after a partial
+// migration — none of which throw. `readSource` used to guard only `throw`, so a
+// malformed answer sailed past it and blew up in the `.map()` that followed,
+// INSIDE the single whole-tick `try`. The blast radius was total: the tick
+// reported `degradedClasses: []` (the field whose entire job is naming what
+// broke) and wrote nothing at all, including `PD_RECON_HEARTBEAT_TS` — and 60s
+// of frozen heartbeat makes `isMatrixStale` true for every agent on the machine,
+// which silences the harness fleet-wide, HALT included. A malformed source could
+// therefore disable the emergency stop. These predicates turn that into what a
+// throw already was: one degraded class, everything else untouched.
+
+/**
+ * Narrow an unknown value to a plain object with readable properties.
+ *
+ * Purpose: every source row below is an object literal, and `typeof x ===
+ * 'object'` alone still admits `null` (which throws on property access) and
+ * arrays (which pass shape checks by accident when a producer nests one level
+ * too deep). One helper means neither trap has to be remembered per call site.
+ *
+ * @param v Any value handed back by a durable source.
+ * @returns `true` when `v` is a non-null, non-array object.
+ */
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/**
+ * Check an optional epoch-ms timestamp field.
+ *
+ * The design intent is that `ts` is not merely type-checked but *usable*: it
+ * feeds TTL arithmetic and the newest-first sort in `applyCaps`, where a string
+ * or a `NaN` produces a silently arbitrary ordering rather than an error. A
+ * timestamp that cannot be compared is worse than an absent one, which the
+ * caller already defaults to tick time.
+ *
+ * @param v The candidate `ts` field.
+ * @returns `true` when absent or a finite number.
+ */
+function isOptionalTs(v: unknown): boolean {
+  return v === undefined || (typeof v === 'number' && Number.isFinite(v));
+}
+
+/**
+ * Check an optional free-text field.
+ *
+ * Exists so the row predicates below read as a flat list of field checks; the
+ * motivation is legibility, since a validator nobody can skim is a validator
+ * that drifts from the interface it guards.
+ *
+ * @param v The candidate field.
+ * @returns `true` when absent or a string.
+ */
+function isOptionalString(v: unknown): boolean {
+  return v === undefined || typeof v === 'string';
+}
+
+/**
+ * Check that a source returned a list of rows that all satisfy `row`.
+ *
+ * **Why a whole-list verdict rather than filtering the bad rows out.** A partial
+ * class is indistinguishable, in the matrix, from a class whose source retracted
+ * the missing entries — and the GC would then delete them. Dropping bad rows
+ * would convert a producer bug into deleted coordination state, which is the
+ * failure this module is built to prevent. One malformed row therefore degrades
+ * the class, exactly as a throw does: not projected, not collected, left alone.
+ *
+ * @param v The value the source returned.
+ * @param row Predicate applied to every element.
+ * @returns `true` when `v` is an array whose every element is a conforming object.
+ */
+function isRowArray(v: unknown, row: (r: Record<string, unknown>) => boolean): boolean {
+  return Array.isArray(v) && v.every((e) => isRecord(e) && row(e));
+}
+
+/**
+ * Validate the shape of {@link ReconcileDeps.panic}'s answer.
+ *
+ * Design note: `null`/`undefined` are legal and mean "not armed" — the absence
+ * of a halt is a real answer, unlike the absence of a source. Only a value that
+ * claims to be a halt state while lacking a boolean `armed` is malformed, since
+ * that is the field the projection branches on.
+ *
+ * @param v The value returned by the panic source.
+ * @returns `true` when it is a usable {@link HaltState} or an explicit nothing.
+ */
+function isHaltStateShape(v: unknown): boolean {
+  if (v === null || v === undefined) return true;
+  return isRecord(v) && typeof v.armed === 'boolean' && isOptionalString(v.reason);
+}
+
+/**
+ * Validate the shape of {@link ReconcileDeps.ci}'s answer.
+ *
+ * Purpose: `branch` and `summary` are both interpolated into the projected value
+ * and `branch` additionally addresses the key via `ciKey`, so a non-string
+ * `branch` would mint a key like `PD_CI_UNDEFINED` that no later tick can
+ * recognise as its own and therefore no GC can ever remove.
+ *
+ * @param v The value returned by the CI source.
+ * @returns `true` when it is a usable {@link CiFailure} or an explicit nothing.
+ */
+function isCiFailureShape(v: unknown): boolean {
+  if (v === null || v === undefined) return true;
+  return (
+    isRecord(v) &&
+    typeof v.branch === 'string' &&
+    typeof v.summary === 'string' &&
+    isOptionalTs(v.ts)
+  );
+}
+
+/**
+ * Validate {@link ReconcileDeps.approvals}'s answer.
+ *
+ * This is the source whose malformed return was reproduced end-to-end: an
+ * `undefined` here reached `.length` and took the whole tick — and the fleet's
+ * liveness signal — down with it.
+ *
+ * @param v The value returned by the approvals source.
+ * @returns `true` when it is an array of usable {@link PendingApproval} rows.
+ */
+function isApprovalListShape(v: unknown): boolean {
+  return isRowArray(v, (r) => typeof r.agent === 'string' && typeof r.trigger === 'string');
+}
+
+/**
+ * Validate {@link ReconcileDeps.parley}'s answer.
+ *
+ * `actor` and `convId` are both key material (`parleyKey`), which is why they are
+ * required rather than defaulted: a summons addressed to nobody is invisible to
+ * the agent it was meant for and immortal in the matrix.
+ *
+ * @param v The value returned by the parley source.
+ * @returns `true` when it is an array of usable {@link ParleySummons} rows.
+ */
+function isParleyListShape(v: unknown): boolean {
+  return isRowArray(
+    v,
+    (r) =>
+      typeof r.actor === 'string' &&
+      typeof r.convId === 'string' &&
+      typeof r.summary === 'string' &&
+      isOptionalTs(r.ts),
+  );
+}
+
+/**
+ * Validate {@link ReconcileDeps.claims}'s answer.
+ *
+ * `holders` is checked as an array of strings for a concrete reason: the
+ * projection calls `holders.join(', ')`, so a string or `undefined` there is a
+ * `TypeError` on the happy path — and this is the class whose keys stop two
+ * agents from editing the same file, so its failure mode is the worst in the
+ * registry.
+ *
+ * @param v The value returned by the claims source.
+ * @returns `true` when it is an array of usable {@link ClaimOverlap} rows.
+ */
+function isClaimListShape(v: unknown): boolean {
+  return isRowArray(
+    v,
+    (r) =>
+      typeof r.path === 'string' &&
+      Array.isArray(r.holders) &&
+      r.holders.every((h) => typeof h === 'string') &&
+      isOptionalTs(r.ts),
+  );
+}
+
+/**
+ * Validate {@link ReconcileDeps.inbox}'s answer.
+ *
+ * Both `actor` and `msgId` are key material and must be stable across ticks —
+ * the design intent of requiring them is that two ticks seeing the same message
+ * mint the same key, which is what makes the projection idempotent instead of
+ * an append-only pile.
+ *
+ * @param v The value returned by the inbox source.
+ * @returns `true` when it is an array of usable {@link InboxMessage} rows.
+ */
+function isInboxListShape(v: unknown): boolean {
+  return isRowArray(
+    v,
+    (r) =>
+      typeof r.actor === 'string' &&
+      typeof r.msgId === 'string' &&
+      typeof r.summary === 'string' &&
+      isOptionalString(r.from) &&
+      isOptionalTs(r.ts),
+  );
+}
+
+/**
+ * Validate {@link ReconcileDeps.accomplishments}'s answer.
+ *
+ * Lowest-stakes class in the registry, validated to the same standard on
+ * purpose: the rationale is that the tick-wide blast radius of a malformed
+ * source has nothing to do with the importance of the class that carried it, so
+ * an ambience feed must not be able to silence a halt.
+ *
+ * @param v The value returned by the accomplishments source.
+ * @returns `true` when it is an array of usable {@link Accomplishment} rows.
+ */
+function isAccomplishmentListShape(v: unknown): boolean {
+  return isRowArray(
+    v,
+    (r) => typeof r.id === 'string' && typeof r.summary === 'string' && isOptionalTs(r.ts),
+  );
 }
 
 /** A `PD_PHEROMONE_*` line parsed back out of the flat matrix. */
@@ -669,6 +1122,8 @@ export function createReconcileLoop(deps: ReconcileDeps = {}): ReconcileLoop {
   const intervalMs = deps.intervalMs ?? RECONCILE_INTERVAL_MS;
   const maxEntries = deps.maxEntries ?? RECONCILE_MAX_PROJECTED_ENTRIES;
   const budgetBytes = deps.budgetBytes ?? RECONCILE_TOTAL_BUDGET_BYTES;
+  const ceilingEntries = deps.matrixEntryCeiling ?? DEFAULT_MATRIX_ENTRY_CEILING;
+  const ceilingBytes = deps.matrixByteCeiling ?? DEFAULT_MATRIX_BYTE_CEILING;
   const lockTimeoutMs = deps.lockTimeoutMs ?? DEFAULT_LOCK_TIMEOUT_MS;
   const pheromoneTtlMs = deps.pheromoneTtlMs ?? DEFAULT_PHEROMONE_TTL_MS;
   const pheromoneHalfLifeMs = deps.pheromoneHalfLifeMs ?? DEFAULT_PHEROMONE_HALF_LIFE_MS;
@@ -687,20 +1142,33 @@ export function createReconcileLoop(deps: ReconcileDeps = {}): ReconcileLoop {
    * nothing exists" must never be confused — the returned `degraded` flag is what
    * stops the caller from garbage-collecting a class it could not recompute.
    *
+   * **A malformed answer is a failed answer.** Guarding only `throw` was the
+   * whole of the bug: `ReconcileDeps` is a compile-time promise, and a durable
+   * store that returns `undefined` on a cache miss or a half-built row after a
+   * partial migration breaks it without ever raising. That value then reached
+   * the unguarded `.map()`/`.length` below, inside the single whole-tick `try`,
+   * and took every other class — and the heartbeat — down with it. `isValid` is
+   * a required parameter precisely so a future class cannot opt out by
+   * forgetting it.
+   *
    * @param name Registry class the source feeds; also the governor key suffix,
    *             which is safe because the class enum is small and fixed.
    * @param fn The source, or `undefined` when the daemon has not wired it.
-   * @param fallback Value to return when the source is missing or throws.
+   * @param fallback Value to return when the source is missing, throws, or lies.
+   * @param isValid Runtime shape check for the source's answer; a `false` verdict
+   *                degrades the class exactly as a throw does.
    * @returns The source's answer plus whether the class must be treated as degraded.
    */
   const readSource = <T>(
     name: ReconcileKeyClassName,
     fn: (() => T) | undefined,
     fallback: T,
+    isValid: (v: unknown) => boolean,
   ): { value: T; degraded: boolean } => {
     if (!fn) return { value: fallback, degraded: true };
+    let value: T;
     try {
-      return { value: fn(), degraded: false };
+      value = fn();
     } catch (err) {
       gov.governed({
         key: `reconcile_source_failed_${name}`,
@@ -710,6 +1178,20 @@ export function createReconcileLoop(deps: ReconcileDeps = {}): ReconcileLoop {
       });
       return { value: fallback, degraded: true };
     }
+    if (!isValid(value)) {
+      // Deliberately logged under its own message, not folded into
+      // `reconcile_source_failed`: a throwing source is an outage the source
+      // already knows about, while a malformed one believes it succeeded and
+      // will keep lying every tick until someone is told which class it is.
+      gov.governed({
+        key: `reconcile_source_malformed_${name}`,
+        level: 'warn',
+        message: 'reconcile_source_malformed',
+        meta: { class: name, received: Array.isArray(value) ? 'array' : typeof value },
+      });
+      return { value: fallback, degraded: true };
+    }
+    return { value, degraded: false };
   };
 
   /**
@@ -753,7 +1235,7 @@ export function createReconcileLoop(deps: ReconcileDeps = {}): ReconcileLoop {
     };
 
     // HALT — singleton, mirror-source. Highest priority; effectively undroppable.
-    const halt = readSource<HaltState | null | undefined>('HALT', deps.panic, null);
+    const halt = readSource<HaltState | null | undefined>('HALT', deps.panic, null, isHaltStateShape);
     record(
       'HALT',
       halt.degraded,
@@ -773,7 +1255,7 @@ export function createReconcileLoop(deps: ReconcileDeps = {}): ReconcileLoop {
     );
 
     // PARLEY — per-actor, TTL'd. A human is waiting on a reply.
-    const parley = readSource<readonly ParleySummons[]>('PARLEY', deps.parley, []);
+    const parley = readSource<readonly ParleySummons[]>('PARLEY', deps.parley, [], isParleyListShape);
     record(
       'PARLEY',
       parley.degraded,
@@ -789,7 +1271,12 @@ export function createReconcileLoop(deps: ReconcileDeps = {}): ReconcileLoop {
     );
 
     // FLEET_APPROVALS — singleton, mirror-source. Migrated from syncApprovalAlert.
-    const approvals = readSource<readonly PendingApproval[]>('FLEET_APPROVALS', deps.approvals, []);
+    const approvals = readSource<readonly PendingApproval[]>(
+      'FLEET_APPROVALS',
+      deps.approvals,
+      [],
+      isApprovalListShape,
+    );
     record(
       'FLEET_APPROVALS',
       approvals.degraded,
@@ -806,7 +1293,7 @@ export function createReconcileLoop(deps: ReconcileDeps = {}): ReconcileLoop {
     );
 
     // CLAIM — global, mirror-source. Both parties must see the same key.
-    const claims = readSource<readonly ClaimOverlap[]>('CLAIM', deps.claims, []);
+    const claims = readSource<readonly ClaimOverlap[]>('CLAIM', deps.claims, [], isClaimListShape);
     record(
       'CLAIM',
       claims.degraded,
@@ -825,7 +1312,7 @@ export function createReconcileLoop(deps: ReconcileDeps = {}): ReconcileLoop {
     );
 
     // CI — global, capped at one: the useful signal is "your branch is red".
-    const ci = readSource<CiFailure | null | undefined>('CI', deps.ci, null);
+    const ci = readSource<CiFailure | null | undefined>('CI', deps.ci, null, isCiFailureShape);
     record(
       'CI',
       ci.degraded,
@@ -842,7 +1329,7 @@ export function createReconcileLoop(deps: ReconcileDeps = {}): ReconcileLoop {
     );
 
     // INBOX — per-actor, cap-evict-oldest.
-    const inbox = readSource<readonly InboxMessage[]>('INBOX', deps.inbox, []);
+    const inbox = readSource<readonly InboxMessage[]>('INBOX', deps.inbox, [], isInboxListShape);
     record(
       'INBOX',
       inbox.degraded,
@@ -858,7 +1345,12 @@ export function createReconcileLoop(deps: ReconcileDeps = {}): ReconcileLoop {
     );
 
     // ACCOMPLISHMENT — global, decay-by-age. Pure ambience; first overboard.
-    const acc = readSource<readonly Accomplishment[]>('ACCOMPLISHMENT', deps.accomplishments, []);
+    const acc = readSource<readonly Accomplishment[]>(
+      'ACCOMPLISHMENT',
+      deps.accomplishments,
+      [],
+      isAccomplishmentListShape,
+    );
     record(
       'ACCOMPLISHMENT',
       acc.degraded,
@@ -946,46 +1438,141 @@ export function createReconcileLoop(deps: ReconcileDeps = {}): ReconcileLoop {
    * the daemon it decorates. Every failure becomes a report with `ok: false` plus
    * one governed log line.
    *
+   * **The phases are separated on purpose.** Reading the clock, asking the
+   * sources, and writing the file each get their own guard rather than sharing
+   * one `try`, because a failure in an earlier phase must not cancel the later
+   * ones. Concretely: a source that answers nonsense degrades its class and the
+   * tick still stamps `PD_RECON_HEARTBEAT_TS`, since that key is the fleet's
+   * liveness signal and a frozen heartbeat silences every agent on the machine
+   * within `RECONCILE_STALE_AFTER_MS` — including the halt. The one failure that
+   * legitimately cancels everything is an unreadable matrix, because there the
+   * only available write would be a whole-file rewrite derived from a file we
+   * could not read.
+   *
    * @returns A {@link ReconcileTickReport} describing what was projected,
    *          dropped, deleted and degraded.
    */
   function tick(): ReconcileTickReport {
-    const now = clock();
     const held: ReconcileClassCounts = {};
     const counts: ReconcileClassCounts = {};
     let drained: DrainedPheromone[] = [];
 
+    // Phase 0 — the clock. Injected, therefore capable of throwing, and it sat
+    // outside the guard below where an exception escaped tick() into
+    // setInterval and out of start(), contradicting the never-throws contract.
+    let now: number;
     try {
-      const { desired, degraded } = collect(now);
+      now = clock();
+    } catch (err) {
+      const message = (err as Error)?.message ?? String(err);
+      try {
+        gov.governed({
+          key: 'reconcile_clock_failed',
+          level: 'error',
+          message: 'reconcile_clock_failed',
+          meta: { error: message },
+        });
+      } catch {
+        // The governor shares this same injected clock, so the log attempt can
+        // fail for exactly the reason we are already reporting. Swallowing here
+        // is what keeps the never-throws contract true in the one case where
+        // the reporting channel is itself broken.
+      }
+      return {
+        // Last-resort stamp: the injected clock is the contract, but a receipt
+        // with no timestamp is unreadable, and this path proves that clock is
+        // unusable. The `error` field says which clock produced this `ts`.
+        ts: Date.now(),
+        ok: false,
+        counts,
+        held,
+        bytes: 0,
+        droppedClasses: [],
+        degradedClasses: [],
+        keysWritten: 0,
+        keysDeleted: 0,
+        pheromonesKept: 0,
+        pheromonesFaded: 0,
+        error: `reconcile clock threw (ts is Date.now, not the injected clock): ${message}`,
+      };
+    }
+
+    // Phase 1 — ask the sources. Isolated from the write phase so that even a
+    // total collapse here (which the per-source validation above should already
+    // have reduced to per-class degradation) still leaves a tick that can write
+    // the heartbeat. Everything degraded means everything left alone.
+    let desired: DesiredByClass;
+    let degraded: Set<ReconcileKeyClassName>;
+    let collectError: string | undefined;
+    try {
+      ({ desired, degraded } = collect(now));
+    } catch (err) {
+      collectError = (err as Error)?.message ?? String(err);
+      desired = new Map();
+      degraded = new Set(RECONCILE_KEY_CLASS_NAMES.filter((n) => n !== 'HEARTBEAT'));
+      gov.governed({
+        key: 'reconcile_collect_failed',
+        level: 'error',
+        message: 'reconcile_collect_failed',
+        meta: { error: collectError },
+      });
+    }
+
+    try {
       for (const [name, list] of desired) held[name] = list.length;
 
-      const { kept, dropped, reason } = applyBudget(desired, maxEntries, budgetBytes);
+      const { kept, dropped, reason, scope } = applyBudget(desired, {
+        maxEntries,
+        budgetBytes,
+        ceilingEntries,
+        ceilingBytes,
+      });
       for (const [name, list] of kept) counts[name] = list.length;
       const projected = tally(kept);
 
       let keysWritten = 0;
       let keysDeleted = 0;
+      let unreadable: NodeJS.ErrnoException | undefined;
 
       // ONE lock, ONE read-modify-write, ONE rename. See writeMatrixAtomic.
       withLock(
         fleet,
         () => {
-          const next: Record<string, string> = { ...readMatrix(fleet) };
+          const snapshot = tryReadMatrix(fleet);
+          if (snapshot.state === 'unreadable') {
+            // NEVER rewrite a file we could not read. `writeMatrixAtomic`
+            // serializes the WHOLE matrix from this map, so proceeding on an
+            // empty read would delete every key this loop does not own —
+            // `PD_LOCK_*` (what stops two agents editing the same file),
+            // foreign `PD_ALERT_*`, every pheromone — and it would do so
+            // *outside* the counted GC path, reporting `ok: true,
+            // keysDeleted: 0`. Absence of evidence is not evidence of absence:
+            // we abandon the tick, say so, and leave the file exactly as found.
+            unreadable = snapshot.error;
+            return;
+          }
+          const next: Record<string, string> = { ...snapshot.kv };
 
           for (const name of RECONCILE_KEY_CLASS_NAMES) {
             if (name === 'HEARTBEAT') continue;
             // Degraded: we could not recompute this class, so we must not judge
             // its existing keys. Silence beats deleting the fleet's coordination.
             if (degraded.has(name)) continue;
-            const want = kept.get(name) ?? [];
-            const wantKeys = new Set(want.map((e) => e.key));
+            // GC diffs against `desired` — the post-cap, post-TTL set the SOURCE
+            // still justifies. A class the budget dropped is absent from `kept`
+            // but present here, so its keys are left standing: deferred, not
+            // destroyed. Only a key the source stopped reporting (or that a
+            // registry cap/TTL evicted) is missing from `desired` and deleted.
+            const justified = desired.get(name) ?? [];
+            const justifiedKeys = new Set(justified.map((e) => e.key));
             for (const existing of Object.keys(next)) {
               if (classifyReconcileKey(existing) !== name) continue;
-              if (wantKeys.has(existing)) continue;
+              if (justifiedKeys.has(existing)) continue;
               delete next[existing];
               keysDeleted += 1;
             }
-            for (const e of want) {
+            // The WRITE uses `kept`: what fits one agent's turn this tick.
+            for (const e of kept.get(name) ?? []) {
               if (next[e.key] !== e.value) keysWritten += 1;
               next[e.key] = e.value;
             }
@@ -998,16 +1585,69 @@ export function createReconcileLoop(deps: ReconcileDeps = {}): ReconcileLoop {
         { timeoutMs: lockTimeoutMs },
       );
 
-      if (reason) {
+      if (unreadable) {
         gov.governed({
-          key: `reconcile_suppressed_${reason}`,
-          level: 'warn',
+          key: 'reconcile_matrix_unreadable',
+          level: 'error',
+          message: 'reconcile_matrix_unreadable',
+          meta: {
+            fleet: fleet ?? 'global',
+            path: matrixPath(fleet),
+            code: unreadable.code ?? 'unknown',
+            error: unreadable.message ?? String(unreadable),
+          },
+        });
+        return {
+          ts: now,
+          ok: false,
+          // Nothing was projected and nothing was collected, so the honest
+          // per-class answer is "none", not the set we merely intended.
+          counts: {},
+          held,
+          bytes: 0,
+          droppedClasses: [],
+          degradedClasses: [...degraded],
+          keysWritten: 0,
+          keysDeleted: 0,
+          pheromonesKept: 0,
+          pheromonesFaded: 0,
+          matrixUnreadable: true,
+          error:
+            `matrix unreadable (${unreadable.code ?? 'unknown'}) at ${matrixPath(fleet)} — ` +
+            'tick abandoned without rewriting it',
+        };
+      }
+
+      const heldBytes = tally(desired).bytes;
+      let receipt: ReconcileDropReceipt | undefined;
+      if (reason && scope) {
+        receipt = {
+          ts: now,
+          scope,
+          reason,
+          droppedClasses: dropped,
+          heldCounts: held,
+          projectedCounts: counts,
+          heldBytes,
+          emittedBytes: projected.bytes,
+          fleet: fleet ?? 'global',
+        };
+        // A breached fleet ceiling is a producer bug and reads as an error; a
+        // full agent-turn is routine and stays a warn. The governor key stays
+        // low-cardinality (2 scopes × 5 reasons), never keyed on an actor.
+        gov.governed({
+          key: `reconcile_suppressed_${scope}_${reason}`,
+          level: scope === 'fleet-matrix-ceiling' ? 'error' : 'warn',
           message: 'reconcile_projection_suppressed',
           meta: {
+            scope,
             reason,
             dropped_classes: dropped,
-            held_bytes: tally(desired).bytes,
+            held_bytes: heldBytes,
             emitted_bytes: projected.bytes,
+            // Stated explicitly because this is the property the operator most
+            // needs to trust: a drop never destroys undelivered mail.
+            keys_deleted_by_drop: 0,
           },
         });
       }
@@ -1015,18 +1655,43 @@ export function createReconcileLoop(deps: ReconcileDeps = {}): ReconcileLoop {
       const faded = drained.filter((d) => !d.retained).length;
       const report: ReconcileTickReport = {
         ts: now,
-        ok: true,
+        // A tick that could not recompute ANY class did not do its job, even
+        // though it completed the write that keeps the fleet's liveness signal
+        // moving. Reporting `ok: true` here would make the collapse invisible
+        // to the daemon's status surface; reporting it while still writing the
+        // heartbeat is the whole point of separating the phases.
+        ok: collectError === undefined,
         counts,
         held,
         bytes: projected.bytes,
         droppedClasses: dropped,
         suppressionReason: reason,
+        dropScope: scope,
         degradedClasses: [...degraded],
         keysWritten,
         keysDeleted,
         pheromonesKept: drained.length - faded,
         pheromonesFaded: faded,
+        ...(collectError === undefined
+          ? {}
+          : { error: `reconcile sources could not be collected: ${collectError}` }),
       };
+
+      // Same lock discipline as the pheromone sink below: the operator receipt
+      // is delivered only after the rename, so an operator surface that blocks
+      // cannot stall every shell tentacle on the machine.
+      if (deps.onDrop && receipt) {
+        try {
+          deps.onDrop(receipt);
+        } catch (err) {
+          gov.governed({
+            key: 'reconcile_drop_receipt_failed',
+            level: 'warn',
+            message: 'reconcile_drop_receipt_failed',
+            meta: { error: (err as Error)?.message ?? String(err) },
+          });
+        }
+      }
 
       // The durable sink runs AFTER the lock is released: a slow or throwing
       // consumer must not extend the window every shell tentacle waits on.
@@ -1099,14 +1764,22 @@ export function createReconcileLoop(deps: ReconcileDeps = {}): ReconcileLoop {
    * counting, which converts "this failed 4,312 times" into no record at all —
    * exactly the evidence a post-mortem needs most.
    *
-   * @returns Nothing. Safe to call when never started or already stopped.
+   * @returns Nothing. Safe to call when never started or already stopped — and,
+   *          like `tick()`, it never throws.
    */
   function stop(): void {
     if (timer) {
       clearInterval(timer);
       timer = null;
     }
-    gov.flushAll();
+    try {
+      gov.flushAll();
+    } catch {
+      // `flushAll` reads the injected clock to close its windows. A daemon that
+      // cannot shut its reconcile loop down because the clock it was handed is
+      // broken is a worse outcome than a lost log rollup, and the timer above is
+      // already cleared by the time we get here — shutdown is complete either way.
+    }
   }
 
   return { start, stop, tick };

@@ -18,7 +18,7 @@
 
 import { describe, expect, jest, test, beforeEach, afterEach } from '@jest/globals';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, symlinkSync } from 'node:fs';
+import { mkdirSync, rmSync, rmdirSync, readFileSync, writeFileSync, existsSync, symlinkSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -547,9 +547,17 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(after).toBe(before + 8); // all 8 appends survived, none torn
   });
 
-  test('post-tool lock retry exhaustion fails open with exactly one append', () => {
+  test('post-tool lock retry exhaustion fails CLOSED — no unlocked append', () => {
+    // This test used to assert the opposite ("fails open with exactly one
+    // append"). That behaviour was the bug: the holder we time out against is
+    // mid-read-modify-rename, so an unlocked append during its window is not a
+    // degraded-but-delivered trace, it is a write the holder's rename deletes a
+    // moment later. Same data loss, minus the honesty — and it hid a much worse
+    // sibling defect, because the Linux fast path took `flock` on a DIFFERENT
+    // lock object than the TS layer's `mkdir` lock, so the two never excluded
+    // each other at all. One primitive now, and giving up is the honest answer.
     const matrix = seed();
-    mkdirSync(`${matrix}.lock`);
+    mkdirSync(`${matrix}.lock`); // fresh, so the 30s stale-break must NOT fire
     const fakeBin = join(SCRATCH, 'no-flock-fast-sleep-bin');
     mkdirSync(fakeBin, { recursive: true });
     for (const name of ['cat', 'sed', 'head', 'grep', 'cut', 'tr', 'date', 'mkdir', 'find', 'rmdir']) {
@@ -570,17 +578,42 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
         PD_MATRIX_FILE: matrix,
         PD_HOME: dirname(matrix),
         PD_ACTOR: 'retry_exhaustion_agent',
+        PD_MATRIX_LOCK_TRIES: '20',
       },
       encoding: 'utf8',
       timeout: 5000,
     });
+    // Still exit 0: a dropped pheromone is degraded coordination, never a
+    // broken agent turn. The hook says so on stderr rather than lying by
+    // writing where it could not lock.
     expect(result.status).toBe(0);
+    expect(result.stderr).toContain('pheromone dropped');
 
     const rows = readFileSync(matrix, 'utf8')
       .split('\n')
       .filter((line) => line.includes('/repo/src/retry-exhausted.ts'));
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toContain('actor:retry_exhaustion_agent');
+    expect(rows).toHaveLength(0);
+
+    // …and once the holder releases, the very next invocation lands normally.
+    rmdirSync(`${matrix}.lock`);
+    const second = spawnSync(bin('pd-hook-post-tool'), [], {
+      input: JSON.stringify(event),
+      env: {
+        ...process.env,
+        PATH: fakeBin,
+        PD_MATRIX_FILE: matrix,
+        PD_HOME: dirname(matrix),
+        PD_ACTOR: 'retry_exhaustion_agent',
+      },
+      encoding: 'utf8',
+      timeout: 5000,
+    });
+    expect(second.status).toBe(0);
+    const afterRelease = readFileSync(matrix, 'utf8')
+      .split('\n')
+      .filter((line) => line.includes('/repo/src/retry-exhausted.ts'));
+    expect(afterRelease).toHaveLength(1);
+    expect(afterRelease[0]).toContain('actor:retry_exhaustion_agent');
   });
 });
 

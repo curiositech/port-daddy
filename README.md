@@ -649,10 +649,22 @@ appends one JSON line (spoke / silent / suppressed + reason) to
 `$PD_HOME/squid-voice-log.jsonl`, byte-bounded and rotated, and `pd squid voice`
 is the operator's window onto it. A daemon-side **reconcile loop**
 (`lib/squid/reconcile.ts`) keeps the matrix a projection of durable truth rather
-than an append-only landfill: every 15s it recomputes each key class from its
-source, deletes what the source no longer justifies, and stamps a heartbeat that
-readers use to fail open when the loop dies. Hookless backends (Groq, Ollama,
-LM Studio) read the same key classes through `lib/local-citizen/ink-cloud.ts`.
+than an append-only landfill: every 15s it recomputes the key classes that have
+a producer wired, deletes what their source no longer justifies, decays
+shell-appended `PD_PHEROMONE_*` traces, and stamps a heartbeat that readers use
+to fail open when the loop dies.
+
+**Wired today: approvals (`PD_ALERT_FLEET_APPROVALS`) and panic
+(`PD_HALT`), plus the heartbeat.** The registry defines five more classes —
+`PD_INBOX_*`, `PD_CLAIM_*`, `PD_CI_*`, `PD_PARLEY_*`, `PD_ACCOMPLISHMENT_*` —
+whose builders, caps and budgets are implemented and tested but which the fleet
+daemon has no source for yet (`buildReconcileLoop` in `lib/fleet-daemon.ts`).
+That is deliberate, not an oversight: an unwired class is *degraded*, meaning
+the loop neither projects nor garbage-collects it and leaves any existing keys
+alone. Passing `() => []` instead would assert "there are none" and delete
+another writer's keys, so the cutover is incremental on purpose. Hookless
+backends (Groq, Ollama, LM Studio) read the same key classes through
+`lib/local-citizen/ink-cloud.ts`.
 
 Claude and Gemini use project config; Codex and agy require user config because
 their interactive hook engines do not honor a project-local equivalent. Those

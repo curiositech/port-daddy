@@ -32,7 +32,7 @@ import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
-import { setKey } from '../../lib/squid/matrix.js';
+import { posixCksum, setKey } from '../../lib/squid/matrix.js';
 import {
   actorKey,
   inboxKey,
@@ -419,8 +419,12 @@ describe('pd-hook-prompt — per-actor addressing', () => {
 
   test("the shell's pd_actor_key mirrors the contract's actorKey for a punctuated id", () => {
     // A real session identity, full of characters illegal in a shell env key.
+    // The assertion that matters is not the literal — it is that the SHELL
+    // computes the same address the TS side did, which is what the delivery
+    // below actually proves end to end. The literal body plus the raw id's
+    // POSIX cksum is pinned so a drift in either half is loud.
     const actor = 'port-daddy:contrib/squid-1.0';
-    expect(actorKey(actor)).toBe('PORT_DADDY_CONTRIB_SQUID_1_0');
+    expect(actorKey(actor)).toBe(`PORT_DADDY_CONTRIB_SQUID_1_0_${posixCksum(actor)}`);
     setKey(inboxKey(actor, 'msg-9'), `tube: punctuated identity delivered | ts:${isoNow()}`);
 
     const ctx = contextOf(runHook({ actor }).stdout);

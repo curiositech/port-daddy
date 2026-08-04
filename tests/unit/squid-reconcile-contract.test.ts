@@ -5,9 +5,11 @@
  * a real assertion about the contract other agents will code against, not a
  * mock. The three things that MUST be nailed down before anyone builds on it:
  *
- *   1. actorKey() and matrix.keySuffix() are the SAME transformation. If they
- *      ever diverge, the daemon writes PD_INBOX_ keys the hooks never find and
- *      the failure is silent.
+ *   1. actorKey() is keySuffix() plus a POSIX-cksum digest, and the POSIX-sh
+ *      mirror in the TSDoc (which the hooks embed) computes it identically. If
+ *      the two ever diverge, the daemon writes PD_INBOX_ keys the hooks never
+ *      find and the failure is silent. The digest half is what makes the
+ *      address injective — see the actorKey docblock.
  *   2. isMatrixStale() boundaries, because the fail-open rule hangs off them.
  *   3. The truncation priority ordering, because it is what decides whether a
  *      HALT or an accomplishment note survives a full prompt budget.
@@ -19,8 +21,9 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from '@jest/globals';
 
-import { keySuffix } from '../../lib/squid/matrix.js';
+import { keySuffix, posixCksum } from '../../lib/squid/matrix.js';
 import {
+  ACTOR_KEY_BODY_MAX,
   PER_ACTOR_SEPARATOR,
   perActorKeyPrefix,
   reconcileKeyActor,
@@ -68,44 +71,84 @@ const ACTOR_CORPUS = [
 ];
 
 describe('actorKey — the canonical actor normalizer', () => {
-  test('matches matrix.keySuffix() on every input in the shared corpus', () => {
+  test('is keySuffix() for the readable body, plus the raw-input cksum digest', () => {
     for (const raw of ACTOR_CORPUS) {
-      expect(actorKey(raw)).toBe(keySuffix(raw));
+      const body = keySuffix(raw).slice(0, ACTOR_KEY_BODY_MAX).replace(/_+$/g, '') || 'X';
+      expect(actorKey(raw)).toBe(`${body}_${posixCksum(raw)}`);
     }
   });
 
-  test('always produces a non-empty key matching /^[A-Za-z0-9_]{1,80}$/', () => {
+  test('always produces a non-empty key matching /^[A-Za-z0-9_]+$/', () => {
     for (const raw of ACTOR_CORPUS) {
       const k = actorKey(raw);
       expect(k.length).toBeGreaterThan(0);
-      expect(k).toMatch(/^[A-Za-z0-9_]{1,80}$/);
+      expect(k).toMatch(/^[A-Za-z0-9_]+$/);
+      // Body (<=64) + '_' + at most 10 digits of CRC.
+      expect(k.length).toBeLessThanOrEqual(ACTOR_KEY_BODY_MAX + 11);
     }
   });
 
-  test('applies the documented five-step transformation', () => {
+  test('applies the documented transformation to the readable body', () => {
+    const body = (raw: string): string => actorKey(raw).replace(/_\d+$/, '');
     // 1. runs of non-alphanumerics collapse to a single underscore
-    expect(actorKey('port-daddy:contrib:squid-1')).toBe('PORT_DADDY_CONTRIB_SQUID_1');
-    expect(actorKey('a---b')).toBe('A_B');
-    expect(actorKey('a-b_c.d/e f')).toBe('A_B_C_D_E_F');
+    expect(body('port-daddy:contrib:squid-1')).toBe('PORT_DADDY_CONTRIB_SQUID_1');
+    expect(body('a---b')).toBe('A_B');
+    expect(body('a-b_c.d/e f')).toBe('A_B_C_D_E_F');
     // 2. leading/trailing underscores are stripped
-    expect(actorKey('  leading and trailing  ')).toBe('LEADING_AND_TRAILING');
-    expect(actorKey('::::sess::::')).toBe('SESS');
+    expect(body('  leading and trailing  ')).toBe('LEADING_AND_TRAILING');
+    expect(body('::::sess::::')).toBe('SESS');
     // 3. uppercased
-    expect(actorKey('Mixed-Case_Actor')).toBe('MIXED_CASE_ACTOR');
-    // 4. truncated to 80 characters
-    expect(actorKey('x'.repeat(200))).toHaveLength(80);
-    expect(actorKey('x'.repeat(200))).toBe('X'.repeat(80));
-    // 5. empty result falls back to the literal 'X'
-    expect(actorKey('')).toBe('X');
-    expect(actorKey('---')).toBe('X');
-    expect(actorKey('___')).toBe('X');
-    expect(actorKey('你好')).toBe('X');
+    expect(body('Mixed-Case_Actor')).toBe('MIXED_CASE_ACTOR');
+    // 4. body truncated to ACTOR_KEY_BODY_MAX characters
+    expect(body('x'.repeat(200))).toBe('X'.repeat(ACTOR_KEY_BODY_MAX));
+    // 5. empty body falls back to the literal 'X' — but the DIGEST still
+    //    separates these four ids, which is the whole point of carrying one.
+    expect(body('')).toBe('X');
+    expect(body('---')).toBe('X');
+    expect(body('___')).toBe('X');
+    expect(body('你好')).toBe('X');
+    expect(new Set(['', '---', '___', '你好'].map(actorKey)).size).toBe(4);
   });
 
-  test('is idempotent — normalizing an already-normalized key is a no-op', () => {
-    for (const raw of ACTOR_CORPUS) {
-      const once = actorKey(raw);
-      expect(actorKey(once)).toBe(once);
+  test('is INJECTIVE across the aliases plain normalization collapses', () => {
+    // Every group below normalizes to one body. Before the digest they were one
+    // address, and the agents in each group read each other's mail.
+    const aliases = [
+      'agent-one',
+      'agent.one',
+      'agent_one',
+      'agent/one',
+      'AGENT ONE',
+      // truncation aliases: identical for the first 64 chars
+      `${'a'.repeat(64)}-x`,
+      `${'a'.repeat(64)}-y`,
+      'a'.repeat(64),
+      // no ASCII alphanumerics at all — every one of these was the literal `X`
+      '你好',
+      'дневник',
+      '日本語エージェント',
+      '---',
+      '',
+    ];
+    expect(new Set(aliases.map(actorKey)).size).toBe(aliases.length);
+    // …and no address is a prefix of another, which is the property the
+    // anchored `^PD_INBOX_<me>__` grep in bin/pd-hook-prompt actually relies on.
+    for (const a of aliases) {
+      for (const b of aliases) {
+        if (a === b) continue;
+        expect(`${actorKey(a)}${PER_ACTOR_SEPARATOR}`.startsWith(`${actorKey(b)}${PER_ACTOR_SEPARATOR}`)).toBe(false);
+      }
+    }
+  });
+
+  test('never emits a body that ends in the separator character', () => {
+    // Regression: keySuffix used to truncate AFTER stripping underscores, so a
+    // cut landing on an interior `_` left the key ending in one. Appending the
+    // `__` separator then produced `___`, and the first `__` in the key sat one
+    // character left of the true boundary.
+    for (const raw of [...ACTOR_CORPUS, `${'a'.repeat(79)}-x`, `${'a'.repeat(64)}-x`, `${'a'.repeat(63)}-x`]) {
+      expect(actorKey(raw).endsWith('_')).toBe(false);
+      expect(actorKey(raw)).not.toContain(PER_ACTOR_SEPARATOR);
     }
   });
 
@@ -127,9 +170,10 @@ describe('actorKey — the POSIX-sh mirror documented in the TSDoc', () => {
 k=$(printf '%s' "$1" \
   | sed -e 's/[^A-Za-z0-9]\{1,\}/_/g' -e 's/^_\{1,\}//' -e 's/_\{1,\}$//' \
   | tr '[:lower:]' '[:upper:]' \
-  | cut -c1-80)
+  | cut -c1-64 \
+  | sed -e 's/_\{1,\}$//')
 [ -n "$k" ] || k=X
-printf '%s' "$k"
+printf '%s_%s' "$k" "$(printf '%s' "$1" | cksum | cut -d' ' -f1)"
 `;
 
   const shActorKey = (raw: string): string =>
@@ -141,13 +185,47 @@ printf '%s' "$k"
     }
   });
 
-  test('the sh mirror reproduces the empty-input fallback', () => {
-    expect(shActorKey('')).toBe('X');
-    expect(shActorKey('---')).toBe('X');
+  test('the sh mirror agrees on the alias corpus the digest exists to separate', () => {
+    // These are exactly the inputs whose BODIES collide. If `cksum` in the shell
+    // and posixCksum() in TS ever disagreed, they would collide in the hook and
+    // not in the daemon — an agent reading a neighbour's inbox on one surface
+    // only, which is the worst possible way for this to fail.
+    for (const raw of [
+      'agent-one',
+      'agent.one',
+      'agent_one',
+      `${'a'.repeat(64)}-x`,
+      `${'a'.repeat(64)}-y`,
+      'a'.repeat(64),
+      '你好',
+      'дневник',
+      '',
+      '---',
+      'x'.repeat(200),
+    ]) {
+      expect(shActorKey(raw)).toBe(actorKey(raw));
+    }
   });
 
-  test('the sh mirror reproduces the 80-character truncation', () => {
-    expect(shActorKey('x'.repeat(200))).toBe('X'.repeat(80));
+  test('the sh mirror reproduces the empty-input fallback body', () => {
+    expect(shActorKey('')).toBe(`X_${posixCksum('')}`);
+    expect(shActorKey('---')).toBe(`X_${posixCksum('---')}`);
+    expect(shActorKey('')).not.toBe(shActorKey('---'));
+  });
+
+  test('the sh mirror reproduces the body truncation', () => {
+    expect(shActorKey('x'.repeat(200))).toBe(
+      `${'X'.repeat(ACTOR_KEY_BODY_MAX)}_${posixCksum('x'.repeat(200))}`,
+    );
+  });
+
+  test('real cksum(1) agrees with posixCksum() — the digest parity gate', () => {
+    for (const raw of [...ACTOR_CORPUS, 'a-b', 'a.b', 'a_b', '日本語エージェント', 'ÿ']) {
+      const out = execFileSync('sh', ['-c', `printf '%s' "$1" | cksum | cut -d' ' -f1`, 'sh', raw], {
+        encoding: 'utf8',
+      }).trim();
+      expect(out).toBe(String(posixCksum(raw)));
+    }
   });
 });
 
@@ -398,12 +476,19 @@ describe('key builders and classification', () => {
   });
 
   test('builders produce the documented shapes', () => {
+    // Per-actor classes carry the actor's cksum digest after the readable body;
+    // the digest is what makes two ids that normalize alike land on two
+    // mailboxes. GLOBAL classes are keyed by subject alone and are unchanged —
+    // that split is deliberate (see the keySuffix docblock) and is asserted here
+    // so a future "consistency" pass cannot quietly reshape every lock key.
     expect(inboxKey('port-daddy:contrib:squid-1', 'msg-42')).toBe(
-      'PD_INBOX_PORT_DADDY_CONTRIB_SQUID_1__MSG_42',
+      `PD_INBOX_PORT_DADDY_CONTRIB_SQUID_1_${posixCksum('port-daddy:contrib:squid-1')}__MSG_42`,
     );
     expect(claimKey('lib/squid/matrix.ts')).toBe('PD_CLAIM_LIB_SQUID_MATRIX_TS');
     expect(ciKey('feat/squid-reconcile-loop')).toBe('PD_CI_FEAT_SQUID_RECONCILE_LOOP');
-    expect(parleyKey('sess.7', 'conv/aa-bb')).toBe('PD_PARLEY_SESS_7__CONV_AA_BB');
+    expect(parleyKey('sess.7', 'conv/aa-bb')).toBe(
+      `PD_PARLEY_SESS_7_${posixCksum('sess.7')}__CONV_AA_BB`,
+    );
     expect(accomplishmentKey('note:9')).toBe('PD_ACCOMPLISHMENT_NOTE_9');
   });
 
