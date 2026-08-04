@@ -126,13 +126,26 @@ import { createObservabilityMaintenance } from './lib/observability/maintenance.
 import { createDurableAgentRoster } from './lib/durable-agent-roster.js';
 import { createGalaxy } from './lib/galaxy.js';
 import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
-import { createDbIntegrityProofOutOfProcess } from './lib/db-integrity.js';
+import {
+  createAuthorizedDbIntegrityHelperProof,
+  createDbIntegrityProofOutOfProcess,
+} from './lib/db-integrity.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
 import { createDaemonCorsOptions } from './lib/daemon-cors.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
+
+// scripts/build-daemon-binary.mjs compiles server.ts directly, while the full
+// single binary enters through bin/port-daddy-bundle.ts. Both must terminate at
+// the same authorized read-only helper boundary. Without this early branch the
+// daemon-only artifact recursively booted and re-spawned __db_integrity_check.
+const dbIntegrityHelperProof = createAuthorizedDbIntegrityHelperProof();
+if (dbIntegrityHelperProof) {
+  console.log(JSON.stringify(dbIntegrityHelperProof));
+  process.exit(0);
+}
 
 // Shared utilities
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';

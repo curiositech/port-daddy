@@ -33,7 +33,7 @@ describe('single binary distribution path', () => {
     expect(bundle).toContain("process.argv[2] === '__daemon'");
     expect(bundle).toContain("process.argv[2] === 'start' && process.argv.includes('--foreground')");
     expect(bundle).toContain("process.argv[2] === '__db_integrity_check'");
-    expect(bundle).toContain('createDbIntegrityProof(dbPath)');
+    expect(bundle).toContain('createAuthorizedDbIntegrityHelperProof()');
     expect(bundle).toContain("await import('../server.js')");
     expect(bundle).toContain('PORT_DADDY_SUPPRESS_CLI_MAIN');
     expect(bundle).toContain("await import('./port-daddy-cli.ts')");
@@ -52,6 +52,23 @@ describe('single binary distribution path', () => {
     expect(server.indexOf('bosunHeartbeat.start();')).toBeLessThan(databaseOpen);
     expect(server.indexOf('await createDbIntegrityProofOutOfProcess(DB_PATH)')).toBeLessThan(databaseOpen);
     expect(server.indexOf('bosunHeartbeat.startProbing();')).toBeGreaterThan(listener);
+  });
+
+  test('daemon-only builds prove the hidden integrity helper before ordinary boot', () => {
+    const server = readFileSync(join(process.cwd(), 'server.ts'), 'utf8');
+    const helperBoundary = server.indexOf('const dbIntegrityHelperProof = createAuthorizedDbIntegrityHelperProof();');
+    const ordinaryBoot = server.indexOf('const STARTED_AT: number = Date.now();');
+    const builder = readFileSync(join(process.cwd(), 'scripts', 'build-daemon-binary.mjs'), 'utf8');
+
+    expect(helperBoundary).toBeGreaterThan(0);
+    expect(helperBoundary).toBeLessThan(ordinaryBoot);
+    expect(server.slice(helperBoundary, ordinaryBoot)).toContain('process.exit(0)');
+    expect(builder).toContain('const integrityHelperSmoke = smokeDbIntegrityHelper();');
+    expect(builder.indexOf('const integrityHelperSmoke = smokeDbIntegrityHelper();'))
+      .toBeLessThan(builder.indexOf("if (!args.has('--no-smoke'))"));
+    expect(builder).toContain("join(homedir(), 'coding', 'tmp')");
+    expect(builder).not.toContain('tmpdir');
+    expect(builder).toContain('integrityHelperSmoke,');
   });
 
   test('runs MCP in-process instead of shelling out through tsx', () => {

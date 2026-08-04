@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { arch, platform, tmpdir } from 'node:os';
+import { arch, homedir, platform } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
@@ -19,6 +19,7 @@ function run(command, commandArgs, options = {}) {
     encoding: 'utf8',
     stdio: options.stdio ?? 'pipe',
     env: { ...process.env, ...options.env },
+    timeout: options.timeout,
   });
   if (result.status !== 0) {
     const stderr = result.stderr?.trim();
@@ -80,7 +81,9 @@ async function smokePublicSamples(port) {
 
 async function smokeBinary() {
   const port = await reservePort();
-  const prefix = join(tmpdir(), `port-daddy-daemon-smoke-${process.pid}`);
+  const scratchRoot = join(homedir(), 'coding', 'tmp');
+  mkdirSync(scratchRoot, { recursive: true });
+  const prefix = join(scratchRoot, `port-daddy-daemon-smoke-${process.pid}`);
   rmSync(prefix, { recursive: true, force: true });
   mkdirSync(prefix, { recursive: true });
 
@@ -113,9 +116,56 @@ async function smokeBinary() {
   }
 }
 
+function smokeDbIntegrityHelper() {
+  const scratchRoot = join(homedir(), 'coding', 'tmp');
+  mkdirSync(scratchRoot, { recursive: true });
+  const root = join(scratchRoot, `port-daddy-integrity-smoke-${process.pid}`);
+  const dbPath = join(root, 'registry.db');
+  rmSync(root, { recursive: true, force: true });
+  mkdirSync(root, { recursive: true });
+  try {
+    run('bun', ['-e', [
+      'import { Database } from "bun:sqlite";',
+      'const db = new Database(process.env.PD_INTEGRITY_SMOKE_DB);',
+      'db.exec("CREATE TABLE smoke (id INTEGER PRIMARY KEY, value TEXT)");',
+      'db.query("INSERT INTO smoke(value) VALUES (?)").run("ok");',
+      'db.close();',
+    ].join(' ')], {
+      env: { PD_INTEGRITY_SMOKE_DB: dbPath },
+      timeout: 10_000,
+    });
+    const result = spawnSync(OUTFILE, ['__db_integrity_check', dbPath], {
+      cwd: ROOT_DIR,
+      encoding: 'utf8',
+      env: { ...process.env, PORT_DADDY_DB_INTEGRITY_CHILD: '1' },
+      timeout: 15_000,
+    });
+    if (result.status !== 0) {
+      const detail = result.error?.message || result.stderr?.trim() || `exit ${result.status ?? 'unknown'}`;
+      throw new Error(`daemon DB-integrity helper smoke failed: ${detail}`);
+    }
+    let proof;
+    try { proof = JSON.parse(result.stdout.trim()); }
+    catch (error) { throw new Error(`daemon DB-integrity helper emitted invalid JSON: ${error.message}`); }
+    if (proof?.schema !== 'port-daddy.db-integrity-proof.v1'
+      || proof?.result !== 'ok'
+      || resolve(proof?.dbPath || '') !== resolve(dbPath)) {
+      throw new Error('daemon DB-integrity helper returned an invalid proof');
+    }
+    return { result: proof.result, schema: proof.schema };
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 const bunVersion = run('bun', ['--version']).trim();
 mkdirSync(DIST_DIR, { recursive: true });
 run('bun', ['build', '--compile', 'server.ts', '--outfile', OUTFILE], { stdio: 'inherit' });
+
+// Always exercise the daemon-only artifact's hidden helper. `pd dev up` skips
+// the full HTTP smoke for speed, but must never skip the entrypoint that guards
+// a production-sized registry from recursive self-spawn.
+const integrityHelperSmoke = smokeDbIntegrityHelper();
 
 let smoke = null;
 if (!args.has('--no-smoke')) {
@@ -135,6 +185,7 @@ writeFileSync(MANIFEST, `${JSON.stringify({
   bunVersion,
   resourceRootEnv: 'PORT_DADDY_RESOURCE_DIR',
   sqliteBackend: 'bun:sqlite',
+  integrityHelperSmoke,
   smoke: smoke ? {
     status: smoke.health.status,
     pid: smoke.health.pid ?? null,

@@ -19,6 +19,9 @@ export interface DbIntegrityProof {
   files: DbFileStamp[];
 }
 
+export const DB_INTEGRITY_HELPER_ARG = '__db_integrity_check' as const;
+export const DB_INTEGRITY_CHILD_ENV = 'PORT_DADDY_DB_INTEGRITY_CHILD' as const;
+
 function stamp(path: string): DbFileStamp {
   try {
     const info = statSync(path);
@@ -99,6 +102,23 @@ export function createDbIntegrityProof(dbPath: string): DbIntegrityProof {
   };
 }
 
+/**
+ * Recognize the one authorized hidden helper invocation shared by both compiled
+ * entrypoints. Returning null means ordinary daemon/CLI startup. A malformed or
+ * externally forged helper invocation fails closed before any daemon boot work.
+ */
+export function createAuthorizedDbIntegrityHelperProof(
+  argv: readonly string[] = process.argv,
+  env: NodeJS.ProcessEnv = process.env,
+): DbIntegrityProof | null {
+  if (argv[2] !== DB_INTEGRITY_HELPER_ARG) return null;
+  const dbPath = argv[3];
+  if (!dbPath || env[DB_INTEGRITY_CHILD_ENV] !== '1') {
+    throw new Error('database integrity helper requires an authorized DB path');
+  }
+  return createDbIntegrityProof(dbPath);
+}
+
 /** Accept a proof only while the durable DB/WAL artifacts it covered remain. */
 export function isCurrentDbIntegrityProof(dbPath: string, proof: DbIntegrityProof | null | undefined): boolean {
   if (!proof || proof.schema !== 'port-daddy.db-integrity-proof.v1' || proof.result !== 'ok') return false;
@@ -119,17 +139,21 @@ function isCompiledBun(execPath: string, bunVersion: string | undefined): boolea
  */
 export async function createDbIntegrityProofOutOfProcess(
   dbPath: string,
-  options: { execPath?: string; bunVersion?: string } = {},
+  options: { execPath?: string; bunVersion?: string; env?: NodeJS.ProcessEnv } = {},
 ): Promise<DbIntegrityProof | null> {
   const canonical = resolve(dbPath);
   if (!existsSync(canonical)) return null;
   const execPath = options.execPath ?? process.execPath;
   const bunVersion = options.bunVersion ?? process.versions.bun;
+  const env = options.env ?? process.env;
   if (!isCompiledBun(execPath, bunVersion)) return null;
+  if (env[DB_INTEGRITY_CHILD_ENV] === '1') {
+    throw new Error('database integrity helper attempted recursive daemon boot');
+  }
 
   return await new Promise<DbIntegrityProof>((resolveProof, reject) => {
-    const child = spawn(execPath, ['__db_integrity_check', canonical], {
-      env: { ...process.env, PORT_DADDY_DB_INTEGRITY_CHILD: '1' },
+    const child = spawn(execPath, [DB_INTEGRITY_HELPER_ARG, canonical], {
+      env: { ...env, [DB_INTEGRITY_CHILD_ENV]: '1' },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     const stdout: Buffer[] = [];

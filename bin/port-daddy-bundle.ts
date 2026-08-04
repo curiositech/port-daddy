@@ -10,14 +10,13 @@ import '../dist/embedded-native-core.generated.js';
 
 process.env.PORT_DADDY_CAN_SELF_DAEMON = '1';
 
+// Keep ordinary CLI startup off the SQLite-heavy helper graph. The literal at
+// this dispatch boundary is intentionally duplicated; authorization and proof
+// construction remain centralized in lib/db-integrity.ts.
 const isDbIntegrityHelper = process.argv[2] === '__db_integrity_check';
 if (isDbIntegrityHelper) {
-  const dbPath = process.argv[3];
-  if (!dbPath || process.env.PORT_DADDY_DB_INTEGRITY_CHILD !== '1') {
-    throw new Error('database integrity helper requires an authorized DB path');
-  }
-  const { createDbIntegrityProof } = await import('../lib/db-integrity.js');
-  console.log(JSON.stringify(createDbIntegrityProof(dbPath)));
+  const { createAuthorizedDbIntegrityHelperProof } = await import('../lib/db-integrity.js');
+  console.log(JSON.stringify(createAuthorizedDbIntegrityHelperProof()));
 } else {
   try {
     const koffi = await import('koffi');
