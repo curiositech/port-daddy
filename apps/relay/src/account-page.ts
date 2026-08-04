@@ -396,6 +396,7 @@ export function renderAccountPage(user: UserRow): string {
       <div class="empty">
         <div class="e-title">Personal harbor only.</div>
         <p>Your local daemon is your personal harbor — you are the only authority and nothing leaves the machine unless you say so. Team and guest harbors (RBAC, scoped guest cards) surface here once membership is linked to your account.</p>
+        <p>Team harbors carry <strong>parleys</strong> — signed multi-party agreements with a deadline. List and sign yours at <span class="cmd">GET /v1/harbors/&lt;namespace&gt;/&lt;name&gt;/parleys</span> (member-gated; a rendered list lands here next).</p>
       </div>
     </section>
 

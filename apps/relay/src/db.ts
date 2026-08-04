@@ -1088,3 +1088,175 @@ export async function getUserByLogin(db: D1Database, login: string): Promise<Use
     .first<UserRow>();
   return row ?? null;
 }
+
+// ── Parleys (grand-plan X4 v1: signed multi-party agreements) ─────────────────
+//
+// A parley is an artifact: harbor + subject + proposer + deadline + a
+// three-state machine (open → agreed | lapsed). parley_positions holds one row
+// per participant identity; is_party=1 rows are NAMED parties whose signed
+// 'accept' is required for agreement, is_party=0 rows are reserved observers
+// (v1: the tier-labeled 'pd-mediator' seat, no auto-behavior). Signatures are
+// write-once (signParleyPosition CAS on signed_at IS NULL) and no route writes
+// to a non-open parley (resolveParleyState CAS on state='open').
+
+export type ParleyState = 'open' | 'agreed' | 'lapsed';
+export type ParleyPartyKind = 'user' | 'daemon' | 'mediator';
+export type ParleyStance = 'accept' | 'reject';
+
+export interface ParleyRow {
+  id: string;
+  harbor_id: string;
+  subject: string;
+  proposer_id: string;
+  proposer_label: string;
+  state: ParleyState;
+  deadline_at: number;
+  created_at: number;
+  resolved_at: number | null;
+}
+
+export interface ParleyPositionRow {
+  parley_id: string;
+  party_kind: ParleyPartyKind;
+  party_id: string;
+  party_label: string;
+  tier: string;
+  is_party: number;
+  stance: ParleyStance | null;
+  position: string | null;
+  signed_at: number | null;
+}
+
+export interface ParleyPartySeed {
+  kind: ParleyPartyKind;
+  id: string;
+  label: string;
+  tier: string;
+  isParty: boolean;
+}
+
+/**
+ * Create a parley plus ALL its position seats atomically (D1 batch — a parley
+ * whose named parties never landed could silently agree with nobody, so the
+ * rows must land together).
+ */
+export async function createParley(
+  db: D1Database,
+  p: {
+    id: string;
+    harborId: string;
+    subject: string;
+    proposerId: string;
+    proposerLabel: string;
+    deadlineAt: number;
+    createdAt: number;
+    parties: ParleyPartySeed[];
+  },
+): Promise<void> {
+  const stmts = [
+    db.prepare(
+      `INSERT INTO parleys (id, harbor_id, subject, proposer_id, proposer_label, state, deadline_at, created_at, resolved_at)
+       VALUES (?, ?, ?, ?, ?, 'open', ?, ?, NULL)`,
+    ).bind(p.id, p.harborId, p.subject, p.proposerId, p.proposerLabel, p.deadlineAt, p.createdAt),
+    ...p.parties.map((party) =>
+      db.prepare(
+        `INSERT INTO parley_positions (parley_id, party_kind, party_id, party_label, tier, is_party, stance, position, signed_at)
+         VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL)`,
+      ).bind(p.id, party.kind, party.id, party.label, party.tier, party.isParty ? 1 : 0),
+    ),
+  ];
+  await db.batch(stmts);
+}
+
+export async function getParley(db: D1Database, parleyId: string): Promise<ParleyRow | null> {
+  const row = await db
+    .prepare('SELECT * FROM parleys WHERE id = ?')
+    .bind(parleyId)
+    .first<ParleyRow>();
+  return row ?? null;
+}
+
+/** Parleys of a harbor, newest first (member-gated read). */
+export async function listParleys(db: D1Database, harborId: string, limit = 50): Promise<ParleyRow[]> {
+  const r = await db
+    .prepare('SELECT * FROM parleys WHERE harbor_id = ? ORDER BY created_at DESC, id DESC LIMIT ?')
+    .bind(harborId, limit)
+    .all<ParleyRow>();
+  return r.results ?? [];
+}
+
+/** All seats of a parley: named parties first, then observers, stable order. */
+export async function listParleyPositions(db: D1Database, parleyId: string): Promise<ParleyPositionRow[]> {
+  const r = await db
+    .prepare(
+      'SELECT * FROM parley_positions WHERE parley_id = ? ORDER BY is_party DESC, party_kind ASC, party_id ASC',
+    )
+    .bind(parleyId)
+    .all<ParleyPositionRow>();
+  return r.results ?? [];
+}
+
+/**
+ * Sign a named party's position — write-once, CAS on signed_at IS NULL AND
+ * is_party = 1. Returns true iff THIS call recorded the signature (false:
+ * already signed, or not a named-party seat).
+ */
+export async function signParleyPosition(
+  db: D1Database,
+  s: {
+    parleyId: string;
+    kind: ParleyPartyKind;
+    partyId: string;
+    stance: ParleyStance;
+    position: string | null;
+    signedAt: number;
+  },
+): Promise<boolean> {
+  const r = await db
+    .prepare(
+      `UPDATE parley_positions SET stance = ?, position = ?, signed_at = ?
+       WHERE parley_id = ? AND party_kind = ? AND party_id = ?
+         AND is_party = 1 AND signed_at IS NULL`,
+    )
+    .bind(s.stance, s.position, s.signedAt, s.parleyId, s.kind, s.partyId)
+    .run();
+  return (r.meta?.changes ?? 0) > 0;
+}
+
+/** Named parties who have NOT signed 'accept' yet (0 ⇒ agreement reached). */
+export async function countUnacceptedParties(db: D1Database, parleyId: string): Promise<number> {
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM parley_positions
+       WHERE parley_id = ? AND is_party = 1 AND (stance IS NULL OR stance != 'accept')`,
+    )
+    .bind(parleyId)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/**
+ * open → agreed | lapsed, CAS-guarded on state='open' so a non-open parley is
+ * immutable and concurrent resolvers elect exactly one winner. Returns true
+ * iff THIS caller performed the transition.
+ */
+export async function resolveParleyState(
+  db: D1Database,
+  t: { parleyId: string; state: 'agreed' | 'lapsed'; at: number },
+): Promise<boolean> {
+  const r = await db
+    .prepare("UPDATE parleys SET state = ?, resolved_at = ? WHERE id = ? AND state = 'open'")
+    .bind(t.state, t.at, t.parleyId)
+    .run();
+  return (r.meta?.changes ?? 0) > 0;
+}
+
+/** Lazy deadline sweep for one harbor: every expired open parley lapses. */
+export async function lapseExpiredParleys(db: D1Database, harborId: string, now: number): Promise<void> {
+  await db
+    .prepare(
+      "UPDATE parleys SET state = 'lapsed', resolved_at = ? WHERE harbor_id = ? AND state = 'open' AND deadline_at < ?",
+    )
+    .bind(now, harborId, now)
+    .run();
+}

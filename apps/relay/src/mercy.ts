@@ -509,6 +509,16 @@ export async function handleMercyStatus(env: Env): Promise<Response> {
   } catch {
     harborCount = null;
   }
+  // X4 mercy hook (v1 slice): the open-parley count rides alongside — same
+  // bounded single COUNT(*), fail-safe null. (The plan's summons-ack SLO and
+  // parley-fatigue metric are deferred with the mediator's real body.)
+  let openParleys: number | null = null;
+  try {
+    const c = await env.DB.prepare("SELECT COUNT(*) AS n FROM parleys WHERE state = 'open'").first<{ n: number }>();
+    openParleys = typeof c?.n === 'number' ? c.n : null;
+  } catch {
+    openParleys = null;
+  }
   if (!row) {
     return Response.json(
       {
@@ -523,6 +533,7 @@ export async function handleMercyStatus(env: Env): Promise<Response> {
         stale: true,
         subsystems: [],
         harbors: { count: harborCount },
+        parleys: { open: openParleys },
         note: 'no health snapshot available — the MERCY cron has not completed a sweep (or its table is unreadable)',
       },
       { headers: STATUS_HEADERS },
@@ -546,6 +557,7 @@ export async function handleMercyStatus(env: Env): Promise<Response> {
         latencyMs: s.latencyMs,
       })),
       harbors: { count: harborCount },
+      parleys: { open: openParleys },
     },
     { headers: STATUS_HEADERS },
   );

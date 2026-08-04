@@ -34,6 +34,10 @@
  *   GET  /v1/harbors/:namespace/:name/presence (member-gated; who is online + identity tier)
  *   PUT  /v1/harbors/:namespace/:name/helm     (owner-gated; set helm holder + succession)
  *   GET  /v1/harbors/:namespace/:name/helm     (member-gated; read helm — runs dead-man check)
+ *   POST /v1/harbors/:namespace/:name/parleys  (member-gated; convene a parley)
+ *   GET  /v1/harbors/:namespace/:name/parleys  (member-gated; list parleys — lazy expiry)
+ *   GET  /v1/harbors/:namespace/:name/parleys/:id          (member-gated; detail + positions)
+ *   POST /v1/harbors/:namespace/:name/parleys/:id/respond  (named-party-gated; sign a position)
  *   POST /v1/exchange                        (OIDC → PD card)
  *   POST /v1/revoke
  *   POST /v1/revoke-by-issuer               (operator; acceptance criterion #2)
@@ -107,6 +111,12 @@ import {
   handleSetHelm,
   handleGetHelm,
 } from './presence.js';
+import {
+  handleCreateParley,
+  handleListParleys,
+  handleGetParley,
+  handleRespondParley,
+} from './parleys.js';
 
 // Re-export Durable Object class for wrangler to pick up
 export { HarborChannel };
@@ -286,23 +296,33 @@ export default {
     }
     else if (pathname.startsWith('/v1/harbors/')) {
       // :name is the qualified `namespace/name` — namespace/name detail, or a
-      // sub-resource: /members (X2), /presence + /helm (X3, src/presence.ts).
+      // sub-resource: /members (X2), /presence + /helm (X3, src/presence.ts),
+      // /parleys[/:id[/respond]] (X4, src/parleys.ts).
       const parts = pathname.slice('/v1/harbors/'.length).split('/').map((p) => decodeURIComponent(p));
       const ns = parts[0];
       const name = parts[1];
-      const sub = parts.length === 3 ? parts[2] : undefined;
+      const sub = parts.length >= 3 ? parts[2] : undefined;
+      const parleyId = parts.length >= 4 ? parts[3] : undefined;
       if (ns && name && parts.length === 2 && method === 'GET') {
         response = await handleGetHarbor(request, env, ns, name);
-      } else if (ns && name && sub === 'members' && method === 'POST') {
+      } else if (ns && name && parts.length === 3 && sub === 'members' && method === 'POST') {
         response = await handleAddHarborMember(request, env, ns, name);
-      } else if (ns && name && sub === 'presence' && method === 'POST') {
+      } else if (ns && name && parts.length === 3 && sub === 'presence' && method === 'POST') {
         response = await handlePresenceBeat(request, env, ns, name);
-      } else if (ns && name && sub === 'presence' && method === 'GET') {
+      } else if (ns && name && parts.length === 3 && sub === 'presence' && method === 'GET') {
         response = await handleGetPresence(request, env, ns, name);
-      } else if (ns && name && sub === 'helm' && method === 'PUT') {
+      } else if (ns && name && parts.length === 3 && sub === 'helm' && method === 'PUT') {
         response = await handleSetHelm(request, env, ns, name);
-      } else if (ns && name && sub === 'helm' && method === 'GET') {
+      } else if (ns && name && parts.length === 3 && sub === 'helm' && method === 'GET') {
         response = await handleGetHelm(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'parleys' && method === 'POST') {
+        response = await handleCreateParley(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'parleys' && method === 'GET') {
+        response = await handleListParleys(request, env, ns, name);
+      } else if (ns && name && sub === 'parleys' && parleyId && parts.length === 4 && method === 'GET') {
+        response = await handleGetParley(request, env, ns, name, parleyId);
+      } else if (ns && name && sub === 'parleys' && parleyId && parts.length === 5 && parts[4] === 'respond' && method === 'POST') {
+        response = await handleRespondParley(request, env, ns, name, parleyId);
       } else {
         response = notFound();
       }
