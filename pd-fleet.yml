@@ -432,19 +432,19 @@ fleet:
     # stays advisory. The purser is OFF unless this entry is uncommented
     # (safe rollout) and runs AFTER the reviewer/ideation ships.
     #
-    # purser:
-    #   class: purser
-    #   trigger: pull_request:opened
-    #   model: '@cf/qwen/qwen3-30b-a3b-fp8'  # guarded: unknown ids remap to known-good
-    #   blocking: false            # true ⇒ sandbox-executed test FAILURES fail the gate
-    #   blockWithoutSandbox: false # true (+blocking) ⇒ fail-closed when tests could not
-    #                              # be executed; default false: never block on tests
-    #                              # that were never run
-    #   testPaths:                 # optional: authored tests must live under these
-    #     - tests/purser           # prefixes (also bounded by the global path whitelist)
-    #   graft:                     # optional on ANY ship: repo skill ids whose
-    #     - sandboxed-adversarial-test-harness   # skills/<id>/SKILL.md (trusted
-    #     - steel-man-argument     # branch only, ~6KB each, max 3) is prepended to
+    purser:
+      class: purser
+      trigger: pull_request:opened
+      model: '@cf/qwen/qwen3-30b-a3b-fp8'  # guarded: unknown ids remap to known-good
+      blocking: false            # true ⇒ sandbox-executed test FAILURES fail the gate
+      blockWithoutSandbox: false # true (+blocking) ⇒ fail-closed when tests could not
+                                 # be executed; default false: never block on tests
+                                 # that were never run
+      testPaths:                 # optional: authored tests must live under these
+        - tests/purser           # prefixes (also bounded by the global path whitelist)
+      graft:                     # optional on ANY ship: repo skill ids whose
+        - sandboxed-adversarial-test-harness   # skills/<id>/SKILL.md (trusted
+        - steel-man-argument     # branch only, ~6KB each, max 3) is prepended to
     #                              # the ship prompt as '## Grafted skill: <id>'.
     #                              # A purser with no graft list gets exactly these
     #                              # two by default; unknown ids are a transcript

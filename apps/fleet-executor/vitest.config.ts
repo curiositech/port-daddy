@@ -8,6 +8,14 @@ import { defineConfig } from 'vitest/config';
  * the zero-trust ref invariant, with GitHub + Workers AI mocked at the edges.
  */
 export default defineConfig({
+  resolve: {
+    alias: {
+      // The real SDK imports `cloudflare:` scheme modules that only exist in
+      // workerd; tests never execute a sandbox, they only need the symbol to
+      // resolve (src/index.ts re-exports the Sandbox DO class for wrangler).
+      '@cloudflare/sandbox': new URL('./tests/stubs/cloudflare-sandbox.ts', import.meta.url).pathname,
+    },
+  },
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],

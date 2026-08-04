@@ -80,18 +80,18 @@ database_id = "0907431b-9af0-48b5-b2b0-07e6b660bd41"
 #        export { Sandbox } from '@cloudflare/sandbox';
 #   3. Uncomment and adjust:
 #
-# [[containers]]
-# class_name = "Sandbox"
-# image = "./Dockerfile"
-# instance_type = "basic"
-#
-# [[durable_objects.bindings]]
-# name = "SANDBOX"
-# class_name = "Sandbox"
-#
-# [[migrations]]
-# tag = "v1-purser-sandbox"
-# new_sqlite_classes = ["Sandbox"]
+[[containers]]
+class_name = "Sandbox"
+image = "./Dockerfile"
+instance_type = "basic"
+
+[[durable_objects.bindings]]
+name = "SANDBOX"
+class_name = "Sandbox"
+
+[[migrations]]
+tag = "v1-purser-sandbox"
+new_sqlite_classes = ["Sandbox"]
 
 # ---------------------------------------------------------------------------
 # Queue consumer — one message per GitHub delivery, enqueued by relay.
