@@ -25,6 +25,7 @@ const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
 
 const runtimeFiles = [
   'manifest.json',
+  'daemon-endpoint.js',
   'background.js',
   'content-script.js',
   'popup.html',

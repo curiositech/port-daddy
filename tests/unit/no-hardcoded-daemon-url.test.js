@@ -60,6 +60,7 @@ const ENFORCED_PATH_PREFIXES = [
   'mcp/',
   'shared/',
   'apps/FleetBar/',  // active menu-bar app — ships with the daemon
+  'apps/pd-scout-extension/', // browser intake must consume a published endpoint
   'public/',          // web dashboard
   'fleet-config-ui/src/',
   'dashboard/',

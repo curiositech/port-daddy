@@ -4,12 +4,12 @@ Port Daddy Scout is the browser-side visual task intake. It turns the web page
 you are looking at into a Port Daddy visual task with a screenshot, optional
 region rectangle, and DOM clues when the page allows them.
 
-Scout is in preview. Today it runs as a Manifest V3 Chrome extension against the
-local Port Daddy daemon at:
-
-```text
-http://127.0.0.1:9876
-```
+Scout is in preview. It talks to the exact local endpoint published by the
+running Port Daddy daemon. It does not assume a port or scan loopback ports.
+The unpacked preview currently stores an explicitly connected endpoint in
+extension-local storage and fails closed when that endpoint is missing or stale.
+The Web Store release must replace that preview handoff with the signed native
+connector before it is promoted as a one-click operator flow.
 
 The customer install should be the Chrome Web Store, not a manual Developer Mode
 walkthrough. The preview package in this checkout is a Web Store-shaped ZIP plus
@@ -18,20 +18,15 @@ is pending.
 
 ## Preview install
 
-Start Port Daddy first:
-
-```bash
-pd setup
-pd status
-```
-
-Then load Scout in Chrome from the checkout:
+With Port Daddy running, load Scout in Chrome from the checkout:
 
 1. Open `chrome://extensions`.
 2. Turn on Developer mode.
 3. Click **Load unpacked**.
 4. Choose this folder: `apps/pd-scout-extension`.
 5. Open any ordinary web page and click the Scout toolbar icon.
+6. During the unpacked preview, connect the published local endpoint shown by
+   Port Daddy. Scout deliberately has no guessed fallback.
 
 Chrome blocks extension capture on browser-internal pages such as `chrome://`.
 Use a normal page when you test capture or region selection.
@@ -122,6 +117,7 @@ picker, or visual-task payload:
 
 ```bash
 node apps/pd-scout-extension/tests/scout-region-repro.mjs
+node apps/pd-scout-extension/tests/daemon-endpoint.selftest.mjs
 ```
 
 The script uses Playwright's bundled Chromium, serves a fixture web app, draws a

@@ -87,8 +87,8 @@
     </label>
 
     <label>
-      <span>Daemon</span>
-      <input id="daemonUrl" type="text" value="http://127.0.0.1:9876">
+      <span>Published daemon endpoint</span>
+      <input id="daemonUrl" type="url" inputmode="url" autocomplete="off" placeholder="Connect Scout from Port Daddy">
     </label>
 
     <label class="check">
@@ -102,6 +102,7 @@
     <button class="submit" id="submitIssue" type="button">Open issue</button>
     <p class="message" id="message"></p>
   </main>
+  <script src="daemon-endpoint.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

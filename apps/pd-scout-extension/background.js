@@ -1,5 +1,7 @@
-const DEFAULT_DAEMON_URL = 'http://127.0.0.1:9876';
+importScripts('daemon-endpoint.js');
+
 const LAST_CAPTURE_KEY = 'pdScoutLastCapture';
+const { normalizePublishedEndpoint } = PortDaddyScoutEndpoint;
 
 function chromePromise(fn) {
   return new Promise((resolve, reject) => {
@@ -175,7 +177,7 @@ async function uploadImageIfNeeded(daemonUrl, task) {
 }
 
 async function submitVisualTask(input) {
-  const daemonUrl = (input.daemonUrl || DEFAULT_DAEMON_URL).replace(/\/+$/, '');
+  const daemonUrl = normalizePublishedEndpoint(input.daemonUrl);
   const task = await uploadImageIfNeeded(daemonUrl, input.task);
   const res = await fetch(`${daemonUrl}/visual-tasks`, {
     method: 'POST',
