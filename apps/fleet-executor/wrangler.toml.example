@@ -65,6 +65,35 @@ database_name = "port-daddy-relay"
 database_id = "REPLACE_WITH_YOUR_RELAY_D1_DATABASE_ID"
 
 # ---------------------------------------------------------------------------
+# OPTIONAL — Cloudflare Sandboxes (Containers beta) for the purser ship.
+# NOT ENABLED: this block is documentation, not a live binding. When the
+# SANDBOX binding exists, the purser (src/purser.ts) executes its authored
+# adversarial tests against the PR head inside an isolated container and
+# reports REAL pass/fail. When absent (this default), src/sandbox-runner.ts
+# returns executed:false and the purser NEVER fabricates test results —
+# its verdict then follows the ship's blockWithoutSandbox flag (default:
+# advisory; never block on tests that were never run).
+#
+# To enable (requires the Containers beta on your account):
+#   1. npm i @cloudflare/sandbox   (and a Dockerfile per its README)
+#   2. export the Sandbox class from src/index.ts:
+#        export { Sandbox } from '@cloudflare/sandbox';
+#   3. Uncomment and adjust:
+#
+# [[containers]]
+# class_name = "Sandbox"
+# image = "./Dockerfile"
+# instance_type = "basic"
+#
+# [[durable_objects.bindings]]
+# name = "SANDBOX"
+# class_name = "Sandbox"
+#
+# [[migrations]]
+# tag = "v1-purser-sandbox"
+# new_sqlite_classes = ["Sandbox"]
+
+# ---------------------------------------------------------------------------
 # Queue consumer — one message per GitHub delivery, enqueued by relay.
 # A blocking ship that never completes must never leave a green/pending gate,
 # so after `max_retries` exhausted the message lands in the DLQ where a
