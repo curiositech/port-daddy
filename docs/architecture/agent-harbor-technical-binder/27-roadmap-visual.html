@@ -1,449 +1,1727 @@
-<style>
-  :root {
-    --ground: #eef2f6;
-    --surface: #ffffff;
-    --surface-2: #f4f7fa;
-    --ink: #0d1b28;
-    --ink-soft: #3d5163;
-    --muted: #64798c;
-    --hair: #d6dfe8;
-    --hair-strong: #b9c8d6;
-    --accent: #d2661d;
-    --accent-ink: #b4560f;
-    --shipped: #1f8f68;
-    --shipped-bg: #e0f1ea;
-    --partial: #a7791a;
-    --partial-bg: #f6ecd4;
-    --absent: #c0433d;
-    --absent-bg: #f7e2e0;
-    --keystone: #d2661d;
-    --shadow: 0 1px 2px rgba(13,27,40,.06), 0 8px 24px rgba(13,27,40,.06);
-    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, monospace;
-    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  }
-  @media (prefers-color-scheme: dark) {
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Operator-facing roadmap for Agent Harbor context, memory, compaction, and runtime wiring.">
+  <title>Agent Harbor · Context, memory &amp; runtime roadmap</title>
+  <style>
     :root {
-      --ground: #0a1420;
-      --surface: #101f2e;
-      --surface-2: #16273a;
-      --ink: #e7eef4;
-      --ink-soft: #b3c4d3;
-      --muted: #8298ab;
-      --hair: #21384d;
-      --hair-strong: #2e4863;
-      --accent: #ff9152;
-      --accent-ink: #ffab78;
-      --shipped: #46c393;
-      --shipped-bg: #10312a;
-      --partial: #e0b34a;
-      --partial-bg: #33290f;
-      --absent: #ec6a63;
-      --absent-bg: #35201f;
-      --keystone: #ff9152;
-      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.32);
+      color-scheme: light;
+      --ground: #edf2f6;
+      --surface: #ffffff;
+      --surface-raised: #f7f9fb;
+      --surface-accent: #fff7f1;
+      --ink: #0b1b2a;
+      --ink-soft: #344b5f;
+      --muted: #62798d;
+      --hair: #d2dde6;
+      --hair-strong: #aec0cf;
+      --accent: #cc5a12;
+      --accent-ink: #a94408;
+      --on-accent: #ffffff;
+      --shipped: #08785a;
+      --shipped-bg: #dff3eb;
+      --partial: #845900;
+      --partial-bg: #f8ebc8;
+      --absent: #b52d27;
+      --absent-bg: #f8dfdd;
+      --shadow-sm: 0 1px 2px rgba(11, 27, 42, 0.08);
+      --shadow-md: 0 14px 34px rgba(11, 27, 42, 0.08), 0 2px 5px rgba(11, 27, 42, 0.05);
+      --radius-sm: 0.55rem;
+      --radius-md: 0.85rem;
+      --radius-lg: 1.15rem;
+      --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --text-sm: clamp(0.875rem, 0.84rem + 0.15vw, 0.95rem);
+      --text-base: clamp(1rem, 0.96rem + 0.18vw, 1.075rem);
+      --text-lg: clamp(1.1rem, 1rem + 0.55vw, 1.35rem);
+      --space-1: clamp(0.5rem, 0.42rem + 0.35vw, 0.75rem);
+      --space-2: clamp(0.8rem, 0.68rem + 0.55vw, 1.15rem);
+      --space-3: clamp(1.15rem, 0.92rem + 0.9vw, 1.7rem);
+      --space-4: clamp(1.6rem, 1.15rem + 1.8vw, 2.8rem);
+      --space-5: clamp(2.4rem, 1.4rem + 3.4vw, 4.8rem);
     }
-  }
-  :root[data-theme="light"] {
-    --ground: #eef2f6; --surface: #ffffff; --surface-2: #f4f7fa;
-    --ink: #0d1b28; --ink-soft: #3d5163; --muted: #64798c; --hair: #d6dfe8; --hair-strong: #b9c8d6;
-    --accent: #d2661d; --accent-ink: #b4560f;
-    --shipped: #1f8f68; --shipped-bg: #e0f1ea; --partial: #a7791a; --partial-bg: #f6ecd4;
-    --absent: #c0433d; --absent-bg: #f7e2e0; --keystone: #d2661d;
-    --shadow: 0 1px 2px rgba(13,27,40,.06), 0 8px 24px rgba(13,27,40,.06);
-  }
-  :root[data-theme="dark"] {
-    --ground: #0a1420; --surface: #101f2e; --surface-2: #16273a;
-    --ink: #e7eef4; --ink-soft: #b3c4d3; --muted: #8298ab; --hair: #21384d; --hair-strong: #2e4863;
-    --accent: #ff9152; --accent-ink: #ffab78;
-    --shipped: #46c393; --shipped-bg: #10312a; --partial: #e0b34a; --partial-bg: #33290f;
-    --absent: #ec6a63; --absent-bg: #35201f; --keystone: #ff9152;
-    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.32);
-  }
 
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--ground); color: var(--ink);
-    font-family: var(--sans); font-size: 1.0625rem; line-height: 1.6;
-    -webkit-font-smoothing: antialiased; }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 clamp(1.1rem, 4vw, 2.4rem); }
-  .eyebrow { font-family: var(--mono); font-size: 0.76rem; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.16em; color: var(--accent-ink); }
-  h1,h2,h3 { text-wrap: balance; line-height: 1.15; margin: 0; }
-  a { color: var(--accent-ink); }
-  code, .mono { font-family: var(--mono); }
-  .card .body code, td code { white-space: nowrap; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --ground: #08121d;
+        --surface: #0e1d2b;
+        --surface-raised: #142536;
+        --surface-accent: #2b1b12;
+        --ink: #edf4f8;
+        --ink-soft: #bfd0dc;
+        --muted: #8fa6b8;
+        --hair: #233a4d;
+        --hair-strong: #35526b;
+        --accent: #ff9554;
+        --accent-ink: #ffb17e;
+        --on-accent: #1d0d03;
+        --shipped: #5fd0a7;
+        --shipped-bg: #10382e;
+        --partial: #efc35c;
+        --partial-bg: #3a2d0e;
+        --absent: #ff817b;
+        --absent-bg: #3d201f;
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.34);
+        --shadow-md: 0 16px 40px rgba(0, 0, 0, 0.32), 0 2px 5px rgba(0, 0, 0, 0.24);
+      }
+    }
 
-  /* ---- Header ---- */
-  header.top { border-bottom: 1px solid var(--hair); background: var(--surface);
-    position: sticky; top: 0; z-index: 5; backdrop-filter: blur(6px); }
-  .top-row { display: flex; align-items: center; justify-content: space-between;
-    gap: 1rem; padding: 0.85rem 0; flex-wrap: wrap; }
-  .brand { display: flex; align-items: baseline; gap: 0.6rem; font-family: var(--mono); }
-  .brand .mark { color: var(--accent); font-weight: 700; letter-spacing: 0.05em; }
-  .brand .ch { color: var(--muted); font-size: 0.85rem; }
-  .legend { display: flex; gap: 1rem; flex-wrap: wrap; font-family: var(--mono); font-size: 0.78rem; }
-  .legend span { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--ink-soft); }
-  .dot { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
-  .dot.s { background: var(--shipped); } .dot.p { background: var(--partial); } .dot.a { background: var(--absent); }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --ground: #08121d;
+      --surface: #0e1d2b;
+      --surface-raised: #142536;
+      --surface-accent: #2b1b12;
+      --ink: #edf4f8;
+      --ink-soft: #bfd0dc;
+      --muted: #8fa6b8;
+      --hair: #233a4d;
+      --hair-strong: #35526b;
+      --accent: #ff9554;
+      --accent-ink: #ffb17e;
+      --on-accent: #1d0d03;
+      --shipped: #5fd0a7;
+      --shipped-bg: #10382e;
+      --partial: #efc35c;
+      --partial-bg: #3a2d0e;
+      --absent: #ff817b;
+      --absent-bg: #3d201f;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.34);
+      --shadow-md: 0 16px 40px rgba(0, 0, 0, 0.32), 0 2px 5px rgba(0, 0, 0, 0.24);
+    }
 
-  /* ---- Hero ---- */
-  .hero { padding: clamp(2.2rem, 6vw, 4rem) 0 2rem; }
-  .hero-grid { display: grid; grid-template-columns: 1.55fr 1fr; gap: clamp(1.5rem, 4vw, 3rem); align-items: center; }
-  @media (max-width: 860px) { .hero-grid { grid-template-columns: 1fr; } }
-  h1 { font-size: clamp(2rem, 5.2vw, 3.2rem); letter-spacing: -0.02em; font-weight: 800; }
-  .lede { font-size: clamp(1.08rem, 2.2vw, 1.3rem); color: var(--ink-soft); margin-top: 1.1rem; max-width: 40ch; }
-  .keystone-callout { margin-top: 1.5rem; padding: 1rem 1.15rem; border-radius: 12px;
-    background: var(--surface); border: 1px solid var(--hair); border-left: 3px solid var(--keystone);
-    box-shadow: var(--shadow); }
-  .keystone-callout .k { font-family: var(--mono); font-size: 0.75rem; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.14em; color: var(--keystone); }
-  .keystone-callout p { margin: 0.4rem 0 0; font-size: 1rem; color: var(--ink); }
-  .keystone-callout code { color: var(--accent-ink); background: var(--surface-2); padding: 0.05em 0.35em; border-radius: 4px; }
+    :root[data-theme="light"] {
+      color-scheme: light;
+    }
 
-  /* ---- Pressure gauge ---- */
-  .gauge { background: var(--surface); border: 1px solid var(--hair); border-radius: 14px;
-    padding: 1.2rem 1.3rem; box-shadow: var(--shadow); }
-  .gauge h3 { font-family: var(--mono); font-size: 0.76rem; text-transform: uppercase;
-    letter-spacing: 0.12em; color: var(--muted); font-weight: 700; margin-bottom: 1rem; }
-  .gauge-body { display: flex; gap: 1.05rem; align-items: stretch; }
-  .col { position: relative; width: 42px; min-height: 250px; border-radius: 8px; overflow: hidden;
-    background: linear-gradient(to top, #2a9d6f 0%, #2a9d6f 50%, #c9a227 66%, #d98a2b 80%, #c0433d 92%, #c0433d 100%);
-    border: 1px solid var(--hair-strong); flex-shrink: 0; }
-  .col .fill { position: absolute; inset: 0; background: var(--surface); opacity: 0.82;
-    transform-origin: top; animation: drain 1.7s cubic-bezier(.4,0,.2,1) forwards; }
-  @keyframes drain { from { transform: scaleY(1); } to { transform: scaleY(0.06); } }
-  @media (prefers-reduced-motion: reduce) { .col .fill { animation: none; transform: scaleY(0.06); } }
-  .ladder { list-style: none; margin: 0; padding: 0; flex: 1;
-    display: flex; flex-direction: column; justify-content: space-between; gap: 0.7rem; }
-  .ladder li { display: block; }
-  .ladder .pct { display: block; font-family: var(--mono); font-weight: 700; font-size: 0.95rem;
-    color: var(--ink); font-variant-numeric: tabular-nums; }
-  .ladder .act { display: block; font-size: 0.9rem; color: var(--muted); line-height: 1.35; margin-top: 0.05rem; }
+    * {
+      box-sizing: border-box;
+    }
 
-  /* ---- Sections ---- */
-  section { padding: clamp(1.8rem, 4vw, 3rem) 0; border-top: 1px solid var(--hair); }
-  .sec-head { margin-bottom: 1.6rem; }
-  .sec-head h2 { font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 800; letter-spacing: -0.01em; margin-top: 0.4rem; }
-  .sec-head p { color: var(--ink-soft); margin: 0.6rem 0 0; max-width: 62ch; }
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 7rem;
+    }
 
-  /* ---- Status ribbon ---- */
-  .ribbon { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-  @media (max-width: 720px) { .ribbon { grid-template-columns: 1fr; } }
-  .stat { background: var(--surface); border: 1px solid var(--hair); border-radius: 12px; padding: 1.15rem 1.25rem; box-shadow: var(--shadow); }
-  .stat .n { font-family: var(--mono); font-size: 2.3rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
-  .stat.s .n { color: var(--shipped); } .stat.p .n { color: var(--partial); } .stat.a .n { color: var(--absent); }
-  .stat .lab { font-weight: 700; margin-top: 0.5rem; }
-  .stat .sub { color: var(--muted); font-size: 0.92rem; margin-top: 0.25rem; }
+    body {
+      margin: 0;
+      min-width: 20rem;
+      min-height: 100dvh;
+      overflow-wrap: anywhere;
+      background: var(--ground);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: var(--text-base);
+      line-height: 1.62;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
 
-  /* ---- Wave DAG ---- */
-  .wave { margin-bottom: 1.4rem; }
-  .wave-label { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.8rem; }
-  .wave-label .w { font-family: var(--mono); font-size: 0.76rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.12em; color: var(--surface); background: var(--accent); padding: 0.2rem 0.55rem; border-radius: 5px; }
-  .wave-label .desc { color: var(--muted); font-size: 0.92rem; font-family: var(--mono); }
-  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.9rem; }
-  .card { background: var(--surface); border: 1px solid var(--hair); border-radius: 12px; padding: 0.95rem 1.05rem;
-    box-shadow: var(--shadow); border-top: 3px solid var(--st, var(--hair-strong)); display: flex; flex-direction: column; gap: 0.5rem; }
-  .card.keystone { box-shadow: 0 0 0 2px var(--keystone), var(--shadow); }
-  .card .id-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-  .card .id { font-family: var(--mono); font-weight: 800; font-size: 1.05rem; color: var(--accent-ink); }
-  .card .title { font-weight: 700; font-size: 1rem; line-height: 1.3; }
-  .card .body { font-size: 0.92rem; color: var(--ink-soft); }
-  .card .meta { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: auto; padding-top: 0.3rem; }
-  .chip { font-family: var(--mono); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em;
-    padding: 0.15rem 0.45rem; border-radius: 5px; text-transform: uppercase; }
-  .chip.state-unwired { background: var(--partial-bg); color: var(--partial); }
-  .chip.state-absent { background: var(--absent-bg); color: var(--absent); }
-  .chip.state-partial { background: var(--partial-bg); color: var(--partial); }
-  .chip.needs { background: var(--surface-2); color: var(--muted); }
-  .chip.ks { background: var(--keystone); color: var(--surface); }
-  .card.st-unwired { --st: var(--partial); } .card.st-absent { --st: var(--absent); } .card.st-partial { --st: var(--partial); }
+    a {
+      color: var(--accent-ink);
+      text-decoration-thickness: 0.09em;
+      text-underline-offset: 0.18em;
+    }
 
-  /* ---- Topics table ---- */
-  .table-scroll { overflow-x: auto; border: 1px solid var(--hair); border-radius: 12px; box-shadow: var(--shadow); }
-  table { border-collapse: collapse; width: 100%; min-width: 720px; background: var(--surface); }
-  th, td { text-align: left; padding: 0.8rem 1rem; border-bottom: 1px solid var(--hair); vertical-align: top; }
-  th { font-family: var(--mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em;
-    color: var(--muted); font-weight: 700; background: var(--surface-2); position: sticky; top: 0; }
-  tbody tr:last-child td { border-bottom: none; }
-  td .topic { font-weight: 700; }
-  td.state { white-space: nowrap; }
-  .pill { display: inline-flex; align-items: center; gap: 0.35rem; font-family: var(--mono); font-size: 0.76rem;
-    font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 20px; }
-  .pill.s { background: var(--shipped-bg); color: var(--shipped); }
-  .pill.p { background: var(--partial-bg); color: var(--partial); }
-  .pill.a { background: var(--absent-bg); color: var(--absent); }
-  td .next { color: var(--ink-soft); font-size: 0.92rem; }
-  td code { font-size: 0.86em; color: var(--accent-ink); }
+    a:hover {
+      color: var(--accent);
+    }
 
-  /* ---- Steal list ---- */
-  .steal { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.9rem; }
-  .steal-card { background: var(--surface); border: 1px solid var(--hair); border-radius: 12px; padding: 1.05rem 1.15rem; box-shadow: var(--shadow); }
-  .steal-card .src { font-family: var(--mono); font-size: 0.78rem; font-weight: 700; color: var(--accent-ink); }
-  .steal-card .mech { margin: 0.4rem 0; font-size: 0.95rem; }
-  .steal-card .maps { font-size: 0.85rem; color: var(--muted); border-top: 1px dashed var(--hair-strong); padding-top: 0.5rem; }
-  .steal-card .maps b { color: var(--ink-soft); font-family: var(--mono); }
-  .invariants { margin-top: 1.4rem; background: var(--surface); border: 1px solid var(--hair);
-    border-radius: 12px; padding: 1.2rem 1.4rem; box-shadow: var(--shadow); }
-  .invariants h3 { font-family: var(--mono); font-size: 0.78rem; text-transform: uppercase;
-    letter-spacing: 0.12em; color: var(--muted); font-weight: 700; margin-bottom: 0.9rem; }
-  .invariants ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.6rem; }
-  .invariants li { font-size: 0.96rem; color: var(--ink-soft); line-height: 1.5; }
-  .invariants li b { color: var(--ink); }
+    a:focus-visible,
+    button:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 3px;
+    }
 
-  /* ---- Decisions ---- */
-  .decisions { display: flex; flex-direction: column; gap: 0.7rem; }
-  .decision { display: flex; gap: 0.9rem; background: var(--surface); border: 1px solid var(--hair);
-    border-radius: 10px; padding: 0.9rem 1.1rem; box-shadow: var(--shadow); align-items: baseline; }
-  .decision .oid { font-family: var(--mono); font-weight: 800; color: var(--accent-ink); flex-shrink: 0; }
-  .decision p { margin: 0; font-size: 0.96rem; }
+    button,
+    a {
+      -webkit-tap-highlight-color: transparent;
+    }
 
-  footer { padding: 2.4rem 0 3rem; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--hair); }
-  footer .mono { color: var(--ink-soft); }
-</style>
+    button {
+      font: inherit;
+    }
 
-<header class="top">
-  <div class="wrap top-row">
-    <div class="brand"><span class="mark">PORT DADDY</span><span class="ch">binder ch. 27 · context, memory &amp; runtime wiring</span></div>
-    <div class="legend">
-      <span><i class="dot s"></i> shipped / wired</span>
-      <span><i class="dot p"></i> built · unwired / partial</span>
-      <span><i class="dot a"></i> absent / design-only</span>
+    code,
+    .mono {
+      font-family: var(--mono);
+    }
+
+    code {
+      padding: 0.05em 0.32em;
+      border-radius: 0.3rem;
+      background: var(--surface-raised);
+      color: var(--accent-ink);
+      font-size: 0.9em;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1,
+    h2,
+    h3 {
+      line-height: 1.12;
+      letter-spacing: -0.025em;
+    }
+
+    h1 {
+      max-width: 17ch;
+      margin-bottom: 0;
+      font-size: clamp(2.35rem, 1.55rem + 4vw, 4.85rem);
+      font-weight: 820;
+    }
+
+    h2 {
+      margin: 0.35rem 0 0;
+      font-size: clamp(1.65rem, 1.25rem + 1.65vw, 2.6rem);
+      font-weight: 800;
+    }
+
+    h3 {
+      font-size: 1.08rem;
+      font-weight: 760;
+    }
+
+    @supports (text-wrap: balance) {
+      h1,
+      h2,
+      h3 {
+        text-wrap: balance;
+      }
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    .wrap {
+      width: min(calc(100% - 2rem), 72rem);
+      margin-inline: auto;
+    }
+
+    .skip-link {
+      position: fixed;
+      top: 0.65rem;
+      left: 0.65rem;
+      z-index: 100;
+      padding: 0.65rem 0.9rem;
+      transform: translateY(-160%);
+      border-radius: var(--radius-sm);
+      background: var(--ink);
+      color: var(--surface);
+      font-weight: 750;
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    .top {
+      z-index: 20;
+      border-bottom: 1px solid var(--hair);
+      background: color-mix(in srgb, var(--surface) 95%, transparent);
+    }
+
+    .top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      min-height: 4rem;
+      padding-block: 0.55rem;
+    }
+
+    .brand {
+      display: inline-flex;
+      min-height: 2.75rem;
+      align-items: center;
+      gap: 0.6rem;
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .brand-mark {
+      font-family: var(--mono);
+      font-size: 0.84rem;
+      font-weight: 850;
+      letter-spacing: 0.13em;
+      color: var(--accent-ink);
+    }
+
+    .brand-chapter {
+      display: none;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .theme-toggle {
+      min-height: 2.75rem;
+      min-width: 2.75rem;
+      padding: 0.55rem 0.75rem;
+      cursor: pointer;
+      border: 1px solid var(--hair-strong);
+      border-radius: var(--radius-sm);
+      background: var(--surface-raised);
+      color: var(--ink-soft);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 760;
+      transition: border-color 180ms ease, color 180ms ease, background 180ms ease;
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--accent);
+      color: var(--accent-ink);
+    }
+
+    .section-nav {
+      display: flex;
+      gap: 0.25rem;
+      overflow-x: auto;
+      padding: 0 0 0.55rem;
+      scrollbar-width: none;
+    }
+
+    .section-nav::-webkit-scrollbar {
+      display: none;
+    }
+
+    .section-nav a {
+      display: inline-flex;
+      min-height: 2.75rem;
+      flex: 0 0 auto;
+      align-items: center;
+      padding: 0.45rem 0.75rem;
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 720;
+      text-decoration: none;
+      transition: background 180ms ease, color 180ms ease;
+    }
+
+    .section-nav a:hover {
+      background: var(--surface-raised);
+      color: var(--ink);
+    }
+
+    .eyebrow {
+      display: block;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 820;
+      line-height: 1.4;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent-ink);
+    }
+
+    .hero .eyebrow {
+      margin-bottom: 0.7rem;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding-block: var(--space-5);
+      border-bottom: 1px solid var(--hair);
+      background:
+        radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 27rem),
+        var(--ground);
+    }
+
+    .hero-grid {
+      display: grid;
+      gap: var(--space-4);
+      align-items: center;
+    }
+
+    .lede {
+      max-width: 46ch;
+      margin: var(--space-2) 0 0;
+      color: var(--ink-soft);
+      font-size: var(--text-lg);
+      line-height: 1.55;
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: var(--space-3);
+    }
+
+    .meta-tag {
+      display: inline-flex;
+      min-height: 2rem;
+      align-items: center;
+      padding: 0.3rem 0.58rem;
+      border: 1px solid var(--hair);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--ink-soft);
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 750;
+    }
+
+    .keystone-callout {
+      display: grid;
+      grid-template-columns: 2rem 1fr;
+      gap: 0.75rem;
+      margin-top: var(--space-3);
+      padding: var(--space-2);
+      border: 1px solid var(--hair);
+      border-left: 4px solid var(--accent);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      box-shadow: var(--shadow-md);
+    }
+
+    .keystone-icon {
+      display: grid;
+      width: 2rem;
+      height: 2rem;
+      place-items: center;
+      border-radius: 0.45rem;
+      background: var(--surface-accent);
+      color: var(--accent-ink);
+    }
+
+    .keystone-icon svg {
+      width: 1.1rem;
+      height: 1.1rem;
+    }
+
+    .keystone-callout .k {
+      display: block;
+      margin-bottom: 0.35rem;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 820;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      color: var(--accent-ink);
+    }
+
+    .keystone-callout p {
+      margin: 0;
+      color: var(--ink);
+    }
+
+    .gauge {
+      margin: 0;
+      padding: var(--space-3);
+      border: 1px solid var(--hair);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      box-shadow: var(--shadow-md);
+    }
+
+    .gauge-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .gauge-head h2 {
+      margin: 0;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      font-weight: 820;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .gauge-head span {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .gauge-track {
+      height: 1rem;
+      margin-bottom: 1rem;
+      border: 1px solid var(--hair-strong);
+      border-radius: 999px;
+      background: linear-gradient(to right, #2a9d6f 0 60%, #c9a227 60% 75%, #d98a2b 75% 85%, #c0433d 85% 100%);
+    }
+
+    .ladder {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.8rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .ladder li {
+      min-width: 0;
+      padding-left: 0.7rem;
+      border-left: 2px solid var(--hair-strong);
+    }
+
+    .ladder .pct {
+      display: block;
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 0.95rem;
+      font-weight: 820;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .ladder .act {
+      display: block;
+      margin-top: 0.12rem;
+      color: var(--muted);
+      font-size: var(--text-sm);
+      line-height: 1.42;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr));
+      gap: 0.65rem;
+      margin-top: var(--space-3);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      color: var(--ink-soft);
+      font-size: var(--text-sm);
+      font-weight: 650;
+    }
+
+    .status-mark {
+      width: 0.78rem;
+      height: 0.78rem;
+      flex: 0 0 auto;
+      border-radius: 0.2rem;
+      background: var(--status);
+    }
+
+    .status-mark.shipped { --status: var(--shipped); }
+    .status-mark.partial { --status: var(--partial); }
+    .status-mark.absent { --status: var(--absent); }
+
+    section {
+      padding-block: var(--space-5);
+      border-bottom: 1px solid var(--hair);
+      scroll-margin-top: 7rem;
+    }
+
+    .section-head {
+      display: grid;
+      gap: 0.45rem;
+      margin-bottom: var(--space-3);
+    }
+
+    .section-head p {
+      max-width: 69ch;
+      margin: 0.2rem 0 0;
+      color: var(--ink-soft);
+    }
+
+    .section-link {
+      width: fit-content;
+      margin-top: 0.35rem;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      font-weight: 730;
+    }
+
+    .snapshot-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
+      gap: 0.9rem;
+    }
+
+    .stat {
+      min-width: 0;
+      padding: var(--space-2);
+      border: 1px solid var(--hair);
+      border-top: 4px solid var(--status);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .stat.shipped { --status: var(--shipped); }
+    .stat.partial { --status: var(--partial); }
+    .stat.absent { --status: var(--absent); }
+
+    .stat .number {
+      color: var(--status);
+      font-family: var(--mono);
+      font-size: 2.35rem;
+      font-weight: 850;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat .label {
+      margin-top: 0.55rem;
+      font-weight: 780;
+    }
+
+    .stat .detail {
+      margin: 0.3rem 0 0;
+      color: var(--muted);
+      font-size: var(--text-sm);
+      line-height: 1.48;
+    }
+
+    .evidence-note {
+      margin-top: var(--space-3);
+      padding: 0.85rem 1rem;
+      border-left: 3px solid var(--hair-strong);
+      background: color-mix(in srgb, var(--surface) 60%, transparent);
+      color: var(--ink-soft);
+      font-size: var(--text-sm);
+    }
+
+    .critical-path-wrap {
+      margin-bottom: var(--space-4);
+      padding: var(--space-2);
+      border: 1px solid var(--hair);
+      border-radius: var(--radius-lg);
+      background: var(--surface-raised);
+    }
+
+    .critical-path-title {
+      margin: 0 0 0.9rem;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 820;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .critical-path {
+      display: grid;
+      gap: 0;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .critical-path li {
+      position: relative;
+      display: grid;
+      min-height: 3.5rem;
+      grid-template-columns: 2.8rem 1fr;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.5rem 0 0.5rem 0.8rem;
+      border-left: 2px solid var(--hair-strong);
+      color: var(--ink-soft);
+      font-size: var(--text-sm);
+      font-weight: 680;
+    }
+
+    .critical-path li::before {
+      position: absolute;
+      left: -0.38rem;
+      width: 0.65rem;
+      height: 0.65rem;
+      border: 2px solid var(--surface-raised);
+      border-radius: 50%;
+      background: var(--accent);
+      content: "";
+    }
+
+    .critical-path .step {
+      color: var(--accent-ink);
+      font-family: var(--mono);
+      font-weight: 850;
+    }
+
+    .wave-stack {
+      display: grid;
+      gap: var(--space-3);
+    }
+
+    .wave {
+      display: grid;
+      gap: 0.85rem;
+    }
+
+    .wave-label {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: start;
+      gap: 0.7rem;
+    }
+
+    .wave-label .number {
+      display: inline-flex;
+      min-height: 2rem;
+      align-items: center;
+      padding: 0.25rem 0.6rem;
+      border-radius: 0.38rem;
+      background: var(--accent);
+      color: var(--on-accent);
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 850;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .wave-label .description {
+      padding-top: 0.15rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      line-height: 1.45;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
+      gap: 0.85rem;
+      container-type: inline-size;
+    }
+
+    .card {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      gap: 0.55rem;
+      padding: 1rem;
+      border: 1px solid var(--hair);
+      border-top: 3px solid var(--status, var(--hair-strong));
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card.shipped { --status: var(--shipped); }
+    .card.partial { --status: var(--partial); }
+    .card.absent { --status: var(--absent); }
+
+    .card.keystone {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent), var(--shadow-md);
+    }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.55rem;
+    }
+
+    .card-id {
+      color: var(--accent-ink);
+      font-family: var(--mono);
+      font-size: 1rem;
+      font-weight: 850;
+    }
+
+    .card-title {
+      color: var(--ink);
+      font-size: 1rem;
+      font-weight: 780;
+      line-height: 1.35;
+    }
+
+    .card-body {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: var(--text-sm);
+      line-height: 1.52;
+    }
+
+    .card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: auto;
+      padding-top: 0.25rem;
+    }
+
+    .chip,
+    .pill {
+      display: inline-flex;
+      min-height: 1.7rem;
+      align-items: center;
+      padding: 0.22rem 0.5rem;
+      border-radius: 999px;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 820;
+      line-height: 1.2;
+      letter-spacing: 0.055em;
+      text-transform: uppercase;
+    }
+
+    .chip.shipped,
+    .pill.shipped {
+      background: var(--shipped-bg);
+      color: var(--shipped);
+    }
+
+    .chip.partial,
+    .pill.partial {
+      background: var(--partial-bg);
+      color: var(--partial);
+    }
+
+    .chip.absent,
+    .pill.absent {
+      background: var(--absent-bg);
+      color: var(--absent);
+    }
+
+    .chip.needs {
+      background: var(--surface-raised);
+      color: var(--muted);
+    }
+
+    .chip.keystone {
+      background: var(--accent);
+      color: var(--on-accent);
+    }
+
+    .matrix {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 0.75rem;
+    }
+
+    .matrix thead {
+      display: none;
+    }
+
+    .matrix tbody,
+    .matrix tr,
+    .matrix td {
+      display: block;
+      width: 100%;
+    }
+
+    .matrix tr {
+      overflow: hidden;
+      border: 1px solid var(--hair);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .matrix td {
+      display: grid;
+      grid-template-columns: minmax(6.8rem, 0.42fr) 1fr;
+      gap: 0.75rem;
+      padding: 0.75rem 0.9rem;
+      border-bottom: 1px solid var(--hair);
+      color: var(--ink-soft);
+      font-size: var(--text-sm);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .matrix td:last-child {
+      border-bottom: 0;
+    }
+
+    .matrix td::before {
+      content: attr(data-label);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 820;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    .matrix .topic {
+      color: var(--ink);
+      font-weight: 780;
+    }
+
+    .matrix .next strong {
+      color: var(--ink);
+    }
+
+    .pattern-grid,
+    .hardening-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+      gap: 0.85rem;
+    }
+
+    .pattern-card,
+    .hardening-card {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      padding: 1rem;
+      border: 1px solid var(--hair);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .pattern-card h3,
+    .hardening-card h3 {
+      margin: 0;
+      color: var(--accent-ink);
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      font-weight: 840;
+      letter-spacing: 0.03em;
+    }
+
+    .pattern-card p,
+    .hardening-card p {
+      margin: 0.55rem 0 0;
+      color: var(--ink-soft);
+      font-size: var(--text-sm);
+      line-height: 1.5;
+    }
+
+    .pattern-card footer,
+    .hardening-card footer {
+      margin-top: auto;
+      padding-top: 0.8rem;
+      border-top: 1px dashed var(--hair-strong);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      line-height: 1.45;
+    }
+
+    .pattern-card footer {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 0.45rem;
+    }
+
+    .pattern-card footer a {
+      font-weight: 760;
+    }
+
+    .invariants {
+      margin-top: var(--space-3);
+      padding: var(--space-3);
+      border: 1px solid var(--hair);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .invariants h3 {
+      margin: 0 0 0.9rem;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 820;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .invariants ul {
+      display: grid;
+      gap: 0.7rem;
+      margin: 0;
+      padding-left: 1.15rem;
+    }
+
+    .invariants li {
+      padding-left: 0.25rem;
+      color: var(--ink-soft);
+      font-size: var(--text-sm);
+      line-height: 1.5;
+    }
+
+    .invariants strong {
+      color: var(--ink);
+    }
+
+    .decisions {
+      display: grid;
+      gap: 0.7rem;
+    }
+
+    .decision {
+      display: grid;
+      grid-template-columns: 2.6rem 1fr;
+      gap: 0.75rem;
+      align-items: start;
+      padding: 0.9rem 1rem;
+      border: 1px solid var(--hair);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .decision-id {
+      color: var(--accent-ink);
+      font-family: var(--mono);
+      font-weight: 850;
+    }
+
+    .decision p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: var(--text-sm);
+    }
+
+    .page-footer {
+      padding-block: var(--space-4);
+      background: var(--surface);
+      color: var(--muted);
+      font-size: var(--text-sm);
+    }
+
+    .page-footer p {
+      max-width: 76ch;
+      margin: 0.35rem 0 0;
+    }
+
+    .page-footer .mono {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 0.78rem;
+    }
+
+    @media (min-width: 40rem) {
+      .wrap {
+        width: min(calc(100% - 3rem), 72rem);
+      }
+
+      .hero-meta {
+        gap: 0.65rem;
+      }
+
+      .matrix td {
+        grid-template-columns: minmax(8rem, 0.32fr) 1fr;
+      }
+    }
+
+    @media (min-width: 48rem) {
+      .table-shell {
+        overflow-x: auto;
+        border: 1px solid var(--hair);
+        border-radius: var(--radius-lg);
+        background: var(--surface);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .matrix {
+        min-width: 45rem;
+        border-collapse: collapse;
+        border-spacing: 0;
+      }
+
+      .matrix thead {
+        display: table-header-group;
+      }
+
+      .matrix tbody {
+        display: table-row-group;
+      }
+
+      .matrix tr {
+        display: table-row;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      .matrix th,
+      .matrix td {
+        display: table-cell;
+        width: auto;
+        padding: 0.85rem 1rem;
+        border-bottom: 1px solid var(--hair);
+      }
+
+      .matrix th {
+        position: sticky;
+        top: 0;
+        background: var(--surface-raised);
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        font-weight: 820;
+        letter-spacing: 0.09em;
+        text-align: left;
+        text-transform: uppercase;
+      }
+
+      .matrix tbody tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .matrix td::before {
+        display: none;
+      }
+
+      .matrix th:nth-child(1) { width: 19%; }
+      .matrix th:nth-child(2) { width: 19%; }
+      .matrix th:nth-child(3) { width: 62%; }
+    }
+
+    @media (min-width: 60rem) {
+      .top {
+        position: sticky;
+        top: 0;
+        backdrop-filter: blur(14px);
+      }
+
+      .top .wrap {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 1rem;
+        align-items: center;
+      }
+
+      .top-row {
+        display: contents;
+      }
+
+      .brand {
+        grid-column: 1;
+        grid-row: 1;
+      }
+
+      .section-nav {
+        grid-column: 2;
+        grid-row: 1;
+      }
+
+      .theme-toggle {
+        grid-column: 3;
+        grid-row: 1;
+      }
+
+      .section-nav {
+        justify-content: center;
+        padding: 0;
+      }
+
+      .hero-grid {
+        grid-template-columns: minmax(0, 1.45fr) minmax(20rem, 0.8fr);
+      }
+
+      .gauge-track {
+        height: 1.15rem;
+      }
+
+      .critical-path {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 0.55rem;
+      }
+
+      .critical-path li {
+        min-height: 5.6rem;
+        grid-template-columns: 1fr;
+        align-content: center;
+        gap: 0.15rem;
+        padding: 0.75rem;
+        border: 1px solid var(--hair);
+        border-top: 3px solid var(--accent);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
+        text-align: center;
+      }
+
+      .critical-path li::before {
+        display: none;
+      }
+
+      .critical-path li:not(:last-child)::after {
+        position: absolute;
+        top: 50%;
+        right: -0.66rem;
+        z-index: 2;
+        width: 0.7rem;
+        height: 0.7rem;
+        transform: translateY(-50%) rotate(45deg);
+        border-top: 2px solid var(--accent);
+        border-right: 2px solid var(--accent);
+        content: "";
+      }
+
+      .wave {
+        grid-template-columns: 9.5rem minmax(0, 1fr);
+        gap: 1rem;
+        align-items: start;
+      }
+
+      .wave-label {
+        position: sticky;
+        top: 5.2rem;
+        grid-template-columns: 1fr;
+        gap: 0.45rem;
+      }
+    }
+
+    @media (min-width: 70rem) {
+      .brand-chapter {
+        display: inline;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
+
+    @media print {
+      :root,
+      :root[data-theme="dark"] {
+        color-scheme: light;
+        --ground: #ffffff;
+        --surface: #ffffff;
+        --surface-raised: #f6f7f8;
+        --surface-accent: #fff7f1;
+        --ink: #0b1b2a;
+        --ink-soft: #344b5f;
+        --muted: #53697c;
+        --hair: #cbd5dc;
+        --hair-strong: #9cafbd;
+        --accent: #a94408;
+        --accent-ink: #8f3905;
+        --on-accent: #ffffff;
+        --shipped: #08654d;
+        --shipped-bg: #e5f3ed;
+        --partial: #6f4a00;
+        --partial-bg: #f7edcf;
+        --absent: #962722;
+        --absent-bg: #f7e3e1;
+        --shadow-sm: none;
+        --shadow-md: none;
+      }
+
+      body {
+        min-width: 0;
+        background: #ffffff;
+        font-size: 10.5pt;
+      }
+
+      .top,
+      .theme-toggle,
+      .section-nav,
+      .skip-link {
+        display: none !important;
+      }
+
+      .wrap {
+        width: 100%;
+      }
+
+      .hero,
+      section,
+      .page-footer {
+        padding-block: 1.1rem;
+      }
+
+      .hero-grid {
+        grid-template-columns: 1.3fr 0.7fr;
+      }
+
+      .card,
+      .stat,
+      .pattern-card,
+      .hardening-card,
+      .decision,
+      .invariants,
+      .gauge,
+      .critical-path-wrap {
+        break-inside: avoid;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to roadmap</a>
+
+  <header class="top">
+    <div class="wrap">
+      <div class="top-row">
+        <a class="brand" href="./27-context-memory-runtime-wiring.md" aria-label="Open chapter 27 source">
+          <span class="brand-mark">PORT DADDY</span>
+          <span class="brand-chapter">binder ch. 27 · context, memory &amp; runtime</span>
+        </a>
+        <button class="theme-toggle" type="button" data-theme-toggle hidden>Theme: system</button>
+      </div>
+      <nav class="section-nav" aria-label="Roadmap sections">
+        <a href="#status">Status</a>
+        <a href="#wiring">Wiring</a>
+        <a href="#matrix">Matrix</a>
+        <a href="#patterns">Patterns</a>
+        <a href="#hardening">Hardening</a>
+        <a href="#decisions">Decisions</a>
+      </nav>
     </div>
-  </div>
-</header>
+  </header>
 
-<div class="wrap">
-  <div class="hero">
-    <div class="hero-grid">
-      <div>
-        <span class="eyebrow">Roadmap of record · 2026-07-23</span>
-        <h1>The machinery is built. It was never plugged in.</h1>
-        <p class="lede">Salvage, checkpoints, transcripts, compaction, briefings, context economics, and subagent splitting are one story — and they all wait on a single missing pipe.</p>
-        <div class="keystone-callout">
-          <span class="k">▲ The keystone</span>
-          <p>Nothing emits a schema-valid <code>ContextEnvelope</code> on agent heartbeats. That one signal is what would tell the daemon to compact a full context, spawn a successor, salvage a dying agent, or split work across subagents. Emit it and roughly a milestone of already-tested code comes alive at once.</p>
+  <main id="main">
+    <div class="hero">
+      <div class="wrap hero-grid">
+        <div>
+          <span class="eyebrow">Roadmap of record · verified 2026-08-04</span>
+          <h1>The machinery is built. It was never plugged in.</h1>
+          <p class="lede">Salvage, checkpoints, transcripts, compaction, briefings, context economics, and subagent splitting are one system. They are waiting on one missing signal.</p>
+
+          <div class="hero-meta" aria-label="Roadmap metadata">
+            <span class="meta-tag">16 work items</span>
+            <span class="meta-tag">4 dependency waves</span>
+            <span class="meta-tag">1 keystone gap</span>
+          </div>
+
+          <aside class="keystone-callout" aria-labelledby="keystone-title">
+            <span class="keystone-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 3 21 12 12 21 3 12Z"/>
+                <path d="M12 8v5"/>
+                <circle cx="12" cy="16.5" r=".75" fill="currentColor" stroke="none"/>
+              </svg>
+            </span>
+            <div>
+              <span class="k" id="keystone-title">The keystone</span>
+              <p>No runtime path emits a schema-valid <code>ContextEnvelope</code> on agent heartbeats. That signal unlocks the tested pressure ladder, cited compaction packets, successor resume, and downstream partitioning.</p>
+            </div>
+          </aside>
+        </div>
+
+        <div>
+          <figure class="gauge" aria-labelledby="gauge-title">
+            <div class="gauge-head">
+              <h2 id="gauge-title">Context-pressure ladder</h2>
+              <span>used / window</span>
+            </div>
+            <div class="gauge-track" aria-hidden="true"></div>
+            <ol class="ladder">
+              <li><span class="pct">0.60</span><span class="act">prepare compaction candidates</span></li>
+              <li><span class="pct">0.75</span><span class="act">build a cited continuation packet</span></li>
+              <li><span class="pct">0.85</span><span class="act">warn before broad new work</span></li>
+              <li><span class="pct">0.92</span><span class="act">compact or spawn a successor</span></li>
+            </ol>
+          </figure>
+
+          <div class="legend" aria-label="Implementation status legend">
+            <span class="legend-item"><i class="status-mark shipped" aria-hidden="true"></i>Shipped and wired</span>
+            <span class="legend-item"><i class="status-mark partial" aria-hidden="true"></i>Built but unwired or partial</span>
+            <span class="legend-item"><i class="status-mark absent" aria-hidden="true"></i>Absent or design-only</span>
+          </div>
         </div>
       </div>
-      <div class="gauge" aria-label="Context pressure ladder">
-        <h3>Context-pressure ladder</h3>
-        <div class="gauge-body">
-          <div class="col" aria-hidden="true"><div class="fill"></div></div>
-          <ol class="ladder">
-            <li><span class="pct">0.92</span><span class="act">compact or spawn a successor before the next major action</span></li>
-            <li><span class="pct">0.85</span><span class="act">warn the operator before starting broad new work</span></li>
-            <li><span class="pct">0.75</span><span class="act">the custodian builds a cited memory packet</span></li>
-            <li><span class="pct">0.60</span><span class="act">start preparing compaction candidates</span></li>
+    </div>
+
+    <section id="status">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Two stacks · one runtime gap</span>
+          <h2>Where the code actually stands</h2>
+          <p>Tier A is live with a coarse 50/70 percent warning path. Tier B implements the full 60/75/85/92 ladder, cited compaction packets, and verifiable resume. Tier B is tracked and unit-tested, but still has zero non-test callers.</p>
+          <a class="section-link" href="./27-context-memory-runtime-wiring.md#271-status-snapshot-two-stacks-one-keystone">Read the file-by-file evidence in chapter 27</a>
+        </div>
+
+        <div class="snapshot-grid">
+          <article class="stat shipped">
+            <div class="number">4</div>
+            <div class="label">Shipped and wired</div>
+            <p class="detail">Tier-A episodic memory, live context tracker, transcript dual-store, and live-truth briefings.</p>
+          </article>
+          <article class="stat partial">
+            <div class="number">3</div>
+            <div class="label">Built but unwired</div>
+            <p class="detail">Compaction packets, the pressure ladder, and verifiable resume exist as tested primitives with no runtime caller.</p>
+          </article>
+          <article class="stat absent">
+            <div class="number">5</div>
+            <div class="label">Absent or design-only</div>
+            <p class="detail">Envelope producer, hybrid cited recall, paging, eager tool2vec build, and the context partitioner.</p>
+          </article>
+        </div>
+
+        <aside class="evidence-note">
+          <strong>How to read the counts:</strong> these are subsystem capabilities, not a count of W-items. Status is implementation truth at this branch revision; the linked chapter carries the supporting <code>file:line</code> evidence.
+        </aside>
+      </div>
+    </section>
+
+    <section id="wiring">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">W1–W10 · runtime wiring</span>
+          <h2>The dependency path, then the parallel lanes</h2>
+          <p>The keystone comes first. Every card describes the current state of a primitive and names the dependency that makes it actionable.</p>
+        </div>
+
+        <div class="critical-path-wrap">
+          <p class="critical-path-title">Critical path to proof</p>
+          <ol class="critical-path">
+            <li><span class="step">W1</span><span>Reconcile the stores</span></li>
+            <li><span class="step">W2</span><span>Emit the envelope</span></li>
+            <li><span class="step">W3</span><span>Classify pressure</span></li>
+            <li><span class="step">W4</span><span>Build the packet</span></li>
+            <li><span class="step">W5</span><span>Resume successor</span></li>
+            <li><span class="step">E2E</span><span>Force and prove</span></li>
           </ol>
         </div>
-      </div>
-    </div>
-  </div>
-</div>
 
-<div class="wrap">
-  <section>
-    <div class="sec-head">
-      <span class="eyebrow">Two stacks, one keystone</span>
-      <h2>Where the code actually stands</h2>
-      <p>A live, wired stack (Tier A) runs a coarse 50/70% warner. A designed, tested stack (Tier B) implements the full 60/75/85/92 ladder, cited compaction packets, and verifiable successor-resume — tracked and unit-tested, but with zero non-test callers, so nothing in the runtime path invokes it.</p>
-    </div>
-    <div class="ribbon">
-      <div class="stat s">
-        <div class="n">4</div>
-        <div class="lab">Shipped &amp; wired</div>
-        <div class="sub">Tier-A episodic memory, live context tracker, transcript dual-store, live-truth briefings.</div>
-      </div>
-      <div class="stat p">
-        <div class="n">3</div>
-        <div class="lab">Built · unwired</div>
-        <div class="sub">Compaction packets, context-pressure ladder, verifiable resume — pure functions, no caller.</div>
-      </div>
-      <div class="stat a">
-        <div class="n">5</div>
-        <div class="lab">Absent / design-only</div>
-        <div class="sub">Envelope producer, hybrid cited recall, agent buffering/paging, eager tool2vec build, subagent partitioner.</div>
-      </div>
-    </div>
-  </section>
+        <div class="wave-stack">
+          <div class="wave">
+            <div class="wave-label">
+              <span class="number">Wave 1</span>
+              <span class="description">starting tracks; data-independent, resource-coupled by W11</span>
+            </div>
+            <div class="cards">
+              <article class="card partial">
+                <div class="card-top"><span class="card-id">W1</span></div>
+                <div class="card-title">Reconcile Tier B with the live store</div>
+                <p class="card-body">Port the tracked <code>agent-harbor/*</code> logic onto one episodic store of record. Do not ship two memory schemas.</p>
+                <div class="card-meta"><span class="chip partial">tracked · unwired</span></div>
+              </article>
+              <article class="card absent keystone">
+                <div class="card-top"><span class="card-id">W2</span><span class="chip keystone">Keystone</span></div>
+                <div class="card-title">Emit the ContextEnvelope</div>
+                <p class="card-body">Each heartbeat carries budgets, used tokens, pressure, source, and action. Self-report and daemon estimate coexist with explicit confidence.</p>
+                <div class="card-meta"><span class="chip absent">producer absent</span></div>
+              </article>
+              <article class="card absent">
+                <div class="card-top"><span class="card-id">W9</span></div>
+                <div class="card-title">Build tool2vec eagerly and log outcomes</div>
+                <p class="card-body">Warm the catalog incrementally, then record independent usage outcomes so selection and validation do not share one signal.</p>
+                <div class="card-meta"><span class="chip absent">cache absent</span></div>
+              </article>
+            </div>
+          </div>
 
-  <section>
-    <div class="sec-head">
-      <span class="eyebrow">W1 – W10 · sequenced by dependency</span>
-      <h2>The wiring, wave by wave</h2>
-      <p>Keystone-first. Each card shows the current state of the underlying primitive — not a promise. Build the evidence chain, not the mythology.</p>
-    </div>
+          <div class="wave">
+            <div class="wave-label">
+              <span class="number">Wave 2</span>
+              <span class="description">consume the envelope</span>
+            </div>
+            <div class="cards">
+              <article class="card partial">
+                <div class="card-top"><span class="card-id">W3</span></div>
+                <div class="card-title">Retire the legacy pressure tracker</div>
+                <p class="card-body">The custodian calls <code>classifyPressure</code> on the real bands every 30 seconds. One denominator and one policy replace the dual scheme.</p>
+                <div class="card-meta"><span class="chip needs">needs W2</span><span class="chip partial">dual scheme</span></div>
+              </article>
+              <article class="card absent">
+                <div class="card-top"><span class="card-id">W6</span></div>
+                <div class="card-title">Ship hybrid, cited recall</div>
+                <p class="card-body">Replace substring <code>LIKE</code> retrieval with FTS5 plus warm MiniLM, fused by RRF. Every result stays cited and budget-capped.</p>
+                <div class="card-meta"><span class="chip needs">needs W1</span><span class="chip absent">LIKE only</span></div>
+              </article>
+              <article class="card absent">
+                <div class="card-top"><span class="card-id">W8</span></div>
+                <div class="card-title">Buffer, page, and summarize cheaply</div>
+                <p class="card-body">Spill large output to scoped blob storage, expose paging, use a low-cost pre-injection digest, and add dynamic turn-start context.</p>
+                <div class="card-meta"><span class="chip needs">needs W2</span><span class="chip absent">harness only</span></div>
+              </article>
+            </div>
+          </div>
 
-    <div class="wave">
-      <div class="wave-label"><span class="w">Wave 1</span><span class="desc">independent roots — land the keystone &amp; the skills track</span></div>
-      <div class="cards">
-        <div class="card st-partial">
-          <div class="id-row"><span class="id">W1</span></div>
-          <div class="title">Land &amp; reconcile Tier B</div>
-          <div class="body">Reconcile the tracked-but-unwired <code>agent-harbor/*</code> stack with the live tree; collapse two episodic schemas into one store of record.</div>
-          <div class="meta"><span class="chip state-partial">unwired</span></div>
-        </div>
-        <div class="card st-absent keystone">
-          <div class="id-row"><span class="id">W2</span><span class="chip ks">Keystone</span></div>
-          <div class="title">Emit the ContextEnvelope</div>
-          <div class="body">Heartbeat carries budgets, used tokens, pressure, action. Producer = pilot hook, or daemon estimate with a confidence flag.</div>
-          <div class="meta"><span class="chip state-absent">absent</span></div>
-        </div>
-        <div class="card st-absent">
-          <div class="id-row"><span class="id">W9</span></div>
-          <div class="title">Eager tool2vec build + usage logging</div>
-          <div class="body">Stop lazy centroid fill (can't rank an unembedded skill). Build step over ~1,500 skills; log usage to flag misfires.</div>
-          <div class="meta"><span class="chip state-absent">no cache</span></div>
-        </div>
-      </div>
-    </div>
+          <div class="wave">
+            <div class="wave-label">
+              <span class="number">Wave 3</span>
+              <span class="description">build on packets and recall</span>
+            </div>
+            <div class="cards">
+              <article class="card partial">
+                <div class="card-top"><span class="card-id">W4</span></div>
+                <div class="card-title">Custodian builds compaction packets</div>
+                <p class="card-body">Build at 0.75, validate citation grounding, append a first-class event, and trigger successor creation at 0.92.</p>
+                <div class="card-meta"><span class="chip needs">needs W3</span><span class="chip partial">built · unwired</span></div>
+              </article>
+              <article class="card partial">
+                <div class="card-top"><span class="card-id">W7</span></div>
+                <div class="card-title">Feed briefings from packets</div>
+                <p class="card-body">The human digest and the agent continuation packet become two renders of one cited, rebuildable substrate.</p>
+                <div class="card-meta"><span class="chip needs">needs W6</span><span class="chip partial">sessions only</span></div>
+              </article>
+              <article class="card absent">
+                <div class="card-top"><span class="card-id">W10</span></div>
+                <div class="card-title">Partition context for subagents</div>
+                <p class="card-body">WorkPlanner emits disjoint <code>NodeSpec.scope</code> assignments, uses the WinDAGs decomposer, and fans out only when the coupling math supports it.</p>
+                <div class="card-meta"><span class="chip needs">needs W6 · W8 · W9</span><span class="chip absent">fan-out only</span></div>
+              </article>
+            </div>
+          </div>
 
-    <div class="wave">
-      <div class="wave-label"><span class="w">Wave 2</span><span class="desc">consume the envelope</span></div>
-      <div class="cards">
-        <div class="card st-partial">
-          <div class="id-row"><span class="id">W3</span></div>
-          <div class="title">Retire legacy tracker</div>
-          <div class="body">Custodian calls <code>classifyPressure</code> on the real bands every 30s. One threshold scheme, not two.</div>
-          <div class="meta"><span class="chip needs">needs W2</span><span class="chip state-partial">dual scheme</span></div>
-        </div>
-        <div class="card st-absent">
-          <div class="id-row"><span class="id">W6</span></div>
-          <div class="title">Hybrid cited recall</div>
-          <div class="body">Replace <code>LIKE</code> with FTS5 + warm MiniLM, fused by RRF, every hit cited, budget-capped.</div>
-          <div class="meta"><span class="chip needs">needs W1</span><span class="chip state-absent">LIKE only</span></div>
-        </div>
-        <div class="card st-absent">
-          <div class="id-row"><span class="id">W8</span></div>
-          <div class="title">Buffer · page · cheap-summarize</div>
-          <div class="body">Spill big outputs to the blob store; paging tools; Haiku pre-injection digest; <code>request_compaction</code> verb; dynamic turn-start envelope.</div>
-          <div class="meta"><span class="chip needs">needs W2</span><span class="chip state-absent">harness-only today</span></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="wave">
-      <div class="wave-label"><span class="w">Wave 3</span><span class="desc">build on packets &amp; recall</span></div>
-      <div class="cards">
-        <div class="card st-unwired">
-          <div class="id-row"><span class="id">W4</span></div>
-          <div class="title">Custodian builds compaction_packet</div>
-          <div class="body">Build at 0.75, validate citations, append as a first-class event; trigger successor at 0.92.</div>
-          <div class="meta"><span class="chip needs">needs W3</span><span class="chip state-unwired">built · unwired</span></div>
-        </div>
-        <div class="card st-partial">
-          <div class="id-row"><span class="id">W7</span></div>
-          <div class="title">Briefing fed by packets</div>
-          <div class="body">Human digest and agent continuation packet become two renders of one cited substrate.</div>
-          <div class="meta"><span class="chip needs">needs W6</span><span class="chip state-partial">reads sessions only</span></div>
-        </div>
-        <div class="card st-absent">
-          <div class="id-row"><span class="id">W10</span></div>
-          <div class="title">Subagent context partitioner</div>
-          <div class="body">WorkPlanner emits <code>NodeSpec[]</code> with disjoint <code>scope.files</code>; wires windags decomposer; splits only when the cost math says so.</div>
-          <div class="meta"><span class="chip needs">needs W6·W9</span><span class="chip state-absent">fan-out only</span></div>
+          <div class="wave">
+            <div class="wave-label">
+              <span class="number">Wave 4</span>
+              <span class="description">checkpoint and prove</span>
+            </div>
+            <div class="cards">
+              <article class="card partial">
+                <div class="card-top"><span class="card-id">W5</span></div>
+                <div class="card-title">Make the packet the checkpoint</div>
+                <p class="card-body"><code>resumeFromPacket</code> wires into the post-refactor creation path. A successor boots from a validated packet, then M9 adds edit replay.</p>
+                <div class="card-meta"><span class="chip needs">needs W4</span><span class="chip partial">no live checkpoint</span></div>
+              </article>
+              <article class="card absent">
+                <div class="card-top"><span class="card-id">E2E</span></div>
+                <div class="card-title">Force the threshold and resume</div>
+                <p class="card-body">Drive pressure to critical through the daemon, prove the cited packet was built, and prove the successor restored obligations.</p>
+                <div class="card-meta"><span class="chip needs">needs W5</span><span class="chip absent">proof missing</span></div>
+              </article>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="wave">
-      <div class="wave-label"><span class="w">Wave 4</span><span class="desc">checkpoint &amp; prove</span></div>
-      <div class="cards">
-        <div class="card st-unwired">
-          <div class="id-row"><span class="id">W5</span></div>
-          <div class="title">Packet becomes the checkpoint</div>
-          <div class="body"><code>resumeFromPacket</code> wires into spawn — a successor boots from a validated packet, not raw notes. Then M9 Loro op-replay, then remote export.</div>
-          <div class="meta"><span class="chip needs">needs W4</span><span class="chip state-unwired">no live-state checkpoint</span></div>
+    <section id="matrix">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Eight topics · state and next move</span>
+          <h2>The operator’s implementation matrix</h2>
+          <p>What exists now, where it stops, and the next move that advances the system.</p>
         </div>
-        <div class="card st-absent">
-          <div class="id-row"><span class="id">E2E</span></div>
-          <div class="title">Force the threshold, build a packet, resume from it</div>
-          <div class="body">Drive pressure to critical through the daemon; assert cited packet built and successor restores obligations. Plus <code>pd doctor</code> / <code>pd packet</code> / panes.</div>
-          <div class="meta"><span class="chip needs">needs W5</span><span class="chip state-absent">missing</span></div>
+
+        <div class="table-shell">
+          <table class="matrix">
+            <thead>
+              <tr><th scope="col">Topic</th><th scope="col">State</th><th scope="col">Where it stands and what moves next</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="topic" data-label="Topic">Salvage</td>
+                <td data-label="State"><span class="pill shipped">shipped</span></td>
+                <td class="next" data-label="Current / next">Resurrection queue and durable handoff work. <strong>Next:</strong> give successors a cited packet, not notes alone (W5).</td>
+              </tr>
+              <tr>
+                <td class="topic" data-label="Topic">Checkpoints</td>
+                <td data-label="State"><span class="pill absent">absent</span></td>
+                <td class="next" data-label="Current / next">There is no live-state snapshot. <strong>Next:</strong> make the compaction packet the checkpoint and wire <code>resumeFromPacket</code> (W5).</td>
+              </tr>
+              <tr>
+                <td class="topic" data-label="Topic">Transcripts</td>
+                <td data-label="State"><span class="pill shipped">shipped</span></td>
+                <td class="next" data-label="Current / next">The dual store is scrubbed, retained, and backfilled. <strong>Next:</strong> add FTS5 and semantic indexing (W6).</td>
+              </tr>
+              <tr>
+                <td class="topic" data-label="Topic">Compaction</td>
+                <td data-label="State"><span class="pill partial">built · unwired</span></td>
+                <td class="next" data-label="Current / next">Packet builder, validator, and resume path exist with no runtime caller. <strong>Next:</strong> build at 0.75 (W4).</td>
+              </tr>
+              <tr>
+                <td class="topic" data-label="Topic">Briefings</td>
+                <td data-label="State"><span class="pill shipped">shipped</span></td>
+                <td class="next" data-label="Current / next">Briefings use live truth and cache to disk. <strong>Next:</strong> render them from cited packets and episodic recall (W7).</td>
+              </tr>
+              <tr>
+                <td class="topic" data-label="Topic">Context protection</td>
+                <td data-label="State"><span class="pill partial">partial</span></td>
+                <td class="next" data-label="Current / next">Measurement, inbox alerts, and offload exist; the full ladder is unwired. <strong>Next:</strong> emit and consume the envelope (W2/W3).</td>
+              </tr>
+              <tr>
+                <td class="topic" data-label="Topic">Context economics</td>
+                <td data-label="State"><span class="pill partial">partial</span></td>
+                <td class="next" data-label="Current / next">COGS ledger, budget guard, and model tiers exist. <strong>Next:</strong> add buffering, paging, and low-cost summarization (W8).</td>
+              </tr>
+              <tr>
+                <td class="topic" data-label="Topic">Subagent splitting</td>
+                <td data-label="State"><span class="pill absent">design-only</span></td>
+                <td class="next" data-label="Current / next">Conductor governs fan-out; it does not partition work. <strong>Next:</strong> emit disjoint <code>NodeSpec.scope</code> assignments (W10).</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section>
-    <div class="sec-head">
-      <span class="eyebrow">The original question, answered</span>
-      <h2>Eight topics · shipped / gap / next</h2>
-      <p>What exists today, where it stops, and the one move that advances it.</p>
-    </div>
-    <div class="table-scroll">
-      <table>
-        <thead><tr><th>Topic</th><th>State</th><th>Where it stands / next move</th></tr></thead>
-        <tbody>
-          <tr><td class="topic">Salvage</td><td class="state"><span class="pill s">shipped</span></td><td class="next">Resurrection queue works; <code>claim</code> hands off notes, <code>complete</code> links durably. <b>Next:</b> hand successors a cited packet, not just notes (W5).</td></tr>
-          <tr><td class="topic">Checkpoints</td><td class="state"><span class="pill a">absent</span></td><td class="next">No live-state snapshot anywhere. <b>Next:</b> the cited compaction packet <em>is</em> the checkpoint artifact + <code>resumeFromPacket</code> into spawn (W5).</td></tr>
-          <tr><td class="topic">Transcripts</td><td class="state"><span class="pill s">shipped</span></td><td class="next">Dual store, scrubbed, retained, backfilled. <b>Next:</b> add FTS5/semantic index — search is id/agent-only today (W6).</td></tr>
-          <tr><td class="topic">Compaction</td><td class="state"><span class="pill p">built · unwired</span></td><td class="next">Cited packet builder + validator + verifiable resume exist with no caller. <b>Next:</b> custodian builds at 0.75 (W4).</td></tr>
-          <tr><td class="topic">Briefings</td><td class="state"><span class="pill s">shipped</span></td><td class="next">Genuinely live-truth; disk is a cache. <b>Next:</b> feed from cited packets + episodic recall (W7).</td></tr>
-          <tr><td class="topic">Context-window protection</td><td class="state"><span class="pill p">partial</span></td><td class="next">Measurement + inbox alerting + offload ship; the 60/75/85/92 ladder is unwired. <b>Next:</b> emit the envelope (W2/W3).</td></tr>
-          <tr><td class="topic">Context economics</td><td class="state"><span class="pill p">partial</span></td><td class="next">COGS ledger, budget-guard, model tiers ship. <b>Next:</b> agent buffering/paging + cheap-summarize (W8).</td></tr>
-          <tr><td class="topic">Subagent splitting</td><td class="state"><span class="pill a">design-only</span></td><td class="next">Conductor does fan-out + governance, not partitioning. <b>Next:</b> WorkPlanner with disjoint <code>NodeSpec.scope</code> (W10).</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
+    <section id="patterns">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Competitive grounding · primary sources</span>
+          <h2>Patterns worth adopting</h2>
+          <p>Five mechanisms from other agent systems, narrowed to claims their own documentation supports.</p>
+        </div>
 
-  <section>
-    <div class="sec-head">
-      <span class="eyebrow">Competitive grounding</span>
-      <h2>What to steal</h2>
-      <p>Five mechanisms from other harnesses, each mapped to a Port Daddy gap.</p>
-    </div>
-    <div class="steal">
-      <div class="steal-card"><div class="src">OpenHands</div><p class="mech">Pluggable condenser-over-event-stream: ordered transforms with explicit triggers, split system- vs agent-initiated.</p><p class="maps">→ wires the ladder · <b>W3 / W4</b></p></div>
-      <div class="steal-card"><div class="src">Devin + Aider</div><p class="mech">File + memory checkpoint on a restorable timeline; atomic git-commit-per-step makes rollback free.</p><p class="maps">→ live-state checkpoint · <b>W5</b></p></div>
-      <div class="steal-card"><div class="src">MemGPT / Letta</div><p class="mech">Virtual context management: window as RAM, small self-edited core blocks, paging to recall/archival tiers.</p><p class="maps">→ agent buffering / paging · <b>W8</b></p></div>
-      <div class="steal-card"><div class="src">Windsurf + Letta</div><p class="mech">Auto-extracted, workspace-scoped, semantically-retrieved memory instead of substring match.</p><p class="maps">→ kills LIKE recall · <b>W6</b></p></div>
-      <div class="steal-card"><div class="src">Claude Code + LangGraph</div><p class="mech">Isolated subagent windows; summary-only handoff into reducer-merged parent state.</p><p class="maps">→ subagent partitioning · <b>W10</b></p></div>
-    </div>
-  </section>
+        <div class="pattern-grid">
+          <article class="pattern-card">
+            <h3>OpenHands · condenser pipeline</h3>
+            <p>Threshold-triggered, pluggable condensers transform an event view and record explicit condensation events.</p>
+            <footer><span>Maps to W3 / W4</span><a href="https://docs.openhands.dev/sdk/arch/condenser" target="_blank" rel="noreferrer">Official docs</a></footer>
+          </article>
+          <article class="pattern-card">
+            <h3>Aider · reversible edit commits</h3>
+            <p>Per-edit commits make code changes reviewable and undoable. Port Daddy still needs the memory packet that travels with that code state.</p>
+            <footer><span>Maps to W5</span><a href="https://aider.chat/docs/git.html" target="_blank" rel="noreferrer">Official docs</a></footer>
+          </article>
+          <article class="pattern-card">
+            <h3>Letta · context hierarchy</h3>
+            <p>Small always-visible memory blocks coexist with searchable files and archival memory for larger context.</p>
+            <footer><span>Maps to W6 / W8</span><a href="https://docs.letta.com/guides/core-concepts/memory/context-hierarchy" target="_blank" rel="noreferrer">Official docs</a></footer>
+          </article>
+          <article class="pattern-card">
+            <h3>Windsurf · workspace memories</h3>
+            <p>Cascade can create local memories scoped to a workspace and retrieve them when relevant.</p>
+            <footer><span>Maps to W6</span><a href="https://docs.windsurf.com/windsurf/cascade/memories" target="_blank" rel="noreferrer">Official docs</a></footer>
+          </article>
+          <article class="pattern-card">
+            <h3>Claude Code + LangGraph · isolated context and controlled merge</h3>
+            <p>Claude Code subagents work in separate context windows and return summaries. LangGraph reducers and <code>Command.PARENT</code> control how child state reaches a parent graph.</p>
+            <footer>
+              <span>Maps to W10</span>
+              <span><a href="https://code.claude.com/docs/en/sub-agents" target="_blank" rel="noreferrer">Claude docs</a> · <a href="https://docs.langchain.com/oss/python/langgraph/graph-api" target="_blank" rel="noreferrer">LangGraph docs</a></span>
+            </footer>
+          </article>
+        </div>
+      </div>
+    </section>
 
-  <section>
-    <div class="sec-head">
-      <span class="eyebrow">Six skill-cluster critique · adversarial pass</span>
-      <h2>Hardening from the synthesis</h2>
-      <p>Six cohesive skill clusters critiqued the plan and converged. They found real failure modes, not polish — and added five work items.</p>
-    </div>
-    <div class="steal">
-      <div class="steal-card"><div class="src">W11 · gated embedder</div><p class="mech">The one warm MiniLM model is a poison-pill shared resource. A circuit breaker + coalesced load stops the cold-start stampede; recall degrades to FTS5-only when it trips.</p><p class="maps">serves <b>W2 · W6 · W9 · W10</b></p></div>
-      <div class="steal-card"><div class="src">W12 · one contract</div><p class="mech">Buffer/paging/compaction is one contract with MCP, CLI, and route adapters — not MCP-only verbs. The on-by-default policy is decided once, in that layer.</p><p class="maps">homes <b>O4</b></p></div>
-      <div class="steal-card"><div class="src">W13 · decisions ledger</div><p class="mech">O1–O4 become an append-only ledger; every work item gets an owner, an acceptance gate, and an evidence link. Not citable until O1 lands.</p><p class="maps">governs <b>all items</b></p></div>
-      <div class="steal-card"><div class="src">W14 · runtime Arbiter</div><p class="mech">One sampled verifier (≈2% overhead) checks pressure divergence and cross-scope tool calls, so a body that lies about its state can't silently no-op the gate.</p><p class="maps">enforces <b>W2 · W4 · W10</b></p></div>
-      <div class="steal-card"><div class="src">W15 · succession ledger</div><p class="mech">A daemon-minted, non-forgeable successor id + single-successor lease stops one packet booting two agents. Checkpoint plus memory — not an outcome ledger.</p><p class="maps">hardens <b>W5</b></p></div>
-    </div>
-    <div class="invariants">
-      <h3>Invariants applied across the plan</h3>
-      <ul>
-        <li><b>Rebuild from primary roots, never the last summary.</b> Every packet, briefing, and cheap-summary re-derives from transcript events, git, and notes each round, with citation-<em>grounding</em> (not just presence) — so summaries can't drift into confident fiction.</li>
-        <li><b>Trust but verify every self-reported signal.</b> The daemon estimate is the floor; the agent's envelope is advisory. Classify on the higher of the two, and flag divergence.</li>
-        <li><b>Scoped capabilities, never bare pointers.</b> A blob pointer carries session, partition, and TTL caveats and fails closed — otherwise it's a cross-agent read oracle that also breaks subagent scope.</li>
-        <li><b>Rank and validate with different signals.</b> Cosine ranks a skill; an independent outcome label decides whether its centroid earned its place.</li>
-        <li><b>Width is the coordination floor.</b> The coupling graph's max antichain caps subagent count; hot shared files run serially, not smeared across racing agents.</li>
-      </ul>
-    </div>
-  </section>
+    <section id="hardening">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">W11–W16 · adversarial hardening</span>
+          <h2>Six controls the first pass missed</h2>
+          <p>Six skill clusters found failure modes that would make a wired system unsafe, unverifiable, or operationally hollow. They added six work items, including the previously omitted W16.</p>
+        </div>
 
-  <section>
-    <div class="sec-head">
-      <span class="eyebrow">Decisions needed before lock-in</span>
-      <h2>Open questions</h2>
-    </div>
-    <div class="decisions">
-      <div class="decision"><span class="oid">O1</span><p>One episodic store. Confirm Tier A's <code>episodic_memory</code> table is the store of record and Tier B's logic ports onto it. Two stores is rejected.</p></div>
-      <div class="decision"><span class="oid">O2</span><p>Envelope producer site — hook/harness self-report vs daemon estimate as default. Both may coexist behind a confidence flag.</p></div>
-      <div class="decision"><span class="oid">O3</span><p>Build-step trigger — <code>pd setup</code>, daemon-startup reconcile, schedule, or all three. First run is ~1,500 skills; must be incremental and resumable.</p></div>
-      <div class="decision"><span class="oid">O4</span><p>Buffering default — output-spill on for all agents, or opt-in per compliance level.</p></div>
-    </div>
-  </section>
-</div>
+        <div class="hardening-grid">
+          <article class="hardening-card">
+            <h3>W11 · gated embedder</h3>
+            <p>One memoized MiniLM loader gets coalesced loading, backoff, and a circuit breaker. Recall degrades explicitly instead of stampeding the shared resource.</p>
+            <footer>Serves W2 · W6 · W9 · W10</footer>
+          </article>
+          <article class="hardening-card">
+            <h3>W12 · one context contract</h3>
+            <p>Buffering, paging, and compaction share one lifecycle and receipt contract across MCP, CLI, and route adapters.</p>
+            <footer>Homes decision O4</footer>
+          </article>
+          <article class="hardening-card">
+            <h3>W13 · decisions ledger</h3>
+            <p>O1–O4 become append-only decisions. Every W-item gets an owner, acceptance gate, and evidence link.</p>
+            <footer>Governs all work items</footer>
+          </article>
+          <article class="hardening-card">
+            <h3>W14 · runtime Arbiter</h3>
+            <p>A sampled verifier checks pressure divergence and cross-scope tool calls so self-reported state cannot silently bypass enforcement.</p>
+            <footer>Enforces W2 · W4 · W10</footer>
+          </article>
+          <article class="hardening-card">
+            <h3>W15 · succession ledger</h3>
+            <p>A daemon-minted successor id and single-successor lease prevent one packet from booting two agents.</p>
+            <footer>Hardens W5</footer>
+          </article>
+          <article class="hardening-card">
+            <h3>W16 · governed skill scripts</h3>
+            <p><code>pd drill</code> runs manifest-allowlisted skill scripts under the daemon budget and kill chain, then records the verdict as an outcome signal.</p>
+            <footer>Serves W9 · reuses W8 output spill</footer>
+          </article>
+        </div>
 
-<footer>
-  <div class="wrap">
-    <p class="mono">Port Daddy · Agent Harbor technical binder · ch. 27</p>
-    <p>Grounded in four parallel code sweeps and a competitive scan; every state call carries file:line evidence in the chapter. A recursive-synthesis pass across six skill clusters added the W11–W15 hardening. Status as of 2026-07-23.</p>
-  </div>
-</footer>
+        <aside class="invariants">
+          <h3>Invariants across the plan</h3>
+          <ul>
+            <li><strong>Rebuild from primary roots.</strong> Packets, briefings, and summaries derive from transcript events, git, notes, and live rows, never from the previous summary.</li>
+            <li><strong>Verify self-reported pressure.</strong> The daemon estimate is the enforcement floor; classify on the higher of the self-report and the estimate.</li>
+            <li><strong>Use scoped capabilities.</strong> Blob pointers carry session, agent, partition, range, and TTL caveats and fail closed.</li>
+            <li><strong>Separate rank from validation.</strong> Similarity can rank a skill; an independent outcome label decides whether the graft worked.</li>
+            <li><strong>Let coupling set the fleet width.</strong> Shared hot files serialize after disjoint lanes converge instead of becoming conflict magnets.</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <section id="decisions">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Decisions required before lock-in</span>
+          <h2>Four questions block the implementation contract</h2>
+        </div>
+
+        <div class="decisions">
+          <article class="decision"><span class="decision-id">O1</span><p><strong>One episodic store.</strong> Confirm Tier A’s <code>episodic_memory</code> table as the store of record and port Tier B’s logic onto it. Two stores remain rejected.</p></article>
+          <article class="decision"><span class="decision-id">O2</span><p><strong>Envelope producer.</strong> Choose hook or harness self-report versus daemon estimate as the default. Both can coexist behind source and confidence fields.</p></article>
+          <article class="decision"><span class="decision-id">O3</span><p><strong>Build trigger.</strong> Decide whether eager tool2vec reconciliation runs during setup, daemon startup, on a schedule, or all three. It must stay incremental and resumable.</p></article>
+          <article class="decision"><span class="decision-id">O4</span><p><strong>Buffering default.</strong> Choose on-by-default output spill for every agent or opt-in behavior by compliance level.</p></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="page-footer">
+    <div class="wrap">
+      <p class="mono">Port Daddy · Agent Harbor technical binder · chapter 27</p>
+      <p>Grounded in the chapter’s code audit and verified against this branch on 2026-08-04. The recursive-synthesis pass contributes W11–W16, and the competitor patterns above link to primary vendor documentation.</p>
+    </div>
+  </footer>
+
+  <script>
+    (() => {
+      const root = document.documentElement;
+      const button = document.querySelector("[data-theme-toggle]");
+      const modes = ["auto", "light", "dark"];
+      let mode = "auto";
+
+      try {
+        const saved = window.localStorage.getItem("agent-harbor-roadmap-theme");
+        if (modes.includes(saved)) mode = saved;
+      } catch {
+        mode = "auto";
+      }
+
+      const labels = {
+        auto: "Theme: system",
+        light: "Theme: light",
+        dark: "Theme: dark"
+      };
+
+      const applyTheme = (nextMode) => {
+        mode = nextMode;
+        root.dataset.theme = mode;
+        button.textContent = labels[mode];
+        button.setAttribute("aria-label", labels[mode] + ". Activate to change theme.");
+        try {
+          window.localStorage.setItem("agent-harbor-roadmap-theme", mode);
+        } catch {
+          // The standalone artifact remains usable when local storage is unavailable.
+        }
+      };
+
+      button.hidden = false;
+      applyTheme(mode);
+      button.addEventListener("click", () => {
+        const nextIndex = (modes.indexOf(mode) + 1) % modes.length;
+        applyTheme(modes[nextIndex]);
+      });
+    })();
+  </script>
+</body>
+</html>
