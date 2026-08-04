@@ -51,7 +51,17 @@ import {
   parseProposals,
   renderProposalComment,
   ideationOutputContract,
+  validateStackProposalFiles,
+  slugify,
 } from './proposals.js';
+import {
+  createOrUpdateBranch,
+  openStackedPr,
+  GitHubApiError,
+} from './stacked-pr.js';
+import { runTestsInSandbox } from './sandbox-runner.js';
+import { createSkillGraftCache, type SkillGraftCache } from './skill-graft.js';
+import { emitSquidEvent } from './squid-events.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
 import { renderFindingsComment } from './findings-render.js';
 import {
@@ -62,6 +72,7 @@ import {
 } from './ideas-store.js';
 import type { Proposal } from './proposals.js';
 import { decideShipGate, isDocsOnly } from './gates.js';
+import { runPurser } from './purser.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
 import { costUsdForModel } from './spend.js';
@@ -683,6 +694,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // write failure is swallowed and never changes the run or the gate.
   await recordRunStart(env, runId, job, prCtx, prNumber, cloudShips);
 
+  // Cloud squid: announce the run (fire-and-forget; disabled unless BOTH
+  // RELAY_PUBLISH_URL and RELAY_PUBLISH_TOKEN are configured).
+  emitSquidEvent(env, 'run-started', { repo: job.repoFullName, pr: prNumber, runId });
+
   // --- SPEND CIRCUIT-BREAKER (pre-spend, before any ship runs) --------------
   // The per-installation abuse gate: if this installation has a credit_ledger and
   // its balance is spent (SUM(delta_usd) <= 0), skip ALL AI spend and complete
@@ -714,8 +729,24 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   const changedPaths = prCtx.files.map(f => f.filename).filter(Boolean);
   const docsOnly = isDocsOnly(changedPaths);
 
+  // PURSER ordering: purser ships run AFTER every reviewer/ideation ship, so
+  // the stacked-tests demand lands on top of (and can reference) the rest of
+  // the fleet's review. Purser is OFF unless a `class: purser` ship is declared
+  // in pd-fleet.yml — defaultPRShips() carries none (safe rollout).
+  const orderedShips = [
+    ...cloudShips.filter(s => !s.purser),
+    ...cloudShips.filter(s => s.purser),
+  ];
+
+  // Per-run skill-graft cache (src/skill-graft.ts). Bound to the TRUSTED
+  // default branch — a skill file is fetched at most once per run no matter how
+  // many ships graft it. ZERO-TRUST: never the PR head.
+  const skillGrafts = createSkillGraftCache(path =>
+    fetchRepoFile(owner, repo, path, branch, token),
+  );
+
   const results: ShipResult[] = [];
-  for (const ship of cloudShips) {
+  for (const ship of orderedShips) {
     // Per-ship wall-clock start: durationMs must reflect THIS ship's work
     // (including its gate/skip decision), not the cumulative run time — else
     // later ships report inflated durations that fold in every earlier ship.
@@ -754,9 +785,36 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       continue;
     }
 
+    // Skill graft: build this ship's prompt prefix from its `graft:` list.
+    // Unknown ids are a transcript WARNING, never a failure — the ship still
+    // runs, just without the missing skill.
+    let graftText = '';
+    if (ship.graft.length > 0) {
+      const graft = await skillGrafts.graftFor(ship.graft);
+      graftText = graft.text;
+      if (graft.missing.length > 0) {
+        await transcript.step(
+          'skill-graft',
+          ship.name,
+          `pd-${ship.name}: unknown graft skill(s) skipped — ${graft.missing.join(', ')}`,
+          { loaded: graft.loaded, missing: graft.missing, warning: true },
+        );
+      }
+    }
+
     const metrics = newShipMetrics();
-    const result = await runShip(ship, prCtx, token, env, branch, transcript, metrics);
+    const result = ship.purser
+      ? await runPurser(ship, prCtx, env, token, transcript, metrics, graftText, runId)
+      : await runShip(ship, prCtx, token, env, branch, transcript, metrics, graftText, runId);
     results.push(result);
+    // Cloud squid: one ship-verdict event per ship that ran (fire-and-forget).
+    emitSquidEvent(env, 'ship-verdict', {
+      repo: job.repoFullName,
+      pr: prNumber,
+      runId,
+      ship: ship.name,
+      verdict: result.errored ? 'ERROR' : result.verdict,
+    });
     await emitShipTelemetry(env, job, prCtx, ship, result, metrics, checkRunId, shipStartMs);
     // Per-run spend: one fleet_run_spend row per ship that actually ran, so the
     // relay can bill per installation. Best-effort — never changes the run.
@@ -783,6 +841,14 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   }
 
   await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token, detailsUrl);
+
+  // Cloud squid: the run is over (fire-and-forget).
+  emitSquidEvent(env, 'run-concluded', {
+    repo: job.repoFullName,
+    pr: prNumber,
+    runId,
+    verdict: conclusion,
+  });
 
   // --- Transcript: check completion + final run header (best-effort) --------
   await transcript.step('check-completed', null, `Check concluded: ${conclusion}`, {
@@ -819,6 +885,10 @@ async function runShip(
   branch: string,
   transcript: Transcript,
   metrics: ShipMetrics,
+  /** Skill-graft prompt prefix ('' ⇒ none) — see src/skill-graft.ts. */
+  graftText = '',
+  /** Run id for squid coordination events. */
+  runId = '',
 ): Promise<ShipResult> {
   try {
     // ZERO-TRUST: ship contract is read from the trusted branch, NEVER PR head.
@@ -830,7 +900,7 @@ async function runShip(
       token,
     ).catch(() => null);
 
-    const systemPrompt = buildSystemPrompt(ship, contract);
+    const systemPrompt = buildSystemPrompt(ship, contract, graftText);
     const chunks = chunkDiff(prCtx.diff);
 
     // Lookout's tools: cross-PR / cross-branch awareness. Fetched once per run and
@@ -910,6 +980,14 @@ async function runShip(
     // model output — it can't destabilize the check.
     if (ship.ideation) {
       const proposals = parseProposals(output);
+      // "Stack onto the review diff": when a proposal carries action 'stack'
+      // with valid files, the ship's own code is branched from the PR HEAD and
+      // opened as a PR based on the PR's head branch. At most ONE stack PR per
+      // ship per run; every failure mode degrades to a transcript note.
+      const stackedPr =
+        proposals && proposals.length > 0
+          ? await maybeStackProposal(ship, prCtx, proposals, env, token, transcript, runId)
+          : null;
       const rendered =
         proposals && proposals.length > 0
           ? renderProposalComment(proposals, {
@@ -917,6 +995,7 @@ async function runShip(
               repo: prCtx.repo,
               prNumber: prCtx.prNumber,
               shipName: ship.name,
+              stackedPr,
             })
           : '';
       // When proposals parse to a real set → post the actionable render. When the
@@ -1048,6 +1127,150 @@ async function runShip(
       findings: [],
     };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Ideation "stack" proposals: the ship codes the fix itself.
+
+interface StackOutcome {
+  proposalIndex: number;
+  number: number;
+  url: string;
+}
+
+/**
+ * Realize the FIRST `stack` proposal in an ideation ship's set (max 1 stack PR
+ * per ship per run): branch `fleet/<ship>-pr-<n>-<slug>` is cut FROM THE PR
+ * HEAD sha with the ship's files, and a PR is opened whose BASE IS THE
+ * REVIEWED PR'S HEAD BRANCH — the ship's code lands stacked ON TOP of the
+ * review diff.
+ *
+ * Guards, all degrading to an honest 'stack-posted' transcript note (never a
+ * throw, never a gate change):
+ *   - same-repo only (fork PRs are never written to),
+ *   - files bounded by {@link validateStackProposalFiles} (≤5 files, ≤16KB
+ *     each, purser-grade path whitelist),
+ *   - sandbox validation when env.SANDBOX exists: the repo suite runs with
+ *     the fix grafted onto the PR head, and a FAILING suite blocks the stack
+ *     (a ship must not stack a fix that breaks the build). Absent binding ⇒
+ *     the stack proceeds honestly un-validated.
+ */
+async function maybeStackProposal(
+  ship: ShipConfig,
+  prCtx: PRContext,
+  proposals: Proposal[],
+  env: ExecutorEnv,
+  token: string,
+  transcript: Transcript,
+  runId: string,
+): Promise<StackOutcome | null> {
+  const proposalIndex = proposals.findIndex(p => p.action === 'stack');
+  if (proposalIndex === -1) return null;
+  const proposal = proposals[proposalIndex];
+  if (!proposal) return null;
+
+  const degrade = async (reason: string): Promise<null> => {
+    await transcript.step(
+      'stack-posted',
+      ship.name,
+      `pd-${ship.name}: stack fix NOT posted — ${reason}`,
+      { stacked: false, degraded: reason, proposalTitle: proposal.title },
+    );
+    return null;
+  };
+
+  if (prCtx.isFork) return degrade('fork PR — stacking is same-repo only');
+  if (!prCtx.headSha) return degrade('PR head sha unknown');
+  if (!prCtx.headRef) return degrade('PR head branch unknown');
+
+  const files = proposal.files ?? [];
+  const validation = validateStackProposalFiles(files);
+  if (!validation.ok) return degrade(validation.reason);
+
+  const sandbox = await runTestsInSandbox({
+    sandboxBinding: env.SANDBOX,
+    owner: prCtx.owner,
+    repo: prCtx.repo,
+    headSha: prCtx.headSha,
+    files,
+    token,
+  });
+  if (sandbox.executed && sandbox.passed === false) {
+    return degrade(
+      `sandbox validation FAILED on the PR head — fix not stacked (tail: ${sandbox.outputTail.slice(-300)})`,
+    );
+  }
+
+  const branchName = `fleet/${ship.name}-pr-${prCtx.prNumber}-${slugify(proposal.title)}`;
+  try {
+    await createOrUpdateBranch(
+      prCtx.owner,
+      prCtx.repo,
+      branchName,
+      prCtx.headSha, // FROM THE PR HEAD: the fix sits on top of the review diff
+      files,
+      `pd-${ship.name}: ${proposal.title} (stacked on #${prCtx.prNumber})`,
+      token,
+    );
+    const pr = await openStackedPr(
+      prCtx.owner,
+      prCtx.repo,
+      branchName,
+      prCtx.headRef, // BASE = the reviewed PR's head branch
+      `pd-${ship.name}: ${proposal.title} (stacks on #${prCtx.prNumber})`,
+      buildStackPrBody(ship, prCtx, proposal, sandbox.executed === true && sandbox.passed === true),
+      ['fleet-stack', `pd-${ship.name}`],
+      token,
+    );
+    await transcript.step(
+      'stack-posted',
+      ship.name,
+      `pd-${ship.name}: coded its own fix and stacked #${pr.number} on top of #${prCtx.prNumber}`,
+      {
+        stacked: true,
+        stackPrNumber: pr.number,
+        stackPrUrl: pr.url,
+        proposalTitle: proposal.title,
+        files: files.map(f => f.path),
+        sandboxValidated: sandbox.executed === true && sandbox.passed === true,
+      },
+    );
+    emitSquidEvent(env, 'pr-stacked', {
+      repo: `${prCtx.owner}/${prCtx.repo}`,
+      pr: prCtx.prNumber,
+      runId,
+      ship: ship.name,
+      url: pr.url,
+    });
+    return { proposalIndex, number: pr.number, url: pr.url };
+  } catch (err) {
+    const reason =
+      err instanceof GitHubApiError && err.status === 403
+        ? 'the GitHub App lacks the `contents: write` permission'
+        : `stacking failed (${String(err).slice(0, 200)})`;
+    return degrade(reason);
+  }
+}
+
+function buildStackPrBody(
+  ship: ShipConfig,
+  prCtx: PRContext,
+  proposal: Proposal,
+  sandboxValidated: boolean,
+): string {
+  const files = (proposal.files ?? []).map(f => `- \`${f.path}\``).join('\n');
+  return [
+    `pd-${ship.name} coded this fix itself while reviewing #${prCtx.prNumber}. ` +
+      `The branch is cut from that PR's head, and this PR is based on its head ` +
+      `branch — merging it lands the fix stacked ON TOP of the review diff.`,
+    `**Why:** ${proposal.rationale}`,
+    files ? `**Files:**\n${files}` : '',
+    sandboxValidated
+      ? `Sandbox-validated: the repo's test suite passed with this fix applied to the PR head.`
+      : `Not sandbox-validated (no sandbox available this run) — review before merging.`,
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 /**
@@ -1217,8 +1440,15 @@ function buildOutputContract(): string {
   );
 }
 
-function buildSystemPrompt(ship: ShipConfig, contract: string | null): string {
+function buildSystemPrompt(ship: ShipConfig, contract: string | null, graftText = ''): string {
   const parts: string[] = [];
+
+  // Grafted skills come FIRST: they are the repo's own playbooks, fetched from
+  // the trusted branch, and frame everything the ship reads after them.
+  if (graftText) {
+    parts.push(graftText.replace(/\n+---\n+$/, ''));
+    parts.push('---');
+  }
 
   if (contract) {
     parts.push(`# Ship Contract\n\n${contract}`);
