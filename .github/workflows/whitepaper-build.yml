@@ -84,11 +84,15 @@ jobs:
             push) base="$PUSH_BEFORE_SHA" ;;
           esac
           # PRs and pushes rebuild only papers whose transitive TeX inputs
-          # changed. This prevents one shared figures directory from churning
-          # unrelated PDFs. Manual runs intentionally rebuild the full set.
+          # changed. A builder change intentionally rebuilds the full set,
+          # because it can alter every artifact. Manual runs also build all.
           if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ] \
              && git cat-file -e "$base^{commit}" 2>/dev/null; then
-            bash scripts/build-whitepapers.sh --changed-since "$base"
+            if git diff --quiet "$base"...HEAD -- scripts/build-whitepapers.sh; then
+              bash scripts/build-whitepapers.sh --changed-since "$base"
+            else
+              bash scripts/build-whitepapers.sh
+            fi
           else
             bash scripts/build-whitepapers.sh
           fi
