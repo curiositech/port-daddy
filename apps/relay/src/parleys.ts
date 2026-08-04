@@ -31,9 +31,15 @@
  *  - LIVENESS: expiry is checked lazily on every list/detail/respond (no
  *    per-parley timer) — parley is never a liveness hole.
  *  - MEDIATOR: the identity 'pd-mediator' is RESERVED. Every parley carries a
- *    tier-labeled pd-mediator observer seat in parley_positions, but v1 gives
- *    it NO auto-behavior and it can never sign or be named as a party — the
- *    plan gates the mediator's real body (executor + harbor card) behind N2.
+ *    tier-labeled pd-mediator observer seat in parley_positions, and it can
+ *    never sign or be named as a party. Its FIRST BODY now lives in
+ *    src/mediator.ts (opt-in, default OFF): after the state machine has
+ *    already resolved, it may record a neutral OBSERVATION on its own
+ *    observer row. It is structurally incapable of signing, of being a party,
+ *    of causing or blocking agreement, of extending a deadline, and of
+ *    altering another party's position — enforced by the SET/WHERE shape of
+ *    recordMediatorObservation, not by convention. It fails open: any model
+ *    or D1 failure leaves the parley completely unaffected.
  *  - Fail semantics: every gate fails closed (unknown → 404, unauthenticated
  *    → 401, insufficient role → 403, bad shapes → 400, closed/duplicate →
  *    409); D1 throws bubble to index.ts's controlled INTERNAL_ERROR envelope.
@@ -45,8 +51,9 @@
  *    irreversible actions, and Helm-configured default outcomes on expiry
  *    (v1 expiry is a plain lapse — the artifact records that no agreement
  *    was reached);
- *  - the mediator's real body: conflict prediction, neutral check runs,
- *    auto-convening at ≥0.7 confidence, `kill-mediator` flag;
+ *  - the REST of the mediator's body: symbol-level conflict prediction,
+ *    neutral check runs, auto-convening at ≥0.7 confidence, `kill-mediator`
+ *    flag (this slice ships observations only — see src/mediator.ts);
  *  - parley receipts as merge currency (receipt_sig, check-run attachment);
  *  - Mercy summons-ack SLO + parley-fatigue metric (v1 ships only the open
  *    parley count on /mercy, fail-safe null).
@@ -56,6 +63,7 @@ import type { Env } from './types.js';
 import { randomHex } from './crypto.js';
 import { resolveUserFromRequest } from './device-flow.js';
 import { isSameOrigin } from './auth-github.js';
+import { observeParley } from './mediator.js';
 import {
   countUnacceptedParties,
   createParley,
@@ -107,7 +115,26 @@ const harborNotFound = () => json(404, { code: 'NOT_FOUND', error: 'no such harb
 /** Unknown parley (or one from another harbor) — same shape, no oracle. */
 const parleyNotFound = () => json(404, { code: 'NOT_FOUND', error: 'no such parley' });
 
-async function resolveMemberGate(
+/**
+ * The harbor member gate, shared by the JSON API and the HTML surface.
+ *
+ * Exported because src/parleys-page.ts MUST gate identically: the
+ * no-existence-oracle property is only real if every surface collapses
+ * "no such harbor" and "not your harbor" into the same negative answer. A
+ * second, parallel implementation on the HTML side would be a standing
+ * invitation for the two to drift — and the drift would be invisible until
+ * someone noticed that the page 404s where the API 403s (or vice versa),
+ * which is exactly the oracle this returns null to prevent. One gate, two
+ * renderings of its refusal.
+ *
+ * @param env Worker env (DB handle).
+ * @param user The authenticated principal.
+ * @param namespace Harbor namespace (case-insensitive).
+ * @param name Harbor name (case-insensitive).
+ * @returns The harbor and the caller's role, or null for BOTH "does not
+ *   exist" and "exists but you are not a member" — indistinguishable by design.
+ */
+export async function resolveHarborMembership(
   env: Env,
   user: UserRow,
   namespace: string,
@@ -118,6 +145,44 @@ async function resolveMemberGate(
   const role = await getHarborRole(env.DB, harbor.id, 'user', user.id);
   if (!role) return null; // non-member: indistinguishable from nonexistent
   return { harbor, role };
+}
+
+/** Back-compat alias for this module's internal call sites. */
+const resolveMemberGate = resolveHarborMembership;
+
+/**
+ * Fetch a parley scoped to a harbor, applying the lazy deadline expiry.
+ *
+ * Shared by the JSON API and the HTML surface for the same reason
+ * {@link resolveHarborMembership} is: the two rules encoded here are
+ * correctness-critical and must not be re-derived per surface. First, a parley
+ * reached through the WRONG harbor's path is treated as absent — the harbor
+ * segment of the URL is part of the authorization, not decoration, so an id
+ * leaked from harbor A cannot be dereferenced through harbor B where the
+ * caller happens to be a member. Second, expiry is applied on READ: a deadline
+ * that has passed lapses the parley before anything renders it, so no surface
+ * can ever show an expired parley as still open, and parley never becomes a
+ * liveness hole waiting on a timer that does not exist.
+ *
+ * @param env Worker env (DB handle).
+ * @param harbor The harbor the caller has already been gated into.
+ * @param parleyId The parley id from the path.
+ * @param now Unix seconds to evaluate the deadline against.
+ * @returns The parley (post-expiry), or null when absent or foreign to this harbor.
+ */
+export async function resolveParleyInHarbor(
+  env: Env,
+  harbor: HarborRow,
+  parleyId: string,
+  now: number,
+): Promise<ParleyRow | null> {
+  let parley = await getParley(env.DB, parleyId);
+  if (!parley || parley.harbor_id !== harbor.id) return null;
+  if (parley.state === 'open' && parley.deadline_at < now) {
+    await resolveParleyState(env.DB, { parleyId: parley.id, state: 'lapsed', at: now });
+    parley = (await getParley(env.DB, parleyId)) ?? parley;
+  }
+  return parley;
 }
 
 // ── Serialization ─────────────────────────────────────────────────────────────
@@ -277,6 +342,11 @@ export async function handleCreateParley(
     parties,
   });
 
+  // The mediator observes AFTER the artifact is durably created — never
+  // before, and never in a way that can fail the convene (observeParley is
+  // total: it returns an outcome and never throws). Default OFF.
+  await observeParley(env, parley, await listParleyPositions(env.DB, parley.id), 'convened');
+
   const positions = await listParleyPositions(env.DB, parley.id);
   return json(201, {
     code: 'OK',
@@ -319,13 +389,9 @@ async function resolveParleyGate(
 ): Promise<{ harbor: HarborRow; role: HarborRole; parley: ParleyRow } | Response> {
   const gate = await resolveMemberGate(env, user, namespace, name);
   if (!gate) return harborNotFound();
-  let parley = await getParley(env.DB, parleyId);
   // A parley reached through the wrong harbor path is a 404, not a leak.
-  if (!parley || parley.harbor_id !== gate.harbor.id) return parleyNotFound();
-  if (parley.state === 'open' && parley.deadline_at < now) {
-    await resolveParleyState(env.DB, { parleyId: parley.id, state: 'lapsed', at: now });
-    parley = (await getParley(env.DB, parleyId)) ?? parley;
-  }
+  const parley = await resolveParleyInHarbor(env, gate.harbor, parleyId, now);
+  if (!parley) return parleyNotFound();
   return { harbor: gate.harbor, role: gate.role, parley };
 }
 
@@ -456,6 +522,13 @@ export async function handleRespondParley(
   }
 
   const after = (await getParley(env.DB, gate.parley.id)) ?? gate.parley;
+
+  // The mediator observes LAST — after the signature is durable and after the
+  // state machine has already elected agreed/lapsed/still-open above. By
+  // construction it cannot revisit any of that: see src/mediator.ts. A model
+  // outage here leaves this signature exactly as durable as it already is.
+  await observeParley(env, after, await listParleyPositions(env.DB, after.id), 'signed');
+
   return json(200, {
     code: 'OK',
     error: null,
