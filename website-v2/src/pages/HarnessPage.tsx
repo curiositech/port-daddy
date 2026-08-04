@@ -897,8 +897,8 @@ NOT CLAIMED
                 </PanelBody>
                 <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
                   <img
-                    src="/demos/harness/harness-fleetbar-repair-live.gif"
-                    alt="Fresh FleetBar recording showing the harness moving from needs repair to confirmed live."
+                    src="/demos/harness/harness-fleetbar-live.png"
+                    alt="Real FleetBar screenshot: the Squid harness confirmed LIVE with 4/4 agents wired, after a fresh read-back."
                     className="aspect-video w-full object-cover"
                     loading="eager"
                   />

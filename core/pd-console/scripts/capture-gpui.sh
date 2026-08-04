@@ -68,11 +68,12 @@ shoot() { # $1 = pane id, $2 = filename label
   fi
 }
 
-shoot fleet    fleet
-shoot sorties  sorties
-shoot dispatch dispatch
-shoot sessions sessions
-shoot health   health
-shoot lane     lane      # the live "watch + grab the wheel" surface
+shoot fleet         fleet
+shoot sorties       sorties
+shoot dispatch      dispatch
+shoot sessions      sessions
+shoot health        health
+shoot lane          lane            # the live "watch + grab the wheel" surface
+shoot active-agents active-agents   # harness roster: LIVE/READY/PARTIAL/UNPROTECTED + repair actions
 
 echo "done → $OUT"
