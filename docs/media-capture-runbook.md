@@ -104,7 +104,7 @@ appearance):
 
 | FleetBar pane (left-nav label) | Save as (paired, 1280×800) | Save as (canonical, 1440×1000 or 1280×900) | Must show |
 |---|---|---|---|
-| **Flow** | `website-v2/public/img/app-screens/fleet-flow-{light,dark}.webp` | `fleet-flow.webp` (1440×1000) | The agent coordination flow graph/timeline — nodes and edges, NOT a table |
+| **Flow** | `website-v2/public/img/app-screens/fleet-flow-light.webp` + `website-v2/public/img/app-screens/fleet-flow-dark.webp` | `fleet-flow.webp` (1440×1000) | The agent coordination flow graph/timeline — nodes and edges, NOT a table |
 | **Resources** | `resources-{light,dark}.webp` | `resources.webp` (1440×1000) | The readiness table: per-backend rows, each with a pass/fail check and an inline fix, per `backend-readiness-is-dependency-truth.md`'s caption |
 | **Sorties** | `sorties-{light,dark}.webp` | `sorties.webp` (1440×1000) | The sorties list — one row per active/recent sortie, with status badges |
 | **Shipwright → Control** | `shipwright-control-{light,dark}.webp` | `shipwright-control.webp` (1440×1000) | The repo-survey + proposed-plan side-by-side editor (roles, triggers, budgets, file boundaries) — this is also reused for the passkey pairing blog screenshot, so it must show the identity/pairing surface if that's still under this tab |
@@ -127,7 +127,7 @@ window-targeted way:
 
 | Save as | Resolution | Must show |
 |---|---|---|
-| `website-v2/public/img/app-screens/fleetbar-native-shell-{light,dark}.webp` | 1440×960 | The popover surfacing current project, blocked backends, and the last handoff — this is the site's single most-reused screenshot (landing hero, `MacPreviewPage`, `CTABanner`, blog post `control-plane-is-the-product.md`) |
+| `website-v2/public/img/app-screens/fleetbar-native-shell-light.webp` + `website-v2/public/img/app-screens/fleetbar-native-shell-dark.webp` | 1440×960 | The popover surfacing current project, blocked backends, and the last handoff — this is the site's single most-reused screenshot (landing hero, `MacPreviewPage`, `CTABanner`, blog post `control-plane-is-the-product.md`) |
 
 ## 3. FleetBar Squid harness — DEGRADED → LIVE repair, real animated GIF
 
