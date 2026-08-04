@@ -67,6 +67,7 @@ import { createReactiveOrchestrator } from './lib/orchestrator.js';
 import { createConductor } from './lib/fleet/conductor.js';
 import { createDispatchQueue } from './lib/dispatch/queue.js';
 import { createDispatchWorker } from './lib/dispatch/worker.js';
+import { runAutoMergeSweep } from './lib/dispatch/auto-merge.js';
 import { createConductorSpawnAdapter } from './lib/dispatch/conductor-adapter.js';
 import { createWorkIntentService } from './lib/agent-harbor/work-intent-service.js';
 import {
@@ -852,6 +853,39 @@ const dispatchWorker = DISPATCH_WORKER_ENABLED
   : null;
 if (dispatchWorker) dispatchWorker.start();
 
+// ── Auto-merge sweep (merge_policy='auto') ──────────────────────────────────
+// A DIFFERENT loop from the dispatch worker above: this one doesn't run
+// agents, it checks already-produced PRs for dispatches proposed with
+// `--merge-policy auto` and merges the ones that are CI-green + mergeable +
+// zero unresolved review threads (lib/dispatch/auto-merge.ts owns the full
+// safety gate). Disable with PD_DISPATCH_AUTOMERGE=false. Interval defaults
+// to 60s — merges are rare relative to the 5s dispatch-poll cadence above, so
+// there is no need to hammer `gh api` that often.
+const DISPATCH_AUTOMERGE_ENABLED = process.env.PD_DISPATCH_AUTOMERGE !== 'false';
+const _autoMergePollMs = parseInt(process.env.PD_DISPATCH_AUTOMERGE_POLL_MS ?? '60000', 10);
+const DISPATCH_AUTOMERGE_POLL_MS = Number.isFinite(_autoMergePollMs) && _autoMergePollMs >= 5000
+  ? _autoMergePollMs
+  : 60000;
+let autoMergeTimer: ReturnType<typeof setInterval> | null = null;
+if (DISPATCH_AUTOMERGE_ENABLED) {
+  const tick = () => {
+    runAutoMergeSweep(dispatchQueue, { repoRoot: REPO_ROOT }).then((result) => {
+      if (result.merged.length > 0 || result.errors.length > 0) {
+        logger.info('dispatch_auto_merge_sweep', {
+          checked: result.checked,
+          merged: result.merged.length,
+          blocked: result.blocked.length,
+          errors: result.errors.length,
+        });
+      }
+    }).catch((err) => {
+      logger.warn('dispatch_auto_merge_sweep_failed', { error: err instanceof Error ? err.message : String(err) });
+    });
+  };
+  autoMergeTimer = setInterval(tick, DISPATCH_AUTOMERGE_POLL_MS);
+  autoMergeTimer.unref?.();
+}
+
 const resourceGovernance = createResourceGovernance({ repoRoot: REPO_ROOT, startedAt: STARTED_AT });
 
 function resolveArbiterStrictMode(value: string | undefined): boolean {
@@ -1554,6 +1588,7 @@ function shutdown(signal: string): void {
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
   try { dispatchWorker?.stop(); } catch {}
+  try { if (autoMergeTimer) clearInterval(autoMergeTimer); } catch {}
   systemPortsRefresh.stop();
   if (ipcServer) ipcServer.stop().catch(() => {});
   closeDatabase(db);
