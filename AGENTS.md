@@ -863,3 +863,31 @@ working checkout. State + per-build logs live in `~/.port-daddy/app-watch/`; the
 log is `~/.port-daddy/app-watch.log`. A SHA/version whose build fails is not retried
 until it moves again (the failure notification tells the operator); force a rerun with
 `~/.port-daddy/bin/pd-app-watch.sh --force-latest` / `--force-prod`.
+
+## Show-me runbook (operator demos)
+
+When the operator asks to *see* any pd-console / FleetBar / daemon feature, run this
+sequence. Every item below is a real failure from a live demo (2026-07-12), not theory.
+
+1. **Build the TRIPLE from the feature branch** via `scripts/dev-triple.sh <label>`, and
+   make sure the daemon carries its berth identity: it must launch with
+   `PD_DAEMON_TIER=dev PD_DAEMON_LABEL=<label> PD_DAEMON_COLOR=<hex>
+   PD_DAEMON_SOURCE_DIR=<worktree>` (the `BERTH_ENV` keys in `shared/daemon-berths.ts`)
+   so it self-registers into `~/.port-daddy/dev-daemons.json`. An unregistered berth is
+   an invisible daemon — FleetBar's Daemons list never shows it. `dev-triple.sh` now
+   exports these itself; if you launch a daemon any other way, export them yourself.
+2. **Seed live state before the operator looks.** An empty daemon renders empty panes —
+   it can't render what it has no backend for. For claim/conflict surfaces: create two
+   sessions and file overlapping `POST /sessions/:id/files` claims (`agentId` is
+   required in the body).
+3. **Feature spans multiple unmerged PRs? Build a COMBINED local preview branch** —
+   merge the PR branches locally (do not push it) so the operator sees the sum, not one
+   slice. An operator looking at branch A files rage-bugs about everything branch B
+   already fixed.
+4. **`pd-console-repl` / terminal-face artifacts are never operator review material.**
+   They are machine-gate evidence only. Operator review = the GPUI app, running, seeded.
+5. **Emoji sweeps must grep BOTH literal emoji AND unicode escapes**
+   (`\u{2693}`, `\u{1F...}`) — escaped emoji are still emoji on screen, and the
+   no-emoji-as-icons rule applies to what renders, not what greps.
+6. **Never create virtual displays or modify display settings.** On-primary-screen
+   window openings are allowed only with explicit operator consent, per action.
