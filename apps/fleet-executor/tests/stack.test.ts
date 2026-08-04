@@ -177,10 +177,10 @@ describe('stack proposals — happy path', () => {
 describe('stack proposals — guards degrade honestly (no PR, transcript note)', () => {
   it('fork PR: never writes to the repo', async () => {
     const db = memoryD1();
-    await runSpark({
-      db,
-      job: jobWithHeadRef({ head: { sha: 'HEADSHA', ref: 'feat/widget', repo: { full_name: 'attacker/fork' } } }),
-    });
+    // isFork is computed from the LIVE PR fetch (head.repo vs base.repo), not
+    // the webhook payload — so the fork is simulated on the stub's PR body.
+    state.prHeadRepo = 'attacker/fork';
+    await runSpark({ db });
     expect(state.records.filter(r => r.url.includes('/git/'))).toHaveLength(0);
     expect(state.stackedPrs).toHaveLength(0);
     const step = db.steps.find(s => s.kind === 'stack-posted')!;
@@ -237,10 +237,10 @@ describe('stack proposals — guards degrade honestly (no PR, transcript note)',
 
   it('a missing head branch name degrades instead of opening a misbased PR', async () => {
     const db = memoryD1();
-    await runSpark({
-      db,
-      job: jobWithHeadRef({ head: { sha: 'HEADSHA', repo: { full_name: 'erichowens/port-daddy' } } }),
-    });
+    // headRef comes from the LIVE PR fetch; omit it there to reproduce a PR
+    // whose head branch GitHub did not report.
+    state.prHeadRef = undefined;
+    await runSpark({ db });
     expect(state.stackedPrs).toHaveLength(0);
     const step = db.steps.find(s => s.kind === 'stack-posted')!;
     expect(JSON.parse(String(step.detail)).degraded).toContain('head branch unknown');
