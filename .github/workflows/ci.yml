@@ -701,8 +701,47 @@ jobs:
       - name: cargo clippy
         run: cargo clippy --all-targets -- -D warnings
 
-      - name: cargo test (incl. FFI boundary + property tests)
+      - name: cargo test (incl. FFI boundary, property tests, hv:2 parity fixture)
         run: cargo test
+
+  relay-tests:
+    # apps/relay is a Cloudflare Worker with its own tsconfig graph and vitest
+    # suite; root jest never compiles or runs it. Until now the ONLY workflow
+    # that executed `npx vitest run` for the relay was deploy-relay.yml, which
+    # fires on push to main and is path-gated to apps/relay/** — so a PR could
+    # go green with a broken relay, and a change to a shared fixture OUTSIDE
+    # apps/relay (tests/fixtures/**) would never run the relay's assertions at
+    # all.
+    #
+    # That matters for ADR-0120 rule 1: the relay cannot dlopen the Rust kernel,
+    # so apps/relay/src/auth.ts is a byte-parity twin of core/harbor-card-rs
+    # locked by tests/fixtures/harbor-card-hv2-parity-vectors.json. A fixture
+    # asserted by only one of its two suites is not a gate. Always-run (not
+    # path-gated) for the same reason rust-harbor-card is: a security twin whose
+    # tests only run on the deploy path is theater.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/relay
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: apps/relay/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: vitest (incl. hv:2 harbor-card parity fixture ⇄ core/harbor-card-rs)
+        run: npx vitest run
 
   fleetbar:
     # Build + unit-test the FleetBar Swift menu bar app. Its tests never ran in

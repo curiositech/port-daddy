@@ -119,6 +119,26 @@ write X in Rust."
   exports are `constant_time_compare` and `verify_capability_subset` (the FFI
   the Arbiter loads).** Porting hv:2 verification into `harbor-card-rs` behind
   a shared fixture is the top NEXT item below.
+  **DONE (2026-08-04, DAG node `hv2-port-rs`).** `harbor-card-rs::verify()` is
+  now the hv:2 verifier: Ed25519 over `SHA-256(headerB64.payloadB64)`, `hv`
+  pin, `nbf`, and structured `cap: CapabilityEntry[]` matched with
+  `matchCapability`'s op-with-admin-wildcard + glob grammar. The legacy
+  verifier was DELETED (no caller — the FFI never exported it), so the crate
+  no longer implements a format nobody mints. It is locked to
+  `apps/relay/src/auth.ts` by
+  `tests/fixtures/harbor-card-hv2-parity-vectors.json`, asserted by both
+  suites. Two divergences are DECLARED in that fixture rather than quietly
+  reconciled: `auth.ts` ignores `iat` (the Rust side rejects a card dated past
+  `MAX_CLOCK_SKEW_SECS` into the future), and the two check claims and
+  signature in opposite order, so a doubly-faulty card yields different codes.
+  D1 JTI revocation stays in the relay, per this ADR.
+  One correction to the paragraph above: `lib/harbor-tokens.ts` does NOT mint
+  the relay's cards. It mints a *third*, unrelated thing that also calls itself
+  `hv: 2` — a jose EdDSA JWT signed over the RAW signing input with
+  `cap: string[]` and `iss: port-daddy` — for the daemon's own local harbor
+  cards. It never crosses the relay boundary, so it is out of the fixture's
+  scope, but the name collision on "hv:2" is its own debt and should not be
+  mistaken for wire-format parity.
 - **`lib/macaroon` is deprecated byte-parity fallback** (ADR-0054): kernel
   Rust is canonical, FFI preferred, fixture-gated. Correct end-state; keep.
 - **Chain-of-events parity partner is Python**, not Rust
