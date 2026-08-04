@@ -30,6 +30,16 @@
  *                              source read-only for VACUUM INTO and then opens
  *                              the target copy to scrub local-only tables before
  *                              the dev daemon starts.
+ *   - lib/session-intel/data-source.js — the WS-3 coordination-ledger miner. It
+ *                              opens HISTORICAL / instance stores strictly
+ *                              `{ readonly: true, fileMustExist: true }` for
+ *                              offline mining. Like cli/commands/diagnostics.ts it
+ *                              is a read-only-effect open (a read-only handle
+ *                              cannot write test traffic into any DB), and it is
+ *                              never the live-registry connection the
+ *                              prod-in-test guard protects — it mines arbitrary
+ *                              instance snapshots by path, not initDatabase()'s
+ *                              canonical registry.
  *
  * Test files are exempt: they use in-memory DBs (createTestDb / new
  * Database(':memory:')) and explicit scratch paths, which is the intended
@@ -54,6 +64,7 @@ const ALLOWED_FILES = new Set([
   'cli/commands/diagnostics.ts',
   'lib/backup.ts',
   'lib/seed-berth-db.ts',
+  'lib/session-intel/data-source.js',
 ]);
 
 // `new Database(` in any whitespace form.
