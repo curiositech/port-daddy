@@ -115,6 +115,84 @@ describe('zero-trust config + contract fetching', () => {
   });
 });
 
+describe('self-review guard — the fleet does not review its own branches', () => {
+  /** Seed the App-login cache so authorship resolves on the STRONG signal. */
+  function fleetKv(): ReturnType<typeof memoryKV> {
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    void kv.put('fleet_app_login', 'port-daddy[bot]');
+    return kv;
+  }
+
+  it('a fleet-authored purser branch completes the required check and runs ZERO ships', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    state.prAuthor = { login: 'port-daddy[bot]', type: 'Bot' };
+    state.prHeadRef = 'purser/pr-4763-tests';
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding(), qa: reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: fleetKv(), AI: ai.ai }));
+
+    // No AI spend, no review, no comments — the whole point.
+    expect(ai.calls).toHaveLength(0);
+    expect(state.reviews).toHaveLength(0);
+    expect(state.commentPosts).toBe(0);
+
+    // …but the REQUIRED "Port Daddy Fleet" check is still completed, never left
+    // in_progress. An absent/hanging required check blocks the branch forever.
+    expect(state.checkRunsCreated).toBe(1);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].summary).toContain('Fleet-authored branch — not self-reviewed');
+  });
+
+  it('the same skip applies to an ideation `fleet/` stacked-fix branch', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prAuthor = { login: 'port-daddy[bot]', type: 'Bot' };
+    state.prHeadRef = 'fleet/qa-pr-7-add-guard';
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: fleetKv(), AI: ai.ai }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed[0].conclusion).toBe('neutral');
+  });
+
+  it("a HUMAN's PR is still reviewed normally — ships run, review posted", async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prAuthor = { login: 'erichowens', type: 'User' };
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: fleetKv(), AI: ai.ai }));
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.reviews.length).toBeGreaterThan(0);
+    expect(state.completed[0].summary).not.toContain('not self-reviewed');
+  });
+
+  it("a HUMAN on a `purser/` branch is STILL reviewed — a branch name grants nothing", async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prAuthor = { login: 'mallory', type: 'User' };
+    state.prHeadRef = 'purser/pr-1-tests';
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: fleetKv(), AI: ai.ai }));
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.completed[0].summary).not.toContain('not self-reviewed');
+  });
+
+  it('a DIFFERENT bot is reviewed normally when the fleet App login is known', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prAuthor = { login: 'dependabot[bot]', type: 'Bot' };
+    state.prHeadRef = 'dependabot/npm_and_yarn/x';
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: fleetKv(), AI: ai.ai }));
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+  });
+});
+
 describe('pull_request action routing', () => {
   it('acks an obsolete synchronize delivery before creating a check or spending AI', async () => {
     state.prHeadSha = 'NEWESTSHA';
