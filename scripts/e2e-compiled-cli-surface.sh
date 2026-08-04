@@ -87,9 +87,17 @@ echo
 # NEVER the real ~/.port-daddy. If the compiled CLI can't bootstrap or talk to
 # THIS daemon, every call below fails.
 # --------------------------------------------------------------------------
+# PORT_DADDY_CONTEXT_SLOT is PINNED so every call below shares ONE session
+# context, the way a real operator's single shell does. Without it
+# resolveContextSlot() falls back to `ppid-<pid>` (cli/utils/current-context.ts),
+# and because each cli() call runs in its own subshell every invocation would get
+# a DIFFERENT slot — so `pd begin` would write a context that `pd plan` could
+# never read. Pinning it makes the begin→…→done round-trip below exercise the
+# real context path instead of an accidental per-process one.
 cli() {
   ( cd "$WORK" && env \
       PORT_DADDY_PORT="$PORT" \
+      PORT_DADDY_CONTEXT_SLOT="e2e-cli-surface" \
       PORT_DADDY_PREFIX="$SCRATCH" \
       PORT_DADDY_SOCK="$SOCK" \
       PORT_DADDY_SNAPSHOT_ROOT="$SNAP_ROOT" \
@@ -271,6 +279,16 @@ run_read "graph"             graph       -- graph
 run_read "embed status"      embed       -- embed status
 run_read "skill-graft help"  skill-graft -- skill-graft --help
 run_read "skillgraft help"   skillgraft  -- skillgraft --help
+# Skill registry (cli/commands/seamanship.ts). `seamanship list` (the bare
+# default subcommand) is a pure READ: it walks defaultSkillCatalogRoots() and
+# prints the union, writing nothing. The mutating subforms are NOT run here —
+# `sync` copies $WINDAGS_HOME into ~/.port-daddy/skills/ and `index` rebuilds the
+# catalog on disk, both of which would touch the operator's real skill store.
+# `skills` is the alias of the same handler; it gets its own probe (rather than
+# an ALIASES fold) so a broken alias arm in the COMPILED dispatch is caught —
+# same pattern as harbormaster/hm and transcripts/transcript above.
+run_read "seamanship list"   seamanship  -- seamanship list
+run_read "skills list"       skills      -- skills list
 run_read "snapshots list"    snapshots   -- snapshots list
 run_read "snapshot list"     snapshot    -- snapshot list
 run_read "tuple scan"        tuple       -- tuple scan
@@ -281,6 +299,16 @@ run_read "webhook list"      webhook     -- webhook list
 run_read "webhooks events"   webhooks    -- webhook events
 run_read "integration list"  integration -- integration list
 run_read "fleet status"      fleet       -- fleet status
+# Tender fleet suggestions (PR #322). The bare form is a pure GET
+# /fleet/suggestions read; against the scratch daemon it prints the "No pending
+# suggestions" banner. The mutating subforms (`suggest approve|dismiss <id>`)
+# POST and can trigger a real ship run, so they are NOT exercised here.
+run_read "suggest"           suggest     -- suggest
+# Durable agent roster (ADR/PR #3129). `roster list` is a pure GET
+# /durable-agents read. create/promote/update/attach/continue/retire all mutate
+# the append-only agent-node facts (and `continue` launches a backend), so only
+# the read arm runs in the surface gate.
+run_read "roster list"       roster      -- roster list
 run_read "scan"              scan         -- scan
 run_read "tunnel list"       tunnel       -- tunnel list
 run_read "wallet (usage)"    wallet       -- wallet
@@ -367,6 +395,22 @@ run_ok  "unlock $LOCK"       unlock   -- unlock "$LOCK"
 # out with an explicit reason, same pattern as the website-GIF CI job fix.)
 run_ok  "begin"              begin    -- begin e2e:surface:ci --lifecycle durable --allow-main-worktree --sidequest "compiled CLI surface E2E probe"
 run_ok  "note"               note     -- note "e2e cli-surface round-trip note"
+# `pd plan` (PR #3131) resolves the ACTIVE session from the context slot, so it
+# is probed here — between begin and done — where a real session exists rather
+# than as a bare read that would only ever hit the "no active session" arm.
+# `plan set` writes a todo_list note to that scratch session; `plan show` (the
+# bare default) reads it back, so the pair round-trips the real GET/POST
+# /sessions/:id/notes?type=todo_list path against the scratch daemon.
+# NB two things about this probe body:
+#   1. It must not START with '-' — the CLI arg parser would read it as a flag
+#      and `plan set` would see an empty body. Markdown accepts '*' as a list
+#      bullet, so the probe uses that.
+#   2. The item is written already CHECKED ('[x]'). `pd done` refuses to close a
+#      session whose plan still has unchecked todos — a real guard we must not
+#      disable — and this probe's "work" is the probe itself, which is complete
+#      by the time `done` runs.
+run_ok  "plan set"           plan     -- plan set "* [x] e2e cli-surface plan probe"
+run_ok  "plan show"          plan     -- plan
 run_read "session (usage)"   session  -- session
 run_read "takeover (usage)"  takeover -- takeover
 # `pd done` now runs two ADR-0045 preconditions (lib/git-origin-check.ts):

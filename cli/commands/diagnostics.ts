@@ -157,6 +157,54 @@ function resolveDiagnosticPort(): number {
   }
 }
 
+/**
+ * True when THIS CLI process is addressing the canonical daemon — the
+ * launchd-supervised `~/.port-daddy` install on the canonical port — rather
+ * than one it was explicitly redirected to.
+ *
+ * Motivation: the runtime-identity verdict is a claim about ONE daemon
+ * generation, assembled from strictly local authorities (`~/.port-daddy/
+ * daemon.pid`, `daemon.port`, the Bosun `heartbeat`, and the launchd job).
+ * Those files describe the CANONICAL daemon and nothing else. The moment the
+ * caller points the CLI somewhere else — `PORT_DADDY_URL`/`PORT_DADDY_SOCK` at
+ * another endpoint, `PORT_DADDY_PREFIX` at a berth's runtime dir, or the
+ * explicit `PORT_DADDY_PID_FILE`/`PORT_DADDY_PORT_FILE`/
+ * `PORT_DADDY_HEARTBEAT_FILE` overrides that `pd daemon env` exports and
+ * `server.ts` honors — the canonical authorities stop being evidence about the
+ * daemon actually being addressed. Reconciling them anyway does not produce a
+ * weaker verdict; it produces a FALSE one ("daemon.pid=<other daemon>, /health
+ * pid=<this daemon>").
+ *
+ * Design: this is the same question `cli/commands/daemon.ts`'s
+ * `isCanonicalDaemonTarget()` asks before consulting launchd, widened to every
+ * env var that can redirect the runtime-file half of the comparison. It is a
+ * pure environment read so callers can gate on it without any I/O.
+ *
+ * @returns `true` when no endpoint or runtime-path override is in effect, so
+ *   the canonical local authorities genuinely describe the addressed daemon.
+ */
+export function isCanonicalRuntimeTarget(): boolean {
+  // Every env var that can point this CLI at a daemon other than the canonical
+  // one. The list is derived from the ACTUAL resolvers, not from memory:
+  // shared/daemon-discovery.ts resolves the TCP target from PORT_DADDY_PORT
+  // FIRST (before the daemon.port file), and PORT_DADDY_TCP_HOST moves the host
+  // — omitting either reintroduces the exact false "control plane diverged"
+  // verdict this function exists to prevent, because we would compare a
+  // redirected daemon's /health against the canonical ~/.port-daddy files.
+  const overrides = [
+    process.env.PORT_DADDY_URL,
+    process.env.PORT_DADDY_SOCK,
+    process.env.PORT_DADDY_PORT,
+    process.env.PORT_DADDY_TCP_HOST,
+    process.env.PORT_DADDY_PREFIX,
+    process.env.PORT_DADDY_PID_FILE,
+    process.env.PORT_DADDY_PORT_FILE,
+    process.env.PORT_DADDY_HEARTBEAT_FILE,
+    process.env.PD_HOME,
+  ];
+  return overrides.every((value) => !(typeof value === 'string' && value.trim()));
+}
+
 function collectDiagnosticRuntimeIdentity(
   health: RuntimeHealthSnapshot | null,
   endpointPort = resolveDiagnosticPort(),
@@ -692,7 +740,24 @@ export async function runStatus(
     data.binaryDrift = health.binaryDrift;
     if (deps.runtimeIdentity) {
       data.controlPlane = deps.runtimeIdentity(health as RuntimeHealthSnapshot);
-    } else if (!deps.fetch) {
+    } else if (!deps.fetch && isCanonicalRuntimeTarget()) {
+      // Only the canonical daemon gets a control-plane verdict here, because
+      // `pd status` turns that verdict into its EXIT CODE (below: a non-
+      // converged control plane is a hard failure, and even a warn-severity
+      // one degrades `statusLineworkState`). The assessment is built from
+      // `~/.port-daddy`'s daemon.pid/daemon.port/heartbeat plus the launchd
+      // job — authorities that describe the canonical daemon only. When the
+      // caller redirected us to some other daemon (a `pd daemon env` berth, an
+      // ephemeral/scratch daemon on a private socket, a test harness), those
+      // files belong to a DIFFERENT process, so reconciling them reports a
+      // divergence that does not exist and fails a command whose target is
+      // perfectly healthy. Abstaining is the honest answer: we have no local
+      // evidence about that daemon's generation, so we assert nothing.
+      //
+      // `pd doctor` deliberately still reports the assessment (see §7b): it
+      // grades findings by severity into the three-tier report where WARN is
+      // loud but never gates, so a soft "could not verify" there is signal
+      // rather than a false failure.
       data.controlPlane = collectDiagnosticRuntimeIdentity(health as RuntimeHealthSnapshot);
     }
 
