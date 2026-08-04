@@ -2760,6 +2760,12 @@ const TOOLS = [
     description:
       '[Standard] Read the honest N:N harness matrix. Returns catalog mechanics separately from fresh/stale ' +
       'daemon-witnessed spawn, live-control, native-resume, and handoff evidence; never a scalar compliance badge.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
     name: 'durable_agent_roster',
     description:
       '[Essential] Find durable named agents by expertise, list a system/repo roster, or inspect one AgentNode. ' +
@@ -2851,15 +2857,6 @@ const TOOLS = [
         timeout_ms: { type: 'number' },
       },
       required: ['agent_node_id', 'target_backend', 'idempotency_key'],
-    },
-  },
-  {
-    name: 'harness_continuation_matrix',
-    description:
-      '[Standard] Read the honest N:N harness matrix. Returns catalog mechanics separately from fresh/stale daemon-witnessed spawn, control, native-resume, and handoff receipts; never a scalar compliance badge.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {},
     },
   },
   {
