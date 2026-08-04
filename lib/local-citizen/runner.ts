@@ -19,7 +19,7 @@
  *     --backend groq --model llama-3.1-8b-instant \
  *     --task "Edit lib/foo.ts to add a retry" \
  *     --target-file lib/foo.ts \
- *     [--ink-cloud <path>] [--self-actor <id>] [--print-prompt]
+ *     [--ink-cloud <path>] [--self-actor <id>] [--project-root <dir>] [--print-prompt]
  */
 
 import { readFileSync } from 'node:fs';
@@ -28,9 +28,10 @@ import { dirname, join } from 'node:path';
 import {
   readInkCloud,
   readInkCloudFromText,
-  buildInjectionBlock,
+  projectInkCloud,
   type InkCloud,
 } from './ink-cloud.js';
+import type { VoiceLogEvent } from '../squid/reconcile-contract.js';
 import { callBackend, type BackendName, type ChatMessage, type ChatResult } from './backends.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -45,12 +46,26 @@ export interface RunInput {
   /** override Ink Cloud location; if inkCloudText is set it wins */
   inkCloudPath?: string;
   inkCloudText?: string;
+  /**
+   * Project root for the exact-root pheromone filter, mirroring the rule
+   * `bin/pd-hook-prompt` applies. Defaults to `process.cwd()`; pass it
+   * explicitly when the runner is driven from outside the repo it is working.
+   */
+  projectRoot?: string;
 }
 
 export interface ComposedRequest {
   messages: ChatMessage[];
   injection: string;
   cloud: InkCloud;
+  /**
+   * The VoiceLog receipt for this turn — whether the harness spoke, had nothing
+   * to say, or was silenced by its own bounds, in the same shape
+   * `bin/pd-hook-prompt` writes. Exposed so a hookless turn can be made as
+   * auditable as a hooked one; NOTE that nothing persists it yet, so hookless
+   * turns do not appear in `pd squid voice` until a writer lands.
+   */
+  voice: VoiceLogEvent;
 }
 
 export function loadCitizenSystemPrompt(): string {
@@ -67,10 +82,12 @@ export function composeRequest(input: RunInput): ComposedRequest {
     ? readInkCloudFromText(input.inkCloudText)
     : readInkCloud(input.inkCloudPath);
 
-  const injection = buildInjectionBlock(cloud, {
+  const projection = projectInkCloud(cloud, {
     targetFiles: input.targetFiles,
     selfActor: input.selfActor,
+    projectRoot: input.projectRoot,
   });
+  const injection = projection.text;
 
   const userParts: string[] = [];
   if (injection) userParts.push(injection);
@@ -80,7 +97,7 @@ export function composeRequest(input: RunInput): ComposedRequest {
     { role: 'system', content: loadCitizenSystemPrompt() },
     { role: 'user', content: userParts.join('\n\n') },
   ];
-  return { messages, injection, cloud };
+  return { messages, injection, cloud, voice: projection.event };
 }
 
 export function runTurn(input: RunInput): { request: ComposedRequest; result: ChatResult } {
@@ -115,6 +132,7 @@ function parseArgs(argv: string[]): RunInput & { printPrompt?: boolean } {
     targetFiles,
     selfActor: out['self-actor'],
     inkCloudPath: out['ink-cloud'],
+    projectRoot: out['project-root'],
     printPrompt,
   };
 }

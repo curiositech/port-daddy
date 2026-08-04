@@ -82,3 +82,5 @@ export * from './skill-graft.js';
 export * from './plan.js';
 export * from './suggest.js';
 export * from './seamanship.js';
+// pd squid voice — operator window into when the Giant Squid harness talks
+export * from './squid-voice.js';

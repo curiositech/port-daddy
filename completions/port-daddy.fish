@@ -244,7 +244,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command hooks" -l user -d 'Also write user-level config for claude/gemini'
     complete -c $prog -n "__pd_using_command hooks" -l yes -d 'Skip the confirmation prompt'
     complete -c $prog -n __pd_needs_command -a squid -d 'Run an unofficial Anthropic-compatible bridge backed by Codex CLI'
-    complete -c $prog -n "__pd_using_command squid" -x -a 'bridge serve codex pro on off arm disarm status tap hooks' -d 'Squid subcommand'
+    complete -c $prog -n "__pd_using_command squid" -x -a 'bridge serve codex pro on off arm disarm status tap voice hooks' -d 'Squid subcommand'
     complete -c $prog -n "__pd_using_command squid" -l port -x -d 'Local bridge port'
     complete -c $prog -n "__pd_using_command squid" -l host -x -d 'Local bind host'
     complete -c $prog -n "__pd_using_command squid" -l cwd -x -d 'Working directory for Codex and launched client'

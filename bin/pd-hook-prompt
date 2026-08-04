@@ -2,18 +2,49 @@
 # pd-hook-prompt — UserPromptSubmit tentacle (ADR-0091, Giant Squid Harness)
 # =============================================================================
 # Claude Code (and parity-verified vendors) invoke this on UserPromptSubmit with
-# the prompt event JSON on stdin. We grep the Ink Cloud matrix for steering
-# Alerts (PD_ALERT_*) and Pheromones (PD_PHEROMONE_*) relevant to the current
-# working directory and print them to stdout. Claude Code PREPENDS hook stdout to
-# the model's context for that turn — that is the "Suggestibility Envelope".
+# the prompt event JSON on stdin. We grep the Ink Cloud matrix for the Reconcile
+# Loop's projected key classes plus the legacy Alerts/Pheromones and print what
+# is relevant to THIS actor and THIS project root. Claude Code PREPENDS hook
+# stdout to the model's context for that turn — the "Suggestibility Envelope".
 #
 # CONTRACT: exit 0 always (this tentacle is ADVISORY, never blocking). Any error
 # must fail OPEN — emit nothing, let the turn proceed un-steered. A hook that
 # crashes the CLI is a broken product; a hook that stays quiet is merely degraded
 # coordination (ADR §Mitigation).
 #
-# Dependency-light: pure POSIX sh + grep/sed. jq is used only to read `cwd` from
-# the event JSON when present; we fall back to $PWD. No node required.
+# ── THE QUIET HARNESS ────────────────────────────────────────────────────────
+# This tentacle used to speak on EVERY turn, because the standing "maintain an
+# active pd plan / run pd sitrep" directive was printed unconditionally. That
+# made silence meaningless: an operator could never tell "the fleet is calm"
+# from "the harness is broken", and the model learned to skim a block that was
+# identical 200 turns running. So the directive is now CONDITIONAL — it prints
+# when there is other real content to carry it, or once per
+# PD_SQUID_PLAN_NAG_INTERVAL_SECONDS (default 3600) per actor, tracked in a small
+# state file under $PD_HOME (never /tmp — macOS purges it). When there is
+# genuinely nothing fresh, this hook emits NOTHING and exits 0.
+#
+# ── THE VOICE LOG ────────────────────────────────────────────────────────────
+# Silence is only trustworthy if it is auditable, so every invocation appends ONE
+# JSON line to $PD_HOME/squid-voice-log.jsonl carrying the VoiceLogEvent shape
+# from lib/squid/reconcile-contract.ts:
+#   {"outcome":"spoke",      counts, bytes, classes}
+#   {"outcome":"silent",     reason:no-entries|matrix-absent|harness-disabled}
+#   {"outcome":"suppressed", reason:over-budget|over-entry-cap|stale-matrix|
+#                                   ttl-expired|not-relevant-to-cwd,
+#                            counts, bytes, droppedClasses, emittedBytes}
+# The `suppressed` case is the load-bearing one: it is how an operator learns
+# "the harness HAD something and its own bounds ate it" instead of concluding the
+# fleet was quiet. Per skills/responsible-logging the file is byte-bounded and
+# rotated tail-first (see write_voice_log), and every step of the write is
+# wrapped so a failing sink can never change stdout or the exit code.
+#
+# `counts` is a SUPERSET of the contract's ReconcileClassCounts: it also carries
+# ALERT and PHEROMONE, the two pre-reconcile legacy classes this hook projects
+# that the registry does not (yet) own. Dropping them from the log would leave
+# an operator staring at `counts:{}` on a turn that emitted ten pheromones.
+#
+# Dependency-light: pure POSIX sh + grep/sed/tr/cut/date. jq is used only to read
+# `cwd` from the event JSON and to frame the output. No node required.
 set -u
 
 PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
@@ -21,6 +52,26 @@ MATRIX="${PD_MATRIX_FILE:-$PD_HOME/matrix.env}"
 MAX_ENTRIES="${PD_SQUID_PROMPT_MAX_ENTRIES:-12}"
 MAX_BYTES="${PD_SQUID_PROMPT_MAX_BYTES:-4096}"
 TTL_SECONDS="${PD_SQUID_PROMPT_TTL_SECONDS:-1800}"
+# RECONCILE_ACCOMPLISHMENT_TTL_MS (900_000) — ambience decays fastest.
+ACC_TTL_SECONDS="${PD_SQUID_ACCOMPLISHMENT_TTL_SECONDS:-900}"
+# RECONCILE_STALE_AFTER_MS (60_000) — four missed reconcile ticks.
+STALE_AFTER_MS="${PD_SQUID_MATRIX_STALE_AFTER_MS:-60000}"
+NAG_INTERVAL="${PD_SQUID_PLAN_NAG_INTERVAL_SECONDS:-3600}"
+VOICE_LOG="${PD_SQUID_VOICE_LOG:-$PD_HOME/squid-voice-log.jsonl}"
+VOICE_LOG_MAX_BYTES="${PD_SQUID_VOICE_LOG_MAX_BYTES:-262144}"
+NAG_DIR="${PD_SQUID_PLAN_NAG_DIR:-$PD_HOME/squid-plan-nag}"
+# This agent's identity; the daemon sets PD_ACTOR per voyage. Unknown → "".
+# (pd-hook-pre-tool / pd-hook-post-tool already read it; this hook did not, which
+# is why per-actor addressing was previously impossible here.)
+SELF="${PD_ACTOR:-}"
+
+# Per-class entry caps, mirroring RECONCILE_KEY_CLASSES[*].entryCap.
+CAP_HALT=1
+CAP_PARLEY=2
+CAP_CLAIM=4
+CAP_CI=1
+CAP_INBOX=3
+CAP_ACC=2
 
 # Drain stdin so the CLI's pipe write never blocks, capturing it for cwd parsing.
 EVENT="$(cat 2>/dev/null || true)"
@@ -32,16 +83,140 @@ if command -v jq >/dev/null 2>&1 && [ -n "$EVENT" ]; then
   [ -n "$J" ] && CWD="$J"
 fi
 
-# Read the matrix once if it exists (cheap, single grep over a flat file).
-ALERTS=""
-PHER=""
+NOW="$(date +%s 2>/dev/null || true)"
+case "${NOW:-}" in ''|*[!0-9]*) NOW=0 ;; esac
+NOW_MS=$((NOW * 1000))
+
+# ── Actor addressing ─────────────────────────────────────────────────────────
+# Mirrors actorKey() in lib/squid/reconcile-contract.ts VERBATIM (that TSDoc
+# snippet is executed and diffed against the TS function in the contract's test
+# suite). Do not "tidy" the BRE intervals into `*` — they are load-bearing.
+pd_actor_key() {
+  k=$(printf '%s' "$1" \
+    | sed -e 's/[^A-Za-z0-9]\{1,\}/_/g' -e 's/^_\{1,\}//' -e 's/_\{1,\}$//' \
+    | tr '[:lower:]' '[:upper:]' \
+    | cut -c1-80)
+  [ -n "$k" ] || k=X
+  printf '%s' "$k"
+}
+
+# Empty PD_ACTOR must NOT normalize to the literal "X" and start reading
+# PD_INBOX_X_* — an unidentified agent is addressed by nobody, so it reads no
+# per-actor class at all. Silence beats delivering another agent's mail.
+ACTOR_KEY=""
+[ -n "$SELF" ] && ACTOR_KEY="$(pd_actor_key "$SELF")"
+
+emit_value() {
+  # $1 = a `KEY="val"` matrix line → print just the unquoted value.
+  printf '%s\n' "$1" | sed -E 's/^[A-Za-z0-9_]+="?//; s/"$//'
+}
+
+is_fresh() {
+  # $1 = value, $2 = ttl seconds (0 disables the check for mirror-source classes
+  # like HALT, whose lifetime is owned by the reconcile tick, not by age).
+  # Untagged legacy entries remain visible; every new writer includes ts:<ISO>.
+  _ttl="$2"
+  [ "$_ttl" -gt 0 ] 2>/dev/null || return 0
+  ts="$(printf '%s\n' "$1" | sed -nE 's/.*\| ts:([^ |]+).*/\1/p')"
+  [ -n "$ts" ] || return 0
+  compact="$(printf '%s' "$ts" | sed -E 's/\.[0-9]+Z$/Z/')"
+  epoch="$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$compact" '+%s' 2>/dev/null || true)"
+  [ -n "$epoch" ] || epoch="$(date -u -d "$compact" '+%s' 2>/dev/null || true)"
+  case "$epoch" in ''|*[!0-9]*) return 1 ;; esac
+  age=$((NOW - epoch))
+  [ "$age" -ge 0 ] 2>/dev/null && [ "$age" -le "$_ttl" ] 2>/dev/null
+}
+
+# ── Bookkeeping the VoiceLog is built from ───────────────────────────────────
+COUNT=0            # entries actually emitted (the MAX_ENTRIES budget)
+HELD_TOTAL=0       # candidate entries seen, BEFORE any filter
+TTL_DROPPED=0
+ROOT_DROPPED=0
+CAP_DROPPED=0
+WANT=""            # every candidate line, raw, for the "bytes we wanted" figure
+
+# render_class <lines> <per-class-cap> <ttl-seconds>
+#   in : COUNT / MAX_ENTRIES / WANT / HELD_TOTAL / TTL_DROPPED / CAP_DROPPED
+#   out: CLS_SECTION (printf-%b body), CLS_N (emitted), CLS_HELD (candidates)
+# A class is emitted in projection-priority order by the call sites below, so the
+# shared MAX_ENTRIES budget is consumed most-important-first and anything the cap
+# eats is necessarily the tail of RECONCILE_DROP_ORDER — an ordered, logged drop
+# rather than the silent `break` this hook used to rely on.
+render_class() {
+  CLS_SECTION=""
+  CLS_N=0
+  CLS_HELD=0
+  _lines="$1"
+  _cap="$2"
+  _cttl="$3"
+  [ -n "$_lines" ] || return 0
+  while IFS= read -r _l; do
+    [ -n "$_l" ] || continue
+    _v="$(emit_value "$_l")"
+    CLS_HELD=$((CLS_HELD + 1))
+    HELD_TOTAL=$((HELD_TOTAL + 1))
+    WANT="${WANT}- ${_v}
+"
+    if ! is_fresh "$_v" "$_cttl"; then
+      TTL_DROPPED=$((TTL_DROPPED + 1))
+      continue
+    fi
+    if [ "$CLS_N" -ge "$_cap" ] 2>/dev/null || [ "$COUNT" -ge "$MAX_ENTRIES" ] 2>/dev/null; then
+      CAP_DROPPED=$((CAP_DROPPED + 1))
+      continue
+    fi
+    CLS_SECTION="${CLS_SECTION}- ${_v}\n"
+    CLS_N=$((CLS_N + 1))
+    COUNT=$((COUNT + 1))
+  done <<EOF
+$_lines
+EOF
+}
+
+# ── Read the matrix once per class (cheap anchored greps over a flat file) ────
+MATRIX_PRESENT=0
+L_HALT=""; L_PARLEY=""; L_INBOX=""; L_CLAIM=""; L_CI=""; L_ACC=""
+L_ALERT=""; L_PHER=""; HEARTBEAT=""
 if [ -f "$MATRIX" ]; then
-  ALERTS="$(grep -E '^PD_ALERT_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
-  PHER="$(grep -E '^PD_PHEROMONE_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+  MATRIX_PRESENT=1
+  L_HALT="$(grep -E '^PD_HALT=' "$MATRIX" 2>/dev/null || true)"
+  L_CLAIM="$(grep -E '^PD_CLAIM_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+  L_CI="$(grep -E '^PD_CI_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+  L_ACC="$(grep -E '^PD_ACCOMPLISHMENT_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+  L_ALERT="$(grep -E '^PD_ALERT_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+  L_PHER="$(grep -E '^PD_PHEROMONE_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+  HEARTBEAT="$(grep -E '^PD_RECON_HEARTBEAT_TS=' "$MATRIX" 2>/dev/null | head -n1 || true)"
+  [ -n "$HEARTBEAT" ] && HEARTBEAT="$(emit_value "$HEARTBEAT")"
+  # PER-ACTOR CLASSES. The anchored prefix is the whole isolation mechanism: a
+  # message addressed to actor A is a key actor B's grep cannot match. With no
+  # PD_ACTOR we read neither class rather than guessing.
+  #
+  # The DOUBLE underscore is load-bearing (PER_ACTOR_SEPARATOR in
+  # lib/squid/reconcile-contract.ts). With a single one, actor `alpha` matched
+  # `PD_INBOX_ALPHA_TWO_M1` — actor `alpha-two`'s mail — because nothing marked
+  # where the actor address ended. pd_actor_key() collapses runs of
+  # non-alphanumerics to ONE underscore and strips the ends, so `__` is a
+  # boundary a normalized actor id can never contain.
+  if [ -n "$ACTOR_KEY" ]; then
+    L_PARLEY="$(grep -E "^PD_PARLEY_${ACTOR_KEY}__[A-Za-z0-9_]+=" "$MATRIX" 2>/dev/null || true)"
+    L_INBOX="$(grep -E "^PD_INBOX_${ACTOR_KEY}__[A-Za-z0-9_]+=" "$MATRIX" 2>/dev/null || true)"
+  fi
 fi
 
-# Relevance: use the exact pd project root (or cwd when no marker is available),
-# never a basename substring. `app` must not receive traces from `other-app`.
+# ── Staleness: fail OPEN, loudly in the log, silently in the context ─────────
+# isMatrixStale() semantics. An ABSENT heartbeat is deliberately NOT stale: it
+# means the matrix predates the reconcile loop (or the loop was never enabled),
+# and muting every pre-reconcile fleet would be a regression, not a safety win.
+STALE=0
+case "${HEARTBEAT:-}" in
+  ''|*[!0-9]*) ;;
+  *) [ $((NOW_MS - HEARTBEAT)) -ge "$STALE_AFTER_MS" ] 2>/dev/null && STALE=1 ;;
+esac
+
+DISABLED=0
+case "${PD_SQUID_DISABLED:-}" in 1|true|TRUE|yes|on) DISABLED=1 ;; esac
+
+# ── Project-root relevance (exact root, never a basename substring) ──────────
 BASENAME="$(basename "$CWD" 2>/dev/null || echo "$CWD")"
 PROJECT_ROOT="$CWD"
 d="$CWD"
@@ -50,66 +225,166 @@ while [ -n "$d" ] && [ "$d" != "/" ]; do
   d="$(dirname "$d" 2>/dev/null || true)"
 done
 
-emit_value() {
-  # $1 = a `KEY="val"` matrix line → print just the unquoted value.
-  printf '%s\n' "$1" | sed -E 's/^[A-Za-z0-9_]+="?//; s/"$//'
-}
+SEC_HALT=""; SEC_PARLEY=""; SEC_ALERT=""; SEC_CLAIM=""
+SEC_CI=""; SEC_INBOX=""; SEC_ACC=""; SEC_PHER=""
+N_HALT=0; N_PARLEY=0; N_FA=0; N_ALERT=0; N_CLAIM=0
+N_CI=0; N_INBOX=0; N_ACC=0; N_PHER=0
+H_HALT=0; H_PARLEY=0; H_FA=0; H_ALERT=0; H_CLAIM=0
+H_CI=0; H_INBOX=0; H_ACC=0; H_PHER=0
 
-is_fresh() {
-  # Untagged legacy entries remain visible; every new writer includes ts:<ISO>.
-  ts="$(printf '%s\n' "$1" | sed -nE 's/.*\| ts:([^ |]+).*/\1/p')"
-  [ -n "$ts" ] || return 0
-  compact="$(printf '%s' "$ts" | sed -E 's/\.[0-9]+Z$/Z/')"
-  epoch="$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$compact" '+%s' 2>/dev/null || true)"
-  [ -n "$epoch" ] || epoch="$(date -u -d "$compact" '+%s' 2>/dev/null || true)"
-  case "$epoch" in ''|*[!0-9]*) return 1 ;; esac
-  now="$(date +%s 2>/dev/null || true)"
-  case "$now" in ''|*[!0-9]*) return 1 ;; esac
-  age=$((now - epoch))
-  [ "$age" -ge 0 ] 2>/dev/null && [ "$age" -le "$TTL_SECONDS" ] 2>/dev/null
-}
+if [ "$DISABLED" -eq 0 ]; then
+  # Emission order = RECONCILE_PROJECTION_ORDER (HALT, PARLEY, FLEET_APPROVALS,
+  # CLAIM, CI, INBOX, ACCOMPLISHMENT), then the legacy pheromone trail. HALT gets
+  # ttl 0: priority 1 is effectively undroppable, and a halt the operator pulled
+  # must not expire out from under the fleet on a clock technicality.
+  render_class "$L_HALT" "$CAP_HALT" 0
+  SEC_HALT="$CLS_SECTION"; N_HALT="$CLS_N"; H_HALT="$CLS_HELD"
 
+  render_class "$L_PARLEY" "$CAP_PARLEY" "$TTL_SECONDS"
+  SEC_PARLEY="$CLS_SECTION"; N_PARLEY="$CLS_N"; H_PARLEY="$CLS_HELD"
+
+  # Alerts: PD_ALERT_FLEET_APPROVALS is the registry's FLEET_APPROVALS class;
+  # every other PD_ALERT_* is a legacy steering alert. Counted apart so the
+  # VoiceLog does not report a pre-reconcile alert as a reconciled approval.
+  if [ -n "$L_ALERT" ]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      key="${line%%=*}"
+      val="$(emit_value "$line")"
+      HELD_TOTAL=$((HELD_TOTAL + 1))
+      WANT="${WANT}- ${val}
+"
+      if [ "$key" = "PD_ALERT_FLEET_APPROVALS" ]; then
+        H_FA=$((H_FA + 1))
+      else
+        H_ALERT=$((H_ALERT + 1))
+      fi
+      if ! is_fresh "$val" "$TTL_SECONDS"; then
+        TTL_DROPPED=$((TTL_DROPPED + 1))
+        continue
+      fi
+      if [ "$COUNT" -ge "$MAX_ENTRIES" ] 2>/dev/null; then
+        CAP_DROPPED=$((CAP_DROPPED + 1))
+        continue
+      fi
+      SEC_ALERT="${SEC_ALERT}- ${val}\n"
+      COUNT=$((COUNT + 1))
+      if [ "$key" = "PD_ALERT_FLEET_APPROVALS" ]; then
+        N_FA=$((N_FA + 1))
+      else
+        N_ALERT=$((N_ALERT + 1))
+      fi
+    done <<EOF
+$L_ALERT
+EOF
+  fi
+
+  render_class "$L_CLAIM" "$CAP_CLAIM" "$TTL_SECONDS"
+  SEC_CLAIM="$CLS_SECTION"; N_CLAIM="$CLS_N"; H_CLAIM="$CLS_HELD"
+
+  render_class "$L_CI" "$CAP_CI" "$TTL_SECONDS"
+  SEC_CI="$CLS_SECTION"; N_CI="$CLS_N"; H_CI="$CLS_HELD"
+
+  render_class "$L_INBOX" "$CAP_INBOX" "$TTL_SECONDS"
+  SEC_INBOX="$CLS_SECTION"; N_INBOX="$CLS_N"; H_INBOX="$CLS_HELD"
+
+  render_class "$L_ACC" "$CAP_ACC" "$ACC_TTL_SECONDS"
+  SEC_ACC="$CLS_SECTION"; N_ACC="$CLS_N"; H_ACC="$CLS_HELD"
+
+  # Pheromones carry the extra exact-project-root filter: `app` must never
+  # receive traces from `other-app`.
+  if [ -n "$L_PHER" ]; then
+    while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      val="$(emit_value "$line")"
+      H_PHER=$((H_PHER + 1))
+      HELD_TOTAL=$((HELD_TOTAL + 1))
+      WANT="${WANT}- ${val}
+"
+      if ! is_fresh "$val" "$TTL_SECONDS"; then
+        TTL_DROPPED=$((TTL_DROPPED + 1))
+        continue
+      fi
+      subject="${val%% | *}"
+      case "$subject" in
+        "$PROJECT_ROOT"|"$PROJECT_ROOT"/*) ;;
+        *) ROOT_DROPPED=$((ROOT_DROPPED + 1)); continue ;;
+      esac
+      if [ "$COUNT" -ge "$MAX_ENTRIES" ] 2>/dev/null; then
+        CAP_DROPPED=$((CAP_DROPPED + 1))
+        continue
+      fi
+      SEC_PHER="${SEC_PHER}- ${val}\n"
+      N_PHER=$((N_PHER + 1))
+      COUNT=$((COUNT + 1))
+    done <<EOF
+$L_PHER
+EOF
+  fi
+fi
+
+# ── Stale matrix → throw the whole projection away, keep the receipt ─────────
+# The projection runs first even when the matrix is stale, purely so the VoiceLog
+# can report the per-class counts it HELD. Emitting them would violate the
+# fail-open rule (a 10-minute-old halt is not proof the operator still wants the
+# fleet stopped), so the sections are discarded and the held counts survive as
+# `counts` on a `suppressed / stale-matrix` line — visible to the operator,
+# invisible to the model.
+if [ "$STALE" -eq 1 ]; then
+  SEC_HALT=""; SEC_PARLEY=""; SEC_ALERT=""; SEC_CLAIM=""
+  SEC_CI=""; SEC_INBOX=""; SEC_ACC=""; SEC_PHER=""
+  N_HALT=0; N_PARLEY=0; N_FA=0; N_ALERT=0; N_CLAIM=0
+  N_CI=0; N_INBOX=0; N_ACC=0; N_PHER=0
+  COUNT=0
+fi
+
+# ── The conditional standing directive ───────────────────────────────────────
+HAS_CONTENT=0
+[ "$COUNT" -gt 0 ] && HAS_CONTENT=1
+
+NAG_KEY="${ACTOR_KEY:-ANON}"
+NAG_FILE="$NAG_DIR/$NAG_KEY"
+NAG_DUE=1
+LAST=""
+[ -f "$NAG_FILE" ] && LAST="$(head -n1 "$NAG_FILE" 2>/dev/null || true)"
+case "${LAST:-}" in
+  ''|*[!0-9]*) NAG_DUE=1 ;;
+  *) [ $((NOW - LAST)) -lt "$NAG_INTERVAL" ] 2>/dev/null && NAG_DUE=0 ;;
+esac
+
+SHOW_DIRECTIVE=0
+if [ "$DISABLED" -eq 0 ]; then
+  if [ "$HAS_CONTENT" -eq 1 ] || [ "$NAG_DUE" -eq 1 ]; then SHOW_DIRECTIVE=1; fi
+fi
+if [ "$SHOW_DIRECTIVE" -eq 1 ]; then
+  # Fail-open: an unwritable $PD_HOME just means the nag timer never persists, so
+  # the directive shows every turn (noisier, never broken).
+  { mkdir -p "$NAG_DIR" 2>/dev/null && printf '%s\n' "$NOW" > "$NAG_FILE" 2>/dev/null; } || true
+fi
+
+# ── Assemble the envelope ────────────────────────────────────────────────────
+# Headings group PARLEY+INBOX as "FOR YOU" (both are addressed to this agent and
+# read as one mailbox) even though the budget above was spent in strict
+# projection-priority order.
 OUT=""
-COUNT=0
-OUT="${OUT}[PORT DADDY — STEERING ALERTS]\n"
-OUT="${OUT}- Agent must maintain an active pd plan and run pd sitrep to synthesize state.\n"
-
-if [ -n "$ALERTS" ]; then
-  SECTION=""
-  while IFS= read -r line; do
-    [ -n "$line" ] || continue
-    [ "$COUNT" -lt "$MAX_ENTRIES" ] 2>/dev/null || break
-    val="$(emit_value "$line")"
-    is_fresh "$val" || continue
-    SECTION="${SECTION}- ${val}\n"
-    COUNT=$((COUNT + 1))
-  done <<EOF
-$ALERTS
-EOF
-  [ -z "$SECTION" ] || OUT="${OUT}${SECTION}"
+if [ -n "$SEC_HALT" ]; then
+  OUT="${OUT}[PORT DADDY — HALT]\n${SEC_HALT}"
 fi
-
-REL=""
-if [ -n "$PHER" ]; then
-  while IFS= read -r line; do
-    [ -n "$line" ] || continue
-    [ "$COUNT" -lt "$MAX_ENTRIES" ] 2>/dev/null || break
-    val="$(emit_value "$line")"
-    is_fresh "$val" || continue
-    subject="${val%% | *}"
-    case "$subject" in
-      "$PROJECT_ROOT"|"$PROJECT_ROOT"/*)
-        REL="${REL}- ${val}\n"
-        COUNT=$((COUNT + 1))
-        ;;
-    esac
-  done <<EOF
-$PHER
-EOF
+if [ -n "$SEC_PARLEY" ] || [ -n "$SEC_INBOX" ]; then
+  OUT="${OUT}[PORT DADDY — FOR YOU]\n${SEC_PARLEY}${SEC_INBOX}"
 fi
-
-if [ -n "$REL" ]; then
-  OUT="${OUT}[PORT DADDY — PHEROMONE TRACES near ${BASENAME}]\n${REL}"
+if [ -n "$SEC_ALERT" ] || [ "$SHOW_DIRECTIVE" -eq 1 ]; then
+  OUT="${OUT}[PORT DADDY — STEERING ALERTS]\n"
+  if [ "$SHOW_DIRECTIVE" -eq 1 ]; then
+    OUT="${OUT}- Agent must maintain an active pd plan and run pd sitrep to synthesize state.\n"
+  fi
+  OUT="${OUT}${SEC_ALERT}"
+fi
+if [ -n "$SEC_CLAIM" ] || [ -n "$SEC_CI" ] || [ -n "$SEC_ACC" ]; then
+  OUT="${OUT}[PORT DADDY — FLEET]\n${SEC_CLAIM}${SEC_CI}${SEC_ACC}"
+fi
+if [ -n "$SEC_PHER" ]; then
+  OUT="${OUT}[PORT DADDY — PHEROMONE TRACES near ${BASENAME}]\n${SEC_PHER}"
 fi
 
 # Emit the bounded Suggestibility Envelope (printf interprets the \n we built
@@ -119,8 +394,17 @@ fi
 # untrusted injected content, which is why Claude Code balked at it as prompt
 # injection. Same structured shape the pre-tool tentacle already uses.
 # Fail-open: no jq → fall back to raw stdout (degraded framing, still advisory).
+FULL=""
+BLOCK=""
+FULL_BYTES=0
+EMITTED_BYTES=0
 if [ -n "$OUT" ]; then
-  BLOCK="$(printf '%b' "$OUT" | head -c "$MAX_BYTES" 2>/dev/null)"
+  FULL="$(printf '%b' "$OUT")"
+  FULL_BYTES="$(printf '%s' "$FULL" | wc -c 2>/dev/null | tr -d ' ')"
+  case "$FULL_BYTES" in ''|*[!0-9]*) FULL_BYTES=0 ;; esac
+  BLOCK="$(printf '%s' "$FULL" | head -c "$MAX_BYTES" 2>/dev/null)"
+  EMITTED_BYTES="$(printf '%s' "$BLOCK" | wc -c 2>/dev/null | tr -d ' ')"
+  case "$EMITTED_BYTES" in ''|*[!0-9]*) EMITTED_BYTES=0 ;; esac
   if command -v jq >/dev/null 2>&1; then
     jq -cn --arg ctx "$BLOCK" \
       '{hookSpecificOutput:{hookEventName:"UserPromptSubmit",additionalContext:$ctx}}'
@@ -128,4 +412,170 @@ if [ -n "$OUT" ]; then
     printf '%s' "$BLOCK"
   fi
 fi
+
+# =============================================================================
+# VOICE LOG — everything past this point is observability and MUST NOT be able
+# to change stdout or the exit code. stdout is already flushed above.
+# =============================================================================
+WANT_BYTES="$(printf '%s' "$WANT" | wc -c 2>/dev/null | tr -d ' ')"
+case "$WANT_BYTES" in ''|*[!0-9]*) WANT_BYTES=0 ;; esac
+
+json_escape() {
+  printf '%s' "${1:-}" | tr -d '\000-\037' | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
+}
+
+# {"NAME":n,...} over NAME=n pairs, skipping zeros. Motivation: a count of 0 and
+# an absent class are the same fact, and emitting both doubles the line width of
+# the most frequently written line in the system.
+json_counts() {
+  _o=""
+  for _p in "$@"; do
+    _n="${_p%%=*}"
+    _c="${_p#*=}"
+    [ "$_c" -gt 0 ] 2>/dev/null || continue
+    [ -z "$_o" ] || _o="${_o},"
+    _o="${_o}\"${_n}\":${_c}"
+  done
+  printf '{%s}' "$_o"
+}
+
+json_array() {
+  _o=""
+  for _x in "$@"; do
+    [ -n "$_x" ] || continue
+    [ -z "$_o" ] || _o="${_o},"
+    _o="${_o}\"${_x}\""
+  done
+  printf '[%s]' "$_o"
+}
+
+# Byte-bounded rotation, tail-kept. A line-count tail is NOT a bound (one absurd
+# line defeats it), so we cut on bytes and drop the leading partial line. The
+# rotate + append are individually guarded: this file is written on EVERY turn of
+# EVERY agent, which is exactly the loop shape skills/responsible-logging says
+# must never be able to take the process down.
+write_voice_log() {
+  _line="$1"
+  _dir="$(dirname "$VOICE_LOG" 2>/dev/null || printf '.')"
+  mkdir -p "$_dir" 2>/dev/null || return 0
+  if [ -f "$VOICE_LOG" ]; then
+    _sz="$(wc -c < "$VOICE_LOG" 2>/dev/null | tr -d ' ' || printf '0')"
+    case "${_sz:-}" in ''|*[!0-9]*) _sz=0 ;; esac
+    if [ "$_sz" -gt "$VOICE_LOG_MAX_BYTES" ] 2>/dev/null; then
+      _keep=$((VOICE_LOG_MAX_BYTES / 2))
+      _tmp="${VOICE_LOG}.rot.$$"
+      if tail -c "$_keep" "$VOICE_LOG" 2>/dev/null | sed '1d' > "$_tmp" 2>/dev/null; then
+        mv -f "$_tmp" "$VOICE_LOG" 2>/dev/null || rm -f "$_tmp" 2>/dev/null || true
+      else
+        rm -f "$_tmp" 2>/dev/null || true
+      fi
+    fi
+  fi
+  printf '%s\n' "$_line" >> "$VOICE_LOG" 2>/dev/null || return 0
+  return 0
+}
+
+build_and_write_voice_log() {
+  _actor="$(json_escape "$SELF")"
+  _ts=$((NOW * 1000))
+  _base="\"ts\":${_ts},\"actor\":\"${_actor}\",\"hookEvent\":\"UserPromptSubmit\""
+
+  _counts_emitted="$(json_counts \
+    "HALT=$N_HALT" "PARLEY=$N_PARLEY" "FLEET_APPROVALS=$N_FA" "CLAIM=$N_CLAIM" \
+    "CI=$N_CI" "INBOX=$N_INBOX" "ACCOMPLISHMENT=$N_ACC" "ALERT=$N_ALERT" \
+    "PHEROMONE=$N_PHER")"
+  _counts_held="$(json_counts \
+    "HALT=$H_HALT" "PARLEY=$H_PARLEY" "FLEET_APPROVALS=$H_FA" "CLAIM=$H_CLAIM" \
+    "CI=$H_CI" "INBOX=$H_INBOX" "ACCOMPLISHMENT=$H_ACC" "ALERT=$H_ALERT" \
+    "PHEROMONE=$H_PHER")"
+
+  # Emission order (RECONCILE_PROJECTION_ORDER + the two legacy classes).
+  _cls=""
+  [ "$N_HALT" -gt 0 ] && _cls="$_cls HALT"
+  [ "$N_PARLEY" -gt 0 ] && _cls="$_cls PARLEY"
+  [ "$N_FA" -gt 0 ] && _cls="$_cls FLEET_APPROVALS"
+  [ "$N_ALERT" -gt 0 ] && _cls="$_cls ALERT"
+  [ "$N_CLAIM" -gt 0 ] && _cls="$_cls CLAIM"
+  [ "$N_CI" -gt 0 ] && _cls="$_cls CI"
+  [ "$N_INBOX" -gt 0 ] && _cls="$_cls INBOX"
+  [ "$N_ACC" -gt 0 ] && _cls="$_cls ACCOMPLISHMENT"
+  [ "$N_PHER" -gt 0 ] && _cls="$_cls PHEROMONE"
+
+  # RECONCILE_DROP_ORDER (lowest priority first), with the legacy classes seated
+  # by the priority they are actually emitted at.
+  _dropped=""
+  [ "$H_PHER" -gt "$N_PHER" ] && _dropped="$_dropped PHEROMONE"
+  [ "$H_ACC" -gt "$N_ACC" ] && _dropped="$_dropped ACCOMPLISHMENT"
+  [ "$H_INBOX" -gt "$N_INBOX" ] && _dropped="$_dropped INBOX"
+  [ "$H_CI" -gt "$N_CI" ] && _dropped="$_dropped CI"
+  [ "$H_CLAIM" -gt "$N_CLAIM" ] && _dropped="$_dropped CLAIM"
+  [ "$H_ALERT" -gt "$N_ALERT" ] && _dropped="$_dropped ALERT"
+  [ "$H_FA" -gt "$N_FA" ] && _dropped="$_dropped FLEET_APPROVALS"
+  [ "$H_PARLEY" -gt "$N_PARLEY" ] && _dropped="$_dropped PARLEY"
+  [ "$H_HALT" -gt "$N_HALT" ] && _dropped="$_dropped HALT"
+
+  # shellcheck disable=SC2086
+  _classes_json="$(json_array $_cls)"
+  # shellcheck disable=SC2086
+  _dropped_json="$(json_array $_dropped)"
+
+  _outcome=""
+  _reason=""
+  if [ "$DISABLED" -eq 1 ]; then
+    _outcome="silent"; _reason="harness-disabled"
+  elif [ "$STALE" -eq 1 ]; then
+    _outcome="suppressed"; _reason="stale-matrix"
+  elif [ "$MATRIX_PRESENT" -eq 0 ]; then
+    _outcome="silent"; _reason="matrix-absent"
+  elif [ "$HELD_TOTAL" -eq 0 ]; then
+    _outcome="silent"; _reason="no-entries"
+  elif [ "$COUNT" -eq 0 ]; then
+    # It HELD something and emitted none of it — name the bound that ate it.
+    if [ "$TTL_DROPPED" -gt 0 ]; then
+      _outcome="suppressed"; _reason="ttl-expired"
+    elif [ "$ROOT_DROPPED" -gt 0 ]; then
+      _outcome="suppressed"; _reason="not-relevant-to-cwd"
+    elif [ "$CAP_DROPPED" -gt 0 ]; then
+      _outcome="suppressed"; _reason="over-entry-cap"
+    else
+      _outcome="silent"; _reason="no-entries"
+    fi
+  elif [ "$FULL_BYTES" -gt "$MAX_BYTES" ] 2>/dev/null; then
+    _outcome="suppressed"; _reason="over-budget"
+  elif [ "$CAP_DROPPED" -gt 0 ]; then
+    _outcome="suppressed"; _reason="over-entry-cap"
+  elif [ "$TTL_DROPPED" -gt 0 ]; then
+    _outcome="suppressed"; _reason="ttl-expired"
+  elif [ "$ROOT_DROPPED" -gt 0 ]; then
+    _outcome="suppressed"; _reason="not-relevant-to-cwd"
+  else
+    _outcome="spoke"; _reason=""
+  fi
+
+  # A turn that put BYTES in front of the model is never "silent". The standing
+  # plan directive is emitted on its own on a nag-due turn (SHOW_DIRECTIVE=1)
+  # while HELD_TOTAL is 0, so the classification above would file a turn the
+  # harness genuinely spoke on as silent/no-entries — and summarize() counts
+  # `silent` toward saidNothing/quietRate, so `pd squid voice` would report a
+  # talking harness as 100% quiet. `counts`/`classes` stay empty because no
+  # matrix class was projected; the bytes are the directive's.
+  if [ "$_outcome" = "silent" ] && [ "$EMITTED_BYTES" -gt 0 ] 2>/dev/null; then
+    _outcome="spoke"; _reason=""
+  fi
+
+  case "$_outcome" in
+    spoke)
+      _json="{${_base},\"outcome\":\"spoke\",\"counts\":${_counts_emitted},\"bytes\":${EMITTED_BYTES},\"classes\":${_classes_json}}"
+      ;;
+    silent)
+      _json="{${_base},\"outcome\":\"silent\",\"reason\":\"${_reason}\"}"
+      ;;
+    *)
+      _json="{${_base},\"outcome\":\"suppressed\",\"reason\":\"${_reason}\",\"counts\":${_counts_held},\"bytes\":${WANT_BYTES},\"droppedClasses\":${_dropped_json},\"emittedBytes\":${EMITTED_BYTES}}"
+      ;;
+  esac
+  write_voice_log "$_json"
+}
+
+build_and_write_voice_log 2>/dev/null || true
 exit 0

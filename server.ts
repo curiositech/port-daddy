@@ -133,6 +133,11 @@ import { createDaemonCorsOptions } from './lib/daemon-cors.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
+// The fleet-wide halt lives as a singleton inside its route module. server.ts is
+// the composition root — the only layer that may know about both `routes/` and
+// `lib/` — so the reconcile loop's HALT source is injected from here rather than
+// imported by lib/fleet-daemon.ts, which would invert the layering.
+import { readPanicState } from './routes/panic.js';
 
 // Shared utilities
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
@@ -1002,6 +1007,9 @@ const fleetDaemon = createFleetDaemon({
   allowStableInstallFleet: ALLOW_STABLE_FLEET,
   costTracker,
   locks,
+  // HALT source for the Ink Cloud reconcile loop. Wired here (not imported by
+  // lib/fleet-daemon.ts) because nothing under lib/ imports from routes/.
+  panic: readPanicState,
 });
 
 // GitHub repo → project registry. Resolves a webhook's owner/repo to the

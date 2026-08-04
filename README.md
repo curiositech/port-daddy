@@ -635,9 +635,24 @@ pd squid on                 # full harness: Claude, Codex, Gemini, and agy
 pd squid status             # LIVE / READY / PARTIAL / DEGRADED readout
 pd squid status --json      # stable FleetBar/automation contract
 pd squid tap                # exact bounded context entering the next turn
+pd squid voice              # when did the harness actually talk? (VoiceLog)
+pd squid voice --stats      # spoke / silent / suppressed rates, per-class tallies
+pd squid voice --suppressed # only the turns its own budget silenced
 pd squid off                # disarm this project without breaking other repos
 pd hooks install            # hook-only repair surface
 ```
+
+The harness is **quiet by design**: when nothing is fresh it injects nothing.
+That makes silence ambiguous — a calm fleet, a broken harness, and a harness
+strangled by its own byte budget all look identical from outside. So every turn
+appends one JSON line (spoke / silent / suppressed + reason) to
+`$PD_HOME/squid-voice-log.jsonl`, byte-bounded and rotated, and `pd squid voice`
+is the operator's window onto it. A daemon-side **reconcile loop**
+(`lib/squid/reconcile.ts`) keeps the matrix a projection of durable truth rather
+than an append-only landfill: every 15s it recomputes each key class from its
+source, deletes what the source no longer justifies, and stamps a heartbeat that
+readers use to fail open when the loop dies. Hookless backends (Groq, Ollama,
+LM Studio) read the same key classes through `lib/local-citizen/ink-cloud.ts`.
 
 Claude and Gemini use project config; Codex and agy require user config because
 their interactive hook engines do not honor a project-local equivalent. Those

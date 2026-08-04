@@ -102,6 +102,15 @@ export async function handleSquid(args: string[], options: CLIOptions): Promise<
     case 'tap':
       handleSquidTap(options);
       return;
+    case 'voice':
+      // The operator's VoiceLog window. It lives in its own module (it reads the
+      // tentacle's JSONL log, not the bridge) but it is routed HERE, from the one
+      // squid dispatcher, so `pd squid --help` and this switch stay the single
+      // description of what `pd squid` can do. An earlier draft intercepted it in
+      // bin/port-daddy-cli.ts, which gave the subcommand two owners and left it
+      // missing from this file's help text.
+      await (await import('./squid-voice.js')).handleSquidVoice(rest, options);
+      return;
     case 'help':
     case '--help':
     case '-h':
@@ -109,7 +118,7 @@ export async function handleSquid(args: string[], options: CLIOptions): Promise<
       return;
     default:
       ui.error(`Unknown squid command: ${sub}`);
-      console.log('Use `pd squid on|off|status|tap`, or `pd hooks install` for hook-only repair.');
+      console.log('Use `pd squid on|off|status|tap|voice`, or `pd hooks install` for hook-only repair.');
       process.exitCode = 1;
       return;
   }
@@ -816,6 +825,8 @@ function printHelp(): void {
   pd squid off    [--all] [--cwd <repo>]         Disarm it (hooks, statusline, /squid)
   pd squid status [--json]                       Non-diegetic readout of every surface
   pd squid tap                                   Preview the next-turn injection envelope
+  pd squid voice  [--stats] [--suppressed] [--follow] [--json]
+                                                 When did the harness actually talk?
   pd squid bridge [bridge options] [-- <client> <args...>]
   pd squid codex  [bridge options] [-- <client> <args...>]
   pd squid pro    [bridge options] [-- <client> <args...>]
@@ -826,6 +837,13 @@ Toggle:
         statusline, the Pilot SessionStart steering hook, and /squid — one shot.
   off   Remove all of it from this project. --all also clears user-level
         codex/agy configs (otherwise the runtime gate just keeps them inert).
+
+Voice log:
+  The harness is deliberately quiet, so silence needs an audit trail. Every turn
+  appends one JSON line recording whether it spoke, had nothing to say, or was
+  silenced by its own byte/entry budget. 'pd squid voice' reads that log.
+  --stats        rates and per-class tallies    --suppressed  only the silenced turns
+  --follow       tail live                      --json        machine-readable
 
 Bridge options:
   --port <n>                  Local bridge port (default: 8765)

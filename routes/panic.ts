@@ -27,6 +27,23 @@ export function isPanicArmed(): boolean {
   return state.armed;
 }
 
+/**
+ * Read the fleet-wide halt as a value, for surfaces that need the *reason* too.
+ *
+ * **Motivation.** `isPanicArmed()` answers a boolean, which is enough to refuse
+ * a spawn but not enough to tell an agent what happened. The Ink Cloud reconcile
+ * loop projects `PD_HALT` into every agent's next turn, and "HALT" with no cause
+ * is an instruction an agent cannot act on — it will either ignore it or invent
+ * a reason. Returning a snapshot (not the mutable `state`) keeps this a read:
+ * a consumer that mutated the panic state through an observability accessor
+ * would be arming the fleet by accident.
+ *
+ * @returns `{ armed, reason }` — a copy, safe to hold across ticks.
+ */
+export function readPanicState(): { armed: boolean; reason?: string } {
+  return { armed: state.armed, reason: state.reason };
+}
+
 export function _resetPanicStateForTests(): void {
   state.armed = false;
   state.reason = undefined;

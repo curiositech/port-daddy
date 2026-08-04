@@ -77,6 +77,17 @@ next-turn envelope. User-level Codex/agy entries do not make hooks global: the
 wrapper requires the exact project root in the arm registry. `pd squid off`
 removes that root while preserving other projects.
 
+The harness is quiet by design — it injects nothing when nothing is fresh — so
+**do not read silence as proof it is working, and do not read it as proof it is
+broken.** Every turn appends one VoiceLog line (`spoke` / `silent` /
+`suppressed` + reason) to `$PD_HOME/squid-voice-log.jsonl`. `pd squid voice`
+shows recent turns, `--stats` gives the spoke/quiet/suppressed rates, and
+`--suppressed` lists only the turns the harness's own byte or entry budget
+silenced. `suppressed` is the one to act on: it means coordination context
+existed and a bound ate it. Every rate reads `n/a` rather than `0%` when there
+is no data — "the harness has never run here" and "the harness was quiet 100% of
+the time" are opposite diagnoses.
+
 The operator drives this through FleetBar's selected-project `◆ GIANT SQUID`
 strip. It exposes state, provider count, and Arm/Repair/Disarm without asking the
 operator to run these agent-facing commands.

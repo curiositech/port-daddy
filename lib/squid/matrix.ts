@@ -354,13 +354,15 @@ function filterByPrefix(kv: Record<string, string>, prefix: string): Record<stri
   return out;
 }
 
-// ─── RECONCILE TODO (daemon) ──────────────────────────────────────────────────
-// The Ink Cloud is the hot cache; `lib/attention.ts` + `lib/pheromone.ts` are the
-// durable truth. A daemon reconcile loop (NOT built in this vertical slice) must:
-//   1. Drain PD_PHEROMONE_* appends into the pheromone store, applying decay
-//      (lib/pheromone.ts createPheromoneManager) and then pruning faded keys.
-//   2. Project active locks / Parley alerts (lib/attention.ts AttentionItem) back
-//      OUT to PD_LOCK_* / PD_ALERT_* so the hooks read a fresh cache each turn.
-//   3. Garbage-collect PD_PHEROMONE_* entries whose intensity has decayed to ~0.
-// Until that loop exists the matrix is append-mostly and the tests below seed it
-// directly. This boundary is intentional and called out in the ADR (§1).
+// ─── Reconcile (daemon) ───────────────────────────────────────────────────────
+// The Ink Cloud is the hot cache; the durable stores are the truth. The daemon
+// reconcile loop that projects durable state INTO this file and garbage-collects
+// what the sources no longer justify now lives in `lib/squid/reconcile.ts`
+// (vocabulary in `lib/squid/reconcile-contract.ts`). It owns all three duties
+// this comment used to list as TODO: draining + decaying PD_PHEROMONE_* appends,
+// re-projecting the freshest traces, and deleting the faded ones — plus the
+// per-class projection and GC of every key class in the reconcile registry.
+//
+// NOTE for reconcile-loop maintainers: `setKey`/`deleteKey` each take the matrix
+// lock, and the mkdir lock is NOT reentrant. A tick must do its whole
+// read-modify-write inside ONE `withLock`, never by calling setKey per key.

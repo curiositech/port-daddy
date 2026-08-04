@@ -33,7 +33,7 @@ import {
 import { getSharedWebhookReceiver } from './fleet/webhook-receiver.js';
 import { getSharedApprovalStream } from './fleet/approval-stream.js';
 import { getSharedPushNotifier, setSharedPushNotifier, FleetPushNotifier } from './fleet/push-notifications.js';
-import { setKey as setMatrixKey, deleteKey as deleteMatrixKey } from './squid/matrix.js';
+import { createReconcileLoop, type HaltState, type ReconcileLoop } from './squid/reconcile.js';
 import { MacOSNotificationSink } from './fleet/outputs/notify-macos.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { loadEnvFiles } from './env-loader.js';
@@ -119,7 +119,19 @@ export interface FleetDaemonDeps {
     info(msg: string, meta?: Record<string, unknown>): void;
     warn(msg: string, meta?: Record<string, unknown>): void;
     error(msg: string, meta?: Record<string, unknown>): void;
+    debug?(msg: string, meta?: Record<string, unknown>): void;
   };
+  /**
+   * Fleet-wide halt state, for the Ink Cloud reconcile loop's `HALT` class.
+   *
+   * Injected rather than imported because the panic singleton lives in
+   * `routes/panic.ts` and nothing under `lib/` imports from `routes/` — the
+   * composition root (`server.ts`) is the only place that knows about both.
+   * Omitting it is safe and meaningful: the reconcile loop treats an absent
+   * source as *degraded*, so it leaves any existing `PD_HALT` key alone rather
+   * than concluding "nobody pulled the cord" and deleting it.
+   */
+  panic?: () => HaltState | null | undefined;
   /** Daemon's own project directory. Stable install roots are protected by default. */
   daemonDir: string;
   /** Explicitly allow fleet management inside /port-daddy-stable install roots. */
@@ -913,6 +925,17 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       }
     }
 
+    // The Ink Cloud reconcile loop. Started with the daemon (not at factory
+    // time) so a constructed-but-never-started daemon — every unit test that
+    // builds one to poke a pure helper — does not begin rewriting the
+    // operator's real `~/.port-daddy/matrix.env`. `start()` ticks immediately,
+    // which both replaces `syncApprovalAlert`'s boot-time call and corrects a
+    // matrix left behind by a dead predecessor process.
+    if (!reconcileLoop) {
+      reconcileLoop = buildReconcileLoop();
+      reconcileLoop.start();
+    }
+
     isRunning = true;
     startedAt = Date.now();
     logger.info('fleet_daemon_ready', { fleets: fleets.size });
@@ -931,6 +954,18 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     if (approvalSweepTimer) {
       clearInterval(approvalSweepTimer);
       approvalSweepTimer = null;
+    }
+    // Stop the reconcile loop cleanly: `stop()` clears its interval AND flushes
+    // the log governor's suppression rollups, so a source that failed 4,312
+    // times during the daemon's life leaves a record instead of vanishing with
+    // the partial window (skills/responsible-logging).
+    if (reconcileNudge) {
+      clearTimeout(reconcileNudge);
+      reconcileNudge = null;
+    }
+    if (reconcileLoop) {
+      reconcileLoop.stop();
+      reconcileLoop = null;
     }
     for (const dir of [...fleets.keys()]) {
       stopManagedFleet(dir, { releaseLease: true });
@@ -1361,34 +1396,77 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   getSharedPushNotifier().bindApprovalStream(getSharedApprovalStream());
 
   // Unmissable HITL: mirror the pending-approvals count into the Ink Cloud
-  // matrix as a steering ALERT. The UserPromptSubmit hook (bin/pd-hook-
-  // prompt) prepends alerts to EVERY compliant agent turn, so a held spawn
-  // is in front of the operator/agent at the start of each turn until
-  // decided. Cleared the moment the queue empties.
-  const syncApprovalAlert = (): void => {
-    try {
-      const pending = getSharedApprovalStream().list();
-      if (pending.length === 0) {
-        deleteMatrixKey('PD_ALERT_FLEET_APPROVALS');
-        return;
-      }
-      const head = pending
-        .slice(0, 3)
-        .map((p) => `${p.agent} ← ${p.trigger}`)
-        .join('; ');
-      const more = pending.length > 3 ? ` (+${pending.length - 3} more)` : '';
-      setMatrixKey(
-        'PD_ALERT_FLEET_APPROVALS',
-        `HITL: ${pending.length} spawn approval(s) waiting — ${head}${more}. Decide: pd fleet approvals | pd fleet approve <id> | pd fleet reject <id>`,
-      );
-    } catch (err) {
-      // Advisory surface: a matrix write failure degrades steering, never
-      // the daemon.
-      logger.warn('fleet_approval_alert_sync_failed', { error: (err as Error).message });
-    }
+  // matrix as a steering ALERT. The UserPromptSubmit hook (bin/pd-hook-prompt)
+  // prepends alerts to EVERY compliant agent turn, so a held spawn is in front
+  // of the operator/agent at the start of each turn until decided. Cleared the
+  // moment the queue empties.
+  //
+  // MIGRATED (this slice): the ~20-line `syncApprovalAlert` that used to write
+  // and delete `PD_ALERT_FLEET_APPROVALS` directly is gone. There is now ONE
+  // writer of that key — the reconcile tick, which recomputes the whole class
+  // from `getSharedApprovalStream().list()` and deletes what the stream no
+  // longer justifies. Two writers of one key is how a hot cache acquires a
+  // ghost: whichever wrote last wins, and neither knows the other exists.
+  //
+  // The approval-stream subscription survives as a FAST-PATH TRIGGER. Waiting a
+  // full RECONCILE_INTERVAL_MS (15s) to tell an agent its spawn is frozen would
+  // be a regression against the old synchronous write, so a decision nudges the
+  // loop to tick early — but it is still the loop that writes, so the key can
+  // never be set by one path and deleted by another.
+  const RECONCILE_TRIGGER_DEBOUNCE_MS = 150;
+  let reconcileLoop: ReconcileLoop | null = null;
+  let reconcileNudge: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Ask the reconcile loop for an out-of-band tick, coalescing bursts.
+   *
+   * **Motivation for the debounce.** A batch decision (or boot-time rehydration
+   * of 50 durable proposals) fires the stream's subscribers dozens of times in a
+   * millisecond. Each tick takes the matrix mkdir-lock and rewrites the file,
+   * and that lock sits on the critical path of every `pd-hook-*` tentacle on the
+   * machine — so a trailing debounce turns a burst into one write. Before
+   * `start()`, this is deliberately a no-op: `start()` performs an immediate
+   * tick, which catches up whatever accrued while the daemon was down.
+   *
+   * @returns Nothing; schedules at most one out-of-band tick per debounce window.
+   */
+  const nudgeReconcile = (): void => {
+    if (!reconcileLoop || reconcileNudge) return;
+    reconcileNudge = setTimeout(() => {
+      reconcileNudge = null;
+      reconcileLoop?.tick(); // never throws; failures ride the tick report
+    }, RECONCILE_TRIGGER_DEBOUNCE_MS);
+    reconcileNudge.unref?.();
   };
-  getSharedApprovalStream().subscribe(() => syncApprovalAlert());
-  syncApprovalAlert();
+  getSharedApprovalStream().subscribe(() => nudgeReconcile());
+
+  /**
+   * Build the Ink Cloud reconcile loop with the sources this daemon can
+   * actually reach today.
+   *
+   * **Design: wire only what is real.** `ReconcileDeps` is entirely optional and
+   * an absent source degrades exactly one class — that class is neither
+   * projected nor garbage-collected, so the loop leaves whatever is in the
+   * matrix alone. That is what makes an incremental cutover safe, and it is why
+   * this function passes nothing for the classes the fleet daemon has no source
+   * for rather than passing `() => []`, which would assert "there are none" and
+   * delete other writers' keys.
+   *
+   * @returns A loop wired to the approvals stream (and the halt state when the
+   *          composition root injected one).
+   */
+  const buildReconcileLoop = (): ReconcileLoop =>
+    createReconcileLoop({
+      // Passed by reference: `list()` already returns `{ agent, trigger, ... }`.
+      approvals: () => getSharedApprovalStream().list(),
+      ...(deps.panic ? { panic: deps.panic } : {}),
+      logger: {
+        debug: (m, meta) => logger.debug?.(m, meta),
+        info: (m, meta) => logger.info(m, meta),
+        warn: (m, meta) => logger.warn(m, meta),
+        error: (m, meta) => logger.error(m, meta),
+      },
+    });
 
   return {
     start,

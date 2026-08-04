@@ -2,7 +2,7 @@
   "generatedAt": 1784852769105,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 255,
+  "count": 257,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -318,6 +318,16 @@
       "slug": "adr-0050-phase-7-compulsion",
       "status": "backlog",
       "summaryMd": "feat(coast-guard): rent→slash advisory-only — pure policy + breach ledger (ADR-0050 ph7)"
+    },
+    {
+      "slug": "adr-0051-phase-0-reconcile-loop",
+      "status": "now",
+      "summaryMd": "ADR-0051 Phase 0 — the Ink Cloud reconcile loop: lib/squid/reconcile-contract.ts (key-class registry, actorKey, staleness, projection/drop order) + lib/squid/reconcile.ts (daemon tick that projects durable state into matrix.env AND garbage-collects what the sources no longer justify). Wired into lib/fleet-daemon.ts, retiring syncApprovalAlert so PD_ALERT_FLEET_APPROVALS has ONE writer. Second reader lib/local-citizen/ink-cloud.ts reaches parity so hookless backends (Groq/Ollama/LM Studio) see the same classes."
+    },
+    {
+      "slug": "adr-0051-phase-1-harness-voice-log",
+      "status": "now",
+      "summaryMd": "ADR-0051 Phase 1 — the quiet harness and its audit trail: bin/pd-hook-prompt emits nothing when nothing is fresh, and appends one VoiceLogEvent JSON line per turn (spoke / silent / suppressed+reason) to $PD_HOME/squid-voice-log.jsonl, byte-bounded and rotated. Read side is lib/squid/voice-log.ts + the pd squid voice CLI (recent, --stats, --suppressed, --follow, --json). Owed follow-up: a FleetBar/dashboard panel so this is not a CLI-only operator path."
     },
     {
       "slug": "adr-0052-phase-3a-coordination-bench-v1",
