@@ -41,6 +41,28 @@ export interface ShipConfig {
    * that forgets the field still gets the ideation contract).
    */
   ideation: boolean;
+  /**
+   * When true, this is a PURSER ship (`class: purser` in pd-fleet.yml): an
+   * adversarial gatekeeper that steel-mans the PR into its best-interpretation
+   * contract, authors adversarial tests against it, and stacks the reviewed PR
+   * on top of a test branch (src/purser.ts). Purser ships run AFTER the
+   * reviewer/ideation ships and are OFF unless explicitly declared — there is
+   * no purser in {@link defaultPRShips} (safe rollout).
+   */
+  purser: boolean;
+  /**
+   * Purser only. When true AND the ship is blocking, the purser BLOCKS when it
+   * could not execute its tests (no SANDBOX binding / sandbox error) — an
+   * explicit fail-closed opt-in. Default false: never block on tests that were
+   * never run.
+   */
+  blockWithoutSandbox: boolean;
+  /**
+   * Purser only, optional. Path prefixes the purser's authored test files must
+   * live under (e.g. ['tests/purser']). Empty ⇒ any path passing the global
+   * stacked-pr whitelist is allowed.
+   */
+  graft: string[];
 }
 
 /**
@@ -130,6 +152,12 @@ interface RawAgent {
   temperature?: unknown;
   blocking?: unknown;
   class?: unknown;
+  /** Purser: direct model pin (still guarded by KNOWN_GOOD_CF_MODELS). */
+  model?: unknown;
+  /** Purser: block when tests could not be executed (default false). */
+  blockWithoutSandbox?: unknown;
+  /** Purser: path prefixes authored tests must live under. */
+  graft?: unknown;
 }
 
 /**
@@ -178,6 +206,32 @@ function deriveCfModel(agent: RawAgent, name: string): string {
   return isReviewBot(name) ? CODER_CF_MODEL : DEFAULT_CF_MODEL;
 }
 
+/**
+ * Fallback persona prompt for a purser ship declared without a `prompt:` — the
+ * purser's operational prompts (steel-man + test authoring) are built in
+ * src/purser.ts; the YAML prompt only flavors its persona, so a minimal config
+ * (`class: purser` + trigger) still works.
+ */
+const PURSER_DEFAULT_PROMPT =
+  'You are pd-purser, the fleet’s adversarial purser. Steel-man each PR into ' +
+  'the strongest, most complete interpretation of its contract, then demand the ' +
+  'PR satisfy that interpretation — not its laziest reading. Firm, adversarial, ' +
+  'professional. Demands come with reasons; never abuse.';
+
+/** Purser model: honor a direct `model:` pin when known-good, else the usual derivation. */
+function derivePurserModel(agent: RawAgent, name: string): string {
+  if (typeof agent.model === 'string' && KNOWN_GOOD_CF_MODELS.has(agent.model)) {
+    return agent.model;
+  }
+  return deriveCfModel(agent, name);
+}
+
+/** Coerce a `graft:` value into a clean string[] of path prefixes. */
+function coerceGraft(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+}
+
 function deriveNeedsExecution(name: string, allowedTools: unknown): boolean {
   if (CLOUD_STATIC_SHIPS.has(name)) return false;
   return EXECUTION_TOOLS_RE.test(typeof allowedTools === 'string' ? allowedTools : '');
@@ -223,26 +277,36 @@ export function parseFleetShips(fleetYaml: string, trigger: string): ShipConfig[
     const agent = rawUnknown as RawAgent;
     if (!triggerMatches(agent.trigger, trigger)) continue;
 
-    const prompt = typeof agent.prompt === 'string' ? agent.prompt.trim() : '';
+    const purser = agent.class === 'purser';
+    const rawPrompt = typeof agent.prompt === 'string' ? agent.prompt.trim() : '';
+    // A purser ship's operational prompts are built in code (src/purser.ts), so
+    // its YAML `prompt:` is optional persona flavor; every other ship without a
+    // prompt is a deterministic/bodied ship (or malformed) and is skipped.
+    const prompt = rawPrompt || (purser ? PURSER_DEFAULT_PROMPT : '');
     if (!prompt) continue; // deterministic/bodied ships and malformed entries
 
     const telos = typeof agent.telos === 'string' ? agent.telos : '';
     const role = telos || (typeof agent.role === 'string' ? agent.role : '') || `${name} ship`;
-    const ideation = deriveIdeation(name, agent.class);
+    const ideation = purser ? false : deriveIdeation(name, agent.class);
 
     ships.push({
       name,
       trigger: agent.trigger as string | string[],
       prompt,
-      cfModel: deriveCfModel(agent, name),
+      cfModel: purser ? derivePurserModel(agent, name) : deriveCfModel(agent, name),
       temperature: coerceTemperature(agent.temperature),
       role,
       telos,
       // Ideation ships are advisory by definition — they can never gate a merge,
       // even if pd-fleet.yml mistakenly sets `blocking: true` on one.
       blocking: ideation ? false : coerceBlocking(agent.blocking),
-      needsExecution: deriveNeedsExecution(name, agent.allowedTools),
+      // Purser runs entirely against the GitHub API + Workers AI: cloud-executable
+      // by contract, regardless of any allowedTools relic.
+      needsExecution: purser ? false : deriveNeedsExecution(name, agent.allowedTools),
       ideation,
+      purser,
+      blockWithoutSandbox: purser ? coerceBlocking(agent.blockWithoutSandbox) : false,
+      graft: purser ? coerceGraft(agent.graft) : [],
     });
   }
 
@@ -285,6 +349,9 @@ Be direct. Cite specific lines. Flag ADR violations if you see them.`,
       blocking: true,
       needsExecution: false,
       ideation: false,
+      purser: false,
+      blockWithoutSandbox: false,
+      graft: [],
     },
     {
       name: 'qa',
@@ -309,6 +376,9 @@ Output:
       blocking: false,
       needsExecution: false,
       ideation: false,
+      purser: false,
+      blockWithoutSandbox: false,
+      graft: [],
     },
     {
       name: 'red-team',
@@ -333,6 +403,9 @@ For each finding: write the falsifiable attack construction and its impact. Be a
       blocking: true,
       needsExecution: false,
       ideation: false,
+      purser: false,
+      blockWithoutSandbox: false,
+      graft: [],
     },
     {
       name: 'copy-pm',
@@ -385,6 +458,9 @@ Rules:
       blocking: false,
       needsExecution: false,
       ideation: false,
+      purser: false,
+      blockWithoutSandbox: false,
+      graft: [],
     },
     ...ideationDefaults(),
   ];
@@ -413,6 +489,9 @@ function ideationDefaults(): ShipConfig[] {
     blocking: false,
     needsExecution: false,
     ideation: true,
+    purser: false,
+    blockWithoutSandbox: false,
+    graft: [],
   });
 
   return [

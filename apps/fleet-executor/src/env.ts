@@ -34,6 +34,15 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   /** Workers AI binding. */
   AI: Ai;
   /**
+   * OPTIONAL Cloudflare Sandbox binding (Containers beta, `@cloudflare/sandbox`)
+   * used by the purser ship to EXECUTE its authored adversarial tests against
+   * the PR head. Deliberately typed `unknown` and duck-typed in
+   * src/sandbox-runner.ts so the SDK is not a build dependency. ABSENT (the
+   * default deploy) ⇒ the purser reports `executed: false` and never fabricates
+   * test results. See the commented block in wrangler.toml.example.
+   */
+  SANDBOX?: unknown;
+  /**
    * Optional Cloudflare AI Gateway id. When set, every ship's `env.AI.run(...)`
    * is routed through this gateway (`{ gateway: { id } }`) so token/cost/latency
    * is logged and cacheable in the AI Gateway dashboard (ADR-0116/0117). UNSET ⇒

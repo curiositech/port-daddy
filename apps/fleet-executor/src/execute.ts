@@ -62,6 +62,7 @@ import {
 } from './ideas-store.js';
 import type { Proposal } from './proposals.js';
 import { decideShipGate, isDocsOnly } from './gates.js';
+import { runPurser } from './purser.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
 import { costUsdForModel } from './spend.js';
@@ -653,8 +654,17 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   const changedPaths = prCtx.files.map(f => f.filename).filter(Boolean);
   const docsOnly = isDocsOnly(changedPaths);
 
+  // PURSER ordering: purser ships run AFTER every reviewer/ideation ship, so
+  // the stacked-tests demand lands on top of (and can reference) the rest of
+  // the fleet's review. Purser is OFF unless a `class: purser` ship is declared
+  // in pd-fleet.yml — defaultPRShips() carries none (safe rollout).
+  const orderedShips = [
+    ...cloudShips.filter(s => !s.purser),
+    ...cloudShips.filter(s => s.purser),
+  ];
+
   const results: ShipResult[] = [];
-  for (const ship of cloudShips) {
+  for (const ship of orderedShips) {
     // Per-ship wall-clock start: durationMs must reflect THIS ship's work
     // (including its gate/skip decision), not the cumulative run time — else
     // later ships report inflated durations that fold in every earlier ship.
@@ -694,7 +704,9 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     }
 
     const metrics = newShipMetrics();
-    const result = await runShip(ship, prCtx, token, env, branch, transcript, metrics);
+    const result = ship.purser
+      ? await runPurser(ship, prCtx, env, token, transcript, metrics)
+      : await runShip(ship, prCtx, token, env, branch, transcript, metrics);
     results.push(result);
     await emitShipTelemetry(env, job, prCtx, ship, result, metrics, checkRunId, shipStartMs);
     // Per-run spend: one fleet_run_spend row per ship that actually ran, so the

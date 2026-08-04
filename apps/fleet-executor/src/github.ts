@@ -185,9 +185,30 @@ export interface PRContext {
   body: string;
   headSha: string;
   baseSha: string;
+  /** The PR's base BRANCH name (e.g. 'main'). Empty when the payload omits it. */
+  baseRef: string;
+  /**
+   * True when the PR head lives in a DIFFERENT repo than the base (a fork PR),
+   * or when the head repo is unknown/deleted while the base repo is known
+   * (conservative: treated as a fork). The purser only RETARGETS same-repo PRs.
+   */
+  isFork: boolean;
   installationId: number;
   files: PRFile[];
   diff: string;
+}
+
+/**
+ * Fork detection from the webhook payload's head/base repo full names.
+ * Both absent (minimal test payloads) ⇒ same-repo. Head absent while base is
+ * known (deleted fork repo) ⇒ conservative: fork.
+ */
+function computeIsFork(headRepoFullName: unknown, baseRepoFullName: unknown): boolean {
+  const head = typeof headRepoFullName === 'string' ? headRepoFullName : null;
+  const base = typeof baseRepoFullName === 'string' ? baseRepoFullName : null;
+  if (head === null && base === null) return false;
+  if (head === null || base === null) return true;
+  return head !== base;
 }
 
 export async function fetchPRContext(
@@ -201,8 +222,8 @@ export async function fetchPRContext(
     number: number;
     title: string;
     body: string;
-    head: { sha: string };
-    base: { sha: string };
+    head: { sha: string; repo?: { full_name?: string } | null };
+    base: { sha: string; ref?: string; repo?: { full_name?: string } | null };
   };
 
   const [filesRes, diffRes] = await Promise.all([
@@ -225,6 +246,8 @@ export async function fetchPRContext(
     body: pr.body ?? '',
     headSha: pr.head?.sha ?? '',
     baseSha: pr.base?.sha ?? '',
+    baseRef: pr.base?.ref ?? '',
+    isFork: computeIsFork(pr.head?.repo?.full_name, pr.base?.repo?.full_name),
     installationId: 0,
     files,
     diff,
