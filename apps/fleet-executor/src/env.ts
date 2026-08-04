@@ -62,6 +62,17 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
    */
   RUN_PAGE_SECRET?: string;
   /**
+   * OPTIONAL "cloud squid" coordination-event sink (src/squid-events.ts): the
+   * relay publish endpoint the executor fire-and-forgets run-started /
+   * ship-verdict / pr-stacked / run-concluded events to, on channel
+   * 'fleet-cloud'. BOTH this and RELAY_PUBLISH_TOKEN must be set or the
+   * feature is silently disabled — no fetch is ever attempted. Events are
+   * strictly best-effort: they never throw and never block or change a run.
+   */
+  RELAY_PUBLISH_URL?: string;
+  /** Bearer token sent with every squid-event POST. Secret; optional (see above). */
+  RELAY_PUBLISH_TOKEN?: string;
+  /**
    * Shared relay D1 database (`port-daddy-relay`). The executor writes the
    * fleet_runs audit header + the append-only fleet_run_steps transcript here.
    * Optional at the type level so unit tests can omit it; all writes are

@@ -138,6 +138,17 @@ DEFAULT_BRANCH = "main"
 # ONLY once you have a real sink URL, e.g. "https://your-tunnel/telemetry/cloud-app".
 PORT_DADDY_TELEMETRY_URL = ""
 
+# Cloud squid — fleet coordination events (src/squid-events.ts). When BOTH
+# RELAY_PUBLISH_URL (var) and RELAY_PUBLISH_TOKEN (secret) are set, the
+# executor fire-and-forgets run-started / ship-verdict / pr-stacked /
+# run-concluded events onto channel 'fleet-cloud' as
+#   POST <RELAY_PUBLISH_URL>  { event: { channel, type, sender, iat, payload } }
+# with `Authorization: Bearer <RELAY_PUBLISH_TOKEN>`. Point it at a relay
+# ingest that accepts bearer-token publishes. OPTIONAL and DISABLED by default:
+# leave empty ⇒ zero fetches, feature silently off. Events are best-effort —
+# they can never block or change a run, a verdict, or the merge gate.
+RELAY_PUBLISH_URL = ""
+
 # Human-facing run page (ADR-0101 Phase 0). When BOTH this and the
 # RUN_PAGE_SECRET secret are set, every 'Port Daddy Fleet' check run carries a
 # details_url pointing at the relay's HTML deliberation page for that run:
@@ -155,3 +166,7 @@ RUN_DETAILS_BASE_URL = ""
 #                              tokens; MUST equal the relay's RUN_PAGE_SECRET
 #                              (openssl rand -hex 32, then wrangler secret put
 #                              RUN_PAGE_SECRET in BOTH workers)
+#   RELAY_PUBLISH_TOKEN        Bearer token for the cloud-squid event POSTs to
+#                              RELAY_PUBLISH_URL (see the [vars] comment above).
+#                              Optional: unset (with an empty URL) ⇒ squid
+#                              events are silently disabled.
