@@ -71,7 +71,7 @@ jobs:
       - name: Trust the checkout dir (container runs as root)
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Build in-scope whitepaper PDFs
+      - name: Build in-scope whitepaper PDFs reproducibly
         env:
           EVENT_NAME: ${{ github.event_name }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -83,15 +83,27 @@ jobs:
             pull_request) base="$PR_BASE_SHA" ;;
             push) base="$PUSH_BEFORE_SHA" ;;
           esac
-          # PRs and pushes rebuild only papers whose transitive TeX inputs
-          # changed. This prevents one shared figures directory from churning
-          # unrelated PDFs. Manual runs intentionally rebuild the full set.
-          if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ] \
-             && git cat-file -e "$base^{commit}" 2>/dev/null; then
-            bash scripts/build-whitepapers.sh --changed-since "$base"
-          else
-            bash scripts/build-whitepapers.sh
-          fi
+          build_papers() {
+            # PRs and pushes rebuild only papers whose transitive TeX inputs
+            # changed. A builder change intentionally rebuilds the full set,
+            # because it can alter every artifact. Manual runs also build all.
+            if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ] \
+               && git cat-file -e "$base^{commit}" 2>/dev/null; then
+              if git diff --quiet "$base"...HEAD -- scripts/build-whitepapers.sh; then
+                bash scripts/build-whitepapers.sh --changed-since "$base"
+              else
+                bash scripts/build-whitepapers.sh
+              fi
+            else
+              bash scripts/build-whitepapers.sh
+            fi
+          }
+
+          build_papers
+          hash_file="$RUNNER_TEMP/whitepaper-pdfs.sha256"
+          sha256sum website-v2/public/whitepaper/*.pdf > "$hash_file"
+          build_papers
+          sha256sum --check "$hash_file"
 
       - name: Commit rebuilt PDFs (same-repo branch)
         # Heal configured feature-branch pushes and same-repository PR heads.

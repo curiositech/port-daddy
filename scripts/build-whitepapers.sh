@@ -11,11 +11,10 @@
 # turning source -> PDF; CI runs it and commits the result.
 #
 # Reproducibility: each paper's embedded /CreationDate (and the PDF /ID) is
-# pinned to the last git commit time of that paper's sources via
-# SOURCE_DATE_EPOCH + FORCE_SOURCE_DATE. So a given source tree always renders
-# byte-identical bits, which is what makes the CI drift-guard meaningful: if a
-# rebuilt PDF differs from the committed one, the source genuinely changed and
-# the committed PDF is stale.
+# pinned to the last source commit's author time via SOURCE_DATE_EPOCH +
+# FORCE_SOURCE_DATE. Author time survives GitHub's rebase merge; committer time
+# does not. So a given source tree renders byte-identically before and after it
+# enters main, which makes the CI drift guard meaningful.
 #
 # Usage:
 #   scripts/build-whitepapers.sh            # build all papers
@@ -31,8 +30,17 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 PUB="website-v2/public/whitepaper"
-BUILD_DIR="$(mktemp -d)"
-trap 'rm -rf "$BUILD_DIR"' EXIT
+# pdfTeX incorporates the output path into the trailer /ID. A random mktemp
+# directory therefore makes otherwise identical PDFs differ on every build.
+# Keep the ignored build path stable across PR and main runners.
+BUILD_DIR="$REPO_ROOT/.cache/whitepaper-build"
+clean_build_dir() {
+  [ -d "$BUILD_DIR" ] || return 0
+  find "$BUILD_DIR" -depth -mindepth 1 -delete
+}
+clean_build_dir
+mkdir -p "$BUILD_DIR"
+trap clean_build_dir EXIT
 
 # paper table: "<srcdir>|<root.tex>|<dest published pdf path>"
 PAPERS=(
@@ -84,18 +92,20 @@ paper_sources() {
   done
 }
 
-# Deterministic per-paper epoch: latest commit touching the paper's root tex or
-# one of its transitive \input / \include dependencies. Falls back to repo HEAD
-# time, then to a fixed constant, so the build remains reproducible outside a
-# git checkout.
+# Deterministic per-paper epoch: maximum author time across commits touching the
+# paper's root tex or one of its transitive \input / \include dependencies.
+# Author times survive rebase merges, while Git's default commit ordering does
+# not. Falls back to the repo HEAD author time, then to a fixed constant.
 paper_epoch() {
   local srcdir="$1" roottex="$2" epoch=""
   local sources=()
   while IFS= read -r source; do
     sources+=("$source")
   done < <(paper_sources "$srcdir" "$roottex")
-  epoch="$(git log -1 --format=%ct HEAD -- "${sources[@]}" 2>/dev/null || true)"
-  [ -z "$epoch" ] && epoch="$(git log -1 --format=%ct HEAD 2>/dev/null || true)"
+  epoch="$(git log --format=%at HEAD -- "${sources[@]}" 2>/dev/null \
+    | awk 'BEGIN { max = 0 } $1 > max { max = $1 } END { if (max > 0) print max }' \
+    || true)"
+  [ -z "$epoch" ] && epoch="$(git log -1 --format=%at HEAD 2>/dev/null || true)"
   [ -z "$epoch" ] && epoch="1700000000"
   printf '%s' "$epoch"
 }
