@@ -64,6 +64,14 @@ fleet:
   name: port-daddy
   harbor: "{project}:fleet"
 
+  # TENANCY CONSENT (cloud squid): opt in to the fleet-executor's fleet-cloud
+  # coordination events (run-started / ship-verdict / pr-stacked /
+  # run-concluded on the shared relay channel). Those events carry this repo's
+  # name, PR numbers, verdicts, and stacked-PR urls, so the executor emits
+  # NOTHING for a tenant repo unless its pd-fleet.yml (trusted default branch)
+  # sets this to exactly `true`. Default: false.
+  squidEvents: true
+
   limits:
     max_concurrent_spawns: 3
     max_spawns_per_hour: 12

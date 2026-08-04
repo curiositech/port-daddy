@@ -287,6 +287,33 @@ function triggerMatches(trigger: unknown, requested: string): boolean {
 }
 
 /**
+ * TENANCY CONSENT (cloud squid): does this repo's pd-fleet.yml opt in to
+ * fleet-cloud coordination events? The executor announces run lifecycle events
+ * (run-started / ship-verdict / pr-stacked / run-concluded — src/squid-events.ts)
+ * onto the shared relay channel; those events carry the tenant's repo name, PR
+ * numbers, ship verdicts, and stacked-PR urls, so emission requires the TENANT'S
+ * explicit consent, not just the operator's env wiring.
+ *
+ * Consent is a top-level `squidEvents: true` under `fleet:` in pd-fleet.yml,
+ * read from the TRUSTED default branch (same zero-trust fetch as the ship
+ * config — never the PR head). Strict coercion, same rules as `blocking:`:
+ * only `true` / `'true'` opt in; absent key, `yes`, `1`, an unparseable doc,
+ * or a missing pd-fleet.yml all mean NO (default false, fail-closed).
+ */
+export function parseFleetSquidEvents(fleetYaml: string): boolean {
+  let doc: unknown;
+  try {
+    doc = parseYaml(fleetYaml);
+  } catch {
+    return false;
+  }
+  const fleet = (doc as { fleet?: { squidEvents?: unknown } } | null)?.fleet;
+  if (!fleet || typeof fleet !== 'object') return false;
+  const value = fleet.squidEvents;
+  return value === true || value === 'true';
+}
+
+/**
  * Deterministically parse pd-fleet.yml and return every ship whose trigger
  * matches `trigger`. Pure (no Workers AI). Reads the ENTIRE document.
  *

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { parseFleetShips, defaultPRShips, resolveCfModel } from '../src/fleet.js';
+import { parseFleetShips, parseFleetSquidEvents, defaultPRShips, resolveCfModel } from '../src/fleet.js';
 
 // The REAL pd-fleet.yml at the repo root (apps/fleet-executor/tests → ../../..).
 const REAL_YAML = readFileSync(
@@ -240,6 +240,39 @@ describe('parseFleetShips — model derivation + blocking coercion', () => {
     expect(parseFleetShips(':::not yaml:::\n  - [', 'pull_request:opened')).toBeNull();
     expect(parseFleetShips('fleet:\n', 'pull_request:opened')).toBeNull();
     expect(parseFleetShips('fleet:\n  agents:\n    x:\n      trigger: push\n      prompt: |\n        x.\n', 'pull_request:opened')).toBeNull();
+  });
+});
+
+describe('parseFleetSquidEvents — tenancy consent for fleet-cloud events', () => {
+  it('defaults to false when the key is absent', () => {
+    expect(parseFleetSquidEvents('fleet:\n  agents: {}\n')).toBe(false);
+  });
+
+  it('is true only for an explicit squidEvents: true under fleet:', () => {
+    expect(parseFleetSquidEvents('fleet:\n  squidEvents: true\n  agents: {}\n')).toBe(true);
+    // String 'true' also opts in (same coercion rules as `blocking:`).
+    expect(parseFleetSquidEvents("fleet:\n  squidEvents: 'true'\n")).toBe(true);
+  });
+
+  it('rejects every not-quite-true value (fail-closed consent)', () => {
+    expect(parseFleetSquidEvents('fleet:\n  squidEvents: false\n')).toBe(false);
+    // NOTE: bare `yes` parses to boolean true only in YAML 1.1; the `yaml`
+    // package (1.2 core schema) yields the string 'yes' — not consent.
+    expect(parseFleetSquidEvents('fleet:\n  squidEvents: yes\n')).toBe(false);
+    expect(parseFleetSquidEvents('fleet:\n  squidEvents: 1\n')).toBe(false);
+    expect(parseFleetSquidEvents('fleet:\n  squidEvents: "TRUE"\n')).toBe(false);
+    expect(parseFleetSquidEvents('fleet:\n  squidEvents:\n')).toBe(false);
+  });
+
+  it('is false for a top-level squidEvents outside fleet:, unparseable docs, and empty docs', () => {
+    expect(parseFleetSquidEvents('squidEvents: true\n')).toBe(false);
+    expect(parseFleetSquidEvents(':::not yaml:::\n  - [')).toBe(false);
+    expect(parseFleetSquidEvents('')).toBe(false);
+    expect(parseFleetSquidEvents('fleet: 7\n')).toBe(false);
+  });
+
+  it('the REAL pd-fleet.yml opts Port Daddy itself in', () => {
+    expect(parseFleetSquidEvents(REAL_YAML)).toBe(true);
   });
 });
 

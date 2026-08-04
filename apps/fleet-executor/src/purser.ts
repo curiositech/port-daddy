@@ -393,6 +393,8 @@ export async function runPurser(
   graftText = '',
   /** Run id for squid coordination events ('' ⇒ unknown; events still fire). */
   runId = '',
+  /** Tenant `squidEvents: true` consent from pd-fleet.yml (default false). */
+  squidConsent = false,
 ): Promise<ShipResult> {
   const advisoryPass: ShipResult = {
     ship: ship.name,
@@ -540,7 +542,7 @@ export async function runPurser(
         runId,
         ship: ship.name,
         url: stackedPr.url,
-      });
+      }, squidConsent);
       // GUARD: only same-repo (non-fork) PRs are retargeted onto the tests.
       if (!prCtx.isFork) {
         try {
