@@ -22,6 +22,8 @@
  *                                                token or operator; ADR-0101)
  *   GET  /account/runs                          (HTML runs index; session +
  *                                                GitHub repo ACL; ADR-0101)
+ *   GET  /account/billing                       (HTML billing page; session +
+ *                                                GitHub installation ownership; ADR-0116)
  *   POST /billing/checkout                     (session; Stripe Checkout for a credit pack)
  *   POST /billing/webhook                      (Stripe-Signature HMAC; credit ledger writes)
  *   GET  /billing/balance/:installationId      (operator or session; prepaid balance)
@@ -80,6 +82,7 @@ import {
 } from './auth-github.js';
 import { handleLoginPage, handleAccountPage } from './account-page.js';
 import { handleRunsPage } from './runs-page.js';
+import { handleBillingPage } from './billing-page.js';
 import { handleDeviceStart, handleDeviceToken, handleWhoami } from './device-flow.js';
 import {
   handleCreateCheckout,
@@ -205,6 +208,10 @@ export default {
     // Per-account fleet-runs index (session + GitHub repo ACL; ADR-0101).
     else if (pathname === '/account/runs' && method === 'GET') {
       response = await handleRunsPage(request, env);
+    }
+    // Billing storefront (session + GitHub installation ownership; ADR-0116).
+    else if (pathname === '/account/billing' && method === 'GET') {
+      response = await handleBillingPage(request, env);
     }
     // MERCY report card (session-gated HTML; src/mercy.ts).
     else if (pathname === '/account/mercy' && method === 'GET') {
