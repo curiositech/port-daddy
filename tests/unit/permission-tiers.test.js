@@ -195,6 +195,36 @@ describe('resolveTier', () => {
     expect(resolveTier('ports', ['cleanup'])).toBe('destructive');
   });
 
+  // pd suggest: only `approve` fires a ship run (it spends and spawns, the
+  // dispatch posture). Bare `pd suggest` IS the listing — a read-only default
+  // must never inherit the group's worst case and prompt like it is dangerous.
+  test('pd suggest approve is approval; bare pd suggest (list) is silent', () => {
+    expect(resolveTier('suggest', [])).toBe('silent');
+    expect(resolveTier('suggest', ['list'])).toBe('silent');
+    expect(resolveTier('suggest', ['dismiss', 'sug-1'])).toBe('notify');
+    expect(resolveTier('suggest', ['approve', 'sug-1'])).toBe('approval');
+  });
+
+  // pd seamanship (alias pd skills): sync/index rewrite the on-disk catalog
+  // under ~/.port-daddy/skills; the read verbs mutate nothing, including
+  // `outcomes`, which GETs from the daemon but changes no state.
+  test('pd seamanship sync/index are notify; the read verbs are silent', () => {
+    expect(resolveTier('seamanship', [])).toBe('silent');
+    expect(resolveTier('seamanship', ['search', 'rust'])).toBe('silent');
+    expect(resolveTier('seamanship', ['outcomes'])).toBe('silent');
+    expect(resolveTier('seamanship', ['sync'])).toBe('notify');
+    expect(resolveTier('seamanship', ['index'])).toBe('notify');
+  });
+
+  // The alias dispatches to the same handler (bin/port-daddy-cli.ts:
+  // `case 'seamanship': case 'skills':`), so it must never resolve to a
+  // different prompt than the verb it aliases.
+  test('pd skills resolves identically to pd seamanship at every subcommand', () => {
+    for (const args of [[], ['list'], ['search', 'x'], ['show', 'y'], ['outcomes'], ['sync'], ['index']]) {
+      expect(resolveTier('skills', args)).toBe(resolveTier('seamanship', args));
+    }
+  });
+
   test('pd agent inbox clear is destructive', () => {
     expect(resolveTier('agent', ['inbox', 'clear'])).toBe('destructive');
     expect(resolveTier('agent', ['inbox', 'list'])).toBe('silent');
@@ -263,6 +293,12 @@ describe('resolveTier', () => {
     expect(resolveTier('attention', [], ['subscriptions'])).toBe('silent');
     expect(resolveTier('attention', [], ['subscribe'])).toBe('notify');
     expect(resolveTier('attention', [], ['unsubscribe'])).toBe('notify');
+  });
+
+  test('pd batten verify is read-only while imprint reports its local write', () => {
+    expect(resolveTier('batten', [])).toBe('notify');
+    expect(resolveTier('batten', ['verify'])).toBe('silent');
+    expect(resolveTier('batten', ['imprint'])).toBe('notify');
   });
 
   test('unmapped command falls back to silent (read-friendly default)', () => {

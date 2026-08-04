@@ -344,7 +344,7 @@ export function readAlerts(fleet?: string): Record<string, string> {
 /** Set a steering alert / Parley alert that the prompt tentacle will inject. */
 export function setAlert(id: string, message: string, fleet?: string): string {
   const key = `PD_ALERT_${keySuffix(id)}`;
-  setKey(key, message, fleet);
+  setKey(key, `${message} | ts:${new Date().toISOString()}`, fleet);
   return key;
 }
 

@@ -1,59 +1,45 @@
-% Fig 7 — the keystone split: local non-forgeable identity vs cross-operator attestation.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Fig 7 — local non-forgeable identity vs cross-operator attestation.
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  harbor/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=4pt,
-                 minimum width=46mm,minimum height=30mm,align=center,inner sep=4pt},
-  stone/.style={draw=hhebony,thick,rounded corners=2pt,inner sep=4pt,align=center,
-                font=\bfseries\footnotesize},
-]
-% Two harbors
-\node[harbor] (A) at (0,0) {\textbf{Alice's harbor}\\{\scriptsize one trusted daemon}\\[6pt]};
-\node[harbor] (B) at (9,0) {\textbf{Bob's harbor}\\{\scriptsize one trusted daemon}\\[6pt]};
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[font=\small]
+  \node[stp box,minimum width=58mm,minimum height=40mm] (alice) at (-4.2,0)
+    {};
+  \node[stp heading,anchor=north] at ([yshift=-4mm]alice.north)
+    {Alice's harbor};
+  \node[stp box,minimum width=43mm,text width=39mm,anchor=south]
+    (alice-id) at ([yshift=4mm]alice.south)
+    {\textbf{local non-forgeable identity}\\
+     {\scriptsize one trusted daemon \(\cdot\) \textsc{specified}}\\[-1pt]
+     {\scriptsize Chapters I--III depend here}};
 
-% Local-identity stones INSIDE each harbor (teal = solid for papers 1-3)
-\node[stone,fill=hhsand!30,draw=hhink] at ($(A.south)+(0,7mm)$) (s40a)
-  {local non-forgeable\\identity\\\textsc{specified}};
-\node[stone,fill=hhsand!30,draw=hhink] at ($(B.south)+(0,7mm)$) (s40b)
-  {local non-forgeable\\identity\\\textsc{specified}};
+  \node[stp box,minimum width=58mm,minimum height=40mm] (bob) at (4.2,0)
+    {};
+  \node[stp heading,anchor=north] at ([yshift=-4mm]bob.north)
+    {Bob's harbor};
+  \node[stp box,minimum width=43mm,text width=39mm,anchor=south]
+    (bob-id) at ([yshift=4mm]bob.south)
+    {\textbf{local non-forgeable identity}\\
+     {\scriptsize one trusted daemon \(\cdot\) \textsc{specified}}\\[-1pt]
+     {\scriptsize Chapters I--III depend here}};
 
-% The boundary between them
-\draw[hhcobalt,very thick,dash pattern=on 3pt off 2pt]
-  ($(A.east)+(8mm,2.0)$) -- ($(A.east)+(8mm,-2.0)$);
-\node[font=\itshape\footnotesize,text=hhink,above]
-  at ($(A.east)+(22mm,2.1)$) {the boundary \emph{neither} controls};
+  \draw[hhcobalt,line width=0.9pt,dashed] (0,-1.8) -- (0,1.8);
+  \node[stp label,anchor=south] at (0,1.8)
+    {trust boundary neither operator controls};
 
-% The UNBUILT bridge across the boundary
-\node[stone,fill=hhsand!30,draw=hhcobalt,very thick,text width=40mm]
-  at (4.5,-3.1) (s40b2)
-  {cross-operator attestation\\
-   {\normalfont\scriptsize key-binding across harbors you don't own}\\
-   \textcolor{hhcobalt}{proposed (unbuilt --- owed to Paper 4)}};
-\draw[->,>=Latex,thick,draw=hhcobalt,dashed] (s40b2.north west) to[bend left=10] (A.south);
-\draw[->,>=Latex,thick,draw=hhcobalt,dashed] (s40b2.north east) to[bend right=10] (B.south);
-
-% labels
-\node[font=\footnotesize,text=hhink,below=1mm of s40a,align=center]
-  {\textbf{Papers 1--3 stand here}};
-
+  \node[stp accent box,minimum width=83mm,text width=76mm] (bridge) at (0,-3.35)
+    {\textbf{cross-operator attestation}\\
+     {\scriptsize binds keys across independently owned harbors}\\[-1pt]
+     {\scriptsize \textsc{proposed} \(\cdot\) unbuilt \(\cdot\) owed to Chapters IV and VII}};
+  \draw[stp dashed arrow] (bridge.north west) to[bend left=10] (alice-id.south);
+  \draw[stp dashed arrow] (bridge.north east) to[bend right=10] (bob-id.south);
 \end{tikzpicture}}
 \caption{\textbf{The keystone is two stones.} A \emph{local non-forgeable identity}
-secures identity \emph{within one trusted daemon} --- exactly what Papers~1--3 need
+secures identity \emph{within one trusted daemon} --- exactly what Chapters~I--III need
 and assume. The cross-operator boundary needs \emph{cross-operator attestation},
 which is unwritten --- a federated witness log gives log-\emph{integrity}, not
 identity-\emph{binding}. This paper depends on the solid stone and hands the market
-paper the unbuilt one \emph{by name}, rather than borrowing the single-operator
+chapters the unbuilt one \emph{by name}, rather than borrowing the single-operator
 threat model across the boundary.}
 \label{fig:keystone}
 \end{figure}

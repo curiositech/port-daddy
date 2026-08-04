@@ -401,6 +401,211 @@ describe('fleet run page rendering', () => {
     expect(html).toContain('&lt;script&gt;');
   });
 
+  // ── Purser + stacked-fix narratives (wf-crew) ──────────────────────────────
+
+  function step(kind: string, ship: string | null, title: string, detail: unknown, seq = 1): FleetRunStepRow {
+    return {
+      run_id: RUN_ID, seq, kind, ship, title,
+      detail: detail == null ? null : JSON.stringify(detail),
+      created_at: 1_700_000_000 + seq,
+    };
+  }
+
+  it('narrates purser-steelman: obligations count + escaped purpose', async () => {
+    const html = await openPage(makeRun(), [
+      step('purser-steelman', 'purser', 'pd-purser: steel-manned contract (3 obligation(s))', {
+        purpose: 'Guarantee frobbing <b>always</b>', obligationCount: 3, testTargets: ['src/x.ts'],
+      }),
+    ]);
+    expect(html).toContain('The purser steel-manned this PR into 3 testable obligations');
+    expect(html).toContain('Guarantee frobbing &lt;b&gt;always&lt;/b&gt;');
+    expect(html).not.toContain('<b>always</b>');
+  });
+
+  it('narrates a malformed purser-steelman as an honest advisory stop', async () => {
+    const html = await openPage(makeRun(), [
+      step('purser-steelman', 'purser', 'pd-purser: steel-man MALFORMED', { error: 'not fenced JSON' }),
+    ]);
+    expect(html).toContain('could not steel-man this PR');
+    expect(html).toContain('stopped honestly');
+  });
+
+  it('narrates purser-tests: file count + size in KB + escaped file list', async () => {
+    const html = await openPage(makeRun(), [
+      step('purser-tests', 'purser', 'pd-purser: authored 2 adversarial test file(s)', {
+        files: [
+          { path: 'tests/purser/a.test.ts', bytes: 1024 },
+          { path: 'tests/purser/<img>.test.ts', bytes: 512 },
+        ],
+        totalBytes: 1536,
+      }),
+    ]);
+    expect(html).toContain('Authored 2 adversarial test files (1.5 KB)');
+    expect(html).toContain('tests/purser/a.test.ts');
+    expect(html).toContain('&lt;img&gt;');
+    expect(html).not.toContain('<img>.test.ts');
+  });
+
+  it('narrates rejected purser tests without pretending anything was stacked', async () => {
+    const html = await openPage(makeRun(), [
+      step('purser-tests', 'purser', 'pd-purser: authored tests REJECTED', {
+        error: 'path traversal rejected: ../x.ts',
+      }),
+    ]);
+    expect(html).toContain('did not survive validation');
+    expect(html).toContain('Nothing was stacked');
+  });
+
+  it('narrates purser-sandbox: ran-and-passed, ran-and-failed (escaped tail), and not-run', async () => {
+    const passed = await openPage(makeRun(), [
+      step('purser-sandbox', 'purser', 'pd-purser: sandbox PASSED', { executed: true, passed: true, failuresTail: '' }),
+    ]);
+    expect(passed).toContain('Sandbox ran the suite against the PR head — all tests passed');
+
+    const failed = await openPage(makeRun(), [
+      step('purser-sandbox', 'purser', 'pd-purser: sandbox FAILED', {
+        executed: true, passed: false, failuresTail: '2 failed <script>x</script>',
+      }),
+    ]);
+    expect(failed).toContain('Sandbox ran the suite against the PR head — test FAILURES');
+    expect(failed).toContain('does not satisfy its own contract');
+    expect(failed).toContain('&lt;script&gt;');
+    expect(failed).not.toContain('<script>x</script>');
+
+    const absent = await openPage(makeRun(), [
+      step('purser-sandbox', 'purser', 'pd-purser: sandbox NOT RUN', {
+        executed: false, passed: null, failuresTail: '', reason: 'SANDBOX binding absent',
+      }),
+    ]);
+    expect(absent).toContain('Sandbox did not run — SANDBOX binding absent');
+    expect(absent).toContain('No results were fabricated');
+  });
+
+  it('narrates purser-stacked: the demand ("must now satisfy these tests") + retarget note', async () => {
+    const html = await openPage(makeRun(), [
+      step('purser-stacked', 'purser', 'pd-purser: stacked tests as #8001 (PR retargeted onto tests)', {
+        testPrNumber: 8001, testPrUrl: 'https://github.com/test/pr/8001', retargeted: true,
+      }),
+    ]);
+    expect(html).toContain('Stacked #8001: the reviewed PR must now satisfy these tests');
+    expect(html).toContain('retargeted onto the test branch');
+  });
+
+  it('narrates a degraded purser stacking honestly', async () => {
+    const html = await openPage(makeRun(), [
+      step('purser-stacked', 'purser', 'pd-purser: stacking degraded', {
+        testPrNumber: null, testPrUrl: null, retargeted: false,
+        degraded: 'the GitHub App lacks the `contents: write` permission.',
+      }),
+    ]);
+    expect(html).toContain('Stacking degraded');
+    expect(html).toContain('contents: write');
+    expect(html).toContain('posted inline');
+  });
+
+  it("narrates stack-posted: the ship coded its own fix and stacked it on this PR", async () => {
+    const html = await openPage(makeRun(), [
+      step('stack-posted', 'spark', 'pd-spark: coded its own fix and stacked #8002 on top of #7', {
+        stacked: true, stackPrNumber: 8002, stackPrUrl: 'https://github.com/test/pr/8002',
+        proposalTitle: 'Fix the null guard', files: ['src/fix.ts'], sandboxValidated: true,
+      }),
+    ]);
+    expect(html).toContain('pd-spark coded its own fix and stacked #8002 on top of this PR');
+    expect(html).toContain('sandbox-validated against the PR head');
+    expect(html).toContain('src/fix.ts');
+  });
+
+  it('narrates a degraded stack-posted (fix proposed but not stacked) with an escaped reason', async () => {
+    const html = await openPage(makeRun(), [
+      step('stack-posted', 'spark', 'pd-spark: stack fix NOT posted — fork PR', {
+        stacked: false, degraded: 'fork PR — stacking is same-repo only <i>x</i>', proposalTitle: 'T',
+      }),
+    ]);
+    expect(html).toContain('pd-spark proposed a coded fix, but it was not stacked');
+    expect(html).toContain('same-repo only');
+    expect(html).toContain('&lt;i&gt;');
+    expect(html).not.toContain('<i>x</i>');
+  });
+
+  // ── No usable output (2026-08-04 green-theater regression) ────────────────
+  //
+  // A ship that returned nothing must never render as a pass. Before the fix
+  // there was no `ship-no-output` step at all: the executor resolved such a
+  // ship to a PASS verdict and this page rendered "PASS · clean" next to a
+  // reviewer that had reviewed nothing.
+
+  it('narrates a no-usable-output ship honestly and never as a pass', async () => {
+    const html = await openPage(makeRun(), [
+      step(
+        'ship-no-output',
+        'code-reviewer',
+        'pd-code-reviewer returned no usable output — nothing was reviewed (the model returned text carrying no verdict and no structured block).',
+        { noUsableOutput: true, reason: 'no-contract-signal', blocking: true, strippedLength: 45 },
+      ),
+    ]);
+    expect(html).toContain('pd-code-reviewer returned no usable output');
+    expect(html).toContain('nothing was reviewed');
+    // The exact string the operator saw on the bad run must not appear.
+    expect(html).not.toContain('PASS · clean');
+    expect(html).not.toContain('came back clean');
+    expect(html).not.toContain('reviewed the diff and returned');
+  });
+
+  it('badges the ship outcome as "no usable output", not a verdict', async () => {
+    const html = await openPage(makeRun(), [
+      step('ship-no-output', 'code-reviewer', 'pd-code-reviewer returned no usable output — nothing was reviewed.', {
+        noUsableOutput: true, reason: 'empty', blocking: true,
+      }),
+    ]);
+    expect(html).toContain('no usable output · nothing reviewed');
+    expect(html).toContain('outcome tone-block');
+  });
+
+  it('explains fail-closed for a blocking ship and fail-open for an advisory one', async () => {
+    const blocking = await openPage(makeRun(), [
+      step('ship-no-output', 'code-reviewer', 'pd-code-reviewer returned no usable output — nothing was reviewed.', {
+        noUsableOutput: true, reason: 'empty', blocking: true,
+      }),
+    ]);
+    expect(blocking).toContain('failed closed');
+    expect(blocking).toContain('an absent review is not an approval');
+
+    const advisory = await openPage(makeRun(), [
+      step('ship-no-output', 'snipe', 'pd-snipe returned no usable output — nothing was reviewed.', {
+        noUsableOutput: true, reason: 'empty', blocking: false,
+      }),
+    ]);
+    expect(advisory).toContain('did not fail the merge gate');
+    expect(advisory).toContain('rather than counted as a pass');
+  });
+
+  // ── Token metering (the same run showed "Input tokens 0 / Output tokens 0")
+
+  it('sums token counts from the executor ship-spend step', async () => {
+    const html = await openPage(makeRun(), [
+      step('ship-spend', 'code-reviewer', 'pd-code-reviewer: 1,200 in / 340 out tokens over 3 call(s)', {
+        model: '@cf/qwen/qwen3-30b-a3b-fp8', calls: 3, usageReported: true,
+        inputTokens: 1200, outputTokens: 340, cachedInputTokens: 0, costUsd: 0.000175,
+      }),
+    ]);
+    expect(html).toContain('>1,200<');
+    expect(html).toContain('>340<');
+    expect(html).not.toContain('not reported');
+  });
+
+  it('shows "not reported" rather than a zero that reads as free', async () => {
+    // No step carries token fields — exactly the shape of the bad run.
+    const html = await openPage(makeRun(), [
+      step('ship-spend', 'code-reviewer', 'pd-code-reviewer: token usage not reported by @cf/qwen/qwen3-30b-a3b-fp8 (9 call(s))', {
+        model: '@cf/qwen/qwen3-30b-a3b-fp8', calls: 9, usageReported: false, usageReports: 0,
+      }),
+    ]);
+    expect(html).toContain('not reported');
+    // The misleading zero tile is gone.
+    expect(html).not.toMatch(/Input tokens<\/div><div class="v mono">0</);
+    expect(html).toContain('the model reported no token usage');
+  });
+
   it('serves a no-script CSP, no-store, and noindex on every response', async () => {
     const t = await runPageToken(SECRET, RUN_ID);
     for (const r of [

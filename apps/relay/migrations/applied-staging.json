@@ -1,0 +1,11 @@
+{
+  "$schema": "internal://port-daddy/relay-staging-migration-ledger",
+  "description": "CI-owned ledger of relay migrations applied to the STAGING D1 (ADR-0119). Updated by .github/workflows/deploy-relay.yml via scripts/check-migrations-gate.mjs --record after each successful staging apply. The prod release gate (deploy-relay-prod.yml) refuses to deploy while any file in apps/relay/migrations/ is missing here. DO NOT HAND-EDIT.",
+  "applied": [
+    {
+      "file": "2026-07-23-user-tokens.sql",
+      "appliedAt": "2026-08-04T00:00:00Z",
+      "note": "seeded at ADR-0119 adoption — was hand-applied to prod before the staging channel existed"
+    }
+  ]
+}

@@ -17,6 +17,12 @@ import { describe, it, expect } from 'vitest';
 import worker from '../src/index.js';
 import { handleAuthMe, handleAccountExport, handleAccountDelete } from '../src/auth-github.js';
 import { handleFleetRunPage } from '../src/fleet-run-page.js';
+import {
+  handleCreateHarbor,
+  handleListMyHarbors,
+  handleGetHarbor,
+  handleAddHarborMember,
+} from '../src/harbors.js';
 import type { Env } from '../src/types.js';
 
 const BASE = 'https://relay.example';
@@ -62,6 +68,11 @@ describe('tenant isolation — no ambient access to tenant data (MT1)', () => {
       ['/account/delete', handleAccountDelete(noAuth('/account/delete', 'POST'), env), 401],
       // Run page: no token, no session → the same 404 as a nonexistent run.
       ['/fleet/runs/run:x', handleFleetRunPage(noAuth('/fleet/runs/run:x'), env, 'run:x'), 404],
+      // Remote harbors (X2): every route is session/pdu-gated.
+      ['/v1/harbors (create)', handleCreateHarbor(noAuth('/v1/harbors', 'POST'), env), 401],
+      ['/v1/harbors (mine)', handleListMyHarbors(noAuth('/v1/harbors'), env), 401],
+      ['/v1/harbors/a/b', handleGetHarbor(noAuth('/v1/harbors/a/b'), env, 'a', 'b'), 401],
+      ['/v1/harbors/a/b/members', handleAddHarborMember(noAuth('/v1/harbors/a/b/members', 'POST'), env, 'a', 'b'), 401],
     ];
     for (const [name, p, want] of cases) {
       const res = await p;

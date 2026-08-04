@@ -347,20 +347,43 @@ function fmtMs(ms: number): string {
 }
 
 /** Sum a numeric field across step detail blobs (tokens live per step). */
-function sumDetailField(steps: FleetRunStepRow[], field: string): number {
+/**
+ * Sum a numeric field across transcript step details, distinguishing "summed to
+ * zero" from "no step reported this field at all".
+ *
+ * The distinction is the whole point. A run whose model never returned a
+ * `usage` block has NO token rows; rendering that as `0` tells the operator the
+ * run was free, which is a lie of the same family as "PASS · clean" for a ship
+ * that reviewed nothing. `null` here becomes "not reported" in the UI.
+ *
+ * @param steps The run's transcript rows (treated as hostile: detail may be
+ *   absent, non-JSON, or carry non-numeric values).
+ * @param field The detail key to sum, e.g. `inputTokens`.
+ * @returns The total, or null when no row carried a finite number for `field`.
+ */
+function sumDetailField(steps: FleetRunStepRow[], field: string): number | null {
   let total = 0;
+  let seen = false;
   for (const s of steps) {
     if (!s.detail) continue;
     try {
       // reason: parsed JSON boundary — value is typeof-checked below before use.
       const d = JSON.parse(s.detail) as Record<string, unknown>;
       const v = d[field];
-      if (typeof v === 'number' && Number.isFinite(v)) total += v;
+      if (typeof v === 'number' && Number.isFinite(v)) {
+        total += v;
+        seen = true;
+      }
     } catch {
       /* non-JSON detail — nothing to sum */
     }
   }
-  return total;
+  return seen ? total : null;
+}
+
+/** Render a token tile value: a real count, or an honest "not reported". */
+function tokenTileValue(total: number | null): string {
+  return total == null ? 'not reported' : total.toLocaleString('en-US');
 }
 
 // ── Step semantics: English narratives over the raw kind/detail ──────────────
@@ -525,6 +548,41 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
         bodyHtml: '',
       };
 
+    // A ship that produced NO USABLE OUTPUT (fleet-executor's
+    // src/usable-output.ts). This must NEVER render as a pass: the ship ran and
+    // reviewed nothing. The executor already writes an honest English title, so
+    // prefer it verbatim and only synthesize a fallback for a legacy/odd row.
+    case 'ship-no-output': {
+      const blocking = obj.blocking === true;
+      return {
+        icon: '🕳️',
+        tone: 'block',
+        headline:
+          title ||
+          `${shipLabel} returned no usable output — nothing was reviewed.`,
+        bodyHtml: `<p class="meta">${esc(
+          blocking
+            ? 'This is a blocking ship, so the fleet check failed closed — an absent review is not an approval.'
+            : 'This is an advisory ship, so it did not fail the merge gate; it is reported here rather than counted as a pass.',
+        )}</p>`,
+      };
+    }
+
+    // Per-ship token spend. Present so the run page's token tiles have a
+    // source; an honest "not reported" when the model returned no usage block.
+    case 'ship-spend': {
+      const reported = obj.usageReported === true;
+      const calls = numField(obj, 'calls');
+      return {
+        icon: '🧮',
+        tone: 'info',
+        headline: reported
+          ? title || `${shipLabel} token spend recorded.`
+          : `${shipLabel} made ${calls ?? 'its'} model call(s); the model reported no token usage — spend is not reported, not zero.`,
+        bodyHtml: '',
+      };
+    }
+
     case 'ship-verdict': {
       const verdict = verdictFromTitle(title);
 
@@ -584,6 +642,141 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
         tone: verdict === 'BLOCK' ? 'block' : 'pass',
         headline,
         bodyHtml: renderFindingsHtml(findings),
+      };
+    }
+
+    // ── Purser (adversarial gatekeeper) steps ───────────────────────────────
+    case 'purser-steelman': {
+      if (typeof obj.error === 'string') {
+        return {
+          icon: '⚖️',
+          tone: 'neutral',
+          headline:
+            'The purser could not steel-man this PR — its contract output was malformed, ' +
+            'so it stopped honestly (advisory, no bluffed contract).',
+          bodyHtml: '',
+        };
+      }
+      const n = numField(obj, 'obligationCount');
+      const purpose = typeof obj.purpose === 'string' ? obj.purpose : '';
+      return {
+        icon: '⚖️',
+        tone: 'info',
+        headline:
+          `The purser steel-manned this PR into ${n ?? 'several'} testable ` +
+          `obligation${n === 1 ? '' : 's'} — the strongest reading of its contract.`,
+        bodyHtml: purpose
+          ? `<div class="review"><div class="finding"><div class="finding-body">${esc(purpose)}</div></div></div>`
+          : '',
+      };
+    }
+
+    case 'purser-tests': {
+      if (typeof obj.error === 'string') {
+        return {
+          icon: '🧪',
+          tone: 'neutral',
+          headline: `The purser's authored tests did not survive validation — ${obj.error}. Nothing was stacked.`,
+          bodyHtml: '',
+        };
+      }
+      const files = Array.isArray(obj.files) ? obj.files : [];
+      const total = numField(obj, 'totalBytes');
+      const kb = total != null ? ` (${(total / 1024).toFixed(1)} KB)` : '';
+      const list = files
+        .map(f => {
+          const fo = asObject(f);
+          return typeof fo.path === 'string' ? `<li>${esc(fo.path)}</li>` : '';
+        })
+        .join('');
+      return {
+        icon: '🧪',
+        tone: 'info',
+        headline:
+          `Authored ${files.length} adversarial test file${files.length === 1 ? '' : 's'}${kb} ` +
+          'to grill the contract.',
+        bodyHtml: list ? `<ul class="breakdown">${list}</ul>` : '',
+      };
+    }
+
+    case 'purser-sandbox': {
+      if (obj.executed === true) {
+        if (obj.passed === true) {
+          return {
+            icon: '📦',
+            tone: 'pass',
+            headline: 'Sandbox ran the suite against the PR head — all tests passed.',
+            bodyHtml: '',
+          };
+        }
+        const tail = typeof obj.failuresTail === 'string' ? obj.failuresTail : '';
+        return {
+          icon: '📦',
+          tone: 'block',
+          headline:
+            'Sandbox ran the suite against the PR head — test FAILURES: the PR does not ' +
+            'satisfy its own contract.',
+          bodyHtml: tail
+            ? `<details class="raw"><summary>failing output (tail)</summary><pre>${esc(tail)}</pre></details>`
+            : '',
+        };
+      }
+      const reason = typeof obj.reason === 'string' ? obj.reason : 'sandbox unavailable';
+      return {
+        icon: '📦',
+        tone: 'neutral',
+        headline: `Sandbox did not run — ${reason}. No results were fabricated.`,
+        bodyHtml: '',
+      };
+    }
+
+    case 'purser-stacked': {
+      const n = numField(obj, 'testPrNumber');
+      if (n != null) {
+        const retargeted = obj.retargeted === true;
+        return {
+          icon: '⛓️',
+          tone: 'info',
+          headline:
+            `Stacked #${n}: the reviewed PR must now satisfy these tests` +
+            (retargeted ? ' — it was retargeted onto the test branch and merges through them' : '') +
+            '.',
+          bodyHtml: '',
+        };
+      }
+      const degraded = typeof obj.degraded === 'string' ? obj.degraded : 'the test branch could not be pushed';
+      return {
+        icon: '⛓️',
+        tone: 'neutral',
+        headline: `Stacking degraded — ${degraded} The tests were posted inline on the PR instead.`,
+        bodyHtml: '',
+      };
+    }
+
+    // ── Ideation "stack" fixes (the ship coded the solution itself) ─────────
+    case 'stack-posted': {
+      const n = numField(obj, 'stackPrNumber');
+      if (obj.stacked === true && n != null) {
+        const files = Array.isArray(obj.files) ? obj.files.filter((f): f is string => typeof f === 'string') : [];
+        const validated = obj.sandboxValidated === true;
+        return {
+          icon: '🚢',
+          tone: 'pass',
+          headline:
+            `${shipLabel} coded its own fix and stacked #${n} on top of this PR` +
+            (validated ? ' (sandbox-validated against the PR head)' : '') +
+            '.',
+          bodyHtml: files.length
+            ? `<ul class="breakdown">${files.map(f => `<li>${esc(f)}</li>`).join('')}</ul>`
+            : '',
+        };
+      }
+      const degraded = typeof obj.degraded === 'string' ? obj.degraded : 'validation failed';
+      return {
+        icon: '🚢',
+        tone: 'neutral',
+        headline: `${shipLabel} proposed a coded fix, but it was not stacked — ${degraded}.`,
+        bodyHtml: '',
       };
     }
 
@@ -694,11 +887,26 @@ function renderConsolidatedMap(chunks: FleetRunStepRow[], runStartSec: number): 
   </li>`;
 }
 
-/** A one-line at-a-glance outcome for a ship, from its verdict step. */
+/**
+ * A one-line at-a-glance outcome for a ship, from its verdict step.
+ *
+ * `ship-no-output` is scanned alongside the verdict kinds and short-circuits to
+ * its own badge. Without it, a ship that returned nothing carried NO outcome
+ * step at all and the card fell through to the ship's last verdict-ish row —
+ * which is how "PASS · clean" ended up next to a ship that reviewed nothing.
+ */
 function shipOutcome(list: FleetRunStepRow[]): { text: string; tone: StepView['tone'] } | null {
   for (let i = list.length - 1; i >= 0; i--) {
     const s = list[i];
-    if (!s || (s.kind !== 'ship-verdict' && s.kind !== 'ship-finding')) continue;
+    if (
+      !s ||
+      (s.kind !== 'ship-verdict' && s.kind !== 'ship-finding' && s.kind !== 'ship-no-output')
+    ) {
+      continue;
+    }
+    if (s.kind === 'ship-no-output') {
+      return { text: 'no usable output · nothing reviewed', tone: 'block' };
+    }
     if (s.kind === 'ship-finding') return { text: 'errored · unparseable output', tone: 'block' };
     if (/ideation/i.test(s.title ?? '')) return { text: 'advisory · ideation', tone: 'neutral' };
     if (asObject(parseDetail(s)).errored === true) return { text: 'errored · fail-closed', tone: 'block' };
@@ -804,8 +1012,8 @@ function renderRunPage(run: FleetRunRow, steps: FleetRunStepRow[]): string {
     <div class="statrow">
       <div class="stat"><div class="k">Agents</div><div class="v mono">${distinctShips.length}</div></div>
       <div class="stat"><div class="k">Transcript steps</div><div class="v mono">${steps.length}</div></div>
-      <div class="stat"><div class="k">Input tokens</div><div class="v mono">${inputTokens.toLocaleString('en-US')}</div></div>
-      <div class="stat"><div class="k">Output tokens</div><div class="v mono">${outputTokens.toLocaleString('en-US')}</div></div>
+      <div class="stat"><div class="k">Input tokens</div><div class="v mono">${esc(tokenTileValue(inputTokens))}</div></div>
+      <div class="stat"><div class="k">Output tokens</div><div class="v mono">${esc(tokenTileValue(outputTokens))}</div></div>
       <div class="stat stat-money"><div class="k">Neurons</div><div class="v mono">${run.neurons == null ? '—' : run.neurons.toLocaleString('en-US')}</div></div>
       <div class="stat"><div class="k">Wall-clock</div><div class="v mono">${esc(fmtMs(run.ms))}</div></div>
     </div>
