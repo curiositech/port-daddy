@@ -66,6 +66,7 @@ export async function startEphemeralDaemon(options = {}) {
       PORT_DADDY_HEARTBEAT_FILE: heartbeatFile,
       PORT_DADDY_NO_TCP: '1',
       PORT_DADDY_SILENT: '1',
+      PORT_DADDY_BIN_OVERRIDE: process.execPath,
       NODE_ENV: 'test'
     },
     stdio: ['ignore', 'pipe', process.env.DEBUG_TESTS ? 'inherit' : 'pipe'],

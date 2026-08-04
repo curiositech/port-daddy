@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1785646633793,
+  "generatedAt": 1784852769105,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 262,
+  "count": 255,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -565,11 +565,6 @@
       "summaryMd": "A4.1 (optional) Wire tree-sitter-go / tree-sitter-rust + extraction (symbols, imports, intra-file calls). Done when a Go and Rust file parse with symbols + call edges."
     },
     {
-      "slug": "audit-git-hooks-env-bypass",
-      "status": "backlog",
-      "summaryMd": "CI auditor: scan all git hooks + shim/hook installers for in-band env-var security bypasses (binary-agnostic-wall, ADR-0053/0102); non-zero exit gates CI; fixes pre-push hook silent PD_SHIM_OFF stand-down."
-    },
-    {
       "slug": "beacon-durable-agent-roster",
       "status": "backlog",
       "summaryMd": "Turn machine-local sessions into durable, meaningful named agents with system and repo remits, prompt and tool policy, episodic learning, searchable transcript lineage, and Port Daddy discovery."
@@ -693,11 +688,6 @@
       "slug": "dev-berth-daemon-registration",
       "status": "now",
       "summaryMd": "WIP (operator flagged unfinished 2026-07-14): every daemon launched locally for a dev berth must self-register in ~/.port-daddy/dev-daemons.json so FleetBar/Control Center can see it — else dev daemons are invisible in the sanctioned shell (the show-me-runbook hard rule: dev-triple launches with PD_DAEMON_TIER/LABEL/SOURCE_DIR so the berth registers). Evidence tonight: lsof showed a dev-latest daemon on :9886 and multiple dispatch-worktree daemons that FleetBar has no view of. Finish: on daemon boot, if a non-prod tier/label is set, upsert the berth into dev-daemons.json (pid, port, tier, label, sourceDir, gitRev, health-url); prune dead berths on read; every dev-berth launch path (pd dev up, package-console --devbuild, dispatch worktree daemons, dev-triple) goes through it. Acceptance: launch a dev berth by any path and it appears in FleetBar's Daemons list with correct tier/label; killing it prunes it. Owner: dev-berth dispatch. Decision-type: empirical."
-    },
-    {
-      "slug": "document-operator-raw-git-escape",
-      "status": "backlog",
-      "summaryMd": "Operator-only guide for the emergency raw-git escape path (real git by absolute path) when the daemon is down; kept out of all agent-facing skill surfaces per ADR-0102, with an anti-leak guard test."
     },
     {
       "slug": "door-generalize-write-boundary-enforcement",
@@ -860,11 +850,6 @@
       "summaryMd": "Make Giant Squid hooks install reliably across supported agents, ship verified assets, and expose visible honest operator proof."
     },
     {
-      "slug": "git-guard-no-agent-escape",
-      "status": "backlog",
-      "summaryMd": "ADR-0102: remove agent-mintable PD_SHIM_OFF git-guard escape"
-    },
-    {
       "slug": "github-webhook-delivery-dedup",
       "status": "backlog",
       "summaryMd": "Inbound webhook receiver (routes/github-webhook.ts, io-wiring Phase 2) has no idempotency and no replay protection: X-GitHub-Delivery is extracted (line ~222) but never used as a dedup key, and the handler publishes to fleet channels unconditionally — every GitHub redelivery (automatic retry, manual Redeliver, or attacker replay of a captured request, which stays valid forever since GitHub HMAC signs no timestamp) re-fires fleet triggers and duplicates spawns/spend. The 500-on-publish-failure path invites retries that re-publish already-succeeded channels (partial-publish duplication). Composes with fleet-trigger-fire-time-gate: two layers between GitHub and a spawn, neither idempotent. Fix per receiver discipline: durable inbound_webhook_deliveries table keyed UNIQUE(provider, delivery_id) in the registry (safe post-#2067 durable home — pre-fix this table would have been wiped every brew upgrade, erasing replay memory); insert-first with status, publish, then mark published; redelivery of a published id acks 204 without republishing; redelivery of an unpublished id retries only unpublished channels. Signature layer needs NO change (raw-body HMAC + timingSafeEqual + two-tier auth verified sound 2026-07-14). Acceptance: replaying a captured valid request twice publishes fleet events exactly once (unit test); a redelivery after simulated partial publish completes only the missing channels."
@@ -903,11 +888,6 @@
       "slug": "guard-merge-blast-radius-fix",
       "status": "now",
       "summaryMd": "Fix coordination-guard stagedFiles() misattributing a merge's pass-through files to the merging session's blast radius. Shipped as PR #3130 (this commit resolves a real content conflict with a concurrently-regenerated main roadmap snapshot)."
-    },
-    {
-      "slug": "guard-refusal-escalation-skill",
-      "status": "backlog",
-      "summaryMd": "Agent-skill decision tree: correct escalation path on a coordination-guard / pd-shim refusal — fix the guard input or escalate to operator; no in-band bypass (ADR-0102)."
     },
     {
       "slug": "guard-stash-pop-interception",
@@ -1115,14 +1095,9 @@
       "summaryMd": "Fully build out infrastructure for the provable action adjudicator (north-star Ledger RCP-9): a tamper-resistant reference monitor at the tool-call boundary that compiles natural-language policy into a Datalog/Souffle policy DAG (plus Lean 4 decide-proofs for arithmetic constraints, compiled offline, checked at ~us latency at runtime) and adjudicates every agent action Permit/Deny/Permit-with-Obligation before execution, recording verdicts into a provenance DAG. Builds on shipped substrate: ADR-0093 event-spawn trust gate, Agent Harbor gate+probes+ledger, Coordination Guard enforce mode. Production baselines now exist in the literature (FORGE arxiv:2602.16708, AgentSpec ICSE'26, AgentBC, Lean-Agent Protocol) and the skills/provable-action-adjudicator bundle documents the architecture. Ledger classifies RCP-9 as OPEN research feeding IMP-7/IMP-9 (machine-side containment); promote to a build lane once an ADR scopes the interception point (fleet-engine spawn path + MCP tool boundary) and the policy-compilation pipeline."
     },
     {
-      "slug": "provenance-gated-git-guard",
-      "status": "backlog",
-      "summaryMd": "ADR-0119: git-guard has no agent-mintable escape. PD_SHIM_OFF removed from shim + pre-push hook; refusal points only to corrective action. Renumbered from colliding 0102 (salvage-envelope owns 0102). Stale bypass-still-works tests inverted to assert removal; red-team fixture proves no in-band escape. (PR #3145)"
-    },
-    {
       "slug": "release-safety-pipeline",
       "status": "now",
-      "summaryMd": "pd batten declarative release-artifact verify+imprint gate (generalizes #3496 test -s); NO gate reports failure as success"
+      "summaryMd": "Operator mandate 2026-07-14 ('I'm not doing shit with brew'): every Homebrew cut must be atomic, automated, self-healing, gated — and NO gate may ever report a failure as success. HONEST SCORECARD (verified tonight): (a) SHADOW TRAFFIC before promotion = NONE (soak-binary.sh is synthetic load only; no replay of mirrored real requests at the candidate). (b) AUTO LOCAL INSTALL = PARTIAL (release.yml builds+rolls tap; no automated post-release brew-upgrade+verify loop on the operator machine). (c) SOAK UNDER LOAD = YES (soak-binary.sh); TEST-DB POISON PROTECTION = YES (assertNotProdInTest fail-closed); TEST-TRAFFIC TELEMETRY ISOLATION = NONE (no test-context filter in cost-tracker/activity/counters — test requests would pollute prod cost/activity/event streams). (d) ATOMIC + SELF-HEALING = NONE (no promote-only-if-all-green; no auto-rollback via brew-pin-previous + restore durable-home backup stamp + scream when a promoted build misbehaves under a watch window). The kill-daemon acceptance test from #2381 (kill -> restart+alert+doctor-red) is the template for the daemon-liveness portion of the battery; tonight's wedged-alive daemon (fresh heartbeat, dead HTTP, held the socket so restarts refused) is the proof the battery must probe /health not heartbeat age. Owner: release-safety dispatch. Decision-type: HITL (promote/rollback policy) + empirical (harness). Acceptance: a candidate failing the live battery (shadow traffic + kill-daemon-recovers + soak) CANNOT promote; a promoted build misbehaving in the watch window auto-rolls-back and screams; test traffic never reaches prod telemetry; every gate verifies authoritative state and can never pass on an error."
     },
     {
       "slug": "rent-at-claim-begin-gate",
@@ -1183,16 +1158,6 @@
       "slug": "roadmap-schema-wiring",
       "status": "now",
       "summaryMd": "R1b, rescoped by schema-archaeology evidence (2026-07-14): the structured-roadmap schema mostly EXISTS but is unwired — ADR-0086's 7 planner columns (kind/priority/assignee_id/description_md/started_at/due_at/estimate) live in db.ts but the CRUD layer ignores all of them, writePlanEdges/parentEdge/dependsOnEdge/linkEdge have ZERO callers, and the live planner UI derives hierarchy from ADR-slug tokens + priority from status instead of reading columns/edges. Work: (1) wire all 7 columns through RoadmapItem/upsert/routes; (2) wire writePlanEdges into upsert + backfill dependencies_json -> graph_edges depends_on (ADR-0086 rules graph_edges wins; retire the JSON after popper refactor at roadmap-popper.ts:171); (3) make panes prefer stored priority/kind with derivation as null-fallback; (4) ADD what is genuinely missing: decision_kind column (HITL|empirical|aesthetic), tags, widened ArtifactType (issue/worktree/branch/manifest/binder/agent/skill/script), POST /roadmap/items/:slug/links endpoint, itemLegitimacy(item,edges) scorer (owner+priority+estimate+parent+link = legit); (5) feed stored estimate + persisted edges into the CPM scheduler (Gantt substrate already built: planner-schedule.ts criticalPath/makespan + planner-board HTML Gantt). Owner: roadmap-schema dispatch. Decision-type: empirical (HITL only on the decision_kind enum naming). Acceptance: an item created via route with owner+deps+priority renders in the planner pane from STORED fields; popper honors edge-based deps; legitimacy chip visible."
-    },
-    {
-      "slug": "rust-kernel-bugfix-sweep",
-      "status": "now",
-      "summaryMd": "Fix the real bugs the rustdoc-backfill Opus agents found-but-didn't-fix (documentation-only scope at the time): pd-anchor keystore.rs soft-revoke is dead code (hard HashMap::remove instead of the revoked flag), pd-core KernelEvent.id vs pd-eventlog's sequence-derived id can diverge, pd-runtime BackendCapacity doesn't enforce active_jobs<=max_parallel_jobs, pd-eventlog KernelProjection::apply double-counts on replay, harbor-card-rs verify() doesn't validate iat or alg, pd-compat import_sessions has no rollback on partial failure."
-    },
-    {
-      "slug": "rust-kernel-integration-e2e-redteam-tests",
-      "status": "now",
-      "summaryMd": "Fill the Rust kernel (pd-anchor, harbor-card-rs, pd-core, pd-runtime, pd-eventlog) with real integration tests, TS<->Rust FFI end-to-end round-trip tests, and adversarial redteam/whitehat security tests (forged macaroons, replay attacks, timing side-channel probes on constant-time compares, malformed/fuzzed FFI input, capability-escalation attempts) — going beyond the rustdoc-backfill doctests, which only proved happy-path examples work."
     },
     {
       "slug": "rust-kernel-rustdoc-doctest-backfill",

@@ -41,7 +41,7 @@ export interface GitHubState {
   /** Authoritative current PR head returned by GET /pulls/{n}. */
   prHeadSha: string;
   /** Other open PRs returned by the list endpoint (Lookout's cross-PR tool). */
-  openPRs: Array<{ number: number; title: string; draft?: boolean; head?: { ref: string }; base?: { ref: string } }>;
+  openPRs: Array<{ number: number; title: string; draft?: boolean; head?: { ref: string }; base?: { ref: string }; html_url?: string }>;
   /** Branch names returned by the branches endpoint (Lookout's branch tool). */
   branches: Array<{ name: string }>;
   /** if set, the first N installation-token mints return 401-ish failure. */
@@ -50,6 +50,25 @@ export interface GitHubState {
   failConfig401: number;
   /** if set, the first N check-run CREATE (POST) calls return 500 (no id). */
   failCreateCheckRun: number;
+
+  // --- Git Data API + stacked-PR surface (purser) --------------------------
+  /** branch name → commit sha, as maintained by the git refs endpoints. */
+  gitRefs: Map<string, string>;
+  blobsCreated: number;
+  treesCreated: number;
+  commitsCreated: number;
+  /** POST /git/refs successes (new branch). */
+  refCreates: number;
+  /** PATCH /git/refs/heads/... successes (force-update). */
+  refUpdates: number;
+  /** PRs created via POST /pulls. */
+  stackedPrs: Array<{ number: number; head: string; base: string; title: string; body: string }>;
+  /** PATCH /pulls/{n} bodies (retargets carry `base`; refreshes carry title/body). */
+  prPatches: Array<{ number: number; base?: string; title?: string; body?: string }>;
+  /** Labels applied via POST /issues/{n}/labels. */
+  labelPosts: Array<{ number: number; labels: string[] }>;
+  /** When true, EVERY Git Data write (blobs/trees/commits/refs) returns 403. */
+  failGitWrites403: boolean;
 }
 
 export function freshState(): GitHubState {
@@ -73,6 +92,16 @@ export function freshState(): GitHubState {
     failTokenMintTimes: 0,
     failConfig401: 0,
     failCreateCheckRun: 0,
+    gitRefs: new Map(),
+    blobsCreated: 0,
+    treesCreated: 0,
+    commitsCreated: 0,
+    refCreates: 0,
+    refUpdates: 0,
+    stackedPrs: [],
+    prPatches: [],
+    labelPosts: [],
+    failGitWrites403: false,
   };
 }
 
@@ -134,7 +163,82 @@ export function installGitHubFetch(state: GitHubState): void {
       return json({ encoding: 'base64', content: btoa(fileBody) });
     }
 
-    // --- list open PRs (Lookout cross-PR tool) ---
+    // --- Git Data API (purser stacked-PR machinery) ---
+    if (/\/git\/blobs$/.test(url) && method === 'POST') {
+      if (state.failGitWrites403) return text('Resource not accessible by integration', 403);
+      state.blobsCreated += 1;
+      return json({ sha: `blob-${state.blobsCreated}` });
+    }
+    if (/\/git\/commits\/[^/?]+$/.test(url) && method === 'GET') {
+      const sha = url.slice(url.lastIndexOf('/') + 1);
+      return json({ sha, tree: { sha: `tree-of-${sha}` } });
+    }
+    if (/\/git\/trees$/.test(url) && method === 'POST') {
+      if (state.failGitWrites403) return text('Resource not accessible by integration', 403);
+      state.treesCreated += 1;
+      return json({ sha: `tree-${state.treesCreated}` });
+    }
+    if (/\/git\/commits$/.test(url) && method === 'POST') {
+      if (state.failGitWrites403) return text('Resource not accessible by integration', 403);
+      state.commitsCreated += 1;
+      return json({ sha: `commit-${state.commitsCreated}` });
+    }
+    if (/\/git\/refs$/.test(url) && method === 'POST') {
+      if (state.failGitWrites403) return text('Resource not accessible by integration', 403);
+      const b = (body ?? {}) as { ref?: string; sha?: string };
+      const branch = (b.ref ?? '').replace(/^refs\/heads\//, '');
+      if (state.gitRefs.has(branch)) return text('Reference already exists', 422);
+      state.gitRefs.set(branch, b.sha ?? '');
+      state.refCreates += 1;
+      return json({ ref: b.ref, object: { sha: b.sha } }, 201);
+    }
+    const refPatch = url.match(/\/git\/refs\/heads\/(.+)$/);
+    if (refPatch && method === 'PATCH') {
+      if (state.failGitWrites403) return text('Resource not accessible by integration', 403);
+      const branch = decodeURIComponent(refPatch[1]);
+      state.gitRefs.set(branch, ((body ?? {}) as { sha?: string }).sha ?? '');
+      state.refUpdates += 1;
+      return json({ ref: `refs/heads/${branch}` });
+    }
+
+    // --- create PR (purser stacked test PR) ---
+    if (/\/pulls$/.test(url) && method === 'POST') {
+      const b = (body ?? {}) as { head?: string; base?: string; title?: string; body?: string };
+      const number = 8000 + state.stackedPrs.length + 1;
+      state.stackedPrs.push({
+        number,
+        head: b.head ?? '',
+        base: b.base ?? '',
+        title: b.title ?? '',
+        body: b.body ?? '',
+      });
+      // Future open-PR lookups find it (openStackedPr idempotency).
+      state.openPRs.push({
+        number,
+        title: b.title ?? '',
+        draft: false,
+        head: { ref: b.head ?? '' },
+        base: { ref: b.base ?? '' },
+        html_url: `https://github.com/test/pr/${number}`,
+      });
+      return json({ number, html_url: `https://github.com/test/pr/${number}` }, 201);
+    }
+    // --- update PR (openStackedPr refresh / retargetPrBase) ---
+    const prPatch = url.match(/\/pulls\/(\d+)$/);
+    if (prPatch && method === 'PATCH') {
+      const b = (body ?? {}) as { base?: string; title?: string; body?: string };
+      state.prPatches.push({ number: Number(prPatch[1]), base: b.base, title: b.title, body: b.body });
+      return json({ number: Number(prPatch[1]) });
+    }
+    // --- add labels ---
+    const labelPost = url.match(/\/issues\/(\d+)\/labels$/);
+    if (labelPost && method === 'POST') {
+      const b = (body ?? {}) as { labels?: string[] };
+      state.labelPosts.push({ number: Number(labelPost[1]), labels: b.labels ?? [] });
+      return json([]);
+    }
+
+    // --- list open PRs (Lookout cross-PR tool + openStackedPr lookup) ---
     if (/\/pulls\?/.test(url) && method === 'GET') {
       return json(state.openPRs);
     }
@@ -503,7 +607,13 @@ export function makeJob(over: Partial<FleetRunJob> = {}): FleetRunJob {
     installationId: 42,
     prNumber: 7,
     payloadMinimal: {
-      pull_request: { number: 7, title: 'x', body: 'y', head: { sha: 'HEADSHA' }, base: { sha: 'BASESHA' } },
+      pull_request: {
+        number: 7,
+        title: 'x',
+        body: 'y',
+        head: { sha: 'HEADSHA', repo: { full_name: 'erichowens/port-daddy' } },
+        base: { sha: 'BASESHA', ref: 'main', repo: { full_name: 'erichowens/port-daddy' } },
+      },
     },
     ...over,
   };

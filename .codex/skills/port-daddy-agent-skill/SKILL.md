@@ -88,17 +88,28 @@ agent loop for repo work on this machine.
 
 ```bash
 pd status
+pd sitrep --template
 pd briefing
 pd salvage --project <project> --limit 20
 pd begin "<bounded task>" --identity <project>:<agent> --lifecycle durable
 pd whoami
+pd plan set "- [ ] Setup X\n- [ ] Fix Y\n- [ ] Verify Z"
 pd advise <likely-path> --task "<plain-language task>"
 pd note "Scope: <files>. Assumptions: <truth>. Validation: <commands>."
 pd session files add <path>
-# work, validate, and keep notes current
+# work, validate, check off plan, and keep notes current
+pd plan check "Setup X"
 pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
 ```
+
+## Plan & Todo List Tracking
+
+Every agent must establish a versioned todo checklist using `pd plan set`.
+- **Set a plan**: Run `pd plan set` with markdown checklist items.
+- **View latest plan**: Run `pd plan show` or `pd plan`.
+- **Mark item completed**: Run `pd plan check <index>` (e.g., `pd plan check 1` or `pd plan check "step one"`).
+- **Close session gate**: `pd done` checks your active plan. If any unchecked `[ ]` items remain, the close operation fails closed. Bypass with `pd done --force-incomplete --reason "<why>"` if incomplete work is intentionally handshaked or deferred.
 
 ## Session Continuity
 
@@ -172,6 +183,31 @@ and trust the owner-leased continuation
 receipt, not a model's claim that it resumed. A backend override that changes
 adapter family, a lost accepted-to-running lease, or a failed terminal receipt
 transition must fail closed before Port Daddy reports success.
+
+Inspect portability with `pd backend adapters --matrix` or
+`GET /harness-adapters/continuation-matrix`. Read the grid as declared mechanics,
+not proof: `N` means same-family native resume is mechanically available and `H`
+means a sanitized successor handoff is available. `--probe` is discovery only.
+Only durable completed spawn transcripts, continuation receipts, or dedicated
+live-control receipts can mark the corresponding predicate witnessed; evidence
+older than seven days remains visible but stale. Never turn catalog declarations,
+help output, path existence, or an agent's self-report into a numeric conformance
+badge.
+
+Durable roster identity is another layer again. Use `pd roster list` and
+`pd roster search "<expertise>" [--repo <path>]` when the question is which
+long-lived named expert should receive work, even when no body is currently
+running. A roster alias such as `portdaddy-typography-expert` is a human label;
+the daemon-minted `agent_node_...` is the principal. Create one with `pd roster
+create`, or promote a proven session only after storing its sanitized handoff
+capsule, then use `pd roster promote <session-id> --episode <id> ...`. Profile
+edits append revisions. `pd roster continue <agent-node-id> --backend <id>`
+chooses a new body without changing the person and reuses the same witnessed
+native-or-successor continuation receipt path described above. Stored trigger
+and permission fields are declarations, not proof they are active or enforced.
+Roster expertise search fuses BM25 with the shared MiniLM embedder; treat a
+`degraded` lexical fallback as repair work and run `pd doctor`.
+
 
 ## Telos vs Purpose
 

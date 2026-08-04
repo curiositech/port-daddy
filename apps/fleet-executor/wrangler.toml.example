@@ -65,6 +65,35 @@ database_name = "port-daddy-relay"
 database_id = "REPLACE_WITH_YOUR_RELAY_D1_DATABASE_ID"
 
 # ---------------------------------------------------------------------------
+# OPTIONAL — Cloudflare Sandboxes (Containers beta) for the purser ship.
+# NOT ENABLED: this block is documentation, not a live binding. When the
+# SANDBOX binding exists, the purser (src/purser.ts) executes its authored
+# adversarial tests against the PR head inside an isolated container and
+# reports REAL pass/fail. When absent (this default), src/sandbox-runner.ts
+# returns executed:false and the purser NEVER fabricates test results —
+# its verdict then follows the ship's blockWithoutSandbox flag (default:
+# advisory; never block on tests that were never run).
+#
+# To enable (requires the Containers beta on your account):
+#   1. npm i @cloudflare/sandbox   (and a Dockerfile per its README)
+#   2. export the Sandbox class from src/index.ts:
+#        export { Sandbox } from '@cloudflare/sandbox';
+#   3. Uncomment and adjust:
+#
+# [[containers]]
+# class_name = "Sandbox"
+# image = "./Dockerfile"
+# instance_type = "basic"
+#
+# [[durable_objects.bindings]]
+# name = "SANDBOX"
+# class_name = "Sandbox"
+#
+# [[migrations]]
+# tag = "v1-purser-sandbox"
+# new_sqlite_classes = ["Sandbox"]
+
+# ---------------------------------------------------------------------------
 # Queue consumer — one message per GitHub delivery, enqueued by relay.
 # A blocking ship that never completes must never leave a green/pending gate,
 # so after `max_retries` exhausted the message lands in the DLQ where a
@@ -113,6 +142,25 @@ DEFAULT_BRANCH = "main"
 # ONLY once you have a real sink URL, e.g. "https://your-tunnel/telemetry/cloud-app".
 PORT_DADDY_TELEMETRY_URL = ""
 
+# Cloud squid — fleet coordination events (src/squid-events.ts). When BOTH
+# RELAY_PUBLISH_URL (var) and RELAY_PUBLISH_TOKEN (secret) are set, the
+# executor fire-and-forgets run-started / ship-verdict / pr-stacked /
+# run-concluded events onto channel 'fleet-cloud' as
+#   POST <RELAY_PUBLISH_URL>  { event: { channel, type, sender, iat, payload } }
+# with `Authorization: Bearer <RELAY_PUBLISH_TOKEN>`. Point it at a relay
+# ingest that accepts bearer-token publishes. OPTIONAL and DISABLED by default:
+# leave empty ⇒ zero fetches, feature silently off. Events are best-effort —
+# they can never block or change a run, a verdict, or the merge gate.
+#
+# TENANCY CONSENT: env wiring alone is NOT enough. Events carry the tenant
+# repo's name, PR numbers, verdicts, and stacked-PR urls onto a shared
+# channel, so the executor additionally requires the TENANT repo to opt in
+# with a top-level `squidEvents: true` under `fleet:` in its pd-fleet.yml
+# (read from the trusted default branch; default false — see
+# parseFleetSquidEvents in src/fleet.ts). Repos that haven't opted in emit
+# nothing, even with both RELAY_PUBLISH_* values set.
+RELAY_PUBLISH_URL = ""
+
 # Human-facing run page (ADR-0101 Phase 0). When BOTH this and the
 # RUN_PAGE_SECRET secret are set, every 'Port Daddy Fleet' check run carries a
 # details_url pointing at the relay's HTML deliberation page for that run:
@@ -130,3 +178,7 @@ RUN_DETAILS_BASE_URL = ""
 #                              tokens; MUST equal the relay's RUN_PAGE_SECRET
 #                              (openssl rand -hex 32, then wrangler secret put
 #                              RUN_PAGE_SECRET in BOTH workers)
+#   RELAY_PUBLISH_TOKEN        Bearer token for the cloud-squid event POSTs to
+#                              RELAY_PUBLISH_URL (see the [vars] comment above).
+#                              Optional: unset (with an empty URL) ⇒ squid
+#                              events are silently disabled.

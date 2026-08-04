@@ -455,10 +455,18 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
       encoding: 'utf8',
     });
     expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/STEERING ALERTS/);
-    expect(r.stdout).toMatch(/stop and ack/);
+    // Balk-fix (ADR-0091): the prompt tentacle must emit Claude Code's SANCTIONED
+    // structured UserPromptSubmit output — hookSpecificOutput.additionalContext — not
+    // raw stdout, which reads to the model as untrusted injected content (why Claude
+    // Code balked at it as prompt injection). Reverting to `printf '%b' "$OUT"` makes
+    // JSON.parse throw / the shape assertion fail → this test goes red.
+    const parsed = JSON.parse(r.stdout);
+    expect(parsed.hookSpecificOutput.hookEventName).toBe('UserPromptSubmit');
+    const ctx = parsed.hookSpecificOutput.additionalContext as string;
+    expect(ctx).toMatch(/STEERING ALERTS/);
+    expect(ctx).toMatch(/stop and ack/);
     // /repo basename or path appears in the pheromone value → relevant → injected
-    expect(r.stdout).toMatch(/deprecated v1_hook/);
+    expect(ctx).toMatch(/deprecated v1_hook/);
   });
 
   test('prompt envelope is fresh, exact-project scoped, and bounded to 12 entries / 4 KiB', () => {
@@ -486,10 +494,20 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
       encoding: 'utf8',
     });
     expect(r.status).toBe(0);
-    expect(Buffer.byteLength(r.stdout)).toBeLessThanOrEqual(4096);
-    expect(r.stdout.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(12);
-    expect(r.stdout).not.toContain('must-not-appear');
-    expect(r.stdout).not.toContain('wrong-project');
+    // The bounded block travels inside the sanctioned additionalContext envelope
+    // (see the balk-fix test above); the byte cap applies to the block itself.
+    const parsed = JSON.parse(r.stdout) as {
+      hookSpecificOutput: { hookEventName: string; additionalContext: string };
+    };
+    expect(parsed.hookSpecificOutput.hookEventName).toBe('UserPromptSubmit');
+    const ctx = parsed.hookSpecificOutput.additionalContext;
+    expect(Buffer.byteLength(ctx)).toBeLessThanOrEqual(4096);
+    // 12 matrix entries max; the standing "maintain an active pd plan" directive
+    // line is not a matrix entry and is excluded from the count.
+    const entries = ctx.split('\n').filter((line) => line.startsWith('- ') && !line.includes('pd plan'));
+    expect(entries).toHaveLength(12);
+    expect(ctx).not.toContain('must-not-appear');
+    expect(ctx).not.toContain('wrong-project');
   });
 
   test('K=8 concurrent post-tool appends produce 8 intact pheromone lines (Jamie Madrox)', async () => {

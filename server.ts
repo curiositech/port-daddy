@@ -67,6 +67,7 @@ import { createReactiveOrchestrator } from './lib/orchestrator.js';
 import { createConductor } from './lib/fleet/conductor.js';
 import { createDispatchQueue } from './lib/dispatch/queue.js';
 import { createDispatchWorker } from './lib/dispatch/worker.js';
+import { runAutoMergeSweep } from './lib/dispatch/auto-merge.js';
 import { createConductorSpawnAdapter } from './lib/dispatch/conductor-adapter.js';
 import { createWorkIntentService } from './lib/agent-harbor/work-intent-service.js';
 import {
@@ -112,6 +113,7 @@ import { createFeedback } from './lib/feedback.js';
 import { createRoadmapItems } from './lib/roadmap-items.js';
 import { createCommitments } from './lib/commitments.js';
 import { createSuggestions } from './lib/suggestions.js';
+import { createWhois } from './lib/whois.js';
 import { createObligationMonitor } from './lib/obligation-monitor.js';
 import { createRoadmapPromote } from './lib/roadmap-promote.js';
 import { createRoadmapPop } from './lib/roadmap-pop.js';
@@ -121,6 +123,7 @@ import { createEpisodicMemory } from './lib/episodic-memory.js';
 import { createLocalEmbedder, createSemanticResolver, defaultTransformersCacheDir } from './lib/semantic-resolver.js';
 import { installGovernor } from './lib/observability/index.js';
 import { createObservabilityMaintenance } from './lib/observability/maintenance.js';
+import { createDurableAgentRoster } from './lib/durable-agent-roster.js';
 import { createGalaxy } from './lib/galaxy.js';
 import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
 import { createDbIntegrityProofOutOfProcess } from './lib/db-integrity.js';
@@ -536,6 +539,7 @@ const semanticResolver = createSemanticResolver(db, {
   governor,
 });
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
+const durableAgentRoster = createDurableAgentRoster(db, { resolver: semanticResolver, logger });
 const quorum = createQuorum({ tuples });
 const feedback = createFeedback({ tuples });
 const roadmapItems = createRoadmapItems({ db, tuples });
@@ -571,6 +575,7 @@ const observabilityMaintenance = createObservabilityMaintenance({
 // no Arbiter/Rust FFI dependency, so it cannot silently degrade to a stub).
 const commitments = createCommitments(db);
 const suggestions = createSuggestions(db);
+const whois = createWhois(db, { resolver: semanticResolver, logger });
 const obligationMonitor = createObligationMonitor(db, { activityLog });
 const webhooks = createWebhooks(db);
 const projects = createProjects(db);
@@ -626,7 +631,7 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const sugar = createSugar({ agents, sessions, activityLog, roadmapItems });
+const sugar = createSugar({ agents, sessions, activityLog, roadmapItems, feedback, commitments });
 const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
@@ -896,6 +901,39 @@ const dispatchWorker = DISPATCH_WORKER_ENABLED
     })
   : null;
 if (dispatchWorker) dispatchWorker.start();
+
+// ── Auto-merge sweep (merge_policy='auto') ──────────────────────────────────
+// A DIFFERENT loop from the dispatch worker above: this one doesn't run
+// agents, it checks already-produced PRs for dispatches proposed with
+// `--merge-policy auto` and merges the ones that are CI-green + mergeable +
+// zero unresolved review threads (lib/dispatch/auto-merge.ts owns the full
+// safety gate). Disable with PD_DISPATCH_AUTOMERGE=false. Interval defaults
+// to 60s — merges are rare relative to the 5s dispatch-poll cadence above, so
+// there is no need to hammer `gh api` that often.
+const DISPATCH_AUTOMERGE_ENABLED = process.env.PD_DISPATCH_AUTOMERGE !== 'false';
+const _autoMergePollMs = parseInt(process.env.PD_DISPATCH_AUTOMERGE_POLL_MS ?? '60000', 10);
+const DISPATCH_AUTOMERGE_POLL_MS = Number.isFinite(_autoMergePollMs) && _autoMergePollMs >= 5000
+  ? _autoMergePollMs
+  : 60000;
+let autoMergeTimer: ReturnType<typeof setInterval> | null = null;
+if (DISPATCH_AUTOMERGE_ENABLED) {
+  const tick = () => {
+    runAutoMergeSweep(dispatchQueue, { repoRoot: REPO_ROOT }).then((result) => {
+      if (result.merged.length > 0 || result.errors.length > 0) {
+        logger.info('dispatch_auto_merge_sweep', {
+          checked: result.checked,
+          merged: result.merged.length,
+          blocked: result.blocked.length,
+          errors: result.errors.length,
+        });
+      }
+    }).catch((err) => {
+      logger.warn('dispatch_auto_merge_sweep_failed', { error: err instanceof Error ? err.message : String(err) });
+    });
+  };
+  autoMergeTimer = setInterval(tick, DISPATCH_AUTOMERGE_POLL_MS);
+  autoMergeTimer.unref?.();
+}
 
 const resourceGovernance = createResourceGovernance({ repoRoot: REPO_ROOT, startedAt: STARTED_AT });
 
@@ -1447,11 +1485,11 @@ await registerAllRoutes(
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
     harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, booty, fleetDaemon, repoRegistry,
-    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, cloudAppTelemetry, counters, metricsRegistry,
+    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, durableAgentRoster, costTracker, cloudAppTelemetry, counters, metricsRegistry,
     contextTracker,
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
-    commitments, obligationMonitor, suggestions,
+    commitments, obligationMonitor, suggestions, whois,
     bonds, budgetGuard, budgetPause, actorSouls,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
@@ -1582,6 +1620,7 @@ function shutdown(signal: string): void {
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
   try { dispatchWorker?.stop(); } catch {}
+  try { if (autoMergeTimer) clearInterval(autoMergeTimer); } catch {}
   systemPortsRefresh.stop();
   if (ipcServer) ipcServer.stop().catch(() => {});
   closeDatabase(db);

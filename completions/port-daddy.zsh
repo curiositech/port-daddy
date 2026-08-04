@@ -519,6 +519,43 @@ _pd_cmd_actors() {
     '1:actor id or alias:(navigator cartographer coxswain signalman harbormaster sounder lookout breaker caulker quartermaster)'
 }
 
+_pd_cmd_roster() {
+  local -a subcommands
+  subcommands=(
+    'list:list durable agents'
+    'show:show one profile and its lineage'
+    'search:hybrid expertise lookup'
+    'create:mint a durable AgentNode profile'
+    'promote:promote a sanitized session handoff'
+    'update:append a profile revision'
+    'attach:attach a sanitized handoff episode'
+    'continue:continue in a chosen backend'
+    'retire:retire without deleting history'
+  )
+  _arguments \
+    '1:subcommand:->subcommand' \
+    '2:agent, session, or query:' \
+    '--repo[repository root]:path:_directories' \
+    '--scope[identity scope]:scope:(system repo)' \
+    '--slug[meaningful alias]:slug:' \
+    '--name[display name]:name:' \
+    '--remit[bounded responsibility]:text:' \
+    '--instructions[durable operating prompt]:text:' \
+    '--skills[comma-separated skills]:skills:' \
+    '--tools[comma-separated tools]:tools:' \
+    '--backend[target backend]:backend:' \
+    '--model[target model]:model:' \
+    '--episode[sanitized handoff episode]:id:' \
+    '--mode[continuation mode]:mode:(auto native handoff)' \
+    '--filesystem[declared filesystem policy]:policy:(inherit repo workspace read-only)' \
+    '--network[declared network policy]:policy:(inherit none restricted full)' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]'
+  case $state in
+    subcommand) _describe 'roster subcommand' subcommands ;;
+  esac
+}
+
 _pd_cmd_log() {
   _arguments \
     '--limit[max entries to return]:count:' \
@@ -1253,10 +1290,21 @@ _pd_cmd_done() {
     '(-a --agent)'{-a,--agent}'[agent ID]:agent ID:_pd_complete_agents' \
     '--session[session ID]:session ID:' \
     '(-s --status)'{-s,--status}'[session end status]:status:(completed abandoned)' \
+    '--force-incomplete[force end session with incomplete tasks]' \
+    '--reason[reason for force incomplete]:reason:' \
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]' \
     '1:note:'
+}
+
+_pd_cmd_plan() {
+  _arguments \
+    '--session[session ID]:session ID:' \
+    '--agent[agent ID]:agent ID:_pd_complete_agents' \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:action:(show set check)' \
+    '2:data:'
 }
 
 _pd_cmd_whoami() {
@@ -2245,6 +2293,7 @@ _port_daddy() {
     'agents:list registered agents'
     'actor:show one durable maritime actor'
     'actors:list durable maritime actors'
+    'roster:manage durable named AgentNode experts'
     'swarm:list registered agents (alias for agents)'
     # Activity
     'log:tail the activity log'
@@ -2270,6 +2319,7 @@ _port_daddy() {
     'begin:begin a work session (register agent + start session)'
     'b:begin a work session (alias for begin)'
     'done:end a work session (end session + unregister agent)'
+    'plan:manage session todo plans (show/set/check)'
     'whoami:show current agent/session context'
     'w:show current context (alias for whoami)'
     'account:sign in to your Port Daddy cloud account (GitHub device flow)'
@@ -2319,6 +2369,9 @@ _port_daddy() {
     'coast-guard:Coast Guard read path — whether spawns are confined + what they cannot read'
     'cg:alias for coast-guard — the Coast Guard read path'
     'relay:Relay v0 — zero-trust event fabric for cross-machine pub/sub (ADR-0049)'
+    'suggest:Tender suggestion queue — list, approve, dismiss operator suggestions'
+    'seamanship:Skill registry — search, show, sync, outcomes, index'
+    'skills:alias for seamanship — skill registry'
     'sight:alias for periscope — operator loop SIGHT stage'
     'scope:alias for periscope — operator loop SIGHT stage'
     'cockpit:App-Native Development Cockpit — read roadmap into mission cards'
@@ -2460,6 +2513,7 @@ _port_daddy() {
         agent)              _pd_cmd_agent ;;
         agents|swarm)        _pd_cmd_agents ;;
         actor|actors)        _pd_cmd_actors ;;
+        roster)              _pd_cmd_roster ;;
         log)                _pd_cmd_log ;;
         activity)           _pd_cmd_activity ;;
         session)            _pd_cmd_session ;;
@@ -2495,6 +2549,7 @@ _port_daddy() {
         history)                _pd_cmd_history ;;
         begin|b)                _pd_cmd_begin ;;
         done)                   _pd_cmd_done ;;
+        plan)                   _pd_cmd_plan ;;
         whoami|w)               _pd_cmd_whoami ;;
         with-lock)              _pd_cmd_with_lock ;;
         n)                      _pd_cmd_note ;;

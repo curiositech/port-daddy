@@ -32,12 +32,13 @@ if command -v jq >/dev/null 2>&1 && [ -n "$EVENT" ]; then
   [ -n "$J" ] && CWD="$J"
 fi
 
-# Nothing to inject if there is no matrix yet — fail open, silent.
-[ -f "$MATRIX" ] || exit 0
-
-# Read the matrix once (cheap, single grep over a flat file).
-ALERTS="$(grep -E '^PD_ALERT_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
-PHER="$(grep -E '^PD_PHEROMONE_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+# Read the matrix once if it exists (cheap, single grep over a flat file).
+ALERTS=""
+PHER=""
+if [ -f "$MATRIX" ]; then
+  ALERTS="$(grep -E '^PD_ALERT_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+  PHER="$(grep -E '^PD_PHEROMONE_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+fi
 
 # Relevance: use the exact pd project root (or cwd when no marker is available),
 # never a basename substring. `app` must not receive traces from `other-app`.
@@ -70,6 +71,9 @@ is_fresh() {
 
 OUT=""
 COUNT=0
+OUT="${OUT}[PORT DADDY — STEERING ALERTS]\n"
+OUT="${OUT}- Agent must maintain an active pd plan and run pd sitrep to synthesize state.\n"
+
 if [ -n "$ALERTS" ]; then
   SECTION=""
   while IFS= read -r line; do
@@ -82,7 +86,7 @@ if [ -n "$ALERTS" ]; then
   done <<EOF
 $ALERTS
 EOF
-  [ -z "$SECTION" ] || OUT="${OUT}[PORT DADDY — STEERING ALERTS]\n${SECTION}"
+  [ -z "$SECTION" ] || OUT="${OUT}${SECTION}"
 fi
 
 REL=""
@@ -108,7 +112,20 @@ if [ -n "$REL" ]; then
   OUT="${OUT}[PORT DADDY — PHEROMONE TRACES near ${BASENAME}]\n${REL}"
 fi
 
-# Print a bounded envelope (printf interprets the \n we built up). Empty means
-# there is no fresh, relevant coordination state for this turn.
-[ -n "$OUT" ] && printf '%b' "$OUT" | head -c "$MAX_BYTES" 2>/dev/null
+# Emit the bounded Suggestibility Envelope (printf interprets the \n we built
+# up; head -c enforces the byte cap). Prefer Claude Code's SANCTIONED structured
+# UserPromptSubmit output — hookSpecificOutput.additionalContext — which the runtime
+# frames as TRUSTED harness context. Raw stdout (the old path) reads to the model as
+# untrusted injected content, which is why Claude Code balked at it as prompt
+# injection. Same structured shape the pre-tool tentacle already uses.
+# Fail-open: no jq → fall back to raw stdout (degraded framing, still advisory).
+if [ -n "$OUT" ]; then
+  BLOCK="$(printf '%b' "$OUT" | head -c "$MAX_BYTES" 2>/dev/null)"
+  if command -v jq >/dev/null 2>&1; then
+    jq -cn --arg ctx "$BLOCK" \
+      '{hookSpecificOutput:{hookEventName:"UserPromptSubmit",additionalContext:$ctx}}'
+  else
+    printf '%s' "$BLOCK"
+  fi
+fi
 exit 0

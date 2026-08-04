@@ -110,6 +110,12 @@ const TOOL_FEATURE_MAP = {
   'agent_heartbeat': 'agents',
   'list_agents': 'agents',
   'active_agent_roster': 'agents',
+  'durable_agent_roster': 'durable_agent_roster',
+  'create_durable_agent': 'durable_agent_roster',
+  'promote_session_to_durable_agent': 'durable_agent_roster',
+  'attach_durable_agent_handoff': 'durable_agent_roster',
+  'continue_durable_agent': 'durable_agent_roster',
+  'harness_continuation_matrix': 'backend',
 
   // Salvage
   'check_salvage': 'salvage',
@@ -770,11 +776,11 @@ describe('MCP tiered tool loading', () => {
     'begin_session', 'end_session_full', 'whoami',
     'claim_port', 'release_port', 'add_note',
     'acquire_lock', 'list_services',
-    'fleet_init', 'swarm_awareness', 'coordination_preflight', 'catch_me_up', 'spawn',
+    'fleet_init', 'swarm_awareness', 'durable_agent_roster', 'coordination_preflight', 'catch_me_up', 'spawn',
   ];
 
   const CATEGORY_NAMES = [
-    'magic', 'session-lifecycle', 'trust', 'safety', 'advisor', 'ports', 'sessions', 'notes', 'locks',
+    'magic', 'roster', 'session-lifecycle', 'trust', 'safety', 'advisor', 'ports', 'sessions', 'notes', 'locks',
     'messaging', 'agents', 'actors', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
     'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples',
     'fleet-control', 'semantic', 'feedback', 'cockpit',
@@ -825,10 +831,10 @@ describe('MCP tiered tool loading', () => {
     }
   });
 
-  it('tiered mode should expose 14 tools (13 essential + pd_discover)', () => {
+  it('tiered mode should expose 15 tools (14 essential + pd_discover)', () => {
     // In default (non-full) mode, only essential + pd_discover are listed
     const tieredCount = ESSENTIAL_NAMES.length + 1; // +1 for pd_discover
-    expect(tieredCount).toBe(14);
+    expect(tieredCount).toBe(15);
   });
 });
 

@@ -202,19 +202,32 @@ Contributor gotchas specific to these:
   (e.g. generic-typed Fastify handlers the route-parser cannot extract) — keep
   those notes accurate when you add or remove a route.
 
-### Rust surfaces — four crates, no single kernel (be honest)
+### Rust surfaces — the kernel IS landed; ADR-0120 is the boundary rule
 
-`core/` holds four separate crates on `main`: `core/pd-tui` (ratatui),
-`core/pd-bosun`, `core/harbor-card-rs`, and `core/pd-console` (the landed GPUI
-conversation-multiplexer). There is **no single landed "rust kernel."**
-`core/pd-console` is not the sibling kernel-rs runtime and is no longer only an
-old planning surface; keep prod/latest/dev pd-console lanes distinct when
-building or reviewing it. A sibling WIP build `~/coding/port-daddy-kernel-rs`
-maps the product spine (pd-anchor / pd-mesh / pd-eventlog / pd-runtime /
-pd-core) but is not this repo. **Do not scaffold a fourth Rust shell** without
-reconciling against `AGENTS.md` § *Architecture truths*. A release-cadence +
-Rust-surface-alignment ADR (ADR-0054) is being written in parallel; cite it by
-number until it lands.
+The kernel lives in-tree at `core/kernel/` (pd-anchor / pd-mesh / pd-eventlog /
+pd-runtime / pd-core / pd-compat / pd-tui / pd-rs). **ADR-0120 is the
+once-and-for-all answer to "what is Rust for"** — read it before any
+console/Rust/crypto work. The three-plane rule, compressed:
+
+1. **Security kernel (Rust, canonical, small):** `core/kernel/pd-anchor`
+   (Ed25519 cards, macaroon discharge gate, keystore), `core/pd-broker`
+   (ADR-0087 separate-UID TCB), `core/harbor-card-rs` (FFI constant-time
+   compare + caps-subset). Every security primitive is implemented ONCE, here.
+   Native TS reaches it via FFI (`lib/arbiter.ts`, `lib/macaroon-ffi.ts`).
+2. **Product planes (TypeScript, on purpose):** daemon control plane, fleet,
+   CLI, website, and BOTH Cloudflare Workers. Outside the TCB, so Rust buys no
+   security there (ADR-0087) — and Workers physically cannot call native code.
+   Where a Worker must duplicate kernel *logic*, it lands a shared test-vector
+   fixture in `tests/fixtures/*-parity-vectors.json` generated from the
+   canonical Rust impl, asserted by both suites, in the same PR. No fixture,
+   no second implementation. Never a third.
+3. **Console (Rust because GPU, not crypto):** `core/pd-console` renders; it
+   never signs/verifies. Not precedent for "write X in Rust."
+
+Fixture regeneration is a security-relevant diff — review it like a change to
+the verifier itself. **Do not scaffold new Rust crates** for non-kernel,
+non-GPU work; keep prod/latest/dev pd-console lanes distinct when building or
+reviewing the console.
 
 #### Building / installing / running `pd-console` (full detail in `AGENTS.md` § *Building, installing & running pd-console*)
 
@@ -383,6 +396,38 @@ The friction below costs every fresh session real time. Internalize it.
   daemon-side guard couldn't confirm your session. Re-run `pd begin`, then
   retry; only fall back to `PD_SHIM_OFF=1` for a genuinely session-less isolated
   worktree that holds nothing but your own commit.
+- **Environment variables override context slot**: When running Port Daddy commands (like `pd begin`, `pd done`, `pd session files add`) inside subagent execution lanes spawned by harnesses (such as Antigravity/Claude Code), the harness may inject `PD_SESSION_ID` and `PD_AGENT_ID` of the parent/old session into the environment. Because the CLI prioritizes these environment variables over context slot files, any command will resolve to that old session (which may be completed, leading to "No active session found"). Fix this by prefixing your commands with `PD_SESSION_ID="" PD_AGENT_ID=""` to force the CLI to read the active context from the filesystem context slots.
+- **Binary drift in integration tests on dev machine**: Ephemeral test daemons started by the integration test framework will verify binary hashes. If there's a global Homebrew or PATH-installed `pd` binary, it may cause false positive "binary drift" checks. Fix this by overriding the comparable on-disk path by setting `PORT_DADDY_BIN_OVERRIDE: process.execPath` inside the test environment for both the CLI runs and the ephemeral daemon spawns (now configured automatically in `tests/helpers/integration-setup.js` and `tests/helpers/ephemeral-daemon.js`).
+- **Roadmap receipts for core coordination changes**: Changes to core coordination paths (like `cli/commands/sessions.ts`) are monitored by the Coordination Guard. The guard will block commits affecting these files unless the committing agent has touched/upserted a corresponding roadmap item (e.g. via `pd roadmap touch <slug> --harbor port-daddy --note <why>`). Note that `--harbor port-daddy` must be specified if you are working in a temporary sandboxed worktree where the folder name diverges from the default repo name.
+- **Rich Docstring Mandate (TypeScript and Rust)**: Every library function and method in the codebase must carry rich, informative documentation. This is enforced by the `npm run check:rich-docs` (under `scripts/check-rich-docs.mjs`) validation loop. TypeScript functions/methods must use `/** ... */` JSDoc blocks including `@param` and `@returns` tags (when parameters/return values are present) and discuss design, motivation, or philosophical rationale (e.g., matching keywords: `motivation`, `purpose`, `philosophy`, `why`, `design`, `intent`). Rust functions must use `///` doc comments discussing the same motivation/philosophy keywords and parameter/return usage. You can run `npm run check:rich-docs -- --staged` to fast-audit only your changed/staged files.
+
+## Show-Me Runbook (operator demos)
+
+When the operator asks to *see* a pd-console / FleetBar / daemon feature, the
+deliverable is a running, seeded, correctly-registered triple — not a build log.
+Every step below encodes an actual failure from a live demo (2026-07-12).
+
+1. **Build the TRIPLE from the feature branch** with `scripts/dev-triple.sh <label>`.
+   The daemon must launch with the berth env vars from `shared/daemon-berths.ts`
+   (`BERTH_ENV`): `PD_DAEMON_TIER=dev PD_DAEMON_LABEL=<label> PD_DAEMON_COLOR=<hex>
+   PD_DAEMON_SOURCE_DIR=<worktree>` so it self-registers into
+   `~/.port-daddy/dev-daemons.json`. `dev-triple.sh` exports these itself; any other
+   launch path must export them by hand. Unregistered berth = daemon invisible in
+   FleetBar's Daemons list = furious operator.
+2. **Seed live state before the operator looks.** An empty daemon renders empty
+   panes — it can't render what it has no backend for. For claim/conflict surfaces:
+   two sessions with overlapping `POST /sessions/:id/files` claims (`agentId` is
+   required in the body).
+3. **Multi-PR feature → combined local preview branch.** Merge the PR branches
+   locally (never push the merge branch) so the operator reviews the sum. Demoing
+   one slice invites rage-bugs about everything the other slice already fixed.
+4. **`pd-console-repl` / terminal-face artifacts are machine-gate evidence only** —
+   never operator review material. Operator review = the GPUI app, running, seeded.
+5. **Emoji sweeps grep BOTH literal emoji AND unicode escapes** (`\u{2693}`,
+   `\u{1F...}`). Escaped emoji still render as emoji; the no-emoji-as-icons rule
+   judges pixels, not grep hits.
+6. **Never create virtual displays or modify display settings.** On-primary-screen
+   window openings only with explicit operator consent, per action.
 
 ## Distribution Mirror Sync
 
@@ -588,6 +633,25 @@ pd feedback "<contributor experience report>"   # bare form; auto slug + agent
 
 **For releases** (cutting `v3.X.Y`, building binaries, rolling the brew tap): follow `docs/RELEASING.md`, not this loop. Tagging here is a footgun — feature branches must not push tags. The "binary smoke-test before merging anything in `lib/`, `routes/`, `server.ts`, or `mcp/`" rule is in RELEASING.md §3; honor it.
 
+
+## Durable Roster Architecture
+
+When editing the named-agent roster, do not add a parallel durable identity
+table. `AgentNode.agentNodeId` is the daemon-minted person. The profile rides on
+append-only `agent-node` facts; its slug is only a scoped display alias. The
+legacy `/agent-roster` remains a live process/session projection, and
+`lib/actor-roster.ts` remains the static organizational-role registry. A roster
+change must keep those three meanings separate in route names, CLI copy, tests,
+and Beacon.
+
+Session promotion must verify both the Port Daddy session and the sanitized
+handoff episode, then bind memory/continuation to the AgentNode id. Never bypass
+`/memory/handoffs/:episodeId/continue` with a second spawn path. Expertise
+retrieval must use BM25 + the shared MiniLM embedder with fused ranks, and must
+label lexical fallback degraded. Do not add reputation scores from declared
+skills, or mark stored permission/trigger declarations enforced without a
+daemon-witnessed runtime receipt.
+
 ## Anti-Patterns (port-daddy contributor edition)
 
 ### Editing The Recovery Ledger Directly
@@ -621,6 +685,18 @@ pd feedback "<contributor experience report>"   # bare form; auto slug + agent
 **Detection:** A DB consolidation, backup, restore, or berth-seeding script writes directly over `~/.port-daddy/port-registry.db`, skips dry-run by default, or archives fragments while a daemon still has any candidate DB open.
 **Symptoms:** The live daemon keeps an old SQLite handle, `-wal`/`-shm` sidecars are orphaned, rollback depends on manual archaeology, or same-basename fragments overwrite each other in the archive.
 **Fix:** Use the `lib/backup.ts` pattern: durable scratch under `~/.port-daddy`, a read-only source handle for `VACUUM INTO`, a staged destination file, `PRAGMA integrity_check`, archive the existing canonical DB family first, rename the staged DB into place, and roll back the old canonical DB automatically if install fails. Default the script to dry-run; require an explicit apply flag and fail closed when `lsof` shows a daemon holding a candidate DB.
+
+### Unregistered Dev Berth
+**Detection:** A demo daemon is launched (via `scripts/dev-triple.sh` or by hand) without the `BERTH_ENV` vars from `shared/daemon-berths.ts` (`PD_DAEMON_TIER`, `PD_DAEMON_LABEL`, `PD_DAEMON_COLOR`, `PD_DAEMON_SOURCE_DIR`); `~/.port-daddy/dev-daemons.json` has no entry for it.
+**Symptoms:** The daemon is healthy on its port but invisible in FleetBar's Daemons list; the operator concludes the feature "doesn't work" while it runs fine in the dark.
+**Fix:** Launch with the full berth env (dev-triple.sh exports it; other launch paths must export it by hand), then verify the entry appears in `~/.port-daddy/dev-daemons.json` before inviting the operator to look.
+**Why:** Registration is the daemon's identity on the operator surface. A daemon that never self-registers does not exist as far as the demo is concerned.
+
+### Demoing One Slice Of A Multi-PR Feature
+**Detection:** The feature spans multiple unmerged PRs, but the triple was built from a single PR branch.
+**Symptoms:** The operator files rage-bugs against branch A for everything branch B already fixed; review time is spent re-litigating known-done work.
+**Fix:** Build a COMBINED local preview branch — merge the PR branches locally, build the triple from that, and never push the merge branch. The operator reviews the sum, not a slice.
+**Why:** The operator reviews the intended product state, not your PR topology. Showing a partial state generates false findings that cost more than the merge does.
 
 ## Worked Examples
 
