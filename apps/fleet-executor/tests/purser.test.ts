@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { runPurser, parseSteelMan, parseAuthoredFiles, type TranscriptLike, type PurserMetrics } from '../src/purser.js';
-import { parseFleetShips, type ShipConfig } from '../src/fleet.js';
+import { parseFleetShips, PURSER_DEFAULT_GRAFT, type ShipConfig } from '../src/fleet.js';
 import { executeFleet } from '../src/execute.js';
 import type { PRContext } from '../src/github.js';
 import {
@@ -55,6 +55,7 @@ function mkShip(over: Partial<ShipConfig> = {}): ShipConfig {
     ideation: false,
     purser: true,
     blockWithoutSandbox: false,
+    testPaths: [],
     graft: [],
     ...over,
   };
@@ -68,6 +69,7 @@ function mkCtx(over: Partial<PRContext> = {}): PRContext {
     title: 'Add widget frobbing',
     body: 'Frobs the widget.',
     headSha: 'HEADSHA',
+    headRef: 'feat/widget',
     baseSha: 'BASESHA',
     baseRef: 'main',
     isFork: false,
@@ -212,17 +214,17 @@ describe('runPurser — authored-test validation', () => {
     expect(state.stackedPrs).toHaveLength(0);
   });
 
-  it('a graft-constrained purser rejects tests outside its graft prefixes', async () => {
+  it('a testPaths-constrained purser rejects tests outside its path prefixes', async () => {
     const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]); // authored under tests/purser/
     const rec = recorder();
 
     const result = await runPurser(
-      mkShip({ graft: ['spec/adversarial'] }), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics(),
+      mkShip({ testPaths: ['spec/adversarial'] }), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics(),
     );
 
     expect(result.verdict).toBe('PASS');
     const step = rec.steps.find(s => s.kind === 'purser-tests')!;
-    expect((step.detail as { error: string }).error).toMatch(/graft/);
+    expect((step.detail as { error: string }).error).toMatch(/testPaths/);
     expect(state.stackedPrs).toHaveLength(0);
   });
 
@@ -409,7 +411,7 @@ describe('pd-fleet.yml purser parsing', () => {
     '      blocking: true',
     '      blockWithoutSandbox: true',
     "      model: '@cf/qwen/qwen3-30b-a3b-fp8'",
-    '      graft:',
+    '      testPaths:',
     '        - tests/purser',
     '',
   ].join('\n');
@@ -422,10 +424,22 @@ describe('pd-fleet.yml purser parsing', () => {
     expect(p.ideation).toBe(false);
     expect(p.blocking).toBe(true);
     expect(p.blockWithoutSandbox).toBe(true);
-    expect(p.graft).toEqual(['tests/purser']);
+    expect(p.testPaths).toEqual(['tests/purser']);
+    // No graft configured ⇒ the purser gets the default skill-graft list.
+    expect(p.graft).toEqual([...PURSER_DEFAULT_GRAFT]);
     expect(p.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
     expect(p.needsExecution).toBe(false); // cloud-executable by contract
     expect(p.prompt.length).toBeGreaterThan(0); // default persona prompt
+  });
+
+  it('honors an explicit graft list (capped at 3) instead of the purser default', () => {
+    const yaml = YAML.replace(
+      '      testPaths:',
+      ['      graft:', '        - a-skill', '        - b-skill', '        - c-skill', '        - d-skill', '      testPaths:'].join('\n'),
+    );
+    const p = parseFleetShips(yaml, 'pull_request:opened')!.find(s => s.name === 'purser')!;
+    expect(p.graft).toEqual(['a-skill', 'b-skill', 'c-skill']); // capped at 3
+    expect(p.testPaths).toEqual(['tests/purser']); // testPaths untouched
   });
 
   it('an unknown model pin on a purser is remapped to a known-good model', () => {

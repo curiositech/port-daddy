@@ -47,6 +47,7 @@ import {
   type StackedPrResult,
 } from './stacked-pr.js';
 import { runTestsInSandbox, type SandboxRunOutcome } from './sandbox-runner.js';
+import { emitSquidEvent } from './squid-events.js';
 
 // ---------------------------------------------------------------------------
 
@@ -172,8 +173,9 @@ function prBlock(prCtx: PRContext): string {
   );
 }
 
-function steelManSystemPrompt(ship: ShipConfig): string {
+function steelManSystemPrompt(ship: ShipConfig, graftText: string): string {
   return (
+    graftText +
     `${ship.prompt}\n\n` +
     `You are pd-${ship.name}, running the STEEL-MAN phase. Read the PR title, ` +
     `description, and diff, and construct the STRONGEST, most complete ` +
@@ -193,12 +195,13 @@ function steelManSystemPrompt(ship: ShipConfig): string {
   );
 }
 
-function testAuthorSystemPrompt(ship: ShipConfig, steel: SteelManContract): string {
-  const graftNote =
-    ship.graft.length > 0
-      ? `Every file path MUST live under one of these prefixes: ${ship.graft.join(', ')}.\n`
+function testAuthorSystemPrompt(ship: ShipConfig, steel: SteelManContract, graftText: string): string {
+  const pathNote =
+    ship.testPaths.length > 0
+      ? `Every file path MUST live under one of these prefixes: ${ship.testPaths.join(', ')}.\n`
       : '';
   return (
+    graftText +
     `You are pd-${ship.name}, running the ADVERSARIAL TEST AUTHORING phase. ` +
     `You hold this contract for the PR (its best interpretation):\n\n` +
     `Purpose: ${steel.purpose}\n` +
@@ -209,7 +212,7 @@ function testAuthorSystemPrompt(ship: ShipConfig, steel: SteelManContract): stri
     `where relevant. The PR must satisfy its best interpretation, not its ` +
     `laziest. Use the repo's existing test framework and idioms as evident ` +
     `from the diff.\n\n` +
-    graftNote +
+    pathNote +
     `Paths must be relative (no leading '/', no '..'), at most 10 files, each ` +
     `under 48KB.\n\n` +
     `Output EXACTLY one fenced JSON object and nothing else:\n\n` +
@@ -386,6 +389,10 @@ export async function runPurser(
   token: string,
   transcript: TranscriptLike,
   metrics: PurserMetrics,
+  /** Skill-graft prompt prefix ('' ⇒ none) — see src/skill-graft.ts. */
+  graftText = '',
+  /** Run id for squid coordination events ('' ⇒ unknown; events still fire). */
+  runId = '',
 ): Promise<ShipResult> {
   const advisoryPass: ShipResult = {
     ship: ship.name,
@@ -400,7 +407,7 @@ export async function runPurser(
     const steelCall = await purserAiCall(
       ship,
       env,
-      steelManSystemPrompt(ship),
+      steelManSystemPrompt(ship, graftText),
       prBlock(prCtx),
       STEELMAN_MAX_TOKENS,
       metrics,
@@ -429,7 +436,7 @@ export async function runPurser(
     const testsCall = await purserAiCall(
       ship,
       env,
-      testAuthorSystemPrompt(ship, steel),
+      testAuthorSystemPrompt(ship, steel, graftText),
       prBlock(prCtx),
       TESTS_MAX_TOKENS,
       metrics,
@@ -450,11 +457,11 @@ export async function runPurser(
       });
       return advisoryPass;
     }
-    if (ship.graft.length > 0) {
-      const stray = files.find(f => !ship.graft.some(g => f.path === g || f.path.startsWith(`${g}/`)));
+    if (ship.testPaths.length > 0) {
+      const stray = files.find(f => !ship.testPaths.some(g => f.path === g || f.path.startsWith(`${g}/`)));
       if (stray) {
         await transcript.step('purser-tests', ship.name, `pd-${ship.name}: authored tests REJECTED`, {
-          error: `path outside graft prefixes (${ship.graft.join(', ')}): ${stray.path}`,
+          error: `path outside testPaths prefixes (${ship.testPaths.join(', ')}): ${stray.path}`,
         });
         return advisoryPass;
       }
@@ -526,6 +533,14 @@ export async function runPurser(
         ['purser', 'adversarial-tests'],
         token,
       );
+      // Cloud squid: announce the stacked test PR (fire-and-forget, never blocks).
+      emitSquidEvent(env, 'pr-stacked', {
+        repo: `${prCtx.owner}/${prCtx.repo}`,
+        pr: prCtx.prNumber,
+        runId,
+        ship: ship.name,
+        url: stackedPr.url,
+      });
       // GUARD: only same-repo (non-fork) PRs are retargeted onto the tests.
       if (!prCtx.isFork) {
         try {
