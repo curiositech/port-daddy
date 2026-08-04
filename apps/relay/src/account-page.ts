@@ -294,6 +294,9 @@ section.sect::before{content:"";position:absolute;top:0;left:0;right:0;height:va
 /* prominent door into the per-account runs index (/account/runs — real page) */
 .runs-cta{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:14.5px;font-weight:700;letter-spacing:.02em;padding:12px 20px;border:2px solid var(--border-strong);background:var(--cobalt-slab);color:var(--cream);text-decoration:none;margin-bottom:18px}
 .runs-cta:hover{background:var(--border-strong);color:var(--surface-base)}
+/* prominent door into the MERCY report card (/account/mercy — real page) */
+.mercy-cta{display:inline-block;margin-top:18px;font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:700;letter-spacing:.02em;padding:10px 18px;border:2px solid var(--border-strong);color:var(--text-primary);text-decoration:none;box-shadow:inset var(--lw-stripe) 0 0 var(--health)}
+.mercy-cta:hover{background:var(--border-strong);color:var(--surface-base)}
 .danger{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .btn-ghost{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:13.5px;font-weight:700;letter-spacing:.04em;padding:9px 17px;border:1px solid var(--hair-strong);color:var(--text-primary);background:transparent;text-decoration:none;cursor:pointer}
 .btn-ghost:hover{border-color:var(--border-strong)}
@@ -325,6 +328,7 @@ export function renderAccountPage(user: UserRow): string {
       <span class="eyebrow">Account</span>
       <a href="/account" aria-current="page">Overview</a>
       <a href="/account/runs">Fleet runs</a>
+      <a href="/account/mercy">Mercy health</a>
       <a href="#devices">Devices</a>
       <a href="#receipts">Receipts</a>
       <a href="#harbors">Harbors</a>
@@ -340,6 +344,7 @@ export function renderAccountPage(user: UserRow): string {
       <span class="eyebrow">portdaddy.dev · account · overview</span>
       <h1 style="margin-top:8px">Your <span class="rec">account</span></h1>
       <p class="caption">Everything here mirrors your daemon. The daemon is the authority; this page is the window.</p>
+      <a class="mercy-cta" href="/account/mercy">MERCY — network health report card &rarr;</a>
     </div>
 
     <section class="sect first" aria-labelledby="identity-h">

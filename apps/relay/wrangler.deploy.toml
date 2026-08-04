@@ -87,7 +87,19 @@ queue = "fleet-runs"
 [observability]
 enabled = true
 
-# Cron Trigger (ADR-0101): retention + session-reap + erasure hard-delete sweep
-# runs the scheduled() handler. Every 6 hours.
+# Cron Triggers. One scheduled() handler dispatches on event.cron:
+#   "0 */6 * * *"  — ADR-0101 retention + session-reap + erasure hard-delete
+#                    sweep (plus a MERCY sweep — every fire takes vitals).
+#   "*/5 * * * *"  — MERCY v1 hospital-ship health sweep (src/mercy.ts): D1
+#                    read/write latency, KV echo, DO channel echo, queue-binding
+#                    presence, fleet-executor liveness, 24h error rate. Writes
+#                    one mercy_health snapshot per fire; red transitions open a
+#                    mercy_incidents row and page MERCY_PAGE_WEBHOOK once.
+#
+# MERCY paging secret (optional — incidents are recorded either way):
+#   echo "https://…" | wrangler secret put MERCY_PAGE_WEBHOOK
+# The URL is treated as a secret (PagerDuty/Grafana OnCall ingest URLs embed
+# credentials). See docs/mercy-oncall.md for the PagerDuty / Cloudflare
+# Notifications bridge and the honest limits of Cloudflare-native alerting.
 [triggers]
-crons = ["0 */6 * * *"]
+crons = ["0 */6 * * *", "*/5 * * * *"]
