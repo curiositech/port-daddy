@@ -11,9 +11,17 @@ struct ActiveAgentEntry {
     id: String,
     label: String,
     purpose: String,
+    status: String,
     liveness: String,
+    pid: i64,
+    progress: String,
+    event_verb: String,
+    lineage_label: String,
+    cost_usd: Option<f64>,
+    budget_usd: Option<f64>,
     harness: String,
     backend: String,
+    model: String,
     squid_level: String,
     squid_score: i64,
     squid_capabilities: Vec<String>,
@@ -24,6 +32,10 @@ struct ActiveAgentEntry {
     session_id: String,
     touched: Vec<String>,
     last_heartbeat_ms: i64,
+    stream_url: String,
+    interrupt_url: String,
+    takeover_url: String,
+    control_center_url: String,
 }
 
 fn nested_s(v: &Value, object_key: &str, field_key: &str) -> String {
@@ -89,9 +101,17 @@ impl ActiveAgentEntry {
             id: s(v, "id"),
             label: s(v, "label"),
             purpose: s(v, "purpose"),
+            status: s(v, "status"),
             liveness: s(v, "liveness"),
+            pid: n(v, "pid"),
+            progress: s(v, "progress"),
+            event_verb: s(v, "eventVerb"),
+            lineage_label: s(v, "lineageLabel"),
+            cost_usd: v.get("costUsd").and_then(Value::as_f64),
+            budget_usd: v.get("budgetUsd").and_then(Value::as_f64),
             harness: nested_s(v, "harness", "label"),
             backend: nested_s(v, "harness", "backend"),
+            model: nested_s(v, "harness", "model"),
             squid_level: nested_s(v, "squid", "level"),
             squid_score: v
                 .get("squid")
@@ -106,6 +126,10 @@ impl ActiveAgentEntry {
             session_id,
             touched,
             last_heartbeat_ms: n(v, "lastHeartbeat"),
+            stream_url: nested_s(v, "control", "streamUrl"),
+            interrupt_url: nested_s(v, "control", "interruptUrl"),
+            takeover_url: nested_s(v, "control", "takeoverUrl"),
+            control_center_url: nested_s(v, "control", "controlCenterUrl"),
         }
     }
 }
@@ -159,7 +183,21 @@ impl Pane for ActiveAgentsPane {
             return blocks;
         }
 
-        blocks.push(Block::KeyVal("live".into(), self.agents.len().to_string()));
+        let live_runtime = self
+            .agents
+            .iter()
+            .filter(|agent| agent.liveness == "alive")
+            .count();
+        let shell_rows = self
+            .agents
+            .iter()
+            .filter(|agent| {
+                matches!(agent.status.as_str(), "accepted" | "starting")
+                    && agent.liveness == "no_runtime"
+            })
+            .count();
+        blocks.push(Block::KeyVal("live".into(), live_runtime.to_string()));
+        blocks.push(Block::KeyVal("shells".into(), shell_rows.to_string()));
         let count = |level: &str| {
             self.agents
                 .iter()
@@ -168,7 +206,9 @@ impl Pane for ActiveAgentsPane {
         };
         blocks.push(Block::Chip {
             label: format!(
-                "◆ SQUID  LIVE {}  READY {}  PARTIAL {}  UNPROTECTED {}",
+                "◆ STATUS live {}  shell receipts {}  ·  SQUID LIVE {}  READY {}  PARTIAL {}  UNPROTECTED {}",
+                live_runtime,
+                shell_rows,
                 count("LIVE"),
                 count("READY"),
                 count("PARTIAL"),
@@ -197,20 +237,128 @@ impl Pane for ActiveAgentsPane {
 
         blocks.push(Block::Gap);
         for agent in &self.agents {
+            let status = if agent.status.is_empty() {
+                "unknown"
+            } else {
+                &agent.status
+            };
+            let runtime = if agent.liveness == "no_runtime" {
+                "no_runtime".to_string()
+            } else if agent.pid > 0 {
+                format!(
+                    "pid {} · heartbeat {} · {}",
+                    agent.pid,
+                    age_short(agent.last_heartbeat_ms),
+                    agent.liveness
+                )
+            } else if agent.last_heartbeat_ms > 0 {
+                format!(
+                    "heartbeat {} · {}",
+                    age_short(agent.last_heartbeat_ms),
+                    agent.liveness
+                )
+            } else {
+                format!("runtime unknown · {}", agent.liveness)
+            };
             blocks.push(Block::Chip {
                 label: format!(
-                    "◆ SQUID {:<11} {:>3}%  {} - {}",
+                    "{}  |  SQUID {:<11} {:>3}%  {}",
+                    status,
                     if agent.squid_level.is_empty() {
                         "UNKNOWN"
                     } else {
                         &agent.squid_level
                     },
                     agent.squid_score,
-                    trunc(&agent.label, 28),
-                    agent.liveness
+                    trunc(&agent.label, 28)
                 ),
                 tone: Self::squid_tone(&agent.squid_level),
             });
+            blocks.push(Block::KeyVal("  status".into(), status.to_string()));
+            blocks.push(Block::KeyVal("  runtime".into(), runtime));
+            blocks.push(Block::KeyVal(
+                "  harness".into(),
+                if agent.harness.is_empty() {
+                    "unknown".into()
+                } else {
+                    trunc(&agent.harness, 52)
+                },
+            ));
+            if !agent.backend.is_empty() {
+                blocks.push(Block::KeyVal("  backend".into(), trunc(&agent.backend, 52)));
+            }
+            if !agent.model.is_empty() {
+                blocks.push(Block::KeyVal("  model".into(), trunc(&agent.model, 52)));
+            }
+            if !agent.progress.is_empty() {
+                blocks.push(Block::KeyVal(
+                    "  progress".into(),
+                    trunc(&agent.progress, 88),
+                ));
+            }
+            blocks.push(Block::KeyVal(
+                "  event".into(),
+                if agent.event_verb.is_empty() {
+                    "unknown".into()
+                } else {
+                    trunc(&agent.event_verb, 72)
+                },
+            ));
+            blocks.push(Block::KeyVal(
+                "  lineage".into(),
+                if agent.lineage_label.is_empty() {
+                    "unknown".into()
+                } else {
+                    trunc(&agent.lineage_label, 92)
+                },
+            ));
+            if agent.cost_usd.is_some() || agent.budget_usd.is_some() {
+                let cost = match (agent.cost_usd, agent.budget_usd) {
+                    (Some(cost), Some(budget)) => format!("${cost:.2} / ${budget:.2}"),
+                    (Some(cost), None) => format!("${cost:.2}"),
+                    (None, Some(budget)) => format!("budget ${budget:.2}"),
+                    (None, None) => String::new(),
+                };
+                if !cost.is_empty() {
+                    blocks.push(Block::KeyVal("  cost".into(), cost));
+                }
+            }
+            blocks.push(Block::KeyVal(
+                "  touching".into(),
+                if agent.touched.is_empty() {
+                    "no active file claims".into()
+                } else {
+                    trunc(&agent.touched.join(", "), 92)
+                },
+            ));
+            if !agent.stream_url.is_empty() {
+                blocks.push(Block::KeyVal(
+                    "  stream".into(),
+                    format!("open live stream for {}", agent.id),
+                ));
+            }
+            if !agent.interrupt_url.is_empty() {
+                blocks.push(Block::KeyVal(
+                    "  interrupt".into(),
+                    format!("send interrupt for {}", agent.id),
+                ));
+            }
+            if !agent.takeover_url.is_empty() {
+                blocks.push(Block::KeyVal(
+                    "  takeover".into(),
+                    if agent.session_id.is_empty() {
+                        "open takeover".into()
+                    } else {
+                        format!("open takeover for {}", agent.session_id)
+                    },
+                ));
+            }
+            if !agent.control_center_url.is_empty() {
+                blocks.push(Block::KeyVal(
+                    "  open".into(),
+                    trunc(&agent.control_center_url, 92),
+                ));
+            }
             blocks.push(Block::KeyVal(
                 "  adds".into(),
                 if agent.squid_capabilities.is_empty() {
@@ -232,22 +380,6 @@ impl Pane for ActiveAgentsPane {
                 ));
             }
             blocks.push(Block::KeyVal(
-                "  harness".into(),
-                format!(
-                    "{}{}",
-                    if agent.harness.is_empty() {
-                        "unknown"
-                    } else {
-                        &agent.harness
-                    },
-                    if agent.backend.is_empty() {
-                        String::new()
-                    } else {
-                        format!(" / {}", agent.backend)
-                    }
-                ),
-            ));
-            blocks.push(Block::KeyVal(
                 "  worktree".into(),
                 format!(
                     "{}{}",
@@ -263,41 +395,8 @@ impl Pane for ActiveAgentsPane {
                     }
                 ),
             ));
-            blocks.push(Block::KeyVal(
-                "  doing".into(),
-                if agent.purpose.is_empty() {
-                    "no purpose recorded".into()
-                } else {
-                    trunc(&agent.purpose, 72)
-                },
-            ));
-            blocks.push(Block::KeyVal(
-                "  touching".into(),
-                if agent.touched.is_empty() {
-                    "no active file claims".into()
-                } else {
-                    trunc(&agent.touched.join(", "), 92)
-                },
-            ));
-            blocks.push(Block::KeyVal(
-                "  stream".into(),
-                format!("pd agent stream {}", agent.id),
-            ));
-            blocks.push(Block::KeyVal(
-                "  steer".into(),
-                format!("pd agent interrupt {} --reason ...", agent.id),
-            ));
-            if !agent.session_id.is_empty() {
-                blocks.push(Block::KeyVal(
-                    "  takeover".into(),
-                    format!("pd session takeover {}", agent.session_id),
-                ));
-            }
-            if agent.last_heartbeat_ms > 0 {
-                blocks.push(Block::KeyVal(
-                    "  heartbeat".into(),
-                    age_short(agent.last_heartbeat_ms),
-                ));
+            if !agent.purpose.is_empty() {
+                blocks.push(Block::KeyVal("  doing".into(), trunc(&agent.purpose, 72)));
             }
         }
 
@@ -388,9 +487,17 @@ mod tests {
             id: "agent-1".into(),
             label: "builder".into(),
             purpose: "ship feature".into(),
+            status: "ready".into(),
             liveness: "alive".into(),
+            pid: 4242,
+            progress: "50% through the turn".into(),
+            event_verb: "writing".into(),
+            lineage_label: "session-0 -> session-1".into(),
+            cost_usd: Some(0.5),
+            budget_usd: Some(1.0),
             harness: "Claude Code with Codex backend".into(),
             backend: "codex".into(),
+            model: "gpt-5.3-codex".into(),
             squid_level: "PARTIAL".into(),
             squid_score: 72,
             squid_capabilities: vec!["EDIT protection".into(), "TRACE".into()],
@@ -401,12 +508,115 @@ mod tests {
             session_id: "session-1".into(),
             touched: vec!["src/a.ts".into()],
             last_heartbeat_ms: 0,
+            stream_url: "/agents/agent-1/stream".into(),
+            interrupt_url: "/agents/agent-1/interrupt".into(),
+            takeover_url: "/sessions/session-1/takeover".into(),
+            control_center_url: "/fleet-ui/?surface=agents&agent=agent-1".into(),
         }];
 
         let blocks = pane.view();
-        assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  stream" && v.contains("pd agent stream agent-1"))));
-        assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  takeover" && v.contains("session-1"))));
-        assert!(blocks.iter().any(|block| matches!(block, Block::Chip { label, tone: Tone::Gated } if label.contains("SQUID PARTIAL") && label.contains("72%"))));
+        assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  runtime" && v.contains("pid 4242"))));
+        assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  model" && v.contains("gpt-5.3-codex"))));
+        assert!(blocks.iter().any(
+            |block| matches!(block, Block::KeyVal(k, v) if k == "  event" && v.contains("writing"))
+        ));
+        assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  lineage" && v.contains("session-0 -> session-1"))));
+        assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  stream" && v.contains("open live stream for agent-1"))));
+        assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  interrupt" && v.contains("send interrupt for agent-1"))));
+        assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  takeover" && v.contains("open takeover for session-1"))));
+        assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  open" && v.contains("/fleet-ui/"))));
+        assert!(blocks.iter().any(|block| matches!(block, Block::Chip { label, tone: Tone::Gated } if label.contains("ready") && label.contains("SQUID PARTIAL") && label.contains("72%"))));
         assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  missing" && v.contains("SessionStart"))));
+    }
+
+    #[test]
+    fn view_shell_rows_hide_live_controls_when_runtime_is_missing() {
+        let mut pane = ActiveAgentsPane::default();
+        pane.agents = vec![ActiveAgentEntry {
+            id: "session-shell".into(),
+            label: "Accepted shell".into(),
+            purpose: "Accepted shell".into(),
+            status: "accepted".into(),
+            liveness: "no_runtime".into(),
+            pid: 0,
+            progress: String::new(),
+            event_verb: "accepted".into(),
+            lineage_label: "session-prev -> session-shell".into(),
+            cost_usd: None,
+            budget_usd: None,
+            harness: "Session shell".into(),
+            backend: String::new(),
+            model: String::new(),
+            squid_level: "READY".into(),
+            squid_score: 100,
+            squid_capabilities: vec![],
+            squid_missing: vec![],
+            squid_repair: String::new(),
+            worktree: "/tmp/work".into(),
+            branch: "repair/shell".into(),
+            session_id: "session-shell".into(),
+            touched: vec![],
+            last_heartbeat_ms: 0,
+            stream_url: String::new(),
+            interrupt_url: String::new(),
+            takeover_url: "/sessions/session-shell/takeover".into(),
+            control_center_url: "/fleet-ui/?surface=agents&agent=session-shell".into(),
+        }];
+
+        let blocks = pane.view();
+        assert!(blocks.iter().any(|block| matches!(block, Block::Chip { label, tone: Tone::Engaged } if label.contains("shell receipts 1"))));
+        assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  runtime" && v.contains("no_runtime"))));
+        assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  takeover" && v.contains("open takeover for session-shell"))));
+        assert!(!blocks
+            .iter()
+            .any(|block| matches!(block, Block::KeyVal(k, _) if k == "  stream")));
+        assert!(!blocks
+            .iter()
+            .any(|block| matches!(block, Block::KeyVal(k, _) if k == "  interrupt")));
+    }
+
+    #[test]
+    fn view_starting_shell_rows_surface_no_runtime() {
+        let mut pane = ActiveAgentsPane::default();
+        pane.agents = vec![ActiveAgentEntry {
+            id: "session-starting".into(),
+            label: "Starting shell".into(),
+            purpose: "Starting shell".into(),
+            status: "starting".into(),
+            liveness: "no_runtime".into(),
+            pid: 0,
+            progress: String::new(),
+            event_verb: "starting".into(),
+            lineage_label: "session-prev -> session-starting".into(),
+            cost_usd: None,
+            budget_usd: None,
+            harness: "Session shell".into(),
+            backend: String::new(),
+            model: String::new(),
+            squid_level: "READY".into(),
+            squid_score: 100,
+            squid_capabilities: vec![],
+            squid_missing: vec![],
+            squid_repair: String::new(),
+            worktree: "/tmp/work".into(),
+            branch: "repair/shell".into(),
+            session_id: "session-starting".into(),
+            touched: vec![],
+            last_heartbeat_ms: 0,
+            stream_url: String::new(),
+            interrupt_url: String::new(),
+            takeover_url: "/sessions/session-starting/takeover".into(),
+            control_center_url: "/fleet-ui/?surface=agents&agent=session-starting".into(),
+        }];
+
+        let blocks = pane.view();
+        assert!(blocks.iter().any(|block| matches!(block, Block::Chip { label, tone: Tone::Engaged } if label.contains("shell receipts 1"))));
+        assert!(blocks.iter().any(
+            |block| matches!(block, Block::KeyVal(k, v) if k == "  status" && v == "starting")
+        ));
+        assert!(blocks.iter().any(
+            |block| matches!(block, Block::KeyVal(k, v) if k == "  runtime" && v == "no_runtime")
+        ));
+        assert!(blocks.iter().any(|block| matches!(block, Block::KeyVal(k, v) if k == "  takeover" && v.contains("open takeover for session-starting"))));
     }
 }
