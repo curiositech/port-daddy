@@ -73,8 +73,27 @@ jobs:
       - name: Trust the checkout dir (container runs as root)
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Build all whitepaper PDFs
-        run: bash scripts/build-whitepapers.sh
+      - name: Build in-scope whitepaper PDFs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          base=""
+          case "$EVENT_NAME" in
+            pull_request) base="$PR_BASE_SHA" ;;
+            push) base="$PUSH_BEFORE_SHA" ;;
+          esac
+          # PRs and pushes rebuild only papers whose transitive TeX inputs
+          # changed. This prevents one shared figures directory from churning
+          # unrelated PDFs. Manual runs intentionally rebuild the full set.
+          if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ] \
+             && git cat-file -e "$base^{commit}" 2>/dev/null; then
+            bash scripts/build-whitepapers.sh --changed-since "$base"
+          else
+            bash scripts/build-whitepapers.sh
+          fi
 
       - name: Commit rebuilt PDFs (feature-branch push)
         # Auto-commit only on feature branches. main is protected and receives
@@ -106,7 +125,7 @@ jobs:
         run: |
           set -uo pipefail
           if git diff --quiet -- 'website-v2/public/whitepaper/*.pdf'; then
-            echo "All published PDFs match a fresh render. ✔"; exit 0
+            echo "All in-scope published PDFs match a fresh render. ✔"; exit 0
           fi
           echo "Published PDFs differ from a fresh render of current source:"
           git diff --stat -- 'website-v2/public/whitepaper/*.pdf' || true
