@@ -155,10 +155,21 @@ pd setup`}
           act on dogfood-as-meta-commentary; the page should be
           converting, not explaining how it was built. The whitepaper
           grid takes the full width and does the closing-CTA job alone.
+
+          2026-08-04 IA pass: WHITE_PAPERS grew from 2 papers (when this
+          panel was written) to 7, and the full grid was running the
+          single-column mobile height past 2,000px at the very end of the
+          page — the worst possible place to make a reader scroll more,
+          right after they decided to convert. The library at /library
+          (linked from ScopeLadderSection higher up the page, and from
+          "Read all seven" below) already lists every paper with the same
+          reader/PDF links, so showing all seven again here was pure
+          duplication. Slicing to the first three keeps the closing CTA
+          concrete without re-running the whole library inline.
         */}
         <div className="mt-[var(--space-6)] grid gap-[var(--space-5)]">
           <div className="grid gap-[var(--space-3)] md:grid-cols-2">
-            {WHITE_PAPERS.map((paper) => (
+            {WHITE_PAPERS.slice(0, 3).map((paper) => (
               <article
                 key={paper.title}
                 className="grid content-between gap-[var(--space-4)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)]"
@@ -199,6 +210,13 @@ pd setup`}
               </article>
             ))}
           </div>
+          <Link
+            to="/library"
+            className="group inline-flex w-fit items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)] no-underline"
+          >
+            Read all seven in the Harbor Library
+            <ArrowRight aria-hidden="true" size={14} className="transition-transform group-hover:translate-x-0.5" />
+          </Link>
         </div>
       </PageContainer>
     </section>
