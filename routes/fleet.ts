@@ -227,7 +227,7 @@ function setFleetYamlRuntime(yaml: string, update: FleetRuntimeYamlUpdate): Flee
 }
 
 export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (fastify, opts) => {
-  const { fleetDaemon, messaging, projects, conductor, cloudAppTelemetry, counters } = opts.deps;
+  const { fleetDaemon, messaging, projects, conductor, cloudAppTelemetry, counters, transcripts } = opts.deps;
 
   // ── Conductor operator control surface (ADR-0060) ──────────────────────────
   // halt = total (SIGTERM→SIGKILL the scope, refund-not-slash); pause = soft
@@ -290,7 +290,6 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     const launches = c.allLaunches(Number.isFinite(limit) ? limit : 200);
     return { success: true, count: launches.length, launches };
   });
-  const { fleetDaemon, messaging, projects, transcripts } = opts.deps;
 
   function resolveFleetRecord(projectOrDir: string, reply: FastifyReply) {
     const fleets = fleetDaemon.getStatus().fleets;
