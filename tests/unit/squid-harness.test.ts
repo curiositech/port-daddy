@@ -454,10 +454,18 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
       encoding: 'utf8',
     });
     expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/STEERING ALERTS/);
-    expect(r.stdout).toMatch(/stop and ack/);
+    // Balk-fix (ADR-0091): the prompt tentacle must emit Claude Code's SANCTIONED
+    // structured UserPromptSubmit output — hookSpecificOutput.additionalContext — not
+    // raw stdout, which reads to the model as untrusted injected content (why Claude
+    // Code balked at it as prompt injection). Reverting to `printf '%b' "$OUT"` makes
+    // JSON.parse throw / the shape assertion fail → this test goes red.
+    const parsed = JSON.parse(r.stdout);
+    expect(parsed.hookSpecificOutput.hookEventName).toBe('UserPromptSubmit');
+    const ctx = parsed.hookSpecificOutput.additionalContext as string;
+    expect(ctx).toMatch(/STEERING ALERTS/);
+    expect(ctx).toMatch(/stop and ack/);
     // /repo basename or path appears in the pheromone value → relevant → injected
-    expect(r.stdout).toMatch(/deprecated v1_hook/);
+    expect(ctx).toMatch(/deprecated v1_hook/);
   });
 
   test('K=8 concurrent post-tool appends produce 8 intact pheromone lines (Jamie Madrox)', async () => {
