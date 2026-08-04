@@ -22,6 +22,9 @@ import {
   attachCliSessionWorktreePolicy,
   resolveCliSessionWorktreePolicy,
 } from '../utils/session-worktree-policy.js';
+import { initDatabase } from '../../lib/db.js';
+import { createDispatchQueue } from '../../lib/dispatch/queue.js';
+import { checkAndCompleteDispatch } from '../../lib/dispatch/auto-merge.js';
 
 type BeginLifecycle = 'durable' | 'ephemeral';
 
@@ -718,6 +721,43 @@ export async function handleBegin(
 // handleDone — pd done ["note"] [--status STATUS]
 // =============================================================================
 
+/**
+ * `pd done` as a manual confirmation point for `merge_policy='auto'`
+ * dispatches. The daemon's background sweep (server.ts, lib/dispatch/
+ * auto-merge.ts) merges these PRs on its own interval, but an operator
+ * running `pd done` right after a dispatch finishes shouldn't have to wait
+ * for the next tick — this runs the SAME check-and-complete logic inline so
+ * `pd done` either confirms the merge already happened (and worktree/branch
+ * are already scrapped) or reports honestly why it isn't ready yet. This is
+ * always best-effort: a failure here must never block the actual session end.
+ */
+async function reportAutoMergeOnDone(sessionId: string | undefined): Promise<string[]> {
+  if (!sessionId) return [];
+  const lines: string[] = [];
+  try {
+    const db = initDatabase();
+    const queue = createDispatchQueue({ db });
+    const dispatch = queue.getBySessionId(sessionId);
+    if (!dispatch || dispatch.mergePolicy !== 'auto') return [];
+    const outcome = await checkAndCompleteDispatch(dispatch);
+    if (outcome.outcome === 'merged') {
+      lines.push(`Auto-merge: merged ${dispatch.resultArtifact} (dispatch ${dispatch.id.slice(0, 8)}).`);
+      if (outcome.cleanup.worktreeReaped) lines.push('  worktree scrapped');
+      if (outcome.cleanup.branchDeleted) lines.push('  local branch deleted');
+    } else if (outcome.outcome === 'already_merged') {
+      lines.push(`Auto-merge: PR already merged (dispatch ${dispatch.id.slice(0, 8)}); confirmed cleanup.`);
+    } else if (outcome.outcome === 'not_ready') {
+      lines.push(`Auto-merge: dispatch ${dispatch.id.slice(0, 8)} not ready yet — ${outcome.reasons.join('; ')}`);
+      lines.push(`  the daemon's background sweep will retry, or run: pd dispatch merge-sweep`);
+    } else if (outcome.outcome === 'error') {
+      lines.push(`Auto-merge: check failed for dispatch ${dispatch.id.slice(0, 8)} — ${outcome.error}`);
+    }
+  } catch {
+    // Best-effort. A DB/gh hiccup here must never block `pd done`.
+  }
+  return lines;
+}
+
 export async function handleDone(
   note: string | undefined,
   options: CLIOptions,
@@ -769,6 +809,14 @@ export async function handleDone(
   const forceIncomplete = options.forceIncomplete === true || options['force-incomplete'] === true;
   const reason = (options.reason as string | undefined) || undefined;
 
+  // Best-effort auto-merge confirmation pass BEFORE the session actually
+  // ends (the dispatch's session_id lookup only works while we still know
+  // which session this is — after clearCurrentContext() below, local context
+  // is gone).
+  const autoMergeLines = await reportAutoMergeOnDone(
+    typeof body.sessionId === 'string' ? body.sessionId : ctx?.sessionId,
+  );
+
   const pd = new PortDaddy({ agentId: typeof body.agentId === 'string' ? body.agentId : undefined });
   const data = await pd.done(note, {
     agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
@@ -798,7 +846,7 @@ export async function handleDone(
   clearCurrentContext();
 
   if (isJson(options)) {
-    console.log(JSON.stringify(data, null, 2));
+    console.log(JSON.stringify({ ...data, autoMerge: autoMergeLines }, null, 2));
     return;
   }
 
@@ -815,6 +863,7 @@ export async function handleDone(
   if (data.agentUnregistered) console.error(`  Agent ${data.agentId} unregistered`);
   if (data.notesCount) console.error(`  Notes: ${data.notesCount}`);
   if (note) console.error(`  Final note: "${note}"`);
+  for (const line of autoMergeLines) console.error(`  ${line}`);
 }
 
 // =============================================================================

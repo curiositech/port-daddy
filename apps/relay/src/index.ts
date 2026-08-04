@@ -3,6 +3,8 @@
  *
  * Routes:
  *   GET  /health
+ *   GET  /mercy                               (public MERCY status JSON; no secrets)
+ *   GET  /account/mercy                       (session; HTML MERCY report card)
  *   POST /v1/handshake
  *   GET  /v1/subscribe/:session_id          (SSE)
  *   POST /v1/publish
@@ -18,6 +20,8 @@
  *   GET  /v1/fleet/runs/:id                    (operator; one run + transcript)
  *   GET  /fleet/runs/:id                        (HTML run page; HMAC capability
  *                                                token or operator; ADR-0101)
+ *   GET  /account/runs                          (HTML runs index; session +
+ *                                                GitHub repo ACL; ADR-0101)
  *   POST /billing/checkout                     (session; Stripe Checkout for a credit pack)
  *   POST /billing/webhook                      (Stripe-Signature HMAC; credit ledger writes)
  *   GET  /billing/balance/:installationId      (operator or session; prepaid balance)
@@ -65,6 +69,7 @@ import {
 } from './fleet-observability.js';
 import { handleFleetRunPage } from './fleet-run-page.js';
 import { runRetentionSweep } from './retention-sweep.js';
+import { runMercySweep, handleMercyStatus, handleMercyPage } from './mercy.js';
 import {
   handleGithubLogin,
   handleGithubCallback,
@@ -73,6 +78,9 @@ import {
   handleAccountExport,
   handleAccountDelete,
 } from './auth-github.js';
+import { handleLoginPage, handleAccountPage } from './account-page.js';
+import { handleRunsPage } from './runs-page.js';
+import { handleDeviceStart, handleDeviceToken, handleWhoami } from './device-flow.js';
 import {
   handleCreateCheckout,
   handleStripeWebhook,
@@ -111,6 +119,11 @@ export default {
     // ── Health ──────────────────────────────────────────────────────────────
     if (pathname === '/health' && method === 'GET') {
       response = handleHealth(env);
+    }
+
+    // ── MERCY status page (public, no secrets — src/mercy.ts) ────────────────
+    else if (pathname === '/mercy' && method === 'GET') {
+      response = await handleMercyStatus(env);
     }
 
     // ── Handshake ───────────────────────────────────────────────────────────
@@ -177,6 +190,27 @@ export default {
       response = await handleFleetRunPage(request, env, runId);
     }
 
+    // ── Storefront account surfaces (ADR-0101 Phase 1) ───────────────────────
+    // Root lands the operator on their account (which redirects to /login when
+    // signed out) instead of a bare 404.
+    else if (pathname === '/' && method === 'GET') {
+      response = new Response(null, { status: 302, headers: { Location: '/account' } });
+    }
+    else if (pathname === '/login' && method === 'GET') {
+      response = handleLoginPage();
+    }
+    else if (pathname === '/account' && method === 'GET') {
+      response = await handleAccountPage(request, env);
+    }
+    // Per-account fleet-runs index (session + GitHub repo ACL; ADR-0101).
+    else if (pathname === '/account/runs' && method === 'GET') {
+      response = await handleRunsPage(request, env);
+    }
+    // MERCY report card (session-gated HTML; src/mercy.ts).
+    else if (pathname === '/account/mercy' && method === 'GET') {
+      response = await handleMercyPage(request, env);
+    }
+
     // ── GitHub login BFF (ADR-0101 Phase 1) ──────────────────────────────────
     else if (pathname === '/auth/github/login' && method === 'GET') {
       response = await handleGithubLogin(request, env);
@@ -186,6 +220,16 @@ export default {
     }
     else if (pathname === '/auth/me' && method === 'GET') {
       response = await handleAuthMe(request, env);
+    }
+    // Device-flow login for CLI / FleetBar / pd-console (ADR-0101 Phase 1).
+    else if (pathname === '/auth/device/start' && method === 'POST') {
+      response = await handleDeviceStart(request, env);
+    }
+    else if (pathname === '/auth/device/token' && method === 'POST') {
+      response = await handleDeviceToken(request, env);
+    }
+    else if (pathname === '/auth/whoami' && method === 'GET') {
+      response = await handleWhoami(request, env);
     }
     else if (pathname === '/auth/logout' && method === 'POST') {
       response = await handleLogout(request, env);
@@ -279,18 +323,35 @@ export default {
     return cors(response);
   },
 
-  // Cron Trigger (ADR-0101; runtime-verification-for-agents). The Worker has no
-  // long-running Arbiter loop, so retention + session-reaping + erasure-
-  // completion run here on a schedule. Best-effort: the sweep never throws.
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+  // Cron Triggers (ADR-0101; runtime-verification-for-agents). The Worker has
+  // no long-running Arbiter loop, so scheduled maintenance runs here. Two crons
+  // share one handler, dispatched on event.cron (wrangler.deploy.toml):
+  //   "*/5 * * * *"  — MERCY health sweep only (probes are cheap).
+  //   "0 */6 * * *"  — retention/session-reap/erasure sweep (+ a MERCY sweep,
+  //                    since every fire takes vitals). Best-effort: neither
+  //                    sweep ever throws.
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    const MERCY_CRON = '*/5 * * * *';
+    if (event.cron !== MERCY_CRON) {
+      ctx.waitUntil(
+        runRetentionSweep(env, Math.floor(Date.now() / 1000)).then((r) => {
+          if (r.errors.length) console.error('[relay] retention sweep errors:', r.errors.join('; '));
+          else
+            console.log(
+              `[relay] retention sweep: pruned ${r.runStepsPruned} steps / ${r.runsPruned} runs / ` +
+                `${r.eventsPruned} events, reaped ${r.sessionsReaped} sessions, hard-deleted ${r.usersHardDeleted} users`,
+            );
+        }),
+      );
+    }
+    // MERCY takes vitals on every cron fire (the sweep is internally fail-safe).
     ctx.waitUntil(
-      runRetentionSweep(env, Math.floor(Date.now() / 1000)).then((r) => {
-        if (r.errors.length) console.error('[relay] retention sweep errors:', r.errors.join('; '));
-        else
-          console.log(
-            `[relay] retention sweep: pruned ${r.runStepsPruned} steps / ${r.runsPruned} runs / ` +
-              `${r.eventsPruned} events, reaped ${r.sessionsReaped} sessions, hard-deleted ${r.usersHardDeleted} users`,
-          );
+      runMercySweep(env, Math.floor(Date.now() / 1000)).then((r) => {
+        const line =
+          `[relay] mercy sweep: overall=${r.overall} remoteHarbors=${r.remoteHarborsPossible} ` +
+          `opened=${r.incidentsOpened} resolved=${r.incidentsResolved} paged=${r.pagesSent}`;
+        if (r.errors.length) console.error(`${line} errors: ${r.errors.join('; ')}`);
+        else console.log(line);
       }),
     );
   },

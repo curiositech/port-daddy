@@ -454,10 +454,18 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
       encoding: 'utf8',
     });
     expect(r.status).toBe(0);
-    expect(r.stdout).toMatch(/STEERING ALERTS/);
-    expect(r.stdout).toMatch(/stop and ack/);
+    // Balk-fix (ADR-0091): the prompt tentacle must emit Claude Code's SANCTIONED
+    // structured UserPromptSubmit output — hookSpecificOutput.additionalContext — not
+    // raw stdout, which reads to the model as untrusted injected content (why Claude
+    // Code balked at it as prompt injection). Reverting to `printf '%b' "$OUT"` makes
+    // JSON.parse throw / the shape assertion fail → this test goes red.
+    const parsed = JSON.parse(r.stdout);
+    expect(parsed.hookSpecificOutput.hookEventName).toBe('UserPromptSubmit');
+    const ctx = parsed.hookSpecificOutput.additionalContext as string;
+    expect(ctx).toMatch(/STEERING ALERTS/);
+    expect(ctx).toMatch(/stop and ack/);
     // /repo basename or path appears in the pheromone value → relevant → injected
-    expect(r.stdout).toMatch(/deprecated v1_hook/);
+    expect(ctx).toMatch(/deprecated v1_hook/);
   });
 
   test('K=8 concurrent post-tool appends produce 8 intact pheromone lines (Jamie Madrox)', async () => {
@@ -1045,4 +1053,20 @@ describe('Giant Squid Harness — multi-vendor tentacle contracts', () => {
     expect(vals.some((v) => v.includes('mutated via replace') && v.includes('gemini_agent'))).toBe(true);
     expect(vals.some((v) => v.includes('mutated via apply_patch') && v.includes('codex_agent'))).toBe(true);
   });
+});
+
+describe('tentaclePath resolution (regression: compiled-binary /bin/ bug)', () => {
+  for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool'] as const) {
+    it(`${name} resolves to an existing tentacle, not a bogus /bin path`, () => {
+      const p = tentaclePath(name);
+      // In dev the execPath-relative candidates don't exist, so it must fall
+      // back to the real repo bin/ — a file that actually exists.
+      expect(existsSync(p)).toBe(true);
+      expect(p).toBe(bin(name));
+      // The old bug returned `/bin/<name>` from a compiled binary's synthetic
+      // import.meta.url; guard against ever resolving to the system /bin.
+      expect(p).not.toBe(`/bin/${name}`);
+      expect(p.endsWith(`/bin/${name}`)).toBe(true); // repo bin/, absolute
+    });
+  }
 });

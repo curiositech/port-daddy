@@ -271,6 +271,20 @@ The PR template (`.github/PULL_REQUEST_TEMPLATE.md`) pre-stubs both — keep the
 headings and the trailer line, fill in the prose. Both report on `merge_group`
 as pass-throughs, so a PR that is green at PR time never hangs the queue.
 
+**Branch protection on `main` is a ruleset** (`main merge queue`, id `17604542`),
+not classic protection — 18 required checks with `strict` off, merge queue
+(REBASE), linear history, and an admin `pull_request` bypass valve (never remove
+it: a stuck required check would otherwise freeze every merge). Full runbook:
+[`docs/operator/branch-protection-ruleset.md`](docs/operator/branch-protection-ruleset.md).
+Two rules learned the hard way when touching it:
+- **Edit the ruleset with `PUT`, not `PATCH`** — `PATCH` returns a misleading
+  `404`. Build the full body from a live `GET` (a partial body wipes the required
+  checks). The operator runs the mutation via `!` (auto-mode blocks ruleset edits).
+- **Never require a workflow filtered only by `on.*.paths`** — it never reports on
+  unrelated PRs and freezes the queue. A required workflow must also trigger on
+  `merge_group` (always-run, or skip = pass). `proofs`, `whitepaper-build`, and
+  `whitepaper-metadata` are now `merge_group`-safe for exactly this reason.
+
 Every PR opened in this repo MUST go through skeptical adversarial review
 before merging. The author cannot self-approve by typing "looks good." The
 flow is:
@@ -856,3 +870,31 @@ working checkout. State + per-build logs live in `~/.port-daddy/app-watch/`; the
 log is `~/.port-daddy/app-watch.log`. A SHA/version whose build fails is not retried
 until it moves again (the failure notification tells the operator); force a rerun with
 `~/.port-daddy/bin/pd-app-watch.sh --force-latest` / `--force-prod`.
+
+## Show-me runbook (operator demos)
+
+When the operator asks to *see* any pd-console / FleetBar / daemon feature, run this
+sequence. Every item below is a real failure from a live demo (2026-07-12), not theory.
+
+1. **Build the TRIPLE from the feature branch** via `scripts/dev-triple.sh <label>`, and
+   make sure the daemon carries its berth identity: it must launch with
+   `PD_DAEMON_TIER=dev PD_DAEMON_LABEL=<label> PD_DAEMON_COLOR=<hex>
+   PD_DAEMON_SOURCE_DIR=<worktree>` (the `BERTH_ENV` keys in `shared/daemon-berths.ts`)
+   so it self-registers into `~/.port-daddy/dev-daemons.json`. An unregistered berth is
+   an invisible daemon — FleetBar's Daemons list never shows it. `dev-triple.sh` now
+   exports these itself; if you launch a daemon any other way, export them yourself.
+2. **Seed live state before the operator looks.** An empty daemon renders empty panes —
+   it can't render what it has no backend for. For claim/conflict surfaces: create two
+   sessions and file overlapping `POST /sessions/:id/files` claims (`agentId` is
+   required in the body).
+3. **Feature spans multiple unmerged PRs? Build a COMBINED local preview branch** —
+   merge the PR branches locally (do not push it) so the operator sees the sum, not one
+   slice. An operator looking at branch A files rage-bugs about everything branch B
+   already fixed.
+4. **`pd-console-repl` / terminal-face artifacts are never operator review material.**
+   They are machine-gate evidence only. Operator review = the GPUI app, running, seeded.
+5. **Emoji sweeps must grep BOTH literal emoji AND unicode escapes**
+   (`\u{2693}`, `\u{1F...}`) — escaped emoji are still emoji on screen, and the
+   no-emoji-as-icons rule applies to what renders, not what greps.
+6. **Never create virtual displays or modify display settings.** On-primary-screen
+   window openings are allowed only with explicit operator consent, per action.

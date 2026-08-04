@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1784790157105,
+  "generatedAt": 1784852769105,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 239,
+  "count": 254,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -400,6 +400,11 @@
       "summaryMd": "M6 phase 3: episode/graph-fact extraction with bi-temporal validity, supersession closure, distilled-source tombstones, and budget-capped task-conditioned recall (ADR-0097 Implementation Matrix phase 3)"
     },
     {
+      "slug": "adr-0101-accounts-activation",
+      "status": "backlog",
+      "summaryMd": "ADR-0101 accounts activation: login/pages/egress-gate (#3477 merged), device-flow CLI login pd account (#3608), squid tentacle packaging (#3628)."
+    },
+    {
       "slug": "adr-0101-fleet-run-pages",
       "status": "now",
       "summaryMd": "ADR-0101: user-account wedge — capability-URL fleet run pages (details_url, Phase 0 shipped), GitHub OAuth login + user/session schema (Phase 1), BYOK + Stripe-credit + anchor-macaroon fleet funding (Phases 2-3)."
@@ -433,6 +438,11 @@
       "slug": "adr-doc-reconciliation-sweep",
       "status": "now",
       "summaryMd": "Doc rot sweep from wf_74723755 (39 documentation lies + 9-collision numbering crisis). Concrete punch list: supersede-in-place 0030(whois)/0031(Spider)/0032(Lookout)/0038(claim_forest) with 'Superseded (implemented differently)' status + pointer to shipped mechanism; fix FALSE-GREEN attestations 0045:74 (identity check 'enabled' — does not exist) and 0053 (Relay 'verifies discharges/ProVerif' — zero macaroon wiring in apps/relay/src); flip 0037/0091 Proposed->Partial-Ship with shipped/gap tables; annotate 0090 phases 0-4 SUPERSEDED-by-durable-home-wave; correct 0086/0085 Implementation Matrix to ground truth (schema-only-shipped, edge-writers zero-callers); rename 0090-the-harbor->0097, pd-adr-090-hook-installer->next-free, 0091 roadmap slugs adr-0089->adr-0091; RECOVER orphaned ADR-0096 (signed-guidance, Accepted but trapped in ~20 worktrees); author a docs/adr/REGISTRY.md + pre-commit collision gate; binder reconciliation deltas ch02/05/06/09 (whois/claim_forest/squid/halt/durable-home all uncovered). Owner: doc-reconciliation dispatch. Decision-type: empirical (mechanical truth-fixes). Acceptance: every ADR status matches ground truth; zero number collisions; 0096 on main; binder covers the shipped substrate."
+    },
+    {
+      "slug": "adr-number-collision-guard",
+      "status": "done",
+      "summaryMd": "Resolves 12 duplicate ADR numbers (renamed to 0102-0115), adds docs/adr/adr-numbering-registry.json + scripts/adr-number-collision-guard.mjs wired into hooks/pre-commit as a fail-closed check blocking future collisions. Rebased onto origin/main; one real conflict in docs/adr/0028-salvage-envelope.md resolved with no content lost. PR #2594."
     },
     {
       "slug": "agent-harbor-c1-event-ledger",
@@ -521,7 +531,7 @@
     },
     {
       "slug": "ast-a2-1-symbol-claim-isolation-validator",
-      "status": "backlog",
+      "status": "merge",
       "summaryMd": "A2.1 Pre-flight: run predictConflicts vs live claims before a symbol claim; refuse/warn on blocking overlaps. Done when a 2nd modify-claim on a contended symbol is blocked/warned on the live daemon."
     },
     {
@@ -595,9 +605,19 @@
       "summaryMd": "feat(booty): S4a artifact harvest — provenance over the blob store"
     },
     {
+      "slug": "bosun-plist-stale-cellar-path-on-upgrade",
+      "status": "backlog",
+      "summaryMd": "com.portdaddy.bosun.plist pins a versioned Cellar path (e.g. 3.25.2_2/bin/pd-bosun) and goes stale on every brew upgrade, causing EX_CONFIG exit-78 and zero auto-restart on daemon crash until port-daddy install is manually re-run. pd doctor also falsely reports the binary as MISSING when it's actually a stale-path config error. Fix belongs in the brew upgrade post-install hook: regenerate the plist against the currently-linked Cellar path automatically."
+    },
+    {
       "slug": "build-integrity-spine-drift-checks",
       "status": "backlog",
       "summaryMd": "From fleetbot review on #2566 (pd-lookout HIGH): automate drift checks for the build-integrity spine (the single-source codegen registry the coarsened architecture doc names as the fix for the model-tiers.json duplication rot). Ties directly to the model-abstraction-audit work already on the roadmap."
+    },
+    {
+      "slug": "claude-provenance-gated-git-guard",
+      "status": "backlog",
+      "summaryMd": "ADR-0102: remove agent-mintable PD_SHIM_OFF git-guard escape"
     },
     {
       "slug": "claude-squid-mode-visual-20260716",
@@ -616,7 +636,7 @@
     },
     {
       "slug": "codex-cartographer-conversation-transcripts",
-      "status": "backlog",
+      "status": "merge",
       "summaryMd": "Console: scrollable Cartographer chat and transcript conformance"
     },
     {
@@ -820,6 +840,11 @@
       "summaryMd": "feat(fleetbar): add visual task intake"
     },
     {
+      "slug": "gantt-real-estimate-wiring",
+      "status": "now",
+      "summaryMd": "Wire real roadmap_items.estimate into the Gantt scheduler (routes/roadmap.ts's GET /roadmap/board handler) instead of the hardcoded estimate:1 every task got. lib/roadmap-items.ts now exposes estimate on RoadmapItem/reads it from the DB row; routes/roadmap.ts looks it up per-task with an explicit fallback of 1 only when genuinely unset. started_at/due_at stay unwired — lib/planner-schedule.ts's schedule() is a purely relative CPM engine with no absolute-date anchor concept."
+    },
+    {
       "slug": "github-webhook-delivery-dedup",
       "status": "backlog",
       "summaryMd": "Inbound webhook receiver (routes/github-webhook.ts, io-wiring Phase 2) has no idempotency and no replay protection: X-GitHub-Delivery is extracted (line ~222) but never used as a dedup key, and the handler publishes to fleet channels unconditionally — every GitHub redelivery (automatic retry, manual Redeliver, or attacker replay of a captured request, which stays valid forever since GitHub HMAC signs no timestamp) re-fires fleet triggers and duplicates spawns/spend. The 500-on-publish-failure path invites retries that re-publish already-succeeded channels (partial-publish duplication). Composes with fleet-trigger-fire-time-gate: two layers between GitHub and a spawn, neither idempotent. Fix per receiver discipline: durable inbound_webhook_deliveries table keyed UNIQUE(provider, delivery_id) in the registry (safe post-#2067 durable home — pre-fix this table would have been wiped every brew upgrade, erasing replay memory); insert-first with status, publish, then mark published; redelivery of a published id acks 204 without republishing; redelivery of an unpublished id retries only unpublished channels. Signature layer needs NO change (raw-body HMAC + timingSafeEqual + two-tier auth verified sound 2026-07-14). Acceptance: replaying a captured valid request twice publishes fleet events exactly once (unit test); a redelivery after simulated partial publish completes only the missing channels."
@@ -865,6 +890,11 @@
       "summaryMd": "Coordination Guard shim intercepts git stash PUSH but not POP/APPLY — live incident 2026-07-14: a session in worktree daemon-single-truth ran git stash pop, the shim let it through, and it partially applied ANOTHER session's stash (stash@{0}, codex-gpui-harness-mux 72 files) into the worktree: staged foreign changes + conflict markers across pd-console/skills/cli. The stash stack is shared mutable state across ALL worktrees (lives in .git), so pop/apply without an explicit stash ref is exactly as cross-session-dangerous as push. Fix: shim intercepts bare 'git stash pop/apply' (no ref) with the same refuse+bypass pattern as push; allow 'apply <sha>' / 'pop stash@{n}' with explicit refs; message points at the SHA-capture workflow already documented in the repo worktree guidance. Acceptance: bare pop in a worktree is refused with PD_SHIM_OFF bypass offered; explicit-ref apply passes."
     },
     {
+      "slug": "harbor-card-rs-ffi-hardening",
+      "status": "done",
+      "summaryMd": "core/harbor-card-rs (the FFI cdylib lib/arbiter.ts loads at runtime, shipped in every release via build-core.sh) was excluded from the core/ Cargo workspace and had zero CI coverage: no unit tests, and clippy -D warnings didn't even compile (missing catch_unwind at the extern C boundary, 2 needless-borrow lints). Fixed: catch_unwind on both FFI exports, unsafe extern C per clippy (verified symbol table unchanged via nm), 22 tests (unit + FFI-boundary + proptest), new rust-harbor-card CI job. PR: fix/harbor-card-rs-ffi-panic-safety (#3304)."
+    },
+    {
       "slug": "harbor-console-vs-pr1960-reconciliation",
       "status": "now",
       "summaryMd": "From fleetbot review on #2566 (pd-lookout MEDIUM) AND independently confirmed by a separate verification pass: feat/harbor-console (unlanded branch) needs to be diffed against PR #1960 (live, open, reskinning the same cooperative Harbor editor) before either lands -- may overlap, may be complementary. Two independent sources flagged the same real gap."
@@ -888,6 +918,11 @@
       "slug": "harbormaster-mcp-parity",
       "status": "done",
       "summaryMd": "Expose the read-only harbormaster status route through MCP and manifest parity so routed-feature coverage remains honest."
+    },
+    {
+      "slug": "high-port-daddy-fleet-required-check",
+      "status": "backlog",
+      "summaryMd": "Root cause confirmed: prod CONTROL_KV fleet:paused=true set out-of-band since 2026-07-16, bypassing the audited pause endpoint, no audit trail. Fleet-executor's paused path now always mints a neutral required check-run instead of returning silently. PR #3355. Flag reset to false in prod (operator-directed)."
     },
     {
       "slug": "idea-mining-pipeline",
@@ -970,6 +1005,11 @@
       "summaryMd": "Revive Nightshift as overnight autonomy. Nightshift was never deleted — it was renamed to `pd dispatch` (ADR-0035) and folded into the Conductor (ADR-0060), so the queue/HITL/worker path is MORE built than the original. The one lost capability is the unattended overnight run: the `dispatch-runner` ship is commented out in pd-fleet.yml AND parseCronInterval (lib/fleet-engine.ts ~2452) coerces cron like `0 1 * * *` into a fixed ~10-min interval, so it can never fire at an absolute hour. MAKE IT WORK: (1) implement real cron field parsing (absolute hour/minute) in fleet-engine, (2) re-enable the dispatch-runner ship with a nightly schedule, (3) surface it on the FleetBar Nightshift/Conductor surface, (4) soak one real overnight cycle before declaring done. Operator explicitly wants this feature back."
     },
     {
+      "slug": "onnxruntime-node-rpath-dylib-fix",
+      "status": "done",
+      "summaryMd": "Every daemon boot failed semantic resolution (skill-graft search, semantic term resolution, skill index) with 'Library not loaded: @rpath/libonnxruntime.*.dylib' — bun build --compile extracts onnxruntime-node's .node binding but drops its @rpath-linked sibling runtime library. Fixed: build-single-binary.mjs packages the real dylib to dist/native/onnxruntime-node/<platform>-<arch>/, semantic-resolver.ts points DYLD_FALLBACK_LIBRARY_PATH/LD_LIBRARY_PATH at it before the transformers import, release.yml ships the dir. Verified by reproducing the bug in isolation + building/booting the real compiled binary. PR: fix/onnxruntime-node-dylib-rpath. Companion Formula fix (prefix.install \"native\") needed in curiositech/homebrew-tap."
+    },
+    {
       "slug": "operator-surface-consolidation",
       "status": "backlog",
       "summaryMd": "feat(surfaces): consolidate operator surfaces to FleetBar, Control Center, pd-console"
@@ -983,6 +1023,11 @@
       "slug": "parley-sugar-fanout-receipts",
       "status": "backlog",
       "summaryMd": "Parley usability: turns fan out to participants' inboxes (parley_turn via pd attention), per-party read receipts with unseen counts, and CLI sugar verbs (propose/critique/revise/agree/refuse/say) with identity inferred from the active session."
+    },
+    {
+      "slug": "pd-anchor-scheduler-ffi-wiring",
+      "status": "now",
+      "summaryMd": "Wire pd-anchor's Rust CPM scheduler (schedule.rs / pd_schedule_dag_json FFI export) to the TS daemon via a kernel-preferred koffi loader (lib/planner-schedule-ffi.ts), replacing the pure-TS fallback routes/roadmap.ts always ran. Closes a zero-test-coverage gap on the FFI boundary and adds the first rustdoc+doctest example under the new Rust-documentation law. Shipped as PR #3828."
     },
     {
       "slug": "pd-console-cull-and-defects",
@@ -1065,6 +1110,11 @@
       "summaryMd": "Resume-story ground truth (2026-07-14, link-by-link with file:line evidence): the roadmap->agent->transcript->resume walk is ~60 percent substrate, zero percent wired — every gap is a JOIN or INVOCATION, not new storage. Bundle: (L1) roadmap_item_status_events is append-only + indexed but has NO read path (only INSERT and DELETE touch it) — add listStatusEvents(slug) + a roadmap history surface (~15 lines); (L2) fleet_transcripts records full conversations for daemon-spawned ships (indexed by spawned_agent_id) but nothing performs the item->agent->transcript walk, and interactive Claude-Code sessions are unlinked — add getTranscriptByAgentId join + capture the CC session id/jsonl path in the sessionstart hook; (L3) sessions.takeover() restores notes+claims but never attaches the predecessor's fleet_transcripts id (the link is available at :1293) — attach it so successors can load prior messages; wire the orphaned telos-salvage capsule (normalizeSelfSalvage has zero external callers); (L5) the advisor's context-integrity checks (ownership mismatch, salvage overlap, claim conflicts, symbol staleness) exist but are never invoked at resume — call advisor.evaluate inside takeover()/claim_salvage and return the advice: that IS the 'lookout briefs you on contradictions at reopen' the operator asked for. (L4 true execution checkpoints remain ABSENT — only WAL checkpoints + control-ladder capability labels; approximate belief-state = transcript pointer + last note + claims, which L3 provides.) Owner: resume-flow dispatch. Decision-type: empirical. Priority: high — this moves the operator's 'throw open any old session and continue' from Wave-3-blocked to Wave-1/2-buildable since the read-path joins need neither control-contract nor ADR-0040. Acceptance: pd roadmap history <slug> names agents/sessions; takeover response includes predecessor transcript id + advisor advice; an interactive CC session leaves a queryable transcript anchor."
     },
     {
+      "slug": "roadmap-dedup-cleanup-and-cross-harbor-prevention",
+      "status": "now",
+      "summaryMd": "Dedup script for cross-harbor duplicate roadmap_items slugs (77 duplicate groups live) + three prevention fixes: upsert() cross-harbor link-instead-of-duplicate guard, import-markdown harbor canonicalization, feedback/promote suspicious-harbor rejection."
+    },
+    {
       "slug": "roadmap-delete-tombstones",
       "status": "backlog",
       "summaryMd": "Zombie-resurrection defect: pd roadmap delete hard-deletes the row AND its status-event audit rows, but the registry is now a multi-replica system (durable home, instance shards, committed snapshot, backups) reconciled by union-merge (scripts/registry-reunify.ts, #2109) — a delete in one replica silently resurrects from any replica that still carries the row. Fix per offline-first discipline: soft-delete tombstones. Add deleted_at INTEGER NULL to roadmap_items (PRAGMA-guarded ALTER + verifyCoreSchema sentinel); pd roadmap delete sets deleted_at + appends a status event instead of DELETE; reads filter deleted_at IS NULL via partial index; reunify/sync treats a newer deleted_at as a winning write (tombstone beats resurrection); snapshot export carries tombstones; GC purges tombstones older than the longest replica lag (>= 90d). Acceptance: deleting an item in replica A, then reunifying a replica B that still has the live row, leaves the item deleted; unit test proves it; audit rows preserved."
@@ -1078,6 +1128,11 @@
       "slug": "roadmap-harbor-default-worktree-trap",
       "status": "backlog",
       "summaryMd": "pd roadmap upsert defaults harbor to the repo/project dir name, so agents working in worktrees silently file items under the WORKTREE name as harbor — live incident 2026-07-14: three items landed under harbor 'daemon-single-truth-2' and had to be deleted and re-filed under port-daddy. The reunification run exposed the accumulated damage: items scattered under accidental harbors like 'port-daddy-backend-budget-hard-cap' and 'parley-sugar'. Fix: derive the default harbor from the MAIN repo identity (git common-dir / origin remote name), never the worktree dir; warn loudly when the derived harbor has never been seen before ('new harbor <x> — intentional? pass --harbor to confirm'); the reconciler's curation pass re-harbors existing strays (already in roadmap-reconciler-agent scope). Acceptance: pd roadmap upsert from inside .claude/worktrees/<name> without --harbor lands in the parent repo's harbor; a brand-new harbor name requires explicit --harbor."
+    },
+    {
+      "slug": "roadmap-jira-tool-design",
+      "status": "now",
+      "summaryMd": "Design synthesis for a Jira-like roadmap tool in pd-console: reuses existing roadmap_items + graph_edges + semantic_terms infrastructure (no new schema) for cross-entity linking (task->PR/doc/skill/session/transcript), extends the transcript-search.ts hybrid BM25+RRF pattern to roadmap items (closing the lib/ideas-search.ts keyword-search policy violation along the way), and phases in Project view + task detail panel + command-palette search-as-navigation on top of the already-shipped Board (#3657) and Gantt (#3591/#3592)."
     },
     {
       "slug": "roadmap-link-gate",
@@ -1098,6 +1153,16 @@
       "slug": "roadmap-schema-wiring",
       "status": "now",
       "summaryMd": "R1b, rescoped by schema-archaeology evidence (2026-07-14): the structured-roadmap schema mostly EXISTS but is unwired — ADR-0086's 7 planner columns (kind/priority/assignee_id/description_md/started_at/due_at/estimate) live in db.ts but the CRUD layer ignores all of them, writePlanEdges/parentEdge/dependsOnEdge/linkEdge have ZERO callers, and the live planner UI derives hierarchy from ADR-slug tokens + priority from status instead of reading columns/edges. Work: (1) wire all 7 columns through RoadmapItem/upsert/routes; (2) wire writePlanEdges into upsert + backfill dependencies_json -> graph_edges depends_on (ADR-0086 rules graph_edges wins; retire the JSON after popper refactor at roadmap-popper.ts:171); (3) make panes prefer stored priority/kind with derivation as null-fallback; (4) ADD what is genuinely missing: decision_kind column (HITL|empirical|aesthetic), tags, widened ArtifactType (issue/worktree/branch/manifest/binder/agent/skill/script), POST /roadmap/items/:slug/links endpoint, itemLegitimacy(item,edges) scorer (owner+priority+estimate+parent+link = legit); (5) feed stored estimate + persisted edges into the CPM scheduler (Gantt substrate already built: planner-schedule.ts criticalPath/makespan + planner-board HTML Gantt). Owner: roadmap-schema dispatch. Decision-type: empirical (HITL only on the decision_kind enum naming). Acceptance: an item created via route with owner+deps+priority renders in the planner pane from STORED fields; popper honors edge-based deps; legitimacy chip visible."
+    },
+    {
+      "slug": "rust-kernel-rustdoc-doctest-backfill",
+      "status": "now",
+      "summaryMd": "Backfill real rustdoc (prose explaining what/why/safety-contract) + runnable cargo-test --doc doctests across the existing kernel Rust crates (core/kernel/pd-anchor, pd-core, pd-runtime, pd-eventlog, pd-mesh, pd-tui, pd-compat, pd-rs, core/harbor-card-rs), per Erich's standing law that Rust kernel code doubles as real documentation/teaching material, not just implementation. Dispatched as several Opus-model subagents, one per crate/file group, each landing as its own focused PR."
+    },
+    {
+      "slug": "rust-kernel-scope-prescription",
+      "status": "now",
+      "summaryMd": "Opinionated prescription (docs/proposals/rust-kernel-scope-prescription.md) for what gets built new in the Rust kernel vs ported from TS vs killed as dead scaffolding, grounded in a citation-backed audit of the agent-harbor-technical-binder against the real state of core/kernel/* and core/harbor-card-rs. Verdict: wire the already-built-and-wrapped macaroon FFI path, kill-or-commit 4 zero-caller crates (pd-core/eventlog/mesh/runtime), port transcript-search.ts's BM25/RRF to Rust, build the binder's unaddressed hot/cool bus perf budgets, port tree-sitter parsing; explicitly do NOT port the guard subprocess, sessions/claims, spawner, or squid harness."
     },
     {
       "slug": "seeded-daemon-fleet-console-lanes",
@@ -1123,6 +1188,11 @@
       "slug": "squid-contract-harness-daemon-boot-fix",
       "status": "backlog",
       "summaryMd": "feat(squid): harden bridge and document agent harness"
+    },
+    {
+      "slug": "squid-on-claude-code-not-wired",
+      "status": "backlog",
+      "summaryMd": "pd squid on's ARMED headline now reflects actual per-surface wiring truthfully (summarizeSquidOn(), cli/commands/squid.ts). PR #3351."
     },
     {
       "slug": "startup-sugar-collapse",
@@ -1188,6 +1258,11 @@
       "slug": "wire-agent-nodes-control-route",
       "status": "now",
       "summaryMd": "Wire POST /agent-nodes/:id/control to authorizeControl/applyControlGate + fix compliance-probe.ts present-field bug + build LiveNodeProbeTarget (safe subset) + live pause/steer/cooperation/checkpoint exercises (queued explicitly, not deferred-and-forgotten). Blocked-by: none. Blocks: pd-console control buttons actually working end to end."
+    },
+    {
+      "slug": "wire-writeplanedges-graph-edges",
+      "status": "done",
+      "summaryMd": "Wire writePlanEdges (lib/planner-edges.ts) into the GET /roadmap/board route so graph_edges actually gets populated with real hierarchy + depends_on rows derived from roadmap_items.dependencies_json, instead of staying empty forever (ADR-0086 §3 schema had zero callers). Shipped: PR #3591."
     },
     {
       "slug": "workintent-dispatch-intake",

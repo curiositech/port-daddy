@@ -369,6 +369,34 @@ The friction below costs every fresh session real time. Internalize it.
   retry; only fall back to `PD_SHIM_OFF=1` for a genuinely session-less isolated
   worktree that holds nothing but your own commit.
 
+## Show-Me Runbook (operator demos)
+
+When the operator asks to *see* a pd-console / FleetBar / daemon feature, the
+deliverable is a running, seeded, correctly-registered triple — not a build log.
+Every step below encodes an actual failure from a live demo (2026-07-12).
+
+1. **Build the TRIPLE from the feature branch** with `scripts/dev-triple.sh <label>`.
+   The daemon must launch with the berth env vars from `shared/daemon-berths.ts`
+   (`BERTH_ENV`): `PD_DAEMON_TIER=dev PD_DAEMON_LABEL=<label> PD_DAEMON_COLOR=<hex>
+   PD_DAEMON_SOURCE_DIR=<worktree>` so it self-registers into
+   `~/.port-daddy/dev-daemons.json`. `dev-triple.sh` exports these itself; any other
+   launch path must export them by hand. Unregistered berth = daemon invisible in
+   FleetBar's Daemons list = furious operator.
+2. **Seed live state before the operator looks.** An empty daemon renders empty
+   panes — it can't render what it has no backend for. For claim/conflict surfaces:
+   two sessions with overlapping `POST /sessions/:id/files` claims (`agentId` is
+   required in the body).
+3. **Multi-PR feature → combined local preview branch.** Merge the PR branches
+   locally (never push the merge branch) so the operator reviews the sum. Demoing
+   one slice invites rage-bugs about everything the other slice already fixed.
+4. **`pd-console-repl` / terminal-face artifacts are machine-gate evidence only** —
+   never operator review material. Operator review = the GPUI app, running, seeded.
+5. **Emoji sweeps grep BOTH literal emoji AND unicode escapes** (`\u{2693}`,
+   `\u{1F...}`). Escaped emoji still render as emoji; the no-emoji-as-icons rule
+   judges pixels, not grep hits.
+6. **Never create virtual displays or modify display settings.** On-primary-screen
+   window openings only with explicit operator consent, per action.
+
 ## Distribution Mirror Sync
 
 The skill bundle is mirrored to several locations. Inside this repo the
@@ -606,6 +634,18 @@ pd feedback "<contributor experience report>"   # bare form; auto slug + agent
 **Detection:** A DB consolidation, backup, restore, or berth-seeding script writes directly over `~/.port-daddy/port-registry.db`, skips dry-run by default, or archives fragments while a daemon still has any candidate DB open.
 **Symptoms:** The live daemon keeps an old SQLite handle, `-wal`/`-shm` sidecars are orphaned, rollback depends on manual archaeology, or same-basename fragments overwrite each other in the archive.
 **Fix:** Use the `lib/backup.ts` pattern: durable scratch under `~/.port-daddy`, a read-only source handle for `VACUUM INTO`, a staged destination file, `PRAGMA integrity_check`, archive the existing canonical DB family first, rename the staged DB into place, and roll back the old canonical DB automatically if install fails. Default the script to dry-run; require an explicit apply flag and fail closed when `lsof` shows a daemon holding a candidate DB.
+
+### Unregistered Dev Berth
+**Detection:** A demo daemon is launched (via `scripts/dev-triple.sh` or by hand) without the `BERTH_ENV` vars from `shared/daemon-berths.ts` (`PD_DAEMON_TIER`, `PD_DAEMON_LABEL`, `PD_DAEMON_COLOR`, `PD_DAEMON_SOURCE_DIR`); `~/.port-daddy/dev-daemons.json` has no entry for it.
+**Symptoms:** The daemon is healthy on its port but invisible in FleetBar's Daemons list; the operator concludes the feature "doesn't work" while it runs fine in the dark.
+**Fix:** Launch with the full berth env (dev-triple.sh exports it; other launch paths must export it by hand), then verify the entry appears in `~/.port-daddy/dev-daemons.json` before inviting the operator to look.
+**Why:** Registration is the daemon's identity on the operator surface. A daemon that never self-registers does not exist as far as the demo is concerned.
+
+### Demoing One Slice Of A Multi-PR Feature
+**Detection:** The feature spans multiple unmerged PRs, but the triple was built from a single PR branch.
+**Symptoms:** The operator files rage-bugs against branch A for everything branch B already fixed; review time is spent re-litigating known-done work.
+**Fix:** Build a COMBINED local preview branch — merge the PR branches locally, build the triple from that, and never push the merge branch. The operator reviews the sum, not a slice.
+**Why:** The operator reviews the intended product state, not your PR topology. Showing a partial state generates false findings that cost more than the merge does.
 
 ## Worked Examples
 

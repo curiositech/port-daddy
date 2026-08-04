@@ -565,11 +565,126 @@ export const CORE_SCHEMA_SQL = `
 // Database initialization
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * The Door — one enforced write-boundary (architecture-of-record seam 3).
+ *
+ * The daemon is the single legitimate WRITER of the registry: it IS the door.
+ * Any other process that opens the DB directly and mutates it is a bypass — and
+ * the dangerous one is the CLI's silent direct-DB fallback when the daemon is
+ * down, because those writes are invisible to every other agent (the "two agents
+ * one file 3am" failure). This class is thrown when a `role:'client'` handle
+ * attempts a mutation, so a killed daemon HALTS the write loudly instead of
+ * silently editing shared truth behind the dead daemon's back.
+ *
+ * HONESTY (b0): this boundary is ADVISORY. `role` is a plain option and the
+ * `PD_DIRECT_DB_OK` env hatch is a plain env var; nothing here binds authorization
+ * to the daemon's identity keystone (ADR-0040). It is defense-in-depth against
+ * accidental/silent bypass — it converts "silently mutates a dead daemon's
+ * registry" into "must consciously assert ownership" — NOT a cryptographic
+ * guarantee against a hostile in-process actor. Binding to an identity-issued
+ * capability is the follow-up that upgrades advisory → enforced.
+ */
+export class DaemonDoorError extends Error {
+  constructor(sql: string) {
+    super(
+      'Port Daddy: direct SQLite WRITE refused — the daemon owns the write-boundary. ' +
+        'Route this mutation through the daemon (pd / MCP). If the daemon is down, start it ' +
+        '(brew services start port-daddy). Maintenance-only escape hatch: PD_DIRECT_DB_OK=1. ' +
+        `Offending statement: ${sql.slice(0, 80)}`,
+    );
+    this.name = 'DaemonDoorError';
+  }
+}
+
+/**
+ * Strip string / quoted-identifier literals and comments so we scan SQL
+ * *keywords*, never data. This is a STRUCTURED strip of SQL we author — not
+ * keyword-NLP over free text — so a `SELECT` whose literal happens to contain the
+ * word DELETE is not misread as a mutation.
+ *
+ * ORDER MATTERS: literals are stripped BEFORE comments. A line-comment regex
+ * (`--` to end-of-line) can't tell a real `--` from one sitting inside a
+ * `'string'` — if comments strip first, a literal like `'--'` in
+ * `SELECT '--'; DELETE FROM foo;` gets misread as "the rest of the line is a
+ * comment" and the regex eats the trailing `DELETE FROM foo;` right along
+ * with the quote, hiding a real mutation from the scanner (a false NEGATIVE —
+ * the dangerous direction for a fail-closed boundary) even though `db.exec`
+ * would still literally execute it. Stripping balanced-quote literals first
+ * removes the `'--'` token as a unit before the comment regex ever runs, so
+ * it has nothing left to misfire on.
+ */
+function stripSqlNoise(sql: string): string {
+  return sql
+    .replace(/'(?:''|[^'])*'/g, ' ') // 'string literals'
+    .replace(/"(?:""|[^"])*"/g, ' ') // "quoted identifiers"
+    .replace(/--[^\n]*/g, ' ') // line comments
+    .replace(/\/\*[\s\S]*?\*\//g, ' '); // block comments
+}
+
+/**
+ * Does this SQL mutate? Scans the WHOLE statement (post-strip) for a mutating
+ * keyword as a whole word, so it catches fail-CLOSED:
+ *   • leading INSERT/UPDATE/DELETE/REPLACE/CREATE/DROP/ALTER/TRUNCATE/VACUUM/REINDEX
+ *   • `… RETURNING …` mutations (verb still leads, matches)
+ *   • CTE writes:  WITH cte AS (…) DELETE/UPDATE/INSERT …
+ *   • multi-statement scripts:  SELECT …; DELETE …   (exec only)
+ * A read (SELECT/PRAGMA/EXPLAIN) never contains these as bare words, so the only
+ * false positive is the rare unquoted reserved word used as an identifier — the
+ * safe bias for a write boundary.
+ */
+export function isMutatingSql(sql: string): boolean {
+  return /\b(?:INSERT|UPDATE|DELETE|REPLACE|CREATE|DROP|ALTER|TRUNCATE|VACUUM|REINDEX)\b/i.test(
+    stripSqlNoise(sql),
+  );
+}
+
+/**
+ * Wrap a handle so every MUTATION throws `DaemonDoorError` while reads pass.
+ * Overrides `prepare` (guarding run/get/all/iterate — a `… RETURNING …` mutation
+ * is executed via `.get()`/`.all()`, not `.run()`, so guarding only `.run` would
+ * leave that bypass open) and `exec` (multi-statement scripts). Statements inside
+ * a `db.transaction(fn)` go through the wrapped `prepare` and are refused too.
+ */
+export function guardWrites(db: DatabaseInstance): DatabaseInstance {
+  const origPrepare = db.prepare.bind(db);
+  const origExec = db.exec.bind(db);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (db as any).prepare = (sql: string) => {
+    const stmt = origPrepare(sql);
+    if (isMutatingSql(sql)) {
+      const refuse = (): never => {
+        throw new DaemonDoorError(sql);
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const s = stmt as any;
+      s.run = refuse;
+      s.get = refuse;
+      s.all = refuse;
+      s.iterate = refuse;
+    }
+    return stmt;
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (db as any).exec = (sql: string) => {
+    if (isMutatingSql(sql)) throw new DaemonDoorError(sql);
+    return origExec(sql);
+  };
+  return db;
+}
+
 export interface InitDbOptions {
   /** Override the default DB file path */
   dbPath?: string;
   /** Use ':memory:' for tests (ignores dbPath) */
   inMemory?: boolean;
+  /** Who is opening the DB. The daemon is the sole authorized writer (it IS the
+   *  write-boundary / door). A `client` open returns a write-guarded handle:
+   *  reads pass, mutations throw `DaemonDoorError`. Default `daemon` so existing
+   *  callers are unchanged; the CLI direct-DB fallback is migrated to `client`
+   *  separately (a shipped integration test asserts today's direct-write feature,
+   *  so flipping it is a staged product decision, not a drop-in). The
+   *  `PD_DIRECT_DB_OK=1` env hatch restores owner semantics for maintenance. */
+  role?: 'daemon' | 'client';
 }
 
 /**
@@ -652,6 +767,16 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
   // Checkpoint every 200 pages instead of the default 1000.
   // Keeps the WAL file from growing unbounded between periodic cleanups.
   db.pragma('wal_autocheckpoint = 200');
+
+  // Incremental auto-vacuum so pruned rows actually return pages to the OS. Without this, retention
+  // DELETEs free pages onto the freelist but the FILE never shrinks — the root cause of a 231 MB
+  // registry DB that stayed 231 MB after pruning. INCREMENTAL (not FULL) keeps checkpoints cheap;
+  // the RetentionRegistry.reclaim() step calls `PRAGMA incremental_vacuum` to hand pages back.
+  // CAVEAT: on an ALREADY-POPULATED DB created with auto_vacuum=NONE this pragma is a no-op until a
+  // one-time `VACUUM` rewrites the file — new per-instance DBs get it for free; existing DBs need
+  // that one-time VACUUM (see the retention migration note). Setting it before schema creation makes
+  // every fresh daemon DB incremental-vacuum-capable from birth.
+  db.pragma('auto_vacuum = INCREMENTAL');
 
   // Busy timeout: wait up to 5 seconds for locks instead of failing immediately
   // This is critical for concurrent CLI invocations sharing the same DB
@@ -760,7 +885,17 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
   // fail-closed gate that stops a daemon from serving a broken registry.
   verifyCoreSchema(db);
 
-  return db;
+  // The Door: a non-daemon opener gets a write-guarded handle so a mutation
+  // attempted while the daemon is down (or by any non-owner) throws loudly
+  // instead of silently editing shared coordination truth. The daemon (default
+  // role) and the explicit PD_DIRECT_DB_OK=1 maintenance hatch keep raw write
+  // access. Idempotent schema DDL above runs on the raw handle during init and
+  // is intentionally NOT gated — a client that bootstraps a fresh DB still needs
+  // the schema; the door blocks the caller's subsequent coordination mutations,
+  // which is the actual bypass.
+  const role = options.role ?? 'daemon';
+  const ownerSemantics = role === 'daemon' || options.inMemory || process.env.PD_DIRECT_DB_OK === '1';
+  return ownerSemantics ? db : guardWrites(db);
 }
 
 /**

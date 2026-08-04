@@ -26,7 +26,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { DEFAULT_SEMANTIC_MODEL_ID } from '../semantic-resolver.js';
+import { DEFAULT_SEMANTIC_MODEL_ID, ensureOnnxRuntimeNativeLibFindable } from '../semantic-resolver.js';
 
 /** One skill entry as parsed from a SKILL.md frontmatter. */
 export interface SkillEntry {
@@ -405,6 +405,7 @@ function ensureSchema(db: DatabaseInstance): void {
  */
 async function createDefaultSkillEmbedder(cacheDir: string, modelId: string): Promise<SkillEmbedder> {
   mkdirSync(cacheDir, { recursive: true });
+  ensureOnnxRuntimeNativeLibFindable();
   const transformers = await import('@huggingface/transformers');
   const { env, pipeline } = transformers as unknown as {
     env: { cacheDir: string; useFSCache: boolean; allowRemoteModels: boolean };

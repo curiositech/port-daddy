@@ -210,6 +210,21 @@ CREATE TABLE IF NOT EXISTS web_sessions (
 );
 CREATE INDEX IF NOT EXISTS web_sessions_user_idx ON web_sessions (user_id);
 
+-- Personal access tokens for non-browser surfaces (FleetBar, pd-console, CLI),
+-- minted by the GitHub device flow (ADR-0101 Phase 1). Only the SHA-256 of the
+-- 'pdu_' token is stored; the token itself is shown once and lives in the
+-- client's Keychain. Revocable per-device; optional expiry.
+CREATE TABLE IF NOT EXISTS user_tokens (
+  token_hash  TEXT    PRIMARY KEY,              -- SHA-256('pdu_' token); the token is NEVER stored
+  user_id     TEXT    NOT NULL REFERENCES users(id),
+  label       TEXT    NOT NULL,                 -- e.g. 'pd CLI on MacBook Pro M4'
+  created_at  INTEGER NOT NULL,
+  last_used_at INTEGER,
+  expires_at  INTEGER,
+  revoked_at  INTEGER
+);
+CREATE INDEX IF NOT EXISTS user_tokens_user_idx ON user_tokens (user_id);
+
 -- ──────────────────────────────────────────────────────────────────────────
 -- Fleet monetization — Stripe prepaid credits + spend metering (ADR-0116)
 --
@@ -265,3 +280,41 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   seats              INTEGER,
   current_period_end INTEGER
 );
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- MERCY v1 — hospital-ship health system (src/mercy.ts).
+--
+-- mercy_probe     — scratch row for the D1 read-after-write latency probe.
+-- mercy_health    — one snapshot per cron sweep: per-subsystem statuses (JSON),
+--                   the overall green/yellow/red verdict, and the
+--                   remoteHarborsPossible bit. Pruned past 7 days.
+-- mercy_incidents — one row per red episode per subsystem. The partial UNIQUE
+--                   index (at most ONE unresolved incident per subsystem) IS
+--                   the paging dedupe; paged_at pins webhook delivery.
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS mercy_probe (
+  k  TEXT    PRIMARY KEY,
+  v  TEXT    NOT NULL,
+  at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS mercy_health (
+  id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+  at                      INTEGER NOT NULL,               -- unix seconds (sweep time)
+  overall                 TEXT    NOT NULL CHECK (overall IN ('green','yellow','red')),
+  remote_harbors_possible INTEGER NOT NULL,               -- 0/1 (D1 + DO channel not red)
+  subsystems_json         TEXT    NOT NULL                -- [{name,status,latencyMs,detail}]
+);
+CREATE INDEX IF NOT EXISTS mercy_health_at_idx ON mercy_health (at);
+
+CREATE TABLE IF NOT EXISTS mercy_incidents (
+  id          TEXT    PRIMARY KEY,                        -- 'mi_' || randomHex(8)
+  subsystem   TEXT    NOT NULL,
+  opened_at   INTEGER NOT NULL,                           -- first red sweep
+  resolved_at INTEGER,                                    -- first non-red sweep after
+  paged_at    INTEGER,                                    -- when the webhook POST was DELIVERED
+  detail      TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS mercy_incidents_open_uniq
+  ON mercy_incidents (subsystem) WHERE resolved_at IS NULL;
+CREATE INDEX IF NOT EXISTS mercy_incidents_opened_idx ON mercy_incidents (opened_at);

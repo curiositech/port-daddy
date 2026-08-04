@@ -13,12 +13,13 @@
  * malformed) and a deterministic renderer that turns each proposal into REAL,
  * runnable Port Daddy syntax. Every command emitted here maps to a command that
  * actually exists in `bin/port-daddy-cli.ts` (`pd roadmap upsert`, `pd dispatch
- * propose`, `pd parley call`) or to a GitHub prefilled-issue URL that needs no
+ * propose`) or to a GitHub prefilled-issue URL that needs no
  * backend at all. No aspirational `!pd` verbs, no Potemkin actions.
  */
 
 import type { Severity } from './verdict.js';
 import { htmlCommentSafeJson } from './machine-block.js';
+import { validateStackedFiles, type StackedFile, type FileValidation } from './stacked-pr.js';
 
 // ---------------------------------------------------------------------------
 
@@ -27,18 +28,25 @@ import { htmlCommentSafeJson } from './machine-block.js';
  * real actionable surface:
  *   - roadmap : a GitHub prefilled "new issue" URL + `pd roadmap upsert …`
  *   - assign  : `pd dispatch propose "<prompt>"` — task an agent to build it
- *   - parley  : `pd parley call …` — open a structured multi-party decision
  *   - skill   : `pd dispatch propose "Use the skill-architect skill …"` — task
  *               an agent to author a reusable skill (Snipe's move)
+ *   - stack   : the ship CODED the fix itself (`files`); the executor branches
+ *               from the reviewed PR's head and opens a PR based on the PR's
+ *               head branch, so the fix lands stacked ON TOP of the review diff
  */
-export type ProposalAction = 'roadmap' | 'assign' | 'parley' | 'skill';
+export type ProposalAction = 'roadmap' | 'assign' | 'skill' | 'stack';
 
 const ACTION_KINDS: ReadonlySet<string> = new Set<ProposalAction>([
   'roadmap',
   'assign',
-  'parley',
   'skill',
+  'stack',
 ]);
+
+/** Hard cap on files carried by one `stack` proposal (tighter than the purser's). */
+export const MAX_STACK_FILES = 5;
+/** Hard cap on a single stack file's contents, in UTF-8 bytes (16 KB). */
+export const MAX_STACK_FILE_BYTES = 16 * 1024;
 
 export interface Proposal {
   /** Short imperative name — becomes the issue title / dispatch slug. */
@@ -55,12 +63,19 @@ export interface Proposal {
   action: ProposalAction;
   /**
    * The ready-to-run agent goal for `assign` and `skill` proposals — the exact
-   * text an operator (or a spawned agent) can execute. Optional for `roadmap`
-   * and `parley`, which carry their own shape.
+   * text an operator (or a spawned agent) can execute. Optional for `roadmap`,
+   * which carries its own shape.
    */
   prompt?: string;
   /** Trouble-ahead severity (lookout). Advisory only — never gates a merge. */
   severity?: Severity;
+  /**
+   * `stack` only: the complete fix, authored by the ship itself. At most
+   * {@link MAX_STACK_FILES} files of {@link MAX_STACK_FILE_BYTES} bytes each,
+   * paths bound by the same whitelist as the purser's stacked tests
+   * (validated in {@link validateStackProposalFiles} before any git write).
+   */
+  files?: StackedFile[];
 }
 
 // First fenced ```json … ``` block. Non-greedy; tolerant of trailing whitespace
@@ -118,6 +133,23 @@ export function parseProposals(output: string): Proposal[] | null {
     if (typeof o.action !== 'string' || !ACTION_KINDS.has(o.action)) return null;
     if (o.prompt != null && typeof o.prompt !== 'string') return null;
 
+    // `stack` files: structurally validated here (malformed shape ⇒ parse
+    // failure, like every other field); caps + path safety are enforced later
+    // by validateStackProposalFiles so an oversized fix degrades honestly
+    // instead of nulling the whole proposal block.
+    let files: StackedFile[] | undefined;
+    if (o.files != null) {
+      if (!Array.isArray(o.files)) return null;
+      const parsedFiles: StackedFile[] = [];
+      for (const f of o.files) {
+        if (!f || typeof f !== 'object') return null;
+        const fo = f as Record<string, unknown>;
+        if (typeof fo.path !== 'string' || typeof fo.contents !== 'string') return null;
+        parsedFiles.push({ path: fo.path, contents: fo.contents });
+      }
+      files = parsedFiles;
+    }
+
     proposals.push({
       title: o.title.trim(),
       rationale: o.rationale.trim(),
@@ -125,9 +157,37 @@ export function parseProposals(output: string): Proposal[] | null {
       action: o.action as ProposalAction,
       prompt: typeof o.prompt === 'string' && o.prompt.trim() ? o.prompt.trim() : undefined,
       severity: coerceSeverity(o.severity),
+      ...(o.action === 'stack' && files && files.length > 0 ? { files } : {}),
     });
   }
   return proposals;
+}
+
+/**
+ * Validate a `stack` proposal's files: at most {@link MAX_STACK_FILES} files of
+ * {@link MAX_STACK_FILE_BYTES} bytes each, then the same path whitelist /
+ * traversal / duplicate checks as the purser's stacked tests
+ * ({@link validateStackedFiles}). Returns a human-legible reason on failure —
+ * surfaced in the transcript, never thrown.
+ */
+export function validateStackProposalFiles(files: StackedFile[]): FileValidation {
+  if (!Array.isArray(files) || files.length === 0) {
+    return { ok: false, reason: 'stack proposal carried no files' };
+  }
+  if (files.length > MAX_STACK_FILES) {
+    return { ok: false, reason: `too many files (${files.length} > ${MAX_STACK_FILES})` };
+  }
+  const enc = new TextEncoder();
+  for (const f of files) {
+    const bytes = f && typeof f.contents === 'string' ? enc.encode(f.contents).length : 0;
+    if (bytes > MAX_STACK_FILE_BYTES) {
+      return {
+        ok: false,
+        reason: `file too large: ${f.path} (${bytes} > ${MAX_STACK_FILE_BYTES} bytes)`,
+      };
+    }
+  }
+  return validateStackedFiles(files);
 }
 
 // ---------------------------------------------------------------------------
@@ -149,9 +209,10 @@ export function ideationOutputContract(): string {
     '    "title": "<short imperative name>",\n' +
     '    "rationale": "<why this, why now — grounded in the diff/repo>",\n' +
     '    "evidence": ["<file or concept from the diff>", "..."],\n' +
-    '    "action": "roadmap | assign | parley | skill",\n' +
+    '    "action": "roadmap | assign | skill | stack",\n' +
     '    "prompt": "<for assign/skill: the exact agent goal to run; omit otherwise>",\n' +
-    '    "severity": "HIGH | MEDIUM | LOW (optional; only for trouble-ahead alerts)"\n' +
+    '    "severity": "HIGH | MEDIUM | LOW (optional; only for trouble-ahead alerts)",\n' +
+    '    "files": [ { "path": "<repo-relative path>", "contents": "<full file contents>" } ]\n' +
     '  }\n' +
     ']\n' +
     '```\n\n' +
@@ -159,8 +220,12 @@ export function ideationOutputContract(): string {
     'or fleet context. Choose `action` deliberately:\n' +
     '- `roadmap` — a durable idea worth tracking but not building right now.\n' +
     '- `assign` — a bounded build an agent could do now; put the runnable goal in `prompt`.\n' +
-    '- `parley` — a genuine multi-way decision or contradiction that needs parties to resolve it.\n' +
-    '- `skill` — a reusable capability worth authoring as a skill; put the skill brief in `prompt`.\n\n' +
+    '- `skill` — a reusable capability worth authoring as a skill; put the skill brief in `prompt`.\n' +
+    '- `stack` — a small, concrete, COMPLETE fix you are CONFIDENT in — code the ' +
+    'solution yourself and put the full files in `files` (at most 5 files, each under ' +
+    '16KB, relative paths only). It will be opened as a PR stacked on top of the ' +
+    'reviewed PR. Reserve `stack` for fixes you would stake your verdict on; ' +
+    'anything exploratory belongs in `assign`.\n\n' +
     'If you have nothing worth proposing, emit an empty array `[]`. Then end with ' +
     'EXACTLY one verdict line (ideation ships are advisory — almost always PASS):\n' +
     'FLEET-VERDICT: PASS'
@@ -175,6 +240,13 @@ export interface ProposalRenderCtx {
   repo: string;
   prNumber: number;
   shipName: string;
+  /**
+   * Outcome of the run's ONE stacked-fix PR (max 1 per ship per run), keyed to
+   * the proposal it realized by `proposalIndex`. Absent/null ⇒ no stack PR was
+   * opened this run (fork PR, invalid files, sandbox failure, or no `stack`
+   * proposal) — the renderer then describes the files without linking a PR.
+   */
+  stackedPr?: { proposalIndex: number; number: number; url: string } | null;
 }
 
 /** kebab-case slug from a proposal title (roadmap slug / dispatch tag). */
@@ -218,15 +290,34 @@ function severityBadge(sev?: Severity): string {
  * Render ONE proposal's actionable block. Every command is real:
  *   roadmap → GitHub prefilled-issue URL (no backend) + `pd roadmap upsert`
  *   assign  → `pd dispatch propose "<goal>"` then `pd dispatch run <id>`
- *   parley  → `pd parley call --surface … --reason … --with … --as …`
  *   skill   → `pd dispatch propose "Use the skill-architect skill: <brief>"`
  */
-function renderAction(p: Proposal, ctx: ProposalRenderCtx): string {
+function renderAction(p: Proposal, ctx: ProposalRenderCtx, index: number): string {
   const slug = slugify(p.title);
   const tags = `from-fleet,pd-${ctx.shipName}`;
   const lines: string[] = ['', '**Take action:**'];
 
   switch (p.action) {
+    case 'stack': {
+      const stacked = ctx.stackedPr && ctx.stackedPr.proposalIndex === index ? ctx.stackedPr : null;
+      const fileList = (p.files ?? []).map(f => `\`${f.path}\``).join(', ');
+      if (stacked) {
+        lines.push(
+          `- [🚢 Review the stacked fix: #${stacked.number}](${stacked.url}) — ` +
+            `pd-${ctx.shipName} coded this solution itself` +
+            (fileList ? ` (${fileList})` : '') +
+            `. It is branched from this PR's head and based on its branch, so merging ` +
+            `it lands the fix ON TOP of this diff.`,
+        );
+      } else {
+        lines.push(
+          `- pd-${ctx.shipName} coded a fix${fileList ? ` (${fileList})` : ''} but no ` +
+            `stacked PR was opened this run (fork PR, file limits, or validation) — ` +
+            `see the run transcript for the reason.`,
+        );
+      }
+      break;
+    }
     case 'roadmap': {
       const issueTitle = encodeURIComponent(`feat: ${p.title}`);
       const issueBody = encodeURIComponent(
@@ -260,17 +351,6 @@ function renderAction(p: Proposal, ctx: ProposalRenderCtx): string {
         lines.push('```');
         lines.push('</details>');
       }
-      break;
-    }
-    case 'parley': {
-      // surface comes from model-provided evidence[0] (untrusted) — quote +
-      // escape it so the pasted command can't token-split or run substitutions.
-      const surface = p.evidence[0] ?? `PR#${ctx.prNumber}`;
-      lines.push(
-        '- Open a parley to resolve it: ' +
-          `\`pd parley call --surface "${oneLine(surface)}" --reason "${oneLine(p.title)}" ` +
-          `--with <sessionA,sessionB> --as <your-agent-id>\``,
-      );
       break;
     }
     case 'skill': {
@@ -309,22 +389,28 @@ export function renderProposalComment(proposals: Proposal[], ctx: ProposalRender
   if (proposals.length === 0) return '';
 
   const emoji = SHIP_EMOJI[ctx.shipName] ?? '◆';
-  const blocks = proposals.map(p => {
+  const blocks = proposals.map((p, i) => {
     const head = `### ${emoji} ${p.title}${severityBadge(p.severity)}`;
     const parts = [head, '', p.rationale];
     if (p.evidence.length) {
       parts.push('', `Evidence: ${p.evidence.map(e => `\`${e}\``).join(', ')}`);
     }
-    parts.push(renderAction(p, ctx));
+    parts.push(renderAction(p, ctx, i));
     return parts.join('\n');
   });
 
   // A hidden machine block so a future roadmap-add handler can bulk-create the
   // roadmap-kind proposals without re-parsing the prose. Forward-compatible with
-  // the receiver's `pd-ideas-json` convention.
+  // the receiver's `pd-ideas-json` convention. Stack `files` CONTENTS are
+  // dropped (paths kept): up to 80KB of code in a hidden comment would blow the
+  // GitHub comment cap and truncate the visible prose.
   const machine =
     `\n\n<!-- pd-proposals-json\n${htmlCommentSafeJson(
-      proposals.map((p, i) => ({ n: i + 1, ...p })),
+      proposals.map((p, i) => ({
+        n: i + 1,
+        ...p,
+        ...(p.files ? { files: p.files.map(f => f.path) } : {}),
+      })),
     )}\n-->`;
 
   const footer =

@@ -76,6 +76,19 @@ if [ -n "$REL" ]; then
   OUT="${OUT}[PORT DADDY — PHEROMONE TRACES near ${BASENAME}]\n${REL}"
 fi
 
-# Print the envelope (printf interprets the \n we built up). Empty → nothing.
-[ -n "$OUT" ] && printf '%b' "$OUT"
+# Emit the Suggestibility Envelope. Prefer Claude Code's SANCTIONED structured
+# UserPromptSubmit output — hookSpecificOutput.additionalContext — which the runtime
+# frames as TRUSTED harness context. Raw stdout (the old path) reads to the model as
+# untrusted injected content, which is why Claude Code balked at it as prompt
+# injection. Same structured shape the pre-tool tentacle already uses.
+# Fail-open: no jq → fall back to raw stdout (degraded framing, still advisory).
+if [ -n "$OUT" ]; then
+  BLOCK="$(printf '%b' "$OUT")"
+  if command -v jq >/dev/null 2>&1; then
+    jq -cn --arg ctx "$BLOCK" \
+      '{hookSpecificOutput:{hookEventName:"UserPromptSubmit",additionalContext:$ctx}}'
+  else
+    printf '%s' "$BLOCK"
+  fi
+fi
 exit 0

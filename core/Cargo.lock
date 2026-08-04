@@ -4720,6 +4720,7 @@ dependencies = [
  "hex",
  "hmac",
  "pd-core",
+ "proptest",
  "serde",
  "serde_json",
  "sha2",
@@ -4758,7 +4759,7 @@ dependencies = [
 
 [[package]]
 name = "pd-console"
-version = "3.25.0"
+version = "3.27.0"
 dependencies = [
  "anyhow",
  "base64",

@@ -26,6 +26,14 @@ on:
       - 'proofs/**'
       - '.github/workflows/proofs.yml'
       - 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex'
+  # Merge queue: trigger on the queued group so every proof job reports a check
+  # context (no path filter is possible on merge_group). The heavy jobs SKIP on
+  # merge_group via their per-job `if:` below, and a skipped job reports
+  # success — so if any proof job is ever a required check, a queued PR that
+  # doesn't touch proofs can never hang the merge queue waiting for a context
+  # that never appears. The substantive proofs already ran at pull_request time
+  # and re-run on push to main; the queue trusts that result.
+  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -33,6 +41,9 @@ permissions:
 
 jobs:
   z3-delta-threshold:
+    # Skip on merge_group (reports success) — keeps the queue from hanging; the
+    # real proof ran at PR time and re-runs on push to main.
+    if: github.event_name != 'merge_group'
     name: Z3 / delta-threshold cubic
     runs-on: ubuntu-latest
     steps:
@@ -75,6 +86,7 @@ jobs:
           path: proofs/economics/delta-threshold.actual.txt
 
   tla-claim-signaling:
+    if: github.event_name != 'merge_group'
     name: TLA+ / claim-signaling (TLC)
     runs-on: ubuntu-latest
     steps:
@@ -135,6 +147,7 @@ jobs:
             proofs/economics/sweep-delta.tlc.log
 
   tla-claim-signaling-apalache:
+    if: github.event_name != 'merge_group'
     name: TLA+ / claim_signaling (Apalache)
     runs-on: ubuntu-latest
     steps:
@@ -201,6 +214,7 @@ jobs:
             proofs/economics/sweep-delta.apalache.log
 
   tla-conservation:
+    if: github.event_name != 'merge_group'
     name: TLA+ / bonded Conservation (TLC)
     runs-on: ubuntu-latest
     steps:
@@ -248,6 +262,7 @@ jobs:
           path: proofs/bonded/conservation/Conservation.tlc.log
 
   monte-carlo-threat-bands:
+    if: github.event_name != 'merge_group'
     name: Monte Carlo / threat-bands
     runs-on: ubuntu-latest
     steps:

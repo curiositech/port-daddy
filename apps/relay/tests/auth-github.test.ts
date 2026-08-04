@@ -24,6 +24,8 @@ import {
   handleAccountDelete,
   resolveSession,
   userCanReadRepo,
+  userOwnsInstallation,
+  isSameOrigin,
 } from '../src/auth-github.js';
 import type { Env } from '../src/types.js';
 
@@ -257,6 +259,27 @@ describe('/auth/me, logout, and session resolution', () => {
     expect(calls).toBe(1);
     expect(await userCanReadRepo(env, session, 'someone', 'private')).toBe(false);
   });
+
+  it('userOwnsInstallation: gates billing on GitHub-confirmed ownership, fail-closed', async () => {
+    const kv = makeKV();
+    const env = makeEnv({}, kv, makeDb().db);
+    const cookie = await loginAndGetCookie(env, kv);
+    const session = (await resolveSession(new Request(`${BASE}/x`, { headers: { Cookie: cookie } }), env))!;
+
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async (input: any) => {
+      calls++;
+      expect(String(input)).toContain('/user/installations');
+      return new Response(JSON.stringify({ installations: [{ id: 42 }, { id: 7 }] }), { status: 200 });
+    }));
+    expect(await userOwnsInstallation(env, session, 42)).toBe(true);
+    expect(await userOwnsInstallation(env, session, 42)).toBe(true); // cached, no 2nd fetch
+    expect(calls).toBe(1);
+    // an installation the user does NOT own → false (the cross-tenant leak this closes)
+    expect(await userOwnsInstallation(env, session, 99)).toBe(false);
+    // fail-closed: a session with no gh token can prove nothing
+    expect(await userOwnsInstallation(env, { user: session.user, ghToken: null }, 42)).toBe(false);
+  });
 });
 
 // ── account export + erasure (ADR-0101 team-tier export/delete gate) ───────────
@@ -293,5 +316,43 @@ describe('self-service account export + erasure', () => {
     expect([...users.values()][0].primary_email).toBeNull();   // PII nulled now
     // A subsequent request with the old cookie is unauthenticated.
     expect((await handleAuthMe(new Request(`${BASE}/auth/me`, { headers: { Cookie: cookie } }), env)).status).toBe(401);
+  });
+});
+
+describe('isSameOrigin — CSRF defense-in-depth over SameSite=Lax', () => {
+  const env = { PUBLIC_BASE_URL: BASE } as unknown as Env;
+  const req = (headers: Record<string, string>) =>
+    new Request(`${BASE}/account/delete`, { method: 'POST', headers });
+
+  it('allows a same-origin Origin header', () => {
+    expect(isSameOrigin(req({ Origin: BASE }), env)).toBe(true);
+  });
+  it('rejects a cross-origin Origin header', () => {
+    expect(isSameOrigin(req({ Origin: 'https://evil.example.com' }), env)).toBe(false);
+  });
+  it('falls back to Referer when Origin is absent', () => {
+    expect(isSameOrigin(req({ Referer: `${BASE}/account` }), env)).toBe(true);
+    expect(isSameOrigin(req({ Referer: 'https://evil.example.com/x' }), env)).toBe(false);
+  });
+  it('allows a non-browser client (no Origin, no Referer)', () => {
+    expect(isSameOrigin(req({}), env)).toBe(true);
+  });
+});
+
+describe('destructive POST handlers refuse cross-origin (CSRF)', () => {
+  const env = { PUBLIC_BASE_URL: BASE } as unknown as Env;
+  it('POST /account/delete from a cross-origin form → 403 (before any DB touch)', async () => {
+    const res = await handleAccountDelete(
+      new Request(`${BASE}/account/delete`, { method: 'POST', headers: { Origin: 'https://evil.example.com' } }),
+      env,
+    );
+    expect(res.status).toBe(403);
+  });
+  it('POST /auth/logout from a cross-origin form → 403', async () => {
+    const res = await handleLogout(
+      new Request(`${BASE}/auth/logout`, { method: 'POST', headers: { Origin: 'https://evil.example.com' } }),
+      env,
+    );
+    expect(res.status).toBe(403);
   });
 });
