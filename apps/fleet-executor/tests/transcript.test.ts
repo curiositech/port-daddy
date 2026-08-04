@@ -280,11 +280,11 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
     expect(run.ms).toBeGreaterThanOrEqual(0);
 
     // Single chunk ⇒ no reduce step. Order: map-chunk → ship-verdict →
-    // review-posted → check-completed.
+    // review-posted → ship-spend → check-completed.
     const kinds = d1.steps.map(s => s.kind);
-    expect(kinds).toEqual(['map-chunk', 'ship-verdict', 'review-posted', 'check-completed']);
+    expect(kinds).toEqual(['map-chunk', 'ship-verdict', 'review-posted', 'ship-spend', 'check-completed']);
     // seq is monotonic from 0.
-    expect(d1.steps.map(s => s.seq)).toEqual([0, 1, 2, 3]);
+    expect(d1.steps.map(s => s.seq)).toEqual([0, 1, 2, 3, 4]);
     // The verdict step carries the parsed findings as its detail (here: empty).
     const verdict = d1.steps.find(s => s.kind === 'ship-verdict');
     expect(verdict?.ship).toBe('code-reviewer');
@@ -317,6 +317,7 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
       'reduce',
       'ship-verdict',
       'review-posted',
+      'ship-spend',
       'check-completed',
     ]);
   });

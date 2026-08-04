@@ -73,8 +73,18 @@ function stackOutput(files: Array<{ path: string; contents: string }>, extra: ob
   ].join('\n');
 }
 
-/** A same-repo job whose payload carries the PR head BRANCH name. */
+/**
+ * A same-repo job whose PR carries a head BRANCH name.
+ *
+ * `fetchPRContext` reads `headRef` / `isFork` from the LIVE `GET /pulls/{n}`
+ * response, not from the webhook payload, so the harness stub is what must
+ * carry them — the payload below is kept for shape fidelity only.
+ */
 function jobWithHeadRef(over: Record<string, unknown> = {}) {
+  // No side effect on `state` here: freshState() already defaults prHeadRef to
+  // 'feat/widget'. Setting it here would silently clobber a per-test override
+  // (e.g. the ref-less case sets prHeadRef = undefined, then calls runSpark,
+  // which builds the default job through this helper).
   return makeJob({
     payloadMinimal: {
       pull_request: {
