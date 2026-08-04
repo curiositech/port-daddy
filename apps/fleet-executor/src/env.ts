@@ -43,6 +43,13 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
    */
   SANDBOX?: unknown;
   /**
+   * OPTIONAL XO model override (plaintext var, wrangler.deploy.toml). The XO
+   * synthesis officer (src/xo.ts) runs on Workers AI ONLY: only a `@cf/` id is
+   * honored, anything else falls back to DEFAULT_XO_MODEL — see resolveXoModel.
+   * Unset ⇒ the default deepseek-r1 distill.
+   */
+  XO_MODEL?: string;
+  /**
    * Optional Cloudflare AI Gateway id. When set, every ship's `env.AI.run(...)`
    * is routed through this gateway (`{ gateway: { id } }`) so token/cost/latency
    * is logged and cacheable in the AI Gateway dashboard (ADR-0116/0117). UNSET ⇒

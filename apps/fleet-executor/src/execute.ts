@@ -39,7 +39,7 @@ import {
   type PRContext,
   type ReviewComment,
 } from './github.js';
-import { parseFleetShips, parseFleetSquidEvents, defaultPRShips, type ShipConfig } from './fleet.js';
+import { parseFleetShips, parseFleetSquidEvents, parseFleetXo, defaultPRShips, type ShipConfig } from './fleet.js';
 import {
   resolveVerdict,
   aggregateConclusion,
@@ -67,9 +67,17 @@ import { renderFindingsComment } from './findings-render.js';
 import {
   captureProposals,
   ensureIdeasTable,
+  listRecentIdeas,
   EMBED_MODEL,
   type IdeaCtx,
 } from './ideas-store.js';
+import {
+  resolveXoModel,
+  runXoEditorPass,
+  collectAdvisoryFindings,
+  xoOrdersSection,
+  XO_RECENT_IDEAS_LIMIT,
+} from './xo.js';
 import type { Proposal } from './proposals.js';
 import { decideShipGate, isDocsOnly } from './gates.js';
 import { runPurser } from './purser.js';
@@ -678,6 +686,13 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // no consent ⇒ no events, regardless of RELAY_PUBLISH_* wiring.
   const squidConsent = fleetYaml ? parseFleetSquidEvents(fleetYaml) : false;
 
+  // XO CONSENT: the XO synthesis officer (src/xo.ts) — idea editor pass +
+  // advisory-findings triage — is opt-in per tenant via `xo: true` in
+  // pd-fleet.yml (trusted default branch, same zero-trust fetch; default OFF).
+  // Both duties are strictly advisory and fail-open: an XO failure changes
+  // NOTHING about proposals, comments, or the check conclusion.
+  const xoEnabled = fleetYaml ? parseFleetXo(fleetYaml) : false;
+
   // Cloud-executable ships only (execution ships dispatch to GHA elsewhere).
   const cloudShips = ships.filter(s => !s.needsExecution);
   if (cloudShips.length === 0) return;
@@ -819,7 +834,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     const metrics = newShipMetrics();
     const result = ship.purser
       ? await runPurser(ship, prCtx, env, token, transcript, metrics, graftText, runId, squidConsent)
-      : await runShip(ship, prCtx, token, env, branch, transcript, metrics, graftText, runId, squidConsent);
+      : await runShip(ship, prCtx, token, env, branch, transcript, metrics, graftText, runId, squidConsent, xoEnabled);
     results.push(result);
     // Cloud squid: one ship-verdict event per ship that ran (fire-and-forget).
     emitSquidEvent(env, 'ship-verdict', {
@@ -842,6 +857,35 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // Inline review is the PRIMARY surface; the per-ship issue comments posted
   // during each runShip() remain for backward-compatible history.
   const summary = buildSummary(results, conclusion);
+
+  // --- XO TRIAGE (advisory-findings curation; src/xo.ts) --------------------
+  // The XO ranks which ADVISORY findings are worth doing for THIS PR and the
+  // review comment gains an "XO's orders" section. Strictly fail-open: on any
+  // XO failure the section is '' and the comment renders EXACTLY as today. The
+  // check conclusion (and its summary) is computed above and NEVER touched.
+  let reviewBody = summary;
+  if (xoEnabled) {
+    const advisories = collectAdvisoryFindings(results);
+    if (advisories.length > 0) {
+      const section = await xoOrdersSection({
+        ai: env.AI,
+        model: resolveXoModel(env.XO_MODEL),
+        advisories,
+        changedPaths,
+        gatewayId: env.AI_GATEWAY_ID,
+      });
+      if (section) reviewBody = `${summary}\n\n${section}`;
+      await transcript.step(
+        'xo-triage',
+        null,
+        section
+          ? `XO triage: orders appended (${advisories.length} advisory finding(s) reviewed)`
+          : `XO triage: no section (XO failed or declined) — comment unchanged`,
+        { advisories: advisories.length, appended: !!section },
+      );
+    }
+  }
+
   const reviewComments: ReviewComment[] = [];
   for (const r of results) {
     for (const f of r.findings ?? []) {
@@ -851,7 +895,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   if (reviewComments.length > 0 || summary.trim()) {
     // Best-effort: createReview never throws (see github.ts), so a review
     // failure can't fail the gate or block completing the check run.
-    await createReview(owner, repo, prNumber, 'COMMENT', summary, reviewComments, prCtx.headSha, token);
+    await createReview(owner, repo, prNumber, 'COMMENT', reviewBody, reviewComments, prCtx.headSha, token);
   }
 
   await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token, detailsUrl);
@@ -905,6 +949,8 @@ async function runShip(
   runId = '',
   /** Tenant `squidEvents: true` consent from pd-fleet.yml (default false). */
   squidConsent = false,
+  /** Tenant `xo: true` consent from pd-fleet.yml (default false) — src/xo.ts. */
+  xoEnabled = false,
 ): Promise<ShipResult> {
   try {
     // ZERO-TRUST: ship contract is read from the trusted branch, NEVER PR head.
@@ -996,17 +1042,52 @@ async function runShip(
     // model output — it can't destabilize the check.
     if (ship.ideation) {
       const proposals = parseProposals(output);
+
+      // --- XO EDITOR PASS (src/xo.ts) --------------------------------------
+      // Before the batch is finalized (rendered / stacked / captured), the XO
+      // curates it against the most recent tracked ideas: merge near-dupes,
+      // sharpen titles, drop what's already tracked. Strictly fail-open: any
+      // XO failure keeps `proposals` untouched, and the cosine dedup inside
+      // captureProposals remains the pre-filter/fallback either way.
+      let curated = proposals;
+      if (xoEnabled && proposals && proposals.length > 0) {
+        const recentIdeas = env.DB
+          ? await listRecentIdeas(env.DB, XO_RECENT_IDEAS_LIMIT)
+          : [];
+        const editor = await runXoEditorPass({
+          ai: env.AI,
+          model: resolveXoModel(env.XO_MODEL),
+          proposals,
+          recentIdeas,
+          gatewayId: env.AI_GATEWAY_ID,
+        });
+        curated = editor.proposals;
+        await transcript.step(
+          'xo-editor',
+          ship.name,
+          editor.applied
+            ? `XO editor: ${editor.editCount} edit(s) applied (${proposals.length} → ${curated.length} proposal(s))`
+            : `XO editor: fallback — ${editor.reason}`,
+          {
+            applied: editor.applied,
+            reason: editor.reason,
+            before: proposals.length,
+            after: curated.length,
+          },
+        );
+      }
+
       // "Stack onto the review diff": when a proposal carries action 'stack'
       // with valid files, the ship's own code is branched from the PR HEAD and
       // opened as a PR based on the PR's head branch. At most ONE stack PR per
       // ship per run; every failure mode degrades to a transcript note.
       const stackedPr =
-        proposals && proposals.length > 0
-          ? await maybeStackProposal(ship, prCtx, proposals, env, token, transcript, runId, squidConsent)
+        curated && curated.length > 0
+          ? await maybeStackProposal(ship, prCtx, curated, env, token, transcript, runId, squidConsent)
           : null;
       const rendered =
-        proposals && proposals.length > 0
-          ? renderProposalComment(proposals, {
+        curated && curated.length > 0
+          ? renderProposalComment(curated, {
               owner: prCtx.owner,
               repo: prCtx.repo,
               prNumber: prCtx.prNumber,
@@ -1020,7 +1101,7 @@ async function runShip(
       const body = rendered || (proposals === null ? output : '');
 
       await transcript.step('ship-verdict', ship.name, `pd-${ship.name}: PASS (ideation)`, {
-        proposals: proposals ?? 'malformed',
+        proposals: curated ?? 'malformed',
         posted: !!body.trim(),
       });
 
@@ -1034,12 +1115,12 @@ async function runShip(
         token,
       );
 
-      // Durably capture the proposals (D1 + semantic dedup + auto-issue) so a
-      // Spark/Spider idea doesn't evaporate when the PR scrolls away. Best-effort:
-      // it NEVER throws or changes the advisory PASS.
-      if (proposals && proposals.length > 0) {
+      // Durably capture the (XO-curated) proposals (D1 + semantic dedup +
+      // auto-issue) so a Spark/Spider idea doesn't evaporate when the PR scrolls
+      // away. Best-effort: it NEVER throws or changes the advisory PASS.
+      if (curated && curated.length > 0) {
         await captureIdeas(
-          proposals,
+          curated,
           { owner: prCtx.owner, repo: prCtx.repo, prNumber: prCtx.prNumber, shipName: ship.name },
           env,
           token,

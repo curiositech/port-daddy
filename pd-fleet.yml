@@ -72,6 +72,16 @@ fleet:
   # sets this to exactly `true`. Default: false.
   squidEvents: true
 
+  # XO SYNTHESIS OFFICER (fleet-executor src/xo.ts): opt in to (1) the idea
+  # EDITOR PASS — ideation proposals are curated (merge/retitle/drop) against
+  # the most recently tracked ideas before issues are filed; cosine dedup
+  # remains the pre-filter and the fallback — and (2) ADVISORY-FINDINGS TRIAGE
+  # — the review comment gains a ranked "XO's orders" section over the
+  # non-blocking findings. Strictly advisory: the XO never changes a check
+  # conclusion, and any XO failure falls back to today's behavior exactly.
+  # Default: false (off for tenants unless their pd-fleet.yml opts in).
+  xo: true
+
   limits:
     max_concurrent_spawns: 3
     max_spawns_per_hour: 12

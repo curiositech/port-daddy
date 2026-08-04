@@ -176,6 +176,44 @@ export async function findDuplicate(
   return best;
 }
 
+/**
+ * List the most recently tracked CANONICAL ideas (title + rationale), newest
+ * first, bounded by `limit`.
+ *
+ * Purpose: this is the XO editor pass's context window into "what is already
+ * tracked" (src/xo.ts) — titles and rationales are exactly the semantic
+ * payload an editor needs to judge duplication, without dragging embeddings or
+ * issue metadata into a model prompt. Best-effort by the same contract as the
+ * rest of this module: any D1 failure returns [] (the XO then judges the new
+ * batch on intra-batch merit alone) — it never throws into the capture path.
+ *
+ * @param db The relay D1 database holding `fleet_ideas`.
+ * @param limit Maximum rows returned (the caller's context cap).
+ * @returns Recent canonical ideas, newest first; [] on any read failure.
+ */
+export async function listRecentIdeas(
+  db: D1Database,
+  limit: number,
+): Promise<Array<{ title: string; rationale: string }>> {
+  try {
+    const res = await db
+      .prepare(
+        `SELECT title, rationale FROM fleet_ideas
+          WHERE duplicate_of IS NULL
+          ORDER BY created_at DESC
+          LIMIT ?`,
+      )
+      .bind(limit)
+      .all<{ title: string; rationale: string }>();
+    return (res.results ?? []).map(r => ({
+      title: String(r.title ?? ''),
+      rationale: String(r.rationale ?? ''),
+    }));
+  } catch {
+    return [];
+  }
+}
+
 /** True if a canonical or duplicate row already exists for this slug. */
 async function slugExists(db: D1Database, slug: string): Promise<boolean> {
   const row = await db
