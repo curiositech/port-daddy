@@ -26,6 +26,8 @@
  *   POST /billing/webhook                      (Stripe-Signature HMAC; credit ledger writes)
  *   GET  /billing/balance/:installationId      (operator or session; prepaid balance)
  *   POST /billing/portal                       (session; Stripe Billing Portal link)
+ *   GET  /auth/status                          (session cookie → {login, avatarUrl};
+ *                                               credentialed CORS for portdaddy.dev)
  *   POST /v1/exchange                        (OIDC → PD card)
  *   POST /v1/revoke
  *   POST /v1/revoke-by-issuer               (operator; acceptance criterion #2)
@@ -74,6 +76,7 @@ import {
   handleGithubLogin,
   handleGithubCallback,
   handleAuthMe,
+  handleAuthStatus,
   handleLogout,
   handleAccountExport,
   handleAccountDelete,
@@ -99,6 +102,25 @@ function cors(response: Response): Response {
   return new Response(response.body, { status: response.status, headers });
 }
 
+// The marketing site's header chip (portdaddy.dev) reads the signed-in state
+// cross-origin WITH the session cookie. A wildcard Access-Control-Allow-Origin
+// can never carry credentials (browsers reject `*` + credentials), so exactly
+// these session-probe GETs answer with a pinned origin + credentials instead.
+// Everything else keeps the wildcard, credential-less CORS above.
+const WEB_ORIGIN = 'https://portdaddy.dev';
+const CREDENTIALED_CORS_PATHS: ReadonlySet<string> = new Set(['/auth/whoami', '/auth/status']);
+
+function corsCredentialed(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set('Access-Control-Allow-Origin', WEB_ORIGIN);
+  headers.set('Access-Control-Allow-Credentials', 'true');
+  headers.set('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  headers.set('Access-Control-Allow-Headers', 'Content-Type');
+  // The ACAO value differs per path; keep shared caches honest.
+  headers.append('Vary', 'Origin');
+  return new Response(response.body, { status: response.status, headers });
+}
+
 function notFound(): Response {
   return Response.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 });
 }
@@ -110,7 +132,8 @@ export default {
 
     // CORS preflight
     if (method === 'OPTIONS') {
-      return cors(new Response(null, { status: 204 }));
+      const preflight = new Response(null, { status: 204 });
+      return CREDENTIALED_CORS_PATHS.has(pathname) ? corsCredentialed(preflight) : cors(preflight);
     }
 
     let response: Response = notFound();
@@ -231,6 +254,11 @@ export default {
     else if (pathname === '/auth/whoami' && method === 'GET') {
       response = await handleWhoami(request, env);
     }
+    // Signed-in probe for the portdaddy.dev header chip (session cookie only;
+    // returns {login, avatarUrl} and nothing else — no secrets).
+    else if (pathname === '/auth/status' && method === 'GET') {
+      response = await handleAuthStatus(request, env);
+    }
     else if (pathname === '/auth/logout' && method === 'POST') {
       response = await handleLogout(request, env);
     }
@@ -320,7 +348,7 @@ export default {
       );
     }
 
-    return cors(response);
+    return CREDENTIALED_CORS_PATHS.has(pathname) ? corsCredentialed(response) : cors(response);
   },
 
   // Cron Triggers (ADR-0101; runtime-verification-for-agents). The Worker has
