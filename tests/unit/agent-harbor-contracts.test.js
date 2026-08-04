@@ -134,8 +134,6 @@ function compile(schema, path = '#', resolving = new Set()) {
   if (typeof schema !== 'object' || schema === null || Array.isArray(schema)) {
     throw new Error(`${path}: schema must be an object`);
   }
-  if (seen.has(schema)) return schema;
-  seen.add(schema);
   for (const key of Object.keys(schema)) {
     if (ANNOTATION_KEYWORDS.has(key) || VALIDATION_KEYWORDS.has(key)) continue;
     throw new Error(`${path}: unsupported keyword "${key}" — extend the validator or simplify the schema`);

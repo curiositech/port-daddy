@@ -61,12 +61,12 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "catalog": { "$ref": "#/$defs/evidence" },
-              "discovery": { "$ref": "#/$defs/evidence" },
-              "spawn": { "$ref": "#/$defs/evidence" },
-              "live-interaction": { "$ref": "#/$defs/evidence" },
-              "native-resume": { "$ref": "#/$defs/evidence" },
-              "handoff": { "$ref": "#/$defs/evidence" }
+              "catalog": { "$ref": "harness-continuation-matrix.schema.json#/$defs/evidence" },
+              "discovery": { "$ref": "harness-continuation-matrix.schema.json#/$defs/evidence" },
+              "spawn": { "$ref": "harness-continuation-matrix.schema.json#/$defs/evidence" },
+              "live-interaction": { "$ref": "harness-continuation-matrix.schema.json#/$defs/evidence" },
+              "native-resume": { "$ref": "harness-continuation-matrix.schema.json#/$defs/evidence" },
+              "handoff": { "$ref": "harness-continuation-matrix.schema.json#/$defs/evidence" }
             },
             "required": ["catalog", "discovery", "spawn", "live-interaction", "native-resume", "handoff"]
           }
@@ -87,7 +87,7 @@
           "handoff": { "enum": ["declared", "unsupported"] },
           "witness": {
             "oneOf": [
-              { "$ref": "#/$defs/evidence" },
+              { "$ref": "harness-continuation-matrix.schema.json#/$defs/evidence" },
               { "type": "null" }
             ]
           },
