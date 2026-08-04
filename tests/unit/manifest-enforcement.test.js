@@ -387,7 +387,8 @@ describe('CLI --> Manifest (no undocumented CLI commands)', () => {
       // Short flag characters (from shortFlags map, not commands)
       'p', 'e', 'P', 'n', 'c', 'm', 'd', 't', 'i', 'a', 's', 'o', 'f',
       // Session subcommands: handled inside `case 'session':` dispatch
-      'start', 'end', 'done', 'abandon', 'rm',
+      // ('symbols' = `pd session symbols add|list`, the claim-a-function verb)
+      'start', 'end', 'done', 'abandon', 'rm', 'symbols',
       // Ports subcommands: 'cleanup' is handled inside `case 'ports':`
       'ports cleanup', 'cleanup',
       // Agent subcommands: handled inside `case 'agent':`

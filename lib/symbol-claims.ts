@@ -12,9 +12,11 @@
  *     signature/transitive) over typed claims.
  *   - `blast-radius.computeBlastRadius` — the reverse-dep closure to auto-reserve.
  *
- * Advisory by default (Port Daddy philosophy): `claim()` records and *returns* the
- * conflicts; it does not block. The caller decides whether a `blocking` direct
- * conflict warrants serialization. Claims release with the session.
+ * Blocking semantics: `claim()` itself records and *returns* the conflicts — the
+ * module never throws on conflict. But its HTTP caller (POST /sessions/:id/symbols,
+ * the ast-a2-1 pre-flight validator, #983) REFUSES `blocking`-severity conflicts
+ * with 409 BLOCKING_CONFLICT, so over the wire a blocking claim does not land.
+ * Non-blocking conflicts stay advisory. Claims release with the session.
  */
 
 import type Database from 'better-sqlite3';

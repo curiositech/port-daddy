@@ -956,6 +956,7 @@ _pd_cmd_session() {
     'takeover:create successor session; preserve notes'
     'rm:archive a session; preserve notes'
     'files:manage file claims for a session'
+    'symbols:declare/list symbol-level claims (add|list)'
     'phase:set session phase (planning/in_progress/testing/etc)'
   )
 

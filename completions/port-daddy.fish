@@ -690,6 +690,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command session" -x -a 'takeover' -d 'Create successor session; preserve notes'
     complete -c $prog -n "__pd_using_command session" -x -a 'rm' -d 'Archive a session; preserve notes'
     complete -c $prog -n "__pd_using_command session" -x -a 'files' -d 'Manage file claims for a session'
+    complete -c $prog -n "__pd_using_command session" -x -a 'symbols' -d 'Declare/list symbol-level claims'
     complete -c $prog -n "__pd_using_command session" -x -a 'phase' -d 'Set session phase'
     complete -c $prog -n "__pd_using_command session" -s P -l purpose -d 'Session purpose' -x
     complete -c $prog -n "__pd_using_command session" -s n -l note -d 'Handoff note' -x

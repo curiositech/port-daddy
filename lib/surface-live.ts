@@ -66,6 +66,9 @@ export interface RunLiveSurfaceScanDeps {
   suggestions: RunSurfaceScanDeps['suggestions'];
   inbox: RunSurfaceScanDeps['inbox'];
   activityLog?: RunSurfaceScanDeps['activityLog'];
+  /** Daemon's symbol-claims store — enables the claim guard (real edits vs other
+   *  sessions' DECLARED claims). Optional: absent = diff-vs-diff prediction only. */
+  symbolClaims?: RunSurfaceScanDeps['symbolClaims'];
   /** Overridable for tests; defaults to the real `listWorktrees()` / `git diff -U0`. */
   listWorktrees?: () => Array<Pick<WorktreeInfo, 'id' | 'root'>>;
   getDiff?: (worktreePath: string) => string;
@@ -86,5 +89,6 @@ export async function runLiveSurfaceScan(deps: RunLiveSurfaceScanDeps): Promise<
     suggestions: deps.suggestions,
     inbox: deps.inbox,
     activityLog: deps.activityLog,
+    symbolClaims: deps.symbolClaims,
   });
 }

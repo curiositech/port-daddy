@@ -131,8 +131,9 @@ export function computeTouchedRegions(
   return regions;
 }
 
-/** Two inclusive [start,end] line ranges intersect. */
-function rangesOverlap(
+/** Two inclusive [start,end] line ranges intersect. Exported so the claim guard
+ *  (`lib/claim-guard.ts`) reuses the exact overlap semantics instead of duplicating. */
+export function rangesOverlap(
   a: { startLine: number; endLine: number },
   b: { startLine: number; endLine: number },
 ): boolean {

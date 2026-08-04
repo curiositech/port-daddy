@@ -28,6 +28,7 @@ import { isAbsolute, join } from 'node:path';
 import { parseUnifiedDiffHunks, computeTouchedRegions, type DiffHunk } from './surface-map.js';
 import type { TouchedRegion } from './surface-map.js';
 import type { Suggestions, SuggestionKind } from './suggestions.js';
+import { detectEditsAgainstClaims, type DeclaredSymbolClaim } from './claim-guard.js';
 
 /** A symbol an agent intends to read or modify — the shape `symbol-index.predictConflicts` consumes. */
 export interface SymbolClaim {
@@ -69,6 +70,12 @@ export interface SurfaceScanActivityLog {
   log(type: string, detail?: Record<string, unknown>): unknown;
 }
 
+/** Slice of `lib/symbol-claims.ts` the claim guard needs: every session's active
+ *  DECLARED claims (from `claim_symbols` / POST /sessions/:id/symbols). */
+export interface SurfaceScanSymbolClaims {
+  listAllActive(): Array<{ sessionId: string; filePath: string; symbolPath: string; type: string }>;
+}
+
 export interface RunSurfaceScanDeps {
   sessions: SurfaceScanSession[];
   /** Injected so the real impl can shell `git -C <worktree> diff -U0` while tests use fixtures. */
@@ -77,6 +84,10 @@ export interface RunSurfaceScanDeps {
   suggestions: Suggestions;
   inbox: SurfaceScanInbox;
   activityLog?: SurfaceScanActivityLog;
+  /** When present, each session's REAL edits are also checked against every OTHER
+   *  session's DECLARED symbol claims (`lib/claim-guard.ts`) — the edits-vs-claims
+   *  guard. Absent in minimal wiring: diff-vs-diff prediction only. */
+  symbolClaims?: SurfaceScanSymbolClaims;
 }
 
 /** Wire-format version of the surface-conflict payload (interchange hygiene — crosses
@@ -115,10 +126,20 @@ export function severityToConfidence(severity: string): number {
   return 0.6;
 }
 
-async function claimsForSession(s: SurfaceScanSession, deps: RunSurfaceScanDeps): Promise<SymbolClaim[]> {
-  if (!s.worktreePath) return [];
+interface SessionSurface {
+  claims: SymbolClaim[];
+  /** The raw touched regions the claims were derived from — the claim guard's
+   *  span-overlap tier needs the unmatched (null-symbol) regions and hunk lines
+   *  that `touchedRegionsToClaims` drops. */
+  regions: TouchedRegion[];
+}
+
+const EMPTY_SURFACE: SessionSurface = { claims: [], regions: [] };
+
+async function surfaceForSession(s: SurfaceScanSession, deps: RunSurfaceScanDeps): Promise<SessionSurface> {
+  if (!s.worktreePath) return EMPTY_SURFACE;
   const diff = deps.getDiff(s.worktreePath);
-  if (!diff || !diff.trim()) return [];
+  if (!diff || !diff.trim()) return EMPTY_SURFACE;
 
   const hunks = parseUnifiedDiffHunks(diff);
   const byFile = new Map<string, DiffHunk[]>();
@@ -145,7 +166,7 @@ async function claimsForSession(s: SurfaceScanSession, deps: RunSurfaceScanDeps)
 
   // computeTouchedRegions wants the symbol-index Symbol shape; getSymbols returns it.
   const regions = computeTouchedRegions(hunks, symbolsByFile as never);
-  return touchedRegionsToClaims(regions);
+  return { claims: touchedRegionsToClaims(regions), regions };
 }
 
 export interface SurfaceScanResult {
@@ -154,6 +175,9 @@ export interface SurfaceScanResult {
   surfaced: number;
   suppressed: number;
   delivered: number;
+  /** Claim-guard hits: real edits landing on another session's DECLARED symbol
+   *  claims (0 when no `symbolClaims` dep is wired). */
+  claimedSymbolHits: number;
 }
 
 /**
@@ -164,8 +188,11 @@ export interface SurfaceScanResult {
 export async function runSurfaceScan(deps: RunSurfaceScanDeps): Promise<SurfaceScanResult> {
   const active = deps.sessions.filter((s) => s.worktreePath);
 
-  const claimsBySession = new Map<string, SymbolClaim[]>();
-  for (const s of active) claimsBySession.set(s.sessionId, await claimsForSession(s, deps));
+  const surfaceBySession = new Map<string, SessionSurface>();
+  for (const s of active) surfaceBySession.set(s.sessionId, await surfaceForSession(s, deps));
+  const claimsBySession = new Map<string, SymbolClaim[]>(
+    [...surfaceBySession].map(([id, sf]) => [id, sf.claims]),
+  );
 
   let conflicts = 0;
   let surfaced = 0;
@@ -230,5 +257,81 @@ export async function runSurfaceScan(deps: RunSurfaceScanDeps): Promise<SurfaceS
     }
   }
 
-  return { sessions: active.length, conflicts, surfaced, suppressed, delivered };
+  // ── Claim guard: real edits vs DECLARED symbol claims (lib/claim-guard.ts) ──
+  // Diff-vs-diff above only catches conflicts BOTH sides have already typed.
+  // This pass catches "A declared a claim on foo() via claim_symbols; B edits
+  // foo() without claiming" — B's real footprint against A's declared intent.
+  let claimedSymbolHits = 0;
+  if (deps.symbolClaims) {
+    const declaredBySession = new Map<string, DeclaredSymbolClaim[]>();
+    for (const row of deps.symbolClaims.listAllActive()) {
+      const arr = declaredBySession.get(row.sessionId) ?? [];
+      arr.push({ filePath: row.filePath, symbolPath: row.symbolPath, type: row.type });
+      declaredBySession.set(row.sessionId, arr);
+    }
+    // Claim holders need not have a worktree (a declared claim is pure intent),
+    // so the holder's agent id resolves from the full session list when known.
+    const agentBySession = new Map(deps.sessions.map((s) => [s.sessionId, s.agentId]));
+
+    if (declaredBySession.size > 0) {
+      for (const s of active) {
+        const regions = surfaceBySession.get(s.sessionId)?.regions ?? [];
+        if (!regions.length) continue;
+        const hits = await detectEditsAgainstClaims(s.sessionId, regions, declaredBySession, deps.symbolIndex);
+        for (const hit of hits) {
+          claimedSymbolHits++;
+          const c = hit.conflict;
+          const holderAgent = agentBySession.get(hit.claimedBy) ?? null;
+          const holder = holderAgent ?? hit.claimedBy;
+          const deliveryKey = s.agentId ?? s.sessionId;
+          // Distinct prefix from `surface-conflict:` so the cooldown/dedup ledger
+          // keys guard hits separately from diff-vs-diff predictions.
+          const payloadHash =
+            `claim-guard:${hit.via}:${c.type}:${s.sessionId}|${hit.claimedBy}` +
+            `:${c.a.filePath}::${c.a.symbolPath}:${c.b.filePath}::${c.b.symbolPath}`;
+          const confidence = severityToConfidence(c.severity);
+          const payload = {
+            v: SURFACE_CONFLICT_PAYLOAD_VERSION,
+            kind: CONFLICT_KIND,
+            guard: 'claim-guard' as const,
+            via: hit.via,
+            conflictType: c.type,
+            severity: c.severity,
+            yourSymbol: `${c.a.filePath}::${c.a.symbolPath}`,
+            claimedSymbol: `${c.b.filePath}::${c.b.symbolPath}`,
+            claimedBy: { sessionId: hit.claimedBy, agentId: holderAgent },
+            message:
+              `Claim guard (${c.severity} ${c.type}, ${hit.via}): your edit touches ${c.b.symbolPath}, ` +
+              `which ${holder} holds a ${c.b.type}-claim on (declared via claim_symbols). ` +
+              `Coordinate with them before landing — the claim is their stated intent.`,
+          };
+
+          const res = deps.suggestions.create({ agentId: deliveryKey, kind: CONFLICT_KIND, payload, payloadHash, confidence });
+          if (!res.created) {
+            suppressed++;
+            deps.activityLog?.log('claim_guard.suppressed', {
+              agentId: deliveryKey,
+              reason: res.reason,
+              via: hit.via,
+              conflictType: c.type,
+            });
+            continue;
+          }
+          surfaced++;
+          const sent = deps.inbox.send(deliveryKey, payload, { from: 'surface-scan', type: 'suggestion' });
+          if (sent.success) delivered++;
+          deps.activityLog?.log('claim_guard.surfaced', {
+            agentId: deliveryKey,
+            via: hit.via,
+            conflictType: c.type,
+            severity: c.severity,
+            claimedBy: hit.claimedBy,
+            confidence,
+          });
+        }
+      }
+    }
+  }
+
+  return { sessions: active.length, conflicts, surfaced, suppressed, delivered, claimedSymbolHits };
 }

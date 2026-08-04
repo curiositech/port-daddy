@@ -58,8 +58,8 @@ describe('runSurfaceScan', () => {
   ].join('\n');
 
   const symbolsByFile = {
-    'lib/server.ts': [{ symbolPath: 'createRoutes', symbolType: 'function', startLine: 10, endLine: 20 }],
-    'lib/app.ts': [{ symbolPath: 'registerRoutes', symbolType: 'function', startLine: 3, endLine: 6 }],
+    'lib/server.ts': [{ filePath: 'lib/server.ts', symbolPath: 'createRoutes', symbolType: 'function', startLine: 10, endLine: 20 }],
+    'lib/app.ts': [{ filePath: 'lib/app.ts', symbolPath: 'registerRoutes', symbolType: 'function', startLine: 3, endLine: 6 }],
   };
 
   function makeSymbolIndex(predict) {
@@ -150,5 +150,81 @@ describe('runSurfaceScan', () => {
     const res = await runSurfaceScan({ sessions, getDiff: emptyDiff, symbolIndex: makeSymbolIndex(predict), suggestions, inbox });
     expect(res).toMatchObject({ conflicts: 0, surfaced: 0 });
     expect(sent).toHaveLength(0);
+  });
+
+  test('without a symbolClaims dep the guard does not run (claimedSymbolHits: 0)', async () => {
+    const res = await runSurfaceScan({ sessions, getDiff, symbolIndex: makeSymbolIndex(() => []), suggestions, inbox });
+    expect(res.claimedSymbolHits).toBe(0);
+  });
+
+  describe('claim guard (edits vs DECLARED symbol claims)', () => {
+    // Only session s1 diffs (edits createRoutes); the claim HOLDER has no worktree
+    // at all — its claim is pure declared intent from `claim_symbols`, which the
+    // old diff-vs-diff pass could never see.
+    const soloEditor = [sessions[0]];
+    // identity-only direct conflict, same semantics subset as the real matrix
+    const predict = (a, b) => {
+      const out = [];
+      for (const ca of a) for (const cb of b) {
+        if (ca.filePath === cb.filePath && ca.symbolPath === cb.symbolPath && ca.type !== 'read' && cb.type !== 'read') {
+          out.push({ type: 'direct', severity: 'blocking', confidence: 1.0, a: ca, b: cb });
+        }
+      }
+      return out;
+    };
+
+    test('edit landing on another session\'s declared modify-claim → guard hit surfaced to the editor', async () => {
+      const symbolClaims = {
+        listAllActive: () => [
+          // the symbols table stores resolved absolutes; s1's regions resolve under /wt/a
+          { sessionId: 'holder-session', filePath: '/wt/a/lib/server.ts', symbolPath: 'createRoutes', type: 'modify' },
+        ],
+      };
+      const res = await runSurfaceScan({
+        sessions: soloEditor, getDiff, symbolIndex: makeSymbolIndex(predict), suggestions, inbox, symbolClaims,
+      });
+
+      expect(res.claimedSymbolHits).toBe(1);
+      expect(res).toMatchObject({ conflicts: 0, surfaced: 1, delivered: 1 }); // no pairwise diff conflicts, one guard hit
+      expect(sent).toHaveLength(1);
+      const msg = sent[0];
+      expect(msg.agentId).toBe('agent-1'); // delivered to the EDITOR
+      expect(msg.content.guard).toBe('claim-guard');
+      expect(msg.content.via).toBe('symbol-identity');
+      expect(msg.content.claimedBy.sessionId).toBe('holder-session');
+      expect(msg.content.claimedSymbol).toContain('createRoutes');
+      expect(msg.content.message).toContain('holder-session'); // names the claim holder
+      // stored suggestion is at blocking/priority confidence
+      const surfaced = suggestions.list({ agentId: 'agent-1' });
+      expect(surfaced).toHaveLength(1);
+      expect(surfaced[0].confidence).toBeGreaterThanOrEqual(0.95);
+    });
+
+    test('re-scan of a standing guard hit is suppressed by the cooldown (distinct claim-guard hash)', async () => {
+      const symbolClaims = {
+        listAllActive: () => [
+          { sessionId: 'holder-session', filePath: '/wt/a/lib/server.ts', symbolPath: 'createRoutes', type: 'modify' },
+        ],
+      };
+      const deps = { sessions: soloEditor, getDiff, symbolIndex: makeSymbolIndex(predict), suggestions, inbox, symbolClaims };
+      const first = await runSurfaceScan(deps);
+      expect(first).toMatchObject({ claimedSymbolHits: 1, surfaced: 1 });
+      const second = await runSurfaceScan(deps);
+      expect(second).toMatchObject({ claimedSymbolHits: 1, surfaced: 0, suppressed: 1 });
+      expect(sent).toHaveLength(1); // no inbox spam
+    });
+
+    test('declared claim on an untouched symbol → no guard hit', async () => {
+      const symbolClaims = {
+        listAllActive: () => [
+          { sessionId: 'holder-session', filePath: '/wt/a/lib/other.ts', symbolPath: 'unrelated', type: 'modify' },
+        ],
+      };
+      const res = await runSurfaceScan({
+        sessions: soloEditor, getDiff, symbolIndex: makeSymbolIndex(predict), suggestions, inbox, symbolClaims,
+      });
+      expect(res.claimedSymbolHits).toBe(0);
+      expect(sent).toHaveLength(0);
+    });
   });
 });

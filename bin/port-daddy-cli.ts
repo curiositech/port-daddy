@@ -2123,6 +2123,16 @@ async function executeDirectMode(
           break;
         }
 
+        case 'symbols': {
+          // Symbol claims need the daemon: the blocking-conflict validator
+          // (POST /sessions/:id/symbols, #983) and the tree-sitter symbol index
+          // live daemon-side — there is no honest --direct equivalent.
+          console.error('"session symbols" requires the running daemon (it enforces the blocking-conflict validator).');
+          console.error('Start with: port-daddy start, then retry without --direct.');
+          process.exit(1);
+          break;
+        }
+
         default:
           console.error(`Unknown session command: ${subcommand}`);
           process.exit(1);

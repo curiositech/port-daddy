@@ -25,7 +25,7 @@ import { runLiveSurfaceScan, type RunLiveSurfaceScanDeps } from '../lib/surface-
 /** The full sessions module also exposes `list` (active sessions w/ worktreeId) — the
  *  route receives it at runtime even though the overlap path only needs the claim source. */
 interface SessionsListSource {
-  list?(options?: { status?: string }): {
+  list?(options?: { status?: string; allWorktrees?: boolean }): {
     sessions?: Array<{ id: string; agentId: string | null; purpose: string; worktreeId: string | null }>;
   };
 }
@@ -38,13 +38,16 @@ interface SuggestionsRouteDeps {
   /** Present in the daemon — enables the real-edit semantic-conflict scan alongside the
    *  declared-claim overlap scan. Absent in minimal/test wiring (overlap only). */
   symbolIndex?: RunLiveSurfaceScanDeps['symbolIndex'];
+  /** Present in the daemon — enables the claim guard inside the semantic scan (each
+   *  session's real edits vs every OTHER session's DECLARED `claim_symbols` claims). */
+  symbolClaims?: RunLiveSurfaceScanDeps['symbolClaims'];
 }
 
 export const suggestionsPlugin: FastifyPluginAsync<{ deps: SuggestionsRouteDeps }> = async (
   fastify,
   opts,
 ) => {
-  const { suggestions, sessions, agentInbox, activityLog, symbolIndex } = opts.deps;
+  const { suggestions, sessions, agentInbox, activityLog, symbolIndex, symbolClaims } = opts.deps;
 
   fastify.get('/suggestions', async (request: FastifyRequest) => {
     const q = (request.query ?? {}) as Record<string, string>;
@@ -66,8 +69,12 @@ export const suggestionsPlugin: FastifyPluginAsync<{ deps: SuggestionsRouteDeps 
     if (symbolIndex && typeof sessions.list === 'function') {
       try {
         semantic = await runLiveSurfaceScan({
+          // allWorktrees: the scan is inherently cross-worktree (each session's
+          // diff is read from ITS OWN worktree) — the default worktree-scoped
+          // list would hide exactly the sibling-worktree sessions the scan and
+          // the claim guard exist to check against each other.
           listActiveSessions: () =>
-            (sessions.list!({ status: 'active' }).sessions ?? []).map((s) => ({
+            (sessions.list!({ status: 'active', allWorktrees: true }).sessions ?? []).map((s) => ({
               id: s.id,
               agentId: s.agentId,
               purpose: s.purpose,
@@ -77,6 +84,7 @@ export const suggestionsPlugin: FastifyPluginAsync<{ deps: SuggestionsRouteDeps 
           suggestions,
           inbox: agentInbox,
           activityLog,
+          symbolClaims,
         });
       } catch (err) {
         activityLog?.log('surface_scan.error', { error: (err as Error).message });

@@ -1651,7 +1651,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "API-only \u2014 accessed via curl or SDK; no CLI commands yet",
+      "_note": "CLI surface is the `pd session symbols add|list` SUBCOMMAND (claim-a-function verb, function-claims slice 1) dispatched under `session`, so `cli` stays empty (top-level commands only); routes stay curl/SDK-accessible",
       "mcp": [
         "find_symbols",
         "symbol_stats",

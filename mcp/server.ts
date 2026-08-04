@@ -1244,7 +1244,9 @@ const TOOLS = [
     description:
       '[Standard] Declare symbol-level claims for the active session. A `modify` claim AUTO-RESERVES its ' +
       'blast radius (read-claims on every downstream caller), so a contract change holds its callers stable. ' +
-      'Returns predicted conflicts (direct/dependency/signature/transitive) with other active sessions — advisory, never blocks. ' +
+      'Returns predicted conflicts (direct/dependency/signature/transitive) with other active sessions. ' +
+      'A BLOCKING conflict (e.g. another session already holds a modify-claim on the same symbol) is ' +
+      'REFUSED with 409 BLOCKING_CONFLICT (#983) — coordinate with the holder first; non-blocking conflicts come back as advisories. ' +
       'Usage: claim_symbols({session_id, claims: [{filePath: "lib/server.ts", symbolPath: "createRoutes", type: "modify"}]})',
     inputSchema: {
       type: 'object' as const,

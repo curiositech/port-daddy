@@ -222,6 +222,8 @@ export async function handleSession(
     console.error('  rm <id>               # Archive a session; preserve old notes');
     console.error('  files add <paths...> [--session ID]  # Claim files in active session');
     console.error('  files rm <paths...> [--session ID]   # Release files in active session');
+    console.error('  symbols add --file <path> --symbol <symbolPath> [--type modify]  # Declare a symbol claim (409s on blocking conflict)');
+    console.error('  symbols list [--session ID]          # List active symbol claims');
     console.error('  phase <id> <phase>    # Set session phase');
     console.error('  relink --roadmap <slug> | --sidequest "<reason>"  # Fix the active session\'s roadmap rent');
     console.error('');
@@ -248,6 +250,8 @@ export async function handleSession(
       return sessionRemove(rest, options);
     case 'files':
       return sessionFiles(rest, options);
+    case 'symbols':
+      return sessionSymbols(rest, options);
     case 'phase':
       return sessionPhase(rest, options);
     case 'relink':
@@ -650,6 +654,126 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
     } else if (!isQuiet(options)) {
       const released = Array.isArray(data.released) ? data.released.length : 0;
       console.log(`Released ${released} file(s) from session ${sessionId}`);
+    }
+  }
+}
+
+/**
+ * `pd session symbols add --file <path> --symbol <symbolPath> [--type modify] [--no-radius]`
+ * `pd session symbols list [--session ID]`
+ *
+ * The claim-a-function verb (function-claims revival, slice 1). Hits the daemon's
+ * POST/GET /sessions/:id/symbols; the route's ast-a2-1 pre-flight validator (#983)
+ * REFUSES blocking conflicts with 409 BLOCKING_CONFLICT — this handler prints the
+ * conflicting session/agent and symbol, the witnessed refusal.
+ */
+async function sessionSymbols(rest: string[], options: CLIOptions): Promise<void> {
+  const symCmd = rest[0];
+  const usage = () => {
+    console.error('Usage: port-daddy session symbols add --file <path> --symbol <symbolPath> [--type read|modify|add-sibling|add-child|delete|rename] [--no-radius] [--session ID]');
+    console.error('       port-daddy session symbols list [--session ID]');
+  };
+  if (!symCmd || !['add', 'list'].includes(symCmd)) {
+    usage();
+    process.exit(1);
+  }
+
+  const pd = createSessionClient(options);
+  const activeSession = await resolveActiveSessionForFiles(pd, options);
+  if (!activeSession) {
+    ui.error('No active session found');
+    process.exit(1);
+  }
+  const sessionId = activeSession.sessionId;
+
+  if (symCmd === 'list') {
+    const res: PdFetchResponse = await pdFetch(`/sessions/${encodeURIComponent(sessionId)}/symbols`);
+    const data = await res.json();
+    if (!res.ok) {
+      ui.error((data.error as string) || 'Failed to list symbol claims');
+      process.exit(1);
+    }
+    if (isJson(options)) {
+      console.log(JSON.stringify(data, null, 2));
+      return;
+    }
+    const claims = (data.claims ?? []) as Array<{
+      filePath: string; symbolPath: string; type: string; autoDerived: boolean; derivedFrom: string | null;
+    }>;
+    if (claims.length === 0) {
+      if (!isQuiet(options)) console.log(`No active symbol claims in session ${sessionId}`);
+      return;
+    }
+    console.log('SYMBOL'.padEnd(36) + 'FILE'.padEnd(40) + 'TYPE'.padEnd(14) + 'SOURCE');
+    console.log('─'.repeat(100));
+    for (const c of claims) {
+      const sym = c.symbolPath.length > 34 ? c.symbolPath.slice(0, 31) + '...' : c.symbolPath;
+      const file = c.filePath.length > 38 ? '...' + c.filePath.slice(-35) : c.filePath;
+      const source = c.autoDerived ? `auto (${c.derivedFrom ?? 'radius'})` : 'explicit';
+      console.log(sym.padEnd(36) + file.padEnd(40) + c.type.padEnd(14) + source);
+    }
+    console.log('');
+    console.log(`Total: ${claims.length} symbol claim(s) in session ${sessionId}`);
+    return;
+  }
+
+  // add
+  const file = stringOption(options, 'file');
+  const symbol = stringOption(options, 'symbol', 'symbol-path', 'symbolPath');
+  const type = stringOption(options, 'type') || 'modify';
+  if (!file || !symbol) {
+    usage();
+    process.exit(1);
+  }
+
+  const body: Record<string, unknown> = { claims: [{ filePath: file, symbolPath: symbol, type }] };
+  if (options['no-radius']) body.autoDeriveRadius = false;
+
+  const res: PdFetchResponse = await pdFetch(`/sessions/${encodeURIComponent(sessionId)}/symbols`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+
+  if (res.status === 409 && data.code === 'BLOCKING_CONFLICT') {
+    ui.error(`Symbol claim REFUSED: ${symbol} — blocking conflict with an active session`);
+    const conflicts = (data.conflicts ?? []) as Array<{
+      type: string;
+      a: { filePath: string; symbolPath: string; type: string };
+      b: { filePath: string; symbolPath: string; type: string };
+      otherSessionId: string;
+      otherAgentId?: string | null;
+    }>;
+    for (const c of conflicts) {
+      const holder = c.otherAgentId ? `${c.otherAgentId} (session ${c.otherSessionId})` : `session ${c.otherSessionId}`;
+      console.error(`  ${c.type}: ${c.b.filePath}::${c.b.symbolPath} held as ${c.b.type}-claim by ${holder}`);
+    }
+    console.error('');
+    console.error('Coordinate with the holder or wait for their session to end, then retry.');
+    process.exit(1);
+  }
+  if (!res.ok) {
+    ui.error((data.error as string) || 'Failed to claim symbol');
+    process.exit(1);
+  }
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  if (!isQuiet(options)) {
+    const claimed = Array.isArray(data.claimed) ? data.claimed.length : 0;
+    const autoDerived = Array.isArray(data.autoDerived) ? data.autoDerived.length : 0;
+    ui.success(`Claimed ${symbol} (${type}) in session ${sessionId}`);
+    if (autoDerived > 0) {
+      console.log(`  Blast radius: ${autoDerived} auto-derived read-claim(s) on downstream callers`);
+    } else if (claimed > 1) {
+      console.log(`  Recorded ${claimed} claim(s)`);
+    }
+    const conflicts = Array.isArray(data.conflicts) ? data.conflicts : [];
+    if (conflicts.length > 0) {
+      ui.warn(`  ${conflicts.length} non-blocking conflict(s) predicted — check pd inbox for details`);
     }
   }
 }

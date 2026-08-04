@@ -173,7 +173,7 @@ describe('Test Group 1: CLI -> Completions Parity', () => {
     // in ALL_COMMANDS.  Same for 'services' (alias handled in the switch
     // but the canonical names 'ps'/'find'/'list' are in ALL_COMMANDS).
     const NESTED_SUBCOMMANDS = new Set([
-      'end', 'abandon', 'rm', 'files',           // session sub-commands
+      'end', 'abandon', 'rm', 'files', 'symbols', // session sub-commands
       'create', 'enter', 'leave', 'show', 'destroy', 'delete',  // harbor sub-commands
     ]);
 
