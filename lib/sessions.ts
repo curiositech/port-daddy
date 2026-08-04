@@ -2107,6 +2107,22 @@ export function createSessions(
   }
 
   /**
+   * Claim forest as a renderable tree (ADR-0038 Phase 1): every unreleased
+   * claim — including dead-session claims the zombie protocol left behind —
+   * hung on the materialized repo→dir→file→symbol ancestry, with per-node
+   * Gray-1976 conflict detection and subtree rollups.
+   */
+  function getClaimTree() {
+    const tree = claimForest.buildClaimTree();
+    return {
+      success: true,
+      generatedAt: Date.now(),
+      roots: tree.roots,
+      stats: tree.stats,
+    };
+  }
+
+  /**
    * Get who owns a specific file path, optionally filtered by line range
    */
   function getClaimOwner(filePath: string, range?: { startLine?: number; endLine?: number; symbolPath?: string }) {
@@ -2282,6 +2298,7 @@ export function createSessions(
     getFileConflicts,
     setPhase,
     listAllActiveClaims,
+    getClaimTree,
     getClaimOwner,
     list,
     get,

@@ -128,6 +128,84 @@ const DEFAULT_REPO_ID = 'local';
 const DEFAULT_WORLD_KIND: ClaimForestWorldKind = 'worktree';
 const DEFAULT_WORLD_ID = 'unscoped';
 
+/**
+ * Gray-1976 multi-granularity lock compatibility (ADR-0038 mode matrix).
+ * A pair of modes CONFLICTS when they are not compatible. The matrix is
+ * symmetric; unknown modes conservatively conflict.
+ */
+const MODE_COMPATIBILITY: Record<ClaimForestMode, readonly ClaimForestMode[]> = {
+  IS: ['IS', 'IX', 'S', 'SIX'],
+  IX: ['IS', 'IX'],
+  S: ['IS', 'S'],
+  SIX: ['IS'],
+  X: [],
+};
+
+export function modesConflict(a: ClaimForestMode, b: ClaimForestMode): boolean {
+  const compatible = MODE_COMPATIBILITY[a];
+  if (!compatible) return true;
+  return !compatible.includes(b);
+}
+
+export interface ClaimTreeClaim {
+  sessionId: string;
+  agentId: string | null;
+  purpose: string;
+  mode: ClaimForestMode;
+  intent: string | null;
+  claimedAt: number;
+  sessionStatus: string;
+  /** Daemon-truthful liveness: an unreleased claim whose session is no longer
+   *  active (zombie protocol's abandonByAgent flips status without releasing
+   *  forest claims) renders as a dead claim, never as live intent. */
+  live: boolean;
+}
+
+export interface ClaimTreeNode {
+  nodeId: string;
+  selectorKind: ClaimForestSelectorKind;
+  path: string | null;
+  symbol: string | null;
+  symbolPath: string | null;
+  startLine: number | null;
+  endLine: number | null;
+  repoId: string;
+  worldKind: ClaimForestWorldKind;
+  worldId: string;
+  label: string;
+  claims: ClaimTreeClaim[];
+  /** Non-null when ≥2 unreleased claims from distinct LIVE sessions hold
+   *  Gray-incompatible modes on this exact node. Dead-session claims never
+   *  cause a conflict — they are stale intent, rendered dimmed. */
+  conflict: { sessionIds: string[] } | null;
+  /** Subtree rollup (includes this node) so a collapsed ancestor still
+   *  reads conflicted/dead at a glance. */
+  rollup: { claims: number; conflicts: number; deadClaims: number };
+  children: ClaimTreeNode[];
+}
+
+export interface ClaimTreeStats {
+  nodes: number;
+  claims: number;
+  conflicts: number;
+  deadClaims: number;
+  sessions: number;
+}
+
+interface ClaimForestNodeRow {
+  id: string;
+  parent_id: string | null;
+  selector_kind: ClaimForestSelectorKind;
+  path: string | null;
+  symbol: string | null;
+  symbol_path: string | null;
+  start_line: number | null;
+  end_line: number | null;
+  repo_id: string;
+  world_kind: ClaimForestWorldKind;
+  world_id: string;
+}
+
 export const CLAIM_FOREST_SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS claim_forest_nodes (
     id TEXT PRIMARY KEY,
@@ -301,6 +379,26 @@ function rowToClaim(row: ClaimForestRow): ClaimForestClaim {
   };
 }
 
+function nodeLabel(row: ClaimForestNodeRow): string {
+  const pathTail = (row.path ?? '').split('/').filter(Boolean).pop() ?? '';
+  switch (row.selector_kind) {
+    case 'repo': {
+      const world = row.world_id && row.world_id !== DEFAULT_WORLD_ID ? ` @ ${row.world_id}` : '';
+      return `${row.repo_id}${world}`;
+    }
+    case 'directory':
+      return `${pathTail || row.path || row.id}/`;
+    case 'file':
+      return pathTail || row.path || row.id;
+    case 'symbol':
+      return row.symbol_path || row.symbol || pathTail || row.id;
+    case 'range':
+      return `${pathTail}:${row.start_line ?? '?'}-${row.end_line ?? '?'}`;
+    default:
+      return row.path ?? row.id;
+  }
+}
+
 function ensureLegacySessionFileColumns(db: Database.Database): void {
   const table = db.prepare(`
     SELECT name FROM sqlite_master
@@ -375,6 +473,29 @@ export function createClaimForest(db: Database.Database) {
       JOIN sessions s ON s.id = c.session_id
       WHERE c.released_at IS NULL AND s.status = 'active'
       ORDER BY n.path ASC, n.start_line ASC, c.claimed_at ASC
+    `),
+    // listActive minus the `s.status = 'active'` predicate, plus the session's
+    // status in the SELECT: the zombie protocol (sessions.abandonByAgent) flips
+    // sessions to 'abandoned' WITHOUT releasing forest claims, so unreleased
+    // dead-session claims are real daemon state the tree must surface (dimmed).
+    listUnreleasedWithSessionStatus: db.prepare(`
+      SELECT c.id, c.node_id, c.session_id, c.mode, c.intent, c.claimed_at,
+             c.released_at, c.observed_by, c.confidence, c.legacy_session_file_id,
+             n.repo_id, n.world_kind, n.world_id, n.selector_kind, n.path, n.symbol,
+             n.symbol_path, n.start_line, n.end_line, n.git_oid,
+             s.purpose, s.agent_id AS session_agent_id, s.phase,
+             s.status AS session_status
+      FROM claim_forest_claims c
+      JOIN claim_forest_nodes n ON n.id = c.node_id
+      JOIN sessions s ON s.id = c.session_id
+      WHERE c.released_at IS NULL
+      ORDER BY n.path ASC, n.start_line ASC, c.claimed_at ASC
+    `),
+    getNodeById: db.prepare(`
+      SELECT id, parent_id, selector_kind, path, symbol, symbol_path,
+             start_line, end_line, repo_id, world_kind, world_id
+      FROM claim_forest_nodes
+      WHERE id = ?
     `),
     listBySession: db.prepare(`
       SELECT c.id, c.node_id, c.session_id, c.mode, c.intent, c.claimed_at,
@@ -654,6 +775,167 @@ export function createClaimForest(db: Database.Database) {
     }
   }
 
+  /**
+   * Assemble the claim forest into a renderable tree (ADR-0038 Phase 1).
+   *
+   * Reads every UNRELEASED claim (including claims whose session is dead —
+   * the zombie protocol abandons sessions without releasing forest claims),
+   * then walks `claim_forest_nodes.parent_id` ancestry upward to the repo
+   * roots. Ancestry rows already exist because `ensureNode` materializes
+   * repo→dir→…→file→symbol chains on every claim; this function only reads.
+   */
+  function buildClaimTree(): { roots: ClaimTreeNode[]; stats: ClaimTreeStats } {
+    const rows = stmts.listUnreleasedWithSessionStatus.all() as Array<ClaimForestRow & { session_status: string }>;
+
+    const nodes = new Map<string, ClaimTreeNode>();
+    const parentOf = new Map<string, string | null>();
+    const nodeRowCache = new Map<string, ClaimForestNodeRow | undefined>();
+
+    const getNodeRow = (id: string): ClaimForestNodeRow | undefined => {
+      if (!nodeRowCache.has(id)) {
+        nodeRowCache.set(id, stmts.getNodeById.get(id) as ClaimForestNodeRow | undefined);
+      }
+      return nodeRowCache.get(id);
+    };
+
+    const ensureTreeNode = (id: string): ClaimTreeNode | null => {
+      const existing = nodes.get(id);
+      if (existing) return existing;
+      const row = getNodeRow(id);
+      if (!row) return null;
+      const node: ClaimTreeNode = {
+        nodeId: row.id,
+        selectorKind: row.selector_kind,
+        path: row.path,
+        symbol: row.symbol,
+        symbolPath: row.symbol_path,
+        startLine: row.start_line,
+        endLine: row.end_line,
+        repoId: row.repo_id,
+        worldKind: row.world_kind,
+        worldId: row.world_id,
+        label: nodeLabel(row),
+        claims: [],
+        conflict: null,
+        rollup: { claims: 0, conflicts: 0, deadClaims: 0 },
+        children: [],
+      };
+      nodes.set(id, node);
+      parentOf.set(id, row.parent_id);
+      return node;
+    };
+
+    const sessionIds = new Set<string>();
+    let totalClaims = 0;
+    let deadClaimsTotal = 0;
+
+    for (const row of rows) {
+      const node = ensureTreeNode(row.node_id);
+      if (!node) continue;
+      const claim = rowToClaim(row);
+      const live = row.session_status === 'active';
+      node.claims.push({
+        sessionId: claim.sessionId,
+        agentId: claim.agentId,
+        purpose: claim.purpose,
+        mode: claim.mode,
+        intent: claim.intent,
+        claimedAt: claim.claimedAt,
+        sessionStatus: row.session_status,
+        live,
+      });
+      sessionIds.add(claim.sessionId);
+      totalClaims += 1;
+      if (!live) deadClaimsTotal += 1;
+
+      // Walk ancestry to the repo root. Depth-bounded by path depth; a
+      // visited set guards against pathological parent cycles.
+      let currentId = row.node_id;
+      const visited = new Set<string>([currentId]);
+      while (true) {
+        const parentId = parentOf.get(currentId) ?? null;
+        if (!parentId || visited.has(parentId)) break;
+        visited.add(parentId);
+        if (!ensureTreeNode(parentId)) break;
+        currentId = parentId;
+      }
+    }
+
+    // Per-node conflict rule: ≥2 unreleased claims from DISTINCT LIVE
+    // sessions whose modes are Gray-incompatible. Dead-session claims never
+    // cause conflict — they are stale intent, rendered dimmed.
+    let conflictNodes = 0;
+    for (const node of nodes.values()) {
+      const liveClaims = node.claims.filter(entry => entry.live);
+      const conflicted = new Set<string>();
+      for (let i = 0; i < liveClaims.length; i += 1) {
+        for (let j = i + 1; j < liveClaims.length; j += 1) {
+          const a = liveClaims[i];
+          const b = liveClaims[j];
+          if (a.sessionId === b.sessionId) continue;
+          if (modesConflict(a.mode, b.mode)) {
+            conflicted.add(a.sessionId);
+            conflicted.add(b.sessionId);
+          }
+        }
+      }
+      if (conflicted.size > 0) {
+        node.conflict = { sessionIds: [...conflicted].sort() };
+        conflictNodes += 1;
+      }
+    }
+
+    // Link children to parents; nodes without a materialized parent are roots.
+    const roots: ClaimTreeNode[] = [];
+    for (const [id, node] of nodes) {
+      const parentId = parentOf.get(id);
+      const parent = parentId ? nodes.get(parentId) : undefined;
+      if (parent && parent !== node) {
+        parent.children.push(node);
+      } else {
+        roots.push(node);
+      }
+    }
+
+    // Children sorted dirs-first then path (filesystem intuition).
+    const childOrder = (a: ClaimTreeNode, b: ClaimTreeNode): number => {
+      const aDir = a.selectorKind === 'directory' ? 0 : 1;
+      const bDir = b.selectorKind === 'directory' ? 0 : 1;
+      if (aDir !== bDir) return aDir - bDir;
+      const byPath = (a.path ?? '').localeCompare(b.path ?? '');
+      if (byPath !== 0) return byPath;
+      return (a.startLine ?? 0) - (b.startLine ?? 0);
+    };
+
+    // Post-order rollups so a collapsed ancestor still reads red.
+    const rollUp = (node: ClaimTreeNode): void => {
+      node.children.sort(childOrder);
+      let claims = node.claims.length;
+      let conflicts = node.conflict ? 1 : 0;
+      let deadClaims = node.claims.filter(entry => !entry.live).length;
+      for (const child of node.children) {
+        rollUp(child);
+        claims += child.rollup.claims;
+        conflicts += child.rollup.conflicts;
+        deadClaims += child.rollup.deadClaims;
+      }
+      node.rollup = { claims, conflicts, deadClaims };
+    };
+    roots.sort((a, b) => a.repoId.localeCompare(b.repoId) || a.worldId.localeCompare(b.worldId));
+    for (const root of roots) rollUp(root);
+
+    return {
+      roots,
+      stats: {
+        nodes: nodes.size,
+        claims: totalClaims,
+        conflicts: conflictNodes,
+        deadClaims: deadClaimsTotal,
+        sessions: sessionIds.size,
+      },
+    };
+  }
+
   function addressForSessionClaim(session: SessionContext, fields: {
     path: string;
     startLine?: number | null;
@@ -693,5 +975,6 @@ export function createClaimForest(db: Database.Database) {
     backfillFromSessionFiles,
     addressForSessionClaim,
     scopeForSession,
+    buildClaimTree,
   };
 }

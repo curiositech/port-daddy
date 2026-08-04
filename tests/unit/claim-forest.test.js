@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
-import { createClaimForest } from '../../lib/claim-forest.js';
+import { createClaimForest, modesConflict } from '../../lib/claim-forest.js';
 import { createSessions } from '../../lib/sessions.js';
 
 describe('claim forest store', () => {
@@ -405,5 +405,193 @@ describe('claim forest store', () => {
       worldKind: 'worktree',
       worldId: 'unscoped',
     });
+  });
+});
+
+describe('modesConflict (Gray-1976 compatibility matrix, ADR-0038)', () => {
+  it('X conflicts with everything, including X', () => {
+    for (const mode of ['S', 'X', 'IS', 'IX', 'SIX']) {
+      expect(modesConflict('X', mode)).toBe(true);
+      expect(modesConflict(mode, 'X')).toBe(true);
+    }
+  });
+
+  it('shared reads coexist; intent locks co-parent', () => {
+    expect(modesConflict('S', 'S')).toBe(false);
+    expect(modesConflict('S', 'IS')).toBe(false);
+    expect(modesConflict('IS', 'IS')).toBe(false);
+    expect(modesConflict('IS', 'IX')).toBe(false);
+    expect(modesConflict('IX', 'IX')).toBe(false);
+    expect(modesConflict('SIX', 'IS')).toBe(false);
+  });
+
+  it('write intent conflicts with shared truth', () => {
+    expect(modesConflict('IX', 'S')).toBe(true);
+    expect(modesConflict('S', 'IX')).toBe(true);
+    expect(modesConflict('SIX', 'IX')).toBe(true);
+    expect(modesConflict('SIX', 'S')).toBe(true);
+    expect(modesConflict('SIX', 'SIX')).toBe(true);
+  });
+
+  it('is symmetric across the whole matrix', () => {
+    const modes = ['S', 'X', 'IS', 'IX', 'SIX'];
+    for (const a of modes) {
+      for (const b of modes) {
+        expect(modesConflict(a, b)).toBe(modesConflict(b, a));
+      }
+    }
+  });
+});
+
+describe('buildClaimTree (ADR-0038 Phase 1)', () => {
+  let db;
+
+  beforeEach(() => {
+    db = createTestDb();
+  });
+
+  afterEach(() => {
+    if (db) db.close();
+  });
+
+  function findNode(roots, predicate) {
+    const stack = [...roots];
+    while (stack.length > 0) {
+      const node = stack.pop();
+      if (predicate(node)) return node;
+      stack.push(...node.children);
+    }
+    return null;
+  }
+
+  it('hangs claims on materialized ancestry, marks live-session conflicts, and rolls them up to the root', () => {
+    const sessions = createSessions(db);
+    const a = sessions.start('slice work A', { agentId: 'agent-a', project: 'port-daddy', worktreeId: 'wt-a' });
+    const b = sessions.start('slice work B', { agentId: 'agent-b', project: 'port-daddy', worktreeId: 'wt-a' });
+    expect(a.success).toBe(true);
+    expect(b.success).toBe(true);
+
+    // Two LIVE sessions claim the same file — the dual-write defaults to
+    // mode X, so this is a genuine exclusive-vs-exclusive conflict node.
+    expect(sessions.claimFiles(a.id, ['lib/shared/conflict.ts'], { agentId: 'agent-a' }).success).toBe(true);
+    expect(sessions.claimFiles(b.id, ['lib/shared/conflict.ts'], { agentId: 'agent-b' }).success).toBe(true);
+    // And one uncontested file elsewhere.
+    expect(sessions.claimFiles(a.id, ['routes/solo.ts'], { agentId: 'agent-a' }).success).toBe(true);
+
+    const tree = sessions.getClaimTree();
+    expect(tree.success).toBe(true);
+    expect(typeof tree.generatedAt).toBe('number');
+    expect(tree.stats).toMatchObject({ claims: 3, conflicts: 1, deadClaims: 0, sessions: 2 });
+    expect(tree.roots).toHaveLength(1);
+
+    const root = tree.roots[0];
+    expect(root.selectorKind).toBe('repo');
+    expect(root.repoId).toBe('port-daddy');
+    // Rollups climb the ancestor chain so a collapsed root still reads red.
+    expect(root.rollup).toMatchObject({ claims: 3, conflicts: 1, deadClaims: 0 });
+
+    const fileNode = findNode(tree.roots, node => node.selectorKind === 'file' && node.path === 'lib/shared/conflict.ts');
+    expect(fileNode).not.toBeNull();
+    expect(fileNode.conflict).not.toBeNull();
+    expect(fileNode.conflict.sessionIds.sort()).toEqual([a.id, b.id].sort());
+    expect(fileNode.claims).toHaveLength(2);
+    expect(fileNode.claims.every(claim => claim.live)).toBe(true);
+    expect(fileNode.claims.map(claim => claim.mode)).toEqual(['X', 'X']);
+
+    // Ancestry was materialized by ensureNode: dir nodes carry the conflict rollup.
+    const dirNode = findNode(tree.roots, node => node.selectorKind === 'directory' && node.path === 'lib/shared');
+    expect(dirNode).not.toBeNull();
+    expect(dirNode.rollup.conflicts).toBe(1);
+    expect(dirNode.claims).toHaveLength(0);
+
+    const soloNode = findNode(tree.roots, node => node.selectorKind === 'file' && node.path === 'routes/solo.ts');
+    expect(soloNode.conflict).toBeNull();
+  });
+
+  it('surfaces zombie-abandoned unreleased claims as dead — dimmable, never conflict-causing', () => {
+    const sessions = createSessions(db);
+    const live = sessions.start('survivor', { agentId: 'agent-live', project: 'port-daddy', worktreeId: 'wt-a' });
+    const doomed = sessions.start('doomed', { agentId: 'agent-doomed', project: 'port-daddy', worktreeId: 'wt-a' });
+    expect(sessions.claimFiles(live.id, ['lib/contested.ts'], { agentId: 'agent-live' }).success).toBe(true);
+    expect(sessions.claimFiles(doomed.id, ['lib/contested.ts'], { agentId: 'agent-doomed' }).success).toBe(true);
+
+    // The REAL zombie path: abandonByAgent flips the session's status without
+    // releasing forest claims — that unreleased dead-session state is exactly
+    // what the tree must surface.
+    expect(sessions.abandonByAgent('agent-doomed')).toBe(1);
+
+    const tree = sessions.getClaimTree();
+    expect(tree.stats).toMatchObject({ claims: 2, conflicts: 0, deadClaims: 1, sessions: 2 });
+
+    const fileNode = findNode(tree.roots, node => node.selectorKind === 'file' && node.path === 'lib/contested.ts');
+    expect(fileNode.conflict).toBeNull(); // dead claims are stale intent, not conflict
+    const deadClaim = fileNode.claims.find(claim => claim.sessionId === doomed.id);
+    expect(deadClaim).toMatchObject({ live: false, sessionStatus: 'abandoned' });
+    const liveClaim = fileNode.claims.find(claim => claim.sessionId === live.id);
+    expect(liveClaim).toMatchObject({ live: true, sessionStatus: 'active' });
+    expect(fileNode.rollup.deadClaims).toBe(1);
+    expect(tree.roots[0].rollup.deadClaims).toBe(1);
+  });
+
+  it('does not conflict compatible Gray modes, sorts directories before files, and labels nodes', () => {
+    const forest = createClaimForest(db);
+    const insert = (id, agent) => {
+      db.prepare(`
+        INSERT INTO sessions (
+          id, purpose, status, phase, agent_id, worktree_id, identity_project,
+          created_at, updated_at, completed_at, metadata
+        )
+        VALUES (?, ?, 'active', 'in_progress', ?, 'wt-a', 'port-daddy', 1000, 1000, NULL, NULL)
+      `).run(id, 'shared readers', agent);
+      return id;
+    };
+    const reader1 = insert('session-reader-1', 'agent-r1');
+    const reader2 = insert('session-reader-2', 'agent-r2');
+
+    const address = {
+      repoId: 'port-daddy',
+      world: { kind: 'worktree', id: 'wt-a' },
+      selector: { kind: 'file', path: 'docs/spec.md' },
+    };
+    forest.claim(address, { sessionId: reader1, mode: 'S', claimedAt: 1200 });
+    forest.claim(address, { sessionId: reader2, mode: 'S', claimedAt: 1300 });
+    forest.claim({
+      repoId: 'port-daddy',
+      world: { kind: 'worktree', id: 'wt-a' },
+      selector: { kind: 'symbol', path: 'lib/deep/nested.ts', symbol: 'run', symbolPath: 'mod.run' },
+    }, { sessionId: reader1, mode: 'X', claimedAt: 1400 });
+
+    const { roots, stats } = forest.buildClaimTree();
+    expect(stats.conflicts).toBe(0); // S + S share peacefully
+
+    const shared = (function find(nodes) {
+      for (const node of nodes) {
+        if (node.path === 'docs/spec.md' && node.selectorKind === 'file') return node;
+        const hit = find(node.children);
+        if (hit) return hit;
+      }
+      return null;
+    })(roots);
+    expect(shared.conflict).toBeNull();
+    expect(shared.claims.map(claim => claim.mode).sort()).toEqual(['S', 'S']);
+    expect(shared.label).toBe('spec.md');
+
+    // Root children: directories (docs/, lib/) sorted before any files.
+    const root = roots[0];
+    expect(root.label).toBe('port-daddy @ wt-a');
+    expect(root.children.map(child => child.selectorKind)).toEqual(['directory', 'directory']);
+    expect(root.children.map(child => child.path)).toEqual(['docs', 'lib']);
+
+    // Symbol nodes label by symbolPath and hang under their file node.
+    const symbolNode = (function find(nodes) {
+      for (const node of nodes) {
+        if (node.selectorKind === 'symbol') return node;
+        const hit = find(node.children);
+        if (hit) return hit;
+      }
+      return null;
+    })(roots);
+    expect(symbolNode.label).toBe('mod.run');
+    expect(symbolNode.claims[0].mode).toBe('X');
   });
 });

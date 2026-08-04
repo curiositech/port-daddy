@@ -72,6 +72,7 @@ interface SessionsRouteDeps {
     getFileConflicts(files: string[]): Record<string, unknown>;
     setPhase(sessionId: string, phase: string): Record<string, unknown>;
     listAllActiveClaims(options?: { path?: string; symbol?: string; symbolPath?: string; agentId?: string; purpose?: string }): Record<string, unknown>;
+    getClaimTree(): Record<string, unknown>;
     getClaimOwner(filePath: string, range?: { startLine?: number; endLine?: number; symbolPath?: string }): Record<string, unknown>;
     list(options?: {
       status?: string;
@@ -999,6 +1000,20 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     } catch (error) {
       metrics.errors++;
       logger.error('files_list_error', { error: (error as Error).message });
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+
+  // GET /claims/tree - Claim forest as a tree: unreleased claims (live + dead
+  // sessions) on materialized repo→dir→file→symbol ancestry, with per-node
+  // Gray-1976 conflict detection and subtree rollups (ADR-0038 Phase 1).
+  fastify.get('/claims/tree', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      return sessions.getClaimTree();
+    } catch (error) {
+      metrics.errors++;
+      logger.error('claims_tree_error', { error: (error as Error).message });
       reply.code(500);
       return { error: 'internal server error' };
     }
