@@ -28,6 +28,8 @@
  *   GET  /v1/shipwright/history                 (session; own chat history)
  *   POST /v1/shipwright/chat                    (session; Workers AI, SSE)
  *   POST /v1/shipwright/clear                   (session; delete own history)
+ *   GET  /account/billing                       (HTML billing page; session +
+ *                                                GitHub installation ownership; ADR-0116)
  *   POST /billing/checkout                     (session; Stripe Checkout for a credit pack)
  *   POST /billing/webhook                      (Stripe-Signature HMAC; credit ledger writes)
  *   GET  /billing/balance/:installationId      (operator or session; prepaid balance)
@@ -115,6 +117,7 @@ import {
   handleShipwrightHistory,
   handleShipwrightClear,
 } from './shipwright.js';
+import { handleBillingPage } from './billing-page.js';
 import { handleDeviceStart, handleDeviceToken, handleWhoami } from './device-flow.js';
 import {
   handleCreateCheckout,
@@ -294,6 +297,10 @@ export default {
     // Per-account fleet-runs index (session + GitHub repo ACL; ADR-0101).
     else if (pathname === '/account/runs' && method === 'GET') {
       response = await handleRunsPage(request, env);
+    }
+    // Billing storefront (session + GitHub installation ownership; ADR-0116).
+    else if (pathname === '/account/billing' && method === 'GET') {
+      response = await handleBillingPage(request, env);
     }
     // MERCY report card (session-gated HTML; src/mercy.ts).
     else if (pathname === '/account/mercy' && method === 'GET') {

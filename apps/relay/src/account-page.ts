@@ -369,6 +369,7 @@ export function renderAccountPage(
       <a href="/account" aria-current="page">Overview</a>
       <a href="/account/interruptions">Interruptions</a>
       <a href="/account/runs">Fleet runs</a>
+      <a href="/account/billing">Billing &amp; credits</a>
       <a href="/account/mercy">Mercy health</a>
       <a href="/account/shipwright">Shipwright</a>
       <a href="#devices">Devices</a>
@@ -450,9 +451,13 @@ export function renderAccountPage(
 
     <section class="sect" id="plan" aria-labelledby="plan-h">
       <div class="sect-head"><div><span class="eyebrow">Plan &amp; caps</span><h2 id="plan-h">What it costs, and where it stops</h2></div></div>
+      <a class="runs-cta" href="/account/billing">Billing &amp; credits &rarr;</a>
       <div class="empty">
-        <div class="e-title">BYOK-first — no managed plan yet.</div>
-        <p>Bring your own provider key and each fleet run bills your own account. Cost caps are enforced by <strong>your daemon</strong> and will mirror here; managed prepaid credits are a later slice.</p>
+        <div class="e-title">Free until enrolled — billing fails open.</div>
+        <p>Fleet runs on a GitHub App installation with no credit history are <strong>free</strong>; nothing is
+        gated until you buy a first credit pack. <a href="/account/billing">Billing &amp; credits</a> lists your
+        installations with their prepaid balances, buy buttons, and the Stripe portal. Cost caps enforced by
+        <strong>your daemon</strong> still mirror here later.</p>
       </div>
     </section>
 
