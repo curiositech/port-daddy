@@ -1,6 +1,5 @@
 const { execFileSync } = require('child_process');
 const { join } = require('path');
-const { readFileSync } = require('fs');
 const { repoRoot } = require('../test-utils');
 
 describe('rebase epoch stability', () => {

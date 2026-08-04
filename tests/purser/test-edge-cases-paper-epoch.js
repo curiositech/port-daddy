@@ -1,5 +1,4 @@
 const { execFileSync } = require('child_process');
-const { join } = require('path');
 const { repoRoot } = require('../test-utils');
 
 describe('paper_epoch edge cases', () => {
