@@ -18,7 +18,7 @@
  *       (undercut to q_floor − ε).
  *     - protocol detects collusion with probability p_d per round.
  *       On detection, the cartel member is slashed for a one-shot
- *       penalty 5 · q_floor (matches simulation.mjs cartel penalty).
+ *       penalty L = 5 · (q_floor − mu).
  *     - players discount future payoffs at delta ∈ (0, 1).
  *
  * Sustainability condition (one-shot deviation principle)
@@ -26,8 +26,14 @@
  *     (collusion stream value) ≥ (defection one-shot gain) +
  *                                (post-defection competitive payoff)
  *
- *   That collapses to: delta · pi_C / (1 − delta · (1 − p_d))
- *                      ≥ pi_D + delta · pi_N / (1 − delta)
+ *   Because detection happens before the current-round payoff, the
+ *   collusion value satisfies
+ *
+ *     V_C = pi_C - p_d L + delta (1 - p_d) V_C.
+ *
+ *   With pi_N ≈ 0, sustainability is therefore
+ *
+ *     (pi_C - p_d L) / (1 - delta (1 - p_d)) >= pi_D.
  *
  *   where:
  *     pi_C = per-round cartel profit (each member)
@@ -183,12 +189,13 @@ function runSweep() {
   console.log('#   where sustainable flips NO. That p_d* is the protocol target.');
   console.log('');
   console.log('# Closed-form check (no defection-stage punishment beyond detection):');
-  console.log('#   sustainable iff   delta · piC / (1 − delta · (1 − p_d)) ≥ piD');
-  console.log('#   solve for p_d*:   p_d* = 1 − (piC − (1 − delta) · piD) / (delta · piD)');
+  console.log('#   V_C = (piC − p_d · L) / (1 − delta · (1 − p_d))');
+  console.log('#   sustainable iff V_C ≥ piD');
+  console.log('#   p_d* = (piC − (1 − delta) · piD) / (L + delta · piD)');
   console.log('');
   console.log('# Headline (assuming delta = 0.95, typical for one-month rounds):');
-  console.log('# p_d* ≈ 0.10–0.15. Protocols must achieve > 10–15% per-round detection');
-  console.log('# to break repeated-game cartel sustainability. This sets the bar for');
+  console.log('# p_d* ≈ 0.0478. The tested grid first classifies the cartel as fragile');
+  console.log('# at p_d = 0.05. This sets a model-conditional bar for');
   console.log('# the Anchor §6.4 detection mechanism (Merkle Forest binding + heat).');
 }
 
