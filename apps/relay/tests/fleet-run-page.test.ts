@@ -401,6 +401,132 @@ describe('fleet run page rendering', () => {
     expect(html).toContain('&lt;script&gt;');
   });
 
+  // ── Purser + stacked-fix narratives (wf-crew) ──────────────────────────────
+
+  function step(kind: string, ship: string | null, title: string, detail: unknown, seq = 1): FleetRunStepRow {
+    return {
+      run_id: RUN_ID, seq, kind, ship, title,
+      detail: detail == null ? null : JSON.stringify(detail),
+      created_at: 1_700_000_000 + seq,
+    };
+  }
+
+  it('narrates purser-steelman: obligations count + escaped purpose', async () => {
+    const html = await openPage(makeRun(), [
+      step('purser-steelman', 'purser', 'pd-purser: steel-manned contract (3 obligation(s))', {
+        purpose: 'Guarantee frobbing <b>always</b>', obligationCount: 3, testTargets: ['src/x.ts'],
+      }),
+    ]);
+    expect(html).toContain('The purser steel-manned this PR into 3 testable obligations');
+    expect(html).toContain('Guarantee frobbing &lt;b&gt;always&lt;/b&gt;');
+    expect(html).not.toContain('<b>always</b>');
+  });
+
+  it('narrates a malformed purser-steelman as an honest advisory stop', async () => {
+    const html = await openPage(makeRun(), [
+      step('purser-steelman', 'purser', 'pd-purser: steel-man MALFORMED', { error: 'not fenced JSON' }),
+    ]);
+    expect(html).toContain('could not steel-man this PR');
+    expect(html).toContain('stopped honestly');
+  });
+
+  it('narrates purser-tests: file count + size in KB + escaped file list', async () => {
+    const html = await openPage(makeRun(), [
+      step('purser-tests', 'purser', 'pd-purser: authored 2 adversarial test file(s)', {
+        files: [
+          { path: 'tests/purser/a.test.ts', bytes: 1024 },
+          { path: 'tests/purser/<img>.test.ts', bytes: 512 },
+        ],
+        totalBytes: 1536,
+      }),
+    ]);
+    expect(html).toContain('Authored 2 adversarial test files (1.5 KB)');
+    expect(html).toContain('tests/purser/a.test.ts');
+    expect(html).toContain('&lt;img&gt;');
+    expect(html).not.toContain('<img>.test.ts');
+  });
+
+  it('narrates rejected purser tests without pretending anything was stacked', async () => {
+    const html = await openPage(makeRun(), [
+      step('purser-tests', 'purser', 'pd-purser: authored tests REJECTED', {
+        error: 'path traversal rejected: ../x.ts',
+      }),
+    ]);
+    expect(html).toContain('did not survive validation');
+    expect(html).toContain('Nothing was stacked');
+  });
+
+  it('narrates purser-sandbox: ran-and-passed, ran-and-failed (escaped tail), and not-run', async () => {
+    const passed = await openPage(makeRun(), [
+      step('purser-sandbox', 'purser', 'pd-purser: sandbox PASSED', { executed: true, passed: true, failuresTail: '' }),
+    ]);
+    expect(passed).toContain('Sandbox ran the suite against the PR head — all tests passed');
+
+    const failed = await openPage(makeRun(), [
+      step('purser-sandbox', 'purser', 'pd-purser: sandbox FAILED', {
+        executed: true, passed: false, failuresTail: '2 failed <script>x</script>',
+      }),
+    ]);
+    expect(failed).toContain('Sandbox ran the suite against the PR head — test FAILURES');
+    expect(failed).toContain('does not satisfy its own contract');
+    expect(failed).toContain('&lt;script&gt;');
+    expect(failed).not.toContain('<script>x</script>');
+
+    const absent = await openPage(makeRun(), [
+      step('purser-sandbox', 'purser', 'pd-purser: sandbox NOT RUN', {
+        executed: false, passed: null, failuresTail: '', reason: 'SANDBOX binding absent',
+      }),
+    ]);
+    expect(absent).toContain('Sandbox did not run — SANDBOX binding absent');
+    expect(absent).toContain('No results were fabricated');
+  });
+
+  it('narrates purser-stacked: the demand ("must now satisfy these tests") + retarget note', async () => {
+    const html = await openPage(makeRun(), [
+      step('purser-stacked', 'purser', 'pd-purser: stacked tests as #8001 (PR retargeted onto tests)', {
+        testPrNumber: 8001, testPrUrl: 'https://github.com/test/pr/8001', retargeted: true,
+      }),
+    ]);
+    expect(html).toContain('Stacked #8001: the reviewed PR must now satisfy these tests');
+    expect(html).toContain('retargeted onto the test branch');
+  });
+
+  it('narrates a degraded purser stacking honestly', async () => {
+    const html = await openPage(makeRun(), [
+      step('purser-stacked', 'purser', 'pd-purser: stacking degraded', {
+        testPrNumber: null, testPrUrl: null, retargeted: false,
+        degraded: 'the GitHub App lacks the `contents: write` permission.',
+      }),
+    ]);
+    expect(html).toContain('Stacking degraded');
+    expect(html).toContain('contents: write');
+    expect(html).toContain('posted inline');
+  });
+
+  it("narrates stack-posted: the ship coded its own fix and stacked it on this PR", async () => {
+    const html = await openPage(makeRun(), [
+      step('stack-posted', 'spark', 'pd-spark: coded its own fix and stacked #8002 on top of #7', {
+        stacked: true, stackPrNumber: 8002, stackPrUrl: 'https://github.com/test/pr/8002',
+        proposalTitle: 'Fix the null guard', files: ['src/fix.ts'], sandboxValidated: true,
+      }),
+    ]);
+    expect(html).toContain('pd-spark coded its own fix and stacked #8002 on top of this PR');
+    expect(html).toContain('sandbox-validated against the PR head');
+    expect(html).toContain('src/fix.ts');
+  });
+
+  it('narrates a degraded stack-posted (fix proposed but not stacked) with an escaped reason', async () => {
+    const html = await openPage(makeRun(), [
+      step('stack-posted', 'spark', 'pd-spark: stack fix NOT posted — fork PR', {
+        stacked: false, degraded: 'fork PR — stacking is same-repo only <i>x</i>', proposalTitle: 'T',
+      }),
+    ]);
+    expect(html).toContain('pd-spark proposed a coded fix, but it was not stacked');
+    expect(html).toContain('same-repo only');
+    expect(html).toContain('&lt;i&gt;');
+    expect(html).not.toContain('<i>x</i>');
+  });
+
   it('serves a no-script CSP, no-store, and noindex on every response', async () => {
     const t = await runPageToken(SECRET, RUN_ID);
     for (const r of [
