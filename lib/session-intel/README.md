@@ -88,24 +88,24 @@ Intelligence program wants to mine.
 
 | Path | What |
 |------|------|
-| `lib/session-intel/eureka-arc-detector.js` | The detector (ESM, plain node — no deps). |
-| `lib/session-intel/eureka-arc-detector.selftest.js` | Framework-free selftest (synthetic fixtures + ≥12 real on-disk sessions). |
-| `tools/session-intel/detect-eureka-arcs.js` | CLI that scans `~/.claude/projects` and prints arcs as JSON. |
+| `lib/session-intel/eureka-arc-detector.mjs` | The detector (ESM, plain node — no deps). |
+| `lib/session-intel/eureka-arc-detector.selftest.mjs` | Framework-free selftest (synthetic fixtures + ≥12 real on-disk sessions). |
+| `tools/session-intel/detect-eureka-arcs.mjs` | CLI that scans `~/.claude/projects` and prints arcs as JSON. |
 
 ## Run
 
 ```bash
 # Selftest (asserts, exits non-zero on any failure)
-node lib/session-intel/eureka-arc-detector.selftest.js
+node lib/session-intel/eureka-arc-detector.selftest.mjs
 
 # Detect arcs across every session on this machine
-node tools/session-intel/detect-eureka-arcs.js --pretty
+node tools/session-intel/detect-eureka-arcs.mjs --pretty
 
 # Sample the 40 biggest transcripts, print a count
-node tools/session-intel/detect-eureka-arcs.js --limit 40 --count
+node tools/session-intel/detect-eureka-arcs.mjs --limit 40 --count
 
 # One transcript
-node tools/session-intel/detect-eureka-arcs.js --pretty ~/.claude/projects/<slug>/<uuid>.jsonl
+node tools/session-intel/detect-eureka-arcs.mjs --pretty ~/.claude/projects/<slug>/<uuid>.jsonl
 ```
 
 ## What counts as a signal (STRUCTURED ONLY — no keyword NLP)
@@ -179,7 +179,7 @@ Filtering the harness-artifact classes above is what makes the arc count
 trustworthy. On a 40-session slice of this machine: raw `is_error` results
 included **~89% harness friction** (read-first-before-edit walls, isolation /
 coordination-guard blocks, model-availability blips, permission gates). After
-filtering, `detect-eureka-arcs.js --limit 40 --count` reports **3 genuine arcs**
+filtering, `detect-eureka-arcs.mjs --limit 40 --count` reports **3 genuine arcs**
 (a Python build script that failed with a traceback then patched 36 slides; a
 vhs probe build that failed to parse then rendered; a `gh pr checks` exit-code
 flip). Before this filter the same slice reported 37 — almost all noise.

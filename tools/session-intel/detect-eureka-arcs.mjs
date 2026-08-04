@@ -4,10 +4,10 @@
  *
  * Scans Claude Code / Workflow session transcripts and prints candidate
  * "failure → failure → success" arcs as JSON. Pure structured detection — no
- * keyword NLP (see lib/session-intel/eureka-arc-detector.js).
+ * keyword NLP (see lib/session-intel/eureka-arc-detector.mjs).
  *
  * Usage:
- *   node tools/session-intel/detect-eureka-arcs.js [options] [file-or-dir ...]
+ *   node tools/session-intel/detect-eureka-arcs.mjs [options] [file-or-dir ...]
  *
  * With no path args it scans ~/.claude/projects (all sessions on this machine).
  *
@@ -22,7 +22,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { detectArcsFromText } from '../../lib/session-intel/eureka-arc-detector.js';
+import { detectArcsFromText } from '../../lib/session-intel/eureka-arc-detector.mjs';
 
 function parseArgs(argv) {
   const opts = { minFailures: 2, sim: 0.6, limit: Infinity, top: Infinity, pretty: false, count: false, paths: [] };
