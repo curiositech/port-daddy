@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'roster' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'takeover' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' 'send' 'sent' \
-    'begin' 'b' 'done' 'whoami' 'w' 'account' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'work' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'harbor-ledger' 'tuple' 'graph' 'booty' 'embed' 'skill-graft' 'skillgraft' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
+    'begin' 'b' 'done' 'whoami' 'w' 'account' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'work' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'harbor-ledger' 'tuple' 'graph' 'booty' 'embed' 'skill-graft' 'skillgraft' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' 'suggest' 'seamanship' 'skills' \
     'say' 'look' 'sitrep' 'whois' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
@@ -269,6 +269,11 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a scope -d 'Alias for periscope — operator loop SIGHT stage'
     complete -c $prog -n __pd_needs_command -a coast-guard -d 'Coast Guard read path — whether spawns are confined + what they cannot read'
     complete -c $prog -n __pd_needs_command -a cg -d 'Alias for coast-guard — the Coast Guard read path'
+    complete -c $prog -n __pd_needs_command -a suggest -d 'Tender suggestion queue — list, approve, dismiss operator suggestions'
+    complete -c $prog -n "__pd_using_command suggest" -x -a 'approve dismiss' -d 'Approve or dismiss a suggestion by ID'
+    complete -c $prog -n __pd_needs_command -a seamanship -d 'Skill registry — search, show, sync, outcomes, index'
+    complete -c $prog -n "__pd_using_command seamanship" -x -a 'list search show sync outcomes index' -d 'Seamanship subcommand'
+    complete -c $prog -n __pd_needs_command -a skills -d 'Alias for seamanship — skill registry'
     complete -c $prog -n __pd_needs_command -a cockpit -d 'App-Native Development Cockpit — read roadmap into mission cards'
     complete -c $prog -n "__pd_using_command cockpit" -x -a 'missions' -d 'List mission cards parsed from the project roadmap'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l project -x -d 'Project directory to read'

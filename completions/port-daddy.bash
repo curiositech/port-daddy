@@ -125,6 +125,10 @@ _port_daddy() {
     coast-guard cg
     # Relay v0 — zero-trust event fabric (ADR-0049)
     relay
+    # Tender suggestion queue — list, approve, dismiss operator suggestions
+    suggest
+    # Skill registry — search, graft, sync, outcomes
+    seamanship skills
     # App-Native Development Cockpit
     cockpit
     # Roadmap popper — autonomous roadmap-to-dispatch task puller

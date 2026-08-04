@@ -153,6 +153,10 @@ import {
   handlePeriscope,
   // Coast Guard read path — `pd coast-guard status` (ADR-0050 legibility)
   handleCoastGuard,
+  // Suggest — Tender's suggestion queue (approve/dismiss)
+  handleSuggest,
+  // Seamanship — skill registry, search, graft, outcomes
+  handleSeamanship,
 } from '../cli/commands/index.js';
 // pd memory — Core/Recall/Archival vocabulary + episodic memory dispatcher.
 // Imported directly (not via index.js) so the tier subcommands take precedence
@@ -1406,6 +1410,8 @@ const ALL_COMMANDS: string[] = [
   'safe',
   'relay',
   'plan',
+  'suggest',
+  'seamanship', 'skills',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2933,6 +2939,17 @@ export async function main(): Promise<void> {
       case 'coast-guard':
       case 'cg':
         handleCoastGuard(positional[0], options);
+        break;
+
+      // Tender suggestion queue — list, approve, dismiss
+      case 'suggest':
+        await handleSuggest(positional, options);
+        break;
+
+      // Skill registry, search, graft, outcomes
+      case 'seamanship':
+      case 'skills':
+        await handleSeamanship(positional, options);
         break;
 
       case 'history':

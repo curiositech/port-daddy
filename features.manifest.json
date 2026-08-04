@@ -1933,6 +1933,63 @@
         "sdk": false
       }
     },
+    "suggest": {
+      "description": "Operator-facing suggestion queue fed by Tender ship. `pd suggest` lists pending suggestions; `pd suggest approve <id>` triggers a one-shot ship run; `pd suggest dismiss <id>` clears it. Backed by fleet_suggestions SQLite table.",
+      "module": "cli/commands/suggest.ts",
+      "cli": [
+        "suggest"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /fleet/suggestions",
+        "POST /fleet/suggestions/write",
+        "POST /fleet/suggestions/:id/approve",
+        "POST /fleet/suggestions/:id/dismiss"
+      ],
+      "completions": [
+        "suggest"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "seamanship": {
+      "description": "Skill registry surface. `pd seamanship list/search/show/sync/outcomes/index` — backed by lib/skill-sync.ts with BM25+Tool2Vec engine in Phase 3. Aliases: pd skills.",
+      "module": "cli/commands/seamanship.ts",
+      "cli": [
+        "seamanship",
+        "skills"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /fleet/skills/outcomes"
+      ],
+      "completions": [
+        "seamanship",
+        "skills"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "fleet_registry": {
+      "description": "Ship health registry written by Tender. GET /fleet/registry returns health scores, Tender recommendations, and pause state per ship. POST /fleet/registry upserts entries. GET /fleet/run/:ship fires a one-shot dispatch.",
+      "module": "routes/fleet.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /fleet/registry",
+        "POST /fleet/registry",
+        "POST /fleet/run/:ship"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "claim_watcher_snapshots": {
       "description": "Daemon-side mtime/hash watcher captures prior bytes when a claimed file's content changes mid-claim. `pd snapshots list/show/restore/prune` surfaces those snapshots to operators with one-command rollback. Auto-prune keeps disk usage bounded (default 7 days).",
       "module": "lib/claim-watcher.ts",
