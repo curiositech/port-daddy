@@ -182,14 +182,14 @@
 \fancyhead[R]{\small\color{hhgray}\thepage}
 % Footer is quiet chrome: small, single muted ink, no colored maturity key.
 % The maturity scale lives in the appendix status table, not the running chrome.
-\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ Paper 3 of 4}
+\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter III of VII}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 % ─── Title ───────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{Technical White Paper --- Harbor Volume, Paper 3}}\\[0.5cm]
+  {\Large\textsc{Port Daddy Coordination Papers --- Chapter III of VII}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{From Spawn to Person:}}\\[0.2cm]
   {\Large Identity, Continuity, and the Substrate\\of Agentic Reputation}\\[0.3cm]
@@ -200,7 +200,7 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{August 2026\\Version 1.2 (Harbor Volume, L3 bridge)}
+\date{August 2026\\Version 1.3 (series-aligned edition)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
 \begin{document}
@@ -213,16 +213,16 @@
 \begin{abstract}\noindent
 A coding-agent swarm produces work, but until that work can be attributed to
 something that survives the process that did it, none of it can be priced. This
-paper is the bridge of the Harbor Volume: it carries the through-line
+paper is Chapter~III of the Port Daddy Coordination Papers: it carries the through-line
 \emph{memory $\to$ checkpoint $\to$ continuity $\to$ a person, not a spawn $\to$
 witnessed outcomes $\to$ reputation $\to$ a tradeable asset} from the legible
-single-operator tool (Papers~1--2) to the cross-operator market (Paper~4). We
+single-operator tool (Chapters~I--II) to the cross-operator market (Chapter~IV). We
 make a single distinction load-bearing: a \textbf{role} is a bundle of
 $\{\text{obligation}, \text{capability}, \text{authority}\}$ --- an org-chart
 entry any spawn can fill --- while a \textbf{person} is a role instance
 \emph{plus continuity}: durable memory, a restorable checkpoint, and a witnessed
 history of outcomes keyed on an identity that cannot be freely re-picked. From
-this we draw the volume's central economic claim, stated identically across the
+this we draw the series' central economic claim, stated identically across the
 papers: \emph{the reputation estimator is cheap; the substrate it scores over ---
 witnessed outcomes on a non-forgeable identity --- is the gate.} We ground the
 philosophy (Locke's memory criterion, Parfit's psychological continuity), name
@@ -253,11 +253,11 @@ compatibility, witnessed outcomes
 
 \vspace{0.4cm}
 \noindent\textit{Reading time: approximately 40 minutes end-to-end; the
-Reader's Map below offers shorter routes. The companion papers \emph{The Legible
-Swarm} (Paper~1, L2) and \emph{The Anchor Protocol} (Paper~2, L0--L1) supply the
-legibility surfaces and the cryptographic identity ceremony this paper builds on;
-\emph{The Harbor Economy} (Paper~4, L3) consumes this paper's reputation
-substrate as the third side of its market. Any of the four can be opened first;
+Reader's Map below offers shorter routes. \emph{The Legible Swarm}
+(Chapter~I) and \emph{The Single-Writer Kernel} (Chapter~II) supply the legibility
+and transactional substrate; \emph{The Anchor Protocol} (Chapter~V) deepens the
+cryptographic identity ceremony; and \emph{The Harbor Economy} (Chapter~IV)
+consumes this paper's reputation substrate. Any chapter can be opened first;
 this one is the hinge.}
 
 \vspace{0.3cm}
@@ -266,12 +266,12 @@ this one is the hinge.}
       inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,
       align=left] (cbox) {%
   \small{\scshape\bfseries Where this paper sits.}\enspace This is the
-  \emph{bridge} of the volume. Papers~1--2 build a tool one developer runs alone:
+  \emph{bridge} of the core product arc. Chapters~I--II build a tool one developer runs alone:
   a daemon that makes a swarm legible and an agent that can prove who it is. This
   paper asks what has to be true before that legible agent's track record can be
   \emph{sold}. The answer is the substrate, not the score --- and most of the
   substrate is honestly not built yet. We say so, in the same words, everywhere
-  the volume leans on it.
+  the collection leans on it.
 };
 \end{tikzpicture}
 
@@ -315,14 +315,14 @@ A distributed-systems / crypto reader &
 The keystone-split figure (Fig.~\ref{fig:keystone}) \\
 \bottomrule
 \end{tabular}
-\caption{Reader's Map. Within the volume the suggested order is Paper~1 (the
-wedge) $\to$ Paper~2 (the formal core) $\to$ \textbf{Paper~3 (this one, the
-bridge)} $\to$ Paper~4 (the market). This paper can be read directly after
-Paper~1 if you only want the ``why a person can be priced'' argument.}
+\caption{Reader's Map. The core product arc is Chapter~I (the wedge) $\to$
+Chapter~II (the transactional floor) $\to$ \textbf{Chapter~III (this bridge)}
+$\to$ Chapter~IV (the market). This chapter can be read directly after Chapter~I
+for the ``why a person can be priced'' argument.}
 \label{tab:readers-map}
 \end{table}
 
-\keyidea{The whole volume is one ladder. L0 is the daemon (the machine's truth),
+\keyidea{The whole series is one ladder. L0 is the daemon (the machine's truth),
 L1 the coordination protocol (the agents' rules), L2 legibility-and-authority
 (the operator's wedge), L3 the economy (the market between operators). This paper
 is the \emph{rung between L2 and L3}: it explains how a legible \emph{person} doing
@@ -355,9 +355,9 @@ This is not a prompt-engineering problem. It is the precondition for an economy.
 Markets price \emph{reputations}, and a reputation is a claim about a thing that
 \emph{persists}: ``this contractor delivered on the last nine jobs.'' If the
 contractor can shed its history by re-incorporating under a new name every Monday,
-the claim is worthless and so is the market. The agent labor market the Harbor
-Volume is building --- operators renting each other's fleets, skills licensed
-across machines, work settled against bonds (Paper~4) --- is impossible until a
+the claim is worthless and so is the market. The agent labor market this
+series describes --- operators renting each other's fleets, skills licensed
+across machines, work settled against bonds (Chapter~IV) --- is impossible until a
 spawn can become a \textbf{person}: a thing with a track record that survives the
 process that built it and the operator who first ran it. Throughout this paper we
 follow two operators by name --- \textbf{Alice} and \textbf{Bob}, the same pair the
@@ -369,14 +369,14 @@ only pay if Heron's track record means something he can check.
 economy is not to compute a score --- it is to manufacture a self that the score
 can be \emph{about}.}
 
-\noindent The volume's stack-map (Fig.~\ref{fig:stack}) places this paper. The
+\noindent The series' stack-map (Fig.~\ref{fig:stack}) places this chapter. The
 daemon (L0) and the protocol (L1) give an agent a way to \emph{act} and to
 \emph{prove who it is to one machine}. Legibility (L2) lets one operator
 \emph{see} the swarm. None of that yet makes a tradeable person. The bridge from
 the wedge to the market is the thing this paper builds: \textbf{continuity}, and
 the reputation it makes possible.
 
-% --- FIGURE 1: the L0->L3 stack map, placing Paper 3 ---
+% --- FIGURE 1: the L0->L3 stack map, placing Chapter III ---
 \input{figures/fig-stp-stack-map}
 
 \subsection{What this paper claims, and what it refuses to claim}
@@ -395,7 +395,7 @@ Daddy's reality stops along it:
   \node[stp box,minimum width=29mm] (reputation) at (4.8,0)
     {\textbf{reputation}};
   \node[stp box,minimum width=31mm] (asset) at (8.1,0)
-    {\textbf{tradeable asset}\\{\scriptsize Paper 4}};
+    {\textbf{tradeable asset}\\{\scriptsize Chapter IV}};
   \draw[stp arrow] (foundation) -- (continuity);
   \draw[stp accent arrow] (continuity) -- (person);
   \draw[stp arrow] (person) -- (reputation);
@@ -572,9 +572,9 @@ accumulating a witnessed history as it goes.
 % --- FIGURE 2: role vs person ---
 \input{figures/fig-stp-role-vs-person}
 
-\subsection{Capability is not permission (a nomenclature the volume holds)}
+\subsection{Capability is not permission (a nomenclature the series holds)}
 
-A recurring trap, flagged in the volume's cross-layer reconciliation, is the
+A recurring trap, flagged in the series' cross-layer reconciliation, is the
 collapse of \emph{capability} into \emph{permission}. They are different
 coordinates of a role and must stay separate.
 
@@ -743,7 +743,7 @@ set $+$ last-$N$ transcript turns\}. It is unbuilt.}
 
 \paragraph{Co-ownership note (with the formal-core paper).}
 The \emph{kernel mechanism} of a checkpoint-with-teeth --- the content-addressed
-execution snapshot --- is owned by the formal-core paper of this volume (Paper~2),
+execution snapshot --- is owned by the formal-core chapter (Chapter~II),
 which treats it as a low-level primitive. \emph{This} paper owns the argument for
 \emph{why it is the foundation of personhood and reputation}. The two papers state
 the same canonical sentence (next).
@@ -866,7 +866,7 @@ per-incarnation scratchpad with no economic content.
 \noindent In most agent runtimes today --- the reference system included --- an
 identity is a \emph{self-asserted string}: a human-readable triple of the form
 \emph{project\,:\,stack\,:\,context} that the operator chooses and can re-pick at
-will. That is fine for single-operator legibility (Papers~1--2) and fatal for
+will. That is fine for single-operator legibility (Chapters~I--II) and fatal for
 reputation. The fix is the one genuinely architectural piece of the program: a
 \textbf{daemon-minted, non-forgeable identity} --- an opaque actor id the runtime
 issues and binds to a credential the actor cannot cheaply re-pick (a per-actor
@@ -989,7 +989,7 @@ what false-positive cost to honest high-volume pairs?
 
 The non-forgeable identity of \S\ref{sec:identity} is the highest-leverage unbuilt
 keystone of the whole program. But the keystone is \emph{two stones}, and
-conflating them is the single most consequential error the volume can make.
+conflating them is the single most consequential error the series can make.
 
 \begin{definition}[Local non-forgeable identity]\label{def:0040}
 A \textbf{local non-forgeable identity} provides an unforgeable actor identity
@@ -997,7 +997,7 @@ A \textbf{local non-forgeable identity} provides an unforgeable actor identity
 inside the fleet can re-pick or impersonate it. Its threat model is explicitly
 intra-fleet and single-operator; it is \emph{not} a public-key infrastructure and
 offers no defense against a hostile \emph{operator}. This is exactly what the
-single-operator layers --- Papers~1, 2, and \emph{this} paper --- need and assume.
+single-operator layers---Chapters~I--III---need and assume.
 \DESIGNED.
 \end{definition}
 
@@ -1025,11 +1025,11 @@ say so.}
 trusted daemon) is \emph{not} the keystone that holds up the cross-operator market.
 This paper stands on a local non-forgeable identity. The market paper needs
 cross-operator attestation and must declare it \VISION{} rather than borrow the
-single-operator threat model. This is the clean boundary the volume's cross-layer
+single-operator threat model. This is the clean boundary the series' cross-layer
 review demanded.}
 
 \paragraph{The second stone's envelope has been standardized --- the stone has
-not.} While this volume was being written, the agentic-payments industry shipped
+not.} While this series was being written, the agentic-payments industry shipped
 the credential dialect the second stone will be carved in: the Agent Payments
 Protocol~\cite{ap2mandates2026}, adopted by the Universal Commerce
 Protocol~\cite{ucp2026} (Google/Shopify, 2026), expresses principal authorization
@@ -1066,7 +1066,7 @@ transparency log) that would close the gap, and the cost each imposes.
 \section{Reputation as a substrate, not a score}\label{sec:substrate}
 % ═════════════════════════════════════════════════════════════════════════════
 
-Here is the hinge of the whole volume, stated as the canonical cross-paper
+Here is the hinge of the whole series, stated as the canonical cross-paper
 sentence:
 
 \pullquote{The reputation \emph{estimator is cheap}; the \emph{substrate it scores
@@ -1102,7 +1102,7 @@ We catalog the estimators not because they are hard but because choosing the
   computes a global trust vector as the principal eigenvector of the
   local-trust matrix --- the reputation-systems analogue of PageRank, and the
   canonical answer to ``aggregate peer opinions while resisting collusive
-  cliques.'' It is the right tool for the \emph{federated} reputation Paper~4
+  cliques.'' It is the right tool for the \emph{federated} reputation Chapter~IV
   needs (trust that travels across harbors), and it is \emph{not} a bandit.
   \item \textbf{Marketplace feedback signal $\to$ feedback systems.}
   Resnick--Zeckhauser~\cite{resnick2006value} measured a ${\sim}8\%$ reputation
@@ -1256,7 +1256,7 @@ named as a starred exercise.
 \subsection{The neutral-judge market (the harbor's universities and rating agencies)}
 
 A judge that grades the work of a party it has a stake in is not a judge. The
-metaphor the volume uses is exact: a reputation needs the equivalent of
+metaphor the series uses is exact: a reputation needs the equivalent of
 \emph{universities} (which certify competence) and \emph{rating agencies} (which
 rate counterparties) --- third parties whose value is precisely that they are
 \emph{neutral}. We make ``neutral'' a checklist, not a vibe:
@@ -1494,7 +1494,7 @@ honest rulings or to rubber-stamping under load.
 A reputation built on witnessed outcomes must answer two questions the cheerful
 ``reputation never ends'' framing dodges: what happens when a witnessed outcome
 turns out to be \emph{fraudulent}, and is no-decay actually \emph{good}? We adopt
-the volume's reconciled position on both, against the naive version.
+the series' reconciled position on both, against the naive version.
 
 \subsection{Monotone in honest outcomes, individually revocable}
 
@@ -1589,15 +1589,15 @@ and what bounds the window the poisoned reputation was spendable? \\
 $\star$ \textit{Open.} (8) Reputation-claim revocation with an append-only,
 bounded-memory ledger across $N$ harbors: how do you prove the correction
 converged and bound the spendable window, without violating append-only? This is
-the cross-harbor analogue of capability revocation (Paper~4).
+the cross-harbor analogue of capability revocation (Chapter~IV).
 \end{exercises}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{What this paper hands the market (Paper 4)}\label{sec:handoff}
+\section{What this chapter hands the market (Chapter IV)}\label{sec:handoff}
 % ═════════════════════════════════════════════════════════════════════════════
 
 This paper is the bridge; its output is a precise hand-off to \emph{The Harbor
-Economy} (Paper~4). We summarize what is delivered, what is borrowed, and what is
+Economy} (Chapter~IV). We summarize what is delivered, what is borrowed, and what is
 explicitly owed.
 
 \begin{table}[H]
@@ -1631,7 +1631,7 @@ Reputation is revocable; convergence is the market paper's federation job. \\
 \caption{The bridge's hand-off to the market paper. Two items flow \emph{back} as
 named, unsolved obligations: the grading-oracle's incentive-compatibility
 (Conj.~\ref{conj:contract}) and cross-operator attestation (Def.~\ref{def:0040b}).
-The volume is one book precisely because these debts are named in the same words on
+The series is coherent precisely because these debts are named in the same words on
 both sides of the seam.}
 \label{tab:handoff}
 \end{table}

@@ -11,7 +11,7 @@
     (alice-id) at ([yshift=4mm]alice.south)
     {\textbf{local non-forgeable identity}\\
      {\scriptsize one trusted daemon \(\cdot\) \textsc{specified}}\\[-1pt]
-     {\scriptsize Papers 1--3 depend here}};
+     {\scriptsize Chapters I--III depend here}};
 
   \node[stp box,minimum width=58mm,minimum height=40mm] (bob) at (4.2,0)
     {};
@@ -21,7 +21,7 @@
     (bob-id) at ([yshift=4mm]bob.south)
     {\textbf{local non-forgeable identity}\\
      {\scriptsize one trusted daemon \(\cdot\) \textsc{specified}}\\[-1pt]
-     {\scriptsize Papers 1--3 depend here}};
+     {\scriptsize Chapters I--III depend here}};
 
   \draw[hhcobalt,line width=0.9pt,dashed] (0,-1.8) -- (0,1.8);
   \node[stp label,anchor=south] at (0,1.8)
@@ -30,16 +30,16 @@
   \node[stp accent box,minimum width=83mm,text width=76mm] (bridge) at (0,-3.35)
     {\textbf{cross-operator attestation}\\
      {\scriptsize binds keys across independently owned harbors}\\[-1pt]
-     {\scriptsize \textsc{proposed} \(\cdot\) unbuilt \(\cdot\) owed to Paper 4}};
+     {\scriptsize \textsc{proposed} \(\cdot\) unbuilt \(\cdot\) owed to Chapters IV and VII}};
   \draw[stp dashed arrow] (bridge.north west) to[bend left=10] (alice-id.south);
   \draw[stp dashed arrow] (bridge.north east) to[bend right=10] (bob-id.south);
 \end{tikzpicture}}
 \caption{\textbf{The keystone is two stones.} A \emph{local non-forgeable identity}
-secures identity \emph{within one trusted daemon} --- exactly what Papers~1--3 need
+secures identity \emph{within one trusted daemon} --- exactly what Chapters~I--III need
 and assume. The cross-operator boundary needs \emph{cross-operator attestation},
 which is unwritten --- a federated witness log gives log-\emph{integrity}, not
 identity-\emph{binding}. This paper depends on the solid stone and hands the market
-paper the unbuilt one \emph{by name}, rather than borrowing the single-operator
+chapters the unbuilt one \emph{by name}, rather than borrowing the single-operator
 threat model across the boundary.}
 \label{fig:keystone}
 \end{figure}

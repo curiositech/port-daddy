@@ -97,25 +97,23 @@ then revert to competitive."*
 
 ### Folk-theorem condition
 
-The one-shot-deviation principle gives:
+Let `L = 5 · (q_floor − μ)` be the detection penalty. Detection occurs before
+the current-round payoff in the simulation, so the collusion value obeys:
 
 ```
-        δ · π_C
-  ────────────────────  ≥  π_D + δ · π_N / (1 − δ)
-   1 − δ · (1 − p_d)
+  V_C = π_C − p_d L + δ(1 − p_d)V_C
 ```
 
-With `π_N ≈ 0` (zero-economic-profit competitive baseline) this
-simplifies to:
+With `π_N ≈ 0` after a deviation, the one-shot-deviation condition is:
 
 ```
-  δ · π_C / [1 − δ · (1 − p_d)]  ≥  π_D
+  (π_C − p_d L) / [1 − δ(1 − p_d)]  ≥  π_D
 ```
 
 Solving for the threshold detection rate `p_d*`:
 
 ```
-  p_d*  =  1  −  (π_C − (1 − δ) · π_D) / (δ · π_D)
+  p_d* = [π_C − (1 − δ)π_D] / [L + δπ_D]
 ```
 
 ### Empirical findings
@@ -128,27 +126,25 @@ flips NO):
 |------|------|-------|---------|
 | 0.80 | 0.03 | 33 rounds | impatient players — cartel breaks even on a 3% detector |
 | 0.90 | 0.05 | 20 rounds | one-month discount horizon — 5% detection breaks it |
-| 0.95 | 0.05–0.10 | 10–20 rounds | the design target — 10% gives margin |
+| 0.95 | 0.05 | 20 rounds | grid crossing; closed form is 0.0478 |
 | 0.99 | 0.10 | 10 rounds | very patient players — 10% still breaks cartels |
 
 ### Headline
 
-> **Protocols must achieve > ~10% per-round detection probability to
-> break repeated-game cartel sustainability** at the realistic
-> discount factor δ = 0.95. This sets a concrete bar for the Anchor
-> §6.4 detection mechanism (Merkle Forest binding + bid-pattern heat).
+> **In this payoff and timing model, detection above approximately 4.8% per
+> round breaks cartel sustainability** at the illustrative discount factor
+> δ = 0.95. The tested grid first flips at 5%. This is a calibration target,
+> not a transferable protocol constant.
 
-A 10% per-round detection rate is empirically achievable through the
-existing bid-pattern-heat signal — bids consistently sitting at
-`q_floor + ε` for the same set of identities trigger the heat threshold
-in O(10) rounds.
+The paper does not establish that any deployed detector attains this rate.
+That requires a separately measured bid-pattern signal and an explicit false-
+positive tradeoff.
 
 ### Status
 
-A6 is **closed**: the folk-theorem condition is mechanized in the
-sim, the empirical threshold matches the closed-form prediction, and
-the design target (p_d ≥ 0.10 at δ = 0.95) is a falsifiable concrete
-goal for the Anchor protocol's detection mechanism.
+A6 is **partially closed**: the finite payoff model is executable, the expected-
+value calculation matches the grid crossing, and the target is falsifiable.
+Transfer to production monitoring remains open.
 
 ## Implications for §8.4.4
 
@@ -162,9 +158,9 @@ static escrow) holds under four conditions:
 
 A5 / A6 quantify the cost of breaking NS / NC:
 
-- **Breaking NC**: cartel-induced welfare loss is bounded by the
-  protocol's p_d. At p_d ≥ 0.10, cartels collapse within ~10 rounds
-  and dominance recovers asymptotically.
+- **Breaking NC**: in the supplied payoff model, `p_d > 0.0478` at
+  `δ = 0.95` makes immediate defection preferable in expectation. This does
+  not itself prove welfare recovery or detector performance.
 - **Breaking NS**: pure deposit-based deterrence fails because of
   the coverage cap. Closing A5 requires composite mechanisms (C_kyc
   + reputation gating + per-class deposits). The §8.4.4 theorem

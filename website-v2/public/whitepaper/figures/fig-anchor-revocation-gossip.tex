@@ -137,9 +137,9 @@
    peers. Every 30\,s each daemon picks a random peer, exchanges vectors, and
    ships deltas (cards revoked since the peer's last-seen version).\\[2pt]
    {\bfseries Expected propagation.}\quad
-   A new revocation reaches all $m$ peers in $O(\log m)$ gossip rounds. For
-   $m = 10$ daemons at 30\,s intervals this is $\approx 2$\,minutes worst case
-   (epidemic spread; security-critical revocations may trigger immediate push).\\[2pt]
+   In a connected reliable-round random-peer model, a new revocation reaches all
+   $m$ peers in expected $\Theta(\log m)$ rounds. The pictured 30\,s steps are an
+   illustrative trace, not a deadline; partitions admit no finite global bound.\\[2pt]
    {\bfseries Legend.}\quad
    sand-filled node $=$ filter clean \quad$\cdot$\quad
    cobalt-ringed node $=$ filter contains revoked card \quad$\cdot$\quad
@@ -149,9 +149,9 @@
 }
 \caption{Gossip-synchronized revocation across a five-daemon mesh. At $t=0$ daemon~A
 locally revokes a Harbor Card (its filter and revocation table). Anti-entropy gossip
-ships deltas to two random peers every 30\,s, reaching all daemons in $O(\log m)$
-rounds. For a ten-daemon mesh this gives global propagation in $\approx 2$\,minutes,
-well inside the MTTR window where leaked cards remain economically useful. Version
-vectors guarantee convergence even under reordered or duplicated delta deliveries.}
+ships deltas to random peers every 30\,s. Expected $\Theta(\log m)$ propagation
+requires the stated connected reliable-round model; the panels show one possible
+execution, not a worst-case time guarantee. Version vectors make duplicate and
+reordered deltas idempotent once delivered, but do not heal an unbounded partition.}
 \label{fig:anchor-revocation-gossip}
 \end{figure}

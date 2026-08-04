@@ -4,12 +4,13 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
+\usepackage{microtype}
 \usepackage{geometry}
 \usepackage{amsmath,amssymb,amsthm}
-\usepackage{hyperref}
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{booktabs}
+\usepackage{tabularx}
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
@@ -17,6 +18,8 @@
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\captionsetup{font=small,labelfont=bf}
 % Algorithms are formatted using lstlisting with custom pseudocode style
 
 % ─── Geometry ────────────────────────────────────────────────────────────────
@@ -160,14 +163,14 @@
 \fancyhf{}
 \fancyhead[L]{\small\itshape\color{hhgray} The Single-Writer Kernel}
 \fancyhead[R]{\small\color{hhgray}\thepage}
-\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ The Single-Writer Kernel \textperiodcentered\ the substrate layer}
+\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter II of VII}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 % ─── Title ───────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{The Harbor Volume --- A Four-Paper Series}}\\[0.5cm]
+  {\Large\textsc{Port Daddy Coordination Papers --- Chapter II of VII}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{The Single-Writer Kernel:}}\\[0.2cm]
   {\Large A Local Transactional Reference Monitor\\for Agent Swarms}\\[0.3cm]
@@ -178,10 +181,11 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{June 2026\\Version 1.0 (Harbor Volume)}
+\date{August 2026\\Version 1.1 (revised pre-print)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
 \begin{document}
+\setlength{\emergencystretch}{2em}
 
 \maketitle
 \thispagestyle{empty}
@@ -216,8 +220,8 @@ a widespread over-claim, showing that the policy monitor is a post-commit
 pre-commit regimentation credited to a uniqueness constraint and a boot-time
 admission gate. The kernel is solid where it is local and provisional exactly
 where a cross-machine economy of agents would need it to become cryptographic and
-continuous --- and we say so in the same words throughout. Companion papers in the
-same volume (\emph{The Legible Swarm}, \emph{From Spawn to Person}, \emph{The
+continuous --- and we say so in the same words throughout. Companion chapters in the
+same series (\emph{The Legible Swarm}, \emph{From Spawn to Person}, \emph{The
 Harbor Economy}) build the operator interface, the identity-and-reputation bridge,
 and the cross-machine market on the floor this paper specifies.
 \end{abstract}
@@ -230,12 +234,12 @@ commitments, stigmergy, local-first coordination, multi-agent systems
 \vspace{0.4cm}
 \noindent\textit{Reading time: approximately 45 minutes end-to-end; the Reader's
 Map (\S\ref{sec:readersmap}) routes you to a 15-minute path and to single-section
-paths. This is the substrate paper of a four-paper volume. \emph{The Legible
+paths. This is Chapter~II of a seven-chapter collection. \emph{The Legible
 Swarm} is the operator-facing entry point and a natural place to start; \emph{From
 Spawn to Person} builds an identity-and-reputation bridge on top of this kernel;
 \emph{The Harbor Economy} carries the cross-machine market, including
 cross-machine capability transfer --- which belongs to the cross-machine layer and
-lives there, not here. Any paper can be read first, but every other paper rests on
+lives there, not here. Any chapter can be read first, but every later layer rests on
 this one.}
 
 \tableofcontents
@@ -330,10 +334,10 @@ layer.}
 This is the single most important architectural decision a local-first
 coordination layer can make, and the field is littered with systems that got it
 wrong by manufacturing a consensus problem they did not have~\cite{kleppmann2017}.
-We will state the formal payoff of the choice as a theorem in
-\S\ref{sec:invariants}: a single writer over WAL gives \emph{serializable}
-transactions, and one decider gives \emph{linearizable} external behavior for
-claims and locks --- the property that lets the coordination layer treat ``who
+We will state the formal payoff of the choice as a conditional theorem in
+\S\ref{sec:invariants}: when every read and write is routed through the sole daemon
+connection and responses follow commit, transactions are \emph{serializable} and
+claim/lock operations are \emph{linearizable} --- the property that lets the coordination layer treat ``who
 holds this'' as ground truth without any agreement protocol at all.
 
 \subsection{A research-maturity scale, and why the grades are load-bearing}
@@ -356,7 +360,7 @@ refinements this paper introduces (see \S\ref{sec:durability} and
 \label{tab:honestkey}
 \small
 \renewcommand{\arraystretch}{1.25}
-\begin{tabular}{@{}p{34mm}p{128mm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.20\textwidth} >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Grade} & \textbf{Meaning} \\
 \midrule
@@ -368,7 +372,7 @@ refinements this paper introduces (see \S\ref{sec:durability} and
 \textbf{I1a / I1b} & Durability \emph{split by fault class}: I1a (process-crash) is \Built; I1b (power-loss) is \NotGuar{} under the default WAL configuration. A claim that conflates fault classes cannot carry one grade. \\
 \textbf{regimented / enforced} & Prohibition split by interception point: \emph{regimented} = rejected pre-commit, truly unreachable (a uniqueness constraint / boot-admission gate); \emph{enforced} = detected post-commit, halted or compensated within a bounded window (the policy monitor). ``Physically unreachable'' is reserved for the regimented set. \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \pitfall{The grades are not decoration. The two most consequential corrections in
@@ -390,7 +394,7 @@ paper and a brochure.}
 \label{tab:readers-map}
 \small
 \renewcommand{\arraystretch}{1.3}
-\begin{tabular}{@{}p{40mm}p{62mm}p{56mm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.22\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.31\textwidth}@{}}
 \toprule
 \textbf{If you are\ldots} & \textbf{\ldots read first} & \textbf{\ldots load-bearing artifact} \\
 \midrule
@@ -401,10 +405,10 @@ a protocol/agent author & \S\ref{sec:resource} (claims), \S\ref{sec:comm} (the b
 here for the economy & \S\ref{sec:continuity} (continuity organs), then the personhood and market papers & Fig.~\ref{fig:swk-continuity-organs} \\
 an instructor & every \textbf{Exercises} block; the open problems OP-1\,--\,OP-9 (\S\ref{sec:openproblems}) & the starred exercises \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
-\noindent\textbf{Reading order within the volume.} The legibility paper is the
+\noindent\textbf{Reading order within the series.} The legibility paper is the
 gentlest on-ramp; this paper, the substrate, is the formal floor; the personhood
 and market papers build upward. If you only read one paper to decide whether the
 foundation is sound, read this one.
@@ -881,23 +885,21 @@ durable in the log. Even in its strictest mode, its strongest response is a
 \emph{compensating} undo, not a prevention. This is not an implementation accident;
 it is a theorem.
 
-\begin{theorem}[A monitoring bound on post-commit enforcement]\label{thm:schneider}
-A monitor that observes the operation log strictly after commit enforces no safety
-property; it can only detect and compensate. Therefore every rule that runs as a
-post-commit subscription (heartbeat freshness, monotonic non-regression of an
-agent's notes, capability-escalation checks, lock-owner validity, and the like) is,
-architecturally, detect-and-compensate --- not regimentation.
+\begin{theorem}[A prevention bound for post-commit monitoring]\label{thm:schneider}
+A monitor invoked only after a transition commits cannot prevent a safety violation
+whose bad prefix ends at that transition. It can detect the prefix, halt later
+actions, and enforce a separate recovery or bounded-response property. Therefore a
+post-commit subscription must not be credited with making the triggering state
+unreachable.
 \end{theorem}
 
 \begin{proof}[Proof sketch]
-Schneider's theory of enforceable security policies via execution
-monitors~\cite{schneider2000} establishes that an execution monitor can enforce a
-safety property only by \emph{truncating the execution before the bad state is
-entered}. A monitor invoked strictly after the state transition has committed
-cannot truncate before it; the bad state already exists. Hence it can detect the
-violation and trigger a compensating transition, but it cannot have prevented the
-state. Subscription to a post-commit log places every subscribed rule in this
-regime.\qed
+Schneider's execution-monitor model~\cite{schneider2000} recognizes safety
+properties through finite bad prefixes and enforces them by suppressing an action
+before that prefix enters the target execution. A subscriber invoked after commit
+cannot suppress the committing action. Compensation may establish a different
+eventual or bounded-recovery property, but it does not retroactively remove the bad
+prefix.\qed
 \end{proof}
 
 \paragraph{Worked dramatization: Bob attempts a forbidden action.}
@@ -945,11 +947,12 @@ single-minded and open-minded strategies for when a promise may be dropped. Two
 hardening laws are implemented, and they are the load-bearing ones
 (Figure~\ref{fig:swk-commitment-oracle}).
 
-\begin{property}[Goodhart-resistance, Law 1]\label{prop:law1}
+\begin{property}[Metric-control separation, Law 1]\label{prop:law1}
 A commitment's deadline is derived by the daemon from a scope policy and is
 \emph{never} agent-supplied. The agent picks the work; the daemon picks the
 deadline. (Invariant I5.) The point is to deny the agent control of the very metric
-it is judged against --- the canonical defense against Goodhart's law.
+it is judged against. This removes one direct manipulation channel; it is not a
+general proof of resistance to proxy gaming or misspecified scope policy.
 \end{property}
 
 \begin{property}[Oracle-bound closure, Law 2]\label{prop:law2}
@@ -1017,7 +1020,7 @@ new oracle and prove it is Goodhart-resistant.}
 \label{sec:continuity}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The through-line of the whole volume --- memory $\to$ checkpoint $\to$ continuity
+The through-line of the whole series --- memory $\to$ checkpoint $\to$ continuity
 $\to$ durable identity $\to$ reputation $\to$ market --- \emph{bottoms out here}. If
 the substrate's continuity is weak, the cross-machine economy is built on sand.
 This is the section the personhood and market papers lean on hardest, so it carries
@@ -1028,7 +1031,7 @@ the canonical statement of the layer's own softest link.
 \subsection{Three organs, one weak link}
 
 Figure~\ref{fig:swk-continuity-organs} names the three continuity organs and states
-the canonical sentence the rest of the volume depends on:
+the canonical sentence the rest of the series depends on:
 
 \pullquote{The economy rests on three continuity organs --- memory
 (\textsc{implemented}), checkpoint (\textsc{partial}: notes, not execution state),
@@ -1097,7 +1100,7 @@ boot-admission gate (refuse to serve on a critical failure), a command pre-fligh
 transition deposits a coordination marker and a notification). \Built.
 \end{property}
 
-This is the honesty discipline of the rest of the volume turned on the kernel
+This is the honesty discipline of the rest of the series turned on the kernel
 itself, and it is the right posture for a trusted computing base: when integrity is
 unknown, deny. The drift and liveness self-checks exist precisely because a second
 copy of the daemon \emph{can} come up against the same file --- a packaged install
@@ -1122,7 +1125,7 @@ theorems themselves.
 \S\ref{sec:enforcement}.}
 \label{tab:invariants}
 \small
-\begin{tabular}{@{}p{8mm}p{62mm}p{50mm}p{30mm}@{}}
+\begin{tabularx}{\textwidth}{@{}p{0.05\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.29\textwidth} >{\raggedright\arraybackslash}p{0.19\textwidth}@{}}
 \toprule
 \textbf{\#} & \textbf{Invariant (theorem)} & \textbf{Mechanism} & \textbf{Maturity} \\
 \midrule
@@ -1131,7 +1134,7 @@ I1b & Power-loss durability & (needs full synchronization) & \NotGuar \\
 I2 & Mutual exclusion (1 holder/key) & uniqueness constraint + busy-wait & \Built \\
 I3 & Idempotence of re-claim/re-release & upsert / delete-if-exists & \Built \\
 I4 & Liveness reclamation (TTL sweep) & lazy expiry on read + ticks & \Built \\
-I5 & Goodhart-resistance (Law 1) & daemon-derived deadline & \Built \\
+I5 & Metric-control separation (Law 1) & daemon-derived deadline & \Built \\
 I6 & Oracle-bound closure (Law 2) & finite oracle vocabulary & \Built \\
 I7 & No-amnesia (note monotonicity) & monitor: note-monotonicity rule & \BuiltWeak{} (detected, not regimented) \\
 I8 & Forbidden-state handling & constraint/boot (regimented) + monitor (detected) & \BuiltWeak{} (mostly detect-and-compensate) \\
@@ -1140,7 +1143,7 @@ I10 & Honest self-report & scoped attestation report & \Built \\
 I11 & Runtime parity (interpreter $\equiv$ test bindings) & runtime-shim layer & \BuiltWeak{} (OP-3) \\
 I12 & Non-forgeable identity & per-actor signing keys & \Designed{} (substrate present, gating absent) \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \subsection{The consistency-model theorem}
@@ -1151,32 +1154,33 @@ make the coordination layer's typed ownership trustworthy.
 
 \input{figures/fig-swk-consistency-model}
 
-\begin{theorem}[Consistency model]\label{thm:consistency}
-Under one writer over a single SQLite database in WAL mode, every transaction is
-\textbf{serializable}. Because the daemon is the sole decider, the externally
-observable history of claim/lock operations is \textbf{linearizable}: each
-operation appears to take effect atomically at its commit (its linearization
-point), consistent with real-time order.
+\begin{theorem}[Conditional consistency model]\label{thm:consistency}
+Assume (i) every claim/lock read and write goes through one daemon and one SQLite
+database connection, (ii) transactions do not enable \texttt{read\_uncommitted},
+(iii) each successful response is sent only after commit, and (iv) no out-of-band
+writer mutates the tables. Then committed transactions admit a serial order, and
+the externally observed claim/lock operations are linearizable with commit as the
+linearization point.
 \end{theorem}
 
 \begin{proof}[Proof sketch]
-SQLite under a single writer provides serializable isolation: there is one stream
-of write transactions, totally ordered by commit, and readers see a consistent
-snapshot. For linearizability (Herlihy \& Wing~\cite{herlihywing1990}) we need a
+Under the stated configuration there is one stream of write transactions, totally
+ordered by commit, and reads observe a consistent snapshot. For linearizability
+(Herlihy \& Wing~\cite{herlihywing1990}) we need a
 single point per operation, between its invocation and response, at which it
 appears to take effect, with these points consistent with real time. The commit of
 each claim/lock operation is exactly such a point: it is atomic
 (Theorem~\ref{thm:exclusion}), it lies between the client's request and the
-daemon's response, and because the sole daemon connection commits operations in a
-total order that respects the order in which it received them, the linearization
-order coincides with real time. Hence the observable claim/lock history is
+daemon's response. Non-overlapping operations respect real-time order because a
+later invocation occurs after the earlier response and therefore after its commit;
+overlapping operations may be ordered by commit. Hence the observable history is
 linearizable. \qed
 \end{proof}
 
-\keyidea{This is why the kernel needs no agreement protocol. Linearizability is the
-strongest single-object consistency guarantee, and the single-writer architecture
-gives it \emph{for free} --- not despite refusing consensus, but \emph{because} it
-refused consensus. One decider, one order, one truth.}
+\keyidea{This is why the kernel needs no agreement protocol inside one fault domain.
+Linearizability follows from the routing, transaction, and response-order conditions
+above; it is lost if a second writer or an out-of-band read bypasses those conditions.
+One decider, one order, one auditable truth.}
 
 \subsection{The dual-runtime hazard, and what would make I11 a theorem}
 
@@ -1195,12 +1199,12 @@ and exercise its endpoints, not merely build it. Open problem OP-3 asks for the
 differential-test harness that would turn I11 from a hope into evidence.
 
 \exercises{%
-\textbf{(check)} Theorem~\ref{thm:consistency} gives linearizability ``for free.''
-What does ``free'' cost? (Hint: the busy-wait and throughput under contention ---
-the single writer is also a scalability ceiling.)\par
-\textbf{(trace)} Construct a three-operation claim history and give its unique
-linearization. Then show why no second linearization is consistent with real
-time.\par
+\textbf{(check)} List the four assumptions Theorem~\ref{thm:consistency} charges
+for linearizability. Which one fails first if an out-of-band SQLite connection is
+introduced?\par
+\textbf{(trace)} Construct a three-operation claim history and give a valid
+linearization. If two calls overlap, show why more than one linearization may still
+respect real time.\par
 \textbf{(open, $\bigstar$ OP-3)} Specify the minimal differential-test suite that
 would make I11 a theorem: what operation sequences, what observable-state
 assertions, run against both runtimes?}
@@ -1258,7 +1262,7 @@ scope} by design; several ``security'' organs only become load-bearing against t
 cross-machine adversary, which belongs to the economy layer.}
 \label{tab:threat-model}
 \small
-\begin{tabular}{@{}p{40mm}p{52mm}p{60mm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.23\textwidth} >{\raggedright\arraybackslash}p{0.27\textwidth} >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Adversary} & \textbf{In/out of scope} & \textbf{What defends (or does not)} \\
 \midrule
@@ -1268,7 +1272,7 @@ Same-user process (reads/edits the DB) & \textbf{out} & The database is owner-re
 Different-uid process & \textbf{in (partial)} & Owner-only permissions; but the socket peer-credential check is a software handshake, not the kernel-enforced socket credential (\texttt{SO\_PEERCRED}) --- a real authentication caveat. \\
 Cross-machine / cross-operator & \textbf{out (economy layer)} & Needs non-forgeable identity (\Designed) and cross-operator attestation (the economy paper). \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \subsection{Advisory claims are not sandboxing}
@@ -1677,9 +1681,9 @@ safety.'' That conflates crash-consistency with durability; under power loss the
 last writes can roll back. The honest statement is the I1a/I1b split.
 \item \textbf{The policy monitor is detect-and-compensate, not regimentation}
 (\S\ref{sec:enforcement}, Theorem~\ref{thm:schneider}). The monitor is implemented
-as a subscriber to the already-committed operation log, so by Schneider's
-bound~\cite{schneider2000} it cannot enforce a safety property; ``physically
-unreachable'' is reserved for the uniqueness-constraint and boot-gate states.
+as a subscriber to the already-committed operation log, so it cannot prevent the
+bad prefix that triggers it; ``physically unreachable'' is reserved for the
+uniqueness-constraint and boot-gate states.
 \item \textbf{Cross-organ atomicity is a buildable defect, not a research frontier}
 (\S\ref{sec:atomicity}). The database transaction primitive is already used
 elsewhere in the implementation; the only missing work is wrapping the multi-organ
@@ -1689,12 +1693,12 @@ endpoints in it.
 \subsection{Nomenclature}
 
 For the reader cross-referencing the companion papers, the body's neutral names map
-to the volume's internal terms as follows: the \emph{substrate / coordination /
-legibility / economy} layers are the volume's L0--L3; the \emph{policy monitor} is
+to the series' internal terms as follows: the \emph{substrate / coordination /
+legibility / economy} layers are the series' L0--L3; the \emph{policy monitor} is
 the Arbiter; \emph{stigmergic markers} are pheromones; the \emph{bus} is tube; the
 \emph{authorization chain} and \emph{coordination lineage} are the two objects the
-volume keeps distinct under the single phrase ``delegation chain.'' The maturity
-grades --- implemented / partial / specified / proposed --- are the volume's honest
+series keeps distinct under the single phrase ``delegation chain.'' The maturity
+grades --- implemented / partial / specified / proposed --- are the series' honest
 labels.
 
 % ═════════════════════════════════════════════════════════════════════════════
