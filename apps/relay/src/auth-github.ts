@@ -309,6 +309,26 @@ export async function handleAuthMe(request: Request, env: Env): Promise<Response
   });
 }
 
+/**
+ * GET /auth/status — the minimal signed-in probe for the marketing site's
+ * header chip (portdaddy.dev fetches this cross-origin with credentials).
+ * Session cookie ONLY — this is strictly a browser surface, so pdu_ bearer
+ * tokens are deliberately not honored here. The body carries nothing beyond
+ * the public GitHub profile pair {login, avatarUrl}: no email, no ids, no
+ * token material, no session metadata (no secrets — the response is readable
+ * from another origin by design).
+ */
+export async function handleAuthStatus(request: Request, env: Env): Promise<Response> {
+  const resolved = await resolveSession(request, env);
+  const body = resolved
+    ? { code: 'OK', login: resolved.user.login, avatarUrl: resolved.user.avatar_url }
+    : { code: 'UNAUTHENTICATED', login: null, avatarUrl: null };
+  return new Response(JSON.stringify(body), {
+    status: resolved ? 200 : 401,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+  });
+}
+
 function safeOrigin(u: string | null | undefined): string | null {
   if (!u) return null;
   try {
