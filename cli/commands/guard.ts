@@ -443,6 +443,15 @@ export function evaluateGuardFacts(input: {
   agentId?: string | null;
   sessionId?: string | null;
   ownersByFile?: Record<string, GuardOwner[]>;
+  /** Session ids the daemon's resurrection/salvage sweep has already confirmed
+   *  dead or stale-pending-salvage (the exact signal `pd salvage` surfaces —
+   *  see lib/resurrection.ts / GET /salvage/pending). Claims are advisory
+   *  (ADR-0037/0052/0055/0090/0092): a claim owned by a session in this set
+   *  is a redundant nudge, not a live conflict, so it does not deserve a
+   *  hard block. Absence of a sessionId from this set means "live or unknown"
+   *  and is treated conservatively as live — we only downgrade when the
+   *  daemon has *positively* confirmed the owner is dead. */
+  deadSessionIds?: ReadonlySet<string> | string[];
   /** Commits on this lease that have no coordination note published after them.
    *  Supplied only at commit-time (staged/hook/post-commit). Drives the
    *  compulsion: no note, no commit (ADR-0050). */
@@ -461,6 +470,9 @@ export function evaluateGuardFacts(input: {
   const mode = input.mode ?? (input.config.enabled ? input.config.mode : 'off');
   const files = normalizeFiles(input.files ?? []);
   const violations: GuardViolation[] = [];
+  const deadSessionIds = input.deadSessionIds instanceof Set
+    ? input.deadSessionIds
+    : new Set(input.deadSessionIds ?? []);
 
   if (mode === 'off') {
     return {
@@ -499,12 +511,24 @@ export function evaluateGuardFacts(input: {
       const otherOwners = owners.filter(owner => owner.sessionId && owner.sessionId !== input.sessionId);
 
       if (otherOwners.length > 0 && !selfOwnsFile) {
+        // Advisory-claims design (ADR-0037/0052/0055/0090/0092): a claim is
+        // "at worst a redundant nudge" — it should only hard-block a commit
+        // when it reflects a genuinely live session. If the daemon's
+        // salvage/resurrection sweep has already confirmed every other
+        // owner dead, this is stale coordination residue, not a real
+        // conflict — warn instead of block. A single live (or
+        // liveness-unknown) owner still hard-blocks, unchanged from before.
+        const allOtherOwnersDead = otherOwners.every(
+          owner => owner.sessionId != null && deadSessionIds.has(owner.sessionId),
+        );
         violations.push({
           code: 'claimed-by-other-session',
-          severity: 'critical',
+          severity: allOtherOwnersDead ? 'warning' : 'critical',
           file,
           owners: otherOwners,
-          message: `${file} is claimed by another active Port Daddy session.`,
+          message: allOtherOwnersDead
+            ? `${file} is claimed by a session the salvage sweep has already flagged dead/stale — advisory only, not blocking. Run \`pd salvage\` to reclaim the claim.`
+            : `${file} is claimed by another active Port Daddy session.`,
         });
         continue;
       }
@@ -585,7 +609,10 @@ export function evaluateGuardFacts(input: {
     }
   }
 
-  const shouldBlock = mode === 'enforce' && violations.length > 0;
+  // Only 'critical' violations block a commit — a 'warning' (e.g. a stale
+  // claim from a session already confirmed dead by the salvage sweep) is
+  // surfaced for visibility but is advisory by design, never a hard stop.
+  const shouldBlock = mode === 'enforce' && violations.some(v => v.severity === 'critical');
   return {
     success: !shouldBlock,
     passed: violations.length === 0,
@@ -662,6 +689,34 @@ async function loadOwners(files: string[], repoRoot = process.cwd()): Promise<Re
 }
 
 /**
+ * The exact liveness signal `pd salvage` surfaces: session ids belonging to
+ * agents the daemon's resurrection sweep has already detected as
+ * stale/dead and queued for salvage (lib/resurrection.ts, GET
+ * /salvage/pending). This is the same field lib/briefing.ts:462 already
+ * cross-references against file claims to render "(DEAD)" in the ownership
+ * map — reused here so the guard's claim check agrees with what `pd
+ * salvage` / `pd briefing` already tell the operator is dead.
+ *
+ * Fails closed: on any daemon error, returns an empty set so every other
+ * owner is treated as "live or unknown" and the pre-existing hard-block
+ * behavior is preserved rather than silently downgraded.
+ */
+async function loadDeadSessionIds(): Promise<Set<string>> {
+  const deadSessionIds = new Set<string>();
+  try {
+    const data = await fetchJson('/salvage/pending');
+    const agents = Array.isArray(data.agents) ? data.agents : [];
+    for (const agent of agents) {
+      const sessionId = (agent as { sessionId?: unknown })?.sessionId;
+      if (typeof sessionId === 'string' && sessionId) deadSessionIds.add(sessionId);
+    }
+  } catch {
+    // Fail closed — see docstring.
+  }
+  return deadSessionIds;
+}
+
+/**
  * Classify a BLOCKING guard result for operator escalation.
  *
  *   - 'structural' : the coordination layer itself could not be verified
@@ -690,7 +745,11 @@ export function describeGuardBlock(
   context: { hook?: boolean } = {},
 ): GuardBlockNotice | null {
   if (!result.shouldBlock) return null;
-  const codes = new Set(result.violations.map((v) => v.code));
+  // Classify using only the codes that are actually blocking (critical) —
+  // a downgraded 'warning' claimed-by-other-session (stale claim, salvage
+  // sweep already confirmed the owner dead) must not be mistaken for the
+  // reason a commit is blocked by some other, unrelated critical violation.
+  const codes = new Set(result.violations.filter((v) => v.severity === 'critical').map((v) => v.code));
   const structural =
     codes.has('daemon-unreachable') ||
     codes.has('no-active-session') ||
@@ -928,6 +987,13 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
   );
   const context = await loadActiveContext(cwd);
   const ownersByFile = mode === 'off' || files.length === 0 ? {} : await loadOwners(files, root);
+  // Only worth asking the salvage sweep when there's an other-session claim
+  // to potentially downgrade — mirrors the same condition evaluateGuardFacts
+  // uses to enter the requireClaims branch.
+  const deadSessionIds =
+    mode !== 'off' && config.requireClaims && context.active && files.length > 0
+      ? await loadDeadSessionIds()
+      : undefined;
 
   // Rent is only assessed at commit-time (staged / hook / post-commit), never on
   // a plain dirty-tree advisory check — you owe a note for a *commit*, not for
@@ -966,6 +1032,7 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
     agentId: context.agentId,
     sessionId: context.sessionId,
     ownersByFile,
+    deadSessionIds,
     commitsSinceLastNote,
     rentUnverifiable,
     atCommitTime,
