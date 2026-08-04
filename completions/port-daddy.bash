@@ -102,7 +102,7 @@ _port_daddy() {
     # File Claims & Integration
     files add who-owns integration
     # Sugar (compound commands)
-    begin b done whoami w account attention nudge with-lock n u d learn tutorial
+    begin b done plan whoami w account attention nudge with-lock n u d learn tutorial
     # Briefing & History
     briefing history
     # Consolidated read/write (3.8.4)
@@ -1378,11 +1378,11 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
-    # done  ["note"] [--agent ID] [--session ID] [--status STATUS]
+    # done  ["note"] [--agent ID] [--session ID] [--status STATUS] [--force-incomplete] [--reason REASON]
     # -----------------------------------------------------------------------
     done)
       case "$prev" in
-        --agent|--session)
+        --agent|--session|--reason)
           COMPREPLY=()  # Free-form
           ;;
         --status)
@@ -1390,7 +1390,26 @@ _port_daddy() {
           COMPREPLY=( $(compgen -W "completed abandoned" -- "$cur") )
           ;;
         *)
-          _pd_opts '--note -n --agent -a --session --status -s'
+          _pd_opts '--note -n --agent -a --session --status -s --force-incomplete --reason'
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # plan  [show|set|check] [--session ID] [--agent ID]
+    # -----------------------------------------------------------------------
+    plan)
+      case "$prev" in
+        --agent|--session)
+          COMPREPLY=()  # Free-form
+          ;;
+        *)
+          if [[ "$cur" == -* ]]; then
+            _pd_opts '--session --agent'
+          else
+            # shellcheck disable=SC2207
+            COMPREPLY=( $(compgen -W "show set check" -- "$cur") )
+          fi
           ;;
       esac
       ;;

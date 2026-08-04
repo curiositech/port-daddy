@@ -75,6 +75,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   learn: 'silent',
   tutorial: 'silent',
   sitrep: 'silent',
+  plan: 'notify',
+
   whois: 'silent',          // semantic skill-router: read-only ranking of agents by capability
   look: 'silent',
   periscope: 'silent',     // operator-loop SIGHT stage: read-only state+next-cut rollup

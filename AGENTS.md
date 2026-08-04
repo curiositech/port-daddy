@@ -54,9 +54,11 @@ Lifecycle: `pd setup` offers the one-time ~27 MB download (cancellable); `pd doc
 - Start recovery, debugging, and parallel-work sessions with Port Daddy before doing local archaeology:
   - `pd attention` — **first command of every session.** Reads unread inbox + subscribed channels in one call, marks them seen. Without this, other agents can route messages, file conflicts, or coordination signals at your agent id and you will never see them. The Claude Code SessionStart hook in `.claude/settings.json` runs this automatically and pins the output into context; for other harnesses, run it manually.
   - `pd status`
+  - `pd sitrep --template` to synthesize the current state
   - `pd briefing`
   - `pd salvage` when crash residue or abandoned work might matter
   - `pd begin --identity <project>:<task>`
+  - `pd plan set "- [ ] My plan"` to define the steps required for the task. You must maintain this plan and use `pd plan check` as you make progress.
 - If you are going to edit files, coordinate through Port Daddy primitives, not only prose:
   - leave a `pd note` describing scope and intended files
   - prefer symbol/region claims for code edits when the symbol index knows the file; use whole-file claims only when the edit truly spans the file or no symbol/section identity exists
@@ -169,6 +171,8 @@ Documents`.
   files add` before editing → `pd done` at the end. Rent is real: every commit
   carries a `pd note` (the Coordination Guard's `requireNotePerCommit` /
   Coast Guard). A silent agent is a non-durable agent.
+- **Establish a Plan and check off milestones.** Every agent must plan. After calling `pd begin`, you must run `pd plan set "- [ ] Step 1\n- [ ] Step 2"` to register a todo list before touching files. Update the plan with `pd plan check <index>` as you work. The `pd done` command will refuse to close the session if there are unchecked checklist items, unless bypassed with `--force-incomplete` and a 12+ character `--reason`.
+- **Run `pd sitrep` when starting or resuming work.** Call `pd sitrep` at the beginning of each turn or session to catch up on what happened while you were away.
 - **Dogfood, and dogfood *novelly*.** Reach deep into the CLI, MCP, and SDK each
   slice; deliberately exercise a surface you have not used before instead of
   living on `claim`/`note`/`done`. File feature feedback as you go. When a
@@ -758,8 +762,11 @@ This rule has bitten us repeatedly when the daemon ran on a non-default port (CI
 - `npm test` is the minimum repo-health gate here. Focused bundles are useful for iteration, but always rerun the full suite before claiming broad health.
 - A green exit code is still not clean truth if Jest prints `A worker process has failed to exit gracefully`. Treat that as remaining teardown debt and go hunting with `--detectOpenHandles` on the likely long-running suites.
 - Oversized JSON requests over the Unix socket can surface client-side `EPIPE` / `ECONNRESET` before the daemon’s 413 body is readable. In integration tests, normalize that transport failure back into the daemon’s intended oversized-payload rejection instead of pretending the daemon accepted the body.
-- If fleet spawn counts are exploding, treat that as a budget-control bug. Check `singleton`, respawn policy, schedule/trigger churn, and project limits before allowing more agent launches.
 - `pd fleet run <agent>` now inherits `limits.budget_usd_per_day` as its launch ceiling. If it still fails, inspect the live active-agent cap and queue pressure before assuming the agent prompt or backend is broken.
+- **Environment variables override context slot**: When running Port Daddy commands (like `pd begin`, `pd done`, `pd session files add`) inside subagent execution lanes spawned by harnesses (such as Antigravity/Claude Code), the harness may inject `PD_SESSION_ID` and `PD_AGENT_ID` of the parent/old session into the environment. Because the CLI prioritizes these environment variables over context slot files, any command will resolve to that old session (which may be completed, leading to "No active session found"). Fix this by prefixing your commands with `PD_SESSION_ID="" PD_AGENT_ID=""` to force the CLI to read the active context from the filesystem context slots.
+- **Binary drift in integration tests on dev machine**: Ephemeral test daemons started by the integration test framework (`tests/helpers/integration-setup.js` / `tests/helpers/ephemeral-daemon.js`) will verify binary hashes. If there's a global Homebrew or PATH-installed `pd` binary, it may cause false positive "binary drift" checks (since the running test daemon runs under `tsx` Node while PATH resolves to the global executable). Fix this by overriding the comparable on-disk path by setting `PORT_DADDY_BIN_OVERRIDE: process.execPath` inside the test environment for both the CLI runs and the ephemeral daemon spawns.
+- **Roadmap receipts for core coordination changes**: Changes to core coordination paths (like `cli/commands/sessions.ts`) are monitored by the Coordination Guard. The guard will block commits affecting these files unless the committing agent has touched/upserted a corresponding roadmap item (e.g. via `pd roadmap touch <slug> --harbor port-daddy --note <why>`). Note that `--harbor port-daddy` must be specified if you are working in a temporary sandboxed worktree where the folder name diverges from the default repo name.
+- **Rich Docstring Mandate (TypeScript and Rust)**: Every library function and method in the codebase must carry rich, informative documentation. This is enforced by the `npm run check:rich-docs` (under `scripts/check-rich-docs.mjs`) validation loop. TypeScript functions/methods must use `/** ... */` JSDoc blocks including `@param` and `@returns` tags (when parameters/return values are present) and discuss design, motivation, or philosophical rationale (e.g., matching keywords: `motivation`, `purpose`, `philosophy`, `why`, `design`, `intent`). Rust functions must use `///` doc comments discussing the same motivation/philosophy keywords and parameter/return usage. You can run `npm run check:rich-docs -- --staged` to fast-audit only your changed/staged files.
 
 ## Architecture truths — hard-won 2026-06-05 (read before any "console / Rust / coordination" work)
 

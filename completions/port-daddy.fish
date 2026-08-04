@@ -106,7 +106,7 @@ set -l __pd_commands \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
     'start' 'stop' 'restart' 'status' 'install' 'install-bosun' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'self-update' 'upgrade' 'mcp' \
     'setup' 'init' 'cut' 'hooks' \
-    'version' 'help'
+    'plan' 'version' 'help'
 
 # Register each command for both `port-daddy` and `pd`
 for prog in port-daddy pd
@@ -503,6 +503,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a begin -d 'Begin a work session (register + start)'
     complete -c $prog -n __pd_needs_command -a b -d 'Begin a work session (alias for begin)'
     complete -c $prog -n __pd_needs_command -a done -d 'End a work session (end + unregister)'
+    complete -c $prog -n __pd_needs_command -a plan -d 'Manage session todo plans (show/set/check)'
     complete -c $prog -n __pd_needs_command -a whoami -d 'Show current agent/session context'
     complete -c $prog -n __pd_needs_command -a w -d 'Show current context (alias for whoami)'
     complete -c $prog -n __pd_needs_command -a account -d 'Sign in to your Port Daddy cloud account (device flow)'
@@ -830,6 +831,13 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command done" -s a -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'
     complete -c $prog -n "__pd_using_command done" -l session -d 'Session ID' -x
     complete -c $prog -n "__pd_using_command done" -s s -l status -d 'Session end status' -x -a 'completed abandoned'
+    complete -c $prog -n "__pd_using_command done" -l force-incomplete -d 'Force end session with incomplete tasks'
+    complete -c $prog -n "__pd_using_command done" -l reason -d 'Reason for force incomplete' -x
+
+    # plan
+    complete -c $prog -n "__pd_using_command plan" -a 'show set check' -d 'Action'
+    complete -c $prog -n "__pd_using_command plan" -l session -d 'Session ID' -x
+    complete -c $prog -n "__pd_using_command plan" -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'
 
     # whoami / w
     complete -c $prog -n "__pd_using_command whoami" -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'

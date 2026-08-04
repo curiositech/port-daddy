@@ -120,7 +120,7 @@ import {
   handleParley,
   handleFeedback,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
-  handleSitrep, handleSay, handleLook, handlePheromone,
+  handleSitrep, handleSay, handleLook, handlePheromone, handlePlan,
   // Coordination advisor / suggestibility
   handleAdvisor,
   // Maritime actor directory
@@ -217,7 +217,7 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'advise', 'preflight', 'compass', 'guard',
   'metrics', 'health', 'dashboard',
   'bench', 'benchmark', 'demo', 'tuple', 'sortie', 'roadmap',
-  'secret', 'secrets', 'skill-graft'
+  'secret', 'secrets', 'skill-graft', 'plan'
 ]);
 
 /**
@@ -649,6 +649,7 @@ export const HELP_TOPIC_ALIASES: Record<string, string> = {
   sub: 'messaging', subscribe: 'messaging', listen: 'messaging',
   channels: 'messaging', wait: 'messaging',
   skillgraft: 'skill-graft',
+  done: 'sessions', begin: 'sessions',
 };
 
 /**
@@ -780,6 +781,8 @@ Commands:
     --allow-main-worktree    Explicitly allow an integration session in the main worktree
 
   session end [note]         End the active session (completed)
+    --no-pr                  Bypass mandatory PR URL check
+    --subtask                Bypass mandatory PR URL check (subtask code delivery)
   session done [note]        Alias for "session end"
   session abandon [note]     End active session (abandoned)
   session takeover <id> [note]  Create successor; preserve predecessor notes
@@ -1103,6 +1106,8 @@ Commands:
     --self-salvage         Queue unfinished-but-doable telos for salvage
     --why-stopped <text>   Explain why the telos was not fulfilled
     --next-plan <text>     Leave the next concrete continuation move
+    --no-pr                Bypass mandatory PR URL check
+    --subtask              Bypass mandatory PR URL check (subtask code delivery)
 
   whoami                   Show current agent/session context
                            Reads from .portdaddy/current.json
@@ -1400,6 +1405,7 @@ const ALL_COMMANDS: string[] = [
   'coast-guard', 'cg',
   'safe',
   'relay',
+  'plan',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2943,6 +2949,10 @@ export async function main(): Promise<void> {
 
       case 'sitrep':
         await handleSitrep(options);
+        break;
+
+      case 'plan':
+        await handlePlan(positional, options);
         break;
 
       case 'pheromone':

@@ -976,7 +976,8 @@
         "with-lock",
         "n",
         "u",
-        "d"
+        "d",
+        "plan"
       ],
       "sdk": [
         "begin",
@@ -987,7 +988,8 @@
         "POST /sugar/begin",
         "POST /sugar/done",
         "POST /sugar/relink",
-        "GET /sugar/whoami"
+        "GET /sugar/whoami",
+        "GET /sugar/welcome"
       ],
       "completions": [
         "begin",
@@ -996,7 +998,8 @@
         "whoami",
         "w",
         "account",
-        "with-lock"
+        "with-lock",
+        "plan"
       ],
       "docs": {
         "readme": true,
