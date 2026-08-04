@@ -61,8 +61,10 @@ describe('git shim v4 destructive-verb coverage', () => {
     );
   });
 
-  test('shim still honors PD_SHIM_OFF emergency bypass', () => {
-    expect(GIT_SHIM_CONTENT).toContain('PD_SHIM_OFF');
+  test('v5 (ADR-0119): shim has NO PD_SHIM_OFF emergency bypass', () => {
+    // The env-var escape was removed — there is no agent-mintable stand-down.
+    // See tests/unit/git-shim-no-escape.test.js for the runtime red-team proof.
+    expect(GIT_SHIM_CONTENT).not.toContain('PD_SHIM_OFF');
   });
 
   test('shim refers operators to pd guard status on refusal', () => {
@@ -70,20 +72,21 @@ describe('git shim v4 destructive-verb coverage', () => {
   });
 
   // v4 — guardrails never advertise their bypass (ADR-0053 Phase 0b).
-  // The override must keep working and stay audited, but the agent-facing
-  // refusal message must point only at the corrective action, never name
-  // PD_SHIM_OFF. An agent takes whatever exit the error hands it.
+  // The agent-facing refusal message points only at the corrective action,
+  // never naming an escape. An agent takes whatever exit the error hands it.
   test('v4: refusal copy points to the corrective action, not the bypass', () => {
     expect(GIT_SHIM_CONTENT).toContain("coordinate first — 'pd begin'");
     // The agent-facing "bypass once with PD_SHIM_OFF=1 git" line is gone.
     expect(GIT_SHIM_CONTENT).not.toContain('bypass once with PD_SHIM_OFF');
   });
 
-  test('v4: PD_SHIM_OFF bypass still functions and is still audited', () => {
-    // The escape hatch is intact for human operators (header doc) and still
-    // writes destructive-ops.log; only the agent-facing advertisement is gone.
-    expect(GIT_SHIM_CONTENT).toContain('PD_SHIM_OFF:-');
-    expect(GIT_SHIM_CONTENT).toContain('destructive-ops.log');
+  test('v5 (ADR-0119): no PD_SHIM_OFF stand-down remains in the shim', () => {
+    // ADR-0119 supersedes the ADR-0053 "keep the override, hide it" posture:
+    // a bypass documented to the controlled party is not a control, so the
+    // env-gated stand-down is removed entirely. Neither the `${PD_SHIM_OFF:-}`
+    // read nor any env-gated early exit survives.
+    expect(GIT_SHIM_CONTENT).not.toContain('PD_SHIM_OFF:-');
+    expect(GIT_SHIM_CONTENT).not.toContain('PD_SHIM_OFF');
   });
 
   // -------------------------------------------------------------------------
@@ -136,8 +139,8 @@ describe('git shim v4 destructive-verb coverage', () => {
     expect(GIT_SHIM_CONTENT).toMatch(/-D\|--delete/);
   });
 
-  test('v3: PD_SHIM_OFF bypass writes an audit log entry', () => {
-    expect(GIT_SHIM_CONTENT).toContain('.port-daddy/destructive-ops.log');
-    expect(GIT_SHIM_CONTENT).toContain('PD_SHIM_OFF=1');
+  test('v5 (ADR-0119): no PD_SHIM_OFF bypass path exists to audit', () => {
+    // The bypass is gone, so there is no `PD_SHIM_OFF=1` branch to log.
+    expect(GIT_SHIM_CONTENT).not.toContain('PD_SHIM_OFF=1');
   });
 });

@@ -42,11 +42,12 @@ export const GIT_SHIM_CONTENT = `#!/usr/bin/env bash
 #   update-ref refs/heads/main|master|release/*  (direct ref rewrite)
 #   branch -D main|master|release/*          (protected branch deletion)
 #
-# Audit: when PD_SHIM_OFF=1 is set, any refused-but-bypassed op is appended
-# to ~/.port-daddy/destructive-ops.log with timestamp + command.
+# There is NO in-band escape (see ADR-0119). A refused verb is refused;
+# coordinate through the daemon and retry. The shim is advisory working-tree
+# hygiene — the protected-branch wall is the binary-agnostic pre-push hook,
+# and the real enforcement of record is off-box (branch protection).
 #
-# Activate by prepending ~/.port-daddy/bin to PATH. Disable temporarily
-# with PD_SHIM_OFF=1.
+# Activate by prepending ~/.port-daddy/bin to PATH.
 set -euo pipefail
 
 # Find the real git binary, skipping ourselves. We can't trust 'which git'
@@ -72,17 +73,9 @@ if [ -z "$real_git" ]; then
   exit 127
 fi
 
-# Operator escape hatch — for emergency, recovery, or guard debugging.
-# Loud: appends to ~/.port-daddy/destructive-ops.log when bypassed.
-if [ "\${PD_SHIM_OFF:-}" = "1" ]; then
-  mkdir -p "\${HOME}/.port-daddy" 2>/dev/null || true
-  printf '%s\\tPD_SHIM_OFF=1\\tgit' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "\${HOME}/.port-daddy/destructive-ops.log" 2>/dev/null || true
-  for arg in "$@"; do
-    printf '\\t%s' "$arg" >> "\${HOME}/.port-daddy/destructive-ops.log" 2>/dev/null || true
-  done
-  printf '\\n' >> "\${HOME}/.port-daddy/destructive-ops.log" 2>/dev/null || true
-  exec "$real_git" "$@"
-fi
+# No in-band escape (ADR-0119): the shim never stands down on an env flag.
+# An agent-settable env var was a hole through both this layer and the
+# pre-push hook, taught to agents in the skill docs — removed.
 
 # Detect destructive verbs. We use cheap argv pattern matching, not a full
 # git arg parser — false positives just consult the daemon, false negatives

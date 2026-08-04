@@ -4,9 +4,9 @@
 # (--mirror via push.default config).
 #
 # This is the second layer of the destructive-git-ban defense. The
-# pd-shim (~/.port-daddy/bin/git) is the first layer; this hook survives
-# PD_SHIM_OFF=1 because git always runs pre-push hooks regardless of which
-# binary called it.
+# pd-shim (~/.port-daddy/bin/git) is the first (advisory) layer; this hook
+# is the enforced layer — it runs from ANY git binary, honors no env flag,
+# and cannot be stood down in-band (ADR-0119).
 #
 # Usage:
 #   bash scripts/install-pre-push-hook.sh           # current repo
@@ -44,12 +44,10 @@ cat > "$HOOK" <<'HOOK_EOF'
 #     <remote_sha>, refuse.
 #   - If <local_sha> is all-zeros (deletion push), refuse on protected.
 #
-# Bypass: PD_SHIM_OFF=1 git push ... (will write an audit log entry).
+# No in-band bypass (ADR-0119): this hook is the binary-agnostic wall — it
+# fires from any git binary, so it must NOT honor an env flag. Protected-
+# branch force-push/deletion refusal holds regardless of environment.
 set -euo pipefail
-
-if [ "${PD_SHIM_OFF:-}" = "1" ]; then
-  exit 0
-fi
 
 ZERO="0000000000000000000000000000000000000000"
 refused=0
@@ -69,7 +67,6 @@ while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
         # path for spinning up a new protected branch.
         echo "pd-pre-push: REFUSED — creating $remote_ref from local ref. Protected branch." >&2
         echo "pd-pre-push:   protected: main|master|release/*" >&2
-        echo "pd-pre-push:   bypass with PD_SHIM_OFF=1 git push ..." >&2
         refused=1
         continue
       fi
@@ -77,7 +74,6 @@ while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
         echo "pd-pre-push: REFUSED — non-fast-forward push to $remote_ref." >&2
         echo "pd-pre-push:   local=$local_sha remote=$remote_sha" >&2
         echo "pd-pre-push:   protected: main|master|release/*" >&2
-        echo "pd-pre-push:   bypass with PD_SHIM_OFF=1 git push ..." >&2
         refused=1
       fi
       ;;

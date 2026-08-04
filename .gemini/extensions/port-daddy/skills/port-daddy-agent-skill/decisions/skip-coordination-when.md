@@ -25,10 +25,10 @@ START: I'm tempted to skip pd ceremony for this task
 │   └─ NO  → don't skip.
 │
 ├─ Am I in EMERGENCY MODE (production down, security hot, user says "now")?
-│   ├─ YES → use PD_SHIM_OFF=1 for the immediate operation, BUT:
-│   │        - drop a pd note describing what you bypassed and why.
-│   │        - publish to coordination:inconsistency that you went off-protocol.
-│   │        - re-engage normal ceremony as soon as the fire is out.
+│   ├─ YES → coordinate FAST, don't skip: `pd begin` + claim + a one-line
+│   │        pd note is seconds of overhead. If a guard refusal genuinely
+│   │        blocks a fire, that is an OPERATOR decision — escalate to the
+│   │        user; there is no agent-side bypass to reach for.
 │   └─ NO  → don't skip. The task feels urgent but isn't.
 │
 ├─ Is the operation IDEMPOTENT and reversible in <30s?
@@ -63,15 +63,13 @@ START: I'm tempted to skip pd ceremony for this task
 - Reading documentation to answer a question (no edits planned).
 - Sanity-checking that a command exists with `which` or `command -v`.
 
-## Bypassing the git shim (PD_SHIM_OFF=1)
+## Bypassing the git shim
 
-Only use when:
-
-- You're in an active recovery and the shim refusal is blocking the recovery.
-- The destructive verb is the right move and you've verified no active claims.
-- You will leave a pd note describing the bypass within the same session.
-
-Never use to "make the warning go away." That's how anti-patterns harden.
+You can't, and you shouldn't want to. The shim exposes no agent-usable
+escape (ADR-0119). A refused destructive verb means: fix the guard input
+(claim the files, release a stale claim, add a pd note) and retry — or,
+if you believe the refusal is genuinely wrong, escalate to the operator.
+"Make the warning go away" is exactly how anti-patterns harden.
 
 ## Bypassing Coordination Guard
 
