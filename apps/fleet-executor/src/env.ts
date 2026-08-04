@@ -50,15 +50,6 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
    */
   XO_MODEL?: string;
   /**
-   * OPTIONAL steward model override (plaintext var, wrangler.deploy.toml). The
-   * auto-landing steward (src/steward.ts) uses Workers AI ONLY, and only to
-   * draft the PROSE of a dispute reply — never to decide a merge. Only a `@cf/`
-   * id is honored; anything else (an OpenAI id, a `claude-*` id, a typo) falls
-   * back to DEFAULT_STEWARD_MODEL — see resolveStewardModel. Unset ⇒ the
-   * default qwen3 instruct model.
-   */
-  STEWARD_MODEL?: string;
-  /**
    * Optional Cloudflare AI Gateway id. When set, every ship's `env.AI.run(...)`
    * is routed through this gateway (`{ gateway: { id } }`) so token/cost/latency
    * is logged and cacheable in the AI Gateway dashboard (ADR-0116/0117). UNSET ⇒

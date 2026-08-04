@@ -394,17 +394,6 @@ export function memoryKV(): KVNamespace & { _store: Map<string, string>; _gets: 
     async delete(key: string) {
       store.delete(key);
     },
-    /**
-     * Prefix listing, as the steward's candidate sweep uses it. Keys are
-     * returned in insertion order, which is deterministic enough for tests and
-     * matches KV closely enough for the sweep's bounded-page behavior.
-     */
-    async list(opts?: { prefix?: string; limit?: number }) {
-      const prefix = opts?.prefix ?? '';
-      const names = [...store.keys()].filter(k => k.startsWith(prefix));
-      const limited = opts?.limit ? names.slice(0, opts.limit) : names;
-      return { keys: limited.map(name => ({ name })), list_complete: true, cursor: undefined };
-    },
   } as unknown as KVNamespace & { _store: Map<string, string>; _gets: number };
   return kv;
 }

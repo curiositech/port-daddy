@@ -24,7 +24,6 @@ import {
   REQUIREMENTS_EXEMPT_MARKER,
   COMMENTS_EXEMPT_MARKER,
 } from '../src/fleet-pr-body.js';
-import { appendStewardChangelog } from '../src/steward.js';
 import { freshState, installGitHubFetch, aiStub, makeEnv, type GitHubState } from './harness.js';
 
 // The repo root, three levels up from apps/fleet-executor/tests/.
@@ -115,7 +114,14 @@ function mkCtx(): PRContext {
 }
 
 function freshMetrics(): PurserMetrics {
-  return { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, calls: 0, allEmpty: true };
+  return {
+    inputTokens: 0,
+    outputTokens: 0,
+    cachedInputTokens: 0,
+    calls: 0,
+    allEmpty: true,
+    usageReports: 0,
+  };
 }
 
 function noopTranscript(): TranscriptLike {
@@ -207,16 +213,17 @@ describe('fleet-authored PR bodies clear the real gates', () => {
     expect(COMMENTS_EXEMPT_MARKER).toContain('no human authored this PR');
   });
 
-  it('the roadmap trailer survives a steward changelog being appended after it', async () => {
+  it('the roadmap trailer survives non-trailer content being appended after it', async () => {
     const body = await generatedPurserBody();
-    const withLog = appendStewardChangelog(
-      appendStewardChangelog(body, 'merged `main` into this branch (it was 3 commit(s) behind).'),
-      'merged `main` into this branch again.',
-    );
+    // Simulates a later edit appending changelog-shaped lines to the body —
+    // none of them parse as a trailer, so they cannot steal "the last matching
+    // trailer wins" from the real opt-out.
+    const withLog =
+      `${body.trimEnd()}\n\n<!-- changelog -->\n` +
+      `- 2026-08-04 00:00Z — merged \`main\` into this branch (it was 3 commit(s) behind).\n` +
+      `- 2026-08-04 00:05Z — merged \`main\` into this branch again.\n`;
     const core = await import(/* @vite-ignore */ join(REPO_ROOT, 'lib/roadmap-link-core.ts'));
 
-    // Every changelog line starts with "- ", so none can parse as a trailer and
-    // steal "the last matching trailer wins" from the real opt-out.
     expect(core.parseRoadmapTrailer(withLog).optOutReason).toContain('4763');
     expect(core.classify(withLog, { generatedAt: Date.now(), items: [{ slug: 'x', status: 'backlog' }] }).verdict).toBe('pass');
     // And the requirements gate still passes with the log appended.

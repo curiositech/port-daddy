@@ -82,34 +82,6 @@ fleet:
   # Default: false (off for tenants unless their pd-fleet.yml opts in).
   xo: true
 
-  # STEWARD (fleet-executor src/steward.ts): opt in to the bounded auto-landing
-  # pass over the fleet's OWN pull requests — the purser's `purser/pr-<n>-tests`
-  # branches and the ideation ships' `fleet/…` stacked-fix branches.
-  #
-  # This is the highest-consequence flag in this file: it lets a machine press
-  # Merge. It is OFF by default for every tenant and ON here because this repo
-  # is where the fleet's own PRs pile up. Enabling it loosens NOTHING else. The
-  # steward:
-  #   - merges ONLY PRs authored by this fleet's own GitHub App, confirmed by
-  #     App identity (never by branch name alone) and re-asserted at the merge
-  #     call site itself — it can never merge a human's PR;
-  #   - refuses on red CI, on ANY pending check, on zero checks reported, on a
-  #     draft, on a conflict, on a CHANGES_REQUESTED review, and on any
-  #     unresolved review thread;
-  #   - REFUSES LOUDLY on any diff touching .github/workflows/**,
-  #     scripts/check-pr-*.mjs, cli/permission-tiers.ts, or its own source —
-  #     an agent that can edit its guardrails is not bound by them;
-  #   - merges nothing while `fleet:paused` is set, and is rate-limited;
-  #   - replies to substantive disputes on a thread, and still does not merge:
-  #     only a human resolving the thread clears it.
-  #
-  # The merge decision is deterministic TypeScript (evaluateMerge, a pure
-  # synchronous function). Workers AI is used ONLY to draft reply prose and can
-  # never produce a merge. Scheduling/state are Cloudflare primitives only
-  # (Cron Trigger + KV + D1); there is no external agent runner anywhere.
-  # Default: false.
-  steward: true
-
   limits:
     max_concurrent_spawns: 3
     max_spawns_per_hour: 12

@@ -42,7 +42,6 @@ import {
 } from './github.js';
 import { parseFleetShips, parseFleetSquidEvents, parseFleetXo, defaultPRShips, type ShipConfig } from './fleet.js';
 import { classifyPrAuthorship } from './fleet-identity.js';
-import { recordStewardCandidate } from './steward.js';
 import { fleetPrBodyTrailers } from './fleet-pr-body.js';
 import {
   resolveVerdict,
@@ -857,8 +856,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       `Fleet-authored branch — not self-reviewed. ${authorship.reason}. ` +
       `No ships were run and no AI was spent: reviewing the fleet's own output produces ` +
       `machine noise on machine work, not review. The branch is still gated by the repo's ` +
-      `normal CI, and (when the tenant opts in) the fleet steward will only land it once every ` +
-      `check is green and every review thread is resolved.`;
+      `normal CI and requires a human to merge it.`;
     await transcript.step(
       'fleet-authored-skip',
       null,
@@ -875,19 +873,6 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       },
     );
     await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
-    // Hand the PR to the steward's registry so a bounded auto-landing pass can
-    // consider it later, once its checks have actually finished. Recording is
-    // NOT permission: the steward re-derives every precondition itself, from
-    // the tenant's trusted-branch consent down (src/steward.ts).
-    if (job.installationId != null) {
-      await recordStewardCandidate(env, {
-        owner,
-        repo,
-        prNumber,
-        installationId: job.installationId,
-        recordedAt: Date.now(),
-      });
-    }
     await recordRunEnd(env, runId, 'neutral', startMs);
     return;
   }

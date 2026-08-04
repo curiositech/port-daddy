@@ -36,16 +36,6 @@
  */
 
 /**
- * Repo-relative paths, one per line, that the fleet's own PR bodies must never
- * claim exemptions for. Not used here — kept adjacent as documentation of the
- * boundary — see `src/steward.ts#GUARDRAIL_PATTERNS`, which refuses to MERGE a
- * PR touching the gates. Exempting a body is cheap; merging a change to the
- * gate that granted the exemption is not, and that is a different guard.
- */
-export const EXEMPTION_BOUNDARY_NOTE =
-  'Exemptions cover the BODY contract only. Changes to the gates themselves are refused at merge time (see steward.ts GUARDRAIL_PATTERNS).';
-
-/**
  * The requirements-gate exemption, in the strict form the guard parses.
  *
  * WHY THIS EXACT SHAPE: `check-pr-requirements.mjs#hasMarker` tests
@@ -65,13 +55,13 @@ export const REQUIREMENTS_EXEMPT_MARKER =
  *
  * WHY: that gate asks "has the AUTHOR answered the reviewers?". No human
  * authored this PR, so there is no author to hold to that duty, and the
- * conversation that matters belongs on the PR under review. The fleet does not
- * get to ignore feedback because of this marker — `src/steward.ts` refuses to
- * merge over an unresolved dispute thread, which is a STRICTER rule than the
- * advisory label this marker suppresses.
+ * conversation that matters belongs on the PR under review. This marker
+ * suppresses an advisory label only — it does not and cannot excuse the
+ * branch from any other check, human review, or merge requirement the repo
+ * applies to it.
  */
 export const COMMENTS_EXEMPT_MARKER =
-  '<!-- pr-comments-exempt: no human authored this PR, so the "author answers reviewers" duty has no addressee here; the reviewed PR is where discussion belongs. The fleet steward still refuses to merge this branch while any review thread on it is unresolved (apps/fleet-executor/src/steward.ts). -->';
+  '<!-- pr-comments-exempt: no human authored this PR, so the "author answers reviewers" duty has no addressee here; the reviewed PR is where discussion belongs. -->';
 
 /**
  * Build the `Roadmap-Item: none — <reason>` opt-out trailer.

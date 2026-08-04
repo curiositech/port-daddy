@@ -157,24 +157,6 @@ describe('self-review guard — the fleet does not review its own branches', () 
     expect(state.completed[0].conclusion).toBe('neutral');
   });
 
-  it('registers the skipped PR as a steward candidate for the later cron sweep', async () => {
-    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
-    state.prAuthor = { login: 'port-daddy[bot]', type: 'Bot' };
-    state.prHeadRef = 'purser/pr-4763-tests';
-    const kv = fleetKv();
-
-    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: aiStub({ perShip: {} }).ai }));
-
-    const raw = await kv.get('steward:cand:erichowens/port-daddy#7');
-    expect(raw).not.toBeNull();
-    expect(JSON.parse(raw!)).toMatchObject({
-      owner: 'erichowens',
-      repo: 'port-daddy',
-      prNumber: 7,
-      installationId: 42,
-    });
-  });
-
   it("a HUMAN's PR is still reviewed normally — ships run, review posted", async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     state.prAuthor = { login: 'erichowens', type: 'User' };

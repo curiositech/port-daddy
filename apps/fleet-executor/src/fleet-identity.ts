@@ -1,20 +1,14 @@
 /**
  * Who wrote this PR — the fleet, or someone else?
  *
- * MOTIVATION. Two behaviors in this Worker turn on that one question, and they
- * have OPPOSITE failure costs, so they must not share a sloppy answer:
- *
- *   1. SELF-REVIEW SKIP (src/execute.ts). The fleet must not review its own
- *      output. Left unguarded, the full roster reviewed the purser's own
- *      adversarial-test branches and filed findings on them — pd-qa was filing
- *      6–11 findings per round on this repo's PRs, several of them
- *      hallucinated, on code the fleet itself had just written. Getting this
- *      wrong in the permissive direction burns money and pollutes PRs with
- *      machine noise; getting it wrong in the restrictive direction means a
- *      HUMAN's PR goes unreviewed, which is worse.
- *   2. AUTO-MERGE (src/steward.ts). The steward may merge ONLY branches the
- *      fleet authored. Getting this wrong means a machine merges a human's PR.
- *      That is the single worst outcome in this file's blast radius.
+ * MOTIVATION. The self-review skip (src/execute.ts) turns on this question.
+ * The fleet must not review its own output. Left unguarded, the full roster
+ * reviewed the purser's own adversarial-test branches and filed findings on
+ * them — pd-qa was filing 6–11 findings per round on this repo's PRs, several
+ * of them hallucinated, on code the fleet itself had just written. Getting
+ * this wrong in the permissive direction burns money and pollutes PRs with
+ * machine noise; getting it wrong in the restrictive direction means a
+ * HUMAN's PR goes unreviewed, which is worse.
  *
  * DESIGN — identity first, branch name second, never branch name alone.
  * `pull_request.head.ref` is attacker-controlled: anyone with push access can
@@ -26,13 +20,10 @@
  * never matches, whatever it names its branch.
  *
  * FAIL DIRECTION. When the app identity cannot be resolved (network failure,
- * missing permission) the two callers diverge deliberately, and the classifier
- * reports which signal it used so each can decide:
- *   - the review skip accepts the weaker `bot-and-branch` signal — the cost of
- *     a false positive is one unreviewed machine branch;
- *   - the steward REFUSES on anything but `app-identity` — see
- *     `steward.ts#evaluateMerge`, which treats `authorship-unknown` as a hard
- *     stop. Fail-closed where it matters.
+ * missing permission), the classifier degrades to the weaker `bot-and-branch`
+ * signal rather than guessing at `app-identity` — see `AuthorshipSignal`. The
+ * review skip accepts that weaker signal because the cost of a false positive
+ * there is only one unreviewed machine branch, never an unmerged human PR.
  */
 
 /**
@@ -100,17 +91,16 @@ function hasFleetBranchPrefix(headRef: string | null | undefined): boolean {
 /**
  * Decide whether a PR was authored by this fleet.
  *
- * PURPOSE: give both callers ONE answer plus the evidence behind it, so the
- * self-review skip and the auto-merge gate can apply different risk appetites
- * to the same classification instead of each re-deriving it (and drifting).
- * Pure — no I/O, no clock, trivially unit-testable.
+ * PURPOSE: give the caller ONE answer plus the evidence behind it — the
+ * signal and a human-legible reason — instead of leaving it to re-derive the
+ * classification (and drift). Pure — no I/O, no clock, trivially unit-testable.
  *
  * The decision table, in order:
  *   - not a Bot                       → `none`            (humans never match)
  *   - App login known and equal       → `app-identity`    (authoritative)
  *   - App login known and NOT equal   → `none`            (another bot, e.g.
  *                                        dependabot, even on a `fleet/` branch)
- *   - App login unknown + fleet branch→ `bot-and-branch`  (weak; steward refuses)
+ *   - App login unknown + fleet branch→ `bot-and-branch`  (weak signal)
  *   - App login unknown + other branch→ `none`
  *
  * @param input Author login/type, head ref, and the fleet's own App login.
@@ -155,7 +145,8 @@ export function classifyPrAuthorship(input: AuthorshipInput): FleetAuthorship {
   }
 
   // App login unresolvable. Accept only the corroborated weak signal, and LABEL
-  // it weak so the steward can refuse while the review skip may accept.
+  // it weak — `signal: 'bot-and-branch'` — so any caller can tell it apart
+  // from the authoritative `app-identity` verdict.
   if (branchMatches) {
     return {
       fleetAuthored: true,

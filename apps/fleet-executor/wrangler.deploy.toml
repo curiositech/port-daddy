@@ -120,21 +120,6 @@ max_batch_timeout = 30
 max_retries = 1
 
 # ---------------------------------------------------------------------------
-# CRON TRIGGER — the STEWARD's sweep (src/steward.ts, `scheduled()` in
-# src/index.ts). Every 15 minutes the Worker inspects the KV-registered
-# fleet-authored PRs and lands the ones that clear every deterministic
-# precondition (tenant opt-in from the trusted branch, kill switch, App-identity
-# authorship, green checks, no guardrail files, no unresolved dispute, rate
-# limit). A cron — not the webhook path — because merging requires WAITING: at
-# `pull_request:opened` every check is still pending.
-#
-# Cloudflare primitives only: Cron Trigger for scheduling, KV for the candidate
-# registry + rate-limit counters, D1 for the audit transcript, Workers AI
-# (`@cf/` ids only) for dispute-reply prose. No external runner, no Anthropic.
-[triggers]
-crons = ["*/15 * * * *"]
-
-# ---------------------------------------------------------------------------
 # Plaintext vars. GITHUB_APP_PRIVATE_KEY is a *secret*, set out-of-band:
 #   echo "123456" | wrangler secret put GITHUB_APP_ID        # (or var, below)
 #   cat app-key.pem | wrangler secret put GITHUB_APP_PRIVATE_KEY
@@ -150,11 +135,6 @@ DEFAULT_BRANCH = "main"
 # executor falls back to this default (resolveXoModel). The deepseek-r1 distill
 # emits <think> reasoning spans; the executor strips them before parsing.
 XO_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
-# Steward dispute-reply model (src/steward.ts). Workers AI ONLY — must be a
-# `@cf/` id; any other value is ignored and the steward falls back to its
-# default (resolveStewardModel). The model drafts REPLY PROSE only; it never
-# decides a merge — that gate is deterministic TypeScript (evaluateMerge).
-STEWARD_MODEL = "@cf/qwen/qwen3-30b-a3b-fp8"
 
 # ---------------------------------------------------------------------------
 # Secrets (documented; set via `wrangler secret put`, never committed):
