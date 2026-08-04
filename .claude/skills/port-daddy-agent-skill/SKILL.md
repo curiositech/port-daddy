@@ -741,9 +741,12 @@ enough**. Re-check at every checkpoint:
 - **Before pulling against `origin/main`** — `pd sessions --all-worktrees`
   and `pd notes --limit 20`. New work may have landed in your slice
   while you were typing.
-- **When the pd-shim refuses a destructive verb** — read the refusal.
-  It names exactly which files are claimed by which sessions. See
-  `references/git-discipline.md` § *The pd-shim*.
+- **When the pd-shim refuses a destructive verb, or the Coordination
+  Guard blocks your commit** — read the refusal. It names exactly which
+  files are claimed by which sessions. Fix the guard INPUT or escalate;
+  there is no agent-mintable bypass (ADR-0102). Branch through
+  `decisions/guard-or-shim-refused-me.md`; the verb table and post-mortem
+  are in `references/git-discipline.md` § *The pd-shim*.
 - **After a long-running build or test run** — re-anchor before pushing.
   A 20-minute test suite is plenty of time for a session to expire and
   for someone else to claim your files.
