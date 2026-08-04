@@ -34,7 +34,9 @@ name: Deploy relay PROD (release tag, gated, versions rollout)
 on:
   push:
     tags:
-      - 'v*'
+      # relay-v* (not v*): keeps relay releases disjoint from the daemon's
+      # release ceremony, which owns plain v* tags/releases (docs/RELEASING.md).
+      - 'relay-v*'
   workflow_dispatch:
 
 permissions:
