@@ -932,6 +932,154 @@ export async function listHarborsForUser(
   return r.results ?? [];
 }
 
+// ── Helm (grand-plan X3 v1: explicit authority record per harbor) ─────────────
+//
+// One row per harbor: holder + ORDERED succession list. NO voting machinery
+// (D6). The helm changes only via an owner's PUT (setHelm) or the dead-man
+// rule (applyHelmTransition, CAS-guarded by seq). Every change also appends a
+// helm_events audit row — a helm never changes silently.
+
+export interface HelmPrincipal {
+  kind: HarborMemberKind;
+  id: string;
+  /** Display label captured at set time (login / fingerprint). */
+  label: string;
+}
+
+export interface HelmRow {
+  harbor_id: string;
+  holder_kind: HarborMemberKind | null;
+  holder_id: string | null;
+  holder_label: string | null;
+  succession_json: string; // ordered JSON array of HelmPrincipal
+  state: 'held' | 'vacant';
+  vacant_flagged: number;
+  seq: number;
+  updated_at: number;
+  updated_by: string; // users.id (owner PUT) or 'relay:dead-man'
+}
+
+export type HelmEventKind = 'helm_set' | 'dead_man_pass' | 'dead_man_vacant';
+
+export interface HelmEventRow {
+  id: string;
+  harbor_id: string;
+  at: number;
+  kind: HelmEventKind;
+  detail: string; // JSON
+}
+
+export async function getHelm(db: D1Database, harborId: string): Promise<HelmRow | null> {
+  const row = await db
+    .prepare('SELECT * FROM harbor_helms WHERE harbor_id = ?')
+    .bind(harborId)
+    .first<HelmRow>();
+  return row ?? null;
+}
+
+/** Owner PUT: upsert the authority record (state resets to held/unflagged). */
+export async function setHelm(
+  db: D1Database,
+  h: {
+    harborId: string;
+    holder: HelmPrincipal;
+    successionJson: string;
+    seq: number;
+    updatedAt: number;
+    updatedBy: string;
+  },
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO harbor_helms
+         (harbor_id, holder_kind, holder_id, holder_label, succession_json, state, vacant_flagged, seq, updated_at, updated_by)
+       VALUES (?, ?, ?, ?, ?, 'held', 0, ?, ?, ?)
+       ON CONFLICT(harbor_id) DO UPDATE SET
+         holder_kind = excluded.holder_kind,
+         holder_id = excluded.holder_id,
+         holder_label = excluded.holder_label,
+         succession_json = excluded.succession_json,
+         state = 'held',
+         vacant_flagged = 0,
+         seq = excluded.seq,
+         updated_at = excluded.updated_at,
+         updated_by = excluded.updated_by`,
+    )
+    .bind(
+      h.harborId,
+      h.holder.kind,
+      h.holder.id,
+      h.holder.label,
+      h.successionJson,
+      h.seq,
+      h.updatedAt,
+      h.updatedBy,
+    )
+    .run();
+}
+
+/**
+ * Dead-man transition, CAS-guarded on seq: returns true iff THIS caller won
+ * the transition (two concurrent reads race; exactly one UPDATE matches).
+ * The winner then appends the helm_events audit row.
+ */
+export async function applyHelmTransition(
+  db: D1Database,
+  t: {
+    harborId: string;
+    expectedSeq: number;
+    holder: HelmPrincipal | null; // null ⇒ vacant
+    successionJson: string;
+    vacantFlagged: boolean;
+    updatedAt: number;
+  },
+): Promise<boolean> {
+  const r = await db
+    .prepare(
+      `UPDATE harbor_helms SET
+         holder_kind = ?, holder_id = ?, holder_label = ?,
+         succession_json = ?, state = ?, vacant_flagged = ?,
+         seq = seq + 1, updated_at = ?, updated_by = 'relay:dead-man'
+       WHERE harbor_id = ? AND seq = ?`,
+    )
+    .bind(
+      t.holder?.kind ?? null,
+      t.holder?.id ?? null,
+      t.holder?.label ?? null,
+      t.successionJson,
+      t.holder ? 'held' : 'vacant',
+      t.vacantFlagged ? 1 : 0,
+      t.updatedAt,
+      t.harborId,
+      t.expectedSeq,
+    )
+    .run();
+  return (r.meta?.changes ?? 0) > 0;
+}
+
+export async function insertHelmEvent(
+  db: D1Database,
+  e: { harborId: string; at: number; kind: HelmEventKind; detail: unknown },
+): Promise<void> {
+  await db
+    .prepare('INSERT INTO helm_events (id, harbor_id, at, kind, detail) VALUES (?, ?, ?, ?, ?)')
+    .bind(`he_${randomHex(8)}`, e.harborId, e.at, e.kind, JSON.stringify(e.detail))
+    .run();
+}
+
+/** Recent helm audit rows, newest first (member-gated read). */
+export async function listHelmEvents(
+  db: D1Database,
+  harborId: string,
+  limit = 20,
+): Promise<HelmEventRow[]> {
+  const r = await db
+    .prepare('SELECT id, harbor_id, at, kind, detail FROM helm_events WHERE harbor_id = ? ORDER BY at DESC, id DESC LIMIT ?')
+    .bind(harborId, limit)
+    .all<HelmEventRow>();
+  return r.results ?? [];
+}
+
 /** Live (non-deleted) user by GitHub login, case-insensitive; or null. */
 export async function getUserByLogin(db: D1Database, login: string): Promise<UserRow | null> {
   const row = await db

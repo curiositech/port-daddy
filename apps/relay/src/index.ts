@@ -30,6 +30,10 @@
  *   GET  /v1/harbors                           (session/pdu; harbors I belong to)
  *   GET  /v1/harbors/:namespace/:name          (member-gated; detail + members)
  *   POST /v1/harbors/:namespace/:name/members  (owner-gated; add a member)
+ *   POST /v1/harbors/:namespace/:name/presence (member-gated; presence heartbeat, TTL ~90s)
+ *   GET  /v1/harbors/:namespace/:name/presence (member-gated; who is online + identity tier)
+ *   PUT  /v1/harbors/:namespace/:name/helm     (owner-gated; set helm holder + succession)
+ *   GET  /v1/harbors/:namespace/:name/helm     (member-gated; read helm — runs dead-man check)
  *   POST /v1/exchange                        (OIDC → PD card)
  *   POST /v1/revoke
  *   POST /v1/revoke-by-issuer               (operator; acceptance criterion #2)
@@ -97,6 +101,12 @@ import {
   handleGetHarbor,
   handleAddHarborMember,
 } from './harbors.js';
+import {
+  handlePresenceBeat,
+  handleGetPresence,
+  handleSetHelm,
+  handleGetHelm,
+} from './presence.js';
 
 // Re-export Durable Object class for wrangler to pick up
 export { HarborChannel };
@@ -275,15 +285,24 @@ export default {
       response = await handleListMyHarbors(request, env);
     }
     else if (pathname.startsWith('/v1/harbors/')) {
-      // :name is the qualified `namespace/name` — namespace/name detail, or
-      // namespace/name/members for the owner-gated member add.
+      // :name is the qualified `namespace/name` — namespace/name detail, or a
+      // sub-resource: /members (X2), /presence + /helm (X3, src/presence.ts).
       const parts = pathname.slice('/v1/harbors/'.length).split('/').map((p) => decodeURIComponent(p));
       const ns = parts[0];
       const name = parts[1];
+      const sub = parts.length === 3 ? parts[2] : undefined;
       if (ns && name && parts.length === 2 && method === 'GET') {
         response = await handleGetHarbor(request, env, ns, name);
-      } else if (ns && name && parts.length === 3 && parts[2] === 'members' && method === 'POST') {
+      } else if (ns && name && sub === 'members' && method === 'POST') {
         response = await handleAddHarborMember(request, env, ns, name);
+      } else if (ns && name && sub === 'presence' && method === 'POST') {
+        response = await handlePresenceBeat(request, env, ns, name);
+      } else if (ns && name && sub === 'presence' && method === 'GET') {
+        response = await handleGetPresence(request, env, ns, name);
+      } else if (ns && name && sub === 'helm' && method === 'PUT') {
+        response = await handleSetHelm(request, env, ns, name);
+      } else if (ns && name && sub === 'helm' && method === 'GET') {
+        response = await handleGetHelm(request, env, ns, name);
       } else {
         response = notFound();
       }
