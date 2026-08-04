@@ -110,6 +110,14 @@ repo-specific mechanics:
   that summarize operator preferences or cross-repo tactics must carry
   provenance, redaction/sync posture, account/team authority, and staleness.
 - **Keep `README.md` current** in the same PR when a slice changes a documented surface.
+- **A daemon/CLI-surface change ships atomically with its release.** If your slice
+  alters the shipped `pd` — a new/renamed/removed verb, what the single binary
+  registers, anything an operator sees after `brew upgrade` — the version bump,
+  the embedded-version sync, and the Homebrew formula roll are part of the SAME
+  change, not a follow-up. A landed binary that disagrees with the formula is the
+  drift `version-drift-guard` and `tests/unit/embedded-version-sync.test.js` are
+  there to catch; do not let them be what discovers it. Full rule and the
+  "did the surface actually change?" test: `AGENTS.md` § *Release*.
 - **Prove Squid from release cargo.** Adding a hook to source is not enough.
   Declare every required tentacle/identity/steering asset in
   `release-artifacts.json`, stage it in `release.yml`, then run
