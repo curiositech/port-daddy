@@ -48,6 +48,7 @@ import {
 } from './stacked-pr.js';
 import { runTestsInSandbox, type SandboxRunOutcome } from './sandbox-runner.js';
 import { emitSquidEvent } from './squid-events.js';
+import { emitInterruption } from './interruptions.js';
 
 // ---------------------------------------------------------------------------
 
@@ -561,6 +562,21 @@ export async function runPurser(
         degradedReason =
           'the GitHub App lacks the `contents: write` permission, so I could ' +
           'not push the test branch or open the stacked PR.';
+        // HITL: only an operator can grant the permission — escalate a real
+        // human ask (fire-and-forget; never blocks or changes this run).
+        emitInterruption(env, {
+          title: `pd-${ship.name}: GitHub App lacks contents:write on ${prCtx.owner}/${prCtx.repo}`,
+          body:
+            `While reviewing PR #${prCtx.prNumber} of ${prCtx.owner}/${prCtx.repo}, ` +
+            `pd-${ship.name} got a 403 pushing its adversarial-test branch: the GitHub App ` +
+            `installation lacks the \`contents: write\` permission. Tests were degraded to an ` +
+            `inline comment and the verdict stayed advisory. Grant the App \`contents: write\` ` +
+            `(GitHub → Settings → Installed GitHub Apps) so the purser can stack test PRs again.`,
+          urgency: 'high',
+          sourceAgent: `fleet-executor/${ship.name}`,
+          ...(runId ? { sourceSession: runId } : {}),
+          ...(prCtx.installationId ? { installationId: prCtx.installationId } : {}),
+        });
       } else {
         degradedReason = `stacking failed (${String(err).slice(0, 200)}).`;
       }
@@ -615,6 +631,25 @@ export async function runPurser(
       // Never block on tests that were never run — unless the operator
       // explicitly opted into fail-closed via blockWithoutSandbox.
       verdict = ship.blockWithoutSandbox ? 'BLOCK' : 'PASS';
+      if (ship.blockWithoutSandbox) {
+        // HITL: the operator chose fail-closed and the sandbox binding is
+        // absent — this PR is now BLOCKED pending a human. Escalate a real ask
+        // (fire-and-forget; the BLOCK verdict above stands regardless).
+        emitInterruption(env, {
+          title: `pd-${ship.name}: BLOCK on ${prCtx.owner}/${prCtx.repo}#${prCtx.prNumber} — sandbox absent, blockWithoutSandbox set`,
+          body:
+            `pd-${ship.name} authored adversarial tests for PR #${prCtx.prNumber} of ` +
+            `${prCtx.owner}/${prCtx.repo} but could not EXECUTE them: no SANDBOX binding is ` +
+            `provisioned${sandbox.reason ? ` (${sandbox.reason})` : ''}. Because this ship sets ` +
+            `\`blockWithoutSandbox: true\`, the verdict is a fail-closed BLOCK until a human acts. ` +
+            `Either provision the sandbox binding (wrangler.toml [containers]) or relax ` +
+            `\`blockWithoutSandbox\` in pd-fleet.yml, then re-run the fleet on the PR.`,
+          urgency: 'critical',
+          sourceAgent: `fleet-executor/${ship.name}`,
+          ...(runId ? { sourceSession: runId } : {}),
+          ...(prCtx.installationId ? { installationId: prCtx.installationId } : {}),
+        });
+      }
     }
     return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings: [] };
   } catch (err) {

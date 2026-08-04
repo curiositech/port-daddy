@@ -73,6 +73,17 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   /** Bearer token sent with every squid-event POST. Secret; optional (see above). */
   RELAY_PUBLISH_TOKEN?: string;
   /**
+   * OPTIONAL HITL escalation sink (src/interruptions.ts): the relay's
+   * POST /v1/interruptions endpoint. When a ship hits a BLOCKING degradation
+   * (403 on `contents: write`, blockWithoutSandbox with no SANDBOX binding) it
+   * fire-and-forgets an operator interruption there. BOTH this and
+   * INTERRUPTIONS_TOKEN must be set or the feature is silently disabled — no
+   * fetch is ever attempted. Escalations never block or change a run.
+   */
+  INTERRUPTIONS_URL?: string;
+  /** pdu_ operator token sent as the Bearer on every interruption POST. Secret. */
+  INTERRUPTIONS_TOKEN?: string;
+  /**
    * Shared relay D1 database (`port-daddy-relay`). The executor writes the
    * fleet_runs audit header + the append-only fleet_run_steps transcript here.
    * Optional at the type level so unit tests can omit it; all writes are

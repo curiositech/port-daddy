@@ -522,3 +522,72 @@ describe('executeFleet wiring — purser is opt-in and runs AFTER the other ship
     expect(state.completed[0].conclusion).toBe('success');
   });
 });
+
+describe('runPurser — HITL interruption escalation (src/interruptions.ts wiring)', () => {
+  const HITL_URL = 'https://relay.example/v1/interruptions';
+  const hitlEnv = { INTERRUPTIONS_URL: HITL_URL, INTERRUPTIONS_TOKEN: `pdu_${'cd'.repeat(32)}` };
+
+  const interruptionPosts = () =>
+    state.records.filter(r => r.method === 'POST' && r.url === HITL_URL);
+
+  it('403 on stacking escalates a HIGH interruption naming contents:write (fire-and-forget)', async () => {
+    state.failGitWrites403 = true;
+    const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip(), mkCtx(), makeEnv({ AI: ai, ...hitlEnv }), 'tok', rec.transcript, freshMetrics(),
+      '', 'run:d-1', false,
+    );
+    // The escalation fetch is fire-and-forget (never awaited) — let it settle.
+    await new Promise(r => setTimeout(r, 0));
+
+    expect(result.errored).toBe(false); // escalation never disturbs the run
+    const posts = interruptionPosts();
+    expect(posts).toHaveLength(1);
+    const body = posts[0].body as {
+      title: string; body: string; urgency: string; source_agent: string; source_session: string;
+    };
+    expect(body.urgency).toBe('high');
+    expect(body.title).toContain('contents:write');
+    expect(body.body).toContain('contents: write');
+    expect(body.source_agent).toBe('fleet-executor/purser');
+    expect(body.source_session).toBe('run:d-1');
+  });
+
+  it('sandbox ABSENT + blockWithoutSandbox ⇒ CRITICAL interruption; the BLOCK verdict stands', async () => {
+    const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, blockWithoutSandbox: true }),
+      mkCtx(), makeEnv({ AI: ai, ...hitlEnv }), 'tok', rec.transcript, freshMetrics(),
+    );
+    await new Promise(r => setTimeout(r, 0));
+
+    expect(result).toMatchObject({ blocking: true, verdict: 'BLOCK' });
+    const posts = interruptionPosts();
+    expect(posts).toHaveLength(1);
+    const body = posts[0].body as { title: string; urgency: string; body: string };
+    expect(body.urgency).toBe('critical');
+    expect(body.title).toContain('blockWithoutSandbox');
+    expect(body.body).toContain('blockWithoutSandbox');
+  });
+
+  it('feature-gated: without INTERRUPTIONS_URL/TOKEN no escalation fetch ever happens', async () => {
+    state.failGitWrites403 = true;
+    const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
+    const rec = recorder();
+    await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
+    await new Promise(r => setTimeout(r, 0));
+    expect(interruptionPosts()).toHaveLength(0);
+  });
+
+  it('no degradation ⇒ no interruption (a healthy stack asks nothing of the operator)', async () => {
+    const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
+    const rec = recorder();
+    await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai, ...hitlEnv }), 'tok', rec.transcript, freshMetrics());
+    await new Promise(r => setTimeout(r, 0));
+    expect(interruptionPosts()).toHaveLength(0);
+  });
+});

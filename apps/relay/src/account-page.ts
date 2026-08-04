@@ -297,6 +297,13 @@ section.sect::before{content:"";position:absolute;top:0;left:0;right:0;height:va
 /* prominent door into the MERCY report card (/account/mercy — real page) */
 .mercy-cta{display:inline-block;margin-top:18px;font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:700;letter-spacing:.02em;padding:10px 18px;border:2px solid var(--border-strong);color:var(--text-primary);text-decoration:none;box-shadow:inset var(--lw-stripe) 0 0 var(--health)}
 .mercy-cta:hover{background:var(--border-strong);color:var(--surface-base)}
+/* INTERRUPTIONS banner — agents are BLOCKED on a human. Red, loud, first. */
+.interrupt-banner{display:block;margin-top:22px;border:2px solid var(--error);background:var(--surface-card);padding:16px 20px;text-decoration:none;color:var(--text-primary);box-shadow:inset var(--lw-stripe) 0 0 var(--error)}
+.interrupt-banner:hover{background:var(--error);color:var(--surface-base)}
+.interrupt-banner:hover .ib-label,.interrupt-banner:hover .ib-top{color:inherit}
+.ib-label{display:block;font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--error)}
+.ib-count{font-size:19px;font-weight:700;letter-spacing:-.01em;display:block;margin-top:6px}
+.ib-top{display:block;margin-top:4px;font-size:14.5px;color:var(--text-secondary)}
 .danger{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .btn-ghost{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:13.5px;font-weight:700;letter-spacing:.04em;padding:9px 17px;border:1px solid var(--hair-strong);color:var(--text-primary);background:transparent;text-decoration:none;cursor:pointer}
 .btn-ghost:hover{border-color:var(--border-strong)}
@@ -307,8 +314,14 @@ section.sect::before{content:"";position:absolute;top:0;left:0;right:0;height:va
 @media (max-width:860px){.shell{grid-template-columns:1fr}.rail{position:static;min-height:0;border-right:none;border-bottom:2px solid var(--border-strong);padding-bottom:18px}.content{padding:28px 20px 64px}.identity-plate{flex-direction:column}.ko::before{left:-20px}.ko .ko-over{clip-path:inset(-13px calc(100% - var(--ko-r)) -13px -20px)}}
 `;
 
+/** The open-interruptions summary the banner renders (null/0 ⇒ no banner). */
+export interface InterruptionsBanner {
+  count: number;
+  topTitle: string | null;
+}
+
 /** GET /account — the signed-in home. `user` is the resolved session's user. */
-export function renderAccountPage(user: UserRow): string {
+export function renderAccountPage(user: UserRow, interruptions: InterruptionsBanner | null = null): string {
   const name = user.display_name || user.login;
   const created = new Date(user.created_at * 1000).toISOString().slice(0, 10);
   const emailChip = user.primary_email
@@ -319,6 +332,16 @@ export function renderAccountPage(user: UserRow): string {
   const avatar = user.avatar_url
     ? `<img class="avatar" src="${esc(user.avatar_url)}" alt="" width="56" height="56">`
     : '';
+  // HITL banner: only rendered when at least one agent is BLOCKED on a human —
+  // never a Potemkin zero-state (repo law: empty states teach, banners alarm).
+  const interruptBanner =
+    interruptions && interruptions.count > 0
+      ? `<a class="interrupt-banner" href="/account/interruptions" aria-label="${interruptions.count} agent interruption${interruptions.count === 1 ? '' : 's'} awaiting you">
+        <span class="ib-label">Interruptions — agents blocked on you</span>
+        <span class="ib-count">${interruptions.count} open ask${interruptions.count === 1 ? '' : 's'} awaiting a human &rarr;</span>
+        ${interruptions.topTitle ? `<span class="ib-top">Top: ${esc(interruptions.topTitle)}</span>` : ''}
+      </a>`
+      : '';
 
   return `<!DOCTYPE html><html lang="en"><head><title>Port Daddy — Account</title>${HEAD}<style>${ACCOUNT_CSS}</style></head><body>
 <div class="shell">
@@ -327,6 +350,7 @@ export function renderAccountPage(user: UserRow): string {
     <nav aria-label="Account">
       <span class="eyebrow">Account</span>
       <a href="/account" aria-current="page">Overview</a>
+      <a href="/account/interruptions">Interruptions</a>
       <a href="/account/runs">Fleet runs</a>
       <a href="/account/mercy">Mercy health</a>
       <a href="#devices">Devices</a>
@@ -344,6 +368,7 @@ export function renderAccountPage(user: UserRow): string {
       <span class="eyebrow">portdaddy.dev · account · overview</span>
       <h1 style="margin-top:8px">Your <span class="rec">account</span></h1>
       <p class="caption">Everything here mirrors your daemon. The daemon is the authority; this page is the window.</p>
+      ${interruptBanner}
       <a class="mercy-cta" href="/account/mercy">MERCY — network health report card &rarr;</a>
     </div>
 
@@ -433,5 +458,28 @@ export async function handleAccountPage(request: Request, env: Env): Promise<Res
   if (!session) {
     return new Response(null, { status: 302, headers: { Location: '/login' } });
   }
-  return htmlPage(renderAccountPage(session.user));
+  // HITL banner data (best-effort; the SQL lives here rather than importing
+  // src/interruptions.ts, which imports this module's HEAD/TOKENS — a cycle).
+  let interruptions: InterruptionsBanner | null = null;
+  try {
+    const count = await env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM operator_interruptions WHERE user_id = ? AND state = 'open'",
+    )
+      .bind(session.user.id)
+      .first<{ n: number }>();
+    const n = count?.n ?? 0;
+    if (n > 0) {
+      const top = await env.DB.prepare(
+        `SELECT title FROM operator_interruptions WHERE user_id = ? AND state = 'open'
+         ORDER BY CASE urgency WHEN 'critical' THEN 3 WHEN 'high' THEN 2 WHEN 'normal' THEN 1 ELSE 0 END DESC,
+                  created_at ASC LIMIT 1`,
+      )
+        .bind(session.user.id)
+        .first<{ title: string }>();
+      interruptions = { count: n, topTitle: top?.title ?? null };
+    }
+  } catch {
+    interruptions = null; // banner is honest-or-absent, never a guess
+  }
+  return htmlPage(renderAccountPage(session.user, interruptions));
 }
