@@ -57,6 +57,8 @@ export interface PilotHookInstallResult {
   settingsPath: string;
   command: string | null;
   reason: string;
+  /** False for a real failure (missing asset, unparsable config) — not merely "no-op". */
+  ok: boolean;
 }
 
 /**
@@ -74,17 +76,17 @@ export interface PilotHookInstallResult {
 export function uninstallPilotSessionStartHook(projectDir: string): PilotHookInstallResult {
   const settingsPath = join(projectDir, '.claude', 'settings.json');
   if (!existsSync(settingsPath)) {
-    return { changed: false, settingsPath, command: null, reason: 'no settings' };
+    return { changed: false, settingsPath, command: null, reason: 'no settings', ok: true };
   }
   let settings: ClaudeSettings;
   try {
     settings = JSON.parse(readFileSync(settingsPath, 'utf8')) as ClaudeSettings;
   } catch {
-    return { changed: false, settingsPath, command: null, reason: 'settings.json is not valid JSON — skipping' };
+    return { changed: false, settingsPath, command: null, reason: 'settings.json is not valid JSON — skipping', ok: false };
   }
   const sessionStart = settings.hooks?.SessionStart;
   if (!Array.isArray(sessionStart)) {
-    return { changed: false, settingsPath, command: null, reason: 'no SessionStart hooks' };
+    return { changed: false, settingsPath, command: null, reason: 'no SessionStart hooks', ok: true };
   }
   let changed = false;
   const kept: ClaudeHookGroup[] = [];
@@ -97,12 +99,12 @@ export function uninstallPilotSessionStartHook(projectDir: string): PilotHookIns
     if (hooks.length > 0) kept.push({ ...group, hooks });
   }
   if (!changed) {
-    return { changed: false, settingsPath, command: null, reason: 'not registered' };
+    return { changed: false, settingsPath, command: null, reason: 'not registered', ok: true };
   }
   if (kept.length > 0) settings.hooks!.SessionStart = kept;
   else delete settings.hooks!.SessionStart;
   writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
-  return { changed: true, settingsPath, command: null, reason: 'removed' };
+  return { changed: true, settingsPath, command: null, reason: 'removed', ok: true };
 }
 
 export function installPilotSessionStartHook(options: {
@@ -113,7 +115,7 @@ export function installPilotSessionStartHook(options: {
   const settingsPath = join(options.projectDir, '.claude', 'settings.json');
   const script = resolvePilotHookScript(options.projectRoot);
   if (!script) {
-    return { changed: false, settingsPath, command: null, reason: 'hook script not found' };
+    return { changed: false, settingsPath, command: null, reason: 'hook script not found', ok: false };
   }
   const command = `node ${script}`;
 
@@ -122,7 +124,7 @@ export function installPilotSessionStartHook(options: {
     try {
       settings = JSON.parse(readFileSync(settingsPath, 'utf8')) as ClaudeSettings;
     } catch {
-      return { changed: false, settingsPath, command, reason: 'existing settings.json is not valid JSON — skipping' };
+      return { changed: false, settingsPath, command, reason: 'existing settings.json is not valid JSON — skipping', ok: false };
     }
   }
 
@@ -142,7 +144,7 @@ export function installPilotSessionStartHook(options: {
 
   if (foundEntry) {
     if (foundEntry.command === command) {
-      return { changed: false, settingsPath, command, reason: 'already registered' };
+      return { changed: false, settingsPath, command, reason: 'already registered', ok: true };
     }
     foundEntry.command = command; // refresh moved path
   } else {
@@ -158,5 +160,6 @@ export function installPilotSessionStartHook(options: {
     settingsPath,
     command,
     reason: foundEntry ? 'refreshed script path' : 'registered new hook',
+    ok: true,
   };
 }
