@@ -370,6 +370,7 @@ export function renderAccountPage(
       <a href="/account/interruptions">Interruptions</a>
       <a href="/account/runs">Fleet runs</a>
       <a href="/account/mercy">Mercy health</a>
+      <a href="/account/shipwright">Shipwright</a>
       <a href="#devices">Devices</a>
       <a href="#receipts">Receipts</a>
       <a href="#harbors">Harbors</a>

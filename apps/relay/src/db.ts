@@ -779,6 +779,8 @@ export async function eraseUser(db: D1Database, userId: string, now: number): Pr
   const sessions = await db.prepare('DELETE FROM web_sessions WHERE user_id = ?').bind(userId).run();
   // Revoke every pdu_ device token too — erasure logs out browsers AND devices.
   await db.prepare('UPDATE user_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').bind(now, userId).run();
+  // Shipwright chat content is user-authored PII — it dies NOW, not in 30 days.
+  await db.prepare('DELETE FROM shipwright_chats WHERE user_id = ?').bind(userId).run();
   await db
     .prepare('UPDATE users SET deleted_at = ?, primary_email = NULL, avatar_url = NULL WHERE id = ?')
     .bind(now, userId)
@@ -1259,4 +1261,50 @@ export async function lapseExpiredParleys(db: D1Database, harborId: string, now:
     )
     .bind(now, harborId, now)
     .run();
+}
+
+// ── Shipwright chat (src/shipwright.ts) ───────────────────────────────────────
+
+export interface ShipwrightMessageRow {
+  id: number;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: number;
+}
+
+/** Append one chat message for a user. `now` is injected (testable clock). */
+export async function insertShipwrightMessage(
+  db: D1Database,
+  row: { userId: string; role: 'user' | 'assistant'; content: string; now: number },
+): Promise<void> {
+  await db
+    .prepare('INSERT INTO shipwright_chats (user_id, role, content, created_at) VALUES (?, ?, ?, ?)')
+    .bind(row.userId, row.role, row.content, row.now)
+    .run();
+}
+
+/**
+ * The most recent `limit` messages for ONE user, in conversation order
+ * (oldest → newest). Scoping is the WHERE user_id — a session can never read
+ * another account's conversation. Ordered by the AUTOINCREMENT id, not
+ * created_at: two messages routinely share a unix second.
+ */
+export async function listShipwrightMessages(
+  db: D1Database,
+  userId: string,
+  limit = 60,
+): Promise<ShipwrightMessageRow[]> {
+  const rows = await db
+    .prepare(
+      'SELECT id, role, content, created_at FROM shipwright_chats WHERE user_id = ? ORDER BY id DESC LIMIT ?',
+    )
+    .bind(userId, limit)
+    .all<ShipwrightMessageRow>();
+  return (rows.results ?? []).reverse();
+}
+
+/** Delete a user's whole conversation (their own clear control). */
+export async function clearShipwrightChats(db: D1Database, userId: string): Promise<number> {
+  const res = await db.prepare('DELETE FROM shipwright_chats WHERE user_id = ?').bind(userId).run();
+  return res.meta?.changes ?? 0;
 }

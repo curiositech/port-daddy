@@ -59,6 +59,9 @@ export interface Env {
   // Cloudflare Notifications bridge — see docs/mercy-oncall.md). Unset ⇒
   // incidents are still recorded in D1, but nobody is paged.
   MERCY_PAGE_WEBHOOK?: string;
+  // Workers AI model id for the Shipwright chat (src/shipwright.ts). A var,
+  // not a secret. Optional: unset ⇒ the module's committed default is used.
+  SHIPWRIGHT_MODEL?: string;
   // Vars from wrangler.toml
   RELAY_VERSION: string;
   EVENT_RETENTION_DAYS: string;
