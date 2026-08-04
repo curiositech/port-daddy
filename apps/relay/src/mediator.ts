@@ -82,7 +82,12 @@
  */
 
 import type { Env } from './types.js';
-import { recordMediatorObservation, type ParleyPositionRow, type ParleyRow } from './db.js';
+import {
+  listParleyPositions,
+  recordMediatorObservation,
+  type ParleyPositionRow,
+  type ParleyRow,
+} from './db.js';
 
 // ── Policy constants ─────────────────────────────────────────────────────────
 
@@ -177,6 +182,11 @@ export function resolveMediatorModel(configured: string | undefined): string {
  *                      happen for parleys convened by this codebase; treated
  *                      as an honest no-op rather than an error).
  *  - `model-failed`  — the Workers AI call threw; nothing was recorded.
+ *  - `write-failed`  — the model answered, but D1 threw on the note write.
+ *                      Distinct from `model-failed` on purpose: the two have
+ *                      different causes and different operator responses, and
+ *                      an outcome that collapsed them would send whoever reads
+ *                      it hunting the wrong dependency.
  *  - `nothing-to-add`— the model answered emptily or with garbage; nothing was
  *                      recorded, and the surfaces say exactly that.
  *  - `recorded`      — an observation was written to the mediator's own row.
@@ -186,6 +196,7 @@ export type MediatorOutcome =
   | 'unconfigured'
   | 'no-seat'
   | 'model-failed'
+  | 'write-failed'
   | 'nothing-to-add'
   | 'recorded';
 
@@ -350,27 +361,38 @@ export function sanitizeObservation(raw: string | undefined | null): string | nu
  * entirely. Fail-open is not politeness here; it is the only way the parley's
  * durability survives a dependency the parley does not need.
  *
- * Why it re-reads positions instead of taking them as an argument: the caller
- * may have signed a position moments ago, and the observation should describe
- * the record as it actually stands in D1, not a snapshot taken before the
- * write. One extra read is cheap insurance against an observation that
- * contradicts the very page it will be rendered on.
+ * Why it reads positions itself instead of taking them as an argument: the
+ * caller may have signed a position moments ago, and the observation should
+ * describe the record as it actually stands in D1, not a snapshot taken before
+ * the write. Reading here also puts the read BEHIND the opt-in gates below, so
+ * the shipped default (mediator OFF) costs the convene and respond paths
+ * nothing at all — not a token, and not a D1 round-trip.
  *
  * @param env Worker env — supplies the optional `AI` binding, `DB`, and config vars.
  * @param parley The parley to observe (subject/state/proposer are quoted into the prompt).
- * @param positions The parley's seats as currently recorded, mediator row included.
  * @param trigger Whether this follows a convene or a signature (frames the prompt only).
  * @returns The honest outcome of the attempt; the parley is unchanged in every case.
  */
 export async function observeParley(
   env: Env,
   parley: Pick<ParleyRow, 'id' | 'subject' | 'state' | 'proposer_label'>,
-  positions: ParleyPositionRow[],
   trigger: MediatorTrigger,
 ): Promise<MediatorOutcome> {
+  // Both gates precede the D1 read on purpose — see the note above. Reordering
+  // these buys a wasted round-trip on every convene and every signature for
+  // every operator who never switched the mediator on.
   if (!mediatorEnabled(env)) return 'disabled';
   const ai = env.AI;
   if (!ai) return 'unconfigured';
+
+  let positions: ParleyPositionRow[];
+  try {
+    positions = await listParleyPositions(env.DB, parley.id);
+  } catch {
+    // Fail-open on the read for the same reason as the write below: the
+    // signature that triggered this is already durable.
+    return 'write-failed';
+  }
   // No observer seat ⇒ nothing this module is allowed to write to. Honest no-op.
   if (!positions.some((p) => p.party_kind === 'mediator' && p.is_party === 0)) return 'no-seat';
 
@@ -399,7 +421,9 @@ export async function observeParley(
     return wrote ? 'recorded' : 'nothing-to-add';
   } catch {
     // A D1 hiccup on the note write is also fail-open: the signature that
-    // triggered this observation is already durable and stays that way.
-    return 'model-failed';
+    // triggered this observation is already durable and stays that way. It
+    // reports as `write-failed`, NOT `model-failed` — the model did its job
+    // here, and an operator reading this outcome should look at D1.
+    return 'write-failed';
   }
 }

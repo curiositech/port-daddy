@@ -344,8 +344,10 @@ export async function handleCreateParley(
 
   // The mediator observes AFTER the artifact is durably created — never
   // before, and never in a way that can fail the convene (observeParley is
-  // total: it returns an outcome and never throws). Default OFF.
-  await observeParley(env, parley, await listParleyPositions(env.DB, parley.id), 'convened');
+  // total: it returns an outcome and never throws). Default OFF, and when it
+  // is off this costs nothing: observeParley checks the opt-in before it
+  // touches D1, so the single read below is the only one on the shipped path.
+  await observeParley(env, parley, 'convened');
 
   const positions = await listParleyPositions(env.DB, parley.id);
   return json(201, {
@@ -527,7 +529,7 @@ export async function handleRespondParley(
   // state machine has already elected agreed/lapsed/still-open above. By
   // construction it cannot revisit any of that: see src/mediator.ts. A model
   // outage here leaves this signature exactly as durable as it already is.
-  await observeParley(env, after, await listParleyPositions(env.DB, after.id), 'signed');
+  await observeParley(env, after, 'signed');
 
   return json(200, {
     code: 'OK',

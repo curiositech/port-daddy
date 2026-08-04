@@ -238,12 +238,7 @@ describe('observeParley', () => {
     const id = await convene(env);
 
     const before = outcomeSnapshot(fx, id);
-    const outcome = await observeParley(
-      env,
-      fx.parleys.find((p) => p.id === id)!,
-      fx.positions.filter((p) => p.parley_id === id),
-      'convened',
-    );
+    const outcome = await observeParley(env, fx.parleys.find((p) => p.id === id)!, 'convened');
     expect(outcome).toBe('disabled');
     expect(ai.calls).toHaveLength(0);
     expect(fx.positions.find((p) => p.parley_id === id && p.party_kind === 'mediator')!.position).toBeNull();
@@ -256,9 +251,7 @@ describe('observeParley', () => {
     const id = await convene(env);
     const before = outcomeSnapshot(fx, id);
 
-    const outcome = await observeParley(
-      env, fx.parleys.find((p) => p.id === id)!, fx.positions.filter((p) => p.parley_id === id), 'convened',
-    );
+    const outcome = await observeParley(env, fx.parleys.find((p) => p.id === id)!, 'convened');
     expect(outcome).toBe('unconfigured');
     expect(outcomeSnapshot(fx, id)).toEqual(before);
   });
@@ -269,9 +262,7 @@ describe('observeParley', () => {
     await seedDock(env);
     const id = await convene(env);
 
-    const outcome = await observeParley(
-      env, fx.parleys.find((p) => p.id === id)!, fx.positions.filter((p) => p.parley_id === id), 'convened',
-    );
+    const outcome = await observeParley(env, fx.parleys.find((p) => p.id === id)!, 'convened');
     expect(outcome).toBe('recorded');
     const seat = fx.positions.find((p) => p.parley_id === id && p.party_kind === 'mediator')!;
     expect(seat.position).toContain('Alice has signed accept');
@@ -287,7 +278,7 @@ describe('observeParley', () => {
     await seedDock(env);
     const id = await convene(env);
 
-    await observeParley(env, fx.parleys.find((p) => p.id === id)!, fx.positions.filter((p) => p.parley_id === id), 'convened');
+    await observeParley(env, fx.parleys.find((p) => p.id === id)!, 'convened');
 
     const seat = fx.positions.find((p) => p.parley_id === id && p.party_kind === 'mediator')!;
     expect(seat.position).not.toBeNull();   // it spoke
@@ -312,7 +303,7 @@ describe('observeParley', () => {
     expect(fx.parleys.find((p) => p.id === id)!.state).toBe('open');
 
     const before = outcomeSnapshot(fx, id);
-    await observeParley(env, fx.parleys.find((p) => p.id === id)!, fx.positions.filter((p) => p.parley_id === id), 'signed');
+    await observeParley(env, fx.parleys.find((p) => p.id === id)!, 'signed');
 
     expect(fx.parleys.find((p) => p.id === id)!.state).toBe('open');
     expect(outcomeSnapshot(fx, id)).toEqual(before);
@@ -332,9 +323,7 @@ describe('observeParley', () => {
     expect(fx.parleys.find((p) => p.id === id)!.state).toBe('agreed');
 
     const before = outcomeSnapshot(fx, id);
-    const outcome = await observeParley(
-      env, fx.parleys.find((p) => p.id === id)!, fx.positions.filter((p) => p.parley_id === id), 'signed',
-    );
+    const outcome = await observeParley(env, fx.parleys.find((p) => p.id === id)!, 'signed');
     expect(outcome).toBe('recorded'); // it may still annotate a closed parley
     expect(outcomeSnapshot(fx, id)).toEqual(before); // …and changed nothing about it
   });
@@ -352,7 +341,7 @@ describe('observeParley', () => {
     );
     const aliceBefore = { ...fx.positions.find((p) => p.parley_id === id && p.party_id === 'u_alice')! };
 
-    await observeParley(env, fx.parleys.find((p) => p.id === id)!, fx.positions.filter((p) => p.parley_id === id), 'signed');
+    await observeParley(env, fx.parleys.find((p) => p.id === id)!, 'signed');
 
     const aliceAfter = fx.positions.find((p) => p.parley_id === id && p.party_id === 'u_alice')!;
     expect(aliceAfter).toEqual(aliceBefore);
@@ -380,11 +369,16 @@ describe('observeParley', () => {
     const env = makeParleyEnv(fx.db, { PARLEY_MEDIATOR: 'on', AI: ai.binding });
     await seedDock(env);
     const id = await convene(env);
-    const withoutMediator = fx.positions.filter((p) => p.parley_id === id && p.party_kind !== 'mediator');
+    // The seat is removed from the FIXTURE, not filtered out of an argument:
+    // observeParley reads positions from D1 itself, so the only way to present
+    // it with a seatless parley is for the record to actually lack the row.
+    const seat = fx.positions.findIndex((p) => p.parley_id === id && p.party_kind === 'mediator');
+    expect(seat).toBeGreaterThanOrEqual(0);
+    fx.positions.splice(seat, 1);
     // convene() already produced one observation; measure the delta from here.
     const callsBefore = ai.calls.length;
 
-    const outcome = await observeParley(env, fx.parleys.find((p) => p.id === id)!, withoutMediator, 'convened');
+    const outcome = await observeParley(env, fx.parleys.find((p) => p.id === id)!, 'convened');
     expect(outcome).toBe('no-seat');
     // Bailed BEFORE spending a model call — there was nowhere to put an answer.
     expect(ai.calls.length).toBe(callsBefore);
@@ -399,9 +393,7 @@ describe('observeParley', () => {
     const id = await convene(env);
     const before = outcomeSnapshot(fx, id);
 
-    const outcome = await observeParley(
-      env, fx.parleys.find((p) => p.id === id)!, fx.positions.filter((p) => p.parley_id === id), 'convened',
-    );
+    const outcome = await observeParley(env, fx.parleys.find((p) => p.id === id)!, 'convened');
     expect(outcome).toBe('model-failed');
     expect(outcomeSnapshot(fx, id)).toEqual(before);
     expect(fx.positions.find((p) => p.parley_id === id && p.party_kind === 'mediator')!.position).toBeNull();
@@ -416,13 +408,103 @@ describe('observeParley', () => {
       const id = await convene(env);
       const before = outcomeSnapshot(local, id);
 
-      const outcome = await observeParley(
-        env, local.parleys.find((p) => p.id === id)!, local.positions.filter((p) => p.parley_id === id), 'convened',
-      );
+      const outcome = await observeParley(env, local.parleys.find((p) => p.id === id)!, 'convened');
       expect(outcome, `answer ${JSON.stringify(answer)}`).toBe('nothing-to-add');
       expect(local.positions.find((p) => p.parley_id === id && p.party_kind === 'mediator')!.position).toBeNull();
       expect(outcomeSnapshot(local, id)).toEqual(before);
     }
+  });
+
+  it('a D1 failure on the note write reports "write-failed", NOT "model-failed"', async () => {
+    // The two failures have different causes and send an operator to different
+    // dependencies, so the outcome distinguishes them. Here the model answers
+    // perfectly and D1 is what breaks.
+    const ai = fakeAi('A clean, recordable observation.');
+    const env = makeParleyEnv(fx.db, { PARLEY_MEDIATOR: 'on', AI: ai.binding });
+    await seedDock(env);
+    const id = await convene(env);
+    const before = outcomeSnapshot(fx, id);
+    // convene() ran with a working DB and already recorded its own observation,
+    // so the seat is not null here. What must hold is that the FAILED write
+    // leaves it exactly as it was.
+    const seatBefore = fx.positions.find((p) => p.parley_id === id && p.party_kind === 'mediator')!.position;
+
+    // Break only the mediator's own UPDATE; every other statement still works,
+    // so the read that precedes it succeeds and we reach the write path.
+    const realPrepare = fx.db.prepare.bind(fx.db);
+    const broken = {
+      ...fx.db,
+      prepare: (sql: string) =>
+        /UPDATE parley_positions SET position/.test(sql)
+          ? { bind: () => ({ run: async () => { throw new Error('D1_ERROR: storage unavailable'); } }) }
+          : realPrepare(sql),
+    } as unknown as D1Database;
+
+    const outcome = await observeParley(
+      makeParleyEnv(broken, { PARLEY_MEDIATOR: 'on', AI: ai.binding }),
+      fx.parleys.find((p) => p.id === id)!,
+      'convened',
+    );
+    expect(outcome).toBe('write-failed');
+    // Fail-open as ever: the model was called, and the parley is untouched.
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(outcomeSnapshot(fx, id)).toEqual(before);
+    expect(fx.positions.find((p) => p.parley_id === id && p.party_kind === 'mediator')!.position).toBe(seatBefore);
+  });
+
+  it('a D1 failure on the POSITIONS READ also fails open as "write-failed"', async () => {
+    const ai = fakeAi('Never reached.');
+    const env = makeParleyEnv(fx.db, { PARLEY_MEDIATOR: 'on', AI: ai.binding });
+    await seedDock(env);
+    const id = await convene(env);
+    const callsBefore = ai.calls.length;
+
+    const realPrepare = fx.db.prepare.bind(fx.db);
+    const broken = {
+      ...fx.db,
+      prepare: (sql: string) =>
+        /SELECT \* FROM parley_positions/.test(sql)
+          ? { bind: () => ({ all: async () => { throw new Error('D1_ERROR: storage unavailable'); } }) }
+          : realPrepare(sql),
+    } as unknown as D1Database;
+
+    const outcome = await observeParley(
+      makeParleyEnv(broken, { PARLEY_MEDIATOR: 'on', AI: ai.binding }),
+      fx.parleys.find((p) => p.id === id)!,
+      'convened',
+    );
+    expect(outcome).toBe('write-failed');
+    // Bailed before spending a token — there was nothing to summarize.
+    expect(ai.calls.length).toBe(callsBefore);
+  });
+
+  it('costs NOTHING when the mediator is off — no model call and no D1 read', async () => {
+    // The shipped default. This is the regression guard for the opt-in gates
+    // sitting in front of the positions read rather than behind it.
+    const ai = fakeAi('Should never be produced.');
+    const env = makeParleyEnv(fx.db, { AI: ai.binding }); // PARLEY_MEDIATOR unset
+    await seedDock(env);
+    const id = await convene(env);
+    const callsBefore = ai.calls.length;
+
+    let reads = 0;
+    const realPrepare = fx.db.prepare.bind(fx.db);
+    const counting = {
+      ...fx.db,
+      prepare: (sql: string) => {
+        if (/parley_positions/.test(sql)) reads += 1;
+        return realPrepare(sql);
+      },
+    } as unknown as D1Database;
+
+    const outcome = await observeParley(
+      makeParleyEnv(counting, { AI: ai.binding }),
+      fx.parleys.find((p) => p.id === id)!,
+      'convened',
+    );
+    expect(outcome).toBe('disabled');
+    expect(reads).toBe(0);
+    expect(ai.calls.length).toBe(callsBefore);
   });
 
   it('never throws, even when the model rejects — callers can ignore the result', async () => {
@@ -431,7 +513,7 @@ describe('observeParley', () => {
     await seedDock(env);
     const id = await convene(env);
     await expect(
-      observeParley(env, fx.parleys.find((p) => p.id === id)!, fx.positions.filter((p) => p.parley_id === id), 'signed'),
+      observeParley(env, fx.parleys.find((p) => p.id === id)!, 'signed'),
     ).resolves.toBe('model-failed');
   });
 });
