@@ -587,6 +587,141 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
       };
     }
 
+    // ── Purser (adversarial gatekeeper) steps ───────────────────────────────
+    case 'purser-steelman': {
+      if (typeof obj.error === 'string') {
+        return {
+          icon: '⚖️',
+          tone: 'neutral',
+          headline:
+            'The purser could not steel-man this PR — its contract output was malformed, ' +
+            'so it stopped honestly (advisory, no bluffed contract).',
+          bodyHtml: '',
+        };
+      }
+      const n = numField(obj, 'obligationCount');
+      const purpose = typeof obj.purpose === 'string' ? obj.purpose : '';
+      return {
+        icon: '⚖️',
+        tone: 'info',
+        headline:
+          `The purser steel-manned this PR into ${n ?? 'several'} testable ` +
+          `obligation${n === 1 ? '' : 's'} — the strongest reading of its contract.`,
+        bodyHtml: purpose
+          ? `<div class="review"><div class="finding"><div class="finding-body">${esc(purpose)}</div></div></div>`
+          : '',
+      };
+    }
+
+    case 'purser-tests': {
+      if (typeof obj.error === 'string') {
+        return {
+          icon: '🧪',
+          tone: 'neutral',
+          headline: `The purser's authored tests did not survive validation — ${obj.error}. Nothing was stacked.`,
+          bodyHtml: '',
+        };
+      }
+      const files = Array.isArray(obj.files) ? obj.files : [];
+      const total = numField(obj, 'totalBytes');
+      const kb = total != null ? ` (${(total / 1024).toFixed(1)} KB)` : '';
+      const list = files
+        .map(f => {
+          const fo = asObject(f);
+          return typeof fo.path === 'string' ? `<li>${esc(fo.path)}</li>` : '';
+        })
+        .join('');
+      return {
+        icon: '🧪',
+        tone: 'info',
+        headline:
+          `Authored ${files.length} adversarial test file${files.length === 1 ? '' : 's'}${kb} ` +
+          'to grill the contract.',
+        bodyHtml: list ? `<ul class="breakdown">${list}</ul>` : '',
+      };
+    }
+
+    case 'purser-sandbox': {
+      if (obj.executed === true) {
+        if (obj.passed === true) {
+          return {
+            icon: '📦',
+            tone: 'pass',
+            headline: 'Sandbox ran the suite against the PR head — all tests passed.',
+            bodyHtml: '',
+          };
+        }
+        const tail = typeof obj.failuresTail === 'string' ? obj.failuresTail : '';
+        return {
+          icon: '📦',
+          tone: 'block',
+          headline:
+            'Sandbox ran the suite against the PR head — test FAILURES: the PR does not ' +
+            'satisfy its own contract.',
+          bodyHtml: tail
+            ? `<details class="raw"><summary>failing output (tail)</summary><pre>${esc(tail)}</pre></details>`
+            : '',
+        };
+      }
+      const reason = typeof obj.reason === 'string' ? obj.reason : 'sandbox unavailable';
+      return {
+        icon: '📦',
+        tone: 'neutral',
+        headline: `Sandbox did not run — ${reason}. No results were fabricated.`,
+        bodyHtml: '',
+      };
+    }
+
+    case 'purser-stacked': {
+      const n = numField(obj, 'testPrNumber');
+      if (n != null) {
+        const retargeted = obj.retargeted === true;
+        return {
+          icon: '⛓️',
+          tone: 'info',
+          headline:
+            `Stacked #${n}: the reviewed PR must now satisfy these tests` +
+            (retargeted ? ' — it was retargeted onto the test branch and merges through them' : '') +
+            '.',
+          bodyHtml: '',
+        };
+      }
+      const degraded = typeof obj.degraded === 'string' ? obj.degraded : 'the test branch could not be pushed';
+      return {
+        icon: '⛓️',
+        tone: 'neutral',
+        headline: `Stacking degraded — ${degraded} The tests were posted inline on the PR instead.`,
+        bodyHtml: '',
+      };
+    }
+
+    // ── Ideation "stack" fixes (the ship coded the solution itself) ─────────
+    case 'stack-posted': {
+      const n = numField(obj, 'stackPrNumber');
+      if (obj.stacked === true && n != null) {
+        const files = Array.isArray(obj.files) ? obj.files.filter((f): f is string => typeof f === 'string') : [];
+        const validated = obj.sandboxValidated === true;
+        return {
+          icon: '🚢',
+          tone: 'pass',
+          headline:
+            `${shipLabel} coded its own fix and stacked #${n} on top of this PR` +
+            (validated ? ' (sandbox-validated against the PR head)' : '') +
+            '.',
+          bodyHtml: files.length
+            ? `<ul class="breakdown">${files.map(f => `<li>${esc(f)}</li>`).join('')}</ul>`
+            : '',
+        };
+      }
+      const degraded = typeof obj.degraded === 'string' ? obj.degraded : 'validation failed';
+      return {
+        icon: '🚢',
+        tone: 'neutral',
+        headline: `${shipLabel} proposed a coded fix, but it was not stacked — ${degraded}.`,
+        bodyHtml: '',
+      };
+    }
+
     case 'review-posted':
       return obj.posted === true
         ? { icon: '📤', tone: 'info', headline: `Posted ${shipLabel}'s review to the pull request.`, bodyHtml: '' }

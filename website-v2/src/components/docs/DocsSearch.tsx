@@ -102,7 +102,7 @@ const SEARCH_INDEX: SearchResult[] = [
   { title: 'Always-On Avatars', href: '/docs/features/avatars', category: 'Features', icon: FileText, description: 'Background agents' },
   { title: 'Self-Healing', href: '/docs/features/salvage', category: 'Features', icon: FileText, description: 'Automatic recovery' },
   { title: 'Pheromone Trails', href: '/docs/features/pheromone', category: 'Features', icon: FileText, description: 'Stigmergic signaling' },
-  { title: 'Fleet Agents', href: '/docs/features/fleet', category: 'Features', icon: FileText, description: 'Declarative background agents' },
+  { title: 'Fleet & GitHub App', href: '/docs/features/fleet', category: 'Features', icon: FileText, description: 'Declarative agents + cloud PR fleet' },
   { title: 'Activity Timeline', href: '/docs/features/timeline', category: 'Features', icon: FileText, description: 'Audit log and replay' },
 
   // API

@@ -52,13 +52,16 @@ function htmlPage(body: string, status = 200): Response {
 }
 
 // ── shared design tokens + primitives (ch20 story-linework, trimmed) ─────────
-const HEAD = `<meta charset="utf-8">
+// HEAD + TOKENS are exported for sibling storefront pages (runs-page.ts) so the
+// story-linework token block stays single-sourced across /login, /account and
+// /account/runs.
+export const HEAD = `<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Recursive:CASL,slnt,wght@1,-8,400..800&display=swap" rel="stylesheet">`;
 
-const TOKENS = `
+export const TOKENS = `
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;border-radius:0}
 :root,:root[data-theme="light"]{
   --surface-base:#f2eee6;--surface-raised:#f7f3eb;--surface-strong:#e9e2d5;
@@ -288,6 +291,9 @@ section.sect::before{content:"";position:absolute;top:0;left:0;right:0;height:va
 .ko::before{content:"";position:absolute;z-index:-1;left:-56px;right:calc(100% - var(--ko-r));top:-13px;bottom:-13px;background:var(--cobalt-slab)}
 .ko .ko-over{position:absolute;inset:0;color:var(--cream);pointer-events:none;clip-path:inset(-13px calc(100% - var(--ko-r)) -13px -56px)}
 .zone-mast .caption{display:block;margin-top:20px;max-width:62ch}
+/* prominent door into the per-account runs index (/account/runs — real page) */
+.runs-cta{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:14.5px;font-weight:700;letter-spacing:.02em;padding:12px 20px;border:2px solid var(--border-strong);background:var(--cobalt-slab);color:var(--cream);text-decoration:none;margin-bottom:18px}
+.runs-cta:hover{background:var(--border-strong);color:var(--surface-base)}
 .danger{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .btn-ghost{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:13.5px;font-weight:700;letter-spacing:.04em;padding:9px 17px;border:1px solid var(--hair-strong);color:var(--text-primary);background:transparent;text-decoration:none;cursor:pointer}
 .btn-ghost:hover{border-color:var(--border-strong)}
@@ -318,6 +324,7 @@ export function renderAccountPage(user: UserRow): string {
     <nav aria-label="Account">
       <span class="eyebrow">Account</span>
       <a href="/account" aria-current="page">Overview</a>
+      <a href="/account/runs">Fleet runs</a>
       <a href="#devices">Devices</a>
       <a href="#receipts">Receipts</a>
       <a href="#harbors">Harbors</a>
@@ -372,9 +379,10 @@ export function renderAccountPage(user: UserRow): string {
       <div class="zone-mast">
         <h2 id="receipts-h" class="ko">Receipts — <span class="rec">verifiable</span>, not promised<span class="ko-over" aria-hidden="true">Receipts — <span class="rec">verifiable</span>, not promised</span></h2>
         <span class="caption">The Strava-map of code work: agents, commits, cost, duration — never your code. Anyone with the scoped link sees the proof.</span></div>
+      <a class="runs-cta" href="/account/runs">Your fleet runs &rarr;</a>
       <div class="empty">
-        <div class="e-title">No receipts linked to your account yet.</div>
-        <p>Fleet runs already produce shareable pages at <span class="cmd">/fleet/runs/&lt;id&gt;</span>. Per-account receipts appear here once a run is attributed to your GitHub identity (repo-owner linkage — next slice).</p>
+        <div class="e-title">See every run your GitHub identity can read.</div>
+        <p>Fleet runs produce shareable pages at <span class="cmd">/fleet/runs/&lt;id&gt;</span>, and <a href="/account/runs">Your fleet runs</a> lists the recent ones for repos you can read on GitHub — verdicts, ships, cost and wall-clock, each linking to its full transcript.</p>
       </div>
     </section>
 
