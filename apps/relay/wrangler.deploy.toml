@@ -95,10 +95,22 @@ queue = "fleet-runs"
 [observability]
 enabled = true
 
-# Cron Trigger (ADR-0101): retention + session-reap + erasure hard-delete sweep
-# runs the scheduled() handler. Every 6 hours.
+# Cron Triggers. One scheduled() handler dispatches on event.cron:
+#   "0 */6 * * *"  — ADR-0101 retention + session-reap + erasure hard-delete
+#                    sweep (plus a MERCY sweep — every fire takes vitals).
+#   "*/5 * * * *"  — MERCY v1 hospital-ship health sweep (src/mercy.ts): D1
+#                    read/write latency, KV echo, DO channel echo, queue-binding
+#                    presence, fleet-executor liveness, 24h error rate. Writes
+#                    one mercy_health snapshot per fire; red transitions open a
+#                    mercy_incidents row and page MERCY_PAGE_WEBHOOK once.
+#
+# MERCY paging secret (optional — incidents are recorded either way):
+#   echo "https://…" | wrangler secret put MERCY_PAGE_WEBHOOK
+# The URL is treated as a secret (PagerDuty/Grafana OnCall ingest URLs embed
+# credentials). See docs/mercy-oncall.md for the PagerDuty / Cloudflare
+# Notifications bridge and the honest limits of Cloudflare-native alerting.
 [triggers]
-crons = ["0 */6 * * *"]
+crons = ["0 */6 * * *", "*/5 * * * *"]
 
 # ---------------------------------------------------------------------------
 # LATEST channel (ADR-0119) — the per-merge staging Worker: relay-latest.
@@ -140,7 +152,7 @@ GITHUB_OAUTH_CLIENT_ID = "Iv23litgGckMU4QVW4i8"
 # The latest channel's own origin. Replace <account> with this Cloudflare
 # account's workers.dev subdomain (shown by `wrangler deploy --env latest`).
 # Login stays disabled unless the matching secrets are set for --env latest.
-PUBLIC_BASE_URL = "https://relay-latest.<account>.workers.dev"
+PUBLIC_BASE_URL = "https://relay-latest.erich-owens.workers.dev"
 
 [[env.latest.d1_databases]]
 binding = "DB"
@@ -148,7 +160,7 @@ database_name = "port-daddy-relay-staging"
 # PLACEHOLDER — provision with `wrangler d1 create port-daddy-relay-staging`
 # and paste the returned database_id here. CI deploys of --env latest fail
 # with a clear "database not found" until this is a real id.
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "2239f238-c5f1-423a-ba62-448a4c4d8f59"
 migrations_dir = "migrations"
 
 # Same DO class as prod; environments get their OWN namespace instance, so
@@ -175,4 +187,4 @@ queue = "fleet-runs-staging"
 enabled = true
 
 [env.latest.triggers]
-crons = ["0 */6 * * *"]
+crons = ["0 */6 * * *", "*/5 * * * *"]
