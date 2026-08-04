@@ -6,6 +6,9 @@ workflow at commit `52717136e`.
 - `all-seven-paper-proofs.jpg` — every page of Chapters I–VII, grouped by paper.
 - `selected-figure-proofs.jpg` — high-resolution proof pages containing the
   revised diagrams and tables.
+- `selected-figure-tour.gif` — an 18-second motion tour of those canonical
+  figure pages, ordered by chapter.
+- `selected-figure-tour.webm` — the same tour as a compact VP9 recording.
 - `mechanism-math-plots.jpg` — the three regenerated Bonded Commons simulation
   plots: auction/static comparison, Sybil deposit ceiling, and cartel threshold.
 
@@ -19,5 +22,5 @@ The selected-page proof uses these PDF pages:
 - VI Bonded Commons: 28, 30, 31, 42
 - VII Federated Harbor: 14, 16
 
-Rendered with Poppler `pdftoppm` and ImageMagick `montage`; no screenshots were
-substituted for PDF output.
+Rendered with Poppler `pdftoppm`, ImageMagick `montage`, and FFmpeg; no
+screenshots were substituted for PDF output.
