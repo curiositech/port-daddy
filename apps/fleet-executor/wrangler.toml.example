@@ -120,6 +120,21 @@ max_batch_timeout = 30
 max_retries = 1
 
 # ---------------------------------------------------------------------------
+# CRON TRIGGER — the STEWARD's sweep (src/steward.ts, `scheduled()` in
+# src/index.ts). Every 15 minutes the Worker inspects the KV-registered
+# fleet-authored PRs and lands the ones that clear every deterministic
+# precondition (tenant opt-in from the trusted branch, kill switch, App-identity
+# authorship, green checks, no guardrail files, no unresolved dispute, rate
+# limit). A cron — not the webhook path — because merging requires WAITING: at
+# `pull_request:opened` every check is still pending.
+#
+# Cloudflare primitives only: Cron Trigger for scheduling, KV for the candidate
+# registry + rate-limit counters, D1 for the audit transcript, Workers AI
+# (`@cf/` ids only) for dispute-reply prose. No external runner, no Anthropic.
+[triggers]
+crons = ["*/15 * * * *"]
+
+# ---------------------------------------------------------------------------
 # Plaintext vars. GITHUB_APP_PRIVATE_KEY is a *secret*, set out-of-band:
 #   echo "123456" | wrangler secret put GITHUB_APP_ID        # (or var, below)
 #   cat app-key.pem | wrangler secret put GITHUB_APP_PRIVATE_KEY
@@ -128,6 +143,11 @@ max_retries = 1
 [vars]
 GITHUB_APP_ID = "REPLACE_WITH_YOUR_GITHUB_APP_ID"
 DEFAULT_BRANCH = "main"
+# Steward dispute-reply model (src/steward.ts). Workers AI ONLY — must be a
+# `@cf/` id; any other value is ignored and the steward falls back to its
+# default (resolveStewardModel). The model drafts REPLY PROSE only; it never
+# decides a merge — that gate is deterministic TypeScript (evaluateMerge).
+STEWARD_MODEL = "@cf/qwen/qwen3-30b-a3b-fp8"
 # AI_GATEWAY_ID (OPTIONAL, ADR-0116/0117): a Cloudflare AI Gateway id. When set,
 # every ship's env.AI.run(...) is routed through this gateway so token/cost/latency
 # is logged and cacheable in the AI Gateway dashboard. UNSET / empty ⇒ calls hit

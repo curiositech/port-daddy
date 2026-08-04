@@ -27,6 +27,8 @@
 import type { ExecutorEnv, FleetRunJob } from './env.js';
 import { executeFleet } from './execute.js';
 import { handleDlqJob } from './dlq.js';
+import { runStewardSweep } from './steward.js';
+import { StewardSweepTranscript } from './steward-transcript.js';
 
 export type { ExecutorEnv, FleetRunJob } from './env.js';
 export { executeFleet } from './execute.js';
@@ -35,6 +37,54 @@ export { executeFleet } from './execute.js';
 const DLQ_QUEUE_NAME = 'fleet-runs-dlq';
 
 export default {
+  /**
+   * Cron entry point for the STEWARD (src/steward.ts) — the bounded
+   * auto-landing pass over the fleet's OWN pull requests.
+   *
+   * WHY A CRON AND NOT THE WEBHOOK PATH: merging requires WAITING. At
+   * `pull_request:opened` every check is pending, so a steward driven only by
+   * webhooks could never satisfy its own "no pending checks" precondition — it
+   * would be structurally incapable of ever merging anything. A periodic sweep
+   * over a KV-registered candidate list is the smallest mechanism that lets the
+   * gate be evaluated when the answer can actually be "yes".
+   *
+   * SAFETY: this handler grants no authority of its own. Every precondition —
+   * tenant opt-in from the trusted default branch, kill switch, fleet
+   * authorship via App identity, green checks, guardrail hard stop, rate
+   * limits — is re-derived inside the sweep, and a failure here means PRs sit
+   * unmerged, which is the harmless direction. Errors are swallowed so a broken
+   * steward can never take the queue consumer down with it.
+   *
+   * @param _event The Cloudflare scheduled event (cron expression, scheduled time).
+   * @param env Executor environment (bindings + secrets).
+   * @param ctx Execution context; the sweep is awaited via `waitUntil` so
+   *   Cloudflare does not cancel it mid-flight.
+   * @returns Nothing — outcomes land in the D1 transcript, not the return value.
+   */
+  async scheduled(
+    _event: ScheduledController,
+    env: ExecutorEnv,
+    ctx: ExecutionContext,
+  ): Promise<void> {
+    const sweep = (async () => {
+      try {
+        const transcript = new StewardSweepTranscript(env.DB);
+        const results = await runStewardSweep(env, transcript);
+        console.log(
+          `[fleet-executor] steward sweep: inspected=${results.length} ` +
+            `merged=${results.filter(r => r.merged).length} ` +
+            `updated=${results.filter(r => r.branchUpdated).length}`,
+        );
+      } catch (err) {
+        // A failed sweep leaves PRs unmerged — the harmless direction. It must
+        // never surface as an unhandled rejection that affects queue delivery.
+        console.error(`[fleet-executor] steward sweep failed: ${String(err)}`);
+      }
+    })();
+    ctx.waitUntil(sweep);
+    await sweep;
+  },
+
   async queue(
     batch: MessageBatch<FleetRunJob>,
     env: ExecutorEnv,

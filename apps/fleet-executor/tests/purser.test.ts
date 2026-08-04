@@ -73,6 +73,8 @@ function mkCtx(over: Partial<PRContext> = {}): PRContext {
     baseSha: 'BASESHA',
     baseRef: 'main',
     isFork: false,
+    authorLogin: 'a-human',
+    authorType: 'User',
     installationId: 0,
     files: [{ filename: 'src/widget.ts', status: 'modified', additions: 3, deletions: 1 }],
     diff: 'diff --git a/src/widget.ts b/src/widget.ts\n+frob',

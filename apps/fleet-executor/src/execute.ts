@@ -36,10 +36,14 @@ import {
   completeCheckRun,
   findFleetCheckRun,
   createIssue,
+  resolveFleetAppLogin,
   type PRContext,
   type ReviewComment,
 } from './github.js';
 import { parseFleetShips, parseFleetSquidEvents, parseFleetXo, defaultPRShips, type ShipConfig } from './fleet.js';
+import { classifyPrAuthorship } from './fleet-identity.js';
+import { recordStewardCandidate } from './steward.js';
+import { fleetPrBodyTrailers } from './fleet-pr-body.js';
 import {
   resolveVerdict,
   aggregateConclusion,
@@ -686,6 +690,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         headRef: '',
         baseRef: '',
         isFork: true,
+        // Authorship is unknown on a short-circuited run and nothing reads it
+        // here; empty classifies as "not the fleet", the conservative default.
+        authorLogin: '',
+        authorType: '',
         installationId: job.installationId,
         files: [],
         diff: '',
@@ -812,6 +820,77 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // the audit trail records every attempt that got far enough to gate. A
   // write failure is swallowed and never changes the run or the gate.
   await recordRunStart(env, runId, job, prCtx, prNumber, cloudShips);
+
+  // --- SELF-REVIEW GUARD (the fleet does not review its own branches) ------
+  // WHY THIS SITS HERE — after the gating check exists, before any AI spend.
+  // "Port Daddy Fleet" is a REQUIRED status check; returning early WITHOUT
+  // completing it would leave it permanently in_progress and block the branch
+  // forever (the 2026-07-16 pause incident). So we complete it honestly and
+  // then stop.
+  //
+  // WHY AT ALL: nothing previously distinguished a human's PR from the fleet's
+  // own purser test branch, so the full roster reviewed machine-authored tests
+  // and filed findings on them — pd-qa was producing 6–11 findings per round on
+  // this repo, several hallucinated, against code the fleet had just written
+  // minutes earlier. That is pure cost and pure noise.
+  //
+  // IDENTITY, NOT BRANCH NAME: `classifyPrAuthorship` requires the author to be
+  // a Bot, and prefers matching this App's own resolved login over the
+  // attacker-controllable head ref (see src/fleet-identity.ts). A human on a
+  // branch called `purser/anything` is still reviewed normally.
+  //
+  // ZERO-TRUST UNCHANGED: config still came from the trusted default branch
+  // above; this guard reads only authorship, and adds no new trust in PR head.
+  const fleetAppLogin = await resolveFleetAppLogin(
+    env.GITHUB_APP_ID,
+    env.GITHUB_APP_PRIVATE_KEY,
+    env.FLEET_TOKENS,
+  ).catch(() => null);
+  const authorship = classifyPrAuthorship({
+    authorLogin: prCtx.authorLogin,
+    authorType: prCtx.authorType,
+    headRef: prCtx.headRef,
+    fleetAppLogin,
+  });
+  if (authorship.fleetAuthored) {
+    const summary =
+      `Fleet-authored branch — not self-reviewed. ${authorship.reason}. ` +
+      `No ships were run and no AI was spent: reviewing the fleet's own output produces ` +
+      `machine noise on machine work, not review. The branch is still gated by the repo's ` +
+      `normal CI, and (when the tenant opts in) the fleet steward will only land it once every ` +
+      `check is green and every review thread is resolved.`;
+    await transcript.step(
+      'fleet-authored-skip',
+      null,
+      'Check concluded: neutral (fleet-authored branch, not self-reviewed)',
+      {
+        checkRunId,
+        conclusion: 'neutral',
+        reason: 'fleet-authored',
+        authorLogin: prCtx.authorLogin,
+        authorType: prCtx.authorType,
+        headRef: prCtx.headRef,
+        signal: authorship.signal,
+        shipsRun: 0,
+      },
+    );
+    await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+    // Hand the PR to the steward's registry so a bounded auto-landing pass can
+    // consider it later, once its checks have actually finished. Recording is
+    // NOT permission: the steward re-derives every precondition itself, from
+    // the tenant's trusted-branch consent down (src/steward.ts).
+    if (job.installationId != null) {
+      await recordStewardCandidate(env, {
+        owner,
+        repo,
+        prNumber,
+        installationId: job.installationId,
+        recordedAt: Date.now(),
+      });
+    }
+    await recordRunEnd(env, runId, 'neutral', startMs);
+    return;
+  }
 
   // Cloud squid: announce the run (fire-and-forget; disabled unless BOTH
   // RELAY_PUBLISH_URL and RELAY_PUBLISH_TOKEN are configured AND the tenant
@@ -1511,6 +1590,24 @@ async function maybeStackProposal(
   }
 }
 
+/**
+ * Render the ideation stack-proposal PR's body.
+ *
+ * MOTIVATION: same deadlock as the purser's test branch (see
+ * `src/fleet-pr-body.ts`). A `fleet/<ship>-pr-<n>-<slug>` branch is based on the
+ * REVIEWED PR's head, so a gate that bounces this body strands the fix behind a
+ * permanently-blocked PR nobody can clear — the machine cannot write a human
+ * Test Plan, and no human is standing by to write one for it. The trailers
+ * declare the exemptions the guards already offer, each with a reason specific
+ * to what this branch actually is.
+ *
+ * @param ship The ideation ship that authored the fix (named in the prose).
+ * @param prCtx The reviewed PR this fix stacks on.
+ * @param proposal The parsed proposal (title/rationale/files).
+ * @param sandboxValidated Whether the repo's suite actually ran green with the
+ *   fix applied — stated honestly either way, never assumed.
+ * @returns The full markdown body for the stacked fix PR.
+ */
 function buildStackPrBody(
   ship: ShipConfig,
   prCtx: PRContext,
@@ -1527,6 +1624,10 @@ function buildStackPrBody(
     sandboxValidated
       ? `Sandbox-validated: the repo's test suite passed with this fix applied to the PR head.`
       : `Not sandbox-validated (no sandbox available this run) — review before merging.`,
+    fleetPrBodyTrailers(
+      `stacked fix proposed by pd-${ship.name} while reviewing #${prCtx.prNumber}; it carries no roadmap ` +
+        `item of its own — it is machinery attached to whichever item #${prCtx.prNumber} advances`,
+    ),
   ]
     .filter(Boolean)
     .join('\n\n');
