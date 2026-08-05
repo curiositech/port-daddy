@@ -34,6 +34,47 @@ describe('single-supervisor daemon installer', () => {
     expect(source).not.toContain("case 'install-bosun':");
   });
 
+  test('freshness resolves only the formula-owned executable', async () => {
+    const { resolveFreshnessPdPath } = await import('../../install-daemon.js');
+    const commands = [];
+    const result = resolveFreshnessPdPath(
+      (command, args) => {
+        commands.push([command, args]);
+        return {
+          stdout: '/opt/homebrew/opt/port-daddy\n',
+          stderr: '',
+          status: 0,
+        };
+      },
+      (path) => path === '/opt/homebrew/opt/port-daddy/bin/pd',
+    );
+
+    expect(result).toBe('/opt/homebrew/opt/port-daddy/bin/pd');
+    expect(commands).toEqual([['brew', ['--prefix', 'port-daddy']]]);
+    expect(source).not.toContain("runCommand('which', ['pd'])");
+  });
+
+  test('freshness fails closed when Homebrew cannot prove its launcher', async () => {
+    const { resolveFreshnessPdPath } = await import('../../install-daemon.js');
+    const missingFormula = resolveFreshnessPdPath(
+      () => ({ stdout: '', stderr: 'not installed', status: 1 }),
+      () => true,
+    );
+    const relativePrefix = resolveFreshnessPdPath(
+      () => ({ stdout: 'relative/formula\n', stderr: '', status: 0 }),
+      () => true,
+    );
+    const missingExecutable = resolveFreshnessPdPath(
+      () => ({ stdout: '/opt/homebrew/opt/port-daddy\n', stderr: '', status: 0 }),
+      () => false,
+    );
+
+    expect(missingFormula).toBeNull();
+    expect(relativePrefix).toBeNull();
+    expect(missingExecutable).toBeNull();
+    expect(source).toContain('Freshness timer refused: Homebrew could not prove');
+  });
+
   test('Linux uses one restarting systemd unit with JSC safe mode', async () => {
     const { generateSystemdUnit } = await import('../../install-daemon.js');
     const unit = generateSystemdUnit({

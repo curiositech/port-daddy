@@ -14,9 +14,9 @@
  */
 
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
-import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { accessSync, constants, existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveDaemonUrl } from './shared/daemon-discovery.js';
 import {
@@ -91,13 +91,30 @@ export function jscSafeModeEnvXml(): string {
     .join('\n');
 }
 
-function resolvePdLauncherPath(): string | null {
-  const resolved = runCommand('which', ['pd']).stdout.trim().split('\n')[0]?.trim();
-  if (resolved && existsSync(resolved)) return resolved;
-  for (const candidate of ['/opt/homebrew/bin/pd', '/usr/local/bin/pd']) {
-    if (existsSync(candidate)) return candidate;
+function isExecutableFile(path: string): boolean {
+  try {
+    accessSync(path, constants.X_OK);
+    return true;
+  } catch {
+    return false;
   }
-  return null;
+}
+
+/**
+ * Resolve the formula-owned launcher, never a shell-selected checkout shim.
+ * The freshness job is part of the Homebrew installation, so Homebrew is the
+ * only authority allowed to name the binary it periodically invokes.
+ */
+export function resolveFreshnessPdPath(
+  command: typeof runCommand = runCommand,
+  executable: (path: string) => boolean = isExecutableFile,
+): string | null {
+  const prefixResult = command('brew', ['--prefix', 'port-daddy']);
+  if (prefixResult.status !== 0) return null;
+  const prefix = prefixResult.stdout.trim().split('\n')[0]?.trim();
+  if (!prefix || !isAbsolute(prefix)) return null;
+  const candidate = join(resolve(prefix), 'bin', 'pd');
+  return executable(candidate) ? candidate : null;
 }
 
 /** Render the updater-only LaunchAgent. It never supervises the daemon. */
@@ -160,10 +177,10 @@ export function cleanupRetiredMacOSJobs(): void {
 }
 
 function installFreshnessMacOS(): boolean {
-  const pdPath = resolvePdLauncherPath();
+  const pdPath = resolveFreshnessPdPath();
   if (!pdPath) {
-    console.log('  Freshness timer skipped: `pd` is not installed on PATH.');
-    return true;
+    console.error('  Freshness timer refused: Homebrew could not prove the port-daddy formula launcher.');
+    return false;
   }
 
   mkdirSync(LAUNCH_AGENTS, { recursive: true });
