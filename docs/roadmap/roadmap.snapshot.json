@@ -1182,7 +1182,7 @@
     {
       "slug": "session-takeover-legibility",
       "status": "backlog",
-      "summaryMd": "Make non-destructive session takeover legible and operational: successor sessions preserve agent identity and become the CLI current context, so subsequent whoami, note, file-claim, and done commands target the successor rather than stale predecessor state."
+      "summaryMd": "Make linked session continuation legible and operational: successor sessions preserve lineage and become the CLI current context, so subsequent whoami, note, file-claim, and done commands target the successor rather than stale predecessor state."
     },
     {
       "slug": "skill-graft-hermetic-test-isolation",

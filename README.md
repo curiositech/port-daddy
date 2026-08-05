@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.27.0)
+# ⚓ Port Daddy (v3.28.0)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for coding agents" width="600">

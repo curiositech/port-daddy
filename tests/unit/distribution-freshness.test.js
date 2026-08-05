@@ -6,7 +6,7 @@
  * instructions and the product looks amateur.
  *
  * Surfaces checked:
- *   1. package.json          — npm version (source of truth)
+ *   1. package.json          — product version (source of truth)
  *   2. mcp/server.ts         — MCP server version + instructions
  *   3. .claude-plugin/plugin.json — Claude plugin version
  *   4. mcp-server.json       — Static MCP discovery manifest
@@ -15,7 +15,7 @@
  *   7. public/samples/manifest.json — bundled sample package version
  *   8. skills/port-daddy-agent-skill/SKILL.md — Distributed agentic skill
  *   9. skills/.../references/ — API reference, SDK reference
- *   10. README.md             — npm README
+ *   10. README.md             — repository front door
  *
  * Philosophy: Tests should YELL when you ship a version bump without updating
  * all surfaces. Better to fail CI than to ship stale docs.
@@ -309,13 +309,21 @@ describe('MCP server manifest', () => {
     expect(mcpManifest.transport).toBeDefined();
     expect(mcpManifest.transport.type).toBe('stdio');
   });
+
+  it('mcp-server.json advertises the source-audited progressive tool inventory', () => {
+    expect(mcpManifest.description).toContain('19 tools');
+    expect(mcpManifest.description).toContain('113 additional tools');
+    expect(mcpManifest.description).toContain('38 categories');
+    expect(mcpManifest.description).toContain('all 132 tools');
+    expect(mcpManifest.description).not.toMatch(/9 essential|36 additional|all 45 tools/);
+  });
 });
 
 // ============================================================================
 // 7. package.json files array — everything that ships must be listed
 // ============================================================================
 
-describe('npm package includes distribution files', () => {
+describe('package metadata includes SDK and integration files', () => {
   it('package.json files array includes skills/', () => {
     const pkg = readJSON('package.json');
     expect(pkg.files).toContain('skills/');

@@ -7,13 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.28.0] - 2026-08-04
+
 ### Added
+- **Durable agent-run receipts and collection.** Spawn admission now persists the run, budget, selected daemon, transcript, lineage, and monitor URL before launch. Observers reconnect by cursor; disconnecting only detaches observation; terminal output, accounting, and cancellation reasons remain inspectable.
+- **First-class linked session continuation.** A continued session creates one idempotent successor with immutable predecessor lineage, current-context activation, joinable Control Center links, and fail-closed launch admission.
+- **Named development daemon selection.** Development builds publish their actual bound endpoint and can be selected without replacing the Homebrew stable service, including automatic fallback when the preferred bind seed is occupied.
 - **FleetBar Giant Squid controls.** The selected-project header now shows an unmistakable `◆ GIANT SQUID` LIVE/READY/PARTIAL/DEGRADED strip, detected/wired provider counts, the before-turn/before-edit/after-tool value being added, and native Arm/Repair/Disarm actions.
 
+### Changed
+- **Spawn liveness is evidence-based, not wall-clock-based.** CLI agents have no generic task timeout. A caller may set an explicit deadline or cancel with a retained reason; `live` requires a positive child PID plus fresh runtime evidence, while an unprovable outcome stays `unknown` or `no_runtime`.
+- **Homebrew is the sole stable-daemon supervisor.** The daemon runs in the foreground under the package manager; named development daemons are isolated peers. Active operator guidance now routes health, restart, sessions, and endpoint selection through FleetBar or the Control Center.
+- **Agent sessions are an operator surface.** Control Center and Fleet views distinguish Join from Continue and expose runtime evidence, backend/model, worktree, transcript, accounting, authority, and terminal artifacts instead of presenting a process list as session truth.
+- **Release and guide governance is exact-SHA work.** Per-push documentation review, release-source freezing, manifest-derived archives, Batten provenance/imprints, refreshed README/skills, and explicit Bun version stamping replace implicit or hand-maintained release paths.
+
 ### Fixed
+- **Every client discovers the selected daemon endpoint.** CLI, Scout, FleetBar, Fleet UI, website tools, demos, tests, and harness witnesses use the published socket/port authority; occupying the preferred seed no longer strands Port Daddy behind a hard-coded URL.
 - **`pd squid on` is now the one truthful full-harness command.** The duplicate `pd squid hooks` surface was removed; setup, init, doctor, and repair guidance use the canonical interactive installer and real provider scopes. Codex/agy user-level hooks now require an exact armed-project registry match, so disarming one repo actually makes them inert there without removing hooks needed by another repo.
-- **Squid release cargo is proved end to end.** Tentacles, statusline, and the Pilot SessionStart hook share one runtime asset resolver and declarative Batten manifest. Release CI launches the staged binary outside the source tree and verifies all four provider configs, identity surfaces, and READY JSON status before packaging.
+- **Squid release cargo is complete and proved end to end.** Tentacles, statusline, public agent skill, canonical Pilot sources, and native runtime libraries share one directory-preserving resource layout and declarative Batten manifest. Release CI launches the staged binary outside the source tree and verifies all four provider configs, identity surfaces, READY JSON status, and manifest-derived archive contents before packaging.
 - **Prompt injections are bounded and fresh.** Next-turn narration is limited to 12 exact-project entries and 4 KiB, with 30-minute TTL enforcement for timestamped alerts and pheromones.
+
+### Removed
+- **Retired runtime paths.** The competing Bosun watchdog, source-install promotion scripts, flat Squid release fallbacks, fixed-endpoint exceptions, duplicate relay dispatcher, implicit npm publish/version hooks, and `kill`/`takeover` session vocabulary are gone from the current runtime and active guidance.
 
 ## [3.27.0] - 2026-07-23
 
@@ -344,7 +359,7 @@ in this file have been folded into this section; no entry was dropped.
 - **FleetBar enhancements**: CostDashboard, CostStore, and FleetBarPreferences added to the SwiftUI menu bar app.
 - **Context-Aware Salvage**: agent registration with `--identity` / `--purpose` auto-checks for dead agents in the same project and returns a salvage notice; `pd salvage --project <name>` filters by project; dashboard shows the salvage queue grouped by project.
 - **CLI @clack/prompts makeover**: styled intro bars, spinners, log messages, boxed notes, and interactive prompts across all 58+ commands.
-- **`pd spawn` — AI agent launcher**: launch local or cloud AI agents (`ollama`, `claude`, `claude-cli`, `gemini`, `aider`, `custom`) with Port Daddy coordination auto-wired. All spawned agents auto-register, heartbeat, start sessions, and enter the salvage queue on crash. `pd spawn -- <task>`, `pd spawned`, `pd spawn kill <id>`; SDK `pd.spawn()`, `pd.listSpawned()`, `pd.killSpawned()`; API `POST /spawn`, `GET /spawn`, `DELETE /spawn/:id`.
+- **`pd spawn` — AI agent launcher**: launch local or cloud AI agents (`ollama`, `claude`, `claude-cli`, `gemini`, `aider`, `custom`) with Port Daddy coordination auto-wired. All spawned agents auto-register, heartbeat, start sessions, and enter the salvage queue on crash. The original launch surface included list and process-stop controls; current releases expose durable collection plus explicit cancellation.
 - **Fleet dogfooding**: all 8 fleet agents migrated from direct `claude -p` to `pd spawn --backend claude-cli`, gaining full PD coordination for free.
 - **OpenAPI 3.1 specification**: full API spec at `docs/openapi.yaml` (96 paths, 125 operations).
 - **Dashboard salvage panel upgrade**: groups dead agents by project, uses the primary `/salvage` routes, adds Claim/Dismiss action buttons per agent.

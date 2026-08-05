@@ -779,7 +779,8 @@ describe('MCP tiered tool loading', () => {
     'begin_session', 'end_session_full', 'whoami',
     'claim_port', 'release_port', 'add_note',
     'acquire_lock', 'list_services',
-    'fleet_init', 'swarm_awareness', 'durable_agent_roster', 'coordination_preflight', 'catch_me_up', 'spawn',
+    'fleet_init', 'active_agent_roster', 'swarm_awareness', 'durable_agent_roster',
+    'coordination_preflight', 'sitrep', 'catch_me_up', 'spawn', 'drop_feedback', 'safe_scan',
   ];
 
   const CATEGORY_NAMES = [
@@ -797,9 +798,8 @@ describe('MCP tiered tool loading', () => {
     const match = mcpContent.match(essentialRegex);
     expect(match).not.toBeNull();
 
-    for (const name of ESSENTIAL_NAMES) {
-      expect(match[1]).toContain(`'${name}'`);
-    }
+    const declared = [...match[1].matchAll(/^\s*'([^']+)'/gm)].map((entry) => entry[1]);
+    expect(declared.sort()).toEqual([...ESSENTIAL_NAMES].sort());
   });
 
   it('essential tools are a subset of all MCP tools', () => {
@@ -834,10 +834,10 @@ describe('MCP tiered tool loading', () => {
     }
   });
 
-  it('tiered mode should expose 15 tools (14 essential + pd_discover)', () => {
+  it('tiered mode should expose 19 tools (18 essential + pd_discover)', () => {
     // In default (non-full) mode, only essential + pd_discover are listed
     const tieredCount = ESSENTIAL_NAMES.length + 1; // +1 for pd_discover
-    expect(tieredCount).toBe(15);
+    expect(tieredCount).toBe(19);
   });
 });
 
