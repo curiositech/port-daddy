@@ -51,10 +51,12 @@ pd squid voice [--stats] [--suppressed] [--follow] [--json]
 ```
 
 `pd squid voice` reads the byte-bounded Giant Squid VoiceLog. Use `--stats` for
-spoke / silent / suppressed rates, `--suppressed` for turns silenced by the
-harness's own bounds, and `--actor`, `--event`, `--since`, or `--limit` to narrow
-the read. Phase 0 of the Reconcile Loop projects approvals and panic; other
-declared key classes remain degraded until their durable producers are wired.
+spoke / silent / suppressed rates, `--suppressed` for turns whose context was
+filtered, dropped, or clipped (including stale matrix, expired or cwd-irrelevant
+evidence, and byte/entry caps), and `--follow` to tail new turns. Use `--actor`,
+`--event`, `--since`, or `--limit` to narrow the read. Phase 0 of the Reconcile
+Loop projects approvals and panic; other declared key classes remain degraded
+until their durable producers are wired.
 
 Ports, services, projects, and orchestration:
 

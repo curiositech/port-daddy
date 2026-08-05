@@ -1025,7 +1025,7 @@ pd attention --subscribe-recommended
 pd squid status             # LIVE / READY / PARTIAL / UNPROTECTED
 pd squid tap                # exact next-turn suggestibility envelope
 pd squid voice --stats      # spoke / silent / suppressed rates
-pd squid voice --suppressed # turns silenced by the harness's own bounds
+pd squid voice --suppressed # context filtered, dropped, or clipped, with reason
 pd squid voice --follow     # live tail while an agent is working
 
 # 5 — run an agent; the client narrates PD TURN / EDIT / TRACE

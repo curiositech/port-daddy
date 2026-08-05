@@ -637,7 +637,8 @@ pd squid status --json      # stable FleetBar/automation contract
 pd squid tap                # exact bounded context entering the next turn
 pd squid voice              # when did the harness actually talk? (VoiceLog)
 pd squid voice --stats      # spoke / silent / suppressed rates, per-class tallies
-pd squid voice --suppressed # only the turns its own budget silenced
+pd squid voice --suppressed # context filtered, dropped, or clipped, with reason
+pd squid voice --follow     # live tail while an agent is working
 pd squid off                # disarm this project without breaking other repos
 pd hooks install            # hook-only repair surface
 ```

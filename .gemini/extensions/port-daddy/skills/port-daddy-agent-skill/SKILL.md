@@ -82,11 +82,13 @@ The harness is quiet by design — it injects nothing when nothing is fresh — 
 broken.** Every turn appends one VoiceLog line (`spoke` / `silent` /
 `suppressed` + reason) to `$PD_HOME/squid-voice-log.jsonl`. `pd squid voice`
 shows recent turns, `--stats` gives the spoke/quiet/suppressed rates, and
-`--suppressed` lists only the turns the harness's own byte or entry budget
-silenced. `suppressed` is the one to act on: it means coordination context
-existed and a bound ate it. Every rate reads `n/a` rather than `0%` when there
-is no data — "the harness has never run here" and "the harness was quiet 100% of
-the time" are opposite diagnoses.
+`--follow` tails new turns while an agent works. `--suppressed` lists turns whose
+context was filtered, dropped, or clipped, with an explicit reason: stale
+matrix, expired evidence, evidence irrelevant to the current working directory,
+or byte/entry caps. Use it to diagnose why candidate context did not fully reach
+the prompt. Every rate reads `n/a` rather than `0%` when there is no data — "the
+harness has never run here" and "the harness was quiet 100% of the time" are
+opposite diagnoses.
 
 The operator drives this through FleetBar's selected-project `◆ GIANT SQUID`
 strip. It exposes state, provider count, and Arm/Repair/Disarm without asking the
