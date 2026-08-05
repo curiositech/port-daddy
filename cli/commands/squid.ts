@@ -703,24 +703,60 @@ function resolveSquidAuthToken(options: CLIOptions): { token: string | null; sou
   return { token: `squid-${randomBytes(GENERATED_TOKEN_BYTES).toString('base64url')}`, source: 'generated' };
 }
 
-/** Resolve the explicit deadline from CLI or environment. Fails closed if invalid. */
+const SQUID_DEADLINE_MIN_MS = 1_000;
+const SQUID_DEADLINE_MAX_MS = 21_600_000; // 6 hours
+
+/** Reject anything but a bare, non-empty run of ASCII decimal digits (no signs, decimals, whitespace, or suffixes). */
+function isStrictAsciiDecimal(value: string): boolean {
+  return /^[0-9]+$/.test(value);
+}
+
+/** Parse a deadline value with no tolerance for ambiguity. Fails closed, naming the source and the valid range. */
+function parseStrictSquidDeadlineMs(rawValue: string, source: string): number {
+  if (!isStrictAsciiDecimal(rawValue)) {
+    throw new Error(
+      `${source} must be written as ASCII decimal digits only (no signs, decimals, whitespace, or suffixes) `
+      + `and fall in the inclusive range ${SQUID_DEADLINE_MIN_MS}-${SQUID_DEADLINE_MAX_MS}ms; got "${rawValue}".`,
+    );
+  }
+  const ms = Number(rawValue);
+  if (!(ms >= SQUID_DEADLINE_MIN_MS && ms <= SQUID_DEADLINE_MAX_MS)) {
+    throw new Error(
+      `${source} must be in the inclusive range ${SQUID_DEADLINE_MIN_MS}-${SQUID_DEADLINE_MAX_MS}ms; got ${ms}.`,
+    );
+  }
+  return ms;
+}
+
+/** Migration error for the generic --timeout/--timeout-ms bridge options removed in the deadline refactor. */
+function legacyTimeoutMigrationError(flag: string): Error {
+  return new Error(
+    `--${flag} is no longer supported by the Squid bridge (the implicit 10-minute default was removed); `
+    + 'set an explicit deadline with --deadline-ms (or the PD_SQUID_DEADLINE_MS environment variable) instead.',
+  );
+}
+
+/**
+ * Resolve the explicit deadline from CLI or environment. Fails closed on anything
+ * ambiguous: legacy --timeout/--timeout-ms are rejected outright (not silently
+ * dropped), --deadline-ms wins over the environment variable, and there is no
+ * implicit default when neither is set.
+ */
 function resolveSquidDeadline(options: CLIOptions): number | undefined {
-  // Explicit --deadline-ms flag takes precedence
-  if (typeof options['deadline-ms'] === 'string') {
-    const ms = parseInt(options['deadline-ms'], 10);
-    if (!Number.isFinite(ms) || ms <= 0) {
-      throw new Error('--deadline-ms must be a positive number in milliseconds');
+  if (options.timeout !== undefined) throw legacyTimeoutMigrationError('timeout');
+  if (options['timeout-ms'] !== undefined) throw legacyTimeoutMigrationError('timeout-ms');
+
+  if (options['deadline-ms'] !== undefined) {
+    if (typeof options['deadline-ms'] !== 'string') {
+      throw new Error('--deadline-ms must be passed exactly once, with a single ASCII-digit value.');
     }
-    return ms;
+    return parseStrictSquidDeadlineMs(options['deadline-ms'], '--deadline-ms');
   }
-  // Check environment variable
+
   if (typeof process.env.PD_SQUID_DEADLINE_MS === 'string' && process.env.PD_SQUID_DEADLINE_MS.length > 0) {
-    const ms = parseInt(process.env.PD_SQUID_DEADLINE_MS, 10);
-    if (!Number.isFinite(ms) || ms <= 0) {
-      throw new Error('PD_SQUID_DEADLINE_MS must be a positive number in milliseconds');
-    }
-    return ms;
+    return parseStrictSquidDeadlineMs(process.env.PD_SQUID_DEADLINE_MS, 'PD_SQUID_DEADLINE_MS');
   }
+
   // No default: deadline is undefined
   return undefined;
 }
@@ -854,7 +890,9 @@ Bridge options:
   --port <n>                  Local bridge port (default: 8765)
   --host <addr>               Local bind host (default: 127.0.0.1)
   --cwd <repo>                Working directory for Codex and launched client
-  --deadline-ms <n>           Codex request deadline in milliseconds (default: no limit)
+  --deadline-ms <n>           Codex request deadline in milliseconds, ASCII digits only,
+                              range ${SQUID_DEADLINE_MIN_MS}-${SQUID_DEADLINE_MAX_MS} (default: no limit;
+                              legacy --timeout/--timeout-ms are rejected, not silently ignored)
   --max-request-bytes <n>     Max JSON request body size (default: ${DEFAULT_SQUID_MAX_REQUEST_BYTES})
   --token <token>             Local bridge token (default: generated per run)
   --no-token                  Disable auth; loopback-only
