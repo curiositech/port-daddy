@@ -34,6 +34,22 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   /** Workers AI binding. */
   AI: Ai;
   /**
+   * OPTIONAL Cloudflare Sandbox binding (Containers beta, `@cloudflare/sandbox`)
+   * used by the purser ship to EXECUTE its authored adversarial tests against
+   * the PR head. Deliberately typed `unknown` and duck-typed in
+   * src/sandbox-runner.ts so the SDK is not a build dependency. ABSENT (the
+   * default deploy) ⇒ the purser reports `executed: false` and never fabricates
+   * test results. See the commented block in wrangler.toml.example.
+   */
+  SANDBOX?: unknown;
+  /**
+   * OPTIONAL XO model override (plaintext var, wrangler.deploy.toml). The XO
+   * synthesis officer (src/xo.ts) runs on Workers AI ONLY: only a `@cf/` id is
+   * honored, anything else falls back to DEFAULT_XO_MODEL — see resolveXoModel.
+   * Unset ⇒ the default deepseek-r1 distill.
+   */
+  XO_MODEL?: string;
+  /**
    * Optional Cloudflare AI Gateway id. When set, every ship's `env.AI.run(...)`
    * is routed through this gateway (`{ gateway: { id } }`) so token/cost/latency
    * is logged and cacheable in the AI Gateway dashboard (ADR-0116/0117). UNSET ⇒
@@ -52,6 +68,28 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
    * relay's RUN_PAGE_SECRET. ≥32 chars or the details_url is not emitted.
    */
   RUN_PAGE_SECRET?: string;
+  /**
+   * OPTIONAL "cloud squid" coordination-event sink (src/squid-events.ts): the
+   * relay publish endpoint the executor fire-and-forgets run-started /
+   * ship-verdict / pr-stacked / run-concluded events to, on channel
+   * 'fleet-cloud'. BOTH this and RELAY_PUBLISH_TOKEN must be set or the
+   * feature is silently disabled — no fetch is ever attempted. Events are
+   * strictly best-effort: they never throw and never block or change a run.
+   */
+  RELAY_PUBLISH_URL?: string;
+  /** Bearer token sent with every squid-event POST. Secret; optional (see above). */
+  RELAY_PUBLISH_TOKEN?: string;
+  /**
+   * OPTIONAL HITL escalation sink (src/interruptions.ts): the relay's
+   * POST /v1/interruptions endpoint. When a ship hits a BLOCKING degradation
+   * (403 on `contents: write`, blockWithoutSandbox with no SANDBOX binding) it
+   * fire-and-forgets an operator interruption there. BOTH this and
+   * INTERRUPTIONS_TOKEN must be set or the feature is silently disabled — no
+   * fetch is ever attempted. Escalations never block or change a run.
+   */
+  INTERRUPTIONS_URL?: string;
+  /** pdu_ operator token sent as the Bearer on every interruption POST. Secret. */
+  INTERRUPTIONS_TOKEN?: string;
   /**
    * Shared relay D1 database (`port-daddy-relay`). The executor writes the
    * fleet_runs audit header + the append-only fleet_run_steps transcript here.

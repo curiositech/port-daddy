@@ -229,6 +229,16 @@ Work Receipt:
   the executable skillful-agent DAG for the runtime refactor: node prompts,
   dependency order, blackboard keys, skeptical review nodes, smoke/shadow test
   gates, and release responsibilities.
+- [27 Context, Memory And Runtime Wiring](./27-context-memory-runtime-wiring.md):
+  addendum of record to ch. 04/07 — the shipped-versus-designed reality of the
+  M6 context/memory stack, the ContextEnvelope keystone that starves the rest,
+  and the keystone-first wiring DAG (W1-W16): land/reconcile Tier B, emit the
+  envelope, retire the legacy tracker, custodian-built cited compaction packets,
+  packet-as-checkpoint with `resumeFromPacket`, hybrid FTS5+MiniLM+RRF cited
+  recall, packet-fed briefings, agent input buffering/paging/cheap-summarization,
+  the eager tool2vec build step + skill-usage logging, subagent context
+  partitioning, and the `pd doctor`/`pd setup`/`pd packet`/pane tooling to prove
+  it.
 - [Work packet: Destructive Daemon Runtime Refactor](./work-packets/destructive-daemon-runtime-refactor.md):
   the Wave 2 Lane A authority packet for implementation lanes: destructive
   legacy entry disposition, local/cloud authority, `harbor_events`, Surface

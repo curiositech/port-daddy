@@ -32,7 +32,7 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import { diagnoseStartupBlockers, confirmFix, detectHostileEnvLocal } from '../utils/startup-doctor.js';
 import { CANONICAL_TCP_PORT } from '../../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../../shared/code-hash.js';
-import { PD_HOME } from '../../shared/paths.js';
+import { DEFAULT_PID_FILE, PD_HOME } from '../../shared/paths.js';
 import { type Severity, worstSeverity } from '../../lib/health-severity.js';
 import {
   daemonBinaryPath,
@@ -41,9 +41,10 @@ import {
   resolveBosunBinaryPath,
 } from '../../shared/daemon-binary.js';
 import {
-  diagnoseSquidHookInstall,
   SQUID_HOOK_PRIVACY_NOTICE,
+  type SquidProviderHookDiagnosis,
 } from '../../lib/squid/adapter.js';
+import { inspectHookTargets } from './hooks-install.js';
 import { isEmbeddingModelCached, prefetchEmbeddingModel } from './embed.js';
 import { DEFAULT_SEMANTIC_MODEL_ID, defaultTransformersCacheDir } from '../../lib/semantic-resolver.js';
 import { isStdinInteractive, isStdoutInteractive } from '../utils/tty.js';
@@ -58,6 +59,13 @@ import {
   type AgentNodeV0,
 } from '../../lib/agent-harbor/setup-doctor.js';
 import { gatherHarborFacts } from '../utils/harbor-facts.js';
+import {
+  collectRuntimeIdentity,
+  inspectCanonicalLaunchdSupervisor,
+  resolveRuntimeIdentityScope,
+  type RuntimeHealthSnapshot,
+  type RuntimeIdentityAssessment,
+} from '../../lib/daemon-runtime.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
@@ -110,11 +118,14 @@ interface StatusCommandResponse {
     reason?: string;
     runningPath?: string;
     onDiskPath?: string;
+    runningHash?: string;
+    onDiskHash?: string | null;
   };
   healthProbe?: {
     ok: boolean;
     error?: string;
   };
+  controlPlane?: RuntimeIdentityAssessment;
 }
 
 type StatusFailureCode =
@@ -123,6 +134,7 @@ type StatusFailureCode =
   | 'MALFORMED_RESPONSE'
   | 'HEALTH_UNAVAILABLE'
   | 'BINARY_DRIFT'
+  | 'CONTROL_PLANE_DIVERGED'
   | 'HEALTH_DEGRADED'
   | 'HEALTH_STATE_INVALID';
 
@@ -143,6 +155,69 @@ function resolveDiagnosticPort(): number {
   } catch {
     return CANONICAL_TCP_PORT;
   }
+}
+
+/**
+ * True when THIS CLI process is addressing the canonical daemon — the
+ * launchd-supervised `~/.port-daddy` install on the canonical port — rather
+ * than one it was explicitly redirected to.
+ *
+ * Motivation: the runtime-identity verdict is a claim about ONE daemon
+ * generation, assembled from strictly local authorities (`~/.port-daddy/
+ * daemon.pid`, `daemon.port`, the Bosun `heartbeat`, and the launchd job).
+ * Those files describe the CANONICAL daemon and nothing else. The moment the
+ * caller points the CLI somewhere else — `PORT_DADDY_URL`/`PORT_DADDY_SOCK` at
+ * another endpoint, `PORT_DADDY_PREFIX` at a berth's runtime dir, or the
+ * explicit `PORT_DADDY_PID_FILE`/`PORT_DADDY_PORT_FILE`/
+ * `PORT_DADDY_HEARTBEAT_FILE` overrides that `pd daemon env` exports and
+ * `server.ts` honors — the canonical authorities stop being evidence about the
+ * daemon actually being addressed. Reconciling them anyway does not produce a
+ * weaker verdict; it produces a FALSE one ("daemon.pid=<other daemon>, /health
+ * pid=<this daemon>").
+ *
+ * Design: this is the same question `cli/commands/daemon.ts`'s
+ * `isCanonicalDaemonTarget()` asks before consulting launchd, widened to every
+ * env var that can redirect the runtime-file half of the comparison. It is a
+ * pure environment read so callers can gate on it without any I/O.
+ *
+ * @returns `true` when no endpoint or runtime-path override is in effect, so
+ *   the canonical local authorities genuinely describe the addressed daemon.
+ */
+export function isCanonicalRuntimeTarget(): boolean {
+  // Every env var that can point this CLI at a daemon other than the canonical
+  // one. The list is derived from the ACTUAL resolvers, not from memory:
+  // shared/daemon-discovery.ts resolves the TCP target from PORT_DADDY_PORT
+  // FIRST (before the daemon.port file), and PORT_DADDY_TCP_HOST moves the host
+  // — omitting either reintroduces the exact false "control plane diverged"
+  // verdict this function exists to prevent, because we would compare a
+  // redirected daemon's /health against the canonical ~/.port-daddy files.
+  const overrides = [
+    process.env.PORT_DADDY_URL,
+    process.env.PORT_DADDY_SOCK,
+    process.env.PORT_DADDY_PORT,
+    process.env.PORT_DADDY_TCP_HOST,
+    process.env.PORT_DADDY_PREFIX,
+    process.env.PORT_DADDY_PID_FILE,
+    process.env.PORT_DADDY_PORT_FILE,
+    process.env.PORT_DADDY_HEARTBEAT_FILE,
+    process.env.PD_HOME,
+  ];
+  return overrides.every((value) => !(typeof value === 'string' && value.trim()));
+}
+
+function collectDiagnosticRuntimeIdentity(
+  health: RuntimeHealthSnapshot | null,
+  endpointPort = resolveDiagnosticPort(),
+): RuntimeIdentityAssessment {
+  const scope = resolveRuntimeIdentityScope(health, {
+    endpointPort,
+    runtimePrefix: process.env.PORT_DADDY_PREFIX,
+    canonicalSupervisor: inspectCanonicalLaunchdSupervisor(),
+  });
+  return collectRuntimeIdentity(health, {
+    endpointPort,
+    ...scope,
+  });
 }
 
 /**
@@ -300,8 +375,12 @@ export function renderStatusPlain(data: StatusCommandResponse): string {
   const visualState = statusLineworkState(data);
   lines.push(`Port Daddy is responsive (${visualState})`);
   const buildVersion = data.daemon?.version || data.version;
-  const buildHash = data.daemon?.codeHash ? ` (${data.daemon.codeHash})` : '';
+  const codeHash = data.daemon?.codeHash;
+  const buildHash = codeHash && codeHash !== 'e3b0c44298fc' ? ` (${codeHash})` : '';
   lines.push(`  Version: ${buildVersion || 'unknown'}${buildHash}`);
+  if (data.binaryDrift?.runningHash) {
+    lines.push(`  Binary: ${data.binaryDrift.runningHash.slice(0, 12)}${data.binaryDrift.drifted ? ' (drifted)' : ' (installed)'}`);
+  }
   lines.push(`  PID: ${data.pid ?? 'unknown'}`);
   const uptime = data.uptimeHuman || (typeof data.uptimeSeconds === 'number'
     ? `${Math.floor(data.uptimeSeconds / 60)}m ${data.uptimeSeconds % 60}s`
@@ -323,6 +402,10 @@ export function renderStatusPlain(data: StatusCommandResponse): string {
   }
   if (data.healthProbe?.ok === false) {
     lines.push(`  UNKNOWN health probe: ${data.healthProbe.error || 'unavailable'}`);
+  }
+  if (data.controlPlane) {
+    const prefix = data.controlPlane.state === 'converged' ? 'Control plane' : 'CONTROL PLANE';
+    lines.push(`  ${prefix}: ${data.controlPlane.state} — ${data.controlPlane.summary}`);
   }
 
   if (data.fleet) {
@@ -373,8 +456,8 @@ function runtimeLineworkState(state: string | undefined, degraded?: boolean): ui
 }
 
 function statusLineworkState(data: StatusCommandResponse): ui.LineworkState {
-  if (data.severity === 'critical') return 'failed';
-  if (data.severity === 'warn' || data.runtime?.degraded || data.binaryDrift?.drifted || data.healthProbe?.ok === false) {
+  if (data.severity === 'critical' || data.controlPlane?.severity === 'critical') return 'failed';
+  if (data.severity === 'warn' || data.runtime?.degraded || data.binaryDrift?.drifted || data.healthProbe?.ok === false || data.controlPlane?.severity === 'warn') {
     return 'warning';
   }
   if (data.status !== 'ok') return data.status === 'degraded' ? 'warning' : 'unknown';
@@ -392,7 +475,8 @@ function binaryDriftText(data: StatusCommandResponse): string {
 
 export function renderStatusLinework(data: StatusCommandResponse, opts?: { width?: number; colorLevel?: import('../utils/output.js').CliColorLevel; styled?: boolean }): string {
   const buildVersion = String(data.daemon?.version || data.version || 'unknown');
-  const buildHash = data.daemon?.codeHash ? ` (${data.daemon.codeHash})` : '';
+  const codeHash = data.daemon?.codeHash;
+  const buildHash = codeHash && codeHash !== 'e3b0c44298fc' ? ` (${codeHash})` : '';
   const activePorts = data.metrics?.activePorts ?? data.active_ports ?? 0;
   const runtimeState = data.runtime?.state
     ? data.runtime.degraded ? `${data.runtime.state} degraded` : data.runtime.state
@@ -433,6 +517,18 @@ export function renderStatusLinework(data: StatusCommandResponse, opts?: { width
       state: 'unknown',
       label: 'health',
       text: `${data.healthProbe.error || 'health probe unavailable'} · next: retry pd status or inspect pd doctor`,
+    });
+  }
+
+  if (data.controlPlane) {
+    rows.push({
+      state: data.controlPlane.state === 'converged'
+        ? 'healthy'
+        : data.controlPlane.state === 'incomplete'
+          ? 'warning'
+          : 'failed',
+      label: 'identity',
+      text: `${data.controlPlane.state} · ${data.controlPlane.summary}`,
     });
   }
 
@@ -575,6 +671,7 @@ export async function runStatus(
   deps: {
     fetch?: typeof pdFetch;
     write?: (text: string) => void;
+    runtimeIdentity?: (health: RuntimeHealthSnapshot) => RuntimeIdentityAssessment;
   } = {},
 ): Promise<number> {
   const fetchStatus = deps.fetch ?? pdFetch;
@@ -641,6 +738,28 @@ export async function runStatus(
     data.severity = health.severity ?? data.severity;
     data.runtime = health.runtime ?? data.runtime;
     data.binaryDrift = health.binaryDrift;
+    if (deps.runtimeIdentity) {
+      data.controlPlane = deps.runtimeIdentity(health as RuntimeHealthSnapshot);
+    } else if (!deps.fetch && isCanonicalRuntimeTarget()) {
+      // Only the canonical daemon gets a control-plane verdict here, because
+      // `pd status` turns that verdict into its EXIT CODE (below: a non-
+      // converged control plane is a hard failure, and even a warn-severity
+      // one degrades `statusLineworkState`). The assessment is built from
+      // `~/.port-daddy`'s daemon.pid/daemon.port/heartbeat plus the launchd
+      // job — authorities that describe the canonical daemon only. When the
+      // caller redirected us to some other daemon (a `pd daemon env` berth, an
+      // ephemeral/scratch daemon on a private socket, a test harness), those
+      // files belong to a DIFFERENT process, so reconciling them reports a
+      // divergence that does not exist and fails a command whose target is
+      // perfectly healthy. Abstaining is the honest answer: we have no local
+      // evidence about that daemon's generation, so we assert nothing.
+      //
+      // `pd doctor` deliberately still reports the assessment (see §7b): it
+      // grades findings by severity into the three-tier report where WARN is
+      // loud but never gates, so a soft "could not verify" there is signal
+      // rather than a false failure.
+      data.controlPlane = collectDiagnosticRuntimeIdentity(health as RuntimeHealthSnapshot);
+    }
 
     const visualState = statusLineworkState(data);
     const failure: StatusFailure | undefined = data.binaryDrift?.drifted
@@ -649,6 +768,12 @@ export async function runStatus(
           message: binaryDriftText(data),
           retryable: !data.daemon?.berth?.plane?.startsWith('ephemeral:'),
         }
+      : data.controlPlane && data.controlPlane.state !== 'converged'
+        ? {
+            code: 'CONTROL_PLANE_DIVERGED',
+            message: data.controlPlane.summary,
+            retryable: true,
+          }
       : visualState === 'warning' || visualState === 'failed'
         ? {
             code: 'HEALTH_DEGRADED',
@@ -1750,6 +1875,17 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   // -------------------------------------------------------------------------
   try {
     if (daemonRunning) {
+      const daemonIdentity = daemonData?.daemon as { tier?: string; sourceDir?: string | null } | undefined;
+      const sourceCheckoutAgainstStable = existsSync(join(libDir, 'package.json'))
+        && daemonIdentity?.tier === 'stable'
+        && !daemonIdentity.sourceDir;
+      if (sourceCheckoutAgainstStable) {
+        check(
+          'Code hash',
+          true,
+          'Source checkout and Homebrew stable are separate berths; installed-binary drift and runtime identity are authoritative',
+        );
+      } else {
       const versionRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/version`);
       if (versionRes.ok) {
         const versionData = await versionRes.json();
@@ -1764,6 +1900,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
         }
       } else {
         check('Code hash', false, 'Could not query daemon version', 'Run: port-daddy restart');
+      }
       }
     } else {
       check('Code hash', false, 'Daemon not running, cannot verify', 'Run: port-daddy start');
@@ -1799,6 +1936,32 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     }
   } catch (err: unknown) {
     check(portLabel, false, `Error: ${(err as Error).message}`, `Run: lsof -i :${daemonPort} to investigate`);
+  }
+
+  // -------------------------------------------------------------------------
+  // 7b. Runtime identity convergence. launchd, the HTTP listener, discovery
+  //     files, and Bosun are separate mechanisms on purpose; this is their one
+  //     shared verdict. A reachable daemon under the wrong PID or port is not
+  //     healthy merely because each component looks plausible in isolation.
+  // -------------------------------------------------------------------------
+  try {
+    const identity = collectDiagnosticRuntimeIdentity(
+      daemonData as RuntimeHealthSnapshot | null,
+      daemonPort,
+    );
+    recordAssessment('Runtime identity', {
+      severity: identity.severity,
+      detail: `${identity.state}: ${identity.summary}`,
+      hint: identity.state === 'converged'
+        ? undefined
+        : 'Run: port-daddy restart --yes   (one launchd-owned replacement generation)',
+    });
+  } catch (err: unknown) {
+    criticalFail(
+      'Runtime identity',
+      `Could not reconcile launchd, /health, daemon.pid, daemon.port, and Bosun heartbeat: ${(err as Error).message}`,
+      'Run: port-daddy restart --yes',
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -2080,7 +2243,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   // PID file staleness
   // -------------------------------------------------------------------------
   try {
-    const pidFilePath: string = SOCK_PATH + '.pid';
+    const pidFilePath: string = process.env.PORT_DADDY_PID_FILE || DEFAULT_PID_FILE;
     if (existsSync(pidFilePath)) {
       const pidStr: string = readFileSync(pidFilePath, 'utf8').trim();
       const pid: number = parseInt(pidStr, 10);
@@ -2094,7 +2257,9 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
           processAlive ? undefined : `Remove: rm ${pidFilePath}`);
       }
     } else {
-      check('PID file', true, 'No PID file (normal)');
+      check('PID file', !daemonRunning,
+        daemonRunning ? `${pidFilePath} is missing while /health is reachable` : 'No PID file (daemon is stopped)',
+        daemonRunning ? 'Run: port-daddy restart --yes' : undefined);
     }
   } catch (err: unknown) {
     check('PID file', false, `Error: ${(err as Error).message}`);
@@ -2302,7 +2467,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     configured: false,
     detail: 'Agent runtime wiring could not be probed',
   };
-  let hookDiagnosesForHarbor: ReturnType<typeof diagnoseSquidHookInstall> = [];
+  let hookDiagnosesForHarbor: SquidProviderHookDiagnosis[] = [];
 
   try {
     const runtime = diagnoseAgentRuntimeInstall(homedir());
@@ -2314,7 +2479,18 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   }
 
   try {
-    const hookChecks = diagnoseSquidHookInstall(process.cwd());
+    const hookChecks: SquidProviderHookDiagnosis[] = inspectHookTargets(homedir(), process.cwd())
+      .filter((target) => target.detected)
+      .map((target) => ({
+      providerName: target.slug === 'claude' ? 'claude-code' : target.slug === 'agy' ? 'antigravity' : target.slug,
+      binaryName: target.slug,
+      configPath: target.expectedScope === 'project' ? target.projectPath ?? '' : target.userPath,
+      ok: target.wired,
+      detail: target.wired
+          ? `${target.expectedScope} hook config is wired and this exact project root is armed`
+          : `${target.expectedScope} hook config missing, stale, or this exact project root is not armed`,
+      hint: 'Run: pd squid on',
+    }));
     hookDiagnosesForHarbor = hookChecks;
     const okHooks = hookChecks.filter((result) => result.ok);
     if (okHooks.length === hookChecks.length) {
@@ -2324,7 +2500,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
         'Agent lifecycle hooks',
         false,
         `${okHooks.length}/${hookChecks.length} provider hook contract(s) healthy`,
-        'Run: pd setup   (or pd squid hooks)',
+        'Run: pd setup   (or pd squid on)',
       );
       for (const result of hookChecks.filter((item) => !item.ok)) {
         check(`Agent hooks: ${result.providerName}`, false, `${result.detail} at ${result.configPath}`, result.hint);
@@ -2332,7 +2508,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     }
     check('Hook privacy disclosure', true, SQUID_HOOK_PRIVACY_NOTICE);
   } catch (err: unknown) {
-    check('Agent lifecycle hooks', false, `Error: ${(err as Error).message}`, 'Run: pd squid hooks');
+    check('Agent lifecycle hooks', false, `Error: ${(err as Error).message}`, 'Run: pd squid on');
   }
 
   // -------------------------------------------------------------------------

@@ -779,6 +779,8 @@ export async function eraseUser(db: D1Database, userId: string, now: number): Pr
   const sessions = await db.prepare('DELETE FROM web_sessions WHERE user_id = ?').bind(userId).run();
   // Revoke every pdu_ device token too — erasure logs out browsers AND devices.
   await db.prepare('UPDATE user_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').bind(now, userId).run();
+  // Shipwright chat content is user-authored PII — it dies NOW, not in 30 days.
+  await db.prepare('DELETE FROM shipwright_chats WHERE user_id = ?').bind(userId).run();
   await db
     .prepare('UPDATE users SET deleted_at = ?, primary_email = NULL, avatar_url = NULL WHERE id = ?')
     .bind(now, userId)
@@ -793,5 +795,616 @@ export async function eraseUser(db: D1Database, userId: string, now: number): Pr
 export async function deleteFleetRun(db: D1Database, runId: string): Promise<number> {
   await db.prepare('DELETE FROM fleet_run_steps WHERE run_id = ?').bind(runId).run();
   const res = await db.prepare('DELETE FROM fleet_runs WHERE id = ?').bind(runId).run();
+  return res.meta?.changes ?? 0;
+}
+
+// ── Remote harbors (grand-plan X2 v1: keypair + namespace + membership) ───────
+//
+// NOTE: harbor_memberships is deliberately NOT the legacy zero-trust
+// `harbor_members` daemon-admission table gated by the handshake/publish path
+// above the crypto boundary (handlers.ts). Rows here are operator-plane
+// (session/pdu auth) and grant API visibility only — never channel publish.
+
+export interface HarborRow {
+  id: string;
+  namespace: string;
+  name: string;
+  pubkey: string;
+  created_by: string;
+  created_at: number;
+}
+
+export type HarborRole = 'owner' | 'member';
+export type HarborMemberKind = 'user' | 'daemon';
+
+export interface HarborMemberListRow {
+  member_kind: HarborMemberKind;
+  member_id: string;
+  role: HarborRole;
+  added_at: number;
+  /** GitHub login for 'user' members (joined); null for daemons / erased users. */
+  login: string | null;
+}
+
+function isUniqueViolation(e: unknown): boolean {
+  const m = e instanceof Error ? e.message : String(e);
+  return m.includes('UNIQUE constraint failed') || m.includes('SQLITE_CONSTRAINT');
+}
+
+/**
+ * Create a harbor plus its creator's 'owner' membership atomically (D1 batch —
+ * a harbor without an owner could never gain members, so the two rows must
+ * land together). Returns 'duplicate' when (namespace, name) is taken.
+ */
+export async function createHarbor(
+  db: D1Database,
+  h: { id: string; namespace: string; name: string; pubkey: string; createdBy: string; createdAt: number },
+): Promise<'ok' | 'duplicate'> {
+  try {
+    await db.batch([
+      db.prepare(
+        'INSERT INTO harbors (id, namespace, name, pubkey, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      ).bind(h.id, h.namespace, h.name, h.pubkey, h.createdBy, h.createdAt),
+      db.prepare(
+        'INSERT INTO harbor_memberships (harbor_id, member_kind, member_id, role, added_at, added_by) VALUES (?, ?, ?, ?, ?, ?)',
+      ).bind(h.id, 'user', h.createdBy, 'owner', h.createdAt, h.createdBy),
+    ]);
+    return 'ok';
+  } catch (e) {
+    if (isUniqueViolation(e)) return 'duplicate';
+    throw e;
+  }
+}
+
+export async function getHarborByName(
+  db: D1Database,
+  namespace: string,
+  name: string,
+): Promise<HarborRow | null> {
+  const row = await db
+    .prepare('SELECT id, namespace, name, pubkey, created_by, created_at FROM harbors WHERE namespace = ? AND name = ?')
+    .bind(namespace, name)
+    .first<HarborRow>();
+  return row ?? null;
+}
+
+/** The caller's role in a harbor, or null when not a member (the authz gate). */
+export async function getHarborRole(
+  db: D1Database,
+  harborId: string,
+  kind: HarborMemberKind,
+  memberId: string,
+): Promise<HarborRole | null> {
+  const row = await db
+    .prepare('SELECT role FROM harbor_memberships WHERE harbor_id = ? AND member_kind = ? AND member_id = ?')
+    .bind(harborId, kind, memberId)
+    .first<{ role: HarborRole }>();
+  return row?.role ?? null;
+}
+
+/** Returns 'duplicate' when the (harbor, kind, member) row already exists. */
+export async function addHarborMembership(
+  db: D1Database,
+  m: { harborId: string; kind: HarborMemberKind; memberId: string; role: HarborRole; addedAt: number; addedBy: string },
+): Promise<'ok' | 'duplicate'> {
+  try {
+    await db
+      .prepare(
+        'INSERT INTO harbor_memberships (harbor_id, member_kind, member_id, role, added_at, added_by) VALUES (?, ?, ?, ?, ?, ?)',
+      )
+      .bind(m.harborId, m.kind, m.memberId, m.role, m.addedAt, m.addedBy)
+      .run();
+    return 'ok';
+  } catch (e) {
+    if (isUniqueViolation(e)) return 'duplicate';
+    throw e;
+  }
+}
+
+/** Every member of a harbor with user logins joined in (member-gated read). */
+export async function listHarborMembers(db: D1Database, harborId: string): Promise<HarborMemberListRow[]> {
+  const r = await db
+    .prepare(
+      `SELECT m.member_kind, m.member_id, m.role, m.added_at, u.login
+       FROM harbor_memberships m
+       LEFT JOIN users u ON m.member_kind = 'user' AND u.id = m.member_id
+       WHERE m.harbor_id = ?
+       ORDER BY m.added_at ASC, m.member_id ASC`,
+    )
+    .bind(harborId)
+    .all<HarborMemberListRow>();
+  return r.results ?? [];
+}
+
+/** Harbors the user belongs to ("mine"), newest first, each with their role. */
+export async function listHarborsForUser(
+  db: D1Database,
+  userId: string,
+): Promise<Array<HarborRow & { role: HarborRole }>> {
+  const r = await db
+    .prepare(
+      `SELECT h.id, h.namespace, h.name, h.pubkey, h.created_by, h.created_at, m.role
+       FROM harbors h
+       JOIN harbor_memberships m ON m.harbor_id = h.id
+       WHERE m.member_kind = 'user' AND m.member_id = ?
+       ORDER BY h.created_at DESC, h.id ASC`,
+    )
+    .bind(userId)
+    .all<HarborRow & { role: HarborRole }>();
+  return r.results ?? [];
+}
+
+// ── Helm (grand-plan X3 v1: explicit authority record per harbor) ─────────────
+//
+// One row per harbor: holder + ORDERED succession list. NO voting machinery
+// (D6). The helm changes only via an owner's PUT (setHelm) or the dead-man
+// rule (applyHelmTransition, CAS-guarded by seq). Every change also appends a
+// helm_events audit row — a helm never changes silently.
+
+export interface HelmPrincipal {
+  kind: HarborMemberKind;
+  id: string;
+  /** Display label captured at set time (login / fingerprint). */
+  label: string;
+}
+
+export interface HelmRow {
+  harbor_id: string;
+  holder_kind: HarborMemberKind | null;
+  holder_id: string | null;
+  holder_label: string | null;
+  succession_json: string; // ordered JSON array of HelmPrincipal
+  state: 'held' | 'vacant';
+  vacant_flagged: number;
+  seq: number;
+  updated_at: number;
+  updated_by: string; // users.id (owner PUT) or 'relay:dead-man'
+}
+
+export type HelmEventKind = 'helm_set' | 'dead_man_pass' | 'dead_man_vacant';
+
+export interface HelmEventRow {
+  id: string;
+  harbor_id: string;
+  at: number;
+  kind: HelmEventKind;
+  detail: string; // JSON
+}
+
+export async function getHelm(db: D1Database, harborId: string): Promise<HelmRow | null> {
+  const row = await db
+    .prepare('SELECT * FROM harbor_helms WHERE harbor_id = ?')
+    .bind(harborId)
+    .first<HelmRow>();
+  return row ?? null;
+}
+
+/** Owner PUT: upsert the authority record (state resets to held/unflagged). */
+export async function setHelm(
+  db: D1Database,
+  h: {
+    harborId: string;
+    holder: HelmPrincipal;
+    successionJson: string;
+    seq: number;
+    updatedAt: number;
+    updatedBy: string;
+  },
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO harbor_helms
+         (harbor_id, holder_kind, holder_id, holder_label, succession_json, state, vacant_flagged, seq, updated_at, updated_by)
+       VALUES (?, ?, ?, ?, ?, 'held', 0, ?, ?, ?)
+       ON CONFLICT(harbor_id) DO UPDATE SET
+         holder_kind = excluded.holder_kind,
+         holder_id = excluded.holder_id,
+         holder_label = excluded.holder_label,
+         succession_json = excluded.succession_json,
+         state = 'held',
+         vacant_flagged = 0,
+         seq = excluded.seq,
+         updated_at = excluded.updated_at,
+         updated_by = excluded.updated_by`,
+    )
+    .bind(
+      h.harborId,
+      h.holder.kind,
+      h.holder.id,
+      h.holder.label,
+      h.successionJson,
+      h.seq,
+      h.updatedAt,
+      h.updatedBy,
+    )
+    .run();
+}
+
+/**
+ * Dead-man transition, CAS-guarded on seq: returns true iff THIS caller won
+ * the transition (two concurrent reads race; exactly one UPDATE matches).
+ * The winner then appends the helm_events audit row.
+ */
+export async function applyHelmTransition(
+  db: D1Database,
+  t: {
+    harborId: string;
+    expectedSeq: number;
+    holder: HelmPrincipal | null; // null ⇒ vacant
+    successionJson: string;
+    vacantFlagged: boolean;
+    updatedAt: number;
+  },
+): Promise<boolean> {
+  const r = await db
+    .prepare(
+      `UPDATE harbor_helms SET
+         holder_kind = ?, holder_id = ?, holder_label = ?,
+         succession_json = ?, state = ?, vacant_flagged = ?,
+         seq = seq + 1, updated_at = ?, updated_by = 'relay:dead-man'
+       WHERE harbor_id = ? AND seq = ?`,
+    )
+    .bind(
+      t.holder?.kind ?? null,
+      t.holder?.id ?? null,
+      t.holder?.label ?? null,
+      t.successionJson,
+      t.holder ? 'held' : 'vacant',
+      t.vacantFlagged ? 1 : 0,
+      t.updatedAt,
+      t.harborId,
+      t.expectedSeq,
+    )
+    .run();
+  return (r.meta?.changes ?? 0) > 0;
+}
+
+export async function insertHelmEvent(
+  db: D1Database,
+  e: { harborId: string; at: number; kind: HelmEventKind; detail: unknown },
+): Promise<void> {
+  await db
+    .prepare('INSERT INTO helm_events (id, harbor_id, at, kind, detail) VALUES (?, ?, ?, ?, ?)')
+    .bind(`he_${randomHex(8)}`, e.harborId, e.at, e.kind, JSON.stringify(e.detail))
+    .run();
+}
+
+/** Recent helm audit rows, newest first (member-gated read). */
+export async function listHelmEvents(
+  db: D1Database,
+  harborId: string,
+  limit = 20,
+): Promise<HelmEventRow[]> {
+  const r = await db
+    .prepare('SELECT id, harbor_id, at, kind, detail FROM helm_events WHERE harbor_id = ? ORDER BY at DESC, id DESC LIMIT ?')
+    .bind(harborId, limit)
+    .all<HelmEventRow>();
+  return r.results ?? [];
+}
+
+/** Live (non-deleted) user by GitHub login, case-insensitive; or null. */
+export async function getUserByLogin(db: D1Database, login: string): Promise<UserRow | null> {
+  const row = await db
+    .prepare('SELECT * FROM users WHERE login = ? COLLATE NOCASE AND deleted_at IS NULL')
+    .bind(login)
+    .first<UserRow>();
+  return row ?? null;
+}
+
+// ── Parleys (grand-plan X4 v1: signed multi-party agreements) ─────────────────
+//
+// A parley is an artifact: harbor + subject + proposer + deadline + a
+// three-state machine (open → agreed | lapsed). parley_positions holds one row
+// per participant identity; is_party=1 rows are NAMED parties whose signed
+// 'accept' is required for agreement, is_party=0 rows are reserved observers
+// (v1: the tier-labeled 'pd-mediator' seat, no auto-behavior). Signatures are
+// write-once (signParleyPosition CAS on signed_at IS NULL) and no route writes
+// to a non-open parley (resolveParleyState CAS on state='open').
+
+export type ParleyState = 'open' | 'agreed' | 'lapsed';
+export type ParleyPartyKind = 'user' | 'daemon' | 'mediator';
+export type ParleyStance = 'accept' | 'reject';
+
+export interface ParleyRow {
+  id: string;
+  harbor_id: string;
+  subject: string;
+  proposer_id: string;
+  proposer_label: string;
+  state: ParleyState;
+  deadline_at: number;
+  created_at: number;
+  resolved_at: number | null;
+}
+
+export interface ParleyPositionRow {
+  parley_id: string;
+  party_kind: ParleyPartyKind;
+  party_id: string;
+  party_label: string;
+  tier: string;
+  is_party: number;
+  stance: ParleyStance | null;
+  position: string | null;
+  signed_at: number | null;
+}
+
+export interface ParleyPartySeed {
+  kind: ParleyPartyKind;
+  id: string;
+  label: string;
+  tier: string;
+  isParty: boolean;
+}
+
+/**
+ * Create a parley plus ALL its position seats atomically (D1 batch — a parley
+ * whose named parties never landed could silently agree with nobody, so the
+ * rows must land together).
+ */
+export async function createParley(
+  db: D1Database,
+  p: {
+    id: string;
+    harborId: string;
+    subject: string;
+    proposerId: string;
+    proposerLabel: string;
+    deadlineAt: number;
+    createdAt: number;
+    parties: ParleyPartySeed[];
+  },
+): Promise<void> {
+  const stmts = [
+    db.prepare(
+      `INSERT INTO parleys (id, harbor_id, subject, proposer_id, proposer_label, state, deadline_at, created_at, resolved_at)
+       VALUES (?, ?, ?, ?, ?, 'open', ?, ?, NULL)`,
+    ).bind(p.id, p.harborId, p.subject, p.proposerId, p.proposerLabel, p.deadlineAt, p.createdAt),
+    ...p.parties.map((party) =>
+      db.prepare(
+        `INSERT INTO parley_positions (parley_id, party_kind, party_id, party_label, tier, is_party, stance, position, signed_at)
+         VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL)`,
+      ).bind(p.id, party.kind, party.id, party.label, party.tier, party.isParty ? 1 : 0),
+    ),
+  ];
+  await db.batch(stmts);
+}
+
+export async function getParley(db: D1Database, parleyId: string): Promise<ParleyRow | null> {
+  const row = await db
+    .prepare('SELECT * FROM parleys WHERE id = ?')
+    .bind(parleyId)
+    .first<ParleyRow>();
+  return row ?? null;
+}
+
+/** Parleys of a harbor, newest first (member-gated read). */
+export async function listParleys(db: D1Database, harborId: string, limit = 50): Promise<ParleyRow[]> {
+  const r = await db
+    .prepare('SELECT * FROM parleys WHERE harbor_id = ? ORDER BY created_at DESC, id DESC LIMIT ?')
+    .bind(harborId, limit)
+    .all<ParleyRow>();
+  return r.results ?? [];
+}
+
+/** All seats of a parley: named parties first, then observers, stable order. */
+export async function listParleyPositions(db: D1Database, parleyId: string): Promise<ParleyPositionRow[]> {
+  const r = await db
+    .prepare(
+      'SELECT * FROM parley_positions WHERE parley_id = ? ORDER BY is_party DESC, party_kind ASC, party_id ASC',
+    )
+    .bind(parleyId)
+    .all<ParleyPositionRow>();
+  return r.results ?? [];
+}
+
+/**
+ * Sign a named party's position — write-once, CAS on signed_at IS NULL AND
+ * is_party = 1. Returns true iff THIS call recorded the signature (false:
+ * already signed, or not a named-party seat).
+ */
+export async function signParleyPosition(
+  db: D1Database,
+  s: {
+    parleyId: string;
+    kind: ParleyPartyKind;
+    partyId: string;
+    stance: ParleyStance;
+    position: string | null;
+    signedAt: number;
+  },
+): Promise<boolean> {
+  const r = await db
+    .prepare(
+      `UPDATE parley_positions SET stance = ?, position = ?, signed_at = ?
+       WHERE parley_id = ? AND party_kind = ? AND party_id = ?
+         AND is_party = 1 AND signed_at IS NULL`,
+    )
+    .bind(s.stance, s.position, s.signedAt, s.parleyId, s.kind, s.partyId)
+    .run();
+  return (r.meta?.changes ?? 0) > 0;
+}
+
+/** Named parties who have NOT signed 'accept' yet (0 ⇒ agreement reached). */
+export async function countUnacceptedParties(db: D1Database, parleyId: string): Promise<number> {
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM parley_positions
+       WHERE parley_id = ? AND is_party = 1 AND (stance IS NULL OR stance != 'accept')`,
+    )
+    .bind(parleyId)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+/**
+ * open → agreed | lapsed, CAS-guarded on state='open' so a non-open parley is
+ * immutable and concurrent resolvers elect exactly one winner. Returns true
+ * iff THIS caller performed the transition.
+ */
+export async function resolveParleyState(
+  db: D1Database,
+  t: { parleyId: string; state: 'agreed' | 'lapsed'; at: number },
+): Promise<boolean> {
+  const r = await db
+    .prepare("UPDATE parleys SET state = ?, resolved_at = ? WHERE id = ? AND state = 'open'")
+    .bind(t.state, t.at, t.parleyId)
+    .run();
+  return (r.meta?.changes ?? 0) > 0;
+}
+
+/** Signature tally for one parley: how many named parties, how many signed. */
+export interface ParleySignatureTally {
+  parley_id: string;
+  parties: number;
+  signed: number;
+}
+
+/**
+ * Tally signatures across MANY parleys in a single query.
+ *
+ * Motivation: the rendered parley list wants "2 of 3 signed" on every row, and
+ * the obvious implementation — listParleyPositions per parley — is an N+1 that
+ * turns a 25-row page into 26 D1 round trips. On a Worker that is the
+ * difference between a page that feels instant and one that visibly hitches,
+ * and it scales with exactly the thing (a busy harbor) that makes the page
+ * worth loading. One GROUP BY over a bounded id list costs one round trip
+ * regardless of row count.
+ *
+ * `is_party = 1` in the WHERE clause is load-bearing, not an optimization: the
+ * denominator here must be the count of parties whose accept agreement
+ * actually requires. Counting observer seats — the pd-mediator row — would
+ * render "2 of 4 signed" on a parley that is one signature from agreed, which
+ * would be a lie about the state machine drawn from the same table the state
+ * machine reads.
+ *
+ * @param db D1 handle.
+ * @param parleyIds Parleys to tally; an empty array short-circuits with no query.
+ * @returns One tally per parley that has at least one named party, unordered.
+ */
+export async function tallyParleySignatures(
+  db: D1Database,
+  parleyIds: string[],
+): Promise<ParleySignatureTally[]> {
+  if (parleyIds.length === 0) return [];
+  const holes = parleyIds.map(() => '?').join(',');
+  const r = await db
+    .prepare(
+      `SELECT parley_id,
+              COUNT(*) AS parties,
+              SUM(CASE WHEN signed_at IS NOT NULL THEN 1 ELSE 0 END) AS signed
+       FROM parley_positions
+       WHERE is_party = 1 AND parley_id IN (${holes})
+       GROUP BY parley_id`,
+    )
+    .bind(...parleyIds)
+    .all<ParleySignatureTally>();
+  return r.results ?? [];
+}
+
+/**
+ * Record the pd-mediator's observation note on ITS OWN observer row.
+ *
+ * This is the mediator's ONLY write in the entire codebase (src/mediator.ts),
+ * and it is deliberately shaped so that the mediator's guarantees are
+ * properties of the SQL rather than promises in a comment. Two halves matter:
+ *
+ * The SET list names `position` and nothing else. `stance` and `signed_at` are
+ * not mentioned, so no argument to this function — however hostile, however
+ * mangled a model's output — can make the mediator appear to have signed. Its
+ * `signed_at` stays NULL forever, and a NULL `signed_at` is exactly what every
+ * read path (and the rendered surfaces) use to mean "has not signed".
+ *
+ * The WHERE clause pins `party_kind = 'mediator' AND party_id = MEDIATOR_ID AND
+ * is_party = 0`. A human's or daemon's row can never match, so this write
+ * cannot alter another party's recorded position; and because `is_party = 0`
+ * rows are invisible to `countUnacceptedParties`, writing here can neither
+ * cause nor block agreement. The `signed_at IS NULL` conjunct is defence in
+ * depth: it makes the statement a no-op against any row that somehow does
+ * carry a signature, so a corrupted seat degrades to silence rather than to a
+ * rewritten signature.
+ *
+ * Note also what is absent: this function never touches the `parleys` table,
+ * so a deadline, a state, and a resolution timestamp are all unreachable from
+ * the mediator's code path. Its capability is exactly "annotate my own row".
+ *
+ * Overwriting a previous note is intended — the observation tracks the record
+ * as it currently stands, and a parley that has gained two more signatures
+ * deserves a current summary rather than a stale one. Signatures are
+ * write-once; observations are not signatures, and conflating them would be
+ * the lie this whole design avoids.
+ *
+ * @param db D1 handle.
+ * @param o.parleyId The parley whose mediator seat is being annotated.
+ * @param o.note Sanitized observation text (see sanitizeObservation).
+ * @returns True iff a mediator observer row was actually annotated.
+ */
+export async function recordMediatorObservation(
+  db: D1Database,
+  o: { parleyId: string; note: string },
+): Promise<boolean> {
+  const r = await db
+    .prepare(
+      `UPDATE parley_positions SET position = ?
+       WHERE parley_id = ? AND party_kind = 'mediator' AND is_party = 0 AND signed_at IS NULL`,
+    )
+    .bind(o.note, o.parleyId)
+    .run();
+  return (r.meta?.changes ?? 0) > 0;
+}
+
+/** Lazy deadline sweep for one harbor: every expired open parley lapses. */
+export async function lapseExpiredParleys(db: D1Database, harborId: string, now: number): Promise<void> {
+  await db
+    .prepare(
+      "UPDATE parleys SET state = 'lapsed', resolved_at = ? WHERE harbor_id = ? AND state = 'open' AND deadline_at < ?",
+    )
+    .bind(now, harborId, now)
+    .run();
+}
+
+// ── Shipwright chat (src/shipwright.ts) ───────────────────────────────────────
+
+export interface ShipwrightMessageRow {
+  id: number;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: number;
+}
+
+/** Append one chat message for a user. `now` is injected (testable clock). */
+export async function insertShipwrightMessage(
+  db: D1Database,
+  row: { userId: string; role: 'user' | 'assistant'; content: string; now: number },
+): Promise<void> {
+  await db
+    .prepare('INSERT INTO shipwright_chats (user_id, role, content, created_at) VALUES (?, ?, ?, ?)')
+    .bind(row.userId, row.role, row.content, row.now)
+    .run();
+}
+
+/**
+ * The most recent `limit` messages for ONE user, in conversation order
+ * (oldest → newest). Scoping is the WHERE user_id — a session can never read
+ * another account's conversation. Ordered by the AUTOINCREMENT id, not
+ * created_at: two messages routinely share a unix second.
+ */
+export async function listShipwrightMessages(
+  db: D1Database,
+  userId: string,
+  limit = 60,
+): Promise<ShipwrightMessageRow[]> {
+  const rows = await db
+    .prepare(
+      'SELECT id, role, content, created_at FROM shipwright_chats WHERE user_id = ? ORDER BY id DESC LIMIT ?',
+    )
+    .bind(userId, limit)
+    .all<ShipwrightMessageRow>();
+  return (rows.results ?? []).reverse();
+}
+
+/** Delete a user's whole conversation (their own clear control). */
+export async function clearShipwrightChats(db: D1Database, userId: string): Promise<number> {
+  const res = await db.prepare('DELETE FROM shipwright_chats WHERE user_id = ?').bind(userId).run();
   return res.meta?.changes ?? 0;
 }

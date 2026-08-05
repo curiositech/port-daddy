@@ -25,7 +25,7 @@ import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha256';
 import { timingSafeEqual, toHex, randomHex } from './crypto.js';
 import { operatorOnly } from './handlers.js';
-import { resolveSession, userOwnsInstallation } from './auth-github.js';
+import { resolveSession, userOwnsInstallation, isSameOrigin } from './auth-github.js';
 import type { Env, RelayError } from './types.js';
 
 // ── Credit packs (predefined; amounts in USD dollars) ─────────────────────────
@@ -61,8 +61,55 @@ type ConfiguredBillingEnv = Env & {
   STRIPE_WEBHOOK_SECRET: string;
 };
 
-function billingConfigured(env: Env): env is ConfiguredBillingEnv {
+export function billingConfigured(env: Env): env is ConfiguredBillingEnv {
   return Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET);
+}
+
+// ── Browser-form dialect (script-free /account/billing page) ──────────────────
+//
+// The billing page ships under a script-free CSP, so its buy/manage buttons are
+// plain HTML <form method="post"> posts (application/x-www-form-urlencoded).
+// The SAME endpoints serve both dialects: a JSON body keeps the existing
+// {url}/RelayError JSON contract untouched; a form body gets 303 redirects —
+// success straight to Stripe, failures back to /account/billing?notice=<code>
+// (except a missing session, which goes to /login). Form posts additionally
+// pass the isSameOrigin CSRF guard (defense-in-depth over the SameSite=Lax
+// cookie, same layering as /account/delete).
+
+function isFormPost(request: Request): boolean {
+  return (request.headers.get('Content-Type') ?? '').includes('application/x-www-form-urlencoded');
+}
+
+function redirect303(location: string): Response {
+  return new Response(null, { status: 303, headers: { Location: location } });
+}
+
+/** Form-dialect failure: bounce back to the billing page with a notice code. */
+function formFail(code: string): Response {
+  if (code === 'UNAUTHENTICATED') return redirect303('/login');
+  return redirect303(`/account/billing?notice=${encodeURIComponent(code.toLowerCase())}`);
+}
+
+/**
+ * Read {installationId, pack} out of either dialect's body. Returns null on an
+ * unreadable body (the caller maps that to BAD_JSON / a notice redirect).
+ */
+async function readBillingBody(
+  request: Request,
+  form: boolean,
+): Promise<{ installationId: unknown; pack: unknown } | null> {
+  if (form) {
+    const params = new URLSearchParams(await request.text());
+    return { installationId: params.get('installationId'), pack: params.get('pack') };
+  }
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return null;
+  }
+  if (!isRecord(body)) return null;
+  return { installationId: body.installationId, pack: body.pack };
 }
 
 const STRIPE_API = 'https://api.stripe.com/v1';
@@ -141,6 +188,32 @@ export async function grantCredit(
   return true;
 }
 
+/**
+ * An installation's billing status, with the SAME semantics the fleet
+ * executor's spend circuit-breaker reads (ADR-0116/0117): `enrolled` is true
+ * only when the ledger has rows for this installation. No rows ⇒ free tier /
+ * fail-open (runs proceed, nothing metered against a balance); rows with
+ * balance <= 0 ⇒ out of credit (the executor skips runs).
+ */
+export interface InstallationBillingStatus {
+  balanceUsd: number;
+  enrolled: boolean;
+}
+
+export async function getBillingStatus(
+  db: D1Database,
+  installationId: number,
+): Promise<InstallationBillingStatus> {
+  const row = await db
+    .prepare(
+      'SELECT COUNT(*) AS n, COALESCE(SUM(delta_usd), 0) AS bal FROM credit_ledger WHERE installation_id = ?',
+    )
+    .bind(installationId)
+    .first<{ n: number; bal: number }>();
+  const n = Number(row?.n) || 0;
+  return { balanceUsd: Number(row?.bal) || 0, enrolled: n > 0 };
+}
+
 /** An installation's prepaid balance = SUM(delta_usd) over its ledger. */
 export async function getBalance(db: D1Database, installationId: number): Promise<number> {
   const row = await db
@@ -148,6 +221,85 @@ export async function getBalance(db: D1Database, installationId: number): Promis
     .bind(installationId)
     .first<{ bal: number }>();
   return row?.bal ?? 0;
+}
+
+/** Row cap for the billing page's ledger-history table (mirrors the
+ *  MAX_INSTALLATIONS / MAX_REPO_CHECKS idiom elsewhere on this page). */
+export const MAX_LEDGER_ROWS = 50;
+
+/** One rendered ledger-history row, newest first. */
+export interface LedgerEntryView {
+  id: string;
+  deltaUsd: number;
+  reason: string;
+  createdAt: number;
+  /** Prepaid balance immediately AFTER this entry (i.e. as of its timestamp). */
+  runningBalance: number;
+}
+
+export interface LedgerHistoryView {
+  /** Newest-first, capped at MAX_LEDGER_ROWS. */
+  entries: LedgerEntryView[];
+  /** True when older rows exist beyond the cap — an honest "older rows exist" note. */
+  truncated: boolean;
+}
+
+/**
+ * Read an installation's recent `credit_ledger` transaction history for the
+ * billing page's ledger table (grand-plan §billing-ledger-history). No schema
+ * change: `credit_ledger` is append-only and already carries everything the
+ * page needs (delta_usd, reason, created_at) — this is a read-only query
+ * layered on top of the existing balance math in {@link getBalance}.
+ *
+ * The running balance is derived, not stored: since `credit_ledger` is
+ * append-only and the CURRENT total balance is exactly SUM(delta_usd) over
+ * EVERY row (including any older than the cap), walking the newest-first
+ * page backwards from the total and undoing each row's delta as we pass it
+ * yields the exact balance as of every visible row — without a second query
+ * over the full (unbounded) history. Motivation: an operator staring at a
+ * ledger wants "what was my balance right after this happened", not just a
+ * bare delta list; deriving it here keeps that answer honest (it is
+ * arithmetic on real numbers, not a guess) while keeping the query itself
+ * O(cap) instead of O(all-time history).
+ *
+ * @param db D1 handle (relay's control-plane database).
+ * @param installationId The GitHub App installation whose ledger to read.
+ *   Callers MUST have already established tenant ownership (userOwnsInstallation
+ *   / listUserInstallations) before calling this — it trusts the id it's given.
+ * @param limit Row cap; defaults to {@link MAX_LEDGER_ROWS}.
+ * @returns The capped, newest-first entry list plus a truncation flag. Throws
+ *   on a D1 read failure — callers render that as an honest "unknown" panel,
+ *   never a fabricated empty ledger (D12).
+ */
+export async function getLedgerHistory(
+  db: D1Database,
+  installationId: number,
+  limit: number = MAX_LEDGER_ROWS,
+): Promise<LedgerHistoryView> {
+  const total = await getBalance(db, installationId);
+  const res = await db
+    .prepare(
+      'SELECT id, delta_usd, reason, created_at FROM credit_ledger WHERE installation_id = ? ORDER BY created_at DESC, id DESC LIMIT ?',
+    )
+    .bind(installationId, limit + 1)
+    .all<{ id: string; delta_usd: number; reason: string; created_at: number }>();
+  const rows = res.results ?? [];
+  const truncated = rows.length > limit;
+  const page = truncated ? rows.slice(0, limit) : rows;
+
+  const entries: LedgerEntryView[] = [];
+  let running = total;
+  for (const r of page) {
+    entries.push({
+      id: r.id,
+      deltaUsd: r.delta_usd,
+      reason: r.reason,
+      createdAt: r.created_at,
+      runningBalance: running,
+    });
+    running -= r.delta_usd; // step back to the balance BEFORE this row, for the next (older) one
+  }
+  return { entries, truncated };
 }
 
 /**
@@ -227,39 +379,42 @@ async function getOrCreateCustomer(
 /**
  * Create a Stripe Checkout Session for a one-time credit pack. Requires a live
  * __Host-pd_session (a signed-in operator/user); the pack is a closed enum so a
- * caller can never pick an arbitrary price. Returns { url } to redirect to.
+ * caller can never pick an arbitrary price. JSON dialect returns { url } to
+ * redirect to; the form dialect (billing page buttons) 303s straight there.
  */
 export async function handleCreateCheckout(request: Request, env: Env): Promise<Response> {
+  const form = isFormPost(request);
+  const fail = (code: string, detail: string, status: number): Response =>
+    form ? formFail(code) : err(code, detail, status);
+
   if (!billingConfigured(env)) {
-    return err('BILLING_UNCONFIGURED', 'Stripe billing is not configured', 503);
+    return fail('BILLING_UNCONFIGURED', 'Stripe billing is not configured', 503);
+  }
+  if (form && !isSameOrigin(request, env)) {
+    return fail('CROSS_ORIGIN', 'cross-origin request refused', 403);
   }
   const session = await resolveSession(request, env);
-  if (!session) return err('UNAUTHENTICATED', 'A signed-in session is required', 401);
+  if (!session) return fail('UNAUTHENTICATED', 'A signed-in session is required', 401);
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return err('BAD_JSON', 'Body must be JSON', 400);
-  }
-  if (!isRecord(body)) return err('BAD_REQUEST', 'Body must be an object', 400);
+  const body = await readBillingBody(request, form);
+  if (!body) return fail('BAD_JSON', 'Body must be JSON', 400);
   const installationId = Number(body.installationId);
   const packId = typeof body.pack === 'string' ? body.pack : '';
   if (!Number.isInteger(installationId) || installationId <= 0) {
-    return err('BAD_REQUEST', 'installationId (positive integer) required', 400);
+    return fail('BAD_REQUEST', 'installationId (positive integer) required', 400);
   }
   const pack = CREDIT_PACKS[packId];
   if (!pack) {
-    return err('BAD_PACK', `Unknown pack '${packId}'; choose one of ${Object.keys(CREDIT_PACKS).join(', ')}`, 400);
+    return fail('BAD_PACK', `Unknown pack '${packId}'; choose one of ${Object.keys(CREDIT_PACKS).join(', ')}`, 400);
   }
   // Tenant-ownership gate: don't let a session seed a Stripe customer / credit
   // attribution for an installation it doesn't own.
   if (!(await userOwnsInstallation(env, session, installationId))) {
-    return err('FORBIDDEN', 'you do not own this installation', 403);
+    return fail('FORBIDDEN', 'you do not own this installation', 403);
   }
 
   const customerId = await getOrCreateCustomer(env, installationId);
-  if (!customerId) return err('STRIPE_ERROR', 'Could not create a Stripe customer', 502);
+  if (!customerId) return fail('STRIPE_ERROR', 'Could not create a Stripe customer', 502);
 
   const base = (env.PUBLIC_BASE_URL ?? '').replace(/\/+$/, '');
   // Optional preconfigured Price; else inline price_data at the pack's amount.
@@ -278,8 +433,9 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
   const created = await stripePost(env.STRIPE_SECRET_KEY, '/checkout/sessions', {
     mode: 'payment',
     customer: customerId,
-    success_url: `${base}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${base}/billing/cancel`,
+    // Land buyers back on the real billing page (there is no GET /billing/*).
+    success_url: `${base}/account/billing?notice=checkout-success`,
+    cancel_url: `${base}/account/billing?notice=checkout-cancelled`,
     'metadata[installation_id]': String(installationId),
     'metadata[pack]': pack.id,
     'metadata[value_usd]': String(pack.valueUsd),
@@ -290,8 +446,9 @@ export async function handleCreateCheckout(request: Request, env: Env): Promise<
     ...lineItemParams,
   });
   if (!created.ok || !isRecord(created.body) || typeof created.body.url !== 'string') {
-    return err('STRIPE_ERROR', 'Stripe checkout session creation failed', 502);
+    return fail('STRIPE_ERROR', 'Stripe checkout session creation failed', 502);
   }
+  if (form) return redirect303(created.body.url);
   return Response.json({ url: created.body.url, sessionId: created.body.id ?? null });
 }
 
@@ -463,30 +620,33 @@ export async function handleBillingBalance(
 /**
  * Create a Stripe Billing Portal session for the caller's installation so they
  * can manage payment methods + view invoices. Requires a session and an
- * installationId (body). Returns { url }.
+ * installationId (body). JSON dialect returns { url }; the form dialect
+ * (billing page "Manage" button) 303s straight there.
  */
 export async function handlePortalLink(request: Request, env: Env): Promise<Response> {
+  const form = isFormPost(request);
+  const fail = (code: string, detail: string, status: number): Response =>
+    form ? formFail(code) : err(code, detail, status);
+
   if (!billingConfigured(env)) {
-    return err('BILLING_UNCONFIGURED', 'Stripe billing is not configured', 503);
+    return fail('BILLING_UNCONFIGURED', 'Stripe billing is not configured', 503);
+  }
+  if (form && !isSameOrigin(request, env)) {
+    return fail('CROSS_ORIGIN', 'cross-origin request refused', 403);
   }
   const session = await resolveSession(request, env);
-  if (!session) return err('UNAUTHENTICATED', 'A signed-in session is required', 401);
+  if (!session) return fail('UNAUTHENTICATED', 'A signed-in session is required', 401);
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return err('BAD_JSON', 'Body must be JSON', 400);
-  }
-  if (!isRecord(body)) return err('BAD_REQUEST', 'Body must be an object', 400);
+  const body = await readBillingBody(request, form);
+  if (!body) return fail('BAD_JSON', 'Body must be JSON', 400);
   const installationId = Number(body.installationId);
   if (!Number.isInteger(installationId) || installationId <= 0) {
-    return err('BAD_REQUEST', 'installationId (positive integer) required', 400);
+    return fail('BAD_REQUEST', 'installationId (positive integer) required', 400);
   }
   // Tenant-ownership gate: without this, any signed-in user could open ANOTHER
   // tenant's Stripe Billing Portal (invoices, payment methods) by id.
   if (!(await userOwnsInstallation(env, session, installationId))) {
-    return err('FORBIDDEN', 'you do not own this installation', 403);
+    return fail('FORBIDDEN', 'you do not own this installation', 403);
   }
 
   const customer = await env.DB.prepare(
@@ -494,15 +654,16 @@ export async function handlePortalLink(request: Request, env: Env): Promise<Resp
   )
     .bind(installationId)
     .first<{ stripe_customer_id: string }>();
-  if (!customer) return err('NO_CUSTOMER', 'No Stripe customer for this installation yet', 404);
+  if (!customer) return fail('NO_CUSTOMER', 'No Stripe customer for this installation yet', 404);
 
   const base = (env.PUBLIC_BASE_URL ?? '').replace(/\/+$/, '');
   const created = await stripePost(env.STRIPE_SECRET_KEY, '/billing_portal/sessions', {
     customer: customer.stripe_customer_id,
-    return_url: `${base}/billing`,
+    return_url: `${base}/account/billing`,
   });
   if (!created.ok || !isRecord(created.body) || typeof created.body.url !== 'string') {
-    return err('STRIPE_ERROR', 'Stripe billing portal session creation failed', 502);
+    return fail('STRIPE_ERROR', 'Stripe billing portal session creation failed', 502);
   }
+  if (form) return redirect303(created.body.url);
   return Response.json({ url: created.body.url });
 }

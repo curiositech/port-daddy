@@ -64,6 +64,10 @@ import {
 import type { WorkIntentService } from '../lib/agent-harbor/work-intent-service.js';
 import type { DispatchQueue } from '../lib/dispatch/queue.js';
 import type { DispatchWorker } from '../lib/dispatch/worker.js';
+import {
+  buildHarnessContinuationMatrix,
+  collectHarnessConformanceWitnesses,
+} from '../lib/harness-conformance.js';
 
 interface AgentHarborRouteDeps {
   db: DatabaseInstance;
@@ -220,6 +224,15 @@ export const agentHarborPlugin: FastifyPluginAsync<AgentHarborPluginOpts> = asyn
     '/agent-harbor/surface-gateway/capabilities',
     async () => surfaceGatewayCapabilityProjection({ mounted: true }),
   );
+
+  fastify.get('/harness-adapters/continuation-matrix', async (_request, reply) => {
+    try {
+      const witnesses = collectHarnessConformanceWitnesses(db);
+      return { data: buildHarnessContinuationMatrix({ witnesses }) };
+    } catch (error) {
+      return fail(reply, 'harness_continuation_matrix', error);
+    }
+  });
 
   // ── POST /agent-harbor/surface-gateway ──
   //

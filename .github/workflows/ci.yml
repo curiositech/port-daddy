@@ -641,6 +641,34 @@ jobs:
       - name: cargo test (incl. macaroon parity vectors)
         run: cargo test --workspace
 
+  rust-broker:
+    # core/pd-broker is the ADR-0087 trusted-computing-base slice: the
+    # separate-process credential broker that holds the raw secret and mints
+    # scoped tickets. It is a member of the core/ workspace, but rust-console
+    # scopes to core/pd-console and rust-kernel to core/kernel — so its three
+    # test files (broker_behavior, dos_isolation, socket_framing) had NEVER
+    # executed in CI (found during the ADR-0120 audit). Always-run, matching
+    # the rust-kernel/rust-harbor-card philosophy: a TCB test that only runs
+    # locally is theater.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artefacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+
+      - name: cargo test pd-broker (TCB behavior + DoS isolation + framing)
+        run: cargo test -p pd-broker
+
   rust-harbor-card:
     # core/harbor-card-rs is a standalone FFI cdylib (excluded from the core/
     # workspace — see core/Cargo.toml's `exclude` comment) that lib/arbiter.ts
@@ -673,8 +701,47 @@ jobs:
       - name: cargo clippy
         run: cargo clippy --all-targets -- -D warnings
 
-      - name: cargo test (incl. FFI boundary + property tests)
+      - name: cargo test (incl. FFI boundary, property tests, hv:2 parity fixture)
         run: cargo test
+
+  relay-tests:
+    # apps/relay is a Cloudflare Worker with its own tsconfig graph and vitest
+    # suite; root jest never compiles or runs it. Until now the ONLY workflow
+    # that executed `npx vitest run` for the relay was deploy-relay.yml, which
+    # fires on push to main and is path-gated to apps/relay/** — so a PR could
+    # go green with a broken relay, and a change to a shared fixture OUTSIDE
+    # apps/relay (tests/fixtures/**) would never run the relay's assertions at
+    # all.
+    #
+    # That matters for ADR-0120 rule 1: the relay cannot dlopen the Rust kernel,
+    # so apps/relay/src/auth.ts is a byte-parity twin of core/harbor-card-rs
+    # locked by tests/fixtures/harbor-card-hv2-parity-vectors.json. A fixture
+    # asserted by only one of its two suites is not a gate. Always-run (not
+    # path-gated) for the same reason rust-harbor-card is: a security twin whose
+    # tests only run on the deploy path is theater.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/relay
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: apps/relay/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: vitest (incl. hv:2 harbor-card parity fixture ⇄ core/harbor-card-rs)
+        run: npx vitest run
 
   fleetbar:
     # Build + unit-test the FleetBar Swift menu bar app. Its tests never ran in
@@ -721,6 +788,14 @@ jobs:
     name: ci-gate
     if: always()
     runs-on: ubuntu-latest
+    # The verdict script asks the PR API whether this run's commit is still the
+    # head. Without this, a repo/org on restricted default GITHUB_TOKEN
+    # permissions 403s, resolveStale fails closed, and the superseded-run false
+    # failure this job exists to stop comes straight back — silently, since a
+    # fail-closed gate looks exactly like the old behaviour. `detect-changes`
+    # declares the same grant for the same reason.
+    permissions:
+      pull-requests: read
     needs:
       - brand-color-guard
       - compiled-daemon-smoke
@@ -737,17 +812,22 @@ jobs:
       - version-drift-guard
       - website-terminal-recordings
     steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The gate decides merges, so its own decision logic is tested before it
+      # is trusted — including the cases where a cancellation must stay red.
+      - name: Test the gate's decision logic
+        run: node --test scripts/ci-gate-verdict.test.mjs
+
       - name: Verify no required job failed or was cancelled
         env:
           RESULTS: ${{ toJSON(needs) }}
-        run: |
-          echo "$RESULTS"
-          echo "$RESULTS" | python3 -c '
-          import json, sys
-          needs = json.load(sys.stdin)
-          bad = sorted(n for n, v in needs.items() if v["result"] in ("failure", "cancelled"))
-          if bad:
-              print("ci-gate FAILED — these jobs failed or were cancelled: " + ", ".join(bad))
-              sys.exit(1)
-          print("ci-gate OK — all %d dependencies succeeded or were skipped" % len(needs))
-          '
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ci-gate-verdict.mjs

@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/durable-agent-profile.schema.json",
+  "title": "DurableAgentProfile",
+  "description": "Operator-authored profile carried by append-only AgentNode facts. The daemon-minted AgentNode id is the principal; slug and displayName are human aliases. Permissions and triggers are declarations until a witnessed runtime adapter enforces them.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.durable-agent-profile.v0" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "slug": { "type": "string", "minLength": 3, "maxLength": 96, "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$" },
+    "displayName": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "kind": { "enum": ["system", "repo"] },
+        "key": { "type": "string", "minLength": 1 },
+        "repoRoot": { "type": ["string", "null"] },
+        "repoName": { "type": ["string", "null"] }
+      },
+      "required": ["kind", "key", "repoRoot", "repoName"],
+      "additionalProperties": true
+    },
+    "lifecycle": { "enum": ["ready", "paused", "retired"] },
+    "remit": { "type": "string", "minLength": 1 },
+    "instructions": { "type": "string", "minLength": 1 },
+    "skills": { "type": "array", "maxItems": 100, "items": { "type": "string", "minLength": 1 } },
+    "tools": { "type": "array", "maxItems": 100, "items": { "type": "string", "minLength": 1 } },
+    "backendPreferences": {
+      "type": "array",
+      "maxItems": 25,
+      "items": {
+        "type": "object",
+        "properties": {
+          "backend": { "type": "string", "minLength": 1 },
+          "model": { "type": ["string", "null"] }
+        },
+        "required": ["backend", "model"],
+        "additionalProperties": true
+      }
+    },
+    "permissionPolicy": {
+      "type": "object",
+      "properties": {
+        "filesystem": { "enum": ["inherit", "repo", "workspace", "read-only"] },
+        "network": { "enum": ["inherit", "none", "restricted", "full"] },
+        "allowedTools": { "type": "array", "maxItems": 100, "items": { "type": "string", "minLength": 1 } },
+        "deniedTools": { "type": "array", "maxItems": 100, "items": { "type": "string", "minLength": 1 } },
+        "enforcement": { "const": "declaration-only" }
+      },
+      "required": ["filesystem", "network", "allowedTools", "deniedTools", "enforcement"],
+      "additionalProperties": true
+    },
+    "memory": {
+      "type": "object",
+      "properties": {
+        "handoff": { "const": "sanitized-only" },
+        "archiveSearch": { "type": "boolean" },
+        "compaction": { "const": "episodic" },
+        "handoffEpisodeIds": { "type": "array", "maxItems": 5000, "items": { "type": "integer", "minimum": 1 } },
+        "latestHandoffEpisodeId": { "type": ["integer", "null"], "minimum": 1 }
+      },
+      "required": ["handoff", "archiveSearch", "compaction", "handoffEpisodeIds", "latestHandoffEpisodeId"],
+      "additionalProperties": true
+    },
+    "triggers": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": { "enum": ["manual", "schedule", "webhook", "email", "message", "task-state", "agent"] },
+          "label": { "type": "string", "minLength": 1 },
+          "configurationRef": { "type": ["string", "null"] },
+          "status": { "const": "declared" }
+        },
+        "required": ["kind", "label", "configurationRef", "status"],
+        "additionalProperties": true
+      }
+    },
+    "origin": {
+      "type": "object",
+      "properties": {
+        "kind": { "enum": ["wizard", "session-promotion"] },
+        "sourceSessionId": { "type": ["string", "null"] },
+        "handoffEpisodeId": { "type": ["integer", "null"], "minimum": 1 },
+        "sourceAgentId": { "type": ["string", "null"] },
+        "sourceAdapter": { "type": ["string", "null"] },
+        "promotedAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "required": ["kind", "sourceSessionId", "handoffEpisodeId", "sourceAgentId", "sourceAdapter", "promotedAt"],
+      "additionalProperties": true
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": [
+    "schema", "revision", "slug", "displayName", "scope", "lifecycle",
+    "remit", "instructions", "skills", "tools", "backendPreferences",
+    "permissionPolicy", "memory", "triggers", "origin", "createdAt", "updatedAt"
+  ],
+  "additionalProperties": true
+}
