@@ -21,6 +21,19 @@ ensure_daemon() {
   pd status >/dev/null 2>&1
 }
 
+# Coordination Guard defaults to `off` on a fresh checkout, so a clip that runs
+# `pd guard status` recorded it as off — which reads as "the product ships with
+# its coordination discipline disabled" rather than demonstrating the posture
+# real work uses (Copilot, #4924).
+#
+# `enable` writes the project config ONLY. It deliberately does not call
+# `guard install`, which would add a managed pre-commit hook block to the
+# recording machine's git config — a recording script must not mutate a
+# contributor's hooks as a side effect of making a GIF.
+ensure_guard_enforce() {
+  node "$ROOT_DIR/bin/port-daddy-cli.js" guard enable --mode enforce >/dev/null 2>&1 || true
+}
+
 type_cmd() {
   local text="$1"
   local i
@@ -30,6 +43,23 @@ type_cmd() {
   done
 }
 
+# NOTE ON `--help` IN THESE RECORDINGS (Copilot, #4924)
+#
+# Do NOT "fix" a bare verb below back into `pd <verb> --help`. For spawn,
+# watch, tunnel, harbor and pheromone the CLI does NOT implement per-verb
+# help — `pd watch --help` prints the same 51-line GLOBAL help as `pd --help`,
+# in which the word "watch" never appears. A clip captioned "pd watch" that
+# shows the global menu is not proof of anything, and no amount of raising the
+# 18-line cap below finds verb-specific content that was never printed.
+#
+# The BARE verb does print real usage (`Usage: pd watch <channel> --exec
+# <script>` + a description), so that is what these record.
+#
+# `pd dns --help`, `pd begin --help`, `pd done --help` and `pd guard --help`
+# DO produce relevant topic help and deliberately keep the flag.
+#
+# The proper fix is per-verb `--help` routing in the CLI; until that lands,
+# these commands show the truth rather than a menu.
 run_cmd() {
   local cmd="$1"
   local output
@@ -76,12 +106,13 @@ play_recording() {
   local slug="${id#*/}"
 
   ensure_daemon
+  ensure_guard_enforce
 
   case "$id" in
     tutorials/pheromone)
       intro
       run_cmd "pd status"
-      run_cmd "pd pheromone --help || true"
+      run_cmd "pd pheromone || true"
       run_cmd "pd pheromone files --path website-v2/src/pages/tutorials --depth 1"
       ;;
     tutorials/primitives)
@@ -136,16 +167,16 @@ play_recording() {
     tutorials/harbors)
       intro
       run_cmd "pd harbors"
-      run_cmd "pd harbor --help || true"
+      run_cmd "pd harbor || true"
       ;;
     tutorials/pipelines|tutorials/watch|tutorials/always-on)
       intro
-      run_cmd "pd watch --help || true"
+      run_cmd "pd watch || true"
       run_cmd "pd pub docs:pipeline-recording '{\"status\":\"ready\"}' --raw-channel"
       ;;
     tutorials/pd-spawn)
       intro
-      run_cmd "pd spawn --help || true"
+      run_cmd "pd spawn || true"
       run_cmd "pd spawned"
       ;;
     tutorials/monorepo)
@@ -155,7 +186,7 @@ play_recording() {
       ;;
     tutorials/tunnel|tutorials/remote-harbors)
       intro
-      run_cmd "pd tunnel --help || true"
+      run_cmd "pd tunnel || true"
       run_cmd "pd status"
       ;;
     tutorials/dns)
@@ -238,7 +269,7 @@ play_recording() {
       intro
       run_cmd "pd status"
       run_cmd "npx tsx examples/tunnel/share-preview.ts inspect"
-      run_cmd "pd tunnel --help || true"
+      run_cmd "pd tunnel || true"
       ;;
     examples/services-dns)
       intro
@@ -258,14 +289,14 @@ play_recording() {
     docs/cli-overview)
       intro
       run_cmd "pd status"
-      run_cmd "pd pheromone --help"
+      run_cmd "pd pheromone || true"
       run_cmd "printf 'docs cli recording' | pd tube docs:cli-recording --send"
       run_cmd "pd tube docs:cli-recording --once --no-history --limit=1"
       ;;
     docs/pheromone)
       intro
       run_cmd "pd status"
-      run_cmd "pd pheromone --help || true"
+      run_cmd "pd pheromone || true"
       run_cmd "pd pheromone files --path website-v2/src --depth 1"
       ;;
     *)

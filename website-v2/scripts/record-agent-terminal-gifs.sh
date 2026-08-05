@@ -23,6 +23,14 @@ ensure_daemon() {
   pd status >/dev/null 2>&1
 }
 
+# See the matching note in record-site-terminal-gifs.sh: the coordination cast
+# runs `pd guard status`, which on a fresh checkout records Guard as `off`.
+# Config only — never `guard install`, which would touch the recording
+# machine's git hooks (Copilot, #4924).
+ensure_guard_enforce() {
+  node "$ROOT_DIR/bin/port-daddy-cli.js" guard enable --mode enforce >/dev/null 2>&1 || true
+}
+
 type_cmd() {
   local text="$1"
   local i
@@ -66,6 +74,7 @@ play_section() {
   export NO_COLOR=1
   export FORCE_COLOR=0
   ensure_daemon
+  ensure_guard_enforce
 
   case "$1" in
     yaml-and-shipwright)
