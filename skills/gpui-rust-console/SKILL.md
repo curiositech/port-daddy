@@ -169,7 +169,7 @@ pattern (state on the view, not the busy stream pane) or build an `Element` (~30
 | `references/maritime-flags.md` | ICS flag mapping + badge colors, the OKLCH theme and `to_srgb8()`, Tone→color resolution |
 | `references/build-and-ci.md` | The feature-gate, the real `cargo`/CI jobs, `recursion_limit` vs `RUST_MIN_STACK`, brand/URL guards |
 | `references/text-input.md` | GPUI has no input widget — defer / overlay / build-an-Element decision tree |
-| `references/07-scripting-and-visual-proof.md` | Driving a RUNNING console over the control socket (the REPL: focus/state/galaxy/rebind via console-ctl.py), named-daemon selection through PORT_DADDY_URL, and the verify-state-then-capture doctrine for PR visual evidence |
+| `references/07-scripting-and-visual-proof.md` | Driving a RUNNING console over the control socket (the REPL: focus/state/galaxy/rebind via console-ctl.py), daemon selection (`PORT_DADDY_URL`, `console-daemon.url`, `pd use`), and the verify-state-then-capture doctrine for PR visual evidence |
 
 ## Scripts
 

@@ -16,8 +16,11 @@ The console serves a newline-JSON command socket when launched with
 ```bash
 # Launch a devbuild with the socket. `open -n` forces a FRESH instance —
 # a bare `open -a` re-activates a stale one and your env never applies.
-open -n --env PD_CONSOLE_CONTROL_SOCK=~/.port-daddy/console-ctl.sock \
-     -a ~/Applications/pd-console-dev-apps/pd-console_dev-<name>.app
+# package-console.sh stamps the build time into the bundle name and prints
+# the exact path it built ("▸ lane: dev  →  …") — never guess it; to resolve
+# it after the fact, take the newest timestamped match for <name>:
+APP="$(ls -td ~/Applications/pd-console-dev-apps/pd-console-dev-*-<name>.app | head -1)"
+open -n --env PD_CONSOLE_CONTROL_SOCK=~/.port-daddy/console-ctl.sock -a "$APP"
 
 # Drive it (stdlib client; non-zero exit on ok=false):
 python3 core/pd-console/scripts/console-ctl.py ping
@@ -40,22 +43,31 @@ at 5s instead of hanging your script.
 
 ## Daemon selection for a console instance
 
-Discovery order (`DaemonClient::discover`): explicit `PORT_DADDY_URL` → the
-canonical daemon's atomically published `~/.port-daddy/daemon.port`. Named
-feature daemons are selected with `pd use <label>` and passed to the launched
-console process. There is no persistent console-only selector to outlive a dev
-daemon and shadow the healthy stable endpoint. Environment only reaches the
-process on direct binary launches or `open --env`; LaunchServices does not
-inherit your shell.
+Discovery order (`DaemonClient::discover` in `core/pd-console/src/agent.rs`):
+explicit `PORT_DADDY_URL` env → `~/.port-daddy/console-daemon.url` (a one-line
+URL file — the operator's persistent "use this daemon" switch; DELETE it when
+done or every future console launch silently pins to that endpoint) →
+canonical `~/.port-daddy/daemon.port` (written by the running stable daemon;
+there is no hardcoded port fallback, so its absence means fail loudly rather
+than guess). Environment only reaches the process on direct binary launches or
+`open --env`; LaunchServices does not inherit your shell.
+
+`pd use <label>` (ADR-0084) is the ergonomic way to hit the first tier for one
+shell: `eval "$(pd use <label>)"` exports `PORT_DADDY_URL` (+
+`PD_ACTIVE_DAEMON`) from that label's published berth — pass it straight
+through to the launched console, never guess or preserve a stale port.
 
 To serve worktree source (e.g. routes the release daemon lacks) on a named
-profile:
+profile, stand up the daemon berth and the console devbuild together:
 
 ```bash
 pd dev up --from "$PWD" --label <name>
 eval "$(pd use <name>)"
-open -n --env PORT_DADDY_URL="$PORT_DADDY_URL" \
-  -a ~/Applications/pd-console-dev-apps/pd-console-dev-<name>.app
+bash core/pd-console/scripts/package-console.sh --devbuild <name>
+# package-console.sh prints the exact bundle path it built; if resolving it
+# after the fact, take the newest timestamped match for <name>:
+APP="$(ls -td ~/Applications/pd-console-dev-apps/pd-console-dev-*-<name>.app | head -1)"
+open -n --env PORT_DADDY_URL="$PORT_DADDY_URL" -a "$APP"
 ```
 
 The named daemon owns an isolated state plane and publishes the endpoint it
@@ -67,7 +79,7 @@ berth and rebind through the new `pd use` output; never guess or preserve a port
 A screenshot you didn't verify is not proof (operator has rejected exactly
 this). The pipeline that survives the `agent-visual-evidence-manifest` gate:
 
-1. Rebuild the devbuild AT BRANCH HEAD (`bash ../../core/pd-console/scripts/package-console.sh
+1. Rebuild the devbuild AT BRANCH HEAD (`bash core/pd-console/scripts/package-console.sh
    --devbuild <name>`), relaunch with the socket.
 2. Script the target state, then ASSERT it from `state` JSON (point counts,
    error==null) — fail loudly on mismatch, never capture a broken pane.
