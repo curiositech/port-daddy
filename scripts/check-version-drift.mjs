@@ -113,6 +113,10 @@ const SOURCE_SURFACES = [
     get: () => literalFrom('server.ts', /EMBEDDED_PACKAGE_VERSION:\s*string\s*=\s*['"](\d+\.\d+\.\d+[\w.\-+]*)['"]/),
   },
   {
+    name: 'cli/commands/diagnostics.ts (EMBEDDED_PACKAGE_VERSION)',
+    get: () => literalFrom('cli/commands/diagnostics.ts', /EMBEDDED_PACKAGE_VERSION:\s*string\s*=\s*['"](\d+\.\d+\.\d+[\w.\-+]*)['"]/),
+  },
+  {
     name: 'website-v2/src/data/referenceCatalog.ts (PORT_DADDY_VERSION)',
     get: () => literalFrom('website-v2/src/data/referenceCatalog.ts', /PORT_DADDY_VERSION\s*=\s*['"](\d+\.\d+\.\d+[\w.\-+]*)['"]/),
   },
@@ -127,6 +131,10 @@ const SOURCE_SURFACES = [
   {
     name: 'core/pd-console/Cargo.toml (CARGO_PKG_VERSION → pd-console --version)',
     get: () => literalFrom('core/pd-console/Cargo.toml', /^version\s*=\s*"(\d+\.\d+\.\d+[\w.\-+]*)"/m),
+  },
+  {
+    name: 'core/Cargo.lock (resolved pd-console package)',
+    get: () => literalFrom('core/Cargo.lock', /\[\[package\]\]\nname = "pd-console"\nversion = "(\d+\.\d+\.\d+[\w.\-+]*)"/),
   },
   {
     // The repo's front door. Rotted from 3.13 to 3.24 before being gated.

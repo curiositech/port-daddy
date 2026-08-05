@@ -13,13 +13,15 @@
  *   - mcp/server.ts
  *   - server.ts (EMBEDDED_PACKAGE_VERSION — fallback used inside the bun bundle
  *     when __dirname-relative package.json read fails)
+ *   - cli/commands/diagnostics.ts (compiled CLI self-version)
  *   - website-v2/src/data/referenceCatalog.ts
  *   - public/samples/manifest.json
  *   - VERSION (plain-text product version stamp, read by no code but a
  *     human-facing authority surface — keep it honest or delete it)
  *   - core/pd-console/Cargo.toml (the GPU-native app's CARGO_PKG_VERSION, which
  *     becomes `pd-console --version` / the in-app build stamp AND is stamped into
- *     pd-console.app's CFBundleShortVersionString by scripts/package-pd-console.sh).
+ *     pd-console.app's CFBundleShortVersionString by scripts/package-pd-console.sh)
+ *   - core/Cargo.lock (the resolved pd-console package version)
  *     This is the ONE Rust crate that is a user-facing product surface; the kernel
  *     library crates (core/kernel/*, core/Cargo.toml workspace.package) keep their
  *     own independent library semver and are deliberately NOT touched here.
@@ -131,6 +133,19 @@ if (!consoleCargoVersionRe.test(consoleCargo)) {
 consoleCargo = consoleCargo.replace(consoleCargoVersionRe, `$1${version}$2`);
 writeFileSync(consoleCargoPath, consoleCargo);
 console.log(`  ✓ core/pd-console/Cargo.toml version → ${version}`);
+
+// core/Cargo.lock — Cargo updates this local package entry as a side effect of
+// the next build. Stamp it during the version atom instead, so an exact-SHA
+// release build cannot dirty the reviewed source tree after review.
+const cargoLockPath = join(ROOT, 'core', 'Cargo.lock');
+const cargoLockVersionRe = /(\[\[package\]\]\nname = "pd-console"\nversion = ")[\w.\-+]+(")/;
+let cargoLock = readFileSync(cargoLockPath, 'utf-8');
+if (!cargoLockVersionRe.test(cargoLock)) {
+  throw new Error(`sync-version.ts: pd-console package entry not found in core/Cargo.lock — the reviewed release tree would be dirtied by Cargo during the next build.`);
+}
+cargoLock = cargoLock.replace(cargoLockVersionRe, `$1${version}$2`);
+writeFileSync(cargoLockPath, cargoLock);
+console.log(`  ✓ core/Cargo.lock pd-console version → ${version}`);
 
 // README.md title — the repo's front door. This surface rotted from 3.13 to
 // 3.24 without anyone noticing, which is why it is now stamped + gated like

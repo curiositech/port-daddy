@@ -33,4 +33,17 @@ describe('EMBEDDED_PACKAGE_VERSION lockstep with package.json', () => {
     expect(m).not.toBeNull();
     expect(m[1]).toBe(pkg.version);
   });
+
+  test('compiled CLI and resolved pd-console package match package.json version', () => {
+    const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8'));
+    const diagnostics = readFileSync(join(REPO_ROOT, 'cli', 'commands', 'diagnostics.ts'), 'utf-8');
+    const cliVersion = diagnostics.match(/EMBEDDED_PACKAGE_VERSION: string = ['"]([\w.\-+]+)['"]/);
+    expect(cliVersion).not.toBeNull();
+    expect(cliVersion[1]).toBe(pkg.version);
+
+    const cargoLock = readFileSync(join(REPO_ROOT, 'core', 'Cargo.lock'), 'utf-8');
+    const consoleVersion = cargoLock.match(/\[\[package\]\]\nname = "pd-console"\nversion = "([\w.\-+]+)"/);
+    expect(consoleVersion).not.toBeNull();
+    expect(consoleVersion[1]).toBe(pkg.version);
+  });
 });
