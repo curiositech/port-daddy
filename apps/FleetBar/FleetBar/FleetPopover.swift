@@ -698,10 +698,18 @@ struct FleetPopover: View {
     }
 
     private func berthTooltip(_ b: DaemonBerthResponse?) -> String {
-        // Resolve the canonical port through DaemonLocation rather than hardcoding
-        // it — the no-hardcoded-daemon-port guard (and ADR-0084) keep the literal
-        // in exactly one place.
-        guard let b else { return "Connected to the stable berth (port \(DaemonLocation.canonicalPreferredPort))" }
+        guard let b else {
+            // When berth identity is unavailable (daemon still starting, older daemon
+            // version, or unreachable), show the actual URL FleetBar is targeting
+            // rather than assuming the stable berth is on the canonical port — the
+            // daemon might have published a different port in daemon.port if 9876 was
+            // occupied.
+            guard let url = URL(string: store.daemonURL),
+                  let port = url.port else {
+                return "Daemon berth unknown · \(store.daemonURL)"
+            }
+            return "Daemon berth unknown · port \(port)"
+        }
         var parts = ["\(b.label) berth · port \(b.port)"]
         if let branch = b.gitBranch, !branch.isEmpty {
             let rev = b.gitRev.map { " @ \($0)" } ?? ""
