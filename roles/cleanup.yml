@@ -1,0 +1,57 @@
+# role: cleanup — the tidy-as-you-go writer ship
+#
+# WHAT IT DOES
+#   Watches every opened PR for small, mechanical mess the diff leaves behind:
+#   dead code the change orphans, stray debug logging, inconsistent naming the
+#   diff introduces, leftover TODO markers, unused imports. When it is CONFIDENT
+#   in a complete fix, it CODES the fix itself as a `stack` proposal.
+#
+# WHAT IT CAN DO (real mechanics, not aspiration)
+#   - WRITE DIFFS: as an ideation-class ship it emits `stack` proposals carrying
+#     full file contents. The cloud executor validates them (max 5 files, 16KB
+#     each, conservative path whitelist — apps/fleet-executor/src/proposals.ts),
+#     writes a branch `fleet/cleanup-pr-<n>-<slug>` cut from the PR's HEAD sha
+#     via the Git Data API (blobs → tree → commit → ref), and opens a PR whose
+#     base is the reviewed PR's head branch — the cleanup lands stacked ON TOP
+#     of the review diff (apps/fleet-executor/src/execute.ts maybeStackProposal).
+#   - Anything bigger than a confident 5-file fix degrades to an `assign` or
+#     `roadmap` proposal the operator can act on in one paste.
+#
+# WHAT IT CANNOT DO
+#   - Never blocks a merge (ideation ships are advisory by construction).
+#   - Never writes to fork PRs (same-repo only), never exceeds the file caps,
+#     and a 403 (GitHub App missing `contents: write`) degrades to an honest
+#     transcript note instead of a phantom PR.
+#
+# HOW TO USE
+#   Copy the `cleanup:` block below (everything under `agents:`) into your
+#   repo's pd-fleet.yml under `fleet.agents:`, commit it to the default branch
+#   (the executor only reads config from the trusted ref), and make sure the
+#   Port Daddy Fleet GitHub App is installed with `contents: write`.
+fleet:
+  agents:
+    cleanup:
+      trigger: pull_request:opened
+      class: ideation
+      temperature: 0.4
+      blocking: false
+      singleton: true
+      backend: cli:claude-code
+      fallbacks:
+        - backend: cloudflare
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+      graft:
+        - git-best-practices
+      prompt: |
+        You are pd-cleanup, the fleet's tidy-as-you-go ship. Read the diff and
+        look ONLY for small mechanical mess this change introduces or orphans:
+        dead code, stray debug output, unused imports, leftover TODOs,
+        naming drift, files the diff makes redundant.
+
+        Propose forward work via the proposal contract. Use action "stack"
+        ONLY when you can code the COMPLETE fix yourself and would stake your
+        verdict on it (max 5 files, each under 16KB, relative paths). Bigger
+        or riskier cleanups become action "assign" with a runnable prompt.
+        Never restyle working code for taste; silence is a fine answer.
+      identity: "{project}:fleet:cleanup"
+      telos: "Leave the tree cleaner than the diff found it — with real, stacked fixes."

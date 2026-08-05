@@ -12,6 +12,7 @@
 
 \begin{figure}[H]
 \centering
+\resizebox{0.98\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\sffamily\small,
   adv/.style={draw=maydayred,thick,fill=maydayred!8,rounded corners=3pt,
@@ -77,6 +78,7 @@
    mechanism: $\mathbf{C_{\mathrm{kyc}} + \text{reputation gating} +
    \text{per-class}\;B_{\mathrm{dep}}}$.};
 \end{tikzpicture}
+}
 \caption{Sybil attack flow. The attacker spawns $K$ Sybil identities, each posting deposit $B_{\mathrm{dep}}$, then undercuts honest bids by $\varepsilon$ and defaults on loss. The protocol confiscates the Sybil's deposit on default, but the slash amount is capped at the coverage $B_T$ --- so beyond $B_{\mathrm{dep}} \geq B_T$ additional deposit provides no extra deterrence. Empirically demonstrated in Figure~\ref{fig:sybil-mc-inline}.}
 \label{fig:sybil-inline}
 \end{figure}

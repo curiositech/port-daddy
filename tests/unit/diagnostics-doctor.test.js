@@ -20,6 +20,7 @@ import {
   parseMacDiagnosticReport,
   readRecentMacDiagnosticCrashReports,
   assessMacDiagnosticCrashReports,
+  isCanonicalRuntimeTarget,
 } from '../../cli/commands/diagnostics.js';
 import { resolveDistributionRoot } from '../../shared/daemon-binary.js';
 
@@ -386,10 +387,14 @@ describe('countBunCrashSignatures / assessCrashSignature', () => {
     expect(a.hint).toContain('#676');
   });
 
-  test('assessCrashSignature: multiple crashes is CRITICAL (crash-looping)', () => {
+  test('assessCrashSignature: multiple crashes is CRITICAL but does not overstate a possibly-historical scan', () => {
     const a = assessCrashSignature({ crashCount: 4 });
     expect(a.severity).toBe('critical');
-    expect(a.detail).toContain('crash-looping');
+    expect(a.detail).toContain('crashed repeatedly');
+    // Honesty (3.26.2): a log-tail scan (possibly unrotated) must NOT assert present-tense
+    // "the daemon is crash-looping" as fact — it points at live uptime instead.
+    expect(a.detail).not.toMatch(/is crash-looping/);
+    expect(a.detail).toMatch(/pd status/);
   });
 
   test('assessCrashSignature hint says downgrading does not fix it', () => {
@@ -713,6 +718,17 @@ describe('resolveBosunBinary', () => {
     }
   });
 
+  // Regression (3.26.2): a compiled `pd` whose `__dirname` collapses to `/` (so
+  // `join(__dirname,'..','..')` is `/`) must NOT resolve the distribution root to `/`. That
+  // made doctor print `resolvedRoot=/`, `expectedBinary=/dist/daemon/... (MISSING)` yet report
+  // a GREEN "Resource directory" check, AND broke `pd setup` (it looked for `/node_modules/.bin/tsx`).
+  // `/` now routes through execPath-based resolution like a bun-virtual path.
+  test('resolveDistributionRoot("/") does not return "/" — routes through execPath', () => {
+    const root = resolveDistributionRoot('/', {}, '/opt/homebrew/Cellar/port-daddy/3.26.2/bin/pd');
+    expect(root).not.toBe('/');
+    expect(root).toBe('/opt/homebrew/Cellar/port-daddy/3.26.2/bin');
+  });
+
   // Regression (2026-07-23): Homebrew installs the watchdog at `<root>/bin/pd-bosun`
   // (next to `pd`), NOT flat at `<root>/pd-bosun`. The resolver only checked the flat
   // path + source/dist fallbacks, so when the distribution root resolved to the keg
@@ -771,5 +787,65 @@ describe('scanRegistryDbFiles', () => {
 
   test('returns empty for a missing directory', () => {
     expect(scanRegistryDbFiles('/nonexistent/dir/xyz')).toEqual([]);
+  });
+});
+
+/**
+ * `pd status` turns the control-plane verdict into its EXIT CODE, and that
+ * verdict is built from the CANONICAL ~/.port-daddy files plus the canonical
+ * launchd job. So the moment any env var redirects the CLI at a different
+ * daemon, comparing that daemon's /health against canonical files produces a
+ * false "control plane diverged" — a hard failure against a healthy daemon.
+ *
+ * These cases pin every redirect var INDEPENDENTLY, because the bug this
+ * guards against was exactly one missing entry in the list: PORT_DADDY_PORT is
+ * resolution step 1 in shared/daemon-discovery.ts (ahead of the daemon.port
+ * file), so omitting it reintroduced the failure through the most common
+ * redirect of all.
+ */
+describe('isCanonicalRuntimeTarget', () => {
+  const REDIRECTS = [
+    'PORT_DADDY_URL',
+    'PORT_DADDY_SOCK',
+    'PORT_DADDY_PORT',
+    'PORT_DADDY_TCP_HOST',
+    'PORT_DADDY_PREFIX',
+    'PORT_DADDY_PID_FILE',
+    'PORT_DADDY_PORT_FILE',
+    'PORT_DADDY_HEARTBEAT_FILE',
+    'PD_HOME',
+  ];
+
+  function withEnv(overrides, fn) {
+    const saved = {};
+    for (const key of REDIRECTS) {
+      saved[key] = process.env[key];
+      delete process.env[key];
+    }
+    try {
+      for (const [k, v] of Object.entries(overrides)) process.env[k] = v;
+      return fn();
+    } finally {
+      for (const key of REDIRECTS) {
+        if (saved[key] === undefined) delete process.env[key];
+        else process.env[key] = saved[key];
+      }
+    }
+  }
+
+  test('a clean environment IS the canonical target', () => {
+    expect(withEnv({}, isCanonicalRuntimeTarget)).toBe(true);
+  });
+
+  test.each(REDIRECTS)('%s alone makes the target non-canonical', (key) => {
+    const value = key === 'PORT_DADDY_PORT' ? '9999' : '/tmp/pd-redirected';
+    expect(withEnv({ [key]: value }, isCanonicalRuntimeTarget)).toBe(false);
+  });
+
+  test('an empty or whitespace-only override does not count as a redirect', () => {
+    // Callers routinely export these as '' to mean "unset"; treating that as a
+    // redirect would silently disable the verdict for canonical daemons.
+    expect(withEnv({ PORT_DADDY_PORT: '' }, isCanonicalRuntimeTarget)).toBe(true);
+    expect(withEnv({ PORT_DADDY_PID_FILE: '   ' }, isCanonicalRuntimeTarget)).toBe(true);
   });
 });

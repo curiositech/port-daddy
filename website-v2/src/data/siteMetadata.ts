@@ -397,7 +397,7 @@ const docsFeatureRoutes = [
   ['features/sessions', 'Sessions'],
   ['features/tunnels', 'Tunnels'],
   ['features/pheromone', 'Pheromone Trails'],
-  ['features/fleet', 'Fleet YAML'],
+  ['features/fleet', 'Fleet & GitHub App'],
   ['features/tuples', 'Tuples'],
   ['features/arbiter', 'Arbiter'],
   ['features/relay-pki', 'Relay PKI'],

@@ -31,35 +31,35 @@
 \node[bandhead,fill=hhteal!30] (h1) at (0,0) {\textbf{Stopped} — mechanized};
 \node[bandbody,bandstopped,below=0pt of h1.south] (b1) {%
   \textbf{ProVerif:}\\
-  $\bullet$ cross-harbor card authenticity (\S\ref{sec:fh-xfer})\\
-  $\bullet$ attenuation across boundary (\S\ref{sec:fh-xfer})\\
+  $\bullet$ cross-harbor card authenticity\\
+  $\bullet$ attenuation across boundary\\
   $\bullet$ replay against epoch-bound root\\[3pt]
   \textbf{Runtime / property tests:}\\
   $\bullet$ cuckoo-filter no-FN under gossip\\
   $\bullet$ epoch root monotonicity\\
-  $\bullet$ escrow no-redirect (\S\ref{sec:fh-settlement})};
+  $\bullet$ terminal-state transition checks};
 
 % ─── Band 2: bounded (named threat, named bound) ───────────────────
 \node[bandhead,fill=hhamber!50,right=10mm of h1] (h2) {\textbf{Bounded} — threat $\subseteq$ window};
 \node[bandbody,bandbounded,below=0pt of h2.south] (b2) {%
   \textbf{Gossip latency:}\\
-  $\bullet$ revocation lag $\le \Delta(1+\ln m)$ (\S\ref{sec:fh-revocation})\\
-  $\bullet$ bonded against by Conservation\\[3pt]
+  $\bullet$ expected $\Theta(\log m)$ spread in the stated reliable-round model\\
+  $\bullet$ no finite deadline under unbounded partition\\[3pt]
   \textbf{Cross-witness equivocation:}\\
-  $\bullet$ detectable in $O(\log m)$ audit rounds\\
+  $\bullet$ contradictory roots detectable once co-located\\
   $\bullet$ slashable via witness bond\\[3pt]
   \textbf{Settlement contention:}\\
-  $\bullet$ atomic-clear or rollback (\S\ref{sec:fh-settlement})};
+  $\bullet$ conditional atomic clear or refusal};
 
 % ─── Band 3: open (acknowledged) ──────────────────────────────────
 \node[bandhead,fill=hhcobalt!40,right=10mm of h2] (h3) {\textbf{Open} — acknowledged};
 \node[bandbody,bandopen,below=0pt of h3.south] (b3) {%
   \textbf{Cold-start admission:}\\
-  $\bullet$ new harbor with no reputation cannot price its own bond fairly (\S\ref{sec:fh-admission})\\[3pt]
+  $\bullet$ new harbor with no reputation cannot price its own bond fairly\\[3pt]
   \textbf{Cross-federation cartel:}\\
-  $\bullet$ folk-theorem weakening across harbors (\S\ref{sec:fh-lim-cartel}); precise bound owed\\[3pt]
+  $\bullet$ repeated-game bounds require a specified monitoring model\\[3pt]
   \textbf{Centralization gravity:}\\
-  $\bullet$ historical pull toward hub-and-spoke (\S\ref{sec:fh-failure-modes}); structural pushback rather than proof};
+  $\bullet$ historical pull toward hub-and-spoke; structural pushback rather than proof};
 
 % ─── Spine: load-bearing reading direction. Connectors run between the
 %      fixed-height HEADERS (not the variable-height bodies), and the prose
@@ -73,8 +73,7 @@
 defense-in-depth structure carries over: every claim either has a mechanization
 artifact (teal), a named bound that the bond can price against (amber), or an
 explicit acknowledgement of the open frontier (cobalt). The paper is
-disciplined about which band each claim lives in --- see Appendix~\ref{app:fh-mech}
-for the artifact registry. Reading left to right runs deeper into threat space
+disciplined about which band each claim lives in. Reading left to right runs deeper into threat space
 and out of formal reach; bands shift left over time as future work mechanizes
 what is presently bounded.}
 \label{fig:fh-threat-bands}

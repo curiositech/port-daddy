@@ -45,10 +45,11 @@ p_d	delta	mean_lifespan	mean_collude_PV	mean_defect_PV	collude_dominates_rate	su
 #   where sustainable flips NO. That p_d* is the protocol target.
 
 # Closed-form check (no defection-stage punishment beyond detection):
-#   sustainable iff   delta · piC / (1 − delta · (1 − p_d)) ≥ piD
-#   solve for p_d*:   p_d* = 1 − (piC − (1 − delta) · piD) / (delta · piD)
+#   V_C = (piC − p_d · L) / (1 − delta · (1 − p_d))
+#   sustainable iff V_C ≥ piD
+#   p_d* = (piC − (1 − delta) · piD) / (L + delta · piD)
 
 # Headline (assuming delta = 0.95, typical for one-month rounds):
-# p_d* ≈ 0.10–0.15. Protocols must achieve > 10–15% per-round detection
-# to break repeated-game cartel sustainability. This sets the bar for
+# p_d* ≈ 0.0478. The tested grid first classifies the cartel as fragile
+# at p_d = 0.05. This sets a model-conditional bar for
 # the Anchor §6.4 detection mechanism (Merkle Forest binding + heat).

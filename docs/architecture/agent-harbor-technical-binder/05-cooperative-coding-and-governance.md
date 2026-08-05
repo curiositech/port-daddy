@@ -211,11 +211,32 @@ The Harbor Editor should follow the existing battle plan:
 
 1. Build a read-only editor surface in `pd-console` by reusing the mux and pane
    system.
+   **Shipped behind PR #563 (`d8026bc2`)**, merged 2026-06-27. Buffer rendering
+   was later rescued for large files by **PR #896 (`d3a33a62b`)**, a virtualized
+   `CodeBuffer` perf pass merged 2026-07-09.
 2. Add a local Loro-backed editable buffer.
+   **Unbuilt.** This is P1 — interactive human keystroke editing (live text
+   input, undo, tree-sitter reparse) — and has not shipped. The Loro CRDT is
+   present in the substrate work below, but there is no human-editable local
+   buffer yet.
 3. Add LAN or daemon-bus collaboration.
+   **Shipped behind PR #727 (`533feb3e`)**, merged 2026-07-07 — P2 LAN
+   substrate: `editor_sync`/edit+coord channels, presence, and blob transport.
 4. Add agents as peers with claims rendered in the buffer.
+   **Shipped behind PR #728 (`4696988c`)**, merged 2026-07-08 — P3: agents as
+   peers, region claims, wedge, and commit gate. Wired into the live app by
+   **PR #729 (`16ef9dbe3`)**, merged 2026-07-14 (wedge stages 1+2). The
+   claim-validator's write-block enforcement (turning a blocking conflict into
+   a real 409 rather than an advisory) is **open: PR #983**, not yet merged.
 5. Add salvage and provenance.
+   Proptest foundation (Loro op-replay convergence) **shipped behind PR #1539
+   (`507700ad`)**, merged 2026-07-10, as P3.5 salvage substrate. The
+   end-to-end salvage demo itself is **unbuilt**.
 6. Add remote harbor topology and visual polish.
+   **Unbuilt** (P4 capability enforcement and P5 remote/iroh transport have not
+   started). Related in-flight, unmerged UI work: file navigator (**open: PR
+   #2237**), pane snap-drag (**open: PR #3140**), and an editor reskin
+   (**open: PR #1960**, draft).
 
 Do not start with transport or 3D water. The hard risk is the editable buffer
 and governable CRDT integration.
@@ -233,9 +254,22 @@ The editor buffer can be collaborative, but governance belongs to the daemon:
 - Awareness/presence should mirror enough state into durable claims so reconnect
   does not erase coordination truth.
 - Agent writes outside claim should be rejected or sent to a shadow patch.
+  **Partially shipped:** region claims and the wedge landed on main (#728,
+  #729), but the hard write-block (rejecting a conflicting write rather than
+  just flagging it) is still open in PR #983.
 - Dead agent operations should be salvageable and attributable.
+  **Substrate shipped, demo unbuilt:** PR #1539 landed the op-replay
+  convergence property tests this depends on; there is no salvage UX yet.
 
 Buffer convergence without accountability is not enough.
+
+Status summary as of 2026-07-23: P0 (read-only surface, #563) and its buffer
+perf rescue (#896) are shipped; P2 LAN substrate (#727) and P3 claims/wedge/
+commit-gate (#728, wired live in #729) are shipped; P3.5 salvage foundations
+(#1539) are shipped as proptests only. P1 (interactive human editing) is
+unbuilt, the salvage demo is unbuilt, P4/P5 have not started, and the
+claim-validator write-block (#983) plus several editor UI PRs (#2237, #3140,
+#1960) remain open and unmerged.
 
 ## Public, team, and federated harbors
 
