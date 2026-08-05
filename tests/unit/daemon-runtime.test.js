@@ -22,14 +22,14 @@ const supervisor = {
 function facts(overrides = {}) {
   return {
     checkedAt: 100_000,
-    expectedPort: 9876,
-    endpointPort: 9876,
+    expectedPort: 43121,
+    endpointPort: 43121,
     healthPid: 4242,
-    healthPort: 9876,
+    healthPort: 43121,
     healthStatus: 'ok',
     binaryDrifted: false,
     pidFilePid: 4242,
-    portFilePort: 9876,
+    portFilePort: 43121,
     heartbeatPid: 4242,
     heartbeatWrittenAt: 99_000,
     heartbeatFresh: true,
@@ -44,7 +44,7 @@ describe('runtime identity convergence', () => {
     expect(result.state).toBe('converged');
     expect(result.severity).toBe('ok');
     expect(result.summary).toContain('PID 4242');
-    expect(result.summary).toContain(':9876');
+    expect(result.summary).toContain(':43121');
   });
 
   test('rejects the exact split brain where launchd and the listener have different PIDs', () => {
@@ -60,7 +60,7 @@ describe('runtime identity convergence', () => {
   test('rejects any endpoint that disagrees with the published runtime witness', () => {
     const result = assessRuntimeIdentity(facts({
       endpointPort: 9877,
-      healthPort: 9876,
+      healthPort: 43121,
       portFilePort: 9877,
     }));
     expect(result.state).toBe('diverged');
@@ -195,7 +195,7 @@ describe('launchd ownership', () => {
 describe('readiness wait', () => {
   test('requires a replacement PID and two stable converged samples', async () => {
     let probes = 0;
-    const health = { status: 'ok', pid: 5151, daemon: { port: 9876 }, binaryDrift: { drifted: false } };
+    const health = { status: 'ok', pid: 5151, daemon: { port: 43121 }, binaryDrift: { drifted: false } };
     const result = await waitForCanonicalRuntime({
       previousPid: 4242,
       timeoutMs: 100,

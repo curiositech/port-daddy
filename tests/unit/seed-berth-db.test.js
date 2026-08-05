@@ -47,8 +47,8 @@ function makeProdDb() {
     CREATE TABLE dispatches (id TEXT PRIMARY KEY, state TEXT, goal TEXT);
     INSERT INTO roadmap_items VALUES ('r1', 'ship berths'), ('r2', 'seed db');
     INSERT INTO session_notes VALUES ('n1', 'scope note');
-    INSERT INTO services VALUES ('webapp:api:main', 9876), ('other:ui:main', 5173);
-    INSERT INTO endpoints VALUES ('e1', 'http://127.0.0.1:9876');
+    INSERT INTO services VALUES ('webapp:api:main', 43121), ('other:ui:main', 5173);
+    INSERT INTO endpoints VALUES ('e1', 'http://127.0.0.1:43121');
     INSERT INTO locks VALUES ('release', 'agent-7');
     INSERT INTO dispatches VALUES ('d1', 'proposed', 'launch me'), ('d2', 'in_progress', 'recover me');
   `);

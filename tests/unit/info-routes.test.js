@@ -443,7 +443,7 @@ describe('daemon berth self-identity (ADR-0084)', () => {
     gitBranch: null,
     gitRev: null,
     builtAt: '2026-06-15T00:00:00.000Z',
-    port: 9876,
+    port: 43121,
     canonical: true,
   };
   const devBerth = {

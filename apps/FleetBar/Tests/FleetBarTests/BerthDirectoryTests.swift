@@ -41,14 +41,14 @@ final class BerthDirectoryTests: XCTestCase {
           "daemon": {
             "tier": "stable", "label": "stable", "color": "#E6A23C",
             "sourceDir": null, "gitBranch": "main", "gitRev": "01a27a96e1",
-            "builtAt": "2026-06-19T06:15:55.338Z", "port": 9876, "canonical": true
+            "builtAt": "2026-06-19T06:15:55.338Z", "port": 43121, "canonical": true
           }
         }
         """
         let who = try JSONDecoder().decode(WhoamiResponse.self, from: Data(json.utf8))
         XCTAssertTrue(who.daemon.canonical)
         XCTAssertNil(who.daemon.sourceDir)
-        XCTAssertEqual(who.daemon.port, 9876)
+        XCTAssertEqual(who.daemon.port, 43121)
     }
 
     func testDecodesDevDaemonRegistry() throws {
@@ -72,7 +72,7 @@ final class BerthDirectoryTests: XCTestCase {
 
     func testCanonicalBerthSourceSummary() {
         let stable = Berth(
-            tier: "stable", label: "stable", port: 9876, colorHex: "#E6A23C",
+            tier: "stable", label: "stable", port: 43121, colorHex: "#E6A23C",
             canonical: true, sourceDir: nil, gitBranch: nil, gitRev: nil, pid: nil,
             reachable: true, version: "3.20.0")
         XCTAssertEqual(stable.sourceSummary, "brew release · canonical")

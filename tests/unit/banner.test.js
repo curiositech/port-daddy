@@ -235,12 +235,12 @@ describe('printStartupInfo(opts)', () => {
 
   test('does not throw with valid opts', () => {
     expect(() =>
-      printStartupInfo({ port: 9876, pid: 12345, version: '3.8.0', hash: 'abc123' })
+      printStartupInfo({ port: 43121, pid: 12345, version: '3.8.0', hash: 'abc123' })
     ).not.toThrow();
   });
 
   test('calls console.log multiple times', () => {
-    printStartupInfo({ port: 9876, pid: 1, version: '1.0.0', hash: 'deadbeef' });
+    printStartupInfo({ port: 43121, pid: 1, version: '1.0.0', hash: 'deadbeef' });
     expect(logSpy.mock.calls.length).toBeGreaterThan(1);
   });
 });

@@ -48,7 +48,7 @@ const mockUi = {
 
 jest.unstable_mockModule('../../cli/utils/fetch.js', () => ({
   pdFetch: mockPdFetch,
-  PORT_DADDY_URL: 'http://localhost:9876',
+  PORT_DADDY_URL: 'http://localhost:43121',
 }));
 jest.unstable_mockModule('../../cli/utils/channel-resolution.js', () => ({
   resolveDeclaredChannel: mockResolveDeclared,

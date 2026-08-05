@@ -9,7 +9,7 @@ let logSpy;
 let errorSpy;
 
 jest.unstable_mockModule('../../cli/utils/fetch.js', () => ({
-  PORT_DADDY_URL: 'http://127.0.0.1:9876',
+  PORT_DADDY_URL: 'http://127.0.0.1:43121',
   pdFetch,
 }));
 

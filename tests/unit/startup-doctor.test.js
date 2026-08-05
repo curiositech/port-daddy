@@ -18,7 +18,7 @@ jest.unstable_mockModule('node:child_process', () => ({
 }));
 
 jest.unstable_mockModule('../../shared/daemon-discovery.js', () => ({
-  resolveDaemonPort: () => 9876,
+  resolveDaemonPort: () => 43121,
 }));
 
 const { diagnoseStartupBlockers } = await import('../../cli/utils/startup-doctor.js');
@@ -40,12 +40,12 @@ describe('startup doctor', () => {
   });
 
   test('does not flag the healthy daemon on the active port as a zombie blocker', () => {
-    const issues = diagnoseStartupBlockers(9876, { healthyDaemonPid: 123 });
+    const issues = diagnoseStartupBlockers(43121, { healthyDaemonPid: 123 });
     expect(issues).toEqual([]);
   });
 
   test('still flags stray port daddy listeners when they are not the healthy daemon pid', () => {
-    const issues = diagnoseStartupBlockers(9876, { healthyDaemonPid: 456 });
+    const issues = diagnoseStartupBlockers(43121, { healthyDaemonPid: 456 });
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({
       issue: 'Zombie Port Daddy process',
@@ -68,7 +68,7 @@ describe('startup doctor', () => {
       return { stdout: '', stderr: '', status: 0 };
     });
 
-    const issues = diagnoseStartupBlockers(9876);
+    const issues = diagnoseStartupBlockers(43121);
     expect(issues).toHaveLength(1);
     expect(issues[0]).toMatchObject({
       issue: 'Zombie Port Daddy socket process',

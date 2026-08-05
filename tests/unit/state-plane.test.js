@@ -24,7 +24,7 @@ describe('classifyPlane — env override wins', () => {
   });
 
   test('PORT_DADDY_PLANE=dev-latest forces dev-latest even on the canonical prefix', () => {
-    expect(classifyPlane({ prefixPath: CANONICAL, port: 9876, envOverride: 'dev-latest', homeDir: HOME })).toBe('dev-latest');
+    expect(classifyPlane({ prefixPath: CANONICAL, port: 43121, envOverride: 'dev-latest', homeDir: HOME })).toBe('dev-latest');
   });
 
   test('a full ephemeral:<label> override passes through verbatim', () => {
@@ -47,13 +47,13 @@ describe('classifyPlane — env override wins', () => {
 describe('classifyPlane — canonical prefix → prod', () => {
   test('no prefix at all (brew daemon) is prod', () => {
     expect(classifyPlane({ homeDir: HOME })).toBe('prod');
-    expect(classifyPlane({ prefixPath: undefined, port: 9876, homeDir: HOME })).toBe('prod');
+    expect(classifyPlane({ prefixPath: undefined, port: 43121, homeDir: HOME })).toBe('prod');
     expect(classifyPlane({ prefixPath: null, homeDir: HOME })).toBe('prod');
     expect(classifyPlane({ prefixPath: '', homeDir: HOME })).toBe('prod');
   });
 
   test('the resolved canonical prefix is prod', () => {
-    expect(classifyPlane({ prefixPath: CANONICAL, port: 9876, homeDir: HOME })).toBe('prod');
+    expect(classifyPlane({ prefixPath: CANONICAL, port: 43121, homeDir: HOME })).toBe('prod');
   });
 
   test('tilde expansion: ~/.port-daddy resolves to the canonical prefix', () => {

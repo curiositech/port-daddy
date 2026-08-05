@@ -2,8 +2,21 @@
 // Run with: node tests/benchmark/port-assignment.test.js
 
 import { performance } from 'perf_hooks';
+import { readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
-const API_URL = process.env.PORT_DADDY_URL || 'http://localhost:9876';
+function resolveApiUrl() {
+  if (process.env.PORT_DADDY_URL?.trim()) return process.env.PORT_DADDY_URL.replace(/\/$/, '');
+  const portFile = process.env.PORT_DADDY_PORT_FILE || join(homedir(), '.port-daddy', 'daemon.port');
+  const port = Number.parseInt(readFileSync(portFile, 'utf8').trim(), 10);
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+    throw new Error(`Invalid daemon endpoint witness: ${portFile}`);
+  }
+  return `http://127.0.0.1:${port}`;
+}
+
+const API_URL = resolveApiUrl();
 
 async function request(method, path, body = null) {
   const options = {

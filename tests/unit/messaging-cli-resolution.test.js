@@ -4,7 +4,7 @@ import { jest } from '@jest/globals';
 const stripAnsi = (s) => s.replace(/\[[0-9;]*m/g, '');
 
 const mockPdFetch = jest.fn();
-const mockResolveTarget = jest.fn(() => ({ host: '127.0.0.1', port: 9876 }));
+const mockResolveTarget = jest.fn(() => ({ host: '127.0.0.1', port: 43121 }));
 const mockHttpRequest = jest.fn();
 const mockUi = {
   error: jest.fn(),
@@ -16,7 +16,7 @@ const mockPromptText = jest.fn();
 
 jest.unstable_mockModule('../../cli/utils/fetch.js', () => ({
   pdFetch: mockPdFetch,
-  PORT_DADDY_URL: 'http://localhost:9876',
+  PORT_DADDY_URL: 'http://localhost:43121',
   resolveTarget: mockResolveTarget,
 }));
 
@@ -83,7 +83,7 @@ describe('messaging CLI channel resolution', () => {
 
     expect(mockPdFetch.mock.calls[0][0]).toContain('/channels/resolve/tauri%3Adesktop?projectDir=');
     expect(mockPdFetch.mock.calls[1][0]).toBe(
-      'http://localhost:9876/msg/br%3Arepo1234%3Aworka111%3Afeature-a-123abc%3Atauri%3Adesktop'
+      'http://localhost:43121/msg/br%3Arepo1234%3Aworka111%3Afeature-a-123abc%3Atauri%3Adesktop'
     );
     // Success message colors only the channel; strip ANSI and confirm it
     // actually reports the publish, so a regression in the message still fails.
@@ -102,7 +102,7 @@ describe('messaging CLI channel resolution', () => {
 
     await handlePub('legacy:raw', '{"ok":true}', {});
 
-    expect(mockPdFetch.mock.calls[1][0]).toBe('http://localhost:9876/msg/legacy%3Araw');
+    expect(mockPdFetch.mock.calls[1][0]).toBe('http://localhost:43121/msg/legacy%3Araw');
   });
 
   test('handlePub bypasses resolution when --raw-channel is set', async () => {
@@ -111,7 +111,7 @@ describe('messaging CLI channel resolution', () => {
     await handlePub('tauri:desktop', '{"ok":true}', { 'raw-channel': true });
 
     expect(mockPdFetch).toHaveBeenCalledTimes(1);
-    expect(mockPdFetch.mock.calls[0][0]).toBe('http://localhost:9876/msg/tauri%3Adesktop');
+    expect(mockPdFetch.mock.calls[0][0]).toBe('http://localhost:43121/msg/tauri%3Adesktop');
   });
 
   test('handleChannels clear resolves declared logical channels before deleting', async () => {
@@ -129,7 +129,7 @@ describe('messaging CLI channel resolution', () => {
     await handleChannels('clear', ['tauri:desktop'], { yes: true });
 
     expect(mockPdFetch.mock.calls[1][0]).toBe(
-      'http://localhost:9876/msg/br%3Arepo1234%3Aworka111%3Afeature-a-123abc%3Atauri%3Adesktop'
+      'http://localhost:43121/msg/br%3Arepo1234%3Aworka111%3Afeature-a-123abc%3Atauri%3Adesktop'
     );
     expect(mockPdFetch.mock.calls[1][1]).toMatchObject({ method: 'DELETE' });
   });

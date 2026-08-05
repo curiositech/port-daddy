@@ -18,7 +18,7 @@ const mockAutoIdentityFromPackageJson = jest.fn();
 
 jest.unstable_mockModule('../../cli/utils/fetch.js', () => ({
   pdFetch: mockPdFetch,
-  PORT_DADDY_URL: 'http://localhost:9876',
+  PORT_DADDY_URL: 'http://localhost:43121',
 }));
 
 jest.unstable_mockModule('../../cli/utils/ui.js', () => mockUi);
@@ -79,7 +79,7 @@ describe('pd agent interrupt', () => {
 
     expect(mockPdFetch).toHaveBeenCalledTimes(1);
     const [url, init] = mockPdFetch.mock.calls[0];
-    expect(url).toBe('http://localhost:9876/agents/agent-123/interrupt');
+    expect(url).toBe('http://localhost:43121/agents/agent-123/interrupt');
     expect(init.method).toBe('POST');
     expect(JSON.parse(init.body)).toEqual({ reason: 'pause for rebase' });
     expect(mockUi.success).toHaveBeenCalledWith(expect.stringContaining('agent-123'));

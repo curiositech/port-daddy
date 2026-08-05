@@ -7,7 +7,7 @@ const mockPdFetch = jest.fn();
 
 jest.unstable_mockModule('../../cli/utils/fetch.js', () => ({
   pdFetch: mockPdFetch,
-  PORT_DADDY_URL: 'http://127.0.0.1:9876',
+  PORT_DADDY_URL: 'http://127.0.0.1:43121',
 }));
 
 // Capture ui.info / ui.error / ui.success calls without printing to the

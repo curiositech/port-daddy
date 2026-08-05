@@ -33,7 +33,7 @@ describe('resources routes', () => {
           list: jest.fn(() => ({ agents: [{ isActive: true }, { isActive: true }] })),
         },
         services: {
-          find: jest.fn(() => ({ services: [{ port: 9876 }, { port: 4567 }, { status: 'running' }] })),
+          find: jest.fn(() => ({ services: [{ port: 43121 }, { port: 4567 }, { status: 'running' }] })),
         },
         fleetDaemon: {
           getStatus: jest.fn(() => ({

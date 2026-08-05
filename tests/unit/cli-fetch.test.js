@@ -2,11 +2,11 @@ import { EventEmitter } from 'node:events';
 import { jest } from '@jest/globals';
 
 const mockExistsSync = jest.fn();
-const mockReadDaemonPort = jest.fn(() => 9876);
+const mockReadDaemonPort = jest.fn(() => 43121);
 const mockResolveDaemonTcpTarget = jest.fn((explicitUrl) => {
   if (explicitUrl) {
     const url = new URL(explicitUrl);
-    return { host: url.hostname, port: Number.parseInt(url.port, 10) || 9876 };
+    return { host: url.hostname, port: Number.parseInt(url.port, 10) || 43121 };
   }
   return { host: '127.0.0.1', port: mockReadDaemonPort() };
 });
@@ -25,9 +25,9 @@ jest.unstable_mockModule('node:http', () => ({
 }));
 
 jest.unstable_mockModule('../../shared/daemon-discovery.js', () => ({
-  DEFAULT_DAEMON_PORT: 9876,
+  DEFAULT_DAEMON_PORT: 43121,
   LOOPBACK_TCP_HOST: '127.0.0.1',
-  resolveDaemonUrl: () => 'http://127.0.0.1:9876',
+  resolveDaemonUrl: () => 'http://127.0.0.1:43121',
   resolveDaemonPort: mockReadDaemonPort,
   resolveDaemonTcpTarget: mockResolveDaemonTcpTarget,
   // The one canonical resolver fetch.ts now delegates to. Honor the same
@@ -55,7 +55,7 @@ describe('cli/utils/fetch pdFetch', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env.PORT_DADDY_URL;
-    mockReadDaemonPort.mockReturnValue(9876);
+    mockReadDaemonPort.mockReturnValue(43121);
   });
 
   test('falls back to TCP when the unix socket exists but refuses connections', async () => {
@@ -83,13 +83,13 @@ describe('cli/utils/fetch pdFetch', () => {
     expect(await response.json()).toEqual({ ok: true, transport: 'tcp' });
     expect(mockRequest).toHaveBeenCalledTimes(2);
     expect(mockRequest.mock.calls[0][0]).toMatchObject({ socketPath: expect.any(String) });
-    expect(mockRequest.mock.calls[1][0]).toMatchObject({ host: '127.0.0.1', port: 9876 });
+    expect(mockRequest.mock.calls[1][0]).toMatchObject({ host: '127.0.0.1', port: 43121 });
   });
 
   test('forced TCP honors PORT_DADDY_URL instead of the canonical port file', async () => {
     process.env.PORT_DADDY_URL = 'http://127.0.0.1:19876';
     mockExistsSync.mockReturnValue(false);
-    mockReadDaemonPort.mockReturnValue(9876);
+    mockReadDaemonPort.mockReturnValue(43121);
     mockRequest.mockImplementation((options, callback) => {
       const req = new EventEmitter();
       req.write = jest.fn();
@@ -147,7 +147,7 @@ describe('cli/utils/fetch pdFetch', () => {
         attemptCount += 1;
         if (attemptCount <= 2) {
           queueMicrotask(() => {
-            const error = new Error('connect ECONNREFUSED 127.0.0.1:9876');
+            const error = new Error('connect ECONNREFUSED 127.0.0.1:43121');
             error.code = 'ECONNREFUSED';
             req.emit('error', error);
           });

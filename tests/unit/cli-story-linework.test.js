@@ -68,7 +68,7 @@ golden no-color shape"
   test('narrow terminal output stays within the requested width after ANSI stripping', () => {
     const rendered = renderLineworkPanel({
       title: 'Port Daddy',
-      subtitle: 'daemon · :9876 · very long subtitle that must truncate',
+      subtitle: 'daemon · :43121 · very long subtitle that must truncate',
       tone: 'running',
       zone: 'daemon confirmed',
       width: 44,

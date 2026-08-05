@@ -12,7 +12,7 @@ let logSpy;
 let errorSpy;
 
 jest.unstable_mockModule('../../cli/utils/fetch.js', () => ({
-  PORT_DADDY_URL: 'http://127.0.0.1:9876',
+  PORT_DADDY_URL: 'http://127.0.0.1:43121',
   pdFetch,
 }));
 
@@ -332,7 +332,7 @@ describe('pd roadmap', () => {
     await handleRoadmap(['ack', 'fb-1'], { as: 'cartographer', into: 'cartographer-live-body-salvage-friction' });
 
     expect(pdFetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9876/feedback/fb-1/harvest',
+      'http://127.0.0.1:43121/feedback/fb-1/harvest',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
