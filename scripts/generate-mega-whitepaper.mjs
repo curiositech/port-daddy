@@ -104,6 +104,12 @@ function referenceFingerprint(body) {
   return doi ? `doi:${doi.replace(/[.,;]+$/, '')}` : `text:${normalized}`;
 }
 
+function compareNormalizedReferences(a, b) {
+  const left = normalizedReference(a.body);
+  const right = normalizedReference(b.body);
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function cleanStandaloneChrome(body) {
   return body
     .replace(/\\maketitle\s*/g, '')
@@ -152,6 +158,7 @@ function rewriteCitations(body, citationMap, source) {
   });
 }
 
+function generate() {
 const prepared = papers.map((paper) => {
   const sourcePath = resolve(repoRoot, paper.source);
   const rootBody = documentBody(readUtf8(sourcePath), paper.source);
@@ -193,7 +200,7 @@ const generatedBodies = prepared.map((paper) => {
   ].join('\n\n');
 });
 
-canonicalReferences.sort((a, b) => normalizedReference(a.body).localeCompare(normalizedReference(b.body)));
+canonicalReferences.sort(compareNormalizedReferences);
 const bibliography = [
   '\\begin{thebibliography}{999}',
   ...canonicalReferences.flatMap((ref) => [
@@ -215,3 +222,8 @@ writeFileSync(
 );
 
 console.log(`generated ${papers.length} chapters and ${canonicalReferences.length} collated references in ${outDir}`);
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) generate();
+
+export { compareNormalizedReferences, inlineInputs, rewriteCitations };

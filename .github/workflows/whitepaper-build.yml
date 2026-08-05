@@ -68,12 +68,14 @@ jobs:
           ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
-      # The collected-volume builder namespaces and collates the seven chapter
-      # sources before TeX runs. The texlive container intentionally ships no
-      # JavaScript runtime, so make the generator's Node dependency explicit.
+      # Exercise the collected-volume generator's failure contracts before TeX.
+      # The texlive container intentionally ships no JavaScript runtime.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Test collected-volume generator
+        run: node --test scripts/generate-mega-whitepaper.test.mjs
 
       - name: Trust the checkout dir (container runs as root)
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
