@@ -24,14 +24,14 @@ but the trigger fabric that would drive them was never connected.
 There are **two parallel memory/context stacks**:
 
 - **Tier A — LIVE and wired.** `lib/episodic-memory.ts` (`episodic_memory`
-  table, self-created at `:222`), constructed at `server.ts:450`, harvested by
-  the daemon-resident `knowledge-custodian.ts` loop (`server.ts:802`), read by
+  table, self-created at `:222`), constructed at `server.ts:541`, harvested by
+  the daemon-resident `knowledge-custodian.ts` loop (`server.ts:961-979`), read by
   `pd memory` (`cli/commands/memory.ts:390`) and MCP `memory_episodes` /
   `memory_stats` / `find_related_work` / `custodian_status`. The live context
-  tracker is `context-window-tracker.ts` (`server.ts:572`), exposed via
+  tracker is `context-window-tracker.ts` (`server.ts:702`), exposed via
   `routes/context.ts` and MCP `get_context_budget` / `get_context_overview`.
   Pressure bands here are coarse: warn >= 50%, critical >= 70% of an *effective*
-  window defined as 60% of the advertised window (`context-window-tracker.ts:73`).
+  window defined as 60% of the advertised window (`context-window-tracker.ts:4-12`).
 
 - **Tier B — DESIGNED, tested, UNWIRED (tracked, but zero non-test callers).**
   `lib/agent-harbor/context-pressure.ts`, `compaction.ts`, and
