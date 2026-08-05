@@ -104,7 +104,7 @@ set -l __pd_commands \
     'bench' 'benchmark' 'demo' 'fleet' 'backend' 'squid' 'relay' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
-    'start' 'stop' 'restart' 'status' 'install' 'install-bosun' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'self-update' 'upgrade' 'mcp' \
+    'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'self-update' 'upgrade' 'mcp' \
     'setup' 'init' 'cut' 'batten' 'hooks' \
     'plan' 'version' 'help'
 
@@ -495,7 +495,6 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a restart -d 'Restart the daemon'
     complete -c $prog -n __pd_needs_command -a status -d 'Show daemon status'
     complete -c $prog -n __pd_needs_command -a install -d 'Install as system service'
-    complete -c $prog -n __pd_needs_command -a install-bosun -d 'Wire only the Bosun watchdog (brew-managed daemon)'
     complete -c $prog -n __pd_needs_command -a uninstall -d 'Uninstall system service'
     complete -c $prog -n __pd_needs_command -a dev -d 'Daemon berths: up/down/list (ADR-0055)'
     complete -c $prog -n __pd_needs_command -a use -d 'Target this shell at a daemon berth (eval "$(pd use dev)")'
