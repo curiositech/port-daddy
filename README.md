@@ -680,6 +680,34 @@ flood the matrix with the fleet's working set. Hookless
 backends (Groq, Ollama, LM Studio) read the same key classes through
 `lib/local-citizen/ink-cloud.ts`.
 
+#### `pd arrive` — the arrival briefing
+
+The reconcile loop keeps a *running* session current. `pd arrive` answers the
+other question: what should an agent be told at the moment it **starts**? It
+ranks four corpora against the arriving session — salvageable work that looks
+like this work, roadmap items it belongs under, skills for it, and the agents
+already standing on the same files — and prints only what clears a relevance
+floor. Nothing matches, nothing prints; a session-start block that always fires
+is one agents learn to skip.
+
+```bash
+pd arrive                       # uses $PD_ACTOR and the current session
+pd arrive --purpose "wire the reconcile producers" --files lib/squid/reconcile.ts
+pd arrive --json                # the ranked briefing, with per-hit evidence
+```
+
+Every hit carries a `why` — the shared terms, or the shared file — because a
+match an agent cannot account for discredits the whole section. The neighbour
+section is the one that turns a briefing into coordination: a shared claimed
+path outranks any amount of topical similarity, since that pair is heading for a
+collision whether or not either has noticed. Ranking lives in
+`lib/arrival-briefing.ts` and is pure, so the decisions are testable without a
+daemon; `GET /briefing/arrival` does the I/O.
+
+Watch the whole loop play out — two agents colliding, getting alerted, and
+settling it in a parley — with `scripts/parley-battle.sh` (a tmux commercial;
+`--live` drives the real daemon).
+
 Claude and Gemini use project config; Codex and agy require user config because
 their interactive hook engines do not honor a project-local equivalent. Those
 user-level entries are still project-scoped at runtime: the wrapper requires a

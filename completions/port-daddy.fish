@@ -96,7 +96,7 @@ set -l __pd_commands \
     'pub' 'publish' 'broadcast' 'sub' 'subscribe' 'listen' 'tube' 'wait' 'lock' 'unlock' 'locks' \
     'agent' 'agents' 'actor' 'actors' 'roster' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'takeover' 'note' 'notes' \
-    'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' 'send' 'sent' \
+    'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'arrive' 'history' 'inbox' 'send' 'sent' \
     'begin' 'b' 'done' 'whoami' 'w' 'account' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'work' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'harbor-ledger' 'tuple' 'graph' 'booty' 'embed' 'skill-graft' 'skillgraft' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' 'suggest' 'seamanship' 'skills' \
     'say' 'look' 'sitrep' 'whois' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
@@ -180,6 +180,7 @@ for prog in port-daddy pd
 
     # Briefing & History
     complete -c $prog -n __pd_needs_command -a briefing -d 'Generate .portdaddy/ project briefing'
+    complete -c $prog -n __pd_needs_command -a arrive -d 'Arrival briefing: salvage, roadmap, skills, neighbouring agents'
     complete -c $prog -n __pd_needs_command -a history -d 'View recent project activity'
     complete -c $prog -n __pd_needs_command -a graph -d 'Inspect semantic graph edges and stats'
     complete -c $prog -n __pd_needs_command -a embed -d 'Shared local embedding model: status, prefetch, embed text'
