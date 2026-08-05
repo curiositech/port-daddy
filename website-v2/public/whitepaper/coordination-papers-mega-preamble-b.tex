@@ -1,0 +1,106 @@
+
+\lstdefinestyle{pdcode}{language=C,backgroundcolor=\color{codebg},frame=single,
+  rulecolor=\color{codeframe},basicstyle=\ttfamily\small,
+  keywordstyle=\color{hhink}\bfseries,commentstyle=\color{hhgray}\itshape,
+  stringstyle=\color{hhgray},numbers=left,numberstyle=\tiny\color{gray},
+  numbersep=8pt,breaklines=true,showstringspaces=false,tabsize=2,
+  xleftmargin=15pt,xrightmargin=5pt,framexleftmargin=15pt,captionpos=b}
+\lstdefinestyle{pseudocode}{style=pdcode,
+  morekeywords={function,return,if,then,else,for,while,do,begin,end,atomic,transaction,reject,commit,assert,raise}}
+\lstdefinestyle{proverif}{style=pdcode}
+\lstdefinestyle{rust}{style=pdcode,tabsize=4}
+\lstdefinestyle{tlaplus}{style=pdcode,
+  morekeywords={MODULE,EXTENDS,CONSTANTS,VARIABLES,VARIABLE,Init,Next,Spec,
+  TypeOK,IF,THEN,ELSE,LET,IN,CHOOSE,SUBSET,UNION,DOMAIN,EXCEPT,
+  UNCHANGED,TRUE,FALSE,BOOLEAN,Nat,Int,STRING,Seq,Append,Len,Head,Tail,
+  ENABLED,WF_,SF_,THEOREM,ASSUME,INSTANCE,WITH,LOCAL}}
+\lstset{style=pdcode}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{property}{Property}[section]
+\newtheorem{protocol}{Protocol}[section]
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{corollary}{Corollary}[section]
+\newtheorem{conjecture}{Conjecture}[section]
+\theoremstyle{remark}
+\newtheorem*{remark}{Remark}
+
+\newcounter{lsprotocol}[section]
+\renewcommand{\thelsprotocol}{\thesection.\arabic{lsprotocol}}
+\newenvironment{lsprotocol}[1]{%
+  \par\vspace{8pt}\refstepcounter{lsprotocol}\noindent\begin{tikzpicture}
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
+        inner sep=10pt,text width=\dimexpr\textwidth-28pt\relax,align=left]\bgroup
+  \begin{minipage}{\dimexpr\textwidth-30pt\relax}
+  {\scshape\bfseries\color{hhink}Protocol~\thelsprotocol.}\enspace{\bfseries #1}\par\vspace{4pt}\small
+}{\end{minipage}\egroup;\end{tikzpicture}\par\vspace{8pt}}
+\newcounter{stpprotocol}[section]
+\renewcommand{\thestpprotocol}{\thesection.\arabic{stpprotocol}}
+\newenvironment{stpprotocol}[1][]{%
+  \par\vspace{8pt}\refstepcounter{stpprotocol}\noindent\begin{tikzpicture}
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
+        inner sep=10pt,text width=\dimexpr\textwidth-26pt\relax,align=left]\bgroup
+  \begin{minipage}{\dimexpr\textwidth-46pt\relax}
+  {\scshape\bfseries\color{hhink}Protocol~\thestpprotocol.}%
+  \ifx\\#1\\\else\ {\bfseries #1}\fi\par\vspace{3pt}\small
+}{\end{minipage}\egroup;\end{tikzpicture}\par\vspace{8pt}}
+\theoremstyle{definition}
+\newtheorem{heprotocol}{Protocol}[section]
+
+\tikzset{
+  stp box/.style={draw=hhink,line width=0.55pt,fill=hhsand!22,rounded corners=2pt,inner sep=7pt,align=center,minimum height=10mm},
+  stp accent box/.style={stp box,draw=hhcobalt,line width=0.9pt},
+  stp arrow/.style={-{Stealth[length=2.3mm,width=1.5mm]},draw=hhink,line width=0.65pt},
+  stp accent arrow/.style={-{Stealth[length=2.3mm,width=1.5mm]},draw=hhcobalt,line width=0.8pt},
+  stp dashed arrow/.style={stp accent arrow,dashed},
+  stp label/.style={fill=hhpaper,inner xsep=3pt,inner ysep=1.5pt,font=\footnotesize\itshape,text=hhgray},
+  stp heading/.style={font=\footnotesize\bfseries,text=hhink},
+  stp status/.style={font=\scriptsize\scshape,text=hhgray},
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\itshape\color{hhgray} Port Daddy Coordination Papers}
+\fancyhead[R]{\small\color{hhgray}\thepage}
+\fancyfoot[C]{\footnotesize\color{hhgray} The Collected Volume \textperiodcentered\ August 2026}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\newcommand{\pdcurrentchapter}{I}
+\newcommand{\pdchapter}[2]{%
+  \clearpage
+  \renewcommand{\pdcurrentchapter}{#1}
+  \part[#1. #2]{#2}
+  \setcounter{section}{0}\setcounter{figure}{0}\setcounter{table}{0}\setcounter{equation}{0}\setcounter{lstlisting}{0}
+  \renewcommand{\thesection}{#1.\arabic{section}}
+  \renewcommand{\thefigure}{#1.\arabic{figure}}
+  \renewcommand{\thetable}{#1.\arabic{table}}
+  \renewcommand{\theequation}{#1.\arabic{equation}}
+  \renewcommand{\thelstlisting}{#1.\arabic{lstlisting}}
+  \renewcommand{\theHsection}{#1.\arabic{section}}
+  \renewcommand{\theHsubsection}{#1.\arabic{section}.\arabic{subsection}}
+  \renewcommand{\theHsubsubsection}{#1.\arabic{section}.\arabic{subsection}.\arabic{subsubsection}}
+  \renewcommand{\theHfigure}{#1.\arabic{figure}}
+  \renewcommand{\theHtable}{#1.\arabic{table}}
+  \renewcommand{\theHequation}{#1.\arabic{equation}}
+  \renewcommand{\theHlstlisting}{#1.\arabic{lstlisting}}
+  \fancyhead[L]{\small\itshape\color{hhgray} #1. #2}
+  \fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter #1 of VII}
+}
+\newcommand{\pdchapterappendix}{%
+  \clearpage\setcounter{section}{0}
+  \renewcommand{\thesection}{\pdcurrentchapter.\Alph{section}}
+  \renewcommand{\theHsection}{\pdcurrentchapter.appendix.\arabic{section}}
+  \renewcommand{\theHsubsection}{\pdcurrentchapter.appendix.\arabic{section}.\arabic{subsection}}
+  \renewcommand{\theHsubsubsection}{\pdcurrentchapter.appendix.\arabic{section}.\arabic{subsection}.\arabic{subsubsection}}
+  \renewcommand{\theHfigure}{\pdcurrentchapter.appendix.\arabic{figure}}
+  \renewcommand{\theHtable}{\pdcurrentchapter.appendix.\arabic{table}}
+  \renewcommand{\theHequation}{\pdcurrentchapter.appendix.\arabic{equation}}
+  \renewcommand{\theHlstlisting}{\pdcurrentchapter.appendix.\arabic{lstlisting}}
+  \section*{Chapter appendices}
+  \addcontentsline{toc}{section}{\pdcurrentchapter. Chapter appendices}}
+
