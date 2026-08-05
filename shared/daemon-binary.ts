@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { platform } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 
@@ -18,95 +18,6 @@ export interface DaemonLaunchCommand {
 
 export function daemonBinaryName(os: NodeJS.Platform = platform()): string {
   return os === 'win32' ? 'port-daddy-daemon.exe' : 'port-daddy-daemon';
-}
-
-/**
- * Resolve the packaged ONNX Runtime directory for one compiled executable.
- *
- * Why this resolver exists: release archives put `native/` beside the executable, while source builds
- * put it below `dist/`. Keeping both layouts here prevents daemon launchers,
- * installers, and semantic code from independently guessing the cargo path.
- *
- * @param resourceDir Distribution root published to the daemon.
- * @param executablePath Compiled executable that will load ONNX Runtime.
- * @param os Target operating system.
- * @param cpu Target CPU architecture.
- * @returns Existing packaged runtime directory, or null for source-only runs.
- */
-export function resolveOnnxRuntimeNativeLibraryDir(
-  resourceDir: string,
-  executablePath: string,
-  os: NodeJS.Platform = platform(),
-  cpu: string = process.arch,
-): string | null {
-  if (os !== 'darwin' && os !== 'linux') return null;
-  const platformArch = `${os}-${cpu}`;
-  const candidates = [
-    join(resourceDir, 'dist', 'native', 'onnxruntime-node', platformArch),
-    join(resourceDir, 'native', 'onnxruntime-node', platformArch),
-    join(dirname(executablePath), 'native', 'onnxruntime-node', platformArch),
-  ];
-  return candidates.find(candidate => existsSync(candidate)) ?? null;
-}
-
-/**
- * Verify that a loader-path entry contains the platform's ONNX shared library.
- * Why this verifier exists: named profiles may supply an equivalent versioned
- * runtime root. This accepts those roots while rejecting unrelated
- * existing directories that would still fail the native import.
- *
- * @param directory Candidate dynamic-loader directory.
- * @param os Target operating system.
- * @returns True only when the expected ONNX shared-library filename is present.
- */
-export function isOnnxRuntimeNativeLibraryDir(
-  directory: string,
-  os: NodeJS.Platform = platform(),
-): boolean {
-  try {
-    const names = readdirSync(directory);
-    if (os === 'darwin') {
-      return names.some(name => /^libonnxruntime(?:\.[\d.]+)?\.dylib$/.test(name));
-    }
-    if (os === 'linux') {
-      return names.some(name => /^libonnxruntime\.so(?:\.[\d.]+)?$/.test(name));
-    }
-    return false;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Build the dynamic-loader environment required before a compiled daemon
- * process starts. macOS dyld and the Linux ELF loader read these values at
- * process admission; assigning process.env later cannot repair a failed
- * `dlopen()`. That timing constraint is why launch commands, rather than the
- * lazy semantic loader, own this environment.
- *
- * @param resourceDir Distribution root published to the daemon.
- * @param executablePath Compiled executable that will load ONNX Runtime.
- * @param env Parent environment whose existing loader path must be preserved.
- * @param os Target operating system.
- * @param cpu Target CPU architecture.
- * @returns Empty object when no packaged runtime applies, otherwise one loader variable.
- */
-export function resolveOnnxRuntimeNativeLaunchEnv(
-  resourceDir: string,
-  executablePath: string,
-  env: NodeJS.ProcessEnv = process.env,
-  os: NodeJS.Platform = platform(),
-  cpu: string = process.arch,
-): Record<string, string> {
-  const nativeDir = resolveOnnxRuntimeNativeLibraryDir(resourceDir, executablePath, os, cpu);
-  if (!nativeDir) return {};
-  const variable = os === 'darwin' ? 'DYLD_FALLBACK_LIBRARY_PATH' : 'LD_LIBRARY_PATH';
-  const existing = env[variable]?.trim();
-  const entries = existing?.split(':').filter(Boolean) ?? [];
-  const value = entries.includes(nativeDir)
-    ? existing as string
-    : [nativeDir, ...entries].join(':');
-  return { [variable]: value };
 }
 
 export function sourceDaemonFallbackAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -289,27 +200,12 @@ export function resolveDaemonLaunchCommand(
   const sourceTsxPath = join(rootDir, 'node_modules', '.bin', 'tsx');
   const sourceServerPath = join(rootDir, 'server.ts');
 
-  /**
-   * Compose the environment shared by every compiled launch mode.
-   *
-   * Why this closure exists: explicit, discovered, and self-hosted binaries
-   * must not drift on the resource root or native loader contract.
-   *
-   * @param resourceDir Distribution root published to the child.
-   * @param executablePath Compiled executable selected for the child.
-   * @returns Resource and native-loader variables to merge at spawn time.
-   */
-  const compiledEnv = (resourceDir: string, executablePath: string): Record<string, string> => ({
-    PORT_DADDY_RESOURCE_DIR: resourceDir,
-    ...resolveOnnxRuntimeNativeLaunchEnv(resourceDir, executablePath, env),
-  });
-
   if (env.PORT_DADDY_DAEMON_BINARY?.trim() && existsSync(binaryPath)) {
     return {
       mode: 'binary',
       program: binaryPath,
       args: [],
-      env: compiledEnv(rootDir, binaryPath),
+      env: { PORT_DADDY_RESOURCE_DIR: rootDir },
       binaryPath,
       sourceServerPath,
       sourceTsxPath,
@@ -324,7 +220,7 @@ export function resolveDaemonLaunchCommand(
       mode: 'self',
       program: process.execPath,
       args: ['__daemon'],
-      env: compiledEnv(resourceDir, process.execPath),
+      env: { PORT_DADDY_RESOURCE_DIR: resourceDir },
       binaryPath: process.execPath,
       sourceServerPath,
       sourceTsxPath,
@@ -338,7 +234,7 @@ export function resolveDaemonLaunchCommand(
       mode: 'binary',
       program: binaryPath,
       args: [],
-      env: compiledEnv(rootDir, binaryPath),
+      env: { PORT_DADDY_RESOURCE_DIR: rootDir },
       binaryPath,
       sourceServerPath,
       sourceTsxPath,

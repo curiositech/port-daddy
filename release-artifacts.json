@@ -85,11 +85,11 @@
     },
     {
       "id": "native-onnxruntime",
-      "_comment": "onnxruntime-node runtime libs staged by the shared packaging primitive used by both compiled builders. Filenames are platform-specific, so this asserts the directory exists and is non-empty. Semantic and hybrid search are product capabilities, not optional performance enhancements; supported release targets fail closed when this cargo is absent.",
+      "_comment": "onnxruntime-node runtime libs (libonnxruntime.*.dylib / libonnxruntime.so.1) staged by scripts/build-single-binary.mjs (#3561). Filenames are platform-specific, so this asserts the directory exists and is non-empty rather than a single file. required:false — it is a semantic-search perf enhancement, NOT a silent-capability regression of the pd-bosun/tentacle class; a build without onnxruntime-node must still be able to release.",
       "sourcePath": "dist/native",
       "stagedPath": "native",
       "type": "dir",
-      "required": true,
+      "required": false,
       "executable": false
     }
   ]

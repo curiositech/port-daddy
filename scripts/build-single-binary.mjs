@@ -6,7 +6,6 @@ import { createServer } from 'node:net';
 import { homedir } from 'node:os';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
-import { packageOnnxRuntimeNative } from './lib/onnx-runtime-native.mjs';
 
 const ROOT_DIR = resolve(new URL('..', import.meta.url).pathname);
 const DIST_DIR = join(ROOT_DIR, 'dist');
@@ -45,41 +44,7 @@ function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
-function launcherSource(binaryName, target) {
-  const requestedPlatform = targetPlatform(target);
-  const requestedArch = targetArch(target);
-  const loaderVariable = requestedPlatform === 'darwin'
-    ? 'DYLD_FALLBACK_LIBRARY_PATH'
-    : requestedPlatform === 'linux'
-      ? 'LD_LIBRARY_PATH'
-      : null;
-  const nativeSubdir = loaderVariable && requestedArch
-    ? `native/onnxruntime-node/${requestedPlatform}-${requestedArch}`
-    : null;
-  const loaderBootstrap = loaderVariable && nativeSubdir
-    ? `
-  char native_dir[PATH_MAX];
-  written = snprintf(native_dir, sizeof(native_dir), "%.*s/${nativeSubdir}", (int)dir_len, self);
-  if (written < 0 || (size_t)written >= sizeof(native_dir)) {
-    fprintf(stderr, "pd launcher: native runtime path is too long\\n");
-    return 127;
-  }
-  const char *existing_loader_path = getenv("${loaderVariable}");
-  size_t loader_len = strlen(native_dir) + (existing_loader_path ? strlen(existing_loader_path) + 1 : 0) + 1;
-  char *loader_path = calloc(loader_len, sizeof(char));
-  if (loader_path == NULL) {
-    fprintf(stderr, "pd launcher: out of memory while configuring semantic runtime\\n");
-    return 127;
-  }
-  if (existing_loader_path && existing_loader_path[0] != '\\0') {
-    snprintf(loader_path, loader_len, "%s:%s", native_dir, existing_loader_path);
-  } else {
-    snprintf(loader_path, loader_len, "%s", native_dir);
-  }
-  setenv("${loaderVariable}", loader_path, 1);
-  free(loader_path);
-`
-    : '';
+function launcherSource(binaryName) {
   return `#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -124,7 +89,6 @@ int main(int argc, char **argv) {
     fprintf(stderr, "pd launcher: sibling binary path is too long\\n");
     return 127;
   }
-${loaderBootstrap}
 
   char **child_argv = calloc((size_t)argc + 1, sizeof(char *));
   if (child_argv == NULL) {
@@ -146,9 +110,9 @@ ${loaderBootstrap}
 `;
 }
 
-function writePdLauncher(launcherPath, binaryName, target) {
+function writePdLauncher(launcherPath, binaryName) {
   const sourcePath = `${launcherPath}.launcher.c`;
-  writeFileSync(sourcePath, launcherSource(binaryName, target));
+  writeFileSync(sourcePath, launcherSource(binaryName));
   try {
     run('cc', [sourcePath, '-O2', '-o', launcherPath], { stdio: 'pipe' });
   } finally {
@@ -334,6 +298,54 @@ function writeEmbeddedNativeCoreModule(target) {
   };
 }
 
+/**
+ * `bun build --compile` embeds onnxruntime-node's `.node` N-API binding and
+ * extracts it to a fresh temp directory on first use — but its sibling
+ * runtime library (`libonnxruntime.*.dylib` / `libonnxruntime.so.1`), linked
+ * via a Mach-O/ELF `@rpath`-relative entry, is NOT extracted alongside it.
+ * The result: `@huggingface/transformers`' local embedder fails every
+ * daemon boot with "Library not loaded: @rpath/libonnxruntime.*.dylib".
+ *
+ * Fix: ship the real runtime library as a plain file next to the compiled
+ * binary (onnxruntime-node ships prebuilt binaries for every platform, so
+ * this works even cross-target) and point `DYLD_FALLBACK_LIBRARY_PATH` /
+ * `LD_LIBRARY_PATH` at it at runtime (lib/semantic-resolver.ts) — dyld's
+ * fallback path is consulted at the actual `dlopen()` call, so it works
+ * regardless of where Bun's own extraction puts the `.node` binding.
+ */
+function packageOnnxRuntimeNative(target) {
+  const requestedPlatform = targetPlatform(target);
+  const requestedArch = targetArch(target);
+  if (!requestedPlatform || !requestedArch) {
+    return { status: 'skipped', reason: 'unresolvable target' };
+  }
+  if (requestedPlatform === 'win32') {
+    return { status: 'skipped', reason: 'windows onnxruntime.dll is not @rpath-linked; not applicable' };
+  }
+
+  const sourceDir = join(ROOT_DIR, 'node_modules', 'onnxruntime-node', 'bin', 'napi-v6', requestedPlatform, requestedArch);
+  if (!existsSync(sourceDir)) {
+    return { status: 'skipped', reason: `no onnxruntime-node binaries at ${sourceDir}` };
+  }
+
+  const destDir = join(DIST_DIR, 'native', 'onnxruntime-node', `${requestedPlatform}-${requestedArch}`);
+  mkdirSync(destDir, { recursive: true });
+
+  const runtimeLibFiles = readdirSync(sourceDir).filter(name => !name.endsWith('.node'));
+  for (const name of runtimeLibFiles) {
+    copyFileSync(join(sourceDir, name), join(destDir, name));
+  }
+
+  return {
+    status: runtimeLibFiles.length > 0 ? 'packaged' : 'skipped',
+    reason: runtimeLibFiles.length > 0 ? null : 'no runtime library files found alongside the .node binding',
+    platform: requestedPlatform,
+    arch: requestedArch,
+    dir: destDir,
+    files: runtimeLibFiles,
+  };
+}
+
 async function reservePort() {
   return new Promise((resolvePort, reject) => {
     const server = createServer();
@@ -488,12 +500,7 @@ run(process.execPath, ['scripts/build-public-samples.mjs'], { stdio: 'inherit' }
 const squidAssets = stageSquidReleaseAssets(releaseDir);
 const embeddedNativeCore = writeEmbeddedNativeCoreModule(target);
 const embeddedAssets = writeEmbeddedAssetsModule();
-const onnxRuntimeNative = packageOnnxRuntimeNative({
-  repoRoot: ROOT_DIR,
-  outputRoot: DIST_DIR,
-  platform: targetPlatform(target),
-  arch: targetArch(target),
-});
+const onnxRuntimeNative = packageOnnxRuntimeNative(target);
 
 if (canSmokeTarget && embeddedNativeCore.status !== 'embedded') {
   throw new Error(`Expected embedded native core for same-runner target ${target || 'host'}; got ${embeddedNativeCore.status}`);
@@ -510,7 +517,7 @@ if (!existsSync(binaryOutfile)) {
 }
 
 if (launcherOutfile) {
-  writePdLauncher(launcherOutfile, basename(binaryOutfile), target);
+  writePdLauncher(launcherOutfile, basename(binaryOutfile));
   if (!existsSync(launcherOutfile)) {
     throw new Error(`Expected pd launcher at ${launcherOutfile}`);
   }

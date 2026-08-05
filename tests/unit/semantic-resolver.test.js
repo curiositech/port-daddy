@@ -250,34 +250,27 @@ describe('ensureOnnxRuntimeNativeLibFindable', () => {
     expect(process.env[fallbackVar]).toBeUndefined();
   });
 
-  test('fails loudly when a packaged runtime was not configured before process start', () => {
+  test('points the dynamic-linker fallback path at PORT_DADDY_RESOURCE_DIR/dist/native/onnxruntime-node/<platform>-<arch> when present', () => {
     const platformArch = `${process.platform}-${process.arch}`;
     const nativeDir = join(scratchDir, 'dist', 'native', 'onnxruntime-node', platformArch);
     mkdirSync(nativeDir, { recursive: true });
     writeFileSync(join(nativeDir, 'libonnxruntime.fake.dylib'), 'not a real binary, just proving path resolution');
     process.env.PORT_DADDY_RESOURCE_DIR = scratchDir;
 
-    expect(() => ensureOnnxRuntimeNativeLibFindable()).toThrow(
-      new RegExp(`launched without ${fallbackVar}`),
-    );
-    expect(process.env[fallbackVar]).toBeUndefined();
+    ensureOnnxRuntimeNativeLibFindable();
+
+    expect(process.env[fallbackVar]).toBe(nativeDir);
   });
 
-  test('accepts a packaged runtime already present in the launch environment', () => {
+  test('prepends to an existing fallback path instead of clobbering it', () => {
     const platformArch = `${process.platform}-${process.arch}`;
     const nativeDir = join(scratchDir, 'dist', 'native', 'onnxruntime-node', platformArch);
-    const alternateDir = join(scratchDir, 'named-profile', 'native', 'onnxruntime-node', platformArch);
     mkdirSync(nativeDir, { recursive: true });
-    mkdirSync(alternateDir, { recursive: true });
-    writeFileSync(
-      join(alternateDir, process.platform === 'darwin' ? 'libonnxruntime.1.dylib' : 'libonnxruntime.so.1'),
-      'alternate packaged runtime',
-    );
     process.env.PORT_DADDY_RESOURCE_DIR = scratchDir;
-    process.env[fallbackVar] = `${alternateDir}:/some/pre-existing/path`;
+    process.env[fallbackVar] = '/some/pre-existing/path';
 
     ensureOnnxRuntimeNativeLibFindable();
 
-    expect(process.env[fallbackVar]).toBe(`${alternateDir}:/some/pre-existing/path`);
+    expect(process.env[fallbackVar]).toBe(`${nativeDir}:/some/pre-existing/path`);
   });
 });
