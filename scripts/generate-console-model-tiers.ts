@@ -17,7 +17,7 @@
  * the JSON is a generated build artifact from here on. Regenerate after any
  * registry change:
  *
- *   npx tsx scripts/generate-console-model-tiers.ts --write
+ *   bun run generate:console-model-tiers
  *
  * Without --write, it prints the would-be JSON to stdout (dry run).
  * tests/unit/console-model-tiers-sync.test.js calls `buildConsoleModelTiers()`
@@ -105,7 +105,7 @@ export function buildConsoleModelTiers(): ConsoleModelTiers {
 
   return {
     _comment:
-      "Single source of truth for provider capability tiers. GENERATED from lib/model-registry-data.ts by scripts/generate-console-model-tiers.ts — do not hand-edit; run `npx tsx scripts/generate-console-model-tiers.ts --write` after changing the registry. Every model id MUST exist in the daemon's cost-rate registry (lib/cost-tracker MODEL_RATES) or the launch fails closed with a 'no cost rate entry' message; when that happens, fix the id in lib/model-registry-data.ts. The 'low' tier of each provider mirrors the daemon's DEFAULT_OPERATOR_*_MODEL, which is guaranteed priced.",
+      "Single source of truth for provider capability tiers. GENERATED from lib/model-registry-data.ts by scripts/generate-console-model-tiers.ts — do not hand-edit; run `bun run generate:console-model-tiers` after changing the registry. Every model id MUST exist in the daemon's cost-rate registry (lib/cost-tracker MODEL_RATES) or the launch fails closed with a 'no cost rate entry' message; when that happens, fix the id in lib/model-registry-data.ts. The 'low' tier of each provider mirrors the daemon's DEFAULT_OPERATOR_*_MODEL, which is guaranteed priced.",
     _tiers: ['high = most capable', 'mid = balanced', 'low = fast & cheap (daemon operator default)'],
     providers,
   };

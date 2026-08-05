@@ -1,5 +1,5 @@
 {
-  "_comment": "Single source of truth for provider capability tiers. GENERATED from lib/model-registry-data.ts by scripts/generate-console-model-tiers.ts — do not hand-edit; run `npx tsx scripts/generate-console-model-tiers.ts --write` after changing the registry. Every model id MUST exist in the daemon's cost-rate registry (lib/cost-tracker MODEL_RATES) or the launch fails closed with a 'no cost rate entry' message; when that happens, fix the id in lib/model-registry-data.ts. The 'low' tier of each provider mirrors the daemon's DEFAULT_OPERATOR_*_MODEL, which is guaranteed priced.",
+  "_comment": "Single source of truth for provider capability tiers. GENERATED from lib/model-registry-data.ts by scripts/generate-console-model-tiers.ts — do not hand-edit; run `bun run generate:console-model-tiers` after changing the registry. Every model id MUST exist in the daemon's cost-rate registry (lib/cost-tracker MODEL_RATES) or the launch fails closed with a 'no cost rate entry' message; when that happens, fix the id in lib/model-registry-data.ts. The 'low' tier of each provider mirrors the daemon's DEFAULT_OPERATOR_*_MODEL, which is guaranteed priced.",
   "_tiers": [
     "high = most capable",
     "mid = balanced",
