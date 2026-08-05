@@ -17,19 +17,15 @@ describe('static endpoint discovery', () => {
     for (const file of staticContentFiles) {
       const source = read(file)
 
-      // Static content should not teach users to hardcode localhost:9876 or 127.0.0.1:9876
-      // Build the pattern dynamically to avoid having a literal URL in this test
-      const localhostPort = 'localhost' + ':' + '9876'
-      const loopbackPort = '127.0.0.1' + ':' + '9876'
-      const httpLocalhostUrl = 'http://' + localhostPort
-      const httpLoopbackUrl = 'http://' + loopbackPort
-
+      // Static content should not teach users to hardcode fixed numeric ports for localhost or loopback
       expect(
         source,
-        `${file} should not contain hardcoded daemon URL claims like "usually on localhost:9876"`,
+        `${file} should not contain hardcoded daemon URL claims with fixed numeric ports`,
       ).not.toMatch(/usually\s+(?:on\s+)?(?:localhost|127\.0\.0\.1):[0-9]{4}/)
-      expect(source, `${file} should not contain bare ${httpLocalhostUrl} URLs`).not.toContain(httpLocalhostUrl)
-      expect(source, `${file} should not contain bare ${httpLoopbackUrl} URLs`).not.toContain(httpLoopbackUrl)
+      expect(
+        source,
+        `${file} should not contain bare http:// URLs with localhost or loopback and numeric ports`,
+      ).not.toMatch(/https?:\/\/(?:localhost|127\.0\.0\.1):[0-9]{4}/)
 
       // Static content SHOULD teach discovery patterns
       // Note: Not all files will have all patterns, but at least they shouldn't have hardcoded URLs
