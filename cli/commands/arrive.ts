@@ -31,8 +31,24 @@ export async function handleArrive(options: CLIOptions): Promise<void> {
     return;
   }
 
+  // Prefer THIS session's purpose over anything the daemon would infer.
+  //
+  // The route already fills unsupplied fields from the actor's newest active
+  // session (`ownSession()`), which is a good default but a guess: an agent
+  // legitimately holds several sessions at once, and "newest" is not always
+  // "the one I am in". `readCurrentContext()` reads the actual current session
+  // from PD_SESSION_ID / the context file, so when it can answer, its answer is
+  // better. When it cannot, the server-side derivation still applies.
+  const current = (() => {
+    try {
+      return readCurrentContext();
+    } catch {
+      return null;
+    }
+  })();
+
   const params = new URLSearchParams({ actor });
-  const purpose = (options.purpose as string) || '';
+  const purpose = (options.purpose as string) || current?.purpose || '';
   const project = (options.project as string) || '';
   const files = (options.files as string) || '';
   const hints = (options.hints as string) || '';
@@ -43,7 +59,7 @@ export async function handleArrive(options: CLIOptions): Promise<void> {
 
   let data: Record<string, unknown>;
   try {
-    const res = await pdFetch(`${PORT_DADDY_URL}/briefing/arrival?${params.toString()}`);
+    const res = await pdFetch(`/briefing/arrival?${params.toString()}`);
     data = (await res.json()) as Record<string, unknown>;
     if (!res.ok) {
       if (isJson(options)) console.log(JSON.stringify({ success: false, error: data.error ?? 'request failed' }));
