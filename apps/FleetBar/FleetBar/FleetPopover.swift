@@ -246,7 +246,7 @@ struct FleetPopover: View {
     /// Renders a full-width Daemon Report diagnostic that must remain legible.
     ///
     /// Sample input:
-    /// `label: "Bosun", value: "idle — daemon heartbeat writer active"`
+    /// `label: "Heartbeat", value: "idle — daemon heartbeat writer active"`
     ///
     /// Sample output:
     /// A full-width report row whose value wraps instead of truncating.
@@ -334,10 +334,10 @@ struct FleetPopover: View {
 
     private func daemonReportSection(status: DaemonStatusResponse) -> some View {
         let runtimeColor: Color = status.runtime?.degraded == true ? Fleet.Color.warning : Fleet.Color.healthy
-        let bosun = status.guardians?.bosun
-        let bosunColor: Color = {
-            switch bosun?.state {
-            case "healthy":
+        let runtime = status.guardians?.runtime
+        let heartbeatColor: Color = {
+            switch runtime?.state {
+            case "healthy", "idle":
                 return Fleet.Color.healthy
             case "disabled":
                 return Fleet.Color.dormant
@@ -360,7 +360,7 @@ struct FleetPopover: View {
                     Text("Daemon Report")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    Text("Runtime, build, guardian, and fresh history")
+                    Text("Runtime, build, supervisor, and fresh history")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
@@ -383,7 +383,7 @@ struct FleetPopover: View {
                     )
                     daemonReportRow(label: "Code hash", value: status.daemon?.codeHash ?? "unknown")
                 }
-                daemonReportDiagnostic(label: "Bosun", value: bosun?.reason ?? bosun?.state ?? "n/a", color: bosunColor)
+                daemonReportDiagnostic(label: "Heartbeat", value: runtime?.reason ?? runtime?.state ?? "n/a", color: heartbeatColor)
             }
 
             if !recentActivity.isEmpty {

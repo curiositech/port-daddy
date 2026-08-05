@@ -201,15 +201,15 @@ final class FleetPopoverTests: XCTestCase {
         XCTAssertNotNil(scrollView)
     }
 
-    /// Verifies long Bosun diagnostics stay readable in the Daemon Report.
+    /// Verifies long Heartbeat diagnostics stay readable in the Daemon Report.
     ///
     /// Sample input:
-    /// `daemon heartbeat writer active; pd-bosun supervisor binary available`
+    /// `daemon heartbeat is publishing runtime evidence`
     ///
     /// Sample output:
-    /// The Bosun status text has no single-line limit, so SwiftUI can wrap it.
-    func testDaemonReportBosunDiagnosticCanWrap() throws {
-        let bosunReason = "daemon heartbeat writer active; pd-bosun supervisor binary available"
+    /// The Heartbeat status text has no single-line limit, so SwiftUI can wrap it.
+    func testDaemonReportHeartbeatDiagnosticCanWrap() throws {
+        let heartbeatReason = "daemon heartbeat is publishing runtime evidence"
         let monitoredURL = try XCTUnwrap(URL(string: DaemonLocation.resolveBaseURL()))
             .appendingPathComponent("status")
             .absoluteString
@@ -233,16 +233,14 @@ final class FleetPopoverTests: XCTestCase {
             runtime: DaemonRuntimeResponse(state: "nominal", degraded: false),
             guardians: DaemonGuardiansResponse(
                 supervisor: nil,
-                bosun: DaemonBosunResponse(
+                runtime: DaemonRuntimeWitnessResponse(
                     enabled: true,
                     state: "idle",
-                    reason: bosunReason,
+                    reason: heartbeatReason,
                     monitoredUrl: monitoredURL,
-                    binaryExists: true,
                     lastCheckAt: nil,
                     lastHealthyAt: nil,
                     lastFailureAt: nil,
-                    lastResurrectedAt: nil,
                     failureCount: 0
                 )
             ),
@@ -259,8 +257,8 @@ final class FleetPopoverTests: XCTestCase {
             backendStore: BackendStore(autoStart: false)
         ).inspect()
 
-        let bosunStatus = try inspected.find(text: bosunReason)
-        XCTAssertNil(try bosunStatus.lineLimit())
+        let heartbeatStatus = try inspected.find(text: heartbeatReason)
+        XCTAssertNil(try heartbeatStatus.lineLimit())
     }
 
     func testMenuBarFailurePreservesBoatGlyphAndWarnsByColor() {

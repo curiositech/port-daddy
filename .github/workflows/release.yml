@@ -53,46 +53,8 @@ jobs:
       - name: Build dedicated daemon binary
         run: npm run build:daemon:dist
 
-      # Bosun is now a REQUIRED watchdog: the compiled-daemon smoke runs `pd doctor`,
-      # which criticals a missing supervisor. Build it BEFORE the smoke so the booted
-      # daemon resolves core/target/release/pd-bosun. (The step below also stages it
-      # flat into dist/ for the release tarball.)
-      - name: Install Rust toolchain (for pd-bosun watchdog)
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build pd-bosun before the smoke (required watchdog)
-        run: npm run build:bosun
-
       - name: Smoke dedicated daemon binary
         run: bash scripts/smoke-compiled-daemon.sh
-
-      # Bosun is the daemon's out-of-process supervisor (ADR-0036). It MUST ship
-      # in the same artifact as the daemon so `port-daddy install` can co-load a
-      # KeepAlive launchd/systemd job that restarts a dead daemon (2026-07-14
-      # halt-mandate). Before this step the release tar carried only pd +
-      # port-daddy, so a brew install had NO bosun binary — install-daemon.ts's
-      # BOSUN_BINARY_PATH resolved to a missing binary and the supervisor was
-      # silently skipped. The binary is tiny (~200kB, zero-dep Rust).
-      - name: Install Rust toolchain (for pd-bosun)
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build + stage pd-bosun (daemon supervisor)
-        run: |
-          set -euo pipefail
-          cargo build --manifest-path core/pd-bosun/Cargo.toml --release -j 1
-          # `core/` is a Cargo WORKSPACE → the member build lands in the shared
-          # workspace target dir core/target/release, NOT core/pd-bosun/target.
-          # Stage FLAT as dist/pd-bosun (next to pd/port-daddy) — a collision-free
-          # install path that does NOT shadow the source-tree `core/pd-bosun/`
-          # DIRECTORY. install-daemon.ts resolves `<root>/pd-bosun` first.
-          cp core/target/release/pd-bosun dist/pd-bosun
-          chmod +x dist/pd-bosun
-          # NOTE: the old per-binary `test -s dist/pd-bosun` fail-loud check moved
-          # into the declarative `pd batten verify` gate below (release-artifacts.json
-          # declares pd-bosun required+executable). A daemon that ships without its
-          # watchdog is the silent-death regression #3496 closed — batten now guards
-          # it alongside every other required artifact instead of a one-off assert.
-          ./dist/pd-bosun status || true  # smoke: the binary at least runs
 
       # Sign the macOS daemon + launcher with the Curiositech LLC (P5H9P59X2M)
       # Developer ID, reusing scripts/sign-and-notarize.mjs — the same proven path
@@ -167,7 +129,7 @@ jobs:
       # nothing in CI had ever run the packaged binary — unit tests run from
       # source, which is a different runtime shape than the compiled bundle.
       # 180s is comfortably past that signature and lets every first-firing
-      # ~60s timer (pheromone evaporator, bosun heartbeat) run at least twice.
+      # ~60s timers (such as the pheromone evaporator) run at least twice.
       # A crash, a health wedge, or a dirty SIGTERM here FAILS THE RELEASE.
       - name: Soak the packaged binary (crash/wedge gate)
         env:
@@ -176,7 +138,7 @@ jobs:
         run: bash scripts/soak-binary.sh dist/port-daddy
 
       - name: Stage squid harness assets (tentacles + identity + Pilot)
-        # Same failure class as the pd-bosun omission above: lib/squid/adapter.ts's
+        # Release omission class: lib/squid/adapter.ts's
         # tentaclePath() resolves pd-hook-{prompt,pre-tool,post-tool} at execDir/<name>
         # (flat, next to `pd`) OR execDir/bin/<name> (a bin/ subdirectory). Nothing
         # ever staged the tentacles, so every packaged release shipped with them
@@ -202,7 +164,7 @@ jobs:
           cp hooks/sessionstart-pilot.mjs dist/hooks/sessionstart-pilot.mjs
 
       # THE generalized gate. Every required artifact (pd, port-daddy, its
-      # manifest, pd-bosun, the squid tentacles, pd-statusline) is declared in
+      # manifest, squid tentacles, and pd-statusline) is declared in
       # release-artifacts.json; `pd batten verify` asserts each is present,
       # executable where required, and >= minBytes — collecting ALL failures and
       # exiting nonzero with a per-artifact report. This REPLACES the scattered
@@ -218,18 +180,11 @@ jobs:
         run: node scripts/smoke-squid-release.mjs dist/pd dist
 
       - name: Package binary
-        # Ship pd-bosun (core/pd-bosun) inside the same tar as the daemon so a
-        # brew/tarball install lands the supervisor at <root>/core/pd-bosun,
-        # exactly where install-daemon.ts's BOSUN_BINARY_PATH looks (it prefers
-        # dist/core/pd-bosun, then core/pd-bosun/... — the extracted `core/`
-        # dir satisfies the daemon-relative fallback). Without this the tarball
-        # had no watchdog and the KeepAlive supervisor job was silently skipped.
-        #
         # native/ (onnxruntime-node runtime libs, #3561) and the squid tentacles
         # in BOTH layouts (flat + bin/, staged in the "Stage squid tentacles"
         # step above) are packed here too. `pd batten verify` (above) already
         # proved every required member is present before we seal the tar.
-        run: cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json pd-bosun native pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool bin hooks
+        run: cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json native pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool bin hooks
 
       # Content-address the sealed cargo: sha256 every staged artifact into
       # release-imprint.json and ship it as a release asset. This is the

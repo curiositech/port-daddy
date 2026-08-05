@@ -924,18 +924,15 @@ export async function handleDaemon(action: string, options: Record<string, unkno
       break;
     }
 
-    // Wires ONLY the Bosun watchdog (+ freshness) for a Homebrew-managed
-    // install — no confirmation prompt, non-destructive, and safe to call
-    // at any point in the brew install/upgrade lifecycle (see
-    // install-daemon.ts installBosunOnly() for why the ordering hazard that
-    // affects the full `install` path doesn't apply here). This is what the
-    // Homebrew formula's post_install calls.
-    case 'install-bosun': {
+    // Installs only the updater cadence job. Homebrew remains the daemon's
+    // sole supervisor, so this is safe during formula post_install and cannot
+    // race a second listener into existence.
+    case 'install-freshness': {
       if (process.env.PORT_DADDY_CAN_SELF_DAEMON === '1') {
         const { runInstallDaemonCli } = await import('../../install-daemon.js');
-        runInstallDaemonCli('install-bosun');
+        runInstallDaemonCli('install-freshness');
       } else {
-        const result: SpawnSyncReturns<Buffer> = spawnSync(tsxBin, [installScript, 'install-bosun'], { stdio: 'inherit' });
+        const result: SpawnSyncReturns<Buffer> = spawnSync(tsxBin, [installScript, 'install-freshness'], { stdio: 'inherit' });
         process.exit(result.status ?? 1);
       }
       break;

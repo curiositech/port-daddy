@@ -1,15 +1,15 @@
 /**
- * Bosun Heartbeat Writer
+ * Daemon Heartbeat Writer
  *
- * The V4 Bosun supervisor must not depend on the daemon's HTTP stack. This
- * module gives the daemon one narrow responsibility: periodically write an
- * atomic filesystem heartbeat that an external `pd-bosun` process can inspect.
+ * The daemon periodically publishes an atomic filesystem heartbeat. Doctor,
+ * FleetBar, and recovery tooling can inspect it without depending on the
+ * daemon's HTTP stack; launchd/systemd remain the only process supervisors.
  *
  * Example heartbeat payload:
  *
  * ```json
  * {
- *   "schema": "port-daddy.bosun.heartbeat.v1",
+ *   "schema": "port-daddy.daemon.heartbeat.v1",
  *   "pid": 12345,
  *   "writtenAt": 1777050000000,
  *   "uptimeMs": 2500,
@@ -46,23 +46,22 @@ import { hostname } from 'node:os';
 import { dirname, join } from 'node:path';
 import { DEFAULT_PID_FILE, DEFAULT_PORT_FILE, PD_HOME } from '../shared/paths.js';
 
-export const BOSUN_HEARTBEAT_SCHEMA = 'port-daddy.bosun.heartbeat.v1';
-export const DEFAULT_BOSUN_HEARTBEAT_INTERVAL_MS = 5_000;
-export const DEFAULT_BOSUN_STALE_AFTER_MS = 30_000;
-export const DEFAULT_BOSUN_PROBE_FAILURE_THRESHOLD = 3;
-export const DEFAULT_BOSUN_PROBE_TIMEOUT_MS = 2_000;
+export const DAEMON_HEARTBEAT_SCHEMA = 'port-daddy.daemon.heartbeat.v1';
+export const DEFAULT_DAEMON_HEARTBEAT_INTERVAL_MS = 5_000;
+export const DEFAULT_DAEMON_HEARTBEAT_STALE_AFTER_MS = 30_000;
+export const DEFAULT_DAEMON_HEARTBEAT_PROBE_FAILURE_THRESHOLD = 3;
+export const DEFAULT_DAEMON_HEARTBEAT_PROBE_TIMEOUT_MS = 2_000;
 
 // 'wedged' = the daemon process is alive and the event loop is turning (so the
 // heartbeat interval still fires), but its own HTTP request pipeline failed a
 // loopback self-probe `probeFailureThreshold` times in a row. We deliberately
-// stop advancing the heartbeat so the external Bosun supervisor sees it go stale
-// and restarts us. Without this, an HTTP-wedged-but-breathing daemon reads as
-// healthy to Bosun forever — Bosun only checks pid liveness + heartbeat freshness
-// (it cannot touch HTTP by design), so a hung request pipeline is invisible to it.
-export type BosunHeartbeatState = 'idle' | 'healthy' | 'degraded' | 'wedged' | 'displaced' | 'stopped';
+// stop advancing the heartbeat so diagnostics report the wedge instead of
+// claiming the process is healthy. The OS supervisor still owns crash recovery;
+// a live-but-wedged process remains an explicit recovery condition.
+export type DaemonHeartbeatState = 'idle' | 'healthy' | 'degraded' | 'wedged' | 'displaced' | 'stopped';
 
-export interface BosunHeartbeatPayload {
-  schema: typeof BOSUN_HEARTBEAT_SCHEMA;
+export interface DaemonHeartbeatPayload {
+  schema: typeof DAEMON_HEARTBEAT_SCHEMA;
   pid: number;
   writtenAt: number;
   uptimeMs: number;
@@ -80,9 +79,9 @@ export interface BosunHeartbeatPayload {
   plane?: string;
 }
 
-export interface BosunHeartbeatStatus {
+export interface DaemonHeartbeatStatus {
   enabled: boolean;
-  state: BosunHeartbeatState;
+  state: DaemonHeartbeatState;
   heartbeatPath: string;
   intervalMs: number;
   staleAfterMs: number;
@@ -97,7 +96,7 @@ export interface BosunHeartbeatStatus {
   lastProbeOk: boolean | null;
 }
 
-export interface BosunHeartbeatOptions {
+export interface DaemonHeartbeatOptions {
   heartbeatPath?: string;
   intervalMs?: number;
   staleAfterMs?: number;
@@ -146,7 +145,7 @@ export interface BosunHeartbeatOptions {
  *
  * ```ts
  * process.env.PORT_DADDY_HEARTBEAT_FILE = '/tmp/pd-heartbeat'
- * defaultBosunHeartbeatPath()
+ * defaultDaemonHeartbeatPath()
  * ```
  *
  * Output:
@@ -155,44 +154,44 @@ export interface BosunHeartbeatOptions {
  * '/tmp/pd-heartbeat'
  * ```
  */
-export function defaultBosunHeartbeatPath(): string {
+export function defaultDaemonHeartbeatPath(): string {
   return process.env.PORT_DADDY_HEARTBEAT_FILE || join(PD_HOME, 'heartbeat');
 }
 
 /**
- * Read and parse a Bosun heartbeat file.
+ * Read and parse a daemon heartbeat file.
  *
  * Input file contents:
  *
  * ```json
- * {"schema":"port-daddy.bosun.heartbeat.v1","pid":123,"writtenAt":1}
+ * {"schema":"port-daddy.daemon.heartbeat.v1","pid":123,"writtenAt":1}
  * ```
  *
  * Output:
  *
  * ```ts
- * { schema: 'port-daddy.bosun.heartbeat.v1', pid: 123, writtenAt: 1, ... }
+ * { schema: 'port-daddy.daemon.heartbeat.v1', pid: 123, writtenAt: 1, ... }
  * ```
  */
-export function readBosunHeartbeat(path = defaultBosunHeartbeatPath()): BosunHeartbeatPayload | null {
+export function readDaemonHeartbeat(path = defaultDaemonHeartbeatPath()): DaemonHeartbeatPayload | null {
   if (!existsSync(path)) return null;
-  const parsed = JSON.parse(readFileSync(path, 'utf8')) as BosunHeartbeatPayload;
-  return parsed.schema === BOSUN_HEARTBEAT_SCHEMA ? parsed : null;
+  const parsed = JSON.parse(readFileSync(path, 'utf8')) as DaemonHeartbeatPayload;
+  return parsed.schema === DAEMON_HEARTBEAT_SCHEMA ? parsed : null;
 }
 
 /**
- * Create a daemon heartbeat writer for the external Bosun supervisor.
+ * Create the daemon-owned runtime heartbeat writer.
  *
  * The writer performs atomic `write temp -> rename` updates so the supervisor
  * never observes a partially-written JSON document. Calling `start()` writes
  * immediately, then repeats every `intervalMs`. The interval intentionally stays
- * referenced because Bosun heartbeat progress is mandatory daemon liveness, not
- * an optional background metric.
+ * referenced because heartbeat progress is mandatory runtime evidence, not an
+ * optional background metric.
  *
  * Input:
  *
  * ```ts
- * const heartbeat = createBosunHeartbeat({
+ * const heartbeat = createDaemonHeartbeat({
  *   version: '3.10.0',
  *   codeHash: 'abc123',
  *   startedAt: Date.now(),
@@ -207,23 +206,23 @@ export function readBosunHeartbeat(path = defaultBosunHeartbeatPath()): BosunHea
  * heartbeat.getStatus().state === 'healthy'
  * ```
  */
-export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
-  const heartbeatPath = options.heartbeatPath ?? defaultBosunHeartbeatPath();
-  const intervalMs = options.intervalMs ?? DEFAULT_BOSUN_HEARTBEAT_INTERVAL_MS;
-  const staleAfterMs = options.staleAfterMs ?? DEFAULT_BOSUN_STALE_AFTER_MS;
+export function createDaemonHeartbeat(options: DaemonHeartbeatOptions) {
+  const heartbeatPath = options.heartbeatPath ?? defaultDaemonHeartbeatPath();
+  const intervalMs = options.intervalMs ?? DEFAULT_DAEMON_HEARTBEAT_INTERVAL_MS;
+  const staleAfterMs = options.staleAfterMs ?? DEFAULT_DAEMON_HEARTBEAT_STALE_AFTER_MS;
   const pid = options.pid ?? process.pid;
   const now = options.now ?? Date.now;
   const uptimeMs = options.uptimeMs ?? (() => Math.floor(process.uptime() * 1000));
   const pidFile = options.pidFile ?? DEFAULT_PID_FILE;
   const portFile = options.portFile ?? DEFAULT_PORT_FILE;
   const selfProbe = options.selfProbe;
-  const probeFailureThreshold = Math.max(1, options.probeFailureThreshold ?? DEFAULT_BOSUN_PROBE_FAILURE_THRESHOLD);
+  const probeFailureThreshold = Math.max(1, options.probeFailureThreshold ?? DEFAULT_DAEMON_HEARTBEAT_PROBE_FAILURE_THRESHOLD);
   const probeIntervalMs = options.probeIntervalMs ?? intervalMs;
 
   let timer: ReturnType<typeof setInterval> | null = null;
   let probeTimer: ReturnType<typeof setInterval> | null = null;
   let probeInFlight = false;
-  const status: BosunHeartbeatStatus = {
+  const status: DaemonHeartbeatStatus = {
     enabled: false,
     state: 'idle',
     heartbeatPath,
@@ -264,9 +263,9 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
     throw err;
   }
 
-  function buildPayload(): BosunHeartbeatPayload {
+  function buildPayload(): DaemonHeartbeatPayload {
     return {
-      schema: BOSUN_HEARTBEAT_SCHEMA,
+      schema: DAEMON_HEARTBEAT_SCHEMA,
       pid,
       writtenAt: now(),
       uptimeMs: uptimeMs(),
@@ -283,7 +282,7 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
     };
   }
 
-  function writeOnce(): BosunHeartbeatPayload {
+  function writeOnce(): DaemonHeartbeatPayload {
     const payload = buildPayload();
     const targetDir = dirname(heartbeatPath);
     const tempPath = join(targetDir, `.heartbeat.${pid}.${payload.writtenAt}.tmp`);
@@ -309,14 +308,14 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
       // Transient errors (filesystem, missing pid file) keep error logging so
       // they remain visible during real outages.
       if (displaced) {
-        options.logger?.warn?.('bosun_heartbeat_displaced', {
+        options.logger?.warn?.('daemon_heartbeat_displaced', {
           path: heartbeatPath,
           ownerPid: status.ownerPid,
           pid,
           error: status.lastError,
         });
       } else {
-        options.logger?.error?.('bosun_heartbeat_write_failed', {
+        options.logger?.error?.('daemon_heartbeat_write_failed', {
           path: heartbeatPath,
           error: status.lastError,
         });
@@ -376,17 +375,17 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
     if (shouldHalt()) {
       if (status.state !== 'wedged') {
         status.state = 'wedged';
-        status.lastError = `self-probe failed ${status.consecutiveProbeFailures}x; halting heartbeat so supervisor restarts the daemon`;
-        options.logger?.error?.('bosun_heartbeat_wedged', {
+        status.lastError = `self-probe failed ${status.consecutiveProbeFailures}x; halting heartbeat to expose the wedge`;
+        options.logger?.error?.('daemon_heartbeat_wedged', {
           path: heartbeatPath,
           consecutiveProbeFailures: status.consecutiveProbeFailures,
           threshold: probeFailureThreshold,
           pid,
         });
       }
-      // Do NOT advance the heartbeat. Bosun's staleAfterMs window elapses and it
-      // SIGKILLs + kickstarts us. If the probe recovers first, the next tick
-      // writes again and state returns to 'healthy' (self-heal).
+      // Do NOT advance the heartbeat. Doctor/FleetBar will observe staleness.
+      // If the probe recovers first, the next tick writes again and state
+      // returns to 'healthy' (self-heal).
       return;
     }
     try {
@@ -395,7 +394,7 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
       // writeOnce records the error in status.
     }
     if (status.state === 'displaced') {
-      options.logger?.info?.('bosun_heartbeat_self_stop', {
+      options.logger?.info?.('daemon_heartbeat_self_stop', {
         path: heartbeatPath,
         reason: 'displaced',
         ownerPid: status.ownerPid,
@@ -417,7 +416,7 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
     runProbe();
     probeTimer = setInterval(runProbe, probeIntervalMs);
     if (typeof probeTimer.unref === 'function') probeTimer.unref();
-    options.logger?.info?.('bosun_heartbeat_probe_started', {
+    options.logger?.info?.('daemon_heartbeat_probe_started', {
       path: heartbeatPath,
       probeIntervalMs,
       probeFailureThreshold,
@@ -436,7 +435,7 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
       }
       if (status.state === 'displaced') {
         // No point starting an interval — we are an orphan. Log once and bail.
-        options.logger?.info?.('bosun_heartbeat_self_stop', {
+        options.logger?.info?.('daemon_heartbeat_self_stop', {
           path: heartbeatPath,
           reason: 'displaced',
           ownerPid: status.ownerPid,
@@ -450,7 +449,7 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
       // until its listener exists while the process heartbeat keeps advancing.
       if (!options.deferSelfProbeUntilReady) startProbeLoop();
       if (typeof timer.unref === 'function') timer.unref();
-      options.logger?.info?.('bosun_heartbeat_started', {
+      options.logger?.info?.('daemon_heartbeat_started', {
         path: heartbeatPath,
         intervalMs,
         staleAfterMs,
@@ -476,7 +475,7 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
     recordProbeResult,
     heartbeatTick,
 
-    getStatus(): BosunHeartbeatStatus {
+    getStatus(): DaemonHeartbeatStatus {
       return { ...status };
     },
   };
@@ -508,7 +507,7 @@ export function createSocketHealthProbe(opts: {
   timeoutMs?: number;
 }): () => Promise<boolean> {
   const path = opts.path ?? '/health';
-  const timeoutMs = opts.timeoutMs ?? DEFAULT_BOSUN_PROBE_TIMEOUT_MS;
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_DAEMON_HEARTBEAT_PROBE_TIMEOUT_MS;
   return () =>
     new Promise<boolean>((resolve) => {
       let settled = false;

@@ -3,7 +3,7 @@
  *
  * Every daemon self-classifies which *state plane* it lives on at boot, and
  * surfaces that plane everywhere its identity travels (`GET /version`,
- * `GET /health`, the berth registry, the Bosun heartbeat file). The plane
+ * `GET /health`, the berth registry, the daemon heartbeat file). The plane
  * answers one operator question: **"if I write through this daemon, whose
  * state am I mutating?"**
  *

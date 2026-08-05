@@ -81,7 +81,7 @@ export interface SemaphoreOptions {
   capacity: number;
   /**
    * Optional name for diagnostics. Surfaces in error messages and broadcast
-   * payloads so log readers can tell `port-daddy` from `bosun`.
+   * payloads so log readers can tell `port-daddy` from `daemon-heartbeat`.
    */
   name?: string;
 }

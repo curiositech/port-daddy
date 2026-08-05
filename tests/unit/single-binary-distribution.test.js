@@ -43,15 +43,15 @@ describe('single binary distribution path', () => {
 
   test('server publishes its PID and heartbeat before opening the registry', () => {
     const server = readFileSync(join(process.cwd(), 'server.ts'), 'utf8');
-    const leaseWrite = server.indexOf('const bosunHeartbeat = createBosunHeartbeat({');
+    const leaseWrite = server.indexOf('const daemonHeartbeat = createDaemonHeartbeat({');
     const databaseOpen = server.indexOf('const db: DatabaseInstance = initDatabase({');
     const listener = server.indexOf('sockServer.listen(SOCK_PATH');
 
     expect(leaseWrite).toBeGreaterThan(0);
     expect(leaseWrite).toBeLessThan(databaseOpen);
-    expect(server.indexOf('bosunHeartbeat.start();')).toBeLessThan(databaseOpen);
+    expect(server.indexOf('daemonHeartbeat.start();')).toBeLessThan(databaseOpen);
     expect(server.indexOf('await createDbIntegrityProofOutOfProcess(DB_PATH)')).toBeLessThan(databaseOpen);
-    expect(server.indexOf('bosunHeartbeat.startProbing();')).toBeGreaterThan(listener);
+    expect(server.indexOf('daemonHeartbeat.startProbing();')).toBeGreaterThan(listener);
   });
 
   test('daemon-only builds prove the hidden integrity helper before ordinary boot', () => {

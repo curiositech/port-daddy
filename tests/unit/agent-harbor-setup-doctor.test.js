@@ -181,15 +181,15 @@ describe('per-area judgments', () => {
       reachable: true,
       version: '3.24.1',
       supervised: false,
-      supervisionDetail: '2 supervisors loaded (homebrew.mxcl.port-daddy, com.portdaddy.daemon) — duplicate KeepAlive jobs race the listener',
+      supervisionDetail: '2 supervisors loaded (homebrew.mxcl.port-daddy, rogue.port-daddy-supervisor) — duplicate KeepAlive jobs race the listener',
       supervisionRepair: {
-        command: 'launchctl bootout gui/$(id -u)/com.portdaddy.daemon',
+        command: 'launchctl bootout gui/$(id -u)/rogue.port-daddy-supervisor',
         description: 'Unloads the duplicate supervisor so exactly one KeepAlive job owns the daemon.',
       },
     });
     expect(card.severity).toBe('warn');
     expect(card.detail).toContain('duplicate KeepAlive jobs');
-    expect(card.repair.command).toBe('launchctl bootout gui/$(id -u)/com.portdaddy.daemon');
+    expect(card.repair.command).toBe('launchctl bootout gui/$(id -u)/rogue.port-daddy-supervisor');
     expect(card.repair.command).not.toBe('port-daddy install');
   });
 

@@ -84,7 +84,6 @@ const EXCLUDE_PATH_PREFIXES = [
   'website-v2/node_modules/',
   'tests/',
   'port-daddy-stable/',
-  'core/pd-bosun/target/',
 ];
 
 function isTestFile(name) {

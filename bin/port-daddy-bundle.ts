@@ -28,8 +28,7 @@ if (isDbIntegrityHelper) {
   // Homebrew's launchd service historically invokes `pd start --foreground`.
   // Treat that supervised shape exactly like the hidden daemon entrypoint here,
   // before importing the enormous CLI command graph. Importing every CLI command
-  // delayed the first daemon heartbeat long enough for Bosun to classify the
-  // previous generation as dead and kickstart this new generation in a loop.
+  // delayed the first daemon heartbeat and made startup diagnostics look stale.
   const isHiddenDaemonEntrypoint = process.argv[2] === '__daemon';
   const isSupervisedForegroundStart = process.argv[2] === 'start' && process.argv.includes('--foreground');
   if (isHiddenDaemonEntrypoint || isSupervisedForegroundStart) {

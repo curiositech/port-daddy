@@ -4,7 +4,7 @@
  * signal.
  *
  * Why this exists:
- *   Port Daddy has had the SAME incident at least twice — `bosun_heartbeat_write_failed`
+ *   Port Daddy has had the SAME incident at least twice — `daemon_heartbeat_write_failed`
  *   (post-mortem: docs/recovery/2026-05-31-gardener-triage) and `semantic_resolution_failed`
  *   (the 313 GB dev-latest-daemon write storm). In both, a persistently-failing operation
  *   sits inside a loop that fires every few seconds, and each failure logs a full error

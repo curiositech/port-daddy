@@ -352,7 +352,7 @@ struct FleetControlCenter: View {
             if runtimeState == "nominal" || status.status == "ok" { return Fleet.Color.healthy }
             return Fleet.Color.failure
         }()
-        let bosun = status.guardians?.bosun
+        let runtime = status.guardians?.runtime
         let daemon = status.daemon
         let buildVersion = daemon?.version ?? status.version
         let buildHash = daemon?.codeHash ?? "unknown"
@@ -374,7 +374,7 @@ struct FleetControlCenter: View {
                     icon: "checkmark.seal",
                     title: "Live Truth",
                     value: runtimeState,
-                    detail: bosun?.reason ?? bosun?.state ?? status.uptimeHuman,
+                    detail: runtime?.reason ?? runtime?.state ?? status.uptimeHuman,
                     color: runtimeColor,
                     width: 300
                 )

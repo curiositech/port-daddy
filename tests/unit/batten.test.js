@@ -70,7 +70,7 @@ describe('loadManifest', () => {
     const real = loadManifest(resolveManifestPath());
     const ids = real.artifacts.map((a) => a.id);
     // The silent-failure class this system closes: watchdog + tentacles.
-    for (const id of ['pd', 'port-daddy', 'pd-bosun', 'pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'sessionstart-pilot']) {
+    for (const id of ['pd', 'port-daddy', 'pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'sessionstart-pilot']) {
       expect(ids).toContain(id);
     }
   });

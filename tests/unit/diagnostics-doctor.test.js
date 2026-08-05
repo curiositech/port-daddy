@@ -10,7 +10,6 @@ import {
   readPlistAsXml,
   assessSupervisionIntegrity,
   isPidAlive,
-  resolveBosunBinary,
   scanRegistryDbFiles,
   countBunCrashSignatures,
   assessCrashSignature,
@@ -263,8 +262,6 @@ describe('diagnoseAgentRuntimeInstall', () => {
 
 describe('assessSupervisionIntegrity', () => {
   // The crux: exactly ONE launchd job supervises the daemon and it is running.
-  // The previous doctor looked only for the removed `com.portdaddy.daemon`
-  // label and so was blind to every brew-supervised install.
   const sup = (over = {}) => ({ label: 'homebrew.mxcl.port-daddy', loaded: true, running: true, pid: 42, ...over });
 
   test('non-darwin platforms are skipped as ok', () => {
@@ -319,7 +316,7 @@ describe('assessSupervisionIntegrity', () => {
     const a = assessSupervisionIntegrity({
       supervisors: [
         sup(),
-        sup({ label: 'com.portdaddy.daemon', pid: 99 }),
+        sup({ label: 'rogue.port-daddy-supervisor', pid: 99 }),
       ],
       daemonReachable: true,
       platform: 'darwin',
@@ -673,51 +670,7 @@ describe('macOS DiagnosticReports crash detection', () => {
   });
 });
 
-describe('resolveBosunBinary', () => {
-  test('reports non-existence without throwing for a binary-free root', () => {
-    const r = resolveBosunBinary('/nonexistent/port-daddy-root');
-    expect(r.exists).toBe(false);
-    expect(r.binaryPath).toContain('pd-bosun');
-  });
-
-  // Regression (found live during the v3.25.1/3.25.2 brew rollout, 2026-07-15):
-  // `pd doctor`'s Bosun check fed resolveBosunBinary() a naive
-  // `join(__dirname, '..', '..')` libDir, which is a bun:// virtual path for a
-  // compiled binary and never exists on disk — so `pd doctor` always reported
-  // "pd-bosun binary not built" for every packaged/Homebrew install, even one
-  // where Bosun was genuinely installed, loaded, and healthy (confirmed via
-  // `pd-bosun status` and `launchctl list` on the operator's machine). The fix
-  // routes the same libDir through resolveDistributionRoot() first — exactly
-  // what describeResourceDir() already does for the identical reason.
-  test('resolveDistributionRoot recovers the real install root from a bun virtual moduleDir, so the binary is found', () => {
-    const tmp = mkdtempSync(join(tmpdir(), 'pd-bosun-doctor-'));
-    try {
-      writeFileSync(join(tmp, 'pd-bosun'), '#!/bin/sh\necho stub\n');
-      chmodSync(join(tmp, 'pd-bosun'), 0o755);
-
-      // Naive join(__dirname, '..', '..') on a bun:// virtual moduleDir —
-      // this is what the doctor check used to pass directly to
-      // resolveBosunBinary(), and it can never resolve to a real path.
-      const naiveLibDir = join('/$bunfs/root/cli/commands', '..', '..');
-      const naive = resolveBosunBinary(naiveLibDir);
-      expect(naive.exists).toBe(false);
-
-      // resolveDistributionRoot() recovers the real root from execPath for an
-      // "unconventional layout" binary (neither dist/daemon/ nor dist/) —
-      // exactly the shape of a Homebrew Cellar bin/ directory.
-      const resolvedRoot = resolveDistributionRoot(
-        '/$bunfs/root/cli/commands',
-        {},
-        join(tmp, 'port-daddy'),
-      );
-      const fixed = resolveBosunBinary(resolvedRoot);
-      expect(fixed.exists).toBe(true);
-      expect(fixed.binaryPath).toBe(join(tmp, 'pd-bosun'));
-    } finally {
-      rmSync(tmp, { recursive: true, force: true });
-    }
-  });
-
+describe('resolveDistributionRoot', () => {
   // Regression (3.26.2): a compiled `pd` whose `__dirname` collapses to `/` (so
   // `join(__dirname,'..','..')` is `/`) must NOT resolve the distribution root to `/`. That
   // made doctor print `resolvedRoot=/`, `expectedBinary=/dist/daemon/... (MISSING)` yet report
@@ -727,26 +680,6 @@ describe('resolveBosunBinary', () => {
     const root = resolveDistributionRoot('/', {}, '/opt/homebrew/Cellar/port-daddy/3.26.2/bin/pd');
     expect(root).not.toBe('/');
     expect(root).toBe('/opt/homebrew/Cellar/port-daddy/3.26.2/bin');
-  });
-
-  // Regression (2026-07-23): Homebrew installs the watchdog at `<root>/bin/pd-bosun`
-  // (next to `pd`), NOT flat at `<root>/pd-bosun`. The resolver only checked the flat
-  // path + source/dist fallbacks, so when the distribution root resolved to the keg
-  // ROOT (rather than keg/bin) it reported "not built" while the binary was present.
-  // Now `<root>/bin/pd-bosun` and `<root>/libexec/bin/pd-bosun` are candidates.
-  test('finds the watchdog under the Homebrew bin/ layout (<root>/bin/pd-bosun)', () => {
-    const tmp = mkdtempSync(join(tmpdir(), 'pd-bosun-brew-'));
-    try {
-      mkdirSync(join(tmp, 'bin'), { recursive: true });
-      writeFileSync(join(tmp, 'bin', 'pd-bosun'), '#!/bin/sh\necho stub\n');
-      chmodSync(join(tmp, 'bin', 'pd-bosun'), 0o755);
-
-      const r = resolveBosunBinary(tmp);
-      expect(r.exists).toBe(true);
-      expect(r.binaryPath).toBe(join(tmp, 'bin', 'pd-bosun'));
-    } finally {
-      rmSync(tmp, { recursive: true, force: true });
-    }
   });
 });
 

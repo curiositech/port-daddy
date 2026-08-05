@@ -53,8 +53,6 @@
     "build": "tsc",
     "prepublishOnly": "npm run build && npm run build:daemon:dist && npm run build:bin",
     "build:core:dist": "bash scripts/build-core.sh",
-    "build:bosun": "cargo build --manifest-path core/pd-bosun/Cargo.toml --release -j 1",
-    "build:bosun:dist": "npm run build:bosun && mkdir -p dist/core && cp core/target/release/pd-bosun dist/core/pd-bosun",
     "build:public-samples": "node scripts/build-public-samples.mjs",
     "build:daemon": "node scripts/build-daemon-binary.mjs",
     "build:daemon:dist": "npm run build:public-samples && node scripts/build-daemon-binary.mjs",

@@ -137,7 +137,7 @@ export const SQUID_HOOK_METADATA: Record<SquidHookPurpose, SquidHookMetadata> = 
  * `import.meta.url` — the old `../../bin` walk from it collapsed to a bogus
  * `/bin/pd-hook-*`. We therefore prefer the running binary's own directory
  * (where the release tarball co-locates the tentacles next to `pd`, exactly as
- * it does `pd-bosun`), then a `bin/` beside it, then the dev-from-source path.
+ * it does other release helpers), then a `bin/` beside it, then the dev-from-source path.
  */
 export function tentaclePath(name: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool'): string {
   const found = resolveSquidAsset(join('bin', name));

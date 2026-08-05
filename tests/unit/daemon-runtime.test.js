@@ -39,7 +39,7 @@ function facts(overrides = {}) {
 }
 
 describe('runtime identity convergence', () => {
-  test('accepts one PID and port across launchd, health, files, and Bosun', () => {
+  test('accepts one PID and port across launchd, health, files, and daemon heartbeat', () => {
     const result = assessRuntimeIdentity(facts());
     expect(result.state).toBe('converged');
     expect(result.severity).toBe('ok');
@@ -70,7 +70,7 @@ describe('runtime identity convergence', () => {
     ]));
   });
 
-  test('rejects a stale Bosun heartbeat even when every PID still matches', () => {
+  test('rejects a stale daemon heartbeat even when every PID still matches', () => {
     const result = assessRuntimeIdentity(facts({ heartbeatFresh: false }));
     expect(result.state).toBe('diverged');
     expect(result.summary).toContain('heartbeat is stale');
@@ -80,7 +80,7 @@ describe('runtime identity convergence', () => {
     const result = assessRuntimeIdentity(facts({ healthPort: null, heartbeatPid: null, heartbeatFresh: null }));
     expect(result.state).toBe('incomplete');
     expect(result.severity).toBe('warn');
-    expect(result.missing).toEqual(expect.arrayContaining(['daemon advertised port', 'Bosun heartbeat']));
+    expect(result.missing).toEqual(expect.arrayContaining(['daemon advertised port', 'daemon heartbeat']));
   });
 });
 

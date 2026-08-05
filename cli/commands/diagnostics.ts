@@ -38,7 +38,6 @@ import {
   daemonBinaryPath,
   isBunVirtualPath,
   resolveDistributionRoot,
-  resolveBosunBinaryPath,
 } from '../../shared/daemon-binary.js';
 import {
   SQUID_HOOK_PRIVACY_NOTICE,
@@ -105,7 +104,7 @@ interface StatusCommandResponse {
     launchableAgents?: number;
   };
   guardians?: {
-    bosun?: {
+    runtime?: {
       state?: string;
       reason?: string | null;
     };
@@ -164,7 +163,7 @@ function resolveDiagnosticPort(): number {
  *
  * Motivation: the runtime-identity verdict is a claim about ONE daemon
  * generation, assembled from strictly local authorities (`~/.port-daddy/
- * daemon.pid`, `daemon.port`, the Bosun `heartbeat`, and the launchd job).
+ * daemon.pid`, `daemon.port`, the daemon heartbeat, and the OS supervisor).
  * Those files describe the CANONICAL daemon and nothing else. The moment the
  * caller points the CLI somewhere else — `PORT_DADDY_URL`/`PORT_DADDY_SOCK` at
  * another endpoint, `PORT_DADDY_PREFIX` at a berth's runtime dir, or the
@@ -422,15 +421,13 @@ export function renderStatusPlain(data: StatusCommandResponse): string {
     }
   }
 
-  const bosun = data.guardians?.bosun;
-  if (bosun) {
-    const normalizedState = bosun.state === 'disabled' && bosun.reason?.includes('missing')
-      ? 'not installed (optional)'
-      : bosun.state;
-    const reason = bosun.reason && !bosun.reason.includes('missing') && bosun.reason !== normalizedState
-      ? ` — ${bosun.reason}`
+  const runtimeWitness = data.guardians?.runtime;
+  if (runtimeWitness) {
+    const normalizedState = runtimeWitness.state ?? 'unknown';
+    const reason = runtimeWitness.reason && runtimeWitness.reason !== normalizedState
+      ? ` — ${runtimeWitness.reason}`
       : '';
-    lines.push(`  Bosun: ${normalizedState}${reason}`);
+    lines.push(`  Heartbeat: ${normalizedState}${reason}`);
   }
 
   if (data.history?.lastActivityAt) {
@@ -544,23 +541,19 @@ export function renderStatusLinework(data: StatusCommandResponse, opts?: { width
     });
   }
 
-  const bosun = data.guardians?.bosun;
-  if (bosun) {
-    const normalizedState = bosun.state === 'disabled' && bosun.reason?.includes('missing')
-      ? 'not installed optional'
-      : bosun.state;
-    const reason = bosun.reason && !bosun.reason.includes('missing') && bosun.reason !== normalizedState
-      ? ` · ${bosun.reason}`
+  const runtimeWitness = data.guardians?.runtime;
+  if (runtimeWitness) {
+    const normalizedState = runtimeWitness.state ?? 'unknown';
+    const reason = runtimeWitness.reason && runtimeWitness.reason !== normalizedState
+      ? ` · ${runtimeWitness.reason}`
       : '';
     rows.push({
       state: normalizedState?.includes('active')
         ? 'active'
         : normalizedState?.includes('idle')
           ? 'idle'
-          : normalizedState?.includes('not installed')
-            ? 'info'
-            : 'unknown',
-      label: 'bosun',
+          : 'unknown',
+      label: 'heartbeat',
       text: `${normalizedState}${reason}`,
     });
   }
@@ -969,7 +962,7 @@ export function describeResourceDir(
  */
 export function userLaunchAgentPlistPath(): string | null {
   if (platform() === 'darwin') {
-    return join(homedir(), 'Library', 'LaunchAgents', 'com.portdaddy.daemon.plist');
+    return join(homedir(), 'Library', 'LaunchAgents', 'homebrew.mxcl.port-daddy.plist');
   }
   return null;
 }
@@ -981,7 +974,7 @@ export function userLaunchAgentPlistPath(): string | null {
  * scripts emit the binary variant. Reading those bytes as UTF-8
  * yields garbage that would silently false-negative
  * `plistTargetsLegacyDaemon` — the check would say "looks fine!"
- * on a stale binary plist that still targets `tsx server.ts`.
+ * on a binary plist that still targets `tsx server.ts`.
  *
  * Strategy: read raw bytes. If they start with the binary plist
  * magic (`bplist`), shell out to `plutil -convert xml1 -o - <path>`
@@ -1013,24 +1006,18 @@ export function readPlistAsXml(plistPath: string): string {
 // Supervision integrity — the crux of "is the daemon actually owned?"
 //
 // On macOS the daemon is supervised by exactly ONE launchd job: Homebrew's
-// `homebrew.mxcl.port-daddy` (brew install) OR the legacy `com.portdaddy.daemon`
-// (self/npm install, removed 2026-06-01 but may linger on old machines). The
-// failure modes the operator keeps hitting:
+// `homebrew.mxcl.port-daddy`. The failure modes the operator keeps hitting:
 //   - zero supervisors loaded            → nothing will resurrect the daemon
 //   - one supervisor loaded but NOT      → the daemon is unsupervised right now;
 //     running                              if it's also unreachable this is
 //                                          exactly how it silently died
-//   - two supervisors loaded             → duplicate KeepAlive jobs race the
-//                                          listener (the install-daemon dedup bug)
-// The previous `pd doctor` looked ONLY for `com.portdaddy.daemon` and so was
-// blind to every brew-supervised install — it reported "LaunchAgent not
-// installed" on a perfectly-supervised daemon. This replaces that.
+// Port Daddy 3.28 removes the old self-installed jobs during service setup;
+// Doctor assesses only the one topology that current code can emit.
 // =============================================================================
 
 /** The launchd labels that legitimately supervise the Port Daddy daemon. */
 export const DAEMON_SUPERVISOR_LABELS = [
   'homebrew.mxcl.port-daddy',
-  'com.portdaddy.daemon',
 ] as const;
 
 export interface LaunchdSupervisor {
@@ -1160,8 +1147,8 @@ export function assessSupervisionIntegrity(input: {
  * signal, only checks existence/permission. ESRCH ("no such process") means
  * dead; a successful call OR EPERM (exists but we lack permission to signal
  * it) both mean alive. This is the direct counterpart of `pid_is_alive` in
- * core/pd-bosun/src/main.rs, applied here to launchctl's SELF-REPORTED PID —
- * the 2026-07-14 incident was exactly launchctl/`brew services` claiming
+ * the OS supervisor's self-reported PID. The 2026-07-14 incident was exactly
+ * launchctl/`brew services` claiming
  * `Running:true` with a PID that no longer named a real process.
  */
 export function isPidAlive(pid: number): boolean {
@@ -1214,11 +1201,8 @@ export function gatherLaunchdSupervisors(
 /**
  * Candidate daemon log paths, in priority order. `brew services` writes to
  * the keg-relative `var/log/port-daddy.log` (the operator's actual layout,
- * `/opt/homebrew/var/log/port-daddy.log`); a manually-installed LaunchAgent
- * (`port-daddy install`, see install-daemon.ts LOG_PATH) writes to
- * `<distribution root>/port-daddy.log` instead — pass `distributionRoot`
- * (callers already compute this as `libDir` elsewhere in this file) so that
- * shape is actually checked too, not just the Homebrew/`~/.port-daddy` ones.
+ * `/opt/homebrew/var/log/port-daddy.log`). Source/dev invocations may use the
+ * distribution-root log, so callers may provide that directory too.
  * Check all — whichever exists first is the live log.
  */
 export function candidateDaemonLogPaths(home = homedir(), distributionRoot?: string): string[] {
@@ -1498,7 +1482,6 @@ export function parseMacDiagnosticReport(path: string, text: string): MacDiagnos
   const daemonLike =
     procName === 'port-daddy-daemon' ||
     coalitionName === 'homebrew.mxcl.port-daddy' ||
-    coalitionName === 'com.portdaddy.daemon' ||
     /\/port-daddy-daemon$/.test(procPath ?? '') ||
     (procName === 'port-daddy' && /portdaddy|port-daddy/i.test(coalitionName ?? ''));
 
@@ -1597,19 +1580,6 @@ export function assessMacDiagnosticCrashReports(input: RecentMacDiagnosticCrashR
 }
 
 /**
- * Resolve the Bosun watchdog binary (`core/pd-bosun`). Prefers the release
- * artifact under `dist/`, falls back to the source-tree release build. Mirrors
- * the daemon-side `resolveBosunBinaryStatus` in routes/info.ts.
- */
-export function resolveBosunBinary(rootDir: string): { binaryPath: string; exists: boolean } {
-  // Delegate to the shared resolver so `pd doctor` and `port-daddy install`
-  // agree on WHICH bosun binary is canonical (halt-mandate: no stale-dist
-  // split-brain). Prefers the flat installed `<root>/pd-bosun`.
-  const binaryPath = resolveBosunBinaryPath(rootDir);
-  return { binaryPath, exists: existsSync(binaryPath) };
-}
-
-/**
  * Find scattered `port-registry*.db` files in a directory. The known continuity
  * bug (db-fragmentation): backups and brew-Cellar copies leave multiple
  * registry DBs around, and the daemon can end up reading or backing up the
@@ -1681,7 +1651,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     results.push({ ok: false, name, detail, hint, severity: 'critical', critical: true });
   }
 
-  /** Record a pre-computed assessment (supervision, liveness, bosun, …). */
+  /** Record a pre-computed assessment (supervision, liveness, heartbeat, etc.). */
   function recordAssessment(name: string, a: { severity: Severity; detail: string; hint?: string }): void {
     total++;
     if (a.severity === 'ok') {
@@ -1939,9 +1909,9 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   }
 
   // -------------------------------------------------------------------------
-  // 7b. Runtime identity convergence. launchd, the HTTP listener, discovery
-  //     files, and Bosun are separate mechanisms on purpose; this is their one
-  //     shared verdict. A reachable daemon under the wrong PID or port is not
+  // 7b. Runtime identity convergence. The OS supervisor, HTTP listener,
+  //     discovery files, and daemon heartbeat are independent facts joined by
+  //     one verdict. A reachable daemon under the wrong PID or port is not
   //     healthy merely because each component looks plausible in isolation.
   // -------------------------------------------------------------------------
   try {
@@ -1959,7 +1929,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   } catch (err: unknown) {
     criticalFail(
       'Runtime identity',
-      `Could not reconcile launchd, /health, daemon.pid, daemon.port, and Bosun heartbeat: ${(err as Error).message}`,
+      `Could not reconcile the OS supervisor, /health, daemon.pid, daemon.port, and daemon heartbeat: ${(err as Error).message}`,
       'Run: port-daddy restart --yes',
     );
   }
@@ -1967,10 +1937,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   // -------------------------------------------------------------------------
   // 8. Supervision integrity (the crux) — exactly ONE launchd job owns the
   //    daemon and it is running. CRITICAL when unsupervised + unreachable
-  //    (silent-death), WARN when unsupervised-but-reachable or when two
-  //    supervisors race the listener. The old check looked only for the
-  //    removed `com.portdaddy.daemon` label and was blind to every
-  //    brew-supervised install.
+  //    (silent-death), WARN when unsupervised-but-reachable.
   // -------------------------------------------------------------------------
   // Captured for the Agent Harbor readiness section (C8): null = not assessed
   // (non-darwin), true = exactly-one-supervisor-running, false = anything else.
@@ -2026,70 +1993,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   }
 
   // -------------------------------------------------------------------------
-  // 8b. Bosun watchdog — the Rust heartbeat/PID supervisor (core/pd-bosun).
-  //     Previously this was silently skipped when the binary was missing; now
-  //     it is a loud WARN that names the exact build command. Running-state is
-  //     read from the daemon's guardians.bosun when reachable.
-  // -------------------------------------------------------------------------
-  try {
-    // `libDir` is a naive `join(__dirname, '..', '..')` — correct for a source
-    // checkout, but for a `bun build --compile` binary `__dirname` is a virtual
-    // bun:// path, so that join produces a string that never exists on disk.
-    // `resolveDistributionRoot` (already used by describeResourceDir() below
-    // for the same reason) resolves the REAL install root from process.execPath
-    // in that case and is a no-op passthrough for a source checkout. Without
-    // this, `pd doctor` always reported "pd-bosun binary not built" for every
-    // packaged/brew install even when Bosun was genuinely installed and
-    // healthy (found live during the v3.25.1/3.25.2 brew rollout).
-    const bosun = resolveBosunBinary(resolveDistributionRoot(libDir));
-    // The DAEMON is authoritative about its own watchdog: it resolves the binary
-    // from its real runtime root and reports live state. Trust it over the CLI's
-    // local resolver, which can guess a wrong distribution root under an unusual
-    // install layout. Only fall back to the local resolver when the daemon is
-    // unreachable.
-    let daemonBinaryExists: boolean | null = null;
-    let daemonBinaryPath: string | null = null;
-    let bosunRunning: boolean | null = null;
-    let bosunReason: string | null = null;
-    if (daemonRunning) {
-      try {
-        const statusRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/status`);
-        if (statusRes.ok) {
-          const statusData = await statusRes.json() as {
-            guardians?: { bosun?: { state?: string; reason?: string; binaryExists?: boolean; binaryPath?: string } };
-          };
-          const g = statusData?.guardians?.bosun;
-          if (g) {
-            bosunReason = g.reason ?? g.state ?? null;
-            bosunRunning = g.state === 'healthy' || g.state === 'idle';
-            if (typeof g.binaryExists === 'boolean') daemonBinaryExists = g.binaryExists;
-            if (g.binaryPath) daemonBinaryPath = g.binaryPath;
-          }
-        }
-      } catch { /* daemon guardians unavailable — fall back to local binary presence */ }
-    }
-    const bosunPresent = daemonBinaryExists ?? bosun.exists;
-    const bosunPath = daemonBinaryPath ?? bosun.binaryPath;
-    if (!bosunPresent) {
-      // Required (halt-mandate): a brew/tarball install with NO watchdog binary
-      // leaves the daemon with no independent heartbeat/PID supervisor. This is a
-      // shipping defect, not a warning — fail the doctor so it can't reach users.
-      criticalFail('Bosun watchdog',
-        'pd-bosun watchdog binary is MISSING — the daemon has no independent heartbeat/PID supervisor',
-        'Reinstall so the supervisor ships: `brew reinstall port-daddy` (or `npm run build:bosun` in a source checkout)');
-    } else if (bosunRunning === false) {
-      warn('Bosun watchdog',
-        `pd-bosun binary present at ${bosunPath} but not active${bosunReason ? ` (${bosunReason})` : ''}`,
-        'Heartbeat writer is the daemon-side fallback; run `port-daddy install-bosun` to wire the supervisor');
-    } else {
-      check('Bosun watchdog', true, `pd-bosun present at ${bosunPath}${bosunReason ? ` (${bosunReason})` : ''}`);
-    }
-  } catch (err: unknown) {
-    check('Bosun watchdog', false, `Error: ${(err as Error).message}`);
-  }
-
-  // -------------------------------------------------------------------------
-  // 8c. Bun native-crash signature — launchd's KeepAlive respawns silently
+  // 8b. Bun native-crash signature — launchd's KeepAlive respawns silently
   //     through a native Bun panic (segfault) with no escalation of its own
   //     (see issue #676: Bun 1.2.21 JSC-GC crash family, state/load-dependent,
   //     NOT fixed by pinning an older port-daddy release). Surface it loudly
@@ -2377,7 +2281,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     const plistPath = userLaunchAgentPlistPath();
     if (plistPath && existsSync(plistPath)) {
       // readPlistAsXml handles both XML and binary plist formats —
-      // a stale binary plist still targeting tsx server.ts would
+      // a binary plist still targeting tsx server.ts would
       // otherwise read as UTF-8 garbage and silently false-negative.
       const contents = readPlistAsXml(plistPath);
       if (plistTargetsLegacyDaemon(contents)) {
@@ -2400,7 +2304,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
       'LaunchAgent target',
       false,
       `Error reading plist: ${(err as Error).message}`,
-      'Check ~/Library/LaunchAgents/com.portdaddy.daemon.plist permissions',
+      'Check ~/Library/LaunchAgents/homebrew.mxcl.port-daddy.plist permissions',
     );
   }
 

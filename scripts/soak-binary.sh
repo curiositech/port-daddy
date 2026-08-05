@@ -19,7 +19,7 @@
 # connection load, or refuse to die on SIGTERM. State-dependent crashes are
 # issue #676's territory (candidate follow-up: soak against a seeded
 # production-scale DB snapshot). The 180s window lets every ~60s timer
-# (pheromone evaporator, bosun heartbeat) fire at least twice.
+# (pheromone evaporator, daemon heartbeat) fire at least twice.
 #
 # Usage:
 #   scripts/soak-binary.sh <path-to-daemon-binary> [more binary args...]

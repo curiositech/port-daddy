@@ -278,8 +278,8 @@ describe('info routes runtime summary', () => {
       installDir: '/tmp/port-daddy',
     }));
     expect(body.guardians).toEqual(expect.objectContaining({
-      supervisor: expect.objectContaining({ state: 'launchctl_preferred' }),
-      bosun: expect.objectContaining({
+      supervisor: expect.objectContaining({ state: expect.stringMatching(/launchd|systemd|process/) }),
+      runtime: expect.objectContaining({
         state: 'disabled',
         reason: 'daemon heartbeat writer unavailable',
       }),
@@ -352,11 +352,11 @@ describe('info routes runtime summary', () => {
     db.close();
   });
 
-  test('GET /status exposes Bosun heartbeat without a Barnacle compatibility alias', async () => {
+  test('GET /status exposes daemon heartbeat without a Barnacle compatibility alias', async () => {
     const app = Fastify();
     await app.register(infoPlugin, {
       deps: buildDeps({
-        bosunHeartbeat: {
+        daemonHeartbeat: {
           getStatus() {
             return {
               enabled: true,
@@ -378,12 +378,10 @@ describe('info routes runtime summary', () => {
     const body = res.json();
 
     expect(res.statusCode).toBe(200);
-    expect(body.guardians.bosun).toEqual(expect.objectContaining({
+    expect(body.guardians.runtime).toEqual(expect.objectContaining({
       state: 'idle',
       monitoredUrl: 'file:///tmp/port-daddy/heartbeat',
-      binaryPath: '/tmp/port-daddy/core/pd-bosun/target/release/pd-bosun',
-      binaryExists: false,
-      reason: 'daemon heartbeat writer active; pd-bosun supervisor not installed (optional)',
+      reason: 'daemon heartbeat is publishing runtime evidence',
       heartbeat: expect.objectContaining({
         heartbeatPath: '/tmp/port-daddy/heartbeat',
         staleAfterMs: 30000,

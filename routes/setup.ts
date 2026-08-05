@@ -39,14 +39,10 @@ function xmlUnescape(value: string): string {
 }
 
 /**
- * The daemon LaunchAgent labels we know about, in priority order. The canonical
- * supervisor is Homebrew's `homebrew.mxcl.port-daddy` (`pd start --foreground`);
- * `com.portdaddy.daemon` is the LEGACY duplicate that `pd install` used to write
- * and that was removed 2026-06-01. See docs/operations/daemon-and-supervision.md.
- * Scanning only the legacy label made a healthy brew-supervised daemon report as
- * "install unknown" and pinned the First-Run wizard open forever.
+ * The one macOS daemon supervisor. Homebrew owns the launchd job; current Port
+ * Daddy code never installs a competing service label.
  */
-export const DAEMON_LAUNCH_AGENT_LABELS = ['homebrew.mxcl.port-daddy', 'com.portdaddy.daemon'] as const;
+export const DAEMON_LAUNCH_AGENT_LABELS = ['homebrew.mxcl.port-daddy'] as const;
 
 function readLaunchAgentProgramArguments(): { path: string; exists: boolean; programArguments: string[] | null; label: string | null } {
   if (platform() !== 'darwin') {

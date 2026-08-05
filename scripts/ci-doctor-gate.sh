@@ -144,16 +144,13 @@ printf '%s' "$DOCTOR_JSON" | node -e '
       for (const c of liars) console.error("  - " + c.name + ": " + c.detail);
       process.exit(1);
     }
-    // The Bosun watchdog is REQUIRED and was built above — it must be present and
-    // must NOT emit the old "binary not built" false-negative on a healthy daemon.
-    const bosun = r.checks.find(c => c.name === "Bosun watchdog");
-    if (!bosun) { console.error("FAIL: no Bosun watchdog check present"); process.exit(1); }
-    if (bosun.severity !== "ok") {
-      console.error("FAIL: Bosun watchdog is REQUIRED but not ok: " + bosun.severity + " — " + bosun.detail);
-      process.exit(1);
-    }
-    if (/not built/i.test(bosun.detail || "")) {
-      console.error("FAIL: Bosun watchdog reported the false-negative \"not built\" while the watchdog was built");
+    // Supervision and runtime identity are the release contract. The daemon's
+    // heartbeat is evidence within that identity assessment, not a second
+    // watchdog artifact that must be built or installed.
+    const identity = r.checks.find(c => c.name === "Runtime identity");
+    if (!identity) { console.error("FAIL: no Runtime identity check present"); process.exit(1); }
+    if (identity.severity === "critical") {
+      console.error("FAIL: runtime identity is critical: " + identity.detail);
       process.exit(1);
     }
     console.log("OK: pd doctor --json severity=" + r.severity +

@@ -318,16 +318,6 @@ jobs:
       - name: Build compiled daemon binary
         run: npm run build:daemon:dist
 
-      # The Bosun watchdog is now REQUIRED: `pd doctor` reports a missing supervisor
-      # as CRITICAL, so the doctor gate below must validate the FULL artifact — daemon
-      # + watchdog — not the daemon alone. Build it before the smoke/gate so the booted
-      # daemon resolves core/target/release/pd-bosun (a resolveBosunBinaryPath candidate).
-      - name: Install Rust toolchain (for pd-bosun watchdog)
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build pd-bosun (required daemon watchdog)
-        run: npm run build:bosun
-
       - name: Boot compiled daemon and smoke hot routes
         run: bash scripts/smoke-compiled-daemon.sh
         timeout-minutes: 3

@@ -1,167 +1,63 @@
 #!/usr/bin/env node
 
 /**
- * Port Daddy Daemon Installer
+ * Port Daddy daemon service integration.
  *
- * Cross-platform service installer for macOS (launchctl) and Linux (systemd).
+ * One OS service manager owns resurrection:
  *
- * Usage:
- *   node install-daemon.js install   - Install and start Port Daddy daemon
- *   node install-daemon.js uninstall - Stop and uninstall Port Daddy daemon
- *   node install-daemon.js status    - Check daemon status
+ * - macOS: Homebrew's `homebrew.mxcl.port-daddy` launchd service
+ * - Linux: the `port-daddy.service` systemd user unit
+ *
+ * The daemon publishes PID, port, health, and heartbeat evidence. It does not
+ * install another watchdog. A separate macOS freshness timer may ask Homebrew
+ * to upgrade the formula, but it never starts or supervises the daemon itself.
  */
 
-import { spawnSync } from 'child_process';
-import type { SpawnSyncReturns } from 'child_process';
-import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs';
-import { join, dirname, resolve } from 'path';
-import { fileURLToPath } from 'url';
-import { homedir, platform } from 'os';
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { homedir, platform } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { resolveDaemonUrl } from './shared/daemon-discovery.js';
-import { daemonBinaryName, resolveDaemonLaunchCommand, resolveDistributionRoot, resolveBosunBinaryPath, jscSafeModeEnv, type DaemonLaunchCommand } from './shared/daemon-binary.js';
+import {
+  jscSafeModeEnv,
+  resolveDaemonLaunchCommand,
+  resolveDistributionRoot,
+  type DaemonLaunchCommand,
+} from './shared/daemon-binary.js';
 
-const MODULE_DIR: string = dirname(fileURLToPath(import.meta.url));
-const __dirname: string = resolveDistributionRoot(MODULE_DIR);
-const PLATFORM: string = platform();
-const NODE_PATH: string = process.execPath;
-const LOG_PATH: string = join(__dirname, 'port-daddy.log');
-const ERROR_LOG_PATH: string = join(__dirname, 'port-daddy-error.log');
-// Bosun binary resolution order (2026-07-14 halt-mandate). The CANONICAL
-// installed location is `<resource-root>/pd-bosun` — the flat path the release
-// tarball unpacks to (release.yml packages `pd-bosun` at the tar root, next to
-// `pd`/`port-daddy`). We prefer it FIRST so a real install supervises using the
-// shipped, co-located binary rather than a stale dev-checkout `dist/` copy (the
-// exact failure the mandate calls out: "a stale Bosun was watching from
-// ~/coding/port-daddy/dist, useless"). The `dist/core` and source-tree
-// `target/release` paths remain dev fallbacks only. `resolveBosunBinaryPath`
-// mirrors this order in shared code consumed by `pd doctor`.
-// Prefer the version-STABLE Homebrew symlink `<prefix>/bin/pd-bosun` over a versioned Cellar keg
-// path. `resolveBosunBinaryPath` resolves to the *current* keg (e.g. .../3.26.2_2/bin/pd-bosun),
-// which the NEXT `brew upgrade` deletes — leaving the launchd watchdog's ExecStart pointing at a
-// dead keg (spawn fails with EX_CONFIG, so a crashing daemon no longer auto-restarts) until
-// someone re-runs `install-bosun` by hand. The `<prefix>/bin/pd-bosun` symlink is repointed by
-// brew on every upgrade, so a plist that references it stays valid across upgrades. Derived from
-// process.execPath: the running `port-daddy` lives at `<prefix>/bin/port-daddy` (symlink) or
-// `<prefix>/Cellar/port-daddy/<ver>/bin/port-daddy` (keg, e.g. when brew's post_install invokes it).
-// Pure derivation (exported for tests): given the running binary's execPath, return the
-// version-stable `<prefix>/bin/pd-bosun` symlink path if it exists, else null. Injectable
-// `exists` keeps it filesystem-free to test both the brew-keg and brew-symlink invocations.
-export function stableBosunPathFromExec(execPath: string, exists: (p: string) => boolean): string | null {
-  const cellar: number = execPath.indexOf('/Cellar/port-daddy/');
-  const stable: string = cellar >= 0
-    ? join(execPath.slice(0, cellar), 'bin', 'pd-bosun') // <prefix>/Cellar/port-daddy/<ver>/bin/pd → <prefix>/bin/pd-bosun
-    : join(dirname(execPath), 'pd-bosun');               // <prefix>/bin/pd (symlink) → <prefix>/bin/pd-bosun
-  return exists(stable) ? stable : null;
-}
-function resolveStableBosunBinaryPath(): string {
-  try {
-    return stableBosunPathFromExec(process.execPath, existsSync) ?? resolveBosunBinaryPath(__dirname);
-  } catch {
-    return resolveBosunBinaryPath(__dirname);
-  }
-}
-const BOSUN_BINARY_PATH: string = resolveStableBosunBinaryPath();
-// Logs go to the DURABLE home (~/.port-daddy), NOT the versioned keg (`join(__dirname, …)`).
-// A keg-relative StandardOutPath is deleted by the next `brew upgrade`, so launchd can no longer
-// open the log file and the watchdog job fails to launch — the same stale-Cellar-path outage the
-// stable-symlink ExecStart fix targets. `~/.port-daddy` is checkout- and version-independent.
-const DURABLE_HOME: string = join(homedir(), '.port-daddy');
-const BOSUN_LOG_PATH: string = join(DURABLE_HOME, 'pd-bosun.log');
-const BOSUN_ERROR_LOG_PATH: string = join(DURABLE_HOME, 'pd-bosun-error.log');
+const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
+const RESOURCE_ROOT = resolveDistributionRoot(MODULE_DIR);
+const PLATFORM = platform();
+const DURABLE_HOME = join(homedir(), '.port-daddy');
+const LOG_PATH = join(DURABLE_HOME, 'port-daddy.log');
+const ERROR_LOG_PATH = join(DURABLE_HOME, 'port-daddy-error.log');
+const LAUNCH_AGENTS = join(homedir(), 'Library', 'LaunchAgents');
+const SYSTEMD_USER_DIR = join(homedir(), '.config', 'systemd', 'user');
+const SYSTEMD_UNIT = join(SYSTEMD_USER_DIR, 'port-daddy.service');
+
+export const BREW_DAEMON_LABEL = 'homebrew.mxcl.port-daddy';
+
+// These labels are migration inputs only. Port Daddy 3.28 unloads and removes
+// the jobs once; no current code emits or starts them. `com.bosun.daemon` is a
+// separate product and is intentionally absent from this cleanup list.
+export const RETIRED_PORT_DADDY_LABELS = [
+  'com.portdaddy.daemon',
+  'com.portdaddy.bosun',
+  'com.erichowens.port-daddy',
+] as const;
+const RETIRED_SYSTEMD_UNITS = ['port-daddy-bosun.service'] as const;
+
+const FRESHNESS_PLIST_LABEL = 'com.portdaddy.freshness';
+const FRESHNESS_PLIST_PATH = join(LAUNCH_AGENTS, `${FRESHNESS_PLIST_LABEL}.plist`);
+const FRESHNESS_LOG_PATH = join(DURABLE_HOME, 'logs', 'freshness.log');
+export const FRESHNESS_INTERVAL_SECONDS = 900;
+
 const DARWIN_OPERATOR_TOOL_PATHS = [
   '/Applications/Codex.app/Contents/Resources',
   '/opt/homebrew/bin',
 ];
 const SYSTEM_TOOL_PATHS = ['/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin'];
-
-// macOS paths
-export const PLIST_LABEL: string = 'com.portdaddy.daemon';
-const BOSUN_PLIST_LABEL: string = 'com.portdaddy.bosun';
-// The Homebrew `brew services` launchd job that already supervises the daemon
-// (KeepAlive=true). If this is loaded, our own com.portdaddy.daemon plist would
-// be a SECOND, competing supervisor for the same :daemon-port listener — that
-// duplicate is exactly what docs/operations/daemon-and-supervision.md flags as
-// the recurring failure mode. Detect it and refuse to create the duplicate.
-export const BREW_DAEMON_LABEL: string = 'homebrew.mxcl.port-daddy';
-const LAUNCH_AGENTS: string = join(homedir(), 'Library', 'LaunchAgents');
-const PLIST_PATH: string = join(LAUNCH_AGENTS, `${PLIST_LABEL}.plist`);
-const BOSUN_PLIST_PATH: string = join(LAUNCH_AGENTS, `${BOSUN_PLIST_LABEL}.plist`);
-
-// macOS auto-freshness self-heal (ADR-0062). A LaunchAgent runs
-// `pd self-update --tick` every 15 min: it brew-upgrades + restarts the daemon
-// onto the current release and relaunches the FleetBar GUI, hands-off. This is
-// the actor that finally consumes the daemon's long-standing
-// `binary_drift_detected` warning instead of merely logging it.
-const FRESHNESS_PLIST_LABEL: string = 'com.portdaddy.freshness';
-const FRESHNESS_PLIST_PATH: string = join(LAUNCH_AGENTS, `${FRESHNESS_PLIST_LABEL}.plist`);
-// 15 min, tightened from hourly (2026-06-23): a published brew release must land
-// on the running machine promptly — auto-upgrade should be a *necessary*
-// consequence of pushing a new version, not an eventual one. Lower latency
-// without hammering brew; a tick is a ~6s no-op when already current and only
-// does real work when a newer release actually exists.
-export const FRESHNESS_INTERVAL_SECONDS = 900;
-const FRESHNESS_LOG_PATH: string = join(homedir(), '.port-daddy', 'logs', 'freshness.log');
-
-// Linux paths
-const SYSTEMD_USER_DIR: string = join(homedir(), '.config', 'systemd', 'user');
-const SYSTEMD_UNIT: string = join(SYSTEMD_USER_DIR, 'port-daddy.service');
-const BOSUN_SYSTEMD_UNIT: string = join(SYSTEMD_USER_DIR, 'port-daddy-bosun.service');
-
-function isPortDaddyProcess(command: string): boolean {
-  return command.includes('server.ts') ||
-    command.includes(daemonBinaryName()) ||
-    command.includes('port-daddy') ||
-    command.includes('port_daddy');
-}
-
-function stopExistingCanonicalDaemon(): void {
-  const listeners = runCommand('lsof', ['-i', ':9876', '-sTCP:LISTEN', '-Fp']);
-  const pids = new Set<number>();
-
-  for (const line of listeners.stdout.split('\n')) {
-    if (!line.startsWith('p')) continue;
-    const pid = parseInt(line.slice(1), 10);
-    if (!Number.isFinite(pid) || pid <= 0) continue;
-    pids.add(pid);
-  }
-
-  for (const pid of pids) {
-    const ps = runCommand('ps', ['-p', String(pid), '-o', 'command=']);
-    const command = (ps.stdout || '').trim().split('\n')[0] || '';
-    if (!isPortDaddyProcess(command)) continue;
-
-    runCommand('kill', ['-TERM', String(pid)]);
-    console.log(`  Stopped existing Port Daddy daemon (PID ${pid})`);
-  }
-
-  const stalePaths = [
-    join(homedir(), '.port-daddy', 'daemon.sock'),
-    join(homedir(), '.port-daddy', 'daemon.ipc'),
-  ];
-  for (const stalePath of stalePaths) {
-    if (!existsSync(stalePath)) continue;
-    try {
-      unlinkSync(stalePath);
-      console.log(`  Removed stale ${stalePath}`);
-    } catch {
-      // Leave it if something still owns it.
-    }
-  }
-}
-
-/**
- * Is the Homebrew-managed daemon supervisor (`homebrew.mxcl.port-daddy`)
- * already loaded? If so, the daemon is already supervised with KeepAlive and we
- * must NOT install a second `com.portdaddy.daemon` launchd job on top of it.
- *
- * Returns false on any non-darwin platform or if `launchctl` is unavailable.
- */
-function brewDaemonServiceLoaded(): boolean {
-  if (PLATFORM !== 'darwin') return false;
-  const list: CommandResult = runCommand('launchctl', ['list']);
-  if (list.status !== 0 && !list.stdout) return false;
-  return list.stdout.includes(BREW_DAEMON_LABEL);
-}
 
 interface CommandResult {
   stdout: string;
@@ -169,209 +65,34 @@ interface CommandResult {
   status: number | null;
 }
 
+type ServiceState = 'running' | 'installed' | 'failed' | 'not-installed' | 'unsupported';
+
 function runCommand(command: string, args: string[], options: Record<string, unknown> = {}): CommandResult {
-  const result: SpawnSyncReturns<string> = spawnSync(command, args, { encoding: 'utf8', ...options });
+  const result: SpawnSyncReturns<string> = spawnSync(command, args, {
+    encoding: 'utf8',
+    ...options,
+  });
   return {
     stdout: result.stdout || '',
     stderr: result.stderr || '',
-    status: result.status
+    status: result.status,
   };
 }
 
 function servicePath(...requiredDirs: string[]): string {
-  const platformToolPaths = PLATFORM === 'darwin' ? DARWIN_OPERATOR_TOOL_PATHS : [];
-  return [...new Set([
-    ...requiredDirs,
-    ...platformToolPaths,
-    ...SYSTEM_TOOL_PATHS,
-  ].filter(Boolean))].join(':');
+  const platformDirs = PLATFORM === 'darwin' ? DARWIN_OPERATOR_TOOL_PATHS : [];
+  return [...new Set([...requiredDirs, ...platformDirs, ...SYSTEM_TOOL_PATHS].filter(Boolean))].join(':');
 }
 
-function resolveDaemonCommand(): DaemonLaunchCommand {
-  return resolveDaemonLaunchCommand(__dirname);
-}
-
-function printDaemonCommandError(err: unknown): void {
-  console.error(`  ${(err as Error).message}`);
-  console.error('  Refusing to install a source-backed daemon without an explicit development override.');
-}
-
-// =============================================================================
-// macOS: LaunchAgent plist
-// =============================================================================
-
-function generatePlist(daemon: DaemonLaunchCommand): string {
-  const programArguments = [daemon.program, ...daemon.args]
-    .map(arg => `        <string>${arg}</string>`)
-    .join('\n');
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>${PLIST_LABEL}</string>
-
-    <key>ProgramArguments</key>
-    <array>
-${programArguments}
-    </array>
-
-    <key>RunAtLoad</key>
-    <true/>
-
-    <key>KeepAlive</key>
-    <dict>
-        <key>SuccessfulExit</key>
-        <false/>
-    </dict>
-
-    <!--
-      ThrottleInterval — matches the Bosun watchdog plist below. Without it,
-      launchd's built-in default (10s) is the only floor between respawns.
-      This is NOT a fix for the Bun 1.2.21 native-crash family the daemon can
-      hit under load (issue #676) — that crash needs minutes of production
-      state to trigger, so 15s does nothing to the crash itself. It is a
-      cheap safety net against a *fast* boot-time crash loop (e.g. a bad
-      binary that dies in <1s) burning CPU/log space with rapid restarts.
-    -->
-    <key>ThrottleInterval</key>
-    <integer>15</integer>
-
-    <key>StandardOutPath</key>
-    <string>${LOG_PATH}</string>
-
-    <key>StandardErrorPath</key>
-    <string>${ERROR_LOG_PATH}</string>
-
-    <key>WorkingDirectory</key>
-    <string>${__dirname}</string>
-
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>PATH</key>
-        <string>${servicePath(...daemon.pathDirs, dirname(NODE_PATH))}</string>
-        <key>PORT_DADDY_RESOURCE_DIR</key>
-        <string>${__dirname}</string>
-        <key>PORT_DADDY_DB</key>
-        <string>${join(homedir(), '.port-daddy', 'port-registry.db')}</string>
-${jscSafeModeEnvXml()}
-    </dict>
-</dict>
-</plist>`;
-}
-
-/**
- * EXPERIMENTAL, UNVALIDATED mitigation for the Bun 1.2.21 native-crash family
- * (issue #676: JSC GC segfault under concurrent-connection load —
- * `MarkedBlock::Handle::sweep` / `SlotVisitor::drain` / `LocalAllocator::
- * tryAllocateIn`, reproduced across many Bun versions through the current
- * latest). Both `useConcurrentGC` and `useConcurrentJIT` are real, documented
- * JavaScriptCore Options (WebKit's OptionsList.h; default `true` on both) that
- * move GC marking/sweeping and DFG/FTL JIT compilation onto background
- * threads running concurrently with the mutator (JS execution) thread. The
- * observed crash traces are IN that exact concurrent GC machinery, so forcing
- * both to run synchronously on the main thread instead removes the specific
- * background-thread/mutator race the crash signatures point at.
- *
- * HONEST SCOPE: this is a mechanistically-reasoned hypothesis, not a
- * confirmed fix. The crash is state/load-dependent and needs production-scale
- * memory pressure to trigger (see scripts/soak-binary.sh) — nobody, including
- * this change's author, has been able to reproduce it in a clean sandbox to
- * prove these settings prevent it. What IS validated: the compiled binary
- * boots cleanly with these env vars set (no "unknown option" warning), serves
- * requests correctly, and survives a 50-held-connection + concurrent-burst
- * load pattern mirroring the 2026-07-07 incident without any functional
- * regression. The trade-off is real and unavoidable: disabling concurrent
- * GC/JIT trades some throughput/latency for removing an entire class of
- * concurrency bug — for a coordination daemon that otherwise crashes and
- * takes minutes to recover, that trade is likely worth it, but it has not
- * been measured under real production load.
- *
- * Set PORT_DADDY_JSC_SAFE_MODE=0 before `port-daddy install` to opt out
- * (requires reinstalling the LaunchAgent to take effect).
- */
+/** Render the process-start JSC safety switches used by launchd fixtures. */
 export function jscSafeModeEnvXml(): string {
   return Object.entries(jscSafeModeEnv())
     .map(([key, value]) => `        <key>${key}</key>\n        <string>${value}</string>`)
     .join('\n');
 }
 
-/**
- * @param daemonLabel the launchd label Bosun should `launchctl kickstart -k`
- * when the daemon's heartbeat goes stale (see core/pd-bosun/src/main.rs
- * DEFAULT_DAEMON_LABEL). MUST match whichever job actually supervises the
- * daemon on this machine — `com.portdaddy.daemon` for a self-installed
- * LaunchAgent, or `homebrew.mxcl.port-daddy` under `brew services`.
- *
- * 2026-07-08 (issue #676 investigation): this used to be unparameterized,
- * always defaulting Bosun to `com.portdaddy.daemon` regardless of which
- * supervisor was actually in charge. `installMacOS()`'s brew-detected branch
- * already installs Bosun as a complementary watcher alongside a
- * brew-supervised daemon (see the comment there), but Bosun's own restart
- * action (`launchctl kickstart -k com.portdaddy.daemon`) was targeting a
- * launchd label that doesn't exist under a brew install — so on the
- * operator's actual production machine, Bosun's stale-heartbeat circuit
- * breaker was silently a no-op the entire time. This is the real,
- * already-built "detect a wedge, force-restart within seconds" mechanism the
- * daemon's Bun-crash exposure needs (5s poll / 30s staleness threshold by
- * default, see core/pd-bosun) — it just needed correct wiring, not a new
- * mechanism.
- */
-export function generateBosunPlist(daemonLabel: string): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>${BOSUN_PLIST_LABEL}</string>
-
-    <key>ProgramArguments</key>
-    <array>
-        <string>${BOSUN_BINARY_PATH}</string>
-        <string>watch</string>
-    </array>
-
-    <key>RunAtLoad</key>
-    <true/>
-
-    <key>KeepAlive</key>
-    <true/>
-
-    <key>ThrottleInterval</key>
-    <integer>15</integer>
-
-    <key>StandardOutPath</key>
-    <string>${BOSUN_LOG_PATH}</string>
-
-    <key>StandardErrorPath</key>
-    <string>${BOSUN_ERROR_LOG_PATH}</string>
-
-    <key>WorkingDirectory</key>
-    <string>${DURABLE_HOME}</string>
-
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>PATH</key>
-        <string>${servicePath(dirname(BOSUN_BINARY_PATH), dirname(NODE_PATH))}</string>
-        <key>PORT_DADDY_DB</key>
-        <string>${join(homedir(), '.port-daddy', 'port-registry.db')}</string>
-        <key>PORT_DADDY_BOSUN_DAEMON_LABEL</key>
-        <string>${daemonLabel}</string>
-    </dict>
-</dict>
-</plist>`;
-}
-
-/**
- * Resolve the absolute path to the `pd` CLI launcher for the freshness
- * LaunchAgent. launchd jobs run with a minimal PATH, so an absolute path is
- * required. Prefer `which pd` (the Homebrew symlink, typically
- * /opt/homebrew/bin/pd); fall back to the common Homebrew prefixes.
- */
 function resolvePdLauncherPath(): string | null {
-  const which = runCommand('which', ['pd']);
-  const resolved = (which.stdout || '').trim().split('\n')[0]?.trim();
+  const resolved = runCommand('which', ['pd']).stdout.trim().split('\n')[0]?.trim();
   if (resolved && existsSync(resolved)) return resolved;
   for (const candidate of ['/opt/homebrew/bin/pd', '/usr/local/bin/pd']) {
     if (existsSync(candidate)) return candidate;
@@ -379,6 +100,7 @@ function resolvePdLauncherPath(): string | null {
   return null;
 }
 
+/** Render the updater-only LaunchAgent. It never supervises the daemon. */
 export function generateFreshnessPlist(pdPath: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -386,540 +108,224 @@ export function generateFreshnessPlist(pdPath: string): string {
 <dict>
     <key>Label</key>
     <string>${FRESHNESS_PLIST_LABEL}</string>
-
     <key>ProgramArguments</key>
     <array>
         <string>${pdPath}</string>
         <string>self-update</string>
         <string>--tick</string>
     </array>
-
     <key>RunAtLoad</key>
     <true/>
-
     <key>StartInterval</key>
     <integer>${FRESHNESS_INTERVAL_SECONDS}</integer>
-
     <key>StandardOutPath</key>
     <string>${FRESHNESS_LOG_PATH}</string>
-
     <key>StandardErrorPath</key>
     <string>${FRESHNESS_LOG_PATH}</string>
-
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
         <string>${servicePath(dirname(pdPath))}</string>
         <key>PORT_DADDY_DB</key>
-        <string>${join(homedir(), '.port-daddy', 'port-registry.db')}</string>
+        <string>${join(DURABLE_HOME, 'port-registry.db')}</string>
     </dict>
 </dict>
 </plist>`;
 }
 
+function launchdDomain(): string {
+  const uid = typeof process.getuid === 'function' ? process.getuid() : 501;
+  return `gui/${uid}`;
+}
+
+function bootoutLaunchAgent(label: string, plistPath: string): void {
+  runCommand('launchctl', ['bootout', `${launchdDomain()}/${label}`]);
+  if (!existsSync(plistPath)) return;
+  try {
+    unlinkSync(plistPath);
+    console.log(`  Removed retired ${plistPath}`);
+  } catch (error) {
+    console.error(`  Failed to remove ${plistPath}: ${(error as Error).message}`);
+  }
+}
+
 /**
- * Install the auto-freshness LaunchAgent (ADR-0062; 15-min cadence). macOS-only; the
- * `pd self-update` it runs is itself a no-op off macOS. Best-effort: a missing
- * `pd` launcher (e.g. a source checkout that hasn't `brew install`ed) skips
- * cleanly rather than failing the whole install.
+ * Remove only Port Daddy-owned legacy jobs. This is idempotent release
+ * migration, not a second supervisor or a broad launchd cleanup.
  */
+export function cleanupRetiredMacOSJobs(): void {
+  for (const label of RETIRED_PORT_DADDY_LABELS) {
+    bootoutLaunchAgent(label, join(LAUNCH_AGENTS, `${label}.plist`));
+  }
+}
+
 function installFreshnessMacOS(): boolean {
   const pdPath = resolvePdLauncherPath();
   if (!pdPath) {
-    console.log('  Freshness self-heal skipped: `pd` launcher not found on PATH.');
-    console.log('  It installs automatically once Port Daddy is on PATH (brew install).');
+    console.log('  Freshness timer skipped: `pd` is not installed on PATH.');
     return true;
   }
 
-  // Ensure the freshness log directory exists so launchd can open the file.
+  mkdirSync(LAUNCH_AGENTS, { recursive: true });
   mkdirSync(dirname(FRESHNESS_LOG_PATH), { recursive: true });
-
-  if (existsSync(FRESHNESS_PLIST_PATH)) {
-    runCommand('launchctl', ['unload', FRESHNESS_PLIST_PATH]);
-  }
-
+  runCommand('launchctl', ['bootout', `${launchdDomain()}/${FRESHNESS_PLIST_LABEL}`]);
   writeFileSync(FRESHNESS_PLIST_PATH, generateFreshnessPlist(pdPath));
-  console.log(`  Wrote ${FRESHNESS_PLIST_PATH} (self-update every ${FRESHNESS_INTERVAL_SECONDS}s via ${pdPath})`);
-  return loadLaunchAgent(FRESHNESS_PLIST_LABEL, FRESHNESS_PLIST_PATH);
-}
-
-function loadLaunchAgent(label: string, plistPath: string): boolean {
-  const load: CommandResult = runCommand('launchctl', ['load', plistPath]);
-  if (load.status !== 0) {
-    console.error(`  Failed to load ${label}:`, load.stderr.trim());
+  const bootstrap = runCommand('launchctl', ['bootstrap', launchdDomain(), FRESHNESS_PLIST_PATH]);
+  if (bootstrap.status !== 0) {
+    console.error(`  Failed to install freshness timer: ${bootstrap.stderr.trim()}`);
     return false;
   }
-
-  console.log(`  LaunchAgent loaded (${label})`);
-  const uid = typeof process.getuid === 'function' ? process.getuid() : 501;
-  const kickstart = runCommand('launchctl', ['kickstart', '-k', `gui/${uid}/${label}`]);
-  if (kickstart.status === 0) {
-    console.log(`  LaunchAgent started (${label})`);
-  } else if (kickstart.stderr.trim()) {
-    console.log(`  LaunchAgent kickstart (${label}): ${kickstart.stderr.trim()}`);
-  }
+  console.log(`  Freshness timer installed (${FRESHNESS_INTERVAL_SECONDS}s cadence)`);
   return true;
 }
 
-/**
- * @param daemonLabel which launchd job actually supervises the daemon on
- * this machine — pass BREW_DAEMON_LABEL when brew-managed, PLIST_LABEL
- * otherwise. See generateBosunPlist() for why this must be correct.
- */
-function installBosunMacOS(daemonLabel: string): boolean {
-  if (!existsSync(BOSUN_BINARY_PATH)) {
-    // LOUD warning (2026-07-14 halt-mandate red-team): a daemon installed
-    // WITHOUT its supervisor is exactly the silent-death regression this PR
-    // closes. A source checkout legitimately may not have built the binary yet,
-    // so we do not hard-fail the whole install — but we must SCREAM, not log a
-    // quiet one-liner, so the operator knows the daemon is currently unguarded.
-    console.warn('  ⚠️  BOSUN SUPERVISOR NOT INSTALLED — the daemon will NOT be auto-restarted if it dies.');
-    console.warn(`      pd-bosun binary missing at ${BOSUN_BINARY_PATH}`);
-    console.warn('      A packaged (brew/tarball) install ships pd-bosun automatically; this checkout has not built it.');
-    console.warn('      Build + install it with: npm run build:bosun:dist && port-daddy install');
-    return true;
+function installMacOS(): boolean {
+  cleanupRetiredMacOSJobs();
+  const brew = runCommand('brew', ['services', 'start', 'port-daddy']);
+  if (brew.status !== 0) {
+    console.error(`  Homebrew service start failed: ${brew.stderr.trim() || brew.stdout.trim()}`);
+    console.error('  Port Daddy refuses to install a competing LaunchAgent.');
+    return false;
   }
-
-  if (existsSync(BOSUN_PLIST_PATH)) {
-    runCommand('launchctl', ['unload', BOSUN_PLIST_PATH]);
-  }
-
-  writeFileSync(BOSUN_PLIST_PATH, generateBosunPlist(daemonLabel));
-  console.log(`  Wrote ${BOSUN_PLIST_PATH} (KeepAlive supervisor → ${BOSUN_BINARY_PATH}, watching ${daemonLabel})`);
-  return loadLaunchAgent(BOSUN_PLIST_LABEL, BOSUN_PLIST_PATH);
-}
-
-function installMacOS(daemon: DaemonLaunchCommand): boolean {
-  // Ensure LaunchAgents directory exists
-  if (!existsSync(LAUNCH_AGENTS)) {
-    mkdirSync(LAUNCH_AGENTS, { recursive: true });
-  }
-
-  // Unload old service if present (handles label changes)
-  const oldPlist: string = join(LAUNCH_AGENTS, 'com.erichowens.port-daddy.plist');
-  if (existsSync(oldPlist)) {
-    runCommand('launchctl', ['unload', oldPlist]);
-    try { unlinkSync(oldPlist); } catch { /* ignore */ }
-    console.log('  Removed legacy plist (com.erichowens.port-daddy)');
-  }
-
-  // DEDUP GUARD: if Homebrew's `brew services` already supervises the daemon
-  // (homebrew.mxcl.port-daddy, KeepAlive=true), do NOT install a second
-  // launchd supervisor. Two KeepAlive jobs racing for the same listener is the
-  // recurring "two daemons fighting over :daemon-port" failure. Leave the brew
-  // service as the single supervisor; only ensure Bosun (a complementary,
-  // one-way heartbeat watcher) is present.
-  if (brewDaemonServiceLoaded()) {
-    console.log(`  Detected supervised daemon via Homebrew (${BREW_DAEMON_LABEL}).`);
-    console.log('  Skipping com.portdaddy.daemon launchd job to avoid a duplicate supervisor.');
-    console.log('  Your daemon is already supervised; manage it with: brew services restart port-daddy');
-    if (existsSync(PLIST_PATH)) {
-      runCommand('launchctl', ['unload', PLIST_PATH]);
-      try {
-        unlinkSync(PLIST_PATH);
-        console.log(`  Removed redundant ${PLIST_PATH}`);
-      } catch { /* leave it if something still owns it */ }
-    }
-    return installBosunMacOS(BREW_DAEMON_LABEL) && installFreshnessMacOS();
-  }
-
-  stopExistingCanonicalDaemon();
-
-  // Unload current if already installed
-  if (existsSync(PLIST_PATH)) {
-    runCommand('launchctl', ['unload', PLIST_PATH]);
-  }
-
-  // Write plist with correct paths
-  writeFileSync(PLIST_PATH, generatePlist(daemon));
-  console.log(`  Wrote ${PLIST_PATH}`);
-
-  return loadLaunchAgent(PLIST_LABEL, PLIST_PATH) && installBosunMacOS(PLIST_LABEL) && installFreshnessMacOS();
+  console.log(`  Homebrew launchd service owns daemon resurrection (${BREW_DAEMON_LABEL})`);
+  return installFreshnessMacOS();
 }
 
 function uninstallMacOS(): boolean {
-  // Unload both old and new labels
-  for (const path of [PLIST_PATH, BOSUN_PLIST_PATH, FRESHNESS_PLIST_PATH, join(LAUNCH_AGENTS, 'com.erichowens.port-daddy.plist')]) {
-    if (existsSync(path)) {
-      runCommand('launchctl', ['unload', path]);
-      try {
-        unlinkSync(path);
-        console.log(`  Removed ${path}`);
-      } catch (err: unknown) {
-        console.error(`  Failed to remove ${path}: ${(err as Error).message}`);
-      }
-    }
-  }
+  runCommand('brew', ['services', 'stop', 'port-daddy']);
+  bootoutLaunchAgent(FRESHNESS_PLIST_LABEL, FRESHNESS_PLIST_PATH);
+  cleanupRetiredMacOSJobs();
   return true;
 }
 
-type ServiceState = 'running' | 'installed' | 'failed' | 'not-installed' | 'legacy' | 'unsupported' | 'unknown';
-
 function statusMacOS(): ServiceState {
-  if (!existsSync(PLIST_PATH)) {
-    // Check for legacy plist
-    const oldPlist: string = join(LAUNCH_AGENTS, 'com.erichowens.port-daddy.plist');
-    if (existsSync(oldPlist)) {
-      console.log('  Legacy plist found (com.erichowens.port-daddy)');
-      console.log('  Run "port-daddy install" to upgrade to new format');
-      return 'legacy';
-    }
-    return 'not-installed';
-  }
-
-  const list: CommandResult = runCommand('launchctl', ['list']);
-  return list.stdout.includes(PLIST_LABEL) ? 'running' : 'installed';
+  const result = runCommand('launchctl', ['print', `${launchdDomain()}/${BREW_DAEMON_LABEL}`]);
+  if (result.status !== 0) return 'not-installed';
+  return /^\s*state\s*=\s*running\s*$/m.test(result.stdout) ? 'running' : 'installed';
 }
 
-function statusBosunMacOS(): ServiceState {
-  if (!existsSync(BOSUN_PLIST_PATH)) return 'not-installed';
-  const list: CommandResult = runCommand('launchctl', ['list']);
-  return list.stdout.includes(BOSUN_PLIST_LABEL) ? 'running' : 'installed';
-}
-
-// =============================================================================
-// Linux: systemd user service
-// =============================================================================
-
-function generateSystemdUnit(daemon: DaemonLaunchCommand): string {
+/** Render the single Linux systemd user service. */
+export function generateSystemdUnit(daemon: DaemonLaunchCommand): string {
+  const env = { ...jscSafeModeEnv(), ...(daemon.env ?? {}) };
+  const envLines = Object.entries(env)
+    .map(([key, value]) => `Environment=${key}=${value}`)
+    .join('\n');
   return `[Unit]
-Description=Port Daddy - Authoritative Port Management Daemon
+Description=Port Daddy daemon
 After=network.target
 
 [Service]
 Type=simple
 ExecStart=${[daemon.program, ...daemon.args].join(' ')}
-WorkingDirectory=${__dirname}
+WorkingDirectory=${RESOURCE_ROOT}
 Restart=on-failure
 RestartSec=5
 StandardOutput=append:${LOG_PATH}
 StandardError=append:${ERROR_LOG_PATH}
-Environment=PATH=${servicePath(...daemon.pathDirs, dirname(NODE_PATH))}
-Environment=PORT_DADDY_RESOURCE_DIR=${__dirname}
+Environment=PATH=${servicePath(...daemon.pathDirs, dirname(process.execPath))}
+Environment=PORT_DADDY_RESOURCE_DIR=${RESOURCE_ROOT}
+${envLines}
 
 [Install]
 WantedBy=default.target
 `;
 }
 
-function generateBosunSystemdUnit(): string {
-  return `[Unit]
-Description=Port Daddy Bosun - Filesystem Heartbeat Supervisor
-After=default.target
-
-[Service]
-Type=simple
-ExecStart=${BOSUN_BINARY_PATH} watch
-WorkingDirectory=${__dirname}
-Restart=always
-RestartSec=5
-StandardOutput=append:${BOSUN_LOG_PATH}
-StandardError=append:${BOSUN_ERROR_LOG_PATH}
-Environment=PATH=${servicePath(dirname(BOSUN_BINARY_PATH), dirname(NODE_PATH))}
-
-[Install]
-WantedBy=default.target
-`;
-}
-
-function installBosunLinux(): boolean {
-  if (!existsSync(BOSUN_BINARY_PATH)) {
-    console.log(`  Bosun not installed: pd-bosun binary missing at ${BOSUN_BINARY_PATH}`);
-    console.log('  Build it with: npm run build:bosun:dist');
-    return true;
+function cleanupRetiredLinuxJobs(): void {
+  for (const unit of RETIRED_SYSTEMD_UNITS) {
+    runCommand('systemctl', ['--user', 'disable', '--now', unit]);
+    const path = join(SYSTEMD_USER_DIR, unit);
+    if (existsSync(path)) unlinkSync(path);
   }
-
-  writeFileSync(BOSUN_SYSTEMD_UNIT, generateBosunSystemdUnit());
-  console.log(`  Wrote ${BOSUN_SYSTEMD_UNIT}`);
-
-  const reload = runCommand('systemctl', ['--user', 'daemon-reload']);
-  if (reload.status !== 0) {
-    console.error('  Failed to reload systemd for Bosun:', reload.stderr.trim());
-    return false;
-  }
-  const enable = runCommand('systemctl', ['--user', 'enable', 'port-daddy-bosun.service']);
-  if (enable.status !== 0) {
-    console.error('  Failed to enable Bosun service:', enable.stderr.trim());
-    return false;
-  }
-  const start = runCommand('systemctl', ['--user', 'start', 'port-daddy-bosun.service']);
-  if (start.status !== 0) {
-    console.error('  Failed to start Bosun service:', start.stderr.trim());
-    return false;
-  }
-  console.log('  Bosun service started');
-  return true;
 }
 
 function installLinux(daemon: DaemonLaunchCommand): boolean {
-  // Ensure systemd user directory exists
-  if (!existsSync(SYSTEMD_USER_DIR)) {
-    mkdirSync(SYSTEMD_USER_DIR, { recursive: true });
-  }
-
-  // Write unit file
+  mkdirSync(SYSTEMD_USER_DIR, { recursive: true });
+  cleanupRetiredLinuxJobs();
   writeFileSync(SYSTEMD_UNIT, generateSystemdUnit(daemon));
-  console.log(`  Wrote ${SYSTEMD_UNIT}`);
-
-  // Reload systemd
-  const reload: CommandResult = runCommand('systemctl', ['--user', 'daemon-reload']);
+  const reload = runCommand('systemctl', ['--user', 'daemon-reload']);
   if (reload.status !== 0) {
-    console.error('  Failed to reload systemd:', reload.stderr.trim());
+    console.error(`  systemd reload failed: ${reload.stderr.trim()}`);
     return false;
   }
-
-  // Enable (start on login)
-  const enable: CommandResult = runCommand('systemctl', ['--user', 'enable', 'port-daddy.service']);
+  const enable = runCommand('systemctl', ['--user', 'enable', '--now', 'port-daddy.service']);
   if (enable.status !== 0) {
-    console.error('  Failed to enable service:', enable.stderr.trim());
+    console.error(`  systemd service start failed: ${enable.stderr.trim()}`);
     return false;
   }
-  console.log('  Service enabled (auto-start on login)');
-
-  // Start now
-  const start: CommandResult = runCommand('systemctl', ['--user', 'start', 'port-daddy.service']);
-  if (start.status === 0) {
-    console.log('  Service started');
-    return installBosunLinux();
-  } else {
-    console.error('  Failed to start service:', start.stderr.trim());
-    return false;
-  }
+  console.log('  systemd user service owns daemon resurrection (port-daddy.service)');
+  return true;
 }
 
 function uninstallLinux(): boolean {
-  // Stop
-  runCommand('systemctl', ['--user', 'stop', 'port-daddy.service']);
-  runCommand('systemctl', ['--user', 'stop', 'port-daddy-bosun.service']);
-  console.log('  Service stopped');
-
-  // Disable
-  runCommand('systemctl', ['--user', 'disable', 'port-daddy.service']);
-  runCommand('systemctl', ['--user', 'disable', 'port-daddy-bosun.service']);
-  console.log('  Service disabled');
-
-  // Remove unit file
-  for (const unit of [SYSTEMD_UNIT, BOSUN_SYSTEMD_UNIT]) {
-    if (!existsSync(unit)) continue;
-    try {
-      unlinkSync(unit);
-      console.log(`  Removed ${unit}`);
-    } catch (err: unknown) {
-      console.error(`  Failed to remove unit file: ${(err as Error).message}`);
-    }
-  }
-
-  // Reload
+  runCommand('systemctl', ['--user', 'disable', '--now', 'port-daddy.service']);
+  cleanupRetiredLinuxJobs();
+  if (existsSync(SYSTEMD_UNIT)) unlinkSync(SYSTEMD_UNIT);
   runCommand('systemctl', ['--user', 'daemon-reload']);
   return true;
 }
 
 function statusLinux(): ServiceState {
-  if (!existsSync(SYSTEMD_UNIT)) {
-    return 'not-installed';
+  const result = runCommand('systemctl', ['--user', 'is-active', 'port-daddy.service']);
+  const state = result.stdout.trim();
+  if (state === 'active') return 'running';
+  if (state === 'failed') return 'failed';
+  return existsSync(SYSTEMD_UNIT) ? 'installed' : 'not-installed';
+}
+
+function resolveLinuxDaemonCommand(): DaemonLaunchCommand {
+  try {
+    return resolveDaemonLaunchCommand(RESOURCE_ROOT);
+  } catch (error) {
+    console.error(`  ${(error as Error).message}`);
+    console.error('  Build the daemon binary, or use `pd dev up` for source development.');
+    throw error;
   }
-
-  const status: CommandResult = runCommand('systemctl', ['--user', 'is-active', 'port-daddy.service']);
-  const state: string = status.stdout.trim();
-
-  if (state === 'active') return 'running';
-  if (state === 'inactive') return 'installed';
-  if (state === 'failed') return 'failed';
-  return 'installed';
 }
-
-function statusBosunLinux(): ServiceState {
-  if (!existsSync(BOSUN_SYSTEMD_UNIT)) return 'not-installed';
-  const status: CommandResult = runCommand('systemctl', ['--user', 'is-active', 'port-daddy-bosun.service']);
-  const state: string = status.stdout.trim();
-  if (state === 'active') return 'running';
-  if (state === 'inactive') return 'installed';
-  if (state === 'failed') return 'failed';
-  return 'installed';
-}
-
-// =============================================================================
-// Cross-platform dispatch
-// =============================================================================
 
 function install(): void {
-  console.log('Installing Port Daddy daemon...');
-  console.log(`  Platform: ${PLATFORM}`);
-  let daemon: DaemonLaunchCommand;
-  try {
-    daemon = resolveDaemonCommand();
-  } catch (err) {
-    printDaemonCommandError(err);
-    process.exit(1);
-  }
-  console.log(`  Mode: ${daemon.mode}`);
-  console.log(`  Program: ${daemon.program}`);
-  if (daemon.args.length > 0) console.log(`  Args: ${daemon.args.join(' ')}`);
-  if (daemon.mode === 'source') {
-    console.log('  WARNING: source daemon fallback is development-only.');
-  }
-  console.log('');
-
-  let success: boolean = false;
-
+  console.log('Installing Port Daddy daemon service...');
+  let success = false;
   if (PLATFORM === 'darwin') {
-    success = installMacOS(daemon);
+    success = installMacOS();
   } else if (PLATFORM === 'linux') {
-    success = installLinux(daemon);
+    success = installLinux(resolveLinuxDaemonCommand());
   } else {
-    console.log(`  Platform "${PLATFORM}" does not support auto-start installation.`);
-    console.log('  You can still run the daemon manually:');
-    console.log(`    ${[daemon.program, ...daemon.args].join(' ')}`);
-    console.log('  Or: pd start');
+    console.log(`  Platform ${PLATFORM} has no automatic service integration.`);
     return;
   }
-
-  if (success) {
-    const daemonUrl = resolveDaemonUrl();
-    console.log('');
-    console.log('Port Daddy daemon installed successfully.');
-    console.log('  Auto-starts on login');
-    console.log(`  Test: curl ${daemonUrl}/health`);
-    console.log('  Logs: tail -f ' + LOG_PATH);
+  if (!success) {
+    process.exitCode = 1;
+    return;
   }
+  console.log(`  Runtime endpoint: ${resolveDaemonUrl()}`);
 }
 
-/**
- * Wire ONLY the Bosun watchdog (+ freshness self-heal) for a Homebrew-managed
- * install, without touching the main daemon plist at all.
- *
- * Why this exists separately from `install()`: the Homebrew formula's
- * `post_install` runs during `brew install`/`brew upgrade`, BEFORE the
- * operator (or brew's own post-upgrade service-restart) has necessarily
- * started `homebrew.mxcl.port-daddy`. Calling the full `install()` at that
- * moment would see `brewDaemonServiceLoaded() === false` and fall into the
- * standalone-daemon branch — writing + loading a `com.portdaddy.daemon`
- * LaunchAgent that binds :9876 directly. When the operator later runs
- * `brew services start port-daddy`, THAT job would try to bind the same
- * port too: two competing KeepAlive supervisors, the exact "daemon fighting
- * itself" failure mode `installMacOS()`'s dedup guard exists to prevent in
- * the other direction (brew-already-loaded before a manual `port-daddy
- * install`).
- *
- * Bosun itself has no such ordering hazard — `pd-bosun watch` just polls a
- * heartbeat file and, on staleness, `launchctl kickstart`s whatever label it
- * was told to watch. Pointed at `BREW_DAEMON_LABEL`, it's safe to install at
- * ANY point before or after brew's own service is running: if the brew job
- * isn't loaded yet, a kickstart attempt just fails quietly and retries on the
- * next tick once it is loaded. So this is the one operation `post_install`
- * can call unconditionally.
- */
-function installBosunOnly(): void {
-  console.log('Installing Bosun watchdog (Homebrew-managed daemon)...');
-  console.log(`  Platform: ${PLATFORM}`);
-  let ok: boolean;
-  if (PLATFORM === 'darwin') {
-    ok = installBosunMacOS(BREW_DAEMON_LABEL) && installFreshnessMacOS();
-  } else if (PLATFORM === 'linux') {
-    ok = installBosunLinux();
-  } else {
-    console.log(`  Platform "${PLATFORM}" has no Bosun watchdog integration.`);
-    return;
-  }
-  if (!ok) {
-    console.error('  Bosun watchdog install did not complete cleanly (see above).');
-    process.exitCode = 1;
-  }
+function installFreshness(): void {
+  if (PLATFORM !== 'darwin') return;
+  cleanupRetiredMacOSJobs();
+  if (!installFreshnessMacOS()) process.exitCode = 1;
 }
 
 function uninstall(): void {
-  console.log('Uninstalling Port Daddy daemon...');
-
-  if (PLATFORM === 'darwin') {
-    uninstallMacOS();
-  } else if (PLATFORM === 'linux') {
-    uninstallLinux();
-  } else {
-    console.log(`  No system service to uninstall on "${PLATFORM}".`);
-    return;
-  }
-
-  console.log('');
-  console.log('Port Daddy daemon uninstalled.');
+  if (PLATFORM === 'darwin') uninstallMacOS();
+  else if (PLATFORM === 'linux') uninstallLinux();
+  else console.log(`  No system service to uninstall on ${PLATFORM}.`);
 }
 
 function status(): void {
-  console.log('Checking Port Daddy status...\n');
-
-  // Platform-specific service check
-  let serviceState: ServiceState = 'unknown';
-  let bosunState: ServiceState = 'unknown';
-
-  if (PLATFORM === 'darwin') {
-    serviceState = statusMacOS();
-    bosunState = statusBosunMacOS();
-  } else if (PLATFORM === 'linux') {
-    serviceState = statusLinux();
-    bosunState = statusBosunLinux();
-  } else {
-    serviceState = 'unsupported';
-    bosunState = 'unsupported';
-  }
-
-  switch (serviceState) {
-    case 'running':
-      console.log('  System service: installed and running');
-      break;
-    case 'installed':
-      console.log('  System service: installed but not running');
-      break;
-    case 'failed':
-      console.log('  System service: installed but failed');
-      console.log('  Check logs: tail -f ' + ERROR_LOG_PATH);
-      break;
-    case 'legacy':
-      // Already printed details
-      break;
-    case 'not-installed':
-      console.log('  System service: not installed');
-      console.log('  Install with: port-daddy install');
-      break;
-    case 'unsupported':
-      console.log(`  System service: not available on ${PLATFORM}`);
-      break;
-  }
-
-  switch (bosunState) {
-    case 'running':
-      console.log('  Bosun service: installed and running');
-      break;
-    case 'installed':
-      console.log('  Bosun service: installed but not running');
-      break;
-    case 'failed':
-      console.log('  Bosun service: installed but failed');
-      console.log('  Check logs: tail -f ' + BOSUN_ERROR_LOG_PATH);
-      break;
-    case 'not-installed':
-      console.log('  Bosun service: not installed');
-      break;
-    case 'unsupported':
-      console.log(`  Bosun service: not available on ${PLATFORM}`);
-      break;
-    case 'legacy':
-    case 'unknown':
-      break;
-  }
-
-  // Check if daemon is actually responding
-  console.log('');
+  const serviceState = PLATFORM === 'darwin'
+    ? statusMacOS()
+    : PLATFORM === 'linux'
+      ? statusLinux()
+      : 'unsupported';
+  console.log(`System supervisor: ${serviceState}`);
   const daemonUrl = resolveDaemonUrl();
-  const healthResult: CommandResult = runCommand('curl', ['-s', '--connect-timeout', '2', `${daemonUrl}/health`]);
-  if (healthResult.status === 0 && healthResult.stdout.includes('"status":"ok"')) {
-    console.log(`  Daemon: responding at ${daemonUrl}`);
-    try {
-      const data: { version?: string; uptime_seconds?: number; active_ports?: number } = JSON.parse(healthResult.stdout);
-      console.log(`  Version: ${data.version || 'unknown'}`);
-      console.log(`  Uptime: ${data.uptime_seconds ? Math.round(data.uptime_seconds) + 's' : 'unknown'}`);
-      console.log(`  Active ports: ${data.active_ports ?? 'unknown'}`);
-    } catch { /* ignore parse errors */ }
+  const health = runCommand('curl', ['-sS', '--connect-timeout', '2', `${daemonUrl}/health`]);
+  if (health.status === 0 && health.stdout.includes('"status":"ok"')) {
+    console.log(`Daemon: responding at ${daemonUrl}`);
   } else {
-    console.log('  Daemon: not responding');
+    console.log(`Daemon: not responding at ${daemonUrl}`);
   }
 }
 
@@ -928,8 +334,8 @@ export function runInstallDaemonCli(command: string | undefined = process.argv[2
     case 'install':
       install();
       break;
-    case 'install-bosun':
-      installBosunOnly();
+    case 'install-freshness':
+      installFreshness();
       break;
     case 'uninstall':
       uninstall();
@@ -938,28 +344,18 @@ export function runInstallDaemonCli(command: string | undefined = process.argv[2
       status();
       break;
     default:
-      console.log(`
-Port Daddy Daemon Installer
+      console.log(`Port Daddy daemon service integration
 
 Usage:
-  node install-daemon.js install        - Install and start daemon
-  node install-daemon.js install-bosun  - Wire only the Bosun watchdog (brew-managed daemon)
-  node install-daemon.js uninstall      - Stop and uninstall daemon
-  node install-daemon.js status         - Check daemon status
-
-Supported platforms:
-  macOS   - LaunchAgent (auto-start on login)
-  Linux   - systemd user service (auto-start on login)
-  Windows - Manual start only (port-daddy start)
-    `);
+  port-daddy install             Install/start the one OS-managed daemon service
+  port-daddy install-freshness   Install the updater-only macOS cadence job
+  port-daddy uninstall           Stop and remove Port Daddy-owned service jobs
+  port-daddy status              Inspect the OS supervisor and resolved endpoint`);
   }
 }
 
 function isDirectCliInvocation(): boolean {
-  if (!process.argv[1]) return false;
-  return resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  return !!process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 }
 
-if (isDirectCliInvocation()) {
-  runInstallDaemonCli();
-}
+if (isDirectCliInvocation()) runInstallDaemonCli();

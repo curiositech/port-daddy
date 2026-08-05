@@ -7,7 +7,7 @@
  *     - Node:  process.env.PORT_DADDY_URL  +  resolveDaemonUrl() / resolveDaemonTcpTarget()
  *     - Swift: DaemonLocation.resolveBaseURL()
  *     - Web:   relative paths from the dashboard origin
- *     - Rust:  the env-var resolver in pd-bosun (no inline URLs)
+ *     - Rust:  the shared endpoint resolver (no inline URLs)
  *
  * Anything else — `http://localhost:9876` literals or `127.0.0.1:9876` —
  * fails this test. Drifted literals have caused real outages on machines
@@ -38,8 +38,6 @@ const ALLOWED_FILES = new Set([
   'shared/paths.ts',
   // Web dashboard config UI's intentional fallback constant when env discovery fails.
   'fleet-config-ui/src/api.ts',
-  // Daemon installer probes for the running listener via lsof — this IS the port number.
-  'install-daemon.ts',
   // This guard test itself.
   'tests/unit/no-hardcoded-daemon-url.test.js',
   // Canonical web-side resolver — the JS analogue of shared/daemon-discovery.ts.
@@ -90,7 +88,7 @@ const FORBIDDEN_BARNACLE_PATTERNS = [
   // The `?` form previously slipped through and left dead compatibility fallbacks
   // in the FleetBar app (purged 2026-06-01).
   'guardians\\??\\.barnacle',
-  // The legacy decodable struct name. Bosun's response type is DaemonBosunResponse.
+  // The legacy decodable struct name.
   'DaemonBarnacleResponse',
 ];
 
@@ -110,7 +108,6 @@ const EXCLUDE_PATH_PREFIXES = [
   'tests/integration/',
   'tests/benchmark/',
   'port-daddy-stable/',
-  'core/pd-bosun/target/',
 ];
 
 // Test files legitimately reference the canonical URL to verify resolver
@@ -189,8 +186,8 @@ describe('no-hardcoded-daemon-url', () => {
         const detail = offenders.map((o) => `  ${o.path}:${o.lineNumber}  ${o.line}`).join('\n');
         throw new Error(
           `Found ${offenders.length} retired Barnacle runtime reference(s):\n${detail}\n\n` +
-          `Bosun is the only watchdog runtime path. Do not reintroduce Barnacle ` +
-          `watchers, compatibility fields, opt-in flags, or pd-barnacle sources.`,
+          `The OS service manager is the only supervisor. Do not reintroduce ` +
+          `watchers, compatibility fields, opt-in flags, or retired sources.`,
         );
       }
       expect(offenders).toEqual([]);

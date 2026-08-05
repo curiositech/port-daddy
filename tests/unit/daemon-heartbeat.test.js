@@ -4,22 +4,22 @@ import http from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  BOSUN_HEARTBEAT_SCHEMA,
-  createBosunHeartbeat,
+  DAEMON_HEARTBEAT_SCHEMA,
+  createDaemonHeartbeat,
   createSocketHealthProbe,
-  readBosunHeartbeat,
-} from '../../lib/bosun-heartbeat.js';
+  readDaemonHeartbeat,
+} from '../../lib/daemon-heartbeat.js';
 
 const tmpRoots = [];
 
 function tmpHeartbeatPath() {
-  const root = mkdtempSync(join(tmpdir(), 'pd-bosun-heartbeat-'));
+  const root = mkdtempSync(join(tmpdir(), 'pd-daemon-heartbeat-'));
   tmpRoots.push(root);
   return join(root, 'heartbeat');
 }
 
 function createWriter(overrides = {}) {
-  return createBosunHeartbeat({
+  return createDaemonHeartbeat({
     heartbeatPath: tmpHeartbeatPath(),
     intervalMs: 50,
     version: '9.9.9-test',
@@ -42,7 +42,7 @@ afterEach(() => {
   }
 });
 
-describe('Bosun heartbeat writer', () => {
+describe('daemon heartbeat writer', () => {
   test('writeOnce writes an atomic V1 heartbeat payload', () => {
     const heartbeatPath = tmpHeartbeatPath();
     const writer = createWriter({ heartbeatPath });
@@ -51,7 +51,7 @@ describe('Bosun heartbeat writer', () => {
     const raw = JSON.parse(readFileSync(heartbeatPath, 'utf8'));
 
     expect(payload).toEqual(expect.objectContaining({
-      schema: BOSUN_HEARTBEAT_SCHEMA,
+      schema: DAEMON_HEARTBEAT_SCHEMA,
       pid: 4242,
       writtenAt: 1_700_000_005_000,
       uptimeMs: 5_000,
@@ -91,14 +91,14 @@ describe('Bosun heartbeat writer', () => {
     expect('plane' in raw).toBe(false);
   });
 
-  test('readBosunHeartbeat returns parsed V1 payloads and rejects missing files', () => {
+  test('readDaemonHeartbeat returns parsed V1 payloads and rejects missing files', () => {
     const heartbeatPath = tmpHeartbeatPath();
     const writer = createWriter({ heartbeatPath });
 
-    expect(readBosunHeartbeat(heartbeatPath)).toBeNull();
+    expect(readDaemonHeartbeat(heartbeatPath)).toBeNull();
     const payload = writer.writeOnce();
 
-    expect(readBosunHeartbeat(heartbeatPath)).toEqual(payload);
+    expect(readDaemonHeartbeat(heartbeatPath)).toEqual(payload);
   });
 
   test('start writes immediately, repeats on the interval, and stops cleanly', () => {
@@ -219,8 +219,8 @@ describe('Bosun heartbeat writer', () => {
       state: 'displaced',
       ownerPid: 9999,
     }));
-    expect(warnings.map((w) => w.msg)).toContain('bosun_heartbeat_displaced');
-    expect(infos.map((i) => i.msg)).toContain('bosun_heartbeat_self_stop');
+    expect(warnings.map((w) => w.msg)).toContain('daemon_heartbeat_displaced');
+    expect(infos.map((i) => i.msg)).toContain('daemon_heartbeat_self_stop');
 
     // Drain another second of ticks; nothing else should fire.
     const errorCountBefore = errors.length;
@@ -252,7 +252,7 @@ describe('Bosun heartbeat writer', () => {
   });
 });
 
-describe('Bosun heartbeat HTTP self-probe (wedge detection)', () => {
+describe('daemon heartbeat HTTP self-probe (wedge detection)', () => {
   test('no selfProbe configured: heartbeat never halts (back-compat)', () => {
     const writer = createWriter();
     // Even if the counter were somehow non-zero, shouldHalt is gated on a
@@ -299,9 +299,9 @@ describe('Bosun heartbeat HTTP self-probe (wedge detection)', () => {
     writer.heartbeatTick(); // idempotent: logs once, never advances
     const status = writer.getStatus();
     expect(status.state).toBe('wedged');
-    expect(status.writeCount).toBe(1); // heartbeat frozen -> Bosun staleness restarts
+    expect(status.writeCount).toBe(1); // heartbeat frozen -> diagnostics expose the wedge
     expect(status.lastProbeOk).toBe(false);
-    expect(errors.filter((e) => e.msg === 'bosun_heartbeat_wedged')).toHaveLength(1);
+    expect(errors.filter((e) => e.msg === 'daemon_heartbeat_wedged')).toHaveLength(1);
   });
 
   test('a recovered probe resumes the heartbeat and self-heals to healthy', () => {

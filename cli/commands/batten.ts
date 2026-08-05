@@ -3,7 +3,7 @@
  *
  * "Battening down the hatches": before a release tarball sails, every artifact
  * that MUST be aboard is sealed and checked against a manifest. This generalizes
- * the scattered `test -s dist/<name>` shell asserts that #3496 (pd-bosun) and the
+ * the scattered `test -s dist/<name>` shell assertions that release artifacts and the
  * squid-tentacle staging step each introduced — a pattern that silently drifts,
  * one binary at a time, and shipped releases with a missing watchdog / missing
  * hooks GREEN. release-artifacts.json is now the single source of truth.

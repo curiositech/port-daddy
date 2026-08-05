@@ -125,7 +125,7 @@ import { installGovernor } from './lib/observability/index.js';
 import { createObservabilityMaintenance } from './lib/observability/maintenance.js';
 import { createDurableAgentRoster } from './lib/durable-agent-roster.js';
 import { createGalaxy } from './lib/galaxy.js';
-import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
+import { createDaemonHeartbeat, createSocketHealthProbe } from './lib/daemon-heartbeat.js';
 import {
   createAuthorizedDbIntegrityHelperProof,
   createDbIntegrityProofOutOfProcess,
@@ -372,7 +372,7 @@ const PORT: number = parseInt(process.env.PORT_DADDY_PORT as string, 10) || (IS_
 // 'prod' | 'dev-latest' | 'ephemeral:<label>'. Pure inference from the same
 // signals used above (PORT_DADDY_PLANE override > canonical prefix > the
 // dev-latest lane > ephemeral). Surfaced on /version, /health, the berth
-// registry, and the Bosun heartbeat file.
+// registry, and the daemon heartbeat file.
 const DAEMON_PLANE: StatePlane = classifyPlane({
   prefixPath: PREFIX,
   port: PORT,
@@ -467,15 +467,13 @@ if (existsSync(SOCK_PATH)) {
 }
 
 // Publish the launchd-owned generation BEFORE opening the production-sized DB
-// or constructing the service graph. Bosun previously saw only the prior
-// generation's dead heartbeat during this boot window and repeatedly ran
-// `launchctl kickstart -k`, killing each new child before it could bind. The
-// PID file + atomic heartbeat are the generation lease: once duplicate-owner
+// or constructing the service graph. The PID file + atomic heartbeat are the
+// generation lease: once duplicate-owner
 // checks have passed, both move to this PID together and keep advancing while
 // initialization runs. The HTTP wedge probe is armed only after the Unix
 // listener exists; connection-refused during bootstrap is not a wedge.
 try { writeFileSync(PID_FILE, String(process.pid)); } catch {}
-const bosunHeartbeat = createBosunHeartbeat({
+const daemonHeartbeat = createDaemonHeartbeat({
   heartbeatPath: HEARTBEAT_FILE,
   version: VERSION,
   plane: DAEMON_PLANE,
@@ -489,7 +487,7 @@ const bosunHeartbeat = createBosunHeartbeat({
   deferSelfProbeUntilReady: true,
   logger,
 });
-bosunHeartbeat.start();
+daemonHeartbeat.start();
 
 // The full SQLite integrity scan remains a fail-closed boot gate, but the
 // packaged daemon runs it in a read-only child so this generation's heartbeat
@@ -1504,7 +1502,7 @@ await registerAllRoutes(
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     commitments, obligationMonitor, suggestions, whois,
     bonds, budgetGuard, budgetPause, actorSouls,
-    arbiter, bosunHeartbeat,
+    arbiter, daemonHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,
     daemonBerth: DAEMON_BERTH,
@@ -1629,7 +1627,7 @@ function shutdown(signal: string): void {
   try { governor.flushAll(); } catch {}
   try { tunnel.stopAll(); } catch {}
   try { tunnel.dispose?.(); } catch {}
-  try { bosunHeartbeat.stop(); } catch {}
+  try { daemonHeartbeat.stop(); } catch {}
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
   try { dispatchWorker?.stop(); } catch {}
@@ -1794,7 +1792,7 @@ sockServer.listen(SOCK_PATH, async () => {
   try { writeFileSync(PID_FILE, String(process.pid)); } catch {}
   // Bootstrap kept the process heartbeat fresh while the service graph was
   // loading. Now that /health can answer, arm the independent wedge detector.
-  bosunHeartbeat.startProbing();
+  daemonHeartbeat.startProbing();
   logger.info('socket_started', { socket: SOCK_PATH, version: VERSION });
 
   // Tertiary: Binary IPC socket for agent hot path

@@ -381,7 +381,7 @@ struct DaemonRuntimeResponse: Decodable {
 
 struct DaemonGuardiansResponse: Decodable {
     let supervisor: DaemonSupervisorResponse?
-    let bosun: DaemonBosunResponse?
+    let runtime: DaemonRuntimeWitnessResponse?
 }
 
 struct DaemonSupervisorResponse: Decodable {
@@ -389,16 +389,14 @@ struct DaemonSupervisorResponse: Decodable {
     let summary: String
 }
 
-struct DaemonBosunResponse: Decodable {
+struct DaemonRuntimeWitnessResponse: Decodable {
     let enabled: Bool
     let state: String
     let reason: String?
-    let monitoredUrl: String
-    let binaryExists: Bool
+    let monitoredUrl: String?
     let lastCheckAt: Double?
     let lastHealthyAt: Double?
     let lastFailureAt: Double?
-    let lastResurrectedAt: Double?
     let failureCount: Int
 }
 
@@ -827,7 +825,7 @@ class FleetStore: ObservableObject {
         let uid = String(getuid())
         return runProcess(
             executable: URL(fileURLWithPath: "/bin/launchctl"),
-            arguments: ["kickstart", "-k", "gui/\(uid)/com.portdaddy.daemon"]
+            arguments: ["kickstart", "-k", "gui/\(uid)/homebrew.mxcl.port-daddy"]
         ) == 0
     }
 

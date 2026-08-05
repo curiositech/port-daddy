@@ -5,15 +5,14 @@ const FRESHNESS_SKIP_COMMANDS = new Set([
   'stop',
   'restart',
   'install',
-  // install-bosun must stay in this skip list alongside install/uninstall.
+  // install-freshness must stay in this skip list alongside install/uninstall.
   // Found live (v3.25.1 brew rollout, 2026-07-14): Homebrew's post_install
   // hook runs network-sandboxed, so the freshness probe's daemon fetch fails
   // with ECONNREFUSED/ENOENT; main()'s top-level handler misreads that as
   // "the daemon isn't running", attempts an auto-start-and-retry, and the
-  // whole `port-daddy install-bosun` invocation exits non-zero — even though
-  // installBosunOnly() itself needs no network at all and had already
-  // finished writing the launchd job before the freshness check ever fires.
-  'install-bosun',
+  // whole `port-daddy install-freshness` invocation exits non-zero even though
+  // the updater-only LaunchAgent needs no daemon connection.
+  'install-freshness',
   'uninstall',
   'status',
   'version',

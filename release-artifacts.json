@@ -1,5 +1,5 @@
 {
-  "_comment": "Declarative manifest of every artifact that MUST ship inside a Port Daddy release tarball. This is the single source of truth for `pd batten verify` (the fail-loud staging gate) and `pd batten imprint` (the content-addressed seal). Populated from the ACTUAL staging steps in .github/workflows/release.yml (job build-binaries). Generalizes the ad-hoc `test -s dist/<name>` checks that #3496 (pd-bosun) and the squid-tentacle step introduced: instead of a scatter of per-binary shell asserts that each silently drift, every required artifact is declared here once and validated together. `buildCmd` is informational (batten VALIDATES staging, it does not build). Paths are relative to the staged dir passed to `pd batten verify --staged-dir <dir>` (dist/ in CI).",
+  "_comment": "Declarative manifest of every artifact that MUST ship inside a Port Daddy release tarball. This is the single source of truth for `pd batten verify` (the fail-loud staging gate) and `pd batten imprint` (the content-addressed seal). Populated from the ACTUAL staging steps in .github/workflows/release.yml (job build-binaries). Required artifacts are declared here once instead of drifting across one-off shell assertions. `buildCmd` is informational (batten VALIDATES staging, it does not build). Paths are relative to the staged dir passed to `pd batten verify --staged-dir <dir>` (dist/ in CI).",
   "version": 1,
   "artifacts": [
     {
@@ -28,15 +28,6 @@
       "required": true,
       "executable": false,
       "minBytes": 2
-    },
-    {
-      "id": "pd-bosun",
-      "buildCmd": "cargo build --manifest-path core/pd-bosun/Cargo.toml --release -j 1 && cp core/target/release/pd-bosun dist/pd-bosun",
-      "sourcePath": "dist/pd-bosun",
-      "stagedPath": "pd-bosun",
-      "required": true,
-      "executable": true,
-      "minBytes": 1024
     },
     {
       "id": "pd-hook-prompt",
@@ -85,7 +76,7 @@
     },
     {
       "id": "native-onnxruntime",
-      "_comment": "onnxruntime-node runtime libs (libonnxruntime.*.dylib / libonnxruntime.so.1) staged by scripts/build-single-binary.mjs (#3561). Filenames are platform-specific, so this asserts the directory exists and is non-empty rather than a single file. required:false — it is a semantic-search perf enhancement, NOT a silent-capability regression of the pd-bosun/tentacle class; a build without onnxruntime-node must still be able to release.",
+      "_comment": "onnxruntime-node runtime libs (libonnxruntime.*.dylib / libonnxruntime.so.1) staged by scripts/build-single-binary.mjs (#3561). Filenames are platform-specific, so this asserts the directory exists and is non-empty rather than a single file. required:false — it is a semantic-search performance enhancement; a build without onnxruntime-node must still be able to release.",
       "sourcePath": "dist/native",
       "stagedPath": "native",
       "type": "dir",

@@ -1,10 +1,9 @@
 /**
  * Canonical daemon runtime identity and macOS supervisor control.
  *
- * launchd owns process resurrection, the daemon owns readiness, and Bosun
- * observes the daemon heartbeat. Those are deliberately separate jobs, but
- * they must all describe the same generation. This module is the one place
- * that joins their claims into an operator-visible verdict.
+ * The OS service manager owns process resurrection and the daemon owns
+ * readiness plus its filesystem heartbeat. This module joins those independent
+ * facts into one operator-visible generation verdict.
  */
 
 import http from 'node:http';
@@ -14,7 +13,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { DEFAULT_DAEMON_PORT, LOOPBACK_TCP_HOST } from '../shared/daemon-discovery.js';
 import { DEFAULT_PID_FILE, DEFAULT_PORT_FILE, PD_HOME } from '../shared/paths.js';
-import { BOSUN_HEARTBEAT_SCHEMA, DEFAULT_BOSUN_STALE_AFTER_MS } from './bosun-heartbeat.js';
+import { DAEMON_HEARTBEAT_SCHEMA, DEFAULT_DAEMON_HEARTBEAT_STALE_AFTER_MS } from './daemon-heartbeat.js';
 
 export const CANONICAL_LAUNCHD_LABEL = 'homebrew.mxcl.port-daddy';
 
@@ -221,7 +220,7 @@ function readHeartbeat(path: string): { pid: number; writtenAt: number } | null 
       pid?: number;
       writtenAt?: number;
     };
-    if (value.schema !== BOSUN_HEARTBEAT_SCHEMA) return null;
+    if (value.schema !== DAEMON_HEARTBEAT_SCHEMA) return null;
     if (!Number.isInteger(value.pid) || !Number.isFinite(value.writtenAt)) return null;
     return { pid: value.pid as number, writtenAt: value.writtenAt as number };
   } catch {
@@ -286,9 +285,9 @@ export function assessRuntimeIdentity(facts: RuntimeIdentityFacts): RuntimeIdent
   else if (facts.portFilePort !== facts.expectedPort) issues.push(`daemon.port contains ${facts.portFilePort}, expected ${facts.expectedPort}`);
   if (facts.pidFilePid === null) missing.push('daemon.pid');
   else if (facts.pidFilePid !== healthPid) issues.push(`daemon.pid=${facts.pidFilePid}, /health pid=${healthPid}`);
-  if (facts.heartbeatPid === null) missing.push('Bosun heartbeat');
-  else if (facts.heartbeatPid !== healthPid) issues.push(`Bosun heartbeat pid=${facts.heartbeatPid}, /health pid=${healthPid}`);
-  if (facts.heartbeatFresh === false) issues.push('Bosun heartbeat is stale');
+  if (facts.heartbeatPid === null) missing.push('daemon heartbeat');
+  else if (facts.heartbeatPid !== healthPid) issues.push(`daemon heartbeat pid=${facts.heartbeatPid}, /health pid=${healthPid}`);
+  if (facts.heartbeatFresh === false) issues.push('daemon heartbeat is stale');
   if (facts.supervisor) {
     if (!facts.supervisor.loaded) issues.push(`${facts.supervisor.label} is not loaded`);
     else if (!facts.supervisor.running) issues.push(`${facts.supervisor.label} is not running`);
@@ -319,8 +318,8 @@ export function assessRuntimeIdentity(facts: RuntimeIdentityFacts): RuntimeIdent
     };
   }
   const authorities = facts.supervisor
-    ? 'launchd, /health, daemon.pid, daemon.port, and Bosun heartbeat'
-    : '/health, daemon.pid, daemon.port, and Bosun heartbeat';
+    ? 'the OS supervisor, /health, daemon.pid, daemon.port, and daemon heartbeat'
+    : '/health, daemon.pid, daemon.port, and daemon heartbeat';
   return {
     state: 'converged',
     severity: 'ok',
@@ -360,7 +359,7 @@ export function collectRuntimeIdentity(
     heartbeatPid: heartbeat?.pid ?? null,
     heartbeatWrittenAt: heartbeat?.writtenAt ?? null,
     heartbeatFresh: heartbeat
-      ? now - heartbeat.writtenAt <= (opts.heartbeatStaleAfterMs ?? DEFAULT_BOSUN_STALE_AFTER_MS)
+      ? now - heartbeat.writtenAt <= (opts.heartbeatStaleAfterMs ?? DEFAULT_DAEMON_HEARTBEAT_STALE_AFTER_MS)
       : null,
     supervisor: opts.supervisor === undefined ? inspectCanonicalLaunchdSupervisor() : opts.supervisor,
   };

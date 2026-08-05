@@ -2467,7 +2467,7 @@ _port_daddy() {
     'restart:restart the Port Daddy daemon'
     'status:show daemon status'
     'install:install daemon as a system service'
-    'install-bosun:wire only the Bosun watchdog (brew-managed daemon)'
+    'install-freshness:install the updater-only freshness timer'
     'uninstall:uninstall the system service'
     'dev:daemon berths — up/down/list tiered side-by-side daemons (ADR-0055)'
     'use:target this shell at a daemon berth (eval "$(pd use dev)")'

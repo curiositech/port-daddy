@@ -111,7 +111,7 @@ unzip PortDaddy-FleetBar-macOS-arm64.zip
 ### 3. Verify
 
 ```bash
-pd doctor          # Comprehensive health check (supervision, liveness, DB, drift, bosun…)
+pd doctor          # Comprehensive health check (supervision, liveness, DB, drift, heartbeat…)
 pd doctor --json   # Machine-readable report with per-check severity (ok | warn | critical)
 pd doctor --ci     # CI/script mode: no prompts, exits non-zero ONLY on a CRITICAL check
 pd attest          # Honest self-report: PASS/FAIL/SKIPPED/UNKNOWN per enforced invariant
@@ -123,9 +123,9 @@ pd bench 50        # Run performance benchmarks (target: <1ms latency)
 
 `pd attest` (ADR-0045) runs the loud-fail invariant registry — daemon liveness, DB integrity/schema, crypto, brew-hash provenance, and more. "All good" is conjunctive and scoped: green only when every checked invariant passed, and the report always lists what it could NOT verify. Exits non-zero on any critical problem.
 
-`pd start` and `pd install` are binary-first: they refuse to start a source-backed `tsx server.ts` daemon unless `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` is set for a local development session. On a canonical macOS install, launchd is the sole lifecycle owner: `pd start`, `pd restart`, and `pd stop` control `homebrew.mxcl.port-daddy`, wait for one verified generation, and refuse a detached fallback when the launchd job is missing.
+`pd start` and `pd install` are binary-first: they refuse to start a source-backed `tsx server.ts` daemon unless `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` is set for a local development session. On macOS, Homebrew's `homebrew.mxcl.port-daddy` launchd job is the sole lifecycle owner; on Linux, one `port-daddy.service` systemd user unit owns resurrection. `pd start`, `pd restart`, and `pd stop` control that OS service, wait for one verified generation, and refuse a detached fallback when the supervisor is missing.
 
-`pd install-bosun` wires only the Bosun watchdog (ADR-0036) against a Homebrew-managed daemon (`homebrew.mxcl.port-daddy`), without touching the main daemon plist — it's what the `curiositech/homebrew-tap` formula's `post_install` calls, since the full `pd install` would otherwise race `brew services start port-daddy` for the daemon's own supervision. Not needed outside a brew install; `pd install` already wires Bosun for a self-installed LaunchAgent/systemd daemon.
+`pd install-freshness` installs only the updater cadence job used by the Homebrew formula's `post_install`. It can request an upgrade, but it never starts, watches, or resurrects the daemon. Port Daddy 3.28 removes its retired self-installed daemon and watchdog jobs during setup so two supervisors cannot race the same listener.
 
 ### Staying current
 
@@ -817,12 +817,13 @@ pd version   # Version, code hash, install dir, PID
 pd doctor    # Three-tier health check (see Installation)
 pd attest    # Invariant self-report
 pd diagnose  # Deeper diagnostics
-curl http://127.0.0.1:9876/status   # Full daemon report incl. recent activity and spend
-curl http://127.0.0.1:9876/transcripts/compliance  # Transcript backend matrix + live stalled/missing-run HITL issues
-curl http://127.0.0.1:9876/transcripts/emergency   # HITL transcript emergency summary across local + cloud writers
+PD_DAEMON_PORT="$(tr -d '[:space:]' < "$HOME/.port-daddy/daemon.port")"
+curl "http://127.0.0.1:${PD_DAEMON_PORT}/status"                  # Full daemon report
+curl "http://127.0.0.1:${PD_DAEMON_PORT}/transcripts/compliance" # Backend matrix + live gaps
+curl "http://127.0.0.1:${PD_DAEMON_PORT}/transcripts/emergency"  # HITL emergency summary
 ```
 
-`launchctl` is the sole canonical process supervisor on macOS. The daemon owns readiness and publishes one generation identity across `/health`, `daemon.pid`, `daemon.port`, its listener, binary hash, and filesystem heartbeat. Bosun is the independent non-agent watchdog: it can ask launchd to replace a dead or wedged generation, but it never spawns one. `pd status`, Doctor, FleetBar, and pd-console are observers of that shared snapshot, not additional supervisors.
+The OS service manager is the sole process supervisor: Homebrew/launchd on macOS, systemd user service on Linux. The daemon owns readiness and publishes one generation identity across `/health`, `daemon.pid`, `daemon.port`, its listener, binary hash, and filesystem heartbeat. `pd status`, Doctor, FleetBar, and pd-console observe that shared snapshot; none installs or behaves as a second watchdog.
 `GET /status` and `GET /health` now fold transcript-flow health into `runtime.transcripts`, and surface critical live-run gaps (stalled live stream, missing final transcript) as HITL-tagged runtime reasons.
 
 ### Daemon berths (ADR-0084)
@@ -863,7 +864,7 @@ pd restore <id>                    # roll the DB back (destructive tier, prompts
 
 ### Batten down the release (`pd batten`)
 
-`release-artifacts.json` is the declarative manifest of every binary and runtime asset that MUST ship inside a release tarball (`pd`, `port-daddy`, its manifest, the `pd-bosun` watchdog, the squid tentacles, `pd-statusline`, and the Pilot SessionStart hook). `pd batten verify --staged-dir dist` asserts each staged artifact is present, executable where declared, and at least its `minBytes` — collecting **every** failure and exiting nonzero with a per-artifact report, so a release can never silently ship with a missing watchdog or missing hooks (the failure class that shipped GREEN when each binary had its own scattered `test -s`). The release job then launches the staged `pd` from outside the source tree and proves `pd squid on` writes the canonical Claude, Codex, Gemini, and agy configs plus every identity asset. `pd batten imprint --staged-dir dist --out <file>` sha256s the sealed cargo into a `release-imprint.json` record. Both subcommands are offline (node stdlib only) and never touch the daemon.
+`release-artifacts.json` is the declarative manifest of every binary and runtime asset that MUST ship inside a release tarball (`pd`, `port-daddy`, its manifest, the squid tentacles, `pd-statusline`, and the Pilot SessionStart hook). `pd batten verify --staged-dir dist` asserts each staged artifact is present, executable where declared, and at least its `minBytes` — collecting **every** failure and exiting nonzero with a per-artifact report, so a release cannot silently omit required hooks or runtime assets. The release job then launches the staged `pd` from outside the source tree and proves `pd squid on` writes the canonical Claude, Codex, Gemini, and agy configs plus every identity asset. `pd batten imprint --staged-dir dist --out <file>` sha256s the sealed cargo into a `release-imprint.json` record. Both subcommands are offline (node stdlib only) and never touch the daemon.
 
 ### Single-binary distribution
 
@@ -1012,7 +1013,7 @@ Start with [CONTRIBUTING.md](CONTRIBUTING.md). Every PR is filled out against [`
 - [`docs/adr/`](docs/adr/) — 90+ architecture decision records; start with 0019 (fleet YAML), 0035 (memory tiers), 0037 (backup), 0045 (attest), 0050 (Coast Guard), 0057 (unified distribution), 0060 (fleet conductor), 0062 (auto-freshness), 0084 (daemon berths), 0088 (host safety), 0093 (event-spawn trust)
 - [`docs/patterns/coordination-cookbook.md`](docs/patterns/coordination-cookbook.md) — recipes for common swarm shapes
 - [`docs/tutorials/`](docs/tutorials/) — hands-on tutorials (`pd-tube`, PKI relay)
-- [`docs/operations/daemon-and-supervision.md`](docs/operations/daemon-and-supervision.md) — launchd, Bosun, supervision integrity
+- [`docs/operations/daemon-and-supervision.md`](docs/operations/daemon-and-supervision.md) — OS supervision, runtime identity, dynamic endpoint discovery
 - [`docs/RELEASING.md`](docs/RELEASING.md) / [`docs/VERSIONING.md`](docs/VERSIONING.md) — the release contract
 - [`docs/SECURITY_SOUNDNESS.md`](docs/SECURITY_SOUNDNESS.md) — what is and is not defended
 - White papers at `/whitepaper` on [portdaddy.dev](https://portdaddy.dev): **The Anchor Protocol**, **The Bonded Commons**

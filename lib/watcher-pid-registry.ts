@@ -5,7 +5,7 @@
  *   "Daemon-owned YAML watchers must use in-process messaging subscriptions.
  *    A stable daemon spawning long-lived `pd watch ... --exec` children for
  *    its own watchers is a regression: those children can survive daemon
- *    restart, reconnect-storm SSE, and poison Bosun heartbeat truth."
+ *    restart, reconnect-storm SSE, and poison daemon heartbeat truth."
  *
  * lib/fleet-engine.ts's `startWatcher()` falls back to spawning a detached,
  * unref'd `pd watch <channel> --exec <cmd>` child when the in-process

@@ -1,6 +1,6 @@
 /**
  * Tests for lib/observability/log-governor.ts — the dedup/rate-limit/sampling primitive
- * whose ABSENCE produced both the `bosun_heartbeat_write_failed` and `semantic_resolution_failed`
+ * whose ABSENCE produced both the `daemon_heartbeat_write_failed` and `semantic_resolution_failed`
  * write storms. Each test guards a property whose violation re-opens that class of bug:
  *
  *   - burst then suppress          → a loop can't emit more than `burst` lines per window

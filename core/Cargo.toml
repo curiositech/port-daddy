@@ -1,7 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-  "pd-bosun",
   "pd-broker",
   "pd-console",
   "kernel/pd-anchor",

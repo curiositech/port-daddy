@@ -4728,10 +4728,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pd-bosun"
-version = "0.1.0"
-
-[[package]]
 name = "pd-broker"
 version = "0.1.0"
 dependencies = [

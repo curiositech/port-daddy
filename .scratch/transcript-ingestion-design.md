@@ -126,7 +126,7 @@ Picked over the four candidates:
 | **In-daemon background task** | **Picked** | Lives with the DB and current-context resolver; no cross-process auth dance. |
 | Separate worker spawned by daemon | Rejected | Adds an IPC hop for what is fundamentally a `fs.watch` + SQLite insert loop. |
 | `pd watch transcripts` foreground command | Rejected | Requires the user to keep a terminal open; tailer must run while VS Code Claude Code is open and zsh is closed. |
-| Standalone launchd service | Rejected | Doubles the always-on surface area; user already runs `com.portdaddy.daemon`. Re-using it is simpler. |
+| Standalone launchd service | Rejected | Doubles the always-on surface area; Homebrew already owns the daemon service. Re-using it is simpler. |
 
 **Module shape.** New file `lib/transcript-tailer.ts`. Factory
 `createTranscriptTailer({ db, transcriptStore, sessions, episodicMemory,

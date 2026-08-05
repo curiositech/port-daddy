@@ -1,10 +1,8 @@
 /**
  * Regression: /setup/overview reported a healthy brew-supervised daemon as
- * "install unknown / binary missing" because detection only scanned the LEGACY
- * `com.portdaddy.daemon` LaunchAgent (removed 2026-06-01) and hardcoded the
- * binary candidate to `<repoRoot>/dist/daemon`. That pinned the First-Run wizard
- * open over every tab. The canonical supervisor is `homebrew.mxcl.port-daddy`
- * launching `pd start --foreground`.
+ * "install unknown / binary missing" when it failed to scan Homebrew's
+ * `homebrew.mxcl.port-daddy` job and hardcoded the binary candidate to
+ * `<repoRoot>/dist/daemon`. That pinned the First-Run wizard open over every tab.
  * See docs/operations/daemon-and-supervision.md.
  */
 
@@ -12,9 +10,8 @@ import { describe, test, expect } from '@jest/globals';
 import { daemonMode, resolveBinaryCandidate, DAEMON_LAUNCH_AGENT_LABELS } from '../../routes/setup.js';
 
 describe('setup/overview daemon detection', () => {
-  test('canonical homebrew label is scanned FIRST, legacy second', () => {
-    expect(DAEMON_LAUNCH_AGENT_LABELS[0]).toBe('homebrew.mxcl.port-daddy');
-    expect(DAEMON_LAUNCH_AGENT_LABELS).toContain('com.portdaddy.daemon');
+  test('Homebrew is the only daemon supervisor label', () => {
+    expect(DAEMON_LAUNCH_AGENT_LABELS).toEqual(['homebrew.mxcl.port-daddy']);
   });
 
   test('the brew LaunchAgent (pd start --foreground) classifies as binary, not unknown', () => {

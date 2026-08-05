@@ -153,12 +153,12 @@ mod tests {
     fn from_value_real_shape() {
         let v = json!({
             "id": 108020, "timestamp": 1781123816886i64, "type": "service.claim",
-            "agentId": "pid-3272", "targetId": "bosun:server:main",
+            "agentId": "pid-3272", "targetId": "daemon:server:main",
             "details": "claimed port 4847", "metadata": {"port": 4847}
         });
         let e = ActivityEntry::from_value(&v);
         assert_eq!(e.event_type, "service.claim");
-        assert_eq!(e.target, "bosun:server:main");
+        assert_eq!(e.target, "daemon:server:main");
         assert_eq!(e.timestamp_ms, 1781123816886);
     }
 }

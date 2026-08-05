@@ -6,14 +6,11 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
-import { existsSync } from 'fs';
-import { join } from 'path';
 import type { Arbiter } from '../lib/arbiter.js';
-import type { BosunHeartbeatStatus } from '../lib/bosun-heartbeat.js';
+import type { DaemonHeartbeatStatus } from '../lib/daemon-heartbeat.js';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import type { Transcripts } from '../lib/transcripts.js';
 import { formatUptime } from '../shared/port-utils.js';
-import { resolveBosunBinaryPath } from '../shared/daemon-binary.js';
 import { detectDrift } from '../lib/binary-drift-detector.js';
 import { assessRouteHealth, registeredFromSet, type RouteHealth } from '../lib/route-health.js';
 import { daemonHealthSeverity, type Severity } from '../lib/health-severity.js';
@@ -127,8 +124,8 @@ interface InfoRouteDeps {
       isEstimate: boolean;
     }>;
   };
-  bosunHeartbeat?: {
-    getStatus(): BosunHeartbeatStatus;
+  daemonHeartbeat?: {
+    getStatus(): DaemonHeartbeatStatus;
   };
   transcripts?: Pick<Transcripts, 'listTranscripts' | 'getTranscript'>;
   spawner?: {
@@ -281,63 +278,31 @@ function buildRecentHistory(deps: InfoRouteDeps) {
 }
 
 /**
- * Resolve the canonical V4 Bosun supervisor binary.
+ * Explain the daemon-owned heartbeat without inventing a second supervisor.
  *
  * Sample input and output:
  *
  * ```ts
- * resolveBosunBinaryStatus('/Users/me/port-daddy-stable')
- * // => { binaryPath: '/Users/me/port-daddy-stable/pd-bosun', binaryExists: true }
- * ```
- *
- * The flat `<root>/pd-bosun` is the shipped release artifact (release.yml packs
- * it at the tar root). `dist/core/pd-bosun` and the source-tree release binary
- * are local-development fallbacks. Delegates to the shared resolver so the
- * daemon, `pd doctor`, and the installer never disagree about the canonical
- * supervisor binary (2026-07-14 halt-mandate).
- */
-function resolveBosunBinaryStatus(rootDir: string) {
-  const binaryPath = resolveBosunBinaryPath(rootDir);
-  return {
-    binaryPath,
-    binaryExists: existsSync(binaryPath),
-  };
-}
-
-/**
- * Explain the Bosun writer/supervisor state without leaking retired watchdog
- * wording into operator-facing status.
- *
- * Sample input and output:
- *
- * ```ts
- * describeBosunHeartbeat({ state: 'healthy' }, true)
- * // => 'daemon heartbeat writer active; pd-bosun supervisor binary available'
+ * describeDaemonHeartbeat({ state: 'healthy' })
+ * // => 'daemon heartbeat is publishing runtime evidence'
  * ```
  */
-function describeBosunHeartbeat(
-  heartbeat: BosunHeartbeatStatus,
-  binaryExists: boolean,
+function describeDaemonHeartbeat(
+  heartbeat: DaemonHeartbeatStatus,
 ): string | null {
   if (heartbeat.state !== 'healthy') {
     return heartbeat.lastError;
   }
-  if (binaryExists) {
-    return 'daemon heartbeat writer active; pd-bosun supervisor binary available';
-  }
-  return 'daemon heartbeat writer active; pd-bosun supervisor not installed (optional)';
+  return 'daemon heartbeat is publishing runtime evidence';
 }
 
 function buildGuardianSummary(deps: InfoRouteDeps) {
-  const heartbeat = deps.bosunHeartbeat?.getStatus() ?? null;
-  const bosunBinary = resolveBosunBinaryStatus(deps.__dirname);
-  const bosunStatus = heartbeat ? {
+  const heartbeat = deps.daemonHeartbeat?.getStatus() ?? null;
+  const runtimeStatus = heartbeat ? {
     monitoredUrl: `file://${heartbeat.heartbeatPath}`,
-    binaryPath: bosunBinary.binaryPath,
-    binaryExists: bosunBinary.binaryExists,
     enabled: heartbeat.enabled,
     state: heartbeat.state === 'healthy' ? 'idle' : heartbeat.state,
-    reason: describeBosunHeartbeat(heartbeat, bosunBinary.binaryExists),
+    reason: describeDaemonHeartbeat(heartbeat),
     lastCheckAt: heartbeat.lastWrittenAt,
     lastHealthyAt: heartbeat.state === 'healthy' ? heartbeat.lastWrittenAt : null,
     lastFailureAt: heartbeat.state === 'degraded' || heartbeat.state === 'displaced' ? Date.now() : null,
@@ -345,8 +310,6 @@ function buildGuardianSummary(deps: InfoRouteDeps) {
     heartbeat,
   } : {
     monitoredUrl: null,
-    binaryPath: bosunBinary.binaryPath,
-    binaryExists: bosunBinary.binaryExists,
     enabled: false,
     state: 'disabled',
     reason: 'daemon heartbeat writer unavailable',
@@ -359,10 +322,14 @@ function buildGuardianSummary(deps: InfoRouteDeps) {
 
   return {
     supervisor: {
-      state: 'launchctl_preferred',
-      summary: 'launchctl is the authoritative daemon supervisor on macOS',
+      state: process.platform === 'darwin' ? 'launchd' : process.platform === 'linux' ? 'systemd' : 'process',
+      summary: process.platform === 'darwin'
+        ? 'Homebrew launchd service owns daemon resurrection'
+        : process.platform === 'linux'
+          ? 'systemd user service owns daemon resurrection'
+          : 'the host process manager owns daemon resurrection',
     },
-    bosun: bosunStatus,
+    runtime: runtimeStatus,
   };
 }
 

@@ -322,22 +322,22 @@ describe('createFleetDaemon', () => {
     const deps = makeDeps({
       projects: {
         list: jest.fn(() => [
-          { id: 'bosun', root: '/test/bosun', tags: null },
+          { id: 'sextant', root: '/test/sextant', tags: null },
           { id: 'jbuds', root: '/test/jbuds', tags: ['web'] },
         ]),
       },
     });
 
-    const bosunConfig = makeConfig('bosun');
+    const sextantConfig = makeConfig('sextant');
     const jbudsConfig = makeConfig('jbuds');
 
     mockExistsSync.mockImplementation((path) => {
-      return path === join('/test/bosun', 'pd-fleet.yml') ||
+      return path === join('/test/sextant', 'pd-fleet.yml') ||
              path === join('/test/jbuds', 'pd-fleet.yml');
     });
 
     mockLoadFleetConfig.mockImplementation((dir) => {
-      if (dir === '/test/bosun') return bosunConfig;
+      if (dir === '/test/sextant') return sextantConfig;
       if (dir === '/test/jbuds') return jbudsConfig;
       return null;
     });
