@@ -21,7 +21,6 @@ import {
   LIBRARY_SPINE,
   PROVE_PAPERS,
   READING_PATHS,
-  WHITE_PAPERS,
   findWhitePaperByChapter,
   type WhitePaper,
 } from '@/data/whitePapers'
