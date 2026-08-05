@@ -22,6 +22,7 @@ describe('daemon client', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
   })
 
   it('assembles dashboard stats from live daemon routes', async () => {
