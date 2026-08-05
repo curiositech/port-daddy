@@ -49,6 +49,7 @@ plans/
 .remember/
 .serena/
 .cache/
+.visual-audit/
 .public-export/
 CLAUDE.md
 GEMINI.md
@@ -65,6 +66,25 @@ port-daddy-asciinema-skills-plan.md
 vite-output.log
 daemon-error.log
 *.cjs
+
+# LaTeX compiler sidecars. Published PDFs are tracked; root-level aux files
+# beside whitepaper sources are disposable and can shadow clean build output.
+website-v2/public/whitepaper/*.aux
+website-v2/public/whitepaper/*.out
+website-v2/public/whitepaper/*.toc
+website-v2/public/whitepaper/*.lof
+website-v2/public/whitepaper/*.lot
+website-v2/public/whitepaper/*.fls
+website-v2/public/whitepaper/*.fdb_latexmk
+website-v2/public/whitepaper/*.synctex.gz
+whitepaper/*.aux
+whitepaper/*.out
+whitepaper/*.toc
+whitepaper/*.lof
+whitepaper/*.lot
+whitepaper/*.fls
+whitepaper/*.fdb_latexmk
+whitepaper/*.synctex.gz
 STRATEGY_private_gitignore/
 apps/FleetBar/.build/
 **/build/

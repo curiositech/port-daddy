@@ -294,6 +294,22 @@ Done when:
 - the repo has one obvious center of gravity
 - future signed binary/distribution work has a clean substrate
 
+## Track 8: Coordination Papers Proof And Runtime Closure
+
+The unified whitepaper program is maintained in
+[`docs/roadmap/whitepaper-research-program.md`](../roadmap/whitepaper-research-program.md).
+Its registry links are `link:coordination-papers-mega-volume`,
+`link:coordination-papers-proof-program`,
+`link:coordination-papers-empirical-program`, and
+`link:coordination-papers-runtime-closure`.
+
+The immediate release cut is the cohesive seven-paper collected volume. The
+follow-on work separates paper additions, proof obligations, empirical trials,
+and runtime closure so a model result or design is never reported as a deployed
+guarantee. The implementation priorities are the reputation-grade outcome ledger,
+complete actor-identity write gating, execution-state checkpoints, sealed relay,
+federated revocation, custody/settlement conformance, and projection consistency.
+
 ## Not Doing Right Now
 
 - broad A2A or network federation work

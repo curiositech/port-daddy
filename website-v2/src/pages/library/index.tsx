@@ -15,6 +15,7 @@ import {
   PanelTitle,
 } from '@/components/site/primitives'
 import {
+  COLLECTED_VOLUME,
   EXPLAIN_PAPERS,
   LIBRARY_CHANGELOG,
   LIBRARY_SPINE,
@@ -210,6 +211,32 @@ export default function LibraryPage() {
                     </div>
                   ))}
                 </div>
+
+                <a
+                  href={COLLECTED_VOLUME.pdfPath}
+                  download
+                  className="group grid gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] p-[var(--space-5)] text-[var(--brand-primary-foreground)] shadow-[var(--shadow-brutal)] transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] sm:grid-cols-[auto,1fr,auto] sm:items-center"
+                >
+                  <span className="grid h-12 w-12 place-items-center border-2 border-current">
+                    <FileText aria-hidden="true" size={24} />
+                  </span>
+                  <span className="grid gap-[var(--space-1)]">
+                    <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]">
+                      Download the collected volume
+                    </span>
+                    <span className="font-display text-[length:var(--text-xl)] font-black leading-[var(--leading-nav)]">
+                      {COLLECTED_VOLUME.title}
+                    </span>
+                    <span className="font-mono text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)]">
+                      {COLLECTED_VOLUME.pages} pages · {COLLECTED_VOLUME.references} collated references · PDF
+                    </span>
+                  </span>
+                  <ArrowDownRight
+                    aria-hidden="true"
+                    size={24}
+                    className="transition-transform group-hover:translate-x-1 group-hover:translate-y-1"
+                  />
+                </a>
 
                 <div className="flex flex-wrap gap-[var(--space-3)]">
                   <a

@@ -1769,8 +1769,9 @@ The wedge is the single-player product. But the same legibility discipline appli
 the companion papers depend on is one sentence:
 
 \pullquote{The economy rests on three continuity organs --- memory, checkpoint
-(today, notes rather than true execution state), and a witnessed-outcome ledger ---
-and reputation keys on the third; the checkpoint organ is the weakest link, and a
+(today, notes rather than true execution state), and a witnessed-outcome ledger
+(today, commitments and oracle closure rather than neutral graded outcomes) ---
+and reputation keys on the richer third organ; the checkpoint organ is the weakest continuity link, and a
 real execution-state checkpoint --- ``resurrection with teeth'' --- is the literal
 foundation of any agent market.}
 
@@ -1782,11 +1783,15 @@ the through-line \emph{memory $+$ checkpoint $\to$ continuity $\to$ a person not
 spawn $\to$ reputation $\to$ a tradeable asset $\to$ the market}. No legible
 continuity, no reputation, no tradeable agent. \emph{The score is cheap; the substrate
 it scores over --- witnessed outcomes on a non-forgeable identity --- is the gate.}
-That non-forgeable identity is a single-operator identity primitive in the wedge; the
+That non-forgeable identity is a \BuiltWeak{} single-operator primitive in the
+wedge: daemon-minted actor souls and a bounded budget gate ship, while universal
+write-boundary enforcement does not. The
 cross-operator attestation a real market needs is an additional, as-yet-unbuilt
 mechanism the economy paper must declare rather than assume.
-\item \textbf{The completion ledger} --- every verified completion (and every
-loud-failed one) is an outcome event. This layer is the \emph{outcome witness}; the
+\item \textbf{The completion ledger} --- in the target design, every verified
+completion (and every loud-failed one) becomes an outcome event. Today durable
+commitments, oracle-bound closure, and overdue detection form a partial witness
+substrate; neutral grading and reputation updates do not ship. This layer is the \emph{outcome witness}; the
 reputation layer is the \emph{scorer}. The split-ranker substrate
 (Thm.~\ref{thm:split-ranker}) and the costly-escalation signal (\S\ref{sec:gates})
 are the candidate-generation and trust-signal scaffolding the reputation head consumes.
@@ -2085,6 +2090,8 @@ in this paper with no design document yet.
 L & Attention composer (agent-facing) & \Built & \texttt{lib/attention.ts} \\
 L & Briefing projection (exemplary digest-with-zoom) & \Built & \texttt{lib/briefing.ts} \\
 L & Resurrection handoff & \BuiltWeak & \texttt{lib/resurrection.ts}; notes, not checkpoints \\
+L & Durable commitment / outcome substrate & \BuiltWeak & \path{lib/commitments.ts}, \path{lib/obligation-monitor.ts}; grading and reputation binding absent \\
+L & Local actor identity root & \BuiltWeak & \path{lib/actor-souls.ts}, \path{lib/budget-guard.ts}; universal write gating absent \\
 L & Honest attestation / legible sovereign & \Built & \texttt{lib/attest.ts}; ADR-0045 \\
 L & Episodic memory; pheromone decay; skill index & \Built & \path{lib/episodic-memory.ts}, \path{lib/pheromone.ts}, \path{lib/shipwright/skill-index.ts} \\
 L & Anomaly monitor (detect-and-compensate, post-commit) & \BuiltWeak & \texttt{lib/arbiter.ts:328} is a log subscriber (Prop.~\ref{prop:regiment}) \\
