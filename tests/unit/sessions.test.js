@@ -327,9 +327,9 @@ describe('Sessions Module', () => {
     });
   });
 
-  describe('Takeover', () => {
+  describe('Coordination successor', () => {
     it('should create a successor session and preserve predecessor notes', () => {
-      const started = sessions.start('Build takeover', {
+      const started = sessions.start('Build successor', {
         agentId: 'old-agent',
         files: ['src/a.ts'],
         project: 'port-daddy',
@@ -337,21 +337,21 @@ describe('Sessions Module', () => {
       });
       sessions.addNote(started.id, 'old note');
 
-      const result = sessions.takeover(started.id, {
+      const result = sessions.createSuccessor(started.id, {
         agentId: 'new-agent',
         note: 'continuing after stale owner',
       });
 
       expect(result.success).toBe(true);
       expect(result.predecessorId).toBe(started.id);
-      expect(result.successorId).toMatch(/^session-build-takeover-[a-f0-9]{12}$/);
+      expect(result.successorId).toMatch(/^session-build-successor-[a-f0-9]{12}$/);
       expect(result.notesPreserved).toBe(true);
       expect(result.claimedFiles).toEqual(['src/a.ts']);
 
       const predecessor = sessions.get(started.id);
       expect(predecessor.success).toBe(true);
       expect(predecessor.session.status).toBe('abandoned');
-      expect(predecessor.session.metadata.takenOverBySessionId).toBe(result.successorId);
+      expect(predecessor.session.metadata.continuedBySessionId).toBe(result.successorId);
       expect(predecessor.notes.map(note => note.content)).toEqual(expect.arrayContaining([
         'old note',
         expect.stringContaining(result.successorId),
@@ -370,14 +370,14 @@ describe('Sessions Module', () => {
     });
 
     it('should preserve region claims when transferring files', () => {
-      const started = sessions.start('Region takeover', { agentId: 'old-agent' });
+      const started = sessions.start('Region successor', { agentId: 'old-agent' });
       const claim = sessions.claimFiles(started.id, [], {
         agentId: 'old-agent',
         regions: [{ path: 'src/a.ts', startLine: 10, endLine: 20, symbol: 'run', symbolPath: 'run' }],
       });
       expect(claim.success).toBe(true);
 
-      const result = sessions.takeover(started.id, { agentId: 'new-agent' });
+      const result = sessions.createSuccessor(started.id, { agentId: 'new-agent' });
 
       expect(result.success).toBe(true);
       const successor = sessions.get(result.successorId);
@@ -392,13 +392,13 @@ describe('Sessions Module', () => {
       ]));
     });
 
-    it('should keep the predecessor agent when takeover does not specify a replacement', () => {
-      const started = sessions.start('Agent continuity takeover', {
+    it('should keep the predecessor agent when continuation does not specify a replacement', () => {
+      const started = sessions.start('Agent continuity successor', {
         agentId: 'continuity-agent',
         durable: true,
       });
 
-      const result = sessions.takeover(started.id, { note: 'same agent continuing' });
+      const result = sessions.createSuccessor(started.id, { note: 'same agent continuing' });
 
       expect(result.success).toBe(true);
       const successor = sessions.get(result.successorId);
@@ -407,27 +407,82 @@ describe('Sessions Module', () => {
       expect(successor.session.metadata.predecessorAgentId).toBe('continuity-agent');
 
       const predecessor = sessions.get(started.id);
-      expect(predecessor.session.metadata.takenOverByAgentId).toBe('continuity-agent');
+      expect(predecessor.session.metadata.continuedByAgentId).toBe('continuity-agent');
     });
 
     it('should create a successor from a completed session without changing predecessor status', () => {
       const started = sessions.start('Completed source');
       sessions.end(started.id, { note: 'done once' });
 
-      const result = sessions.takeover(started.id, { agentId: 'new-agent', claimFiles: false });
+      const result = sessions.createSuccessor(started.id, { agentId: 'new-agent', claimFiles: false });
 
       expect(result.success).toBe(true);
       expect(result.claimsTransferred).toBe(false);
       const predecessor = sessions.get(started.id);
       expect(predecessor.session.status).toBe('completed');
-      expect(predecessor.notes.some(note => note.type === 'takeover')).toBe(true);
+      expect(predecessor.notes.some(note => note.type === 'continuation')).toBe(true);
     });
 
     it('should fail for nonexistent session', () => {
-      const result = sessions.takeover('session-nope', { agentId: 'new-agent' });
+      const result = sessions.createSuccessor('session-nope', { agentId: 'new-agent' });
 
       expect(result.success).toBe(false);
       expect(result.code).toBe('SESSION_NOT_FOUND');
+    });
+  });
+
+  describe('Runnable successor lineage', () => {
+    it('records reciprocal lineage and completes an active predecessor after the successor exists', () => {
+      const predecessor = sessions.start('Original investigation', {
+        agentId: 'agent-original',
+        files: ['src/original.ts'],
+        metadata: { witness: 'original' },
+      });
+      const successor = sessions.start('Continue the investigation', {
+        agentId: 'agent-successor',
+        metadata: { witness: 'successor' },
+      });
+
+      const result = sessions.linkSuccessor(predecessor.id, successor.id, {
+        agentId: 'agent-successor',
+        note: 'Finish the proof',
+      });
+
+      expect(result).toMatchObject({
+        success: true,
+        predecessorId: predecessor.id,
+        successorId: successor.id,
+        predecessorStatus: 'completed',
+        releasedFiles: ['src/original.ts'],
+      });
+      const predecessorRead = sessions.get(predecessor.id);
+      const successorRead = sessions.get(successor.id);
+      expect(predecessorRead.session.status).toBe('completed');
+      expect(predecessorRead.session.metadata).toMatchObject({
+        witness: 'original',
+        continuedBySessionId: successor.id,
+        continuedByAgentId: 'agent-successor',
+        continuationReason: 'Finish the proof',
+      });
+      expect(successorRead.session.status).toBe('active');
+      expect(successorRead.session.metadata).toMatchObject({
+        witness: 'successor',
+        predecessorSessionId: predecessor.id,
+        predecessorAgentId: 'agent-original',
+        continuationReason: 'Finish the proof',
+      });
+      expect(predecessorRead.notes.some((note) => note.type === 'continuation')).toBe(true);
+      expect(successorRead.notes.some((note) => note.type === 'continuation')).toBe(true);
+    });
+
+    it('refuses to manufacture lineage when either durable session is absent', () => {
+      const predecessor = sessions.start('Original investigation', { agentId: 'agent-original' });
+
+      expect(sessions.linkSuccessor(predecessor.id, 'session-missing')).toMatchObject({
+        success: false,
+        code: 'SESSION_NOT_FOUND',
+      });
+      expect(sessions.get(predecessor.id).session.status).toBe('active');
     });
   });
 

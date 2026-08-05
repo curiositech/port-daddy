@@ -75,7 +75,6 @@ export const IpcAction = {
   SESSION_END:    'session.end',
   SESSION_LIST:   'session.list',
   SESSION_REMOVE: 'session.remove',
-  SESSION_TAKEOVER: 'session.takeover',
   NOTE:           'session.note',
   FILES_CLAIM:    'session.files.claim',
   FILES_RELEASE:  'session.files.release',

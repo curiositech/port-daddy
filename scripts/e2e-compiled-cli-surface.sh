@@ -413,7 +413,7 @@ run_ok  "note"               note     -- note "e2e cli-surface round-trip note"
 run_ok  "plan set"           plan     -- plan set "* [x] e2e cli-surface plan probe"
 run_ok  "plan show"          plan     -- plan
 run_read "session (usage)"   session  -- session
-run_read "takeover (usage)"  takeover -- takeover
+run_read "session continue (usage)" session-continue -- session continue
 # `pd done` now runs two ADR-0045 preconditions (lib/git-origin-check.ts):
 #   1. an honest result-note sentinel (PR URL / no-pr-yet: / not-applicable:)
 #   2. a git origin-push check on the cwd's repo.

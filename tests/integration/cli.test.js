@@ -1119,60 +1119,6 @@ describe('CLI Integration Tests', () => {
       runCli(['done', '--session', beginData.sessionId]);
     });
 
-    test('pd session takeover makes the successor the current noteable context', () => {
-      const beginResult = runCli([
-        'begin',
-        'Takeover context continuity',
-        '--identity',
-        'port-daddy:test:takeover-context',
-        '--lifecycle',
-        'durable',
-        '--json',
-      ]);
-      expect(beginResult.success).toBe(true);
-      const beginData = JSON.parse(beginResult.stdout);
-
-      const takeoverResult = runCli([
-        'session',
-        'takeover',
-        beginData.sessionId,
-        'same shell continues',
-        '--json',
-      ]);
-      expect(takeoverResult.success).toBe(true);
-      const takeoverData = JSON.parse(takeoverResult.stdout);
-      expect(takeoverData.success).toBe(true);
-      expect(takeoverData.predecessorId).toBe(beginData.sessionId);
-      expect(takeoverData.successorId).toMatch(/^session-takeover-context-continuity-/);
-      expect(takeoverData.session.agentId).toBe(beginData.agentId);
-
-      const whoamiResult = runCli(['whoami', '--json']);
-      expect(whoamiResult.success).toBe(true);
-      const whoami = JSON.parse(whoamiResult.stdout);
-      expect(whoami.active).toBe(true);
-      expect(whoami.agentId).toBe(beginData.agentId);
-      expect(whoami.sessionId).toBe(takeoverData.successorId);
-
-      const noteResult = runCli(['note', '--content', 'successor note after takeover', '--json']);
-      expect(noteResult.success).toBe(true);
-      const noteData = JSON.parse(noteResult.stdout);
-      expect(noteData.success).toBe(true);
-      expect(noteData.sessionId).toBe(takeoverData.successorId);
-
-      const doneResult = runCli([
-        'done',
-        'Result: takeover context regression complete - not-applicable: integration test cleanup',
-        '--skip-origin-check',
-        '--reason',
-        'takeover context regression test',
-        '--json',
-      ]);
-      expect(doneResult.success).toBe(true);
-      const doneData = JSON.parse(doneResult.stdout);
-      expect(doneData.success).toBe(true);
-      expect(doneData.sessionId).toBe(takeoverData.successorId);
-    });
-
     test('pd session files add uses stored session context across worktree drift', async () => {
       const beginResult = runCli([
         'begin',

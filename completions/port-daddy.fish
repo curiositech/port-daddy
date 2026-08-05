@@ -115,7 +115,7 @@ set -l __pd_commands \
     'claim' 'c' 'release' 'r' 'find' 'f' 'list' 'l' 'ps' 'services' 'url' 'env' 'tunnel' \
     'pub' 'publish' 'broadcast' 'sub' 'subscribe' 'listen' 'tube' 'wait' 'lock' 'unlock' 'locks' \
     'agent' 'agents' 'actor' 'actors' 'roster' 'swarm' 'log' 'activity' \
-    'session' 'sessions' 'takeover' 'note' 'notes' \
+    'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' 'send' 'sent' \
     'begin' 'b' 'done' 'whoami' 'w' 'account' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'work' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'harbor-ledger' 'tuple' 'graph' 'booty' 'embed' 'skill-graft' 'skillgraft' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' 'suggest' 'seamanship' 'skills' \
     'say' 'look' 'sitrep' 'whois' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
@@ -181,7 +181,6 @@ for prog in port-daddy pd
     # Sessions & Notes
     complete -c $prog -n __pd_needs_command -a session -d 'Manage a session'
     complete -c $prog -n __pd_needs_command -a sessions -d 'List sessions'
-    complete -c $prog -n __pd_needs_command -a takeover -d 'Create successor session; preserve notes'
     complete -c $prog -n __pd_needs_command -a note -d 'Add a quick note'
     complete -c $prog -n __pd_needs_command -a notes -d 'List recent notes'
 
@@ -713,7 +712,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command session" -x -a 'end' -d 'End a session (completed)'
     complete -c $prog -n "__pd_using_command session" -x -a 'done' -d 'End a session (alias for end)'
     complete -c $prog -n "__pd_using_command session" -x -a 'abandon' -d 'Abandon a session'
-    complete -c $prog -n "__pd_using_command session" -x -a 'takeover' -d 'Create successor session; preserve notes'
+    complete -c $prog -n "__pd_using_command session" -x -a 'continue' -d 'Launch one runnable linked successor'
     complete -c $prog -n "__pd_using_command session" -x -a 'rm' -d 'Archive a session; preserve notes'
     complete -c $prog -n "__pd_using_command session" -x -a 'files' -d 'Manage file claims for a session'
     complete -c $prog -n "__pd_using_command session" -x -a 'phase' -d 'Set session phase'
@@ -721,16 +720,15 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command session" -s n -l note -d 'Handoff note' -x
     complete -c $prog -n "__pd_using_command session" -s a -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'
     complete -c $prog -n "__pd_using_command session" -l lifecycle -d 'Session lifecycle' -x -a 'durable ephemeral'
-    complete -c $prog -n "__pd_using_command session" -l no-files -d 'Do not transfer takeover file claims'
-    complete -c $prog -n "__pd_using_command session" -l no-claims -d 'Alias for --no-files'
-
-    # takeover alias
-    complete -c $prog -n "__pd_using_command takeover" -s P -l purpose -d 'Successor session purpose' -x
-    complete -c $prog -n "__pd_using_command takeover" -s n -l note -d 'Takeover reason' -x
-    complete -c $prog -n "__pd_using_command takeover" -s a -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'
-    complete -c $prog -n "__pd_using_command takeover" -l lifecycle -d 'Session lifecycle' -x -a 'durable ephemeral'
-    complete -c $prog -n "__pd_using_command takeover" -l no-files -d 'Do not transfer predecessor file claims'
-    complete -c $prog -n "__pd_using_command takeover" -l no-claims -d 'Alias for --no-files'
+    complete -c $prog -n "__pd_using_command session" -l direction -d 'Successor direction' -x
+    complete -c $prog -n "__pd_using_command session" -l backend -d 'Harness backend' -x
+    complete -c $prog -n "__pd_using_command session" -l model -d 'Backend model' -x
+    complete -c $prog -n "__pd_using_command session" -l budget -d 'Launch budget in USD' -x
+    complete -c $prog -n "__pd_using_command session" -l deadline-ms -d 'Optional task deadline in milliseconds' -x
+    complete -c $prog -n "__pd_using_command session" -l workdir -d 'Successor working directory' -r
+    complete -c $prog -n "__pd_using_command session" -l identity -d 'Successor identity' -x
+    complete -c $prog -n "__pd_using_command session" -l project -d 'Project scope' -x
+    complete -c $prog -n "__pd_using_command session" -l idempotency-key -d 'Stable retry key' -x
 
     # sessions
     complete -c $prog -n "__pd_using_command sessions" -l all -d 'Show all sessions, not just active'

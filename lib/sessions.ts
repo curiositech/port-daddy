@@ -107,7 +107,7 @@ interface EndOptions {
   status?: string;
 }
 
-interface TakeoverOptions {
+interface SuccessorOptions {
   agentId?: string | null;
   purpose?: string | null;
   note?: string | null;
@@ -116,6 +116,12 @@ interface TakeoverOptions {
   metadata?: Record<string, unknown> | null;
   durable?: boolean;
   claimFiles?: boolean;
+}
+
+interface LinkSuccessorOptions {
+  agentId?: string | null;
+  note?: string | null;
+  finishPredecessor?: boolean;
 }
 
 interface AddNoteOptions {
@@ -1269,12 +1275,14 @@ export function createSessions(
   }
 
   /**
-   * Non-destructively continue an existing session as a successor session.
+   * Create a linked successor for coordination-session continuity.
    *
-   * The predecessor remains queryable. If it was active, takeover abandons it
-   * and releases its active claims before the successor claims the same files.
+   * The predecessor remains queryable. If it was active, continuation abandons
+   * it and releases its active claims before the successor claims the same files.
+   * Runnable agent continuation is owned by the receipt-backed HTTP route; this
+   * store primitive exists only for `pd begin` coordination continuity.
    */
-  function takeover(sessionId: string, options: TakeoverOptions = {}) {
+  function createSuccessor(sessionId: string, options: SuccessorOptions = {}) {
     if (!sessionId || typeof sessionId !== 'string') {
       return { success: false, error: 'sessionId must be a non-empty string', code: 'VALIDATION_ERROR' };
     }
@@ -1301,7 +1309,7 @@ export function createSessions(
       : predecessor.purpose;
 
     const now = Date.now();
-    const takeoverReason = typeof options.note === 'string' && options.note.trim()
+    const continuationReason = typeof options.note === 'string' && options.note.trim()
       ? options.note.trim()
       : null;
     const activeFiles = stmts.getActiveFilesBySession.all(sessionId) as SessionFileRow[];
@@ -1318,8 +1326,8 @@ export function createSessions(
         predecessorStatus: predecessor.status,
         predecessorAgentId: predecessor.agent_id,
         predecessorWorktreeId: predecessor.worktree_id,
-        takeoverAt: now,
-        takeoverReason,
+        continuedAt: now,
+        continuationReason,
       },
     });
 
@@ -1333,22 +1341,22 @@ export function createSessions(
 
     const successorId = startResult.id;
     mergeMetadata(predecessor, {
-      takenOverAt: now,
-      takenOverBySessionId: successorId,
-      takenOverByAgentId: normalizedAgentId,
-      takeoverReason,
+      continuedAt: now,
+      continuedBySessionId: successorId,
+      continuedByAgentId: normalizedAgentId,
+      continuationReason,
     }, now);
 
-    const predecessorNote = `Taken over non-destructively by ${successorId}${normalizedAgentId ? ` (${normalizedAgentId})` : ''}.${takeoverReason ? ` Reason: ${takeoverReason}` : ''}`;
+    const predecessorNote = `Continued as linked successor ${successorId}${normalizedAgentId ? ` (${normalizedAgentId})` : ''}.${continuationReason ? ` Reason: ${continuationReason}` : ''}`;
     let predecessorResult: Record<string, unknown> | undefined;
     if (predecessor.status === 'active') {
       predecessorResult = end(sessionId, { status: 'abandoned', note: predecessorNote });
     } else {
-      predecessorResult = addNote(sessionId, predecessorNote, { type: 'takeover' });
+      predecessorResult = addNote(sessionId, predecessorNote, { type: 'continuation' });
     }
 
-    const successorNote = `Successor session for ${sessionId}.${takeoverReason ? ` Reason: ${takeoverReason}` : ''}`;
-    const successorNoteResult = addNote(successorId, successorNote, { type: 'takeover' });
+    const successorNote = `Linked successor for ${sessionId}.${continuationReason ? ` Reason: ${continuationReason}` : ''}`;
+    const successorNoteResult = addNote(successorId, successorNote, { type: 'continuation' });
 
     const claimedFiles: string[] = [];
     const conflicts: FileConflict[] = [];
@@ -1396,6 +1404,95 @@ export function createSessions(
         ...claimErrors,
       ],
     };
+  }
+
+  /**
+   * Link two sessions that already exist.
+   *
+   * Runnable continuation creates its successor through the spawner so the
+   * transcript and coordination session share one admission boundary. This
+   * method records reciprocal lineage only after both durable records exist;
+   * it never launches another process or creates another session.
+   */
+  function linkSuccessor(
+    predecessorId: string,
+    successorId: string,
+    options: LinkSuccessorOptions = {},
+  ) {
+    if (!predecessorId || typeof predecessorId !== 'string'
+      || !successorId || typeof successorId !== 'string') {
+      return { success: false, error: 'predecessorId and successorId must be non-empty strings', code: 'VALIDATION_ERROR' };
+    }
+    if (predecessorId === successorId) {
+      return { success: false, error: 'a session cannot continue as itself', code: 'VALIDATION_ERROR' };
+    }
+
+    const predecessor = stmts.getById.get(predecessorId) as SessionRow | undefined;
+    const successor = stmts.getById.get(successorId) as SessionRow | undefined;
+    if (!predecessor || !successor) {
+      return { success: false, error: 'predecessor or successor session not found', code: 'SESSION_NOT_FOUND' };
+    }
+    if (options.agentId !== undefined && options.agentId !== null && typeof options.agentId !== 'string') {
+      return { success: false, error: 'agentId must be a string', code: 'VALIDATION_ERROR' };
+    }
+
+    const successorAgentId = normalizeAgentId(options.agentId) ?? normalizeAgentId(successor.agent_id);
+    const continuationReason = typeof options.note === 'string' && options.note.trim()
+      ? options.note.trim()
+      : null;
+    const now = Date.now();
+
+    try {
+      return db.transaction(() => {
+        mergeMetadata(predecessor, {
+          continuedAt: now,
+          continuedBySessionId: successorId,
+          continuedByAgentId: successorAgentId,
+          continuationReason,
+        }, now);
+        mergeMetadata(successor, {
+          predecessorSessionId: predecessorId,
+          predecessorStatus: predecessor.status,
+          predecessorAgentId: predecessor.agent_id,
+          predecessorWorktreeId: predecessor.worktree_id,
+          continuedAt: now,
+          continuationReason,
+        }, now);
+
+        const predecessorNote = addNote(
+          predecessorId,
+          `Continued as linked successor ${successorId}${successorAgentId ? ` (${successorAgentId})` : ''}.${continuationReason ? ` Direction: ${continuationReason}` : ''}`,
+          { type: 'continuation' },
+        );
+        if (!predecessorNote.success) throw new Error(String(predecessorNote.error));
+        const successorNote = addNote(
+          successorId,
+          `Linked successor for ${predecessorId}.${continuationReason ? ` Direction: ${continuationReason}` : ''}`,
+          { type: 'continuation' },
+        );
+        if (!successorNote.success) throw new Error(String(successorNote.error));
+        const predecessorResult = predecessor.status === 'active' && options.finishPredecessor !== false
+          ? end(predecessorId, { status: 'completed' })
+          : null;
+        if (predecessorResult?.success === false) throw new Error(String(predecessorResult.error));
+
+        return {
+          success: true,
+          predecessorId,
+          successorId,
+          predecessorStatus: predecessorResult?.success ? predecessorResult.status : predecessor.status,
+          predecessorNoteId: predecessorNote.noteId,
+          successorNoteId: successorNote.noteId,
+          releasedFiles: predecessorResult?.success ? predecessorResult.releasedFiles : [],
+        };
+      })();
+    } catch (error) {
+      return {
+        success: false,
+        error: `failed to persist successor lineage: ${error instanceof Error ? error.message : String(error)}`,
+        code: 'SESSION_LINK_FAILED',
+      };
+    }
   }
 
   /**
@@ -2273,7 +2370,8 @@ export function createSessions(
     abandonByAgent,
     activeSessionIdsByAgent,
     remove,
-    takeover,
+    createSuccessor,
+    linkSuccessor,
     addNote,
     quickNote,
     getNotes,

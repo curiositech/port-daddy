@@ -41,7 +41,6 @@ export interface IpcRouterDeps {
     end: (id: string, options?: Record<string, unknown>) => unknown;
     get?: (id: string) => unknown;
     remove: (id: string) => unknown;
-    takeover?: (id: string, options?: Record<string, unknown>) => unknown;
     list: (options?: Record<string, unknown>) => unknown;
     quickNote: (content: string, options?: Record<string, unknown>) => unknown;
     claimFiles: (sessionId: string, paths: string[], options?: Record<string, unknown>) => unknown;
@@ -180,17 +179,6 @@ export function createIpcRouter(deps: IpcRouterDeps) {
 
   handlers.set(IpcAction.SESSION_REMOVE, (p) => {
     return deps.sessions.remove(String(p.sessionId ?? ''));
-  });
-
-  handlers.set(IpcAction.SESSION_TAKEOVER, (p, conn) => {
-    if (!deps.sessions.takeover) return { success: false, error: 'session takeover not available' };
-    const agentId = conn.agentId || (typeof p.agentId === 'string' && p.agentId.trim()
-      ? p.agentId.trim()
-      : null);
-    return deps.sessions.takeover(String(p.sessionId ?? ''), {
-      ...p,
-      agentId,
-    });
   });
 
   handlers.set(IpcAction.WHOAMI, (p) => {

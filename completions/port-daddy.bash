@@ -110,7 +110,7 @@ _port_daddy() {
     # Activity
     log activity
     # Sessions & Notes
-    session sessions takeover note notes
+    session sessions note notes
     # Agent Resurrection & Changelog
     salvage resurrection changelog
     # DNS
@@ -784,7 +784,7 @@ _port_daddy() {
     # session  <subcommand> [args]
     # -----------------------------------------------------------------------
     session)
-      local session_subcommands='start end done abandon takeover rm files phase'
+      local session_subcommands='start end done abandon continue rm files phase'
       # Find which subcommand (if any) has been typed after "session".
       local subcmd=""
       for (( i = 1; i < cword; i++ )); do
@@ -819,8 +819,8 @@ _port_daddy() {
         abandon|rm)
           _pd_opts ''
           ;;
-        takeover)
-          _pd_opts '--purpose -P --note -n --lifecycle --no-files --no-claims'
+        continue)
+          _pd_opts '--purpose -P --direction --backend --model --budget --deadline-ms --workdir --identity --project --idempotency-key'
           ;;
         files)
           # files has sub-subcommands: add, rm
@@ -856,21 +856,6 @@ _port_daddy() {
           ;;
         *)
           _pd_opts ''
-          ;;
-      esac
-      ;;
-
-    # -----------------------------------------------------------------------
-    # takeover <session-id> [note]  (alias for session takeover)
-    # -----------------------------------------------------------------------
-    takeover)
-      case "$prev" in
-        --lifecycle)
-          # shellcheck disable=SC2207
-          COMPREPLY=( $(compgen -W "durable ephemeral" -- "$cur") )
-          ;;
-        *)
-          _pd_opts '--purpose -P --note -n --agent -a --lifecycle --no-files --no-claims'
           ;;
       esac
       ;;

@@ -48,8 +48,8 @@ interface SessionsModule {
   updateMetadata?(sessionId: string, patch: Record<string, unknown>): Record<string, unknown>;
   /** Append an immutable session note. Optional: older deps may not provide it. */
   addNote?(sessionId: string, content: string, options?: Record<string, unknown>): Record<string, unknown>;
-  /** Take over a session non-destructively */
-  takeover?(sessionId: string, options?: Record<string, unknown>): Record<string, unknown>;
+  /** Create a linked coordination successor without deleting predecessor evidence. */
+  createSuccessor?(sessionId: string, options?: Record<string, unknown>): Record<string, unknown>;
 }
 
 interface ActivityLogModule {
@@ -553,10 +553,10 @@ export function createSugar(deps: SugarDeps) {
       }
 
       if (match && typeof match.id === 'string' && typeof match.agentId === 'string') {
-        if (match.status !== 'active' && sessions.takeover) {
-          // Resumption / takeover of recently closed session
+        if (match.status !== 'active' && sessions.createSuccessor) {
+          // Coordination continuity for a recently closed session.
           const finalAgentId = options.agentId || match.agentId;
-          const takeoverRes = sessions.takeover(match.id, {
+          const successorRes = sessions.createSuccessor(match.id, {
             agentId: finalAgentId,
             purpose: purpose.trim(),
             project: resumeProject,
@@ -565,19 +565,19 @@ export function createSugar(deps: SugarDeps) {
             claimFiles: true,
             metadata: {
               ...rentMetadata,
-              takeoverReason: 'Idempotent resumption of recently closed session',
+              continuationReason: 'Idempotent resumption of recently closed session',
             }
           }) as any;
 
-          if (takeoverRes && takeoverRes.success) {
+          if (successorRes && successorRes.success) {
             materializePendingRoadmapNew();
-            const displayName = takeoverRes.sessionName || purpose.trim();
+            const displayName = successorRes.sessionName || purpose.trim();
             const resumed: Record<string, unknown> = {
               success: true,
               resumed: true,
-              takeover: true,
+              continued: true,
               agentId: finalAgentId,
-              sessionId: takeoverRes.successorId,
+              sessionId: successorRes.successorId,
               agentName: displayName,
               sessionName: displayName,
               name: displayName,
@@ -588,28 +588,28 @@ export function createSugar(deps: SugarDeps) {
               sessionStarted: false,
             };
             if (worktreePolicy.worktree) resumed.worktree = worktreePolicy.worktree;
-            if (takeoverRes.claimedFiles) resumed.fileClaims = takeoverRes.claimedFiles;
-            if (takeoverRes.conflicts) resumed.fileConflicts = takeoverRes.conflicts;
+            if (successorRes.claimedFiles) resumed.fileClaims = successorRes.claimedFiles;
+            if (successorRes.conflicts) resumed.fileConflicts = successorRes.conflicts;
             if (rent.roadmapLink) resumed.roadmapLink = rent.roadmapLink;
             if (rent.sidequestReason) resumed.sidequestReason = rent.sidequestReason;
             if (rent.roadmapCreated) resumed.roadmapCreated = true;
             if (rent.roadmapExisting) resumed.roadmapExisting = true;
 
-            // Auto-enroll commitment for takeover
+            // Auto-enroll commitment for the linked successor.
             if (deps.commitments) {
               deps.commitments.create({
                 ownerActorId: finalAgentId,
                 objectText: `De-register agent and close session for project: ${identity || 'default'}`,
                 scope: 'default',
                 commitmentStrategy: 'single',
-                successCheck: `session:${takeoverRes.successorId}:completed`,
+                successCheck: `session:${successorRes.successorId}:completed`,
               });
             }
 
             activityLog.log('sugar_begin', {
               agentId: finalAgentId,
-              details: 'sugar_begin_takeover_closed',
-              metadata: { sessionId: takeoverRes.successorId, predecessorSessionId: match.id, identity: identity || null },
+              details: 'sugar_begin_continued_closed',
+              metadata: { sessionId: successorRes.successorId, predecessorSessionId: match.id, identity: identity || null },
             });
             return resumed;
           }

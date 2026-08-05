@@ -23,7 +23,6 @@ function createMockDeps() {
       end: jest.fn((id, opts) => ({ sessionId: id, ended: true })),
       get: jest.fn((id) => ({ success: true, session: { id, agentId: 'registered-x', status: 'active' } })),
       remove: jest.fn((id) => ({ success: true, id, removed: true })),
-      takeover: jest.fn((id, opts) => ({ success: true, predecessorId: id, successorId: 'session-new', ...opts })),
       list: jest.fn((opts) => ({ success: true, sessions: [], count: 0, ...opts })),
       addNote: jest.fn((sid, content) => ({ sessionId: sid, content, added: true })),
       quickNote: jest.fn((content, opts) => ({ success: true, sessionId: opts?.sessionId || 'sess-quick', agentId: opts?.agentId, content, added: true })),
@@ -349,33 +348,6 @@ describe('IPC Router', () => {
 
     expect(deps.sessions.remove).toHaveBeenCalledWith('session-123');
     expect(replies[0].payload.result.removed).toBe(true);
-  });
-
-  test('session.takeover delegates to sessions.takeover with connection agent', () => {
-    const deps = createMockDeps();
-    const router = createIpcRouter(deps);
-    const replies = [];
-
-    router.handleFrame(
-      {
-        type: Performative.REQUEST,
-        convId: 30,
-        payload: {
-          action: IpcAction.SESSION_TAKEOVER,
-          sessionId: 'session-123',
-          note: 'taking over',
-          agentId: 'registered-x',
-        },
-      },
-      mockConn('registered-x'),
-      (f) => replies.push(f),
-    );
-
-    expect(deps.sessions.takeover).toHaveBeenCalledWith('session-123', expect.objectContaining({
-      note: 'taking over',
-      agentId: 'registered-x',
-    }));
-    expect(replies[0].payload.result.successorId).toBe('session-new');
   });
 
   test('sugar.whoami delegates to sugar service', () => {
@@ -1032,7 +1004,7 @@ describe('IPC Auth', () => {
       'pheromone.spray', 'pheromone.sniff', 'msg.publish',
       'msg.subscribe', 'agent.register', 'agent.unregister',
       'salvage.list', 'sugar.whoami', 'fleet.prompt',
-      'session.start', 'session.end', 'session.list', 'session.remove', 'session.takeover',
+      'session.start', 'session.end', 'session.list', 'session.remove',
       'lock.check', 'lock.extend', 'lock.list',
       'tuple.out', 'tuple.rd', 'tuple.in', 'tuple.scan', 'tuple.count'];
     for (const a of open) {

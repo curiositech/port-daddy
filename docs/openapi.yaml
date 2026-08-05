@@ -1115,7 +1115,7 @@ paths:
         Requires an explicit harness backend, current user-owned workspace, and
         idempotency key. Exact retries return the same successor; request drift
         returns 409. HTTP 202 is emitted only after both the successor transcript
-        and durable Port Daddy coordination session exist. Omitting timeoutMs
+        and durable Port Daddy coordination session exist. Omitting deadlineMs
         means no task wall deadline.
       operationId: continueSession
       parameters:
@@ -1154,7 +1154,7 @@ paths:
                     root: { type: string }
                   description: Compatibility shape; root is used when workdir is omitted
                 idempotencyKey: { type: string, minLength: 1 }
-                timeoutMs:
+                deadlineMs:
                   type: integer
                   minimum: 1000
                   maximum: 21600000
@@ -5596,7 +5596,7 @@ components:
 
     SessionContinuationEnvelope:
       type: object
-      required: [success, accepted, terminal, outcomeUnknown, status, predecessor, successor, receipt, monitorUrl, accounting]
+      required: [success, accepted, terminal, outcomeUnknown, status, predecessor, successor, receipt, monitorUrl, controlCenterUrl, accounting]
       properties:
         success: { type: boolean }
         accepted: { type: boolean }
@@ -5634,6 +5634,9 @@ components:
         monitorUrl: { type: string }
         cancelUrl: { type: [string, 'null'] }
         transcriptUrl: { type: [string, 'null'] }
+        controlCenterUrl:
+          type: [string, 'null']
+          description: Join the live successor in Fleet Control Center when admission succeeded
         accounting:
           type: object
           required: [budgetUsd, telemetry, evidence]

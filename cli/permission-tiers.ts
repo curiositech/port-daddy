@@ -149,8 +149,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   r: 'notify',
   lock: 'notify',
   unlock: 'notify',         // refined: `unlock --force` is destructive
-  session: 'notify',        // refined: `session abandon` is destructive
-  takeover: 'notify',       // alias for session takeover; preserves predecessor notes
+  session: 'notify',        // refined: `session continue` is approval; abandon is destructive
   note: 'notify',
   n: 'notify',
   begin: 'notify',
@@ -300,7 +299,7 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'session end': 'notify',
   'session done': 'notify',
   'session abandon': 'destructive', // marks session abandoned — affects others reading the trail
-  'session takeover': 'notify',     // creates successor, preserves predecessor notes
+  'session continue': 'approval',   // launches a budgeted runnable successor
   'session rm': 'notify',           // archives session; notes and claim history stay append-only
   'session files': 'notify',        // add/rm of caller's own claims
 

@@ -5,6 +5,7 @@
  */
 
 import PortDaddy from '../../lib/client.js';
+import { createHash } from 'node:crypto';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { getDirectSessions } from '../utils/direct-db.js';
@@ -12,7 +13,7 @@ import { canPrompt, promptText, promptSelect } from '../utils/prompt.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
-import { readCurrentContext, writeCurrentContext } from '../utils/current-context.js';
+import { readCurrentContext } from '../utils/current-context.js';
 import { loadFleetConfig } from '../../lib/fleet-engine.js';
 import { deriveChangelogFromNote } from '../../lib/changelog-from-note.js';
 import {
@@ -25,7 +26,6 @@ type SessionStartResult = Awaited<ReturnType<PortDaddy['startSession']>>;
 type SessionEndResult = Awaited<ReturnType<PortDaddy['endSession']>>;
 type SessionListResult = Awaited<ReturnType<PortDaddy['sessions']>>;
 type SessionRemoveResult = Awaited<ReturnType<PortDaddy['removeSession']>>;
-type SessionTakeoverResult = Awaited<ReturnType<PortDaddy['takeoverSession']>>;
 type FileClaimResult = Awaited<ReturnType<PortDaddy['claimFiles']>>;
 type FileReleaseResult = Awaited<ReturnType<PortDaddy['releaseFiles']>>;
 type NoteResult = Awaited<ReturnType<PortDaddy['note']>>;
@@ -42,6 +42,17 @@ type FileRegion = {
   symbolPath?: string;
 };
 type SessionLifecycle = 'durable' | 'ephemeral';
+type SessionContinuationResponse = {
+  success?: boolean;
+  error?: string;
+  successor?: {
+    sessionId?: string;
+    agentId?: string;
+  } | null;
+  receipt?: { id?: string } | null;
+  monitorUrl?: string | null;
+  controlCenterUrl?: string | null;
+};
 
 function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
   if (typeof value !== 'string') return null;
@@ -211,14 +222,14 @@ export async function handleSession(
   useDirect = false
 ): Promise<void> {
   if (!subcommand) {
-    console.error('Usage: port-daddy session <start|end|done|abandon|takeover|rm|files|phase|relink> [args]');
+    console.error('Usage: port-daddy session <start|end|done|abandon|continue|rm|files|phase|relink> [args]');
     console.error('');
     console.error('Commands:');
     console.error('  start <purpose> [--files file1 file2...] [--agent AGENT_ID] [--force]');
     console.error('  end [note] [--status STATUS]');
     console.error('  done [note]           # Alias for "end" with status=completed');
     console.error('  abandon [note]        # End session with status=abandoned');
-    console.error('  takeover <id> [note]  # Start a successor session; preserve old notes');
+    console.error('  continue <id> <direction> --backend <id> --budget <usd>  # Launch a runnable linked successor');
     console.error('  rm <id>               # Archive a session; preserve old notes');
     console.error('  files add <paths...> [--session ID]  # Claim files in active session');
     console.error('  files rm <paths...> [--session ID]   # Release files in active session');
@@ -242,8 +253,8 @@ export async function handleSession(
       return sessionEnd(rest, options, subcommand === 'done' ? 'completed' : (options.status as string) || 'completed');
     case 'abandon':
       return sessionEnd(rest, options, 'abandoned');
-    case 'takeover':
-      return sessionTakeover(rest, options);
+    case 'continue':
+      return sessionContinue(rest, options);
     case 'rm':
       return sessionRemove(rest, options);
     case 'files':
@@ -387,7 +398,7 @@ async function sessionEnd(rest: string[], options: CLIOptions, status: string): 
 
   if (status === 'abandoned') {
     const ok = await requireConfirmation({
-      summary: 'Session abandon will mark your active session as abandoned and release every file claim it holds. Notes are preserved but other agents may take over the abandoned work via salvage.',
+      summary: 'Session abandon will mark your active session as abandoned and release every file claim it holds. Notes are preserved so another agent may continue the abandoned work through salvage.',
       args: options as Record<string, unknown>,
     });
     if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
@@ -488,85 +499,74 @@ async function sessionRemove(rest: string[], options: CLIOptions): Promise<void>
   }
 }
 
-async function sessionTakeover(rest: string[], options: CLIOptions): Promise<void> {
+async function sessionContinue(rest: string[], options: CLIOptions): Promise<void> {
   const sessionId = rest[0];
-  if (!sessionId) {
-    console.error('Usage: port-daddy session takeover <id> [note] [--purpose PURPOSE] [--no-files] [--lifecycle durable|ephemeral]');
+  const direction = rest.slice(1).join(' ').trim() || stringOption(options, 'direction', 'note');
+  const backend = stringOption(options, 'backend');
+  const budgetUsd = numberOption(options, 'budget', 'budget-usd', 'budgetUsd');
+  const deadlineMs = numberOption(options, 'deadline-ms', 'deadlineMs');
+  if (!sessionId || !direction || !backend || budgetUsd === undefined) {
+    console.error('Usage: port-daddy session continue <id> <direction> --backend <id> --budget <usd> [--model <id>] [--deadline-ms <ms>]');
     process.exit(1);
   }
-
-  const note = rest.slice(1).join(' ') || (options.note as string) || undefined;
-  const lifecycleValue = options.lifecycle === undefined ? undefined : parseSessionLifecycle(options.lifecycle);
-  if (options.lifecycle !== undefined && !lifecycleValue) {
-    ui.error('session takeover requires --lifecycle durable|ephemeral when lifecycle is provided');
+  if (!Number.isFinite(budgetUsd) || budgetUsd <= 0) {
+    ui.error('--budget must be a positive number');
     process.exit(1);
   }
-
-  const pd = createSessionClient(options);
-  const body: Parameters<PortDaddy['takeoverSession']>[1] = {
-    note,
-    purpose: typeof options.purpose === 'string' ? options.purpose : undefined,
-    lifecycle: lifecycleValue || undefined,
-    claimFiles: !(options['no-files'] || options['no-claims']),
+  if (deadlineMs !== undefined && (!Number.isInteger(deadlineMs) || deadlineMs < 1_000 || deadlineMs > 21_600_000)) {
+    ui.error('--deadline-ms must be an integer from 1000 to 21600000; omit it for no task deadline');
+    process.exit(1);
+  }
+  const workdir = stringOption(options, 'workdir', 'cwd') ?? process.cwd();
+  const purpose = stringOption(options, 'purpose') ?? `Continue ${sessionId}`;
+  const model = stringOption(options, 'model');
+  const identity = stringOption(options, 'identity');
+  const project = stringOption(options, 'project');
+  const intent = JSON.stringify({ sessionId, direction, purpose, backend, model, identity, project, workdir, budgetUsd, deadlineMs });
+  const idempotencyKey = stringOption(options, 'idempotency-key', 'idempotencyKey')
+    ?? `pd-session-continue-${createHash('sha256').update(intent).digest('hex').slice(0, 24)}`;
+  const body = {
+    purpose,
+    note: direction,
+    backend,
+    ...(model ? { model } : {}),
+    ...(identity ? { identity } : {}),
+    ...(project ? { project } : {}),
+    workdir,
+    budgetUsd,
+    ...(deadlineMs === undefined ? {} : { deadlineMs }),
+    idempotencyKey,
+    metadata: { source: 'pd-session-continue' },
   };
 
-  const worktreePolicy = resolveCliSessionWorktreePolicy(options);
-  if (!worktreePolicy.success) {
-    ui.error(worktreePolicy.error || 'Session worktree policy failed');
-    if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
-    process.exit(1);
-  }
-  attachCliSessionWorktreePolicy(body as Record<string, unknown>, worktreePolicy);
-
-  let data: SessionTakeoverResult;
+  let res: PdFetchResponse;
   try {
-    data = await pd.takeoverSession(sessionId, body);
+    res = await pdFetch(`${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/continue`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      timeout: 15_000,
+    });
   } catch (error) {
-    const errorBody = getErrorBody(error);
-    ui.error((errorBody.error as string) || (error as Error).message || 'Failed to take over session');
+    ui.error((error as Error).message || 'Failed to admit continuation');
     process.exit(1);
   }
-
-  if (!data.success) {
-    ui.error(data.error || 'Failed to take over session');
+  const data = await res.json() as SessionContinuationResponse;
+  if (!res.ok || data.success === false) {
+    ui.error(typeof data.error === 'string' ? data.error : 'Failed to admit continuation');
     process.exit(1);
   }
-
-  if (data.successorId) {
-    const successor = data.session as Record<string, unknown> | undefined;
-    const successorAgentId = typeof successor?.agentId === 'string'
-      ? successor.agentId
-      : (typeof options.agent === 'string' ? options.agent : readCurrentContext()?.agentId);
-    if (successorAgentId) {
-      writeCurrentContext({
-        agentId: successorAgentId,
-        sessionId: data.successorId,
-        purpose: typeof successor?.purpose === 'string' ? successor.purpose : undefined,
-        identity: typeof successor?.identityProject === 'string' ? successor.identityProject : null,
-        startedAt: typeof successor?.createdAt === 'number' ? successor.createdAt : Date.now(),
-      });
-    }
-  }
-
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
   } else if (isQuiet(options)) {
-    console.log(data.successorId);
+    console.log(data.successor?.sessionId ?? data.receipt?.id ?? 'accepted');
   } else {
-    ui.success(`Took over session: ${sessionId}`);
-    console.log(`  Successor: ${data.successorId}`);
-    console.log('  Notes preserved: yes');
-    if (Array.isArray(data.claimedFiles) && data.claimedFiles.length > 0) {
-      console.log(`  Files claimed: ${data.claimedFiles.length}`);
-    }
-    if (Array.isArray(data.conflicts) && data.conflicts.length > 0) {
-      ui.warn(`  Conflicts reported: ${data.conflicts.length}`);
-    }
-    if (Array.isArray(data.warnings) && data.warnings.length > 0) {
-      for (const warning of data.warnings) {
-        ui.warn(`  ${warning}`);
-      }
-    }
+    ui.success(`Runnable successor admitted for ${sessionId}`);
+    if (data.successor?.sessionId) console.log(`  Session: ${data.successor.sessionId}`);
+    if (data.successor?.agentId) console.log(`  Agent: ${data.successor.agentId}`);
+    if (data.receipt?.id) console.log(`  Receipt: ${data.receipt.id}`);
+    if (data.monitorUrl) console.log(`  Collect: ${PORT_DADDY_URL}${data.monitorUrl}`);
+    if (data.controlCenterUrl) console.log(`  Join: ${PORT_DADDY_URL}${data.controlCenterUrl}`);
   }
 }
 

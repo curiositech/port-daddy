@@ -969,7 +969,7 @@ _pd_cmd_session() {
     'end:end a session (completed)'
     'done:end a session (alias for end)'
     'abandon:abandon a session'
-    'takeover:create successor session; preserve notes'
+    'continue:launch one runnable linked successor'
     'rm:archive a session; preserve notes'
     'files:manage file claims for a session'
     'phase:set session phase (planning/in_progress/testing/etc)'
@@ -1012,16 +1012,22 @@ _pd_cmd_session() {
             '(-q --quiet)'{-q,--quiet}'[suppress output]' \
             '1:session ID:'
           ;;
-        takeover)
+        continue)
           _arguments \
             '(-P --purpose)'{-P,--purpose}'[successor purpose]:purpose:' \
-            '(-n --note)'{-n,--note}'[takeover reason]:note:' \
-            '--lifecycle[session lifecycle]:lifecycle:(durable ephemeral)' \
-            '--no-files[do not transfer file claims]' \
-            '--no-claims[alias for --no-files]' \
+            '--direction[successor direction]:direction:' \
+            '--backend[harness backend]:backend:' \
+            '--model[backend model]:model:' \
+            '--budget[launch budget in USD]:budget:' \
+            '--deadline-ms[optional task deadline]:milliseconds:' \
+            '--workdir[successor working directory]:directory:_directories' \
+            '--identity[successor identity]:identity:' \
+            '--project[project scope]:project:' \
+            '--idempotency-key[stable retry key]:key:' \
             '(-j --json)'{-j,--json}'[JSON output]' \
             '(-q --quiet)'{-q,--quiet}'[suppress output]' \
-            '1:predecessor session ID:'
+            '1:predecessor session ID:' \
+            '*:direction:'
           ;;
         files)
           local -a files_subcmds
@@ -1060,21 +1066,6 @@ _pd_cmd_sessions() {
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]'
-}
-
-_pd_cmd_takeover() {
-  _arguments \
-    '(-P --purpose)'{-P,--purpose}'[successor session purpose]:purpose:' \
-    '(-n --note)'{-n,--note}'[takeover reason]:note:' \
-    '(-a --agent)'{-a,--agent}'[agent ID]:agent:' \
-    '--lifecycle[session lifecycle]:lifecycle:(durable ephemeral)' \
-    '--no-files[do not transfer predecessor file claims]' \
-    '--no-claims[alias for --no-files]' \
-    '(-j --json)'{-j,--json}'[JSON output]' \
-    '(-q --quiet)'{-q,--quiet}'[only print successor ID]' \
-    '(-h --help)'{-h,--help}'[show help]' \
-    '1:predecessor session ID:' \
-    '*:takeover note:'
 }
 
 _pd_cmd_note() {
@@ -2315,9 +2306,8 @@ _port_daddy() {
     'log:tail the activity log'
     'activity:show activity summary or stats'
     # Sessions & Notes
-    'session:manage a session (start/end/abandon/takeover/rm/files)'
+    'session:manage a session (start/end/abandon/continue/rm/files)'
     'sessions:list sessions'
-    'takeover:create successor session; preserve predecessor notes'
     'note:add a quick note'
     'notes:list recent notes'
     # Agent Resurrection
@@ -2534,7 +2524,6 @@ _port_daddy() {
         activity)           _pd_cmd_activity ;;
         session)            _pd_cmd_session ;;
         sessions)           _pd_cmd_sessions ;;
-        takeover)           _pd_cmd_takeover ;;
         note)               _pd_cmd_note ;;
         notes)              _pd_cmd_notes ;;
         salvage|resurrection) _pd_cmd_salvage ;;

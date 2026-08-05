@@ -2747,7 +2747,7 @@ const TOOLS = [
     name: 'active_agent_roster',
     description:
       '[Magic] Live harness roster for this repo. Lists active agents by harness lane, worktree, task, touched files, ' +
-      'and control affordances for stream, interrupt, takeover, and steering.',
+      'immutable lineage, and control affordances for stream, Join, interrupt, and steering.',
     inputSchema: {
       type: 'object' as const,
       properties: {

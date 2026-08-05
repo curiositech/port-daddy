@@ -278,7 +278,7 @@ describe('sugar.begin', () => {
     expect(ended.success).toBe(true);
 
     // After the first session ends a second solo agent should be able
-    // to take over the main worktree. Without this guarantee the gate
+    // to continue in the main worktree. Without this guarantee the gate
     // would degrade into "main is permanently poisoned by any past
     // session", breaking the solo-developer path.
     const second = sugar.begin({ lifecycle: 'ephemeral',
@@ -1105,34 +1105,34 @@ describe('sugar lifecycle', () => {
     expect(activeAfter.length).toBe(0);
   });
 
-  it('should allow takeover/resumption of recently closed sessions', () => {
+  it('should create a linked coordination successor for a recently closed session', () => {
     const { sugar } = setup();
 
     const beginRes1 = sugar.begin({
       purpose: 'Initial session purpose',
-      identity: 'port-daddy:test:takeover',
+      identity: 'port-daddy:test:continuation',
       lifecycle: 'durable',
-      agentId: 'test-agent-takeover',
+      agentId: 'test-agent-continuation',
     });
     expect(beginRes1.success).toBe(true);
 
     // Close the session
     const doneRes = sugar.done({
-      agentId: 'test-agent-takeover',
+      agentId: 'test-agent-continuation',
       note: VALID_RESULT_NOTE_WITH_PR,
     });
     expect(doneRes.success).toBe(true);
 
-    // Re-begin for the same identity without force should perform takeover
+    // Re-begin for the same identity creates one linked coordination successor.
     const beginRes2 = sugar.begin({
       purpose: 'New successor session purpose',
-      identity: 'port-daddy:test:takeover',
+      identity: 'port-daddy:test:continuation',
       lifecycle: 'durable',
     });
 
     expect(beginRes2.success).toBe(true);
     expect(beginRes2.resumed).toBe(true);
-    expect(beginRes2.takeover).toBe(true);
+    expect(beginRes2.continued).toBe(true);
     expect(beginRes2.sessionId).not.toBe(beginRes1.sessionId);
   });
 

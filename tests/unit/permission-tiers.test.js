@@ -52,7 +52,7 @@ const SLUG_VERB_OVERRIDES = {
   services: ['claim', 'release', 'find', 'url', 'env', 'ports'],
   locks: ['lock', 'unlock', 'locks'],
   messaging: ['pub', 'publish', 'sub', 'subscribe', 'listen', 'channels', 'wait', 'broadcast'],
-  sessions: ['session', 'sessions', 'takeover', 'note', 'notes'],
+  sessions: ['session', 'sessions', 'note', 'notes'],
   agents: ['agent', 'agents', 'swarm'],
   actors: ['actor', 'actors'],
   changelog: ['changelog'],
@@ -269,10 +269,9 @@ describe('resolveTier', () => {
     expect(resolveTier('dns', ['list'])).toBe('silent');
   });
 
-  test('pd session abandon is destructive while takeover and rm are archival notify actions', () => {
+  test('pd session continuation launches work while archival session actions remain scoped', () => {
     expect(resolveTier('session', ['abandon'])).toBe('destructive');
-    expect(resolveTier('session', ['takeover'])).toBe('notify');
-    expect(resolveTier('takeover', ['session-123'])).toBe('notify');
+    expect(resolveTier('session', ['continue'])).toBe('approval');
     expect(resolveTier('session', ['rm'])).toBe('notify');
     expect(resolveTier('session', ['start'])).toBe('notify');
     expect(resolveTier('session', ['end'])).toBe('notify');

@@ -940,15 +940,15 @@ await pd.spawn({
 const { agents } = await pd.listSpawned();
 agents.forEach(a => console.log(a.agentId, a.backend, a.status));
 
-// Kill a spawned agent
-await pd.killSpawned(agentId);
+// Cancel a spawned agent and seal its durable receipt
+await pd.cancelSpawned(agentId);
 ```
 
 | Method | Description |
 |--------|-------------|
 | `pd.spawn(spec)` | Spawn an AI run; returns `SpawnResult` with attached exact telemetry on success |
 | `pd.listSpawned()` | List active spawned agents |
-| `pd.killSpawned(agentId)` | Kill a running spawned agent |
+| `pd.cancelSpawned(agentId)` | Cancel a running spawned agent and retain its transcript/receipt |
 
 `SpawnResult.telemetry` carries `{ inputTokens, outputTokens, costUsd, rateMode }` for accepted launches. If the backend/model cannot satisfy that exact telemetry contract, Port Daddy rejects the launch during preflight/spawn instead of silently estimating.
 The live spawner defaults that enforcement on. Any internal code path that disables it must attach explicit HITL confirmation metadata instead of quietly falling back to unmetered execution.
