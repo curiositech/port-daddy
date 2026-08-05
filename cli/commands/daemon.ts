@@ -14,7 +14,7 @@ import { pdFetch, PORT_DADDY_URL, getDaemonUrl } from '../utils/fetch.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import { printBanner, printCompactHeader, printFarewell, WHEEL, ANCHOR, ANSI } from '../../lib/banner.js';
 import { autoFixStartupBlockers, diagnoseStartupBlockers } from '../utils/startup-doctor.js';
-import { DEFAULT_DAEMON_PORT, LOOPBACK_TCP_HOST, readDaemonPort } from '../../shared/daemon-discovery.js';
+import { DEFAULT_DAEMON_PORT, LOOPBACK_TCP_HOST, resolveDaemonPort } from '../../shared/daemon-discovery.js';
 import { resolveDaemonLaunchCommand, isBunCompiledRuntime, type DaemonLaunchCommand } from '../../shared/daemon-binary.js';
 import { calculateRuntimeCodeHash, listRuntimeSourceFiles } from '../../shared/code-hash.js';
 import {
@@ -768,7 +768,7 @@ export async function handleDaemon(action: string, options: Record<string, unkno
       if (supervisor && await handleCanonicalSupervisedAction('start', supervisor)) return;
 
       const localCodeHash = getLocalCodeHash();
-      const daemonPort = readDaemonPort();
+      const daemonPort = resolveDaemonPort();
 
       // Check if already running
       try {

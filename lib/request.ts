@@ -15,7 +15,7 @@
 
 import http from 'node:http';
 
-import { getDaemonTcpUrl, resolveDaemonTarget } from '../shared/daemon-discovery.js';
+import { resolveDaemonUrl, resolveDaemonTarget } from '../shared/daemon-discovery.js';
 import type { DaemonTarget as ConnectionTarget } from '../shared/daemon-discovery.js';
 
 /** Options accepted by pdRequest */
@@ -53,7 +53,7 @@ export function getDisplayUrl(): string {
   if (target.socketPath) {
     return `unix:${target.socketPath}`;
   }
-  return getDaemonTcpUrl(target.port ? `http://${target.host}:${target.port}` : undefined);
+  return resolveDaemonUrl(target.port ? `http://${target.host}:${target.port}` : undefined);
 }
 
 /**

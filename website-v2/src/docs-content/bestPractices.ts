@@ -144,7 +144,7 @@ export const bestPracticesSection: DocsContentSection = {
           type: 'callout',
           tone: 'warning',
           title: 'Never hardcode localhost:9876 in production paths',
-          body: 'The daemon usually runs on port 9876, but it can fall back to a different port in CI, multi-machine setups, or when 9876 is already held. Production code in lib/, routes/, bin/, and server.ts must use getDaemonTcpUrl() from shared/daemon-discovery.ts. This rule is enforced by a CI test (tests/unit/no-hardcoded-daemon-url.test.js).',
+          body: 'The daemon usually runs on port 9876, but it can fall back to a different port in CI, multi-machine setups, or when 9876 is already held. Production code in lib/, routes/, bin/, and server.ts must use resolveDaemonUrl() from shared/daemon-discovery.ts. This rule is enforced by a CI test (tests/unit/no-hardcoded-daemon-url.test.js).',
         },
         {
           type: 'paragraph',
@@ -170,7 +170,7 @@ export const bestPracticesSection: DocsContentSection = {
           type: 'checklist',
           items: [
             'Use project:stack:context identity strings — never hardcoded ports — in code and configuration.',
-            'Use getDaemonTcpUrl() from shared/daemon-discovery.ts in production paths, not http://localhost:9876.',
+            'Use resolveDaemonUrl() from shared/daemon-discovery.ts in production paths, not http://localhost:9876.',
             'Run pd status before debugging missing features — it is usually a stale daemon.',
             'After changing runtime-serving code, rebuild and relaunch before trusting the result.',
           ],

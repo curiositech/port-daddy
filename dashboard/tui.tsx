@@ -10,12 +10,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { render, Box, Text, useInput, useApp } from 'ink';
-import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
+import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
 
 // Canonical resolver: env var → discovery file → preferred fallback. Never
 // hardcode a port; see AGENTS.md §canonical daemon URL and the
 // no-hardcoded-daemon-url parity test.
-const BASE_URL = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
+const BASE_URL = resolveDaemonUrl(process.env.PORT_DADDY_URL);
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

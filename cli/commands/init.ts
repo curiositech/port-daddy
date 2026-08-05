@@ -15,7 +15,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as ui from '../utils/ui.js';
-import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
+import { resolveDaemonUrl } from '../../shared/daemon-discovery.js';
 import {
   isLegacyPortDaddyPostCommitHook,
   isScopedPortDaddyPostCommitHook,
@@ -71,7 +71,7 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
   // ─── 2. Register project with daemon ───────────────────────────────────────
 
   try {
-    const baseUrl = getDaemonTcpUrl();
+    const baseUrl = resolveDaemonUrl();
     const res = await fetch(`${baseUrl}/scan`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

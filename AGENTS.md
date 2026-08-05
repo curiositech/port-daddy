@@ -737,7 +737,7 @@ Any PR that adds, rewrites, or runs a "voice pass" on a post under `website-v2/s
 The rule above is enforced by `tests/unit/no-hardcoded-daemon-url.test.js`. Production source paths (`lib/`, `routes/`, `cli/`, `bin/`, `mcp/`, `shared/`, `apps/FleetBar/`, `public/`, `fleet-config-ui/src/`, `dashboard/`, `website-v2/src/lib/`, plus `server.ts`) must NOT contain `http://localhost:9876` or `http://127.0.0.1:9876` literals. Use:
 
 - **Node — to CONNECT (socket-first):** `resolveDaemonTarget()` from `shared/daemon-discovery.ts`. This is the ONE canonical resolver of socket-vs-TCP for the whole repo (precedence: `PORT_DADDY_SOCK` → `PORT_DADDY_URL` → the daemon socket file → loopback TCP from `daemon.port`). `cli/utils/fetch.ts` (`pdFetch`, ~48 importers), `lib/request.ts` (`pdRequest`), and the `lib/client.ts` SDK all delegate to it — do not hand-roll a fourth `resolveTarget`.
-- **Node — to DISPLAY/log a base URL string:** `getDaemonTcpUrl(process.env.PORT_DADDY_URL)` from `shared/daemon-discovery.ts` (TCP URL only; not a connection target).
+- **Node — to DISPLAY/log a base URL string:** `resolveDaemonUrl(process.env.PORT_DADDY_URL)` from `shared/daemon-discovery.ts` (TCP URL only; not a connection target).
 - **Swift:** `DaemonLocation.resolveBaseURL()`
 - **Web (dashboard, FleetBar webview):** relative paths (no scheme/host)
 - **Web (cross-origin, e.g. fleet-config-ui):** the canonical web resolver in `website-v2/src/lib/daemon-url.ts`

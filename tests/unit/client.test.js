@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { jest } from '@jest/globals';
 import { PortDaddy, PortDaddyError, ConnectionError } from '../../lib/client.js';
-import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
+import { resolveDaemonUrl } from '../../shared/daemon-discovery.js';
 
 // ============================================================================
 // Mock HTTP server — records requests and returns queued responses
@@ -105,7 +105,7 @@ describe('PortDaddy constructor', () => {
     delete process.env.PORT_DADDY_URL;
     try {
       const pd = new PortDaddy();
-      expect(pd.url).toBe(getDaemonTcpUrl().replace(/\/$/, ''));
+      expect(pd.url).toBe(resolveDaemonUrl().replace(/\/$/, ''));
     } finally {
       if (prev !== undefined) process.env.PORT_DADDY_URL = prev;
     }

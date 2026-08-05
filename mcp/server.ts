@@ -30,7 +30,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import * as http from 'node:http';
 import * as net from 'node:net';
-import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
+import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
 import {
   claimRegionRequest,
   releaseRegionRequest,
@@ -42,7 +42,7 @@ import {
 // Config
 // ---------------------------------------------------------------------------
 
-const DAEMON_URL = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
+const DAEMON_URL = resolveDaemonUrl(process.env.PORT_DADDY_URL);
 // 30s default for most tools; spawn and wait tools override with longer timeouts
 const REQUEST_TIMEOUT = 30_000;
 

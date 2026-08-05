@@ -23,7 +23,7 @@
 
 import http from 'node:http';
 import { spawn } from 'node:child_process';
-import { CANONICAL_TCP_PORT, getDaemonTcpUrl } from '../shared/daemon-discovery.js';
+import { DEFAULT_DAEMON_PORT, resolveDaemonUrl } from '../shared/daemon-discovery.js';
 
 // =============================================================================
 // Types
@@ -115,12 +115,12 @@ export function createWatch() {
     // Rate limiting — track last exec start time
     let lastFired = 0;
 
-    const pdUrl = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
+    const pdUrl = resolveDaemonUrl(process.env.PORT_DADDY_URL);
     let parsedUrl: URL;
     try {
       parsedUrl = new URL(pdUrl);
     } catch {
-      parsedUrl = new URL(getDaemonTcpUrl());
+      parsedUrl = new URL(resolveDaemonUrl());
     }
 
     // ─── Reconnect with exponential backoff ──────────────────────────────────
@@ -220,7 +220,7 @@ export function createWatch() {
         path,
         headers: { Accept: 'text/event-stream' },
         host: parsedUrl.hostname,
-        port: parseInt(parsedUrl.port, 10) || CANONICAL_TCP_PORT,
+        port: parseInt(parsedUrl.port, 10) || DEFAULT_DAEMON_PORT,
       };
 
       const req = http.request(reqOpts, (res) => {

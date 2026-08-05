@@ -83,9 +83,9 @@ jest.unstable_mockModule('yaml', () => ({
 
 const { loadFleetConfig, createFleetRunner, resolveFleetAgentRuntime, validateTopology } = await import('../../lib/fleet-engine.js');
 const { resolveFleetChannel } = await import('../../lib/fleet-channels.js');
-const { getDaemonTcpUrl } = await import('../../shared/daemon-discovery.js');
+const { resolveDaemonUrl } = await import('../../shared/daemon-discovery.js');
 
-const DAEMON_URL = getDaemonTcpUrl();
+const DAEMON_URL = resolveDaemonUrl();
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

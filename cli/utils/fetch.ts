@@ -10,11 +10,11 @@ import type { IncomingMessage, ClientRequest } from 'node:http';
 
 import { DEFAULT_SOCK, DEFAULT_PORT_FILE } from '../../shared/paths.js';
 import { maybeWarnNonProdPlane, isMutatingMethod, PLANE_PROBE_TIMEOUT_MS } from './plane-banner.js';
-import { CANONICAL_TCP_PORT, LOOPBACK_TCP_HOST, getDaemonTcpUrl, readDaemonPort, resolveDaemonTarget, resolveDaemonTcpTarget } from '../../shared/daemon-discovery.js';
+import { DEFAULT_DAEMON_PORT, LOOPBACK_TCP_HOST, resolveDaemonUrl, resolveDaemonPort, resolveDaemonTarget, resolveDaemonTcpTarget } from '../../shared/daemon-discovery.js';
 import type { DaemonTarget } from '../../shared/daemon-discovery.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE;
-const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
+const PORT_DADDY_URL: string = resolveDaemonUrl(process.env.PORT_DADDY_URL);
 
 export { PORT_DADDY_URL, SOCK_PATH };
 
@@ -54,7 +54,7 @@ export function resolveTarget(): ConnectionTarget {
  */
 export function getDaemonUrl(): string {
   if (process.env.PORT_DADDY_URL) return process.env.PORT_DADDY_URL;
-  return `http://${LOOPBACK_TCP_HOST}:${readDaemonPort(PORT_FILE) || CANONICAL_TCP_PORT}`;
+  return `http://${LOOPBACK_TCP_HOST}:${resolveDaemonPort(PORT_FILE) || DEFAULT_DAEMON_PORT}`;
 }
 
 function requestTarget(target: ConnectionTarget, path: string, options: FetchOptions): Promise<PdFetchResponse> {
@@ -63,7 +63,7 @@ function requestTarget(target: ConnectionTarget, path: string, options: FetchOpt
     ? new URL(path).pathname + (new URL(path).search || '')
     : path;
   const safeTarget: ConnectionTarget = target.socketPath && /^https?:\/\//.test(target.socketPath)
-    ? { host: LOOPBACK_TCP_HOST, port: readDaemonPort(PORT_FILE) }
+    ? { host: LOOPBACK_TCP_HOST, port: resolveDaemonPort(PORT_FILE) }
     : target;
 
   const reqHeaders: Record<string, string | number> = { ...headers };
@@ -148,7 +148,7 @@ function singleRequest(path: string, options: FetchOptions): Promise<PdFetchResp
     }
     const fallbackTarget: ConnectionTarget = {
       host: LOOPBACK_TCP_HOST,
-      port: readDaemonPort(PORT_FILE),
+      port: resolveDaemonPort(PORT_FILE),
     };
     return requestTarget(fallbackTarget, path, options);
   });

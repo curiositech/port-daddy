@@ -25,10 +25,10 @@ jest.unstable_mockModule('node:http', () => ({
 }));
 
 jest.unstable_mockModule('../../shared/daemon-discovery.js', () => ({
-  CANONICAL_TCP_PORT: 9876,
+  DEFAULT_DAEMON_PORT: 9876,
   LOOPBACK_TCP_HOST: '127.0.0.1',
-  getDaemonTcpUrl: () => 'http://127.0.0.1:9876',
-  readDaemonPort: mockReadDaemonPort,
+  resolveDaemonUrl: () => 'http://127.0.0.1:9876',
+  resolveDaemonPort: mockReadDaemonPort,
   resolveDaemonTcpTarget: mockResolveDaemonTcpTarget,
   // The one canonical resolver fetch.ts now delegates to. Honor the same
   // existsSync flag these tests already use to choose socket vs TCP.

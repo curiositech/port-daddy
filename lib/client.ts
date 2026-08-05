@@ -18,7 +18,7 @@
 import http from 'node:http';
 import { existsSync } from 'node:fs';
 import type { PortDaddyClientOptions } from '../shared/types.js';
-import { CANONICAL_TCP_PORT, getDaemonTcpUrl } from '../shared/daemon-discovery.js';
+import { DEFAULT_DAEMON_PORT, resolveDaemonUrl } from '../shared/daemon-discovery.js';
 import type { DaemonTarget as ConnectionTarget } from '../shared/daemon-discovery.js';
 import { createIpcClient } from './ipc-client.js';
 import { IpcAction, Performative } from './ipc-types.js';
@@ -1253,7 +1253,7 @@ class PortDaddy {
    * Create a new Port Daddy client.
    */
   constructor(options: PortDaddyClientOptions = {}) {
-    this.url = getDaemonTcpUrl(options.url || process.env.PORT_DADDY_URL).replace(/\/$/, '');
+    this.url = resolveDaemonUrl(options.url || process.env.PORT_DADDY_URL).replace(/\/$/, '');
     this.socketPath = options.socketPath || process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
     this.agentId = options.agentId || process.env.PORT_DADDY_AGENT;
     this.pid = options.pid || process.pid;
@@ -1353,12 +1353,12 @@ class PortDaddy {
   _resolveTarget(): ConnectionTarget {
     if (process.env.PORT_DADDY_FORCE_TCP === '1') {
       const url = new URL(this.url);
-      return { host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT };
+      return { host: url.hostname, port: parseInt(url.port, 10) || DEFAULT_DAEMON_PORT };
     }
     // Explicit TCP URL overrides socket
     if (process.env.PORT_DADDY_URL) {
       const url = new URL(this.url);
-      return { host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT };
+      return { host: url.hostname, port: parseInt(url.port, 10) || DEFAULT_DAEMON_PORT };
     }
     // Use socket if it exists
     if (existsSync(this.socketPath)) {
@@ -1366,7 +1366,7 @@ class PortDaddy {
     }
     // Fallback to TCP
     const url = new URL(this.url);
-    return { host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT };
+    return { host: url.hostname, port: parseInt(url.port, 10) || DEFAULT_DAEMON_PORT };
   }
 
   /** @private */
@@ -1417,7 +1417,7 @@ class PortDaddy {
       req.on('error', (err: NodeJS.ErrnoException) => {
         if (requestTarget.socketPath && !process.env.PORT_DADDY_URL && this._shouldFallbackFromSocket(err)) {
           const url = new URL(this.url);
-          resolve(makeRequest({ host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT }));
+          resolve(makeRequest({ host: url.hostname, port: parseInt(url.port, 10) || DEFAULT_DAEMON_PORT }));
           return;
         }
         if (err.code === 'ENOENT' || err.code === 'ECONNREFUSED') {

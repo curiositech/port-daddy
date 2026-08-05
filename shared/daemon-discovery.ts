@@ -13,11 +13,6 @@ import { DEFAULT_PORT_FILE, DEFAULT_SOCK } from './paths.js';
  */
 export const DEFAULT_DAEMON_PORT = 9876;
 
-/**
- * @deprecated Prefer {@link DEFAULT_DAEMON_PORT}. Retained as a back-compat
- * alias for existing importers (lib/client.ts, cli/utils/fetch.ts, etc.).
- */
-export const CANONICAL_TCP_PORT = DEFAULT_DAEMON_PORT;
 export const LOOPBACK_TCP_HOST = process.env.PORT_DADDY_TCP_HOST?.trim() || '127.0.0.1';
 
 /**
@@ -28,6 +23,12 @@ export const LOOPBACK_TCP_HOST = process.env.PORT_DADDY_TCP_HOST?.trim() || '127
  *   2. The `~/.port-daddy/daemon.port` file the daemon writes on bind
  *      (override the path with `PORT_DADDY_PORT_FILE`)
  *   3. {@link DEFAULT_DAEMON_PORT}
+ *
+ * The design keeps the preferred bind seed out of consumers: clients observe
+ * the port the daemon actually published instead of assuming the seed won.
+ *
+ * @param portFile - Atomically published daemon port file to inspect.
+ * @returns The explicit, published, or preferred daemon TCP port.
  */
 export function resolveDaemonPort(portFile = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE): number {
   const envPort = process.env.PORT_DADDY_PORT?.trim();
@@ -50,14 +51,13 @@ export function resolveDaemonPort(portFile = process.env.PORT_DADDY_PORT_FILE ||
 }
 
 /**
- * @deprecated Prefer {@link resolveDaemonPort}. Back-compat alias.
- */
-export const readDaemonPort = resolveDaemonPort;
-
-/**
  * Resolve the daemon's base TCP URL.
  *
  * Resolution order: `PORT_DADDY_URL` env var → `http://<host>:<resolveDaemonPort()>`.
+ * The intent is to make every URL-rendering consumer share port-file discovery.
+ *
+ * @param explicitUrl - Optional caller-selected daemon URL.
+ * @returns The selected daemon's normalized base TCP URL.
  */
 export function resolveDaemonUrl(explicitUrl = process.env.PORT_DADDY_URL): string {
   if (explicitUrl && explicitUrl.trim()) return explicitUrl;
@@ -65,10 +65,13 @@ export function resolveDaemonUrl(explicitUrl = process.env.PORT_DADDY_URL): stri
 }
 
 /**
- * @deprecated Prefer {@link resolveDaemonUrl}. Back-compat alias.
+ * Resolve the selected TCP endpoint into request-ready host and port fields.
+ * The design deliberately reuses {@link resolveDaemonUrl} so a client cannot
+ * bypass dynamic port discovery while translating URL syntax.
+ *
+ * @param explicitUrl - Optional caller-selected daemon URL.
+ * @returns Host and port for the selected daemon TCP endpoint.
  */
-export const getDaemonTcpUrl = resolveDaemonUrl;
-
 export function resolveDaemonTcpTarget(explicitUrl = process.env.PORT_DADDY_URL): { host: string; port: number } {
   const url = new URL(resolveDaemonUrl(explicitUrl));
   return {
@@ -105,6 +108,10 @@ export type DaemonTarget = SocketTarget | TcpTarget;
  *
  * `env` and `fileExists` are injectable so callers/tests are deterministic
  * regardless of whether a real socket file happens to exist on the box.
+ *
+ * @param env - Environment carrying explicit socket, URL, or transport intent.
+ * @param fileExists - Socket-existence probe, injectable for deterministic tests.
+ * @returns Exactly one Unix-socket or dynamically resolved TCP target.
  */
 export function resolveDaemonTarget(
   env: NodeJS.ProcessEnv = process.env,

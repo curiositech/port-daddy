@@ -172,7 +172,7 @@ import { handleSelfUpdate } from '../cli/commands/self-update.js';
 import { handleUpgrade } from '../cli/commands/upgrade.js';
 import { resolveBerthTargetUrl } from '../shared/daemon-berths.js';
 import { readDevDaemonRegistry } from '../cli/utils/berth-registry.js';
-import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget, DEFAULT_DAEMON_PORT } from '../shared/daemon-discovery.js';
+import { resolveDaemonUrl, resolveDaemonPort, resolveDaemonTcpTarget, DEFAULT_DAEMON_PORT } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
 import {
@@ -190,7 +190,7 @@ import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../cli/utils/destruc
 import { resolveTier, tierBadge, TIER_LEGEND, type Tier } from '../cli/permission-tiers.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
-const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
+const PORT_DADDY_URL: string = resolveDaemonUrl(process.env.PORT_DADDY_URL);
 // Primary transport for CLI->daemon communication.
 // Falls back to TCP (PORT_DADDY_URL) if socket doesn't exist.
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || _DEFAULT_SOCK;
@@ -369,7 +369,7 @@ function printLaunchHints(hints: {
  */
 function resolveTarget(): ConnectionTarget {
   if (process.env.PORT_DADDY_FORCE_TCP === '1') {
-    return { host: 'localhost', port: readDaemonPort(_DEFAULT_PORT_FILE) };
+    return { host: 'localhost', port: resolveDaemonPort(_DEFAULT_PORT_FILE) };
   }
   // Explicit TCP URL overrides socket
   if (process.env.PORT_DADDY_URL) {
@@ -380,7 +380,7 @@ function resolveTarget(): ConnectionTarget {
     return { socketPath: SOCK_PATH };
   }
   // Fallback to TCP
-  return { host: 'localhost', port: readDaemonPort(_DEFAULT_PORT_FILE) };
+  return { host: 'localhost', port: resolveDaemonPort(_DEFAULT_PORT_FILE) };
 }
 
 /**

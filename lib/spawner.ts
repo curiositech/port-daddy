@@ -40,7 +40,7 @@ import { withCoastGuard } from './spawner/coast-guard-runner.js';
 import type { CoastGuardReceipt } from './coast-guard.js';
 import { coastGuardStatus } from './coast-guard.js';
 import { priceBond, classifyScope, scopeTierWritePolicy, pricedBondLogLines } from './bond-pricing.js';
-import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
+import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
 import { getWorktreeInfo } from './worktree.js';
 import { toSessionWorktreeContext } from './worktree-policy.js';
@@ -421,7 +421,7 @@ async function pdCoordinate(
     const pid = normalizeCoordinationPid(options.pid);
     if (pid !== undefined) headers['X-Pid'] = String(pid);
 
-    const response = await fetch(`${getDaemonTcpUrl(process.env.PORT_DADDY_URL)}${path}`, {
+    const response = await fetch(`${resolveDaemonUrl(process.env.PORT_DADDY_URL)}${path}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
@@ -2207,7 +2207,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           // The selected daemon is the authority for the whole child tree.
           // This prevents hooks and nested `pd` calls from falling back to the
           // stable socket or an installed CLI from another release.
-          PORT_DADDY_URL: getDaemonTcpUrl(process.env.PORT_DADDY_URL),
+          PORT_DADDY_URL: resolveDaemonUrl(process.env.PORT_DADDY_URL),
           ...(process.env.PORT_DADDY_CLI?.trim()
             ? { PORT_DADDY_CLI: process.env.PORT_DADDY_CLI.trim() }
             : process.env.PORT_DADDY_CAN_SELF_DAEMON === '1'

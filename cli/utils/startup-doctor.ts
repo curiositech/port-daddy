@@ -13,7 +13,7 @@ import { createInterface } from 'node:readline';
 import { isStdinInteractive, isStdoutInteractive, openControllingTerminalInput } from './tty.js';
 
 import { DEFAULT_SOCK } from '../../shared/paths.js';
-import { readDaemonPort } from '../../shared/daemon-discovery.js';
+import { resolveDaemonPort } from '../../shared/daemon-discovery.js';
 const SOCK_PATH = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
 
 export interface Diagnosis {
@@ -240,7 +240,7 @@ export function detectHostileEnvLocal(dir: string = process.cwd()): HostileEnvLo
  * Run full startup diagnostics and return fixable issues.
  */
 export function diagnoseStartupBlockers(
-  port: number = readDaemonPort(),
+  port: number = resolveDaemonPort(),
   options: StartupDoctorOptions = {}
 ): Diagnosis[] {
   const issues: Diagnosis[] = [];
@@ -333,7 +333,7 @@ export function diagnoseStartupBlockers(
  * Returns true if any fixes were applied.
  */
 export function autoFixStartupBlockers(
-  port: number = readDaemonPort(),
+  port: number = resolveDaemonPort(),
   options: StartupDoctorOptions = {}
 ): { fixed: boolean; issues: Diagnosis[] } {
   const issues = diagnoseStartupBlockers(port, options);

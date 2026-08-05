@@ -4,7 +4,7 @@
  * Rule (see AGENTS.md §canonical daemon URL):
  *   `9876` is the *canonical preferred* port, not a guaranteed runtime value.
  *   Runtime code must resolve the daemon URL through:
- *     - Node:  process.env.PORT_DADDY_URL  +  getDaemonTcpUrl() / resolveDaemonTcpTarget()
+ *     - Node:  process.env.PORT_DADDY_URL  +  resolveDaemonUrl() / resolveDaemonTcpTarget()
  *     - Swift: DaemonLocation.resolveBaseURL()
  *     - Web:   relative paths from the dashboard origin
  *     - Rust:  the env-var resolver in pd-bosun (no inline URLs)
@@ -172,7 +172,7 @@ describe('no-hardcoded-daemon-url', () => {
         const msg =
           `Found ${offenders.length} hardcoded daemon URL(s) in source:\n${detail}\n\n` +
           `Use the canonical resolver instead:\n` +
-          `  - Node:  getDaemonTcpUrl(process.env.PORT_DADDY_URL)\n` +
+          `  - Node:  resolveDaemonUrl(process.env.PORT_DADDY_URL)\n` +
           `  - Swift: DaemonLocation.resolveBaseURL()\n` +
           `  - Web:   relative paths (no scheme/host)\n` +
           `If this hit is legitimate, add the file to ALLOWED_FILES in this test with a reason.`;

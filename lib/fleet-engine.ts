@@ -20,7 +20,7 @@ import { collectSemanticAliases } from './semantic-terms.js';
 import type { SemanticAlias } from './semantic-terms.js';
 import type { SemanticResolver } from './semantic-resolver.js';
 import type { Tuple, TupleSpace } from './tuples.js';
-import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
+import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
 import { buildPortDaddyShellCommand, resolvePortDaddyInvocation } from './port-daddy-command.js';
 import { resolveLLMBackend } from './llm-backend-resolver.js';
 import { createLLMClient } from './llm-call.js';
@@ -556,7 +556,7 @@ export function validateTopology(config: FleetConfig): TopologyValidation {
 // ─── Fleet Runner ───────────────────────────────────────────────────────────
 
 function getFleetDaemonUrl(): string {
-  return process.env.PD_URL || getDaemonTcpUrl(process.env.PORT_DADDY_URL);
+  return process.env.PD_URL || resolveDaemonUrl(process.env.PORT_DADDY_URL);
 }
 
 // ─── Lifecycle Events ──────────────────────────────────────────────────────

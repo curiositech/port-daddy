@@ -17,7 +17,7 @@ import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs';
 import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { homedir, platform } from 'os';
-import { getDaemonTcpUrl } from './shared/daemon-discovery.js';
+import { resolveDaemonUrl } from './shared/daemon-discovery.js';
 import { daemonBinaryName, resolveDaemonLaunchCommand, resolveDistributionRoot, resolveBosunBinaryPath, type DaemonLaunchCommand } from './shared/daemon-binary.js';
 
 const MODULE_DIR: string = dirname(fileURLToPath(import.meta.url));
@@ -777,7 +777,7 @@ function install(): void {
   }
 
   if (success) {
-    const daemonUrl = getDaemonTcpUrl();
+    const daemonUrl = resolveDaemonUrl();
     console.log('');
     console.log('Port Daddy daemon installed successfully.');
     console.log('  Auto-starts on login');
@@ -910,7 +910,7 @@ function status(): void {
 
   // Check if daemon is actually responding
   console.log('');
-  const daemonUrl = getDaemonTcpUrl();
+  const daemonUrl = resolveDaemonUrl();
   const healthResult: CommandResult = runCommand('curl', ['-s', '--connect-timeout', '2', `${daemonUrl}/health`]);
   if (healthResult.status === 0 && healthResult.stdout.includes('"status":"ok"')) {
     console.log(`  Daemon: responding at ${daemonUrl}`);

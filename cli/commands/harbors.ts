@@ -10,11 +10,11 @@
  */
 
 import { join } from 'path';
-import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
+import { resolveDaemonUrl } from '../../shared/daemon-discovery.js';
 import { readCurrentContextFromPaths } from '../utils/current-context.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 
-const BASE_URL = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
+const BASE_URL = resolveDaemonUrl(process.env.PORT_DADDY_URL);
 
 type ParsedOptions = Record<string, string | string[] | boolean | undefined>;
 

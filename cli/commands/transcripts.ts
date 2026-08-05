@@ -15,7 +15,7 @@ import { IS_TTY, relativeTime } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { promptConfirm } from '../utils/prompt.js';
-import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
+import { resolveDaemonUrl } from '../../shared/daemon-discovery.js';
 
 /**
  * Strip terminal control sequences from DB-sourced strings before printing to a
@@ -297,7 +297,7 @@ export async function handleTranscriptsShow(args: string[], options: CLIOptions)
 // =============================================================================
 
 export async function handleTranscriptsWatch(_args: string[], options: CLIOptions): Promise<void> {
-  const baseUrl = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
+  const baseUrl = resolveDaemonUrl(process.env.PORT_DADDY_URL);
   const url = `${baseUrl}/transcripts/stream`;
 
   if (IS_TTY && !isQuiet(options)) {

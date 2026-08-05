@@ -7,9 +7,9 @@
  * harbor, freshness, and the cascade stage that ranked each hit.
  */
 
-import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
+import { resolveDaemonUrl } from '../../shared/daemon-discovery.js';
 
-const BASE_URL = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
+const BASE_URL = resolveDaemonUrl(process.env.PORT_DADDY_URL);
 
 type ParsedOptions = Record<string, string | string[] | boolean | undefined>;
 

@@ -30,7 +30,7 @@ import { CLIOptions, isJson } from '../types.js';
 import { separator, tableHeader } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import { diagnoseStartupBlockers, confirmFix, detectHostileEnvLocal } from '../utils/startup-doctor.js';
-import { CANONICAL_TCP_PORT } from '../../shared/daemon-discovery.js';
+import { DEFAULT_DAEMON_PORT } from '../../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../../shared/code-hash.js';
 import { DEFAULT_PID_FILE, PD_HOME } from '../../shared/paths.js';
 import { type Severity, worstSeverity } from '../../lib/health-severity.js';
@@ -151,9 +151,9 @@ function getLocalCodeHash(): string {
 function resolveDiagnosticPort(): number {
   try {
     const url = new URL(getDaemonUrl());
-    return Number.parseInt(url.port, 10) || (url.protocol === 'https:' ? 443 : CANONICAL_TCP_PORT);
+    return Number.parseInt(url.port, 10) || (url.protocol === 'https:' ? 443 : DEFAULT_DAEMON_PORT);
   } catch {
-    return CANONICAL_TCP_PORT;
+    return DEFAULT_DAEMON_PORT;
   }
 }
 
@@ -1653,7 +1653,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   let passed: number = 0;
   let total: number = 0;
   const daemonPort = resolveDiagnosticPort();
-  const portLabel = `Daemon TCP port (${daemonPort}${daemonPort === CANONICAL_TCP_PORT ? ' preferred' : ''})`;
+  const portLabel = `Daemon TCP port (${daemonPort}${daemonPort === DEFAULT_DAEMON_PORT ? ' preferred' : ''})`;
 
   const libDir: string = join(__dirname, '..', '..');
 

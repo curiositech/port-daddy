@@ -41,11 +41,11 @@ import {
   type RouterPolicy,
 } from '../lib/tube-spawner-router.js';
 import type { SpawnSpec, SpawnResult } from '../lib/spawner.js';
-import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
+import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
 
 // Resolve via the single source of truth (PORT_DADDY_URL → port file → default),
 // not a hardcoded literal. The default port lives only in shared/daemon-discovery.
-const URL = getDaemonTcpUrl();
+const URL = resolveDaemonUrl();
 
 function flag(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);

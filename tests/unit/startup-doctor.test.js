@@ -18,7 +18,7 @@ jest.unstable_mockModule('node:child_process', () => ({
 }));
 
 jest.unstable_mockModule('../../shared/daemon-discovery.js', () => ({
-  readDaemonPort: () => 9876,
+  resolveDaemonPort: () => 9876,
 }));
 
 const { diagnoseStartupBlockers } = await import('../../cli/utils/startup-doctor.js');
