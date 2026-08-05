@@ -68,7 +68,10 @@ jobs:
           cache-dependency-path: apps/fleet-executor/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        # The committed lockfile is the authority for this deploy. Wrangler's
+        # broad semver range can otherwise make a later npm release re-solve
+        # optional Cloudflare peer ranges and reject the already-locked tree.
+        run: npm ci --legacy-peer-deps
 
       # Don't ship a red build. main is already tested by ci.yml, but a deploy
       # that skips its own gate can push a broken Worker if the two ever drift.
