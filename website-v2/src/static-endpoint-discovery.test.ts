@@ -21,11 +21,11 @@ describe('static endpoint discovery', () => {
       expect(
         source,
         `${file} should not contain hardcoded daemon URL claims with fixed numeric ports`,
-      ).not.toMatch(/usually\s+(?:on\s+)?(?:localhost|127\.0\.0\.1):[0-9]{4}/)
+      ).not.toMatch(/usually\s+(?:on\s+)?(?:localhost|127\.0\.0\.1):[0-9]{1,5}/)
       expect(
         source,
         `${file} should not contain bare http:// URLs with localhost or loopback and numeric ports`,
-      ).not.toMatch(/https?:\/\/(?:localhost|127\.0\.0\.1):[0-9]{4}/)
+      ).not.toMatch(/https?:\/\/(?:localhost|127\.0\.0\.1):[0-9]{1,5}/)
 
       // Static content SHOULD teach discovery patterns
       // Note: Not all files will have all patterns, but at least they shouldn't have hardcoded URLs
