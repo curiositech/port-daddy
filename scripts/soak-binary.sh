@@ -8,7 +8,7 @@
 # operator machine. Nothing in CI ever RAN the packaged binary — unit tests
 # run from source under a different runtime shape than the compiled bundle —
 # so the crash sailed through to brew, killed the production daemon, and
-# left a half-alive zombie (see lib/daemon-takeover.ts and issue #676).
+# left a half-alive zombie (see lib/daemon-reconciliation.ts and issue #676).
 #
 # HONEST SCOPE: this gate is a baseline, not a universal reproducer. In
 # validation (2026-07-04), the broken 3.24.0 binary PASSED both an idle and
@@ -27,7 +27,6 @@
 # Env knobs:
 #   SOAK_SECONDS      total soak time after first healthy reply (default 180)
 #   SOAK_BOOT_GRACE   wall-clock deadline for the first healthy reply (default 90)
-#   SOAK_PORT         TCP port for the sandboxed daemon (default 19876)
 #   SOAK_WORKLOAD     1 (default) = SSE holds + read hammer + churn; 0 = idle
 #   SOAK_PREFIX       sandbox dir. Default: $RUNNER_TEMP in CI, else a fresh
 #                     mktemp -d dir (macOS: per-user /var/folders, NOT the
@@ -45,7 +44,7 @@ shift || true
 
 SOAK_SECONDS="${SOAK_SECONDS:-180}"
 SOAK_BOOT_GRACE="${SOAK_BOOT_GRACE:-90}"
-SOAK_PORT="${SOAK_PORT:-19876}"
+SOAK_PORT=""
 if [ -z "${SOAK_PREFIX:-}" ]; then
   if [ -n "${RUNNER_TEMP:-}" ]; then
     SOAK_PREFIX="$RUNNER_TEMP/pd-soak-$$"
@@ -57,6 +56,8 @@ fi
 
 mkdir -p "$SOAK_PREFIX"
 LOG="$SOAK_PREFIX/soak.log"
+PORT_FILE="$SOAK_PREFIX/daemon.port"
+rm -f "$PORT_FILE"
 
 # Crash signatures. "panic(" catches bun panics on any thread; the other two
 # are the exact strings from the 3.24.0 incident.
@@ -66,6 +67,7 @@ CRASH_RE='panic\(|Segmentation fault|oh no: Bun has crashed'
 # deadline holds; the soak loop wants a longer budget so a slow-but-alive
 # daemon (post-boot catch-up regularly answers in 2–3s) is not misread.
 health_ok() {
+  [ -n "$SOAK_PORT" ] || return 1
   curl -sf -m "${1:-10}" "http://127.0.0.1:${SOAK_PORT}/health" 2>/dev/null | grep -q '"status":"ok"'
 }
 
@@ -86,10 +88,9 @@ fail() {
   exit 1
 }
 
-echo "Soaking $BIN for ${SOAK_SECONDS}s on port ${SOAK_PORT} (sandbox: $SOAK_PREFIX)"
+echo "Soaking $BIN for ${SOAK_SECONDS}s on its published port (sandbox: $SOAK_PREFIX)"
 
 PORT_DADDY_PREFIX="$SOAK_PREFIX" \
-PORT_DADDY_PORT="$SOAK_PORT" \
 "$BIN" start --foreground "$@" >"$LOG" 2>&1 &
 DAEMON_PID=$!
 
@@ -101,10 +102,20 @@ boot_deadline=$(( $(date +%s) + SOAK_BOOT_GRACE ))
 while [ "$(date +%s)" -lt "$boot_deadline" ]; do
   kill -0 "$DAEMON_PID" 2>/dev/null || fail "daemon exited during boot"
   if grep -Eq "$CRASH_RE" "$LOG"; then fail "crash marker during boot"; fi
+  if [ -z "$SOAK_PORT" ] && [ -s "$PORT_FILE" ]; then
+    candidate="$(tr -d '[:space:]' < "$PORT_FILE")"
+    case "$candidate" in
+      ''|*[!0-9]*) fail "daemon published an invalid port: $candidate" ;;
+    esac
+    [ "$candidate" -ge 1 ] && [ "$candidate" -le 65535 ] \
+      || fail "daemon published an out-of-range port: $candidate"
+    SOAK_PORT="$candidate"
+    echo "Published daemon port discovered: ${SOAK_PORT}"
+  fi
   if health_ok 3; then booted=1; break; fi
   sleep 1
 done
-[ -n "$booted" ] || fail "no healthy /health reply within ${SOAK_BOOT_GRACE}s"
+[ -n "$booted" ] || fail "no healthy /health reply on the published daemon port within ${SOAK_BOOT_GRACE}s"
 echo "Boot OK — daemon healthy. Holding for ${SOAK_SECONDS}s…"
 
 # ── Workload (SOAK_WORKLOAD=0 to disable) ───────────────────────────────────
