@@ -562,6 +562,22 @@ export async function createCheckRun(
   return body.id ?? 0;
 }
 
+/**
+ * Complete a check run. Returns whether the PATCH actually succeeded — unlike
+ * the old fire-and-forget version, a failure here is never silently
+ * swallowed.
+ *
+ * The completion PATCH is retried locally (bounded, with backoff) on a
+ * transient failure (network blip, GitHub 5xx, rate limit) because it is a
+ * pure idempotent write. This is deliberately NOT done by throwing and
+ * letting the whole job retry via the queue: by the time this is called the
+ * ships have already run and `createReview` may have already posted a review
+ * comment (not idempotent — a job-level retry would spend AI again and post
+ * a duplicate review just to redo one PATCH). Failure is logged internally
+ * on every attempt and on final exhaustion — this function never throws, so
+ * it can never turn a completion hiccup into an expensive job-level replay.
+ * The boolean return is there for callers/tests that want to react further.
+ */
 export async function completeCheckRun(
   owner: string,
   repo: string,
@@ -570,21 +586,47 @@ export async function completeCheckRun(
   summary: string,
   token: string,
   detailsUrl?: string | null,
-): Promise<void> {
-  if (!checkRunId) return;
+): Promise<boolean> {
+  if (!checkRunId) return false;
   // details_url is (re)stamped on completion too, so a run that REUSED an
   // older check run (idempotent retry path) still links to its own page.
-  await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
-    method: 'PATCH',
-    headers: ghHeaders(token),
-    body: JSON.stringify({
-      status: 'completed',
-      conclusion,
-      completed_at: new Date().toISOString(),
-      output: { title: 'Port Daddy Fleet', summary },
-      ...(detailsUrl ? { details_url: detailsUrl } : {}),
-    }),
+  const body = JSON.stringify({
+    status: 'completed',
+    conclusion,
+    completed_at: new Date().toISOString(),
+    output: { title: 'Port Daddy Fleet', summary },
+    ...(detailsUrl ? { details_url: detailsUrl } : {}),
   });
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    if (attempt > 1) await sleep(250 * (attempt - 1));
+    let res: Response;
+    try {
+      res = await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
+        method: 'PATCH',
+        headers: ghHeaders(token),
+        body,
+      });
+    } catch (err) {
+      console.error(
+        `[fleet-executor] completeCheckRun network error attempt=${attempt}/${MAX_ATTEMPTS} check=${checkRunId}: ${String(err)}`,
+      );
+      continue;
+    }
+    if (res.ok) return true;
+    console.error(
+      `[fleet-executor] completeCheckRun PATCH failed attempt=${attempt}/${MAX_ATTEMPTS} check=${checkRunId} status=${res.status}`,
+    );
+  }
+  console.error(
+    `[fleet-executor] completeCheckRun EXHAUSTED retries for check=${checkRunId} owner=${owner} repo=${repo} — ` +
+      'check will remain in_progress until a future run reuses/DLQ-completes it (findFleetCheckRun idempotency path).',
+  );
+  return false;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**

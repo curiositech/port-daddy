@@ -393,6 +393,53 @@ async function recordRunStart(
 }
 
 /**
+ * Guarantee a `fleet_runs` row exists before a check run's completion is
+ * published — an idempotent (INSERT OR IGNORE) backstop independent of
+ * `recordRunStart`'s own best-effort write.
+ *
+ * `recordRunStart` deliberately swallows write failures ("NEVER aborts the
+ * run" — correct: an audit-log hiccup must not block gating). But that means
+ * a transient D1 error at exactly that moment leaves NO row behind, while the
+ * check run on GitHub still completes normally with a real conclusion — its
+ * `details_url` then points at a run id with no row, and the run page 404s
+ * ("Run not found") even though nothing else went wrong. `dlq.ts`'s
+ * completion path has the same gap: it never calls `recordRunStart` at all.
+ * Calling this once, right after `recordRunStart`, closes both: if the
+ * INSERT OR REPLACE above already succeeded this is a guaranteed no-op (same
+ * primary key); if it silently failed, this creates a minimal-but-truthful
+ * fallback row so the link a completed check publishes always resolves to
+ * something real.
+ */
+export async function ensureRunRow(
+  env: ExecutorEnv,
+  runId: string,
+  deliveryId: string,
+  repoFullName: string | null,
+  prNumber: number | null,
+  headSha: string,
+): Promise<void> {
+  if (!env.DB) return;
+  const repo = repoFullName ?? 'unknown/unknown';
+  const prUrl = prNumber != null ? `https://github.com/${repo}/pull/${prNumber}` : '';
+  try {
+    // Same column order/count as recordRunStart's INSERT (id, delivery_id,
+    // repo_full_name, pr_number, pr_url, head_sha, ships_csv, created_at) —
+    // ships_csv is empty since this is only ever the no-ships-info fallback
+    // (recordRunStart already succeeded with the real list, or this is the
+    // DLQ path, which never has a ship list to begin with).
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO fleet_runs
+         (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha, conclusion, ships_csv, ms, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, 0, ?)`,
+    )
+      .bind(runId, deliveryId, repo, prNumber ?? 0, prUrl, headSha, '', nowSec())
+      .run();
+  } catch (err) {
+    console.error(`[fleet-executor] ensureRunRow failed run=${runId}: ${String(err)}`);
+  }
+}
+
+/**
  * Stamp the final conclusion + wall-clock elapsed onto the fleet_runs row.
  * Best-effort: a write failure NEVER changes the gate (the check run is already
  * the authoritative surface on GitHub).
@@ -621,6 +668,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // the audit trail records every attempt that got far enough to gate. A
   // write failure is swallowed and never changes the run or the gate.
   await recordRunStart(env, runId, job, prCtx, prNumber, cloudShips);
+  // Backstop: guarantee the row exists even if the write above silently
+  // failed, so every completion path below can rely on details_url resolving
+  // to a real run page (see ensureRunRow's docstring).
+  await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, prCtx.headSha);
 
   // --- SPEND CIRCUIT-BREAKER (pre-spend, before any ship runs) --------------
   // The per-installation abuse gate: if this installation has a credit_ledger and
