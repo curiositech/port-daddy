@@ -11,7 +11,8 @@ Patterns for forking sub-agents — when, how, what to hand off, how to re-join.
 
 ## Companion persona
 
-`agents/subagent-fork-template.yaml` is the canonical fork persona. Copy it, fill the `task_specific:` block, spawn.
+Use `pd agent`, `pd sortie`, or `pd session continue` so the helper receives a
+real receipt, session, budget, transcript, worktree policy, and control path.
 
 ## Companion decision tree
 
@@ -29,7 +30,7 @@ Parent thinks "fork" →
   → subagent-fork/when-to-fork.md (refine pattern)
   → subagent-fork/partition-by-symbol.md (if parallel-edit)
   → subagent-fork/handoff-checklist.md (prep handoff)
-  → spawn from agents/subagent-fork-template.yaml
+  → launch through pd agent/sortie or a linked session continuation
   → (sub-agent runs)
   → subagent-fork/rejoin-protocol.md (integrate result)
 ```

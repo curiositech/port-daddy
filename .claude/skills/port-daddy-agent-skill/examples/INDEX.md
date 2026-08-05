@@ -13,8 +13,7 @@ Each example is self-contained: copy-pasteable, with the exact CLI invocations a
 | `05-tuple-swarm-handoff.md` | Multiple fleet agents need to hand work off without a queue. |
 | `06-debug-daemon-down.md` | `pd <anything>` returns connection refused. |
 | `07-deterministic-port-collision.md` | Two services need the same hash slot. |
-| `08-launchd-respawn-window.md` | The daemon flapped under launchd and you're in the respawn window. |
-| `09-better-sqlite3-abi-rebuild.md` | `pd` errors with a Node ABI mismatch after a Node upgrade. |
+| `09-better-sqlite3-abi-rebuild.md` | A broad test cascade is one worktree-local Node ABI mismatch. |
 | `10-walked-into-anothers-rebase.md` | Your branch shifted under you because another agent was mid-rebase in a shared worktree. |
 | `11-briefing-first-even-for-diagnostics.md` | You started "just diagnosing" without `pd briefing` and the working tree drifted. |
 

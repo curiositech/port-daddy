@@ -9,7 +9,8 @@ A sub-agent that doesn't know its parent's coordination state will either duplic
 
 ## Required handoff fields
 
-Pass these in the fork persona or via `--parent-session`:
+Pass these in the supported launch prompt/metadata and record them in the
+parent's durable scope note:
 
 ```yaml
 inherited_from_parent:
@@ -53,7 +54,7 @@ pd whoami
 
 # 2. Confirm the partition files aren't claimed by other sessions.
 for f in $PARTITION_FILES; do
-  pd files who-owns "$f"
+  pd who-owns "$f"
 done
 
 # 3. Confirm origin/main is fresh (parent's "shared_assumptions" must be current).
@@ -61,8 +62,11 @@ git fetch origin main
 git log --oneline HEAD..origin/main | head
 
 # 4. Run the prologue scripts to capture state.
-skills/port-daddy-agent-skill/scripts/prologue/pd-context.sh > /tmp/parent-ctx.json
-skills/port-daddy-agent-skill/scripts/prologue/git-state.sh > /tmp/parent-git.json
+mkdir -p "$HOME/coding/tmp/port-daddy-handoffs"
+skills/port-daddy-agent-skill/scripts/prologue/pd-context.sh \
+  > "$HOME/coding/tmp/port-daddy-handoffs/parent-ctx.json"
+skills/port-daddy-agent-skill/scripts/prologue/git-state.sh \
+  > "$HOME/coding/tmp/port-daddy-handoffs/parent-git.json"
 
 # 5. Drop a pd note describing the fork:
 pd note "Forking subagent <name> for <task>. Partition: <files>. Will rejoin at: <expected-time>."
@@ -88,10 +92,11 @@ skills/port-daddy-agent-skill/scripts/prologue/pd-context.sh
 #    - Otherwise: continue.
 
 # 3. Begin its own session.
-pd begin "<task slug>" --identity port-daddy:subagent:<task> --lifecycle durable
+pd begin "<task slug>" --identity port-daddy:subagent:<task> \
+  --lifecycle durable --roadmap <roadmap-item-slug>
 
 # 4. Claim the partition.
-pd session files claim <each-partition-file>
+pd session files add <each-partition-file>
 # (with --symbol-path for symbol-level partitions)
 
 # 5. Drop a scope note that references the parent.
@@ -140,5 +145,5 @@ Sub-agent crashed or timed out. Parent should:
 - `when-to-fork.md` — should you even fork?
 - `partition-by-symbol.md` — how to compute the partition.
 - `rejoin-protocol.md` — how to re-integrate results.
-- `agents/subagent-fork-template.yaml` — the canonical fork persona.
+- `agents/INDEX.md` — supported receipt-backed helper launch surfaces.
 - `decisions/should-i-fork-subagent.md` — full decision tree.

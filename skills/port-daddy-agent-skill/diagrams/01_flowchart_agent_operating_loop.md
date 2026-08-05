@@ -6,7 +6,7 @@ flowchart TD
   B --> C["pd briefing"]
   C --> D{"Recoverable overlap?"}
   D -->|Yes| E["pd salvage --project"]
-  D -->|No| F["pd begin --lifecycle durable"]
+  D -->|No| F["pd begin --lifecycle durable --roadmap <slug>"]
   E --> F
   F --> G["pd advise likely path"]
   G --> H["pd note scope, assumptions, validation"]

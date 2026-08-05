@@ -69,7 +69,7 @@ pd dns <command>
 Sessions, notes, recovery, and evidence:
 
 ```bash
-pd begin "purpose" --lifecycle durable
+pd begin "purpose" --lifecycle durable --roadmap <roadmap-item-slug>
 pd done "summary"
 pd whoami
 pd session <command>
@@ -112,7 +112,7 @@ pd agents
 pd actors
 pd actor <id>
 pd spawn <task>
-pd spawn kill <agent>
+pd spawn cancel <agent>
 pd spawned
 pd fleet init
 pd fleet status

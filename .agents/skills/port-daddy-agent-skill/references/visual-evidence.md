@@ -66,7 +66,7 @@ server reconnected) to pick it up. Ask once, plainly — do not retry in a loop.
 - **FleetBar:** build a named dev-lane bundle
   (`scripts/install-fleetbar-lane.sh dev-<name>`, or
   `scripts/package-fleetbar.sh` for a plain zipped artifact) so you never
-  touch the operator's running prod/dev-latest instances. If evidence
+  touch the operator's installed stable or unrelated named development daemons. If evidence
   requires its window and none is open, say so in the PR body and fall back to
   the computer-use MCP (rung 4) or an honest partial (rung 5).
 - **Never** AppleScript/System-Events click the real menu bar, and never

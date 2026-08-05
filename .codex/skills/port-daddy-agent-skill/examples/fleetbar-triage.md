@@ -5,8 +5,8 @@ does not show it.
 
 ```bash
 pd status
-pd daemon env default
-launchctl print gui/501/com.portdaddy.daemon
+eval "$(pd use stable)"
+launchctl print gui/$(id -u)/homebrew.mxcl.port-daddy
 pd services --project port-daddy
 pd fleet status --project port-daddy
 ```

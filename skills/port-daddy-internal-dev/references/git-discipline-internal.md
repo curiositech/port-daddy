@@ -10,7 +10,7 @@ Every `vX.Y.Z` tag in this repo is referenced by:
 
 - the Homebrew formula `~/coding/homebrew-port-daddy/Formula/port-daddy.rb` (frozen `sha256`)
 - the Mac app DMG manifest (signed + notarized at build time)
-- the npm package or extension manifests for consumers
+- the signed-binary, Homebrew, MCP, or extension manifests for consumers
 - screenshots / docs that link to GitHub at `tree/v<X.Y.Z>/...`
 
 Force-pushing a release tag breaks all of these. **Tags are immutable.**

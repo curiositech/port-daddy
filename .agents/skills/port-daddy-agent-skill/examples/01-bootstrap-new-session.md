@@ -18,7 +18,8 @@ pd sitrep --since 60                      # last hour of activity, notes, salvag
 pd salvage --project "$(basename "$(pwd)")"
 
 # 5. Begin a session — only if whoami didn't return one
-pd begin --identity myapp:api:feature-x --purpose "Implement /v2/auth/refresh" --lifecycle durable
+pd begin "Implement /v2/auth/refresh" --identity myapp:api:feature-x \
+  --lifecycle durable --roadmap auth-refresh
 ```
 
 ## What good output looks like
@@ -43,7 +44,7 @@ After `pd begin`, before you touch any file:
 
 ```bash
 # Pre-flight: check coordination overlap on the files you intend to edit
-pd session files claim src/auth/refresh.ts src/auth/jwt.ts
+pd session files add src/auth/refresh.ts src/auth/jwt.ts
 ```
 
 If a claim returns a conflict:

@@ -1,102 +1,65 @@
-# 06 — Debug: Daemon Down
+# 06 — Debug a selected daemon that is unreachable
 
-**Scenario:** `pd <anything>` returns `Connection refused` or hangs.
+**Scenario:** a CLI, FleetBar, browser, or MCP call cannot reach Port Daddy.
 
-## Triage tree
-
-```mermaid
-flowchart TD
-  A[pd command fails] --> B[pd status]
-  B -->|"running"| C[Wrong socket / wrong PORT_DADDY_URL]
-  B -->|"not running"| D{launchctl says installed?}
-  D -->|yes| E[pd start]
-  D -->|no| F[pd install]
-  E --> G[pd status again]
-  G -->|still down| H[Check logs and port-registry.db lock]
-```
-
-## Step 1: confirm daemon state
+Do not begin with a port number or a restart. First identify which runtime the
+client selected.
 
 ```bash
-pd status                                    # canonical
-launchctl list | grep portdaddy              # macOS launchd registration
-ls -la ~/.port-daddy/daemon.{sock,pid,port}  # runtime files
+pd status --json
+pd dev list
+printf 'selected URL: %s\n' "${PORT_DADDY_URL:-stable profile}"
+printf 'selected port file: %s\n' "${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
 ```
 
-Possible states:
+## Stable runtime
 
-| Output | Meaning | Fix |
-|---|---|---|
-| `running` | Daemon is up. Your CLI is hitting the wrong endpoint. | Unset `PORT_DADDY_URL`. Check `PORT_DADDY_SOCK`. |
-| `not running` + plist registered | launchd loaded but process died. | `pd start` (or `launchctl kickstart -k gui/$(id -u)/com.portdaddy.daemon`). |
-| `not running` + plist not registered | Never installed (or got removed). | `pd install`. |
-| Hang on `pd status` | Socket exists but daemon is wedged. | See Step 3. |
-
-## Step 2: read the logs
+The installed macOS daemon has one lifecycle owner: Homebrew through launchd.
+FleetBar is the operator surface; these shell checks are for agent recovery.
 
 ```bash
-tail -n 200 ~/.port-daddy/daemon.log         # primary log
-tail -n 50 ~/.port-daddy/launchd.{out,err}.log  # launchd's stdout/stderr capture
+launchctl print gui/$(id -u)/homebrew.mxcl.port-daddy
+/opt/homebrew/bin/pd doctor --json
 ```
 
-Common patterns:
-
-- `EADDRINUSE` on the TCP fallback port — another process has 9876. Set `PORT_DADDY_PORT` and restart.
-- `database is locked` — another process held the SQLite DB. See Step 3.
-- `master.key permissions are 0644, expected 0600` — the daemon refuses to boot. `chmod 600 ~/.port-daddy/master.key`.
-
-## Step 3: if the daemon is wedged
+Compare the launchd program/PID with the installed keg. Then read the selected
+port file and test the endpoint it publishes:
 
 ```bash
-# Find the PID
-cat ~/.port-daddy/daemon.pid
-
-# Confirm it's actually that process
-ps -p "$(cat ~/.port-daddy/daemon.pid)"
-
-# Hard kill (only if it's wedged)
-kill -9 "$(cat ~/.port-daddy/daemon.pid)"
-
-# Stale socket cleanup
-rm -f ~/.port-daddy/daemon.sock ~/.port-daddy/daemon.ipc
-
-# Restart
-pd start
+PD_PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
+PD_URL="${PORT_DADDY_URL:-http://127.0.0.1:$(tr -d '\n' < "$PD_PORT_FILE")}"
+curl -fsS "$PD_URL/health" | jq .
 ```
 
-## Step 4: SQLite locked
+If launchd and health disagree, use FleetBar's restart action or the Homebrew
+service control during release/recovery. Do not install a rival job, delete
+sockets blindly, or kill an unrelated listener.
 
-If logs show `SQLITE_BUSY` or `database is locked`:
+## Named development runtime
 
 ```bash
-# Find anyone touching the DB
-lsof ~/coding/port-daddy/port-registry.db
-
-# Kill the squatter, then check integrity
-sqlite3 ~/coding/port-daddy/port-registry.db "PRAGMA integrity_check;"
-# Expect: ok
+pd dev list
+pd --daemon <label> status --json
+eval "$(pd use <label>)"
+pd status --json
 ```
 
-If `integrity_check` fails: the DB is corrupted. The daemon will refuse to boot. Restore from your backup or — if you have none — back up the file, delete it, restart. You'll lose history. Notes are encrypted on disk, so they're useless without the master key anyway.
+Check the named profile's source directory, revision, PID, heartbeat, and
+published endpoint. Rebuild that label from its feature worktree when its
+revision is stale. Do not restart stable to test feature code.
 
-## Step 5: still broken — escalate
+## Interpreting evidence
 
-```bash
-pd version                                   # if this works, the daemon is up
-curl -v --unix-socket ~/.port-daddy/daemon.sock http://localhost/ping
+| Evidence | What it proves |
+|---|---|
+| launchd PID | Stable supervisor owns a process |
+| named profile PID | `pd dev` recorded a child process |
+| fresh heartbeat | The supervisor/provider still observes it |
+| socket response | Local IPC path works |
+| published TCP health | Browser/HTTP path works |
+| health source revision | Which code is actually serving |
+| durable receipt/transcript | Agent work survived observer or daemon loss |
 
-# Drop a feedback file (this is dogfooding, after all)
-cat > .spark/feedback/$(date +%Y-%m-%d)-daemon-wedge.md <<EOF
-Surface: daemon
-Severity: blocker
-What happened: pd status hangs forever; daemon.pid points to a live PID but no response on socket.
-Why it matters: blocks every coordination call.
-Suggested direction: investigate event-loop block / unbounded queue.
-EOF
-```
-
-## Things this doc is NOT for
-
-- "I claimed a port and it's a different number than expected." → That's correct behavior. See SKILL.md "Common Issues."
-- "Fleet didn't fire on my commit." → See `examples/04-fleet-from-zero.md` and check `fleet.name == basename(projectDir)`.
-- "MCP tool not found in Claude Code." → That's an MCP wiring issue, not a daemon-down issue. Check `pd mcp install`.
+If process/transport evidence is ambiguous, stop mutations and leave an exact
+coordination note. A healthy agent run is never converted to failure because an
+observer disconnected.

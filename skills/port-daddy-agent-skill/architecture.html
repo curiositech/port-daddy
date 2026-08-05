@@ -66,7 +66,7 @@ flowchart LR
     dash[Dashboard browser]
   end
 
-  subgraph daemon[Port Daddy daemon · localhost:9876]
+  subgraph daemon[Selected Port Daddy daemon · published endpoint]
     fast[Fastify HTTP API]
     ipc[Binary IPC<br/>~/.port-daddy/daemon.ipc]
     routes[(routes/*)]
@@ -152,7 +152,7 @@ sequenceDiagram
     D->>S: INSERT session, agent
     D-->>A: session_id, agent_id
   end
-  A->>D: pd session files claim src/auth/jwt.ts
+  A->>D: pd session files add src/auth/jwt.ts
   D->>S: INSERT file_claim
   D-->>B: dashboard SSE event
   loop every 5 minutes

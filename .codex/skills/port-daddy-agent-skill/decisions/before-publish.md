@@ -1,106 +1,66 @@
 ---
-title: "Decision tree: before commit / push / deploy"
-purpose: "Every gate that exists between 'looks done locally' and 'visible to the fleet,' in the right order."
-last_verified: 2026-04-30
+title: "Decision tree: before commit, push, deploy, or release"
+purpose: "Keep source, coordination, package, distribution, and runtime proof separate."
+last_verified: 2026-08-04
 ---
 
-# Before You Publish
+# Before you publish
 
-Local green is a hypothesis, not a result. The publish path is where stale-base bugs and phantom-claim collisions become visible. Walk this tree in order.
+Local green is a hypothesis. Walk this sequence in order.
 
-```
-START: I think my work is ready
+```text
+START: the bounded change looks ready
 │
-├─ Have I run my test suite locally?
-│   ├─ NO  → run it. `npm test` or the targeted command for this repo.
-│   └─ YES → continue.
+├─ Did focused validation exercise the changed behavior?
+│  ├─ NO  → add or run the missing proof
+│  └─ YES → continue
 │
-├─ Did the suite actually exercise the surface I changed?
-│   ├─ NO  → write a test or run an integration that does. Coverage in name only is worthless.
-│   └─ YES → continue.
+├─ git fetch origin; compare HEAD with the canonical branch
+│  ├─ behind/diverged → reconcile, then rerun affected validation
+│  └─ current         → continue
 │
-├─ git fetch origin
-│   ├─ Local HEAD === origin/main         → continue.
-│   ├─ Local HEAD is behind origin/main   → rebase onto origin/main. If conflicts:
-│   │      ├─ touched same files          → see "rebase conflicts" block below
-│   │      └─ clean rebase                → continue, re-run tests
-│   └─ Local HEAD is ahead by my commits  → continue.
+├─ Re-read pd attention, sessions, notes, activity, and ownership
+│  ├─ conflicting active claim or assumption → coordinate before publishing
+│  └─ no conflict                          → continue
 │
-├─ pd sessions --all-worktrees
-│   ├─ Another active session has claimed files I'm staging?
-│   │      → don't push. pd note your blocker, message that agent's actor
-│   │        (Navigator or Lookout depending on the surface), and pause.
-│   └─ No conflicts → continue.
+├─ Is every staged file owned by this active session?
+│  ├─ NO  → claim the smallest file/symbol region or remove it from the atom
+│  └─ YES → pd guard check --staged
 │
-├─ pd notes --limit 20
-│   ├─ Recent note says "I own X, am mid-flight"  → re-read it. Adjust scope or pause.
-│   └─ Nothing relevant                           → continue.
+├─ Leave a result note with commands and observed output
 │
-├─ Coordination Guard mode?
-│   ├─ off    → it's still good practice to check. `pd guard check --staged`.
-│   ├─ warn   → fix anything reported, even if non-blocking.
-│   └─ enforce → MUST pass `pd guard check --staged` cleanly. If it doesn't:
-│       ├─ "no active session" → `pd begin "<task>" --lifecycle durable` in this exact shell+cwd.
-│       ├─ "file not claimed"  → `pd session files claim <each staged file>`.
-│       └─ phantom claim       → see decisions/something-broke.md
+├─ Commit one coherent behavior and its focused proof
 │
-├─ What's the publish surface?
-│   ├─ Commit only (no push)
-│   │      → pd note "Result: <what>. Validation: <how>." then `git commit`.
-│   ├─ Push to feature branch
-│   │      → push, open PR if one is expected, drop a Lookout message if release-surface.
-│   ├─ Push to main (direct)
-│   │      → only acceptable when:
-│   │        - user explicitly authorized this push, OR
-│   │        - the change is a hotfix that other agents would block on, AND
-│   │        - you ran the full test suite, AND
-│   │        - you re-fetched origin/main within the last 60 seconds.
-│   │      → If unsure, push to a feature branch and ask.
-│   └─ Deploy / promote
-│       → see decisions/promote-stable.md (if it exists) or pd lock + promote-stable.sh.
+├─ Push/PR?
+│  ├─ YES → exact-SHA Documentarian, CI, skeptical review, every comment,
+│  │        merge queue, and merged-SHA verification
+│  └─ NO  → stop at the accurately reported local boundary
 │
-├─ Does this change touch ANY release surface?
-│   (README, website, docs/, skills/, CHANGELOG, mcp/, marketing copy, public OpenAPI, package.json version)
-│   ├─ YES → message the Lookout actor with what changed and where to verify:
-│   │       pd actor lookout --message "<surface>: <change>. Verify at <url-or-path>."
-│   └─ NO  → continue.
-│
-├─ Does this change roadmap, recovery state, or skill structure?
-│   ├─ YES → message Navigator + Cartographer.
-│   └─ NO  → continue.
-│
-└─ pd done "<short outcome>"
-   Final note BEFORE done:
-     pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
+└─ Deploy/release?
+   ├─ named feature daemon first; prove selected revision and endpoint
+   ├─ source proof and artifact proof separately
+   ├─ stable release lock plus immutable tag
+   ├─ signed asset and Homebrew formula proof
+   └─ installed supervised daemon plus harness flow is the final boundary
 ```
 
-## Rebase conflicts on overlapping files
+## Surface-specific additions
 
-```
-git fetch produced conflicts
-│
-├─ Are the conflicts in files claimed by an active session right now?
-│   ├─ YES → DO NOT solo-resolve. The other agent's intent is at stake.
-│   │        `git rebase --abort`, message that agent's actor, wait or coordinate.
-│   └─ NO  → continue.
-│
-├─ Are the conflicts in files claimed by a DEAD session?
-│   ├─ YES → safe to resolve. Note the salvage in your pd note.
-│   └─ NO  → free to resolve.
-│
-└─ After resolving:
-    → Re-run the tests that touch those files.
-    → Re-read pd notes — the conflict resolution might invalidate someone's plan.
-```
-
-## Specific surface gotchas
-
-| Surface | Extra step before publish |
+| Surface | Additional proof |
 |---|---|
-| `skills/port-daddy-agent-skill/` | Tests in `tests/unit/port-daddy-skill-authority.test.js` and `distribution-freshness.test.js` enforce structure. Run them. |
-| `bin/port-daddy-cli.ts` | Re-run `npx tsc --noEmit` and verify a fresh CLI invocation works (`pd status`). |
-| `mcp/server.ts` | The MCP version must match `package.json`; `tests/unit/distribution-freshness.test.js` will catch drift. |
-| `lib/db.ts` (schema) | Migrations are non-reversible; verify with stable's promote-stable.sh in a separate worktree first. |
-| `pd-fleet.yml` | `bash skills/port-daddy-agent-skill/scripts/fleet-validate.sh` before commit. |
-| `website-v2/` | Local lint + build, then preview deploy before main push. |
-| `package.json version` | All version-stamped surfaces (mcp/server.ts, plugin.json, mcp-server.json) must match. |
+| Daemon, routes, CLI, MCP, SDK | Rebuild a named feature daemon and exercise the real selected endpoint. |
+| Database/schema | Isolated migration and restart/read-back proof; never test by mutating stable. |
+| Fleet configuration | `scripts/fleet-validate.sh` plus one real trigger/result receipt. |
+| UI | Current-revision screenshot and recording showing action to result. |
+| Public docs/skills | Validate links/structure, sync mirrors, and remove retired contract wording from routed references. |
+| Version/release | Follow `docs/RELEASING.md`; exact version setter, drift gate, frozen SHA, batten, archive, Homebrew, installed runtime. |
+
+## Rebase conflicts
+
+If an active session owns the conflicted symbol or file, abort the rebase and
+coordinate intent. If the owner is dead, preserve its evidence through salvage
+or a linked successor before resolving. Re-run focused tests and re-read notes
+after resolution.
+
+Never make a tree look clean with destructive reset/checkout. Never collapse
+“committed,” “merged,” “released,” “installed,” and “live” into one claim.

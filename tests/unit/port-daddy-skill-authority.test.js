@@ -64,64 +64,91 @@ describe('Port Daddy skill authority', () => {
     expect(contents).toContain('repo: skills/port-daddy-agent-skill');
   });
 
-  test('the skill teaches the operating loop in order before decision points', () => {
+  test('the skill teaches the current operating loop before advanced routing', () => {
     const skillPath = join(process.cwd(), 'skills', 'port-daddy-agent-skill', 'SKILL.md');
     const contents = readFileSync(skillPath, 'utf8');
-    const operatingLoopStart = contents.indexOf('## Operating Loop');
-    const decisionPointsStart = contents.indexOf('## Decision Points');
-    const cliQuickRefStart = contents.indexOf('## CLI Quick Reference', decisionPointsStart);
+    const firstFiveStart = contents.indexOf('## First five minutes');
+    const operatingLoopStart = contents.indexOf('## Normal operating loop');
+    const sessionActionsStart = contents.indexOf('## Session actions are distinct');
+    const quickMapStart = contents.indexOf('## Quick command map');
+    const referenceRoutingStart = contents.indexOf('## Reference routing');
 
-    expect(operatingLoopStart).toBeGreaterThan(-1);
-    expect(decisionPointsStart).toBeGreaterThan(operatingLoopStart);
-    expect(cliQuickRefStart).toBeGreaterThan(decisionPointsStart);
+    expect(firstFiveStart).toBeGreaterThan(-1);
+    expect(operatingLoopStart).toBeGreaterThan(firstFiveStart);
+    expect(sessionActionsStart).toBeGreaterThan(operatingLoopStart);
+    expect(quickMapStart).toBeGreaterThan(sessionActionsStart);
+    expect(referenceRoutingStart).toBeGreaterThan(quickMapStart);
 
-    const operatingLoop = contents.slice(operatingLoopStart, decisionPointsStart);
+    const firstFive = contents.slice(firstFiveStart, sessionActionsStart);
     const expectedOrder = [
-      'pd status',
+      'pd attention',
+      'pd sitrep',
       'pd briefing',
+      'pd sessions --all-worktrees',
       'pd salvage --project <project>',
       'pd begin',
+      '--roadmap <roadmap-item-slug>',
+      'pd whoami',
       'pd note "Scope:',
       'pd session files add',
-      'pd guard check --staged',
       'pd note "Result:',
       'pd done',
     ];
 
     let previousIndex = -1;
     for (const command of expectedOrder) {
-      const index = operatingLoop.indexOf(command);
+      const index = firstFive.indexOf(command);
       expect(index).toBeGreaterThan(previousIndex);
       previousIndex = index;
     }
 
-    // The operating loop is intentionally a tight, opinionated default.
-    // Advanced primitives belong in the CLI Quick Reference, not the loop.
-    expect(operatingLoop).not.toContain('pd tuple out');
-    expect(operatingLoop).not.toContain('pd pheromone');
-    expect(operatingLoop).not.toContain('pd fleet up');
-    expect(operatingLoop).not.toContain('pd sortie');
+    expect(contents).toContain('Never hardcode the preferred bind seed');
+    expect(contents).toContain('pd dev up --from "$(pwd)" --label <feature>');
+    expect(contents).toContain('There is no default task deadline');
+    expect(contents).toContain('pd spawn cancel <agent-id> --reason "<why>"');
+    expect(contents).toContain('pd squid on');
+    expect(contents).toContain('pd guard check --staged');
+    expect(contents).toContain('The operator uses FleetBar, Fleet Control Center, and native console surfaces.');
   });
 
-  test('the CLI quick reference surfaces the agent-facing primitives', () => {
+  test('the quick command map surfaces current agent-facing primitives', () => {
     const skillPath = join(process.cwd(), 'skills', 'port-daddy-agent-skill', 'SKILL.md');
     const contents = readFileSync(skillPath, 'utf8');
-    const cliQuickRefStart = contents.lastIndexOf('## CLI Quick Reference');
-    const selfCheckStart = contents.indexOf('## Self-Check');
+    const quickMapStart = contents.indexOf('## Quick command map');
+    const referenceRoutingStart = contents.indexOf('## Reference routing');
 
-    expect(cliQuickRefStart).toBeGreaterThan(-1);
-    expect(selfCheckStart).toBeGreaterThan(cliQuickRefStart);
+    expect(quickMapStart).toBeGreaterThan(-1);
+    expect(referenceRoutingStart).toBeGreaterThan(quickMapStart);
 
-    const quickRef = contents.slice(cliQuickRefStart, selfCheckStart);
+    const quickMap = contents.slice(quickMapStart, referenceRoutingStart);
 
-    expect(quickRef).toContain('project:stack:context');
-    expect(quickRef).toContain('pd whoami');
-    expect(quickRef).toContain('pd claim');
-    expect(quickRef).toContain('pd with-lock');
-    expect(quickRef).toContain('pd dns');
-    expect(quickRef).toMatch(/integration ready|integration needs/);
-    expect(quickRef).toContain('begin_session');
-    expect(quickRef).toContain('end_session_full');
+    expect(quickMap).toContain('attention / sitrep / briefing / status');
+    expect(quickMap).toContain('begin / whoami / note / plan / done');
+    expect(quickMap).toContain('session / sessions / files / who-owns');
+    expect(quickMap).toContain('claim / release / ports / find');
+    expect(quickMap).toContain('lock / unlock / with-lock');
+    expect(quickMap).toContain('spawn / spawned / sortie / work / watch');
+    expect(quickMap).toContain('squid / hooks / mcp / skill-graft');
+    expect(quickMap).toContain('doctor / attest / safe / guard / advise');
+    expect(quickMap).toContain('actor / roster / tuple / graph / memory');
+  });
+
+  /*
+   * The previous authority test enforced old heading names and a duplicated
+   * mini-manual. The new field guide is intentionally progressive: the tight
+   * loop comes first, current action/runtime contracts follow, and full CLI,
+   * API, and SDK inventories are routed to references.
+   */
+  test('the root skill stays compact and routes detailed inventories', () => {
+    const skillPath = join(process.cwd(), 'skills', 'port-daddy-agent-skill', 'SKILL.md');
+    const contents = readFileSync(skillPath, 'utf8');
+
+    expect(contents).toContain('references/cli-reference.md');
+    expect(contents).toContain('references/api-reference.md');
+    expect(contents).toContain('references/sdk-reference.md');
+    expect(contents.split('\n').length).toBeLessThan(340);
+    expect(contents).not.toContain('## CLI Quick Reference');
+    expect(contents).not.toContain('## Decision Points');
   });
 
   test('release metadata names the canonical skill exactly once', () => {

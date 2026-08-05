@@ -57,9 +57,11 @@ Forking has fixed overhead: prompt construction, model context warm-up, coordina
 **Symptoms:** "This will take 5+ minutes, and I have other unrelated work I can do meanwhile."
 
 **Pattern:**
-- Spawn with `--background`.
+- Launch with a receipt-backed Port Daddy surface and detach the observer; for
+  raw spawn this is `pd spawn "<task>" --backend <id> --identity <id>
+  --budget <usd> --detach`.
 - Continue your own foreground work on independent surfaces.
-- Re-join the background result when notified (do NOT poll).
+- Rejoin from the durable receipt/event when notified. Do not tight-poll.
 
 **Cost:** loss of immediate result. Risk of context drift if background result invalidates your foreground work.
 
@@ -108,4 +110,4 @@ If you can't answer that question with one of those, the fork won't pull weight.
 - `partition-by-symbol.md` — how to partition for parallel edits.
 - `handoff-checklist.md` — what the parent must hand off.
 - `rejoin-protocol.md` — how to re-integrate sub-agent results.
-- `agents/subagent-fork-template.yaml` — the canonical fork persona.
+- `agents/INDEX.md` — supported receipt-backed helper launch surfaces.

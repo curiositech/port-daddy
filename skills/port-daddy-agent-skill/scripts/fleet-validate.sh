@@ -43,7 +43,15 @@ done
 
 # 4. Topology via daemon (if up)
 if pd status 2>/dev/null | grep -q running; then
-  resp=$(curl -s "http://localhost:9876/fleet/config/$expected" 2>/dev/null || echo '{}')
+  port_file="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
+  if [[ -n "${PORT_DADDY_URL:-}" ]]; then
+    daemon_url="$PORT_DADDY_URL"
+  elif [[ -r "$port_file" ]]; then
+    daemon_url="http://127.0.0.1:$(tr -d '\n' < "$port_file")"
+  else
+    daemon_url=""
+  fi
+  resp=$(if [[ -n "$daemon_url" ]]; then curl -s "$daemon_url/fleet/config/$expected"; else echo '{}'; fi 2>/dev/null || echo '{}')
   if echo "$resp" | jq -e '.topology.warnings | length > 0' >/dev/null 2>&1; then
     while read -r w; do errors+=("topology: $w"); done < <(echo "$resp" | jq -r '.topology.warnings[]')
   fi

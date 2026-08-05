@@ -6,9 +6,9 @@ The skill is a product surface. It must ship where Port Daddy ships.
 
 - `skills/port-daddy-agent-skill/`
 
-This path is included in the npm package because `package.json` ships
-`skills/`, and it is included in the curated public export through
-`config/public-repo-export.json`.
+The signed release stages this path through `release-artifacts.json`, and the
+Homebrew/GitHub binary installation exposes it through `pd setup`. It is also
+included in the curated public export through `config/public-repo-export.json`.
 
 ## Tool Mirrors
 
@@ -62,6 +62,6 @@ listed for marketplace or installer UI.
 - Ensure diagrams, schemas, examples, templates, and scripts are referenced.
 - Update `CHANGELOG.md`.
 - Mirror the repo copy into every tracked tool install.
-- Check package/export metadata.
+- Check release-manifest and public-export metadata.
 - If website copy changed, verify the route renders and links to the product
   screenshots.

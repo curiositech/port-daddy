@@ -93,5 +93,5 @@ See `decisions/skip-coordination-when.md`. The list is short.
 
 - `decisions/skip-coordination-when.md` — the genuine exceptions.
 - `scripts/prologue/pd-context.sh` — the prologue compressed into one command.
-- `examples/09-better-sqlite3-abi-rebuild.md` — concrete cascade-failure case from this session.
+- `examples/09-better-sqlite3-abi-rebuild.md` — current worktree-local cascade diagnosis.
 - `examples/10-walked-into-anothers-rebase.md` — concrete shared-state case from this session.

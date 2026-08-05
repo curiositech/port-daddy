@@ -153,5 +153,6 @@ pd actor lookout --inbox-ack <msg-id>   # mark processed
 
 - `decisions/who-do-i-message.md` — full decision tree for routing.
 - `references/coordination-theory.md` — the deeper theory of the actor model.
-- `agents/lookout.yaml`, `agents/salvage-watcher.yaml` — fleet personas that EMBODY some of these actors.
+- `pd-fleet.yml` and the actor registry — the executable definitions that
+  embody these roles. `agents/` contains skill package metadata only.
 - `schemas/agent-handoff.schema.json` — structured handoff format for actor messages.

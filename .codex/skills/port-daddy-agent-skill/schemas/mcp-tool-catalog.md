@@ -9,7 +9,7 @@ These are the tools the Port Daddy MCP server exposes. They are the **preferred 
 | MCP tool | CLI equivalent | When to use the tool |
 |---|---|---|
 | `whoami` | `pd whoami` | First call of every session. |
-| `begin_session` | `pd begin --purpose "..." --identity ... --lifecycle durable` | Start of agent work. |
+| `begin_session` | `pd begin "..." --identity ... --lifecycle durable --roadmap <slug>` | Start of agent work. |
 | `end_session_full` | `pd done` | End of agent work. |
 | `add_note` | `pd note "…" --type …` | Audit trail; checkpoint progress. |
 | `sitrep` (alias: `catch_me_up`) | `pd sitrep` / `pd look` | Resuming, salvaging, or context-switching in. |
@@ -78,7 +78,9 @@ The MCP server is intentionally a **thin** wrapper. If a CLI command exists with
 
 Almost never. The cases:
 
-- You're inside a `custom`-backend fleet agent that doesn't have MCP at all (shell script, Go binary). Then `curl http://localhost:9876/...` is correct.
+- You're inside a `custom`-backend fleet agent that doesn't have MCP at all
+  (shell script, Go binary). Then resolve the selected profile's published URL
+  and use `curl "$PORT_DADDY_URL/..."`.
 - You're testing the daemon itself.
 
 Even then: prefer the SDK (`PortDaddy` in `lib/client.ts`) over raw curl when you can.

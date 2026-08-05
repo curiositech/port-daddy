@@ -6,7 +6,7 @@ last_verified: 2026-04-30
 
 # When Skipping Coordination Is Actually OK
 
-The default rule in this repo is: `pd briefing` + `pd begin ... --lifecycle durable` + claim + note + done. The cost of running them is ~5 seconds. Skipping is rarely worth it. But here are the genuine exceptions.
+The default rule in this repo is: `pd briefing` + `pd begin ... --lifecycle durable --roadmap <slug>` + claim + note + done. Skipping is rarely worth it. But here are the genuine exceptions.
 
 ```
 START: I'm tempted to skip pd ceremony for this task
@@ -77,7 +77,7 @@ Never use to "make the warning go away." That's how anti-patterns harden.
 
 There is no built-in bypass. If you NEED to commit without an active session, that's a signal that:
 
-1. Your shell lost its session anchor (likely due to cwd mismatch). Run `pd begin "<task>" --lifecycle durable` here.
+1. Your shell lost its session anchor (likely due to cwd mismatch). Run `pd begin "<task>" --lifecycle durable --roadmap <slug>` here.
 2. The repo's guard mode shouldn't be `enforce` for this surface. Discuss before downgrading.
 
 Don't `git commit -c core.hooksPath=/dev/null`. That bypass is itself a violation worth a coordination:inconsistency post.

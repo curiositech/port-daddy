@@ -36,7 +36,7 @@ START: sub-agent has returned (foreground) or notification fired (background)
    - Stale claims block your re-claim or downstream agents.
 
 4. Re-claim the files in YOUR session for the merge.
-   pd session files claim <each-file-the-subagent-touched>
+   pd session files add <each-file-the-subagent-touched>
 
 5. Validate the sub-agent's edits.
    - Run the targeted test for the partition.
@@ -140,5 +140,5 @@ Closing parent early orphans pending sub-agents (they can't message back into a 
 - `when-to-fork.md` — should you fork?
 - `partition-by-symbol.md` — partitioning.
 - `handoff-checklist.md` — what parent hands off.
-- `agents/subagent-fork-template.yaml` — fork persona.
+- `agents/INDEX.md` — supported receipt-backed helper launch surfaces.
 - `examples/05-tuple-swarm-handoff.md` — concrete handoff via tuples.

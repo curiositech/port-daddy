@@ -8,7 +8,7 @@ See `diagrams/03_stateDiagram-v2_agent_lifecycle.md` for the visual.
 
 ### CREATED
 
-`pd begin "<purpose>" --lifecycle durable` writes a session row + writes `.portdaddy/contexts/<slot>.json` for the calling shell.
+`pd begin "<purpose>" --lifecycle durable --roadmap <slug>` writes a session row + writes `.portdaddy/contexts/<slot>.json` for the calling shell.
 
 - **Has:** session ID, agent ID, purpose, identity, startedAt timestamp.
 - **Has not yet:** file claims, notes, validation evidence.
@@ -85,7 +85,7 @@ Abandoned session was explicitly NOT picked up (e.g., scope no longer relevant, 
 Don't sit on a created session. Drop a scope note within 30 seconds:
 
 ```bash
-pd begin "..." --lifecycle durable
+pd begin "..." --lifecycle durable --roadmap <roadmap-item-slug>
 pd note "Scope: <files>. Assumptions: <truth>. Validation: <commands>."
 ```
 

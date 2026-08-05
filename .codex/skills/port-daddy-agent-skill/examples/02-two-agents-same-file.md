@@ -1,6 +1,6 @@
 # 02 — Two Agents Want the Same File
 
-**Scenario:** You ran `pd session files claim src/auth/jwt.ts` and it warned you that another agent already owns it.
+**Scenario:** You ran `pd session files add src/auth/jwt.ts` and it warned you that another agent already owns it.
 
 ```text
 WARN: src/auth/jwt.ts claimed by agent abc-123
@@ -30,7 +30,7 @@ If you're editing `parseToken` and they're editing `signToken`, you can share th
 
 ```bash
 # Optional: claim at symbol level (requires the symbol-index feature)
-pd session files claim src/auth/jwt.ts --symbol parseToken --start-line 80 --end-line 140
+pd session files add src/auth/jwt.ts --symbol parseToken --start-line 80 --end-line 140
 
 # Drop a note so the other agent sees you in their next sitrep
 pd note --type intent "Touching src/auth/jwt.ts:parseToken — no overlap with refresh logic"

@@ -52,10 +52,11 @@ Once you discover you've committed into someone else's rebase:
 
 ```bash
 # 1. SAVE your work as a patch — don't trust it'll survive what comes next.
-git format-patch -1 HEAD --stdout > /tmp/my-work.patch
+mkdir -p "$HOME/coding/tmp/port-daddy-recovery"
+git format-patch -1 HEAD --stdout > "$HOME/coding/tmp/port-daddy-recovery/my-work.patch"
 
 # 2. Verify the patch captured what you intended.
-head -5 /tmp/my-work.patch
+head -5 "$HOME/coding/tmp/port-daddy-recovery/my-work.patch"
 # Subject line should match YOUR commit message. If not, see "patch caught wrong commit" below.
 
 # 3. Abort the rebase. This restores the branch to pre-rebase state.
@@ -69,16 +70,17 @@ git status
 
 # 6. Move to a clean worktree from origin/main.
 git fetch origin main
-git worktree add -b feature/<my-task-name> /tmp/my-work-tree origin/main
-cd /tmp/my-work-tree
+git worktree add -b feature/<my-task-name> \
+  "$HOME/coding/tmp/my-work-tree" origin/main
+cd "$HOME/coding/tmp/my-work-tree"
 
 # 7. Apply your patch in the new worktree.
-git am /tmp/my-work.patch
+git am "$HOME/coding/tmp/port-daddy-recovery/my-work.patch"
 # OR if the patch had wrong content:
 #   apply your changes manually, the patch is just a backup
 
 # 8. Re-run tests + coordination.
-pd begin "<your task>" --identity ... --lifecycle durable
+pd begin "<your task>" --identity ... --lifecycle durable --roadmap <roadmap-item-slug>
 pd note "Scope: ..."
 # claim files, work, commit, push
 ```
@@ -89,7 +91,7 @@ pd note "Scope: ..."
 
 Recovery:
 - `git log --all --oneline` to find your actual commit hash by message.
-- `git format-patch -1 <your-hash> --stdout > /tmp/my-work.patch`.
+- `git format-patch -1 <your-hash> --stdout > "$HOME/coding/tmp/port-daddy-recovery/my-work.patch"`.
 - If the commit is gone from any branch / unreachable: `git reflog` to find the SHA, then format-patch from it before reflog expires.
 
 ## Prevention (the actual lesson)

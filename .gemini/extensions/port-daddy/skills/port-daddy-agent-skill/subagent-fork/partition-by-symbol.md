@@ -54,7 +54,7 @@ files_partition:
 Then in the sub-agent's session:
 
 ```bash
-pd session files claim routes/fleet.ts --symbol-path GET_FleetStatus
+pd session files add routes/fleet.ts --symbol-path GET_FleetStatus
 ```
 
 Port Daddy's symbol-aware claim system (lib/symbol-index.ts) ensures the parent's authoritative claim is for the whole file, but each sub-agent's claim is scoped to its symbol range. The merge order can then be deterministic: sort by symbol position, apply in order, no overlap.
@@ -83,7 +83,7 @@ done | sort | uniq -d
 # 2. Check that no other active session claims any of these files.
 for partition in "${PARTITIONS[@]}"; do
   file=$(echo "$partition" | jq -r '.path')
-  pd files who-owns "$file"
+  pd who-owns "$file"
 done
 # Each owner should be either nobody or YOU (the parent).
 

@@ -148,7 +148,8 @@ fleet:
 ajv validate -s schemas/pd-fleet.schema.json -d pd-fleet.yml
 
 # Topology-validate (uses the daemon's own validator):
-curl http://localhost:9876/fleet/config/$(basename "$(pwd)")
+PD_URL="${PORT_DADDY_URL:-http://127.0.0.1:$(tr -d '\n' < "${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}")}"
+curl "$PD_URL/fleet/config/$(basename "$(pwd)")"
 ```
 
 The skill ships `scripts/fleet-validate.sh` that does both.

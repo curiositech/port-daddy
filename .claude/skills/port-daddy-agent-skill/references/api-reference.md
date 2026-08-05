@@ -1,6 +1,8 @@
 # Port Daddy HTTP API Reference (v3.9.0)
 
-Base URL: `http://localhost:9876` by default. If your daemon is running elsewhere, use `pd status` or `PORT_DADDY_URL` to discover the live URL.
+Base URL: the endpoint published by the daemon selected for this shell. Use
+`pd status --json`, `pd use <label>`, `PORT_DADDY_URL`, or the selected
+profile's `daemon.port`; never guess a port.
 Unix Socket: `~/.port-daddy/daemon.sock`
 IPC Socket: `~/.port-daddy/daemon.ipc` (binary MessagePack, for high-frequency operations)
 
@@ -8,7 +10,7 @@ Runtime packaging: operator installs are binary-first. The daemon service should
 launch `dist/daemon/port-daddy-daemon`; `tsx server.ts` is only allowed when
 `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` is set for local development. Binary builds
 also serve the generated public sample bundle at `/samples/manifest.json` and
-`/samples/files/...`. The single-binary lane (`npm run build:bin`) emits
+`/samples/files/...`. The single-binary lane (`bun run build:bin`) emits
 `dist/port-daddy`, whose CLI can run the MCP stdio server in-process and start
 the daemon through a hidden `__daemon` entrypoint. Fleet UI and public samples
 are embedded into that executable through a generated asset table, with
@@ -377,7 +379,7 @@ Combined daemon report. Includes build identity, metrics, detailed fleet breakdo
     "version": "3.8.2",
     "codeHash": "abc123def456",
     "startedAt": 1711234567890,
-    "installDir": "/Users/you/port-daddy-stable",
+    "installDir": "/opt/homebrew/opt/port-daddy",
     "nodeVersion": "v24.1.0"
   },
   "metrics": { "activePorts": 4, "memoryRSS": 52428800 },
@@ -976,13 +978,13 @@ Set or clear the daily project budget required before agent spawn.
 **Body:** `{ "usdPerDay": 5 }`
 
 ### GET /budget/pending
-List pending budget-breach kills during the pause-and-ask grace window.
+List pending budget-breach cancellations during the pause-and-ask grace window.
 
 ### GET /budget/pending/:agentId
-Read one pending budget-breach kill.
+Read one pending budget-breach cancellation.
 
 ### POST /budget/pending/:agentId/resolve
-Resolve a pending budget kill with `raise`, `kill`, or `grace`.
+Resolve a pending budget cancellation with `raise`, `cancel`, or `grace`.
 
 **Body:** `{ "action": "raise", "topUpUsd": 5, "newBudgetUsdPerDay": 10 }`
 
@@ -990,7 +992,7 @@ Resolve a pending budget kill with `raise`, `kill`, or `grace`.
 Read fleet panic status.
 
 ### POST /fleet/panic
-Arm the two-step fleet panic kill switch. First call without `confirm`; second call with matching `reason` and `confirm: true`.
+Arm the two-step fleet emergency stop. First call without `confirm`; second call with matching `reason` and `confirm: true`.
 
 **Body:** `{ "reason": "runaway spend", "confirm": true }`
 
@@ -1026,7 +1028,7 @@ At the moment, the operator-facing launchable path is the Claude SDK backend wit
 | `allowedTools` | string | no | Comma-separated tool list (claude-cli backend only) |
 | `maxTokens` | number | no | Max output tokens |
 | `workdir` | string | no | Working directory for the agent |
-| `timeout` | number | no | Timeout in milliseconds |
+| `deadlineMs` | number | no | Optional caller-owned task deadline; omit for no task deadline |
 
 **Response (success):**
 - includes normal spawn fields, `name` when available, plus `telemetry: { inputTokens, outputTokens, costUsd, rateMode }`
@@ -1046,7 +1048,12 @@ This returns structured attempts and blocked reasons. Use it before `/spawn` whe
 List active spawned agents.
 
 ### DELETE /spawn/:agentId
-Kill a spawned agent.
+Cancel a spawned agent and seal partial evidence.
+
+**Body:** `{ "reason": "superseded by review" }`
+
+The reason is retained in the terminal run/receipt. Omit it only when the
+generic `Cancelled by operator` reason is accurate.
 
 ---
 
@@ -1607,7 +1614,7 @@ Four golden signals for the spawn system (RED method). Single-endpoint fleet hea
 | Signal | Meaning |
 |--------|---------|
 | `ratePerMin` | Spawns per minute (5-min window, extrapolated) |
-| `errorPct` | Failed + killed spawns as % of started (1h window) |
+| `errorPct` | Failed + cancelled spawns as % of started (1h window) |
 | `avgDurationMs` | Average spawn duration in ms (1h window, completed only) |
 | `costPerHour` | USD burn rate from cost tracker (1h window) |
 

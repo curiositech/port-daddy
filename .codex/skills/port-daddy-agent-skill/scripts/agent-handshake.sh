@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # agent-handshake.sh — coordinate file ownership with another agent before editing.
-# Wraps the "pd session files claim → conflict → talk" pattern from examples/02.
+# Wraps the "pd session files add → conflict → talk" pattern from examples/02.
 #
 # Usage:
 #   agent-handshake.sh src/auth/jwt.ts src/auth/refresh.ts
@@ -9,7 +9,7 @@ set -euo pipefail
 
 (( $# > 0 )) || { echo "usage: $0 <file>..." >&2; exit 1; }
 
-result=$(pd session files claim "$@" --json 2>&1 || true)
+result=$(pd session files add "$@" --json 2>&1 || true)
 conflicts=$(echo "$result" | jq -r '.conflicts // [] | length' 2>/dev/null || echo 0)
 
 if [[ "$conflicts" -eq 0 ]]; then

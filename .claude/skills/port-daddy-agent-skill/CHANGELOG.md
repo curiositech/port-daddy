@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-08-04
+
+- Rebuilt the root field guide around selected daemon discovery, durable spawn
+  receipts, first-class Join/Continue/Salvage/Archive/Cancel actions, explicit
+  task deadlines, named feature daemons, Squid proof, and operator surfaces.
+- Removed fixed daemon URLs, checkout promotion, standing latest lanes,
+  process-kill/takeover wording, and unsupported persona launch flags from
+  every routed reference, example, diagram, schema, and helper script.
+- Retired fictional runtime persona YAMLs; agents now launch through supported
+  receipt-backed `pd agent`, `pd sortie`, `pd session continue`, `pd dispatch`,
+  or live fleet definitions.
+- Updated distribution guidance for signed GitHub/Homebrew cargo and canonical
+  mirror synchronization.
+
 ## 2026-04-29
 
 - Added the first procedural Port Daddy agent operating manual.

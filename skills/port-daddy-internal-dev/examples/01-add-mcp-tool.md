@@ -26,7 +26,8 @@ wt="../port-daddy-$(date +%s)-mcp-swarm-health"
 git worktree add "$wt" origin/main
 cd "$wt"
 
-pd begin "Add pd_swarm_health MCP tool" --identity port-daddy:contrib:mcp-swarm-health --lifecycle durable
+pd begin "Add pd_swarm_health MCP tool" --identity port-daddy:contrib:mcp-swarm-health \
+  --lifecycle durable --roadmap <roadmap-item-slug>
 pd note "Scope: mcp/server.ts, lib/swarm-health.ts (new), tests, skill catalog, website /docs/mcp/swarm-health. Validation: mcp-handshake-test.mjs + a real call from Claude Code."
 pd session files add mcp/server.ts
 pd session files add scripts/mcp-handshake-test.mjs

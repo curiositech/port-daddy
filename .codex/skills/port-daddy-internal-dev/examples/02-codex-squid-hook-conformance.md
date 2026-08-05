@@ -46,7 +46,8 @@ ordinary trusted Codex session:
 5. Run the focused regression suite and the shell proof:
 
    ```bash
-   npm test -- --runInBand tests/unit/squid-harness.test.ts tests/unit/hooks-install.test.ts tests/unit/squid-identity.test.ts
+   node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand \
+     tests/unit/squid-harness.test.ts tests/unit/hooks-install.test.ts tests/unit/squid-identity.test.ts
    bash scripts/squid-selftest.sh
    ```
 

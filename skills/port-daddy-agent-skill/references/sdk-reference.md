@@ -2,11 +2,11 @@
 
 The `PortDaddy` class provides a programmatic interface to the Port Daddy daemon. Works in Node.js 18+ (uses native `fetch`). Automatically uses Binary IPC for high-frequency operations (heartbeats, pheromone sprays, pub/sub) when the daemon's IPC socket is available, falling back to HTTP.
 
-## Installation
+## Availability
 
-```bash
-npm install port-daddy
-```
+The SDK ships in the Port Daddy source tree and signed distribution cargo. For
+new external integrations, prefer MCP or the published OpenAPI surface unless
+the application already vendors the typed client.
 
 ## Import
 
@@ -26,7 +26,7 @@ const pd = new PortDaddy(options?)
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `url` | string | auto-discovered daemon URL (falls back to `http://localhost:9876`) | Daemon URL |
+| `url` | string | selected profile's published endpoint | Daemon URL override |
 | `socketPath` | string | `~/.port-daddy/daemon.sock` | Unix socket path (preferred over URL) |
 | `agentId` | string | `PORT_DADDY_AGENT` env | Agent ID for tracking |
 | `pid` | number | `process.pid` | Process ID for ownership |
@@ -398,15 +398,16 @@ Launch a background AI agent with full PD coordination.
 | `allowedTools` | string | Comma-separated tools (claude-cli only) |
 | `maxTokens` | number | Max output tokens |
 | `workdir` | string | Working directory |
-| `timeout` | number | Timeout in ms |
+| `deadlineMs` | number | Optional caller-owned task deadline; omit for no task deadline |
 
 Returns `{ agentId, status }`.
 
 ### `pd.listSpawned()`
 List active/completed spawned agents. Returns `{ agents }`.
 
-### `pd.killSpawned(agentId)`
-Kill a spawned agent. Returns `{ success }`.
+### `pd.cancelSpawned(agentId, reason?)`
+Cancel a spawned agent and seal its durable receipt. Returns
+`{ success, agentId, reason, message }`.
 
 ---
 

@@ -48,9 +48,10 @@ flowchart TD
 ### Example 1: Adding a feature to one file
 
 ```bash
-pd begin "Add /examples/leader-election to website-v2 examples list" --lifecycle durable
+pd begin "Add /examples/leader-election to website-v2 examples list" \
+  --lifecycle durable --roadmap <roadmap-item-slug>
 pd note "Scope: website-v2/src/data/examples.ts"
-pd session files claim website-v2/src/data/examples.ts
+pd session files add website-v2/src/data/examples.ts
 # edit
 pd note "Result: added entry. Validation: build + lint pass."
 pd done "leader-election example linked"
@@ -61,9 +62,10 @@ Session ✓, claim ✓, no lock needed (no exclusive resource).
 ### Example 2: Promote-stable
 
 ```bash
-pd begin "Promote main@<sha> to stable" --lifecycle durable
+pd begin "Release main@<sha> through Homebrew" \
+  --lifecycle durable --roadmap <roadmap-item-slug>
 pd lock acquire stable-promotion --ttl 600     # exclusive
-pd session files claim port-daddy-stable/CURRENT-SHA
+pd session files add release-artifacts.json
 # build, test, install
 pd note "Promoted to <sha>. Daemon restarted."
 pd lock release stable-promotion
@@ -76,16 +78,17 @@ Session ✓, claim ✓, lock ✓ — because two simultaneous promotions would c
 
 ```bash
 # Parent:
-pd begin "Add 3 endpoints to routes/fleet.ts" --lifecycle durable
-pd session files claim routes/fleet.ts        # broad parent claim
+pd begin "Add 3 endpoints to routes/fleet.ts" \
+  --lifecycle durable --roadmap <roadmap-item-slug>
+pd session files add routes/fleet.ts        # broad parent claim
 
 # Spawn 3 sub-agents, each with symbol-scoped claim:
 # Sub-agent A:
-pd session files claim routes/fleet.ts --symbol-path GET_FleetStatus
+pd session files add routes/fleet.ts --symbol-path GET_FleetStatus
 # Sub-agent B:
-pd session files claim routes/fleet.ts --symbol-path POST_FleetSpawn
+pd session files add routes/fleet.ts --symbol-path POST_FleetSpawn
 # Sub-agent C:
-pd session files claim routes/fleet.ts --symbol-path DELETE_FleetAgent
+pd session files add routes/fleet.ts --symbol-path DELETE_FleetAgent
 ```
 
 Parent owns the file at the file level. Children own non-overlapping regions. The symbol index ensures resolution.
@@ -102,7 +105,7 @@ Parent owns the file at the file level. Children own non-overlapping regions. Th
 
 - ADVISORY. Doesn't physically prevent another agent from editing.
 - Triggers warnings in `pd advise`.
-- Visible to `pd files who-owns <path>`.
+- Visible to `pd who-owns <path>`.
 - Coordination Guard checks "is each staged file claimed by the active session?"
 
 ### Lock
@@ -128,7 +131,7 @@ Fix: claim each staged file.
 
 ### Claim by abandoned session, you want it
 
-Don't override silently. Use `pd salvage claim <session-id>` to formally take over the abandoned work, OR force-release if you can verify the original work is moot.
+Don't override silently. Use `pd salvage claim <session-id>` to create a formally linked continuation of abandoned work, OR force-release if you can verify the original work is moot.
 
 ### Lock held by abandoned process
 
@@ -142,11 +145,11 @@ Always note the reason — this is auditable.
 
 ### Region claim but symbol index is stale
 
-`pd files who-owns <path> --symbol-path <X>` returns wrong agent. Resolution:
+`pd who-owns <path> --symbol-path <X>` returns wrong agent. Resolution:
 
 ```bash
 pd symbols parse <file>      # re-index
-pd files who-owns ...        # re-query
+pd who-owns ...              # re-query
 ```
 
 ## Anti-patterns

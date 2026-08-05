@@ -39,13 +39,17 @@ The fleet engine has two modes; pick one.
 ### Mode A — daemon-managed (preferred, v3.8.3+)
 
 ```bash
+# Resolve the endpoint selected for this shell. Never assume a port.
+PD_PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
+PD_URL="${PORT_DADDY_URL:-http://127.0.0.1:$(tr -d '\n' < "$PD_PORT_FILE")}"
+
 # Tell the daemon to manage this project's fleet
-curl -X POST http://localhost:9876/fleet/register \
+curl -X POST "$PD_URL/fleet/register" \
   -H content-type:application/json \
   -d "{\"projectDir\":\"$(pwd)\"}"
 
 # It auto-starts. To inspect:
-curl http://localhost:9876/fleet/$(basename "$(pwd)") | jq
+curl "$PD_URL/fleet/$(basename "$(pwd)")" | jq
 ```
 
 The daemon hot-reloads on `pd-fleet.yml` change and survives terminal close.
@@ -64,7 +68,8 @@ Useful for development. Ctrl-C stops it.
 git commit -m "test fleet"
 # Within seconds, fleet agents fire on git:committed.
 # Watch the lifecycle stream:
-curl -N http://localhost:9876/fleet/events    # SSE
+PD_URL="${PORT_DADDY_URL:-http://127.0.0.1:$(tr -d '\n' < "${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}")}"
+curl -N "$PD_URL/fleet/events"    # SSE
 ```
 
 ## Step 5: see what they did

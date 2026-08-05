@@ -3,7 +3,7 @@
 ```bash
 pd status
 pd briefing
-pd begin "add route-level validation copy" --lifecycle durable
+pd begin "add route-level validation copy" --lifecycle durable --roadmap <roadmap-item-slug>
 pd advise website-v2/src/pages/AgentsPage.tsx --task "add unique agent subpage examples"
 pd note "Scope: AgentsPage only. Validation: website build and route smoke check."
 pd session files add website-v2/src/pages/AgentsPage.tsx

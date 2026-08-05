@@ -23,7 +23,7 @@ Load only the file that matches the decision in front of you.
 - `sdk-reference.md`: JavaScript/TypeScript SDK methods, typed responses,
   and usage patterns.
 - `multi-agent-patterns.md`: coordination recipes (handoff, file partition,
-  symbol claims, salvage takeover, fleet roles).
+  symbol claims, salvage continuation, fleet roles).
 - `portdaddyrc-spec.md`: `.portdaddyrc` configuration schema and resolution
   order.
 - `actor-roster.md`: the canonical durable actors (cartographer, navigator,
