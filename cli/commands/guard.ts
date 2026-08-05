@@ -687,7 +687,7 @@ export interface GuardBlockNotice {
 
 export function describeGuardBlock(
   result: Pick<GuardCheckResult, 'shouldBlock' | 'violations'>,
-  context: { hook?: boolean } = {},
+  context: { hook?: boolean; postCommit?: boolean } = {},
 ): GuardBlockNotice | null {
   if (!result.shouldBlock) return null;
   const codes = new Set(result.violations.map((v) => v.code));
@@ -699,13 +699,21 @@ export function describeGuardBlock(
   const severity: GuardBlockSeverity = structural ? 'structural' : conflict ? 'conflict' : 'requirement';
   const first = result.violations[0]?.message ?? 'coordination requirement unmet';
 
-  const title = structural
-    ? 'Port Daddy: COORDINATION LAYER DOWN — commit blocked'
-    : conflict
-      ? 'Port Daddy: commit blocked — file owned by another agent'
-      : 'Port Daddy: commit blocked by Coordination Guard';
+  const title = context.postCommit
+    ? structural
+      ? 'Port Daddy: POST-COMMIT COORDINATION AUDIT INCOMPLETE'
+      : conflict
+        ? 'Port Daddy: commit landed with an ownership conflict'
+        : 'Port Daddy: result note due before the next commit'
+    : structural
+      ? 'Port Daddy: COORDINATION LAYER DOWN — commit blocked'
+      : conflict
+        ? 'Port Daddy: commit blocked — file owned by another agent'
+        : 'Port Daddy: commit blocked by Coordination Guard';
   const body = structural
-    ? `Coordination could not be verified (${first}). A human should repair the daemon/session — don't let this be worked around.`
+    ? context.postCommit
+      ? `The commit already landed, but coordination could not be verified (${first}). Repair the daemon/session before more work is published.`
+      : `Coordination could not be verified (${first}). A human should repair the daemon/session — don't let this be worked around.`
     : first;
 
   // HITL escalation policy: ALWAYS notify on a structural failure (the daemon /
@@ -713,7 +721,13 @@ export function describeGuardBlock(
   // agents). For ordinary conflicts/requirements only notify at real commit
   // time (the git hook), not on every manual `pd guard check` an agent runs
   // while iterating — that would be noise.
-  const notifyOperator = severity === 'structural' || context.hook === true;
+  // A post-commit rent-due result is the expected prompt to publish the result
+  // note that pays for the commit. It is not an operator incident and must not
+  // fire a notification on every healthy commit. Structural failures and real
+  // ownership conflicts still escalate because they slipped past pre-commit.
+  const notifyOperator = context.postCommit
+    ? severity === 'structural' || severity === 'conflict'
+    : severity === 'structural' || context.hook === true;
   return { severity, title, body, notifyOperator };
 }
 
@@ -726,7 +740,10 @@ export function describeGuardBlock(
  * banner fires before the caller's process.exit.
  */
 function notifyOperatorOfGuardBlock(result: GuardCheckResult, options: CLIOptions): void {
-  const notice = describeGuardBlock(result, { hook: Boolean(options.hook) });
+  const notice = describeGuardBlock(result, {
+    hook: Boolean(options.hook),
+    postCommit: Boolean(options['post-commit']),
+  });
   if (!notice || !notice.notifyOperator) return;
 
   // Loud stderr banner — points only to the corrective action, never names a
@@ -775,8 +792,16 @@ function printCheckResult(result: GuardCheckResult, options: CLIOptions): void {
     return;
   }
 
-  const heading = `${COORDINATION_GUARD_NAME}: ${label} found ${result.violations.length} issue(s)`;
-  if (result.shouldBlock) {
+  const postCommit = Boolean(options['post-commit']);
+  const expectedResultNote = postCommit
+    && result.violations.length > 0
+    && result.violations.every((violation) => violation.code === 'rent-due');
+  const heading = expectedResultNote
+    ? `${COORDINATION_GUARD_NAME}: commit recorded; result note due before the next commit`
+    : postCommit
+      ? `${COORDINATION_GUARD_NAME}: post-commit audit found ${result.violations.length} issue(s)`
+      : `${COORDINATION_GUARD_NAME}: ${label} found ${result.violations.length} issue(s)`;
+  if (result.shouldBlock && !expectedResultNote) {
     ui.error(heading);
   } else {
     ui.warn(heading);
@@ -795,6 +820,16 @@ function printCheckResult(result: GuardCheckResult, options: CLIOptions): void {
   if (result.mode === 'warn') {
     console.error('  mode=warn: not blocking. Use pd guard enable --mode enforce to block.');
   }
+}
+
+/** Post-commit is an audit of an outcome Git has already created. A blocking
+ * result there governs the *next* commit; it can never truthfully reject the
+ * commit that just landed. */
+export function shouldExitGuardCheck(
+  result: Pick<GuardCheckResult, 'shouldBlock'>,
+  context: { postCommit?: boolean } = {},
+): boolean {
+  return result.shouldBlock && context.postCommit !== true;
 }
 
 export function extractClaimPaths(data: Record<string, unknown>): string[] {
@@ -1175,7 +1210,9 @@ export async function handleGuard(positional: string[], options: CLIOptions): Pr
       printCheckResult(result, options);
       if (result.shouldBlock) {
         notifyOperatorOfGuardBlock(result, options);
-        process.exit(1);
+        if (shouldExitGuardCheck(result, { postCommit: Boolean(options['post-commit']) })) {
+          process.exit(1);
+        }
       }
       return;
     }
@@ -1189,7 +1226,9 @@ export async function handleGuard(positional: string[], options: CLIOptions): Pr
       printCheckResult(result, options);
       if (result.shouldBlock) {
         notifyOperatorOfGuardBlock(result, options);
-        process.exit(1);
+        if (shouldExitGuardCheck(result, { postCommit: Boolean(options['post-commit']) })) {
+          process.exit(1);
+        }
       }
     }
   }

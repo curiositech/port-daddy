@@ -17,6 +17,7 @@ import {
   ownerQueryPaths,
   readGuardConfig,
   sharedGuardConfigPath,
+  shouldExitGuardCheck,
 } from '../../cli/commands/guard.js';
 
 describe('Coordination Guard', () => {
@@ -651,5 +652,48 @@ describe('describeGuardBlock — HITL escalation policy', () => {
     expect(manual.severity).toBe('requirement');
     expect(manual.notifyOperator).toBe(false);
     expect(describeGuardBlock(result, { hook: true }).notifyOperator).toBe(true);
+  });
+
+  test('expected post-commit rent is a quiet next-commit requirement, not a false block', () => {
+    const result = evaluateGuardFacts({
+      config: enforce,
+      active: true,
+      agentId: 'agent-self',
+      sessionId: 'session-self',
+      files: [],
+      commitsSinceLastNote: 1,
+      atCommitTime: true,
+    });
+
+    const notice = describeGuardBlock(result, { hook: true, postCommit: true });
+    expect(notice.title).toBe('Port Daddy: result note due before the next commit');
+    expect(notice.notifyOperator).toBe(false);
+    expect(shouldExitGuardCheck(result, { postCommit: true })).toBe(false);
+    expect(shouldExitGuardCheck(result)).toBe(true);
+  });
+
+  test('post-commit structural and ownership failures still escalate without pretending to undo Git', () => {
+    const structural = evaluateGuardFacts({
+      config: enforce,
+      active: false,
+      daemonReachable: false,
+      files: ['src/a.ts'],
+    });
+    const structuralNotice = describeGuardBlock(structural, { hook: true, postCommit: true });
+    expect(structuralNotice.title).toMatch(/POST-COMMIT COORDINATION AUDIT INCOMPLETE/);
+    expect(structuralNotice.notifyOperator).toBe(true);
+
+    const conflict = evaluateGuardFacts({
+      config: enforce,
+      active: true,
+      agentId: 'agent-self',
+      sessionId: 'session-self',
+      files: ['src/shared.ts'],
+      ownersByFile: { 'src/shared.ts': [{ agentId: 'agent-other', sessionId: 'session-other' }] },
+    });
+    const conflictNotice = describeGuardBlock(conflict, { hook: true, postCommit: true });
+    expect(conflictNotice.title).toMatch(/landed with an ownership conflict/);
+    expect(conflictNotice.notifyOperator).toBe(true);
+    expect(shouldExitGuardCheck(conflict, { postCommit: true })).toBe(false);
   });
 });
