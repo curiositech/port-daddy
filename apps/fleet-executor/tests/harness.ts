@@ -26,7 +26,16 @@ export interface GitHubState {
   existingComments: Array<{ id: number; body: string }>;
   checkRunsCreated: number;
   /** existing check runs returned by the commit check-runs lookup. */
-  existingCheckRuns: Array<{ id: number; name: string }>;
+  existingCheckRuns: Array<{
+    id: number;
+    name: string;
+    headSha?: string;
+    status?: string;
+    conclusion?: string | null;
+    details_url?: string | null;
+    app?: { id: number };
+  }>;
+  mergeQueueEntries: Array<{ position: number; prNumber: number; headSha: string; groupHeadSha: string }>;
   completed: Array<{ id: number; conclusion: string; summary: string; detailsUrl?: string }>;
   /** details_url values sent on check-run CREATE (undefined when omitted). */
   createdDetailsUrls: Array<string | undefined>;
@@ -96,6 +105,7 @@ export function freshState(): GitHubState {
     existingComments: [],
     checkRunsCreated: 0,
     existingCheckRuns: [],
+    mergeQueueEntries: [{ position: 1, prNumber: 7, headSha: 'HEADSHA', groupHeadSha: 'MERGEGROUPSHA' }],
     createdDetailsUrls: [],
     completed: [],
     reviews: [],
@@ -152,6 +162,31 @@ export function installGitHubFetch(state: GitHubState): void {
       }
     }
     state.records.push({ method, url, body });
+
+    if (url === 'https://api.github.com/graphql' && method === 'POST') {
+      const variables = (body as { variables?: { pr?: number } })?.variables;
+      const target = state.mergeQueueEntries.find(entry => entry.prNumber === variables?.pr);
+      return json({
+        data: {
+          repository: {
+            pullRequest: {
+              mergeQueueEntry: target ? {
+                position: target.position,
+                headCommit: { oid: target.groupHeadSha },
+                mergeQueue: {
+                  entries: {
+                    nodes: state.mergeQueueEntries.map(entry => ({
+                      position: entry.position,
+                      pullRequest: { number: entry.prNumber, headRefOid: entry.headSha },
+                    })),
+                  },
+                },
+              } : null,
+            },
+          },
+        },
+      });
+    }
 
     // --- installation access token mint ---
     if (url.includes('/app/installations/') && url.includes('/access_tokens') && method === 'POST') {
@@ -305,7 +340,12 @@ export function installGitHubFetch(state: GitHubState): void {
 
     // --- commit check-runs lookup (idempotency) ---
     if (/\/commits\/[^/]+\/check-runs/.test(url)) {
-      return json({ check_runs: state.existingCheckRuns });
+      const requestedSha = url.match(/\/commits\/([^/]+)\/check-runs/)?.[1] ?? '';
+      return json({
+        check_runs: state.existingCheckRuns.filter(
+          check => !check.headSha || check.headSha === requestedSha,
+        ),
+      });
     }
 
     // --- list issue comments (edit-in-place lookup) ---
@@ -335,8 +375,14 @@ export function installGitHubFetch(state: GitHubState): void {
       // Future lookups for this head SHA now find it.
       const headSha = (body as { head_sha?: string })?.head_sha ?? '';
       const name = (body as { name?: string })?.name ?? '';
-      state.existingCheckRuns.push({ id, name });
-      void headSha;
+      state.existingCheckRuns.push({
+        id,
+        name,
+        headSha,
+        status: 'in_progress',
+        conclusion: null,
+        app: { id: 3810450 },
+      });
       return json({ id });
     }
     // --- complete check run ---

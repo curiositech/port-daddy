@@ -268,6 +268,79 @@ export async function fetchPRContext(
   };
 }
 
+export interface MergeGroupMember {
+  prNumber: number;
+  headSha: string;
+}
+
+/** Resolve every PR represented by a synthetic merge-queue head SHA. */
+export async function fetchMergeGroupMembers(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  groupHeadSha: string,
+  token: string,
+): Promise<MergeGroupMember[]> {
+  const query = `query MergeGroupMembers($owner: String!, $repo: String!, $pr: Int!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $pr) {
+        mergeQueueEntry {
+          position
+          headCommit { oid }
+          mergeQueue {
+            entries(first: 100) {
+              nodes { position pullRequest { number headRefOid } }
+            }
+          }
+        }
+      }
+    }
+  }`;
+  const res = await fetch('https://api.github.com/graphql', {
+    method: 'POST',
+    headers: ghHeaders(token),
+    body: JSON.stringify({ query, variables: { owner, repo, pr: prNumber } }),
+  });
+  if (!res.ok) throw new Error(`fetch merge queue failed ${res.status}: ${await res.text()}`);
+  const body = await res.json() as {
+    errors?: Array<{ message?: string }>;
+    data?: {
+      repository?: {
+        pullRequest?: {
+          mergeQueueEntry?: {
+            position?: number;
+            headCommit?: { oid?: string } | null;
+            mergeQueue?: {
+              entries?: {
+                nodes?: Array<{
+                  position?: number;
+                  pullRequest?: { number?: number; headRefOid?: string } | null;
+                } | null>;
+              };
+            } | null;
+          } | null;
+        } | null;
+      } | null;
+    };
+  };
+  if (body.errors?.length) throw new Error(body.errors[0]?.message ?? 'merge queue query failed');
+  const entry = body.data?.repository?.pullRequest?.mergeQueueEntry;
+  if (!entry || entry.headCommit?.oid !== groupHeadSha || typeof entry.position !== 'number') {
+    throw new Error(`merge queue entry does not match ${groupHeadSha}`);
+  }
+  const members = (entry.mergeQueue?.entries?.nodes ?? [])
+    .filter(node => node && typeof node.position === 'number' && node.position <= entry.position!)
+    .map(node => ({
+      prNumber: node?.pullRequest?.number ?? 0,
+      headSha: node?.pullRequest?.headRefOid ?? '',
+    }))
+    .filter(member => member.prNumber > 0 && member.headSha.length > 0);
+  if (!members.some(member => member.prNumber === prNumber) || members.length === 0) {
+    throw new Error(`merge queue membership is incomplete for PR #${prNumber}`);
+  }
+  return members;
+}
+
 /**
  * Fetch a file's contents at a given ref.
  *
@@ -644,6 +717,50 @@ export async function findFleetCheckRun(
   const body = (await res.json()) as { check_runs?: Array<{ id: number; name: string }> };
   const match = (body.check_runs ?? []).find(c => c.name === name);
   return match?.id ?? null;
+}
+
+export interface FleetCheckRunResult {
+  id: number;
+  status: string;
+  conclusion: string | null;
+  detailsUrl: string | null;
+}
+
+/** Find a Fleet check owned by this exact GitHub App, not a spoofed namesake. */
+export async function findOwnedFleetCheckRun(
+  owner: string,
+  repo: string,
+  headSha: string,
+  name: string,
+  expectedAppId: number,
+  token: string,
+): Promise<FleetCheckRunResult | null> {
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/commits/${headSha}/check-runs?per_page=100`,
+    { headers: ghHeaders(token) },
+  );
+  if (!res.ok) return null;
+  const body = await res.json() as {
+    check_runs?: Array<{
+      id: number;
+      name: string;
+      status: string;
+      conclusion: string | null;
+      details_url?: string | null;
+      app?: { id?: number } | null;
+    }>;
+  };
+  const match = (body.check_runs ?? []).find(
+    check => check.name === name && check.app?.id === expectedAppId,
+  );
+  return match
+    ? {
+        id: match.id,
+        status: match.status,
+        conclusion: match.conclusion,
+        detailsUrl: match.details_url ?? null,
+      }
+    : null;
 }
 
 // ---------------------------------------------------------------------------
