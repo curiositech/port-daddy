@@ -1,5 +1,5 @@
 import { normalizeNativeHarnessSessionId } from '../../harness-session-id.js';
-import { delimiter, dirname } from 'node:path';
+import { basename, delimiter, dirname, isAbsolute, join } from 'node:path';
 
 export type CliTubePermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions';
 
@@ -86,10 +86,9 @@ const CODEX_COORDINATION_ENV_KEYS = [
   'PD_ACTIVE_DAEMON',
   'PD_AGENT_ID',
   'PD_SESSION_ID',
-  'ZDOTDIR',
-  'BASH_ENV',
-  'ENV',
 ] as const;
+
+const CODEX_PROFILE_SHELL_ENV_KEYS = ['ZDOTDIR', 'BASH_ENV', 'ENV'] as const;
 
 /**
  * Codex intentionally filters the environment exposed to model-generated
@@ -108,22 +107,56 @@ export function codexCoordinationEnvironmentConfigs(
     }
     configs.push(`shell_environment_policy.set.${key}=${JSON.stringify(value)}`);
   }
+  for (const [key, value] of trustedCodexProfileShellEnvironment(env)) {
+    configs.push(`shell_environment_policy.set.${key}=${JSON.stringify(value)}`);
+  }
   return configs;
 }
 
 function compactCodexShellPath(env: Readonly<Record<string, string | undefined>>): string | undefined {
   const inherited = env.PATH?.split(delimiter) ?? [];
   const sourceCliDir = env.PORT_DADDY_CLI ? dirname(env.PORT_DADDY_CLI) : undefined;
-  const candidates = [sourceCliDir, ...inherited]
-    .filter((value): value is string => typeof value === 'string' && value.length > 0);
+  if (sourceCliDir) {
+    if (!isAbsolute(sourceCliDir)) {
+      throw new Error('PORT_DADDY_CLI must be absolute before forwarding its directory to Codex');
+    }
+    const requiredConfig = `shell_environment_policy.set.PATH=${JSON.stringify(sourceCliDir)}`;
+    if (requiredConfig.length > MAX_CODEX_CONFIG_OVERRIDE_LENGTH) {
+      throw new Error('Selected source CLI directory exceeds the Codex shell environment limit');
+    }
+  }
+  const candidates = inherited.filter((value) => value.length > 0);
   const unique = [...new Set(candidates)];
-  const kept: string[] = [];
+  const kept: string[] = sourceCliDir ? [sourceCliDir] : [];
   for (const candidate of unique) {
+    if (candidate === sourceCliDir) continue;
     const next = [...kept, candidate].join(delimiter);
     const config = `shell_environment_policy.set.PATH=${JSON.stringify(next)}`;
     if (config.length <= MAX_CODEX_CONFIG_OVERRIDE_LENGTH) kept.push(candidate);
   }
   return kept.length > 0 ? kept.join(delimiter) : undefined;
+}
+
+/**
+ * Shell startup variables execute code before a model-generated command. Never
+ * forward caller-supplied values. A named development daemon may opt into the
+ * profile-local init that Port Daddy installed beside its source-matched CLI;
+ * derive those paths from that trusted layout instead.
+ */
+function trustedCodexProfileShellEnvironment(
+  env: Readonly<Record<string, string | undefined>>,
+): Array<readonly [typeof CODEX_PROFILE_SHELL_ENV_KEYS[number], string]> {
+  const cli = env.PORT_DADDY_CLI;
+  if (!cli || !isAbsolute(cli) || basename(cli) !== 'pd') return [];
+  const devBinDir = dirname(cli);
+  if (basename(devBinDir) !== 'dev-bin') return [];
+  const shellDir = join(dirname(devBinDir), 'dev-shell');
+  const shellInit = join(shellDir, 'pd-env.sh');
+  return [
+    ['ZDOTDIR', shellDir],
+    ['BASH_ENV', shellInit],
+    ['ENV', shellInit],
+  ];
 }
 
 /**
@@ -209,6 +242,10 @@ export const CLI_TUBE_PROVIDER_SPECS = defineCliTubeProviderRegistry({
     binaryEnvOverride: 'PD_CLI_CODEX_BIN',
     authNextStep: 'Set OPENAI_API_KEY in ~/.codex/config or `codex auth login`.',
     argStyle: { kind: 'codex-exec-json' },
+    // Shell startup hooks are code-execution surfaces. Remove every inherited
+    // or per-spawn value from the Codex process; the argument builder injects
+    // only the profile-local paths derived by trustedCodexProfileShellEnvironment.
+    stripEnvKeys: ['ZDOTDIR', 'BASH_ENV', 'ENV'],
     modelPolicy: {
       extraPlaceholderModels: ['codex-cli'],
     },

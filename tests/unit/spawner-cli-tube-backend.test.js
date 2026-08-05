@@ -249,7 +249,9 @@ describe('buildArgs', () => {
       PORT_DADDY_URL: 'http://127.0.0.1:4567',
       PORT_DADDY_CLI: '/profile/dev-bin/pd',
       PD_AGENT_ID: 'agent-test',
-      ZDOTDIR: '/profile/dev-shell',
+      ZDOTDIR: '/attacker/zsh',
+      BASH_ENV: '/attacker/bash',
+      ENV: '/attacker/sh',
       OPENAI_API_KEY: 'must-not-forward',
     });
 
@@ -259,9 +261,27 @@ describe('buildArgs', () => {
       'shell_environment_policy.set.PORT_DADDY_CLI="/profile/dev-bin/pd"',
       'shell_environment_policy.set.PD_AGENT_ID="agent-test"',
       'shell_environment_policy.set.ZDOTDIR="/profile/dev-shell"',
+      'shell_environment_policy.set.BASH_ENV="/profile/dev-shell/pd-env.sh"',
+      'shell_environment_policy.set.ENV="/profile/dev-shell/pd-env.sh"',
     ]);
     expect(configs.join('\n')).not.toContain('OPENAI_API_KEY');
+    expect(configs.join('\n')).not.toContain('/attacker/');
     expect(() => codexCoordinationEnvironmentConfigs({ PATH: '/safe\nunsafe' })).toThrow(/Unsafe PATH/);
+  });
+
+  test('codex strips shell startup hooks without a source-matched profile CLI', () => {
+    const configs = codexCoordinationEnvironmentConfigs({
+      PATH: '/usr/bin',
+      PORT_DADDY_CLI: '/usr/local/bin/pd',
+      ZDOTDIR: '/attacker/zsh',
+      BASH_ENV: '/attacker/bash',
+      ENV: '/attacker/sh',
+    });
+
+    expect(configs.join('\n')).not.toContain('ZDOTDIR');
+    expect(configs.join('\n')).not.toContain('BASH_ENV');
+    expect(configs.join('\n')).not.toContain('shell_environment_policy.set.ENV');
+    expect(configs.join('\n')).not.toContain('/attacker/');
   });
 
   test('codex shell PATH is bounded without dropping the source-matched pd directory', () => {
@@ -275,6 +295,15 @@ describe('buildArgs', () => {
     expect(pathConfig).toContain('/profile/dev-bin');
     expect(pathConfig.length).toBeLessThanOrEqual(512);
     expect(pathConfig).not.toContain('/very/long/toolchain/path/79');
+  });
+
+  test('codex fails closed instead of dropping an oversized source CLI directory', () => {
+    const oversizedCli = `/${'source-cli-segment/'.repeat(40)}dev-bin/pd`;
+
+    expect(() => codexCoordinationEnvironmentConfigs({
+      PATH: '/usr/bin',
+      PORT_DADDY_CLI: oversizedCli,
+    })).toThrow(/source CLI directory exceeds/);
   });
 
   test.each([
@@ -1129,6 +1158,24 @@ describe('spawnViaCliTube — codex shape', () => {
     // The file won't exist in this test (no real codex), so output
     // falls back to stdout.
     expect(typeof res.output).toBe('string');
+  });
+
+  test('strips caller-controlled shell startup hooks from the Codex process', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    await spawnViaCliTube({
+      cli: 'codex',
+      prompt: 'do thing',
+      env: {
+        ZDOTDIR: '/attacker/zsh',
+        BASH_ENV: '/attacker/bash',
+        ENV: '/attacker/sh',
+      },
+    });
+
+    const childEnv = mockSpawn.mock.calls[0][2].env;
+    expect(childEnv.ZDOTDIR).toBeUndefined();
+    expect(childEnv.BASH_ENV).toBeUndefined();
+    expect(childEnv.ENV).toBeUndefined();
   });
 });
 

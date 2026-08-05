@@ -1,7 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import {
   resolveRepoRoot,
   defaultFrom,
@@ -82,7 +82,25 @@ describe('named berth source-matched CLI', () => {
   test('isolated login-shell init keeps the source shim first without replacing user PATH', () => {
     const init = devCliShellInitSource('/profile/dev-bin', '/profile/dev-bin/pd');
 
-    expect(init).toContain("export PATH='/profile/dev-bin':\"$PATH\"");
+    const result = spawnSync('/bin/sh', ['-c', `${init}\nprintf '%s' "$PATH"`], {
+      encoding: 'utf8',
+      env: { PATH: '/usr/bin:/bin' },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe('/profile/dev-bin:/usr/bin:/bin');
     expect(init).toContain("export PORT_DADDY_CLI='/profile/dev-bin/pd'");
+  });
+
+  test('isolated login-shell init never turns an empty PATH into current-directory lookup', () => {
+    const init = devCliShellInitSource('/profile/dev-bin', '/profile/dev-bin/pd');
+    const result = spawnSync('/bin/sh', ['-c', `${init}\nprintf '%s' "$PATH"`], {
+      encoding: 'utf8',
+      env: { PATH: '' },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe('/profile/dev-bin');
+    expect(result.stdout).not.toMatch(/(^|:)(\.|)(:|$)/);
   });
 });

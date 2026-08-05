@@ -342,7 +342,11 @@ export function devCliShimSource(sourceDir: string): string {
 
 export function devCliShellInitSource(devBinDir: string, shim: string): string {
   return [
-    `export PATH=${posixShellQuote(devBinDir)}:"$PATH"`,
+    'if [ -n "${PATH:-}" ]; then',
+    `  export PATH=${posixShellQuote(devBinDir)}:"$PATH"`,
+    'else',
+    `  export PATH=${posixShellQuote(devBinDir)}`,
+    'fi',
     `export PORT_DADDY_CLI=${posixShellQuote(shim)}`,
     '',
   ].join('\n');
