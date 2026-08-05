@@ -1,4 +1,5 @@
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { chmodSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { daemonBinaryName, resolveDaemonLaunchCommand, jscSafeModeEnv } from '../../shared/daemon-binary.js';
@@ -52,19 +53,59 @@ describe('daemon binary launch contract', () => {
 });
 
 describe('compiled daemon smoke runtime selection', () => {
-  test('uses short recoverable scratch and follows both published endpoints', () => {
+  test('uses short recoverable scratch without obsolete release commands', () => {
     const smoke = readFileSync('scripts/smoke-compiled-daemon.sh', 'utf8');
 
     expect(smoke).toContain('choose_free_port()');
     expect(smoke).not.toContain('SMOKE_PORT:-19876');
     expect(smoke).toContain('coding/tmp/port-daddy-smoke');
     expect(smoke).not.toContain('$ROOT_DIR/.smoke-tmp');
-    expect(smoke.match(/PORT_DADDY_PORT_FILE=/g)).toHaveLength(2);
-    expect(smoke).toContain('SELECTED_PORT="$(tr -d');
-    expect(smoke).toContain('SELECTED_PORT2="$(tr -d');
-    expect(smoke).toContain('BASE="http://127.0.0.1:$SELECTED_PORT"');
-    expect(smoke).toContain('BASE2="http://127.0.0.1:$SELECTED_PORT2"');
     expect(smoke).not.toContain('npm run');
+  });
+
+  test('follows both published endpoints when each preferred seed is occupied', () => {
+    const root = mkdtempSync(join(tmpdir(), 'pd-smoke-behavior-'));
+    const fakeDaemon = join(root, 'fake-daemon.mjs');
+    const shutdownMarker = join(root, 'shutdown.marker');
+    writeFileSync(fakeDaemon, `#!/usr/bin/env node
+import fs from 'node:fs';
+import http from 'node:http';
+
+const tier = process.env.PD_DAEMON_TIER || 'stable';
+const identity = JSON.stringify({ daemon: { tier, canonical: tier === 'stable' } });
+const server = http.createServer((request, response) => {
+  if (request.method === 'POST' && request.url.includes('/interrupt')) {
+    response.writeHead(404).end('{}');
+    return;
+  }
+  response.writeHead(200, { 'content-type': 'application/json' });
+  response.end(request.url === '/health' || request.url === '/whoami' ? identity : '{}');
+});
+server.listen(0, '127.0.0.1', () => {
+  fs.writeFileSync(process.env.PORT_DADDY_PORT_FILE, String(server.address().port));
+});
+process.on('SIGTERM', () => server.close(() => setTimeout(() => {
+  fs.appendFileSync(process.env.FAKE_SHUTDOWN_MARKER, 'stopped\\n');
+  process.exit(0);
+}, 100)));
+`);
+    chmodSync(fakeDaemon, 0o755);
+
+    const output = execFileSync('bash', ['scripts/smoke-compiled-daemon.sh'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      timeout: 30_000,
+      env: {
+        ...process.env,
+        SMOKE_DAEMON_BIN: fakeDaemon,
+        SMOKE_SCRATCH_BASE: join(root, 'scratch'),
+        SMOKE_OCCUPY_PREFERRED: '1',
+        FAKE_SHUTDOWN_MARKER: shutdownMarker,
+      },
+    });
+
+    expect(output).toContain('Compiled-daemon smoke PASSED');
+    expect(readFileSync(shutdownMarker, 'utf8').trim().split('\n')).toHaveLength(2);
   });
 });
 

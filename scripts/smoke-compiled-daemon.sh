@@ -17,13 +17,14 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BIN="$ROOT_DIR/dist/daemon/port-daddy-daemon"
+BIN="${SMOKE_DAEMON_BIN:-$ROOT_DIR/dist/daemon/port-daddy-daemon}"
 
 choose_free_port() {
   node -e 'const net = require("node:net"); const server = net.createServer(); server.listen(0, "127.0.0.1", () => { const address = server.address(); process.stdout.write(String(address.port)); server.close(); });'
 }
 
 PORT="${SMOKE_PORT:-$(choose_free_port)}"
+OCCUPY_PREFERRED="${SMOKE_OCCUPY_PREFERRED:-1}"
 # Keep Unix-domain sockets below macOS's short sun_path limit. Linked worktree
 # paths can already consume that budget before the per-run suffix is added.
 # The machine-wide rule also reserves ~/coding/tmp for recoverable scratch.
@@ -33,12 +34,70 @@ SCRATCH="$(mktemp -d "$SCRATCH_BASE/pd-smoke.XXXXXX")"
 LOG="$SCRATCH/daemon.log"
 PORT_FILE="$SCRATCH/daemon.port"
 DAEMON_PID=""
+PREFERRED_BLOCKER_PID=""
+SECOND_BLOCKER_PID=""
+
+stop_child() {
+  local pid="$1"
+  [ -n "$pid" ] || return 0
+  if kill -0 "$pid" 2>/dev/null; then
+    kill "$pid" 2>/dev/null || true
+    for _ in $(seq 1 50); do
+      kill -0 "$pid" 2>/dev/null || break
+      sleep 0.1
+    done
+    if kill -0 "$pid" 2>/dev/null; then
+      kill -9 "$pid" 2>/dev/null || true
+    fi
+  fi
+  wait "$pid" 2>/dev/null || true
+}
+
+start_preferred_blocker() {
+  local port="$1"
+  local ready_file="$2"
+  rm -f "$ready_file"
+  BLOCK_PORT="$port" BLOCK_READY_FILE="$ready_file" node -e '
+    const fs = require("node:fs");
+    const http = require("node:http");
+    const server = http.createServer((_request, response) => {
+      response.writeHead(503, { "content-type": "text/plain" });
+      response.end("occupied by smoke witness");
+    });
+    const stop = () => server.close(() => process.exit(0));
+    process.on("SIGTERM", stop);
+    process.on("SIGINT", stop);
+    server.listen(Number(process.env.BLOCK_PORT), "127.0.0.1", () => {
+      fs.writeFileSync(process.env.BLOCK_READY_FILE, "ready\n");
+    });
+  ' >"$ready_file.log" 2>&1 &
+  LAST_BLOCKER_PID=$!
+  for _ in $(seq 1 50); do
+    [ -s "$ready_file" ] && return 0
+    kill -0 "$LAST_BLOCKER_PID" 2>/dev/null || break
+    sleep 0.1
+  done
+  echo "FAIL: could not occupy preferred seed for fallback proof" >&2
+  cat "$ready_file.log" >&2 2>/dev/null || true
+  return 1
+}
 
 cleanup() {
-  if [ -n "$DAEMON_PID" ]; then kill "$DAEMON_PID" 2>/dev/null || true; fi
+  stop_child "$DAEMON_PID"
+  stop_child "$PREFERRED_BLOCKER_PID"
+  stop_child "$SECOND_BLOCKER_PID"
   rm -rf "$SCRATCH" 2>/dev/null || true
 }
 trap cleanup EXIT
+
+case "$OCCUPY_PREFERRED" in
+  0) ;;
+  1)
+    start_preferred_blocker "$PORT" "$SCRATCH/preferred-seed.ready"
+    PREFERRED_BLOCKER_PID="$LAST_BLOCKER_PID"
+    ;;
+  *) echo "FAIL: SMOKE_OCCUPY_PREFERRED must be 0 or 1" >&2; exit 1 ;;
+esac
 
 if [ ! -x "$BIN" ]; then
   echo "FAIL: compiled daemon not found at $BIN (run: bun run build:daemon:dist)" >&2
@@ -81,6 +140,10 @@ done
 if [ "$ready" -ne 1 ]; then
   echo "FAIL: daemon did not become healthy in time" >&2
   cat "$LOG" >&2 || true
+  exit 1
+fi
+if [ "$OCCUPY_PREFERRED" = 1 ] && [ "$SELECTED_PORT" = "$PORT" ]; then
+  echo "FAIL: daemon published the occupied preferred seed instead of its fallback" >&2
   exit 1
 fi
 echo "Daemon healthy."
@@ -184,10 +247,16 @@ fi
 # non-canonical dev-latest berth (proving env-driven berth identity works end to
 # end in the real bun runtime, not just in jest).
 echo "Re-booting with PD_DAEMON_TIER=dev-latest to verify env-driven berth identity…"
-kill "$DAEMON_PID" 2>/dev/null || true
-wait "$DAEMON_PID" 2>/dev/null || true
+stop_child "$DAEMON_PID"
+DAEMON_PID=""
+stop_child "$PREFERRED_BLOCKER_PID"
+PREFERRED_BLOCKER_PID=""
 PORT2="${SMOKE_PORT2:-$(choose_free_port)}"
 PORT_FILE2="$SCRATCH/daemon2.port"
+if [ "$OCCUPY_PREFERRED" = 1 ]; then
+  start_preferred_blocker "$PORT2" "$SCRATCH/second-preferred-seed.ready"
+  SECOND_BLOCKER_PID="$LAST_BLOCKER_PID"
+fi
 PORT_DADDY_PORT="$PORT2" \
 PORT_DADDY_PORT_FILE="$PORT_FILE2" \
 PORT_DADDY_DB="$SCRATCH/registry2.db" \
@@ -218,6 +287,10 @@ done
 if [ "$ready2" -ne 1 ]; then
   echo "FAIL: dev-latest berth did not become healthy" >&2
   cat "$SCRATCH/daemon2.log" >&2 || true
+  exit 1
+fi
+if [ "$OCCUPY_PREFERRED" = 1 ] && [ "$SELECTED_PORT2" = "$PORT2" ]; then
+  echo "FAIL: second daemon published the occupied preferred seed instead of its fallback" >&2
   exit 1
 fi
 WHOAMI_JSON="$(curl -s "$BASE2/whoami")"
