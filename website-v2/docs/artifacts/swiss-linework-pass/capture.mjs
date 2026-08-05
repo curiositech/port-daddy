@@ -23,7 +23,11 @@ import { chromium } from 'playwright'
 import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 
-const EXECUTABLE = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+// Let Playwright resolve its own installed browser. Pinning a revision path
+// here breaks every contributor whose Playwright installed a different build.
+// Override only when the browser genuinely lives somewhere else:
+//   CAPTURE_CHROMIUM=/opt/pw-browsers/chromium/chrome node capture.mjs out/
+const EXECUTABLE = process.env.CAPTURE_CHROMIUM || undefined
 const BASE = process.env.CAPTURE_BASE ?? 'http://localhost:4173'
 const OUT = process.argv[2] ?? '.'
 mkdirSync(OUT, { recursive: true })
@@ -40,7 +44,13 @@ const VIEWPORTS = [
 
 // ── defect 1: header breakpoint proof widths (header element only, no full
 // page) — 1280 must show the hamburger, the rest must show inline nav ──
-const HEADER_PROOF_WIDTHS = [1280, 1536, 1920]
+// 1440 is IN this list even though the full-page pass also shoots it: 1440 is
+// the breakpoint itself, so it is the width most likely to regress, and the
+// full-page pass only checks collisions — it never checks which nav rendered.
+const HEADER_PROOF_WIDTHS = [1280, 1440, 1536, 1920]
+
+/** The breakpoint the header switches at; the assertion below derives from it. */
+const NAV_BREAKPOINT = 1440
 
 // ── defect 3: sibling feature pages that got the grammar propagated.
 // A representative sample: three "plain" pages (card-grid + CLI-callout
@@ -57,6 +67,45 @@ const SIBLING_ROUTES = [
   { slug: 'remote-feature', path: '/docs/features/remote' },
   { slug: 'relay-pki-feature', path: '/docs/features/relay-pki' },
 ]
+
+/**
+ * Breakpoint check: assert WHICH nav rendered, not merely that nothing
+ * collided.
+ *
+ * Why this exists as a separate assertion: `assertNoHeaderOverlap` cannot
+ * catch a breakpoint regression, because the hamburger does not overlap
+ * anything either. If the switch slipped back to 1536, every width below it
+ * would render the hamburger, collide with nothing, and produce a full set of
+ * "passing" artifacts — the exact failure this capture is supposed to prevent.
+ * The file header claimed this was proven; until now only the collision half
+ * was. Caught by Copilot on #4923.
+ *
+ * Below the breakpoint: hamburger visible, inline nav absent from layout.
+ * At or above it: inline nav visible, hamburger gone. Both directions are
+ * asserted so a switch that fires early fails just as loudly as one that
+ * fires late.
+ */
+async function assertNavMode(page, width, label) {
+  const inlineNav = page.locator('nav[aria-label="Primary"]').first()
+  const hamburger = page.locator('header button[aria-label="Open site navigation"]').first()
+  const inlineVisible = (await inlineNav.count()) > 0 && (await inlineNav.isVisible())
+  const hamburgerVisible = (await hamburger.count()) > 0 && (await hamburger.isVisible())
+
+  const wantInline = width >= NAV_BREAKPOINT
+  if (wantInline && !inlineVisible) {
+    throw new Error(`${label}: at ${width}px (>= ${NAV_BREAKPOINT}) the inline nav must render, but it is hidden`)
+  }
+  if (wantInline && hamburgerVisible) {
+    throw new Error(`${label}: at ${width}px (>= ${NAV_BREAKPOINT}) the hamburger must be gone, but it is visible`)
+  }
+  if (!wantInline && !hamburgerVisible) {
+    throw new Error(`${label}: at ${width}px (< ${NAV_BREAKPOINT}) the hamburger must render, but it is hidden`)
+  }
+  if (!wantInline && inlineVisible) {
+    throw new Error(`${label}: at ${width}px (< ${NAV_BREAKPOINT}) the inline nav must be hidden, but it is visible`)
+  }
+  console.log(`${label}: nav mode correct (${wantInline ? 'inline nav' : 'hamburger'})`)
+}
 
 // Collision check: header controls must never overlap one another.
 async function assertNoHeaderOverlap(page, label) {
@@ -99,7 +148,7 @@ async function assertNoHorizontalOverflow(page, label) {
   }
 }
 
-const browser = await chromium.launch({ executablePath: EXECUTABLE })
+const browser = await chromium.launch(EXECUTABLE ? { executablePath: EXECUTABLE } : {})
 
 for (const theme of ['light', 'dark']) {
   for (const vp of VIEWPORTS) {
@@ -140,6 +189,7 @@ for (const theme of ['light', 'dark']) {
     await page.goto(`${BASE}/`, { waitUntil: 'networkidle' })
     await page.waitForTimeout(500)
     const label = `header-proof ${theme}@${width}`
+    await assertNavMode(page, width, label)
     await assertNoHeaderOverlap(page, label)
     await assertNoHorizontalOverflow(page, label)
     await page.locator('header[data-shell="site-header"]').screenshot({
