@@ -23,12 +23,16 @@ on:
       - 'website-v2/public/whitepaper/**/*.tex'
       - 'whitepaper/**/*.tex'
       - 'scripts/build-whitepapers.sh'
+      - 'scripts/generate-mega-whitepaper.mjs'
+      - 'scripts/generate-mega-whitepaper.test.mjs'
       - '.github/workflows/whitepaper-build.yml'
   pull_request:
     paths:
       - 'website-v2/public/whitepaper/**/*.tex'
       - 'whitepaper/**/*.tex'
       - 'scripts/build-whitepapers.sh'
+      - 'scripts/generate-mega-whitepaper.mjs'
+      - 'scripts/generate-mega-whitepaper.test.mjs'
       - '.github/workflows/whitepaper-build.yml'
   # Merge queue: trigger so this workflow reports a check context on the queued
   # group. The `build` job is SKIPPED on merge_group (see its `if:`), and a
@@ -67,6 +71,15 @@ jobs:
           # can read per-paper commit times for reproducible dates.
           ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
+
+      # Exercise the collected-volume generator's failure contracts before TeX.
+      # The texlive container intentionally ships no JavaScript runtime.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Test collected-volume generator
+        run: node --test scripts/generate-mega-whitepaper.test.mjs
 
       - name: Trust the checkout dir (container runs as root)
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
