@@ -463,15 +463,16 @@ interface ChildRunOpts {
   args: string[];
   cwd?: string;
   env?: Record<string, string | undefined>;
-  transportTimeoutMs?: number;
+  /** Explicit caller-owned task deadline. Omit to observe until exit or cancellation. */
+  deadlineMs?: number;
   stdio?: ('ignore' | 'pipe')[];
   onChild?: (child: ChildProcess) => void;
 }
 
 function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string | null; child: ChildProcess }> {
   return new Promise((resolve) => {
-    const timeoutMs = typeof opts.transportTimeoutMs === 'number' && opts.transportTimeoutMs > 0
-      ? opts.transportTimeoutMs
+    const timeoutMs = typeof opts.deadlineMs === 'number' && opts.deadlineMs > 0
+      ? opts.deadlineMs
       : null;
     const child = spawnChild(opts.cmd, opts.args, {
       cwd: opts.cwd || process.cwd(),
@@ -568,7 +569,8 @@ interface ConfinedChildOpts {
   env: Record<string, string | undefined>;
   /** Working dir for both the child and the sandbox binding (defaults to spec.workdir). */
   cwd?: string;
-  transportTimeoutMs?: number;
+  /** Explicit caller-owned task deadline. Omit to observe until exit or cancellation. */
+  deadlineMs?: number;
   stdio?: ('ignore' | 'pipe')[];
   context?: BackendRunContext;
 }
@@ -613,7 +615,7 @@ async function runConfinedChild(
       args: cg.args,
       env: cg.env,
       cwd,
-      transportTimeoutMs: opts.transportTimeoutMs,
+      deadlineMs: opts.deadlineMs,
       stdio: opts.stdio,
       onChild: opts.context?.onChildProcess,
     });
@@ -916,7 +918,7 @@ async function runCliTube(
   const result = await spawnViaCliTube({
     cli,
     prompt: spec.task,
-    timeoutMs: resolveTransportTimeoutMs(spec),
+    timeoutMs: resolveDeadlineMs(spec) ?? undefined,
     cwd: spec.workdir,
     env: { ...spec.env },
     model: spec.model,
@@ -1149,7 +1151,7 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
     args,
     env,
     cwd: workspace,
-    transportTimeoutMs: resolveTransportTimeoutMs(spec),
+    deadlineMs: resolveDeadlineMs(spec) ?? undefined,
     stdio: ['ignore', 'pipe', 'pipe'],
     context,
   }).then((result) => {
@@ -1180,7 +1182,7 @@ function runAider(spec: SpawnSpec, model: string, context?: BackendRunContext): 
     cmd: 'aider',
     args: ['--yes', '--no-stream', '--model', model, '--message', spec.task, ...files],
     env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },
-    transportTimeoutMs: resolveTransportTimeoutMs(spec),
+    deadlineMs: resolveDeadlineMs(spec) ?? undefined,
     context,
   }).then((result) => ({
     output: result.output,
@@ -1215,7 +1217,7 @@ function runCustom(spec: SpawnSpec, context?: BackendRunContext): Promise<Backen
       PD_MODEL_TIER: spec.modelTier,
       PORT_DADDY_MODEL_TIER: spec.modelTier,
     },
-    transportTimeoutMs: resolveTransportTimeoutMs(spec),
+    deadlineMs: resolveDeadlineMs(spec) ?? undefined,
     context,
   }).then((result) => ({
     ...result,
@@ -1311,7 +1313,7 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
     cmd: resolution.command,
     args,
     env: { ...processEnvSafe, ...dotenvSafe, ...(spec.env || {}), PATH: augmentedPath },
-    transportTimeoutMs: resolveTransportTimeoutMs(spec),
+    deadlineMs: resolveDeadlineMs(spec) ?? undefined,
     stdio: ['ignore', 'pipe', 'pipe'],
     context,
   });

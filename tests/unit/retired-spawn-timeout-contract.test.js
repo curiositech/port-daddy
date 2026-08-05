@@ -6,7 +6,12 @@ const ROOT = process.cwd();
 const retiredContracts = [
   {
     file: 'lib/spawner.ts',
-    patterns: [/spec\.timeout\b/, /Pick<SpawnSpec, 'deadlineMs' \| 'timeout'>/],
+    patterns: [
+      /spec\.timeout\b/,
+      /Pick<SpawnSpec, 'deadlineMs' \| 'timeout'>/,
+      /timeoutMs:\s*resolveTransportTimeoutMs\(spec\)/,
+      /transportTimeoutMs:\s*resolveTransportTimeoutMs\(spec\)/,
+    ],
   },
   {
     file: 'lib/client.ts',

@@ -685,7 +685,7 @@ describe('spawn — backend dispatch', () => {
     expect(cpSpawn).toHaveBeenCalledWith(
       'aider',
       ['--yes', '--no-stream', '--model', 'aider', '--message', 'Fix the login bug', 'src/auth.ts', 'src/login.ts'],
-      expect.objectContaining({ timeout: 300000 })
+      expect.not.objectContaining({ timeout: expect.anything() })
     );
   });
 
@@ -702,7 +702,7 @@ describe('spawn — backend dispatch', () => {
     expect(cpSpawn).toHaveBeenCalledWith(
       'aider',
       ['--yes', '--no-stream', '--model', 'gpt-5', '--message', 'Refactor carefully'],
-      expect.objectContaining({ timeout: 300000 })
+      expect.not.objectContaining({ timeout: expect.anything() })
     );
   });
 
@@ -1427,7 +1427,7 @@ describe('spawn — claude-cli backend', () => {
     expect(cpSpawn).toHaveBeenCalledWith(
       expect.stringMatching(/(?:^|[/\\])claude$/),
       ['-p', '--output-format', 'json', 'Write a hello world program'],
-      expect.objectContaining({ timeout: 300000 })
+      expect.not.objectContaining({ timeout: expect.anything() })
     );
   });
 
@@ -1627,7 +1627,7 @@ describe('spawn — codex backend', () => {
         cwd: '/tmp/port-daddy-codex-test',
       })
     );
-    expect(cpSpawn.mock.calls[0][2].timeout).toBe(300000);
+    expect(cpSpawn.mock.calls[0][2]).not.toHaveProperty('timeout');
   });
 
   test('uses codex exec resume without unsupported spawn-only sandbox or cwd flags', async () => {
@@ -2003,7 +2003,7 @@ describe('aider backend — edge cases', () => {
     expect(result.error).toContain('Failed to start aider');
   });
 
-  test('uses custom transport timeout', async () => {
+  test('does not treat an API transport timeout as a subprocess wall deadline', async () => {
     const spawner = createSpawner();
     resolveChildProcess(0, 'ok');
 
@@ -2011,6 +2011,20 @@ describe('aider backend — edge cases', () => {
       backend: 'aider',
       task: 'test',
       transportTimeoutMs: 60000,
+    });
+
+    const spawnCall = cpSpawn.mock.calls[0];
+    expect(spawnCall[2]).not.toHaveProperty('timeout');
+  });
+
+  test('applies an explicit caller-owned task deadline to a subprocess', async () => {
+    const spawner = createSpawner();
+    resolveChildProcess(0, 'ok');
+
+    await spawner.spawn({
+      backend: 'aider',
+      task: 'test',
+      deadlineMs: 60000,
     });
 
     const spawnCall = cpSpawn.mock.calls[0];
