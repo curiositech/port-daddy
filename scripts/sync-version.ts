@@ -1,10 +1,11 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env bun
 /**
  * Version Sync — Updates version strings across all distribution surfaces.
  *
- * Usage: npx tsx scripts/sync-version.ts
+ * Usage: bun scripts/sync-version.ts
  *
- * Called automatically by `npm version` via the postversion hook.
+ * Called explicitly after scripts/set-version.mjs. Version changes are an
+ * ordinary reviewable commit; package-manager publish hooks must not amend it.
  * Updates version in:
  *   - .claude-plugin/plugin.json
  *   - .gemini/extensions/port-daddy/gemini-extension.json

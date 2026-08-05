@@ -265,7 +265,7 @@ if (report.drift.length > 0) {
   for (const d of report.drift) {
     console.error(`    ${d.surface}: found ${d.found ?? 'NONE'}${d.reason ? ` (${d.reason})` : ''}`);
   }
-  console.error(`\n  Fix: run \`npx tsx scripts/sync-version.ts\` (it stamps package.json's version`);
+  console.error(`\n  Fix: run \`bun scripts/sync-version.ts\` (it stamps package.json's version`);
   console.error(`  across every surface), rebuild any affected artifact, and re-run this gate.`);
   process.exit(1);
 }
