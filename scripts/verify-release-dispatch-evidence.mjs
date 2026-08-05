@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const FULL_SHA = /^[0-9a-f]{40}$/;
-const RELEASE_TAG = /^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+const STABLE_RELEASE_TAG = /^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 
 export const RELEASE_ARCHIVES = Object.freeze([
@@ -30,7 +30,7 @@ function fail(message) {
  * independently re-check before mutating its formula.
  */
 export function verifyReleaseDispatchEvidence({ version, candidateSha, imprints }) {
-  if (!RELEASE_TAG.test(version ?? '')) fail('version must be an exact v-prefixed semantic release tag');
+  if (!STABLE_RELEASE_TAG.test(version ?? '')) fail('version must be an exact stable v-prefixed release tag');
   const normalizedSha = (candidateSha ?? '').toLowerCase();
   if (!FULL_SHA.test(normalizedSha)) fail('candidate SHA must be a full 40-character commit');
   if (!imprints || typeof imprints !== 'object') fail('imprints are required');

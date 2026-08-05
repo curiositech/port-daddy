@@ -50,6 +50,14 @@ describe('release-to-tap dispatch evidence', () => {
       .toThrow('release dispatch evidence rejected');
   });
 
+  test('rejects prerelease tags on the Homebrew dispatch path', () => {
+    expect(() => verifyReleaseDispatchEvidence({
+      version: 'v3.28.0-rc.1',
+      candidateSha,
+      imprints: completeImprints(),
+    })).toThrow('exact stable v-prefixed release tag');
+  });
+
   test('release workflow dispatches every verified evidence field', () => {
     expect(releaseWorkflow).toContain('node scripts/verify-release-dispatch-evidence.mjs');
     expect(releaseWorkflow).toContain('--candidate-sha "$CANDIDATE_SHA"');
