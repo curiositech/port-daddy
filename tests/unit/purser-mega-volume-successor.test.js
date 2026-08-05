@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,12 +14,15 @@ const purserTests = [
 
 describe('Purser mega-volume successor contract', () => {
   test('executes every authored adversarial test in the standard CI lane', () => {
-    const output = execFileSync(process.execPath, ['--test', ...purserTests], {
+    const result = spawnSync(process.execPath, ['--test', ...purserTests], {
       cwd: root,
       encoding: 'utf8',
       env: { ...process.env, NO_COLOR: '1' },
     });
+    const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
 
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
     expect(output).toMatch(/tests 5/u);
     expect(output).toMatch(/fail 0/u);
     if (existsSync(resolve(root, 'scripts/generate-mega-whitepaper.mjs'))) {
