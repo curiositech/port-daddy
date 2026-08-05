@@ -99,13 +99,20 @@ describe('resolveDaemonTarget (the one canonical resolver)', () => {
     );
   });
 
-  test('defaults to process.env + real existsSync when called with no args', () => {
-    // Just assert it returns a structurally valid target — no throw, one transport.
-    const t = resolveDaemonTarget();
-    const isSocket = typeof t.socketPath === 'string';
-    const isTcp = typeof t.host === 'string' && typeof t.port === 'number';
-    expect(isSocket || isTcp).toBe(true);
-    expect(isSocket && isTcp).toBe(false);
+  test('defaults to process.env when called with no args', () => {
+    const previousForceTcp = process.env.PORT_DADDY_FORCE_TCP;
+    const previousSocket = process.env.PORT_DADDY_SOCK;
+    try {
+      delete process.env.PORT_DADDY_FORCE_TCP;
+      process.env.PORT_DADDY_SOCK = '/run/pd-default-arguments.sock';
+
+      expect(resolveDaemonTarget()).toEqual({ socketPath: '/run/pd-default-arguments.sock' });
+    } finally {
+      if (previousForceTcp === undefined) delete process.env.PORT_DADDY_FORCE_TCP;
+      else process.env.PORT_DADDY_FORCE_TCP = previousForceTcp;
+      if (previousSocket === undefined) delete process.env.PORT_DADDY_SOCK;
+      else process.env.PORT_DADDY_SOCK = previousSocket;
+    }
   });
 });
 
