@@ -17,9 +17,9 @@ const paths = {
 };
 
 const expectedSha256 = {
-  pdf: 'f72acad03574c3fb8fd30ef8e38c4e298971be49cd46186df4e0f0c209bda1a6',
-  contact: 'c3ec92cc47207eaad8f5d05f6a1a937e3a6f9e192228fac835c9459ed1209c41',
-  tour: '13f3c4952b6e5954e4fa57d0ecce0489af854efec442bd182f8883b851d0d1f2',
+  pdf: 'f7e581b7a5a108e8ea14f483ec015ad0e481c5b8d91cdc6443d95999a40302a0',
+  contact: '6c5507dd28e2050ffaa5171625d0839c70b9b2b0b742261362540fe7528291ef',
+  tour: '833a1ef14c71d1ed6a1f1460959e2b6998119734fb19520e639abe51877ad265',
 };
 
 function text(path) {
@@ -194,14 +194,16 @@ describe('Spawn-to-Person publication contract', () => {
     }
   });
 
-  test('the still and two-frame tour preserve the inspected page geometry', () => {
-    expect(jpegDimensions(readFileSync(paths.contact))).toEqual({ width: 1872, height: 1309 });
+  test('the still and four-frame tour preserve the inspected diagram geometry', () => {
+    expect(jpegDimensions(readFileSync(paths.contact))).toEqual({ width: 2072, height: 2968 });
     const gif = parseGif(readFileSync(paths.tour));
-    expect(gif.canvas).toEqual({ width: 1100, height: 1557 });
-    expect(gif.frames).toHaveLength(2);
+    expect(gif.canvas).toEqual({ width: 900, height: 1303 });
+    expect(gif.frames).toHaveLength(4);
     expect(gif.frames).toEqual([
-      { width: 1100, height: 1557 },
-      { width: 1100, height: 1557 },
+      { width: 900, height: 1303 },
+      { width: 900, height: 1303 },
+      { width: 900, height: 1303 },
+      { width: 900, height: 1303 },
     ]);
   });
 
