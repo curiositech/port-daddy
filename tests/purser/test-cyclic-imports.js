@@ -1,24 +1,28 @@
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  cleanupFixture,
+  injectAfterDocumentStart,
+  makeFixture,
+  runGenerator,
+  subjectAvailable,
+  writeFixture,
+} from './mega-volume-test-helpers.js';
 
-const repoRoot = path.resolve(__dirname, '../../');
-const testDir = path.join(repoRoot, 'tests/purser/cyclic-test');
-fs.mkdirSync(testDir, { recursive: true });
+test('generator rejects a transitive TeX import cycle with a useful receipt', {
+  skip: subjectAvailable() ? false : 'mega-volume generator lands in the subject PR',
+}, () => {
+  const root = makeFixture();
+  try {
+    injectAfterDocumentStart(root, 'whitepaper/legible-swarm.tex', '\\input{purser-cycle-a}');
+    writeFixture(root, 'whitepaper/purser-cycle-a.tex', '\\input{purser-cycle-b}\n');
+    writeFixture(root, 'whitepaper/purser-cycle-b.tex', '\\input{purser-cycle-a}\n');
+    const result = runGenerator(root);
 
-// Create cyclic import files
-const fileA = path.join(testDir, 'a.tex');
-const fileB = path.join(testDir, 'b.tex');
-fs.writeFileSync(fileA, `\input{b.tex}\begin{document} A \end{document}`);
-fs.writeFileSync(fileB, `\input{a.tex}\begin{document} B \end{document}`);
-
-try {
-  execSync(`node scripts/generate-mega-whitepaper.mjs ${testDir}`, { cwd: repoRoot, stdio: 'pipe' });
-  console.error('Test failed: build should have failed due to cyclic imports');
-  process.exit(1);
-} catch (error) {
-  console.log('Test passed: build correctly failed due to cyclic imports');
-  process.exit(0);
-} finally {
-  fs.rmSync(testDir, { recursive: true });
-}
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /cyclic TeX import/u);
+    assert.match(result.stderr, /purser-cycle-a\.tex.*purser-cycle-b\.tex.*purser-cycle-a\.tex/us);
+  } finally {
+    cleanupFixture(root);
+  }
+});
