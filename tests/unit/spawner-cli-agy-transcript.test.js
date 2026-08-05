@@ -2,9 +2,8 @@
  * cli:agy transcript failure behavior.
  *
  * This runs through the real spawner and cli-tube backend with a fake agy
- * binary. It proves a hanging/no-output agy child becomes a terminal failed
- * transcript row with an operator-visible reason instead of lingering as
- * status=running.
+ * binary. It proves a caller-owned deadline turns a hanging/no-output child
+ * into a terminal failed transcript instead of leaving status=running.
  */
 
 import { describe, test, expect, beforeEach, afterEach, beforeAll, afterAll, jest } from '@jest/globals';
@@ -21,10 +20,10 @@ jest.setTimeout(15_000);
 const TEST_TELEMETRY_BYPASS = {
   humanConfirmed: true,
   confirmedBy: 'jest',
-  reason: 'cli:agy timeout transcript behavior test with fake local binary',
+  reason: 'cli:agy explicit deadline transcript behavior test with fake local binary',
 };
 
-describe('cli:agy timeout transcript behavior', () => {
+describe('cli:agy explicit deadline transcript behavior', () => {
   let db;
   let transcripts;
   let tempDir;
@@ -69,7 +68,7 @@ describe('cli:agy timeout transcript behavior', () => {
     if (tempDir) rmSync(tempDir, { recursive: true, force: true });
   });
 
-  test('hanging no-output agy child finalizes transcript as failed', async () => {
+  test('hanging no-output agy child finalizes transcript as deadline-cancelled', async () => {
     const spawner = createSpawner({
       transcripts,
       enforceTelemetryPolicy: false,
@@ -80,30 +79,28 @@ describe('cli:agy timeout transcript behavior', () => {
     const result = await spawner.spawn({
       backend: 'cli:agy',
       task: 'Reply with exactly: agy',
-      timeout: 25,
+      deadlineMs: 25,
       ship: 'spawn:cli:agy',
       trigger: 'manual',
       coastGuard: false,
     });
 
-    expect(result.status).toBe('failed');
-    expect(result.error).toContain('agy timed out after 25ms');
+    expect(result.status).toBe('cancelled');
+    expect(result.error).toContain('deadline expired after 25ms');
     expect(result.completedAt).not.toBeNull();
 
     const rows = transcripts.listTranscripts({ ship: 'spawn:cli:agy' });
     expect(rows).toHaveLength(1);
-    expect(rows[0].status).toBe('failed');
-    expect(rows[0].error).toContain('agy timed out after 25ms');
+    expect(rows[0].status).toBe('cancelled');
+    expect(rows[0].error).toContain('deadline expired after 25ms');
     expect(rows[0].ended_at).toBeTruthy();
 
     const tx = transcripts.getTranscript(rows[0].id);
-    expect(tx.status).toBe('failed');
-    expect(tx.error).toContain('agy timed out after 25ms');
+    expect(tx.status).toBe('cancelled');
+    expect(tx.error).toContain('deadline expired after 25ms');
     expect(tx.messages.map((m) => m.role)).toEqual(['user', 'assistant']);
-    expect(tx.messages[1].content).toContain('[error] agy timed out after 25ms');
-    expect(tx.outputs).toHaveLength(1);
-    expect(tx.outputs[0].type).toBe('noop');
-    expect(tx.outputs[0].summary).toContain('failed: agy timed out after 25ms');
+    expect(tx.messages[1].content).toContain('deadline expired after 25ms');
+    expect(tx.outputs).toEqual([]);
   });
 });
 
