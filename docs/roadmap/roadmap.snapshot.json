@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1785888492603,
+  "generatedAt": 1785972321000,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 259,
+  "count": 260,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -758,6 +758,11 @@
       "slug": "durable-agent-same-harness-continuation",
       "status": "now",
       "summaryMd": "Daemon-witnessed same-harness session continuation with UUID and workspace-bound evidence, owner-leased receipts, and truthful native resume semantics."
+    },
+    {
+      "slug": "durable-asynchronous-spawn-receipts",
+      "status": "now",
+      "summaryMd": "Durable idempotent admission, lifecycle, liveness, cancellation, and collection receipts for background agent runs."
     },
     {
       "slug": "feat-backend-dropdown-spawn-forecast",
