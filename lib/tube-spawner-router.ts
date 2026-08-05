@@ -17,7 +17,7 @@
  *     control channel you trust, and keep `allowedBackends` tight.
  *   - Every refusal is LOUD: it posts a structured refusal back to the channel
  *     and returns a typed outcome. Nothing is ever silently dropped.
- *   - `timeout` is clamped; `task`/`backend` are validated; unknown fields are
+ *   - `deadlineMs` is clamped; `task`/`backend` are validated; unknown fields are
  *     dropped (the spawn spec is rebuilt allow-listed, never spread from input).
  *
  * ── DELEGATION & LOOP DETECTION (read this too) ───────────────────────────────
@@ -83,8 +83,8 @@ const KNOWN_BACKENDS: ReadonlyArray<SpawnSpec['backend']> = [
   'cli:grok',
 ];
 
-const HARD_MAX_TIMEOUT_MS = 30 * 60 * 1000; // 30 min absolute ceiling
-const DEFAULT_MAX_TIMEOUT_MS = 10 * 60 * 1000;
+const HARD_MAX_DEADLINE_MS = 30 * 60 * 1000; // 30 min absolute ceiling
+const DEFAULT_MAX_DEADLINE_MS = 10 * 60 * 1000;
 
 /** Absolute ceilings. A policy may tighten these but NEVER loosen past them. */
 const HARD_MAX_DELEGATION_DEPTH = 8;
@@ -125,6 +125,8 @@ export interface TubeCommandEnvelope {
   modelTier?: 'low' | 'mid' | 'high';
   identity?: string;
   purpose?: string;
+  /** Optional caller-owned deadline in milliseconds. Legacy alias: `timeout`. */
+  deadlineMs?: number;
   timeout?: number;
   /**
    * Lineage carried by a spawned agent that is itself driving the tube. The
@@ -177,7 +179,8 @@ export interface RouterPolicy {
   allowedSenders?: string[];
   /** Backends the router may launch. Defaults to a safe subset. */
   allowedBackends?: ReadonlyArray<SpawnSpec['backend']>;
-  /** Upper bound on `timeout` (ms). Clamped to HARD_MAX_TIMEOUT_MS. */
+  /** Upper bound on `deadlineMs` (ms). Legacy alias: `maxTimeoutMs`. */
+  maxDeadlineMs?: number;
   maxTimeoutMs?: number;
   /** Identity applied to spawns that don't specify one. */
   defaultIdentity?: string;
@@ -373,11 +376,16 @@ export function buildSpawnSpec(
   if (typeof cmd.task !== 'string' || !cmd.task.trim()) {
     return { refusal: 'task is required' };
   }
-  const ceiling = Math.min(policy.maxTimeoutMs ?? DEFAULT_MAX_TIMEOUT_MS, HARD_MAX_TIMEOUT_MS);
-  const timeout =
-    typeof cmd.timeout === 'number' && Number.isFinite(cmd.timeout) && cmd.timeout > 0
-      ? Math.min(Math.floor(cmd.timeout), ceiling)
-      : ceiling;
+  const ceiling = Math.min(policy.maxDeadlineMs ?? policy.maxTimeoutMs ?? DEFAULT_MAX_DEADLINE_MS, HARD_MAX_DEADLINE_MS);
+  const requestedDeadlineMs =
+    typeof cmd.deadlineMs === 'number' && Number.isFinite(cmd.deadlineMs) && cmd.deadlineMs > 0
+      ? cmd.deadlineMs
+      : typeof cmd.timeout === 'number' && Number.isFinite(cmd.timeout) && cmd.timeout > 0
+        ? cmd.timeout
+        : undefined;
+  const deadlineMs = requestedDeadlineMs === undefined
+    ? undefined
+    : Math.min(Math.floor(requestedDeadlineMs), ceiling);
 
   const inbound = loop?.inbound ?? parseDelegationChain(cmd.delegationChain);
   const taskShape = loop?.taskShape ?? normalizeTaskShape(cmd.task);
@@ -392,13 +400,13 @@ export function buildSpawnSpec(
   const spec: SpawnSpec = {
     backend,
     task: cmd.task,
-    timeout,
     ...(cmd.name ? { name: cmd.name } : {}),
     ...(cmd.model ? { model: cmd.model } : {}),
     ...(cmd.modelTier ? { modelTier: cmd.modelTier } : {}),
     ...(cmd.purpose ? { purpose: cmd.purpose } : {}),
     identity: cmd.identity ?? policy.defaultIdentity,
     trigger: 'tube',
+    ...(deadlineMs === undefined ? {} : { deadlineMs }),
   };
   return { spec, childChain };
 }

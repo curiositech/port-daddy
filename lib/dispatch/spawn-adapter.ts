@@ -223,7 +223,7 @@ export function disableGuardInWorktree(worktreePath: string): void {
  * Default exec-level ceiling for the publish subprocesses (`git push`, `gh pr
  * create`). The Conductor wraps the whole publish in its own `publishTimeoutMs`
  * belt (default 120s) to free the dispatch's in-flight slot, but that only
- * unblocks the daemon — it does NOT kill a hung child. We set the per-exec
+ * unblocks the daemon — it does NOT let a hung child keep running. We set the per-exec
  * timeout slightly UNDER that belt so a stuck `git push` (DNS/ssh hang) or
  * `gh pr create` (API retry storm) is SIGKILLed at the source before the
  * Conductor gives up, rather than orphaning a process that lingers overnight.
@@ -282,7 +282,7 @@ export async function openDraftPr(params: {
   goal: string;
   dispatchId: string;
   worktreePath: string;
-  /** Exec-level kill ceiling; see PUBLISH_EXEC_TIMEOUT_MS. */
+  /** Exec-level transport ceiling; see PUBLISH_EXEC_TIMEOUT_MS. */
   timeoutMs?: number;
 }): Promise<string> {
   const title = `[dispatch] ${params.goal.slice(0, 60)}${params.goal.length > 60 ? '...' : ''}`;
@@ -341,7 +341,7 @@ async function runAgentInWorktree(params: {
   command: string;
   args: string[];
   env: Record<string, string | undefined>;
-  timeoutMs: number;
+  deadlineMs: number;
 }): Promise<{ output: string; error: string | null }> {
   // Backend-aware confinement. `codex` self-sandboxes via `--sandbox
   // workspace-write` (which on macOS is itself a `sandbox-exec` profile);
@@ -361,7 +361,7 @@ async function runAgentInWorktree(params: {
 
   return new Promise((res) => {
     let settled = false;
-    let timedOut = false;
+    let deadlineExpired = false;
 
     const child = execFile(
       wrap.cmd,
@@ -391,31 +391,31 @@ async function runAgentInWorktree(params: {
     child.stdout?.on('data', (d: Buffer) => stdout.push(d.toString()));
     child.stderr?.on('data', (d: Buffer) => stderr.push(d.toString()));
 
-    const timeoutId = setTimeout(() => {
+    const deadlineTimer = setTimeout(() => {
       if (settled) return;
-      timedOut = true;
+      deadlineExpired = true;
       try { process.kill(-child.pid!, 'SIGTERM'); } catch { /* already gone */ }
       try { child.kill('SIGTERM'); } catch { /* already gone */ }
-      const forceKill = setTimeout(() => {
+      const hardStopTimer = setTimeout(() => {
         try { process.kill(-child.pid!, 'SIGKILL'); } catch {}
         try { child.kill('SIGKILL'); } catch {}
       }, 5_000);
-      forceKill.unref?.();
-    }, params.timeoutMs);
-    timeoutId.unref?.();
+      hardStopTimer.unref?.();
+    }, params.deadlineMs);
+    deadlineTimer.unref?.();
 
     child.on('close', (code) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeoutId);
+      clearTimeout(deadlineTimer);
       // Clean up Coast Guard temp files (e.g. seatbelt profile).
       for (const f of wrap.cleanup) {
         try { execFileSync('rm', ['-rf', f]); } catch {}
       }
       const out = stdout.join('');
       const err = stderr.join('');
-      if (timedOut) {
-        res({ output: out, error: `Agent timed out after ${Math.round(params.timeoutMs / 60000)} min${err ? `: ${err.slice(0, 200)}` : ''}` });
+      if (deadlineExpired) {
+        res({ output: out, error: `Agent cancelled after ${Math.round(params.deadlineMs / 60000)} min deadline${err ? `: ${err.slice(0, 200)}` : ''}` });
       } else if (code !== 0) {
         res({ output: out, error: err || `${params.command} exited with code ${code}` });
       } else {
@@ -426,7 +426,7 @@ async function runAgentInWorktree(params: {
     child.on('error', (err) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timeoutId);
+      clearTimeout(deadlineTimer);
       res({ output: '', error: `Failed to start ${params.command}: ${err.message}` });
     });
   });
@@ -437,7 +437,7 @@ async function runAgentInWorktree(params: {
 export interface SpawnAdapterOptions {
   /**
    * Injectable spawn function for unit tests. When provided, no real subprocess
-   * is started; the function receives the same (command, args, cwd, env, timeoutMs)
+   * is started; the function receives the same (command, args, cwd, env, deadlineMs)
    * the real adapter would use.
    */
   spawnFn?: (params: {
@@ -445,7 +445,7 @@ export interface SpawnAdapterOptions {
     args: string[];
     cwd: string;
     env: Record<string, string | undefined>;
-    timeoutMs: number;
+    deadlineMs: number;
   }) => Promise<{ output: string; error: string | null }>;
 
   /**
@@ -484,7 +484,7 @@ export function createSpawnAdapter(opts: SpawnAdapterOptions = {}): SpawnAdapter
       command: params.command,
       args: params.args,
       env: params.env,
-      timeoutMs: params.timeoutMs,
+      deadlineMs: params.deadlineMs,
     })
   );
 
@@ -541,7 +541,7 @@ export function createSpawnAdapter(opts: SpawnAdapterOptions = {}): SpawnAdapter
         args: plan.args,
         cwd: plan.worktreePath,
         env: agentEnv,
-        timeoutMs: plan.timeoutMs,
+        deadlineMs: plan.timeoutMs,
       });
       agentError = result.error;
     } catch (err) {

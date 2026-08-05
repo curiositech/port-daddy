@@ -126,6 +126,7 @@ export interface FleetAgent {
   onSuccess?: string;
   onFailure?: string;
   identity?: string;
+  deadlineMs?: number;
   timeout?: number;
   allowedTools?: string;
 }

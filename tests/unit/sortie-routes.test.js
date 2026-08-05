@@ -113,6 +113,7 @@ describe('sortie routes', () => {
       modelTier: 'low',
       identity: `${project}:sortie:${created.sortie.id}:coordinator`,
     }));
+    expect(spawner.spawn.mock.calls[0][0]).not.toHaveProperty('deadlineMs');
 
     const listRes = await app.inject({
       method: 'GET',
@@ -220,6 +221,7 @@ describe('sortie routes', () => {
         backend: 'codex',
         modelTier: 'low',
         budgetUsd: 0.75,
+        deadlineMs: 120000,
         projectDir: process.cwd(),
         expectedOutput: 'Root-cause memo',
       },
@@ -229,7 +231,7 @@ describe('sortie routes', () => {
     const created = createRes.json();
     expect(created.success).toBe(true);
     expect(created.sortie.status).toBe('completed');
-    // The Conductor reached the spawner exactly once, with the legacy spec shape.
+    // The Conductor reached the spawner exactly once, with the translated spec shape.
     expect(spawner.spawn).toHaveBeenCalledTimes(1);
     const spec = spawner.spawn.mock.calls[0][0];
     expect(spec).toEqual(expect.objectContaining({
@@ -239,6 +241,7 @@ describe('sortie routes', () => {
       identity: `${project}:sortie:${created.sortie.id}:coordinator`,
       task: expect.any(String),
       workdir: process.cwd(),
+      deadlineMs: 120000,
     }));
     // The chokepoint did not leak Conductor-internal fields into the spawn spec.
     expect(spec).not.toHaveProperty('lineageCeilingUsd');

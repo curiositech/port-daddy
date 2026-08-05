@@ -3223,7 +3223,7 @@ class PortDaddy {
   }
 
   /**
-   * Kill a running spawned agent by ID.
+   * Cancel a running spawned agent by ID.
    */
   async cancelSpawned(agentId: string): Promise<CancelSpawnedResponse> {
     return this._request('DELETE', `/spawn/${encodeURIComponent(agentId)}`) as Promise<CancelSpawnedResponse>;
@@ -3939,6 +3939,9 @@ interface SpawnSpec {
   files?: string[];
   workdir?: string;
   env?: Record<string, string>;
+  deadlineMs?: number;
+  transportTimeoutMs?: number;
+  /** Legacy alias for `deadlineMs`; kept for compatibility with older callers. */
   timeout?: number;
   allowedTools?: string;
   maxTokens?: number;

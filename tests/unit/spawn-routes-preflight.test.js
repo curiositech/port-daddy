@@ -191,6 +191,35 @@ describe('spawn routes preflight', () => {
       task: 'review the diff',
       budgetUsd: 0.75,
     }), expect.any(Function));
+    expect(spawner.spawn.mock.calls[0][0]).not.toHaveProperty('deadlineMs');
+
+    await app.close();
+  });
+
+  test('POST /spawn forwards deadlineMs when provided', async () => {
+    const { app, spawner, register } = buildApp();
+    await register();
+
+    await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      payload: {
+        backend: 'claude-cli',
+        identity: 'port-daddy:repo:cli',
+        task: 'review the diff',
+        budgetUsd: 0.75,
+        deadlineMs: 120000,
+      },
+    });
+
+    expect(spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
+      backend: 'claude-cli',
+      identity: 'port-daddy:repo:cli',
+      model: 'claude-sonnet-4-5-20250929',
+      task: 'review the diff',
+      budgetUsd: 0.75,
+      deadlineMs: 120000,
+    }), expect.any(Function));
 
     await app.close();
   });

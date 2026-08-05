@@ -118,7 +118,9 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         files,
         workdir,
         env,
+        deadlineMs,
         timeout,
+        transportTimeoutMs,
         allowedTools,
         maxTokens,
         permissionMode,
@@ -256,7 +258,17 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       if (Array.isArray(files)) spec.files = files as string[];
       if (workdir && typeof workdir === 'string') spec.workdir = workdir;
       if (env && typeof env === 'object' && !Array.isArray(env)) spec.env = env as Record<string, string>;
-      if (timeout && typeof timeout === 'number') spec.timeout = timeout;
+      const requestedDeadlineMs = typeof deadlineMs === 'number'
+        ? deadlineMs
+        : typeof timeout === 'number'
+          ? timeout
+          : undefined;
+      if (typeof requestedDeadlineMs === 'number' && Number.isFinite(requestedDeadlineMs) && requestedDeadlineMs > 0) {
+        spec.deadlineMs = Math.floor(requestedDeadlineMs);
+      }
+      if (typeof transportTimeoutMs === 'number' && Number.isFinite(transportTimeoutMs) && transportTimeoutMs > 0) {
+        spec.transportTimeoutMs = Math.floor(transportTimeoutMs);
+      }
       if (allowedTools && typeof allowedTools === 'string') spec.allowedTools = allowedTools;
       if (maxTokens && typeof maxTokens === 'number') spec.maxTokens = maxTokens;
       if (typeof tubeChannel === 'string') spec.tubeChannel = tubeChannel;

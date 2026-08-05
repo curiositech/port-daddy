@@ -74,6 +74,7 @@ loadEnvFiles();
 
 const PD_URL = process.env.PD_URL || process.env.PORT_DADDY_URL || getDaemonUrl();
 const LOCAL_EXECUTION_BACKENDS = new Set(['claude-cli', 'codex', 'ollama', 'aider', 'custom']);
+const SPAWN_ADMISSION_TIMEOUT_MS = 5 * 60 * 1000 + 10 * 1000;
 
 interface FleetModelBackend {
   id: string;
@@ -895,10 +896,10 @@ async function runAgentByName(agentName: string, preloadedConfig?: ReturnType<ty
         purpose: `Fleet agent: ${agent.name}`,
         backend: runtime.backend,
         budgetUsd,
-        timeout: agent.timeout,
+        deadlineMs: agent.deadlineMs ?? agent.timeout,
         allowedTools: agent.allowedTools,
       }),
-      timeout: (agent.timeout ?? 300000) + 10000,
+      timeout: SPAWN_ADMISSION_TIMEOUT_MS,
     });
 
     const data = await res.json() as any;

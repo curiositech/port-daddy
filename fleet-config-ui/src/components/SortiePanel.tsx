@@ -152,7 +152,7 @@ const RECIPES: RecipeSpec[] = [
     roster: ['coordinator'],
     steps: [
       'Use the goal and notes as the source of truth.',
-      'Stay inside the declared budget and duration ceiling.',
+      'Stay inside the declared budget and deadline ceiling.',
       'Return a concise operator-facing summary at the end.',
     ],
     outputs: ['Requested deliverable', 'Risks', 'Follow-up items'],
@@ -240,7 +240,7 @@ function buildMissionPrompt(draft: MissionDraft, recipe: RecipeSpec, identity: s
     '',
     'Mission guardrails:',
     `- Budget ceiling: $${draft.budgetUsd.trim() || recipe.defaultBudgetUsd}`,
-    `- Time ceiling: ${draft.maxDurationMinutes.trim() || recipe.defaultDurationMinutes} minutes`,
+    `- Deadline: ${draft.maxDurationMinutes.trim() || recipe.defaultDurationMinutes} minutes`,
     `- Approval mode: ${APPROVAL_LABELS[draft.approvalMode]}`,
     draft.allowedTools.trim() ? `- Preferred tool scope: ${draft.allowedTools.trim()}` : '- Preferred tool scope: use the minimum necessary tool surface',
     '',
@@ -500,7 +500,7 @@ export default function SortiePanel({ project }: SortiePanelProps) {
         identity: effectiveIdentity,
         allowedTools: draft.allowedTools.trim() || undefined,
         budgetUsd: parsedBudgetUsd,
-        timeout: Number.isFinite(parsedDurationMinutes) && parsedDurationMinutes > 0
+        deadlineMs: Number.isFinite(parsedDurationMinutes) && parsedDurationMinutes > 0
           ? Math.round(parsedDurationMinutes * 60_000)
           : undefined,
       });
@@ -770,7 +770,7 @@ export default function SortiePanel({ project }: SortiePanelProps) {
                         </div>
 
                         <div>
-                          <label className="pd-label" htmlFor="sortie-duration">Time ceiling (minutes)</label>
+                          <label className="pd-label" htmlFor="sortie-duration">Deadline (minutes)</label>
                           <input
                             id="sortie-duration"
                             className="pd-input font-mono"
@@ -947,7 +947,7 @@ export default function SortiePanel({ project }: SortiePanelProps) {
                     <section className="pd-card-muted p-4">
                       <div className="grid gap-3">
                         <SummaryStat icon={Wallet} label="Budget ceiling" value={`$${draft.budgetUsd || recipe.defaultBudgetUsd}`} />
-                        <SummaryStat icon={Clock3} label="Time ceiling" value={`${draft.maxDurationMinutes || recipe.defaultDurationMinutes} min`} />
+                        <SummaryStat icon={Clock3} label="Deadline" value={`${draft.maxDurationMinutes || recipe.defaultDurationMinutes} min`} />
                         <SummaryStat icon={ShieldCheck} label="Approval mode" value={APPROVAL_LABELS[draft.approvalMode]} />
                       </div>
 

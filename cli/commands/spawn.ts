@@ -159,7 +159,11 @@ export async function handleSpawn(
 
   const backend = (options.backend as string) || 'ollama';
   const budgetUsd = parseBudgetValue(options.budget);
-  const requestedTimeoutMs = options.timeout != null ? parseInt(String(options.timeout), 10) : undefined;
+  const requestedDeadlineMs =
+    options.deadlineMs != null ? parseInt(String(options.deadlineMs), 10)
+    : options['deadline-ms'] != null ? parseInt(String(options['deadline-ms']), 10)
+    : options.timeout != null ? parseInt(String(options.timeout), 10)
+    : undefined;
 
   // Single source of truth: lib/backend-catalog.ts (ADR-0057 model-abstraction
   // unification) — this used to be a hand-maintained array duplicating
@@ -185,7 +189,7 @@ export async function handleSpawn(
     console.error('  --budget <usd>        Required spend ceiling for this launch');
     console.error('  --allowedTools <str>  Tool permissions for claude-cli backend');
     console.error('  --maxTokens <n>       Max tokens for claude/claude-cli backends');
-    console.error('  --timeout <ms>         Optional hard task deadline; CLI agents have no default');
+    console.error('  --deadline-ms <ms>    Optional task deadline; CLI agents have no default');
     console.error('  --detach               Return the durable receipt without following the run');
     console.error('  --inject-squid-hooks  Install Giant Squid tentacles before launching supported CLI backends');
     console.error('  -j, --json            JSON output');
@@ -230,7 +234,7 @@ export async function handleSpawn(
   }
 
   if (options.workdir) body.workdir = options.workdir;
-  if (requestedTimeoutMs && requestedTimeoutMs > 0) body.timeout = requestedTimeoutMs;
+  if (requestedDeadlineMs && requestedDeadlineMs > 0) body.deadlineMs = requestedDeadlineMs;
   if (options.allowedTools) body.allowedTools = options.allowedTools;
   if (options.maxTokens) body.maxTokens = parseInt(options.maxTokens as string, 10);
   if (options['inject-squid-hooks'] === true || options.injectSquidHooks === true) {

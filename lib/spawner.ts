@@ -166,7 +166,11 @@ export interface SpawnSpec {
   // default spawn is unchanged (writes allowed, full-tier bond).
   capabilities?: string[];
   env?: Record<string, string>;
-  /** Optional hard execution deadline in milliseconds. Omit for no task wall deadline. */
+  /** Optional caller-owned wall deadline in milliseconds. Omit for no task deadline. */
+  deadlineMs?: number;
+  /** Optional transport timeout for backend/client plumbing. Independent from the task deadline. */
+  transportTimeoutMs?: number;
+  /** Legacy alias for `deadlineMs`; kept for compatibility with older callers. */
   timeout?: number;
   /** Coordination sessions are durable by default; explicitly opt into ephemeral for probes. */
   coordinationLifecycle?: 'durable' | 'ephemeral';
@@ -307,9 +311,12 @@ export interface TelemetryBypassApproval {
 // Internal tracking record
 interface AgentRecord extends SpawnedAgent {
   heartbeatInterval: ReturnType<typeof setInterval> | null;
+  deadlineTimer: ReturnType<typeof setTimeout> | null;
+  deadlineController: AbortController | null;
   childProcess: ChildProcess | null;
   bondId?: number | null;
   bondUsd?: number;
+  cancelReason: string | null;
   transcriptId: string | null;
   result?: SpawnResult;
 }
@@ -458,14 +465,16 @@ interface ChildRunOpts {
   args: string[];
   cwd?: string;
   env?: Record<string, string | undefined>;
-  timeout?: number;
+  transportTimeoutMs?: number;
   stdio?: ('ignore' | 'pipe')[];
   onChild?: (child: ChildProcess) => void;
 }
 
 function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string | null; child: ChildProcess }> {
   return new Promise((resolve) => {
-    const timeoutMs = opts.timeout && opts.timeout > 0 ? opts.timeout : null;
+    const timeoutMs = typeof opts.transportTimeoutMs === 'number' && opts.transportTimeoutMs > 0
+      ? opts.transportTimeoutMs
+      : null;
     const child = spawnChild(opts.cmd, opts.args, {
       cwd: opts.cwd || process.cwd(),
       env: opts.env as NodeJS.ProcessEnv,
@@ -480,14 +489,14 @@ function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string |
     const stderr: string[] = [];
     let timedOut = false;
     let settled = false;
-    let forceKillTimer: ReturnType<typeof setTimeout> | null = null;
+    let hardStopTimer: ReturnType<typeof setTimeout> | null = null;
     const timeoutTimer = timeoutMs === null ? null : setTimeout(() => {
       timedOut = true;
       signalChildProcess(child, 'SIGTERM');
-      forceKillTimer = setTimeout(() => {
+      hardStopTimer = setTimeout(() => {
         signalChildProcess(child, 'SIGKILL');
       }, 5000);
-      forceKillTimer.unref?.();
+      hardStopTimer.unref?.();
     }, Math.max(1, timeoutMs - 25));
     timeoutTimer?.unref?.();
 
@@ -498,7 +507,7 @@ function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string |
       if (settled) return;
       settled = true;
       if (timeoutTimer) clearTimeout(timeoutTimer);
-      if (forceKillTimer) clearTimeout(forceKillTimer);
+      if (hardStopTimer) clearTimeout(hardStopTimer);
       const out = stdout.join('');
       const errText = stderr.join('');
       if (timedOut) {
@@ -514,7 +523,7 @@ function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string |
       if (settled) return;
       settled = true;
       if (timeoutTimer) clearTimeout(timeoutTimer);
-      if (forceKillTimer) clearTimeout(forceKillTimer);
+      if (hardStopTimer) clearTimeout(hardStopTimer);
       resolve({ output: '', error: `Failed to start ${opts.cmd}: ${err.message}`, child });
     });
   });
@@ -538,10 +547,10 @@ function signalChildProcess(child: ChildProcess, signal: NodeJS.Signals): void {
 
 function terminateChildProcess(child: ChildProcess): void {
   signalChildProcess(child, 'SIGTERM');
-  const forceKillTimer = setTimeout(() => {
+  const hardStopTimer = setTimeout(() => {
     signalChildProcess(child, 'SIGKILL');
   }, 5000);
-  forceKillTimer.unref?.();
+  hardStopTimer.unref?.();
 }
 
 // =============================================================================
@@ -561,7 +570,7 @@ interface ConfinedChildOpts {
   env: Record<string, string | undefined>;
   /** Working dir for both the child and the sandbox binding (defaults to spec.workdir). */
   cwd?: string;
-  timeout?: number;
+  transportTimeoutMs?: number;
   stdio?: ('ignore' | 'pipe')[];
   context?: BackendRunContext;
 }
@@ -606,7 +615,7 @@ async function runConfinedChild(
       args: cg.args,
       env: cg.env,
       cwd,
-      timeout: opts.timeout,
+      transportTimeoutMs: opts.transportTimeoutMs,
       stdio: opts.stdio,
       onChild: opts.context?.onChildProcess,
     });
@@ -663,11 +672,48 @@ interface BackendRunContext {
   tubeChannel?: string;
 }
 
-const DEFAULT_BACKEND_TIMEOUT_MS = 5 * 60 * 1000;
+const DEFAULT_BACKEND_TRANSPORT_TIMEOUT_MS = 5 * 60 * 1000;
+const DEFAULT_COAST_GUARD_LEASE_TTL_MS = 300_000;
 
-function backendAbortSignal(spec: SpawnSpec): AbortSignal {
-  const timeoutMs = spec.timeout && spec.timeout > 0 ? spec.timeout : DEFAULT_BACKEND_TIMEOUT_MS;
-  return AbortSignal.timeout(timeoutMs);
+function resolveTransportTimeoutMs(spec: Pick<SpawnSpec, 'transportTimeoutMs'>): number {
+  const timeoutMs = spec.transportTimeoutMs;
+  return typeof timeoutMs === 'number' && Number.isFinite(timeoutMs) && timeoutMs > 0
+    ? timeoutMs
+    : DEFAULT_BACKEND_TRANSPORT_TIMEOUT_MS;
+}
+
+function resolveDeadlineMs(spec: Pick<SpawnSpec, 'deadlineMs' | 'timeout'>): number | null {
+  const deadlineMs = typeof spec.deadlineMs === 'number' && Number.isFinite(spec.deadlineMs) && spec.deadlineMs > 0
+    ? spec.deadlineMs
+    : typeof spec.timeout === 'number' && Number.isFinite(spec.timeout) && spec.timeout > 0
+      ? spec.timeout
+      : null;
+  return deadlineMs;
+}
+
+function backendAbortSignal(spec: SpawnSpec, deadlineSignal?: AbortSignal): AbortSignal {
+  const transportSignal = AbortSignal.timeout(resolveTransportTimeoutMs(spec));
+  return deadlineSignal ? AbortSignal.any([transportSignal, deadlineSignal]) : transportSignal;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return promise;
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    timer.unref?.();
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 interface CodexUsage {
@@ -680,16 +726,16 @@ const CODEX_DAEMON_CONTEXT_ENV_KEYS = [
   'CODEX_THREAD_ID',
 ] as const;
 
-async function runOllama(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runOllama(spec: SpawnSpec, model: string, deadlineSignal?: AbortSignal): Promise<BackendRunResult> {
   const result = await ollamaAdapter({
     prompt: spec.task,
     model,
-    signal: backendAbortSignal(spec),
+    signal: backendAbortSignal(spec, deadlineSignal),
   });
   return adaptLLMResult(result);
 }
 
-async function runClaude(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runClaude(spec: SpawnSpec, model: string, deadlineSignal?: AbortSignal): Promise<BackendRunResult> {
   // Dynamic import with graceful fallback — use Function to avoid static analysis
   // of the module specifier (so tsc doesn't error on a missing optional dep)
   let Anthropic: unknown = null;
@@ -716,11 +762,14 @@ async function runClaude(spec: SpawnSpec, model: string): Promise<BackendRunResu
       apiKey: getSecret('ANTHROPIC_API_KEY'),
     });
 
-    const response = await client.messages.create({
+    const request = client.messages.create({
       model,
       max_tokens: 8192,
       messages: [{ role: 'user', content: spec.task }],
+      signal: backendAbortSignal(spec, deadlineSignal),
     });
+    request.catch(() => {});
+    const response = await withTimeout(request, resolveTransportTimeoutMs(spec), 'Claude request');
 
     const text = response.content.map((c) => c.text).join('');
     return {
@@ -734,7 +783,7 @@ async function runClaude(spec: SpawnSpec, model: string): Promise<BackendRunResu
   }
 }
 
-async function runGemini(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runGemini(spec: SpawnSpec, model: string, deadlineSignal?: AbortSignal): Promise<BackendRunResult> {
   // REST-based: no SDK dep, and (critically) extracts exact usage tokens
   // (promptTokenCount + candidatesTokenCount + thoughtsTokenCount) so the
   // fail-closed telemetry policy can record an exact nonzero cost. The
@@ -743,7 +792,7 @@ async function runGemini(spec: SpawnSpec, model: string): Promise<BackendRunResu
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: backendAbortSignal(spec),
+    signal: backendAbortSignal(spec, deadlineSignal),
   });
   const adapted = adaptLLMResult(result);
   // Full-depth capture: reconstruct thinking / functionCall / text turns from
@@ -755,52 +804,52 @@ async function runGemini(spec: SpawnSpec, model: string): Promise<BackendRunResu
   return adapted;
 }
 
-async function runGroq(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runGroq(spec: SpawnSpec, model: string, deadlineSignal?: AbortSignal): Promise<BackendRunResult> {
   const result = await groqAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: backendAbortSignal(spec),
+    signal: backendAbortSignal(spec, deadlineSignal),
   });
   return adaptLLMResult(result);
 }
 
-async function runLmStudio(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runLmStudio(spec: SpawnSpec, model: string, deadlineSignal?: AbortSignal): Promise<BackendRunResult> {
   const result = await lmstudioAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: backendAbortSignal(spec),
+    signal: backendAbortSignal(spec, deadlineSignal),
   });
   return adaptLLMResult(result);
 }
 
-async function runDeepseek(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runDeepseek(spec: SpawnSpec, model: string, deadlineSignal?: AbortSignal): Promise<BackendRunResult> {
   const result = await deepseekAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: backendAbortSignal(spec),
+    signal: backendAbortSignal(spec, deadlineSignal),
   });
   return adaptLLMResult(result);
 }
 
-async function runXai(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runXai(spec: SpawnSpec, model: string, deadlineSignal?: AbortSignal): Promise<BackendRunResult> {
   const result = await xaiAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: backendAbortSignal(spec),
+    signal: backendAbortSignal(spec, deadlineSignal),
   });
   return adaptLLMResult(result);
 }
 
-async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runCloudflare(spec: SpawnSpec, model: string, deadlineSignal?: AbortSignal): Promise<BackendRunResult> {
   const result = await cloudflareAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: backendAbortSignal(spec),
+    signal: backendAbortSignal(spec, deadlineSignal),
   });
   const adapted = adaptLLMResult(result);
   // Full-depth capture: reconstruct reasoning / tool_calls / message turns
@@ -812,12 +861,12 @@ async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRun
   return adapted;
 }
 
-async function runOpenAI(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+async function runOpenAI(spec: SpawnSpec, model: string, deadlineSignal?: AbortSignal): Promise<BackendRunResult> {
   const result = await openaiAdapter({
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: backendAbortSignal(spec),
+    signal: backendAbortSignal(spec, deadlineSignal),
   });
   return adaptLLMResult(result);
 }
@@ -872,7 +921,7 @@ async function runCliTube(
   const result = await spawnViaCliTube({
     cli,
     prompt: spec.task,
-    timeoutMs: spec.timeout,
+    timeoutMs: resolveTransportTimeoutMs(spec),
     cwd: spec.workdir,
     env: { ...spec.env },
     model: spec.model,
@@ -1105,7 +1154,7 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
     args,
     env,
     cwd: workspace,
-    timeout: spec.timeout,
+    transportTimeoutMs: resolveTransportTimeoutMs(spec),
     stdio: ['ignore', 'pipe', 'pipe'],
     context,
   }).then((result) => {
@@ -1136,7 +1185,7 @@ function runAider(spec: SpawnSpec, model: string, context?: BackendRunContext): 
     cmd: 'aider',
     args: ['--yes', '--no-stream', '--model', model, '--message', spec.task, ...files],
     env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },
-    timeout: spec.timeout,
+    transportTimeoutMs: resolveTransportTimeoutMs(spec),
     context,
   }).then((result) => ({
     output: result.output,
@@ -1171,7 +1220,7 @@ function runCustom(spec: SpawnSpec, context?: BackendRunContext): Promise<Backen
       PD_MODEL_TIER: spec.modelTier,
       PORT_DADDY_MODEL_TIER: spec.modelTier,
     },
-    timeout: spec.timeout,
+    transportTimeoutMs: resolveTransportTimeoutMs(spec),
     context,
   }).then((result) => ({
     ...result,
@@ -1267,7 +1316,7 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
     cmd: resolution.command,
     args,
     env: { ...processEnvSafe, ...dotenvSafe, ...(spec.env || {}), PATH: augmentedPath },
-    timeout: spec.timeout,
+    transportTimeoutMs: resolveTransportTimeoutMs(spec),
     stdio: ['ignore', 'pipe', 'pipe'],
     context,
   });
@@ -1900,7 +1949,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     //                  must cover the blast radius of the child it launches. A
     //                  caller that requests a read-tier `capabilities` is priced
     //                  AND confined to that tier (same set drives both).
-    //   • duration   — the spawn timeout (longer access ⇒ more time to drift).
+    //   • duration   — the Coast Guard lease TTL (longer access ⇒ more time to drift).
     //   • ρ          — par for now (1.0×): no reputation/quality-eval ledger
     //                  exists yet (Proposed). When it lands, pass a `reputation`
     //                  hook keyed on the PRINCIPAL / Anchor identity (NOT the
@@ -1919,7 +1968,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       const priced = priceBond({
         baseUsd: DEFAULT_BOND_USD,
         capabilities: effectiveCaps,
-        ttlMs: spec.timeout ?? 300_000,
+        ttlMs: DEFAULT_COAST_GUARD_LEASE_TTL_MS,
         // The Coast Guard posture on THIS machine, so the pricer can flag when the
         // priced tier exceeds what the runtime structurally contains
         // (breakdown.uncontainedScope → the WARN below). ADVISORY: this changes NO
@@ -1953,6 +2002,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       for (const n of lines.notices) console.log(n);
       for (const w of lines.warnings) console.warn(w);
     }
+    const taskDeadlineMs = resolveDeadlineMs(spec);
+    const deadlineController = taskDeadlineMs === null ? null : new AbortController();
     let bondId: number | null = null;
     let enteredHarborName: string | null = null;
     if (harbors && projectName && bondUsd > 0) {
@@ -2067,14 +2118,25 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       heartbeatAt: startedAt,
       lastActivityAt: startedAt,
       pid: null,
-      deadlineAt: spec.timeout && spec.timeout > 0 ? startedAt + spec.timeout : null,
+      deadlineAt: taskDeadlineMs === null ? null : startedAt + taskDeadlineMs,
       heartbeatInterval: null,
+      deadlineTimer: null,
+      deadlineController,
       childProcess: null,
       bondId,
       bondUsd,
+      cancelReason: null,
       transcriptId: null,
     };
     agents.set(agentId, record);
+    if (taskDeadlineMs !== null) {
+      record.deadlineTimer = setTimeout(() => {
+        if (record.status !== 'running') return;
+        record.deadlineController?.abort(new Error(`Cancelled: deadline expired after ${taskDeadlineMs}ms`));
+        cancel(agentId, `Cancelled: deadline expired after ${taskDeadlineMs}ms`);
+      }, Math.max(1, taskDeadlineMs));
+      record.deadlineTimer.unref?.();
+    }
 
     // Open a transcript row immediately so the live-tail surface (UI/SSE)
     // sees the run before its (potentially long) LLM call returns. Recording
@@ -2231,17 +2293,19 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       } else {
         const childContext: BackendRunContext = {
           onChildProcess: (child) => {
-            if (record.status === 'running') {
-              record.childProcess = child;
-              record.pid = normalizeCoordinationPid(child.pid) ?? null;
-              record.lastActivityAt = Date.now();
-              const pid = registryPidFor(record);
-              void pdCoordinate(`/agents/${agentId}/heartbeat`, {
-                pid,
-                status: 'busy',
-                progress: `Running ${runtime.effectiveBackend} child process`,
-              }, { pid });
+            if (record.status !== 'running') {
+              terminateChildProcess(child);
+              return;
             }
+            record.childProcess = child;
+            record.pid = normalizeCoordinationPid(child.pid) ?? null;
+            record.lastActivityAt = Date.now();
+            const pid = registryPidFor(record);
+            void pdCoordinate(`/agents/${agentId}/heartbeat`, {
+              pid,
+              status: 'busy',
+              progress: `Running ${runtime.effectiveBackend} child process`,
+            }, { pid });
           },
           // Live transcript streaming: each event a streaming backend parses is
           // appended to the open transcript AS IT ARRIVES, so the cockpit SSE
@@ -2261,15 +2325,15 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           tubeChannel: spec.tubeChannel,
         };
         switch (runtime.effectiveBackend) {
-          case 'ollama':    result = await runOllama(executionSpec, runtime.effectiveModel); break;
-          case 'lmstudio':  result = await runLmStudio(executionSpec, runtime.effectiveModel); break;
-          case 'claude':    result = await runClaude(executionSpec, runtime.effectiveModel); break;
-          case 'gemini':    result = await runGemini(executionSpec, runtime.effectiveModel); break;
-          case 'cloudflare': result = await runCloudflare(executionSpec, runtime.effectiveModel); break;
-          case 'openai':    result = await runOpenAI(executionSpec, runtime.effectiveModel); break;
-          case 'groq':      result = await runGroq(executionSpec, runtime.effectiveModel); break;
-          case 'deepseek':  result = await runDeepseek(executionSpec, runtime.effectiveModel); break;
-          case 'xai':       result = await runXai(executionSpec, runtime.effectiveModel); break;
+          case 'ollama':    result = await runOllama(executionSpec, runtime.effectiveModel, deadlineController?.signal); break;
+          case 'lmstudio':  result = await runLmStudio(executionSpec, runtime.effectiveModel, deadlineController?.signal); break;
+          case 'claude':    result = await runClaude(executionSpec, runtime.effectiveModel, deadlineController?.signal); break;
+          case 'gemini':    result = await runGemini(executionSpec, runtime.effectiveModel, deadlineController?.signal); break;
+          case 'cloudflare': result = await runCloudflare(executionSpec, runtime.effectiveModel, deadlineController?.signal); break;
+          case 'openai':    result = await runOpenAI(executionSpec, runtime.effectiveModel, deadlineController?.signal); break;
+          case 'groq':      result = await runGroq(executionSpec, runtime.effectiveModel, deadlineController?.signal); break;
+          case 'deepseek':  result = await runDeepseek(executionSpec, runtime.effectiveModel, deadlineController?.signal); break;
+          case 'xai':       result = await runXai(executionSpec, runtime.effectiveModel, deadlineController?.signal); break;
           case 'codex':     result = await runCodexCli(executionSpec, runtime.effectiveModel, childContext); break;
           case 'claude-cli': result = await runClaudeCli(executionSpec, childContext); break;
           case 'cli:claude-code': result = await runCliTube(executionSpec, 'claude-code', childContext); break;
@@ -2360,7 +2424,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     // Common cleanup — runs for success, failure, and asynchronous cancellation.
     const wasCancelled = record.status === 'cancelled';
     if (wasCancelled) {
-      error = 'Cancelled by spawner';
+      error = record.cancelReason || 'Cancelled by spawner';
       output = null;
     }
     const completedAt = record.completedAt ?? Date.now();
@@ -2372,6 +2436,11 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     record.pid = null;
     record.heartbeatAt = completedAt;
     record.lastActivityAt = completedAt;
+    if (record.deadlineTimer) {
+      clearTimeout(record.deadlineTimer);
+      record.deadlineTimer = null;
+    }
+    record.deadlineController = null;
 
     if (record.heartbeatInterval) {
       clearInterval(record.heartbeatInterval);
@@ -2560,7 +2629,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         backendOverrideSource: record.backendOverrideSource,
         status: record.status,
         output: null,
-        error: null,
+        error: record.status === 'cancelled' ? record.cancelReason || 'Cancelled by spawner' : null,
         telemetry: null,
         startedAt: record.startedAt,
         completedAt: record.completedAt,
@@ -2597,7 +2666,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
   /**
    * Cancel a running spawned agent while retaining its durable evidence.
    */
-  function cancel(agentId: string): void {
+  function cancel(agentId: string, reason = 'Cancelled by spawner'): void {
     const record = agents.get(agentId);
     if (!record) return;
     // A terminal receipt is immutable. Late budget-pause, panic, or operator
@@ -2605,10 +2674,18 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     // a live child, but must never rewrite a completed/failed outcome.
     if (record.status !== 'running') return;
 
+    if (record.deadlineController && !record.deadlineController.signal.aborted) {
+      record.deadlineController.abort(new Error(reason));
+    }
+
     // Clean up heartbeat
     if (record.heartbeatInterval) {
       clearInterval(record.heartbeatInterval);
       record.heartbeatInterval = null;
+    }
+    if (record.deadlineTimer) {
+      clearTimeout(record.deadlineTimer);
+      record.deadlineTimer = null;
     }
     try {
       harbors?.leaveAll(agentId);
@@ -2620,6 +2697,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       record.childProcess = null;
     }
 
+    record.cancelReason = reason;
     record.status = 'cancelled';
     record.completedAt = Date.now();
     counters?.bump('spawn.cancelled', metricDims(record.backend, record.model, record.identity));
@@ -2638,7 +2716,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     // PD coordination: done (fire-and-forget)
     pdCoordinate('/sugar/done', {
       agentId,
-      note: 'Cancelled by spawner',
+      note: reason,
       status: 'abandoned',
       skipOriginCheck: true,
       skipOriginCheckReason: 'spawner-managed agent cancelled by operator',

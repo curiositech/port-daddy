@@ -963,6 +963,8 @@ export async function launchSortie(opts: {
   cwd?: string;
   allowedTools?: string;
   budgetUsd: number;
+  deadlineMs?: number;
+  /** Legacy alias for `deadlineMs`; kept for compatibility with older callers. */
   timeout?: number;
 }): Promise<SpawnedAgent> {
   return post('/spawn', {

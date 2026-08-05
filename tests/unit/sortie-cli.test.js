@@ -75,6 +75,7 @@ describe('pd sortie', () => {
       recipe: 'investigate',
       expected: 'Root-cause memo',
       context: 'Do not patch yet',
+      deadlineMs: '120000',
       quiet: true,
     });
 
@@ -87,6 +88,7 @@ describe('pd sortie', () => {
       backend: 'codex',
       modelTier: 'low',
       budgetUsd: 0.75,
+      deadlineMs: 120000,
       recipe: 'investigate',
       expectedOutput: 'Root-cause memo',
       context: 'Do not patch yet',

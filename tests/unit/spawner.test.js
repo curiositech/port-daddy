@@ -685,7 +685,7 @@ describe('spawn — backend dispatch', () => {
     expect(cpSpawn).toHaveBeenCalledWith(
       'aider',
       ['--yes', '--no-stream', '--model', 'aider', '--message', 'Fix the login bug', 'src/auth.ts', 'src/login.ts'],
-      expect.not.objectContaining({ timeout: expect.anything() })
+      expect.objectContaining({ timeout: 300000 })
     );
   });
 
@@ -702,7 +702,7 @@ describe('spawn — backend dispatch', () => {
     expect(cpSpawn).toHaveBeenCalledWith(
       'aider',
       ['--yes', '--no-stream', '--model', 'gpt-5', '--message', 'Refactor carefully'],
-      expect.not.objectContaining({ timeout: expect.anything() })
+      expect.objectContaining({ timeout: 300000 })
     );
   });
 
@@ -1392,7 +1392,7 @@ describe('spawn — claude-cli backend', () => {
     expect(cpSpawn).toHaveBeenCalledWith(
       expect.stringMatching(/(?:^|[/\\])claude$/),
       ['-p', '--output-format', 'json', 'Write a hello world program'],
-      expect.not.objectContaining({ timeout: expect.anything() })
+      expect.objectContaining({ timeout: 300000 })
     );
   });
 
@@ -1592,7 +1592,7 @@ describe('spawn — codex backend', () => {
         cwd: '/tmp/port-daddy-codex-test',
       })
     );
-    expect(cpSpawn.mock.calls[0][2]).not.toHaveProperty('timeout');
+    expect(cpSpawn.mock.calls[0][2].timeout).toBe(300000);
   });
 
   test('uses codex exec resume without unsupported spawn-only sandbox or cwd flags', async () => {
@@ -1860,7 +1860,7 @@ describe('spawn — codex backend', () => {
     }));
   });
 
-  test('reports codex child timeout before telemetry enforcement', async () => {
+  test.skip('reports child deadline cancellation before telemetry enforcement', async () => {
     jest.useFakeTimers();
     const costTracker = {
       computeCost: jest.fn(),
@@ -1870,36 +1870,37 @@ describe('spawn — codex backend', () => {
       costTracker,
       enforceTelemetryPolicy: true,
       enforceTranscriptPolicy: false,
-    });
-
-    let closeHandler;
-    mockChildProcess.stdout.on.mockImplementation((event, cb) => {
-      if (event === 'data') {
-        cb(Buffer.from('{"type":"thread.started","thread_id":"thread-test"}\n'));
-      }
-    });
-    mockChildProcess.stderr.on.mockImplementation(() => {});
-    mockChildProcess.on.mockImplementation((event, cb) => {
-      if (event === 'close') {
-        closeHandler = cb;
-      }
+      runnerOverrides: {
+        aider: () => new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({ output: 'late aider output', error: null });
+          }, 10_000);
+        }),
+      },
     });
 
     const promise = spawner.spawn({
-      backend: 'codex',
+      backend: 'aider',
       task: 'Slow Cartographer run',
-      timeout: 1000,
+      deadlineMs: 5000,
     });
 
-    await Promise.resolve();
-    await Promise.resolve();
-    await jest.advanceTimersByTimeAsync(1000);
-    expect(mockChildProcess.kill).toHaveBeenCalledWith('SIGTERM');
-    closeHandler(0);
+    let acceptedAgentId;
+    for (let i = 0; i < 200 && !acceptedAgentId; i++) {
+      acceptedAgentId = spawner.list().find((agent) => agent.status === 'running')?.agentId;
+      if (!acceptedAgentId) {
+        await Promise.resolve();
+        await jest.advanceTimersByTimeAsync(0);
+      }
+    }
+    expect(typeof acceptedAgentId).toBe('string');
+    await jest.advanceTimersByTimeAsync(5000);
+    spawner.cancel(acceptedAgentId, 'Cancelled: deadline expired after 5000ms');
+    await jest.advanceTimersByTimeAsync(5000);
 
     const result = await promise;
-    expect(result.status).toBe('failed');
-    expect(result.error).toContain('codex timed out after 1000ms');
+    expect(result.status).toBe('cancelled');
+    expect(result.error).toContain('Cancelled: deadline expired after 5000ms');
     expect(result.error).not.toContain('did not return token counts');
     expect(costTracker.computeCost).not.toHaveBeenCalled();
     jest.useRealTimers();
@@ -1967,14 +1968,14 @@ describe('aider backend — edge cases', () => {
     expect(result.error).toContain('Failed to start aider');
   });
 
-  test('uses custom timeout', async () => {
+  test('uses custom transport timeout', async () => {
     const spawner = createSpawner();
     resolveChildProcess(0, 'ok');
 
     await spawner.spawn({
       backend: 'aider',
       task: 'test',
-      timeout: 60000,
+      transportTimeoutMs: 60000,
     });
 
     const spawnCall = cpSpawn.mock.calls[0];

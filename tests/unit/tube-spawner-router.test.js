@@ -3,7 +3,7 @@
  *
  * Locks the contract that lets Codex/ChatGPT drive the fleet over `pd tube`,
  * and — critically — that the bridge is FAIL-CLOSED: disabled by default,
- * sender-gated, backend-allow-listed, timeout-clamped, and loud on every
+ * sender-gated, backend-allow-listed, deadline-clamped, and loud on every
  * refusal (a refusal is always posted back, never silently dropped).
  */
 import { describe, it, expect } from '@jest/globals';
@@ -66,14 +66,18 @@ describe('isSenderAllowed', () => {
 });
 
 describe('buildSpawnSpec', () => {
-  const policy = { enabled: true, allowedBackends: ['ollama'], maxTimeoutMs: 60000 };
+  const policy = { enabled: true, allowedBackends: ['ollama'], maxDeadlineMs: 60000 };
   it('refuses a backend outside the allowlist', () => {
     const r = buildSpawnSpec({ command: 'spawn', backend: 'custom', task: 't' }, policy);
     expect('refusal' in r).toBe(true);
   });
-  it('clamps timeout to the policy ceiling', () => {
-    const r = buildSpawnSpec({ command: 'spawn', backend: 'ollama', task: 't', timeout: 9e9 }, policy);
-    expect(r.spec.timeout).toBe(60000);
+  it('clamps deadlineMs to the policy ceiling', () => {
+    const r = buildSpawnSpec({ command: 'spawn', backend: 'ollama', task: 't', deadlineMs: 9e9 }, policy);
+    expect(r.spec.deadlineMs).toBe(60000);
+  });
+  it('omits deadlineMs when none is requested', () => {
+    const r = buildSpawnSpec({ command: 'spawn', backend: 'ollama', task: 't' }, policy);
+    expect(r.spec).not.toHaveProperty('deadlineMs');
   });
   it.each(['cli:gemini', 'cli:groq', 'cli:grok'])('accepts %s when the policy allows it', (backend) => {
     const p = { enabled: true, allowedBackends: [backend] };

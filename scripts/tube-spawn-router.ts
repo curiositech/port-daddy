@@ -14,7 +14,7 @@
  *     bun scripts/tube-spawn-router.ts <channel> --enable \
  *        [--allow-sender codex] [--allow-backend ollama --allow-backend gemini] \
  *        [--default-backend ollama] [--identity pd:fleet:tube] \
- *        [--max-timeout-ms 600000] [--poll-ms 1500] \
+ *        [--max-deadline-ms 600000] [--poll-ms 1500] \
  *        [--max-delegation-depth 4] [--max-chain-spawns 8] \
  *        [--allow-upward-delegation]   # NOT recommended — opens a loop class
  *
@@ -77,7 +77,11 @@ const policy: RouterPolicy = {
     : undefined) as RouterPolicy['allowedBackends'],
   defaultBackend: flag('default-backend') as SpawnSpec['backend'] | undefined,
   defaultIdentity: flag('identity'),
-  maxTimeoutMs: flag('max-timeout-ms') ? Number(flag('max-timeout-ms')) : undefined,
+  maxDeadlineMs: flag('max-deadline-ms')
+    ? Number(flag('max-deadline-ms'))
+    : flag('max-timeout-ms')
+      ? Number(flag('max-timeout-ms'))
+      : undefined,
   maxDelegationDepth: flag('max-delegation-depth') ? Number(flag('max-delegation-depth')) : undefined,
   maxChainSpawns: flag('max-chain-spawns') ? Number(flag('max-chain-spawns')) : undefined,
   maxTotalSpawns: flag('max-total-spawns') ? Number(flag('max-total-spawns')) : undefined,

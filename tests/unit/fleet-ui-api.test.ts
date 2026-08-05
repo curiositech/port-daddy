@@ -87,7 +87,7 @@ describe('fleet-config-ui api', () => {
 
     expect(result.messageId).toBe(77);
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9876/agents/qa/inbox',
+      '/agents/qa/inbox',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
@@ -129,7 +129,7 @@ describe('fleet-config-ui api', () => {
 
     expect(dispatch.id).toBe('dispatch-1');
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9876/dispatches',
+      '/dispatches',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
@@ -140,6 +140,47 @@ describe('fleet-config-ui api', () => {
         }),
       }),
     );
+  });
+
+  test('launchSortie posts deadlineMs for sortie launches', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      headers: {
+        get: () => 'application/json',
+      },
+      json: async () => ({
+        success: true,
+        agentId: 'spawned-sortie',
+        backend: 'codex',
+        model: 'gpt-5.4-mini',
+        status: 'completed',
+        output: 'done',
+        error: null,
+        startedAt: 1,
+        completedAt: 2,
+      }),
+    })) as typeof fetch;
+
+    const { launchSortie } = await import('../../fleet-config-ui/src/api.ts');
+    const sortie = await launchSortie({
+      backend: 'codex',
+      prompt: 'Investigate flaky auth tests',
+      budgetUsd: 0.75,
+      deadlineMs: 120000,
+    });
+
+    expect(sortie.agentId).toBe('spawned-sortie');
+    const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(url).toBe('/spawn');
+    expect(init).toEqual(expect.objectContaining({
+      method: 'POST',
+    }));
+    expect(JSON.parse(init.body as string)).toEqual(expect.objectContaining({
+      backend: 'codex',
+      task: 'Investigate flaky auth tests',
+      budgetUsd: 0.75,
+      deadlineMs: 120000,
+    }));
   });
 
   test('fetchFilePreview unwraps the daemon preview envelope', async () => {
@@ -159,7 +200,7 @@ describe('fleet-config-ui api', () => {
 
     expect(preview).toEqual(previewFixture);
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9876/operator/file-preview',
+      '/operator/file-preview',
       expect.objectContaining({
         method: 'POST',
       }),
@@ -211,7 +252,7 @@ describe('fleet-config-ui api', () => {
 
     expect(progress.nextCuts[0]?.slug).toBe('cartographer-roadmap-progress-screen');
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9876/cartographer/roadmap-progress?root=%2FUsers%2Ftest%2Fport-daddy',
+      '/cartographer/roadmap-progress?root=%2FUsers%2Ftest%2Fport-daddy',
       expect.objectContaining({ method: 'GET' }),
     );
   });
@@ -250,7 +291,7 @@ describe('fleet-config-ui api', () => {
 
     expect(overview.policy.suggestedConcurrentSpawns).toBe(4);
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9876/resources/overview?projectDir=%2FUsers%2Ftest%2Fport-daddy&maxConcurrentSpawns=2',
+      '/resources/overview?projectDir=%2FUsers%2Ftest%2Fport-daddy&maxConcurrentSpawns=2',
       expect.objectContaining({ method: 'GET' }),
     );
   });
@@ -283,7 +324,7 @@ describe('fleet-config-ui api', () => {
     });
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9876/setup/run',
+      '/setup/run',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
@@ -321,7 +362,7 @@ describe('fleet-config-ui api', () => {
 
     expect(result.updatedAgents).toEqual(['qa', 'spider']);
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9876/fleet/config/%2FUsers%2Ftest%2Fport-daddy/runtime',
+      '/fleet/config/%2FUsers%2Ftest%2Fport-daddy/runtime',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({

@@ -247,8 +247,13 @@ export const sortiesPlugin: FastifyPluginAsync<{ deps: SortieRouteDeps }> = asyn
         ? body.purpose
         : `Sortie: ${goal.slice(0, 120)}`;
       const allowedTools = typeof body.allowedTools === 'string' ? body.allowedTools : undefined;
-      const timeout = typeof body.timeout === 'number' ? body.timeout : undefined;
+      const deadlineMs = typeof body.deadlineMs === 'number'
+        ? body.deadlineMs
+        : typeof body.timeout === 'number'
+          ? body.timeout
+          : undefined;
       const maxTokens = typeof body.maxTokens === 'number' ? body.maxTokens : undefined;
+      const deadlineSpec = typeof deadlineMs === 'number' ? { deadlineMs } : {};
 
       let spawnResult;
       if (conductor) {
@@ -267,7 +272,7 @@ export const sortiesPlugin: FastifyPluginAsync<{ deps: SortieRouteDeps }> = asyn
           purpose,
           workdir: projectDir,
           allowedTools,
-          timeoutMs: timeout,
+          ...deadlineSpec,
           maxTokens,
           worktree: 'inherit',
           mergePolicy: 'never',
@@ -300,7 +305,7 @@ export const sortiesPlugin: FastifyPluginAsync<{ deps: SortieRouteDeps }> = asyn
           task,
           workdir: projectDir,
           allowedTools,
-          timeout,
+          ...deadlineSpec,
           maxTokens,
         });
       }

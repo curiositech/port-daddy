@@ -259,7 +259,7 @@ describe('createSpawnAdapter — spawn argv', () => {
     expect(spawnCall.command).toBe(plan.command);
     expect(spawnCall.args).toEqual(plan.args);
     expect(spawnCall.cwd).toBe(plan.worktreePath);
-    expect(spawnCall.timeoutMs).toBe(plan.timeoutMs);
+    expect(spawnCall.deadlineMs).toBe(plan.timeoutMs);
   });
 
   test('spawnFn receives the correct command + args for cli:claude-code', async () => {

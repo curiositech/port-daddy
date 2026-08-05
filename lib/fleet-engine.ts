@@ -99,6 +99,7 @@ export interface FleetAgent {
   onSuccess?: string;      // "publish channel:name"
   onFailure?: string;
   identity?: string;
+  deadlineMs?: number;
   timeout?: number;
   allowedTools?: string;
   /** Opt-in: splice a windags-pattern skill shortlist (lib/skill-graft.ts)
@@ -209,6 +210,7 @@ interface FleetYamlAgent {
   on_success?: string;
   on_failure?: string;
   identity?: string;
+  deadlineMs?: number;
   timeout?: number;
   allowedTools?: string;
   allowed_tools?: string;
@@ -1519,7 +1521,8 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       idempotencyKey,
     };
     if (runtime.model) body.model = runtime.model;
-    if (agent.timeout) body.timeout = agent.timeout;
+    const deadlineMs = agent.deadlineMs ?? agent.timeout;
+    if (typeof deadlineMs === 'number' && Number.isFinite(deadlineMs) && deadlineMs > 0) body.deadlineMs = deadlineMs;
     if (agent.allowedTools) body.allowedTools = agent.allowedTools;
 
     let res: Response;

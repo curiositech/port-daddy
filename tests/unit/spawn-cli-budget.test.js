@@ -88,6 +88,28 @@ describe('pd spawn budget enforcement', () => {
     });
   });
 
+  test('forwards deadlineMs on spawn', async () => {
+    mockPdFetch.mockResolvedValueOnce(response(true, {
+      success: true,
+      status: 'completed',
+      agentId: 'spawned-deadline',
+      backend: 'custom',
+      model: 'custom',
+      output: 'done',
+    }));
+
+    await handleSpawn(['review the diff'], {
+      backend: 'custom',
+      budget: '0.75',
+      deadlineMs: '120000',
+      quiet: true,
+    });
+
+    const body = JSON.parse(mockPdFetch.mock.calls[0][1].body);
+    expect(body.deadlineMs).toBe(120000);
+    expect(body).not.toHaveProperty('timeout');
+  });
+
   test('forwards model tier when requested', async () => {
     mockPdFetch.mockResolvedValueOnce(response(true, {
       success: true,
