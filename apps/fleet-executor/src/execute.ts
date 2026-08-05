@@ -2043,23 +2043,24 @@ export function chunkDiff(diff: string): string[] {
   let cur = '';
   for (const part of parts) {
     if (part.length > MAP_CHUNK_CHAR_LIMIT) {
+      // An oversized single file becomes ONE chunk, over budget and whole.
+      //
+      // It used to be hard-split into raw slices, which was wrong twice over:
+      // only the first slice carried the `diff --git` header, so every
+      // continuation was un-attributable — the scope contract failing on
+      // exactly the largest files — and a reviewer handed half a function has
+      // no more chance of judging it correctly than one handed none.
+      //
+      // A file is the smallest unit that can be reviewed coherently, so it is
+      // the smallest unit we will split to. When one file exceeds the budget
+      // that is unavoidable: emit it intact and let the caller's own limits
+      // decide what to do, rather than shredding it into pieces that are
+      // cheaper to send and impossible to review.
       if (cur) {
         chunks.push(cur);
         cur = '';
       }
-      // Re-emit the `diff --git` header on every continuation slice.
-      //
-      // A single file larger than the budget is hard-split, and without this
-      // only the FIRST slice carries the header — so `filesInChunk()` returns
-      // [] for the rest and the prompt shows NO files as present. That breaks
-      // the scope contract precisely on the largest files, which are the ones
-      // whose reviewers are most likely to be confused about what they hold.
-      const header = part.split('\n', 1)[0] ?? '';
-      const body = part.slice(header.length + 1);
-      const room = Math.max(1, MAP_CHUNK_CHAR_LIMIT - header.length - 1);
-      for (let i = 0; i < body.length; i += room) {
-        chunks.push(`${header}\n${body.slice(i, i + room)}`);
-      }
+      chunks.push(part);
       continue;
     }
     if (cur && cur.length + part.length > MAP_CHUNK_CHAR_LIMIT) {
