@@ -226,7 +226,7 @@ final class FleetPopoverTests: XCTestCase {
                 version: "3.11.0",
                 codeHash: "e11c6ea29427",
                 startedAt: 1_777_328_400_000,
-                installDir: "/Users/erichowens/port-daddy-stable",
+                installDir: "/opt/homebrew/opt/port-daddy",
                 nodeVersion: "v24.0.0"
             ),
             metrics: nil,

@@ -16,7 +16,7 @@
  *   "version": "3.10.0",
  *   "codeHash": "abc123",
  *   "startedAt": 1777049997500,
- *   "installDir": "/Users/me/port-daddy-stable",
+ *   "installDir": "/opt/homebrew/opt/port-daddy",
  *   "pidFile": "/Users/me/.port-daddy/daemon.pid",
  *   "portFile": "/Users/me/.port-daddy/daemon.port",
  *   "hostname": "workstation"

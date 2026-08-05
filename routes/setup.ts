@@ -188,7 +188,6 @@ export const setupPlugin: FastifyPluginAsync<{ deps: SetupRouteDeps }> = async (
 
     const launchAgent = readLaunchAgentProgramArguments();
     const mode = daemonMode(launchAgent.programArguments);
-    const stablePath = join(homedir(), 'port-daddy-stable');
     const binaryCandidate = resolveBinaryCandidate(launchAgent.programArguments, repoRoot);
     const invocation = setupInvocation(repoRoot);
 
@@ -216,11 +215,6 @@ export const setupPlugin: FastifyPluginAsync<{ deps: SetupRouteDeps }> = async (
           : mode === 'source'
             ? 'The installed daemon LaunchAgent still appears to run the source/tsx daemon.'
             : 'No installed daemon LaunchAgent was detected for this platform.',
-      },
-      stableTree: {
-        path: stablePath,
-        exists: existsSync(stablePath),
-        cleanupPolicy: 'Do not delete automatically. Archive or remove only after the binary daemon, CLI shims, skills, MCPs, and FleetBar all pass health checks.',
       },
       setupCommand: {
         label: invocation.label,

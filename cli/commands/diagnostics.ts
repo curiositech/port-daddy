@@ -2273,10 +2273,8 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   // distribution but their existing launchd plist still points at the
   // source daemon (`tsx server.ts`). Without this check, `brew upgrade`
   // appears to do nothing because launchd keeps spawning the old tsx
-  // path. This replaces the regression guard formerly at
-  // `scripts/promote-stable.sh:144-148`, now reachable for every user
-  // — not just developers running the (now-deleted) promote-stable
-  // script. See ADR-0028 step 11.
+  // path. This is a user-visible binary-migration check rather than a
+  // source-checkout promotion side effect. See ADR-0028 step 11.
   try {
     const plistPath = userLaunchAgentPlistPath();
     if (plistPath && existsSync(plistPath)) {

@@ -129,8 +129,7 @@ function isDaemonDownError(error: unknown): boolean {
 
 /**
  * Backoff for retrying after the daemon goes ECONNREFUSED. Sized for the
- * launchd respawn window: clean SIGTERMs from `promote-stable.sh` cause
- * ~1s of unavailability before `KeepAlive` brings the daemon back.
+ * Homebrew/launchd service restart window, which is normally about a second.
  * Total budget ≈ 2.9s across 4 retries.
  *
  * Disable with `PORT_DADDY_NO_RETRY=1` (tests, debugging, pointing at a

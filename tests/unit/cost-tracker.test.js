@@ -411,14 +411,14 @@ describe('CostTracker', () => {
       backend: 'claude-cli',
       model: 'claude-cli',
       projectName: 'port-daddy',
-      projectDir: '/Users/erichowens/port-daddy-stable',
+      projectDir: '/Users/erichowens/coding/tmp/port-daddy-feature',
     });
 
     const rows = costTracker.summary({ projectName: 'port-daddy' });
     expect(rows).toHaveLength(2);
     expect(rows.map((row) => row.projectDir)).toEqual(expect.arrayContaining([
       '/Users/erichowens/coding/port-daddy',
-      '/Users/erichowens/port-daddy-stable',
+      '/Users/erichowens/coding/tmp/port-daddy-feature',
     ]));
   });
 

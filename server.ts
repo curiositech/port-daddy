@@ -404,7 +404,6 @@ const IPC_PATH: string = process.env.PORT_DADDY_IPC || (PREFIX ? join(PREFIX, 'p
 const DISABLE_IPC: boolean = process.env.PORT_DADDY_NO_IPC === '1';
 const DISABLE_FLEET: boolean = process.env.PORT_DADDY_NO_FLEET === '1';
 const DISABLE_FLEETBAR: boolean = process.env.PORT_DADDY_NO_FLEETBAR === '1';
-const ALLOW_STABLE_FLEET: boolean = process.env.PORT_DADDY_ALLOW_STABLE_FLEET === '1';
 const CUSTOM_RUNTIME_DIR: string | undefined = PREFIX ?? (process.env.PORT_DADDY_SOCK ? dirname(process.env.PORT_DADDY_SOCK) : undefined);
 const PID_FILE: string = process.env.PORT_DADDY_PID_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.pid') : DEFAULT_PID_FILE);
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.port') : DEFAULT_PORT_FILE);
@@ -1037,7 +1036,6 @@ const fleetDaemon = createFleetDaemon({
   semanticResolver,
   logger,
   daemonDir: __dirname,
-  allowStableInstallFleet: ALLOW_STABLE_FLEET,
   costTracker,
   locks,
 });

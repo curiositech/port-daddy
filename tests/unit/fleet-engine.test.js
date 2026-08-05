@@ -504,7 +504,7 @@ test('resolves project templates from fleet.name instead of checkout basename', 
     },
   }));
 
-  const config = loadFleetConfig('/Users/erichowens/port-daddy-stable');
+  const config = loadFleetConfig('/Users/erichowens/coding/port-daddy');
   expect(config).toEqual(expect.objectContaining({
     name: 'port-daddy',
     harbor: 'port-daddy:fleet',
@@ -1424,8 +1424,8 @@ describe('validateTopology', () => {
       watchers: [],
       channels: {
         'promotion:release-surfaces': {
-          description: 'Promotion script publishes this channel',
-          externalProducer: 'scripts/promote-stable.sh',
+          description: 'Release workflow publishes this channel',
+          externalProducer: '.github/workflows/release.yml',
         },
       },
     };

@@ -50,7 +50,7 @@ describe('cli/utils/freshness', () => {
     })).toBe(true);
 
     expect(shouldAutoRestartDaemonForFreshness({
-      daemonInstallDir: '/Users/erichowens/port-daddy-stable',
+      daemonInstallDir: '/opt/homebrew/opt/port-daddy',
       localInstallDir: '/Users/erichowens/coding/port-daddy',
       isInteractive: true,
     })).toBe(false);

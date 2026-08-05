@@ -107,7 +107,6 @@ const EXCLUDE_PATH_PREFIXES = [
   'website-v2/node_modules/',
   'tests/integration/',
   'tests/benchmark/',
-  'port-daddy-stable/',
 ];
 
 // Test files legitimately reference the canonical URL to verify resolver

@@ -326,7 +326,6 @@ export function discoverCandidateDbPaths(
 
   pushPath(paths, join(config.repoRoot, DEFAULT_DB_FILE));
   pushPath(paths, join(config.repoRoot, 'dist', DEFAULT_DB_FILE));
-  pushPath(paths, join(config.repoRoot, 'port-daddy-stable', DEFAULT_DB_FILE));
 
   const instancesDir = join(config.pdHome, 'instances');
   try {

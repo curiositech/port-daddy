@@ -303,8 +303,8 @@ function buildDiscoveryRoots(explicitRoots: string[] = []): string[] {
   const hintedRoots = SEARCH_ROOT_HINTS.map((segment) => join(home, segment));
   const cwd = process.cwd();
   const cwdParent = dirname(cwd);
-  // Stable runs from ~/port-daddy-stable, so blindly adding dirname(cwd) means
-  // scanning the whole home directory from the daemon request thread.
+  // A daemon working directory may sit directly under home, so blindly adding
+  // dirname(cwd) can scan the whole home directory from the request thread.
   const cwdRoots = cwdParent === normalizedHome ? [cwd] : [cwd, cwdParent];
   const parentRoots = explicitRoots
     .map((root) => dirname(normalizeRoot(root)))

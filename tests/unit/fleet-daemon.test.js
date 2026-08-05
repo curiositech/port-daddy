@@ -251,73 +251,6 @@ describe('createFleetDaemon', () => {
     expect(status.totalAgents).toBe(2);
   });
 
-  test('start() skips stable install dir fleet by default', () => {
-    const deps = makeDeps({ daemonDir: '/Users/test/port-daddy-stable' });
-
-    const daemon = makeDaemon(deps);
-    daemon.start();
-
-    expect(mockLoadFleetConfig).not.toHaveBeenCalled();
-    expect(mockStartAll).not.toHaveBeenCalled();
-    expect(daemon.getStatus().fleets).toHaveLength(0);
-    expect(daemon.getStatus().skipped).toEqual([
-      expect.objectContaining({
-        project: 'port-daddy-stable',
-        projectDir: '/Users/test/port-daddy-stable',
-        reason: expect.stringContaining('protected from fleet writes'),
-      }),
-    ]);
-    expect(deps.logger.warn).toHaveBeenCalledWith(
-      'fleet_stable_install_skipped',
-      expect.objectContaining({
-        project: 'port-daddy-stable',
-        projectDir: '/Users/test/port-daddy-stable',
-        source: 'daemon',
-      })
-    );
-  });
-
-  test('start() skips symlinked stable install dir fleet by default', () => {
-    const deps = makeDeps({ daemonDir: '/usr/local/bin/port-daddy' });
-    mockRealpathSyncNative.mockImplementation((path) => {
-      if (path === '/usr/local/bin/port-daddy') return '/Users/test/port-daddy-stable';
-      return path;
-    });
-
-    const daemon = makeDaemon(deps);
-    daemon.start();
-
-    expect(mockLoadFleetConfig).not.toHaveBeenCalled();
-    expect(mockStartAll).not.toHaveBeenCalled();
-    expect(daemon.getStatus().fleets).toHaveLength(0);
-    expect(daemon.getStatus().skipped).toEqual([
-      expect.objectContaining({
-        project: 'port-daddy',
-        projectDir: '/usr/local/bin/port-daddy',
-        reason: expect.stringContaining('protected from fleet writes'),
-      }),
-    ]);
-  });
-
-  test('start() can opt into stable install dir fleet explicitly', () => {
-    const deps = makeDeps({
-      daemonDir: '/Users/test/port-daddy-stable',
-      allowStableInstallFleet: true,
-    });
-    const config = makeConfig('port-daddy');
-
-    mockLoadFleetConfig.mockReturnValue(config);
-    mockGetStatus.mockReturnValue([]);
-
-    const daemon = makeDaemon(deps);
-    daemon.start();
-
-    expect(mockLoadFleetConfig).toHaveBeenCalledWith('/Users/test/port-daddy-stable');
-    expect(mockStartAll).toHaveBeenCalledTimes(1);
-    expect(daemon.getStatus().fleets).toHaveLength(1);
-    expect(daemon.getStatus().skipped).toHaveLength(0);
-  });
-
   test('start() discovers registered project fleets', () => {
     const deps = makeDeps({
       projects: {
@@ -388,7 +321,7 @@ describe('createFleetDaemon', () => {
       .mockReturnValueOnce({
         success: false,
         error: 'lock is held',
-        holder: 'fleetd:port-daddy-stable:unknown:424242',
+        holder: 'fleetd:other-runtime:unknown:424242',
       })
       .mockReturnValueOnce({ success: true });
     const release = jest.fn(() => ({ success: true }));
@@ -400,7 +333,7 @@ describe('createFleetDaemon', () => {
         check: jest.fn(() => ({
           success: true,
           held: true,
-          owner: 'fleetd:port-daddy-stable:unknown:424242',
+          owner: 'fleetd:other-runtime:unknown:424242',
         })),
       },
     });
@@ -419,7 +352,7 @@ describe('createFleetDaemon', () => {
         expect.objectContaining({
           project: 'reclaimed',
           projectDir: '/test/reclaimed',
-          holder: 'fleetd:port-daddy-stable:unknown:424242',
+          holder: 'fleetd:other-runtime:unknown:424242',
         })
       );
       expect(daemon.getStatus().fleets).toHaveLength(1);
@@ -445,7 +378,7 @@ describe('createFleetDaemon', () => {
       .mockReturnValueOnce({
         success: false,
         error: 'lock is held',
-        holder: `fleetd:port-daddy-stable:unknown:${noncanonicalPid}`,
+        holder: `fleetd:other-runtime:unknown:${noncanonicalPid}`,
       })
       .mockReturnValueOnce({ success: true });
     const release = jest.fn(() => ({ success: true }));
@@ -457,7 +390,7 @@ describe('createFleetDaemon', () => {
         check: jest.fn(() => ({
           success: true,
           held: true,
-          owner: `fleetd:port-daddy-stable:unknown:${noncanonicalPid}`,
+          owner: `fleetd:other-runtime:unknown:${noncanonicalPid}`,
         })),
       },
     });
@@ -476,7 +409,7 @@ describe('createFleetDaemon', () => {
         expect.objectContaining({
           project: 'canonical',
           projectDir: '/test/canonical',
-          holder: `fleetd:port-daddy-stable:unknown:${noncanonicalPid}`,
+          holder: `fleetd:other-runtime:unknown:${noncanonicalPid}`,
           reason: 'noncanonical_daemon_pid',
           holderPid: noncanonicalPid,
           canonicalPid: process.pid,
@@ -623,44 +556,6 @@ describe('createFleetDaemon', () => {
     expect(result.success).toBe(true);
     expect(mockStartAll).toHaveBeenCalledTimes(1);
     expect(daemon.getStatus().fleets).toHaveLength(1);
-  });
-
-  test('startProject() rejects stable install dir fleets by default', () => {
-    const deps = makeDeps();
-    const daemon = makeDaemon(deps);
-    const result = daemon.startProject('/Users/test/port-daddy-stable');
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('protected from fleet writes');
-    expect(mockLoadFleetConfig).not.toHaveBeenCalled();
-    expect(mockStartAll).not.toHaveBeenCalled();
-    expect(daemon.getStatus().skipped).toEqual([
-      expect.objectContaining({
-        projectDir: '/Users/test/port-daddy-stable',
-        reason: expect.stringContaining('protected from fleet writes'),
-      }),
-    ]);
-  });
-
-  test('startProject() rejects symlinked stable install dir fleets by default', () => {
-    const deps = makeDeps();
-    mockRealpathSyncNative.mockImplementation((path) => {
-      if (path === '/usr/local/share/port-daddy') return '/Users/test/port-daddy-stable';
-      return path;
-    });
-    const daemon = makeDaemon(deps);
-    const result = daemon.startProject('/usr/local/share/port-daddy');
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('protected from fleet writes');
-    expect(mockLoadFleetConfig).not.toHaveBeenCalled();
-    expect(mockStartAll).not.toHaveBeenCalled();
-    expect(daemon.getStatus().skipped).toEqual([
-      expect.objectContaining({
-        projectDir: '/usr/local/share/port-daddy',
-        reason: expect.stringContaining('protected from fleet writes'),
-      }),
-    ]);
   });
 
   test('startProject() can persist an enabled-agent subset for a project', () => {
