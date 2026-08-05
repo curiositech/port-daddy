@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Test coverage for console-ctl.py socket discovery and exit behavior."""
 
-import json
 import os
 import subprocess
 import sys
