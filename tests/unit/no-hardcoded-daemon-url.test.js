@@ -21,7 +21,7 @@
  */
 
 import { describe, test, expect } from '@jest/globals';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { resolve, join, relative } from 'node:path';
 import {
   DAEMON_ENDPOINT_ENFORCED_FILES,
@@ -64,8 +64,10 @@ const FORBIDDEN_BARNACLE_PATTERNS = [
 const INCLUDE_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.swift', '.rs']);
 
 const EXCLUDE_DIRS = new Set([
+  // `target` is excluded by name, not by crate-specific path prefix, so every
+  // Rust crate's generated build output is skipped, not just pd-bosun's.
   'node_modules', '.build', 'dist', '.git',
-  '.serena', '.gemini',
+  '.serena', '.gemini', 'target',
 ]);
 
 // Path-prefix excludes (relative to repo root). Anything matching is skipped.
@@ -78,7 +80,6 @@ const EXCLUDE_PATH_PREFIXES = [
   'tests/benchmark/',
   'apps/FleetBar/Tests/',
   'port-daddy-stable/',
-  'core/pd-bosun/target/',
 ];
 
 // Test files legitimately reference the canonical URL to verify resolver
@@ -133,6 +134,24 @@ function findOffenders(pattern) {
 }
 
 describe('no-hardcoded-daemon-url', () => {
+  test('excludes generated target/ dirs in every crate, not just pd-bosun (PR 5802 reviewer residual)', () => {
+    // Regression guard: the walker used to skip target/ output via the
+    // crate-specific prefix `core/pd-bosun/target/`. A fabricated crate under
+    // `core/` proves the exclusion now applies by directory name everywhere,
+    // not just to pd-bosun.
+    const crateRoot = join(REPO_ROOT, 'core', '__daemon-url-guard-target-fixture-crate');
+    const targetDir = join(crateRoot, 'target');
+    const fixturePath = join(targetDir, 'generated.ts');
+    mkdirSync(targetDir, { recursive: true });
+    writeFileSync(fixturePath, 'const URL = "http://localhost:9876";\n');
+    try {
+      const offenders = findOffenders(FORBIDDEN_PATTERNS[0]);
+      expect(offenders.some((o) => o.path.includes('__daemon-url-guard-target-fixture-crate'))).toBe(false);
+    } finally {
+      rmSync(crateRoot, { recursive: true, force: true });
+    }
+  });
+
   for (const pattern of FORBIDDEN_PATTERNS) {
     test(`no source file contains ${pattern}`, () => {
       const offenders = findOffenders(pattern);
