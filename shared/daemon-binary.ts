@@ -46,7 +46,7 @@ export function resolveOnnxRuntimeNativeLibraryDir(
     join(resourceDir, 'native', 'onnxruntime-node', platformArch),
     join(dirname(executablePath), 'native', 'onnxruntime-node', platformArch),
   ];
-  return candidates.find(candidate => existsSync(candidate)) ?? null;
+  return candidates.find(candidate => isOnnxRuntimeNativeLibraryDir(candidate, os)) ?? null;
 }
 
 /**

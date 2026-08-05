@@ -59,11 +59,22 @@ describe('daemon binary launch contract', () => {
     const binaryPath = join(root, 'dist', 'daemon', daemonBinaryName('darwin'));
     const nativeDir = join(root, 'dist', 'native', 'onnxruntime-node', 'darwin-arm64');
     mkdirSync(nativeDir, { recursive: true });
+    writeFileSync(join(nativeDir, 'libonnxruntime.1.dylib'), 'runtime');
 
     expect(resolveOnnxRuntimeNativeLaunchEnv(root, binaryPath, {
       DYLD_FALLBACK_LIBRARY_PATH: '/operator/lib',
     }, 'darwin', 'arm64')).toEqual({
       DYLD_FALLBACK_LIBRARY_PATH: `${nativeDir}:/operator/lib`,
     });
+  });
+
+  test('rejects a file that only occupies the packaged runtime directory path', () => {
+    const root = mkdtempSync(join(tmpdir(), 'pd-daemon-native-file-'));
+    const binaryPath = join(root, 'dist', 'daemon', daemonBinaryName('darwin'));
+    const nativePath = join(root, 'dist', 'native', 'onnxruntime-node', 'darwin-arm64');
+    mkdirSync(join(nativePath, '..'), { recursive: true });
+    writeFileSync(nativePath, 'not a directory');
+
+    expect(resolveOnnxRuntimeNativeLaunchEnv(root, binaryPath, {}, 'darwin', 'arm64')).toEqual({});
   });
 });

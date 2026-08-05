@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { packageOnnxRuntimeNative } from '../../scripts/lib/onnx-runtime-native.mjs';
+import {
+  nativeLoaderEnvironment,
+  packageOnnxRuntimeNative,
+} from '../../scripts/lib/onnx-runtime-native.mjs';
 
 const SCRATCH_ROOT = join(homedir(), 'coding', 'tmp');
 
@@ -64,6 +67,19 @@ describe('ONNX Runtime release packaging', () => {
       platform: 'win32',
       arch: 'x64',
       files: [],
+    });
+  });
+
+  test('prepends packaged cargo without discarding an existing loader path', () => {
+    const nativeDir = join(outputRoot, 'native', 'onnxruntime-node', 'darwin-arm64');
+    expect(nativeLoaderEnvironment({
+      status: 'packaged',
+      platform: 'darwin',
+      dir: nativeDir,
+    }, {
+      DYLD_FALLBACK_LIBRARY_PATH: `/operator/lib:${nativeDir}`,
+    })).toEqual({
+      DYLD_FALLBACK_LIBRARY_PATH: `${nativeDir}:/operator/lib`,
     });
   });
 });

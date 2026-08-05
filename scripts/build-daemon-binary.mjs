@@ -6,7 +6,10 @@ import { arch, platform, tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
-import { packageOnnxRuntimeNative } from './lib/onnx-runtime-native.mjs';
+import {
+  nativeLoaderEnvironment,
+  packageOnnxRuntimeNative,
+} from './lib/onnx-runtime-native.mjs';
 
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST_DIR = join(ROOT_DIR, 'dist', 'daemon');
@@ -133,24 +136,6 @@ function smokeSemanticRuntime(nativeRuntime) {
     throw new Error(`compiled semantic runtime smoke returned an invalid proof: ${output.trim()}`);
   }
   return proof;
-}
-
-/**
- * Convert a packaged ONNX Runtime receipt into the launch-time loader variable
- * required by the target platform.
- *
- * @param {{status: string, platform: string | null, dir?: string}} nativeRuntime Packaging receipt.
- * @returns {Record<string, string>} Dynamic-loader environment for the child.
- */
-function nativeLoaderEnvironment(nativeRuntime) {
-  if (nativeRuntime.status !== 'packaged' || !nativeRuntime.dir) return {};
-  if (nativeRuntime.platform === 'darwin') {
-    return { DYLD_FALLBACK_LIBRARY_PATH: nativeRuntime.dir };
-  }
-  if (nativeRuntime.platform === 'linux') {
-    return { LD_LIBRARY_PATH: nativeRuntime.dir };
-  }
-  return {};
 }
 
 const bunVersion = run('bun', ['--version']).trim();

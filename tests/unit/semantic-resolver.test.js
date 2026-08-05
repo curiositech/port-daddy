@@ -232,6 +232,7 @@ describe('ensureOnnxRuntimeNativeLibFindable', () => {
     process.chdir(scratchDir);
     savedResourceDir = process.env.PORT_DADDY_RESOURCE_DIR;
     savedFallbackVar = process.env[fallbackVar];
+    delete process.env.PORT_DADDY_RESOURCE_DIR;
     delete process.env[fallbackVar];
   });
 
@@ -250,11 +251,27 @@ describe('ensureOnnxRuntimeNativeLibFindable', () => {
     expect(process.env[fallbackVar]).toBeUndefined();
   });
 
+  test('ignores stale build cargo in a source checkout without an explicit resource root', () => {
+    const platformArch = `${process.platform}-${process.arch}`;
+    const nativeDir = join(scratchDir, 'dist', 'native', 'onnxruntime-node', platformArch);
+    mkdirSync(nativeDir, { recursive: true });
+    writeFileSync(
+      join(nativeDir, process.platform === 'darwin' ? 'libonnxruntime.1.dylib' : 'libonnxruntime.so.1'),
+      'stale source-build cargo',
+    );
+
+    expect(() => ensureOnnxRuntimeNativeLibFindable()).not.toThrow();
+    expect(process.env[fallbackVar]).toBeUndefined();
+  });
+
   test('fails loudly when a packaged runtime was not configured before process start', () => {
     const platformArch = `${process.platform}-${process.arch}`;
     const nativeDir = join(scratchDir, 'dist', 'native', 'onnxruntime-node', platformArch);
     mkdirSync(nativeDir, { recursive: true });
-    writeFileSync(join(nativeDir, 'libonnxruntime.fake.dylib'), 'not a real binary, just proving path resolution');
+    writeFileSync(
+      join(nativeDir, process.platform === 'darwin' ? 'libonnxruntime.1.dylib' : 'libonnxruntime.so.1'),
+      'not a real binary, just proving path resolution',
+    );
     process.env.PORT_DADDY_RESOURCE_DIR = scratchDir;
 
     expect(() => ensureOnnxRuntimeNativeLibFindable()).toThrow(

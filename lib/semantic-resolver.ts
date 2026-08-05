@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  isBunCompiledRuntime,
   isOnnxRuntimeNativeLibraryDir,
   resolveOnnxRuntimeNativeLibraryDir,
 } from '../shared/daemon-binary.js';
@@ -612,7 +613,22 @@ export function createLocalEmbedder(
  */
 export function ensureOnnxRuntimeNativeLibFindable(): void {
   if (process.platform !== 'darwin' && process.platform !== 'linux') return;
-  const resourceDir = process.env.PORT_DADDY_RESOURCE_DIR?.trim() || process.cwd();
+  const resourceDir = process.env.PORT_DADDY_RESOURCE_DIR?.trim();
+  if (!resourceDir) {
+    const compiled = isBunCompiledRuntime({
+      versionsBun: process.versions.bun,
+      importMetaUrl: import.meta.url,
+      errorStack: new Error().stack ?? '',
+      execPath: process.execPath,
+    });
+    if (compiled) {
+      throw new Error(
+        'Compiled semantic runtime was launched without PORT_DADDY_RESOURCE_DIR. ' +
+        'Reinstall or restart the selected Port Daddy daemon so its launcher publishes the distribution root.',
+      );
+    }
+    return;
+  }
   const nativeDir = resolveOnnxRuntimeNativeLibraryDir(resourceDir, process.execPath);
   if (!nativeDir) return;
 

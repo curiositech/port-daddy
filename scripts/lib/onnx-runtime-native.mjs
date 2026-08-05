@@ -97,3 +97,26 @@ export function packageOnnxRuntimeNative(options) {
     files: runtimeLibFiles,
   };
 }
+
+/**
+ * Compose the launch-time dynamic-loader path for packaged ONNX Runtime cargo.
+ * The packaged directory wins while any operator-supplied entries remain
+ * available for unrelated native dependencies.
+ *
+ * @param {{status: string, platform: string | null, dir?: string}} nativeRuntime Packaging receipt.
+ * @param {NodeJS.ProcessEnv} env Parent process environment.
+ * @returns {Record<string, string>} Loader variable to merge into the child environment.
+ */
+export function nativeLoaderEnvironment(nativeRuntime, env = process.env) {
+  if (nativeRuntime.status !== 'packaged' || !nativeRuntime.dir) return {};
+  const variable = nativeRuntime.platform === 'darwin'
+    ? 'DYLD_FALLBACK_LIBRARY_PATH'
+    : nativeRuntime.platform === 'linux'
+      ? 'LD_LIBRARY_PATH'
+      : null;
+  if (!variable) return {};
+  const existing = env[variable]?.split(':').filter(Boolean) ?? [];
+  return {
+    [variable]: [nativeRuntime.dir, ...existing.filter(entry => entry !== nativeRuntime.dir)].join(':'),
+  };
+}
