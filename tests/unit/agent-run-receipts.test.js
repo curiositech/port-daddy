@@ -9,7 +9,14 @@ const {
   AGENT_RUN_LIVE_EVIDENCE_MAX_AGE_MS,
   AgentRunIdempotencyConflictError,
   createAgentRunReceiptStore,
+  defaultVerifyProcessAlive,
 } = await import('../../lib/agent-run-receipts.js');
+
+// A PID number that exceeds the process-id ceiling on every real OS (Linux
+// default pid_max is ~4.2M, macOS's is far lower), so process.kill() against
+// it always throws ESRCH -- a deterministic "this PID has never existed"
+// stand-in without relying on a real child process outliving the test.
+const NEVER_EXISTED_PID = 2_147_483_647;
 
 // ~/coding/tmp, never /tmp (macOS purges /tmp).
 const TMP_BASE = join(process.env.HOME || '.', 'coding', 'tmp');
@@ -95,7 +102,10 @@ describe('agent run receipt ledger', () => {
 
   describe('restart reconciliation', () => {
     test('startup flips accepted/starting/live to unknown without inventing failure', () => {
-      const firstGeneration = createAgentRunReceiptStore(db, { now: () => now });
+      // This test is about restart reconciliation, not process verification --
+      // stub the verifier permissive so a fabricated pid doesn't fail it for
+      // an unrelated reason.
+      const firstGeneration = createAgentRunReceiptStore(db, { now: () => now, verifyProcessAlive: () => true });
       const accepted = firstGeneration.accept({
         idempotencyKey: 'stays-accepted', kind: 'spawn', request: { a: 1 },
       }).receipt;
@@ -129,7 +139,10 @@ describe('agent run receipt ledger', () => {
     });
 
     test('unknown only advances to live, and only with a fresh direct PID + heartbeat', () => {
-      const store = createAgentRunReceiptStore(db, { now: () => now });
+      // This test targets shape/freshness validation, which rejects before
+      // the process check ever runs (short-circuit) -- except the final
+      // success case, so stub the verifier permissive for that case.
+      const store = createAgentRunReceiptStore(db, { now: () => now, verifyProcessAlive: () => true });
       const receipt = store.accept({
         idempotencyKey: 'reconcile-key', kind: 'session-continuation', request: { p: 'x' }, predecessorSessionId: 's-1',
       }).receipt;
@@ -156,7 +169,7 @@ describe('agent run receipt ledger', () => {
     });
 
     test('direct unknown -> completed does not mutate the receipt', () => {
-      const store = createAgentRunReceiptStore(db, { now: () => now });
+      const store = createAgentRunReceiptStore(db, { now: () => now, verifyProcessAlive: () => true });
       const receipt = store.accept({
         idempotencyKey: 'lost-liveness', kind: 'spawn', request: { a: 1 },
       }).receipt;
@@ -185,6 +198,96 @@ describe('agent run receipt ledger', () => {
       store.markStatus(receipt.id, 'cancelled', { error: 'operator cancelled' });
       expect(store.markStatus(receipt.id, 'completed')).toMatchObject({ status: 'cancelled', error: 'operator cancelled' });
       expect(store.markStatus(receipt.id, 'unknown')).toMatchObject({ status: 'cancelled', error: 'operator cancelled' });
+    });
+  });
+
+  describe('live evidence requires real process corroboration', () => {
+    test('a shape-valid but forged/nonexistent PID is rejected by the default verifier', () => {
+      const store = createAgentRunReceiptStore(db, { now: () => now });
+      const receipt = store.accept({ idempotencyKey: 'forged-pid', kind: 'spawn', request: { a: 1 } }).receipt;
+      store.markStatus(receipt.id, 'unknown', { error: 'restart' });
+
+      // The evidence *shape* is perfectly valid -- integer pid, fresh
+      // heartbeat -- but no process with this pid has ever existed. Caller-
+      // shaped data that merely looks right must not count as evidence.
+      expect(() => store.markStatus(receipt.id, 'live', {
+        liveEvidence: { pid: NEVER_EXISTED_PID, supervisorHeartbeatAt: now - 10 },
+      })).toThrow(/real process check/i);
+      expect(store.get(receipt.id)).toMatchObject({ status: 'unknown' });
+    });
+
+    test('the current process\'s own real, live PID is accepted by the default verifier', () => {
+      const store = createAgentRunReceiptStore(db, { now: () => now });
+      const receipt = store.accept({ idempotencyKey: 'real-pid', kind: 'spawn', request: { a: 1 } }).receipt;
+      store.markStatus(receipt.id, 'unknown', { error: 'restart' });
+
+      const reconciled = store.markStatus(receipt.id, 'live', {
+        liveEvidence: { pid: process.pid, supervisorHeartbeatAt: now - 10 },
+      });
+      expect(reconciled).toMatchObject({ status: 'live', error: null });
+    });
+
+    test('defaultVerifyProcessAlive itself: true for the running process, false for a pid that never existed', () => {
+      expect(defaultVerifyProcessAlive(process.pid)).toBe(true);
+      expect(defaultVerifyProcessAlive(NEVER_EXISTED_PID)).toBe(false);
+    });
+
+    test('an injected verifier is consulted instead of the default, and its answer is authoritative', () => {
+      const store = createAgentRunReceiptStore(db, {
+        now: () => now,
+        // A stand-in for a supervisor-backed check: only pid 555 is "alive",
+        // regardless of what the real OS process table says about it.
+        verifyProcessAlive: (pid) => pid === 555,
+      });
+      const receipt = store.accept({ idempotencyKey: 'injected-verifier', kind: 'spawn', request: { a: 1 } }).receipt;
+      store.markStatus(receipt.id, 'unknown', { error: 'restart' });
+
+      // Shape-valid, and the real OS process table would say this pid is
+      // alive (it's our own pid) -- but the injected verifier says no.
+      expect(() => store.markStatus(receipt.id, 'live', {
+        liveEvidence: { pid: process.pid, supervisorHeartbeatAt: now - 10 },
+      })).toThrow(/real process check/i);
+
+      const reconciled = store.markStatus(receipt.id, 'live', {
+        liveEvidence: { pid: 555, supervisorHeartbeatAt: now - 10 },
+      });
+      expect(reconciled).toMatchObject({ status: 'live', error: null });
+    });
+  });
+
+  describe('numeric field validation', () => {
+    test('rejects NaN, Infinity, and negative budgetUsd at accept()', () => {
+      const store = createAgentRunReceiptStore(db, { now: () => now });
+      for (const bad of [NaN, Infinity, -Infinity, -0.01, -1]) {
+        expect(() => store.accept({
+          idempotencyKey: `bad-budget-${bad}`, kind: 'spawn', request: { a: 1 }, budgetUsd: bad,
+        })).toThrow(/budgetUsd/);
+      }
+    });
+
+    test('accepts a valid zero-or-positive budgetUsd and null/undefined', () => {
+      const store = createAgentRunReceiptStore(db, { now: () => now });
+      expect(store.accept({ idempotencyKey: 'zero-budget', kind: 'spawn', request: {}, budgetUsd: 0 }).receipt.budgetUsd).toBe(0);
+      expect(store.accept({ idempotencyKey: 'pos-budget', kind: 'spawn', request: {}, budgetUsd: 2.5 }).receipt.budgetUsd).toBe(2.5);
+      expect(store.accept({ idempotencyKey: 'null-budget', kind: 'spawn', request: {} }).receipt.budgetUsd).toBeNull();
+    });
+
+    test('rejects NaN, Infinity, and negative numeric telemetry fields at markStatus()', () => {
+      const store = createAgentRunReceiptStore(db, { now: () => now });
+      const badValues = [NaN, Infinity, -Infinity, -1];
+      const fields = ['inputTokens', 'cachedInputTokens', 'outputTokens', 'costUsd'];
+      for (const field of fields) {
+        for (const bad of badValues) {
+          const receipt = store.accept({
+            idempotencyKey: `bad-telemetry-${field}-${bad}`, kind: 'spawn', request: { field, bad },
+          }).receipt;
+          const telemetry = { inputTokens: 1, outputTokens: 1, costUsd: 0.01, rateMode: 'exact', [field]: bad };
+          expect(() => store.markStatus(receipt.id, 'completed', { telemetry }))
+            .toThrow(new RegExp(`telemetry\\.${field}`));
+          // The bad write never landed -- receipt is unaffected.
+          expect(store.get(receipt.id)).toMatchObject({ status: 'accepted', telemetry: null });
+        }
+      }
     });
   });
 
@@ -306,7 +409,9 @@ describe('agent run receipt ledger', () => {
       const dbPath = join(scratchDir, 'receipts.db');
       let fileDb = new Database(dbPath);
       let clock = 10_000;
-      let store = createAgentRunReceiptStore(fileDb, { now: () => clock });
+      // This test is about persistence across close/reopen, not process
+      // verification -- stub the verifier permissive.
+      let store = createAgentRunReceiptStore(fileDb, { now: () => clock, verifyProcessAlive: () => true });
 
       const receipt = store.accept({
         idempotencyKey: 'file-backed-key',
@@ -338,6 +443,82 @@ describe('agent run receipt ledger', () => {
         budgetUsd: 1.25,
         telemetry: { inputTokens: 5, outputTokens: 5, costUsd: 0.001, rateMode: 'exact' },
       });
+
+      fileDb.close();
+    });
+
+    test('additively migrates a pre-existing narrower agent_run_receipts table, retaining data and indexes', () => {
+      const dbPath = join(scratchDir, 'legacy-schema.db');
+      let fileDb = new Database(dbPath);
+
+      // A stand-in for an earlier, narrower revision of this store: only the
+      // bare-bones columns, a plain (non-unique, non-hashed) idempotency key,
+      // no predecessor/successor/transcript/budget/telemetry fields, and its
+      // own pre-existing index. Construction against this file must never
+      // reach a "no such column" error.
+      fileDb.exec(`
+        CREATE TABLE agent_run_receipts (
+          id TEXT PRIMARY KEY,
+          kind TEXT NOT NULL,
+          idempotency_key TEXT NOT NULL,
+          status TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX idx_legacy_idempotency_key ON agent_run_receipts(idempotency_key);
+      `);
+      fileDb.prepare(`
+        INSERT INTO agent_run_receipts (id, kind, idempotency_key, status, created_at, updated_at)
+        VALUES ('run-legacy-1', 'spawn', 'legacy-key', 'completed', 500, 500)
+      `).run();
+      fileDb.close();
+
+      // Reopen with the CURRENT store implementation against the legacy file.
+      fileDb = new Database(dbPath);
+      const store = createAgentRunReceiptStore(fileDb, { now: () => 9_000, verifyProcessAlive: () => true });
+
+      // The pre-existing row and its data survived, untouched, in full.
+      const legacyRow = fileDb.prepare('SELECT * FROM agent_run_receipts WHERE id = ?').get('run-legacy-1');
+      expect(legacyRow).toMatchObject({
+        id: 'run-legacy-1', kind: 'spawn', idempotency_key: 'legacy-key', status: 'completed',
+        created_at: 500, updated_at: 500,
+      });
+      // New columns exist and default to NULL for the legacy row rather than
+      // throwing -- reading it back through the store's own API works.
+      const legacyReceipt = store.get('run-legacy-1');
+      expect(legacyReceipt).toMatchObject({
+        id: 'run-legacy-1', status: 'completed', budgetUsd: null, telemetry: null,
+        predecessorSessionId: null, successorAgentId: null, transcriptId: null,
+      });
+      expect(legacyReceipt.requestHash).toMatch(/^[a-f0-9]{64}$/);
+
+      // The legacy table's own pre-existing index is untouched...
+      const indexes = fileDb.prepare("PRAGMA index_list(agent_run_receipts)").all().map((i) => i.name);
+      expect(indexes).toContain('idx_legacy_idempotency_key');
+      // ...and the current schema's own indexes (including the replacement
+      // UNIQUE index that stands in for the old inline UNIQUE constraint)
+      // were added alongside it.
+      expect(indexes).toContain('idx_agent_run_receipts_status');
+      expect(indexes).toContain('idx_agent_run_receipts_predecessor');
+      expect(indexes).toContain('ux_agent_run_receipts_idempotency_key_hash');
+
+      // SQLite cannot add NOT NULL to an existing column without rebuilding
+      // the table, so migration installs equivalent write-boundary triggers.
+      // Future direct writers cannot evade idempotency with nullable hashes.
+      expect(() => fileDb.prepare(`
+        INSERT INTO agent_run_receipts (
+          id, kind, idempotency_key, status, created_at, updated_at
+        ) VALUES ('run-null-hashes', 'spawn', 'legacy-2', 'accepted', 600, 600)
+      `).run()).toThrow(/hashes are required/i);
+
+      // The store is fully functional against the migrated file: a brand
+      // new accept() works end to end, including the idempotency_key_hash
+      // UNIQUE guarantee added by the migration.
+      const fresh = store.accept({ idempotencyKey: 'post-migration-key', kind: 'spawn', request: { a: 1 } });
+      expect(fresh.replayed).toBe(false);
+      const replay = store.accept({ idempotencyKey: 'post-migration-key', kind: 'spawn', request: { a: 1 } });
+      expect(replay.replayed).toBe(true);
+      expect(replay.receipt.id).toBe(fresh.receipt.id);
 
       fileDb.close();
     });
