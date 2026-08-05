@@ -91,17 +91,27 @@ process.on('SIGTERM', () => server.close(() => setTimeout(() => {
 `);
     chmodSync(fakeDaemon, 0o755);
 
+    const smokeEnvironment = {
+      ...process.env,
+      SMOKE_DAEMON_BIN: fakeDaemon,
+      SMOKE_SCRATCH_BASE: join(root, 'scratch'),
+      SMOKE_OCCUPY_PREFERRED: '1',
+      FAKE_SHUTDOWN_MARKER: shutdownMarker,
+    };
+    for (const key of [
+      'PD_DAEMON_TIER',
+      'PD_DAEMON_LABEL',
+      'PD_DAEMON_COLOR',
+      'PD_DAEMON_SOURCE_DIR',
+    ]) {
+      delete smokeEnvironment[key];
+    }
+
     const output = execFileSync('bash', ['scripts/smoke-compiled-daemon.sh'], {
       cwd: process.cwd(),
       encoding: 'utf8',
       timeout: 30_000,
-      env: {
-        ...process.env,
-        SMOKE_DAEMON_BIN: fakeDaemon,
-        SMOKE_SCRATCH_BASE: join(root, 'scratch'),
-        SMOKE_OCCUPY_PREFERRED: '1',
-        FAKE_SHUTDOWN_MARKER: shutdownMarker,
-      },
+      env: smokeEnvironment,
     });
 
     expect(output).toContain('Compiled-daemon smoke PASSED');

@@ -56,6 +56,8 @@ stop_child() {
 start_preferred_blocker() {
   local port="$1"
   local ready_file="$2"
+  local pid_variable="$3"
+  local spawned_pid=""
   rm -f "$ready_file"
   BLOCK_PORT="$port" BLOCK_READY_FILE="$ready_file" node -e '
     const fs = require("node:fs");
@@ -71,10 +73,13 @@ start_preferred_blocker() {
       fs.writeFileSync(process.env.BLOCK_READY_FILE, "ready\n");
     });
   ' >"$ready_file.log" 2>&1 &
-  LAST_BLOCKER_PID=$!
+  spawned_pid=$!
+  # Publish the PID to cleanup immediately. A signal during the readiness wait
+  # must not leave the witness process orphaned.
+  printf -v "$pid_variable" '%s' "$spawned_pid"
   for _ in $(seq 1 50); do
     [ -s "$ready_file" ] && return 0
-    kill -0 "$LAST_BLOCKER_PID" 2>/dev/null || break
+    kill -0 "$spawned_pid" 2>/dev/null || break
     sleep 0.1
   done
   echo "FAIL: could not occupy preferred seed for fallback proof" >&2
@@ -93,8 +98,7 @@ trap cleanup EXIT
 case "$OCCUPY_PREFERRED" in
   0) ;;
   1)
-    start_preferred_blocker "$PORT" "$SCRATCH/preferred-seed.ready"
-    PREFERRED_BLOCKER_PID="$LAST_BLOCKER_PID"
+    start_preferred_blocker "$PORT" "$SCRATCH/preferred-seed.ready" PREFERRED_BLOCKER_PID
     ;;
   *) echo "FAIL: SMOKE_OCCUPY_PREFERRED must be 0 or 1" >&2; exit 1 ;;
 esac
@@ -105,6 +109,11 @@ if [ ! -x "$BIN" ]; then
 fi
 
 echo "Booting compiled daemon: $BIN (preferred port $PORT, scratch $SCRATCH)"
+env \
+  -u PD_DAEMON_TIER \
+  -u PD_DAEMON_LABEL \
+  -u PD_DAEMON_COLOR \
+  -u PD_DAEMON_SOURCE_DIR \
 PORT_DADDY_PORT="$PORT" \
 PORT_DADDY_PORT_FILE="$PORT_FILE" \
 PORT_DADDY_DB="$SCRATCH/registry.db" \
@@ -254,8 +263,7 @@ PREFERRED_BLOCKER_PID=""
 PORT2="${SMOKE_PORT2:-$(choose_free_port)}"
 PORT_FILE2="$SCRATCH/daemon2.port"
 if [ "$OCCUPY_PREFERRED" = 1 ]; then
-  start_preferred_blocker "$PORT2" "$SCRATCH/second-preferred-seed.ready"
-  SECOND_BLOCKER_PID="$LAST_BLOCKER_PID"
+  start_preferred_blocker "$PORT2" "$SCRATCH/second-preferred-seed.ready" SECOND_BLOCKER_PID
 fi
 PORT_DADDY_PORT="$PORT2" \
 PORT_DADDY_PORT_FILE="$PORT_FILE2" \
