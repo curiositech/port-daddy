@@ -207,7 +207,7 @@ function writeEmbeddedAssetsModule() {
  * Make every locally built artifact repair-capable, not only release.yml.
  * The binary is one runtime generation, while these dependency-free scripts
  * are deliberate companion assets that it stages into PD_HOME. Keeping the
- * staging here means `npm run build:bin`, FleetBar payload builds, release
+ * staging here means local binary builds, FleetBar payload builds, release
  * builds, and manual dogfood all receive the same complete cargo.
  */
 function stageSquidReleaseAssets(releaseDir) {
@@ -226,23 +226,18 @@ function stageSquidReleaseAssets(releaseDir) {
   for (const name of executableAssets) {
     const source = join(ROOT_DIR, 'bin', name);
     if (!existsSync(source)) throw new Error(`Missing required Squid build asset: ${source}`);
-    for (const destination of [join(releaseDir, name), join(binDir, name)]) {
-      copyFileSync(source, destination);
-      chmodSync(destination, 0o755);
-      files.push(destination);
-    }
+    const destination = join(binDir, name);
+    copyFileSync(source, destination);
+    chmodSync(destination, 0o755);
+    files.push(destination);
   }
 
   const pilotSource = join(ROOT_DIR, 'hooks', 'sessionstart-pilot.mjs');
   if (!existsSync(pilotSource)) throw new Error(`Missing required Squid build asset: ${pilotSource}`);
-  for (const destination of [
-    join(hooksDir, 'sessionstart-pilot.mjs'),
-    join(releaseDir, 'sessionstart-pilot.mjs'),
-  ]) {
-    copyFileSync(pilotSource, destination);
-    chmodSync(destination, 0o755);
-    files.push(destination);
-  }
+  const pilotDestination = join(hooksDir, 'sessionstart-pilot.mjs');
+  copyFileSync(pilotSource, pilotDestination);
+  chmodSync(pilotDestination, 0o755);
+  files.push(pilotDestination);
   return files;
 }
 

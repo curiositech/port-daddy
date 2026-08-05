@@ -1,14 +1,13 @@
 /**
  * One resolver for every Giant Squid runtime asset.
  *
- * Source checkouts keep scripts under bin/ and hooks/. Release archives keep
- * the same relative directories beside the compiled `pd` binary, while older
- * archives may keep tentacles flat beside it. Callers must not each invent a
- * different layout: that is how `pd squid on` reported success while the
- * installed build could not find the files it had promised to wire.
+ * Source checkouts and release archives share one directory-preserving layout:
+ * executable assets under bin/ and hook modules under hooks/. Callers must not
+ * invent fallback layouts: that is how `pd squid on` once reported success
+ * while the installed build could not find the files it had promised to wire.
  */
 import { existsSync } from 'node:fs';
-import { basename, dirname, isAbsolute, join, normalize } from 'node:path';
+import { dirname, isAbsolute, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
@@ -35,8 +34,6 @@ export function squidAssetCandidates(
 ): string[] {
   if (isAbsolute(assetPath)) return [assetPath];
 
-  const leaf = basename(assetPath);
-  const family = assetPath.includes('/') ? dirname(assetPath) : 'bin';
   const execDir = options.execDir ?? dirname(process.execPath);
   const resourceDir = options.resourceDir === undefined
     ? (process.env.PORT_DADDY_RESOURCE_DIR?.trim() || null)
@@ -44,41 +41,23 @@ export function squidAssetCandidates(
   const candidates: string[] = [];
 
   if (options.sourceDir) {
-    candidates.push(join(options.sourceDir, assetPath), join(options.sourceDir, leaf));
+    candidates.push(join(options.sourceDir, assetPath));
   }
 
-  // Canonical release layout first, then the legacy flat/bin fallbacks.
-  candidates.push(
-    join(execDir, assetPath),
-    join(execDir, family, leaf),
-    join(execDir, leaf),
-    join(execDir, 'bin', leaf),
-    join(execDir, 'hooks', leaf),
-  );
+  candidates.push(join(execDir, assetPath));
 
   // launchd/Homebrew can keep executable code in bin/ and durable assets in a
   // package share root. PORT_DADDY_RESOURCE_DIR is the canonical launch-time
   // declaration; the relative share path covers ordinary Homebrew CLI use.
   for (const root of [resourceDir, join(execDir, '..', 'share', 'port-daddy')]) {
     if (!root) continue;
-    candidates.push(
-      join(root, assetPath),
-      join(root, family, leaf),
-      join(root, leaf),
-      join(root, 'bin', leaf),
-      join(root, 'hooks', leaf),
-    );
+    candidates.push(join(root, assetPath));
   }
 
   // Source and transpiled-module fallback: walk upward to a repository root.
   let dir = options.moduleDir ?? MODULE_DIR;
   for (let depth = 0; depth < 8; depth++) {
-    candidates.push(
-      join(dir, assetPath),
-      join(dir, family, leaf),
-      join(dir, 'bin', leaf),
-      join(dir, 'hooks', leaf),
-    );
+    candidates.push(join(dir, assetPath));
     const parent = dirname(dir);
     if (parent === dir) break;
     dir = parent;

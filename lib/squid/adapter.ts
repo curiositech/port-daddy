@@ -132,12 +132,9 @@ export const SQUID_HOOK_METADATA: Record<SquidHookPurpose, SquidHookMetadata> = 
 // ─── Tentacle locations ───────────────────────────────────────────────────────
 
 /**
- * Absolute path to a pd-hook-* tentacle binary. Resolves across the layouts we
- * actually ship in, because a compiled single-file `pd` binary has a SYNTHETIC
- * `import.meta.url` — the old `../../bin` walk from it collapsed to a bogus
- * `/bin/pd-hook-*`. We therefore prefer the running binary's own directory
- * (where the release tarball co-locates the tentacles next to `pd`, exactly as
- * it does other release helpers), then a `bin/` beside it, then the dev-from-source path.
+ * Absolute path to a pd-hook-* tentacle binary. Source and release builds both
+ * preserve the bin/ directory beside the compiled `pd` binary. The shared asset
+ * resolver also knows the declared package resource root and source-tree walk.
  */
 export function tentaclePath(name: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool'): string {
   const found = resolveSquidAsset(join('bin', name));

@@ -31,34 +31,34 @@
     },
     {
       "id": "pd-hook-prompt",
-      "buildCmd": "cp bin/pd-hook-prompt dist/pd-hook-prompt (POSIX shell tentacle; no build)",
+      "buildCmd": "cp bin/pd-hook-prompt dist/bin/pd-hook-prompt (canonical directory-preserving layout)",
       "sourcePath": "bin/pd-hook-prompt",
-      "stagedPath": "pd-hook-prompt",
+      "stagedPath": "bin/pd-hook-prompt",
       "required": true,
       "executable": true,
       "minBytes": 1
     },
     {
       "id": "pd-hook-pre-tool",
-      "buildCmd": "cp bin/pd-hook-pre-tool dist/pd-hook-pre-tool (POSIX shell tentacle; no build)",
+      "buildCmd": "cp bin/pd-hook-pre-tool dist/bin/pd-hook-pre-tool (canonical directory-preserving layout)",
       "sourcePath": "bin/pd-hook-pre-tool",
-      "stagedPath": "pd-hook-pre-tool",
+      "stagedPath": "bin/pd-hook-pre-tool",
       "required": true,
       "executable": true,
       "minBytes": 1
     },
     {
       "id": "pd-hook-post-tool",
-      "buildCmd": "cp bin/pd-hook-post-tool dist/pd-hook-post-tool (POSIX shell tentacle; no build)",
+      "buildCmd": "cp bin/pd-hook-post-tool dist/bin/pd-hook-post-tool (canonical directory-preserving layout)",
       "sourcePath": "bin/pd-hook-post-tool",
-      "stagedPath": "pd-hook-post-tool",
+      "stagedPath": "bin/pd-hook-post-tool",
       "required": true,
       "executable": true,
       "minBytes": 1
     },
     {
       "id": "pd-statusline",
-      "buildCmd": "cp bin/pd-statusline dist/bin/pd-statusline (staged under bin/ per lib/squid/adapter.ts tentaclePath fallback)",
+      "buildCmd": "cp bin/pd-statusline dist/bin/pd-statusline (canonical directory-preserving layout)",
       "sourcePath": "bin/pd-statusline",
       "stagedPath": "bin/pd-statusline",
       "required": true,
