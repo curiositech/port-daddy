@@ -1,0 +1,130 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{tikz}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
+
+\geometry{margin=2.35cm}
+\captionsetup{font=small,labelfont=bf}
+\setlength{\emergencystretch}{2em}
+\setcounter{tocdepth}{2}
+\makeatletter
+\renewcommand*\l@section{\@dottedtocline{1}{1.5em}{4.5em}}
+\renewcommand*\l@subsection{\@dottedtocline{2}{3.8em}{5.2em}}
+\renewcommand*\l@subsubsection{\@dottedtocline{3}{7.0em}{6.0em}}
+\renewcommand*\l@figure{\@dottedtocline{1}{1.5em}{4.5em}}
+\renewcommand*\l@table{\@dottedtocline{1}{1.5em}{4.5em}}
+\makeatother
+
+\definecolor{codebg}{RGB}{248,248,248}
+\definecolor{codeframe}{RGB}{200,200,200}
+\definecolor{darkgreen}{HTML}{00564C}
+\definecolor{darkblue}{HTML}{003FB8}
+\definecolor{accent}{HTML}{00564C}
+\definecolor{hhsand}{HTML}{E9DCC4}
+\definecolor{hhsanddeep}{HTML}{D8C7A6}
+\definecolor{hhebony}{HTML}{121212}
+\definecolor{hhink}{HTML}{1B1712}
+\definecolor{hhcobalt}{HTML}{003FB8}
+\definecolor{hhamber}{HTML}{6B4500}
+\definecolor{hhteal}{HTML}{00564C}
+\definecolor{hhpaper}{HTML}{FBF7EF}
+\definecolor{hhgray}{HTML}{5C5650}
+
+% One maturity vocabulary for the collected volume. The uppercase aliases keep
+% the independently buildable Chapter III source intact.
+\newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{implemented}}}}}
+\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{partial}}}}
+\newcommand{\Designed}{{\textcolor{hhgray}{\textsc{specified}}}}
+\newcommand{\Vision}{{\textcolor{hhgray}{\textit{proposed}}}}
+\newcommand{\BUILT}{\Built}
+\newcommand{\BUILTWEAK}{\BuiltWeak}
+\newcommand{\DESIGNED}{\Designed}
+\newcommand{\VISION}{\Vision}
+\newcommand{\NotGuar}{{\textcolor{hhink}{\textit{not guaranteed}}}}
+\newcommand{\Closed}{{\textcolor{hhink}{\textsc{\textbf{closed}}}}}
+\newcommand{\Partial}{{\textcolor{hhink}{\textsc{partial}}}}
+\newcommand{\Open}{{\textcolor{hhgray}{\textit{open}}}}
+\newcommand{\SpecOnly}{{\textcolor{hhgray}{\textit{spec-only}}}}
+\newcommand{\code}[1]{{\ttfamily\detokenize{#1}}}
+
+\newcommand{\pullquote}[1]{%
+  \par\vspace{6pt}\noindent\begin{tikzpicture}
+  \node[draw=none,fill=hhsand!22,inner sep=10pt,
+        text width=\dimexpr\textwidth-30pt\relax,align=left] (q) {\itshape\large #1};
+  \draw[hhcobalt,line width=2.5pt] (q.north west) -- (q.south west);
+  \end{tikzpicture}\par\vspace{6pt}}
+\newcommand{\keyidea}[1]{%
+  \par\vspace{6pt}\noindent\begin{tikzpicture}
+  \node[draw=none,fill=hhsand!18,rounded corners=2pt,inner sep=9pt,
+        text width=\dimexpr\textwidth-26pt\relax,align=left] (k)
+        {{\scshape\bfseries\color{hhgray}\small Key idea.}\enspace #1};
+  \draw[hhgray!60,line width=1pt] (k.north west) -- (k.south west);
+  \end{tikzpicture}\par\vspace{6pt}}
+\newcommand{\pitfall}[1]{%
+  \par\vspace{6pt}\noindent\begin{tikzpicture}
+  \node[draw=none,fill=hhsand!18,rounded corners=2pt,inner sep=9pt,
+        text width=\dimexpr\textwidth-26pt\relax,align=left] (p)
+        {{\scshape\bfseries\color{hhcobalt}\small Pitfall.}\enspace #1};
+  \draw[hhgray!60,line width=1pt] (p.north west) -- (p.south west);
+  \end{tikzpicture}\par\vspace{6pt}}
+\newcommand{\xrefbox}[1]{%
+  \vspace{4pt}\noindent\begin{tikzpicture}
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!18,rounded corners=2pt,
+        inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,align=left]{\small #1};
+  \end{tikzpicture}\vspace{4pt}}
+\newcommand{\scene}[2]{%
+  \par\vspace{6pt}\noindent\begin{tikzpicture}
+  \node[draw=none,fill=hhsand!18,rounded corners=2pt,inner sep=9pt,
+        text width=\dimexpr\textwidth-28pt\relax,align=left] (s)
+        {{\scshape\bfseries\color{hhgray}\footnotesize Scene.}\enspace
+         {\bfseries #1}\enspace\itshape #2};
+  \draw[hhgray!60,line width=1pt] (s.north west) -- (s.south west);
+  \end{tikzpicture}\par\vspace{6pt}}
+\newcommand{\openstar}{{\textcolor{hhcobalt}{$\bigstar$}}\;}
+\newcommand{\exhead}[1]{\par\vspace{4pt}\noindent{\scshape\bfseries\color{hhink}#1}\par\vspace{-2pt}}
+
+% The chapters intentionally use three exercise idioms. Namespacing preserves
+% their authored semantics while keeping one visual grammar.
+\newenvironment{lsexercises}{%
+  \par\vspace{8pt}\noindent\begin{tikzpicture}
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
+        inner sep=10pt,text width=\dimexpr\textwidth-28pt\relax,align=left]\bgroup
+  \begin{minipage}{\dimexpr\textwidth-30pt\relax}
+  {\scshape\bfseries\color{hhink}Exercises}\par\vspace{3pt}\small
+}{\end{minipage}\egroup;\end{tikzpicture}\par\vspace{8pt}}
+\newenvironment{stpexercises}{%
+  \par\vspace{8pt}\noindent\begin{tikzpicture}
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
+        inner sep=10pt,text width=\dimexpr\textwidth-26pt\relax,align=left]\bgroup
+  \begin{minipage}{\dimexpr\textwidth-46pt\relax}
+  {\scshape\bfseries\color{hhink}\large Exercises}\par\vspace{3pt}\small
+}{\end{minipage}\egroup;\end{tikzpicture}\par\vspace{8pt}}
+\newenvironment{heexercises}{%
+  \par\vspace{8pt}\noindent
+  {\scshape\bfseries\textcolor{hhink}{\textcolor{hhgray!70}{\rule[-1pt]{2.5pt}{11pt}}\enspace Exercises}}
+  \par\nobreak\vspace{2pt}
+  \begin{enumerate}[label=\textbf{E\arabic*.},leftmargin=2.6em,itemsep=2pt,topsep=2pt]
+}{\end{enumerate}\vspace{6pt}}
+\newcommand{\swkexercises}[1]{%
+  \par\vspace{8pt}\noindent\begin{tikzpicture}
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
+        inner sep=9pt,text width=\dimexpr\textwidth-26pt\relax,align=left]
+        {{\scshape\bfseries\textcolor{hhink}{Exercises.}}\par\vspace{3pt}#1};
+  \end{tikzpicture}\par\vspace{6pt}}
