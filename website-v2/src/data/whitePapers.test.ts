@@ -168,6 +168,14 @@ describe('whitepaper metadata sync', () => {
       status: 'Version 1.2 (collected-volume edition)',
     })
   })
+
+  test('audited Single-Writer Kernel metadata names its collected-volume edition', () => {
+    const kernel = WHITE_PAPERS.find((paper) => paper.id === 'single-writer-kernel')
+    expect(kernel).toMatchObject({
+      pages: 35,
+      status: 'Version 1.2 (collected-volume edition)',
+    })
+  })
 })
 
 describe('whitepaper copy hygiene', () => {
