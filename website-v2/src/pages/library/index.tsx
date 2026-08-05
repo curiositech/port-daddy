@@ -164,8 +164,6 @@ function GroupHeading({
 }
 
 export default function LibraryPage() {
-  const totalPages = WHITE_PAPERS.reduce((sum, paper) => sum + paper.pages, 0)
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -199,7 +197,7 @@ export default function LibraryPage() {
                   {[
                     { value: '04', label: 'chapters explain' },
                     { value: '03', label: 'chapters prove' },
-                    { value: String(totalPages), label: 'pages, free PDFs' },
+                    { value: String(COLLECTED_VOLUME.pages), label: 'pages, collected PDF' },
                   ].map((stat) => (
                     <div key={stat.label} className="space-y-[var(--space-1)]">
                       <div className="font-mono text-[length:var(--text-2xl)] font-black leading-none text-[var(--text-primary)]">
