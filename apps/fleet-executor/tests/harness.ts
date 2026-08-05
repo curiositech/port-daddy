@@ -36,6 +36,7 @@ export interface GitHubState {
     app?: { id: number };
   }>;
   mergeQueueEntries: Array<{ position: number; prNumber: number; headSha: string; groupHeadSha: string }>;
+  failMergeQueueQuery: boolean;
   completed: Array<{ id: number; conclusion: string; summary: string; detailsUrl?: string }>;
   /** details_url values sent on check-run CREATE (undefined when omitted). */
   createdDetailsUrls: Array<string | undefined>;
@@ -106,6 +107,7 @@ export function freshState(): GitHubState {
     checkRunsCreated: 0,
     existingCheckRuns: [],
     mergeQueueEntries: [{ position: 1, prNumber: 7, headSha: 'HEADSHA', groupHeadSha: 'MERGEGROUPSHA' }],
+    failMergeQueueQuery: false,
     createdDetailsUrls: [],
     completed: [],
     reviews: [],
@@ -164,6 +166,7 @@ export function installGitHubFetch(state: GitHubState): void {
     state.records.push({ method, url, body });
 
     if (url === 'https://api.github.com/graphql' && method === 'POST') {
+      if (state.failMergeQueueQuery) return text('merge queue unavailable', 503);
       return json({
         data: {
           repository: {
@@ -381,12 +384,20 @@ export function installGitHubFetch(state: GitHubState): void {
     // --- complete check run ---
     const completeMatch = url.match(/\/check-runs\/(\d+)$/);
     if (completeMatch && method === 'PATCH') {
+      const id = Number(completeMatch[1]);
+      const conclusion = (body as { conclusion?: string })?.conclusion ?? '';
       state.completed.push({
-        id: Number(completeMatch[1]),
-        conclusion: (body as { conclusion?: string })?.conclusion ?? '',
+        id,
+        conclusion,
         summary: (body as { output?: { summary?: string } })?.output?.summary ?? '',
         detailsUrl: (body as { details_url?: string })?.details_url,
       });
+      const check = state.existingCheckRuns.find(candidate => candidate.id === id);
+      if (check) {
+        check.status = 'completed';
+        check.conclusion = conclusion;
+        check.details_url = (body as { details_url?: string })?.details_url ?? check.details_url;
+      }
       return json({ ok: true });
     }
 
