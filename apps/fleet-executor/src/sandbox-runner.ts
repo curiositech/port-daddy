@@ -22,12 +22,92 @@ export interface SandboxRunOutcome {
   passed: boolean | null;
   /** Tail of combined stdout+stderr (capped to 1 KB). Empty when not executed. */
   outputTail: string;
+  /**
+   * Names of the individual tests that FAILED, extracted from the runner's
+   * output.
+   *
+   * WHY THIS IS CAPTURED HERE and not derived later: {@link outputTail} keeps
+   * only the last {@link OUTPUT_TAIL_BYTES} of output, and a failing suite's
+   * summary is frequently longer than that — the individual failure lines are
+   * usually the FIRST thing printed and the tail is the last. Anything trying
+   * to name the failures from the tail alone would silently report a subset,
+   * or none, and read as if the suite were fine. So the extraction happens at
+   * the one point where the complete output still exists.
+   *
+   * Empty when the suite passed, when nothing was executed, or when the
+   * runner's format was not recognised — an empty list NEVER means "no
+   * failures", only "no failures I can name". Callers must key correctness off
+   * {@link passed} and treat this as detail.
+   */
+  failures: string[];
   /** Why execution did not happen (binding absent, sandbox error). Null on success. */
   reason: string | null;
 }
 
 /** Cap on the output tail we keep for the transcript / comment. */
 export const OUTPUT_TAIL_BYTES = 1024;
+
+/** Most failures we will name individually before saying "and N more". */
+export const MAX_NAMED_FAILURES = 25;
+
+/**
+ * Pull the individual failing test names out of a runner's combined output.
+ *
+ * The purser authors tests for whatever the repo under review already uses, so
+ * this cannot assume one runner. It recognises the shapes that actually turn up
+ * in this fleet's targets:
+ *
+ *   vitest / jest   `× suite > case`, `✕ suite > case`, `FAIL path/to/spec.ts`
+ *   node:test / TAP `not ok 3 - the case name`
+ *   pytest          `FAILED tests/test_x.py::test_case - AssertionError`
+ *   go test         `--- FAIL: TestThing (0.00s)`
+ *
+ * Deliberately conservative. A line must look like a runner's own failure
+ * record to count; prose that merely contains the word "failed" does not. Over-
+ * reporting here would be worse than under-reporting, because these names are
+ * shown to a PR author as "this is what you must fix" — inventing one sends
+ * them hunting for a test that does not exist.
+ *
+ * @param output Combined stdout+stderr, complete and untruncated.
+ * @returns Deduped failing-test names in first-seen order, capped at
+ *          {@link MAX_NAMED_FAILURES}. Empty when none are recognisable.
+ */
+export function parseTestFailures(output: string): string[] {
+  const patterns: RegExp[] = [
+    // vitest/jest per-case markers. The leading marker is required, so a
+    // summary line like "Tests 3 failed" cannot match.
+    /^\s*(?:×|✕|✗)\s+(.{3,200}?)\s*$/,
+    // vitest/jest file-level failure.
+    /^\s*FAIL\s+(\S.{2,200}?)\s*$/,
+    // TAP (node:test, tap, ava). Captures the description after the number.
+    /^\s*not ok\s+\d+\s*[-–]\s*(.{3,200}?)\s*$/,
+    // pytest.
+    /^\s*FAILED\s+(\S.{2,200}?)(?:\s+-\s+.*)?$/,
+    // go test.
+    /^\s*---\s+FAIL:\s+(\S.{2,200}?)\s*(?:\([\d.]+s\))?\s*$/,
+  ];
+
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const rawLine of output.split(/\r?\n/)) {
+    // Strip ANSI colour so a coloured `×` still matches.
+    const line = rawLine.replace(/\[[0-9;]*m/g, '');
+    for (const re of patterns) {
+      const m = re.exec(line);
+      if (!m) continue;
+      const name = m[1].trim();
+      // Skip runner chatter that survives the shape check.
+      if (!name || /^\d+\s*(tests?|files?)\b/i.test(name)) break;
+      if (!seen.has(name)) {
+        seen.add(name);
+        out.push(name);
+      }
+      break; // one pattern per line is enough
+    }
+    if (out.length >= MAX_NAMED_FAILURES) break;
+  }
+  return out;
+}
 
 // ---------------------------------------------------------------------------
 // Minimal structural types for the @cloudflare/sandbox surface we use. We do
@@ -118,6 +198,7 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
       executed: false,
       passed: null,
       outputTail: '',
+      failures: [],
       reason: 'SANDBOX binding absent — tests were NOT executed (no fabricated results)',
     };
   }
@@ -154,6 +235,8 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
       executed: true,
       passed,
       outputTail: combined.slice(-OUTPUT_TAIL_BYTES),
+      // Parsed from the COMPLETE output, before the tail truncation above.
+      failures: passed ? [] : parseTestFailures(combined),
       reason: null,
     };
   } catch (err) {
@@ -161,6 +244,7 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
       executed: false,
       passed: null,
       outputTail: '',
+      failures: [],
       reason: `sandbox exec failed: ${String(err).slice(0, 300)}`,
     };
   }
