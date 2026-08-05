@@ -175,7 +175,7 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   pdfPath: '/whitepaper/coordination-papers-mega-volume.pdf',
   date: 'August 2026',
   pages: 247,
-  sizeKb: 2347,
+  sizeKb: 2348,
   references: 202,
 }
 
