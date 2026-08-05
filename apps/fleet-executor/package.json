@@ -2,7 +2,7 @@
   "name": "@port-daddy/fleet-executor",
   "version": "0.1.0",
   "private": true,
-  "description": "Cloudflare Worker \u2014 cloud fleet executor. Queue consumer that runs Port Daddy fleet ships on Workers AI and posts PR check runs / comments, with per-ship blocking verdict semantics.",
+  "description": "Cloudflare Worker — cloud fleet executor. Queue consumer that runs Port Daddy fleet ships on Workers AI and posts PR check runs / comments, with per-ship blocking verdict semantics.",
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
