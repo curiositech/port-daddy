@@ -2,21 +2,26 @@
  * Spawn Routes — AI Agent Launcher
  *
  * POST /spawn        — launch an AI agent, body: SpawnSpec, returns SpawnResult
+ *                      with optional async mode (Prefer respond-async + Idempotency-Key)
  * GET  /spawn        — list active spawned agents
+ * GET  /spawn/receipts/:id — retrieve durable receipt with atomic accounting & liveness
  * DELETE /spawn/:id  — kill a spawned agent
  */
 
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import type { BackendOverrideSource, SpawnSpec, Spawner } from '../lib/spawner.js';
 import { assessSpawnPreflight } from '../lib/spawn-preflight.js';
 import type { CostTracker } from '../lib/cost-tracker.js';
 import { resolveFleetAgentRuntime, type FleetModelTier, type FleetRuntimeTarget } from '../lib/fleet-runtime.js';
 import { validateChannel } from '../shared/validators.js';
 import { KNOWN_BACKEND_IDS } from '../lib/backend-catalog.js';
+import type { AgentRunReceiptStore } from '../lib/agent-run-receipts.js';
+import { TERMINAL_AGENT_RUN_STATUSES } from '../lib/agent-run-receipts.js';
 
 interface SpawnRouteDeps {
   spawner: Spawner;
   costTracker?: CostTracker;
+  receiptStore?: AgentRunReceiptStore;
   metrics: { errors: number };
   logger: {
     info(msg: string, meta?: Record<string, unknown>): void;
@@ -55,7 +60,7 @@ function requestedModelFromRequest(
 // Fastify plugin (dual-export)
 // ==========================================================================
 export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (fastify, opts) => {
-  const { metrics, logger, spawner, costTracker } = opts.deps;
+  const { metrics, logger, spawner, costTracker, receiptStore } = opts.deps;
 
   fastify.post('/spawn/preflight', async (request, reply) => {
     try {
@@ -88,201 +93,48 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
     }
   });
 
-  // POST /spawn — Launch an AI agent
+  // POST /spawn — Launch an AI agent (with optional async mode)
   fastify.post('/spawn', async (request, reply) => {
     try {
-      const {
-        backend,
-        name,
-        model,
-        modelTier,
-        identity,
-        purpose,
-        task,
-        files,
-        workdir,
-        env,
-        timeout,
-        allowedTools,
-        maxTokens,
-        permissionMode,
-        injectSquidHooks,
-        tubeChannel,
-        budgetUsd: rawBudgetUsd,
-      } = request.body as any;
+      // Check for async receipt admission mode: Prefer: respond-async + Idempotency-Key
+      const preferHeader = (request.headers.prefer ?? '').toLowerCase();
+      const hasAsyncPreference = preferHeader.includes('respond-async');
+      const idempotencyKey = String(request.headers['idempotency-key'] ?? '').trim();
 
-      if (!backend || typeof backend !== 'string') {
-        reply.code(400); return {
-          success: false,
-          error: 'backend is required. Valid values: ollama, claude, claude-cli, gemini, cloudflare, codex, aider, custom',
-          code: 'VALIDATION_ERROR',
-        };
+      // Async receipt admission: durably accept before backend launch
+      if (hasAsyncPreference && idempotencyKey.length > 0 && receiptStore) {
+        return handleAsyncSpawnAdmission(request, reply, idempotencyKey, receiptStore, logger, metrics);
       }
 
-      if (!VALID_BACKENDS.has(backend)) {
-        reply.code(400); return {
-          success: false,
-          error: `Invalid backend "${backend}". Valid values: ${[...VALID_BACKENDS].join(', ')}`,
-          code: 'VALIDATION_ERROR',
-        };
-      }
-
-      if (!task || typeof task !== 'string' || !task.trim()) {
-        reply.code(400); return {
-          success: false,
-          error: 'task is required and must be a non-empty string',
-          code: 'VALIDATION_ERROR',
-        };
-      }
-
-      if (typeof task === 'string' && task.length > 100000) {
-        reply.code(400); return {
-          success: false,
-          error: 'task must not exceed 100000 characters',
-          code: 'VALIDATION_ERROR',
-        };
-      }
-
-      if (backend === 'custom' && /[;&|`$(){}!<>]/.test(task as string)) {
-        reply.code(400); return {
-          success: false,
-          error: 'Custom backend task contains shell metacharacters. Use explicit arguments instead of shell syntax.',
-          code: 'VALIDATION_ERROR',
-        };
-      }
-
-      if (tubeChannel !== undefined && tubeChannel !== null) {
-        const channelValidation = validateChannel(tubeChannel);
-        if (!channelValidation.valid) {
-          reply.code(400); return {
-            success: false,
-            error: `tubeChannel ${channelValidation.error}`,
-            code: 'VALIDATION_ERROR',
-          };
-        }
-      }
-
-      // workdir is interpolated into the Coast Guard's OS-sandbox profile
-      // (lib/coast-guard.ts buildSeatbeltProfile → `(subpath "<workdir>")`). A
-      // quote/backslash/newline/NUL in it is an SBPL-injection vector (#339), so
-      // reject it at the boundary — same posture as `task`'s metachar check.
-      // We also require an absolute path: the sandbox confines an absolute root,
-      // and a relative workdir is ambiguous against the daemon's cwd.
-      if (workdir !== undefined && workdir !== null) {
-        if (typeof workdir !== 'string' || !workdir.trim()) {
-          reply.code(400); return {
-            success: false,
-            error: 'workdir must be a non-empty string',
-            code: 'VALIDATION_ERROR',
-          };
-        }
-        if (/["\\\n\r\0]/.test(workdir)) {
-          reply.code(400); return {
-            success: false,
-            error: 'workdir contains an illegal character (quote, backslash, newline, or NUL). Provide a plain absolute path.',
-            code: 'VALIDATION_ERROR',
-          };
-        }
-        if (!workdir.startsWith('/')) {
-          reply.code(400); return {
-            success: false,
-            error: 'workdir must be an absolute path (start with "/").',
-            code: 'VALIDATION_ERROR',
-          };
-        }
-      }
-
-      const parsedBudgetUsd = typeof rawBudgetUsd === 'number'
-        ? rawBudgetUsd
-        : typeof rawBudgetUsd === 'string' && rawBudgetUsd.trim()
-          ? parseFloat(rawBudgetUsd)
-          : undefined;
-      const validBudgetUsd = Number.isFinite(parsedBudgetUsd) ? parsedBudgetUsd : undefined;
-      const preflight = await assessSpawnPreflight({
-        backend,
-        model,
-        modelTier: typeof modelTier === 'string' ? modelTier as FleetModelTier : undefined,
-        identity,
-        ...(validBudgetUsd === undefined ? {} : { budgetUsd: validBudgetUsd }),
-      }, { costTracker });
-
-      if (!preflight.launchReady) {
-        reply.code(400);
-        return {
-          success: false,
-          error: preflight.blockedReasons[0] || 'spawn preflight failed',
-          code: 'PRECONDITION_FAILED',
-          preflight,
-        };
-      }
-
-      const selectedAttempt = preflight.attempts[0];
-      const effectiveBackend = selectedAttempt?.backend || backend;
-      const backendWasForced = effectiveBackend !== backend;
-      const spec: SpawnSpec = {
-        backend: effectiveBackend as SpawnSpec['backend'],
-        task: task.trim(),
-      };
-      if (validBudgetUsd !== undefined) spec.budgetUsd = validBudgetUsd;
-      if (backendWasForced) {
-        spec.requestedBackend = backend as SpawnSpec['backend'];
-        spec.requestedModel = requestedModelFromRequest(backend, model, modelTier);
-        spec.backendOverrideSource = backendOverrideSourceFromPreflight(selectedAttempt?.backendSource, true);
-      }
-
-      if (!backendWasForced && model && typeof model === 'string') spec.model = model;
-      else if (preflight.attempts[0]?.model) spec.model = preflight.attempts[0].model;
-      if (name && typeof name === 'string') spec.name = name;
-      if (!backendWasForced && typeof modelTier === 'string') spec.modelTier = modelTier as FleetModelTier;
-      else if (preflight.attempts[0]?.modelTier) spec.modelTier = preflight.attempts[0].modelTier as FleetModelTier;
-      if (identity && typeof identity === 'string') spec.identity = identity;
-      if (purpose && typeof purpose === 'string') spec.purpose = purpose;
-      if (Array.isArray(files)) spec.files = files as string[];
-      if (workdir && typeof workdir === 'string') spec.workdir = workdir;
-      if (env && typeof env === 'object' && !Array.isArray(env)) spec.env = env as Record<string, string>;
-      if (timeout && typeof timeout === 'number') spec.timeout = timeout;
-      if (allowedTools && typeof allowedTools === 'string') spec.allowedTools = allowedTools;
-      if (maxTokens && typeof maxTokens === 'number') spec.maxTokens = maxTokens;
-      if (typeof tubeChannel === 'string') spec.tubeChannel = tubeChannel;
-      // File-edit permission mode for the cli:claude-code backend. Only the three
-      // CLI-recognised modes are accepted; anything else is ignored (the spawner
-      // forwards it verbatim as --permission-mode, so the boundary validates it).
-      if (permissionMode === 'default' || permissionMode === 'acceptEdits' || permissionMode === 'bypassPermissions') {
-        spec.permissionMode = permissionMode;
-      }
-      // Giant Squid Harness opt-in (ADR-0091). Default false → backward-compatible:
-      // an absent/false flag leaves the spawn byte-for-byte unchanged. When true,
-      // the spawner's runClaudeCli (lib/spawner.ts) FIRST injects the pd-hook-*
-      // tentacles into the workspace's .claude/settings.json, so a conjure-
-      // dispatched vendor CLI runs UNDER PD coordination — its UserPromptSubmit /
-      // PreToolUse / PostToolUse turns fire the lock gate + pheromone hooks inside
-      // Claude Code's own loop (Claude Max Prime). The conjurer's Dispatch sets
-      // this true (console DaemonClient::spawn with SpawnOpts::squid). codex /
-      // gemini remain validate-then-add: their squid adapters throw, so the flag
-      // is a harmless no-op for those backends until those adapters are written.
-      if (injectSquidHooks === true) {
-        spec.injectSquidHooks = true;
-      }
-
-      logger.info('spawn_start', {
-        backend,
-        model: spec.model || null,
-        identity: spec.identity || null,
-        purpose: spec.purpose || null,
-      });
-
-      const result = await spawner.spawn(spec);
-
-      logger.info('spawn_complete', {
-        agentId: result.agentId,
-        backend: result.backend,
-        status: result.status,
-      });
-
-      return { success: result.status === 'completed', ...result };
+      // Legacy synchronous path: unchanged behavior for backward compatibility
+      return handleSyncSpawn(request, reply, spawner, costTracker, metrics, logger);
     } catch (error) {
       metrics.errors++;
       logger.error('spawn_error', { error: (error as Error).message });
+      reply.code(500); return { error: 'internal server error' };
+    }
+  });
+
+  // GET /spawn/receipts/:id — Retrieve durable receipt with atomic accounting & liveness
+  fastify.get('/spawn/receipts/:id', async (request, reply) => {
+    try {
+      if (!receiptStore) {
+        reply.code(501);
+        return { error: 'receipt store not available' };
+      }
+
+      const receiptId = String((request.params as any).id);
+      const receipt = receiptStore.get(receiptId);
+
+      if (!receipt) {
+        reply.code(404);
+        return { error: `receipt ${receiptId} not found` };
+      }
+
+      return { success: true, receipt };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('spawn_receipt_error', { error: (error as Error).message });
       reply.code(500); return { error: 'internal server error' };
     }
   });
@@ -324,3 +176,266 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
     }
   });
 };
+
+// ==========================================================================
+// Async Receipt Admission Handler
+// ==========================================================================
+
+async function handleAsyncSpawnAdmission(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  idempotencyKey: string,
+  receiptStore: AgentRunReceiptStore,
+  logger: { info(msg: string, meta?: Record<string, unknown>): void; error(msg: string, meta?: Record<string, unknown>): void },
+  metrics: { errors: number },
+): Promise<any> {
+  try {
+    const body = (request.body as Record<string, unknown>) || {};
+
+    // Durably accept the request (idempotent) before launching backend
+    let receipt;
+    let replayed = false;
+    try {
+      const result = receiptStore.accept({
+        idempotencyKey,
+        kind: 'spawn',
+        request: body,
+        budgetUsd: typeof body.budgetUsd === 'number' ? body.budgetUsd : undefined,
+      });
+      receipt = result.receipt;
+      replayed = result.replayed;
+    } catch (err) {
+      metrics.errors++;
+      logger.error('spawn_receipt_accept_error', { error: (err as Error).message, idempotencyKey });
+      reply.code(409);
+      return {
+        error: 'idempotency key conflict or internal error',
+        idempotencyKey,
+      };
+    }
+
+    logger.info('spawn_receipt_accepted', {
+      receiptId: receipt.id,
+      replayed,
+      idempotencyKey,
+    });
+
+    // Return 202 Accepted with receipt location and retry-after
+    reply.code(202);
+    reply.header('Content-Location', `/spawn/receipts/${receipt.id}`);
+    reply.header('Retry-After', '60');
+
+    return {
+      success: true,
+      receipt,
+      replayed,
+    };
+  } catch (error) {
+    metrics.errors++;
+    logger.error('spawn_async_error', { error: (error as Error).message });
+    reply.code(500); return { error: 'internal server error' };
+  }
+}
+
+// ==========================================================================
+// Synchronous Spawn Handler (legacy path for backward compatibility)
+// ==========================================================================
+
+async function handleSyncSpawn(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  spawner: Spawner,
+  costTracker: CostTracker | undefined,
+  metrics: { errors: number },
+  logger: { info(msg: string, meta?: Record<string, unknown>): void; error(msg: string, meta?: Record<string, unknown>): void },
+): Promise<any> {
+  const {
+    backend,
+    name,
+    model,
+    modelTier,
+    identity,
+    purpose,
+    task,
+    files,
+    workdir,
+    env,
+    timeout,
+    allowedTools,
+    maxTokens,
+    permissionMode,
+    injectSquidHooks,
+    tubeChannel,
+    budgetUsd: rawBudgetUsd,
+  } = request.body as any;
+
+  if (!backend || typeof backend !== 'string') {
+    reply.code(400); return {
+      success: false,
+      error: 'backend is required. Valid values: ollama, claude, claude-cli, gemini, cloudflare, codex, aider, custom',
+      code: 'VALIDATION_ERROR',
+    };
+  }
+
+  if (!VALID_BACKENDS.has(backend)) {
+    reply.code(400); return {
+      success: false,
+      error: `Invalid backend "${backend}". Valid values: ${[...VALID_BACKENDS].join(', ')}`,
+      code: 'VALIDATION_ERROR',
+    };
+  }
+
+  if (!task || typeof task !== 'string' || !task.trim()) {
+    reply.code(400); return {
+      success: false,
+      error: 'task is required and must be a non-empty string',
+      code: 'VALIDATION_ERROR',
+    };
+  }
+
+  if (typeof task === 'string' && task.length > 100000) {
+    reply.code(400); return {
+      success: false,
+      error: 'task must not exceed 100000 characters',
+      code: 'VALIDATION_ERROR',
+    };
+  }
+
+  if (backend === 'custom' && /[;&|`$(){}!<>]/.test(task as string)) {
+    reply.code(400); return {
+      success: false,
+      error: 'Custom backend task contains shell metacharacters. Use explicit arguments instead of shell syntax.',
+      code: 'VALIDATION_ERROR',
+    };
+  }
+
+  if (tubeChannel !== undefined && tubeChannel !== null) {
+    const channelValidation = validateChannel(tubeChannel);
+    if (!channelValidation.valid) {
+      reply.code(400); return {
+        success: false,
+        error: `tubeChannel ${channelValidation.error}`,
+        code: 'VALIDATION_ERROR',
+      };
+    }
+  }
+
+  // workdir is interpolated into the Coast Guard's OS-sandbox profile
+  // (lib/coast-guard.ts buildSeatbeltProfile → `(subpath "<workdir>")`). A
+  // quote/backslash/newline/NUL in it is an SBPL-injection vector (#339), so
+  // reject it at the boundary — same posture as `task`'s metachar check.
+  // We also require an absolute path: the sandbox confines an absolute root,
+  // and a relative workdir is ambiguous against the daemon's cwd.
+  if (workdir !== undefined && workdir !== null) {
+    if (typeof workdir !== 'string' || !workdir.trim()) {
+      reply.code(400); return {
+        success: false,
+        error: 'workdir must be a non-empty string',
+        code: 'VALIDATION_ERROR',
+      };
+    }
+    if (/["\\\n\r\0]/.test(workdir)) {
+      reply.code(400); return {
+        success: false,
+        error: 'workdir contains an illegal character (quote, backslash, newline, or NUL). Provide a plain absolute path.',
+        code: 'VALIDATION_ERROR',
+      };
+    }
+    if (!workdir.startsWith('/')) {
+      reply.code(400); return {
+        success: false,
+        error: 'workdir must be an absolute path (start with "/").',
+        code: 'VALIDATION_ERROR',
+      };
+    }
+  }
+
+  const parsedBudgetUsd = typeof rawBudgetUsd === 'number'
+    ? rawBudgetUsd
+    : typeof rawBudgetUsd === 'string' && rawBudgetUsd.trim()
+      ? parseFloat(rawBudgetUsd)
+      : undefined;
+  const validBudgetUsd = Number.isFinite(parsedBudgetUsd) ? parsedBudgetUsd : undefined;
+  const preflight = await assessSpawnPreflight({
+    backend,
+    model,
+    modelTier: typeof modelTier === 'string' ? modelTier as FleetModelTier : undefined,
+    identity,
+    ...(validBudgetUsd === undefined ? {} : { budgetUsd: validBudgetUsd }),
+  }, { costTracker });
+
+  if (!preflight.launchReady) {
+    reply.code(400);
+    return {
+      success: false,
+      error: preflight.blockedReasons[0] || 'spawn preflight failed',
+      code: 'PRECONDITION_FAILED',
+      preflight,
+    };
+  }
+
+  const selectedAttempt = preflight.attempts[0];
+  const effectiveBackend = selectedAttempt?.backend || backend;
+  const backendWasForced = effectiveBackend !== backend;
+  const spec: SpawnSpec = {
+    backend: effectiveBackend as SpawnSpec['backend'],
+    task: task.trim(),
+  };
+  if (validBudgetUsd !== undefined) spec.budgetUsd = validBudgetUsd;
+  if (backendWasForced) {
+    spec.requestedBackend = backend as SpawnSpec['backend'];
+    spec.requestedModel = requestedModelFromRequest(backend, model, modelTier);
+    spec.backendOverrideSource = backendOverrideSourceFromPreflight(selectedAttempt?.backendSource, true);
+  }
+
+  if (!backendWasForced && model && typeof model === 'string') spec.model = model;
+  else if (preflight.attempts[0]?.model) spec.model = preflight.attempts[0].model;
+  if (name && typeof name === 'string') spec.name = name;
+  if (!backendWasForced && typeof modelTier === 'string') spec.modelTier = modelTier as FleetModelTier;
+  else if (preflight.attempts[0]?.modelTier) spec.modelTier = preflight.attempts[0].modelTier as FleetModelTier;
+  if (identity && typeof identity === 'string') spec.identity = identity;
+  if (purpose && typeof purpose === 'string') spec.purpose = purpose;
+  if (Array.isArray(files)) spec.files = files as string[];
+  if (workdir && typeof workdir === 'string') spec.workdir = workdir;
+  if (env && typeof env === 'object' && !Array.isArray(env)) spec.env = env as Record<string, string>;
+  if (timeout && typeof timeout === 'number') spec.timeout = timeout;
+  if (allowedTools && typeof allowedTools === 'string') spec.allowedTools = allowedTools;
+  if (maxTokens && typeof maxTokens === 'number') spec.maxTokens = maxTokens;
+  if (typeof tubeChannel === 'string') spec.tubeChannel = tubeChannel;
+  // File-edit permission mode for the cli:claude-code backend. Only the three
+  // CLI-recognised modes are accepted; anything else is ignored (the spawner
+  // forwards it verbatim as --permission-mode, so the boundary validates it).
+  if (permissionMode === 'default' || permissionMode === 'acceptEdits' || permissionMode === 'bypassPermissions') {
+    spec.permissionMode = permissionMode;
+  }
+  // Giant Squid Harness opt-in (ADR-0091). Default false → backward-compatible:
+  // an absent/false flag leaves the spawn byte-for-byte unchanged. When true,
+  // the spawner's runClaudeCli (lib/spawner.ts) FIRST injects the pd-hook-*
+  // tentacles into the workspace's .claude/settings.json, so a conjure-
+  // dispatched vendor CLI runs UNDER PD coordination — its UserPromptSubmit /
+  // PreToolUse / PostToolUse turns fire the lock gate + pheromone hooks inside
+  // Claude Code's own loop (Claude Max Prime). The conjurer's Dispatch sets
+  // this true (console DaemonClient::spawn with SpawnOpts::squid). codex /
+  // gemini remain validate-then-add: their squid adapters throw, so the flag
+  // is a harmless no-op for those backends until those adapters are written.
+  if (injectSquidHooks === true) {
+    spec.injectSquidHooks = true;
+  }
+
+  logger.info('spawn_start', {
+    backend,
+    model: spec.model || null,
+    identity: spec.identity || null,
+    purpose: spec.purpose || null,
+  });
+
+  const result = await spawner.spawn(spec);
+
+  logger.info('spawn_complete', {
+    agentId: result.agentId,
+    backend: result.backend,
+    status: result.status,
+  });
+
+  return { success: result.status === 'completed', ...result };
+}
