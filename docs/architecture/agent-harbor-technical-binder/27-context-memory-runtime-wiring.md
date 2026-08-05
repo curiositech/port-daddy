@@ -33,16 +33,17 @@ There are **two parallel memory/context stacks**:
   Pressure bands here are coarse: warn >= 50%, critical >= 70% of an *effective*
   window defined as 60% of the advertised window (`context-window-tracker.ts:4-12`).
 
-- **Tier B — DESIGNED, tested, UNWIRED (tracked, but zero non-test callers).**
+- **Tier B — DESIGNED, tested, UNWIRED (tracked, but absent from runtime entry paths).**
   `lib/agent-harbor/context-pressure.ts`, `compaction.ts`, and
   `memory-episodes.ts` implement chapter 04 exactly: the 0.60/0.75/0.85/0.92
   ladder (`classifyPressure`), cited compaction packets with a validator that
   fails uncited factual claims (`buildCompactionPacket`,
   `validateCompactionPacket`), hash-chain-verified successor resume
   (`resumeFromPacket`), and a second episodic schema (`ensureMemoryEpisodeSchema`).
-  Every one of these functions has **zero non-test callers**: the code lives under
-  `lib/agent-harbor/` with unit tests under `tests/unit/` (both tracked), yet
-  nothing in the runtime path invokes it — it is built and tested but unwired.
+  These functions call one another inside `lib/agent-harbor/`, but no server,
+  route, CLI, or MCP entry path imports or invokes that Tier-B surface. The code
+  and its unit tests under `tests/unit/` are tracked; the production wiring is
+  what is missing.
 
 **The keystone.** Nothing emits a schema-valid `ContextEnvelope` on agent
 heartbeats. The envelope (04.60-113) is the signal that is supposed to fire
@@ -59,9 +60,10 @@ The dependency order is captured in the DAG in 27.9.
 
 ### W1 — Reconcile and wire Tier B (prerequisite)
 
-Tier B is tracked and unit-tested, but no non-test caller reaches it yet. Before
-anything can depend on it, it must be reconciled against Tier A and connected
-through a production call path. **Decision required (27.10 O1):** Tier B's
+Tier B is tracked and unit-tested, but no server, route, CLI, or MCP entry path
+reaches it yet. Before anything can depend on it, it must be reconciled against
+Tier A and connected through a production call path. **Decision required
+(27.10 O1):** Tier B's
 `memory-episodes.ts` defines a *second* episodic schema separate from the live
 `episodic_memory` table. We do not ship two episodic stores. Either Tier B's
 packet/pressure functions adopt Tier A's table, or Tier A migrates onto Tier B's
