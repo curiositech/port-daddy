@@ -14,6 +14,7 @@ import {
   renderArrivalBriefing,
   type SemanticStoreLike,
   type NeighbourCandidate,
+  type NoteCandidate,
   type RoadmapCandidate,
   type SalvageCandidate,
   type SkillCandidate,
@@ -30,7 +31,11 @@ import {
  */
 interface ArrivalDeps {
   resurrection?: { listPending(options?: Record<string, unknown>): unknown };
-  sessions?: { list(options?: Record<string, unknown>): unknown; listAllActiveClaims?(o?: Record<string, unknown>): unknown };
+  sessions?: {
+    list(options?: Record<string, unknown>): unknown;
+    listAllActiveClaims?(o?: Record<string, unknown>): unknown;
+    getNotes?(sessionId?: string | null, options?: Record<string, unknown>): unknown;
+  };
   roadmapItems?: { list(options?: Record<string, unknown>): unknown };
   skills?: { list(options?: Record<string, unknown>): unknown };
 }
@@ -186,6 +191,11 @@ export const briefingPlugin: FastifyPluginAsync<{ deps: BriefingRouteDeps }> = a
       roadmap: safely(() => toRoadmap(a.roadmapItems?.list({ limit: 200 }))),
       skills: safely(() => toSkills(a.skills?.list({ limit: 500 }))),
       neighbours: safely(() => toNeighbours(a.sessions?.list({ status: 'active', allWorktrees: true, limit: 100 }))),
+      // Notes are the least discoverable corpus and the most valuable: they are
+      // where an agent wrote down what it learned the hard way, into a session
+      // that then ended. Nobody browses another session's notes, so without
+      // this the knowledge dies with the session.
+      notes: safely(() => toNotes(a.sessions?.getNotes?.(null, { limit: 300 }))),
     };
 
     // Warm the four corpora before ranking. Content-addressed, so the steady
@@ -199,6 +209,7 @@ export const briefingPlugin: FastifyPluginAsync<{ deps: BriefingRouteDeps }> = a
         store.warm(VECTOR_KIND.roadmap, corpora.roadmap.map((c) => ({ id: c.id, text: [c.title, c.body, ...(c.tags ?? [])].filter(Boolean).join(' ') })), { prune: true }).catch(() => {}),
         store.warm(VECTOR_KIND.skills, corpora.skills.map((c) => ({ id: c.id, text: [c.id.replace(/[-_]/g, ' '), c.description, ...(c.tags ?? [])].filter(Boolean).join(' ') })), { prune: true }).catch(() => {}),
         store.warm(VECTOR_KIND.neighbours, corpora.neighbours.map((c) => ({ id: c.sessionId, text: [c.purpose, ...(c.files ?? [])].filter(Boolean).join(' ') })), { prune: true }).catch(() => {}),
+        store.warm(VECTOR_KIND.notes, corpora.notes.map((c) => ({ id: c.id, text: [c.content, c.sessionPurpose].filter(Boolean).join(' ') })), { prune: true }).catch(() => {}),
       ]);
     }
 
@@ -300,6 +311,19 @@ function toSkills(listed: unknown): SkillCandidate[] {
       ...(strList(r.tags) ? { tags: strList(r.tags)! } : {}),
     }))
     .filter((c) => c.id);
+}
+
+function toNotes(listed: unknown): NoteCandidate[] {
+  return rows(listed, 'notes')
+    .map((r) => ({
+      id: String(r.id ?? ''),
+      content: typeof r.content === 'string' ? r.content : String(r.content ?? ''),
+      ...(str(r.sessionId ?? r.session_id) ? { sessionId: str(r.sessionId ?? r.session_id)! } : {}),
+      ...(str(r.agentId ?? r.agent_id) ? { agentId: str(r.agentId ?? r.agent_id)! } : {}),
+      ...(str(r.sessionPurpose) ? { sessionPurpose: str(r.sessionPurpose)! } : {}),
+      ...(str(r.identityProject ?? r.project) ? { project: str(r.identityProject ?? r.project)! } : {}),
+    }))
+    .filter((c) => c.id && c.content);
 }
 
 function toNeighbours(listed: unknown): NeighbourCandidate[] {

@@ -15,6 +15,7 @@ import { describe, expect, test } from '@jest/globals';
 
 import {
   MAX_TEXT_SCORE,
+  NOTE_MIN_CHARS,
   VECTOR_KIND,
   buildArrivalBriefingSemantic,
   MIN_SCORE,
@@ -23,6 +24,7 @@ import {
   contextQuery,
   overlapScore,
   rankNeighbours,
+  rankNotes,
   rankRoadmap,
   rankSalvage,
   rankSkills,
@@ -608,5 +610,65 @@ describe('semantic fusion', () => {
       storeWith({ [VECTOR_KIND.roadmap]: ['R-done'] }),
     );
     expect(out.roadmap).toEqual([]);
+  });
+});
+
+// ─── notes ───────────────────────────────────────────────────────────────────
+
+describe('rankNotes', () => {
+  const long = (s: string) => s.padEnd(NOTE_MIN_CHARS + 10, ' .');
+
+  test('surfaces a note from earlier work that reads like this work', () => {
+    const hits = rankNotes(ctx, [
+      { id: 'n1', content: long('the reconcile producers need the loop wired first') },
+      { id: 'n2', content: long('the espresso machine needs descaling monthly') },
+    ]);
+    expect(hits.map((h) => h.item.id)).toEqual(['n1']);
+    expect(hits[0].why).toContain('note matches');
+  });
+
+  test('drops notes too short to carry meaning', () => {
+    // "wip" / "ok" / "fixed" are the most common note bodies in any real
+    // database; left in they match everything weakly and crowd out real prose.
+    expect(rankNotes(ctx, [{ id: 'n', content: 'reconcile wip' }])).toEqual([]);
+  });
+
+  test('is project-scoped when both sides declare one', () => {
+    // A lesson from another repo is usually not transferable, and a confident
+    // false hit makes an agent do the wrong thing with conviction.
+    const hits = rankNotes(ctx, [
+      { id: 'n', content: long('wire the reconcile loop producers'), project: 'other-repo' },
+    ]);
+    expect(hits).toEqual([]);
+  });
+
+  test('a note with no project is still eligible', () => {
+    const hits = rankNotes(ctx, [{ id: 'n', content: long('wire the reconcile loop producers') }]);
+    expect(hits).toHaveLength(1);
+  });
+
+  test('renders with its author and collapses to one line', () => {
+    const b = buildArrivalBriefing(ctx, {
+      notes: [
+        {
+          id: 'n1',
+          agentId: 'ghost',
+          content: `reconcile producers:\n  the GC deletes\n  undelivered mail`.padEnd(NOTE_MIN_CHARS + 5, ' .'),
+        },
+      ],
+    });
+    const out = renderArrivalBriefing(b);
+    expect(out).toContain('Notes from earlier work');
+    expect(out).toContain('ghost');
+    // The rendered block is read in a terminal and injected into a flat matrix
+    // line; an embedded newline breaks both.
+    const noteLine = out.split('\n').find((l) => l.includes('ghost'))!;
+    expect(noteLine).toContain('the GC deletes');
+  });
+
+  test('an empty notes corpus contributes no section', () => {
+    const b = buildArrivalBriefing(ctx, { notes: [] });
+    expect(b.notes).toEqual([]);
+    expect(renderArrivalBriefing(b)).not.toContain('Notes from earlier work');
   });
 });

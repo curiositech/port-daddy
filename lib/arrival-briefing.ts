@@ -42,6 +42,7 @@ export const VECTOR_KIND = {
   roadmap: 'arrival:roadmap',
   skills: 'arrival:skills',
   neighbours: 'arrival:neighbours',
+  notes: 'arrival:notes',
 } as const;
 
 /** The slice of the shared vector store this module needs. */
@@ -129,6 +130,25 @@ export interface SkillCandidate {
   readonly tags?: readonly string[];
 }
 
+/**
+ * A note somebody already wrote about this kind of work.
+ *
+ * The highest-value corpus and the least discoverable one: notes are where an
+ * agent records what it learned the hard way, and they are written into a
+ * session that ends. Nobody ever goes looking through another session's notes,
+ * so the knowledge is lost the moment the session closes — unless something
+ * surfaces it at the exact moment a new agent starts the same work.
+ */
+export interface NoteCandidate {
+  readonly id: string;
+  readonly content: string;
+  readonly sessionId?: string;
+  readonly agentId?: string;
+  readonly sessionPurpose?: string;
+  readonly project?: string;
+  readonly createdAt?: number;
+}
+
 /** Another live session, and therefore a possible neighbour. */
 export interface NeighbourCandidate {
   readonly actor: string;
@@ -144,6 +164,7 @@ export interface ArrivalCorpora {
   readonly roadmap?: readonly RoadmapCandidate[];
   readonly skills?: readonly SkillCandidate[];
   readonly neighbours?: readonly NeighbourCandidate[];
+  readonly notes?: readonly NoteCandidate[];
 }
 
 // ─── Outputs ─────────────────────────────────────────────────────────────────
@@ -166,6 +187,7 @@ export interface ArrivalBriefing {
   readonly roadmap: readonly BriefingHit<RoadmapCandidate>[];
   readonly skills: readonly BriefingHit<SkillCandidate>[];
   readonly neighbours: readonly BriefingHit<NeighbourCandidate>[];
+  readonly notes: readonly BriefingHit<NoteCandidate>[];
   /** True when every section is empty — the caller should then say nothing. */
   readonly empty: boolean;
   /**
@@ -202,6 +224,15 @@ export const MIN_SCORE = 0.15;
  * outrank a paragraph of coincidental vocabulary every time.
  */
 export const SHARED_FILE_WEIGHT = 2.0;
+
+/**
+ * Shortest note worth surfacing.
+ *
+ * "wip", "ok", "fixed" and "done" are the most common note bodies in any real
+ * database. They match weakly against everything and crowd out the paragraph
+ * somebody actually took the time to write.
+ */
+export const NOTE_MIN_CHARS = 24;
 
 /**
  * The most any text-only match can score: a perfect overlap (1.0) plus the
@@ -428,6 +459,43 @@ export function rankNeighbours(
   return take(hits, opts);
 }
 
+/**
+ * Notes from earlier work that reads like this work.
+ *
+ * Scoped to the same project when both declare one — a lesson learned in
+ * another repo usually is not transferable, and a false hit here is expensive:
+ * an agent that acts on a confidently-surfaced but irrelevant note does the
+ * wrong thing with conviction.
+ *
+ * Very short notes are dropped outright. `wip`, `ok`, `fixed` are the most
+ * common note contents in any real database and carry no recoverable meaning;
+ * left in, they match everything weakly and crowd out the paragraph somebody
+ * actually wrote.
+ */
+export function rankNotes(
+  ctx: ArrivalContext,
+  candidates: readonly NoteCandidate[],
+  opts: RankOpts = {},
+): BriefingHit<NoteCandidate>[] {
+  const q = tokenizeAndStem(contextQuery(ctx));
+  const hits: BriefingHit<NoteCandidate>[] = [];
+  for (const c of candidates) {
+    if (ctx.project && c.project && ctx.project !== c.project) continue;
+    const body = (c.content ?? '').trim();
+    if (body.length < NOTE_MIN_CHARS) continue;
+    const text = tokenizeAndStem([body, c.sessionPurpose ?? ''].join(' '));
+    const score = overlapScore(q, text);
+    if (score <= 0 && !opts.keepUnscored) continue;
+    const terms = sharedTerms(q, text);
+    hits.push({
+      item: c,
+      score,
+      why: terms.length ? `note matches: ${terms.join(', ')}` : 'note (semantic match)',
+    });
+  }
+  return take(hits, opts);
+}
+
 // ─── Assembly ────────────────────────────────────────────────────────────────
 
 /**
@@ -446,12 +514,14 @@ export function buildArrivalBriefing(
   const roadmap = rankRoadmap(ctx, corpora.roadmap ?? [], opts);
   const skills = rankSkills(ctx, corpora.skills ?? [], opts);
   const neighbours = rankNeighbours(ctx, corpora.neighbours ?? [], opts);
+  const notes = rankNotes(ctx, corpora.notes ?? [], opts);
   return {
     salvage,
     roadmap,
     skills,
     neighbours,
-    empty: !salvage.length && !roadmap.length && !skills.length && !neighbours.length,
+    notes,
+    empty: !salvage.length && !roadmap.length && !skills.length && !neighbours.length && !notes.length,
     semantic: false,
     degradedReason: 'lexical-only ranking (no vector store supplied)',
   };
@@ -549,6 +619,7 @@ export async function buildArrivalBriefingSemantic(
     roadmap: rankRoadmap(ctx, corpora.roadmap ?? [], poolOpts),
     skills: rankSkills(ctx, corpora.skills ?? [], poolOpts),
     neighbours: rankNeighbours(ctx, corpora.neighbours ?? [], poolOpts),
+    notes: rankNotes(ctx, corpora.notes ?? [], poolOpts),
   };
 
   const limit = opts.perSection ?? DEFAULT_PER_SECTION;
@@ -575,27 +646,30 @@ export async function buildArrivalBriefingSemantic(
     }
   };
 
-  const [salvageOrder, roadmapOrder, skillsOrder, neighbourOrder] = await Promise.all([
+  const [salvageOrder, roadmapOrder, skillsOrder, neighbourOrder, notesOrder] = await Promise.all([
     order(VECTOR_KIND.salvage),
     order(VECTOR_KIND.roadmap),
     order(VECTOR_KIND.skills),
     order(VECTOR_KIND.neighbours),
+    order(VECTOR_KIND.notes),
   ]);
 
   const anySemantic =
-    salvageOrder.length + roadmapOrder.length + skillsOrder.length + neighbourOrder.length > 0;
+    salvageOrder.length + roadmapOrder.length + skillsOrder.length + neighbourOrder.length + notesOrder.length > 0;
 
   const salvage = fuseSection(pool.salvage, lexical.salvage, salvageOrder, (c) => c.agentId, limit);
   const roadmap = fuseSection(pool.roadmap, lexical.roadmap, roadmapOrder, (c) => c.id, limit);
   const skills = fuseSection(pool.skills, lexical.skills, skillsOrder, (c) => c.id, limit);
   const neighbours = fuseSection(pool.neighbours, lexical.neighbours, neighbourOrder, (c) => c.sessionId, limit);
+  const notes = fuseSection(pool.notes, lexical.notes, notesOrder, (c) => c.id, limit);
 
   return {
     salvage,
     roadmap,
     skills,
     neighbours,
-    empty: !salvage.length && !roadmap.length && !skills.length && !neighbours.length,
+    notes,
+    empty: !salvage.length && !roadmap.length && !skills.length && !neighbours.length && !notes.length,
     semantic: anySemantic,
     ...(anySemantic
       ? {}
@@ -612,6 +686,12 @@ export async function buildArrivalBriefingSemantic(
  * the harness is quiet by design, and a section that always prints teaches
  * agents to skip the block that will one day matter.
  */
+/** Collapse a note to one readable line; the matrix and the terminal both want flat text. */
+function oneLineNote(text: string, max = 120): string {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
+}
+
 export function renderArrivalBriefing(b: ArrivalBriefing): string {
   if (b.empty) return '';
   const lines: string[] = ['⚓ Port Daddy — arrival briefing'];
@@ -636,6 +716,14 @@ export function renderArrivalBriefing(b: ArrivalBriefing): string {
     lines.push('', 'Roadmap items this may belong under:');
     for (const h of b.roadmap) {
       lines.push(`  • ${h.item.id} — ${h.item.title} (${h.why})`);
+    }
+  }
+
+  if (b.notes.length) {
+    lines.push('', 'Notes from earlier work like this:');
+    for (const h of b.notes) {
+      const who = h.item.agentId ? `${h.item.agentId}: ` : '';
+      lines.push(`  • ${who}${oneLineNote(h.item.content)} (${h.why})`);
     }
   }
 
