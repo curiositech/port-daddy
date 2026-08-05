@@ -277,6 +277,59 @@ describe('self-review guard — the fleet does not review its own branches', () 
 });
 
 describe('pull_request action routing', () => {
+  it('reuses a completed exact-head App-owned receipt without duplicate AI spend', async () => {
+    state.existingCheckRuns.push({
+      id: 73,
+      name: 'Port Daddy Fleet',
+      headSha: 'HEADSHA',
+      status: 'completed',
+      conclusion: 'neutral',
+      details_url: 'https://relay.example/fleet/runs/exact-head-review',
+      app: { id: 3810450 },
+    });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'should not run\n\nFLEET-VERDICT: PASS' },
+    });
+
+    await executeFleet(
+      makeJob({ action: 'reopened', deliveryId: 'delivery-reopened-duplicate' }),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }),
+    );
+
+    expect(state.checkRunsCreated).toBe(0);
+    expect(state.completed).toHaveLength(0);
+    expect(ai.calls).toHaveLength(0);
+    expect(state.records.some(record => record.url.includes('/pulls/7'))).toBe(false);
+  });
+
+  it('does not trust a foreign exact-head namesake receipt', async () => {
+    state.existingCheckRuns.push({
+      id: 74,
+      name: 'Port Daddy Fleet',
+      headSha: 'HEADSHA',
+      status: 'completed',
+      conclusion: 'success',
+      app: { id: 999 },
+    });
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'looks ok\n\nFLEET-VERDICT: PASS' },
+    });
+
+    await executeFleet(
+      makeJob({ action: 'reopened', deliveryId: 'delivery-reopened-foreign' }),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }),
+    );
+
+    expect(state.checkRunsCreated).toBe(1);
+    expect(state.completed).toHaveLength(1);
+    expect(ai.calls.some(call => call.ship === 'code-reviewer')).toBe(true);
+  });
+
   it('acks an obsolete synchronize delivery before creating a check or spending AI', async () => {
     state.prHeadSha = 'NEWESTSHA';
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
@@ -859,25 +912,26 @@ describe('idempotent re-run', () => {
     await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
 
     expect(state.checkRunsCreated).toBe(1);
-    expect(state.completed.length).toBe(2); // completed both times, same id
+    expect(state.completed).toHaveLength(2); // completed both times, same App-owned id
     expect(state.completed[0].id).toBe(state.completed[1].id);
   });
 
-  it('re-run edits the ship comment in place instead of posting a duplicate', async () => {
+  it('an unreceipted re-run edits the ship comment in place instead of posting a duplicate', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
-    const mkAi = () =>
-      aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } }).ai;
-
     const job = makeJob();
-    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
+    const firstAi = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: firstAi.ai }));
     // Simulate the comment now existing on GitHub.
     state.existingComments = [{ id: 555, body: 'old\n\n<!-- pd-ship:code-reviewer -->' }];
-    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
+    const secondAi = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: secondAi.ai }));
 
     expect(state.commentPosts).toBe(1); // only the first run created
-    expect(state.commentPatches).toBe(1); // the re-run edited in place
+    expect(state.commentPatches).toBe(1); // without a receipt URL, the re-run still executes
+    expect(firstAi.calls.length).toBeGreaterThan(0);
+    expect(secondAi.calls.length).toBeGreaterThan(0);
   });
 });
 

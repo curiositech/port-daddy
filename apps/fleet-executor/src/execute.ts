@@ -35,7 +35,6 @@ import {
   createReview,
   createCheckRun,
   completeCheckRun,
-  findFleetCheckRun,
   findOwnedFleetCheckRun,
   createIssue,
   resolveFleetAppLogin,
@@ -441,8 +440,8 @@ async function recordRunStart(
   prCtx: PRContext,
   prNumber: number,
   ships: ShipConfig[],
-): Promise<void> {
-  if (!env.DB) return;
+): Promise<boolean> {
+  if (!env.DB) return true;
   const prUrl = `https://github.com/${job.repoFullName}/pull/${prNumber}`;
   try {
     await env.DB.prepare(
@@ -461,8 +460,10 @@ async function recordRunStart(
         nowSec(),
       )
       .run();
+    return true;
   } catch (err) {
     console.error(`[fleet-executor] fleet_runs insert failed run=${runId}: ${String(err)}`);
+    return false;
   }
 }
 
@@ -855,9 +856,18 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         job.installationId,
         env.FLEET_TOKENS,
       );
-      let checkRunId = await findFleetCheckRun(owner, repo, headSha, CHECK_NAME, token).catch(
-        () => null,
-      );
+      const pausedAppId = Number(env.GITHUB_APP_ID);
+      if (!Number.isSafeInteger(pausedAppId)) throw new Error('invalid GitHub App id');
+      let checkRunId = (
+        await findOwnedFleetCheckRun(
+          owner,
+          repo,
+          headSha,
+          CHECK_NAME,
+          pausedAppId,
+          token,
+        ).catch(() => null)
+      )?.id ?? null;
       if (!checkRunId) {
         checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token, detailsUrl);
       }
@@ -911,8 +921,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         files: [],
         diff: '',
       };
-      await recordRunStart(env, runId, job, stubPrCtx, prNumber, []);
-      await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, headSha);
+      const recorded = await recordRunStart(env, runId, job, stubPrCtx, prNumber, []);
+      if (!recorded) {
+        await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, headSha);
+      }
       await recordRunEnd(env, runId, 'neutral', startMs);
     } catch (err) {
       console.error(
@@ -934,6 +946,37 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   } catch (err) {
     // Token mint is infrastructure — let the queue retry.
     throw new Error(`token mint failed: ${String(err)}`);
+  }
+
+  // --- EXACT-HEAD RECEIPT DEDUPE (pre-fetch, pre-spend) -------------------
+  // Reopened/ready deliveries and queue retries can repeat after this exact
+  // commit already received a conclusive review. Reuse only a completed
+  // success/neutral check owned by this exact App on the immutable payload
+  // SHA. A foreign namesake, failure, in-progress check, or changed SHA earns
+  // no authority and continues through the normal review path.
+  const eventHead = prPayload.head && typeof prPayload.head === 'object'
+    ? (prPayload.head as Record<string, unknown>).sha
+    : null;
+  const appId = Number(env.GITHUB_APP_ID);
+  if (typeof eventHead === 'string' && eventHead && Number.isSafeInteger(appId)) {
+    const existingReceipt = await findOwnedFleetCheckRun(
+      owner,
+      repo,
+      eventHead,
+      CHECK_NAME,
+      appId,
+      token,
+    ).catch(() => null);
+    if (
+      existingReceipt?.status === 'completed' &&
+      (existingReceipt.conclusion === 'success' || existingReceipt.conclusion === 'neutral') &&
+      existingReceipt.detailsUrl
+    ) {
+      console.log(
+        `[fleet-executor] delivery=${deliveryId} exact head ${eventHead.slice(0, 12)} already has App-owned ${existingReceipt.conclusion} receipt; skipping duplicate review`,
+      );
+      return;
+    }
   }
 
   // --- PR context + trusted config (default branch ONLY) -------------------
@@ -971,9 +1014,6 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // files/diff endpoints above describe the current head. Never spend AI on that
   // mismatched combination or attach a current-diff verdict to an obsolete SHA.
   // Acknowledge stale deliveries; the newest synchronize event owns the gate.
-  const eventHead = prPayload.head && typeof prPayload.head === 'object'
-    ? (prPayload.head as Record<string, unknown>).sha
-    : null;
   if (typeof eventHead === 'string' && eventHead && eventHead !== prCtx.headSha) {
     console.log(
       `[fleet-executor] delivery=${deliveryId} stale head ${eventHead.slice(0, 12)}; current=${prCtx.headSha.slice(0, 12)}; skipping`,
@@ -1011,9 +1051,16 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   if (cloudShips.length === 0) return;
 
   // --- Check run (idempotent: reuse one for this head SHA) -----------------
-  let checkRunId = await findFleetCheckRun(owner, repo, prCtx.headSha, CHECK_NAME, token).catch(
-    () => null,
-  );
+  let checkRunId = (
+    await findOwnedFleetCheckRun(
+      owner,
+      repo,
+      prCtx.headSha,
+      CHECK_NAME,
+      appId,
+      token,
+    ).catch(() => null)
+  )?.id ?? null;
   if (!checkRunId) {
     // No swallow: a createCheckRun failure must propagate so the job RETRIES.
     checkRunId = await createCheckRun(owner, repo, CHECK_NAME, prCtx.headSha, token, detailsUrl);
@@ -1033,8 +1080,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // Written AFTER the gating check is established but BEFORE any ship runs, so
   // the audit trail records every attempt that got far enough to gate. A
   // write failure is swallowed and never changes the run or the gate.
-  await recordRunStart(env, runId, job, prCtx, prNumber, cloudShips);
-  await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, prCtx.headSha);
+  const recorded = await recordRunStart(env, runId, job, prCtx, prNumber, cloudShips);
+  if (!recorded) {
+    await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, prCtx.headSha);
+  }
 
   // --- SELF-REVIEW GUARD (the fleet does not review its own branches) ------
   // WHY THIS SITS HERE — after the gating check exists, before any AI spend.
