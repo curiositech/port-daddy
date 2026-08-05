@@ -203,6 +203,8 @@ export type CoverageRejectionCode =
   | 'PERSISTENCE_ERROR';
 
 export type CoverageOutcome =
+  /** `advanced` means this call moved the durable SHIP chain head. Replays
+   * are accepted no-ops and therefore always report `advanced: false`. */
   | { accepted: true; replay: boolean; advanced: boolean }
   | { accepted: false; code: CoverageRejectionCode; message: string };
 
@@ -375,7 +377,12 @@ export async function recordReviewCoverage(store: CoverageStore, input: Coverage
     return reject('MISSING_INTERMEDIATE_COMMITS', 'commits must not contain duplicate entries');
   }
 
-  const canonicalDigest = await computeRangeDigest(input.base, input.head, input.commits);
+  let canonicalDigest: string;
+  try {
+    canonicalDigest = await computeRangeDigest(input.base, input.head, input.commits);
+  } catch (e) {
+    return reject('UNVERIFIABLE_RANGE', `could not compute the canonical range digest: ${errorMessage(e)}`);
+  }
   if (input.rangeDigest != null && input.rangeDigest !== canonicalDigest) {
     return reject(
       'UNVERIFIABLE_RANGE',
@@ -404,7 +411,7 @@ export async function recordReviewCoverage(store: CoverageStore, input: Coverage
   }
   if (existingEvidence) {
     if (evidenceEqual(existingEvidence, evidence)) {
-      return { accepted: true, replay: true, advanced: existingEvidence.verdict === SHIP };
+      return { accepted: true, replay: true, advanced: false };
     }
     return reject(
       'CONFLICTING_REPLAY',
@@ -471,14 +478,15 @@ export async function recordReviewCoverage(store: CoverageStore, input: Coverage
     );
   }
 
-  return { accepted: true, replay: result.replay, advanced: input.verdict === SHIP };
+  return { accepted: true, replay: result.replay, advanced: !result.replay && input.verdict === SHIP };
 }
 
 /**
  * In-memory {@link CoverageStore} — reference implementation for tests and a
  * template for a real (e.g. D1) backend. Trusted bases are configured
  * out-of-band via `setTrustedBase` (never inferred from the first record).
- * Not exported for production use.
+ * Exported as a deterministic reference and test store; it is not a durable
+ * production persistence backend.
  */
 export function createInMemoryCoverageStore(): CoverageStore & {
   setTrustedBase(subject: string, base: string): void;

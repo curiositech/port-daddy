@@ -10,7 +10,7 @@
  * the store throws.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   recordReviewCoverage,
   createInMemoryCoverageStore,
@@ -302,6 +302,20 @@ describe('recordReviewCoverage — unverifiable range', () => {
     );
     expect(outcome).toMatchObject({ accepted: false, code: 'UNVERIFIABLE_RANGE' });
   });
+
+  it('turns a WebCrypto digest failure into a structured fail-closed rejection', async () => {
+    const digest = vi.spyOn(crypto.subtle, 'digest').mockRejectedValueOnce(new Error('crypto unavailable'));
+    try {
+      const outcome = await recordReviewCoverage(rootedStore(), input());
+      expect(outcome).toMatchObject({
+        accepted: false,
+        code: 'UNVERIFIABLE_RANGE',
+        message: expect.stringContaining('crypto unavailable'),
+      });
+    } finally {
+      digest.mockRestore();
+    }
+  });
 });
 
 describe('recordReviewCoverage — predecessor gap / mismatch', () => {
@@ -371,7 +385,7 @@ describe('recordReviewCoverage — idempotent replay', () => {
     expect(first).toEqual({ accepted: true, replay: false, advanced: true });
 
     const replay = await recordReviewCoverage(store, input());
-    expect(replay).toEqual({ accepted: true, replay: true, advanced: true });
+    expect(replay).toEqual({ accepted: true, replay: true, advanced: false });
     await expect(store.getHead(SUBJECT)).resolves.toBe(SHA_1);
   });
 
@@ -388,7 +402,7 @@ describe('recordReviewCoverage — idempotent replay', () => {
     await recordReviewCoverage(store, input({ base: SHA_1, head: SHA_2, commits: [SHA_2] }));
 
     const replay = await recordReviewCoverage(store, input({ base: BASE, head: SHA_1, commits: [SHA_1] }));
-    expect(replay).toEqual({ accepted: true, replay: true, advanced: true });
+    expect(replay).toEqual({ accepted: true, replay: true, advanced: false });
     await expect(store.getHead(SUBJECT)).resolves.toBe(SHA_2);
   });
 
@@ -400,7 +414,7 @@ describe('recordReviewCoverage — idempotent replay', () => {
     // Same hop, same everything except recordedAt — the natural shape of a
     // retry helper that re-stamps wall-clock time on every attempt.
     const replay = await recordReviewCoverage(store, input({ recordedAt: 1_700_000_555 }));
-    expect(replay).toEqual({ accepted: true, replay: true, advanced: true });
+    expect(replay).toEqual({ accepted: true, replay: true, advanced: false });
 
     // The persisted evidence is untouched — original recordedAt survives,
     // the resubmitted timestamp never overwrites it.
@@ -418,7 +432,7 @@ describe('recordReviewCoverage — idempotent replay', () => {
       store,
       input({ base: BASE, head: SHA_1, commits: [SHA_1], recordedAt: 1_700_000_999 }),
     );
-    expect(replay).toEqual({ accepted: true, replay: true, advanced: true });
+    expect(replay).toEqual({ accepted: true, replay: true, advanced: false });
     await expect(store.getHead(SUBJECT)).resolves.toBe(SHA_2);
     await expect(store.getEvidence(SUBJECT, SHA_1)).resolves.toMatchObject({ recordedAt: 1_700_000_000 });
   });
