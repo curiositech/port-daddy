@@ -119,6 +119,6 @@ This ship is a **solely responsible agent** (see the
   the gap (and by the operator reading `pd notes`). When commitments
   ship, register: object "deck-log entry every 4h", success_check
   querying the notes table.
-- The error stream has no daemon-side classifier (`lib/error-monitor.ts`
-  does not exist). The watch does its own grouping in-prompt. If the
-  classifier lands, consume it and shrink this prompt.
+- The error stream has no daemon-side classifier today. The watch does its own
+  grouping in-prompt. If that designed-but-unbuilt classifier lands, consume it
+  and shrink this prompt.
