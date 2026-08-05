@@ -1,3 +1,4 @@
+import { analyze } from './lexical-index.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, resolve } from 'node:path';
@@ -391,7 +392,13 @@ function dot(a: ArrayLike<number>, b: ArrayLike<number>): number {
 }
 
 function tokenize(value: string): string[] {
-  return value.toLowerCase().split(/[^a-z0-9]+/i).filter((token) => token.length > 1);
+  // Shared Unicode-safe analyzer. The previous `[^a-z0-9]+` split treated every
+  // non-ASCII character as a delimiter, so an agent profile written with any
+  // accent or non-Latin script was indexed as debris — `café` as `caf`, a
+  // Cyrillic word as nothing at all. Expertise lookup fuses this with MiniLM,
+  // and the embedding half handled that text fine, so the lexical half was
+  // silently the weaker of two tiers for every non-English profile.
+  return analyze(value);
 }
 
 function searchDocument(profile: DurableAgentProfileV0): string {

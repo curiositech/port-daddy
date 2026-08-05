@@ -29,6 +29,7 @@
  * NLP at the route level.
  */
 
+import { analyze } from './lexical-index.js';
 import type Database from 'better-sqlite3';
 import type { SemanticResolver } from './semantic-resolver.js';
 
@@ -140,9 +141,10 @@ export interface Whois {
  * BM25's strength is robustness, not cleverness.
  */
 function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .split(/[^a-z0-9]+/i)
+  // Shared Unicode-safe analyzer — see lib/lexical-index.ts. Replaces an
+  // ASCII-only split that deleted every non-Latin term from whois search.
+  return analyze(text)
+    .slice()
     .filter((token) => token.length > 1);
 }
 
