@@ -1,29 +1,26 @@
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { rmSync } from 'node:fs';
+import { resolve } from 'node:path';
+import {
+  cleanupFixture,
+  makeFixture,
+  runGenerator,
+  subjectAvailable,
+} from './mega-volume-test-helpers.js';
 
-const repoRoot = path.resolve(__dirname, '../../');
-const testPaper = 'nonexistent-paper.tex';
+test('generator fails closed when a canonical paper source is missing', {
+  skip: subjectAvailable() ? false : 'mega-volume generator lands in the subject PR',
+}, () => {
+  const root = makeFixture();
+  try {
+    const missing = 'website-v2/public/whitepaper/anchor-protocol-whitepaper.tex';
+    rmSync(resolve(root, missing));
+    const result = runGenerator(root);
 
-// Modify papers array to include a missing source
-const originalPapers = require('../../scripts/generate-mega-whitepaper.mjs').papers;
-const corruptedPapers = [...originalPapers, { roman: 'VIII', prefix: 'x', title: 'Broken Paper', source: testPaper }];
-
-// Patch the generator to use corrupted papers
-const generatorPath = path.resolve(repoRoot, 'scripts/generate-mega-whitepaper.mjs');
-let generatorContent = fs.readFileSync(generatorPath, 'utf-8');
-generatorContent = generatorContent.replace('const papers = [', `const papers = ${JSON.stringify(corruptedPapers, null, 2)};
-`);
-fs.writeFileSync(generatorPath, generatorContent, 'utf-8');
-
-try {
-  execSync('node scripts/generate-mega-whitepaper.mjs', { cwd: repoRoot, stdio: 'pipe' });
-  console.error('Test failed: build should have failed due to missing paper source');
-  process.exit(1);
-} catch (error) {
-  console.log('Test passed: build correctly failed due to missing paper source');
-  process.exit(0);
-} finally {
-  // Restore original generator
-  fs.writeFileSync(generatorPath, originalPapersContent, 'utf-8');
-}
+    assert.notEqual(result.status, 0);
+    assert.match(`${result.stderr}\n${result.stdout}`, /anchor-protocol-whitepaper\.tex|ENOENT/u);
+  } finally {
+    cleanupFixture(root);
+  }
+});

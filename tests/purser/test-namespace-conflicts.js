@@ -1,22 +1,36 @@
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  cleanupFixture,
+  injectAfterDocumentStart,
+  makeFixture,
+  readFixture,
+  runGenerator,
+  subjectAvailable,
+} from './mega-volume-test-helpers.js';
 
-const repoRoot = path.resolve(__dirname, '../../');
-const testPaper = path.join(repoRoot, 'website-v2/public/whitepaper/legible-swarm.tex');
+test('generator namespaces identical chapter-local labels and preserves the 7/202 manifest', {
+  skip: subjectAvailable() ? false : 'mega-volume generator lands in the subject PR',
+}, () => {
+  const root = makeFixture();
+  try {
+    const duplicate = '\\label{purser-shared-label}\\ref{purser-shared-label}';
+    injectAfterDocumentStart(root, 'whitepaper/legible-swarm.tex', duplicate);
+    injectAfterDocumentStart(root, 'website-v2/public/whitepaper/spawn-to-person.tex', duplicate);
+    const result = runGenerator(root);
 
-// Add conflicting labels
-const originalContent = fs.readFileSync(testPaper, 'utf-8');
-const modifiedContent = originalContent.replace('\begin{document}', '\begin{document}\label{conflict}\label{conflict}');
-fs.writeFileSync(testPaper, modifiedContent, 'utf-8');
+    assert.equal(result.status, 0, result.stderr);
+    const body = readFixture(root, '.cache/generated/mega-volume-body.tex');
+    assert.match(body, /\\label\{ls:purser-shared-label\}\\ref\{ls:purser-shared-label\}/u);
+    assert.match(body, /\\label\{stp:purser-shared-label\}\\ref\{stp:purser-shared-label\}/u);
+    assert.doesNotMatch(body, /\\(?:label|ref)\{purser-shared-label\}/u);
 
-try {
-  execSync('node scripts/generate-mega-whitepaper.mjs', { cwd: repoRoot, stdio: 'pipe' });
-  console.error('Test failed: build should have failed due to label conflicts');
-  process.exit(1);
-} catch (error) {
-  console.log('Test passed: build correctly failed due to label conflicts');
-  process.exit(0);
-} finally {
-  fs.writeFileSync(testPaper, originalContent, 'utf-8');
-}
+    const manifest = JSON.parse(readFixture(root, '.cache/generated/mega-volume-generation.json'));
+    assert.deepEqual(
+      { chapters: manifest.chapters, references: manifest.references, sources: manifest.sources.length },
+      { chapters: 7, references: 202, sources: 7 },
+    );
+  } finally {
+    cleanupFixture(root);
+  }
+});
