@@ -35,6 +35,8 @@ describe('Direct-Mode Integration Tests', () => {
       PORT_DADDY_URL: 'http://127.0.0.1:1', // Unreachable
       PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',
       PORT_DADDY_ALLOW_MAIN_WORKTREE_SESSION: '1',
+      // Child CLI must use the same Node/native-addon ABI as the Jest runner.
+      NODE_NO_WARNINGS: '1',
       NO_COLOR: '1',
       ...overrides
     };
@@ -44,7 +46,7 @@ describe('Direct-Mode Integration Tests', () => {
   }
 
   function runDirect(args, options = {}) {
-    const result = spawnSync(TSX_PATH, [CLI_PATH, ...args, '--direct'], {
+    const result = spawnSync(process.execPath, [TSX_PATH, CLI_PATH, ...args, '--direct'], {
       encoding: 'utf8',
       timeout: 30000,
       env: getTestEnv(),
@@ -222,7 +224,7 @@ describe('Direct-Mode Integration Tests', () => {
       const processes = [];
 
       for (let i = 0; i < count; i++) {
-        processes.push(spawn(TSX_PATH, [CLI_PATH, 'claim', `parallel-test-${i}`, '-q', '--direct'], {
+        processes.push(spawn(process.execPath, [TSX_PATH, CLI_PATH, 'claim', `parallel-test-${i}`, '-q', '--direct'], {
           env: getTestEnv()
         }));
       }

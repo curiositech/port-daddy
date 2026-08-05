@@ -224,6 +224,8 @@ export function runCli(args, options = {}) {
     // Override comparable on-disk binary path to prevent binary drift checks
     // from failing against host-installed versions of Port Daddy.
     PORT_DADDY_BIN_OVERRIDE: process.execPath,
+    // The test asserts Port Daddy stderr, not Node/tsx deprecation chatter.
+    NODE_NO_WARNINGS: '1',
     NO_COLOR: '1',
     CI: '1'
   };
@@ -235,7 +237,7 @@ export function runCli(args, options = {}) {
   delete testEnv.PD_SESSION_ID;
   delete testEnv.PD_ACTOR;
   
-  const result = spawnSync(TSX_PATH, [cliPath, ...finalArgs], {
+  const result = spawnSync(process.execPath, [TSX_PATH, cliPath, ...finalArgs], {
     encoding: 'utf-8',
     timeout: CLI_COMMAND_TIMEOUT_MS,
     env: {
@@ -280,6 +282,7 @@ export function runCliViaIpc(args, options = {}) {
     // Override comparable on-disk binary path to prevent binary drift checks
     // from failing against host-installed versions of Port Daddy.
     PORT_DADDY_BIN_OVERRIDE: process.execPath,
+    NODE_NO_WARNINGS: '1',
     NO_COLOR: '1',
     CI: '1'
   };
@@ -290,7 +293,7 @@ export function runCliViaIpc(args, options = {}) {
   delete testEnv.PD_SESSION_ID;
   delete testEnv.PD_ACTOR;
 
-  const result = spawnSync(TSX_PATH, [cliPath, ...args], {
+  const result = spawnSync(process.execPath, [TSX_PATH, cliPath, ...args], {
     encoding: 'utf-8',
     timeout: CLI_COMMAND_TIMEOUT_MS,
     env: {
