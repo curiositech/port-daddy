@@ -51,13 +51,21 @@ import type {
   GalaxySessionDetailResponse,
 } from './types';
 
-const CANONICAL_PREFERRED_DAEMON_URL = 'http://127.0.0.1:9876';
 const DAEMON_STORAGE_KEY = 'pd.fleet-ui.daemon-url';
 const DAEMON_HISTORY_STORAGE_KEY = 'pd.fleet-ui.daemon-history';
 export const CUSTOM_DAEMON_SENTINEL = '__custom__';
 
 function canUseWindow(): boolean {
-  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+  return typeof window !== 'undefined';
+}
+
+function canUseLocalStorage(): boolean {
+  if (!canUseWindow()) return false;
+  try {
+    return typeof window.localStorage !== 'undefined';
+  } catch {
+    return false;
+  }
 }
 
 function inferOriginDaemonUrl(): string | null {
@@ -73,19 +81,14 @@ function inferOriginDaemonUrl(): string | null {
 }
 
 function defaultDaemonChoices(): string[] {
-  return uniqueDaemonUrls([
-    inferOriginDaemonUrl(),
-    CANONICAL_PREFERRED_DAEMON_URL,
-  ]);
-}
-
-function fallbackDaemonUrl(): string {
-  return defaultDaemonChoices()[0] ?? CANONICAL_PREFERRED_DAEMON_URL;
+  return uniqueDaemonUrls([inferOriginDaemonUrl()]);
 }
 
 function normalizeDaemonUrl(value: string): string {
   const trimmed = value.trim();
-  if (!trimmed) return fallbackDaemonUrl();
+  if (!trimmed) {
+    throw new Error('A daemon endpoint is required. Open Fleet from the daemon or select a published endpoint.');
+  }
 
   let candidate = trimmed;
   if (/^\d+$/.test(candidate)) {
@@ -108,7 +111,7 @@ function safeNormalize(value: string | null | undefined): string | null {
 }
 
 function readDaemonHistory(): string[] {
-  if (!canUseWindow()) return [];
+  if (!canUseLocalStorage()) return [];
   try {
     const raw = window.localStorage.getItem(DAEMON_HISTORY_STORAGE_KEY);
     if (!raw) return [];
@@ -123,7 +126,7 @@ function readDaemonHistory(): string[] {
 }
 
 function writeDaemonHistory(urls: string[]): void {
-  if (!canUseWindow()) return;
+  if (!canUseLocalStorage()) return;
   window.localStorage.setItem(DAEMON_HISTORY_STORAGE_KEY, JSON.stringify(urls.slice(0, 8)));
 }
 
@@ -140,16 +143,15 @@ function getQueryDaemonUrl(): string | null {
 function resolveInitialDaemonUrl(): string {
   return uniqueDaemonUrls([
     getQueryDaemonUrl(),
+    safeNormalize(canUseLocalStorage() ? window.localStorage.getItem(DAEMON_STORAGE_KEY) : null),
     inferOriginDaemonUrl(),
-    safeNormalize(canUseWindow() ? window.localStorage.getItem(DAEMON_STORAGE_KEY) : null),
-    fallbackDaemonUrl(),
-  ])[0] ?? fallbackDaemonUrl();
+  ])[0] ?? '';
 }
 
 let daemonUrl = resolveInitialDaemonUrl();
 
 function rememberDaemonUrl(url: string): void {
-  if (!canUseWindow()) return;
+  if (!canUseLocalStorage()) return;
   window.localStorage.setItem(DAEMON_STORAGE_KEY, url);
   writeDaemonHistory(uniqueDaemonUrls([url, ...readDaemonHistory(), ...defaultDaemonChoices()]));
 }
@@ -162,7 +164,7 @@ function syncDaemonQueryParam(url: string): void {
 }
 
 function daemonEndpoint(path: string): string {
-  return `${daemonUrl}${path}`;
+  return daemonUrl ? `${daemonUrl}${path}` : path;
 }
 
 export function getDaemonUrl(): string {
