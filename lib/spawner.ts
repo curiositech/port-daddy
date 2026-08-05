@@ -36,6 +36,7 @@ import { lmstudioAdapter, DEFAULT_LMSTUDIO_MODEL } from './spawner/backends/lmst
 import { deepseekAdapter, DEFAULT_DEEPSEEK_MODEL } from './spawner/backends/deepseek.js';
 import { xaiAdapter, DEFAULT_XAI_MODEL } from './spawner/backends/xai.js';
 import { spawnViaCliTube, type CliTubeTool, type TubeClientLike } from './spawner/backends/cli-tube.js';
+import { CODEX_WORKSPACE_NETWORK_CONFIG } from './spawner/backends/cli-tube-provider-specs.js';
 import { withCoastGuard } from './spawner/coast-guard-runner.js';
 import type { CoastGuardReceipt } from './coast-guard.js';
 import { coastGuardStatus } from './coast-guard.js';
@@ -915,6 +916,11 @@ async function runCliTube(
       }
     : undefined;
 
+  const confineCaps = spec.capabilities && spec.capabilities.length > 0
+    ? spec.capabilities
+    : ['spawn:agent', `backend:${spec.backend}`];
+  const writePolicy = scopeTierWritePolicy(classifyScope(confineCaps));
+
   const result = await spawnViaCliTube({
     cli,
     prompt: spec.task,
@@ -927,6 +933,31 @@ async function runCliTube(
     permissionMode: spec.permissionMode,
     resumeSessionId: spec.nativeResume?.sessionId,
     workspaceIdentity: spec.nativeResume?.workspaceIdentity,
+    prepareLaunch: async (launch) => {
+      const coastGuard = await withCoastGuard({
+        agentId: spec.identity || spec.name || 'spawned',
+        backend: spec.backend,
+        cmd: launch.command,
+        args: launch.args,
+        env: launch.env,
+        workdir: launch.cwd,
+        writePolicy,
+        spec: {
+          coastGuard: spec.coastGuard,
+          maxRequests: spec.maxRequests,
+          maxBytes: spec.maxBytes,
+        },
+        dotenvKeys: Object.keys(loadDotenvOnce()),
+      });
+      return {
+        command: coastGuard.cmd,
+        args: coastGuard.args,
+        env: coastGuard.env as Record<string, string>,
+        cwd: launch.cwd,
+        receipt: coastGuard.receipt,
+        dispose: coastGuard.dispose,
+      };
+    },
     // Live observability (ADR-0060): publish the exchange on the operator-
     // discoverable channel (dispatch:<id>) when both a channel and a tube client
     // are present. When `tubeChannel` is undefined, spawnViaCliTube falls back to
@@ -961,6 +992,7 @@ async function runCliTube(
             outputTokens: estimateTokensFromText(result.output || ''),
             estimatedTelemetry: true,
           }),
+      coastGuardReceipt: result.coastGuardReceipt ?? null,
     };
   }
   if (cli === 'claude-code') {
@@ -988,6 +1020,7 @@ async function runCliTube(
             outputTokens: estimateTokensFromText(finalAnswer ?? result.output ?? ''),
             estimatedTelemetry: true,
           }),
+      coastGuardReceipt: result.coastGuardReceipt ?? null,
     };
   }
 
@@ -1001,6 +1034,7 @@ async function runCliTube(
     inputTokens: estimateTokensFromText(spec.task),
     outputTokens: estimateTokensFromText(result.output || ''),
     estimatedTelemetry: true,
+    coastGuardReceipt: result.coastGuardReceipt ?? null,
   };
 }
 
@@ -1127,6 +1161,7 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
         'resume',
         '--skip-git-repo-check',
         '--full-auto',
+        '-c', CODEX_WORKSPACE_NETWORK_CONFIG,
         '--output-last-message', outputPath,
         '--model', model,
         '--json',
@@ -1138,6 +1173,7 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
         '--skip-git-repo-check',
         '--full-auto',
         '--sandbox', 'workspace-write',
+        '-c', CODEX_WORKSPACE_NETWORK_CONFIG,
         '-C', workspace,
         '--output-last-message', outputPath,
         '--model', model,

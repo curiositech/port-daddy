@@ -69,6 +69,15 @@ const CODEX_CONFIG_KEY = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;
 const MAX_CODEX_CONFIG_OVERRIDES = 32;
 const MAX_CODEX_CONFIG_OVERRIDE_LENGTH = 512;
 
+/**
+ * Codex's workspace-write sandbox denies network unless this permission is
+ * explicit. Port Daddy agents need loopback access to their selected daemon
+ * for attention, heartbeats, notes, and collection. Coast Guard remains the
+ * outer egress meter; this only prevents Codex's inner sandbox from severing
+ * the coordination plane.
+ */
+export const CODEX_WORKSPACE_NETWORK_CONFIG = 'sandbox_workspace_write.network_access=true';
+
 export function normalizeCodexConfigOverrides(configs: readonly string[] | undefined | null): string[] {
   const normalized: string[] = [];
   for (const raw of configs ?? []) {
@@ -219,6 +228,9 @@ function buildCliTubeArgsFromSpec(
       for (const config of normalizeCodexConfigOverrides(input.codexConfig)) {
         args.push('-c', config);
       }
+      // Append the invariant after caller overrides so a generic Codex config
+      // cannot accidentally disable the loopback coordination plane.
+      args.push('-c', CODEX_WORKSPACE_NETWORK_CONFIG);
       if (resumeSessionId) args.push(resumeSessionId);
       args.push(input.prompt);
       return { args, stdin: null };

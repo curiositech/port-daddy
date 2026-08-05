@@ -180,14 +180,27 @@ describe('buildArgs', () => {
     ]);
   });
 
-  test('codex uses exec + workspace-write sandbox', () => {
+  test('codex keeps workspace-write confinement while enabling its coordination network', () => {
     const { args } = buildArgs('codex', 'hello');
     expect(args[0]).toBe('exec');
     expect(args).toContain('--skip-git-repo-check');
     expect(args).toContain('--full-auto');
     expect(args).toContain('--sandbox');
     expect(args[args.indexOf('--sandbox') + 1]).toBe('workspace-write');
+    const configValues = args.flatMap((value, index) => value === '-c' ? [args[index + 1]] : []);
+    expect(configValues.at(-1)).toBe('sandbox_workspace_write.network_access=true');
     expect(args).toContain('--json');
+  });
+
+  test('codex coordination network invariant wins over a conflicting generic override', () => {
+    const { args } = buildArgs('codex', 'hello', undefined, undefined, undefined, [
+      'sandbox_workspace_write.network_access=false',
+    ]);
+    const configValues = args.flatMap((value, index) => value === '-c' ? [args[index + 1]] : []);
+    expect(configValues).toEqual([
+      'sandbox_workspace_write.network_access=false',
+      'sandbox_workspace_write.network_access=true',
+    ]);
   });
 
   test.each([
@@ -288,6 +301,35 @@ describe('CLI tube provider registry contract', () => {
 });
 
 describe('spawnViaCliTube — provider policy behavior', () => {
+  test('prepares the resolved child through an outer guard and returns its receipt', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'guarded output', exitCode: 0 }));
+    const dispose = jest.fn();
+    const receipt = { tool: 'test-coast-guard', confined: true };
+    const prepareLaunch = jest.fn(async (launch) => ({
+      ...launch,
+      command: 'guarded-cli',
+      args: ['guarded', ...launch.args],
+      env: { ...launch.env, GUARDED: '1' },
+      receipt: () => receipt,
+      dispose,
+    }));
+
+    const res = await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      prepareLaunch,
+    });
+
+    expect(prepareLaunch).toHaveBeenCalledTimes(1);
+    expect(mockSpawn).toHaveBeenCalledWith(
+      'guarded-cli',
+      expect.arrayContaining(['guarded', '-p', 'hi']),
+      expect.objectContaining({ env: expect.objectContaining({ GUARDED: '1' }) }),
+    );
+    expect(res.coastGuardReceipt).toBe(receipt);
+    expect(dispose).toHaveBeenCalledTimes(1);
+  });
+
   test('rechecks native-resume workspace identity at the CLI child boundary', async () => {
     const workspace = join(fakeHome, 'workspace');
     const movedWorkspace = join(fakeHome, 'moved-workspace');

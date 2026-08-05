@@ -40,6 +40,26 @@ events while the process runs; observers may reconnect from the durable cursor.
 Backpressure slows observation or spills to the durable transcript store. It
 does not justify killing healthy work.
 
+## Layered sandbox and daemon reachability
+
+The agent CLI keeps its own filesystem sandbox. Codex runs with
+`workspace-write`, plus the explicit
+`sandbox_workspace_write.network_access=true` setting documented in the
+[Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference).
+That permission is required because a spawned agent must be able to reach the
+dynamically selected Port Daddy daemon for attention, heartbeats, notes, and
+collection. It does not make the preferred daemon port a fixed endpoint.
+
+Port Daddy then wraps every subprocess backend, including every `cli:*`
+provider, in Coast Guard. The outer boundary scrubs managed secrets, applies the
+declared write policy, and meters external egress. The selected loopback daemon
+endpoint remains directly reachable through the runtime's `NO_PROXY` policy;
+other network traffic remains subject to Coast Guard's budget and policy.
+
+A subprocess receipt with no Coast Guard evidence is not conformant. End-to-end
+proof must show the agent reached the selected daemon and that its durable run
+receipt contains a non-null, confined Coast Guard record.
+
 ## Sequence
 
 ```mermaid

@@ -1618,6 +1618,7 @@ describe('spawn — codex backend', () => {
         '--skip-git-repo-check',
         '--full-auto',
         '--sandbox', 'workspace-write',
+        '-c', 'sandbox_workspace_write.network_access=true',
         '-C', '/tmp/port-daddy-codex-test',
         '--model', 'gpt-5.4-mini',
         '--json',

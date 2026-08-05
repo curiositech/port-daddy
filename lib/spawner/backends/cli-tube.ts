@@ -58,6 +58,7 @@ import {
   waitForCliChildProcess,
   type CliChildWaitResult,
 } from './cli-tube-lifecycle.js';
+import type { CoastGuardReceipt } from '../../coast-guard.js';
 
 export {
   CLI_TUBE_PROVIDER_SPECS,
@@ -129,6 +130,24 @@ export interface CliTubeOptions {
   resumeSessionId?: string;
   /** Canonical workspace identity rechecked immediately before child spawn. */
   workspaceIdentity?: WorkspaceIdentity;
+  /**
+   * Optional outer confinement boundary. The top-level spawner uses this to
+   * wrap local CLI processes with Coast Guard after argv/env resolution but
+   * before the child exists. Direct library callers can omit it.
+   */
+  prepareLaunch?: (launch: CliTubeLaunch) => Promise<CliTubePreparedLaunch>;
+}
+
+export interface CliTubeLaunch {
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  cwd: string;
+}
+
+export interface CliTubePreparedLaunch extends CliTubeLaunch {
+  receipt?: () => CoastGuardReceipt;
+  dispose?: () => void;
 }
 
 export interface CliTubeResult {
@@ -142,6 +161,8 @@ export interface CliTubeResult {
    *  this is the JSONL event stream the caller parses into full-depth
    *  transcript turns; `output` is the extracted final answer. */
   rawStdout: string;
+  /** Outer subprocess-confinement evidence when the top-level spawner supplied it. */
+  coastGuardReceipt?: CoastGuardReceipt | null;
 }
 
 /**
@@ -361,13 +382,24 @@ export async function spawnViaCliTube(
     };
   }
 
-  const child = spawnChild(binary, args, {
-    cwd: opts.cwd || process.cwd(),
-    env,
-    detached: true,
-    shell: false,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  const launchCwd = opts.cwd || process.cwd();
+  const prepared = opts.prepareLaunch
+    ? await opts.prepareLaunch({ command: binary, args, env, cwd: launchCwd })
+    : { command: binary, args, env, cwd: launchCwd };
+
+  let child: ChildProcess;
+  try {
+    child = spawnChild(prepared.command, prepared.args, {
+      cwd: prepared.cwd,
+      env: prepared.env,
+      detached: true,
+      shell: false,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (error) {
+    prepared.dispose?.();
+    throw error;
+  }
   opts.onChild?.(child);
 
   const stdoutChunks: string[] = [];
@@ -412,15 +444,18 @@ export async function spawnViaCliTube(
   child.stderr?.on('data', onStderrData);
 
   let result: CliChildWaitResult;
+  let coastGuardReceipt: CoastGuardReceipt | null = null;
   try {
     result = await waitForCliChildProcess(child, {
       timeoutMs,
       killGraceMs: TIMEOUT_KILL_GRACE_MS,
       killCloseDeadlineMs: TIMEOUT_KILL_CLOSE_DEADLINE_MS,
     });
+    coastGuardReceipt = prepared.receipt?.() ?? null;
   } finally {
     child.stdout?.off('data', onStdoutData);
     child.stderr?.off('data', onStderrData);
+    prepared.dispose?.();
   }
 
   // Flush any trailing partial line (a final JSONL line without a terminating
@@ -499,6 +534,7 @@ export async function spawnViaCliTube(
     tube: tubeChannel,
     durationMs,
     rawStdout,
+    coastGuardReceipt,
   };
 }
 
