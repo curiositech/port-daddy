@@ -212,6 +212,22 @@ export interface PRContext {
    * machine trust by naming their branch `purser/…`.
    */
   authorType: string;
+  /**
+   * `pull_request.state` from the LIVE PR — `open` or `closed`.
+   *
+   * Carried so the fleet can decline to review a PR that is already over. The
+   * queue can deliver a job long after it was enqueued (retry, backlog drain,
+   * an executor outage), so the state at enqueue time is not the state now.
+   * Empty when GitHub omits it, which {@link classifyPrLifecycle} reads as
+   * "still open" — the fail-open direction for a review gate.
+   */
+  state: string;
+  /**
+   * `pull_request.merged` from the LIVE PR. Checked ahead of {@link state}
+   * because GitHub reports a merged PR as `closed`, and a purser test branch
+   * stacked under an already-merged PR can never be merged through.
+   */
+  merged: boolean;
   installationId: number;
   files: PRFile[];
   diff: string;
@@ -242,6 +258,8 @@ export async function fetchPRContext(
     title: string;
     body: string;
     user?: { login?: string; type?: string } | null;
+    state?: string;
+    merged?: boolean;
     head: { sha: string; ref?: string; repo?: { full_name?: string } | null };
     base: { sha: string; ref?: string; repo?: { full_name?: string } | null };
   };
@@ -283,6 +301,12 @@ export async function fetchPRContext(
     // omits it, so a minimal test payload still classifies.
     authorLogin: livePr.user?.login ?? eventPr.user?.login ?? '',
     authorType: livePr.user?.type ?? eventPr.user?.type ?? '',
+    // Lifecycle from the LIVE PR ONLY — never the event payload. The webhook
+    // describes the PR as it was when the job was ENQUEUED; this gate exists
+    // precisely because that can differ from now, so falling back to the event
+    // would reintroduce the bug it prevents. Absent ⇒ '' / false ⇒ fail open.
+    state: typeof livePr.state === 'string' ? livePr.state : '',
+    merged: livePr.merged === true,
     installationId: 0,
     files,
     diff,

@@ -75,6 +75,9 @@ function mkCtx(over: Partial<PRContext> = {}): PRContext {
     isFork: false,
     authorLogin: 'a-human',
     authorType: 'User',
+    // Open PR: the lifecycle gate must let these fixtures through.
+    state: 'open',
+    merged: false,
     installationId: 0,
     files: [{ filename: 'src/widget.ts', status: 'modified', additions: 3, deletions: 1 }],
     diff: 'diff --git a/src/widget.ts b/src/widget.ts\n+frob',
