@@ -13,6 +13,10 @@ The console serves a newline-JSON command socket when launched with
 (`src/script.rs`; commands answered by the 500ms foreground drain with full
 `ConsoleView` access, so scripting can never reach state the UI couldn't).
 
+**CRITICAL**: `console-ctl.py` has NO hardcoded fallback socket path —
+`PD_CONSOLE_CONTROL_SOCK` is REQUIRED. This prevents scripts from silently
+hitting stale shared instances when multiple labeled devbuilds are running.
+
 ```bash
 # Launch a devbuild with the socket. `open -n` forces a FRESH instance —
 # a bare `open -a` re-activates a stale one and your env never applies.
@@ -20,9 +24,12 @@ The console serves a newline-JSON command socket when launched with
 # the exact path it built ("▸ lane: dev  →  …") — never guess it; to resolve
 # it after the fact, take the newest timestamped match for <name>:
 APP="$(ls -td ~/Applications/pd-console-dev-apps/pd-console-dev-*-<name>.app | head -1)"
-open -n --env PD_CONSOLE_CONTROL_SOCK=~/.port-daddy/console-ctl.sock -a "$APP"
+# REQUIRED: Explicitly set PD_CONSOLE_CONTROL_SOCK for this instance
+export PD_CONSOLE_CONTROL_SOCK=~/.port-daddy/console-ctl-<name>.sock
+open -n --env PD_CONSOLE_CONTROL_SOCK="$PD_CONSOLE_CONTROL_SOCK" -a "$APP"
 
 # Drive it (stdlib client; non-zero exit on ok=false):
+# PD_CONSOLE_CONTROL_SOCK must be set in the shell environment
 python3 core/pd-console/scripts/console-ctl.py ping
 python3 core/pd-console/scripts/console-ctl.py panes
 python3 core/pd-console/scripts/console-ctl.py focus galaxy
@@ -67,13 +74,13 @@ bash core/pd-console/scripts/package-console.sh --devbuild <name>
 # package-console.sh prints the exact bundle path it built; if resolving it
 # after the fact, take the newest timestamped match for <name>:
 APP="$(ls -td ~/Applications/pd-console-dev-apps/pd-console-dev-*-<name>.app | head -1)"
-# Give this instance its OWN control socket, scoped by label. Without this,
-# main.rs never starts the control-socket thread at all, so console-ctl.py
-# silently falls back to its default ~/.port-daddy/console-ctl.sock — the
-# same path the first snippet above uses — and you script whatever stale
-# instance is still listening there instead of this fresh worktree build.
+# CRITICAL: Give this instance its OWN control socket, scoped by label.
+# Without PD_CONSOLE_CONTROL_SOCK, main.rs never starts the control-socket
+# thread at all. console-ctl.py REQUIRES PD_CONSOLE_CONTROL_SOCK (no fallback)
+# to prevent scripting stale shared instances when multiple builds are running.
+export PD_CONSOLE_CONTROL_SOCK=~/.port-daddy/console-ctl-<name>.sock
 open -n --env PORT_DADDY_URL="$PORT_DADDY_URL" \
-  --env PD_CONSOLE_CONTROL_SOCK=~/.port-daddy/console-ctl-<name>.sock -a "$APP"
+  --env PD_CONSOLE_CONTROL_SOCK="$PD_CONSOLE_CONTROL_SOCK" -a "$APP"
 ```
 
 The named daemon owns an isolated state plane and publishes the endpoint it

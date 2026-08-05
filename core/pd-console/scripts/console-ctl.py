@@ -17,7 +17,8 @@ Usage:
     console-ctl.py [--sock PATH] alerts
     console-ctl.py [--sock PATH] raw '<json>'
 
-Default socket: $PD_CONSOLE_CONTROL_SOCK, else ~/.port-daddy/console-ctl.sock.
+Default socket: $PD_CONSOLE_CONTROL_SOCK (REQUIRED — no hardcoded fallback to prevent
+scripting stale instances).
 Each command prints the console's JSON reply to stdout and exits non-zero when
 the reply carries ok=false.
 """
@@ -30,10 +31,23 @@ import sys
 
 
 def default_sock() -> str:
+    """Discover control socket path from PD_CONSOLE_CONTROL_SOCK env.
+
+    NO hardcoded fallback — forces explicit socket declaration to prevent
+    scripts from silently hitting stale shared instances when multiple
+    labeled devbuilds are running (per gpui-rust-console ref 07).
+    """
     env = os.environ.get("PD_CONSOLE_CONTROL_SOCK", "").strip()
     if env:
         return os.path.expanduser(env)
-    return os.path.expanduser("~/.port-daddy/console-ctl.sock")
+    # Fail explicitly instead of falling back to a shared canonical socket
+    print(
+        "error: PD_CONSOLE_CONTROL_SOCK not set. Launch console with:\n"
+        "  open -n --env PD_CONSOLE_CONTROL_SOCK=~/.port-daddy/console-ctl-<label>.sock -a <app>\n"
+        "or export PD_CONSOLE_CONTROL_SOCK before running console-ctl.py",
+        file=sys.stderr
+    )
+    sys.exit(2)
 
 
 def send(sock_path: str, payload: dict) -> dict:

@@ -145,11 +145,11 @@ Fork by layer: **shell** (ref 02 + the three visual siblings) · **editor core**
 
 **Sibling skills (dependencies):** `gpui-rust-console`, `rust-gpui-motion`, `gpui-shaders`, `sound-design-and-audio`, `beautiful-gui-design`, `vello-parley-rendering`, `metal-text-pipeline`.
 
-<!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
+<!-- BEGIN BUNDLE INDEX -->
 
 ## Skill Bundle Index
 
-*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+*Every file in this skill, and when to open it.*
 
 **root**
 - [`CHANGELOG.md`](CHANGELOG.md) — UbuildUcoopUideUgpui — Changelog — - Brought to the agentic-family standard: added `io-contract`/`provenance`/`pairs-with` frontmatter - Added a deterministic audit helper (ma
