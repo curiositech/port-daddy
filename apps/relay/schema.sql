@@ -146,6 +146,42 @@ CREATE TABLE IF NOT EXISTS fleet_run_steps (
 CREATE INDEX IF NOT EXISTS fleet_run_steps_run_idx ON fleet_run_steps (run_id);
 
 -- ──────────────────────────────────────────────────────────────────────────
+-- Session Intelligence findings (cloud mining ingest boundary)
+--
+-- Raw material for eureka/coordination mining lives only on the operator's
+-- local machine (~/.claude/projects transcripts, the local daemon's SQLite
+-- store) -- relay has no filesystem access to either. The LOCAL side runs
+-- the existing structural detectors (lib/session-intel/), applies the
+-- single-expert-oracle recurrence guard AND redaction (lib/session-intel/
+-- redact.js's structural grammars) BEFORE anything leaves the machine, then
+-- POSTs the resulting already-small, already-redacted findings here via
+-- POST /v1/session-intel/ingest (operatorOnly-gated -- see handlers.ts).
+-- Nothing in this table has ever contained a raw transcript or full
+-- conversation text; excerpts are pre-clipped (~240 chars) structural
+-- snippets, same shape as the local coordination-training ledger.
+--
+-- This table is the READ side for a cloud-native judgment ship (not yet
+-- built -- separate follow-up) that decides skill/prompt/roadmap
+-- worthiness and, for worthy findings, calls the SAME captureProposals /
+-- fleet_ideas pipeline the spark/spider/lookout/snipe ideation ships
+-- already use, rather than inventing a second proposal-tracking mechanism.
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS session_intel_findings (
+  id             TEXT    PRIMARY KEY,            -- 'sif_' || randomHex(16)
+  batch_id       TEXT    NOT NULL,               -- one id per ingest call (one local digest run)
+  kind           TEXT    NOT NULL,               -- 'coordination-suggestion'|'recurring-eureka-arc'
+  digest_date    TEXT    NOT NULL,               -- YYYY-MM-DD, the local digest cycle's date (idempotency aid)
+  title          TEXT    NOT NULL,
+  occurrences    INTEGER NOT NULL,
+  session_count  INTEGER NOT NULL,               -- distinct sessions this recurred across (>= 2, guard already applied locally)
+  payload_json   TEXT    NOT NULL,               -- the full structured finding (already redacted, already clipped)
+  status         TEXT    NOT NULL DEFAULT 'pending', -- 'pending'|'judged'|'proposed'|'dismissed'
+  created_at     INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE INDEX IF NOT EXISTS session_intel_findings_status_idx ON session_intel_findings (status, created_at);
+CREATE INDEX IF NOT EXISTS session_intel_findings_batch_idx ON session_intel_findings (batch_id);
+
+-- ──────────────────────────────────────────────────────────────────────────
 -- Fleet idea tracking (ADR-0085 semantic dedup; fleet-executor ideas-store.ts)
 --
 -- Ideation ships (spark, spider, lookout, snipe) capture proposals here instead
