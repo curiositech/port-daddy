@@ -1,1314 +1,174 @@
-# pd-fleet.yml — Port Daddy's own fleet configuration
+# Continuous Documentarian — push-reviewed pass
 #
-# Retooled 2026-05-20 (see docs/fleet/2026-05-20-retool.md).
+# This file declares a single atomic slice: the documentarian:push-reviewed
+# agent that runs on every GitHub push (not just promotion events).
 #
-# The Old Way (pre-2026-05-20):
-#   Ships published findings to pub/sub channels. The operator never
-#   read them. Findings died in SQLite rows no human opened.
-#
-# The New Way:
-#   Ships write to GitHub — PR comments (one per ship per PR, edited
-#   in place), issues (deduped by title), and draft PRs for proposed
-#   work. Channels remain, but they are internal plumbing for
-#   ship-to-ship chaining, not the operator surface.
-#
-# Implementation primitive: lib/fleet/github-output.ts. Ships call
-# `postPRComment`, `openIssue`, `openDraftPR`, `closeIssue` instead
-# of `pd pub`. Today the helper shells out to `gh` and inherits the
-# operator's auth. When the Port Daddy GitHub App lands, the helper
-# flips to App credentials transparently — ships don't change.
-#
-# Backend selection — runtime detection, not hard pins
-# ─────────────────────────────────────────────────────
-# Every LLM-powered ship below specifies `backend:` (primary) PLUS a
-# `fallbacks:` array that expresses preference *order*, not just a
-# tail-end safety net. The runtime walks the list and uses the FIRST
-# available + healthy + under-cap option. The ordering is the same
-# for every ship:
-#
-#   1. cli:claude-code     — free if the operator is a Claude Max
-#                            subscriber and PD_USE_CLI_BACKEND=claude-code
-#                            (or claude-code is on PATH and healthy).
-#                            Routed via the pd-tube CLI backend
-#                            (sibling PR #109 work).
-#   2. cli:codex           — free if the operator has a ChatGPT Pro
-#                            subscription and codex is on PATH.
-#                            Also routed via pd-tube.
-#   3. cloudflare          — cheapest cloud option that's competent
-#                            for the ship's task (qwen3-30b-a3b-fp8
-#                            for general; qwen2.5-coder for code work).
-#                            Requires CLOUDFLARE_ACCOUNT_ID +
-#                            CLOUDFLARE_API_TOKEN.
-#   4. openai (gpt-5-mini) — middle-tier; pattern recognition,
-#                            tautology detection.
-#   5. anthropic (haiku)   — soft preference for voice-sensitive
-#                            ships (code-reviewer, tenderfoot,
-#                            red-team). NEVER a hard requirement.
-#                            If only cloudflare is available, the
-#                            ship runs on cloudflare and accepts the
-#                            quality tradeoff.
-#
-# The spawner picks the first entry whose backend is reachable AND
-# whose remaining daily-cap budget covers an average run. Ships fail
-# loudly if NO entry is serviceable — they do NOT silently degrade
-# to a hardcoded default.
-#
-# `backend:` + `fallbacks:` is the schema as it stands today
-# (lib/fleet-ast.ts AgentNode). A future cleanup may rename the pair
-# to `backend_preference:` as a single array; for now the existing
-# AST shape carries the same information without a schema migration.
-#
-# Run with: pd fleet up
+# Key properties:
+# - Triggers on github:push (exact SHA capture)
+# - Model tier: low (Haiku equivalent; ~$0.001 per run)
+# - Zero cooldown, zero dedupe window (every push is reviewed)
+# - Worktree isolated (no cross-agent filesystem conflicts)
+# - Publishes durable documentarian:push-reviewed tuple
+# - Opens draft PRs on drift; records CLEAN on pass
+# - Never pushes to main
 
 fleet:
-  name: port-daddy
-  harbor: "{project}:fleet"
-
-  # TENANCY CONSENT (cloud squid): opt in to the fleet-executor's fleet-cloud
-  # coordination events (run-started / ship-verdict / pr-stacked /
-  # run-concluded on the shared relay channel). Those events carry this repo's
-  # name, PR numbers, verdicts, and stacked-PR urls, so the executor emits
-  # NOTHING for a tenant repo unless its pd-fleet.yml (trusted default branch)
-  # sets this to exactly `true`. Default: false.
-  squidEvents: true
-
-  # XO SYNTHESIS OFFICER (fleet-executor src/xo.ts): opt in to (1) the idea
-  # EDITOR PASS — ideation proposals are curated (merge/retitle/drop) against
-  # the most recently tracked ideas before issues are filed; cosine dedup
-  # remains the pre-filter and the fallback — and (2) ADVISORY-FINDINGS TRIAGE
-  # — the review comment gains a ranked "XO's orders" section over the
-  # non-blocking findings. Strictly advisory: the XO never changes a check
-  # conclusion, and any XO failure falls back to today's behavior exactly.
-  # Default: false (off for tenants unless their pd-fleet.yml opts in).
-  xo: true
+  name: port-daddy-documentarian
+  harbor: "{project}:fleet:documentarian"
 
   limits:
-    max_concurrent_spawns: 3
-    max_spawns_per_hour: 12
-    # Daily ceiling under the new config: $5.50 if every ship runs
-    # on the cheapest cloud option for its tier (cloudflare for
-    # general, openai gpt-5-mini for code/tautology, anthropic only
-    # for voice-sensitive review). If PD_USE_CLI_BACKEND=claude-code
-    # is set and the operator is a Max subscriber, marginal cost
-    # drops to ~$0 — the cap becomes a safety net, not a forecast.
-    budget_usd_per_day: 8.50
+    max_concurrent_spawns: 1
+    max_spawns_per_hour: 999  # Unbounded push rate; practical cap is CI frequency
+    budget_usd_per_day: 2.50  # ~2500 pushes × $0.001 per low-tier run
 
   agents:
-    # ─── Existing ships, retooled for GitHub output ──────────────────
-
-    gardener:
-      # Stays as-is on git:committed. Output moves to GitHub: opens
-      # issues for non-trivial findings (untracked binaries, large
-      # stash, repeated dirty-tree), auto-closes when resolved.
-      trigger: git:committed
-      cooldown_ms: 1800000
-      dedupe_window_ms: 1800000
-      backend: cli:claude-code
-      fallbacks:
-        - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
-      singleton: true
-      prompt: |
-        You are Gardener. After every commit, audit the worktree's
-        cleanliness. The bar is: would Erich, opening this repo cold,
-        find anything that looks abandoned, suspicious, or accidentally
-        committed?
-
-        Check:
-        - Untracked files older than 7 days that look like they should
-          be in .gitignore (build artifacts, .DS_Store, screenshots,
-          .visual-check outputs, etc.)
-        - Files committed by accident (binaries, .env*, *.profraw,
-          large generated assets)
-        - Stashes older than 30 days
-        - Branches merged into main but not deleted
-
-        Output mechanic (NEW, 2026-05-20):
-        - For non-trivial findings, open a GitHub issue via
-          lib/fleet/github-output.ts (label: gardener, auto-close
-          when the next clean run shows the issue resolved).
-        - For trivial findings (single .DS_Store), leave a session
-          note and move on.
-        - Do NOT publish to pub/sub. The qa:findings channel is
-          deprecated for operator-visible findings.
-
-        If clean: report CLEAN and close any open `gardener` issue
-        with reason "resolved as of <sha>".
-      identity: "{project}:fleet:gardener"
-      telos: "Keep the worktree's cleanliness visible to the operator."
-
-    qa:
-      # Output moves to PR comments via the on-PR trigger; the
-      # post-commit path stays as a quick check that still routes
-      # through coordination:inconsistency only when material.
-      trigger: pull_request:opened
-      backend: cli:claude-code
-      fallbacks:
-        - backend: cli:codex
-        - backend: openai
-          model: gpt-5-mini
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
-      cooldown_ms: 900000
-      dedupe_window_ms: 1800000
-      singleton: true
-      allowedTools: "Read,Grep,Glob,Bash(npm test*),Bash(gh*)"
-      prompt: |
-        QA review of the PR diff. Read every changed file. For each
-        change, identify inputs that would break it.
-
-        ALSO: Audit existing tests for the changed files. Flag:
-        1. TAUTOLOGIES — tests that pass regardless of correctness
-        2. MOCK ECHOES — mocks return hardcoded values, assertions
-           check those same values
-        3. MISSING NEGATIVE PATHS — no test for failure, refusal,
-           bad input, timeout, disconnect, or empty/null/zero
-        4. COVERAGE THEATER — function called with no assertions, or
-           assertions only on type/shape not value
-
-        Framework-agnostic rules apply (see fleet/ships/code-reviewer.md
-        for the full quality bar; this ship coordinates with that one).
-
-        Output mechanic (NEW, 2026-05-20):
-        - One PR comment per PR, edited in place via
-          lib/fleet/github-output.ts postPRComment(editIfExists=true).
-        - Severity tiers: HIGH (blocking, tag @erichowens), MEDIUM,
-          LOW. Render via renderFindingsComment.
-        - If clean: post nothing. "No issues" is silence.
-        - Do NOT publish to qa:findings or qa:clean. Those channels
-          are deprecated for operator output.
-
-        Coordination posture:
-        - If this PR's diff contradicts active session claims or live
-          roadmap intent, drop a coordination:inconsistency note. That
-          channel still feeds COORDINATION-LOG.md and is for the next
-          agent, not the operator.
-      identity: "{project}:fleet:qa"
-      telos: "Find the bug the PR would otherwise merge."
-
-    test-hunter:
-      # Stays on git:committed. Output: opens a GitHub issue labelled
-      # `coverage-gap` referencing the offending file. test-author
-      # listens on that label.
-      trigger: git:committed
-      backend: cli:claude-code
-      fallbacks:
-        - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
-      cooldown_ms: 900000
-      dedupe_window_ms: 1800000
-      singleton: true
-      allowedTools: "Read,Grep,Glob,Bash(npm test*),Bash(gh*)"
-      prompt: |
-        Run the test suite with coverage. Identify modules below 50%
-        line coverage that were touched in the last commit.
-
-        Output mechanic (NEW, 2026-05-20):
-        - For each uncovered module, open a GitHub issue via
-          lib/fleet/github-output.ts:
-            title: "coverage-gap: <path> at <pct>% line coverage"
-            labels: ["coverage-gap", "fleet:test-hunter"]
-          dedupeByTitle keeps re-runs from spamming.
-        - If a PR is open and touches the file, link the PR in the
-          issue body (`Related: #<N>`). test-author picks this up.
-        - Do NOT write tests yourself. test-author owns authoring.
-        - Do NOT publish to tests:gap-found. Channel deprecated.
-
-        Quality bar for what counts as a real gap:
-        - The uncovered branch must be a non-trivial code path
-          (error handling, edge case, public API surface). Untested
-          getter/setter pairs don't count.
-        - Files with < 20 LOC are exempt.
-      identity: "{project}:fleet:test-hunter"
-      telos: "Surface coverage gaps as actionable GitHub issues."
-
     documentarian:
-      # Stays scheduled (promotion-driven). Output: opens a PR
-      # against docs surface when code-doc drift detected. Previously
-      # just appended notes; now ships a real diff.
-      trigger: promotion:release-surfaces
+      # Continuous maintenance pass on every GitHub push.
+      # Complements the existing promotion:release-surfaces trigger.
+      trigger:
+        - github:push
+        - promotion:release-surfaces
+
+      # Low-cost tier: inspect surfaces, flag drift, no rewrite without manual decision
       backend: cli:claude-code
+      model_tier: low
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen2.5-coder-3b'
+
+      # Singleton: one agent owns all push reviews across the entire repo
       singleton: true
-      cooldown_ms: 900000
-      dedupe_window_ms: 43200000
-      backoff_base_ms: 300000
-      backoff_max_ms: 3600000
+
+      # Worktree isolation: each run gets its own Git checkout, no shared filesystem
+      worktree: true
+
+      # Zero cooldown and dedupe: every push is reviewed independent of prior state
+      cooldown_ms: 0
+      dedupe_window_ms: 0
+
+      # Backoff in case of API failures (don't hammer the endpoint)
+      backoff_base_ms: 300000      # Start at 5 min
+      backoff_max_ms: 3600000      # Cap at 1 hour
+
+      # Bounded tool access: read + write docs, run git/gh, never arbitrary bash
       allowedTools: "Read,Grep,Glob,Write,Edit,Bash(gh*),Bash(git*)"
+
+      # Timeout per run: 10 minutes is plenty for a surface check
+      timeout: 600000
+
+      # The prompt is the agent's entire instruction surface
       prompt: |
-        You are Lookout / Documentarian. Promotion just passed the
-        test gate. This is the high-signal moment to make release
-        surfaces match code truth.
+        You are Documentarian / Lookout. Every GitHub push to this repo
+        receives one lightweight, bounded review pass. This is continuous
+        maintenance that runs on every exact SHA, not a substitute for
+        the major multi-agent release review (which runs only at
+        promotion).
 
-        First read the promotion trigger payload. If it includes
-        changed files or a source SHA, scope your review to that
-        promotion candidate.
+        PHASE 1: CAPTURE & INSPECT
+        ──────────────────────────
+        Read the trigger payload to extract:
+        - Exact source SHA (commit hash)
+        - Branch name (feature, main, release/*, etc.)
+        - Changed files (diff against parent)
 
-        Maintain ALL release-surface documentation:
-        - CLAUDE.md, AGENTS.md, README.md, CHANGELOG.md
-        - features.manifest.json
-        - docs/sdk.md, docs/openapi.yaml
-        - docs/DELEGATION-MODES.md and recovery docs
-        - skills/port-daddy-agent-skill/ (SKILL.md + references/)
-        - website-v2/src/pages/ (docs/cli/, docs/sdk/, docs/mcp/,
-          tutorials/)
-        - apps/FleetBar user-facing behavior docs
+        Fail fast if:
+        - Payload missing or malformed → abort, report error
+        - SHA not found in repo → skip (might be from another branch)
+        - Branch is a bot-managed branch (renovate/*, dependabot/*) → skip
 
-        Output mechanic (NEW, 2026-05-20):
-        - When you find code-doc drift, write the fix on a new branch
-          `documentarian/<sha-short>-sync` and open a draft PR via
-          lib/fleet/github-output.ts openDraftPR().
-          Title: "docs(bot): sync release surfaces to <sha-short>"
-        - For surfaces you cannot auto-fix (requires copy decisions
-          from Erich), open an issue with label `docs-drift` instead.
-        - Do NOT push to main. Do NOT append to COORDINATION-LOG
-          unless the drift implies a cross-agent conflict.
+        PHASE 2: SURFACE AUDIT
+        ──────────────────────
+        Read these exact files from the pushed SHA:
+        1. AGENTS.md
+        2. CLAUDE.md
+        3. README.md
+        4. Both canonical Port Daddy skills:
+           - ~/.claude/skills/port-daddy-agent-skill/SKILL.md
+           - ~/.claude/skills/port-daddy/SKILL.md
+        5. The pushed PR (if open) to cross-check branch-specific docs
 
-        If every release surface is current: report CLEAN with the
-        source SHA and the surfaces checked.
+        For each surface, check:
+        - Syntax: valid YAML/Markdown (not corrupted)
+        - Consistency: filenames and symbol references match reality
+        - Staleness: NEVER flag docs as stale just because they're 2 weeks old.
+          Stale means: documented behavior does NOT match current code
+          (e.g., a command was renamed but AGENTS.md still uses the old name).
+        - Broken cross-references (links to files/sections that don't exist)
+
+        PHASE 3: DRIFT DETECTION & REMEDIATION
+        ───────────────────────────────────────
+        If you find code-doc drift that you can fix automatically (syntax
+        errors, stale filenames, broken links), create a DRAFT PR:
+
+        1. Create branch: `documentarian/<SHA-short>-sync`
+        2. Make the minimal, truthful fixes
+        3. Commit: "docs(bot): sync release surfaces to <SHA-short>"
+        4. Open draft PR via lib/fleet/github-output.ts openDraftPR():
+           - Title: "docs(bot): sync release surfaces to <SHA-short>"
+           - Body: "Continuous surface audit pass. Fixes: [list changes]"
+           - Target the pushed feature branch IF IT STILL EXISTS; else main
+        5. DO NOT PUSH TO MAIN. A docs fix for an in-flight feature must
+           travel with that feature, not race it.
+
+        If drift requires a DECISION (copy choice, reframing, new section):
+        - Open a GitHub issue (label: docs-drift)
+        - Title: "docs-drift: <surface>: <description>"
+        - Body: "Pushed SHA <SHA>. Surface: <which>. Issue: <detail>"
+        - Do NOT attempt rewrites beyond typo/link fixes.
+
+        PHASE 4: RESULT PUBLICATION
+        ───────────────────────────
+        Finish every pass by publishing a durable tuple to Port Daddy
+        that the release reviewer will cite. The tuple is:
+
+          documentarian:push-reviewed = {
+            "sha": "exact commit hash",
+            "agent_id": "your agent ID from the session",
+            "transcript_id": "session transcript ID",
+            "verdict": "CLEAN | DRIFT_FIXED | DRIFT_MANUAL_REQUIRED",
+            "surfaces_checked": ["AGENTS.md", "CLAUDE.md", "README.md", ...],
+            "changes": "List of actual changes made, or empty if CLEAN"
+          }
+
+        Use the Port Daddy tuple API to publish this record, then READ IT
+        BACK to verify it persisted. If the read-back fails, report ERROR.
+
+        If all surfaces pass (no drift found):
+          - verdict: "CLEAN"
+          - changes: ""
+          - Open no PR, no issue
+
+        If drift was fixed:
+          - verdict: "DRIFT_FIXED"
+          - changes: "List of fixes applied"
+          - Draft PR opened (see PHASE 3)
+
+        If drift requires manual decision:
+          - verdict: "DRIFT_MANUAL_REQUIRED"
+          - changes: "List of issues opened"
+          - Issues created (see PHASE 3)
+
+        CONSTRAINTS
+        ──────────
+        - NEVER push directly to main. Always use a feature branch.
+        - NEVER perform unbounded rewrites. This is maintenance, not
+          refactoring. Fix ONLY the surface problems you found.
+        - NEVER edit CHANGELOG.md or version fields.
+        - If a PR is already open for this feature branch, link your
+          draft PR to it in the body (`Related: #<N>`).
+        - NEVER open multiple draft PRs for a single push. If you find
+          multiple issues, create ONE PR with all fixes.
+        - If the triggered push is from a merge commit (e.g., a PR merge),
+          inspect the HEAD commit's surfaces, not the PR diff.
+
+        SUCCESS CRITERIA
+        ────────────────
+        ✓ Tuple published and read back successfully
+        ✓ No syntax errors in any surface file
+        ✓ Broken links fixed (or issues opened)
+        ✓ No PRs pushed to main
+        ✓ Draft PR targets correct branch (feature or main)
+
       identity: "{project}:fleet:documentarian"
-      telos: "Keep every release surface honest against runtime truth."
-
-    simplifier:
-      # PAUSED until explicitly requested. Convention preserved.
-      trigger: git:committed
-      backend: cli:claude-code
-      fallbacks:
-        - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
-      cooldown_ms: 900000
-      dedupe_window_ms: 1800000
-      singleton: true
-      worktree: true
-      allowedTools: "Read,Grep,Glob,Edit,Bash(npm test*)"
-      prompt: |
-        PAUSED. Unpause when the operator explicitly requests a
-        simplification pass on a specific surface. Without scope,
-        this ship eats tokens reading the whole tree.
-
-        When active: review recently changed files for unnecessary
-        complexity. Simplify WITHOUT changing behavior. Output as a
-        draft PR via lib/fleet/github-output.ts openDraftPR(); never
-        edit through main.
-      identity: "{project}:fleet:simplifier"
-      telos: "Remove needless complexity without changing behavior."
-
-    cartographer:
-      # Scheduled every 30 min. Output now goes to a `cartographer/INDEX.md`
-      # file in the repo, auto-committed to the `cartographer-state`
-      # branch.
-      schedule: "*/30 * * * *"
-      backend: cli:claude-code
-      fallbacks:
-        - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
-      timeout: 900000
-      singleton: true
-      allowedTools: "Read,Grep,Glob,Write,Bash(pd feedback*),Bash(pd roadmap*),Bash(pd ideas*),Bash(git*)"
-      prompt: |
-        You are the Cartographer — you maintain the map between what
-        we've planned, what we've built, and what remains.
-
-        Read these sources:
-        1. docs/V4-UNIFIED-ROADMAP.md
-        2. docs/ROADMAP.md
-        3. git log --oneline -20
-        4. CHANGELOG.md
-        5. docs/plans/
-        6. docs/recovery/CURRENT-WORK.md
-        7. docs/recovery/IDEAS-TROVE.md
-        8. docs/recovery/DOGFOOD-FEEDBACK.md
-        9. docs/recovery/
-        10. .cartographer/status.md
-        11. .spark/feedback/ — RAW agent dogfood feedback.
-        12. .spark/ideas/ and .spider/connections/ — research exhaust
-        13. `pd roadmap --feedback-status open --json` — daemon-mediated
-            live harvest queue (authoritative)
-
-        Then update docs/V4-UNIFIED-ROADMAP.md per the existing rules
-        (move NEXT→COMPLETE, flag stale items, harvest dogfood feedback).
-
-        Output mechanic (NEW, 2026-05-20):
-        - In addition to updating the roadmap markdown in place,
-          write a digest to `cartographer/INDEX.md` (NEW file, repo
-          root). This is the operator-readable "what's the map look
-          like right now" view. Format:
-            # Cartographer Index — <ISO timestamp>
-            ## Phase summary
-            ## Top 3 closest to completion
-            ## Top 3 blocked / drifting
-            ## Recent commits unmapped to roadmap (last 7d)
-            ## Open dogfood-feedback at `now` (count + slugs)
-        - Auto-commit this file to a branch `cartographer-state`
-          (orphan-style, no merge to main). The operator can
-          `git checkout cartographer-state -- cartographer/INDEX.md`
-          to read the latest snapshot without polluting main's
-          history.
-        - Do NOT auto-PR the roadmap edits to main. Those still go
-          via the existing markdown-edit path.
-
-        Do NOT rewrite the roadmap's voice or structure. You update
-        status fields and add notes. The roadmap is Erich's document.
-
-        Coordination posture preserved: publish material planning
-        conflicts to coordination:inconsistency.
-      identity: "{project}:fleet:cartographer"
-      telos: "Keep the roadmap, recovery queue, and live work map aligned."
-
-    spark:
-      # High-temperature product imagination. Spark comments buildable
-      # ideas on PRs as validated Proposals; the cloud executor renders each
-      # into REAL actionable Port Daddy syntax (see fleet/ships/spark.md and
-      # apps/fleet-executor/src/proposals.ts).
-      class: ideation
-      trigger:
-        - pull_request:opened
-        - git:committed
-      cooldown_ms: 7200000
-      dedupe_window_ms: 7200000
-      backend: cli:claude-code
-      temperature: 1.25
-      fallbacks:
-        - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
-      singleton: true
-      allowedTools: "Read,Grep,Glob"
-      side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
-      output_receipts: [comment_url, assignment_packet, command_token, dispatch_command]
-      prompt: |
-        Read fleet/ships/spark.md end to end before doing anything else.
-
-        You are Spark, Port Daddy's high-temperature product imagination
-        engine. You do NOT review the PR for correctness. You notice what
-        this diff makes newly possible for the product — legible agent work,
-        operator control, durable transcripts, repo-scoped fleets, safe
-        autonomy, beautiful control surfaces, agents that put up tested PRs.
-
-        Think hotter than the reviewer ships; make surprising leaps, but
-        ground every idea in evidence from the PR, roadmap, fleet config, or
-        existing code. Emit 0-4 proposals in the ideation JSON schema (the
-        executor injects the exact contract). Prefer `action: "assign"` with a
-        runnable `prompt` for buildable ideas, `action: "roadmap"` for durable
-        but not-now ideas. Never dump a chore on the operator — shape each idea
-        so an agent can build it. End with FLEET-VERDICT: PASS.
-      on_success:
-        - publish spark:idea
-      identity: "{project}:fleet:spark"
-      telos: "Comment buildable product opportunities that can be assigned to PR-producing bots."
-
-    # ─── Dispatch runner (DISABLED by default; see docs/proposals/pd-nightshift.md) ──
-    # Renamed from `nightshift-runner` per ADR-0035 -- the verb generalized. This
-    # ship is the cron path for `pd dispatch`. It fires once a night at 1am,
-    # pops the next proposed dispatch, and runs it autonomously in a fresh
-    # worktree under ~/coding/tmp/port-daddy-dispatch-<idShort>.
-    #
-    # Uncomment after:
-    #   1. operator has reviewed the first PR opened by a dispatch run,
-    #   2. the pre-receive hook denying push-to-main inside dispatch worktrees
-    #      is wired (PR #161's destructive-op shim is the current floor),
-    #   3. the fleet engine's cron parser supports absolute hour-of-day
-    #      patterns (PR #137).
-    #
-    # dispatch-runner:
-    #   schedule: "0 1 * * *"        # 1am daily; one tick per night
-    #   backend: custom              # runs `pd dispatch run --next --really-run`
-    #   singleton: true
-    #   cooldown_ms: 21600000        # 6h cooldown between runs
-    #   timeout: 14400000            # 4h max wall-clock per spawn
-    #   daily_cap_usd: 10            # fleet-level ceiling; per-dispatch budget also applies
-    #   prompt: "pd dispatch run --next --really-run"
-    #   identity: "{project}:fleet:dispatch-runner"
-    #   telos: "Drain the operator's dispatch queue without supervision, bounded by cost and time."
-
-    # ─── The Purser (DISABLED by default; uncomment to enable) ───────
-    # Adversarial gatekeeper, cloud-executed by apps/fleet-executor
-    # (src/purser.ts). The purser STEEL-MANS each PR into the strongest
-    # interpretation of its contract (purpose + testable obligations),
-    # authors adversarial tests against that contract, publishes them on
-    # a stacked branch `purser/pr-<n>-tests` cut from the PR's base sha,
-    # opens a test PR for the branch, and RETARGETS the reviewed PR onto
-    # it — the PR then sits on top of its own contract's tests and must
-    # satisfy them to merge. Fork PRs get the test PR + comment, never a
-    # retarget. If the GitHub App lacks `contents: write`, the purser
-    # degrades honestly: tests go inline in a comment and the verdict
-    # stays advisory. The purser is OFF unless this entry is uncommented
-    # (safe rollout) and runs AFTER the reviewer/ideation ships.
-    #
-    purser:
-      class: purser
-      trigger: pull_request:opened
-      model: '@cf/qwen/qwen3-30b-a3b-fp8'  # guarded: unknown ids remap to known-good
-      # THE GATE. `blocking: true` means a sandbox-executed test FAILURE fails
-      # the check run, so a PR cannot merge while it contradicts its own
-      # best-interpretation contract. Until now the purser authored tests,
-      # demanded they be satisfied, and then passed the gate anyway — the demand
-      # was advisory, which is another way of saying it was optional.
-      #
-      # This is safe to switch on precisely BECAUSE of the line below it.
-      # `blocking` only ever fires on `executed && !passed` — tests that really
-      # ran and really failed. When no sandbox is provisioned the tests are not
-      # executed, and `blockWithoutSandbox: false` keeps the verdict advisory:
-      # the purser never blocks on tests it could not run. So the worst case of
-      # enabling this is the correct case — a red gate on a PR whose own tests
-      # fail against its own head.
-      blocking: true
-      blockWithoutSandbox: false # true (+blocking) ⇒ fail-closed when tests could not
-                                 # be executed; default false: never block on tests
-                                 # that were never run
-      testPaths:                 # optional: authored tests must live under these
-        - tests/purser           # prefixes (also bounded by the global path whitelist)
-      graft:                     # optional on ANY ship: repo skill ids whose
-        - sandboxed-adversarial-test-harness   # skills/<id>/SKILL.md (trusted
-        - steel-man-argument     # branch only, ~6KB each, max 3) is prepended to
-    #                              # the ship prompt as '## Grafted skill: <id>'.
-    #                              # A purser with no graft list gets exactly these
-    #                              # two by default; unknown ids are a transcript
-    #                              # warning, never a failure.
-    #   prompt: |                  # optional persona flavor; operational prompts are
-    #     You are pd-purser, the fleet's adversarial purser. Hold every
-    #     PR to its best interpretation, not its laziest. Firm, with
-    #     reasons; never abusive.
-    #   identity: "{project}:fleet:purser"
-    #   telos: "Steel-man the PR, then demand it satisfy its own contract."
-
-    spider:
-      # Syllogism engine. Spider combines two existing facts/capabilities
-      # and proposes the new product or workflow that follows from them, as
-      # validated Proposals rendered into actionable syntax by the executor.
-      class: ideation
-      trigger:
-        - spark:idea
-        - pull_request:opened
-      schedule: "0 */2 * * *"
-      backend: cli:claude-code
-      temperature: 0.95
-      fallbacks:
-        - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
-      singleton: true
-      allowedTools: "Read,Grep,Glob"
-      side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
-      output_receipts: [comment_url, assignment_packet, command_token, dispatch_command]
-      prompt: |
-        Read fleet/ships/spider.md end to end before doing anything else.
-
-        You are Spider, Port Daddy's SYLLOGISM engine. Every proposal is a
-        strict deductive syllogism and nothing else:
-
-          Premise A:   <one concrete thing already true in the repo/product — a
-                        feature, route, actor, doc, or THIS PR's change>
-          Premise B:   <a SECOND, DIFFERENT existing thing>
-          Therefore C: <the new product / workflow / agent behavior that
-                        necessarily follows from A and B TOGETHER>
-
-        Hard rules — a proposal that breaks any of these is invalid, DROP it:
-        - The `rationale` MUST be written verbatim in that three-line
-          "Premise A: … / Premise B: … / Therefore C: …" form. No free-form musing.
-        - Both premises MUST be cited in `evidence` as concrete file / feature /
-          PR references. If you cannot name TWO real, existing premises, it is not
-          a syllogism — drop it. One premise is Spark's job (the obvious next step
-          of a single diff), not yours.
-        - C must follow from A AND B together. If C follows from just one premise
-          alone, it is not a Spider connection.
-
-        Emit 0-4 VALID syllogisms in the ideation JSON schema (the executor
-        injects the exact contract). Each should be a bounded, buildable
-        assignment — prefer `action: "assign"` with a runnable `prompt`; use
-        `action: "roadmap"` only for durable-but-not-now connections. Better to
-        emit an empty array than a syllogism whose two premises you can't cite.
-        End with FLEET-VERDICT: PASS.
-
-        coordination:inconsistency posture preserved.
-      on_success:
-        - publish spider:connections
-      identity: "{project}:fleet:spider"
-      telos: "Comment new products implied by connections between existing capabilities."
-
-    lookout:
-      # Trouble-ahead watch. The PR-commenting embodiment of the Lookout actor:
-      # spots contradictions, architectural trouble, duplication, and newly
-      # broken user experiences — especially ACROSS other open PRs and feature
-      # branches (the executor injects that fleet context) — and alerts the
-      # operator with an actionable parley/roadmap proposal. Advisory: never
-      # gates a merge. Absorbs the ADR-0032 unSpider contradiction-finder
-      # ambition into the cloud fleet. See fleet/ships/lookout.md.
-      class: ideation
-      trigger:
-        - pull_request:opened
-      backend: cli:claude-code
-      temperature: 0.4
-      fallbacks:
-        - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
-      singleton: true
-      allowedTools: "Read,Grep,Glob"
-      side_effects: [pr_comment, parley_suggestion, dispatch_command_suggestion]
-      output_receipts: [comment_url, parley_command, dispatch_command]
-      prompt: |
-        Read fleet/ships/lookout.md end to end before doing anything else.
-
-        You are the Lookout — Port Daddy's trouble-ahead watch. You are given
-        the PR diff AND a "Fleet context" section listing OTHER open PRs and
-        recent feature/worktree branches. Your job is to spot, before it lands:
-        - contradictions (this diff assumes something another PR/branch breaks),
-        - architectural trouble (a route/owner nobody owns, a ladder that
-          disagrees with itself, a schema drift),
-        - duplication (two branches building the same thing),
-        - newly broken intended user experiences (a flow this diff quietly
-          breaks).
-
-        Emit 0-4 proposals in the ideation JSON schema (the executor injects the
-        exact contract). Set `severity` (HIGH/MEDIUM/LOW). Prefer
-        `action: "parley"` for a genuine multi-party conflict that needs
-        resolving, `action: "roadmap"` to log a risk to watch. You ALERT — you
-        do not fix. Silence (empty array) when the coast is clear. End with
-        FLEET-VERDICT: PASS (advisory — never block).
-
-        coordination:inconsistency posture preserved.
-      identity: "{project}:fleet:lookout-pr"
-      telos: "Spot contradictions, architectural trouble, and broken UX before they land — and alert the operator."
-
-    snipe:
-      # Engineman. Looks at the code/ideas a PR introduces and, when a reusable
-      # capability would remove recurring friction, proposes ONE skill to author
-      # via the skill-architect skill — with a ready-to-run dispatch command.
-      # Advisory: never gates a merge. See fleet/ships/snipe.md.
-      class: ideation
-      trigger:
-        - pull_request:opened
-      backend: cli:claude-code
-      temperature: 0.7
-      fallbacks:
-        - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
-      singleton: true
-      allowedTools: "Read,Grep,Glob"
-      side_effects: [pr_comment, skill_proposal, dispatch_command_suggestion]
-      output_receipts: [comment_url, dispatch_command]
-      prompt: |
-        Read fleet/ships/snipe.md end to end before doing anything else.
-
-        You are Snipe (Engineman). You look at the code and ideas THIS PR
-        introduces and ask one question: would a reusable skill make this kind
-        of work materially easier next time? A skill is worth proposing when the
-        PR hand-rolls something (a fixture harness, a migration dance, a
-        review-checklist, a generator) that future PRs will hand-roll again.
-
-        When — and only when — it genuinely helps, emit ONE proposal with
-        `action: "skill"` and a concrete skill-architect brief in `prompt`
-        (what the skill should do, its inputs/outputs, and the deep-research it
-        needs). The executor renders it into a `pd dispatch propose` command that
-        tasks an agent to author the skill via the skill-architect skill. If no
-        skill is warranted, emit an empty array. End with FLEET-VERDICT: PASS.
-      identity: "{project}:fleet:snipe"
-      telos: "Propose a reusable skill-architect skill that makes the PR's kind of work easier."
-
-    # ─── Meta-ships (added 2026-06-10) ──────────────────────────────
-    #
-    # These ships care for the fleet itself. Tender monitors health and
-    # generates the operator's suggestion queue. Shipwright drafts new
-    # ship definitions when ADRs or features lack coverage.
-    # Full contracts in fleet/ships/tender.md and fleet/ships/shipwright.md.
-
-    tender:
-      # Hourly fleet health monitor. Assesses every ship's status, writes
-      # .fleet/tender-manifest.json, updates pinned Fleet Health Board issue,
-      # and POSTs suggestions to /fleet/suggestions/write.
-      schedule: "0 */1 * * *"
-      backend: cli:claude-code
-      fallbacks:
-        - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
-      singleton: true
-      cooldown_ms: 1800000
-      allowedTools: "Read,Bash(pd*),Bash(gh*),Bash(git log*)"
-      prompt: |
-        Read fleet/ships/tender.md for the full quality bar and process.
-
-        Quick protocol:
-        1. Read pd-fleet.yml to inventory all ships.
-        2. Run `pd transcripts --json --limit 100` for recent run history.
-        3. Run `gh issue list --label 'fleet:*' --state open --json number,title,labels`
-           for open ship-generated issues.
-        4. Assess each ship: healthy / dormant / blind / noisy / degraded / skill-starved.
-        5. POST suggestions to http://localhost:9876/fleet/suggestions/write for non-healthy ships.
-        6. Write .fleet/tender-manifest.json with health scores and top suggestions.
-        7. Edit (or create) the pinned [Fleet Health Board] GitHub issue.
-
-        Output: .fleet/tender-manifest.json + GitHub issue edit. No PRs. No commits.
-      identity: "{project}:fleet:tender"
-      telos: "Know the health of every ship. Surface what needs operator attention."
-
-    shipwright:
-      # Watches ADRs + feature manifest + ship contracts for coverage gaps.
-      # Drafts new ship contracts as draft PRs. Never edits pd-fleet.yml directly.
-      trigger: git:committed
-      cooldown_ms: 3600000
-      backend: cli:claude-code
-      fallbacks:
-        - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
-      singleton: true
-      allowedTools: "Read,Grep,Glob,Write(fleet/ships/*),Bash(gh*),Bash(git log*),Bash(git diff*),Bash(git checkout*),Bash(git push*)"
-      prompt: |
-        Read fleet/ships/shipwright.md for the full quality bar and process.
-
-        Quick protocol:
-        1. Run `git log --oneline -3` and `git diff HEAD~1 HEAD -- docs/adr/ features.manifest.json fleet/ships/`
-           to identify what changed.
-        2. Map the change to existing fleet ships (read pd-fleet.yml agents + fleet/ships/*.md).
-        3. If a coverage gap exists, draft fleet/ships/<feature-slug>.md.
-        4. Open a draft PR for review — never edit pd-fleet.yml directly.
-        5. If an existing ship's prompt is stale relative to the new ADR, open a separate draft PR.
-
-        Output: draft PRs with label fleet:shipwright. No direct pd-fleet.yml edits.
-      identity: "{project}:fleet:shipwright"
-      telos: "Every feature should have a ship watching over it. Find the gaps. Draft the ships."
-
-    # ─── New ships (added 2026-05-20) ────────────────────────────────
-    #
-    # Behavior contracts live in fleet/ships/*.md. Prompts here are
-    # the short form; the full quality bar + voice rules + failure
-    # modes are in the .md files. Ships are expected to read their
-    # own .md as part of pre-flight.
-    #
-    # backend / fallbacks: preference order, not a hard pin. See the
-    # top-of-file note. Anthropic is included as a *soft* preference
-    # for voice-sensitive ships because Claude tracks operator voice
-    # well — but it sits BELOW the CLI backends and cheaper cloud
-    # tiers. If only cloudflare is available, the ship runs there.
-
-    code-reviewer:
-      trigger: pull_request:opened
-      # Voice-sensitive: prefers anthropic only when CLI backends and
-      # cheaper-but-good options aren't healthy. Spawner walks the
-      # array and picks the first available + under-cap entry.
-      backend: cli:claude-code
-      fallbacks:
-        - backend: cli:codex
-        - backend: anthropic
-          model: claude-haiku-4-5-20251001
-        - backend: openai
-          model: gpt-5-mini
-        - backend: cloudflare
-          # Code-specialized coder model (Moonshot Kimi K2.7 Code, 1T MoE,
-          # 262k ctx, native structured outputs) — the right Workers AI tier for
-          # a code reviewer that emits JSON findings.
-          model: '@cf/moonshotai/kimi-k2.7-code'
-      cooldown_ms: 300000
-      dedupe_window_ms: 600000
-      singleton: false
-      allowedTools: "Read,Grep,Glob,Bash(gh*)"
-      prompt: |
-        Read fleet/ships/code-reviewer.md end to end before doing
-        anything else. That's your full behavior contract.
-
-        Then: read the PR diff (`gh pr diff $PD_PR_NUMBER`), read
-        the operator priors in
-        ~/.claude/projects/-Users-erichowens-coding-port-daddy/memory/,
-        read docs/adr/ for ADRs governing the changed surfaces, and
-        produce a severity-ranked list of Finding objects.
-
-        Render via renderFindingsComment() from
-        lib/fleet/github-output.ts. Post one comment per PR, edited
-        in place via postPRComment(editIfExists=true).
-
-        Quality gates:
-        - At most one comment per PR.
-        - No findings below LOW.
-        - HIGH findings MUST cite a specific line or ADR.
-        - "Looks good" is silence. Empty body → no comment.
-        - SCOPE findings open a separate issue (label
-          pd-fleet:scope-creep), NOT a PR comment.
-
-        Voice: see fleet/ships/code-reviewer.md and operator
-        memory user_voice_website.md. No corporate evenness.
-      identity: "{project}:fleet:code-reviewer"
-      telos: "Catch the bugs the diff would otherwise ship; cite ADRs."
-
-    red-team:
-      trigger: pull_request:opened
-      # Novel attack construction benefits from headroom. anthropic
-      # sonnet is a soft preference here, NOT a pin — if only
-      # cloudflare's biggest model is available, red-team runs on
-      # it and accepts the quality trade.
-      backend: cli:claude-code
-      fallbacks:
-        - backend: cli:codex
-        - backend: anthropic
-          model: claude-sonnet-4-5-20251001
-        - backend: openai
-          model: gpt-5
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
-      cooldown_ms: 600000
-      dedupe_window_ms: 1800000
-      singleton: false
-      allowedTools: "Read,Grep,Glob,Bash(gh*)"
-      prompt: |
-        Read fleet/ships/red-team.md end to end before doing
-        anything else.
-
-        Surface gate (skip if not satisfied): diff must touch one of
-        lib/capabilities/, lib/auth*, lib/secret-env*, lib/bonds*,
-        lib/cost-tracker*, lib/arbiter*, lib/file-claims*,
-        lib/salvage*, lib/note-encryption*, routes/auth*,
-        routes/bonds*, or any file with crypto|sign|verify|hash|
-        token|secret in its path/contents. If not, exit clean (no
-        output) and refund the bond.
-
-        If gated in: probe each attack category from
-        fleet/ships/red-team.md (capability escalation, replay, race,
-        cost overrun, equivocation, TOCTOU, auth bypass). For each
-        probe, write the falsifiable form, construction, and
-        outcome.
-
-        Output:
-        - If ANY attack lands: one PR comment via postPRComment,
-          HIGH severity, with the trace. Tag @erichowens.
-        - If NO attack lands: post NOTHING. Silence is success.
-      identity: "{project}:fleet:red-team"
-      telos: "Try to break the diff. Comment only when you can."
-
-    test-author:
-      trigger: pull_request:opened
-      backend: cli:claude-code
-      fallbacks:
-        - backend: cli:codex
-        - backend: anthropic
-          model: claude-haiku-4-5-20251001
-        - backend: openai
-          model: gpt-5-mini
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
-      cooldown_ms: 900000
-      dedupe_window_ms: 1800000
-      singleton: false
-      worktree: true
-      allowedTools: "Read,Grep,Glob,Write,Edit,Bash(npm test*),Bash(npx vite*),Bash(git*),Bash(gh*)"
-      # skill_graft (NEW): before spawning, splice a native windags-pattern
-      # skill shortlist (lib/skill-graft.ts, scanned+ranked against this
-      # ship's own task text via the shared local MiniLM embedder — no
-      # windags MCP dependency) into the task. test-author is a natural
-      # first ship for this: "what testing/framework skill applies to the
-      # file I'm about to write tests for" is exactly the kind of lookup a
-      # human test author would do. Fails open — a skill-graft error never
-      # blocks the spawn, it just runs without the extra context that once.
-      skill_graft: true
-      prompt: |
-        Read fleet/ships/test-author.md end to end before doing
-        anything else.
-
-        Activation gate: only fire if (a) test-hunter has an open
-        `coverage-gap` issue referencing this PR, OR (b) the PR
-        carries label `needs-tests`. If neither, exit clean.
-
-        Process:
-        1. Read the PR diff and the coverage-gap issue (or the PR
-           body explaining what's missing).
-        2. In a worktree branch off the PR head, write tests per the
-           framework-agnostic rules (no tautologies, real assertions,
-           spy + verify, error paths, boundaries).
-        3. Run the tests. They MUST pass. Also verify the build
-           passes (`npx vite build` or project equivalent).
-        4. Push branch `test-author/<original-branch>-tests`.
-        5. Open a draft PR via openDraftPR() titled
-           `test(bot): proposed tests for #<N>`.
-        6. Comment once on the original PR linking the draft sibling
-           (edit-in-place).
-
-        Do NOT mark the sibling ready-for-review. Stays draft.
-        Do NOT write tautological tests to hit coverage —
-        tautology-sniffer will catch them and embarrass you.
-      identity: "{project}:fleet:test-author"
-      telos: "Author tests for coverage gaps as draft sibling PRs."
-
-    tautology-sniffer:
-      trigger: pull_request:opened
-      # Pattern recognition over test code — gpt-5-mini is the
-      # sweet spot. Anthropic dropped from the preference list
-      # entirely: this isn't a voice-sensitive task.
-      backend: cli:claude-code
-      fallbacks:
-        - backend: cli:codex
-        - backend: openai
-          model: gpt-5-mini
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
-      cooldown_ms: 300000
-      dedupe_window_ms: 600000
-      singleton: false
-      allowedTools: "Read,Grep,Glob,Bash(gh*)"
-      prompt: |
-        Read fleet/ships/tautology-sniffer.md end to end before
-        doing anything else.
-
-        Activation gate: only fire if the PR diff touches test files
-        (tests/, *.test.{ts,tsx,js,jsx}, *_test.go, test_*.py).
-        Otherwise exit clean.
-
-        For each new or modified test, score on the tautology axis
-        per the weighted heuristics in fleet/ships/tautology-sniffer.md:
-          mocks-everything + asserts-mock's-return + no-fixture-anchor
-          + assertion-on-shape-not-value = HIGH tautology
-          opposite signals (fixture, real daemon, no-op fails) = clean
-
-        Output:
-        - Score >= 5: HIGH finding with rewrite suggestion
-        - Score 2-4: MEDIUM, clustered by file
-        - Score < 2: silent
-
-        Render via renderFindingsComment. One PR comment, edited in
-        place. The PR #114 wire-shape bug is the canonical example
-        this ship exists to catch.
-      identity: "{project}:fleet:tautology-sniffer"
-      telos: "Surface tests that pin the implementation to its own assumptions."
-
-    tenderfoot:
-      # New-developer fresh-eyes UX audit. Walks the repo as a
-      # brand-new dev: reads README, follows install steps, tries
-      # canonical examples, files issues when docs lie or code
-      # contradicts docs.
-      #
-      # Naming: "tenderfoot" — old-western for "greenhorn,"
-      # high-low cathedral collision (homely word, careful job).
-      #
-      # This is NOT the contradiction-finder. The contradiction-
-      # finder (unSpider, ADR-0032) is a separate, more ambitious
-      # ship that audits the roadmap for internal drift. See
-      # fleet/ships/unspider.md for the future ADR-0032 ship.
-      schedule: "0 8 * * 1"
-      trigger: pull_request:merged
-      backend: cli:claude-code
-      fallbacks:
-        - backend: cli:codex
-        - backend: anthropic
-          model: claude-haiku-4-5-20251001
-        - backend: openai
-          model: gpt-5-mini
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
-      cooldown_ms: 3600000
-      dedupe_window_ms: 21600000
-      singleton: true
-      allowedTools: "Read,Grep,Glob,Bash(gh*),Bash(pd*)"
-      prompt: |
-        Read fleet/ships/tenderfoot.md end to end before doing
-        anything else.
-
-        Walk the repo as a brand-new developer:
-        1. Read README.md top to bottom; follow every code example.
-        2. Read AGENTS.md, CLAUDE.md, docs/tutorials/.
-        3. Compare features.manifest.json claims to bin/ entrypoint
-           reality.
-        4. Compare the live `gh issue list -l tenderfoot:open` to
-           what you find — don't refile the same drift.
-
-        For every place docs lie, code contradicts docs, or required
-        tribal knowledge isn't in the repo: open a GitHub issue with
-        title `tenderfoot: <surface> contradicts <source>` and the
-        body format from fleet/ships/tenderfoot.md (one-sentence
-        contradiction, source-of-truth cite, broken-surface cite,
-        reproduction steps, proposed fix).
-
-        Labels: `tenderfoot:open` + one of `docs`, `cli`, `sdk`,
-        `api`, `tutorial`, `quickstart`.
-
-        Dedup is critical: same issue every Monday is the failure
-        mode. Search before you file.
-      identity: "{project}:fleet:tenderfoot"
-      telos: "Catch drift between what we tell new operators and what the binary does."
-
-    officer-of-the-watch:
-      # The project's avatar — the one ship SOLELY RESPONSIBLE for
-      # reading the logs and traffic nobody else reads. Born from the
-      # 2026-06-10 incident: "File not found: ollama/qwen2.5-coder"
-      # errors flooded MESSAGE TRAFFIC for weeks with no agent
-      # noticing, because no agent owned the question.
-      #
-      # Maritime watch system: six four-hour watches a day. Each
-      # watch covers the gap since the previous deck-log entry (a
-      # missed watch widens the next window — no blind spots). Every
-      # watch ends with a mandatory deck-log note, ALL QUIET included:
-      # a silent watch officer is indistinguishable from a dead one.
-      #
-      # Sole-responsibility contract, state surfaces, escalation
-      # tiers, and known gaps: fleet/ships/officer-of-the-watch.md.
-      # General pattern: the `solely-responsible-agent` skill.
-      schedule: "0 */4 * * *"
-      backend: cli:claude-code
-      fallbacks:
-        - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
-      cooldown_ms: 3600000
-      dedupe_window_ms: 10800000
-      singleton: true
-      allowedTools: "Read,Grep,Glob,Bash(pd*),Bash(gh*),Bash(curl*),Bash(git
-        log*),Bash(tail*)"
-      prompt: |
-        Read fleet/ships/officer-of-the-watch.md end to end before
-        doing anything else. That is your full behavior contract —
-        the sole-responsibility constitution, the watch procedure,
-        the escalation tiers, and the deck-log format.
-
-        Short form, in case the contract is unreachable:
-        1. RELIEVE THE WATCH: read the latest `watch-log:` note via
-           `pd notes`; its timestamp starts your coverage window
-           (first watch ever: cover 24h and say so).
-        2. SWEEP: pd notes, channel messages, /activity,
-           /fleet/transcripts, daemon log tail, your own open
-           `watch:finding` issues.
-        3. ANALYZE by error class, never by occurrence. "Would Erich
-           want to know?" is the bar. 347 identical errors = ONE
-           finding with a count.
-        4. ESCALATE per tier: log-only → GitHub issue (label
-           watch:finding, dedupe by title) → issue tagging
-           @erichowens + warning note. Close your own resolved
-           issues.
-        5. WRITE THE DECK LOG — always, even ALL QUIET:
-           pd note "watch-log: <ts> | window <a>..<b> | swept: ... |
-           anomalies: ... | escalations: ... | handover: ..."
-
-        You report; you do not repair. The watch officer never
-        leaves the bridge to patch the engine.
-      identity: "{project}:fleet:officer-of-the-watch"
-      telos: "Stand the watch: read what nobody else reads, keep the deck log,
-        escalate what the operator must see."
-
-    harbor-pilot:
-      # Repo-wide PR custody: arms merge-when-ready on non-draft PRs,
-      # DEMOTES (never closes) PRs whose entire diff already landed on
-      # main via other PRs (the #353 failure mode no GitHub setting
-      # catches), and flags conflicted PRs once.
-      #
-      # Naming: the harbor pilot boards any inbound vessel and guides
-      # it to berth. Distinct from lib/harbormaster.ts (ADR-0037),
-      # which owns merges of DISPATCHED agent work only and never
-      # touches operator-authored PRs. The pilot covers the rest of
-      # the harbor. GitHub's merge queue owns mechanical correctness
-      # (latest-main validation, serialization); the pilot owns the
-      # judgment calls the queue cannot make.
-      #
-      # Deterministic code body, not an LLM prompt — every rule is
-      # unit-tested in tests/unit/harbor-pilot.test.ts. Safety
-      # defaults: uncertainty never demotes; drafts are never
-      # touched; an operator re-readying a demoted PR (label still
-      # present) is an override the pilot never re-overrides.
-      handle: harbor-pilot
-      role: guides every open PR to berth; demotes ghosts, flags fouled anchors
-      mark: "◯"
-      schedule: "*/10 * * * *"
-      trigger: pull_request:opened
-      body: apps/github-app-fleet/bin/harbor-pilot.ts
-      backend: local
-      singleton: true
-      cooldown_ms: 300000
-      allowedTools: "Bash(gh*),Bash(pd note*)"
-      identity: "{project}:fleet:harbor-pilot"
-      telos: "No stale, superseded, or silently rotting PR ever reaches main."
-
-    steward:
-      # The single approver (ADR-0056). One agent responsible for every
-      # open PR from open to merged, and for what gets built next when
-      # the queue is dry. The JUDGMENT layer above the mechanical
-      # custody: harbor-pilot arms/demotes by rule, officer-of-the-watch
-      # reads logs — the Steward reads the diff, conducts the
-      # adversarial review (code-reviewer/red-team/tautology-sniffer),
-      # answers the bots (Copilot/claude-review), decides LAND /
-      # NEEDS-WORK / SURFACE, lands genuinely-green non-production PRs,
-      # and advances ONE background improvement per drained tick.
-      #
-      # Full behavior contract + the hard guardrails (never --admin over
-      # red, production-site PRs need operator "ship it", push-only
-      # sub-agents, continuous PD coordination): fleet/ships/steward.md.
-      #
-      # Sonnet is a soft preference — landing decisions want a capable
-      # model, but the Steward never blocks on one being available.
-      schedule: "*/20 * * * *"
-      trigger: pull_request:opened
-      backend: cli:claude-code
-      fallbacks:
-        - backend: cli:codex
-        - backend: anthropic
-          model: claude-sonnet-4-5-20251001
-        - backend: openai
-          model: gpt-5
-      cooldown_ms: 600000
-      dedupe_window_ms: 600000
-      singleton: true
-      timeout: 1800000
-      # $4/day sub-cap under the fleet's $8.50 ceiling (matches the
-      # "Daily budget: $4.00" line in fleet/ships/steward.md).
-      daily_cap_usd: 4
-      allowedTools: "Read,Grep,Glob,Bash(gh*),Bash(pd*),Bash(git*),Bash(curl*)"
-      prompt: |
-        Read fleet/ships/steward.md end to end before doing anything
-        else. That is your full behavior contract — the lifecycle, the
-        hard guardrails, and the output contract. Re-read ADR-0056
-        (docs/adr/0056-the-steward-single-approver.md); it is your
-        charter.
-
-        You are the Steward: the one agent responsible for every open
-        PR from open to merged, and for what gets built next when the
-        queue is dry. The Cartographer surfaces; you ship.
-
-        Each tick:
-        1. SURVEY every open non-draft PR (gh pr list) + the live fleet
-           (pd sessions/notes/claims). Review with conflict awareness.
-        2. For each PR: read the diff + checks + existing review
-           comments. Conduct the review ships (code-reviewer always;
-           red-team on the security surface; tautology-sniffer on
-           prose). Fold into one verdict: LAND / NEEDS-WORK / SURFACE.
-        3. RESPOND to every Copilot/claude-review comment — fix+reply or
-           dismiss-with-reason vs origin/main. Never merge with bot
-           comments unaddressed.
-        4. LAND only when ALL hold: every required check genuinely green,
-           verdict=LAND, all bot comments addressed, NOT a production-site
-           PR, branch current with origin/main. Merge is TWO-PHASE
-           (feedback_auto_merge_races_copilot_review): for a non-trivial
-           CODE PR, wait for the Copilot review pass + zero unaddressed
-           inline comments, THEN `gh pr merge <N> --squash` (NO --auto:
-           --auto fires before Copilot reviews and lands unreviewed).
-           Docs-only/trivial PRs may use --auto. NEVER --admin/--no-verify
-           over a real red check — fix the root cause or SURFACE it.
-        5. SURFACE what you can't land (real red you can't fix,
-           production-site PR, roadmap conflict, unanswerable ambiguity)
-           to the dashboard issue as an operator decision.
-        6. IMPROVE only when the queue is drained: advance exactly ONE
-           small, cited, reversible roadmap step (pd roadmap pop, or one
-           draft PR). Sub-agents you spawn are worktree-isolated AND
-           push-only.
-
-        Output: ONE rolling dashboard issue (title "Steward log", label
-        pd-fleet:steward-log), edited in place — sections Landed /
-        Needs operator decision / In review / Background improvement.
-        Plus per-comment PR replies in the operator's voice. Drop any
-        Claude-coauthor trailer from commits.
-
-        Coordinate through Port Daddy continuously: pd begin, claim
-        before edit, re-read live state each tick. Never destructive-git
-        on the main checkout. Never write to /tmp (use ~/coding/tmp/).
-      identity: "{project}:fleet:steward"
-      telos: "Be the one agent responsible for every open PR open-to-merged, and
-        for the next improvement when the queue is dry — review IS the gate."
-
-  watchers:
-    # Operator-facing watcher: when a HIGH finding lands, drop a
-    # session note so the FleetBar app's `dock-master` badge
-    # increments. PR comment is the durable surface; this is the
-    # ambient awareness ping.
-    pr-finding-notify:
-      trigger: pull_request:finding-high
-      exec: "curl -fsS -X POST http://localhost:9876/notes
-        -H 'Content-Type: application/json'
-        -d '{\"content\":\"HIGH finding on PR\",\"type\":\"warning\"}'
-        > /dev/null 2>&1 || true"
-
-    # Preserved: coordination:inconsistency still feeds the recovery
-    # log. This is INTER-agent coordination, not operator output.
-    coordination-log:
-      trigger: coordination:inconsistency
-      exec: "mkdir -p docs/recovery &&
-        printf '\\n## %s\\n\\n```\\n%s\\n```\\n' \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\" \"${PD_MESSAGE_CONTENT:-${PD_MESSAGE:-empty}}\"
-        >> docs/recovery/COORDINATION-LOG.md"
-
-    # ─── Developer-generalization sentinel ───────────────────────────
-    #
-    # Owns the question: "Can any developer on any machine install and
-    # use Port Daddy in 2026?" Runs on a schedule, tests real public
-    # repos under realistic developer personas, tracks regressions,
-    # opens issues for install failures, and drives the roadmap item
-    # "pd fleet init works end-to-end in under 5 minutes."
-    #
-    # Backend: cli:claude-code is the default (free for Max
-    # subscribers). This ship does significant multi-step reasoning and
-    # benefits from a capable model — cloudflare is the fallback, not
-    # the preference.
-    developer-onboarding-sentinel:
-      trigger: schedule:daily
-      cooldown_ms: 82800000       # 23 h — one run per day max
-      backend: cli:claude-code
-      fallbacks:
-        - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
-      singleton: true
-      prompt: |
-        You are the Developer-Onboarding Sentinel. Your mission:
-        ensure Port Daddy works for any developer on any machine in
-        2026, not just the author. You test installation realism,
-        track regressions, and drive improvements.
-
-        PERSONAS — rotate through one persona per run (use today's
-        day-of-month mod 6 to pick):
-          0  solo-oss-maintainer   macOS, homebrew, personal GitHub
-          1  startup-backend-dev   Ubuntu 22, apt, company GitHub org
-          2  indie-hacker          macOS, nix, personal GitHub
-          3  enterprise-dev        macOS, managed machine, GitHub Enterprise
-          4  student-first-timer   Windows WSL2, no prior CLI tools
-          5  open-source-contrib   Arch Linux, pacman, fork workflow
-
-        TEST MATRIX — for today's persona, run through these steps
-        using the PORT DADDY REPO as the test subject AND one large
-        public repo (rotate: rails/rails, vercel/next.js,
-        facebook/react, microsoft/vscode, torvalds/linux):
-
-          1. INSTALL: Can `pd` be installed from scratch following
-             the README? Check the README install section is
-             accurate for this persona's OS/package-manager.
-          2. INIT: Does `pd begin` work without a .portdaddy dir?
-          3. CLAIM: Does `pd session files add <file>` work?
-          4. GUARD: Does the commit guard fire correctly?
-          5. FLEET-INIT: Does `pd fleet init` exist and provide
-             clear next steps for someone who has never set up a
-             tunnel? If not, file this as a gap.
-          6. GITHUB-APP: Can a developer find how to install the
-             Port Daddy GitHub App from the docs/README? Is the
-             install URL present and correct?
-          7. SMOKE: Does `pd status` and `pd whoami` work as
-             expected for a new user?
-
-        FOR EACH STEP:
-        - Actually attempt the step where safe (read docs, check
-          scripts, trace code paths). For steps that would modify
-          state, simulate by reading the relevant code/scripts and
-          reasoning about what would happen.
-        - Mark: PASS / FAIL / GAP (feature doesn't exist yet) /
-          UNCLEAR (docs missing or contradictory).
-
-        OUTPUT FORMAT — post a GitHub issue titled:
-        "Sentinel run [DATE]: [PERSONA] × [REPO] — N pass, M fail,
-        K gap"
-
-        Body sections:
-        ## Summary
-        One paragraph verdict.
-
-        ## Results
-        | Step | Status | Notes |
-        |------|--------|-------|
-        ...
-
-        ## Failures & Gaps (file sub-issues for each FAIL/GAP)
-        For each FAIL or GAP: open a separate GitHub issue with
-        label `sentinel-finding` and link it here.
-
-        ## Recommended next action
-        The single highest-leverage fix that would unblock the most
-        developers. Reference the roadmap item or open a new one.
-
-        COORDINATION: Before running, check pd notes for any
-        in-progress work on the install flow. After posting, publish
-        to the developer-generalization:health channel with the
-        summary payload.
-
-  channels:
-    # ─── Internal plumbing (ship-to-ship chains) ─────────────────────
-
-    git:committed:
-      description: "Fired after a successful commit"
-      consumers: [ gardener, test-hunter, simplifier, spark ]
-
-    promotion:release-surfaces:
-      description: "Fired by promote-stable after tests pass and before
-        stable merge; asks Documentarian to sync README/docs/website/
-        skill/SDK/CLI/MCP surfaces"
-      external_producer: scripts/promote-stable.sh
-      consumers: [ documentarian ]
-
-    spark:idea:
-      description: "Spark proposed a high-temperature buildable product
-        idea on a PR or commit. Payload includes an assignment packet,
-        command token, `/pd assign ...` kickoff text, and CLI fallback."
-      consumers: [ spider ]
-
-    spider:connections:
-      description: "Spider connected two existing capabilities into a
-        new product/workflow syllogism. Payload includes premises,
-        assignment packet, command token, `/pd assign ...` kickoff text,
-        and CLI fallback."
-
-    coordination:inconsistency:
-      description: "INTER-agent coordination channel — overlapping
-        claims, stale active/dead signals, implied-goal drift,
-        security/trust contradictions. Routine progress belongs in
-        notes, NOT here. This is plumbing, not operator output."
-      external_producer: agents/manual callouts
-      consumers: [ coordination-log ]
-
-    # ─── External producers (GitHub event bridge) ────────────────────
-    #
-    # These channels are pumped by an external GitHub-event bridge
-    # (sibling work in flight). Today they can be fired manually with
-    # `pd pub pull_request:opened '{"prNumber": 117, ...}'` for
-    # testing. The webhook receiver is the persistent path.
-
-    pull_request:opened:
-      description: "GitHub PR opened. Payload: { prNumber, headRef,
-        baseRef, title, author, changedFiles }. Producer: GitHub
-        webhook receiver (forthcoming) OR manual `pd pub` for
-        testing."
-      external_producer: github-webhook-bridge
-      consumers: [ code-reviewer, red-team, qa, test-author, tautology-sniffer, steward ]
-
-    pull_request:synchronize:
-      description: "GitHub PR head updated. Same payload as :opened.
-        Drives code-reviewer's edit-in-place re-review and the Steward's
-        re-survey (so it reacts to head updates between scheduled ticks)."
-      external_producer: github-webhook-bridge
-      consumers: [ code-reviewer, steward ]
-
-    pull_request:merged:
-      description: "GitHub PR merged to main. Payload: { prNumber,
-        mergeSha }. Triggers tenderfoot sweeps of release surfaces."
-      external_producer: github-webhook-bridge
-      consumers: [ tenderfoot ]
-
-    pull_request:finding-high:
-      description: "Internal: emitted by any ship after posting a
-        HIGH-severity PR comment. Drives the operator-facing badge
-        watcher. TODO(2026-05-20): ships do not yet emit this — add
-        `on_high_finding: publish pull_request:finding-high` to the
-        ship runtime once the GitHub-output helper grows a
-        `wasHigh` callback. Until then, this channel is wired but
-        silent."
-      external_producer: "ships (via lib/fleet/github-output.ts — pending)"
-      consumers: [ pr-finding-notify ]
-
-    # ─── Deprecated (kept for backward compat during retool) ─────────
-    #
-    # These channels survive so older watchers / tools don't break,
-    # but no ship in this fleet writes to them anymore. Remove after
-    # 30 days of no consumers.
-
-    git:status:
-      description: "DEPRECATED 2026-05-20. Gardener now opens GitHub
-        issues instead."
-
-    qa:clean:
-      description: "DEPRECATED 2026-05-20. Silence is the new clean."
-
-    qa:findings:
-      description: "DEPRECATED 2026-05-20. QA posts PR comments now."
-
-    # ─── Developer-generalization channels ────────────────────────────
-    developer-generalization:health:
-      description: "Emitted by developer-onboarding-sentinel after each
-        persona test run. Payload: { persona, repo, step, status,
-        durationMs, failureReason? }."
-      external_producer: developer-onboarding-sentinel
-      consumers: []
+      telos: "Keep release surfaces honest on every push; never let docs rot ahead of code."
