@@ -7,7 +7,9 @@
 
 import { describe, test, expect, beforeEach, afterEach, beforeAll, afterAll } from '@jest/globals';
 import { resolveTarget, getDisplayUrl, pdRequest, pdGet, pdPost, pdDelete, pdPut, isDaemonRunning } from '../../lib/request.js';
+import { DEFAULT_SOCK } from '../../shared/paths.js';
 import http from 'node:http';
+import { existsSync } from 'node:fs';
 
 // Save/restore env vars around each test
 let savedEnv;
@@ -15,9 +17,11 @@ beforeEach(() => {
   savedEnv = {
     PORT_DADDY_SOCK: process.env.PORT_DADDY_SOCK,
     PORT_DADDY_URL: process.env.PORT_DADDY_URL,
+    PORT_DADDY_PORT: process.env.PORT_DADDY_PORT,
   };
   delete process.env.PORT_DADDY_SOCK;
   delete process.env.PORT_DADDY_URL;
+  delete process.env.PORT_DADDY_PORT;
 });
 
 afterEach(() => {
@@ -30,6 +34,11 @@ afterEach(() => {
     delete process.env.PORT_DADDY_URL;
   } else {
     process.env.PORT_DADDY_URL = savedEnv.PORT_DADDY_URL;
+  }
+  if (savedEnv.PORT_DADDY_PORT === undefined) {
+    delete process.env.PORT_DADDY_PORT;
+  } else {
+    process.env.PORT_DADDY_PORT = savedEnv.PORT_DADDY_PORT;
   }
 });
 
@@ -74,14 +83,31 @@ describe('resolveTarget()', () => {
     expect(target.socketPath).toBe('/tmp/custom.sock');
   });
 
-  test('falls back to TCP when no env vars set and no socket file', () => {
-    // No env vars set, and /tmp/port-daddy.sock likely doesn't exist in test env
-    // (or does — either way we get a valid target)
+  test('falls back to TCP when no override env vars are set but a port is published', () => {
+    // resolveTarget() delegates to the strict shared resolver, which fails
+    // closed instead of guessing a port. Publish one via PORT_DADDY_PORT so
+    // this assertion is deterministic regardless of whether a real daemon
+    // socket happens to exist on the machine running the test (it does on a
+    // dev box with a live daemon, it never does on a clean CI runner).
+    process.env.PORT_DADDY_PORT = '19876';
     const target = resolveTarget();
     expect(target).toBeDefined();
     const isSocket = 'socketPath' in target && target.socketPath !== undefined;
     const isTcp = 'host' in target && target.host !== undefined;
     expect(isSocket || isTcp).toBe(true);
+    if (isTcp) expect(target.port).toBe(19876);
+  });
+
+  test('fails closed when nothing is published and no socket file exists', () => {
+    // The strict resolver never guesses the preferred allocator seed. This
+    // only exercises the "definitely nothing published" branch when the
+    // real daemon socket is absent, which is always true on a clean CI
+    // runner; skip on a dev box where a live daemon's socket makes the
+    // TCP branch unreachable.
+    if (existsSync(DEFAULT_SOCK)) return;
+    expect(() => resolveTarget()).toThrow(
+      expect.objectContaining({ code: 'ENDPOINT_NOT_PUBLISHED' }),
+    );
   });
 });
 

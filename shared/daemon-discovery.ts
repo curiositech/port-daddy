@@ -157,7 +157,13 @@ export function requirePublishedDaemonPort(options: DaemonPortDiscoveryOptions =
  * fallback only until its remaining callers are migrated.
  */
 export function resolveDaemonPort(portFile = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE): number {
-  const published = discoverPublishedDaemonPort({ portFile });
+  let published: PublishedDaemonPort | null = null;
+  try {
+    published = discoverPublishedDaemonPort({ portFile });
+  } catch {
+    // This deprecated alias deliberately preserves the old forgiving fallback.
+    // Strict consumers use requirePublishedDaemonPort/resolveDaemonTarget above.
+  }
   return published?.port ?? PREFERRED_DAEMON_PORT;
 }
 

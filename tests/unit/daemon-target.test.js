@@ -24,9 +24,11 @@ import { describe, test, expect } from '@jest/globals';
 import {
   DaemonEndpointDiscoveryError,
   discoverPublishedDaemonPort,
+  resolveDaemonPort,
   resolveDaemonUrl,
   resolvePublishedDaemonUrl,
   resolveDaemonTarget,
+  PREFERRED_DAEMON_PORT,
 } from '../../shared/daemon-discovery.js';
 
 const NEVER = () => false;
@@ -160,5 +162,29 @@ describe('strict URL publication versus the deprecated compatibility alias', () 
       expect.objectContaining({ code: 'ENDPOINT_NOT_PUBLISHED' }),
     );
     expect(resolveDaemonUrl(undefined, options)).toMatch(/^http:\/\/127\.0\.0\.1:[0-9]+$/);
+  });
+});
+
+describe('resolveDaemonPort (deprecated alias) stays forgiving like resolveDaemonUrl', () => {
+  test('malformed PORT_DADDY_PORT falls back to the preferred seed instead of throwing', () => {
+    const saved = process.env.PORT_DADDY_PORT;
+    process.env.PORT_DADDY_PORT = 'not-a-port';
+    try {
+      expect(resolveDaemonPort()).toBe(PREFERRED_DAEMON_PORT);
+    } finally {
+      if (saved === undefined) delete process.env.PORT_DADDY_PORT;
+      else process.env.PORT_DADDY_PORT = saved;
+    }
+  });
+
+  test('out-of-range PORT_DADDY_PORT falls back to the preferred seed instead of throwing', () => {
+    const saved = process.env.PORT_DADDY_PORT;
+    process.env.PORT_DADDY_PORT = '70000';
+    try {
+      expect(resolveDaemonPort()).toBe(PREFERRED_DAEMON_PORT);
+    } finally {
+      if (saved === undefined) delete process.env.PORT_DADDY_PORT;
+      else process.env.PORT_DADDY_PORT = saved;
+    }
   });
 });
