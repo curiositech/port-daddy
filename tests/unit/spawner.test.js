@@ -1436,8 +1436,8 @@ describe('spawn — claude-cli backend', () => {
     });
 
     expect(cpSpawn.mock.calls[0][1]).toEqual([
-      '-p', '--output-format', 'json', 'Fix the bug',
-      '--model', 'haiku',
+      '-p', '--output-format', 'json', '--model', 'haiku',
+      'Fix the bug',
     ]);
   });
 
@@ -1486,9 +1486,10 @@ describe('spawn — claude-cli backend', () => {
 
     const args = cpSpawn.mock.calls[0][1];
     expect(args).toEqual([
-      '-p', '--output-format', 'json', 'Do everything',
+      '-p', '--output-format', 'json',
       '--model', 'sonnet',
       '--allowedTools', 'Read,Write',
+      'Do everything',
     ]);
     expect(cpSpawn.mock.calls[0][2].cwd).toBe('/tmp/test');
   });

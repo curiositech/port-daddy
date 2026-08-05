@@ -139,7 +139,8 @@ export interface SpawnSpec {
   identity?: string;   // PD semantic identity: project:stack:context
   purpose?: string;    // human-readable task description
   task: string;        // the prompt / task
-  budgetUsd?: number; // per-launch hard spend cap; enforced after exact telemetry is recorded
+  /** Per-launch hard spend cap. Admission fails unless the effective backend enforces it natively. */
+  budgetUsd?: number;
   bondUsd?: number;    // per-spawn bond; slashed on misbehavior, refunded on clean exit
   harborName?: string; // optional override for bond-admission harbor
   files?: string[];    // for aider backend
@@ -241,6 +242,8 @@ export interface SpawnResult {
   coastGuard?: CoastGuardReceipt | null;
   /** Harness session preserved by a validated native-resume launch. */
   harnessSessionId?: string;
+  /** Admission truth for a requested dollar ceiling. Omitted when no valid budget was requested. */
+  budgetEnforcement?: 'hard_enforced' | 'unsupported';
 }
 
 export interface SpawnTelemetry {
@@ -816,6 +819,7 @@ async function runCliTube(
     cwd: spec.workdir,
     env: { ...spec.env },
     model: spec.model,
+    hardBudgetUsd: spec.budgetUsd,
     onChild: context?.onChildProcess,
     onStreamLine,
     permissionMode: spec.permissionMode,
@@ -1176,8 +1180,8 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
   // parse below. Without it the CLI prints plain prose and we get no token
   // counts — the gap that previously fail-closed every claude-cli launch.
   const args = spec.nativeResume
-    ? ['--resume', spec.nativeResume.sessionId, '-p', '--output-format', 'json', spec.task]
-    : ['-p', '--output-format', 'json', spec.task];
+    ? ['--resume', spec.nativeResume.sessionId, '-p', '--output-format', 'json']
+    : ['-p', '--output-format', 'json'];
   // `claude-cli` is the DEFAULT_MODELS sentinel for "the CLI manages its own
   // default model"; it is runtime provenance, not a concrete Claude model id.
   if (spec.model && spec.model !== 'claude-cli') {
@@ -1186,6 +1190,11 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
   if (spec.allowedTools) {
     args.push('--allowedTools', spec.allowedTools);
   }
+  const hardBudgetUsd = normalizeHardBudgetUsd(spec.budgetUsd);
+  if (hardBudgetUsd !== null) {
+    args.push('--max-budget-usd', String(hardBudgetUsd));
+  }
+  args.push(spec.task);
 
   // Strip ANTHROPIC_API_KEY from BOTH dotenv AND process.env before passing to
   // the claude subprocess. The claude CLI manages its own authentication (OAuth).
@@ -1465,12 +1474,25 @@ function formatUsd(value: number): string {
   return `$${value.toFixed(6).replace(/0+$/, '').replace(/\.$/, '')}`;
 }
 
-function hardBudgetCapError(spec: SpawnSpec, telemetry: SpawnTelemetry | null): string | null {
+function posthocBudgetOverrunError(spec: SpawnSpec, telemetry: SpawnTelemetry | null): string | null {
   const budgetUsd = normalizeHardBudgetUsd(spec.budgetUsd);
   if (budgetUsd == null || !telemetry) return null;
   const costUsd = normalizeTelemetryCostUsd(telemetry.costUsd);
   if (costUsd == null || costUsd <= budgetUsd) return null;
-  return `exceeded hard budget cap: telemetry cost ${formatUsd(costUsd)} > budget ${formatUsd(budgetUsd)}`;
+  return `provider-reported cost exceeded native hard budget: telemetry cost ${formatUsd(costUsd)} > budget ${formatUsd(budgetUsd)}`;
+}
+
+const NATIVE_HARD_BUDGET_BACKENDS = new Set<SpawnSpec['backend']>([
+  'claude-cli',
+  'cli:claude-code',
+]);
+
+export function resolveSpawnBudgetEnforcement(
+  backend: SpawnSpec['backend'],
+  budgetUsd: unknown,
+): 'not_requested' | 'hard_enforced' | 'unsupported' {
+  if (normalizeHardBudgetUsd(budgetUsd) === null) return 'not_requested';
+  return NATIVE_HARD_BUDGET_BACKENDS.has(backend) ? 'hard_enforced' : 'unsupported';
 }
 
 // =============================================================================
@@ -1709,6 +1731,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const runtime = resolveSpawnRuntime(spec);
     const model = runtime.effectiveModel;
     const dims = metricDims(runtime.effectiveBackend, runtime.effectiveModel, spec.identity);
+    const budgetEnforcement = resolveSpawnBudgetEnforcement(runtime.effectiveBackend, spec.budgetUsd);
     const blockedResult = (error: string): SpawnResult => ({
       agentId: 'blocked',
       backend: runtime.effectiveBackend,
@@ -1724,11 +1747,19 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       telemetry: null,
       startedAt: Date.now(),
       completedAt: Date.now(),
+      ...(budgetEnforcement === 'not_requested' ? {} : { budgetEnforcement }),
     });
     const continuationWorkspaceError = validateNativeResume(spec, runtime) ?? validateSpawnWorkspace(spec);
     if (continuationWorkspaceError) {
       counters?.bump('spawn.blocked', dims);
       return blockedResult(continuationWorkspaceError);
+    }
+    if (budgetEnforcement === 'unsupported') {
+      counters?.bump('spawn.blocked', dims);
+      return blockedResult(
+        `Spawn blocked: ${runtime.effectiveBackend} cannot enforce budgetUsd as a provider-native hard ceiling. ` +
+        'Choose cli:claude-code/claude-cli or omit budgetUsd; post-run telemetry is observation, not enforcement.',
+      );
     }
     if (running >= MAX_CONCURRENT_RUNNING) {
       counters?.bump('spawn.blocked', dims);
@@ -2218,7 +2249,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
                 // the real rate against guessed tokens — never silently 'exact'.
                 rateMode: result.estimatedTelemetry ? 'estimated' : 'exact',
               };
-              budgetOverrunError = hardBudgetCapError(spec, telemetry);
+              budgetOverrunError = posthocBudgetOverrunError(spec, telemetry);
               if (budgetOverrunError) {
                 error = budgetOverrunError;
               }
@@ -2381,6 +2412,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       completedAt,
       coastGuard: coastGuardReceipt,
       ...(spec.nativeResume ? { harnessSessionId: spec.nativeResume.sessionId } : {}),
+      ...(budgetEnforcement === 'not_requested' ? {} : { budgetEnforcement }),
     };
   }
 
