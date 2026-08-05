@@ -22,7 +22,6 @@ import {
   SHARED_FILE_WEIGHT,
   buildArrivalBriefing,
   contextQuery,
-  overlapScore,
   rankNeighbours,
   rankNotes,
   rankRoadmap,
@@ -70,25 +69,6 @@ describe('weighting invariants', () => {
   });
 });
 
-describe('overlapScore', () => {
-  test('normalises by the SMALLER set so a short query can match a long doc', () => {
-    // Union normalisation is the trap: with it, a three-word purpose scores
-    // near zero against every long roadmap body and the section never fires.
-    const short = ['reconcil', 'loop'];
-    const long = ['reconcil', 'loop', ...Array.from({ length: 50 }, (_, i) => `filler${i}`)];
-    expect(overlapScore(short, long)).toBe(1);
-  });
-
-  test('is zero for disjoint sets and for empty input', () => {
-    expect(overlapScore(['a'], ['b'])).toBe(0);
-    expect(overlapScore([], ['a'])).toBe(0);
-    expect(overlapScore(['a'], [])).toBe(0);
-  });
-
-  test('counts a repeated query term once', () => {
-    expect(overlapScore(['a', 'a', 'a'], ['a', 'b'])).toBe(1);
-  });
-});
 
 describe('sharedTerms', () => {
   test('returns the overlap, deduped and capped', () => {

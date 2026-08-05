@@ -21,12 +21,18 @@
  * I/O. That split is what makes the ranking decisions — which are the part that
  * can be subtly, silently wrong — testable against fixtures.
  *
- * Scoring reuses `tokenizeAndStem` from the skill-graft BM25 implementation so
- * that "reconcile"/"reconciling"/"reconciled" are one term everywhere, rather
- * than this module inventing a second, quietly different notion of similarity.
+ * **Retrieval is BM25 with real IDF over a sparse inverted index**
+ * (`lib/lexical-index.ts`), fused with cosine similarity over the shared
+ * embedding store. An earlier version scored with set overlap and leaned on a
+ * hand-written stopword list to stand in for IDF; that list could only ever
+ * know which words are useless *everywhere*, never which are useless *in this
+ * corpus*. Stemming, diacritic folding, and Unicode-safe tokenization all live
+ * in the analyzer, so `café`/`cafe` and `reconciling`/`reconciled` are one term
+ * and a purpose written in any script survives tokenization intact.
  */
 
-import { tokenizeAndStem as rawTokenize } from './skill-graft-bm25.js';
+import { porterStem } from './skill-graft-bm25.js';
+import { analyze, bigrams, buildIndex } from './lexical-index.js';
 import { reciprocalRankFusion, type VectorSearchResult } from './vector-store.js';
 
 /**
@@ -85,7 +91,48 @@ const STOPWORDS: ReadonlySet<string> = new Set([
  * identifier and match promiscuously.
  */
 function tokenizeAndStem(text: string): string[] {
-  return rawTokenize(text).filter((t) => t.length > 1 && !STOPWORDS.has(t));
+  const unigrams = analyze(text)
+    .map(porterStem)
+    .filter((t) => t.length > 1 && !STOPWORDS.has(t));
+  // Bigrams alongside, never instead: they carry the phrase signal unigrams
+  // cannot ("reconcile loop" as a phrase beats the two words scattered), and a
+  // one-word purpose would be unmatchable without the unigrams.
+  return [...unigrams, ...bigrams(unigrams)];
+}
+
+/**
+ * BM25 relevance of a query against one section's candidates, in [0, 1).
+ *
+ * **Why an index per section rather than one global corpus.** IDF is only
+ * meaningful within a comparable population. `reconcile` is near-worthless
+ * among session purposes in this repo and genuinely discriminating among skill
+ * ids; pooling them would average those two facts into a number describing
+ * neither.
+ *
+ * **Why the stopword list survives alongside IDF.** IDF is corpus statistics,
+ * and a section with two candidates has no statistics worth the name — with
+ * one document, every term it contains has identical document frequency, so
+ * `the` and `reconcile` are indistinguishable. The static list covers that
+ * degenerate case; IDF covers the case the list never could, which is a term
+ * that is perfectly good English and worthless *here*. They fail in opposite
+ * directions, which is the reason to keep both rather than pick one.
+ *
+ * Scores are squashed by `s / (s + 1)`: order-preserving, bounded below
+ * MAX_TEXT_SCORE so a shared file still strictly dominates, and — unlike
+ * dividing by the top hit — it does not promote the best of a bad field to a
+ * perfect 1.0.
+ */
+function bm25Scores(
+  query: readonly string[],
+  docs: readonly { id: string; text: readonly string[] }[],
+): Map<string, number> {
+  const out = new Map<string, number>();
+  if (!query.length || !docs.length) return out;
+  const index = buildIndex(docs.map((d) => ({ id: d.id, terms: d.text })));
+  for (const hit of index.search(query, docs.length)) {
+    out.set(hit.id, hit.score / (hit.score + 1));
+  }
+  return out;
 }
 
 // ─── Inputs ──────────────────────────────────────────────────────────────────
@@ -241,32 +288,10 @@ export const NOTE_MIN_CHARS = 24;
  * possible coincidence — at equal scores the ordering would fall to sort
  * stability, which is not a decision anyone made.
  */
-export const MAX_TEXT_SCORE = 1.1;
+export const MAX_TEXT_SCORE = 1.0;
 
 // ─── Scoring ─────────────────────────────────────────────────────────────────
 
-/**
- * Jaccard-style overlap between two stemmed token sets, normalised by the
- * smaller set.
- *
- * Normalising by the smaller side rather than the union is what lets a
- * three-word session purpose match a long roadmap body: with union
- * normalisation, every short query scores near zero against every long document
- * and the section silently never fires.
- */
-export function overlapScore(a: readonly string[], b: readonly string[]): number {
-  if (a.length === 0 || b.length === 0) return 0;
-  const setB = new Set(b);
-  let shared = 0;
-  const seen = new Set<string>();
-  for (const t of a) {
-    if (seen.has(t)) continue;
-    seen.add(t);
-    if (setB.has(t)) shared += 1;
-  }
-  const denom = Math.min(seen.size, new Set(b).size);
-  return denom === 0 ? 0 : shared / denom;
-}
 
 /** The terms two texts share, for the `why` line. */
 export function sharedTerms(a: readonly string[], b: readonly string[], limit = 4): string[] {
@@ -350,12 +375,20 @@ export function rankSalvage(
   const mine = new Set((ctx.files ?? []).map(norm));
   const hits: BriefingHit<SalvageCandidate>[] = [];
 
+  // Two passes: the corpus has to exist before IDF can be computed over it.
+  const texts = new Map<string, string[]>();
+  for (const c of candidates) {
+    if (ctx.project && c.project && ctx.project !== c.project) continue;
+    texts.set(c.agentId, tokenizeAndStem([c.purpose ?? '', ...(c.notes ?? [])].join(' ')));
+  }
+  const scores = bm25Scores(q, [...texts].map(([id, text]) => ({ id, text })));
+
   for (const c of candidates) {
     if (ctx.project && c.project && ctx.project !== c.project) continue;
     const theirs = (c.files ?? []).map(norm);
     const shared = theirs.filter((f) => mine.has(f));
-    const text = tokenizeAndStem([c.purpose ?? '', ...(c.notes ?? [])].join(' '));
-    const textScore = overlapScore(q, text);
+    const text = texts.get(c.agentId) ?? [];
+    const textScore = scores.get(c.agentId) ?? 0;
     const score = shared.length * SHARED_FILE_WEIGHT + textScore;
     if (score <= 0 && !opts.keepUnscored) continue;
     const terms = sharedTerms(q, text);
@@ -380,11 +413,17 @@ export function rankRoadmap(
 ): BriefingHit<RoadmapCandidate>[] {
   const q = tokenizeAndStem(contextQuery(ctx));
   const hits: BriefingHit<RoadmapCandidate>[] = [];
+  const texts = new Map<string, string[]>();
+  for (const c of candidates) {
+    if (c.status && /^(done|shipped|closed|complete)/i.test(c.status)) continue;
+    texts.set(c.id, tokenizeAndStem([c.title, c.body ?? '', ...(c.tags ?? [])].join(' ')));
+  }
+  const scores = bm25Scores(q, [...texts].map(([id, text]) => ({ id, text })));
   for (const c of candidates) {
     // A shipped item is history: it cannot be the thing you are starting.
     if (c.status && /^(done|shipped|closed|complete)/i.test(c.status)) continue;
-    const text = tokenizeAndStem([c.title, c.body ?? '', ...(c.tags ?? [])].join(' '));
-    const score = overlapScore(q, text);
+    const text = texts.get(c.id) ?? [];
+    const score = scores.get(c.id) ?? 0;
     if (score <= 0 && !opts.keepUnscored) continue;
     const terms = sharedTerms(q, text);
     hits.push({ item: c, score, why: terms.length ? `matches: ${terms.join(', ')}` : 'semantic match' });
@@ -400,12 +439,17 @@ export function rankSkills(
 ): BriefingHit<SkillCandidate>[] {
   const q = tokenizeAndStem(contextQuery(ctx));
   const hits: BriefingHit<SkillCandidate>[] = [];
+  const texts = new Map<string, string[]>();
+  for (const c of candidates) {
+    texts.set(c.id, tokenizeAndStem([c.id.replace(/[-_]/g, ' '), c.description ?? '', ...(c.tags ?? [])].join(' ')));
+  }
+  const scores = bm25Scores(q, [...texts].map(([id, text]) => ({ id, text })));
   for (const c of candidates) {
     // The skill id itself is a strong signal — ids are hyphenated topic phrases
     // ("postgres-connection-pooling"), so they tokenize into exactly the terms
     // a matching purpose would use.
-    const text = tokenizeAndStem([c.id.replace(/[-_]/g, ' '), c.description ?? '', ...(c.tags ?? [])].join(' '));
-    const score = overlapScore(q, text);
+    const text = texts.get(c.id) ?? [];
+    const score = scores.get(c.id) ?? 0;
     if (score <= 0 && !opts.keepUnscored) continue;
     const terms = sharedTerms(q, text);
     hits.push({ item: c, score, why: terms.length ? `matches: ${terms.join(', ')}` : 'semantic match' });
@@ -434,12 +478,19 @@ export function rankNeighbours(
   const mine = new Set((ctx.files ?? []).map(norm));
   const hits: BriefingHit<NeighbourCandidate>[] = [];
 
+  const texts = new Map<string, string[]>();
+  for (const c of candidates) {
+    if (c.actor === ctx.actor) continue;
+    texts.set(c.sessionId, tokenizeAndStem(c.purpose ?? ''));
+  }
+  const scores = bm25Scores(q, [...texts].map(([id, text]) => ({ id, text })));
+
   for (const c of candidates) {
     if (c.actor === ctx.actor) continue;
     const theirs = (c.files ?? []).map(norm);
     const shared = theirs.filter((f) => mine.has(f));
-    const text = tokenizeAndStem(c.purpose ?? '');
-    const textScore = overlapScore(q, text);
+    const text = texts.get(c.sessionId) ?? [];
+    const textScore = scores.get(c.sessionId) ?? 0;
     // Same project is corroboration, not a gate: cross-project agents with the
     // same expertise are exactly who you want to meet.
     const sameProject = ctx.project && c.project && ctx.project === c.project ? 0.1 : 0;
@@ -479,12 +530,19 @@ export function rankNotes(
 ): BriefingHit<NoteCandidate>[] {
   const q = tokenizeAndStem(contextQuery(ctx));
   const hits: BriefingHit<NoteCandidate>[] = [];
+  const texts = new Map<string, string[]>();
+  for (const c of candidates) {
+    if (ctx.project && c.project && ctx.project !== c.project) continue;
+    if ((c.content ?? '').trim().length < NOTE_MIN_CHARS) continue;
+    texts.set(c.id, tokenizeAndStem([(c.content ?? '').trim(), c.sessionPurpose ?? ''].join(' ')));
+  }
+  const scores = bm25Scores(q, [...texts].map(([id, text]) => ({ id, text })));
   for (const c of candidates) {
     if (ctx.project && c.project && ctx.project !== c.project) continue;
     const body = (c.content ?? '').trim();
     if (body.length < NOTE_MIN_CHARS) continue;
-    const text = tokenizeAndStem([body, c.sessionPurpose ?? ''].join(' '));
-    const score = overlapScore(q, text);
+    const text = texts.get(c.id) ?? [];
+    const score = scores.get(c.id) ?? 0;
     if (score <= 0 && !opts.keepUnscored) continue;
     const terms = sharedTerms(q, text);
     hits.push({
