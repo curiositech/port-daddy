@@ -241,6 +241,8 @@ export interface CostRecordOpts {
   inputTokens?: number;
   cachedInputTokens?: number;
   outputTokens?: number;
+  /** Authoritative total emitted by the provider for this completed run. */
+  providerReportedCostUsd?: number;
 }
 
 export interface CostEvent {
@@ -519,9 +521,16 @@ export function createCostTracker(db: Database, hooks: CostTrackerHooks = {}) {
    */
   function record(opts: CostRecordOpts): CostEvent | null {
     try {
-      const { costUsd, isEstimate } = computeCost(
+      const computed = computeCost(
         opts.backend, opts.model, opts.inputTokens, opts.outputTokens, opts.cachedInputTokens,
       );
+      const providerReportedCostUsd = typeof opts.providerReportedCostUsd === 'number'
+        && Number.isFinite(opts.providerReportedCostUsd)
+        && opts.providerReportedCostUsd >= 0
+        ? opts.providerReportedCostUsd
+        : null;
+      const costUsd = providerReportedCostUsd ?? computed.costUsd;
+      const isEstimate = providerReportedCostUsd === null ? computed.isEstimate : false;
       const id = randomBytes(8).toString('hex');
       const ts = Date.now();
       insertStmt.run(

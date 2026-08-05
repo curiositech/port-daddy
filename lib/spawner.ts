@@ -571,6 +571,10 @@ interface BackendRunResult {
   outputTokens?: number;
   /** True when token counts are a best-guess estimate, not backend-reported. */
   estimatedTelemetry?: boolean;
+  /** Authoritative completed-run total emitted by the provider. */
+  providerReportedCostUsd?: number;
+  /** The provider ended the run at its native dollar boundary. */
+  providerBudgetStopped?: boolean;
   childProcess?: ChildProcess | null;
   /** Coast Guard receipt for subprocess backends (sandbox + broker + cap). */
   coastGuardReceipt?: CoastGuardReceipt | null;
@@ -875,6 +879,12 @@ async function runCliTube(
       output: finalAnswer ?? result.output,
       error: result.error,
       transcript: parseClaudeCodeTranscript(result.rawStdout || ''),
+      ...(result.providerTerminal?.totalCostUsd != null
+        ? { providerReportedCostUsd: result.providerTerminal.totalCostUsd }
+        : {}),
+      ...(result.providerTerminal?.subtype === 'error_max_budget_usd'
+        ? { providerBudgetStopped: true }
+        : {}),
       ...(ccExact
         ? {
             inputTokens: ccu.inputTokens,
@@ -1480,6 +1490,12 @@ function posthocBudgetOverrunError(spec: SpawnSpec, telemetry: SpawnTelemetry | 
   const costUsd = normalizeTelemetryCostUsd(telemetry.costUsd);
   if (costUsd == null || costUsd <= budgetUsd) return null;
   return `provider-reported cost exceeded native hard budget: telemetry cost ${formatUsd(costUsd)} > budget ${formatUsd(budgetUsd)}`;
+}
+
+function providerBudgetStopError(spec: SpawnSpec, telemetry: SpawnTelemetry | null): string | null {
+  const budgetUsd = normalizeHardBudgetUsd(spec.budgetUsd);
+  if (budgetUsd == null || !telemetry) return null;
+  return `provider stopped at native hard budget: reported cost ${formatUsd(telemetry.costUsd)} against budget ${formatUsd(budgetUsd)}`;
 }
 
 const NATIVE_HARD_BUDGET_BACKENDS = new Set<SpawnSpec['backend']>([
@@ -2210,14 +2226,16 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           error = 'Exact telemetry required, but cost tracker is unavailable.';
           output = null;
         } else {
+          const providerReportedCostUsd = normalizeTelemetryCostUsd(result.providerReportedCostUsd);
+          const hasProviderReportedCost = providerReportedCostUsd !== null && providerReportedCostUsd > 0;
           const computed = cachedInputTokens === undefined
             ? costTracker.computeCost(runtime.effectiveBackend, runtime.effectiveModel, inputTokens, outputTokens)
             : costTracker.computeCost(runtime.effectiveBackend, runtime.effectiveModel, inputTokens, outputTokens, cachedInputTokens);
           const allowFlatRateEstimate = allowsFlatRateEstimatedTelemetry(runtime.effectiveBackend);
-          if (computed.isEstimate && !allowFlatRateEstimate) {
+          if (!hasProviderReportedCost && computed.isEstimate && !allowFlatRateEstimate) {
             error = `Exact telemetry required, but ${runtime.effectiveBackend} cost calculation fell back to an estimate.`;
             output = null;
-          } else if (computed.costUsd <= 0) {
+          } else if (!hasProviderReportedCost && computed.costUsd <= 0) {
             error = `Exact telemetry required, but ${runtime.effectiveBackend} produced a non-positive cost.`;
             output = null;
           } else {
@@ -2231,6 +2249,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
               inputTokens,
               ...(cachedInputTokens === undefined ? {} : { cachedInputTokens }),
               outputTokens,
+              ...(hasProviderReportedCost ? { providerReportedCostUsd } : {}),
             });
 
             const recordedCostUsd = normalizeTelemetryCostUsd(recorded?.costUsd);
@@ -2249,7 +2268,9 @@ export function createSpawner(deps: SpawnerDeps = {}) {
                 // the real rate against guessed tokens — never silently 'exact'.
                 rateMode: result.estimatedTelemetry ? 'estimated' : 'exact',
               };
-              budgetOverrunError = posthocBudgetOverrunError(spec, telemetry);
+              budgetOverrunError = result.providerBudgetStopped
+                ? providerBudgetStopError(spec, telemetry)
+                : posthocBudgetOverrunError(spec, telemetry);
               if (budgetOverrunError) {
                 error = budgetOverrunError;
               }

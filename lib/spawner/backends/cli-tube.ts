@@ -42,6 +42,11 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { cliBinarySearchPath, resolveCliBinary } from '../../cli-bin-dirs.js';
 import {
+  extractClaudeCodeFinal,
+  extractClaudeCodeTerminalResult,
+  type ClaudeCodeTerminalResult,
+} from '../cli-claude-code-transcript.js';
+import {
   sameWorkspaceIdentity,
   type WorkspaceIdentity,
 } from '../../workspace-identity.js';
@@ -152,6 +157,8 @@ export interface CliTubeResult {
    *  this is the JSONL event stream the caller parses into full-depth
    *  transcript turns; `output` is the extracted final answer. */
   rawStdout: string;
+  /** Structured terminal envelope for providers that publish one. */
+  providerTerminal?: ClaudeCodeTerminalResult | null;
 }
 
 /**
@@ -400,10 +407,19 @@ export async function spawnViaCliTube(
   const durationMs = Date.now() - startedAt;
   const rawStdout = stdoutChunks.join('');
   const stderrText = stderrChunks.join('');
+  const providerTerminal = cli === 'claude-code'
+    ? extractClaudeCodeTerminalResult(rawStdout)
+    : null;
 
   // Codex: prefer the `--output-last-message` file (clean final
   // payload) and fall back to sanitized stdout.
   let cleanOutput = rawStdout;
+  const claudeFinalOutput = cli === 'claude-code'
+    ? extractClaudeCodeFinal(rawStdout)
+    : null;
+  if (claudeFinalOutput) {
+    cleanOutput = claudeFinalOutput;
+  }
   if (provider.outputCapture === 'last-message-file' && outputPath && existsSync(outputPath)) {
     try {
       const fileOut = readFileSync(outputPath, 'utf8').trim();
@@ -428,9 +444,21 @@ export async function spawnViaCliTube(
     const detail = formatCliErrorDetail(stderrText || rawStdout);
     error = `${cli} timed out after ${deadlineMs}ms${detail ? `: ${detail}` : ''}`;
   } else if (result.code !== 0) {
-    const failureText = stderrText || rawStdout;
-    const failureLc = failureText.toLowerCase();
-    if (failureLc.includes('unauthorized') || failureLc.includes('not authenticated') || failureLc.includes('please log in') || failureLc.includes('api key')) {
+    const providerErrorText = providerTerminal?.errors.join('\n') ?? '';
+    const structuredFailureText = stderrText || providerErrorText;
+    const failureText = structuredFailureText || rawStdout;
+    // A plain stdout-only failure has no provider terminal, so its auth text is
+    // the only actionable signal. Once Claude emitted a structured terminal,
+    // however, raw stdout is the agent conversation and may legitimately
+    // mention "API key"; only stderr/terminal errors may classify auth then.
+    const authFailureText = structuredFailureText || (providerTerminal ? '' : rawStdout);
+    const failureLc = authFailureText.toLowerCase();
+    if (providerTerminal?.subtype === 'error_max_budget_usd') {
+      // A native provider budget boundary is a structured terminal condition,
+      // not a transport/authentication failure. The outer spawner records the
+      // exact provider cost and finalizes this as `over_budget`.
+      error = null;
+    } else if (failureLc.includes('unauthorized') || failureLc.includes('not authenticated') || failureLc.includes('please log in') || failureLc.includes('api key')) {
       error = `${cli} authentication failed. ${provider.authNextStep} (${stderrText ? 'stderr' : 'stdout'}: ${formatCliErrorDetail(failureText)})`;
     } else {
       const detail = formatCliErrorDetail(failureText);
@@ -452,9 +480,10 @@ export async function spawnViaCliTube(
           v: 1,
           kind: 'cli-tube.result',
           cli,
-          ok: error === null,
+          ok: error === null && providerTerminal?.subtype !== 'error_max_budget_usd',
           output: cleanOutput,
           error,
+          providerTerminal,
           durationMs,
         },
         { sender: opts.tubeSender || `cli-tube/${cli}` },
@@ -469,6 +498,7 @@ export async function spawnViaCliTube(
     tube: tubeChannel,
     durationMs,
     rawStdout,
+    providerTerminal,
   };
 }
 

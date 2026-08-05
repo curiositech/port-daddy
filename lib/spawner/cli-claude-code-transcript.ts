@@ -79,6 +79,14 @@ interface StreamEvent {
   message?: { content?: unknown };
 }
 
+export interface ClaudeCodeTerminalResult {
+  subtype: string | null;
+  isError: boolean;
+  result: string | null;
+  totalCostUsd: number | null;
+  errors: string[];
+}
+
 function asString(v: unknown): string {
   if (typeof v === 'string') return v;
   if (v === null || v === undefined) return '';
@@ -304,23 +312,95 @@ export function parseClaudeCodeTranscript(raw: string): StructuredTurn[] {
  * (caller then falls back to the raw stream). Never throws.
  */
 export function extractClaudeCodeFinal(raw: string): string | null {
-  if (!raw) return null;
-  let final: string | null = null;
+  const terminalResult = extractClaudeCodeTerminalResult(raw)?.result;
+  if (terminalResult !== null && terminalResult !== undefined) return terminalResult;
+
+  // Budget and other provider-stopped terminals can omit `.result` even after
+  // streaming a perfectly usable final assistant message. Reconstruct the last
+  // text-bearing message by Claude message id; one message may arrive as
+  // several assistant envelopes, so returning the last JSONL line alone would
+  // silently truncate multi-block answers.
+  const textByMessage = new Map<string, string>();
+  let lastTextMessage: string | null = null;
+  let anonymousMessage = 0;
   for (const line of raw.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed.startsWith('{')) continue;
-    let event: { type?: unknown; subtype?: unknown; result?: unknown };
+    let event: {
+      type?: unknown;
+      message?: { id?: unknown; content?: unknown };
+    };
     try {
       event = JSON.parse(trimmed);
     } catch {
       continue;
     }
-    // Take the last result line; success carries `.result` as the final text.
-    if (event.type === 'result' && typeof event.result === 'string') {
-      final = event.result;
-    }
+    if (event.type !== 'assistant' || !Array.isArray(event.message?.content)) continue;
+    const text = event.message.content
+      .filter((block): block is { type: 'text'; text: string } => (
+        !!block
+        && typeof block === 'object'
+        && (block as { type?: unknown }).type === 'text'
+        && typeof (block as { text?: unknown }).text === 'string'
+      ))
+      .map((block) => block.text)
+      .join('');
+    if (!text) continue;
+    const messageId = typeof event.message.id === 'string'
+      ? event.message.id
+      : `anonymous-${anonymousMessage++}`;
+    textByMessage.set(messageId, `${textByMessage.get(messageId) ?? ''}${text}`);
+    lastTextMessage = messageId;
   }
-  return final;
+  return lastTextMessage === null ? null : textByMessage.get(lastTextMessage) ?? null;
+}
+
+/**
+ * Read the last terminal `result` envelope from a Claude Code stream.
+ *
+ * Claude deliberately exits non-zero for provider-enforced boundaries such as
+ * `error_max_budget_usd`. That is not an authentication failure and it does not
+ * invalidate the answer, usage, or provider-reported cost already present in
+ * the same envelope. Keep those fields structured so callers never have to
+ * classify a multi-megabyte JSONL transcript with substring matching.
+ */
+export function extractClaudeCodeTerminalResult(raw: string): ClaudeCodeTerminalResult | null {
+  if (!raw) return null;
+  let terminal: ClaudeCodeTerminalResult | null = null;
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('{')) continue;
+    let event: {
+      type?: unknown;
+      subtype?: unknown;
+      is_error?: unknown;
+      result?: unknown;
+      total_cost_usd?: unknown;
+      errors?: unknown;
+    };
+    try {
+      event = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    if (event.type !== 'result') continue;
+    const subtype = typeof event.subtype === 'string' ? event.subtype : null;
+    const totalCostUsd = typeof event.total_cost_usd === 'number'
+      && Number.isFinite(event.total_cost_usd)
+      && event.total_cost_usd >= 0
+      ? event.total_cost_usd
+      : null;
+    terminal = {
+      subtype,
+      isError: event.is_error === true || (subtype !== null && subtype !== 'success'),
+      result: typeof event.result === 'string' ? event.result : null,
+      totalCostUsd,
+      errors: Array.isArray(event.errors)
+        ? event.errors.filter((value): value is string => typeof value === 'string')
+        : [],
+    };
+  }
+  return terminal;
 }
 
 /** Exact token counts the Claude Code CLI reports on its terminal `result`
