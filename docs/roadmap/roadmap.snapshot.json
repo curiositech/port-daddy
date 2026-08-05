@@ -2,7 +2,7 @@
   "generatedAt": 1785888492603,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 259,
+  "count": 260,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -1208,6 +1208,11 @@
       "slug": "skill-graft-hermetic-test-isolation",
       "status": "backlog",
       "summaryMd": "tests/unit/skill-graft-cli.test.js 'shorthand query renders guidance and lexical fallback note' fails on any machine with a warm ~/.port-daddy/skill-index.sqlite: the test expects the 'Semantic Tool2Vec tier is cold or unconfigured' note but the CLI under test finds the developer's real warm index (machine-state leak; reproduced on clean origin/main 2026-07-14, passes in CI only because runners are cold). Acceptance: the test pins its index location to a temp dir (or PD-test env override) and passes on a machine with a warm real index; full tests/unit suite green locally."
+    },
+    {
+      "slug": "spawner-agent-harbor-bridge-c1-witnessing",
+      "status": "now",
+      "summaryMd": "Bridge lib/spawner.ts agentIds into Agent Harbor as real, honestly-witnessed C1 (Transcripted) nodes via a new spawner-bridge.ts module + spawner-child AdapterKind (complianceCeiling C1). Reuses the existing event-ledger hash-chaining and transcripts.ts message log — no new hashing. kill correctly stays denied through control-gate.ts (C1 < C4 required) — the point is real evidence, not a forged grant. C2+ gateway-routing is future, separate work."
     },
     {
       "slug": "squid-contract-harness-daemon-boot-fix",
