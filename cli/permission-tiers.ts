@@ -61,6 +61,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   log: 'silent',
   activity: 'silent',
   briefing: 'silent',
+  arrive: 'silent',      // read-only arrival briefing; ranks existing state, writes nothing
   history: 'silent',
   dashboard: 'silent',
   health: 'silent',

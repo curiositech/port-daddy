@@ -2928,6 +2928,13 @@ export async function main(): Promise<void> {
         await handleBriefing(options);
         break;
 
+      // Session-start arrival briefing: salvageable work that looks like this
+      // work, roadmap items it belongs under, skills for it, and the agents
+      // already on the same files. Prints nothing when nothing matches.
+      case 'arrive':
+        await (await import('../cli/commands/arrive.js')).handleArrive(options);
+        break;
+
       // Operator loop · SIGHT stage. `pd periscope` (aliases: sight, scope) —
       // raise the periscope: what's the state, what's the next cut.
       case 'periscope':
