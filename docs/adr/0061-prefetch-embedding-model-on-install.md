@@ -41,9 +41,9 @@ downloads that mini-LM embedding model if it's not present."*
   available.
 - **`cli/commands/setup.ts`** runs the prefetch as a step in `pd setup` (after the
   daemon step), opt-out via `--no-prefetch`.
-- **`Formula/port-daddy.rb`** `post_install` already invokes `pd setup`, so the
-  Homebrew first install (and upgrades — idempotent, so instant after the first)
-  pre-download the model automatically.
+- **`pd setup`** offers the one-time prefetch and **`pd doctor`** detects a
+  missing model. Homebrew remains an artifact and service installer; it does
+  not carry a second in-repository formula or silently own model policy.
 
 ## Consequences
 

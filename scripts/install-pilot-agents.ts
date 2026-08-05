@@ -1,4 +1,4 @@
-#!/usr/bin/env -S npx tsx
+#!/usr/bin/env bun
 /**
  * Install the Port Daddy Pilot agent into every local LLM runtime.
  *
@@ -6,9 +6,9 @@
  * native agent format and writes it under $HOME. Called by `pd setup` on every
  * brew install/upgrade; also runnable directly:
  *
- *   npx tsx scripts/install-pilot-agents.ts            # install for $HOME
- *   npx tsx scripts/install-pilot-agents.ts --dry-run  # preview, write nothing
- *   npx tsx scripts/install-pilot-agents.ts --base-dir /tmp/x   # test target
+ *   bun scripts/install-pilot-agents.ts            # install for $HOME
+ *   bun scripts/install-pilot-agents.ts --dry-run  # preview, write nothing
+ *   bun scripts/install-pilot-agents.ts --base-dir "$HOME/coding/tmp/pilot-install" # test target
  */
 
 import { existsSync } from 'node:fs';
@@ -16,11 +16,14 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installPilotAgents, resolvePilotSourceDir, type PilotInstallResult } from '../lib/pilot-agent-render.js';
 
-/** Walk up from this file to the repo root (marked by Formula/port-daddy.rb). */
+/** Walk up from this file to the canonical Port Daddy source root. */
 function findRepoRoot(): string {
   let dir = dirname(fileURLToPath(import.meta.url));
   for (let i = 0; i < 8; i++) {
-    if (existsSync(join(dir, 'Formula', 'port-daddy.rb'))) return dir;
+    if (
+      existsSync(join(dir, 'package.json')) &&
+      existsSync(join(dir, 'agents', 'port-daddy-pilot', 'agent.config.json'))
+    ) return dir;
     const parent = dirname(dir);
     if (parent === dir) break;
     dir = parent;

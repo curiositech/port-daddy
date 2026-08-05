@@ -8,7 +8,7 @@ universal five rules; this page adds the contributor-only constraints.
 
 Every `vX.Y.Z` tag in this repo is referenced by:
 
-- the Homebrew formula `~/coding/homebrew-port-daddy/Formula/port-daddy.rb` (frozen `sha256`)
+- the Homebrew tap formula `curiositech/homebrew-tap:Formula/port-daddy.rb` (frozen artifact checksums)
 - the Mac app DMG manifest (signed + notarized at build time)
 - the signed-binary, Homebrew, MCP, or extension manifests for consumers
 - screenshots / docs that link to GitHub at `tree/v<X.Y.Z>/...`
@@ -37,26 +37,27 @@ prefix; the website docs/version map assumes the prefix. A tag without
 
 ## Brew formula update protocol
 
-The **primary** Homebrew formula lives in this repo at
-`Formula/port-daddy.rb` (it also serves as a repo marker that tooling
-detects). A separate downstream tap repo (`homebrew-port-daddy`) mirrors
-it for users who add the tap. Both must be updated, and the sequence
-across two repos matters:
+The only Homebrew formula authority is
+`curiositech/homebrew-tap:Formula/port-daddy.rb`. The source repository has no
+formula mirror and source-root discovery never depends on a formula file.
 
-1. **port-daddy repo**: tag the release commit, push the tag, **wait for the GitHub tarball to be available** (~30 seconds).
-2. **port-daddy repo**: compute the tarball sha256:
-   ```bash
-   curl -sSL https://github.com/curiositech/port-daddy/archive/refs/tags/v<X.Y.Z>.tar.gz | shasum -a 256
-   ```
-3. **port-daddy repo (in-repo primary)**: update `Formula/port-daddy.rb` — `url` (new tag), `sha256` (new hash), version string in tests, `post_install` only if `install.sh` changed. Commit + push as part of the release slice.
-4. **homebrew-port-daddy repo (downstream sync)**: copy the same updates into `Formula/port-daddy.rb` there (commonly via `cp` from the in-repo primary). Commit + push.
-5. **back in port-daddy**: send `pd actor lookout` a message confirming both formulas match.
+1. Merge the reviewed release source and create the immutable `vX.Y.Z` tag.
+2. Publish the GitHub release so `.github/workflows/release.yml` builds, signs,
+   seals, and uploads the platform archives.
+3. The successful release workflow sends `update-formula` to
+   `curiositech/homebrew-tap`; prereleases never update the tap.
+4. In the tap, verify that `update-formula.yml` resolved the published archive,
+   recorded its real checksum, updated the service/install contract, and passed
+   `brew audit` plus install tests.
+5. Upgrade the installed formula, let Homebrew restart its one stable service,
+   and prove CLI, TCP, FleetBar, Squid, and one harness receipt against the
+   endpoint the installed daemon published.
+6. Leave the source release SHA, tag, workflow run, tap commit, installed
+   version, selected endpoint evidence, and proof artifacts in Port Daddy notes.
 
-If you reverse step 1 and step 3/4 (push formula before tarball is available),
-brew users get a 404. If you update only the tap and not the in-repo
-primary, repo-marker tooling and `brew install --build-from-source ./Formula/port-daddy.rb`
-diverge from what tap users see. If you skip step 5, the next contributor
-can't tell whether the brew bump actually landed.
+Never commit a placeholder checksum, update a formula before its archive exists,
+or copy a formula between repositories. A dispatch failure is a release failure,
+not a reason to recreate an in-repo mirror.
 
 ## Pre-push reconciliation (mandatory)
 

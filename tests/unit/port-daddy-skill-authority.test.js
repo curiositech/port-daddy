@@ -184,9 +184,9 @@ describe('Port Daddy skill authority', () => {
     expect(server).toContain('legacy alias/install');
   });
 
-  test('setup and Homebrew install the canonical skill id into agent runtime mirrors', () => {
+  test('setup installs the canonical skill id and release automation delegates the formula to the tap', () => {
     const setup = readFileSync(join(process.cwd(), 'cli', 'commands', 'setup.ts'), 'utf8');
-    const formula = readFileSync(join(process.cwd(), 'Formula', 'port-daddy.rb'), 'utf8');
+    const release = readFileSync(join(process.cwd(), '.github', 'workflows', 'release.yml'), 'utf8');
 
     expect(setup).toContain("AGENT_SKILL_ID = 'port-daddy-agent-skill'");
     expect(setup).toContain("join(prefix, 'share', 'port-daddy', 'skills', AGENT_SKILL_ID)");
@@ -208,16 +208,10 @@ describe('Port Daddy skill authority', () => {
     expect(setup).not.toContain("'.claude', 'skills', 'port-daddy'");
     expect(setup).not.toContain("'.gemini', 'extensions', 'port-daddy', 'skills', 'port-daddy'");
 
-    expect(formula).toContain('"skills/port-daddy-agent-skill" => "skills/port-daddy-agent-skill"');
-    expect(formula).toContain('Refreshing Port Daddy cross-tool skill symlinks');
-    expect(formula).not.toContain('=> "skills/port-daddy"');
-    for (const runtimePath of [
-      '~/.codex/skills/port-daddy-agent-skill',
-      '~/.claude/skills/port-daddy-agent-skill',
-      '~/.agents/skills/port-daddy-agent-skill',
-      '~/.gemini/extensions/port-daddy/skills/port-daddy-agent-skill',
-    ]) {
-      expect(formula).toContain(runtimePath);
-    }
+    expect(release).toContain('repository: curiositech/homebrew-tap');
+    expect(release).toContain('event-type: update-formula');
+    expect(release).toContain('github.event.release.prerelease == false');
+    expect(existsSync(join(process.cwd(), 'Formula', 'port-daddy.rb'))).toBe(false);
+    expect(existsSync(join(process.cwd(), 'port-daddy.rb'))).toBe(false);
   });
 });

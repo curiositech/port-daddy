@@ -57,11 +57,11 @@ The formal foundation for this thesis is the **Bonded Commons** paper (Owens, 20
 | Quorum primitives | Built | `lib/quorum.ts`, `routes/quorum.ts`, `pd quorum` CLI |
 | Daemon profiles | Built | `lib/daemon-profiles.ts`, `cli/commands/daemon.ts`, `docs/adr/0024-daemon-profiles.md` |
 | Coordination Guard enforce mode | Built | `.portdaddy/coordination-guard.json`, `cli/commands/guard.ts`, hooks |
-| Bosun watchdog / Bosun supervisor (Rust) | Deployed | daemon writes `~/.port-daddy/heartbeat`; `core/pd-bosun/` and `dist/core/pd-bosun` supervise filesystem heartbeat and replace legacy Barnacle — release landed in `b074370` / `a94872c` and the Barnacle runtime path was removed in `7e16880` |
+| Stable daemon supervision | Deployed | Homebrew/launchd is the single lifecycle owner; named `pd dev` daemons are isolated feature runtimes, not watchdogs |
 | 10 formal skills | Built | `~/.claude/skills/{mechanism-design,tlaplus,political-philosophy,...}` |
-| Stable branch workflow | Active | `~/port-daddy-stable/` worktree |
+| Stable release workflow | Active | immutable GitHub release artifacts → `curiositech/homebrew-tap` repository dispatch → Homebrew service |
 | Fleet agents | Running | 8 agents: gardener, qa, test-gap-hunter, etc. |
-| 52 test suites, 3239 tests | Passing | `npm test` |
+| Automated validation | Passing | focused Jest suites, `bun run typecheck`, and release artifact verification |
 
 ---
 
@@ -482,7 +482,7 @@ From `v4_thoughts.md`: When an agent's episode count exceeds a threshold, old ep
 From `STIGMERGIC_BACKLOG.md`: High-fidelity terminal demos showing multi-agent coordination. `pd demo` command with `.tape` files. Dual-theme (Light/Dark) GIF rendering for the landing page.
 
 ### A13. Homebrew Distribution
-From `STIGMERGIC_BACKLOG.md`: `Formula/port-daddy.rb` already created. Needs automated SHA-256 updates in the release pipeline. Goal: `brew install curiositech/tap/port-daddy`.
+Superseded by ADR-0054: the live `curiositech/homebrew-tap` formula is the only formula authority and release automation updates it after a published release. The source repository does not carry a formula mirror.
 
 ### A14. VS Code Extension
 From `v4_thoughts.md`: File claims visible in the gutter. Session sidebar. Salvage alerts. Goal: daily active usage from IDE integration.

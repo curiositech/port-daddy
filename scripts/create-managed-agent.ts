@@ -1,4 +1,4 @@
-#!/usr/bin/env -S npx tsx
+#!/usr/bin/env bun
 /**
  * Create (or update) the Port Daddy Pilot as a Claude *managed* (cloud) agent
  * and persist its agent ID + version into a committed manifest.
@@ -13,8 +13,8 @@
  * worker fulfills by shelling out to `pd`. Same persona, two transports.
  *
  * Usage:
- *   ANTHROPIC_API_KEY=sk-ant-… npx tsx scripts/create-managed-agent.ts
- *   npx tsx scripts/create-managed-agent.ts --dry-run   # print payload, no POST
+ *   ANTHROPIC_API_KEY=sk-ant-… bun scripts/create-managed-agent.ts
+ *   bun scripts/create-managed-agent.ts --dry-run   # print payload, no POST
  *
  * Without ANTHROPIC_API_KEY this records a `pending` entry in the manifest and
  * prints the exact command to run later. It never fabricates an agent ID.
@@ -33,7 +33,10 @@ const BETA_HEADER = 'managed-agents-2026-04-01';
 function findRepoRoot(): string {
   let dir = dirname(fileURLToPath(import.meta.url));
   for (let i = 0; i < 8; i++) {
-    if (existsSync(join(dir, 'Formula', 'port-daddy.rb'))) return dir;
+    if (
+      existsSync(join(dir, 'package.json')) &&
+      existsSync(join(dir, 'agents', 'port-daddy-pilot', 'agent.config.json'))
+    ) return dir;
     const parent = dirname(dir);
     if (parent === dir) break;
     dir = parent;

@@ -22,7 +22,6 @@
     "pd-fleet.yml",
     "pd_logo.svg",
     "pd_logo_darkmode.svg",
-    "port-daddy.rb",
     "server.ts",
     "scripts/build-core.sh",
     "scripts/build-daemon-binary.mjs",
@@ -40,7 +39,6 @@
   "includePrefixes": [
     ".claude-plugin/",
     ".github/",
-    "Formula/",
     "apps/FleetBar/",
     "bin/",
     "cli/",

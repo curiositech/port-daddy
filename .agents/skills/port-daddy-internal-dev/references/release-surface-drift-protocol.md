@@ -53,8 +53,8 @@ same coherent slice — or leave a Lookout drift report naming the gaps.
 
 | Surface | Path | Updated when |
 |---|---|---|
-| Homebrew formula (primary, in-repo) | `Formula/port-daddy.rb` | Every release (url, sha256, version stamp) — also serves as a repo marker |
-| Homebrew tap (downstream sync) | `~/coding/homebrew-port-daddy/Formula/port-daddy.rb` | Mirror of the in-repo primary; sync after the in-repo update lands |
+| Homebrew tap formula (only authority) | `curiositech/homebrew-tap:Formula/port-daddy.rb` | Updated from a published release by `.github/workflows/release.yml` repository dispatch |
+| Tap update workflow | `curiositech/homebrew-tap:.github/workflows/update-formula.yml` | Artifact layout, checksums, service stanza, or install behavior changes |
 | Mac app installer | `apps/FleetBar/install.sh` | Install path change, new resources |
 | Codex extension | `.codex/skills/...` (synced via install.sh) | Skill bundle change |
 | Claude extension | `.claude/skills/...` (synced via install.sh) | Skill bundle change |
@@ -71,8 +71,7 @@ same coherent slice — or leave a Lookout drift report naming the gaps.
 | Mac app Info.plist | the Info.plist under `apps/FleetBar/` | `CFBundleShortVersionString` |
 | Website footer | the footer component under `apps/website-v2/` | display version |
 | `pd version` CLI output | `bin/port-daddy-cli.ts` | hard-coded or imported |
-| Brew formula version (in-repo primary) | `Formula/port-daddy.rb` | inside the version-string echo |
-| Brew formula version (tap mirror) | `homebrew-port-daddy/Formula/port-daddy.rb` | inside the version-string echo (must match in-repo primary) |
+| Brew formula version | `curiositech/homebrew-tap:Formula/port-daddy.rb` | Must match the published GitHub release after repository dispatch completes |
 
 ## Detection
 
@@ -84,7 +83,7 @@ Before commit, walk this checklist:
 [ ] If you added an MCP tool, did you update mcp-handshake-test.mjs AND port-daddy-agent-skill MCP-Equivalents list?
 [ ] If you renamed a concept, did you grep across docs/, website-v2/, skills/?
 [ ] If this is a release, did you bump every version stamp in Tier 6?
-[ ] If this is a release, did you compute the brew sha256 and update the formula?
+[ ] If this is a release, did the release workflow dispatch the tap update and did the tap verify the published archive checksums?
 ```
 
 A small script at `scripts/release-surface-audit.mjs` (proposed — not built yet)

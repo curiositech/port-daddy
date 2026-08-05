@@ -34,16 +34,17 @@ import {
 } from '../../lib/agent-harbor/setup-doctor.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-// Walk up from __dirname looking for the repo marker (Formula/port-daddy.rb
-// or skills/port-daddy-agent-skill/). Handles both source layout
+// Walk up from __dirname looking for the canonical source markers. Handles both source layout
 // (cli/commands/setup.ts → ../..) and compiled layout
-// (dist/cli/commands/setup.js → ../../.., since dist/ also contains a
-// package.json from npm install).
+// (dist/cli/commands/setup.js → ../../..). A package.json alone is not enough:
+// compiled and package-manager layouts can contain one without the canonical skill.
 function findProjectRoot(start: string): string {
   let dir = start;
   for (let i = 0; i < 8; i++) {
-    if (existsSync(join(dir, 'Formula', 'port-daddy.rb'))) return dir;
-    if (existsSync(join(dir, 'skills', 'port-daddy-agent-skill', 'SKILL.md'))) return dir;
+    if (
+      existsSync(join(dir, 'package.json')) &&
+      existsSync(join(dir, 'skills', 'port-daddy-agent-skill', 'SKILL.md'))
+    ) return dir;
     const parent = dirname(dir);
     if (parent === dir) break;
     dir = parent;
