@@ -44,6 +44,7 @@ import { cliBinarySearchPath, resolveCliBinary } from '../../cli-bin-dirs.js';
 import type { CoastGuardReceipt } from '../../coast-guard.js';
 import {
   withCoastGuard,
+  type CoastGuardRun,
   type CoastGuardRunInput,
 } from '../coast-guard-runner.js';
 import {
@@ -359,18 +360,40 @@ export async function spawnViaCliTube(
   }
 
   const cwd = opts.cwd || process.cwd();
-  const cg = await withCoastGuard({
-    agentId: opts.coastGuard?.agentId || opts.tubeSender || `cli-tube/${cli}`,
-    backend: opts.coastGuard?.backend || `cli:${cli}`,
-    cmd: binary,
-    args,
-    env,
-    workdir: cwd,
-    spec: opts.coastGuard?.spec,
-    dotenvKeys: opts.coastGuard?.dotenvKeys,
-    writePolicy: opts.coastGuard?.writePolicy,
-    envSource: opts.coastGuard?.envSource,
-  });
+  let cg: CoastGuardRun;
+  try {
+    cg = await withCoastGuard({
+      agentId: opts.coastGuard?.agentId || opts.tubeSender || `cli-tube/${cli}`,
+      backend: opts.coastGuard?.backend || `cli:${cli}`,
+      cmd: binary,
+      args,
+      env,
+      workdir: cwd,
+      spec: opts.coastGuard?.spec,
+      dotenvKeys: opts.coastGuard?.dotenvKeys,
+      writePolicy: opts.coastGuard?.writePolicy,
+      envSource: opts.coastGuard?.envSource,
+    });
+  } catch (err) {
+    // Coast Guard preparation itself failed (e.g. the in-process egress meter
+    // couldn't bind a loopback port, or the workdir tripped the SBPL-injection
+    // guard) before any child was spawned. No handle exists to dispose here —
+    // withCoastGuard is responsible for tearing down its own partial state on
+    // this path — but the codex scratch tempDir is ours and must not leak, and
+    // the caller must still get a structured CliTubeResult, not a rejection.
+    if (tempDir) {
+      try { rmSync(tempDir, { recursive: true, force: true }); } catch { /* best effort */ }
+    }
+    return {
+      output: '',
+      exitCode: 1,
+      error: `Coast Guard confinement setup failed for ${binary}: ${(err as Error).message}`,
+      tube: tubeChannel,
+      durationMs: Date.now() - startedAt,
+      rawStdout: '',
+      coastGuardReceipt: null,
+    };
+  }
 
   let child: ChildProcess;
   try {
@@ -387,10 +410,11 @@ export async function spawnViaCliTube(
     if (tempDir) {
       try { rmSync(tempDir, { recursive: true, force: true }); } catch { /* best effort */ }
     }
+    const attempted = cg.cmd === binary ? cg.cmd : `${cg.cmd} (Coast Guard wrapper for "${binary}")`;
     return {
       output: '',
       exitCode: 1,
-      error: `Failed to spawn ${binary}: ${(err as Error).message}`,
+      error: `Failed to spawn ${attempted}: ${(err as Error).message}`,
       tube: tubeChannel,
       durationMs: Date.now() - startedAt,
       rawStdout: '',

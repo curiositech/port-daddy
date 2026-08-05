@@ -17,7 +17,7 @@
 
 import { jest } from '@jest/globals';
 import { EventEmitter } from 'node:events';
-import { chmodSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { PassThrough, Readable } from 'node:stream';
@@ -701,6 +701,44 @@ describe('spawnViaCliTube — failure paths', () => {
     expect(res.error).toContain('spawn exploded');
     expect(res.coastGuardReceipt).toBe(mockCoastGuardReceipt);
     expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+  });
+
+  test('sync spawn-throw error names both the Coast Guard wrapper and the original binary honestly', async () => {
+    mockWithCoastGuard.mockImplementationOnce(async (input) => ({
+      cmd: '/usr/bin/sandbox-wrapper',
+      args: ['--', input.cmd, ...input.args],
+      env: input.env,
+      receipt: () => mockCoastGuardReceipt,
+      dispose: mockCoastGuardDispose,
+    }));
+    mockSpawn.mockImplementationOnce(() => { throw new Error('spawn exploded'); });
+
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+
+    // Actual executable attempted was the wrapper, not the raw claude binary —
+    // the error must say so instead of only naming the pre-wrap binary.
+    expect(res.error).toContain('/usr/bin/sandbox-wrapper');
+    expect(res.error).toContain(join(fakeHome, '.local', 'bin', 'claude'));
+    expect(res.error).toContain('spawn exploded');
+  });
+
+  test('a Coast Guard preparation failure (withCoastGuard rejects) returns a structured error result instead of rejecting, and cleans up the codex scratch tempDir', async () => {
+    mockWithCoastGuard.mockRejectedValueOnce(new Error('egress meter failed to bind loopback port'));
+
+    const res = await spawnViaCliTube({ cli: 'codex', prompt: 'hi' });
+
+    expect(res.exitCode).toBe(1);
+    expect(res.error).toContain('egress meter failed to bind loopback port');
+    expect(res.coastGuardReceipt).toBeNull();
+    expect(res.output).toBe('');
+    expect(res.rawStdout).toBe('');
+    expect(mockSpawn).not.toHaveBeenCalled();
+    // codex allocates a scratch tempDir under ~/.port-daddy/cli-tube-scratch for
+    // --output-last-message BEFORE Coast Guard prep; a rejected withCoastGuard()
+    // must not leak it.
+    const scratchRoot = join(fakeHome, '.port-daddy', 'cli-tube-scratch');
+    const leftover = existsSync(scratchRoot) ? readdirSync(scratchRoot) : [];
+    expect(leftover).toEqual([]);
   });
 
   test('ENOENT → "binary not found" error with auth hint', async () => {

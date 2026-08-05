@@ -126,27 +126,38 @@ export async function withCoastGuard(input: CoastGuardRunInput): Promise<CoastGu
   await meter.listen(0);
 
   // 2+3. BROKER + CONFINE — scrub keys, sandbox-wrap, wire the proxy.
-  const handle = confineCommand({
-    agentId: input.agentId,
-    backend: input.backend,
-    cmd: input.cmd,
-    args: input.args,
-    env: input.env,
-    workdir: input.workdir,
-    dotenvKeys: input.dotenvKeys,
-    writePolicy: input.writePolicy,
-    policy,
-    deps: {
-      proxyUrl: meter.proxyUrl,
-      readEgress: () => ({
-        requests: meter.state.requests,
-        bytes: meter.state.bytes,
-        blocked: meter.state.blocked,
-        injected: meter.state.injected,
-      }),
-      disposeProxy: () => meter.dispose(),
-    },
-  });
+  let handle: ConfinementHandle;
+  try {
+    handle = confineCommand({
+      agentId: input.agentId,
+      backend: input.backend,
+      cmd: input.cmd,
+      args: input.args,
+      env: input.env,
+      workdir: input.workdir,
+      dotenvKeys: input.dotenvKeys,
+      writePolicy: input.writePolicy,
+      policy,
+      deps: {
+        proxyUrl: meter.proxyUrl,
+        readEgress: () => ({
+          requests: meter.state.requests,
+          bytes: meter.state.bytes,
+          blocked: meter.state.blocked,
+          injected: meter.state.injected,
+        }),
+        disposeProxy: () => meter.dispose(),
+      },
+    });
+  } catch (err) {
+    // confineCommand can throw synchronously (e.g. SbplInjectionError from an
+    // unsafe workdir, thrown before it ever hands back a dispose()). The meter
+    // is already listening on a loopback port at that point — with no handle
+    // returned, the caller has nothing to dispose. Tear it down here so a
+    // rejected withCoastGuard() never leaks the egress-meter listener.
+    meter.dispose();
+    throw err;
+  }
 
   return {
     cmd: handle.cmd,
