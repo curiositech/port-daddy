@@ -63,7 +63,7 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   '--staged': 'Check only staged files.',
   '--status': 'Filter rows by lifecycle status.',
   '--stats': 'Summarize spoke, silent, and suppressed VoiceLog outcomes.',
-  '--suppressed': 'Show only turns silenced by the harness bounds.',
+  '--suppressed': 'Show only VoiceLog turns whose candidate context was filtered, dropped, or clipped, with the recorded reason.',
   '--task': 'Describe the intended edit or action for advisor output.',
   '--tier': 'Use a low, mid, or high model ladder entry for the backend.',
   '--timeout': 'Set the wait or launch timeout.',

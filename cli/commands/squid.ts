@@ -840,9 +840,9 @@ Toggle:
 
 Voice log:
   The harness is deliberately quiet, so silence needs an audit trail. Every turn
-  appends one JSON line recording whether it spoke, had nothing to say, or was
-  silenced by its own byte/entry budget. 'pd squid voice' reads that log.
-  --stats        rates and per-class tallies    --suppressed  only the silenced turns
+  appends one JSON line recording whether it spoke, had nothing to say, or
+  filtered, dropped, or clipped candidate context. 'pd squid voice' reads that log.
+  --stats        rates and per-class tallies    --suppressed  only those diagnosed turns
   --follow       tail live                      --json        machine-readable
 
 Bridge options:

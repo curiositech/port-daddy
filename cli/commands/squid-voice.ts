@@ -14,14 +14,14 @@
  *
  *   pd squid voice                 recent turns, newest last, relative times
  *   pd squid voice --stats         how often it is quiet, and what silenced it
- *   pd squid voice --suppressed    ONLY the "it should still have talked" turns
+ *   pd squid voice --suppressed    filtered, dropped, or clipped context only
  *   pd squid voice --follow        live tail
  *   pd squid voice --json          machine-readable form of any of the above
  *
- * `--suppressed` is the actionable list and the reason the VoiceLog exists: a
- * suppressed turn is the harness holding a halt, a claim collision, or a summons
- * and dropping it because of its own bounds. Those are bugs or budget
- * misconfigurations, never calm.
+ * `--suppressed` is the actionable list and the reason the VoiceLog exists: it
+ * records candidate context that was filtered, dropped, or clipped because the
+ * matrix was stale, evidence expired or did not apply to this working directory,
+ * or a byte/entry cap fired. That is a diagnosis, never proof the fleet was calm.
  *
  * Per `port-daddy-internal-dev` § *Operator vs Agent*: this CLI is the secondary
  * surface. A FleetBar/dashboard panel over the same {@link summarize} output is
@@ -272,8 +272,8 @@ function formatRate(rate: number | null): string {
  * ANYTHING, then the quiet rate the operator explicitly asked for, then the
  * breakdown of *why* it was quiet. Silence reasons and suppression reasons are
  * printed as separate blocks because they mean opposite things — one is "no
- * signal existed", the other is "signal existed and a bound ate it" — and a
- * single merged list would flatten that distinction back out.
+ * signal existed", the other is "candidate context was filtered, dropped, or
+ * clipped" — and a single merged list would flatten that distinction back out.
  *
  * @param summary Statistics computed by {@link summarize}.
  * @param result The read that produced them, for provenance.
@@ -305,9 +305,9 @@ function printStats(summary: VoiceLogSummary, result: VoiceLogReadResult, now: n
     console.log(`    ${reason.padEnd(22)} ${String(count).padStart(6)}`);
   }
   console.log('');
-  console.log(`  ${ui.fmtYellow('Suppression reasons (it HAD something and a bound ate it):')}`);
+  console.log(`  ${ui.fmtYellow('Suppression reasons (candidate context did not fully reach the prompt):')}`);
   const suppression = Object.entries(summary.suppressionReasons).sort((a, b) => b[1] - a[1]);
-  if (suppression.length === 0) console.log(`    ${ui.fmtDim('none — no turn was silenced by its own bounds')}`);
+  if (suppression.length === 0) console.log(`    ${ui.fmtDim('none — no candidate context was filtered, dropped, or clipped')}`);
   for (const [reason, count] of suppression) {
     console.log(`    ${reason.padEnd(22)} ${String(count).padStart(6)}`);
   }
@@ -437,7 +437,7 @@ function printHelp(): void {
   console.log(`Usage:
   pd squid voice [recent]  [filters]    Recent turns — spoke / quiet / suppressed
   pd squid voice --stats                How often the harness is quiet, and why
-  pd squid voice --suppressed           ONLY turns where a bound ate real content
+  pd squid voice --suppressed           Filtered, dropped, or clipped context
   pd squid voice --follow               Live tail (Ctrl-C to stop)
 
 Filters:
@@ -452,9 +452,9 @@ Filters:
 What the outcomes mean:
   spoke        context was injected into that turn
   silent       nothing existed to say (calm fleet, working harness)
-  suppressed   something DID exist and the harness's own bounds dropped it —
-               this is the actionable one; a stale matrix, a blown byte budget,
-               or an entry cap means the fleet was talking and the agent never heard it.
+  suppressed   candidate context did not fully reach the prompt — stale matrix,
+               expired or cwd-irrelevant evidence, or byte/entry caps; the
+               recorded reason distinguishes a full drop from a partial clip.
 
 The log is written by the UserPromptSubmit tentacle at
   \${PD_SQUID_VOICE_LOG:-\$PD_HOME/squid-voice-log.jsonl}
@@ -531,7 +531,7 @@ export async function handleSquidVoice(args: string[], options: CLIOptions): Pro
 
   console.log('');
   ui.info(wantsSuppressed
-    ? 'Giant Squid VoiceLog — suppressed turns (it should still have talked)'
+    ? 'Giant Squid VoiceLog — suppressed turns (candidate context did not fully reach the prompt)'
     : 'Giant Squid VoiceLog — recent turns');
   printProvenance(result);
   console.log('');

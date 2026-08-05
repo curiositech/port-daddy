@@ -566,7 +566,7 @@ describe('pd squid voice', () => {
     expect((json().summary as Record<string, unknown>).total).toBe(40);
   });
 
-  test('--suppressed shows ONLY the should-still-have-talked turns', async () => {
+  test('--suppressed shows only turns with diagnosed context loss', async () => {
     writeLog([
       spokeLine(1000, 'a', 100, ['HALT']),
       silentLine(2000, 'a', 'no-entries'),
@@ -584,7 +584,7 @@ describe('pd squid voice', () => {
     writeLog([suppressedLine(Date.now(), 'a', 'over-budget', { bytes: 9000, emittedBytes: 0 })]);
     await handleSquidVoice([], { suppressed: true, path: LOG } as never);
     const rendered = text();
-    expect(rendered).toContain('should still have talked');
+    expect(rendered).toContain('candidate context did not fully reach the prompt');
     expect(rendered).toContain('9000B of coordination context never reached an agent');
   });
 
@@ -616,6 +616,9 @@ describe('pd squid voice', () => {
   test('help explains what suppressed means', async () => {
     await handleSquidVoice(['help'], {} as never);
     expect(text()).toContain('pd squid voice --suppressed');
-    expect(text()).toContain('the agent never heard it');
+    expect(text()).toContain('stale matrix');
+    expect(text()).toContain('expired or cwd-irrelevant evidence');
+    expect(text()).toContain('byte/entry caps');
+    expect(text()).toContain('partial clip');
   });
 });

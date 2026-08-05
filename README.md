@@ -632,8 +632,8 @@ Pilot SessionStart steering, and `/squid` control inside Claude Code:
 
 ```bash
 pd squid on                 # full harness: Claude, Codex, Gemini, and agy
-pd squid status             # LIVE / READY / PARTIAL / DEGRADED readout
-pd squid status --json      # stable FleetBar/automation contract
+pd squid status             # LIVE / READY / PARTIAL / UNPROTECTED conformance
+pd squid status --json      # level plus FleetBar-compatible state mapping
 pd squid tap                # exact bounded context entering the next turn
 pd squid voice              # when did the harness actually talk? (VoiceLog)
 pd squid voice --stats      # spoke / silent / suppressed rates, per-class tallies

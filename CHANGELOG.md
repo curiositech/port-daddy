@@ -10,12 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **FleetBar Giant Squid controls.** The selected-project header now shows an unmistakable `◆ GIANT SQUID` LIVE/READY/PARTIAL/DEGRADED strip, detected/wired provider counts, the before-turn/before-edit/after-tool value being added, and native Arm/Repair/Disarm actions.
 - **Giant Squid Reconcile Loop and VoiceLog (ADR-0108 phase 0).** The daemon now projects approvals and panic into the hook matrix, expires stale state, and records byte-bounded spoke / silent / suppressed outcomes. `pd squid voice`, `--stats`, and `--suppressed` expose that audit trail; the remaining declared key classes stay degraded and untouched until their durable producers are wired.
+- **Canonical hv:2 Harbor Card verification in Rust.** `core/harbor-card-rs` now verifies the live Relay wire format and is locked to the Worker verifier by a shared Rust-generated parity fixture. The fixture records the two intentional cross-runtime divergences instead of claiming byte-for-byte policy parity.
 - **Honest fleet and account readouts.** Advisory ships with no contract output now report a neutral no-output state instead of `PASS · clean`; run receipts distinguish real token counts from `not reported`; Shipwright YAML blocks show deterministic validation badges; and `/account/billing` shows each installation's credit-ledger history with populated, empty, degraded, and partial-view states.
 
 ### Fixed
 - **`pd squid on` is now the one truthful full-harness command.** The duplicate `pd squid hooks` surface was removed; setup, init, doctor, and repair guidance use the canonical interactive installer and real provider scopes. Codex/agy user-level hooks now require an exact armed-project registry match, so disarming one repo actually makes them inert there without removing hooks needed by another repo.
 - **Squid release cargo is proved end to end.** Tentacles, statusline, and the Pilot SessionStart hook share one runtime asset resolver and declarative Batten manifest. Release CI launches the staged binary outside the source tree and verifies all four provider configs, identity surfaces, and READY JSON status before packaging.
 - **Prompt injections are bounded and fresh.** Next-turn narration is limited to 12 exact-project entries and 4 KiB, with 30-minute TTL enforcement for timestamped alerts and pheromones.
+- **Relay staging can no longer capture the production custom domain.** The `latest` Wrangler environment now overrides inherited routes with `routes = []`, and deploy-config tests fail before staging can reassign `relay.portdaddy.dev`; staging D1 failures also print the account and permission diagnosis that blocks the production gate.
 
 ## [3.27.0] - 2026-07-23
 
