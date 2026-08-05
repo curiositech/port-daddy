@@ -311,8 +311,8 @@ function toneForStatus(status: string): {
       return { label: 'Completed', chipClass: 'pd-chip-success', dotClass: 'bg-[var(--pd-success)]', icon: CheckCircle2 };
     case 'failed':
       return { label: 'Failed', chipClass: 'pd-chip-accent', dotClass: 'bg-[var(--pd-accent)]', icon: AlertTriangle };
-    case 'killed':
-      return { label: 'Killed', chipClass: 'pd-chip-neutral', dotClass: 'bg-[var(--pd-line)]', icon: PauseCircle };
+    case 'cancelled':
+      return { label: 'Cancelled', chipClass: 'pd-chip-neutral', dotClass: 'bg-[var(--pd-line)]', icon: PauseCircle };
     default:
       return { label: status || 'Unknown', chipClass: 'pd-chip-neutral', dotClass: 'bg-[var(--pd-line)]', icon: CircleDot };
   }

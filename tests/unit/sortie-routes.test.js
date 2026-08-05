@@ -196,7 +196,7 @@ describe('sortie routes', () => {
         startedAt: 1,
         completedAt: 2,
       })),
-      kill: jest.fn(),
+      cancel: jest.fn(),
     };
     // A real Conductor over the test spawner — the daemon's one spawn primitive.
     const conductor = createConductor({ db, spawner });

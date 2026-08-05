@@ -403,9 +403,9 @@ export interface CostTrackerHooks {
   /** Resolve the daily budget for a project. Return null to skip enforcement. */
   budgetResolver?: (project: string) => number | null;
   /**
-   * Called when budget-guard says the spawn must be killed. The caller
+   * Called when budget-guard says the spawn must be cancelled. The caller
    * typically routes this through a budget-pause module that interposes
-   * a grace window before actually SIGTERMing — not a direct spawner.kill.
+   * a grace window before signalling the child — not a direct spawner.cancel.
    */
   onKill?: (params: {
     agentId: string;

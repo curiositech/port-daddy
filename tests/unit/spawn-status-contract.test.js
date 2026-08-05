@@ -12,22 +12,22 @@ describe('spawn status contract coverage', () => {
       [
         'lib/transcripts.ts TranscriptStatus',
         readRepoFile('lib/transcripts.ts'),
-        /export type TranscriptStatus = 'running' \| 'completed' \| 'failed' \| 'killed' \| 'over_budget';/,
+        /export type TranscriptStatus = 'running' \| 'completed' \| 'failed' \| 'cancelled' \| 'over_budget';/,
       ],
       [
         'lib/transcript-compliance.ts tracked run status',
         readRepoFile('lib/transcript-compliance.ts'),
-        /status: 'running' \| 'completed' \| 'failed' \| 'killed' \| 'over_budget';/,
+        /status: 'running' \| 'completed' \| 'failed' \| 'cancelled' \| 'over_budget';/,
       ],
       [
         'lib/client.ts SpawnResult status',
         readRepoFile('lib/client.ts'),
-        /status: 'running' \| 'completed' \| 'failed' \| 'killed' \| 'over_budget';/,
+        /status: 'running' \| 'completed' \| 'failed' \| 'cancelled' \| 'over_budget';/,
       ],
       [
         'docs/openapi.yaml /spawn status enum',
         readRepoFile('docs/openapi.yaml'),
-        /enum: \[running, completed, failed, killed, over_budget, unknown\]/,
+        /enum: \[running, completed, failed, cancelled, over_budget, unknown\]/,
       ],
     ];
 

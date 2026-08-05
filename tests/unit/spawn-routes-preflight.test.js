@@ -47,7 +47,7 @@ function buildApp() {
     }),
     list: jest.fn(() => []),
     get: jest.fn(() => null),
-    kill: jest.fn(),
+    cancel: jest.fn(),
   };
 
   return {

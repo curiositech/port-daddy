@@ -43,7 +43,7 @@ interface TranscriptListRow {
   trigger: string;
   backend: string;
   model: string;
-  status: 'running' | 'completed' | 'failed' | 'killed';
+  status: 'running' | 'completed' | 'failed' | 'cancelled';
   started_at: number;
   ended_at: number | null;
   cost_usd: number | null;
@@ -226,7 +226,7 @@ export async function handleTranscriptsShow(args: string[], options: CLIOptions)
   const yellow = (s: string): string => (colorize ? `\x1b[33m${s}\x1b[0m` : s);
   const red = (s: string): string => (colorize ? `\x1b[31m${s}\x1b[0m` : s);
 
-  const statusColor = tx.status === 'completed' ? green : tx.status === 'failed' ? red : tx.status === 'killed' ? yellow : cyan;
+  const statusColor = tx.status === 'completed' ? green : tx.status === 'failed' ? red : tx.status === 'cancelled' ? yellow : cyan;
 
   console.log(bold(`Transcript ${clean(tx.id)}`));
   console.log(dim(`  Ship:      `) + clean(tx.ship));

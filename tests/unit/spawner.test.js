@@ -2,7 +2,7 @@
  * Spawner Module Tests — AI Agent Launcher
  *
  * Tests for createSpawner factory: spawn (dispatch to backends),
- * list (active agents), kill (stop agent), error handling, and cleanup.
+ * list (active agents), cancel (stop agent), error handling, and cleanup.
  *
  * The spawner is purely in-memory (no SQLite) and uses fetch for PD
  * coordination and the ollama backend. child_process.spawn is used for
@@ -195,11 +195,11 @@ function rejectChildProcess(message = 'spawn failed') {
 // =============================================================================
 
 describe('createSpawner', () => {
-  test('returns object with spawn, list, kill methods', () => {
+  test('returns object with spawn, list, cancel methods', () => {
     const spawner = createSpawner();
     expect(typeof spawner.spawn).toBe('function');
     expect(typeof spawner.list).toBe('function');
-    expect(typeof spawner.kill).toBe('function');
+    expect(typeof spawner.cancel).toBe('function');
   });
 
   test('accepts empty deps object', () => {
@@ -900,7 +900,7 @@ describe('list', () => {
     setupOllamaFetchMock('response');
 
     const result = await spawner.spawn({ backend: 'ollama', task: 'test' });
-    spawner.kill(result.agentId);
+    spawner.cancel(result.agentId);
 
     const agents = spawner.list();
     const completed = agents.find(a => a.agentId === result.agentId);
@@ -910,16 +910,16 @@ describe('list', () => {
 });
 
 // =============================================================================
-// kill
+// cancel
 // =============================================================================
 
-describe('kill', () => {
+describe('cancel', () => {
   test('does not rewrite an already-completed agent', async () => {
     const spawner = createSpawner();
     setupOllamaFetchMock('response');
 
     const result = await spawner.spawn({ backend: 'ollama', task: 'test' });
-    spawner.kill(result.agentId);
+    spawner.cancel(result.agentId);
 
     const agents = spawner.list();
     const agent = agents.find(a => a.agentId === result.agentId);
@@ -929,7 +929,7 @@ describe('kill', () => {
 
   test('does not throw for non-existent agent', () => {
     const spawner = createSpawner();
-    expect(() => spawner.kill('nonexistent-agent-id')).not.toThrow();
+    expect(() => spawner.cancel('nonexistent-agent-id')).not.toThrow();
   });
 
   test('does not throw when called twice', async () => {
@@ -937,8 +937,8 @@ describe('kill', () => {
     setupOllamaFetchMock('response');
 
     const result = await spawner.spawn({ backend: 'ollama', task: 'test' });
-    expect(() => spawner.kill(result.agentId)).not.toThrow();
-    expect(() => spawner.kill(result.agentId)).not.toThrow();
+    expect(() => spawner.cancel(result.agentId)).not.toThrow();
+    expect(() => spawner.cancel(result.agentId)).not.toThrow();
   });
 
   test('does not emit a second /sugar/done when cancellation arrives after completion', async () => {
@@ -947,7 +947,7 @@ describe('kill', () => {
 
     const result = await spawner.spawn({ backend: 'ollama', task: 'test' });
     mockFetch.mockClear();
-    spawner.kill(result.agentId);
+    spawner.cancel(result.agentId);
 
     // A late cancellation is a no-op; give any accidental async call a tick.
     await new Promise(r => setTimeout(r, 10));
@@ -958,11 +958,11 @@ describe('kill', () => {
     expect(doneCalls.length).toBe(0);
   });
 
-  test('kills child process while custom backend is still running', async () => {
+  test('signals child process while custom backend is still running', async () => {
     const spawner = createSpawner();
 
     // For custom backend: we need the child process to NOT resolve immediately
-    // so we can kill it while "running"
+    // so we can cancel it while "running"
     // We'll set up the on handlers to never fire 'close'
     mockChildProcess.stdout.on.mockImplementation(() => {});
     mockChildProcess.stderr.on.mockImplementation(() => {});
@@ -982,7 +982,7 @@ describe('kill', () => {
     expect(agents.length).toBe(1);
     expect(agents[0].status).toBe('running');
 
-    spawner.kill(agents[0].agentId);
+    spawner.cancel(agents[0].agentId);
     expect(mockChildProcess.kill).toHaveBeenCalledWith('SIGTERM');
 
     // Now resolve the child process so the spawn promise can complete
@@ -992,8 +992,8 @@ describe('kill', () => {
     }
 
     const finalResult = await spawnPromise;
-    expect(finalResult.status).toBe('killed');
-    expect(finalResult.error).toBe('Killed by spawner');
+    expect(finalResult.status).toBe('cancelled');
+    expect(finalResult.error).toBe('Cancelled by spawner');
   });
 });
 
@@ -1156,10 +1156,10 @@ describe('PD coordination', () => {
     );
     expect(heartbeatCalls.length).toBeGreaterThanOrEqual(1);
 
-    // Kill to clean up
+    // Cancel to clean up
     const agents = spawner.list();
     if (agents.length > 0) {
-      spawner.kill(agents[0].agentId);
+      spawner.cancel(agents[0].agentId);
     }
 
     // Resolve child process
@@ -2001,7 +2001,7 @@ describe('spawn — MAX_CONCURRENT_RUNNING ceiling', () => {
     await new Promise(r => setTimeout(r, 20));
 
     async function teardown() {
-      for (const agent of spawner.list()) spawner.kill(agent.agentId);
+      for (const agent of spawner.list()) spawner.cancel(agent.agentId);
       const closeHandlers = mockChildProcess.on.mock.calls.filter(([e]) => e === 'close');
       for (const [, cb] of closeHandlers) cb(null);
       await Promise.allSettled(promises);

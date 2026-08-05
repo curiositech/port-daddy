@@ -651,7 +651,7 @@ export function createBonds(db: Database, deps: BondsDeps = {}) {
 
   /**
    * Set the daily USD budget ceiling for a project. Enforced by the
-   * cost-tracker → budget-guard → spawner.kill chain. Passing null
+   * cost-tracker → budget-guard → spawner.cancel chain. Passing null
    * removes the budget (project falls back to "no enforcement").
    *
    * Setting a budget is the gate that unblocks spawning: spawner refuses

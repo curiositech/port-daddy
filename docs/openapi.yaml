@@ -4076,7 +4076,7 @@ paths:
                     description: Source that selected a different effective backend, or none when requested/effective are identical.
                   status:
                     type: string
-                    enum: [running, completed, failed, killed, over_budget, unknown]
+                    enum: [running, completed, failed, cancelled, over_budget, unknown]
                     description: Spawn lifecycle status. over_budget is terminal and occurs when final exact telemetry cost exceeds the request budgetUsd hard cap after transcript telemetry is recorded.
         '202':
           description: Run durably admitted; collect it from the Location monitor resource
@@ -4169,7 +4169,7 @@ paths:
                     type: string
                   status:
                     type: string
-                    enum: [running, completed, failed, killed, over_budget, unknown]
+                    enum: [running, completed, failed, cancelled, over_budget, unknown]
                   liveness:
                     type: object
                     nullable: true

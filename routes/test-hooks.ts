@@ -3,7 +3,7 @@
  *
  * Why this exists separately from the main route surface:
  *   The kill-switch pipeline (cost-tracker → budget-guard → onKill →
- *   pause-and-ask → spawner.kill → bonds.slash) cannot be exercised end-to-
+ *   pause-and-ask → spawner.cancel → bonds.slash) cannot be exercised end-to-
  *   end from the outside without an actual subprocess paying real LLM money.
  *   Spec docs/shipwright/FLEETCONTROL-HARDENING.md §6.2 calls for an
  *   integration test that proves the chain fires correctly under a budget

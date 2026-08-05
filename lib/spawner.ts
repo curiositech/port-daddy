@@ -4,7 +4,7 @@
  * Factory function createSpawner(deps) with methods:
  * - spawn(spec): Launch an AI agent (ollama/claude/gemini/codex/aider/custom)
  * - list(): List active spawned agents
- * - kill(agentId): Stop a spawned agent
+ * - cancel(agentId): Cancel a spawned agent and retain its evidence
  *
  * Auto-wires Port Daddy coordination (register/session/heartbeat/done) silently.
  */
@@ -235,7 +235,7 @@ export interface SpawnResult {
   requestedModel?: string;
   effectiveModel?: string;
   backendOverrideSource?: BackendOverrideSource;
-  status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget' | 'unknown';
+  status: 'running' | 'completed' | 'failed' | 'cancelled' | 'over_budget' | 'unknown';
   output: string | null;
   error: string | null;
   telemetry: SpawnTelemetry | null;
@@ -266,7 +266,7 @@ export interface SpawnedAgent {
   requestedModel?: string;
   effectiveModel?: string;
   backendOverrideSource?: BackendOverrideSource;
-  status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
+  status: 'running' | 'completed' | 'failed' | 'cancelled' | 'over_budget';
   identity: string | null;
   purpose: string | null;
   startedAt: number;
@@ -1667,7 +1667,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
   function txFinalize(
     transcriptId: string | null,
-    status: 'completed' | 'failed' | 'killed' | 'over_budget',
+    status: 'completed' | 'failed' | 'cancelled' | 'over_budget',
     endedAt: number,
     telemetry: SpawnTelemetry | null,
     error: string | null,
@@ -1719,7 +1719,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
   const ONE_HOUR = 60 * 60 * 1000;
 
   /**
-   * Remove completed/failed/killed agents older than 1 hour,
+   * Remove completed/failed/cancelled agents older than 1 hour,
    * and enforce a hard cap of MAX_AGENT_RECORDS entries.
    */
   function cleanupStaleAgents(): void {
@@ -2357,14 +2357,14 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       error = (err as Error).message;
     }
 
-    // Common cleanup — runs for success, failure, and asynchronous kill.
-    const wasKilled = record.status === 'killed';
-    if (wasKilled) {
-      error = 'Killed by spawner';
+    // Common cleanup — runs for success, failure, and asynchronous cancellation.
+    const wasCancelled = record.status === 'cancelled';
+    if (wasCancelled) {
+      error = 'Cancelled by spawner';
       output = null;
     }
     const completedAt = record.completedAt ?? Date.now();
-    let status: SpawnResult['status'] = wasKilled ? 'killed' : budgetOverrunError ? 'over_budget' : error ? 'failed' : 'completed';
+    let status: SpawnResult['status'] = wasCancelled ? 'cancelled' : budgetOverrunError ? 'over_budget' : error ? 'failed' : 'completed';
 
     record.status = status;
     record.completedAt = completedAt;
@@ -2382,7 +2382,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       enteredHarborName = null;
     }
 
-    if (!wasKilled) {
+    if (!wasCancelled) {
       const doneNote = error ? `Failed: ${error.slice(0, 200)}` : `Completed: ${(output || '').slice(0, 200)}`;
       // Spawner-managed agents bypass the pd-done origin-push rule: they
       // are ephemeral workflow agents whose lifetime is tied to a
@@ -2406,12 +2406,12 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         // was already appended mid-run via onTranscriptDelta, so re-appending
         // `structuredTurns` or `output` here would duplicate the whole
         // conversation. Record nothing extra — the error turn below still fires.
-      } else if (structuredTurns && !wasKilled) {
+      } else if (structuredTurns && !wasCancelled) {
         // Full-depth path (codex / non-streamed): reasoning + tool calls + each
         // message turn. The final agent_message is already the last structured
         // turn, so we do NOT also append `output` — that would duplicate it.
         txMessages(transcriptId, structuredTurns, completedAt);
-      } else if (output && !wasKilled) {
+      } else if (output && !wasCancelled) {
         // Final-answer-only backends (API calls): one assistant turn.
         txAssistant(transcriptId, output, completedAt);
       }
@@ -2424,7 +2424,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       // summarizing the result. Fleet ships can later call
       // transcripts.appendOutput() directly to add pr-comment / draft-pr /
       // commit artifacts.
-      if (!wasKilled && transcriptId) {
+      if (!wasCancelled && transcriptId) {
         const turnCount = structuredTurns?.length ?? 0;
         const summary = error
           ? `failed: ${error.slice(0, 160)}`
@@ -2464,8 +2464,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     // commons pool absorbs the cost so the operator doesn't eat it silently.
     if (bonds && bondId) {
       try {
-        if (wasKilled) {
-          // kill() already resolves the bond as an operator intervention.
+        if (wasCancelled) {
+          // cancel() already resolves the bond as an operator intervention.
         } else if (error) {
           bonds.slash(bondId, bondUsd, `spawn-failed: ${error.slice(0, 120)}`);
         } else {
@@ -2476,7 +2476,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       }
     }
 
-    if (!wasKilled) {
+    if (!wasCancelled) {
       counters?.bump(error ? 'spawn.failed' : 'spawn.completed', dims);
     }
     if (!error) {
@@ -2595,9 +2595,9 @@ export function createSpawner(deps: SpawnerDeps = {}) {
   }
 
   /**
-   * Stop a running spawned agent.
+   * Cancel a running spawned agent while retaining its durable evidence.
    */
-  function kill(agentId: string): void {
+  function cancel(agentId: string): void {
     const record = agents.get(agentId);
     if (!record) return;
     // A terminal receipt is immutable. Late budget-pause, panic, or operator
@@ -2614,54 +2614,54 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       harbors?.leaveAll(agentId);
     } catch {}
 
-    // Kill child process if present
+    // Signal the child process if present.
     if (record.childProcess) {
       terminateChildProcess(record.childProcess);
       record.childProcess = null;
     }
 
-    record.status = 'killed';
+    record.status = 'cancelled';
     record.completedAt = Date.now();
-    counters?.bump('spawn.killed', metricDims(record.backend, record.model, record.identity));
+    counters?.bump('spawn.cancelled', metricDims(record.backend, record.model, record.identity));
 
-    // Kill is an intervention, not a clean exit — slash the bond so the
+    // Cancellation is an intervention, not a clean exit — slash the bond so the
     // commons pool captures the cost of the decision. Panic path calls
     // bonds.refund separately (operator action, not misbehavior) BEFORE
-    // invoking kill, so by the time we get here the bond is either already
-    // resolved (no-op) or this is a real kill-for-cause.
+    // invoking cancel, so by the time we get here the bond is either already
+    // resolved (no-op) or this is a real cancellation-for-cause.
     if (bonds && record.bondId) {
       try {
-        bonds.slash(record.bondId, record.bondUsd || 0, 'killed-by-spawner');
+        bonds.slash(record.bondId, record.bondUsd || 0, 'cancelled-by-spawner');
       } catch {}
     }
 
     // PD coordination: done (fire-and-forget)
     pdCoordinate('/sugar/done', {
       agentId,
-      note: 'Killed by spawner',
+      note: 'Cancelled by spawner',
       status: 'abandoned',
       skipOriginCheck: true,
-      skipOriginCheckReason: 'spawner-managed agent killed by operator',
+      skipOriginCheckReason: 'spawner-managed agent cancelled by operator',
     }).catch(() => {});
 
     // Finalize any open transcript for this agent. We don't keep the
     // transcriptId on the AgentRecord (to avoid a circular type dep on the
-    // public SpawnedAgent shape), so kill() finalizes by spawned_agent_id.
+    // public SpawnedAgent shape), so cancel() finalizes by spawned_agent_id.
     if (transcripts) {
       try {
         const open = transcripts.listTranscripts({ agentId, status: 'running', limit: 1 });
         for (const tx of open) {
           transcripts.finalize(tx.id, {
-            status: 'killed',
+            status: 'cancelled',
             ended_at: Date.now(),
-            error: 'Killed by spawner',
+            error: 'Cancelled by spawner',
           });
         }
       } catch { /* swallow */ }
     }
   }
 
-  return { spawn, list, get, kill };
+  return { spawn, list, get, cancel };
 }
 
 export type Spawner = ReturnType<typeof createSpawner>;

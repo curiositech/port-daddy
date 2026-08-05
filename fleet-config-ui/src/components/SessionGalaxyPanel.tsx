@@ -284,7 +284,7 @@ function statusColor(status: GalaxyPoint['status']): string {
   switch (status) {
     case 'running': return 'var(--pd-success)';
     case 'failed': return 'var(--pd-accent)';
-    case 'killed': return 'var(--pd-warning)';
+    case 'cancelled': return 'var(--pd-warning)';
     default: return 'var(--pd-muted)';
   }
 }

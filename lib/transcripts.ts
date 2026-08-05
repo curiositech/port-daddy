@@ -40,7 +40,7 @@ import type Database from 'better-sqlite3';
 // is visible, not just its final answer.
 export type TranscriptRole = 'system' | 'user' | 'assistant' | 'tool' | 'thinking';
 export type OutputType = 'pr-comment' | 'issue' | 'draft-pr' | 'commit' | 'noop' | 'message' | 'other';
-export type TranscriptStatus = 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
+export type TranscriptStatus = 'running' | 'completed' | 'failed' | 'cancelled' | 'over_budget';
 
 export interface TranscriptMessage {
   role: TranscriptRole;
@@ -171,7 +171,7 @@ export interface TranscriptsModule {
   appendMessage(id: string, message: TranscriptMessage): void;
   /** Append an output artifact to an existing transcript. */
   appendOutput(id: string, output: TranscriptOutput): void;
-  /** Mark transcript as completed/failed/killed and finalize cost+tokens. */
+  /** Mark transcript as completed/failed/cancelled and finalize cost+tokens. */
   finalize(id: string, finalize: TranscriptFinalizeInput): void;
   /** Top-level record (alternative to start/append/finalize when the whole conversation is known up-front). */
   recordTranscript(entry: TranscriptEntry): void;

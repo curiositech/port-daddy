@@ -562,6 +562,10 @@ pd spawn cancel <id>    # cancel a running spawn and retain its evidence
 pd transcripts          # durable agent transcripts (survive DB loss, ADR-0058)
 ```
 
+Spawn receipts use one cancellation state, `cancelled`, across the CLI, API,
+transcript, and Fleet UI. Cancellation stops live work; it does not delete the
+receipt, transcript, partial output, or worktree needed for inspection and salvage.
+
 `pd spawn` admits the run, persists its transcript, and follows a monitor resource; Ctrl-C detaches only the client. CLI agents have no arbitrary default wall-clock deadline. Use `--timeout <ms>` only when the task itself has a real deadline, or `--detach` to return the receipt immediately. A daemon restart without a terminal event is reported as **outcome unknown**, never rewritten as agent failure. “Live” requires a direct child PID plus a fresh supervisor heartbeat.
 
 Operator surfaces continue an existing Port Daddy session through `POST /sessions/:predecessorId/continue`. The caller names the concrete harness backend, current user-owned linked worktree, direction, and an idempotency key. The predecessor stays immutable; its id, purpose, and terminal state are frozen into the receipt rather than reconstructed from mutable session lookup. An exact retry waits for and resolves to the same admitted successor, while request drift returns 409; it can never return a hollow 202 before a successor exists. HTTP 202 is emitted only after the successor transcript and durable coordination session both exist. The response contains one successor, a stable receipt, and `GET /sessions/continuations/:receiptId` for reconnectable collection; `DELETE` cancels the owned run. Budget and backend-reported token/cost telemetry remain on the receipt after in-memory eviction or restart. A transport disconnect never cancels work, no timeout is invented when `timeoutMs` is omitted, and a restart without terminal evidence becomes **outcome unknown** until direct PID plus fresh-heartbeat evidence re-establishes `live` or a terminal result is collected.

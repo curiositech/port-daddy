@@ -3,7 +3,7 @@
  *
  * POST /spawn        — launch an AI agent, body: SpawnSpec, returns SpawnResult
  * GET  /spawn        — list active spawned agents
- * DELETE /spawn/:id  — kill a spawned agent
+ * DELETE /spawn/:id  — cancel a spawned agent and retain its evidence
  */
 
 import type { FastifyPluginAsync } from 'fastify';
@@ -598,7 +598,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
     try {
       const id = String((request.params as any).id);
 
-      spawner.kill(id);
+      spawner.cancel(id);
 
       logger.info('spawn_cancel', { agentId: id });
 

@@ -104,7 +104,7 @@ function buildApp(options = {}) {
     }),
     list: jest.fn(() => liveRecord ? [liveRecord] : []),
     get: jest.fn(() => currentRun),
-    kill: jest.fn(() => true),
+    cancel: jest.fn(() => true),
   };
   app.register(sessionsPlugin, {
     deps: {
@@ -437,7 +437,7 @@ describe('session continuation routes', () => {
       terminal: true,
       receipt: { error: 'Cancelled by operator.' },
     });
-    expect(state.spawner.kill).toHaveBeenCalledWith('spawned-successor');
+    expect(state.spawner.cancel).toHaveBeenCalledWith('spawned-successor');
 
     state.finish(terminalResult());
     await new Promise((resolve) => setImmediate(resolve));

@@ -27,7 +27,6 @@ export const TERMINAL_AGENT_RUN_STATUSES = new Set<AgentRunReceiptStatus>([
 
 export function agentRunStatusForSpawnResult(result: SpawnResult): AgentRunReceiptStatus {
   if (result.agentId === 'blocked') return 'no_runtime';
-  if (result.status === 'killed') return 'cancelled';
   if (result.status === 'running') return 'starting';
   return result.status;
 }

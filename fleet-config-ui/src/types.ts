@@ -1233,7 +1233,7 @@ export interface GalaxyPoint {
   project: string | null;
   identity: string | null;
   purpose: string | null;
-  status: 'running' | 'completed' | 'failed' | 'killed';
+  status: 'running' | 'completed' | 'failed' | 'cancelled';
   startedAt: number;
   endedAt: number | null;
   tailTokens: number;          // estimated tokens actually embedded (chars/4)
@@ -1300,7 +1300,7 @@ export interface GalaxyTranscriptEntry {
   trigger: string;
   backend: string;
   model: string;
-  status: 'running' | 'completed' | 'failed' | 'killed';
+  status: 'running' | 'completed' | 'failed' | 'cancelled';
   started_at: number;
   ended_at?: number | null;
   cost_usd?: number | null;

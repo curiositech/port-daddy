@@ -994,7 +994,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       return { success: false, error: 'session continuation receipt not found', code: 'RECEIPT_NOT_FOUND' };
     }
     if (receipt.successorAgentId && !TERMINAL_AGENT_RUN_STATUSES.has(receipt.status)) {
-      spawner.kill(receipt.successorAgentId);
+      spawner.cancel(receipt.successorAgentId);
     }
     const cancelled = TERMINAL_AGENT_RUN_STATUSES.has(receipt.status)
       ? receipt

@@ -680,7 +680,7 @@ const budgetGuard = createBudgetGuard(db, {}, {
   souls: actorSouls,
 });
 
-// Late-binding spawner ref: cost-tracker needs to trigger spawner.kill() on
+// Late-binding spawner ref: cost-tracker needs to trigger spawner.cancel() on
 // budget breach, but spawner needs costTracker in its constructor. Resolve
 // with a mutable container — set after both are created.
 let spawnerRef: ReturnType<typeof createSpawner> | null = null;
@@ -690,7 +690,7 @@ let spawnerRef: ReturnType<typeof createSpawner> | null = null;
 const budgetPause = createBudgetPause({
   killAgent: (agentId: string) => {
     logger.warn('budget_kill_executing', { agentId });
-    spawnerRef?.kill(agentId);
+    spawnerRef?.cancel(agentId);
   },
   bonds,
   broadcast: (channel, event) => messaging.publish(channel, event),

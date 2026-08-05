@@ -41,7 +41,7 @@ function makeImmediateSpawner() {
       void spec;
       return { agentId: `agent-${++counter}`, status: 'completed', output: 'ok', error: null };
     }),
-    kill: jest.fn(),
+    cancel: jest.fn(),
   };
 }
 

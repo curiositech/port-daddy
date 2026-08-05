@@ -3955,7 +3955,7 @@ interface SpawnResult {
   requestedModel?: string;
   effectiveModel?: string;
   backendOverrideSource?: BackendOverrideSource;
-  status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
+  status: 'running' | 'completed' | 'failed' | 'cancelled' | 'over_budget';
   output: string | null;
   error: string | null;
   telemetry: {
@@ -3979,7 +3979,7 @@ interface SpawnedAgent {
   requestedModel?: string;
   effectiveModel?: string;
   backendOverrideSource?: BackendOverrideSource;
-  status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
+  status: 'running' | 'completed' | 'failed' | 'cancelled' | 'over_budget';
   identity: string | null;
   purpose: string | null;
   startedAt: number;

@@ -90,10 +90,10 @@ export const observabilityPlugin: FastifyPluginAsync<{ deps: ObservabilityDeps }
     const ratePerMin    = +(recentStarted.reduce((s, r) => s + r.value, 0) / 5).toFixed(2);
 
     // All 1-hour metrics in a single SQL round-trip (was 5 separate query() calls).
-    const hourKeys = ['spawn.started', 'spawn.failed', 'spawn.killed', 'spawn.duration_ms', 'spawn.completed'];
+    const hourKeys = ['spawn.started', 'spawn.failed', 'spawn.cancelled', 'spawn.duration_ms', 'spawn.completed'];
     const hourTotals = counters.queryTotals(hourKeys, { since: oneHourAgo, groupBy: 'hour' });
     const totalStarted  = hourTotals.get('spawn.started')    ?? 0;
-    const totalFailed   = (hourTotals.get('spawn.failed') ?? 0) + (hourTotals.get('spawn.killed') ?? 0);
+    const totalFailed   = (hourTotals.get('spawn.failed') ?? 0) + (hourTotals.get('spawn.cancelled') ?? 0);
     const totalDuration = hourTotals.get('spawn.duration_ms') ?? 0;
     const totalComplete = hourTotals.get('spawn.completed')   ?? 0;
 

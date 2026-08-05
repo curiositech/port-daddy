@@ -35,7 +35,7 @@ class SpawnMonitorMissingError extends Error {}
 
 function spawnCollectionSettled(data: Record<string, unknown>): boolean {
   return data.terminal === true || data.outcomeUnknown === true ||
-    ['completed', 'failed', 'killed', 'cancelled', 'over_budget', 'no_runtime', 'unknown'].includes(String(data.status || ''));
+    ['completed', 'failed', 'cancelled', 'over_budget', 'no_runtime', 'unknown'].includes(String(data.status || ''));
 }
 
 async function collectSpawn(monitorUrl: string): Promise<Record<string, unknown>> {
@@ -63,7 +63,7 @@ async function collectSpawn(monitorUrl: string): Promise<Record<string, unknown>
 
 function printSpawnResult(data: Record<string, unknown>, options: CLIOptions): void {
   const failed = data.success === false && data.outcomeUnknown !== true ||
-    ['failed', 'killed', 'cancelled', 'over_budget', 'no_runtime'].includes(String(data.status || ''));
+    ['failed', 'cancelled', 'over_budget', 'no_runtime'].includes(String(data.status || ''));
   const unknown = data.outcomeUnknown === true || data.status === 'unknown';
 
   if (isJson(options)) {

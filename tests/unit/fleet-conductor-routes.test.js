@@ -20,16 +20,16 @@ import { createConductor } from '../../lib/fleet/conductor.js';
 
 function makeSpawner() {
   let counter = 0;
-  const killed = [];
+  const cancelled = [];
   return {
-    killed,
+    cancelled,
     spawn: jest.fn(async () => ({
       agentId: `agent-${++counter}`,
       status: 'completed',
       output: 'ok',
       error: null,
     })),
-    kill: jest.fn((id) => killed.push(id)),
+    cancel: jest.fn((id) => cancelled.push(id)),
   };
 }
 
@@ -93,9 +93,9 @@ describe('Conductor operator-control routes (ADR-0060)', () => {
     // A pending spawner keeps the launch RUNNING so the halt has a live target.
     let resolveSpawn;
     const pendingSpawner = {
-      killed: [],
+      cancelled: [],
       spawn: jest.fn(() => new Promise((r) => { resolveSpawn = () => r({ agentId: 'agent-x', status: 'completed', output: 'ok', error: null }); })),
-      kill: jest.fn((id) => pendingSpawner.killed.push(id)),
+      cancel: jest.fn((id) => pendingSpawner.cancelled.push(id)),
     };
     const db = new Database(':memory:');
     const conductor = createConductor({ db, spawner: pendingSpawner, isMainCheckout: () => false });

@@ -34,16 +34,16 @@ import { createFleetCircuitBreaker, GLOBAL_SCOPE } from '../../lib/fleet/circuit
 
 /**
  * A fake spawner that records every `spawn` call (for the golden test) and
- * returns a scripted outcome. `kill` is recorded so HALT_IS_TOTAL can assert the
- * SIGTERM→SIGKILL reached the right agents.
+ * returns a scripted outcome. `cancel` is recorded so HALT_IS_TOTAL can assert
+ * the cancellation reached the right agents.
  */
 function makeSpawner(outcome = {}) {
   const calls = [];
-  const killed = [];
+  const cancelled = [];
   let counter = 0;
   return {
     calls,
-    killed,
+    cancelled,
     spawn: jest.fn(async (spec) => {
       calls.push(spec);
       const agentId = outcome.agentId ?? `agent-${++counter}`;
@@ -55,8 +55,8 @@ function makeSpawner(outcome = {}) {
         ...(outcome.telemetry ? { telemetry: outcome.telemetry } : {}),
       };
     }),
-    kill: jest.fn((agentId) => {
-      killed.push(agentId);
+    cancel: jest.fn((agentId) => {
+      cancelled.push(agentId);
     }),
   };
 }
@@ -139,12 +139,12 @@ function tick() {
  */
 function makePendingSpawner() {
   const calls = [];
-  const killed = [];
+  const cancelled = [];
   const resolvers = [];
   let counter = 0;
   const spawner = {
     calls,
-    killed,
+    cancelled,
     spawn: jest.fn((spec) => {
       calls.push(spec);
       const agentId = `agent-${++counter}`;
@@ -152,7 +152,7 @@ function makePendingSpawner() {
         resolvers.push(() => resolve({ agentId, status: 'completed', output: 'ok', error: null }));
       });
     }),
-    kill: jest.fn((id) => killed.push(id)),
+    cancel: jest.fn((id) => cancelled.push(id)),
   };
   return { spawner, releaseAll: () => resolvers.forEach((fn) => fn()) };
 }
@@ -544,7 +544,7 @@ describe('I7 HALT_IS_TOTAL', () => {
     expect(spawner.calls.length).toBe(1);
 
     // Halt the whole fleet. The body's agentId is not yet known (spawn pending),
-    // so the kill is DEFERRED: the launch is marked halted now, admission freezes
+    // so cancellation is DEFERRED: the launch is marked halted now, admission freezes
     // now, and the SIGTERM→SIGKILL fires the instant the spawn resolves.
     const result = conductor.halt();
     expect(result.halted.length).toBe(1);
@@ -555,10 +555,10 @@ describe('I7 HALT_IS_TOTAL', () => {
     const after = await conductor.launch({ ...ROOT_INTENT, goal: 'post-halt', lineageCeilingUsd: 100 });
     expect(after.admitted).toBe(false);
 
-    // Now the in-flight body resolves → the deferred kill fires.
+    // Now the in-flight body resolves → the deferred cancellation fires.
     releaseAll();
     await p.catch(() => {});
-    expect(spawner.kill).toHaveBeenCalledTimes(1); // SIGTERM→SIGKILL honored
+    expect(spawner.cancel).toHaveBeenCalledTimes(1); // SIGTERM→SIGKILL honored
     // The launch stays halted (not promoted to produced) and records the body id.
     const final = conductor.get(haltedId);
     expect(final.state).toBe('halted');
@@ -571,32 +571,32 @@ describe('I7 HALT_IS_TOTAL', () => {
     const { conductor } = makeConductor({ spawner, bonds });
     const p = conductor.launch({ ...ROOT_INTENT, bondUsd: 5, lineageCeilingUsd: 100 });
     await tick();
-    // Halt while the spawn is pending → kill + refund are deferred to resolution.
+    // Halt while the spawn is pending → cancellation + refund are deferred to resolution.
     conductor.halt();
     expect(bonds.slash).not.toHaveBeenCalled(); // never slash on operator halt
-    // On resolution the bond is refunded BEFORE the body is killed.
+    // On resolution the bond is refunded BEFORE the body is cancelled.
     releaseAll();
     await p.catch(() => {});
     expect(bonds.refund).toHaveBeenCalled();
     expect(bonds.refunded).toContain(7);
     expect(bonds.slash).not.toHaveBeenCalled();
-    // Refund happened before the kill (ordering): refund recorded, then kill.
-    expect(spawner.killed).toContain('agent-1');
+    // Refund happened before cancellation (ordering): refund recorded, then cancel.
+    expect(spawner.cancelled).toContain('agent-1');
   });
 
-  test('pause stops admission but does NOT kill running agents', async () => {
+  test('pause stops admission but does NOT cancel running agents', async () => {
     const { spawner, releaseAll } = makePendingSpawner();
     const { conductor } = makeConductor({ spawner });
     const p = conductor.launch({ ...ROOT_INTENT, lineageCeilingUsd: 100 });
     await tick();
     conductor.pause();
-    expect(spawner.kill).not.toHaveBeenCalled(); // running agent survives a pause
+    expect(spawner.cancel).not.toHaveBeenCalled(); // running agent survives a pause
     const after = await conductor.launch({ ...ROOT_INTENT, goal: 'post-pause', lineageCeilingUsd: 100 });
     expect(after.admitted).toBe(false); // but admission is frozen
     releaseAll();
     await p.catch(() => {});
-    // A pause never escalates to a kill, even after the agent completes.
-    expect(spawner.kill).not.toHaveBeenCalled();
+    // A pause never escalates to cancellation, even after the agent completes.
+    expect(spawner.cancel).not.toHaveBeenCalled();
   });
 
   test('resume reopens admission after a pause', async () => {
@@ -737,7 +737,7 @@ describe('settlement & lifecycle', () => {
   test('a spawn that throws releases the lineage reservation and books a failure', async () => {
     const spawner = {
       spawn: jest.fn(async () => { throw new Error('spawn threw'); }),
-      kill: jest.fn(),
+      cancel: jest.fn(),
     };
     const { conductor, breaker } = makeConductor({ spawner });
     const res = await conductor.launch({ ...ROOT_INTENT, bondUsd: 5, lineageCeilingUsd: 10 });
@@ -829,13 +829,13 @@ describe('settlement & lifecycle', () => {
     let resolveSpawn;
     const spawner = {
       calls: [],
-      killed: [],
+      cancelled: [],
       spawn: jest.fn(() =>
         new Promise((r) => {
           resolveSpawn = () => r({ agentId: 'agent-parent', status: 'completed', output: 'ok', error: null });
         }),
       ),
-      kill: jest.fn((id) => spawner.killed.push(id)),
+      cancel: jest.fn((id) => spawner.cancelled.push(id)),
     };
     const { conductor } = makeConductor({ spawner });
     const p = conductor.launch({ ...ROOT_INTENT, lineageCeilingUsd: 100 });

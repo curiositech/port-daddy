@@ -46,9 +46,9 @@
  *   I7 HALT_IS_TOTAL            — operator halt on a scope transitions every
  *                                   running launch to `halted` and refuses every
  *                                   proposed one. Operator halt ALWAYS REFUNDS,
- *                                   never slashes (refund-before-kill, like the
+ *                                   never slashes (refund-before-cancel, like the
  *                                   panic path) — the operator is not punished for
- *                                   using the kill switch.
+ *                                   using the cancellation control.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -185,19 +185,19 @@ export interface Launch {
 export interface ConductorSpawner {
   spawn(spec: Record<string, unknown>): Promise<{
     agentId: string;
-    status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
+    status: 'running' | 'completed' | 'failed' | 'cancelled' | 'over_budget';
     output: string | null;
     error: string | null;
     [k: string]: unknown;
   }>;
-  kill(agentId: string): void;
+  cancel(agentId: string): void;
 }
 
 /**
- * Minimal shape of the bonds module the Conductor needs for refund-before-kill
+ * Minimal shape of the bonds module the Conductor needs for refund-before-cancel
  * on operator halt. Mirrors the panic route's convention exactly: list the
- * `running` bonds, refund the ones whose agentId is being halted, THEN kill —
- * so the spawner's kill-path slash becomes a no-op (the bond is already
+ * `running` bonds, refund the ones whose agentId is being halted, THEN cancel —
+ * so the spawner's cancellation-path slash becomes a no-op (the bond is already
  * operator-resolved). Operator halt therefore ALWAYS REFUNDS, never slashes.
  */
 export interface ConductorBonds {
@@ -459,11 +459,11 @@ export function createConductor(deps: ConductorDeps) {
 
   // Launches halted while their `spawner.spawn` is still pending: we do not yet
   // hold the agentId (the spawner returns it only on resolution), so we cannot
-  // SIGTERM mid-flight. We record the intent-to-kill here; the moment the spawn
+  // signal mid-flight. We record the intent-to-cancel here; the moment the spawn
   // resolves and the body's agentId is known, the run path honors the pending
-  // kill — SIGTERM→SIGKILL the just-born body — so HALT stays total even against
+  // cancel the just-born body — so HALT stays total even against
   // a launch caught between admission and a live agentId (ADR-0060 I7).
-  const pendingKills = new Set<string>();
+  const pendingCancels = new Set<string>();
 
   db.exec(SCHEMA_SQL);
 
@@ -522,8 +522,8 @@ export function createConductor(deps: ConductorDeps) {
 
   /**
    * Refund every `running` bond escrowed for `agentId`, BEFORE its body is
-   * killed. Mirrors routes/panic.ts: refunding first makes the spawner's
-   * kill-path slash a no-op, so operator halt ALWAYS REFUNDS and never slashes.
+   * cancelled. Mirrors routes/panic.ts: refunding first makes the spawner's
+   * cancellation-path slash a no-op, so operator halt ALWAYS REFUNDS and never slashes.
    */
   function refundBondsForAgent(agentId: string | null | undefined): void {
     if (!bonds || !agentId) return;
@@ -919,16 +919,16 @@ export function createConductor(deps: ConductorDeps) {
 
     // ── Halt-while-pending honor ───────────────────────────────────────────────
     // If an operator HALT landed while this spawn was still in flight, we now —
-    // and only now — hold the body's agentId. Honor the pending kill: SIGTERM→
-    // SIGKILL the body, refund (never slash) its bond, release the reservation,
+    // and only now — hold the body's agentId. Honor the pending cancellation:
+    // signal the body, refund (never slash) its bond, release the reservation,
     // and leave the launch in `halted` (already set by halt()) for salvage.
-    if (pendingKills.has(admitted.id)) {
-      pendingKills.delete(admitted.id);
+    if (pendingCancels.has(admitted.id)) {
+      pendingCancels.delete(admitted.id);
       refundBondsForAgent(spawnResult.agentId);
       try {
-        spawner.kill(spawnResult.agentId);
+        spawner.cancel(spawnResult.agentId);
       } catch {
-        /* kill is best-effort; the worktree + transcript are preserved to salvage */
+        /* cancellation is best-effort; the worktree + transcript are preserved to salvage */
       }
       if (reserved > 0) {
         breaker.release(lineageScope(admitted.rootId), reserved);
@@ -1024,7 +1024,7 @@ export function createConductor(deps: ConductorDeps) {
    * Operator HALT on a scope (I7). Atomic w.r.t. admission: the breaker is
    * opened first (so no new child is admitted), then every running launch in the
    * scope is SIGTERM→SIGKILLed via the spawner. Operator halt ALWAYS REFUNDS —
-   * we refund the bond BEFORE killing so the spawner's kill path sees the bond
+   * we refund the bond BEFORE cancelling so the spawner's cancellation path sees the bond
    * already resolved and does NOT slash it (mirrors the panic path).
    */
   function halt(scope: { rootId?: string } = {}): { halted: string[] } {
@@ -1043,21 +1043,21 @@ export function createConductor(deps: ConductorDeps) {
       .filter((l) => (scope.rootId ? l.rootId === scope.rootId : true));
 
     // CRITICAL ORDERING (mirrors routes/panic.ts): refund the live bonds of the
-    // agents we're about to halt BEFORE killing them. spawner.kill() slashes the
+    // agents we're about to halt BEFORE cancelling them. spawner.cancel() slashes the
     // bond as its cleanup step by default; refunding first makes that slash a
     // no-op, so operator halt ALWAYS REFUNDS and never slashes.
     const haltedIds: string[] = [];
     for (const l of targets) {
       if (l.agentId) {
-        // The body's agentId is already known → refund-then-kill synchronously.
+        // The body's agentId is already known → refund-then-cancel synchronously.
         refundBondsForAgent(l.agentId);
         try {
-          spawner.kill(l.agentId);
+          spawner.cancel(l.agentId);
         } catch {
-          /* kill is best-effort; the worktree+transcript are preserved to salvage */
+          /* cancellation is best-effort; the worktree+transcript are preserved to salvage */
         }
         // Release the reservation here: the body is resolved, so the run path's
-        // pending-kill branch will NOT fire a second release for this launch.
+        // pending-cancel branch will NOT fire a second release for this launch.
         //
         // INVARIANT (why the DB row is the correct release source): at admission
         // the breaker RESERVED exactly `effectiveBond(intent)` against both the
@@ -1075,11 +1075,11 @@ export function createConductor(deps: ConductorDeps) {
         }
       } else {
         // The spawn is still in flight; we do not hold the agentId yet. Record an
-        // intent-to-kill — the run path honors it the instant the spawn resolves
-        // (refund-then-SIGTERM the just-born body), so HALT stays total (I7). Do
-        // NOT release the reservation here: the run path's pending-kill branch
+        // intent-to-cancel — the run path honors it the instant the spawn resolves
+        // (refund, then signal the just-born body), so HALT stays total (I7). Do
+        // NOT release the reservation here: the run path's pending-cancel branch
         // releases it exactly once when the spawn resolves (no double-release).
-        pendingKills.add(l.id);
+        pendingCancels.add(l.id);
       }
       setState(l.id, 'halted', { settledAt: now() });
       haltedIds.push(l.id);

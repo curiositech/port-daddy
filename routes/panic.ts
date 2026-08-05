@@ -47,7 +47,7 @@ interface PanicRouteDeps {
   };
   spawner?: {
     list(): Array<{ agentId: string; status: string }>;
-    kill(agentId: string): void;
+    cancel(agentId: string): void;
   };
   bonds?: Bonds;
 }
@@ -124,11 +124,11 @@ export const panicPlugin: FastifyPluginAsync<{ deps: PanicRouteDeps }> = async (
       logger.error('fleet_panic_broadcast_failed', { error: (err as Error).message });
     }
 
-    // CRITICAL ORDERING: refund bonds BEFORE calling spawner.kill().
-    // spawner.kill() slashes the bond as its cleanup step (any kill is
+    // CRITICAL ORDERING: refund bonds BEFORE calling spawner.cancel().
+    // spawner.cancel() slashes the bond as its cleanup step (any cancellation is
     // treated as misbehavior by default). Panic is operator action, not
     // misbehavior — so we refund first. The subsequent slash call inside
-    // kill() becomes a no-op because the bond is already resolved.
+    // cancel() becomes a no-op because the bond is already resolved.
     let terminated = 0;
     let refunded = 0;
     try {
@@ -146,10 +146,10 @@ export const panicPlugin: FastifyPluginAsync<{ deps: PanicRouteDeps }> = async (
 
       for (const s of live) {
         try {
-          spawner?.kill(s.agentId);
+          spawner?.cancel(s.agentId);
           terminated++;
         } catch (err) {
-          logger.error('fleet_panic_kill_failed', { agentId: s.agentId, error: (err as Error).message });
+          logger.error('fleet_panic_cancel_failed', { agentId: s.agentId, error: (err as Error).message });
         }
       }
     } catch (err) {

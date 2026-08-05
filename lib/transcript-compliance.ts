@@ -23,7 +23,7 @@ export interface TranscriptBackendProfile {
 export interface TranscriptTrackedRun {
   agentId: string;
   backend: string;
-  status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
+  status: 'running' | 'completed' | 'failed' | 'cancelled' | 'over_budget';
   startedAt: number;
   completedAt?: number | null;
 }
