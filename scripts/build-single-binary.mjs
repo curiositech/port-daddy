@@ -339,7 +339,7 @@ function writeEmbeddedNativeCoreModule(target) {
  * fallback path is consulted at the actual `dlopen()` call, so it works
  * regardless of where Bun's own extraction puts the `.node` binding.
  */
-function packageOnnxRuntimeNative(target) {
+function packageOnnxRuntimeNative(target, releaseDir) {
   const requestedPlatform = targetPlatform(target);
   const requestedArch = targetArch(target);
   if (!requestedPlatform || !requestedArch) {
@@ -350,14 +350,19 @@ function packageOnnxRuntimeNative(target) {
   }
 
   const sourceDir = join(ROOT_DIR, 'node_modules', 'onnxruntime-node', 'bin', 'napi-v6', requestedPlatform, requestedArch);
+  const destDir = join(releaseDir, 'native', 'onnxruntime-node', `${requestedPlatform}-${requestedArch}`);
+  // Repeated or cross-target builds into the same payload directory must not
+  // retain a native library from an earlier generation.
+  rmSync(destDir, { recursive: true, force: true });
   if (!existsSync(sourceDir)) {
     return { status: 'skipped', reason: `no onnxruntime-node binaries at ${sourceDir}` };
   }
 
-  const destDir = join(DIST_DIR, 'native', 'onnxruntime-node', `${requestedPlatform}-${requestedArch}`);
-  mkdirSync(destDir, { recursive: true });
-
   const runtimeLibFiles = readdirSync(sourceDir).filter(name => !name.endsWith('.node'));
+  if (runtimeLibFiles.length === 0) {
+    return { status: 'skipped', reason: `no onnxruntime runtime libraries at ${sourceDir}` };
+  }
+  mkdirSync(destDir, { recursive: true });
   for (const name of runtimeLibFiles) {
     copyFileSync(join(sourceDir, name), join(destDir, name));
   }
@@ -526,7 +531,7 @@ run(process.execPath, ['scripts/build-public-samples.mjs'], { stdio: 'inherit' }
 const squidAssets = stageSquidReleaseAssets(releaseDir);
 const embeddedNativeCore = writeEmbeddedNativeCoreModule(target);
 const embeddedAssets = writeEmbeddedAssetsModule();
-const onnxRuntimeNative = packageOnnxRuntimeNative(target);
+const onnxRuntimeNative = packageOnnxRuntimeNative(target, releaseDir);
 
 if (canSmokeTarget && embeddedNativeCore.status !== 'embedded') {
   throw new Error(`Expected embedded native core for same-runner target ${target || 'host'}; got ${embeddedNativeCore.status}`);

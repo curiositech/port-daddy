@@ -103,6 +103,9 @@ describe('single binary distribution path', () => {
     expect(buildScript).toContain('self-hosted via hidden __daemon entrypoint');
     expect(buildScript).toContain('embedded in the executable through a generated asset table');
     expect(buildScript).toContain('embeddedNativeCore');
+    expect(buildScript).toContain('packageOnnxRuntimeNative(target, releaseDir)');
+    expect(buildScript).toContain("join(releaseDir, 'native', 'onnxruntime-node'");
+    expect(buildScript).not.toContain("join(DIST_DIR, 'native', 'onnxruntime-node'");
     expect(buildScript).toContain('smokeSelfHostedDaemon');
     expect(buildScript).toContain('writePdLauncher');
     expect(buildScript).toContain('launcherSource');
