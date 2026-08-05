@@ -79,6 +79,26 @@ export function isBunCompiledRuntime(signals: BunRuntimeSignals): boolean {
 }
 
 /**
+ * Return the process-start environment that mitigates Bun/JSC issue #676.
+ *
+ * JavaScriptCore reads these switches only during process initialization, so
+ * the design requires every launcher of a long-lived Bun process to merge this
+ * map into the child environment. Centralizing the map prevents the launchd,
+ * CLI, compiled re-exec, and Harbormaster paths from drifting apart. The
+ * operator can explicitly disable the mitigation for diagnosis.
+ *
+ * @param env - Environment carrying the explicit safe-mode opt-out.
+ * @returns JSC process-start switches, or an empty map when disabled.
+ */
+export function jscSafeModeEnv(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  if (env.PORT_DADDY_JSC_SAFE_MODE === '0') return {};
+  return {
+    BUN_JSC_useConcurrentGC: '0',
+    BUN_JSC_useConcurrentJIT: '0',
+  };
+}
+
+/**
  * One-shot guard so the unconventional-layout warning doesn't spam
  * stderr every time the resolver is called (CLI invocations chain
  * through it many times per command).

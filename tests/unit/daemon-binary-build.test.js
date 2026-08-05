@@ -1,7 +1,7 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { daemonBinaryName, resolveDaemonLaunchCommand } from '../../shared/daemon-binary.js';
+import { daemonBinaryName, resolveDaemonLaunchCommand, jscSafeModeEnv } from '../../shared/daemon-binary.js';
 
 describe('daemon binary launch contract', () => {
   test('resolves the distributed daemon binary when present', () => {
@@ -48,5 +48,44 @@ describe('daemon binary launch contract', () => {
     expect(command.program).toBe(process.execPath);
     expect(command.args).toEqual(['__daemon']);
     expect(command.env?.PORT_DADDY_RESOURCE_DIR).toBe(root);
+  });
+});
+
+describe('JSC safe-mode process-start contract', () => {
+  test('enables the shared mitigation unless the operator explicitly opts out', () => {
+    expect(jscSafeModeEnv({})).toEqual({
+      BUN_JSC_useConcurrentGC: '0',
+      BUN_JSC_useConcurrentJIT: '0',
+    });
+    expect(jscSafeModeEnv({ PORT_DADDY_JSC_SAFE_MODE: '0' })).toEqual({});
+  });
+
+  test('launchd plist rendering is derived from the shared environment map', async () => {
+    delete process.env.PORT_DADDY_JSC_SAFE_MODE;
+    const { jscSafeModeEnvXml } = await import('../../install-daemon.js');
+    expect(jscSafeModeEnvXml()).toBe(
+      '        <key>BUN_JSC_useConcurrentGC</key>\n' +
+      '        <string>0</string>\n' +
+      '        <key>BUN_JSC_useConcurrentJIT</key>\n' +
+      '        <string>0</string>',
+    );
+  });
+
+  test('every long-lived Bun spawn path merges the shared environment map', () => {
+    const daemonSource = readFileSync('cli/commands/daemon.ts', 'utf8');
+    const spawnDaemon = daemonSource.slice(
+      daemonSource.indexOf('function spawnDaemon('),
+      daemonSource.indexOf('function spawnDaemon(') + 700,
+    );
+    expect(spawnDaemon).toContain('...jscSafeModeEnv()');
+
+    const compiledReexec = daemonSource.indexOf("spawn(process.execPath, ['start', '--foreground']");
+    expect(compiledReexec).toBeGreaterThan(-1);
+    expect(daemonSource.slice(compiledReexec, compiledReexec + 260)).toContain('...jscSafeModeEnv()');
+
+    const harbormasterSource = readFileSync('cli/commands/harbormaster.ts', 'utf8');
+    const harbormasterSpawn = harbormasterSource.indexOf("'harbormaster', 'start', '--foreground'");
+    expect(harbormasterSpawn).toBeGreaterThan(-1);
+    expect(harbormasterSource.slice(harbormasterSpawn, harbormasterSpawn + 260)).toContain('...jscSafeModeEnv()');
   });
 });

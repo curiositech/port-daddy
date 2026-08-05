@@ -15,7 +15,7 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import { printBanner, printCompactHeader, printFarewell, WHEEL, ANCHOR, ANSI } from '../../lib/banner.js';
 import { autoFixStartupBlockers, diagnoseStartupBlockers } from '../utils/startup-doctor.js';
 import { DEFAULT_DAEMON_PORT, LOOPBACK_TCP_HOST, resolveDaemonPort } from '../../shared/daemon-discovery.js';
-import { resolveDaemonLaunchCommand, isBunCompiledRuntime, type DaemonLaunchCommand } from '../../shared/daemon-binary.js';
+import { resolveDaemonLaunchCommand, isBunCompiledRuntime, jscSafeModeEnv, type DaemonLaunchCommand } from '../../shared/daemon-binary.js';
 import { calculateRuntimeCodeHash, listRuntimeSourceFiles } from '../../shared/code-hash.js';
 import {
   buildDaemonProfileEnv,
@@ -440,6 +440,7 @@ function spawnDaemon(command: DaemonLaunchCommand, options: Parameters<typeof sp
     ...options,
     env: {
       ...process.env,
+      ...jscSafeModeEnv(),
       ...(command.env ?? {}),
       ...((options.env ?? {}) as NodeJS.ProcessEnv),
     },
@@ -732,6 +733,7 @@ async function attemptDaemonStart(command: DaemonLaunchCommand): Promise<boolean
     child = spawn(process.execPath, ['start', '--foreground'], {
       stdio: 'ignore',
       detached: true,
+      env: { ...process.env, ...jscSafeModeEnv() },
     });
   } else {
     child = spawnDaemon(command, {
