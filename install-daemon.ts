@@ -19,6 +19,8 @@ import { fileURLToPath } from 'url';
 import { homedir, platform } from 'os';
 import { getDaemonTcpUrl } from './shared/daemon-discovery.js';
 import { daemonBinaryName, resolveDaemonLaunchCommand, resolveDistributionRoot, type DaemonLaunchCommand } from './shared/daemon-binary.js';
+import { DEFAULT_IPC, DEFAULT_PID_FILE, DEFAULT_SOCK } from './shared/paths.js';
+import { readPublishedPidFile } from './lib/daemon-runtime.js';
 
 const MODULE_DIR: string = dirname(fileURLToPath(import.meta.url));
 const __dirname: string = resolveDistributionRoot(MODULE_DIR);
@@ -70,30 +72,18 @@ function isPortDaddyProcess(command: string): boolean {
 }
 
 function stopExistingCanonicalDaemon(): void {
-  const listeners = runCommand('lsof', ['-i', ':9876', '-sTCP:LISTEN', '-Fp']);
-  const pids = new Set<number>();
-
-  for (const line of listeners.stdout.split('\n')) {
-    if (!line.startsWith('p')) continue;
-    const pid = parseInt(line.slice(1), 10);
-    if (!Number.isFinite(pid) || pid <= 0) continue;
-    pids.add(pid);
-  }
-
-  for (const pid of pids) {
+  const published = readPublishedPidFile(DEFAULT_PID_FILE);
+  if (published.ok && published.value !== null) {
+    const pid = published.value;
     const ps = runCommand('ps', ['-p', String(pid), '-o', 'command=']);
     const command = (ps.stdout || '').trim().split('\n')[0] || '';
-    if (!isPortDaddyProcess(command)) continue;
-
-    runCommand('kill', ['-TERM', String(pid)]);
-    console.log(`  Stopped existing Port Daddy daemon (PID ${pid})`);
+    if (isPortDaddyProcess(command)) {
+      runCommand('kill', ['-TERM', String(pid)]);
+      console.log(`  Stopped existing Port Daddy daemon (PID ${pid}, from ${DEFAULT_PID_FILE})`);
+    }
   }
 
-  const stalePaths = [
-    join(homedir(), '.port-daddy', 'daemon.sock'),
-    join(homedir(), '.port-daddy', 'daemon.ipc'),
-  ];
-  for (const stalePath of stalePaths) {
+  for (const stalePath of [DEFAULT_SOCK, DEFAULT_IPC]) {
     if (!existsSync(stalePath)) continue;
     try {
       unlinkSync(stalePath);

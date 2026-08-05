@@ -44,6 +44,18 @@ describe('daemon installer service PATH', () => {
     expect(writeIdx).toBeGreaterThan(guardIdx);
   });
 
+  test('stops only the strictly published daemon PID instead of probing a preferred listener', () => {
+    const source = readFileSync(join(process.cwd(), 'install-daemon.ts'), 'utf8');
+    const start = source.indexOf('function stopExistingCanonicalDaemon');
+    const end = source.indexOf('function brewDaemonServiceLoaded', start);
+    const body = source.slice(start, end);
+
+    expect(body).toContain('readPublishedPidFile(DEFAULT_PID_FILE)');
+    expect(body).toContain("runCommand('ps', ['-p', String(pid), '-o', 'command='])");
+    expect(body).not.toContain("runCommand('lsof'");
+    expect(body).not.toContain('-i');
+  });
+
   // Extracts the body of a top-level `function <name>(` declaration up to
   // the next top-level `function` keyword so assertions remain scoped to one
   // generator instead of passing because an unrelated template happens to
