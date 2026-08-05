@@ -306,71 +306,67 @@ export async function retargetPrBase(
 // Re-run support: read back a branch the purser wrote earlier.
 
 /**
- * Read the purser's previously-authored test files back off its own branch.
+ * Read back the purser's previously-authored test files from its own branch.
  *
- * WHY: without this the purser has no memory. Every `synchronize` re-ran the
- * steel-man AND the test-author call, burning two model calls and rewriting
- * test files that were already correct — churn the PR author then has to
- * re-read. To re-run existing tests instead of re-authoring them, the contents
- * have to come from somewhere, and the branch is the only durable copy.
+ * WHY AN EXPLICIT PATH LIST, NOT A TREE WALK: the purser's branch is created
+ * with `base_tree` set to the PR's base commit (see {@link createOrUpdateBranch}),
+ * so its tree is THE ENTIRE REPOSITORY plus the handful of authored test files.
+ * Discovering the tests by listing the tree would enumerate every file in the
+ * repo and fetch a blob for each — hundreds to thousands of requests, which
+ * would time out or exhaust the rate limit and cost far more than the two model
+ * calls that re-running exists to save. It would move the treadmill, not remove
+ * it. Caught in review on #5399 before it ever ran.
  *
- * Uses the git *tree* API rather than one contents call per path, so the cost
- * is two requests regardless of file count, and returns `null` (never throws
- * for absence) when the ref does not exist — a first run is the normal case,
- * not an error.
+ * So the caller passes the exact paths, recorded in the contract fingerprint at
+ * author time. Cost is strictly `paths.length` requests — for a purser suite,
+ * ≤10.
  *
  * @param owner Repository owner.
  * @param repo Repository name.
  * @param branchName The executor-owned branch, e.g. `purser/pr-42-tests`.
+ * @param paths Exact repo-relative paths to read. Empty ⇒ null, no requests.
  * @param token Installation token.
- * @returns The files at the branch tip, or null when the branch does not exist.
+ * @returns The files, or null when none could be read (branch or paths gone).
  */
 export async function readBranchFiles(
   owner: string,
   repo: string,
   branchName: string,
+  paths: string[],
   token: string,
 ): Promise<StackedFile[] | null> {
+  if (!paths.length) return null;
   const base = `https://api.github.com/repos/${owner}/${repo}`;
-  let tree: { tree?: Array<{ path?: string; type?: string; sha?: string }> };
-  try {
-    tree = await ghJson(
-      `${base}/git/trees/${encodeURIComponent(branchName)}?recursive=1`,
-      { method: 'GET' },
-      token,
-      `read tree ${branchName}`,
-    );
-  } catch (err) {
-    // 404 ⇒ no previous run for this PR. Anything else is a real failure, but
-    // the caller's contract is "fall back to authoring", so absence and
-    // unreachability converge on the same safe behaviour.
-    if (err instanceof GitHubApiError && err.status === 404) return null;
-    throw err;
-  }
-
-  const blobs = (tree.tree ?? []).filter(
-    (e): e is { path: string; type: string; sha: string } =>
-      e.type === 'blob' && typeof e.path === 'string' && typeof e.sha === 'string',
-  );
-  if (blobs.length === 0) return null;
-
   const files: StackedFile[] = [];
-  for (const b of blobs) {
-    const blob = await ghJson<{ content?: string; encoding?: string }>(
-      `${base}/git/blobs/${b.sha}`,
-      { method: 'GET' },
-      token,
-      `read blob ${b.path}`,
-    );
-    if (blob.encoding !== 'base64' || typeof blob.content !== 'string') continue;
+
+  for (const path of paths) {
+    let entry: { content?: string; encoding?: string; type?: string };
+    try {
+      entry = await ghJson(
+        `${base}/contents/${path.split('/').map(encodeURIComponent).join('/')}` +
+          `?ref=${encodeURIComponent(branchName)}`,
+        { method: 'GET' },
+        token,
+        `read ${path}@${branchName}`,
+      );
+    } catch (err) {
+      // A missing path means the branch no longer carries that test — the
+      // suite is not intact, so the caller must author afresh rather than
+      // enforce a partial contract.
+      if (err instanceof GitHubApiError && err.status === 404) return null;
+      throw err;
+    }
+    if (entry.type !== 'file' || entry.encoding !== 'base64' || typeof entry.content !== 'string') {
+      return null;
+    }
     // atob yields latin-1 code units; re-decode as UTF-8 so non-ASCII test
     // content survives the round trip.
-    const bin = atob(blob.content.replace(/\n/g, ''));
+    const bin = atob(entry.content.replace(/\s/g, ''));
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    files.push({ path: b.path, contents: new TextDecoder().decode(bytes) });
+    files.push({ path, contents: new TextDecoder().decode(bytes) });
   }
-  return files.length > 0 ? files : null;
+  return files.length === paths.length ? files : null;
 }
 
 /**

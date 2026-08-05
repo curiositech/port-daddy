@@ -51,6 +51,20 @@ export interface ContractFingerprint {
   files: string[];
   /** Total diff size in characters — coarse on purpose. */
   size: number;
+  /**
+   * The test files the purser authored, by path.
+   *
+   * LOAD-BEARING, not informational. The purser's test branch is cut with
+   * `base_tree` set to the PR base, so its tree is THE WHOLE REPOSITORY plus
+   * these files. A re-run that tried to discover the tests by walking the tree
+   * would enumerate every file in the repo and fetch a blob for each — hundreds
+   * to thousands of requests, which would time out or exhaust the rate limit
+   * and cost far more than the two model calls re-running is meant to save.
+   *
+   * So the paths are recorded at author time and the re-run reads exactly this
+   * list. Absent (older test PRs) ⇒ nothing to read back ⇒ author afresh.
+   */
+  tests: string[];
 }
 
 export type RerunDecision =
@@ -64,8 +78,11 @@ export type RerunDecision =
  * names the post-image path, which is what a test would target. `/dev/null`
  * (a deletion's post-image) is skipped.
  *
+ * The `tests` list is filled in later by {@link withAuthoredTests}, once the
+ * test-author call has produced the files — the diff alone cannot know them.
+ *
  * @param diff The reviewed PR's unified diff.
- * @returns The fingerprint to embed alongside the authored tests.
+ * @returns The fingerprint, with an empty `tests` list.
  */
 export function fingerprintDiff(diff: string): ContractFingerprint {
   const files = new Set<string>();
@@ -76,7 +93,18 @@ export function fingerprintDiff(diff: string): ContractFingerprint {
     if (!path || path === '/dev/null') continue;
     files.add(path);
   }
-  return { files: [...files].sort(), size: (diff ?? '').length };
+  return { files: [...files].sort(), size: (diff ?? '').length, tests: [] };
+}
+
+/**
+ * Attach the authored test paths to a fingerprint before it is embedded.
+ *
+ * @param fp The diff fingerprint.
+ * @param paths Paths of the test files just authored.
+ * @returns A copy carrying the paths a later re-run will read back.
+ */
+export function withAuthoredTests(fp: ContractFingerprint, paths: string[]): ContractFingerprint {
+  return { ...fp, tests: [...paths].sort() };
 }
 
 /** Serialize a fingerprint into the hidden PR-body marker. */
@@ -101,7 +129,13 @@ export function decodeFingerprint(body: string | null | undefined): ContractFing
     const o = parsed as Record<string, unknown>;
     if (!Array.isArray(o.files) || typeof o.size !== 'number') return null;
     const files = o.files.filter((f): f is string => typeof f === 'string');
-    return { files, size: o.size };
+    // `tests` is absent on markers written before bounded re-reads existed.
+    // Treated as "no recorded tests", which routes the caller to re-author
+    // rather than to a tree walk.
+    const tests = Array.isArray(o.tests)
+      ? o.tests.filter((t): t is string => typeof t === 'string')
+      : [];
+    return { files, size: o.size, tests };
   } catch {
     return null;
   }

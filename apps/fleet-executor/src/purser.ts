@@ -54,6 +54,7 @@ import {
   decodeFingerprint,
   encodeFingerprint,
   fingerprintDiff,
+  withAuthoredTests,
 } from './purser-rerun.js';
 import {
   runTestsInSandbox,
@@ -595,9 +596,15 @@ export async function runPurser(
     try {
       const existingPr = await findOpenPrForBranch(prCtx.owner, prCtx.repo, branchName, token);
       if (existingPr) {
-        const priorFiles = await readBranchFiles(prCtx.owner, prCtx.repo, branchName, token);
+        const prior = decodeFingerprint(existingPr.body);
+        // Read ONLY the paths recorded at author time. The branch tree is the
+        // whole repository (base_tree), so there is nothing to discover here —
+        // see readBranchFiles. No recorded paths ⇒ no read at all ⇒ author.
+        const priorFiles = prior?.tests.length
+          ? await readBranchFiles(prCtx.owner, prCtx.repo, branchName, prior.tests, token)
+          : null;
         const decision = decideRerun(
-          decodeFingerprint(existingPr.body),
+          prior,
           fingerprint,
           Boolean(priorFiles && priorFiles.length),
         );
@@ -763,7 +770,8 @@ export async function runPurser(
         branchName,
         baseBranch,
         `purser: adversarial tests for #${prCtx.prNumber}`,
-        `${buildTestPrBody(prCtx, steel, files)}\n\n${encodeFingerprint(fingerprint)}`,
+        `${buildTestPrBody(prCtx, steel, files)}\n\n` +
+          `${encodeFingerprint(withAuthoredTests(fingerprint, files.map(f => f.path)))}`,
         ['purser', 'adversarial-tests'],
         token,
       );

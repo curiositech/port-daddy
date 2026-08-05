@@ -91,7 +91,9 @@ export function parseTestFailures(output: string): string[] {
   const out: string[] = [];
   for (const rawLine of output.split(/\r?\n/)) {
     // Strip ANSI colour so a coloured `×` still matches.
-    const line = rawLine.replace(/\[[0-9;]*m/g, '');
+    // \u001b escape rather than a literal ESC byte: the literal is invisible in
+    // most editors and is easily eaten by a formatter or a copy-paste.
+    const line = rawLine.replace(/\u001b\[[0-9;]*m/g, '');
     for (const re of patterns) {
       const m = re.exec(line);
       if (!m) continue;
