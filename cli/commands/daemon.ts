@@ -315,7 +315,6 @@ async function handleCanonicalSupervisedAction(
 ): Promise<boolean> {
   const health = await probeCanonicalHealth();
   const current = collectRuntimeIdentity(health, {
-    endpointPort: health ? DEFAULT_DAEMON_PORT : null,
     supervisor,
   });
   const healthPid = current.facts.healthPid;

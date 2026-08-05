@@ -1,12 +1,31 @@
-import { describe, expect, test } from '@jest/globals';
+import { afterAll, describe, expect, test } from '@jest/globals';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import {
   assessRuntimeIdentity,
+  collectRuntimeIdentity,
   parseLaunchctlPrint,
+  probeCanonicalHealth,
+  readPublishedPidFile,
+  readPublishedPortFile,
+  resolveProbeEndpoint,
   resolveRuntimeIdentityScope,
   runCanonicalLaunchdAction,
   waitForCanonicalRuntime,
 } from '../../lib/daemon-runtime.js';
 import { DEFAULT_DAEMON_PORT } from '../../shared/daemon-discovery.js';
+
+const scratchBase = join(homedir(), 'coding', 'tmp');
+mkdirSync(scratchBase, { recursive: true });
+const scratch = mkdtempSync(join(scratchBase, 'daemon-runtime-publication-'));
+afterAll(() => rmSync(scratch, { recursive: true, force: true }));
+
+function publication(name, value) {
+  const file = join(scratch, name);
+  writeFileSync(file, value);
+  return file;
+}
 
 const supervisor = {
   label: 'homebrew.mxcl.port-daddy',
@@ -133,6 +152,80 @@ describe('runtime identity scope', () => {
       runtimePrefix: '/work/dev-latest',
       canonicalSupervisor: supervisor,
     }).expectedPort).toBe(9886);
+  });
+});
+
+describe('strict runtime publication', () => {
+  test('reads a clean port and PID as whole-file integers', () => {
+    expect(readPublishedPortFile(publication('port-ok', '21001\n')).value).toBe(21_001);
+    expect(readPublishedPidFile(publication('pid-ok', '4242')).value).toBe(4242);
+  });
+
+  test.each([
+    ['missing', join(scratch, 'missing'), /not published/],
+    ['empty', publication('port-empty', ''), /not published/],
+    ['garbage', publication('port-garbage', '21001 trailing'), /malformed/],
+    ['torn', publication('port-torn', '21001\n21002'), /malformed/],
+    ['out of range', publication('port-range', '70000'), /out of range/],
+  ])('rejects a %s port publication', (_name, file, error) => {
+    const result = readPublishedPortFile(file);
+    expect(result.value).toBeNull();
+    expect(result.error).toMatch(error);
+  });
+
+  test('discovers the expected and observed port from the same publication by default', () => {
+    const shiftedPort = DEFAULT_DAEMON_PORT + 211;
+    const portFile = publication('port-collect', String(shiftedPort));
+    const pidFile = publication('pid-collect', '4242');
+    const result = collectRuntimeIdentity(
+      { status: 'ok', pid: 4242, daemon: { port: shiftedPort }, binaryDrift: { drifted: false } },
+      { portFile, pidFile, supervisor: null },
+    );
+    expect(result.state).toBe('converged');
+    expect(result.facts.expectedPort).toBe(shiftedPort);
+    expect(result.facts.endpointPort).toBe(shiftedPort);
+  });
+});
+
+describe('published endpoint probing', () => {
+  test('uses an explicit endpoint without consulting a malformed publication', async () => {
+    const calls = [];
+    const result = await probeCanonicalHealth({
+      endpoint: { port: 20_500 },
+      portFile: publication('ignored-malformed-port', 'garbage'),
+      requestHealth: async (endpoint) => {
+        calls.push(endpoint);
+        return { status: 'ok', daemon: { port: endpoint.port } };
+      },
+    });
+    expect(calls).toEqual([{ host: '127.0.0.1', port: 20_500 }]);
+    expect(result?.status).toBe('ok');
+  });
+
+  test('dials the strictly published port when no endpoint is injected', async () => {
+    const shiftedPort = DEFAULT_DAEMON_PORT + 313;
+    const portFile = publication('probe-port', String(shiftedPort));
+    const calls = [];
+    await probeCanonicalHealth({
+      portFile,
+      requestHealth: async (endpoint) => {
+        calls.push(endpoint.port);
+        return { status: 'ok' };
+      },
+    });
+    expect(resolveProbeEndpoint({ portFile })?.port).toBe(shiftedPort);
+    expect(calls).toEqual([shiftedPort]);
+  });
+
+  test('makes no network attempt when the publication is missing or malformed', async () => {
+    const calls = [];
+    const requestHealth = async (endpoint) => {
+      calls.push(endpoint);
+      return { status: 'ok' };
+    };
+    expect(await probeCanonicalHealth({ portFile: join(scratch, 'absent-port'), requestHealth })).toBeNull();
+    expect(await probeCanonicalHealth({ portFile: publication('bad-probe-port', 'bad'), requestHealth })).toBeNull();
+    expect(calls).toEqual([]);
   });
 });
 

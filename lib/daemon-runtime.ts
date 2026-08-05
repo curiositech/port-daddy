@@ -12,7 +12,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { DEFAULT_DAEMON_PORT, LOOPBACK_TCP_HOST } from '../shared/daemon-discovery.js';
+import { LOOPBACK_TCP_HOST } from '../shared/daemon-discovery.js';
 import { DEFAULT_PID_FILE, DEFAULT_PORT_FILE, PD_HOME } from '../shared/paths.js';
 
 export const CANONICAL_LAUNCHD_LABEL = 'homebrew.mxcl.port-daddy';
@@ -200,13 +200,50 @@ export function runCanonicalLaunchdAction(
   return runLaunchctl(['kickstart', supervisor.target]);
 }
 
-function readNumber(path: string): number | null {
+export interface StrictFileIntegerResult {
+  ok: boolean;
+  value: number | null;
+  path: string;
+  error: string | null;
+}
+
+const STRICT_WHOLE_NUMBER = /^[0-9]+$/;
+
+function readStrictWholeFileInteger(
+  path: string,
+  bounds: { min: number; max: number },
+): StrictFileIntegerResult {
+  let raw: string;
   try {
-    const value = Number.parseInt(readFileSync(path, 'utf8').trim(), 10);
-    return Number.isInteger(value) && value > 0 ? value : null;
+    raw = readFileSync(path, 'utf8');
   } catch {
-    return null;
+    return { ok: false, value: null, path, error: `not published: ${path} does not exist` };
   }
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    return { ok: false, value: null, path, error: `not published: ${path} is empty` };
+  }
+  if (!STRICT_WHOLE_NUMBER.test(trimmed)) {
+    return { ok: false, value: null, path, error: `malformed: ${path} is not a bare whole-file integer` };
+  }
+  const value = Number.parseInt(trimmed, 10);
+  if (!Number.isSafeInteger(value) || value < bounds.min || value > bounds.max) {
+    return {
+      ok: false,
+      value: null,
+      path,
+      error: `out of range: ${path} contains ${trimmed}, expected ${bounds.min}-${bounds.max}`,
+    };
+  }
+  return { ok: true, value, path, error: null };
+}
+
+export function readPublishedPortFile(path: string): StrictFileIntegerResult {
+  return readStrictWholeFileInteger(path, { min: 1, max: 65_535 });
+}
+
+export function readPublishedPidFile(path: string): StrictFileIntegerResult {
+  return readStrictWholeFileInteger(path, { min: 1, max: 4_194_304 });
 }
 
 /**
@@ -323,32 +360,43 @@ export function collectRuntimeIdentity(
   } = {},
 ): RuntimeIdentityAssessment {
   const now = opts.now ?? Date.now();
+  const pidFile = opts.pidFile ?? DEFAULT_PID_FILE;
   const portFile = opts.portFile ?? DEFAULT_PORT_FILE;
-  const portFilePort = readNumber(portFile);
+  const portFilePort = readPublishedPortFile(portFile).value;
+  const expectedPort = opts.expectedPort ?? portFilePort;
   const facts: RuntimeIdentityFacts = {
     checkedAt: now,
-    expectedPort: opts.expectedPort ?? portFilePort,
-    endpointPort: opts.endpointPort ?? null,
+    expectedPort,
+    endpointPort: opts.endpointPort ?? expectedPort,
     healthPid: Number.isInteger(health?.pid) ? health!.pid! : null,
     healthPort: Number.isInteger(health?.daemon?.port) ? health!.daemon!.port! : null,
     healthStatus: typeof health?.status === 'string' ? health.status : null,
     binaryDrifted: typeof health?.binaryDrift?.drifted === 'boolean' ? health.binaryDrift.drifted : null,
-    pidFilePid: readNumber(opts.pidFile ?? DEFAULT_PID_FILE),
+    pidFilePid: readPublishedPidFile(pidFile).value,
     portFilePort,
     supervisor: opts.supervisor === undefined ? inspectCanonicalLaunchdSupervisor() : opts.supervisor,
   };
   return assessRuntimeIdentity(facts);
 }
 
-/** Probe the canonical TCP endpoint directly, never through a stale port file. */
-export function probeCanonicalHealth(
-  port = DEFAULT_DAEMON_PORT,
-  timeoutMs = 1_500,
+export interface CanonicalHealthEndpoint {
+  host?: string;
+  port: number;
+}
+
+type HealthRequester = (
+  endpoint: { host: string; port: number },
+  timeoutMs: number,
+) => Promise<RuntimeHealthSnapshot | null>;
+
+function requestHealthOverTcp(
+  endpoint: { host: string; port: number },
+  timeoutMs: number,
 ): Promise<RuntimeHealthSnapshot | null> {
   return new Promise((resolve) => {
     const request = http.request({
-      host: LOOPBACK_TCP_HOST,
-      port,
+      host: endpoint.host,
+      port: endpoint.port,
       path: '/health',
       method: 'GET',
       timeout: timeoutMs,
@@ -373,11 +421,40 @@ export function probeCanonicalHealth(
   });
 }
 
+export interface ProbeCanonicalHealthOptions {
+  endpoint?: CanonicalHealthEndpoint | null;
+  portFile?: string;
+  timeoutMs?: number;
+  requestHealth?: HealthRequester;
+}
+
+/** Resolve an explicit or strictly published endpoint. Never guess a port. */
+export function resolveProbeEndpoint(
+  opts: Pick<ProbeCanonicalHealthOptions, 'endpoint' | 'portFile'> = {},
+): { host: string; port: number } | null {
+  if (opts.endpoint) {
+    return { host: opts.endpoint.host ?? LOOPBACK_TCP_HOST, port: opts.endpoint.port };
+  }
+  const published = readPublishedPortFile(opts.portFile ?? DEFAULT_PORT_FILE);
+  if (!published.ok || published.value === null) return null;
+  return { host: LOOPBACK_TCP_HOST, port: published.value };
+}
+
+/** Probe an explicit or published `/health` endpoint, failing closed when it is unavailable. */
+export function probeCanonicalHealth(
+  opts: ProbeCanonicalHealthOptions = {},
+): Promise<RuntimeHealthSnapshot | null> {
+  const endpoint = resolveProbeEndpoint(opts);
+  if (!endpoint) return Promise.resolve(null);
+  return (opts.requestHealth ?? requestHealthOverTcp)(endpoint, opts.timeoutMs ?? 1_500);
+}
+
 export async function waitForCanonicalRuntime(opts: {
   previousPid?: number | null;
   timeoutMs?: number;
   pollIntervalMs?: number;
   stableSamples?: number;
+  portFile?: string;
   probeHealth?: () => Promise<RuntimeHealthSnapshot | null>;
   inspectSupervisor?: () => LaunchdSupervisorSnapshot | null;
   collect?: (health: RuntimeHealthSnapshot | null, supervisor: LaunchdSupervisorSnapshot | null) => RuntimeIdentityAssessment;
@@ -386,10 +463,11 @@ export async function waitForCanonicalRuntime(opts: {
   const timeoutMs = opts.timeoutMs ?? 120_000;
   const pollIntervalMs = opts.pollIntervalMs ?? 250;
   const stableSamples = Math.max(1, opts.stableSamples ?? 2);
-  const probe = opts.probeHealth ?? (() => probeCanonicalHealth());
+  const portFile = opts.portFile ?? DEFAULT_PORT_FILE;
+  const probe = opts.probeHealth ?? (() => probeCanonicalHealth({ portFile }));
   const inspect = opts.inspectSupervisor ?? (() => inspectCanonicalLaunchdSupervisor());
   const collect = opts.collect ?? ((health, supervisor) => collectRuntimeIdentity(health, {
-    endpointPort: DEFAULT_DAEMON_PORT,
+    portFile,
     supervisor,
   }));
   const startedAt = Date.now();
