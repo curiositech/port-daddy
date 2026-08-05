@@ -15,9 +15,8 @@
  * guard makes that class of drift impossible without a deliberate allowlist
  * edit and reviewer sign-off.
  *
- * If a file legitimately needs the canonical URL (canonical constants, the
- * installer's port probe, doc fixtures), add it to ALLOWED_FILES with a
- * one-line reason.
+ * Runtime consumers do not receive exceptions. They resolve an explicit or
+ * published endpoint, or remain honestly unavailable.
  */
 
 import { describe, test, expect } from '@jest/globals';
@@ -26,25 +25,14 @@ import { resolve, join, relative } from 'node:path';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..', '..');
 
-// Files allowed to reference the literal canonical URL. Each entry MUST have
-// a one-line reason. New entries require reviewer sign-off.
+// Only canonical Node discovery code and this guard's self-check may contain
+// the preferred URL spelling.
 const ALLOWED_FILES = new Set([
-  // Canonical Swift constant — every Swift caller uses DaemonLocation.resolveBaseURL().
-  'apps/FleetBar/FleetBar/DaemonLocation.swift',
-  // pd-timeline-proto R&D window: PORT_DADDY_URL-first, localhost fallback only.
-  'core/pd-timeline-proto/src/main.rs',
   // Canonical Node helpers — these define the resolver everyone else uses.
   'shared/daemon-discovery.ts',
   'shared/paths.ts',
-  // Web dashboard config UI's intentional fallback constant when env discovery fails.
-  'fleet-config-ui/src/api.ts',
   // This guard test itself.
   'tests/unit/no-hardcoded-daemon-url.test.js',
-  // Canonical web-side resolver — the JS analogue of shared/daemon-discovery.ts.
-  'website-v2/src/lib/daemon-url.ts',
-  // routes/sitrep.ts: literal appears only in a JSDoc curl example; runtime
-  // code in the same file uses normal Fastify reply paths.
-  'routes/sitrep.ts',
 ]);
 
 // We enforce the rule ONLY on production source paths. Test fixtures, copy-paste
@@ -171,7 +159,7 @@ describe('no-hardcoded-daemon-url', () => {
           `  - Node:  resolveDaemonUrl(process.env.PORT_DADDY_URL)\n` +
           `  - Swift: DaemonLocation.resolveBaseURL()\n` +
           `  - Web:   relative paths (no scheme/host)\n` +
-          `If this hit is legitimate, add the file to ALLOWED_FILES in this test with a reason.`;
+          `There are no consumer exceptions: read the published endpoint instead.`;
         throw new Error(msg);
       }
       expect(offenders).toEqual([]);

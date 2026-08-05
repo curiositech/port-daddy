@@ -14,9 +14,9 @@
  *   as `DEFAULT_DAEMON_PORT`. Everything else resolves through that constant or
  *   the `resolveDaemonPort()` / `resolveDaemonUrl()` helpers.
  *
- * If a file legitimately needs the literal (JSDoc examples, doc fixtures, the
- * installer's lsof probe), add it to ALLOWED_FILES with a one-line reason.
- * New entries require reviewer sign-off.
+ * Runtime consumers do not receive exceptions. If a new language or app needs
+ * discovery, teach it to read the daemon's published endpoint rather than
+ * copying the preferred seed.
  */
 
 import { describe, test, expect } from '@jest/globals';
@@ -25,25 +25,11 @@ import { resolve, join, relative } from 'node:path';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..', '..');
 
-// The ONE file allowed to define the literal, plus files that legitimately
-// reference it in non-runtime contexts. Each entry MUST have a one-line reason.
+// The ONE runtime file allowed to define the literal, plus this guard's own
+// self-check witness.
 const ALLOWED_FILES = new Set([
   // THE definition. `DEFAULT_DAEMON_PORT = 9876` lives here and nowhere else.
   'shared/daemon-discovery.ts',
-  // Canonical Swift constant — every Swift caller uses DaemonLocation.resolveBaseURL().
-  'apps/FleetBar/FleetBar/DaemonLocation.swift',
-  // pd-timeline-proto R&D window: PORT_DADDY_URL-first, localhost fallback only.
-  'core/pd-timeline-proto/src/main.rs',
-  // Web dashboard config UI's intentional fallback constant when env discovery fails.
-  'fleet-config-ui/src/api.ts',
-  // Canonical web-side resolver — the JS analogue of shared/daemon-discovery.ts.
-  'website-v2/src/lib/daemon-url.ts',
-  // Daemon installer probes for the running listener via lsof — this IS the port number.
-  'install-daemon.ts',
-  // routes/sitrep.ts: literal appears only in a JSDoc curl example.
-  'routes/sitrep.ts',
-  // Rust console berth picker mirrors the canonical daemon port as a Rust const.
-  'core/pd-console/src/berths.rs',
   // This guard test itself.
   'tests/unit/no-hardcoded-daemon-port.test.js',
 ]);
@@ -142,7 +128,7 @@ describe('no-hardcoded-daemon-port', () => {
         `  - DEFAULT_DAEMON_PORT   (the constant)\n` +
         `  - resolveDaemonPort()   (env PORT_DADDY_PORT -> port file -> default)\n` +
         `  - resolveDaemonUrl()    (env PORT_DADDY_URL -> resolved host:port)\n` +
-        `If this hit is legitimate (doc/example/probe), add the file to ALLOWED_FILES with a reason.`;
+        `There are no consumer exceptions: read the published endpoint instead.`;
       throw new Error(msg);
     }
     expect(offenders).toEqual([]);
