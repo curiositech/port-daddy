@@ -362,19 +362,21 @@ export async function fetchMergeGroupMembers(
   if (body.errors?.length) throw new Error(body.errors[0]?.message ?? 'merge queue query failed');
   const entries = body.data?.repository?.mergeQueue?.entries?.nodes ?? [];
   const entry = entries.find(node => node?.headCommit?.oid === groupHeadSha);
-  if (!entry || typeof entry.position !== 'number') {
+  if (!entry || !Number.isSafeInteger(entry.position) || entry.position! < 1) {
     throw new Error(`merge queue entry does not match ${groupHeadSha}`);
   }
-  const members = entries
-    .filter(node => node && typeof node.position === 'number' && node.position <= entry.position!)
-    .sort((left, right) => left!.position! - right!.position!)
-    .map(node => ({
-      prNumber: node?.pullRequest?.number ?? 0,
-      headSha: node?.pullRequest?.headRefOid ?? '',
-    }))
-    .filter(member => member.prNumber > 0 && member.headSha.length > 0);
-  if (members.length === 0 || members.at(-1)?.prNumber !== entry.pullRequest?.number) {
-    throw new Error(`merge queue membership is incomplete for ${groupHeadSha}`);
+  const members: MergeGroupMember[] = [];
+  for (let position = 1; position <= entry.position!; position += 1) {
+    const node = entries.find(candidate => candidate?.position === position);
+    const prNumber = node?.pullRequest?.number ?? 0;
+    const headSha = node?.pullRequest?.headRefOid ?? '';
+    if (!Number.isSafeInteger(prNumber) || prNumber < 1 || !headSha) {
+      throw new Error(`merge queue membership is incomplete at position ${position}`);
+    }
+    members.push({ prNumber, headSha });
+  }
+  if (members.at(-1)?.prNumber !== entry.pullRequest?.number) {
+    throw new Error(`merge queue target is incomplete for ${groupHeadSha}`);
   }
   return members;
 }
