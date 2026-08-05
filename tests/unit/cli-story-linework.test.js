@@ -224,7 +224,6 @@ describe('pd status story-linework output', () => {
       metrics: { activePorts: 2 },
       runtime: { state: 'nominal', degraded: false },
       fleet: { projects: [{}], totalAgents: 3, totalLaunchableAgents: 2 },
-      guardians: { bosun: { state: 'idle', reason: 'daemon heartbeat writer active' } },
       history: { lastActivityAt: Date.now() },
     };
 
