@@ -64,7 +64,7 @@ export const INTEGRATIONS: Integration[] = [
       'LangChain Tool classes for claim, release, begin, done, note, and pub/sub operations.',
       'Automatic session lifecycle tied to chain execution -- begin on start, done on completion.'
     ],
-    setupCode: `import os\n\n# Daemon publishes endpoint to ~/.port-daddy/daemon.port\ndaemon_port_file = os.path.expanduser('~/.port-daddy/daemon.port')\nif os.path.exists(daemon_port_file):\n    with open(daemon_port_file) as f:\n        daemon_port = f.read().strip()\n    base_url = f'http://localhost:{daemon_port}'\nelse:\n    # Port Daddy sets PORT_DADDY_URL during 'pd begin'\n    base_url = os.getenv('PORT_DADDY_URL')\n    if not base_url:\n        raise RuntimeError('PORT_DADDY_URL not set; run within a pd begin session')\n\nfrom portdaddy_langchain import PortDaddyToolkit\ntools = PortDaddyToolkit(base_url=base_url)`
+    setupCode: `import os\n\n# Daemon publishes endpoint to ~/.port-daddy/daemon.port\ndaemon_port_file = os.path.expanduser('~/.port-daddy/daemon.port')\nif os.path.exists(daemon_port_file):\n    with open(daemon_port_file) as f:\n        daemon_port = f.read().strip()\n    base_url = f'http://localhost:{daemon_port}'\nelse:\n    # Check environment or raise informative error\n    base_url = os.getenv('PORT_DADDY_URL')\n    if not base_url:\n        raise RuntimeError('Daemon not running. Start it with pd setup or check FleetBar Control Center for status.')\n\nfrom portdaddy_langchain import PortDaddyToolkit\ntools = PortDaddyToolkit(base_url=base_url)`
   },
   {
     id: 'crewai',
@@ -106,6 +106,6 @@ export const INTEGRATIONS: Integration[] = [
       'Session notes from Continue conversations appear in the shared project timeline.',
       'Port Daddy context is available as a Continue.dev context provider for agent awareness.'
     ],
-    setupCode: `// In .continue/config.json\n{\n  "contextProviders": [{\n    "name": "portdaddy",\n    "params": {\n      // Daemon publishes endpoint to ~/.port-daddy/daemon.port\n      // Read it at runtime or use: cat ~/.port-daddy/daemon.port\n      "baseUrl": "http://localhost:{DISCOVERED_PORT}"\n    }\n  }]\n}`
+    setupCode: `pd mcp-install --continue\n\n# Restart Continue.dev to activate Port Daddy integration.`
   }
 ];
