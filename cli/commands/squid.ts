@@ -58,7 +58,7 @@ export interface SquidBridgeConfig {
   host: string;
   port: number;
   cwd: string;
-  timeoutMs: number;
+  deadlineMs: number | undefined;
   maxRequestBytes: number;
   authToken: string | null;
   authTokenSource: 'generated' | 'explicit' | 'disabled';
@@ -137,11 +137,12 @@ export function resolveSquidBridgeConfig(options: CLIOptions, cwdDefault = proce
   ]);
   const uniqueCodexConfig = [...new Set(codexConfig)];
   const auth = resolveSquidAuthToken(options);
+  const deadlineMs = resolveSquidDeadline(options);
   return {
     port: parseInt(String(options.port ?? process.env.PD_SQUID_BRIDGE_PORT ?? '8765'), 10),
     host: String(options.host ?? process.env.PD_SQUID_BRIDGE_HOST ?? '127.0.0.1'),
     cwd: String(options.cwd ?? options.workdir ?? cwdDefault),
-    timeoutMs: parseInt(String(options.timeout ?? options['timeout-ms'] ?? 10 * 60 * 1000), 10),
+    deadlineMs,
     maxRequestBytes: parseInt(String(
       options['max-request-bytes']
         ?? process.env.PD_SQUID_MAX_REQUEST_BYTES
@@ -338,7 +339,7 @@ async function handleCodexBridge(clientPassthrough: string[], options: CLIOption
     port: config.port,
     host: config.host,
     cwd: config.cwd,
-    timeoutMs: config.timeoutMs,
+    deadlineMs: config.deadlineMs,
     maxRequestBytes: config.maxRequestBytes,
     authToken: config.authToken,
     codexModel: config.codexModel,
@@ -702,6 +703,28 @@ function resolveSquidAuthToken(options: CLIOptions): { token: string | null; sou
   return { token: `squid-${randomBytes(GENERATED_TOKEN_BYTES).toString('base64url')}`, source: 'generated' };
 }
 
+/** Resolve the explicit deadline from CLI or environment. Fails closed if invalid. */
+function resolveSquidDeadline(options: CLIOptions): number | undefined {
+  // Explicit --deadline-ms flag takes precedence
+  if (typeof options['deadline-ms'] === 'string') {
+    const ms = parseInt(options['deadline-ms'], 10);
+    if (!Number.isFinite(ms) || ms <= 0) {
+      throw new Error('--deadline-ms must be a positive number in milliseconds');
+    }
+    return ms;
+  }
+  // Check environment variable
+  if (typeof process.env.PD_SQUID_DEADLINE_MS === 'string' && process.env.PD_SQUID_DEADLINE_MS.length > 0) {
+    const ms = parseInt(process.env.PD_SQUID_DEADLINE_MS, 10);
+    if (!Number.isFinite(ms) || ms <= 0) {
+      throw new Error('PD_SQUID_DEADLINE_MS must be a positive number in milliseconds');
+    }
+    return ms;
+  }
+  // No default: deadline is undefined
+  return undefined;
+}
+
 function isUsableLocalToken(token: string): boolean {
   return token.trim().length > 0 && !/[\0\r\n]/.test(token);
 }
@@ -831,6 +854,7 @@ Bridge options:
   --port <n>                  Local bridge port (default: 8765)
   --host <addr>               Local bind host (default: 127.0.0.1)
   --cwd <repo>                Working directory for Codex and launched client
+  --deadline-ms <n>           Codex request deadline in milliseconds (default: no limit)
   --max-request-bytes <n>     Max JSON request body size (default: ${DEFAULT_SQUID_MAX_REQUEST_BYTES})
   --token <token>             Local bridge token (default: generated per run)
   --no-token                  Disable auth; loopback-only
