@@ -1,10 +1,6 @@
 import type Database from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
-import {
-  isOnnxRuntimeNativeLibraryDir,
-  resolveOnnxRuntimeNativeLibraryDir,
-} from '../shared/daemon-binary.js';
+import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import type { GraphEdges } from './graph-edges.js';
 import type { Counters } from './counters.js';
@@ -603,27 +599,33 @@ export function createLocalEmbedder(
  * daemon boot fails semantic resolution with "Library not loaded:
  * @rpath/libonnxruntime.*.dylib".
  *
- * The loader path must be present when the process starts. Why this guard
- * exists: it verifies
- * that the shared daemon launch contract did so and fails with an actionable
- * error before the opaque native `dlopen()` failure. Source runs need no loader
- * override because the binding and shared library remain siblings in
- * node_modules.
+ * Fix: point the dynamic linker's fallback search path at wherever the real
+ * runtime library actually lives — dyld/the ELF loader consult
+ * DYLD_FALLBACK_LIBRARY_PATH / LD_LIBRARY_PATH at the actual dlopen() call,
+ * so this works regardless of where Bun's own extraction puts the `.node`
+ * binding. Checked in order: a source/dev override, the location
+ * scripts/build-single-binary.mjs packages the library into (a sibling of
+ * the compiled executable), and the plain node_modules layout for
+ * non-compiled (npm/source) installs.
  */
 export function ensureOnnxRuntimeNativeLibFindable(): void {
   if (process.platform !== 'darwin' && process.platform !== 'linux') return;
-  const resourceDir = process.env.PORT_DADDY_RESOURCE_DIR?.trim() || process.cwd();
-  const nativeDir = resolveOnnxRuntimeNativeLibraryDir(resourceDir, process.execPath);
+
+  const platformArch = `${process.platform}-${process.arch}`;
+  const candidates = [
+    process.env.PORT_DADDY_RESOURCE_DIR?.trim()
+      ? join(process.env.PORT_DADDY_RESOURCE_DIR.trim(), 'dist', 'native', 'onnxruntime-node', platformArch)
+      : null,
+    process.execPath ? join(dirname(process.execPath), 'native', 'onnxruntime-node', platformArch) : null,
+    join(process.cwd(), 'node_modules', 'onnxruntime-node', 'bin', 'napi-v6', process.platform, process.arch),
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  const nativeDir = candidates.find(candidate => existsSync(candidate));
   if (!nativeDir) return;
 
   const envVar = process.platform === 'darwin' ? 'DYLD_FALLBACK_LIBRARY_PATH' : 'LD_LIBRARY_PATH';
-  const configured = process.env[envVar]?.split(':').filter(Boolean) ?? [];
-  if (!configured.some(entry => isOnnxRuntimeNativeLibraryDir(entry))) {
-    throw new Error(
-      `Compiled semantic runtime was launched without ${envVar}=${nativeDir}. ` +
-      'Reinstall or restart the selected Port Daddy daemon so its supervisor applies the packaged native-runtime environment.',
-    );
-  }
+  const existing = process.env[envVar];
+  process.env[envVar] = existing ? `${nativeDir}:${existing}` : nativeDir;
 }
 
 /**
