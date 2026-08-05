@@ -5,7 +5,14 @@
 // protection — every test below that asserts `ok === false` is guarding that.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, copyFileSync, mkdirSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { decideGate, resolveStale } from './ci-gate-verdict.mjs'
+
+const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), 'ci-gate-verdict.mjs')
 
 const needs = obj => Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, { result: v }]))
 
@@ -126,4 +133,55 @@ test('not stale when any input is missing', async () => {
   for (const missing of ['repo', 'prNumber', 'runHeadSha', 'token']) {
     assert.equal(await resolveStale({ ...base, [missing]: '', fetchImpl }), false, missing)
   }
+})
+
+// --- the entrypoint itself must actually RUN --------------------------------
+//
+// The decision logic being correct is worth nothing if the `isMain` guard
+// misfires: the process exits 0 without evaluating anything and the required
+// gate passes hollow, silently. These spawn the real script the way the
+// workflow does. They are the tests that were missing when a hand-built
+// `file://${process.argv[1]}` URL shipped — that form does not percent-encode,
+// so it broke on any path containing a space.
+
+const run = (script, results, cwd) =>
+  spawnSync(process.execPath, [script], {
+    env: { ...process.env, RESULTS: results, EVENT_NAME: 'push' },
+    encoding: 'utf8',
+    cwd,
+  })
+
+test('entrypoint exits 0 and says OK when everything passed', () => {
+  const r = run(SCRIPT, '{"lint":{"result":"success"}}')
+  assert.equal(r.status, 0)
+  assert.match(r.stdout, /ci-gate OK/)
+})
+
+test('entrypoint exits 1 on a real failure — proving it ran at all', () => {
+  const r = run(SCRIPT, '{"lint":{"result":"failure"}}')
+  assert.equal(r.status, 1)
+  assert.match(r.stdout, /these jobs failed: lint/)
+})
+
+test('entrypoint runs when invoked by a RELATIVE path, as the workflow does', () => {
+  const r = run('scripts/ci-gate-verdict.mjs', '{"lint":{"result":"failure"}}', process.cwd())
+  assert.equal(r.status, 1, 'relative invocation must still reach the entrypoint')
+})
+
+test('entrypoint runs from a checkout path that needs URL escaping', () => {
+  // The exact regression: `file://` + a raw path with a space is not a valid
+  // file URL, the guard compared false, and the gate exited 0 having decided
+  // nothing.
+  const dir = join(mkdtempSync(join(tmpdir(), 'ci-gate-')), 'dir with space')
+  mkdirSync(dir, { recursive: true })
+  const copy = join(dir, 'ci-gate-verdict.mjs')
+  copyFileSync(SCRIPT, copy)
+  const r = run(copy, '{"lint":{"result":"failure"}}')
+  assert.equal(r.status, 1, 'a space in the path must not silently skip the gate')
+  assert.match(r.stdout, /these jobs failed: lint/)
+})
+
+test('entrypoint exits 1 rather than 0 when RESULTS is unparseable', () => {
+  const r = run(SCRIPT, 'not json')
+  assert.equal(r.status, 1)
 })

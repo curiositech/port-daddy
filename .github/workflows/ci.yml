@@ -788,6 +788,14 @@ jobs:
     name: ci-gate
     if: always()
     runs-on: ubuntu-latest
+    # The verdict script asks the PR API whether this run's commit is still the
+    # head. Without this, a repo/org on restricted default GITHUB_TOKEN
+    # permissions 403s, resolveStale fails closed, and the superseded-run false
+    # failure this job exists to stop comes straight back — silently, since a
+    # fail-closed gate looks exactly like the old behaviour. `detect-changes`
+    # declares the same grant for the same reason.
+    permissions:
+      pull-requests: read
     needs:
       - brand-color-guard
       - compiled-daemon-smoke

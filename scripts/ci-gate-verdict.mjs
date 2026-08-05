@@ -35,6 +35,8 @@
  * showing an author — the code that produced it is usually still in the branch.
  */
 
+import { pathToFileURL } from 'node:url';
+
 /** `needs.*.result` values GitHub can emit. */
 export const RESULT_VALUES = ['success', 'failure', 'cancelled', 'skipped'];
 
@@ -131,7 +133,18 @@ export async function resolveStale({ eventName, repo, prNumber, runHeadSha, toke
 
 // --- entrypoint -------------------------------------------------------------
 
-const isMain = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
+/**
+ * True when this module was run as a script rather than imported by the tests.
+ *
+ * `pathToFileURL`, NOT a hand-built `file://${process.argv[1]}`. The naive form
+ * fails to percent-encode, so any checkout path containing a space (or any
+ * other character a URL must escape) makes the comparison false, the entrypoint
+ * silently no-ops, and the process exits 0 — a REQUIRED GATE THAT PASSES
+ * WITHOUT RUNNING. That is the worst failure this file could have, it is
+ * completely silent, and it is covered by the child-process tests in
+ * ci-gate-verdict.test.mjs rather than left to inspection.
+ */
+const isMain = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
 if (isMain) {
   const raw = process.env.RESULTS ?? '{}';
   let needs;
