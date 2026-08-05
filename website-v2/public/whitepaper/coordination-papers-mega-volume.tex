@@ -1,0 +1,455 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{tikz}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
+
+\geometry{margin=2.35cm}
+\captionsetup{font=small,labelfont=bf}
+\setlength{\emergencystretch}{2em}
+\setcounter{tocdepth}{2}
+\makeatletter
+\renewcommand*\l@section{\@dottedtocline{1}{1.5em}{4.5em}}
+\renewcommand*\l@subsection{\@dottedtocline{2}{3.8em}{5.2em}}
+\renewcommand*\l@subsubsection{\@dottedtocline{3}{7.0em}{6.0em}}
+\renewcommand*\l@figure{\@dottedtocline{1}{1.5em}{4.5em}}
+\renewcommand*\l@table{\@dottedtocline{1}{1.5em}{4.5em}}
+\makeatother
+
+\definecolor{codebg}{RGB}{248,248,248}
+\definecolor{codeframe}{RGB}{200,200,200}
+\definecolor{darkgreen}{HTML}{00564C}
+\definecolor{darkblue}{HTML}{003FB8}
+\definecolor{accent}{HTML}{00564C}
+\definecolor{hhsand}{HTML}{E9DCC4}
+\definecolor{hhsanddeep}{HTML}{D8C7A6}
+\definecolor{hhebony}{HTML}{121212}
+\definecolor{hhink}{HTML}{1B1712}
+\definecolor{hhcobalt}{HTML}{003FB8}
+\definecolor{hhamber}{HTML}{6B4500}
+\definecolor{hhteal}{HTML}{00564C}
+\definecolor{hhpaper}{HTML}{FBF7EF}
+\definecolor{hhgray}{HTML}{5C5650}
+
+% One maturity vocabulary for the collected volume. The uppercase aliases keep
+% the independently buildable Chapter III source intact.
+\newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{implemented}}}}}
+\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{partial}}}}
+\newcommand{\Designed}{{\textcolor{hhgray}{\textsc{specified}}}}
+\newcommand{\Vision}{{\textcolor{hhgray}{\textit{proposed}}}}
+\newcommand{\BUILT}{\Built}
+\newcommand{\BUILTWEAK}{\BuiltWeak}
+\newcommand{\DESIGNED}{\Designed}
+\newcommand{\VISION}{\Vision}
+\newcommand{\NotGuar}{{\textcolor{hhink}{\textit{not guaranteed}}}}
+\newcommand{\Closed}{{\textcolor{hhink}{\textsc{\textbf{closed}}}}}
+\newcommand{\Partial}{{\textcolor{hhink}{\textsc{partial}}}}
+\newcommand{\Open}{{\textcolor{hhgray}{\textit{open}}}}
+\newcommand{\SpecOnly}{{\textcolor{hhgray}{\textit{spec-only}}}}
+\newcommand{\code}[1]{{\ttfamily\detokenize{#1}}}
+
+\newcommand{\pullquote}[1]{%
+  \par\vspace{6pt}\noindent\begin{tikzpicture}
+  \node[draw=none,fill=hhsand!22,inner sep=10pt,
+        text width=\dimexpr\textwidth-30pt\relax,align=left] (q) {\itshape\large #1};
+  \draw[hhcobalt,line width=2.5pt] (q.north west) -- (q.south west);
+  \end{tikzpicture}\par\vspace{6pt}}
+\newcommand{\keyidea}[1]{%
+  \par\vspace{6pt}\noindent\begin{tikzpicture}
+  \node[draw=none,fill=hhsand!18,rounded corners=2pt,inner sep=9pt,
+        text width=\dimexpr\textwidth-26pt\relax,align=left] (k)
+        {{\scshape\bfseries\color{hhgray}\small Key idea.}\enspace #1};
+  \draw[hhgray!60,line width=1pt] (k.north west) -- (k.south west);
+  \end{tikzpicture}\par\vspace{6pt}}
+\newcommand{\pitfall}[1]{%
+  \par\vspace{6pt}\noindent\begin{tikzpicture}
+  \node[draw=none,fill=hhsand!18,rounded corners=2pt,inner sep=9pt,
+        text width=\dimexpr\textwidth-26pt\relax,align=left] (p)
+        {{\scshape\bfseries\color{hhcobalt}\small Pitfall.}\enspace #1};
+  \draw[hhgray!60,line width=1pt] (p.north west) -- (p.south west);
+  \end{tikzpicture}\par\vspace{6pt}}
+\newcommand{\xrefbox}[1]{%
+  \vspace{4pt}\noindent\begin{tikzpicture}
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!18,rounded corners=2pt,
+        inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,align=left]{\small #1};
+  \end{tikzpicture}\vspace{4pt}}
+\newcommand{\scene}[2]{%
+  \par\vspace{6pt}\noindent\begin{tikzpicture}
+  \node[draw=none,fill=hhsand!18,rounded corners=2pt,inner sep=9pt,
+        text width=\dimexpr\textwidth-28pt\relax,align=left] (s)
+        {{\scshape\bfseries\color{hhgray}\footnotesize Scene.}\enspace
+         {\bfseries #1}\enspace\itshape #2};
+  \draw[hhgray!60,line width=1pt] (s.north west) -- (s.south west);
+  \end{tikzpicture}\par\vspace{6pt}}
+\newcommand{\openstar}{{\textcolor{hhcobalt}{$\bigstar$}}\;}
+\newcommand{\exhead}[1]{\par\vspace{4pt}\noindent{\scshape\bfseries\color{hhink}#1}\par\vspace{-2pt}}
+
+% The chapters intentionally use three exercise idioms. Namespacing preserves
+% their authored semantics while keeping one visual grammar.
+\newenvironment{lsexercises}{%
+  \par\vspace{8pt}\noindent\begin{tikzpicture}
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
+        inner sep=10pt,text width=\dimexpr\textwidth-28pt\relax,align=left]\bgroup
+  \begin{minipage}{\dimexpr\textwidth-30pt\relax}
+  {\scshape\bfseries\color{hhink}Exercises}\par\vspace{3pt}\small
+}{\end{minipage}\egroup;\end{tikzpicture}\par\vspace{8pt}}
+\newenvironment{stpexercises}{%
+  \par\vspace{8pt}\noindent\begin{tikzpicture}
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
+        inner sep=10pt,text width=\dimexpr\textwidth-26pt\relax,align=left]\bgroup
+  \begin{minipage}{\dimexpr\textwidth-46pt\relax}
+  {\scshape\bfseries\color{hhink}\large Exercises}\par\vspace{3pt}\small
+}{\end{minipage}\egroup;\end{tikzpicture}\par\vspace{8pt}}
+\newenvironment{heexercises}{%
+  \par\vspace{8pt}\noindent
+  {\scshape\bfseries\textcolor{hhink}{\textcolor{hhgray!70}{\rule[-1pt]{2.5pt}{11pt}}\enspace Exercises}}
+  \par\nobreak\vspace{2pt}
+  \begin{enumerate}[label=\textbf{E\arabic*.},leftmargin=2.6em,itemsep=2pt,topsep=2pt]
+}{\end{enumerate}\vspace{6pt}}
+\newcommand{\swkexercises}[1]{%
+  \par\vspace{8pt}\noindent\begin{tikzpicture}
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
+        inner sep=9pt,text width=\dimexpr\textwidth-26pt\relax,align=left]
+        {{\scshape\bfseries\textcolor{hhink}{Exercises.}}\par\vspace{3pt}#1};
+  \end{tikzpicture}\par\vspace{6pt}}
+
+\lstdefinestyle{pdcode}{language=C,backgroundcolor=\color{codebg},frame=single,
+  rulecolor=\color{codeframe},basicstyle=\ttfamily\small,
+  keywordstyle=\color{hhink}\bfseries,commentstyle=\color{hhgray}\itshape,
+  stringstyle=\color{hhgray},numbers=left,numberstyle=\tiny\color{gray},
+  numbersep=8pt,breaklines=true,showstringspaces=false,tabsize=2,
+  xleftmargin=15pt,xrightmargin=5pt,framexleftmargin=15pt,captionpos=b}
+\lstdefinestyle{pseudocode}{style=pdcode,
+  morekeywords={function,return,if,then,else,for,while,do,begin,end,atomic,transaction,reject,commit,assert,raise}}
+\lstdefinestyle{proverif}{style=pdcode}
+\lstdefinestyle{rust}{style=pdcode,tabsize=4}
+\lstdefinestyle{tlaplus}{style=pdcode,
+  morekeywords={MODULE,EXTENDS,CONSTANTS,VARIABLES,VARIABLE,Init,Next,Spec,
+  TypeOK,IF,THEN,ELSE,LET,IN,CHOOSE,SUBSET,UNION,DOMAIN,EXCEPT,
+  UNCHANGED,TRUE,FALSE,BOOLEAN,Nat,Int,STRING,Seq,Append,Len,Head,Tail,
+  ENABLED,WF_,SF_,THEOREM,ASSUME,INSTANCE,WITH,LOCAL}}
+\lstset{style=pdcode}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{property}{Property}[section]
+\newtheorem{protocol}{Protocol}[section]
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{corollary}{Corollary}[section]
+\newtheorem{conjecture}{Conjecture}[section]
+\theoremstyle{remark}
+\newtheorem*{remark}{Remark}
+
+\newcounter{lsprotocol}[section]
+\renewcommand{\thelsprotocol}{\thesection.\arabic{lsprotocol}}
+\newenvironment{lsprotocol}[1]{%
+  \par\vspace{8pt}\refstepcounter{lsprotocol}\noindent\begin{tikzpicture}
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
+        inner sep=10pt,text width=\dimexpr\textwidth-28pt\relax,align=left]\bgroup
+  \begin{minipage}{\dimexpr\textwidth-30pt\relax}
+  {\scshape\bfseries\color{hhink}Protocol~\thelsprotocol.}\enspace{\bfseries #1}\par\vspace{4pt}\small
+}{\end{minipage}\egroup;\end{tikzpicture}\par\vspace{8pt}}
+\newcounter{stpprotocol}[section]
+\renewcommand{\thestpprotocol}{\thesection.\arabic{stpprotocol}}
+\newenvironment{stpprotocol}[1][]{%
+  \par\vspace{8pt}\refstepcounter{stpprotocol}\noindent\begin{tikzpicture}
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
+        inner sep=10pt,text width=\dimexpr\textwidth-26pt\relax,align=left]\bgroup
+  \begin{minipage}{\dimexpr\textwidth-46pt\relax}
+  {\scshape\bfseries\color{hhink}Protocol~\thestpprotocol.}%
+  \ifx\\#1\\\else\ {\bfseries #1}\fi\par\vspace{3pt}\small
+}{\end{minipage}\egroup;\end{tikzpicture}\par\vspace{8pt}}
+\theoremstyle{definition}
+\newtheorem{heprotocol}{Protocol}[section]
+
+\tikzset{
+  stp box/.style={draw=hhink,line width=0.55pt,fill=hhsand!22,rounded corners=2pt,inner sep=7pt,align=center,minimum height=10mm},
+  stp accent box/.style={stp box,draw=hhcobalt,line width=0.9pt},
+  stp arrow/.style={-{Stealth[length=2.3mm,width=1.5mm]},draw=hhink,line width=0.65pt},
+  stp accent arrow/.style={-{Stealth[length=2.3mm,width=1.5mm]},draw=hhcobalt,line width=0.8pt},
+  stp dashed arrow/.style={stp accent arrow,dashed},
+  stp label/.style={fill=hhpaper,inner xsep=3pt,inner ysep=1.5pt,font=\footnotesize\itshape,text=hhgray},
+  stp heading/.style={font=\footnotesize\bfseries,text=hhink},
+  stp status/.style={font=\scriptsize\scshape,text=hhgray},
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\itshape\color{hhgray} Port Daddy Coordination Papers}
+\fancyhead[R]{\small\color{hhgray}\thepage}
+\fancyfoot[C]{\footnotesize\color{hhgray} The Collected Volume \textperiodcentered\ August 2026}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\newcommand{\pdcurrentchapter}{I}
+\newcommand{\pdchapter}[2]{%
+  \clearpage
+  \renewcommand{\pdcurrentchapter}{#1}
+  \part[#1. #2]{#2}
+  \setcounter{section}{0}\setcounter{figure}{0}\setcounter{table}{0}\setcounter{equation}{0}\setcounter{lstlisting}{0}
+  \renewcommand{\thesection}{#1.\arabic{section}}
+  \renewcommand{\thefigure}{#1.\arabic{figure}}
+  \renewcommand{\thetable}{#1.\arabic{table}}
+  \renewcommand{\theequation}{#1.\arabic{equation}}
+  \renewcommand{\thelstlisting}{#1.\arabic{lstlisting}}
+  \renewcommand{\theHsection}{#1.\arabic{section}}
+  \renewcommand{\theHsubsection}{#1.\arabic{section}.\arabic{subsection}}
+  \renewcommand{\theHsubsubsection}{#1.\arabic{section}.\arabic{subsection}.\arabic{subsubsection}}
+  \renewcommand{\theHfigure}{#1.\arabic{figure}}
+  \renewcommand{\theHtable}{#1.\arabic{table}}
+  \renewcommand{\theHequation}{#1.\arabic{equation}}
+  \renewcommand{\theHlstlisting}{#1.\arabic{lstlisting}}
+  \fancyhead[L]{\small\itshape\color{hhgray} #1. #2}
+  \fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter #1 of VII}
+}
+\newcommand{\pdchapterappendix}{%
+  \clearpage\setcounter{section}{0}
+  \renewcommand{\thesection}{\pdcurrentchapter.\Alph{section}}
+  \renewcommand{\theHsection}{\pdcurrentchapter.appendix.\arabic{section}}
+  \renewcommand{\theHsubsection}{\pdcurrentchapter.appendix.\arabic{section}.\arabic{subsection}}
+  \renewcommand{\theHsubsubsection}{\pdcurrentchapter.appendix.\arabic{section}.\arabic{subsection}.\arabic{subsubsection}}
+  \renewcommand{\theHfigure}{\pdcurrentchapter.appendix.\arabic{figure}}
+  \renewcommand{\theHtable}{\pdcurrentchapter.appendix.\arabic{table}}
+  \renewcommand{\theHequation}{\pdcurrentchapter.appendix.\arabic{equation}}
+  \renewcommand{\theHlstlisting}{\pdcurrentchapter.appendix.\arabic{lstlisting}}
+  \section*{Chapter appendices}
+  \addcontentsline{toc}{section}{\pdcurrentchapter. Chapter appendices}}
+
+\begin{document}
+
+\hypersetup{pageanchor=false}
+\begin{titlepage}
+\pagecolor{hhpaper}\color{hhink}
+\vspace*{1.2cm}
+{\Large\scshape Port Daddy Coordination Papers}\par
+\par\vspace{0.4cm}\noindent\color{hhcobalt}\rule{\textwidth}{2.2pt}\color{hhink}\par
+\vspace{1.3cm}
+{\Huge\bfseries The Harbor, the Person,\\[0.15cm]and the Economy}\par
+\vspace{0.5cm}
+{\LARGE The Collected Coordination Papers}\par
+\vspace{0.9cm}
+{\large Seven cross-referenced chapters on local authority, legibility,
+continuity, capability security, bonded cooperation, and federation}\par
+\vfill
+\noindent\begin{tabularx}{\textwidth}{@{}Xr@{}}
+\textbf{Erich Owens} & Version 1.0\\
+Curiositech LLC & August 2026\\
+\texttt{engineering@portdaddy.dev} & \url{https://portdaddy.dev/whitepaper}\\
+\end{tabularx}
+\par\vspace{0.5cm}\noindent\color{hhcobalt}\rule{\textwidth}{2.2pt}\par
+\end{titlepage}
+\nopagecolor\color{hhink}
+
+\pagenumbering{roman}
+\begin{abstract}\noindent
+Autonomous coding agents are useful alone and institutionally fragile together.
+This volume develops one continuous answer across seven independently readable
+papers: a single local writer decides what is true; a legibility layer lets the
+operator see and revoke what the swarm is doing; continuity turns an ephemeral
+spawn into an accountable participant; capability attenuation bounds what that
+participant may do; commitments, evidence, and bonds price failures; and a
+federation boundary states what two mutually sovereign harbors may safely owe one
+another. The collection separates running mechanisms from partial integrations,
+precise specifications, and research proposals. Its final appendices consolidate
+that implementation ledger and turn every important open claim into a proof,
+experiment, or engineering obligation.
+\end{abstract}
+
+\section*{How to use this volume}
+\addcontentsline{toc}{section}{How to use this volume}
+Read Chapters I--IV for the product argument, Chapters V--VII for the protocol
+and assurance case, or use the chapter abstracts and reader maps as independent
+entry points. The status vocabulary is deliberately strict: \Built{} means
+running code exercised by tests; \BuiltWeak{} means a running slice that does not
+yet satisfy the full contract; \Designed{} means a concrete design without a
+shipping realization; \Vision{} is a research direction. A closed model result
+is never silently promoted to a whole-runtime guarantee.
+
+\begingroup\small\sloppy
+\tableofcontents
+\endgroup
+\clearpage
+\begingroup\small\sloppy
+\listoffigures
+\endgroup
+\clearpage
+\begingroup\small\sloppy
+\listoftables
+\endgroup
+\clearpage
+
+\section{Introduction: one institution, seven views}
+The papers form a dependency ladder rather than a pile. The single-writer kernel
+provides local truth. The legibility layer turns that truth into an operator's
+usable picture. Continuity binds actions and outcomes to something that survives
+a process. The harbor economy prices cooperation over that identity. Anchor and
+Bonded Commons discharge the cryptographic and incentive obligations; the
+Federated Harbor identifies the boundary that remains when authority crosses a
+machine and an operator.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=7mm and 8mm,
+  rung/.style={draw=hhink,line width=0.55pt,fill=hhsand!22,rounded corners=2pt,
+    minimum width=0.43\textwidth,minimum height=12mm,align=left,inner sep=7pt},
+  proof/.style={rung,draw=hhcobalt,line width=0.9pt,fill=hhpaper},
+  arr/.style={-{Stealth[length=2.4mm]},line width=0.7pt,draw=hhink},
+  parr/.style={arr,draw=hhcobalt,dashed},
+]
+\node[rung] (kernel) {\textbf{II. Single-Writer Kernel}\\local transactional truth};
+\node[rung,above=of kernel] (legible) {\textbf{I. Legible Swarm}\\operator sight, consent, attention};
+\node[rung,above=of legible] (person) {\textbf{III. Spawn to Person}\\continuity and witnessed outcomes};
+\node[rung,above=of person] (economy) {\textbf{IV. Harbor Economy}\\bonded exchange between principals};
+\node[proof,right=of kernel] (anchor) {\textbf{V. Anchor Protocol}\\authentication and attenuation};
+\node[proof,above=of anchor] (bonded) {\textbf{VI. Bonded Commons}\\evidence, incentives, conservation};
+\node[proof,above=of bonded] (federated) {\textbf{VII. Federated Harbor}\\cross-realm transfer and settlement};
+\draw[arr] (kernel) -- (legible); \draw[arr] (legible) -- (person); \draw[arr] (person) -- (economy);
+\draw[parr] (anchor) -- (kernel); \draw[parr] (bonded) -- (economy); \draw[parr] (federated) -- (economy);
+\end{tikzpicture}
+\caption{The volume's argument and assurance spine. Solid arrows build upward;
+dashed cobalt arrows discharge or delimit a load-bearing obligation.}
+\label{fig:volume-spine}
+\end{figure}
+
+\subsection{The claim discipline}
+The central editorial rule is the same as the system's operational rule: every
+summary must remain a lens onto inspectable evidence. The chapters therefore
+scope theorems to their assumptions, distinguish finite model checks from
+unbounded proofs, and state when a runtime path is merely available in a library
+rather than enforced at the write boundary. Appendix~\ref{app:volume-status}
+consolidates those grades; Appendix~\ref{app:volume-roadmap} names the work needed
+to move them.
+
+\clearpage
+\pagenumbering{arabic}
+\hypersetup{pageanchor=true}
+\input{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex}
+
+\clearpage
+\part{Volume appendices}
+\appendix
+\renewcommand{\thesection}{\Alph{section}}
+\renewcommand{\thefigure}{A.\arabic{figure}}
+\renewcommand{\thetable}{A.\arabic{table}}
+\renewcommand{\theHsection}{volume.appendix.\arabic{section}}
+\renewcommand{\theHsubsection}{volume.appendix.\arabic{section}.\arabic{subsection}}
+\renewcommand{\theHsubsubsection}{volume.appendix.\arabic{section}.\arabic{subsection}.\arabic{subsubsection}}
+\renewcommand{\theHfigure}{volume.appendix.\arabic{figure}}
+\renewcommand{\theHtable}{volume.appendix.\arabic{table}}
+\renewcommand{\theHequation}{volume.appendix.\arabic{equation}}
+\renewcommand{\theHlstlisting}{volume.appendix.\arabic{lstlisting}}
+\fancyhead[L]{\small\itshape\color{hhgray} Collected-volume appendices}
+\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Collected Volume}
+
+\section{Consolidated implementation and assurance ledger}\label{app:volume-status}
+\small
+\renewcommand{\arraystretch}{1.22}
+\begin{tabularx}{\textwidth}{@{}p{0.21\textwidth}p{0.15\textwidth}X@{}}
+\toprule
+\textbf{Mechanism or claim} & \textbf{Grade} & \textbf{Current evidence and boundary}\\
+\midrule
+Single-writer SQLite/WAL kernel, claims, sessions, messaging & \Built & Running daemon paths and regression tests; power-loss durability remains configuration-dependent.\\
+Legibility and digest-with-zoom surfaces & \BuiltWeak & Multiple live projections exist, but roadmap/database fragmentation shows that a projection can still disagree with its authority source.\\
+Durable commitments and obligation monitor & \BuiltWeak & Durable records, daemon-derived deadlines, oracle-bound closure, CLI/API exposure, periodic overdue detection, and tests ship. A witnessed reputation-grade outcome ledger, sanctions, and non-forgeable owner identity do not.\\
+Execution-state checkpoint and successor restoration & \Designed & Notes and summaries can continue work; they are not a portable execution-state checkpoint. Adapter support is heterogeneous.\\
+Local non-forgeable actor identity & \BuiltWeak & Daemon-minted identity and bounded fail-closed slices exist; the full guarantee still depends on complete write-boundary enforcement.\\
+Anchor authentication and attenuation models & \Closed & ProVerif/Kani/conformance evidence applies at the recorded model and implementation bounds, not to arbitrary chain depth or every deployed bridge.\\
+Bond ledger, escrow, and conservation slices & \BuiltWeak & Local accounting paths and finite model checks exist; the full grading, insurance, and market mechanism remains incomplete.\\
+Cross-harbor capability transfer, revocation, custody, and settlement & \Designed & Protocols and bounded models exist; the federation runtime, non-bypassable custody, and deployment-calibrated dissemination evidence remain open.\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\section{Research and engineering roadmap}\label{app:volume-roadmap}
+The roadmap is organized by the kind of evidence that can close each claim. A
+proof obligation should not be disguised as a feature, and an empirical
+parameter should not be invented in prose.
+
+\subsection{Add to the papers}
+\begin{enumerate}[leftmargin=*]
+\item Add a notation and assumption concordance for identity roots, principals,
+harbors, clocks, rounds, currencies, and oracle trust.
+\item Add explicit claim-to-artifact matrices linking every closed or partial
+claim to a model, test, route, trace, or counterexample.
+\item Add deployment-calibrated case studies for attention, obligation breach,
+identity reset, partition healing, and settlement dispute.
+\item Add a comparative chapter mapping the stack to object capabilities,
+reference monitors, transparency logs, workflow engines, and agent frameworks.
+\end{enumerate}
+
+\subsection{Prove or falsify}
+\begin{enumerate}[leftmargin=*]
+\item State complete strategies, deviations, information sets, and parameter
+regions for the signaling, cartel, sponsor, judge, and correlated-equilibrium
+claims; include coalition deviations where relevant.
+\item Mechanize revocation dissemination only under an explicit graph, scheduler,
+delivery, and partition model; report expectations and tails separately.
+\item Prove the multi-currency bucket-partition invariant and characterize the
+minimal non-bypassable custody interface required for any extraction bound.
+\item Establish model-to-runtime conformance obligations for token verification,
+replay rejection, identity minting, settlement, and cross-harbor envelopes.
+\item Define the game class before stating any price-of-anarchy or welfare bound,
+then supply tight examples or counterexamples.
+\end{enumerate}
+
+\subsection{Try, measure, and add to the code}
+\begin{enumerate}[leftmargin=*]
+\item Finish a reputation-grade witnessed-outcome ledger on the shipped
+commitment substrate, with neutral-judge conflicts, appeals, and sanctions.
+\item Close actor identity at every security-relevant write boundary and test
+identity-reset laundering against shared budgets and bonds.
+\item Implement portable execution-state checkpoint/successor restoration where
+adapters permit it; grade unsupported adapters honestly.
+\item Prototype HPKE-sealed relay ingress with pinned key rotation, replay
+windows, and downgrade tests.
+\item Build a small federated witness-log, revocation, custody, and settlement
+testbed; run partitions, redelivery, crash recovery, equivocation, and stale-key
+chaos experiments.
+\item Instrument false alarms, misses, review latency, breach rates, detection
+probability, slashing, judge disagreement, and identity churn before fitting the
+attention or incentive parameters used by the papers.
+\item Make roadmap and other operator projections prove which database and
+revision they summarize, then gate publication on projection/source agreement.
+\end{enumerate}
+
+\section{Notation and cross-chapter concordance}
+\begin{tabularx}{\textwidth}{@{}p{0.18\textwidth}X@{}}
+\toprule
+\textbf{Term} & \textbf{Volume-wide meaning}\\
+\midrule
+Harbor & One local administrative and transactional authority, normally one daemon and its durable database.\\
+Principal & The human or organization whose policy and resources an agent ultimately exercises; not interchangeable with a process identity.\\
+Role & A bundle of obligations, capabilities, and authority that a spawn may fill.\\
+Person & A role instance plus continuity and a witnessed outcome history bound to an identity that cannot be freely re-picked.\\
+Oracle & An external or independently checkable reference used to close a commitment or adjudicate an outcome; its trust model must be named.\\
+Round & A model step in a dissemination or protocol analysis, not automatically a wall-clock deadline.\\
+Closed & The exact recorded model/property has been mechanically discharged; no whole-system implication is assumed without a conformance argument.\\
+\bottomrule
+\end{tabularx}
+
+\clearpage
+\section{References}
+\addcontentsline{toc}{section}{References}
+\input{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-bibliography.tex}
+
+\end{document}

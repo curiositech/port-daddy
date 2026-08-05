@@ -11,7 +11,7 @@ import {
   rewriteMetadata,
   type PdfFacts,
 } from '../../scripts/check-whitepaper-metadata'
-import { WHITE_PAPERS } from './whitePapers'
+import { COLLECTED_VOLUME, WHITE_PAPERS } from './whitePapers'
 
 const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const whitePapersSrc = resolve(websiteRoot, 'src/data/whitePapers.ts')
@@ -42,6 +42,22 @@ const whitePapersSrc = resolve(websiteRoot, 'src/data/whitePapers.ts')
  */
 
 describe('whitepaper metadata sync', () => {
+  test('the collected volume is separate from the seven co-equal chapters', () => {
+    expect(WHITE_PAPERS).toHaveLength(7)
+    expect(WHITE_PAPERS.some((paper) => paper.id === COLLECTED_VOLUME.id)).toBe(false)
+  })
+
+  test('the collected volume declares an on-disk PDF', () => {
+    const abs = resolvePdfPath(COLLECTED_VOLUME.pdfPath)
+    expect(existsSync(abs), `collected volume PDF missing at ${abs}`).toBe(true)
+    expect(statSync(abs).size).toBeGreaterThan(10_000)
+  })
+
+  test('collected-volume pages and sizeKb match the actual PDF', () => {
+    if (!pdfinfoAvailable()) return
+    expect(detectDrift([COLLECTED_VOLUME], pdfFactsFromDisk)).toEqual([])
+  })
+
   test('every paper declares an on-disk PDF', () => {
     for (const paper of WHITE_PAPERS) {
       const abs = resolvePdfPath(paper.pdfPath)

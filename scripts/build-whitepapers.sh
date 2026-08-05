@@ -51,6 +51,7 @@ PAPERS=(
   "$PUB|spawn-to-person.tex|$PUB/spawn-to-person-whitepaper.pdf"
   "whitepaper|legible-swarm.tex|$PUB/legible-swarm-whitepaper.pdf"
   "whitepaper|single-writer-kernel.tex|$PUB/single-writer-kernel-whitepaper.pdf"
+  "$PUB|coordination-papers-mega-volume.tex|$PUB/coordination-papers-mega-volume.pdf"
 )
 
 CHANGED_SINCE=""
@@ -68,6 +69,19 @@ BUILT=()
 # a dependency: changing fig-stp-* must not retimestamp every other PDF.
 paper_sources() {
   local srcdir="$1" roottex="$2"
+  if [ "$roottex" = "coordination-papers-mega-volume.tex" ]; then
+    printf '%s\n' \
+      "$srcdir/$roottex" \
+      "scripts/generate-mega-whitepaper.mjs"
+    paper_sources "whitepaper" "legible-swarm.tex"
+    paper_sources "whitepaper" "single-writer-kernel.tex"
+    paper_sources "$PUB" "spawn-to-person.tex"
+    paper_sources "$PUB" "harbor-economy.tex"
+    paper_sources "$PUB" "anchor-protocol-whitepaper.tex"
+    paper_sources "$PUB" "agent-transactions-whitepaper.tex"
+    paper_sources "$PUB" "federated-harbor-whitepaper.tex"
+    return
+  fi
   local pending=("$roottex")
   local seen="|" rel full ref index=0
 
@@ -123,15 +137,47 @@ build_one() {
   local srcdir="$1" roottex="$2" dest="$3"
   local base="${roottex%.tex}"
   local outdir="$BUILD_DIR/$base"
+
+  # pdfTeX searches the source working directory before -output-directory.
+  # A developer-side .aux/.toc/.out beside the source therefore shadows the
+  # clean build directory forever, producing stale references and even false
+  # duplicate-label warnings. These are disposable compiler sidecars, never
+  # sources; remove only the exact root's known sidecars before the isolated
+  # build begins.
+  local sidecar
+  for sidecar in aux out toc lof lot log fls fdb_latexmk synctex.gz; do
+    rm -f "$srcdir/$base.$sidecar"
+  done
   mkdir -p "$outdir"
+
+  if [ "$roottex" = "coordination-papers-mega-volume.tex" ]; then
+    node scripts/generate-mega-whitepaper.mjs "$outdir" || return 1
+  fi
 
   local epoch; epoch="$(paper_epoch "$srcdir" "$roottex")"
   echo "::group::build $roottex  (SOURCE_DATE_EPOCH=$epoch)"
   (
     cd "$srcdir"
     export SOURCE_DATE_EPOCH="$epoch" FORCE_SOURCE_DATE=1
-    latexmk -pdf -interaction=nonstopmode -halt-on-error -file-line-error \
-            -outdir="$outdir" "$roottex"
+    if command -v latexmk >/dev/null 2>&1; then
+      latexmk -pdf -interaction=nonstopmode -halt-on-error -file-line-error \
+              -outdir="$outdir" "$roottex"
+    else
+      # BasicTeX installations can ship pdfTeX without latexmk. These papers
+      # have inline bibliographies, so bounded repeated pdflatex passes are a
+      # complete fallback: pass 1 writes labels/TOC, pass 2 resolves them, and
+      # two extra passes cover a changed long TOC/list of figures.
+      local pass
+      for pass in 1 2 3 4; do
+        echo "pdflatex fallback pass $pass/4"
+        pdflatex -interaction=nonstopmode -halt-on-error -file-line-error \
+                 -output-directory="$outdir" "$roottex" || exit $?
+        if [ "$pass" -ge 2 ] \
+          && ! grep -Eq 'Rerun to get cross-references right|Label\(s\) may have changed' "$outdir/$base.log"; then
+          break
+        fi
+      done
+    fi
   )
   local rc=$?
   if [ $rc -ne 0 ] || [ ! -f "$outdir/$base.pdf" ]; then

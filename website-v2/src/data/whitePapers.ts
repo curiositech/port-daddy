@@ -155,6 +155,30 @@ export interface WhitePaper {
   takeaways: Array<{ title: string; body: string }>
 }
 
+/** The bound edition is a collection of the seven chapters, not an eighth paper. */
+export interface CollectedVolume {
+  id: string
+  title: string
+  subtitle: string
+  pdfPath: string
+  date: string
+  pages: number
+  sizeKb: number
+  references: number
+}
+
+export const COLLECTED_VOLUME: CollectedVolume = {
+  id: 'coordination-papers-mega-volume',
+  title: 'The Port Daddy Coordination Papers',
+  subtitle:
+    'Seven chapters in one coherent volume, with a global introduction, collated contents and references, implementation ledger, notation concordance, and research roadmap.',
+  pdfPath: '/whitepaper/coordination-papers-mega-volume.pdf',
+  date: 'August 2026',
+  pages: 247,
+  sizeKb: 2347,
+  references: 202,
+}
+
 /**
  * A readonly mirror of `WhitePaper` used only as the inference constraint on
  * `defineWhitePapers`. The runtime / consumer-facing type is still
@@ -235,7 +259,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     date: 'August 2026',
     pages: 40,
     sizeKb: 762,
-    status: 'Version 1.1 (revised pre-print)',
+    status: 'Version 1.2 (collected-volume edition)',
     order: '01',
     chapter: 'I',
     group: 'explain',
@@ -348,7 +372,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     date: 'August 2026',
     pages: 35,
     sizeKb: 740,
-    status: 'Version 1.1 (revised pre-print)',
+    status: 'Version 1.2 (collected-volume edition)',
     order: '02',
     chapter: 'II',
     group: 'explain',
@@ -462,7 +486,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     date: 'August 2026',
     pages: 35,
     sizeKb: 618,
-    status: 'Version 1.3 (series-aligned edition)',
+    status: 'Version 1.4 (collected-volume edition)',
     order: '03',
     chapter: 'III',
     group: 'explain',
@@ -573,9 +597,9 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/harbor-economy',
     overviewHref: '/whitepaper?paper=harbor-economy',
     date: 'August 2026',
-    pages: 30,
+    pages: 31,
     sizeKb: 869,
-    status: 'Version 1.2 (revised pre-print)',
+    status: 'Version 1.3 (collected-volume edition)',
     order: '04',
     chapter: 'IV',
     group: 'explain',
@@ -919,7 +943,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     overviewHref: '/whitepaper?paper=federated-harbor',
     date: 'August 2026',
     pages: 28,
-    sizeKb: 730,
+    sizeKb: 729,
     status: 'Version 1.0 (revised pre-print)',
     order: '07',
     chapter: 'VII',
@@ -1103,9 +1127,9 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
   {
     dateIso: '2026-08-04',
     date: 'August 4, 2026',
-    title: 'The seven-paper rigor pass closes diagram, math, and assurance drift',
+    title: 'The seven papers become one audited collected volume',
     summary:
-      'All seven chapters adopt one visual and editorial system. The six companion papers receive a full figure and mathematics audit: the cartel threshold is re-derived and synchronized with its simulation, revocation claims become model-conditional expectations rather than deadlines, custody bounds name their non-bypass assumptions, cross-currency accounting becomes explicit, and each mechanized claim is scoped to the model that supports it. Versions: I 1.1, II 1.1, III 1.3, IV 1.2, V 1.4, VI 2.7, VII 1.0.',
+      'All seven chapters adopt one visual and editorial system, then publish together as a 247-page collected volume with one introduction, contents, implementation ledger, research roadmap, notation concordance, and 202 collated references. The implementation audit now records durable commitments and actor-soul identity as partial shipped substrates while preserving the open reputation, write-boundary, checkpoint, and cross-operator obligations. Versions: I 1.2, II 1.2, III 1.4, IV 1.3, V 1.4, VI 2.7, VII 1.0.',
     chapters: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'],
   },
   {
