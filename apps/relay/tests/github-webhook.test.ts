@@ -321,7 +321,7 @@ describe('handleGithubWebhook — ambient-noise event filter', () => {
     expect(enqueued[0]).toMatchObject({
       eventType: 'merge_group',
       action: 'checks_requested',
-      prNumber: 5062,
+      prNumber: null,
       installationId: 42,
       payloadMinimal: { merge_group: { head_sha: 'MERGEGROUPSHA' } },
     });

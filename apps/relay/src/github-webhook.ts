@@ -86,15 +86,6 @@ function shouldPersistEvent(eventType: string, action: string | null): boolean {
   );
 }
 
-function mergeGroupPrNumber(payload: Record<string, unknown>): number | null {
-  const group = payload.merge_group && typeof payload.merge_group === 'object'
-    ? payload.merge_group as Record<string, unknown>
-    : null;
-  const headRef = group && typeof group.head_ref === 'string' ? group.head_ref : '';
-  const match = headRef.match(/(?:^|\/)pr-(\d+)-/);
-  return match ? Number(match[1]) : null;
-}
-
 /**
  * Compute the canonical set of channel strings for a normalized webhook.
  * Order matters and matches the channel/normalization spec.
@@ -317,8 +308,9 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
       repoFullName,
       installationId:
         installation && typeof installation.id === 'number' ? installation.id : null,
-      prNumber:
-        pull && typeof pull.number === 'number' ? pull.number : mergeGroupPrNumber(payload),
+      // merge_group refs are not an identity contract. The executor resolves
+      // exact membership from base_ref + the synthetic head SHA instead.
+      prNumber: pull && typeof pull.number === 'number' ? pull.number : null,
       payloadMinimal: {
         sender: (payload.sender as Record<string, unknown>) ?? undefined,
         repository: (payload.repository as Record<string, unknown>) ?? undefined,
