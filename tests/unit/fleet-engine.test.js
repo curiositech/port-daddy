@@ -730,7 +730,7 @@ test('trigger watcher fallback invokes Port Daddy from the installed runtime, no
 
   expect(mockSpawn).toHaveBeenCalled();
   const [command, args] = mockSpawn.mock.calls[0];
-  expect(command).toBe('pd');
+  expect(command).toBe(process.env.PORT_DADDY_CLI || 'pd');
   expect(args).toEqual(expect.arrayContaining(['watch', '--exec']));
   expect(args).not.toContain('tsx');
   expect(args.join(' ')).not.toContain('/tmp/plain-ruby-repo/bin/port-daddy-cli.ts');
@@ -761,7 +761,7 @@ test('YAML watcher fallback invokes Port Daddy from the installed runtime, not t
 
   expect(mockSpawn).toHaveBeenCalled();
   const [command, args] = mockSpawn.mock.calls[0];
-  expect(command).toBe('pd');
+  expect(command).toBe(process.env.PORT_DADDY_CLI || 'pd');
   expect(args).toEqual(['watch', physicalChannel, '--exec', 'echo "$PD_MESSAGE_CONTENT"']);
   expect(args).not.toContain('tsx');
   expect(args.join(' ')).not.toContain('/tmp/plain-ruby-repo/bin/port-daddy-cli.ts');

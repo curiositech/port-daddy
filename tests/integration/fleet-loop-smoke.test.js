@@ -31,8 +31,9 @@ const SAFE_SCRATCH_ROOT = join(process.env.HOME, 'coding', 'tmp');
 // actually reachable: provisioned -> assert the full happy path; unprovisioned
 // -> assert the loud, well-formed pre-flight refusal. Either way the script's
 // real behavior is checked -- never a silent skip or a fake green.
+const PD_BIN = process.env.PORT_DADDY_CLI || 'pd';
 const PD_AVAILABLE =
-  spawnSync('pd', ['--version'], { encoding: 'utf-8', timeout: 10_000 }).status === 0;
+  spawnSync(PD_BIN, ['--version'], { encoding: 'utf-8', timeout: 10_000 }).status === 0;
 
 /** Run the smoke script with a contained scratch dir. */
 function runSmoke(extraArgs = [], opts = {}) {
@@ -135,7 +136,7 @@ describe('scripts/fleet-loop-smoke.sh', () => {
     (PD_AVAILABLE ? describe.skip : describe)('pd NOT provisioned', () => {
       test('exits 2 at pre-flight with a clear missing-pd diagnostic', () => {
         expect(result.status).toBe(2);
-        expect(result.stdout).toMatch(/FAIL\s+pd is not on PATH/);
+        expect(result.stdout).toMatch(/FAIL\s+no executable Port Daddy CLI was selected/);
         // Points the operator at how to install it (runbook §b).
         expect(result.stdout).toMatch(/install.*port-daddy/i);
       });

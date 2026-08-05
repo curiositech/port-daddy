@@ -15,6 +15,9 @@ import {
   batchCheckProcesses,
   startSystemPortsRefresh,
 } from '../../shared/port-utils.js';
+import { resolveDaemonTcpTarget } from '../../shared/daemon-discovery.js';
+
+const selectedDaemonPort = () => resolveDaemonTcpTarget().port;
 
 // ─── formatUptime ────────────────────────────────────────────────────────────
 
@@ -231,7 +234,7 @@ describe('getSystemPortsAsync', () => {
 
 describe('isPortInUseOnSystem', () => {
   test('returns a boolean', () => {
-    const result = isPortInUseOnSystem(9876);
+    const result = isPortInUseOnSystem(selectedDaemonPort());
     expect(typeof result).toBe('boolean');
   });
 
@@ -247,9 +250,8 @@ describe('isPortInUseOnSystem', () => {
     expect(typeof result).toBe('boolean');
   });
 
-  test('daemon port 9876 check returns a boolean', () => {
-    // The PD daemon runs on 9876. Just verify the function runs without error.
-    const result = isPortInUseOnSystem(9876);
+  test('selected daemon port check returns a boolean', () => {
+    const result = isPortInUseOnSystem(selectedDaemonPort());
     expect(typeof result).toBe('boolean');
   });
 });
@@ -258,7 +260,7 @@ describe('isPortInUseOnSystem', () => {
 
 describe('isPortInUseOnSystemAsync', () => {
   test('returns a boolean', async () => {
-    const result = await isPortInUseOnSystemAsync(9876);
+    const result = await isPortInUseOnSystemAsync(selectedDaemonPort());
     expect(typeof result).toBe('boolean');
   }, 5000);
 
@@ -268,9 +270,10 @@ describe('isPortInUseOnSystemAsync', () => {
     expect(typeof result).toBe('boolean');
   }, 5000);
 
-  test('sync and async versions agree on the daemon port', async () => {
-    const syncResult = isPortInUseOnSystem(9876);
-    const asyncResult = await isPortInUseOnSystemAsync(9876);
+  test('sync and async versions agree on the selected daemon port', async () => {
+    const daemonPort = selectedDaemonPort();
+    const syncResult = isPortInUseOnSystem(daemonPort);
+    const asyncResult = await isPortInUseOnSystemAsync(daemonPort);
     // Both should report the same state for the same port
     expect(asyncResult).toBe(syncResult);
   }, 5000);

@@ -36,6 +36,21 @@ DISPATCH_TAGS="${FLEET_LOOP_SMOKE_TAGS:-loop-smoke,benign}"
 DISPATCH_BACKEND="${FLEET_LOOP_SMOKE_BACKEND:-cli:claude-code}"
 MERGE_POLICY="${FLEET_LOOP_SMOKE_MERGE_POLICY:-review}"
 SCRATCH="${FLEET_LOOP_SMOKE_SCRATCH:-$HOME/coding/tmp/fleet-loop-smoke-$$}"
+PD_BIN="${PORT_DADDY_CLI:-}"
+
+if [ -n "$PD_BIN" ] && [[ "$PD_BIN" != */* ]]; then
+  PD_BIN="$(command -v "$PD_BIN" 2>/dev/null || true)"
+elif [ -z "$PD_BIN" ]; then
+  PD_BIN="$(command -v pd 2>/dev/null || true)"
+fi
+
+# Every invocation in this witness must use the same selected CLI. In
+# particular, a named development daemon commonly exports PORT_DADDY_URL plus
+# PORT_DADDY_CLI; silently falling back to Homebrew's older `pd` makes the test
+# claim it exercised one daemon while actually speaking an incompatible client.
+pd() {
+  "$PD_BIN" "$@"
+}
 
 for arg in "$@"; do
   case "$arg" in
@@ -113,8 +128,8 @@ pd_try() {
 
 step "0. Pre-flight"
 
-if ! command -v pd >/dev/null 2>&1; then
-  fail "pd is not on PATH"
+if [ -z "$PD_BIN" ] || [ ! -x "$PD_BIN" ]; then
+  fail "no executable Port Daddy CLI was selected (PORT_DADDY_CLI or pd on PATH)"
   echo "    install via 'brew install curiositech/tap/port-daddy' (see runbook §b)"
   exit 2
 fi
@@ -127,11 +142,15 @@ fi
 PD_VERSION=$(pd --version 2>/dev/null | head -1 || echo "unknown")
 note "pd version: $PD_VERSION"
 
-if ! pd status >/dev/null 2>&1; then
-  fail "pd daemon is not running.  Try: pd start"
+STATUS_OUT="$SCRATCH/status.json"
+if pd status --json > "$STATUS_OUT" 2>&1; then
+  ok "selected daemon is responsive and healthy"
+elif jq -e '(.data.status // .status) == "ok"' "$STATUS_OUT" >/dev/null 2>&1; then
+  warn "selected daemon is responsive but reports degraded control-plane health"
+else
+  fail "selected daemon is unreachable (see $STATUS_OUT)"
   exit 2
 fi
-ok "daemon is running"
 
 # guard status must be 'enforce'.
 if pd guard status 2>&1 | grep -q "enforce"; then
