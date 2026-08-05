@@ -446,7 +446,20 @@ fleet:
       class: purser
       trigger: pull_request:opened
       model: '@cf/qwen/qwen3-30b-a3b-fp8'  # guarded: unknown ids remap to known-good
-      blocking: false            # true ⇒ sandbox-executed test FAILURES fail the gate
+      # THE GATE. `blocking: true` means a sandbox-executed test FAILURE fails
+      # the check run, so a PR cannot merge while it contradicts its own
+      # best-interpretation contract. Until now the purser authored tests,
+      # demanded they be satisfied, and then passed the gate anyway — the demand
+      # was advisory, which is another way of saying it was optional.
+      #
+      # This is safe to switch on precisely BECAUSE of the line below it.
+      # `blocking` only ever fires on `executed && !passed` — tests that really
+      # ran and really failed. When no sandbox is provisioned the tests are not
+      # executed, and `blockWithoutSandbox: false` keeps the verdict advisory:
+      # the purser never blocks on tests it could not run. So the worst case of
+      # enabling this is the correct case — a red gate on a PR whose own tests
+      # fail against its own head.
+      blocking: true
       blockWithoutSandbox: false # true (+blocking) ⇒ fail-closed when tests could not
                                  # be executed; default false: never block on tests
                                  # that were never run

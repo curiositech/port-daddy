@@ -442,10 +442,11 @@ export function renderAccountPage(
 
     <section class="sect" id="harbors" aria-labelledby="harbors-h">
       <div class="sect-head"><div><span class="eyebrow">Harbors</span><h2 id="harbors-h">Where your agents work</h2></div></div>
+      <a class="runs-cta" href="/account/parleys">Your parleys &rarr;</a>
       <div class="empty">
         <div class="e-title">Personal harbor only.</div>
         <p>Your local daemon is your personal harbor — you are the only authority and nothing leaves the machine unless you say so. Team and guest harbors (RBAC, scoped guest cards) surface here once membership is linked to your account.</p>
-        <p>Team harbors carry <strong>parleys</strong> — signed multi-party agreements with a deadline. List and sign yours at <span class="cmd">GET /v1/harbors/&lt;namespace&gt;/&lt;name&gt;/parleys</span> (member-gated; a rendered list lands here next).</p>
+        <p>Team harbors carry <strong>parleys</strong> — signed multi-party agreements with a deadline. <a href="/account/parleys">Your parleys</a> lists every one in the harbors you belong to, with each party&rsquo;s stance and signed position, and lets you sign your own.</p>
       </div>
     </section>
 
