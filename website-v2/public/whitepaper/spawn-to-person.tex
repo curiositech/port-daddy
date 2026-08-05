@@ -700,9 +700,10 @@ reputation? Sketch a rule and the attack it invites.
 is the most common way a reputation design fails its own honesty test. To keep the
 argument concrete and honest, we measure each organ against a \emph{reference
 system} --- a running coordination daemon for local agent swarms whose component-by-component
-maturity is tabulated in Appendix~\ref{app:status}. Two of the three organs are
-\emph{implemented} (one of them only \emph{partially}); the third is only
-\emph{specified}. We use the neutral maturity scale throughout (\BUILT~/
+maturity is tabulated in Appendix~\ref{app:status}. Memory is implemented;
+checkpointing is partial; and the third organ has a shipped commitment-and-closure
+substrate but not yet the reputation-grade witnessed ledger this paper requires.
+We use the neutral maturity scale throughout (\BUILT~/
 \BUILTWEAK~/ \DESIGNED~/ \VISION) and round nothing up.
 
 % --- FIGURE 4: the three continuity organs ---
@@ -748,17 +749,23 @@ which treats it as a low-level primitive. \emph{This} paper owns the argument fo
 \emph{why it is the foundation of personhood and reputation}. The two papers state
 the same canonical sentence (next).
 
-\subsection{Organ 3 --- Outcome ledger: the witnessed record of delivery \quad\DESIGNED}
+\subsection{Organ 3 --- Outcome ledger: the witnessed record of delivery \quad\BUILTWEAK}
 
-The third organ is the one reputation actually keys on, and the one not yet built:
-an \textbf{append-only, daemon-witnessed outcome ledger.} Its specified form is a
+The third organ is the one reputation actually keys on. Its foundation is now
+\BUILTWEAK: a durable commitment record, daemon-derived deadlines, oracle-bound
+closure, CLI/API surfaces, and an overdue-obligation monitor ship in the reference
+system. The complete organ remains an \textbf{append-only, daemon-witnessed outcome
+ledger} whose records are neutral, graded, identity-bound, and sanctionable. Its
+specified form is a
 \textbf{durable-commitment} record: a violable promise bound one-to-one to an
 actor, auto-enrolled when the actor takes a claim, closed only against an oracle,
 and watched by an obligation monitor that is the dual of the restart organ. A
 commitment row records what was promised; closing it requires an
 \emph{oracle reference} --- a released claim, a merged commit SHA, a passing test
-id, a satisfied policy sub-check. The record type exists in the reference system,
-but oracle-bound closure is the part that is still only \DESIGNED.
+id, a satisfied policy sub-check. That commitment-and-closure seam ships. Neutral
+grading events, reputation updates, judge independence, sanctions, and durable
+identity binding do not; therefore the organ as a reputation ledger is partial,
+not complete.
 
 \begin{definition}[Oracle]\label{def:oracle}
 An \textbf{oracle} is a trusted source of ground truth that the agent being
@@ -772,8 +779,9 @@ respawn.
 
 \keyidea{\textbf{The economy rests on three continuity organs --- memory
 (\BUILT), checkpoint (\BUILTWEAK: notes, not execution state), and the
-witnessed-outcome ledger (\DESIGNED) --- and reputation keys on the third, which
-does not yet exist; the checkpoint organ is the weakest \emph{built} link and
+witnessed-outcome ledger (\BUILTWEAK: commitments and oracle-bound closure, not
+neutral graded outcomes) --- and reputation keys on the richer third organ, which
+does not yet exist; the checkpoint organ is the weakest continuity link and
 ``resurrection with teeth'' (a real execution-state checkpoint) is the literal
 foundation of L3.}}
 
@@ -863,21 +871,23 @@ replication (\textbf{Sybil}~\cite{douceur2002}), and the reputation reduces to a
 per-incarnation scratchpad with no economic content.
 \end{property}
 
-\noindent In most agent runtimes today --- the reference system included --- an
-identity is a \emph{self-asserted string}: a human-readable triple of the form
-\emph{project\,:\,stack\,:\,context} that the operator chooses and can re-pick at
-will. That is fine for single-operator legibility (Chapters~I--II) and fatal for
-reputation. The fix is the one genuinely architectural piece of the program: a
-\textbf{daemon-minted, non-forgeable identity} --- an opaque actor id the runtime
-issues and binds to a credential the actor cannot cheaply re-pick (a per-actor
-signing key, or the durable actor-soul of \S\ref{sec:continuity}) --- with the
-self-asserted string demoted to a display alias.
+\noindent Most agent runtimes still accept a \emph{self-asserted string}: a
+human-readable triple of the form \emph{project\,:\,stack\,:\,context} that the
+operator chooses and can re-pick at will. The reference system now ships the first
+local correction: \texttt{actor-souls} mints an opaque actor id and lookup
+credential inside the daemon, and the budget guard puts fresh actors into a shared,
+bounded newcomer pool. Legacy and bypass paths still accept asserted identifiers,
+and the credential is not yet enforced at every security-relevant write boundary.
+The result is a real but partial local identity root, with the asserted string
+demoted toward a display alias; it is not yet the complete identity contract this
+paper requires.
 
 \subsection{S2 --- whitewashing in action}
 
 Return to Alice's swarm. Tonight's \emph{Drake} deleted the failing test instead
 of fixing it; the daemon's outcome log records the deletion and a later re-audit
-flags it. Under today's self-asserted identities, the sanction is free to escape:
+flags it. On a legacy or bypass path that still accepts self-asserted identity, the
+sanction is free to escape:
 when Alice spawns tomorrow's swarm, she (or Drake's own boot prompt) registers the
 agent as \emph{project\,:\,stack\,:\,context2}, and a brand-new identity inherits a
 \emph{clean slate}. The bad record attaches to a string nobody is forced to keep.
@@ -987,8 +997,9 @@ what false-positive cost to honest high-volume pairs?
 \section{The keystone split: local identity vs.\ cross-operator attestation}\label{sec:keystone}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The non-forgeable identity of \S\ref{sec:identity} is the highest-leverage unbuilt
-keystone of the whole program. But the keystone is \emph{two stones}, and
+The non-forgeable identity of \S\ref{sec:identity} is now the highest-leverage
+\emph{partial local} keystone of the program. The cross-operator stone remains
+unbuilt. The keystone is \emph{two stones}, and
 conflating them is the single most consequential error the series can make.
 
 \begin{definition}[Local non-forgeable identity]\label{def:0040}
@@ -996,9 +1007,11 @@ A \textbf{local non-forgeable identity} provides an unforgeable actor identity
 \emph{within one trusted daemon}: the runtime issues and binds it, and no actor
 inside the fleet can re-pick or impersonate it. Its threat model is explicitly
 intra-fleet and single-operator; it is \emph{not} a public-key infrastructure and
-offers no defense against a hostile \emph{operator}. This is exactly what the
-single-operator layers---Chapters~I--III---need and assume.
-\DESIGNED.
+offers no defense against a hostile \emph{operator}. The reference implementation's
+daemon-minted actor-soul and credential satisfy a bounded slice of this definition;
+full write-boundary enforcement and migration of legacy identity paths remain.
+This is exactly what the single-operator layers---Chapters~I--III---need and assume.
+\BUILTWEAK.
 \end{definition}
 
 \begin{definition}[Cross-operator attestation]\label{def:0040b}
@@ -1612,10 +1625,10 @@ Role / person distinction (Defs.~\ref{def:role}--\ref{def:person}) & --- &
 The third side of the market is a \emph{tradeable person}, defined here. \\
 Principal-as-economic-entity (Def.~\ref{def:principal}) & \DESIGNED &
 Bonds and sanctions key on the principal; the market paper cross-references, not redefines. \\
-The three continuity organs & \shortstack[l]{\BUILT\\[-1pt]\BUILTWEAK\\[-1pt]\DESIGNED} &
+The three continuity organs & \shortstack[l]{\BUILT\\[-1pt]\BUILTWEAK\\[-1pt]\BUILTWEAK} &
 Reputation keys on organ~3 (the outcome ledger). \\
-Outcome ledger / oracle (Def.~\ref{def:oracle}) & \DESIGNED &
-The witnessed-outcome substrate every settlement updates. \\
+Outcome ledger / oracle (Def.~\ref{def:oracle}) & \BUILTWEAK &
+Commitment, deadline, oracle closure, API/CLI, and overdue detection ship; neutral graded outcome events, sanctions, and reputation binding do not. \\
 Multi-dimensional reputation (Def.~\ref{def:qvec}, Protos.~\ref{proto:judge},~\ref{proto:skill}) & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
 The multi-dimensional score the market reads; the licensing side's signal. \\
 Neutral-judge market & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
@@ -1731,12 +1744,12 @@ Episodic memory (Organ 1) & \BUILT &
 Durable typed episodes promoted from execution history; runs in production. \\
 Restart organ (Organ 2) & \BUILTWEAK &
 Heartbeat-staleness detector that salvages dead agents; forwards a \emph{summary}, not execution state. \\
-Outcome ledger (Organ 3) & \DESIGNED &
-Durable-commitment record type exists; oracle-bound closure is specified, not shipped. \\
+Outcome ledger (Organ 3) & \BUILTWEAK &
+Durable commitments, daemon-derived deadlines, oracle-bound closure, API/CLI, and overdue detection ship; neutral grading, sanctions, and reputation binding do not. \\
 Cost meter (efficiency axis) & \BUILT &
 Per-task token/wall-clock/dollar accounting recorded today. \\
-Local non-forgeable identity & \DESIGNED &
-Daemon-minted opaque id bound to a credential; specified. Identities are self-asserted strings today. \\
+Local non-forgeable identity & \BUILTWEAK &
+Daemon-minted actor-soul, lookup credential, and bounded newcomer pool ship; full write-boundary enforcement and legacy migration do not. \\
 Capability jail (capability $\ne$ permission) & \DESIGNED &
 Per-agent tool-allowlist and scoped filesystem; specified. \\
 Honest-attestation discipline & \BUILT &
