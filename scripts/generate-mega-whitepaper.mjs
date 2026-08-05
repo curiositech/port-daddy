@@ -183,7 +183,7 @@ function collateReferences(prepared) {
   return canonicalReferences;
 }
 
-function generate() {
+function generate(outputDirectory = outDir) {
 const prepared = papers.map((paper) => {
   const sourcePath = resolve(repoRoot, paper.source);
   const rootBody = documentBody(readUtf8(sourcePath), paper.source);
@@ -218,16 +218,16 @@ const bibliography = [
   '',
 ].join('\n');
 
-mkdirSync(outDir, { recursive: true });
-writeFileSync(resolve(outDir, 'mega-volume-body.tex'), `${generatedBodies.join('\n\n\\clearpage\n\n')}\n`, 'utf8');
-writeFileSync(resolve(outDir, 'mega-volume-bibliography.tex'), bibliography, 'utf8');
+mkdirSync(outputDirectory, { recursive: true });
+writeFileSync(resolve(outputDirectory, 'mega-volume-body.tex'), `${generatedBodies.join('\n\n\\clearpage\n\n')}\n`, 'utf8');
+writeFileSync(resolve(outputDirectory, 'mega-volume-bibliography.tex'), bibliography, 'utf8');
 writeFileSync(
-  resolve(outDir, 'mega-volume-generation.json'),
+  resolve(outputDirectory, 'mega-volume-generation.json'),
   `${JSON.stringify({ chapters: papers.length, references: canonicalReferences.length, sources: papers.map((p) => p.source) }, null, 2)}\n`,
   'utf8',
 );
 
-console.log(`generated ${papers.length} chapters and ${canonicalReferences.length} collated references in ${outDir}`);
+console.log(`generated ${papers.length} chapters and ${canonicalReferences.length} collated references in ${outputDirectory}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) generate();
@@ -236,7 +236,12 @@ export {
   cleanStandaloneChrome,
   collateReferences,
   compareNormalizedReferences,
+  documentBody,
+  generate,
   inlineInputs,
   namespaceLabels,
+  namespaceChapterSyntax,
+  normalizedReference,
+  referenceFingerprint,
   rewriteCitations,
 };

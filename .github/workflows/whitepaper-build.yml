@@ -25,6 +25,7 @@ on:
       - 'scripts/build-whitepapers.sh'
       - 'scripts/generate-mega-whitepaper.mjs'
       - 'scripts/generate-mega-whitepaper.test.mjs'
+      - 'tests/purser/test-*.js'
       - '.github/workflows/whitepaper-build.yml'
   pull_request:
     paths:
@@ -33,6 +34,7 @@ on:
       - 'scripts/build-whitepapers.sh'
       - 'scripts/generate-mega-whitepaper.mjs'
       - 'scripts/generate-mega-whitepaper.test.mjs'
+      - 'tests/purser/test-*.js'
       - '.github/workflows/whitepaper-build.yml'
   # Merge queue: trigger so this workflow reports a check context on the queued
   # group. The `build` job is SKIPPED on merge_group (see its `if:`), and a
@@ -79,7 +81,19 @@ jobs:
           node-version: 22
 
       - name: Test collected-volume generator
-        run: node --test scripts/generate-mega-whitepaper.test.mjs
+        run: >-
+          node --test
+          scripts/generate-mega-whitepaper.test.mjs
+          tests/purser/test-bibliography-count.js
+          tests/purser/test-bibliography-normalization.js
+          tests/purser/test-chapter-count.js
+          tests/purser/test-chrome-removal.js
+          tests/purser/test-citation-resolution.js
+          tests/purser/test-cyclic-imports.js
+          tests/purser/test-idempotency.js
+          tests/purser/test-label-namespacing.js
+          tests/purser/test-malformed-tex.js
+          tests/purser/test-namespace-environment.js
 
       - name: Trust the checkout dir (container runs as root)
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"

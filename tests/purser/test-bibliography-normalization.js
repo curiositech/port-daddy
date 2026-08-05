@@ -1,10 +1,11 @@
+import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { normalizedReference, referenceFingerprint } from '../scripts/generate-mega-whitepaper.mjs';
+import { normalizedReference, referenceFingerprint } from '../../scripts/generate-mega-whitepaper.mjs';
 
 test('normalizes bibliography entries consistently', () => {
   const testCases = [
     { input: '{Zulu}', expected: 'zulu' },
-    { input: '\emph{alpha}', expected: 'alpha' },
+    { input: '\\emph{alpha}', expected: 'alpha' },
     { input: 'Beta', expected: 'beta' }
   ];
   
