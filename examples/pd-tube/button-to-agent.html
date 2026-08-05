@@ -110,7 +110,7 @@
 
     <label>
       Daemon URL
-      <input id="daemon" value="http://127.0.0.1:9876">
+      <input id="daemon" placeholder="Selected daemon URL">
     </label>
 
     <div class="grid">
@@ -129,11 +129,15 @@ $ pd tube ui:clicks
     const TUBE_KIND = 'tube.msg';
     const log = document.getElementById('log');
     const daemonInput = document.getElementById('daemon');
+    const daemonOverride = new URLSearchParams(window.location.search).get('daemon');
+    daemonInput.value = daemonOverride || (window.location.protocol.startsWith('http') ? window.location.origin : '');
 
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     function daemonUrl() {
-      return daemonInput.value.replace(/\/+$/, '');
+      const selected = daemonInput.value.replace(/\/+$/, '');
+      if (!selected) throw new Error('No daemon selected. Open this sample from Port Daddy or provide ?daemon=<url>.');
+      return selected;
     }
 
     function channelUrl() {

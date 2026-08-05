@@ -146,10 +146,11 @@
 </div>
 
 <script>
-  const DAEMON = 'http://127.0.0.1:9876';
+  const daemonOverride = new URLSearchParams(window.location.search).get('daemon');
+  const DAEMON = (daemonOverride || (window.location.protocol.startsWith('http') ? window.location.origin : '')).replace(/\/+$/, '');
   const CHANNEL = 'ui:clicks';
   const KIND = 'tube.msg';
-  const url = `${DAEMON}/msg/${encodeURIComponent(CHANNEL)}`;
+  const url = DAEMON ? `${DAEMON}/msg/${encodeURIComponent(CHANNEL)}` : null;
   const $ = (id) => document.getElementById(id);
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -174,6 +175,7 @@
   }
 
   async function publish(body, sender) {
+    if (!url) throw new Error('No daemon selected. Open this sample from Port Daddy or provide ?daemon=<url>.');
     const res = await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sender, payload: { v: 1, kind: KIND, body } }),
