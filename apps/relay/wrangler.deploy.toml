@@ -150,6 +150,17 @@ crons = ["0 */6 * * *", "*/5 * * * *"]
 [env.latest]
 name = "relay-latest"
 
+# CRITICAL: environments INHERIT top-level `routes`, which carries the custom
+# domain relay.portdaddy.dev. Without this empty override, `wrangler deploy
+# --env latest` reassigns the PRODUCTION domain to the staging Worker — wrangler
+# says so in a warning that is easy to miss in CI logs:
+#   "The 'env.latest' environment inherits the top-level 'routes' configuration,
+#    which includes the custom domain(s): relay.portdaddy.dev. Deploying this
+#    environment will reassign these custom domains away from the top-level
+#    Worker."
+# The latest channel lives on its *.workers.dev URL and must own no domain.
+routes = []
+
 [env.latest.vars]
 RELAY_VERSION = "0.1.0"
 EVENT_RETENTION_DAYS = "7"

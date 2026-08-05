@@ -40,18 +40,18 @@
   {{\sffamily\bfseries\large ProVerif --- Symbolic, Dolev--Yao adversary} \\[4pt]
    \textit{Verifies properties of the protocol \emph{as designed}, ignoring implementation
    details. The attacker controls the entire network.}\\[3pt]
-   {\bfseries Claims:} authentication \quad$\cdot$\quad secrecy \quad$\cdot$\quad
-   replay-freedom \quad$\cdot$\quad injective agreement (Lowe).};
+   {\bfseries Claims:} secrecy \quad$\cdot$\quad modeled authentication
+   correspondence \quad$\cdot$\quad attenuation.};
 \node[tool,anchor=north east,above=-3pt of top.north east,xshift=-6pt]
   {ProVerif 2.05};
 
 % ─── Middle layer: Kani (bounded model check on Rust) ─────────────────────
 \node[layer,fill=hhsanddeep!55,below=22mm of top] (mid)
   {{\sffamily\bfseries\large Kani --- Bounded model checking, Rust source} \\[4pt]
-   \textit{Verifies that the Rust implementation (the \texttt{harbor-card-rs} crate)
-   satisfies the obligations handed down by the symbolic layer.}\\[3pt]
+   \textit{Checks bounded source properties of the \texttt{harbor-card-rs} crate;
+   this is not an automatic refinement proof from the symbolic model.}\\[3pt]
    {\bfseries Claims:} memory safety \quad$\cdot$\quad
-   constant-time byte comparison \quad$\cdot$\quad
+   secret-independent source branching \quad$\cdot$\quad
    capability-subset correctness \quad$\cdot$\quad parser non-panic on adversarial input.};
 \node[tool,anchor=north east,above=-3pt of mid.north east,xshift=-6pt]
   {Kani / CBMC};
@@ -91,7 +91,7 @@
 \node[evidence,anchor=west] at ([xshift=3mm]$(midDR)!0.5!(botUR)$)
   {$\Uparrow$ FFI conformance \\ binary realizes Rust core};
 \node[evidence,anchor=west] at ([xshift=3mm]$(midUR)!0.5!(topDR)$)
-  {$\Uparrow$ Kani closes \\ specification gap};
+  {$\Uparrow$ bounded source \\ evidence};
 
 % ─── Centerline bridge labels ──────────────────────────────────────────
 \node[bridgelbl] at ($(top.south)!0.5!(mid.north)$)
@@ -102,13 +102,12 @@
 \end{tikzpicture}%
 }
 \caption{The three-layer verification stack. ProVerif (top) discharges design-level
-obligations against a Dolev--Yao adversary. Kani (middle) closes the
-\emph{specification gap}: the same properties, restated as Rust source-level claims
-on the \texttt{harbor-card-rs} crate, are discharged by bounded model checking.
-Runtime conformance tests (bottom) close the \emph{deployment gap}: the FFI-bridged
-binary is exercised with the formally verified attack vectors. Cinnabar arrows show
+obligations against a Dolev--Yao adversary. Kani (middle) checks bounded Rust
+source-level properties that overlap with, but do not refine the full symbolic model.
+Runtime conformance tests (bottom) exercise the FFI-bridged binary with selected
+attack vectors; they reduce rather than eliminate the deployment gap. Cobalt arrows show
 obligations flowing down (what each lower layer must preserve); teal arrows show
-evidence flowing back up (what each lower layer actually delivers). The stack is
-sound only if every bridge holds.}
+evidence flowing back up. The unproved bridges remain explicit assurance-case
+assumptions rather than inferred theorems.}
 \label{fig:anchor-verification-stack}
 \end{figure}

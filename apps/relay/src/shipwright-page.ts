@@ -73,6 +73,12 @@ body{display:flex;flex-direction:column}
 .yamlbox button{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;letter-spacing:.04em;padding:4px 10px;border:1px solid var(--hair-strong);background:transparent;cursor:pointer}
 .yamlbox button:hover{border-color:var(--border-strong)}
 .yamlbox pre{overflow-x:auto;padding:12px 14px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;line-height:1.55;max-height:340px;overflow-y:auto}
+/* validation badge — the deterministic verdict, never the model's say-so */
+.v-badge{display:block;font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:7px 12px;border-bottom:1px solid var(--hair-strong)}
+.v-badge.v-ok{color:var(--health);background:var(--surface-card);box-shadow:inset 3px 0 0 var(--health)}
+.v-badge.v-bad{color:var(--error);background:var(--surface-card);box-shadow:inset 3px 0 0 var(--error)}
+.v-badge.v-pending{color:var(--text-ghost)}
+.v-errs{margin:0;padding:8px 14px 8px 30px;background:var(--surface-card);border-bottom:1px solid var(--hair-strong);font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--error);line-height:1.6}
 .codebox{overflow-x:auto;border:1px solid var(--hair-strong);padding:10px 12px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;line-height:1.55;margin:8px 0}
 /* empty state teaches (unified-design-language law 5) */
 .empty{border:1px dashed var(--hair-strong);padding:20px 22px;margin-top:16px}
@@ -144,7 +150,7 @@ const CLIENT_JS = `
     return n;
   }
 
-  function yamlPanel(code) {
+  function yamlPanel(code, verdict) {
     var box = el('div', 'yamlbox');
     var bar = el('div', 'bar');
     bar.appendChild(el('span', 'fn', 'pd-fleet.yml'));
@@ -171,6 +177,29 @@ const CLIENT_JS = `
     acts.appendChild(dl);
     bar.appendChild(acts);
     box.appendChild(bar);
+    // Honest verdict FROM THE DETERMINISTIC PARSER — never the model's own
+    // claim. verdict is undefined only while a live stream is still running
+    // and the server hasn't sent its final pdYamlVerdict marker yet.
+    var badge = el('div', 'v-badge v-pending', 'Validating\\u2026');
+    if (verdict) {
+      if (verdict.valid) {
+        badge.className = 'v-badge v-ok';
+        var n = (verdict.ships && verdict.ships.length) || 0;
+        badge.textContent = 'Validates \\u2713 \\u2014 ' + n + (n === 1 ? ' ship parses clean' : ' ships parse clean');
+      } else {
+        badge.className = 'v-badge v-bad';
+        badge.textContent = 'Invalid \\u2717 \\u2014 ' + (verdict.message || 'the parser rejected this roster');
+      }
+    }
+    box.appendChild(badge);
+    if (verdict && !verdict.valid && verdict.errors && verdict.errors.length) {
+      var errList = el('ul', 'v-errs');
+      for (var k = 0; k < verdict.errors.length; k++) {
+        var eItem = verdict.errors[k];
+        errList.appendChild(el('li', null, (eItem.field || 'yaml') + ': ' + (eItem.message || 'invalid')));
+      }
+      box.appendChild(errList);
+    }
     var pre = el('pre');
     pre.appendChild(el('code', null, code));
     box.appendChild(pre);
@@ -182,14 +211,20 @@ const CLIENT_JS = `
     return box;
   }
 
-  function fillBody(node, content) {
+  function fillBody(node, content, verdicts) {
     while (node.childNodes.length > 1) node.removeChild(node.lastChild); // keep .who
     var st = stripThink(content);
     var parts = splitBlocks(st.text);
+    var yamlIdx = 0;
     for (var i = 0; i < parts.length; i++) {
       var p = parts[i];
       if (p.kind === 'code' && (p.lang === 'yaml' || p.lang === 'yml')) {
-        node.appendChild(yamlPanel(p.v));
+        // Positional match: the i-th yaml/yml fence here is the i-th verdict
+        // the server computed with the identical fence scan (shipwright.ts's
+        // extractFencedYamlBlocks) — no id is persisted to link them.
+        var v = verdicts && verdicts[yamlIdx] ? verdicts[yamlIdx] : null;
+        yamlIdx++;
+        node.appendChild(yamlPanel(p.v, v));
       } else if (p.kind === 'code') {
         var cb = el('div', 'codebox');
         cb.appendChild(el('code', null, p.v));
@@ -206,14 +241,14 @@ const CLIENT_JS = `
     return node;
   }
 
-  function addMsg(role, content) {
+  function addMsg(role, content, verdicts) {
     if (emptyState) { emptyState.remove(); emptyState = null; }
     var who = role === 'user' ? 'You' : 'Shipwright';
     var cls = role === 'user' ? 'msg msg-user' : 'msg msg-ship';
     if (role === 'error') { who = 'Trouble'; cls = 'msg msg-ship msg-error'; }
     var node = el('div', cls);
     node.appendChild(el('span', 'who', who));
-    fillBody(node, content);
+    fillBody(node, content, verdicts);
     log.appendChild(node);
     scrollDown();
     return node;
@@ -229,7 +264,7 @@ const CLIENT_JS = `
   function loadHistory() {
     fetch('/v1/shipwright/history').then(function (r) { return r.json(); }).then(function (d) {
       var msgs = (d && d.messages) || [];
-      for (var i = 0; i < msgs.length; i++) addMsg(msgs[i].role, msgs[i].content);
+      for (var i = 0; i < msgs.length; i++) addMsg(msgs[i].role, msgs[i].content, msgs[i].yaml);
     }).catch(function () { /* empty state stays */ });
   }
 
@@ -247,18 +282,22 @@ const CLIENT_JS = `
       if (ctype.indexOf('text/event-stream') < 0) {
         return res.json().then(function (d) {
           live.remove();
-          if (d && d.reply) { addMsg('assistant', d.reply); }
+          if (d && d.reply) { addMsg('assistant', d.reply, d.yaml); }
           else { addMsg('error', (d && d.error) || 'The Shipwright did not answer.'); }
         });
       }
       var reader = res.body.getReader();
       var dec = new TextDecoder();
       var buf = '';
+      // Filled from the server's final synthetic 'pdYamlVerdict' SSE line
+      // (shipwright.ts's flush()) -- arrives after every real token, before
+      // the stream closes, so it's set by the time r.done fires below.
+      var pendingVerdict = null;
       function pump() {
         return reader.read().then(function (r) {
           if (r.done) {
             live.remove();
-            if (acc.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim()) { addMsg('assistant', acc); }
+            if (acc.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim()) { addMsg('assistant', acc, pendingVerdict); }
             else { addMsg('error', 'The Shipwright went quiet mid-sentence. Try again.'); }
             return;
           }
@@ -272,9 +311,10 @@ const CLIENT_JS = `
             if (!payload || payload === '[DONE]') continue;
             try {
               var o = JSON.parse(payload);
+              if (o && o.pdYamlVerdict) { pendingVerdict = o.pdYamlVerdict; continue; }
               var tok = typeof o.response === 'string' ? o.response
                 : (o.choices && o.choices[0] && o.choices[0].delta && o.choices[0].delta.content) || '';
-              if (tok) { acc += tok; fillBody(live, acc); scrollDown(); }
+              if (tok) { acc += tok; fillBody(live, acc, null); scrollDown(); }
             } catch (e) { /* partial line; ignore */ }
           }
           return pump();

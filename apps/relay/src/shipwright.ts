@@ -27,6 +27,17 @@
  * The system prompt says so, the page says so, and the YAML ships with
  * commit-it-yourself instructions. Direct PR-opening (via the fleet-save
  * GitHub App path) is the plan's next slice, not this one.
+ *
+ * VALIDATION (grand-plan §shipwright-yaml-validate): the model's emitted
+ * pd-fleet.yml is never trusted on its say-so. Every fenced ```yaml/```yml
+ * block in an assistant message is piped through the SAME deterministic
+ * validator the executor trusts (`validateFleetYaml` in fleet-parser.ts, the
+ * engine behind POST /v1/fleet/validate) before the page is allowed to badge
+ * it pass/fail. The model never self-reports validity — it cannot, since the
+ * verdict is computed server-side from the parser, not asked of the LLM.
+ * Verdicts are NOT persisted (no schema change): they are recomputed from the
+ * stored message content on every read, so a schema/parser upgrade re-badges
+ * old conversations for free. See {@link validateEmittedYaml}.
  */
 
 import type { Env } from './types.js';
@@ -36,6 +47,7 @@ import {
   listShipwrightMessages,
   clearShipwrightChats,
 } from './db.js';
+import { validateFleetYaml, type FleetValidationResult } from './fleet-parser.js';
 
 // ── Bounds (protect Workers AI quota + D1 row size) ──────────────────────────
 
@@ -106,7 +118,13 @@ export async function handleShipwrightHistory(request: Request, env: Env): Promi
   return json(200, {
     code: 'OK',
     error: null,
-    messages: messages.map((m) => ({ role: m.role, content: m.content, createdAt: m.created_at })),
+    messages: messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+      createdAt: m.created_at,
+      // Only the Shipwright's own turns can carry a roster to badge.
+      yaml: m.role === 'assistant' ? validateEmittedYaml(m.content) : [],
+    })),
   });
 }
 
@@ -155,6 +173,94 @@ export function assembleSseText(raw: string): string {
     out += tokenOf(payload);
   }
   return out;
+}
+
+// ── YAML validation badge (shipwright-yaml-validate) ─────────────────────────
+
+/**
+ * Extract every fenced ```yaml / ```yml code block from a chat message, in
+ * document order. Mirrors the client's own `splitBlocks` fence scan exactly
+ * (same delimiter, same lang normalization, same trailing-whitespace trim) so
+ * the i-th block found here is the i-th yaml/yml panel the page renders —
+ * positional alignment is how the client matches a verdict to its panel
+ * without persisting a link between them. `<think>` blocks are stripped
+ * first (deepseek-style reasoning traces are never a source of roster YAML).
+ *
+ * Design rationale: this is intentionally a dumb regex scan, not a markdown
+ * parser — the ONLY thing that matters is finding the same substrings the
+ * page's own renderer will turn into yaml panels, so validation and display
+ * never disagree about which blocks exist.
+ *
+ * @param content Raw stored message text (model-emitted, therefore hostile —
+ *   never interpreted as anything but a string to scan).
+ * @returns Fenced block bodies, trailing whitespace trimmed, in order.
+ */
+export function extractFencedYamlBlocks(content: string): string[] {
+  const stripped = content.replace(/<think>[\s\S]*?<\/think>/g, '');
+  const out: string[] = [];
+  const fence = /```([A-Za-z0-9_-]*)\r?\n([\s\S]*?)```/g;
+  let m: RegExpExecArray | null;
+  while ((m = fence.exec(stripped))) {
+    const lang = (m[1] ?? '').trim().toLowerCase();
+    if (lang === 'yaml' || lang === 'yml') {
+      out.push((m[2] ?? '').replace(/\s+$/, ''));
+    }
+  }
+  return out;
+}
+
+/**
+ * Compute the honest validation verdict for every roster the Shipwright has
+ * emitted in one message, by piping each fenced block through the SAME
+ * deterministic parser the executor trusts. This is the safety substrate for
+ * PR-opening (shipwright-pr-open hard-depends on it): a roster that fails
+ * here must never render as safe to copy/download without a loud warning,
+ * and the model itself never gets a vote — only `validateFleetYaml`'s
+ * structured errors do. Fails CLOSED: any unexpected throw from extraction or
+ * validation becomes an explicit invalid verdict, never a silently-dropped
+ * or silently-valid roster.
+ *
+ * Motivation: an LLM claiming "here is a full, valid file" is not evidence —
+ * it is a claim. The whole point of this function is to replace that claim
+ * with a fact computed by code the model cannot influence.
+ *
+ * @param content The stored (or in-flight) assistant message text to scan.
+ * @returns One {@link FleetValidationResult} per fenced yaml/yml block found,
+ *   in document order; empty when the message has no such block.
+ */
+export function validateEmittedYaml(content: string): FleetValidationResult[] {
+  let blocks: string[];
+  try {
+    blocks = extractFencedYamlBlocks(content);
+  } catch (e) {
+    // Extraction is a plain regex scan and should never throw; if it somehow
+    // does, fail closed with one loud invalid verdict rather than silence.
+    return [
+      {
+        code: 'BAD_YAML',
+        valid: false,
+        ships: [],
+        errors: [{ field: 'yaml', message: publicError(e) }],
+        message: 'Could not scan the message for a roster — treated as invalid.',
+      },
+    ];
+  }
+  return blocks.map((yaml) => {
+    try {
+      return validateFleetYaml(yaml);
+    } catch (e) {
+      // validateFleetYaml already catches its own YAML parse errors; this
+      // guards the theoretical case of a parser bug — fail closed, never
+      // report a roster valid because the deterministic check itself broke.
+      return {
+        code: 'BAD_YAML',
+        valid: false,
+        ships: [],
+        errors: [{ field: 'yaml', message: publicError(e) }],
+        message: 'Validator error — treated as invalid (fail-closed).',
+      };
+    }
+  });
 }
 
 /**
@@ -213,7 +319,7 @@ export async function handleShipwrightChat(request: Request, env: Env): Promise<
       })) as { response?: string };
       const reply = (res.response ?? '').trim();
       await persistReply(reply);
-      return json(200, { code: 'OK', error: null, reply });
+      return json(200, { code: 'OK', error: null, reply, yaml: validateEmittedYaml(reply) });
     } catch (e) {
       return json(500, { code: 'AI_ERROR', error: `Workers AI request failed: ${publicError(e)}` });
     }
@@ -235,15 +341,28 @@ export async function handleShipwrightChat(request: Request, env: Env): Promise<
   }
 
   const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
   let raw = '';
   const tee = new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
       raw += decoder.decode(chunk, { stream: true });
       controller.enqueue(chunk);
     },
-    async flush() {
+    async flush(controller) {
       raw += decoder.decode();
-      await persistReply(assembleSseText(raw));
+      const text = assembleSseText(raw);
+      await persistReply(text);
+      // The verdict rides the SAME SSE stream as one final synthetic line,
+      // after every real model token — never blended into `raw`/persisted
+      // content, so it can never be mistaken for the model's own words. The
+      // client recognizes the `pdYamlVerdict` marker and never treats it as
+      // a token (see shipwright-page.ts's pump()). Skipped entirely when the
+      // turn emitted no roster — no verdict line, no badge, nothing to lie
+      // about.
+      const verdicts = validateEmittedYaml(text);
+      if (verdicts.length > 0) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ pdYamlVerdict: verdicts })}\n\n`));
+      }
     },
   });
 

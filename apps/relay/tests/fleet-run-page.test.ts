@@ -527,6 +527,85 @@ describe('fleet run page rendering', () => {
     expect(html).not.toContain('<i>x</i>');
   });
 
+  // ── No usable output (2026-08-04 green-theater regression) ────────────────
+  //
+  // A ship that returned nothing must never render as a pass. Before the fix
+  // there was no `ship-no-output` step at all: the executor resolved such a
+  // ship to a PASS verdict and this page rendered "PASS · clean" next to a
+  // reviewer that had reviewed nothing.
+
+  it('narrates a no-usable-output ship honestly and never as a pass', async () => {
+    const html = await openPage(makeRun(), [
+      step(
+        'ship-no-output',
+        'code-reviewer',
+        'pd-code-reviewer returned no usable output — nothing was reviewed (the model returned text carrying no verdict and no structured block).',
+        { noUsableOutput: true, reason: 'no-contract-signal', blocking: true, strippedLength: 45 },
+      ),
+    ]);
+    expect(html).toContain('pd-code-reviewer returned no usable output');
+    expect(html).toContain('nothing was reviewed');
+    // The exact string the operator saw on the bad run must not appear.
+    expect(html).not.toContain('PASS · clean');
+    expect(html).not.toContain('came back clean');
+    expect(html).not.toContain('reviewed the diff and returned');
+  });
+
+  it('badges the ship outcome as "no usable output", not a verdict', async () => {
+    const html = await openPage(makeRun(), [
+      step('ship-no-output', 'code-reviewer', 'pd-code-reviewer returned no usable output — nothing was reviewed.', {
+        noUsableOutput: true, reason: 'empty', blocking: true,
+      }),
+    ]);
+    expect(html).toContain('no usable output · nothing reviewed');
+    expect(html).toContain('outcome tone-block');
+  });
+
+  it('explains fail-closed for a blocking ship and fail-open for an advisory one', async () => {
+    const blocking = await openPage(makeRun(), [
+      step('ship-no-output', 'code-reviewer', 'pd-code-reviewer returned no usable output — nothing was reviewed.', {
+        noUsableOutput: true, reason: 'empty', blocking: true,
+      }),
+    ]);
+    expect(blocking).toContain('failed closed');
+    expect(blocking).toContain('an absent review is not an approval');
+
+    const advisory = await openPage(makeRun(), [
+      step('ship-no-output', 'snipe', 'pd-snipe returned no usable output — nothing was reviewed.', {
+        noUsableOutput: true, reason: 'empty', blocking: false,
+      }),
+    ]);
+    expect(advisory).toContain('did not fail the merge gate');
+    expect(advisory).toContain('rather than counted as a pass');
+  });
+
+  // ── Token metering (the same run showed "Input tokens 0 / Output tokens 0")
+
+  it('sums token counts from the executor ship-spend step', async () => {
+    const html = await openPage(makeRun(), [
+      step('ship-spend', 'code-reviewer', 'pd-code-reviewer: 1,200 in / 340 out tokens over 3 call(s)', {
+        model: '@cf/qwen/qwen3-30b-a3b-fp8', calls: 3, usageReported: true,
+        inputTokens: 1200, outputTokens: 340, cachedInputTokens: 0, costUsd: 0.000175,
+      }),
+    ]);
+    expect(html).toContain('>1,200<');
+    expect(html).toContain('>340<');
+    expect(html).not.toContain('not reported');
+  });
+
+  it('shows "not reported" rather than a zero that reads as free', async () => {
+    // No step carries token fields — exactly the shape of the bad run.
+    const html = await openPage(makeRun(), [
+      step('ship-spend', 'code-reviewer', 'pd-code-reviewer: token usage not reported by @cf/qwen/qwen3-30b-a3b-fp8 (9 call(s))', {
+        model: '@cf/qwen/qwen3-30b-a3b-fp8', calls: 9, usageReported: false, usageReports: 0,
+      }),
+    ]);
+    expect(html).toContain('not reported');
+    // The misleading zero tile is gone.
+    expect(html).not.toMatch(/Input tokens<\/div><div class="v mono">0</);
+    expect(html).toContain('the model reported no token usage');
+  });
+
   it('serves a no-script CSP, no-store, and noindex on every response', async () => {
     const t = await runPageToken(SECRET, RUN_ID);
     for (const r of [

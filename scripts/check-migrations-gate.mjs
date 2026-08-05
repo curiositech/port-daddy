@@ -135,6 +135,17 @@ function main() {
     for (const f of missing) console.error(`    - ${f}`)
     console.error('  Merge to main first: deploy-relay.yml applies them to the staging D1 and')
     console.error(`  records them in ${MIGRATIONS_DIR}/${LEDGER_FILE}. Then re-tag the release.`)
+    console.error('')
+    console.error('  If those merges ALREADY happened, the staging deploy is failing — that is')
+    console.error('  the real problem, not this gate. Check it and the staging DB directly:')
+    console.error('    https://github.com/curiositech/port-daddy/actions/workflows/deploy-relay.yml')
+    console.error('    npx wrangler d1 list                      # is port-daddy-relay-staging on THIS account?')
+    console.error('    npx wrangler d1 info port-daddy-relay-staging')
+    console.error('    npx wrangler whoami                       # which account is the token bound to?')
+    console.error('  A Cloudflare "code: 7403 — account not authorized" on the staging apply step')
+    console.error('  means the CI token lacks D1:Edit, or the database lives on another account:')
+    console.error('    https://dash.cloudflare.com/profile/api-tokens')
+    console.error('    https://developers.cloudflare.com/d1/wrangler-commands/')
     process.exit(1)
   }
   console.log(
