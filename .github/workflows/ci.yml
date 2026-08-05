@@ -804,17 +804,22 @@ jobs:
       - version-drift-guard
       - website-terminal-recordings
     steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The gate decides merges, so its own decision logic is tested before it
+      # is trusted — including the cases where a cancellation must stay red.
+      - name: Test the gate's decision logic
+        run: node --test scripts/ci-gate-verdict.test.mjs
+
       - name: Verify no required job failed or was cancelled
         env:
           RESULTS: ${{ toJSON(needs) }}
-        run: |
-          echo "$RESULTS"
-          echo "$RESULTS" | python3 -c '
-          import json, sys
-          needs = json.load(sys.stdin)
-          bad = sorted(n for n, v in needs.items() if v["result"] in ("failure", "cancelled"))
-          if bad:
-              print("ci-gate FAILED — these jobs failed or were cancelled: " + ", ".join(bad))
-              sys.exit(1)
-          print("ci-gate OK — all %d dependencies succeeded or were skipped" % len(needs))
-          '
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ci-gate-verdict.mjs
