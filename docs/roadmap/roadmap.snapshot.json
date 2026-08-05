@@ -675,6 +675,26 @@
       "summaryMd": "Wave-2 owner of binder CR-1 + CR-2: wire the operator control verbs to a real contract. CURRENT STATE (audited 2026-07-14, control_contract_audit: FAIL 56/100): pd-console buttons POST a generic F0 ControlCommand with no control_commands table or daemon ingress (CR-1, zero hits on main), single collapsed 'control' verb, no terminal states, authorization from ui-state — plus the live interrupt route is lease-less fire-and-forget contradicting lib/agent-harbor/control-gate.ts doctrine (CR-2). TARGET CONTRACT (audited: PASS 100/100, spec at the session ledger): six distinct verbs (steer/interrupt/pause/kill/checkpoint/fork) each with queued/delivered/acknowledged/failed/expired/unsupported terminals; four backends honestly declared (local-process: all six; cloud-worker-body: steer/interrupt/kill; hook-only-session: steer/interrupt; observed-import: NONE — buttons render disabled with reason, never false affordances); authorization re-checks authoritative lease at delivery time per control-gate doctrine, never the roster projection. Acceptance: control_commands table + ingress exist; ch02 remote-interrupt race test passes; control_contract_audit on the SHIPPED spec passes; every unsupported verb x backend pair renders a disabled control with stated reason. Unblocks: roadmap-reconciler-agent unattended mode (dependency 2 of 3)."
     },
     {
+      "slug": "coordination-papers-empirical-program",
+      "status": "backlog",
+      "summaryMd": "Run the empirical program behind the papers: estimate miss/false-alarm costs, detection and slash probabilities, discount and payoff parameters; validate judge reliability and conflicts; chaos-test partitions, redelivery, crash recovery, and identity-reset laundering; publish reproducible traces."
+    },
+    {
+      "slug": "coordination-papers-mega-volume",
+      "status": "now",
+      "summaryMd": "Publish the seven-paper Coordination Papers as one cohesive collected volume with a global introduction, collated contents and references, consolidated status ledger, notation concordance, research appendix, full-page visual audit, library surface, and production artifact."
+    },
+    {
+      "slug": "coordination-papers-proof-program",
+      "status": "backlog",
+      "summaryMd": "Close the whitepaper proof obligations: theorem assumption/deviation matrices, settlement/custody conservation, revocation dissemination bounds under partitions, model-to-runtime conformance, Proof-of-Attention game class and tightness, and explicit conditionality for grading-oracle incentive compatibility."
+    },
+    {
+      "slug": "coordination-papers-runtime-closure",
+      "status": "backlog",
+      "summaryMd": "Close the code gaps exposed by the papers: reputation-grade witnessed outcomes on commitments, actor identity at every write boundary, portable execution checkpoints, sealed cross-harbor relay, witness-log revocation, custody and settlement prototype, and projection-consistency enforcement."
+    },
+    {
       "slug": "daemon-down-hard-stop-mandate",
       "status": "now",
       "summaryMd": "KEYSTONE (operator top mandate 2026-07-14: 'it is insane port-daddy does not grind to a halt when the daemon is down — it MUST, super loud'). Reconciliation confirms: every enforcement claim is theatrical while ~30 lib/*.ts modules open SQLite directly and only 4 command files call isDaemonRunning; guard.ts note-per-commit rent check FAILS OPEN (daemon/git failure => no rent owed); 6 quiet-degrade surfaces (dispatch.ts:270 silent direct-DB fallback, post-commit-hook curl discarded, MCP text-not-McpError server.ts:4995, FleetBar dot, brew Running:true lie with no watchdog). Build: (1) new ADR 'Daemon-Down Hard-Stop Mandate' generalizing guard structural-escalation to all write surfaces; (2) guard rent check fail CLOSED+loud; (3) a shared daemon-liveness precondition on direct-SQLite writes (loud refuse, not silent fallback); (4) supervision watchdog reconciling brew/launchd Running:true vs actual liveness. Owner: halt-mandate dispatch. Decision-type: HITL (the fail-closed policy is an operator call) + empirical (the wiring). Acceptance: with daemon killed, a pd write refuses loudly instead of hitting local SQLite; the rent check blocks; pd doctor is not the only thing that catches the brew lie."
@@ -1278,26 +1298,6 @@
       "slug": "workintent-dispatch-isolation",
       "status": "backlog",
       "summaryMd": "fix(dispatch): isolate WorkIntent worktrees"
-    },
-    {
-      "slug": "coordination-papers-mega-volume",
-      "status": "now",
-      "summaryMd": "Publish the seven-paper Coordination Papers as one cohesive collected volume with a global introduction, collated contents and references, consolidated status ledger, notation concordance, research appendix, full-page visual audit, library surface, and production artifact."
-    },
-    {
-      "slug": "coordination-papers-runtime-closure",
-      "status": "backlog",
-      "summaryMd": "Close the code gaps exposed by the papers: reputation-grade witnessed outcomes on commitments, actor identity at every write boundary, portable execution checkpoints, sealed cross-harbor relay, witness-log revocation, custody and settlement prototype, and projection-consistency enforcement."
-    },
-    {
-      "slug": "coordination-papers-empirical-program",
-      "status": "backlog",
-      "summaryMd": "Run the empirical program behind the papers: estimate miss/false-alarm costs, detection and slash probabilities, discount and payoff parameters; validate judge reliability and conflicts; chaos-test partitions, redelivery, crash recovery, and identity-reset laundering; publish reproducible traces."
-    },
-    {
-      "slug": "coordination-papers-proof-program",
-      "status": "backlog",
-      "summaryMd": "Close the whitepaper proof obligations: theorem assumption/deviation matrices, settlement/custody conservation, revocation dissemination bounds under partitions, model-to-runtime conformance, Proof-of-Attention game class and tightness, and explicit conditionality for grading-oracle incentive compatibility."
     }
   ]
 }

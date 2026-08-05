@@ -1,25 +1,47 @@
-const fs = require('fs');
-const path = require('path');
-const { expect } = require('chai');
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { describe, it } from 'node:test';
 
-describe('concurrency and idempotency tests', () => {
-  const filePath = path.resolve(__dirname, '../../docs/roadmap/roadmap.snapshot.json');
-  let data;
+const snapshot = JSON.parse(
+  readFileSync(new URL('../../docs/roadmap/roadmap.snapshot.json', import.meta.url), 'utf8'),
+);
+const programSlugs = [
+  'coordination-papers-mega-volume',
+  'coordination-papers-proof-program',
+  'coordination-papers-empirical-program',
+  'coordination-papers-runtime-closure',
+];
+const programItems = snapshot.items.filter(({ slug }) => programSlugs.includes(slug));
 
-  before(() => {
-    data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+function project(items, updates) {
+  const bySlug = new Map(items.map((item) => [item.slug, structuredClone(item)]));
+  for (const item of updates) bySlug.set(item.slug, structuredClone(item));
+  return [...bySlug.values()].sort((a, b) => a.slug.localeCompare(b.slug));
+}
+
+describe('roadmap projection idempotency', () => {
+  it('is stable when the same update batch is replayed', () => {
+    const once = project(snapshot.items, programItems);
+    const twice = project(once, programItems);
+    assert.deepEqual(twice, once);
+    assert.equal(twice.length, snapshot.count);
   });
 
-  it('should handle idempotent updates', () => {
-    const originalCount = data.count;
-    // Simulate re-running the PR
-    data.count = originalCount; // Idempotent operation
-    expect(data.count).to.equal(originalCount);
+  it('converges when an equivalent batch arrives in a different order', () => {
+    assert.deepEqual(
+      project(snapshot.items, [...programItems].reverse()),
+      project(snapshot.items, programItems),
+    );
   });
 
-  it('should maintain consistent state under concurrent modifications', () => {
-    // This would require more complex setup with mocks
-    // For simplicity, we assert the structure remains valid
-    expect(() => JSON.parse(JSON.stringify(data))).to.not.throw();
+  it('keeps exactly one canonical entry per program slug after replay', () => {
+    const replayed = project(project(snapshot.items, programItems), [...programItems, ...programItems]);
+    for (const slug of programSlugs) {
+      assert.equal(replayed.filter((item) => item.slug === slug).length, 1);
+    }
+  });
+
+  it('round-trips the committed projection without loss', () => {
+    assert.deepEqual(JSON.parse(JSON.stringify(snapshot)), snapshot);
   });
 });
