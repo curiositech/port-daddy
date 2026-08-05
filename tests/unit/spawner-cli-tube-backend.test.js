@@ -262,6 +262,19 @@ describe('buildArgs', () => {
     expect(() => codexCoordinationEnvironmentConfigs({ PATH: '/safe\nunsafe' })).toThrow(/Unsafe PATH/);
   });
 
+  test('codex shell PATH is bounded without dropping the source-matched pd directory', () => {
+    const longPath = Array.from({ length: 80 }, (_, index) => `/very/long/toolchain/path/${index}`).join(':');
+    const configs = codexCoordinationEnvironmentConfigs({
+      PATH: longPath,
+      PORT_DADDY_CLI: '/profile/dev-bin/pd',
+    });
+    const pathConfig = configs.find((config) => config.startsWith('shell_environment_policy.set.PATH='));
+
+    expect(pathConfig).toContain('/profile/dev-bin');
+    expect(pathConfig.length).toBeLessThanOrEqual(512);
+    expect(pathConfig).not.toContain('/very/long/toolchain/path/79');
+  });
+
   test.each([
     ['claude-code', '11111111-1111-4111-8111-111111111111', ['--resume', '11111111-1111-4111-8111-111111111111', '-p'], []],
     ['codex', '22222222-2222-4222-8222-222222222222', ['exec', 'resume', '22222222-2222-4222-8222-222222222222'], ['--sandbox', 'workspace-write']],

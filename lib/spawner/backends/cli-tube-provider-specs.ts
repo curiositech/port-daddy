@@ -1,4 +1,5 @@
 import { normalizeNativeHarnessSessionId } from '../../harness-session-id.js';
+import { delimiter, dirname } from 'node:path';
 
 export type CliTubePermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions';
 
@@ -97,7 +98,7 @@ export function codexCoordinationEnvironmentConfigs(
 ): string[] {
   const configs: string[] = [];
   for (const key of CODEX_COORDINATION_ENV_KEYS) {
-    const value = env[key];
+    const value = key === 'PATH' ? compactCodexShellPath(env) : env[key];
     if (typeof value !== 'string' || value.length === 0) continue;
     if (/[\0\r\n]/.test(value)) {
       throw new Error(`Unsafe ${key} value cannot be forwarded to the Codex shell environment`);
@@ -105,6 +106,21 @@ export function codexCoordinationEnvironmentConfigs(
     configs.push(`shell_environment_policy.set.${key}=${JSON.stringify(value)}`);
   }
   return configs;
+}
+
+function compactCodexShellPath(env: Readonly<Record<string, string | undefined>>): string | undefined {
+  const inherited = env.PATH?.split(delimiter) ?? [];
+  const sourceCliDir = env.PORT_DADDY_CLI ? dirname(env.PORT_DADDY_CLI) : undefined;
+  const candidates = [sourceCliDir, ...inherited]
+    .filter((value): value is string => typeof value === 'string' && value.length > 0);
+  const unique = [...new Set(candidates)];
+  const kept: string[] = [];
+  for (const candidate of unique) {
+    const next = [...kept, candidate].join(delimiter);
+    const config = `shell_environment_policy.set.PATH=${JSON.stringify(next)}`;
+    if (config.length <= MAX_CODEX_CONFIG_OVERRIDE_LENGTH) kept.push(candidate);
+  }
+  return kept.length > 0 ? kept.join(delimiter) : undefined;
 }
 
 /**
