@@ -1,0 +1,11 @@
+\documentclass{article}
+\usepackage{tikz}
+\usepackage{hyperref}
+\begin{document}
+\input{../../website-v2/public/whitepaper/coordination-papers-mega-frontmatter.tex}
+\section*{Claim Discipline Validation}
+\ifgrep{\Built{}}{\error{Built command missing}}\fi
+\ifgrep{\BuiltWeak{}}{\error{BuiltWeak command missing}}\fi
+\ifgrep{\Designed{}}{\error{Designed command missing}}\fi
+\ifgrep{\Vision{}}{\error{Vision command missing}}\fi
+\end{document}

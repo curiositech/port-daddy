@@ -1,0 +1,10 @@
+\documentclass{article}
+\usepackage{tikz}
+\usepackage{hyperref}
+\begin{document}
+\input{../../website-v2/public/whitepaper/coordination-papers-mega-frontmatter.tex}
+\section*{Title Page Validation}
+\ifdefined\titlepage\else\error{Title page missing}\fi
+\ifdefined\pagenumbering\else\error{Page numbering not set}\fi
+\ifdefined\hypersetup\else\error{Hyperlink setup missing}\fi
+\end{document}

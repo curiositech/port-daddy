@@ -1,0 +1,9 @@
+\documentclass{article}
+\usepackage{tikz}
+\usepackage{hyperref}
+\begin{document}
+\input{../../website-v2/public/whitepaper/coordination-papers-mega-frontmatter.tex}
+\section*{TOC Validation}
+\ifdefined\tableofcontents\else\error{TOC missing}\fi
+\ifgrep{\section*{How to use this volume}}{\error{TOC entry missing}}\fi
+\end{document}
