@@ -984,6 +984,32 @@ describe('spawnViaCliTube — failure paths', () => {
 });
 
 describe('spawnViaCliTube — no deadline (absent timeoutMs)', () => {
+  test.each([NaN, Infinity, -Infinity])(
+    'normalizes non-finite timeout %s before argv construction and lifecycle scheduling',
+    async (timeoutMs) => {
+      jest.useFakeTimers();
+      const buildArgsSpy = jest.spyOn(CLI_TUBE_PROVIDER_SPECS.agy, 'buildArgs');
+      try {
+        const child = fakeChild({ stdout: 'still running', exitCode: 0, neverClose: true });
+        mockSpawn.mockReturnValue(child);
+
+        const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(buildArgsSpy).toHaveBeenCalledWith(expect.objectContaining({ timeoutMs: undefined }));
+        expect(mockSpawn.mock.calls[0][1]).not.toContain('--print-timeout');
+        expect(jest.getTimerCount()).toBe(0);
+
+        child.emit('close', 0);
+        await expect(resultPromise).resolves.toEqual(expect.objectContaining({ exitCode: 0 }));
+      } finally {
+        buildArgsSpy.mockRestore();
+        jest.useRealTimers();
+      }
+    },
+  );
+
   test('schedules neither a termination timer nor a process-tree poller', async () => {
     jest.useFakeTimers();
     try {

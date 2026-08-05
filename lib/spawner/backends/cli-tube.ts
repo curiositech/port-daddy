@@ -279,7 +279,9 @@ export async function spawnViaCliTube(
   // No fallback: an absent deadline means no deadline. `deadlineMs` stays
   // `undefined` all the way down to `waitForCliChildProcess`, which then
   // schedules neither a termination timer nor process-tree polling.
-  const deadlineMs = opts.timeoutMs;
+  const deadlineMs = typeof opts.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs)
+    ? opts.timeoutMs
+    : undefined;
   const tubeChannel = opts.tube === null ? null : (opts.tube ?? generateTubeChannel(cli));
 
   // For codex, we use --output-last-message to capture a clean final
