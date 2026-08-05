@@ -26,6 +26,7 @@ import {
   getInstallationTokenCached,
   invalidateInstallationToken,
   fetchPRContext,
+  fetchMergeGroupMembers,
   fetchRepoFile,
   fetchOpenPullRequests,
   listRecentBranches,
@@ -35,6 +36,7 @@ import {
   createCheckRun,
   completeCheckRun,
   findFleetCheckRun,
+  findOwnedFleetCheckRun,
   createIssue,
   resolveFleetAppLogin,
   type PRContext,
@@ -586,6 +588,74 @@ async function recordShipSpend(
 
 const REVIEWABLE_PR_ACTIONS = new Set(['opened', 'synchronize', 'reopened', 'ready_for_review']);
 
+async function executeMergeGroupGate(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+  if (job.action !== 'checks_requested' || !job.repoFullName || !job.installationId) return;
+  const [owner, repo] = job.repoFullName.split('/');
+  if (!owner || !repo) return;
+  const group = job.payloadMinimal.merge_group as Record<string, unknown> | undefined;
+  const headSha = typeof group?.head_sha === 'string' ? group.head_sha : '';
+  const headRef = typeof group?.head_ref === 'string' ? group.head_ref : '';
+  const parsedPr = headRef.match(/(?:^|\/)pr-(\d+)-/)?.[1];
+  const prNumber = job.prNumber ?? (parsedPr ? Number(parsedPr) : 0);
+  if (!headSha || !prNumber) return;
+
+  const token = await getInstallationTokenCached(
+    env.GITHUB_APP_ID,
+    env.GITHUB_APP_PRIVATE_KEY,
+    job.installationId,
+    env.FLEET_TOKENS,
+  );
+  const appId = Number(env.GITHUB_APP_ID);
+  if (!Number.isSafeInteger(appId)) throw new Error('invalid GitHub App id');
+  const existing = await findOwnedFleetCheckRun(
+    owner,
+    repo,
+    headSha,
+    CHECK_NAME,
+    appId,
+    token,
+  );
+  let checkRunId = existing?.id ?? null;
+  if (!checkRunId) {
+    checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token);
+  }
+  if (!checkRunId) {
+    throw new Error(`cannot establish merge-group Fleet gate for ${owner}/${repo}@${headSha}`);
+  }
+
+  let conclusion: 'success' | 'failure' = 'failure';
+  let detailsUrl: string | null = null;
+  let summary: string;
+  try {
+    const members = await fetchMergeGroupMembers(owner, repo, prNumber, headSha, token);
+    const reviewed = await Promise.all(members.map(async member => ({
+      ...member,
+      check: await findOwnedFleetCheckRun(
+        owner,
+        repo,
+        member.headSha,
+        CHECK_NAME,
+        appId,
+        token,
+      ),
+    })));
+    const missing = reviewed.filter(({ check }) =>
+      check?.status !== 'completed' || (check.conclusion !== 'success' && check.conclusion !== 'neutral')
+    );
+    const target = reviewed.find(member => member.prNumber === prNumber);
+    detailsUrl = target?.check?.detailsUrl ?? null;
+    if (missing.length === 0) {
+      conclusion = 'success';
+      summary = `Merge-group gate verified completed, App-owned Port Daddy Fleet reviews for ${reviewed.map(member => `PR #${member.prNumber}`).join(', ')}.`;
+    } else {
+      summary = `Merge-group gate failed closed: no completed, App-owned Port Daddy Fleet review for ${missing.map(member => `PR #${member.prNumber}`).join(', ')}.`;
+    }
+  } catch (error) {
+    summary = `Merge-group gate failed closed: ${error instanceof Error ? error.message : String(error)}.`;
+  }
+  await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token, detailsUrl);
+}
+
 /** The fleet trigger used by reviewable pull_request deliveries. */
 function triggerFor(job: FleetRunJob): string | null {
   if (job.eventType !== 'pull_request') return null;
@@ -599,6 +669,11 @@ function triggerFor(job: FleetRunJob): string | null {
  * for non-actionable events, which are simply skipped).
  */
 export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+  if (job.eventType === 'merge_group') {
+    await executeMergeGroupGate(job, env);
+    return;
+  }
+
   if (!env.AI) return;
 
   const trigger = triggerFor(job);
