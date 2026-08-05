@@ -1,33 +1,120 @@
 # Daemon and supervision
 
-On macOS, `brew services` is the supported wrapper around `launchctl` for launchd-managed services [Homebrew manpage](https://docs.brew.sh/Manpage.html#services-subcommand). Apple describes `launchd` as the system launcher, recommends launchd-compliant jobs, and prefers on-demand jobs over ad hoc daemonizing [Creating Launch Daemons and Agents](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html), [The Life Cycle of a Daemon](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/Lifecycle.html).
+Port Daddy has two runtime roles, not a stack of competing watchdogs:
 
-Port Daddy follows that model for the stable daemon:
+1. The installed stable daemon is a Homebrew service. On macOS, Homebrew
+   delegates it to `launchd`.
+2. Named development daemons are disposable feature-build processes selected
+   explicitly by label. They never replace or supervise stable.
 
-- one OS lifecycle supervisor owns the stable runtime;
-- the daemon publishes its own endpoint and freshness evidence;
-- clients observe the runtime, but do not supervise it.
+Homebrew documents `brew services` as its service-manager wrapper, and Apple
+recommends one launchd job own a daemon's lifecycle rather than having programs
+daemonize or monitor one another. Sources:
+[Homebrew services](https://docs.brew.sh/Manpage.html#services-subcommand),
+[Creating launchd jobs](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html),
+[The life cycle of a daemon](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/Lifecycle.html).
 
-## Contract
+## The whole topology
 
-- `launchd` is the only lifecycle supervisor for the stable Port Daddy daemon.
-- `brew services start|restart|stop port-daddy` is the supported macOS control path.
-- The daemon publishes the port it actually bound and clients derive the URL from that evidence. `9876` is only the preferred bind seed, not a hard-coded contract.
-- A healthy runtime requires both process evidence and fresh health evidence. A PID alone is not enough.
-- Do not daemonize, double-spawn, or install a second supervisor for the stable runtime.
-- KeepAlive belongs to the launchd job. It does not authorize a second lifecycle monitor or a fixed port.
-- Use named dev daemons for testing. Target them with `pd daemon list`, `pd daemon status <profile>`, `pd daemon env <profile>`, and `pd daemon start <profile> --port <seed>`.
-- Do not replace the stable daemon just to test a change. Keep stable and named dev runtimes separate.
+| Runtime | Lifecycle owner | Purpose | How clients select it |
+|---|---|---|---|
+| Stable | Homebrew service / `launchd` | Normal FleetBar, Control Center, MCP, and agent work | Default installed selection |
+| Named development daemon | `pd dev` process record | Prove one feature worktree without disturbing stable | `pd --daemon <label> …` or `pd use <label>` |
 
-## Why this exists
+There is no second stable watchdog, standing “latest” lane, fixed development
+port, or client-side auto-restart authority. A health checker may report a
+problem; only the lifecycle owner restarts the process it owns.
 
-The daemon is a live process owned by launchd, but it is not the source of truth for spawn completion, transcript retention, or session lineage. Those rules live in [spawn lifecycle](./spawn-lifecycle.md) and [first-class agent sessions](../design/first-class-agent-sessions.md).
+## Stable service
 
-## Evidence model
+The supported macOS service controls are:
 
-- Process evidence: PID, launchd job state, or child handle.
-- Freshness evidence: health or heartbeat timestamp, not filesystem mtime.
-- Runtime identity: published URL, daemon label, and selected profile.
-- Reconciliation source: the durable receipt store after restart.
+```bash
+brew services start port-daddy
+brew services restart port-daddy
+brew services stop port-daddy
+```
 
-If those disagree, trust the fresh runtime evidence and the durable receipt, not a cached port number.
+Agents normally use FleetBar's health and restart controls instead of asking
+the operator to run these commands. The shell commands are recovery and release
+tools.
+
+Stable health requires all of the following:
+
+- the Homebrew launchd job names the installed binary;
+- the live process belongs to that job;
+- the daemon's health response is fresh;
+- the daemon's published endpoint matches the endpoint clients selected;
+- the reported version and binary identity match the installed release.
+
+A PID, socket file, old browser tab, or successful CLI command proves only its
+own transport. It does not prove the browser endpoint or installed revision.
+
+## Named feature daemons
+
+Every backend or route change is tested through a named daemon built from the
+feature worktree:
+
+```bash
+pd dev up --from "$(pwd)" --label session-continuation
+pd dev list
+pd --daemon session-continuation status
+eval "$(pd use session-continuation)"
+
+# run focused dogfood against the selected daemon
+
+pd dev down session-continuation
+eval "$(pd use stable)"
+```
+
+`pd dev up` builds the dedicated daemon binary, preserves that label's isolated
+state across ordinary down/up cycles, and records source directory, branch,
+revision, PID, and the endpoint the daemon actually published. `--purge` is a
+separate destructive action and is never part of routine rebuilds.
+
+## Endpoint authority
+
+The daemon binder chooses a free loopback port and writes the port it actually
+bound into the selected profile's `daemon.port`. Clients resolve the selected
+profile, then read that publication. They do not guess a number or cache a URL
+from a different profile.
+
+Use the selector instead of constructing a URL:
+
+```bash
+pd --daemon session-continuation status --json
+eval "$(pd use session-continuation)"
+pd status --json
+```
+
+Tests that need raw HTTP must first read the selected profile's published port
+or consume the URL emitted by `pd use`. If the daemon falls forward because a
+port is occupied, every correct client follows automatically.
+
+## Evidence and recovery
+
+| Question | Authoritative evidence |
+|---|---|
+| Which runtime did this client select? | Selected profile label and resolved endpoint |
+| Which source produced a named daemon? | Health `daemon.sourceDir`, branch, revision, and build time |
+| Is the process alive now? | PID plus fresh daemon/supervisor heartbeat |
+| Does the browser path work? | Request to the published TCP endpoint |
+| Does the CLI path work? | Socket or selected-endpoint request, identified separately |
+| Did an agent run survive restart? | Durable run receipt and transcript cursor, not daemon uptime |
+
+When evidence disagrees:
+
+1. stop issuing mutations through an ambiguous client;
+2. resolve the selected profile and its published endpoint again;
+3. compare live health identity with the intended install or worktree revision;
+4. let the proper lifecycle owner restart only its own runtime;
+5. reconcile open agent receipts using [spawn lifecycle](./spawn-lifecycle.md).
+
+The stable service is ordinary Homebrew/launchd supervision. Port Daddy's extra
+complexity belongs in durable agent receipts and multi-runtime selection, not in
+multiple processes fighting to keep one daemon alive.
+
+## See also
+
+- [Spawn lifecycle](./spawn-lifecycle.md)
+- [First-class agent sessions](../design/first-class-agent-sessions.md)

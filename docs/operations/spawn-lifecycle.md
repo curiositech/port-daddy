@@ -9,11 +9,36 @@ This contract applies to CLI, MCP, SDK, Beacon, FleetBar, and pd-console impleme
 - Admission is atomic: persist the receipt, predecessor and successor lineage, worktree, daemon endpoint, budget, and idempotency key before dispatch.
 - `live` requires both a positive child PID and fresh heartbeat or health evidence. A recent file timestamp, a non-null session row, or a UI indicator is not enough.
 - Closing a terminal, losing transport, or pressing Ctrl-C detaches observation only. It does not cancel the run.
-- There is no generic wall-clock spawn timeout. OpenAI's Codex CLI docs describe resumable non-interactive and background work, and the current README points there [Codex CLI README](https://github.com/openai/codex/blob/main/codex-rs/README.md), [Codex CLI](https://developers.openai.com/codex/cli). Anthropic's Claude Code CLI exposes `-p`, `--bg`, `-c`, and `-r` for non-interactive, background, continue, and resume flows [Claude Code CLI reference](https://code.claude.com/docs/en/cli-usage). Temporal says workflow timeouts are generally not recommended, workflow execution timeout defaults to infinity, and workflow task timeout mainly detects a lost worker [Temporal detecting Workflow failures](https://docs.temporal.io/encyclopedia/detecting-workflow-failures). Kubernetes keeps `activeDeadlineSeconds` optional and separates cleanup from completion [Kubernetes Jobs](https://kubernetes.io/docs/concepts/workloads/controllers/job/).
+- There is no generic wall-clock spawn timeout. `codex exec` can stream progress
+  or JSONL and can resume a prior run; Claude Code exposes print mode with
+  `-p`, continuation/resumption with `-c` and `-r`, and an optional
+  `--max-turns`. Neither CLI reference documents a universal task-duration
+  limit. Sources: [Codex non-interactive mode](https://learn.chatgpt.com/docs/non-interactive-mode),
+  [Codex developer commands](https://learn.chatgpt.com/docs/developer-commands?surface=cli),
+  [Claude Code CLI reference](https://code.claude.com/docs/en/cli-usage).
 - Use an explicit task deadline only when the caller asks for one. A deadline expiry records `cancelled` with a deadline reason; it is never reported as an unexplained failure.
 - Cancellation is explicit. When the caller cancels, seal the child, transcript, bond, and artifact records exactly once.
 - Restart reconciliation reloads open receipts, rechecks PID and heartbeat freshness, and continues collection from the durable store.
 - Terminal receipts, transcripts, artifacts, and accounting stay retained until retention policy expires them.
+
+## Duration and ownership
+
+An agent CLI may reasonably run for seconds, minutes, or hours. Port Daddy does
+not infer a task deadline from a transport timeout or from how long an ordinary
+interactive command usually takes. A run continues until one of these facts is
+recorded:
+
+- the backend exits with a terminal result;
+- the operator or owning caller explicitly cancels it;
+- an explicit caller-owned deadline expires;
+- a declared spend or policy boundary stops it;
+- reconciliation can no longer prove a runtime, in which case the outcome is
+  `unknown` or `no_runtime`, not silently converted to failure.
+
+Collection is cursor-based. The supervisor persists progress and transcript
+events while the process runs; observers may reconnect from the durable cursor.
+Backpressure slows observation or spills to the durable transcript store. It
+does not justify killing healthy work.
 
 ## Sequence
 
@@ -40,8 +65,8 @@ sequenceDiagram
 
     Client-->>Operator: disconnect detaches observation only
 
-    alt explicit cancel
-        Operator->>Supervisor: cancel with reason
+    alt explicit cancel or caller deadline
+        Operator->>Supervisor: cancel with reason, or deadline expires
         Supervisor->>Child: stop once
         Supervisor->>Collector: seal transcript, bond, artifacts, and accounting
         Collector->>Store: terminal record
@@ -68,11 +93,14 @@ stateDiagram-v2
     live --> unknown: observer lost or evidence stale
     unknown --> live: fresh PID + heartbeat
     accepted --> cancelled: explicit cancel before launch
+    accepted --> cancelled: caller deadline expires
     starting --> cancelled: explicit cancel during launch
+    starting --> cancelled: caller deadline expires
     live --> completed: terminal success
     live --> failed: terminal failure
     live --> over_budget: sealed cost exceeds launch cap
     live --> cancelled: explicit cancel
+    live --> cancelled: caller deadline expires
     completed --> [*]
     failed --> [*]
     over_budget --> [*]
@@ -90,7 +118,7 @@ stateDiagram-v2
 | `completed` | Terminal success and sealed collection | Work finished successfully |
 | `failed` | Terminal failure and sealed collection | Work finished unsuccessfully |
 | `over_budget` | Sealed accounting exceeds the launch cap | Work stopped at the explicit spend boundary |
-| `cancelled` | Explicit cancel record | Work was intentionally stopped |
+| `cancelled` | Explicit cancel record or caller-owned deadline expiry | Work was intentionally stopped, with the exact reason retained |
 
 `accepted`, `starting`, `live`, `unknown`, and `no_runtime` can all present a successor action. Terminal states never reuse the predecessor identity; they only retain collection.
 
