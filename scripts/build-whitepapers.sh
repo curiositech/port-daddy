@@ -138,16 +138,6 @@ build_one() {
   local base="${roottex%.tex}"
   local outdir="$BUILD_DIR/$base"
 
-  # pdfTeX searches the source working directory before -output-directory.
-  # A developer-side .aux/.toc/.out beside the source therefore shadows the
-  # clean build directory forever, producing stale references and even false
-  # duplicate-label warnings. These are disposable compiler sidecars, never
-  # sources; remove only the exact root's known sidecars before the isolated
-  # build begins.
-  local sidecar
-  for sidecar in aux out toc lof lot log fls fdb_latexmk synctex.gz; do
-    rm -f "$srcdir/$base.$sidecar"
-  done
   mkdir -p "$outdir"
 
   if [ "$roottex" = "coordination-papers-mega-volume.tex" ]; then

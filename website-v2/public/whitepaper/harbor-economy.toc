@@ -1,0 +1,48 @@
+\contentsline {section}{\numberline {1}Reader's map}{4}{section.1}%
+\contentsline {section}{\numberline {2}The thesis: a market, not a payment rail}{5}{section.2}%
+\contentsline {subsection}{\numberline {2.1}The through-line: why a market needs persons, not spawns}{5}{subsection.2.1}%
+\contentsline {section}{\numberline {3}What a ``side'' is, and why there are three}{6}{section.3}%
+\contentsline {paragraph}{The same trade, run three ways (the running example).}{7}{section*.5}%
+\contentsline {subsection}{\numberline {3.1}The mandatory honesty rider}{8}{subsection.3.1}%
+\contentsline {section}{\numberline {4}The float plan: the built floor}{9}{section.4}%
+\contentsline {subsection}{\numberline {4.1}The bond ledger conserves value (this is built)}{10}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Settlement: four terminal states bound to an oracle}{10}{subsection.4.2}%
+\contentsline {paragraph}{A settlement, dramatized.}{10}{section*.9}%
+\contentsline {section}{\numberline {5}Three sides on one escrow}{11}{section.5}%
+\contentsline {paragraph}{Operator-for-hire (labor).}{11}{section*.10}%
+\contentsline {paragraph}{Asset rental (capital).}{11}{section*.11}%
+\contentsline {paragraph}{Skill licensing (IP).}{11}{section*.12}%
+\contentsline {section}{\numberline {6}The keystone the market rests on --- and does not yet have}{12}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Local non-forgeable identity is the keystone --- for one operator}{12}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}But its threat model does not reach the market}{13}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}The principal above the actor}{13}{subsection.6.3}%
+\contentsline {section}{\numberline {7}Conservation as a functor (and where it is only lax)}{13}{section.7}%
+\contentsline {subsection}{\numberline {7.1}The Myerson--Satterthwaite corner}{15}{subsection.7.1}%
+\contentsline {section}{\numberline {8}The Anchor Protocol proper: cross-harbor capability transfer}{15}{section.8}%
+\contentsline {paragraph}{The ceremony, dramatized.}{16}{section*.16}%
+\contentsline {section}{\numberline {9}Federation: trading across machines you don't own}{17}{section.9}%
+\contentsline {subsection}{\numberline {9.1}No consensus, by design}{18}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Settlement and the cross-chain-deals lineage}{19}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}Revocation gossip and the equivocation race}{20}{subsection.9.3}%
+\contentsline {paragraph}{The revocation race, dramatized.}{20}{section*.20}%
+\contentsline {section}{\numberline {10}Reputation: monotone, but revocable}{21}{section.10}%
+\contentsline {subsection}{\numberline {10.1}``Never ends'' is not an anti-revocation property}{21}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Why the Sagas functor does not transport}{22}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}The grading-oracle keystone}{22}{subsection.10.3}%
+\contentsline {paragraph}{A captured judge, dramatized.}{23}{section*.23}%
+\contentsline {section}{\numberline {11}Hosted trust is the product}{23}{section.11}%
+\contentsline {section}{\numberline {12}Cold start, and the auction question}{24}{section.12}%
+\contentsline {subsection}{\numberline {12.1}Static escrow vs.\ competitive underwriting}{24}{subsection.12.1}%
+\contentsline {subsection}{\numberline {12.2}Cartels and wash-trading}{25}{subsection.12.2}%
+\contentsline {section}{\numberline {13}The sheaf-gluing problem (one question, three guises)}{26}{section.13}%
+\contentsline {section}{\numberline {14}Gaps the design must still close}{26}{section.14}%
+\contentsline {section}{\numberline {15}Related work}{27}{section.15}%
+\contentsline {paragraph}{Multi-sided platform markets.}{27}{section*.26}%
+\contentsline {paragraph}{Mechanism design and its impossibilities.}{27}{section*.27}%
+\contentsline {paragraph}{Reputation systems.}{27}{section*.28}%
+\contentsline {paragraph}{Distributed systems and cross-chain commerce.}{27}{section*.29}%
+\contentsline {paragraph}{Applied category theory.}{27}{section*.30}%
+\contentsline {paragraph}{Agentic-commerce protocols.}{27}{section*.31}%
+\contentsline {section}{\numberline {16}Conclusion}{28}{section.16}%
+\contentsline {section}{\numberline {A}Implementation \& status}{28}{appendix.A}%
+\contentsline {section}{\numberline {B}Proof sketches}{29}{appendix.B}%
