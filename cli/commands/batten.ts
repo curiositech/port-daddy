@@ -35,7 +35,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as ui from '../utils/ui.js';
 import type { CLIOptions } from '../types.js';
@@ -88,13 +88,46 @@ export interface ArtifactImprint {
   sha256: string;
 }
 
+export interface ReleaseProvenance {
+  /** Full 40-character commit reviewed by the source-release gate. */
+  sourceCommit: string;
+  /** Exact release tag/version whose artifacts this record seals. */
+  releaseVersion: string;
+}
+
 export interface ImprintRecord {
   version: number;
   generatedAt: string;
+  sourceCommit: string;
+  releaseVersion: string;
   stagedDir: string;
   artifacts: Record<string, ArtifactImprint>;
+  /** Exact packaged archives uploaded to the release. */
+  archives: Array<{ name: string; bytes: number; sha256: string }>;
   /** required artifacts that were absent at imprint time (empty on a sealed release). */
   missingRequired: string[];
+}
+
+const FULL_GIT_COMMIT = /^[0-9a-f]{40}$/i;
+const SEMVER_CORE = '(?:0|[1-9]\\d*)';
+const SEMVER_IDENTIFIER = '(?:0|[1-9]\\d*|[A-Za-z-][0-9A-Za-z-]*)';
+const SEMVER_BUILD_IDENTIFIER = '[0-9A-Za-z-]+';
+const RELEASE_VERSION = new RegExp(
+  `^v?${SEMVER_CORE}\\.${SEMVER_CORE}\\.${SEMVER_CORE}`
+  + `(?:-${SEMVER_IDENTIFIER}(?:\\.${SEMVER_IDENTIFIER})*)?`
+  + `(?:\\+${SEMVER_BUILD_IDENTIFIER}(?:\\.${SEMVER_BUILD_IDENTIFIER})*)?$`,
+);
+
+export function validateReleaseProvenance(provenance: ReleaseProvenance): ReleaseProvenance {
+  const sourceCommit = provenance.sourceCommit?.trim();
+  const releaseVersion = provenance.releaseVersion?.trim();
+  if (!FULL_GIT_COMMIT.test(sourceCommit)) {
+    throw new Error('release imprint requires --source-commit as a full 40-character Git commit');
+  }
+  if (!RELEASE_VERSION.test(releaseVersion)) {
+    throw new Error('release imprint requires --release-version as an exact semantic release tag');
+  }
+  return { sourceCommit: sourceCommit.toLowerCase(), releaseVersion };
 }
 
 /**
@@ -260,8 +293,17 @@ function sha256File(absPath: string): { sha256: string; bytes: number } {
  * artifacts (type: dir) are skipped (a dir has no single stable hash). Returns
  * the imprint record plus the list of required-but-absent artifacts.
  */
-export function imprintArtifacts(manifest: ReleaseManifest, stagedDir: string): ImprintRecord {
+export function imprintArtifacts(
+  manifest: ReleaseManifest,
+  stagedDir: string,
+  provenance: ReleaseProvenance,
+  archivePaths: string[],
+): ImprintRecord {
   const stagedDirAbs = resolve(stagedDir);
+  const validatedProvenance = validateReleaseProvenance(provenance);
+  if (!Array.isArray(archivePaths) || archivePaths.length === 0) {
+    throw new Error('release imprint requires at least one --archive containing the sealed cargo');
+  }
   const artifacts: Record<string, ArtifactImprint> = {};
   const missingRequired: string[] = [];
 
@@ -284,11 +326,21 @@ export function imprintArtifacts(manifest: ReleaseManifest, stagedDir: string): 
     artifacts[entry.id] = { id: entry.id, stagedPath: entry.stagedPath, bytes, sha256 };
   }
 
+  const archives = archivePaths.map((archivePath) => {
+    const absPath = resolve(archivePath);
+    if (!existsSync(absPath) || statSync(absPath).isDirectory()) {
+      throw new Error(`release archive is absent or not a file: ${archivePath}`);
+    }
+    return { name: basename(absPath), ...sha256File(absPath) };
+  });
+
   return {
-    version: 1,
+    version: 2,
     generatedAt: new Date().toISOString(),
+    ...validatedProvenance,
     stagedDir: stagedDirAbs,
     artifacts,
+    archives,
     missingRequired,
   };
 }
@@ -347,7 +399,13 @@ async function runImprint(options: CLIOptions): Promise<void> {
   const manifestPath = manifestFromOptions(options);
   const manifest = loadManifest(manifestPath);
   const stagedDir = stagedDirFromOptions(options);
-  const record = imprintArtifacts(manifest, stagedDir);
+  const sourceCommitRaw = options['source-commit'] ?? options.sourceCommit ?? process.env.GITHUB_SHA;
+  const releaseVersionRaw = options['release-version'] ?? options.releaseVersion ?? process.env.GITHUB_REF_NAME;
+  const archiveRaw = options.archive;
+  const record = imprintArtifacts(manifest, stagedDir, {
+    sourceCommit: typeof sourceCommitRaw === 'string' ? sourceCommitRaw : '',
+    releaseVersion: typeof releaseVersionRaw === 'string' ? releaseVersionRaw : '',
+  }, typeof archiveRaw === 'string' && archiveRaw.trim() ? [archiveRaw] : []);
 
   const outRaw = options.out;
   const outPath = typeof outRaw === 'string'
@@ -361,9 +419,14 @@ async function runImprint(options: CLIOptions): Promise<void> {
     ui.intro('pd batten imprint');
     console.log(`manifest:   ${manifestPath}`);
     console.log(`staged dir: ${record.stagedDir}`);
+    console.log(`source:     ${record.sourceCommit}`);
+    console.log(`release:    ${record.releaseVersion}`);
     console.log('');
     for (const [id, imp] of Object.entries(record.artifacts)) {
       console.log(`  ${imp.sha256}  ${imp.bytes.toString().padStart(9)}  ${id} (${imp.stagedPath})`);
+    }
+    for (const archive of record.archives) {
+      console.log(`  ${archive.sha256}  ${archive.bytes.toString().padStart(9)}  archive (${archive.name})`);
     }
     console.log('');
     if (record.missingRequired.length > 0) {
@@ -386,9 +449,13 @@ Usage:
       executable (if declared), and >= minBytes under <dir> (default: dist).
       Collects ALL failures and exits nonzero with a per-artifact report.
 
-  pd batten imprint [--staged-dir <dir>] [--manifest <file>] [--out <file>]
+  pd batten imprint --source-commit <full-sha> --release-version <tag>
+                    --archive <tar-or-zip>
+                    [--staged-dir <dir>] [--manifest <file>] [--out <file>]
       sha256 every staged artifact and write release-imprint.json
-      (default: <staged-dir>/release-imprint.json).
+      (default: <staged-dir>/release-imprint.json). GITHUB_SHA and
+      GITHUB_REF_NAME are accepted only as explicit CI provenance fallbacks.
+      The uploaded archive itself is hashed so the seal covers every byte.
 
 The manifest (release-artifacts.json) is the single source of truth for what a
 release tarball must contain — it replaces scattered \`test -s dist/<name>\`

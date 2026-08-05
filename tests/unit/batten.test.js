@@ -20,10 +20,16 @@ import {
   verifyArtifacts,
   imprintArtifacts,
   handleBatten,
+  validateReleaseProvenance,
 } from '../../cli/commands/batten.js';
 
 const DURABLE_SCRATCH = join(homedir(), 'coding', 'tmp');
 mkdirSync(DURABLE_SCRATCH, { recursive: true });
+
+const TEST_PROVENANCE = {
+  sourceCommit: '0123456789abcdef0123456789abcdef01234567',
+  releaseVersion: 'v3.28.0',
+};
 
 // A synthetic manifest mirroring the real shape: a required exec binary, a
 // required non-exec data file, a required tentacle under bin/, an optional dir.
@@ -229,6 +235,7 @@ describe('verifyArtifacts — FAILS LOUD (anti-silent-failure)', () => {
 
 describe('imprintArtifacts — content-addressed seal', () => {
   let staged;
+  let archivePath;
   beforeEach(() => {
     staged = mkdtempSync(join(DURABLE_SCRATCH, 'pd-batten-imprint-'));
     writeExec(join(staged, 'pd'), 'binary-A');
@@ -237,13 +244,15 @@ describe('imprintArtifacts — content-addressed seal', () => {
     writeExec(join(staged, 'bin', 'pd-hook-prompt'), '#!/bin/sh\n');
     mkdirSync(join(staged, 'native'));
     writeFileSync(join(staged, 'native', 'lib.so'), 'x');
+    archivePath = join(staged, 'pd-test.tar.gz');
+    writeFileSync(archivePath, 'sealed-archive-bytes');
   });
   afterEach(() => {
     rmSync(staged, { recursive: true, force: true });
   });
 
   test('produces a per-artifact sha256 that matches an independent hash', () => {
-    const record = imprintArtifacts(fixtureManifest(), staged);
+    const record = imprintArtifacts(fixtureManifest(), staged, TEST_PROVENANCE, [archivePath]);
     const expected = createHash('sha256').update(Buffer.from('binary-A')).digest('hex');
     expect(record.artifacts.pd.sha256).toBe(expected);
     expect(record.artifacts.pd.bytes).toBe(Buffer.byteLength('binary-A'));
@@ -251,24 +260,51 @@ describe('imprintArtifacts — content-addressed seal', () => {
   });
 
   test('is stable — hashing the same bytes twice yields identical hashes', () => {
-    const a = imprintArtifacts(fixtureManifest(), staged);
-    const b = imprintArtifacts(fixtureManifest(), staged);
+    const a = imprintArtifacts(fixtureManifest(), staged, TEST_PROVENANCE, [archivePath]);
+    const b = imprintArtifacts(fixtureManifest(), staged, TEST_PROVENANCE, [archivePath]);
     expect(b.artifacts.pd.sha256).toBe(a.artifacts.pd.sha256);
     expect(b.artifacts.manifest.sha256).toBe(a.artifacts.manifest.sha256);
     expect(b.artifacts.hook.sha256).toBe(a.artifacts.hook.sha256);
   });
 
   test('directory artifacts are not imprinted (no single stable hash)', () => {
-    const record = imprintArtifacts(fixtureManifest(), staged);
+    const record = imprintArtifacts(fixtureManifest(), staged, TEST_PROVENANCE, [archivePath]);
     expect(record.artifacts.native).toBeUndefined();
     expect(record.missingRequired).toEqual([]); // native is optional
   });
 
   test('records required artifacts that are absent (an unsealed release)', () => {
     rmSync(join(staged, 'pd'));
-    const record = imprintArtifacts(fixtureManifest(), staged);
+    const record = imprintArtifacts(fixtureManifest(), staged, TEST_PROVENANCE, [archivePath]);
     expect(record.missingRequired).toContain('pd');
     expect(record.artifacts.pd).toBeUndefined();
+  });
+
+  test('binds the content seal to the exact reviewed source and release tag', () => {
+    const record = imprintArtifacts(fixtureManifest(), staged, TEST_PROVENANCE, [archivePath]);
+    expect(record.version).toBe(2);
+    expect(record.sourceCommit).toBe(TEST_PROVENANCE.sourceCommit);
+    expect(record.releaseVersion).toBe(TEST_PROVENANCE.releaseVersion);
+    expect(record.archives).toEqual([expect.objectContaining({
+      name: 'pd-test.tar.gz',
+      bytes: Buffer.byteLength('sealed-archive-bytes'),
+      sha256: createHash('sha256').update(Buffer.from('sealed-archive-bytes')).digest('hex'),
+    })]);
+  });
+
+  test('rejects missing, abbreviated, or non-release provenance', () => {
+    expect(() => validateReleaseProvenance({ sourceCommit: 'abc123', releaseVersion: 'v3.28.0' }))
+      .toThrow(/full 40-character Git commit/);
+    expect(() => validateReleaseProvenance({ sourceCommit: TEST_PROVENANCE.sourceCommit, releaseVersion: 'latest' }))
+      .toThrow(/exact semantic release tag/);
+    expect(() => validateReleaseProvenance({ sourceCommit: TEST_PROVENANCE.sourceCommit, releaseVersion: 'v03.28.0' }))
+      .toThrow(/exact semantic release tag/);
+    expect(() => validateReleaseProvenance({ sourceCommit: TEST_PROVENANCE.sourceCommit, releaseVersion: 'v3.28.0-01' }))
+      .toThrow(/exact semantic release tag/);
+    expect(() => validateReleaseProvenance({ sourceCommit: TEST_PROVENANCE.sourceCommit, releaseVersion: 'v3.28.0..rc' }))
+      .toThrow(/exact semantic release tag/);
+    expect(() => imprintArtifacts(fixtureManifest(), staged, TEST_PROVENANCE, []))
+      .toThrow(/requires at least one --archive/);
   });
 });
 
@@ -285,6 +321,7 @@ describe('handleBatten imprint — fail-loud CLI contract', () => {
     mkdirSync(staged);
     manifestPath = join(root, 'release-artifacts.json');
     outPath = join(staged, 'release-imprint.json');
+    writeFileSync(join(staged, 'pd-test.tar.gz'), 'sealed-archive-bytes');
     writeFileSync(manifestPath, JSON.stringify(fixtureManifest()));
     realExit = process.exit;
   });
@@ -339,6 +376,9 @@ describe('handleBatten imprint — fail-loud CLI contract', () => {
       manifest: manifestPath,
       'staged-dir': staged,
       out: outPath,
+      archive: join(staged, 'pd-test.tar.gz'),
+      'source-commit': TEST_PROVENANCE.sourceCommit,
+      'release-version': TEST_PROVENANCE.releaseVersion,
     })).rejects.toThrow('exit:1');
 
     expect(exit).toHaveBeenCalledWith(1);
@@ -347,6 +387,8 @@ describe('handleBatten imprint — fail-loud CLI contract', () => {
     expect([...stdout.mock.calls, ...stderr.mock.calls].flat().join(' ')).toMatch(/INCOMPLETE imprint/i);
     expect(existsSync(outPath)).toBe(true);
     const record = JSON.parse(readFileSync(outPath, 'utf8'));
+    expect(record.sourceCommit).toBe(TEST_PROVENANCE.sourceCommit);
+    expect(record.releaseVersion).toBe(TEST_PROVENANCE.releaseVersion);
     expect(record.missingRequired.sort()).toEqual(['hook', 'manifest', 'pd']);
     stdout.mockRestore();
     stderr.mockRestore();
