@@ -99,6 +99,7 @@ export interface FleetRunJob {
     sender?: Record<string, unknown>;
     repository?: Record<string, unknown>;
     pull_request?: Record<string, unknown>;
+    merge_group?: Record<string, unknown>;
     push?: Record<string, unknown>;
   };
 }
