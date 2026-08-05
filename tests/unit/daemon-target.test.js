@@ -92,6 +92,13 @@ describe('resolveDaemonTarget (the one canonical resolver)', () => {
     expect(secure.port).toBe(443);
   });
 
+  test('URL with explicit privileged ports 80/443 are accepted (regression: Copilot discussion_r3721781527)', () => {
+    const http80 = resolveDaemonTarget({ PORT_DADDY_URL: 'http://example.com:80' }, NEVER);
+    expect(http80.port).toBe(80);
+    const https443 = resolveDaemonTarget({ PORT_DADDY_URL: 'https://example.com:443' }, NEVER);
+    expect(https443.port).toBe(443);
+  });
+
   test('no URL, socket, env port, or published port file fails closed', () => {
     const missing = Object.assign(new Error('missing'), { code: 'ENOENT' });
     expect(() => resolveDaemonTarget({}, NEVER, { readTextFile: () => { throw missing; } })).toThrow(
