@@ -107,6 +107,13 @@ export class AgentRunIdempotencyConflictError extends Error {
   }
 }
 
+export class AgentRunReceiptNotFoundError extends Error {
+  constructor(readonly keyHash: string) {
+    super('agent run receipt not found after insert/conflict');
+    this.name = 'AgentRunReceiptNotFoundError';
+  }
+}
+
 /**
  * Real corroboration for the PID inside `AgentRunLiveEvidence`. The caller
  * supplies the evidence numbers, but numbers alone are not proof -- any
@@ -483,7 +490,10 @@ export function createAgentRunReceiptStore(
       timestamp,
       budgetUsd,
     );
-    const row = byKey.get(keyHash) as AgentRunReceiptRow;
+    const row = byKey.get(keyHash) as AgentRunReceiptRow | undefined;
+    if (!row) {
+      throw new AgentRunReceiptNotFoundError(keyHash);
+    }
     if (row.request_hash !== requestHash || row.kind !== input.kind) {
       throw new AgentRunIdempotencyConflictError(row.id);
     }
