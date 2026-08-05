@@ -83,6 +83,15 @@ export interface GitHubState {
   labelPosts: Array<{ number: number; labels: string[] }>;
   /** When true, EVERY Git Data write (blobs/trees/commits/refs) returns 403. */
   failGitWrites403: boolean;
+  /**
+   * Recursive tree listings returned by GET /git/trees/{sha}?recursive=1, keyed
+   * by sha — evidence for the purser's executability gate (src/purser-
+   * executability.ts). An sha with no entry ⇒ the endpoint 404s ⇒
+   * fetchRepoTreePaths returns null ⇒ the gate fails closed (unknown tree,
+   * never a silent pass). Defaults seed 'BASESHA' with an empty-but-KNOWN tree
+   * so the default fixtures (which author no relative imports) verify cleanly.
+   */
+  treeFiles: Map<string, string[]>;
 
   // --- Fleet self-identity (self-review guard) -----------------------------
   /**
@@ -102,11 +111,21 @@ export interface GitHubState {
   prMerged: boolean | undefined;
 }
 
+/**
+ * Default jest config seeded at `BASESHA:jest.config.js` — a broad, realistic
+ * single-project testMatch covering the default authored-test fixture path
+ * (`tests/purser/widget.contract.test.ts`), so tests that are NOT about the
+ * executability gate itself do not have to think about it.
+ */
+const DEFAULT_JEST_CONFIG = "module.exports = { testMatch: ['<rootDir>/tests/**/*.test.{js,ts}'] };\n";
+
 export function freshState(): GitHubState {
+  const files = new Map<string, string>();
+  files.set('BASESHA:jest.config.js', DEFAULT_JEST_CONFIG);
   return {
     records: [],
     contentsRefs: [],
-    files: new Map(),
+    files,
     tokenMints: 0,
     commentPosts: 0,
     commentPatches: 0,
@@ -137,6 +156,7 @@ export function freshState(): GitHubState {
     prPatches: [],
     labelPosts: [],
     failGitWrites403: false,
+    treeFiles: new Map([['BASESHA', []]]),
     appSlug: 'port-daddy',
     prAuthor: { login: 'a-human', type: 'User' },
     prState: 'open',
@@ -205,7 +225,7 @@ export function installGitHubFetch(state: GitHubState): void {
       }
       const fileBody = state.files.get(`${ref}:${path}`);
       if (fileBody === undefined) return text('not found', 404);
-      return json({ encoding: 'base64', content: btoa(fileBody) });
+      return json({ type: 'file', encoding: 'base64', content: btoa(fileBody) });
     }
 
     // --- Git Data API (purser stacked-PR machinery) ---
@@ -217,6 +237,14 @@ export function installGitHubFetch(state: GitHubState): void {
     if (/\/git\/commits\/[^/?]+$/.test(url) && method === 'GET') {
       const sha = url.slice(url.lastIndexOf('/') + 1);
       return json({ sha, tree: { sha: `tree-of-${sha}` } });
+    }
+    // --- recursive tree listing (purser executability-gate evidence) ---
+    const treeMatch = url.match(/\/git\/trees\/([^/?]+)\?recursive=1/);
+    if (treeMatch && method === 'GET') {
+      const sha = decodeURIComponent(treeMatch[1]);
+      const paths = state.treeFiles.get(sha);
+      if (!paths) return text('not found', 404);
+      return json({ sha, truncated: false, tree: paths.map(p => ({ path: p, type: 'blob' })) });
     }
     if (/\/git\/trees$/.test(url) && method === 'POST') {
       if (state.failGitWrites403) return text('Resource not accessible by integration', 403);

@@ -306,11 +306,13 @@ describe('runPurser — authored-test validation', () => {
 });
 
 describe('runPurser — stacking', () => {
-  it('same-repo PR: branch from BASE sha, stacked test PR opened, original PR retargeted onto the tests', async () => {
+  it('same-repo PR, tests EXECUTED and PASSED: branch from BASE sha, stacked test PR opened, original PR retargeted onto the tests', async () => {
     const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
     const rec = recorder();
 
-    await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
+    await runPurser(
+      mkShip(), mkCtx(), makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }), 'tok', rec.transcript, freshMetrics(),
+    );
 
     // Branch cut from the PR's BASE sha (never head): the commit parents on BASESHA.
     const commitPost = state.records.find(r => r.method === 'POST' && /\/git\/commits$/.test(r.url));
@@ -326,19 +328,44 @@ describe('runPurser — stacking', () => {
     });
     expect(state.stackedPrs[0].body).toContain('Obligations under test');
 
-    // The reviewed PR was retargeted ONTO the test branch (stacked on top).
+    // The reviewed PR was retargeted ONTO the test branch (stacked on top) —
+    // only because sandbox.executed is true (the tests actually ran).
     expect(state.prPatches).toContainEqual(
       expect.objectContaining({ number: 7, base: 'purser/pr-7-tests' }),
     );
 
     const step = rec.steps.find(s => s.kind === 'purser-stacked')!;
-    expect(step.detail).toMatchObject({ testPrNumber: 8001, retargeted: true });
+    expect(step.detail).toMatchObject({ testPrNumber: 8001, retargeted: true, sandboxExecuted: true });
 
     // The demand comment is posted, firm and referenced.
     const bodies = purserCommentBodies(state);
     expect(bodies).toHaveLength(1);
     expect(bodies[0]).toContain('steel-manned');
     expect(bodies[0]).toContain('retargeted onto that test branch');
+  });
+
+  it('same-repo PR, tests NOT EXECUTED (no SANDBOX binding): stacked test PR opened, but the reviewed PR is NOT retargeted', async () => {
+    // Reproduces the root cause of #5860: a purser retargeted the reviewed PR
+    // onto a test branch whose tests had never been executed ("the body
+    // admitted they were not run"). Retargeting must never happen on faith.
+    const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
+    const rec = recorder();
+
+    await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
+
+    // The test PR is still opened (advisory evidence of the contract)...
+    expect(state.stackedPrs).toHaveLength(1);
+    // ...but the implementation PR's base is explicitly left UNCHANGED.
+    expect(state.prPatches.filter(p => p.number === 7 && p.base)).toHaveLength(0);
+
+    const step = rec.steps.find(s => s.kind === 'purser-stacked')!;
+    expect(step.detail).toMatchObject({ retargeted: false, sandboxExecuted: false });
+    expect((step.detail as { retargetSkipped?: string }).retargetSkipped).toMatch(/not executed/);
+
+    const bodies = purserCommentBodies(state);
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toContain('NOT been retargeted');
+    expect(bodies[0]).toContain('not executed');
   });
 
   it('fork PR: the test PR is opened + comment posted, but NO retarget', async () => {
@@ -395,6 +422,149 @@ describe('runPurser — stacking', () => {
     expect(state.refCreates).toBe(1);
     expect(state.refUpdates).toBe(1); // second run force-moved the ref
     expect(state.stackedPrs).toHaveLength(1); // no duplicate test PR
+  });
+});
+
+describe('runPurser — executability gate (regression: PR #5860 non-executable Purser theater)', () => {
+  // The real port-daddy jest.config.js shape: testMatch lives ONLY under
+  // tests/unit/** and tests/integration/**, nested inside `projects:`.
+  // tests/purser/** is not a jest root at all.
+  const REAL_JEST_CONFIG = [
+    'module.exports = {',
+    '  projects: [',
+    "    { displayName: 'unit', testMatch: ['<rootDir>/tests/unit/**/*.test.{js,ts}'] },",
+    "    { displayName: 'integration', testMatch: ['<rootDir>/tests/integration/**/*.test.{js,ts}'] },",
+    '  ],',
+    '};',
+  ].join('\n');
+
+  function seedRealJestConfig(): void {
+    state.files.set('BASESHA:jest.config.js', REAL_JEST_CONFIG);
+  }
+
+  it('#5860 exact shape: tests/purser/test_*.js outside testMatch AND importing nonexistent ../support ⇒ rejected as non-executable, no branch/PR/retarget', async () => {
+    seedRealJestConfig();
+    const badTests = [
+      '```json',
+      JSON.stringify({
+        files: [
+          {
+            path: 'tests/purser/test_error-handling.js',
+            contents:
+              "const { isRetryable } = require('../support');\n" +
+              "it('flags retryable errors', () => { isRetryable(new Error('x')); });",
+          },
+        ],
+      }),
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, badTests]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, blockWithoutSandbox: true }),
+      mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics(),
+    );
+
+    // Advisory PASS — never fabricates a BLOCK on tests that structurally
+    // could not run, even for a blocking + blockWithoutSandbox purser.
+    expect(result).toMatchObject({ blocking: false, verdict: 'PASS', errored: false });
+
+    const step = rec.steps.find(s => s.kind === 'purser-tests' && /NON-EXECUTABLE/.test(s.title));
+    expect(step).toBeDefined();
+    expect((step!.detail as { error: string }).error).toMatch(/outside the repo's configured test discovery path/);
+
+    // Fail closed BEFORE ever WRITING to the Git Data API: no branch, no
+    // blobs, no commits, no stacked test PR, and — the actual #5860 defect —
+    // the reviewed implementation PR's base is left completely untouched.
+    // (A read-only GET against /git/trees/.../recursive=1 IS expected: that is
+    // this very gate fetching its own evidence.)
+    expect(
+      state.records.filter(r => r.url.includes('/git/') && r.method !== 'GET'),
+    ).toHaveLength(0);
+    expect(state.stackedPrs).toHaveLength(0);
+    expect(state.prPatches.filter(p => p.number === 7 && p.base)).toHaveLength(0);
+
+    // The prompts/contract are still preserved as ADVISORY EVIDENCE — a human
+    // can read what the purser demanded even though nothing was stacked.
+    const bodies = purserCommentBodies(state);
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toContain('steel-manned');
+    expect(bodies[0]).toContain('executability gate');
+    expect(bodies[0]).toContain('tests/purser/test_error-handling.js');
+  });
+
+  it('a path-valid file with an unresolved relative import is rejected on import resolution alone', async () => {
+    seedRealJestConfig();
+    // Seed a tree WITHOUT tests/unit/support.* — the import must not resolve.
+    state.treeFiles.set('BASESHA', ['tests/unit/other.test.js']);
+    const badImportTests = [
+      '```json',
+      JSON.stringify({
+        files: [
+          {
+            path: 'tests/unit/widget.contract.test.js',
+            contents: "const { helper } = require('../support');\nit('x', () => { helper(); });",
+          },
+        ],
+      }),
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, badImportTests]);
+    const rec = recorder();
+
+    await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
+
+    const step = rec.steps.find(s => s.kind === 'purser-tests' && /NON-EXECUTABLE/.test(s.title));
+    expect(step).toBeDefined();
+    expect((step!.detail as { error: string }).error).toMatch(/does not resolve to any file/);
+    expect(state.stackedPrs).toHaveLength(0);
+    expect(state.prPatches).toHaveLength(0);
+  });
+
+  it('positive control: a path-valid file whose relative import DOES resolve passes the gate and stacks normally', async () => {
+    seedRealJestConfig();
+    // '../support' from tests/unit/widget.contract.test.js resolves to
+    // tests/support.js — see the "unresolved" test above for the negative case.
+    state.treeFiles.set('BASESHA', ['tests/support.js']);
+    const goodImportTests = [
+      '```json',
+      JSON.stringify({
+        files: [
+          {
+            path: 'tests/unit/widget.contract.test.js',
+            contents: "const { helper } = require('../support');\nit('x', () => { helper(); });",
+          },
+        ],
+      }),
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, goodImportTests]);
+    const rec = recorder();
+
+    await runPurser(
+      mkShip(), mkCtx(), makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }), 'tok', rec.transcript, freshMetrics(),
+    );
+
+    const rejected = rec.steps.find(s => s.kind === 'purser-tests' && /NON-EXECUTABLE/.test(s.title));
+    expect(rejected).toBeUndefined();
+    expect(state.stackedPrs).toHaveLength(1);
+    expect(state.prPatches).toContainEqual(
+      expect.objectContaining({ number: 7, base: 'purser/pr-7-tests' }),
+    );
+  });
+
+  it('missing/unparseable jest config (no evidence) fails closed, even for an otherwise well-formed file', async () => {
+    state.files.delete('BASESHA:jest.config.js'); // no discovery evidence at all
+    const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
+    const rec = recorder();
+
+    await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
+
+    const step = rec.steps.find(s => s.kind === 'purser-tests' && /NON-EXECUTABLE/.test(s.title));
+    expect(step).toBeDefined();
+    expect((step!.detail as { error: string }).error).toMatch(/could not be found or parsed/);
+    expect(state.stackedPrs).toHaveLength(0);
   });
 });
 
