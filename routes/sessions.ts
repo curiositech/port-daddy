@@ -7,7 +7,6 @@
  * PUT    /sessions/:id            - End or abandon a session
  * POST   /sessions/:id/continue   - Admit one durable linked successor
  * GET    /sessions/continuations/:receiptId - Collect successor state
- * POST   /sessions/:id/takeover   - Start a successor session without deleting notes
  * DELETE /sessions/:id            - Archive session, preserving notes
  * POST   /sessions/:id/notes      - Add a note to a session (compat alias for /notes)
  * GET    /sessions/:id/notes      - Get notes for a session
@@ -55,16 +54,6 @@ interface SessionsRouteDeps {
     }): Record<string, unknown>;
     abandon(sessionId: string): Record<string, unknown>;
     remove(sessionId: string): Record<string, unknown>;
-    takeover(sessionId: string, options?: {
-      agentId?: string | null;
-      purpose?: string | null;
-      note?: string | null;
-      project?: string | null;
-      worktreeId?: string | null;
-      metadata?: Record<string, unknown> | null;
-      durable?: boolean;
-      claimFiles?: boolean;
-    }): Record<string, unknown>;
     quickNote(content: string, options?: {
       sessionId?: string | null;
       agentId?: string | null;
@@ -103,6 +92,11 @@ interface SessionsRouteDeps {
     cleanup(options?: {
       olderThan?: number;
       status?: string;
+    }): Record<string, unknown>;
+    linkSuccessor(predecessorId: string, successorId: string, options?: {
+      agentId?: string | null;
+      note?: string | null;
+      finishPredecessor?: boolean;
     }): Record<string, unknown>;
   };
   metrics: { errors: number };
@@ -204,6 +198,9 @@ function continuationEnvelope(
     monitorUrl: continuationReceiptUrl(receipt),
     cancelUrl: successor ? `/sessions/continuations/${encodeURIComponent(receipt.id)}` : null,
     transcriptUrl: successor ? `/transcripts?agentId=${encodeURIComponent(successor.agentId)}` : null,
+    controlCenterUrl: successor
+      ? `/fleet-ui/?surface=agents&agent=${encodeURIComponent(successor.agentId)}`
+      : null,
     accounting: {
       budgetUsd: receipt.budgetUsd,
       telemetry: receipt.telemetry,
@@ -703,20 +700,20 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
-      let timeout: number | undefined;
-      if (body.timeoutMs !== undefined) {
-        if (typeof body.timeoutMs !== 'number'
-          || !Number.isInteger(body.timeoutMs)
-          || body.timeoutMs < 1_000
-          || body.timeoutMs > 6 * 60 * 60 * 1_000) {
+      let deadlineMs: number | undefined;
+      if (body.deadlineMs !== undefined) {
+        if (typeof body.deadlineMs !== 'number'
+          || !Number.isInteger(body.deadlineMs)
+          || body.deadlineMs < 1_000
+          || body.deadlineMs > 6 * 60 * 60 * 1_000) {
           reply.code(400);
           return {
             success: false,
-            error: 'timeoutMs must be an explicit integer from 1000 to 21600000; omit it for no task deadline',
+            error: 'deadlineMs must be an explicit integer from 1000 to 21600000; omit it for no task deadline',
             code: 'VALIDATION_ERROR',
           };
         }
-        timeout = body.timeoutMs;
+        deadlineMs = body.deadlineMs;
       }
       let budgetUsd: number | undefined;
       if (body.budgetUsd !== undefined) {
@@ -748,7 +745,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         identity: identity ?? null,
         workdir: workspaceIdentity.canonicalPath,
         workspaceIdentity,
-        timeoutMs: timeout ?? null,
+        deadlineMs: deadlineMs ?? null,
         budgetUsd: budgetUsd ?? null,
         requestedBy,
       };
@@ -821,7 +818,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         backend: backend as SpawnSpec['backend'],
         ...(model ? { model } : {}),
         ...(identity ? { identity } : {}),
-        ...(timeout ? { timeout } : {}),
+        ...(deadlineMs === undefined ? {} : { deadlineMs }),
         ...(budgetUsd ? { budgetUsd } : {}),
         task: note,
         purpose,
@@ -845,6 +842,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       let acceptRun: ((accepted: SpawnAccepted) => void) | null = null;
       const accepted = new Promise<SpawnAccepted>((resolve) => { acceptRun = resolve; });
       const run = spawner.spawn(spec, (successor) => {
+        const lineage = sessions.linkSuccessor(predecessorId, successor.sessionId, {
+          agentId: successor.agentId,
+          note,
+        });
+        if (!lineage.success) {
+          throw new Error(`successor lineage could not be persisted: ${String(lineage.error ?? 'unknown error')}`);
+        }
         receipt = continuationReceipts.markStarting(receipt.id, {
           successorAgentId: successor.agentId,
           successorSessionId: successor.sessionId,
@@ -1000,69 +1004,6 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       ? receipt
       : continuationReceipts.markStatus(receipt.id, 'cancelled', { error: 'Cancelled by operator.' });
     return continuationEnvelope(cancelled);
-  });
-
-  // POST /sessions/:id/takeover - Non-destructively continue an existing session
-  fastify.post('/sessions/:id/takeover', async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const sessionIdParam = (request.params as any).id;
-      const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
-      const body = (request.body || {}) as any;
-      const sessionAgent = mutationAgentId(request, body.agentId);
-      if (!sessionAgent.success) {
-        reply.code(400);
-        return sessionAgent.result;
-      }
-      const lifecycle = parseSessionLifecycle(body.lifecycle);
-      const worktreePolicy = evaluateSessionWorktreePolicy({
-        worktree: body.worktree,
-        requireLinkedWorktree: body.requireLinkedWorktree,
-        allowMainWorktree: body.allowMainWorktree,
-      });
-      if (!worktreePolicy.success) {
-        reply.code(400);
-        return worktreePolicy;
-      }
-      const metadata = mergeSessionWorktreeMetadata(
-        body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : null,
-        worktreePolicy.worktree,
-        {
-          requireLinkedWorktree: body.requireLinkedWorktree,
-          allowMainWorktree: body.allowMainWorktree,
-        },
-      );
-
-      const result = sessions.takeover(sessionId, {
-        agentId: sessionAgent.agentId,
-        purpose: typeof body.purpose === 'string' ? body.purpose : null,
-        note: typeof body.note === 'string' ? body.note : null,
-        project: typeof body.project === 'string' ? body.project : null,
-        worktreeId: typeof body.worktreeId === 'string' ? body.worktreeId : worktreePolicy.worktree?.id ?? null,
-        metadata,
-        durable: lifecycle ? lifecycle === 'durable' : typeof body.durable === 'boolean' ? body.durable : undefined,
-        claimFiles: typeof body.claimFiles === 'boolean' ? body.claimFiles : undefined,
-      });
-
-      if (!result.success) {
-        const statusCode = result.code === 'VALIDATION_ERROR' ? 400 : 404;
-        reply.code(statusCode);
-        return result;
-      }
-
-      logger.info('session_taken_over', {
-        predecessorId: result.predecessorId,
-        successorId: result.successorId,
-        claimsTransferred: result.claimsTransferred,
-      });
-
-      return result;
-
-    } catch (error) {
-      metrics.errors++;
-      logger.error('session_takeover_error', { error: (error as Error).message });
-      reply.code(500);
-      return { error: 'internal server error' };
-    }
   });
 
   // PUT /sessions/:id/phase - Set session phase

@@ -911,18 +911,32 @@ interface SessionResponse {
   code?: string;
 }
 
-interface SessionTakeoverResponse {
+interface SessionContinuationResponse {
   success: boolean;
-  predecessorId?: string;
-  successorId?: string;
-  session?: Record<string, unknown>;
-  predecessorStatus?: string;
-  notesPreserved?: boolean;
-  claimsTransferred?: boolean;
-  releasedFiles?: string[];
-  claimedFiles?: string[];
-  conflicts?: Array<{ filePath: string; sessionId: string; purpose: string; claimedAt: number }>;
-  warnings?: string[];
+  accepted: boolean;
+  replayed: boolean;
+  terminal: boolean;
+  outcomeUnknown: boolean;
+  status: string;
+  predecessor: {
+    sessionId: string;
+    purpose: string | null;
+    status: string | null;
+  };
+  successor: {
+    agentId: string;
+    sessionId: string;
+    transcriptId: string;
+  } | null;
+  session: { id: string; agentId: string } | null;
+  receipt: Record<string, unknown> & { id: string };
+  monitorUrl: string;
+  cancelUrl: string | null;
+  transcriptUrl: string | null;
+  controlCenterUrl: string | null;
+  accounting: Record<string, unknown>;
+  liveness: Record<string, unknown> | null;
+  run?: unknown;
   error?: string;
   code?: string;
 }
@@ -2378,45 +2392,34 @@ class PortDaddy {
     return this._request('DELETE', `/sessions/${sessionId}`) as Promise<{ success: boolean }>;
   }
 
-  /**
-   * Start a successor session from an existing one without deleting its notes.
-   */
-  async takeoverSession(sessionId: string, options?: {
-    agentId?: string;
+  /** Admit one durable receipt-backed successor while preserving the predecessor. */
+  async continueSession(sessionId: string, options: {
+    direction: string;
+    backend: string;
+    workdir: string;
+    idempotencyKey: string;
     purpose?: string;
-    note?: string;
+    model?: string;
     project?: string;
-    worktreeId?: string;
+    identity?: string;
     metadata?: Record<string, unknown>;
-    worktree?: Record<string, unknown>;
-    requireLinkedWorktree?: boolean;
-    allowMainWorktree?: boolean;
-    lifecycle?: 'durable' | 'ephemeral';
-    claimFiles?: boolean;
-  }): Promise<SessionTakeoverResponse> {
+    deadlineMs?: number;
+    budgetUsd?: number;
+  }): Promise<SessionContinuationResponse> {
     const body: Record<string, unknown> = {
-      ...(options || {}),
-      agentId: options?.agentId || this.agentId,
+      purpose: options.purpose ?? options.direction,
+      note: options.direction,
+      backend: options.backend,
+      workdir: options.workdir,
+      idempotencyKey: options.idempotencyKey,
+      ...(options.model ? { model: options.model } : {}),
+      ...(options.project ? { project: options.project } : {}),
+      ...(options.identity ? { identity: options.identity } : {}),
+      ...(options.metadata ? { metadata: options.metadata } : {}),
+      ...(options.deadlineMs === undefined ? {} : { deadlineMs: options.deadlineMs }),
+      ...(options.budgetUsd === undefined ? {} : { budgetUsd: options.budgetUsd }),
     };
-    if (options?.lifecycle) {
-      body.durable = options.lifecycle === 'durable';
-      delete body.lifecycle;
-    }
-
-    const ipcResult = await this._requestViaIpc<SessionTakeoverResponse>(
-      IpcAction.SESSION_TAKEOVER,
-      {
-        sessionId,
-        ...body,
-      },
-    );
-    if (ipcResult) {
-      if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult, 'Failed to take over session', ipcResult.code === 'VALIDATION_ERROR' ? 400 : 404);
-      }
-      return ipcResult;
-    }
-    return this._request('POST', `/sessions/${sessionId}/takeover`, body) as Promise<SessionTakeoverResponse>;
+    return this._request('POST', `/sessions/${sessionId}/continue`, body) as Promise<SessionContinuationResponse>;
   }
 
   /**

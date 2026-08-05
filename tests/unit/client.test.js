@@ -441,26 +441,47 @@ describe('Sessions', () => {
     expect(result.success).toBe(true);
   });
 
-  test('takeoverSession sends successor request', async () => {
-    queueResponse({ success: true, predecessorId: 'session-123', successorId: 'session-456', notesPreserved: true });
+  test('continueSession admits a receipt-backed successor', async () => {
+    queueResponse({
+      success: true,
+      accepted: true,
+      replayed: false,
+      terminal: false,
+      outcomeUnknown: false,
+      status: 'starting',
+      predecessor: { sessionId: 'session-123', purpose: 'Original', status: 'completed' },
+      successor: { agentId: 'agent-456', sessionId: 'session-456', transcriptId: 'tx-456' },
+      session: { id: 'session-456', agentId: 'agent-456' },
+      receipt: { id: 'run-456' },
+      monitorUrl: '/sessions/continuations/run-456',
+      cancelUrl: '/sessions/continuations/run-456',
+      transcriptUrl: '/transcripts?agentId=agent-456',
+      controlCenterUrl: '/fleet-ui/?surface=agents&agent=agent-456',
+      accounting: {},
+      liveness: null,
+    });
 
-    const result = await pd.takeoverSession('session-123', {
-      note: 'continuing here',
+    const result = await pd.continueSession('session-123', {
+      direction: 'continuing here',
       purpose: 'Continue ship',
-      lifecycle: 'durable',
-      claimFiles: false,
+      backend: 'cli:codex',
+      workdir: '/worktrees/ship',
+      idempotencyKey: 'continue-session-123-v1',
+      budgetUsd: 2,
     });
 
     expect(receivedRequests[0].method).toBe('POST');
-    expect(receivedRequests[0].url).toBe('/sessions/session-123/takeover');
+    expect(receivedRequests[0].url).toBe('/sessions/session-123/continue');
     expect(receivedRequests[0].body).toEqual({
       note: 'continuing here',
       purpose: 'Continue ship',
-      claimFiles: false,
-      agentId: 'session-agent',
-      durable: true,
+      backend: 'cli:codex',
+      workdir: '/worktrees/ship',
+      idempotencyKey: 'continue-session-123-v1',
+      budgetUsd: 2,
     });
-    expect(result.successorId).toBe('session-456');
+    expect(result.successor.sessionId).toBe('session-456');
+    expect(result.receipt.id).toBe('run-456');
   });
 
   test('sessions encodes filters', async () => {
@@ -1134,29 +1155,6 @@ describe('IPC fast paths', () => {
     );
     expect(receivedRequests).toHaveLength(0);
     expect(result.success).toBe(true);
-  });
-
-  test('takeoverSession prefers IPC before HTTP', async () => {
-    pd._requestViaIpc = jest.fn().mockResolvedValue({
-      success: true,
-      predecessorId: 'session-123',
-      successorId: 'session-456',
-      notesPreserved: true,
-    });
-
-    const result = await pd.takeoverSession('session-123', { note: 'take over', lifecycle: 'ephemeral' });
-
-    expect(pd._requestViaIpc).toHaveBeenCalledWith(
-      'session.takeover',
-      {
-        sessionId: 'session-123',
-        note: 'take over',
-        agentId: 'registered-agent',
-        durable: false,
-      },
-    );
-    expect(receivedRequests).toHaveLength(0);
-    expect(result.successorId).toBe('session-456');
   });
 
   test('claimFiles prefers IPC before HTTP', async () => {

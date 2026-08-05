@@ -1002,6 +1002,41 @@ describe('cancel', () => {
 // =============================================================================
 
 describe('PD coordination', () => {
+  test('admission callback rejection cancels durable records before backend launch', async () => {
+    const runner = jest.fn(async () => ({ output: 'must not run', error: null }));
+    const transcripts = {
+      start: jest.fn(() => 'tx-admission-rejected'),
+      appendMessage: jest.fn(),
+      appendOutput: jest.fn(),
+      finalize: jest.fn(),
+      listTranscripts: jest.fn(() => [{ id: 'tx-admission-rejected' }]),
+    };
+    const spawner = createSpawner({
+      transcripts,
+      enforceTranscriptPolicy: true,
+      runnerOverrides: { custom: runner },
+    });
+
+    const result = await spawner.spawn(
+      { backend: 'custom', task: 'Do not launch after rejected lineage' },
+      () => { throw new Error('lineage store unavailable'); },
+    );
+
+    expect(runner).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      status: 'cancelled',
+      error: 'Spawn admission rejected: lineage store unavailable',
+    });
+    expect(spawner.list().filter((agent) => agent.status === 'running')).toEqual([]);
+    expect(transcripts.finalize).toHaveBeenCalledWith(
+      'tx-admission-rejected',
+      expect.objectContaining({
+        status: 'cancelled',
+        error: 'Spawn admission rejected: lineage store unavailable',
+      }),
+    );
+  });
+
   test('registers agent with PD on spawn', async () => {
     const spawner = createSpawner();
     setupOllamaFetchMock('response');

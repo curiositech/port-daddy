@@ -2204,38 +2204,50 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       ? null
       : coordination.error || 'coordination session start did not return a durable session id';
 
+    let admissionCallbackError: Error | null = null;
     // A receipt is not admitted until BOTH durable records exist: transcript
     // and Port Daddy session. This is the accounting boundary, not process fork.
+    // The owning route may have one final atomic projection to persist (for
+    // example predecessor/successor lineage). A rejection there must drive the
+    // spawn through normal cancellation and transcript cleanup before any
+    // backend process is launched.
     if (!transcriptStartError && transcriptId && !coordinationStartError && coordinationSessionId) {
-      onAccepted?.({
-        agentId,
-        name: displayName,
-        backend: runtime.effectiveBackend,
-        model: runtime.effectiveModel,
-        status: 'accepted',
-        identity: spec.identity || null,
-        purpose: spec.purpose || spec.task.slice(0, 80),
-        startedAt,
-        heartbeatAt: startedAt,
-        lastActivityAt: startedAt,
-        pid: null,
-        deadlineAt: record.deadlineAt,
-        transcriptId,
-        sessionId: coordinationSessionId,
-      });
+      try {
+        onAccepted?.({
+          agentId,
+          name: displayName,
+          backend: runtime.effectiveBackend,
+          model: runtime.effectiveModel,
+          status: 'accepted',
+          identity: spec.identity || null,
+          purpose: spec.purpose || spec.task.slice(0, 80),
+          startedAt,
+          heartbeatAt: startedAt,
+          lastActivityAt: startedAt,
+          pid: null,
+          deadlineAt: record.deadlineAt,
+          transcriptId,
+          sessionId: coordinationSessionId,
+        });
+      } catch (error) {
+        admissionCallbackError = error instanceof Error ? error : new Error(String(error));
+        cancel(agentId, `Spawn admission rejected: ${admissionCallbackError.message}`);
+      }
     }
 
     // Start heartbeat interval
-    record.heartbeatInterval = setInterval(async () => {
-      record.heartbeatAt = Date.now();
-      const pid = registryPidFor(record);
-      await pdCoordinate(`/agents/${agentId}/heartbeat`, {
-        pid,
-        status: 'busy',
-        progress: `Running ${runtime.effectiveBackend} via Port Daddy spawner`,
-      }, { pid });
-    }, 30000);
-    record.heartbeatInterval.unref?.();
+    if (record.status === 'running') {
+      record.heartbeatInterval = setInterval(async () => {
+        record.heartbeatAt = Date.now();
+        const pid = registryPidFor(record);
+        await pdCoordinate(`/agents/${agentId}/heartbeat`, {
+          pid,
+          status: 'busy',
+          progress: `Running ${runtime.effectiveBackend} via Port Daddy spawner`,
+        }, { pid });
+      }, 30000);
+      record.heartbeatInterval.unref?.();
+    }
 
     let output: string | null = null;
     let error: string | null = null;
@@ -2249,6 +2261,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     let streamedLiveDeltas = false;
 
     try {
+      if (admissionCallbackError) throw admissionCallbackError;
       // Recording is a precondition: if the transcript row could not be opened
       // under enforcement, refuse to run the backend. An unrecorded agent run
       // is exactly what this policy forbids — fail loud instead.
@@ -2732,7 +2745,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           transcripts.finalize(tx.id, {
             status: 'cancelled',
             ended_at: Date.now(),
-            error: 'Cancelled by spawner',
+            error: reason,
           });
         }
       } catch { /* swallow */ }

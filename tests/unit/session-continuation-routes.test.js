@@ -75,6 +75,9 @@ function buildApp(options = {}) {
       : id === 'session-successor'
         ? { success: true, session: { id, purpose: 'Continue the work', status: 'active' }, notes: [], files: [] }
         : { success: false, error: 'session not found' }),
+    linkSuccessor: jest.fn(() => options.lineageFailure
+      ? { success: false, error: 'lineage store unavailable' }
+      : { success: true }),
   };
   const spawner = {
     spawn: jest.fn(async (spec, onAccepted) => {
@@ -96,10 +99,23 @@ function buildApp(options = {}) {
           lastActivityAt: Date.now(),
           pid: null,
         };
-        onAccepted?.(accepted);
+        try {
+          onAccepted?.(accepted);
+        } catch (error) {
+          liveRecord = null;
+          return terminalResult({
+            agentId: accepted.agentId,
+            status: 'cancelled',
+            output: null,
+            error: `Spawn admission rejected: ${error.message}`,
+          });
+        }
       };
       if (options.deferAcceptance) deferredAcceptance = admit;
-      else admit();
+      else {
+        const rejected = admit();
+        if (rejected) return rejected;
+      }
       return pending;
     }),
     list: jest.fn(() => liveRecord ? [liveRecord] : []),
@@ -153,6 +169,7 @@ describe('session continuation routes', () => {
         transcriptId: 'transcript-successor',
       },
       session: { id: 'session-successor', agentId: 'spawned-successor' },
+      controlCenterUrl: '/fleet-ui/?surface=agents&agent=spawned-successor',
     });
     expect(state.spawner.spawn).toHaveBeenCalledTimes(1);
     expect(state.spawner.spawn.mock.calls[0][0]).toMatchObject({
@@ -162,7 +179,57 @@ describe('session continuation routes', () => {
         continuation: { predecessorSessionId: predecessor.id },
       },
     });
+    expect(state.spawner.spawn.mock.calls[0][0]).not.toHaveProperty('deadlineMs');
     expect(state.sessions.get).toHaveBeenCalledWith(predecessor.id);
+    expect(state.sessions.linkSuccessor).toHaveBeenCalledWith(
+      predecessor.id,
+      'session-successor',
+      {
+        agentId: 'spawned-successor',
+        note: 'Finish the bounded successor task.',
+      },
+    );
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('an explicit caller deadline propagates without becoming an admission timeout', async () => {
+    const state = buildApp();
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/sessions/${predecessor.id}/continue`,
+      payload: continuationPayload({ deadlineMs: 7_200_000 }),
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(state.spawner.spawn.mock.calls[0][0]).toMatchObject({ deadlineMs: 7_200_000 });
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('lineage rejection fails admission without fabricating a runnable successor', async () => {
+    const state = buildApp({ lineageFailure: true });
+    const predecessorStatus = state.sessions.get(predecessor.id).session.status;
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/sessions/${predecessor.id}/continue`,
+      payload: continuationPayload(),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      success: false,
+      accepted: false,
+      terminal: true,
+      status: 'cancelled',
+      successor: null,
+      run: {
+        status: 'cancelled',
+        error: expect.stringContaining('successor lineage could not be persisted'),
+      },
+    });
+    expect(state.sessions.linkSuccessor).toHaveBeenCalledTimes(1);
+    expect(state.sessions.get(predecessor.id).session.status).toBe(predecessorStatus);
     await state.app.close();
     state.db.close();
   });
