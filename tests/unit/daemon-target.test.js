@@ -24,6 +24,8 @@ import { describe, test, expect } from '@jest/globals';
 import {
   DaemonEndpointDiscoveryError,
   discoverPublishedDaemonPort,
+  resolveDaemonUrl,
+  resolvePublishedDaemonUrl,
   resolveDaemonTarget,
 } from '../../shared/daemon-discovery.js';
 
@@ -146,5 +148,17 @@ describe('discoverPublishedDaemonPort', () => {
       portFile: '/state/daemon.port',
       readTextFile: () => { throw denied; },
     })).toThrow(expect.objectContaining({ code: 'INVALID_PUBLISHED_PORT' }));
+  });
+});
+
+describe('strict URL publication versus the deprecated compatibility alias', () => {
+  test('strict URL discovery fails closed while the legacy alias temporarily retains its seed fallback', () => {
+    const missing = Object.assign(new Error('missing'), { code: 'ENOENT' });
+    const options = { env: {}, portFile: '/state/daemon.port', readTextFile: () => { throw missing; } };
+
+    expect(() => resolvePublishedDaemonUrl(undefined, options)).toThrow(
+      expect.objectContaining({ code: 'ENDPOINT_NOT_PUBLISHED' }),
+    );
+    expect(resolveDaemonUrl(undefined, options)).toMatch(/^http:\/\/127\.0\.0\.1:[0-9]+$/);
   });
 });

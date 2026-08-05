@@ -51,11 +51,11 @@ describe('resolveTarget()', () => {
     expect(target.port).toBe(3000);
   });
 
-  test('uses default port 9876 when URL has no explicit port', () => {
+  test('uses the URL protocol default when no explicit port is published', () => {
     process.env.PORT_DADDY_URL = 'http://myhost';
     const target = resolveTarget();
     expect(target.host).toBe('myhost');
-    expect(target.port).toBe(9876);
+    expect(target.port).toBe(80);
   });
 
   test('returns socket target when PORT_DADDY_SOCK is set', () => {

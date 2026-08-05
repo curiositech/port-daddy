@@ -75,6 +75,23 @@ function parsePublishedPort(raw: string, sourceLabel: string): number {
   return port;
 }
 
+function parseExplicitUrlPort(raw: string): number {
+  if (!PORT_RE.test(raw)) {
+    throw new DaemonEndpointDiscoveryError(
+      'INVALID_PUBLISHED_PORT',
+      'PORT_DADDY_URL must contain one decimal TCP port and nothing else',
+    );
+  }
+  const port = Number(raw);
+  if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
+    throw new DaemonEndpointDiscoveryError(
+      'INVALID_PUBLISHED_PORT',
+      `PORT_DADDY_URL published out-of-range TCP port ${raw}; expected 1..65535`,
+    );
+  }
+  return port;
+}
+
 /**
  * Discover a TCP port that the selected daemon actually published.
  *
@@ -152,15 +169,42 @@ export const readDaemonPort = resolveDaemonPort;
 /**
  * Resolve the daemon's base TCP URL.
  *
- * Resolution order: explicit `PORT_DADDY_URL` → selected daemon's published
- * port. This strict resolver never guesses the preferred startup port.
+ * Resolution order: explicit `PORT_DADDY_URL` → legacy dynamic port helper.
+ *
+ * @deprecated Connection code must migrate to {@link resolvePublishedDaemonUrl}
+ * or {@link resolveDaemonTarget}. This compatibility alias retains the old
+ * preferred-port fallback until those consumers move in focused slices.
  */
 export function resolveDaemonUrl(
-  explicitUrl = process.env.PORT_DADDY_URL,
+  explicitUrl?: string,
   options: DaemonPortDiscoveryOptions = {},
 ): string {
-  if (explicitUrl && explicitUrl.trim()) return explicitUrl.trim();
   const env = options.env ?? process.env;
+  const selectedUrl = explicitUrl ?? env.PORT_DADDY_URL;
+  if (selectedUrl && selectedUrl.trim()) return selectedUrl.trim();
+  const host = env.PORT_DADDY_TCP_HOST?.trim() || LOOPBACK_TCP_HOST;
+  let published: PublishedDaemonPort | null = null;
+  try {
+    published = discoverPublishedDaemonPort(options);
+  } catch {
+    // This deprecated alias deliberately preserves the old forgiving fallback.
+    // Strict consumers use resolvePublishedDaemonUrl/resolveDaemonTarget below.
+  }
+  return `http://${host}:${published?.port ?? PREFERRED_DAEMON_PORT}`;
+}
+
+/**
+ * Resolve only an explicit or actually published TCP endpoint. Unlike the
+ * deprecated compatibility alias above, this helper never guesses the
+ * preferred allocator seed.
+ */
+export function resolvePublishedDaemonUrl(
+  explicitUrl?: string,
+  options: DaemonPortDiscoveryOptions = {},
+): string {
+  const env = options.env ?? process.env;
+  const selectedUrl = explicitUrl ?? env.PORT_DADDY_URL;
+  if (selectedUrl && selectedUrl.trim()) return selectedUrl.trim();
   const host = env.PORT_DADDY_TCP_HOST?.trim() || LOOPBACK_TCP_HOST;
   return `http://${host}:${requirePublishedDaemonPort(options).port}`;
 }
@@ -171,10 +215,10 @@ export function resolveDaemonUrl(
 export const getDaemonTcpUrl = resolveDaemonUrl;
 
 export function resolveDaemonTcpTarget(
-  explicitUrl = process.env.PORT_DADDY_URL,
+  explicitUrl?: string,
   options: DaemonPortDiscoveryOptions = {},
 ): { host: string; port: number } {
-  const url = new URL(resolveDaemonUrl(explicitUrl, options));
+  const url = new URL(resolvePublishedDaemonUrl(explicitUrl, options));
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     throw new DaemonEndpointDiscoveryError(
       'UNSUPPORTED_DAEMON_URL',
@@ -182,7 +226,7 @@ export function resolveDaemonTcpTarget(
     );
   }
   const port = url.port
-    ? parsePublishedPort(url.port, 'PORT_DADDY_URL')
+    ? parseExplicitUrlPort(url.port)
     : url.protocol === 'https:' ? 443 : 80;
   return {
     host: url.hostname,
