@@ -493,6 +493,8 @@ jobs:
   # shipped to every `brew upgrade` user.
   update-homebrew:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     # FleetBar is now ESSENTIAL (operator directive 2026-06-18): a release ships
     # the daemon AND its GUI together, so the tap MUST NOT roll if the FleetBar
     # preview failed to build. This reverses the prior "binaries-only" gate — that
@@ -502,6 +504,10 @@ jobs:
     needs: [guide-review-gate, build-binaries, build-fleetbar-preview]
     if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && github.event_name == 'release' && github.event.release.prerelease == false
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.guide-review-gate.outputs.candidate_sha }}
+
       - name: Set release version
         id: release
         env:
@@ -511,10 +517,33 @@ jobs:
           REF_NAME: ${{ needs.guide-review-gate.outputs.tag }}
         run: echo "version=${REF_NAME}" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve candidate-bound Homebrew evidence
+        id: evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          CANDIDATE_SHA: ${{ needs.guide-review-gate.outputs.candidate_sha }}
+          EVIDENCE_DIR: ${{ runner.temp }}/release-dispatch-evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$EVIDENCE_DIR"
+          gh release download "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" \
+            --pattern pd-darwin-arm64-imprint.json --dir "$EVIDENCE_DIR"
+          gh release download "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" \
+            --pattern pd-linux-x64-imprint.json --dir "$EVIDENCE_DIR"
+          node scripts/verify-release-dispatch-evidence.mjs \
+            --version "$RELEASE_VERSION" \
+            --candidate-sha "$CANDIDATE_SHA" \
+            --imprint-dir "$EVIDENCE_DIR"
+
       - name: Update Homebrew formula
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           repository: curiositech/homebrew-tap
           event-type: update-formula
-          client-payload: '{"version": "${{ steps.release.outputs.version }}"}'
+          client-payload: >-
+            {"version":"${{ steps.evidence.outputs.version }}",
+            "candidate_sha":"${{ steps.evidence.outputs.candidate_sha }}",
+            "darwin_archive_sha256":"${{ steps.evidence.outputs.darwin_archive_sha256 }}",
+            "linux_archive_sha256":"${{ steps.evidence.outputs.linux_archive_sha256 }}"}

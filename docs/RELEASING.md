@@ -19,6 +19,9 @@ source review, artifact proof, or installed-runtime proof into one green check.
 - Archive membership comes only from `release-artifacts.json`.
 - Batten records the candidate SHA, release tag, declared artifact hashes, and
   the exact uploaded archive hash.
+- The source release dispatch carries that candidate SHA and both imprinted
+  archive digests. The tap independently verifies the downloaded imprints and
+  archive bytes before it may mutate the formula.
 - A source review does not prove packaged bytes. A release asset does not prove
   Homebrew. A Homebrew formula does not prove the installed daemon.
 - Stable backend changes have already passed a named feature-daemon Squid and
@@ -219,8 +222,12 @@ Do not manually dispatch Homebrew while a release job is still running.
 ## 6. Verify Homebrew and the installed runtime
 
 The stable release job dispatches the tap only after essential binary and
-FleetBar jobs pass. Verify the tap commit and formula hashes, then install the
-actual distributed version:
+FleetBar jobs pass. That dispatch is not a version-only trigger: it carries the
+reviewed candidate SHA plus the Darwin and Linux archive digests extracted from
+complete Batten imprints. The tap downloads the release imprints and archives,
+requires the same SHA/tag/digests, and fails before formula mutation on any
+disagreement. Verify the resulting tap commit and formula hashes, then install
+the actual distributed version:
 
 ```bash
 brew update
@@ -270,6 +277,7 @@ promote by retagging or moving a tag; stable gets a new immutable tag.
 | Batten reports missing cargo | Fix staging or the manifest. Do not weaken `required`. |
 | Archive packaging fails on optional cargo | The package script is wrong; optional absent paths must be omitted from the manifest-derived archive. |
 | Imprint does not match uploaded archive | Stop. Rebuild from the frozen candidate SHA and replace no asset silently. |
+| Homebrew dispatch rejects release evidence | Compare candidate SHA, release tag, both imprint records, and downloaded archive digests. Rebuild the frozen release; never weaken or bypass the tap verifier. |
 | Homebrew still serves the old release | Inspect the `update-homebrew` job and tap workflow. Serialize any corrective dispatch with `release-publish`. |
 | Installed daemon disagrees with formula/version | Stop the release claim; reconcile the keg, service, selected endpoint, and binary provenance before declaring success. |
 
