@@ -1,6 +1,5 @@
 ---
 name: gpui-rust-console
-version: 0.2.0
 description: >
   Build and extend pd-console — Port Daddy's GPU-native macOS operator console (GPUI
   0.2.x, Zed's Rust UI). Covers the render-agnostic Block/Pane(Surface) contract, the
@@ -11,11 +10,14 @@ description: >
   TypeScript daemon, generic Rust toolchain/borrow-checker help (use rust-with-claude-code),
   or non-pd GPUI apps with a different theme/architecture.
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob
-author: port-daddy
 license: Apache-2.0
-tags: [gpui, rust, ui, native, macos, console, oklch, maritime, port-daddy]
 metadata:
+  version: 0.2.0
   category: Native UI & Rendering
+  tags: [gpui, rust, ui, native, macos, console, oklch, maritime, port-daddy]
+  authorship:
+    maintainers:
+      - port-daddy
   argument-hint: '[task: add-pane|layout|scroll|theme|maritime|text-input|verify]'
   provenance:
     kind: first-party
@@ -74,9 +76,9 @@ unit-tested on cheap Linux runners while the Metal window builds only on macOS.
 flowchart TD
   D["DaemonClient (reqwest)"] -->|"GET /route per pane"| PR
   subgraph PR["Producer: std::thread + current-thread tokio (2s loop)"]
-    R["pane.refresh(&client).await"] --> V["pane.view() → Vec&lt;Block&gt;"]
+    R["pane.refresh(&client).await"] --> V["pane.view() → Vec<Block>"]
   end
-  PR -->|"std::sync::mpsc: Vec&lt;(nav_idx, Vec&lt;Block&gt;)&gt;"| CO
+  PR -->|"std::sync::mpsc: Vec<(nav_idx, Vec<Block>)>"| CO
   subgraph CO["Consumer: GPUI foreground (smol, main thread, 500ms)"]
     U["window.update → view.update_panes"] --> N["cx.notify()"]
   end
@@ -203,7 +205,7 @@ pattern (state on the view, not the busy stream pane) or build an `Element` (~30
 
 ## Skill Bundle Index
 
-*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+*Every file in this skill, and when to open it. Auto-generated; regenerate with `python3 skills/skill-architect/scripts/index_references.py skills/gpui-rust-console --fix`.*
 
 **root**
 - [`.gitignore`](.gitignore)

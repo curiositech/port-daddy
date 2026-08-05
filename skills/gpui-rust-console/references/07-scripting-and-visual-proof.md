@@ -25,7 +25,9 @@ python3 core/pd-console/scripts/console-ctl.py panes
 python3 core/pd-console/scripts/console-ctl.py focus galaxy
 python3 core/pd-console/scripts/console-ctl.py galaxy --window-hours 720 --min-tokens 64
 python3 core/pd-console/scripts/console-ctl.py state galaxy   # pane blocks + typed snapshot as JSON
-python3 core/pd-console/scripts/console-ctl.py rebind http://127.0.0.1:9893
+# Rebind to the daemon-published endpoint after `eval "$(pd use <label>)"`.
+: "${PORT_DADDY_URL:?run eval \"$(pd use <label>)\" first; daemon-published endpoint required}"
+python3 core/pd-console/scripts/console-ctl.py rebind "$PORT_DADDY_URL"
 python3 core/pd-console/scripts/console-ctl.py alerts
 ```
 
@@ -65,7 +67,7 @@ berth and rebind through the new `pd use` output; never guess or preserve a port
 A screenshot you didn't verify is not proof (operator has rejected exactly
 this). The pipeline that survives the `agent-visual-evidence-manifest` gate:
 
-1. Rebuild the devbuild AT BRANCH HEAD (`bash scripts/package-console.sh
+1. Rebuild the devbuild AT BRANCH HEAD (`bash ../../core/pd-console/scripts/package-console.sh
    --devbuild <name>`), relaunch with the socket.
 2. Script the target state, then ASSERT it from `state` JSON (point counts,
    error==null) — fail loudly on mismatch, never capture a broken pane.
