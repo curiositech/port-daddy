@@ -22,4 +22,14 @@ describe('retired Bosun command surface', () => {
     const source = readFileSync(resolve(ROOT, 'install-daemon.ts'), 'utf8');
     expect(source).not.toMatch(/installBosunOnly|case 'install-bosun'|install-daemon\.js install-bosun/);
   });
+
+  test('normal install, uninstall, and status flows never invoke the watchdog helpers', () => {
+    const source = readFileSync(resolve(ROOT, 'install-daemon.ts'), 'utf8');
+    expect(source.match(/installBosunMacOS\(/g)).toHaveLength(1);
+    expect(source.match(/installBosunLinux\(/g)).toHaveLength(1);
+    expect(source.match(/statusBosunMacOS\(/g)).toHaveLength(1);
+    expect(source.match(/statusBosunLinux\(/g)).toHaveLength(1);
+    const statusBody = source.slice(source.indexOf('function status(): void {'), source.indexOf('export function runInstallDaemonCli'));
+    expect(statusBody).not.toContain('Bosun service:');
+  });
 });

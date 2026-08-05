@@ -509,8 +509,7 @@ function installMacOS(daemon: DaemonLaunchCommand): boolean {
   // (homebrew.mxcl.port-daddy, KeepAlive=true), do NOT install a second
   // launchd supervisor. Two KeepAlive jobs racing for the same listener is the
   // recurring "two daemons fighting over :daemon-port" failure. Leave the brew
-  // service as the single supervisor; only ensure Bosun (a complementary,
-  // one-way heartbeat watcher) is present.
+  // service as the single supervisor.
   if (brewDaemonServiceLoaded()) {
     console.log(`  Detected supervised daemon via Homebrew (${BREW_DAEMON_LABEL}).`);
     console.log('  Skipping com.portdaddy.daemon launchd job to avoid a duplicate supervisor.');
@@ -522,7 +521,7 @@ function installMacOS(daemon: DaemonLaunchCommand): boolean {
         console.log(`  Removed redundant ${PLIST_PATH}`);
       } catch { /* leave it if something still owns it */ }
     }
-    return installBosunMacOS(BREW_DAEMON_LABEL) && installFreshnessMacOS();
+    return installFreshnessMacOS();
   }
 
   stopExistingCanonicalDaemon();
@@ -536,12 +535,12 @@ function installMacOS(daemon: DaemonLaunchCommand): boolean {
   writeFileSync(PLIST_PATH, generatePlist(daemon));
   console.log(`  Wrote ${PLIST_PATH}`);
 
-  return loadLaunchAgent(PLIST_LABEL, PLIST_PATH) && installBosunMacOS(PLIST_LABEL) && installFreshnessMacOS();
+  return loadLaunchAgent(PLIST_LABEL, PLIST_PATH) && installFreshnessMacOS();
 }
 
 function uninstallMacOS(): boolean {
   // Unload both old and new labels
-  for (const path of [PLIST_PATH, BOSUN_PLIST_PATH, FRESHNESS_PLIST_PATH, join(LAUNCH_AGENTS, 'com.erichowens.port-daddy.plist')]) {
+  for (const path of [PLIST_PATH, FRESHNESS_PLIST_PATH, join(LAUNCH_AGENTS, 'com.erichowens.port-daddy.plist')]) {
     if (existsSync(path)) {
       runCommand('launchctl', ['unload', path]);
       try {
@@ -682,7 +681,7 @@ function installLinux(daemon: DaemonLaunchCommand): boolean {
   const start: CommandResult = runCommand('systemctl', ['--user', 'start', 'port-daddy.service']);
   if (start.status === 0) {
     console.log('  Service started');
-    return installBosunLinux();
+    return true;
   } else {
     console.error('  Failed to start service:', start.stderr.trim());
     return false;
@@ -692,16 +691,14 @@ function installLinux(daemon: DaemonLaunchCommand): boolean {
 function uninstallLinux(): boolean {
   // Stop
   runCommand('systemctl', ['--user', 'stop', 'port-daddy.service']);
-  runCommand('systemctl', ['--user', 'stop', 'port-daddy-bosun.service']);
   console.log('  Service stopped');
 
   // Disable
   runCommand('systemctl', ['--user', 'disable', 'port-daddy.service']);
-  runCommand('systemctl', ['--user', 'disable', 'port-daddy-bosun.service']);
   console.log('  Service disabled');
 
   // Remove unit file
-  for (const unit of [SYSTEMD_UNIT, BOSUN_SYSTEMD_UNIT]) {
+  for (const unit of [SYSTEMD_UNIT]) {
     if (!existsSync(unit)) continue;
     try {
       unlinkSync(unit);
@@ -807,17 +804,12 @@ function status(): void {
 
   // Platform-specific service check
   let serviceState: ServiceState = 'unknown';
-  let bosunState: ServiceState = 'unknown';
-
   if (PLATFORM === 'darwin') {
     serviceState = statusMacOS();
-    bosunState = statusBosunMacOS();
   } else if (PLATFORM === 'linux') {
     serviceState = statusLinux();
-    bosunState = statusBosunLinux();
   } else {
     serviceState = 'unsupported';
-    bosunState = 'unsupported';
   }
 
   switch (serviceState) {
@@ -840,28 +832,6 @@ function status(): void {
       break;
     case 'unsupported':
       console.log(`  System service: not available on ${PLATFORM}`);
-      break;
-  }
-
-  switch (bosunState) {
-    case 'running':
-      console.log('  Bosun service: installed and running');
-      break;
-    case 'installed':
-      console.log('  Bosun service: installed but not running');
-      break;
-    case 'failed':
-      console.log('  Bosun service: installed but failed');
-      console.log('  Check logs: tail -f ' + BOSUN_ERROR_LOG_PATH);
-      break;
-    case 'not-installed':
-      console.log('  Bosun service: not installed');
-      break;
-    case 'unsupported':
-      console.log(`  Bosun service: not available on ${PLATFORM}`);
-      break;
-    case 'legacy':
-    case 'unknown':
       break;
   }
 
