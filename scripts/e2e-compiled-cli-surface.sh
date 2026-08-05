@@ -199,10 +199,13 @@ run_read "roadmap"           roadmap     -- roadmap
 run_read "roadmap items"     roadmap     -- roadmap items
 run_read "secret list"       secret      -- secret list
 run_read "briefing"          briefing    -- briefing
-# Arrival briefing. Read-only and deliberately fail-soft: with no actor, no
-# daemon, or nothing relevant it prints nothing and exits 0 — which is exactly
-# the contract a session-start hook needs, and what makes it safe here.
-run_read "arrive"            arrive      -- arrive
+# Arrival briefing. --json is deliberate, not incidental: bare `pd arrive`
+# prints NOTHING when nothing matches, because it runs on the session-start
+# path and a block that always prints is one agents learn to skip. run_read
+# treats empty output as a silently-dead binary, so the bare form can never
+# pass here. --json still exercises the same compiled code path end to end and
+# emits a receipt on every branch — no actor, daemon down, and success alike.
+run_read "arrive --json"     arrive      -- arrive --json
 run_read "sitrep"            sitrep      -- sitrep
 run_read "look"              look        -- look
 run_read "periscope"         periscope   -- periscope
