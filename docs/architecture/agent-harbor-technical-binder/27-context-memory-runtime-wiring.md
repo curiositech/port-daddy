@@ -57,17 +57,18 @@ sequenced behind that one pipe.
 Each item below states the shipped reality, the target, and the concrete change.
 The dependency order is captured in the DAG in 27.9.
 
-### W1 — Land and reconcile Tier B (prerequisite)
+### W1 — Reconcile and wire Tier B (prerequisite)
 
-Tier B is uncommitted. Before anything can be wired to it, it must be committed
-to the main tree with its tests, and reconciled against Tier A. **Decision
-required (27.10 O1):** Tier B's `memory-episodes.ts` defines a *second* episodic
-schema separate from the live `episodic_memory` table. We do not ship two
-episodic stores. Either Tier B's packet/pressure functions adopt Tier A's table,
-or Tier A migrates onto Tier B's schema behind one interface. Recommendation:
-keep the live Tier-A table as the store of record; port Tier B's
-`recallEpisodes` / `openFactsFor` to read it; keep Tier B's `compaction.ts` and
-`context-pressure.ts` as the new logic layer over that one store.
+Tier B is tracked and unit-tested, but no non-test caller reaches it yet. Before
+anything can depend on it, it must be reconciled against Tier A and connected
+through a production call path. **Decision required (27.10 O1):** Tier B's
+`memory-episodes.ts` defines a *second* episodic schema separate from the live
+`episodic_memory` table. We do not ship two episodic stores. Either Tier B's
+packet/pressure functions adopt Tier A's table, or Tier A migrates onto Tier B's
+schema behind one interface. Recommendation: keep the live Tier-A table as the
+store of record; port Tier B's `recallEpisodes` / `openFactsFor` to read it;
+keep Tier B's `compaction.ts` and `context-pressure.ts` as the new logic layer
+over that one store.
 
 ### W2 — Emit the ContextEnvelope (the keystone)
 
