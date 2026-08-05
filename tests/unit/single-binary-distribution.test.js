@@ -153,7 +153,7 @@ describe('single binary distribution path', () => {
     const workflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'release.yml'), 'utf8');
 
     expect(workflow).toContain('ref: ${{ github.event.repository.default_branch }}');
-    expect(workflow.match(/ref: \$\{\{ needs\.guide-review-gate\.outputs\.candidate_sha \}\}/g)).toHaveLength(4);
+    expect(workflow.match(/ref: \$\{\{ needs\.guide-review-gate\.outputs\.candidate_sha \}\}/g)).toHaveLength(5);
     expect(workflow).toContain('--source-commit ${{ needs.guide-review-gate.outputs.candidate_sha }}');
     expect(workflow).toContain('--release-version ${{ needs.guide-review-gate.outputs.tag }}');
     expect(workflow).toContain('--archive dist/${{ matrix.artifact }}.tar.gz');
