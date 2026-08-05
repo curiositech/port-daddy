@@ -340,7 +340,19 @@ export function devCliShimSource(sourceDir: string): string {
   return `#!/bin/sh\nexec ${posixShellQuote(tsx)} ${posixShellQuote(cli)} "$@"\n`;
 }
 
-function installDevCliShim(sourceDir: string, runtimeDir: string): string {
+export function devCliShellInitSource(devBinDir: string, shim: string): string {
+  return [
+    `export PATH=${posixShellQuote(devBinDir)}:"$PATH"`,
+    `export PORT_DADDY_CLI=${posixShellQuote(shim)}`,
+    '',
+  ].join('\n');
+}
+
+function installDevCliShim(sourceDir: string, runtimeDir: string): {
+  shim: string;
+  shellEnvDir: string;
+  shellEnvFile: string;
+} {
   const tsx = join(sourceDir, 'node_modules', '.bin', 'tsx');
   const cli = join(sourceDir, 'bin', 'port-daddy-cli.ts');
   if (!existsSync(tsx) || !existsSync(cli)) {
@@ -348,10 +360,18 @@ function installDevCliShim(sourceDir: string, runtimeDir: string): string {
   }
   const binDir = join(runtimeDir, 'dev-bin');
   const shim = join(binDir, 'pd');
+  const shellEnvDir = join(runtimeDir, 'dev-shell');
+  const shellEnvFile = join(shellEnvDir, 'pd-env.sh');
   mkdirSync(binDir, { recursive: true, mode: 0o700 });
+  mkdirSync(shellEnvDir, { recursive: true, mode: 0o700 });
   writeFileSync(shim, devCliShimSource(sourceDir), { mode: 0o700 });
+  const shellInit = devCliShellInitSource(binDir, shim);
+  writeFileSync(shellEnvFile, shellInit, { mode: 0o600 });
+  // zsh login/non-login shells always read .zshenv from ZDOTDIR. Bash and
+  // POSIX shells receive the same small file through their standard env hook.
+  writeFileSync(join(shellEnvDir, '.zshenv'), shellInit, { mode: 0o600 });
   chmodSync(shim, 0o700);
-  return shim;
+  return { shim, shellEnvDir, shellEnvFile };
 }
 
 /** Claim a codebase berth port via the running stable daemon's port manager. */
@@ -464,8 +484,11 @@ async function devUp(options: CLIOptions): Promise<void> {
     enableFleet,
   });
   const devCli = installDevCliShim(sourceDir, profile.runtimeDir);
-  env.PORT_DADDY_CLI = devCli;
+  env.PORT_DADDY_CLI = devCli.shim;
   env.PATH = `${join(profile.runtimeDir, 'dev-bin')}${delimiter}${env.PATH ?? ''}`;
+  env.ZDOTDIR = devCli.shellEnvDir;
+  env.BASH_ENV = devCli.shellEnvFile;
+  env.ENV = devCli.shellEnvFile;
   env[BERTH_ENV.tier] = tier;
   env[BERTH_ENV.label] = label;
   env[BERTH_ENV.color] = color;

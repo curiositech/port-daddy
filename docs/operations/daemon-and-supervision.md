@@ -69,8 +69,10 @@ eval "$(pd use stable)"
 
 `pd dev up` builds the dedicated daemon binary and installs a profile-local
 `pd` shim that executes the same worktree's CLI. The daemon prepends that shim
-to spawned-agent `PATH` and exports it as `PORT_DADDY_CLI`, so a backend cannot
-silently pair a feature daemon with an older Homebrew CLI. It also preserves
+to spawned-agent `PATH`, exports it as `PORT_DADDY_CLI`, and provides an
+isolated profile-local shell startup file so login shells cannot reset back to
+the Homebrew CLI. A backend therefore cannot silently pair a feature daemon
+with an older installed CLI. It also preserves
 that label's isolated state across ordinary down/up cycles and records source
 directory, branch, revision, PID, and the endpoint the daemon actually
 published. `--purge` is a separate destructive action and is never part of

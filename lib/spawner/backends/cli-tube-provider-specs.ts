@@ -86,6 +86,9 @@ const CODEX_COORDINATION_ENV_KEYS = [
   'PD_ACTIVE_DAEMON',
   'PD_AGENT_ID',
   'PD_SESSION_ID',
+  'ZDOTDIR',
+  'BASH_ENV',
+  'ENV',
 ] as const;
 
 /**

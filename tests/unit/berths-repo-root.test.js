@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import {
   resolveRepoRoot,
   defaultFrom,
+  devCliShellInitSource,
   devCliShimSource,
   shouldPurgeBerthState,
 } from '../../cli/commands/berths.js';
@@ -76,5 +77,12 @@ describe('named berth source-matched CLI', () => {
     expect(shim).toContain("'/Users/me/coding/tmp/feature worktree/bin/port-daddy-cli.ts'");
     expect(shim).toContain('"$@"');
     expect(shim.startsWith('#!/bin/sh\nexec ')).toBe(true);
+  });
+
+  test('isolated login-shell init keeps the source shim first without replacing user PATH', () => {
+    const init = devCliShellInitSource('/profile/dev-bin', '/profile/dev-bin/pd');
+
+    expect(init).toContain("export PATH='/profile/dev-bin':\"$PATH\"");
+    expect(init).toContain("export PORT_DADDY_CLI='/profile/dev-bin/pd'");
   });
 });

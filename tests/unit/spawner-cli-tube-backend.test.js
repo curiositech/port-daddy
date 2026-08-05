@@ -249,6 +249,7 @@ describe('buildArgs', () => {
       PORT_DADDY_URL: 'http://127.0.0.1:4567',
       PORT_DADDY_CLI: '/profile/dev-bin/pd',
       PD_AGENT_ID: 'agent-test',
+      ZDOTDIR: '/profile/dev-shell',
       OPENAI_API_KEY: 'must-not-forward',
     });
 
@@ -257,6 +258,7 @@ describe('buildArgs', () => {
       'shell_environment_policy.set.PORT_DADDY_URL="http://127.0.0.1:4567"',
       'shell_environment_policy.set.PORT_DADDY_CLI="/profile/dev-bin/pd"',
       'shell_environment_policy.set.PD_AGENT_ID="agent-test"',
+      'shell_environment_policy.set.ZDOTDIR="/profile/dev-shell"',
     ]);
     expect(configs.join('\n')).not.toContain('OPENAI_API_KEY');
     expect(() => codexCoordinationEnvironmentConfigs({ PATH: '/safe\nunsafe' })).toThrow(/Unsafe PATH/);
