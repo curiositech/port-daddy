@@ -42,6 +42,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { cliBinarySearchPath, resolveCliBinary } from '../../cli-bin-dirs.js';
 import {
+  extractClaudeCodeFinal,
   extractClaudeCodeTerminalResult,
   type ClaudeCodeTerminalResult,
 } from '../cli-claude-code-transcript.js';
@@ -413,8 +414,11 @@ export async function spawnViaCliTube(
   // Codex: prefer the `--output-last-message` file (clean final
   // payload) and fall back to sanitized stdout.
   let cleanOutput = rawStdout;
-  if (providerTerminal?.result) {
-    cleanOutput = providerTerminal.result;
+  const claudeFinalOutput = cli === 'claude-code'
+    ? extractClaudeCodeFinal(rawStdout)
+    : null;
+  if (claudeFinalOutput) {
+    cleanOutput = claudeFinalOutput;
   }
   if (provider.outputCapture === 'last-message-file' && outputPath && existsSync(outputPath)) {
     try {

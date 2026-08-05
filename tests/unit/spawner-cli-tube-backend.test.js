@@ -710,8 +710,8 @@ describe('spawnViaCliTube — failure paths', () => {
   test('Claude provider budget stop is structured, not misclassified as auth failure', async () => {
     const raw = [
       '{"type":"assistant","message":{"content":[{"type":"text","text":"The docs mention API key setup."}]}}',
-      '{"type":"assistant","message":{"content":[{"type":"text","text":"VERDICT: SHIP"}]}}',
-      '{"type":"result","subtype":"error_max_budget_usd","is_error":true,"result":"VERDICT: SHIP","total_cost_usd":0.2512845,"usage":{"input_tokens":100,"output_tokens":20},"errors":["Reached maximum budget ($0.25)"]}',
+      '{"type":"assistant","message":{"id":"msg-final","content":[{"type":"text","text":"VERDICT: SHIP"}]}}',
+      '{"type":"result","subtype":"error_max_budget_usd","is_error":true,"total_cost_usd":0.2512845,"usage":{"input_tokens":100,"output_tokens":20},"errors":["Reached maximum budget ($0.25)"]}',
     ].join('\n');
     mockSpawn.mockReturnValue(fakeChild({ stdout: raw, exitCode: 1 }));
 

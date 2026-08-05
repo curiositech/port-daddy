@@ -312,7 +312,47 @@ export function parseClaudeCodeTranscript(raw: string): StructuredTurn[] {
  * (caller then falls back to the raw stream). Never throws.
  */
 export function extractClaudeCodeFinal(raw: string): string | null {
-  return extractClaudeCodeTerminalResult(raw)?.result ?? null;
+  const terminalResult = extractClaudeCodeTerminalResult(raw)?.result;
+  if (terminalResult !== null && terminalResult !== undefined) return terminalResult;
+
+  // Budget and other provider-stopped terminals can omit `.result` even after
+  // streaming a perfectly usable final assistant message. Reconstruct the last
+  // text-bearing message by Claude message id; one message may arrive as
+  // several assistant envelopes, so returning the last JSONL line alone would
+  // silently truncate multi-block answers.
+  const textByMessage = new Map<string, string>();
+  let lastTextMessage: string | null = null;
+  let anonymousMessage = 0;
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('{')) continue;
+    let event: {
+      type?: unknown;
+      message?: { id?: unknown; content?: unknown };
+    };
+    try {
+      event = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    if (event.type !== 'assistant' || !Array.isArray(event.message?.content)) continue;
+    const text = event.message.content
+      .filter((block): block is { type: 'text'; text: string } => (
+        !!block
+        && typeof block === 'object'
+        && (block as { type?: unknown }).type === 'text'
+        && typeof (block as { text?: unknown }).text === 'string'
+      ))
+      .map((block) => block.text)
+      .join('');
+    if (!text) continue;
+    const messageId = typeof event.message.id === 'string'
+      ? event.message.id
+      : `anonymous-${anonymousMessage++}`;
+    textByMessage.set(messageId, `${textByMessage.get(messageId) ?? ''}${text}`);
+    lastTextMessage = messageId;
+  }
+  return lastTextMessage === null ? null : textByMessage.get(lastTextMessage) ?? null;
 }
 
 /**

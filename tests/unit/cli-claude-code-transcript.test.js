@@ -15,6 +15,7 @@ import { describe, it, expect } from '@jest/globals';
 const {
   parseClaudeCodeTranscript,
   mapClaudeCodeStreamLine,
+  extractClaudeCodeFinal,
   extractClaudeCodeTerminalResult,
 } = await import('../../lib/spawner/cli-claude-code-transcript.js');
 
@@ -166,16 +167,18 @@ describe('extractClaudeCodeTerminalResult', () => {
 
   it('classifies a max-budget terminal without dropping its partial answer or cost', () => {
     const raw = [
-      '{"type":"assistant","message":{"content":[{"type":"text","text":"VERDICT: SHIP"}]}}',
-      '{"type":"result","subtype":"error_max_budget_usd","is_error":true,"result":"VERDICT: SHIP","total_cost_usd":0.2512845,"errors":["Reached maximum budget ($0.25)"]}',
+      '{"type":"assistant","message":{"id":"msg-final","content":[{"type":"text","text":"VERDICT: "}]}}',
+      '{"type":"assistant","message":{"id":"msg-final","content":[{"type":"text","text":"SHIP"}]}}',
+      '{"type":"result","subtype":"error_max_budget_usd","is_error":true,"total_cost_usd":0.2512845,"errors":["Reached maximum budget ($0.25)"]}',
     ].join('\n');
     expect(extractClaudeCodeTerminalResult(raw)).toEqual({
       subtype: 'error_max_budget_usd',
       isError: true,
-      result: 'VERDICT: SHIP',
+      result: null,
       totalCostUsd: 0.2512845,
       errors: ['Reached maximum budget ($0.25)'],
     });
+    expect(extractClaudeCodeFinal(raw)).toBe('VERDICT: SHIP');
   });
 });
 
