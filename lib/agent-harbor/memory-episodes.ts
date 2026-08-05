@@ -58,6 +58,7 @@
  *     cannot express conditionals).
  */
 
+import { analyze } from '../lexical-index.js';
 import { createHash } from 'node:crypto';
 import type { DatabaseInstance } from '../sqlite-runtime.js';
 import type { LocalEmbedder } from '../semantic-resolver.js';
@@ -787,7 +788,9 @@ interface CandidateRow {
 }
 
 function tokenize(text: string): string[] {
-  return text.toLowerCase().split(/[^a-z0-9_./-]+/).filter((t) => t.length > 1);
+  // Shared Unicode-safe analyzer. Episodic memory is the corpus most likely to
+  // hold verbatim human prose, so an ASCII-only split cost the most here.
+  return analyze(text);
 }
 
 /** TF-IDF cosine over the candidate set — the deterministic lexical leg. */

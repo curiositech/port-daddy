@@ -117,6 +117,21 @@ export interface GalaxyMapResponse {
     responseCacheHits: number;
     elapsedMs: number;
   };
+  /**
+   * False when the embedder could not run, so this map is built only from
+   * sessions whose vectors were already cached.
+   *
+   * **Why this exists.** The embed call used to be unguarded, so a MiniLM that
+   * had not downloaded — or an onnxruntime the loader could not find, which is
+   * fragile enough to need `ensureOnnxRuntimeNativeLibFindable()` — threw out
+   * of the whole request. Sextant went blank and said nothing about why, which
+   * is indistinguishable from "this fleet has done no work". A pane that is
+   * empty because the model is missing must not look like a pane that is empty
+   * because there is nothing to show.
+   */
+  embedderAvailable: boolean;
+  /** Operator-facing reason when `embedderAvailable` is false. */
+  degradedReason?: string;
 }
 
 export interface GalaxySessionDetail {
@@ -371,6 +386,10 @@ export function createGalaxy(deps: GalaxyDeps): GalaxyModule {
     // (3) Embedding cache lookup + batch embed of misses.
     let embeddingCacheHits = 0;
     let embeddedNow = 0;
+    // Honest degradation state for this map build. Flipped only when the
+    // embedder itself fails — a fleet with nothing to show is NOT degraded.
+    let embedderAvailable = true;
+    let degradedReason: string | undefined;
     const vectors: Array<number[] | null> = new Array(entries.length).fill(null);
     const misses: Array<{ index: number; hash: string; chunks: string[] }> = [];
     for (let i = 0; i < entries.length; i++) {
@@ -390,7 +409,21 @@ export function createGalaxy(deps: GalaxyDeps): GalaxyModule {
     if (misses.length > 0) {
       const allChunks: string[] = [];
       for (const miss of misses) allChunks.push(...miss.chunks);
-      const chunkVectors = await embedder.embed(allChunks);
+      // Degrade to whatever is already cached rather than failing the request.
+      // A fleet that has embedded anything before still gets a usable map, and
+      // one that has not gets an empty map that SAYS it is empty for want of a
+      // model — not a 500 and not a silent blank pane.
+      let chunkVectors: number[][];
+      try {
+        chunkVectors = await embedder.embed(allChunks);
+      } catch (err) {
+        embedderAvailable = false;
+        degradedReason =
+          `embedder '${embedder.modelId}' unavailable: ${(err as Error)?.message ?? String(err)}. ` +
+          `Showing ${embeddingCacheHits} previously-embedded session(s) only. ` +
+          `Run pd doctor to repair the local model.`;
+        chunkVectors = [];
+      }
       let cursor = 0;
       for (const miss of misses) {
         const own = chunkVectors.slice(cursor, cursor + miss.chunks.length);
@@ -518,6 +551,8 @@ export function createGalaxy(deps: GalaxyDeps): GalaxyModule {
         responseCacheHits: 0,
         elapsedMs: computedAt - startedAt,
       },
+      embedderAvailable,
+      ...(degradedReason ? { degradedReason } : {}),
     };
 
     mapCache.set(cacheKey, { at: computedAt, response });

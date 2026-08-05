@@ -18,6 +18,7 @@
  * Stripping") is public-domain and small enough to implement directly.
  */
 
+import { analyze } from './lexical-index.js';
 import type { SkillEntry } from './shipwright/skill-index.js';
 
 // ─── Tokenizer + Porter stemmer ─────────────────────────────────────────────
@@ -25,10 +26,13 @@ import type { SkillEntry } from './shipwright/skill-index.js';
 /** Lowercase, split on non-alphanumeric, drop 1-char tokens — same shape
  *  `lib/whois.ts`'s tokenizer uses, plus a stemming pass. */
 export function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .split(/[^a-z0-9]+/i)
-    .filter((token) => token.length > 1);
+  // Shared Unicode-safe analyzer (lib/lexical-index.ts). This was the original
+  // ASCII-only split — `[^a-z0-9]+` makes every non-ASCII character a
+  // delimiter — and three other modules copied it. Skill ids and descriptions
+  // are the corpus an agent searches when it does not know what it needs, so
+  // silently dropping a whole script's worth of them was the worst place for
+  // it to live.
+  return analyze(text);
 }
 
 const VOWEL = 'aeiou';

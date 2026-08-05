@@ -540,3 +540,68 @@ describe('galaxy routes', () => {
     expect(byPath['already/relative.ts'].absolutePath).toBeUndefined();
   });
 });
+
+// ─── embedder degradation (the blank-Sextant fix) ────────────────────────────
+
+describe('galaxy degrades honestly when the embedder is unavailable', () => {
+  /**
+   * Regression: the batch embed call was unguarded, so a MiniLM that had not
+   * downloaded — or an onnxruntime the loader could not find — threw out of the
+   * whole /galaxy/map request. The Sextant pane went blank and said nothing
+   * about why, which is indistinguishable from "this fleet has done no work".
+   */
+  const brokenEmbedder = {
+    modelId: 'Xenova/all-MiniLM-L6-v2',
+    async embed() {
+      throw new Error('Library not loaded: @rpath/libonnxruntime.dylib');
+    },
+  };
+
+  test('a dead embedder yields a map, not a thrown request', async () => {
+    const db2 = createTestDb();
+    const t2 = createTranscripts(db2, { now: () => NOW });
+    const s2 = createSessions(db2);
+    seedTranscript(t2, {
+      id: 'tx_deg_1', ship: 'migrator', agentId: 'agent-x',
+      project: 'port-daddy', startedAt: NOW - HOUR, topic: TOPIC_SQLITE, salt: 'deg',
+    });
+    const g2 = createGalaxy({ db: db2, transcripts: t2, sessions: s2, embedder: brokenEmbedder, now: () => NOW, seed: 42 });
+
+    const res = await g2.getMap({});
+    expect(res.success).toBe(true);
+    expect(res.embedderAvailable).toBe(false);
+  });
+
+  test('the reason names the model and points at the repair', async () => {
+    const db2 = createTestDb();
+    const t2 = createTranscripts(db2, { now: () => NOW });
+    const s2 = createSessions(db2);
+    seedTranscript(t2, {
+      id: 'tx_deg_2', ship: 'migrator', agentId: 'agent-y',
+      project: 'port-daddy', startedAt: NOW - HOUR, topic: TOPIC_SQLITE, salt: 'deg2',
+    });
+    const g2 = createGalaxy({ db: db2, transcripts: t2, sessions: s2, embedder: brokenEmbedder, now: () => NOW, seed: 42 });
+
+    const { degradedReason } = await g2.getMap({});
+    expect(degradedReason).toContain('all-MiniLM-L6-v2');
+    expect(degradedReason).toContain('onnxruntime');
+    expect(degradedReason).toContain('pd doctor');
+  });
+
+  test('a HEALTHY embedder is never marked degraded, even with nothing to show', async () => {
+    // The distinction that matters: empty-because-idle must not look like
+    // empty-because-broken.
+    const emptyDb2 = createTestDb();
+    const g3 = createGalaxy({
+      db: emptyDb2,
+      transcripts: createTranscripts(emptyDb2, { now: () => NOW }),
+      sessions: createSessions(emptyDb2),
+      embedder: makeFakeEmbedder(),
+      now: () => NOW,
+      seed: 42,
+    });
+    const res = await g3.getMap({});
+    expect(res.embedderAvailable).toBe(true);
+    expect(res.degradedReason).toBeUndefined();
+  });
+});

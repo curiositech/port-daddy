@@ -68,7 +68,12 @@ export function fold(text: string): string {
   return text
     .normalize('NFKD')
     .replace(/\p{M}+/gu, '')
-    .toLowerCase();
+    .toLowerCase()
+    // ß has no combining-mark decomposition, so NFKD leaves it intact and
+    // `große` would never match `grosse` — a distinction German writers do not
+    // observe, and one that ASCII transliteration and Swiss orthography drop
+    // outright. Expanded AFTER lowercasing so `ẞ` is covered by the same rule.
+    .replace(/ß/g, 'ss');
 }
 
 /**
