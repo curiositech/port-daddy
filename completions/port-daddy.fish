@@ -94,10 +94,10 @@ complete -c pd -s V -l version -d 'Print version'
 set -l __pd_commands \
     'claim' 'c' 'release' 'r' 'find' 'f' 'list' 'l' 'ps' 'services' 'url' 'env' 'tunnel' \
     'pub' 'publish' 'broadcast' 'sub' 'subscribe' 'listen' 'tube' 'wait' 'lock' 'unlock' 'locks' \
-    'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
+    'agent' 'agents' 'actor' 'actors' 'roster' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'takeover' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' 'send' 'sent' \
-    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'work' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'harbor-ledger' 'tuple' 'graph' 'booty' 'embed' 'skill-graft' 'skillgraft' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
+    'begin' 'b' 'done' 'whoami' 'w' 'account' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'work' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'harbor-ledger' 'tuple' 'graph' 'booty' 'embed' 'skill-graft' 'skillgraft' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' 'suggest' 'seamanship' 'skills' \
     'say' 'look' 'sitrep' 'whois' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
@@ -105,8 +105,8 @@ set -l __pd_commands \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
     'start' 'stop' 'restart' 'status' 'install' 'install-bosun' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'self-update' 'upgrade' 'mcp' \
-    'setup' 'init' 'cut' 'hooks' \
-    'version' 'help'
+    'setup' 'init' 'cut' 'batten' 'hooks' \
+    'plan' 'version' 'help'
 
 # Register each command for both `port-daddy` and `pd`
 for prog in port-daddy pd
@@ -143,6 +143,16 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a agent -d 'Manage an agent'
     complete -c $prog -n __pd_needs_command -a agents -d 'List registered agents'
     complete -c $prog -n __pd_needs_command -a swarm -d 'List registered agents (alias)'
+    complete -c $prog -n __pd_needs_command -a roster -d 'Manage durable named AgentNode experts'
+    complete -c $prog -n "__pd_using_command roster" -a 'list show search create promote update attach continue retire help'
+    complete -c $prog -n "__pd_using_command roster" -l repo -x -d 'Repository root'
+    complete -c $prog -n "__pd_using_command roster" -l scope -x -a 'system repo' -d 'Identity scope'
+    complete -c $prog -n "__pd_using_command roster" -l slug -x -d 'Meaningful human alias'
+    complete -c $prog -n "__pd_using_command roster" -l remit -x -d 'Bounded responsibility'
+    complete -c $prog -n "__pd_using_command roster" -l instructions -x -d 'Durable operating prompt'
+    complete -c $prog -n "__pd_using_command roster" -l backend -x -d 'Target backend'
+    complete -c $prog -n "__pd_using_command roster" -l episode -x -d 'Sanitized handoff episode id'
+    complete -c $prog -n "__pd_using_command roster" -l mode -x -a 'auto native handoff' -d 'Continuation mode'
 
     # Activity
     complete -c $prog -n __pd_needs_command -a log -d 'Tail the activity log'
@@ -259,6 +269,11 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a scope -d 'Alias for periscope — operator loop SIGHT stage'
     complete -c $prog -n __pd_needs_command -a coast-guard -d 'Coast Guard read path — whether spawns are confined + what they cannot read'
     complete -c $prog -n __pd_needs_command -a cg -d 'Alias for coast-guard — the Coast Guard read path'
+    complete -c $prog -n __pd_needs_command -a suggest -d 'Tender suggestion queue — list, approve, dismiss operator suggestions'
+    complete -c $prog -n "__pd_using_command suggest" -x -a 'approve dismiss' -d 'Approve or dismiss a suggestion by ID'
+    complete -c $prog -n __pd_needs_command -a seamanship -d 'Skill registry — search, show, sync, outcomes, index'
+    complete -c $prog -n "__pd_using_command seamanship" -x -a 'list search show sync outcomes index' -d 'Seamanship subcommand'
+    complete -c $prog -n __pd_needs_command -a skills -d 'Alias for seamanship — skill registry'
     complete -c $prog -n __pd_needs_command -a cockpit -d 'App-Native Development Cockpit — read roadmap into mission cards'
     complete -c $prog -n "__pd_using_command cockpit" -x -a 'missions' -d 'List mission cards parsed from the project roadmap'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l project -x -d 'Project directory to read'
@@ -498,13 +513,16 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a setup -d 'Install daemon, MCP, FleetBar, and init a project'
     complete -c $prog -n __pd_needs_command -a init -d 'Set up Port Daddy for this project (scan, fleet, MCP, git hook)'
     complete -c $prog -n __pd_needs_command -a cut -d 'Cut a release — build daemon + Rust + FleetBar, hash, optionally sign'
+    complete -c $prog -n __pd_needs_command -a batten -d 'Verify + imprint staged release artifacts against release-artifacts.json'
 
     # Sugar (compound commands)
     complete -c $prog -n __pd_needs_command -a begin -d 'Begin a work session (register + start)'
     complete -c $prog -n __pd_needs_command -a b -d 'Begin a work session (alias for begin)'
     complete -c $prog -n __pd_needs_command -a done -d 'End a work session (end + unregister)'
+    complete -c $prog -n __pd_needs_command -a plan -d 'Manage session todo plans (show/set/check)'
     complete -c $prog -n __pd_needs_command -a whoami -d 'Show current agent/session context'
     complete -c $prog -n __pd_needs_command -a w -d 'Show current context (alias for whoami)'
+    complete -c $prog -n __pd_needs_command -a account -d 'Sign in to your Port Daddy cloud account (device flow)'
     complete -c $prog -n __pd_needs_command -a attention -d 'Inbox + subscribed channels in one call (run first thing every session)'
     complete -c $prog -n __pd_needs_command -a nudge -d 'Suggestibility nudges — claim-overlap heads-up (list/accept/decline/scan)'
     complete -c $prog -n __pd_needs_command -a with-lock -d 'Run a command while holding a lock'
@@ -829,6 +847,13 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command done" -s a -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'
     complete -c $prog -n "__pd_using_command done" -l session -d 'Session ID' -x
     complete -c $prog -n "__pd_using_command done" -s s -l status -d 'Session end status' -x -a 'completed abandoned'
+    complete -c $prog -n "__pd_using_command done" -l force-incomplete -d 'Force end session with incomplete tasks'
+    complete -c $prog -n "__pd_using_command done" -l reason -d 'Reason for force incomplete' -x
+
+    # plan
+    complete -c $prog -n "__pd_using_command plan" -a 'show set check' -d 'Action'
+    complete -c $prog -n "__pd_using_command plan" -l session -d 'Session ID' -x
+    complete -c $prog -n "__pd_using_command plan" -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'
 
     # whoami / w
     complete -c $prog -n "__pd_using_command whoami" -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'

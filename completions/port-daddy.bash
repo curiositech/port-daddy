@@ -90,7 +90,7 @@ _port_daddy() {
     # Agent coordination
     pub publish broadcast sub subscribe listen tube wait lock unlock locks
     # Agent registry
-    agent agents actor actors swarm
+    agent agents actor actors roster swarm
     # Activity
     log activity
     # Sessions & Notes
@@ -102,7 +102,7 @@ _port_daddy() {
     # File Claims & Integration
     files add who-owns integration
     # Sugar (compound commands)
-    begin b done whoami w attention nudge with-lock n u d learn tutorial
+    begin b done plan whoami w account attention nudge with-lock n u d learn tutorial
     # Briefing & History
     briefing history
     # Consolidated read/write (3.8.4)
@@ -125,6 +125,10 @@ _port_daddy() {
     coast-guard cg
     # Relay v0 — zero-trust event fabric (ADR-0049)
     relay
+    # Tender suggestion queue — list, approve, dismiss operator suggestions
+    suggest
+    # Skill registry — search, graft, sync, outcomes
+    seamanship skills
     # App-Native Development Cockpit
     cockpit
     # Roadmap popper — autonomous roadmap-to-dispatch task puller
@@ -164,7 +168,7 @@ _port_daddy() {
     # Project (+ alias)
     scan s projects p doctor diagnose hints
     # Project onboarding
-    setup init cut
+    setup init cut batten
     # Daemon lifecycle
     start stop restart install install-bosun uninstall dev use daemon ci-gate self-update upgrade mcp
     # Bonds / Wallets — FleetControl hardening
@@ -691,6 +695,17 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     actor|actors)
       _pd_opts '--project --limit --message --from --type --wake --json --quiet'
+      ;;
+
+    roster)
+      case "$prev" in
+        roster) COMPREPLY=( $(compgen -W 'list show search create promote update attach continue retire help' -- "$cur") ) ;;
+        --scope) COMPREPLY=( $(compgen -W 'system repo' -- "$cur") ) ;;
+        --mode) COMPREPLY=( $(compgen -W 'auto native handoff' -- "$cur") ) ;;
+        --filesystem) COMPREPLY=( $(compgen -W 'inherit repo workspace read-only' -- "$cur") ) ;;
+        --network) COMPREPLY=( $(compgen -W 'inherit none restricted full' -- "$cur") ) ;;
+        *) _pd_opts '--repo --all --limit --slug --name --remit --instructions --scope --system --skills --tools --backend --model --episode --mode --prompt --timeout --lifecycle --filesystem --network --allow-tools --deny-tools --file --json --quiet' ;;
+      esac
       ;;
 
     # -----------------------------------------------------------------------
@@ -1378,11 +1393,11 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
-    # done  ["note"] [--agent ID] [--session ID] [--status STATUS]
+    # done  ["note"] [--agent ID] [--session ID] [--status STATUS] [--force-incomplete] [--reason REASON]
     # -----------------------------------------------------------------------
     done)
       case "$prev" in
-        --agent|--session)
+        --agent|--session|--reason)
           COMPREPLY=()  # Free-form
           ;;
         --status)
@@ -1390,7 +1405,26 @@ _port_daddy() {
           COMPREPLY=( $(compgen -W "completed abandoned" -- "$cur") )
           ;;
         *)
-          _pd_opts '--note -n --agent -a --session --status -s'
+          _pd_opts '--note -n --agent -a --session --status -s --force-incomplete --reason'
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # plan  [show|set|check] [--session ID] [--agent ID]
+    # -----------------------------------------------------------------------
+    plan)
+      case "$prev" in
+        --agent|--session)
+          COMPREPLY=()  # Free-form
+          ;;
+        *)
+          if [[ "$cur" == -* ]]; then
+            _pd_opts '--session --agent'
+          else
+            # shellcheck disable=SC2207
+            COMPREPLY=( $(compgen -W "show set check" -- "$cur") )
+          fi
           ;;
       esac
       ;;

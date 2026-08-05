@@ -50,7 +50,7 @@ impl EventStore {
         let sequence = self.connection.last_insert_rowid();
 
         Ok(KernelEvent {
-            id: format!("event-{sequence}"),
+            id: KernelEvent::derive_id(sequence),
             sequence,
             event_type,
             subject,
@@ -76,7 +76,7 @@ impl EventStore {
             let payload_json: String = row.get(3)?;
             let provenance_json: String = row.get(4)?;
             Ok(KernelEvent {
-                id: format!("event-{sequence}"),
+                id: KernelEvent::derive_id(sequence),
                 sequence,
                 event_type: row.get(1)?,
                 subject: row.get(2)?,
@@ -133,8 +133,37 @@ impl KernelProjection {
         projection
     }
 
+    /// Folds a single event into the projection, **idempotently**.
+    ///
+    /// Event logs are replayed for recovery and rebuild, so the same event slice can
+    /// be applied more than once. `sequence` is the authoritative, strictly-increasing
+    /// ordering key (see [`pd_core::KernelEvent`]), so an event whose sequence has
+    /// already been folded is skipped rather than counted a second time. Applying the
+    /// same ordered slice twice therefore yields exactly the same projection as
+    /// applying it once. Events are expected to arrive in non-decreasing `sequence`
+    /// order, which the store's `load_all` / `load_since` (`ORDER BY sequence ASC`)
+    /// always guarantee.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use pd_core::{KernelEvent, Provenance};
+    /// use pd_eventlog::KernelProjection;
+    /// use serde_json::json;
+    ///
+    /// let ev = KernelEvent::new(1, "job.created", "job-1", json!({}), Provenance::kernel("t"));
+    /// let mut projection = KernelProjection::default();
+    /// projection.apply(&ev);
+    /// projection.apply(&ev); // replayed — must not double-count
+    /// assert_eq!(projection.event_count, 1);
+    /// assert_eq!(projection.last_sequence, 1);
+    /// ```
     pub fn apply(&mut self, event: &KernelEvent) {
-        self.last_sequence = self.last_sequence.max(event.sequence);
+        if event.sequence <= self.last_sequence {
+            // Already folded (or out of order): replaying it must not mutate state.
+            return;
+        }
+        self.last_sequence = event.sequence;
         self.event_count += 1;
         match event.event_type.as_str() {
             "transaction.created" | "compat.session.imported" => {
@@ -209,5 +238,49 @@ mod tests {
 
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].subject, "tx-2");
+    }
+
+    #[test]
+    fn replaying_the_same_slice_twice_does_not_double_count() {
+        let store = EventStore::open_in_memory().unwrap();
+        store
+            .append("transaction.created", "tx-1", json!({ "intent": "ship" }))
+            .unwrap();
+        store
+            .append("job.created", "job-1", json!({ "transaction": "tx-1" }))
+            .unwrap();
+        store
+            .append("obligation.created", "ob-1", json!({}))
+            .unwrap();
+
+        let events = store.load_all().unwrap();
+
+        // Baseline: fold the slice exactly once.
+        let once = KernelProjection::from_events(&events);
+
+        // Recovery/rebuild scenario: fold the same slice a second time into a
+        // projection that already holds it. This must be a no-op, not a double count.
+        let mut twice = KernelProjection::from_events(&events);
+        for event in &events {
+            twice.apply(event);
+        }
+
+        assert_eq!(once.event_count, 3);
+        assert_eq!(twice, once);
+        assert_eq!(twice.event_count, 3);
+        assert_eq!(twice.last_sequence, once.last_sequence);
+    }
+
+    #[test]
+    fn kernel_event_id_matches_derive_id_after_persist_and_reload() {
+        let store = EventStore::open_in_memory().unwrap();
+        let appended = store
+            .append("transaction.created", "tx-1", json!({}))
+            .unwrap();
+
+        let reloaded = store.load_all().unwrap();
+
+        assert_eq!(appended.id, KernelEvent::derive_id(appended.sequence));
+        assert_eq!(reloaded[0].id, appended.id);
     }
 }

@@ -1,6 +1,6 @@
 {
   "schema": "pd.agent-harbor.handoff-successor-brief.v0",
-  "continuationRequest": "Finish the bounded cross-harness continuation slice.",
+  "continuationRequest": "Continue the durable-agent portability implementation.",
   "durableIdentity": {
     "agentId": "portdaddy-typography-expert",
     "project": "port-daddy",
@@ -9,9 +9,9 @@
   "lineage": {
     "capsuleId": "handoff_capsule_01JZFIX0001",
     "sourceAdapter": "claude-code",
-    "sourceSessionId": "claude-session-01JZFIX0001",
+    "sourceSessionId": "11111111-1111-4111-8111-111111111111",
     "sourceAgentId": "portdaddy-typography-expert",
-    "predecessorRunId": "wf-01JZFIX0001",
+    "predecessorRunId": "run_01JZFIX0001",
     "capturedAt": "2026-07-15T20:00:00.000Z",
     "contentHash": "0000000000000000000000000000000000000000000000000000000000000000"
   },
@@ -25,7 +25,7 @@
       "lib/handoff-capsule.ts"
     ]
   },
-  "objective": "Continue the durable-agent handoff implementation without replaying the raw provider transcript.",
+  "objective": "Preserve identity and decisions without replaying a raw provider transcript.",
   "operatorTurns": [
     {
       "id": "operator-1",
@@ -45,7 +45,7 @@
     {
       "id": "coordination-1",
       "at": "2026-07-15T19:59:45.000Z",
-      "text": "The handoff capsule and memory ingress are the current scope.",
+      "text": "The handoff capsule and continuation receipt are the current scope.",
       "kind": "scope"
     }
   ],

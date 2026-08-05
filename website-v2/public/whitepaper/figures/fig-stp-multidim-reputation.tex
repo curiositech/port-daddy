@@ -1,55 +1,27 @@
-% Fig 10 — multi-dimensional reputation: three axes, three judges, buyer weighting.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Fig 10 — preserve the quality vector; let each buyer choose its weights.
 \begin{figure}[H]
 \centering
-\resizebox{0.92\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  axis/.style={draw=hhebony,thick,rounded corners=2pt,inner sep=4pt,align=center,
-               minimum width=34mm,minimum height=14mm},
-  judge/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,inner sep=3pt,
-                align=center,font=\footnotesize,minimum width=34mm},
-  arr/.style={->,>=Latex,thick,draw=hhink},
-]
-% the witnessed outcome
-\node[draw=hhebony,thick,fill=hhsand!30,rounded corners=3pt,inner sep=5pt,
-      align=center,font=\bfseries] (out) at (0,1.5)
-  {witnessed\\outcome};
+\resizebox{0.94\textwidth}{!}{%
+\begin{tikzpicture}[font=\small]
+  \node[stp box,minimum width=38mm] (out) at (-5,1.8)
+    {\textbf{witnessed outcome}};
+  \node[stp accent box,minimum width=40mm] (vector) at (0,1.8)
+    {\textbf{quality vector}\\{\small $\mathbf q=(q_{\rm acc},q_{\rm aes},q_{\rm eff})$}};
+  \node[stp box,minimum width=42mm,text width=36mm] (buyer) at (5.2,1.8)
+    {\textbf{buyer applies $\mathbf w$}\\
+     {\scriptsize ``cheap'' versus ``careful''}};
+  \draw[stp accent arrow] (out) -- (vector);
+  \draw[stp accent arrow] (vector) -- (buyer);
 
-% three axes
-\node[axis,fill=hhsand!30,right=20mm of out,yshift=18mm] (acc) {\textbf{accuracy}\\{\scriptsize $q_{\text{acc}}$}};
-\node[axis,fill=hhsand!30,right=20mm of out] (aes) {\textbf{aesthetics}\\{\scriptsize $q_{\text{aes}}$}};
-\node[axis,fill=hhsand!30,right=20mm of out,yshift=-18mm] (eff) {\textbf{efficiency}\\{\scriptsize $q_{\text{eff}}$}};
-\draw[arr] (out.east) to[bend left=8] (acc.west);
-\draw[arr] (out.east) -- (aes.west);
-\draw[arr] (out.east) to[bend right=8] (eff.west);
-
-% three different judges
-\node[judge,right=14mm of acc] (jacc) {test \textbf{oracle}\\{\scriptsize did it do the right thing?}};
-\node[judge,right=14mm of aes] (jaes) {senior \textbf{reviewer}\\{\scriptsize is the artifact good?}};
-\node[judge,right=14mm of eff] (jeff) {the \textbf{meter}\\{\scriptsize \texttt{cost-ledger.ts}}};
-\draw[arr,draw=hhink] (acc) -- (jacc);
-\draw[arr,draw=hhink] (aes) -- (jaes);
-\draw[arr,draw=hhink] (eff) -- (jeff);
-
-% buyer weighting
-\node[draw=hhcobalt,thick,fill=hhsand!30,rounded corners=3pt,inner sep=5pt,
-      right=16mm of jaes,align=center,font=\footnotesize,text width=30mm] (buyer)
-  {\textbf{buyer} reads the \emph{vector} $\mathbf{q}$ and applies \emph{their own}
-   weights $\mathbf{w}$ (``cheap vs.\ careful'')};
-\draw[arr,draw=hhcobalt] (jacc.east) to[bend left=6] (buyer.west);
-\draw[arr,draw=hhcobalt] (jaes.east) -- (buyer.west);
-\draw[arr,draw=hhcobalt] (jeff.east) to[bend right=6] (buyer.west);
-
-
+  \node[stp box,minimum width=43mm,text width=36mm] (acc) at (-5,-1.25)
+    {\textbf{accuracy} $q_{\rm acc}$\\{\scriptsize judged by a test oracle}};
+  \node[stp box,minimum width=43mm,text width=36mm] (aes) at (0,-1.25)
+    {\textbf{aesthetics} $q_{\rm aes}$\\{\scriptsize expert-reviewer judgment}};
+  \node[stp box,minimum width=43mm,text width=36mm] (eff) at (5,-1.25)
+    {\textbf{efficiency} $q_{\rm eff}$\\{\scriptsize judged by the cost ledger}};
+  \draw[stp arrow] (vector.south) -- ++(0,-5mm) -| (acc.north);
+  \draw[stp arrow] (vector.south) -- (aes.north);
+  \draw[stp arrow] (vector.south) -- ++(0,-5mm) -| (eff.north);
 \end{tikzpicture}}
 \caption{\textbf{Multi-dimensional reputation.} A witnessed outcome
 carries a quality \emph{vector} $\mathbf{q}=(q_{\text{acc}},q_{\text{aes}},

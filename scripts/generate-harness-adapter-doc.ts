@@ -5,9 +5,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { renderHarnessAdapterMarkdown } from '../lib/backend-catalog.js';
+import { renderHarnessContinuationMatrix } from '../lib/harness-conformance.js';
 
 export const GENERATED_ADAPTER_TABLE_BEGIN = '<!-- BEGIN GENERATED HARNESS ADAPTER TABLE -->';
 export const GENERATED_ADAPTER_TABLE_END = '<!-- END GENERATED HARNESS ADAPTER TABLE -->';
+export const GENERATED_CONTINUATION_MATRIX_BEGIN = '<!-- BEGIN GENERATED HARNESS CONTINUATION MATRIX -->';
+export const GENERATED_CONTINUATION_MATRIX_END = '<!-- END GENERATED HARNESS CONTINUATION MATRIX -->';
 export const HARNESS_ADAPTER_ADR_PATH = join(
   dirname(fileURLToPath(import.meta.url)),
   '..',
@@ -24,14 +27,44 @@ export function generatedHarnessAdapterSection(): string {
   ].join('\n');
 }
 
-export function replaceGeneratedHarnessAdapterSection(document: string): string {
-  const begin = document.indexOf(GENERATED_ADAPTER_TABLE_BEGIN);
-  const end = document.indexOf(GENERATED_ADAPTER_TABLE_END);
+export function generatedHarnessContinuationMatrixSection(): string {
+  return [
+    GENERATED_CONTINUATION_MATRIX_BEGIN,
+    '```text',
+    renderHarnessContinuationMatrix().trimEnd(),
+    '```',
+    GENERATED_CONTINUATION_MATRIX_END,
+  ].join('\n');
+}
+
+function replaceGeneratedSection(
+  document: string,
+  beginMarker: string,
+  endMarker: string,
+  generated: string,
+): string {
+  const begin = document.indexOf(beginMarker);
+  const end = document.indexOf(endMarker);
   if (begin < 0 || end < begin) {
-    throw new Error('ADR-0118 is missing the generated harness adapter table markers');
+    throw new Error(`ADR-0118 is missing generated markers: ${beginMarker}`);
   }
-  const after = end + GENERATED_ADAPTER_TABLE_END.length;
-  return `${document.slice(0, begin)}${generatedHarnessAdapterSection()}${document.slice(after)}`;
+  const after = end + endMarker.length;
+  return `${document.slice(0, begin)}${generated}${document.slice(after)}`;
+}
+
+export function replaceGeneratedHarnessAdapterSection(document: string): string {
+  const withAdapters = replaceGeneratedSection(
+    document,
+    GENERATED_ADAPTER_TABLE_BEGIN,
+    GENERATED_ADAPTER_TABLE_END,
+    generatedHarnessAdapterSection(),
+  );
+  return replaceGeneratedSection(
+    withAdapters,
+    GENERATED_CONTINUATION_MATRIX_BEGIN,
+    GENERATED_CONTINUATION_MATRIX_END,
+    generatedHarnessContinuationMatrixSection(),
+  );
 }
 
 function main(): void {
