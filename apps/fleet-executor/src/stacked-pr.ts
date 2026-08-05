@@ -370,6 +370,77 @@ export async function readBranchFiles(
 }
 
 /**
+ * Fetch a single file's raw text content from a ref, or null when missing, not a
+ * file, or the fetch itself failed. Used to read the target repo's OWN
+ * test-discovery config (jest testMatch) so the purser can verify its authored
+ * tests actually live somewhere the real runner will find them, instead of
+ * trusting only pd-fleet.yml's operator-declared `testPaths`. Any failure mode
+ * (404, network, malformed response) collapses to null — the caller's contract
+ * is "null means unknown, treat as a rejection", never "null means no file so
+ * skip the check".
+ */
+export async function fetchRepoFileText(
+  owner: string,
+  repo: string,
+  path: string,
+  ref: string,
+  token: string,
+): Promise<string | null> {
+  const base = `https://api.github.com/repos/${owner}/${repo}`;
+  let entry: { content?: string; encoding?: string; type?: string };
+  try {
+    entry = await ghJson(
+      `${base}/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(ref)}`,
+      { method: 'GET' },
+      token,
+      `read ${path}@${ref}`,
+    );
+  } catch {
+    return null;
+  }
+  if (entry.type !== 'file' || entry.encoding !== 'base64' || typeof entry.content !== 'string') return null;
+  const bin = atob(entry.content.replace(/\s/g, ''));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+/**
+ * Fetch the FULL set of file paths in the repo tree at `sha` (recursive), used
+ * to verify a generated test file's relative imports actually resolve to
+ * something real instead of a module that does not exist. Null when the tree
+ * could not be fetched OR GitHub truncated it (`truncated: true`) — a
+ * truncated listing is worse than none, because a missing path could just be
+ * past the truncation boundary rather than genuinely absent, so callers must
+ * treat it as unknown, not as a clean miss.
+ */
+export async function fetchRepoTreePaths(
+  owner: string,
+  repo: string,
+  sha: string,
+  token: string,
+): Promise<Set<string> | null> {
+  let res: { tree?: Array<{ path?: string; type?: string }>; truncated?: boolean };
+  try {
+    res = await ghJson(
+      `https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(sha)}?recursive=1`,
+      { method: 'GET' },
+      token,
+      'get repo tree',
+    );
+  } catch {
+    return null;
+  }
+  if (res.truncated) return null;
+  if (!Array.isArray(res.tree)) return null;
+  const paths = new Set<string>();
+  for (const entry of res.tree) {
+    if (entry && typeof entry.path === 'string') paths.add(entry.path);
+  }
+  return paths;
+}
+
+/**
  * Find the purser's existing OPEN test PR for a branch, if any.
  *
  * Returned alongside its body so the caller can recover the embedded contract

@@ -10,22 +10,40 @@
  *      (the purser never bluffs).
  *   b. AUTHOR TESTS — a second AI call authors adversarial unit + integration
  *      test files that grill the contract's edge cases. Files are validated by
- *      the stacked-pr path whitelist + size caps (model output is untrusted).
+ *      the stacked-pr path whitelist + size caps (model output is untrusted),
+ *      then by the EXECUTABILITY GATE (src/purser-executability.ts, fail
+ *      closed): every authored path must live inside the repo's OWN,
+ *      evidence-fetched jest `testMatch` (never just an operator-declared
+ *      `testPaths` prefix), and every relative import must resolve to a real
+ *      file. Unknown/unfetchable evidence is a REJECTION, not a pass. A
+ *      rejection here preserves the steel-man contract + authored tests as
+ *      advisory evidence in a comment (never fabricated as executed) and
+ *      stops BEFORE touching the Git Data API — no branch, no test PR, no
+ *      retarget. (Root-caused by #5860: five tests lived outside the repo's
+ *      configured jest discovery path and imported a nonexistent module; the
+ *      purser retargeted the reviewed PR onto them anyway.)
  *   c. SANDBOX (feature-flagged) — when env.SANDBOX exists, the repo's test
  *      runner executes the new tests against the PR head in a Cloudflare
  *      Sandbox. Absent binding ⇒ executed:false, NEVER fabricated results.
- *   d. STACK — branch `purser/pr-<n>-tests` is cut from the PR's BASE sha, a
- *      test PR is opened for it, and the reviewed PR is RETARGETED onto the
- *      test branch so it sits stacked on top of the tests and must satisfy
- *      them. Fork PRs get the test PR + a comment but NO retarget. A 403
- *      (App lacks `contents: write`) degrades honestly: tests are posted
- *      inline in a comment, the missing permission is named, and the verdict
- *      stays advisory.
+ *   d. STACK — branch `purser/pr-<n>-tests` is cut from the PR's BASE sha and
+ *      a test PR is opened for it. The reviewed PR is RETARGETED onto the
+ *      test branch — so it sits stacked on top of the tests and must satisfy
+ *      them — ONLY when it is same-repo (not a fork) AND `sandbox.executed`
+ *      is true: retargeting onto tests that were merely authored but never
+ *      run hides the true origin/main diff and shrinks normal CI for no
+ *      verified benefit (the other half of #5860 — "the body admitted they
+ *      were not run"). Fork PRs, and same-repo PRs whose tests did not
+ *      execute, get the test PR + a comment explaining why NOT retargeted,
+ *      but the implementation PR's base is left untouched. A 403 (App lacks
+ *      `contents: write`) degrades honestly: tests are posted inline in a
+ *      comment, the missing permission is named, and the verdict stays
+ *      advisory.
  *   e. VERDICT — blocking iff pd-fleet.yml says `blocking: true`. BLOCK while
  *      sandbox-executed tests fail on the PR head. Sandbox unavailable ⇒ the
  *      `blockWithoutSandbox` flag decides (default false ⇒ advisory): the
  *      purser never blocks on tests that were never run unless the operator
- *      explicitly opted into fail-closed.
+ *      explicitly opted into fail-closed. (This governs the ship's PASS/BLOCK
+ *      merge-gate verdict; RETARGETING is a separate, stricter action — see d.)
  *
  * Comment tone: firm, adversarial, professional. Demands, with reasons.
  * Never abusive.
@@ -40,6 +58,8 @@ import { extractWorkersAiUsage } from './telemetry.js';
 import { stripThinkSpans } from './xo.js';
 import {
   createOrUpdateBranch,
+  fetchRepoFileText,
+  fetchRepoTreePaths,
   findOpenPrForBranch,
   openStackedPr,
   readBranchFiles,
@@ -49,6 +69,13 @@ import {
   type StackedFile,
   type StackedPrResult,
 } from './stacked-pr.js';
+import {
+  checkGeneratedTestsExecutable,
+  extractJestTestMatch,
+  extractPackageJsonTestMatch,
+  JEST_CONFIG_CANDIDATES,
+  type ExecutabilityEvidence,
+} from './purser-executability.js';
 import {
   decideRerun,
   decodeFingerprint,
@@ -434,6 +461,34 @@ async function purserAiCall(
   return { text, res };
 }
 
+/**
+ * Gather the evidence {@link checkGeneratedTestsExecutable} needs, from the PR's
+ * BASE sha (the trusted, zero-trust ref — never the PR head): the repo's real
+ * jest testMatch patterns and its full file tree. Every fetch degrades to null
+ * on failure (network error, 404, unparseable) rather than throwing — the gate
+ * itself fails closed on null, so a fetch failure here still ends in rejection,
+ * never a silent pass.
+ */
+async function gatherExecutabilityEvidence(
+  prCtx: PRContext,
+  token: string,
+): Promise<ExecutabilityEvidence> {
+  let testMatchPatterns: string[] | null = null;
+  for (const name of JEST_CONFIG_CANDIDATES) {
+    const text = await fetchRepoFileText(prCtx.owner, prCtx.repo, name, prCtx.baseSha, token);
+    if (text) {
+      testMatchPatterns = extractJestTestMatch(text);
+      if (testMatchPatterns) break;
+    }
+  }
+  if (!testMatchPatterns) {
+    const pkg = await fetchRepoFileText(prCtx.owner, prCtx.repo, 'package.json', prCtx.baseSha, token);
+    if (pkg) testMatchPatterns = extractPackageJsonTestMatch(pkg);
+  }
+  const repoTreePaths = await fetchRepoTreePaths(prCtx.owner, prCtx.repo, prCtx.baseSha, token);
+  return { testMatchPatterns, repoTreePaths };
+}
+
 // ---------------------------------------------------------------------------
 // Comment rendering — firm, adversarial, professional. Demands, with reasons.
 
@@ -504,6 +559,14 @@ interface CommentParams {
   retargeted: boolean;
   degradedReason: string | null;
   isFork: boolean;
+  /**
+   * Set when a stacked test PR exists but retargeting was deliberately SKIPPED
+   * (never attempted) because the tests were not executed — as opposed to
+   * `retargeted: false` with no reason, which means an attempted retarget
+   * failed. Distinguishing the two keeps the comment honest about whether the
+   * purser even tried.
+   */
+  retargetSkipReason: string | null;
 }
 
 function buildPurserComment(p: CommentParams): string {
@@ -541,6 +604,12 @@ function buildPurserComment(p: CommentParams): string {
         `**The stack:** the tests live in #${p.stackedPr.number} (${p.stackedPr.url}). ` +
           `This PR comes from a fork, so I have not retargeted it — but the demand ` +
           `is unchanged: the PR must satisfy those tests before it merges.`,
+      );
+    } else if (p.retargetSkipReason) {
+      parts.push(
+        `**The stack:** the tests live in #${p.stackedPr.number} (${p.stackedPr.url}). ` +
+          `This PR has NOT been retargeted onto them: ${p.retargetSkipReason} The demand ` +
+          `stands regardless: satisfy those tests before this merges.`,
       );
     } else {
       parts.push(
@@ -912,6 +981,59 @@ export async function runPurser(
       },
     );
 
+    // --- b.5 EXECUTABILITY GATE (fail closed) --------------------------------
+    // validateStackedFiles (path safety) and ship.testPaths (an OPERATOR-
+    // DECLARED prefix) do not prove the repo's REAL test runner would ever
+    // discover these files, or that they load without crashing on a missing
+    // import. #5860 shipped files that passed both checks yet lived outside the
+    // repo's own jest.config.js testMatch and imported a module that did not
+    // exist — Jest would never have run them, and the purser retargeted the
+    // reviewed PR onto them anyway. This checks against the repo's ACTUAL
+    // evidence (its own jest config + file tree at the PR's base sha), never
+    // against configuration the purser only trusts because it wrote it.
+    const evidence = await gatherExecutabilityEvidence(prCtx, token);
+    const executability = checkGeneratedTestsExecutable(files, evidence);
+    if (!executability.ok) {
+      await transcript.step('purser-tests', ship.name, `pd-${ship.name}: authored tests NON-EXECUTABLE`, {
+        error: executability.reason,
+        fileCount: files.length,
+      });
+      const notExecuted: SandboxRunOutcome = {
+        executed: false,
+        passed: null,
+        outputTail: '',
+        failures: [],
+        reason: `not executed: ${executability.reason}`,
+      };
+      // Preserve the contract + authored tests as ADVISORY EVIDENCE (same
+      // inline-tests treatment as the 403 degradation below) and explicitly do
+      // NOT open a branch, stack a test PR, or touch the reviewed PR's base —
+      // publishing a branch of provably non-executable tests would be worse
+      // than the fork case, not better.
+      await postShipComment(
+        prCtx.owner,
+        prCtx.repo,
+        prCtx.prNumber,
+        ship.name,
+        ship.role,
+        buildPurserComment({
+          prCtx,
+          steel,
+          files,
+          sandbox: notExecuted,
+          stackedPr: null,
+          retargeted: false,
+          degradedReason: `these authored tests failed the executability gate: ${executability.reason}`,
+          isFork: prCtx.isFork,
+          retargetSkipReason: null,
+        }),
+        token,
+      );
+      // Never fabricate a BLOCK on tests that structurally could not run, and
+      // never retarget the implementation PR's base onto them.
+      return { ship: ship.name, blocking: false, verdict: 'PASS', errored: false, findings: [] };
+    }
+
     // --- c. SANDBOX (feature-flagged; honest when absent) -------------------
     const sandbox = await runTestsInSandbox({
       sandboxBinding: env.SANDBOX,
@@ -943,6 +1065,7 @@ export async function runPurser(
     let stackedPr: StackedPrResult | null = null;
     let retargeted = false;
     let degradedReason: string | null = null;
+    let retargetSkipReason: string | null = null;
 
     try {
       await createOrUpdateBranch(
@@ -973,8 +1096,14 @@ export async function runPurser(
         ship: ship.name,
         url: stackedPr.url,
       }, squidConsent);
-      // GUARD: only same-repo (non-fork) PRs are retargeted onto the tests.
-      if (!prCtx.isFork) {
+      // GUARD: only same-repo (non-fork) PRs are retargeted onto the tests, and
+      // ONLY when the exact generated tests were actually EXECUTED — sandbox
+      // absent (the default deploy, no SANDBOX binding) means the tests were
+      // authored but never run, exactly the #5860 failure mode ("the body
+      // admitted they were not run"). Retargeting a PR onto an unexecuted
+      // contract hides the true origin/main diff and shrinks normal CI for no
+      // verified benefit — the purser must not do that on faith.
+      if (!prCtx.isFork && sandbox.executed) {
         try {
           await retargetPrBase(prCtx.owner, prCtx.repo, prCtx.prNumber, branchName, token);
           retargeted = true;
@@ -983,6 +1112,10 @@ export async function runPurser(
             `[fleet-executor] pd-${ship.name} retarget #${prCtx.prNumber} failed: ${String(err)}`,
           );
         }
+      } else if (!prCtx.isFork && !sandbox.executed) {
+        retargetSkipReason =
+          'the adversarial tests were authored but not executed ' +
+          `(${sandbox.reason ?? 'sandbox unavailable'}), so there is no verified result to hold this PR to.`;
       }
     } catch (err) {
       if (err instanceof GitHubApiError && err.status === 403) {
@@ -1020,7 +1153,9 @@ export async function runPurser(
         testPrNumber: stackedPr?.number ?? null,
         testPrUrl: stackedPr?.url ?? null,
         retargeted,
+        sandboxExecuted: sandbox.executed,
         ...(degradedReason ? { degraded: degradedReason } : {}),
+        ...(retargetSkipReason ? { retargetSkipped: retargetSkipReason } : {}),
       },
     );
 
@@ -1040,6 +1175,7 @@ export async function runPurser(
         retargeted,
         degradedReason,
         isFork: prCtx.isFork,
+        retargetSkipReason,
       }),
       token,
     );
