@@ -16,7 +16,11 @@ import { chromium } from 'playwright'
 import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 
-const EXECUTABLE = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+// Let Playwright resolve its own installed browser. Pinning a revision path
+// here breaks every contributor whose Playwright installed a different build.
+// Override only when the browser genuinely lives somewhere else:
+//   CAPTURE_CHROMIUM=/opt/pw-browsers/chromium/chrome node capture.mjs out/
+const EXECUTABLE = process.env.CAPTURE_CHROMIUM || undefined
 const BASE = 'http://localhost:4173'
 const OUT = process.argv[2] ?? '.'
 mkdirSync(OUT, { recursive: true })
@@ -72,7 +76,7 @@ async function assertNoHorizontalOverflow(page, label) {
   }
 }
 
-const browser = await chromium.launch({ executablePath: EXECUTABLE })
+const browser = await chromium.launch(EXECUTABLE ? { executablePath: EXECUTABLE } : {})
 
 for (const theme of ['light', 'dark']) {
   for (const vp of VIEWPORTS) {
