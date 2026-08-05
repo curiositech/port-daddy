@@ -862,10 +862,16 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // review gate, which is far worse than wrongly spending on a dead one.
   const lifecycle = classifyPrLifecycle(prCtx);
   if (lifecycle.over) {
+    // HUMAN-FACING: this is the entire explanation an author gets for a neutral
+    // required check, so it has to read like a sentence AND claim only what we
+    // actually observed. The earlier draft ended "…it has since ${state}",
+    // which is both ungrammatical for 'closed' and an assertion about when the
+    // job was enqueued that this code never checked and that need not be true —
+    // a delivery can be raised for a PR that was already finished.
     const summary =
       `Not reviewed — ${lifecycle.reason}. No ships were run and no AI was spent. ` +
-      `The job was enqueued while the pull request was still open; it has since ` +
-      `${lifecycle.state}.`;
+      `Fleet jobs are queued, so a delivery can arrive after the pull request it ` +
+      `was raised for has already finished.`;
     await transcript.step(
       'pr-lifecycle-skip',
       null,

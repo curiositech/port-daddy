@@ -143,6 +143,12 @@ describe('PR lifecycle gate — a finished PR is not reviewed', () => {
     expect(state.completed).toHaveLength(1);
     expect(state.completed[0].conclusion).toBe('neutral');
     expect(state.completed[0].summary).toMatch(/already merged/);
+    // The summary is the ONLY explanation an author gets for a neutral required
+    // check, so it must not assert something we never checked. We do not know
+    // when the job was enqueued relative to the merge — a delivery can be
+    // raised for a PR that had already finished.
+    expect(state.completed[0].summary).not.toMatch(/enqueued while/i);
+    expect(state.completed[0].summary).not.toMatch(/has since (merged|closed)/i);
   });
 
   it('a CLOSED-unmerged pr is skipped too', async () => {
