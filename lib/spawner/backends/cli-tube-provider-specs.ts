@@ -133,7 +133,7 @@ function compactCodexShellPath(env: Readonly<Record<string, string | undefined>>
       throw new Error('Selected source CLI directory exceeds the Codex shell environment limit');
     }
   }
-  const candidates = inherited.filter((value) => value.length > 0);
+  const candidates = inherited.filter((value) => isAbsolute(value));
   const unique = [...new Set(candidates)];
   const kept: string[] = sourceCliDir ? [sourceCliDir] : [];
   for (const candidate of unique) {

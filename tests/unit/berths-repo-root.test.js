@@ -105,12 +105,23 @@ describe('named berth source-matched CLI', () => {
     expect(result.stdout).not.toMatch(/(^|:)(\.|)(:|$)/);
   });
 
-  test('named daemon process PATH never gains an empty lookup entry', () => {
+  test('named daemon process PATH keeps only absolute lookup entries', () => {
     expect(prependPathEntry('/profile/dev-bin', undefined)).toBe('/profile/dev-bin');
     expect(prependPathEntry('/profile/dev-bin', '')).toBe('/profile/dev-bin');
-    expect(prependPathEntry('/profile/dev-bin', ':/usr/bin::/bin:'))
+    expect(prependPathEntry('/profile/dev-bin', ':.:relative:/usr/bin::../other:/bin:'))
       .toBe('/profile/dev-bin:/usr/bin:/bin');
     expect(prependPathEntry('/profile/dev-bin', '/profile/dev-bin:/usr/bin'))
       .toBe('/profile/dev-bin:/usr/bin');
+  });
+
+  test('isolated login-shell init removes dot and relative lookup entries', () => {
+    const init = devCliShellInitSource('/profile/dev-bin', '/profile/dev-bin/pd');
+    const result = spawnSync('/bin/sh', ['-c', `${init}\nprintf '%s' "$PATH"`], {
+      encoding: 'utf8',
+      env: { PATH: '.:relative:/usr/bin::../other:/bin:/profile/dev-bin' },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe('/profile/dev-bin:/usr/bin:/bin');
   });
 });

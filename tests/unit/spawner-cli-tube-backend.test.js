@@ -286,7 +286,11 @@ describe('buildArgs', () => {
   });
 
   test('codex shell PATH is bounded without dropping the source-matched pd directory', () => {
-    const longPath = Array.from({ length: 80 }, (_, index) => `/very/long/toolchain/path/${index}`).join(':');
+    const longPath = [
+      '.',
+      'relative/bin',
+      ...Array.from({ length: 80 }, (_, index) => `/very/long/toolchain/path/${index}`),
+    ].join(':');
     const configs = codexCoordinationEnvironmentConfigs({
       PATH: longPath,
       PORT_DADDY_CLI: '/profile/dev-bin/pd',
@@ -296,6 +300,8 @@ describe('buildArgs', () => {
 
     expect(pathConfig).toContain('/profile/dev-bin');
     expect(pathConfig.length).toBeLessThanOrEqual(512);
+    expect(pathConfig).not.toContain('relative/bin');
+    expect(JSON.parse(pathConfig.split('=', 2)[1]).split(':')).not.toContain('.');
     expect(pathConfig).not.toContain('/very/long/toolchain/path/79');
   });
 

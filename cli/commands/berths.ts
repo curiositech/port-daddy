@@ -342,11 +342,36 @@ export function devCliShimSource(sourceDir: string): string {
 
 export function devCliShellInitSource(devBinDir: string, shim: string): string {
   return [
-    'if [ -n "${PATH:-}" ]; then',
-    `  export PATH=${posixShellQuote(devBinDir)}:"$PATH"`,
+    'pd_source_path=',
+    'pd_source_path_rest=${PATH:-}',
+    'while [ -n "$pd_source_path_rest" ]; do',
+    '  case "$pd_source_path_rest" in',
+    '    *:*)',
+    '      pd_source_path_entry=${pd_source_path_rest%%:*}',
+    '      pd_source_path_rest=${pd_source_path_rest#*:}',
+    '      ;;',
+    '    *)',
+    '      pd_source_path_entry=$pd_source_path_rest',
+    '      pd_source_path_rest=',
+    '      ;;',
+    '  esac',
+    '  case "$pd_source_path_entry" in',
+    `    ${posixShellQuote(devBinDir)}) ;;`,
+    '    /*)',
+    '      if [ -n "$pd_source_path" ]; then',
+    '        pd_source_path="$pd_source_path:$pd_source_path_entry"',
+    '      else',
+    '        pd_source_path="$pd_source_path_entry"',
+    '      fi',
+    '      ;;',
+    '  esac',
+    'done',
+    'if [ -n "$pd_source_path" ]; then',
+    `  export PATH=${posixShellQuote(devBinDir)}:"$pd_source_path"`,
     'else',
     `  export PATH=${posixShellQuote(devBinDir)}`,
     'fi',
+    'unset pd_source_path pd_source_path_rest pd_source_path_entry',
     `export PORT_DADDY_CLI=${posixShellQuote(shim)}`,
     '',
   ].join('\n');
@@ -356,7 +381,7 @@ export function devCliShellInitSource(devBinDir: string, shim: string): string {
 export function prependPathEntry(entry: string, inherited: string | undefined): string {
   const rest = (inherited ?? '')
     .split(delimiter)
-    .filter((candidate) => candidate.length > 0 && candidate !== entry);
+    .filter((candidate) => isAbsolute(candidate) && candidate !== entry);
   return [entry, ...rest].join(delimiter);
 }
 
