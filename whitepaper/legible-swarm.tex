@@ -40,6 +40,8 @@
 % Honest-label markers (ADR-0045 discipline; one key for the whole volume).
 % Muted ink throughout; the four states differ by WEIGHT and SMALL-CAPS, never
 % by hue (house style: status by weight/small-caps, not a rainbow key).
+% These commands are defined locally because this file is a standalone paper;
+% in particular, \BuiltWeak is not inherited from a shared preamble.
 \newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{built}}}}}
 \newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{built\,\textit{(weak)}}}}}
 \newcommand{\Designed}{{\textcolor{hhgray}{\textsc{designed}}}}
