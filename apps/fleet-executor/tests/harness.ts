@@ -192,24 +192,17 @@ export function installGitHubFetch(state: GitHubState): void {
 
     // --- Merge queue membership resolver ---
     if (url === 'https://api.github.com/graphql' && method === 'POST') {
-      const variables = (body as { variables?: { pr?: number } })?.variables;
-      const target = state.mergeQueueEntries.find(entry => entry.prNumber === variables?.pr);
       return json({
         data: {
           repository: {
-            pullRequest: {
-              mergeQueueEntry: target ? {
-                position: target.position,
-                headCommit: { oid: target.groupHeadSha },
-                mergeQueue: {
-                  entries: {
-                    nodes: state.mergeQueueEntries.map(entry => ({
-                      position: entry.position,
-                      pullRequest: { number: entry.prNumber, headRefOid: entry.headSha },
-                    })),
-                  },
-                },
-              } : null,
+            mergeQueue: {
+              entries: {
+                nodes: state.mergeQueueEntries.map(entry => ({
+                  position: entry.position,
+                  headCommit: { oid: entry.groupHeadSha },
+                  pullRequest: { number: entry.prNumber, headRefOid: entry.headSha },
+                })),
+              },
             },
           },
         },
