@@ -67,7 +67,13 @@ bash core/pd-console/scripts/package-console.sh --devbuild <name>
 # package-console.sh prints the exact bundle path it built; if resolving it
 # after the fact, take the newest timestamped match for <name>:
 APP="$(ls -td ~/Applications/pd-console-dev-apps/pd-console-dev-*-<name>.app | head -1)"
-open -n --env PORT_DADDY_URL="$PORT_DADDY_URL" -a "$APP"
+# Give this instance its OWN control socket, scoped by label. Without this,
+# main.rs never starts the control-socket thread at all, so console-ctl.py
+# silently falls back to its default ~/.port-daddy/console-ctl.sock — the
+# same path the first snippet above uses — and you script whatever stale
+# instance is still listening there instead of this fresh worktree build.
+open -n --env PORT_DADDY_URL="$PORT_DADDY_URL" \
+  --env PD_CONSOLE_CONTROL_SOCK=~/.port-daddy/console-ctl-<name>.sock -a "$APP"
 ```
 
 The named daemon owns an isolated state plane and publishes the endpoint it
