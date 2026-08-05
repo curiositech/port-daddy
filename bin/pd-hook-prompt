@@ -21,6 +21,8 @@ MATRIX="${PD_MATRIX_FILE:-$PD_HOME/matrix.env}"
 MAX_ENTRIES="${PD_SQUID_PROMPT_MAX_ENTRIES:-12}"
 MAX_BYTES="${PD_SQUID_PROMPT_MAX_BYTES:-4096}"
 TTL_SECONDS="${PD_SQUID_PROMPT_TTL_SECONDS:-1800}"
+SCAN_LIMIT="${PD_SQUID_PROMPT_SCAN_LIMIT:-64}"
+case "$SCAN_LIMIT" in ''|*[!0-9]*|0) SCAN_LIMIT=64 ;; esac
 
 # Drain stdin so the CLI's pipe write never blocks, capturing it for cwd parsing.
 EVENT="$(cat 2>/dev/null || true)"
@@ -36,8 +38,11 @@ fi
 ALERTS=""
 PHER=""
 if [ -f "$MATRIX" ]; then
-  ALERTS="$(grep -E '^PD_ALERT_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
-  PHER="$(grep -E '^PD_PHEROMONE_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+  # Bound candidates before the per-entry TTL work. A long-lived global matrix
+  # can contain thousands of stale rows; walking all of them can exceed an
+  # interactive hook budget even when only a handful concern this project.
+  ALERTS="$(grep -E '^PD_ALERT_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null | tail -n "$SCAN_LIMIT" 2>/dev/null || true)"
+  PHER="$(grep -E '^PD_PHEROMONE_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null | tail -n "$SCAN_LIMIT" 2>/dev/null || true)"
 fi
 
 # Relevance: use the exact pd project root (or cwd when no marker is available),

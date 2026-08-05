@@ -510,6 +510,40 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(ctx).not.toContain('wrong-project');
   });
 
+  test('prompt hook bounds stale matrix scanning before TTL subprocess work', () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    const stale = new Date(Date.now() - 31 * 60_000).toISOString();
+    const fresh = new Date().toISOString();
+    const staleRows = Array.from({ length: 2_000 }, (_, index) =>
+      `PD_PHEROMONE_STALE_${index}="/other/project/file-${index}.ts | stale | ts:${stale}"`,
+    );
+    writeFileSync(MATRIX, [
+      ...staleRows,
+      `PD_PHEROMONE_LATEST="${WORKSPACE}/src/latest.ts | current-work | ts:${fresh}"`,
+      '',
+    ].join('\n'));
+
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: {
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SQUID_PROMPT_SCAN_LIMIT: '16',
+      },
+      encoding: 'utf8',
+      timeout: 2_000,
+    });
+
+    expect(r.error).toBeUndefined();
+    expect(r.status).toBe(0);
+    const parsed = JSON.parse(r.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    };
+    expect(parsed.hookSpecificOutput.additionalContext).toContain('current-work');
+    expect(parsed.hookSpecificOutput.additionalContext).not.toContain('/other/project');
+  });
+
   test('K=8 concurrent post-tool appends produce 8 intact pheromone lines (Jamie Madrox)', async () => {
     const matrix = seed();
     const before = Object.keys(parseMatrix(readFileSync(matrix, 'utf8'))).filter((k) =>
