@@ -180,7 +180,8 @@ Immediate ships:
 - `crew-screen-roles-not-pids` and `coordination-ticker-as-high-signal-feed` so operators can read role truth and cross-slice contradictions at a glance
 - `tuple-driven-fleet` so tuple coordination turns into actual swarm routing instead of broadcast-only work distribution
 - `operator-decision-journal` so approvals, overrides, and pauses have an immutable "why" trail
-- merge the best of `public/fleet-live.html` and `public/fleet-config.html` into `fleet-config-ui`
+- merge the best of the historical `public/fleet-live.html` and `public/fleet-config.html` concepts (not yet shipped)
+  into `fleet-config-ui`; the two source files are no longer present
 - turn the spawn panel into a mission workspace, not just a raw launch form
 
 Representative idea pressure:
@@ -293,6 +294,22 @@ Immediate ships:
 Done when:
 - the repo has one obvious center of gravity
 - future signed binary/distribution work has a clean substrate
+
+## Track 8: Coordination Papers Proof And Runtime Closure
+
+The unified whitepaper program is maintained in
+[`docs/roadmap/whitepaper-research-program.md`](../roadmap/whitepaper-research-program.md).
+Its registry links are `link:coordination-papers-mega-volume`,
+`link:coordination-papers-proof-program`,
+`link:coordination-papers-empirical-program`, and
+`link:coordination-papers-runtime-closure`.
+
+The immediate release cut is the cohesive seven-paper collected volume. The
+follow-on work separates paper additions, proof obligations, empirical trials,
+and runtime closure so a model result or design is never reported as a deployed
+guarantee. The implementation priorities are the reputation-grade outcome ledger,
+complete actor-identity write gating, execution-state checkpoints, sealed relay,
+federated revocation, custody/settlement conformance, and projection consistency.
 
 ## Not Doing Right Now
 
