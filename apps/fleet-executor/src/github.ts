@@ -724,7 +724,7 @@ export async function completeCheckRun(
   if (!checkRunId) return;
   // details_url is (re)stamped on completion too, so a run that REUSED an
   // older check run (idempotent retry path) still links to its own page.
-  await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
     method: 'PATCH',
     headers: ghHeaders(token),
     body: JSON.stringify({
@@ -735,6 +735,16 @@ export async function completeCheckRun(
       ...(detailsUrl ? { details_url: detailsUrl } : {}),
     }),
   });
+  // A required check left in_progress is worse than a retried queue delivery:
+  // the former can strand the merge gate forever while the latter is
+  // idempotent (the retry reuses the existing check run).  Do not acknowledge
+  // the queue message when GitHub rejected completion.
+  if (!res.ok) {
+    const detail = (await res.text()).slice(0, 500);
+    throw new Error(
+      `complete check run ${checkRunId} failed ${res.status}${detail ? `: ${detail}` : ''}`,
+    );
+  }
 }
 
 /**
