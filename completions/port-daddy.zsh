@@ -50,11 +50,14 @@ _pd_base_url() {
 }
 
 # Query the discovered daemon with a 1-second timeout; emit nothing on failure.
+# NOTE: the local var is deliberately not named "path" — zsh ties $path to
+# $PATH, and shadowing it with a scalar here breaks command lookup (curl
+# resolves to "command not found") for the rest of this function's scope.
 _pd_query() {
-  local path="$1"
+  local qpath="$1"
   local base
   base="$(_pd_base_url)" || return 0
-  curl -s --max-time 1 "${base}${path}" 2>/dev/null
+  curl -s --max-time 1 "${base}${qpath}" 2>/dev/null
 }
 
 # Populate $reply with active service IDs from the daemon.
