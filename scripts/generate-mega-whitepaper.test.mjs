@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import {
   cleanStandaloneChrome,
+  collateReferences,
   compareNormalizedReferences,
   inlineInputs,
   namespaceLabels,
@@ -29,6 +30,14 @@ test('cyclic TeX imports fail with the import chain', () => {
   } finally {
     rmSync(fixtureDir, { recursive: true, force: true });
   }
+});
+
+test('missing TeX imports fail with source context', () => {
+  const fixtureDir = resolve('.cache/mega-generator-missing-import-test');
+  assert.throws(
+    () => inlineInputs('\\input{not-present}', fixtureDir, []),
+    /cannot inline not-present from .*mega-generator-missing-import-test/,
+  );
 });
 
 test('reference ordering is locale-independent and normalized', () => {
@@ -77,4 +86,19 @@ test('identical local citation keys stay isolated between papers', () => {
 
   assert.equal(rewriteCitations('\\cite{shared}', firstPaper, 'first.tex'), '\\cite{mega001}');
   assert.equal(rewriteCitations('\\cite{shared}', secondPaper, 'second.tex'), '\\cite{mega002}');
+});
+
+test('one paper cannot map a bibliography key to two references', () => {
+  const prepared = [{
+    source: 'collision.tex',
+    references: [
+      { key: 'shared', body: 'First reference', source: 'collision.tex' },
+      { key: 'shared', body: 'Second reference', source: 'collision.tex' },
+    ],
+  }];
+
+  assert.throws(
+    () => collateReferences(prepared),
+    /collision\.tex: bibliography key shared maps to two references/,
+  );
 });

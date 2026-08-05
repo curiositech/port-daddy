@@ -23,12 +23,16 @@ on:
       - 'website-v2/public/whitepaper/**/*.tex'
       - 'whitepaper/**/*.tex'
       - 'scripts/build-whitepapers.sh'
+      - 'scripts/generate-mega-whitepaper.mjs'
+      - 'scripts/generate-mega-whitepaper.test.mjs'
       - '.github/workflows/whitepaper-build.yml'
   pull_request:
     paths:
       - 'website-v2/public/whitepaper/**/*.tex'
       - 'whitepaper/**/*.tex'
       - 'scripts/build-whitepapers.sh'
+      - 'scripts/generate-mega-whitepaper.mjs'
+      - 'scripts/generate-mega-whitepaper.test.mjs'
       - '.github/workflows/whitepaper-build.yml'
   # Merge queue: trigger so this workflow reports a check context on the queued
   # group. The `build` job is SKIPPED on merge_group (see its `if:`), and a
