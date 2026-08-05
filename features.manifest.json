@@ -926,6 +926,7 @@
       "description": "Project-local agent intelligence (.portdaddy/ briefing)",
       "cli": [
         "briefing",
+        "arrive",
         "history"
       ],
       "sdk": [
@@ -933,11 +934,13 @@
         "getBriefing"
       ],
       "routes": [
-        "POST /briefing",
-        "GET /briefing/:param"
+        "GET /briefing/:param",
+        "GET /briefing/arrival",
+        "POST /briefing"
       ],
       "completions": [
         "briefing",
+        "arrive",
         "history"
       ],
       "docs": {
@@ -1428,7 +1431,7 @@
       ]
     },
     "harbor-ledger": {
-      "description": "Agent Harbor append-only event ledger and disposable projections (roster, transcript timeline, files touched, costs, compliance, work receipts) — binder ch18 Work Order C1, ADR-0095",
+      "description": "Agent Harbor append-only event ledger and disposable projections (roster, transcript timeline, files touched, costs, compliance, work receipts) \u2014 binder ch18 Work Order C1, ADR-0095",
       "module": "lib/agent-harbor/event-ledger.ts",
       "cli": [
         "harbor-ledger"
@@ -1955,7 +1958,7 @@
       }
     },
     "seamanship": {
-      "description": "Skill registry surface. `pd seamanship list/search/show/sync/outcomes/index` — backed by lib/skill-sync.ts with BM25+Tool2Vec engine in Phase 3. Aliases: pd skills.",
+      "description": "Skill registry surface. `pd seamanship list/search/show/sync/outcomes/index` \u2014 backed by lib/skill-sync.ts with BM25+Tool2Vec engine in Phase 3. Aliases: pd skills.",
       "module": "cli/commands/seamanship.ts",
       "cli": [
         "seamanship",
@@ -2137,7 +2140,7 @@
       }
     },
     "parley": {
-      "description": "Tuple-backed forced reconciliation primitive for overlapping agents. `pd parley fit` evaluates whether a task deserves multi-agent decomposition; `pd parley call/respond/resolve/list/show` records a bounded SUMMONED→CONVENED→COLLAPSED|ESCALATED|VOIDED dialogue around a contested surface. Turn verbs (`pd parley propose/critique/revise/agree/refuse/say <id> <content>`) are respond sugar with identity inferred from the active session; every turn fans out to the other participants’ inboxes (pd attention), and `pd parley show` records a read receipt so the seen list shows who is behind.",
+      "description": "Tuple-backed forced reconciliation primitive for overlapping agents. `pd parley fit` evaluates whether a task deserves multi-agent decomposition; `pd parley call/respond/resolve/list/show` records a bounded SUMMONED\u2192CONVENED\u2192COLLAPSED|ESCALATED|VOIDED dialogue around a contested surface. Turn verbs (`pd parley propose/critique/revise/agree/refuse/say <id> <content>`) are respond sugar with identity inferred from the active session; every turn fans out to the other participants\u2019 inboxes (pd attention), and `pd parley show` records a read receipt so the seen list shows who is behind.",
       "cli": [
         "parley"
       ],

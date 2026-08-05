@@ -407,4 +407,79 @@ describe('GET /briefing/arrival', () => {
     expect(JSON.parse(res.body).rendered).toBe('');
     await app.close();
   });
+
+  test('a bare request derives context from the actor\'s own live session', async () => {
+    // Regression (caught in review): the ranking query is built from purpose +
+    // hints + file basenames and deliberately EXCLUDES the actor, so a request
+    // carrying only `actor` produced an empty query, matched nothing in all
+    // four corpora, and rendered as silence — indistinguishable from "nothing
+    // relevant" when the truth was "nobody told me what I am working on".
+    const app = await build({
+      sessions: {
+        list: () => ({
+          sessions: [
+            // The arriving agent's own session supplies the context.
+            {
+              id: 'mine',
+              agentId: 'alpha',
+              purpose: 'wire the reconcile loop producers',
+              identityProject: 'port-daddy',
+              files: ['lib/squid/reconcile.ts'],
+              createdAt: 200,
+            },
+            { id: 's1', agentId: 'beta', purpose: 'x', files: ['lib/squid/reconcile.ts'], createdAt: 100 },
+          ],
+        }),
+      },
+    });
+    const res = await app.inject({ method: 'GET', url: '/briefing/arrival?actor=alpha' });
+    expect(res.statusCode).toBe(200);
+    const rendered = JSON.parse(res.body).rendered as string;
+    expect(rendered).not.toBe('');
+    expect(rendered).toContain('beta');   // neighbour on the same file
+    expect(rendered).toContain('ghost-7'); // salvage matching the derived purpose
+    await app.close();
+  });
+
+  test('explicit flags still win over the derived session', async () => {
+    const app = await build({
+      sessions: {
+        list: () => ({
+          sessions: [
+            { id: 'mine', agentId: 'alpha', purpose: 'quantum basket weaving', createdAt: 200 },
+          ],
+        }),
+      },
+    });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/briefing/arrival?actor=alpha&purpose=' + encodeURIComponent('wire the reconcile loop producers'),
+    });
+    expect(JSON.parse(res.body).rendered).toContain('ghost-7');
+    await app.close();
+  });
+
+  test('the newest active session wins when an actor holds several', async () => {
+    const app = await build({
+      sessions: {
+        list: () => ({
+          sessions: [
+            { id: 'old', agentId: 'alpha', purpose: 'quantum basket weaving', createdAt: 1 },
+            { id: 'new', agentId: 'alpha', purpose: 'wire the reconcile loop producers', createdAt: 999 },
+          ],
+        }),
+      },
+    });
+    expect(JSON.parse((await app.inject({ method: 'GET', url: '/briefing/arrival?actor=alpha' })).body).rendered)
+      .toContain('ghost-7');
+    await app.close();
+  });
+
+  test('an actor with no session still answers, just thinly', async () => {
+    const app = await build({ sessions: { list: () => ({ sessions: [] }) } });
+    const res = await app.inject({ method: 'GET', url: '/briefing/arrival?actor=nobody' });
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).rendered).toBe('');
+    await app.close();
+  });
 });

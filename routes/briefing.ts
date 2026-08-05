@@ -134,11 +134,33 @@ export const briefingPlugin: FastifyPluginAsync<{ deps: BriefingRouteDeps }> = a
       reply.code(400);
       return { success: false, error: 'actor is required' };
     }
+    // Fill anything the caller did not supply from this actor's live session.
+    //
+    // **Without this the default invocation is dead.** The ranking query is
+    // built from purpose + hints + file basenames — `actor` is deliberately NOT
+    // part of it, since matching on an agent's own name would introduce it to
+    // everything it has ever touched. So a bare `pd arrive`, which knows only
+    // who it is, produces an EMPTY query, and an empty query matches nothing in
+    // any of the four corpora. The briefing would render as silence and look
+    // exactly like "nothing relevant" rather than "I was never told what I am
+    // working on".
+    //
+    // Derived here rather than in the CLI so every caller benefits — the
+    // session-start hook, `pd arrive`, and anything that reaches the route
+    // later — and because the daemon already holds the session, so this costs
+    // no extra round trip.
+    const own = ownSession(deps, actor);
+    const purpose = q.purpose ?? own?.purpose;
+    const project = q.project ?? own?.project;
+    const files = q.files
+      ? q.files.split(',').map((f) => f.trim()).filter(Boolean)
+      : own?.files;
+
     const ctx = {
       actor,
-      ...(q.purpose ? { purpose: q.purpose } : {}),
-      ...(q.project ? { project: q.project } : {}),
-      ...(q.files ? { files: q.files.split(',').map((f) => f.trim()).filter(Boolean) } : {}),
+      ...(purpose ? { purpose } : {}),
+      ...(project ? { project } : {}),
+      ...(files && files.length ? { files } : {}),
       ...(q.hints ? { hints: q.hints.split(',').map((h) => h.trim()).filter(Boolean) } : {}),
     };
 
@@ -157,6 +179,42 @@ export const briefingPlugin: FastifyPluginAsync<{ deps: BriefingRouteDeps }> = a
     return { success: true, briefing: result, rendered: renderArrivalBriefing(result) };
   });
 };
+
+/**
+ * This actor's own active session, for filling in an unspecified context.
+ *
+ * Returns the most recently created active session belonging to `actor`. An
+ * agent can legitimately hold several; the newest is the one it just started,
+ * which is the arrival this briefing is for.
+ *
+ * Fails soft to `null` — a daemon with no sessions store, or a store that
+ * throws, should cost the caller a thinner briefing, never an error on the
+ * first turn of a session.
+ */
+function ownSession(
+  deps: ArrivalDeps,
+  actor: string,
+): { purpose?: string; project?: string; files?: string[] } | null {
+  try {
+    const listed = deps.sessions?.list({ status: 'active', allWorktrees: true, limit: 100 });
+    const mine = rows(listed, 'sessions').filter(
+      (r) => String(r.agentId ?? r.agent_id ?? '') === actor,
+    );
+    if (!mine.length) return null;
+    const newest = mine.reduce((a, b) =>
+      Number(b.createdAt ?? b.created_at ?? 0) > Number(a.createdAt ?? a.created_at ?? 0) ? b : a,
+    );
+    return {
+      ...(str(newest.purpose) ? { purpose: str(newest.purpose)! } : {}),
+      ...(str(newest.identityProject ?? newest.project)
+        ? { project: str(newest.identityProject ?? newest.project)! }
+        : {}),
+      ...(strList(newest.files) ? { files: strList(newest.files)! } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
 
 /** Run a corpus fetch, degrading to an empty section rather than a 500. */
 function safely<T>(fn: () => readonly T[]): readonly T[] {

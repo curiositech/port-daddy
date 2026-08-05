@@ -104,7 +104,7 @@ _port_daddy() {
     # Sugar (compound commands)
     begin b done plan whoami w account attention nudge with-lock n u d learn tutorial
     # Briefing & History
-    briefing history
+    briefing arrive history
     # Consolidated read/write (3.8.4)
     say look sitrep pheromone ph advise preflight compass guard snapshots snapshot backup restore attest shipwright
     # Host-safety posture audit (ADR-0088)

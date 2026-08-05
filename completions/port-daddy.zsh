@@ -2334,6 +2334,7 @@ _port_daddy() {
     'tutorial:interactive tutorial (alias for learn)'
     # Briefing & History
     'briefing:generate .portdaddy/ project briefing'
+    'arrive:arrival briefing — salvage, roadmap, skills, neighbouring agents'
     'history:view recent project activity'
     # Consolidated read/write (3.8.4)
     'say:write a finding (note) with optional fan-out to tuple/pheromone/broadcast'

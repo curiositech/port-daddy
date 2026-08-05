@@ -1393,7 +1393,7 @@ const ALL_COMMANDS: string[] = [
   'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'benchmark', 'look', 'sitrep', 'roadmap',
   'advise', 'preflight', 'compass', 'guard', 'hooks',
   'salvage', 'resurrection', 'changelog', 'booty', 'tunnel',
-  'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
+  'services', 'dns', 'briefing', 'arrive', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'work', 'transcripts', 'transcript', 'relay',
   'harbor', 'harbors', 'harbor-ledger', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'skill-graft', 'skillgraft', 'memory', 'ideas',
