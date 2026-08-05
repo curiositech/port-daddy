@@ -594,10 +594,8 @@ async function executeMergeGroupGate(job: FleetRunJob, env: ExecutorEnv): Promis
   if (!owner || !repo) return;
   const group = job.payloadMinimal.merge_group as Record<string, unknown> | undefined;
   const headSha = typeof group?.head_sha === 'string' ? group.head_sha : '';
-  const headRef = typeof group?.head_ref === 'string' ? group.head_ref : '';
-  const parsedPr = headRef.match(/(?:^|\/)pr-(\d+)-/)?.[1];
-  const prNumber = job.prNumber ?? (parsedPr ? Number(parsedPr) : 0);
-  if (!headSha || !prNumber) return;
+  const baseRef = typeof group?.base_ref === 'string' ? group.base_ref : '';
+  if (!headSha) return;
 
   const token = await getInstallationTokenCached(
     env.GITHUB_APP_ID,
@@ -627,7 +625,7 @@ async function executeMergeGroupGate(job: FleetRunJob, env: ExecutorEnv): Promis
   let detailsUrl: string | null = null;
   let summary: string;
   try {
-    const members = await fetchMergeGroupMembers(owner, repo, prNumber, headSha, token);
+    const members = await fetchMergeGroupMembers(owner, repo, baseRef, headSha, token);
     const reviewed = await Promise.all(members.map(async member => ({
       ...member,
       check: await findOwnedFleetCheckRun(
@@ -642,7 +640,7 @@ async function executeMergeGroupGate(job: FleetRunJob, env: ExecutorEnv): Promis
     const missing = reviewed.filter(({ check }) =>
       check?.status !== 'completed' || (check.conclusion !== 'success' && check.conclusion !== 'neutral')
     );
-    const target = reviewed.find(member => member.prNumber === prNumber);
+    const target = reviewed.at(-1);
     detailsUrl = target?.check?.detailsUrl ?? null;
     if (missing.length === 0) {
       conclusion = 'success';

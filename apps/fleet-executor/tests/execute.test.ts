@@ -363,7 +363,8 @@ describe('merge-group gate propagation', () => {
         payloadMinimal: {
           merge_group: {
             head_sha: 'MERGEGROUPSHA',
-            head_ref: 'refs/heads/gh-readonly-queue/main/pr-7-base',
+            head_ref: 'refs/heads/an-untrusted-format-with-no-pr-number',
+            base_ref: 'refs/heads/main',
           },
         },
       }),
@@ -402,7 +403,7 @@ describe('merge-group gate propagation', () => {
         payloadMinimal: {
           merge_group: {
             head_sha: 'MERGEGROUPSHA',
-            head_ref: 'gh-readonly-queue/main/pr-7-base',
+            base_ref: 'refs/heads/main',
           },
         },
       }),
