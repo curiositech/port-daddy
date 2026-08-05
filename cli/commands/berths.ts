@@ -14,8 +14,8 @@
  * berths are recorded in `~/.port-daddy/dev-daemons.json`.
  */
 
-import { existsSync, rmSync, readdirSync } from 'node:fs';
-import { join, resolve, isAbsolute, basename } from 'node:path';
+import { chmodSync, existsSync, mkdirSync, rmSync, readdirSync, writeFileSync } from 'node:fs';
+import { delimiter, join, resolve, isAbsolute, basename } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import {
   DEFAULT_DAEMON_PORT,
@@ -328,6 +328,32 @@ function buildDaemonBinary(sourceDir: string): string {
   return outfile;
 }
 
+/**
+ * A named feature daemon must spawn agents with the CLI from the same source
+ * revision. Otherwise the new daemon can be healthy while nested `pd` calls
+ * silently exercise an older Homebrew CLI. The shim is profile-local and the
+ * profile is already tied to the source worktree's lifecycle.
+ */
+export function devCliShimSource(sourceDir: string): string {
+  const tsx = join(sourceDir, 'node_modules', '.bin', 'tsx');
+  const cli = join(sourceDir, 'bin', 'port-daddy-cli.ts');
+  return `#!/bin/sh\nexec ${posixShellQuote(tsx)} ${posixShellQuote(cli)} "$@"\n`;
+}
+
+function installDevCliShim(sourceDir: string, runtimeDir: string): string {
+  const tsx = join(sourceDir, 'node_modules', '.bin', 'tsx');
+  const cli = join(sourceDir, 'bin', 'port-daddy-cli.ts');
+  if (!existsSync(tsx) || !existsSync(cli)) {
+    throw new Error(`matching development CLI unavailable in source tree: ${sourceDir}`);
+  }
+  const binDir = join(runtimeDir, 'dev-bin');
+  const shim = join(binDir, 'pd');
+  mkdirSync(binDir, { recursive: true, mode: 0o700 });
+  writeFileSync(shim, devCliShimSource(sourceDir), { mode: 0o700 });
+  chmodSync(shim, 0o700);
+  return shim;
+}
+
 /** Claim a codebase berth port via the running stable daemon's port manager. */
 async function claimCodebasePort(label: string): Promise<number> {
   const identity = `pd-dev-${label}`;
@@ -437,12 +463,16 @@ async function devUp(options: CLIOptions): Promise<void> {
     nodeEnv: 'development',
     enableFleet,
   });
+  const devCli = installDevCliShim(sourceDir, profile.runtimeDir);
+  env.PORT_DADDY_CLI = devCli;
+  env.PATH = `${join(profile.runtimeDir, 'dev-bin')}${delimiter}${env.PATH ?? ''}`;
   env[BERTH_ENV.tier] = tier;
   env[BERTH_ENV.label] = label;
   env[BERTH_ENV.color] = color;
   env[BERTH_ENV.sourceDir] = sourceDir;
 
   ui.info(`Launching ${tier} berth "${label}" on :${port} (${color})`);
+  ui.info('  CLI: source-matched shim installed for spawned agents');
   const child = spawn(binary, [], {
     cwd: sourceDir,
     env,

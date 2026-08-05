@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import {
   resolveRepoRoot,
   defaultFrom,
+  devCliShimSource,
   shouldPurgeBerthState,
 } from '../../cli/commands/berths.js';
 
@@ -63,5 +64,17 @@ describe('named berth state lifecycle', () => {
   test('state destruction requires an explicit purge or reset flag', () => {
     expect(shouldPurgeBerthState({ purge: true })).toBe(true);
     expect(shouldPurgeBerthState({ reset: true })).toBe(true);
+  });
+});
+
+describe('named berth source-matched CLI', () => {
+  test('profile shim executes the feature worktree CLI and forwards argv exactly', () => {
+    const source = '/Users/me/coding/tmp/feature worktree';
+    const shim = devCliShimSource(source);
+
+    expect(shim).toContain("'/Users/me/coding/tmp/feature worktree/node_modules/.bin/tsx'");
+    expect(shim).toContain("'/Users/me/coding/tmp/feature worktree/bin/port-daddy-cli.ts'");
+    expect(shim).toContain('"$@"');
+    expect(shim.startsWith('#!/bin/sh\nexec ')).toBe(true);
   });
 });

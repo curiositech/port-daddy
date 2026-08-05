@@ -88,7 +88,10 @@ pd status
 
 Read the selected profile's exported endpoint/prefix files. Test CLI, HTTP, MCP,
 SDK, and UI consumers against that daemon. Rebuild/restart after runtime changes.
-Return the shell to stable with `eval "$(pd use stable)"`.
+Named feature daemons install a profile-local `pd` shim from the same source
+tree and prepend it to spawned-agent `PATH`; verify nested agent commands report
+the feature revision rather than the installed Homebrew CLI. Return the shell
+to stable with `eval "$(pd use stable)"`.
 
 For harness work:
 

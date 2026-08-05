@@ -67,10 +67,14 @@ pd dev down session-continuation
 eval "$(pd use stable)"
 ```
 
-`pd dev up` builds the dedicated daemon binary, preserves that label's isolated
-state across ordinary down/up cycles, and records source directory, branch,
-revision, PID, and the endpoint the daemon actually published. `--purge` is a
-separate destructive action and is never part of routine rebuilds.
+`pd dev up` builds the dedicated daemon binary and installs a profile-local
+`pd` shim that executes the same worktree's CLI. The daemon prepends that shim
+to spawned-agent `PATH` and exports it as `PORT_DADDY_CLI`, so a backend cannot
+silently pair a feature daemon with an older Homebrew CLI. It also preserves
+that label's isolated state across ordinary down/up cycles and records source
+directory, branch, revision, PID, and the endpoint the daemon actually
+published. `--purge` is a separate destructive action and is never part of
+routine rebuilds.
 
 ## Endpoint authority
 
@@ -97,6 +101,7 @@ port is occupied, every correct client follows automatically.
 |---|---|
 | Which runtime did this client select? | Selected profile label and resolved endpoint |
 | Which source produced a named daemon? | Health `daemon.sourceDir`, branch, revision, and build time |
+| Which CLI do its spawned agents use? | The selected profile's source-matched `PORT_DADDY_CLI` shim |
 | Is the process alive now? | PID plus fresh daemon/supervisor heartbeat |
 | Does the browser path work? | Request to the published TCP endpoint |
 | Does the CLI path work? | Socket or selected-endpoint request, identified separately |
