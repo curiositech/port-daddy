@@ -14,12 +14,12 @@ pd fleet status --project port-daddy
 Then inspect the product surface:
 
 - FleetBar screenshot paths:
-  - `website-v2/public/img/app-screens/fleetbar-native-shell-light.png`
-  - `website-v2/public/img/app-screens/fleetbar-native-shell-dark.png`
+  - `website-v2/public/img/app-screens/fleetbar-native-shell-light.webp`
+  - `website-v2/public/img/app-screens/fleetbar-native-shell-dark.webp`
 - Console screenshot paths:
-  - `website-v2/public/img/app-screens/fleet-flow-light.png`
-  - `website-v2/public/img/app-screens/resources-light.png`
-  - `website-v2/public/img/app-screens/sorties-light.png`
+  - `website-v2/public/img/app-screens/fleet-flow-light.webp`
+  - `website-v2/public/img/app-screens/resources-light.webp`
+  - `website-v2/public/img/app-screens/sorties-light.webp`
 
 Good triage separates process truth from visual truth. A build can pass while
 the installed app still points at an older daemon or stale bundle.
