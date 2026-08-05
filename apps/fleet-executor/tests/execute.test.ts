@@ -678,7 +678,7 @@ describe('map-reduce fan-out', () => {
   it('fails closed before AI spend when a diff exceeds the Worker chunk budget', async () => {
     state.prDiff =
       'diff --git a/src/huge.ts b/src/huge.ts\n--- a/src/huge.ts\n+++ b/src/huge.ts\n' +
-      `+${'x'.repeat(12_000 * 10 + 1)}\n`;
+      `+${'x'.repeat(12_000 * 2 + 1)}\n`;
 
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
@@ -692,8 +692,8 @@ describe('map-reduce fan-out', () => {
     expect(ai.calls).toHaveLength(0);
     expect(state.completed).toHaveLength(1);
     expect(state.completed[0].conclusion).toBe('failure');
-    expect(state.completed[0].summary).toContain('11 review chunks');
-    expect(state.completed[0].summary).toContain('10-chunk Worker memory budget');
+    expect(state.completed[0].summary).toContain('3 review chunks');
+    expect(state.completed[0].summary).toContain('2-chunk queue budget');
     expect(state.completed[0].summary).toContain('no AI was spent');
   });
 

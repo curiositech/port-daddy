@@ -112,13 +112,13 @@ const MAP_CHUNK_CHAR_LIMIT = 12_000;
  */
 const MAP_CONCURRENCY = 1;
 /**
- * Hard per-delivery admission budget. Empirically, 14-15 chunk diffs retain
- * enough model responses across the sequential ship roster to exhaust the
- * Worker's memory before it can complete the required check. Rejecting those
- * reviews up front is fail-closed, cheap, and actionable; retrying the same
- * deterministic OOM only strands every later required check in the FIFO.
+ * Hard per-delivery admission budget. Even with serial MAP calls, three chunks
+ * fan out to four model calls per ship and can monopolize the single FIFO long
+ * enough to starve required merge-group checks while ideation ships add more
+ * deliveries behind it. Rejecting those reviews up front is fail-closed, cheap,
+ * and actionable: the author can split the PR into bounded review units.
  */
-const MAX_REVIEW_CHUNKS = 10;
+const MAX_REVIEW_CHUNKS = 2;
 /** The umbrella check-run name. Exported so the DLQ handler targets the same run. */
 export const CHECK_NAME = 'Port Daddy Fleet';
 
@@ -1142,7 +1142,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   if (reviewChunkCount > MAX_REVIEW_CHUNKS) {
     const summary =
       `Fleet failed closed: this diff requires ${reviewChunkCount} review chunks, above the ` +
-      `${MAX_REVIEW_CHUNKS}-chunk Worker memory budget. Split the pull request into smaller ` +
+      `${MAX_REVIEW_CHUNKS}-chunk queue budget. Split the pull request into smaller ` +
       `reviewable changes and push again; no ships ran and no AI was spent.`;
     await transcript.step('check-completed', null, 'Check concluded: failure (diff admission budget)', {
       checkRunId,
