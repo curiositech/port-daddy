@@ -24,6 +24,21 @@ import { PassThrough, Readable } from 'node:stream';
 
 const mockSpawn = jest.fn();
 const mockExecFileSync = jest.fn();
+const mockCoastGuardReceipt = {
+  tool: 'pd-coast-guard',
+  agentId: 'cli-tube/test',
+  backend: 'cli:claude-code',
+  confined: true,
+  mechanism: 'seatbelt',
+};
+const mockCoastGuardDispose = jest.fn();
+const mockWithCoastGuard = jest.fn(async (input) => ({
+  cmd: input.cmd,
+  args: input.args,
+  env: input.env,
+  receipt: () => mockCoastGuardReceipt,
+  dispose: mockCoastGuardDispose,
+}));
 const originalHome = process.env.HOME;
 const originalPath = process.env.PATH;
 const originalCliBinDirs = process.env.PD_CLI_BIN_DIRS;
@@ -32,6 +47,9 @@ let fakeHome;
 jest.unstable_mockModule('node:child_process', () => ({
   spawn: mockSpawn,
   execFileSync: mockExecFileSync,
+}));
+jest.unstable_mockModule('../../lib/spawner/coast-guard-runner.js', () => ({
+  withCoastGuard: mockWithCoastGuard,
 }));
 
 const {
@@ -71,6 +89,15 @@ beforeEach(() => {
   mockSpawn.mockReset();
   mockExecFileSync.mockReset();
   mockExecFileSync.mockReturnValue('');
+  mockCoastGuardDispose.mockReset();
+  mockWithCoastGuard.mockReset();
+  mockWithCoastGuard.mockImplementation(async (input) => ({
+    cmd: input.cmd,
+    args: input.args,
+    env: input.env,
+    receipt: () => mockCoastGuardReceipt,
+    dispose: mockCoastGuardDispose,
+  }));
   fakeHome = mkdtempSync(join(tmpdir(), 'pd-cli-tube-home-'));
   process.env.HOME = fakeHome;
   process.env.PATH = '/usr/bin:/bin';
@@ -479,6 +506,41 @@ describe('generateTubeChannel', () => {
 });
 
 describe('spawnViaCliTube — claude-code happy path', () => {
+  test('routes the child through Coast Guard and returns its receipt', async () => {
+    mockWithCoastGuard.mockImplementationOnce(async (input) => ({
+      cmd: '/usr/bin/sandbox-wrapper',
+      args: ['--', input.cmd, ...input.args],
+      env: { ...input.env, PD_TEST_CONFINED: '1' },
+      receipt: () => mockCoastGuardReceipt,
+      dispose: mockCoastGuardDispose,
+    }));
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'confined', exitCode: 0 }));
+
+    const res = await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'say hi',
+      coastGuard: {
+        agentId: 'agent-receipt-test',
+        backend: 'cli:claude-code',
+        writePolicy: 'read-only',
+      },
+    });
+
+    expect(mockWithCoastGuard).toHaveBeenCalledTimes(1);
+    expect(mockWithCoastGuard.mock.calls[0][0]).toEqual(expect.objectContaining({
+      agentId: 'agent-receipt-test',
+      backend: 'cli:claude-code',
+      writePolicy: 'read-only',
+    }));
+    expect(mockSpawn).toHaveBeenCalledWith(
+      '/usr/bin/sandbox-wrapper',
+      expect.arrayContaining(['--', join(fakeHome, '.local', 'bin', 'claude')]),
+      expect.objectContaining({ env: expect.objectContaining({ PD_TEST_CONFINED: '1' }) }),
+    );
+    expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+    expect(res.coastGuardReceipt).toBe(mockCoastGuardReceipt);
+  });
+
   test('invokes `claude` binary with the prompt', async () => {
     mockSpawn.mockReturnValue(fakeChild({ stdout: 'Hello!', exitCode: 0 }));
     const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'say hi' });
@@ -630,6 +692,17 @@ describe('spawnViaCliTube — tube publishing', () => {
 });
 
 describe('spawnViaCliTube — failure paths', () => {
+  test('disposes Coast Guard and returns its receipt when spawn throws synchronously', async () => {
+    mockSpawn.mockImplementationOnce(() => { throw new Error('spawn exploded'); });
+
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+
+    expect(res.exitCode).toBe(1);
+    expect(res.error).toContain('spawn exploded');
+    expect(res.coastGuardReceipt).toBe(mockCoastGuardReceipt);
+    expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+  });
+
   test('ENOENT → "binary not found" error with auth hint', async () => {
     mockSpawn.mockReturnValue(fakeChild({ error: Object.assign(new Error('spawn claude ENOENT'), { code: 'ENOENT' }) }));
     const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });

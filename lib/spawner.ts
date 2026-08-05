@@ -577,6 +577,8 @@ interface BackendRunResult {
 }
 
 interface BackendRunContext {
+  /** Durable outer spawn identity threaded into subprocess receipts. */
+  agentId?: string;
   onChildProcess?: (child: ChildProcess) => void;
   /**
    * Live transcript-delta sink. A backend that streams events (the cli-tube
@@ -825,6 +827,21 @@ async function runCliTube(
     // spawns. The publish is best-effort inside spawnViaCliTube and never blocks.
     tube: context?.tubeChannel,
     tubeClient: context?.tubeClient,
+    coastGuard: {
+      agentId: context?.agentId || spec.identity || spec.name || 'spawned',
+      backend: spec.backend,
+      spec: {
+        coastGuard: spec.coastGuard,
+        maxRequests: spec.maxRequests,
+        maxBytes: spec.maxBytes,
+      },
+      dotenvKeys: Object.keys(loadDotenvOnce()),
+      writePolicy: scopeTierWritePolicy(classifyScope(
+        spec.capabilities && spec.capabilities.length > 0
+          ? spec.capabilities
+          : ['spawn:agent', `backend:${spec.backend}`],
+      )),
+    },
   });
 
   if (cli === 'codex') {
@@ -852,6 +869,7 @@ async function runCliTube(
             outputTokens: estimateTokensFromText(result.output || ''),
             estimatedTelemetry: true,
           }),
+      coastGuardReceipt: result.coastGuardReceipt,
     };
   }
   if (cli === 'claude-code') {
@@ -879,6 +897,7 @@ async function runCliTube(
             outputTokens: estimateTokensFromText(finalAnswer ?? result.output ?? ''),
             estimatedTelemetry: true,
           }),
+      coastGuardReceipt: result.coastGuardReceipt,
     };
   }
 
@@ -892,6 +911,7 @@ async function runCliTube(
     inputTokens: estimateTokensFromText(spec.task),
     outputTokens: estimateTokensFromText(result.output || ''),
     estimatedTelemetry: true,
+    coastGuardReceipt: result.coastGuardReceipt,
   };
 }
 
@@ -2103,6 +2123,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         result = await override(executionSpec, runtime.effectiveModel);
       } else {
         const childContext: BackendRunContext = {
+          agentId,
           onChildProcess: (child) => {
             if (record.status === 'running') {
               record.childProcess = child;

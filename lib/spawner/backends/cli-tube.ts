@@ -41,6 +41,11 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:f
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { cliBinarySearchPath, resolveCliBinary } from '../../cli-bin-dirs.js';
+import type { CoastGuardReceipt } from '../../coast-guard.js';
+import {
+  withCoastGuard,
+  type CoastGuardRunInput,
+} from '../coast-guard-runner.js';
 import {
   sameWorkspaceIdentity,
   type WorkspaceIdentity,
@@ -67,6 +72,21 @@ export {
 export type { CliTubeProviderSpec, CliTubeTool };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface CliTubeCoastGuardOptions {
+  /** Durable agent identity recorded in the confinement receipt. */
+  agentId?: string;
+  /** Effective backend recorded in the confinement receipt. */
+  backend?: string;
+  /** Per-spawn Coast Guard controls. Enabled by default when omitted. */
+  spec?: CoastGuardRunInput['spec'];
+  /** Keys sourced from operator dotenv files and scrubbed from the child. */
+  dotenvKeys?: CoastGuardRunInput['dotenvKeys'];
+  /** Scope-derived filesystem write posture. */
+  writePolicy?: CoastGuardRunInput['writePolicy'];
+  /** Injectable policy environment for focused tests. */
+  envSource?: CoastGuardRunInput['envSource'];
+}
 
 export interface CliTubeOptions {
   /** Which local CLI to drive. */
@@ -137,6 +157,13 @@ export interface CliTubeOptions {
   resumeSessionId?: string;
   /** Canonical workspace identity rechecked immediately before child spawn. */
   workspaceIdentity?: WorkspaceIdentity;
+  /**
+   * Receipt metadata and policy controls for Coast Guard. The wrapper itself is
+   * not optional: every CLI child is routed through Coast Guard, even when this
+   * object is omitted. An explicit `spec.coastGuard:false` is preserved as an
+   * honest operator opt-out and produces an unconfined receipt.
+   */
+  coastGuard?: CliTubeCoastGuardOptions;
 }
 
 export interface CliTubeResult {
@@ -150,6 +177,8 @@ export interface CliTubeResult {
    *  this is the JSONL event stream the caller parses into full-depth
    *  transcript turns; `output` is the extracted final answer. */
   rawStdout: string;
+  /** Honest confinement receipt for an attempted child launch. */
+  coastGuardReceipt: CoastGuardReceipt | null;
 }
 
 /**
@@ -234,6 +263,7 @@ export async function spawnViaCliTube(
       tube: null,
       durationMs: 0,
       rawStdout: '',
+      coastGuardReceipt: null,
     };
   }
   // Binary override is OPERATOR-scoped: read PD_CLI_*_BIN from process.env
@@ -259,6 +289,7 @@ export async function spawnViaCliTube(
       tube: null,
       durationMs: 0,
       rawStdout: '',
+      coastGuardReceipt: null,
     };
   }
   // Augment PATH with the same per-user install dirs backend-readiness checks.
@@ -323,17 +354,50 @@ export async function spawnViaCliTube(
       tube: tubeChannel,
       durationMs: Date.now() - startedAt,
       rawStdout: '',
+      coastGuardReceipt: null,
     };
   }
 
-  const child = spawnChild(binary, args, {
-    cwd: opts.cwd || process.cwd(),
+  const cwd = opts.cwd || process.cwd();
+  const cg = await withCoastGuard({
+    agentId: opts.coastGuard?.agentId || opts.tubeSender || `cli-tube/${cli}`,
+    backend: opts.coastGuard?.backend || `cli:${cli}`,
+    cmd: binary,
+    args,
     env,
-    detached: true,
-    shell: false,
-    stdio: ['ignore', 'pipe', 'pipe'],
+    workdir: cwd,
+    spec: opts.coastGuard?.spec,
+    dotenvKeys: opts.coastGuard?.dotenvKeys,
+    writePolicy: opts.coastGuard?.writePolicy,
+    envSource: opts.coastGuard?.envSource,
   });
-  opts.onChild?.(child);
+
+  let child: ChildProcess;
+  try {
+    child = spawnChild(cg.cmd, cg.args, {
+      cwd,
+      env: cg.env,
+      detached: true,
+      shell: false,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (err) {
+    const coastGuardReceipt = cg.receipt();
+    cg.dispose();
+    if (tempDir) {
+      try { rmSync(tempDir, { recursive: true, force: true }); } catch { /* best effort */ }
+    }
+    return {
+      output: '',
+      exitCode: 1,
+      error: `Failed to spawn ${binary}: ${(err as Error).message}`,
+      tube: tubeChannel,
+      durationMs: Date.now() - startedAt,
+      rawStdout: '',
+      coastGuardReceipt,
+    };
+  }
+  try { opts.onChild?.(child); } catch { /* observer hooks never own child liveness */ }
 
   const stdoutChunks: string[] = [];
   const stderrChunks: string[] = [];
@@ -377,6 +441,7 @@ export async function spawnViaCliTube(
   child.stderr?.on('data', onStderrData);
 
   let result: CliChildWaitResult;
+  let coastGuardReceipt: CoastGuardReceipt;
   try {
     result = await waitForCliChildProcess(child, {
       deadlineMs,
@@ -386,6 +451,8 @@ export async function spawnViaCliTube(
   } finally {
     child.stdout?.off('data', onStdoutData);
     child.stderr?.off('data', onStderrData);
+    coastGuardReceipt = cg.receipt();
+    cg.dispose();
   }
 
   // Flush any trailing partial line (a final JSONL line without a terminating
@@ -464,6 +531,7 @@ export async function spawnViaCliTube(
     tube: tubeChannel,
     durationMs,
     rawStdout,
+    coastGuardReceipt,
   };
 }
 

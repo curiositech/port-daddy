@@ -31,6 +31,7 @@ const spawnViaCliTube = jest.fn(async () => ({
     '{"type":"result","subtype":"success","result":"done",' +
     '"usage":{"input_tokens":5,"output_tokens":6}}',
   tube: 'dispatch:abc',
+  coastGuardReceipt: { tool: 'pd-coast-guard', agentId: 'mocked-agent' },
 }));
 
 jest.unstable_mockModule('../../lib/spawner/backends/cli-tube.js', () => ({
@@ -72,6 +73,7 @@ beforeEach(() => {
       '{"type":"result","subtype":"success","result":"done",' +
       '"usage":{"input_tokens":5,"output_tokens":6}}',
     tube: 'dispatch:abc',
+    coastGuardReceipt: { tool: 'pd-coast-guard', agentId: 'mocked-agent' },
   });
 });
 
@@ -97,7 +99,7 @@ describe('spawner threads tube observability into cli-tube (ADR-0060)', () => {
     const tubeClient = { publish: jest.fn(async () => ({ ok: true, id: 1 })) };
     const spawner = makeSpawner(tubeClient);
 
-    await spawner.spawn({
+    const result = await spawner.spawn({
       backend: 'cli:claude-code',
       task: 'do the thing',
       // This is exactly what intentToSpawnSpec stamps for a folded dispatch.
@@ -112,6 +114,15 @@ describe('spawner threads tube observability into cli-tube (ADR-0060)', () => {
     // backend cannot publish and `pd tube dispatch:abc123` shows nothing.
     expect(arg.tubeClient).toBe(tubeClient);
     expect(typeof arg.tubeClient.publish).toBe('function');
+    expect(arg.coastGuard).toEqual(expect.objectContaining({
+      agentId: result.agentId,
+      backend: 'cli:claude-code',
+      writePolicy: 'unrestricted',
+    }));
+    expect(result.coastGuard).toEqual(expect.objectContaining({
+      tool: 'pd-coast-guard',
+      agentId: 'mocked-agent',
+    }));
   });
 
   test('leaves tube undefined for a spawn WITHOUT a tubeChannel (sortie/orchestrator default)', async () => {
