@@ -696,8 +696,30 @@ describe('map-reduce fan-out', () => {
     expect(ai.calls).toHaveLength(0);
     expect(state.completed).toHaveLength(1);
     expect(state.completed[0].conclusion).toBe('failure');
+    expect(state.completed[0].summary).toContain('1 review chunk');
+    expect(state.completed[0].summary).toContain('24,000-character / 2-chunk queue budget');
+    expect(state.completed[0].summary).toContain('no AI was spent');
+  });
+
+  it('fails closed before AI spend when file-coherent chunks exceed the count budget', async () => {
+    const file = (name: string) =>
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` + '+line\n'.repeat(1_300);
+    state.prDiff = file('a.ts') + file('b.ts') + file('c.ts');
+
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'should not run\n\nFLEET-VERDICT: PASS' },
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('failure');
     expect(state.completed[0].summary).toContain('3 review chunks');
-    expect(state.completed[0].summary).toContain('2-chunk queue budget');
+    expect(state.completed[0].summary).toContain('24,000-character / 2-chunk queue budget');
     expect(state.completed[0].summary).toContain('no AI was spent');
   });
 

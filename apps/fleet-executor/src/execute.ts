@@ -121,6 +121,12 @@ const MAP_CONCURRENCY = 1;
  * and actionable: the author can split the PR into bounded review units.
  */
 const MAX_REVIEW_CHUNKS = 2;
+/**
+ * Absolute review-input budget. A file is the smallest coherent chunk, so one
+ * oversized file deliberately remains whole; this byte-like character cap
+ * keeps that exception from bypassing the delivery admission budget.
+ */
+const MAX_REVIEW_DIFF_CHARS = MAP_CHUNK_CHAR_LIMIT * MAX_REVIEW_CHUNKS;
 /** The umbrella check-run name. Exported so the DLQ handler targets the same run. */
 export const CHECK_NAME = 'Port Daddy Fleet';
 
@@ -457,6 +463,35 @@ async function recordRunStart(
       .run();
   } catch (err) {
     console.error(`[fleet-executor] fleet_runs insert failed run=${runId}: ${String(err)}`);
+  }
+}
+
+/**
+ * Ensure a check receipt resolves even when the best-effort run-header write
+ * above failed transiently or the completion originates from the DLQ path.
+ * The insert is idempotent and never clobbers a richer existing row.
+ */
+export async function ensureRunRow(
+  env: ExecutorEnv,
+  runId: string,
+  deliveryId: string,
+  repoFullName: string | null,
+  prNumber: number | null,
+  headSha: string,
+): Promise<void> {
+  if (!env.DB) return;
+  const repo = repoFullName ?? 'unknown/unknown';
+  const prUrl = prNumber != null ? `https://github.com/${repo}/pull/${prNumber}` : '';
+  try {
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO fleet_runs
+         (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha, conclusion, ships_csv, ms, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', '', 0, ?)`,
+    )
+      .bind(runId, deliveryId, repo, prNumber ?? 0, prUrl, headSha, nowSec())
+      .run();
+  } catch (error) {
+    console.error(`[fleet-executor] ensureRunRow failed run=${runId}: ${String(error)}`);
   }
 }
 
@@ -877,6 +912,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         diff: '',
       };
       await recordRunStart(env, runId, job, stubPrCtx, prNumber, []);
+      await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, headSha);
       await recordRunEnd(env, runId, 'neutral', startMs);
     } catch (err) {
       console.error(
@@ -998,6 +1034,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // the audit trail records every attempt that got far enough to gate. A
   // write failure is swallowed and never changes the run or the gate.
   await recordRunStart(env, runId, job, prCtx, prNumber, cloudShips);
+  await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, prCtx.headSha);
 
   // --- SELF-REVIEW GUARD (the fleet does not review its own branches) ------
   // WHY THIS SITS HERE — after the gating check exists, before any AI spend.
@@ -1141,15 +1178,20 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // oversized review becomes one explicit failure instead of repeated Worker
   // OOMs that monopolize the single-concurrency queue and eventually DLQ.
   const reviewChunkCount = chunkDiff(prCtx.diff).length;
-  if (reviewChunkCount > MAX_REVIEW_CHUNKS) {
+  const reviewDiffChars = prCtx.diff.length;
+  if (reviewDiffChars > MAX_REVIEW_DIFF_CHARS || reviewChunkCount > MAX_REVIEW_CHUNKS) {
     const summary =
-      `Fleet failed closed: this diff requires ${reviewChunkCount} review chunks, above the ` +
-      `${MAX_REVIEW_CHUNKS}-chunk queue budget. Split the pull request into smaller ` +
+      `Fleet failed closed: this diff requires ${reviewDiffChars.toLocaleString('en-US')} characters ` +
+      `across ${reviewChunkCount} review chunk${reviewChunkCount === 1 ? '' : 's'}, above the ` +
+      `${MAX_REVIEW_DIFF_CHARS.toLocaleString('en-US')}-character / ${MAX_REVIEW_CHUNKS}-chunk ` +
+      `queue budget. Split the pull request into smaller ` +
       `reviewable changes and push again; no ships ran and no AI was spent.`;
     await transcript.step('check-completed', null, 'Check concluded: failure (diff admission budget)', {
       checkRunId,
       conclusion: 'failure',
       reason: 'diff-admission-budget',
+      reviewDiffChars,
+      maxReviewDiffChars: MAX_REVIEW_DIFF_CHARS,
       reviewChunkCount,
       maxReviewChunks: MAX_REVIEW_CHUNKS,
       shipsRun: 0,
@@ -2009,9 +2051,10 @@ async function captureIdeas(
 }
 
 /**
- * Split a unified diff into chunks aligned on `diff --git` file boundaries,
- * each under {@link MAP_CHUNK_CHAR_LIMIT}. A single file larger than the budget
- * is hard-split. Always returns at least one chunk (possibly empty-string).
+ * Split a unified diff into chunks aligned on `diff --git` file boundaries.
+ * Chunks stay under {@link MAP_CHUNK_CHAR_LIMIT} unless a single coherent file
+ * exceeds it; admission limits are enforced by the caller. Always returns at
+ * least one chunk (possibly empty-string).
  */
 /**
  * Strip file sections whose diffs cannot carry a reviewable defect.

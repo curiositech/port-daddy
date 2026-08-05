@@ -24,7 +24,7 @@ import {
 } from './github.js';
 import { emitCloudTelemetry } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
-import { CHECK_NAME } from './execute.js';
+import { CHECK_NAME, ensureRunRow } from './execute.js';
 
 interface DlqTarget {
   owner: string;
@@ -72,7 +72,16 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
       if (!checkRunId) return null;
       // Same deterministic run id the main consumer used, so the failed gate
       // still links to whatever transcript the lost run managed to write.
-      const detailsUrl = await runDetailsUrl(env, `run:${job.deliveryId}`);
+      const runId = `run:${job.deliveryId}`;
+      const detailsUrl = await runDetailsUrl(env, runId);
+      await ensureRunRow(
+        env,
+        runId,
+        job.deliveryId,
+        job.repoFullName ?? `${owner}/${repo}`,
+        prNumber,
+        headSha,
+      );
       await completeCheckRun(owner, repo, checkRunId, 'failure', summary, token, detailsUrl);
       return checkRunId;
     };

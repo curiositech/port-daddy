@@ -737,27 +737,41 @@ export async function completeCheckRun(
   if (!checkRunId) return;
   // details_url is (re)stamped on completion too, so a run that REUSED an
   // older check run (idempotent retry path) still links to its own page.
-  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
-    method: 'PATCH',
-    headers: ghHeaders(token),
-    body: JSON.stringify({
-      status: 'completed',
-      conclusion,
-      completed_at: new Date().toISOString(),
-      output: { title: 'Port Daddy Fleet', summary },
-      ...(detailsUrl ? { details_url: detailsUrl } : {}),
-    }),
+  const body = JSON.stringify({
+    status: 'completed',
+    conclusion,
+    completed_at: new Date().toISOString(),
+    output: { title: 'Port Daddy Fleet', summary },
+    ...(detailsUrl ? { details_url: detailsUrl } : {}),
   });
-  // A required check left in_progress is worse than a retried queue delivery:
-  // the former can strand the merge gate forever while the latter is
-  // idempotent (the retry reuses the existing check run).  Do not acknowledge
-  // the queue message when GitHub rejected completion.
-  if (!res.ok) {
-    const detail = (await res.text()).slice(0, 500);
-    throw new Error(
-      `complete check run ${checkRunId} failed ${res.status}${detail ? `: ${detail}` : ''}`,
-    );
+  const maxAttempts = 3;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    if (attempt > 1) await new Promise(resolve => setTimeout(resolve, 250 * (attempt - 1)));
+    try {
+      const res = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`,
+        { method: 'PATCH', headers: ghHeaders(token), body },
+      );
+      if (res.ok) return;
+      const detail = (await res.text()).slice(0, 500);
+      lastError = new Error(
+        `complete check run ${checkRunId} failed ${res.status}${detail ? `: ${detail}` : ''}`,
+      );
+      // A rejected credential must be refreshed, not retried unchanged. Other
+      // permanent 4xx responses are equally unactionable with the same token.
+      if (res.status !== 429 && res.status < 500) throw lastError;
+    } catch (error) {
+      lastError = error;
+      if (error instanceof Error && /failed 4\d\d\b/.test(error.message)) throw error;
+    }
   }
+  // A required check left in_progress is worse than a retried queue delivery:
+  // transient completion failures get the bounded retry above; exhaustion
+  // still bubbles to the queue, which reuses the check and ultimately DLQs.
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`complete check run ${checkRunId} failed after ${maxAttempts} attempts`);
 }
 
 /**

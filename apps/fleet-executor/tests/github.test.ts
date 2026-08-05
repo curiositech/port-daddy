@@ -49,4 +49,27 @@ describe('completeCheckRun', () => {
       ),
     ).rejects.toThrow('complete check run 73 failed 401: installation token expired');
   });
+
+  it('retries a transient completion failure locally before succeeding', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('temporary outage', { status: 502 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      completeCheckRun('curiositech', 'port-daddy', 74, 'success', 'all clear', 'token'),
+    ).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws after bounded transient retries are exhausted', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => new Response('still down', { status: 503 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      completeCheckRun('curiositech', 'port-daddy', 75, 'failure', 'failed closed', 'token'),
+    ).rejects.toThrow('complete check run 75 failed 503: still down');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
 });

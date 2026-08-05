@@ -5,6 +5,7 @@ import {
   freshState,
   installGitHubFetch,
   memoryKV,
+  memoryD1,
   makeEnv,
   makeJob,
   type GitHubState,
@@ -43,13 +44,20 @@ describe('DLQ handler', () => {
     state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
     const kv = memoryKV();
     seedToken(kv, 42);
-    const env = makeEnv({ FLEET_TOKENS: kv });
+    const d1 = memoryD1();
+    const env = makeEnv({ FLEET_TOKENS: kv, DB: d1.db });
 
     await handleDlqJob(makeJob(), env);
 
     expect(state.completed).toHaveLength(1);
     expect(state.completed[0]).toMatchObject({ id: 4242, conclusion: 'failure' });
     expect(state.completed[0].summary).toContain('dead-lettered');
+    expect(d1.runs).toHaveLength(1);
+    expect(d1.runs[0]).toMatchObject({
+      id: 'run:delivery-abc',
+      deliveryId: 'delivery-abc',
+      headSha: 'HEADSHA',
+    });
   });
 
   it('routes a fleet-runs-dlq batch through the handler and always acks', async () => {
