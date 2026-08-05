@@ -261,6 +261,49 @@ describe('merge-group gate propagation', () => {
 
     expect(state.completed.at(-1)?.conclusion).toBe('failure');
     expect(state.completed.at(-1)?.summary).toContain('failed closed');
+    expect(state.completed.at(-1)?.summary).toContain('foreign App');
+  });
+
+  it('fails closed and completes the check when the merge-queue query fails', async () => {
+    state.failMergeQueueQuery = true;
+    const kv = memoryKV();
+    seedToken(kv, 42);
+
+    await executeFleet(
+      makeJob({
+        eventType: 'merge_group',
+        action: 'checks_requested',
+        prNumber: null,
+        payloadMinimal: {
+          merge_group: { head_sha: 'MERGEGROUPSHA', base_ref: 'refs/heads/main' },
+        },
+      }),
+      makeEnv({ FLEET_TOKENS: kv }),
+    );
+
+    expect(state.completed.at(-1)?.conclusion).toBe('failure');
+    expect(state.completed.at(-1)?.summary).toContain('fetch merge queue failed 503');
+  });
+
+  it('fails closed when GitHub returns no merge-queue membership', async () => {
+    state.mergeQueueEntries = [];
+    const kv = memoryKV();
+    seedToken(kv, 42);
+
+    await executeFleet(
+      makeJob({
+        eventType: 'merge_group',
+        action: 'checks_requested',
+        prNumber: null,
+        payloadMinimal: {
+          merge_group: { head_sha: 'MERGEGROUPSHA', base_ref: 'refs/heads/main' },
+        },
+      }),
+      makeEnv({ FLEET_TOKENS: kv }),
+    );
+
+    expect(state.completed.at(-1)?.conclusion).toBe('failure');
+    expect(state.completed.at(-1)?.summary).toContain('does not match');
   });
 });
 
