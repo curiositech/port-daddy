@@ -626,7 +626,7 @@ async function executeMergeGroupGate(job: FleetRunJob, env: ExecutorEnv): Promis
   let summary: string;
   try {
     const members = await fetchMergeGroupMembers(owner, repo, baseRef, headSha, token);
-    const reviewed = await Promise.all(members.map(async member => ({
+    const reviewed = await mapWithConcurrency(members, 4, async member => ({
       ...member,
       check: await findOwnedFleetCheckRun(
         owner,
@@ -636,7 +636,7 @@ async function executeMergeGroupGate(job: FleetRunJob, env: ExecutorEnv): Promis
         appId,
         token,
       ),
-    })));
+    }));
     const missing = reviewed.filter(({ check }) =>
       check?.status !== 'completed' || (check.conclusion !== 'success' && check.conclusion !== 'neutral')
     );
@@ -646,7 +646,7 @@ async function executeMergeGroupGate(job: FleetRunJob, env: ExecutorEnv): Promis
       conclusion = 'success';
       summary = `Merge-group gate verified completed, App-owned Port Daddy Fleet reviews for ${reviewed.map(member => `PR #${member.prNumber}`).join(', ')}.`;
     } else {
-      summary = `Merge-group gate failed closed: no completed, App-owned Port Daddy Fleet review for ${missing.map(member => `PR #${member.prNumber}`).join(', ')}.`;
+      summary = `Merge-group gate failed closed: Fleet review is missing, incomplete, or owned by a foreign App for ${missing.map(member => `PR #${member.prNumber}`).join(', ')}.`;
     }
   } catch (error) {
     summary = `Merge-group gate failed closed: ${error instanceof Error ? error.message : String(error)}.`;
