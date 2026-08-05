@@ -49,7 +49,7 @@ interface CliTubeProviderSpecBase<TTool extends string = string> {
   stalePathOverrideFallback?: 'default-command';
   outputCapture?: 'last-message-file';
   /** CLI flag that enforces a dollar ceiling inside the provider process. */
-  hardBudgetFlag?: '--max-budget-usd';
+  hardBudgetFlag?: string;
 }
 
 type EmptySuccessPolicy =

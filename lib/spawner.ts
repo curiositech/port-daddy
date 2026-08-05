@@ -1487,6 +1487,16 @@ const NATIVE_HARD_BUDGET_BACKENDS = new Set<SpawnSpec['backend']>([
   'cli:claude-code',
 ]);
 
+/**
+ * Classify whether a spawn request can honor its requested dollar ceiling.
+ * The purpose is to reject observation-only budgets before launching work,
+ * rather than reporting an overspend after the provider has already billed it.
+ *
+ * @param backend - Requested execution backend.
+ * @param budgetUsd - Optional caller-supplied dollar ceiling.
+ * @returns Whether no ceiling was requested, the provider enforces it natively,
+ * or the request must be rejected as unsupported.
+ */
 export function resolveSpawnBudgetEnforcement(
   backend: SpawnSpec['backend'],
   budgetUsd: unknown,
