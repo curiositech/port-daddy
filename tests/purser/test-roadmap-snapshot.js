@@ -43,12 +43,25 @@ const expectedProgram = new Map([
 
 describe('roadmap snapshot', () => {
   it('is internally consistent, unique, and deterministically ordered', () => {
-    assert.equal(snapshot.count, 259);
+    assert.equal(snapshot.count, 260);
     assert.equal(snapshot.count, snapshot.items.length);
 
     const slugs = snapshot.items.map(({ slug }) => slug);
     assert.equal(new Set(slugs).size, slugs.length, 'snapshot must not contain duplicate slugs');
     assert.deepEqual(slugs, [...slugs].sort((a, b) => a.localeCompare(b)));
+    assert.deepEqual(
+      snapshot.items.filter(
+        ({ slug }) => slug === 'durable-asynchronous-spawn-receipts',
+      ),
+      [
+        {
+          slug: 'durable-asynchronous-spawn-receipts',
+          status: 'now',
+          summaryMd:
+            'Durable idempotent admission, lifecycle, liveness, cancellation, and collection receipts for background agent runs.',
+        },
+      ],
+    );
   });
 
   it('contains the exact four-item Coordination Papers program', () => {
