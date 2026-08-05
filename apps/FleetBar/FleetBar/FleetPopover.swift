@@ -700,13 +700,14 @@ struct FleetPopover: View {
     private func berthTooltip(_ b: DaemonBerthResponse?) -> String {
         guard let b else {
             // When berth identity is unavailable (daemon still starting, older daemon
-            // version, or unreachable), show the actual URL FleetBar is targeting
-            // rather than assuming the stable berth is on the canonical port — the
-            // daemon might have published a different port in daemon.port if 9876 was
-            // occupied.
-            guard let url = URL(string: store.daemonURL),
-                  let port = url.port else {
-                return "Daemon berth unknown · \(store.daemonURL)"
+            // version, or unreachable), show the actual endpoint FleetBar resolved —
+            // never inferring a berth from a preferred port number. With no resolved
+            // endpoint at all, say so plainly rather than inventing one.
+            guard let daemonURL = store.daemonURL else {
+                return "Control plane unavailable · \(store.controlPlaneUnavailableReason?.summary ?? "no endpoint resolved")"
+            }
+            guard let url = URL(string: daemonURL), let port = url.port else {
+                return "Daemon berth unknown · \(daemonURL)"
             }
             return "Daemon berth unknown · port \(port)"
         }
@@ -1072,19 +1073,44 @@ struct FleetPopover: View {
     //
     // Whisper-quiet. The user glances here, never stares.
 
+    /// Connection glyph: available+live, available+polling, or unavailable.
+    private var footerSymbol: String {
+        guard store.isControlPlaneAvailable else { return "bolt.horizontal.circle" }
+        return store.isConnected
+            ? "antenna.radiowaves.left.and.right"
+            : "antenna.radiowaves.left.and.right.slash"
+    }
+
+    /// Three-state footer label. "Unavailable" is distinct from "Polling": the
+    /// latter means we have an endpoint and are waiting; the former means no
+    /// endpoint was resolved at all, so no request is even being made.
+    private var footerLabel: String {
+        guard store.isControlPlaneAvailable else { return "Control plane unavailable" }
+        return store.isConnected ? "Live" : "Polling"
+    }
+
+    /// Tooltip: the resolved source, or the typed unavailable reason.
+    private var footerHelp: String {
+        if let source = store.endpointSource {
+            return "Endpoint from \(source.label) · \(store.daemonLabel)"
+        }
+        return store.controlPlaneUnavailableReason?.summary ?? "No daemon endpoint resolved."
+    }
+
     private var footer: some View {
         HStack(spacing: Fleet.Space.xs) {
-            Image(systemName: store.isConnected
-                  ? "antenna.radiowaves.left.and.right"
-                  : "antenna.radiowaves.left.and.right.slash")
+            Image(systemName: footerSymbol)
                 .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(store.isConnected ? Fleet.Color.healthy : Fleet.Color.warning)
+                .foregroundStyle(store.isControlPlaneAvailable
+                    ? (store.isConnected ? Fleet.Color.healthy : Fleet.Color.warning)
+                    : Fleet.Color.failure)
                 .symbolEffect(.variableColor.iterative, isActive: store.isConnected)
                 .contentTransition(.symbolEffect(.replace))
 
-            Text(store.isConnected ? "Live" : "Polling")
+            Text(footerLabel)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .help(footerHelp)
 
             Spacer()
 

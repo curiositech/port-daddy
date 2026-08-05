@@ -76,8 +76,9 @@ final class BerthDirectoryTests: XCTestCase {
             canonical: true, sourceDir: nil, gitBranch: nil, gitRev: nil, pid: nil,
             reachable: true, version: "3.20.0")
         XCTAssertEqual(stable.sourceSummary, "brew release · canonical")
-        // Build the expected URL from the canonical resolver, never a literal.
-        XCTAssertEqual(stable.url, "http://127.0.0.1:\(DaemonLocation.canonicalPreferredPort)")
+        // A berth's URL derives from its *own* (published) port, never a
+        // preferred literal the app carries.
+        XCTAssertEqual(stable.url, "http://127.0.0.1:\(stable.port)")
     }
 
     func testDevBerthSourceSummaryJoinsBranchRevAndDir() {

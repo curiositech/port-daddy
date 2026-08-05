@@ -210,7 +210,7 @@ final class FleetPopoverTests: XCTestCase {
     /// The Bosun status text has no single-line limit, so SwiftUI can wrap it.
     func testDaemonReportBosunDiagnosticCanWrap() throws {
         let bosunReason = "daemon heartbeat writer active; pd-bosun supervisor binary available"
-        let monitoredURL = try XCTUnwrap(URL(string: DaemonLocation.resolveBaseURL()))
+        let monitoredURL = try XCTUnwrap(URL(string: DaemonLocation.availableBaseURL() ?? "http://127.0.0.1:8080"))
             .appendingPathComponent("status")
             .absoluteString
         let store = FleetStore(autoStart: false)
