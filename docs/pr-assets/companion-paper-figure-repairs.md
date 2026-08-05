@@ -17,7 +17,7 @@ Generated papers:
 - `legible-swarm-whitepaper.pdf` — 40 pages, SHA-256
   `a8295bb07a3d9287424582de6acd46c9ce00a91a716287447874f0374c6d65f1`;
 - `single-writer-kernel-whitepaper.pdf` — 35 pages, SHA-256
-  `94da7fcdf84eaa3e2123a5599ef8b5b6bfd670993d91cba36fdddc5be1233d9e`.
+  `dd0ee0506e721658a21780b6f4d27d6255e5c739d5c826f7275d8bb2144a1a77`.
 
 Visual evidence:
 
