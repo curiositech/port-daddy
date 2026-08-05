@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { inflateSync } from 'node:zlib';
 import { describe, expect, test } from '@jest/globals';
 
+// Executable, adversarial acceptance contract for the stacked publication artifact.
 const paths = {
   catalog: 'website-v2/src/data/whitePapers.ts',
   source: 'website-v2/public/whitepaper/spawn-to-person.tex',
