@@ -32,9 +32,9 @@ Part of the **Session Intelligence** program (`docs/roadmap/session-intelligence
 
 | kind | verdict | structural signal |
 |---|---|---|
-| `claim-conflict` | miss | two sessions hold **time-overlapping** claims on one file (region overlap → high severity; a bridging handoff/takeover note → coordinated/low) |
+| `claim-conflict` | miss | two sessions hold **time-overlapping** claims on one file (region overlap → high severity; a bridging handoff/continuation note → coordinated/low) |
 | `abandoned` | miss | session lifecycle `status == 'abandoned'`; unreleased claims + later re-pickup → high |
-| `handoff` | hit | a note of `type` handoff/takeover, then a later claim by a **different** session on the handed-off file |
+| `handoff` | hit | a note of `type` handoff/continuation, then a later claim by a **different** session on the handed-off file |
 | `duplicate-work` | miss | two sessions edit one file **in sequence** within 48h with no bridging handoff note |
 | `note-hygiene` | hit/miss | did a scope note precede the session's first claim? |
 
