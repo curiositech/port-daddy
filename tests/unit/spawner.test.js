@@ -686,9 +686,12 @@ describe('spawn — backend dispatch', () => {
       'aider',
       ['--yes', '--no-stream', '--model', 'aider', '--message', 'Fix the login bug', 'src/auth.ts', 'src/login.ts'],
       expect.objectContaining({
-        timeout: 300000,
+        detached: true,
+        shell: false,
       })
     );
+    // No spec.timeout was given, so no hidden wall clock should be applied.
+    expect(cpSpawn.mock.calls[0][2].timeout).toBeUndefined();
   });
 
   test('aider backend honors explicit model selection', async () => {
@@ -704,8 +707,9 @@ describe('spawn — backend dispatch', () => {
     expect(cpSpawn).toHaveBeenCalledWith(
       'aider',
       ['--yes', '--no-stream', '--model', 'gpt-5', '--message', 'Refactor carefully'],
-      expect.objectContaining({ timeout: 300000 })
+      expect.objectContaining({ detached: true, shell: false })
     );
+    expect(cpSpawn.mock.calls[0][2].timeout).toBeUndefined();
   });
 
   test('aider backend with no files', async () => {
@@ -722,34 +726,96 @@ describe('spawn — backend dispatch', () => {
   });
 
   test('does not apply hidden timeout when timeout is not specified', async () => {
-    const spawner = createSpawner();
+    jest.useFakeTimers();
+    try {
+      const spawner = createSpawner();
 
-    // Mock child process to NOT resolve immediately (would run forever if timeout weren't specified)
-    mockChildProcess.stdout.on.mockImplementation(() => {});
-    mockChildProcess.stderr.on.mockImplementation(() => {});
-    mockChildProcess.on.mockImplementation(() => {});
+      // Child process never emits 'close' on its own — if a hidden default
+      // wall clock were still applied, it would be the only thing that ever
+      // terminates this spawn.
+      mockChildProcess.stdout.on.mockImplementation(() => {});
+      mockChildProcess.stderr.on.mockImplementation(() => {});
+      let closeCb;
+      mockChildProcess.on.mockImplementation((event, cb) => {
+        if (event === 'close') closeCb = cb;
+      });
 
-    // Start spawn without timeout
-    const spawnPromise = spawner.spawn({
-      backend: 'custom',
-      task: 'long running without timeout',
-    });
+      const spawnPromise = spawner.spawn({
+        backend: 'custom',
+        task: 'long running without timeout',
+      });
 
-    // Wait for child process to be spawned
-    await new Promise(r => setTimeout(r, 20));
+      // Flush the microtask chain up to the cpSpawn call — no real wait.
+      await jest.advanceTimersByTimeAsync(0);
 
-    // Verify spawn was called without timeout in spawn options
-    const spawnCall = cpSpawn.mock.calls[0];
-    expect(spawnCall[2].timeout).toBeUndefined();
+      // Verify spawn was called without a timeout in the child-process options.
+      const spawnCall = cpSpawn.mock.calls[0];
+      expect(spawnCall[2].timeout).toBeUndefined();
 
-    // Kill and clean up
-    const agents = spawner.list();
-    if (agents.length > 0) spawner.kill(agents[0].agentId);
+      // Advance well past the old hidden 5-minute (300000ms) default. Nothing
+      // should signal the child — there is no wall clock to fire.
+      await jest.advanceTimersByTimeAsync(10 * 60 * 1000);
+      expect(mockChildProcess.kill).not.toHaveBeenCalled();
 
-    // Complete the spawn
-    const closeHandler = mockChildProcess.on.mock.calls.find(([e]) => e === 'close');
-    if (closeHandler) closeHandler[1](0);
-    await spawnPromise.catch(() => {});
+      // Let the child exit on its own and confirm no timer/listener is left
+      // pending once the spawn settles.
+      closeCb(0);
+      await spawnPromise;
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('explicit timeout SIGTERMs then SIGKILLs the child and reports honestly', async () => {
+    jest.useFakeTimers();
+    try {
+      const spawner = createSpawner();
+
+      // Child never exits on its own — only the deadline mechanics should
+      // ever signal it.
+      mockChildProcess.stdout.on.mockImplementation(() => {});
+      mockChildProcess.stderr.on.mockImplementation(() => {});
+      let closeCb;
+      mockChildProcess.on.mockImplementation((event, cb) => {
+        if (event === 'close') closeCb = cb;
+      });
+
+      const spawnPromise = spawner.spawn({
+        backend: 'custom',
+        task: 'sleep forever',
+        timeout: 1000,
+      });
+
+      // Flush to the cpSpawn call and confirm the caller-supplied deadline is
+      // the one actually passed to the child process.
+      await jest.advanceTimersByTimeAsync(0);
+      expect(cpSpawn.mock.calls[0][2].timeout).toBe(1000);
+
+      // Just shy of the deadline: nothing signaled yet.
+      await jest.advanceTimersByTimeAsync(1000 - 25 - 1);
+      expect(mockChildProcess.kill).not.toHaveBeenCalled();
+
+      // Cross the deadline: SIGTERM fires first.
+      await jest.advanceTimersByTimeAsync(2);
+      expect(mockChildProcess.kill).toHaveBeenCalledWith('SIGTERM');
+      expect(mockChildProcess.kill).not.toHaveBeenCalledWith('SIGKILL');
+
+      // The child ignores SIGTERM. After the 5s hard-stop grace window, the
+      // spawner escalates to SIGKILL.
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(mockChildProcess.kill).toHaveBeenCalledWith('SIGKILL');
+
+      // Child finally exits (e.g. killed by the OS). The result must report
+      // the timeout honestly, and cleanup must not leak any timer.
+      closeCb(null);
+      const result = await spawnPromise;
+      expect(result.status).toBe('failed');
+      expect(result.error).toContain('timed out after 1000ms');
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test('unknown backend returns error', async () => {
@@ -1418,9 +1484,12 @@ describe('spawn — claude-cli backend', () => {
       expect.stringMatching(/(?:^|[/\\])claude$/),
       ['-p', '--output-format', 'json', 'Write a hello world program'],
       expect.objectContaining({
-        timeout: 300000,
+        detached: true,
+        shell: false,
       })
     );
+    // No spec.timeout was given, so no hidden wall clock should be applied.
+    expect(cpSpawn.mock.calls[0][2].timeout).toBeUndefined();
   });
 
   test('resumes the exact Claude harness session when adapter ownership matches', async () => {
@@ -1617,9 +1686,10 @@ describe('spawn — codex backend', () => {
       ]),
       expect.objectContaining({
         cwd: '/tmp/port-daddy-codex-test',
-        timeout: 300000,
       })
     );
+    // No spec.timeout was given, so no hidden wall clock should be applied.
+    expect(cpSpawn.mock.calls[0][2].timeout).toBeUndefined();
   });
 
   test('uses codex exec resume without unsupported spawn-only sandbox or cwd flags', async () => {
