@@ -23,9 +23,12 @@ export interface DbIntegrityHelperInvocation {
 export function resolveDbIntegrityHelperInvocation(
   argv: readonly string[],
 ): DbIntegrityHelperInvocation | null {
+  const executableName = (argv[0] ?? '').split(/[\\/]/).at(-1)?.replace(/\.exe$/i, '') ?? '';
+  const sourceScriptCommand = /^bun(?:-[\w.+-]+)?$/i.test(executableName)
+    && argv[2] === DB_INTEGRITY_HELPER_COMMAND;
   const commandArgIndex = argv[1] === DB_INTEGRITY_HELPER_COMMAND
     ? 1
-    : argv[2] === DB_INTEGRITY_HELPER_COMMAND
+    : sourceScriptCommand
       ? 2
       : null;
   if (commandArgIndex === null) return null;
