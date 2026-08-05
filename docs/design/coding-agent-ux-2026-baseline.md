@@ -2,14 +2,14 @@
 
 **Status:** Empirical research / product baseline. This document is a vendor-sourced competitive analysis, not a proposal.
 **Author:** research-and-specify-mature-beacon-agent-ux sortie (2026-08-04/05)
-**Scope:** What a mature 2026 coding-agent desktop/control-plane surface is expected to do, sourced from primary vendor documentation only. See section 3 of the companion document `coding-agent-ux-2026-beacon-requirements.md` for Port Daddy's differentiated requirements grounded in this baseline.
+**Scope:** What a mature 2026 coding-agent desktop/control-plane surface is expected to do, sourced from primary vendor documentation only. This document is self-contained vendor research; deriving Port Daddy's differentiated requirements from this baseline is out of scope here and tracked as separate follow-on work.
 **Relates to:** roadmap item `first-class-agent-sessions-and-spawn-supervision-3-28`; competitive products: Claude Code, GitHub Copilot, Cursor, OpenAI Codex, Windsurf/Devin, Google Gemini CLI/Antigravity, Amazon Q Developer/Kiro.
 
 ---
 
 ## TL;DR
 
-By August 2026, every serious coding-agent product (Claude Code, GitHub Copilot coding agent, Cursor, OpenAI Codex, Windsurf/Devin, Google Gemini CLI/Antigravity, Amazon Q Developer/Kiro) has converged on the same eight or nine table-stakes UX primitives: a session roster with live status, a full inspectable tool-call transcript, deterministic session resume by ID, checkpoint/rewind with diff preview, a tiered permission model with an explicit "no-prompts" escape hatch, an OS-level or VM-level execution sandbox, MCP support, and a rules/skills file convention.
+By August 2026, the coding-agent products researched here (Claude Code, GitHub Copilot coding agent, Cursor, OpenAI Codex, Windsurf/Devin, Google Gemini CLI/Antigravity, Amazon Q Developer/Kiro) have moved toward a shared set of eight or nine table-stakes UX primitives — a session roster with live status, a full inspectable tool-call transcript, deterministic session resume by ID, checkpoint/rewind with diff preview, a tiered permission model with an explicit "no-prompts" escape hatch, an OS-level or VM-level execution sandbox, MCP support, and a rules/skills file convention — while documenting important gaps in each, detailed per-dimension in §1 and per-vendor in §2.
 
 This baseline is important because three gaps remain consistent across all eight products: **cross-tool session unification** (every vendor's roster only shows its own sessions), **an explicit distinction between attaching to a live session vs. reading its history vs. jumping to its output artifact** (most conflate "resume" with all three), and **accessibility** (only Claude Code and GitHub Copilot/VS Code publish real accessibility documentation; nobody else does).
 
@@ -36,7 +36,7 @@ Each row states the pattern that is now common across most-or-all of the eight r
 | Terminal/browser/Chromium | A first-class, agent-driven browser tool is now standard, not a novelty — Copilot ships Playwright MCP by default, Cursor and Antigravity both gate a browser pane behind approval, Codex has both a shared browser pane and OS-level Computer Use. | Devin is the only product confirmed to expose a **real, non-headless** browser instance reachable over CDP (port 29229) that a human's own tools (e.g. Playwright) can attach to — everyone else is silent on headless-vs-real. |
 | Remote/cloud execution | A distinct cloud/VM execution mode, separate from local, is now table stakes — every product except Amazon Q Developer/Kiro (unclear) documents one. | Session time limits vary by an order of magnitude: GitHub Copilot cloud agent hard-caps at 59 minutes with no override; Devin sessions are architected to run indefinitely on a dedicated VM. |
 | Spend/usage | An in-product usage view is now standard, but per-session/per-task dollar cost (as opposed to aggregate plan usage) is the least-documented sub-dimension across every vendor researched. | Billing models are converging on token-based pricing (GitHub's PRU→"AI Credits" move, OpenAI's April-2026 token-aligned Codex pricing) away from flat per-message/per-session pricing. |
-| Liveness/stall/unknown | A coarse status enum (running/finished/error, sometimes +blocked/expired) is universal at the API level. | A genuinely distinct, *documented* "stalled" state (as opposed to "still running, just slow") was **not found** in primary docs for any product except Port Daddy's own prior art — every vendor instead documents a fixed timeout (Copilot: 1 hour) as the de facto stall detector. |
+| Liveness/stall/unknown | A coarse status enum (running/finished/error, sometimes +blocked/expired) is universal at the API level. | A genuinely distinct, *documented* "stalled" state (as opposed to "still running, just slow") was **not found** in primary docs for any of the eight products researched — every vendor instead documents a fixed timeout (Copilot: 1 hour) as the de facto stall detector. |
 | Recovery | Session state persisting to disk/DB so a crash doesn't lose history is universal. | An explicit, named "what happens after a crash" contract is the single most under-documented dimension across every vendor — every product's coverage here is inferred from adjacent features (resume-by-ID, VM persistence), not a dedicated doc. |
 | Worktree/branch/PR status | Per-task git isolation (worktree or dedicated branch) plus an agent-authored PR with live status is now universal for the products with cloud/background execution. | Devin's Stacked PRs feature (dependent PR chains with per-layer CI and auto-retargeting) is the most sophisticated documented PR-lifecycle feature found anywhere in this research. |
 | Accessibility | **Not yet a baseline.** Only two of eight product families (Claude Code; GitHub Copilot's VS Code surface) publish dedicated accessibility documentation (screen-reader mode, reduced motion, a VPAT/WCAG conformance report). | Six of eight (Cursor, Codex, Windsurf/Devin, Google, Amazon Q/Kiro) have **no accessibility documentation found at all** in primary sources. This is the single largest, most consistent gap in the entire competitive set. |
@@ -140,7 +140,7 @@ Cognition now owns Windsurf and has merged the documentation entirely — every 
 
 ## Closure
 
-This baseline is complete and verifiable. The companion document `coding-agent-ux-2026-beacon-requirements.md` derives Port Daddy's differentiated requirements from this evidence, grounded in real substrate already in this repo.
+This baseline is complete and verifiable as a standalone vendor-sourced competitive analysis. Deriving Port Daddy's differentiated requirements from this evidence is tracked as separate follow-on work, out of scope for this document.
 
 ---
 
