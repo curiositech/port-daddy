@@ -138,8 +138,23 @@ describe('single binary distribution path', () => {
     const workflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'release.yml'), 'utf8');
 
     expect(workflow).toContain('node scripts/build-single-binary.mjs --target=${{ matrix.target }} --outfile=dist/pd');
-    expect(workflow).toContain('pd port-daddy port-daddy-manifest.json');
+    expect(workflow).toContain('node scripts/package-release-artifacts.mjs');
+    expect(workflow).toContain('--manifest release-artifacts.json');
+    expect(workflow).not.toContain('tar -czf');
     expect(workflow).not.toContain('bin/port-daddy-cli.ts --outfile dist/pd');
+  });
+
+  test('release workflow freezes one reviewed source and ships one canonical runtime layout', () => {
+    const workflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'release.yml'), 'utf8');
+
+    expect(workflow).toContain('ref: ${{ github.event.repository.default_branch }}');
+    expect(workflow.match(/ref: \$\{\{ needs\.guide-review-gate\.outputs\.candidate_sha \}\}/g)).toHaveLength(4);
+    expect(workflow).toContain('--source-commit ${{ needs.guide-review-gate.outputs.candidate_sha }}');
+    expect(workflow).toContain('--release-version ${{ needs.guide-review-gate.outputs.tag }}');
+    expect(workflow).toContain('--archive dist/${{ matrix.artifact }}.tar.gz');
+    expect(workflow).not.toContain('SOAK_PORT:');
+    expect(workflow).not.toContain('cp "bin/$f" "dist/$f"');
+    expect(workflow).not.toMatch(/npm run|publish-npm|publish\.yml/);
   });
 
   test('FleetBar packages the same Port Daddy payload with embedded Rust core proof', () => {

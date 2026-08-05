@@ -10,7 +10,34 @@ on:
         required: true
 
 jobs:
+  guide-review-gate:
+    # Run the verifier from the protected default branch, not from the tag under
+    # review. It resolves annotated/lightweight tags once, proves that commit is
+    # reachable from main, and freezes every build job to that full SHA. Stable
+    # Homebrew candidates also require three external exact-SHA guide reviews;
+    # prereleases still require the per-push Documentarian status.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: read
+    outputs:
+      candidate_sha: ${{ steps.gate.outputs.candidate_sha }}
+      tag: ${{ steps.gate.outputs.tag }}
+      prerelease: ${{ steps.gate.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Verify exact-SHA documentation and stable guide reviews
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: node scripts/release-review-gate.mjs verify --repo "$GITHUB_REPOSITORY" --tag "$RELEASE_TAG"
+
   build-binaries:
+    needs: guide-review-gate
     strategy:
       matrix:
         include:
@@ -24,15 +51,14 @@ jobs:
           # the GHA pool routinely queue for 24+ hours (wedged v3.14.1 +
           # v3.15.0). The brew formula already ships only darwin-arm64 +
           # linux-x64, so the artifact was dead weight. Intel Mac users can
-          # install from npm or build from source until we add it back via
-          # a different runner pool.
+          # build from source until we add it back via a different runner pool.
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ needs.guide-review-gate.outputs.candidate_sha }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -42,7 +68,7 @@ jobs:
       # Bun's compile path resolves bare imports against node_modules. Without
       # this step, specifiers like 'yaml', 'msgpackr', '@clack/prompts' fail
       # with "Could not resolve" and the binary build aborts. The repo doesn't
-      # ship a bun.lockb (npm is canonical), so Bun resolves against package.json.
+      # ship a bun.lockb, so Bun resolves the declared package graph here.
       - name: Install dependencies
         run: bun install
 
@@ -51,7 +77,7 @@ jobs:
           node scripts/build-single-binary.mjs --target=${{ matrix.target }} --outfile=dist/pd
 
       - name: Build dedicated daemon binary
-        run: npm run build:daemon:dist
+        run: bun run build:daemon:dist
 
       - name: Smoke dedicated daemon binary
         run: bash scripts/smoke-compiled-daemon.sh
@@ -93,7 +119,8 @@ jobs:
           echo "$APPLE_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
           security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -k "$KCPASS" "$KEYCHAIN" >/dev/null
-          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          read -r -a EXISTING_KEYCHAINS <<< "$(security list-keychains -d user | tr -d '"')"
+          security list-keychains -d user -s "$KEYCHAIN" "${EXISTING_KEYCHAINS[@]}"
           export PORT_DADDY_SIGN_IDENTITY="Developer ID Application: Curiositech LLC (P5H9P59X2M)"
           # Notarize only if the notary credentials are present AND actually
           # authenticate. A bad/expired/rotated App Store Connect key must NOT
@@ -134,32 +161,18 @@ jobs:
       - name: Soak the packaged binary (crash/wedge gate)
         env:
           SOAK_SECONDS: 180
-          SOAK_PORT: 19876
         run: bash scripts/soak-binary.sh dist/port-daddy
 
       - name: Stage squid harness assets (tentacles + identity + Pilot)
-        # Release omission class: lib/squid/adapter.ts's
-        # tentaclePath() resolves pd-hook-{prompt,pre-tool,post-tool} at execDir/<name>
-        # (flat, next to `pd`) OR execDir/bin/<name> (a bin/ subdirectory). Nothing
-        # ever staged the tentacles, so every packaged release shipped with them
-        # simply absent — `pd squid on`/`pd hooks install` fail with "missing
-        # tentacle binary" on every brew/tarball install, silently.
-        #
-        # Stage BOTH layouts the adapter accepts: flat next to `pd` (the preferred
-        # candidate) AND under bin/ (the fallback, which also carries pd-statusline).
-        # The old per-file `test -s` asserts are gone — release-artifacts.json now
-        # declares each tentacle required+executable and `pd batten verify` below is
-        # the single fail-loud gate for the whole cargo.
+        # Source and release archives preserve one layout: executables under
+        # bin/ and Pilot modules under hooks/. release-artifacts.json declares
+        # each asset required; batten is the single fail-loud cargo gate.
         run: |
           set -euo pipefail
           mkdir -p dist/bin dist/hooks
           for f in pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool pd-statusline; do
             cp "bin/$f" "dist/bin/$f"
             chmod +x "dist/bin/$f"
-          done
-          for f in pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool; do
-            cp "bin/$f" "dist/$f"
-            chmod +x "dist/$f"
           done
           cp hooks/sessionstart-pilot.mjs dist/hooks/sessionstart-pilot.mjs
 
@@ -180,11 +193,14 @@ jobs:
         run: node scripts/smoke-squid-release.mjs dist/pd dist
 
       - name: Package binary
-        # native/ (onnxruntime-node runtime libs, #3561) and the squid tentacles
-        # in BOTH layouts (flat + bin/, staged in the "Stage squid tentacles"
-        # step above) are packed here too. `pd batten verify` (above) already
-        # proved every required member is present before we seal the tar.
-        run: cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json native pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool bin hooks
+        # The manifest is the sole cargo list. Required files fail closed;
+        # optional directories are included only when present. No second,
+        # hand-maintained tar list can drift from `pd batten verify`.
+        run: >-
+          node scripts/package-release-artifacts.mjs
+          --manifest release-artifacts.json
+          --staged-dir dist
+          --out dist/${{ matrix.artifact }}.tar.gz
 
       # Content-address the sealed cargo: sha256 every staged artifact into
       # release-imprint.json and ship it as a release asset. This is the
@@ -194,28 +210,35 @@ jobs:
       # Per-matrix filename (darwin/linux both run this job → same-named asset
       # would clobber on the shared Release). Name it after the tarball it seals.
       - name: Batten — imprint sealed release artifacts (sha256 record)
-        run: ./dist/pd batten imprint --staged-dir dist --out dist/${{ matrix.artifact }}-imprint.json
+        run: >-
+          ./dist/pd batten imprint
+          --staged-dir dist
+          --out dist/${{ matrix.artifact }}-imprint.json
+          --archive dist/${{ matrix.artifact }}.tar.gz
+          --source-commit ${{ needs.guide-review-gate.outputs.candidate_sha }}
+          --release-version ${{ needs.guide-review-gate.outputs.tag }}
 
       - name: Upload release imprint to release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          tag_name: ${{ needs.guide-review-gate.outputs.tag }}
           files: dist/${{ matrix.artifact }}-imprint.json
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          tag_name: ${{ needs.guide-review-gate.outputs.tag }}
           files: dist/${{ matrix.artifact }}.tar.gz
 
   build-fleetbar-preview:
+    needs: guide-review-gate
     runs-on: macos-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ needs.guide-review-gate.outputs.candidate_sha }}
 
       # package-fleetbar.sh bundles the CLI payload via scripts/build-single-binary.mjs,
       # which shells out to bun. Keep this job aligned with build-binaries so
@@ -250,7 +273,8 @@ jobs:
             echo "$APPLE_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
             security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
             security set-key-partition-list -S apple-tool:,apple: -k "$KCPASS" "$KEYCHAIN" >/dev/null
-            security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+            read -r -a EXISTING_KEYCHAINS <<< "$(security list-keychains -d user | tr -d '"')"
+            security list-keychains -d user -s "$KEYCHAIN" "${EXISTING_KEYCHAINS[@]}"
             export PORT_DADDY_SIGN_IDENTITY="Developer ID Application: Curiositech LLC (P5H9P59X2M)"
             export PORT_DADDY_NOTARY_KEYCHAIN="$KEYCHAIN"
             if [ -n "${APPLE_NOTARY_KEY_P8_BASE64:-}" ]; then
@@ -293,7 +317,7 @@ jobs:
             echo "APPLE_CERT_P12_BASE64 unset — signature guard skipped (unsigned build path)."
             exit 0
           fi
-          zip="$(ls dist/fleetbar/PortDaddy-FleetBar-macOS-*.zip | head -n1)"
+          zip="$(find dist/fleetbar -maxdepth 1 -type f -name 'PortDaddy-FleetBar-macOS-*.zip' -print -quit)"
           work="$RUNNER_TEMP/fleetbar-verify"; rm -rf "$work"; mkdir -p "$work"
           ditto -x -k "$zip" "$work"
           app="$work/FleetBar.app"
@@ -308,13 +332,14 @@ jobs:
       - name: Upload FleetBar preview to release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          tag_name: ${{ needs.guide-review-gate.outputs.tag }}
           files: |
             dist/fleetbar/PortDaddy-FleetBar-macOS-*.zip
             dist/fleetbar/PortDaddy-FleetBar-macOS-*.zip.sha256
             dist/fleetbar/fleetbar-preview-manifest.json
 
   build-pd-console-app:
+    needs: guide-review-gate
     # Bundle the GPU-native pd-console (core/pd-console, --features gpui) into a
     # signed + notarized pd-console.app (ADR-0057 phase dist-console-app-bundle).
     # Reuses the exact Developer ID signing path proven for the daemon in #447;
@@ -327,7 +352,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ needs.guide-review-gate.outputs.candidate_sha }}
 
       - name: Install Rust toolchain (stable)
         uses: dtolnay/rust-toolchain@stable
@@ -360,7 +385,8 @@ jobs:
             echo "$APPLE_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
             security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
             security set-key-partition-list -S apple-tool:,apple: -k "$KCPASS" "$KEYCHAIN" >/dev/null
-            security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+            read -r -a EXISTING_KEYCHAINS <<< "$(security list-keychains -d user | tr -d '"')"
+            security list-keychains -d user -s "$KEYCHAIN" "${EXISTING_KEYCHAINS[@]}"
             export PORT_DADDY_SIGN_IDENTITY="Developer ID Application: Curiositech LLC (P5H9P59X2M)"
             export PORT_DADDY_NOTARY_KEYCHAIN="$KEYCHAIN"
             if [ -n "${APPLE_NOTARY_KEY_P8_BASE64:-}" ]; then
@@ -393,7 +419,7 @@ jobs:
       - name: Upload pd-console.app to release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          tag_name: ${{ needs.guide-review-gate.outputs.tag }}
           files: |
             dist/console/PortDaddy-Console-macOS-*.zip
             dist/console/PortDaddy-Console-macOS-*.zip.sha256
@@ -407,7 +433,7 @@ jobs:
     # that `pd upgrade` (and the GUI apps) poll. Gated on the daemon + FleetBar
     # builds succeeding (the same ESSENTIAL gate update-homebrew uses); the
     # console job is best-effort and may be absent from the feed if it failed.
-    needs: [build-binaries, build-fleetbar-preview, build-pd-console-app]
+    needs: [guide-review-gate, build-binaries, build-fleetbar-preview, build-pd-console-app]
     if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
@@ -415,7 +441,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ needs.guide-review-gate.outputs.candidate_sha }}
 
       - name: Use Node.js 20
         uses: actions/setup-node@v4
@@ -425,7 +451,7 @@ jobs:
       - name: Resolve release tag
         id: tag
         env:
-          REF_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          REF_NAME: ${{ needs.guide-review-gate.outputs.tag }}
         run: echo "tag=${REF_NAME}" >> "$GITHUB_OUTPUT"
 
       # Pull the assets that the build jobs uploaded to this Release so the feed's
@@ -470,13 +496,6 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           files: dist/latest.json
 
-  # publish-npm was RETIRED 2026-07-04 (operator decision): brew + the release
-  # binaries + latest.json cover every supported install path, the npm token
-  # had been dead since 3.15.0 (every publish 404'd), and the perpetually red
-  # job trained everyone to ignore release failures. The manual companion
-  # .github/workflows/publish.yml remains if npm distribution is ever revived;
-  # the registry package should be `npm deprecate`d when a working token exists.
-
   # Roll the brew tap ONLY for a real, non-prerelease published Release. A
   # prerelease (vX.Y.Z-rc.N) builds + signs binaries but must NEVER roll the tap —
   # candidates are opt-in (RELEASING.md §2). A workflow_dispatch re-run also skips
@@ -492,7 +511,7 @@ jobs:
     # let FleetBar rot silently across releases. The tradeoff is deliberate: a
     # flaky FleetBar build now blocks the release, which forces FleetBar to be
     # FIXED rather than bypassed.
-    needs: [build-binaries, build-fleetbar-preview]
+    needs: [guide-review-gate, build-binaries, build-fleetbar-preview]
     if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && github.event_name == 'release' && github.event.release.prerelease == false
     steps:
       - name: Set release version
@@ -501,7 +520,7 @@ jobs:
           # On workflow_dispatch, github.ref_name is the dispatch branch, not
           # the release tag — use the explicit `tag` input. On release events,
           # the input is absent and github.ref_name IS the tag.
-          REF_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          REF_NAME: ${{ needs.guide-review-gate.outputs.tag }}
         run: echo "version=${REF_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Update Homebrew formula
