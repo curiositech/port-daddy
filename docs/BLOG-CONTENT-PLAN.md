@@ -71,7 +71,7 @@ alias codestop='pd done'
 
 **Hook:** Next.js on 3000, FastAPI on 3000, 90 minutes debugging CORS errors that don't exist.
 
-**Key Visual:** Split-screen. Left: amber terminal chaos, `lsof`, `kill -9`, errors, timer counting UP (47 min). Right: `pd claim myapp:api`, clean output, 0.3s. Hard VHS glitch between them.
+**Key Visual:** Split-screen. Left: amber terminal chaos, `lsof`, conflicting hand-managed processes, errors, timer counting UP (47 min). Right: `pd claim myapp:api`, clean output, 0.3s. Hard VHS glitch between them.
 
 **Sections:**
 1. Anatomy of a port collision — why random ports fail with service discovery
@@ -239,7 +239,7 @@ pd pheromone files --depth 2  # heat map
 
 ## Article 9: "The Dashboard at 3 AM"
 
-**Hook:** Fleet running overnight. Wake up. Open localhost:9876. See everything that happened.
+**Hook:** Fleet running overnight. Wake up. Open FleetBar. See the selected daemon, receipts, transcripts, cost, and everything that happened.
 
 **Key Visual:** Actual dashboard recording through heavy VHS filter. Glassmorphism glow through scanlines. Real-time SSE updates — agent registers, session starts, messages flow, locks flash. Timestamp: 03:17 AM. Mission control, 1987 monitors.
 
@@ -252,7 +252,8 @@ pd pheromone files --depth 2  # heat map
 
 **Money shots:**
 ```bash
-open http://localhost:9876
+eval "$(pd use stable)"
+open "$PORT_DADDY_URL"
 pd tunnel start dashboard --provider ngrok
 pd activity --range "8h"
 ```

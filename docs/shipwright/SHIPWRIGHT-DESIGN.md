@@ -523,7 +523,8 @@ FleetBar (SwiftUI, `apps/FleetBar/`) gets a compact version:
 - Menu bar icon: tiny filled ship glyph, tints to lime when fleet active, to red
   when kill-switch armed.
 - Dropdown shows top 3 projects by activity. Click a project → opens dashboard
-  Focus mode at the right URL (`open http://localhost:9876/focus/<project>`).
+  Focus mode at the selected daemon (`eval "$(pd use <label>)"`, then
+  `open "$PORT_DADDY_URL/focus/<project>"`).
 - Live cost tick in the menu bar if user opts in (macOS-only).
 - All data from `/fleet`, `/fleet/:project`, `/metrics/golden`. No new endpoints.
 

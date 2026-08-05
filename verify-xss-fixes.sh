@@ -80,8 +80,9 @@ echo "All user-controlled data is now properly escaped before rendering."
 echo "The dashboard is protected against XSS injection attacks."
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
-echo "1. Open http://localhost:9876 in your browser"
-echo "2. Navigate through all tabs (Services, Agents, Locks, etc.)"
-echo "3. Verify no JavaScript errors in console"
-echo "4. All user data should be displayed safely as text"
+echo '1. Select stable or a named daemon: eval "$(pd use <label>)"'
+echo '2. Open the published endpoint: open "$PORT_DADDY_URL"'
+echo "3. Navigate through all tabs (Services, Agents, Locks, etc.)"
+echo "4. Verify no JavaScript errors in console"
+echo "5. All user data should be displayed safely as text"
 echo ""

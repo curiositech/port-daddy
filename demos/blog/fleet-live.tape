@@ -22,6 +22,9 @@ Hide
 Type "setopt INTERACTIVE_COMMENTS"
 Enter
 Sleep 200ms
+Type "eval \"$(pd use stable)\""
+Enter
+Sleep 800ms
 Ctrl+L
 Show
 Sleep 800ms
@@ -76,14 +79,16 @@ Type "# Where in the codebase are they working?"
 Enter
 Sleep 1s
 
-Type "curl -s http://localhost:9876/pheromone/files?depth=1 | python3 -mjson.tool 2>/dev/null || echo '  (pheromone data accumulates over time)'"
+Type "curl -s \"${PORT_DADDY_URL}/pheromone/files?depth=1\" | python3 -mjson.tool 2>/dev/null || echo '  (pheromone data accumulates over time)'"
 Enter
 Sleep 3s
 
 # The dashboard
 Type ""
 Enter
-Type "# All of this is also visible at http://localhost:9876"
+Type "# FleetBar opens this selected daemon's published Control Center"
+Enter
+Type "open \"$PORT_DADDY_URL\""
 Enter
 Type "# The dashboard updates in real-time via Server-Sent Events"
 Enter

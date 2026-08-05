@@ -117,7 +117,7 @@ Daemon writes monthly audit trees per `(accountId, repoRoot, calendarMonth)`. Ea
 `portdaddy.dev/audit` for the owner. `…/audit/share/<token>` for auditors, time-limited, scoped to a repo or date range. Renders the per-month Merkle tree as a timeline.
 
 ### Phase W3 — Fleet steering from web/phone (WEB + DAEMON, ~3 weeks)
-The phone is an operator surface. Spawn / steer / note / approve / budget from any paired device, via the relay. Write operations require 4-digit-code confirmation for sensitive surfaces (kill agent, drain fleet). Per ADR-0039 §II surface 3.
+The phone is an operator surface. Spawn / steer / note / approve / budget from any paired device, via the relay. Write operations require 4-digit-code confirmation for sensitive surfaces (cancel agent, drain fleet). Per ADR-0039 §II surface 3.
 
 ### Phase W4 — Fleet ship marketplace (WEB + DAEMON, ~3 weeks)
 `pd fleet publish` packages signed fleet YAML + skills + prompts; `pd fleet install @user/name` pulls and forks. `portdaddy.dev/@<account>/fleets/<name>` resolves the signed package. Account is the publisher identity.
@@ -524,7 +524,7 @@ To sustain development, Port Daddy needs its own "crew":
 
 ## 4. Website vs. Local Dashboard
 
-- **Clarification of Roles:** The dashboard is the *local* Control Plane served by the daemon (`localhost:9876` -> `pd.local`). The website (currently in `website-v2/`) is the *public-facing* marketing and documentation hub hosted on Cloudflare. We need to clearly separate their visual identities and routing to prevent confusion.
+- **Clarification of Roles:** The dashboard is the *local* Control Plane served at the selected daemon's published endpoint (with `pd.local` as a human alias where configured). The website in `website-v2/` is the *public-facing* marketing and documentation hub hosted on Cloudflare. Their visual identities and routing must remain distinct.
 
 ## 5. The "Wild West" & Agentic Criminality (V4 Vision)
 
