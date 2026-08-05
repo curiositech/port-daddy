@@ -169,20 +169,34 @@ describe('space-containing paths', () => {
  * files as present — breaking attribution precisely on the largest files, which
  * are the ones whose reviewers most need it.
  */
-describe('oversized files keep their attribution', () => {
-  it('every slice of a hard-split file still names that file', () => {
-    const huge = `diff --git a/lib/huge.ts b/lib/huge.ts\n--- a/lib/huge.ts\n+++ b/lib/huge.ts\n@@ -1,1 +1,2 @@\n${'+  const filler = 1;\n'.repeat(2000)}`;
+describe('a file is the smallest unit we split to', () => {
+  const huge = `diff --git a/lib/huge.ts b/lib/huge.ts\n--- a/lib/huge.ts\n+++ b/lib/huge.ts\n@@ -1,1 +1,2 @@\n${'+  const filler = 1;\n'.repeat(2000)}`;
+
+  it('an oversized single file becomes ONE chunk, not many slices', () => {
+    // Deliberately over budget. Hard-splitting produced continuations with no
+    // `diff --git` header — un-attributable, and useless to review besides: a
+    // reviewer handed half a function has no more chance of judging it than
+    // one handed none.
     const chunks = chunkDiff(huge);
-    expect(chunks.length).toBeGreaterThan(1);
-    for (const c of chunks) {
-      expect(filesInChunk(c)).toContain('lib/huge.ts');
-    }
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0].length).toBeGreaterThan(12_000);
   });
 
-  it('no slice exceeds the char budget despite the re-emitted header', () => {
-    const huge = `diff --git a/lib/huge.ts b/lib/huge.ts\n${'+  x\n'.repeat(9000)}`;
-    for (const c of chunkDiff(huge)) {
-      expect(c.length).toBeLessThanOrEqual(12_000);
-    }
+  it('that chunk still names its file', () => {
+    expect(filesInChunk(chunkDiff(huge)[0])).toEqual(['lib/huge.ts']);
+  });
+
+  it('an oversized file does not swallow its neighbours', () => {
+    // It must be flushed on its own, so the small files around it stay
+    // separately reviewable rather than being dragged over budget with it.
+    const mixed = diffFor('lib/small-a.ts') + huge + diffFor('lib/small-b.ts');
+    const chunks = chunkDiff(mixed);
+    const owning = chunks.filter(c => filesInChunk(c).includes('lib/huge.ts'));
+    expect(owning).toHaveLength(1);
+    expect(filesInChunk(owning[0])).toEqual(['lib/huge.ts']);
+    // Nothing lost.
+    expect(chunks.flatMap(filesInChunk).sort()).toEqual(
+      ['lib/huge.ts', 'lib/small-a.ts', 'lib/small-b.ts'],
+    );
   });
 });
