@@ -2,14 +2,14 @@
 
 **Status:** Empirical research / product baseline. This document is a vendor-sourced competitive analysis, not a proposal.
 **Author:** research-and-specify-mature-beacon-agent-ux sortie (2026-08-04/05)
-**Scope:** What a mature 2026 coding-agent desktop/control-plane surface is expected to do, sourced from primary vendor documentation only. See the companion document `coding-agent-ux-2026-beacon-requirements.md` for Port Daddy's differentiated requirements grounded in this baseline.
+**Scope:** What a mature 2026 coding-agent desktop/control-plane surface is expected to do, sourced from primary vendor documentation only. See section 3 of the companion document `coding-agent-ux-2026-beacon-requirements.md` for Port Daddy's differentiated requirements grounded in this baseline.
 **Relates to:** roadmap item `first-class-agent-sessions-and-spawn-supervision-3-28`; competitive products: Claude Code, GitHub Copilot, Cursor, OpenAI Codex, Windsurf/Devin, Google Gemini CLI/Antigravity, Amazon Q Developer/Kiro.
 
 ---
 
 ## TL;DR
 
-By August 2026, every serious coding-agent product (Claude Code, GitHub Copilot coding agent, Cursor, OpenAI Codex, Windsurf/Devin, Google Gemini CLI/Antigravity, Amazon Q Developer/Kiro) has converged on the same eight or nine table-stakes UX primitives: a session roster with live status, a full inspectable tool-call transcript, deterministic session resume by ID, checkpoint/rewind with diff preview, a tiered permission model with an explicit "no-prompts" escape hatch, an OS-level or VM-level execution sandbox, MCP support, and a rules/skills file convention. 
+By August 2026, every serious coding-agent product (Claude Code, GitHub Copilot coding agent, Cursor, OpenAI Codex, Windsurf/Devin, Google Gemini CLI/Antigravity, Amazon Q Developer/Kiro) has converged on the same eight or nine table-stakes UX primitives: a session roster with live status, a full inspectable tool-call transcript, deterministic session resume by ID, checkpoint/rewind with diff preview, a tiered permission model with an explicit "no-prompts" escape hatch, an OS-level or VM-level execution sandbox, MCP support, and a rules/skills file convention.
 
 This baseline is important because three gaps remain consistent across all eight products: **cross-tool session unification** (every vendor's roster only shows its own sessions), **an explicit distinction between attaching to a live session vs. reading its history vs. jumping to its output artifact** (most conflate "resume" with all three), and **accessibility** (only Claude Code and GitHub Copilot/VS Code publish real accessibility documentation; nobody else does).
 
