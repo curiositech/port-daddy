@@ -116,7 +116,7 @@ impl SessionEntry {
 
     fn lineage_label(&self) -> String {
         let predecessor = self.metadata_string(&["predecessorSessionId", "predecessor_session_id"]);
-        let successor = self.metadata_string(&["takenOverBySessionId", "taken_over_by_session_id"]);
+        let successor = self.metadata_string(&["continuedBySessionId", "continued_by_session_id"]);
         if let Some(predecessor) = predecessor {
             return format!("{predecessor} -> {}", self.id);
         }

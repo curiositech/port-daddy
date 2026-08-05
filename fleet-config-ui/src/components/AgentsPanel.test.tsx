@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchActiveAgentRoster,
@@ -117,5 +117,93 @@ describe('AgentsPanel continuation focus', () => {
 
     const roster = screen.getByText('LIVE HARNESS ROSTER').closest('section');
     expect(roster).toHaveClass('order-last');
+  });
+
+  it('opens the live agent control center from Join', async () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    vi.mocked(fetchActiveAgentRoster).mockResolvedValue({
+      success: true,
+      generatedAt: 20,
+      project: 'port-daddy',
+      count: 1,
+      agents: [{
+        id: 'spawned-requested',
+        label: 'Requested continuation',
+        purpose: 'Prove joinability',
+        identity: 'port-daddy:continuation',
+        project: 'port-daddy',
+        status: 'running',
+        liveness: 'alive',
+        pid: 123,
+        lastHeartbeat: 20,
+        progress: 'waiting for operator',
+        eventVerb: 'waiting',
+        lineageLabel: 'session-parent -> session-child',
+        costUsd: 0.01,
+        budgetUsd: 1,
+        harness: { id: 'codex', label: 'Codex', backend: 'cli:codex', model: 'gpt-5.6-sol', confidence: 'explicit' },
+        worktree: { id: 'wt', root: '/Users/dev/worktree', branch: 'feature', name: 'feature', isMain: false },
+        activeSession: null,
+        sessions: [],
+        touchedFiles: [],
+        control: {
+          steeringChannel: 'agent:spawned-requested',
+          streamUrl: '/agents/spawned-requested/stream',
+          interruptUrl: '/agents/spawned-requested/interrupt',
+          controlCenterUrl: '/fleet-ui/?surface=agents&agent=spawned-requested',
+        },
+      }],
+    });
+
+    render(<AgentsPanel daemonKey="named-daemon" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Join' }));
+
+    expect(open).toHaveBeenCalledWith(
+      'http://127.0.0.1:43127/fleet-ui/?surface=agents&agent=spawned-requested',
+      '_blank',
+      'noopener,noreferrer',
+    );
+    open.mockRestore();
+  });
+
+  it('does not advertise live controls when no runtime exists', async () => {
+    vi.mocked(fetchActiveAgentRoster).mockResolvedValue({
+      success: true,
+      generatedAt: 20,
+      project: 'port-daddy',
+      count: 1,
+      agents: [{
+        id: 'session-shell',
+        label: 'Session without runtime',
+        purpose: 'Needs a successor',
+        identity: 'port-daddy:continuation',
+        project: 'port-daddy',
+        status: 'active',
+        liveness: 'no_runtime',
+        pid: null,
+        lastHeartbeat: null,
+        progress: null,
+        eventVerb: 'active',
+        lineageLabel: 'session-shell',
+        costUsd: null,
+        budgetUsd: null,
+        harness: { id: 'session', label: 'Session proxy', backend: null, model: null, confidence: 'explicit' },
+        worktree: { id: 'wt', root: '/Users/dev/worktree', branch: 'feature', name: 'feature', isMain: false },
+        activeSession: null,
+        sessions: [],
+        touchedFiles: [],
+        control: {
+          steeringChannel: 'agent:session-shell',
+          streamUrl: null,
+          interruptUrl: null,
+          controlCenterUrl: '/fleet-ui/?surface=agents&agent=session-shell',
+        },
+      }],
+    });
+
+    render(<AgentsPanel daemonKey="named-daemon" />);
+    await screen.findByText('Session without runtime');
+    expect(screen.queryByRole('button', { name: 'Join' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Stream' })).not.toBeInTheDocument();
   });
 });

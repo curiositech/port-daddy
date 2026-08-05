@@ -14,7 +14,7 @@
     touching         lib/squid/adapter.ts#launchBridge
     stream           pd agent stream agent-codex
     steer            pd agent interrupt agent-codex --reason ...
-    takeover         pd session takeover session-codex
+    join             Fleet Control Center · agent-codex
     heartbeat        1m
   ● workers-ai - alive
     harness          Cloudflare AI fleet agent / cloudflare
@@ -23,6 +23,6 @@
     touching         apps/relay/worker.ts#fetch
     stream           pd agent stream agent-cloudflare
     steer            pd agent interrupt agent-cloudflare --reason ...
-    takeover         pd session takeover session-cloudflare
+    join             Fleet Control Center · agent-cloudflare
     heartbeat        1m
 » out.

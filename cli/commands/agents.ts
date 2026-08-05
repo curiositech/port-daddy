@@ -486,7 +486,7 @@ async function handleAgentRoster(options: CLIOptions): Promise<void> {
     worktree: { root: string | null; branch: string | null };
     activeSession: { id: string } | null;
     touchedFiles: Array<{ filePath?: string | null; symbolPath?: string | null }>;
-    control: { streamUrl: string; interruptUrl: string; takeoverUrl: string | null; steeringChannel: string };
+    control: { streamUrl: string | null; interruptUrl: string | null; controlCenterUrl: string; steeringChannel: string };
   }>;
 
   if (!agents.length) {
@@ -508,9 +508,14 @@ async function handleAgentRoster(options: CLIOptions): Promise<void> {
     console.log(`  worktree:${agent.worktree.root ?? '(unknown)'}${agent.worktree.branch ? ` @ ${agent.worktree.branch}` : ''}`);
     console.log(`  doing:   ${agent.purpose ?? '(no purpose recorded)'}`);
     console.log(`  touching:${files || '(no active file claims)'}`);
-    console.log(`  control: pd agent stream ${agent.id}  |  pd agent interrupt ${agent.id} --reason \"...\"`);
+    if (agent.control.streamUrl && agent.control.interruptUrl) {
+      console.log(`  control: pd agent stream ${agent.id}  |  pd agent interrupt ${agent.id} --reason \"...\"`);
+    } else {
+      console.log('  control: no live runtime; inspect lineage before continuing');
+    }
     if (agent.activeSession?.id) {
-      console.log(`  session: ${agent.activeSession.id}${agent.control.takeoverUrl ? ' / pd session takeover ' + agent.activeSession.id : ''}`);
+      console.log(`  session: ${agent.activeSession.id}`);
+      console.log(`  ${agent.liveness === 'alive' ? 'join' : 'inspect'}:    ${PORT_DADDY_URL}${agent.control.controlCenterUrl}`);
     }
     console.log('');
   }

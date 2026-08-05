@@ -383,11 +383,11 @@ export function buildActiveAgentRoster(input: ActiveAgentRosterInput): ActiveAge
         'verb',
       ]) ?? activeSession?.phase ?? activeSession?.status ?? displayStatus;
       const predecessorSessionId = metadataString(sessionMeta, ['predecessorSessionId', 'predecessor_session_id']);
-      const takenOverBySessionId = metadataString(sessionMeta, ['takenOverBySessionId', 'taken_over_by_session_id']);
+      const continuedBySessionId = metadataString(sessionMeta, ['continuedBySessionId', 'continued_by_session_id']);
       const lineageLabel = predecessorSessionId
         ? `${predecessorSessionId} -> ${activeSession?.id ?? agent.id}`
-        : takenOverBySessionId
-          ? `${activeSession?.id ?? agent.id} -> ${takenOverBySessionId}`
+        : continuedBySessionId
+          ? `${activeSession?.id ?? agent.id} -> ${continuedBySessionId}`
           : activeSession?.id ?? agent.id;
       const costUsd = metadataNumber(agentMeta, ['costUsd', 'cost_usd', 'currentCostUsd', 'current_cost_usd'])
         ?? metadataNumber(sessionMeta, ['costUsd', 'cost_usd', 'currentCostUsd', 'current_cost_usd']);

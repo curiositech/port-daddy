@@ -1012,7 +1012,13 @@ export interface ActiveAgentRosterItem {
   project: string | null;
   status: string | null;
   liveness: string;
+  pid: number | null;
   lastHeartbeat: number | null;
+  progress: string | null;
+  eventVerb: string | null;
+  lineageLabel: string | null;
+  costUsd: number | null;
+  budgetUsd: number | null;
   harness: ActiveAgentHarness;
   worktree: ActiveAgentWorktree;
   activeSession: SessionSummary | null;
@@ -1020,9 +1026,8 @@ export interface ActiveAgentRosterItem {
   touchedFiles: FileClaim[];
   control: {
     steeringChannel: string;
-    streamUrl: string;
-    interruptUrl: string;
-    takeoverUrl: string | null;
+    streamUrl: string | null;
+    interruptUrl: string | null;
     controlCenterUrl: string;
   };
 }

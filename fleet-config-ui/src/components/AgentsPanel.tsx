@@ -132,8 +132,8 @@ function summarizeTouchedFiles(files: ActiveAgentRosterItem['touchedFiles']): st
   return `${labels.join(', ')}${suffix}`;
 }
 
-function openDaemonPath(path: string): void {
-  if (typeof window === 'undefined') return;
+function openDaemonPath(path: string | null): void {
+  if (typeof window === 'undefined' || !path) return;
   window.open(`${getDaemonUrl()}${path}`, '_blank', 'noopener,noreferrer');
 }
 
@@ -589,14 +589,26 @@ export default function AgentsPanel({
                     <div><span style={{ color: 'var(--pd-dim)' }}>Channel:</span> <span className="font-mono">{agent.control.steeringChannel}</span></div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      onClick={() => openDaemonPath(agent.control.streamUrl)}
-                      className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold"
-                      style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}
-                    >
-                      <Radio size={13} />
-                      <span>Stream</span>
-                    </button>
+                    {agent.control.streamUrl && (
+                      <button
+                        onClick={() => openDaemonPath(agent.control.streamUrl)}
+                        className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold"
+                        style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}
+                      >
+                        <Radio size={13} />
+                        <span>Stream</span>
+                      </button>
+                    )}
+                    {agent.liveness === 'alive' && (
+                      <button
+                        onClick={() => openDaemonPath(agent.control.controlCenterUrl)}
+                        className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold"
+                        style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}
+                      >
+                        <PlayCircle size={13} />
+                        <span>Join</span>
+                      </button>
+                    )}
                     <button
                       onClick={() => setSelectedAgentId(agent.id)}
                       className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold"
@@ -606,9 +618,11 @@ export default function AgentsPanel({
                       <span>Inspect</span>
                     </button>
                   </div>
-                  <div className="mt-2 text-[10px] font-mono leading-relaxed" style={{ color: 'var(--pd-dim)' }}>
-                    pd agent interrupt {agent.id} --reason "..." {agent.activeSession ? `\npd session takeover ${agent.activeSession.id}` : ''}
-                  </div>
+                  {agent.lineageLabel && (
+                    <div className="mt-2 text-[10px] font-mono leading-relaxed" style={{ color: 'var(--pd-dim)' }}>
+                      Lineage: {agent.lineageLabel}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

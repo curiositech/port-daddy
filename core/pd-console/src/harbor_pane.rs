@@ -291,7 +291,7 @@ fn kind_meta(kind: &str) -> (&'static str, Tone) {
         "file_read" | "file_write" | "file_diff" | "file_touch" | "git_action"
         | "commit_created" | "pr_opened" => ("file", Tone::Engaged),
         "tool_denied" | "approval_request" | "budget_warning" => ("gated", Tone::Gated),
-        "budget_pause" | "budget_kill" | "adapter_error" | "provider_error"
+        "budget_pause" | "budget_cancelled" | "adapter_error" | "provider_error"
         | "transcript_gap" | "retention_failure" => ("error", Tone::Conflicted),
         "cost_accrued" => ("cost", Tone::Resting),
         "checkpoint" | "successor_created" | "receipt_completed" | "receipt_verified" => {
@@ -429,7 +429,7 @@ impl CostSummary {
             let kind = s(ev, "kind");
             if !matches!(
                 kind.as_str(),
-                "cost_accrued" | "budget_warning" | "budget_pause" | "budget_kill"
+                "cost_accrued" | "budget_warning" | "budget_pause" | "budget_cancelled"
             ) {
                 continue;
             }
@@ -445,7 +445,7 @@ impl CostSummary {
             if !action.is_empty() && action != "none" {
                 out.budget_action = Some(action);
             }
-            if matches!(kind.as_str(), "budget_warning" | "budget_pause" | "budget_kill") {
+            if matches!(kind.as_str(), "budget_warning" | "budget_pause" | "budget_cancelled") {
                 out.budget_action = Some(kind.trim_start_matches("budget_").to_string());
             }
         }

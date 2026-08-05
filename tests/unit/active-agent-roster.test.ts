@@ -105,6 +105,7 @@ describe('active agent roster', () => {
         steeringChannel: 'agent:agent-codex',
         streamUrl: '/agents/agent-codex/stream',
         interruptUrl: '/agents/agent-codex/interrupt',
+        controlCenterUrl: '/fleet-ui/?surface=agents&agent=agent-codex',
       },
     });
     expect(roster.agents[0].touchedFiles[0].symbolPath).toBe('startBridge');
@@ -177,6 +178,30 @@ describe('active agent roster', () => {
     });
     expect(roster.agents[0].control.streamUrl).toBeNull();
     expect(roster.agents[0].control.interruptUrl).toBeNull();
+  });
+
+  test('projects immutable continuation lineage with the current metadata contract', () => {
+    const roster = buildActiveAgentRoster({
+      now: 1000,
+      project: 'port-daddy',
+      sessions: [{
+        id: 'session-predecessor',
+        purpose: 'Immutable predecessor',
+        status: 'active',
+        phase: 'in_progress',
+        agentId: null,
+        worktreeId: 'wt-lineage',
+        identityProject: 'port-daddy',
+        createdAt: 10,
+        updatedAt: 20,
+        metadata: {
+          continuedBySessionId: 'session-successor',
+          worktree: { root: '/tmp/lineage', branch: 'repair' },
+        },
+      }],
+    });
+
+    expect(roster.agents[0].lineageLabel).toBe('session-predecessor -> session-successor');
   });
 
   test('projects starting shell sessions without an agent id as starting no-runtime rows', () => {
