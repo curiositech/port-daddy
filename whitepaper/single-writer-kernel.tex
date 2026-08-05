@@ -365,7 +365,7 @@ refinements this paper introduces (see \S\ref{sec:durability} and
 \textbf{Grade} & \textbf{Meaning} \\
 \midrule
 \Built & Realized, exercised, and true under the production runtime. \\
-\BuiltWeak & Realized but partial: holds under a narrower condition than the prose might invite, or detects rather than prevents. \\
+\BuiltWeak{} & Realized but partial: holds under a narrower condition than the prose might invite, or detects rather than prevents. \\
 \Designed & A concrete design exists, but no running artifact realizes it. \\
 \Vision & Named as a direction; no design yet. \\
 \midrule
@@ -1037,7 +1037,8 @@ the canonical sentence the rest of the series depends on:
 (\textsc{implemented}), checkpoint (\textsc{partial}: notes, not execution state),
 and a witnessed-outcome ledger (\textsc{partial}: commitments and oracle closure,
 not neutral graded outcomes) --- and reputation keys on the richer third organ,
-which does not yet exist; the checkpoint organ is the weakest continuity link, and a checkpoint with teeth (a real execution-state
+whose neutral, reputation-grade form is not yet complete; the checkpoint organ is
+the weakest continuity link, and a checkpoint with teeth (a real execution-state
 snapshot) is the literal foundation of the cross-machine economy.}
 
 \textbf{Memory} --- session records, durable notes, and the operation log --- is
@@ -1045,7 +1046,7 @@ snapshot) is the literal foundation of the cross-machine economy.}
 session's durable note count never regresses (detect-and-compensate, per
 Theorem~\ref{thm:schneider}, but real).
 
-\textbf{Checkpoint} is \BuiltWeak, and the weakness is precise. The recovery
+\textbf{Checkpoint} is \BuiltWeak{}, and the weakness is precise. The recovery
 pipeline runs a heartbeat watchdog $\to$ stale/dead detection $\to$ a recovery
 queue $\to$ a salvage handoff, and it \emph{passes notes}; it does not checkpoint
 execution state. A checkpoint with teeth --- the gap between passing notes and
@@ -1273,7 +1274,7 @@ Buggy cooperating agent & \textbf{in} & Claims, commitments, post-commit monitor
 Misbehaving agent (ignores advisory claims) & partial & Edit-surface claims are \emph{advisory coordination}, not OS-enforced isolation. A malicious agent can write the file anyway (no kernel-level sandbox such as Landlock, \texttt{unveil}, or Seatbelt). \\
 Same-user process (reads/edits the DB) & \textbf{out} & The database is owner-read/write only; the signing key is being migrated to the OS keychain. Hash-chain tamper-evidence defends against \emph{nobody} under this exclusion (\S\ref{sec:merkle}). \\
 Different-uid process & \textbf{in (partial)} & Owner-only permissions; but the socket peer-credential check is a software handshake, not the kernel-enforced socket credential (\texttt{SO\_PEERCRED}) --- a real authentication caveat. \\
-Cross-machine / cross-operator & \textbf{out (economy layer)} & Needs the complete local identity contract (\BuiltWeak) and cross-operator attestation (the economy paper). \\
+Cross-machine / cross-operator & \textbf{out (economy layer)} & Needs the complete local identity contract (\BuiltWeak{}) and cross-operator attestation (the economy paper). \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -1348,7 +1349,7 @@ macaroon'' result forward into the (false) belief that the kernel can presently
 
 The reference system now mints an opaque actor-soul id and lookup credential inside
 the daemon, and the budget guard assigns fresh actors to a shared bounded newcomer
-pool (I12 is \BuiltWeak). Legacy session paths and security-relevant writes that do
+pool (I12 is \BuiltWeak{}). Legacy session paths and security-relevant writes that do
 not yet require that credential remain impersonable. This still bounds the security
 weight of I7, I8, and I9: lock-owner validity, capability escalation, note
 monotonicity, and owner-scoped release are only as strong as their least-protected
@@ -1437,7 +1438,7 @@ over-assume.
 \subsection{The explicit non-provisions}
 \begin{itemize}[leftmargin=1.4em]
   \item The substrate does \emph{not} provide end-to-end non-forgeable identity
-  yet. I12 is \BuiltWeak: daemon-minted actor souls, lookup credentials, and a
+  yet. I12 is \BuiltWeak{}: daemon-minted actor souls, lookup credentials, and a
   bounded budget gate ship; universal write-boundary enforcement does not.
   \item It does \emph{not} provide fair/queued exclusion (OP-1), cross-organ
   transactional atomicity by default (\S\ref{sec:atomicity}), a real

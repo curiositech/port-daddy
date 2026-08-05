@@ -1,7 +1,8 @@
 % Figure — the three continuity organs the whole economy rests on: memory
 % (implemented), checkpoint (partial: notes, not execution state), and the
 % witnessed-outcome ledger (partial substrate). Reputation keys on the richer
-% third organ, which does not yet exist. The canonical sentence lives in the caption.
+% third organ, whose neutral reputation-grade form is incomplete. The canonical
+% sentence lives in the caption.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
@@ -27,11 +28,11 @@
    append-only session notes; episodic story-beats; the operation log};
 
 \node[organ,fill=hhsand!30,right=8mm of mem] (chk)
-  {{\bfseries\footnotesize 2.\ Checkpoint}\hfill{\footnotesize\color{hhcobalt}\textsf{partial}}\\[3pt]
+  {{\bfseries\footnotesize 2.\ Checkpoint}\hfill{\footnotesize\color{hhink}\textsf{partial}}\\[3pt]
    recovery passes durable \emph{notes} --- not execution state};
 
 \node[organ,fill=hhsand!30,right=8mm of chk] (ledger)
-  {{\bfseries\footnotesize 3.\ Witnessed-outcome ledger}\hfill{\footnotesize\color{hhamber}\textsf{partial}}\\[3pt]
+  {{\bfseries\footnotesize 3.\ Witnessed-outcome ledger}\hfill{\footnotesize\color{hhink}\textsf{partial}}\\[3pt]
    the durable, oracle-bound record of what an agent actually delivered};
 
 \draw[link,hhteal] (mem.east) -- (chk.west);
