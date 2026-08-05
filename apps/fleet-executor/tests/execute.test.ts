@@ -720,6 +720,39 @@ describe('map-reduce fan-out', () => {
     expect(state.completed[0].conclusion).toBe('success');
   });
 
+  it('keeps at most one Workers AI response envelope resident during MAP', async () => {
+    const file = (name: string) =>
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` + '+line\n'.repeat(1500);
+    state.prDiff = file('a.ts') + file('b.ts');
+
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const base = aiStub({
+      perShip: { 'code-reviewer': 'partial\n\nFLEET-VERDICT: PASS' },
+      managerOutput: 'merged review\n\nFLEET-VERDICT: PASS',
+    });
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const serialAi = {
+      run: async (...args: Parameters<typeof base.ai.run>) => {
+        inFlight += 1;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        try {
+          await new Promise(resolve => setTimeout(resolve, 5));
+          return await base.ai.run(...args);
+        } finally {
+          inFlight -= 1;
+        }
+      },
+    } as typeof base.ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: serialAi }));
+
+    expect(maxInFlight).toBe(1);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
   it('a single-chunk diff makes one map call and no manager call', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();

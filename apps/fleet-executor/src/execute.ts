@@ -102,8 +102,15 @@ const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 
 /** Per-chunk diff budget for the MAP fan-out (chars). */
 const MAP_CHUNK_CHAR_LIMIT = 12_000;
-/** Bound Workers AI fan-out so large diffs finish without a rate-limit stampede. */
-const MAP_CONCURRENCY = 8;
+/**
+ * Keep only one Workers AI response envelope resident at a time. Some models
+ * include prompt text plus prompt/output token-id arrays in the binding result;
+ * retaining two such envelopes concurrently was enough to exceed the Worker's
+ * memory limit on an otherwise modest two-chunk review. The queue is FIFO and
+ * fail-closed, so predictable serial progress is more important than fan-out
+ * latency here.
+ */
+const MAP_CONCURRENCY = 1;
 /**
  * Hard per-delivery admission budget. Empirically, 14-15 chunk diffs retain
  * enough model responses across the sequential ship roster to exhaust the
@@ -1462,13 +1469,14 @@ async function runShip(
         max_tokens: MAX_OUTPUT_TOKENS,
         ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
       };
-      const res = await env.AI.run(
+      let res: unknown = await env.AI.run(
         ship.cfModel as Parameters<typeof env.AI.run>[0],
         request,
         aiOptions(env, ship.name),
       );
       const { text, shape } = extractAiText(res);
       accumulateUsage(metrics, res, text);
+      const responseShape = text ? undefined : describeResponseShape(res);
 
       // Diagnose the silent-blank case: an empty result makes a ship post nothing
       // and resolve PASS. Log the model + response shape so an empty-returning
@@ -1477,9 +1485,14 @@ async function runShip(
       if (!text) {
         console.warn(
           `[fleet-executor] pd-${ship.name} MAP chunk ${i + 1}/${chunks.length} EMPTY on ` +
-            `${ship.cfModel}: ${describeResponseShape(res)}`,
+            `${ship.cfModel}: ${responseShape}`,
         );
       }
+
+      // Workers AI may return large prompt/token-id arrays alongside the text.
+      // Drop the envelope before the D1 transcript write yields so the next MAP
+      // call cannot overlap with that native-backed response in memory.
+      res = undefined;
 
       // Transcript: one row per MAP chunk (best-effort). `shape` records which
       // envelope produced the text; `responseShape` is only stamped on an empty
@@ -1489,7 +1502,7 @@ async function runShip(
         chunkCount: chunks.length,
         outputLength: text.length,
         shape,
-        ...(text ? {} : { responseShape: describeResponseShape(res) }),
+        ...(responseShape ? { responseShape } : {}),
       });
       return text;
     });
