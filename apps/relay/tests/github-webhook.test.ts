@@ -290,6 +290,12 @@ describe('handleGithubWebhook — ambient-noise event filter', () => {
     const published: string[] = [];
     const enqueued: FleetRunJob[] = [];
     const env = makeEnv(cap, published, SECRET, enqueued);
+    const gateJobs: FleetRunJob[] = [];
+    env.FLEET_GATES = {
+      async send(job: FleetRunJob) {
+        gateJobs.push(job);
+      },
+    } as Queue<FleetRunJob>;
     const body = JSON.stringify({
       action: 'checks_requested',
       installation: { id: 42 },
@@ -317,8 +323,9 @@ describe('handleGithubWebhook — ambient-noise event filter', () => {
       'github:webhook:merge_group:checks_requested',
       'github:curiositech/port-daddy:merge_group',
     ]);
-    expect(enqueued).toHaveLength(1);
-    expect(enqueued[0]).toMatchObject({
+    expect(enqueued).toHaveLength(0);
+    expect(gateJobs).toHaveLength(1);
+    expect(gateJobs[0]).toMatchObject({
       eventType: 'merge_group',
       action: 'checks_requested',
       prNumber: null,

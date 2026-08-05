@@ -21,6 +21,11 @@ describe.each(['wrangler.deploy.toml', 'wrangler.toml.example'])('%s queue contr
     expect(main).toMatch(/^\s*max_batch_size\s*=\s*1\s*$/m);
     expect(main).toMatch(/^\s*max_concurrency\s*=\s*1\s*$/m);
     expect(main).toMatch(/^\s*dead_letter_queue\s*=\s*"fleet-runs-dlq"\s*$/m);
+
+    const gates = consumerBlock(readConfig(name), 'fleet-gates');
+    expect(gates).toMatch(/^\s*max_batch_size\s*=\s*1\s*$/m);
+    expect(gates).toMatch(/^\s*max_concurrency\s*=\s*1\s*$/m);
+    expect(gates).toMatch(/^\s*dead_letter_queue\s*=\s*"fleet-runs-dlq"\s*$/m);
   });
 
   it('binds the DLQ to the Worker that completes abandoned checks', () => {

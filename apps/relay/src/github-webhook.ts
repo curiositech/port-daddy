@@ -288,7 +288,7 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
   //    we've already published to channels. The executor's own retry/DLQ owns
   //    durability from here. installation.id / pull_request.number are read
   //    from the verified payload (no GitHub API call from the relay).
-  if (env.FLEET_RUNS && shouldEnqueueFleetRun(eventType, action)) {
+  if ((env.FLEET_RUNS || env.FLEET_GATES) && shouldEnqueueFleetRun(eventType, action)) {
     const installation =
       payload.installation && typeof payload.installation === 'object'
         ? (payload.installation as Record<string, unknown>)
@@ -319,12 +319,23 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
         push: (payload.push as Record<string, unknown>) ?? undefined,
       },
     };
+    const queue = eventType === 'merge_group'
+      ? (env.FLEET_GATES ?? env.FLEET_RUNS)
+      : env.FLEET_RUNS;
+    if (!queue) {
+      await appendAudit(env.DB, {
+        action: 'fleet_run_enqueue_failed',
+        target: repoFullName ?? '',
+        detail: `event=${eventType} delivery=${deliveryId} queue=unbound`,
+      }).catch(() => {});
+      return new Response(null, { status: 204 });
+    }
     try {
-      await env.FLEET_RUNS.send(job);
+      await queue.send(job);
       await appendAudit(env.DB, {
         action: 'fleet_run_enqueued',
         target: repoFullName ?? '',
-        detail: `event=${eventType} delivery=${deliveryId}`,
+        detail: `event=${eventType} delivery=${deliveryId} queue=${eventType === 'merge_group' && env.FLEET_GATES ? 'fleet-gates' : 'fleet-runs'}`,
       });
     } catch {
       // Best-effort: record and move on. The webhook still succeeds (204);
