@@ -95,7 +95,10 @@ describe('agent run receipt ledger', () => {
 
   describe('restart reconciliation', () => {
     test('startup flips accepted/starting/live to unknown without inventing failure', () => {
-      const firstGeneration = createAgentRunReceiptStore(db, { now: () => now });
+      const firstGeneration = createAgentRunReceiptStore(db, {
+        now: () => now,
+        verifyProcessAlive: () => true,
+      });
       const accepted = firstGeneration.accept({
         idempotencyKey: 'stays-accepted', kind: 'spawn', request: { a: 1 },
       }).receipt;
@@ -129,7 +132,10 @@ describe('agent run receipt ledger', () => {
     });
 
     test('unknown only advances to live, and only with a fresh direct PID + heartbeat', () => {
-      const store = createAgentRunReceiptStore(db, { now: () => now });
+      const store = createAgentRunReceiptStore(db, {
+        now: () => now,
+        verifyProcessAlive: () => true,
+      });
       const receipt = store.accept({
         idempotencyKey: 'reconcile-key', kind: 'session-continuation', request: { p: 'x' }, predecessorSessionId: 's-1',
       }).receipt;
@@ -156,7 +162,10 @@ describe('agent run receipt ledger', () => {
     });
 
     test('direct unknown -> completed does not mutate the receipt', () => {
-      const store = createAgentRunReceiptStore(db, { now: () => now });
+      const store = createAgentRunReceiptStore(db, {
+        now: () => now,
+        verifyProcessAlive: () => true,
+      });
       const receipt = store.accept({
         idempotencyKey: 'lost-liveness', kind: 'spawn', request: { a: 1 },
       }).receipt;
@@ -306,7 +315,10 @@ describe('agent run receipt ledger', () => {
       const dbPath = join(scratchDir, 'receipts.db');
       let fileDb = new Database(dbPath);
       let clock = 10_000;
-      let store = createAgentRunReceiptStore(fileDb, { now: () => clock });
+      let store = createAgentRunReceiptStore(fileDb, {
+        now: () => clock,
+        verifyProcessAlive: () => true,
+      });
 
       const receipt = store.accept({
         idempotencyKey: 'file-backed-key',

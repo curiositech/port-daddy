@@ -107,8 +107,67 @@ export class AgentRunIdempotencyConflictError extends Error {
   }
 }
 
+/**
+ * Real corroboration for the PID inside `AgentRunLiveEvidence`. The caller
+ * supplies the evidence numbers, but numbers alone are not proof -- any
+ * caller can construct `{ pid: 4242, supervisorHeartbeatAt: Date.now() }`
+ * for a PID that doesn't exist. The default here checks the actual OS
+ * process table (signal 0: no signal is delivered, it only tests whether a
+ * signalable process exists at that pid) so a fabricated PID is rejected
+ * regardless of how fresh its attached timestamp looks. Inject a smarter
+ * verifier (e.g. one backed by a supervisor's own live registry) when the
+ * caller has a better source of truth than the raw OS process table.
+ */
+export type AgentRunProcessVerifier = (pid: number) => boolean;
+
+export function defaultVerifyProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    // EPERM still proves the process exists (it's just owned by someone
+    // else); ESRCH (or anything else) means no such process.
+    return (err as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
+
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
+}
+
+/**
+ * budgetUsd is money; a caller-supplied NaN/Infinity/negative value must
+ * never reach the database. JSON- and SQLite-adjacent code silently turns
+ * NaN into null and negative numbers just work arithmetically, so without
+ * this check a bad caller value degrades into "no budget" or an inverted
+ * cap instead of a loud failure.
+ */
+function validateBudgetUsd(value: number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new Error('budgetUsd must be a finite, non-negative number');
+  }
+  return value;
+}
+
+const TELEMETRY_NUMERIC_FIELDS = ['inputTokens', 'cachedInputTokens', 'outputTokens', 'costUsd'] as const;
+
+/**
+ * Same failure mode as budgetUsd, one level deeper: `canonicalJson` would
+ * happily serialize `{ costUsd: NaN }` as `{"costUsd":null}`, silently
+ * inventing a "no cost" record out of a corrupt telemetry value instead of
+ * rejecting it.
+ */
+function validateTelemetry(telemetry: SpawnTelemetry | null | undefined): SpawnTelemetry | null {
+  if (telemetry === null || telemetry === undefined) return null;
+  for (const field of TELEMETRY_NUMERIC_FIELDS) {
+    const value = telemetry[field];
+    if (value === undefined && field === 'cachedInputTokens') continue;
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+      throw new Error(`telemetry.${field} must be a finite, non-negative number`);
+    }
+  }
+  return telemetry;
 }
 
 function required(value: string, field: string, maxBytes = 512): string {
@@ -168,6 +227,157 @@ function clampListLimit(requested: number | undefined): number {
   return Math.min(Math.max(parsed, 1), AGENT_RUN_LIST_MAX_LIMIT);
 }
 
+/** Every column beyond the bare skeleton, in ADD-COLUMN order. */
+const AGENT_RUN_RECEIPT_COLUMNS: ReadonlyArray<readonly [string, string]> = [
+  ['idempotency_key_hash', 'TEXT'],
+  ['request_hash', 'TEXT'],
+  ['predecessor_session_id', 'TEXT'],
+  ['predecessor_snapshot_json', 'TEXT'],
+  ['successor_session_id', 'TEXT'],
+  ['successor_agent_id', 'TEXT'],
+  ['transcript_id', 'TEXT'],
+  ['started_at', 'INTEGER'],
+  ['completed_at', 'INTEGER'],
+  ['budget_usd', 'REAL'],
+  ['telemetry_json', 'TEXT'],
+  ['error', 'TEXT'],
+];
+
+function quoteSqlIdentifier(value: string): string {
+  return `"${value.replaceAll('"', '""')}"`;
+}
+
+/**
+ * Additive-only migration for the `agent_run_receipts` table.
+ *
+ * A database file written by an earlier, narrower revision of this store
+ * (fewer columns -- e.g. no predecessor/successor/transcript/budget/
+ * telemetry fields) must never make construction reach a "no such column"
+ * failure the first time a query touches a field that revision didn't have.
+ * A brand-new database gets the strict schema directly. An older table gets
+ * nullable columns through SQLite's additive-only `ALTER TABLE` path, then
+ * deterministic hashes are backfilled before the unique index and null-
+ * rejection triggers are installed. Existing rows and unrelated indexes are
+ * retained without weakening idempotency for future writes.
+ *
+ * Uniqueness on `idempotency_key_hash` is enforced by a separate UNIQUE
+ * INDEX rather than an inline column constraint precisely so this also
+ * works when the column is being added to a table that already has rows:
+ * SQLite cannot add a UNIQUE column via ALTER TABLE, but a UNIQUE INDEX
+ * created afterward enforces the identical guarantee (and produces the same
+ * "UNIQUE constraint failed" error on violation).
+ *
+ * Returns the names of any columns from a pre-existing narrower table that
+ * are themselves `NOT NULL` with no default and aren't part of this store's
+ * own schema (e.g. an earlier revision's own required key column). Without
+ * accounting for these, migration would succeed but every subsequent
+ * `accept()` would fail with a NOT NULL constraint violation, since this
+ * store's fixed-shape INSERT has no way to know that column exists. The
+ * caller threads these into the INSERT with a harmless non-null placeholder
+ * so writes keep working without altering that column's meaning.
+ */
+function migrateAgentRunReceiptsSchema(db: PortableDatabase): string[] {
+  const tableExists = Boolean(db.prepare(`
+    SELECT name FROM sqlite_master
+    WHERE type = 'table' AND name = 'agent_run_receipts'
+    LIMIT 1
+  `).get());
+
+  if (!tableExists) {
+    db.exec(`
+      CREATE TABLE agent_run_receipts (
+        id TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        idempotency_key_hash TEXT NOT NULL UNIQUE,
+        request_hash TEXT NOT NULL,
+        predecessor_session_id TEXT,
+        predecessor_snapshot_json TEXT,
+        successor_session_id TEXT,
+        successor_agent_id TEXT,
+        transcript_id TEXT,
+        status TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        started_at INTEGER,
+        completed_at INTEGER,
+        budget_usd REAL,
+        telemetry_json TEXT,
+        error TEXT
+      );
+    `);
+  }
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS agent_run_receipts (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      status TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `);
+
+  const tableInfo = db.prepare('PRAGMA table_info(agent_run_receipts)').all() as Array<{
+    name: string;
+    notnull: number;
+    dflt_value: unknown;
+  }>;
+  const existingColumns = new Set(tableInfo.map((column) => column.name));
+  for (const [column, type] of AGENT_RUN_RECEIPT_COLUMNS) {
+    if (!existingColumns.has(column)) {
+      db.exec(`ALTER TABLE agent_run_receipts ADD COLUMN ${quoteSqlIdentifier(column)} ${type}`);
+    }
+  }
+
+  if (tableExists) {
+    const legacyRows = db.prepare(`
+      SELECT id, idempotency_key_hash, request_hash
+      FROM agent_run_receipts
+      WHERE idempotency_key_hash IS NULL OR request_hash IS NULL
+    `).all() as Array<{ id: string; idempotency_key_hash: string | null; request_hash: string | null }>;
+    const backfill = db.prepare(`
+      UPDATE agent_run_receipts
+      SET idempotency_key_hash = COALESCE(idempotency_key_hash, ?),
+          request_hash = COALESCE(request_hash, ?)
+      WHERE id = ?
+    `);
+    for (const row of legacyRows) {
+      const legacyId = required(row.id, 'legacyReceiptId');
+      backfill.run(
+        sha256(`legacy-idempotency:${legacyId}`),
+        sha256(canonicalJson({ legacyReceiptId: legacyId })),
+        legacyId,
+      );
+    }
+  }
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_agent_run_receipts_idempotency_key_hash
+      ON agent_run_receipts(idempotency_key_hash);
+    CREATE INDEX IF NOT EXISTS idx_agent_run_receipts_status
+      ON agent_run_receipts(status, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_agent_run_receipts_predecessor
+      ON agent_run_receipts(predecessor_session_id, created_at DESC);
+    CREATE TRIGGER IF NOT EXISTS trg_agent_run_receipts_hashes_not_null_insert
+      BEFORE INSERT ON agent_run_receipts
+      WHEN NEW.idempotency_key_hash IS NULL OR NEW.request_hash IS NULL
+      BEGIN
+        SELECT RAISE(ABORT, 'agent_run_receipts hashes are required');
+      END;
+    CREATE TRIGGER IF NOT EXISTS trg_agent_run_receipts_hashes_not_null_update
+      BEFORE UPDATE OF idempotency_key_hash, request_hash ON agent_run_receipts
+      WHEN NEW.idempotency_key_hash IS NULL OR NEW.request_hash IS NULL
+      BEGIN
+        SELECT RAISE(ABORT, 'agent_run_receipts hashes are required');
+      END;
+  `);
+
+  const knownColumns = new Set(['id', 'kind', 'status', 'created_at', 'updated_at', ...AGENT_RUN_RECEIPT_COLUMNS.map(([name]) => name)]);
+  return tableInfo
+    .filter((column) => column.notnull === 1 && column.dflt_value === null && !knownColumns.has(column.name))
+    .map((column) => column.name);
+}
+
 /**
  * Durable, restart-safe ledger for agent run receipts.
  *
@@ -184,35 +394,16 @@ function clampListLimit(requested: number | undefined): number {
  */
 export function createAgentRunReceiptStore(
   db: PortableDatabase,
-  options: { now?: () => number; recoverNonTerminal?: boolean } = {},
+  options: {
+    now?: () => number;
+    recoverNonTerminal?: boolean;
+    verifyProcessAlive?: AgentRunProcessVerifier;
+  } = {},
 ) {
   const now = options.now ?? Date.now;
+  const verifyProcessAlive = options.verifyProcessAlive ?? defaultVerifyProcessAlive;
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS agent_run_receipts (
-      id TEXT PRIMARY KEY,
-      kind TEXT NOT NULL,
-      idempotency_key_hash TEXT NOT NULL UNIQUE,
-      request_hash TEXT NOT NULL,
-      predecessor_session_id TEXT,
-      predecessor_snapshot_json TEXT,
-      successor_session_id TEXT,
-      successor_agent_id TEXT,
-      transcript_id TEXT,
-      status TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      started_at INTEGER,
-      completed_at INTEGER,
-      budget_usd REAL,
-      telemetry_json TEXT,
-      error TEXT
-    );
-    CREATE INDEX IF NOT EXISTS idx_agent_run_receipts_status
-      ON agent_run_receipts(status, updated_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_agent_run_receipts_predecessor
-      ON agent_run_receipts(predecessor_session_id, created_at DESC);
-  `);
+  const legacyRequiredColumns = migrateAgentRunReceiptsSchema(db);
 
   if (options.recoverNonTerminal !== false) {
     const recoveredAt = now();
@@ -224,13 +415,17 @@ export function createAgentRunReceiptStore(
     `).run(recoveredAt);
   }
 
+  // A pre-existing database file controls its own column names, so identifiers
+  // still need SQLite quoting even though they came from PRAGMA table_info.
+  const legacyColumnList = legacyRequiredColumns.map((column) => `, ${quoteSqlIdentifier(column)}`).join('');
+  const legacyValueList = legacyRequiredColumns.map(() => ', 0').join('');
   const insert = db.prepare(`
     INSERT INTO agent_run_receipts (
       id, kind, idempotency_key_hash, request_hash, predecessor_session_id,
       predecessor_snapshot_json, successor_session_id, successor_agent_id,
       transcript_id, status, created_at, updated_at, started_at, completed_at,
-      budget_usd, telemetry_json, error
-    ) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 'accepted', ?, ?, NULL, NULL, ?, NULL, NULL)
+      budget_usd, telemetry_json, error${legacyColumnList}
+    ) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 'accepted', ?, ?, NULL, NULL, ?, NULL, NULL${legacyValueList})
     ON CONFLICT(idempotency_key_hash) DO NOTHING
   `);
   const byId = db.prepare('SELECT * FROM agent_run_receipts WHERE id = ? LIMIT 1');
@@ -276,6 +471,7 @@ export function createAgentRunReceiptStore(
     const requestHash = sha256(canonicalJson(input.request));
     const timestamp = now();
     const id = `run-${randomBytes(8).toString('hex')}`;
+    const budgetUsd = validateBudgetUsd(input.budgetUsd);
     const result = insert.run(
       id,
       required(input.kind, 'kind'),
@@ -285,7 +481,7 @@ export function createAgentRunReceiptStore(
       input.predecessor ? canonicalJson(input.predecessor) : null,
       timestamp,
       timestamp,
-      input.budgetUsd ?? null,
+      budgetUsd,
     );
     const row = byKey.get(keyHash) as AgentRunReceiptRow;
     if (row.request_hash !== requestHash || row.kind !== input.kind) {
@@ -330,25 +526,28 @@ export function createAgentRunReceiptStore(
     if (status === 'live') {
       const evidence = input.liveEvidence;
       const evidenceAge = evidence ? timestamp - evidence.supervisorHeartbeatAt : Number.POSITIVE_INFINITY;
-      if (
-        !evidence
-        || !Number.isInteger(evidence.pid)
-        || evidence.pid <= 0
-        || !Number.isFinite(evidence.supervisorHeartbeatAt)
-        || evidenceAge < 0
-        || evidenceAge >= AGENT_RUN_LIVE_EVIDENCE_MAX_AGE_MS
-      ) {
-        throw new Error('live status requires a direct PID and fresh supervisor heartbeat evidence');
+      const shapeValid = !!evidence
+        && Number.isInteger(evidence.pid)
+        && evidence.pid > 0
+        && Number.isFinite(evidence.supervisorHeartbeatAt)
+        && evidenceAge >= 0
+        && evidenceAge < AGENT_RUN_LIVE_EVIDENCE_MAX_AGE_MS;
+      // Shape-valid numbers are not evidence by themselves -- any caller can
+      // fabricate a {pid, supervisorHeartbeatAt} pair that merely looks
+      // fresh. Only an independent process check corroborates it.
+      if (!shapeValid || !verifyProcessAlive(evidence!.pid)) {
+        throw new Error('live status requires a direct PID and fresh supervisor heartbeat evidence corroborated by a real process check');
       }
     }
 
+    const telemetry = validateTelemetry(input.telemetry);
     setStatus.run(
       status,
       input.successorSessionId ?? null,
       timestamp,
       terminal ? timestamp : null,
       input.error ?? null,
-      input.telemetry ? canonicalJson(input.telemetry) : null,
+      telemetry ? canonicalJson(telemetry) : null,
       receiptId,
       status,
       status,
