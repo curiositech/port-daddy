@@ -10,16 +10,13 @@ describe('cli/utils/freshness', () => {
     expect(shouldCheckDaemonFreshness('claim')).toBe(true);
   });
 
-  test('skips freshness checks for install-bosun (brew post_install runs network-sandboxed)', async () => {
+  test('skips freshness checks for install/uninstall commands', async () => {
     const { shouldCheckDaemonFreshness } = await import('../../cli/utils/freshness.js');
 
-    // Regression: v3.25.1 shipped install-bosun without this skip entry.
-    // Homebrew's post_install hook has no network access, so the freshness
-    // probe's daemon fetch failed with ECONNREFUSED/ENOENT, and the CLI's
-    // top-level error handler misread that as "the daemon isn't running" —
-    // triggering an auto-start-and-retry loop that made a working,
-    // network-free launchd install report failure.
-    expect(shouldCheckDaemonFreshness('install-bosun')).toBe(false);
+    // install-bosun REMOVED: com.portdaddy.bosun is retired. The Homebrew
+    // service (homebrew.mxcl.port-daddy) is the single production supervisor.
+    // Historical context preserved: Homebrew's post_install had no network
+    // access, so freshness probes failed and needed to be skipped.
     expect(shouldCheckDaemonFreshness('install')).toBe(false);
     expect(shouldCheckDaemonFreshness('uninstall')).toBe(false);
   });

@@ -1,10 +1,17 @@
 /**
  * Canonical daemon runtime identity and macOS supervisor control.
  *
- * launchd owns process resurrection, the daemon owns readiness, and Bosun
- * observes the daemon heartbeat. Those are deliberately separate jobs, but
- * they must all describe the same generation. This module is the one place
- * that joins their claims into an operator-visible verdict.
+ * There is exactly one process supervisor: Homebrew's launchd job. It owns
+ * process resurrection; the daemon owns readiness and publishes the port it
+ * actually bound. Those are deliberately separate jobs, but they must all
+ * describe the same generation. This module is the one place that joins
+ * their claims into an operator-visible verdict.
+ *
+ * The daemon's preferred startup port is a seed, not a promise — if it is
+ * occupied, the stable daemon binds elsewhere and publishes wherever it
+ * actually landed via a strict `daemon.port` file. Nothing in this module
+ * assumes a fixed port; every port comparison is anchored to that published
+ * (or an explicitly injected) endpoint.
  */
 
 import http from 'node:http';
@@ -12,9 +19,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { DEFAULT_DAEMON_PORT, LOOPBACK_TCP_HOST } from '../shared/daemon-discovery.js';
+import { LOOPBACK_TCP_HOST } from '../shared/daemon-discovery.js';
 import { DEFAULT_PID_FILE, DEFAULT_PORT_FILE, PD_HOME } from '../shared/paths.js';
-import { BOSUN_HEARTBEAT_SCHEMA, DEFAULT_BOSUN_STALE_AFTER_MS } from './bosun-heartbeat.js';
 
 export const CANONICAL_LAUNCHD_LABEL = 'homebrew.mxcl.port-daddy';
 
@@ -44,13 +50,17 @@ export interface RuntimeIdentityScope {
   expectedPort: number;
   pidFile: string;
   portFile: string;
-  heartbeatFile: string;
   supervisor: LaunchdSupervisorSnapshot | null;
 }
 
 export interface RuntimeIdentityFacts {
   checkedAt: number;
-  expectedPort: number;
+  /**
+   * The reference port every other authority is checked against. Always
+   * resolved from a selected or published endpoint — never a fixed
+   * constant — and `null` when no such endpoint could be determined.
+   */
+  expectedPort: number | null;
   endpointPort: number | null;
   healthPid: number | null;
   healthPort: number | null;
@@ -58,9 +68,6 @@ export interface RuntimeIdentityFacts {
   binaryDrifted: boolean | null;
   pidFilePid: number | null;
   portFilePort: number | null;
-  heartbeatPid: number | null;
-  heartbeatWrittenAt: number | null;
-  heartbeatFresh: boolean | null;
   supervisor: LaunchdSupervisorSnapshot | null;
 }
 
@@ -205,39 +212,77 @@ export function runCanonicalLaunchdAction(
   return runLaunchctl(['kickstart', supervisor.target]);
 }
 
-function readNumber(path: string): number | null {
-  try {
-    const value = Number.parseInt(readFileSync(path, 'utf8').trim(), 10);
-    return Number.isInteger(value) && value > 0 ? value : null;
-  } catch {
-    return null;
-  }
+export interface StrictFileIntegerResult {
+  ok: boolean;
+  value: number | null;
+  path: string;
+  error: string | null;
 }
 
-function readHeartbeat(path: string): { pid: number; writtenAt: number } | null {
+const STRICT_WHOLE_NUMBER = /^[0-9]+$/;
+const MIN_TCP_PORT = 1;
+const MAX_TCP_PORT = 65_535;
+const MIN_PID = 1;
+// Generous ceiling covering both macOS's small PID space and Linux's
+// configurable kernel.pid_max (2^22 - 1 at its documented maximum).
+const MAX_PID = 4_194_304;
+
+/**
+ * Read a runtime identity file as a bare whole-file integer. The ENTIRE
+ * trimmed file content must be digits — no trailing garbage, no embedded
+ * lines, no sign, no fractional part — and the value must fall inside
+ * `bounds`. A torn write, a stale multi-line file, or an out-of-range value
+ * is rejected rather than partially parsed, so a malformed publication fails
+ * closed instead of silently resolving to whatever `parseInt` could salvage.
+ */
+function readStrictWholeFileInteger(path: string, bounds: { min: number; max: number }): StrictFileIntegerResult {
+  let raw: string;
   try {
-    const value = JSON.parse(readFileSync(path, 'utf8')) as {
-      schema?: string;
-      pid?: number;
-      writtenAt?: number;
-    };
-    if (value.schema !== BOSUN_HEARTBEAT_SCHEMA) return null;
-    if (!Number.isInteger(value.pid) || !Number.isFinite(value.writtenAt)) return null;
-    return { pid: value.pid as number, writtenAt: value.writtenAt as number };
+    raw = readFileSync(path, 'utf8');
   } catch {
-    return null;
+    return { ok: false, value: null, path, error: `not published: ${path} does not exist` };
   }
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    return { ok: false, value: null, path, error: `not published: ${path} is empty` };
+  }
+  if (!STRICT_WHOLE_NUMBER.test(trimmed)) {
+    return { ok: false, value: null, path, error: `malformed: ${path} is not a bare whole-file integer` };
+  }
+  const value = Number.parseInt(trimmed, 10);
+  if (!Number.isSafeInteger(value) || value < bounds.min || value > bounds.max) {
+    return {
+      ok: false,
+      value: null,
+      path,
+      error: `out of range: ${path} contains ${trimmed}, expected ${bounds.min}-${bounds.max}`,
+    };
+  }
+  return { ok: true, value, path, error: null };
+}
+
+/** Strictly read the published TCP port from a `daemon.port`-shaped file. */
+export function readPublishedPortFile(path: string): StrictFileIntegerResult {
+  return readStrictWholeFileInteger(path, { min: MIN_TCP_PORT, max: MAX_TCP_PORT });
+}
+
+/** Strictly read the published PID from a `daemon.pid`-shaped file. */
+export function readPublishedPidFile(path: string): StrictFileIntegerResult {
+  return readStrictWholeFileInteger(path, { min: MIN_PID, max: MAX_PID });
 }
 
 /**
  * Resolve every authority used to assess one daemon generation.
  *
- * The production plane is intentionally strict: even when a caller points at
- * another endpoint, its expected port and supervisor remain the canonical
- * ones. Named and ephemeral berths instead own a private runtime directory and
- * have no relationship to the production launchd job. Selecting only their
- * endpoint while retaining production files creates a guaranteed false split
- * brain, so the port, files, and supervisor move as one scope.
+ * `expectedPort` always tracks the caller's selected/published endpoint —
+ * for the canonical production scope exactly as much as for a named or
+ * ephemeral one. The stable daemon is free to bind away from its preferred
+ * startup seed when that port is occupied, so pinning production to a fixed
+ * constant here would flag a healthy, merely-relocated daemon as diverged.
+ * What DOES stay scope-gated is which runtime files and which supervisor
+ * apply: named and ephemeral berths own a private runtime directory and have
+ * no relationship to the production launchd job, so their port, files, and
+ * supervisor all move together as one scope.
  */
 export function resolveRuntimeIdentityScope(
   health: RuntimeHealthSnapshot | null,
@@ -254,10 +299,9 @@ export function resolveRuntimeIdentityScope(
   const runtimePrefix = opts.runtimePrefix?.trim() || null;
   const runtimeDir = nonCanonical && runtimePrefix ? runtimePrefix : PD_HOME;
   return {
-    expectedPort: nonCanonical ? opts.endpointPort : DEFAULT_DAEMON_PORT,
+    expectedPort: opts.endpointPort,
     pidFile: join(runtimeDir, 'daemon.pid'),
     portFile: join(runtimeDir, 'daemon.port'),
-    heartbeatFile: join(runtimeDir, 'heartbeat'),
     supervisor: nonCanonical ? null : (opts.canonicalSupervisor ?? null),
   };
 }
@@ -277,18 +321,26 @@ export function assessRuntimeIdentity(facts: RuntimeIdentityFacts): RuntimeIdent
     };
   }
   if (facts.healthStatus !== 'ok') issues.push(`/health reported ${facts.healthStatus ?? 'no status'}`);
-  if (facts.endpointPort !== facts.expectedPort) {
-    issues.push(`health endpoint used port ${facts.endpointPort ?? 'unknown'}, expected ${facts.expectedPort}`);
+
+  const expectedPort = facts.expectedPort;
+  if (expectedPort === null) {
+    // No selected or published endpoint could be determined at all — every
+    // port comparison below would be meaningless, so fail closed on that one
+    // fact instead of fabricating a fixed-port baseline to compare against.
+    missing.push('published port (daemon.port)');
+  } else {
+    if (facts.endpointPort !== expectedPort) {
+      issues.push(`health endpoint used port ${facts.endpointPort ?? 'unknown'}, expected ${expectedPort}`);
+    }
+    if (facts.healthPort === null) missing.push('daemon advertised port');
+    else if (facts.healthPort !== expectedPort) issues.push(`daemon advertised port ${facts.healthPort}, expected ${expectedPort}`);
+    if (facts.portFilePort === null) missing.push('daemon.port');
+    else if (facts.portFilePort !== expectedPort) issues.push(`daemon.port contains ${facts.portFilePort}, expected ${expectedPort}`);
   }
-  if (facts.healthPort === null) missing.push('daemon advertised port');
-  else if (facts.healthPort !== facts.expectedPort) issues.push(`daemon advertised port ${facts.healthPort}, expected ${facts.expectedPort}`);
-  if (facts.portFilePort === null) missing.push('daemon.port');
-  else if (facts.portFilePort !== facts.expectedPort) issues.push(`daemon.port contains ${facts.portFilePort}, expected ${facts.expectedPort}`);
+
   if (facts.pidFilePid === null) missing.push('daemon.pid');
   else if (facts.pidFilePid !== healthPid) issues.push(`daemon.pid=${facts.pidFilePid}, /health pid=${healthPid}`);
-  if (facts.heartbeatPid === null) missing.push('Bosun heartbeat');
-  else if (facts.heartbeatPid !== healthPid) issues.push(`Bosun heartbeat pid=${facts.heartbeatPid}, /health pid=${healthPid}`);
-  if (facts.heartbeatFresh === false) issues.push('Bosun heartbeat is stale');
+
   if (facts.supervisor) {
     if (!facts.supervisor.loaded) issues.push(`${facts.supervisor.label} is not loaded`);
     else if (!facts.supervisor.running) issues.push(`${facts.supervisor.label} is not running`);
@@ -308,7 +360,7 @@ export function assessRuntimeIdentity(facts: RuntimeIdentityFacts): RuntimeIdent
       facts,
     };
   }
-  if (missing.length > 0 || facts.binaryDrifted === null || facts.heartbeatFresh === null) {
+  if (missing.length > 0 || facts.binaryDrifted === null) {
     return {
       state: 'incomplete',
       severity: 'warn',
@@ -319,12 +371,12 @@ export function assessRuntimeIdentity(facts: RuntimeIdentityFacts): RuntimeIdent
     };
   }
   const authorities = facts.supervisor
-    ? 'launchd, /health, daemon.pid, daemon.port, and Bosun heartbeat'
-    : '/health, daemon.pid, daemon.port, and Bosun heartbeat';
+    ? 'launchd, /health, daemon.pid, and daemon.port'
+    : '/health, daemon.pid, and daemon.port';
   return {
     state: 'converged',
     severity: 'ok',
-    summary: `${authorities} agree on PID ${healthPid} at :${facts.expectedPort}`,
+    summary: `${authorities} agree on PID ${healthPid} at :${expectedPort ?? '?'}`,
     issues,
     missing,
     facts,
@@ -336,46 +388,52 @@ export function collectRuntimeIdentity(
   health: RuntimeHealthSnapshot | null,
   opts: {
     now?: number;
-    expectedPort?: number;
+    /** Explicit selected/published endpoint. Falls back to a strict read of `portFile` when omitted. */
+    expectedPort?: number | null;
     endpointPort?: number | null;
     pidFile?: string;
     portFile?: string;
-    heartbeatFile?: string;
-    heartbeatStaleAfterMs?: number;
     supervisor?: LaunchdSupervisorSnapshot | null;
   } = {},
 ): RuntimeIdentityAssessment {
   const now = opts.now ?? Date.now();
-  const heartbeat = readHeartbeat(opts.heartbeatFile ?? join(PD_HOME, 'heartbeat'));
+  const pidFile = opts.pidFile ?? DEFAULT_PID_FILE;
+  const portFile = opts.portFile ?? DEFAULT_PORT_FILE;
+  const portRead = readPublishedPortFile(portFile);
+  const expectedPort = opts.expectedPort ?? portRead.value;
   const facts: RuntimeIdentityFacts = {
     checkedAt: now,
-    expectedPort: opts.expectedPort ?? DEFAULT_DAEMON_PORT,
+    expectedPort,
     endpointPort: opts.endpointPort ?? null,
     healthPid: Number.isInteger(health?.pid) ? health!.pid! : null,
     healthPort: Number.isInteger(health?.daemon?.port) ? health!.daemon!.port! : null,
     healthStatus: typeof health?.status === 'string' ? health.status : null,
     binaryDrifted: typeof health?.binaryDrift?.drifted === 'boolean' ? health.binaryDrift.drifted : null,
-    pidFilePid: readNumber(opts.pidFile ?? DEFAULT_PID_FILE),
-    portFilePort: readNumber(opts.portFile ?? DEFAULT_PORT_FILE),
-    heartbeatPid: heartbeat?.pid ?? null,
-    heartbeatWrittenAt: heartbeat?.writtenAt ?? null,
-    heartbeatFresh: heartbeat
-      ? now - heartbeat.writtenAt <= (opts.heartbeatStaleAfterMs ?? DEFAULT_BOSUN_STALE_AFTER_MS)
-      : null,
+    pidFilePid: readPublishedPidFile(pidFile).value,
+    portFilePort: portRead.value,
     supervisor: opts.supervisor === undefined ? inspectCanonicalLaunchdSupervisor() : opts.supervisor,
   };
   return assessRuntimeIdentity(facts);
 }
 
-/** Probe the canonical TCP endpoint directly, never through a stale port file. */
-export function probeCanonicalHealth(
-  port = DEFAULT_DAEMON_PORT,
-  timeoutMs = 1_500,
+export interface CanonicalHealthEndpoint {
+  host?: string;
+  port: number;
+}
+
+type HealthRequester = (
+  endpoint: { host: string; port: number },
+  timeoutMs: number,
+) => Promise<RuntimeHealthSnapshot | null>;
+
+function requestHealthOverTcp(
+  endpoint: { host: string; port: number },
+  timeoutMs: number,
 ): Promise<RuntimeHealthSnapshot | null> {
   return new Promise((resolve) => {
     const request = http.request({
-      host: LOOPBACK_TCP_HOST,
-      port,
+      host: endpoint.host,
+      port: endpoint.port,
       path: '/health',
       method: 'GET',
       timeout: timeoutMs,
@@ -400,11 +458,56 @@ export function probeCanonicalHealth(
   });
 }
 
+export interface ProbeCanonicalHealthOptions {
+  /** Explicit injected endpoint. When set, publication discovery never runs. */
+  endpoint?: CanonicalHealthEndpoint | null;
+  /** Strict `daemon.port` file to discover the published endpoint from. */
+  portFile?: string;
+  timeoutMs?: number;
+  requestHealth?: HealthRequester;
+}
+
+/**
+ * Resolve which endpoint {@link probeCanonicalHealth} would dial, without
+ * performing any network I/O. An explicit `opts.endpoint` always wins; absent
+ * that, the published port is discovered via a strict whole-file read of
+ * `opts.portFile`. There is no fixed-port fallback — a missing or malformed
+ * publication resolves to `null` (fail closed) rather than guessing.
+ */
+export function resolveProbeEndpoint(
+  opts: { endpoint?: CanonicalHealthEndpoint | null; portFile?: string } = {},
+): { host: string; port: number } | null {
+  if (opts.endpoint) {
+    return { host: opts.endpoint.host ?? LOOPBACK_TCP_HOST, port: opts.endpoint.port };
+  }
+  const published = readPublishedPortFile(opts.portFile ?? DEFAULT_PORT_FILE);
+  if (!published.ok || published.value === null) return null;
+  return { host: LOOPBACK_TCP_HOST, port: published.value };
+}
+
+/**
+ * Probe a daemon's `/health` endpoint directly, never through a stale cache.
+ * The target endpoint comes from an explicit injection or from a strict
+ * `daemon.port` file read — never from a fixed constant. When neither
+ * resolves an endpoint, this fails closed (resolves `null`) instead of
+ * probing a guessed port.
+ */
+export function probeCanonicalHealth(
+  opts: ProbeCanonicalHealthOptions = {},
+): Promise<RuntimeHealthSnapshot | null> {
+  const endpoint = resolveProbeEndpoint(opts);
+  if (!endpoint) return Promise.resolve(null);
+  const requestHealth = opts.requestHealth ?? requestHealthOverTcp;
+  return requestHealth(endpoint, opts.timeoutMs ?? 1_500);
+}
+
 export async function waitForCanonicalRuntime(opts: {
   previousPid?: number | null;
   timeoutMs?: number;
   pollIntervalMs?: number;
   stableSamples?: number;
+  /** Strict `daemon.port` file the default probe/collect pair discovers the published endpoint from. */
+  portFile?: string;
   probeHealth?: () => Promise<RuntimeHealthSnapshot | null>;
   inspectSupervisor?: () => LaunchdSupervisorSnapshot | null;
   collect?: (health: RuntimeHealthSnapshot | null, supervisor: LaunchdSupervisorSnapshot | null) => RuntimeIdentityAssessment;
@@ -413,10 +516,11 @@ export async function waitForCanonicalRuntime(opts: {
   const timeoutMs = opts.timeoutMs ?? 120_000;
   const pollIntervalMs = opts.pollIntervalMs ?? 250;
   const stableSamples = Math.max(1, opts.stableSamples ?? 2);
-  const probe = opts.probeHealth ?? (() => probeCanonicalHealth());
+  const portFile = opts.portFile ?? DEFAULT_PORT_FILE;
+  const probe = opts.probeHealth ?? (() => probeCanonicalHealth({ portFile }));
   const inspect = opts.inspectSupervisor ?? (() => inspectCanonicalLaunchdSupervisor());
   const collect = opts.collect ?? ((health, supervisor) => collectRuntimeIdentity(health, {
-    endpointPort: DEFAULT_DAEMON_PORT,
+    portFile,
     supervisor,
   }));
   const startedAt = Date.now();

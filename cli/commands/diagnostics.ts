@@ -2026,27 +2026,13 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   }
 
   // -------------------------------------------------------------------------
-  // 8b. Bosun watchdog — the Rust heartbeat/PID supervisor (core/pd-bosun).
-  //     Previously this was silently skipped when the binary was missing; now
-  //     it is a loud WARN that names the exact build command. Running-state is
-  //     read from the daemon's guardians.bosun when reachable.
+  // 8b. Legacy Bosun watchdog detection — com.portdaddy.bosun is RETIRED as
+  //     an active daemon supervisor. The Homebrew service (homebrew.mxcl.port-daddy)
+  //     is the single production supervisor via launchd KeepAlive. Detect stale
+  //     Bosun artifacts for cleanup but do NOT treat them as required or blessed.
   // -------------------------------------------------------------------------
   try {
-    // `libDir` is a naive `join(__dirname, '..', '..')` — correct for a source
-    // checkout, but for a `bun build --compile` binary `__dirname` is a virtual
-    // bun:// path, so that join produces a string that never exists on disk.
-    // `resolveDistributionRoot` (already used by describeResourceDir() below
-    // for the same reason) resolves the REAL install root from process.execPath
-    // in that case and is a no-op passthrough for a source checkout. Without
-    // this, `pd doctor` always reported "pd-bosun binary not built" for every
-    // packaged/brew install even when Bosun was genuinely installed and
-    // healthy (found live during the v3.25.1/3.25.2 brew rollout).
     const bosun = resolveBosunBinary(resolveDistributionRoot(libDir));
-    // The DAEMON is authoritative about its own watchdog: it resolves the binary
-    // from its real runtime root and reports live state. Trust it over the CLI's
-    // local resolver, which can guess a wrong distribution root under an unusual
-    // install layout. Only fall back to the local resolver when the daemon is
-    // unreachable.
     let daemonBinaryExists: boolean | null = null;
     let daemonBinaryPath: string | null = null;
     let bosunRunning: boolean | null = null;
@@ -2070,22 +2056,18 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     }
     const bosunPresent = daemonBinaryExists ?? bosun.exists;
     const bosunPath = daemonBinaryPath ?? bosun.binaryPath;
-    if (!bosunPresent) {
-      // Required (halt-mandate): a brew/tarball install with NO watchdog binary
-      // leaves the daemon with no independent heartbeat/PID supervisor. This is a
-      // shipping defect, not a warning — fail the doctor so it can't reach users.
-      criticalFail('Bosun watchdog',
-        'pd-bosun watchdog binary is MISSING — the daemon has no independent heartbeat/PID supervisor',
-        'Reinstall so the supervisor ships: `brew reinstall port-daddy` (or `npm run build:bosun` in a source checkout)');
-    } else if (bosunRunning === false) {
-      warn('Bosun watchdog',
-        `pd-bosun binary present at ${bosunPath} but not active${bosunReason ? ` (${bosunReason})` : ''}`,
-        'Heartbeat writer is the daemon-side fallback; run `port-daddy install-bosun` to wire the supervisor');
+
+    // Detect stale Bosun artifacts but do NOT require them. The Homebrew service
+    // is the single supervisor; legacy Bosun can be unloaded/cleaned up.
+    if (bosunPresent || bosunRunning) {
+      warn('Legacy Bosun watchdog',
+        `Stale Bosun artifacts detected${bosunPath ? ` at ${bosunPath}` : ''}${bosunRunning ? ' (still running)' : ''}`,
+        'The Homebrew service (homebrew.mxcl.port-daddy) is the single production supervisor. To clean up legacy Bosun: launchctl unload ~/Library/LaunchAgents/com.portdaddy.bosun.plist');
     } else {
-      check('Bosun watchdog', true, `pd-bosun present at ${bosunPath}${bosunReason ? ` (${bosunReason})` : ''}`);
+      check('Legacy Bosun watchdog', true, 'No stale Bosun artifacts detected (expected — Homebrew service is the supervisor)');
     }
   } catch (err: unknown) {
-    check('Bosun watchdog', false, `Error: ${(err as Error).message}`);
+    check('Legacy Bosun watchdog', false, `Error: ${(err as Error).message}`);
   }
 
   // -------------------------------------------------------------------------

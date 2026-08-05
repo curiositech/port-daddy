@@ -33,7 +33,7 @@ describe('daemon installer service PATH', () => {
     expect(source).toContain("'homebrew.mxcl.port-daddy'");
     expect(source).toContain('function brewDaemonServiceLoaded');
     // installMacOS must consult the detector and short-circuit the daemon plist
-    // write (Bosun install still proceeds).
+    // write. Homebrew's launchd KeepAlive is the single supervisor.
     expect(source).toContain('if (brewDaemonServiceLoaded())');
     expect(source).toContain('Skipping com.portdaddy.daemon launchd job');
     // The dedup branch must NOT write the daemon plist before returning. The

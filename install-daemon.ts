@@ -300,27 +300,22 @@ export function jscSafeModeEnvXml(): string {
 }
 
 /**
- * @param daemonLabel the launchd label Bosun should `launchctl kickstart -k`
- * when the daemon's heartbeat goes stale (see core/pd-bosun/src/main.rs
- * DEFAULT_DAEMON_LABEL). MUST match whichever job actually supervises the
- * daemon on this machine — `com.portdaddy.daemon` for a self-installed
- * LaunchAgent, or `homebrew.mxcl.port-daddy` under `brew services`.
+ * @deprecated REMOVED: com.portdaddy.bosun is retired as an active daemon supervisor.
+ * Preserved for understanding legacy plist format only. The Homebrew service
+ * (homebrew.mxcl.port-daddy) with launchd KeepAlive=true is the single supervisor.
  *
- * 2026-07-08 (issue #676 investigation): this used to be unparameterized,
- * always defaulting Bosun to `com.portdaddy.daemon` regardless of which
- * supervisor was actually in charge. `installMacOS()`'s brew-detected branch
- * already installs Bosun as a complementary watcher alongside a
- * brew-supervised daemon (see the comment there), but Bosun's own restart
- * action (`launchctl kickstart -k com.portdaddy.daemon`) was targeting a
- * launchd label that doesn't exist under a brew install — so on the
- * operator's actual production machine, Bosun's stale-heartbeat circuit
- * breaker was silently a no-op the entire time. This is the real,
- * already-built "detect a wedge, force-restart within seconds" mechanism the
- * daemon's Bun-crash exposure needs (5s poll / 30s staleness threshold by
- * default, see core/pd-bosun) — it just needed correct wiring, not a new
- * mechanism.
+ * Legacy context: Generated the com.portdaddy.bosun LaunchAgent plist that ran
+ * pd-bosun watch, a Rust heartbeat/PID supervisor that polled the daemon's
+ * heartbeat file and kickstarted the daemon label on staleness. The wiring
+ * needed to know which launchd label to restart (com.portdaddy.daemon vs
+ * homebrew.mxcl.port-daddy), which proved to be a recurring misconfiguration
+ * source. Runtime convergence could not reliably distinguish which of two
+ * supervisors was authoritative, leading to split-brain states.
+ *
+ * @param daemonLabel UNUSED in production. Legacy parameter for which launchd
+ * label Bosun should kickstart.
  */
-export function generateBosunPlist(daemonLabel: string): string {
+export function generateBosunPlist_DEPRECATED_DO_NOT_CALL(daemonLabel: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -468,27 +463,11 @@ function loadLaunchAgent(label: string, plistPath: string): boolean {
  * this machine — pass BREW_DAEMON_LABEL when brew-managed, PLIST_LABEL
  * otherwise. See generateBosunPlist() for why this must be correct.
  */
-function installBosunMacOS(daemonLabel: string): boolean {
-  if (!existsSync(BOSUN_BINARY_PATH)) {
-    // LOUD warning (2026-07-14 halt-mandate red-team): a daemon installed
-    // WITHOUT its supervisor is exactly the silent-death regression this PR
-    // closes. A source checkout legitimately may not have built the binary yet,
-    // so we do not hard-fail the whole install — but we must SCREAM, not log a
-    // quiet one-liner, so the operator knows the daemon is currently unguarded.
-    console.warn('  ⚠️  BOSUN SUPERVISOR NOT INSTALLED — the daemon will NOT be auto-restarted if it dies.');
-    console.warn(`      pd-bosun binary missing at ${BOSUN_BINARY_PATH}`);
-    console.warn('      A packaged (brew/tarball) install ships pd-bosun automatically; this checkout has not built it.');
-    console.warn('      Build + install it with: npm run build:bosun:dist && port-daddy install');
-    return true;
-  }
-
-  if (existsSync(BOSUN_PLIST_PATH)) {
-    runCommand('launchctl', ['unload', BOSUN_PLIST_PATH]);
-  }
-
-  writeFileSync(BOSUN_PLIST_PATH, generateBosunPlist(daemonLabel));
-  console.log(`  Wrote ${BOSUN_PLIST_PATH} (KeepAlive supervisor → ${BOSUN_BINARY_PATH}, watching ${daemonLabel})`);
-  return loadLaunchAgent(BOSUN_PLIST_LABEL, BOSUN_PLIST_PATH);
+/**
+ * @deprecated REMOVED: com.portdaddy.bosun is retired. Preserved for reference only.
+ */
+function installBosunMacOS_DEPRECATED_DO_NOT_CALL(daemonLabel: string): boolean {
+  throw new Error('installBosunMacOS is DEPRECATED. The Homebrew service is the single supervisor.');
 }
 
 function installMacOS(daemon: DaemonLaunchCommand): boolean {
@@ -509,8 +488,7 @@ function installMacOS(daemon: DaemonLaunchCommand): boolean {
   // (homebrew.mxcl.port-daddy, KeepAlive=true), do NOT install a second
   // launchd supervisor. Two KeepAlive jobs racing for the same listener is the
   // recurring "two daemons fighting over :daemon-port" failure. Leave the brew
-  // service as the single supervisor; only ensure Bosun (a complementary,
-  // one-way heartbeat watcher) is present.
+  // service as the SINGLE supervisor (launchd KeepAlive is sufficient).
   if (brewDaemonServiceLoaded()) {
     console.log(`  Detected supervised daemon via Homebrew (${BREW_DAEMON_LABEL}).`);
     console.log('  Skipping com.portdaddy.daemon launchd job to avoid a duplicate supervisor.');
@@ -522,7 +500,8 @@ function installMacOS(daemon: DaemonLaunchCommand): boolean {
         console.log(`  Removed redundant ${PLIST_PATH}`);
       } catch { /* leave it if something still owns it */ }
     }
-    return installBosunMacOS(BREW_DAEMON_LABEL) && installFreshnessMacOS();
+    // Only install freshness auto-update; Homebrew's launchd KeepAlive is the supervisor.
+    return installFreshnessMacOS();
   }
 
   stopExistingCanonicalDaemon();
@@ -536,7 +515,9 @@ function installMacOS(daemon: DaemonLaunchCommand): boolean {
   writeFileSync(PLIST_PATH, generatePlist(daemon));
   console.log(`  Wrote ${PLIST_PATH}`);
 
-  return loadLaunchAgent(PLIST_LABEL, PLIST_PATH) && installBosunMacOS(PLIST_LABEL) && installFreshnessMacOS();
+  // Load the daemon LaunchAgent and install freshness auto-update.
+  // The plist's KeepAlive=true is the supervisor; no additional watchdog needed.
+  return loadLaunchAgent(PLIST_LABEL, PLIST_PATH) && installFreshnessMacOS();
 }
 
 function uninstallMacOS(): boolean {
@@ -624,33 +605,12 @@ WantedBy=default.target
 `;
 }
 
-function installBosunLinux(): boolean {
-  if (!existsSync(BOSUN_BINARY_PATH)) {
-    console.log(`  Bosun not installed: pd-bosun binary missing at ${BOSUN_BINARY_PATH}`);
-    console.log('  Build it with: npm run build:bosun:dist');
-    return true;
-  }
-
-  writeFileSync(BOSUN_SYSTEMD_UNIT, generateBosunSystemdUnit());
-  console.log(`  Wrote ${BOSUN_SYSTEMD_UNIT}`);
-
-  const reload = runCommand('systemctl', ['--user', 'daemon-reload']);
-  if (reload.status !== 0) {
-    console.error('  Failed to reload systemd for Bosun:', reload.stderr.trim());
-    return false;
-  }
-  const enable = runCommand('systemctl', ['--user', 'enable', 'port-daddy-bosun.service']);
-  if (enable.status !== 0) {
-    console.error('  Failed to enable Bosun service:', enable.stderr.trim());
-    return false;
-  }
-  const start = runCommand('systemctl', ['--user', 'start', 'port-daddy-bosun.service']);
-  if (start.status !== 0) {
-    console.error('  Failed to start Bosun service:', start.stderr.trim());
-    return false;
-  }
-  console.log('  Bosun service started');
-  return true;
+/**
+ * @deprecated REMOVED: port-daddy-bosun.service is retired. systemd's Restart=always
+ * is the single supervisor. Preserved for understanding legacy systemd unit only.
+ */
+function installBosunLinux_DEPRECATED_DO_NOT_CALL(): boolean {
+  throw new Error('installBosunLinux is DEPRECATED. systemd Restart=always is the supervisor.');
 }
 
 function installLinux(daemon: DaemonLaunchCommand): boolean {
@@ -682,7 +642,8 @@ function installLinux(daemon: DaemonLaunchCommand): boolean {
   const start: CommandResult = runCommand('systemctl', ['--user', 'start', 'port-daddy.service']);
   if (start.status === 0) {
     console.log('  Service started');
-    return installBosunLinux();
+    // systemd's Restart=always is the supervisor; no additional watchdog needed.
+    return true;
   } else {
     console.error('  Failed to start service:', start.stderr.trim());
     return false;
@@ -787,46 +748,24 @@ function install(): void {
 }
 
 /**
- * Wire ONLY the Bosun watchdog (+ freshness self-heal) for a Homebrew-managed
- * install, without touching the main daemon plist at all.
+ * @deprecated REMOVED: com.portdaddy.bosun is retired as an active daemon supervisor.
+ * The Homebrew service (homebrew.mxcl.port-daddy) is the single production
+ * supervisor via launchd KeepAlive. This function is preserved only for
+ * understanding legacy installs; it is never called in production paths.
  *
- * Why this exists separately from `install()`: the Homebrew formula's
- * `post_install` runs during `brew install`/`brew upgrade`, BEFORE the
- * operator (or brew's own post-upgrade service-restart) has necessarily
- * started `homebrew.mxcl.port-daddy`. Calling the full `install()` at that
- * moment would see `brewDaemonServiceLoaded() === false` and fall into the
- * standalone-daemon branch — writing + loading a `com.portdaddy.daemon`
- * LaunchAgent that binds :9876 directly. When the operator later runs
- * `brew services start port-daddy`, THAT job would try to bind the same
- * port too: two competing KeepAlive supervisors, the exact "daemon fighting
- * itself" failure mode `installMacOS()`'s dedup guard exists to prevent in
- * the other direction (brew-already-loaded before a manual `port-daddy
- * install`).
+ * Legacy context: This wired the Bosun watchdog for Homebrew-managed installs,
+ * separate from the main daemon plist, to avoid ordering hazards during
+ * `brew install`/`brew upgrade`. The formula's `post_install` could call this
+ * before `homebrew.mxcl.port-daddy` was loaded without creating a duplicate
+ * supervisor. However, maintaining two separate supervision mechanisms proved
+ * to be a recurring failure mode — runtime convergence could not reliably
+ * distinguish which supervisor was authoritative, leading to split-brain states.
  *
- * Bosun itself has no such ordering hazard — `pd-bosun watch` just polls a
- * heartbeat file and, on staleness, `launchctl kickstart`s whatever label it
- * was told to watch. Pointed at `BREW_DAEMON_LABEL`, it's safe to install at
- * ANY point before or after brew's own service is running: if the brew job
- * isn't loaded yet, a kickstart attempt just fails quietly and retries on the
- * next tick once it is loaded. So this is the one operation `post_install`
- * can call unconditionally.
+ * The convergence fix: treat homebrew.mxcl.port-daddy as the ONLY supervisor.
+ * Its launchd KeepAlive=true is sufficient; no additional watchdog is needed.
  */
-function installBosunOnly(): void {
-  console.log('Installing Bosun watchdog (Homebrew-managed daemon)...');
-  console.log(`  Platform: ${PLATFORM}`);
-  let ok: boolean;
-  if (PLATFORM === 'darwin') {
-    ok = installBosunMacOS(BREW_DAEMON_LABEL) && installFreshnessMacOS();
-  } else if (PLATFORM === 'linux') {
-    ok = installBosunLinux();
-  } else {
-    console.log(`  Platform "${PLATFORM}" has no Bosun watchdog integration.`);
-    return;
-  }
-  if (!ok) {
-    console.error('  Bosun watchdog install did not complete cleanly (see above).');
-    process.exitCode = 1;
-  }
+function installBosunOnly_DEPRECATED_DO_NOT_CALL(): void {
+  throw new Error('installBosunOnly is DEPRECATED and must not be called. The Homebrew service (homebrew.mxcl.port-daddy) is the single production daemon supervisor.');
 }
 
 function uninstall(): void {
@@ -930,9 +869,6 @@ export function runInstallDaemonCli(command: string | undefined = process.argv[2
     case 'install':
       install();
       break;
-    case 'install-bosun':
-      installBosunOnly();
-      break;
     case 'uninstall':
       uninstall();
       break;
@@ -944,15 +880,18 @@ export function runInstallDaemonCli(command: string | undefined = process.argv[2
 Port Daddy Daemon Installer
 
 Usage:
-  node install-daemon.js install        - Install and start daemon
-  node install-daemon.js install-bosun  - Wire only the Bosun watchdog (brew-managed daemon)
-  node install-daemon.js uninstall      - Stop and uninstall daemon
-  node install-daemon.js status         - Check daemon status
+  node install-daemon.js install    - Install and start daemon
+  node install-daemon.js uninstall  - Stop and uninstall daemon
+  node install-daemon.js status     - Check daemon status
 
 Supported platforms:
   macOS   - LaunchAgent (auto-start on login)
   Linux   - systemd user service (auto-start on login)
   Windows - Manual start only (port-daddy start)
+
+Note: The Homebrew service (homebrew.mxcl.port-daddy) is the single
+      production daemon supervisor. Legacy com.portdaddy.bosun artifacts
+      can be cleaned up via 'pd doctor --fix'.
     `);
   }
 }
