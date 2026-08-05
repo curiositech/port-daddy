@@ -191,15 +191,23 @@
   }
 
   async function waitForReply(parentId) {
-    const deadline = Date.now() + 90000;
     let cursor = parentId;
-    while (Date.now() < deadline) {
-      for (const m of await poll(cursor)) {
+    let chunks = 0;
+    const MAX_CHUNKS = 2;
+    while (chunks < MAX_CHUNKS) {
+      const msgs = await poll(cursor);
+      if (msgs.length === 0) {
+        chunks++;
+        await sleep(700);
+        continue;
+      }
+      for (const m of msgs) {
         cursor = Math.max(cursor, m.id);
         const p = m.payload;
         if (p && p.kind === KIND && p.inReplyTo === parentId) return m;
       }
-      await sleep(700);
+      chunks++;
+      if (chunks < MAX_CHUNKS) await sleep(700);
     }
     throw new Error('timed out');
   }

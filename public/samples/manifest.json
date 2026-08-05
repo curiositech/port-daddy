@@ -172,14 +172,14 @@
     {
       "path": "examples/pd-tube/agent-responder.py",
       "url": "/samples/files/examples/pd-tube/agent-responder.py",
-      "bytes": 5433,
-      "sha256": "b470047988b8d20bce6fd51043bca85aab9f2bf1af2ef68a59e2e64d6b39bb77"
+      "bytes": 5470,
+      "sha256": "27b28cc244564a044ff2c918f1b2b2a7c6e82c54b723bc87876d3bf32bee0d76"
     },
     {
       "path": "examples/pd-tube/button-to-agent.html",
       "url": "/samples/files/examples/pd-tube/button-to-agent.html",
-      "bytes": 6758,
-      "sha256": "5e2729af75744945f97858a6a9d587abf13275668cd8d754789295c0e9dd836f"
+      "bytes": 6920,
+      "sha256": "9111387920180f3fe53c7804393e817d3dfc6012dd611316d22a6df49538c718"
     },
     {
       "path": "examples/pd-tube/demo.sh",
@@ -190,8 +190,8 @@
     {
       "path": "examples/pd-tube/mission-control.html",
       "url": "/samples/files/examples/pd-tube/mission-control.html",
-      "bytes": 11469,
-      "sha256": "ba45223a8372139d3efd02924e7e5dba7fc933e639a13a0b1e4172c066479c66"
+      "bytes": 11639,
+      "sha256": "9097ccd76501faf426728d029f65819fe537592a41fa2b98f4c3fafe3867d224"
     },
     {
       "path": "examples/pd-tube/README.md",

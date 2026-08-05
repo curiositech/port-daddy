@@ -198,10 +198,16 @@ $ pd tube ui:clicks
 
     async function waitForReply(parentId) {
       let cursor = parentId;
-      const deadline = Date.now() + 120000;
+      let chunks = 0;
+      const MAX_CHUNKS = 2;
 
-      while (Date.now() < deadline) {
+      while (chunks < MAX_CHUNKS) {
         const messages = await readMessages(cursor);
+        if (messages.length === 0) {
+          chunks++;
+          await sleep(900);
+          continue;
+        }
         for (const message of messages) {
           cursor = Math.max(cursor, message.id);
           const payload = decodeTubePayload(message);
@@ -209,7 +215,8 @@ $ pd tube ui:clicks
             return { message, payload };
           }
         }
-        await sleep(900);
+        chunks++;
+        if (chunks < MAX_CHUNKS) await sleep(900);
       }
 
       throw new Error('Timed out waiting for agent reply');

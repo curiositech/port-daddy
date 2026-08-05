@@ -8,6 +8,7 @@ import os
 import subprocess
 import sys
 import time
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -43,7 +44,7 @@ def configure():
     REPO = Path(args.repo).expanduser().resolve()
     SENDER = args.sender
     PR_NUMBER = args.pr
-    URL = f"{(args.daemon or discover_daemon_url()).rstrip('/')}/msg/{CHANNEL}"
+    URL = f"{(args.daemon or discover_daemon_url()).rstrip('/')}/msg/{urllib.parse.quote(CHANNEL, safe='')}"
 
 def sh(args, timeout=20):
     try:
@@ -80,7 +81,7 @@ def work(text):
         branch = sh(["git", "branch", "--show-current"]) or "detached"
         return f"Local repo summary: {branch} at {sha}. Set PD_TUBE_PR or pass --pr to summarize a GitHub PR."
     # free-form: route to a REAL claude agent
-    ans = sh(["claude", "-p", f"Answer in one or two sentences, plainly: {text}"], timeout=40)
+    ans = sh(["claude", "-p", f"Answer in one or two sentences, plainly: {text}"])
     return ans[:400] if ans and not ans.startswith("(") else f"(agent could not answer: {ans})"
 
 def main():
