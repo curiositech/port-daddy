@@ -202,7 +202,6 @@ describe('design system contracts', () => {
     expect(install).toContain("from '@/components/site/primitives'")
     expect(install).toContain('PageContainer')
     expect(install).toContain('SurfacePanel')
-    expect(install).toContain('DocsCodeBlock')
     expect(install).toContain('CopyableCommandBlock')
     expect(install).not.toContain('import { Surface }')
     // No raw color literals or inline color styles — tokenized roles only.

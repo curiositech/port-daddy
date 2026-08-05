@@ -100,6 +100,9 @@
     <loc>https://portdaddy.dev/docs/cli</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/account</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/activity</loc>
   </url>
   <url>
@@ -124,7 +127,22 @@
     <loc>https://portdaddy.dev/docs/cli/agents</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/attention</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/attest</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/b</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/backend</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/backup</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/batten</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/begin</loc>
@@ -133,7 +151,13 @@
     <loc>https://portdaddy.dev/docs/cli/bench</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/benchmark</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/bond</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/booty</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/briefing</loc>
@@ -143,6 +167,9 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/c</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/cg</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/changelog</loc>
@@ -157,13 +184,22 @@
     <loc>https://portdaddy.dev/docs/cli/claim</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/coast-guard</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/cockpit-missions</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/commit</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/compass</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/config</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/cut</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/d</loc>
@@ -181,6 +217,9 @@
     <loc>https://portdaddy.dev/docs/cli/diagnose</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/dispatch</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/dns</loc>
   </url>
   <url>
@@ -191,6 +230,9 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/down</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/embed</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/env</loc>
@@ -220,6 +262,12 @@
     <loc>https://portdaddy.dev/docs/cli/harbor-create</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/harbor-ledger</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/harbormaster</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/harbors</loc>
   </url>
   <url>
@@ -235,6 +283,12 @@
     <loc>https://portdaddy.dev/docs/cli/history</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/hm</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/hooks</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/ideas-list-search-show</loc>
   </url>
   <url>
@@ -245,6 +299,9 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/install</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/install-freshness</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/integration</loc>
@@ -289,7 +346,13 @@
     <loc>https://portdaddy.dev/docs/cli/metrics</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/morning</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/n</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/nightshift</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/note</loc>
@@ -298,13 +361,31 @@
     <loc>https://portdaddy.dev/docs/cli/notes</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/nudge-target</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/obligations</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/p</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/parley</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/periscope</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/ph</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/pheromone</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/plan</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/popper</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/ports</loc>
@@ -331,19 +412,34 @@
     <loc>https://portdaddy.dev/docs/cli/r</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/relay</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/release</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/restart</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/restore</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/resurrection</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/review</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/roadmap</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/roster</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/s</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/safe</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/salvage</loc>
@@ -361,6 +457,27 @@
     <loc>https://portdaddy.dev/docs/cli/scan</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/scope</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/seamanship</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/secret</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/secrets</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/self-update</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/send</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/sent</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/services</loc>
   </url>
   <url>
@@ -376,13 +493,28 @@
     <loc>https://portdaddy.dev/docs/cli/shipwright-survey</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/sight</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/sitrep</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/skill-graft</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/skillgraft</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/skills</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/snapshot</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/snapshots</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/sortie</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/spawn</loc>
@@ -392,6 +524,9 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/spawned</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/squid</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/start</loc>
@@ -409,7 +544,16 @@
     <loc>https://portdaddy.dev/docs/cli/subscribe</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/suggest</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/swarm</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/transcript</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/transcripts</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/tube</loc>
@@ -436,7 +580,13 @@
     <loc>https://portdaddy.dev/docs/cli/up</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/upgrade</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/url</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/use-label</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/version</loc>
@@ -466,7 +616,13 @@
     <loc>https://portdaddy.dev/docs/cli/whoami</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/whois-query</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/with-lock</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/work</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/concepts</loc>

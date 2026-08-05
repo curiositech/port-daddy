@@ -15,8 +15,8 @@ export interface McpCategory {
   description: string
 }
 
-export const MCP_TOOL_TOTAL = 136
-export const MCP_DEFAULT_TOOL_TOTAL = 17
+export const MCP_TOOL_TOTAL = 132
+export const MCP_DEFAULT_TOOL_TOTAL = 19
 
 export const ESSENTIAL_TOOLS: McpTool[] = [
   {

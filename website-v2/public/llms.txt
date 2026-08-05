@@ -35,6 +35,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [API Reference - Port Daddy](https://portdaddy.dev/docs/api): Inspect Port Daddy API routes, request shapes, response contracts, and the workflows they support.
 - [Best Practices - Port Daddy](https://portdaddy.dev/docs/best-practices): Keep agent work visible, avoid collisions, recover interrupted runs, and promote changes with evidence.
 - [CLI Overview - Port Daddy](https://portdaddy.dev/docs/cli): Reference for CLI Overview, including Port Daddy syntax, what the command does, and when to use it.
+- [pd account <command> - Port Daddy](https://portdaddy.dev/docs/cli/account): Reference for pd account <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd activity - Port Daddy](https://portdaddy.dev/docs/cli/activity): Reference for pd activity, including Port Daddy syntax, what the command does, and when to use it.
 - [pd actor <id> - Port Daddy](https://portdaddy.dev/docs/cli/actor): Reference for pd actor <id>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd actors - Port Daddy](https://portdaddy.dev/docs/cli/actors): Reference for pd actors, including Port Daddy syntax, what the command does, and when to use it.
@@ -43,29 +44,42 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd agent heartbeat|unregister|inbox|<id> - Port Daddy](https://portdaddy.dev/docs/cli/agent-heartbeat-unregister-inbox): Reference for pd agent heartbeat|unregister|inbox|<id>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd agent register - Port Daddy](https://portdaddy.dev/docs/cli/agent-register): Reference for pd agent register, including Port Daddy syntax, what the command does, and when to use it.
 - [pd agents - Port Daddy](https://portdaddy.dev/docs/cli/agents): Reference for pd agents, including Port Daddy syntax, what the command does, and when to use it.
+- [pd attention - Port Daddy](https://portdaddy.dev/docs/cli/attention): Reference for pd attention, including Port Daddy syntax, what the command does, and when to use it.
+- [pd attest - Port Daddy](https://portdaddy.dev/docs/cli/attest): Reference for pd attest, including Port Daddy syntax, what the command does, and when to use it.
 - [pd b - Port Daddy](https://portdaddy.dev/docs/cli/b): Reference for pd b, including Port Daddy syntax, what the command does, and when to use it.
+- [pd backend <command> - Port Daddy](https://portdaddy.dev/docs/cli/backend): Reference for pd backend <command>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd backup <command> - Port Daddy](https://portdaddy.dev/docs/cli/backup): Reference for pd backup <command>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd batten <command> - Port Daddy](https://portdaddy.dev/docs/cli/batten): Reference for pd batten <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd begin "purpose" - Port Daddy](https://portdaddy.dev/docs/cli/begin): Reference for pd begin "purpose", including Port Daddy syntax, what the command does, and when to use it.
 - [pd bench [iterations] - Port Daddy](https://portdaddy.dev/docs/cli/bench): Reference for pd bench [iterations], including Port Daddy syntax, what the command does, and when to use it.
+- [pd benchmark [command] - Port Daddy](https://portdaddy.dev/docs/cli/benchmark): Reference for pd benchmark [command], including Port Daddy syntax, what the command does, and when to use it.
 - [pd bond <command> - Port Daddy](https://portdaddy.dev/docs/cli/bond): Reference for pd bond <command>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd booty <command> - Port Daddy](https://portdaddy.dev/docs/cli/booty): Reference for pd booty <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd briefing - Port Daddy](https://portdaddy.dev/docs/cli/briefing): Reference for pd briefing, including Port Daddy syntax, what the command does, and when to use it.
 - [pd broadcast - Port Daddy](https://portdaddy.dev/docs/cli/broadcast): Reference for pd broadcast, including Port Daddy syntax, what the command does, and when to use it.
 - [pd c - Port Daddy](https://portdaddy.dev/docs/cli/c): Reference for pd c, including Port Daddy syntax, what the command does, and when to use it.
+- [pd cg - Port Daddy](https://portdaddy.dev/docs/cli/cg): Reference for pd cg, including Port Daddy syntax, what the command does, and when to use it.
 - [pd changelog <command> - Port Daddy](https://portdaddy.dev/docs/cli/changelog): Reference for pd changelog <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd channels - Port Daddy](https://portdaddy.dev/docs/cli/channels): Reference for pd channels, including Port Daddy syntax, what the command does, and when to use it.
 - [pd ci-gate - Port Daddy](https://portdaddy.dev/docs/cli/ci-gate): Reference for pd ci-gate, including Port Daddy syntax, what the command does, and when to use it.
 - [pd claim <id> - Port Daddy](https://portdaddy.dev/docs/cli/claim): Reference for pd claim <id>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd coast-guard <command> - Port Daddy](https://portdaddy.dev/docs/cli/coast-guard): Reference for pd coast-guard <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd cockpit missions - Port Daddy](https://portdaddy.dev/docs/cli/cockpit-missions): Reference for pd cockpit missions, including Port Daddy syntax, what the command does, and when to use it.
+- [pd commit <command> - Port Daddy](https://portdaddy.dev/docs/cli/commit): Reference for pd commit <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd compass - Port Daddy](https://portdaddy.dev/docs/cli/compass): Reference for pd compass, including Port Daddy syntax, what the command does, and when to use it.
 - [pd config - Port Daddy](https://portdaddy.dev/docs/cli/config): Reference for pd config, including Port Daddy syntax, what the command does, and when to use it.
+- [pd cut <command> - Port Daddy](https://portdaddy.dev/docs/cli/cut): Reference for pd cut <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd d - Port Daddy](https://portdaddy.dev/docs/cli/d): Reference for pd d, including Port Daddy syntax, what the command does, and when to use it.
 - [pd daemon <command> - Port Daddy](https://portdaddy.dev/docs/cli/daemon): Reference for pd daemon <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd dashboard - Port Daddy](https://portdaddy.dev/docs/cli/dashboard): Reference for pd dashboard, including Port Daddy syntax, what the command does, and when to use it.
 - [pd dev <command> - Port Daddy](https://portdaddy.dev/docs/cli/dev): Reference for pd dev <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd diagnose - Port Daddy](https://portdaddy.dev/docs/cli/diagnose): Reference for pd diagnose, including Port Daddy syntax, what the command does, and when to use it.
+- [pd dispatch <command> - Port Daddy](https://portdaddy.dev/docs/cli/dispatch): Reference for pd dispatch <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd dns <command> - Port Daddy](https://portdaddy.dev/docs/cli/dns): Reference for pd dns <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd doctor - Port Daddy](https://portdaddy.dev/docs/cli/doctor): Reference for pd doctor, including Port Daddy syntax, what the command does, and when to use it.
 - [pd done "summary" - Port Daddy](https://portdaddy.dev/docs/cli/done): Reference for pd done "summary", including Port Daddy syntax, what the command does, and when to use it.
 - [pd down - Port Daddy](https://portdaddy.dev/docs/cli/down): Reference for pd down, including Port Daddy syntax, what the command does, and when to use it.
+- [pd embed <command> - Port Daddy](https://portdaddy.dev/docs/cli/embed): Reference for pd embed <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd env [pattern] - Port Daddy](https://portdaddy.dev/docs/cli/env): Reference for pd env [pattern], including Port Daddy syntax, what the command does, and when to use it.
 - [pd f - Port Daddy](https://portdaddy.dev/docs/cli/f): Reference for pd f, including Port Daddy syntax, what the command does, and when to use it.
 - [pd feedback <command> - Port Daddy](https://portdaddy.dev/docs/cli/feedback): Reference for pd feedback <command>, including Port Daddy syntax, what the command does, and when to use it.
@@ -75,15 +89,20 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd graph edges|stats - Port Daddy](https://portdaddy.dev/docs/cli/graph-edges-stats): Reference for pd graph edges|stats, including Port Daddy syntax, what the command does, and when to use it.
 - [pd guard <command> - Port Daddy](https://portdaddy.dev/docs/cli/guard): Reference for pd guard <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd harbor create|enter|leave|show|destroy - Port Daddy](https://portdaddy.dev/docs/cli/harbor-create): Reference for pd harbor create|enter|leave|show|destroy, including Port Daddy syntax, what the command does, and when to use it.
+- [pd harbor-ledger <command> - Port Daddy](https://portdaddy.dev/docs/cli/harbor-ledger): Reference for pd harbor-ledger <command>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd harbormaster <command> - Port Daddy](https://portdaddy.dev/docs/cli/harbormaster): Reference for pd harbormaster <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd harbors - Port Daddy](https://portdaddy.dev/docs/cli/harbors): Reference for pd harbors, including Port Daddy syntax, what the command does, and when to use it.
 - [pd health - Port Daddy](https://portdaddy.dev/docs/cli/health): Reference for pd health, including Port Daddy syntax, what the command does, and when to use it.
 - [pd help <topic> - Port Daddy](https://portdaddy.dev/docs/cli/help): Reference for pd help <topic>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd hints - Port Daddy](https://portdaddy.dev/docs/cli/hints): Reference for pd hints, including Port Daddy syntax, what the command does, and when to use it.
 - [pd history - Port Daddy](https://portdaddy.dev/docs/cli/history): Reference for pd history, including Port Daddy syntax, what the command does, and when to use it.
+- [pd hm - Port Daddy](https://portdaddy.dev/docs/cli/hm): Reference for pd hm, including Port Daddy syntax, what the command does, and when to use it.
+- [pd hooks <command> - Port Daddy](https://portdaddy.dev/docs/cli/hooks): Reference for pd hooks <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd ideas list|search|show - Port Daddy](https://portdaddy.dev/docs/cli/ideas-list-search-show): Reference for pd ideas list|search|show, including Port Daddy syntax, what the command does, and when to use it.
 - [pd inbox <command> - Port Daddy](https://portdaddy.dev/docs/cli/inbox): Reference for pd inbox <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd init - Port Daddy](https://portdaddy.dev/docs/cli/init): Reference for pd init, including Port Daddy syntax, what the command does, and when to use it.
 - [pd install - Port Daddy](https://portdaddy.dev/docs/cli/install): Reference for pd install, including Port Daddy syntax, what the command does, and when to use it.
+- [pd install-freshness - Port Daddy](https://portdaddy.dev/docs/cli/install-freshness): Reference for pd install-freshness, including Port Daddy syntax, what the command does, and when to use it.
 - [pd integration <command> - Port Daddy](https://portdaddy.dev/docs/cli/integration): Reference for pd integration <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd l - Port Daddy](https://portdaddy.dev/docs/cli/l): Reference for pd l, including Port Daddy syntax, what the command does, and when to use it.
 - [pd learn - Port Daddy](https://portdaddy.dev/docs/cli/learn): Reference for pd learn, including Port Daddy syntax, what the command does, and when to use it.
@@ -98,12 +117,20 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd mcp install - Port Daddy](https://portdaddy.dev/docs/cli/mcp-install): Reference for pd mcp install, including Port Daddy syntax, what the command does, and when to use it.
 - [pd memory episodes|stats - Port Daddy](https://portdaddy.dev/docs/cli/memory-episodes-stats): Reference for pd memory episodes|stats, including Port Daddy syntax, what the command does, and when to use it.
 - [pd metrics - Port Daddy](https://portdaddy.dev/docs/cli/metrics): Reference for pd metrics, including Port Daddy syntax, what the command does, and when to use it.
+- [pd morning - Port Daddy](https://portdaddy.dev/docs/cli/morning): Reference for pd morning, including Port Daddy syntax, what the command does, and when to use it.
 - [pd n - Port Daddy](https://portdaddy.dev/docs/cli/n): Reference for pd n, including Port Daddy syntax, what the command does, and when to use it.
+- [pd nightshift - Port Daddy](https://portdaddy.dev/docs/cli/nightshift): Reference for pd nightshift, including Port Daddy syntax, what the command does, and when to use it.
 - [pd note <content> - Port Daddy](https://portdaddy.dev/docs/cli/note): Reference for pd note <content>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd notes [session-id] - Port Daddy](https://portdaddy.dev/docs/cli/notes): Reference for pd notes [session-id], including Port Daddy syntax, what the command does, and when to use it.
+- [pd nudge <target> - Port Daddy](https://portdaddy.dev/docs/cli/nudge-target): Reference for pd nudge <target>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd obligations - Port Daddy](https://portdaddy.dev/docs/cli/obligations): Reference for pd obligations, including Port Daddy syntax, what the command does, and when to use it.
 - [pd p - Port Daddy](https://portdaddy.dev/docs/cli/p): Reference for pd p, including Port Daddy syntax, what the command does, and when to use it.
+- [pd parley <command> - Port Daddy](https://portdaddy.dev/docs/cli/parley): Reference for pd parley <command>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd periscope - Port Daddy](https://portdaddy.dev/docs/cli/periscope): Reference for pd periscope, including Port Daddy syntax, what the command does, and when to use it.
 - [pd ph - Port Daddy](https://portdaddy.dev/docs/cli/ph): Reference for pd ph, including Port Daddy syntax, what the command does, and when to use it.
 - [pd pheromone <command> - Port Daddy](https://portdaddy.dev/docs/cli/pheromone): Reference for pd pheromone <command>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd plan <command> - Port Daddy](https://portdaddy.dev/docs/cli/plan): Reference for pd plan <command>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd popper <command> - Port Daddy](https://portdaddy.dev/docs/cli/popper): Reference for pd popper <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd ports - Port Daddy](https://portdaddy.dev/docs/cli/ports): Reference for pd ports, including Port Daddy syntax, what the command does, and when to use it.
 - [pd preflight - Port Daddy](https://portdaddy.dev/docs/cli/preflight): Reference for pd preflight, including Port Daddy syntax, what the command does, and when to use it.
 - [pd projects - Port Daddy](https://portdaddy.dev/docs/cli/projects): Reference for pd projects, including Port Daddy syntax, what the command does, and when to use it.
@@ -112,33 +139,54 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd publish - Port Daddy](https://portdaddy.dev/docs/cli/publish): Reference for pd publish, including Port Daddy syntax, what the command does, and when to use it.
 - [pd quorum <command> - Port Daddy](https://portdaddy.dev/docs/cli/quorum): Reference for pd quorum <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd r - Port Daddy](https://portdaddy.dev/docs/cli/r): Reference for pd r, including Port Daddy syntax, what the command does, and when to use it.
+- [pd relay <command> - Port Daddy](https://portdaddy.dev/docs/cli/relay): Reference for pd relay <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd release <id> - Port Daddy](https://portdaddy.dev/docs/cli/release): Reference for pd release <id>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd restart - Port Daddy](https://portdaddy.dev/docs/cli/restart): Reference for pd restart, including Port Daddy syntax, what the command does, and when to use it.
+- [pd restore <command> - Port Daddy](https://portdaddy.dev/docs/cli/restore): Reference for pd restore <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd resurrection - Port Daddy](https://portdaddy.dev/docs/cli/resurrection): Reference for pd resurrection, including Port Daddy syntax, what the command does, and when to use it.
+- [pd review <id> - Port Daddy](https://portdaddy.dev/docs/cli/review): Reference for pd review <id>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd roadmap - Port Daddy](https://portdaddy.dev/docs/cli/roadmap): Reference for pd roadmap, including Port Daddy syntax, what the command does, and when to use it.
+- [pd roster <command> - Port Daddy](https://portdaddy.dev/docs/cli/roster): Reference for pd roster <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd s - Port Daddy](https://portdaddy.dev/docs/cli/s): Reference for pd s, including Port Daddy syntax, what the command does, and when to use it.
+- [pd safe <command> - Port Daddy](https://portdaddy.dev/docs/cli/safe): Reference for pd safe <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd salvage - Port Daddy](https://portdaddy.dev/docs/cli/salvage): Reference for pd salvage, including Port Daddy syntax, what the command does, and when to use it.
 - [pd salvage claim <agent> - Port Daddy](https://portdaddy.dev/docs/cli/salvage-claim): Reference for pd salvage claim <agent>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd salvage complete|abandon|dismiss - Port Daddy](https://portdaddy.dev/docs/cli/salvage-complete-abandon-dismiss): Reference for pd salvage complete|abandon|dismiss, including Port Daddy syntax, what the command does, and when to use it.
 - [pd say <content> - Port Daddy](https://portdaddy.dev/docs/cli/say): Reference for pd say <content>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd scan [dir] - Port Daddy](https://portdaddy.dev/docs/cli/scan): Reference for pd scan [dir], including Port Daddy syntax, what the command does, and when to use it.
+- [pd scope - Port Daddy](https://portdaddy.dev/docs/cli/scope): Reference for pd scope, including Port Daddy syntax, what the command does, and when to use it.
+- [pd seamanship <command> - Port Daddy](https://portdaddy.dev/docs/cli/seamanship): Reference for pd seamanship <command>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd secret <command> - Port Daddy](https://portdaddy.dev/docs/cli/secret): Reference for pd secret <command>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd secrets - Port Daddy](https://portdaddy.dev/docs/cli/secrets): Reference for pd secrets, including Port Daddy syntax, what the command does, and when to use it.
+- [pd self-update - Port Daddy](https://portdaddy.dev/docs/cli/self-update): Reference for pd self-update, including Port Daddy syntax, what the command does, and when to use it.
+- [pd send <agent> <message> - Port Daddy](https://portdaddy.dev/docs/cli/send): Reference for pd send <agent> <message>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd sent - Port Daddy](https://portdaddy.dev/docs/cli/sent): Reference for pd sent, including Port Daddy syntax, what the command does, and when to use it.
 - [pd services - Port Daddy](https://portdaddy.dev/docs/cli/services): Reference for pd services, including Port Daddy syntax, what the command does, and when to use it.
 - [pd session <command> - Port Daddy](https://portdaddy.dev/docs/cli/session): Reference for pd session <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd sessions - Port Daddy](https://portdaddy.dev/docs/cli/sessions): Reference for pd sessions, including Port Daddy syntax, what the command does, and when to use it.
 - [pd setup - Port Daddy](https://portdaddy.dev/docs/cli/setup): Reference for pd setup, including Port Daddy syntax, what the command does, and when to use it.
 - [pd shipwright survey - Port Daddy](https://portdaddy.dev/docs/cli/shipwright-survey): Reference for pd shipwright survey, including Port Daddy syntax, what the command does, and when to use it.
+- [pd sight - Port Daddy](https://portdaddy.dev/docs/cli/sight): Reference for pd sight, including Port Daddy syntax, what the command does, and when to use it.
 - [pd sitrep - Port Daddy](https://portdaddy.dev/docs/cli/sitrep): Reference for pd sitrep, including Port Daddy syntax, what the command does, and when to use it.
+- [pd skill-graft <command> - Port Daddy](https://portdaddy.dev/docs/cli/skill-graft): Reference for pd skill-graft <command>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd skillgraft - Port Daddy](https://portdaddy.dev/docs/cli/skillgraft): Reference for pd skillgraft, including Port Daddy syntax, what the command does, and when to use it.
+- [pd skills - Port Daddy](https://portdaddy.dev/docs/cli/skills): Reference for pd skills, including Port Daddy syntax, what the command does, and when to use it.
 - [pd snapshot - Port Daddy](https://portdaddy.dev/docs/cli/snapshot): Reference for pd snapshot, including Port Daddy syntax, what the command does, and when to use it.
 - [pd snapshots <command> - Port Daddy](https://portdaddy.dev/docs/cli/snapshots): Reference for pd snapshots <command>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd sortie <command> - Port Daddy](https://portdaddy.dev/docs/cli/sortie): Reference for pd sortie <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd spawn <task> - Port Daddy](https://portdaddy.dev/docs/cli/spawn): Reference for pd spawn <task>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd spawn cancel <agent> - Port Daddy](https://portdaddy.dev/docs/cli/spawn-cancel): Reference for pd spawn cancel <agent>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd spawned - Port Daddy](https://portdaddy.dev/docs/cli/spawned): Reference for pd spawned, including Port Daddy syntax, what the command does, and when to use it.
+- [pd squid <command> - Port Daddy](https://portdaddy.dev/docs/cli/squid): Reference for pd squid <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd start - Port Daddy](https://portdaddy.dev/docs/cli/start): Reference for pd start, including Port Daddy syntax, what the command does, and when to use it.
 - [pd status - Port Daddy](https://portdaddy.dev/docs/cli/status): Reference for pd status, including Port Daddy syntax, what the command does, and when to use it.
 - [pd stop - Port Daddy](https://portdaddy.dev/docs/cli/stop): Reference for pd stop, including Port Daddy syntax, what the command does, and when to use it.
 - [pd sub <channel> - Port Daddy](https://portdaddy.dev/docs/cli/sub): Reference for pd sub <channel>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd subscribe - Port Daddy](https://portdaddy.dev/docs/cli/subscribe): Reference for pd subscribe, including Port Daddy syntax, what the command does, and when to use it.
+- [pd suggest <command> - Port Daddy](https://portdaddy.dev/docs/cli/suggest): Reference for pd suggest <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd swarm - Port Daddy](https://portdaddy.dev/docs/cli/swarm): Reference for pd swarm, including Port Daddy syntax, what the command does, and when to use it.
+- [pd transcript - Port Daddy](https://portdaddy.dev/docs/cli/transcript): Reference for pd transcript, including Port Daddy syntax, what the command does, and when to use it.
+- [pd transcripts - Port Daddy](https://portdaddy.dev/docs/cli/transcripts): Reference for pd transcripts, including Port Daddy syntax, what the command does, and when to use it.
 - [pd tube <channel> - Port Daddy](https://portdaddy.dev/docs/cli/tube): Reference for pd tube <channel>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd tunnel <identity> - Port Daddy](https://portdaddy.dev/docs/cli/tunnel): Reference for pd tunnel <identity>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd tunnel stop <identity> - Port Daddy](https://portdaddy.dev/docs/cli/tunnel-stop): Reference for pd tunnel stop <identity>, including Port Daddy syntax, what the command does, and when to use it.
@@ -147,7 +195,9 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd u - Port Daddy](https://portdaddy.dev/docs/cli/u): Reference for pd u, including Port Daddy syntax, what the command does, and when to use it.
 - [pd uninstall - Port Daddy](https://portdaddy.dev/docs/cli/uninstall): Reference for pd uninstall, including Port Daddy syntax, what the command does, and when to use it.
 - [pd up - Port Daddy](https://portdaddy.dev/docs/cli/up): Reference for pd up, including Port Daddy syntax, what the command does, and when to use it.
+- [pd upgrade - Port Daddy](https://portdaddy.dev/docs/cli/upgrade): Reference for pd upgrade, including Port Daddy syntax, what the command does, and when to use it.
 - [pd url <id> - Port Daddy](https://portdaddy.dev/docs/cli/url): Reference for pd url <id>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd use <label> - Port Daddy](https://portdaddy.dev/docs/cli/use-label): Reference for pd use <label>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd version - Port Daddy](https://portdaddy.dev/docs/cli/version): Reference for pd version, including Port Daddy syntax, what the command does, and when to use it.
 - [pd w - Port Daddy](https://portdaddy.dev/docs/cli/w): Reference for pd w, including Port Daddy syntax, what the command does, and when to use it.
 - [pd wait <service...> - Port Daddy](https://portdaddy.dev/docs/cli/wait): Reference for pd wait <service...>, including Port Daddy syntax, what the command does, and when to use it.
@@ -157,7 +207,9 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd webhooks - Port Daddy](https://portdaddy.dev/docs/cli/webhooks): Reference for pd webhooks, including Port Daddy syntax, what the command does, and when to use it.
 - [pd who-owns <path> - Port Daddy](https://portdaddy.dev/docs/cli/who-owns): Reference for pd who-owns <path>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd whoami - Port Daddy](https://portdaddy.dev/docs/cli/whoami): Reference for pd whoami, including Port Daddy syntax, what the command does, and when to use it.
+- [pd whois <query> - Port Daddy](https://portdaddy.dev/docs/cli/whois-query): Reference for pd whois <query>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd with-lock <name> -- <cmd> - Port Daddy](https://portdaddy.dev/docs/cli/with-lock): Reference for pd with-lock <name> -- <cmd>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd work <command> - Port Daddy](https://portdaddy.dev/docs/cli/work): Reference for pd work <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [Concepts - Port Daddy](https://portdaddy.dev/docs/concepts): Learn the ideas behind shared state: sessions, notes, file claims, locks, channels, fleets, readiness, and recovery.
 - [Arbiter - Port Daddy](https://portdaddy.dev/docs/features/arbiter): Learn the Port Daddy arbiter feature, what problem it solves, and how to use it with agent work.
 - [Agent Avatars - Port Daddy](https://portdaddy.dev/docs/features/avatars): Learn the Port Daddy agent avatars feature, what problem it solves, and how to use it with agent work.
