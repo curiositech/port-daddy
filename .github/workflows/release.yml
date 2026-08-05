@@ -163,26 +163,14 @@ jobs:
           SOAK_SECONDS: 180
         run: bash scripts/soak-binary.sh dist/port-daddy
 
-      - name: Stage squid harness assets (tentacles + identity + Pilot)
-        # Source and release archives preserve one layout: executables under
-        # bin/ and Pilot modules under hooks/. release-artifacts.json declares
-        # each asset required; batten is the single fail-loud cargo gate.
-        run: |
-          set -euo pipefail
-          mkdir -p dist/bin dist/hooks
-          for f in pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool pd-statusline; do
-            cp "bin/$f" "dist/bin/$f"
-            chmod +x "dist/bin/$f"
-          done
-          cp hooks/sessionstart-pilot.mjs dist/hooks/sessionstart-pilot.mjs
-
       # THE generalized gate. Every required artifact (pd, port-daddy, its
-      # manifest, squid tentacles, and pd-statusline) is declared in
+      # manifest, Squid tentacles, identity, public skill, and Pilot source) is
+      # staged by the single-binary builder and declared in
       # release-artifacts.json; `pd batten verify` asserts each is present,
       # executable where required, and >= minBytes — collecting ALL failures and
       # exiting nonzero with a per-artifact report. This REPLACES the scattered
       # per-binary `test -s dist/<name>` asserts that each drifted silently and
-      # let releases ship with a missing watchdog / missing hooks GREEN. Running
+      # let releases ship with incomplete declared cargo. Running
       # the just-built ./dist/pd also dogfoods that the shipped binary can run
       # the gate offline. release-artifacts.json is resolved from the repo-root
       # cwd, so no --manifest is needed.

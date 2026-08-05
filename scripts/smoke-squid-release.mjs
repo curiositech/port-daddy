@@ -39,6 +39,9 @@ try {
     'bin/pd-hook-post-tool',
     'bin/pd-statusline',
     'hooks/sessionstart-pilot.mjs',
+    'skills/port-daddy-agent-skill/SKILL.md',
+    'agents/port-daddy-pilot/AGENT.md',
+    'agents/port-daddy-pilot/agent.config.json',
   ]) {
     if (!existsSync(join(staged, asset))) fail(`staged asset missing before smoke: ${asset}`);
   }
@@ -56,6 +59,7 @@ try {
     HOME: home,
     USERPROFILE: home,
     PD_HOME: pdHome,
+    PORT_DADDY_RESOURCE_DIR: staged,
     PATH: `${fakeBin}${delimiter}${process.env.PATH ?? ''}`,
     NO_COLOR: '1',
     TERM: 'dumb',

@@ -1,5 +1,5 @@
 {
-  "_comment": "Declarative manifest of every artifact that MUST ship inside a Port Daddy release tarball. This is the single source of truth for `pd batten verify` (the fail-loud staging gate) and `pd batten imprint` (the content-addressed seal). Populated from the ACTUAL staging steps in .github/workflows/release.yml (job build-binaries). Required artifacts are declared here once instead of drifting across one-off shell assertions. `buildCmd` is informational (batten VALIDATES staging, it does not build). Paths are relative to the staged dir passed to `pd batten verify --staged-dir <dir>` (dist/ in CI).",
+  "_comment": "Declarative manifest of every artifact that MUST ship inside a Port Daddy release tarball. This is the single source of truth for `pd batten verify` (the fail-loud staging gate) and `pd batten imprint` (the content-addressed seal). scripts/build-single-binary.mjs owns staging for every build surface; the release workflow only verifies and packages this manifest. Required artifacts are declared here once instead of drifting across one-off shell assertions. `buildCmd` is informational (batten VALIDATES staging, it does not build). Paths are relative to the staged dir passed to `pd batten verify --staged-dir <dir>` (dist/ in CI).",
   "version": 1,
   "artifacts": [
     {
@@ -73,6 +73,24 @@
       "required": true,
       "executable": false,
       "minBytes": 100
+    },
+    {
+      "id": "public-agent-skill",
+      "buildCmd": "scripts/build-single-binary.mjs recursively stages skills/port-daddy-agent-skill",
+      "sourcePath": "skills/port-daddy-agent-skill",
+      "stagedPath": "skills/port-daddy-agent-skill",
+      "type": "dir",
+      "required": true,
+      "executable": false
+    },
+    {
+      "id": "pilot-agent-source",
+      "buildCmd": "scripts/build-single-binary.mjs recursively stages agents/port-daddy-pilot",
+      "sourcePath": "agents/port-daddy-pilot",
+      "stagedPath": "agents/port-daddy-pilot",
+      "type": "dir",
+      "required": true,
+      "executable": false
     },
     {
       "id": "native-onnxruntime",

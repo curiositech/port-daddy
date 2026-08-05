@@ -121,7 +121,9 @@ describe('single binary distribution path', () => {
     expect(buildScript).toContain('isolated-bin');
     expect(buildScript).toContain('copyFileSync(outfile, isolatedOutfile)');
     expect(buildScript).toContain('companionFiles');
-    expect(buildScript).toContain('repair-capable companion scripts staged beside every locally built artifact');
+    expect(buildScript).toContain('complete Squid, public-skill, and Pilot resources staged beside every binary payload');
+    expect(buildScript).toContain("path: join('skills', 'port-daddy-agent-skill')");
+    expect(buildScript).toContain("path: join('agents', 'port-daddy-pilot')");
   });
 
   test('compiled CLI relaunches short pd binary through sibling port-daddy before daemon work', () => {
@@ -154,6 +156,8 @@ describe('single binary distribution path', () => {
     expect(workflow).toContain('--archive dist/${{ matrix.artifact }}.tar.gz');
     expect(workflow).not.toContain('SOAK_PORT:');
     expect(workflow).not.toContain('cp "bin/$f" "dist/$f"');
+    expect(workflow).not.toContain('Stage squid harness assets');
+    expect(workflow).not.toContain('cp hooks/sessionstart-pilot.mjs');
     expect(workflow).not.toMatch(/npm run|publish-npm|publish\.yml/);
   });
 

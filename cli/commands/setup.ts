@@ -24,6 +24,8 @@ import {
   syncAgentSkills,
 } from '../../lib/skill-sync.js';
 import { installPilotAgents, resolvePilotSourceDir } from '../../lib/pilot-agent-render.js';
+import { resolveSquidAsset } from '../../lib/squid/assets.js';
+import type { SquidAssetResolveOptions } from '../../lib/squid/assets.js';
 import { installSlashCommand, installStatusline, stageStatusline } from '../../lib/squid/identity.js';
 import { installPilotSessionStartHook, stagePilotSessionStartHook } from '../../lib/pilot-sessionstart-hook.js';
 import {
@@ -201,21 +203,12 @@ async function prefetchEmbeddingModel(): Promise<void> {
 /**
  * Resolve the canonical agent skill source directory.
  *
- * Source priority:
- *   1. Homebrew install: $(brew --prefix)/share/port-daddy/skills/port-daddy
- *   2. Repo checkout: PROJECT_ROOT/skills/port-daddy-agent-skill
+ * Source, release archive, FleetBar resource, and Homebrew installs all use
+ * the canonical directory-preserving resource layout.
  */
-export function resolveSkillSource(): string | null {
-  const candidates: string[] = [];
-
-  const brew = spawnSync('brew', ['--prefix'], { encoding: 'utf8' });
-  if (brew.status === 0) {
-    const prefix = brew.stdout.trim();
-    candidates.push(join(prefix, 'share', 'port-daddy', 'skills', AGENT_SKILL_ID));
-  }
-  candidates.push(join(PROJECT_ROOT, 'skills', AGENT_SKILL_ID));
-
-  return candidates.find((p) => existsSync(join(p, 'SKILL.md'))) ?? null;
+export function resolveSkillSource(options: SquidAssetResolveOptions = {}): string | null {
+  const marker = resolveSquidAsset(join('skills', AGENT_SKILL_ID, 'SKILL.md'), options);
+  return marker ? dirname(marker) : null;
 }
 
 /**
@@ -230,7 +223,7 @@ export function resolveSkillSource(): string | null {
 export function installSkillSymlinksAt(baseDir: string, scope: 'user' | 'project'): boolean {
   const source = resolveSkillSource();
   if (!source) {
-    ui.warn('Skill source not found in brew prefix or repo checkout');
+    ui.warn('Skill source not found in the installed resource layout or repo checkout');
     return false;
   }
 
@@ -333,7 +326,7 @@ function installPilotAgentDefinitions(options: Record<string, unknown>): boolean
   const dryRun = !!options['dry-run'];
   const source = resolvePilotSourceDir(PROJECT_ROOT);
   if (!source) {
-    ui.warn('Port Daddy Pilot source not found in brew prefix or repo checkout');
+    ui.warn('Port Daddy Pilot source not found in the installed resource layout or repo checkout');
     return false;
   }
 

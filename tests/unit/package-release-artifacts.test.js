@@ -72,6 +72,27 @@ describe('manifest-derived release packaging', () => {
     expect(listed.stdout.trim().split('\n')).toEqual(['pd', 'bin/hook'])
   })
 
+  test('recursively packages declared skill and Pilot resource directories', () => {
+    mkdirSync(join(staged, 'skills', 'port-daddy-agent-skill'), { recursive: true })
+    mkdirSync(join(staged, 'agents', 'port-daddy-pilot'), { recursive: true })
+    writeFileSync(join(staged, 'skills', 'port-daddy-agent-skill', 'SKILL.md'), 'name: port-daddy-agent-skill\n')
+    writeFileSync(join(staged, 'agents', 'port-daddy-pilot', 'AGENT.md'), '# Port Daddy Pilot\n')
+    const manifest = {
+      artifacts: [
+        { id: 'skill', stagedPath: 'skills/port-daddy-agent-skill', type: 'dir', required: true },
+        { id: 'pilot', stagedPath: 'agents/port-daddy-pilot', type: 'dir', required: true },
+      ],
+    }
+    writeFileSync(manifestPath, JSON.stringify(manifest))
+    const outPath = join(root, 'pd-resources.tar.gz')
+    packageReleaseArtifacts({ manifestPath, stagedDir: staged, outPath })
+
+    const listed = spawnSync('tar', ['-tzf', outPath], { encoding: 'utf8', shell: false })
+    expect(listed.status).toBe(0)
+    expect(listed.stdout).toContain('skills/port-daddy-agent-skill/SKILL.md')
+    expect(listed.stdout).toContain('agents/port-daddy-pilot/AGENT.md')
+  })
+
   test('fails before tar for absent required or path-traversing cargo', () => {
     expect(() => releaseArchivePaths({ artifacts: [{ stagedPath: 'missing', required: true }] }, staged))
       .toThrow(/required release artifact is absent/)

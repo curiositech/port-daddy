@@ -189,8 +189,8 @@ describe('Port Daddy skill authority', () => {
     const release = readFileSync(join(process.cwd(), '.github', 'workflows', 'release.yml'), 'utf8');
 
     expect(setup).toContain("AGENT_SKILL_ID = 'port-daddy-agent-skill'");
-    expect(setup).toContain("join(prefix, 'share', 'port-daddy', 'skills', AGENT_SKILL_ID)");
-    expect(setup).toContain("join(PROJECT_ROOT, 'skills', AGENT_SKILL_ID)");
+    expect(setup).toContain("resolveSquidAsset(join('skills', AGENT_SKILL_ID, 'SKILL.md'), options)");
+    expect(setup).not.toContain("spawnSync('brew', ['--prefix']");
     expect(setup).toContain('syncAgentSkills');
     expect(setup).toContain('ensureGeminiPortDaddyExtension');
     expect(setup).toContain("options['dry-run']");

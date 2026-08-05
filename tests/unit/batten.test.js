@@ -75,8 +75,18 @@ describe('loadManifest', () => {
   test('the real repo release-artifacts.json parses and declares the #3496 cargo', () => {
     const real = loadManifest(resolveManifestPath());
     const ids = real.artifacts.map((a) => a.id);
-    // The silent-failure class this system closes: watchdog + tentacles.
-    for (const id of ['pd', 'port-daddy', 'pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'sessionstart-pilot']) {
+    // The silent-failure class this system closes: executable tentacles plus
+    // the source resources that setup renders after installation.
+    for (const id of [
+      'pd',
+      'port-daddy',
+      'pd-hook-prompt',
+      'pd-hook-pre-tool',
+      'pd-hook-post-tool',
+      'sessionstart-pilot',
+      'public-agent-skill',
+      'pilot-agent-source',
+    ]) {
       expect(ids).toContain(id);
     }
   });

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
-import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { homedir } from 'node:os';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
@@ -238,6 +238,37 @@ function stageSquidReleaseAssets(releaseDir) {
   copyFileSync(pilotSource, pilotDestination);
   chmodSync(pilotDestination, 0o755);
   files.push(pilotDestination);
+
+  // `pd setup` renders the public skill and the Pilot definitions from these
+  // canonical sources. Shipping only the executable tentacles makes `pd squid
+  // on` appear healthy while a fresh Homebrew install cannot install either
+  // first-class surface. Preserve the source layout in every binary payload so
+  // release archives, FleetBar, and named development builds carry the same
+  // complete runtime generation.
+  for (const asset of [
+    {
+      path: join('skills', 'port-daddy-agent-skill'),
+      marker: 'SKILL.md',
+    },
+    {
+      path: join('agents', 'port-daddy-pilot'),
+      marker: 'AGENT.md',
+    },
+  ]) {
+    const source = join(ROOT_DIR, asset.path);
+    const destination = join(releaseDir, asset.path);
+    if (!existsSync(join(source, asset.marker))) {
+      throw new Error(`Missing required Squid build asset: ${join(source, asset.marker)}`);
+    }
+    if (resolve(source) !== resolve(destination)) {
+      // A repeated build must not retain files removed from the canonical
+      // source between invocations.
+      rmSync(destination, { recursive: true, force: true });
+      mkdirSync(dirname(destination), { recursive: true });
+      cpSync(source, destination, { recursive: true });
+    }
+    files.push(destination);
+  }
   return files;
 }
 
@@ -568,7 +599,7 @@ const manifest = {
     sdk: 'compiled client modules plus package exports in npm distribution',
     fleetUi: 'embedded in the executable through a generated asset table with external public/ fallback',
     publicSamples: 'embedded in the executable through a generated asset table; manifest generated before compile',
-    squidHarness: 'repair-capable companion scripts staged beside every locally built artifact and verified by an isolated four-provider arm smoke',
+    squidHarness: 'complete Squid, public-skill, and Pilot resources staged beside every binary payload and verified by an isolated four-provider arm smoke',
   },
   smoke,
 };

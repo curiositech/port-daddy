@@ -18,23 +18,24 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync, lstatSync, unlinkSync, rmSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
+import { resolveSquidAsset } from './squid/assets.js';
+import type { SquidAssetResolveOptions } from './squid/assets.js';
 
 /**
  * Resolve the canonical Pilot source dir (the one holding AGENT.md +
- * agent.config.json). Brew install wins over the repo checkout so an upgraded
- * package re-renders from the shipped source.
+ * agent.config.json) through the shared package-resource contract.
  */
-export function resolvePilotSourceDir(projectRoot: string): string | null {
-  const candidates: string[] = [];
-  const brew = spawnSync('brew', ['--prefix'], { encoding: 'utf8' });
-  if (brew.status === 0) {
-    candidates.push(join(brew.stdout.trim(), 'share', 'port-daddy', 'agents', 'port-daddy-pilot'));
-  }
-  candidates.push(join(projectRoot, 'agents', 'port-daddy-pilot'));
-  return candidates.find((p) => existsSync(join(p, 'AGENT.md'))) ?? null;
+export function resolvePilotSourceDir(
+  projectRoot: string,
+  options: SquidAssetResolveOptions = {},
+): string | null {
+  const marker = resolveSquidAsset(join('agents', 'port-daddy-pilot', 'AGENT.md'), {
+    sourceDir: projectRoot,
+    ...options,
+  });
+  return marker ? dirname(marker) : null;
 }
 
 export interface PilotConfig {
