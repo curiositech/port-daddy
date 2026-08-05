@@ -104,6 +104,14 @@ const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 const MAP_CHUNK_CHAR_LIMIT = 12_000;
 /** Bound Workers AI fan-out so large diffs finish without a rate-limit stampede. */
 const MAP_CONCURRENCY = 8;
+/**
+ * Hard per-delivery admission budget. Empirically, 14-15 chunk diffs retain
+ * enough model responses across the sequential ship roster to exhaust the
+ * Worker's memory before it can complete the required check. Rejecting those
+ * reviews up front is fail-closed, cheap, and actionable; retrying the same
+ * deterministic OOM only strands every later required check in the FIFO.
+ */
+const MAX_REVIEW_CHUNKS = 10;
 /** The umbrella check-run name. Exported so the DLQ handler targets the same run. */
 export const CHECK_NAME = 'Port Daddy Fleet';
 
@@ -1022,6 +1030,30 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     });
     await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
     await recordRunEnd(env, runId, 'neutral', startMs);
+    return;
+  }
+
+  // --- LARGE-DIFF ADMISSION GATE (pre-spend, fail-closed) ------------------
+  // The same chunks are used by every map-reduce ship. Keep this gate after
+  // the check + run header exist, but before the first model call, so an
+  // oversized review becomes one explicit failure instead of repeated Worker
+  // OOMs that monopolize the single-concurrency queue and eventually DLQ.
+  const reviewChunkCount = chunkDiff(prCtx.diff).length;
+  if (reviewChunkCount > MAX_REVIEW_CHUNKS) {
+    const summary =
+      `Fleet failed closed: this diff requires ${reviewChunkCount} review chunks, above the ` +
+      `${MAX_REVIEW_CHUNKS}-chunk Worker memory budget. Split the pull request into smaller ` +
+      `reviewable changes and push again; no ships ran and no AI was spent.`;
+    await transcript.step('check-completed', null, 'Check concluded: failure (diff admission budget)', {
+      checkRunId,
+      conclusion: 'failure',
+      reason: 'diff-admission-budget',
+      reviewChunkCount,
+      maxReviewChunks: MAX_REVIEW_CHUNKS,
+      shipsRun: 0,
+    });
+    await completeCheckRun(owner, repo, checkRunId, 'failure', summary, token, detailsUrl);
+    await recordRunEnd(env, runId, 'failure', startMs);
     return;
   }
 

@@ -644,6 +644,28 @@ describe('deterministic ship resolution', () => {
 });
 
 describe('map-reduce fan-out', () => {
+  it('fails closed before AI spend when a diff exceeds the Worker chunk budget', async () => {
+    state.prDiff =
+      'diff --git a/src/huge.ts b/src/huge.ts\n--- a/src/huge.ts\n+++ b/src/huge.ts\n' +
+      `+${'x'.repeat(12_000 * 10 + 1)}\n`;
+
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'should not run\n\nFLEET-VERDICT: PASS' },
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('failure');
+    expect(state.completed[0].summary).toContain('11 review chunks');
+    expect(state.completed[0].summary).toContain('10-chunk Worker memory budget');
+    expect(state.completed[0].summary).toContain('no AI was spent');
+  });
+
   it('chunks a large diff into N map calls + exactly 1 manager reduce call', async () => {
     // Two files, each ~9KB, exceed the 12KB chunk budget combined → 2 chunks.
     const file = (name: string) =>
