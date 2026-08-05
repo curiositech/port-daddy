@@ -42,6 +42,7 @@ import {
 } from './github.js';
 import { parseFleetShips, parseFleetSquidEvents, parseFleetXo, defaultPRShips, type ShipConfig } from './fleet.js';
 import { classifyPrAuthorship } from './fleet-identity.js';
+import { classifyPrLifecycle } from './pr-lifecycle.js';
 import { fleetPrBodyTrailers } from './fleet-pr-body.js';
 import {
   resolveVerdict,
@@ -693,6 +694,11 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         // here; empty classifies as "not the fleet", the conservative default.
         authorLogin: '',
         authorType: '',
+        // Likewise unknown: the run is already short-circuited by the pause, so
+        // the lifecycle gate never sees this. Empty/false is the fail-open pair
+        // (`classifyPrLifecycle` reads it as "still open").
+        state: '',
+        merged: false,
         installationId: job.installationId,
         files: [],
         diff: '',
@@ -840,6 +846,43 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   //
   // ZERO-TRUST UNCHANGED: config still came from the trusted default branch
   // above; this guard reads only authorship, and adds no new trust in PR head.
+  // --- PR LIFECYCLE GATE (before authorship: needs no API call at all) ------
+  // A queue can hand us a job for a PR that has since merged or closed. The
+  // purser then authors adversarial tests for a PR that is already in the base
+  // branch — observed as #5456 (tests for #5372, merged 100 minutes earlier)
+  // and #5451 (tests for #5367). Those test PRs cannot do their job: the
+  // contract is that the reviewed PR merges THROUGH the tests.
+  //
+  // Placed ahead of the authorship guard deliberately — this reads fields the
+  // live PR fetch already returned, whereas `resolveFleetAppLogin` below may
+  // hit the API on a cold KV. Cheapest gate first.
+  //
+  // FAIL-OPEN: an absent or unrecognised state counts as open. See
+  // src/pr-lifecycle.ts — wrongly skipping a live PR silently removes its
+  // review gate, which is far worse than wrongly spending on a dead one.
+  const lifecycle = classifyPrLifecycle(prCtx);
+  if (lifecycle.over) {
+    const summary =
+      `Not reviewed — ${lifecycle.reason}. No ships were run and no AI was spent. ` +
+      `The job was enqueued while the pull request was still open; it has since ` +
+      `${lifecycle.state}.`;
+    await transcript.step(
+      'pr-lifecycle-skip',
+      null,
+      `Check concluded: neutral (pull request already ${lifecycle.state})`,
+      {
+        checkRunId,
+        conclusion: 'neutral',
+        reason: `pr-${lifecycle.state}`,
+        prState: lifecycle.state,
+        shipsRun: 0,
+      },
+    );
+    await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+    await recordRunEnd(env, runId, 'neutral', startMs);
+    return;
+  }
+
   const fleetAppLogin = await resolveFleetAppLogin(
     env.GITHUB_APP_ID,
     env.GITHUB_APP_PRIVATE_KEY,
