@@ -61,6 +61,14 @@ describe('database integrity helper entrypoint', () => {
     ])).toThrow('database integrity helper requires a DB path');
   });
 
+  test('rejects the source-script helper shape without a database path', () => {
+    expect(() => resolveDbIntegrityHelperInvocation([
+      '/opt/bun',
+      '/repo/bin/port-daddy-daemon.ts',
+      DB_INTEGRITY_HELPER_COMMAND,
+    ])).toThrow('database integrity helper requires a DB path');
+  });
+
   test('rejects execution without the explicit child authorization marker', async () => {
     await expect(runDbIntegrityHelper({
       dbPath: '/state/port-daddy.db',
