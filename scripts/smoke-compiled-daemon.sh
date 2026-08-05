@@ -18,13 +18,20 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN="$ROOT_DIR/dist/daemon/port-daddy-daemon"
-PORT="${SMOKE_PORT:-19876}"
-# Scratch lives under the repo (never /tmp — macOS purges it). CI runners
-# wipe the checkout anyway, and the EXIT trap removes it locally.
-SCRATCH_BASE="${SMOKE_SCRATCH_BASE:-$ROOT_DIR/.smoke-tmp}"
+
+choose_free_port() {
+  node -e 'const net = require("node:net"); const server = net.createServer(); server.listen(0, "127.0.0.1", () => { const address = server.address(); process.stdout.write(String(address.port)); server.close(); });'
+}
+
+PORT="${SMOKE_PORT:-$(choose_free_port)}"
+# Keep Unix-domain sockets below macOS's short sun_path limit. Linked worktree
+# paths can already consume that budget before the per-run suffix is added.
+# The machine-wide rule also reserves ~/coding/tmp for recoverable scratch.
+SCRATCH_BASE="${SMOKE_SCRATCH_BASE:-${HOME:?}/coding/tmp/port-daddy-smoke}"
 mkdir -p "$SCRATCH_BASE"
 SCRATCH="$(mktemp -d "$SCRATCH_BASE/pd-smoke.XXXXXX")"
 LOG="$SCRATCH/daemon.log"
+PORT_FILE="$SCRATCH/daemon.port"
 DAEMON_PID=""
 
 cleanup() {
@@ -34,12 +41,13 @@ cleanup() {
 trap cleanup EXIT
 
 if [ ! -x "$BIN" ]; then
-  echo "FAIL: compiled daemon not found at $BIN (run: npm run build:daemon:dist)" >&2
+  echo "FAIL: compiled daemon not found at $BIN (run: bun run build:daemon:dist)" >&2
   exit 1
 fi
 
-echo "Booting compiled daemon: $BIN (port $PORT, scratch $SCRATCH)"
+echo "Booting compiled daemon: $BIN (preferred port $PORT, scratch $SCRATCH)"
 PORT_DADDY_PORT="$PORT" \
+PORT_DADDY_PORT_FILE="$PORT_FILE" \
 PORT_DADDY_DB="$SCRATCH/registry.db" \
 PORT_DADDY_PREFIX="$SCRATCH" \
 PORT_DADDY_NO_FLEET=1 \
@@ -48,11 +56,21 @@ PORT_DADDY_SILENT=1 \
 "$BIN" > "$LOG" 2>&1 &
 DAEMON_PID=$!
 
-# Wait for /health (up to ~20s).
-BASE="http://127.0.0.1:$PORT"
+# Wait for the daemon to publish the endpoint it actually bound, then use that
+# endpoint for health and every route assertion (up to ~20s).
+BASE=""
 ready=0
 for _ in $(seq 1 40); do
-  if curl -fsS -o /dev/null "$BASE/health" 2>/dev/null; then ready=1; break; fi
+  if [ -s "$PORT_FILE" ]; then
+    SELECTED_PORT="$(tr -d '\r\n' < "$PORT_FILE")"
+    case "$SELECTED_PORT" in
+      ''|*[!0-9]*) ;;
+      *)
+        BASE="http://127.0.0.1:$SELECTED_PORT"
+        if curl -fsS -o /dev/null "$BASE/health" 2>/dev/null; then ready=1; break; fi
+        ;;
+    esac
+  fi
   if ! kill -0 "$DAEMON_PID" 2>/dev/null; then
     echo "FAIL: daemon process exited during boot" >&2
     cat "$LOG" >&2 || true
@@ -168,8 +186,10 @@ fi
 echo "Re-booting with PD_DAEMON_TIER=dev-latest to verify env-driven berth identity…"
 kill "$DAEMON_PID" 2>/dev/null || true
 wait "$DAEMON_PID" 2>/dev/null || true
-PORT2="$((PORT + 10))"
+PORT2="${SMOKE_PORT2:-$(choose_free_port)}"
+PORT_FILE2="$SCRATCH/daemon2.port"
 PORT_DADDY_PORT="$PORT2" \
+PORT_DADDY_PORT_FILE="$PORT_FILE2" \
 PORT_DADDY_DB="$SCRATCH/registry2.db" \
 PORT_DADDY_PREFIX="$SCRATCH/p2" \
 PORT_DADDY_NO_FLEET=1 \
@@ -179,10 +199,19 @@ PD_DAEMON_TIER=dev-latest \
 PD_DAEMON_LABEL=ci-dev-latest \
 "$BIN" > "$SCRATCH/daemon2.log" 2>&1 &
 DAEMON_PID=$!
-BASE2="http://127.0.0.1:$PORT2"
+BASE2=""
 ready2=0
 for _ in $(seq 1 40); do
-  if curl -fsS -o /dev/null "$BASE2/health" 2>/dev/null; then ready2=1; break; fi
+  if [ -s "$PORT_FILE2" ]; then
+    SELECTED_PORT2="$(tr -d '\r\n' < "$PORT_FILE2")"
+    case "$SELECTED_PORT2" in
+      ''|*[!0-9]*) ;;
+      *)
+        BASE2="http://127.0.0.1:$SELECTED_PORT2"
+        if curl -fsS -o /dev/null "$BASE2/health" 2>/dev/null; then ready2=1; break; fi
+        ;;
+    esac
+  fi
   if ! kill -0 "$DAEMON_PID" 2>/dev/null; then break; fi
   sleep 0.5
 done

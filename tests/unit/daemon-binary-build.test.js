@@ -51,6 +51,23 @@ describe('daemon binary launch contract', () => {
   });
 });
 
+describe('compiled daemon smoke runtime selection', () => {
+  test('uses short recoverable scratch and follows both published endpoints', () => {
+    const smoke = readFileSync('scripts/smoke-compiled-daemon.sh', 'utf8');
+
+    expect(smoke).toContain('choose_free_port()');
+    expect(smoke).not.toContain('SMOKE_PORT:-19876');
+    expect(smoke).toContain('coding/tmp/port-daddy-smoke');
+    expect(smoke).not.toContain('$ROOT_DIR/.smoke-tmp');
+    expect(smoke.match(/PORT_DADDY_PORT_FILE=/g)).toHaveLength(2);
+    expect(smoke).toContain('SELECTED_PORT="$(tr -d');
+    expect(smoke).toContain('SELECTED_PORT2="$(tr -d');
+    expect(smoke).toContain('BASE="http://127.0.0.1:$SELECTED_PORT"');
+    expect(smoke).toContain('BASE2="http://127.0.0.1:$SELECTED_PORT2"');
+    expect(smoke).not.toContain('npm run');
+  });
+});
+
 describe('JSC safe-mode process-start contract', () => {
   test('enables the shared mitigation unless the operator explicitly opts out', () => {
     expect(jscSafeModeEnv({})).toEqual({
