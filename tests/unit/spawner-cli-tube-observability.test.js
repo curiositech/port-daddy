@@ -20,6 +20,9 @@
  */
 
 import { jest } from '@jest/globals';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
 // Capture every call into the cli-tube backend so we can inspect what the
 // spawner forwarded. Return a minimal, valid claude-code result so the spawner's
@@ -50,9 +53,17 @@ const { createSpawner } = await import('../../lib/spawner.js');
 // backend is fully mocked, so no real subprocess or worktree is touched.
 let restoreIsolation;
 let restoreCoastGuard;
+let restoreHome;
+let fixtureHome;
 beforeAll(() => {
   restoreIsolation = process.env.PD_SPAWN_ISOLATION_OFF;
   restoreCoastGuard = process.env.PD_COAST_GUARD_OFF;
+  restoreHome = process.env.HOME;
+  const scratchRoot = join(homedir(), 'coding', 'tmp');
+  mkdirSync(scratchRoot, { recursive: true });
+  fixtureHome = mkdtempSync(join(scratchRoot, 'pd-cli-tube-secret-scrub-'));
+  writeFileSync(join(fixtureHome, '.port-daddy-env'), 'PORT_DADDY_REVIEW_SECRET=must-not-reach-child\n');
+  process.env.HOME = fixtureHome;
   process.env.PD_SPAWN_ISOLATION_OFF = '1';
   process.env.PD_COAST_GUARD_OFF = '1';
 });
@@ -61,6 +72,9 @@ afterAll(() => {
   else process.env.PD_SPAWN_ISOLATION_OFF = restoreIsolation;
   if (restoreCoastGuard === undefined) delete process.env.PD_COAST_GUARD_OFF;
   else process.env.PD_COAST_GUARD_OFF = restoreCoastGuard;
+  if (restoreHome === undefined) delete process.env.HOME;
+  else process.env.HOME = restoreHome;
+  if (fixtureHome) rmSync(fixtureHome, { recursive: true, force: true });
 });
 
 beforeEach(() => {
@@ -119,6 +133,7 @@ describe('spawner threads tube observability into cli-tube (ADR-0060)', () => {
       backend: 'cli:claude-code',
       writePolicy: 'unrestricted',
     }));
+    expect(arg.coastGuard.dotenvKeys).toContain('PORT_DADDY_REVIEW_SECRET');
     expect(result.coastGuard).toEqual(expect.objectContaining({
       tool: 'pd-coast-guard',
       agentId: 'mocked-agent',

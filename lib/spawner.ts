@@ -60,44 +60,53 @@ const _dotenvCache: Record<string, string> = {};
 function loadDotenvOnce(): Record<string, string> {
   if (Object.keys(_dotenvCache).length > 0) return _dotenvCache;
   // Only two trusted locations: project root and home directory
-  const searchDirs = [
-    join(__spawner_dirname, '..'),  // project root (parent of lib/)
-    process.env.HOME || '',         // home directory
+  const projectRoot = join(__spawner_dirname, '..');
+  const operatorHome = process.env.HOME || '';
+  const searchFiles = [
+    join(projectRoot, '.env.local'),
+    join(projectRoot, '.env'),
+    ...(operatorHome
+      ? [
+          join(operatorHome, '.env.local'),
+          join(operatorHome, '.env'),
+          // Portable fallback loaded into the daemon environment by
+          // secret-env.ts. Coast Guard already denies the file on disk; its
+          // keys must also be inventoried here so inherited values are scrubbed
+          // from every subprocess child.
+          join(operatorHome, '.port-daddy-env'),
+        ]
+      : []),
   ];
   const currentUid = process.getuid?.();
-  for (const dir of searchDirs) {
-    if (!dir) continue;
-    for (const name of ['.env.local', '.env']) {
-      const p = join(dir, name);
-      if (!existsSync(p)) continue;
-      // Verify file ownership — skip files not owned by current user
-      if (currentUid !== undefined) {
-        try {
-          const st = statSync(p);
-          if (st.uid !== currentUid) {
-            console.warn(`[spawner] Skipping ${p}: owned by uid ${st.uid}, expected ${currentUid}`);
-            continue;
-          }
-        } catch {
-          continue; // stat failed — skip
-        }
-      }
+  for (const p of searchFiles) {
+    if (!existsSync(p)) continue;
+    // Verify file ownership — skip files not owned by current user
+    if (currentUid !== undefined) {
       try {
-        const lines = readFileSync(p, 'utf-8').split('\n');
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || trimmed.startsWith('#')) continue;
-          const eq = trimmed.indexOf('=');
-          if (eq < 1) continue;
-          const key = trimmed.slice(0, eq).trim();
-          let val = trimmed.slice(eq + 1).trim();
-          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-            val = val.slice(1, -1);
-          }
-          _dotenvCache[key] = val;
+        const st = statSync(p);
+        if (st.uid !== currentUid) {
+          console.warn(`[spawner] Skipping ${p}: owned by uid ${st.uid}, expected ${currentUid}`);
+          continue;
         }
-      } catch { /* ignore read errors */ }
+      } catch {
+        continue; // stat failed — skip
+      }
     }
+    try {
+      const lines = readFileSync(p, 'utf-8').split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const eq = trimmed.indexOf('=');
+        if (eq < 1) continue;
+        const key = trimmed.slice(0, eq).trim();
+        let val = trimmed.slice(eq + 1).trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        _dotenvCache[key] = val;
+      }
+    } catch { /* ignore read errors */ }
   }
   return _dotenvCache;
 }
