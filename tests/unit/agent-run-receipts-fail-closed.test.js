@@ -13,11 +13,12 @@ function missingReadbackDatabase(db) {
       const statement = db.prepare(sql);
       return {
         run: (...args) => statement.run(...args),
-        get: (...args) => (
-          sql.includes('WHERE idempotency_key_hash = ?')
+        get: (...args) => {
+          const row = statement.get(...args);
+          return sql.includes('ON CONFLICT(idempotency_key_hash) DO UPDATE')
             ? undefined
-            : statement.get(...args)
-        ),
+            : row;
+        },
         all: (...args) => statement.all(...args),
       };
     },

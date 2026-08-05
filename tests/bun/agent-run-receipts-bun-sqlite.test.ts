@@ -25,7 +25,7 @@ function freshDb(): Database {
 }
 
 describe('agent run receipt ledger under real bun:sqlite', () => {
-  test('accept() creates a row, and idempotency_key_hash UNIQUE is real (ON CONFLICT DO NOTHING)', () => {
+  test('accept() atomically returns one row, and idempotency_key_hash UNIQUE is real', () => {
     const db = freshDb();
     let now = 1_000;
     const store = createAgentRunReceiptStore(db, { now: () => now, verifyProcessAlive: () => true });
@@ -103,6 +103,9 @@ describe('agent run receipt ledger under real bun:sqlite', () => {
 
     const accepted = firstGeneration.accept({ idempotencyKey: 'bun-stays-accepted', kind: 'spawn', request: { a: 1 } }).receipt;
     const done = firstGeneration.accept({ idempotencyKey: 'bun-stays-done', kind: 'spawn', request: { a: 2 } }).receipt;
+    firstGeneration.markStarting(done.id, {
+      successorAgentId: 'spawned-bun-done', transcriptId: 'tx-bun-done',
+    });
     firstGeneration.markStatus(done.id, 'completed', { error: null });
 
     now = 5_000;
