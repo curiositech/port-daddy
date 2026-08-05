@@ -17,9 +17,22 @@ const files = {
 };
 
 // fish is unavailable in this sandbox (same limitation noted in the PR
-// description); bash and zsh ship on macOS/CI, so behavioral edge cases run
-// for real against the actual sourced functions instead of grepping content.
-const RUNTIME_SHELLS = { bash: files.bash, zsh: files.zsh };
+// description); bash and zsh ship on macOS/local, but Ubuntu CI runners do
+// not install zsh by default. Probe for a real, executable interpreter
+// before adding a shell to the behavioral matrix so we get genuine
+// subprocess coverage everywhere without asserting on a shell that was
+// never spawned. A shell that IS installed is always run and required
+// here -- never skipped -- only a genuinely absent binary is excluded.
+const CANDIDATE_RUNTIME_SHELLS = { bash: files.bash, zsh: files.zsh };
+
+function isShellAvailable(shell, env = process.env) {
+  const probe = spawnSync(shell, ['-c', 'exit 0'], { encoding: 'utf8', env });
+  return probe.error === undefined && probe.status === 0;
+}
+
+const RUNTIME_SHELLS = Object.fromEntries(
+  Object.entries(CANDIDATE_RUNTIME_SHELLS).filter(([shell]) => isShellAvailable(shell)),
+);
 
 function runShellFn(shell, file, snippet, env) {
   return spawnSync(shell, ['-c', `source '${file}' >/dev/null 2>&1; ${snippet}`], {
@@ -78,6 +91,45 @@ describe('completions daemon endpoint discovery', () => {
     const content = readFileSync(files.fish, 'utf8');
     const resolver = content.match(/function __pd_base_url[\s\S]*?\nend/)?.[0] ?? '';
     expect(resolver).toContain('test -r "$port_file"; or return 1');
+  });
+});
+
+describe('runtime shell matrix availability', () => {
+  // Ubuntu CI runners ship bash but not zsh; this must never regress to an
+  // empty matrix (which would silently drop all behavioral coverage below).
+  test('bash is always present in the behavioral matrix', () => {
+    expect(RUNTIME_SHELLS).toHaveProperty('bash', files.bash);
+  });
+
+  test('zsh is present in the behavioral matrix whenever it is actually installed', () => {
+    expect(Object.prototype.hasOwnProperty.call(RUNTIME_SHELLS, 'zsh')).toBe(isShellAvailable('zsh'));
+  });
+
+  test('isShellAvailable resolves bash for real via the inherited PATH', () => {
+    expect(isShellAvailable('bash')).toBe(true);
+  });
+
+  test('isShellAvailable reports false for a shell missing from PATH (reproduces the Ubuntu no-zsh condition)', () => {
+    const emptyPathDir = mkdtempSync(join(tmpdir(), 'pd-empty-path-'));
+    try {
+      expect(isShellAvailable('zsh', { PATH: emptyPathDir })).toBe(false);
+      // Sanity check the probe itself: this is the exact ENOENT shape a
+      // missing-shell spawnSync call produces -- status null, error set --
+      // which is what the pre-fix test cases were tripping over directly.
+      const probe = spawnSync('zsh', ['-c', 'exit 0'], { encoding: 'utf8', env: { PATH: emptyPathDir } });
+      expect(probe.status).toBeNull();
+      expect(probe.error).toBeDefined();
+      expect(probe.error.code).toBe('ENOENT');
+    } finally {
+      rmSync(emptyPathDir, { recursive: true, force: true });
+    }
+  });
+
+  test('isShellAvailable reports true for a real shell resolved from a minimal controlled PATH', () => {
+    const which = spawnSync('bash', ['-c', 'command -v bash'], { encoding: 'utf8' });
+    const bashPath = which.stdout.trim();
+    const bashDir = bashPath.slice(0, bashPath.lastIndexOf('/'));
+    expect(isShellAvailable('bash', { PATH: bashDir })).toBe(true);
   });
 });
 
