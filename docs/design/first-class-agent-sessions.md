@@ -1,430 +1,428 @@
-# First-Class Agent Sessions
+# First-Class Agent Sessions — Current State, Gap, and Target
 
-Status: design (ready for ADR)
+Status: **current-state audit + gap analysis + target proposal.** This revision
+replaces the prior draft (commit `89acaaf0a`), which described APIs, data
+models, and ADR citations that do not exist in the codebase. Every claim below
+is either (a) shipped on `origin/main` today, (b) real, tested code on a named
+unmerged branch — labeled as such, never presented as shipped — or (c)
+explicitly marked **PROPOSED**. See [Corrections](#corrections-vs-the-prior-draft)
+for what changed and why.
 
-**One sentence:** Port Daddy sessions are durable identity vessels that survive harness embodiments, route work across Claude/Codex/PD native boundaries, and preserve immutable lineage and accounting throughout the agent's lifetime — orchestrated from a single operational surface (Beacon) and gated by the same trust/capability architecture as fleet work.
-
----
-
-## The Why: Sessions as Persons, Not Transcripts
-
-Port Daddy already observes **ephemeral bodies** (live process registrations), coordinates **bounded work** (sessions with notes), and preserves **memory handoffs** (sanitized episode continuations). The missing piece: a **durable agent identity** that survives process death and harness reboots while routing work seamlessly across three control planes.
-
-### The Problem
-
-- A strong Claude Code session disappears into transcript history after the harness closes.
-- A Codex run completes and loses its coordination context.
-- A PD-native fleet agent runs to completion; the next invocation starts from scratch.
-- The operator has **no single pane** to see "what has this agent done across all my harnesses?" or "what can it do next?"
-- Continuation requires manual re-seeding; the agent must rediscover its own history.
-- Permissions and capability constraints are harness-local; they don't travel.
-
-### The Goal
-
-Sessions become **first-class durable persons** that:
-
-1. **Survive harness boundaries.** A session spans Claude Code → Codex → PD native → Claude Code again. The durable agent identity (`AgentNode.agentNodeId`) is the continuity anchor.
-2. **Preserve immutable lineage.** Every transition leaves a durable receipt: which harness, which transcript fragment, which credentials crossed the boundary, which memory was carried forward, how the daemon witnessed the handoff.
-3. **Route through one trust gate.** The daemon's Door (ADR-0120 identity/capability enforcement) governs session creation, resumption, permission attachment, and all cross-harness promotion.
-4. **Render in one operational pane.** Beacon (the operator-facing session & work surface) is the authoritative view: roster, transcripts, lineage, spends, durable roster promotions, and scheduling.
-5. **Travel with permissions.** A session's declared capabilities (MCP scope, sandboxes, tool access, background-worker rights, Chromium policy) ride with the AgentNode profile and are re-enforced at each harness boundary.
+**One sentence:** Port Daddy has two independent, real, code-level mechanisms
+for continuing an agent's work under a new identity — one shipped
+(handoff-episode continuation, via the durable-agent roster) and one proven
+end-to-end in Workflow Beacon but not yet merged (direct session-linked
+continuation) — and this document's job is to say precisely what each does
+today before proposing how they converge into one operator-facing roster.
 
 ---
 
-## Part I: Architecture — The Session Spine
+## Part I — Current Truth
 
-### Sessions as Nodes in the Work-Graph
+### Vocabulary (cite-and-define)
 
-In Port Daddy's six-plane model (ADR-0048), sessions live in **Plane 1 (Truth)** as append-only `session` records alongside `claim_forest`, `episodic_memory`, and `roadmap_items`. They are indexed by the daemon and queryable through Beacon and the `pd session` CLI.
+- **Session** — a bounded unit of coordinated agent work, minted by
+  `lib/sessions.ts` (`generateSessionId`, `lib/sessions.ts:662`) with an id of
+  the shape `session-<slugified-purpose>-<12-hex-chars>`, e.g.
+  `session-finish-exact-named-daemon-squid-and-continuation-715ad5a28f08`.
+  Routes live in `routes/sessions.ts`.
+- **AgentNode** — the daemon-minted durable principal referenced throughout
+  `docs/adr/0119-durable-agent-roster.md`. It is an append-only fact stream, not
+  a mutable row; a roster profile rides on it as an optional field.
+- **Durable named-agent roster** — `lib/durable-agent-roster.ts` +
+  `routes/durable-agent-roster.ts`, shipped per
+  `docs/adr/0119-durable-agent-roster.md` ("Accepted"). Exposes
+  `GET /durable-agents`, `GET /durable-agents/search`, `GET /durable-agents/:id`,
+  and loopback-only create/promote/patch/handoff-attach/retire routes.
+- **Handoff episode** — a sanitized, secret-scanned transcript capsule recorded
+  via `episodicMemory.remember()` in `routes/memory.ts`, with `episodeType:
+  'handoff'`. This is the real "immutable capsule" concept; nothing in the
+  codebase calls it `episodic_memory.harvested_facts` or gives it a
+  `lineage_chain` string field the way the prior draft did.
+- **Agent run receipt** — the durable admission record for a spawn or a
+  session-continuation, schema `pd.agent-run-receipt.v1`, defined in
+  `lib/agent-run-receipts.ts:5` on the integration branch (not yet shipped on
+  `origin/main`; see §1). Statuses: `accepted → starting → live →
+  {completed, failed, cancelled, over_budget, no_runtime}`, or `unknown` if the
+  daemon restarted mid-flight and lost direct evidence.
 
-**A session is not:**
-- A transcript (that lives in the harness).
-- A fleet body (that's a transient process registration).
-- A static actor (that's an organizational role from source code).
+### 1. Two independent continuation mechanisms exist today — they are not the same code path
 
-**A session is:**
-- A **bounded unit of coordinated agent work** anchored to a durable `sessionId` (UUID).
-- Owned by a durable `AgentNode` (via `agentNodeId`).
-- Gated by the Door (identity, capability, rent check).
-- Scoped to a repository or project (via `harbor` field, ADR-0048).
-- Carrying immutable notes, claims, and a final handoff transcript.
-- Queryable in Beacon by lineage, agent, project, and temporal range.
+This is the single most important fact this document has to get right, because
+the prior draft collapsed it into one imaginary flow. As of this writing there
+are **two** real, separately-implemented ways to continue an agent's work, and
+Beacon talks to both of them through two different UI surfaces (§7).
 
-### Session Lifecycle — The Four Phases
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                  DURABLE AGENT (AgentNode)                         │
-│                  persists across all phases                         │
-└────┬────────────────────────────────────────────────────────────────┘
-     │
-     ├─ PHASE 1: MINTING (new session, new body)
-     │  ├─ `pd session start --agent <agent-id>` or harness init
-     │  ├─ Daemon mints new sessionId, links to AgentNode
-     │  ├─ Door validates: identity ✓, capability ✓, rent ✓
-     │  └─ Return session config to harness
-     │
-     ├─ PHASE 2: WORK (harness owns embodiment)
-     │  ├─ Claude Code / Codex / PD-native runs the body
-     │  ├─ Daemon observes tool calls, fetches notes/memory, routes inbox
-     │  ├─ `pd note` appends to session's immutable log
-     │  ├─ `pd claim` reserves file regions (regional governance)
-     │  └─ Cost accrual flows to the AgentNode's ledger
-     │
-     ├─ PHASE 3: HANDOFF (body ceases, continuity chosen)
-     │  ├─ Harness offers transcript fragment to daemon
-     │  ├─ Daemon scans & sanitizes (gitleaks, secrets, auth)
-     │  ├─ Creates durable handoff episode
-     │  │  ├─ episode.source = "claude" | "codex" | "pd" | <harness>
-     │  │  ├─ episode.transcript_hash = Blake3(sanitized fragment)
-     │  │  └─ episode.agentNodeId = target continuity agent
-     │  ├─ Mints continuation receipt (durable, public-facing)
-     │  └─ Session moves to "closed" state, notes immutable-locked
-     │
-     └─ PHASE 4: RESUMPTION (new body, same person)
-        ├─ `pd session continue` or harness asks daemon
-        ├─ Door checks: same AgentNode ✓, continuation receipt ✓, new harness compatible ✓
-        ├─ Daemon compiles resumption capsule (handoff episode + harvested memory + profile)
-        ├─ New harness spins up new sessionId, linked to same AgentNode
-        ├─ New session's notes immediately reference prior episode
-        └─ Cost, permissions, and durable context flow through
-```
-
-### The Durable Handoff Capsule
-
-When a session ends and resumption is planned, the harness offers its sanitized transcript to the daemon. The daemon creates a **handoff episode** (a record in `episodic_memory` with source-specific shape):
-
-```typescript
-// episodic_memory record
-{
-  id: "ep_xyz789",
-  agentNodeId: "agent_03fk9a2m",          // who this episode belongs to
-  sessionId: "sess_abc123",                // originating session
-  source: "claude" | "codex" | "pd",       // harness type
-  
-  // Immutable capsule
-  transcript_hash: "blake3_...",           // Blake3 of sanitized fragment
-  transcript_size_bytes: 45000,
-  cost_usd: 0.23,
-  
-  // Re-usable memory (harvested at handoff time)
-  harvested_facts: [
-    { category: "project_structure", fact: "monorepo with apps/cli/core" },
-    { category: "git_state", fact: "branch: codex/3-28, 3 commits ahead main" },
-    { category: "validation", fact: "PR #5001 merged, all tests green" }
-  ],
-  
-  // Continuation affordance
-  continuation_receipt: "rcpt_...",       // reference for resumption
-  can_resume_in: ["claude", "codex"],     // harnesses that can pick this up
-  expires_at: timestamp,                   // ~7 days from creation
-  
-  created_at: timestamp,
-  lineage_chain: "ep_abc123 -> ep_def456 -> ep_xyz789"  // full history
-}
-```
-
-The capsule is:
-- **Immutable** (appended once, never edited).
-- **Sanitized** (transcript passes gitleaks & secret-detection; auth tokens, passwords, API keys stripped).
-- **Durable** (indexed by `agentNodeId` for future resumptions).
-- **Lineage-preserving** (each episode chains to its predecessor).
-
-### Permissions & Capabilities — The Profile Envelope
-
-An agent's declared capabilities live on its `AgentNode.profile` (ADR-0119), which is itself append-only and versioned:
-
-```typescript
-// AgentNode profile (v1)
-{
-  agentNodeId: "agent_03fk9a2m",
-  displayName: "Claude Refactoring Expert",
-  remit: "code cleanup, dead-code removal, module simplification",
-  
-  // Declared capability surface
-  capabilities: {
-    mcp: ["filesystem", "git", "browser"],           // MCP scopes
-    sandboxes: ["readonly:docs", "readwrite:src"],   // region access
-    tools: ["bash", "edit", "read", "write", "grep"], // allowed tool set
-    background_workers: true,                         // can spawn background tasks
-    chromium: {
-      headless: true,
-      sandbox: true,
-      viewport: "1280x800"
-    },
-    hotkeys: ["ctrl+s", "cmd+k"],                     // if interactive
-    cache_policy: "hybrid"                             // local + remote
-  },
-  
-  // Runtime observability
-  declared_triggers: [
-    { type: "scheduled", cron: "0 9 * * MON" },
-    { type: "git_event", filter: "ref:refs/heads/main" }
-  ],
-  
-  // Sanitized lineage
-  latest_handoff_episode: "ep_xyz789",
-  promotion_source: "session_promoted:sess_abc123",  // how this profile was born
-  
-  revision: 2,
-  created_at: timestamp,
-  updated_at: timestamp
-}
-```
-
-**Transition rule:** When a session is promoted to a durable agent (or when an existing agent starts a new session), the daemon:
-
-1. Validates the profile is fresh and consistent.
-2. Mints a new session with the profile's capabilities attached.
-3. **Stamps each capability as "declared" (not "enforced")** until a runtime adapter confirms it (ADR-0119, "permission policy is declaration-only").
-4. Passes the profile to the new harness, which is responsible for enforcing the declared sandboxes, MCP scopes, and tool constraints.
-
-### Resumption: The Exact Join
-
-When resuming, the daemon compiles a **resumption capsule** distinct from the handoff episode:
-
-```typescript
-// POST /memory/handoffs/:episodeId/continue
-{
-  episodeId: "ep_xyz789",
-  targetHarness: "claude" | "codex",      // where we're resuming
-  
-  // Return values
-  resumptionCapsule: {
-    sessionId: "sess_def456",              // new session for new body
-    agentNodeId: "agent_03fk9a2m",         // same person
-    
-    // Compiled context
-    profile: { ... },                       // current declared capabilities
-    handoffEpisode: { ... },                // previous work's immutable record
-    harvestedMemory: [ ... ],               // facts harvested at handoff
-    
-    // Lineage proof
-    lineageChain: "ep_abc123 -> ep_def456 -> ep_xyz789",
-    continuationReceipt: "rcpt_...",
-    
-    // Instructions for the harness
-    harness_hints: {
-      restore_mcp_scope: ["filesystem", "git"],
-      enforce_sandbox: "readwrite:src",
-      max_cost_per_step: 0.05,
-      background_workers_allowed: true
-    }
-  },
-  
-  newSessionId: "sess_def456",
-  mustValidate: {
-    harness: "claude",                      // only Claude can resume this
-    workspace: "/Users/erichowens/...",     // same Git root or fail
-    profile_version: 2                       // must match or prompt refresh
-  }
-}
-```
-
-The harness receives this capsule and:
-1. Restores MCP scope from `harness_hints.restore_mcp_scope`.
-2. Enforces regional sandboxes (e.g., "only edit inside `src/` directory").
-3. Loads the `harvestedMemory` facts into episodic memory (not into context window; the agent can request them).
-4. Begins the new session with the new `sessionId`, already linked to the same `agentNodeId`.
-5. The agent's first action can be `pd session attach <episodeId>` to read the full prior transcript (bounded, indexed fetch).
-
-### Durable Accounting & Lineage
-
-Every transition is witnessed by the daemon:
-
-```
-Beacon's Session Timeline View:
-
-2026-08-05T09:15:22Z  MINTED       sess_abc123  claude            cost: $0.00
-2026-08-05T09:18:44Z  WORKING      sess_abc123  (agent has notes)  cost: $0.32
-2026-08-05T09:42:19Z  HANDOFF      sess_abc123  → ep_abc123       cost: $0.32 (final)
-                       └─ source: claude
-                       └─ transcript_hash: blake3_xyz
-2026-08-05T09:42:31Z  RESUMED      sess_def456  codex (from ep_abc123) cost: $0.00
-2026-08-05T10:10:52Z  WORKING      sess_def456  (agent has notes) cost: $0.11
-2026-08-05T10:31:18Z  HANDED-OFF   sess_def456  → ep_def456       cost: $0.11 (final)
-                       └─ source: codex
-                       └─ transcript_hash: blake3_abc
-
-[Lineage chain visible: ep_abc123 -> ep_def456 -> (pending)]
-[Total spend across agent: $0.43]
-[Next resumption available from: ep_def456, expires 2026-08-12T10:31:18Z]
-```
-
-Each record is immutable, timestamped, and queryable by agent, project, and time range.
-
----
-
-## Part II: Operations & Boundaries
-
-### One: Beacon — The Operator's Single Pane
-
-Beacon (the operator-facing control surface, sister to pd-console for agents) owns:
-
-- **Roster view**: named agents, profiles, declare capabilities, edit remits.
-- **Session timeline**: per-agent, per-project; see all phase transitions.
-- **Transcript browser**: bytestring search (BM25) across sanitized handoff episodes; jump to a specific transcript fragment.
-- **Continuation controls**: "resume this agent in Claude/Codex/PD" with one click; Beacon gathers validation and fires `POST /memory/handoffs/:episodeId/continue` to the daemon.
-- **Spend & lineage**: cumulative spend per agent, durable lineage chains, and expiry dates.
-- **Trigger & scheduling**: declare wake-source (GitHub event, scheduled cron, email) and bind to an agent/plan.
-
-Beacon is **not** the harness. It does not run code or display a transcript while an agent is live. It is a pure projection of daemon Truth, with no state of its own.
-
-### Two: The Harness Adapter Contract (ADR-0118)
-
-Each harness (Claude Code, Codex, PD-native) implements a minimal contract:
-
-```typescript
-// Harness adapter (e.g., claude-code-adapter.ts)
-interface HarnessAdapterContract {
-  // 1. On session start
-  onSessionStart(config: {
-    sessionId: string,
-    agentNodeId: string,
-    profile: AgentProfile,          // current declared capabilities
-    resumingFrom?: HandoffEpisode    // if resumption
-  }): Promise<void>
-  
-  // 2. On session work
-  reportProgress(update: {
-    sessionId: string,
-    operation: "tool-call" | "note-written" | "claim-made" | "cost-incurred",
-    detail: any
-  }): Promise<void>
-  
-  // 3. On session end
-  offerHandoff(transcript: {
-    sessionId: string,
-    fragment: string,               // transcript excerpt, may be partial
-    agentNodeId: string,
-    canContinueIn: string[],        // ["claude", "codex", ...]
-    finalNote?: string
-  }): Promise<HandoffEpisode>
-  
-  // 4. Query session state
-  getSessionState(sessionId: string): Promise<SessionState>
-}
-```
-
-A harness that implements this contract can:
-- Receive resumption capsules from any other harness.
-- Report progress to the daemon so Beacon sees live updates.
-- Hand off with confidence that lineage and accounting are preserved.
-
-### Three: Working vs Stalled — The Heartbeat
-
-A session is **working** if:
-- The harness has reported progress within the last `session_heartbeat_ttl` (default 2 min for interactive, 30 sec for fleet).
-- The session's state is not `"closed"` or `"abandoned"`.
-
-A session is **stalled** if:
-- No progress reported for `2 × heartbeat_ttl`.
-- The harness is non-responsive when queried.
-- Cost accrual has stopped, but the session was not closed.
-
-Beacon displays stalled sessions in a distinct visual state (e.g., amber warning) and offers:
-- "Force-close this session?" (terminal session, accept no more notes).
-- "Restart the harness?" (prod the harness to resume heartbeat).
-- "Link to live support?" (escalate to the operator if harness is genuinely hung).
-
-Stalled sessions **do not automatically resume**; the operator must explicitly choose resumption or closure.
-
-### Four: Permissions & Isolation — The Sandbox Envelope
-
-When a session starts, the daemon attaches the agent's profile capabilities to the new session record. The harness reads these capabilities and enforces them as **sandboxes**:
-
-| Capability | Enforcement | Boundary |
+| | **A. Handoff-episode continuation** | **B. Session-linked continuation** |
 |---|---|---|
-| **MCP scope** | Harness filters MCP tool access before calling daemon | "Can only use `filesystem` and `git` MCP servers" |
-| **Sandbox (region)** | Harness tool-call gates (before `read`, `edit`, `write`) | "Can only edit files under `src/`; read anything under `docs/`" |
-| **Tool set** | Harness permits/denies per session | "Can call `bash`, `edit`, `read`; no `write`" |
-| **Background workers** | Daemon spawn gate (admitter checks capability) | "Can spawn up to 3 background tasks concurrently" |
-| **Chromium** | Browser automation harness (if present) | `headless=true`, `sandbox=true`, viewport constraints |
-| **Cache policy** | Harness embedding/vector cache mode | "Use local MiniLM only; no remote embeddings" |
-| **Hotkeys** | UI harness (if interactive) | "Can bind `Ctrl+S` for save; no `Ctrl+Z` undo" |
+| Route | `POST /memory/handoffs/:episodeId/continue` (`routes/memory.ts:315`) | `POST /sessions/:id/continue` (`routes/sessions.ts:649`) |
+| Where it lives | **Shipped on `origin/main`.** | **Real, tested, not yet shipped to `origin/main`** — lives on the unmerged branch `codex/first-class-agent-sessions-integration-20260804` (`routes/sessions.ts:8`; test file `tests/unit/session-continuation-routes.test.js` exists only on that branch). |
+| Predecessor unit | A handoff episode (an `episodic_memory` row), which may or may not have a coordination session attached. | A live `sessions` row directly (`predecessorId` = a session id). |
+| Target selection | Any `lib/backend-catalog.ts` entry the caller names as `targetBackend`; mode `native` (same adapter family, reuses the provider's own session id) or `handoff` (sanitized successor brief), or `auto`. | One `backend` from `KNOWN_BACKEND_IDS` (`lib/backend-catalog.ts:731`); always spawns a fresh successor, never a native resume. |
+| Receipt store | `createContinuationStore` (`routes/memory.ts`, separate table from agent-run-receipts). | `createAgentRunReceiptStore`, `lib/agent-run-receipts.ts:152` — not yet shipped, integration branch only. |
+| Lineage | Capsule-based: successor references `sourceEpisodeId`/`sourceCapsuleId`; native-session witness re-verified via `verifyNativeSessionWitness`. | Session-metadata based: a `linkSuccessor()` function on `lib/sessions.ts` (integration branch only — not present in `lib/sessions.ts` on `origin/main`) merges `continuedAt`/`continuedBySessionId`/`continuedByAgentId`/`continuationReason` onto the predecessor and `predecessorSessionId`/`predecessorStatus`/`predecessorAgentId`/`predecessorWorktreeId` onto the successor, plus one immutable note of type `continuation` on each session. |
+| Governing ADR | `docs/adr/0118-harness-adapter-contract.md` + `docs/adr/0119-durable-agent-roster.md` | No ADR yet — see [Part IV](#part-iv--open-questions). |
+| Who calls it in Beacon today | Roster's "N:N runtime switchboard" panel (`app/src/Roster.tsx`, Workflow Beacon repo, not this repo). | Sessions view's "Continue" action (`app/src/session-flow.ts`, Workflow Beacon repo). |
 
-**Isolation rule:** Capabilities are **declared once on the profile and re-enforced at every session boundary**. If an agent profile declares `readonly:docs`, every new session (regardless of harness) inherits that constraint. The operator can edit the profile to grant/revoke; the next session sees the change.
+Neither mechanism is a superset of the other. (A) is the only one that can do a
+true native resume (same provider session id, no new process identity) and the
+only one wired to the durable-agent roster. (B) is the only one that admits a
+successor with a single idempotent HTTP call and produces one pollable receipt
+url — the shape Beacon's simpler "continue this session" button needs. They
+were built by different work-streams against different predecessors
+(`episodeId` vs. session `id`) and currently do not share a receipt schema, a
+route prefix, or a lineage representation.
 
-### Five: MCP, Connectors, and Caches
+### 2. What the prior draft got wrong about storage: full transcripts, not hashes
 
-- **MCP scope** is a list of MCP server names declared on the profile. The harness initialization code filters tool calls to permitted servers only.
-- **Connectors** (OAuth, API keys for third-party services) are stored in the daemon's secret vault (Keychain on macOS). A session's profile can declare which connectors it needs; the daemon resolves them at session-start time and passes OAuth handles to the harness.
-- **Caches** (embedding models, compiled asset maps, Git object caches) live in `~/.port-daddy/` and are **harness-agnostic**. The `pd embed` service is the canonical embedder (ADR-0061); all harnesses use it, and one model (`Xenova/all-MiniLM-L6-v2`) is cached locally for hybrid search.
-- **Hotkeys** and **background workers** are only enforced when the harness is interactive (Claude Code) or fleet-driven (PD-native). Codex does not support either, so its profile simply declares the capability as "not-enforced".
+The prior draft claimed "the daemon does not store the full transcript; it
+stores a Blake3 hash and a sanitized excerpt." This is false for the systems
+that exist. `lib/transcripts.ts` documents itself as recording "the full
+conversation in `fleet_transcript_messages` (chronological)" (`lib/transcripts.ts:4`).
+The `fleet_transcripts` row carries, per entry (`lib/transcripts.ts:63`):
 
-### Six: Restrained Nautical Microcopy
+```
+session_id, spawned_agent_id, trigger, backend, model,
+requested_backend, effective_backend, requested_model, effective_model,
+backend_override_source, status, started_at, ended_at,
+cost_usd, tokens_in, tokens_out, messages[], outputs[], error
+```
 
-Port Daddy uses maritime terminology throughout. For sessions, adopt the same voice:
+Secrets are redacted best-effort (`redactSecrets`, `lib/transcripts.ts:406`) and
+tool-arg strings over 10KB are truncated with a SHA-256 hash kept for
+auditability — but the message content itself is retained, not discarded in
+favor of a hash. There is no Blake3 anywhere in this contract.
 
-| Concept | Nautical | Usage |
-|---|---|---|
-| Session start | "Cast off" | "Casting off a new session" |
-| Session working | "Under way" | "Session is under way" |
-| Session stalled | "Becalmed" | "Session is becalmed; no progress in 4 minutes" |
-| Handoff | "Weighing anchor" | "Weighing anchor, preparing handoff to Codex" |
-| Resumption | "Reconvening" | "Reconvening from handoff episode ep_xyz" |
-| Cost | "Spend" | "Spent $0.32 on this leg" |
-| Lineage | "Logbook" | "Logbook shows 3 prior legs" |
-| Abandon | "Scuttle" | "Scuttle this session?" |
-| Operator view | "Bridge" | "Visible on the Bridge (Beacon)" |
+This is also where **requested vs. effective backend** — one of the fields the
+operator asked this document to name precisely — actually lives:
+`requested_backend`/`effective_backend`/`requested_model`/`effective_model`/`backend_override_source`
+on the transcript row, and the matching `requestedBackend`/`effectiveBackend`
+pair on `SpawnSpec` (`routes/memory.ts`, `resolveSpawnRuntime`). A caller can ask
+for one backend and the daemon can resolve a different effective one (e.g. a
+policy override); both are recorded, not silently collapsed.
 
-Examples:
-- "Session `sess_abc123` is under way; spent $0.15 so far."
-- "Weighing anchor and preparing handoff to Codex."
-- "Reconvening from handoff episode `ep_def456` (cost: $0.11)."
-- "Logbook shows 5 legs; total spend $0.62."
+### 3. Backend catalog
+
+`lib/backend-catalog.ts` is the single source of truth for what a continuation
+can target (both routes validate against it). The full id set on
+`origin/main` today: `cli:claude-code`, `cli:codex`, `cli:agy`, `cli:gemini`,
+`cli:groq`, `cli:grok`, `claude-cli`, `claude`, `gemini`, `cloudflare`,
+`openai`, `groq`, `codex`, `deepseek`, `xai`, `ollama`, `lmstudio`, `aider`,
+`custom` (`lib/backend-catalog.ts:731`). Each entry declares an `adapter` with
+spawn transport, argv template, native-resume support, transcript format, and
+auth mode — this is the real substance behind `docs/adr/0118-harness-adapter-contract.md`.
+That ADR does **not** define a runtime `HarnessAdapterContract` TypeScript
+interface with `onSessionStart`/`reportProgress`/`offerHandoff` callbacks (the
+prior draft's Part II, §Two); it defines a static catalog of declarative rows.
+There is no callback interface any harness implements today.
+
+### 4. Permission policy — two real, disconnected notions; neither reaches continuation
+
+There is no unified "profile.capabilities" envelope (mcp/sandboxes/tools/
+chromium/hotkeys/cache_policy) anywhere in the code. What's real:
+
+- **`permissionPolicy` on a durable-agent profile** —
+  `schemas/agent-harbor/v0/durable-agent-profile.schema.json:41`. Fields:
+  `filesystem` (`inherit | repo | workspace | read-only`), `network`
+  (`inherit | none | restricted | full`), `allowedTools`, `deniedTools`, and a
+  literal constant `enforcement: "declaration-only"`. `docs/adr/0119-durable-agent-roster.md`
+  is explicit: "Neither surface may claim enforcement or activation until a
+  runtime adapter emits daemon-witnessed evidence." This is a declared policy on
+  the *roster profile*, not something either continuation route reads or
+  enforces today.
+- **`permissionMode` on a direct spawn** — `lib/spawner.ts:194`, three literal
+  values (`default | acceptEdits | bypassPermissions`), forwarded verbatim as
+  `--permission-mode` to the `cli:claude-code` CLI only, ignored by every other
+  backend. It is wired into `POST /spawn` (`routes/spawn.ts:250`) but **not**
+  into either continuation route — the `SpawnSpec` built inside
+  `POST /sessions/:id/continue` never sets `permissionMode`, and neither does
+  `POST /memory/handoffs/:episodeId/continue`. When unset, the CLI falls back
+  to its own interactive default; there is no daemon-side default of
+  `bypassPermissions` in this code path.
+
+There is no "Door" gate visible in either continuation route. The Door is a
+real architectural concept — Plane 3 of the six-plane kernel described in
+`docs/architecture/PORT-DADDY-COARSENED-ARCHITECTURE.md` — but that document
+itself lists it as "Door/Bosun (in flight)"; neither `routes/sessions.ts` nor
+`routes/memory.ts` calls into a Door module before admitting a continuation.
+Today's gating is direct: backend-catalog membership, idempotency-key
+collision, budget bounds, and workspace-identity validation, each checked
+inline.
+
+### 5. Worktree / workspace identity
+
+Both continuation routes require an absolute, existing, current-user-owned
+directory and resolve it through `captureWorkspaceIdentity`
+(`lib/workspace-identity.ts:10`), which returns
+`{ canonicalPath, device, inode }` — not just a path string. `POST
+/sessions/:id/continue` accepts it as top-level `workdir` or `worktree.root` in
+the request body and rejects the request with `400 VALIDATION_ERROR` if it
+doesn't resolve. Sessions also carry a `worktree_id` column
+(`lib/sessions.ts:279`, auto-detected via `getWorktreeId`), separate from the
+continuation request's workspace identity check.
+
+### 6. Status, liveness, and freshness — the honest part
+
+This is real and already principled. `GET /sessions/continuations/:receiptId`
+(`routes/sessions.ts:926`) will not report `live` on transcript existence
+alone. It requires a direct PID **and** a supervisor heartbeat fresher than
+`AGENT_RUN_LIVE_EVIDENCE_MAX_AGE_MS = 65_000` ms, defined at
+`lib/agent-run-receipts.ts:6` (not yet shipped; integration branch only). The
+route comment states the rule plainly: "Transcript presence alone never
+proves liveness; only a direct PID plus a fresh supervisor heartbeat does."
+If a receipt was previously `live` and that evidence goes stale, it demotes
+to `unknown` with an explicit error string rather than staying green. If the
+daemon restarts mid-flight, every non-terminal receipt is swept to `unknown`
+on boot (`lib/agent-run-receipts.ts:196`, same not-yet-shipped branch) with
+the error "Daemon restarted before a terminal event; task outcome is
+unknown."
+
+Workflow Beacon's client-side classifier (`app/src/session-flow.ts`, Workflow
+Beacon repo) mirrors this discipline into six plain states — `accepted`,
+`starting`, `live`, `terminal`, `no_runtime`, `unknown` — each with a `tone`
+(`pending | running | done | error | muted`) and explicit `retryable`,
+`openAgent`, `openTranscript`, `attach` flags derived from the same evidence
+fields (`classifySessionOutcome`, `app/src/session-flow.ts:206`). This mapping
+already exists as real, tested code; it is the closest thing to the "honest
+working/stalled/unknown/complete states" target this document proposes below
+(§Target UX) — the target is mostly "keep doing this, in one place, for both
+continuation mechanisms," not "invent it."
+
+### 7. Beacon's real, proven UI — two disconnected surfaces
+
+Workflow Beacon (this repo's sibling operator surface; separate repository,
+paths below are relative to it, not `port-daddy`) has two continuation UIs
+wired to the two different daemon mechanisms from §1:
+
+- **Sessions view → "Continue"** (`app/src/session-flow.ts`,
+  `buildContinueLaunchRequest`) posts to Beacon's own proxy route
+  `POST /port-daddy/session` (`server.js:2035`), which resolves the
+  predecessor and calls the daemon's **session-linked** continuation (B).
+  `backendForWorkflow` (`app/src/session-flow.ts:257`) only supports two
+  backends today — `cli:codex` and `cli:claude-code` — derived from the
+  indexed native transcript's harness. There is no PD-native fleet option
+  here.
+- **Roster view → "N:N runtime switchboard"** (`app/src/Roster.tsx`) targets
+  `GET/POST /durable-agents/:agentNodeId/...` proxy routes (`server.js:2404`
+  onward), which call the daemon's **handoff-episode** continuation (A). This
+  panel exposes the full backend/adapter matrix (`matrix?.adapters`, grouped by
+  family) and per-adapter evidence (`spawn`, `live-interaction`,
+  `native-resume`, `handoff` predicates), plus a "Continuity ledger" of past
+  receipts.
+
+These are not the same button, do not share a receipt list, and an operator
+who continues a session from the Sessions view will not see that receipt in
+the Roster's continuity ledger, or vice versa.
+
+**Proven, end-to-end, real** (captured 2026-08-04 against a named development
+daemon `squid-3-28-e2e`, Port Daddy commit `87961d028`, published port
+discovered dynamically — never hardcoded): a Sessions-view "Continue" produced
+receipt `run-38979beba5080ab9`, predecessor
+`session-finish-exact-named-daemon-squid-and-continuation-715ad5a28f08`,
+successor `session-reply-exactly-beacon-ui-joinability-current-ok-d-39f5cd44f0cf`
+/ agent `spawned-e16ec2bf12e2`, transcript `tx_msfgox2s_bbgxygg6`, backend
+`cli:codex`, terminal status `completed`, accounting `$0.01`, 32,609 input +
+6,912 cached input + 12 output tokens with evidence `backend-reported-and-durable`.
+The terminal receipt's `controlCenterUrl` opened
+`http://127.0.0.1:3167/fleet-ui/?surface=agents&agent=spawned-e16ec2bf12e2` and
+selected that exact successor in Port Daddy's global Agents surface —
+`buildPortDaddyAgentUrl` in Beacon (`app/src/session-flow.ts:264`) builds the
+same shape the daemon's own envelope returns as `controlCenterUrl`
+(`routes/sessions.ts`, `continuationEnvelope`), so the two sides agree on the
+join target independently.
+
+A prior version of this same flow produced a false positive worth recording:
+a "Continue this thread" click created a durable session shell with no
+`agentId` and no runtime — a receipt that looked successful but had nothing to
+join. The current contract closes that: admission must return one successor
+agent, session, transcript, *and* receipt together, or the caller sees
+`starting`/`unknown`, never a false `live`.
+
+### 8. Exact continuation response envelope (mechanism B)
+
+`continuationEnvelope()` (`routes/sessions.ts`) is what both
+`POST /sessions/:id/continue` and `GET /sessions/continuations/:receiptId`
+return:
+
+```
+{
+  success, accepted, replayed, terminal, outcomeUnknown, status,
+  predecessor: { sessionId, purpose, status },
+  successor: { agentId, sessionId, transcriptId } | null,
+  session: { id, agentId } | null,
+  receipt: AgentRunReceipt,
+  monitorUrl:        "/sessions/continuations/:receiptId",
+  cancelUrl:         "/sessions/continuations/:receiptId" | null,
+  transcriptUrl:     "/transcripts?agentId=:successorAgentId" | null,
+  controlCenterUrl:  "/fleet-ui/?surface=agents&agent=:successorAgentId" | null,
+  accounting: { budgetUsd, telemetry, evidence },
+  liveness: { live, evidence, pid, supervisorHeartbeatAt, lastActivityAt, deadlineAt } | null,
+}
+```
+
+`controlCenterUrl` is the exact Join/Follow/Open target: the daemon's own
+fleet UI, filtered to the successor agent. `transcriptUrl` is the daemon's raw
+transcript endpoint, not Beacon's own transcript index — Beacon's "Open
+transcript in Beacon" button is a *separate* affordance that stays disabled
+until Beacon's own polled index catches up (§7's proof doc records this
+explicitly). Beacon does not own real-time transcript truth; it owns a lagging
+projection of it.
 
 ---
 
-## Invariants & Verification
+## Part II — The Gap
 
-### Immutability Guarantees
+What Beacon does **not** yet own, stated plainly:
 
-1. **Session records are append-only.** Once a session is minted and enters "working," its ID, owner, and scope are immutable. The session can be closed or scuttled, but not edited mid-flight.
-2. **Handoff episodes are immutable.** Once written, an episode's transcript hash, cost, and lineage chain are permanent. A new episode can be appended; the old one is never overwritten.
-3. **Notes are immutable.** Identical to ADR-0007: notes can be added to a working session; once the session closes, notes are locked. Corrections are written as new notes.
-
-### Harness Isolation
-
-1. **One session per active harness per agent.** An agent cannot have two concurrent sessions in Claude Code. It *can* have a working session in Claude Code and a separate completed session in Codex; resumption bridges them.
-2. **Transcript isolation.** Each harness owns its transcript fragment. The daemon does not store the full transcript; it stores a Blake3 hash and a sanitized excerpt. The harness retains the full transcript locally.
-3. **MCP & tool scope isolation.** A harness enforces the declared scope before calling the daemon. The daemon's "Door" does not re-check the tool name; it assumes the harness is honest (ADR-0120, TCB boundary).
-
-### Testing & Validation
-
-Tests should verify:
-
-- **Session lifecycle transitions.** A session can be minted, transition through working/stalled/closed/scuttled states, and never revert.
-- **Handoff capsule creation.** When a session closes with a handoff intent, the daemon creates an immutable episode with correct lineage.
-- **Resumption capsule compilation.** Given a handoff episode and a target harness, the daemon produces a valid resumption capsule with restored capabilities and lineage.
-- **Permission enforcement.** A session with sandbox constraints properly gates tool calls. A session with MCP scope filtering correctly rejects tools outside the scope.
-- **Accounting flow.** Cost accrual flows from the harness to the session to the AgentNode ledger correctly.
-- **Stalled detection.** Sessions without heartbeat reports within `2 × ttl` transition to "becalmed" state.
-
----
-
-## Future Seams
-
-This design assumes future extensions without breaking the core:
-
-1. **Harbor federation** (ADR seam): Sessions scoped to a harbor can be queried across federated daemons.
-2. **Autonomous resumption** (ADR seam): Beacon can schedule automatic resumption on a cadence or event.
-3. **Reputation ledger** (ADR seam): Completion receipts can feed into an outcome predictor (not yet designed).
-4. **The phone** (ADR seam): A thin Relay-carried surface can display session state and trigger resumption from mobile.
-
-None of these require changes to the core session spine. They are pure surface additions.
+1. **No unified roster.** Claude/Codex-native sessions (mechanism B, Sessions
+   view) and durable-agent profiles (mechanism A, Roster view) are two
+   different lists in two different panels. There is no single view listing
+   "every agent, whatever harness or mechanism spawned it."
+2. **No PD-native fleet agents in the session-continuation path.**
+   `backendForWorkflow` hardcodes two backends. The other 17 backend-catalog
+   entries — including PD-native fleet spawns — are reachable only through the
+   Roster's handoff-episode path, not the simpler Sessions "Continue" button.
+3. **Permission policy is invisible in both UIs.** Neither Beacon surface
+   displays or edits `permissionPolicy` (roster profiles) or `permissionMode`
+   (direct spawns); neither continuation route accepts a permission-mode
+   parameter at all today.
+4. **No MCP/connector/sandbox/cache/Chromium policy surface anywhere.** None
+   of these appear in the durable-agent-profile schema, the continuation
+   routes, or either Beacon panel. This is pure target/proposal, not a small
+   gap in an existing field.
+5. **No cross-mechanism lineage.** A chain that starts as a handoff-episode
+   continuation and later continues again via the session-linked route (or
+   vice versa) has no shared lineage record; each mechanism only knows its own
+   half.
+6. **No cumulative cost/spend across a lineage chain.** Accounting is per
+   receipt (`accounting.budgetUsd`/`telemetry` on one continuation). Nothing
+   sums spend across a chain of successors back to a common ancestor.
+7. **No autonomous or scheduled resumption.** Every continuation observed is
+   operator-click-initiated. Nothing schedules or triggers a continuation on a
+   cadence or event.
+8. **`POST /sessions/:id/continue` is not on `origin/main`.** It is real,
+   tested code on `codex/first-class-agent-sessions-integration-20260804`, not
+   a shipped surface. Any doc, roadmap item, or operator promise that assumes
+   it exists in production is wrong until that branch merges.
 
 ---
 
-## Summary
+## Part III — Target UX (PROPOSED — none of this is built)
 
-Port Daddy sessions are **durable persons** that:
+The target collapses the two real mechanisms behind one operator-facing
+contract, without inventing new daemon primitives where existing ones already
+do the job (agent-run receipts, the durable-agent roster, `lib/transcripts.ts`
+accounting).
 
-- Route work across Claude/Codex/PD harness boundaries via immutable handoff episodes.
-- Preserve immutable lineage, transcripts (hashed), and cost accounting at the daemon level.
-- Travel with declared capabilities (MCP, sandboxes, tools, Chromium, caches) attached to an AgentNode profile.
-- Are created and resumed through the daemon's Door (identity, capability, rent check).
-- Are observed from a single operator pane (Beacon) with timeline, spend, and lineage visibility.
-- Remain first-class work atoms in Port Daddy's six-plane model (Plane 1 Truth, indexed like roadmap items and claims).
+- **One roster.** Every agent reachable from Beacon — native Claude/Codex
+  sessions, durable-agent-roster profiles, and PD-native fleet spawns — listed
+  in one place, sourced by merging `GET /durable-agents` with the live/session
+  registries Beacon already polls. This is a Beacon-side aggregation
+  **PROPOSED**; no new daemon endpoint is required to enumerate what already
+  exists across `routes/durable-agent-roster.ts` and `routes/sessions.ts`.
+- **Exact Continue destination.** Every Continue action, regardless of which
+  backend mechanism it resolves to, must land the operator on the same shape
+  of answer: successor agent id, successor session id, transcript id, receipt
+  id, and one `controlCenterUrl` — the pattern mechanism B already returns
+  today (§8). Extending mechanism A's response to carry the same fields is the
+  smallest true unification step, not a rewrite.
+- **Immutable predecessor, linked successor, visible both ways.** Already true
+  for mechanism B via `linkSuccessor()` (§1); mechanism A's capsule-based
+  lineage should surface the same predecessor→successor pointer in the
+  roster's continuity ledger, not just in the episode metadata.
+- **Join / Follow / Inspect, not just Continue.** Join = open
+  `controlCenterUrl` while live. Follow = subscribe to receipt polling
+  (`GET /sessions/continuations/:receiptId` or its mechanism-A equivalent)
+  without navigating away. Inspect = open the full transcript
+  (`transcriptUrl`), honestly labeled with whichever store actually has it —
+  Beacon's own index if caught up, the daemon's raw endpoint if not.
+- **Full accounting, transcription, resumption in one card.** Per-continuation
+  numbers already exist (`accounting`, `fleet_transcripts.cost_usd/tokens_in/
+  tokens_out`); the proposal is a *lineage rollup* — sum spend and token counts
+  across a chain via the existing `predecessorSessionId`/successor pointers,
+  not a new accounting primitive.
+- **Permissions/MCP/connectors/sandbox/cache/Chromium policy, shown honestly.**
+  Render `permissionPolicy` and `permissionMode` where they exist today
+  (roster profile, direct spawn) labeled `declaration-only` / not yet enforced,
+  exactly as the schema already says. MCP scope, connector state, sandbox
+  region, cache policy, and Chromium policy have **no backing field anywhere**
+  today; until a schema and an enforcement adapter exist, the UI should show
+  "not declared" rather than a fabricated default.
+- **Honest working/stalled/unknown/complete states.** Adopt
+  `classifySessionOutcome`'s six-state model (§6) as the shared vocabulary for
+  *both* mechanisms, instead of Beacon inventing a second classifier for
+  mechanism A's Roster panel.
+- **Restrained live-progress affordances.** Beacon's actual current copy is
+  plain — "Continue the same person," "Admitting successor…," "Collecting
+  successor receipt…" — not nautical. Port Daddy's CLI voice elsewhere uses
+  real maritime terms (`pd sitrep`, "roadmap rent," "sidequest," the Harbor
+  welcome banner), so a light maritime accent in Beacon is a reasonable
+  target, but it must stay this restrained: state + evidence first, flavor
+  second, and never a status word that implies more certainty than the
+  liveness evidence supports (no "under way" for a receipt that's merely
+  `accepted`).
 
-When a session is promoted to a durable agent, that agent can be re-invoked by name, scheduled, or resumed from any compatible harness — with zero manual re-seeding and full lineage provenance preserved.
+### Lineage / Continue / Join flow (target, annotated with what's real today)
+
+```mermaid
+sequenceDiagram
+    participant Op as Operator (Beacon)
+    participant D as Daemon
+    participant Sp as Spawner
+    participant Su as Successor agent + session
+
+    Op->>D: POST /sessions/:id/continue<br/>idempotencyKey, backend, workdir
+    Note right of D: Real on the integration branch;<br/>not yet on origin/main
+    D->>D: AgentRunReceiptStore.accept()
+    D->>Sp: spawn(spec)
+    Sp-->>Su: new agent, session, transcript
+    D->>D: sessions.linkSuccessor()<br/>metadata + immutable notes, both sessions
+    D-->>Op: 202 receipt, status starting<br/>monitorUrl, controlCenterUrl
+    loop until terminal
+        Op->>D: GET /sessions/continuations/:receiptId
+        D-->>Op: status live only with PID + fresh heartbeat
+    end
+    Op->>Su: Join / Follow via controlCenterUrl
+```
+
+---
+
+## Part IV — Open Questions
+
+1. **Merge mechanism B, or converge it into mechanism A?** They currently
+   solve overlapping problems with different receipt schemas. An ADR should
+   decide whether `POST /sessions/:id/continue` becomes the general-purpose
+   path (with native-resume support borrowed from mechanism A) or whether
+   Beacon's Sessions view should be re-pointed at
+   `POST /memory/handoffs/:episodeId/continue` instead.
+2. **Where does `permissionMode` belong on a continuation request?** Neither
+   route accepts it today; deciding the field name and validation now avoids
+   two more divergent implementations.
+3. **What retires the false-positive shell-session failure mode for good?**
+   §7 records one fixed instance (a receipt with no runtime). The invariant
+   ("admission returns one successor agent+session+transcript+receipt or it
+   isn't `live`") should become a contract test shared by both mechanisms.
+4. **Is a real Door check coming to either route?** `docs/architecture/PORT-DADDY-COARSENED-ARCHITECTURE.md`
+   marks Plane 3 "in flight." If it lands, both continuation routes need a
+   defined integration point, not a bolt-on per-route check.
+
+---
+
+## Corrections vs. the prior draft
+
+The prior draft (`89acaaf0a`) invented an API surface that never matched the
+codebase. For a reader who saw it, or work that cited it, here is exactly what
+was wrong:
+
+| Prior draft claimed | Reality |
+|---|---|
+| `POST /memory/handoffs/:episodeId/continue` returns a `resumptionCapsule` with `harness_hints` (`restore_mcp_scope`, `enforce_sandbox`, `max_cost_per_step`, `background_workers_allowed`) | The route exists, but returns a continuation receipt against `lib/backend-catalog.ts`, not this shape. No `harness_hints` field exists anywhere. |
+| `AgentNode.profile.capabilities` = `{ mcp, sandboxes, tools, background_workers, chromium, hotkeys, cache_policy }` | The real profile schema (`schemas/agent-harbor/v0/durable-agent-profile.schema.json`) has `permissionPolicy: { filesystem, network, allowedTools, deniedTools, enforcement }`. None of `mcp`/`sandboxes`/`chromium`/`hotkeys`/`cache_policy` exist. |
+| Daemon stores a Blake3 hash, not the full transcript | `lib/transcripts.ts` stores full message content in `fleet_transcript_messages`; only oversized tool-arg strings are hashed. |
+| ADR-0120 = "identity/capability enforcement ('the Door')" | `docs/adr/0120-rust-kernel-boundary.md` is about the Rust kernel boundary and has nothing to do with sessions, identity, or the Door. |
+| ADR-0119 = permission-policy enforcement ADR | `docs/adr/0119-durable-agent-roster.md` is the durable-agent-roster ADR. It does mention a `declaration-only` permission field, but as one part of the roster profile schema, not as its subject. |
+| ADR-0118 defines a runtime `HarnessAdapterContract` interface (`onSessionStart`/`reportProgress`/`offerHandoff`/`getSessionState`) | `docs/adr/0118-harness-adapter-contract.md` defines a static declarative catalog (`lib/backend-catalog.ts`), not a callback interface any harness implements. |
+| Six-plane model cited to ADR-0048 | The six-plane kernel is described in `docs/architecture/PORT-DADDY-COARSENED-ARCHITECTURE.md`, not ADR-0048. |
+| Nautical microcopy table ("becalmed," "weighing anchor," "reconvening") presented as Beacon's voice | Beacon's actual continuation copy is plain prose ("Continue the same person," "Admitting successor…"). No nautical terms appear in `app/src/Roster.tsx` or `app/src/session-flow.ts`. |
+| `episode.lineage_chain: "ep_abc123 -> ep_def456 -> ep_xyz789"` string field | No such field exists on any handoff-episode or receipt record. |
+| Single unified continuation flow across "Claude/Codex/PD native" | Two separate, unreconciled mechanisms exist (Part I §1); this was the draft's largest structural overclaim. |
