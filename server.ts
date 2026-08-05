@@ -426,26 +426,42 @@ if (IS_DEV_MODE) {
 // KeepAlive that half-alive zombie once ate 345 consecutive respawns — each
 // new spawn heard "ok" on the socket and exited 0 while the TCP port served nothing
 // (2026-07-04). Defer only when BOTH surfaces answer; socket-ok + TCP-dead
-// (after generous retries) means zombie: terminate the stale PID, take over.
+// (after generous retries) means zombie: terminate and replace the stale runtime.
 // =============================================================================
 
-import { decideDuplicateAction, probeTcpHealth, terminateStalePid } from './lib/daemon-takeover.js';
+import {
+  decideDuplicateAction,
+  parseHealthIdentity,
+  probeTcpHealth,
+  terminateVerifiedStalePid,
+  verifiedStalePid,
+} from './lib/daemon-reconciliation.js';
 
 if (existsSync(SOCK_PATH)) {
-  const sockAlive: boolean = await new Promise<boolean>((resolve) => {
+  const sockHealth: { alive: boolean; pid: number | null } = await new Promise((resolve) => {
+    let raw = '';
+    let settled = false;
+    const finish = (value: { alive: boolean; pid: number | null }) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
     const conn = createConnection({ path: SOCK_PATH }, () => {
       conn.write('GET /health HTTP/1.0\r\nHost: localhost\r\n\r\n');
     });
     conn.on('data', (data: Buffer) => {
-      conn.destroy();
-      resolve(data.toString().includes('"status":"ok"'));
+      raw += data.toString();
     });
-    conn.on('error', () => resolve(false));
-    conn.setTimeout(2000, () => { conn.destroy(); resolve(false); });
+    conn.on('end', () => {
+      const identity = parseHealthIdentity(raw);
+      finish({ alive: identity.ok, pid: identity.pid });
+    });
+    conn.on('error', () => finish({ alive: false, pid: null }));
+    conn.setTimeout(2000, () => { conn.destroy(); finish({ alive: false, pid: null }); });
   });
 
-  const tcpAlive: boolean = sockAlive && !DISABLE_TCP ? await probeTcpHealth(PORT) : false;
-  const action = decideDuplicateAction({ sockAlive, tcpAlive, tcpDisabled: DISABLE_TCP });
+  const tcpAlive: boolean = sockHealth.alive && !DISABLE_TCP ? await probeTcpHealth(PORT) : false;
+  const action = decideDuplicateAction({ sockAlive: sockHealth.alive, tcpAlive, tcpDisabled: DISABLE_TCP });
 
   if (action === 'defer') {
     let existingPid = '?';
@@ -454,15 +470,23 @@ if (existsSync(SOCK_PATH)) {
     process.exit(0);
   }
 
-  if (action === 'takeover') {
-    let stalePid = NaN;
-    try { stalePid = parseInt(readFileSync(PID_FILE, 'utf-8').trim(), 10); } catch {}
-    console.error(
-      `[takeover] unix socket answers /health but TCP :${PORT} is dead after retries — ` +
-      `half-alive daemon (stale PID ${Number.isFinite(stalePid) ? stalePid : '?'}). Terminating it and taking over.`,
-    );
-    const outcome = await terminateStalePid(stalePid);
-    console.error(`[takeover] stale daemon termination: ${outcome}`);
+  if (action === 'replace-stale') {
+    let pidFileValue: string | null = null;
+    try { pidFileValue = readFileSync(PID_FILE, 'utf-8').trim(); } catch {}
+    const stalePid = verifiedStalePid(pidFileValue, sockHealth.pid);
+    if (stalePid === null) {
+      console.error(
+        `[reconcile] unix socket is healthy but TCP :${PORT} is dead; PID witnesses disagree ` +
+        `(file=${pidFileValue ?? '?'}, socket=${sockHealth.pid ?? '?'}). Refusing to signal a process; rebinding owned state only.`,
+      );
+    } else {
+      console.error(
+        `[reconcile] unix socket answers /health but TCP :${PORT} is dead after retries — ` +
+        `half-alive daemon (verified stale PID ${stalePid}). Terminating and replacing it.`,
+      );
+      const outcome = await terminateVerifiedStalePid(stalePid);
+      console.error(`[reconcile] stale daemon termination: ${outcome}`);
+    }
   }
 
   try { unlinkSync(SOCK_PATH); } catch {}

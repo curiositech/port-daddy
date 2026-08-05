@@ -1,5 +1,5 @@
 /**
- * DAEMON TAKEOVER — half-alive duplicate detection (2026-07-04 incident).
+ * DAEMON RECONCILIATION — half-alive duplicate detection (2026-07-04 incident).
  *
  * The startup duplicate-daemon guard used to trust the unix socket alone: if
  * something answered `"status":"ok"` on SOCK_PATH, the new spawn exited 0.
@@ -13,10 +13,10 @@
  * The rule now: an existing daemon earns deference only when BOTH surfaces
  * are healthy. Socket-ok + TCP-dead (after generous retries, so a merely
  * slow daemon is never shot) means zombie — terminate the stale PID and
- * take over.
+ * replace it under the one configured supervisor.
  */
 
-export type DuplicateAction = 'defer' | 'takeover' | 'clean-start';
+export type DuplicateAction = 'defer' | 'replace-stale' | 'clean-start';
 
 export interface TcpProbeOptions {
   /** Probe attempts before declaring the TCP surface dead. */
@@ -29,6 +29,31 @@ export interface TcpProbeOptions {
   retryDelayMs?: number;
 }
 
+export interface HealthIdentity {
+  ok: boolean;
+  pid: number | null;
+}
+
+/**
+ * Parse either a bare JSON health body or a complete HTTP response received
+ * over the Unix socket. PID is deliberately strict: it is later used as an
+ * ownership witness before a stale process may be signalled.
+ */
+export function parseHealthIdentity(raw: string): HealthIdentity {
+  const body = raw.includes('\r\n\r\n') ? raw.slice(raw.indexOf('\r\n\r\n') + 4) : raw;
+  try {
+    const parsed = JSON.parse(body) as { status?: unknown; pid?: unknown };
+    const pid = typeof parsed.pid === 'number'
+      && Number.isSafeInteger(parsed.pid)
+      && parsed.pid > 1
+      ? parsed.pid
+      : null;
+    return { ok: parsed.status === 'ok', pid };
+  } catch {
+    return { ok: raw.includes('"status":"ok"'), pid: null };
+  }
+}
+
 /**
  * A /health body counts as ok when it PARSES as JSON with `status: "ok"`;
  * the exact-substring check is only a fallback for a truncated body.
@@ -36,12 +61,18 @@ export interface TcpProbeOptions {
  * deliberately format-tolerant (whitespace/key-order changes stay healthy).
  */
 export function healthBodyIsOk(body: string): boolean {
-  try {
-    const parsed = JSON.parse(body) as { status?: unknown };
-    return parsed?.status === 'ok';
-  } catch {
-    return body.includes('"status":"ok"');
-  }
+  return parseHealthIdentity(body).ok;
+}
+
+/**
+ * A PID is safe to reconcile only when the state file and the process that
+ * answered on the owned Unix socket independently identify the same process.
+ */
+export function verifiedStalePid(pidFileValue: unknown, socketHealthPid: unknown): number | null {
+  const pidFromFile = typeof pidFileValue === 'number' ? pidFileValue : Number(pidFileValue);
+  if (!Number.isSafeInteger(pidFromFile) || pidFromFile <= 1) return null;
+  if (!Number.isSafeInteger(socketHealthPid) || socketHealthPid !== pidFromFile) return null;
+  return pidFromFile;
 }
 
 /**
@@ -79,7 +110,7 @@ export async function probeTcpHealth(port: number, opts: TcpProbeOptions = {}): 
  *
  * - socket dead → 'clean-start' (stale files; unlink and boot — pre-existing behavior)
  * - socket ok + tcp ok → 'defer' (a genuinely healthy daemon owns the berth)
- * - socket ok + tcp dead → 'takeover' (half-alive zombie)
+ * - socket ok + tcp dead → 'replace-stale' (half-alive zombie)
  *
  * `tcpDisabled` daemons (PORT_DADDY_NO_TCP=1) have no second surface to
  * cross-check, so a live socket is authoritative for them.
@@ -91,7 +122,7 @@ export function decideDuplicateAction(input: {
 }): DuplicateAction {
   if (!input.sockAlive) return 'clean-start';
   if (input.tcpDisabled || input.tcpAlive) return 'defer';
-  return 'takeover';
+  return 'replace-stale';
 }
 
 export interface TerminateOptions {
@@ -106,7 +137,7 @@ export interface TerminateOptions {
  * SIGTERM the stale PID, wait up to graceMs for it to exit, then SIGKILL.
  * Refuses obviously-wrong targets (self, pid <= 1, NaN). Returns what it did.
  */
-export async function terminateStalePid(
+export async function terminateVerifiedStalePid(
   pid: number,
   opts: TerminateOptions = {},
 ): Promise<'no-op' | 'term' | 'kill'> {
