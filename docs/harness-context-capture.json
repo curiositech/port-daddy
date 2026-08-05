@@ -1,0 +1,93 @@
+{
+  "capturedAt": 1785912413823,
+  "actor": "agent-beta",
+  "scenarios": [
+    {
+      "id": "first-turn",
+      "title": "An agent's first turn, with nothing happening",
+      "note": "Even with an empty fleet the harness spends a little context once: the standing plan directive is rate-limited per actor, so it rides the first turn and then goes quiet for an hour.",
+      "raw": "{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"[PORT DADDY — STEERING ALERTS]\\n- Agent must maintain an active pd plan and run pd sitrep to synthesize state.\"}}\n",
+      "injected": "[PORT DADDY — STEERING ALERTS]\n- Agent must maintain an active pd plan and run pd sitrep to synthesize state.",
+      "bytes": 111,
+      "lines": [
+        "[PORT DADDY — STEERING ALERTS]",
+        "- Agent must maintain an active pd plan and run pd sitrep to synthesize state."
+      ],
+      "silent": false
+    },
+    {
+      "id": "quiet",
+      "title": "Steady state, nothing happening",
+      "note": "The harness injects NOTHING and exits 0. This is the case that makes every other one trustworthy: if the block printed on every turn, an agent would learn to skim it, and the one that mattered would scroll past unread with the rest.",
+      "raw": "",
+      "injected": "",
+      "bytes": 0,
+      "lines": [],
+      "silent": true
+    },
+    {
+      "id": "inbox",
+      "title": "One agent asks another a question",
+      "note": "Routine traffic — a directed message, addressed to this actor alone.",
+      "raw": "{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"[PORT DADDY — FOR YOU]\\n- tube: alpha asks which half of reconcile.ts you own | ts:2026-08-05T06:46:53.542Z\\n[PORT DADDY — STEERING ALERTS]\\n- Agent must maintain an active pd plan and run pd sitrep to synthesize state.\"}}\n",
+      "injected": "[PORT DADDY — FOR YOU]\n- tube: alpha asks which half of reconcile.ts you own | ts:2026-08-05T06:46:53.542Z\n[PORT DADDY — STEERING ALERTS]\n- Agent must maintain an active pd plan and run pd sitrep to synthesize state.",
+      "bytes": 220,
+      "lines": [
+        "[PORT DADDY — FOR YOU]",
+        "- tube: alpha asks which half of reconcile.ts you own | ts:2026-08-05T06:46:53.542Z",
+        "[PORT DADDY — STEERING ALERTS]",
+        "- Agent must maintain an active pd plan and run pd sitrep to synthesize state."
+      ],
+      "silent": false
+    },
+    {
+      "id": "collision",
+      "title": "Two agents on the same file",
+      "note": "The case the product is sold on. Neither agent asked; the daemon noticed the overlap and told them both before either overwrote the other.",
+      "raw": "{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"[PORT DADDY — STEERING ALERTS]\\n- Agent must maintain an active pd plan and run pd sitrep to synthesize state.\\n[PORT DADDY — FLEET]\\n- 2 agents hold lib/squid/reconcile.ts: alpha, beta | ts:2026-08-05T06:46:53.614Z\"}}\n",
+      "injected": "[PORT DADDY — STEERING ALERTS]\n- Agent must maintain an active pd plan and run pd sitrep to synthesize state.\n[PORT DADDY — FLEET]\n- 2 agents hold lib/squid/reconcile.ts: alpha, beta | ts:2026-08-05T06:46:53.614Z",
+      "bytes": 216,
+      "lines": [
+        "[PORT DADDY — STEERING ALERTS]",
+        "- Agent must maintain an active pd plan and run pd sitrep to synthesize state.",
+        "[PORT DADDY — FLEET]",
+        "- 2 agents hold lib/squid/reconcile.ts: alpha, beta | ts:2026-08-05T06:46:53.614Z"
+      ],
+      "silent": false
+    },
+    {
+      "id": "parley",
+      "title": "A parley is convened",
+      "note": "The collision escalated into a negotiation. The summons names the reason and reaches only the parties who have not yet replied.",
+      "raw": "{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"[PORT DADDY — FOR YOU]\\n- PARLEY p-7: alpha summons you — both editing lib/squid/reconcile.ts | ts:2026-08-05T06:46:53.683Z\\n[PORT DADDY — STEERING ALERTS]\\n- Agent must maintain an active pd plan and run pd sitrep to synthesize state.\\n[PORT DADDY — FLEET]\\n- 2 agents hold lib/squid/reconcile.ts: alpha, beta | ts:2026-08-05T06:46:53.683Z\"}}\n",
+      "injected": "[PORT DADDY — FOR YOU]\n- PARLEY p-7: alpha summons you — both editing lib/squid/reconcile.ts | ts:2026-08-05T06:46:53.683Z\n[PORT DADDY — STEERING ALERTS]\n- Agent must maintain an active pd plan and run pd sitrep to synthesize state.\n[PORT DADDY — FLEET]\n- 2 agents hold lib/squid/reconcile.ts: alpha, beta | ts:2026-08-05T06:46:53.683Z",
+      "bytes": 343,
+      "lines": [
+        "[PORT DADDY — FOR YOU]",
+        "- PARLEY p-7: alpha summons you — both editing lib/squid/reconcile.ts | ts:2026-08-05T06:46:53.683Z",
+        "[PORT DADDY — STEERING ALERTS]",
+        "- Agent must maintain an active pd plan and run pd sitrep to synthesize state.",
+        "[PORT DADDY — FLEET]",
+        "- 2 agents hold lib/squid/reconcile.ts: alpha, beta | ts:2026-08-05T06:46:53.683Z"
+      ],
+      "silent": false
+    },
+    {
+      "id": "halt",
+      "title": "The fleet is halted",
+      "note": "The loudest thing the harness can say, and it is rendered first on purpose — an agent that reads nothing else must still read this.",
+      "raw": "{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"[PORT DADDY — HALT]\\n- HALT: production incident — all agents stop merging | ts:2026-08-05T06:46:53.753Z\\n[PORT DADDY — FOR YOU]\\n- tube: alpha asks which half of reconcile.ts you own | ts:2026-08-05T06:46:53.753Z\\n[PORT DADDY — STEERING ALERTS]\\n- Agent must maintain an active pd plan and run pd sitrep to synthesize state.\"}}\n",
+      "injected": "[PORT DADDY — HALT]\n- HALT: production incident — all agents stop merging | ts:2026-08-05T06:46:53.753Z\n[PORT DADDY — FOR YOU]\n- tube: alpha asks which half of reconcile.ts you own | ts:2026-08-05T06:46:53.753Z\n[PORT DADDY — STEERING ALERTS]\n- Agent must maintain an active pd plan and run pd sitrep to synthesize state.",
+      "bytes": 328,
+      "lines": [
+        "[PORT DADDY — HALT]",
+        "- HALT: production incident — all agents stop merging | ts:2026-08-05T06:46:53.753Z",
+        "[PORT DADDY — FOR YOU]",
+        "- tube: alpha asks which half of reconcile.ts you own | ts:2026-08-05T06:46:53.753Z",
+        "[PORT DADDY — STEERING ALERTS]",
+        "- Agent must maintain an active pd plan and run pd sitrep to synthesize state."
+      ],
+      "silent": false
+    }
+  ]
+}
