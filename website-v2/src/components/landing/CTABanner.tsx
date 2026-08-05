@@ -162,10 +162,14 @@ pd setup`}
           page — the worst possible place to make a reader scroll more,
           right after they decided to convert. The library at /library
           (linked from ScopeLadderSection higher up the page, and from
-          "Read all seven" below) already lists every paper with the same
-          reader/PDF links, so showing all seven again here was pure
+          the "read all" link below) already lists every paper with the
+          same reader/PDF links, so repeating the full set here was pure
           duplication. Slicing to the first three keeps the closing CTA
           concrete without re-running the whole library inline.
+
+          The link's count is derived from WHITE_PAPERS.length rather
+          than written out, because this list has already grown twice and
+          a hardcoded number goes quietly wrong the next time it does.
         */}
         <div className="mt-[var(--space-6)] grid gap-[var(--space-5)]">
           <div className="grid gap-[var(--space-3)] md:grid-cols-2">
@@ -214,7 +218,7 @@ pd setup`}
             to="/library"
             className="group inline-flex w-fit items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)] no-underline"
           >
-            Read all seven in the Harbor Library
+            Read all {WHITE_PAPERS.length} in the Harbor Library
             <ArrowRight aria-hidden="true" size={14} className="transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>

@@ -2,8 +2,11 @@
 
 Provenance: every PNG here was captured from a REAL production build
 (`npm run build` → `vite preview` on :4173) by `capture.mjs` in this
-directory, on 2026-08-04, using the pre-installed Playwright chromium
-(`/opt/pw-browsers/chromium-1194`). No mocks, no fixtures. The relay
+directory, on 2026-08-04, driving whichever chromium Playwright resolves
+for itself — `capture.mjs` deliberately pins no revision path, because a
+pinned one breaks every contributor whose Playwright installed a
+different build. Set `CAPTURE_CHROMIUM` to override when the browser
+genuinely lives elsewhere. No mocks, no fixtures. The relay
 `/auth/status` probe is route-aborted, so the header shows the real
 signed-out graceful-degrade state.
 
