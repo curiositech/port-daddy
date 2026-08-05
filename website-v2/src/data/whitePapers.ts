@@ -462,7 +462,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     date: 'August 2026',
     pages: 35,
     sizeKb: 618,
-    status: 'Version 1.3 (series-aligned edition)',
+    status: 'Version 1.4 (collected-volume edition)',
     order: '03',
     chapter: 'III',
     group: 'explain',
