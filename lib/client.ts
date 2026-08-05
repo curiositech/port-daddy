@@ -3944,8 +3944,6 @@ interface SpawnSpec {
   env?: Record<string, string>;
   deadlineMs?: number;
   transportTimeoutMs?: number;
-  /** Legacy alias for `deadlineMs`; kept for compatibility with older callers. */
-  timeout?: number;
   allowedTools?: string;
   maxTokens?: number;
 }

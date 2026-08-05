@@ -119,7 +119,6 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         workdir,
         env,
         deadlineMs,
-        timeout,
         transportTimeoutMs,
         allowedTools,
         maxTokens,
@@ -258,13 +257,8 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       if (Array.isArray(files)) spec.files = files as string[];
       if (workdir && typeof workdir === 'string') spec.workdir = workdir;
       if (env && typeof env === 'object' && !Array.isArray(env)) spec.env = env as Record<string, string>;
-      const requestedDeadlineMs = typeof deadlineMs === 'number'
-        ? deadlineMs
-        : typeof timeout === 'number'
-          ? timeout
-          : undefined;
-      if (typeof requestedDeadlineMs === 'number' && Number.isFinite(requestedDeadlineMs) && requestedDeadlineMs > 0) {
-        spec.deadlineMs = Math.floor(requestedDeadlineMs);
+      if (typeof deadlineMs === 'number' && Number.isFinite(deadlineMs) && deadlineMs > 0) {
+        spec.deadlineMs = Math.floor(deadlineMs);
       }
       if (typeof transportTimeoutMs === 'number' && Number.isFinite(transportTimeoutMs) && transportTimeoutMs > 0) {
         spec.transportTimeoutMs = Math.floor(transportTimeoutMs);

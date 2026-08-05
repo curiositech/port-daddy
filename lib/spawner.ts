@@ -170,8 +170,6 @@ export interface SpawnSpec {
   deadlineMs?: number;
   /** Optional transport timeout for backend/client plumbing. Independent from the task deadline. */
   transportTimeoutMs?: number;
-  /** Legacy alias for `deadlineMs`; kept for compatibility with older callers. */
-  timeout?: number;
   /** Coordination sessions are durable by default; explicitly opt into ephemeral for probes. */
   coordinationLifecycle?: 'durable' | 'ephemeral';
   allowedTools?: string;  // for claude-cli backend: tool permission string
@@ -682,13 +680,10 @@ function resolveTransportTimeoutMs(spec: Pick<SpawnSpec, 'transportTimeoutMs'>):
     : DEFAULT_BACKEND_TRANSPORT_TIMEOUT_MS;
 }
 
-function resolveDeadlineMs(spec: Pick<SpawnSpec, 'deadlineMs' | 'timeout'>): number | null {
-  const deadlineMs = typeof spec.deadlineMs === 'number' && Number.isFinite(spec.deadlineMs) && spec.deadlineMs > 0
+function resolveDeadlineMs(spec: Pick<SpawnSpec, 'deadlineMs'>): number | null {
+  return typeof spec.deadlineMs === 'number' && Number.isFinite(spec.deadlineMs) && spec.deadlineMs > 0
     ? spec.deadlineMs
-    : typeof spec.timeout === 'number' && Number.isFinite(spec.timeout) && spec.timeout > 0
-      ? spec.timeout
-      : null;
-  return deadlineMs;
+    : null;
 }
 
 function backendAbortSignal(spec: SpawnSpec, deadlineSignal?: AbortSignal): AbortSignal {

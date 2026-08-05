@@ -71,7 +71,7 @@ interface ContinuationRequestBody {
   idempotencyKey?: unknown;
   durableAgentId?: unknown;
   targetWorkdir?: unknown;
-  timeoutMs?: unknown;
+  deadlineMs?: unknown;
 }
 
 type RequestedContinuationMode = 'auto' | ContinuationMode;
@@ -347,12 +347,12 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
       if (targetWorkdir && !requestedWorkspaceIdentity) {
         throw new HandoffValidationError('targetWorkdir must resolve to a current user-owned absolute directory');
       }
-      let timeout: number | undefined;
-      if (body.timeoutMs !== undefined) {
-        if (typeof body.timeoutMs !== 'number' || !Number.isInteger(body.timeoutMs) || body.timeoutMs < 1_000 || body.timeoutMs > 6 * 60 * 60 * 1_000) {
-          throw new HandoffValidationError('timeoutMs must be an integer from 1000 to 21600000');
+      let deadlineMs: number | undefined;
+      if (body.deadlineMs !== undefined) {
+        if (typeof body.deadlineMs !== 'number' || !Number.isInteger(body.deadlineMs) || body.deadlineMs < 1_000 || body.deadlineMs > 6 * 60 * 60 * 1_000) {
+          throw new HandoffValidationError('deadlineMs must be an integer from 1000 to 21600000');
         }
-        timeout = body.timeoutMs;
+        deadlineMs = body.deadlineMs;
       }
 
       const continuationRequest = sanitizeHandoffText(body.prompt ?? capsule.telos, {
@@ -368,7 +368,7 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
         task: continuationRequest,
         purpose: `Continue ${durableIdentity ?? adapterFamily}`,
         identity: durableIdentity ?? undefined,
-        timeout,
+        deadlineMs,
       };
       const runtime = resolveSpawnRuntime(spawnSpec);
       const targetEntry = getBackendCatalogEntry(runtime.effectiveBackend);
@@ -597,10 +597,7 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
         return { success: false, error, receipt };
       }
 
-      const running = continuationStore.markRunning(
-        accepted.receipt.id,
-        (timeout ?? 5 * 60 * 1_000) + 60_000,
-      );
+      const running = continuationStore.markRunning(accepted.receipt.id);
       if (!running || running.status !== 'running') {
         const current = continuationStore.get(accepted.receipt.id) ?? accepted.receipt;
         reply.code(409);

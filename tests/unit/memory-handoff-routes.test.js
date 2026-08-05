@@ -459,6 +459,7 @@ describe('handoff continuation routes', () => {
         prompt: 'Continue the implementation.',
         idempotencyKey: 'route-continuation-1',
         durableAgentId: 'portdaddy-typography-expert',
+        deadlineMs: 120_000,
       },
     });
 
@@ -478,6 +479,7 @@ describe('handoff continuation routes', () => {
     expect(state.spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
       backend: 'cli:claude-code',
       task: 'Continue the implementation.',
+      deadlineMs: 120_000,
       nativeResume: expect.objectContaining({
         adapterFamily: 'claude-code',
         sessionId: SOURCE_SESSION_ID,

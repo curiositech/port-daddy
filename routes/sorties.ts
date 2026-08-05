@@ -247,11 +247,7 @@ export const sortiesPlugin: FastifyPluginAsync<{ deps: SortieRouteDeps }> = asyn
         ? body.purpose
         : `Sortie: ${goal.slice(0, 120)}`;
       const allowedTools = typeof body.allowedTools === 'string' ? body.allowedTools : undefined;
-      const deadlineMs = typeof body.deadlineMs === 'number'
-        ? body.deadlineMs
-        : typeof body.timeout === 'number'
-          ? body.timeout
-          : undefined;
+      const deadlineMs = typeof body.deadlineMs === 'number' ? body.deadlineMs : undefined;
       const maxTokens = typeof body.maxTokens === 'number' ? body.maxTokens : undefined;
       const deadlineSpec = typeof deadlineMs === 'number' ? { deadlineMs } : {};
 

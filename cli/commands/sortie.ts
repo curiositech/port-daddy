@@ -152,7 +152,6 @@ export async function handleSortie(args: string[], options: CLIOptions): Promise
   if (typeof options.allowedTools === 'string') body.allowedTools = options.allowedTools;
   if (options.deadlineMs != null) body.deadlineMs = parseInt(String(options.deadlineMs), 10);
   else if (options['deadline-ms'] != null) body.deadlineMs = parseInt(String(options['deadline-ms']), 10);
-  else if (options.timeout != null) body.deadlineMs = parseInt(String(options.timeout), 10);
   if (options.maxTokens != null) body.maxTokens = parseInt(String(options.maxTokens), 10);
 
   const res: PdFetchResponse = await pdFetch('/sorties', {

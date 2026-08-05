@@ -964,8 +964,6 @@ export async function launchSortie(opts: {
   allowedTools?: string;
   budgetUsd: number;
   deadlineMs?: number;
-  /** Legacy alias for `deadlineMs`; kept for compatibility with older callers. */
-  timeout?: number;
 }): Promise<SpawnedAgent> {
   return post('/spawn', {
     backend: opts.backend,
@@ -976,7 +974,7 @@ export async function launchSortie(opts: {
     cwd: opts.cwd,
     allowedTools: opts.allowedTools,
     budgetUsd: opts.budgetUsd,
-    timeout: opts.timeout,
+    deadlineMs: opts.deadlineMs,
   });
 }
 

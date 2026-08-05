@@ -100,7 +100,6 @@ export interface FleetAgent {
   onFailure?: string;
   identity?: string;
   deadlineMs?: number;
-  timeout?: number;
   allowedTools?: string;
   /** Opt-in: splice a windags-pattern skill shortlist (lib/skill-graft.ts)
    *  into this ship's task text before it spawns. `astToConfig()` (the YAML
@@ -211,7 +210,6 @@ interface FleetYamlAgent {
   on_failure?: string;
   identity?: string;
   deadlineMs?: number;
-  timeout?: number;
   allowedTools?: string;
   allowed_tools?: string;
   fallbacks?: FleetYamlRuntimeTarget[];
@@ -1521,8 +1519,9 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       idempotencyKey,
     };
     if (runtime.model) body.model = runtime.model;
-    const deadlineMs = agent.deadlineMs ?? agent.timeout;
-    if (typeof deadlineMs === 'number' && Number.isFinite(deadlineMs) && deadlineMs > 0) body.deadlineMs = deadlineMs;
+    if (typeof agent.deadlineMs === 'number' && Number.isFinite(agent.deadlineMs) && agent.deadlineMs > 0) {
+      body.deadlineMs = agent.deadlineMs;
+    }
     if (agent.allowedTools) body.allowedTools = agent.allowedTools;
 
     let res: Response;

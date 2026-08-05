@@ -70,7 +70,7 @@ export function planToLaunchIntent(plan: RunnerPlan): LaunchIntent {
     budgetUsd: plan.budgetUsd,
     bondUsd: plan.budgetUsd,
     lineageCeilingUsd: plan.budgetUsd,
-    timeoutMs: plan.timeoutMs,
+    deadlineMs: plan.timeoutMs,
   };
 }
 

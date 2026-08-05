@@ -125,9 +125,8 @@ export interface TubeCommandEnvelope {
   modelTier?: 'low' | 'mid' | 'high';
   identity?: string;
   purpose?: string;
-  /** Optional caller-owned deadline in milliseconds. Legacy alias: `timeout`. */
+  /** Optional caller-owned deadline in milliseconds. */
   deadlineMs?: number;
-  timeout?: number;
   /**
    * Lineage carried by a spawned agent that is itself driving the tube. The
    * router VALIDATES this — it is not trusted blindly — but a chain that arrives
@@ -179,9 +178,8 @@ export interface RouterPolicy {
   allowedSenders?: string[];
   /** Backends the router may launch. Defaults to a safe subset. */
   allowedBackends?: ReadonlyArray<SpawnSpec['backend']>;
-  /** Upper bound on `deadlineMs` (ms). Legacy alias: `maxTimeoutMs`. */
+  /** Upper bound on `deadlineMs` (ms). */
   maxDeadlineMs?: number;
-  maxTimeoutMs?: number;
   /** Identity applied to spawns that don't specify one. */
   defaultIdentity?: string;
   /** Default backend when a command omits one. */
@@ -376,13 +374,11 @@ export function buildSpawnSpec(
   if (typeof cmd.task !== 'string' || !cmd.task.trim()) {
     return { refusal: 'task is required' };
   }
-  const ceiling = Math.min(policy.maxDeadlineMs ?? policy.maxTimeoutMs ?? DEFAULT_MAX_DEADLINE_MS, HARD_MAX_DEADLINE_MS);
+  const ceiling = Math.min(policy.maxDeadlineMs ?? DEFAULT_MAX_DEADLINE_MS, HARD_MAX_DEADLINE_MS);
   const requestedDeadlineMs =
     typeof cmd.deadlineMs === 'number' && Number.isFinite(cmd.deadlineMs) && cmd.deadlineMs > 0
       ? cmd.deadlineMs
-      : typeof cmd.timeout === 'number' && Number.isFinite(cmd.timeout) && cmd.timeout > 0
-        ? cmd.timeout
-        : undefined;
+      : undefined;
   const deadlineMs = requestedDeadlineMs === undefined
     ? undefined
     : Math.min(Math.floor(requestedDeadlineMs), ceiling);

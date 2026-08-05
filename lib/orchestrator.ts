@@ -566,7 +566,7 @@ export function createReactiveOrchestrator(db: any, messaging: any, spawner: any
             // were dropped and (with the empty-caps→full default) the agent ran
             // UNrestricted. Conductor admission still narrows-only against any parent.
             capabilities: Array.isArray(spec.capabilities) ? spec.capabilities : undefined,
-            timeoutMs: typeof spec.timeout === 'number' ? spec.timeout : undefined,
+            deadlineMs: typeof spec.deadlineMs === 'number' ? spec.deadlineMs : undefined,
             maxTokens: spec.maxTokens,
             harborName: spec.harborName,
             worktree: 'inherit',

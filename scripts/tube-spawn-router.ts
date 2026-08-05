@@ -79,9 +79,7 @@ const policy: RouterPolicy = {
   defaultIdentity: flag('identity'),
   maxDeadlineMs: flag('max-deadline-ms')
     ? Number(flag('max-deadline-ms'))
-    : flag('max-timeout-ms')
-      ? Number(flag('max-timeout-ms'))
-      : undefined,
+    : undefined,
   maxDelegationDepth: flag('max-delegation-depth') ? Number(flag('max-delegation-depth')) : undefined,
   maxChainSpawns: flag('max-chain-spawns') ? Number(flag('max-chain-spawns')) : undefined,
   maxTotalSpawns: flag('max-total-spawns') ? Number(flag('max-total-spawns')) : undefined,

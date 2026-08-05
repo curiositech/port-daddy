@@ -125,7 +125,6 @@ export interface LaunchIntent {
   /** Shared ceiling for the whole subtree under rootId. Required for roots. */
   lineageCeilingUsd?: number;
   deadlineMs?: number;
-  timeoutMs?: number;
 
   // artifact policy —
   worktree?: WorktreePolicy;
@@ -786,8 +785,7 @@ export function createConductor(deps: ConductorDeps) {
     if (intent.purpose != null) spec.purpose = intent.purpose;
     if (workdir != null) spec.workdir = workdir;
     if (intent.allowedTools != null) spec.allowedTools = intent.allowedTools;
-    const deadlineMs = intent.deadlineMs ?? intent.timeoutMs;
-    if (deadlineMs != null) spec.deadlineMs = deadlineMs;
+    if (intent.deadlineMs != null) spec.deadlineMs = intent.deadlineMs;
     if (intent.maxTokens != null) spec.maxTokens = intent.maxTokens;
     if (intent.budgetUsd != null) spec.budgetUsd = intent.budgetUsd;
     if (intent.bondUsd != null) spec.bondUsd = intent.bondUsd;

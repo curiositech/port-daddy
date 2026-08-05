@@ -326,7 +326,7 @@ fleet:
         - backend: cli:codex
         - backend: cloudflare
           model: '@cf/openai/gpt-oss-120b'
-      timeout: 900000
+      deadlineMs: 900000
       singleton: true
       allowedTools: "Read,Grep,Glob,Write,Bash(pd feedback*),Bash(pd roadmap*),Bash(pd ideas*),Bash(git*)"
       prompt: |
@@ -439,7 +439,7 @@ fleet:
     #   backend: custom              # runs `pd dispatch run --next --really-run`
     #   singleton: true
     #   cooldown_ms: 21600000        # 6h cooldown between runs
-    #   timeout: 14400000            # 4h max wall-clock per spawn
+    #   deadlineMs: 14400000         # explicit 4h task deadline
     #   daily_cap_usd: 10            # fleet-level ceiling; per-dispatch budget also applies
     #   prompt: "pd dispatch run --next --really-run"
     #   identity: "{project}:fleet:dispatch-runner"
@@ -1068,7 +1068,7 @@ fleet:
       cooldown_ms: 600000
       dedupe_window_ms: 600000
       singleton: true
-      timeout: 1800000
+      deadlineMs: 1800000
       # $4/day sub-cap under the fleet's $8.50 ceiling (matches the
       # "Daily budget: $4.00" line in fleet/ships/steward.md).
       daily_cap_usd: 4

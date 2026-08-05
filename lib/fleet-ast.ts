@@ -113,7 +113,7 @@ export interface AgentNode extends FleetAstNode<'agent'> {
   onSuccess?:     PublishActionNode;
   onFailure?:     PublishActionNode;
   identity?:      StringNode;
-  timeout?:       IntNode;
+  deadlineMs?:    IntNode;
   allowedTools?:  StringNode;
   /** Opt-in: pull a windags-pattern skill shortlist into this ship's task
    *  text before it spawns (lib/skill-graft.ts). Default false — existing
@@ -350,7 +350,7 @@ function parseAgentMap(
     onSuccess:     extractPublishAction(gNode(m, 'on_success'), gr),
     onFailure:     extractPublishAction(gNode(m, 'on_failure'), gr),
     identity:      gStr(m, 'identity',    gr),
-    timeout:       gInt(m, 'timeout',     gr),
+    deadlineMs:    gInt(m, 'deadlineMs', gr) ?? gInt(m, 'deadline_ms', gr),
     allowedTools:  gStr(m, 'allowedTools', gr) ?? gStr(m, 'allowed_tools', gr),
     skillGraft:    gBool(m, 'skill_graft', gr) ?? gBool(m, 'skillGraft', gr),
     fallbacks:     extractRuntimeTargets(gNode(m, 'fallbacks'), gr),
@@ -625,7 +625,7 @@ export function astToConfig(ast: FleetAst): FleetConfig {
       onSuccess:      a.onSuccess  ? `publish ${a.onSuccess.channel.channel}`  : undefined,
       onFailure:      a.onFailure  ? `publish ${a.onFailure.channel.channel}`  : undefined,
       identity:       a.identity?.value,
-      timeout:        a.timeout?.value,
+      deadlineMs:     a.deadlineMs?.value,
       allowedTools:   a.allowedTools?.value,
       skillGraft:     a.skillGraft?.value ?? false,
       fallbacks,

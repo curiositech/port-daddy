@@ -141,10 +141,10 @@ describe('planToLaunchIntent', () => {
     expect(intent.lineageCeilingUsd).toBe(intent.bondUsd);
   });
 
-  test('forwards the timeout and model from the plan', () => {
+  test('maps the dispatch runtime ceiling to the universal launch deadline', () => {
     const { plan } = makePlan({ model: 'claude-haiku-4-5', timeoutMs: 45 * 60 * 1000 });
     const intent = planToLaunchIntent(plan);
-    expect(intent.timeoutMs).toBe(plan.timeoutMs);
+    expect(intent.deadlineMs).toBe(plan.timeoutMs);
     expect(intent.model).toBe('claude-haiku-4-5');
   });
 

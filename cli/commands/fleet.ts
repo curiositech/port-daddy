@@ -896,7 +896,7 @@ async function runAgentByName(agentName: string, preloadedConfig?: ReturnType<ty
         purpose: `Fleet agent: ${agent.name}`,
         backend: runtime.backend,
         budgetUsd,
-        deadlineMs: agent.deadlineMs ?? agent.timeout,
+        deadlineMs: agent.deadlineMs,
         allowedTools: agent.allowedTools,
       }),
       timeout: SPAWN_ADMISSION_TIMEOUT_MS,

@@ -162,7 +162,6 @@ export async function handleSpawn(
   const requestedDeadlineMs =
     options.deadlineMs != null ? parseInt(String(options.deadlineMs), 10)
     : options['deadline-ms'] != null ? parseInt(String(options['deadline-ms']), 10)
-    : options.timeout != null ? parseInt(String(options.timeout), 10)
     : undefined;
 
   // Single source of truth: lib/backend-catalog.ts (ADR-0057 model-abstraction

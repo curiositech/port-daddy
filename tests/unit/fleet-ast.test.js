@@ -154,6 +154,12 @@ describe('parseFleetSource', () => {
       expect(ch.range.start.line).toBeGreaterThan(0);
     }
   });
+
+  it('parses and projects the canonical agent deadline field', () => {
+    const ast = parseFleetSource(`fleet:\n  name: test\n  agents:\n    worker:\n      backend: cli:codex\n      deadlineMs: 120000\n      prompt: work\n`);
+    expect(ast.agents.get('worker').deadlineMs.value).toBe(120000);
+    expect(astToConfig(ast).agents[0].deadlineMs).toBe(120000);
+  });
 });
 
 // ─── astToConfig (round-trip equivalence) ─────────────────────────────────────
