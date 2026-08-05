@@ -18,7 +18,7 @@
 import http from 'node:http';
 import { existsSync } from 'node:fs';
 import type { PortDaddyClientOptions } from '../shared/types.js';
-import { CANONICAL_TCP_PORT, getDaemonTcpUrl } from '../shared/daemon-discovery.js';
+import { getDaemonTcpUrl, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 import type { DaemonTarget as ConnectionTarget } from '../shared/daemon-discovery.js';
 import { createIpcClient } from './ipc-client.js';
 import { IpcAction, Performative } from './ipc-types.js';
@@ -1352,21 +1352,18 @@ class PortDaddy {
   /** @private - Resolve connection target: prefer socket, fallback to TCP */
   _resolveTarget(): ConnectionTarget {
     if (process.env.PORT_DADDY_FORCE_TCP === '1') {
-      const url = new URL(this.url);
-      return { host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT };
+      return resolveDaemonTcpTarget(this.url);
     }
     // Explicit TCP URL overrides socket
     if (process.env.PORT_DADDY_URL) {
-      const url = new URL(this.url);
-      return { host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT };
+      return resolveDaemonTcpTarget(this.url);
     }
     // Use socket if it exists
     if (existsSync(this.socketPath)) {
       return { socketPath: this.socketPath };
     }
     // Fallback to TCP
-    const url = new URL(this.url);
-    return { host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT };
+    return resolveDaemonTcpTarget(this.url);
   }
 
   /** @private */
@@ -1416,8 +1413,7 @@ class PortDaddy {
 
       req.on('error', (err: NodeJS.ErrnoException) => {
         if (requestTarget.socketPath && !process.env.PORT_DADDY_URL && this._shouldFallbackFromSocket(err)) {
-          const url = new URL(this.url);
-          resolve(makeRequest({ host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT }));
+          resolve(makeRequest(resolveDaemonTcpTarget(this.url)));
           return;
         }
         if (err.code === 'ENOENT' || err.code === 'ECONNREFUSED') {
