@@ -31,6 +31,8 @@ import { appendEvent, readEvents } from '../../lib/agent-harbor/event-ledger.js'
 import { projectPending } from '../../lib/agent-harbor/projections.js';
 import { createWorkIntentService } from '../../lib/agent-harbor/work-intent-service.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
+import { createContinuationStore } from '../../lib/continuation-runtime.js';
+import { createTranscripts } from '../../lib/transcripts.js';
 import { agentHarborPlugin } from '../../routes/agent-harbor.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -399,6 +401,85 @@ describe('agent-harbor routes', () => {
       );
       expect(readEvents(db, { streamType: 'work-intent' })).toHaveLength(0);
       expect(readEvents(db, { streamType: 'work-plan' })).toHaveLength(0);
+    });
+  });
+
+  describe('GET /harness-adapters/continuation-matrix', () => {
+    test('separates catalog mechanics from durable spawn and handoff witnesses', async () => {
+      const now = Date.now();
+      const transcripts = createTranscripts(db);
+      const transcriptId = transcripts.start({
+        id: 'tx-harness-matrix-codex',
+        ship: 'spawn:cli:codex',
+        spawned_agent_id: 'spawned-harness-matrix',
+        trigger: 'manual',
+        backend: 'cli:codex',
+        model: 'gpt-test',
+        started_at: now - 1_000,
+      });
+      transcripts.finalize(transcriptId, { status: 'completed', ended_at: now });
+
+      const continuationStore = createContinuationStore(db, {
+        ownerId: 'harness-matrix-route-test',
+        now: () => now,
+      });
+      const accepted = continuationStore.accept({
+        idempotencyKey: 'harness-matrix-route-handoff',
+        sourceEpisodeId: 1,
+        sourceCapsuleId: 'capsule-harness-matrix',
+        mode: 'handoff',
+        sourceAdapter: 'claude-code',
+        sourceSessionId: '11111111-1111-4111-8111-111111111111',
+        targetAdapter: 'codex-cli',
+        requestedBackend: 'cli:codex',
+        effectiveBackend: 'cli:codex',
+        promptHash: 'a'.repeat(64),
+      });
+      continuationStore.markCompleted(accepted.receipt.id, {
+        successorRunId: 'spawned-successor',
+        successorSessionId: '22222222-2222-4222-8222-222222222222',
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/harness-adapters/continuation-matrix',
+      });
+
+      expect(response.statusCode).toBe(200);
+      const report = response.json().data;
+      expect(report).toMatchObject({
+        schema: 'pd.agent-harbor.harness-continuation-matrix.v0',
+        evidencePolicy: {
+          numericBadgeGranted: false,
+          selfReportCanAdvance: false,
+          discoveryProvesRuntime: false,
+        },
+        summary: {
+          adapterFamilies: 17,
+          paths: 289,
+          nativePaths: 4,
+          handoffPaths: 285,
+          witnessedPaths: 1,
+        },
+      });
+      expect(report.adapters.find((row) => row.family === 'codex-cli').predicates.spawn).toMatchObject({
+        status: 'witnessed',
+        basis: 'durable-transcript',
+        witnessId: transcriptId,
+        freshness: 'fresh',
+      });
+      expect(report.adapters.find((row) => row.family === 'codex-cli').predicates['live-interaction']).toMatchObject({
+        status: 'unverified',
+      });
+      expect(report.compatibility.find((cell) => (
+        cell.sourceFamily === 'claude-code' && cell.targetFamily === 'codex-cli'
+      ))).toMatchObject({
+        autoMode: 'handoff',
+        witness: expect.objectContaining({
+          status: 'witnessed',
+          basis: 'continuation-receipt',
+        }),
+      });
     });
   });
 

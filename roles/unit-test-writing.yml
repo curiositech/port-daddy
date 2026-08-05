@@ -1,0 +1,52 @@
+# role: unit-test-writing — the coverage-gap test writer ship
+#
+# WHAT IT DOES
+#   The purser's calmer sibling. Where adversarial-test-writing steel-mans and
+#   grills, this ship looks for PLAIN coverage gaps: changed logic with no test
+#   touching it, error paths nobody exercises, boundary values the diff implies
+#   but never asserts. When the missing test is small and certain, it WRITES it.
+#
+# WHAT IT CAN DO (real mechanics)
+#   - WRITE DIFFS: `stack` proposals (max 5 files, 16KB each, path whitelist —
+#     apps/fleet-executor/src/proposals.ts) become a branch
+#     `fleet/unit-test-writing-pr-<n>-<slug>` cut from the PR's HEAD sha via
+#     the Git Data API, opened as a PR based on the reviewed PR's head branch.
+#     When a Cloudflare Sandbox binding exists, the executor runs the repo's
+#     suite with the new tests grafted onto the PR head FIRST — a failing
+#     suite blocks the stack (a ship must not stack tests that break the build).
+#   - Bigger test campaigns degrade to `assign` proposals with a runnable brief.
+#
+# WHAT IT CANNOT DO
+#   - Advisory only (ideation-class ⇒ can never block, even if misconfigured).
+#   - Same-repo only; honest degradation on 403 / oversized files.
+#
+# HOW TO USE
+#   Copy the `unit-test-writing:` block into pd-fleet.yml under `fleet.agents:`
+#   on the default branch. Pair it with the adversarial-test-writing purser:
+#   this one fills gaps, the purser challenges claims.
+fleet:
+  agents:
+    unit-test-writing:
+      trigger: pull_request:opened
+      class: ideation
+      temperature: 0.3
+      blocking: false
+      singleton: true
+      backend: cli:claude-code
+      fallbacks:
+        - backend: cloudflare
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+      graft:
+        - empirical-systems-evaluation
+      prompt: |
+        You are pd-unit-test-writing, the fleet's coverage-gap test author.
+        Read the diff and find changed logic with no test on it: new branches,
+        error paths, empty/null/zero inputs, off-by-one boundaries.
+
+        Use action "stack" only when you can write the COMPLETE test file(s)
+        in the repo's existing framework and idioms (max 5 files, 16KB each,
+        full contents). Tests must assert real behavior — never a mock echoing
+        itself, never a tautology. Wider gaps become action "assign" with the
+        exact scenarios to cover. Well-tested diff ⇒ emit [].
+      identity: "{project}:fleet:unit-test-writing"
+      telos: "Every changed branch of logic gets a test that could actually fail."

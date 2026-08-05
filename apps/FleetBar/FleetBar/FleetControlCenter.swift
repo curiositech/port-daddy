@@ -7,6 +7,7 @@ struct FleetControlCenter: View {
     @ObservedObject var proposalStore: FleetProposalStore
     @ObservedObject var backendStore: BackendStore
     @StateObject private var cloudFleetStore = CloudFleetStore()
+    @StateObject private var squidHarnessStore = SquidHarnessStore()
 
     @AppStorage(FleetControlRoute.surfaceKey) private var selectedSurfaceRaw = FleetControlSurface.flow.rawValue
     @AppStorage(FleetControlRoute.projectKey) private var selectedProjectStorage = ""
@@ -191,6 +192,9 @@ struct FleetControlCenter: View {
         .onReceive(store.$projects) { _ in
             syncProjectSelection()
         }
+        .onChange(of: selectedProjectStorage) { _, _ in
+            Task { await squidHarnessStore.refresh(projectDir: selectedProject?.projectDir) }
+        }
     }
 
     private var topBar: some View {
@@ -244,6 +248,7 @@ struct FleetControlCenter: View {
 
             if let selectedProject {
                 selectedProjectReadinessStrip(selectedProject)
+                SquidHarnessStrip(store: squidHarnessStore, projectDir: selectedProject.projectDir)
             }
 
             HStack(spacing: Fleet.Space.m) {
@@ -860,6 +865,7 @@ struct FleetControlCenter: View {
         await backendStore.refresh()
         await cloudFleetStore.refresh()
         syncProjectSelection()
+        await squidHarnessStore.refresh(projectDir: selectedProject?.projectDir)
     }
 
 }

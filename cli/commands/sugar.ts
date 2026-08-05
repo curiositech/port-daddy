@@ -4,10 +4,12 @@
  * Handles: begin, done, whoami, with-lock
  */
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, readdirSync } from 'node:fs';
+import { join, basename } from 'node:path';
 import { highlightChannel } from '../../lib/maritime.js';
 import PortDaddy from '../../lib/client.js';
-import { pdFetch } from '../utils/fetch.js';
+import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { IS_TTY, relativeTime } from '../utils/output.js';
 import { canPrompt, promptText, promptSelect, promptIdentity, promptConfirm, printRoger } from '../utils/prompt.js';
@@ -20,6 +22,9 @@ import {
   attachCliSessionWorktreePolicy,
   resolveCliSessionWorktreePolicy,
 } from '../utils/session-worktree-policy.js';
+import { initDatabase } from '../../lib/db.js';
+import { createDispatchQueue } from '../../lib/dispatch/queue.js';
+import { checkAndCompleteDispatch } from '../../lib/dispatch/auto-merge.js';
 
 type BeginLifecycle = 'durable' | 'ephemeral';
 
@@ -234,6 +239,230 @@ async function promptBeginRent(): Promise<BeginRentResolution> {
   return resolveBeginRent({ sidequest: reason || '' }, {}, false);
 }
 
+function formatTimeAgo(timestamp: number | null): string {
+  if (!timestamp) return 'unknown';
+  const diff = Date.now() - timestamp;
+  if (diff < 60_000) return 'just now';
+  if (diff < 60_000 * 60) return Math.floor(diff / 60_000) + 'm ago';
+  if (diff < 60_000 * 60 * 24) return Math.floor(diff / (60_000 * 60)) + 'h ago';
+  return Math.floor(diff / (60_000 * 60 * 24)) + 'd ago';
+}
+
+async function showHelpfulSuggestions(purpose: string, identity: string | undefined): Promise<void> {
+  const suggestions: string[] = [];
+
+  // 1. Salvageable sessions
+  try {
+    const res = await pdFetch(`${PORT_DADDY_URL}/salvage/pending`);
+    if (res.ok) {
+      const data = await res.json();
+      const agents = (data.agents || []) as any[];
+      const terms = purpose.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+      
+      const matched = agents.filter((a: any) => {
+        const p = (a.purpose || '').toLowerCase();
+        return terms.some(t => p.includes(t));
+      });
+
+      if (matched.length > 0) {
+        suggestions.push(
+          `♻️  ${ui.fmtCyan('Salvageable Sessions')}: Found ${matched.length} stale agent(s) with similar purpose:\n` +
+          matched.map((a: any) => `     - ${ui.fmtYellow(a.id)}: "${a.purpose}" (run \`pd salvage claim ${a.id}\`)`).join('\n')
+        );
+      }
+    }
+  } catch (err) {
+    // Fail silently
+  }
+
+  // 2. Roadmap items
+  try {
+    const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/items`);
+    if (res.ok) {
+      const data = await res.json();
+      const items = (Array.isArray(data) ? data : (data.items || [])) as any[];
+      const terms = purpose.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+
+      const matched = items.filter((item: any) => {
+        const title = (item.title || '').toLowerCase();
+        const slug = (item.slug || '').toLowerCase();
+        const summary = (item.summary || '').toLowerCase();
+        return terms.some(t => title.includes(t) || slug.includes(t) || summary.includes(t));
+      });
+
+      if (matched.length > 0) {
+        suggestions.push(
+          `🗺️  ${ui.fmtCyan('Roadmap Items')}: Found matching items to link/take on:\n` +
+          matched.map((item: any) => `     - ${ui.fmtYellow(item.slug)}: "${item.title}"`).join('\n')
+        );
+      }
+    }
+  } catch (err) {
+    // Fail silently
+  }
+
+  // 3. Staged/modified files to claim
+  try {
+    const gitStatus = spawnSync('git', ['status', '--porcelain'], { encoding: 'utf-8' });
+    if (gitStatus.status === 0 && gitStatus.stdout) {
+      const lines = gitStatus.stdout.split('\n').filter(Boolean);
+      const files = lines.map(line => line.substring(3).trim());
+      const terms = purpose.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+
+      const matchedFiles = files.filter(f => {
+        const lower = f.toLowerCase();
+        return terms.some(t => lower.includes(t));
+      });
+
+      const filesToShow = matchedFiles.length > 0 ? matchedFiles : files.slice(0, 3);
+      if (filesToShow.length > 0) {
+        suggestions.push(
+          `📂  ${ui.fmtCyan('Suggested Files to Claim')}:\n` +
+          filesToShow.map(f => `     - ${f} (run \`pd session files add ${f}\`)`).join('\n')
+        );
+      }
+    }
+  } catch (err) {
+    // Fail silently
+  }
+
+  // 4. Docs and Skills to read
+  try {
+    const docFiles: string[] = [];
+    const scanDirs = ['docs', 'skills'];
+    for (const dir of scanDirs) {
+      if (existsSync(dir)) {
+        const list = readdirSync(dir, { recursive: true });
+        for (const entry of list) {
+          const entryStr = String(entry);
+          if (entryStr.endsWith('.md')) {
+            docFiles.push(join(dir, entryStr));
+          }
+        }
+      }
+    }
+
+    const terms = purpose.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    const matchedDocs = docFiles.filter(df => {
+      const lower = df.toLowerCase();
+      return terms.some(t => lower.includes(t));
+    }).slice(0, 3);
+
+    if (matchedDocs.length > 0) {
+      suggestions.push(
+        `📖  ${ui.fmtCyan('Recommended Docs/Skills to Read')}:\n` +
+        matchedDocs.map(df => `     - [${basename(df)}](${df})`).join('\n')
+      );
+    }
+  } catch (err) {
+    // Fail silently
+  }
+
+  // 5. Active/Skillful Agents to Talk To (from talent phonebook, falling back to active sessions)
+  let foundAgents = false;
+  try {
+    const params = new URLSearchParams();
+    params.set('q', purpose);
+    params.set('kind', 'any');
+    params.set('limit', '3');
+    const res = await pdFetch(`${PORT_DADDY_URL}/whois?${params.toString()}`);
+    if (res.ok) {
+      const data = await res.json();
+      const hits = (data.hits || []) as any[];
+      if (hits.length > 0) {
+        suggestions.push(
+          `💬  ${ui.fmtCyan('Active/Skillful Agents to Talk To')}:\n` +
+          hits.map((h: any) => {
+            const timeStr = h.lastHeartbeat ? `last active ${formatTimeAgo(h.lastHeartbeat)}` : 'active';
+            return `     - ${ui.fmtYellow(h.agentId)}: "${h.phrase}" (similarity: ${h.similarity.toFixed(2)}, ${timeStr})`;
+          }).join('\n')
+        );
+        foundAgents = true;
+      }
+    }
+  } catch (err) {
+    // Fail silently, fallback below
+  }
+
+  if (!foundAgents) {
+    try {
+      const res = await pdFetch(`${PORT_DADDY_URL}/sessions?status=active&all=true`);
+      if (res.ok) {
+        const data = await res.json();
+        const sessions = (Array.isArray(data) ? data : (data.sessions || [])) as any[];
+        const otherActive = sessions.filter((s: any) => s.status === 'active');
+        
+        if (otherActive.length > 0) {
+          const terms = purpose.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+          const matched = otherActive.filter((s: any) => {
+            const p = (s.purpose || '').toLowerCase();
+            return terms.some(t => p.includes(t));
+          });
+
+          const toShow = matched.length > 0 ? matched : otherActive.slice(0, 3);
+          suggestions.push(
+            `💬  ${ui.fmtCyan('Active Agents/Sessions to Talk To')}:\n` +
+            toShow.map((s: any) => `     - ${ui.fmtYellow(s.agent_id || s.id)}: "${s.purpose}" (active in worktree: ${s.worktree_id || 'default'})`).join('\n')
+          );
+        }
+      }
+    } catch (err) {
+      // Fail silently
+    }
+  }
+
+  if (suggestions.length > 0) {
+    console.error(`\n${ui.fmtCyan('💡 HELPFUL SUGGESTIONS FOR YOUR SESSION:')}`);
+    console.error(suggestions.join('\n\n') + '\n');
+  }
+}
+
+async function fetchAndRenderWelcomeBriefing(harbor?: string): Promise<void> {
+  try {
+    const res = await pdFetch(`${PORT_DADDY_URL}/sugar/welcome?harbor=${encodeURIComponent(harbor || '')}`);
+    if (!res.ok) return;
+    const data = (await res.json()) as any;
+    if (!data || !data.success) return;
+
+    console.error(`\n👋 ${ui.fmtBold(ui.fmtCyan('WELCOME TO THE PORT DADDY HARBOR'))}`);
+    
+    // 1. Next roadmap item
+    if (data.nextRoadmap) {
+      console.error(`\n📌 ${ui.fmtBold('Next Roadmap Target:')}`);
+      console.error(`   ${ui.fmtGreen(data.nextRoadmap.slug)}: "${data.nextRoadmap.summaryMd}"`);
+    }
+
+    // 2. Ongoing projects
+    if (data.ongoing && data.ongoing.length > 0) {
+      console.error(`\n🚢 ${ui.fmtBold('Ongoing Fleet Missions:')}`);
+      for (const s of data.ongoing) {
+        const wt = s.worktree ? ` (worktree: ${s.worktree.name || s.worktree.id})` : '';
+        console.error(`   - ${ui.fmtYellow(s.agentName || s.agentId)}: "${s.purpose}"${wt}`);
+      }
+    }
+
+    // 3. High-priority bugs
+    if (data.highPriBugs && data.highPriBugs.length > 0) {
+      console.error(`\n🚨 ${ui.fmtBold('High-Priority Bugs Needing Attention:')}`);
+      for (const f of data.highPriBugs) {
+        const surf = f.surface ? ` in ${f.surface}` : '';
+        console.error(`   - [${ui.fmtRed(f.severity.toUpperCase())}] ${ui.fmtYellow(f.slug)}: "${f.summary}"${surf}`);
+      }
+    }
+
+    // 4. Dormant or engineering excellence opportunities
+    if (data.dormant && data.dormant.length > 0) {
+      console.error(`\n⚓ ${ui.fmtBold('Dormant Projects / Refactoring Opportunities:')}`);
+      for (const d of data.dormant) {
+        console.error(`   - Session ${ui.fmtYellow(d.sessionId)}: "${d.purpose}" (dormant for ${d.lastActiveAgoMinutes}m)`);
+      }
+    }
+    console.error('');
+  } catch (err) {
+    // Fail silently
+  }
+}
+
 // =============================================================================
 // handleBegin — pd begin "purpose" --lifecycle durable|ephemeral [--identity X] [--files f1 f2...]
 // =============================================================================
@@ -242,11 +471,14 @@ export async function handleBegin(
   purpose: string | undefined,
   rest: string[],
   options: CLIOptions,
-): Promise<void> {
+ ): Promise<void> {
   // Flag takes precedence over positional
   purpose = purpose || (options.purpose as string) || undefined;
 
   if (!purpose && canPrompt()) {
+    // Show welcome briefing first!
+    await fetchAndRenderWelcomeBriefing(options.harbor as string || undefined);
+
     // Interactive wizard
     purpose = await promptText({ label: 'What are you working on?', required: true }) || undefined;
     if (!purpose) {
@@ -282,6 +514,7 @@ export async function handleBegin(
       if (lifecycle) options.lifecycle = lifecycle;
     }
   } else if (!purpose) {
+    await fetchAndRenderWelcomeBriefing(options.harbor as string || undefined);
     printBeginUsage();
     process.exit(1);
   }
@@ -441,6 +674,7 @@ export async function handleBegin(
       footer: 'claim files next with pd session files add <path>',
       colorLevel: ui.lineworkColorLevel('stderr'),
     }));
+    await showHelpfulSuggestions(purpose, identity);
     return;
   }
   ui.success(`Agent ${highlightChannel(agentLabel)} ready`);
@@ -480,11 +714,49 @@ export async function handleBegin(
     console.error('');
     ui.warn(String(data.approvalsHint));
   }
+  await showHelpfulSuggestions(purpose, identity);
 }
 
 // =============================================================================
 // handleDone — pd done ["note"] [--status STATUS]
 // =============================================================================
+
+/**
+ * `pd done` as a manual confirmation point for `merge_policy='auto'`
+ * dispatches. The daemon's background sweep (server.ts, lib/dispatch/
+ * auto-merge.ts) merges these PRs on its own interval, but an operator
+ * running `pd done` right after a dispatch finishes shouldn't have to wait
+ * for the next tick — this runs the SAME check-and-complete logic inline so
+ * `pd done` either confirms the merge already happened (and worktree/branch
+ * are already scrapped) or reports honestly why it isn't ready yet. This is
+ * always best-effort: a failure here must never block the actual session end.
+ */
+async function reportAutoMergeOnDone(sessionId: string | undefined): Promise<string[]> {
+  if (!sessionId) return [];
+  const lines: string[] = [];
+  try {
+    const db = initDatabase();
+    const queue = createDispatchQueue({ db });
+    const dispatch = queue.getBySessionId(sessionId);
+    if (!dispatch || dispatch.mergePolicy !== 'auto') return [];
+    const outcome = await checkAndCompleteDispatch(dispatch);
+    if (outcome.outcome === 'merged') {
+      lines.push(`Auto-merge: merged ${dispatch.resultArtifact} (dispatch ${dispatch.id.slice(0, 8)}).`);
+      if (outcome.cleanup.worktreeReaped) lines.push('  worktree scrapped');
+      if (outcome.cleanup.branchDeleted) lines.push('  local branch deleted');
+    } else if (outcome.outcome === 'already_merged') {
+      lines.push(`Auto-merge: PR already merged (dispatch ${dispatch.id.slice(0, 8)}); confirmed cleanup.`);
+    } else if (outcome.outcome === 'not_ready') {
+      lines.push(`Auto-merge: dispatch ${dispatch.id.slice(0, 8)} not ready yet — ${outcome.reasons.join('; ')}`);
+      lines.push(`  the daemon's background sweep will retry, or run: pd dispatch merge-sweep`);
+    } else if (outcome.outcome === 'error') {
+      lines.push(`Auto-merge: check failed for dispatch ${dispatch.id.slice(0, 8)} — ${outcome.error}`);
+    }
+  } catch {
+    // Best-effort. A DB/gh hiccup here must never block `pd done`.
+  }
+  return lines;
+}
 
 export async function handleDone(
   note: string | undefined,
@@ -532,6 +804,19 @@ export async function handleDone(
     if (skipOriginCheckReason) body.skipOriginCheckReason = skipOriginCheckReason;
   }
 
+  const noPr = options.noPr === true || options['no-pr'] === true;
+  const subtask = options.subtask === true || options['subtask'] === true;
+  const forceIncomplete = options.forceIncomplete === true || options['force-incomplete'] === true;
+  const reason = (options.reason as string | undefined) || undefined;
+
+  // Best-effort auto-merge confirmation pass BEFORE the session actually
+  // ends (the dispatch's session_id lookup only works while we still know
+  // which session this is — after clearCurrentContext() below, local context
+  // is gone).
+  const autoMergeLines = await reportAutoMergeOnDone(
+    typeof body.sessionId === 'string' ? body.sessionId : ctx?.sessionId,
+  );
+
   const pd = new PortDaddy({ agentId: typeof body.agentId === 'string' ? body.agentId : undefined });
   const data = await pd.done(note, {
     agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
@@ -539,6 +824,10 @@ export async function handleDone(
     status: typeof body.status === 'string' ? body.status : undefined,
     skipOriginCheck: skipOriginCheck ? true : undefined,
     skipOriginCheckReason: skipOriginCheck ? skipOriginCheckReason : undefined,
+    noPr: noPr ? true : undefined,
+    subtask: subtask ? true : undefined,
+    forceIncomplete: forceIncomplete ? true : undefined,
+    forceIncompleteReason: forceIncomplete ? reason : undefined,
   });
 
   if (!data?.success) {
@@ -557,7 +846,7 @@ export async function handleDone(
   clearCurrentContext();
 
   if (isJson(options)) {
-    console.log(JSON.stringify(data, null, 2));
+    console.log(JSON.stringify({ ...data, autoMerge: autoMergeLines }, null, 2));
     return;
   }
 
@@ -574,6 +863,7 @@ export async function handleDone(
   if (data.agentUnregistered) console.error(`  Agent ${data.agentId} unregistered`);
   if (data.notesCount) console.error(`  Notes: ${data.notesCount}`);
   if (note) console.error(`  Final note: "${note}"`);
+  for (const line of autoMergeLines) console.error(`  ${line}`);
 }
 
 // =============================================================================
