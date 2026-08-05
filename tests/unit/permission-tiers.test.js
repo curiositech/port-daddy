@@ -247,8 +247,8 @@ describe('resolveTier', () => {
     expect(resolveTier('fleet', ['status'])).toBe('silent');
   });
 
-  test('pd spawn kill is destructive; bare spawn is approval', () => {
-    expect(resolveTier('spawn', ['kill', 'a'])).toBe('destructive');
+  test('pd spawn cancel is destructive; bare spawn is approval', () => {
+    expect(resolveTier('spawn', ['cancel', 'a'])).toBe('destructive');
     expect(resolveTier('spawn', [])).toBe('approval');
   });
 
@@ -331,7 +331,7 @@ describe('commandsByTier', () => {
       'channels clear',
       'agent unregister',
       'harbor destroy',
-      'spawn kill',
+      'spawn cancel',
       'fleet down',
       'guard install',
       'daemon stop',
@@ -365,7 +365,7 @@ describe('DESTRUCTIVE_COMMANDS: handler wiring', () => {
     'agent unregister': ['cli/commands/agents.ts'],
     'agent inbox clear': ['cli/commands/agents.ts'],
     'harbor destroy': ['cli/commands/harbors.ts'],
-    'spawn kill': ['cli/commands/spawn.ts'],
+    'spawn cancel': ['cli/commands/spawn.ts'],
     'fleet down': ['cli/commands/fleet.ts'],
     'fleet panic': ['cli/commands/fleet.ts'],
     'guard install': ['cli/commands/guard.ts'],

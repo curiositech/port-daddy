@@ -871,7 +871,7 @@
       "sdk": [
         "spawn",
         "listSpawned",
-        "killSpawned"
+        "cancelSpawned"
       ],
       "routes": [
         "POST /spawn",

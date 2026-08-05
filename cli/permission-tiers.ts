@@ -180,7 +180,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   wait: 'silent',
   up: 'approval',           // brings up multi-service stacks; effects on shared ports
   u: 'approval',
-  spawn: 'approval',        // refined: `spawn kill` is destructive
+  spawn: 'approval',        // refined: `spawn cancel` is destructive
   sortie: 'approval',       // one-shot multi-agent mission: spawns agents, spends budget; refined: read subcommands are silent
   agent: 'approval',        // refined: `agent unregister`, `agent inbox clear` are destructive
   mcp: 'approval',
@@ -413,7 +413,7 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'relay exchange': 'silent',
 
   // spawn subcommands
-  'spawn kill': 'destructive',
+  'spawn cancel': 'destructive',
 
   // sortie subcommands — `sortie run` (and bare `sortie <goal>`) stays at the
   // top-level 'approval'; the read-only forms are silent
@@ -695,7 +695,7 @@ export const DESTRUCTIVE_COMMANDS: readonly string[] = Object.freeze([
   'agent unregister',
   'agent inbox clear',
   'harbor destroy',
-  'spawn kill',
+  'spawn cancel',
   'fleet down',
   'fleet panic',
   'guard install',

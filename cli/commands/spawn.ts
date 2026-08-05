@@ -106,16 +106,17 @@ export async function handleSpawn(
   args: string[],
   options: CLIOptions,
 ): Promise<void> {
-  // Check for 'kill' subcommand: pd spawn kill <agentId>
-  if (args[0] === 'kill') {
+  // Explicit operator cancellation. This is a terminal, durable lifecycle
+  // transition; low-level process signals remain an implementation detail.
+  if (args[0] === 'cancel') {
     const agentId = args[1];
     if (!agentId) {
-      console.error('Usage: pd spawn kill <agentId>');
+      console.error('Usage: pd spawn cancel <agentId>');
       process.exit(1);
     }
 
     const ok = await requireConfirmation({
-      summary: `Spawn kill will terminate ${agentId} mid-run. Any partial work, open transcripts, or in-flight tool calls are abandoned.`,
+      summary: `Spawn cancellation will stop ${agentId} mid-run, finalize its transcript, and preserve partial work for inspection.`,
       args: options as Record<string, unknown>,
     });
     if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
@@ -129,7 +130,7 @@ export async function handleSpawn(
     const data = await res.json();
 
     if (!res.ok) {
-      ui.error((data.error as string) || `Failed to kill agent ${agentId}`);
+      ui.error((data.error as string) || `Failed to cancel agent ${agentId}`);
       process.exit(1);
     }
 
@@ -139,7 +140,7 @@ export async function handleSpawn(
     }
 
     if (!isQuiet(options)) {
-      ui.success(`Agent ${agentId} killed`);
+      ui.success(`Agent ${agentId} cancelled`);
     }
     return;
   }
@@ -191,7 +192,7 @@ export async function handleSpawn(
     console.error('  -q, --quiet           Suppress output');
     console.error('');
     console.error('Subcommands:');
-    console.error('  pd spawn kill <id>  Kill a running spawned agent');
+    console.error('  pd spawn cancel <id>  Cancel a running spawn and retain its record');
     process.exit(1);
   }
 

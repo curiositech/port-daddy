@@ -185,7 +185,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd actors', description: 'List durable maritime actors and live/salvage lease evidence.' },
       { name: 'pd actor <id>', description: 'Inspect or message a durable actor mailbox.', flags: ['--project', '--message', '--inbox', '--inbox-stats', '--unread', '--mark-read', '--wake'] },
       { name: 'pd spawn <task>', href: '/docs/cli/spawn', description: 'Launch a spawned agent with backend, model, identity, and required budget ceiling.', flags: ['--backend', '--model', '--tier', '--identity', '--budget', '--purpose', '--files', '--workdir', '--timeout'] },
-      { name: 'pd spawn kill <agent>', description: 'Kill a running spawned agent.' },
+      { name: 'pd spawn cancel <agent>', description: 'Cancel a running spawn and retain its evidence.' },
       { name: 'pd spawned', href: '/docs/cli/spawned', description: 'List active or recent spawned agents.' },
       { name: 'pd fleet init|up|down|status|validate|run', href: '/docs/cli/fleet', description: 'Create, validate, run, and inspect YAML-defined background agent fleets.' },
       { name: 'pd fleet panic|unpanic', description: 'Arm or disarm the fleet panic control with an audited reason.' },
@@ -383,7 +383,7 @@ export const SDK_REFERENCE_GROUPS: ReferenceGroup[] = [
     items: [
       { name: 'spawn', description: 'Launch a run with backend, identity, model, and budget.' },
       { name: 'listSpawned', description: 'List spawned agents.' },
-      { name: 'killSpawned', description: 'Kill a spawned agent.' },
+      { name: 'cancelSpawned', description: 'Cancel a spawned agent.' },
       { name: 'cockpitMissions', description: 'Read typed cockpit mission cards from roadmap and recovery truth without mutating state.' },
       { name: 'up', description: 'Start configured services.' },
       { name: 'down', description: 'Stop configured services.' },

@@ -593,23 +593,23 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
     }
   });
 
-  // DELETE /spawn/:id — Kill a spawned agent
+  // DELETE /spawn/:id — Cancel a running spawn and finalize durable evidence.
   fastify.delete('/spawn/:id', async (request, reply) => {
     try {
       const id = String((request.params as any).id);
 
       spawner.kill(id);
 
-      logger.info('spawn_kill', { agentId: id });
+      logger.info('spawn_cancel', { agentId: id });
 
       return {
         success: true,
         agentId: id,
-        message: `Agent ${id} killed`,
+        message: `Agent ${id} cancelled`,
       };
     } catch (error) {
       metrics.errors++;
-      logger.error('spawn_kill_error', { error: (error as Error).message });
+      logger.error('spawn_cancel_error', { error: (error as Error).message });
       reply.code(500); return { error: 'internal server error' };
     }
   });

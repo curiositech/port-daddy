@@ -70,7 +70,7 @@ Updated website spawn docs to require identity + budget and reflect current back
       ]}
       seeAlso={[
         { name: 'listSpawned()', href: '/docs/sdk/list-spawned' },
-        { name: 'killSpawned()', href: '/docs/sdk/list-spawned' },
+        { name: 'cancelSpawned()', href: '/docs/sdk/list-spawned' },
         { name: 'CLI: pd spawn', href: '/docs/cli/spawn' },
         { name: 'MCP: spawn', href: '/docs/mcp/spawn' },
       ]}

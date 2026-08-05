@@ -113,7 +113,7 @@ const SECTIONS: DocSection[] = [
     commands: [
       { cmd: 'pd spawn --backend <name>', desc: 'Spawn an AI agent with a specific backend (codex, ollama, claude-cli, etc) plus an explicit budget ceiling.', example: 'pd spawn --backend codex --tier low --identity myapp:fixer --budget 0.50 -- "Fix the login bug"' },
       { cmd: 'pd spawned', desc: 'List all spawned agents with status and duration.', example: 'pd spawned' },
-      { cmd: 'pd spawn kill <id>', desc: 'Terminate a running spawned agent.', example: 'pd spawn kill spawned-8a2f' }
+      { cmd: 'pd spawn cancel <id>', desc: 'Cancel a running spawn and retain its evidence.', example: 'pd spawn cancel spawned-8a2f' }
     ]
   },
 ]

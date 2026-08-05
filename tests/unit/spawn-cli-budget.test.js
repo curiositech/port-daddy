@@ -129,7 +129,7 @@ describe('pd spawn budget enforcement', () => {
     expect(body.injectSquidHooks).toBe(true);
   });
 
-  test.each(['over_budget', 'killed'])('exits nonzero when the daemon envelope reports success false for %s', async (status) => {
+  test.each(['over_budget', 'cancelled'])('exits nonzero when the daemon envelope reports success false for %s', async (status) => {
     mockPdFetch.mockResolvedValueOnce(response(true, {
       success: false,
       status,

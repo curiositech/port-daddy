@@ -326,7 +326,7 @@ Every entry below prints an impact-specific summary to stderr and prompts for co
 - `pd agent unregister` — removes an agent; its claims are released
 - `pd agent inbox clear` — deletes all messages in the inbox
 - `pd harbor destroy <name>` — tears down a harbor and evicts everyone in it
-- `pd spawn kill <id>` — terminates a running spawned agent mid-run
+- `pd spawn cancel <id>` — cancels a running spawn and retains its transcript and partial work
 - `pd transcripts delete/rm` — removes durable agent transcripts
 - `pd restore <id>` — overwrites the live registry DB from a snapshot
 - `pd fleet down` — SIGTERMs the running fleet
@@ -558,7 +558,7 @@ pd spawn --backend claude --model claude-haiku-4-5-20251001 \
 
 pd spawned              # list running/completed agents
 pd spawned <id> --follow # reconnect to a durable run monitor
-pd spawn kill <id>      # terminate a running agent
+pd spawn cancel <id>    # cancel a running spawn and retain its evidence
 pd transcripts          # durable agent transcripts (survive DB loss, ADR-0058)
 ```
 

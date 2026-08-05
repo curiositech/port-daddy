@@ -3225,8 +3225,8 @@ class PortDaddy {
   /**
    * Kill a running spawned agent by ID.
    */
-  async killSpawned(agentId: string): Promise<KillSpawnedResponse> {
-    return this._request('DELETE', `/spawn/${encodeURIComponent(agentId)}`) as Promise<KillSpawnedResponse>;
+  async cancelSpawned(agentId: string): Promise<CancelSpawnedResponse> {
+    return this._request('DELETE', `/spawn/${encodeURIComponent(agentId)}`) as Promise<CancelSpawnedResponse>;
   }
 
   /**
@@ -3992,7 +3992,7 @@ interface ListSpawnedResponse {
   count: number;
 }
 
-interface KillSpawnedResponse {
+interface CancelSpawnedResponse {
   success: boolean;
   agentId: string;
   message: string;
@@ -4287,7 +4287,7 @@ export type {
   SpawnResult,
   SpawnedAgent,
   ListSpawnedResponse,
-  KillSpawnedResponse,
+  CancelSpawnedResponse,
   HarborMemberEntry,
   HarborEntry,
   CreateHarborOptions,
