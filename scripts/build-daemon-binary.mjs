@@ -6,6 +6,7 @@ import { arch, platform, tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
+import { packageOnnxRuntimeNative } from './lib/onnx-runtime-native.mjs';
 
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST_DIR = join(ROOT_DIR, 'dist', 'daemon');
@@ -78,7 +79,7 @@ async function smokePublicSamples(port) {
   return { count: body.count };
 }
 
-async function smokeBinary() {
+async function smokeBinary(nativeRuntime) {
   const port = await reservePort();
   const prefix = join(tmpdir(), `port-daddy-daemon-smoke-${process.pid}`);
   rmSync(prefix, { recursive: true, force: true });
@@ -94,6 +95,7 @@ async function smokeBinary() {
       PORT_DADDY_NO_FLEET: '1',
       PORT_DADDY_NO_FLEETBAR: '1',
       PORT_DADDY_RESOURCE_DIR: ROOT_DIR,
+      ...nativeLoaderEnvironment(nativeRuntime),
       PORT_DADDY_SILENT: '1',
     },
     stdio: ['ignore', 'ignore', 'pipe'],
@@ -113,13 +115,60 @@ async function smokeBinary() {
   }
 }
 
+/**
+ * Prove the compiled daemon can load ONNX Runtime from its packaged resource
+ * directory. A health-only smoke never reaches this native linkage boundary.
+ *
+ * @returns {{success: true, backends: unknown[]}} Parsed runtime proof.
+ */
+function smokeSemanticRuntime(nativeRuntime) {
+  const output = run(OUTFILE, ['__semantic-runtime-check'], {
+    env: {
+      PORT_DADDY_RESOURCE_DIR: ROOT_DIR,
+      ...nativeLoaderEnvironment(nativeRuntime),
+    },
+  });
+  const proof = JSON.parse(output.trim());
+  if (proof?.success !== true || !Array.isArray(proof.backends)) {
+    throw new Error(`compiled semantic runtime smoke returned an invalid proof: ${output.trim()}`);
+  }
+  return proof;
+}
+
+/**
+ * Convert a packaged ONNX Runtime receipt into the launch-time loader variable
+ * required by the target platform.
+ *
+ * @param {{status: string, platform: string | null, dir?: string}} nativeRuntime Packaging receipt.
+ * @returns {Record<string, string>} Dynamic-loader environment for the child.
+ */
+function nativeLoaderEnvironment(nativeRuntime) {
+  if (nativeRuntime.status !== 'packaged' || !nativeRuntime.dir) return {};
+  if (nativeRuntime.platform === 'darwin') {
+    return { DYLD_FALLBACK_LIBRARY_PATH: nativeRuntime.dir };
+  }
+  if (nativeRuntime.platform === 'linux') {
+    return { LD_LIBRARY_PATH: nativeRuntime.dir };
+  }
+  return {};
+}
+
 const bunVersion = run('bun', ['--version']).trim();
 mkdirSync(DIST_DIR, { recursive: true });
+const onnxRuntimeNative = packageOnnxRuntimeNative({
+  repoRoot: ROOT_DIR,
+  outputRoot: join(ROOT_DIR, 'dist'),
+  platform: platform(),
+  arch: arch(),
+});
 run('bun', ['build', '--compile', 'bin/port-daddy-daemon.ts', '--outfile', OUTFILE], { stdio: 'inherit' });
 
 let smoke = null;
 if (!args.has('--no-smoke')) {
-  smoke = await smokeBinary();
+  smoke = {
+    semanticRuntime: smokeSemanticRuntime(onnxRuntimeNative),
+    daemon: await smokeBinary(onnxRuntimeNative),
+  };
 }
 
 const stats = statSync(OUTFILE);
@@ -135,10 +184,12 @@ writeFileSync(MANIFEST, `${JSON.stringify({
   bunVersion,
   resourceRootEnv: 'PORT_DADDY_RESOURCE_DIR',
   sqliteBackend: 'bun:sqlite',
+  onnxRuntimeNative,
   smoke: smoke ? {
-    status: smoke.health.status,
-    pid: smoke.health.pid ?? null,
-    samples: smoke.samples,
+    status: smoke.daemon.health.status,
+    pid: smoke.daemon.health.pid ?? null,
+    samples: smoke.daemon.samples,
+    semanticRuntime: smoke.semanticRuntime,
   } : null,
 }, null, 2)}\n`);
 

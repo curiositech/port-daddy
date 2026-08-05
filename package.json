@@ -106,6 +106,7 @@
     "scripts/build-daemon-binary.mjs",
     "scripts/build-public-samples.mjs",
     "scripts/build-single-binary.mjs",
+    "scripts/lib/onnx-runtime-native.mjs",
     "mcp/",
     "schemas/",
     "config.json",
