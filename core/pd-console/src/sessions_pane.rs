@@ -127,7 +127,11 @@ impl SessionEntry {
     }
 
     fn action_label(&self) -> String {
-        "open session".into()
+        match self.display_status().as_str() {
+            "accepted" | "starting" => "collect receipt".into(),
+            "active" if !self.agent_id.is_empty() => "join session".into(),
+            _ => "continue as successor".into(),
+        }
     }
 
     fn cost_label(&self) -> Option<String> {
@@ -409,7 +413,7 @@ mod tests {
             .any(|b| matches!(b, Block::KeyVal(k, v) if k == "agent" && v == "agent-1")));
         assert!(blocks
             .iter()
-            .any(|b| matches!(b, Block::KeyVal(k, v) if k == "action" && v == "open session")));
+            .any(|b| matches!(b, Block::KeyVal(k, v) if k == "action" && v == "join session")));
     }
 
     #[test]
@@ -441,7 +445,7 @@ mod tests {
             .any(|b| matches!(b, Block::KeyVal(k, v) if k == "runtime" && v == "no_runtime")));
         assert!(blocks
             .iter()
-            .any(|b| matches!(b, Block::KeyVal(k, v) if k == "action" && v == "open session")));
+            .any(|b| matches!(b, Block::KeyVal(k, v) if k == "action" && v == "collect receipt")));
         assert!(!blocks
             .iter()
             .any(|b| matches!(b, Block::KeyVal(k, _) if k == "agent")));
@@ -476,7 +480,7 @@ mod tests {
             .any(|b| matches!(b, Block::KeyVal(k, v) if k == "runtime" && v == "no_runtime")));
         assert!(blocks
             .iter()
-            .any(|b| matches!(b, Block::KeyVal(k, v) if k == "action" && v == "open session")));
+            .any(|b| matches!(b, Block::KeyVal(k, v) if k == "action" && v == "collect receipt")));
         assert!(!blocks
             .iter()
             .any(|b| matches!(b, Block::KeyVal(k, _) if k == "agent")));
@@ -488,5 +492,28 @@ mod tests {
         pane.last_error = Some("connection refused".into());
         let blocks = pane.view();
         assert!(matches!(&blocks[1], Block::KeyVal(k, _) if k == "error"));
+    }
+
+    #[test]
+    fn terminal_and_no_runtime_sessions_offer_linked_continuation() {
+        for (status, agent_id) in [("completed", "former-agent"), ("active", "")] {
+            let entry = SessionEntry {
+                id: format!("sess-{status}"),
+                purpose: "handoff".into(),
+                status: status.into(),
+                phase: status.into(),
+                project: "port-daddy".into(),
+                worktree: "wt-handoff".into(),
+                agent_id: agent_id.into(),
+                updated_at_ms: 2000,
+                created_at_ms: 1000,
+                file_count: 0,
+                note_count: 0,
+                durable: true,
+                metadata: None,
+            };
+
+            assert_eq!(entry.action_label(), "continue as successor");
+        }
     }
 }

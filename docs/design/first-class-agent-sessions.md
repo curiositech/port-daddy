@@ -85,13 +85,18 @@ windows. The transcript is the dominant surface; the inspector is collapsible.
 
 The header always shows stable identity, plain lifecycle state and evidence
 time, lineage, backend/model, worktree/workdir, elapsed time, tokens, cost,
-budget, and exactly one primary `Join session` or `Continue` action.
+budget, and one evidence-appropriate primary action: `Join session` for a
+joinable runtime, `Collect receipt` while admission is unsettled, or `Continue
+as successor` when the operator wants a linked handoff.
 
 ## Join and Continue
 
 - `Join session` opens the canonical live runtime. It never creates a process.
-- `Continue` admits one new receipt-backed successor for a terminal or
-  no-runtime session, records reciprocal lineage, and opens that successor.
+- `Continue as successor` admits one new receipt-backed successor from an
+  active, terminal, or no-runtime predecessor when lineage policy permits it,
+  records reciprocal lineage, and opens that successor. On an active row this
+  is an explicit handoff, not another spelling of Join: the predecessor is
+  sealed only after the successor identities are durably recorded.
 - The predecessor transcript and evidence stay immutable.
 - Repeating an identical continuation request returns the same receipt.
 - A lost client response becomes `unknown` and reconnects to the same receipt;
@@ -119,10 +124,13 @@ card. Before dismissal it shows:
   URL while the receipt is accepted, starting, or live;
 - `Open transcript` and `Copy permalink` as secondary actions.
 
-`Continue from this successor` appears only after a terminal or `no_runtime`
-state. `unknown` reconnects to the same receipt. If transcript collection is
-degraded or stalled, Beacon shows that banner and the last durable cursor
-instead of rendering an empty, apparently healthy timeline.
+While a successor is live, `Continue as new handoff` may appear as a secondary
+action beside the primary Join action; it must explain that it creates a new
+linked successor and seals this predecessor only after durable admission. It
+becomes the primary action for a terminal or `no_runtime` state. `unknown`
+reconnects to the same receipt. If transcript collection is degraded or
+stalled, Beacon shows that banner and the last durable cursor instead of
+rendering an empty, apparently healthy timeline.
 
 Beacon never substitutes the predecessor ID for the successor, maps a generic
 `running` string to proven liveness, invents a worktree, or treats observation
