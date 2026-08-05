@@ -301,3 +301,107 @@ export async function retargetPrBase(
     `retarget PR #${prNumber} base`,
   );
 }
+
+// ---------------------------------------------------------------------------
+// Re-run support: read back a branch the purser wrote earlier.
+
+/**
+ * Read the purser's previously-authored test files back off its own branch.
+ *
+ * WHY: without this the purser has no memory. Every `synchronize` re-ran the
+ * steel-man AND the test-author call, burning two model calls and rewriting
+ * test files that were already correct — churn the PR author then has to
+ * re-read. To re-run existing tests instead of re-authoring them, the contents
+ * have to come from somewhere, and the branch is the only durable copy.
+ *
+ * Uses the git *tree* API rather than one contents call per path, so the cost
+ * is two requests regardless of file count, and returns `null` (never throws
+ * for absence) when the ref does not exist — a first run is the normal case,
+ * not an error.
+ *
+ * @param owner Repository owner.
+ * @param repo Repository name.
+ * @param branchName The executor-owned branch, e.g. `purser/pr-42-tests`.
+ * @param token Installation token.
+ * @returns The files at the branch tip, or null when the branch does not exist.
+ */
+export async function readBranchFiles(
+  owner: string,
+  repo: string,
+  branchName: string,
+  token: string,
+): Promise<StackedFile[] | null> {
+  const base = `https://api.github.com/repos/${owner}/${repo}`;
+  let tree: { tree?: Array<{ path?: string; type?: string; sha?: string }> };
+  try {
+    tree = await ghJson(
+      `${base}/git/trees/${encodeURIComponent(branchName)}?recursive=1`,
+      { method: 'GET' },
+      token,
+      `read tree ${branchName}`,
+    );
+  } catch (err) {
+    // 404 ⇒ no previous run for this PR. Anything else is a real failure, but
+    // the caller's contract is "fall back to authoring", so absence and
+    // unreachability converge on the same safe behaviour.
+    if (err instanceof GitHubApiError && err.status === 404) return null;
+    throw err;
+  }
+
+  const blobs = (tree.tree ?? []).filter(
+    (e): e is { path: string; type: string; sha: string } =>
+      e.type === 'blob' && typeof e.path === 'string' && typeof e.sha === 'string',
+  );
+  if (blobs.length === 0) return null;
+
+  const files: StackedFile[] = [];
+  for (const b of blobs) {
+    const blob = await ghJson<{ content?: string; encoding?: string }>(
+      `${base}/git/blobs/${b.sha}`,
+      { method: 'GET' },
+      token,
+      `read blob ${b.path}`,
+    );
+    if (blob.encoding !== 'base64' || typeof blob.content !== 'string') continue;
+    // atob yields latin-1 code units; re-decode as UTF-8 so non-ASCII test
+    // content survives the round trip.
+    const bin = atob(blob.content.replace(/\n/g, ''));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    files.push({ path: b.path, contents: new TextDecoder().decode(bytes) });
+  }
+  return files.length > 0 ? files : null;
+}
+
+/**
+ * Find the purser's existing OPEN test PR for a branch, if any.
+ *
+ * Returned alongside its body so the caller can recover the embedded contract
+ * fingerprint without a second round trip. Null when no open PR heads that
+ * branch — which is both the first-run case and the case where a human closed
+ * the test PR deliberately, and in the latter the purser SHOULD author afresh
+ * rather than resurrect a rejected suite.
+ *
+ * @param owner Repository owner.
+ * @param repo Repository name.
+ * @param branchName The executor-owned test branch.
+ * @param token Installation token.
+ * @returns `{ number, url, body }` for the open PR, or null.
+ */
+export async function findOpenPrForBranch(
+  owner: string,
+  repo: string,
+  branchName: string,
+  token: string,
+): Promise<{ number: number; url: string; body: string } | null> {
+  const list = await ghJson<Array<{ number?: number; html_url?: string; body?: string | null }>>(
+    `https://api.github.com/repos/${owner}/${repo}/pulls` +
+      `?state=open&head=${encodeURIComponent(`${owner}:${branchName}`)}&per_page=1`,
+    { method: 'GET' },
+    token,
+    `find open PR for ${branchName}`,
+  );
+  const pr = Array.isArray(list) ? list[0] : undefined;
+  if (!pr || typeof pr.number !== 'number') return null;
+  return { number: pr.number, url: pr.html_url ?? '', body: pr.body ?? '' };
+}
