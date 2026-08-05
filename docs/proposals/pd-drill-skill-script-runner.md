@@ -33,8 +33,10 @@ does the opposite — it reads a script's *source* into context.
 `pd drill`. A drill is a standing procedure executed on command and reported —
 the exact semantics. `drill <skill>/<script>` reads as "run this skill's
 procedure." Runner-up considered: `pd rig` (operate equipment; less obviously
-"run to completion"). The `pd salvage drill` subcommand (drill *into* raw) is a
-different verb sense and namespace; no collision.
+"run to completion"). The roadmap separately reserves `pd salvage drill <id>`
+for forensic drilldown, but the current CLI does not ship that subcommand. If it
+lands, its `salvage` namespace and object-focused meaning remain distinct from
+this skill-runner verb.
 
 ## Command surface
 
