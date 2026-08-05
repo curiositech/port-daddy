@@ -113,9 +113,9 @@ export const getStartedSection: DocsContentSection = {
         {
           type: 'callout',
           tone: 'info',
-          title: 'Do not trust the default port blindly',
+          title: 'Discover the daemon endpoint, do not assume it',
           body:
-            'Port Daddy usually uses `9876`, but the safer move is to ask the running install where it is listening.',
+            'The daemon publishes its selected port when it starts. Clients discover the endpoint through ~/.port-daddy/daemon.port or the getDaemonTcpUrl() helper. Port contention during startup is normal — the daemon will select an available port.',
         },
         {
           type: 'paragraph',
