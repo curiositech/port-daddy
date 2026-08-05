@@ -163,6 +163,49 @@ describe('spawner hard budget cap edges', () => {
     expect(row.error).toBe(result.error);
   });
 
+  test('provider-native budget terminal preserves output and finalizes over_budget with provider cost', async () => {
+    const tracker = exactCostTracker(0.2512845);
+    const spawner = createSpawner({
+      transcripts,
+      costTracker: tracker,
+      enforceTelemetryPolicy: true,
+      enforceTranscriptPolicy: true,
+      runnerOverrides: {
+        'cli:claude-code': async () => ({
+          output: 'VERDICT: SHIP',
+          error: null,
+          inputTokens: 100,
+          outputTokens: 20,
+          providerReportedCostUsd: 0.2512845,
+          providerBudgetStopped: true,
+        }),
+      },
+    });
+
+    const result = await spawner.spawn({
+      backend: 'cli:claude-code',
+      model: 'claude-haiku-4-5',
+      identity: 'port-daddy:test:provider-budget-terminal',
+      task: 'return a verdict before the provider boundary',
+      ship: 'provider-budget-terminal',
+      budgetUsd: 0.25,
+    });
+
+    expect(result.status).toBe('over_budget');
+    expect(result.output).toBe('VERDICT: SHIP');
+    expect(result.error).toContain('provider stopped at native hard budget');
+    expect(result.error).not.toMatch(/authentication/i);
+    expect(result.telemetry.costUsd).toBe(0.2512845);
+    expect(tracker.record).toHaveBeenCalledWith(expect.objectContaining({
+      providerReportedCostUsd: 0.2512845,
+    }));
+
+    const [row] = transcripts.listTranscripts({ ship: 'provider-budget-terminal' });
+    expect(row.status).toBe('over_budget');
+    expect(row.cost_usd).toBe(0.2512845);
+    expect(transcripts.getTranscript(row.id).messages.map((message) => message.content)).toContain('VERDICT: SHIP');
+  });
+
   test.each([
     ['missing costUsd', {}],
     ['undefined costUsd', { costUsd: undefined }],

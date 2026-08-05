@@ -12,7 +12,11 @@
 
 import { describe, it, expect } from '@jest/globals';
 
-const { parseClaudeCodeTranscript, mapClaudeCodeStreamLine } = await import('../../lib/spawner/cli-claude-code-transcript.js');
+const {
+  parseClaudeCodeTranscript,
+  mapClaudeCodeStreamLine,
+  extractClaudeCodeTerminalResult,
+} = await import('../../lib/spawner/cli-claude-code-transcript.js');
 
 // ── Live capture: simple "What is 2+2? Think briefly first." (no tools) ──────
 // Verbatim assistant (thinking), assistant (text), and result lines. The full
@@ -146,6 +150,32 @@ describe('parseClaudeCodeTranscript', () => {
       { type: 'text', text: 'match one' },
       { type: 'text', text: ' match two' },
     ]);
+  });
+});
+
+describe('extractClaudeCodeTerminalResult', () => {
+  it('retains the provider-reported success cost and final answer', () => {
+    expect(extractClaudeCodeTerminalResult(SIMPLE_STREAM)).toEqual({
+      subtype: 'success',
+      isError: false,
+      result: '2 + 2 = 4.',
+      totalCostUsd: 0.05,
+      errors: [],
+    });
+  });
+
+  it('classifies a max-budget terminal without dropping its partial answer or cost', () => {
+    const raw = [
+      '{"type":"assistant","message":{"content":[{"type":"text","text":"VERDICT: SHIP"}]}}',
+      '{"type":"result","subtype":"error_max_budget_usd","is_error":true,"result":"VERDICT: SHIP","total_cost_usd":0.2512845,"errors":["Reached maximum budget ($0.25)"]}',
+    ].join('\n');
+    expect(extractClaudeCodeTerminalResult(raw)).toEqual({
+      subtype: 'error_max_budget_usd',
+      isError: true,
+      result: 'VERDICT: SHIP',
+      totalCostUsd: 0.2512845,
+      errors: ['Reached maximum budget ($0.25)'],
+    });
   });
 });
 

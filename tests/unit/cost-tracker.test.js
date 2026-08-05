@@ -286,6 +286,20 @@ describe('CostTracker', () => {
     expect(event.costUsd).toBeCloseTo(0.05, 4);
   });
 
+  test('record prefers an authoritative provider-reported completed-run cost', () => {
+    const event = costTracker.record({
+      backend: 'cli:claude-code',
+      model: 'claude-haiku-4-5',
+      inputTokens: 100,
+      outputTokens: 20,
+      providerReportedCostUsd: 0.2512845,
+    });
+
+    expect(event.costUsd).toBe(0.2512845);
+    expect(event.isEstimate).toBe(false);
+    expect(costTracker.recent(1)[0].costUsd).toBe(0.2512845);
+  });
+
   test('record is recoverable via recent()', () => {
     costTracker.record({ backend: 'claude-cli', model: 'claude-cli', projectName: 'proj-a' });
     costTracker.record({ backend: 'ollama', model: 'llama3.1:8b', projectName: 'proj-b' });
