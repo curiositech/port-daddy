@@ -132,3 +132,57 @@ describe('path filter trust conditions', () => {
     expect(trustworthy(PAGE + 50)).toBe(false);
   });
 });
+
+/**
+ * Paths containing spaces — git allows them and this repository has one.
+ *
+ * `public/Untitled 2.png` is a real tracked file here. A `\S+`-based parse of
+ * `diff --git a/X b/Y` silently yields the wrong path (or none) for it, and the
+ * file is then marked "not in this chunk" while its hunks sit right there. That
+ * is the scope contract failing in the one direction it must not: telling a
+ * reviewer it cannot see something it can.
+ */
+describe('space-containing paths', () => {
+  const spaced = 'public/Untitled 2.png';
+
+  it('parses a path with a space from the diff header', () => {
+    expect(filesInChunk(diffFor(spaced))).toEqual([spaced]);
+  });
+
+  it('parses a spaced path alongside ordinary ones', () => {
+    const chunk = diffFor('lib/a.ts') + diffFor(spaced) + diffFor('lib/b.ts');
+    expect(filesInChunk(chunk).sort()).toEqual([spaced, 'lib/a.ts', 'lib/b.ts'].sort());
+  });
+
+  it('handles a path with several spaces', () => {
+    const messy = 'docs/some long name here.md';
+    expect(filesInChunk(diffFor(messy))).toEqual([messy]);
+  });
+});
+
+/**
+ * An oversized single file is hard-split, and every slice must still say which
+ * file it belongs to.
+ *
+ * Before this, only the FIRST slice carried the `diff --git` header, so
+ * `filesInChunk()` returned [] for every continuation and the prompt showed no
+ * files as present — breaking attribution precisely on the largest files, which
+ * are the ones whose reviewers most need it.
+ */
+describe('oversized files keep their attribution', () => {
+  it('every slice of a hard-split file still names that file', () => {
+    const huge = `diff --git a/lib/huge.ts b/lib/huge.ts\n--- a/lib/huge.ts\n+++ b/lib/huge.ts\n@@ -1,1 +1,2 @@\n${'+  const filler = 1;\n'.repeat(2000)}`;
+    const chunks = chunkDiff(huge);
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const c of chunks) {
+      expect(filesInChunk(c)).toContain('lib/huge.ts');
+    }
+  });
+
+  it('no slice exceeds the char budget despite the re-emitted header', () => {
+    const huge = `diff --git a/lib/huge.ts b/lib/huge.ts\n${'+  x\n'.repeat(9000)}`;
+    for (const c of chunkDiff(huge)) {
+      expect(c.length).toBeLessThanOrEqual(12_000);
+    }
+  });
+});
