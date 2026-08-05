@@ -277,21 +277,17 @@ export interface MergeGroupMember {
 export async function fetchMergeGroupMembers(
   owner: string,
   repo: string,
-  prNumber: number,
+  baseRef: string,
   groupHeadSha: string,
   token: string,
 ): Promise<MergeGroupMember[]> {
-  const query = `query MergeGroupMembers($owner: String!, $repo: String!, $pr: Int!) {
+  const branch = baseRef.replace(/^refs\/heads\//, '');
+  if (!branch) throw new Error('merge group has no base branch');
+  const query = `query MergeGroupMembers($owner: String!, $repo: String!, $branch: String!) {
     repository(owner: $owner, name: $repo) {
-      pullRequest(number: $pr) {
-        mergeQueueEntry {
-          position
-          headCommit { oid }
-          mergeQueue {
-            entries(first: 100) {
-              nodes { position pullRequest { number headRefOid } }
-            }
-          }
+      mergeQueue(branch: $branch) {
+        entries(first: 100) {
+          nodes { position headCommit { oid } pullRequest { number headRefOid } }
         }
       }
     }
@@ -299,44 +295,41 @@ export async function fetchMergeGroupMembers(
   const res = await fetch('https://api.github.com/graphql', {
     method: 'POST',
     headers: ghHeaders(token),
-    body: JSON.stringify({ query, variables: { owner, repo, pr: prNumber } }),
+    body: JSON.stringify({ query, variables: { owner, repo, branch } }),
   });
   if (!res.ok) throw new Error(`fetch merge queue failed ${res.status}: ${await res.text()}`);
   const body = await res.json() as {
     errors?: Array<{ message?: string }>;
     data?: {
       repository?: {
-        pullRequest?: {
-          mergeQueueEntry?: {
-            position?: number;
-            headCommit?: { oid?: string } | null;
-            mergeQueue?: {
-              entries?: {
-                nodes?: Array<{
-                  position?: number;
-                  pullRequest?: { number?: number; headRefOid?: string } | null;
-                } | null>;
-              };
-            } | null;
-          } | null;
+        mergeQueue?: {
+          entries?: {
+            nodes?: Array<{
+              position?: number;
+              headCommit?: { oid?: string } | null;
+              pullRequest?: { number?: number; headRefOid?: string } | null;
+            } | null>;
+          };
         } | null;
       } | null;
     };
   };
   if (body.errors?.length) throw new Error(body.errors[0]?.message ?? 'merge queue query failed');
-  const entry = body.data?.repository?.pullRequest?.mergeQueueEntry;
-  if (!entry || entry.headCommit?.oid !== groupHeadSha || typeof entry.position !== 'number') {
+  const entries = body.data?.repository?.mergeQueue?.entries?.nodes ?? [];
+  const entry = entries.find(node => node?.headCommit?.oid === groupHeadSha);
+  if (!entry || typeof entry.position !== 'number') {
     throw new Error(`merge queue entry does not match ${groupHeadSha}`);
   }
-  const members = (entry.mergeQueue?.entries?.nodes ?? [])
+  const members = entries
     .filter(node => node && typeof node.position === 'number' && node.position <= entry.position!)
+    .sort((left, right) => left!.position! - right!.position!)
     .map(node => ({
       prNumber: node?.pullRequest?.number ?? 0,
       headSha: node?.pullRequest?.headRefOid ?? '',
     }))
     .filter(member => member.prNumber > 0 && member.headSha.length > 0);
-  if (!members.some(member => member.prNumber === prNumber) || members.length === 0) {
-    throw new Error(`merge queue membership is incomplete for PR #${prNumber}`);
+  if (members.length === 0 || members.at(-1)?.prNumber !== entry.pullRequest?.number) {
+    throw new Error(`merge queue membership is incomplete for ${groupHeadSha}`);
   }
   return members;
 }
