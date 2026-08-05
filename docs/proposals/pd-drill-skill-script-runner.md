@@ -5,7 +5,7 @@ Status: proposed. Owner: unassigned. Spawned from binder ch. 27 (W16) and
 
 ## Why
 
-Skills bundle executable procedures (`scripts/*.py|mjs|sh|ts`) that an agent
+Skills bundle executable procedures (`scripts/*.{py,mjs,js,sh,ts}`) that an agent
 should be able to **run and read the verdict of, without loading the script's
 source into its context window**. Today that already works one way — the agent
 calls `python3 skills/<s>/scripts/x.py` with the Bash tool, and only stdout and

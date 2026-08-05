@@ -109,7 +109,6 @@
 
     body {
       margin: 0;
-      min-width: 20rem;
       min-height: 100dvh;
       overflow-wrap: anywhere;
       background: var(--ground);
@@ -829,8 +828,8 @@
 
     .matrix td {
       display: grid;
-      grid-template-columns: minmax(6.8rem, 0.42fr) 1fr;
-      gap: 0.75rem;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.3rem;
       padding: 0.75rem 0.9rem;
       border-bottom: 1px solid var(--hair);
       color: var(--ink-soft);
@@ -1350,7 +1349,7 @@
         <div class="section-head">
           <span class="eyebrow">Two stacks · one runtime gap</span>
           <h2>Where the code actually stands</h2>
-          <p>Tier A is live with a coarse 50/70 percent warning path. Tier B implements the full 60/75/85/92 ladder, cited compaction packets, and verifiable resume. Tier B is tracked and unit-tested, but still has zero non-test callers.</p>
+          <p>Tier A is live with a coarse 50/70 percent warning path. Tier B implements the full 60/75/85/92 ladder, cited compaction packets, and verifiable resume. Tier B is tracked and unit-tested, but no server, route, CLI, or MCP entry path invokes it.</p>
           <a class="section-link" href="./27-context-memory-runtime-wiring.md#271-status-snapshot-two-stacks-one-keystone">Read the file-by-file evidence in chapter 27</a>
         </div>
 
