@@ -21,7 +21,7 @@
 
 import type { Env } from './types.js';
 import type { UserRow } from './db.js';
-import { resolveSession } from './auth-github.js';
+import { resolveSession, type ResolvedSession } from './auth-github.js';
 
 /** Minimal HTML-escape for interpolated user data (XSS guard). */
 function esc(s: string | null | undefined): string {
@@ -52,13 +52,16 @@ function htmlPage(body: string, status = 200): Response {
 }
 
 // ── shared design tokens + primitives (ch20 story-linework, trimmed) ─────────
-const HEAD = `<meta charset="utf-8">
+// HEAD + TOKENS are exported for sibling storefront pages (runs-page.ts) so the
+// story-linework token block stays single-sourced across /login, /account and
+// /account/runs.
+export const HEAD = `<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Recursive:CASL,slnt,wght@1,-8,400..800&display=swap" rel="stylesheet">`;
 
-const TOKENS = `
+export const TOKENS = `
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;border-radius:0}
 :root,:root[data-theme="light"]{
   --surface-base:#f2eee6;--surface-raised:#f7f3eb;--surface-strong:#e9e2d5;
@@ -288,6 +291,27 @@ section.sect::before{content:"";position:absolute;top:0;left:0;right:0;height:va
 .ko::before{content:"";position:absolute;z-index:-1;left:-56px;right:calc(100% - var(--ko-r));top:-13px;bottom:-13px;background:var(--cobalt-slab)}
 .ko .ko-over{position:absolute;inset:0;color:var(--cream);pointer-events:none;clip-path:inset(-13px calc(100% - var(--ko-r)) -13px -56px)}
 .zone-mast .caption{display:block;margin-top:20px;max-width:62ch}
+/* prominent door into the per-account runs index (/account/runs — real page) */
+.runs-cta{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:14.5px;font-weight:700;letter-spacing:.02em;padding:12px 20px;border:2px solid var(--border-strong);background:var(--cobalt-slab);color:var(--cream);text-decoration:none;margin-bottom:18px}
+.runs-cta:hover{background:var(--border-strong);color:var(--surface-base)}
+/* free-tier upsell strip (ADR-0116): shown when none of the operator's GitHub
+   App installations has a credit_ledger row yet. Amber stripe = advisory, not
+   an error; the whole strip is one door into /account/billing. */
+.upsell{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-top:20px;padding:14px 18px;border:2px solid var(--border-strong);box-shadow:inset var(--lw-stripe) 0 0 var(--amber);text-decoration:none;color:var(--text-primary)}
+.upsell:hover{background:var(--surface-raised);color:var(--text-primary)}
+.upsell .u-label{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--amber);flex:none}
+.upsell .u-body{font-size:14.5px;line-height:1.55;color:var(--text-secondary)}
+.upsell .u-body b{font-family:"IBM Plex Mono",monospace;font-size:13.5px;font-weight:700;color:var(--cobalt);white-space:nowrap}
+/* prominent door into the MERCY report card (/account/mercy — real page) */
+.mercy-cta{display:inline-block;margin-top:18px;font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:700;letter-spacing:.02em;padding:10px 18px;border:2px solid var(--border-strong);color:var(--text-primary);text-decoration:none;box-shadow:inset var(--lw-stripe) 0 0 var(--health)}
+.mercy-cta:hover{background:var(--border-strong);color:var(--surface-base)}
+/* INTERRUPTIONS banner — agents are BLOCKED on a human. Red, loud, first. */
+.interrupt-banner{display:block;margin-top:22px;border:2px solid var(--error);background:var(--surface-card);padding:16px 20px;text-decoration:none;color:var(--text-primary);box-shadow:inset var(--lw-stripe) 0 0 var(--error)}
+.interrupt-banner:hover{background:var(--error);color:var(--surface-base)}
+.interrupt-banner:hover .ib-label,.interrupt-banner:hover .ib-top{color:inherit}
+.ib-label{display:block;font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--error)}
+.ib-count{font-size:19px;font-weight:700;letter-spacing:-.01em;display:block;margin-top:6px}
+.ib-top{display:block;margin-top:4px;font-size:14.5px;color:var(--text-secondary)}
 .danger{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .btn-ghost{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:13.5px;font-weight:700;letter-spacing:.04em;padding:9px 17px;border:1px solid var(--hair-strong);color:var(--text-primary);background:transparent;text-decoration:none;cursor:pointer}
 .btn-ghost:hover{border-color:var(--border-strong)}
@@ -298,8 +322,23 @@ section.sect::before{content:"";position:absolute;top:0;left:0;right:0;height:va
 @media (max-width:860px){.shell{grid-template-columns:1fr}.rail{position:static;min-height:0;border-right:none;border-bottom:2px solid var(--border-strong);padding-bottom:18px}.content{padding:28px 20px 64px}.identity-plate{flex-direction:column}.ko::before{left:-20px}.ko .ko-over{clip-path:inset(-13px calc(100% - var(--ko-r)) -13px -20px)}}
 `;
 
-/** GET /account — the signed-in home. `user` is the resolved session's user. */
-export function renderAccountPage(user: UserRow): string {
+/** The open-interruptions summary the banner renders (null/0 ⇒ no banner). */
+export interface InterruptionsBanner {
+  count: number;
+  topTitle: string | null;
+}
+
+/**
+ * GET /account — the signed-in home. `user` is the resolved session's user.
+ * `opts.showBillingUpsell` renders the free-tier strip (no credit_ledger row on
+ * any installation this user owns → they are running on the free tier);
+ * `opts.interruptions` renders the red open-asks banner (null/0 ⇒ no banner).
+ */
+export function renderAccountPage(
+  user: UserRow,
+  opts: { showBillingUpsell?: boolean; interruptions?: InterruptionsBanner | null } = {},
+): string {
+  const interruptions = opts.interruptions ?? null;
   const name = user.display_name || user.login;
   const created = new Date(user.created_at * 1000).toISOString().slice(0, 10);
   const emailChip = user.primary_email
@@ -310,6 +349,16 @@ export function renderAccountPage(user: UserRow): string {
   const avatar = user.avatar_url
     ? `<img class="avatar" src="${esc(user.avatar_url)}" alt="" width="56" height="56">`
     : '';
+  // HITL banner: only rendered when at least one agent is BLOCKED on a human —
+  // never a Potemkin zero-state (repo law: empty states teach, banners alarm).
+  const interruptBanner =
+    interruptions && interruptions.count > 0
+      ? `<a class="interrupt-banner" href="/account/interruptions" aria-label="${interruptions.count} agent interruption${interruptions.count === 1 ? '' : 's'} awaiting you">
+        <span class="ib-label">Interruptions — agents blocked on you</span>
+        <span class="ib-count">${interruptions.count} open ask${interruptions.count === 1 ? '' : 's'} awaiting a human &rarr;</span>
+        ${interruptions.topTitle ? `<span class="ib-top">Top: ${esc(interruptions.topTitle)}</span>` : ''}
+      </a>`
+      : '';
 
   return `<!DOCTYPE html><html lang="en"><head><title>Port Daddy — Account</title>${HEAD}<style>${ACCOUNT_CSS}</style></head><body>
 <div class="shell">
@@ -318,6 +367,11 @@ export function renderAccountPage(user: UserRow): string {
     <nav aria-label="Account">
       <span class="eyebrow">Account</span>
       <a href="/account" aria-current="page">Overview</a>
+      <a href="/account/interruptions">Interruptions</a>
+      <a href="/account/runs">Fleet runs</a>
+      <a href="/account/billing">Billing &amp; credits</a>
+      <a href="/account/mercy">Mercy health</a>
+      <a href="/account/shipwright">Shipwright</a>
       <a href="#devices">Devices</a>
       <a href="#receipts">Receipts</a>
       <a href="#harbors">Harbors</a>
@@ -333,6 +387,13 @@ export function renderAccountPage(user: UserRow): string {
       <span class="eyebrow">portdaddy.dev · account · overview</span>
       <h1 style="margin-top:8px">Your <span class="rec">account</span></h1>
       <p class="caption">Everything here mirrors your daemon. The daemon is the authority; this page is the window.</p>
+      ${interruptBanner}
+      <a class="mercy-cta" href="/account/mercy">MERCY — network health report card &rarr;</a>
+      ${
+        opts.showBillingUpsell
+          ? `<a class="upsell" href="/account/billing"><span class="u-label">Free tier</span><span class="u-body">Running on the free tier — add credits and your cloud fleet keeps reviewing PRs when your laptop is closed. <b>Add credits &rarr;</b></span></a>`
+          : ''
+      }
     </div>
 
     <section class="sect first" aria-labelledby="identity-h">
@@ -372,25 +433,32 @@ export function renderAccountPage(user: UserRow): string {
       <div class="zone-mast">
         <h2 id="receipts-h" class="ko">Receipts — <span class="rec">verifiable</span>, not promised<span class="ko-over" aria-hidden="true">Receipts — <span class="rec">verifiable</span>, not promised</span></h2>
         <span class="caption">The Strava-map of code work: agents, commits, cost, duration — never your code. Anyone with the scoped link sees the proof.</span></div>
+      <a class="runs-cta" href="/account/runs">Your fleet runs &rarr;</a>
       <div class="empty">
-        <div class="e-title">No receipts linked to your account yet.</div>
-        <p>Fleet runs already produce shareable pages at <span class="cmd">/fleet/runs/&lt;id&gt;</span>. Per-account receipts appear here once a run is attributed to your GitHub identity (repo-owner linkage — next slice).</p>
+        <div class="e-title">See every run your GitHub identity can read.</div>
+        <p>Fleet runs produce shareable pages at <span class="cmd">/fleet/runs/&lt;id&gt;</span>, and <a href="/account/runs">Your fleet runs</a> lists the recent ones for repos you can read on GitHub — verdicts, ships, cost and wall-clock, each linking to its full transcript.</p>
       </div>
     </section>
 
     <section class="sect" id="harbors" aria-labelledby="harbors-h">
       <div class="sect-head"><div><span class="eyebrow">Harbors</span><h2 id="harbors-h">Where your agents work</h2></div></div>
+      <a class="runs-cta" href="/account/parleys">Your parleys &rarr;</a>
       <div class="empty">
         <div class="e-title">Personal harbor only.</div>
         <p>Your local daemon is your personal harbor — you are the only authority and nothing leaves the machine unless you say so. Team and guest harbors (RBAC, scoped guest cards) surface here once membership is linked to your account.</p>
+        <p>Team harbors carry <strong>parleys</strong> — signed multi-party agreements with a deadline. <a href="/account/parleys">Your parleys</a> lists every one in the harbors you belong to, with each party&rsquo;s stance and signed position, and lets you sign your own.</p>
       </div>
     </section>
 
     <section class="sect" id="plan" aria-labelledby="plan-h">
       <div class="sect-head"><div><span class="eyebrow">Plan &amp; caps</span><h2 id="plan-h">What it costs, and where it stops</h2></div></div>
+      <a class="runs-cta" href="/account/billing">Billing &amp; credits &rarr;</a>
       <div class="empty">
-        <div class="e-title">BYOK-first — no managed plan yet.</div>
-        <p>Bring your own provider key and each fleet run bills your own account. Cost caps are enforced by <strong>your daemon</strong> and will mirror here; managed prepaid credits are a later slice.</p>
+        <div class="e-title">Free until enrolled — billing fails open.</div>
+        <p>Fleet runs on a GitHub App installation with no credit history are <strong>free</strong>; nothing is
+        gated until you buy a first credit pack. <a href="/account/billing">Billing &amp; credits</a> lists your
+        installations with their prepaid balances, buy buttons, and the Stripe portal. Cost caps enforced by
+        <strong>your daemon</strong> still mirror here later.</p>
       </div>
     </section>
 
@@ -414,11 +482,83 @@ export function handleLoginPage(): Response {
   return htmlPage(renderLoginPage());
 }
 
+const GH_API = 'https://api.github.com';
+
+/**
+ * Does ANY GitHub App installation this user owns have a billing row (a
+ * credit_ledger entry, ADR-0116)? Drives the free-tier upsell strip on
+ * /account. GitHub stays the source of installation ownership (same doctrine
+ * as userOwnsInstallation); the answer is cached in KV for 5 minutes keyed by
+ * user. Best-effort and fail-open-to-upsell: no gh token, an API error, or a
+ * D1 error all read as "no billing row" — the strip is advisory, never a gate,
+ * and must not be able to sink the page.
+ */
+async function userHasBillingRow(env: Env, session: ResolvedSession): Promise<boolean> {
+  try {
+    if (!session.ghToken) return false;
+    const cacheKey = `billing_row:${session.user.id}`;
+    const cached = await env.KV.get(cacheKey);
+    if (cached === '1') return true;
+    if (cached === '0') return false;
+    const res = await fetch(`${GH_API}/user/installations?per_page=100`, {
+      headers: {
+        Authorization: `Bearer ${session.ghToken}`,
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'port-daddy-relay',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+    if (!res.ok) return false;
+    const body = (await res.json()) as { installations?: Array<{ id?: number }> };
+    const ids = (Array.isArray(body.installations) ? body.installations : [])
+      .map((i) => i.id)
+      .filter((n): n is number => Number.isInteger(n));
+    let has = false;
+    if (ids.length > 0) {
+      const placeholders = ids.map(() => '?').join(',');
+      const row = await env.DB.prepare(
+        `SELECT 1 AS one FROM credit_ledger WHERE installation_id IN (${placeholders}) LIMIT 1`,
+      )
+        .bind(...ids)
+        .first<{ one: number }>();
+      has = Boolean(row);
+    }
+    await env.KV.put(cacheKey, has ? '1' : '0', { expirationTtl: 300 });
+    return has;
+  } catch {
+    return false;
+  }
+}
+
 /** GET /account — session-gated; redirects to /login when not signed in. */
 export async function handleAccountPage(request: Request, env: Env): Promise<Response> {
   const session = await resolveSession(request, env);
   if (!session) {
     return new Response(null, { status: 302, headers: { Location: '/login' } });
   }
-  return htmlPage(renderAccountPage(session.user));
+  const showBillingUpsell = !(await userHasBillingRow(env, session));
+  // HITL banner data (best-effort; the SQL lives here rather than importing
+  // src/interruptions.ts, which imports this module's HEAD/TOKENS — a cycle).
+  let interruptions: InterruptionsBanner | null = null;
+  try {
+    const count = await env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM operator_interruptions WHERE user_id = ? AND state = 'open'",
+    )
+      .bind(session.user.id)
+      .first<{ n: number }>();
+    const n = count?.n ?? 0;
+    if (n > 0) {
+      const top = await env.DB.prepare(
+        `SELECT title FROM operator_interruptions WHERE user_id = ? AND state = 'open'
+         ORDER BY CASE urgency WHEN 'critical' THEN 3 WHEN 'high' THEN 2 WHEN 'normal' THEN 1 ELSE 0 END DESC,
+                  created_at ASC LIMIT 1`,
+      )
+        .bind(session.user.id)
+        .first<{ title: string }>();
+      interruptions = { count: n, topTitle: top?.title ?? null };
+    }
+  } catch {
+    interruptions = null; // banner is honest-or-absent, never a guess
+  }
+  return htmlPage(renderAccountPage(session.user, { showBillingUpsell, interruptions }));
 }

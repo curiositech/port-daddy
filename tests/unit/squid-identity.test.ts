@@ -50,23 +50,38 @@ describe('statusline staging + settings wiring', () => {
 
     const r = installStatusline(PROJECT, staged!);
     expect(r.changed).toBe(true);
+    expect(r.ok).toBe(true);
     const s = readSettings();
     expect(s.statusLine.type).toBe('command');
     expect(s.statusLine.command).toContain(STATUSLINE_MARKER);
 
     // idempotent
-    expect(installStatusline(PROJECT, staged!).changed).toBe(false);
+    const again = installStatusline(PROJECT, staged!);
+    expect(again.changed).toBe(false);
+    expect(again.ok).toBe(true);
   });
 
-  test('NEVER clobbers a user-authored statusLine', () => {
+  test('reports ok:false — never a silent no-op — when the packaged build has no statusline script (the pd-adr-0091 dogfood defect)', () => {
+    // No stageStatusline() call: nothing staged at this path, simulating a
+    // packaged build that shipped without bin/pd-statusline.
+    const r = installStatusline(PROJECT, join(PD_BIN, 'pd-statusline'));
+    expect(r.changed).toBe(false);
+    expect(r.ok).toBe(false);
+    expect(r.reason).toBe('statusline not staged — run pd setup');
+  });
+
+  test('NEVER clobbers a user-authored statusLine, and treats that as ok — not a failure', () => {
     mkdirSync(join(PROJECT, '.claude'), { recursive: true });
     writeFileSync(settingsPath(), JSON.stringify({ statusLine: { type: 'command', command: 'my-own-line' } }));
     const staged = stageStatusline(REPO_BIN, PD_BIN)!;
     const r = installStatusline(PROJECT, staged);
     expect(r.changed).toBe(false);
+    expect(r.ok).toBe(true);
     expect(readSettings().statusLine.command).toBe('my-own-line');
     // and uninstall leaves it alone too
-    expect(uninstallStatusline(PROJECT).changed).toBe(false);
+    const u = uninstallStatusline(PROJECT);
+    expect(u.changed).toBe(false);
+    expect(u.ok).toBe(true);
     expect(readSettings().statusLine.command).toBe('my-own-line');
   });
 
@@ -78,6 +93,7 @@ describe('statusline staging + settings wiring', () => {
     expect(readSettings().statusLine).toBeDefined();
     const r = uninstallStatusline(PROJECT);
     expect(r.changed).toBe(true);
+    expect(r.ok).toBe(true);
     const s = readSettings();
     expect(s.statusLine).toBeUndefined();
     expect(s.permissions.allow).toEqual(['Bash(ls:*)']);
@@ -88,11 +104,14 @@ describe('/squid slash command', () => {
   test('installs, is idempotent, and uninstalls', () => {
     const r = installSlashCommand(PROJECT);
     expect(r.changed).toBe(true);
+    expect(r.ok).toBe(true);
     const body = readFileSync(join(PROJECT, '.claude', 'commands', 'squid.md'), 'utf8');
     expect(body).toContain('pd squid $ARGUMENTS');
     expect(body).toContain('allowed-tools: Bash(pd squid:*)');
     expect(installSlashCommand(PROJECT).changed).toBe(false);
-    expect(uninstallSlashCommand(PROJECT).changed).toBe(true);
+    const u = uninstallSlashCommand(PROJECT);
+    expect(u.changed).toBe(true);
+    expect(u.ok).toBe(true);
     expect(existsSync(join(PROJECT, '.claude', 'commands', 'squid.md'))).toBe(false);
   });
 });

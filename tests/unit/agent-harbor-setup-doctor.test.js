@@ -56,8 +56,8 @@ function brokenFacts() {
     daemon: { reachable: false, version: null, supervised: null },
     app: { platform: 'darwin', fleetBarInstalled: false },
     hooks: [
-      { providerName: 'claude-code', binaryName: 'claude', configPath: '/x/.claude/settings.json', ok: false, detail: 'hook config missing', hint: 'Run: pd squid hooks --provider claude' },
-      { providerName: 'codex', binaryName: 'codex', configPath: '/x/.codex/config.toml', ok: false, detail: 'missing or stale Port Daddy hook TOML block/metadata', hint: 'Run: pd squid hooks --provider codex' },
+      { providerName: 'claude-code', binaryName: 'claude', configPath: '/x/.claude/settings.json', ok: false, detail: 'hook config missing', hint: 'Run: pd squid on' },
+      { providerName: 'codex', binaryName: 'codex', configPath: '/x/.codex/config.toml', ok: false, detail: 'missing or stale Port Daddy hook TOML block/metadata', hint: 'Run: pd squid on' },
     ],
     mcp: { configured: false, detail: 'port-daddy MCP missing from 3 known agent config(s)' },
     transcriptPath: { path: '/x/port-registry.db', exists: true, writable: false },
@@ -204,11 +204,11 @@ describe('per-area judgments', () => {
     expect(assessApp({ platform: 'darwin', fleetBarInstalled: false }).status).toBe('missing');
   });
 
-  test('broken hooks name the providers and repair with pd squid hooks', () => {
+  test('broken hooks name the providers and repair with pd squid on', () => {
     const card = assessHooks(brokenFacts().hooks);
     expect(card.detail).toContain('claude-code');
     expect(card.detail).toContain('codex');
-    expect(card.repair.command).toBe('pd squid hooks');
+    expect(card.repair.command).toBe('pd squid on');
     // Honest governance copy: vanished hooks downgrade, never overclaim.
     expect(card.detail).toMatch(/observed mode/);
   });
@@ -442,7 +442,7 @@ describe('rendering (beautiful-cli: every error surface is a next-action surface
     expect(joined).toMatch(/✗ .*\[CRITICAL\]/);
     expect(joined).toMatch(/⚠ /);
     expect(joined).toMatch(/local-only/);
-    expect(joined).toMatch(/→ pd squid hooks/);
+    expect(joined).toMatch(/→ pd squid on/);
     // Every non-ok card contributed a "→" action line.
     const issueCount = assessHarborReadiness(brokenFacts()).filter((c) => c.repair).length;
     expect(lines.filter((l) => l.trimStart().startsWith('→')).length).toBe(issueCount);

@@ -15,6 +15,7 @@ interface SugarRouteDeps {
     done(options: Record<string, unknown>): Record<string, unknown>;
     whoami(options: Record<string, unknown>): Record<string, unknown>;
     relink(options: Record<string, unknown>): Record<string, unknown>;
+    getWelcomeBriefing?(harbor?: string): Record<string, unknown>;
   };
   metrics: { errors: number };
   logger: {
@@ -142,8 +143,12 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         status,
         skipOriginCheck,
         skipOriginCheckReason,
+        noPr,
+        subtask,
+        forceIncomplete,
+        forceIncompleteReason,
       } = request.body as any;
-
+ 
       const VALID_DONE_STATUSES = new Set(['completed', 'abandoned']);
       if (status && !VALID_DONE_STATUSES.has(status)) {
         reply.code(400);
@@ -153,7 +158,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
           code: 'VALIDATION_ERROR',
         };
       }
-
+ 
       const result = sugar.done({
         agentId,
         sessionId,
@@ -161,6 +166,10 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         status,
         skipOriginCheck,
         skipOriginCheckReason,
+        noPr,
+        subtask,
+        forceIncomplete,
+        forceIncompleteReason,
       });
 
       if (!result.success) {
@@ -171,6 +180,8 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
             : result.code === 'BRANCH_NOT_ON_ORIGIN'
               || result.code === 'RESULT_NOTE_MISSING_SENTINEL'
               || result.code === 'SKIP_ORIGIN_CHECK_REASON_REQUIRED'
+              || result.code === 'PLAN_UNCHECKED_ITEMS'
+              || result.code === 'FORCE_INCOMPLETE_REASON_REQUIRED'
               ? 400
               : 500;
         reply.code(httpStatus);
@@ -243,6 +254,22 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
     } catch (error) {
       metrics.errors++;
       logger.error('sugar_whoami_error', { error: (error as Error).message });
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+
+  // GET /sugar/welcome
+  fastify.get('/sugar/welcome', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const harbor = typeof (request.query as any).harbor === 'string' ? (request.query as any).harbor : undefined;
+      if (sugar.getWelcomeBriefing) {
+        return sugar.getWelcomeBriefing(harbor);
+      }
+      return { success: false, error: 'Welcome briefing not supported by this sugar provider' };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('sugar_welcome_error', { error: (error as Error).message });
       reply.code(500);
       return { error: 'internal server error' };
     }

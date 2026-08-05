@@ -42,6 +42,108 @@ impl BackendCapacity {
             active_jobs: 0,
         }
     }
+
+    /// Builds a capacity line, enforcing the invariant `active_jobs <= max_parallel_jobs`.
+    ///
+    /// The type's core meaning is "a backend running `active_jobs` of at most
+    /// `max_parallel_jobs`". Rather than leave that invariant to the caller, this
+    /// constructor rejects an over-committed line with
+    /// [`RuntimeError::CapacityExceeded`], consistent with the crate's fail-closed
+    /// contract (fallible operations return an error; nothing silently clamps).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use pd_runtime::{BackendCapacity, BackendReadiness};
+    ///
+    /// let ok = BackendCapacity::new("mock", "mid", BackendReadiness::Ready, 2, 1).unwrap();
+    /// assert_eq!(ok.active_jobs, 1);
+    ///
+    /// // 3 active against a ceiling of 2 is not a valid capacity line.
+    /// assert!(BackendCapacity::new("mock", "mid", BackendReadiness::Ready, 2, 3).is_err());
+    /// ```
+    pub fn new(
+        backend_id: impl Into<String>,
+        model_id: impl Into<String>,
+        readiness: BackendReadiness,
+        max_parallel_jobs: u16,
+        active_jobs: u16,
+    ) -> Result<Self, RuntimeError> {
+        let backend_id = backend_id.into();
+        if active_jobs > max_parallel_jobs {
+            return Err(RuntimeError::CapacityExceeded {
+                backend_id,
+                requested: active_jobs,
+                max: max_parallel_jobs,
+            });
+        }
+        Ok(Self {
+            backend_id,
+            model_id: model_id.into(),
+            readiness,
+            max_parallel_jobs,
+            active_jobs,
+        })
+    }
+
+    /// Whether the backend can take on at least one more job right now.
+    ///
+    /// ```
+    /// use pd_runtime::BackendCapacity;
+    ///
+    /// let cap = BackendCapacity::ready("mock", "mid", 1);
+    /// assert!(cap.has_capacity());
+    /// ```
+    pub fn has_capacity(&self) -> bool {
+        self.active_jobs < self.max_parallel_jobs
+    }
+
+    /// Sets `active_jobs`, enforcing `active_jobs <= max_parallel_jobs`.
+    ///
+    /// Returns [`RuntimeError::CapacityExceeded`] (leaving `active_jobs` unchanged)
+    /// if the new value would breach the ceiling.
+    ///
+    /// ```
+    /// use pd_runtime::BackendCapacity;
+    ///
+    /// let mut cap = BackendCapacity::ready("mock", "mid", 2);
+    /// cap.set_active_jobs(2).unwrap();
+    /// assert!(cap.set_active_jobs(3).is_err());
+    /// assert_eq!(cap.active_jobs, 2); // rejected value did not take effect
+    /// ```
+    pub fn set_active_jobs(&mut self, active_jobs: u16) -> Result<(), RuntimeError> {
+        if active_jobs > self.max_parallel_jobs {
+            return Err(RuntimeError::CapacityExceeded {
+                backend_id: self.backend_id.clone(),
+                requested: active_jobs,
+                max: self.max_parallel_jobs,
+            });
+        }
+        self.active_jobs = active_jobs;
+        Ok(())
+    }
+
+    /// Reserves one slot (`active_jobs += 1`), rejecting at the ceiling.
+    ///
+    /// ```
+    /// use pd_runtime::BackendCapacity;
+    ///
+    /// let mut cap = BackendCapacity::ready("mock", "mid", 1);
+    /// cap.reserve().unwrap();
+    /// assert_eq!(cap.active_jobs, 1);
+    /// assert!(cap.reserve().is_err()); // full — cannot exceed max_parallel_jobs
+    /// cap.release();
+    /// assert!(cap.has_capacity());
+    /// ```
+    pub fn reserve(&mut self) -> Result<(), RuntimeError> {
+        self.set_active_jobs(self.active_jobs.saturating_add(1))
+    }
+
+    /// Releases one slot (`active_jobs -= 1`), saturating at zero so it can never
+    /// underflow.
+    pub fn release(&mut self) {
+        self.active_jobs = self.active_jobs.saturating_sub(1);
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -256,6 +358,12 @@ impl MockBackend {
 pub enum RuntimeError {
     #[error("job not found: {0}")]
     JobNotFound(JobId),
+    #[error("backend {backend_id} capacity exceeded: requested {requested} active job(s) but max_parallel_jobs is {max}")]
+    CapacityExceeded {
+        backend_id: String,
+        requested: u16,
+        max: u16,
+    },
     #[error(transparent)]
     Serde(#[from] serde_json::Error),
 }
@@ -332,6 +440,35 @@ mod tests {
         let third = queue.lease(ActorId::from("agent-b"), 1200, 100).unwrap();
         assert_eq!(third.leased_by, Some(ActorId::from("agent-b")));
         assert_eq!(third.attempts, 2);
+    }
+
+    #[test]
+    fn backend_capacity_enforces_active_jobs_ceiling() {
+        // Constructor rejects an over-committed line.
+        assert!(BackendCapacity::new("mock", "mid", BackendReadiness::Ready, 2, 3).is_err());
+        let mut cap = BackendCapacity::new("mock", "mid", BackendReadiness::Ready, 2, 1).unwrap();
+        assert_eq!(cap.active_jobs, 1);
+
+        // Reserve up to the ceiling, then the boundary is enforced, not merely documented.
+        assert!(cap.has_capacity());
+        cap.reserve().unwrap();
+        assert_eq!(cap.active_jobs, 2);
+        assert!(!cap.has_capacity());
+
+        let err = cap.reserve().unwrap_err();
+        assert!(matches!(err, RuntimeError::CapacityExceeded { max: 2, requested: 3, .. }));
+        assert_eq!(cap.active_jobs, 2, "rejected reserve must not mutate active_jobs");
+
+        // A direct over-ceiling set is rejected and leaves state untouched.
+        assert!(cap.set_active_jobs(5).is_err());
+        assert_eq!(cap.active_jobs, 2);
+
+        // Release frees a slot and saturates at zero.
+        cap.release();
+        assert_eq!(cap.active_jobs, 1);
+        cap.release();
+        cap.release();
+        assert_eq!(cap.active_jobs, 0);
     }
 
     #[test]

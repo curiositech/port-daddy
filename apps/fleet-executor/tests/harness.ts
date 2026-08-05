@@ -38,8 +38,24 @@ export interface GitHubState {
   }>;
   /** Override the PR diff body. Defaults to a single-file one-hunk diff. */
   prDiff?: string;
+  /** Authoritative current PR head returned by GET /pulls/{n}. */
+  prHeadSha: string;
+  /**
+   * The rest of the authoritative PR body returned by GET /pulls/{n}.
+   *
+   * buildPRContext reads head.ref / base.ref / the two repo full_names from the
+   * LIVE PR fetch, never from the webhook payload — so a stub that omits them
+   * silently yields headRef === '' and every stacking guard short-circuits on
+   * "PR head branch unknown" before reaching the behavior under test. Tests that
+   * need a fork or a ref-less PR override these fields rather than the payload.
+   */
+  prHeadRef: string | undefined;
+  prBaseRef: string;
+  /** head.repo.full_name — differs from prBaseRepo to simulate a fork PR. */
+  prHeadRepo: string;
+  prBaseRepo: string;
   /** Other open PRs returned by the list endpoint (Lookout's cross-PR tool). */
-  openPRs: Array<{ number: number; title: string; draft?: boolean; head?: { ref: string }; base?: { ref: string } }>;
+  openPRs: Array<{ number: number; title: string; draft?: boolean; head?: { ref: string }; base?: { ref: string }; html_url?: string }>;
   /** Branch names returned by the branches endpoint (Lookout's branch tool). */
   branches: Array<{ name: string }>;
   /** if set, the first N installation-token mints return 401-ish failure. */
@@ -48,6 +64,42 @@ export interface GitHubState {
   failConfig401: number;
   /** if set, the first N check-run CREATE (POST) calls return 500 (no id). */
   failCreateCheckRun: number;
+
+  // --- Git Data API + stacked-PR surface (purser) --------------------------
+  /** branch name → commit sha, as maintained by the git refs endpoints. */
+  gitRefs: Map<string, string>;
+  blobsCreated: number;
+  treesCreated: number;
+  commitsCreated: number;
+  /** POST /git/refs successes (new branch). */
+  refCreates: number;
+  /** PATCH /git/refs/heads/... successes (force-update). */
+  refUpdates: number;
+  /** PRs created via POST /pulls. */
+  stackedPrs: Array<{ number: number; head: string; base: string; title: string; body: string }>;
+  /** PATCH /pulls/{n} bodies (retargets carry `base`; refreshes carry title/body). */
+  prPatches: Array<{ number: number; base?: string; title?: string; body?: string }>;
+  /** Labels applied via POST /issues/{n}/labels. */
+  labelPosts: Array<{ number: number; labels: string[] }>;
+  /** When true, EVERY Git Data write (blobs/trees/commits/refs) returns 403. */
+  failGitWrites403: boolean;
+
+  // --- Fleet self-identity (self-review guard) -----------------------------
+  /**
+   * Slug returned by `GET /app`, i.e. this App's identity. `null` makes the
+   * endpoint 404 so `resolveFleetAppLogin` yields null (the unresolvable case).
+   */
+  appSlug: string | null;
+  /** `user` block on the live PR fetch — who authored the PR under review. */
+  prAuthor: { login: string; type: string } | null;
+  /**
+   * `state` / `merged` on the live PR fetch — the PR's lifecycle.
+   *
+   * `undefined` OMITS the key entirely, reproducing a payload where GitHub
+   * gave us nothing, which the lifecycle gate must fail OPEN on.
+   */
+  prState: string | undefined;
+  prMerged: boolean | undefined;
 }
 
 export function freshState(): GitHubState {
@@ -65,11 +117,30 @@ export function freshState(): GitHubState {
     completed: [],
     reviews: [],
     prDiff: undefined,
+    prHeadSha: 'HEADSHA',
+    prHeadRef: 'feat/widget',
+    prBaseRef: 'main',
+    prHeadRepo: 'erichowens/port-daddy',
+    prBaseRepo: 'erichowens/port-daddy',
     openPRs: [],
     branches: [],
     failTokenMintTimes: 0,
     failConfig401: 0,
     failCreateCheckRun: 0,
+    gitRefs: new Map(),
+    blobsCreated: 0,
+    treesCreated: 0,
+    commitsCreated: 0,
+    refCreates: 0,
+    refUpdates: 0,
+    stackedPrs: [],
+    prPatches: [],
+    labelPosts: [],
+    failGitWrites403: false,
+    appSlug: 'port-daddy',
+    prAuthor: { login: 'a-human', type: 'User' },
+    prState: 'open',
+    prMerged: false,
   };
 }
 
@@ -103,6 +174,12 @@ export function installGitHubFetch(state: GitHubState): void {
     }
     state.records.push({ method, url, body });
 
+    // --- App self-identity (resolveFleetAppLogin) ---
+    if (url === 'https://api.github.com/app' && method === 'GET') {
+      if (!state.appSlug) return text('not found', 404);
+      return json({ slug: state.appSlug });
+    }
+
     // --- installation access token mint ---
     if (url.includes('/app/installations/') && url.includes('/access_tokens') && method === 'POST') {
       state.tokenMints += 1;
@@ -131,7 +208,82 @@ export function installGitHubFetch(state: GitHubState): void {
       return json({ encoding: 'base64', content: btoa(fileBody) });
     }
 
-    // --- list open PRs (Lookout cross-PR tool) ---
+    // --- Git Data API (purser stacked-PR machinery) ---
+    if (/\/git\/blobs$/.test(url) && method === 'POST') {
+      if (state.failGitWrites403) return text('Resource not accessible by integration', 403);
+      state.blobsCreated += 1;
+      return json({ sha: `blob-${state.blobsCreated}` });
+    }
+    if (/\/git\/commits\/[^/?]+$/.test(url) && method === 'GET') {
+      const sha = url.slice(url.lastIndexOf('/') + 1);
+      return json({ sha, tree: { sha: `tree-of-${sha}` } });
+    }
+    if (/\/git\/trees$/.test(url) && method === 'POST') {
+      if (state.failGitWrites403) return text('Resource not accessible by integration', 403);
+      state.treesCreated += 1;
+      return json({ sha: `tree-${state.treesCreated}` });
+    }
+    if (/\/git\/commits$/.test(url) && method === 'POST') {
+      if (state.failGitWrites403) return text('Resource not accessible by integration', 403);
+      state.commitsCreated += 1;
+      return json({ sha: `commit-${state.commitsCreated}` });
+    }
+    if (/\/git\/refs$/.test(url) && method === 'POST') {
+      if (state.failGitWrites403) return text('Resource not accessible by integration', 403);
+      const b = (body ?? {}) as { ref?: string; sha?: string };
+      const branch = (b.ref ?? '').replace(/^refs\/heads\//, '');
+      if (state.gitRefs.has(branch)) return text('Reference already exists', 422);
+      state.gitRefs.set(branch, b.sha ?? '');
+      state.refCreates += 1;
+      return json({ ref: b.ref, object: { sha: b.sha } }, 201);
+    }
+    const refPatch = url.match(/\/git\/refs\/heads\/(.+)$/);
+    if (refPatch && method === 'PATCH') {
+      if (state.failGitWrites403) return text('Resource not accessible by integration', 403);
+      const branch = decodeURIComponent(refPatch[1]);
+      state.gitRefs.set(branch, ((body ?? {}) as { sha?: string }).sha ?? '');
+      state.refUpdates += 1;
+      return json({ ref: `refs/heads/${branch}` });
+    }
+
+    // --- create PR (purser stacked test PR) ---
+    if (/\/pulls$/.test(url) && method === 'POST') {
+      const b = (body ?? {}) as { head?: string; base?: string; title?: string; body?: string };
+      const number = 8000 + state.stackedPrs.length + 1;
+      state.stackedPrs.push({
+        number,
+        head: b.head ?? '',
+        base: b.base ?? '',
+        title: b.title ?? '',
+        body: b.body ?? '',
+      });
+      // Future open-PR lookups find it (openStackedPr idempotency).
+      state.openPRs.push({
+        number,
+        title: b.title ?? '',
+        draft: false,
+        head: { ref: b.head ?? '' },
+        base: { ref: b.base ?? '' },
+        html_url: `https://github.com/test/pr/${number}`,
+      });
+      return json({ number, html_url: `https://github.com/test/pr/${number}` }, 201);
+    }
+    // --- update PR (openStackedPr refresh / retargetPrBase) ---
+    const prPatch = url.match(/\/pulls\/(\d+)$/);
+    if (prPatch && method === 'PATCH') {
+      const b = (body ?? {}) as { base?: string; title?: string; body?: string };
+      state.prPatches.push({ number: Number(prPatch[1]), base: b.base, title: b.title, body: b.body });
+      return json({ number: Number(prPatch[1]) });
+    }
+    // --- add labels ---
+    const labelPost = url.match(/\/issues\/(\d+)\/labels$/);
+    if (labelPost && method === 'POST') {
+      const b = (body ?? {}) as { labels?: string[] };
+      state.labelPosts.push({ number: Number(labelPost[1]), labels: b.labels ?? [] });
+      return json([]);
+    }
+
+    // --- list open PRs (Lookout cross-PR tool + openStackedPr lookup) ---
     if (/\/pulls\?/.test(url) && method === 'GET') {
       return json(state.openPRs);
     }
@@ -157,9 +309,28 @@ export function installGitHubFetch(state: GitHubState): void {
       });
       return json({ id: 7000 + state.reviews.length });
     }
-    // --- PR diff (Accept: diff) ---
+    // --- live PR metadata or diff, selected by Accept ---
     if (/\/pulls\/\d+$/.test(url)) {
-      return text(state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed');
+      const headers = new Headers(init?.headers);
+      if (headers.get('Accept')?.includes('diff')) {
+        return text(state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed');
+      }
+      return json({
+        number: 7,
+        title: 'Test PR',
+        body: '',
+        ...(state.prAuthor ? { user: state.prAuthor } : {}),
+        ...(state.prState === undefined ? {} : { state: state.prState }),
+        ...(state.prMerged === undefined ? {} : { merged: state.prMerged }),
+        head: {
+          sha: state.prHeadSha,
+          // undefined prHeadRef omits the key entirely, reproducing a PR whose
+          // head branch GitHub did not report (the degrade-don't-misbase case).
+          ...(state.prHeadRef === undefined ? {} : { ref: state.prHeadRef }),
+          repo: { full_name: state.prHeadRepo },
+        },
+        base: { sha: 'BASESHA', ref: state.prBaseRef, repo: { full_name: state.prBaseRepo } },
+      });
     }
 
     // --- commit check-runs lookup (idempotency) ---
@@ -490,7 +661,13 @@ export function makeJob(over: Partial<FleetRunJob> = {}): FleetRunJob {
     installationId: 42,
     prNumber: 7,
     payloadMinimal: {
-      pull_request: { number: 7, title: 'x', body: 'y', head: { sha: 'HEADSHA' }, base: { sha: 'BASESHA' } },
+      pull_request: {
+        number: 7,
+        title: 'x',
+        body: 'y',
+        head: { sha: 'HEADSHA', repo: { full_name: 'erichowens/port-daddy' } },
+        base: { sha: 'BASESHA', ref: 'main', repo: { full_name: 'erichowens/port-daddy' } },
+      },
     },
     ...over,
   };

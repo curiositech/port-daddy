@@ -213,6 +213,30 @@
         "sdk": true
       }
     },
+    "durable_agent_roster": {
+      "description": "Daemon-minted durable named AgentNode identities with append-only profiles, scoped aliases, session promotion, hybrid expertise retrieval, sanitized handoff memory, and backend-selectable continuation",
+      "cli": [
+        "roster"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /durable-agents",
+        "GET /durable-agents/search",
+        "GET /durable-agents/:id",
+        "POST /durable-agents",
+        "POST /durable-agents/promote",
+        "PATCH /durable-agents/:id",
+        "POST /durable-agents/:id/handoffs",
+        "POST /durable-agents/:id/retire"
+      ],
+      "completions": [
+        "roster"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
     "agent_cockpit": {
       "description": "Watch + Grab the Wheel (Phase 0) \u2014 additive console surface for one agent or spawned run. GET /agents/:id/stream is a single SSE feed merging that agent's lifecycle status, its steering-channel tube/control messages, and its ship-run transcript events into typed envelopes ({v,kind,agentId,body,ts}). POST /agents/:id/interrupt delivers a SOFT cancel/steer signal (a control.interrupt message on the agent's `agent:<id>` steering channel) that a cooperating agent loop can observe \u2014 pause/redirect, NOT the hard process kill of DELETE /spawn/:id.",
       "cli": [],
@@ -976,7 +1000,8 @@
         "with-lock",
         "n",
         "u",
-        "d"
+        "d",
+        "plan"
       ],
       "sdk": [
         "begin",
@@ -987,7 +1012,8 @@
         "POST /sugar/begin",
         "POST /sugar/done",
         "POST /sugar/relink",
-        "GET /sugar/whoami"
+        "GET /sugar/whoami",
+        "GET /sugar/welcome"
       ],
       "completions": [
         "begin",
@@ -996,7 +1022,8 @@
         "whoami",
         "w",
         "account",
-        "with-lock"
+        "with-lock",
+        "plan"
       ],
       "docs": {
         "readme": true,
@@ -1312,12 +1339,14 @@
       "_note": "Operator-only HITL HTTP surface consumed by FleetBar and pd-console. Ships may submit proposals, but approve/reject is a human decision and not exposed as a routine agent MCP tool."
     },
     "backend": {
-      "description": "CLI surface for the fleet backend catalog \u2014 list available backends with cost-model framing (subscription/metered/local/cli), switch the forced backend via PD_USE_CLI_BACKEND, and roll up spend per window. The CLI-tube backends (cli:claude-code, cli:codex, cli:gemini, cli:groq, cli:grok) ride the operator's existing CLI subscriptions (Claude Max, ChatGPT Pro, Google account, Groq account, SuperGrok) at $0 marginal cost. Read-only CLI surface \u2014 uses existing routes owned by the fleet + metrics features.",
+      "description": "CLI and read API for the fleet backend catalog \u2014 list available backends with cost-model framing, switch the forced backend, roll up spend, and report an honest N:N continuation matrix whose declared mechanics stay separate from discovered or daemon-witnessed evidence.",
       "cli": [
         "backend"
       ],
       "sdk": [],
-      "routes": [],
+      "routes": [
+        "GET /harness-adapters/continuation-matrix"
+      ],
       "completions": [
         "backend"
       ],
@@ -1904,6 +1933,63 @@
         "sdk": false
       }
     },
+    "suggest": {
+      "description": "Operator-facing suggestion queue fed by Tender ship. `pd suggest` lists pending suggestions; `pd suggest approve <id>` triggers a one-shot ship run; `pd suggest dismiss <id>` clears it. Backed by fleet_suggestions SQLite table.",
+      "module": "cli/commands/suggest.ts",
+      "cli": [
+        "suggest"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /fleet/suggestions",
+        "POST /fleet/suggestions/write",
+        "POST /fleet/suggestions/:id/approve",
+        "POST /fleet/suggestions/:id/dismiss"
+      ],
+      "completions": [
+        "suggest"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "seamanship": {
+      "description": "Skill registry surface. `pd seamanship list/search/show/sync/outcomes/index` — backed by lib/skill-sync.ts with BM25+Tool2Vec engine in Phase 3. Aliases: pd skills.",
+      "module": "cli/commands/seamanship.ts",
+      "cli": [
+        "seamanship",
+        "skills"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /fleet/skills/outcomes"
+      ],
+      "completions": [
+        "seamanship",
+        "skills"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "fleet_registry": {
+      "description": "Ship health registry written by Tender. GET /fleet/registry returns health scores, Tender recommendations, and pause state per ship. POST /fleet/registry upserts entries. GET /fleet/run/:ship fires a one-shot dispatch.",
+      "module": "routes/fleet.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /fleet/registry",
+        "POST /fleet/registry",
+        "POST /fleet/run/:ship"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "claim_watcher_snapshots": {
       "description": "Daemon-side mtime/hash watcher captures prior bytes when a claimed file's content changes mid-claim. `pd snapshots list/show/restore/prune` surfaces those snapshots to operators with one-command rollback. Auto-prune keeps disk usage bounded (default 7 days).",
       "module": "lib/claim-watcher.ts",
@@ -2254,6 +2340,22 @@
         "sdk": false
       },
       "_note": "CLI / CI-only release engineering \u2014 a deliberate human or pipeline act, not an agent action, so no daemon routes or MCP surface (MCP_EXEMPT)."
+    },
+    "batten": {
+      "description": "Declarative release-artifact packing gate. `pd batten verify --staged-dir dist` asserts every artifact declared in release-artifacts.json is present, executable where required, and >= minBytes \u2014 collecting ALL failures and exiting nonzero with a per-artifact report (generalizes the scattered per-binary `test -s` asserts). `pd batten imprint` sha256s the sealed cargo into release-imprint.json. Offline (node stdlib only), no daemon.",
+      "cli": [
+        "batten"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "batten"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "CLI / CI-only release engineering \u2014 runs in release.yml against the staged dist/ dir, not an agent action, so no daemon routes or MCP surface (MCP_EXEMPT)."
     },
     "secrets": {
       "description": "Managed provider secret store \u2014 keychain-backed CRUD over allow-listed provider keys (generalizes /fleet/backend-secrets)",
