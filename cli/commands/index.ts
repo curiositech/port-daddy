@@ -9,6 +9,7 @@ export * from './services.js';
 export * from './locks.js';
 export * from './messaging.js';
 export * from './agents.js';
+export * from './roster.js';
 export * from './activity.js';
 export * from './webhooks.js';
 export * from './projects.js';
@@ -75,5 +76,9 @@ export * from './morning.js';
 export * from './backend.js';
 
 export * from './cut.js';
+export * from './batten.js';
 export * from './embed.js';
 export * from './skill-graft.js';
+export * from './plan.js';
+export * from './suggest.js';
+export * from './seamanship.js';

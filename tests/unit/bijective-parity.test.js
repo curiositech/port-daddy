@@ -380,6 +380,9 @@ describe('Test Group 3: API -> CLI Parity', () => {
     // fleetpush: Web Push registration for approval alerts. CLI surface is
     // `pd fleet push <status|test>`.
     fleetpush: ['fleet'],
+    // durableagentroster: manage durable named AgentNode experts. routes/durable-agent-roster.ts
+    // (GET /durable-agents, etc.); `pd roster <subcommand>` is its CLI surface.
+    durableagentroster: ['roster'],
   };
 
   // API-only routes that have no CLI equivalent (accessed via curl or SDK).
@@ -523,7 +526,7 @@ describe('Test Group 6: Cross-Surface Consistency', () => {
     // Extract command names from zsh's commands=(...) array
     // Zsh uses 'command:description' format
     const zshBlock = ZSH_COMPLETIONS.match(
-      /commands=\(\n([\s\S]*?)\n\s*\)/
+      /\bcommands=\(\n([\s\S]*?)\n\s*\)/
     );
     expect(zshBlock).not.toBeNull();
     const zshCmds = [];

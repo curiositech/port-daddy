@@ -163,7 +163,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [Arbiter - Port Daddy](https://portdaddy.dev/docs/features/arbiter): Learn the Port Daddy arbiter feature, what problem it solves, and how to use it with agent work.
 - [Agent Avatars - Port Daddy](https://portdaddy.dev/docs/features/avatars): Learn the Port Daddy agent avatars feature, what problem it solves, and how to use it with agent work.
 - [DNS Resolver - Port Daddy](https://portdaddy.dev/docs/features/dns): Learn the Port Daddy dns resolver feature, what problem it solves, and how to use it with agent work.
-- [Fleet YAML - Port Daddy](https://portdaddy.dev/docs/features/fleet): Learn the Port Daddy fleet yaml feature, what problem it solves, and how to use it with agent work.
+- [Fleet & GitHub App - Port Daddy](https://portdaddy.dev/docs/features/fleet): Learn the Port Daddy fleet & github app feature, what problem it solves, and how to use it with agent work.
 - [Harbors - Port Daddy](https://portdaddy.dev/docs/features/harbors): Learn the Port Daddy harbors feature, what problem it solves, and how to use it with agent work.
 - [Pheromone Trails - Port Daddy](https://portdaddy.dev/docs/features/pheromone): Learn the Port Daddy pheromone trails feature, what problem it solves, and how to use it with agent work.
 - [Port Claims - Port Daddy](https://portdaddy.dev/docs/features/ports): Learn the Port Daddy port claims feature, what problem it solves, and how to use it with agent work.

@@ -42,6 +42,10 @@ import {
   type HarnessAdapterCapabilities,
 } from '../../lib/backend-catalog.js';
 import { probeHarnessAdapters, type HarnessProbeStatus } from '../../lib/harness-adapter-probe.js';
+import {
+  buildHarnessContinuationMatrix,
+  renderHarnessContinuationMatrix,
+} from '../../lib/harness-conformance.js';
 
 interface FleetModelEntry {
   id: string;
@@ -139,8 +143,9 @@ function probeBadge(status: HarnessProbeStatus): string {
 async function adaptersCommand(options: CLIOptions): Promise<void> {
   const rows = harnessAdapterCapabilityRows();
   const probe = options.probe ? probeHarnessAdapters() : null;
+  const matrix = buildHarnessContinuationMatrix({ discovery: probe });
   if (isJson(options)) {
-    console.log(JSON.stringify({ success: true, adapters: rows, probe }, null, 2));
+    console.log(JSON.stringify({ success: true, adapters: rows, probe, matrix }, null, 2));
     return;
   }
 
@@ -148,6 +153,19 @@ async function adaptersCommand(options: CLIOptions): Promise<void> {
   ui.info('Harness adapter contract — N adapters, never N² bridges');
   console.log('');
   process.stdout.write(renderHarnessAdapterMarkdown(rows));
+  console.log('');
+  ui.info(
+    `${matrix.summary.adapterFamilies} adapter families × ${matrix.summary.adapterFamilies} targets = ${matrix.summary.paths} paths: `
+    + `${matrix.summary.nativePaths} native, ${matrix.summary.handoffPaths} sanitized handoff, `
+    + `${matrix.summary.unsupportedPaths} unsupported.`,
+  );
+
+  if (options.matrix) {
+    console.log('');
+    process.stdout.write(renderHarnessContinuationMatrix(matrix));
+  } else {
+    ui.info('Run `pd backend adapters --matrix` for the indexed N×N compatibility grid.');
+  }
 
   if (!probe) {
     console.log('');
@@ -463,7 +481,8 @@ function printHelp(): void {
   console.log('');
   console.log('  pd backend adapters            Show the generated N:N harness contract');
   console.log('  pd backend adapters --probe    Discover local adapter advertisements without a model call');
-  console.log('  pd backend adapters --json     Machine-readable contract and probe report');
+  console.log('  pd backend adapters --matrix   Print the indexed N×N native/handoff compatibility grid');
+  console.log('  pd backend adapters --json     Machine-readable contract, matrix, and probe report');
   console.log('');
   console.log('Activate a choice in your shell:');
   console.log('  eval "$(pd backend use claude-code)"');

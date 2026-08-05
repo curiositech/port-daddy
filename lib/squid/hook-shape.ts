@@ -32,6 +32,7 @@ export type TentacleResolver = (name: TentacleName) => string;
 export interface HookCommand {
   type: 'command';
   command: string;
+  statusMessage?: string;
 }
 export interface HookMatcher {
   matcher?: string;
@@ -39,8 +40,17 @@ export interface HookMatcher {
 }
 
 /** Canonical single-matcher entry (matcher omitted entirely when undefined). */
-export function hookEntry(command: string, matcher?: string): HookMatcher {
-  return { ...(matcher ? { matcher } : {}), hooks: [{ type: 'command', command }] };
+export const SQUID_HOOK_STATUS = {
+  prompt: '◆ PD TURN · adding fresh coordination context',
+  preTool: '◆ PD EDIT · checking ownership before mutation',
+  postTool: '◆ PD TRACE · adding the outcome to fleet context',
+} as const;
+
+export function hookEntry(command: string, matcher?: string, statusMessage?: string): HookMatcher {
+  return {
+    ...(matcher ? { matcher } : {}),
+    hooks: [{ type: 'command', command, ...(statusMessage ? { statusMessage } : {}) }],
+  };
 }
 
 /** True if any hook in the entry points at one of our tentacles. */
@@ -113,9 +123,9 @@ export function buildJsonHookMap(
   const ev = vendor === 'gemini' ? GEMINI_EVENTS : vendor === 'agy' ? AGY_EVENTS : CLAUDE_EVENTS;
   const matcher = vendor === 'gemini' ? GEMINI_TOOL_MATCHER : vendor === 'agy' ? AGY_TOOL_MATCHER : CLAUDE_TOOL_MATCHER;
   return {
-    [ev.prompt]: [hookEntry(resolve('pd-hook-prompt'))],
-    [ev.preTool]: [hookEntry(resolve('pd-hook-pre-tool'), matcher)],
-    [ev.postTool]: [hookEntry(resolve('pd-hook-post-tool'), matcher)],
+    [ev.prompt]: [hookEntry(resolve('pd-hook-prompt'), undefined, SQUID_HOOK_STATUS.prompt)],
+    [ev.preTool]: [hookEntry(resolve('pd-hook-pre-tool'), matcher, SQUID_HOOK_STATUS.preTool)],
+    [ev.postTool]: [hookEntry(resolve('pd-hook-post-tool'), matcher, SQUID_HOOK_STATUS.postTool)],
   };
 }
 
@@ -196,6 +206,7 @@ export function codexHooksTomlBlock(
   L.push('[[hooks.UserPromptSubmit.hooks]]');
   L.push('type = "command"');
   L.push(`command = ${tomlString(resolve('pd-hook-prompt'))}`);
+  L.push(`statusMessage = ${tomlString(SQUID_HOOK_STATUS.prompt)}`);
   L.push('timeout = 10');
   L.push('async = false');
   L.push('');
@@ -204,6 +215,7 @@ export function codexHooksTomlBlock(
   L.push('[[hooks.PreToolUse.hooks]]');
   L.push('type = "command"');
   L.push(`command = ${tomlString(resolve('pd-hook-pre-tool'))}`);
+  L.push(`statusMessage = ${tomlString(SQUID_HOOK_STATUS.preTool)}`);
   L.push('timeout = 10');
   L.push('async = false');
   L.push('');
@@ -212,6 +224,7 @@ export function codexHooksTomlBlock(
   L.push('[[hooks.PostToolUse.hooks]]');
   L.push('type = "command"');
   L.push(`command = ${tomlString(resolve('pd-hook-post-tool'))}`);
+  L.push(`statusMessage = ${tomlString(SQUID_HOOK_STATUS.postTool)}`);
   L.push('timeout = 10');
   L.push('async = false');
   L.push(`# ${CODEX_PD_END_MARKER}`);

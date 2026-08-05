@@ -145,6 +145,18 @@ auditing an existing design or explaining *why* a Quality Gate below failed.
   identity is still a self-asserted string. So PD has the *organs of continuity*
   but not yet the *spine of reputation*. The build order is forced: identity (0040)
   → outcome ledger (0041) → reputation estimator → routing → market.
+  - *Update (ADR-0118, merged 2026-07-15):* the "passes notes, not state" half of
+    this is now stale. PD shipped real cross-harness continuation — a
+    schema-validated **handoff capsule** carrying workspace state plus tagged
+    decisions/coordination, gated by a fail-closed secret scanner, a
+    **native-session-witness** verification step, and a **continuation-runtime**
+    lease state machine (`lib/continuation-runtime.ts`, `lib/handoff-capsule.ts`) —
+    and can do genuine native session resume for four harness adapters (Claude,
+    Codex, Agy, Gemini) when the harness owns the session identifier. This does
+    **not** close the *spine of reputation* gap: continuation carries state
+    forward, but a schema-validated capsule is neither an outcome ledger nor a
+    reputation signal, so the forced build order above still stands. See ADR-0118
+    and `lib/continuation-runtime.ts` for the current mechanism.
 
 ## Future-work designs (richer, deliberately deferred)
 

@@ -38,9 +38,12 @@ let loadAttempted = false;
 /** Where the macaroon dylib may live (mirrors arbiter.ts). `PD_ANCHOR_DYLIB`
  *  overrides for tests / non-standard installs. */
 function candidatePaths(): string[] {
-  const paths: string[] = [];
   const override = process.env.PD_ANCHOR_DYLIB?.trim();
-  if (override) paths.push(override);
+  // An explicit override is authoritative. Falling through to an auto-discovered
+  // build makes it impossible to force the documented TS fallback in tests or
+  // to pin a non-standard install path safely.
+  if (override) return [override];
+  const paths: string[] = [];
   paths.push(join(moduleDir, '../dist/core', libFileName));
   const resourceDir = process.env.PORT_DADDY_RESOURCE_DIR?.trim();
   if (resourceDir) paths.push(join(resourceDir, 'dist/core', libFileName));

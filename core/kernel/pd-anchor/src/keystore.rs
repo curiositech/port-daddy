@@ -34,6 +34,16 @@ struct GrantKeys {
     root_key: Vec<u8>,
     caveat_key: Vec<u8>,
     rent_caveat_id: String,
+    /// Hard expiry of the underlying grant (unix ms), retained so `prune_expired`
+    /// can reclaim entries — revoked or merely aged-out — once they can no longer
+    /// authorize anything (the macaroon's own expiry caveat already refuses them).
+    expires_ms: i64,
+    /// Soft-revocation tombstone. `revoke` flips this to `true` (and wipes the key
+    /// material) rather than deleting the entry, so a later lookup can still tell
+    /// "this grant WAS valid and got revoked" (audit signal) apart from "this grant
+    /// never existed" (typo / forgery probe). Byte-parity with the daemon-side store
+    /// (`lib/macaroon/store.ts`, `revoked_at`) — ADR-0054 P6 requires the FFI and the
+    /// TS fallback to return identical verdicts, including the *reason* string.
     revoked: bool,
 }
 
@@ -88,7 +98,13 @@ pub fn issue_grant(
     with_store(|m| {
         m.insert(
             grant_id.clone(),
-            GrantKeys { root_key, caveat_key, rent_caveat_id: pg.rent_caveat_id, revoked: false },
+            GrantKeys {
+                root_key,
+                caveat_key,
+                rent_caveat_id: pg.rent_caveat_id,
+                expires_ms,
+                revoked: false,
+            },
         )
     });
     Ok((pg.macaroon, grant_id))
@@ -141,10 +157,57 @@ pub fn authorize(
     })
 }
 
-/// Hard revocation: drop a grant's keys. Every macaroon under it instantly fails
-/// to authorize (the root key is gone), and no further discharge can be issued.
+/// Revoke a grant. Every macaroon under it instantly fails to authorize and no
+/// further discharge can be issued — the same enforcement a hard delete gave —
+/// but the entry is kept as a **tombstone** (`revoked = true`) instead of being
+/// removed, and its key material is wiped in place. Keeping the tombstone is what
+/// lets [`authorize`] answer `"grant has been revoked"` rather than `"unknown
+/// grant"`, preserving the audit distinction between a grant that *was* valid and
+/// got pulled versus one that never existed (a typo or a forgery probe). Wiping
+/// the keys is defense-in-depth: even if a future caller bypassed the `revoked`
+/// guard, there is no forging material left to read. Mirrors the daemon-side
+/// `revokeGrant` (`lib/macaroon/store.ts`), which likewise deletes the secrets and
+/// marks the row.
+///
+/// Returns `true` iff a grant with this id was present (revoking an already-revoked
+/// grant is idempotent and still returns `true`); `false` for an unknown id.
+///
+/// Tombstones are reclaimed by [`prune_expired`] once past the grant's hard expiry
+/// — by which point the macaroon's own expiry caveat already refuses it, so the
+/// audit signal has no further value. The store is process-global and non-durable
+/// (wiped on daemon restart), and revocation is a rare operator/security action, so
+/// tombstones are naturally bounded between restarts.
 pub fn revoke(grant_id: &str) -> bool {
-    with_store(|m| m.remove(grant_id).is_some())
+    with_store(|m| match m.get_mut(grant_id) {
+        Some(keys) => {
+            // Overwrite before clearing: `Vec::clear` only sets len=0 and leaves the
+            // bytes in the freed capacity, so zero them first to actually erase the
+            // forging material (best-effort — no `zeroize` dep in this crate).
+            keys.root_key.iter_mut().for_each(|b| *b = 0);
+            keys.caveat_key.iter_mut().for_each(|b| *b = 0);
+            keys.root_key.clear();
+            keys.caveat_key.clear();
+            keys.revoked = true;
+            true
+        }
+        None => false,
+    })
+}
+
+/// Garbage-collect grants whose hard expiry is at or before `now_ms`, returning the
+/// number reclaimed. Both live and revoked entries are removed: past its expiry a
+/// grant can authorize nothing (the macaroon's own expiry caveat refuses it) and a
+/// revoked entry's audit signal is moot, so keeping either only leaks memory. This
+/// bounds the process-global store to the grants issued within one expiry window;
+/// the daemon owns the cadence (e.g. call it opportunistically or on a timer). It
+/// takes the clock as a parameter — never reads the wall clock itself — so it is
+/// deterministic and cannot race the fixed-timestamp unit tests.
+pub fn prune_expired(now_ms: i64) -> usize {
+    with_store(|m| {
+        let before = m.len();
+        m.retain(|_, keys| keys.expires_ms > now_ms);
+        before - m.len()
+    })
 }
 
 /// Default discharge lifetime, re-exported for callers/FFI.
@@ -220,5 +283,84 @@ mod tests {
         let out = authorize(&grant, &[bound], &ctx("feat/x", "sess-4", now));
         assert!(!out.ok, "revoked grant must not authorize");
         assert!(issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS).unwrap().is_none());
+    }
+
+    // Regression for the dead-code fix: `revoke` must leave a tombstone so a revoked
+    // grant is reported as REVOKED, not as an unknown grant. Before the fix `revoke`
+    // hard-removed the entry, so this path returned "unknown grant" and the
+    // `revoked`-guarded branches were unreachable — a live parity break with the
+    // daemon-side store (`lib/macaroon/store.ts`), which returns "grant has been
+    // revoked" here.
+    #[test]
+    fn revoked_grant_reports_revoked_not_unknown() {
+        let now = 1_000_000;
+        let (grant, id) = issue_grant("acme/api", "sess-rev", now + 60_000, "main").unwrap();
+        assert!(revoke(&id), "revoking a known grant returns true");
+
+        // authorize distinguishes revoked from never-existed.
+        let out = authorize(&grant, &[], &ctx("feat/x", "sess-rev", now));
+        assert!(!out.ok);
+        assert_eq!(
+            out.reason, "grant has been revoked",
+            "a revoked grant must say so, not 'unknown grant'"
+        );
+
+        // A genuinely unknown grant still says "unknown grant" — the distinction is real.
+        let mut ghost = grant.clone();
+        ghost.identifier = "never-issued-grant-id".into();
+        let ghost_out = authorize(&ghost, &[], &ctx("feat/x", "sess-rev", now));
+        assert!(!ghost_out.ok);
+        assert_eq!(ghost_out.reason, "unknown grant");
+
+        // No fresh discharge can be minted for a revoked grant.
+        assert!(issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS)
+            .unwrap()
+            .is_none());
+
+        // Revoking is idempotent; revoking an unknown id returns false.
+        assert!(revoke(&id), "re-revoking a revoked grant is idempotent");
+        assert!(!revoke("never-issued-grant-id"), "unknown id returns false");
+    }
+
+    // `prune_expired` is the GC that keeps tombstones (and merely aged-out grants)
+    // from accumulating: past the hard expiry both are useless, so they are dropped.
+    //
+    // The store is process-global and Rust runs tests in parallel, so this test uses
+    // an expiry window (~700_000) strictly BELOW every other test's grant expiry
+    // (>= 1_060_000). Pruning at a clock inside that window can therefore only touch
+    // this test's own grants — never another test's in-flight grant — and other
+    // tests' grants can never inflate the counts asserted here.
+    #[test]
+    fn prune_expired_reclaims_revoked_and_aged_out_grants() {
+        let base = 700_000;
+        let exp = base + 1_000; // 701_000 — well under any other test's 1_060_000+
+        let (g_live, live) = issue_grant("acme/api", "sess-gc-live", exp, "main").unwrap();
+        let (g_rev, revd) = issue_grant("acme/api", "sess-gc-rev", exp, "main").unwrap();
+        assert!(revoke(&revd));
+
+        // Before expiry the revoked entry is kept as an auditable tombstone.
+        let pruned_early = prune_expired(base); // clock < exp → touches nothing here
+        assert_eq!(pruned_early, 0, "no grant in this window is expired at {base}");
+        assert_eq!(
+            authorize(&g_rev, &[], &ctx("feat/x", "sess-gc-rev", base)).reason,
+            "grant has been revoked",
+            "tombstone survives an early prune"
+        );
+
+        // Past expiry both the live and the revoked entry are swept; the clock stays
+        // below other tests' expiries so exactly these two (and no others) qualify.
+        let pruned = prune_expired(exp + 1);
+        assert_eq!(pruned, 2, "expired live + revoked grants are reclaimed");
+
+        // The revoked grant is now genuinely gone → reads as unknown, and the live one
+        // can no longer be discharged.
+        assert_eq!(
+            authorize(&g_rev, &[], &ctx("feat/x", "sess-gc-rev", base)).reason,
+            "unknown grant"
+        );
+        let _ = g_live;
+        assert!(issue_discharge(&live, RentVerdict::Paid, base, DISCHARGE_TTL_MS)
+            .unwrap()
+            .is_none());
     }
 }
