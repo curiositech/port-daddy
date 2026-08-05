@@ -1070,18 +1070,18 @@ impl DaemonClient {
         Ok(())
     }
 
-    /// Kill (unregister) an agent: `DELETE /agents/:id`. Removes the agent from
+    /// Unregister an agent: `DELETE /agents/:id`. Removes the agent from
     /// the fleet roster and publishes an `unregistered` event. A 400 (unknown
     /// agent / already gone) surfaces as an error rather than a silent no-op.
     /// Fleet/Cockpit panes read `/agents`, so the roster updates on next refresh.
-    pub async fn kill_agent(&self, agent_id: &str) -> Result<()> {
+    pub async fn unregister_agent(&self, agent_id: &str) -> Result<()> {
         let resp = self
             .http
             .delete(format!("{}/agents/{agent_id}", self.base))
             .send()
             .await
             .context("DELETE /agents/:id")?;
-        ensure_success(resp, "kill_agent").await?;
+        ensure_success(resp, "unregister_agent").await?;
         Ok(())
     }
 

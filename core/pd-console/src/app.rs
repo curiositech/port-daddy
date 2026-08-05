@@ -136,8 +136,8 @@ pub enum ControlMsg {
     ReleasePort {
         identity: String,
     },
-    /// Kill (unregister) an agent: `DELETE /agents/:id`.
-    KillAgent {
+    /// Unregister an agent: `DELETE /agents/:id`. Runtime cancellation is separate.
+    UnregisterAgent {
         agent_id: String,
     },
     /// Interrupt a specific agent by id: `POST /agents/:id/interrupt`. Broadens
@@ -239,8 +239,8 @@ pub enum CmdKind {
     Claim,
     /// Release a claimed port. Buffer is the identity. → `DELETE /release`.
     Release,
-    /// Kill (unregister) an agent. Buffer is the agent id. → `DELETE /agents/:id`.
-    Kill,
+    /// Unregister an agent. Buffer is the agent id. → `DELETE /agents/:id`.
+    Unregister,
     /// Interrupt a specific agent. Buffer is the agent id. → `POST /agents/:id/interrupt`.
     InterruptAgent,
     /// Convene a parley over the current Sextant selection. Buffer is the
@@ -273,7 +273,7 @@ impl CmdKind {
             CmdKind::Done => "done (summary)",
             CmdKind::Claim => "claim (identity)",
             CmdKind::Release => "release (identity)",
-            CmdKind::Kill => "kill (agent id)",
+            CmdKind::Unregister => "unregister (agent id)",
             CmdKind::InterruptAgent => "interrupt (agent id)",
             CmdKind::GalaxyParley => "parley reason",
             CmdKind::HarborSteer => "steer node (message)",
@@ -314,7 +314,7 @@ impl CmdKind {
             CmdKind::Done => "what changed, what was validated, what remains…".to_string(),
             CmdKind::Claim => "project:stack:context".to_string(),
             CmdKind::Release => "project:stack:context".to_string(),
-            CmdKind::Kill => "agent-id".to_string(),
+            CmdKind::Unregister => "agent-id".to_string(),
             CmdKind::InterruptAgent => "agent-id".to_string(),
             CmdKind::GalaxyParley => {
                 "why convene these agents? Enter sends — empty uses the default reason".to_string()
@@ -322,7 +322,7 @@ impl CmdKind {
             CmdKind::HarborSteer => {
                 "guidance for the selected node — injected before its next turn…".to_string()
             }
-            CmdKind::Verb => "work/note/begin/done/claim/release/kill/interrupt …".to_string(),
+            CmdKind::Verb => "work/note/begin/done/claim/release/unregister/interrupt …".to_string(),
         }
     }
 }
@@ -2423,18 +2423,18 @@ impl ConsoleView {
             // Switch which daemon berth the console talks to (the Daemons pane lists names).
             "u" => self.command = Some(CommandLine::new(CmdKind::UseDaemon)),
             // Operator verb palette (vim-`:`): one entry point for every write
-            // (work/note/begin/done/claim/release/kill/interrupt).
+            // (work/note/begin/done/claim/release/unregister/interrupt).
             ":" => self.command = Some(CommandLine::new(CmdKind::Verb)),
             // Direct single-key shortcuts for the most-used operator writes
             // (free letters, no NAV/leader collision):
-            //   f note · e work · r begin · q done · j claim · Q release · X kill
+            //   f note · e work · r begin · q done · j claim · Q release · X unregister
             "f" => self.command = Some(CommandLine::new(CmdKind::Note)),
             "e" => self.command = Some(CommandLine::new(CmdKind::Work)),
             "r" => self.command = Some(CommandLine::new(CmdKind::Begin)),
             "q" => self.command = Some(CommandLine::new(CmdKind::Done)),
             "j" => self.command = Some(CommandLine::new(CmdKind::Claim)),
             "Q" => self.command = Some(CommandLine::new(CmdKind::Release)),
-            "X" => self.command = Some(CommandLine::new(CmdKind::Kill)),
+            "X" => self.command = Some(CommandLine::new(CmdKind::Unregister)),
             // The visual pane launcher — an animated grid of surface tiles.
             "space" => self.launcher_open = true,
             // Any launcher key swaps the focused pane's surface — "hop context".
@@ -2606,7 +2606,7 @@ impl ConsoleView {
                     )
                 } else {
                     format!(
-                        "unknown verb '{verb}' — try work/note/begin/done/claim/release/kill/interrupt"
+                        "unknown verb '{verb}' — try work/note/begin/done/claim/release/unregister/interrupt"
                     )
                 });
             }
@@ -2745,11 +2745,11 @@ impl ConsoleView {
                 });
                 self.control_flash = Some(format!("releasing {text}…"));
             }
-            CmdKind::Kill => {
-                let _ = tx.send(ControlMsg::KillAgent {
+            CmdKind::Unregister => {
+                let _ = tx.send(ControlMsg::UnregisterAgent {
                     agent_id: text.clone(),
                 });
-                self.control_flash = Some(format!("killing agent {text}…"));
+                self.control_flash = Some(format!("unregistering agent {text}…"));
             }
             CmdKind::InterruptAgent => {
                 let _ = tx.send(ControlMsg::InterruptAgent {
@@ -3712,7 +3712,7 @@ impl ConsoleView {
             )),
             _ => None,
         };
-        // The fleet/cockpit surfaces (focused) get the agent ops gate (kill /
+        // The fleet/cockpit surfaces (focused) get the agent ops gate (unregister /
         // interrupt). Both read `/agents`, so they share the roster.
         let is_fleet_ops = matches!(nav_id_for_surface(surface), Some("fleet") | Some("cockpit"));
         let dispatch_head = self.dispatch_head.clone();
@@ -4366,13 +4366,13 @@ impl ConsoleView {
                             div()
                                 .text_color(rgb(current_theme().muted))
                                 .text_size(px(14.0))
-                                .child("kill = DELETE /agents/:id (unregister) \u{00b7} interrupt = stop a run"),
+                                .child("unregister = remove registry row \u{00b7} interrupt = stop or steer a live run"),
                         )
                         .child(
                             div()
                                 .flex()
                                 .gap(px(8.0))
-                                .child(fleet_ops_btn("kill", "KILL AGENT", current_theme().conflict, cx))
+                                .child(fleet_ops_btn("unregister", "UNREGISTER", current_theme().conflict, cx))
                                 .child(fleet_ops_btn("interrupt", "INTERRUPT", current_theme().gated, cx)),
                         )
                         .when_some(fleet_flash, |c, flash| {
@@ -4556,7 +4556,7 @@ fn gate_btn(
 }
 
 /// One fleet/cockpit agent-ops button. Both open a targeted command line that
-/// takes the agent id: `kill` → `CmdKind::Kill` (DELETE /agents/:id); `interrupt`
+/// takes the agent id: `unregister` → `CmdKind::Unregister` (DELETE /agents/:id); `interrupt`
 /// → reuses the Lane's interrupt path scoped to the typed agent. Opening a
 /// command line keeps the trigger honest: the operator names the agent, then the
 /// ControlMsg fires on submit.
@@ -4573,8 +4573,8 @@ fn fleet_ops_btn(
         ButtonOpts::default(),
         cx,
         move |this, _cx| match action {
-            "kill" => {
-                this.command = Some(CommandLine::new(CmdKind::Kill));
+            "unregister" => {
+                this.command = Some(CommandLine::new(CmdKind::Unregister));
             }
             "interrupt" => {
                 this.command = Some(CommandLine::new(CmdKind::InterruptAgent));
@@ -5618,7 +5618,7 @@ fn parse_verb(text: &str) -> Option<(CmdKind, String)> {
         "done" | "end" => CmdKind::Done,
         "claim" => CmdKind::Claim,
         "release" => CmdKind::Release,
-        "kill" => CmdKind::Kill,
+        "unregister" => CmdKind::Unregister,
         "interrupt" | "stop" => CmdKind::InterruptAgent,
         "cartographer" | "chat" => CmdKind::Cartographer,
         "lane" | "message" | "steer" => CmdKind::LaneMessage,
@@ -7276,7 +7276,7 @@ impl Render for ConsoleView {
                             .text_size(px(13.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .child(
-                                "PREFIX  |  | split · - vsplit · x close · z zoom · o next · =/_ resize · w new-tab · [ ] tabs · n work · t cartographer · i insert-pane · : verb-palette (work/note/begin/done/claim/release/kill/interrupt) · [1-9…] surface",
+                                "PREFIX  |  | split · - vsplit · x close · z zoom · o next · =/_ resize · w new-tab · [ ] tabs · n work · t cartographer · i insert-pane · : verb-palette (work/note/begin/done/claim/release/unregister/interrupt) · [1-9…] surface",
                             )
                             .into_any_element()
                     } else {
@@ -7548,7 +7548,7 @@ mod add_pane_tests {
                 CmdKind::Release,
                 "port-daddy:api:main",
             ),
-            ("kill agent-xyz", CmdKind::Kill, "agent-xyz"),
+            ("unregister agent-xyz", CmdKind::Unregister, "agent-xyz"),
             ("interrupt agent-xyz", CmdKind::InterruptAgent, "agent-xyz"),
             (
                 "lane keep going but open the diff first",
@@ -7612,8 +7612,8 @@ mod add_pane_tests {
         assert!(parse_verb("").is_none());
         // Case folds on the verb token.
         assert!(matches!(
-            parse_verb("KILL agent-7"),
-            Some((CmdKind::Kill, _))
+            parse_verb("UNREGISTER agent-7"),
+            Some((CmdKind::Unregister, _))
         ));
     }
 }

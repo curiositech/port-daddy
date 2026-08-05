@@ -887,18 +887,18 @@ fn main() {
                                     }
                                 }
                             }
-                            // Kill (unregister) an agent (DELETE /agents/:id).
-                            app::ControlMsg::KillAgent { agent_id } => {
-                                match client.kill_agent(&agent_id).await {
+                            // Unregister an agent (DELETE /agents/:id); this does not cancel a runtime.
+                            app::ControlMsg::UnregisterAgent { agent_id } => {
+                                match client.unregister_agent(&agent_id).await {
                                     Ok(()) => {
                                         let _ = alert_tx.send(pane::Alert::info(
-                                            format!("killed {agent_id}"),
+                                            format!("unregistered {agent_id}"),
                                             "Fleet/Cockpit panes will refresh shortly",
                                         ));
                                     }
                                     Err(e) => {
                                         let _ =
-                                            alert_tx.send(pane::Alert::error("kill failed", e.to_string()));
+                                            alert_tx.send(pane::Alert::error("unregister failed", e.to_string()));
                                     }
                                 }
                             }
