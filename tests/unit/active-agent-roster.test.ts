@@ -5,6 +5,30 @@ import { createCostTracker } from '../../lib/cost-tracker.js';
 import Fastify from 'fastify';
 import { agentRosterPlugin } from '../../routes/agent-roster.js';
 import { createTestDb } from '../setup-unit.js';
+import { deriveSquidConformance } from '../../lib/squid/conformance.js';
+
+const liveSquid = deriveSquidConformance({
+  projectRoot: '/Users/example/coding/tmp/route',
+  projectArmed: true,
+  daemonAlive: true,
+  tentaclesStaged: true,
+  statuslineStaged: true,
+  statuslineVisible: true,
+  statuslineUser: false,
+  slashCommand: true,
+  pilotSessionStart: true,
+  inboxSessionStart: true,
+  providers: [{
+    name: 'Codex CLI',
+    slug: 'codex',
+    detected: true,
+    expectedScope: 'user',
+    configPath: '/Users/example/.codex/config.toml',
+    configured: true,
+    wired: true,
+    missingTentacles: [],
+  }],
+});
 
 describe('active agent roster', () => {
   test('joins agents, active sessions, file claims, harness, worktree, and controls', () => {
@@ -220,7 +244,7 @@ describe('active agent roster', () => {
         status: 'active',
         purpose: 'Route proof',
         identityProject: 'port-daddy',
-        metadata: { worktree: { root: '/tmp/route', branch: 'codex/route' } },
+        metadata: { worktree: { root: '/Users/example/coding/tmp/route', branch: 'codex/route' } },
       }],
     }));
     await app.register(agentRosterPlugin, {
@@ -247,6 +271,7 @@ describe('active agent roster', () => {
         },
         metrics: { errors: 0 },
         logger: { error: jest.fn() },
+        readSquidConformance: jest.fn(() => liveSquid),
       },
     });
 
@@ -265,8 +290,10 @@ describe('active agent roster', () => {
       id: 'agent-route',
       harness: { id: 'claude-code-codex' },
       activeSession: { id: 'session-route' },
-      worktree: { root: '/tmp/route' },
+      worktree: { root: '/Users/example/coding/tmp/route' },
+      squid: { level: 'LIVE', score: 100 },
     });
+    expect(body.squidSummary).toEqual({ LIVE: 1, READY: 0, PARTIAL: 0, UNPROTECTED: 1 });
     expect(body.agents.find((agent: { id: string }) => agent.id === remoteAgent.id)).toMatchObject({
       id: remoteAgent.id,
       harness: {

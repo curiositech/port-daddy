@@ -36,16 +36,17 @@ import {
   existsSync,
   chmodSync,
 } from 'node:fs';
-import { join, dirname, resolve } from 'node:path';
+import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
-import { fileURLToPath } from 'node:url';
 import { spawn as spawnChild } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
 import {
   CODEX_PD_MARKER,
+  SQUID_HOOK_STATUS,
   codexHooksTomlBlock,
   stripCodexHooksTomlBlock,
 } from './hook-shape.js';
+import { resolveSquidAsset, squidAssetCandidates } from './assets.js';
 
 // ─── Interface (verbatim from ADR §3, plus a `verified` honesty flag) ─────────
 
@@ -130,8 +131,6 @@ export const SQUID_HOOK_METADATA: Record<SquidHookPurpose, SquidHookMetadata> = 
 
 // ─── Tentacle locations ───────────────────────────────────────────────────────
 
-const __adapter_dir = dirname(fileURLToPath(import.meta.url));
-
 /**
  * Absolute path to a pd-hook-* tentacle binary. Resolves across the layouts we
  * actually ship in, because a compiled single-file `pd` binary has a SYNTHETIC
@@ -141,18 +140,11 @@ const __adapter_dir = dirname(fileURLToPath(import.meta.url));
  * it does `pd-bosun`), then a `bin/` beside it, then the dev-from-source path.
  */
 export function tentaclePath(name: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool'): string {
-  const execDir = dirname(process.execPath);
-  const candidates = [
-    join(execDir, name), // installed: next to the `pd` binary (brew/tarball)
-    join(execDir, 'bin', name), // installed variant: a bin/ beside the binary
-    resolve(__adapter_dir, '..', '..', 'bin', name), // dev-from-source: repo bin/
-  ];
-  for (const c of candidates) {
-    if (existsSync(c)) return c;
-  }
+  const found = resolveSquidAsset(join('bin', name));
+  if (found) return found;
   // Nothing found — return the installed-layout path so the error names the
   // place a user would actually look, not a bogus `/bin/...`.
-  return candidates[0];
+  return squidAssetCandidates(join('bin', name))[0];
 }
 
 /** Assert the tentacles exist and are executable; throws a clear error if not. */
@@ -210,7 +202,7 @@ function diagnoseJsonHookFile(
   events: Record<string, SquidHookPurpose>,
 ): SquidProviderHookDiagnosis {
   const cfg = readJsonConfig(configPath);
-  const hint = `Run: pd squid hooks --provider ${providerName === 'claude-code' ? 'claude' : providerName}`;
+  const hint = 'Run: pd squid on';
   if (!cfg) {
     return { providerName, binaryName, configPath, ok: false, detail: 'hook config missing or invalid JSON', hint };
   }
@@ -253,7 +245,7 @@ function diagnoseJsonHookFile(
 
 function diagnoseCodexHookFile(workspaceRoot: string): SquidProviderHookDiagnosis {
   const configPath = join(workspaceRoot, '.codex', 'config.toml');
-  const hint = 'Run: pd squid hooks --provider codex';
+  const hint = 'Run: pd squid on';
   if (!existsSync(configPath)) {
     return { providerName: 'codex', binaryName: 'codex', configPath, ok: false, detail: 'hook config missing', hint };
   }
@@ -357,6 +349,7 @@ function runCli(
 interface ClaudeHookCommand {
   type: 'command';
   command: string;
+  statusMessage?: string;
 }
 interface ClaudeHookMatcher {
   name?: string;
@@ -373,12 +366,13 @@ interface ClaudeSettings {
 /** A tentacle command shaped for a Claude Code settings.json hook entry. */
 function claudeHookEntry(command: string, purpose: SquidHookPurpose, matcher?: string): ClaudeHookMatcher {
   const meta = SQUID_HOOK_METADATA[purpose];
+  const statusMessage = SQUID_HOOK_STATUS[purpose];
   return {
     name: meta.displayName,
     description: meta.description,
     privacy: meta.privacy,
     ...(matcher ? { matcher } : {}),
-    hooks: [{ type: 'command', command }],
+    hooks: [{ type: 'command', command, statusMessage }],
   };
 }
 

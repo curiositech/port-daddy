@@ -1,0 +1,58 @@
+# role: homebrew-release-shepherd — the release-surface drift reviewer
+#
+# WHAT IT DOES
+#   A reviewer-class ship that watches PRs touching release surfaces —
+#   Formula/*.rb, install scripts, version strings, CHANGELOG, tag/publish
+#   workflows — and raises file:line findings when the release ceremony would
+#   break: a formula whose sha256/url no longer matches the tag it names,
+#   version surfaces bumped in one place but not the others, install steps
+#   that drifted from what the docs promise.
+#
+# WHAT IT CAN DO (real mechanics)
+#   - REVIEW: severity-ranked file:line findings in one PR comment, edited in
+#     place per run (apps/fleet-executor/src/execute.ts). Silence when clean.
+#   - It is a REVIEWER, not a writer: no stack proposals, no branch writes.
+#     If you want it to also FIX drift, pair it with the cleanup or doc-writing
+#     roles — or task an agent via the finding it raises.
+#
+# WHAT IT CANNOT DO
+#   - With `blocking: false` it never gates a merge. It cannot compute a real
+#     tarball sha256 (no execution in the cloud lane) — it flags *structural*
+#     drift (mismatched versions, stale urls, missing bumps), not checksum
+#     verification. Say-so is verified at release time by the ceremony itself.
+#
+# HOW TO USE
+#   Copy the `homebrew-release-shepherd:` block into pd-fleet.yml under
+#   `fleet.agents:` on the default branch. Tune the surface list in the prompt
+#   to your repo's release mirrors (formula path, version files, workflows).
+fleet:
+  agents:
+    homebrew-release-shepherd:
+      trigger: pull_request:opened
+      blocking: false
+      singleton: true
+      backend: cli:claude-code
+      fallbacks:
+        - backend: cloudflare
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+      graft:
+        - agentic-software-installation
+      prompt: |
+        You are pd-homebrew-release-shepherd. Surface gate: only proceed if
+        the diff touches release surfaces — Formula/*.rb, install.sh, brew tap
+        files, CHANGELOG, version strings, release/publish workflows, or docs
+        describing installation. Otherwise output nothing.
+
+        If gated in, check for release-ceremony drift:
+        - Formula url/version/sha256 fields that disagree with each other or
+          with the version the PR claims to ship
+        - Version bumped in one surface but not its mirrors (formula, package
+          manifest, CHANGELOG, docs, install script)
+        - Install steps that no longer match what the code does
+        - A release tag referenced before it can exist, or a mutated tag
+
+        Output severity-ranked findings, each with file:line, what disagrees
+        with what, and the exact correction. If the release surfaces are
+        coherent: silence.
+      identity: "{project}:fleet:homebrew-release-shepherd"
+      telos: "No release ships with its surfaces disagreeing about what it is."

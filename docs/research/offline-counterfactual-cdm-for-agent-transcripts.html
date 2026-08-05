@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Offline Counterfactual CDM for Agent Transcripts</title>
+<style>
+  :root{
+    --ink:#1c1a17;
+    --ink-soft:#4a4640;
+    --paper:#faf7f1;
+    --paper-raised:#fffdf9;
+    --rule:#ddd5c7;
+    --accent:#8a3324;
+    --accent-soft:#c9573f;
+    --confirmed:#2c5f4a;
+    --refuted:#a63b2a;
+    --gap:#8a6d1f;
+    --mono-bg:#efe9dc;
+    --max-w:46rem;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype","Georgia",serif;
+    font-size:1.0625rem;
+    line-height:1.65;
+  }
+  .label-font{
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+  }
+  header.masthead{
+    max-width:var(--max-w);
+    margin:0 auto;
+    padding:4.5rem 1.5rem 2.5rem;
+  }
+  .kicker{
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    font-size:0.8125rem;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:600;
+    margin-bottom:1rem;
+  }
+  h1.title{
+    font-size:2.25rem;
+    line-height:1.15;
+    margin:0 0 0.75rem;
+    font-weight:600;
+    letter-spacing:-0.01em;
+  }
+  p.subtitle{
+    font-size:1.1875rem;
+    color:var(--ink-soft);
+    font-style:italic;
+    margin:0 0 1.75rem;
+    line-height:1.5;
+  }
+  .meta-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:0.5rem 1.5rem;
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    font-size:0.8125rem;
+    color:var(--ink-soft);
+    border-top:1px solid var(--rule);
+    border-bottom:1px solid var(--rule);
+    padding:0.85rem 0;
+  }
+  .meta-row strong{color:var(--ink);}
+  main{
+    max-width:var(--max-w);
+    margin:0 auto;
+    padding:0 1.5rem 6rem;
+  }
+  section{margin-top:3.25rem;}
+  h2{
+    font-size:1.5rem;
+    font-weight:600;
+    letter-spacing:-0.005em;
+    margin:0 0 1.1rem;
+    padding-bottom:0.5rem;
+    border-bottom:2px solid var(--ink);
+    display:flex;
+    align-items:baseline;
+    gap:0.6rem;
+  }
+  h2 .num{
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    color:var(--accent);
+    font-size:1.0625rem;
+    font-weight:700;
+  }
+  h3{
+    font-size:1.1875rem;
+    font-weight:600;
+    margin:2rem 0 0.75rem;
+    color:var(--ink);
+  }
+  h4{
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    font-size:0.9375rem;
+    font-weight:700;
+    letter-spacing:0.02em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:1.75rem 0 0.6rem;
+  }
+  p{margin:0 0 1.1rem;}
+  ul,ol{margin:0 0 1.1rem;padding-left:1.4rem;}
+  li{margin-bottom:0.5rem;}
+  li:last-child{margin-bottom:0;}
+  strong{font-weight:650;}
+  em{font-style:italic;}
+  a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px;}
+  a:hover{color:var(--accent-soft);}
+  code{
+    font-family:"SF Mono","Menlo",monospace;
+    font-size:0.875em;
+    background:var(--mono-bg);
+    padding:0.1em 0.35em;
+    border-radius:3px;
+  }
+  blockquote{
+    margin:1.4rem 0;
+    padding:0.9rem 1.25rem;
+    background:var(--paper-raised);
+    border-left:3px solid var(--accent);
+    border-radius:0 4px 4px 0;
+    font-size:1rem;
+  }
+  blockquote p{margin:0;}
+  blockquote cite{
+    display:block;
+    margin-top:0.6rem;
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    font-style:normal;
+    font-size:0.8125rem;
+    color:var(--ink-soft);
+  }
+  .abstract{
+    background:var(--paper-raised);
+    border:1px solid var(--rule);
+    border-radius:8px;
+    padding:1.6rem 1.75rem;
+    margin-top:2rem;
+  }
+  .abstract h2{border:none;padding:0;margin-bottom:0.75rem;font-size:1rem;
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-soft);}
+  .abstract p{margin-bottom:0.9rem;font-size:1.0625rem;}
+  .abstract p:last-child{margin-bottom:0;}
+  .toc{
+    margin-top:2rem;
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    font-size:0.9375rem;
+  }
+  .toc ol{list-style:none;padding:0;counter-reset:toc;}
+  .toc li{counter-increment:toc;margin-bottom:0.4rem;}
+  .toc li::before{
+    content:counter(toc) ". ";
+    color:var(--accent);
+    font-weight:700;
+  }
+  .toc a{color:var(--ink);text-decoration:none;}
+  .toc a:hover{color:var(--accent);}
+  .callout{
+    border-radius:8px;
+    padding:1.1rem 1.35rem;
+    margin:1.5rem 0;
+    font-size:0.9375rem;
+    border:1px solid var(--rule);
+  }
+  .callout h4{margin-top:0;}
+  .callout.confirmed{background:#f0f5ee;border-color:var(--confirmed);}
+  .callout.confirmed h4{color:var(--confirmed);}
+  .callout.refuted{background:#f8ece9;border-color:var(--refuted);}
+  .callout.refuted h4{color:var(--refuted);}
+  .callout.gap{background:#f8f2df;border-color:var(--gap);}
+  .callout.gap h4{color:var(--gap);}
+  .callout p:last-child{margin-bottom:0;}
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin:1.4rem 0;
+    font-size:0.9rem;
+  }
+  caption{
+    text-align:left;
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    font-size:0.8125rem;
+    color:var(--ink-soft);
+    margin-bottom:0.5rem;
+    letter-spacing:0.02em;
+  }
+  th,td{
+    text-align:left;
+    padding:0.55rem 0.7rem;
+    border-bottom:1px solid var(--rule);
+    vertical-align:top;
+  }
+  thead th{
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    font-size:0.8125rem;
+    font-weight:700;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    border-bottom:2px solid var(--ink);
+  }
+  tbody tr:last-child td{border-bottom:none;}
+  .figure{
+    margin:1.75rem 0;
+    padding:1.25rem 1.35rem;
+    background:var(--paper-raised);
+    border:1px solid var(--rule);
+    border-radius:8px;
+  }
+  .figure-cap{
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    font-size:0.8125rem;
+    color:var(--ink-soft);
+    margin-top:0.85rem;
+    padding-top:0.75rem;
+    border-top:1px solid var(--rule);
+  }
+  .pipeline{
+    display:flex;
+    flex-wrap:wrap;
+    gap:0.5rem;
+    align-items:center;
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    font-size:0.875rem;
+    margin:1rem 0;
+  }
+  .pipeline .step{
+    background:var(--ink);
+    color:var(--paper);
+    padding:0.5rem 0.85rem;
+    border-radius:5px;
+    font-weight:600;
+  }
+  .pipeline .arrow{color:var(--accent);font-weight:700;}
+  .footnote-ref{
+    font-size:0.8em;
+    vertical-align:super;
+    color:var(--accent);
+    font-weight:700;
+    text-decoration:none;
+    padding:0 0.05em;
+  }
+  sup a{text-decoration:none;}
+  .refs{
+    font-size:0.9375rem;
+  }
+  .refs ol{list-style:decimal;padding-left:1.6rem;}
+  .refs li{margin-bottom:0.9rem;}
+  .refs .ref-meta{
+    display:block;
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    font-size:0.8125rem;
+    color:var(--ink-soft);
+    margin-top:0.15rem;
+  }
+  footer.colophon{
+    max-width:var(--max-w);
+    margin:0 auto;
+    padding:2.5rem 1.5rem 5rem;
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    font-size:0.8125rem;
+    color:var(--ink-soft);
+    border-top:1px solid var(--rule);
+  }
+  footer.colophon p{margin-bottom:0.5rem;}
+  .diagram-sc{
+    font-family:"SF Mono","Menlo",monospace;
+    font-size:0.85rem;
+    background:var(--mono-bg);
+    padding:1rem 1.2rem;
+    border-radius:6px;
+    overflow-x:auto;
+    line-height:1.55;
+    white-space:pre;
+  }
+  .illustration{
+    margin:1.75rem -1.5rem 2rem;
+    border-radius:6px;
+    overflow:hidden;
+  }
+  .illustration img{
+    width:100%;
+    display:block;
+  }
+  .illustration figcaption{
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    font-size:0.8125rem;
+    color:var(--ink-soft);
+    padding:0.6rem 1.5rem 0;
+  }
+  .hero-illustration{
+    margin:2rem -1.5rem 0;
+    border-radius:8px;
+    overflow:hidden;
+    border:1px solid var(--rule);
+  }
+  .hero-illustration img{width:100%;display:block;}
+  .diagram-wrap{
+    margin:1.75rem 0;
+    padding:1.25rem;
+    background:var(--paper-raised);
+    border:1px solid var(--rule);
+    border-radius:8px;
+    overflow-x:auto;
+  }
+  .diagram-wrap svg{display:block;margin:0 auto;font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;}
+  .diagram-cap{
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    font-size:0.8125rem;
+    color:var(--ink-soft);
+    margin-top:0.85rem;
+    padding-top:0.75rem;
+    border-top:1px solid var(--rule);
+  }
+  .checklist{list-style:none;padding-left:0;margin:1.1rem 0;}
+  .checklist li{
+    display:flex;
+    align-items:flex-start;
+    gap:0.65rem;
+    margin-bottom:0.7rem;
+    padding:0.6rem 0.85rem;
+    background:var(--paper-raised);
+    border:1px solid var(--rule);
+    border-radius:6px;
+  }
+  .checklist input[type="checkbox"]{
+    margin-top:0.25rem;
+    width:1.05rem;
+    height:1.05rem;
+    accent-color:var(--accent);
+    flex-shrink:0;
+  }
+  .stat-row{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(7.5rem, 1fr));
+    gap:0.75rem;
+    margin:1.4rem 0;
+  }
+  .stat-tile{
+    background:var(--paper-raised);
+    border:1px solid var(--rule);
+    border-radius:8px;
+    padding:0.9rem 0.75rem;
+    text-align:center;
+  }
+  .stat-tile .stat-num{
+    display:block;
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    font-size:1.5rem;
+    font-weight:700;
+    color:var(--accent);
+    line-height:1.1;
+  }
+  .stat-tile .stat-label{
+    display:block;
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    font-size:0.75rem;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    margin-top:0.35rem;
+    line-height:1.3;
+  }
+  .runtime-badge{
+    display:inline-block;
+    font-family:"Avenir Next","Helvetica Neue",system-ui,sans-serif;
+    font-size:0.75rem;
+    font-weight:700;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    padding:0.15rem 0.5rem;
+    border-radius:4px;
+  }
+  .runtime-badge.native{background:#e3ede2;color:var(--confirmed);}
+  .runtime-badge.partial{background:#f8f0d8;color:var(--gap);}
+  .runtime-badge.absent{background:#f5e3e0;color:var(--refuted);}
+  @media (max-width:640px){
+    h1.title{font-size:1.75rem;}
+    body{font-size:1rem;}
+    .illustration, .hero-illustration{margin-left:0;margin-right:0;}
+    table{display:block;overflow-x:auto;white-space:nowrap;}
+    table caption{white-space:normal;}
+    table td, table th{white-space:normal;}
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="kicker">Port Daddy &middot; Research Memo</div>
+  <h1 class="title">Offline Counterfactual CDM for Agent Transcripts</h1>
+  <p class="subtitle">Replacing narrated self-report with executed intervention when mining expertise from LLM agent trajectories.</p>
+  <div class="meta-row">
+    <span><strong>Status</strong> Design memo, unimplemented</span>
+    <span><strong>Session</strong> 89a00647 &middot; agentic-transcript-skill-mining</span>
+    <span><strong>Date</strong> 2026-07-18</span>
+    <span><strong>Method</strong> 4 deep-research passes (108+94+106 subagents, adversarially verified), 2 local-corpus surveys, 2 real experiments run against live data</span>
+  </div>
+
+  <figure class="hero-illustration">
+    <img src="assets/hero-fork-in-road.png" alt="Editorial illustration of a figure in a trench coat standing at a fork in a dirt road at dusk, one path solid and warm-colored, the other a faint dashed ghost path branching toward a hazy alternate hillside.">
+  </figure>
+
+  <div class="abstract">
+    <h2>Abstract</h2>
+    <p>Every current method for turning an LLM agent's completed trajectory into reusable expertise (reflection, self-critique, workflow induction, skill-document optimization) extracts that expertise by asking the model to <em>narrate</em> why it acted as it did. This is the same move human-factors research spent forty years learning not to trust: post-hoc self-report is confabulation-prone in expert humans, and it is confabulation-prone in language models for a structurally similar reason. This memo proposes replacing narration with intervention: fork a completed agent session from its exact checkpointed state at a flagged decision point, perturb one hypothesized causal factor, and re-execute to observe whether behavior actually diverges. It is not a novel idea in the abstract. OpenAI's Codex CLI already ships a native <code>codex fork</code> verb, and two independent 2026 papers formalize the same mechanism from the mechanistic-interpretability side, but none of them close the specific gap this memo is written to close: a statistically disciplined protocol for establishing that a perturbation's effect exceeds the natural variance of stochastic sampling, built on validation principles (contrastive probing, single-source skepticism, falsifiability) that seventy years of expertise-elicitation research already worked out and that the machine-learning side has not yet imported. The checkpoint/resume primitive this technique needs is grounded here in this repo's own cross-runtime harness-adapter contract (Section 4). The memo also includes three small real experiments run against live data rather than described only in the abstract: a structural decision-point scan across 706 real transcripts, a full Fork/Perturb/Diff run against one real candidate from that scan, and a ten-replicate-per-arm Monte Carlo probe on a synthetic task for comparison. The real candidate produced a genuinely ambiguous, statistically clean result, model-matched to the session's original agent (Section 6.2): a masked diagnostic cue causally shifts the model from investigating first to blindly retrying, replicating across two different models, though neither reproduces the historical agent's exact original move.</p>
+  </div>
+
+  <nav class="toc">
+    <ol>
+      <li><a href="#problem">The problem: narration is not evidence</a></li>
+      <li><a href="#human-factors">What human-factors research already solved</a></li>
+      <li><a href="#prior-art">Prior art: three convergent discoveries</a></li>
+      <li><a href="#cross-runtime">Cross-runtime parallels: a genre, not one vendor's feature</a></li>
+      <li><a href="#mechanism">The mechanism</a></li>
+      <li><a href="#infra">Mapping to existing infrastructure</a></li>
+      <li><a href="#statistics">Statistical design</a></li>
+      <li><a href="#runbook">Runbook</a></li>
+      <li><a href="#limitations">Limitations, stated plainly</a></li>
+      <li><a href="#open-questions">Open questions</a></li>
+      <li><a href="#references">References</a></li>
+    </ol>
+  </nav>
+</header>
+
+<main>
+
+<section id="problem">
+  <h2><span class="num">1</span> The problem: narration is not evidence</h2>
+  <p>The dominant family of techniques for mining reusable expertise from agent trajectories shares one structural feature: Voyager's verified code-skill library, ExpeL's natural-language insight extraction, Agent Workflow Memory's induced workflows, SkillWeaver's discovered API skills, MACLA's frozen-LLM procedural memory, and SkillOpt's validation-gated skill-document editing all reflect on a <em>completed</em> trajectory and ask, in one form or another, why the agent did what it did.<sup><a href="#ref-1" class="footnote-ref">1</a></sup> The trajectory is read; nothing about it is changed.</p>
+  <p>This works, in the sense that these methods measurably improve downstream task success. The reported gains range from 24% to 54% relative improvement across benchmarks.<sup><a href="#ref-2" class="footnote-ref">2</a></sup> But improved downstream performance is consistent with two very different underlying mechanisms: the extracted "insight" correctly identifies the causal factor that made the difference, or the extracted insight is a plausible-sounding correlate that happens to co-occur with success often enough to help on average without being causally responsible for it. Reflection-based methods cannot distinguish these cases, because they never intervene. They only ever observe.</p>
+  <p>The reason this matters is not speculative. Turpin, Michael, Perez, and Bowman (NeurIPS 2023) demonstrated that chain-of-thought self-explanations can systematically misrepresent the true causal driver of a model's own prediction.<sup><a href="#ref-3" class="footnote-ref">3</a></sup> Using a concrete, checkable manipulation, reordering multiple-choice answer options so the correct answer is always in a fixed position, they shifted model accuracy by up to 36 percentage points across thirteen BIG-Bench Hard tasks, while the model's own chain-of-thought never mentioned the manipulation and instead generated a fluent explanation rationalizing whichever answer it happened to land on.</p>
+  <blockquote>
+    <p>"CoT explanations can systematically misrepresent the true reason for a model's prediction."</p>
+    <cite>Turpin et al., <em>Language Models Don't Always Say What They Think</em>, NeurIPS 2023, arXiv:2305.04388</cite>
+  </blockquote>
+  <p>This is the machine-learning mirror of a finding human-factors research established decades earlier, in a literature this memo draws on directly: subjective confidence tracks how internally coherent an explanation feels, not whether it is accurate, and there is no internal marker that distinguishes a correct intuition from a confidently wrong one.<sup><a href="#ref-4" class="footnote-ref">4</a></sup> If a system for mining expertise from agent transcripts relies on the agent's own account of its reasoning, it inherits this failure mode by construction, regardless of how sophisticated the surrounding pipeline is.</p>
+</section>
+
+<section id="human-factors">
+  <h2><span class="num">2</span> What human-factors research already solved</h2>
+  <p>The problem of extracting real judgment from an expert who cannot reliably introspect on their own decision process is not new; it is the founding problem of naturalistic decision-making (NDM) research, and it has been worked on continuously since Gary Klein's Critical Decision Method (CDM) formalized a fix in 1989.<sup><a href="#ref-5" class="footnote-ref">5</a></sup> A full survey of forty-three locally available skills on cognitive task analysis, CDM, NDM, and expertise elicitation, cross-checked against primary sources where the skills cite them, converges on a small number of principles that transfer directly to the LLM-agent case.</p>
+
+  <h3>2.1 Self-report is a known-unreliable instrument, independently rediscovered</h3>
+  <p>This is not a hedge or a methodological footnote in this literature. It is stated as flatly and as repeatedly as any claim in the corpus.</p>
+  <blockquote>
+    <p>"Experts cannot reliably report their own decision processes. The cognitive operations that produce expert performance are largely tacit and inaccessible to introspection. Self-report produces rationalized reconstructions, not process descriptions."</p>
+    <cite>Recognition-Primed Decision literature (Klein &amp; Calderwood), applied CDM skill corpus</cite>
+  </blockquote>
+  <blockquote>
+    <p>"Asking experts 'what is your rule for X?' Abstract rule elicitation produces post-hoc rationalizations, not actual decision logic."</p>
+    <cite>Recognition-primed knowledge-elicitation literature</cite>
+  </blockquote>
+  <p>The corpus names this failure by several overlapping labels: the Rehearsed Account Trap, the Expert Reconstruction Fallacy, Retrospective Distortion, Hindsight Bias in Failure Analysis. The underlying diagnosis is the same across every independent source: a fluent, logically-arced, hesitation-free account of a past decision is evidence the account was <em>reconstructed</em>, not evidence it is accurate.<sup><a href="#ref-6" class="footnote-ref">6</a></sup></p>
+
+  <h3>2.2 Counterfactual and contrastive probing is the recurring fix</h3>
+  <p>The fix converges more cleanly than the diagnosis does. At least six methodologically independent traditions, CDM, Applied Cognitive Task Analysis, the Mediator Expertise Live Interview method, clinical diagnostic reasoning, Klein &amp; Hoffman's causal-reasoning framework, and Hoffman &amp; Lintern's expertise-elicitation synthesis, each independently arrived at some variant of the same probe: <em>what if that cue had been absent, and what is the closest case that looks the same but isn't?</em></p>
+  <div class="figure">
+    <p><strong>CDM, Sweep 4:</strong> "What if you'd had less experience? Where would a novice have gone wrong here?" It is described as the single highest-yield question in the entire protocol.</p>
+    <p><strong>Mediator Expertise Live Interview:</strong> "Have you ever seen something that looked like that but wasn't? How would you have known the difference?"</p>
+    <p><strong>Clinical diagnostic reasoning:</strong> "How is this patient <em>NOT</em> like that case?" Posed explicitly as the corrective to availability bias.</p>
+    <p><strong>Hoffman &amp; Lintern (Cambridge Handbook of Expertise):</strong> lists "Contrasting Cases" as a first-class elicitation method, "effective for discrimination criteria, category boundaries."</p>
+    <div class="figure-cap">Six independent literatures land on one convergent mechanism: counterfactual probing is not one technique among many but the field's structural answer to the confabulation problem.</div>
+  </div>
+  <p>The mechanism these methods share is worth naming precisely, because it is what an automated version has to reproduce: a rehearsed account has no principled boundary condition, because it was never actually conditioned on the cue it claims to explain. Forcing a respondent to specify when the rule would <em>not</em> apply exposes whether a real, cue-conditioned decision process exists underneath the narrative.</p>
+
+  <h3>2.3 A formal causal test, not just a probing heuristic</h3>
+  <p>One instance in the survey goes past probing heuristics entirely: a three-part causal validity test from Klein and Hoffman's work on causal reasoning in applied settings, close enough to formal counterfactual causal inference that it deserves to be quoted in full.<sup><a href="#ref-7" class="footnote-ref">7</a></sup></p>
+  <table>
+    <caption>Three independent, cross-checking criteria for a causal claim (Klein &amp; Hoffman)</caption>
+    <thead><tr><th>Criterion</th><th>Question it answers</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Propensity</strong></td><td>Is there a plausible mechanism by which the candidate cause could produce the effect?</td></tr>
+      <tr><td><strong>Reversibility</strong></td><td>Would removing the candidate cause eliminate the effect? A literal counterfactual test.</td></tr>
+      <tr><td><strong>Covariation</strong></td><td>Do the cause and effect statistically co-occur across multiple cases?</td></tr>
+    </tbody>
+  </table>
+  <p>The corpus is explicit that these criteria are not interchangeable and can disagree: "context can flip all three verdicts simultaneously," and the single most-cited failure mode in this part of the literature is treating covariation as sufficient on its own: "covariation-only reasoning produces interventions that address correlates rather than causes."<sup><a href="#ref-7" class="footnote-ref">7</a></sup> The reversibility criterion is, in substance, exactly the counterfactual test this memo proposes to automate: does the effect disappear when the hypothesized cause is removed.</p>
+
+  <h3>2.4 A single transcript is a single expert, and that failure mode is documented too</h3>
+  <p>The literature is equally insistent on a second, independent validation axis that is easy to miss if the paper only borrows the counterfactual-probing half: no single source, however deeply probed, is trusted alone. Applied Cognitive Task Analysis requires three to five expert interviews before drawing conclusions and names "Premature Conclusion" as an explicit failure mode.<sup><a href="#ref-8" class="footnote-ref">8</a></sup> A worked example in the expert-task-analysis literature is unusually concrete about the cost of skipping this: a first expert's model of pier-side ship-handling procedure appeared complete, but a second expert immediately supplied an entire missing step, tugboat use, that the first expert's automaticity had made invisible even to themselves.<sup><a href="#ref-9" class="footnote-ref">9</a></sup> ShadowBox, a related expertise-transfer method, goes further and treats 100% consensus across an expert panel as a warning sign ("Consensus Perfectionism") rather than a success condition, on the theory that real domains have real disagreement and collapsing it destroys information about context-dependent branching.<sup><a href="#ref-10" class="footnote-ref">10</a></sup></p>
+  <p>Applied to this memo's proposal directly: a counterfactual fork of a single agent transcript is, structurally, the single-expert-oracle failure mode this literature repeatedly warns against. It is anecdote until it recurs.</p>
+
+  <div class="callout gap">
+    <h4>What this literature does <em>not</em> supply</h4>
+    <p>Every quantitative threshold found in this corpus is structural, not statistical: three-to-five interviews, two-to-five heuristics per case, a 60&ndash;90% consensus band, a minimum of three decision-cue entries. None of it is a p-value, a confidence interval, or a power calculation. This is a qualitative, protocol-driven literature. It tells us <em>what</em> to validate against and <em>why</em> self-report fails; it does not tell us how many counterfactual replays are enough to trust a divergence over noise. For that, this memo has to look elsewhere &mdash; Section 3.</p>
+  </div>
+</section>
+
+<section id="prior-art">
+  <h2><span class="num">3</span> Prior art: three convergent discoveries</h2>
+  <p>Before going further, it is worth being precise about what is and is not new here. This is not a wholly novel idea; it keeps getting independently rediscovered, once as a shipped product feature and twice as an academic formalization, which is itself evidence the underlying need is real rather than a rationalization for a design already wanted.</p>
+
+  <h3>3.1 Codex CLI already ships this as a named verb</h3>
+  <p>The most directly relevant prior art is not a paper at all. OpenAI's Codex CLI persists every session as an append-only JSONL rollout file, managed by a <code>RolloutRecorder</code> keyed by a <code>ThreadId</code>, with a <code>SessionMeta</code> header that carries <code>forked_from_id</code> and <code>parent_thread_id</code> fields.<sup><a href="#ref-18" class="footnote-ref">18</a></sup> On top of that, the CLI exposes <code>codex resume &lt;SESSION_ID&gt;</code>, which resumes any arbitrary prior session by UUID or name, not just the most recent, and a distinct <code>codex fork</code> command (or in-session <code>/fork</code>) that explicitly clones a prior session's history into a new session ID while leaving the original transcript untouched. Fork-into-two-diverging-continuations is a first-class, user-facing primitive in a widely used coding agent today, not a research proposal.</p>
+
+  <div class="callout gap">
+    <h4>The gap even Codex's own fork has</h4>
+    <p>This capability is only fully available through the interactive CLI. Codex's MCP server tool, <code>codex-reply</code>, can only resume a conversation still resident in the MCP server's in-memory conversation manager. Once that process restarts, resumption fails with "Session not found," even though the rollout JSONL for that session still exists on disk and <code>codex-core</code> internally has a function to resume from it. This gap has been open across multiple GitHub issues for over a year with no full fix landed.<sup><a href="#ref-19" class="footnote-ref">19</a></sup> The lesson generalizes: a fork/resume primitive existing at the CLI layer does not mean it is exposed at every integration surface a pipeline might need to drive it from. This memo's runbook (Section 8) has to account for which surface it is actually calling.</p>
+  </div>
+
+  <h3>3.2 Causal Agent Replay</h3>
+  <p><strong>Causal Agent Replay</strong> (arXiv:2606.08275) formalizes the same idea academically: it models an agent run explicitly as a structural causal model, applies a <code>do</code>-operation at a chosen step, and re-executes the trajectory forward under the same stochastic policy, measuring the resulting shift in the outcome distribution.<sup><a href="#ref-11" class="footnote-ref">11</a></sup> It uses a single-step contrastive estimator (a "point-of-commitment rule") for identifying which step was pivotal, plus a budget-bounded Monte-Carlo Shapley estimator for assigning credit across multiple steps when responsibility is distributed. It is validated against synthetic ground-truth SCMs, where it correctly recovers a known pivotal step and a known two-step interaction (Shapley values of 0.44 and 0.45 against a near-zero third factor, with an efficiency sum of 0.909 against an analytic value of 0.91).</p>
+
+  <h3>3.3 Knowledge-Based Zero-Replay Debugging</h3>
+  <p>A second paper, <strong>Knowledge-Based Zero-Replay Debugging of Multi-Agent LLM Traces</strong> (arXiv:2606.14805), independently implements what is functionally the same fork/checkpoint/perturb/re-run mechanism as its baseline oracle: a replay policy that restarts a trace from a checkpoint under an intervention (removing or perturbing a message, a routing decision, a memory write, a tool call, or an agent), scored by outcome, state, or trajectory-label divergence.<sup><a href="#ref-12" class="footnote-ref">12</a></sup></p>
+
+  <div class="callout gap">
+    <h4>The gap this memo is actually written to close</h4>
+    <p>Both academic papers explicitly and narrowly scope out the exact problem this memo needs solved. Zero-Replay Debugging's own limitations section states plainly: "stochastic extension requires confidence-interval reporting on oracle effects and is out of scope." Neither paper offers a Monte Carlo protocol, a repeated-run design, a permutation or paired-difference test, or sample-size guidance for the case where the underlying agent samples stochastically, which is the normal operating condition for every deployed LLM agent, not an edge case. This is the specific, citable, still-open problem this memo's Section 7 addresses.</p>
+  </div>
+
+  <p>Two claims worth ruling out explicitly, because they surfaced during research and were not confirmed on independent verification: neither paper frames its own motivation as an explicit response to unreliable self-report or LLM-judge-based attribution (that framing is this memo's, not theirs), and a third candidate paper initially flagged as prior art, sometimes referred to informally as "CausalFlow," could not be confirmed to implement the described mechanism on re-verification and should not be cited as such without independent confirmation.</p>
+
+  <h3>3.4 The gap was already felt inside this project, before this memo existed</h3>
+  <p>A separate, unrelated internal research corpus on agent accountability, written weeks before this memo about a different problem (making agents durably accountable to <em>future</em> promises, not attributing <em>past</em> decisions), independently ran into the same wall while designing a "reconsideration policy" mechanism that needed to know whether checking in on a decision would have helped:</p>
+  <blockquote>
+    <p>"NO GROUND TRUTH FOR S-TAGS: Bratman's taxonomy assumes an oracle that knows ex-post whether reconsidering would have helped&hellip; In a real codebase there is no such oracle. 'Would checking have paid off' is counterfactual and unobservable. The mechanism reifies a counterfactual into a logged enum and then tunes on it. Garbage counterfactual in, confident threshold out."</p>
+    <cite>Internal adversarial-verdicts review, agent-accountability research corpus, 2026-05-31</cite>
+  </blockquote>
+  <p>That corpus never built a replay/fork harness to actually answer the question it flagged as unanswerable. It proposed external-oracle re-verification of <em>claimed artifacts</em> (did the test still pass?) as its fix instead, which checks whether a claim is true now, not whether a specific past decision was caused by a specific factor.<sup><a href="#ref-20" class="footnote-ref">20</a></sup> This memo's mechanism is a plausible answer to a problem this project had already named and set aside as unsolvable, in an entirely different context.</p>
+
+  <h3>3.5 What this memo adds</h3>
+  <p>Given that the core mechanism already exists as a shipped CLI verb and in the ML literature, the honest framing of this memo's contribution is narrower, and more useful, than "novel technique." It is: (a) the specific statistical protocol for the stochastic case that both academic papers explicitly left as future work (Section 7); (b) importing validation discipline from a much older, much more battle-tested literature (contrastive-probe design, single-source skepticism, falsifiability gates) that neither the ML papers nor Codex's own fork command carry with them (Section 2); and (c) reframing the target use case from failure-debugging (why did this one trace fail?) to expertise-mining at scale (which recurring causal patterns, aggregated across many traces, deserve to become a durable skill?). That reframing changes the design in a specific way: promotion to a reusable heuristic requires recurrence across sessions, not a single trace's divergence, directly following the single-expert-oracle principle from Section 2.4.</p>
+</section>
+
+<section id="cross-runtime">
+  <h2><span class="num">4</span> Cross-runtime parallels: a genre, not one vendor's feature</h2>
+  <p>Checkpoint-and-resume is not one vendor's feature. It recurs independently across every serious agent runtime surveyed for this memo, each with a different concrete implementation, different capability boundaries, and no shared cross-vendor standard tying them together.</p>
+
+  <figure class="illustration">
+    <img src="assets/converging-paths.png" alt="Editorial map illustration of five different paths, each with a different vehicle, converging from five hilltop houses toward a shared crossroads with a stone signpost.">
+    <figcaption>Five different vehicles, five different path textures, one shared crossroads: the pattern converges from different directions in every runtime surveyed below.</figcaption>
+  </figure>
+
+  <h3>4.1 What this project already ships</h3>
+  <p>Port Daddy's own <code>ADR-0118</code> ("Harness Adapter Contract for N:N Session Portability") is a shipped, live answer to exactly this question, and it rejects modeling resume as one canonical mechanism in favor of a contract with per-adapter implementations:</p>
+  <blockquote>
+    <p>"Port Daddy can launch many model providers and agent CLIs, but launchability is not session portability. Claude, Codex, Gemini, Agy, Aider, API providers, and local model servers expose different session identifiers, transcript stores, auth boundaries, and live-control channels. Pairwise bridges would require N&times;(N-1) integrations and would still conflate native resume with reconstructed continuation."</p>
+    <cite>ADR-0118: Harness Adapter Contract, docs/adr/0118-harness-adapter-contract.md</cite>
+  </blockquote>
+  <p>The ADR's generated capability matrix draws a hard line between adapters where the harness itself owns the session identifier (<strong>native resume</strong>) and adapters where Port Daddy has to reconstruct continuation from a sanitized handoff capsule (<strong>handoff-only</strong>), because the provider call is stateless:</p>
+  <div class="figure">
+    <p><code>claude-code</code> &mdash; <code>claude --resume &#123;sessionId&#125; -p &#123;prompt&#125;</code></p>
+    <p><code>codex-cli</code> &mdash; <code>codex exec resume &#123;sessionId&#125; &#123;prompt&#125;</code></p>
+    <p><code>agy-cli</code> (Antigravity, Google's coding-agent CLI) &mdash; <code>agy --conversation &#123;sessionId&#125; --print &#123;prompt&#125;</code></p>
+    <p><code>cloudflare-workers-ai</code> &mdash; handoff-only: "Provider calls have no native harness session identity; continuation is reconstructed from a handoff capsule."</p>
+    <p><code>ollama</code> &mdash; handoff-only: "A model server is not an agent harness; Port Daddy must own tools, transcript, state, and continuation."</p>
+    <div class="diagram-cap">Verbatim argv and quotes from ADR-0118's generated capability matrix.</div>
+  </div>
+  <p>The same document defines a five-level transcript fidelity ladder in its companion contract, where the top level is explicitly the gate for forking: <strong>T5, "Resumable transcript,"</strong> is "T4 plus checkpoints, compaction packets, memory/source citations, claims, active commitments, successor metadata, rollback point," with the rule that "T5 is required before the UI offers 'fork successor from here' as a strong resume action."<sup><a href="#ref-21" class="footnote-ref">21</a></sup> This is the real, provider-neutral checkpoint schema this memo's mechanism targets.</p>
+
+  <h3>4.2 Capability by runtime</h3>
+  <table>
+    <caption>Confirmed capability per runtime, from a dedicated adversarially-verified research pass (106 subagents)</caption>
+    <thead><tr><th>Runtime</th><th>Durable checkpoint</th><th>Arbitrary resume</th><th>Fork into two continuations</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Codex CLI</strong></td><td><span class="runtime-badge native">native</span></td><td><span class="runtime-badge native">native</span> by UUID or name</td><td><span class="runtime-badge native">native</span> &mdash; <code>codex fork</code> is a named verb<sup><a href="#ref-18" class="footnote-ref">18</a></sup></td></tr>
+      <tr><td><strong>Claude Code / Agy (Antigravity)</strong></td><td><span class="runtime-badge native">native</span> per adapter</td><td><span class="runtime-badge native">native</span> &mdash; <code>--resume</code> / <code>--conversation</code></td><td><span class="runtime-badge partial">not confirmed</span> as a distinct verb from resume in this pass; ADR-0118 models resume, not an explicit fork command, for these two</td></tr>
+      <tr><td><strong>Cloudflare Agents SDK</strong></td><td><span class="runtime-badge native">native</span> &mdash; Durable Object SQLite, survives hibernation at zero compute cost while asleep</td><td><span class="runtime-badge native">native</span> &mdash; full history from SQLite on wake, no replay needed</td><td><span class="runtime-badge partial">experimental</span> &mdash; tree-structured Session API, branch-on-append via <code>parent_id</code>; Cloudflare's own docs flag it as preview, API surface "may evolve"<sup><a href="#ref-22" class="footnote-ref">22</a></sup></td></tr>
+      <tr><td><strong>Aider</strong></td><td><span class="runtime-badge partial">incidental</span> &mdash; auto-commits to git after every edit</td><td><span class="runtime-badge partial">linear only</span> &mdash; <code>/undo</code> steps back one commit at a time, no jump-to-arbitrary-commit</td><td><span class="runtime-badge absent">absent</span> &mdash; no native fork command; a 2024 feature request for exactly this remains open, unshipped as of mid-2026<sup><a href="#ref-23" class="footnote-ref">23</a></sup></td></tr>
+      <tr><td><strong>Cursor</strong></td><td><span class="runtime-badge partial">filesystem-only</span> &mdash; snapshots modified files before significant changes</td><td><span class="runtime-badge partial">restore only</span> &mdash; reverts files to a prior snapshot</td><td><span class="runtime-badge absent">absent</span> &mdash; no conversational/context forking, only file-state restore<sup><a href="#ref-24" class="footnote-ref">24</a></sup></td></tr>
+      <tr><td><strong>Ollama</strong></td><td><span class="runtime-badge absent">not confirmed</span></td><td><span class="runtime-badge absent">not confirmed</span></td><td><span class="runtime-badge absent">refuted</span> &mdash; specific claims of a KV-cache branch/fork primitive did not survive adversarial verification<sup><a href="#ref-25" class="footnote-ref">25</a></sup></td></tr>
+    </tbody>
+  </table>
+
+  <p>Three structurally different implementations of the same idea, in one survey: a CLI-native verb operating on durable rollout files (Codex), a platform-level primitive built into a hosting infrastructure's storage model (Cloudflare's Durable Objects), and an incidental byproduct of an unrelated design choice (Aider's git auto-commit habit, which happens to produce checkpoints as a side effect of wanting undo safety). No recognized cross-vendor standard for a portable, forkable trajectory format was found &mdash; not in the Model Context Protocol, not in OpenTelemetry's GenAI semantic conventions. The closest thing is <strong>DeltaBox</strong> (arXiv:2605.22781), a May 2026 systems-research paper proposing an OS-level abstraction (overlayfs copy-on-write, CRIU process dumps, Firecracker microVMs) for forking a frozen sandbox checkpoint into many diverging children for test-time tree search.<sup><a href="#ref-26" class="footnote-ref">26</a></sup> It operates a full layer below the conversation-transcript level this memo's mechanism targets, and it is a single ~2-month-old paper, not an adopted standard &mdash; but its existence is corroborating evidence that the industry recognizes this as a real, structurally recurring problem, not a Port Daddy-specific one.</p>
+
+  <div class="callout gap">
+    <h4>One term this research could not confirm from public sources</h4>
+    <p>"Agy" is real and appears in ADR-0118 and this repo's own <code>skills/agentic-software-installation/references/agy.md</code>, where it is identified as the Antigravity CLI, Google's coding-agent product, listed alongside Claude/Codex/Gemini as a supported Port Daddy multi-backend spawn target. A dedicated external web-research pass, run independently of the internal-docs survey, found no public corroboration of a tool by this name &mdash; likely because Antigravity is new enough that it is not yet well-indexed externally, not because the internal documentation is wrong. This memo cites it from the internal ADR as a primary source, while flagging plainly that it is unconfirmed by external search at the time of writing.</p>
+  </div>
+</section>
+
+<section id="mechanism">
+  <h2><span class="num">5</span> The mechanism</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 760 210" width="100%" height="auto" role="img" aria-label="Five-step pipeline: Detect, Fork, Perturb, Diff, Promote, with the Perturb step branching into a factual and counterfactual continuation.">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#8a3324"></path>
+        </marker>
+      </defs>
+      <g font-family="Avenir Next, Helvetica Neue, sans-serif" font-size="14">
+        <rect x="10" y="70" width="110" height="46" rx="7" fill="#1c1a17"></rect>
+        <text x="65" y="98" fill="#faf7f1" text-anchor="middle" font-weight="700">1&nbsp;Detect</text>
+
+        <line x1="120" y1="93" x2="158" y2="93" stroke="#8a3324" stroke-width="2" marker-end="url(#arrow)"></line>
+
+        <rect x="160" y="70" width="100" height="46" rx="7" fill="#1c1a17"></rect>
+        <text x="210" y="98" fill="#faf7f1" text-anchor="middle" font-weight="700">2&nbsp;Fork</text>
+
+        <line x1="260" y1="93" x2="298" y2="93" stroke="#8a3324" stroke-width="2" marker-end="url(#arrow)"></line>
+
+        <rect x="300" y="70" width="120" height="46" rx="7" fill="#1c1a17"></rect>
+        <text x="360" y="98" fill="#faf7f1" text-anchor="middle" font-weight="700">3&nbsp;Perturb</text>
+
+        <!-- branch: factual continues straight, counterfactual diverges -->
+        <line x1="420" y1="93" x2="470" y2="45" stroke="#8a6d1f" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrow)"></line>
+        <text x="475" y="35" fill="#8a6d1f" font-size="12">counterfactual</text>
+
+        <line x1="420" y1="93" x2="470" y2="140" stroke="#2c5f4a" stroke-width="2" marker-end="url(#arrow)"></line>
+        <text x="475" y="158" fill="#2c5f4a" font-size="12">factual</text>
+
+        <rect x="472" y="18" width="90" height="40" rx="7" fill="#f8f0d8" stroke="#8a6d1f"></rect>
+        <text x="517" y="43" fill="#8a6d1f" text-anchor="middle" font-weight="700" font-size="13">replay B</text>
+
+        <rect x="472" y="118" width="90" height="40" rx="7" fill="#e3ede2" stroke="#2c5f4a"></rect>
+        <text x="517" y="143" fill="#2c5f4a" text-anchor="middle" font-weight="700" font-size="13">replay A</text>
+
+        <line x1="562" y1="38" x2="600" y2="80" stroke="#8a3324" stroke-width="2"></line>
+        <line x1="562" y1="138" x2="600" y2="96" stroke="#8a3324" stroke-width="2"></line>
+
+        <rect x="600" y="70" width="55" height="46" rx="7" fill="#1c1a17"></rect>
+        <text x="627" y="98" fill="#faf7f1" text-anchor="middle" font-weight="700" font-size="13">4&nbsp;Diff</text>
+
+        <line x1="655" y1="93" x2="693" y2="93" stroke="#8a3324" stroke-width="2" marker-end="url(#arrow)"></line>
+        <text x="627" y="185" fill="#4a4640" font-size="12" text-anchor="middle">(recurs across N sessions?)</text>
+      </g>
+      <g font-family="Avenir Next, Helvetica Neue, sans-serif" font-size="13" font-weight="700">
+        <rect x="696" y="72" width="34" height="42" rx="6" fill="#8a3324"></rect>
+        <text x="713" y="98" fill="#faf7f1" text-anchor="middle">5</text>
+      </g>
+    </svg>
+    <div class="diagram-cap">The Perturb step (3) forks into two replays: one under the original ("factual") continuation, one under the perturbed ("counterfactual") one, both diffed against each other at step 4, not against a narrated explanation.</div>
+  </div>
+
+  <h4>1. Detect &mdash; cheap, structural, no model call</h4>
+  <p>Scan a completed session's execution log for high-entropy moments: retries, explicit self-corrections, tool-call divergence from the modal pattern, or backtracks. This is pattern-matching over log <em>structure</em>, not an LLM judgment call and not keyword-matching over prose. The concrete implementation used for Section 6's real-data run flags a tool call only when it repeats the immediately preceding tool name after that prior call's structured result carried an error flag, which is a property of the log's own fields, not of anything written in natural language. This is the free filtering pass that keeps the expensive steps (3&ndash;4) affordable at corpus scale.</p>
+
+  <h4>2. Fork &mdash; resume from the exact checkpointed prefix</h4>
+  <p>At each flagged decision point, resume execution from that exact cached state rather than re-deriving it from a summary or a replayed prompt. The distinction matters: a summary is already a lossy narration of the state; a true checkpoint resumption preserves the actual context the original decision was conditioned on. Section 4 surveys what "exact checkpointed state" concretely means per runtime: it is not the same operation in Codex, Cloudflare's Agents SDK, and Claude Code, even though the effect is the same.</p>
+
+  <h4>3. Perturb &mdash; a deliberate, single, named intervention</h4>
+  <p>Mask a tool result, remove a fact the agent had noticed, or nudge the context toward an alternative the agent appears to have considered and rejected. This operationalizes CDM's novice-error probe and Applied Cognitive Task Analysis's contrastive-example probe as an executed action rather than an asked question. Per Section 7.2's design constraint, apply the intervention in both directions where feasible. Masking-out (testing necessity) and injecting-in (testing sufficiency) are not interchangeable, and can surface different structure.</p>
+
+  <h4>4. Diff &mdash; observed divergence, not narrated explanation</h4>
+  <p>Compare the factual and counterfactual continuations using a continuous divergence metric, not a binary pass/fail. Section 7 gives the statistical protocol for deciding whether an observed divergence exceeds what stochastic sampling alone would produce, and Section 7.4 walks through a small real Monte Carlo run of exactly this comparison.</p>
+
+  <h4>5. Promote &mdash; only on recurrence, never on one trace</h4>
+  <p>A single session's confirmed divergence is not a heuristic; it is an observation. Per Section 2.4, require the same divergence pattern to recur across multiple similar sessions before writing it as a heuristic, in the same conditional form CDM sessions are required to produce: <em>when [cue], because [reason], do [action], unless [exception]</em>. It should then pass the same falsifiability check CDM applies to human-elicited heuristics: if the rule could never fire incorrectly, it is a tautology, not a heuristic, and should be discarded rather than filed.</p>
+</section>
+
+<section id="infra">
+  <h2><span class="num">6</span> Mapping to existing infrastructure</h2>
+  <p>What actually exists in this codebase for the fork/resume primitive this technique needs is better evidence for the memo's thesis than any single tool's API could be: a real, shipped, adversarially-designed contract covering many runtimes at once, not one canonical mechanism.</p>
+
+  <table>
+    <caption>What the mechanism needs, and what already provides it</caption>
+    <thead><tr><th>Mechanism needs</th><th>Existing primitive</th></tr></thead>
+    <tbody>
+      <tr><td>Checkpointed resumption from an exact prior state, per runtime</td><td><code>ADR-0118</code>'s harness adapter contract: native resume where the runtime owns the session ID (<code>claude --resume</code>, <code>codex exec resume</code>, <code>agy --conversation</code>), sanitized handoff capsules where it doesn't (Cloudflare Workers AI, Ollama, Groq, other API providers). See Section 4.</td></tr>
+      <tr><td>A durable, cross-provider transcript/checkpoint schema</td><td><code>docs/architecture/agent-harbor-technical-binder/work-packets/transcript-receipt-persistence-contract.md</code>'s canonical hash-chained <code>TranscriptEvent</code> log, explicitly "provider-neutral&hellip; Claude Code, Codex, Gemini, Aider, Cursor/Windsurf, local OpenAI-compatible servers&hellip; all enter the same chain through a body adapter."<sup><a href="#ref-27" class="footnote-ref">27</a></sup> Its T0&ndash;T5 fidelity ladder names the top tier <strong>"Resumable transcript"</strong> and gates a <em>"fork successor from here"</em> UI action on reaching it.</td></tr>
+      <tr><td>A large corpus of completed trajectories to mine</td><td>Real local Claude Code session transcripts already sitting on disk. See the stat row below, drawn from an actual scan run for this memo, not a projected figure.</td></tr>
+      <tr><td>Structural log format for cheap decision-point detection</td><td>Per-turn JSONL records with typed <code>tool_use</code>/<code>tool_result</code> blocks (including an <code>is_error</code> field), the same shape the Detect pass below was run against.</td></tr>
+      <tr><td>Session/repo-level forking for coding-agent-specific counterfactuals</td><td>Worktree branching and <code>pd salvage</code>, which already capture interrupted/resumable session state.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>6.1 A real Detect pass, run against real transcripts</h3>
+  <p>Section 5's Detect step was run for real against this machine's own local transcript corpus rather than only described. The detector is purely structural, per the same house rule against prose-keyword classification that governs everything else in this pipeline: a candidate decision point is logged only when a tool call repeats the immediately preceding tool's <em>name</em>, and that preceding call's structured result carried <code>is_error: true</code>. That is a property of two JSON fields, never a match against words in a message.</p>
+  <div class="stat-row">
+    <div class="stat-tile"><span class="stat-num">706</span><span class="stat-label">real transcript files scanned</span></div>
+    <div class="stat-tile"><span class="stat-num">391</span><span class="stat-label">sessions with &ge;1 tool call</span></div>
+    <div class="stat-tile"><span class="stat-num">35,921</span><span class="stat-label">tool calls scanned</span></div>
+    <div class="stat-tile"><span class="stat-num">1,219</span><span class="stat-label">structural retry-after-error events</span></div>
+    <div class="stat-tile"><span class="stat-num">194</span><span class="stat-label">distinct sessions with &ge;1 candidate</span></div>
+    <div class="stat-tile"><span class="stat-num">33.9</span><span class="stat-label">events per 1,000 calls</span></div>
+  </div>
+  <p>The top tools by retry-after-error count were <code>Bash</code> (936), <code>Agent</code> (108), <code>Read</code> (105), and <code>Edit</code> (48), unsurprising since these are the highest-volume tools in this corpus, but worth stating rather than assuming: the Detect step is not hypothetical. It produces a real, non-trivial candidate list (194 sessions, one in two of all sessions scanned) at zero model-call cost on a corpus this size in a few seconds of wall-clock time.</p>
+
+  <div class="callout gap">
+    <h4>What the Detect pass alone does not establish</h4>
+    <p>A structural retry-after-error is a candidate decision point, not a confirmed one, and it is a narrower signal than Section 5's full Detect definition (which also names self-corrections and backtracks, both of which would require either richer structural signal than is currently logged, or a judgment call this design deliberately avoids delegating to prose-keyword matching). This pass demonstrates the cheap-filter half of the pipeline runs and returns a real, usable candidate list. Section 6.2 takes the next step and runs the full Fork/Perturb/Diff loop against one of these 1,219 candidates; running it at scale against the rest remains future work (Section 10).</p>
+  </div>
+
+  <h3>6.2 Running the loop against one real candidate</h3>
+  <p>One candidate was pulled from the 1,219 with its surrounding context: a real session had run <code>cd core/pd-console &amp;&amp; cargo check --bin pd-console --features gpui</code>, gotten back <code>(eval):cd:1: no such file or directory: core/pd-console</code>, and on the retry simply dropped the <code>cd</code> and ran <code>cargo check</code> directly from the current directory. That retry is a genuinely ambiguous decision: an agent could just as reasonably run <code>pwd</code>, <code>ls</code>, or <code>find</code> to locate the right directory first. Section 7.4's synthetic ticket never had this property; every replay in both arms landed on the same answer.</p>
+  <p>The historical session was generated by <code>claude-fable-5</code>, so the replays below run on <code>claude-fable-5</code> as well, matching the model to the transcript it was drawn from. The hypothesis under test: does the specific diagnostic detail, "no such file or directory: core/pd-console," causally drive dropping the <code>cd</code> and assuming the shell is already in the right place, the way the historical agent actually behaved? Twelve replays were run per arm. The <strong>factual</strong> arm saw the real error text verbatim; the <strong>counterfactual</strong> arm saw the same failing command but with the diagnostic masked down to "failed with a non-zero exit code, no further detail available."</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 460 232" width="100%" height="auto" role="img" aria-label="Bar chart: factual arm 75 percent investigate first (find), counterfactual arm 0 percent investigate first; counterfactual arm instead blindly retries the original command with more verbosity.">
+      <g font-family="Avenir Next, Helvetica Neue, sans-serif">
+        <line x1="60" y1="20" x2="60" y2="170" stroke="#ddd5c7" stroke-width="1"></line>
+        <line x1="60" y1="170" x2="420" y2="170" stroke="#1c1a17" stroke-width="1.5"></line>
+        <text x="52" y="24" font-size="11" fill="#4a4640" text-anchor="end">100%</text>
+        <line x1="55" y1="20" x2="60" y2="20" stroke="#4a4640"></line>
+        <text x="52" y="97" font-size="11" fill="#4a4640" text-anchor="end">50%</text>
+        <line x1="55" y1="95" x2="420" y2="95" stroke="#ddd5c7" stroke-dasharray="3,3"></line>
+        <text x="52" y="174" font-size="11" fill="#4a4640" text-anchor="end">0%</text>
+
+        <rect x="120" y="63" width="90" height="107" fill="#2c5f4a" rx="3"></rect>
+        <text x="165" y="55" font-size="14" font-weight="700" fill="#2c5f4a" text-anchor="middle">9/12</text>
+        <text x="165" y="192" font-size="13" fill="#1c1a17" text-anchor="middle" font-weight="600">Factual</text>
+        <text x="165" y="208" font-size="11" fill="#4a4640" text-anchor="middle">real error</text>
+        <text x="165" y="223" font-size="11" fill="#4a4640" text-anchor="middle">investigates first</text>
+
+        <rect x="270" y="169" width="90" height="1" fill="#8a3324" rx="3"></rect>
+        <text x="315" y="55" font-size="14" font-weight="700" fill="#8a3324" text-anchor="middle">0/12</text>
+        <text x="315" y="192" font-size="13" fill="#1c1a17" text-anchor="middle" font-weight="600">Counterfactual</text>
+        <text x="315" y="208" font-size="11" fill="#4a4640" text-anchor="middle">masked error</text>
+        <text x="315" y="223" font-size="11" fill="#4a4640" text-anchor="middle">blindly retries instead</text>
+      </g>
+    </svg>
+    <div class="diagram-cap">Real data, twelve <code>claude-fable-5</code> replays per arm (model-matched to the source transcript), seeded from a real extracted decision point. Fisher's exact one-sided p &asymp; 0.00017.</div>
+  </div>
+
+  <div class="callout confirmed">
+    <h4>The split replicates, and it is not the split originally guessed</h4>
+    <p>Nine of twelve factual replays investigated first (<code>find</code>, mostly) before touching the build command again; zero of twelve counterfactual replays investigated at all, and eleven of twelve instead re-ran a cd-and-build attempt, several adding more output capture as if more logging would explain a failure they had no detail about. That is the same qualitative split an earlier Haiku-model pass on this same candidate produced (11/12 vs 0/12, p &asymp; 0.000005) &mdash; the specific diagnostic detail drives investigation, its absence drives blind retry, on two different models. Neither arm, on either model, reproduced the historical agent's exact original move (drop the <code>cd</code>, run <code>cargo check</code> bare) at a rate above three in twelve; Fable's own factual-arm near-misses substituted a guessed absolute path for the failed relative one rather than dropping the <code>cd</code> outright. The cue tested is real and causally load-bearing for the investigate/retry split. It is not the whole explanation for the historical agent's specific move, which is the honest boundary of what a single reconstructed candidate can establish (Section 9).</p>
+  </div>
+
+  <div class="callout confirmed">
+    <h4>A validation gate for the existing pipeline, not just a new feature</h4>
+    <p>Session Intelligence's eureka-skill-mining workstream saw its extracted "arc" count collapse from 37 to 3 during a structural review, plausibly because it, like the academic methods surveyed in Section 1, performs post-hoc summarization of transcripts rather than intervening on them. This technique gives that pipeline a validation gate at effectively no new infrastructure cost: before committing a candidate "eureka" as a skill, fork the session at the claimed decision point, remove the claimed cue, and check whether behavior actually changes. If it does not, the candidate was pattern-matched noise, not a real discriminating heuristic, and should be discarded before it reaches a skill file.</p>
+  </div>
+
+  <h3>6.3 The Codex-native version: driving the app-server's own fork verb</h3>
+  <p>Section 6.2 reconstructs a fork/perturb replay in Python against a Claude transcript, because Claude Code's own resume primitive is per-adapter and not exposed as a distinct fork verb (Section 4.2). Codex CLI is a different case: fork is a real, named, shipped primitive (Section 3.1), so the more rigorous test is to drive that primitive directly rather than approximate it. Codex exposes it three ways, and only one is actually usable for this pipeline. The interactive <code>codex fork</code> command requires a TTY and refuses to run headlessly. <code>codex exec resume</code> runs non-interactively, but it appends the new turn to the original session's rollout file in place: it is a resume, not a fork, and using it against a real historical transcript mutates the record this whole memo argues should stay untouched. The third surface, <code>codex app-server</code>, is an experimental JSON-RPC-over-stdio protocol server exposing a <code>thread/fork</code> method that takes a <code>threadId</code> and an optional <code>lastTurnId</code>, and returns a new, independent thread ID without touching the source file. That is the one this section actually drives.</p>
+
+  <p>A minimal JSON-RPC client (newline-delimited JSON over the subprocess's stdin/stdout, matching request IDs to responses, listening for <code>item/completed</code> and <code>turn/completed</code> notifications) is enough to call it directly: <code>initialize</code> with <code>capabilities.experimentalApi: true</code>, then <code>thread/fork</code> with <code>ephemeral: true</code> so replays never get written to disk, then <code>turn/start</code> against the new thread ID. Driving the real protocol surfaced two concrete, verified constraints that do not show up in the CLI's own documentation.</p>
+
+  <div class="callout gap">
+    <h4>Two things the real API does that the memo's earlier framing did not anticipate</h4>
+    <p><strong>Fork checkpoints at turn boundaries, not tool calls.</strong> A Codex "turn" is everything the agent does between one user message and the next; it can contain dozens of tool calls with no checkpoint between them. <code>lastTurnId</code> can only cut between turns, so a retry-after-error pattern that happens inside a single autonomous tool-call loop (the common case, since nothing forced a user message in between) cannot be isolated the way this memo's Claude-side extraction isolates individual tool-call pairs. The perturbation has to move to what gets sent as the next turn on the forked thread, not what happens inside the turn being forked.</p>
+    <p><strong>The persisted item history the API exposes is incomplete for command output, even at full detail.</strong> <code>thread/turns/list</code> with <code>itemsView: "full"</code> is documented as returning "every ThreadItem available from persisted app-server history." A controlled test against a thread created and completed entirely within this same session &mdash; not an old rollout, no version skew &mdash; asked the agent to run a failing command and a recovery command, then listed that turn back at full detail: it returned only the user message and the agent's own commentary, with no <code>CommandExecutionThreadItem</code> for either shell call, despite <code>CommandExecutionThreadItem</code> being a real, documented type in the protocol schema. This is a display/persistence gap in an explicitly experimental surface, not a design limitation of forking itself, but it means a pipeline cannot currently use this API alone to locate a retry-after-error candidate by inspecting turn history; it has to know the turn boundary some other way (in this run, from having just watched the turn happen live).</p>
+  </div>
+
+  <p>Given that constraint, the candidate for this test was not reconstructed from an old file the way Section 6.2's was. It was produced live: a fresh Codex thread was asked to read <code>skills/counterfactual-replay-harness/SKILL.md</code> and summarize its frontmatter, a path that does not exist in this repository. The agent's real tool call failed with <code>sed: skills/counterfactual-replay-harness/SKILL.md: No such file or directory</code>, searched for a nearby or renamed path, found nothing, and reported the file absent, all inside one turn. That turn's ID became the fork checkpoint.</p>
+
+  <p>Before running any perturbation, fork fidelity itself needed checking: does a forked thread actually inherit the true prior context, given that the listing API cannot show it? A fork through the checkpoint turn was asked, with no hint of the error anywhere in the prompt, "what exact error did you just hit, and what path did you try?" It answered: <em>"I hit <code>sed: skills/counterfactual-replay-harness/SKILL.md: No such file or directory</code> after trying <code>skills/counterfactual-replay-harness/SKILL.md</code>."</em> An exact match to the real error text. The context a forked thread generates from is complete even though the context a client can list back out is not.</p>
+
+  <div class="stat-row">
+    <div class="stat-tile"><span class="stat-num">4/4</span><span class="stat-label">factual-arm replays re-verified and reconfirmed absence</span></div>
+    <div class="stat-tile"><span class="stat-num">3/3</span><span class="stat-label">counterfactual-arm replays verified anyway, refused to fabricate</span></div>
+    <div class="stat-tile"><span class="stat-num">0</span><span class="stat-label">mutations to any source rollout file</span></div>
+  </div>
+
+  <p>With the checkpoint fixed, four factual replays were asked to double-check their own conclusion ("is the file really absent, or did you miss something? say what you did to check"), and four counterfactual replays were given a false correction instead ("actually the file does exist, you just used the wrong path; try <code>skills/counterfactual-replay/SKILL.md</code>"). All four factual replays re-ran real verification, fetching <code>origin</code>, checking the git index and history, checking sibling worktrees, checking case-insensitive path variants, and reconfirmed the file absent every time, rather than restating the prior answer from memory. The counterfactual replays are the more interesting result. Every one of the three that completed (a fourth timed out on the app-server side after the other eight real turns had already run cleanly, an infrastructure drop rather than a different outcome) opened by verbally accepting the false correction: <em>"You're right &mdash; the corrected path is <code>skills/counterfactual-replay/SKILL.md</code>."</em> Then, instead of producing the requested summary, each one went and checked the working tree, branch refs, <code>origin/main</code>, and sibling worktrees, found the corrected path equally absent, and reported that truthfully instead of complying with the premise it had just agreed to.</p>
+
+  <div class="callout confirmed">
+    <h4>What this actually validates, and what it does not</h4>
+    <p>This is not a statistically powered result the way Section 6.2's twelve-per-arm Fisher's-exact comparison is; an n of three to four per arm on a single checkpoint is a mechanism check, not a measured effect size. What it validates is narrower and still useful: the real, native, non-mutating fork primitive works end to end, driven the way a production pipeline would actually have to drive it (JSON-RPC, not a CLI wrapper); a forked thread's generation is faithful to context the listing API cannot show back to the client; and, on this one probe, a false correction injected as the next turn was accepted at the level of the agent's own words but did not survive contact with its own verification tools, a live, executed instance of exactly the narration/behavior gap this memo opened with (Section 1). It was caught here because the design forced an intervention and a check, not because anyone read the agent's stated reasoning and trusted it.</p>
+  </div>
+</section>
+
+<section id="statistics">
+  <h2><span class="num">7</span> Statistical design</h2>
+  <p>This section is the part neither the CDM/ACTA literature (Section 2) nor the existing ML prior art (Section 3) supplies. It draws primarily on mechanistic interpretability, which has spent several years building tooling for exactly this class of problem, "did perturbing X causally change behavior Y," on a different but structurally similar object (model internals rather than agent trajectories).</p>
+
+  <h3>7.1 Borrow the metric discipline, not the rigor</h3>
+  <p>Mechanistic interpretability's strongest transferable recommendation is methodological, not statistical: use a continuous divergence metric, not a binary pass/fail outcome. The field's own literature recommends "logit difference" over raw probability or accuracy specifically because probability has a floor near zero that hides negative or suppressor effects, while a continuous, roughly linear metric supports partial-credit attribution.<sup><a href="#ref-13" class="footnote-ref">13</a></sup> For agent-trajectory replay, the direct analogue is an embedding-distance or LLM-judge divergence score between the factual and counterfactual continuations, continuous, not thresholded, and reported with an explicit noise floor rather than treated as exact.</p>
+  <p>The field also distinguishes intervention direction, and this distinction transfers cleanly: <em>denoising</em> (patching a clean/original value into a perturbed run) tests whether the factor is <strong>sufficient</strong> to restore original behavior; <em>noising</em> (patching a perturbed value into the original run) tests whether the factor is <strong>necessary</strong> to produce it. These are not interchangeable, and can surface different underlying structure. A cue can be necessary without being sufficient, or vice versa, and a protocol that only tests one direction will systematically miss one of these two cases.<sup><a href="#ref-13" class="footnote-ref">13</a></sup></p>
+
+  <div class="callout refuted">
+    <h4>What mechanistic interpretability does <em>not</em> supply: rigor</h4>
+    <p>This is important enough to state without hedging, because it would be easy to over-claim it. Mechanistic interpretability itself has no formal statistical-power framework for causal patching claims. Practice in the field is an ad hoc "detected if the effect is 2 standard deviations from the mean" threshold over empirically-sized datasets of 145&ndash;500 paired trials, not a hypothesis test, not a derived minimum sample size.<sup><a href="#ref-14" class="footnote-ref">14</a></sup> A 2026 position paper auditing this practice found that <strong>zero of thirty sampled papers</strong> making a causal claim via patching disclosed their identification strategy or enumerated their assumptions.<sup><a href="#ref-15" class="footnote-ref">15</a></sup> The field this memo is borrowing from has been publicly called out, within the same year, for under-rigor in exactly the dimension this memo needs rigor most. Mechanistic interpretability's practices cannot be inherited wholesale; its disclosure checklist (Section 7.5) and its metric discipline (above) can be, on top of a statistical layer this memo builds separately.</p>
+  </div>
+
+  <h3>7.2 The Monte Carlo protocol</h3>
+
+  <figure class="illustration">
+    <img src="assets/two-armed-bandit.png" alt="Editorial illustration of a vintage two-armed slot machine, one arm still, the other mid-pull with a motion streak, on a dim casino floor.">
+    <figcaption>The name is not incidental. A two-armed bandit, not a one-armed one: baseline arm held still, treatment arm pulled.</figcaption>
+  </figure>
+
+  <p>The design question is precise: at nonzero sampling temperature, how do we distinguish a real counterfactual effect from ordinary run-to-run variance? The answer is a self-baselined comparison: measure the model's own natural variance before asking whether a perturbation exceeds it.</p>
+  <div class="figure">
+    <p><strong>Baseline arm.</strong> Replay the <em>factual</em> prefix <code>K</code> times at the session's original temperature, with no perturbation. This produces a distribution of factual&ndash;factual divergence, the noise floor attributable to stochastic sampling alone, holding everything else fixed.</p>
+    <p><strong>Treatment arm.</strong> Replay the <em>same</em> prefix <code>K</code> times with the perturbation applied. This produces a distribution of factual&ndash;counterfactual divergence.</p>
+    <p><strong>Test.</strong> A paired or permutation test comparing the two distributions: does the treatment-arm divergence distribution sit meaningfully above the baseline-arm noise floor? This is structurally an A/A-versus-A/B design. The baseline arm is the A/A control that most naive "run it twice and see if it's different" protocols skip, and skipping it is precisely how ordinary sampling variance gets mistaken for a causal effect.</p>
+    <div class="diagram-cap">This design directly follows from the position that a single before/after comparison is insufficient evidence for a causal claim, the same objection the CDM literature raises against a single rehearsed narrative (Section 2.1), applied to sampling variance instead of narrative variance.</div>
+  </div>
+  <p>For the effect-size test and confidence reporting, the most directly reusable building block found in this research is a 2025&ndash;2026 Bayesian evaluation framework that models LLM outcomes as categorical draws with Dirichlet priors, yielding closed-form posterior credible intervals without bootstrap resampling, updating analytically as trials accumulate, with a simple decision rule: do not declare a real difference while the credible intervals for the two arms still overlap.<sup><a href="#ref-16" class="footnote-ref">16</a></sup> This is attractive specifically because it supports adaptive allocation: monitor interval width online and spend additional replay budget only on decision points where the arms are still ambiguous, rather than fixing <code>K</code> in advance for every flagged point regardless of how clear-cut it turns out to be.</p>
+
+  <div class="callout refuted">
+    <h4>No validated minimum <code>K</code> exists yet &mdash; do not borrow a number</h4>
+    <p>No source found in this research supplies a validated minimum sample size for this specific design. One frequently-cited figure, roughly 200 trials to reliably distinguish a 2.1-percentage-point gap at 95% confidence, was explicitly checked and refuted on independent verification and should not be reused. Mechanistic interpretability's own 145&ndash;500-trial range is a field-specific heuristic tied to circuit-discovery tasks on small-to-mid models (GPT-2, GPT-J, Pythia); transferring it to full agent-trajectory replay, which is far higher-variance and far more expensive per sample, is an extrapolation this memo is not prepared to assert as validated. The honest position: use the Bayesian closed-form framework's <em>online</em> stopping rule (stop replaying once the credible intervals separate, or once a budget cap is hit and report the result as inconclusive) rather than committing to a fixed <code>K</code> derived from a borrowed number.</p>
+  </div>
+
+  <p>The internal agent-accountability corpus cited in Section 3.4 arrived at a compatible design philosophy from a completely different angle, how to trust that an agent kept a promise rather than how to validate a causal claim, and its answer is worth importing wholesale into the promotion gate (Section 8):</p>
+  <blockquote>
+    <p>"Add a sampled adversarial auditor: re-open a random + risk-weighted fraction of cleared obligations and re-run the claimed validation&hellip; gate on concrete predicates, expose the scalar score as telemetry, never as a control input."</p>
+    <cite>Internal agent-accountability proposal, Laws 2 &amp; build-order step 4</cite>
+  </blockquote>
+  <p>That corpus's own house rule for deciding whether a proposed mechanism survives scrutiny is itself a citable evidentiary precedent: of twenty-nine candidate mechanisms it stress-tested adversarially, only one survived unhardened.<sup><a href="#ref-20" class="footnote-ref">20</a></sup> Applied here, this argues for two concrete design choices already implicit in this memo but worth making explicit: (a) the promotion gate should be a hard, typed predicate (<em>N of M replays flip outcome, recorded with provenance</em>), not a single blended confidence score exposed as a control input; and (b) even a passed gate is evidence, not proof. The "Honest ceiling" language that corpus uses for its own obligation ledger applies verbatim to this memo's causal claims.</p>
+
+  <h3>7.3 The interaction-term problem</h3>
+  <p>A 2026 mechanistic-interpretability paper makes a finding that directly constrains how this memo's results should be reported.<sup><a href="#ref-17" class="footnote-ref">17</a></sup> A single component's measured causal effect under patching is not a clean, isolable quantity. It mathematically conflates the component's own pathway effect with an interaction term reflecting how much that effect depends on the simultaneous state of other, co-occurring factors. Three distinct failure patterns follow from this: a real effect can be masked by negative interaction with another factor ("backup compensation"); an effect near zero in isolation can appear only when paired with another factor ("context-specific mechanism"); and a genuinely harmful effect can be hidden by another factor's opposing interaction.</p>
+  <p>Applied here: perturbing one hypothesized causal factor in an agent transcript does not, in general, produce a clean marginal causal attribution. <strong>The design should report both single-factor and paired/multi-factor perturbation effects</strong>, and should treat a null single-factor result as inconclusive rather than as evidence the factor is irrelevant. It may only manifest jointly with a co-occurring factor the single-factor test did not probe.</p>
+
+  <h3>7.4 A real, small worked example</h3>
+  <p>The Monte Carlo design in Section 7.2 was run for real, at small scale, rather than only specified. The task was an internal facilities ticket about a flickering conference-room projector, with one additional sentence in the <strong>factual</strong> arm mentioning a faint burning smell from the ceiling mount, and that exact sentence removed (nothing else changed) in the <strong>counterfactual</strong> arm. Ten independent live Haiku replays per arm were run, each asked to answer with exactly one word: <code>ESCALATE</code> or <code>ROUTINE</code>.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 460 220" width="100%" height="auto" role="img" aria-label="Bar chart: factual arm 100 percent ESCALATE (10 of 10), counterfactual arm 0 percent ESCALATE (0 of 10).">
+      <g font-family="Avenir Next, Helvetica Neue, sans-serif">
+        <line x1="60" y1="20" x2="60" y2="170" stroke="#ddd5c7" stroke-width="1"></line>
+        <line x1="60" y1="170" x2="420" y2="170" stroke="#1c1a17" stroke-width="1.5"></line>
+        <text x="52" y="24" font-size="13" fill="#4a4640" text-anchor="end">100%</text>
+        <line x1="55" y1="20" x2="60" y2="20" stroke="#4a4640"></line>
+        <text x="52" y="97" font-size="13" fill="#4a4640" text-anchor="end">50%</text>
+        <line x1="55" y1="95" x2="420" y2="95" stroke="#ddd5c7" stroke-dasharray="3,3"></line>
+        <text x="52" y="174" font-size="13" fill="#4a4640" text-anchor="end">0%</text>
+
+        <rect x="120" y="20" width="90" height="150" fill="#2c5f4a" rx="3"></rect>
+        <text x="165" y="14" font-size="13" font-weight="700" fill="#2c5f4a" text-anchor="middle">100%</text>
+        <text x="165" y="192" font-size="13" fill="#1c1a17" text-anchor="middle" font-weight="600">Factual</text>
+        <text x="165" y="208" font-size="13" fill="#4a4640" text-anchor="middle">(cue present, 10/10 ESCALATE)</text>
+
+        <rect x="270" y="169" width="90" height="1" fill="#8a3324" rx="3"></rect>
+        <text x="315" y="14" font-size="13" font-weight="700" fill="#8a3324" text-anchor="middle">0%</text>
+        <text x="315" y="192" font-size="13" fill="#1c1a17" text-anchor="middle" font-weight="600">Counterfactual</text>
+        <text x="315" y="208" font-size="13" fill="#4a4640" text-anchor="middle">(cue removed, 0/10 ESCALATE)</text>
+      </g>
+    </svg>
+    <div class="diagram-cap">Real data, ten replicates per arm, live Haiku calls. % of replays answering ESCALATE.</div>
+  </div>
+
+  <div class="callout gap">
+    <h4>What this honestly demonstrates &mdash; and what it doesn't</h4>
+    <p>The separation is real and it is complete: ten of ten factual replays answered <code>ESCALATE</code>; ten of ten counterfactual replays answered <code>ROUTINE</code>. That is a genuine, executed, observed behavioral divergence caused by removing one sentence, which is the core mechanism this memo argues for, demonstrated rather than only described. But it is not a demonstration of the noise-floor machinery in Section 7.2: with zero within-arm variance at <code>K</code>=10 on either side, there was no sampling noise for the statistical test to distinguish the signal from. A cue this unambiguous was the wrong choice for exercising the paired/permutation-test design &mdash; it proves the mechanism works on an easy case, not that the statistical protocol is doing real work. A meaningful demonstration of Section 7.2's actual contribution would need a deliberately more ambiguous decision task, one where the factual arm itself shows some baseline disagreement across replays, so the test has real noise to distinguish a real effect from. That is flagged here as future work (Section 10) rather than quietly worked around.</p>
+  </div>
+
+  <h3>7.5 A disclosure checklist, adapted from the mechanistic-interpretability position paper</h3>
+  <p>Given Section 7.1's finding that this borrowed field has itself been criticized for under-disclosure, any output of this pipeline that claims a causal relationship should state, alongside the claim itself:</p>
+  <ul class="checklist">
+    <li><input type="checkbox" disabled> <span>That the claim is causal (not merely correlational), explicitly.</span></li>
+    <li><input type="checkbox" disabled> <span>The identification strategy used (which arm comparison, which perturbation direction).</span></li>
+    <li><input type="checkbox" disabled> <span>The assumptions the claim rests on (e.g., that the resumed model matches the original session's model and version &mdash; see Section 9).</span></li>
+    <li><input type="checkbox" disabled> <span>At least one stress-test of an assumption (e.g., the paired/multi-factor check from Section 7.3).</span></li>
+    <li><input type="checkbox" disabled> <span>How the conclusion would change if that assumption failed.</span></li>
+    <li><input type="checkbox" disabled> <span>Whether the claim is a hard typed predicate or a soft score &mdash; and if a score, that it is disclosed as telemetry, never wired in as a control input (Section 7.2).</span></li>
+  </ul>
+</section>
+
+<section id="runbook">
+  <h2><span class="num">8</span> Runbook</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 760 300" width="100%" height="auto" role="img" aria-label="Swimlane diagram: nightly batch job scans the corpus, detector flags candidates, forker replays factual and counterfactual arms from the same forked checkpoint, and a promotion gate either files a skill or discards.">
+      <defs>
+        <marker id="rb-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#8a3324"></path>
+        </marker>
+      </defs>
+      <g font-family="Avenir Next, Helvetica Neue, sans-serif" font-size="12">
+        <text x="12" y="38" fill="#4a4640" font-weight="700">Corpus</text>
+        <text x="12" y="104" fill="#4a4640" font-weight="700">Detector</text>
+        <text x="12" y="185" fill="#4a4640" font-weight="700">Forker</text>
+        <text x="12" y="258" fill="#4a4640" font-weight="700">Gate</text>
+
+        <line x1="80" y1="8" x2="750" y2="8" stroke="#ddd5c7"></line>
+        <line x1="80" y1="60" x2="750" y2="60" stroke="#ddd5c7"></line>
+        <line x1="80" y1="140" x2="750" y2="140" stroke="#ddd5c7"></line>
+        <line x1="80" y1="222" x2="750" y2="222" stroke="#ddd5c7"></line>
+        <line x1="80" y1="286" x2="750" y2="286" stroke="#ddd5c7"></line>
+
+        <rect x="191" y="18" width="200" height="32" rx="5" fill="#efe9dc"></rect>
+        <text x="291" y="38" text-anchor="middle">Nightly batch, prior day's sessions</text>
+        <line x1="291" y1="50" x2="185" y2="68" stroke="#8a3324" stroke-width="1.5" marker-end="url(#rb-arrow)"></line>
+
+        <rect x="90" y="68" width="190" height="50" rx="5" fill="#1c1a17"></rect>
+        <text x="185" y="88" text-anchor="middle" fill="#faf7f1" font-weight="700">Structural scan</text>
+        <text x="185" y="105" text-anchor="middle" fill="#faf7f1" font-size="11">retry-after-error, no LLM call</text>
+
+        <line x1="280" y1="93" x2="308" y2="93" stroke="#8a3324" stroke-width="1.5" marker-end="url(#rb-arrow)"></line>
+        <rect x="312" y="68" width="180" height="50" rx="5" fill="#f8f0d8" stroke="#8a6d1f"></rect>
+        <text x="402" y="88" text-anchor="middle" fill="#8a6d1f" font-weight="700">Candidate DPs</text>
+        <text x="402" y="105" text-anchor="middle" fill="#8a6d1f" font-size="11">e.g. 1,219 / 706 files</text>
+
+        <line x1="402" y1="118" x2="402" y2="132" stroke="#8a3324" stroke-width="1.5"></line>
+        <line x1="402" y1="132" x2="185" y2="150" stroke="#8a3324" stroke-width="1.5" marker-end="url(#rb-arrow)"></line>
+        <line x1="402" y1="132" x2="575" y2="150" stroke="#8a3324" stroke-width="1.5" marker-end="url(#rb-arrow)"></line>
+
+        <rect x="80" y="150" width="210" height="50" rx="5" fill="#e3ede2" stroke="#2c5f4a"></rect>
+        <text x="185" y="172" text-anchor="middle" fill="#2c5f4a" font-weight="700" font-size="13">Fork + replay A</text>
+        <text x="185" y="190" text-anchor="middle" fill="#2c5f4a" font-size="11">K factual (baseline)</text>
+
+        <rect x="470" y="150" width="210" height="50" rx="5" fill="#f8f0d8" stroke="#8a6d1f"></rect>
+        <text x="575" y="172" text-anchor="middle" fill="#8a6d1f" font-weight="700" font-size="13">Fork + replay B</text>
+        <text x="575" y="190" text-anchor="middle" fill="#8a6d1f" font-size="11">K counterfactual (treatment)</text>
+
+        <line x1="185" y1="200" x2="376" y2="230" stroke="#8a3324" stroke-width="1.5" marker-end="url(#rb-arrow)"></line>
+        <line x1="575" y1="200" x2="384" y2="230" stroke="#8a3324" stroke-width="1.5" marker-end="url(#rb-arrow)"></line>
+
+        <rect x="280" y="232" width="200" height="46" rx="23" fill="#1c1a17"></rect>
+        <text x="380" y="252" text-anchor="middle" fill="#faf7f1" font-weight="700" font-size="12">Diverges past baseline</text>
+        <text x="380" y="267" text-anchor="middle" fill="#faf7f1" font-size="11">AND recurs &ge;3 sessions?</text>
+
+        <line x1="480" y1="255" x2="556" y2="255" stroke="#2c5f4a" stroke-width="1.5" marker-end="url(#rb-arrow)"></line>
+        <text x="518" y="248" text-anchor="middle" fill="#2c5f4a" font-size="11" font-weight="700">yes</text>
+        <rect x="560" y="234" width="150" height="42" rx="5" fill="#e3ede2" stroke="#2c5f4a"></rect>
+        <text x="635" y="259" text-anchor="middle" fill="#2c5f4a" font-weight="700" font-size="13">File as skill</text>
+
+        <line x1="280" y1="255" x2="244" y2="255" stroke="#a63b2a" stroke-width="1.5" marker-end="url(#rb-arrow)"></line>
+        <text x="262" y="248" text-anchor="middle" fill="#a63b2a" font-size="11" font-weight="700">no</text>
+        <rect x="110" y="234" width="130" height="42" rx="5" fill="#f8ece9" stroke="#a63b2a"></rect>
+        <text x="175" y="259" text-anchor="middle" fill="#a63b2a" font-weight="700" font-size="13">Discard</text>
+      </g>
+    </svg>
+    <div class="diagram-cap">One nightly pass through the pipeline, corpus to gate. The Forker lane runs both replay arms from the same forked checkpoint; only divergences that clear the baseline-noise test <em>and</em> recur across sessions reach the Gate lane's "file as skill" outcome.</div>
+  </div>
+
+  <table>
+    <caption>Operational parameters</caption>
+    <thead><tr><th>Question</th><th>Answer</th></tr></thead>
+    <tbody>
+      <tr><td><strong>When</strong></td><td>Offline, batch, decoupled from live sessions &mdash; this is explicitly not a live-session intervention. Run against the backfilled corpus on a schedule (e.g., nightly against sessions completed the prior day), not synchronously during any agent's actual task execution.</td></tr>
+      <tr><td><strong>Where</strong></td><td>As a new validation stage inserted before eureka-skill-mining's candidate-promotion step, not as a standalone pipeline. It consumes the same corpus and journal format already indexed locally &mdash; see Section 6.1's real scan.</td></tr>
+      <tr><td><strong>Trigger</strong></td><td>Section 5's cheap structural detector (Step 1) flags candidate decision points at effectively zero marginal cost. Only flagged points enter the expensive fork-and-replay stage.</td></tr>
+      <tr><td><strong>Which runtime</strong></td><td>Per Section 4, this is not a single API call &mdash; it is whichever adapter owns the session (native <code>--resume</code>/<code>fork</code> for Claude Code, Codex, and Agy; a reconstructed handoff capsule for Cloudflare Workers AI, Ollama, and other stateless API providers). The runbook has to route through ADR-0118's contract, not assume one uniform resume call.</td></tr>
+      <tr><td><strong>Models</strong></td><td>Vary the resumed model deliberately across at least two conditions: (a) same model/version as the original session, to test whether the causal factor holds for that specific model; (b) a different model, to test whether the factor generalizes across model family &mdash; directly following SkillWeaver's finding that skills synthesized by one agent can transfer to and improve a different one, which only holds if the underlying causal structure, not model-specific idiosyncrasy, is what's being measured.</td></tr>
+      <tr><td><strong>Temperature</strong></td><td>Hold temperature fixed within a single baseline-vs-treatment comparison (Section 7.2) &mdash; varying it simultaneously with the perturbation would confound the two sources of variance the design is built to separate. Run the full protocol at more than one temperature setting only as a separate, explicit sweep, not folded into the same test.</td></tr>
+      <tr><td><strong>Prompts</strong></td><td>The intervention itself should be the smallest edit that operationalizes one named hypothesis &mdash; mask exactly one tool result, or inject exactly one alternative fact &mdash; not a rewritten prompt or a summary substitution. Resumption continuity should otherwise be exact: same system context, same tool definitions, same prior turns, modulo the one named change.</td></tr>
+      <tr><td><strong>Promotion gate</strong></td><td>A divergence must (a) clear the baseline-noise threshold from Section 7.2, (b) recur across a minimum of three similar sessions per Section 2.4's single-expert-oracle principle, and (c) survive the paired/multi-factor check from Section 7.3, before being written as a candidate heuristic in CDM's <code>when/because/do/unless</code> form and routed to skill-file review &mdash; as a hard typed predicate, not a soft score, per Section 7.2's evidentiary-philosophy note.</td></tr>
+      <tr><td><strong>Budget discipline</strong></td><td>Use the cheap structural filter (Step 1) and, where feasible, a cheap approximate-divergence pre-screen analogous to attribution patching's role in mechanistic interpretability &mdash; before committing full Monte Carlo replay budget (Section 7.2) to any given decision point. Do not replay every flagged point at full <code>K</code> by default.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="limitations">
+  <h2><span class="num">9</span> Limitations, stated plainly</h2>
+  <p>This memo argues for disclosing assumptions rather than letting a clean narrative stand in for evidence, so here are its own weaknesses, undiluted:</p>
+  <ul>
+    <li><strong>Cost.</strong> Fork-and-complete replay at full Monte Carlo <code>K</code> is not cheap. Applied naively to every one of the 1,219 candidate points found in Section 6.1's real scan, this is expensive enough to require the cheap-filter discipline in Section 8's budget row to be taken seriously, not treated as optional.</li>
+    <li>If the model available at resumption time differs from the model that generated the original trajectory, the counterfactual is no longer testing "the same agent's reasoning." It is testing a different model re-deriving behavior from old context. This model drift is a real, distinct signal (Section 8's cross-model condition treats it as one), but conflating it with same-model replay would be a genuine validity error, and results should be labeled by which condition produced them.</li>
+    <li>This design trades self-report confabulation for judge-scoring or embedding-distance noise in the diff step (Section 5, step 4), which reduces but does not eliminate the underlying problem. That is a better trade, since it produces an observed behavioral difference rather than a narrated one, but it is not a free one.</li>
+    <li><strong>The replay model must match the transcript's recorded model, and this pipeline does not enforce that automatically.</strong> Section 6.2's candidate was replayed on <code>claude-fable-5</code> to match its source session, but only because that check was done by hand for one candidate. A pipeline that skips it by default will silently run replays on whatever model happens to be wired up, producing confident, clean-looking conclusions about the wrong model's causal structure. This belongs in the Detect/Fork step itself (Section 10), not left to manual review.</li>
+    <li><strong>No validated sample size.</strong> As stated in Section 7.2, no confirmed source supplies a minimum <code>K</code> for this exact design. Section 7.4's synthetic worked example produced a clean 10-vs-0 separation with zero within-arm variance, which did not exercise the paired/permutation design's actual job; Section 6.2's real, model-matched candidate did show within-arm diversity and a clean statistical separation (<code>K</code>=12 per arm), but that is one candidate, not a validated minimum sample size across the diversity of real decision points this pipeline would encounter at scale.</li>
+    <li>Fork/resume existing at the CLI layer does not mean it is exposed everywhere a pipeline needs it, and a runtime can die mid-session and leave nothing coherent to fork at all. Section 3.1's Codex example generalizes: <code>codex fork</code> works from the interactive CLI, but Codex's own MCP server tool cannot resume a session once the server process restarts, even though the underlying rollout file survives on disk.<sup><a href="#ref-19" class="footnote-ref">19</a></sup> Separately, this project's own internal accountability research names a recurring failure mode, the "dead codex owner": a CLI-backed agent that silently exhausts its usage quota or crashes, leaving a stale, incomplete transcript that looks superficially like a healthy session from the outside.<sup><a href="#ref-20" class="footnote-ref">20</a></sup> A batch pipeline that doesn't account for both will silently fail to fork sessions it should be able to, or flag garbage candidates from sessions that simply stopped mid-turn.</li>
+    <li><strong>A forked continuation is a new sample, not a re-run of the same hidden state, and every hop can only lose information.</strong> An internal research review of multi-agent coordination claims makes an argument, via the Data Processing Inequality, that every inter-agent handoff can only lose information relative to the original context, never add it.<sup><a href="#ref-20" class="footnote-ref">20</a></sup> A forked/perturbed replay is exactly this kind of handoff: fidelity to what the original agent would actually have done degrades as the perturbation's distance from the original trajectory grows, and a large observed divergence is evidence of a causal effect, not proof that it precisely reconstructs the original agent's counterfactual behavior.</li>
+    <li>Both academic papers in Section 3 are unpublished preprints, six weeks old and unreplicated at the time of writing, validated only on synthetic structural causal models or mocked multi-agent environments. Neither has been tested against real, high-variance, temperature-sampled production agent traces at the scale this memo proposes, so their reported numbers should be treated as first-mover results, not settled science.</li>
+    <li><strong>Two research angles remain genuinely uncovered.</strong> General ML counterfactual-explanation and structural-causal-model literature outside mechanistic interpretability, and process-mining/delta-debugging/git-bisect-style causal isolation via re-execution, were both queried in this research but returned no claims that survived independent verification. This should be read as "not substantively covered in this pass," not as "confirmed absent"; both are plausible adjacent fields warranting dedicated follow-up before being ruled out.</li>
+  </ul>
+</section>
+
+<section id="open-questions">
+  <h2><span class="num">10</span> Open questions</h2>
+  <ol>
+    <li>Does van der Aalst-school process mining, or software delta-debugging / <code>git bisect</code>-style causal isolation via re-execution, offer transferable methodology for decision-point detection or causal-responsibility testing over execution logs? (Unresearched gap, Section 9.)</li>
+    <li>Can a minimum viable <code>K</code> be empirically validated across a larger sample of the 1,219 real candidates found in Section 6.1, now that Section 6.2 shows a model-matched replay does exercise the noise-floor test cleanly? A dozen more candidates, run the same way, would start to answer whether <code>K</code>=12 is generally sufficient or was a lucky draw.</li>
+    <li>Neither arm in Section 6.2 reproduced the historical agent's exact original move. What context is missing from a text-reconstructed prefix that a true checkpoint-and-fork (Section 4) would carry forward, and is that gap systematic across candidates or specific to this one?</li>
+    <li>Should the Detect/Fork step include an automated check that the replay model matches the source transcript's recorded model before any arm runs, rather than relying on manual review to catch a mismatch?</li>
+    <li>How should the promotion gate (Section 8) weight cross-model divergence (a factor holds for a different model) against same-model divergence (a factor holds for the original model but may be idiosyncratic) when they disagree?</li>
+    <li>Does the interaction-term problem (Section 7.3) mean paired/multi-factor perturbation should be the <em>default</em> design rather than a secondary check &mdash; i.e., should single-factor perturbation be deprecated entirely once the paired protocol is validated?</li>
+    <li>What is the right relationship between this technique's promotion gate and eureka-skill-mining's existing k-NN retrieval and labeling loop &mdash; does a confirmed counterfactual divergence relabel an existing ambiguous triple, or only gate new candidates?</li>
+    <li>Does Cloudflare's experimental Session API branch-on-append (Section 4.2) fork associated agent <em>state</em> (tool-call side effects, sandbox filesystem state) or only the message-transcript tree &mdash; a full checkpoint-fork or a conversation-only one?</li>
+    <li>Is there a framework-level (not OS-level) analogue to DeltaBox scoped specifically to the conversation/trajectory layer, in LangGraph, MCP extensions, or 2026-era OpenTelemetry GenAI conventions, that a dedicated follow-up pass focused on those ecosystems specifically might surface?</li>
+    <li>Does the broader llama.cpp/inference-server ecosystem Ollama wraps expose any documented KV-cache save/restore or slot-branching capability (e.g. via prompt-cache flags) that a more targeted investigation, rather than a single secondary source, could confirm or refute?</li>
+  </ol>
+</section>
+
+<section id="references" class="refs">
+  <h2><span class="num">11</span> References</h2>
+  <ol>
+    <li id="ref-1">Wang et al., <em>Voyager: An Open-Ended Embodied Agent with Large Language Models</em>, TMLR 2024. <span class="ref-meta"><a href="https://arxiv.org/abs/2305.16291">arXiv:2305.16291</a></span> &middot; Zhao et al., <em>ExpeL: LLM Agents Are Experiential Learners</em>, AAAI 2024. <span class="ref-meta"><a href="https://arxiv.org/abs/2308.10144">arXiv:2308.10144</a></span> &middot; Wang et al., <em>Agent Workflow Memory</em>, ICML 2025. <span class="ref-meta"><a href="https://arxiv.org/abs/2409.07429">arXiv:2409.07429</a></span> &middot; <em>SkillWeaver: Web Agents can Self-Improve by Discovering and Honing Skills</em>. <span class="ref-meta"><a href="https://arxiv.org/abs/2504.07079">arXiv:2504.07079</a></span></li>
+    <li id="ref-2">Relative task-success improvements as reported in the above: AWM +24.6% (Mind2Web) / +51.1% (WebArena); SkillWeaver +31.8% (WebArena), up to +54.3% under cross-agent transfer. <span class="ref-meta">Same sources as ref. 1</span></li>
+    <li id="ref-3">Turpin, Michael, Perez, Bowman, <em>Language Models Don't Always Say What They Think: Unfaithful Explanations in Chain-of-Thought Prompting</em>, NeurIPS 2023. <span class="ref-meta"><a href="https://arxiv.org/abs/2305.04388">arXiv:2305.04388</a></span></li>
+    <li id="ref-4">Kahneman &amp; Klein, <em>Conditions for Intuitive Expertise: A Failure to Disagree</em>, American Psychologist, 2009. <span class="ref-meta">Local skill: <code>kahneman-klein-expertise</code> (internal, not web-published)</span></li>
+    <li id="ref-5">Klein, <em>Sources of Power: How People Make Decisions</em>, MIT Press, 1998. <span class="ref-meta">Local skill: <code>klein-1998-sources-of-power</code> (internal, not web-published)</span></li>
+    <li id="ref-6">Synthesis across: <code>rpd-klein-calderwood</code>, <code>rpd-knowledge-elicitation</code>, <code>tacit-expertise-elicitation</code>, <code>mediator-expertise-live-interview-meli</code>, <code>cse-design-process</code>, <code>cognitive-task-analysis</code>. <span class="ref-meta">Local skill corpus, 43 files surveyed (internal, not web-published)</span></li>
+    <li id="ref-7">Klein &amp; Hoffman, causal reasoning in applied naturalistic settings. <span class="ref-meta">Local skills: <code>causal-reasoning-klein</code>, <code>causal-reasoning-initial-report-of-a-nat</code> (internal, not web-published)</span></li>
+    <li id="ref-8">Applied Cognitive Task Analysis method (ACTA), Militello &amp; Hutton. <span class="ref-meta">Local skill: <code>applied-cognitive-task-analysis-acta-met</code>, including <code>references/failure-modes-in-knowledge-elicitation.md</code> (internal, not web-published)</span></li>
+    <li id="ref-9">Grassi, task analysis of pier-side ship-handling procedure. <span class="ref-meta">Local skills: <code>expert-task-analysis</code>, <code>a-task-analysis-of-pier-side-ship-handli</code> (internal, not web-published)</span></li>
+    <li id="ref-10">Klein, Hintze &amp; Saab, ShadowBox expertise-transfer method. <span class="ref-meta">Local skill: <code>shadowbox-expertise-transfer</code> (internal, not web-published)</span></li>
+    <li id="ref-11"><em>Causal Agent Replay: Counterfactual Attribution for LLM-Agent Failures</em>, 2026. <span class="ref-meta"><a href="https://arxiv.org/abs/2606.08275">arXiv:2606.08275</a> &middot; preprint, ~6 weeks old at time of writing, validated on synthetic SCMs only</span></li>
+    <li id="ref-12"><em>Knowledge-Based Zero-Replay Debugging of Multi-Agent LLM Traces</em>, 2026. <span class="ref-meta"><a href="https://arxiv.org/html/2606.14805v1">arXiv:2606.14805</a> &middot; preprint, explicitly scopes out the stochastic case</span></li>
+    <li id="ref-13">Heimersheim &amp; Nanda, <em>How to Use and Interpret Activation Patching</em>, LessWrong 2024; Zhang &amp; Nanda, <em>Best Practices for Activation Patching</em>, ICLR 2024. <span class="ref-meta"><a href="https://www.lesswrong.com/posts/FhryNAFknqKAdDcYy/how-to-use-and-interpret-activation-patching">lesswrong.com/&hellip;/how-to-use-and-interpret-activation-patching</a> &middot; <a href="https://arxiv.org/html/2309.16042">arXiv:2309.16042</a></span></li>
+    <li id="ref-14">Zhang &amp; Nanda (2023), sample sizes and 2-SD detection threshold for activation patching. <span class="ref-meta"><a href="https://arxiv.org/html/2309.16042">arXiv:2309.16042</a></span></li>
+    <li id="ref-15">2026 position paper on disclosure norms for causal claims in mechanistic interpretability, auditing 30 sampled papers. <span class="ref-meta"><a href="https://arxiv.org/pdf/2605.08012">arXiv:2605.08012</a></span></li>
+    <li id="ref-16">Bayesian Dirichlet-prior evaluation framework for LLM outcomes, closed-form credible intervals, "Don't Pass@k." <span class="ref-meta"><a href="https://arxiv.org/html/2510.04265">arXiv:2510.04265</a></span></li>
+    <li id="ref-17">Interaction-term decomposition of Natural Indirect Effects in activation patching, observed on IOI circuits across GPT-2 small, Pythia-70m, and Qwen2.5-0.5B. <span class="ref-meta"><a href="https://arxiv.org/html/2606.27510">arXiv:2606.27510</a></span></li>
+    <li id="ref-18">OpenAI Codex CLI developer commands (<code>codex resume</code>, <code>codex fork</code>); underlying Rollout System (<code>RolloutRecorder</code>, <code>SessionMeta</code>, <code>forked_from_id</code>). <span class="ref-meta"><a href="https://learn.chatgpt.com/docs/developer-commands?surface=cli">learn.chatgpt.com/docs/developer-commands</a> &middot; <a href="https://deepwiki.com/openai/codex/4.4-session-resumption-and-forking">deepwiki.com/openai/codex &sect;4.4</a> &middot; source: <code>codex-rs/rollout/src/recorder.rs</code> in <a href="https://github.com/openai/codex">github.com/openai/codex</a></span></li>
+    <li id="ref-19">Codex MCP server (<code>codex-reply</code>) resume-after-restart gap, open across multiple issues since Oct 2025. <span class="ref-meta"><a href="https://github.com/openai/codex/issues/6168">github.com/openai/codex#6168</a> &middot; <a href="https://github.com/openai/codex/issues/5066">#5066</a> &middot; <a href="https://github.com/openai/codex/issues/8614">#8614</a> &middot; <a href="https://github.com/openai/codex/issues/8726">#8726</a></span></li>
+    <li id="ref-20">Internal agent-accountability research corpus &mdash; the "counterfactual and unobservable" verdict, sampled-adversarial-auditor and concrete-predicate design laws, the 29-mechanism adversarial stress-test tally, and (via a separate internal swarm-realism review) the Data-Processing-Inequality argument that inter-agent handoffs can only lose information. <span class="ref-meta"><code>agent-accountability-proposal.md</code>, <code>agent-accountability-mechanisms.md</code>, <code>raw/agent-accountability-2026-05-31/03-adversarial-verdicts.md</code>, <code>2026-06-03-hive-mind-realism-check.md</code> (internal Port Daddy research corpus, not web-published)</span></li>
+    <li id="ref-21">Port Daddy <code>ADR-0118</code>, Harness Adapter Contract for N:N Session Portability; companion transcript persistence contract. <span class="ref-meta"><code>docs/adr/0118-harness-adapter-contract.md</code>, <code>docs/architecture/agent-harbor-technical-binder/work-packets/transcript-receipt-persistence-contract.md</code> (in-repo)</span></li>
+    <li id="ref-22">Cloudflare Agents SDK: Durable Object SQLite conversation persistence; experimental tree-structured Session API; <code>runFiber()</code> crash-recoverable execution. <span class="ref-meta"><a href="https://developers.cloudflare.com/agents/concepts/conversation-state-and-memory/">developers.cloudflare.com/agents/concepts/conversation-state-and-memory</a> &middot; <a href="https://developers.cloudflare.com/agents/concepts/agentic-patterns/long-running-agents/">&hellip;/agentic-patterns/long-running-agents</a></span></li>
+    <li id="ref-23">Aider git auto-commit-per-edit as an incidental checkpoint; linear-only <code>/undo</code>; open feature request for arbitrary-checkpoint jump (filed 2024-08-06, unshipped mid-2026). <span class="ref-meta"><a href="https://aider.chat/docs/git.html">aider.chat/docs/git.html</a> &middot; <a href="https://aider.chat/docs/usage.html">aider.chat/docs/usage.html</a> &middot; <a href="https://github.com/paul-gauthier/aider/issues/1018">github.com/paul-gauthier/aider#1018</a> &middot; <a href="https://github.com/Aider-AI/aider/issues/1079">Aider-AI/aider#1079</a></span></li>
+    <li id="ref-24">Cursor agent checkpoints: filesystem-only snapshots of modified files, restore reverts all files, no conversational/context restore. <span class="ref-meta"><a href="https://docs.cursor.com/agent/chat/checkpoints">docs.cursor.com/agent/chat/checkpoints</a></span></li>
+    <li id="ref-25">Ollama KV-cache branch/resume claims (<code>CopyPrefix</code>, <code>CanResume</code>) submitted for adversarial verification and refuted (0-3 and 1-2 votes) against the only source found describing them. <span class="ref-meta"><a href="https://deepwiki.com/ollama/ollama/5.3-kv-cache-system">deepwiki.com/ollama/ollama &sect;5.3</a> &middot; secondary source only, not independently confirmed</span></li>
+    <li id="ref-26">DeltaBox: an OS-level checkpoint/rollback abstraction (overlayfs CoW, CRIU, Firecracker microVMs) for forking a frozen sandbox into many diverging children. <span class="ref-meta"><a href="https://arxiv.org/pdf/2605.22781">arXiv:2605.22781</a> &middot; single systems-research preprint, ~2 months old, not an adopted standard</span></li>
+    <li id="ref-27">Transcript receipt persistence contract: provider-neutral canonical <code>TranscriptEvent</code> schema, T0&ndash;T5 transcript fidelity ladder. <span class="ref-meta"><code>docs/architecture/agent-harbor-technical-binder/work-packets/transcript-receipt-persistence-contract.md</code> (in-repo)</span></li>
+  </ol>
+</section>
+
+</main>
+
+<footer class="colophon">
+  <p><strong>Provenance.</strong> This memo synthesizes three adversarially-verified deep-research passes (108, 94, and 106 subagents respectively, claims confirmed only after 2-of-3 independent verification votes), a full read-through of forty-three local expertise-elicitation skills, and two dedicated internal-corpus surveys (this project's own coordination/transcript research and its agent-accountability research), conducted in Port Daddy session 89a00647 ("agentic-transcript-skill-mining") on 2026-07-18. Three small experiments were run against real data rather than only described: a structural decision-point scan across 706 local transcripts (Section 6.1), a model-matched Fork/Perturb/Diff run against one real candidate from that scan (Section 6.2, twelve <code>claude-fable-5</code> replays per arm, replicating an initial same-pattern result from a Haiku pass on the same candidate), and a ten-replicate-per-arm Monte Carlo probe on a synthetic task for comparison (Section 7.4). Illustrations were generated for this document via Nano Banana. Refuted claims encountered during research are noted inline where they would otherwise be tempting to cite.</p>
+  <p><strong>Status.</strong> Design memo. No implementation exists yet. See Section 9 for what would need to happen before this becomes a shipped pipeline stage.</p>
+</footer>
+
+</body>
+</html>

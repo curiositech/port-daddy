@@ -3,6 +3,8 @@
  *
  * Routes:
  *   GET  /health
+ *   GET  /mercy                               (public MERCY status JSON; no secrets)
+ *   GET  /account/mercy                       (session; HTML MERCY report card)
  *   POST /v1/handshake
  *   GET  /v1/subscribe/:session_id          (SSE)
  *   POST /v1/publish
@@ -18,10 +20,34 @@
  *   GET  /v1/fleet/runs/:id                    (operator; one run + transcript)
  *   GET  /fleet/runs/:id                        (HTML run page; HMAC capability
  *                                                token or operator; ADR-0101)
+ *   GET  /account/runs                          (HTML runs index; session +
+ *                                                GitHub repo ACL; ADR-0101)
+ *   GET  /account/shipwright                    (HTML Shipwright chat; session;
+ *                                                the ONE page with inline JS —
+ *                                                nonce-scoped CSP)
+ *   GET  /v1/shipwright/history                 (session; own chat history)
+ *   POST /v1/shipwright/chat                    (session; Workers AI, SSE)
+ *   POST /v1/shipwright/clear                   (session; delete own history)
+ *   GET  /account/billing                       (HTML billing page; session +
+ *                                                GitHub installation ownership; ADR-0116)
  *   POST /billing/checkout                     (session; Stripe Checkout for a credit pack)
  *   POST /billing/webhook                      (Stripe-Signature HMAC; credit ledger writes)
  *   GET  /billing/balance/:installationId      (operator or session; prepaid balance)
  *   POST /billing/portal                       (session; Stripe Billing Portal link)
+ *   GET  /auth/status                          (session cookie → {login, avatarUrl};
+ *                                               credentialed CORS for portdaddy.dev)
+ *   POST /v1/harbors                           (session/pdu; create a remote harbor — client-supplied pubkey)
+ *   GET  /v1/harbors                           (session/pdu; harbors I belong to)
+ *   GET  /v1/harbors/:namespace/:name          (member-gated; detail + members)
+ *   POST /v1/harbors/:namespace/:name/members  (owner-gated; add a member)
+ *   POST /v1/harbors/:namespace/:name/presence (member-gated; presence heartbeat, TTL ~90s)
+ *   GET  /v1/harbors/:namespace/:name/presence (member-gated; who is online + identity tier)
+ *   PUT  /v1/harbors/:namespace/:name/helm     (owner-gated; set helm holder + succession)
+ *   GET  /v1/harbors/:namespace/:name/helm     (member-gated; read helm — runs dead-man check)
+ *   POST /v1/harbors/:namespace/:name/parleys  (member-gated; convene a parley)
+ *   GET  /v1/harbors/:namespace/:name/parleys  (member-gated; list parleys — lazy expiry)
+ *   GET  /v1/harbors/:namespace/:name/parleys/:id          (member-gated; detail + positions)
+ *   POST /v1/harbors/:namespace/:name/parleys/:id/respond  (named-party-gated; sign a position)
  *   POST /v1/exchange                        (OIDC → PD card)
  *   POST /v1/revoke
  *   POST /v1/revoke-by-issuer               (operator; acceptance criterion #2)
@@ -65,15 +91,33 @@ import {
 } from './fleet-observability.js';
 import { handleFleetRunPage } from './fleet-run-page.js';
 import { runRetentionSweep } from './retention-sweep.js';
+import { runMercySweep, handleMercyStatus, handleMercyPage } from './mercy.js';
+import {
+  runInterruptionNagSweep,
+  handleCreateInterruption,
+  handleListInterruptions,
+  handleAnswerInterruption,
+  handleAckInterruption,
+  handleInterruptionsPage,
+} from './interruptions.js';
 import {
   handleGithubLogin,
   handleGithubCallback,
   handleAuthMe,
+  handleAuthStatus,
   handleLogout,
   handleAccountExport,
   handleAccountDelete,
 } from './auth-github.js';
 import { handleLoginPage, handleAccountPage } from './account-page.js';
+import { handleRunsPage } from './runs-page.js';
+import { handleShipwrightPage } from './shipwright-page.js';
+import {
+  handleShipwrightChat,
+  handleShipwrightHistory,
+  handleShipwrightClear,
+} from './shipwright.js';
+import { handleBillingPage } from './billing-page.js';
 import { handleDeviceStart, handleDeviceToken, handleWhoami } from './device-flow.js';
 import {
   handleCreateCheckout,
@@ -81,6 +125,24 @@ import {
   handleBillingBalance,
   handlePortalLink,
 } from './billing.js';
+import {
+  handleCreateHarbor,
+  handleListMyHarbors,
+  handleGetHarbor,
+  handleAddHarborMember,
+} from './harbors.js';
+import {
+  handlePresenceBeat,
+  handleGetPresence,
+  handleSetHelm,
+  handleGetHelm,
+} from './presence.js';
+import {
+  handleCreateParley,
+  handleListParleys,
+  handleGetParley,
+  handleRespondParley,
+} from './parleys.js';
 
 // Re-export Durable Object class for wrangler to pick up
 export { HarborChannel };
@@ -90,6 +152,25 @@ function cors(response: Response): Response {
   headers.set('Access-Control-Allow-Origin', '*');
   headers.set('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   headers.set('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  return new Response(response.body, { status: response.status, headers });
+}
+
+// The marketing site's header chip (portdaddy.dev) reads the signed-in state
+// cross-origin WITH the session cookie. A wildcard Access-Control-Allow-Origin
+// can never carry credentials (browsers reject `*` + credentials), so exactly
+// these session-probe GETs answer with a pinned origin + credentials instead.
+// Everything else keeps the wildcard, credential-less CORS above.
+const WEB_ORIGIN = 'https://portdaddy.dev';
+const CREDENTIALED_CORS_PATHS: ReadonlySet<string> = new Set(['/auth/whoami', '/auth/status']);
+
+function corsCredentialed(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set('Access-Control-Allow-Origin', WEB_ORIGIN);
+  headers.set('Access-Control-Allow-Credentials', 'true');
+  headers.set('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  headers.set('Access-Control-Allow-Headers', 'Content-Type');
+  // The ACAO value differs per path; keep shared caches honest.
+  headers.append('Vary', 'Origin');
   return new Response(response.body, { status: response.status, headers });
 }
 
@@ -104,7 +185,8 @@ export default {
 
     // CORS preflight
     if (method === 'OPTIONS') {
-      return cors(new Response(null, { status: 204 }));
+      const preflight = new Response(null, { status: 204 });
+      return CREDENTIALED_CORS_PATHS.has(pathname) ? corsCredentialed(preflight) : cors(preflight);
     }
 
     let response: Response = notFound();
@@ -113,6 +195,11 @@ export default {
     // ── Health ──────────────────────────────────────────────────────────────
     if (pathname === '/health' && method === 'GET') {
       response = handleHealth(env);
+    }
+
+    // ── MERCY status page (public, no secrets — src/mercy.ts) ────────────────
+    else if (pathname === '/mercy' && method === 'GET') {
+      response = await handleMercyStatus(env);
     }
 
     // ── Handshake ───────────────────────────────────────────────────────────
@@ -173,6 +260,22 @@ export default {
       response = await handleDeleteFleetRun(request, env, runId);
     }
 
+    // ── Operator interruptions — HITL blocking asks (src/interruptions.ts) ──
+    else if (pathname === '/v1/interruptions' && method === 'POST') {
+      response = await handleCreateInterruption(request, env);
+    }
+    else if (pathname === '/v1/interruptions' && method === 'GET') {
+      response = await handleListInterruptions(request, env);
+    }
+    else if (pathname.startsWith('/v1/interruptions/') && pathname.endsWith('/answer') && method === 'POST') {
+      const id = decodeURIComponent(pathname.slice('/v1/interruptions/'.length, -'/answer'.length));
+      response = await handleAnswerInterruption(request, env, id);
+    }
+    else if (pathname.startsWith('/v1/interruptions/') && pathname.endsWith('/ack') && method === 'POST') {
+      const id = decodeURIComponent(pathname.slice('/v1/interruptions/'.length, -'/ack'.length));
+      response = await handleAckInterruption(request, env, id);
+    }
+
     // ── Fleet run page (HTML; check-run details_url target, ADR-0101) ────────
     else if (pathname.startsWith('/fleet/runs/') && method === 'GET') {
       const runId = decodeURIComponent(pathname.slice('/fleet/runs/'.length));
@@ -190,6 +293,37 @@ export default {
     }
     else if (pathname === '/account' && method === 'GET') {
       response = await handleAccountPage(request, env);
+    }
+    // Per-account fleet-runs index (session + GitHub repo ACL; ADR-0101).
+    else if (pathname === '/account/runs' && method === 'GET') {
+      response = await handleRunsPage(request, env);
+    }
+    // Billing storefront (session + GitHub installation ownership; ADR-0116).
+    else if (pathname === '/account/billing' && method === 'GET') {
+      response = await handleBillingPage(request, env);
+    }
+    // MERCY report card (session-gated HTML; src/mercy.ts).
+    else if (pathname === '/account/mercy' && method === 'GET') {
+      response = await handleMercyPage(request, env);
+    }
+    // Operator interruptions list (session-gated HTML; src/interruptions.ts).
+    else if (pathname === '/account/interruptions' && method === 'GET') {
+      response = await handleInterruptionsPage(request, env);
+    }
+    // Shipwright chat page (session-gated HTML; src/shipwright-page.ts).
+    else if (pathname === '/account/shipwright' && method === 'GET') {
+      response = await handleShipwrightPage(request, env);
+    }
+
+    // ── Shipwright chat API (session-scoped; src/shipwright.ts) ──────────────
+    else if (pathname === '/v1/shipwright/history' && method === 'GET') {
+      response = await handleShipwrightHistory(request, env);
+    }
+    else if (pathname === '/v1/shipwright/chat' && method === 'POST') {
+      response = await handleShipwrightChat(request, env);
+    }
+    else if (pathname === '/v1/shipwright/clear' && method === 'POST') {
+      response = await handleShipwrightClear(request, env);
     }
 
     // ── GitHub login BFF (ADR-0101 Phase 1) ──────────────────────────────────
@@ -211,6 +345,11 @@ export default {
     }
     else if (pathname === '/auth/whoami' && method === 'GET') {
       response = await handleWhoami(request, env);
+    }
+    // Signed-in probe for the portdaddy.dev header chip (session cookie only;
+    // returns {login, avatarUrl} and nothing else — no secrets).
+    else if (pathname === '/auth/status' && method === 'GET') {
+      response = await handleAuthStatus(request, env);
     }
     else if (pathname === '/auth/logout' && method === 'POST') {
       response = await handleLogout(request, env);
@@ -236,6 +375,47 @@ export default {
     }
     else if (pathname === '/billing/portal' && method === 'POST') {
       response = await handlePortalLink(request, env);
+    }
+
+    // ── Remote harbors (grand-plan X2 v1; src/harbors.ts) ────────────────────
+    else if (pathname === '/v1/harbors' && method === 'POST') {
+      response = await handleCreateHarbor(request, env);
+    }
+    else if (pathname === '/v1/harbors' && method === 'GET') {
+      response = await handleListMyHarbors(request, env);
+    }
+    else if (pathname.startsWith('/v1/harbors/')) {
+      // :name is the qualified `namespace/name` — namespace/name detail, or a
+      // sub-resource: /members (X2), /presence + /helm (X3, src/presence.ts),
+      // /parleys[/:id[/respond]] (X4, src/parleys.ts).
+      const parts = pathname.slice('/v1/harbors/'.length).split('/').map((p) => decodeURIComponent(p));
+      const ns = parts[0];
+      const name = parts[1];
+      const sub = parts.length >= 3 ? parts[2] : undefined;
+      const parleyId = parts.length >= 4 ? parts[3] : undefined;
+      if (ns && name && parts.length === 2 && method === 'GET') {
+        response = await handleGetHarbor(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'members' && method === 'POST') {
+        response = await handleAddHarborMember(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'presence' && method === 'POST') {
+        response = await handlePresenceBeat(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'presence' && method === 'GET') {
+        response = await handleGetPresence(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'helm' && method === 'PUT') {
+        response = await handleSetHelm(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'helm' && method === 'GET') {
+        response = await handleGetHelm(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'parleys' && method === 'POST') {
+        response = await handleCreateParley(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'parleys' && method === 'GET') {
+        response = await handleListParleys(request, env, ns, name);
+      } else if (ns && name && sub === 'parleys' && parleyId && parts.length === 4 && method === 'GET') {
+        response = await handleGetParley(request, env, ns, name, parleyId);
+      } else if (ns && name && sub === 'parleys' && parleyId && parts.length === 5 && parts[4] === 'respond' && method === 'POST') {
+        response = await handleRespondParley(request, env, ns, name, parleyId);
+      } else {
+        response = notFound();
+      }
     }
 
     // ── OIDC exchange ────────────────────────────────────────────────────────
@@ -301,21 +481,49 @@ export default {
       );
     }
 
-    return cors(response);
+    return CREDENTIALED_CORS_PATHS.has(pathname) ? corsCredentialed(response) : cors(response);
   },
 
-  // Cron Trigger (ADR-0101; runtime-verification-for-agents). The Worker has no
-  // long-running Arbiter loop, so retention + session-reaping + erasure-
-  // completion run here on a schedule. Best-effort: the sweep never throws.
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+  // Cron Triggers (ADR-0101; runtime-verification-for-agents). The Worker has
+  // no long-running Arbiter loop, so scheduled maintenance runs here. Two crons
+  // share one handler, dispatched on event.cron (wrangler.deploy.toml):
+  //   "*/5 * * * *"  — MERCY health sweep only (probes are cheap).
+  //   "0 */6 * * *"  — retention/session-reap/erasure sweep (+ a MERCY sweep,
+  //                    since every fire takes vitals). Best-effort: neither
+  //                    sweep ever throws.
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    const MERCY_CRON = '*/5 * * * *';
+    if (event.cron !== MERCY_CRON) {
+      ctx.waitUntil(
+        runRetentionSweep(env, Math.floor(Date.now() / 1000)).then((r) => {
+          if (r.errors.length) console.error('[relay] retention sweep errors:', r.errors.join('; '));
+          else
+            console.log(
+              `[relay] retention sweep: pruned ${r.runStepsPruned} steps / ${r.runsPruned} runs / ` +
+                `${r.eventsPruned} events, reaped ${r.sessionsReaped} sessions, hard-deleted ${r.usersHardDeleted} users`,
+            );
+        }),
+      );
+    }
+    // MERCY takes vitals on every cron fire (the sweep is internally fail-safe).
     ctx.waitUntil(
-      runRetentionSweep(env, Math.floor(Date.now() / 1000)).then((r) => {
-        if (r.errors.length) console.error('[relay] retention sweep errors:', r.errors.join('; '));
-        else
-          console.log(
-            `[relay] retention sweep: pruned ${r.runStepsPruned} steps / ${r.runsPruned} runs / ` +
-              `${r.eventsPruned} events, reaped ${r.sessionsReaped} sessions, hard-deleted ${r.usersHardDeleted} users`,
-          );
+      runMercySweep(env, Math.floor(Date.now() / 1000)).then((r) => {
+        const line =
+          `[relay] mercy sweep: overall=${r.overall} remoteHarbors=${r.remoteHarborsPossible} ` +
+          `opened=${r.incidentsOpened} resolved=${r.incidentsResolved} paged=${r.pagesSent}`;
+        if (r.errors.length) console.error(`${line} errors: ${r.errors.join('; ')}`);
+        else console.log(line);
+      }),
+    );
+    // HITL interruptions: the decay/nag engine rides the same 5-min cadence
+    // (and the 6h fire — every fire nags what is due). Internally fail-safe.
+    ctx.waitUntil(
+      runInterruptionNagSweep(env, Math.floor(Date.now() / 1000)).then((r) => {
+        const line =
+          `[relay] interruption sweep: paused=${r.paused} breakerOpen=${r.breakerOpen} ` +
+          `expired=${r.expired} nags=${r.nagsSent} gaveUp=${r.gaveUpSent} digests=${r.digestsSent}`;
+        if (r.errors.length) console.error(`${line} errors: ${r.errors.join('; ')}`);
+        else console.log(line);
       }),
     );
   },

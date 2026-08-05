@@ -76,7 +76,13 @@ afterEach(() => {
 });
 
 describe('kill switch (KV fleet:paused)', () => {
-  it('paused (boolean "true") ⇒ no AI calls, no GitHub calls, job acked', async () => {
+  it('paused (boolean "true") ⇒ no AI calls, no review posts, but STILL posts a neutral check', async () => {
+    // Regression test for the 2026-07-16 incident: an out-of-band
+    // `fleet:paused=true` left "Port Daddy Fleet" (a REQUIRED merge-queue
+    // check) silently ABSENT on every PR for 4 days because the old
+    // behavior was to return before ever creating a check run. Paused must
+    // still post something — a neutral check — so the required-check gate
+    // can never hang on total silence.
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -92,19 +98,59 @@ describe('kill switch (KV fleet:paused)', () => {
       {} as ExecutionContext,
     );
 
-    // Acked without retry — the job is consumed, nothing was done.
+    // Acked without retry — the job is consumed.
     expect(msg.ack).toHaveBeenCalledTimes(1);
     expect(msg.retry).not.toHaveBeenCalled();
-    // Zero AI spend, zero GitHub traffic, zero check runs, zero transcript writes.
+    // Zero AI spend, zero review/comment posts — but the required check WAS
+    // created and completed neutral, never left silently absent.
     expect(ai.calls).toHaveLength(0);
-    expect(state.records).toHaveLength(0);
-    expect(state.completed).toHaveLength(0);
     expect(state.commentPosts).toBe(0);
-    expect(d1.runs).toHaveLength(0);
-    expect(d1.steps).toHaveLength(0);
+    expect(state.reviews).toHaveLength(0);
+    expect(state.checkRunsCreated).toBe(1);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].summary).toContain('Fleet paused by operator');
+    expect(d1.runs).toHaveLength(1);
+    expect(d1.runs[0].conclusion).toBe('neutral');
+    expect(d1.steps.map(s => s.kind)).toEqual(['check-completed']);
   });
 
-  it('paused (JSON {paused:true}) ⇒ skips, while {paused:false} runs normally', async () => {
+  it('paused ⇒ reuses an existing check run for the same head SHA (idempotent retry)', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    await kv.put('fleet:paused', 'true');
+    const ai = aiStub({ perShip: {} });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }));
+    expect(state.checkRunsCreated).toBe(1);
+
+    // A retried delivery for the SAME head SHA must reuse the check run, not
+    // create a second one.
+    await executeFleet(
+      makeJob({ deliveryId: 'delivery-retry' }),
+      makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }),
+    );
+    expect(state.checkRunsCreated).toBe(1);
+    expect(state.completed).toHaveLength(2);
+    expect(state.completed.every(c => c.conclusion === 'neutral')).toBe(true);
+  });
+
+  it('paused with no head sha in the payload ⇒ cannot post a check, still acks (no throw)', async () => {
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    await kv.put('fleet:paused', 'true');
+    const ai = aiStub({ perShip: {} });
+
+    const job = makeJob({ payloadMinimal: { pull_request: { number: 7 } } });
+    await expect(
+      executeFleet(job, makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db })),
+    ).resolves.toBeUndefined();
+    expect(state.checkRunsCreated).toBe(0);
+    expect(ai.calls).toHaveLength(0);
+  });
+
+  it('paused (JSON {paused:true}) ⇒ skips AI + review, posts neutral check; {paused:false} runs normally', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -113,14 +159,19 @@ describe('kill switch (KV fleet:paused)', () => {
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }));
     expect(ai.calls).toHaveLength(0);
-    expect(state.completed).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('neutral');
 
-    // Flip to resumed: the same job now runs to completion.
+    // Flip to resumed: the same job (new delivery id) now runs to completion.
     await kv.put('fleet:paused', JSON.stringify({ paused: false, pausedAt: 2 }));
     const ai2 = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
-    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai2.ai, DB: memoryD1().db }));
+    await executeFleet(
+      makeJob({ deliveryId: 'delivery-resumed' }),
+      makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai2.ai, DB: memoryD1().db }),
+    );
     expect(ai2.calls.length).toBeGreaterThan(0);
-    expect(state.completed).toHaveLength(1);
+    expect(state.completed).toHaveLength(2);
+    expect(state.completed[1].conclusion).toBe('success');
   });
 
   it('absent / corrupt flag ⇒ NOT paused (fail-safe keeps the gate running)', async () => {

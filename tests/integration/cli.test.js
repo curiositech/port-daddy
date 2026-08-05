@@ -589,7 +589,16 @@ describe('CLI Integration Tests', () => {
         '-q',
       ]).stdout.trim();
 
-      const result = runCli(['session', 'done', 'wrapped up', '--agent', agentId]);
+      const result = runCli([
+        'session',
+        'done',
+        'not-applicable: wrapped up',
+        '--agent',
+        agentId,
+        '--skip-origin-check',
+        '--reason',
+        'integration test count verification',
+      ]);
       expect(result.success).toBe(true);
       expect(result.stdout).toContain('Files released: 1');
 
@@ -1257,6 +1266,64 @@ describe('CLI Integration Tests', () => {
       // Should fail with usage info, not hang waiting for input
       expect(result.success).toBe(false);
       expect(result.stderr).toContain('Usage');
+    });
+  });
+
+  describe('Inbox CLI Commands', () => {
+    const receiverId = `rec-agent-${Date.now()}`;
+    const senderId = `send-agent-${Date.now()}`;
+
+    beforeAll(() => {
+      runCli(['agent', 'register', '--agent', receiverId]);
+      runCli(['agent', 'register', '--agent', senderId]);
+    });
+
+    afterAll(() => {
+      runCli(['inbox', 'clear', '--agent', receiverId]);
+    });
+
+    test('send, list, and show message', () => {
+      // 1. Send message
+      const sendRes = runCli(['inbox', 'send', receiverId, 'Hello Port Daddy!', '--agent', senderId, '--json']);
+      expect(sendRes.success).toBe(true);
+
+      // 2. List inbox to get message ID
+      const listRes = runCli(['inbox', 'list', '--agent', receiverId, '--json']);
+      expect(listRes.success).toBe(true);
+      const listData = JSON.parse(listRes.stdout);
+      expect(listData.messages.length).toBeGreaterThan(0);
+      const targetMessage = listData.messages.find(m => m.content === 'Hello Port Daddy!');
+      expect(targetMessage).toBeDefined();
+      const msgId = targetMessage.id;
+
+      // 3. Show message using show subcommand
+      const showRes = runCli(['inbox', 'show', String(msgId), '--agent', receiverId]);
+      expect(showRes.success).toBe(true);
+      expect(showRes.stdout).toContain('From:      ' + senderId);
+      expect(showRes.stdout).toContain('Hello Port Daddy!');
+
+      // 4. Show message using read subcommand alias
+      const readRes = runCli(['inbox', 'read', String(msgId), '--agent', receiverId]);
+      expect(readRes.success).toBe(true);
+      expect(readRes.stdout).toContain('From:      ' + senderId);
+      expect(readRes.stdout).toContain('Hello Port Daddy!');
+
+      // 5. Show message with quiet option
+      const quietRes = runCli(['inbox', 'show', String(msgId), '--agent', receiverId, '-q']);
+      expect(quietRes.success).toBe(true);
+      expect(quietRes.stdout.trim()).toBe('Hello Port Daddy!');
+
+      // 6. Show message with json option
+      const jsonRes = runCli(['inbox', 'show', String(msgId), '--agent', receiverId, '--json']);
+      expect(jsonRes.success).toBe(true);
+      const jsonData = JSON.parse(jsonRes.stdout);
+      expect(jsonData.id).toBe(msgId);
+      expect(jsonData.content).toBe('Hello Port Daddy!');
+
+      // 7. Error when message is not found
+      const notFoundRes = runCli(['inbox', 'show', '999999', '--agent', receiverId]);
+      expect(notFoundRes.success).toBe(false);
+      expect(notFoundRes.stderr).toContain('not found');
     });
   });
 

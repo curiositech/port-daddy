@@ -80,6 +80,13 @@ describe('renderAccountPage', () => {
     expect(html).toContain('action="/account/delete"');
     expect(html).toContain('action="/auth/logout"');
   });
+  it('links prominently to the billing page (rail + Plan & caps door)', () => {
+    const html = renderAccountPage(baseUser);
+    const matches = html.match(/href="\/account\/billing"/g) ?? [];
+    expect(matches.length).toBeGreaterThanOrEqual(2); // rail nav + section CTA
+    expect(html).toContain('Billing &amp; credits');
+    expect(html).toContain('Free until enrolled');
+  });
   it('contains NO fabricated device/receipt rows (no Potemkin)', () => {
     const html = renderAccountPage(baseUser);
     expect(html).not.toContain('MacBook Pro M4'); // mockup's fake device

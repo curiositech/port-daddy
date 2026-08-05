@@ -14,8 +14,43 @@ pub enum HarborError {
     Expired,
     #[error("Malformed token")]
     Malformed,
+    /// The token's header declares a signature algorithm this implementation does
+    /// not support. Only [`SUPPORTED_ALG`] (`EdDSA`) is accepted; anything else —
+    /// including `none` — is rejected fail-closed before the claims are trusted.
+    #[error("Unsupported algorithm")]
+    UnsupportedAlgorithm,
+    /// The token's `iat` (issued-at) is further in the future than the permitted
+    /// clock-skew window ([`MAX_CLOCK_SKEW_SECS`]). A token that claims to have
+    /// been issued after "now" is either a clock-skew abuse or a forgery attempt.
+    #[error("Token issued in the future")]
+    IssuedInFuture,
     #[error("JSON error: {0}")]
     JsonError(#[from] serde_json::Error),
+}
+
+/// The one signature algorithm this verifier implements: Ed25519 (`EdDSA`).
+///
+/// The token header carries an `alg` field. This crate always verifies with
+/// Ed25519 regardless of what the field claims, so [`HarborCardVerifier::verify`]
+/// cross-checks the declared `alg` against this constant and rejects any mismatch.
+/// That closes the "algorithm confusion" class (e.g. a token forged with
+/// `alg: none` or a symmetric algorithm) fail-closed, rather than silently
+/// EdDSA-verifying whatever the header claims.
+pub const SUPPORTED_ALG: &str = "EdDSA";
+
+/// Maximum tolerated clock skew, in seconds, for the `iat` not-before check.
+///
+/// A token whose `iat` exceeds `now + MAX_CLOCK_SKEW_SECS` is rejected as
+/// future-dated. The window absorbs benign clock drift between the issuer and the
+/// verifier while still rejecting tokens dated meaningfully into the future.
+pub const MAX_CLOCK_SKEW_SECS: i64 = 60;
+
+/// The token header. Only the `alg` field is meaningful to this verifier; it is
+/// cross-checked against [`SUPPORTED_ALG`] so the claimed algorithm cannot diverge
+/// from the algorithm actually used.
+#[derive(Debug, Deserialize)]
+pub struct HarborCardHeader {
+    pub alg: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -76,6 +111,39 @@ impl HarborCardVerifier {
         true
     }
 
+    /// Verify a Harbor card token (`header.payload.signature`, each part
+    /// URL-safe base64 without padding) against this verifier's public key and
+    /// the supplied wall-clock time `now_ts` (unix seconds).
+    ///
+    /// The checks run fail-closed, in an order chosen so that no untrusted field
+    /// is trusted before the signature is confirmed:
+    ///
+    /// 1. **Structure** — exactly three dot-separated parts, else [`HarborError::Malformed`].
+    /// 2. **Signature** — Ed25519 over `header.payload`. A forged or tampered
+    ///    token fails here ([`HarborError::InvalidSignature`]) before any claim
+    ///    is read. The signature covers the header, so the `alg` field below is
+    ///    authenticated, not attacker-chosen.
+    /// 3. **Algorithm** — the header's `alg` must equal [`SUPPORTED_ALG`]. This
+    ///    verifier only ever runs Ed25519; cross-checking the declared algorithm
+    ///    closes the "alg confusion" class (`alg: none`, symmetric-key confusion)
+    ///    fail-closed rather than silently EdDSA-verifying an arbitrary claim.
+    /// 4. **Issued-at (`iat`)** — a not-before check. A token whose `iat` is more
+    ///    than [`MAX_CLOCK_SKEW_SECS`] into the future is rejected
+    ///    ([`HarborError::IssuedInFuture`]); a token whose `iat` is after its own
+    ///    `exp` is incoherent and rejected as [`HarborError::Malformed`]. There is
+    ///    deliberately no independent max-age bound: `exp` already bounds the
+    ///    validity window, and an issuer-controlled lifetime should not be second-
+    ///    guessed here.
+    /// 5. **Expiry (`exp`)** — rejected as [`HarborError::Expired`] once `exp < now_ts`.
+    ///
+    /// ```
+    /// # // Full happy-path verification needs the signing key, so it lives in the
+    /// # // test module; this block pins the public policy constants the contract
+    /// # // above refers to.
+    /// use harbor_card_rs::{SUPPORTED_ALG, MAX_CLOCK_SKEW_SECS};
+    /// assert_eq!(SUPPORTED_ALG, "EdDSA");
+    /// assert_eq!(MAX_CLOCK_SKEW_SECS, 60);
+    /// ```
     pub fn verify(&self, token: &str, now_ts: i64) -> Result<HarborCardClaims, HarborError> {
         let parts: Vec<&str> = token.split('.').collect();
         if parts.len() != 3 {
@@ -93,9 +161,31 @@ impl HarborCardVerifier {
         sig_bytes.zeroize();
         sig_result?;
 
+        // The header is authenticated by the signature above, so its `alg` claim
+        // is now trustworthy — but "trustworthy" still means "must say what we
+        // actually verify with". Reject any algorithm other than Ed25519 so a
+        // future format extension (or a mis-issued token) cannot slip a different
+        // algorithm past a verifier that only ever runs one.
+        let mut header_bytes = Self::internal_decode_b64(header_b64)?;
+        let header: HarborCardHeader = serde_json::from_slice(&header_bytes)?;
+        header_bytes.zeroize();
+        if header.alg != SUPPORTED_ALG {
+            return Err(HarborError::UnsupportedAlgorithm);
+        }
+
         let mut payload_bytes = Self::internal_decode_b64(payload_b64)?;
         let claims: HarborCardClaims = serde_json::from_slice(&payload_bytes)?;
         payload_bytes.zeroize();
+
+        // Issued-at validation. A token dated after its own expiry is incoherent;
+        // a token dated meaningfully into the future is a clock-skew abuse or a
+        // forgery attempt. Both are rejected before the token is honored.
+        if claims.iat > claims.exp {
+            return Err(HarborError::Malformed);
+        }
+        if claims.iat > now_ts.saturating_add(MAX_CLOCK_SKEW_SECS) {
+            return Err(HarborError::IssuedInFuture);
+        }
 
         if claims.exp < now_ts {
             return Err(HarborError::Expired);
@@ -265,7 +355,20 @@ mod tests {
     }
 
     fn issue_token(signing_key: &SigningKey, claims: &HarborCardClaims) -> String {
-        let header_b64 = URL_SAFE_NO_PAD.encode(br#"{"alg":"EdDSA"}"#);
+        issue_token_with_header(signing_key, br#"{"alg":"EdDSA"}"#, claims)
+    }
+
+    /// Issue a token with a caller-chosen header (still correctly signed over
+    /// `header.payload`). Used to exercise the `alg` cross-check: an attacker who
+    /// could influence the header would still have to produce a valid signature,
+    /// so these tokens verify at the signature step and must be rejected at the
+    /// algorithm step.
+    fn issue_token_with_header(
+        signing_key: &SigningKey,
+        header_json: &[u8],
+        claims: &HarborCardClaims,
+    ) -> String {
+        let header_b64 = URL_SAFE_NO_PAD.encode(header_json);
         let payload_json = serde_json::to_vec(claims).unwrap();
         let payload_b64 = URL_SAFE_NO_PAD.encode(payload_json);
         let msg = format!("{}.{}", header_b64, payload_b64);
@@ -275,11 +378,15 @@ mod tests {
     }
 
     fn sample_claims(exp: i64) -> HarborCardClaims {
+        claims_with(0, exp)
+    }
+
+    fn claims_with(iat: i64, exp: i64) -> HarborCardClaims {
         HarborCardClaims {
             sub: "agent-1".to_string(),
             harbor: "local".to_string(),
             cap: vec!["read".to_string()],
-            iat: 0,
+            iat,
             exp,
             jti: "abc123".to_string(),
         }
@@ -388,6 +495,86 @@ mod tests {
 
         let err = verifier.verify(&token, 0).unwrap_err();
         assert!(matches!(err, HarborError::InvalidSignature));
+    }
+
+    // ─── alg-confusion hardening ──────────────────────────────────────────────
+
+    #[test]
+    fn verify_rejects_alg_none_even_when_signed() {
+        // Classic "alg: none" forgery shape. The token is correctly Ed25519-signed
+        // (so it passes the signature step), but its header claims no algorithm.
+        // The cross-check must reject it rather than honoring the claims.
+        let (signing_key, verifier) = test_verifier();
+        let claims = sample_claims(9_999_999_999);
+        let token = issue_token_with_header(&signing_key, br#"{"alg":"none"}"#, &claims);
+
+        let err = verifier.verify(&token, 0).unwrap_err();
+        assert!(matches!(err, HarborError::UnsupportedAlgorithm));
+    }
+
+    #[test]
+    fn verify_rejects_symmetric_alg_confusion() {
+        // A token declaring a symmetric algorithm (HS256) must be rejected: this
+        // verifier only ever runs Ed25519, and must not let the header pretend
+        // otherwise.
+        let (signing_key, verifier) = test_verifier();
+        let claims = sample_claims(9_999_999_999);
+        let token = issue_token_with_header(&signing_key, br#"{"alg":"HS256"}"#, &claims);
+
+        let err = verifier.verify(&token, 0).unwrap_err();
+        assert!(matches!(err, HarborError::UnsupportedAlgorithm));
+    }
+
+    #[test]
+    fn verify_rejects_missing_alg_field() {
+        // A header with no `alg` at all is malformed JSON for HarborCardHeader.
+        let (signing_key, verifier) = test_verifier();
+        let claims = sample_claims(9_999_999_999);
+        let token = issue_token_with_header(&signing_key, br#"{}"#, &claims);
+
+        let err = verifier.verify(&token, 0).unwrap_err();
+        assert!(matches!(err, HarborError::JsonError(_)));
+    }
+
+    // ─── iat (issued-at) validation ──────────────────────────────────────────
+
+    #[test]
+    fn verify_rejects_future_iat() {
+        // Token dated well into the future relative to `now_ts`: clock-skew abuse.
+        let (signing_key, verifier) = test_verifier();
+        let claims = claims_with(10_000, 9_999_999_999);
+        let token = issue_token(&signing_key, &claims);
+
+        let err = verifier.verify(&token, 1_000).unwrap_err();
+        assert!(matches!(err, HarborError::IssuedInFuture));
+    }
+
+    #[test]
+    fn verify_accepts_iat_within_clock_skew() {
+        // Token issued slightly ahead of the verifier's clock, inside the skew
+        // window: benign drift, must still verify.
+        let (signing_key, verifier) = test_verifier();
+        let iat = 1_000 + MAX_CLOCK_SKEW_SECS - 1;
+        let claims = claims_with(iat, 9_999_999_999);
+        let token = issue_token(&signing_key, &claims);
+
+        let verified = verifier
+            .verify(&token, 1_000)
+            .expect("iat within skew window should verify");
+        assert_eq!(verified.sub, "agent-1");
+    }
+
+    #[test]
+    fn verify_rejects_iat_after_exp() {
+        // Incoherent token: issued after it expires. Rejected as malformed.
+        let (signing_key, verifier) = test_verifier();
+        let claims = claims_with(9_000, 8_000);
+        let token = issue_token(&signing_key, &claims);
+
+        // now_ts large enough that the future-iat and expiry checks don't fire
+        // first — we want the iat>exp coherence check to be what rejects it.
+        let err = verifier.verify(&token, 10_000).unwrap_err();
+        assert!(matches!(err, HarborError::Malformed));
     }
 
     // ─── FFI wrapper tests (exercise the extern "C" boundary directly) ────────

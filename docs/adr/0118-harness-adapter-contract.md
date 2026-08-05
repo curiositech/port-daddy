@@ -74,6 +74,58 @@ renderer used by `pd backend adapters`.
 | custom-command | custom | custom-command | handoff-only | initial prompt | none | port-daddy:custom | custom | Capabilities are operator-declared and remain unverified until a concrete adapter probe exists. |
 <!-- END GENERATED HARNESS ADAPTER TABLE -->
 
+## N:N Continuation Compatibility
+
+The grid below is generated from the same adapter catalog. It expands every
+source family against every target family and applies the exact `auto` rule the
+continuation route uses: stable same-family session resume is native; every
+other target that accepts initialization context receives a sanitized successor
+handoff. The symbols describe mechanical paths, not conformance grants.
+
+<!-- BEGIN GENERATED HARNESS CONTINUATION MATRIX -->
+```text
+Source                   01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17
+01 claude-code            N  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
+02 codex-cli              H  N  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
+03 agy-cli                H  H  N  H  H  H  H  H  H  H  H  H  H  H  H  H  H
+04 gemini-cli             H  H  H  N  H  H  H  H  H  H  H  H  H  H  H  H  H
+05 groq-cli               H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
+06 grok-claude-proxy      H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
+07 anthropic-api          H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
+08 gemini-api             H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
+09 cloudflare-workers-ai  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
+10 openai-api             H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
+11 groq-api               H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
+12 deepseek-api           H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
+13 xai-api                H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
+14 ollama                 H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
+15 lmstudio               H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
+16 aider                  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
+17 custom-command         H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
+
+N = same-family native session path is mechanically available; H = sanitized successor handoff; — = unsupported.
+Symbols describe mechanics only. Runtime proof appears separately as durable witnesses.
+```
+<!-- END GENERATED HARNESS CONTINUATION MATRIX -->
+
+## Runtime Evidence Report
+
+The generated grid is a mechanical ceiling, not a compliance badge. The daemon
+serves `GET /harness-adapters/continuation-matrix` using
+`pd.agent-harbor.harness-continuation-matrix.v0`. Each adapter exposes separate
+catalog, discovery, spawn, exact-live-interaction, native-resume, and handoff
+predicates. Completed `fleet_transcripts` witness spawn; completed
+`agent_continuations` witness native or successor continuation. A future exact
+live-control path must emit its own durable control receipt before that predicate
+can become witnessed.
+
+Every witness includes its durable id, observation time, age, and freshness.
+Evidence older than seven days remains visible but stale. Catalog declarations,
+help output, path existence, and agent self-report cannot become runtime proof.
+Port Daddy therefore emits no aggregate numeric conformance level: mechanics,
+discovery, transcript fidelity, and observed execution remain independently
+inspectable facts.
+
 ## Discovery Probe
 
 `pd backend adapters --probe` is deliberately side-effect-free. It may:
