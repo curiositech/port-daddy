@@ -119,3 +119,16 @@ load-bearing claim is one of: (a) proved under named assumptions and linked to a
 conforming implementation; (b) empirically supported with reproducible evidence;
 or (c) explicitly narrowed or rejected. The production library must publish the
 same edition and implementation grades that the repository builds.
+
+### Publication receipt contract
+
+Every published edition must append one immutable receipt that records, together:
+
+- the landed source commit and volume edition;
+- the mega-volume route, page count, byte count, and SHA-256 digest;
+- the route and SHA-256 digest of each of the seven standalone papers;
+- the production library deployment identifier and verification timestamp.
+
+The release item stays `now` until those values are read back from production and
+match the landed artifacts. A preview URL, local build, or CI artifact is evidence
+for the release, but is not the release receipt.
