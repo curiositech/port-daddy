@@ -895,7 +895,7 @@ describe('list', () => {
     expect(agents[0]).not.toHaveProperty('childProcess');
   });
 
-  test('shows killed status after kill', async () => {
+  test('keeps a completed result immutable when cancellation arrives late', async () => {
     const spawner = createSpawner();
     setupOllamaFetchMock('response');
 
@@ -903,9 +903,9 @@ describe('list', () => {
     spawner.kill(result.agentId);
 
     const agents = spawner.list();
-    const killed = agents.find(a => a.agentId === result.agentId);
-    expect(killed.status).toBe('killed');
-    expect(killed.completedAt).toBeTruthy();
+    const completed = agents.find(a => a.agentId === result.agentId);
+    expect(completed.status).toBe('completed');
+    expect(completed.completedAt).toBeTruthy();
   });
 });
 
@@ -914,7 +914,7 @@ describe('list', () => {
 // =============================================================================
 
 describe('kill', () => {
-  test('marks agent as killed', async () => {
+  test('does not rewrite an already-completed agent', async () => {
     const spawner = createSpawner();
     setupOllamaFetchMock('response');
 
@@ -923,7 +923,7 @@ describe('kill', () => {
 
     const agents = spawner.list();
     const agent = agents.find(a => a.agentId === result.agentId);
-    expect(agent.status).toBe('killed');
+    expect(agent.status).toBe('completed');
     expect(agent.completedAt).toBeTruthy();
   });
 
@@ -941,7 +941,7 @@ describe('kill', () => {
     expect(() => spawner.kill(result.agentId)).not.toThrow();
   });
 
-  test('calls PD coordination /sugar/done on kill', async () => {
+  test('does not emit a second /sugar/done when cancellation arrives after completion', async () => {
     const spawner = createSpawner();
     setupOllamaFetchMock('response');
 
@@ -949,16 +949,13 @@ describe('kill', () => {
     mockFetch.mockClear();
     spawner.kill(result.agentId);
 
-    // kill fires /sugar/done asynchronously — give it a tick
+    // A late cancellation is a no-op; give any accidental async call a tick.
     await new Promise(r => setTimeout(r, 10));
 
     const doneCalls = mockFetch.mock.calls.filter(
       ([url]) => typeof url === 'string' && url.includes('/sugar/done')
     );
-    expect(doneCalls.length).toBe(1);
-    const body = JSON.parse(doneCalls[0][1].body);
-    expect(body.agentId).toBe(result.agentId);
-    expect(body.note).toBe('Killed by spawner');
+    expect(doneCalls.length).toBe(0);
   });
 
   test('kills child process while custom backend is still running', async () => {

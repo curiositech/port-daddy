@@ -2600,6 +2600,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
   function kill(agentId: string): void {
     const record = agents.get(agentId);
     if (!record) return;
+    // A terminal receipt is immutable. Late budget-pause, panic, or operator
+    // cancellation signals can race with normal completion; they may clean up
+    // a live child, but must never rewrite a completed/failed outcome.
+    if (record.status !== 'running') return;
 
     // Clean up heartbeat
     if (record.heartbeatInterval) {
