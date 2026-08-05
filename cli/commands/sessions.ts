@@ -13,7 +13,7 @@ import { canPrompt, promptText, promptSelect } from '../utils/prompt.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
-import { readCurrentContext } from '../utils/current-context.js';
+import { clearCurrentContext, readCurrentContext, writeCurrentContext } from '../utils/current-context.js';
 import { loadFleetConfig } from '../../lib/fleet-engine.js';
 import { deriveChangelogFromNote } from '../../lib/changelog-from-note.js';
 import {
@@ -362,6 +362,17 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
   }
 
   const sessionId = data.id as string;
+  const contextAgentId = typeof data.agentId === 'string' && data.agentId.trim()
+    ? data.agentId
+    : pd.agentId;
+  if (contextAgentId) {
+    writeCurrentContext({
+      agentId: contextAgentId,
+      sessionId,
+      purpose,
+      startedAt: Date.now(),
+    });
+  }
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
   } else if (isQuiet(options)) {
@@ -430,7 +441,10 @@ async function sessionEnd(rest: string[], options: CLIOptions, status: string): 
         releasedFiles: sugarResult.releasedFiles,
       } as any;
     } else {
-      data = await pd.endSession(note, { status });
+      const explicitSessionId = stringOption(options, 'session', 'session-id', 'sessionId');
+      data = explicitSessionId
+        ? await pd.endSession(explicitSessionId, { status, note })
+        : await pd.endSession(note, { status });
     }
   } catch (error) {
     const errorBody = getErrorBody(error);
@@ -448,6 +462,9 @@ async function sessionEnd(rest: string[], options: CLIOptions, status: string): 
     ui.error(data.error || 'No active session found');
     process.exit(1);
   }
+
+  const current = readCurrentContext();
+  if (current?.sessionId === sessionId) clearCurrentContext();
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));

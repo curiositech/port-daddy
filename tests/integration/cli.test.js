@@ -539,6 +539,40 @@ describe('CLI Integration Tests', () => {
       runCli(['session', 'rm', quietResult.stdout.trim()]);
     });
 
+    test('session start becomes current and explicit abandon preserves a newer successor context', () => {
+      const suffix = `${Date.now()}`;
+      const firstAgent = `context-first-${suffix}`;
+      const secondAgent = `context-successor-${suffix}`;
+      const first = runCli([
+        'session', 'start', 'Context predecessor', '--agent', firstAgent,
+        '--lifecycle', 'durable', '-q',
+      ]).stdout.trim();
+      const second = runCli([
+        'session', 'start', 'Context successor', '--agent', secondAgent,
+        '--lifecycle', 'durable', '-q',
+      ]).stdout.trim();
+
+      const current = JSON.parse(runCli(['whoami', '--json']).stdout);
+      expect(current.active).toBe(true);
+      expect(current.agentId).toBe(secondAgent);
+      expect(current.sessionId).toBe(second);
+
+      const abandoned = runCli([
+        'session', 'abandon', 'explicit predecessor cleanup',
+        '--session', first, '--agent', firstAgent, '--yes', '--json',
+      ]);
+      expect(abandoned.success).toBe(true);
+      expect(JSON.parse(abandoned.stdout).id).toBe(first);
+
+      const stillCurrent = JSON.parse(runCli(['whoami', '--json']).stdout);
+      expect(stillCurrent.active).toBe(true);
+      expect(stillCurrent.agentId).toBe(secondAgent);
+      expect(stillCurrent.sessionId).toBe(second);
+
+      runCli(['session', 'rm', first]);
+      runCli(['session', 'rm', second]);
+    });
+
     test('session start conflict output shows filePath from service contract', () => {
       const filePath = `src/conflict-${Date.now()}.ts`;
       const firstId = runCli([
