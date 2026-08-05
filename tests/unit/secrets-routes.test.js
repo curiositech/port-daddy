@@ -86,6 +86,18 @@ describe('secrets routes', () => {
     await app.close();
   });
 
+  test('remote cloud telemetry bearer keys are managed credentials', async () => {
+    const app = await buildApp();
+
+    const res = await app.inject({ method: 'GET', url: '/secrets' });
+    const keys = res.json().secrets.map((secret) => secret.key);
+
+    expect(keys).toContain('PD_CLOUD_APP_TELEMETRY_TOKEN');
+    expect(keys).toContain('PD_REMOTE_TELEMETRY_TOKEN');
+
+    await app.close();
+  });
+
   test('POST /secrets then GET shows set:true', async () => {
     const app = await buildApp();
 

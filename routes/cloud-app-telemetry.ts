@@ -9,6 +9,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import type { CloudAppTelemetry, CloudAppTelemetryInput } from '../lib/cloud-app-telemetry.js';
+import { getSecret } from '../lib/secret-env.js';
 
 interface CloudAppTelemetryDeps {
   cloudAppTelemetry?: CloudAppTelemetry;
@@ -31,8 +32,8 @@ function parseLimit(value: string | undefined, fallback = 50): number {
 function expectedToken(deps: CloudAppTelemetryDeps): string | null {
   return (
     deps.remoteTelemetryToken?.trim()
-    || process.env.PD_CLOUD_APP_TELEMETRY_TOKEN?.trim()
-    || process.env.PD_REMOTE_TELEMETRY_TOKEN?.trim()
+    || getSecret('PD_CLOUD_APP_TELEMETRY_TOKEN')?.trim()
+    || getSecret('PD_REMOTE_TELEMETRY_TOKEN')?.trim()
     || null
   );
 }
