@@ -20,6 +20,7 @@ import {
   decodeFingerprint,
   encodeFingerprint,
   fingerprintDiff,
+  withAuthoredTests,
   RE_AUTHOR_FILE_CHURN,
   RE_AUTHOR_SIZE_RATIO,
 } from '../src/purser-rerun.js';
@@ -47,9 +48,21 @@ describe('fingerprintDiff', () => {
     expect(fp.files).toEqual([]);
   });
 
-  it('round-trips through the PR-body marker', () => {
-    const fp = fingerprintDiff(diffFor(['src/a.ts']));
+  it('round-trips through the PR-body marker, authored test paths included', () => {
+    const fp = withAuthoredTests(fingerprintDiff(diffFor(['src/a.ts'])), [
+      'tests/purser/b.test.ts',
+      'tests/purser/a.test.ts',
+    ]);
+    // Sorted on the way in, so the marker is stable across runs.
+    expect(fp.tests).toEqual(['tests/purser/a.test.ts', 'tests/purser/b.test.ts']);
     expect(decodeFingerprint(`prose\n${encodeFingerprint(fp)}\nmore prose`)).toEqual(fp);
+  });
+
+  it('decodes a legacy marker with no `tests` to an empty list, not a crash', () => {
+    // Written before bounded re-reads existed. An empty list routes the caller
+    // to re-author rather than to a repo-wide tree walk.
+    const legacy = '<!-- purser-contract-fingerprint: {"files":["a.ts"],"size":10} -->';
+    expect(decodeFingerprint(legacy)).toEqual({ files: ['a.ts'], size: 10, tests: [] });
   });
 
   it('decodes to null on absent or malformed markers — no memory beats false memory', () => {
@@ -145,7 +158,9 @@ describe('parseTestFailures — names must be real', () => {
   });
 
   it('sees through ANSI colour', () => {
-    expect(parseTestFailures('[31m×[0m coloured case name')).toEqual(['coloured case name']);
+    expect(parseTestFailures('\u001b[31m×\u001b[0m coloured case name')).toEqual([
+      'coloured case name',
+    ]);
   });
 
   it('does NOT match prose that merely mentions failure', () => {
