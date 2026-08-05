@@ -28,3 +28,11 @@ describe.each(['wrangler.deploy.toml', 'wrangler.toml.example'])('%s queue contr
     expect(dlq).toMatch(/^\s*max_retries\s*=\s*1\s*$/m);
   });
 });
+
+describe('production sandbox rollout boundary', () => {
+  it('keeps the beta container binding disabled until the deploy token and application are provisioned', () => {
+    const config = readConfig('wrangler.deploy.toml');
+    expect(config).not.toMatch(/^\s*\[\[containers\]\]/m);
+    expect(config).not.toMatch(/^\s*name\s*=\s*"SANDBOX"\s*$/m);
+  });
+});
