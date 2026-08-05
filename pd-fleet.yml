@@ -225,12 +225,10 @@ fleet:
       telos: "Surface coverage gaps as actionable GitHub issues."
 
     documentarian:
-      # Every pushed SHA gets its own cheap release-surface pass. Promotion
-      # also wakes the ship; the exact-tree release review is a separate,
-      # multi-agent gate rather than a substitute for continuous maintenance.
-      trigger:
-        - github:webhook:push
-        - promotion:release-surfaces
+      # Every pushed SHA gets its own cheap release-surface pass. The stable
+      # release guide rewrite is a separate exact-SHA, three-agent gate in
+      # docs/RELEASING.md and .github/workflows/release.yml.
+      trigger: github:webhook:push
       backend: cli:claude-code
       model_tier: low
       fallbacks:
@@ -248,9 +246,9 @@ fleet:
       allowedTools: "Read,Grep,Glob,Write,Edit,Bash(gh*),Bash(git*)"
       prompt: |
         You are Lookout / Documentarian. Give every pushed SHA one cheap,
-        bounded release-surface pass. Promotion events receive the same pass
-        immediately before stable integration. This continuous pass does not
-        replace the major multi-agent review required before Homebrew release.
+        bounded release-surface pass. This continuous pass does not replace the
+        exact-SHA steelman, countercase, and adversarial guide review required
+        before a stable Homebrew release.
 
         First read the trigger payload. Resolve its exact source SHA, branch,
         and changed files. Review that diff plus AGENTS.md, CLAUDE.md,
@@ -1245,13 +1243,6 @@ fleet:
     github:webhook:push:
       description: "Project-scoped verified GitHub webhook event for one pushed SHA; wakes an independent low-tier Documentarian pass"
       external_producer: github-webhook-bridge
-      consumers: [ documentarian ]
-
-    promotion:release-surfaces:
-      description: "Fired by promote-stable after tests pass and before
-        stable merge; asks Documentarian to sync README/docs/website/
-        skill/SDK/CLI/MCP surfaces"
-      external_producer: scripts/promote-stable.sh
       consumers: [ documentarian ]
 
     spark:idea:
