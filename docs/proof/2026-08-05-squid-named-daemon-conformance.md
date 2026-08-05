@@ -1,36 +1,37 @@
 # Squid named-daemon conformance proof
 
 - Date: 2026-08-05
-- Candidate: Port Daddy 3.28.0 at `6beb09700`
+- Candidate: Port Daddy 3.28.0 at `24fb87393`
 - Runtime: named development daemon `squid-3-28-e2e`
 
 This proof deliberately omits the daemon's TCP port. Every command selected the
 named profile, read its published endpoint at runtime, and exported that endpoint
-to the child. The preferred seed is only a starting point: a separate collision
-probe occupied the source-defined default, started an isolated 3.28 daemon, and
-verified that the daemon published a different healthy endpoint.
+to the child. The preferred seed is only a starting point. The exact candidate's
+`dynamic-tcp-listener` regression occupied its chosen preferred port and proved
+that the listener published a different healthy endpoint; the complete suite also
+passed the repository-wide hard-coded daemon URL ban.
 
 ## Primary Squid and attention flow
 
 | Evidence | Durable identifier |
 | --- | --- |
-| Receipt | `run-f0322ea20bf876ff` |
-| Session | `session-proven-named-daemon-attention-and-receipt-confor-33277d052198` |
-| Agent | `spawned-2bf991374106` |
-| Transcript | `tx_msg067de_lzpcb2z5` |
-| Terminal marker | `SQUID_NAMED_DAEMON_CONFORMANCE_OK` |
+| Receipt | `run-abf03776b304bc4a` |
+| Session | `session-final-named-daemon-squid-attention-and-durable-r-04645bfa1346` |
+| Agent | `spawned-970bcc1f0b93` |
+| Transcript | `tx_msg36m3c_utoz6jh7` |
+| Terminal marker | `SQUID_328_FINAL_ATTENTION_OK` |
 
 The harnessed Codex agent ran `pd attention`, `pd sitrep`, `command -v pd`,
 `pd version`, `pd status --json`, and `pd squid status --json` against the
 selected named daemon. It observed the profile-local source CLI, version 3.28.0,
-revision `6beb09700`, no binary drift, and Squid LIVE with a score of 100 and all
+revision `24fb87393`, no binary drift, and Squid LIVE with a score of 100 and all
 tentacles wired.
 
 The completed receipt records:
 
 - no execution deadline;
-- a $0.15 budget and $0.05316 exact cost;
-- 212,205 input tokens, 169,088 cached tokens, and 1,809 output tokens; and
+- a $0.20 budget and $0.072652 exact cost;
+- 254,334 input tokens, 213,120 cached tokens, and 5,724 output tokens; and
 - a non-null Coast Guard result: confined by macOS Seatbelt, egress recorded,
   and zero blocked requests.
 
@@ -42,19 +43,28 @@ key. The first admission reported `replayed: false`; the second reported
 
 | Evidence | Durable identifier |
 | --- | --- |
-| Receipt | `run-525ab55201c659a8` |
-| Successor session | `session-idempotent-linked-continuation-conformance-855cad0ce930` |
-| Agent | `spawned-333404feb66f` |
-| Transcript | `tx_msg07z6w_g35ptthi` |
-| Predecessor | `session-proven-named-daemon-attention-and-receipt-confor-33277d052198` |
-| Terminal marker | `CONTINUATION_CONFORMANCE_OK` |
+| Receipt | `run-1f0083097c8f4d3b` |
+| Successor session | `session-idempotent-linked-continuation-conformance-for-f-0a49ffda6035` |
+| Agent | `spawned-9e368c498bb2` |
+| Transcript | `tx_msg3as97_q3ts3kb9` |
+| Predecessor | `session-final-named-daemon-squid-attention-and-durable-r-04645bfa1346` |
+| Terminal marker | `SQUID_328_FINAL_CONTINUATION_OK` |
 
 While the continuation was running, collection showed a positive child PID and
 fresh heartbeat. After completion it showed `live: false`, preserving the
 terminal receipt rather than confusing process death with lost work. The receipt
-records a $0.12 budget, $0.037509 exact cost, 119,439 input tokens, 91,648 cached
-tokens, 2,176 output tokens, and non-null Seatbelt confinement with recorded
+records a $0.15 budget, $0.095969 exact cost, 163,189 input tokens, 82,432 cached
+tokens, 6,493 output tokens, and non-null Seatbelt confinement with recorded
 egress. No generic wall-clock deadline was installed.
+
+## Candidate validation
+
+The final source candidate passed 533 Jest suites with 11,399 tests green and 10
+intentional skips. TypeScript typechecking passed. All 13 version authorities
+reported 3.28.0; all 13 skill mirrors agreed; the public boundary passed; and 244
+changed documentation files were citation-clean. The named daemon was then rebuilt
+from `24fb87393`; its health and status projections agreed on the source worktree,
+revision, version, selected profile, and zero binary drift before Squid was armed.
 
 ## Diagnostic progression
 
