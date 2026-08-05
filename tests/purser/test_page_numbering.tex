@@ -1,9 +1,0 @@
-\documentclass{article}
-\usepackage{tikz}
-\usepackage{hyperref}
-\begin{document}
-\input{../../website-v2/public/whitepaper/coordination-papers-mega-frontmatter.tex}
-\section*{Page Numbering Validation}
-\ifgrep{\pagenumbering{roman}}{\error{Front matter numbering incorrect}}\fi
-\ifgrep{\pagenumbering{arabic}}{\error{Main content numbering incorrect}}\fi
-\end{document}

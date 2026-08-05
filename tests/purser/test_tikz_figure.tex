@@ -1,9 +1,0 @@
-\documentclass{article}
-\usepackage{tikz}
-\usepackage{hyperref}
-\begin{document}
-\input{../../website-v2/public/whitepaper/coordination-papers-mega-frontmatter.tex}
-\section*{TikZ Figure Validation}
-\ifgrep{\begin{tikzpicture}}{\error{TikZ diagram missing}}\fi
-\ifgrep{\caption{The volume's argument and assurance spine}}{\error{Figure caption missing}}\fi
-\end{document}
