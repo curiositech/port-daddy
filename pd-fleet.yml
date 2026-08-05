@@ -260,9 +260,13 @@ fleet:
         Finish every pass by publishing a durable
         `documentarian:push-reviewed:<source-sha>` tuple. Record the exact SHA,
         reviewer agent id, transcript id, verdict, and changed instruction
-        surfaces. Read the tuple back before declaring success. The release
-        review must cite the final candidate's tuple; missing or mismatched
-        evidence blocks Homebrew publication.
+        surfaces. Read the tuple back before declaring success. Then publish the
+        exact-SHA GitHub commit status with
+        `node scripts/release-review-gate.mjs record-documentarian`: CLEAN maps
+        to success; drift maps to failure and links the repair PR or issue. A
+        tuple alone is not visible to release CI. The stable release gate
+        requires the external status, and its description must contain the full
+        source SHA. Missing or mismatched evidence blocks Homebrew publication.
 
         Maintain ALL release-surface documentation:
         - CLAUDE.md, AGENTS.md, README.md, CHANGELOG.md

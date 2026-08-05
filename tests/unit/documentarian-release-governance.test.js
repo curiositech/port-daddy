@@ -18,6 +18,9 @@ describe('continuous documentation governance', () => {
     expect(documentarian.worktree).toBe(true);
     expect(documentarian.prompt).toContain('documentarian:push-reviewed:<source-sha>');
     expect(documentarian.prompt).toMatch(/Read the tuple back/);
+    expect(documentarian.prompt).toContain('release-review-gate.mjs record-documentarian');
+    expect(documentarian.prompt).toMatch(/CLEAN maps\s+to success; drift maps to failure/i);
+    expect(documentarian.prompt).toMatch(/description must contain the full\s+source SHA/i);
     expect(fleet.channels['github:webhook:push'].consumers).toContain('documentarian');
   });
 
