@@ -1389,7 +1389,7 @@ const ALL_COMMANDS: string[] = [
   'begin', 'done', 'whoami', 'account', 'attention', 'nudge', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
-  'start', 'stop', 'restart', 'status', 'install', 'install-bosun', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update', 'upgrade',
+  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update', 'upgrade',
   'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'benchmark', 'look', 'sitrep', 'roadmap',
   'advise', 'preflight', 'compass', 'guard', 'hooks',
   'salvage', 'resurrection', 'changelog', 'booty', 'tunnel',
@@ -2794,10 +2794,6 @@ export async function main(): Promise<void> {
 
       case 'install':
         await handleDaemon('install', options);
-        break;
-
-      case 'install-bosun':
-        await handleDaemon('install-bosun', options);
         break;
 
       case 'uninstall':
