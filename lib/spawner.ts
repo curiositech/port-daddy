@@ -38,6 +38,7 @@ import { xaiAdapter, DEFAULT_XAI_MODEL } from './spawner/backends/xai.js';
 import { spawnViaCliTube, type CliTubeTool, type TubeClientLike } from './spawner/backends/cli-tube.js';
 import {
   CODEX_WORKSPACE_NETWORK_CONFIG,
+  codexCoordinationEnvironmentConfigs,
   codexArgsForExternalSandbox,
 } from './spawner/backends/cli-tube-provider-specs.js';
 import { withCoastGuard } from './spawner/coast-guard-runner.js';
@@ -934,6 +935,9 @@ async function runCliTube(
     ? spec.capabilities
     : ['spawn:agent', `backend:${spec.backend}`];
   const writePolicy = scopeTierWritePolicy(classifyScope(confineCaps));
+  const codexCoordinationConfig = cli === 'codex'
+    ? codexCoordinationEnvironmentConfigs({ ...process.env, ...spec.env })
+    : undefined;
 
   const result = await spawnViaCliTube({
     cli,
@@ -942,6 +946,7 @@ async function runCliTube(
     cwd: spec.workdir,
     env: { ...spec.env },
     model: spec.model,
+    codexConfig: codexCoordinationConfig,
     onChild: context?.onChildProcess,
     onStreamLine,
     permissionMode: spec.permissionMode,
@@ -1182,6 +1187,7 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
         '--output-last-message', outputPath,
         '--model', model,
         '--json',
+        ...codexCoordinationEnvironmentConfigs(env).flatMap((config) => ['-c', config]),
         spec.nativeResume.sessionId,
         spec.task,
       ]
@@ -1195,6 +1201,7 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
         '--output-last-message', outputPath,
         '--model', model,
         '--json',
+        ...codexCoordinationEnvironmentConfigs(env).flatMap((config) => ['-c', config]),
         spec.task,
       ];
 

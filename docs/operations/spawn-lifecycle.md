@@ -61,6 +61,12 @@ The selected loopback daemon endpoint remains directly reachable through Coast
 Guard's `NO_PROXY` policy; other network traffic remains subject to Coast
 Guard's budget and policy.
 
+Codex also filters the environment of model-generated shells. Port Daddy
+re-injects a strict allowlist of selected-daemon identity, agent/session
+identity, the source-matched `PORT_DADDY_CLI`, and `PATH` through Codex's
+`shell_environment_policy.set` configuration. Provider credentials and the
+rest of the daemon environment are not forwarded by that exception.
+
 A subprocess receipt with no Coast Guard evidence is not conformant. End-to-end
 proof must show the agent reached the selected daemon and that its durable run
 receipt contains a non-null, confined Coast Guard record.

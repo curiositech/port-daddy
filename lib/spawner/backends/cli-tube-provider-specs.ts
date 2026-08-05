@@ -77,6 +77,35 @@ const MAX_CODEX_CONFIG_OVERRIDE_LENGTH = 512;
  */
 export const CODEX_WORKSPACE_NETWORK_CONFIG = 'sandbox_workspace_write.network_access=true';
 export const CODEX_EXTERNAL_SANDBOX_FLAG = '--dangerously-bypass-approvals-and-sandbox';
+const CODEX_COORDINATION_ENV_KEYS = [
+  'PATH',
+  'PORT_DADDY_URL',
+  'PORT_DADDY_CLI',
+  'PORT_DADDY_DAEMON',
+  'PD_ACTIVE_DAEMON',
+  'PD_AGENT_ID',
+  'PD_SESSION_ID',
+] as const;
+
+/**
+ * Codex intentionally filters the environment exposed to model-generated
+ * shells. Re-introduce only the selected-daemon and source-CLI context plus
+ * PATH, after Coast Guard has scrubbed secrets from the parent environment.
+ */
+export function codexCoordinationEnvironmentConfigs(
+  env: Readonly<Record<string, string | undefined>>,
+): string[] {
+  const configs: string[] = [];
+  for (const key of CODEX_COORDINATION_ENV_KEYS) {
+    const value = env[key];
+    if (typeof value !== 'string' || value.length === 0) continue;
+    if (/[\0\r\n]/.test(value)) {
+      throw new Error(`Unsafe ${key} value cannot be forwarded to the Codex shell environment`);
+    }
+    configs.push(`shell_environment_policy.set.${key}=${JSON.stringify(value)}`);
+  }
+  return configs;
+}
 
 /**
  * Select Codex's documented externally-sandboxed mode when Coast Guard is the

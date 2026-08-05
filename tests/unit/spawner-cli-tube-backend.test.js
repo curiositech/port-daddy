@@ -43,6 +43,7 @@ const {
   CLI_TUBE_TOOLS,
 } = await import('../../lib/spawner/backends/cli-tube.js');
 const {
+  codexCoordinationEnvironmentConfigs,
   codexArgsForExternalSandbox,
 } = await import('../../lib/spawner/backends/cli-tube-provider-specs.js');
 const { captureWorkspaceIdentity } = await import('../../lib/workspace-identity.js');
@@ -240,6 +241,25 @@ describe('buildArgs', () => {
     ]);
     expect(external).not.toContain('--full-auto');
     expect(external).not.toContain('sandbox_workspace_write.network_access=true');
+  });
+
+  test('codex shells receive only selected-daemon context and the source CLI path', () => {
+    const configs = codexCoordinationEnvironmentConfigs({
+      PATH: '/profile/dev-bin:/usr/bin',
+      PORT_DADDY_URL: 'http://127.0.0.1:4567',
+      PORT_DADDY_CLI: '/profile/dev-bin/pd',
+      PD_AGENT_ID: 'agent-test',
+      OPENAI_API_KEY: 'must-not-forward',
+    });
+
+    expect(configs).toEqual([
+      'shell_environment_policy.set.PATH="/profile/dev-bin:/usr/bin"',
+      'shell_environment_policy.set.PORT_DADDY_URL="http://127.0.0.1:4567"',
+      'shell_environment_policy.set.PORT_DADDY_CLI="/profile/dev-bin/pd"',
+      'shell_environment_policy.set.PD_AGENT_ID="agent-test"',
+    ]);
+    expect(configs.join('\n')).not.toContain('OPENAI_API_KEY');
+    expect(() => codexCoordinationEnvironmentConfigs({ PATH: '/safe\nunsafe' })).toThrow(/Unsafe PATH/);
   });
 
   test.each([
