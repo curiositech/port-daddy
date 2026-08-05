@@ -11,7 +11,7 @@ import {
   rewriteMetadata,
   type PdfFacts,
 } from '../../scripts/check-whitepaper-metadata'
-import { WHITE_PAPERS } from './whitePapers'
+import { LIBRARY_CHANGELOG, WHITE_PAPERS } from './whitePapers'
 
 const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const whitePapersSrc = resolve(websiteRoot, 'src/data/whitePapers.ts')
@@ -179,5 +179,22 @@ describe('whitepaper copy hygiene', () => {
       expect(typeof paper.id).toBe('string')
       expect(typeof paper.title).toBe('string')
     }
+  })
+})
+
+describe('library changelog', () => {
+  test('records the Chapter III Version 1.4 publication receipt', () => {
+    const entry = LIBRARY_CHANGELOG.find(
+      ({ dateIso, chapters }) => dateIso === '2026-08-05' && chapters.length === 1 && chapters[0] === 'III',
+    )
+
+    expect(entry).toEqual({
+      dateIso: '2026-08-05',
+      date: 'August 5, 2026',
+      title: 'Spawn-to-Person diagrams and implementation status align',
+      summary:
+        'Chapter III advances to Version 1.4: three repaired figures distinguish the shipped local actor-soul and commitment substrates from the still-open write-boundary, neutral-grading, reputation, and cross-operator-attestation obligations. The 35-page standalone, contact sheet, animated page tour, and SHA-256 proof manifest are published together.',
+      chapters: ['III'],
+    })
   })
 })
