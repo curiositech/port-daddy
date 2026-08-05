@@ -22,7 +22,7 @@ describe('daemon installer service PATH', () => {
   test('pins generated launchd surfaces to the canonical user DB', () => {
     const source = readFileSync(join(process.cwd(), 'install-daemon.ts'), 'utf8');
 
-    expect(source.match(/<key>PORT_DADDY_DB<\/key>/g)).toHaveLength(3);
+    expect(source.match(/<key>PORT_DADDY_DB<\/key>/g)).toHaveLength(2);
     expect(source).toContain("join(homedir(), '.port-daddy', 'port-registry.db')");
   });
 
@@ -33,7 +33,7 @@ describe('daemon installer service PATH', () => {
     expect(source).toContain("'homebrew.mxcl.port-daddy'");
     expect(source).toContain('function brewDaemonServiceLoaded');
     // installMacOS must consult the detector and short-circuit the daemon plist
-    // write (Bosun install still proceeds).
+    // write.
     expect(source).toContain('if (brewDaemonServiceLoaded())');
     expect(source).toContain('Skipping com.portdaddy.daemon launchd job');
     // The dedup branch must NOT write the daemon plist before returning. The
@@ -45,18 +45,14 @@ describe('daemon installer service PATH', () => {
   });
 
   // Extracts the body of a top-level `function <name>(` declaration up to
-  // the next top-level `function` keyword, so assertions can be scoped to
-  // ONE plist generator instead of matching anywhere in the file. Needed
-  // because generateBosunPlist() already contains an identical
-  // `<key>ThrottleInterval</key>`/`<integer>15</integer>` pair — a
-  // whole-file substring check would pass even if generatePlist() itself
-  // never got one (caught by Copilot review on PR #879).
+  // the next top-level `function` keyword so assertions remain scoped to one
+  // generator instead of passing because an unrelated template happens to
+  // contain the same launchd keys.
   function extractFunctionBody(source, name) {
     const start = source.indexOf(`function ${name}(`);
     if (start === -1) throw new Error(`could not find function ${name} in install-daemon.ts`);
-    // Match the next top-level function boundary whether it's declared
-    // `function ` or `export function ` (some plist generators are exported
-    // for direct testing — see generateBosunPlist/jscSafeModeEnvXml).
+    // Match the next top-level function boundary whether it is declared
+    // `function ` or `export function `.
     const rest = source.slice(start + 1);
     const nextMatch = rest.match(/\n(?:export )?function /);
     return nextMatch ? source.slice(start, start + 1 + nextMatch.index) : source.slice(start);
@@ -97,85 +93,4 @@ describe('daemon installer service PATH', () => {
     });
   });
 
-  // 2026-07-08 (issue #676 investigation, coordinator-directed follow-up):
-  // core/pd-bosun already implements exactly the "detect a stale heartbeat,
-  // force `launchctl kickstart` within seconds" circuit breaker a daemon
-  // exposed to native crashes needs (5s poll / 30s staleness threshold by
-  // default). But generateBosunPlist() never told Bosun WHICH launchd label
-  // to kickstart, so it always defaulted to `com.portdaddy.daemon` — a label
-  // that does not exist under a Homebrew-managed install. installMacOS()'s
-  // own brew-detected branch installs Bosun as a complementary watcher
-  // specifically for that case, so Bosun's restart action was silently
-  // targeting a job that was never there: an already-built safety net that
-  // was a no-op on exactly the machine (a brew install) it was meant to help.
-  describe('Bosun watchdog targets the daemon launchd label that is actually supervising it', () => {
-    test('generateBosunPlist sets PORT_DADDY_BOSUN_DAEMON_LABEL to whatever label is passed in', async () => {
-      const mod = await import('../../install-daemon.js');
-      const brewPlist = mod.generateBosunPlist(mod.BREW_DAEMON_LABEL);
-      expect(brewPlist).toContain('<key>PORT_DADDY_BOSUN_DAEMON_LABEL</key>');
-      expect(brewPlist).toContain('<string>homebrew.mxcl.port-daddy</string>');
-
-      const selfInstalledPlist = mod.generateBosunPlist(mod.PLIST_LABEL);
-      expect(selfInstalledPlist).toContain('<string>com.portdaddy.daemon</string>');
-      expect(selfInstalledPlist).not.toContain('homebrew.mxcl.port-daddy');
-    });
-
-    test('the brew-detected branch in installMacOS passes BREW_DAEMON_LABEL to installBosunMacOS', () => {
-      const source = readFileSync(join(process.cwd(), 'install-daemon.ts'), 'utf8');
-      const guardIdx = source.indexOf('if (brewDaemonServiceLoaded())');
-      expect(guardIdx).toBeGreaterThan(-1);
-      // Scope to the brew-detected branch's body specifically (up to its
-      // closing brace, i.e. the next `stopExistingCanonicalDaemon()` call
-      // that begins the non-brew path) so this can't pass by matching the
-      // OTHER call site's argument instead.
-      const nonBrewPathIdx = source.indexOf('stopExistingCanonicalDaemon()', guardIdx);
-      const brewBranchBody = source.slice(guardIdx, nonBrewPathIdx);
-      expect(brewBranchBody).toContain('installBosunMacOS(BREW_DAEMON_LABEL)');
-    });
-
-    test('the non-brew (self-installed) path passes PLIST_LABEL to installBosunMacOS, not BREW_DAEMON_LABEL', () => {
-      const source = readFileSync(join(process.cwd(), 'install-daemon.ts'), 'utf8');
-      const nonBrewPathIdx = source.indexOf('stopExistingCanonicalDaemon()');
-      expect(nonBrewPathIdx).toBeGreaterThan(-1);
-      const restOfFunction = source.slice(nonBrewPathIdx);
-      expect(restOfFunction).toContain('installBosunMacOS(PLIST_LABEL)');
-    });
-  });
-});
-
-// Regression (3.26.2/.3): the Bosun watchdog plist embedded a VERSIONED Cellar keg path
-// (.../3.26.1_2/bin/pd-bosun), which the next `brew upgrade` deletes → launchd ExecStart points
-// at a dead keg (EX_CONFIG) and a crashing daemon stops auto-restarting. The plist must instead
-// reference the version-STABLE `<prefix>/bin/pd-bosun` symlink that brew repoints every upgrade.
-describe('Bosun plist references the version-stable symlink, not a versioned Cellar keg', () => {
-  test('a brew KEG execPath (post_install) maps to <prefix>/bin/pd-bosun', async () => {
-    const { stableBosunPathFromExec } = await import('../../install-daemon.js');
-    expect(stableBosunPathFromExec('/opt/homebrew/Cellar/port-daddy/3.26.2_2/bin/port-daddy', () => true))
-      .toBe('/opt/homebrew/bin/pd-bosun');
-  });
-
-  test('a brew SYMLINK execPath maps to the co-located <prefix>/bin/pd-bosun', async () => {
-    const { stableBosunPathFromExec } = await import('../../install-daemon.js');
-    expect(stableBosunPathFromExec('/opt/homebrew/bin/port-daddy', () => true))
-      .toBe('/opt/homebrew/bin/pd-bosun');
-  });
-
-  test('returns null when the stable symlink is absent, so non-brew/dev falls back to the resolver', async () => {
-    const { stableBosunPathFromExec } = await import('../../install-daemon.js');
-    expect(stableBosunPathFromExec('/usr/local/opt/node/bin/node', () => false)).toBeNull();
-  });
-
-  test('Bosun plist WorkingDirectory + logs use the durable home, not the versioned keg (__dirname)', () => {
-    const source = readFileSync(join(process.cwd(), 'install-daemon.ts'), 'utf8');
-    // A brew install's __dirname is the versioned Cellar keg, deleted by the next `brew upgrade`.
-    // launchd cannot chdir to a missing WorkingDirectory or open a StandardOutPath under a deleted
-    // keg — so these launch-critical fields must point at the version-independent durable home.
-    expect(source).toContain('const BOSUN_LOG_PATH: string = join(DURABLE_HOME');
-    expect(source).toContain('const BOSUN_ERROR_LOG_PATH: string = join(DURABLE_HOME');
-    const bosunPlist = source.slice(source.indexOf('export function generateBosunPlist'));
-    const wdIdx = bosunPlist.indexOf('<key>WorkingDirectory</key>');
-    expect(wdIdx).toBeGreaterThan(-1);
-    expect(bosunPlist.slice(wdIdx, wdIdx + 120)).toContain('${DURABLE_HOME}');
-    expect(bosunPlist.slice(wdIdx, wdIdx + 120)).not.toContain('${__dirname}');
-  });
 });
