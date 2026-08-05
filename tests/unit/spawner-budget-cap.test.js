@@ -91,9 +91,11 @@ describe('spawner hard budget cap edges', () => {
   });
 
   test('exact cost equal to budgetUsd remains completed and readable', async () => {
+    const onTerminal = jest.fn();
     const spawner = createSpawner({
       transcripts,
       costTracker: exactCostTracker(0.05),
+      onTerminal,
       enforceTelemetryPolicy: true,
       enforceTranscriptPolicy: true,
       runnerOverrides: {
@@ -119,6 +121,16 @@ describe('spawner hard budget cap edges', () => {
     expect(result.budgetEnforcement).toBe('hard_enforced');
     expect(result.error).toBeNull();
     expect(result.telemetry.costUsd).toBeCloseTo(0.05);
+    expect(onTerminal).toHaveBeenCalledTimes(1);
+    expect(onTerminal).toHaveBeenCalledWith(expect.objectContaining({
+      agentId: result.agentId,
+      status: 'completed',
+    }));
+
+    // A stale delayed budget callback cannot rewrite terminal truth.
+    spawner.kill(result.agentId);
+    expect(spawner.list().find((agent) => agent.agentId === result.agentId)?.status).toBe('completed');
+    expect(onTerminal).toHaveBeenCalledTimes(1);
 
     const [row] = transcripts.listTranscripts({ ship: 'budget-exact' });
     expect(row.status).toBe('completed');
@@ -165,9 +177,11 @@ describe('spawner hard budget cap edges', () => {
 
   test('provider-native budget terminal preserves output and finalizes over_budget with provider cost', async () => {
     const tracker = exactCostTracker(0.2512845);
+    const onTerminal = jest.fn();
     const spawner = createSpawner({
       transcripts,
       costTracker: tracker,
+      onTerminal,
       enforceTelemetryPolicy: true,
       enforceTranscriptPolicy: true,
       runnerOverrides: {
@@ -196,6 +210,11 @@ describe('spawner hard budget cap edges', () => {
     expect(result.error).toContain('provider stopped at native hard budget');
     expect(result.error).not.toMatch(/authentication/i);
     expect(result.telemetry.costUsd).toBe(0.2512845);
+    expect(onTerminal).toHaveBeenCalledTimes(1);
+    expect(onTerminal).toHaveBeenCalledWith(expect.objectContaining({
+      agentId: result.agentId,
+      status: 'over_budget',
+    }));
     expect(tracker.record).toHaveBeenCalledWith(expect.objectContaining({
       providerReportedCostUsd: 0.2512845,
     }));
