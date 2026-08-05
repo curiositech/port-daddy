@@ -539,23 +539,23 @@ describe('spawner ↔ transcripts integration', () => {
     expect(rows[0].status).toBe('completed');
   }
 
-  it('treats missing Cloudflare timeout as the default instead of omitting abort handling', async () => {
+  it('treats missing Cloudflare transport timeout as the default instead of omitting abort handling', async () => {
     await expectCloudflareDefaultTimeoutFallback(
       {},
       'Cloudflare missing timeout used the default.',
     );
   });
 
-  it('treats zero Cloudflare timeout as the default instead of an immediate abort', async () => {
+  it('treats zero Cloudflare transport timeout as the default instead of an immediate abort', async () => {
     await expectCloudflareDefaultTimeoutFallback(
-      { timeout: 0 },
+      { transportTimeoutMs: 0 },
       'Cloudflare zero timeout used the default.',
     );
   });
 
-  it('treats negative Cloudflare timeout as the default instead of an immediate abort', async () => {
+  it('treats negative Cloudflare transport timeout as the default instead of an immediate abort', async () => {
     await expectCloudflareDefaultTimeoutFallback(
-      { timeout: -1000 },
+      { transportTimeoutMs: -1000 },
       'Cloudflare negative timeout used the default.',
     );
   });
@@ -588,7 +588,7 @@ describe('spawner ↔ transcripts integration', () => {
       backend: 'cloudflare',
       model: '@cf/zai-org/glm-4.7-flash',
       task: 'this provider call should time out',
-      timeout: 5,
+      transportTimeoutMs: 5,
     });
 
     expect(result.status).toBe('failed');
