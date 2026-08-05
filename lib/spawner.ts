@@ -36,10 +36,13 @@ import { lmstudioAdapter, DEFAULT_LMSTUDIO_MODEL } from './spawner/backends/lmst
 import { deepseekAdapter, DEFAULT_DEEPSEEK_MODEL } from './spawner/backends/deepseek.js';
 import { xaiAdapter, DEFAULT_XAI_MODEL } from './spawner/backends/xai.js';
 import { spawnViaCliTube, type CliTubeTool, type TubeClientLike } from './spawner/backends/cli-tube.js';
-import { CODEX_WORKSPACE_NETWORK_CONFIG } from './spawner/backends/cli-tube-provider-specs.js';
+import {
+  CODEX_WORKSPACE_NETWORK_CONFIG,
+  codexArgsForExternalSandbox,
+} from './spawner/backends/cli-tube-provider-specs.js';
 import { withCoastGuard } from './spawner/coast-guard-runner.js';
 import type { CoastGuardReceipt } from './coast-guard.js';
-import { coastGuardStatus } from './coast-guard.js';
+import { coastGuardStatus, resolveCoastGuardPolicy } from './coast-guard.js';
 import { priceBond, classifyScope, scopeTierWritePolicy, pricedBondLogLines } from './bond-pricing.js';
 import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
@@ -576,6 +579,14 @@ interface ConfinedChildOpts {
   context?: BackendRunContext;
 }
 
+function coastGuardWillConfine(spec: SpawnSpec): boolean {
+  return resolveCoastGuardPolicy({
+    coastGuard: spec.coastGuard,
+    maxRequests: spec.maxRequests,
+    maxBytes: spec.maxBytes,
+  }).enabled && coastGuardStatus().confinementAvailable;
+}
+
 /**
  * Apply the Coast Guard, run the child, attach the receipt, then dispose. The
  * returned `runChild` result is augmented with `coastGuardReceipt` so the spawn
@@ -595,11 +606,14 @@ async function runConfinedChild(
       ? opts.spec.capabilities
       : ['spawn:agent', `backend:${opts.spec.backend}`];
   const writePolicy = scopeTierWritePolicy(classifyScope(confineCaps));
+  const childArgs = opts.spec.backend === 'codex' && coastGuardWillConfine(opts.spec)
+    ? codexArgsForExternalSandbox(opts.args)
+    : opts.args;
   const cg = await withCoastGuard({
     agentId: opts.spec.identity || opts.spec.name || 'spawned',
     backend: opts.spec.backend,
     cmd: opts.cmd,
-    args: opts.args,
+    args: childArgs,
     env: opts.env,
     workdir: cwd,
     writePolicy,
@@ -934,11 +948,14 @@ async function runCliTube(
     resumeSessionId: spec.nativeResume?.sessionId,
     workspaceIdentity: spec.nativeResume?.workspaceIdentity,
     prepareLaunch: async (launch) => {
+      const childArgs = cli === 'codex' && coastGuardWillConfine(spec)
+        ? codexArgsForExternalSandbox(launch.args)
+        : launch.args;
       const coastGuard = await withCoastGuard({
         agentId: spec.identity || spec.name || 'spawned',
         backend: spec.backend,
         cmd: launch.command,
-        args: launch.args,
+        args: childArgs,
         env: launch.env,
         workdir: launch.cwd,
         writePolicy,

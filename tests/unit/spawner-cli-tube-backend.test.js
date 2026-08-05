@@ -42,6 +42,9 @@ const {
   CLI_TUBE_PROVIDER_SPECS,
   CLI_TUBE_TOOLS,
 } = await import('../../lib/spawner/backends/cli-tube.js');
+const {
+  codexArgsForExternalSandbox,
+} = await import('../../lib/spawner/backends/cli-tube-provider-specs.js');
 const { captureWorkspaceIdentity } = await import('../../lib/workspace-identity.js');
 
 // Helper: build a fake ChildProcess that we can drive from the test.
@@ -201,6 +204,42 @@ describe('buildArgs', () => {
       'sandbox_workspace_write.network_access=false',
       'sandbox_workspace_write.network_access=true',
     ]);
+  });
+
+  test('codex uses one externally owned sandbox when Coast Guard is active', () => {
+    const { args } = buildArgs('codex', 'hello', undefined, undefined, undefined, [
+      'model_reasoning_effort="high"',
+    ]);
+    const external = codexArgsForExternalSandbox(args);
+
+    expect(external).toContain('--dangerously-bypass-approvals-and-sandbox');
+    expect(external).not.toContain('--full-auto');
+    expect(external).not.toContain('--sandbox');
+    expect(external).not.toContain('sandbox_workspace_write.network_access=true');
+    expect(external).toContain('model_reasoning_effort="high"');
+    expect(external.at(-1)).toBe('hello');
+  });
+
+  test('codex resume receives the external sandbox flag in subcommand position', () => {
+    const { args } = buildArgs(
+      'codex',
+      'continue',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      '22222222-2222-4222-8222-222222222222',
+    );
+    const external = codexArgsForExternalSandbox(args);
+
+    expect(external.slice(0, 3)).toEqual([
+      'exec',
+      'resume',
+      '--dangerously-bypass-approvals-and-sandbox',
+    ]);
+    expect(external).not.toContain('--full-auto');
+    expect(external).not.toContain('sandbox_workspace_write.network_access=true');
   });
 
   test.each([

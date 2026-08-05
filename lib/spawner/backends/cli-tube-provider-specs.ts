@@ -72,11 +72,37 @@ const MAX_CODEX_CONFIG_OVERRIDE_LENGTH = 512;
 /**
  * Codex's workspace-write sandbox denies network unless this permission is
  * explicit. Port Daddy agents need loopback access to their selected daemon
- * for attention, heartbeats, notes, and collection. Coast Guard remains the
- * outer egress meter; this only prevents Codex's inner sandbox from severing
- * the coordination plane.
+ * for attention, heartbeats, notes, and collection. This remains the fallback
+ * when Coast Guard cannot provide an OS sandbox itself.
  */
 export const CODEX_WORKSPACE_NETWORK_CONFIG = 'sandbox_workspace_write.network_access=true';
+export const CODEX_EXTERNAL_SANDBOX_FLAG = '--dangerously-bypass-approvals-and-sandbox';
+
+/**
+ * Select Codex's documented externally-sandboxed mode when Coast Guard is the
+ * confirmed OS-sandbox authority. macOS does not allow Codex to install a
+ * second Seatbelt profile inside Coast Guard's Seatbelt process tree. Caller
+ * config is preserved; only Port Daddy's inner-sandbox defaults are removed.
+ */
+export function codexArgsForExternalSandbox(args: readonly string[]): string[] {
+  const result: string[] = [];
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === '--full-auto' || arg === CODEX_EXTERNAL_SANDBOX_FLAG) continue;
+    if (arg === '--sandbox' && args[index + 1] === 'workspace-write') {
+      index += 1;
+      continue;
+    }
+    if (arg === '-c' && args[index + 1] === CODEX_WORKSPACE_NETWORK_CONFIG) {
+      index += 1;
+      continue;
+    }
+    result.push(arg);
+  }
+  const insertAt = result[0] === 'exec' && result[1] === 'resume' ? 2 : 1;
+  result.splice(insertAt, 0, CODEX_EXTERNAL_SANDBOX_FLAG);
+  return result;
+}
 
 export function normalizeCodexConfigOverrides(configs: readonly string[] | undefined | null): string[] {
   const normalized: string[] = [];
