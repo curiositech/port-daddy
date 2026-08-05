@@ -68,6 +68,13 @@ jobs:
           ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
+      # The collected-volume builder namespaces and collates the seven chapter
+      # sources before TeX runs. The texlive container intentionally ships no
+      # JavaScript runtime, so make the generator's Node dependency explicit.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Trust the checkout dir (container runs as root)
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
