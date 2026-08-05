@@ -461,9 +461,9 @@ function migrateAgentRunReceiptsSchema(db: PortableDatabase): string[] {
  * ensures lost-liveness receipts are marked `unknown` until explicitly verified.
  *
  * Idempotency is enforced by the database itself: `idempotency_key_hash` is
- * UNIQUE and the insert is a single atomic `INSERT ... ON CONFLICT DO
- * NOTHING`, so two concurrent callers racing on the same key can never create
- * two rows — one wins the insert, the other observes it via the same SELECT.
+ * UNIQUE and acceptance is one atomic `INSERT ... ON CONFLICT DO UPDATE ...
+ * RETURNING` statement, so two concurrent callers racing on the same key can
+ * never create two rows or observe a gap between insertion and retrieval.
  *
  * A run that loses liveness (daemon restart while `accepted`/`starting`/
  * `live`) is marked `unknown` and can only ever be reconciled back to `live`
@@ -509,10 +509,11 @@ export function createAgentRunReceiptStore(
       transcript_id, status, created_at, updated_at, started_at, completed_at,
       budget_usd, telemetry_json, error${legacyColumnList}
     ) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 'accepted', ?, ?, NULL, NULL, ?, NULL, NULL${legacyValueList})
-    ON CONFLICT(idempotency_key_hash) DO NOTHING
+    ON CONFLICT(idempotency_key_hash) DO UPDATE
+      SET idempotency_key_hash = excluded.idempotency_key_hash
+    RETURNING *
   `);
   const byId = db.prepare('SELECT * FROM agent_run_receipts WHERE id = ? LIMIT 1');
-  const byKey = db.prepare('SELECT * FROM agent_run_receipts WHERE idempotency_key_hash = ? LIMIT 1');
   const attach = db.prepare(`
     UPDATE agent_run_receipts
     SET successor_agent_id = ?, successor_session_id = COALESCE(?, successor_session_id),
@@ -520,9 +521,10 @@ export function createAgentRunReceiptStore(
         updated_at = ?, error = NULL
     WHERE id = ? AND status = 'accepted'
   `);
-  // Status lattice: 'unknown' can only advance to 'live', and only with fresh
-  // direct evidence (checked below). Every other status is terminal-sticky or
-  // moves forward only; there is no direct unknown -> terminal edge.
+  // Status lattice: acceptance may only open a runtime, fail admission, or
+  // lose observability. A successful/failed/cancelled execution must first
+  // reach `starting`; `unknown` can only return to `live` with fresh direct
+  // evidence. Terminal states are sticky.
   const setStatus = db.prepare(`
     UPDATE agent_run_receipts
     SET status = ?, successor_session_id = COALESCE(?, successor_session_id),
@@ -530,7 +532,7 @@ export function createAgentRunReceiptStore(
         telemetry_json = COALESCE(?, telemetry_json)
     WHERE id = ?
       AND (
-        (status = 'accepted' AND ? IN ('starting', 'live', 'unknown', 'completed', 'failed', 'cancelled', 'over_budget', 'no_runtime'))
+        (status = 'accepted' AND ? IN ('starting', 'unknown', 'no_runtime'))
         OR (status = 'starting' AND ? IN ('live', 'unknown', 'completed', 'failed', 'cancelled', 'over_budget', 'no_runtime'))
         OR (status = 'live' AND ? IN ('unknown', 'completed', 'failed', 'cancelled', 'over_budget', 'no_runtime'))
         OR (status = 'unknown' AND ? = 'live')
@@ -551,9 +553,9 @@ export function createAgentRunReceiptStore(
 
   /**
    * Atomically accepts a new agent run request or replays an existing one.
-   * Purpose: database-level idempotency (UNIQUE constraint + atomic INSERT...ON
-   * CONFLICT) ensures two concurrent callers with the same key never produce
-   * duplicate runs.
+   * Purpose: database-level idempotency (UNIQUE constraint + one atomic
+   * INSERT...ON CONFLICT...RETURNING statement) ensures two concurrent callers
+   * with the same key never produce duplicate runs or an insert/read gap.
    *
    * @param input - Request with idempotencyKey, kind, request payload, optional predecessor and budget.
    * @returns Object with {receipt, replayed} where replayed is true if key already existed.
@@ -573,7 +575,7 @@ export function createAgentRunReceiptStore(
     const timestamp = now();
     const id = `run-${randomBytes(8).toString('hex')}`;
     const budgetUsd = validateBudgetUsd(input.budgetUsd);
-    const result = insert.run(
+    const row = insert.get(
       id,
       required(input.kind, 'kind'),
       keyHash,
@@ -583,15 +585,14 @@ export function createAgentRunReceiptStore(
       timestamp,
       timestamp,
       budgetUsd,
-    );
-    const row = byKey.get(keyHash) as AgentRunReceiptRow | undefined;
+    ) as AgentRunReceiptRow | undefined;
     if (!row) {
       throw new AgentRunReceiptNotFoundError(keyHash);
     }
     if (row.request_hash !== requestHash || row.kind !== input.kind) {
       throw new AgentRunIdempotencyConflictError(row.id);
     }
-    return { receipt: toReceipt(row), replayed: result.changes === 0 };
+    return { receipt: toReceipt(row), replayed: row.id !== id };
   }
 
   /**

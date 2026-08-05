@@ -123,6 +123,9 @@ describe('agent run receipt ledger', () => {
       const done = firstGeneration.accept({
         idempotencyKey: 'stays-done', kind: 'spawn', request: { a: 4 },
       }).receipt;
+      firstGeneration.markStarting(done.id, {
+        successorAgentId: 'spawned-done', transcriptId: 'tx-done',
+      });
       firstGeneration.markStatus(done.id, 'completed', { error: null });
 
       now = 5_000;
@@ -195,9 +198,29 @@ describe('agent run receipt ledger', () => {
       const receipt = store.accept({
         idempotencyKey: 'sticky-terminal', kind: 'spawn', request: { a: 1 },
       }).receipt;
+      store.markStarting(receipt.id, {
+        successorAgentId: 'spawned-sticky', transcriptId: 'tx-sticky',
+      });
       store.markStatus(receipt.id, 'cancelled', { error: 'operator cancelled' });
       expect(store.markStatus(receipt.id, 'completed')).toMatchObject({ status: 'cancelled', error: 'operator cancelled' });
       expect(store.markStatus(receipt.id, 'unknown')).toMatchObject({ status: 'cancelled', error: 'operator cancelled' });
+    });
+
+    test('accepted cannot bypass runtime opening to claim a terminal outcome', () => {
+      const store = createAgentRunReceiptStore(db, { now: () => now });
+      const receipt = store.accept({
+        idempotencyKey: 'accepted-terminal-bypass', kind: 'spawn', request: { a: 1 },
+      }).receipt;
+
+      for (const terminal of ['completed', 'failed', 'cancelled', 'over_budget']) {
+        expect(store.markStatus(receipt.id, terminal)).toMatchObject({
+          status: 'accepted', completedAt: null,
+        });
+      }
+
+      expect(store.markStatus(receipt.id, 'no_runtime', { error: 'admission refused' })).toMatchObject({
+        status: 'no_runtime', error: 'admission refused', completedAt: now,
+      });
     });
   });
 
@@ -347,6 +370,9 @@ describe('agent run receipt ledger', () => {
         predecessor: { sessionId: 'session-source', purpose: 'fine', status: 'completed' },
         request: { a: 1 },
       }).receipt;
+      store.markStarting(receipt.id, {
+        successorAgentId: 'spawned-corrupt-json', transcriptId: 'tx-corrupt-json',
+      });
       store.markStatus(receipt.id, 'completed', {
         telemetry: { inputTokens: 1, outputTokens: 1, costUsd: 0.01, rateMode: 'exact' },
       });
@@ -374,6 +400,9 @@ describe('agent run receipt ledger', () => {
       const cont = store.accept({
         idempotencyKey: 'cont-1', kind: 'session-continuation', request: { i: 'c' }, predecessorSessionId: 'session-p',
       }).receipt;
+      store.markStarting(cont.id, {
+        successorAgentId: 'spawned-list', transcriptId: 'tx-list',
+      });
       store.markStatus(cont.id, 'completed', { error: null });
 
       expect(store.list({ status: 'accepted' })).toHaveLength(3);
@@ -531,6 +560,9 @@ describe('agent run receipt ledger', () => {
 
       const lost = store.accept({ idempotencyKey: 'lost', kind: 'spawn', request: { a: 1 } }).receipt;
       const finished = store.accept({ idempotencyKey: 'finished', kind: 'spawn', request: { a: 2 } }).receipt;
+      store.markStarting(finished.id, {
+        successorAgentId: 'spawned-finished', transcriptId: 'tx-finished',
+      });
       store.markStatus(finished.id, 'completed', { error: null });
       fileDb.close();
 
