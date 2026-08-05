@@ -647,7 +647,7 @@ That makes silence ambiguous — a calm fleet, a broken harness, and a harness
 strangled by its own byte budget all look identical from outside. So every turn
 appends one JSON line (spoke / silent / suppressed + reason) to
 `$PD_HOME/squid-voice-log.jsonl`, byte-bounded and rotated, and `pd squid voice`
-is the operator's window onto it. A daemon-side **reconcile loop**
+is the agent/emergency diagnostic read path. A daemon-side **reconcile loop**
 (`lib/squid/reconcile.ts`) keeps the matrix a projection of durable truth rather
 than an append-only landfill: every 15s it recomputes the key classes that have
 a producer wired, deletes what their source no longer justifies, decays
@@ -665,6 +665,9 @@ alone. Passing `() => []` instead would assert "there are none" and delete
 another writer's keys, so the cutover is incremental on purpose. Hookless
 backends (Groq, Ollama, LM Studio) read the same key classes through
 `lib/local-citizen/ink-cloud.ts`.
+
+FleetBar remains the operator's routine Arm/Repair/Disarm surface; a native
+VoiceLog panel has not shipped yet.
 
 Claude and Gemini use project config; Codex and agy require user config because
 their interactive hook engines do not honor a project-local equivalent. Those

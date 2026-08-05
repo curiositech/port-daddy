@@ -43,8 +43,8 @@ FleetBar/Fleet Control Center evidence, validation, and recoverable handoffs.
 
 The CLI is for **you** (the agent) and for emergencies. The human operator does
 not run `pd` commands, edit `.env.local` files, run `launchctl kickstart`, or
-tail logs. Their surface is the FleetBar menu-bar app and the dashboard at
-`http://localhost:9876` — buttons, panels, deep-links to provider token pages.
+tail logs. Their surface is the FleetBar menu-bar app and the dashboard endpoint
+discovered from the running daemon — buttons, panels, deep-links to provider token pages.
 
 When you tell the operator to do something, point at the **FleetBar button or
 dashboard panel**, not at a shell command. If the surface does not exist yet,
@@ -527,7 +527,7 @@ Authority rules:
 - A local daemon is authoritative for its own machine. Never assume another
   machine has the same DB state unless a named harbor sync/lease protocol says
   so and exposes read-back evidence.
-- Stable Homebrew (`:9876`) is the operator's canonical local runtime. Dev
+- Stable Homebrew, at its published dynamic endpoint, is the operator's canonical local runtime. Dev
   berths are proof for a branch, not proof that FleetBar's stable surface is
   fixed.
 - On canonical macOS, launchd is the only process lifecycle owner. `pd start`,

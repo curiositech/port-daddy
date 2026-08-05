@@ -23,6 +23,7 @@ describe('reference catalog source coverage', () => {
     expect(names).toContain('pd wallet <command>')
     expect(names).toContain('pd roadmap')
     expect(names).toContain('pd pheromone <command>')
+    expect(names).toContain('pd squid voice')
   })
 
   test('every CLI catalog row resolves to a detail page', () => {

@@ -1021,9 +1021,12 @@ pd squid on         # Claude + Codex + Gemini + agy, daemon-gated
 pd attention
 pd attention --subscribe-recommended
 
-# 4 — inspect the non-diegetic machinery
-pd squid status     # LIVE / READY / PARTIAL / UNPROTECTED
-pd squid tap        # exact next-turn suggestibility envelope
+# 4 — inspect the non-diegetic machinery and quiet-turn audit trail
+pd squid status             # LIVE / READY / PARTIAL / UNPROTECTED
+pd squid tap                # exact next-turn suggestibility envelope
+pd squid voice --stats      # spoke / silent / suppressed rates
+pd squid voice --suppressed # turns silenced by the harness's own bounds
+pd squid voice --follow     # live tail while an agent is working
 
 # 5 — run an agent; the client narrates PD TURN / EDIT / TRACE
 claude              # or codex, gemini, agy

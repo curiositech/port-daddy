@@ -16,15 +16,15 @@ same coherent slice — or leave a Lookout drift report naming the gaps.
 | MCP server | `mcp/server.ts`, `mcp/tools/*` | MCP tool added/changed/removed |
 | CLI | `bin/port-daddy-cli.ts` and `--help` strings | Command added/changed/renamed |
 | FleetBar Mac app | `apps/FleetBar/` | UI/UX changes |
-| Fleet Control Center | `apps/website-v2/` console routes | UI/UX changes |
+| Fleet Control Center | `website-v2/` console routes | UI/UX changes |
 | Tests | `tests/unit/`, `tests/integration/` | Any code change |
 
 ### Tier 2 — contracts
 
 | Surface | Path | Updated when |
 |---|---|---|
-| OpenAPI spec | `openapi.yaml` (or generated) | Daemon HTTP API changes |
-| SDK reference | `references/sdk-reference.md` (per-language) | SDK signature changes |
+| OpenAPI spec | `docs/openapi.yaml` | Daemon HTTP API changes |
+| SDK reference | `docs/sdk.md` | SDK signature changes |
 | MCP tool catalog | tool listings + handshake test | MCP tool change |
 | Schemas | `schemas/*.schema.json` | Wire format change |
 
@@ -34,10 +34,10 @@ same coherent slice — or leave a Lookout drift report naming the gaps.
 |---|---|---|
 | README | `README.md` | High-level positioning, install, quickstart |
 | CHANGELOG | `CHANGELOG.md` | Every release |
-| Website /docs/cli | `apps/website-v2/.../docs/cli/*` | CLI surface change (every command must have a detail page) |
-| Website /docs/api | `apps/website-v2/.../docs/api/*` | API surface change |
-| Website /docs/mcp | `apps/website-v2/.../docs/mcp/*` | MCP tool change |
-| Website /docs/concepts | `apps/website-v2/.../docs/concepts/*` | New core concept |
+| Website /docs/cli | `website-v2/src/pages/docs/cli/*` | CLI surface change (every command must have a detail page) |
+| Website /docs/api | `website-v2/src/pages/docs/api/*` | API surface change |
+| Website /docs/mcp | `website-v2/src/pages/docs/mcp/*` | MCP tool change |
+| Website /docs/concepts | `website-v2/src/pages/docs/concepts/*` | New core concept |
 
 ### Tier 4 — skill bundle
 
@@ -69,7 +69,7 @@ same coherent slice — or leave a Lookout drift report naming the gaps.
 | package.json | `package.json` | `"version": "X.Y.Z"` |
 | Cargo.toml (if present) | `Cargo.toml` | `version = "X.Y.Z"` |
 | Mac app Info.plist | the Info.plist under `apps/FleetBar/` | `CFBundleShortVersionString` |
-| Website footer | the footer component under `apps/website-v2/` | display version |
+| Website footer | the footer component under `website-v2/` | display version |
 | `pd version` CLI output | `bin/port-daddy-cli.ts` | hard-coded or imported |
 | Brew formula version (in-repo primary) | `Formula/port-daddy.rb` | inside the version-string echo |
 | Brew formula version (tap mirror) | `homebrew-port-daddy/Formula/port-daddy.rb` | inside the version-string echo (must match in-repo primary) |

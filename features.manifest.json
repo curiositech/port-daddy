@@ -1270,7 +1270,7 @@
       }
     },
     "fleet": {
-      "description": "Always-on fleet management \u2014 daemon auto-starts fleet runners from pd-fleet.yml on boot; hot-reload on config change; resource limits (max_concurrent_spawns, max_spawns_per_hour); lifecycle events on fleet:events channel Includes the ADR-0093 trust-gate approval loop (live WebSocket/SSE stream + decisions; pd fleet approvals/approve/reject) and Web Push registration for approval alerts (pd fleet push).",
+      "description": "Always-on fleet management \u2014 daemon auto-starts fleet runners from pd-fleet.yml on boot; hot-reload on config change; resource limits (max_concurrent_spawns, max_spawns_per_hour); lifecycle events on fleet:events channel. Includes the ADR-0093 trust-gate approval loop (live WebSocket/SSE stream + decisions; pd fleet approvals/approve/reject), Web Push registration for approval alerts (pd fleet push), honest neutral verdicts for advisory ships with no usable output, and receipt token counts that distinguish zero from not reported.",
       "cli": [
         "fleet"
       ],
@@ -1356,7 +1356,7 @@
       }
     },
     "squid": {
-      "description": "Unofficial local Anthropic Messages compatibility bridge for Claude-compatible clients backed by Codex CLI, including model aliases, thinking-effort mapping, local auth, and request-size guards, plus the one-command harness toggle (pd squid on/off), the non-diegetic status/tap readouts, and the PD_SQUID_PILOT visual-identity stamp.",
+      "description": "Unofficial local Anthropic Messages compatibility bridge for Claude-compatible clients backed by Codex CLI, including model aliases, thinking-effort mapping, local auth, and request-size guards, plus the one-command harness toggle (pd squid on/off), status/tap readouts, the Reconcile Loop, byte-bounded VoiceLog audit readouts (pd squid voice), and the PD_SQUID_PILOT visual-identity stamp.",
       "cli": [
         "squid"
       ],
@@ -1916,7 +1916,7 @@
       }
     },
     "shipwright": {
-      "description": "Project surveyor + fleet authoring assistant. `pd shipwright survey` walks the surveyed project, classifies stack/activity, surfaces risks/opportunities, and writes `.portdaddy/shipwright/survey.json`. Optional --llm augmentation routes through the daemon's LLM client. Propose/apply ship in PR3 commit 3.",
+      "description": "Project surveyor + fleet authoring assistant. `pd shipwright survey` walks the surveyed project, classifies stack/activity, surfaces risks/opportunities, and writes `.portdaddy/shipwright/survey.json`. Optional --llm augmentation routes through the daemon's LLM client. Generated fleet YAML is revalidated deterministically on every read and displays pass/fail badges with specific parser errors.",
       "module": "lib/shipwright/survey.ts",
       "cli": [
         "shipwright"

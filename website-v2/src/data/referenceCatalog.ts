@@ -88,7 +88,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
   {
     title: 'Setup, Runtime, And Diagnostics',
     description: 'Install Port Daddy, inspect the live daemon, launch the dashboard, and manage canonical or sidecar runtimes.',
-    source: 'bin/port-daddy-cli.ts, cli/commands/setup.ts, cli/commands/daemon.ts, cli/commands/diagnostics.ts, cli/commands/mcp-install.ts',
+    source: 'bin/port-daddy-cli.ts, cli/commands/setup.ts, cli/commands/daemon.ts, cli/commands/diagnostics.ts, cli/commands/mcp-install.ts, cli/commands/squid.ts, cli/commands/squid-voice.ts',
     items: [
       { name: 'pd setup', description: 'Install daemon, MCP, FleetBar, shell hook, and project init in one operator path.', flags: ['--project', '--no-daemon', '--no-mcp', '--no-fleetbar', '--no-init', '--no-hook'] },
       { name: 'pd init', href: '/docs/cli/init', description: 'Initialize Port Daddy project config, fleet config, MCP files, and managed git hook pieces.' },
@@ -110,6 +110,8 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd install', description: 'Install the canonical daemon service.', aliases: ['pd uninstall'] },
       { name: 'pd daemon <command>', description: 'Manage named sidecar daemon profiles: list, status, start, stop, and env.' },
       { name: 'pd dev <command>', description: 'Run an isolated development daemon on a sidecar port for checkout-local testing.' },
+      { name: 'pd squid <command>', description: 'Arm, inspect, disarm, or bridge the project-scoped Giant Squid harness.' },
+      { name: 'pd squid voice', description: 'Read the byte-bounded VoiceLog of spoke, silent, and suppressed harness turns.', flags: ['--stats', '--suppressed', '--follow', '--since', '--actor', '--event', '--limit', '--path', '--interval', '--json'] },
     ],
   },
   {

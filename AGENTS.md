@@ -20,7 +20,7 @@ The PR review gate is **backend-agnostic**: any Port Daddy fleet agent — any b
 
 The CLI is for agents and emergencies. **The operator does not run `pd` commands, does not edit `.env.local` files, does not run `launchctl kickstart`, does not tail logs.** That work is yours.
 
-The operator's surface is the **FleetBar app and the dashboard at `localhost:9876`** — buttons, panels, deep-links to provider token pages. If the operator has to drop to a terminal to do something routine (configure credentials, restart the daemon, see open feedback, harvest a roadmap entry, see why the fleet is silently failing), that is a product bug — file it as `high`-severity feedback on the `FleetBar` surface so cartographer promotes it to the roadmap.
+The operator's surface is the **FleetBar app and the dashboard URL discovered from the running daemon** — buttons, panels, deep-links to provider token pages. If the operator has to drop to a terminal to do something routine (configure credentials, restart the daemon, see open feedback, harvest a roadmap entry, see why the fleet is silently failing), that is a product bug — file it as `high`-severity feedback on the `FleetBar` surface so cartographer promotes it to the roadmap.
 
 Concretely:
 - Secrets live in the macOS Keychain, surfaced through a FleetBar Credentials panel with deep links to the provider's actual token page. No `.env.local`. (See open feedback `fleetbar-secret-management-with-provider-deeplinks`.)
@@ -81,7 +81,7 @@ Lifecycle: `pd setup` offers the one-time ~27 MB download (cancellable); `pd doc
 - If Port Daddy coordination primitives disagree with each other, for example active sessions exist but active-context lookup or file-claim commands say no active session, stop treating that as incidental CLI friction. Re-anchor safely, leave exact evidence in notes, and either fix the coordination bug immediately if bounded or file a targeted handoff before continuing feature work.
 - Coordination Guard is expected in enforce mode for this repo. If `pd guard status` is missing, advisory, or stale, run `pd guard install --mode enforce` before editing toward a commit. Before every commit, push, or deploy, fetch the canonical remote branch, rebase or merge current work onto it (`origin/main` here; `origin/master` only when that remote branch exists), re-read `pd sessions --all-worktrees`, `pd notes --limit 20`, activity, and relevant ownership, then run `pd guard check --staged`.
 - Durable handoffs go into Port Daddy notes, actor inboxes, tuples, or scoped channels. Chat-only coordination is not enough.
-- Agent-CLI coordination hooks: `pd hooks install` (run by `pd init`/`pd setup`) wires the Giant Squid Harness tentacles into the **interactive** sessions of `claude`/`codex`/`gemini`/`agy` for the current project. Wiring is **per-project** (claude/gemini config lives in the repo; codex/agy are user-level) and **daemon-gated** — every hook routes through a wrapper that no-ops unless the daemon is running and the cwd is inside a `.portdaddy/` project, so hooks never fire machine-wide or when Port Daddy is down. Hook shapes are defined once in `lib/squid/hook-shape.ts` and shared by the headless squid adapter and the interactive installer so they cannot drift. Codex needs a one-time `/hooks` trust. Remove with `pd hooks uninstall`. The one-command toggle is `pd squid on` / `pd squid off` (adds the `◆ PD` statusline identity, the Pilot SessionStart steering hook, and the `/squid` in-session command); inspect the live background machinery with `pd squid status` and preview the next-turn injection with `pd squid tap`.
+- Agent-CLI coordination hooks: `pd hooks install` (run by `pd init`/`pd setup`) wires the Giant Squid Harness tentacles into the **interactive** sessions of `claude`/`codex`/`gemini`/`agy` for the current project. Wiring is **per-project** (claude/gemini config lives in the repo; codex/agy are user-level) and **daemon-gated** — every hook routes through a wrapper that no-ops unless the daemon is running and the cwd is inside a `.portdaddy/` project, so hooks never fire machine-wide or when Port Daddy is down. Hook shapes are defined once in `lib/squid/hook-shape.ts` and shared by the headless squid adapter and the interactive installer so they cannot drift. Codex needs a one-time `/hooks` trust. Remove with `pd hooks uninstall`. The one-command toggle is `pd squid on` / `pd squid off` (adds the `◆ PD` statusline identity, the Pilot SessionStart steering hook, and the `/squid` in-session command); inspect the live background machinery with `pd squid status`, preview the next-turn injection with `pd squid tap`, and audit quiet-turn outcomes with `pd squid voice`. The Reconcile Loop currently projects approvals and panic; unwired key classes remain degraded and untouched.
 
 ## Ambient Collaboration
 
@@ -137,8 +137,8 @@ Lifecycle: `pd setup` offers the one-time ~27 MB download (cancellable); `pd doc
   - `curl -sS "$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed 's#^#http://localhost:#')/fleet"` or the daemon URL surfaced by `port-daddy status`
 - `port-daddy status` proves the Unix socket path works. It does not prove the TCP/browser path works. If the control plane or FleetBar is lying, verify both the socket client and the TCP URL from the port file.
 - If those disagree, trust the live process and launchd output, not docs or memory.
-- There should be exactly one canonical daemon on `9876`.
-- If another Port Daddy daemon is already sitting on the canonical socket/port, treat it as replaceable stale runtime, not sacred state.
+- There should be exactly one canonical daemon generation. Its preferred port is only a starting point; clients use the published endpoint.
+- If another healthy Port Daddy daemon already owns the preferred endpoint, reconcile that sibling before starting a second writer. A foreign process on the preferred port is harmless: the daemon binds the next candidate and publishes it.
 - Extra daemons are only acceptable when they are explicitly opt-in on different ports/sockets/prefixes.
 - Check the shell shim too: `which port-daddy` and `realpath`/symlink inspection can still point at an old checkout even after the daemon is promoted.
 - A promoted canonical daemon plus a stale global CLI shim is an inconsistent operator state; relink the CLI if you intentionally move the canonical runtime to a different checkout.
@@ -448,8 +448,9 @@ loudly rather than dropping evidence.
    hash differs from the unsigned source — that's the embedded signature, expected.)
 
 **Run:** `pd-console` (PATH) or double-click the .app. Daemon discovery: `PORT_DADDY_URL` env →
-`~/.port-daddy/daemon.port` → default; if discovery fails it **panics**, so launch with
-`PORT_DADDY_URL=http://127.0.0.1:9876` when the port file is absent.
+`~/.port-daddy/daemon.port` → preferred default; if discovery fails it **panics**. Repair
+the port-file/discovery path or target a named berth with `pd --daemon <label>`; never
+guess a fixed URL.
 
 **Theme:** `PD_CONSOLE_THEME=light|dark` seeds startup; `Ctrl-A g` toggles live. Palette lives in
 `core/pd-console/src/palette.rs` (light+dark, maritime/neobrutalism). `theme.rs` is the *REPL's*

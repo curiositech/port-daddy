@@ -180,6 +180,7 @@ code. The public-facing summary lives in `skills/port-daddy-agent-skill/SKILL.md
 | **Coast Guard** — sandbox + compulsion rent | `docs/adr/0050-coast-guard.md` | `lib/coast-guard.ts` (`buildSeatbeltProfile`, `wrapWithSandbox`) · `lib/coast-guard/{compulsion,compulsion-facts,egress-meter}.ts` · default in `lib/spawner.ts` · read path `cli/commands/coast-guard.ts` (`operator_coast_guard` feature) · `requireNotePerCommit` wiring in the Coordination Guard (`cli/commands/guard.ts`) | <!-- cite-exempt: illustrative role/template path -->
 | **Attest** — honest self-report | ADR-0045 | `cli/commands/attest.ts` · `lib/attest.ts` · `lib/attest-invariants.ts` · `GET /attest` · the `attest` manifest feature |
 | **Tube** — conversational pipe | — | `cli/commands/tube.ts` · message-channel store · `pd_discover` listing |
+| **Reconcile Loop + VoiceLog** — quiet harness audit | ADR-0108 phase 0 | `lib/squid/{reconcile,reconcile-contract,matrix,voice-log}.ts` · `bin/pd-hook-prompt` · `cli/commands/squid-voice.ts` · daemon lifecycle in `lib/fleet-daemon.ts` · matrix writes in `lib/local-citizen/ink-cloud.ts`; approvals and panic are wired now, while the other declared key classes remain degraded and untouched |
 
 Contributor gotchas specific to these:
 
@@ -246,7 +247,8 @@ Build: `cargo build --release --bin pd-console --features gpui` (from `core/pd-c
 `~/.port-daddy/bin/pd-console` *and* the double-clickable `~/Applications/pd-console.app`
 (embeds its own binary — does NOT read PATH). After replacing the .app binary,
 `codesign --force --deep --sign - ~/Applications/pd-console.app` or macOS rejects it.
-Launch with `PORT_DADDY_URL=http://127.0.0.1:9876` if daemon discovery panics;
+If daemon discovery panics, repair the published port-file path or target a named
+berth explicitly; never guess a fixed `PORT_DADDY_URL`.
 `PD_CONSOLE_THEME=light|dark` / `Ctrl-A g` for theme. Spawning from the console clears real
 guards (`task`+`identity`+`budgetUsd`+`model`+ worktree `workdir`, plus a funded project wallet +
 daily budget) — miss one and spawn "looks wired but does nothing." gpui 0.2.2 has no transform:
