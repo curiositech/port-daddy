@@ -199,6 +199,10 @@ run_read "roadmap"           roadmap     -- roadmap
 run_read "roadmap items"     roadmap     -- roadmap items
 run_read "secret list"       secret      -- secret list
 run_read "briefing"          briefing    -- briefing
+# Arrival briefing. Read-only and deliberately fail-soft: with no actor, no
+# daemon, or nothing relevant it prints nothing and exits 0 — which is exactly
+# the contract a session-start hook needs, and what makes it safe here.
+run_read "arrive"            arrive      -- arrive
 run_read "sitrep"            sitrep      -- sitrep
 run_read "look"              look        -- look
 run_read "periscope"         periscope   -- periscope

@@ -8,8 +8,11 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { validateProjectRoot } from '../lib/utils.js';
 import {
+  VECTOR_KIND,
   buildArrivalBriefing,
+  buildArrivalBriefingSemantic,
   renderArrivalBriefing,
+  type SemanticStoreLike,
   type NeighbourCandidate,
   type RoadmapCandidate,
   type SalvageCandidate,
@@ -33,6 +36,16 @@ interface ArrivalDeps {
 }
 
 interface BriefingRouteDeps extends ArrivalDeps {
+  /**
+   * Shared vector store, when the daemon has one.
+   *
+   * Optional so a daemon whose embedder never loaded still serves arrivals —
+   * the briefing degrades to lexical and SAYS so, rather than 500ing on an
+   * agent's first turn.
+   */
+  vectors?: SemanticStoreLike & {
+    warm(kind: string, items: readonly { id: string; text: string }[], opts?: { prune?: boolean }): Promise<unknown>;
+  };
   briefing: {
     generate(projectRoot: string, options?: { project?: string | null; writeToDisk?: boolean; full?: boolean }): {
       success: boolean;
@@ -175,7 +188,23 @@ export const briefingPlugin: FastifyPluginAsync<{ deps: BriefingRouteDeps }> = a
       neighbours: safely(() => toNeighbours(a.sessions?.list({ status: 'active', allWorktrees: true, limit: 100 }))),
     };
 
-    const result = buildArrivalBriefing(ctx, corpora);
+    // Warm the four corpora before ranking. Content-addressed, so the steady
+    // state is a hash per item and zero model calls; only genuinely new or
+    // edited text costs anything. Best-effort: a failed warm leaves those
+    // vectors stale or absent and the fusion path degrades accordingly.
+    const store = deps.vectors;
+    if (store) {
+      await Promise.all([
+        store.warm(VECTOR_KIND.salvage, corpora.salvage.map((c) => ({ id: c.agentId, text: [c.purpose, ...(c.notes ?? [])].filter(Boolean).join(' ') })), { prune: true }).catch(() => {}),
+        store.warm(VECTOR_KIND.roadmap, corpora.roadmap.map((c) => ({ id: c.id, text: [c.title, c.body, ...(c.tags ?? [])].filter(Boolean).join(' ') })), { prune: true }).catch(() => {}),
+        store.warm(VECTOR_KIND.skills, corpora.skills.map((c) => ({ id: c.id, text: [c.id.replace(/[-_]/g, ' '), c.description, ...(c.tags ?? [])].filter(Boolean).join(' ') })), { prune: true }).catch(() => {}),
+        store.warm(VECTOR_KIND.neighbours, corpora.neighbours.map((c) => ({ id: c.sessionId, text: [c.purpose, ...(c.files ?? [])].filter(Boolean).join(' ') })), { prune: true }).catch(() => {}),
+      ]);
+    }
+
+    const result = store
+      ? await buildArrivalBriefingSemantic(ctx, corpora, store)
+      : buildArrivalBriefing(ctx, corpora);
     return { success: true, briefing: result, rendered: renderArrivalBriefing(result) };
   });
 };

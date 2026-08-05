@@ -133,6 +133,7 @@ import { installGovernor } from './lib/observability/index.js';
 import { createObservabilityMaintenance } from './lib/observability/maintenance.js';
 import { createDurableAgentRoster } from './lib/durable-agent-roster.js';
 import { createGalaxy } from './lib/galaxy.js';
+import { createVectorStore } from './lib/vector-store.js';
 import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
 import { createDbIntegrityProofOutOfProcess } from './lib/db-integrity.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
@@ -737,6 +738,14 @@ const transcripts = createTranscripts(db, { archiveSink: transcriptArchive });
 // lib/galaxy.ts makes the steady state cheap.
 const galaxyEmbedder = createLocalEmbedder({ cacheDir: defaultTransformersCacheDir() });
 const galaxy = createGalaxy({ db, transcripts, sessions, embedder: galaxyEmbedder });
+
+// Shared vector store (ADR-0108 follow-on). Deliberately reuses the SAME
+// MiniLM instance the Galaxy/Sextant pane already loads: a second embedder
+// would mean a second model download, a second ~90 MB resident copy, and two
+// sets of vectors that can never be dot-producted against each other. One
+// model, one table, one cosine — every corpus that registers a `kind` becomes
+// comparable with every other.
+const vectors = createVectorStore({ db, embedder: galaxyEmbedder });
 
 const spawner = createSpawner({
   costTracker, counters, bonds, harbors, transcripts,
@@ -1518,6 +1527,10 @@ await registerAllRoutes(
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
     harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, booty, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, durableAgentRoster, costTracker, cloudAppTelemetry, counters, metricsRegistry,
+    // Shared embedding store: the arrival briefing fuses its lexical ranking
+    // with cosine similarity over these vectors, and degrades (loudly) to
+    // lexical-only when the model has not loaded.
+    vectors,
     contextTracker,
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,

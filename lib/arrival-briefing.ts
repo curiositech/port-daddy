@@ -27,6 +27,28 @@
  */
 
 import { tokenizeAndStem as rawTokenize } from './skill-graft-bm25.js';
+import { reciprocalRankFusion, type VectorSearchResult } from './vector-store.js';
+
+/**
+ * The `kind` each corpus registers under in the shared vector store.
+ *
+ * Named constants rather than inline strings because the warm path (the daemon)
+ * and the read path (this module) must agree exactly — a typo in either would
+ * produce a permanently cold corpus that degrades silently to lexical, which is
+ * a working system that quietly does less than it claims.
+ */
+export const VECTOR_KIND = {
+  salvage: 'arrival:salvage',
+  roadmap: 'arrival:roadmap',
+  skills: 'arrival:skills',
+  neighbours: 'arrival:neighbours',
+} as const;
+
+/** The slice of the shared vector store this module needs. */
+export interface SemanticStoreLike {
+  embedQuery(text: string): Promise<number[] | null>;
+  search(kind: string, query: string | readonly number[], k?: number): Promise<VectorSearchResult>;
+}
 
 /**
  * Terms that carry no signal for this kind of matching.
@@ -146,6 +168,18 @@ export interface ArrivalBriefing {
   readonly neighbours: readonly BriefingHit<NeighbourCandidate>[];
   /** True when every section is empty — the caller should then say nothing. */
   readonly empty: boolean;
+  /**
+   * Whether the semantic tier actually ran.
+   *
+   * `false` means these rankings are lexical-only: they will match
+   * "reconcile producers" to "reconcile producers" but not to "hook up the
+   * projection sources", which is the same work described in different words.
+   * Surfaced rather than swallowed because a degraded briefing that looks
+   * identical to a healthy one teaches operators to trust the wrong thing.
+   */
+  readonly semantic: boolean;
+  /** Operator-facing reason when `semantic` is false. */
+  readonly degradedReason?: string;
 }
 
 // ─── Tunables ────────────────────────────────────────────────────────────────
@@ -236,10 +270,31 @@ function norm(p: string): string {
 interface RankOpts {
   readonly perSection?: number;
   readonly minScore?: number;
+  /**
+   * Keep candidates that pass every ELIGIBILITY rule but score zero lexically.
+   *
+   * There are two different reasons a candidate is absent from a section, and
+   * conflating them breaks semantic search. *Ineligible* means a rule said no —
+   * the roadmap item is shipped, the salvage is in another repo, the neighbour
+   * is you — and no amount of similarity should bring it back. *Unscored* means
+   * only that it shares no stemmed term with the query, which is exactly the
+   * case embeddings exist to rescue: "hook up the projection sources" is the
+   * same work as "wire the reconcile producers" and has zero lexical overlap
+   * with it.
+   *
+   * The fusion path sets this so the semantic tier ranks over the full eligible
+   * pool; the lexical-only path leaves it off, since a zero-overlap candidate
+   * with no semantic tier to judge it is just noise.
+   */
+  readonly keepUnscored?: boolean;
 }
 
 function take<T>(hits: BriefingHit<T>[], opts: RankOpts): BriefingHit<T>[] {
-  const min = opts.minScore ?? MIN_SCORE;
+  // With keepUnscored the floor is deliberately not applied: the caller is
+  // assembling the eligible pool for semantic re-ranking, and a lexical floor
+  // would discard precisely the same-meaning-different-words candidates that
+  // the semantic tier is there to find.
+  const min = opts.keepUnscored ? -Infinity : (opts.minScore ?? MIN_SCORE);
   return hits
     .filter((h) => h.score >= min)
     .sort((a, b) => b.score - a.score)
@@ -271,13 +326,16 @@ export function rankSalvage(
     const text = tokenizeAndStem([c.purpose ?? '', ...(c.notes ?? [])].join(' '));
     const textScore = overlapScore(q, text);
     const score = shared.length * SHARED_FILE_WEIGHT + textScore;
-    if (score <= 0) continue;
+    if (score <= 0 && !opts.keepUnscored) continue;
+    const terms = sharedTerms(q, text);
     hits.push({
       item: c,
       score,
       why: shared.length
         ? `holds ${shared.length === 1 ? basename(shared[0]) : `${shared.length} files you touched`}`
-        : `similar work: ${sharedTerms(q, text).join(', ')}`,
+        : terms.length
+          ? `similar work: ${terms.join(', ')}`
+          : 'similar work (semantic match)',
     });
   }
   return take(hits, opts);
@@ -296,8 +354,9 @@ export function rankRoadmap(
     if (c.status && /^(done|shipped|closed|complete)/i.test(c.status)) continue;
     const text = tokenizeAndStem([c.title, c.body ?? '', ...(c.tags ?? [])].join(' '));
     const score = overlapScore(q, text);
-    if (score <= 0) continue;
-    hits.push({ item: c, score, why: `matches: ${sharedTerms(q, text).join(', ')}` });
+    if (score <= 0 && !opts.keepUnscored) continue;
+    const terms = sharedTerms(q, text);
+    hits.push({ item: c, score, why: terms.length ? `matches: ${terms.join(', ')}` : 'semantic match' });
   }
   return take(hits, opts);
 }
@@ -316,8 +375,9 @@ export function rankSkills(
     // a matching purpose would use.
     const text = tokenizeAndStem([c.id.replace(/[-_]/g, ' '), c.description ?? '', ...(c.tags ?? [])].join(' '));
     const score = overlapScore(q, text);
-    if (score <= 0) continue;
-    hits.push({ item: c, score, why: `matches: ${sharedTerms(q, text).join(', ')}` });
+    if (score <= 0 && !opts.keepUnscored) continue;
+    const terms = sharedTerms(q, text);
+    hits.push({ item: c, score, why: terms.length ? `matches: ${terms.join(', ')}` : 'semantic match' });
   }
   return take(hits, opts);
 }
@@ -353,13 +413,16 @@ export function rankNeighbours(
     // same expertise are exactly who you want to meet.
     const sameProject = ctx.project && c.project && ctx.project === c.project ? 0.1 : 0;
     const score = shared.length * SHARED_FILE_WEIGHT + textScore + sameProject;
-    if (score <= 0) continue;
+    if (score <= 0 && !opts.keepUnscored) continue;
+    const terms = sharedTerms(q, text);
     hits.push({
       item: c,
       score,
       why: shared.length
         ? `editing ${shared.length === 1 ? basename(shared[0]) : `${shared.length} of the same files`}`
-        : `similar goal: ${sharedTerms(q, text).join(', ')}`,
+        : terms.length
+          ? `similar goal: ${terms.join(', ')}`
+          : 'similar goal (semantic match)',
     });
   }
   return take(hits, opts);
@@ -389,6 +452,154 @@ export function buildArrivalBriefing(
     skills,
     neighbours,
     empty: !salvage.length && !roadmap.length && !skills.length && !neighbours.length,
+    semantic: false,
+    degradedReason: 'lexical-only ranking (no vector store supplied)',
+  };
+}
+
+// ─── semantic fusion ─────────────────────────────────────────────────────────
+
+/** Rank ids by descending score, for feeding into RRF. */
+function rankedIds<T>(hits: readonly BriefingHit<T>[], id: (item: T) => string): string[] {
+  return hits.map((h) => id(h.item));
+}
+
+/**
+ * Fuse the lexical ranking of one section with a semantic ranking of the same
+ * candidates, by reciprocal rank.
+ *
+ * **Why fuse rather than replace.** Embeddings are better at "same work,
+ * different words" and worse at exact identifiers — a MiniLM vector will
+ * happily rate `reconcile-loop-design` and `reconcile-loop-producers` as near
+ * identical, while BM25 keeps them apart. The two tiers fail in different
+ * directions, which is precisely when fusion beats either alone, and it is the
+ * pattern `lib/durable-agent-roster.ts` already uses for expertise lookup.
+ *
+ * Structural evidence survives fusion untouched: a shared claimed file is not
+ * a similarity signal at all, so hits carrying one keep their `why` and stay
+ * pinned above anything that merely reads alike.
+ */
+function fuseSection<T>(
+  pool: readonly BriefingHit<T>[],
+  lexical: readonly BriefingHit<T>[],
+  semanticOrder: readonly string[],
+  id: (item: T) => string,
+  limit: number,
+): BriefingHit<T>[] {
+  // No semantic signal: fall back to exactly what the lexical tier produced,
+  // floor and all. The eligible pool is deliberately NOT used here — without a
+  // semantic ranker, zero-overlap candidates are noise, not recall.
+  if (!semanticOrder.length) return [...lexical];
+
+  // Fuse over the eligible pool so a zero-lexical candidate can still surface,
+  // but only ever an ELIGIBLE one: `byId` is built from the pool, so an id the
+  // semantic tier returns for something a rule excluded is dropped on lookup.
+  const byId = new Map(pool.map((h) => [id(h.item), h]));
+  const lexicalOrder = rankedIds([...lexical].sort((a, b) => b.score - a.score), id);
+  const fused = reciprocalRankFusion([lexicalOrder, semanticOrder.filter((s) => byId.has(s))]);
+
+  return [...fused.entries()]
+    .map(([itemId, score]) => {
+      const hit = byId.get(itemId);
+      return hit ? { ...hit, score } : null;
+    })
+    .filter((h): h is BriefingHit<T> => h !== null)
+    // A structural hit (shared file) outranks any fused text score: the two
+    // agents are colliding regardless of how the words compare.
+    .sort((a, b) => Number(isStructural(b)) - Number(isStructural(a)) || b.score - a.score)
+    .slice(0, limit);
+}
+
+/** A hit earned by a shared file rather than by wording. */
+function isStructural<T>(hit: BriefingHit<T>): boolean {
+  return hit.why.startsWith('holds ') || hit.why.startsWith('editing ');
+}
+
+/**
+ * Rank all four corpora with semantic + lexical fusion.
+ *
+ * Falls back to the pure-lexical result — clearly labeled — whenever the
+ * embedder cannot answer. That covers a model that has not downloaded yet, an
+ * ONNX runtime that failed to load, and a cold vector store, all of which are
+ * ordinary states on a fresh install rather than exceptional ones.
+ *
+ * The query is embedded ONCE and reused across all four kinds; embedding is the
+ * only genuinely expensive step here, and doing it per-corpus would quadruple
+ * the cost of every arrival for no benefit.
+ */
+export async function buildArrivalBriefingSemantic(
+  ctx: ArrivalContext,
+  corpora: ArrivalCorpora,
+  store: SemanticStoreLike,
+  opts: RankOpts = {},
+): Promise<ArrivalBriefing> {
+  const lexical = buildArrivalBriefing(ctx, corpora, opts);
+  const query = contextQuery(ctx).trim();
+  if (!query) return { ...lexical, semantic: false, degradedReason: 'no arrival context to match on' };
+
+  // The ELIGIBLE pool, not the lexically-thresholded one. Everything here has
+  // passed its section's rules (right project, not shipped, not you); what it
+  // may lack is any shared vocabulary with the query, which is the gap the
+  // semantic tier exists to close. Ranking fusion over `lexical` alone would
+  // make embeddings a re-ranker of things lexical already found — useful, but
+  // not the point.
+  const poolOpts: RankOpts = { ...opts, keepUnscored: true, perSection: Number.MAX_SAFE_INTEGER };
+  const pool = {
+    salvage: rankSalvage(ctx, corpora.salvage ?? [], poolOpts),
+    roadmap: rankRoadmap(ctx, corpora.roadmap ?? [], poolOpts),
+    skills: rankSkills(ctx, corpora.skills ?? [], poolOpts),
+    neighbours: rankNeighbours(ctx, corpora.neighbours ?? [], poolOpts),
+  };
+
+  const limit = opts.perSection ?? DEFAULT_PER_SECTION;
+  let vector: number[] | null = null;
+  try {
+    vector = await store.embedQuery(query);
+  } catch {
+    vector = null;
+  }
+  if (!vector) {
+    return {
+      ...lexical,
+      semantic: false,
+      degradedReason: 'shared MiniLM embedder unavailable; ranking is lexical only. Run pd doctor.',
+    };
+  }
+
+  const order = async (kind: string): Promise<string[]> => {
+    try {
+      const res = await store.search(kind, vector!, 50);
+      return res.semanticAvailable ? res.hits.map((h) => h.id) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const [salvageOrder, roadmapOrder, skillsOrder, neighbourOrder] = await Promise.all([
+    order(VECTOR_KIND.salvage),
+    order(VECTOR_KIND.roadmap),
+    order(VECTOR_KIND.skills),
+    order(VECTOR_KIND.neighbours),
+  ]);
+
+  const anySemantic =
+    salvageOrder.length + roadmapOrder.length + skillsOrder.length + neighbourOrder.length > 0;
+
+  const salvage = fuseSection(pool.salvage, lexical.salvage, salvageOrder, (c) => c.agentId, limit);
+  const roadmap = fuseSection(pool.roadmap, lexical.roadmap, roadmapOrder, (c) => c.id, limit);
+  const skills = fuseSection(pool.skills, lexical.skills, skillsOrder, (c) => c.id, limit);
+  const neighbours = fuseSection(pool.neighbours, lexical.neighbours, neighbourOrder, (c) => c.sessionId, limit);
+
+  return {
+    salvage,
+    roadmap,
+    skills,
+    neighbours,
+    empty: !salvage.length && !roadmap.length && !skills.length && !neighbours.length,
+    semantic: anySemantic,
+    ...(anySemantic
+      ? {}
+      : { degradedReason: 'vector store is cold for every corpus; ranking is lexical only' }),
   };
 }
 

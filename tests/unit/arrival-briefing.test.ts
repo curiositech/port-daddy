@@ -15,6 +15,8 @@ import { describe, expect, test } from '@jest/globals';
 
 import {
   MAX_TEXT_SCORE,
+  VECTOR_KIND,
+  buildArrivalBriefingSemantic,
   MIN_SCORE,
   SHARED_FILE_WEIGHT,
   buildArrivalBriefing,
@@ -481,5 +483,130 @@ describe('GET /briefing/arrival', () => {
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body).rendered).toBe('');
     await app.close();
+  });
+});
+
+// ─── semantic fusion ─────────────────────────────────────────────────────────
+
+describe('semantic fusion', () => {
+  /** A store whose ranking we control, standing in for the MiniLM-backed one. */
+  const storeWith = (orders: Record<string, string[]>, queryOk = true) => ({
+    embedQuery: async () => (queryOk ? [1, 0, 0] : null),
+    search: async (kind: string) => {
+      const ids = orders[kind] ?? [];
+      return {
+        hits: ids.map((id, i) => ({ id, score: 1 - i * 0.1 })),
+        semanticAvailable: ids.length > 0,
+        ...(ids.length ? {} : { reason: 'cold' }),
+      };
+    },
+  });
+
+  test('finds the SAME WORK described in different words — the case lexical cannot reach', async () => {
+    // This is the whole argument for embeddings here. "hook up the projection
+    // sources" is the same job as "wire the reconcile producers" and shares
+    // not one stemmed term with it, so the lexical tier scores it zero and
+    // drops it entirely. Only the semantic tier can surface it.
+    const arriving = { actor: 'alpha', purpose: 'wire the reconcile producers' };
+    const candidates = [
+      { agentId: 'synonym', purpose: 'hook up the projection sources' },
+      { agentId: 'literal', purpose: 'wire the reconcile producers' },
+    ];
+
+    const lexicalOnly = buildArrivalBriefing(arriving, { salvage: candidates });
+    expect(lexicalOnly.salvage.map((h) => h.item.agentId)).toEqual(['literal']);
+    expect(lexicalOnly.semantic).toBe(false);
+
+    const fused = await buildArrivalBriefingSemantic(
+      arriving,
+      { salvage: candidates },
+      storeWith({ [VECTOR_KIND.salvage]: ['synonym', 'literal'] }),
+    );
+    expect(fused.semantic).toBe(true);
+    // Both are now reachable; the synonym is no longer invisible.
+    expect(fused.salvage.map((h) => h.item.agentId).sort()).toEqual(['literal', 'synonym']);
+  });
+
+  test('a shared file still outranks any semantic similarity', async () => {
+    // Structural evidence is not a similarity signal — those two agents are
+    // colliding whatever the words say — so fusion must not demote it.
+    const fused = await buildArrivalBriefingSemantic(
+      { actor: 'alpha', purpose: 'wire the reconcile producers', files: ['lib/squid/reconcile.ts'] },
+      {
+        neighbours: [
+          { actor: 'wordy', sessionId: 's1', purpose: 'wire the reconcile producers exactly' },
+          { actor: 'collider', sessionId: 's2', purpose: 'unrelated', files: ['lib/squid/reconcile.ts'] },
+        ],
+      },
+      storeWith({ [VECTOR_KIND.neighbours]: ['s1', 's2'] }),
+    );
+    expect(fused.neighbours[0].item.actor).toBe('collider');
+  });
+
+  test('an unavailable embedder degrades to lexical WITH a reason', async () => {
+    const out = await buildArrivalBriefingSemantic(
+      { actor: 'alpha', purpose: 'wire the reconcile producers' },
+      { salvage: [{ agentId: 'literal', purpose: 'wire the reconcile producers' }] },
+      storeWith({}, false),
+    );
+    expect(out.semantic).toBe(false);
+    expect(out.degradedReason).toContain('pd doctor');
+    // Degraded still means useful: the lexical hits survive.
+    expect(out.salvage).toHaveLength(1);
+  });
+
+  test('a cold vector store degrades, and says it is cold', async () => {
+    const out = await buildArrivalBriefingSemantic(
+      { actor: 'alpha', purpose: 'wire the reconcile producers' },
+      { salvage: [{ agentId: 'literal', purpose: 'wire the reconcile producers' }] },
+      storeWith({}),
+    );
+    expect(out.semantic).toBe(false);
+    expect(out.degradedReason).toContain('cold');
+    expect(out.salvage).toHaveLength(1);
+  });
+
+  test('a throwing store never takes down the arrival path', async () => {
+    const out = await buildArrivalBriefingSemantic(
+      { actor: 'alpha', purpose: 'wire the reconcile producers' },
+      { salvage: [{ agentId: 'literal', purpose: 'wire the reconcile producers' }] },
+      {
+        embedQuery: async () => [1, 0, 0],
+        search: async () => {
+          throw new Error('db locked');
+        },
+      },
+    );
+    expect(out.semantic).toBe(false);
+    expect(out.salvage).toHaveLength(1);
+  });
+
+  test('the query is embedded ONCE for all four corpora', async () => {
+    let embedCalls = 0;
+    await buildArrivalBriefingSemantic(
+      { actor: 'alpha', purpose: 'wire the reconcile producers' },
+      { salvage: [{ agentId: 'x', purpose: 'wire the reconcile producers' }] },
+      {
+        embedQuery: async () => {
+          embedCalls += 1;
+          return [1, 0, 0];
+        },
+        search: async () => ({ hits: [], semanticAvailable: false }),
+      },
+    );
+    // Embedding is the only expensive step; per-corpus embedding would
+    // quadruple the cost of every arrival for no benefit.
+    expect(embedCalls).toBe(1);
+  });
+
+  test('semantic cannot resurrect a candidate the lexical tier never produced', async () => {
+    // Fusion re-ranks the section's own candidates; it must not invent hits
+    // for ids that were filtered out (e.g. a shipped roadmap item).
+    const out = await buildArrivalBriefingSemantic(
+      { actor: 'alpha', purpose: 'wire the reconcile producers' },
+      { roadmap: [{ id: 'R-done', title: 'Reconcile loop producers', status: 'shipped' }] },
+      storeWith({ [VECTOR_KIND.roadmap]: ['R-done'] }),
+    );
+    expect(out.roadmap).toEqual([]);
   });
 });
