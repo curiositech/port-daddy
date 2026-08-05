@@ -1,0 +1,38 @@
+[[hooks.UserPromptSubmit]]
+
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = "/opt/homebrew/Cellar/port-daddy/3.27.0_3/bin/pd-hook-prompt"
+timeout = 10
+async = false
+
+[[hooks.PreToolUse]]
+matcher = "Bash|apply_patch|Edit|Write|edit|write|str_replace_editor|shell|shell_command|exec_command|unified_exec|run_shell_command"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "/opt/homebrew/Cellar/port-daddy/3.27.0_3/bin/pd-hook-pre-tool"
+timeout = 10
+async = false
+
+[[hooks.PostToolUse]]
+matcher = "Bash|apply_patch|Edit|Write|edit|write|str_replace_editor|shell|shell_command|exec_command|unified_exec|run_shell_command"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "/opt/homebrew/Cellar/port-daddy/3.27.0_3/bin/pd-hook-post-tool"
+timeout = 10
+async = false
+
+[sandbox_workspace_write]
+network_access = true
+
+[mcp_servers.21st-dev-magic]
+command = "npx"
+args = [
+    "-y",
+    "@21st-dev/magic@latest",
+]
+
+[mcp_servers.21st-dev-magic.env]
+TWENTYFIRST_API_KEY = "dd4d0636b447afa64d3f3bf05c7ae482d3d4d32c144808d5ee8b67498e2fe70c"
