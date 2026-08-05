@@ -7,12 +7,22 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify';
-import type { BackendOverrideSource, SpawnSpec, Spawner } from '../lib/spawner.js';
+import type { BackendOverrideSource, SpawnResult, SpawnSpec, Spawner } from '../lib/spawner.js';
 import { assessSpawnPreflight } from '../lib/spawn-preflight.js';
 import type { CostTracker } from '../lib/cost-tracker.js';
+import type { Transcripts } from '../lib/transcripts.js';
 import { resolveFleetAgentRuntime, type FleetModelTier, type FleetRuntimeTarget } from '../lib/fleet-runtime.js';
 import { validateChannel } from '../shared/validators.js';
 import { KNOWN_BACKEND_IDS } from '../lib/backend-catalog.js';
+import {
+  AgentRunIdempotencyConflictError,
+  createAgentRunReceiptStore,
+  TERMINAL_AGENT_RUN_STATUSES,
+  type AgentRunReceipt,
+  type AgentRunReceiptStatus,
+  type AgentRunReceiptStore,
+  type PortableDatabase,
+} from '../lib/agent-run-receipts.js';
 
 interface SpawnRouteDeps {
   spawner: Spawner;
@@ -22,6 +32,14 @@ interface SpawnRouteDeps {
     info(msg: string, meta?: Record<string, unknown>): void;
     error(msg: string, meta?: Record<string, unknown>): void;
   };
+  // Durable agent-run receipt ledger. Supplied by the daemon's shared `deps`
+  // (server.ts already passes `db`), so no server callsite changes are needed.
+  // When absent, `Prefer: respond-async` is not honoured and POST /spawn behaves
+  // exactly as the synchronous route always has.
+  db?: PortableDatabase;
+  // Transcript recorder, also from the shared `deps`. Async admission needs it to
+  // resolve the real transcript id it attaches as run evidence (markStarting).
+  transcripts?: Transcripts;
 }
 
 // The backend-id set is declared ONCE in lib/backend-catalog.ts
@@ -51,11 +69,139 @@ function requestedModelFromRequest(
   return resolveFleetAgentRuntime({ backend, modelTier }).model ?? undefined;
 }
 
+/** True when the request opted into asynchronous admission via `Prefer: respond-async`. */
+function prefersRespondAsync(headers: Record<string, unknown>): boolean {
+  const prefer = String(headers['prefer'] ?? '').toLowerCase();
+  return prefer.split(',').some((token) => token.trim() === 'respond-async');
+}
+
+/** Fastify may deliver a header as string | string[]; take the first non-empty value. */
+function firstHeaderValue(value: unknown): string | undefined {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return typeof raw === 'string' && raw.trim() ? raw : undefined;
+}
+
+/**
+ * Maps a terminal SpawnResult.status onto the receipt-core terminal status.
+ * A killed agent is an operator/supervisor cancellation, not a failure.
+ */
+function terminalReceiptStatus(status: SpawnResult['status']): AgentRunReceiptStatus {
+  switch (status) {
+    case 'completed': return 'completed';
+    case 'over_budget': return 'over_budget';
+    case 'killed': return 'cancelled';
+    case 'failed':
+    default: return 'failed';
+  }
+}
+
+/**
+ * The durable projection of a receipt returned by GET /spawn/:id and by an
+ * idempotent replay. `live` is derived ONLY from the receipt-core status: the
+ * core sets `live` exclusively after corroborating the recorded child PID with
+ * defaultVerifyProcessAlive, and reconciles a lost-liveness receipt to `unknown`
+ * on restart. This route therefore never upgrades a run to `live` off a bare
+ * daemon/supervisor heartbeat, and never reports `live: true` for a status the
+ * core did not itself prove.
+ */
+function receiptProjection(receipt: AgentRunReceipt) {
+  const terminal = TERMINAL_AGENT_RUN_STATUSES.has(receipt.status);
+  const outcomeUnknown = receipt.status === 'unknown';
+  const live = receipt.status === 'live';
+  return {
+    success: terminal ? receipt.status === 'completed' : !outcomeUnknown,
+    terminal,
+    outcomeUnknown,
+    live,
+    receiptId: receipt.id,
+    status: receipt.status,
+    agentId: receipt.successorAgentId,
+    sessionId: receipt.successorSessionId,
+    transcriptId: receipt.transcriptId,
+    telemetry: receipt.telemetry,
+    error: receipt.error,
+    monitorUrl: `/spawn/${encodeURIComponent(receipt.id)}`,
+    receipt,
+  };
+}
+
 // ==========================================================================
 // Fastify plugin (dual-export)
 // ==========================================================================
 export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (fastify, opts) => {
-  const { metrics, logger, spawner, costTracker } = opts.deps;
+  const { metrics, logger, spawner, costTracker, db, transcripts } = opts.deps;
+
+  // Durable receipt ledger for asynchronous spawn admission. Constructing the
+  // store reconciles any receipt left non-terminal by a previous daemon
+  // (accepted/starting/live -> unknown): lost liveness is never silently
+  // treated as success. Requires both a database and a transcript recorder —
+  // async admission attaches a real transcript id as run evidence, so without
+  // transcripts we fall back to the synchronous path rather than fabricate one.
+  const receipts: AgentRunReceiptStore | null = db ? createAgentRunReceiptStore(db) : null;
+  const asyncAdmissionEnabled = Boolean(receipts && transcripts);
+
+  /** Resolve the real transcript id the spawner opened for this agent, if any. */
+  function resolveTranscriptId(agentId: string): string | null {
+    if (!transcripts || !agentId) return null;
+    try {
+      const [head] = transcripts.listTranscripts({ agentId, limit: 1 });
+      return head?.id ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Runs the actual backend for an admitted receipt and records its durable
+   * lifecycle. This runs detached from the HTTP response (the caller already
+   * received 202). Evidence is attached at completion — this branch's spawner
+   * is blocking (`spawn(spec): Promise<SpawnResult>`) and exposes no mid-run
+   * child PID, so there is no honest window to assert `live`; the run advances
+   * accepted -> starting (with agent/session/transcript evidence) -> terminal.
+   * A backend that never opens a runtime is recorded as `no_runtime`, never as
+   * a completion.
+   */
+  async function runAdmittedSpawn(receiptId: string, spec: SpawnSpec): Promise<void> {
+    if (!receipts) return;
+    try {
+      const result = await spawner.spawn(spec);
+      const transcriptId = resolveTranscriptId(result.agentId);
+      if (result.agentId && transcriptId) {
+        receipts.markStarting(receiptId, {
+          successorAgentId: result.agentId,
+          successorSessionId: result.harnessSessionId ?? null,
+          transcriptId,
+        });
+        receipts.markStatus(receiptId, terminalReceiptStatus(result.status), {
+          successorSessionId: result.harnessSessionId ?? null,
+          error: result.error,
+          telemetry: result.telemetry,
+        });
+      } else {
+        // The run returned but left no attachable agent/transcript evidence.
+        // Record honestly instead of inventing a completion.
+        receipts.markStatus(receiptId, 'no_runtime', {
+          error: result.error ?? 'spawn returned no attachable agent/transcript evidence',
+        });
+      }
+      logger.info('spawn_complete', {
+        agentId: result.agentId,
+        backend: result.backend,
+        status: result.status,
+      });
+    } catch (error) {
+      // The backend threw before opening a runtime: admission stands but nothing
+      // ran. `no_runtime` is a terminal status, so this never masquerades as a
+      // completed run.
+      try {
+        receipts.markStatus(receiptId, 'no_runtime', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      } catch { /* best-effort durable record */ }
+      metrics.errors++;
+      logger.error('spawn_error', { error: (error as Error).message });
+    }
+  }
 
   fastify.post('/spawn/preflight', async (request, reply) => {
     try {
@@ -271,6 +417,71 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         purpose: spec.purpose || null,
       });
 
+      // Asynchronous admission (RFC 7240 `Prefer: respond-async`). Reuses the
+      // single preflight + `spec` built above; the synchronous path below is
+      // left byte-for-byte unchanged. Only engages when a durable ledger and a
+      // transcript recorder are both wired — otherwise the request falls through
+      // to the existing synchronous behaviour.
+      if (asyncAdmissionEnabled && prefersRespondAsync(request.headers as Record<string, unknown>)) {
+        const idempotencyKey = firstHeaderValue((request.headers as Record<string, unknown>)['idempotency-key']);
+        if (!idempotencyKey) {
+          reply.code(400);
+          return {
+            success: false,
+            error: 'Idempotency-Key header is required for Prefer: respond-async spawn admission',
+            code: 'IDEMPOTENCY_KEY_REQUIRED',
+          };
+        }
+        let admission: { receipt: AgentRunReceipt; replayed: boolean };
+        try {
+          // One atomic INSERT ... ON CONFLICT ... RETURNING: two concurrent
+          // callers racing the same key can never both admit a run.
+          admission = receipts!.accept({
+            idempotencyKey,
+            kind: 'spawn',
+            request: spec,
+            budgetUsd: spec.budgetUsd ?? null,
+          });
+        } catch (error) {
+          if (error instanceof AgentRunIdempotencyConflictError) {
+            reply.code(409);
+            return {
+              success: false,
+              error: error.message,
+              code: 'IDEMPOTENCY_CONFLICT',
+              receiptId: error.receiptId,
+            };
+          }
+          throw error;
+        }
+
+        if (admission.replayed) {
+          // A prior request already owns this key: return its durable projection
+          // WITHOUT launching the backend a second time.
+          const projection = receiptProjection(admission.receipt);
+          const settled = projection.terminal || projection.outcomeUnknown;
+          reply.code(settled ? 200 : 202);
+          reply.header('Location', projection.monitorUrl);
+          if (!settled) reply.header('Retry-After', '1');
+          return { ...projection, replayed: true, accepted: true };
+        }
+
+        // Fresh admission: launch the real backend detached from this response
+        // and return 202 immediately with a stable collection handle.
+        void runAdmittedSpawn(admission.receipt.id, spec);
+        reply.code(202);
+        reply.header('Location', `/spawn/${encodeURIComponent(admission.receipt.id)}`);
+        reply.header('Retry-After', '1');
+        return {
+          success: true,
+          accepted: true,
+          replayed: false,
+          receiptId: admission.receipt.id,
+          status: admission.receipt.status,
+          monitorUrl: `/spawn/${encodeURIComponent(admission.receipt.id)}`,
+        };
+      }
+
       const result = await spawner.spawn(spec);
 
       logger.info('spawn_complete', {
@@ -284,6 +495,36 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       metrics.errors++;
       logger.error('spawn_error', { error: (error as Error).message });
       reply.code(500); return { error: 'internal server error' };
+    }
+  });
+
+  // GET /spawn/:id — Collect the durable projection of an admitted spawn.
+  // `:id` is a receipt id (run-*) minted by Prefer: respond-async admission,
+  // distinct from the agent id namespace used by DELETE /spawn/:id. Reads the
+  // durable ledger only: it reports `unknown` for a run whose liveness the
+  // daemon lost across a restart (never `live`, never a 500), and it never
+  // upgrades a run to `live` from a bare heartbeat — the receipt core is the
+  // sole authority that proves `live` via defaultVerifyProcessAlive.
+  fastify.get('/spawn/:id', async (request, reply) => {
+    try {
+      if (!receipts) {
+        reply.code(404);
+        return { success: false, error: 'Durable spawn receipts are not available on this daemon' };
+      }
+      const id = String((request.params as any).id);
+      const receipt = receipts.get(id);
+      if (!receipt) {
+        reply.code(404);
+        return { success: false, error: `No spawn receipt found for ${id}` };
+      }
+      const projection = receiptProjection(receipt);
+      if (!projection.terminal && !projection.outcomeUnknown) reply.header('Retry-After', '1');
+      return projection;
+    } catch (error) {
+      metrics.errors++;
+      logger.error('spawn_receipt_get_error', { error: (error as Error).message });
+      reply.code(500);
+      return { error: 'internal server error' };
     }
   });
 
