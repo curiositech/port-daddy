@@ -175,6 +175,94 @@ describe('pull_request action routing', () => {
   );
 });
 
+describe('merge-group gate propagation', () => {
+  it('propagates only after every PR in the merge group has an App-owned review', async () => {
+    state.mergeQueueEntries = [
+      { position: 1, prNumber: 6, headSha: 'FIRSTSHA', groupHeadSha: 'FIRSTGROUPSHA' },
+      { position: 2, prNumber: 7, headSha: 'HEADSHA', groupHeadSha: 'MERGEGROUPSHA' },
+    ];
+    state.existingCheckRuns.push(
+      {
+        id: 76,
+        name: 'Port Daddy Fleet',
+        headSha: 'FIRSTSHA',
+        status: 'completed',
+        conclusion: 'success',
+        app: { id: 3810450 },
+      },
+      {
+        id: 77,
+        name: 'Port Daddy Fleet',
+        headSha: 'HEADSHA',
+        status: 'completed',
+        conclusion: 'success',
+        details_url: 'https://relay.example/fleet/runs/reviewed',
+        app: { id: 3810450 },
+      },
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'must not run' } });
+
+    await executeFleet(
+      makeJob({
+        eventType: 'merge_group',
+        action: 'checks_requested',
+        prNumber: null,
+        payloadMinimal: {
+          merge_group: {
+            head_sha: 'MERGEGROUPSHA',
+            head_ref: 'refs/heads/gh-readonly-queue/main/pr-7-base',
+          },
+        },
+      }),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }),
+    );
+
+    expect(state.records.some(record =>
+      record.url.endsWith('/check-runs') &&
+      (record.body as { head_sha?: string })?.head_sha === 'MERGEGROUPSHA'
+    )).toBe(true);
+    expect(state.completed.at(-1)).toMatchObject({
+      conclusion: 'success',
+      detailsUrl: 'https://relay.example/fleet/runs/reviewed',
+    });
+    expect(state.completed.at(-1)?.summary).toContain('PR #7');
+    expect(state.completed.at(-1)?.summary).toContain('PR #6');
+    expect(ai.calls).toHaveLength(0);
+  });
+
+  it('fails closed when the upstream Fleet check is not owned by this App', async () => {
+    state.existingCheckRuns.push({
+      id: 88,
+      name: 'Port Daddy Fleet',
+      headSha: 'HEADSHA',
+      status: 'completed',
+      conclusion: 'success',
+      app: { id: 999 },
+    });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+
+    await executeFleet(
+      makeJob({
+        eventType: 'merge_group',
+        action: 'checks_requested',
+        payloadMinimal: {
+          merge_group: {
+            head_sha: 'MERGEGROUPSHA',
+            head_ref: 'gh-readonly-queue/main/pr-7-base',
+          },
+        },
+      }),
+      makeEnv({ FLEET_TOKENS: kv }),
+    );
+
+    expect(state.completed.at(-1)?.conclusion).toBe('failure');
+    expect(state.completed.at(-1)?.summary).toContain('failed closed');
+  });
+});
+
 describe('MAP fan-out', () => {
   it('preserves result order while enforcing the in-flight cap', async () => {
     let active = 0;
