@@ -1,9 +1,8 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env bun
 import { spawn } from 'node:child_process';
+import { resolveDaemonUrl } from '../lib/daemon-url.js';
 
-const DEFAULT_DAEMON_URL =
-  process.env.PORT_DADDY_URL ??
-  `http://${process.env.PORT_DADDY_HOST ?? '127.0.0.1'}:${process.env.PORT_DADDY_PORT ?? '9876'}`;
+const DEFAULT_DAEMON_URL = resolveDaemonUrl();
 const CHANNEL = process.env.PD_TUBE_CHANNEL ?? 'dev:test-failed';
 const TUBE_KIND = 'tube.msg';
 

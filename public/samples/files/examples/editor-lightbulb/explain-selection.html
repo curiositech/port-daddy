@@ -120,7 +120,7 @@
     <div class="row">
       <label>
         Daemon URL
-        <input id="daemon" value="http://127.0.0.1:9876">
+        <input id="daemon" placeholder="Paste the selected daemon URL from Port Daddy" autocomplete="url">
       </label>
       <label>
         File
@@ -136,7 +136,9 @@
       Selected code
       <textarea id="selection">export function getDaemonUrl(explicit?: string) {
   if (explicit) return explicit.replace(/\/+$/, '');
-  return window.localStorage.getItem('PORT_DADDY_URL') ?? 'http://127.0.0.1:9876';
+  const selected = window.localStorage.getItem('PORT_DADDY_URL');
+  if (!selected) throw new Error('Select a Port Daddy daemon first');
+  return selected.replace(/\/+$/, '');
 }</textarea>
     </label>
 
@@ -152,7 +154,9 @@ $ pd tube editor:explain</pre>
     const log = document.getElementById('log');
 
     function daemonUrl() {
-      return document.getElementById('daemon').value.replace(/\/+$/, '');
+      const selected = document.getElementById('daemon').value.trim();
+      if (!selected) throw new Error('Paste the selected daemon URL before asking an agent.');
+      return selected.replace(/\/+$/, '');
     }
 
     function channelUrl() {

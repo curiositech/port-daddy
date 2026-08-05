@@ -8,14 +8,16 @@
 # =============================================================================
 
 PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
+PORT_DADDY_BASE=""
 if [[ -n "${PD_URL:-}" ]]; then
   PORT_DADDY_BASE="$PD_URL"
 elif [[ -n "${PORT_DADDY_URL:-}" ]]; then
   PORT_DADDY_BASE="$PORT_DADDY_URL"
 elif [[ -f "$PORT_FILE" ]]; then
-  PORT_DADDY_BASE="http://localhost:$(tr -d '[:space:]' < "$PORT_FILE")"
-else
-  PORT_DADDY_BASE="http://localhost:9876"
+  PUBLISHED_PORT="$(tr -d '[:space:]' < "$PORT_FILE")"
+  if [[ "$PUBLISHED_PORT" == <-> ]] && (( PUBLISHED_PORT >= 1 && PUBLISHED_PORT <= 65535 )); then
+    PORT_DADDY_BASE="http://127.0.0.1:$PUBLISHED_PORT"
+  fi
 fi
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
@@ -29,21 +31,23 @@ AUTHOR=$(git log -1 --pretty=%an 2>/dev/null)
 BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 FILES=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | head -20 | tr '\n' ', ')
 
-curl -s -X POST "${PORT_DADDY_BASE}/msg/${CHANNEL}" \
-  -H 'Content-Type: application/json' \
-  -d "{\"payload\": {\"sha\": \"${SHA}\", \"message\": \"${MSG}\", \"author\": \"${AUTHOR}\", \"branch\": \"${BRANCH}\", \"files\": \"${FILES}\"}}" \
-  --connect-timeout 2 --max-time 3 \
-  >/dev/null 2>&1 &
+if [[ -n "$PORT_DADDY_BASE" ]]; then
+  curl -s -X POST "${PORT_DADDY_BASE}/msg/${CHANNEL}" \
+    -H 'Content-Type: application/json' \
+    -d "{\"payload\": {\"sha\": \"${SHA}\", \"message\": \"${MSG}\", \"author\": \"${AUTHOR}\", \"branch\": \"${BRANCH}\", \"files\": \"${FILES}\"}}" \
+    --connect-timeout 2 --max-time 3 \
+    >/dev/null 2>&1 &
+fi
 
 # >>> Port Daddy Skill Sync
 # When this commit touched the first-party skills/ catalog, refresh the local
 # per-runtime symlink fan-out (.claude/skills, .codex/skills, .agy/skills, …) so
 # every agent runtime sees the same library. Fire-and-forget: never blocks or
 # fails a commit (the fan-out is gitignored machine-local state).
-# Manual: npm run skills:sync  ·  Drift check: npm run skills:sync:check
+# Manual: bun run skills:sync  ·  Drift check: bun run skills:sync:check
 if git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | grep -q '^skills/'; then
-  if command -v npx >/dev/null 2>&1 && [[ -f "$PROJECT_ROOT/scripts/sync-skills.ts" ]]; then
-    ( cd "$PROJECT_ROOT" && npx tsx scripts/sync-skills.ts --scope project --quiet >/dev/null 2>&1 & )
+  if command -v bun >/dev/null 2>&1 && [[ -f "$PROJECT_ROOT/scripts/sync-skills.ts" ]]; then
+    ( cd "$PROJECT_ROOT" && bun scripts/sync-skills.ts --scope project --quiet >/dev/null 2>&1 & )
   fi
 fi
 # <<< Port Daddy Skill Sync

@@ -26,9 +26,10 @@ macOS GPU deps.
 
 ## Data
 
-On startup it does one blocking `GET http://127.0.0.1:9876/activity/timeline?limit=50`
-against the live Port Daddy daemon and lays those events out (the banner reads
-`LIVE — …`). If the daemon is unreachable it falls back to a baked, clearly
+On startup it resolves `PORT_DADDY_URL` or the daemon's published port file, then
+does one blocking `GET /activity/timeline?limit=50` against that selected live
+daemon and lays those events out (the banner reads `LIVE — …`). If no endpoint
+is published or the daemon is unreachable it falls back to a baked, clearly
 marked fixture (`FIXTURE — …`). Daemon `type` strings are mapped onto tracks via
 a closed-vocabulary `match` (a structured-field dispatch, **not** keyword NLP
 over free text).

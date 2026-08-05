@@ -17,6 +17,7 @@ mod data;
 mod scene;
 
 use std::io::Write;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -35,14 +36,40 @@ use winit::window::{Window, WindowId};
 use data::Timeline;
 use scene::{build_scene, Layoutspec, TextEngine};
 
-/// Daemon base URL: honor `PORT_DADDY_URL` (so the prototype follows `pd use` /
-/// a dev berth), else a last-resort localhost default. The literal below is the
-/// only hardcoded port and is why this file is allowlisted in the
-/// no-hardcoded-daemon-{url,port} guards.
-fn daemon_base() -> String {
-    std::env::var("PORT_DADDY_URL")
-        .map(|u| u.trim_end_matches('/').to_string())
-        .unwrap_or_else(|_| "http://127.0.0.1:9876".to_string())
+/// Daemon base URL: honor the selected named daemon, otherwise read the stable
+/// daemon's atomic port publication. An absent publication is not replaced by a
+/// guessed port; the caller renders its clearly-marked fixture instead.
+fn daemon_base() -> Result<String, String> {
+    if let Ok(explicit) = std::env::var("PORT_DADDY_URL") {
+        let explicit = explicit.trim().trim_end_matches('/');
+        if !explicit.is_empty() {
+            return Ok(explicit.to_string());
+        }
+    }
+
+    let port_file = std::env::var_os("PORT_DADDY_PORT_FILE")
+        .filter(|path| !path.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .filter(|home| !home.is_empty())
+                .map(PathBuf::from)
+                .map(|home| home.join(".port-daddy/daemon.port"))
+        })
+        .ok_or_else(|| "no daemon port publication path is available".to_string())?;
+    let raw = std::fs::read_to_string(&port_file)
+        .map_err(|error| format!("cannot read {}: {error}", port_file.display()))?;
+    let port = raw
+        .trim()
+        .parse::<u16>()
+        .ok()
+        .filter(|port| *port > 0)
+        .ok_or_else(|| format!("invalid daemon port publication in {}", port_file.display()))?;
+    let host = std::env::var("PORT_DADDY_HOST")
+        .ok()
+        .filter(|host| !host.trim().is_empty())
+        .unwrap_or_else(|| "127.0.0.1".to_string());
+    Ok(format!("http://{}:{}", host.trim(), port))
 }
 
 /// Surface + renderer state that only exists once the window is created.
@@ -326,7 +353,10 @@ fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     println!("[pd-timeline-proto] loading timeline data…");
-    let timeline = Timeline::load(&daemon_base());
+    let timeline = match daemon_base() {
+        Ok(base) => Timeline::load(&base),
+        Err(error) => Timeline::fixture(&format!("no selected daemon ({error}); using fixture")),
+    };
     println!(
         "[pd-timeline-proto] {} ({} events, {} causal threads)",
         timeline.source_note,

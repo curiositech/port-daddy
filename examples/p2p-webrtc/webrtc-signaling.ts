@@ -1,9 +1,8 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env bun
 
-const DAEMON_URL = (
-  process.env.PORT_DADDY_URL ??
-  `http://${process.env.PORT_DADDY_HOST ?? '127.0.0.1'}:${process.env.PORT_DADDY_PORT ?? '9876'}`
-).replace(/\/+$/, '');
+import { resolveDaemonUrl } from '../lib/daemon-url.js';
+
+const DAEMON_URL = resolveDaemonUrl();
 
 type InboxMessage = {
   id: number | string;

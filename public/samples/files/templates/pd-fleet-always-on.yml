@@ -19,7 +19,11 @@ fleet:
       backend: custom
       prompt: |
         PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
-        PD_URL="${PORT_DADDY_URL:-http://localhost:$(tr -d '[:space:]' < "$PORT_FILE" 2>/dev/null || echo 9876)}"
+        PD_PORT="$(tr -d '[:space:]' < "$PORT_FILE" 2>/dev/null || true)"
+        case "$PD_PORT" in ''|*[!0-9]*) PD_PORT='' ;; esac
+        test -z "$PD_PORT" || { test "$PD_PORT" -ge 1 && test "$PD_PORT" -le 65535; } || PD_PORT=''
+        PD_URL="${PORT_DADDY_URL:-${PD_PORT:+http://127.0.0.1:$PD_PORT}}"
+        test -n "$PD_URL" || { echo "No valid selected or published Port Daddy endpoint" >&2; exit 1; }
         curl -sf "$PD_URL/services/health" | jq -r '.results[] | select(.healthy==false) | .id'
       on_failure: publish health:degraded
       identity: "{project}:always-on:health-monitor"
@@ -32,7 +36,11 @@ fleet:
       backend: custom
       prompt: |
         PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
-        PD_URL="${PORT_DADDY_URL:-http://localhost:$(tr -d '[:space:]' < "$PORT_FILE" 2>/dev/null || echo 9876)}"
+        PD_PORT="$(tr -d '[:space:]' < "$PORT_FILE" 2>/dev/null || true)"
+        case "$PD_PORT" in ''|*[!0-9]*) PD_PORT='' ;; esac
+        test -z "$PD_PORT" || { test "$PD_PORT" -ge 1 && test "$PD_PORT" -le 65535; } || PD_PORT=''
+        PD_URL="${PORT_DADDY_URL:-${PD_PORT:+http://127.0.0.1:$PD_PORT}}"
+        test -n "$PD_URL" || { echo "No valid selected or published Port Daddy endpoint" >&2; exit 1; }
         curl -sf "$PD_URL/locks" | jq -r '.locks[] | select(.expiresAt < now) | .name' | while read name; do
           curl -sf -X DELETE "$PD_URL/locks/$name" -H 'Content-Type: application/json' -d '{"force": true}'
         done

@@ -5,7 +5,7 @@
     "examples",
     "templates"
   ],
-  "count": 58,
+  "count": 59,
   "files": [
     {
       "path": "examples/agent-topologies/README.md",
@@ -16,8 +16,8 @@
     {
       "path": "examples/agent-topologies/topology-pubsub.ts",
       "url": "/samples/files/examples/agent-topologies/topology-pubsub.ts",
-      "bytes": 2802,
-      "sha256": "a8fce384b28ddc37d20832bda3e718856d55f146e457606906a3e8d57a6940c8"
+      "bytes": 2721,
+      "sha256": "12751edc55b0dd5c580d6956781080410d70ed54b476c1c066d57cf479a2c97c"
     },
     {
       "path": "examples/agents/sandbox/experiment-log.md",
@@ -82,8 +82,8 @@
     {
       "path": "examples/editor-lightbulb/explain-selection.html",
       "url": "/samples/files/examples/editor-lightbulb/explain-selection.html",
-      "bytes": 6641,
-      "sha256": "334621c33b4e9d0e475a662e696716f4735338e2744a98f800380ad170231cb9"
+      "bytes": 6917,
+      "sha256": "b5fcac63236b0cfc7f18d7070a582ac1993efc1a78eb4662d2e576a90f41a567"
     },
     {
       "path": "examples/editor-lightbulb/README.md",
@@ -136,14 +136,20 @@
     {
       "path": "examples/leader-election/leader-election.ts",
       "url": "/samples/files/examples/leader-election/leader-election.ts",
-      "bytes": 3144,
-      "sha256": "20f44841e8f1392386a012aaf91a469886d30f0bf1cf9959a5e5a8e7c26862a1"
+      "bytes": 3063,
+      "sha256": "ed463b684b2ea92404a502e0c75d25c114ad1634e821e21b1cbf190bffe0b8e4"
     },
     {
       "path": "examples/leader-election/README.md",
       "url": "/samples/files/examples/leader-election/README.md",
       "bytes": 1141,
       "sha256": "0a4db4a686b25187eb7dc63f9c0338a19838b96273e7a87e1e2fac65e79bb653"
+    },
+    {
+      "path": "examples/lib/daemon-url.ts",
+      "url": "/samples/files/examples/lib/daemon-url.ts",
+      "bytes": 1566,
+      "sha256": "2971699afbe24607069c1feddd840b8f2b653188ad53d803eb160f3b14a14bd8"
     },
     {
       "path": "examples/locks/migration-guard.ts",
@@ -166,8 +172,8 @@
     {
       "path": "examples/p2p-webrtc/webrtc-signaling.ts",
       "url": "/samples/files/examples/p2p-webrtc/webrtc-signaling.ts",
-      "bytes": 4565,
-      "sha256": "e414ea7b31ad29a7e8fe7b52b65a1f0fe936486d0b9498fff9cbb97e30567a86"
+      "bytes": 4484,
+      "sha256": "6f3a2c669c86d9e189d6ce76666d43c1783eff3aaffef2ac0f4c26456ded6106"
     },
     {
       "path": "examples/pd-tube/agent-responder.py",
@@ -262,8 +268,8 @@
     {
       "path": "examples/test-reporter/test-failure-to-agent.ts",
       "url": "/samples/files/examples/test-reporter/test-failure-to-agent.ts",
-      "bytes": 5456,
-      "sha256": "875af8d27733f4ad8850cc2eee47b9023716ae430d1038bbd7e3ec8e05a1aab8"
+      "bytes": 5398,
+      "sha256": "73f3e87c7137c7a19261d43273c65dfea42961fbc71bec65452abc340a138a7a"
     },
     {
       "path": "examples/tunnel/README.md",
@@ -292,8 +298,8 @@
     {
       "path": "examples/webhook-adapter/local-webhook-to-agent.ts",
       "url": "/samples/files/examples/webhook-adapter/local-webhook-to-agent.ts",
-      "bytes": 5184,
-      "sha256": "5fe0463930a2ec14b4a14158124343f9f3af0886ad80b21ad28af72233953a6c"
+      "bytes": 5102,
+      "sha256": "6ce1c1735b02865f8595b27deb975beb5df680bc8510ae8624b94262a4079c49"
     },
     {
       "path": "examples/webhook-adapter/README.md",
@@ -322,8 +328,8 @@
     {
       "path": "templates/event-driven-ops/README.md",
       "url": "/samples/files/templates/event-driven-ops/README.md",
-      "bytes": 1287,
-      "sha256": "f9db8f5124531d09bced8751c5eda451a51c6ce9f57780779e4ad4696ec5db3a"
+      "bytes": 1723,
+      "sha256": "7b14659677a0b30b5f497487b7b698d9d96b97cf1cdd3b03ba646170022646d0"
     },
     {
       "path": "templates/multiplayer-dev-env/README.md",
@@ -334,8 +340,8 @@
     {
       "path": "templates/pd-fleet-always-on.yml",
       "url": "/samples/files/templates/pd-fleet-always-on.yml",
-      "bytes": 4868,
-      "sha256": "6cfb779854cba780a0051b34c2b2e0c7411bb9e1efb1a44e7b719656bf76a281"
+      "bytes": 5462,
+      "sha256": "a7472ef3adc2d4fcd34e79df43ae885a66020b788739fd47e627f72e4d8ffb35"
     },
     {
       "path": "templates/pd-fleet-starter.yml",
@@ -346,8 +352,8 @@
     {
       "path": "templates/post-commit-hook",
       "url": "/samples/files/templates/post-commit-hook",
-      "bytes": 2504,
-      "sha256": "294d7ae133e981058b9d199db6b27058247805909ee93e498a020ae1ca99bac2"
+      "bytes": 2662,
+      "sha256": "4476ef5965ba966c7932e6f5da26a6c73c03561f8f2afb9c1b9b369163cf72f5"
     },
     {
       "path": "templates/swarm-researcher/README.md",

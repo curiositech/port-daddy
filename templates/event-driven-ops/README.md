@@ -12,8 +12,17 @@ A template for an autonomous SRE (Site Reliability Engineer) swarm that monitors
 
 ```bash
 pd up
+PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
+if [ -n "${PORT_DADDY_URL:-}" ]; then
+  PD_URL="$PORT_DADDY_URL"
+else
+  PD_PORT="$(tr -d '[:space:]' < "$PORT_FILE")" || exit 1
+  case "$PD_PORT" in ''|*[!0-9]*) echo "Invalid daemon port publication" >&2; exit 1 ;; esac
+  test "$PD_PORT" -ge 1 && test "$PD_PORT" -le 65535 || { echo "Daemon port publication is out of range" >&2; exit 1; }
+  PD_URL="http://127.0.0.1:$PD_PORT"
+fi
 # Simulate a PagerDuty webhook
-curl -X POST http://localhost:9876/webhooks/incoming -d '{"status":"down"}'
+curl -X POST "$PD_URL/webhooks/incoming" -d '{"status":"down"}'
 ```
 
 ## How it uses Port Daddy

@@ -106,9 +106,9 @@ impl Pane for DaemonPane {
 
 #[cfg(test)]
 mod tests {
-    use crate::berths::STABLE_PORT;
-
     use super::*;
+
+    const PUBLISHED_STABLE_PORT: u16 = 43121;
 
     fn pane_with(berths: Vec<Berth>, active_url: &str) -> DaemonPane {
         DaemonPane {
@@ -122,7 +122,7 @@ mod tests {
             Berth {
                 label: "stable".into(),
                 tier: "stable".into(),
-                port: STABLE_PORT,
+                port: PUBLISHED_STABLE_PORT,
                 canonical: true,
             },
             Berth {

@@ -7,10 +7,10 @@
 # first (so the just-built apps have data to show), then the consoles, then the
 # visibly-distinct FleetBars.
 #
-#   1. pd dev ensure          — prod (:9876, reported) + a prod-seeded dev-latest (:9886)
+#   1. pd dev ensure          — the published stable berth + a named dev-latest berth
 #   2. pd-console --prod       → ~/Applications/pd-console-prod.app
 #      pd-console --latest     → ~/Applications/pd-console-latest.app
-#   3. FleetBar prod           → ~/Applications/Port Daddy/FleetBar.app          (neutral, :9876)
+#   3. FleetBar prod           → ~/Applications/Port Daddy/FleetBar.app          (neutral, published stable endpoint)
 #      FleetBar dev-latest     → ~/Applications/Port Daddy/FleetBar (dev-latest).app (blue, :9886)
 #
 # Flags:

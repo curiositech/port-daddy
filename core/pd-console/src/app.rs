@@ -306,10 +306,9 @@ impl CmdKind {
             CmdKind::AddPane => {
                 "fleet · cost · roadmap · lane · work · chat · files · alerts…".to_string()
             }
-            CmdKind::UseDaemon => format!(
-                "prod · latest · dev-latest · :{} · berth name…",
-                crate::berths::STABLE_PORT
-            ),
+            CmdKind::UseDaemon => crate::berths::stable_port()
+                .map(|port| format!("prod · latest · dev-latest · :{port} · berth name…"))
+                .unwrap_or_else(|| "prod · latest · dev-latest · berth name…".to_string()),
             CmdKind::Note => "record an operator note in Port Daddy memory…".to_string(),
             CmdKind::Begin => "port-daddy:console:task".to_string(),
             CmdKind::Done => "what changed, what was validated, what remains…".to_string(),

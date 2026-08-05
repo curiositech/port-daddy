@@ -15,7 +15,7 @@
 # HERMETIC + SAFE:
 #   * ONE scratch daemon, booted from dist/port-daddy (the compiled binary).
 #   * EVERY invocation uses the discovery CLI_ENV (PORT/PREFIX/SOCK), NEVER
-#     PORT_DADDY_URL, NEVER the default :9876, NEVER the operator's real
+#     PORT_DADDY_URL, NEVER a guessed daemon endpoint, NEVER the operator's real
 #     ~/.port-daddy, NEVER a real DB.
 #   * cwd for every call is a scratch workdir, so cwd-writers (briefing, scan,
 #     setup, init) land in scratch — the real worktree is never touched.
@@ -83,7 +83,8 @@ echo
 
 # --------------------------------------------------------------------------
 # CLI helper: discovery env ONLY (PORT + PREFIX + SOCK), cwd = scratch workdir,
-# snapshot store redirected into scratch. NEVER PORT_DADDY_URL, NEVER :9876,
+# snapshot store redirected into scratch. NEVER PORT_DADDY_URL, NEVER a guessed
+# daemon endpoint,
 # NEVER the real ~/.port-daddy. If the compiled CLI can't bootstrap or talk to
 # THIS daemon, every call below fails.
 # --------------------------------------------------------------------------

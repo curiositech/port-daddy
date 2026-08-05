@@ -6,7 +6,7 @@
 # all AppChannel.classify() needs to colour the menu bar and (for dev-latest)
 # default the daemon to the :9886 lane:
 #
-#   prod        ai.portdaddy.FleetBar            "FleetBar"               (neutral, :9876)
+#   prod        ai.portdaddy.FleetBar            "FleetBar"               (neutral, published stable endpoint)
 #   dev-latest  dev.portdaddy.fleetbar.devlatest "FleetBar (dev-latest)"  (blue,  :9886)
 #   dev <name>  dev.portdaddy.fleetbar.dev.<n>   "FleetBar (dev-<n>)"     (purple, switchable)
 #
