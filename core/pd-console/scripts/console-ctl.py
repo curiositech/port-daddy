@@ -66,7 +66,7 @@ def send(sock_path: str, payload: dict) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--sock", default=default_sock(), help="control socket path")
+    ap.add_argument("--sock", default=None, help="control socket path")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("ping")
     sub.add_parser("panes")
@@ -90,6 +90,10 @@ def main() -> int:
     p_raw = sub.add_parser("raw")
     p_raw.add_argument("json")
     args = ap.parse_args()
+
+    # Lazily resolve socket path only if --sock was not provided
+    if args.sock is None:
+        args.sock = default_sock()
 
     if args.cmd == "galaxy":
         print("Galaxy was renamed to Sextant; use `console-ctl.py sextant`.", file=sys.stderr)

@@ -152,21 +152,21 @@ Fork by layer: **shell** (ref 02 + the three visual siblings) · **editor core**
 *Every file in this skill, and when to open it.*
 
 **root**
-- [`CHANGELOG.md`](CHANGELOG.md) — UbuildUcoopUideUgpui — Changelog — - Brought to the agentic-family standard: added `io-contract`/`provenance`/`pairs-with` frontmatter - Added a deterministic audit helper (ma
+- [`CHANGELOG.md`](CHANGELOG.md) — Changelog of updates to this skill; read when reviewing changes to the capstone architecture.
 
 **`examples/`**
-- [`examples/sample-input.json`](examples/sample-input.json) — sample input (data/schema)
+- [`examples/sample-input.json`](examples/sample-input.json) — Sample input JSON for `coop_ide_audit.mjs`; use as a template when creating architecture plans.
 
 **`references/`**
-- [`references/01-architecture-and-the-stack.md`](references/01-architecture-and-the-stack.md) — Architecture & The Stack — The Whole-System View — This is the load-bearing wall of the capstone.
-- [`references/02-the-gpui-app-skeleton.md`](references/02-the-gpui-app-skeleton.md) — The gpui App Skeleton — > *Capstone reference 02 of the "Build an M-Agent + N-Human Cooperative IDE in Rust gpui" skill.* > This is the **structural** chapter: how 
-- [`references/03-collaboration-coordination-salvage.md`](references/03-collaboration-coordination-salvage.md) — Collaboration, Coordination & Salvage — the heart of the M×N IDE — This is the capstone's load-bearing chapter.
-- [`references/04-build-order-and-composing-the-skills.md`](references/04-build-order-and-composing-the-skills.md) — Build Order & Composing the Skills — This is the **index card for the whole capstone**.
+- [`references/01-architecture-and-the-stack.md`](references/01-architecture-and-the-stack.md) — **The load-bearing wall.** The whole-system view: the four layers (gpui shell → Loro buffer → coordination kernel → transport), the dependency map onto sibling skills, what's load-bearing vs. polish. Read first.
+- [`references/02-the-gpui-app-skeleton.md`](references/02-the-gpui-app-skeleton.md) — **The structural chapter.** How to structure a large gpui app: the mux/Workspace pane tree, the `Pane`/`Surface` contract, `SurfaceKind` variants, the refresh→channel→view pipeline; how to add a surface end-to-end.
+- [`references/03-collaboration-coordination-salvage.md`](references/03-collaboration-coordination-salvage.md) — **The heart.** Agents and humans as co-equal Loro replicas, presence-as-claims, the daemon as collab server, conflict UX, the M×N model, agents-as-peers via MCP, and salvage (dead-replica op-log replay + claim inheritance).
+- [`references/04-build-order-and-composing-the-skills.md`](references/04-build-order-and-composing-the-skills.md) — **The index card for the capstone.** The phased roadmap (P0 skeleton → P1 buffer → P2 LAN → P3 agents+claims → P3.5 salvage → P4 shared → P5 remote+viz); each phase names which sibling skill it pulls. The "you are here / read next" map.
 
 **`schemas/`**
-- [`schemas/coop-ide-plan.schema.json`](schemas/coop-ide-plan.schema.json) — coop ide plan.schema (data/schema)
+- [`schemas/coop-ide-plan.schema.json`](schemas/coop-ide-plan.schema.json) — JSON Schema for cooperative IDE architecture plans; validate input with `coop_ide_audit.mjs` before proceeding.
 
 **`scripts/`**
-- [`scripts/coop_ide_audit.mjs`](scripts/coop_ide_audit.mjs)
+- [`scripts/coop_ide_audit.mjs`](scripts/coop_ide_audit.mjs) — Deterministic audit helper: validates a coop-ide architecture plan against this skill's phased Quality Gates and anti-patterns. Run this before committing architectural changes.
 
 <!-- END BUNDLE INDEX -->
