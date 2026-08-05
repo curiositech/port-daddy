@@ -35,11 +35,11 @@
  * surfacing).
  */
 
-import { spawn as spawnChild, type ChildProcess } from 'node:child_process';
+import { execFileSync, spawn as spawnChild, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { cliBinarySearchPath, resolveCliBinary } from '../../cli-bin-dirs.js';
 import {
   sameWorkspaceIdentity,
@@ -187,6 +187,7 @@ export function buildArgs(
   codexConfig?: string[],
   timeoutMs?: number,
   resumeSessionId?: string,
+  additionalWritableDirs?: string[],
 ): { args: string[]; stdin: string | null } {
   return buildCliTubeArgs(cli, {
     prompt,
@@ -196,7 +197,52 @@ export function buildArgs(
     codexConfig,
     timeoutMs,
     resumeSessionId,
+    additionalWritableDirs,
   });
+}
+
+type GitPathQuery = (cwd: string, query: '--absolute-git-dir' | '--git-common-dir') => string;
+
+function queryGitPath(cwd: string, query: '--absolute-git-dir' | '--git-common-dir'): string {
+  return execFileSync('git', ['-C', cwd, 'rev-parse', query], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim();
+}
+
+/**
+ * Return the smallest extra roots a sandboxed Codex worker needs to author a
+ * commit from a linked worktree. The worktree's own files are already writable;
+ * Git keeps its index/HEAD outside that root and shares only objects, refs, and
+ * reflogs with the parent repository.
+ *
+ * Fail closed for ordinary checkouts, malformed metadata, or an unexpected Git
+ * layout. A repository-controlled `.git` pointer must not become a general
+ * escape hatch that grants an arbitrary directory to the child sandbox.
+ */
+export function resolveCodexLinkedWorktreeWritableDirs(
+  cwd: string,
+  gitPathQuery: GitPathQuery = queryGitPath,
+): string[] {
+  try {
+    const rawGitDir = gitPathQuery(cwd, '--absolute-git-dir');
+    const rawCommonDir = gitPathQuery(cwd, '--git-common-dir');
+    const gitDir = resolve(cwd, rawGitDir);
+    const commonDir = resolve(cwd, rawCommonDir);
+    if (!isAbsolute(gitDir) || !isAbsolute(commonDir) || gitDir === commonDir) return [];
+
+    const segments = relative(commonDir, gitDir).split(sep);
+    if (segments.length !== 2 || segments[0] !== 'worktrees' || !segments[1]) return [];
+
+    return [
+      gitDir,
+      join(commonDir, 'objects'),
+      join(commonDir, 'refs'),
+      join(commonDir, 'logs'),
+    ];
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -289,6 +335,9 @@ export async function spawnViaCliTube(
     codexConfig: opts.codexConfig,
     timeoutMs,
     resumeSessionId: opts.resumeSessionId,
+    additionalWritableDirs: cli === 'codex'
+      ? resolveCodexLinkedWorktreeWritableDirs(opts.cwd || process.cwd())
+      : undefined,
   });
 
   const startedAt = Date.now();

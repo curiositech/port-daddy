@@ -8,6 +8,8 @@ export interface CliTubeBuildArgsInput {
   model?: string;
   permissionMode?: CliTubePermissionMode;
   codexConfig?: string[];
+  /** Extra writable roots for Codex's workspace-write sandbox. */
+  additionalWritableDirs?: string[];
   timeoutMs?: number;
   resumeSessionId?: string;
 }
@@ -203,9 +205,15 @@ function buildCliTubeArgsFromSpec(
       return { args, stdin: null };
     }
     case 'codex-exec-json': {
-      const args = resumeSessionId
-        ? ['exec', 'resume', '--skip-git-repo-check', '--full-auto', '--json']
-        : ['exec', '--skip-git-repo-check', '--full-auto', '--sandbox', 'workspace-write', '--json'];
+      const args = ['exec'];
+      for (const dir of input.additionalWritableDirs ?? []) {
+        args.push('--add-dir', dir);
+      }
+      if (resumeSessionId) {
+        args.push('resume', '--skip-git-repo-check', '--full-auto', '--json');
+      } else {
+        args.push('--skip-git-repo-check', '--full-auto', '--sandbox', 'workspace-write', '--json');
+      }
       if (input.outputPath) args.push('--output-last-message', input.outputPath);
       pushModelArg(args, spec, input.model);
       for (const config of normalizeCodexConfigOverrides(input.codexConfig)) {
