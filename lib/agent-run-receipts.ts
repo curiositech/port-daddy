@@ -120,11 +120,31 @@ function required(value: string, field: string, maxBytes = 512): string {
   return normalized;
 }
 
+/**
+ * Canonicalize one receipt payload with ordinary JSON semantics and sorted
+ * object keys. The purpose is stable idempotency hashing without treating
+ * benign optional `undefined` properties differently from omitted properties.
+ *
+ * @param value Payload to serialize before hashing or durable storage.
+ * @returns Deterministic JSON text, or throws when the root is not serializable.
+ */
 function canonicalJson(value: unknown): string {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  const record = value as Record<string, unknown>;
-  return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`;
+  let serialized: string | undefined;
+  try {
+    serialized = JSON.stringify(value, (_key, nestedValue) => {
+      if (nestedValue === null || typeof nestedValue !== 'object' || Array.isArray(nestedValue)) {
+        return nestedValue;
+      }
+      const record = nestedValue as Record<string, unknown>;
+      return Object.fromEntries(Object.keys(record).sort().map((key) => [key, record[key]]));
+    });
+  } catch (error) {
+    throw new Error(`agent run receipt payload must be JSON serializable: ${(error as Error).message}`);
+  }
+  if (serialized === undefined) {
+    throw new Error('agent run receipt payload must be JSON serializable');
+  }
+  return serialized;
 }
 
 /**
@@ -300,7 +320,7 @@ export function createAgentRunReceiptStore(
   ): AgentRunReceipt {
     const receiptId = required(id, 'receiptId');
     const timestamp = now();
-    attach.run(
+    const result = attach.run(
       required(input.successorAgentId, 'successorAgentId'),
       input.successorSessionId ?? null,
       required(input.transcriptId, 'transcriptId'),
@@ -310,6 +330,9 @@ export function createAgentRunReceiptStore(
     );
     const receipt = get(receiptId);
     if (!receipt) throw new Error(`agent run receipt ${receiptId} not found`);
+    if (result.changes !== 1) {
+      throw new Error(`cannot transition agent run receipt ${receiptId} from ${receipt.status} to starting`);
+    }
     return receipt;
   }
 
@@ -342,7 +365,7 @@ export function createAgentRunReceiptStore(
       }
     }
 
-    setStatus.run(
+    const result = setStatus.run(
       status,
       input.successorSessionId ?? null,
       timestamp,
@@ -357,6 +380,9 @@ export function createAgentRunReceiptStore(
     );
     const receipt = get(receiptId);
     if (!receipt) throw new Error(`agent run receipt ${receiptId} not found`);
+    if (result.changes !== 1) {
+      throw new Error(`cannot transition agent run receipt ${receiptId} from ${receipt.status} to ${status}`);
+    }
     return receipt;
   }
 
