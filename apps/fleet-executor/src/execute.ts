@@ -661,7 +661,7 @@ async function executeMergeGroupGate(job: FleetRunJob, env: ExecutorEnv): Promis
   const baseRef = typeof group?.base_ref === 'string' ? group.base_ref : '';
   if (!headSha) return;
 
-  const token = await getInstallationTokenCached(
+  let token = await getInstallationTokenCached(
     env.GITHUB_APP_ID,
     env.GITHUB_APP_PRIVATE_KEY,
     job.installationId,
@@ -669,17 +669,31 @@ async function executeMergeGroupGate(job: FleetRunJob, env: ExecutorEnv): Promis
   );
   const appId = Number(env.GITHUB_APP_ID);
   if (!Number.isSafeInteger(appId)) throw new Error('invalid GitHub App id');
-  const existing = await findOwnedFleetCheckRun(
-    owner,
-    repo,
-    headSha,
-    CHECK_NAME,
-    appId,
-    token,
-  );
-  let checkRunId = existing?.id ?? null;
-  if (!checkRunId) {
-    checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token);
+  const establishCheck = async (): Promise<number | null> => {
+    const existing = await findOwnedFleetCheckRun(
+      owner,
+      repo,
+      headSha,
+      CHECK_NAME,
+      appId,
+      token,
+    );
+    return existing?.id ?? await createCheckRun(owner, repo, CHECK_NAME, headSha, token);
+  };
+  let checkRunId: number | null;
+  try {
+    checkRunId = await establishCheck();
+  } catch (error) {
+    if (!is401(error)) throw error;
+    await invalidateInstallationToken(job.installationId, env.FLEET_TOKENS);
+    token = await getInstallationTokenCached(
+      env.GITHUB_APP_ID,
+      env.GITHUB_APP_PRIVATE_KEY,
+      job.installationId,
+      env.FLEET_TOKENS,
+      true,
+    );
+    checkRunId = await establishCheck();
   }
   if (!checkRunId) {
     throw new Error(`cannot establish merge-group Fleet gate for ${owner}/${repo}@${headSha}`);

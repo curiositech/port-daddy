@@ -69,6 +69,29 @@ describe('DLQ handler', () => {
     expect(state.completed[0]).toMatchObject({ id: 77, conclusion: 'failure' });
   });
 
+  it('fails a dead-lettered merge-group check instead of treating it as unparseable', async () => {
+    state.existingCheckRuns.push({ id: 88, name: 'Port Daddy Fleet' });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const job = makeJob({
+      eventType: 'merge_group',
+      action: 'checks_requested',
+      prNumber: null,
+      payloadMinimal: {
+        merge_group: {
+          head_sha: 'queue-head-sha',
+          base_ref: 'refs/heads/main',
+        },
+      },
+    });
+
+    await handleDlqJob(job, makeEnv({ FLEET_TOKENS: kv }));
+
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0]).toMatchObject({ id: 88, conclusion: 'failure' });
+    expect(state.completed[0].summary).toContain('dead-lettered');
+  });
+
   it('emits an error telemetry event for the dropped run when configured', async () => {
     state.existingCheckRuns.push({ id: 5, name: 'Port Daddy Fleet' });
     const kv = memoryKV();
