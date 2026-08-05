@@ -11,7 +11,7 @@ What remains genuinely true, re-verified with the same grep repeated against cur
 
 ## The pitch in one sentence
 
-`pd dispatch` (the shipped successor to `pd nightshift`, `lib/dispatch/{queue,runner}.ts`) already lets an agent spend idle capacity on a bounded, budgeted, worktree-isolated task — but every dispatch today is seeded by a human-typed intent or an operator-tagged roadmap row. This proposal adds a third seed: an agent's **own read** of a codebase or skill corpus during genuine downtime, producing not just a draft PR but also pitches, prototypes, and refined docs/skills — plus a **hackathon mode** where several dispatch runs convene around a shared idea, using the existing Parley protocol as the convening mechanism and the existing actor-identity substrate to let one underlying agent stand in as several distinct, separately-accountable personas for the run.
+`pd dispatch` (the shipped successor to `pd nightshift`, `lib/dispatch/queue.ts` + `lib/dispatch/runner.ts`) already lets an agent spend idle capacity on a bounded, budgeted, worktree-isolated task — but every dispatch today is seeded by a human-typed intent or an operator-tagged roadmap row. This proposal adds a third seed: an agent's **own read** of a codebase or skill corpus during genuine downtime, producing not just a draft PR but also pitches, prototypes, and refined docs/skills — plus a **hackathon mode** where several dispatch runs convene around a shared idea, using the existing Parley protocol as the convening mechanism and the existing actor-identity substrate to let one underlying agent stand in as several distinct, separately-accountable personas for the run.
 
 ## What exists already (compose, don't rebuild)
 
