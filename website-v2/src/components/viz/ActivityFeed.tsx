@@ -81,14 +81,18 @@ export function ActivityFeed() {
     ? 'Signal Active'
     : liveErrorKind === 'network'
       ? 'Daemon Offline'
+      : liveErrorKind === 'configuration'
+        ? 'Select Endpoint'
       : liveErrorKind
         ? 'Feed Error'
         : 'Radio Silent'
   const emptyStateLabel = mode === 'live' && liveErrorKind === 'network'
     ? 'Daemon unreachable'
-    : mode === 'history' && historyErrorKind
-      ? 'Timeline unavailable'
-      : 'No activity detected'
+    : mode === 'live' && liveErrorKind === 'configuration'
+      ? 'Choose a daemon endpoint'
+      : mode === 'history' && historyErrorKind
+        ? 'Timeline unavailable'
+        : 'No activity detected'
 
   return (
     <motion.div className="flex flex-col h-full bg-[var(--surface-raised)] rounded-3xl border border-[var(--border-default)] overflow-hidden shadow-2xl font-sans">

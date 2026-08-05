@@ -4,15 +4,10 @@
  * WHY THIS EXISTS
  * ---------------
  * The pd-tube demos illustrate a *local* primitive: a browser/hook/webhook POSTs
- * to a Port Daddy daemon listening on `http://127.0.0.1:9876`, and a local agent
- * replies. That round-trip is real and lovely when YOU run the daemon on YOUR
- * machine. But on the public marketing site (portdaddy.dev) there is no daemon
- * on the visitor's loopback — so every demo used to fire a real `fetch()` at
- * `127.0.0.1:9876`, which:
- *   (a) tripped the browser's *Local Network Access* consent prompt ("… wants to
- *       find and connect to devices on your local network"), which is alarming on
- *       a marketing page, and
- *   (b) failed with "Failed to fetch" because nothing was listening.
+ * to a Port Daddy daemon when the page has an explicit endpoint. Embedded
+ * daemon-hosted pages use same-origin relative requests; public pages either
+ * simulate the exchange or ask for a user-selected endpoint before switching to
+ * live mode. No page silently dials a fixed loopback URL.
  *
  * This module resolves a *backend* once and routes both publish and poll through
  * it:
@@ -31,9 +26,6 @@
  * a live agent; we are replaying a scripted conversation and saying so, with the
  * exact command to make it real on their own machine.
  */
-
-/** The canonical loopback daemon address. */
-export const DEFAULT_DAEMON_URL = 'http://127.0.0.1:9876'
 
 /** The payload `kind` every tube message carries. */
 export const TUBE_KIND = 'tube.msg'
@@ -84,14 +76,15 @@ export function resolveTubeBackend(
   daemonUrl?: string | null,
   location?: LocationLike | null,
 ): TubeBackend {
-  // 1. An explicit, valid URL from the caller forces live.
+  const loc = location ?? (typeof window !== 'undefined' ? window.location : null)
+
+  // 1. An explicit, valid URL from the caller forces live, including when an
+  // embedded console deliberately switches to a named development daemon.
   if (daemonUrl && isValidHttpUrl(daemonUrl)) {
     return { mode: 'live', baseUrl: normalizeBaseUrl(daemonUrl) }
   }
 
-  const loc = location ?? (typeof window !== 'undefined' ? window.location : null)
-
-  // 2. `?daemon=<url>` query override (handy for local testing of the live path).
+  // 2. `?daemon=<url>` query override (handy for selecting a named daemon).
   if (loc?.search) {
     const q = new URLSearchParams(loc.search).get('daemon')?.trim()
     if (q && isValidHttpUrl(q)) return { mode: 'live', baseUrl: normalizeBaseUrl(q) }
@@ -102,9 +95,9 @@ export function resolveTubeBackend(
     typeof import.meta !== 'undefined' ? import.meta.env?.VITE_PORT_DADDY_URL?.trim() : undefined
   if (env && isValidHttpUrl(env)) return { mode: 'live', baseUrl: normalizeBaseUrl(env) }
 
-  // 4. The embedded control plane is served by the daemon itself: same origin.
+  // 4. The embedded control plane is served by the selected daemon itself.
   if (loc?.origin && loc.pathname?.startsWith(EMBEDDED_CONTROL_PLANE_PREFIX)) {
-    return { mode: 'live', baseUrl: normalizeBaseUrl(loc.origin) }
+    return { mode: 'live', baseUrl: '' }
   }
 
   // 5. Public marketing site → deterministic simulation, no network call.
@@ -117,7 +110,7 @@ export function isTubeSimulated(daemonUrl?: string | null, location?: LocationLi
 }
 
 const msgUrl = (baseUrl: string, channel: string) =>
-  `${baseUrl.replace(/\/$/, '')}/msg/${encodeURIComponent(channel)}`
+  `${baseUrl ? baseUrl.replace(/\/$/, '') : ''}/msg/${encodeURIComponent(channel)}`
 
 // ---------------------------------------------------------------------------
 // Simulated daemon — deterministic in-memory replay of the tube protocol.
@@ -154,17 +147,15 @@ const MECHANIC_BODY = [
 ].join('\n')
 
 const EXPLAINER_BODY = [
-  'getDaemonUrl reads PD_DAEMON_URL from the environment, trims a trailing slash, ' +
-    'and otherwise falls back to the loopback default. It is pure and easy to test. ' +
-    'One nit: it normalises the trailing slash only on the env path, so the default ' +
-    'and the env value can disagree on shape. Normalise both at the return.',
+  'resolveDaemonBaseUrl prefers same-origin embedded pages, then explicit query/env/user-selected endpoints, and otherwise fails with a configuration error. It is pure and easy to test. One nit: the embedded branch should return before any fallback path so the dashboard keeps relative requests.',
   '--- a/src/daemon/url.ts',
   '+++ b/src/daemon/url.ts',
-  '@@ getDaemonUrl @@',
-  '-  if (fromEnv) return fromEnv.replace(/\\/$/, "")',
-  '-  return DEFAULT_DAEMON_URL',
-  '+  const raw = fromEnv ?? DEFAULT_DAEMON_URL',
-  '+  return raw.replace(/\\/$/, "")',
+  '@@ resolveDaemonBaseUrl @@',
+  '-  if (fallbackUrl) return fallbackUrl',
+  '-  return defaultEndpoint',
+  '+  if (isEmbeddedControlPlane(locationLike)) return ""',
+  '+  if (fallbackUrl) return fallbackUrl',
+  '+  throw new DaemonEndpointConfigurationError("Select a daemon endpoint before opening this page.")',
 ].join('\n')
 
 /** One-line Concierge replies, keyed on the trigger's sender. */

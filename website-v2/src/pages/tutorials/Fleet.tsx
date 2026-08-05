@@ -216,7 +216,7 @@ export function Fleet() {
 
           <CodeBlock copyable={false} language="bash">{`#!/usr/bin/env zsh
 # Fire-and-forget: publish commit info to Port Daddy
-PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"  # Use pd status if yours differs
+PD_URL="\${PORT_DADDY_URL:-\$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed 's#^#http://127.0.0.1:#')}"  # Use pd status if yours differs
 
 SHA=$(git rev-parse --short HEAD)
 MSG=$(git log -1 --pretty=%s)

@@ -12,7 +12,7 @@ export const HERO_COPY = {
     'Port Daddy is a local app and daemon where coding agents share notes, claims, messages, readiness, budgets, and recoverable handoffs.',
 
   description:
-    'One local daemon, usually on localhost:9876. Install it once, and Claude Code, Codex, Cursor, Gemini CLI, Aider, and Ollama can coordinate through shared state backed by a single SQLite database.',
+    'One local daemon, discovered from the running install. Install it once, and Claude Code, Codex, Cursor, Gemini CLI, Aider, and Ollama can coordinate through shared state backed by a single SQLite database.',
 
   featureHighlights: [
     {

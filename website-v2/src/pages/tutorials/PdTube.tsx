@@ -163,8 +163,14 @@ INFO: tailing ui:clicks; every new event prints as prose until Ctrl+C.`}
             {`<button id="deploy">Deploy to staging</button>
 <div id="reply"></div>
 <script>
+  const PD_URL = window.location.pathname.startsWith('/fleet-ui')
+    ? ''
+    : new URLSearchParams(location.search).get('daemon') ?? window.__PORT_DADDY_URL__
+  if (!PD_URL && !window.location.pathname.startsWith('/fleet-ui')) {
+    throw new Error('Choose a daemon endpoint or open this page inside the embedded dashboard.')
+  }
   document.getElementById('deploy').onclick = async () => {
-    await fetch('http://localhost:9876/msg/ui:clicks', {
+    await fetch(PD_URL ? new URL('/msg/ui:clicks', PD_URL) : '/msg/ui:clicks', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({

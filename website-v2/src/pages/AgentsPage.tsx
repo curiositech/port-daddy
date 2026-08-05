@@ -448,8 +448,8 @@ const AGENT_SECTIONS: AgentSection[] = [
     code: `pd status
 pd briefing
 pd fleet status
-port=$(cat ~/.port-daddy/daemon.port 2>/dev/null || echo 9876)
-open "http://127.0.0.1:$port/fleet-ui/?surface=flow"
+PD_URL="\${PORT_DADDY_URL:-$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed 's#^#http://127.0.0.1:#')}"
+open "$PD_URL/fleet-ui/?surface=flow"
 
 # In FleetBar, open the project and choose Flow.
 # The view should show the topology before you launch more work.`,
@@ -589,9 +589,9 @@ pd guard check --staged`,
     codeLabel: 'Check pressure before spawning',
     code: `pd status
 pd fleet status
-port=$(cat ~/.port-daddy/daemon.port 2>/dev/null || echo 9876)
-curl -sS "http://127.0.0.1:$port/fleet/models"
-open "http://127.0.0.1:$port/fleet-ui/?surface=resources"
+PD_URL="\${PORT_DADDY_URL:-$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed 's#^#http://127.0.0.1:#')}"
+curl -sS "$PD_URL/fleet/models"
+open "$PD_URL/fleet-ui/?surface=resources"
 pd fleet run qa
 
 # Raise caps only after Resources says the machine, budget, and backends can handle it.`,
@@ -986,13 +986,13 @@ pd notes --limit 10`,
     gif: '/gifs/agents/daemon-runtime.gif',
     alt: 'Generated image of a local daemon coordinating ports, sessions, locks, and fleet agents',
     codeLabel: 'Runtime truth check',
-    code: `pd status
-pd daemon env default
-pd services
+    code: `pd status --json
+brew services info port-daddy
+pd dev list
 pd fleet status
-launchctl print gui/501/com.portdaddy.daemon
 
-# If source changed runtime routes, rebuild and relaunch before trusting browser proof.`,
+# If source changed runtime routes, rebuild a named pd dev instance and
+# select its published endpoint before trusting browser proof.`,
     theory: [
       'What the code says and what is running are two different things. A route can exist in your checkout while FleetBar still talks to an older installed daemon, and the pd command can point at a different install than the process serving the app.',
       'That background process is where coordination actually lives. It holds the sessions, locks, shared facts, channels, ports, and fleet state, plus the record an agent leaves behind when its process disappears.',
@@ -1173,7 +1173,7 @@ pd done "Recovered, validated, and closed the abandoned work"`,
 pd advise routes/fleet.ts --task "patch timeout handling without touching spawn policy"
 pd note "Scope: routes/fleet.ts only; validation: focused route tests plus typecheck"
 pd session files add routes/fleet.ts
-pd with-lock stable-promotion -- ./scripts/promote-stable.sh
+pd with-lock release-artifacts -- bun scripts/build-single-binary.mjs
 pd guard check --staged`,
     theory: [
       'Claims are social contracts with machine visibility. They do not prevent edits, but they make intent inspectable early enough that another agent can route around, negotiate, or call out a conflicting goal before a merge conflict becomes the least interesting problem.',

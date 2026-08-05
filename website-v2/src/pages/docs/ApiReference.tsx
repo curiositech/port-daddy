@@ -40,7 +40,7 @@ function MethodBadge({ method }: { method: HttpMethod }) {
 
 /* ── Endpoint data ──────────────────────────────────────────── */
 
-const BASE = 'http://localhost:9876'
+const BASE = '$PD_URL'
 
 const API_GROUPS = [
   'Services',
@@ -1109,8 +1109,8 @@ export default function ApiReference() {
           className="text-xl leading-relaxed"
           style={{ color: 'var(--text-secondary)' }}
         >
-          The full HTTP API for the Port Daddy background service running on{' '}
-          <code style={{ color: 'var(--brand-primary)' }}>localhost:9876</code>.
+          The full HTTP API for the Port Daddy background service running on a{' '}
+          <code style={{ color: 'var(--brand-primary)' }}>published local endpoint</code>.
           Every endpoint is available without authentication on the local machine.
         </p>
         <p
@@ -1241,9 +1241,9 @@ export default function ApiReference() {
         </h3>
         <div className="grid sm:grid-cols-2 gap-4 text-sm">
           <div>
-            <code style={{ color: 'var(--brand-primary)' }}>http://localhost:9876</code>
+            <code style={{ color: 'var(--brand-primary)' }}>PD_URL</code>
             <p className="mt-1" style={{ color: 'var(--text-muted)' }}>
-              Base URL for all endpoints
+              Published local endpoint for all examples
             </p>
           </div>
           <div>

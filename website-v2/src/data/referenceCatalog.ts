@@ -208,7 +208,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd with-lock <name> -- <cmd>', href: '/docs/cli/with-lock', description: 'Run a command while Port Daddy acquires and releases a lock around it.' },
       { name: 'pd harbor create|enter|leave|show|destroy', href: '/docs/cli/harbor-create', description: 'Manage named permission namespaces and capability tokens.' },
       { name: 'pd harbors', href: '/docs/cli/harbors', description: 'List harbors and memberships.' },
-      { name: 'pd wallet <command>', description: 'Show wallets, top up funds, inspect history, set daily budgets, list pending budget kills, and raise budgets.' },
+      { name: 'pd wallet <command>', description: 'Show wallets, top up funds, inspect history, set daily budgets, list pending budget cancellations, and raise budgets.' },
       { name: 'pd bond <command>', description: 'List bond escrow rows or manually slash a bond with a reason.' },
       { name: 'pd graph edges|stats', description: 'Inspect semantic graph edges and aggregate graph counts.' },
       { name: 'pd memory episodes|stats', description: 'Inspect episodic memory entries and aggregate memory counts.' },

@@ -108,20 +108,22 @@ interface CodeLine {
 }
 
 /**
- * A real-looking snippet: getDaemonUrl, resolving the daemon URL from env with a
- * default. The selected block is the body of the function — the thing we ask the
- * agent to explain / critique.
+ * A real-looking snippet: getDaemonUrl, resolving the daemon URL from an
+ * explicit endpoint and failing fast when none is selected. The selected block
+ * is the body of the function — the thing we ask the agent to explain / critique.
  */
 const CODE_LINES: CodeLine[] = [
-  { n: 18, text: 'const DEFAULT_DAEMON_URL = "http://127.0.0.1:9876"' },
-  { n: 19, text: '' },
-  { n: 20, text: 'export function getDaemonUrl(): string {', selected: true },
-  { n: 21, text: '  const fromEnv = process.env.PD_DAEMON_URL', selected: true },
-  { n: 22, text: '  if (fromEnv) return fromEnv.replace(/\\/$/, "")', selected: true },
-  { n: 23, text: '  return DEFAULT_DAEMON_URL', selected: true },
-  { n: 24, text: '}', selected: true },
-  { n: 25, text: '' },
-  { n: 26, text: 'const url = getDaemonUrl()' },
+  { n: 18, text: 'export function getDaemonUrl(): string {', selected: true },
+  { n: 19, text: '  const fromEnv = process.env.PORT_DADDY_URL', selected: true },
+  { n: 20, text: '  if (fromEnv) return fromEnv.replace(/\\/$/, "")', selected: true },
+  {
+    n: 21,
+    text: '  throw new Error("Choose a daemon endpoint or open this page inside the embedded dashboard.")',
+    selected: true,
+  },
+  { n: 22, text: '}', selected: true },
+  { n: 23, text: '' },
+  { n: 24, text: 'const url = getDaemonUrl()' },
 ]
 
 /** The 1-based inclusive line range of the selection, derived from CODE_LINES. */
@@ -160,18 +162,19 @@ interface DiffLine {
 
 /** The sample reply shown before any real agent answers. Clearly labelled. */
 const SAMPLE_EXPLANATION =
-  'getDaemonUrl reads PD_DAEMON_URL from the environment, trims a trailing slash, ' +
-  'and otherwise falls back to the loopback default. It is pure and easy to test. ' +
-  'One nit: it normalises the trailing slash only on the env path, so the default ' +
-  'and the env value can disagree on shape. Normalise both at the return.'
+  'getDaemonUrl reads PORT_DADDY_URL from the environment, trims a trailing slash, ' +
+  'and otherwise fails fast with a configuration error. It is pure and easy to test. ' +
+  'The important behavior is that standalone pages do not guess a loopback daemon; ' +
+  'embedded pages can still use same-origin relative requests.'
 
 const SAMPLE_DIFF = `--- a/src/daemon/url.ts
 +++ b/src/daemon/url.ts
 @@ getDaemonUrl @@
+-  const fromEnv = process.env.PD_DAEMON_URL
 -  if (fromEnv) return fromEnv.replace(/\\/$/, "")
--  return DEFAULT_DAEMON_URL
-+  const raw = fromEnv ?? DEFAULT_DAEMON_URL
-+  return raw.replace(/\\/$/, "")`
++  const fromEnv = process.env.PORT_DADDY_URL
++  if (fromEnv) return fromEnv.replace(/\\/$/, "")
++  throw new Error("Choose a daemon endpoint or open this page inside the embedded dashboard.")`
 
 /** Classify each line of a unified diff for cream-palette colouring. */
 function parseDiff(text: string): DiffLine[] {

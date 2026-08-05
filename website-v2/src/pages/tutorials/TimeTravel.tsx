@@ -53,17 +53,19 @@ export function TimeTravel() {
           </p>
 
           <CodeBlock copyable={false} language="bash">
-            {`# View recent activity via CLI
+            {`PD_URL="\${PORT_DADDY_URL:-$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed 's#^#http://127.0.0.1:#')}"
+
+# View recent activity via CLI
 $ pd log
 
 # Query the REST API with a limit
-$ curl http://localhost:9876/activity?limit=20
+$ curl "$PD_URL/activity?limit=20"
 
 # Get a summary grouped by type
-$ curl http://localhost:9876/activity/summary
+$ curl "$PD_URL/activity/summary"
 
 # Get activity statistics
-$ curl http://localhost:9876/activity/stats
+$ curl "$PD_URL/activity/stats"
 # Expected result: each request returns recent activity rows, grouped summaries, or JSON stats from the daemon.`}
           </CodeBlock>
 

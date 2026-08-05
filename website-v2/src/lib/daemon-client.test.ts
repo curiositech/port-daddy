@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   DaemonClientError,
   deleteOrchestratorRule,
@@ -13,7 +13,12 @@ const fetchMock = vi.fn()
 describe('daemon client', () => {
   beforeEach(() => {
     fetchMock.mockReset()
+    vi.stubEnv('VITE_PORT_DADDY_URL', 'http://127.0.0.1:9000')
     vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   it('assembles dashboard stats from live daemon routes', async () => {
@@ -84,6 +89,18 @@ describe('daemon client', () => {
     })
   })
 
+  it('describes configuration errors for ui consumers', () => {
+    const error = new DaemonClientError({
+      kind: 'configuration',
+      message: 'Select a daemon endpoint before opening this page.',
+    })
+
+    expect(describeDaemonError(error)).toEqual({
+      kind: 'configuration',
+      message: 'Select a daemon endpoint or open this page from the embedded dashboard',
+    })
+  })
+
   it('fetches orchestrator rules as a typed list', async () => {
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify([
       { id: 1, name: 'demo', channelPattern: 'build:*', action: 'spawn', enabled: true, payload: {} },
@@ -102,12 +119,12 @@ describe('daemon client', () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      'http://127.0.0.1:9876/msg/fleet%3Atest',
+      'http://127.0.0.1:9000/msg/fleet%3Atest',
       expect.objectContaining({ method: 'POST' }),
     )
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      'http://127.0.0.1:9876/orchestrator/rules/7',
+      'http://127.0.0.1:9000/orchestrator/rules/7',
       expect.objectContaining({ method: 'DELETE' }),
     )
   })

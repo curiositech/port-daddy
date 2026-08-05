@@ -64,7 +64,7 @@ export const INTEGRATIONS: Integration[] = [
       'LangChain Tool classes for claim, release, begin, done, note, and pub/sub operations.',
       'Automatic session lifecycle tied to chain execution -- begin on start, done on completion.'
     ],
-    setupCode: `pip install portdaddy-langchain\n\nfrom portdaddy_langchain import PortDaddyToolkit\ntools = PortDaddyToolkit(base_url="http://localhost:9876")`
+    setupCode: `pip install portdaddy-langchain\n\nfrom os import getenv\nfrom portdaddy_langchain import PortDaddyToolkit\n\nbase_url = getenv("PORT_DADDY_URL")  # or read the published daemon.port file first\ntools = PortDaddyToolkit(base_url=base_url)`
   },
   {
     id: 'crewai',
@@ -106,6 +106,6 @@ export const INTEGRATIONS: Integration[] = [
       'Session notes from Continue conversations appear in the shared project timeline.',
       'Port Daddy context is available as a Continue.dev context provider for agent awareness.'
     ],
-    setupCode: `// In .continue/config.json\n{\n  "contextProviders": [{\n    "name": "portdaddy",\n    "params": { "baseUrl": "http://localhost:9876" }\n  }]\n}`
+    setupCode: `// In .continue/config.json\n{\n  "contextProviders": [{\n    "name": "portdaddy",\n    "params": { "baseUrl": "\${PORT_DADDY_URL}" }\n  }]\n}\n// Or read the published daemon.port file and inject the resulting endpoint.`
   }
 ];

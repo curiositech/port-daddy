@@ -75,7 +75,7 @@ export function Tunnel() {
 
           <CodeBlock copyable={false} language="bash">
             {
-              "$ curl http://localhost:9876/tunnel/providers\n\n# Returns list of available providers (ngrok, cloudflare, localtunnel)"
+              "PD_URL=\"\${PORT_DADDY_URL:-$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed 's#^#http://127.0.0.1:#')}\"\n$ curl \"$PD_URL/tunnel/providers\"\n\n# Returns list of available providers (ngrok, cloudflare, localtunnel)"
             }
           </CodeBlock>
 
@@ -106,7 +106,7 @@ export function Tunnel() {
 
           <CodeBlock copyable={false} language="bash">
             {
-              '# Start a tunnel using ngrok for a claimed service\n$ curl -X POST http://localhost:9876/tunnel/myapp:api \\\n    -H "Content-Type: application/json" \\\n    -d \'{"provider": "ngrok"}\'\n\n# Response:\n# { "url": "https://abc123.ngrok.io", "provider": "ngrok", "port": 3102 }\n\n# Check tunnel status\n$ curl http://localhost:9876/tunnel/myapp:api\n\n# List all active tunnels\n$ curl http://localhost:9876/tunnels\n\n# Stop a tunnel\n$ curl -X DELETE http://localhost:9876/tunnel/myapp:api'
+              'PD_URL="\${PORT_DADDY_URL:-$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed \'s#^#http://127.0.0.1:#\')}"\n# Start a tunnel using ngrok for a claimed service\n$ curl -X POST "$PD_URL/tunnel/myapp:api" \\\n    -H "Content-Type: application/json" \\\n    -d \'{"provider": "ngrok"}\'\n\n# Response:\n# { "url": "https://abc123.ngrok.io", "provider": "ngrok", "port": 3102 }\n\n# Check tunnel status\n$ curl "$PD_URL/tunnel/myapp:api"\n\n# List all active tunnels\n$ curl "$PD_URL/tunnels"\n\n# Stop a tunnel\n$ curl -X DELETE "$PD_URL/tunnel/myapp:api"'
             }
           </CodeBlock>
 

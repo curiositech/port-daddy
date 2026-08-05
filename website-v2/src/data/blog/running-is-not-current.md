@@ -55,7 +55,7 @@ A good provenance check should be portable. Avoid hardcoded user IDs, machine pa
 <!-- terminal -->
 ```bash
 $ pd status --json
-$ launchctl print gui/$(id -u)/com.portdaddy.daemon
+$ brew services info port-daddy
 $ cat ~/.port-daddy/daemon.port
 $ command -v port-daddy
 $ port-daddy doctor

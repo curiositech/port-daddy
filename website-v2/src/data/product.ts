@@ -659,7 +659,8 @@ export const COLD_START_STEPS = [
     id: 'survey',
     title: 'Let Shipwright survey the repo',
     description: 'Shipwright classifies the stack, active files, delivery medium, fleet status, tests, docs freshness, and resource pressure before recommending agents.',
-    command: 'open "http://127.0.0.1:9876/fleet-ui/?surface=shipwright"',
+    command: `PD_URL="\${PORT_DADDY_URL:-$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed 's#^#http://127.0.0.1:#')}"
+open "$PD_URL/fleet-ui/?surface=shipwright"`,
     appSurface: 'Shipwright Harbor and Focus turn repo facts into a proposal.',
   },
   {

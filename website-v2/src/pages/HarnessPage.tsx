@@ -153,7 +153,7 @@ const CAPABILITIES: readonly Capability[] = [
     cardTitle: 'A linked berth for every slice',
     oneLiner: 'Sessions carry an explicit worktree, branch, purpose, claims, and controls.',
     detail:
-      'This is a Port Daddy session guarantee around the harness, not a hook event. A registered agent works in a linked git worktree and appears in the roster with the exact branch, touched files, stream, interrupt, and takeover paths.',
+      'This is a Port Daddy session guarantee around the harness, not a hook event. A registered agent works in a linked git worktree and appears in the roster with the exact branch, touched files, live stream, Join action, and immutable continuation lineage.',
     figure: {
       input: 'Work request',
       hook: 'Session berth',
@@ -165,11 +165,11 @@ const CAPABILITIES: readonly Capability[] = [
     n: '07',
     scope: 'Coast Guard · runtime',
     icon: CircleDollarSign,
-    title: 'Spawned work runs under confinement, timeout, and spend limits.',
+    title: 'Spawned work runs under confinement, optional caller deadlines, and spend limits.',
     cardTitle: 'Budget and sandbox protection',
     oneLiner: 'Coast Guard wraps spawned processes; it is adjacent to the Squid hooks.',
     detail:
-      'Port Daddy’s spawner applies the operating-system sandbox, secret scrubbing, timeout, and hard spend cap. Those controls protect daemon-launched work, but the page does not pretend the prompt or edit tentacle implements them.',
+      'Port Daddy’s spawner applies the operating-system sandbox, secret scrubbing, hard spend cap, and an explicit caller deadline only when the workflow owns one. Those controls protect daemon-launched work, but the page does not pretend the prompt or edit tentacle implements them.',
     figure: {
       input: 'Spawn request',
       hook: 'Coast Guard',
@@ -920,7 +920,7 @@ NOT CLAIMED
                 <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
                   <img
                     src="/img/app-screens/pd-console-gpui/active-agents-harness-roster.png"
-                    alt="Rust GPUI active-agent harness roster showing live agents, stream commands, steer commands, and takeover handles."
+                    alt="Rust GPUI active-agent harness roster showing live agents, streams, steering controls, and Join actions."
                     className="aspect-video w-full object-cover"
                     loading="eager"
                   />

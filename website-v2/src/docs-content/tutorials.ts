@@ -189,7 +189,7 @@ export const tutorialsSection: DocsContentSection = {
         },
         {
           path: 'routes/spawn.ts',
-          rationale: 'Spawn routes expose launch, list, status, watch, and kill behavior on the live daemon.',
+          rationale: 'Spawn routes expose launch, list, status, watch, cancellation, and evidence collection on the live daemon.',
         },
         {
           path: 'tests/unit/spawn-command.test.js',

@@ -198,7 +198,7 @@ const ADRS: Adr[] = [
     title: 'Unix Socket as Primary CLI-to-Daemon Transport',
     status: 'ACCEPTED',
     summary:
-      'pd commands talk to the daemon over a Unix domain socket at /tmp/port-daddy.sock, not a TCP port. This means the CLI never competes with other processes for a port number, and socket connections bypass the rate limiter that protects the HTTP API. TCP on port 9876 is still available for the browser dashboard and MCP server.',
+      'pd commands talk to the daemon over a Unix domain socket at /tmp/port-daddy.sock, not a TCP port. This means the CLI never competes with other processes for a port number, and socket connections bypass the rate limiter that protects the HTTP API. TCP on the published local endpoint is still available for the browser dashboard and MCP server.',
   },
   {
     number: '0003',

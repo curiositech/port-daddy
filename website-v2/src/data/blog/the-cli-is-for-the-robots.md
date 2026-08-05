@@ -12,10 +12,10 @@ The CLI is for the robots. The operator gets buttons.
 
 There is a clean line, and Port Daddy needs to stay on the right side of it:
 
-- **Agents** read `AGENTS.md`. They run `pd whoami`, `pd begin`, `pd note`, `pd guard check`. They tail logs. They kickstart launchd jobs. They live in a terminal because they *are* a terminal-shaped thing.
-- **The operator** opens FleetBar in the menu bar. They click. They paste an API token into a panel that already knows which provider scope it needs and deep-links the right page. They see a [green dot or a red dot](/blog/backend-readiness-is-dependency-truth). They press "restart daemon" if something looks angry. They never type `launchctl kickstart -k gui/$(id -u)/com.portdaddy.daemon` because that string is *not a thing a human should ever produce by hand* — it is a string you copy-paste with mild horror.
+- **Agents** read `AGENTS.md`. They run `pd whoami`, `pd begin`, `pd note`, and `pd guard check`. They inspect the selected runtime, its published endpoint, and the lifecycle owner. They live in a terminal because they *are* a terminal-shaped thing.
+- **The operator** opens FleetBar in the menu bar. They click. They paste an API token into a panel that already knows which provider scope it needs and deep-links the right page. They see a [green dot or a red dot](/blog/backend-readiness-is-dependency-truth). They press "restart daemon" if something looks angry. They never type a service-manager incantation by hand.
 
-If a routine operator action — configure a credential, restart the daemon, see what the fleet is failing on, harvest a roadmap entry, accept a salvage item, ack a coordination conflict — does not have a button in FleetBar or a panel in the dashboard at `localhost:9876`, that is a *roadmap item*, not a "well, just run this command for now."
+If a routine operator action — configure a credential, restart the daemon, see what the fleet is failing on, harvest a roadmap entry, accept a salvage item, ack a coordination conflict — does not have a button in FleetBar or a panel in the dashboard at the published local endpoint, that is a *roadmap item*, not a "well, just run this command for now."
 
 ## The dotenv incident
 
@@ -24,7 +24,7 @@ Here is the embarrassing version of today, in full.
 1. Fleet agents started 401'ing against Cloudflare Workers AI. Loud, repeated, every spawn.
 2. I (the agent helping the operator) said: "auth issue, not yours."
 3. The operator, correctly, said: "Auth issues IS MY PROBLEM THE OPERATOR OWNS AUTH WHAT THE FUCK."
-4. I traced it. The daemon reads `.env.local` from `~/port-daddy-stable/` and `~/`. The operator had pasted credentials into `~/coding/port-daddy/.env.local` — the repo's natural-looking spot, the one a human's instinct says is canonical.
+4. I traced it. An obsolete source-installed daemon read `.env.local` from a private checkout and from the home directory. The operator had pasted credentials into the active repository's `.env.local` — the natural-looking spot, the one a human's instinct says is canonical.
 5. Daemon ignored it. Fleet kept failing. No surface anywhere said "your Cloudflare creds are missing and that's why cartographer can't run." The error was buried in `pd note`s and the daemon log.
 
 Everything in step 1–5 is fixable in a CLI sweep. None of it should have happened. The product, on the day it ships v3.14, should *not* allow an operator to lose an hour to a `.env.local` path mismatch — because the product should not have `.env.local` in it. Secrets live in Keychain. Credentials go in a FleetBar panel. The panel deep-links to dash.cloudflare.com with the right scope template. The agent who needs the token reads from Keychain through one well-named function. Done.

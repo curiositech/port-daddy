@@ -10,9 +10,9 @@
 
 If you're seeing this post first, here's what you need to know about Port Daddy in two sentences.
 
-[Port Daddy](https://portdaddy.dev) is a local daemon that lets AI coding agents — Claude Code, Cursor, Codex, Aider, fleets of them — work in the same repository without nuking each other's files. It runs on `localhost:9876`, ships with `brew install curiositech/tap/port-daddy`, and the coordination primitives that come out of it (ports, sessions, locks, channels, claims) are what make multi-agent development tractable instead of terrifying.
+[Port Daddy](https://portdaddy.dev) is a local daemon that lets AI coding agents — Claude Code, Cursor, Codex, Aider, fleets of them — work in the same repository without nuking each other's files. It runs on a published local endpoint discovered from the running install, ships with `brew install curiositech/tap/port-daddy`, and the coordination primitives that come out of it (ports, sessions, locks, channels, claims) are what make multi-agent development tractable instead of terrifying.
 
-Today, when you spin up an agent and want a safety belt, you give it a daily budget. `$5 per day per agent`. If it spends $5, the daemon kills it. That belt does one job well and one job poorly. This post is about the job it does poorly.
+Today, when you spin up an agent and want a safety belt, you give it a daily budget. `$5 per day per agent`. If it spends $5, the daemon cancels further work and preserves the run evidence. That belt does one job well and one job poorly. This post is about the job it does poorly.
 
 ## The agent that cannot be fired
 
@@ -74,7 +74,7 @@ flowchart LR
     direction TB
     T1["principal sets $5/day cap"]
     T2["agent spends $5"]
-    T3["daemon kills agent"]
+    T3["daemon cancels further work"]
     T4["cleanup cost: ???"]
     T1 --> T2 --> T3 --> T4
   end

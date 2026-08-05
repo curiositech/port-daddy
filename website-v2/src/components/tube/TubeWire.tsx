@@ -9,7 +9,6 @@ import {
 } from 'react'
 import { cn } from '@/lib/utils'
 import {
-  DEFAULT_DAEMON_URL,
   TUBE_KIND,
   isTubeSimulated,
   tubePoll,
@@ -26,10 +25,10 @@ import {
  * threaded reply cards that rise in.
  *
  * Transport: publish/poll are routed through `tube-transport`, which resolves a
- * LIVE daemon (local dev, `?daemon=<url>`, `VITE_PORT_DADDY_URL`, or the
- * embedded `/fleet-ui` console) or a deterministic SIM replay (the public
- * marketing site, where the visitor has no daemon on their loopback). The SIM
- * path makes no network call, so it never trips the browser's Local Network
+ * LIVE daemon from an explicit URL, `?daemon=<url>`, `VITE_PORT_DADDY_URL`, or
+ * the embedded `/fleet-ui` console. Everywhere else gets a deterministic SIM
+ * replay (the public marketing site, where the visitor has no daemon on their
+ * loopback). The SIM path makes no network call, so it never trips the browser
  * permission prompt or fails with "Failed to fetch"; it is surfaced to the
  * visitor with a "Simulated replay" badge (see `TubeSimBadge`).
  *
@@ -58,7 +57,7 @@ import {
 
 // Canonical definitions live in `tube-transport`; re-exported here for the many
 // callers that historically imported them from TubeWire.
-export { DEFAULT_DAEMON_URL, TUBE_KIND, isTubeSimulated, type TubeMessage }
+export { TUBE_KIND, isTubeSimulated, type TubeMessage }
 
 /** What `fireTube` reports back as it progresses through one round-trip. */
 export type TubePhase =

@@ -96,7 +96,7 @@ Load unpacked: ${extensionPath}`,
     title: 'Capture any normal web page',
     body:
       'Open a page, click Port Daddy Scout, capture the page or draw a region, write the brief, and open the issue.',
-    code: 'Daemon URL: http://127.0.0.1:9876',
+    code: 'Daemon endpoint: published local endpoint',
   },
 ]
 
@@ -353,7 +353,8 @@ export function ScoutPage() {
                   Open <code className="font-mono">chrome://extensions</code>,
                   enable Developer mode, click <strong>Load unpacked</strong>,
                   and choose <code className="font-mono">apps/pd-scout-extension</code>.
-                  The popup defaults to <code className="font-mono">http://127.0.0.1:9876</code>.
+                  The popup resolves the published local endpoint from the running install, or
+                  lets you paste one explicitly.
                 </PanelBody>
               </div>
               <div className="grid gap-[var(--space-3)] sm:grid-cols-3">

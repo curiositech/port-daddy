@@ -470,7 +470,7 @@ describe('public shell contracts', () => {
       'acquisition-grade thesis',
       'Agentic social proof',
       'terminal-only marketing blocks',
-      'localhost:9876',
+      'fixed loopback endpoint',
     ]
 
     for (const phrase of forbiddenPhrases) {
@@ -737,15 +737,20 @@ describe('public shell contracts', () => {
       './hooks/useDashboardStats.ts',
       './hooks/useOrchestratorRules.ts',
       './components/viz/WorkflowsTable.tsx',
+      './components/tube/tube-transport.ts',
       './lib/daemon-client.ts',
+      '../public/demos/pd-tube/mission-control.html',
     ]
 
     for (const file of runtimeFiles) {
       const source = readRuntime(file)
-      expect(source, `${file} should resolve the daemon through shared utilities`).not.toMatch(/https?:\/\/(?:localhost|127\.0\.0\.1):9876/)
+      expect(source, `${file} should resolve the daemon through shared utilities`).not.toMatch(
+        /https?:\/\/(?:localhost|127\.0\.0\.1):\d{2,5}/,
+      )
     }
 
     const daemonUrlSource = readRuntime('./lib/daemon-url.ts')
-    expect(daemonUrlSource).toContain("const CANONICAL_DAEMON_BASE_URL = 'http://127.0.0.1:9876'")
+    expect(daemonUrlSource).not.toContain('PREFERRED_DAEMON_PORT')
+    expect(daemonUrlSource).not.toMatch(/https?:\/\/(?:localhost|127\.0\.0\.1):\d{2,5}/)
   })
 })

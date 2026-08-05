@@ -151,7 +151,8 @@ Coordination Guard: enforce`}</CodeBlock>
             Inbox, notes, claims, tuples, and salvage should make agent-to-agent
             communication visible instead of buried in one terminal transcript.
           </motion.p>
-          <CodeBlock copyable={false} language="bash">{`open "http://127.0.0.1:9876/fleet-ui/?surface=shipwright"
+          <CodeBlock copyable={false} language="bash">{`PD_URL="\${PORT_DADDY_URL:-$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed 's#^#http://127.0.0.1:#')}"
+open "$PD_URL/fleet-ui/?surface=shipwright"
 pd fleet up
 pd spawn --backend codex --budget 0.50 --purpose "Check docs drift" -- "Summarize product-truth gaps"
 # Expected result: Fleet Control Center opens, the fleet starts, and the spawned run appears in activity.`}</CodeBlock>

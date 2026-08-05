@@ -71,16 +71,18 @@ export default function PheromoneFeature() {
 
         <DocsCodeBlock
           language="bash"
-          code={`# Spray: mark this service as actively worked on
-curl -X POST http://localhost:9876/pheromone/spray \\
+          code={`PD_URL="\${PORT_DADDY_URL:-$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed 's#^#http://127.0.0.1:#')}"
+
+# Spray: mark this service as actively worked on
+curl -X POST "$PD_URL/pheromone/spray" \\
   -H 'Content-Type: application/json' \\
   -d '{"table":"services","id":"myapp:api:main","key":"focus","strength":0.9}'
 
 # Sniff: read pheromones on a service
-curl http://localhost:9876/pheromone/services/myapp:api:main
+curl "$PD_URL/pheromone/services/myapp:api:main"
 
 # List: scan all non-zero pheromones across the system
-curl http://localhost:9876/pheromone`}
+curl "$PD_URL/pheromone"`}
           output={`# Spray response
 {"success":true,"table":"services","id":"myapp:api:main","key":"focus","strength":0.9,"pheromones":{"focus":0.9}}
 
@@ -144,11 +146,13 @@ curl http://localhost:9876/pheromone`}
 
         <DocsCodeBlock
           language="bash"
-          code={`# Full heat map
-curl http://localhost:9876/pheromone/files
+          code={`PD_URL="\${PORT_DADDY_URL:-$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed 's#^#http://127.0.0.1:#')}"
+
+# Full heat map
+curl "$PD_URL/pheromone/files"
 
 # Filter to a subtree
-curl 'http://localhost:9876/pheromone/files?path=src/lib/&depth=3'`}
+curl "$PD_URL/pheromone/files?path=src/lib/&depth=3"`}
           output={`{
   "success": true,
   "files": [

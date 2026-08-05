@@ -10,7 +10,7 @@ const MATURITY_FEATURES = [
   {
     icon: ShieldCheck,
     title: 'Local-First Architecture',
-    description: 'All coordination happens through a local daemon, typically on localhost:9876. No cloud dependency, no external services, no data leaving your machine.',
+    description: 'All coordination happens through a local daemon, discovered from the running install. No cloud dependency, no external services, no data leaving your machine.',
   },
   {
     icon: Lock,

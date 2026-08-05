@@ -31,7 +31,8 @@ export function RemoteHarbors() {
           <strong>Planned for v4:</strong> Remote Harbors do not exist yet. None
           of the commands on this page run today. This page describes the
           planned syntax for coordinating agents across machines. Today, Port
-          Daddy runs as a single-machine daemon on localhost:9876.
+          Daddy runs as a single-machine daemon with a published local endpoint
+          discovered from the running install.
         </p>
 
         {/* Intro Section */}
@@ -179,7 +180,7 @@ Watching deploy:events...`}
           <p className="max-w-xl mx-auto text-[var(--text-secondary)] m-0">
             In v4, the daemon model will extend across machines, so agents can
             work together over a network. Today, all coordination happens
-            through your local daemon on localhost:9876. Remote harbors will
+            through your local daemon's published endpoint. Remote harbors will
             bring the same primitives -- ports, sessions, pub/sub, salvage -- to
             a distributed mesh.
           </p>

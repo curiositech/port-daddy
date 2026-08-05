@@ -132,7 +132,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd snapshot - Port Daddy](https://portdaddy.dev/docs/cli/snapshot): Reference for pd snapshot, including Port Daddy syntax, what the command does, and when to use it.
 - [pd snapshots <command> - Port Daddy](https://portdaddy.dev/docs/cli/snapshots): Reference for pd snapshots <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd spawn <task> - Port Daddy](https://portdaddy.dev/docs/cli/spawn): Reference for pd spawn <task>, including Port Daddy syntax, what the command does, and when to use it.
-- [pd spawn kill <agent> - Port Daddy](https://portdaddy.dev/docs/cli/spawn-kill): Reference for pd spawn kill <agent>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd spawn cancel <agent> - Port Daddy](https://portdaddy.dev/docs/cli/spawn-cancel): Reference for pd spawn cancel <agent>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd spawned - Port Daddy](https://portdaddy.dev/docs/cli/spawned): Reference for pd spawned, including Port Daddy syntax, what the command does, and when to use it.
 - [pd start - Port Daddy](https://portdaddy.dev/docs/cli/start): Reference for pd start, including Port Daddy syntax, what the command does, and when to use it.
 - [pd status - Port Daddy](https://portdaddy.dev/docs/cli/status): Reference for pd status, including Port Daddy syntax, what the command does, and when to use it.

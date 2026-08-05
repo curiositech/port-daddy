@@ -84,8 +84,14 @@ The browser side of the checked-in `examples/pd-tube` demo is just `fetch()`:
 <button id="deploy">Deploy to staging</button>
 <div id="reply"></div>
 <script>
+  const PD_URL = window.location.pathname.startsWith('/fleet-ui')
+    ? ''
+    : new URLSearchParams(location.search).get('daemon') ?? window.__PORT_DADDY_URL__
+  if (!PD_URL && !window.location.pathname.startsWith('/fleet-ui')) {
+    throw new Error('Choose a daemon endpoint or open this page inside the embedded dashboard.')
+  }
   document.getElementById('deploy').onclick = async () => {
-    await fetch('http://localhost:9876/msg/ui:clicks', {
+    await fetch(PD_URL ? new URL('/msg/ui:clicks', PD_URL) : '/msg/ui:clicks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -217,7 +223,8 @@ Here is a small adapter shape for a test runner. The reporter does not need to k
 
 ```ts
 async function publishFailedTest(result: FailedTestResult) {
-  await fetch('http://127.0.0.1:9876/msg/test:failed', {
+  const PD_URL = process.env.PORT_DADDY_URL ?? readPublishedDaemonUrl()
+  await fetch(new URL('/msg/test:failed', PD_URL), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -234,7 +241,7 @@ async function publishFailedTest(result: FailedTestResult) {
 }
 ```
 
-In a production integration the URL should come from daemon discovery rather than a literal. The important product point is that the reporter remains tiny. It publishes the failure and lets the [local control plane](/blog/control-plane-is-the-product) decide how agents, budgets, claims, and replies should work.
+In a production integration the URL should come from `PORT_DADDY_URL` or the published daemon.port file rather than a literal. The important product point is that the reporter remains tiny. It publishes the failure and lets the [local control plane](/blog/control-plane-is-the-product) decide how agents, budgets, claims, and replies should work.
 
 ## What The UI Should Render
 

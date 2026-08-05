@@ -114,7 +114,7 @@ export const bestPracticesSection: DocsContentSection = {
       slug: 'runtime-truth',
       title: 'Semantic Identities and Runtime Discovery',
       summary:
-        'Identify services by project:stack:context, never by hardcoded port numbers. Discover the live daemon through the shared helper instead of assuming localhost:9876.',
+        'Identify services by project:stack:context, never by hardcoded port numbers. Discover the live daemon through the shared helper instead of assuming a fixed local endpoint.',
       truth: 'source-backed',
       goals: [
         'Use semantic identity strings instead of hardcoded ports in all code and configuration.',
@@ -143,8 +143,8 @@ export const bestPracticesSection: DocsContentSection = {
         {
           type: 'callout',
           tone: 'warning',
-          title: 'Never hardcode localhost:9876 in production paths',
-          body: 'The daemon usually runs on port 9876, but it can fall back to a different port in CI, multi-machine setups, or when 9876 is already held. Production code in lib/, routes/, bin/, and server.ts must use resolveDaemonUrl() from shared/daemon-discovery.ts. This rule is enforced by a CI test (tests/unit/no-hardcoded-daemon-url.test.js).',
+          title: 'Never hardcode a daemon endpoint in production paths',
+          body: 'The daemon may publish a different endpoint in CI, multi-machine setups, or when the preferred bind seed is already held. Production code in lib/, routes/, bin/, and server.ts must use resolveDaemonUrl() from shared/daemon-discovery.ts. This rule is enforced by a CI test (tests/unit/no-hardcoded-daemon-url.test.js).',
         },
         {
           type: 'paragraph',
@@ -158,19 +158,20 @@ export const bestPracticesSection: DocsContentSection = {
           type: 'command',
           title: 'Runtime verification',
           command:
-            'pd status\nport-daddy status\nlaunchctl print gui/501/com.portdaddy.daemon\nwhich port-daddy',
+            'pd status --json\nbrew services info port-daddy\nPD_URL="${PORT_DADDY_URL:-$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed \'s#^#http://127.0.0.1:#\')}"\ncurl -fsS "$PD_URL/health"\ncommand -v pd',
           output:
-            'Port Daddy is running\nPort Daddy is running\nstate = running\n/opt/homebrew/bin/port-daddy',
+            '{ "running": true, "url": "http://127.0.0.1:<selected-port>" }\nport-daddy (homebrew.mxcl.port-daddy) running\n{ "ok": true }\n/opt/homebrew/bin/pd',
           notes: [
-            'If the CLI and live daemon disagree, check which port-daddy and relink the shim before trusting any behavioral difference.',
-            'After any runtime-serving code change (routes/, server.ts, lib/), rebuild and relaunch before trusting dogfood results.',
+            'The Homebrew service owns the stable daemon; named `pd dev` instances are isolated feature runtimes.',
+            'If the CLI and live daemon disagree, inspect the selected endpoint and executable before trusting any behavioral difference.',
+            'After any runtime-serving code change (routes/, server.ts, lib/), rebuild and relaunch a named feature daemon before trusting dogfood results.',
           ],
         },
         {
           type: 'checklist',
           items: [
             'Use project:stack:context identity strings — never hardcoded ports — in code and configuration.',
-            'Use resolveDaemonUrl() from shared/daemon-discovery.ts in production paths, not http://localhost:9876.',
+            'Use resolveDaemonUrl() from shared/daemon-discovery.ts in production paths, not a fixed local endpoint.',
             'Run pd status before debugging missing features — it is usually a stale daemon.',
             'After changing runtime-serving code, rebuild and relaunch before trusting the result.',
           ],
@@ -190,7 +191,7 @@ export const bestPracticesSection: DocsContentSection = {
         {
           path: 'tests/unit/no-hardcoded-daemon-url.test.js',
           rationale:
-            'CI test enforces that production source paths contain no localhost:9876 literals.',
+            'CI test enforces that production source paths contain no fixed loopback literals.',
         },
       ],
     },
@@ -373,20 +374,21 @@ export const bestPracticesSection: DocsContentSection = {
         },
         {
           type: 'paragraph',
-          title: 'Test gate and promotion',
+          title: 'Test gate and release proof',
           paragraphs: [
-            '`npm test` is the minimum repo-health gate. Run it before claiming a release is ready. A green exit code is not a clean result if Jest prints "A worker process has failed to exit gracefully" — chase worker-exit warnings before treating the run as done.',
-            'When promoting to stable, use `./scripts/promote-stable.sh`. Never hand-roll daemon promotion with ad hoc launchctl commands.',
+            '`bun run test` and `bun run typecheck` are the minimum repo-health gates. A green exit code is not a clean result if the runner reports leaked workers or open handles.',
+            'Runtime changes also need a named `pd dev` daemon built from the exact checkout. Release only through the GitHub release workflow and the `curiositech/homebrew-tap` formula described in `docs/RELEASING.md`.',
           ],
         },
         {
           type: 'command',
-          title: 'Test gate, then promote',
-          command: 'npm test\n./scripts/promote-stable.sh',
+          title: 'Test gate, then prove the feature daemon',
+          command: 'bun run test\nbun run typecheck\npd dev up --from "$(pwd)" --label <feature>\npd dev list\npd dev down <feature>',
           output:
-            'Test Suites: all passed\nTests: all passed\nSUCCESS: stable checkout rebuilt\nSUCCESS: canonical daemon relaunched',
+            'Test Suites: all passed\nTypeScript: no errors\n<feature> running at its published endpoint\n<feature> stopped',
           notes: [
-            "Report the script's exact blocker if it fails. Do not improvise a launchctl sequence.",
+            'Use the selected named instance for CLI and browser proof; never infer its endpoint from the preferred seed.',
+            'Follow `docs/RELEASING.md` after proof passes; do not improvise service promotion or publish from an unmerged checkout.',
           ],
         },
         {
@@ -396,7 +398,8 @@ export const bestPracticesSection: DocsContentSection = {
             'Commit before launching any worktree agent — stale HEAD means guaranteed conflicts.',
             'git fetch origin + git rebase origin/main before every push.',
             'pd guard check --staged as the final gate before git push.',
-            'npm test before any promotion claim; chase worker-exit warnings until clean.',
+            'bun run test plus typecheck before any release claim; chase worker-exit warnings until clean.',
+            'Named feature-daemon proof from the exact checkout before a Homebrew release.',
           ],
         },
       ],
@@ -412,12 +415,12 @@ export const bestPracticesSection: DocsContentSection = {
             'ADR documents worktree: true for fleet agents and why pd spawn is the correct execution primitive.',
         },
         {
-          path: 'scripts/promote-stable.sh',
-          rationale: 'Canonical promotion entry point for the stable install.',
+          path: 'docs/RELEASING.md',
+          rationale: 'Canonical GitHub release and Homebrew tap procedure.',
         },
         {
           path: 'package.json',
-          rationale: 'Defines the npm test gate used as the broad repo-health check.',
+          rationale: 'Defines the Bun test and typecheck gates used for repo-health checks.',
         },
       ],
     },

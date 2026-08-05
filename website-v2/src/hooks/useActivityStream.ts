@@ -28,9 +28,19 @@ export function useActivityStream(options: UseActivityStreamOptions = {}) {
   const [errorKind, setErrorKind] = useState<DaemonErrorKind | null>(null);
 
   useEffect(() => {
-    const eventSource = url
-      ? new EventSource(url)
-      : createActivityStream()
+    let eventSource: EventSource | null = null
+    try {
+      eventSource = url
+        ? new EventSource(url)
+        : createActivityStream()
+    } catch (err) {
+      setConnected(false)
+      const normalized = describeDaemonError(err)
+      setError(normalized.message)
+      setErrorKind(normalized.kind)
+      console.error('SSE Error: connection failed', err)
+      return
+    }
 
     eventSource.onopen = () => {
       setConnected(true);
@@ -59,7 +69,7 @@ export function useActivityStream(options: UseActivityStreamOptions = {}) {
     };
 
     return () => {
-      eventSource.close();
+      eventSource?.close();
     };
   }, [url, limit]);
 

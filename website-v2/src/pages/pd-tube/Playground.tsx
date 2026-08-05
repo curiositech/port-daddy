@@ -32,7 +32,13 @@ const LISTEN_COMMAND = `pd tube ${TUBE_CHANNEL} --as reviewer`
 const SEND_COMMAND = `pd tube ${TUBE_CHANNEL} --send "deploy button clicked; review the release note" --as internal-tool`
 const REPLY_COMMAND = `pd tube ${TUBE_CHANNEL} --reply "release note is clear; ship it" --as reviewer`
 
-const FETCH_SNIPPET = `await fetch('http://127.0.0.1:9876/msg/ui:clicks', {
+const FETCH_SNIPPET = `const PD_URL = window.location.pathname.startsWith('/fleet-ui')
+  ? ''
+  : new URLSearchParams(location.search).get('daemon') ?? window.__PORT_DADDY_URL__
+if (!PD_URL && !window.location.pathname.startsWith('/fleet-ui')) {
+  throw new Error('Choose a daemon endpoint or open this page inside the embedded dashboard.')
+}
+await fetch(PD_URL ? new URL('/msg/ui:clicks', PD_URL) : '/msg/ui:clicks', {
   method: 'POST',
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify({
@@ -109,7 +115,8 @@ const TRIGGER_EXAMPLES: TriggerExample[] = [
     label: 'Webhook',
     icon: Webhook,
     sender: 'webhook',
-    command: `curl -s http://127.0.0.1:9876/msg/${TUBE_CHANNEL} \\
+    command: `PD_URL="\${PORT_DADDY_URL:-$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed 's#^#http://127.0.0.1:#')}"
+curl -s "$PD_URL/msg/${TUBE_CHANNEL}" \\
   -H 'content-type: application/json' \\
   -d '{"sender":"webhook","payload":{"v":1,"kind":"tube.msg","body":"payment webhook fired"}}'`,
     note: 'Any service that can POST can become an event source.',

@@ -104,7 +104,7 @@ export const getStartedSection: DocsContentSection = {
           type: 'command',
           title: 'Check the local install',
           command:
-            'port-daddy status\nlaunchctl print gui/501/com.portdaddy.daemon\ncurl -sS "$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed \'s#^#http://localhost:#\')/fleet"\nwhich port-daddy',
+            'pd status --json\nbrew services info port-daddy\nPD_URL="${PORT_DADDY_URL:-$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed \'s#^#http://127.0.0.1:#\')}"\ncurl -fsS "$PD_URL/fleet"\ncommand -v pd',
           notes: [
             'Use these when the CLI, FleetBar, or browser dashboard disagree.',
             'Do not assume the current checkout is the live runtime just because local source changed.',
@@ -115,7 +115,7 @@ export const getStartedSection: DocsContentSection = {
           tone: 'info',
           title: 'Do not trust the default port blindly',
           body:
-            'Port Daddy usually uses `9876`, but the safer move is to ask the running install where it is listening.',
+            'The safer move is to ask the running install where it is listening, or read the published daemon.port file if you need a shell target.',
         },
         {
           type: 'paragraph',
@@ -254,9 +254,9 @@ export const getStartedSection: DocsContentSection = {
           type: 'command',
           title: 'Drift triage',
           command:
-            'pd status\nport-daddy status\nlaunchctl print gui/501/com.portdaddy.daemon\nwhich port-daddy',
+            'pd status --json\nbrew services info port-daddy\npd dev list\ncommand -v pd',
           notes: [
-            'Use this set when the daemon, CLI, and code checkout tell different stories.',
+            'Use this set when the stable Homebrew daemon, a named feature daemon, the CLI, and the code checkout tell different stories.',
           ],
         },
         {

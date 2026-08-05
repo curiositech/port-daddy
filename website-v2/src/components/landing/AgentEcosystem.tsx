@@ -114,7 +114,7 @@ export function AgentEcosystem() {
                 The <span style={{ color: 'var(--brand-accent)' }}>Daemon</span> <br /> Pattern.
               </motion.h3>
               <motion.p className="text-2xl leading-relaxed opacity-80 max-w-2xl mx-auto" style={{ color: 'var(--text-secondary)' }}>
-                Your agents coordinate through a shared local daemon. One agent claims a port and publishes events, while others subscribe for updates — usually on localhost:9876, but discoverable from the live daemon status when your machine differs.
+                Your agents coordinate through a shared local daemon. One agent claims a port and publishes events, while others subscribe for updates through the published local endpoint the daemon advertises when your machine differs.
               </motion.p>
 
               <div className="w-full max-w-2xl pt-6">

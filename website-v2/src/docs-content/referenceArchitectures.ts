@@ -603,7 +603,7 @@ export const referenceArchitecturesSection: DocsContentSection = {
           type: 'paragraph',
           title: 'What is shipped today versus where it should go',
           paragraphs: [
-            'The shipped system already has the crucial first slice: `/spawn` has preflight, launch, list, watch, and kill behavior. That is enough to make delegated work inspectable instead of purely terminal-local.',
+            'The shipped system already has the crucial first slice: `/spawn` has preflight, launch, list, watch, explicit cancellation, and evidence collection. That is enough to make delegated work inspectable instead of purely terminal-local.',
             'The next layer is not another launch command. It is better intake and better artifacts: screenshot attachments, DOM decomposition, issue creation, roadmap links, approval state, cost so far, and a final briefing that reads like a usable result rather than raw stdout.',
             'A good UI should teach the distinction between bounded spawned work, recurring fleet automation, and harbors as coordination scope. It should not ask the operator to pick a synonym for "launch this task."',
           ],
@@ -632,7 +632,7 @@ export const referenceArchitecturesSection: DocsContentSection = {
         },
         {
           path: 'routes/spawn.ts',
-          rationale: 'Spawn routes define low-level preflight, launch, list, and kill behavior plus validation and could-not-launch failures.',
+          rationale: 'Spawn routes define low-level preflight, launch, list, explicit cancellation, evidence collection, validation, and could-not-launch failures.',
         },
         {
           path: 'docs/adr/0013-unified-harbor-model.md',

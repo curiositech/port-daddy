@@ -146,12 +146,29 @@
 </div>
 
 <script>
-  const DAEMON = 'http://127.0.0.1:9876';
   const CHANNEL = 'ui:clicks';
   const KIND = 'tube.msg';
-  const url = `${DAEMON}/msg/${encodeURIComponent(CHANNEL)}`;
   const $ = (id) => document.getElementById(id);
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  function validDaemonEndpoint(candidate) {
+    if (!candidate) return null;
+    try {
+      const parsed = new URL(candidate);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+      return parsed.toString().replace(/\/+$/, '');
+    } catch {
+      return null;
+    }
+  }
+
+  const queryDaemon = new URLSearchParams(location.search).get('daemon');
+  const selectedDaemon = validDaemonEndpoint(queryDaemon || window.__PORT_DADDY_URL__);
+  const embedded = location.pathname.startsWith('/fleet-ui');
+  const daemonBase = selectedDaemon ?? (embedded ? '' : null);
+  const url = daemonBase === null
+    ? null
+    : `${daemonBase}/msg/${encodeURIComponent(CHANNEL)}`;
 
   const ACTIONS = {
     'deploy-staging': 'deploy staging',
@@ -174,6 +191,7 @@
   }
 
   async function publish(body, sender) {
+    if (!url) throw new Error('No daemon endpoint selected');
     const res = await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sender, payload: { v: 1, kind: KIND, body } }),
@@ -243,6 +261,11 @@
       }
     });
   });
+
+  if (!url) {
+    setStatus('No daemon selected — open this demo from Fleet Control Center or add <code>?daemon=&lt;published-url&gt;</code>.');
+    document.querySelectorAll('button').forEach(button => { button.disabled = true; });
+  }
 </script>
 </body>
 </html>

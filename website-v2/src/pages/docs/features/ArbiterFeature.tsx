@@ -185,13 +185,14 @@ export default function ArbiterFeature() {
 
         <DocsCodeBlock
           code={`# Check Arbiter status
-curl http://localhost:9876/arbiter/status
+PD_URL="\${PORT_DADDY_URL:-$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed 's#^#http://127.0.0.1:#')}"
+curl "$PD_URL/arbiter/status"
 
 # List recent violations
-curl 'http://localhost:9876/arbiter/violations?limit=20'
+curl "$PD_URL/arbiter/violations?limit=20"
 
 # Inject a test violation
-curl -X POST http://localhost:9876/arbiter/test-invariant/PID_SQUATTING`}
+curl -X POST "$PD_URL/arbiter/test-invariant/PID_SQUATTING"`}
           output={`{
   "active": true,
   "strictMode": false,

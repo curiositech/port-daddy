@@ -6390,7 +6390,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "categoryLabel": "Magic",
     "categoryDescription": "High-level composed tools: fleet setup, swarm awareness, situation reports, spawning, file heat maps, agent messaging",
     "exposure": "default",
-    "description": "[Magic] Live harness roster for this repo. Lists active agents by harness lane, worktree, task, touched files, and control affordances for stream, interrupt, takeover, and steering.",
+    "description": "[Magic] Live harness roster for this repo. Lists active agents by harness lane, worktree, task, touched files, immutable lineage, and control affordances for stream, Join, interrupt, and steering.",
     "required": [],
     "parameters": [
       {

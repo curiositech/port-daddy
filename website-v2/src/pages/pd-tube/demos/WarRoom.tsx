@@ -43,9 +43,9 @@ import { HowItsWired } from './HowItsWired'
  * Reuse: this composes the TubeWire primitive. `usePublish` drives the one real
  * seed POST; the channel poll reuses the same `?after=<cursor>` protocol that
  * `waitForReply` uses (here we keep every message rather than matching a single
- * reply, so we poll inline). `TUBE_KIND`, `TubeMessage`, `DEFAULT_DAEMON_URL`,
- * and `useReducedMotion` come straight from the primitive — no transport is
- * re-implemented. The lane/fork rendering follows the FanOutWall pattern from
+ * reply, so we poll inline). `TUBE_KIND`, `TubeMessage`, and `useReducedMotion`
+ * come straight from the primitive — no transport is re-implemented. The
+ * lane/fork rendering follows the FanOutWall pattern from
  * TubeMultiplexSection (one channel, several named listeners, honest "waiting"
  * states for lanes that never speak).
  *

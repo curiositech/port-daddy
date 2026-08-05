@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-06T04:53:27.904Z",
+  "generatedAt": "2026-08-05T08:35:02.083Z",
   "generator": "website-v2/scripts/generate-og-cards.mjs",
   "renderer": "website-v2/scripts/render-og-cards.py",
   "siteName": "Port Daddy",
@@ -1090,10 +1090,10 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
-      "image": "/img/og/docs-cli-spawn-kill.jpg",
-      "route": "/docs/cli/spawn-kill",
-      "title": "pd spawn kill <agent> - Port Daddy",
-      "description": "Reference for pd spawn kill <agent>, including Port Daddy syntax, what the command does, and when to use it.",
+      "image": "/img/og/docs-cli-spawn-cancel.jpg",
+      "route": "/docs/cli/spawn-cancel",
+      "title": "pd spawn cancel <agent> - Port Daddy",
+      "description": "Reference for pd spawn cancel <agent>, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
@@ -1389,8 +1389,8 @@
     {
       "image": "/img/og/docs-features-fleet.jpg",
       "route": "/docs/features/fleet",
-      "title": "Fleet YAML - Port Daddy",
-      "description": "Learn the Port Daddy fleet yaml feature, what problem it solves, and how to use it with agent work.",
+      "title": "Fleet & GitHub App - Port Daddy",
+      "description": "Learn the Port Daddy fleet & github app feature, what problem it solves, and how to use it with agent work.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
@@ -2587,7 +2587,7 @@
       "image": "/img/og/whitepaper-harbor-economy.jpg",
       "route": "/whitepaper/harbor-economy",
       "title": "The Harbor Economy - Port Daddy",
-      "description": "A guided read of the market chapter: the three-sided market and its one conserving ledger, the cross-harbor transfer ceremony and federation, and the honest reconciliations — the cohomology of double-spend, the lax functor of conservation, and the Myerson–Satterthwaite tax on any honest market.",
+      "description": "A guided read of the market chapter: the three-sided market and its one conserving ledger, additive trace composition within a unit of account, explicit cross-currency exposure accounting, conditionally restricted custody, and the precise bilateral assumptions under which Myerson–Satterthwaite applies.",
       "section": "whitepaper",
       "sectionLabel": "Whitepaper",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -2596,7 +2596,7 @@
       "image": "/img/og/whitepaper-legible-swarm.jpg",
       "route": "/whitepaper/legible-swarm",
       "title": "The Legible Swarm - Port Daddy",
-      "description": "A guided read of the volume’s flagship: legibility-with-zoom as the product a solo developer pays for today, the read-poverty bottleneck that decides the next order of magnitude, and an attention queue spined on Signal Detection Theory rather than raw throughput.",
+      "description": "A guided read of the series’ flagship: legibility-with-zoom as the product a solo developer pays for today, the read-poverty bottleneck that decides the next order of magnitude, and an attention queue using Signal Detection Theory as an explicit decision objective rather than a universal fitted detector.",
       "section": "whitepaper",
       "sectionLabel": "Whitepaper",
       "sourceImage": "/img/generated/control-plane-og.jpg"

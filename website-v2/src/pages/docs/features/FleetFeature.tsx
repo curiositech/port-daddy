@@ -61,7 +61,7 @@ pd fleet down    # Stop`}
             </p>
             <DocsCodeBlock
               language="bash"
-              code={`PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"
+              code={`PD_URL="\${PORT_DADDY_URL:-$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed 's#^#http://127.0.0.1:#')}"
 curl "$PD_URL/fleet"                # Status
 curl -XPOST "$PD_URL/fleet/reload"  # Reload configs
 curl "$PD_URL/fleet/events"         # SSE stream`}

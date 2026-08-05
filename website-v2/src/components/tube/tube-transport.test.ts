@@ -17,10 +17,18 @@ describe('resolveTubeBackend', () => {
     expect(isTubeSimulated(undefined, location)).toBe(true)
   })
 
-  it('goes live when given an explicit url (trailing slash trimmed)', () => {
-    expect(resolveTubeBackend('http://127.0.0.1:9876/')).toEqual({
+  it('goes live on same-origin embedded pages with relative requests', () => {
+    const location = { origin: 'http://127.0.0.1:4321', pathname: '/fleet-ui/dashboard', search: '' }
+    expect(resolveTubeBackend(undefined, location)).toEqual({
       mode: 'live',
-      baseUrl: 'http://127.0.0.1:9876',
+      baseUrl: '',
+    })
+  })
+
+  it('goes live when given an explicit url (trailing slash trimmed)', () => {
+    expect(resolveTubeBackend('http://127.0.0.1:9000/')).toEqual({
+      mode: 'live',
+      baseUrl: 'http://127.0.0.1:9000',
     })
   })
 
@@ -32,11 +40,11 @@ describe('resolveTubeBackend', () => {
     })
   })
 
-  it('goes live (same-origin) under the embedded /fleet-ui console', () => {
-    const location = { origin: 'http://127.0.0.1:4321', pathname: '/fleet-ui/dashboard', search: '' }
-    expect(resolveTubeBackend(undefined, location)).toEqual({
+  it('lets an explicit selected daemon override an embedded page origin', () => {
+    const location = { origin: 'http://127.0.0.1:4312', pathname: '/fleet-ui/', search: '' }
+    expect(resolveTubeBackend('http://127.0.0.1:9000', location)).toEqual({
       mode: 'live',
-      baseUrl: 'http://127.0.0.1:4321',
+      baseUrl: 'http://127.0.0.1:9000',
     })
   })
 
@@ -106,11 +114,11 @@ describe('live transport (explicit daemon url → fetch)', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: 42 }) })
     vi.stubGlobal('fetch', fetchMock)
 
-    const id = await pub('ui:clicks', 'web', 'hi', 'http://127.0.0.1:9876')
+    const id = await pub('ui:clicks', 'web', 'hi', 'http://127.0.0.1:9000')
     expect(id).toBe(42)
     expect(fetchMock).toHaveBeenCalledOnce()
     const [url, init] = fetchMock.mock.calls[0]
-    expect(url).toBe('http://127.0.0.1:9876/msg/ui%3Aclicks')
+    expect(url).toBe('http://127.0.0.1:9000/msg/ui%3Aclicks')
     expect(init.method).toBe('POST')
   })
 
@@ -120,8 +128,8 @@ describe('live transport (explicit daemon url → fetch)', () => {
       .mockResolvedValue({ ok: true, json: async () => ({ messages: [{ id: 5, payload: {} }] }) })
     vi.stubGlobal('fetch', fetchMock)
 
-    const msgs = await tubePoll('ui:clicks', 3, { daemonUrl: 'http://127.0.0.1:9876' })
+    const msgs = await tubePoll('ui:clicks', 3, { daemonUrl: 'http://127.0.0.1:9000' })
     expect(msgs).toHaveLength(1)
-    expect(fetchMock.mock.calls[0][0]).toBe('http://127.0.0.1:9876/msg/ui%3Aclicks?after=3')
+    expect(fetchMock.mock.calls[0][0]).toBe('http://127.0.0.1:9000/msg/ui%3Aclicks?after=3')
   })
 })
