@@ -19,7 +19,18 @@ interface StdioPeerSnapshot {
 }
 
 interface WaitForCliChildOptions {
-  timeoutMs: number;
+  /**
+   * Optional wall-clock deadline (ms) for the CLI invocation, measured from
+   * the moment this wait begins. When omitted (or not a finite number), NO
+   * termination timer and NO process-tree poller are scheduled — the child
+   * is only ever settled by its own `close`/`error` events, so it may run
+   * indefinitely while remaining externally observable (stdout/stderr,
+   * onStreamLine, tube publish). When set, SIGTERM is sent to the full
+   * process tree at the deadline, SIGKILL after `killGraceMs`, and the wait
+   * settles (`timedOut: true`) if the tree still hasn't closed within
+   * `killCloseDeadlineMs` of the SIGKILL.
+   */
+  deadlineMs?: number;
   killGraceMs: number;
   killCloseDeadlineMs: number;
 }
@@ -37,6 +48,7 @@ export function waitForCliChildProcess(
   opts: WaitForCliChildOptions,
 ): Promise<CliChildWaitResult> {
   return new Promise((resolve) => {
+    const hasDeadline = typeof opts.deadlineMs === 'number' && Number.isFinite(opts.deadlineMs);
     let settled = false;
     let timedOut = false;
     let knownTreePids: number[] = [];
@@ -45,7 +57,7 @@ export function waitForCliChildProcess(
     let processTreePollTimer: ReturnType<typeof setInterval> | null = null;
     let forceKillTimer: ReturnType<typeof setTimeout> | null = null;
     let killCloseDeadlineTimer: ReturnType<typeof setTimeout> | null = null;
-    const knownStdioProcTargets = collectChildStdioProcTargets(child);
+    const knownStdioProcTargets = hasDeadline ? collectChildStdioProcTargets(child) : new Set<string>();
     const knownStdioPeerIds = new Set<string>();
 
     const rememberProcessTreeWarning = (warning: string | null): void => {
@@ -83,15 +95,22 @@ export function waitForCliChildProcess(
       resolve({ code, timedOut, spawnErr });
     };
 
-    child.on('exit', () => {
-      rememberProcessTree(timedOut);
-    });
+    // No deadline: settle purely off the child's own lifecycle events. Skip
+    // all process-tree bookkeeping below — it exists only to feed the kill
+    // path, which never fires without a deadline.
+    if (hasDeadline) {
+      child.on('exit', () => {
+        rememberProcessTree(timedOut);
+      });
+    }
     child.on('close', (code) => {
       settle(typeof code === 'number' ? code : -1);
     });
     child.on('error', (err) => {
       settle(-1, err.message);
     });
+
+    if (!hasDeadline) return;
 
     rememberStdioIdentities();
     rememberProcessTree();
@@ -112,7 +131,7 @@ export function waitForCliChildProcess(
         killCloseDeadlineTimer.unref?.();
       }, opts.killGraceMs);
       forceKillTimer.unref?.();
-    }, opts.timeoutMs);
+    }, opts.deadlineMs);
     timer.unref?.();
   });
 }
