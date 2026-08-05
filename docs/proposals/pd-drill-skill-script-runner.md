@@ -51,9 +51,11 @@ Flags: `--json` (wrap output in the result envelope below), `--timeout <s>`
 
 ### Resolution
 
-1. Resolve `<skill>` across the skill roots in order: repo `skills/`,
-   `~/.claude/skills`, `~/.claude/plugins/*/skills`. First match wins;
-   ambiguity is an error listing the candidates.
+1. Discover `<skill>` candidates across repo `skills/`,
+   `~/.claude/skills`, and `~/.claude/plugins/*/skills`. Exactly one candidate
+   must match. Zero matches is not found; multiple matches fail closed with an
+   explicit disambiguation error listing every candidate. Root order never
+   silently selects one duplicate over another.
 2. Resolve `<script>`: if omitted and the skill declares exactly one runnable
    script, use it; else require the name. Scripts are declared in SKILL.md
    frontmatter (`runnable-scripts:`) or, absent that, discovered under
