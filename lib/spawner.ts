@@ -164,9 +164,15 @@ export interface SpawnSpec {
   // default spawn is unchanged (writes allowed, full-tier bond).
   capabilities?: string[];
   env?: Record<string, string>;
-  /** Explicit caller/operator wallclock deadline in milliseconds. An omitted
-   * value leaves cli-tube agents alive until exit or cancellation; API
-   * backends retain their compatibility deadline in backendAbortSignal(). */
+  /**
+   * Explicit caller/operator wallclock deadline in milliseconds. Meaning
+   * differs by backend class:
+   * - Subprocess/CLI backends (codex, aider, custom, cli:*, claude-cli) — hard
+   *   SIGTERM→SIGKILL deadline for the child process. Unset = no wall clock;
+   *   the child runs until it exits on its own (see runChild).
+   * - In-process API backends — abort-signal bound on the request; unset
+   *   falls back to DEFAULT_BACKEND_TIMEOUT_MS (see backendAbortSignal).
+   */
   timeout?: number;
   allowedTools?: string;  // for claude-cli backend: tool permission string
   maxTokens?: number;     // for claude/claude-cli backends
