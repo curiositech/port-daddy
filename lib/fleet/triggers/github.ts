@@ -22,6 +22,7 @@ import type {
   TriggerSource,
   TriggerSpec,
 } from '../types.js';
+import { getSecret } from '../../secret-env.js';
 
 interface GitHubWebhookPayload {
   action?: string;
@@ -46,8 +47,8 @@ export class GitHubTriggerSource implements TriggerSource {
   constructor(private readonly deps?: GitHubTriggerSourceDeps) {}
 
   async available(): Promise<TriggerAvailability> {
-    const hasToken = Boolean(process.env.PD_GITHUB_FORWARD_TOKEN);
-    const hasSecret = Boolean(process.env.PD_GITHUB_WEBHOOK_SECRET);
+    const hasToken = Boolean(getSecret('PD_GITHUB_FORWARD_TOKEN'));
+    const hasSecret = Boolean(getSecret('PD_GITHUB_WEBHOOK_SECRET'));
     const allowUnauth = process.env.PD_GITHUB_WEBHOOK_ALLOW_UNAUTH === '1';
     if (!hasToken && !hasSecret && !allowUnauth) {
       return {

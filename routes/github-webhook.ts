@@ -35,6 +35,7 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import { getSecret } from '../lib/secret-env.js';
 
 /**
  * Minimal shape the route needs from lib/github-repo-registry.ts. Kept local
@@ -105,8 +106,8 @@ interface AuthResult {
 }
 
 function authenticate(request: RawBodyRequest): AuthResult {
-  const forwardToken = process.env.PD_GITHUB_FORWARD_TOKEN?.trim();
-  const webhookSecret = process.env.PD_GITHUB_WEBHOOK_SECRET?.trim();
+  const forwardToken = getSecret('PD_GITHUB_FORWARD_TOKEN')?.trim();
+  const webhookSecret = getSecret('PD_GITHUB_WEBHOOK_SECRET')?.trim();
   const allowUnauth = process.env.PD_GITHUB_WEBHOOK_ALLOW_UNAUTH === '1';
 
   // HMAC signature (direct GitHub webhook path) — strongest, proves origin.
@@ -162,7 +163,7 @@ type OriginResult =
  * forwarder's token can never substitute for it.
  */
 function verifyForwardedOrigin(request: FastifyRequest): OriginResult {
-  const webhookSecret = process.env.PD_GITHUB_WEBHOOK_SECRET?.trim();
+  const webhookSecret = getSecret('PD_GITHUB_WEBHOOK_SECRET')?.trim();
   if (!webhookSecret) {
     return { verified: false, reason: 'PD_GITHUB_WEBHOOK_SECRET not set; cannot re-verify GitHub origin' };
   }

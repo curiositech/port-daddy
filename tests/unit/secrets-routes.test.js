@@ -74,6 +74,18 @@ describe('secrets routes', () => {
     await app.close();
   });
 
+  test('GitHub webhook transport and origin keys are managed credentials', async () => {
+    const app = await buildApp();
+
+    const res = await app.inject({ method: 'GET', url: '/secrets' });
+    const keys = res.json().secrets.map((secret) => secret.key);
+
+    expect(keys).toContain('PD_GITHUB_FORWARD_TOKEN');
+    expect(keys).toContain('PD_GITHUB_WEBHOOK_SECRET');
+
+    await app.close();
+  });
+
   test('POST /secrets then GET shows set:true', async () => {
     const app = await buildApp();
 
