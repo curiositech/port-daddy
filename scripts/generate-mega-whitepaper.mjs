@@ -158,6 +158,31 @@ function rewriteCitations(body, citationMap, source) {
   });
 }
 
+function collateReferences(prepared) {
+  const canonicalByFingerprint = new Map();
+  const canonicalReferences = [];
+
+  for (const paper of prepared) {
+    paper.citationMap = new Map();
+    for (const ref of paper.references) {
+      const fingerprint = referenceFingerprint(ref.body);
+      let canonical = canonicalByFingerprint.get(fingerprint);
+      if (!canonical) {
+        canonical = { ...ref, key: `mega${String(canonicalReferences.length + 1).padStart(3, '0')}` };
+        canonicalByFingerprint.set(fingerprint, canonical);
+        canonicalReferences.push(canonical);
+      }
+      const existing = paper.citationMap.get(ref.key);
+      if (existing && existing !== canonical.key) {
+        throw new Error(`${paper.source}: bibliography key ${ref.key} maps to two references`);
+      }
+      paper.citationMap.set(ref.key, canonical.key);
+    }
+  }
+
+  return canonicalReferences;
+}
+
 function generate() {
 const prepared = papers.map((paper) => {
   const sourcePath = resolve(repoRoot, paper.source);
@@ -167,26 +192,7 @@ const prepared = papers.map((paper) => {
   return { ...paper, body: split.body, references: split.entries };
 });
 
-const canonicalByFingerprint = new Map();
-const canonicalReferences = [];
-
-for (const paper of prepared) {
-  paper.citationMap = new Map();
-  for (const ref of paper.references) {
-    const fingerprint = referenceFingerprint(ref.body);
-    let canonical = canonicalByFingerprint.get(fingerprint);
-    if (!canonical) {
-      canonical = { ...ref, key: `mega${String(canonicalReferences.length + 1).padStart(3, '0')}` };
-      canonicalByFingerprint.set(fingerprint, canonical);
-      canonicalReferences.push(canonical);
-    }
-    const existing = paper.citationMap.get(ref.key);
-    if (existing && existing !== canonical.key) {
-      throw new Error(`${paper.source}: bibliography key ${ref.key} maps to two references`);
-    }
-    paper.citationMap.set(ref.key, canonical.key);
-  }
-}
+const canonicalReferences = collateReferences(prepared);
 
 const generatedBodies = prepared.map((paper) => {
   let body = cleanStandaloneChrome(paper.body);
@@ -228,6 +234,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 
 export {
   cleanStandaloneChrome,
+  collateReferences,
   compareNormalizedReferences,
   inlineInputs,
   namespaceLabels,
