@@ -127,12 +127,16 @@ describe('getDisplayUrl()', () => {
   });
 
   test('returns a non-empty string', () => {
+    // Publish a port so getDisplayUrl() -> resolveTarget() is deterministic
+    // regardless of whether a real daemon socket exists on this machine.
+    process.env.PORT_DADDY_PORT = '19876';
     const url = getDisplayUrl();
     expect(typeof url).toBe('string');
     expect(url.length).toBeGreaterThan(0);
   });
 
   test('starts with unix: or http://', () => {
+    process.env.PORT_DADDY_PORT = '19876';
     const url = getDisplayUrl();
     expect(url.startsWith('unix:') || url.startsWith('http://')).toBe(true);
   });
