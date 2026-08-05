@@ -72,11 +72,12 @@ describe('resolveDaemonBerthIdentity (ADR-0084)', () => {
 });
 
 describe('resolveBerthTargetUrl (pd use / pd --daemon)', () => {
-  test('stable/rc → canonical :9876 lane', () => {
-    expect(resolveBerthTargetUrl('stable')).toEqual({
-      url: `http://127.0.0.1:${DEFAULT_DAEMON_PORT}`, tier: 'stable', label: 'stable',
+  test('stable/rc → the stable daemon endpoint discovered by the caller', () => {
+    const publishedStableUrl = 'http://127.0.0.1:31991';
+    expect(resolveBerthTargetUrl('stable', [], '127.0.0.1', publishedStableUrl)).toEqual({
+      url: publishedStableUrl, tier: 'stable', label: 'stable',
     });
-    expect(resolveBerthTargetUrl('rc').tier).toBe('stable');
+    expect(resolveBerthTargetUrl('rc', [], '127.0.0.1', publishedStableUrl).tier).toBe('stable');
   });
 
   test('dev/dev-latest/latest → fixed :9886 lane', () => {

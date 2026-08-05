@@ -1,17 +1,17 @@
 /**
  * Port Daddy — Daemon Berths (ADR-0084)
  *
- * A *berth* is a single, addressable daemon instance pinned to a tier, a fixed
- * or claimed port, and a brand colour. The model replaces the old "one daemon,
+ * A *berth* is a single, addressable daemon instance pinned to a tier, a
+ * published or claimed port, and a brand colour. The model replaces the old "one daemon,
  * constantly swapped between stable and dev" dance (see
  * `docs/operations/daemon-and-supervision.md` "Consolidation TODO") with three
  * named, side-by-side berths:
  *
  *   - **stable**      (RC, brew release)      → canonical lane, amber
- *   - **dev-latest**  (origin/main HEAD)      → :9886 fixed lane, blue
+ *   - **dev-latest**  (origin/main HEAD)      → prefers :9886, blue
  *   - **codebase**    (your worktree/branch)  → a `port-daddy claim`-ed port, purple
  *
- * This module is the SINGLE source of truth for berth tiers, fixed lanes,
+ * This module is the SINGLE source of truth for berth tiers, preferred seeds,
  * colours, and the env-var names a daemon reads at boot to self-identify. Both
  * the daemon (self-identity in `GET /health`) and the CLI (`pd dev`, `pd use`,
  * `pd --daemon`) import it. Do NOT hardcode `9886`, tier strings, or colours
@@ -20,16 +20,16 @@
 
 import { chmodSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { DEFAULT_DAEMON_PORT } from './daemon-discovery.js';
+import { resolveCanonicalDaemonUrl } from './daemon-discovery.js';
 import { PD_HOME } from './paths.js';
 
 /** The three berth tiers. `stable` is the canonical default. */
 export type BerthTier = 'stable' | 'dev-latest' | 'codebase';
 
 /**
- * Fixed TCP lane for `dev-latest` (origin/main HEAD). `stable` lives on
- * {@link DEFAULT_DAEMON_PORT}; `codebase` berths get a port from
- * `port-daddy claim` and have no fixed lane.
+ * Preferred TCP lane for `dev-latest` (origin/main HEAD). `stable` publishes
+ * the port it actually bound; `codebase` berths get a seed from `port-daddy
+ * claim` and publish a different endpoint if that seed is occupied.
  */
 export const DEV_LATEST_PORT = 9886;
 
@@ -145,7 +145,7 @@ export function resolveDaemonBerthIdentity(opts: {
  * Resolve a `pd use <target>` / `pd --daemon <target>` token to a daemon URL.
  *
  * Resolution:
- *   - `stable` / `rc`        → http://127.0.0.1:<DEFAULT_DAEMON_PORT>
+ *   - `stable` / `rc`        → the stable daemon's published endpoint
  *   - `dev` / `dev-latest`   → http://127.0.0.1:<DEV_LATEST_PORT>
  *   - a full `http(s)://…`   → returned verbatim
  *   - a bare port number     → http://127.0.0.1:<port>
@@ -159,6 +159,7 @@ export function resolveBerthTargetUrl(
   target: string,
   registry: DevDaemonRecord[] = [],
   host = '127.0.0.1',
+  stableUrl = resolveCanonicalDaemonUrl(undefined, host),
 ): { url: string; tier: BerthTier; label: string } | null {
   const t = target.trim();
   if (!t) return null;
@@ -168,7 +169,7 @@ export function resolveBerthTargetUrl(
   }
   const lower = t.toLowerCase();
   if (lower === 'stable' || lower === 'rc') {
-    return { url: `http://${host}:${DEFAULT_DAEMON_PORT}`, tier: 'stable', label: 'stable' };
+    return { url: stableUrl, tier: 'stable', label: 'stable' };
   }
   if (lower === 'dev' || lower === 'dev-latest' || lower === 'latest') {
     return { url: `http://${host}:${DEV_LATEST_PORT}`, tier: 'dev-latest', label: 'dev-latest' };
@@ -187,7 +188,7 @@ export function resolveBerthTargetUrl(
 /**
  * A recorded running dev berth, persisted to
  * `~/.port-daddy/dev-daemons.json`. The stable (brew) berth is NEVER recorded
- * here — it is discovered by probing {@link DEFAULT_DAEMON_PORT}.
+ * here — it is discovered through the stable daemon's published port file.
  */
 export interface DevDaemonRecord {
   label: string;
@@ -334,8 +335,8 @@ export function pruneDaemonBerthRegistry(registryFile: string = BERTH_REGISTRY_F
  * Register this daemon's own berth in the registry — called from server.ts's
  * own boot sequence once it has actually bound its port, so registration
  * covers every daemon regardless of how it was launched. A no-op for the
- * `stable` tier: the stable (brew) berth is discovered by probing
- * {@link DEFAULT_DAEMON_PORT} directly and is deliberately never recorded
+ * `stable` tier: the stable (brew) berth is discovered through its atomically
+ * published port file and is deliberately never recorded
  * here (see {@link DevDaemonRecord}'s docstring) — registering it too would
  * just be redundant clutter for FleetBar's berth list, not a bug fix.
  *

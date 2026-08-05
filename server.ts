@@ -130,9 +130,9 @@ import {
   createAuthorizedDbIntegrityHelperProof,
   createDbIntegrityProofOutOfProcess,
 } from './lib/db-integrity.js';
-import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
 import { createDaemonCorsOptions } from './lib/daemon-cors.js';
+import { listenWithDynamicTcpFallback, publishDaemonPort } from './lib/dynamic-tcp-listener.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -1807,80 +1807,34 @@ sockServer.listen(SOCK_PATH, async () => {
 
   // Secondary: TCP for dashboard/browser access
   if (!DISABLE_TCP) {
-    const MAX_PORT_ATTEMPTS: number = 11;
-    const ALLOW_TCP_FALLBACK = process.env.PD_ALLOW_TCP_FALLBACK === '1';
-    function tryListenTcp(attempt: number = 0): void {
-      const tryPort: number = PORT + attempt;
-      if (attempt >= MAX_PORT_ATTEMPTS) {
-        logger.error('tcp_bind_failed', { message: `Could not bind TCP on ports ${PORT}-${PORT + MAX_PORT_ATTEMPTS - 1}` });
-        onReady();
-        if (!isSilent) {
-          console.log(`Port Daddy v${VERSION} listening on ${SOCK_PATH} (TCP unavailable: ports ${PORT}-${PORT + MAX_PORT_ATTEMPTS - 1} all in use)`);
-        }
-        return;
+    try {
+      const binding = await listenWithDynamicTcpFallback(
+        () => http.createServer((req, res) => { app.routing(req, res); }),
+        PORT,
+        tcpHost,
+      );
+      const actualPort = binding.port;
+      try {
+        publishDaemonPort(PORT_FILE, actualPort);
+      } catch (error) {
+        binding.server.close();
+        throw error;
       }
-      const tcpServer = http.createServer((req, res) => { app.routing(req, res); });
-      tcpServer.on('error', (err: NodeJS.ErrnoException) => {
-        if (err.code === 'EADDRINUSE') {
-          // On the canonical port specifically, probe the existing owner
-          // before falling back. Two Port Daddy daemons on different TCP
-          // ports but the same SQLite DB silently corrupt each other; refuse
-          // to start instead. PD_ALLOW_TCP_FALLBACK=1 restores legacy walk.
-          if (attempt === 0) {
-            void probePortOwner(tcpHost, tryPort).then((probe) => {
-              const decision = decideTakeover({ probe, selfPid: process.pid, allowFallback: ALLOW_TCP_FALLBACK });
-              if (decision.action === 'refuse') {
-                logger.error('tcp_bind_blocked_by_sibling', {
-                  port: tryPort,
-                  reason: decision.reason,
-                  foreignPid: decision.foreignPid,
-                  probeKind: probe.kind,
-                  probeVersion: probe.version,
-                  probeUptimeSeconds: probe.uptimeSeconds,
-                });
-                if (!isSilent) {
-                  console.error(`Port Daddy v${VERSION} refusing to start: ${decision.reason}`);
-                  console.error(`  Existing daemon pid: ${decision.foreignPid ?? '(unknown)'}`);
-                  console.error('  Resolve the port owner, or set PD_ALLOW_TCP_FALLBACK=1 only for an explicitly isolated non-canonical runtime.');
-                }
-                process.exit(1);
-              }
-              logger.warn('tcp_port_busy', { port: tryPort, nextAttempt: tryPort + 1, reason: decision.reason });
-              tryListenTcp(attempt + 1);
-            }).catch((probeErr: Error) => {
-              // Preserve the same explicit-only fallback policy even when the
-              // probe itself throws. decideTakeover refuses by default and
-              // walks only when PD_ALLOW_TCP_FALLBACK=1 was deliberately set.
-              logger.warn('tcp_port_busy', { port: tryPort, nextAttempt: tryPort + 1, probeError: probeErr.message });
-              tryListenTcp(attempt + 1);
-            });
-            return;
-          }
-          logger.warn('tcp_port_busy', { port: tryPort, nextAttempt: tryPort + 1 });
-          tryListenTcp(attempt + 1);
-        } else {
-          logger.error('tcp_listen_error', { port: tryPort, error: err.message });
-          onReady();
-          if (!isSilent) {
-            console.log(`Port Daddy v${VERSION} listening on ${SOCK_PATH} (TCP error: ${err.message})`);
-          }
-        }
-      });
-      tcpServer.on('listening', () => {
-        try { writeFileSync(PORT_FILE, String(tryPort), { mode: 0o644 }); } catch {}
+      // Internal clients inherit process.env. Once binding has completed, the
+      // explicit port means the selected endpoint, not the superseded seed.
+      process.env.PORT_DADDY_PORT = String(actualPort);
+      if (binding.usedFallback) {
+        logger.warn('tcp_preferred_port_busy', { preferredPort: PORT, selectedPort: actualPort });
+      }
         // The health route holds this object by reference. Keep its advertised
-        // identity equal to the listener and port file even when an operator
-        // explicitly opts an isolated runtime into fallback-port walking.
-        DAEMON_BERTH.port = tryPort;
-        logger.info('tcp_started', { port: tryPort, host: tcpHost, version: VERSION });
+        // identity equal to the listener and atomically published endpoint.
+        DAEMON_BERTH.port = actualPort;
+        logger.info('tcp_started', { port: actualPort, preferredPort: PORT, host: tcpHost, version: VERSION });
         // Self-register this berth (ADR-0084) so FleetBar's berth picker can
         // see it regardless of how this daemon was launched — registration
         // no longer depends on going through `pd dev up`. A no-op for the
-        // stable tier (see registerDaemonBerth's own doc comment). tryPort is
-        // the port actually bound, which can differ from DAEMON_BERTH.port
-        // if the originally-requested port was busy and the retry loop above
-        // moved on — register the real one.
-        registerDaemonBerth({ ...DAEMON_BERTH, port: tryPort }, process.pid, {
+        // stable tier (see registerDaemonBerth's own doc comment).
+        registerDaemonBerth({ ...DAEMON_BERTH, port: actualPort }, process.pid, {
           onError: (err) => logger.warn('daemon_berth_registration_failed', { error: err.message }),
         });
         // Surface binary drift on the boot path so an operator running
@@ -1905,12 +1859,12 @@ sockServer.listen(SOCK_PATH, async () => {
         }
         onReady();
         if (!isSilent) {
-          const portNote: string = tryPort !== PORT ? ` (fallback from ${PORT})` : '';
+          const portNote: string = binding.usedFallback ? ` (preferred ${PORT} was occupied)` : '';
           console.log(`
   Port Daddy v${VERSION}   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   HTTP:       ${SOCK_PATH}
   IPC:        ${ipcServer ? IPC_PATH : 'disabled'}
-  Dashboard:  http://${tcpHost}:${tryPort}/${portNote}
+  Dashboard:  http://${tcpHost}:${actualPort}${portNote}
   Database:   ${DB_PATH}
   Port range: ${config.ports.range_start}-${config.ports.range_end}
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1918,10 +1872,13 @@ sockServer.listen(SOCK_PATH, async () => {
   Ready to assign ports!
           `);
         }
-      });
-      tcpServer.listen(tryPort, tcpHost);
+    } catch (err) {
+      logger.error('tcp_listen_error', { preferredPort: PORT, error: (err as Error).message });
+      onReady();
+      if (!isSilent) {
+        console.log(`Port Daddy v${VERSION} listening on ${SOCK_PATH} (TCP error: ${(err as Error).message})`);
+      }
     }
-    tryListenTcp();
   } else {
     onReady();
     if (!isSilent) {

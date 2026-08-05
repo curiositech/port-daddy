@@ -172,7 +172,7 @@ import { handleSelfUpdate } from '../cli/commands/self-update.js';
 import { handleUpgrade } from '../cli/commands/upgrade.js';
 import { resolveBerthTargetUrl } from '../shared/daemon-berths.js';
 import { readDevDaemonRegistry } from '../cli/utils/berth-registry.js';
-import { resolveDaemonUrl, resolveDaemonPort, resolveDaemonTcpTarget, DEFAULT_DAEMON_PORT } from '../shared/daemon-discovery.js';
+import { resolveDaemonUrl, resolveDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
 import {
@@ -2309,8 +2309,10 @@ export function applyDaemonTarget(targetArg: string, command: string): void {
   }
   process.env.PORT_DADDY_URL = resolved.url;
   delete process.env.PORT_DADDY_SOCK;
-  if (!resolved.url.includes(`:${DEFAULT_DAEMON_PORT}`)) {
+  if (resolved.tier !== 'stable') {
     process.env.PD_ACTIVE_DAEMON = resolved.label;
+  } else {
+    delete process.env.PD_ACTIVE_DAEMON;
   }
 }
 

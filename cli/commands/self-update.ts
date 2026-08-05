@@ -26,15 +26,13 @@ import { spawnSync } from 'node:child_process';
 import { appendFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { DEFAULT_DAEMON_PORT } from '../../shared/daemon-discovery.js';
+import { resolveCanonicalDaemonUrl } from '../../shared/daemon-discovery.js';
 import { compareSemver } from '../../lib/latest-manifest.js';
 
 const FORMULA = 'port-daddy';
 const FLEETBAR_APP = join(homedir(), 'Applications', 'Port Daddy', 'FleetBar.app');
-// Freshness always targets the canonical stable daemon on the default port — not
-// a per-shell berth override — since it manages the brew-supervised install. The
-// port literal lives ONLY in shared/daemon-discovery.ts (DEFAULT_DAEMON_PORT).
-const DAEMON_HEALTH = `http://127.0.0.1:${DEFAULT_DAEMON_PORT}/health`;
+// Freshness ignores per-shell berth overrides, but follows the endpoint the
+// Homebrew-supervised stable daemon atomically published.
 
 /**
  * PURE decision: given `brew outdated <formula>`'s stdout, is an upgrade available?
@@ -156,13 +154,13 @@ function notify(title: string, message: string): void {
 /** True when the daemon answers /health. */
 function daemonUp(): boolean {
   // curl is always present on macOS; -m caps the probe.
-  return sh('curl', ['-s', '-m', '3', '-o', '/dev/null', '-w', '%{http_code}', DAEMON_HEALTH], 8_000)
+  return sh('curl', ['-s', '-m', '3', '-o', '/dev/null', '-w', '%{http_code}', `${resolveCanonicalDaemonUrl()}/health`], 8_000)
     .stdout.trim() === '200';
 }
 
 /** The running daemon's reported version via /status, or null if unreachable. */
 function runningDaemonVersion(): string | null {
-  const r = sh('curl', ['-s', '-m', '3', `http://127.0.0.1:${DEFAULT_DAEMON_PORT}/status`], 8_000);
+  const r = sh('curl', ['-s', '-m', '3', `${resolveCanonicalDaemonUrl()}/status`], 8_000);
   return r.code === 0 ? parseDaemonVersion(r.stdout) : null;
 }
 

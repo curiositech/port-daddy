@@ -15,6 +15,33 @@ export const DEFAULT_DAEMON_PORT = 9876;
 
 export const LOOPBACK_TCP_HOST = process.env.PORT_DADDY_TCP_HOST?.trim() || '127.0.0.1';
 
+function parsePort(raw: string | undefined): number | null {
+  if (!raw) return null;
+  const parsed = Number.parseInt(raw.trim(), 10);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 65_535 ? parsed : null;
+}
+
+/** Read only the endpoint witness a daemon published; never consult overrides. */
+export function readPublishedDaemonPort(portFile = DEFAULT_PORT_FILE): number | null {
+  try {
+    return parsePort(readFileSync(portFile, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+/** Resolve the Homebrew-supervised stable daemon independently of a named profile. */
+export function resolveCanonicalDaemonPort(portFile = DEFAULT_PORT_FILE): number {
+  return readPublishedDaemonPort(portFile) ?? DEFAULT_DAEMON_PORT;
+}
+
+export function resolveCanonicalDaemonUrl(
+  portFile = DEFAULT_PORT_FILE,
+  host = LOOPBACK_TCP_HOST,
+): string {
+  return `http://${host}:${resolveCanonicalDaemonPort(portFile)}`;
+}
+
 /**
  * Resolve the daemon's TCP port.
  *
@@ -31,23 +58,7 @@ export const LOOPBACK_TCP_HOST = process.env.PORT_DADDY_TCP_HOST?.trim() || '127
  * @returns The explicit, published, or preferred daemon TCP port.
  */
 export function resolveDaemonPort(portFile = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE): number {
-  const envPort = process.env.PORT_DADDY_PORT?.trim();
-  if (envPort) {
-    const parsed = Number.parseInt(envPort, 10);
-    if (Number.isInteger(parsed) && parsed >= 1024 && parsed <= 65535) {
-      return parsed;
-    }
-  }
-  try {
-    const raw = readFileSync(portFile, 'utf-8').trim();
-    const parsed = Number.parseInt(raw, 10);
-    if (Number.isInteger(parsed) && parsed >= 1024 && parsed <= 65535) {
-      return parsed;
-    }
-  } catch {
-    // Fall through to the canonical preferred port.
-  }
-  return DEFAULT_DAEMON_PORT;
+  return parsePort(process.env.PORT_DADDY_PORT) ?? readPublishedDaemonPort(portFile) ?? DEFAULT_DAEMON_PORT;
 }
 
 /**

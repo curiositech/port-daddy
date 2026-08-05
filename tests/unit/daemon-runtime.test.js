@@ -57,7 +57,7 @@ describe('runtime identity convergence', () => {
     expect(result.summary).toContain('/health pid=4242');
   });
 
-  test('rejects a fallback port that disagrees with the canonical contract', () => {
+  test('rejects any endpoint that disagrees with the published runtime witness', () => {
     const result = assessRuntimeIdentity(facts({
       endpointPort: 9877,
       healthPort: 9876,
@@ -68,6 +68,17 @@ describe('runtime identity convergence', () => {
       expect.stringContaining('endpoint used port 9877'),
       expect.stringContaining('daemon.port contains 9877'),
     ]));
+  });
+
+  test('accepts a canonical daemon on a dynamically selected port when every witness agrees', () => {
+    const result = assessRuntimeIdentity(facts({
+      expectedPort: 31_902,
+      endpointPort: 31_902,
+      healthPort: 31_902,
+      portFilePort: 31_902,
+    }));
+    expect(result.state).toBe('converged');
+    expect(result.summary).toContain(':31902');
   });
 
   test('rejects a stale daemon heartbeat even when every PID still matches', () => {
@@ -85,7 +96,7 @@ describe('runtime identity convergence', () => {
 });
 
 describe('runtime identity scope', () => {
-  test('keeps production strict when the selected endpoint points at another port', () => {
+  test('keeps production supervisor/files while accepting its published endpoint', () => {
     expect(resolveRuntimeIdentityScope({
       plane: 'prod',
       daemon: { port: 19890, canonical: true },
@@ -94,7 +105,7 @@ describe('runtime identity scope', () => {
       runtimePrefix: '/work/isolated',
       canonicalSupervisor: supervisor,
     })).toEqual({
-      expectedPort: 9876,
+      expectedPort: 19890,
       pidFile: expect.stringMatching(/\.port-daddy\/daemon\.pid$/),
       portFile: expect.stringMatching(/\.port-daddy\/daemon\.port$/),
       heartbeatFile: expect.stringMatching(/\.port-daddy\/heartbeat$/),

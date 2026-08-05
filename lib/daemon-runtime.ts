@@ -11,7 +11,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { DEFAULT_DAEMON_PORT, LOOPBACK_TCP_HOST } from '../shared/daemon-discovery.js';
+import { DEFAULT_DAEMON_PORT, LOOPBACK_TCP_HOST, resolveCanonicalDaemonPort } from '../shared/daemon-discovery.js';
 import { DEFAULT_PID_FILE, DEFAULT_PORT_FILE, PD_HOME } from '../shared/paths.js';
 import { DAEMON_HEARTBEAT_SCHEMA, DEFAULT_DAEMON_HEARTBEAT_STALE_AFTER_MS } from './daemon-heartbeat.js';
 
@@ -231,12 +231,10 @@ function readHeartbeat(path: string): { pid: number; writtenAt: number } | null 
 /**
  * Resolve every authority used to assess one daemon generation.
  *
- * The production plane is intentionally strict: even when a caller points at
- * another endpoint, its expected port and supervisor remain the canonical
- * ones. Named and ephemeral berths instead own a private runtime directory and
- * have no relationship to the production launchd job. Selecting only their
- * endpoint while retaining production files creates a guaranteed false split
- * brain, so the port, files, and supervisor move as one scope.
+ * The production plane is strict about the supervisor and runtime files, not a
+ * magic port number. Its expected port is the endpoint selected from the
+ * atomically published stable port file. Named and ephemeral berths instead
+ * own a private runtime directory and have no relationship to launchd.
  */
 export function resolveRuntimeIdentityScope(
   health: RuntimeHealthSnapshot | null,
@@ -253,7 +251,7 @@ export function resolveRuntimeIdentityScope(
   const runtimePrefix = opts.runtimePrefix?.trim() || null;
   const runtimeDir = nonCanonical && runtimePrefix ? runtimePrefix : PD_HOME;
   return {
-    expectedPort: nonCanonical ? opts.endpointPort : DEFAULT_DAEMON_PORT,
+    expectedPort: opts.endpointPort,
     pidFile: join(runtimeDir, 'daemon.pid'),
     portFile: join(runtimeDir, 'daemon.port'),
     heartbeatFile: join(runtimeDir, 'heartbeat'),
@@ -346,16 +344,18 @@ export function collectRuntimeIdentity(
 ): RuntimeIdentityAssessment {
   const now = opts.now ?? Date.now();
   const heartbeat = readHeartbeat(opts.heartbeatFile ?? join(PD_HOME, 'heartbeat'));
+  const portFile = opts.portFile ?? DEFAULT_PORT_FILE;
+  const portFilePort = readNumber(portFile);
   const facts: RuntimeIdentityFacts = {
     checkedAt: now,
-    expectedPort: opts.expectedPort ?? DEFAULT_DAEMON_PORT,
+    expectedPort: opts.expectedPort ?? portFilePort ?? DEFAULT_DAEMON_PORT,
     endpointPort: opts.endpointPort ?? null,
     healthPid: Number.isInteger(health?.pid) ? health!.pid! : null,
     healthPort: Number.isInteger(health?.daemon?.port) ? health!.daemon!.port! : null,
     healthStatus: typeof health?.status === 'string' ? health.status : null,
     binaryDrifted: typeof health?.binaryDrift?.drifted === 'boolean' ? health.binaryDrift.drifted : null,
     pidFilePid: readNumber(opts.pidFile ?? DEFAULT_PID_FILE),
-    portFilePort: readNumber(opts.portFile ?? DEFAULT_PORT_FILE),
+    portFilePort,
     heartbeatPid: heartbeat?.pid ?? null,
     heartbeatWrittenAt: heartbeat?.writtenAt ?? null,
     heartbeatFresh: heartbeat
@@ -366,9 +366,9 @@ export function collectRuntimeIdentity(
   return assessRuntimeIdentity(facts);
 }
 
-/** Probe the canonical TCP endpoint directly, never through a stale port file. */
+/** Probe the canonical TCP endpoint published by the supervised daemon. */
 export function probeCanonicalHealth(
-  port = DEFAULT_DAEMON_PORT,
+  port = resolveCanonicalDaemonPort(),
   timeoutMs = 1_500,
 ): Promise<RuntimeHealthSnapshot | null> {
   return new Promise((resolve) => {
@@ -414,10 +414,10 @@ export async function waitForCanonicalRuntime(opts: {
   const stableSamples = Math.max(1, opts.stableSamples ?? 2);
   const probe = opts.probeHealth ?? (() => probeCanonicalHealth());
   const inspect = opts.inspectSupervisor ?? (() => inspectCanonicalLaunchdSupervisor());
-  const collect = opts.collect ?? ((health, supervisor) => collectRuntimeIdentity(health, {
-    endpointPort: DEFAULT_DAEMON_PORT,
-    supervisor,
-  }));
+  const collect = opts.collect ?? ((health, supervisor) => {
+    const endpointPort = resolveCanonicalDaemonPort();
+    return collectRuntimeIdentity(health, { endpointPort, expectedPort: endpointPort, supervisor });
+  });
   const startedAt = Date.now();
   let consecutive = 0;
   let lastProgressAt = -5_000;

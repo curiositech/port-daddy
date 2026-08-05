@@ -14,7 +14,11 @@ import { pdFetch, PORT_DADDY_URL, getDaemonUrl } from '../utils/fetch.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import { printBanner, printCompactHeader, printFarewell, WHEEL, ANCHOR, ANSI } from '../../lib/banner.js';
 import { autoFixStartupBlockers, diagnoseStartupBlockers } from '../utils/startup-doctor.js';
-import { DEFAULT_DAEMON_PORT, LOOPBACK_TCP_HOST, resolveDaemonPort } from '../../shared/daemon-discovery.js';
+import {
+  LOOPBACK_TCP_HOST,
+  resolveCanonicalDaemonPort,
+  resolveDaemonPort,
+} from '../../shared/daemon-discovery.js';
 import { resolveDaemonLaunchCommand, isBunCompiledRuntime, jscSafeModeEnv, type DaemonLaunchCommand } from '../../shared/daemon-binary.js';
 import { calculateRuntimeCodeHash, listRuntimeSourceFiles } from '../../shared/code-hash.js';
 import {
@@ -314,8 +318,10 @@ async function handleCanonicalSupervisedAction(
   supervisor: LaunchdSupervisorSnapshot,
 ): Promise<boolean> {
   const health = await probeCanonicalHealth();
+  const canonicalPort = resolveCanonicalDaemonPort();
   const current = collectRuntimeIdentity(health, {
-    endpointPort: health ? DEFAULT_DAEMON_PORT : null,
+    endpointPort: health ? canonicalPort : null,
+    expectedPort: canonicalPort,
     supervisor,
   });
   const healthPid = current.facts.healthPid;
@@ -366,7 +372,7 @@ async function handleCanonicalSupervisedAction(
   }
 
   // A split brain cannot be repaired by kickstart alone: launchd would replace
-  // only its own child while the detached listener kept the canonical port.
+  // only its own child while the detached listener kept the published endpoint.
   // Stand down the supervisor, terminate the verified sibling, then bootstrap
   // exactly one generation.
   let launchResult;
@@ -422,7 +428,7 @@ async function handleCanonicalSupervisedAction(
   }
   ui.success(`Daemon ready under launchd (PID ${ready.facts.healthPid})`);
   printRuntimeIdentity(ready);
-  console.log(`  ${ANSI.fgGray}Dashboard:${ANSI.reset} http://${LOOPBACK_TCP_HOST}:${DEFAULT_DAEMON_PORT}`);
+  console.log(`  ${ANSI.fgGray}Dashboard:${ANSI.reset} http://${LOOPBACK_TCP_HOST}:${ready.facts.expectedPort}`);
   return true;
 }
 

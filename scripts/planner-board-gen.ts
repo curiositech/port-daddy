@@ -6,7 +6,7 @@
  * writes a self-contained live HTML board (lib/planner-board). It MUTATES NOTHING — this is the
  * dry-run preview the operator reviews before `pd roadmap migrate-planner --apply` writes edges.
  *
- *   PD_BASE  daemon base url (default 127.0.0.1 at DEFAULT_DAEMON_PORT)
+ *   PD_BASE  daemon base URL (default: selected daemon discovery)
  *   OUT      output html path (default ./planner-board.html)
  *
  * Run: node_modules/.bin/tsx scripts/planner-board-gen.ts
@@ -18,9 +18,9 @@ import { schedule } from '../lib/planner-schedule.js';
 import { renderBoard, type AdrMeta } from '../lib/planner-board.js';
 import { parseAdrIdentity } from '../lib/adr-matrix.js';
 import { renderMarkdown } from '../lib/mini-markdown.js';
-import { DEFAULT_DAEMON_PORT } from '../shared/daemon-discovery.js';
+import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
 
-const base = process.env.PD_BASE ?? `http://127.0.0.1:${DEFAULT_DAEMON_PORT}`;
+const base = process.env.PD_BASE ?? resolveDaemonUrl();
 const out = process.env.OUT ?? 'planner-board.html';
 
 const res = await fetch(`${base}/roadmap/items?status=all&limit=2000`);

@@ -158,7 +158,7 @@ function resolveDiagnosticPort(): number {
 
 /**
  * True when THIS CLI process is addressing the canonical daemon — the
- * launchd-supervised `~/.port-daddy` install on the canonical port — rather
+ * launchd-supervised `~/.port-daddy` install at its published endpoint — rather
  * than one it was explicitly redirected to.
  *
  * Motivation: the runtime-identity verdict is a claim about ONE daemon

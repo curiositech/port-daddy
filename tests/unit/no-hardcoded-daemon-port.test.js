@@ -40,8 +40,6 @@ const ALLOWED_FILES = new Set([
   'website-v2/src/lib/daemon-url.ts',
   // Daemon installer probes for the running listener via lsof — this IS the port number.
   'install-daemon.ts',
-  // JSDoc @example lines only (probePortOwner usage samples); runtime takes a port arg.
-  'lib/port-takeover.ts',
   // routes/sitrep.ts: literal appears only in a JSDoc curl example.
   'routes/sitrep.ts',
   // Rust console berth picker mirrors the canonical daemon port as a Rust const.
