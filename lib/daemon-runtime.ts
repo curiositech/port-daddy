@@ -1,10 +1,10 @@
 /**
  * Canonical daemon runtime identity and macOS supervisor control.
  *
- * launchd owns process resurrection, the daemon owns readiness, and Bosun
- * observes the daemon heartbeat. Those are deliberately separate jobs, but
- * they must all describe the same generation. This module is the one place
- * that joins their claims into an operator-visible verdict.
+ * There is exactly one process supervisor: the operating-system service
+ * manager. It owns resurrection; the daemon owns readiness and publishes the
+ * port it actually bound. This module joins those claims into one
+ * operator-visible verdict without assuming the preferred startup port won.
  */
 
 import http from 'node:http';
@@ -14,7 +14,6 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { DEFAULT_DAEMON_PORT, LOOPBACK_TCP_HOST } from '../shared/daemon-discovery.js';
 import { DEFAULT_PID_FILE, DEFAULT_PORT_FILE, PD_HOME } from '../shared/paths.js';
-import { BOSUN_HEARTBEAT_SCHEMA, DEFAULT_BOSUN_STALE_AFTER_MS } from './bosun-heartbeat.js';
 
 export const CANONICAL_LAUNCHD_LABEL = 'homebrew.mxcl.port-daddy';
 
@@ -44,13 +43,12 @@ export interface RuntimeIdentityScope {
   expectedPort: number;
   pidFile: string;
   portFile: string;
-  heartbeatFile: string;
   supervisor: LaunchdSupervisorSnapshot | null;
 }
 
 export interface RuntimeIdentityFacts {
   checkedAt: number;
-  expectedPort: number;
+  expectedPort: number | null;
   endpointPort: number | null;
   healthPid: number | null;
   healthPort: number | null;
@@ -58,9 +56,6 @@ export interface RuntimeIdentityFacts {
   binaryDrifted: boolean | null;
   pidFilePid: number | null;
   portFilePort: number | null;
-  heartbeatPid: number | null;
-  heartbeatWrittenAt: number | null;
-  heartbeatFresh: boolean | null;
   supervisor: LaunchdSupervisorSnapshot | null;
 }
 
@@ -214,30 +209,13 @@ function readNumber(path: string): number | null {
   }
 }
 
-function readHeartbeat(path: string): { pid: number; writtenAt: number } | null {
-  try {
-    const value = JSON.parse(readFileSync(path, 'utf8')) as {
-      schema?: string;
-      pid?: number;
-      writtenAt?: number;
-    };
-    if (value.schema !== BOSUN_HEARTBEAT_SCHEMA) return null;
-    if (!Number.isInteger(value.pid) || !Number.isFinite(value.writtenAt)) return null;
-    return { pid: value.pid as number, writtenAt: value.writtenAt as number };
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Resolve every authority used to assess one daemon generation.
  *
- * The production plane is intentionally strict: even when a caller points at
- * another endpoint, its expected port and supervisor remain the canonical
- * ones. Named and ephemeral berths instead own a private runtime directory and
- * have no relationship to the production launchd job. Selecting only their
- * endpoint while retaining production files creates a guaranteed false split
- * brain, so the port, files, and supervisor move as one scope.
+ * Production is strict about its runtime files and service-manager process,
+ * not a fixed port. Named and ephemeral berths own private runtime files and
+ * have no relationship to the production supervisor, so files and supervisor
+ * move together while every scope follows its selected endpoint.
  */
 export function resolveRuntimeIdentityScope(
   health: RuntimeHealthSnapshot | null,
@@ -254,10 +232,9 @@ export function resolveRuntimeIdentityScope(
   const runtimePrefix = opts.runtimePrefix?.trim() || null;
   const runtimeDir = nonCanonical && runtimePrefix ? runtimePrefix : PD_HOME;
   return {
-    expectedPort: nonCanonical ? opts.endpointPort : DEFAULT_DAEMON_PORT,
+    expectedPort: opts.endpointPort,
     pidFile: join(runtimeDir, 'daemon.pid'),
     portFile: join(runtimeDir, 'daemon.port'),
-    heartbeatFile: join(runtimeDir, 'heartbeat'),
     supervisor: nonCanonical ? null : (opts.canonicalSupervisor ?? null),
   };
 }
@@ -277,18 +254,20 @@ export function assessRuntimeIdentity(facts: RuntimeIdentityFacts): RuntimeIdent
     };
   }
   if (facts.healthStatus !== 'ok') issues.push(`/health reported ${facts.healthStatus ?? 'no status'}`);
-  if (facts.endpointPort !== facts.expectedPort) {
-    issues.push(`health endpoint used port ${facts.endpointPort ?? 'unknown'}, expected ${facts.expectedPort}`);
+  const expectedPort = facts.expectedPort;
+  if (expectedPort === null) {
+    missing.push('published port (daemon.port)');
+  } else {
+    if (facts.endpointPort !== expectedPort) {
+      issues.push(`health endpoint used port ${facts.endpointPort ?? 'unknown'}, expected ${expectedPort}`);
+    }
+    if (facts.healthPort === null) missing.push('daemon advertised port');
+    else if (facts.healthPort !== expectedPort) issues.push(`daemon advertised port ${facts.healthPort}, expected ${expectedPort}`);
+    if (facts.portFilePort === null) missing.push('daemon.port');
+    else if (facts.portFilePort !== expectedPort) issues.push(`daemon.port contains ${facts.portFilePort}, expected ${expectedPort}`);
   }
-  if (facts.healthPort === null) missing.push('daemon advertised port');
-  else if (facts.healthPort !== facts.expectedPort) issues.push(`daemon advertised port ${facts.healthPort}, expected ${facts.expectedPort}`);
-  if (facts.portFilePort === null) missing.push('daemon.port');
-  else if (facts.portFilePort !== facts.expectedPort) issues.push(`daemon.port contains ${facts.portFilePort}, expected ${facts.expectedPort}`);
   if (facts.pidFilePid === null) missing.push('daemon.pid');
   else if (facts.pidFilePid !== healthPid) issues.push(`daemon.pid=${facts.pidFilePid}, /health pid=${healthPid}`);
-  if (facts.heartbeatPid === null) missing.push('Bosun heartbeat');
-  else if (facts.heartbeatPid !== healthPid) issues.push(`Bosun heartbeat pid=${facts.heartbeatPid}, /health pid=${healthPid}`);
-  if (facts.heartbeatFresh === false) issues.push('Bosun heartbeat is stale');
   if (facts.supervisor) {
     if (!facts.supervisor.loaded) issues.push(`${facts.supervisor.label} is not loaded`);
     else if (!facts.supervisor.running) issues.push(`${facts.supervisor.label} is not running`);
@@ -308,7 +287,7 @@ export function assessRuntimeIdentity(facts: RuntimeIdentityFacts): RuntimeIdent
       facts,
     };
   }
-  if (missing.length > 0 || facts.binaryDrifted === null || facts.heartbeatFresh === null) {
+  if (missing.length > 0 || facts.binaryDrifted === null) {
     return {
       state: 'incomplete',
       severity: 'warn',
@@ -319,12 +298,12 @@ export function assessRuntimeIdentity(facts: RuntimeIdentityFacts): RuntimeIdent
     };
   }
   const authorities = facts.supervisor
-    ? 'launchd, /health, daemon.pid, daemon.port, and Bosun heartbeat'
-    : '/health, daemon.pid, daemon.port, and Bosun heartbeat';
+    ? 'launchd, /health, daemon.pid, and daemon.port'
+    : '/health, daemon.pid, and daemon.port';
   return {
     state: 'converged',
     severity: 'ok',
-    summary: `${authorities} agree on PID ${healthPid} at :${facts.expectedPort}`,
+    summary: `${authorities} agree on PID ${healthPid} at :${expectedPort ?? '?'}`,
     issues,
     missing,
     facts,
@@ -336,32 +315,26 @@ export function collectRuntimeIdentity(
   health: RuntimeHealthSnapshot | null,
   opts: {
     now?: number;
-    expectedPort?: number;
+    expectedPort?: number | null;
     endpointPort?: number | null;
     pidFile?: string;
     portFile?: string;
-    heartbeatFile?: string;
-    heartbeatStaleAfterMs?: number;
     supervisor?: LaunchdSupervisorSnapshot | null;
   } = {},
 ): RuntimeIdentityAssessment {
   const now = opts.now ?? Date.now();
-  const heartbeat = readHeartbeat(opts.heartbeatFile ?? join(PD_HOME, 'heartbeat'));
+  const portFile = opts.portFile ?? DEFAULT_PORT_FILE;
+  const portFilePort = readNumber(portFile);
   const facts: RuntimeIdentityFacts = {
     checkedAt: now,
-    expectedPort: opts.expectedPort ?? DEFAULT_DAEMON_PORT,
+    expectedPort: opts.expectedPort ?? portFilePort,
     endpointPort: opts.endpointPort ?? null,
     healthPid: Number.isInteger(health?.pid) ? health!.pid! : null,
     healthPort: Number.isInteger(health?.daemon?.port) ? health!.daemon!.port! : null,
     healthStatus: typeof health?.status === 'string' ? health.status : null,
     binaryDrifted: typeof health?.binaryDrift?.drifted === 'boolean' ? health.binaryDrift.drifted : null,
     pidFilePid: readNumber(opts.pidFile ?? DEFAULT_PID_FILE),
-    portFilePort: readNumber(opts.portFile ?? DEFAULT_PORT_FILE),
-    heartbeatPid: heartbeat?.pid ?? null,
-    heartbeatWrittenAt: heartbeat?.writtenAt ?? null,
-    heartbeatFresh: heartbeat
-      ? now - heartbeat.writtenAt <= (opts.heartbeatStaleAfterMs ?? DEFAULT_BOSUN_STALE_AFTER_MS)
-      : null,
+    portFilePort,
     supervisor: opts.supervisor === undefined ? inspectCanonicalLaunchdSupervisor() : opts.supervisor,
   };
   return assessRuntimeIdentity(facts);

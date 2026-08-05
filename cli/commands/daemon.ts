@@ -269,8 +269,8 @@ function canonicalSupervisor(): LaunchdSupervisorSnapshot | null {
 function printRuntimeIdentity(assessment: RuntimeIdentityAssessment): void {
   const facts = assessment.facts;
   console.log(`  ${ANSI.fgGray}Supervisor:${ANSI.reset} launchd ${facts.supervisor?.label ?? 'not applicable'} (PID ${facts.supervisor?.pid ?? '-'})`);
-  console.log(`  ${ANSI.fgGray}Generation:${ANSI.reset} PID ${facts.healthPid ?? '-'} · heartbeat ${facts.heartbeatPid ?? '-'} · pid file ${facts.pidFilePid ?? '-'}`);
-  console.log(`  ${ANSI.fgGray}Control:${ANSI.reset}    http://${LOOPBACK_TCP_HOST}:${facts.expectedPort} · port file ${facts.portFilePort ?? '-'}`);
+  console.log(`  ${ANSI.fgGray}Generation:${ANSI.reset} PID ${facts.healthPid ?? '-'} · pid file ${facts.pidFilePid ?? '-'}`);
+  console.log(`  ${ANSI.fgGray}Control:${ANSI.reset}    http://${LOOPBACK_TCP_HOST}:${facts.expectedPort ?? '-'} · port file ${facts.portFilePort ?? '-'}`);
 }
 
 async function terminateVerifiedDaemonPid(pid: number | null): Promise<void> {

@@ -6,6 +6,7 @@ import {
   runCanonicalLaunchdAction,
   waitForCanonicalRuntime,
 } from '../../lib/daemon-runtime.js';
+import { DEFAULT_DAEMON_PORT } from '../../shared/daemon-discovery.js';
 
 const supervisor = {
   label: 'homebrew.mxcl.port-daddy',
@@ -22,29 +23,38 @@ const supervisor = {
 function facts(overrides = {}) {
   return {
     checkedAt: 100_000,
-    expectedPort: 9876,
-    endpointPort: 9876,
+    expectedPort: DEFAULT_DAEMON_PORT,
+    endpointPort: DEFAULT_DAEMON_PORT,
     healthPid: 4242,
-    healthPort: 9876,
+    healthPort: DEFAULT_DAEMON_PORT,
     healthStatus: 'ok',
     binaryDrifted: false,
     pidFilePid: 4242,
-    portFilePort: 9876,
-    heartbeatPid: 4242,
-    heartbeatWrittenAt: 99_000,
-    heartbeatFresh: true,
+    portFilePort: DEFAULT_DAEMON_PORT,
     supervisor,
     ...overrides,
   };
 }
 
 describe('runtime identity convergence', () => {
-  test('accepts one PID and port across launchd, health, files, and Bosun', () => {
+  test('accepts one PID and port across launchd, health, and runtime files', () => {
     const result = assessRuntimeIdentity(facts());
     expect(result.state).toBe('converged');
     expect(result.severity).toBe('ok');
     expect(result.summary).toContain('PID 4242');
-    expect(result.summary).toContain(':9876');
+    expect(result.summary).toContain(`:${DEFAULT_DAEMON_PORT}`);
+  });
+
+  test('accepts convergence when the selected and published port shifted from the preferred seed', () => {
+    const shiftedPort = DEFAULT_DAEMON_PORT + 137;
+    const result = assessRuntimeIdentity(facts({
+      expectedPort: shiftedPort,
+      endpointPort: shiftedPort,
+      healthPort: shiftedPort,
+      portFilePort: shiftedPort,
+    }));
+    expect(result.state).toBe('converged');
+    expect(result.summary).toContain(`:${shiftedPort}`);
   });
 
   test('rejects the exact split brain where launchd and the listener have different PIDs', () => {
@@ -57,35 +67,35 @@ describe('runtime identity convergence', () => {
     expect(result.summary).toContain('/health pid=4242');
   });
 
-  test('rejects a fallback port that disagrees with the canonical contract', () => {
+  test('rejects a port that disagrees with the resolved reference port', () => {
+    const differentPort = DEFAULT_DAEMON_PORT + 1;
     const result = assessRuntimeIdentity(facts({
-      endpointPort: 9877,
-      healthPort: 9876,
-      portFilePort: 9877,
+      endpointPort: differentPort,
+      portFilePort: differentPort,
     }));
     expect(result.state).toBe('diverged');
     expect(result.issues).toEqual(expect.arrayContaining([
-      expect.stringContaining('endpoint used port 9877'),
-      expect.stringContaining('daemon.port contains 9877'),
+      expect.stringContaining(`endpoint used port ${differentPort}`),
+      expect.stringContaining(`daemon.port contains ${differentPort}`),
     ]));
   });
 
-  test('rejects a stale Bosun heartbeat even when every PID still matches', () => {
-    const result = assessRuntimeIdentity(facts({ heartbeatFresh: false }));
-    expect(result.state).toBe('diverged');
-    expect(result.summary).toContain('heartbeat is stale');
-  });
-
-  test('marks missing legacy identity facts incomplete instead of pretending they agree', () => {
-    const result = assessRuntimeIdentity(facts({ healthPort: null, heartbeatPid: null, heartbeatFresh: null }));
+  test('marks missing identity facts incomplete instead of pretending they agree', () => {
+    const result = assessRuntimeIdentity(facts({ healthPort: null, portFilePort: null }));
     expect(result.state).toBe('incomplete');
     expect(result.severity).toBe('warn');
-    expect(result.missing).toEqual(expect.arrayContaining(['daemon advertised port', 'Bosun heartbeat']));
+    expect(result.missing).toEqual(expect.arrayContaining(['daemon advertised port', 'daemon.port']));
+  });
+
+  test('fails incomplete instead of guessing when no reference port was published', () => {
+    const result = assessRuntimeIdentity(facts({ expectedPort: null }));
+    expect(result.state).toBe('incomplete');
+    expect(result.missing).toContain('published port (daemon.port)');
   });
 });
 
 describe('runtime identity scope', () => {
-  test('keeps production strict when the selected endpoint points at another port', () => {
+  test('keeps production files and supervisor strict while following the selected endpoint', () => {
     expect(resolveRuntimeIdentityScope({
       plane: 'prod',
       daemon: { port: 19890, canonical: true },
@@ -94,10 +104,9 @@ describe('runtime identity scope', () => {
       runtimePrefix: '/work/isolated',
       canonicalSupervisor: supervisor,
     })).toEqual({
-      expectedPort: 9876,
+      expectedPort: 19890,
       pidFile: expect.stringMatching(/\.port-daddy\/daemon\.pid$/),
       portFile: expect.stringMatching(/\.port-daddy\/daemon\.port$/),
-      heartbeatFile: expect.stringMatching(/\.port-daddy\/heartbeat$/),
       supervisor,
     });
   });
@@ -114,7 +123,6 @@ describe('runtime identity scope', () => {
       expectedPort: 19890,
       pidFile: '/work/pd-doctor-gate/daemon.pid',
       portFile: '/work/pd-doctor-gate/daemon.port',
-      heartbeatFile: '/work/pd-doctor-gate/heartbeat',
       supervisor: null,
     });
   });
@@ -184,7 +192,7 @@ describe('launchd ownership', () => {
 describe('readiness wait', () => {
   test('requires a replacement PID and two stable converged samples', async () => {
     let probes = 0;
-    const health = { status: 'ok', pid: 5151, daemon: { port: 9876 }, binaryDrift: { drifted: false } };
+    const health = { status: 'ok', pid: 5151, daemon: { port: DEFAULT_DAEMON_PORT }, binaryDrift: { drifted: false } };
     const result = await waitForCanonicalRuntime({
       previousPid: 4242,
       timeoutMs: 100,
@@ -198,7 +206,6 @@ describe('readiness wait', () => {
       collect: () => assessRuntimeIdentity(facts({
         healthPid: 5151,
         pidFilePid: 5151,
-        heartbeatPid: 5151,
         supervisor: { ...supervisor, pid: 5151 },
       })),
     });
