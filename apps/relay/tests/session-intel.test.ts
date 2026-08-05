@@ -39,7 +39,9 @@ function makeD1(): { db: D1Database; rows: Row[] } {
   const rows: Row[] = [];
 
   function prepare(sql: string) {
-    const isInsert = /^INSERT INTO session_intel_findings/.test(sql);
+    // `INSERT OR IGNORE INTO ...` — real SQL in session-intel.ts as of the
+    // deterministic-id fix; matches with or without the OR IGNORE modifier.
+    const isInsert = /^INSERT (?:OR IGNORE )?INTO session_intel_findings/.test(sql);
     const isSelect = /^SELECT/.test(sql) && sql.includes('FROM session_intel_findings');
     let boundArgs: unknown[] = [];
     const stmt = {
@@ -54,9 +56,16 @@ function makeD1(): { db: D1Database; rows: Row[] } {
           const [id, batch_id, kind, digest_date, title, occurrences, session_count, payload_json, created_at] = boundArgs as [
             string, string, string, string, string, number, number, string, number,
           ];
+          // OR IGNORE semantics: a duplicate primary key is a no-op (0 changes),
+          // same as real SQLite/D1 — this is what makes the idempotency test
+          // (re-ingest same day -> no duplicate row) actually mean something.
+          if (rows.some(r => r.id === id)) {
+            return { success: true, meta: { changes: 0 } };
+          }
           rows.push({ id, batch_id, kind, digest_date, title, occurrences, session_count, payload_json, status: 'pending', created_at });
+          return { success: true, meta: { changes: 1 } };
         }
-        return { success: true };
+        return { success: true, meta: { changes: 0 } };
       },
       all: async () => {
         if (isSelect) {
@@ -244,6 +253,76 @@ describe('session-intel ingest — defense-in-depth redaction check', () => {
     expect(rows[0].kind).toBe('recurring-eureka-arc');
     expect(rows[0].session_count).toBe(2);
     expect(JSON.parse(rows[0].payload_json)).toEqual(GOOD_FINDING.payload);
+  });
+});
+
+describe('session-intel ingest — idempotency', () => {
+  it('re-ingesting the same digest twice does not duplicate rows', async () => {
+    const { db, rows } = makeD1();
+    const env = makeEnv(db);
+    const body = { digestDate: '2026-08-05', findings: [GOOD_FINDING] };
+    const first = await handleSessionIntelIngest(req('/v1/session-intel/ingest', 'POST', OPERATOR, body), env);
+    const second = await handleSessionIntelIngest(req('/v1/session-intel/ingest', 'POST', OPERATOR, body), env);
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    const firstBody = await first.json();
+    const secondBody = await second.json();
+    expect(firstBody.accepted).toBe(1);
+    expect(secondBody.accepted).toBe(0); // OR IGNORE absorbed the retry
+    expect(rows.length).toBe(1); // still exactly one row, not two
+  });
+
+  it('the same (digestDate, kind, title) produces the same id across independent ingest calls', async () => {
+    const { db: db1, rows: rows1 } = makeD1();
+    const { db: db2, rows: rows2 } = makeD1();
+    const body = { digestDate: '2026-08-05', findings: [GOOD_FINDING] };
+    await handleSessionIntelIngest(req('/v1/session-intel/ingest', 'POST', OPERATOR, body), makeEnv(db1));
+    await handleSessionIntelIngest(req('/v1/session-intel/ingest', 'POST', OPERATOR, body), makeEnv(db2));
+    expect(rows1[0].id).toBe(rows2[0].id); // deterministic, not random
+  });
+
+  it('a different title on the same day produces a different id (no false collision)', async () => {
+    const { db, rows } = makeD1();
+    const env = makeEnv(db);
+    await handleSessionIntelIngest(
+      req('/v1/session-intel/ingest', 'POST', OPERATOR, { digestDate: '2026-08-05', findings: [GOOD_FINDING] }),
+      env,
+    );
+    await handleSessionIntelIngest(
+      req('/v1/session-intel/ingest', 'POST', OPERATOR, { digestDate: '2026-08-05', findings: [{ ...GOOD_FINDING, title: 'a different finding' }] }),
+      env,
+    );
+    expect(rows.length).toBe(2);
+    expect(rows[0].id).not.toBe(rows[1].id);
+  });
+});
+
+describe('session-intel ingest — date validation', () => {
+  it('rejects an impossible date like 2026-99-99', async () => {
+    const { db } = makeD1();
+    const res = await handleSessionIntelIngest(
+      req('/v1/session-intel/ingest', 'POST', OPERATOR, { digestDate: '2026-99-99', findings: [GOOD_FINDING] }),
+      makeEnv(db),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a date that JS would silently roll over (2026-02-30)', async () => {
+    const { db } = makeD1();
+    const res = await handleSessionIntelIngest(
+      req('/v1/session-intel/ingest', 'POST', OPERATOR, { digestDate: '2026-02-30', findings: [GOOD_FINDING] }),
+      makeEnv(db),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('accepts a real leap-day date (2028-02-29)', async () => {
+    const { db } = makeD1();
+    const res = await handleSessionIntelIngest(
+      req('/v1/session-intel/ingest', 'POST', OPERATOR, { digestDate: '2028-02-29', findings: [GOOD_FINDING] }),
+      makeEnv(db),
+    );
+    expect(res.status).toBe(200);
   });
 });
 

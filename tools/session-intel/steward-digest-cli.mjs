@@ -39,7 +39,11 @@ const { loadFromSqlite } = require('../../lib/session-intel/data-source.js');
 const DEFAULT_RELAY_URL = 'https://relay.portdaddy.dev';
 
 function parseArgs(argv) {
-  const out = { minSessions: 2, pretty: false, upload: true, relayUrl: process.env.RELAY_URL || DEFAULT_RELAY_URL };
+  // PD_-prefixed, matching this repo's established convention (e.g.
+  // PD_ACCOUNTS_RELAY_URL in cli/commands/account.ts, PD_CONSOLE_RELAY_URL in
+  // core/pd-console, and PD_SESSION_INTEL_DIGEST_LEDGER right in this same
+  // module) -- a bare RELAY_URL risks colliding with unrelated tooling.
+  const out = { minSessions: 2, pretty: false, upload: true, relayUrl: process.env.PD_SESSION_INTEL_RELAY_URL || DEFAULT_RELAY_URL };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--db') out.db = argv[++i];
