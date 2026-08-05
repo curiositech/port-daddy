@@ -199,6 +199,19 @@ export interface PRContext {
    * (conservative: treated as a fork). The purser only RETARGETS same-repo PRs.
    */
   isFork: boolean;
+  /**
+   * `pull_request.user.login` (e.g. `port-daddy[bot]`). Carried so the
+   * self-review guard can ask WHO wrote this PR without a second API call.
+   * Empty when GitHub omits it — which `classifyPrAuthorship` reads as
+   * "not the fleet", the conservative direction for a review skip.
+   */
+  authorLogin: string;
+  /**
+   * `pull_request.user.type` — `Bot` for GitHub App authored PRs, `User` for
+   * humans. The self-review guard requires `Bot`, so a human can never inherit
+   * machine trust by naming their branch `purser/…`.
+   */
+  authorType: string;
   installationId: number;
   files: PRFile[];
   diff: string;
@@ -228,6 +241,7 @@ export async function fetchPRContext(
     number: number;
     title: string;
     body: string;
+    user?: { login?: string; type?: string } | null;
     head: { sha: string; ref?: string; repo?: { full_name?: string } | null };
     base: { sha: string; ref?: string; repo?: { full_name?: string } | null };
   };
@@ -262,6 +276,13 @@ export async function fetchPRContext(
     baseSha: livePr.base?.sha ?? '',
     baseRef: livePr.base?.ref ?? '',
     isFork: computeIsFork(livePr.head?.repo?.full_name, livePr.base?.repo?.full_name),
+    // Authorship comes from the LIVE PR (same zero-trust posture as head.ref /
+    // repo full_names above): the webhook payload is attacker-influenced in
+    // ways the authoritative fetch is not, and this field gates the
+    // self-review skip. Fall back to the event payload only when the live PR
+    // omits it, so a minimal test payload still classifies.
+    authorLogin: livePr.user?.login ?? eventPr.user?.login ?? '',
+    authorType: livePr.user?.type ?? eventPr.user?.type ?? '',
     installationId: 0,
     files,
     diff,
@@ -644,6 +665,69 @@ export async function findFleetCheckRun(
   const body = (await res.json()) as { check_runs?: Array<{ id: number; name: string }> };
   const match = (body.check_runs ?? []).find(c => c.name === name);
   return match?.id ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Fleet self-identity
+
+/** KV key holding the resolved `<app-slug>[bot]` login. */
+const APP_LOGIN_KEY = 'fleet_app_login';
+/** Cache the App slug for a day — it changes only if the App is renamed. */
+const APP_LOGIN_TTL_SECONDS = 24 * 60 * 60;
+
+/**
+ * Resolve THIS App's bot login (`<app-slug>[bot]`), KV-cached.
+ *
+ * PURPOSE / DESIGN: the self-review skip (src/execute.ts, via
+ * `classifyPrAuthorship` in src/fleet-identity.ts) needs to know which GitHub
+ * account IS the fleet, so it can tell a fleet-authored branch apart from a
+ * human's. Hard-coding `port-daddy[bot]` would silently mis-identify every
+ * other tenant's installation, and reading it from the webhook payload would
+ * let the thing being judged supply the judge's identity. Instead we ask
+ * GitHub, under our OWN App JWT, what App these credentials belong to — a
+ * value no PR can influence.
+ *
+ * FAIL DIRECTION: returns `null` rather than throwing or guessing. `null`
+ * degrades the authorship classification to the weaker `bot-and-branch`
+ * signal (see `classifyPrAuthorship`), which the review skip may still accept
+ * — the cost of a false positive there is one unreviewed machine branch, not
+ * an unmerged human PR.
+ *
+ * @param appId The GitHub App id (numeric string).
+ * @param privateKeyPem PEM private key used to mint the App JWT.
+ * @param kv Token-cache namespace, reused for the day-long slug cache.
+ * @returns `<slug>[bot]`, or `null` when it could not be determined.
+ */
+export async function resolveFleetAppLogin(
+  appId: string,
+  privateKeyPem: string,
+  kv: KVNamespace,
+): Promise<string | null> {
+  try {
+    const cached = await kv.get(APP_LOGIN_KEY);
+    if (cached) return cached;
+  } catch {
+    /* cache read failure is not fatal — fall through to the API */
+  }
+  try {
+    const jwt = await mintAppJwt(appId, privateKeyPem);
+    const res = await fetch('https://api.github.com/app', {
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'port-daddy-fleet/1.0',
+      },
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { slug?: string };
+    if (!body.slug) return null;
+    const login = `${body.slug}[bot]`;
+    await kv.put(APP_LOGIN_KEY, login, { expirationTtl: APP_LOGIN_TTL_SECONDS }).catch(() => {});
+    return login;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -301,3 +301,103 @@ export async function retargetPrBase(
     `retarget PR #${prNumber} base`,
   );
 }
+
+// ---------------------------------------------------------------------------
+// Re-run support: read back a branch the purser wrote earlier.
+
+/**
+ * Read back the purser's previously-authored test files from its own branch.
+ *
+ * WHY AN EXPLICIT PATH LIST, NOT A TREE WALK: the purser's branch is created
+ * with `base_tree` set to the PR's base commit (see {@link createOrUpdateBranch}),
+ * so its tree is THE ENTIRE REPOSITORY plus the handful of authored test files.
+ * Discovering the tests by listing the tree would enumerate every file in the
+ * repo and fetch a blob for each — hundreds to thousands of requests, which
+ * would time out or exhaust the rate limit and cost far more than the two model
+ * calls that re-running exists to save. It would move the treadmill, not remove
+ * it. Caught in review on #5399 before it ever ran.
+ *
+ * So the caller passes the exact paths, recorded in the contract fingerprint at
+ * author time. Cost is strictly `paths.length` requests — for a purser suite,
+ * ≤10.
+ *
+ * @param owner Repository owner.
+ * @param repo Repository name.
+ * @param branchName The executor-owned branch, e.g. `purser/pr-42-tests`.
+ * @param paths Exact repo-relative paths to read. Empty ⇒ null, no requests.
+ * @param token Installation token.
+ * @returns The files, or null when none could be read (branch or paths gone).
+ */
+export async function readBranchFiles(
+  owner: string,
+  repo: string,
+  branchName: string,
+  paths: string[],
+  token: string,
+): Promise<StackedFile[] | null> {
+  if (!paths.length) return null;
+  const base = `https://api.github.com/repos/${owner}/${repo}`;
+  const files: StackedFile[] = [];
+
+  for (const path of paths) {
+    let entry: { content?: string; encoding?: string; type?: string };
+    try {
+      entry = await ghJson(
+        `${base}/contents/${path.split('/').map(encodeURIComponent).join('/')}` +
+          `?ref=${encodeURIComponent(branchName)}`,
+        { method: 'GET' },
+        token,
+        `read ${path}@${branchName}`,
+      );
+    } catch (err) {
+      // A missing path means the branch no longer carries that test — the
+      // suite is not intact, so the caller must author afresh rather than
+      // enforce a partial contract.
+      if (err instanceof GitHubApiError && err.status === 404) return null;
+      throw err;
+    }
+    if (entry.type !== 'file' || entry.encoding !== 'base64' || typeof entry.content !== 'string') {
+      return null;
+    }
+    // atob yields latin-1 code units; re-decode as UTF-8 so non-ASCII test
+    // content survives the round trip.
+    const bin = atob(entry.content.replace(/\s/g, ''));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    files.push({ path, contents: new TextDecoder().decode(bytes) });
+  }
+  return files.length === paths.length ? files : null;
+}
+
+/**
+ * Find the purser's existing OPEN test PR for a branch, if any.
+ *
+ * Returned alongside its body so the caller can recover the embedded contract
+ * fingerprint without a second round trip. Null when no open PR heads that
+ * branch — which is both the first-run case and the case where a human closed
+ * the test PR deliberately, and in the latter the purser SHOULD author afresh
+ * rather than resurrect a rejected suite.
+ *
+ * @param owner Repository owner.
+ * @param repo Repository name.
+ * @param branchName The executor-owned test branch.
+ * @param token Installation token.
+ * @returns `{ number, url, body }` for the open PR, or null.
+ */
+export async function findOpenPrForBranch(
+  owner: string,
+  repo: string,
+  branchName: string,
+  token: string,
+): Promise<{ number: number; url: string; body: string } | null> {
+  const list = await ghJson<Array<{ number?: number; html_url?: string; body?: string | null }>>(
+    `https://api.github.com/repos/${owner}/${repo}/pulls` +
+      `?state=open&head=${encodeURIComponent(`${owner}:${branchName}`)}&per_page=1`,
+    { method: 'GET' },
+    token,
+    `find open PR for ${branchName}`,
+  );
+  const pr = Array.isArray(list) ? list[0] : undefined;
+  if (!pr || typeof pr.number !== 'number') return null;
+  return { number: pr.number, url: pr.html_url ?? '', body: pr.body ?? '' };
+}

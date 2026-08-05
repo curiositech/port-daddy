@@ -40,14 +40,28 @@ import { extractWorkersAiUsage } from './telemetry.js';
 import { stripThinkSpans } from './xo.js';
 import {
   createOrUpdateBranch,
+  findOpenPrForBranch,
   openStackedPr,
+  readBranchFiles,
   retargetPrBase,
   validateStackedFiles,
   GitHubApiError,
   type StackedFile,
   type StackedPrResult,
 } from './stacked-pr.js';
-import { runTestsInSandbox, type SandboxRunOutcome } from './sandbox-runner.js';
+import {
+  decideRerun,
+  decodeFingerprint,
+  encodeFingerprint,
+  fingerprintDiff,
+  withAuthoredTests,
+} from './purser-rerun.js';
+import {
+  runTestsInSandbox,
+  MAX_NAMED_FAILURES,
+  type SandboxRunOutcome,
+} from './sandbox-runner.js';
+import { fleetPrBodyTrailers } from './fleet-pr-body.js';
 import { emitSquidEvent } from './squid-events.js';
 import { emitInterruption } from './interruptions.js';
 
@@ -350,12 +364,29 @@ function renderSandboxSection(sandbox: SandboxRunOutcome): string {
       `Keep it that way.`
     );
   }
+  // Name the failures individually when the runner's format allowed it. This
+  // is the difference between "your PR fails its contract, here is 1 KB of
+  // scrollback" and "these four cases fail" — the second is actionable, the
+  // first is a chore. `failures` is best-effort by construction (see
+  // parseTestFailures), so the raw tail stays available underneath rather than
+  // being replaced by it.
+  const named = sandbox.failures.length
+    ? `\n\n**Failing:**\n${sandbox.failures.map(f => `- \`${f}\``).join('\n')}` +
+      (sandbox.failures.length >= MAX_NAMED_FAILURES
+        ? `\n\n…capped at ${MAX_NAMED_FAILURES}; the full output below has the rest.`
+        : '')
+    : `\n\nI could not name the individual cases from this runner's output ` +
+      `format — the raw tail is below. The failure itself is not in doubt: the ` +
+      `suite exited non-zero.`;
+
   return (
     `**Execution: RAN — FAILED.** The PR head does NOT satisfy its own ` +
-    `best-interpretation contract. Failing output (tail):\n\n` +
+    `best-interpretation contract.` +
+    named +
+    `\n\n<details>\n<summary>Failing output (tail)</summary>\n\n` +
     '```\n' +
     sandbox.outputTail.slice(-FAILURE_TAIL_BYTES) +
-    '\n```'
+    '\n```\n\n</details>'
   );
 }
 
@@ -365,7 +396,11 @@ function renderTestList(files: StackedFile[]): string {
 
 function renderInlineTests(files: StackedFile[]): string {
   return files
-    .map(f => `#### \`${f.path}\`\n\n\`\`\`\n${f.contents}\n\`\`\``)
+    .map(
+      f =>
+        `<details>\n<summary><code>${f.path}</code></summary>\n\n` +
+        `\`\`\`\n${f.contents}\n\`\`\`\n\n</details>`,
+    )
     .join('\n\n');
 }
 
@@ -436,6 +471,89 @@ function buildPurserComment(p: CommentParams): string {
 // ---------------------------------------------------------------------------
 
 /**
+ * Re-execute an already-authored test suite and report its status.
+ *
+ * This is the steady-state path: a PR that has been pushed to since the purser
+ * first ruled on it. It spends ZERO model calls — the contract was settled on
+ * the first run and the tests are read back off the purser's own branch.
+ *
+ * The verdict logic deliberately mirrors the authoring path rather than being
+ * softened: a re-run that fails is exactly as blocking as a first run that
+ * fails. If it were advisory, an author could make a red gate green by pushing
+ * an empty commit, which is the whole failure this gate exists to prevent.
+ *
+ * @returns The ship result, blocking iff the ship is configured blocking and
+ *          sandbox-executed tests failed.
+ */
+async function rerunExistingTests(
+  ship: ShipConfig,
+  prCtx: PRContext,
+  env: ExecutorEnv,
+  token: string,
+  transcript: TranscriptLike,
+  files: StackedFile[],
+  testPr: { number: number; url: string },
+  reason: string,
+): Promise<ShipResult> {
+  const sandbox = await runTestsInSandbox({
+    sandboxBinding: env.SANDBOX,
+    owner: prCtx.owner,
+    repo: prCtx.repo,
+    headSha: prCtx.headSha,
+    files,
+    token,
+  });
+
+  await transcript.step(
+    'purser-sandbox',
+    ship.name,
+    sandbox.executed
+      ? `pd-${ship.name}: re-ran existing tests — ${sandbox.passed ? 'PASSED' : 'FAILED'}`
+      : `pd-${ship.name}: re-run NOT EXECUTED`,
+    {
+      rerun: true,
+      testPrNumber: testPr.number,
+      executed: sandbox.executed,
+      passed: sandbox.passed,
+      failures: sandbox.failures,
+      ...(sandbox.reason ? { reason: sandbox.reason } : {}),
+    },
+  );
+
+  const status = renderSandboxSection(sandbox);
+  const body =
+    `**Re-run — no new tests authored.** This PR already has a contract, ` +
+    `settled in #${testPr.number} (${testPr.url}). I did not re-write it: ` +
+    `${reason}. Tests are authored once and then held to; a gate that rewrites ` +
+    `itself every time you push is a treadmill, not a standard.\n\n` +
+    `I re-executed the ${files.length} existing test file(s) against this ` +
+    `head.\n\n${status}\n\n` +
+    `<details>\n<summary>The tests being enforced (${files.length})</summary>\n\n` +
+    files.map(f => `- \`${f.path}\``).join('\n') +
+    `\n\n</details>\n\n` +
+    `If a test is wrong, argue with it in #${testPr.number}, with reasons. ` +
+    `Do not route around it.`;
+
+  await postShipComment(
+    prCtx.owner,
+    prCtx.repo,
+    prCtx.prNumber,
+    ship.name,
+    ship.role,
+    body,
+    token,
+  );
+
+  let verdict: Verdict;
+  if (sandbox.executed) {
+    verdict = sandbox.passed ? 'PASS' : 'BLOCK';
+  } else {
+    verdict = ship.blockWithoutSandbox ? 'BLOCK' : 'PASS';
+  }
+  return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings: [] };
+}
+
+/**
  * Run the purser against one PR. Never throws — every failure mode resolves to
  * an honest ShipResult + transcript trail. See the module doc for the phases.
  */
@@ -461,7 +579,72 @@ export async function runPurser(
     findings: [],
   };
 
+  // Branch/PR names are derived once: the re-run probe below and the stack
+  // phase further down must agree on them or the purser would read one branch
+  // and write another.
+  const branchName = `purser/pr-${prCtx.prNumber}-tests`;
+  const fingerprint = fingerprintDiff(prCtx.diff ?? '');
+
   try {
+    // --- 0. RE-RUN PROBE ----------------------------------------------------
+    // Before spending a single token, ask whether this PR already HAS a
+    // contract. Tests are authored once and then re-executed; see
+    // src/purser-rerun.ts for why re-authoring on every push is actively
+    // harmful rather than merely wasteful.
+    let reused: { files: StackedFile[]; testPr: { number: number; url: string } } | null = null;
+    let rerunNote: string | null = null;
+    try {
+      const existingPr = await findOpenPrForBranch(prCtx.owner, prCtx.repo, branchName, token);
+      if (existingPr) {
+        const prior = decodeFingerprint(existingPr.body);
+        // Read ONLY the paths recorded at author time. The branch tree is the
+        // whole repository (base_tree), so there is nothing to discover here —
+        // see readBranchFiles. No recorded paths ⇒ no read at all ⇒ author.
+        const priorFiles = prior?.tests.length
+          ? await readBranchFiles(prCtx.owner, prCtx.repo, branchName, prior.tests, token)
+          : null;
+        const decision = decideRerun(
+          prior,
+          fingerprint,
+          Boolean(priorFiles && priorFiles.length),
+        );
+        if (decision.action === 'reuse' && priorFiles) {
+          reused = { files: priorFiles, testPr: { number: existingPr.number, url: existingPr.url } };
+          rerunNote = decision.reason;
+        } else {
+          rerunNote = `re-authoring: ${decision.reason}`;
+        }
+      }
+    } catch (err) {
+      // A probe failure must never cost the run — fall through to authoring,
+      // which is the pre-existing behaviour.
+      rerunNote = `re-run probe failed (${String(err).slice(0, 120)}); authoring fresh`;
+    }
+
+    if (reused) {
+      await transcript.step(
+        'purser-rerun',
+        ship.name,
+        `pd-${ship.name}: REUSING existing tests from #${reused.testPr.number} (0 AI calls)`,
+        {
+          testPrNumber: reused.testPr.number,
+          files: reused.files.map(f => f.path),
+          reason: rerunNote,
+          aiCallsSaved: 2,
+        },
+      );
+      return await rerunExistingTests(
+        ship,
+        prCtx,
+        env,
+        token,
+        transcript,
+        reused.files,
+        reused.testPr,
+        rerunNote ?? '',
+      );
+    }
+
     // --- a. STEEL-MAN -------------------------------------------------------
     const steelCall = await purserAiCall(
       ship,
@@ -566,7 +749,6 @@ export async function runPurser(
     );
 
     // --- d. STACK -----------------------------------------------------------
-    const branchName = `purser/pr-${prCtx.prNumber}-tests`;
     const baseBranch = prCtx.baseRef || env.DEFAULT_BRANCH || 'main';
     let stackedPr: StackedPrResult | null = null;
     let retargeted = false;
@@ -588,7 +770,8 @@ export async function runPurser(
         branchName,
         baseBranch,
         `purser: adversarial tests for #${prCtx.prNumber}`,
-        buildTestPrBody(prCtx, steel, files),
+        `${buildTestPrBody(prCtx, steel, files)}\n\n` +
+          `${encodeFingerprint(withAuthoredTests(fingerprint, files.map(f => f.path)))}`,
         ['purser', 'adversarial-tests'],
         token,
       );
@@ -721,6 +904,24 @@ export async function runPurser(
   }
 }
 
+/**
+ * Render the test PR's body.
+ *
+ * DESIGN / MOTIVATION: this body is not decoration — it is the thing the
+ * reviewed PR now merges through, so it must be BOTH legible to a human and
+ * acceptable to the repo's own PR gates. Before the deadlock fix it was only
+ * the former: the gates bounced it (`needs-roadmap-link`,
+ * `needs-comment-replies`, `mergeable_state: blocked`) and, because the purser
+ * retargets the reviewed PR onto this branch, a blocked test PR meant the
+ * REVIEWED PR could never merge either. {@link fleetPrBodyTrailers} appends the
+ * guards' own audited exemption markers with specific reasons, so the branch is
+ * self-clearing without any gate being weakened.
+ *
+ * @param prCtx The PR under review (supplies its number for the cross-links).
+ * @param steel The steel-manned contract these tests grill.
+ * @param files The authored test files, listed so a reader can audit the demand.
+ * @returns The full markdown body for the stacked test PR.
+ */
 function buildTestPrBody(
   prCtx: PRContext,
   steel: SteelManContract,
@@ -738,5 +939,9 @@ function buildTestPrBody(
     `#${prCtx.prNumber} is retargeted onto this branch when it lives in this repo, ` +
       `so it merges THROUGH these tests. Dispute a test here, with reasons, if it ` +
       `misreads the contract.`,
+    fleetPrBodyTrailers(
+      `adversarial test branch for #${prCtx.prNumber}; it advances no roadmap item of its own — ` +
+        `the item (if any) belongs to #${prCtx.prNumber}, and claiming it here would double-count the work`,
+    ),
   ].join('\n\n');
 }
