@@ -115,7 +115,7 @@ struct FleetPopover: View {
                 versionSkewBanner(store.versionSkew)
                 Divider().opacity(0.5)
             }
-            if !budgetStore.pendingKills.isEmpty {
+            if !budgetStore.pendingCancellations.isEmpty {
                 budgetPauseBanner
                 Divider().opacity(0.5)
             }
@@ -839,7 +839,7 @@ struct FleetPopover: View {
             )
 
         case let .daemonBehindApp(app, daemon):
-            // FleetBar can't run `brew` or kill a live daemon itself, so we hand
+            // FleetBar can't run `brew` or cancel a live daemon itself, so we hand
             // the operator the exact command rather than a button that pretends
             // to restart (startDaemon() no-ops when a daemon is already running).
             versionSkewCard(
@@ -906,7 +906,7 @@ struct FleetPopover: View {
             HStack {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
-                Text("Pending budget kills · \(budgetStore.pendingKills.count)")
+                Text("Pending budget cancellations · \(budgetStore.pendingCancellations.count)")
                     .font(.headline)
                 Spacer()
                 Text("grace \(Int(budgetStore.graceMs / 1000))s")
@@ -914,28 +914,28 @@ struct FleetPopover: View {
                     .foregroundStyle(.secondary)
             }
             // Note: budgetStore.start() is called on the popover's onAppear,
-            // not here — banner only renders when there are pending kills.
-            ForEach(budgetStore.pendingKills) { kill in
+            // not here — banner only renders when there are pending cancellations.
+            ForEach(budgetStore.pendingCancellations) { cancel in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(kill.agentId)
+                    Text(cancel.agentId)
                         .font(.system(.caption, design: .monospaced).weight(.semibold))
-                    Text("project: \(kill.project) · spent $\(String(format: "%.4f", kill.spentTodayUsd))/$\(String(format: "%.2f", kill.budgetUsdPerDay))/day")
+                    Text("project: \(cancel.project) · spent $\(String(format: "%.4f", cancel.spentTodayUsd))/$\(String(format: "%.2f", cancel.budgetUsdPerDay))/day")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Text("reason: \(kill.reason) · expires in \(secondsRemaining(kill.expiresAt))s")
+                    Text("reason: \(cancel.reason) · expires in \(secondsRemaining(cancel.expiresAt))s")
                         .font(.caption2)
                         .foregroundStyle(.red)
                     HStack(spacing: 6) {
                         Button("Raise +$5") {
-                            Task { await budgetStore.raise(agentId: kill.agentId, topUpUsd: 5) }
+                            Task { await budgetStore.raise(agentId: cancel.agentId, topUpUsd: 5) }
                         }
                         .controlSize(.small)
                         Button("+60s") {
-                            Task { await budgetStore.extendGrace(agentId: kill.agentId) }
+                            Task { await budgetStore.extendGrace(agentId: cancel.agentId) }
                         }
                         .controlSize(.small)
-                        Button("Kill now") {
-                            Task { await budgetStore.killNow(agentId: kill.agentId) }
+                        Button("Cancel now") {
+                            Task { await budgetStore.cancelNow(agentId: cancel.agentId) }
                         }
                         .controlSize(.small)
                         .tint(.red)

@@ -2,7 +2,7 @@
  * Test-only HTTP hooks. Mounted ONLY when NODE_ENV === 'test'.
  *
  * Why this exists separately from the main route surface:
- *   The kill-switch pipeline (cost-tracker → budget-guard → onKill →
+ *   The cancel-switch pipeline (cost-tracker → budget-guard → onCancel →
  *   pause-and-ask → spawner.cancel → bonds.slash) cannot be exercised end-to-
  *   end from the outside without an actual subprocess paying real LLM money.
  *   Spec docs/shipwright/FLEETCONTROL-HARDENING.md §6.2 calls for an
@@ -14,8 +14,8 @@
  * Safety:
  *   - The plugin no-ops in non-test environments. NODE_ENV=test in
  *     production IS dangerous: /test/cost-event lets an unauthenticated
- *     caller synthesize cost charges that *will* arm budget kills and
- *     drive the kill chain. Treat this as a hot deploy gate — do not run
+ *     caller synthesize cost charges that *will* arm budget cancellations and
+ *     drive the cancel chain. Treat this as a hot deploy gate — do not run
  *     a production daemon with NODE_ENV=test, and consider a separate
  *     loopback-only listener + secret header before extending the
  *     test-mode surface beyond cost synthesis.
@@ -55,13 +55,13 @@ export const testHooksPlugin: FastifyPluginAsync<{ deps: TestHooksDeps }> = asyn
    * pause-and-ask chain identically to a real spawn. The caller picks
    * model + token counts to produce the desired USD.
    *
-   * Used by tests/integration/fleet-budget-kill.integration.test.js.
+   * Used by tests/integration/fleet-budget-cancel.integration.test.js.
    */
   app.post('/test/cost-event', async (request: FastifyRequest, reply: FastifyReply) => {
     // Belt-and-braces: even though the plugin only mounts under NODE_ENV=test,
     // refuse non-loopback callers. If somebody forgets and ships a daemon
     // with NODE_ENV=test, at least an attacker on the network can't drive
-    // synthetic budget kills.
+    // synthetic budget cancellations.
     const remote = request.ip || request.socket?.remoteAddress || '';
     const isLoopback = remote === '127.0.0.1' || remote === '::1' || remote === '::ffff:127.0.0.1' || remote === '';
     if (!isLoopback) {

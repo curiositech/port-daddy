@@ -3,8 +3,8 @@
  *
  * Covers:
  *   - canSpawn pre-flight admits/rejects correctly
- *   - onCharge throttles at 80%, kills at 100%
- *   - kill_armed_at is set idempotently
+ *   - onCharge throttles at 80%, cancels at 100%
+ *   - cancel_armed_at is set idempotently
  *   - UTC day bucketing (we stub Date.now via spyOn)
  *   - edge cases: budgetUsdPerDay=0 blocks everything; NaN usd clamps to 0
  */
@@ -57,14 +57,38 @@ describe('BudgetGuard', () => {
     expect(d.reason).toBe('budget-exceeded');
   });
 
-  test('canSpawn refuses when kill-armed', () => {
-    // Force a kill first.
+  test('canSpawn refuses when cancellation is armed', () => {
+    // Force a cancel first.
     guard.onCharge({ project: 'p', agentId: 'a', budgetUsdPerDay: 0.10, usd: 0.15 });
     const d = guard.canSpawn({
       project: 'p', agentId: 'a', budgetUsdPerDay: 0.10, estimatedUsd: 0.01,
     });
     expect(d.ok).toBe(false);
-    expect(d.reason).toBe('kill-armed');
+    expect(d.reason).toBe('cancellation-armed');
+  });
+
+  test('migrates the legacy armed column without losing safety state', () => {
+    db.close();
+    db = createTestDb();
+    db.prepare(`CREATE TABLE budget_ledger (
+      project TEXT NOT NULL,
+      agent_id TEXT NOT NULL,
+      day TEXT NOT NULL,
+      spend_usd REAL NOT NULL DEFAULT 0,
+      kill_armed_at INTEGER,
+      PRIMARY KEY (project, agent_id, day)
+    )`).run();
+    db.prepare('INSERT INTO budget_ledger VALUES (?, ?, ?, ?, ?)')
+      .run('p', 'legacy-agent', utcDay(), 0.75, 123456789);
+
+    guard = createBudgetGuard(db);
+
+    const columns = db.prepare('PRAGMA table_info(budget_ledger)').all().map((column) => column.name);
+    expect(columns).toContain('cancel_armed_at');
+    expect(columns).not.toContain('kill_armed_at');
+    expect(guard.getLedger('p', 'legacy-agent').cancellationArmedAt).toBe(123456789);
+    expect(guard.canSpawn({ project: 'p', agentId: 'legacy-agent', budgetUsdPerDay: 1 }).reason)
+      .toBe('cancellation-armed');
   });
 
   // ─── onCharge thresholds ────────────────────────────────────────────────
@@ -73,7 +97,7 @@ describe('BudgetGuard', () => {
     const d = guard.onCharge({
       project: 'p', agentId: 'a', budgetUsdPerDay: 1.00, usd: 0.50,
     });
-    expect(d.kill).toBe(false);
+    expect(d.cancel).toBe(false);
     expect(d.throttle).toBe(false);
     expect(d.spentTodayUsd).toBeCloseTo(0.50, 6);
   });
@@ -85,16 +109,16 @@ describe('BudgetGuard', () => {
     });
     expect(d.spentTodayUsd).toBeCloseTo(0.85, 6);
     expect(d.throttle).toBe(true);
-    expect(d.kill).toBe(false);
+    expect(d.cancel).toBe(false);
   });
 
-  test('onCharge kills at ≥100%', () => {
+  test('onCharge cancels at ≥100%', () => {
     guard.onCharge({ project: 'p', agentId: 'a', budgetUsdPerDay: 1.00, usd: 0.70 });
     const d = guard.onCharge({
       project: 'p', agentId: 'a', budgetUsdPerDay: 1.00, usd: 0.40,
     });
     expect(d.spentTodayUsd).toBeCloseTo(1.10, 6);
-    expect(d.kill).toBe(true);
+    expect(d.cancel).toBe(true);
     expect(d.throttle).toBe(true);
     expect(d.reason).toBe('budget-exceeded');
   });
@@ -113,14 +137,14 @@ describe('BudgetGuard', () => {
     expect(d.spentTodayUsd).toBe(0);
   });
 
-  // ─── kill_armed_at idempotence ──────────────────────────────────────────
+  // ─── cancel_armed_at idempotence ──────────────────────────────────────────
 
-  test('kill_armed_at is set once per day, not re-armed on later breaches', () => {
+  test('cancel_armed_at is set once per day, not re-armed on later breaches', () => {
     // First breach arms.
     guard.onCharge({ project: 'p', agentId: 'a', budgetUsdPerDay: 0.10, usd: 0.20 });
     const first = guard.getLedger('p', 'a');
-    expect(first.killArmedAt).not.toBeNull();
-    const armedAt = first.killArmedAt;
+    expect(first.cancellationArmedAt).not.toBeNull();
+    const armedAt = first.cancellationArmedAt;
 
     // Second breach should NOT change the timestamp.
     // Wait a tick to ensure Date.now() would differ if we re-armed.
@@ -130,7 +154,7 @@ describe('BudgetGuard', () => {
     try {
       guard.onCharge({ project: 'p', agentId: 'a', budgetUsdPerDay: 0.10, usd: 0.05 });
       const second = guard.getLedger('p', 'a');
-      expect(second.killArmedAt).toBe(armedAt);
+      expect(second.cancellationArmedAt).toBe(armedAt);
     } finally {
       global.Date.now = origNow;
     }
@@ -158,17 +182,17 @@ describe('BudgetGuard', () => {
 
   // ─── Custom thresholds ──────────────────────────────────────────────────
 
-  test('custom throttle/kill thresholds are honored', () => {
+  test('custom throttle/cancel thresholds are honored', () => {
     db.close();
     db = createTestDb();
-    const strict = createBudgetGuard(db, { throttleThreshold: 0.50, killThreshold: 0.75 });
+    const strict = createBudgetGuard(db, { throttleThreshold: 0.50, cancellationThreshold: 0.75 });
 
     const d1 = strict.onCharge({ project: 'p', agentId: 'a', budgetUsdPerDay: 1, usd: 0.60 });
     expect(d1.throttle).toBe(true);
-    expect(d1.kill).toBe(false);
+    expect(d1.cancel).toBe(false);
 
     const d2 = strict.onCharge({ project: 'p', agentId: 'a', budgetUsdPerDay: 1, usd: 0.20 });
     expect(d2.spentTodayUsd).toBeCloseTo(0.80, 6);
-    expect(d2.kill).toBe(true);
+    expect(d2.cancel).toBe(true);
   });
 });

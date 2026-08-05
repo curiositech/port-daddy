@@ -388,13 +388,13 @@ function computeCost(
  * Optional hooks that turn cost-tracker from observability-only into
  * mid-flight enforcement. When wired:
  *   - onCharge() is called on every recorded cost event
- *   - if the BudgetGuard returns { kill: true }, onKill() fires so the
+ *   - if the BudgetGuard returns { cancel: true }, onCancel() fires so the
  *     caller (server.ts) can SIGTERM the live spawn before more money burns
  */
 export interface CostTrackerHooks {
   budgetGuard?: {
     onCharge(params: { project: string; agentId: string; usd: number; budgetUsdPerDay: number }): {
-      kill: boolean;
+      cancel: boolean;
       throttle: boolean;
       spentTodayUsd: number;
       reason?: string;
@@ -407,7 +407,7 @@ export interface CostTrackerHooks {
    * typically routes this through a budget-pause module that interposes
    * a grace window before signalling the child — not a direct spawner.cancel.
    */
-  onKill?: (params: {
+  onCancel?: (params: {
     agentId: string;
     project: string;
     reason: string;
@@ -417,7 +417,7 @@ export interface CostTrackerHooks {
 }
 
 export function createCostTracker(db: Database, hooks: CostTrackerHooks = {}) {
-  const { budgetGuard, budgetResolver, onKill } = hooks;
+  const { budgetGuard, budgetResolver, onCancel } = hooks;
   db.exec(`
     CREATE TABLE IF NOT EXISTS cost_events (
       id           TEXT    PRIMARY KEY,
@@ -535,7 +535,7 @@ export function createCostTracker(db: Database, hooks: CostTrackerHooks = {}) {
 
       // Budget-guard enforcement hook — the record above is observability,
       // this is the teeth. If the project crosses 100% of its daily budget,
-      // onKill fires and the caller SIGTERMs the live spawn. If no
+      // onCancel fires and the caller SIGTERMs the live spawn. If no
       // budgetResolver is wired (or it returns null for this project),
       // enforcement is skipped for that project — intentional opt-in.
       if (budgetGuard && budgetResolver && opts.projectName && opts.spawnId && costUsd > 0) {
@@ -548,8 +548,8 @@ export function createCostTracker(db: Database, hooks: CostTrackerHooks = {}) {
               usd: costUsd,
               budgetUsdPerDay: budget,
             });
-            if (decision.kill && onKill) {
-              onKill({
+            if (decision.cancel && onCancel) {
+              onCancel({
                 agentId: opts.spawnId,
                 project: opts.projectName,
                 reason: decision.reason || 'budget-exceeded',

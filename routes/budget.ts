@@ -1,15 +1,15 @@
 /**
  * Budget pause-and-ask routes.
  *
- *   GET  /budget/pending                        — list all pending kills
+ *   GET  /budget/pending                        — list all pending cancellations
  *   GET  /budget/pending/:agentId               — single pending
  *   POST /budget/pending/:agentId/resolve       — operator decision
- *     body: { action: 'raise'|'kill'|'grace',
+ *     body: { action: 'raise'|'cancel'|'grace',
  *             topUpUsd?, newBudgetUsdPerDay?, operator? }
  *
- * A pending-kill is the 60s window between "this agent blew its daily budget"
+ * A pending-cancel is the 60s window between "this agent blew its daily budget"
  * and "SIGTERM fires." The operator can raise the budget (saves the agent),
- * kill immediately (skips the wait), or extend the grace (buys time to
+ * cancel immediately (skips the wait), or extend the grace (buys time to
  * investigate). If nothing happens, the backstop still fires at expiry.
  */
 
@@ -27,7 +27,7 @@ interface BudgetRouteDeps {
   };
 }
 
-const VALID_ACTIONS: ReadonlySet<ResolveAction> = new Set(['raise', 'kill', 'grace']);
+const VALID_ACTIONS: ReadonlySet<ResolveAction> = new Set(['raise', 'cancel', 'grace']);
 
 export const budgetPlugin: FastifyPluginAsync<{ deps: BudgetRouteDeps }> = async (app, opts) => {
   const { budgetPause, activityLog, logger } = opts.deps;
@@ -51,7 +51,7 @@ export const budgetPlugin: FastifyPluginAsync<{ deps: BudgetRouteDeps }> = async
     const entry = budgetPause.get(agentId);
     if (!entry) {
       reply.code(404);
-      return { error: `no pending kill for agent ${agentId}` };
+      return { error: `no pending cancel for agent ${agentId}` };
     }
     return { success: true, pending: entry };
   });
@@ -80,7 +80,7 @@ export const budgetPlugin: FastifyPluginAsync<{ deps: BudgetRouteDeps }> = async
     const result = budgetPause.resolve(agentId, { action, topUpUsd, newBudgetUsdPerDay, operator });
     if (!result.ok) {
       reply.code(409);
-      return { error: result.reason || 'could not resolve pending kill' };
+      return { error: result.reason || 'could not resolve pending cancel' };
     }
 
     logger.info('budget_pending_resolved', { agentId, action, operator });

@@ -11,8 +11,12 @@ info:
     name: MIT
 
 servers:
-  - url: http://localhost:9876
-    description: Local daemon default. Use `pd status` or `PORT_DADDY_URL` when your live daemon is elsewhere.
+  - url: http://127.0.0.1:{port}
+    description: Local daemon at its published port
+    variables:
+      port:
+        default: '9876'
+        description: Preferred starting port; read the active value from the daemon port file
 
 tags:
   - name: services
@@ -4164,7 +4168,7 @@ paths:
                     type: boolean
                   lifecycleState:
                     type: string
-                    enum: [starting, live, completed, failed, killed, over_budget, unknown]
+                    enum: [starting, live, completed, failed, cancelled, over_budget, unknown]
                   agentId:
                     type: string
                   status:
@@ -4180,8 +4184,8 @@ paths:
 
     delete:
       tags: [spawn]
-      summary: Kill a spawned agent
-      operationId: killSpawnedAgent
+      summary: Cancel a spawned agent
+      operationId: cancelSpawnedAgent
       parameters:
         - name: id
           in: path
@@ -4190,7 +4194,7 @@ paths:
             type: string
       responses:
         '200':
-          description: Agent killed
+          description: Cancellation accepted or agent already terminal
           content:
             application/json:
               schema:
@@ -4962,17 +4966,17 @@ paths:
   /budget/pending:
     get:
       tags: [fleet-control]
-      summary: List pending budget-breach kills
-      operationId: listBudgetPendingKills
+      summary: List pending budget-breach cancellations
+      operationId: listBudgetPendingCancellations
       responses:
         '200':
-          description: Pending budget kills
+          description: Pending budget cancellations
 
   /budget/pending/{agentId}:
     get:
       tags: [fleet-control]
-      summary: Get one pending budget-breach kill
-      operationId: getBudgetPendingKill
+      summary: Get one pending budget-breach cancellation
+      operationId: getBudgetPendingCancellation
       parameters:
         - name: agentId
           in: path
@@ -4981,13 +4985,13 @@ paths:
             type: string
       responses:
         '200':
-          description: Pending budget kill
+          description: Pending budget cancellation
 
   /budget/pending/{agentId}/resolve:
     post:
       tags: [fleet-control]
-      summary: Resolve a pending budget-breach kill
-      operationId: resolveBudgetPendingKill
+      summary: Resolve a pending budget-breach cancellation
+      operationId: resolveBudgetPendingCancellation
       parameters:
         - name: agentId
           in: path
@@ -5004,14 +5008,14 @@ paths:
               properties:
                 action:
                   type: string
-                  enum: [raise, kill, grace]
+                  enum: [raise, cancel, grace]
                 topUpUsd:
                   type: number
                 newBudgetUsdPerDay:
                   type: number
       responses:
         '200':
-          description: Pending kill resolved
+          description: Pending cancellation resolved
 
   /fleet/panic:
     get:

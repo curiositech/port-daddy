@@ -151,7 +151,7 @@ describe('actor-souls: grandfather migration (§7, lossless + idempotent)', () =
     db = createTestDb();
     // Seed historical self-asserted principals across ledger/escrow/agents.
     db.prepare(`CREATE TABLE IF NOT EXISTS budget_ledger (
-      project TEXT, agent_id TEXT, day TEXT, spend_usd REAL, kill_armed_at INTEGER,
+      project TEXT, agent_id TEXT, day TEXT, spend_usd REAL, cancel_armed_at INTEGER,
       PRIMARY KEY (project, agent_id, day))`).run();
     db.prepare(`INSERT INTO budget_ledger VALUES ('p','legacy-qa','2026-07-15',0.5,NULL)`).run();
     db.prepare(`CREATE TABLE IF NOT EXISTS bond_escrow (

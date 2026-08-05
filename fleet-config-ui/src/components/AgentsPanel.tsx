@@ -13,7 +13,7 @@ import {
   fetchSalvageAgents,
   fetchSessions,
   fetchSorties,
-  killSortie,
+  cancelSortie,
   markAllAgentInboxRead,
   getDaemonUrl,
 } from '../api';
@@ -377,7 +377,7 @@ export default function AgentsPanel({
     setActionBusy('stop');
     setActionError(null);
     try {
-      await killSortie(selected.spawned.agentId);
+      await cancelSortie(selected.spawned.agentId);
       await loadDirectory();
       await loadDetails();
     } catch (err) {

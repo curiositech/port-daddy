@@ -18,7 +18,7 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
-import { fetchModels, fetchSortiePreflight, fetchSorties, killSortie, launchSortie } from '../api';
+import { cancelSortie, fetchModels, fetchSortiePreflight, fetchSorties, launchSortie } from '../api';
 import type { BackendInfo, SpawnPreflight, SpawnedAgent } from '../types';
 
 type RecipeId = 'investigate' | 'fix' | 'review' | 'creative' | 'custom';
@@ -521,8 +521,8 @@ export default function SortiePanel({ project }: SortiePanelProps) {
     }
   };
 
-  const handleKill = async (id: string) => {
-    await killSortie(id);
+  const handleCancel = async (id: string) => {
+    await cancelSortie(id);
     await refreshSorties();
   };
 
@@ -608,7 +608,7 @@ export default function SortiePanel({ project }: SortiePanelProps) {
             <MissionDetail
               mission={selectedMission}
               onBack={() => setSelectedMissionId('draft')}
-              onKill={() => void handleKill(selectedMission.agentId)}
+              onCancel={() => void handleCancel(selectedMission.agentId)}
             />
           ) : (
             <div className="space-y-4">
@@ -1051,11 +1051,11 @@ function MissionListSection({
 function MissionDetail({
   mission,
   onBack,
-  onKill,
+  onCancel,
 }: {
   mission: SpawnedAgent;
   onBack: () => void;
-  onKill: () => void;
+  onCancel: () => void;
 }) {
   const tone = toneForStatus(mission.status);
   const Icon = tone.icon;
@@ -1087,9 +1087,9 @@ function MissionDetail({
                 Draft
               </button>
               {mission.status === 'running' && (
-                <button type="button" className="pd-button pd-button-danger" onClick={onKill}>
+                <button type="button" className="pd-button pd-button-danger" onClick={onCancel}>
                   <X size={14} />
-                  Kill
+                  Cancel
                 </button>
               )}
             </div>

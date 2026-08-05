@@ -36,7 +36,14 @@ pd pub api:ready '{"endpoints": ["/login", "/register"]}'
 pd done "Auth complete"
 ```
 
-Examples in this README assume the default local daemon URL `http://localhost:9876`. If your daemon is on a different port, check `pd status` or set `PORT_DADDY_URL` before copying the HTTP examples.
+HTTP examples discover the daemon's published port instead of assuming the
+preferred starting port is available. For the stable daemon, or after
+`eval "$(pd daemon env <name>)"` for a named development daemon, set:
+
+```bash
+PD_PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
+PD_URL="http://127.0.0.1:$(cat "$PD_PORT_FILE")"
+```
 
 ### ⚓ Key Primitives
 
@@ -465,7 +472,7 @@ Agents spray numeric signals (0–1) onto entities; signals decay at read time, 
 pd pheromone spray --table services --id myapp:api --key urgency --strength 0.8
 pd pheromone sniff --table services --id myapp:api
 pd pheromone list
-curl http://localhost:9876/pheromone/files    # file heat map (contention)
+curl "$PD_URL/pheromone/files"    # file heat map (contention)
 ```
 
 Use cases: adaptive Arbiter thresholds, file-contention detection, agent reputation, hot-path identification.
@@ -514,8 +521,8 @@ Re-depositing the same bytes on the same branch is idempotent; the same bytes on
 The Arbiter monitors every state transition against formally-derived invariants: PID squatting, capability escalation, note monotonicity, escrow positivity, lock-owner validity, heartbeat freshness.
 
 ```bash
-curl http://localhost:9876/arbiter/status
-curl -X POST http://localhost:9876/arbiter/test-invariant/NOTE_MONOTONICITY   # demo injection
+curl "$PD_URL/arbiter/status"
+curl -X POST "$PD_URL/arbiter/test-invariant/NOTE_MONOTONICITY"   # demo injection
 ```
 
 In strict mode, critical violations trigger man-overboard salvage.
@@ -725,11 +732,11 @@ pd fleet validate   # Parse YAML, resolve templates, dry-run topology checks
 pd fleet status     # View running agents
 pd fleet down       # Stop all agents
 
-curl http://localhost:9876/fleet                    # Global fleet status
-curl -X POST http://localhost:9876/fleet/reload     # Reload configs (same as SIGHUP)
-curl http://localhost:9876/fleet/events             # SSE lifecycle stream
-curl 'http://localhost:9876/fleet/prompt?project=myapp'   # One-liner for your PS1
-curl http://localhost:9876/fleet/models             # Available backends & models
+curl "$PD_URL/fleet"                              # Global fleet status
+curl -X POST "$PD_URL/fleet/reload"               # Reload configs (same as SIGHUP)
+curl "$PD_URL/fleet/events"                       # SSE lifecycle stream
+curl "$PD_URL/fleet/prompt?project=myapp"         # One-liner for your PS1
+curl "$PD_URL/fleet/models"                       # Available backends & models
 ```
 
 Every fleet agent gets full coordination for free: registration, sessions, heartbeats, salvage on crash. Repeated trigger bursts collapse into **queued** work (mailbox semantics — `status: queued`, non-zero `queueDepth`) instead of spawning a fresh agent per wake. Template variables (`{project}`) resolve from YAML context; lifecycle events publish on `fleet:events`. The same fail-closed telemetry policy as manual launches applies. Scheduled ships default `run_on_start: false` so a daemon restart cannot fan out a whole fleet before `/health` is stable. Ships can opt into native skill guidance with `skill_graft: true`; `pd skill-graft` previews, warms, and reads guarded references from the same local index.
@@ -740,11 +747,11 @@ Fleet schema: ADR-0019 (`docs/adr/0019-declarative-fleet-yaml.md`); typed AST + 
 
 ## 💰 Bonds, Wallets & Budget Guard
 
-Port Daddy escrows virtual USD before each agent spawn and can stop live spawns that breach their daily budget. Spend is observable (cost-tracker); enforcement is separate (bonds). You top up a project wallet; every spawn debits a small bond; clean exits refund it; misbehavior slashes it.
+Port Daddy escrows virtual USD before each agent spawn and can cancel live spawns that breach their daily budget. Spend is observable (cost-tracker); enforcement is separate (bonds). You top up a project wallet; every spawn debits a small bond; clean exits refund it; misbehavior slashes it.
 
 **Spawning requires a daily budget.** Every project must set `usd_per_day` before its first spawn; the daemon refuses unbonded agents. Run `pd wallet budget <project> --usd-per-day 5` during setup. No agent runs without a number to enforce against.
 
-**Budget breach is pause-and-ask, not cliff SIGTERM** (the `budget_guard` feature). At 100% of daily budget, Port Daddy posts a *pending kill* with a 60-second grace window and broadcasts on `budget:pending`. The operator can `raise` (credit the wallet, agent keeps running), `kill` (SIGTERM now), or `grace` (extend, up to twice). The backstop SIGTERM fires at expiry. `pd wallet pending` lists; `pd wallet raise --agent <id> --usd 5` resolves.
+**Budget breach is pause-and-ask, not cliff SIGTERM** (the `budget_guard` feature). At 100% of daily budget, Port Daddy posts a *pending cancellation* with a 60-second grace window and broadcasts on `budget:pending`. The operator can `raise` (credit the wallet, agent keeps running), `cancel` (request cancellation now), or `grace` (extend, up to twice). The backstop cancellation fires at expiry. `pd wallet pending` lists; `pd wallet raise --agent <id> --usd 5` resolves.
 
 Per-launch positive finite `budgetUsd` on `pd spawn` / `POST /spawn` is stricter: once exact spawn telemetry is recorded, a run whose final `telemetry.costUsd` exceeds that cap is finalized as `over_budget` with the transcript and cost preserved for readback.
 
@@ -757,16 +764,16 @@ Per-launch positive finite `budgetUsd` on `pd spawn` / `POST /spawn` is stricter
 | `PD_FLEET_DEFAULT_BOND_USD` | `0.01` | Reservation floor so the breaker accrues even on bond-less launches |
 | `PD_FLEET_MAX_DEPTH` | `3` | Max recursion depth (agents launching agents) |
 
-Operate the live fleet with `pd fleet halt|pause|resume|inspect|tree`. `halt` is total (SIGKILL + refund); `pause` is soft. `pd fleet panic` is the two-step global kill switch — it **refunds** (never slashes) running bonds, because operator action is not agent misbehavior.
+Operate the live fleet with `pd fleet halt|pause|resume|inspect|tree`. `halt` is total (forced process termination + refund); `pause` is soft. `pd fleet panic` is the two-step global emergency cancellation — it **refunds** (never slashes) running bonds, because operator action is not agent misbehavior.
 
 ```bash
 pd wallet top-up myapp --usd 20
 pd bond list --project myapp
-curl -X POST http://localhost:9876/bonds/42/slash \
+curl -X POST "$PD_URL/bonds/42/slash" \
   -H 'Content-Type: application/json' -d '{"portion": 0.5, "reason": "leaked secrets to stdout"}'
 ```
 
-**What the wallet actually is.** A *governance accounting unit*, not money. When the backend is `claude` (SDK), `codex`, `gemini`, or `cloudflare`, the dollars map to real per-token billing. When it's `claude-cli` (your subscription) or `ollama` (local), marginal cost is ~$0 and bonds become a quota, a kill switch, a priority ordering, and an audit trail. Useful — but don't pretend it's money.
+**What the wallet actually is.** A *governance accounting unit*, not money. When the backend is `claude` (SDK), `codex`, `gemini`, or `cloudflare`, the dollars map to real per-token billing. When it's `claude-cli` (your subscription) or `ollama` (local), marginal cost is ~$0 and bonds become a quota, a cancellation control, a priority ordering, and an audit trail. Useful — but don't pretend it's money.
 
 ---
 
@@ -885,13 +892,13 @@ Three subsystems work together:
 - **Golden Signals** — RED-method metrics in a single endpoint: rate/min, error %, avg duration, cost/hr burn.
 
 ```bash
-curl http://localhost:9876/metrics/golden
+curl "$PD_URL/metrics/golden"
 # → { ratePerMin: 1.2, errorPct: 5.0, avgDurationMs: 4200, costPerHour: 0.23 }
-curl http://localhost:9876/metrics/cost                       # totals, byProject, byBackend
-curl "http://localhost:9876/metrics/cost/budget/myapp?budgetUsdPerDay=10"
-curl "http://localhost:9876/metrics/counters?key=spawn.started&groupBy=minute"
-curl "http://localhost:9876/metrics/counters/top?key=spawn.started&dim=backend&n=5"
-curl http://localhost:9876/metrics/prom                       # Prometheus scrape endpoint
+curl "$PD_URL/metrics/cost"                                 # totals, byProject, byBackend
+curl "$PD_URL/metrics/cost/budget/myapp?budgetUsdPerDay=10"
+curl "$PD_URL/metrics/counters?key=spawn.started&groupBy=minute"
+curl "$PD_URL/metrics/counters/top?key=spawn.started&dim=backend&n=5"
+curl "$PD_URL/metrics/prom"                                 # Prometheus scrape endpoint
 ```
 
 `pd metrics` from the CLI; `/metrics.html` serves a Prometheus dashboard.

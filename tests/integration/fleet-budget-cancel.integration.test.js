@@ -1,33 +1,33 @@
 /**
- * Integration test: fleet budget-kill pipeline end-to-end.
+ * Integration test: fleet budget-cancel pipeline end-to-end.
  *
  * Spec: docs/shipwright/FLEETCONTROL-HARDENING.md §6.2.
  *
  * What this test proves:
  *   1. Setting a per-project daily budget through HTTP is honored.
- *   2. A real LLM-style cost event that exceeds the budget arms the kill
- *      switch in `budget_ledger.kill_armed_at` exactly once.
+ *   2. A real LLM-style cost event that exceeds the budget arms the cancel
+ *      switch in `budget_ledger.cancel_armed_at` exactly once.
  *   3. After arming, future spawns for the same agent on the same UTC day
  *      are rejected by `budgetGuard.canSpawn` (the daemon's spawn
  *      admission gate calls this before escrowing a bond).
- *   4. The budget-pause "ask before kill" interposition arms a pending
- *      kill record visible at GET /budget/pending.
+ *   4. The budget-pause "ask before cancel" interposition arms a pending
+ *      cancel record visible at GET /budget/pending.
  *   5. Manual slash via POST /bonds/:id/slash transitions a running bond
  *      to state=slashed, credits the commons pool, and refunds the
  *      remainder to the project wallet — conservation holds.
- *   6. The kill remains armed across multiple charges within the same UTC
+ *   6. The cancel remains armed across multiple charges within the same UTC
  *      day (no double-arm, no second pause), matching the budget-guard
  *      idempotence contract.
  *
  * What this test does NOT prove:
  *   - SIGTERM observation against a real subprocess. That belongs to
  *     spawner unit tests; here we verify the state contract that the
- *     spawner relies on (bond goes to slashed, ledger says kill-armed).
+ *     spawner relies on (bond goes to slashed, ledger says cancel-armed).
  *
  * Mechanism:
  *   The daemon runs with NODE_ENV=test (set by ephemeral-daemon.js), which
  *   mounts /test/cost-event. POSTing to it drives the same
- *   costTracker.record() → budgetGuard.onCharge() → onKill() →
+ *   costTracker.record() → budgetGuard.onCharge() → onCancel() →
  *   budgetPause.arm() chain a real spawn would, with deterministic
  *   token counts that compute to the desired USD via the production
  *   price table.
@@ -50,7 +50,7 @@ async function routeExists(method, path) {
   return res.status !== 404;
 }
 
-describe('Fleet budget-kill pipeline', () => {
+describe('Fleet budget-cancel pipeline', () => {
   let hasTestHooks = false;
   let hasWalletRoutes = false;
   let hasBondsRoutes = false;
@@ -67,11 +67,11 @@ describe('Fleet budget-kill pipeline', () => {
     hasBudgetRoutes = await routeExists('GET', '/budget/pending');
 
     if (!hasTestHooks) {
-      console.warn('[fleet-budget-kill] /test/cost-event missing — daemon not running with NODE_ENV=test, or test-hooks plugin not registered. Test will skip.');
+      console.warn('[fleet-budget-cancel] /test/cost-event missing — daemon not running with NODE_ENV=test, or test-hooks plugin not registered. Test will skip.');
     }
   });
 
-  test('arms kill_armed_at once when a charge crosses the daily budget', async () => {
+  test('arms cancel_armed_at once when a charge crosses the daily budget', async () => {
     if (!hasTestHooks || !hasWalletRoutes) return;
 
     // 1. Top up wallet and set a hard daily budget.
@@ -87,8 +87,8 @@ describe('Fleet budget-kill pipeline', () => {
 
     // 1b. ADR-0040: with the souls store wired, an agentId with no known soul
     // resolves as 'unknown' and is floored to the shared newcomer_pool (which
-    // has no per-agent kill_armed_at at all -- see lib/budget-guard.ts). This
-    // test is about per-agent kill-arming on the individual ledger, which is
+    // has no per-agent cancel_armed_at at all -- see lib/budget-guard.ts). This
+    // test is about per-agent cancel-arming on the individual ledger, which is
     // exactly what an already-known, trusted fleet agent gets (the grandfather
     // migration grants this to every pre-existing agent automatically). Seed
     // that same trust here so TEST_AGENT exercises the 'ledger' route, not
@@ -123,22 +123,22 @@ describe('Fleet budget-kill pipeline', () => {
     const recorded = charge.data?.recorded;
     expect(recorded?.costUsd).toBeGreaterThan(BUDGET_USD_PER_DAY);
 
-    // 3. Verify the budget ledger marked the agent kill-armed for today.
+    // 3. Verify the budget ledger marked the agent cancel-armed for today.
     const { dbPath } = getDaemonState();
     const db = new Database(dbPath);
     try {
       const today = new Date().toISOString().slice(0, 10);
       const ledger = db.prepare(`
-        SELECT spend_usd, kill_armed_at
+        SELECT spend_usd, cancel_armed_at
           FROM budget_ledger
          WHERE project = ? AND agent_id = ? AND day = ?
       `).get(TEST_PROJECT, TEST_AGENT, today);
       expect(ledger).toBeDefined();
       expect(ledger.spend_usd).toBeGreaterThanOrEqual(recorded.costUsd - 1e-6);
-      expect(ledger.kill_armed_at).not.toBeNull();
-      const firstArmedAt = ledger.kill_armed_at;
+      expect(ledger.cancel_armed_at).not.toBeNull();
+      const firstArmedAt = ledger.cancel_armed_at;
 
-      // 4. Drive a SECOND charge — kill_armed_at must NOT change (idempotent).
+      // 4. Drive a SECOND charge — cancel_armed_at must NOT change (idempotent).
       const charge2 = await request('/test/cost-event', {
         method: 'POST',
         body: {
@@ -153,23 +153,23 @@ describe('Fleet budget-kill pipeline', () => {
       expect(charge2.ok).toBe(true);
 
       const ledgerAfter = db.prepare(`
-        SELECT spend_usd, kill_armed_at FROM budget_ledger
+        SELECT spend_usd, cancel_armed_at FROM budget_ledger
          WHERE project = ? AND agent_id = ? AND day = ?
       `).get(TEST_PROJECT, TEST_AGENT, today);
-      expect(ledgerAfter.kill_armed_at).toBe(firstArmedAt);
+      expect(ledgerAfter.cancel_armed_at).toBe(firstArmedAt);
       expect(ledgerAfter.spend_usd).toBeGreaterThan(ledger.spend_usd);
     } finally {
       db.close();
     }
   });
 
-  test('after kill-arm, a pending kill is visible at GET /budget/pending', async () => {
+  test('after cancel-arm, a pending cancel is visible at GET /budget/pending', async () => {
     if (!hasTestHooks || !hasBudgetRoutes) return;
 
-    // The pause-and-ask module interposes between kill detection and
-    // SIGTERM. After the previous test's charge fired onKill, a pending
+    // The pause-and-ask module interposes between cancel detection and
+    // SIGTERM. After the previous test's charge fired onCancel, a pending
     // record should be visible — unless the pause module configured
-    // grace=0, in which case it fired the kill synchronously and the
+    // grace=0, in which case it fired the cancel synchronously and the
     // pending was consumed.
     const pending = await request('/budget/pending');
     if (!pending.ok) return;
@@ -193,7 +193,7 @@ describe('Fleet budget-kill pipeline', () => {
 
     // Seed a running bond directly. We're not testing escrow flow here
     // (that's covered by bonds.test.js + bonds-wiring.integration); we're
-    // testing the slash endpoint that fires when the kill switch lands.
+    // testing the slash endpoint that fires when the cancel switch lands.
     const { dbPath } = getDaemonState();
     const db = new Database(dbPath);
     let bondId;
@@ -217,7 +217,7 @@ describe('Fleet budget-kill pipeline', () => {
       ?? walletBefore.data?.commonsPoolUsd
       ?? 0;
 
-    // Slash the FULL bond — matches "kill due to budget breach" semantics.
+    // Slash the FULL bond — matches "cancel due to budget breach" semantics.
     const slash = await request(`/bonds/${bondId}/slash`, {
       method: 'POST', body: { portion: 0.25, reason: 'budget-breach' },
     });

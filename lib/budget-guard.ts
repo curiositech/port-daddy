@@ -13,7 +13,7 @@
  *
  *   2. onCharge() — mid-flight. After cost-tracker records a charge,
  *      is this agent now past a threshold? At 80% we THROTTLE (no new
- *      expensive actions, finish current work). At 100% we KILL
+ *      expensive actions, finish current work). At 100% we CANCEL
  *      (SIGTERM the body, slash the bond, quarantine the agent).
  *
  * This split matches the classic admission-control / back-pressure
@@ -47,7 +47,7 @@
  *      project: 'port-daddy', agentId: 'hawk-3',
  *      budgetUsdPerDay: 1.00, usd: 0.08,
  *    });
- *    if (decision.kill)     spawner.terminate('hawk-3', 'budget-breach');
+ *    if (decision.cancel)     spawner.cancel('hawk-3');
  *    if (decision.throttle) runtime.emit('agent.throttled', 'hawk-3');
  */
 
@@ -71,7 +71,7 @@ export interface CanSpawnParams {
 }
 export interface CanSpawnDecision {
   ok: boolean;
-  reason?: 'budget-exceeded' | 'kill-armed';
+  reason?: 'budget-exceeded' | 'cancellation-armed';
   spentTodayUsd: number;
   budgetUsdPerDay: number;
 }
@@ -86,12 +86,12 @@ export interface OnChargeParams {
 }
 export interface OnChargeDecision {
   /** True means: SIGTERM the body and slash the bond. */
-  kill: boolean;
+  cancel: boolean;
   /** True means: don't spawn new expensive work, finish current. */
   throttle: boolean;
   spentTodayUsd: number;
   budgetUsdPerDay: number;
-  /** When kill=true, what tripped it. */
+  /** When cancel=true, what tripped it. */
   reason?: 'budget-exceeded';
 }
 
@@ -100,22 +100,22 @@ export interface BudgetLedgerRow {
   agentId: string;
   day: string;              // YYYY-MM-DD UTC
   spendUsd: number;
-  killArmedAt: number | null;
+  cancellationArmedAt: number | null;
 }
 
 export interface BudgetGuardConfig {
   /** Fraction of daily budget at which to emit throttle.
    *  Default 0.80. Tune per project if needed. */
   throttleThreshold?: number;
-  /** Fraction of daily budget at which to emit kill.
+  /** Fraction of daily budget at which to emit cancellation.
    *  Default 1.00. Leaving room above 1.0 allows brief overages in
    *  experimental setups; production should stay at 1.00. */
-  killThreshold?: number;
+  cancellationThreshold?: number;
 }
 
 /**
  * Optional dependencies. Pass a `broadcast` callback to publish every
- * throttle/kill decision on `budget:decisions` so subscribers (dashboard,
+ * throttle/cancel decision on `budget:decisions` so subscribers (dashboard,
  * IPC, other actors) learn about threshold crossings in real time.
  * Without it, decisions are returned to the caller but unobserved by
  * the rest of the daemon.
@@ -157,7 +157,7 @@ export function utcDay(now: number = Date.now()): string {
 
 export function createBudgetGuard(db: Database, config: BudgetGuardConfig = {}, deps: BudgetGuardDeps = {}) {
   const throttleThreshold = clamp01(config.throttleThreshold ?? 0.80);
-  const killThreshold     = clamp01(config.killThreshold     ?? 1.00);
+  const cancellationThreshold = clamp01(config.cancellationThreshold ?? 1.00);
   const broadcast = deps.broadcast;
   const souls = deps.souls;
 
@@ -207,45 +207,57 @@ export function createBudgetGuard(db: Database, config: BudgetGuardConfig = {}, 
       agent_id      TEXT NOT NULL,
       day           TEXT NOT NULL,
       spend_usd     REAL NOT NULL DEFAULT 0,
-      kill_armed_at INTEGER,
+      cancel_armed_at INTEGER,
       PRIMARY KEY (project, agent_id, day)
     )
   `);
+
+  // 3.28 renamed the operator contract from "kill" to "cancel". Migrate the
+  // durable ledger before preparing statements so an upgraded daemon can open
+  // an existing database without losing the already-armed safety state. The
+  // legacy identifier is intentionally confined to this compatibility bridge.
+  const ledgerColumns = db.prepare('PRAGMA table_info(budget_ledger)').all() as Array<{ name: string }>;
+  const hasCancelArmedAt = ledgerColumns.some((column) => column.name === 'cancel_armed_at');
+  const hasLegacyArmedAt = ledgerColumns.some((column) => column.name === 'kill_armed_at');
+  if (!hasCancelArmedAt && hasLegacyArmedAt) {
+    runDDL('ALTER TABLE budget_ledger RENAME COLUMN kill_armed_at TO cancel_armed_at');
+  }
+
   runDDL(`CREATE INDEX IF NOT EXISTS idx_budget_project_day
             ON budget_ledger(project, day)`);
 
   const selectRow = db.prepare(`
-    SELECT project, agent_id, day, spend_usd, kill_armed_at
+    SELECT project, agent_id, day, spend_usd, cancel_armed_at
       FROM budget_ledger
      WHERE project = ? AND agent_id = ? AND day = ?
   `);
 
   // UPSERT: insert-or-accumulate. Single atomic write per charge.
   const upsertSpend = db.prepare(`
-    INSERT INTO budget_ledger (project, agent_id, day, spend_usd, kill_armed_at)
+    INSERT INTO budget_ledger (project, agent_id, day, spend_usd, cancel_armed_at)
     VALUES (?, ?, ?, ?, NULL)
     ON CONFLICT(project, agent_id, day) DO UPDATE SET
       spend_usd = spend_usd + excluded.spend_usd
   `);
 
-  const armKill = db.prepare(`
-    UPDATE budget_ledger SET kill_armed_at = ?
+  const armCancellation = db.prepare(`
+    UPDATE budget_ledger SET cancel_armed_at = ?
      WHERE project = ? AND agent_id = ? AND day = ?
-       AND kill_armed_at IS NULL
+       AND cancel_armed_at IS NULL
   `);
 
   // ──────────────────────────────────────────────────────────────────────────
-  // Internal read of today's state. Returns {spend, killArmed} for a
+  // Internal read of today's state. Returns {spend, cancellationArmed} for a
   // project+agent in a single SQL round-trip.
   // ──────────────────────────────────────────────────────────────────────────
   function readToday(project: string, agentId: string, day: string): {
-    spend: number; killArmed: boolean;
+    spend: number; cancellationArmed: boolean;
   } {
     const row = selectRow.get(project, agentId, day) as
-      | { spend_usd: number; kill_armed_at: number | null }
+      | { spend_usd: number; cancel_armed_at: number | null }
       | undefined;
-    if (!row) return { spend: 0, killArmed: false };
-    return { spend: row.spend_usd, killArmed: row.kill_armed_at !== null };
+    if (!row) return { spend: 0, cancellationArmed: false };
+    return { spend: row.spend_usd, cancellationArmed: row.cancel_armed_at !== null };
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -256,7 +268,7 @@ export function createBudgetGuard(db: Database, config: BudgetGuardConfig = {}, 
    * Pre-flight check before spawn. Returns admission decision.
    *
    * Three ways this says no:
-   *   - `kill-armed`      — today's kill trigger already fired; no new
+   *   - `cancellation-armed` — today's cancellation trigger already fired; no new
    *                         spawns for this agent until tomorrow 00:00 UTC.
    *   - `budget-exceeded` — spent + estimated > budget. We admit only if
    *                         there's room for the worst case.
@@ -289,9 +301,9 @@ export function createBudgetGuard(db: Database, config: BudgetGuardConfig = {}, 
     }
 
     // Graduated / operator / no-souls-store: legacy per-key ledger path.
-    const { spend, killArmed } = readToday(project, route.key, day);
-    if (killArmed) {
-      return { ok: false, reason: 'kill-armed', spentTodayUsd: spend, budgetUsdPerDay: route.ceiling };
+    const { spend, cancellationArmed } = readToday(project, route.key, day);
+    if (cancellationArmed) {
+      return { ok: false, reason: 'cancellation-armed', spentTodayUsd: spend, budgetUsdPerDay: route.ceiling };
     }
     if (route.ceiling <= 0) {
       return { ok: false, reason: 'budget-exceeded', spentTodayUsd: spend, budgetUsdPerDay: route.ceiling };
@@ -305,11 +317,11 @@ export function createBudgetGuard(db: Database, config: BudgetGuardConfig = {}, 
   /**
    * Record a charge and decide what happens next. Call this from inside
    * cost-tracker's record hook OR from whatever pipeline observes actual
-   * spend. Returns kill/throttle decisions — the CALLER is responsible
+   * spend. Returns cancel/throttle decisions — the CALLER is responsible
    * for acting on them (we're pure, no side effects beyond the ledger
    * write).
    *
-   * Arms kill_armed_at IDEMPOTENTLY: second breach doesn't re-arm, so
+   * Arms cancel_armed_at IDEMPOTENTLY: second breach doesn't re-arm, so
    * concurrent readers all see the same "armed at" timestamp. This is
    * important for audit log ordering.
    *
@@ -318,7 +330,7 @@ export function createBudgetGuard(db: Database, config: BudgetGuardConfig = {}, 
    *     project: 'p', agentId: 'a', budgetUsdPerDay: 1.00, usd: 0.30,
    *   });
    *   // if spent was $0.60 before: now $0.90 → throttle
-   *   // if spent was $0.80 before: now $1.10 → kill
+   *   // if spent was $0.80 before: now $1.10 → cancel
    */
   function onCharge(params: OnChargeParams): OnChargeDecision {
     const { project, agentId, budgetUsdPerDay } = params;
@@ -333,44 +345,44 @@ export function createBudgetGuard(db: Database, config: BudgetGuardConfig = {}, 
       const spend = souls.chargePool(project, day, usd);
       const ceiling = route.ceiling;
       if (ceiling <= 0) {
-        return { kill: true, throttle: true, spentTodayUsd: spend, budgetUsdPerDay: ceiling, reason: 'budget-exceeded' };
+        return { cancel: true, throttle: true, spentTodayUsd: spend, budgetUsdPerDay: ceiling, reason: 'budget-exceeded' };
       }
       const pctPool = spend / ceiling;
-      const killPool = pctPool >= killThreshold;
+      const cancelPool = pctPool >= cancellationThreshold;
       const throttlePool = pctPool >= throttleThreshold;
-      if (killPool) {
-        emit('kill', { project, agentId: route.key, pool: true, spentTodayUsd: spend, budgetUsdPerDay: ceiling });
+      if (cancelPool) {
+        emit('cancel', { project, agentId: route.key, pool: true, spentTodayUsd: spend, budgetUsdPerDay: ceiling });
       } else if (throttlePool) {
         emit('throttle', { project, agentId: route.key, pool: true, spentTodayUsd: spend, budgetUsdPerDay: ceiling });
       }
       return {
-        kill: killPool, throttle: throttlePool,
+        cancel: cancelPool, throttle: throttlePool,
         spentTodayUsd: spend, budgetUsdPerDay: ceiling,
-        ...(killPool ? { reason: 'budget-exceeded' as const } : {}),
+        ...(cancelPool ? { reason: 'budget-exceeded' as const } : {}),
       };
     }
 
     // Graduated / operator / no-souls-store: legacy per-key ledger path.
     // Accumulate in one atomic write, then re-read to decide.
     upsertSpend.run(project, route.key, day, usd);
-    const { spend, killArmed } = readToday(project, route.key, day);
+    const { spend, cancellationArmed } = readToday(project, route.key, day);
     const effectiveBudget = route.ceiling;
 
     if (effectiveBudget <= 0) {
-      return { kill: true, throttle: true, spentTodayUsd: spend, budgetUsdPerDay: effectiveBudget, reason: 'budget-exceeded' };
+      return { cancel: true, throttle: true, spentTodayUsd: spend, budgetUsdPerDay: effectiveBudget, reason: 'budget-exceeded' };
     }
 
     const pct = spend / effectiveBudget;
-    const kill     = pct >= killThreshold;
+    const cancel = pct >= cancellationThreshold;
     const throttle = pct >= throttleThreshold;
 
-    if (kill && !killArmed) {
-      armKill.run(Date.now(), project, route.key, day);
-      // Fire a KILL only the first time per day. Subsequent charges
+    if (cancel && !cancellationArmed) {
+      armCancellation.run(Date.now(), project, route.key, day);
+      // Fire a CANCEL only the first time per day. Subsequent charges
       // against an already-armed agent stay quiet on the wire — the
       // throttle stream covers downstream visibility.
-      emit('kill', { project, agentId: route.key, spentTodayUsd: spend, budgetUsdPerDay: effectiveBudget });
-    } else if (throttle && !kill) {
+      emit('cancel', { project, agentId: route.key, spentTodayUsd: spend, budgetUsdPerDay: effectiveBudget });
+    } else if (throttle && !cancel) {
       // Emit throttle every time we're in the window so subscribers
       // can trace back-pressure cleanly. Cheap (≤5 messages/hour per
       // agent, usually).
@@ -378,10 +390,10 @@ export function createBudgetGuard(db: Database, config: BudgetGuardConfig = {}, 
     }
 
     return {
-      kill, throttle,
+      cancel, throttle,
       spentTodayUsd: spend,
       budgetUsdPerDay: effectiveBudget,
-      ...(kill ? { reason: 'budget-exceeded' as const } : {}),
+      ...(cancel ? { reason: 'budget-exceeded' as const } : {}),
     };
   }
 
@@ -399,13 +411,13 @@ export function createBudgetGuard(db: Database, config: BudgetGuardConfig = {}, 
 
   /**
    * Get the full ledger row for today (project, agent, day, spend,
-   * killArmedAt). Null if no activity today.
+   * cancellationArmedAt). Null if no activity today.
    */
   function getLedger(project: string, agentId: string, day?: string): BudgetLedgerRow | null {
     const d = day ?? utcDay();
     const row = selectRow.get(project, agentId, d) as
       | { project: string; agent_id: string; day: string;
-          spend_usd: number; kill_armed_at: number | null }
+          spend_usd: number; cancel_armed_at: number | null }
       | undefined;
     if (!row) return null;
     return {
@@ -413,7 +425,7 @@ export function createBudgetGuard(db: Database, config: BudgetGuardConfig = {}, 
       agentId: row.agent_id,
       day: row.day,
       spendUsd: row.spend_usd,
-      killArmedAt: row.kill_armed_at,
+      cancellationArmedAt: row.cancel_armed_at,
     };
   }
 
@@ -424,17 +436,17 @@ export function createBudgetGuard(db: Database, config: BudgetGuardConfig = {}, 
   function listToday(project: string): BudgetLedgerRow[] {
     const day = utcDay();
     const rows = db.prepare(`
-      SELECT project, agent_id, day, spend_usd, kill_armed_at
+      SELECT project, agent_id, day, spend_usd, cancel_armed_at
         FROM budget_ledger
        WHERE project = ? AND day = ?
        ORDER BY spend_usd DESC
     `).all(project, day) as Array<{
       project: string; agent_id: string; day: string;
-      spend_usd: number; kill_armed_at: number | null;
+      spend_usd: number; cancel_armed_at: number | null;
     }>;
     return rows.map((r) => ({
       project: r.project, agentId: r.agent_id, day: r.day,
-      spendUsd: r.spend_usd, killArmedAt: r.kill_armed_at,
+      spendUsd: r.spend_usd, cancellationArmedAt: r.cancel_armed_at,
     }));
   }
 
@@ -445,7 +457,7 @@ export function createBudgetGuard(db: Database, config: BudgetGuardConfig = {}, 
     getLedger,
     listToday,
     /** Exposed for tests that want to reason about thresholds. */
-    thresholds: { throttle: throttleThreshold, kill: killThreshold },
+    thresholds: { throttle: throttleThreshold, cancel: cancellationThreshold },
   };
 }
 

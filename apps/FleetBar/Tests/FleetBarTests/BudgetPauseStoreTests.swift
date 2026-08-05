@@ -95,6 +95,21 @@ final class BudgetPauseStoreTests: XCTestCase {
         XCTAssertTrue(body.contains("isConnected = false"), "stop() must explicitly set isConnected = false, not rely on Task cancellation reaching the catch block")
     }
 
+    /// The operator action and daemon contract use one cancellation verb.
+    /// Keep the native client from silently posting a stale resolution action.
+    func testCancelNowPostsCanonicalCancellationAction() throws {
+        let source = try budgetPauseStoreSource()
+        guard let methodRange = source.range(of: "func cancelNow(agentId: String) async {") else {
+            return XCTFail("could not locate cancelNow(agentId:) in BudgetPauseStore.swift")
+        }
+        let afterMethod = source[methodRange.upperBound...]
+        guard let closingBrace = afterMethod.range(of: "\n    }") else {
+            return XCTFail("could not locate end of cancelNow(agentId:) in BudgetPauseStore.swift")
+        }
+        let body = afterMethod[..<closingBrace.lowerBound]
+        XCTAssertTrue(body.contains("body: [\"action\": \"cancel\"]"))
+    }
+
     private func budgetPauseStoreSource() throws -> String {
         let thisFile = URL(fileURLWithPath: #filePath)
         let sourcePath = thisFile

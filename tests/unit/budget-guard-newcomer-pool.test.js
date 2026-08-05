@@ -41,16 +41,16 @@ describe('budget-guard ADR-0040 spend choke', () => {
     // Each charges $0.30 while ASKING for a high caller budget ($5/day). If the
     // ledger were per-id, aggregate headroom would be 5 × $5 = $25. Instead every
     // newcomer meters against the ONE shared pool (ceiling $1).
-    let kills = 0;
+    let cancels = 0;
     for (const id of ids) {
       const d = guard.onCharge({ project: 'proj', agentId: id, budgetUsdPerDay: 5.0, usd: 0.30 });
-      if (d.kill) kills++;
+      if (d.cancel) cancels++;
     }
 
     const day = utcDay();
     const poolSpend = souls.poolState('proj', day).spendUsd;
     expect(poolSpend).toBeCloseTo(1.5, 5);          // all 5 accumulate into one row
-    expect(kills).toBeGreaterThan(0);               // the pool ceiling bit (kill fired)
+    expect(cancels).toBeGreaterThan(0);               // the pool ceiling bit (cancel fired)
 
     // A 6th fresh mint buys NO new budget: canSpawn is refused because the shared
     // pool is already over its ceiling — shedding+minting an id gains nothing.
@@ -87,7 +87,7 @@ describe('budget-guard ADR-0040 spend choke', () => {
 
     // Graduated → individual ledger keyed on its actor_id, caller budget governs.
     const d = guard.onCharge({ project: 'proj', agentId: out.actorId, budgetUsdPerDay: 2.0, usd: 0.5 });
-    expect(d.kill).toBe(false);
+    expect(d.cancel).toBe(false);
     expect(d.throttle).toBe(false);
     expect(d.budgetUsdPerDay).toBe(2.0);
 
@@ -104,7 +104,7 @@ describe('budget-guard ADR-0040 spend choke', () => {
     const out = souls2.register({ operatorToken: 'op-secret', alias: 'p:s:op' });
     expect(out.soulClass).toBe('operator');
     const d = guard2.onCharge({ project: 'proj2', agentId: out.actorId, budgetUsdPerDay: 3.0, usd: 1.0 });
-    expect(d.kill).toBe(false);
+    expect(d.cancel).toBe(false);
     expect(d.budgetUsdPerDay).toBe(3.0);
     expect(souls2.poolState('proj2', utcDay()).spendUsd).toBe(0);
   });

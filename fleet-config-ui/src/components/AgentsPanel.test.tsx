@@ -28,7 +28,7 @@ vi.mock('../api', () => ({
   fetchSessions: vi.fn(),
   fetchSorties: vi.fn(),
   getDaemonUrl: vi.fn(() => 'http://127.0.0.1:43127'),
-  killSortie: vi.fn(),
+  cancelSortie: vi.fn(),
   markAllAgentInboxRead: vi.fn(),
 }));
 

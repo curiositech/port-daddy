@@ -201,8 +201,8 @@ export async function handleWallet(args: string[], options: CLIOptions): Promise
       console.log('  pd wallet top-up <project> --usd <amount> [--yes]');
       console.log('  pd wallet history <project> [--since 7d] [--limit N]');
       console.log('  pd wallet budget <project> --usd-per-day <N>    # set daily budget (required for spawn)');
-      console.log('  pd wallet pending                                # list pending budget kills');
-      console.log('  pd wallet raise --agent <id> --usd <N>          # clear a pending kill + top up');
+      console.log('  pd wallet pending                                # list pending budget cancellations');
+      console.log('  pd wallet raise --agent <id> --usd <N>          # clear a pending cancel + top up');
       return;
     default:
       ui.error(`Unknown wallet subcommand: ${sub}`);
@@ -265,7 +265,7 @@ export async function handleWalletRaise(options: CLIOptions): Promise<void> {
 
   if (isJson(options)) { console.log(JSON.stringify(data, null, 2)); return; }
   if (isQuiet(options)) { console.log('raised'); return; }
-  ui.success(`Pending kill for ${agentId} cleared — wallet credited $${usd.toFixed(2)}${newBudget != null ? `, budget → $${newBudget.toFixed(2)}/day` : ''}`);
+  ui.success(`Pending cancel for ${agentId} cleared — wallet credited $${usd.toFixed(2)}${newBudget != null ? `, budget → $${newBudget.toFixed(2)}/day` : ''}`);
 }
 
 export async function handleWalletPending(options: CLIOptions): Promise<void> {
@@ -278,7 +278,7 @@ export async function handleWalletPending(options: CLIOptions): Promise<void> {
   if (isQuiet(options)) { console.log(String(rows.length)); return; }
 
   console.log('');
-  console.log(`Pending budget kills · ${rows.length} · grace ${data.graceMs ?? 60000}ms`);
+  console.log(`Pending budget cancellations · ${rows.length} · grace ${data.graceMs ?? 60000}ms`);
   console.log('─'.repeat(80));
   if (rows.length === 0) { console.log('  (none)'); console.log(''); return; }
   for (const r of rows) {

@@ -686,10 +686,10 @@ const budgetGuard = createBudgetGuard(db, {}, {
 let spawnerRef: ReturnType<typeof createSpawner> | null = null;
 
 // Pause-and-ask sits between the budget-breach signal and the actual
-// SIGTERM. Default 60s grace; operator can raise, kill, or extend.
+// SIGTERM. Default 60s grace; operator can raise, cancel, or extend.
 const budgetPause = createBudgetPause({
-  killAgent: (agentId: string) => {
-    logger.warn('budget_kill_executing', { agentId });
+  cancelAgent: (agentId: string) => {
+    logger.warn('budget_cancel_executing', { agentId });
     spawnerRef?.cancel(agentId);
   },
   bonds,
@@ -702,10 +702,10 @@ const costTracker = createCostTracker(db, {
   // a budget set are refused at spawn time (see lib/spawner.ts), so this
   // resolver returning null for unset projects is fine — we never get here.
   budgetResolver: (project: string) => bonds.getBudget(project),
-  onKill: ({ agentId, project, reason, spentTodayUsd, budgetUsdPerDay }) => {
+  onCancel: ({ agentId, project, reason, spentTodayUsd, budgetUsdPerDay }) => {
     logger.warn('budget_breach_pending', { agentId, project, reason, spentTodayUsd, budgetUsdPerDay });
     // Interpose grace window. If operator doesn't resolve within graceMs,
-    // the pause module fires killAgent() automatically.
+    // the pause module fires cancelAgent() automatically.
     budgetPause.arm({ agentId, project, reason, spentTodayUsd, budgetUsdPerDay });
   },
 });

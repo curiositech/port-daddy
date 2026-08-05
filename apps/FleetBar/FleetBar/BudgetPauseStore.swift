@@ -2,15 +2,15 @@
 // FleetBar — operator surface for the budget pause-and-ask flow.
 //
 // Subscribes to two SSE channels off the daemon:
-//   /msg/budget:pending/subscribe   — new pending kill armed
-//   /msg/budget:resolved/subscribe  — pending resolved (raise|kill|grace|expired)
+//   /msg/budget:pending/subscribe   — new pending cancellation armed
+//   /msg/budget:resolved/subscribe  — pending resolved (raise|cancel|grace|expired)
 //
-// The store keeps an in-memory `pendingKills` array; on each event it
+// The store keeps an in-memory `pendingCancellations` array; on each event it
 // re-fetches /budget/pending for the authoritative list (events are signals,
 // not a delta protocol). Three actions per row hit
 // /budget/pending/<agentId>/resolve:
 //   - raise +$5  → action=raise, topUpUsd=5
-//   - kill now   → action=kill
+//   - cancel now  → action=cancel
 //   - +60s grace → action=grace
 //
 // Why a separate store from FleetStore: budget pause is a distinct concern
@@ -21,7 +21,7 @@
 import Foundation
 import Combine
 
-struct PendingKill: Codable, Identifiable, Equatable {
+struct PendingCancellation: Codable, Identifiable, Equatable {
     let agentId: String
     let project: String
     let reason: String
@@ -34,15 +34,15 @@ struct PendingKill: Codable, Identifiable, Equatable {
     var id: String { agentId }
 }
 
-struct PendingKillsResponse: Codable {
+struct PendingCancellationsResponse: Codable {
     let success: Bool?
-    let pending: [PendingKill]
+    let pending: [PendingCancellation]
     let graceMs: Double?
 }
 
 @MainActor
 final class BudgetPauseStore: ObservableObject {
-    @Published private(set) var pendingKills: [PendingKill] = []
+    @Published private(set) var pendingCancellations: [PendingCancellation] = []
     @Published private(set) var graceMs: Double = 60_000
     @Published private(set) var isConnected: Bool = false
     @Published var lastError: String?
@@ -102,7 +102,7 @@ final class BudgetPauseStore: ObservableObject {
         resolvedTask?.cancel()
     }
 
-    /// One-shot fetch. Sets pendingKills to authoritative server list.
+    /// One-shot fetch. Sets pendingCancellations to authoritative server list.
     func refresh() async {
         guard let url = URL(string: "\(baseURL)/budget/pending") else { return }
         do {
@@ -111,8 +111,8 @@ final class BudgetPauseStore: ObservableObject {
                 lastError = "HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)"
                 return
             }
-            let decoded = try JSONDecoder().decode(PendingKillsResponse.self, from: data)
-            self.pendingKills = decoded.pending
+            let decoded = try JSONDecoder().decode(PendingCancellationsResponse.self, from: data)
+            self.pendingCancellations = decoded.pending
             if let g = decoded.graceMs { self.graceMs = g }
             self.lastError = nil
         } catch {
@@ -127,9 +127,9 @@ final class BudgetPauseStore: ObservableObject {
         await resolve(agentId: agentId, body: body)
     }
 
-    /// Operator action — skip grace, fire SIGTERM now.
-    func killNow(agentId: String) async {
-        await resolve(agentId: agentId, body: ["action": "kill"])
+    /// Operator action — skip grace and request cancellation now.
+    func cancelNow(agentId: String) async {
+        await resolve(agentId: agentId, body: ["action": "cancel"])
     }
 
     /// Operator action — extend grace window. Up to 2 extensions per pending.

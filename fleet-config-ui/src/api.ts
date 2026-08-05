@@ -983,7 +983,7 @@ export async function fetchSorties(): Promise<SpawnedAgent[]> {
   return data.agents ?? [];
 }
 
-export async function killSortie(id: string): Promise<{ success: boolean }> {
+export async function cancelSortie(id: string): Promise<{ success: boolean }> {
   return del(`/spawn/${encodeURIComponent(id)}`);
 }
 

@@ -1,15 +1,15 @@
 /**
  * Budget Pause-and-Ask — interpose a grace window between a budget breach
- * and the kill that follows.
+ * and the cancel that follows.
  *
  * Why this exists: an immediate SIGTERM at 100% of daily budget is correct
  * as a backstop, but it's also an ambush. The operator can't raise the
- * budget, top up the wallet, or kill manually with context. Instead of a
- * cliff, budget breaches now post a *pending kill* with a grace window
+ * budget, top up the wallet, or cancel manually with context. Instead of a
+ * cliff, budget breaches now post a *pending cancel* with a grace window
  * (default 60s). During grace, operator has three options:
  *
  *   1. raise   — credit the wallet + optionally raise daily budget. Clears pending.
- *   2. kill    — confirm immediately. SIGTERM fires now, not at expiry.
+ *   2. cancel  — confirm immediately. SIGTERM fires now, not at expiry.
  *   3. grace   — extend the window (one per pending). Buys investigation time.
  *
  * If no decision lands before expiry, SIGTERM fires automatically — the
@@ -17,13 +17,13 @@
  * system that already works.
  *
  * Broadcast channel: 'budget:pending' on armament, 'budget:resolved' on
- * any resolution (raise|kill|grace|expire). Dashboards and FleetBar
+ * any resolution (raise|cancel|grace|expire). Dashboards and FleetBar
  * subscribe to these.
  */
 
 import type { Bonds } from './bonds.js';
 
-export interface PendingKill {
+export interface PendingCancellation {
   agentId: string;
   project: string;
   reason: string;
@@ -35,8 +35,8 @@ export interface PendingKill {
 }
 
 export interface PauseDeps {
-  /** Called on actual kill (expiry or resolve:kill). */
-  killAgent: (agentId: string) => void;
+  /** Called on actual cancel (expiry or resolve:cancel). */
+  cancelAgent: (agentId: string) => void;
   /** Optional: wallet top-up + budget raise happen through these. */
   bonds?: Bonds;
   /** Broadcast channel publisher — same shape as messaging.publish. */
@@ -47,7 +47,7 @@ export interface PauseDeps {
   maxExtensions?: number;
 }
 
-export type ResolveAction = 'raise' | 'kill' | 'grace';
+export type ResolveAction = 'raise' | 'cancel' | 'grace';
 
 export interface ResolveParams {
   action: ResolveAction;
@@ -68,20 +68,20 @@ export interface ResolveResult {
 }
 
 export function createBudgetPause(deps: PauseDeps) {
-  const { killAgent, bonds, broadcast } = deps;
+  const { cancelAgent, bonds, broadcast } = deps;
   const graceMs = deps.graceMs ?? 60_000;
   const maxExtensions = deps.maxExtensions ?? 2;
 
-  // agentId → PendingKill + timer. Indexed by agentId because that's what
-  // the kill path needs; project is duplicated for list filtering.
-  const pending = new Map<string, { record: PendingKill; timer: NodeJS.Timeout }>();
+  // agentId → PendingCancellation + timer. Indexed by agentId because that's what
+  // the cancel path needs; project is duplicated for list filtering.
+  const pending = new Map<string, { record: PendingCancellation; timer: NodeJS.Timeout }>();
 
   function emit(channel: string, payload: Record<string, unknown>): void {
     if (!broadcast) return;
     try { broadcast(channel, payload); } catch { /* broadcast errors never block */ }
   }
 
-  function scheduleExpiry(record: PendingKill): NodeJS.Timeout {
+  function scheduleExpiry(record: PendingCancellation): NodeJS.Timeout {
     const delay = Math.max(0, record.expiresAt - Date.now());
     const timer = setTimeout(() => {
       pending.delete(record.agentId);
@@ -91,17 +91,17 @@ export function createBudgetPause(deps: PauseDeps) {
         project: record.project,
         reason: 'grace-expired',
       });
-      try { killAgent(record.agentId); } catch { /* killAgent should be defensive */ }
+      try { cancelAgent(record.agentId); } catch { /* cancelAgent should be defensive */ }
     }, delay);
-    // Don't keep the event loop alive just for a pending-kill timer.
+    // Don't keep the event loop alive just for a pending-cancel timer.
     timer.unref?.();
     return timer;
   }
 
   /**
-   * Arm a pending kill. Called by cost-tracker's onKill hook instead of
-   * killing immediately. Returns true if armed, false if the agent
-   * already has a pending kill (idempotent — don't stack timers).
+   * Arm a pending cancel. Called by cost-tracker's onCancel hook instead of
+   * cancelling immediately. Returns true if armed, false if the agent
+   * already has a pending cancel (idempotent — don't stack timers).
    */
   function arm(params: {
     agentId: string;
@@ -112,7 +112,7 @@ export function createBudgetPause(deps: PauseDeps) {
   }): boolean {
     if (pending.has(params.agentId)) return false;
     const now = Date.now();
-    const record: PendingKill = {
+    const record: PendingCancellation = {
       agentId: params.agentId,
       project: params.project,
       reason: params.reason,
@@ -136,23 +136,23 @@ export function createBudgetPause(deps: PauseDeps) {
     return true;
   }
 
-  /** List all currently pending kills. */
-  function list(): PendingKill[] {
+  /** List all currently pending cancellations. */
+  function list(): PendingCancellation[] {
     return [...pending.values()].map((e) => e.record);
   }
 
-  /** Fetch a single pending kill by agentId. */
-  function get(agentId: string): PendingKill | null {
+  /** Fetch a single pending cancel by agentId. */
+  function get(agentId: string): PendingCancellation | null {
     return pending.get(agentId)?.record ?? null;
   }
 
   /**
    * Operator resolution. 'raise' credits wallet and optionally updates
-   * daily budget; 'kill' fires now; 'grace' extends the window.
+   * daily budget; 'cancel' fires now; 'grace' extends the window.
    */
   function resolve(agentId: string, params: ResolveParams): ResolveResult {
     const entry = pending.get(agentId);
-    if (!entry) return { ok: false, reason: 'no pending kill for agent' };
+    if (!entry) return { ok: false, reason: 'no pending cancel for agent' };
     const { record, timer } = entry;
 
     if (params.action === 'raise') {
@@ -181,16 +181,16 @@ export function createBudgetPause(deps: PauseDeps) {
       return { ok: true, action: 'raise', agentId, project: record.project };
     }
 
-    if (params.action === 'kill') {
+    if (params.action === 'cancel') {
       clearTimeout(timer);
       pending.delete(agentId);
       emit('budget:resolved', {
-        action: 'kill',
+        action: 'cancel',
         agentId, project: record.project,
         operator: params.operator ?? null,
       });
-      try { killAgent(agentId); } catch { /* killAgent should be defensive */ }
-      return { ok: true, action: 'kill', agentId, project: record.project };
+      try { cancelAgent(agentId); } catch { /* cancelAgent should be defensive */ }
+      return { ok: true, action: 'cancel', agentId, project: record.project };
     }
 
     if (params.action === 'grace') {
