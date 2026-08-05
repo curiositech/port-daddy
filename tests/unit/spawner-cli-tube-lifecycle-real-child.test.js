@@ -81,6 +81,7 @@ describe('cli-tube real timeout lifecycle', () => {
     // below runs on its own real V8/event loop and is unaffected by it. This
     // lets the test prove "no termination timer fires even after 10 virtual
     // minutes" without ever waiting real minutes.
+    const previousAgyBin = process.env.PD_CLI_AGY_BIN;
     process.env.PD_CLI_AGY_BIN = installSlowExitingAgy(tempDir, 150);
 
     jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
@@ -110,6 +111,7 @@ describe('cli-tube real timeout lifecycle', () => {
       expect(jest.getTimerCount()).toBe(0);
     } finally {
       jest.useRealTimers();
+      restoreEnv('PD_CLI_AGY_BIN', previousAgyBin);
     }
   });
 
