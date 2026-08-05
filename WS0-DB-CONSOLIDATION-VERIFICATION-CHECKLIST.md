@@ -31,9 +31,9 @@ The script scans these candidate classes:
 Mutation is opt-in:
 
 ```bash
-npx tsx scripts/db-consolidate.ts              # dry-run only, default
-npx tsx scripts/db-consolidate.ts --apply      # mutate after confirmation
-npx tsx scripts/db-consolidate.ts --apply --yes --source /path/to/source.db
+bunx tsx scripts/db-consolidate.ts              # dry-run only, default
+bunx tsx scripts/db-consolidate.ts --apply      # mutate after confirmation
+bunx tsx scripts/db-consolidate.ts --apply --yes --source /path/to/source.db
 ```
 
 `--force` is accepted only as a confirmation alias for `--apply`; it does not
@@ -80,14 +80,14 @@ Run these before any `--apply` attempt:
 - [ ] Dry-run has been reviewed:
 
   ```bash
-  npx tsx scripts/db-consolidate.ts
+bunx tsx scripts/db-consolidate.ts
   ```
 
 - [ ] The selected source is explicit or obviously correct from the table counts.
   If not, re-run dry-run with the intended source:
 
   ```bash
-  npx tsx scripts/db-consolidate.ts --source /absolute/path/to/source.db
+bunx tsx scripts/db-consolidate.ts --source /absolute/path/to/source.db
   ```
 
 - [ ] No daemon/berth is holding a candidate DB open. The script enforces this on
@@ -106,13 +106,13 @@ Run these before any `--apply` attempt:
   touch ~/.port-daddy/backups/.write-test && rm ~/.port-daddy/backups/.write-test
   ```
 
-For human review, surface the result in FleetBar or the dashboard at
-`http://localhost:9876` after the agent completes the terminal-side checks.
+For human review, surface the result in FleetBar or open the selected daemon's
+dashboard with `pd dashboard` after the agent completes the terminal-side checks.
 
 ## Apply Flow
 
 ```bash
-npx tsx scripts/db-consolidate.ts --apply --source /absolute/path/to/source.db
+bunx tsx scripts/db-consolidate.ts --apply --source /absolute/path/to/source.db
 ```
 
 Expected output:
@@ -132,7 +132,7 @@ For unattended rehearsal on a scratch home:
 
 ```bash
 SCRATCH="$(mktemp -d ~/.port-daddy/ws0-dry-run-home.XXXXXX)"
-npx tsx scripts/db-consolidate.ts --home "$SCRATCH"
+bunx tsx scripts/db-consolidate.ts --home "$SCRATCH"
 ```
 
 The `--home`, `--canonical`, and `--backups-dir` flags are for test/dev
@@ -219,7 +219,7 @@ Minimum local validation for this slice:
 ```bash
 node --experimental-vm-modules /Users/erichowens/coding/port-daddy/node_modules/jest/bin/jest.js \
   --runTestsByPath tests/unit/db-consolidate.test.js
-npx tsx scripts/db-consolidate.ts --home "$(mktemp -d ~/.port-daddy/ws0-plan.XXXXXX)"
+bunx tsx scripts/db-consolidate.ts --home "$(mktemp -d ~/.port-daddy/ws0-plan.XXXXXX)"
 npm run typecheck
 ```
 

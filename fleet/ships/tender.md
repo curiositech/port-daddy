@@ -59,7 +59,9 @@ Actions:
 - `review-prompt` — ship is degraded; prompt may be stale
 - `graft-skill` — ship is skill-starved; suggest a skill to add
 
-Use `POST http://localhost:9876/fleet/suggestions/write` (deduplication is built in).
+The fleet runtime must provide `PORT_DADDY_URL` for its selected daemon. Submit
+with `POST "$PORT_DADDY_URL/fleet/suggestions/write"`; fail closed when the
+selection is absent (deduplication is built in).
 
 **Step 4 — Write manifest**
 Write `.fleet/tender-manifest.json` to the repo root:

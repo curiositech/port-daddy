@@ -41,7 +41,7 @@ pd setup                 # render + install the Pilot into every local runtime
 pd mcp install           # configure MCP + refresh the shared skill and Pilot
 pd setup --no-agents     # skip the Pilot (skills/MCP only)
 pd mcp install --no-agents  # configure MCP + skill only
-npx tsx scripts/install-pilot-agents.ts --dry-run   # preview, write nothing
+bunx tsx scripts/install-pilot-agents.ts --dry-run   # preview, write nothing
 ```
 
 The Homebrew formula ships the canonical source and the SessionStart hook into
@@ -58,7 +58,7 @@ stable path across upgrades.
 ### Cloud managed agent
 
 ```bash
-ANTHROPIC_API_KEY=sk-ant-… npx tsx scripts/create-managed-agent.ts
+ANTHROPIC_API_KEY=sk-ant-… bunx tsx scripts/create-managed-agent.ts
 ```
 
 Creates (or, on re-run, version-updates) the Pilot as a Claude managed agent and
@@ -102,9 +102,9 @@ toolset and permission policy.
 ```bash
 # 1. edit agents/port-daddy-pilot/AGENT.md or agent.config.json
 # 2. re-render every local runtime
-npx tsx scripts/install-pilot-agents.ts
+bunx tsx scripts/install-pilot-agents.ts
 # 3. (optional) push the change to the cloud agent — generates a new version
-ANTHROPIC_API_KEY=sk-ant-… npx tsx scripts/create-managed-agent.ts
+ANTHROPIC_API_KEY=sk-ant-… bunx tsx scripts/create-managed-agent.ts
 # 4. tests
 node --experimental-vm-modules node_modules/jest/bin/jest.js tests/unit/pilot-agent-render.test.ts
 ```

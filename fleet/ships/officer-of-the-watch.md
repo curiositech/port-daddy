@@ -66,10 +66,10 @@ This ship is a **solely responsible agent** (see the
    exists, this is the first watch: cover the last 24h and say so.
 2. **Sweep, in this order:**
    - `pd notes --limit 50` — anything alarming other agents recorded
-   - Channel traffic: `curl -s localhost:9876/msg/<channel>?limit=30`
-     for each channel declared in pd-fleet.yml (skip deprecated ones)
-   - Activity stream: `curl -s 'localhost:9876/activity?limit=200'`
-   - Fleet transcripts: `curl -s 'localhost:9876/fleet/transcripts?since=<window>'`
+   - Channel traffic: `pd tube <channel> --tail --limit 30` for each
+     channel declared in pd-fleet.yml (skip deprecated ones)
+   - Activity stream: `pd activity --limit 200`
+   - Fleet transcripts: `pd transcripts --since <window>`
      — look for failed runs, repeated identical errors, ships that
      errored without finishing
    - Daemon log tail: `tail -200 port-daddy.log` (repo root) — error

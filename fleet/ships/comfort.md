@@ -72,7 +72,7 @@ For each FAIL, attempt the appropriate binary fix:
 | Failure | Remediation |
 |---------|-------------|
 | Daemon not running | `pd start` |
-| launchd not registered | `launchctl load ~/Library/LaunchAgents/com.portdaddy.daemon.plist` |
+| Homebrew service not registered | `brew services start port-daddy` |
 | Binary outdated | `brew upgrade port-daddy` (requires confirmation prompt) |
 | Guard missing | `pd guard install --mode enforce` |
 | Setup incomplete | `pd setup` |
