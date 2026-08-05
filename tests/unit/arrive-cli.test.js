@@ -47,8 +47,17 @@ function runArrive(args = [], env = {}) {
           PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',
           NO_COLOR: '1',
           PD_HOME: home,
-          // A port nothing is listening on, so every run exercises the
-          // daemon-unreachable path deterministically.
+          // Force the daemon-unreachable path deterministically.
+          //
+          // `resolveDaemonTarget()` picks in this order: PORT_DADDY_FORCE_TCP,
+          // PORT_DADDY_SOCK, PORT_DADDY_URL, then the default socket. Setting
+          // the URL alone is NOT enough — this env spreads process.env, so an
+          // inherited PORT_DADDY_SOCK would outrank it and the test could reach
+          // a real daemon on a developer machine, quietly testing something
+          // else entirely. Clearing the two higher-precedence vars is what
+          // makes the dead port authoritative.
+          PORT_DADDY_FORCE_TCP: undefined,
+          PORT_DADDY_SOCK: undefined,
           PORT_DADDY_URL: 'http://127.0.0.1:9',
           ...env,
         },
