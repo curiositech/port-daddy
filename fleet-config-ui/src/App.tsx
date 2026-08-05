@@ -1488,9 +1488,9 @@ export default function App() {
     (!!operatorStateHook.state && !operatorStateHook.error);
 
   const surfaceTabs: MainTab[] = ['Operator', 'Flow', 'Roadmap', 'Agents', 'Visual', 'Resources', 'Activity', 'Channels', 'Tube', 'TubeBrowser', 'Events', 'Inbox', 'Sorties', 'Memory', 'Metrics', 'Galaxy', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright', 'YAML'];
-  // Visual task intake can start from a screenshot before the operator picks a repo.
-  // It still attaches a project when FleetBar opens it from a project context.
-  const allProjectSurfaceTabs: MainTab[] = ['Operator', 'Flow', 'Visual', 'Metrics', 'Galaxy', 'TubeBrowser', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright'];
+  // Agent accounting and visual task intake both work before the operator picks a repo.
+  // Project selection narrows them when FleetBar opens either surface in context.
+  const allProjectSurfaceTabs: MainTab[] = ['Operator', 'Flow', 'Agents', 'Visual', 'Metrics', 'Galaxy', 'TubeBrowser', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
   const visibleSurfaceTabs = selectedProjectId ? surfaceTabs : allProjectSurfaceTabs;
   const handleProjectRefresh = useCallback(() => {
@@ -1595,7 +1595,14 @@ export default function App() {
 
       <AnimatePresence mode="wait">
         {!selectedProjectId ? (
-          activeTab === 'Visual' ? (
+          activeTab === 'Agents' ? (
+            <motion.div key="agents-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
+              <AgentsPanel
+                daemonKey={`${daemonUrl}:all`}
+                initialAgentId={selectedAgent}
+              />
+            </motion.div>
+          ) : activeTab === 'Visual' ? (
             <motion.div key="visual-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
               <VisualTaskPanel
                 key={`${daemonUrl}:all:visual`}
@@ -1915,6 +1922,7 @@ export default function App() {
                     {activeTab === 'Agents' && (
                       <AgentsPanel
                         daemonKey={`${daemonUrl}:${selectedProjectId ?? 'all'}`}
+                        initialAgentId={selectedAgent}
                         projectName={selectedProjectName ?? undefined}
                         projectDir={selectedProjectId ?? undefined}
                         fleetConfig={fleetConfig}

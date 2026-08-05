@@ -40,6 +40,7 @@ import FileActionLinks from './FileActionLinks';
 
 interface Props {
   daemonKey: string;
+  initialAgentId?: string | null;
   projectName?: string | null;
   projectDir?: string | null;
   fleetConfig?: FleetConfig | null;
@@ -55,6 +56,9 @@ interface ChannelFeed {
   physical: string;
   messages: ChannelMessage[];
 }
+
+const EMPTY_RESOLVED_CHANNELS: Record<string, string> = {};
+const EMPTY_RUNTIME_AGENTS: Array<{ agentName: string; status: string }> = [];
 
 function relativeTime(timestamp: number | null | undefined): string {
   if (!timestamp) return 'never';
@@ -149,15 +153,17 @@ function Section({
   title,
   subtitle,
   action,
+  className = '',
   children,
 }: {
   title: string;
   subtitle: string;
   action?: ReactNode;
+  className?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="shrink-0 rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)' }}>
+    <section className={`shrink-0 rounded-xl overflow-hidden ${className}`} style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)' }}>
       <div className="px-4 py-3 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid var(--pd-border)' }}>
         <div>
           <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>{title}</div>
@@ -172,11 +178,12 @@ function Section({
 
 export default function AgentsPanel({
   daemonKey,
+  initialAgentId = null,
   projectName,
   projectDir,
   fleetConfig,
-  resolvedChannels = {},
-  runtimeAgents = [],
+  resolvedChannels = EMPTY_RESOLVED_CHANNELS,
+  runtimeAgents = EMPTY_RUNTIME_AGENTS,
   onFocusFleetAgent,
   onRunFleetAgent,
   onPauseFleetAgent,
@@ -187,7 +194,7 @@ export default function AgentsPanel({
   const [actorEntries, setActorEntries] = useState<OperatorActorEntry[]>([]);
   const [liveRoster, setLiveRoster] = useState<ActiveAgentRosterItem[]>([]);
   const [projectSessions, setProjectSessions] = useState<SessionSummary[]>([]);
-  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(initialAgentId);
   const [detailLoading, setDetailLoading] = useState(false);
   const [inboxMessages, setInboxMessages] = useState<InboxMessage[]>([]);
   const [inboxStats, setInboxStats] = useState<InboxStats>({ total: 0, unread: 0 });
@@ -331,6 +338,10 @@ export default function AgentsPanel({
   useEffect(() => {
     void loadDirectory();
   }, [daemonKey, loadDirectory]);
+
+  useEffect(() => {
+    if (initialAgentId) setSelectedAgentId(initialAgentId);
+  }, [initialAgentId]);
 
   useEffect(() => {
     void loadDetails();
@@ -548,6 +559,7 @@ export default function AgentsPanel({
         <Section
           title="LIVE HARNESS ROSTER"
           subtitle={`${liveSummary.alive} active harness${liveSummary.alive === 1 ? '' : 'es'} · ${liveSummary.claimedFiles} claimed file${liveSummary.claimedFiles === 1 ? '' : 's'} · ${liveSummary.harnesses} lane${liveSummary.harnesses === 1 ? '' : 's'}`}
+          className={initialAgentId ? 'order-last' : ''}
         >
           {liveRoster.length === 0 ? (
             <div className="text-sm" style={{ color: 'var(--pd-muted)' }}>
