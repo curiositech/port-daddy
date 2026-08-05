@@ -5,6 +5,8 @@ import { resolve } from 'node:path';
 const ROOT = resolve(import.meta.dirname, '../..');
 const PUBLIC_COMMAND_SURFACES = [
   'bin/port-daddy-cli.ts',
+  'cli/commands/daemon.ts',
+  'cli/utils/freshness.ts',
   'completions/port-daddy.bash',
   'completions/port-daddy.fish',
   'completions/port-daddy.zsh',
