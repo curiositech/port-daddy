@@ -10,12 +10,15 @@ import { createAgents } from '../../lib/agents.js';
 import { createSessions } from '../../lib/sessions.js';
 import { createActivityLog } from '../../lib/activity.js';
 import { createSugar } from '../../lib/sugar.js';
+import { createFeedback } from '../../lib/feedback.js';
+import { createCommitments } from '../../lib/commitments.js';
+import { createTupleSpace } from '../../lib/tuples.js';
 
 /**
  * Default-pass git-origin stub for unit tests.
  *
  * The real pd done now enforces "branch must be on origin" before
- * marking a session completed. The pre-existing test corpus does not
+ * marking a session completed. The e-existing test corpus does not
  * care about that — it was written before the rule existed and runs in
  * an in-memory SQLite scratch environment that isn't a git worktree.
  *
@@ -35,13 +38,18 @@ function setup(overrides = {}) {
   const sessions = createSessions(db);
   const activityLog = createActivityLog(db);
   sessions.setActivityLog(activityLog);
+  const tuples = createTupleSpace(db);
+  const feedback = createFeedback({ tuples });
+  const commitments = createCommitments(db);
   const sugar = createSugar({
     agents,
     sessions,
     activityLog,
     gitOriginChecker: overrides.gitOriginChecker || passingChecker(),
+    feedback,
+    commitments,
   });
-  return { db, agents, sessions, activityLog, sugar };
+  return { db, agents, sessions, activityLog, tuples, feedback, commitments, sugar };
 }
 
 /**
@@ -544,6 +552,77 @@ describe('sugar.done', () => {
     expect(result.error).toContain('No active session');
   });
 
+  test('refuses pd done when active plan has unchecked todo items', () => {
+    const { sugar, sessions } = setup();
+
+    const begin = sugar.begin({ lifecycle: 'ephemeral',
+      purpose: 'Checked items test',
+      agentId: 'plan-test-1',
+    });
+    expect(begin.success).toBe(true);
+
+    // Set a plan with unchecked items
+    sessions.addNote(begin.sessionId, '- [ ] todo one\n- [x] todo two', { type: 'todo_list' });
+
+    // Done should fail
+    const result = sugar.done({
+      agentId: 'plan-test-1',
+      sessionId: begin.sessionId,
+      note: VALID_RESULT_NOTE_WITH_PR,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('PLAN_UNCHECKED_ITEMS');
+  });
+
+  test('succeeds pd done with forceIncomplete and reason', () => {
+    const { sugar, sessions } = setup();
+
+    const begin = sugar.begin({ lifecycle: 'ephemeral',
+      purpose: 'Force checked items test',
+      agentId: 'plan-test-2',
+    });
+    expect(begin.success).toBe(true);
+
+    // Set a plan with unchecked items
+    sessions.addNote(begin.sessionId, '- [ ] todo one', { type: 'todo_list' });
+
+    // Done fails if forceIncompleteReason is too short or missing
+    const fail1 = sugar.done({
+      agentId: 'plan-test-2',
+      sessionId: begin.sessionId,
+      note: VALID_RESULT_NOTE_WITH_PR,
+      forceIncomplete: true,
+    });
+    expect(fail1.success).toBe(false);
+    expect(fail1.code).toBe('FORCE_INCOMPLETE_REASON_REQUIRED');
+
+    const fail2 = sugar.done({
+      agentId: 'plan-test-2',
+      sessionId: begin.sessionId,
+      note: VALID_RESULT_NOTE_WITH_PR,
+      forceIncomplete: true,
+      forceIncompleteReason: 'too short',
+    });
+    expect(fail2.success).toBe(false);
+    expect(fail2.code).toBe('FORCE_INCOMPLETE_REASON_REQUIRED');
+
+    // Done succeeds with a long reason
+    const ok = sugar.done({
+      agentId: 'plan-test-2',
+      sessionId: begin.sessionId,
+      note: VALID_RESULT_NOTE_WITH_PR,
+      forceIncomplete: true,
+      forceIncompleteReason: 'deferred features to next ticket',
+    });
+    expect(ok.success).toBe(true);
+
+    // Verify notes have override stamp
+    const notes = sessions.getNotes(begin.sessionId);
+    const handoffNotes = notes.notes.filter(n => n.type === 'handoff');
+    expect(handoffNotes[0].content).toContain('[OPERATOR-OVERRIDE force-incomplete]');
+  });
+
   test('returns note count', () => {
     const { sugar, sessions } = setup();
 
@@ -739,6 +818,35 @@ describe('pd done origin rule', () => {
       note: 'Result: docs-only sync. not-applicable: documentation skill update, no PR needed.',
     });
     expect(r3.success).toBe(true);
+
+    // Test that noPr / subtask bypasses the sentinel check.
+    const b_no_pr = sugar.begin({ lifecycle: 'ephemeral', purpose: 'no-pr flag case', agentId: 'no-pr-flag-agent' });
+    const r_no_pr = sugar.done({
+      agentId: 'no-pr-flag-agent',
+      sessionId: b_no_pr.sessionId,
+      note: 'Result: work completed without a PR',
+      noPr: true,
+    });
+    expect(r_no_pr.success).toBe(true);
+    // Note should have standard sentinel appended
+    const notes_no_pr = sessions.getNotes(b_no_pr.sessionId).notes;
+    const handoff_no_pr = notes_no_pr.find((n) => n.type === 'handoff');
+    expect(handoff_no_pr).toBeTruthy();
+    expect(handoff_no_pr.content).toContain('not-applicable: subtask code delivery');
+
+    const b_subtask = sugar.begin({ lifecycle: 'ephemeral', purpose: 'subtask flag case', agentId: 'subtask-flag-agent' });
+    const r_subtask = sugar.done({
+      agentId: 'subtask-flag-agent',
+      sessionId: b_subtask.sessionId,
+      note: 'Result: work completed as subtask',
+      subtask: true,
+    });
+    expect(r_subtask.success).toBe(true);
+    // Note should have standard sentinel appended
+    const notes_subtask = sessions.getNotes(b_subtask.sessionId).notes;
+    const handoff_subtask = notes_subtask.find((n) => n.type === 'handoff');
+    expect(handoff_subtask).toBeTruthy();
+    expect(handoff_subtask.content).toContain('not-applicable: subtask code delivery');
 
     // Session was completed.
     const sessionInfo = sessions.get(begin.sessionId);
@@ -966,5 +1074,98 @@ describe('sugar lifecycle', () => {
     // Done agent 2
     const d2 = sugar.done({ agentId: 'a2', note: VALID_RESULT_NOTE_WITH_PR });
     expect(d2.success).toBe(true);
+  });
+
+  it('should auto-enroll and auto-close commitments during begin/done lifecycle', () => {
+    const { sugar, commitments } = setup();
+
+    const beginRes = sugar.begin({
+      purpose: 'Write tests for port-daddy commitments',
+      identity: 'port-daddy:test:commitments',
+      lifecycle: 'durable',
+      agentId: 'test-agent-commitments',
+    });
+
+    expect(beginRes.success).toBe(true);
+
+    // Verify a commitment was created
+    const activeCommitments = commitments.list({ ownerActorId: 'test-agent-commitments', state: 'open' });
+    expect(activeCommitments.length).toBe(1);
+    expect(activeCommitments[0].successCheck).toBe(`session:${beginRes.sessionId}:completed`);
+
+    // Done the session
+    const doneRes = sugar.done({
+      agentId: 'test-agent-commitments',
+      note: VALID_RESULT_NOTE_WITH_PR,
+    });
+    expect(doneRes.success).toBe(true);
+
+    // Verify commitment is now closed
+    const activeAfter = commitments.list({ ownerActorId: 'test-agent-commitments', state: 'open' });
+    expect(activeAfter.length).toBe(0);
+  });
+
+  it('should allow takeover/resumption of recently closed sessions', () => {
+    const { sugar } = setup();
+
+    const beginRes1 = sugar.begin({
+      purpose: 'Initial session purpose',
+      identity: 'port-daddy:test:takeover',
+      lifecycle: 'durable',
+      agentId: 'test-agent-takeover',
+    });
+    expect(beginRes1.success).toBe(true);
+
+    // Close the session
+    const doneRes = sugar.done({
+      agentId: 'test-agent-takeover',
+      note: VALID_RESULT_NOTE_WITH_PR,
+    });
+    expect(doneRes.success).toBe(true);
+
+    // Re-begin for the same identity without force should perform takeover
+    const beginRes2 = sugar.begin({
+      purpose: 'New successor session purpose',
+      identity: 'port-daddy:test:takeover',
+      lifecycle: 'durable',
+    });
+
+    expect(beginRes2.success).toBe(true);
+    expect(beginRes2.resumed).toBe(true);
+    expect(beginRes2.takeover).toBe(true);
+    expect(beginRes2.sessionId).not.toBe(beginRes1.sessionId);
+  });
+
+  it('should generate a welcome briefing with roadmap, ongoing, high-pri bugs, and dormant sessions', () => {
+    const { sugar, feedback } = setup();
+
+    // 1. Add some open high-pri feedback
+    feedback.list = () => [
+      {
+        feedbackId: 'fb-1',
+        slug: 'critical-bug',
+        summary: 'Daemon crash on boot',
+        severity: 'critical',
+        status: 'open',
+        droppedBy: 'operator',
+        surface: 'daemon',
+        at: Date.now(),
+      },
+    ];
+
+    // 2. Add an active session
+    sugar.begin({
+      purpose: 'Live ongoing feature work',
+      identity: 'port-daddy:test:welcome',
+      lifecycle: 'durable',
+      agentId: 'test-agent-welcome',
+    });
+
+    const welcome = sugar.getWelcomeBriefing('fleet');
+    expect(welcome.success).toBe(true);
+    expect(welcome.ongoing.length).toBe(1);
+    expect(welcome.ongoing[0].purpose).toBe('Live ongoing feature work');
+    expect(welcome.highPriBugs.length).toBe(1);
+    expect(welcome.highPriBugs[0].slug).toBe('critical-bug');
   });
 });

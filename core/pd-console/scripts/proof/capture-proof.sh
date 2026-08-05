@@ -1,103 +1,455 @@
-#!/bin/bash
-# capture-proof.sh — render visual proof of a pd-console PR onto an OFF-SCREEN
-# virtual display, then capture per-pane stills + a short video, WITHOUT ever
-# painting on the operator's physical monitor.
+#!/usr/bin/env bash
+# capture-proof.sh - render visual proof of a pd-console PR onto an off-screen
+# virtual display, then capture per-pane stills plus a short video without
+# touching the operator's other windows.
 #
-# How the "doesn't intrude on screenspace" guarantee works:
-#   • pd-console opens with `--display <virtual>`, so the window lives on a
-#     virtual screen (BetterDisplay / dummy plug), not your real monitor.
-#   • Stills use `screencapture -l<windowid>` and video uses ScreenCaptureKit
-#     window capture — both grab ONLY the pd-console window's backing store,
-#     never your other windows, regardless of which display it sits on.
-#
-# Prerequisites (one-time, interactive — see scripts/proof/setup-virtual-display.sh):
-#   1. A virtual display exists (run `setup-virtual-display.sh`).
-#   2. The Terminal running this has Screen Recording permission
-#      (System Settings → Privacy & Security → Screen Recording). A detached/CI
-#      context is denied by TCC and capture fails loudly.
+# Safety contract:
+#   - pd-console launches with --display <virtual> whenever possible.
+#   - All stills and fallback video frames use screencapture -l<windowid>.
+#   - Window lookup is filtered to the harness-launched PID.
+#   - No full-screen or display-wide capture is used by this harness.
 #
 # Usage:
 #   scripts/proof/capture-proof.sh [output-dir]
+#   scripts/proof/capture-proof.sh --dry-run [output-dir]
+#
 # Env:
-#   PD_PROOF_DISPLAY        virtual-display selector (index or UUID). If unset, the
-#                           script auto-detects a non-primary display and aborts if
-#                           none is found (set PD_PROOF_ALLOW_PRIMARY=1 to override).
-#   PD_PROOF_PANES          space-separated panes to snapshot
-#                           (default: "fleet sorties dispatch sessions health lane")
-#   PD_PROOF_VIDEO_PANE     pane to record a clip of (default: "fleet")
-#   PD_PROOF_DURATION       video length in seconds (default: 10)
-#   PD_PROOF_FPS            video frame rate (default: 30)
-#   PD_PROOF_SETTLE         seconds of settled ScreenCaptureKit frames before a
-#                           still is extracted (default: 2)
+#   PD_PROOF_DRY_RUN       set 1 for deterministic receipt/manifest smoke output
+#   PD_PROOF_STAMP         deterministic stamp for artifact folder/receipt
+#   PD_PROOF_DISPLAY       virtual-display selector (index or UUID)
+#   PD_PROOF_PANES         space-separated panes to snapshot
+#   PD_PROOF_VIDEO_PANE    pane to record a clip of
+#   PD_PROOF_DURATION      video length in seconds
+#   PD_PROOF_FPS           video frame rate
+#   PD_PROOF_SETTLE        seconds to wait after window id before capture
+#   PD_PROOF_VIDEO_MODE    auto | screencapture | sck
+#   PD_PROOF_BIN           source pd-console binary to build/copy from
+#   PD_PROOF_LAUNCH_BIN    proof-owned binary path to launch
+#   PD_PROOF_OWNER_NAME    Quartz owner name to match; defaults to launch basename
+#   PD_PROOF_ALLOW_PRIMARY set 1 only for explicit local debugging on primary
 set -euo pipefail
 
+usage() {
+  sed -n '1,36p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+DRY_RUN="${PD_PROOF_DRY_RUN:-0}"
+if [[ "${1:-}" == "--dry-run" ]]; then
+  DRY_RUN=1
+  shift
+fi
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  usage
+  exit 0
+fi
+
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"            # core/pd-console
+REPO_ROOT="$(git -C "$ROOT" rev-parse --show-toplevel 2>/dev/null || echo "$ROOT/../..")"
 TARGET="$ROOT/../target"                               # workspace target/
-BIN="$TARGET/release/pd-console"
+SOURCE_BIN="${PD_PROOF_BIN:-$TARGET/release/pd-console}"
+LAUNCH_BIN="${PD_PROOF_LAUNCH_BIN:-$TARGET/proof/pd-console-proof}"
+BIN="$LAUNCH_BIN"
+OWNER_NAME="${PD_PROOF_OWNER_NAME:-$(basename "$LAUNCH_BIN")}"
 REC="$TARGET/proof/recorder"
 WINID="$TARGET/proof/windowid"
-STAMP="$(date +%Y%m%d-%H%M%S)"
+STAMP="${PD_PROOF_STAMP:-$(date -u +%Y-%m-%dT%H-%M-%SZ)}"
 OUT="${1:-$ROOT/docs/artifacts/gpui/proof-$STAMP}"
 
 PANES="${PD_PROOF_PANES:-fleet sorties dispatch sessions health lane}"
 VIDEO_PANE="${PD_PROOF_VIDEO_PANE:-fleet}"
 DURATION="${PD_PROOF_DURATION:-10}"
 FPS="${PD_PROOF_FPS:-30}"
-SETTLE="${PD_PROOF_SETTLE:-2}"
+SETTLE="${PD_PROOF_SETTLE:-3}"
+VIDEO_MODE="${PD_PROOF_VIDEO_MODE:-auto}"
+DAEMON_URL=""
+
 APP_PID=""
+DISPLAY_SEL="${PD_PROOF_DISPLAY:-}"
+SCK_STATUS="not attempted"
+FALLBACK_STATUS="not attempted"
+VIDEO_METHOD="not captured"
+WINDOW_LOG=()
+VIDEO_ARTIFACTS=()
+GIT_COMMIT_FULL="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
+GIT_COMMIT_SHORT="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
-    echo "✗ missing required command: $1" >&2
+    echo "error: missing required command: $1" >&2
     exit 1
   fi
 }
 
+resolve_daemon_url() {
+  if [[ -n "${PORT_DADDY_URL:-}" ]]; then
+    printf '%s\n' "$PORT_DADDY_URL"
+    return 0
+  fi
+
+  local pd_home="${PORT_DADDY_HOME:-${HOME:-}/.port-daddy}"
+  local console_url_file="$pd_home/console-daemon.url"
+  local daemon_port_file="${PORT_DADDY_PORT_FILE:-$pd_home/daemon.port}"
+  local value=""
+
+  if [[ -r "$console_url_file" ]]; then
+    value="$(sed -n '1{s/[[:space:]]*$//;p;q;}' "$console_url_file")"
+    if [[ -n "$value" ]]; then
+      printf '%s\n' "$value"
+      return 0
+    fi
+  fi
+
+  if [[ -r "$daemon_port_file" ]]; then
+    value="$(sed -n 's/[^0-9].*$//; /^[0-9][0-9]*$/p; q' "$daemon_port_file")"
+    if [[ -n "$value" ]]; then
+      printf 'http://127.0.0.1:%s\n' "$value"
+      return 0
+    fi
+  fi
+}
+
+receipt_value() {
+  local value="$1"
+  local placeholder="$2"
+  [[ -n "$value" ]] && printf '%s\n' "$value" || printf '%s\n' "$placeholder"
+}
+
+receipt_path() {
+  local path="$1"
+  case "$path" in
+    "$REPO_ROOT"/*)
+      printf '${REPO_ROOT}/%s\n' "${path#"$REPO_ROOT"/}"
+      ;;
+    *)
+      printf '%s\n' "$path"
+      ;;
+  esac
+}
+
+append_window_log() {
+  WINDOW_LOG+=("pane=$1 pid=$2 window=$3")
+}
+
+write_intervention_note() {
+  local reason="$1"
+  mkdir -p "$OUT"
+  cat > "$OUT/OPERATOR-INTERVENTION.md" <<EOF
+# pd-console visual proof operator intervention
+
+Capture stopped before broad capture.
+
+Reason: $reason
+
+No full-screen capture was attempted. No operator browser, terminal, or
+unrelated windows were captured. The harness only targets proof-owned
+pd-console windows by launched PID and exact window ID.
+
+Recommended intervention:
+
+1. Ensure a BetterDisplay or dummy-plug virtual display is available.
+2. Grant Screen Recording permission to the terminal/app running this harness.
+3. Re-run the same command. Do not switch to display-wide or full-screen capture.
+EOF
+}
+
+fail_intervention() {
+  local reason="$1"
+  write_intervention_note "$reason"
+  echo "error: $reason" >&2
+  echo "wrote $OUT/OPERATOR-INTERVENTION.md" >&2
+  exit 1
+}
+
+write_manifest() {
+  mkdir -p "$OUT"
+  {
+    write_metadata "manifest"
+    echo "# pd-console visual proof - $STAMP"
+    echo
+    echo "Branch: \`$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')\`"
+    echo "Commit: \`$GIT_COMMIT_SHORT\`"
+    echo "Display selector: \`$DISPLAY_SEL\`"
+    echo "Capture owner: proof-owned pd-console window filtered by launched PID."
+    echo
+    echo "## Receipt"
+    echo
+    echo "- [RECEIPT.md](./RECEIPT.md)"
+    echo
+    echo "## Panes"
+    for p in $PANES; do
+      if [[ "$DRY_RUN" == "1" ]]; then
+        echo "- \`$p\` - [pane-$p.png](./pane-$p.png) (proposed dry-run placeholder; not generated)"
+      else
+        echo "- \`$p\` - [pane-$p.png](./pane-$p.png)"
+      fi
+    done
+    echo
+    echo "## Video"
+    if [[ " ${VIDEO_ARTIFACTS[*]} " == *" proof.mp4 "* ]]; then
+      echo "- [proof.mp4](./proof.mp4)"
+    fi
+    if [[ " ${VIDEO_ARTIFACTS[*]} " == *" proof.mov "* ]]; then
+      echo "- [proof.mov](./proof.mov)"
+    fi
+    if [[ " ${VIDEO_ARTIFACTS[*]} " == *" proof-window-fallback.mp4 "* ]]; then
+      if [[ "$DRY_RUN" == "1" ]]; then
+        echo "- [proof-window-fallback.mp4](./proof-window-fallback.mp4) (proposed dry-run placeholder; not generated)"
+        echo "- [proof-window-fallback.gif](./proof-window-fallback.gif) (proposed dry-run placeholder; not generated)"
+      else
+        echo "- [proof-window-fallback.mp4](./proof-window-fallback.mp4)"
+        echo "- [proof-window-fallback.gif](./proof-window-fallback.gif)"
+      fi
+    fi
+    echo
+    echo "## Safety"
+    echo
+    echo "Window-only capture. No full-screen capture. No operator browser,"
+    echo "terminal, or unrelated windows."
+  } > "$OUT/MANIFEST.md"
+}
+
+write_receipt() {
+  mkdir -p "$OUT"
+  {
+    write_metadata "receipt"
+    echo "# pd-console visual proof receipt"
+    echo
+    echo "Artifact dir:"
+    echo "\`$OUT\`"
+    echo
+    echo "## Context"
+    echo
+    echo "- Branch: \`$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')\`"
+    echo "- Commit: \`$GIT_COMMIT_SHORT\`"
+    echo "- Daemon URL: \`$(receipt_value "$DAEMON_URL" "<daemon-url-from-port-daddy-discovery>")\`"
+    echo "- Display selector: \`$DISPLAY_SEL\`"
+    echo "- Source binary: \`$(receipt_path "$SOURCE_BIN")\`"
+    echo "- Proof launch binary: \`$(receipt_path "$BIN")\`"
+    echo "- Quartz owner name: \`$OWNER_NAME\`"
+    echo "- Video mode: \`$VIDEO_MODE\`"
+    echo "- Settle delay: \`${SETTLE}s\`"
+    echo
+    echo "## Safety Contract"
+    echo
+    echo "- exact-window capture: stills and fallback video frames use \`screencapture -x -o -l\"<windowid>\"\`."
+    echo "- Each \`<windowid>\` is discovered from a proof-owned pd-console window launched by this harness."
+    echo "- Window discovery is filtered by the launched process PID before capture."
+    echo "- No full-screen capture is used."
+    echo "- No operator browser, terminal, or unrelated windows are captured."
+    echo
+    echo "## Artifacts"
+    echo
+    echo "Screenshots:"
+    for p in $PANES; do
+      echo "- \`pane-$p.png\`"
+    done
+    echo
+    echo "Video:"
+    if [[ "${#VIDEO_ARTIFACTS[@]}" -eq 0 ]]; then
+      echo "- not captured"
+    else
+      for artifact in "${VIDEO_ARTIFACTS[@]}"; do
+        echo "- \`$artifact\`"
+      done
+    fi
+    echo
+    echo "Supporting evidence:"
+    echo "- \`MANIFEST.md\`"
+    echo "- \`RECEIPT.md\`"
+    [[ "$VIDEO_METHOD" == "screencapture-window-frames" || "$DRY_RUN" == "1" ]] && echo "- \`video-frames/frame-*.png\`"
+    [[ -f "$OUT/recorder.log" || "$DRY_RUN" == "1" ]] && echo "- \`recorder.log\`"
+    echo
+    echo "## Window IDs"
+    echo
+    if [[ "${#WINDOW_LOG[@]}" -eq 0 ]]; then
+      echo "- none recorded"
+    else
+      for entry in "${WINDOW_LOG[@]}"; do
+        echo "- \`$entry\`"
+      done
+    fi
+    echo
+    echo "## Commands"
+    echo
+    echo "Launch proof-owned window:"
+    echo
+    echo '```sh'
+    echo "PORT_DADDY_URL=\"$(receipt_value "$DAEMON_URL" "<daemon-url-from-port-daddy-discovery>")\" \"$(receipt_path "$BIN")\" --pane \"<pane>\" --display \"$DISPLAY_SEL\""
+    echo '```'
+    echo
+    echo "Exact-window still capture:"
+    echo
+    echo '```sh'
+    echo 'screencapture -x -o -l"<windowid>" "$OUT/pane-<pane>.png"'
+    echo '```'
+    echo
+    echo "Exact-window fallback video path:"
+    echo
+    echo '```sh'
+    echo 'screencapture -x -o -l"<windowid>" "$OUT/video-frames/frame-001.png"'
+    echo 'ffmpeg -y -loglevel error -framerate "$FPS" -i "$OUT/video-frames/frame-%03d.png" \'
+    echo '  -vf "scale=1280:852:force_original_aspect_ratio=decrease,pad=1280:852:(ow-iw)/2:(oh-ih)/2" \'
+    echo '  -c:v libx264 -pix_fmt yuv420p -movflags +faststart "$OUT/proof-window-fallback.mp4"'
+    echo 'ffmpeg -y -loglevel error -i "$OUT/proof-window-fallback.mp4" \'
+    echo '  -vf "fps=6,scale=960:-1:flags=lanczos" "$OUT/proof-window-fallback.gif"'
+    echo '```'
+    echo
+    echo "Best-effort ScreenCaptureKit path:"
+    echo
+    echo '```sh'
+    echo '"$REC" --window-id "<windowid>" --duration "$DURATION" --fps "$FPS" --out "$OUT/proof.mov"'
+    echo '```'
+    echo
+    echo "## Method"
+    echo
+    echo "- ScreenCaptureKit: $SCK_STATUS"
+    echo "- Exact-window fallback: $FALLBACK_STATUS"
+    echo "- Accepted video method: $VIDEO_METHOD"
+    echo
+    echo "## Limitations"
+    echo
+    if [[ "$DRY_RUN" == "1" ]]; then
+      echo "- Dry-run receipt only; no GPUI window, screenshot, or video was captured."
+    fi
+    echo "- Requires a logged-in macOS GUI session for real GPUI capture."
+    echo "- Requires Screen Recording permission for window-only \`screencapture\` and ScreenCaptureKit."
+    echo "- Requires a virtual display for non-intrusive proof unless \`PD_PROOF_ALLOW_PRIMARY=1\` is explicitly set for local debugging."
+  } > "$OUT/RECEIPT.md"
+}
+
+write_metadata() {
+  local kind="$1"
+  local dry_run_json="false"
+  [[ "$DRY_RUN" == "1" ]] && dry_run_json="true"
+  cat <<EOF
+<!-- pd-console-proof-metadata
+{
+  "schema": "pd-console.visual-proof.v1",
+  "artifactKind": "$kind",
+  "captureCommit": "$GIT_COMMIT_FULL",
+  "captureCommitShort": "$GIT_COMMIT_SHORT",
+  "captureCommitPolicy": "documented-capture-commit",
+  "proofScope": "exact-window-harness-only",
+  "providerTranscriptE2E": false,
+  "dryRun": $dry_run_json
+}
+-->
+
+EOF
+}
+
+if [[ "$DRY_RUN" == "1" ]]; then
+  DISPLAY_SEL="${DISPLAY_SEL:-proof-display-dry-run}"
+  DAEMON_URL="$(resolve_daemon_url || true)"
+  SCK_STATUS="not attempted in dry-run"
+  FALLBACK_STATUS="planned first-class exact-window fallback"
+  VIDEO_METHOD="dry-run"
+  VIDEO_ARTIFACTS=("proof-window-fallback.mp4" "proof-window-fallback.gif")
+  for p in $PANES; do
+    append_window_log "$p" "<pid>" "<windowid>"
+  done
+  write_manifest
+  write_receipt
+  echo "dry-run proof receipt -> $OUT"
+  ls -1 "$OUT"
+  exit 0
+fi
+
+mkdir -p "$OUT" "$TARGET/proof"
 require_cmd cargo
 require_cmd screencapture
 require_cmd xcrun
+DAEMON_URL="$(resolve_daemon_url || true)"
+[[ -n "$DAEMON_URL" ]] || fail_intervention "Could not resolve the Port Daddy daemon URL from PORT_DADDY_URL, ~/.port-daddy/console-daemon.url, or ~/.port-daddy/daemon.port."
 
-mkdir -p "$OUT"
-
-# ── Build the window binary and the recorder if needed ───────────────────────────
-if [[ ! -x "$BIN" ]]; then
-  echo "▸ building release window (cargo build --release --features gpui)…"
+if [[ ! -x "$SOURCE_BIN" ]]; then
+  echo "building release window (cargo build --release --features gpui)..."
   ( cd "$ROOT" && cargo build --release --features gpui --bin pd-console )
 fi
-if [[ ! -x "$REC" || "$ROOT/scripts/proof/recorder.swift" -nt "$REC" ]]; then
-  echo "▸ building ScreenCaptureKit recorder…"
-  mkdir -p "$TARGET/proof"
-  xcrun swiftc -O "$ROOT/scripts/proof/recorder.swift" -o "$REC"
+if [[ "$LAUNCH_BIN" != "$SOURCE_BIN" ]]; then
+  cp "$SOURCE_BIN" "$LAUNCH_BIN"
+  chmod +x "$LAUNCH_BIN"
 fi
+BIN="$LAUNCH_BIN"
+OWNER_NAME="${PD_PROOF_OWNER_NAME:-$(basename "$BIN")}"
+
 if [[ ! -x "$WINID" || "$ROOT/scripts/proof/windowid.swift" -nt "$WINID" ]]; then
-  echo "▸ building Quartz window-id helper…"
-  mkdir -p "$TARGET/proof"
+  echo "building Quartz window-id helper..."
   xcrun swiftc -O "$ROOT/scripts/proof/windowid.swift" -o "$WINID"
 fi
 
-# ── Resolve the virtual display ──────────────────────────────────────────────────
-# `pd-console --list-displays` prints:  [idx] id=<u32> uuid=<uuid> origin=(x,y) size=WxH
-list_displays() { "$BIN" --list-displays 2>/dev/null; }
+list_displays() {
+  "$BIN" --list-displays 2>/dev/null
+}
+
+display_line_matches_selector() {
+  local line="$1"
+  local selector="$2"
+  local idx uuid selector_lc uuid_lc
+  if [[ "$line" =~ \[([0-9]+)\] ]]; then
+    idx="${BASH_REMATCH[1]}"
+    [[ "$selector" == "$idx" ]] && return 0
+  fi
+  if [[ "$line" =~ uuid=([^[:space:]]+) ]]; then
+    uuid="${BASH_REMATCH[1]}"
+    selector_lc="$(printf '%s' "$selector" | tr '[:upper:]' '[:lower:]')"
+    uuid_lc="$(printf '%s' "$uuid" | tr '[:upper:]' '[:lower:]')"
+    [[ "$selector_lc" == "$uuid_lc" ]] && return 0
+  fi
+  return 1
+}
+
+display_line_is_primary() {
+  local line="$1"
+  local ox oy
+  if [[ "$line" =~ origin=\((-?[0-9]+),(-?[0-9]+)\) ]]; then
+    ox="${BASH_REMATCH[1]}"
+    oy="${BASH_REMATCH[2]}"
+    [[ "$ox" == "0" && "$oy" == "0" ]]
+    return
+  fi
+  return 1
+}
+
+validate_explicit_display() {
+  local selector="$1"
+  local listing line matched=""
+  listing="$(list_displays)"
+  echo "$listing" | sed 's/^/    /' >&2
+  while IFS= read -r line; do
+    if display_line_matches_selector "$line" "$selector"; then
+      matched="$line"
+      break
+    fi
+  done <<< "$listing"
+
+  [[ -n "$matched" ]] || fail_intervention "PD_PROOF_DISPLAY '$selector' was not found in pd-console --list-displays. Refusing to let pd-console fall back to the primary display."
+  if display_line_is_primary "$matched"; then
+    fail_intervention "PD_PROOF_DISPLAY '$selector' resolves to the primary display. Use a virtual display selector for non-intrusive proof."
+  fi
+}
 
 resolve_display() {
   if [[ -n "${PD_PROOF_DISPLAY:-}" ]]; then
-    echo "$PD_PROOF_DISPLAY"; return 0
+    validate_explicit_display "$PD_PROOF_DISPLAY"
+    echo "$PD_PROOF_DISPLAY"
+    return 0
   fi
-  # Auto-detect: prefer a display whose origin is NOT (0,0) — i.e. not the primary.
-  local listing; listing="$(list_displays)"
+
+  local listing
+  listing="$(list_displays)"
   echo "$listing" | sed 's/^/    /' >&2
-  local count; count="$(echo "$listing" | grep -cE '^[[:space:]]*\[')"
+  local count
+  count="$(echo "$listing" | grep -cE '^[[:space:]]*\[')"
   if [[ "$count" -le 1 ]]; then
     if [[ "${PD_PROOF_ALLOW_PRIMARY:-0}" == "1" ]]; then
-      echo "⚠︎  only one display found — recording on the PRIMARY (will be visible)." >&2
-      echo "0"; return 0
+      echo "warning: only one display found; opening proof window on primary" >&2
+      echo "0"
+      return 0
     fi
-    echo "✗  No virtual display found (only the primary). pd-console would open on" >&2
-    echo "   your physical monitor. Run scripts/proof/setup-virtual-display.sh first," >&2
-    echo "   or set PD_PROOF_ALLOW_PRIMARY=1 to record on the primary anyway." >&2
-    return 1
+    fail_intervention "No virtual display found. pd-console would open on the physical monitor."
   fi
-  # Pick the first display with a non-zero origin; fall back to the highest index.
+
   local idx="" last="" line ox oy
   while IFS= read -r line; do
     if [[ "$line" =~ \[([0-9]+)\] ]]; then
@@ -113,22 +465,18 @@ resolve_display() {
     fi
   done <<< "$listing"
   idx="${idx:-$last}"
-  if [[ -z "$idx" ]]; then
-    echo "✗  Could not parse any display indexes from pd-console --list-displays." >&2
-    return 1
-  fi
+  [[ -n "$idx" ]] || fail_intervention "Could not parse display indexes from pd-console --list-displays."
   echo "$idx"
 }
 
-DISPLAY_SEL="$(resolve_display)" || exit 1
-echo "▸ virtual display selector: $DISPLAY_SEL"
+DISPLAY_SEL="$(resolve_display)"
+echo "virtual display selector: $DISPLAY_SEL"
 
-# ── pd-console window id on screen (Quartz; robust to z-order & which display) ────
 windowid() {
   if [[ -n "${APP_PID:-}" ]]; then
-    "$WINID" pd-console --pid "$APP_PID" 2>/dev/null
+    "$WINID" "$OWNER_NAME" --pid "$APP_PID" 2>/dev/null
   else
-    "$WINID" pd-console 2>/dev/null
+    "$WINID" "$OWNER_NAME" 2>/dev/null
   fi
 }
 
@@ -141,9 +489,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-launch_pane() { # $1 = pane id → leaves pd-console running on the virtual display
-  cleanup; sleep 1
-  "$BIN" --pane "$1" --display "$DISPLAY_SEL" >/dev/null 2>&1 &
+launch_pane() {
+  local pane="$1"
+  cleanup
+  sleep 1
+  PORT_DADDY_URL="$DAEMON_URL" "$BIN" --pane "$pane" --display "$DISPLAY_SEL" >/dev/null 2>&1 &
   APP_PID="$!"
 }
 
@@ -161,88 +511,126 @@ wait_for_windowid() {
   return 1
 }
 
-# ── Per-pane stills ───────────────────────────────────────────────────────────────
-echo "▸ stills → $OUT"
-for p in $PANES; do
-  launch_pane "$p"
-  id="$(wait_for_windowid)" || true
-  if [[ "${id:-}" =~ ^[0-9]+$ ]]; then
-    if command -v ffmpeg >/dev/null 2>&1; then
-      # Quartz occasionally captures GPUI while individual cached layers are
-      # absent. ScreenCaptureKit sees the complete composited window, so record
-      # a short settled sample and extract its final frame as the still.
-      still_mov="$TARGET/proof/still-$p-$$.mov"
-      "$REC" --window-id "$id" --duration "$SETTLE" --fps 15 --out "$still_mov"
-      ffmpeg -y -loglevel error -sseof -0.1 -i "$still_mov" -frames:v 1 "$OUT/pane-$p.png"
-      rm -f "$still_mov"
-    else
-      sleep "$SETTLE"
-      screencapture -x -o -l"$id" "$OUT/pane-$p.png"
-    fi
-    if [[ -s "$OUT/pane-$p.png" ]]; then
-      echo "    ✓ pane-$p.png  (window $id)"
-    else
-      echo "    ✗ pane-$p — screencapture produced no image" >&2
-      exit 1
-    fi
-  else
-    echo "    ✗ pane-$p — pd-console window id not found within 20s (is the daemon up? did the build run?)" >&2
-    exit 1
+capture_still() {
+  local pane="$1"
+  local id="$2"
+  local path="$OUT/pane-$pane.png"
+  if screencapture -x -o -l"$id" "$path" && [[ -s "$path" ]]; then
+    echo "    ok pane-$pane.png (window $id)"
+    return 0
   fi
+  fail_intervention "Window-only still capture failed for pane '$pane'. Screen Recording permission may be missing."
+}
+
+build_recorder_if_needed() {
+  if [[ ! -x "$REC" || "$ROOT/scripts/proof/recorder.swift" -nt "$REC" ]]; then
+    echo "building ScreenCaptureKit recorder..."
+    xcrun swiftc -O "$ROOT/scripts/proof/recorder.swift" -o "$REC"
+  fi
+}
+
+capture_sck_video() {
+  local id="$1"
+  [[ "$VIDEO_MODE" != "screencapture" ]] || {
+    SCK_STATUS="skipped by PD_PROOF_VIDEO_MODE=screencapture"
+    return 1
+  }
+  build_recorder_if_needed
+  echo "video best-effort ScreenCaptureKit -> $OUT/proof.mov"
+  if "$REC" --window-id "$id" --duration "$DURATION" --fps "$FPS" --out "$OUT/proof.mov" \
+      >"$OUT/recorder.log" 2>&1 && [[ -s "$OUT/proof.mov" ]]; then
+    SCK_STATUS="captured proof.mov"
+    VIDEO_METHOD="sck-window"
+    VIDEO_ARTIFACTS+=("proof.mov")
+    if command -v ffmpeg >/dev/null 2>&1; then
+      ffmpeg -y -loglevel error -i "$OUT/proof.mov" \
+        -vf "scale='min(1280,iw)':-2" -c:v libx264 -pix_fmt yuv420p -movflags +faststart \
+        "$OUT/proof.mp4"
+      [[ -s "$OUT/proof.mp4" ]] && VIDEO_ARTIFACTS+=("proof.mp4")
+    fi
+    return 0
+  fi
+  SCK_STATUS="failed or produced no frames; see recorder.log"
+  return 1
+}
+
+capture_window_frame_video() {
+  local id="$1"
+  require_cmd ffmpeg
+  local frames="$OUT/video-frames"
+  rm -rf "$frames"
+  mkdir -p "$frames"
+
+  [[ "$DURATION" =~ ^[0-9]+$ ]] || fail_intervention "PD_PROOF_DURATION must be an integer for fallback video."
+  [[ "$FPS" =~ ^[0-9]+$ ]] || fail_intervention "PD_PROOF_FPS must be an integer for fallback video."
+  local frame_count=$((DURATION * FPS))
+  [[ "$frame_count" -gt 0 ]] || fail_intervention "Fallback video needs at least one frame."
+  local sleep_interval
+  sleep_interval="$(awk -v fps="$FPS" 'BEGIN { printf "%.3f", 1 / fps }')"
+
+  echo "video fallback exact-window frames -> $frames"
+  local i frame
+  for i in $(seq 1 "$frame_count"); do
+    printf -v frame "%s/frame-%03d.png" "$frames" "$i"
+    if ! screencapture -x -o -l"$id" "$frame" || [[ ! -s "$frame" ]]; then
+      fail_intervention "Window-only fallback frame capture failed at frame $i."
+    fi
+    sleep "$sleep_interval"
+  done
+
+  ffmpeg -y -loglevel error -framerate "$FPS" -i "$frames/frame-%03d.png" \
+    -vf "scale=1280:852:force_original_aspect_ratio=decrease,pad=1280:852:(ow-iw)/2:(oh-ih)/2" \
+    -c:v libx264 -pix_fmt yuv420p -movflags +faststart \
+    "$OUT/proof-window-fallback.mp4"
+  [[ -s "$OUT/proof-window-fallback.mp4" ]] || fail_intervention "ffmpeg produced no fallback MP4."
+
+  ffmpeg -y -loglevel error -i "$OUT/proof-window-fallback.mp4" \
+    -vf "fps=6,scale=960:-1:flags=lanczos" \
+    "$OUT/proof-window-fallback.gif"
+  [[ -s "$OUT/proof-window-fallback.gif" ]] || fail_intervention "ffmpeg produced no fallback GIF."
+
+  local unique_count
+  unique_count="$(find "$frames" -maxdepth 1 -name 'frame-*.png' -print0 \
+    | xargs -0 shasum -a 256 \
+    | awk '{print $1}' \
+    | sort -u \
+    | wc -l \
+    | tr -d ' ')"
+
+  FALLBACK_STATUS="captured $frame_count window-only frames ($unique_count unique hashes)"
+  VIDEO_METHOD="screencapture-window-frames"
+  VIDEO_ARTIFACTS+=("proof-window-fallback.mp4" "proof-window-fallback.gif")
+}
+
+echo "stills -> $OUT"
+for pane in $PANES; do
+  launch_pane "$pane"
+  id="$(wait_for_windowid)" || fail_intervention "pd-console window id not found for pane '$pane'."
+  append_window_log "$pane" "$APP_PID" "$id"
+  sleep "$SETTLE"
+  capture_still "$pane" "$id"
 done
 
-# ── Short video of the live, animating window ────────────────────────────────────
-echo "▸ video ($DURATION s @ ${FPS}fps) of pane '$VIDEO_PANE' → $OUT/proof.mov"
+echo "video pane '$VIDEO_PANE' ($DURATION s @ ${FPS}fps)"
 launch_pane "$VIDEO_PANE"
-vid="$(wait_for_windowid)" || true
-if [[ "${vid:-}" =~ ^[0-9]+$ ]]; then
-  "$REC" --window-id "$vid" --duration "$DURATION" --fps "$FPS" --out "$OUT/proof.mov"
-  if [[ ! -s "$OUT/proof.mov" ]]; then
-    echo "    ✗ recorder produced no proof.mov" >&2
-    exit 1
-  fi
-  # A small web-friendly mp4 alongside the lossless mov, if ffmpeg is present.
-  if command -v ffmpeg >/dev/null 2>&1 && [[ -s "$OUT/proof.mov" ]]; then
-    ffmpeg -y -loglevel error -i "$OUT/proof.mov" \
-      -vf "scale='min(1280,iw)':-2" -c:v libx264 -pix_fmt yuv420p -movflags +faststart \
-      "$OUT/proof.mp4"
-    if [[ -s "$OUT/proof.mp4" ]]; then
-      echo "    ✓ proof.mp4 (web-friendly)"
-    else
-      echo "    ✗ ffmpeg returned but proof.mp4 is missing/empty" >&2
-      exit 1
-    fi
-  fi
-else
-  echo "    ✗ video skipped — pd-console window id not found within 20s" >&2
-  exit 1
+video_id="$(wait_for_windowid)" || fail_intervention "pd-console window id not found for video pane '$VIDEO_PANE'."
+append_window_log "$VIDEO_PANE-video" "$APP_PID" "$video_id"
+sleep "$SETTLE"
+
+if ! capture_sck_video "$video_id"; then
+  capture_window_frame_video "$video_id"
 fi
 
-# ── Manifest for pasting into the PR ─────────────────────────────────────────────
-{
-  echo "# pd-console visual proof — $STAMP"
-  echo
-  echo "Branch: \`$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')\`"
-  echo "Captured on virtual display selector \`$DISPLAY_SEL\` (off the operator's screen)."
-  echo
-  echo "## Panes"
-  for p in $PANES; do
-    [[ -f "$OUT/pane-$p.png" ]] && echo "- \`$p\` — ![pane-$p](./pane-$p.png)"
-  done
-  echo
-  echo "## Video"
-  [[ -f "$OUT/proof.mp4" ]] && echo "- [proof.mp4](./proof.mp4) · [proof.mov](./proof.mov)" \
-    || { [[ -f "$OUT/proof.mov" ]] && echo "- [proof.mov](./proof.mov)"; }
-} > "$OUT/MANIFEST.md"
+cleanup
+write_manifest
+write_receipt
 
 if ! compgen -G "$OUT/pane-*.png" >/dev/null; then
-  echo "✗ no pane screenshots were captured" >&2
-  exit 1
+  fail_intervention "No pane screenshots were captured."
 fi
-if [[ ! -s "$OUT/proof.mov" ]]; then
-  echo "✗ no proof.mov was captured" >&2
-  exit 1
+if [[ "${#VIDEO_ARTIFACTS[@]}" -eq 0 ]]; then
+  fail_intervention "No video artifact was captured."
 fi
 
-echo "✓ done → $OUT"
+echo "done -> $OUT"
 ls -1 "$OUT"

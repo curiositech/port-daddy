@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/harness-continuation-matrix.schema.json",
+  "title": "HarnessContinuationMatrixV0",
+  "description": "An N by N harness continuation compatibility matrix with catalog mechanics kept separate from daemon-witnessed runtime evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": ["declared", "discovered", "witnessed", "unverified", "unavailable", "unsupported"]
+        },
+        "basis": {
+          "enum": ["catalog", "side-effect-free-help", "durable-transcript", "control-receipt", "continuation-receipt", "none"]
+        },
+        "detail": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "witnessId": { "type": ["string", "null"], "maxLength": 1024 },
+        "observedAt": { "type": ["string", "null"], "format": "date-time" },
+        "ageMs": { "type": ["integer", "null"], "minimum": 0 },
+        "freshness": { "enum": ["fresh", "stale", "none"] }
+      },
+      "required": ["status", "basis", "detail", "witnessId", "observedAt", "ageMs", "freshness"]
+    }
+  },
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.harness-continuation-matrix.v0" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "evidencePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "numericBadgeGranted": { "const": false },
+        "selfReportCanAdvance": { "const": false },
+        "discoveryProvesRuntime": { "const": false },
+        "staleAfterMs": { "type": "integer", "minimum": 1000 },
+        "detail": { "type": "string", "minLength": 1, "maxLength": 4096 }
+      },
+      "required": ["numericBadgeGranted", "selfReportCanAdvance", "discoveryProvesRuntime", "staleAfterMs", "detail"]
+    },
+    "adapters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "family": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "backendIds": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+          },
+          "interactiveChannels": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+          },
+          "predicates": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "catalog": { "$ref": "harness-continuation-matrix.schema.json#/$defs/evidence" },
+              "discovery": { "$ref": "harness-continuation-matrix.schema.json#/$defs/evidence" },
+              "spawn": { "$ref": "harness-continuation-matrix.schema.json#/$defs/evidence" },
+              "live-interaction": { "$ref": "harness-continuation-matrix.schema.json#/$defs/evidence" },
+              "native-resume": { "$ref": "harness-continuation-matrix.schema.json#/$defs/evidence" },
+              "handoff": { "$ref": "harness-continuation-matrix.schema.json#/$defs/evidence" }
+            },
+            "required": ["catalog", "discovery", "spawn", "live-interaction", "native-resume", "handoff"]
+          }
+        },
+        "required": ["family", "backendIds", "interactiveChannels", "predicates"]
+      }
+    },
+    "compatibility": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sourceFamily": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "targetFamily": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "autoMode": { "enum": ["native", "handoff", "unsupported"] },
+          "native": { "enum": ["declared", "unsupported"] },
+          "handoff": { "enum": ["declared", "unsupported"] },
+          "witness": {
+            "oneOf": [
+              { "$ref": "harness-continuation-matrix.schema.json#/$defs/evidence" },
+              { "type": "null" }
+            ]
+          },
+          "detail": { "type": "string", "minLength": 1, "maxLength": 4096 }
+        },
+        "required": ["sourceFamily", "targetFamily", "autoMode", "native", "handoff", "witness", "detail"]
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "adapterFamilies": { "type": "integer", "minimum": 0 },
+        "paths": { "type": "integer", "minimum": 0 },
+        "nativePaths": { "type": "integer", "minimum": 0 },
+        "handoffPaths": { "type": "integer", "minimum": 0 },
+        "unsupportedPaths": { "type": "integer", "minimum": 0 },
+        "witnessedPaths": { "type": "integer", "minimum": 0 },
+        "witnessedPredicates": { "type": "integer", "minimum": 0 }
+      },
+      "required": [
+        "adapterFamilies",
+        "paths",
+        "nativePaths",
+        "handoffPaths",
+        "unsupportedPaths",
+        "witnessedPaths",
+        "witnessedPredicates"
+      ]
+    }
+  },
+  "required": ["schema", "generatedAt", "evidencePolicy", "adapters", "compatibility", "summary"]
+}

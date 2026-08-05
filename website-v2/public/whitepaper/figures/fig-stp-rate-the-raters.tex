@@ -1,56 +1,34 @@
-% Fig 12 — the rate-the-raters recursion and the contractive-tower conjecture.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{maydayred}{HTML}{8B0000}
-
+% Fig 12 — the rate-the-raters conjecture, stated as a proof obligation.
 \begin{figure}[H]
 \centering
-\resizebox{0.9\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  lvl/.style={draw=hhebony,thick,rounded corners=2pt,inner sep=4pt,align=center,
-              minimum width=42mm},
-  arr/.style={->,>=Latex,thick,draw=hhink},
-]
-% the recursion levels, incentive-to-corrupt shrinking upward
-% fills: maydayred (high) → amber → sand → teal!20 (near zero)
-\node[lvl,fill=maydayred!15,draw=maydayred,minimum width=64mm] (l0) at (0,0)
-  {\textbf{agent} does work \quad incentive to cheat: \textbf{high}};
-\node[lvl,fill=hhamber!25,minimum width=54mm,above=8mm of l0] (l1)
-  {\textbf{judge} grades it (bonded) \quad smaller};
-\node[lvl,fill=hhsand!40,minimum width=44mm,above=8mm of l1] (l2)
-  {\textbf{re-auditor} (bonded) \quad smaller still};
-\node[lvl,fill=hhteal!18,draw=hhteal,minimum width=34mm,above=8mm of l2] (l3)
-  {\textbf{re-re-auditor} \quad $\to 0$};
-\node[font=\itshape\footnotesize,above=4mm of l3] {\vdots\quad finite honest fixed point};
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[font=\small]
+  \node[stp box,minimum width=62mm] (l0) at (-3.8,-1.8)
+    {\textbf{agent performs work}\\{\scriptsize first-order incentive to cheat}};
+  \node[stp box,minimum width=54mm] (l1) at (-3.8,0)
+    {\textbf{bonded judge grades it}};
+  \node[stp box,minimum width=46mm] (l2) at (-3.8,1.8)
+    {\textbf{bonded re-auditor}};
+  \node[stp box,minimum width=38mm] (l3) at (-3.8,3.6)
+    {\textbf{next audit level}};
+  \draw[stp arrow] (l0) -- (l1);
+  \draw[stp arrow] (l1) -- (l2);
+  \draw[stp arrow] (l2) -- (l3);
+  \node[stp status,anchor=south] at ([yshift=3mm]l3.north)
+    {conjectured contraction toward an honest fixed point};
 
-\draw[arr,draw=hhink,thick] (l0) -- node[midway,right,font=\scriptsize]
-  {rate} (l1);
-\draw[arr,draw=hhink,thick] (l1) -- node[midway,right,font=\scriptsize]
-  {rate the rater} (l2);
-\draw[arr,draw=hhink,thick] (l2) -- node[midway,right,font=\scriptsize]
-  {rate the raters' rater} (l3);
-
-% the conditions box
-\node[draw=hhcobalt,thick,fill=hhsand!30,rounded corners=3pt,inner sep=6pt,
-      right=14mm of l1,anchor=west,text width=64mm,align=left,font=\footnotesize] (cond)
-  {\textbf{Contractive iff} (Conj.~\ref{conj:contract}):\\[2pt]
-   (i) re-audit sampled w.p.\ $\rho$;\\
-   (ii) overturn slashes $B_J >$ max single bribe;\\
-   (iii) re-auditors drawn from a pool $>$ any clique.\\[2pt]
-   \emph{Conjectured, not proven} (\VISION).};
+  \node[stp accent box,text width=67mm,align=left,anchor=west] (conditions) at (0.3,0.9)
+    {\textbf{Candidate contraction conditions} (Conj.~\ref{conj:contract})\\[3pt]
+     \textbf{1.} $q_k=\rho_k d_k$: sample and detect a corrupt grade.\\
+     \textbf{2.} $q_k B_k>G_k$: expected forfeiture beats total corrupt gain.\\
+     \textbf{3.} Derive $G_{k+1}\leq\lambda G_k$, $0\leq\lambda<1$, from the pool model.\\[3pt]
+     \emph{Unproved obligation: establish both deterrence and contraction.}};
 \end{tikzpicture}}
-\caption{\textbf{The rate-the-raters recursion.} Bond-and-slash pushes the grading
-problem up a level: who audits the auditors? Under sampling, a slash exceeding the
-maximum bribe, and a conflict-free re-auditor pool larger than any clique, the
-incentive to corrupt each level is strictly smaller than the level below ---
-making the tower contractive with a finite honest fixed point. This is the precise
-statement of what the Harbor Economy paper's central IC theorem needs and currently lacks.}
+\caption{\textbf{The rate-the-raters recursion.} Conjecture~\ref{conj:contract}
+separates two obligations that a recursive audit design must prove: expected
+forfeiture $\rho_k d_k B_k$ must exceed the judge's total corrupt gain $G_k$ at
+each level, and the pool model must make the remaining corruption opportunity
+shrink by a uniform factor $\lambda<1$. A bond larger than one bribe is not enough
+when re-audit is probabilistic. Neither obligation is depicted as established.}
 \label{fig:rate-raters}
 \end{figure}
