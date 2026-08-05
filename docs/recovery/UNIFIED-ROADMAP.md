@@ -311,6 +311,9 @@ and runtime closure so a model result or design is never reported as a deployed
 guarantee. The implementation priorities are the reputation-grade outcome ledger,
 complete actor-identity write gating, execution-state checkpoints, sealed relay,
 federated revocation, custody/settlement conformance, and projection consistency.
+The release item moves from `now` to `done` only after the live library route,
+production PDF hash and page count, standalone artifact hashes, and source commit
+are recorded together as one reproducible publication receipt.
 
 ## Not Doing Right Now
 
