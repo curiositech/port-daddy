@@ -596,6 +596,55 @@ async function recordShipSpend(
 
 const REVIEWABLE_PR_ACTIONS = new Set(['opened', 'synchronize', 'reopened', 'ready_for_review']);
 
+/**
+ * Complete a required check with one credential-recovery attempt.
+ *
+ * Installation tokens can be revoked before their advertised expiry. A plain
+ * queue retry would otherwise keep loading the same rejected token from KV and
+ * strand the required check until the cache TTL elapsed. Evict only this
+ * installation's entry, mint once, and retry the idempotent PATCH; every other
+ * error still bubbles to the queue unchanged.
+ */
+async function completeCheckRunWithTokenRefresh(
+  env: ExecutorEnv,
+  installationId: number,
+  owner: string,
+  repo: string,
+  checkRunId: number,
+  conclusion: 'success' | 'failure' | 'neutral',
+  summary: string,
+  token: string,
+  detailsUrl?: string | null,
+): Promise<void> {
+  try {
+    await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token, detailsUrl);
+    return;
+  } catch (error) {
+    if (!is401(error)) throw error;
+    console.warn(
+      `[fleet-executor] check completion rejected cached token for installation=${installationId}; refreshing once`,
+    );
+  }
+
+  await invalidateInstallationToken(installationId, env.FLEET_TOKENS);
+  const refreshedToken = await getInstallationTokenCached(
+    env.GITHUB_APP_ID,
+    env.GITHUB_APP_PRIVATE_KEY,
+    installationId,
+    env.FLEET_TOKENS,
+    true,
+  );
+  await completeCheckRun(
+    owner,
+    repo,
+    checkRunId,
+    conclusion,
+    summary,
+    refreshedToken,
+    detailsUrl,
+  );
+}
+
 async function executeMergeGroupGate(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
   if (job.action !== 'checks_requested' || !job.repoFullName || !job.installationId) return;
   const [owner, repo] = job.repoFullName.split('/');
@@ -659,7 +708,17 @@ async function executeMergeGroupGate(job: FleetRunJob, env: ExecutorEnv): Promis
   } catch (error) {
     summary = `Merge-group gate failed closed: ${error instanceof Error ? error.message : String(error)}.`;
   }
-  await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token, detailsUrl);
+  await completeCheckRunWithTokenRefresh(
+    env,
+    job.installationId,
+    owner,
+    repo,
+    checkRunId,
+    conclusion,
+    summary,
+    token,
+    detailsUrl,
+  );
 }
 
 /** The fleet trigger used by reviewable pull_request deliveries. */
@@ -748,7 +807,17 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         'Fleet paused by operator; no automated review was performed for this delivery. ' +
         'Resume the fleet (POST /v1/fleet/pause {"paused":false}) or review this PR manually.';
       if (checkRunId) {
-        await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+        await completeCheckRunWithTokenRefresh(
+          env,
+          job.installationId,
+          owner,
+          repo,
+          checkRunId,
+          'neutral',
+          summary,
+          token,
+          detailsUrl,
+        );
       }
       await transcript.step(
         'check-completed',
@@ -1028,7 +1097,17 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       reason: 'credits-exhausted',
       installationId: job.installationId,
     });
-    await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+    await completeCheckRunWithTokenRefresh(
+      env,
+      job.installationId,
+      owner,
+      repo,
+      checkRunId,
+      'neutral',
+      summary,
+      token,
+      detailsUrl,
+    );
     await recordRunEnd(env, runId, 'neutral', startMs);
     return;
   }
@@ -1052,7 +1131,17 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       maxReviewChunks: MAX_REVIEW_CHUNKS,
       shipsRun: 0,
     });
-    await completeCheckRun(owner, repo, checkRunId, 'failure', summary, token, detailsUrl);
+    await completeCheckRunWithTokenRefresh(
+      env,
+      job.installationId,
+      owner,
+      repo,
+      checkRunId,
+      'failure',
+      summary,
+      token,
+      detailsUrl,
+    );
     await recordRunEnd(env, runId, 'failure', startMs);
     return;
   }
@@ -1101,7 +1190,17 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         conclusion: 'neutral',
         pausedBeforeShip: ship.name,
       });
-      await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+      await completeCheckRunWithTokenRefresh(
+        env,
+        job.installationId,
+        owner,
+        repo,
+        checkRunId,
+        'neutral',
+        summary,
+        token,
+        detailsUrl,
+      );
       await recordRunEnd(env, runId, 'neutral', startMs);
       return;
     }
@@ -1210,7 +1309,17 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     await createReview(owner, repo, prNumber, 'COMMENT', reviewBody, reviewComments, prCtx.headSha, token);
   }
 
-  await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token, detailsUrl);
+  await completeCheckRunWithTokenRefresh(
+    env,
+    job.installationId,
+    owner,
+    repo,
+    checkRunId,
+    conclusion,
+    summary,
+    token,
+    detailsUrl,
+  );
 
   // Cloud squid: the run is over (fire-and-forget).
   emitSquidEvent(env, 'run-concluded', {

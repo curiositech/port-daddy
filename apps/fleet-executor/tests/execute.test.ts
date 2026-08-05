@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { generateKeyPairSync } from 'node:crypto';
 import { executeFleet, mapWithConcurrency } from '../src/execute.js';
 import {
   freshState,
@@ -53,6 +54,11 @@ const REVIEWER_PLUS_QA_YAML = fleetYaml([
   { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
   { name: 'qa', blocking: false },
 ]);
+
+const TOKEN_REFRESH_TEST_KEY = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({
+  type: 'pkcs8',
+  format: 'pem',
+}) as string;
 
 /**
  * A reviewer-ship output carrying a REAL findings block, so it renders to a
@@ -557,6 +563,31 @@ describe('blocking-ship verdict → check conclusion', () => {
 
     // No check was completed (no falsely-green or stray verdict on GitHub).
     expect(state.completed).toHaveLength(0);
+  });
+
+  it('evicts a revoked cached token and retries check completion exactly once', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.failCompleteCheckRun401 = 1;
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'looks good\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    await executeFleet(
+      makeJob(),
+      makeEnv({
+        FLEET_TOKENS: kv,
+        GITHUB_APP_PRIVATE_KEY: TOKEN_REFRESH_TEST_KEY,
+        AI: ai,
+      }),
+    );
+
+    expect(state.tokenMints).toBe(1);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.records.filter(record => /\/check-runs\/\d+$/.test(record.url))).toHaveLength(2);
+    expect(JSON.parse((await kv.get('github_inst_42')) ?? '{}').token).toBe('tok-1');
   });
 });
 
