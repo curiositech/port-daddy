@@ -171,6 +171,8 @@ describe('Spawn-to-Person publication contract', () => {
     const catalog = text(paths.catalog);
     const chapterStart = catalog.indexOf("id: 'spawn-to-person'");
     const chapterEnd = catalog.indexOf("id: 'harbor-economy'", chapterStart);
+    expect(chapterStart).toBeGreaterThanOrEqual(0);
+    expect(chapterEnd).toBeGreaterThan(chapterStart);
     const chapter = catalog.slice(chapterStart, chapterEnd);
 
     expect(chapter).toContain("status: 'Version 1.4 (collected-volume edition)'");
