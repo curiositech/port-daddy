@@ -749,4 +749,5 @@ describe('public shell contracts', () => {
     expect(daemonUrlSource).toContain('class DaemonEndpointConfigurationError')
     expect(daemonUrlSource).not.toContain('CANONICAL_DAEMON_BASE_URL')
   })
+
 })

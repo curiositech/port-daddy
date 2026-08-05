@@ -659,8 +659,7 @@ export const COLD_START_STEPS = [
     id: 'survey',
     title: 'Let Shipwright survey the repo',
     description: 'Shipwright classifies the stack, active files, delivery medium, fleet status, tests, docs freshness, and resource pressure before recommending agents.',
-    command: 'open "$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed \'s#^#http://localhost:#\')/fleet-ui/?surface=shipwright"',
-    appSurface: 'Shipwright Harbor and Focus turn repo facts into a proposal.',
+    appSurface: 'Open Shipwright from FleetBar or Fleet Control Center. Shipwright Harbor and Focus turn repo facts into a proposal.',
   },
   {
     id: 'simulate',

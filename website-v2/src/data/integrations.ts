@@ -64,7 +64,7 @@ export const INTEGRATIONS: Integration[] = [
       'LangChain Tool classes for claim, release, begin, done, note, and pub/sub operations.',
       'Automatic session lifecycle tied to chain execution -- begin on start, done on completion.'
     ],
-    setupCode: `pip install portdaddy-langchain\n\nfrom portdaddy_langchain import PortDaddyToolkit\nfrom portdaddy_langchain.discovery import get_daemon_url\n\ntools = PortDaddyToolkit(base_url=get_daemon_url())`
+    setupCode: `import os\n\n# Daemon publishes endpoint to ~/.port-daddy/daemon.port\ndaemon_port_file = os.path.expanduser('~/.port-daddy/daemon.port')\nif os.path.exists(daemon_port_file):\n    with open(daemon_port_file) as f:\n        daemon_port = f.read().strip()\n    base_url = f'http://localhost:{daemon_port}'\nelse:\n    # Port Daddy sets PORT_DADDY_URL during 'pd begin'\n    base_url = os.getenv('PORT_DADDY_URL')\n    if not base_url:\n        raise RuntimeError('PORT_DADDY_URL not set; run within a pd begin session')\n\nfrom portdaddy_langchain import PortDaddyToolkit\ntools = PortDaddyToolkit(base_url=base_url)`
   },
   {
     id: 'crewai',
