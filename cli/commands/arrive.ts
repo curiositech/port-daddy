@@ -11,9 +11,9 @@
  * block that finally matters scrolls past unread with the rest.
  */
 
-import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
+import { pdFetch } from '../utils/fetch.js';
+import { readCurrentContext } from '../utils/current-context.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
-
 
 /**
  * Handle `pd arrive`.
