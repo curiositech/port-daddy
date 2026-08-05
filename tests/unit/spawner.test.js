@@ -721,6 +721,37 @@ describe('spawn — backend dispatch', () => {
     expect(args).toEqual(['--yes', '--no-stream', '--model', 'aider', '--message', 'General help']);
   });
 
+  test('does not apply hidden timeout when timeout is not specified', async () => {
+    const spawner = createSpawner();
+
+    // Mock child process to NOT resolve immediately (would run forever if timeout weren't specified)
+    mockChildProcess.stdout.on.mockImplementation(() => {});
+    mockChildProcess.stderr.on.mockImplementation(() => {});
+    mockChildProcess.on.mockImplementation(() => {});
+
+    // Start spawn without timeout
+    const spawnPromise = spawner.spawn({
+      backend: 'custom',
+      task: 'long running without timeout',
+    });
+
+    // Wait for child process to be spawned
+    await new Promise(r => setTimeout(r, 20));
+
+    // Verify spawn was called without timeout in spawn options
+    const spawnCall = cpSpawn.mock.calls[0];
+    expect(spawnCall[2].timeout).toBeUndefined();
+
+    // Kill and clean up
+    const agents = spawner.list();
+    if (agents.length > 0) spawner.kill(agents[0].agentId);
+
+    // Complete the spawn
+    const closeHandler = mockChildProcess.on.mock.calls.find(([e]) => e === 'close');
+    if (closeHandler) closeHandler[1](0);
+    await spawnPromise.catch(() => {});
+  });
+
   test('unknown backend returns error', async () => {
     const spawner = createSpawner();
 
