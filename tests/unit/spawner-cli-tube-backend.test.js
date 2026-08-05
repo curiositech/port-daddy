@@ -707,6 +707,17 @@ describe('spawnViaCliTube — failure paths', () => {
     expect(res.error).toContain('claude setup-token');
   });
 
+  test('plain stdout-only auth failure remains actionable when no provider terminal exists', async () => {
+    mockSpawn.mockReturnValue(fakeChild({
+      stdout: 'Error: not authenticated. Please log in.',
+      stderr: '',
+      exitCode: 1,
+    }));
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+    expect(res.error).toContain('authentication failed');
+    expect(res.error).toContain('claude setup-token');
+  });
+
   test('Claude provider budget stop is structured, not misclassified as auth failure', async () => {
     const raw = [
       '{"type":"assistant","message":{"content":[{"type":"text","text":"The docs mention API key setup."}]}}',

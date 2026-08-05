@@ -447,7 +447,12 @@ export async function spawnViaCliTube(
     const providerErrorText = providerTerminal?.errors.join('\n') ?? '';
     const structuredFailureText = stderrText || providerErrorText;
     const failureText = structuredFailureText || rawStdout;
-    const failureLc = structuredFailureText.toLowerCase();
+    // A plain stdout-only failure has no provider terminal, so its auth text is
+    // the only actionable signal. Once Claude emitted a structured terminal,
+    // however, raw stdout is the agent conversation and may legitimately
+    // mention "API key"; only stderr/terminal errors may classify auth then.
+    const authFailureText = structuredFailureText || (providerTerminal ? '' : rawStdout);
+    const failureLc = authFailureText.toLowerCase();
     if (providerTerminal?.subtype === 'error_max_budget_usd') {
       // A native provider budget boundary is a structured terminal condition,
       // not a transport/authentication failure. The outer spawner records the
