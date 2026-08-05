@@ -181,7 +181,8 @@ Immediate ships:
 - `tuple-driven-fleet` so tuple coordination turns into actual swarm routing instead of broadcast-only work distribution
 - `operator-decision-journal` so approvals, overrides, and pauses have an immutable "why" trail
 - merge the best of the historical `public/fleet-live.html` and `public/fleet-config.html` concepts (not yet shipped)
-  into `fleet-config-ui`; the two source files are no longer present
+  into Fleet Control Center (`apps/FleetBar/FleetBar/`); the two source files are no longer present,
+  and `fleet-config-ui` remains a legacy compatibility bundle
 - turn the spawn panel into a mission workspace, not just a raw launch form
 
 Representative idea pressure:
