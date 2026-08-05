@@ -226,4 +226,10 @@ console.log(`generated ${papers.length} chapters and ${canonicalReferences.lengt
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) generate();
 
-export { compareNormalizedReferences, inlineInputs, rewriteCitations };
+export {
+  cleanStandaloneChrome,
+  compareNormalizedReferences,
+  inlineInputs,
+  namespaceLabels,
+  rewriteCitations,
+};
