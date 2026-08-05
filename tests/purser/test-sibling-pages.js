@@ -1,5 +1,4 @@
 const { chromium } = require('playwright');
-const { join } = require('path');
 
 const SIBLING_PAGES = [
   '/docs/features/dns',
