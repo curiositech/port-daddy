@@ -104,8 +104,6 @@ import {
   handleDispatch, handleNightshift, handleReview, handleMorning,
   // Harbors
   handleHarborCreate, handleHarborEnter, handleHarborLeave, handleHarborShow, handleHarborDestroy, handleHarbors,
-  // Demo
-  handleDemo,
   // Tuples
   handleTuple,
   // Semantic graph + episodic memory
@@ -221,7 +219,7 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
   'advise', 'preflight', 'compass', 'guard',
   'metrics', 'health', 'dashboard',
-  'bench', 'benchmark', 'demo', 'tuple', 'sortie', 'roadmap',
+  'bench', 'benchmark', 'tuple', 'sortie', 'roadmap',
   'secret', 'secrets', 'skill-graft', 'plan'
 ]);
 
@@ -1394,7 +1392,7 @@ const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'work', 'transcripts', 'transcript', 'relay',
-  'harbor', 'harbors', 'harbor-ledger', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'skill-graft', 'skillgraft', 'memory', 'ideas',
+  'harbor', 'harbors', 'harbor-ledger', 'whois', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'skill-graft', 'skillgraft', 'memory', 'ideas',
   'quorum', 'parley',
   'feedback',
   'commit', 'obligations',
@@ -2793,10 +2791,6 @@ export async function main(): Promise<void> {
 
       case 'benchmark':
         await handleBenchmark(positional);
-        break;
-
-      case 'demo':
-        await handleDemo(positional[0], options);
         break;
 
       case 'hints':

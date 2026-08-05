@@ -80,7 +80,6 @@ describe('design system contracts', () => {
       read('./components/site/primitives.tsx'),
       read('./components/landing/TerminalReplay.tsx'),
       read('./components/landing/HowItWorks.tsx'),
-      read('./components/landing/DemoGallery.tsx'),
       read('./components/landing/HarborViz.tsx'),
     ].join('\n')
 

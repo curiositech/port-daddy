@@ -786,28 +786,6 @@ _pd_cmd_benchmark() {
   esac
 }
 
-_pd_cmd_demo() {
-  local -a demo_subcmds
-  demo_subcmds=(
-    'port-conflict:demonstrate port conflict resolution'
-    'coordination:demonstrate agent coordination'
-  )
-
-  local state
-  _arguments -C \
-    '(-j --json)'{-j,--json}'[JSON output]' \
-    '(-q --quiet)'{-q,--quiet}'[suppress output]' \
-    '(-h --help)'{-h,--help}'[show help]' \
-    '1:subcommand:->subcommand' \
-    && return
-
-  case "$state" in
-    subcommand)
-      _describe 'demo subcommand' demo_subcmds
-      ;;
-  esac
-}
-
 _pd_cmd_fleet() {
   local -a fleet_subcmds
   fleet_subcmds=(
@@ -2436,10 +2414,9 @@ _port_daddy() {
     # Orchestration
     'up:start all services (auto-detect or from .portdaddyrc)'
     'down:stop all services started by up'
-    # Benchmarking, Demos & Fleet
+    # Benchmarking & Fleet
     'bench:run performance benchmarks'
     'benchmark:multi-backend LLM diversity experiment runner'
-    'demo:interactive demos of Port Daddy features'
     'fleet:manage background agent fleet (gardener, QA, docs, research)'
     'backend:list/use/cost — fleet backend route, framing, and spend'
     'relay:manage cloud relay URL, status, and OIDC token exchange'
@@ -2532,7 +2509,6 @@ _port_daddy() {
         down)               _pd_cmd_down ;;
         bench)              _pd_cmd_bench ;;
         benchmark)          _pd_cmd_benchmark ;;
-        demo)               _pd_cmd_demo ;;
         fleet)              _pd_cmd_fleet ;;
         s|scan)             _pd_cmd_scan ;;
         p|projects)         _pd_cmd_projects ;;

@@ -60,7 +60,6 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd d - Port Daddy](https://portdaddy.dev/docs/cli/d): Reference for pd d, including Port Daddy syntax, what the command does, and when to use it.
 - [pd daemon <command> - Port Daddy](https://portdaddy.dev/docs/cli/daemon): Reference for pd daemon <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd dashboard - Port Daddy](https://portdaddy.dev/docs/cli/dashboard): Reference for pd dashboard, including Port Daddy syntax, what the command does, and when to use it.
-- [pd demo <name> - Port Daddy](https://portdaddy.dev/docs/cli/demo): Reference for pd demo <name>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd dev <command> - Port Daddy](https://portdaddy.dev/docs/cli/dev): Reference for pd dev <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd diagnose - Port Daddy](https://portdaddy.dev/docs/cli/diagnose): Reference for pd diagnose, including Port Daddy syntax, what the command does, and when to use it.
 - [pd dns <command> - Port Daddy](https://portdaddy.dev/docs/cli/dns): Reference for pd dns <command>, including Port Daddy syntax, what the command does, and when to use it.

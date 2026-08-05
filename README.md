@@ -184,7 +184,7 @@ replacement for the real action or state.
 | Durable roles/state | `pd actor`, `pd roster`, `pd tuple`, `pd graph`, `pd memory` |
 | Project/service discovery | `pd scan`, `pd projects`, `pd url`, `pd env`, `pd dns`, `pd tunnel` |
 | Inspection | `pd activity`, `pd metrics`, `pd config`, `pd version`, `pd changelog` |
-| Onboarding and examples | `pd setup`, `pd learn`, `pd demo` |
+| Onboarding and examples | `pd setup`, `pd learn`, recorded end-to-end proof artifacts |
 
 Run `pd help <topic>` for the live command contract. Generated shell completions
 ship for Bash, Fish, and Zsh.

@@ -478,8 +478,10 @@ From `V4-HARBOR-ECONOMY.md`: Harbor-scoped collective memory using semantic embe
 ### A11. Agent Memory Compression
 From `v4_thoughts.md`: When an agent's episode count exceeds a threshold, old episodes are automatically compressed into a summary. Prevents unbounded memory growth while preserving learned knowledge.
 
-### A12. Asciinema Demo Engine
-From `STIGMERGIC_BACKLOG.md`: High-fidelity terminal demos showing multi-agent coordination. `pd demo` command with `.tape` files. Dual-theme (Light/Dark) GIF rendering for the landing page.
+### A12. Recorded runtime evidence
+The earlier canned terminal-story command was retired. Product demos now drive
+real CLI/API behavior, read the result back from the selected daemon, bind the
+recording to a revision, and retain the receipt/transcript/proof artifact.
 
 ### A13. Homebrew Distribution
 Superseded by ADR-0054: the live `curiositech/homebrew-tap` formula is the only formula authority and release automation updates it after a published release. The source repository does not carry a formula mirror.

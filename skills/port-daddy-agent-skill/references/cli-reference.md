@@ -143,7 +143,6 @@ pd roadmap pop [--kind <k>] [--slug <s>] [--as <id>] [--begin]
 pd roadmap release <slug>
 pd feedback <command>
 pd pheromone <command>
-pd demo <name>
 pd who-owns <path>
 ```
 

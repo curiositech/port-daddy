@@ -451,15 +451,6 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
-      "image": "/img/og/docs-cli-demo.jpg",
-      "route": "/docs/cli/demo",
-      "title": "pd demo <name> - Port Daddy",
-      "description": "Reference for pd demo <name>, including Port Daddy syntax, what the command does, and when to use it.",
-      "section": "docs",
-      "sectionLabel": "Docs",
-      "sourceImage": "/img/generated/control-plane-og.jpg"
-    },
-    {
       "image": "/img/og/docs-cli-dev.jpg",
       "route": "/docs/cli/dev",
       "title": "pd dev <command> - Port Daddy",

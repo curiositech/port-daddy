@@ -12,7 +12,6 @@ const suspiciousPatterns = [
   /No such file/i,
   /Port Daddy is not running/,
   /Recorded from real local CLI commands/,
-  /No pd demo script\./,
   /recorded with asciinema \+ agg from this checkout/i,
   /here-document/i,
   /Cannot read properties/i,

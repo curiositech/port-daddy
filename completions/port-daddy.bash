@@ -179,8 +179,8 @@ _port_daddy() {
     dashboard channels webhook webhooks metrics config health ports
     # Orchestration
     up down
-    # Benchmarking, Demos & Fleet
-    bench benchmark demo fleet backend squid hooks relay
+    # Benchmarking & Fleet
+    bench benchmark fleet backend squid hooks relay
     # Project (+ alias)
     scan s projects p doctor diagnose hints
     # Project onboarding
@@ -1134,23 +1134,6 @@ _port_daddy() {
         benchmark)
           # shellcheck disable=SC2207
           COMPREPLY=( $(compgen -W "$benchmark_subcmds" -- "$cur") )
-          ;;
-        *)
-          _pd_opts ''
-          ;;
-      esac
-      ;;
-
-    # -----------------------------------------------------------------------
-    # demo <subcommand>
-    # Subcommands: port-conflict, coordination
-    # -----------------------------------------------------------------------
-    demo)
-      local demo_subcmds="port-conflict coordination"
-      case "$prev" in
-        demo)
-          # shellcheck disable=SC2207
-          COMPREPLY=( $(compgen -W "$demo_subcmds" -- "$cur") )
           ;;
         *)
           _pd_opts ''

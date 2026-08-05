@@ -43,15 +43,16 @@ be noise there).
 
 **Batch 1 — coordination/messaging (highest payoff, most conversational):**
 - `demos/pub-sub-watch/` ✅ (this PR — new top-level dir, converted with scenario.ts)
-- `demos/blog/`: `file-claims`, `distributed-lock`, `salvage-rescue`,
+- `demos/blog/`: `file-claims`, `distributed-lock`,
   `begin-done-speedrun`, `tuples-tutorial`, `spark-spider-loop`, `spider-syllogisms`
   (these still use the old tape-only style; each gets a `scenario.ts` in its own follow-up PR).
 
 **Batch 2 — fleet:** `fleet-up`, `fleet-live`, `fleet-showcase`,
 `website-v2/public/demo-fleet.gif`, `demo-agents.gif`.
 
-**Batch 3 — mechanism demos:** `demos/gifs/` + `demos/scenarios/` auction
-(`auction`, `auction-light`, `auction-dark`), `mayday`, `salvage`.
+**Batch 3 — mechanism demos:** only recordings driven by live commands and
+read-back evidence. The former canned auction, mayday, and salvage stories were
+retired because scripted output is not product proof.
 
 **Leave as-is (single-command, non-conversational):** `quickstart`, `ports`,
 `port-conflict` (these are about one CLI behavior, not an agent dialogue).

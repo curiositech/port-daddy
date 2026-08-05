@@ -43,7 +43,7 @@ run_cmd() {
       | sed -n '1,18p'
   )"
 
-  if grep -Eq 'Port Daddy is not running|Recorded from real local CLI commands|recorded with asciinema|No pd demo script|command not found|ERROR:' <<<"$output"; then
+  if grep -Eq 'Port Daddy is not running|Recorded from real local CLI commands|recorded with asciinema|command not found|ERROR:' <<<"$output"; then
     printf '%s\n' "$output" | sed 's/^/  /'
     printf '\nrecording command produced invalid output: %s\n' "$cmd" >&2
     exit 1

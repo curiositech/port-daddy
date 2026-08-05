@@ -460,7 +460,6 @@ The discovery pass established three important truths:
 - `examples/services/**`
 - `examples/dns/**`
 - `demos/tapes/quickstart.tape`
-- `demos/tapes/salvage.tape`
 
 ### Salvage later
 

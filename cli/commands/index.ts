@@ -37,7 +37,6 @@ export * from './sortie.js';
 export * from './harbors.js';
 export * from './bench.js';
 export * from './benchmark.js';
-export * from './demo.js';
 export * from './tuples.js';
 export * from './setup.js';
 export * from './secret.js';

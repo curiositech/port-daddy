@@ -216,7 +216,6 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd roadmap', href: '/docs/cli/roadmap', description: 'Print Cartographer curated next cuts, now items, dogfood feedback, and roadmap excerpts.' },
       { name: 'pd feedback <command>', description: 'Drop or summarize structured agentic feedback for Cartographer.' },
       { name: 'pd pheromone <command>', description: 'Spray, read, list, or map numeric coordination signals over files and entities.', aliases: ['pd ph'] },
-      { name: 'pd demo <name>', description: 'Run built-in demos for coordination primitives.' },
       { name: 'pd who-owns <path>', description: 'Inspect current file ownership and claims for one path.' },
     ],
   },

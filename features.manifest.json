@@ -1556,21 +1556,6 @@
         "sdk": false
       }
     },
-    "demo": {
-      "description": "Interactive multi-agent coordination demonstrations",
-      "cli": [
-        "demo"
-      ],
-      "sdk": [],
-      "routes": [],
-      "completions": [
-        "demo"
-      ],
-      "docs": {
-        "readme": true,
-        "sdk": false
-      }
-    },
     "arbiter": {
       "description": "Runtime invariant enforcement \u2014 the sovereign's sword",
       "cli": [],

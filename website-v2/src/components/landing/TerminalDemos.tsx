@@ -90,32 +90,6 @@ $ pd spawned
   spawned-b4c1      ollama     completed   5m`,
   },
   {
-    id: 'salvage',
-    title: 'Salvage',
-    description: 'Pick up work from an agent that crashed',
-    gif: '/gifs/salvage.gif',
-    caption: 'A real salvage recording with command output visible for the recovery path.',
-    code: `# Check for dead agents at session start
-$ pd salvage
-  1 agent pending salvage:
-
-  photoapp:api
-    agent-x7y9 — "Building photo upload"
-    Dead since: 12 minutes ago
-    Session notes: 3 entries
-
-# Claim the dead agent's work
-$ pd salvage claim agent-x7y9
-  Claimed · you now own agent-x7y9's session
-  3 notes and 2 file claims transferred
-
-# Continue where they left off
-$ pd notes --session agent-x7y9
-  [progress] Endpoint scaffolded
-  [decision] Using multer for multipart uploads
-  [blocker] CORS headers needed for frontend`,
-  },
-  {
     id: 'relay-pki',
     title: 'Relay PKI',
     description: 'Let a remote agent in without trusting it with secrets',
