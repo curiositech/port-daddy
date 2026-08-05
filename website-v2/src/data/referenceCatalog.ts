@@ -88,7 +88,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
   {
     title: 'Setup, Runtime, And Diagnostics',
     description: 'Install Port Daddy, inspect the live daemon, launch the dashboard, and manage canonical or sidecar runtimes.',
-    source: 'bin/port-daddy-cli.ts, cli/commands/setup.ts, cli/commands/daemon.ts, cli/commands/diagnostics.ts, cli/commands/mcp-install.ts',
+    source: 'bin/port-daddy-cli.ts, cli/commands/setup.ts, cli/commands/daemon.ts, cli/commands/diagnostics.ts, cli/commands/mcp-install.ts, cli/commands/batten.ts',
     items: [
       { name: 'pd setup', description: 'Install daemon, MCP, FleetBar, shell hook, and project init in one operator path.', flags: ['--project', '--no-daemon', '--no-mcp', '--no-fleetbar', '--no-init', '--no-hook'] },
       { name: 'pd init', href: '/docs/cli/init', description: 'Initialize Port Daddy project config, fleet config, MCP files, and managed git hook pieces.' },
@@ -106,6 +106,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd config', description: 'Print resolved daemon or project configuration.' },
       { name: 'pd bench [iterations]', description: 'Run daemon latency benchmarks for health checks and port assignment.', flags: ['iterations'] },
       { name: 'pd ci-gate', description: 'Run the CLI gate used by CI/promotion checks.' },
+      { name: 'pd batten verify|imprint', href: '/docs/cli/batten', description: 'Verify staged release artifacts against the manifest or write their SHA-256 imprint without a daemon.', flags: ['--staged-dir', '--manifest', '--json', '--out'] },
       { name: 'pd start', description: 'Start the canonical daemon.', aliases: ['pd stop', 'pd restart'] },
       { name: 'pd install', description: 'Install the canonical daemon service.', aliases: ['pd uninstall'] },
       { name: 'pd daemon <command>', description: 'Manage named sidecar daemon profiles: list, status, start, stop, and env.' },
@@ -184,9 +185,9 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd agents', description: 'List registered agents.', aliases: ['pd swarm'], flags: ['--active', '--json'] },
       { name: 'pd actors', description: 'List durable maritime actors and live/salvage lease evidence.' },
       { name: 'pd actor <id>', description: 'Inspect or message a durable actor mailbox.', flags: ['--project', '--message', '--inbox', '--inbox-stats', '--unread', '--mark-read', '--wake'] },
-      { name: 'pd spawn <task>', href: '/docs/cli/spawn', description: 'Launch a spawned agent with backend, model, identity, and required budget ceiling.', flags: ['--backend', '--model', '--tier', '--identity', '--budget', '--purpose', '--files', '--workdir', '--timeout'] },
+      { name: 'pd spawn <task>', href: '/docs/cli/spawn', description: 'Launch a daemon-owned durable run with backend, model, identity, and required budget ceiling.', flags: ['--backend', '--model', '--tier', '--identity', '--budget', '--purpose', '--files', '--workdir', '--timeout', '--detach'] },
       { name: 'pd spawn kill <agent>', description: 'Kill a running spawned agent.' },
-      { name: 'pd spawned', href: '/docs/cli/spawned', description: 'List active or recent spawned agents.' },
+      { name: 'pd spawned [<agent>]', href: '/docs/cli/spawned', description: 'List spawned runs or inspect one durable run, optionally waiting for its terminal result.', flags: ['--wait'] },
       { name: 'pd fleet init|up|down|status|validate|run', href: '/docs/cli/fleet', description: 'Create, validate, run, and inspect YAML-defined background agent fleets.' },
       { name: 'pd fleet panic|unpanic', description: 'Arm or disarm the fleet panic control with an audited reason.' },
       { name: 'pd shipwright survey', description: 'Survey the current project into a structured Shipwright intake record for app-native fleet planning.', flags: ['--root', '--llm', '--model', '--json', '--quiet'] },

@@ -882,6 +882,12 @@ Spawn AI runs through setup-ready runtimes (Cloudflare Workers AI, Codex, Claude
 
 Use `spawn()` as the delegation primitive. Canonical operator guidance lives in `docs/DELEGATION-MODES.md`.
 
+`pd.spawn()` retains the blocking compatibility response. Direct HTTP clients
+that need durable admission can send `Prefer: respond-async` to `POST /spawn`,
+then follow the returned `Location` with `GET /spawn/{id}` or cancel with
+`DELETE /spawn/{id}`. The CLI uses that receipt/monitor path by default; it is
+not a second launch primitive. See `docs/operations/spawn-lifecycle.md`.
+
 **Backends:** Port Daddy only launches backends that pass readiness and exact-telemetry preflight. Use `/fleet/models` or Fleet Control Center to see which are ready on this machine.
 
 ```typescript

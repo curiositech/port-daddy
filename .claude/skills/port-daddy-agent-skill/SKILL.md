@@ -71,13 +71,16 @@ watched-channel work enters context before the first conversational turn.
 Do not use or recommend the removed `pd squid hooks` fork; `pd hooks install`
 is the narrower hook-only repair surface.
 
-Read `pd squid status` before claiming the harness works. `LIVE` means complete
-wiring plus a fresh daemon heartbeat; `READY` means complete wiring with the
-daemon down; `PARTIAL` and `DEGRADED` require repair. Use `--json` when another
-surface needs the same truth and `pd squid tap` to inspect the exact bounded
-next-turn envelope. User-level Codex/agy entries do not make hooks global: the
-wrapper requires the exact project root in the arm registry. `pd squid off`
-removes that root while preserving other projects.
+Read `pd squid status` before claiming the harness works. Its canonical
+conformance `level` is `LIVE`, `READY`, `PARTIAL`, or `UNPROTECTED`: `LIVE`
+means complete wiring plus a fresh daemon heartbeat; `READY` means complete
+wiring with the daemon down; `PARTIAL` requires repair; `UNPROTECTED` means no
+protection is armed. JSON also carries the legacy FleetBar `state` vocabulary,
+where `OFF` represents `UNPROTECTED` and some partial states render as
+`DEGRADED`; use `level` for cross-surface automation. Use `pd squid tap` to
+inspect the exact bounded next-turn envelope. User-level Codex/agy entries do
+not make hooks global: the wrapper requires the exact project root in the arm
+registry. `pd squid off` removes that root while preserving other projects.
 
 The operator drives this through FleetBar's selected-project `◆ GIANT SQUID`
 strip. It exposes state, provider count, and Arm/Repair/Disarm without asking the

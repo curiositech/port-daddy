@@ -19,6 +19,7 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   '--budget': 'Require an explicit budget ceiling before launching agent work.',
   '--channels': 'Include channel discovery and subscription context in advisory output.',
   '--dir': 'Resolve project-scoped behavior from this working directory.',
+  '--detach': 'Return the durable receipt immediately while the daemon-owned run continues.',
   '--dry-run': 'Show the operation that would happen without mutating state.',
   '--exec': 'Run the given command for each matching event.',
   '--expires': 'Set an expiration for the claim or coordination record.',
@@ -30,6 +31,7 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   '--json': 'Return machine-readable JSON instead of the human display.',
   '--limit': 'Cap the number of returned rows.',
   '--message': 'Use the provided text as the message body.',
+  '--manifest': 'Read an alternate release-artifact manifest.',
   '--mode': 'Select advisory or enforcement behavior.',
   '--model': 'Choose the model used by the selected backend.',
   '--no-daemon': 'Skip daemon installation or startup during setup.',
@@ -41,6 +43,7 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   '--no-mcp': 'Skip MCP client installation during setup.',
   '--observed': 'Include observed channel traffic in discovery output.',
   '--once': 'Exit after the first matching message or event.',
+  '--out': 'Write the release imprint to this path.',
   '--owner': 'Stamp a lock with a specific owner.',
   '--port': 'Request or target a specific daemon or service port.',
   '--project': 'Resolve or filter the command to a specific project.',
@@ -55,6 +58,7 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   '--sender': 'Stamp the message with an explicit sender id.',
   '--session': 'Target a specific session id.',
   '--staged': 'Check only staged files.',
+  '--staged-dir': 'Verify or imprint release artifacts under this staged directory.',
   '--status': 'Filter rows by lifecycle status.',
   '--task': 'Describe the intended edit or action for advisor output.',
   '--tier': 'Use a low, mid, or high model ladder entry for the backend.',
@@ -114,6 +118,7 @@ function exampleCommand(command: string): string {
     .replace(/heartbeat\|unregister\|inbox\|<id>/g, 'heartbeat')
     .replace(/list\|status\|logs/g, 'status')
     .replace(/panic\|unpanic/g, 'panic')
+    .replace(/verify\|imprint/g, 'verify')
     .replace(/init\|up\|down\|status\|validate\|run/g, 'status')
     .replace(/create\|enter\|leave\|show\|destroy/g, 'show')
     .replace(/"purpose"/g, '"coordinate CLI reference update"')
@@ -143,6 +148,7 @@ function expectedOutput(command: string, canonicalCommand: string): string {
   const verb = firstCommandVerb(canonicalCommand)
   if (verb === 'tube') return 'Prints recent channel history, then waits for or sends tube messages with ids and thread metadata.'
   if (verb === 'add') return 'Prints which paths were staged, skipped, or blocked by active Port Daddy file ownership.'
+  if (verb === 'batten') return 'Verify prints every failed required artifact; imprint writes SHA-256 and byte evidence for the sealed staged cargo.'
   if (verb === 'status' || verb === 'health') return 'Prints daemon reachability, version/provenance, and current runtime health.'
   if (verb === 'setup' || verb === 'init' || verb === 'install') return 'Prints each installation step and the next observable local file, daemon, or MCP client state.'
   if (DIRECT_CAPABLE.has(verb)) return 'Prints the changed record or lookup result; use --json when you need the exact machine-readable shape.'
@@ -153,6 +159,7 @@ function runtimeFor(command: string): string {
   const verb = firstCommandVerb(command)
   if (DIRECT_CAPABLE.has(verb)) return 'Daemon client with direct-mode fallback where supported'
   if (verb === 'mcp') return 'stdio MCP server or MCP installer path'
+  if (verb === 'batten') return 'offline release-artifact verifier; no daemon connection'
   if (['start', 'stop', 'restart', 'install', 'uninstall', 'daemon', 'dev'].includes(verb)) return 'daemon lifecycle manager'
   return 'daemon-backed CLI command'
 }

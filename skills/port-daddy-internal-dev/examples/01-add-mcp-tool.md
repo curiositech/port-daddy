@@ -81,8 +81,8 @@ doubles as the MCP catalog summary).
 ## 6. Update the website
 
 ```bash
-$EDITOR apps/website-v2/.../docs/mcp/index.tsx     # add the new tool to the listing
-$EDITOR apps/website-v2/.../docs/mcp/swarm-health.tsx  # new detail route
+$EDITOR website-v2/src/pages/docs/McpOverview.tsx        # add the new tool to the listing
+$EDITOR website-v2/src/pages/docs/mcp/SwarmHealthTool.tsx # new detail route
 ```
 
 Every MCP tool gets a detail route. The website is the source-of-truth
@@ -112,8 +112,8 @@ git add lib/swarm-health.ts lib/swarm-health.test.ts \
         mcp/server.ts \
         scripts/mcp-handshake-test.mjs \
         skills/port-daddy-agent-skill/SKILL.md \
-        apps/website-v2/src/.../docs/mcp/index.tsx \
-        apps/website-v2/src/.../docs/mcp/swarm-health.tsx
+        website-v2/src/pages/docs/McpOverview.tsx \
+        website-v2/src/pages/docs/mcp/SwarmHealthTool.tsx
 
 git status --porcelain
 # Must show ONLY the files above as staged. If anything foreign is dirty, abort.

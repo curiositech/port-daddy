@@ -1,12 +1,21 @@
 import { describe, expect, test } from '@jest/globals';
 import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import {
   digestCandidateTree,
   validateReleaseDocReview,
 } from '../../scripts/check-release-doc-review.mjs';
+
+const SOURCE_SHA = 'f'.repeat(40);
+const SCRATCH = join(process.cwd(), '.scratch');
+const REQUIRED_SURFACES = [
+  'AGENTS.md',
+  'CLAUDE.md',
+  'README.md',
+  'skills/port-daddy-agent-skill/SKILL.md',
+  'skills/port-daddy-internal-dev/SKILL.md',
+];
 
 function validReceipt(candidateDigest) {
   const reviewers = ['a', 'b', 'c', 'd'].map((suffix) => ({
@@ -23,16 +32,14 @@ function validReceipt(candidateDigest) {
     minorDocumentationReview: {
       agentId: 'spawned-a',
       transcriptId: 'transcript-a',
+      sourceSha: SOURCE_SHA,
+      tupleKey: `documentarian:push-reviewed:${SOURCE_SHA}`,
+      tupleReadBack: true,
+      changedInstructionSurfaces: [],
       candidateDigest,
       verdict: 'SHIP',
     },
-    reviewedSurfaces: [
-      'AGENTS.md',
-      'CLAUDE.md',
-      'README.md',
-      'skills/port-daddy-agent-skill/SKILL.md',
-      'skills/port-daddy-internal-dev/SKILL.md',
-    ],
+    reviewedSurfaces: REQUIRED_SURFACES,
     proofArtifacts: {
       'website-v2/public/demos/harness/harness-conformance-live.gif': '1'.repeat(64),
       'website-v2/public/demos/harness/harness-conformance-live-dark.gif': '2'.repeat(64),
@@ -60,9 +67,8 @@ function validReceipt(candidateDigest) {
 
 describe('release instruction review gate', () => {
   test('candidate digest changes when any reviewed tree byte changes', () => {
-    const scratch = join(homedir(), 'coding', 'tmp');
-    mkdirSync(scratch, { recursive: true });
-    const root = mkdtempSync(join(scratch, 'pd-release-review-'));
+    mkdirSync(SCRATCH, { recursive: true });
+    const root = mkdtempSync(join(SCRATCH, 'pd-release-review-'));
     try {
       mkdirSync(join(root, 'docs'), { recursive: true });
       writeFileSync(join(root, 'AGENTS.md'), 'one\n');
@@ -77,7 +83,8 @@ describe('release instruction review gate', () => {
   });
 
   test('accepts four unique reviewers, three cross-steelmans, and a named daemon', () => {
-    const root = mkdtempSync(join(homedir(), 'coding', 'tmp', 'pd-release-proof-'));
+    mkdirSync(SCRATCH, { recursive: true });
+    const root = mkdtempSync(join(SCRATCH, 'pd-release-proof-'));
     try {
       const receipt = validReceipt('b'.repeat(64));
       for (const path of Object.keys(receipt.proofArtifacts)) {
@@ -89,6 +96,8 @@ describe('release instruction review gate', () => {
       expect(validateReleaseDocReview(receipt, {
         version: '3.28.0',
         candidateDigest: 'b'.repeat(64),
+        sourceSha: SOURCE_SHA,
+        candidateFiles: REQUIRED_SURFACES,
         root,
       })).toEqual([]);
     } finally {
@@ -103,7 +112,9 @@ describe('release instruction review gate', () => {
     const errors = validateReleaseDocReview(receipt, {
       version: '3.28.0',
       candidateDigest: 'c'.repeat(64),
-      root: join(homedir(), 'coding', 'tmp', 'missing-proof-root'),
+      sourceSha: SOURCE_SHA,
+      candidateFiles: REQUIRED_SURFACES,
+      root: join(SCRATCH, 'missing-proof-root'),
     });
     expect(errors).toEqual(expect.arrayContaining([
       expect.stringContaining('candidateDigest'),
@@ -111,6 +122,24 @@ describe('release instruction review gate', () => {
       expect.stringContaining('four unique'),
       expect.stringContaining('cannot steelman itself'),
       expect.stringContaining('proof artifact hash'),
+    ]));
+  });
+
+  test('rejects a mismatched push tuple citation or missing canonical file', () => {
+    const receipt = validReceipt('b'.repeat(64));
+    receipt.minorDocumentationReview.tupleKey = 'documentarian:push-reviewed:wrong';
+    receipt.minorDocumentationReview.tupleReadBack = false;
+    const errors = validateReleaseDocReview(receipt, {
+      version: '3.28.0',
+      candidateDigest: 'b'.repeat(64),
+      sourceSha: SOURCE_SHA,
+      candidateFiles: REQUIRED_SURFACES.filter((path) => path !== 'CLAUDE.md'),
+      root: join(SCRATCH, 'missing-proof-root'),
+    });
+    expect(errors).toEqual(expect.arrayContaining([
+      expect.stringContaining('tupleKey'),
+      expect.stringContaining('tupleReadBack'),
+      expect.stringContaining('candidate tree is missing required surface CLAUDE.md'),
     ]));
   });
 });

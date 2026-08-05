@@ -28,6 +28,15 @@ pd spawn \
   -- "Inspect the failing redirect logic and summarize the root cause"
 ```
 
+The CLI submits to a durable daemon-owned run. By default it follows that run;
+Ctrl-C detaches the client without killing the work. Use `--detach` to return
+the admission receipt immediately, `pd spawned <id>` to inspect once,
+`pd spawned <id> --wait` to reconnect and collect, and `pd spawn kill <id>` for
+explicit cancellation. `--timeout <ms>` is an optional hard execution deadline,
+not a client request timeout; CLI agents have no default wall-clock deadline.
+See [`docs/operations/spawn-lifecycle.md`](operations/spawn-lifecycle.md) for the
+receipt, monitor, liveness, and daemon-restart contract.
+
 Everything that launches delegated work should eventually lower to this primitive:
 
 - visual tasks from FleetBar or a browser extension

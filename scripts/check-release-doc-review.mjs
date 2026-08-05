@@ -66,6 +66,7 @@ export function digestCandidateTree(root = ROOT, files = candidateFiles(root)) {
 export function validateReleaseDocReview(receipt, options) {
   const errors = [];
   const expectedRelease = `v${options.version}`;
+  const expectedTupleKey = `documentarian:push-reviewed:${options.sourceSha}`;
   if (receipt?.schemaVersion !== 1) errors.push('schemaVersion must be 1');
   if (receipt?.release !== expectedRelease) errors.push(`release must equal ${expectedRelease}`);
   if (receipt?.candidateDigest !== options.candidateDigest) {
@@ -76,6 +77,18 @@ export function validateReleaseDocReview(receipt, options) {
   if (!pushReview?.agentId || !pushReview?.transcriptId) {
     errors.push('minorDocumentationReview must record its Port Daddy agent and transcript');
   }
+  if (pushReview?.sourceSha !== options.sourceSha) {
+    errors.push('minorDocumentationReview.sourceSha must match the exact candidate commit');
+  }
+  if (pushReview?.tupleKey !== expectedTupleKey) {
+    errors.push(`minorDocumentationReview.tupleKey must equal ${expectedTupleKey}`);
+  }
+  if (pushReview?.tupleReadBack !== true) {
+    errors.push('minorDocumentationReview must confirm tupleReadBack: true');
+  }
+  if (!Array.isArray(pushReview?.changedInstructionSurfaces)) {
+    errors.push('minorDocumentationReview must record changedInstructionSurfaces');
+  }
   if (pushReview?.candidateDigest !== options.candidateDigest) {
     errors.push('minorDocumentationReview must bind the exact candidate tree');
   }
@@ -84,8 +97,10 @@ export function validateReleaseDocReview(receipt, options) {
   }
 
   const reviewedSurfaces = new Set(receipt?.reviewedSurfaces ?? []);
+  const candidateFileSet = new Set(options.candidateFiles ?? []);
   for (const surface of REQUIRED_SURFACES) {
     if (!reviewedSurfaces.has(surface)) errors.push(`reviewedSurfaces is missing ${surface}`);
+    if (!candidateFileSet.has(surface)) errors.push(`candidate tree is missing required surface ${surface}`);
   }
 
   for (const path of REQUIRED_PROOF_ARTIFACTS) {
@@ -157,8 +172,9 @@ function parseVersion(argv) {
 
 function main() {
   const version = parseVersion(process.argv.slice(2));
+  const files = candidateFiles(ROOT);
   if (process.argv.includes('--digest')) {
-    console.log(digestCandidateTree(ROOT));
+    console.log(digestCandidateTree(ROOT, files));
     return;
   }
   const receiptPath = join(ROOT, RECEIPT_DIR, `v${version}.json`);
@@ -166,9 +182,16 @@ function main() {
     console.error(`release-doc-review: missing ${relative(ROOT, receiptPath)}`);
     process.exit(1);
   }
-  const candidateDigest = digestCandidateTree(ROOT);
+  const candidateDigest = digestCandidateTree(ROOT, files);
+  const sourceSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
   const receipt = JSON.parse(readFileSync(receiptPath, 'utf8'));
-  const errors = validateReleaseDocReview(receipt, { version, candidateDigest, root: ROOT });
+  const errors = validateReleaseDocReview(receipt, {
+    version,
+    candidateDigest,
+    sourceSha,
+    candidateFiles: files,
+    root: ROOT,
+  });
   if (errors.length > 0) {
     console.error(`release-doc-review: ${errors.length} failure(s)`);
     for (const error of errors) console.error(`  - ${error}`);
@@ -178,7 +201,7 @@ function main() {
   console.log(`  candidate ${candidateDigest}`);
   console.log(`  reviewers ${new Set(receipt.reviewers.map((reviewer) => reviewer.agentId)).size}`);
   console.log(`  steelmans ${receipt.steelman.length}`);
-  console.log(`  push review ${receipt.minorDocumentationReview.agentId}`);
+  console.log(`  push review ${receipt.minorDocumentationReview.tupleKey}`);
   console.log(`  daemon ${receipt.namedFeatureDaemon.label} @ ${receipt.namedFeatureDaemon.url}`);
 }
 

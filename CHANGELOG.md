@@ -228,7 +228,8 @@ event relay.
   any dotenv file outside the workspace — while normal project files keep working.
   A **secret broker** scrubs raw API keys from the agent's environment, a **hard
   egress meter** caps outbound provider spend, and the run ends with a signed
-  receipt. On by default; opt out per-spawn with `PD_COAST_GUARD_OFF=1`. Defends the
+  receipt. On by default; the internal emergency opt-out is deliberately not an
+  agent-facing control. Defends the
   cooperative case (a same-UID malicious agent can still drop the proxy); a live
   Darwin test proves the exact `.env.local`/`~/.ssh` exfil is blocked.
 - **Tube → spawner router with delegation-chain loop detection + multi-backend.**
@@ -516,7 +517,7 @@ The entries below shipped to `main` between 3.8.4 and 3.14.0 but were never assi
 - **API Reference Page**: `/docs/api` page with 93 REST endpoints, searchable, grouped by category, with curl examples. Docs sidebar gains "New in v3.8" section hoisted above Concepts. Dead search link (`/docs/concepts`) fixed. Sidebar highlight fix (exact path match, no `startsWith` overflow). CLI overview rewritten as clean grouped index.
 
 ### Fixed
-- **Website Content Truth Audit**: 23 false claims removed (`brew install`, `pd daemon start`, `pd files claim`, etc.). 2 fictional tutorials rewritten (Pipelines to `pd watch`, RemoteHarbors to Coming in v4). 4 fake integrations replaced with real ones (Claude Code MCP, Aider, Ollama, custom). 38 CLI command syntax fixes across 16 files. SDK import path fixed (`@port-daddy/sdk` to `port-daddy`). Installation updated: `npm install -g` (no homebrew formula).
+- **Website Content Truth Audit**: 23 false claims removed (`brew install`, `pd daemon start`, `pd files claim`, etc.). 2 fictional tutorials rewritten (Pipelines to `pd watch`, RemoteHarbors to Coming in v4). 4 fake integrations replaced with real ones (Claude Code MCP, Aider, Ollama, custom). 38 CLI command syntax fixes across 16 files. SDK import path fixed (`@port-daddy/sdk` to `port-daddy`). Distribution guidance was npm-only at the time; that historical state is superseded by today's Homebrew-only release path.
 - **WCAG 2.1 AA Contrast Fixes**: `--text-muted`, `--text-secondary`, `--code-comment` tokens updated. Global `focus-visible` ring + `prefers-reduced-motion`. Responsive padding across 7 landing components. Touch targets bumped to 44px minimum (nav, copy buttons). Keyboard navigation for dropdown menus (`aria-expanded`, `role=menu`). IntentModal focus trap + `aria-modal`.
 - **Terminal Component Consolidation**: 55 raw code blocks migrated to shared `CodeBlock` component. Syntax highlighting: commands (red/bold), flags (teal), strings (gold). 3 terminal components unified into 1.
 - **Typography Fixes**: Heading line-heights, dark mode weight compensation, prose `max-width`. Search modal via portal (escapes sidebar overflow).

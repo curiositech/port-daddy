@@ -131,7 +131,7 @@ flowchart TD
     what -->|Daemon API| api[Update lib + routes + OpenAPI + SDK ref. Run pd integration ready signals. Audit pd guard for new contracts.]
     what -->|MCP tool| mcp[Update mcp/server.ts + handshake test + skill catalog. Re-validate all 10 tool schemas.]
     what -->|FleetBar / Console| ui[Update Mac app + screenshots in references/fleetbar-and-console.md. Test from a clean install root.]
-    what -->|Distribution mirrors| dist[Update brew formula sha256. Bump version in 4 places. Rerun install.sh end-to-end. Lookout review.]
+    what -->|Distribution mirrors| dist[Batten the staged cargo. Sync version surfaces. Require the exact-tree review receipt. Let release.yml roll Homebrew.]
     what -->|Internal actor| actor[Update routes/+ lib/ owning module + actor-roster.md + decisions/who-do-i-message.md. Backfill inbox tests.]
     what -->|Recovery ledger| ledger[Edit docs/recovery/CURRENT-WORK.md only via Cartographer/Navigator. Don't bypass the actors.]
     cli & api & mcp & ui & dist & actor & ledger --> ship[Reconcile + guard + tag + push]
@@ -255,8 +255,9 @@ When Port Daddy itself ships, the cost of inconsistency lands on every
 project on the user's machine. **Every change to a public surface MUST
 update every mirror in the same coherent slice.**
 
-For the actual release ceremony (tagging, GitHub Release, `release.yml`,
-brew tap roll via `publish.yml`), follow `docs/RELEASING.md`.
+For the actual release ceremony (tagging, GitHub Release, `release.yml`, and
+its `update-homebrew` tap roll), follow `docs/RELEASING.md`. `publish.yml` is
+the dormant npm path.
 For semver policy and the canonical list of *version surfaces* that must
 all bump in lockstep, see `docs/VERSIONING.md`.
 
@@ -269,13 +270,16 @@ Public surfaces, in approximate update order:
 1. Source code (`lib/`, `routes/`, `mcp/`, `apps/FleetBar/`).
 2. CLI help text (`bin/port-daddy-cli.ts` and any `--help` strings touched).
 3. The skill bundle (this repo's `skills/port-daddy-agent-skill/SKILL.md`, references, templates, examples).
-4. The website (`apps/website-v2/` — `/docs/cli`, `/docs/api`, `/docs/mcp`, command detail routes, screenshots).
+4. The website (`website-v2/` — `/docs/cli`, `/docs/sdk`, `/docs/mcp`, tutorials, command detail routes, screenshots).
 5. The OpenAPI spec, SDK reference, MCP tool catalog.
 6. README + CHANGELOG + the eight version surfaces in `docs/VERSIONING.md`.
 7. Any plugin/extension manifests (Codex `.codex/skills/`, Gemini `.gemini/extensions/port-daddy/`, Claude `.claude/skills/`).
 8. **Binary smoke-test** (per `docs/RELEASING.md` §3, "local feature dev") for any change in `lib/`, `routes/`, `server.ts`, or `mcp/`. Source-mode `tsx server.ts` lies about what users actually run.
 
-The Homebrew formula is no longer a per-PR concern — it rolls during the release ceremony via the `curiositech/homebrew-tap` repo and `publish.yml`. See `docs/RELEASING.md` §1 ("public release") step J.
+The Homebrew formula is no longer a per-PR concern. For a real, non-prerelease
+published Release, `release.yml`'s `update-homebrew` job dispatches the
+`curiositech/homebrew-tap` update. Use the locked manual dispatch only for the
+recovery case in `docs/RELEASING.md` §1 step J.
 
 If you cannot land all of these in one commit, leave a `pd actor lookout`
 message naming the gaps and link the follow-up issue. Lookout is the role
@@ -716,7 +720,7 @@ daemon-witnessed runtime receipt.
 4. Implement the underlying lib in `lib/swarm-status.ts` if not present. <!-- cite-exempt: illustrative role/template path -->
 5. Update `scripts/mcp-handshake-test.mjs` — bump REQUIRED_TOOLS count and assert. <!-- cite-exempt: illustrative role/template path -->
 6. Update `port-daddy-agent-skill/SKILL.md` "MCP Equivalents" list.
-7. Update website `apps/website-v2/.../mcp-catalog.tsx` (or equivalent route). <!-- cite-exempt: illustrative role/template path -->
+7. Update `website-v2/src/pages/docs/mcp/` and its overview/catalog route. <!-- cite-exempt: illustrative role/template path -->
 8. `pd actor lookout --message "NEW MCP TOOL pd_swarm_status: tested, surfaces updated."`
 9. Commit with explicit paths; tag if this is part of a numbered release.
 
@@ -734,17 +738,20 @@ it in one commit.** Land the rename in phases through Cartographer:
 4. Migrate one surface per slice with Lookout's drift discipline.
 5. Cut the Lookout name only after the public skill, website, and brew formula have shipped two consecutive versions with the alias.
 
-### Example 3: Bumping the brew formula
+### Example 3: Shipping a Homebrew release
 
 **Slice:** Ship `v0.42.0`.
 
-1. Worktree, identity, scope note.
-2. Tag locally: `git tag -a v0.42.0 -m "<changelog summary>"`.
-3. Compute tarball sha256: `curl -sSL <github tag tarball> | shasum -a 256`.
-4. Update the **in-repo** primary `Formula/port-daddy.rb`: `url`, `sha256`, version-string-in-tests if present, post_install if `install.sh` changed. Then mirror the same change into the external tap repo (`homebrew-port-daddy/Formula/port-daddy.rb`) — both must match before the brew install command in step 5 will succeed for users.
-5. `brew install --build-from-source ./Formula/port-daddy.rb` locally; confirm install path, daemon launches, `pd status` healthy.
-6. `pd actor lookout --message "Brew formula v0.42.0 ready: <sha256>. Surfaces audited: README, CHANGELOG, website, skill bundle."`
-7. Push the tag from port-daddy first, then commit + push the formula.
+1. Follow `docs/RELEASING.md`: cut and prove the RC first, then prepare the
+   exact candidate tree and its release-review receipt.
+2. Run `pd batten verify` and `pd batten imprint` over the staged payload; do
+   not hand-edit an in-repo formula because this repo has no formula authority.
+3. Publish the final, non-prerelease GitHub Release only after the exact-tree
+   review gate and named compiled-daemon proof pass.
+4. Verify `release.yml`'s `update-homebrew` job dispatched the external
+   `curiositech/homebrew-tap` update for that tag.
+5. If the automatic dispatch failed, hold `pd lock release-publish` and use
+   only the recovery dispatch in `docs/RELEASING.md` §1 step J.
 
 ## Quality Gates (contributor)
 

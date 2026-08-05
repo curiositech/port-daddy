@@ -17,6 +17,7 @@ describe('reference catalog source coverage', () => {
 
     expect(names).toContain('pd add [path...]')
     expect(names).toContain('pd bench [iterations]')
+    expect(names).toContain('pd batten verify|imprint')
     expect(names).toContain('pd tube <channel>')
     expect(names).toContain('pd guard <command>')
     expect(names).toContain('pd actor <id>')

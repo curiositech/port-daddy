@@ -10,10 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://npmjs.com/package/port-daddy"><img src="https://img.shields.io/npm/v/port-daddy.svg?logo=npm&color=3AADAD" alt="npm version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-FSL--1.1--MIT-blue?color=3AADAD" alt="license"></a>
   <a href="https://github.com/curiositech/port-daddy"><img src="https://img.shields.io/badge/tests-7,300%2B%20passing-brightgreen?logo=jest&color=3AADAD" alt="tests"></a>
-  <a href="skills/port-daddy-agent-skill"><img src="https://img.shields.io/badge/MCP%20tools-180-blueviolet?color=3AADAD" alt="MCP tools"></a>
+  <a href="skills/port-daddy-agent-skill"><img src="https://img.shields.io/badge/MCP%20tools-186-blueviolet?color=3AADAD" alt="MCP tools"></a>
 </p>
 
 ---
@@ -93,9 +92,6 @@ PD_URL="${PORT_DADDY_URL:-$(pd dev list --json | jq -r .stable.url)}"
 ```bash
 # Via Homebrew (macOS)
 brew install curiositech/tap/port-daddy
-
-# Via npm
-npm install -g port-daddy
 
 # One-command onboarding: daemon + MCP config across editors + FleetBar + init
 pd setup
@@ -597,7 +593,7 @@ Agent Node.
 
 Quiet mode (`-q`) prints raw output to stdout and exits non-zero on failure — perfect for shell scripts.
 
-**Key flags:** `--backend`, `--model`, `--tier`, `--identity`, `--purpose`, `--budget`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`
+**Key flags:** `--backend`, `--model`, `--tier`, `--identity`, `--purpose`, `--budget`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`, `--detach`
 
 **Backends in source:** `claude` (SDK), `claude-cli`, `codex`, `gemini`, `cloudflare` (Workers AI), `openai`, `groq`, `deepseek`, `xai`, `ollama`, `lmstudio`, `aider`, `custom`, and CLI-tube backends `cli:claude-code`, `cli:codex`, `cli:agy`, `cli:gemini`, `cli:groq`, `cli:grok`. Operator-facing launches are **fail-closed on telemetry**: metered API backends need exact token counts, an exact nonzero rate, and a persisted exact cost record. Spawn results and transcripts expose requested/effective backend+model provenance plus the override source when preflight or a forced CLI selection changes what actually ran. CLI-tube backends ride the operator's authenticated local CLI and record a flat session estimate; `cli:agy` captures the user prompt plus final stdout/stderr only until agy exposes a documented stream. `pd backend` switches the active provider/model configuration; `pd backend adapters` prints the generated N:N portability contract and `--probe` discovers installed binaries, advertised flags, and declared transcript roots without claiming spawn/resume conformance; `pd benchmark run` compares backends with real (paid) calls.
 
@@ -609,7 +605,7 @@ Every agent spawned through a subprocess backend (`codex`, `claude-cli`, `aider`
 2. **Broker** — the agent's environment carries **no raw API key**. Every managed provider key *and* every key loaded from your `.env` files is scrubbed from the child env; keys stay in the daemon's sealed cache.
 3. **Cap** — outbound API traffic is forced through a local meter with a **hard per-agent request/byte cap**; the over-cap call is refused (`402 Spend Cap Exceeded`).
 
-Each run emits a signed-style **receipt** (`SpawnResult.coastGuard`) recording what was confined, which keys were scrubbed, and the metered egress. `pd coast-guard` (alias `pd cg`) shows local confinement status; opt out per-run with `PD_COAST_GUARD_OFF=1`.
+Each run emits a signed-style **receipt** (`SpawnResult.coastGuard`) recording what was confined, which keys were scrubbed, and the metered egress. `pd coast-guard` (alias `pd cg`) shows local confinement status. The public agent/operator contract keeps confinement on by default and does not advertise a bypass.
 
 **Coordination keeps working.** Confinement denies secret-file *reads* — not network or process exec. The agent still reaches the daemon, runs the `pd` CLI, and talks to MCP servers (stdio MCP is a child process; loopback HTTP is `NO_PROXY`-exempt so local traffic never burns the spend cap).
 
@@ -644,12 +640,17 @@ Pilot SessionStart steering, and `/squid` control inside Claude Code:
 
 ```bash
 pd squid on                 # full harness: Claude, Codex, Gemini, and agy
-pd squid status             # LIVE / READY / PARTIAL / DEGRADED readout
+pd squid status             # LIVE / READY / PARTIAL / UNPROTECTED readout
 pd squid status --json      # stable FleetBar/automation contract
 pd squid tap                # exact bounded context entering the next turn
 pd squid off                # disarm this project without breaking other repos
 pd hooks install            # hook-only repair surface
 ```
+
+The JSON `level` field is the cross-surface conformance contract. Its values
+are `LIVE`, `READY`, `PARTIAL`, and `UNPROTECTED`. The legacy FleetBar `state`
+field maps `UNPROTECTED` to `OFF` and a detected-but-incomplete `PARTIAL` to
+`DEGRADED`; automation should read `level`.
 
 Claude and Gemini use project config; Codex and agy require user config because
 their interactive hook engines do not honor a project-local equivalent. Those
@@ -866,7 +867,7 @@ pd restore <id>                    # roll the DB back (destructive tier, prompts
 
 ### Cutting a release (`pd cut`)
 
-`pd cut` orchestrates a local release cut — daemon binary, Rust kernel cdylib, FleetBar.app — with honest `signed:false` marking unless `--require-sign` (fail-closed signing, ADR-0057). For Port Daddy itself, the release boundary is the signed-binary cut: tagging `v<version>` triggers `release.yml`, which rebuilds daemon, CLI, and MCP server as signed/notarized binaries (ADR-0028) and publishes a `latest.json` update feed (version + per-artifact URL + SHA-256 + signed flag). The brew tap (`curiositech/homebrew-tap`) is bumped via `publish.yml`.
+`pd cut` orchestrates a local release cut — daemon binary, Rust kernel cdylib, FleetBar.app — with honest `signed:false` marking unless `--require-sign` (fail-closed signing, ADR-0057). For Port Daddy itself, the release boundary is the signed-binary cut: tagging `v<version>` triggers `release.yml`, which rebuilds daemon, CLI, and MCP server as signed/notarized binaries (ADR-0028) and publishes a `latest.json` update feed (version + per-artifact URL + SHA-256 + signed flag). For a real, non-prerelease published Release, that workflow's `update-homebrew` job dispatches the `curiositech/homebrew-tap` roll. `publish.yml` is the dormant npm path.
 
 ### Batten down the release (`pd batten`)
 
@@ -920,7 +921,7 @@ Visual feedback loop (the `visual_tasks` feature): FleetBar and the `apps/pd-sco
 
 ## 🤖 MCP Server & Agent Skill
 
-The MCP server exposes **180 tools** across the whole surface — session lifecycle (`begin_session` with the same required `lifecycle` enum, `end_session_full`), ports, notes, locks, messaging, salvage, actors, inboxes, webhooks, DNS, tunnels, sorties, tuples, pheromones, roadmap, commitments, parleys, symbols/conflict prediction, region-scoped editor claims (`claim_region`/`release_region`, agent-neutral), fleet control (bonds/wallets/panic), semantic graph/memory, harbormaster status, and discovery (`pd_discover`) — plus **6 resources** (`port-daddy://skill`, `://services`, `://sessions`, `://agents`, `://locks`, `://tunnels`).
+The MCP server exposes **186 tools** across the whole surface — session lifecycle (`begin_session` with the same required `lifecycle` enum, `end_session_full`), ports, notes, locks, messaging, salvage, actors, inboxes, webhooks, DNS, tunnels, sorties, tuples, pheromones, roadmap, commitments, parleys, symbols/conflict prediction, region-scoped editor claims (`claim_region`/`release_region`, agent-neutral), fleet control (bonds/wallets/panic), semantic graph/memory, harbormaster status, and discovery (`pd_discover`) — plus **6 resources** (`port-daddy://skill`, `://services`, `://sessions`, `://agents`, `://locks`, `://tunnels`).
 
 ```bash
 pd mcp install          # auto-detect Claude Code, Claude Desktop, Cursor, Windsurf,
@@ -964,7 +965,6 @@ Commit this so every developer gets the same deterministic port mapping:
 - `PORT_DADDY_URL` — explicit daemon address override; otherwise clients use socket/port-file discovery
 - `PORT_DADDY_RANGE_START` — port pool start (default `3100`)
 - `PORT_DADDY_YES=1` — bypass destructive-command prompts (audited)
-- `PD_COAST_GUARD_OFF=1` — opt a spawn out of confinement
 - `PD_FLEET_*` — Conductor cost gates (see Bonds & Budgets)
 - `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` — permit a source-backed dev daemon
 

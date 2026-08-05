@@ -74,7 +74,14 @@ eval "$(pd use release-$PD_RELEASE_SLUG)"
 # durable receipt with `pd spawned <id> --wait`; failed/no-output runs do not count.
 # Record unique agent + transcript ids, cross-steelman dispositions, the named
 # daemon binary hash, and all four proof-media hashes in
-# docs/release-reviews/v$PD_RELEASE_VERSION.json. The gate recomputes them.
+# docs/release-reviews/v$PD_RELEASE_VERSION.json. minorDocumentationReview must
+# cite the exact final-candidate tuple as:
+#   sourceSha: <git rev-parse HEAD>
+#   tupleKey: documentarian:push-reviewed:<sourceSha>
+#   tupleReadBack: true
+# plus agentId, transcriptId, candidateDigest, verdict, and the changed
+# instruction surfaces. The gate recomputes the digest and rejects a missing or
+# mismatched source SHA, tuple key, read-back receipt, or canonical file.
 node scripts/check-release-doc-review.mjs --digest
 node scripts/check-release-doc-review.mjs
 

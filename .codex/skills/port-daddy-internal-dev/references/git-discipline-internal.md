@@ -8,9 +8,10 @@ universal five rules; this page adds the contributor-only constraints.
 
 Every `vX.Y.Z` tag in this repo is referenced by:
 
-- the Homebrew formula `~/coding/homebrew-port-daddy/Formula/port-daddy.rb` (frozen `sha256`)
+- the `curiositech/homebrew-tap` formula (frozen artifact URLs and SHA-256)
+- the signed GitHub Release binaries and `latest.json` update feed
 - the Mac app DMG manifest (signed + notarized at build time)
-- the npm package or extension manifests for consumers
+- extension manifests for consumers
 - screenshots / docs that link to GitHub at `tree/v<X.Y.Z>/...`
 
 Force-pushing a release tag breaks all of these. **Tags are immutable.**
@@ -37,26 +38,16 @@ prefix; the website docs/version map assumes the prefix. A tag without
 
 ## Brew formula update protocol
 
-The **primary** Homebrew formula lives in this repo at
-`Formula/port-daddy.rb` (it also serves as a repo marker that tooling
-detects). A separate downstream tap repo (`homebrew-port-daddy`) mirrors
-it for users who add the tap. Both must be updated, and the sequence
-across two repos matters:
+The public formula lives in `curiositech/homebrew-tap`. A real, non-prerelease
+GitHub Release runs `.github/workflows/release.yml`; its `update-homebrew` job
+dispatches the released version to that tap after the exact-tree review,
+binaries, and FleetBar gates succeed. Feature agents do not tag releases or
+hand-edit an in-repo formula.
 
-1. **port-daddy repo**: tag the release commit, push the tag, **wait for the GitHub tarball to be available** (~30 seconds).
-2. **port-daddy repo**: compute the tarball sha256:
-   ```bash
-   curl -sSL https://github.com/curiositech/port-daddy/archive/refs/tags/v<X.Y.Z>.tar.gz | shasum -a 256
-   ```
-3. **port-daddy repo (in-repo primary)**: update `Formula/port-daddy.rb` — `url` (new tag), `sha256` (new hash), version string in tests, `post_install` only if `install.sh` changed. Commit + push as part of the release slice.
-4. **homebrew-port-daddy repo (downstream sync)**: copy the same updates into `Formula/port-daddy.rb` there (commonly via `cp` from the in-repo primary). Commit + push.
-5. **back in port-daddy**: send `pd actor lookout` a message confirming both formulas match.
-
-If you reverse step 1 and step 3/4 (push formula before tarball is available),
-brew users get a 404. If you update only the tap and not the in-repo
-primary, repo-marker tooling and `brew install --build-from-source ./Formula/port-daddy.rb`
-diverge from what tap users see. If you skip step 5, the next contributor
-can't tell whether the brew bump actually landed.
+If the automatic tap dispatch fails, hold `pd lock release-publish` and follow
+the manual dispatch and verification steps in `docs/RELEASING.md` section 1.
+Do not use `.github/workflows/publish.yml` for Homebrew: it is the dormant npm
+workflow retained only in case that retired distribution channel is revived.
 
 ## Pre-push reconciliation (mandatory)
 

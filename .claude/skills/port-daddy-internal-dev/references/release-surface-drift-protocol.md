@@ -16,15 +16,15 @@ same coherent slice — or leave a Lookout drift report naming the gaps.
 | MCP server | `mcp/server.ts`, `mcp/tools/*` | MCP tool added/changed/removed |
 | CLI | `bin/port-daddy-cli.ts` and `--help` strings | Command added/changed/renamed |
 | FleetBar Mac app | `apps/FleetBar/` | UI/UX changes |
-| Fleet Control Center | `apps/website-v2/` console routes | UI/UX changes |
+| Fleet Control Center | `website-v2/` console routes | UI/UX changes |
 | Tests | `tests/unit/`, `tests/integration/` | Any code change |
 
 ### Tier 2 — contracts
 
 | Surface | Path | Updated when |
 |---|---|---|
-| OpenAPI spec | `openapi.yaml` (or generated) | Daemon HTTP API changes |
-| SDK reference | `references/sdk-reference.md` (per-language) | SDK signature changes |
+| OpenAPI spec | `docs/openapi.yaml` | Daemon HTTP API changes |
+| SDK reference | `docs/sdk.md` | SDK signature changes |
 | MCP tool catalog | tool listings + handshake test | MCP tool change |
 | Schemas | `schemas/*.schema.json` | Wire format change |
 
@@ -34,10 +34,10 @@ same coherent slice — or leave a Lookout drift report naming the gaps.
 |---|---|---|
 | README | `README.md` | High-level positioning, install, quickstart |
 | CHANGELOG | `CHANGELOG.md` | Every release |
-| Website /docs/cli | `apps/website-v2/.../docs/cli/*` | CLI surface change (every command must have a detail page) |
-| Website /docs/api | `apps/website-v2/.../docs/api/*` | API surface change |
-| Website /docs/mcp | `apps/website-v2/.../docs/mcp/*` | MCP tool change |
-| Website /docs/concepts | `apps/website-v2/.../docs/concepts/*` | New core concept |
+| Website /docs/cli | `website-v2/src/pages/docs/cli/*` | CLI surface change (every command must have a detail page) |
+| Website /docs/sdk | `website-v2/src/pages/docs/sdk/*` | SDK surface change |
+| Website /docs/mcp | `website-v2/src/pages/docs/mcp/*` | MCP tool change |
+| Website tutorials | `website-v2/src/pages/tutorials/*` | New or changed guided workflow |
 
 ### Tier 4 — skill bundle
 
@@ -53,8 +53,8 @@ same coherent slice — or leave a Lookout drift report naming the gaps.
 
 | Surface | Path | Updated when |
 |---|---|---|
-| Homebrew formula (primary, in-repo) | `Formula/port-daddy.rb` | Every release (url, sha256, version stamp) — also serves as a repo marker |
-| Homebrew tap (downstream sync) | `~/coding/homebrew-port-daddy/Formula/port-daddy.rb` | Mirror of the in-repo primary; sync after the in-repo update lands |
+| Release artifact manifest | `release-artifacts.json` | Release payload shape changes; verify and imprint it with `pd batten` |
+| Homebrew tap (external authority) | `curiositech/homebrew-tap/Formula/port-daddy.rb` | Updated by `release.yml`'s `update-homebrew` job for a non-prerelease published Release |
 | Mac app installer | `apps/FleetBar/install.sh` | Install path change, new resources |
 | Codex extension | `.codex/skills/...` (synced via install.sh) | Skill bundle change |
 | Claude extension | `.claude/skills/...` (synced via install.sh) | Skill bundle change |
@@ -69,10 +69,9 @@ same coherent slice — or leave a Lookout drift report naming the gaps.
 | package.json | `package.json` | `"version": "X.Y.Z"` |
 | Cargo.toml (if present) | `Cargo.toml` | `version = "X.Y.Z"` |
 | Mac app Info.plist | the Info.plist under `apps/FleetBar/` | `CFBundleShortVersionString` |
-| Website footer | the footer component under `apps/website-v2/` | display version |
+| Website footer | the footer component under `website-v2/` | display version |
 | `pd version` CLI output | `bin/port-daddy-cli.ts` | hard-coded or imported |
-| Brew formula version (in-repo primary) | `Formula/port-daddy.rb` | inside the version-string echo |
-| Brew formula version (tap mirror) | `homebrew-port-daddy/Formula/port-daddy.rb` | inside the version-string echo (must match in-repo primary) |
+| Homebrew tap formula | `curiositech/homebrew-tap/Formula/port-daddy.rb` | stamped by the external tap update dispatched from `release.yml` |
 
 ## Detection
 
@@ -84,7 +83,7 @@ Before commit, walk this checklist:
 [ ] If you added an MCP tool, did you update mcp-handshake-test.mjs AND port-daddy-agent-skill MCP-Equivalents list?
 [ ] If you renamed a concept, did you grep across docs/, website-v2/, skills/?
 [ ] If this is a release, did you bump every version stamp in Tier 6?
-[ ] If this is a release, did you compute the brew sha256 and update the formula?
+[ ] If this is a release, did `release.yml` pass Batten/review gates and dispatch `update-homebrew` for the non-prerelease published Release?
 ```
 
 A small script at `scripts/release-surface-audit.mjs` (proposed — not built yet)

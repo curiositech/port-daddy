@@ -14,7 +14,7 @@ describe('continuous docs and atomic release governance', () => {
     expect(documentarian.cooldown_ms).toBe(0);
     expect(documentarian.dedupe_window_ms).toBe(0);
     expect(documentarian.worktree).toBe(true);
-    expect(documentarian.prompt).toContain('documentarian:push-reviewed');
+    expect(documentarian.prompt).toContain('documentarian:push-reviewed:<source-sha>');
     expect(documentarian.prompt).toMatch(/Read the\s+tuple back/);
     expect(fleet.channels['github:curiositech/port-daddy:push'].consumers).toContain('documentarian');
   });

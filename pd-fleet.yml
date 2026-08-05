@@ -245,8 +245,9 @@ fleet:
         instruction surfaces: AGENTS.md, CLAUDE.md, README.md, and both Port
         Daddy skills. Do not perform an unbounded rewrite on an ordinary push.
 
-        Finish every pass by publishing a durable `documentarian:push-reviewed`
-        tuple whose value records the exact source SHA, reviewer agent id,
+        Finish every pass by publishing a durable
+        `documentarian:push-reviewed:<source-sha>` tuple whose value records the
+        exact source SHA, reviewer agent id,
         transcript id, verdict, and changed instruction surfaces. Read the
         tuple back before declaring success. Release reviewers must cite the
         final candidate's tuple in the exact-tree release receipt; a missing or

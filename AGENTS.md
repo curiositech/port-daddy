@@ -620,7 +620,7 @@ These bite every contributor session; they are not theoretical.
 
 - **Full playbook lives in [`docs/RELEASING.md`](docs/RELEASING.md).** It covers public releases, candidate/hotfix builds, and local feature dev (with the binary smoke-test path you must run before merging anything in `lib/`, `routes/`, `server.ts`, or `mcp/`). [`docs/VERSIONING.md`](docs/VERSIONING.md) is the canonical list of version surfaces and the semver policy.
 - Port Daddy ships as **signed binaries** per [ADR-0028](docs/adr/0028-signed-binary-distribution.md). There is no `~/port-daddy-stable` worktree, no `promote-stable.sh`, and no `npm link` install path.
-- The release boundary is a git tag plus a GitHub Release. `.github/workflows/release.yml` builds notarized binaries on the tag; `.github/workflows/publish.yml` is the manual companion that rolls the `curiositech/homebrew-tap` formula. Hold `pd lock release-publish` for the duration of the brew-tap roll — the formula is shared state.
+- The release boundary is a git tag plus a GitHub Release. `.github/workflows/release.yml` builds notarized binaries and its `update-homebrew` job rolls `curiositech/homebrew-tap` only for a real, non-prerelease published Release. `.github/workflows/publish.yml` is the dormant npm path, not the Homebrew workflow. Hold `pd lock release-publish` only for the manual recovery dispatch described in `docs/RELEASING.md`.
 - Versioning is operator-trust. If users will get a behavior change after `brew upgrade port-daddy`, the binary they download must report a newer version than the one they had.
 - User-facing runtime/control-plane fixes still need a prompt cut, or the live daemon/UI will keep lying from an older binary.
 

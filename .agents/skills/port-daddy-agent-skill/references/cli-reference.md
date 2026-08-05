@@ -39,6 +39,8 @@ pd metrics
 pd config
 pd bench [iterations]
 pd ci-gate
+pd batten verify [--staged-dir <dir>] [--manifest <file>] [--json]
+pd batten imprint [--staged-dir <dir>] [--manifest <file>] [--out <file>]
 pd start
 pd stop
 pd restart
@@ -111,9 +113,9 @@ pd agent heartbeat
 pd agents
 pd actors
 pd actor <id>
-pd spawn <task>
+pd spawn <task> [--detach]
 pd spawn kill <agent>
-pd spawned
+pd spawned [<agent>] [--wait]
 pd fleet init
 pd fleet status
 pd fleet run <agent>
