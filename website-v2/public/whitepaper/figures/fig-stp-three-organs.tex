@@ -12,48 +12,25 @@
 \begin{figure}[H]
 \centering
 \resizebox{0.97\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  organ/.style={draw=hhebony,thick,rounded corners=3pt,inner sep=6pt,
-                minimum width=46mm,minimum height=26mm,align=left,text width=42mm,anchor=north},
-  hdr/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-              minimum width=46mm,align=center,font=\bfseries\footnotesize,anchor=south},
-  tag/.style={font=\bfseries\footnotesize,anchor=north},
-]
-% Organ 1 — memory — BUILT (teal fill, ascending staircase bottom step)
-\node[hdr,fill=hhteal!30,draw=hhteal] (h1) at (0,0) {1. MEMORY};
-\node[organ,fill=hhteal!12,draw=hhteal] (o1) at (h1.south) {%
-  \footnotesize \emph{What happened.}\\[2pt]
-  Typed episodes, promoted out of transient history by an episodic-memory
-  component.};
-\node[tag,text=hhteal,below=1mm of o1] {\textbf{$\blacksquare$}~built};
+\begin{tikzpicture}[font=\small,node distance=8mm]
+\node[stp box,text width=42mm,align=left] (o1)
+  {{\bfseries 1. MEMORY}\\[-1pt]{\scriptsize\scshape implemented}\\[4pt]
+   \emph{What happened.}\\[2pt]
+   {\footnotesize Typed episodes promoted out of transient history.}};
+\node[stp box,text width=42mm,align=left,right=of o1] (o2)
+  {{\bfseries 2. CHECKPOINT}\\[-1pt]{\scriptsize\scshape partial}\\[4pt]
+   \emph{Restorable state.}\\[2pt]
+   {\footnotesize Today the restart organ forwards a \textbf{summary, not state}.}};
+\node[stp accent box,text width=42mm,align=left,right=of o2] (o3)
+  {{\bfseries 3. OUTCOME LEDGER}\\[-1pt]{\scriptsize\scshape specified}\\[4pt]
+   \emph{Witnessed delivery.}\\[2pt]
+   {\footnotesize Append-only; closes only against an oracle the agent cannot author.}};
 
-% Organ 2 — checkpoint — BUILT-WEAK (amber fill, middle step)
-\node[hdr,fill=hhamber!35,draw=hhamber,right=14mm of h1] (h2) {2. CHECKPOINT};
-\node[organ,fill=hhamber!15,draw=hhamber] (o2) at (h2.south) {%
-  \footnotesize \emph{Restorable state} --- enough to \emph{resume}.\\[2pt]
-  Today the restart organ forwards \textbf{a summary, not state}.};
-\node[tag,text=hhamber,below=1mm of o2] {\textbf{$\square$}~partial};
-
-% Organ 3 — outcome ledger — DESIGNED (cobalt fill, top step)
-\node[hdr,fill=hhcobalt!18,draw=hhcobalt,right=14mm of h2] (h3) {3. OUTCOME LEDGER};
-\node[organ,fill=hhcobalt!8,draw=hhcobalt] (o3) at (h3.south) {%
-  \footnotesize \emph{Witnessed delivery.}\\[2pt]
-  Append-only, daemon-witnessed; closes only against an \textbf{oracle} the agent
-  cannot author.};
-\node[tag,text=hhcobalt,below=1mm of o3] {\textbf{$\square$}~designed};
-
-% Arrows of dependence
-\draw[->,>=Latex,thick,draw=hhink] (o1.east|-o1.center) -- (o2.west|-o2.center);
-\draw[->,>=Latex,thick,draw=hhink] (o2.east|-o2.center) -- (o3.west|-o3.center);
-
-% Reputation arrow off organ 3
-\node[draw=hhcobalt,very thick,fill=hhsand!30,rounded corners=2pt,
-      below=12mm of o3.south,anchor=north,font=\bfseries\footnotesize,
-      text width=42mm,align=center,inner sep=4pt] (rep)
-  {REPUTATION\\{\normalfont\scriptsize keys on the third organ ---\\
-   the one not yet built}};
-\draw[->,>=Latex,very thick,draw=hhcobalt] (o3.south) -- (rep.north);
+\draw[stp arrow] (o1) -- (o2);
+\draw[stp arrow] (o2) -- (o3);
+\node[stp accent box,text width=42mm,below=7mm of o3] (rep)
+  {\textbf{REPUTATION}\\{\scriptsize keys on witnessed outcomes ---\\the third organ}};
+\draw[stp accent arrow] (o3) -- (rep);
 \end{tikzpicture}}
 \caption{\textbf{The three continuity organs, honestly labelled.} Memory (\BUILT)
 records what happened --- typed episodes scored by
@@ -61,7 +38,7 @@ recency$\times$importance$\times$relevance, after Generative Agents (Park 2023);
 checkpoint (\BUILTWEAK) is meant to restore execution state but today passes only
 notes (checkpoint-of-\emph{record}, not -of-\emph{execution}; ``with teeth'' is
 \VISION); the witnessed-outcome ledger (\DESIGNED) is the transitive Parfitian
-chain --- and the organ reputation keys on. The volume's canonical seam sentence is
+chain --- and the organ reputation keys on. The series' canonical seam sentence is
 exactly this picture in prose.}
 \label{fig:organs}
 \end{figure}

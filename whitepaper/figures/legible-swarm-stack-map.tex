@@ -1,5 +1,5 @@
 % Figure 1 — the L0->L3 stack map. Where this paper sits, what it assumes,
-% which companion papers it cites. Opens every paper in the Harbor Volume.
+% which companion chapters it cites. Opens Chapter I of the coordination series.
 % Design: one bold title line + one italic content line per layer; the
 % "for whom" audience rides the title line as small caps. Explanatory prose
 % lives in the caption, not the canvas.
@@ -44,10 +44,10 @@
   at ([xshift=3mm]l2.east) {$\blacktriangleleft$ this paper};
 
 % companion-paper column (left)
-\node[paper,left=5mm of l3] {Paper 4\\\emph{Harbor Economy}};
-\node[paper,left=5mm of l2,draw=hhcobalt,very thick] {\textbf{Paper 1}\\\emph{this}};
-\node[paper,left=5mm of l1] {Papers 1+2\\split L1};
-\node[paper,left=5mm of l0] {Paper 2\\\emph{Anchor /}\\\emph{the Kernel}};
+\node[paper,left=5mm of l3] {Chapter IV\\\emph{Harbor Economy}};
+\node[paper,left=5mm of l2,draw=hhcobalt,very thick] {\textbf{Chapter I}\\\emph{this}};
+\node[paper,left=5mm of l1] {Chapters I--II\\split L1};
+\node[paper,left=5mm of l0] {Chapter II\\\emph{the Kernel}};
 
 % ─── one assumes-spine (down) and one provides-spine (up) ─────────────────
 \draw[->,>=Latex,very thick,hhcobalt]
@@ -71,14 +71,14 @@
 
 \end{tikzpicture}%
 }
-\caption{The four-layer stack. Each layer serves a different \emph{whom}; each paper
-in the volume owns one rung. \textbf{This paper owns L2 --- the legibility \&
+\caption{The four-layer stack. Each layer serves a different \emph{whom}; chapters
+may own or cross-cut more than one rung. \textbf{This chapter owns L2 --- the legibility \&
 authority ``wedge'' --- plus the L1 directory substrate} (the existence layer that a
 message must address). Each layer \emph{assumes} the one below it and \emph{provides}
 to the one above: this paper assumes the single-writer kernel (the companion protocol
-paper, \emph{The Anchor Protocol / The Harbor Daemon}) and provides the legible,
+chapter, \emph{The Single-Writer Kernel}) and provides the legible,
 checkpointed, outcome-bearing identity that the reputation bridge (\emph{From Spawn
-to Person}) and the market (\emph{The Harbor Economy}) consume. The volume is one
-ladder, climbed in order; you buy the next rung only when you need it.}
+to Person}) and the market (\emph{The Harbor Economy}) consume. Chapters V--VII
+cross-cut the ladder with protocol, incentive, and federation deep dives.}
 \label{fig:stack-map}
 \end{figure}

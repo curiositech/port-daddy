@@ -130,6 +130,26 @@ describe('Bosun heartbeat writer', () => {
     }));
   });
 
+  test('bootstrap heartbeat advances before the request probe is armed', async () => {
+    jest.useFakeTimers();
+    const selfProbe = jest.fn(() => true);
+    const writer = createWriter({
+      selfProbe,
+      deferSelfProbeUntilReady: true,
+    });
+
+    writer.start();
+    jest.advanceTimersByTime(150);
+
+    expect(selfProbe).not.toHaveBeenCalled();
+    expect(writer.getStatus().writeCount).toBe(4);
+
+    writer.startProbing();
+    await Promise.resolve();
+    expect(selfProbe).toHaveBeenCalledTimes(1);
+    writer.stop();
+  });
+
   test('canonical guard refuses to overwrite a heartbeat from a foreign daemon', () => {
     const heartbeatPath = tmpHeartbeatPath();
     const pidFile = join(heartbeatPath, '..', 'daemon.pid');

@@ -160,6 +160,23 @@ describe('binary-drift-detector', () => {
       expect(drift.onDiskHash).not.toBe(snap.runningHash);
     });
 
+    test('compares Homebrew port-daddy runtime to itself, not the pd launcher', () => {
+      const runtimePath = join(tmpRoot, 'port-daddy');
+      const launcherPath = join(tmpRoot, 'pd');
+      writeFileSync(runtimePath, 'compiled runtime contents\n');
+      writeFileSync(launcherPath, 'small launcher contents\n');
+      const snap = snapshotRunningBinary(runtimePath);
+
+      const drift = detectDrift({
+        runningSnapshot: snap,
+        env: { PATH: tmpRoot },
+      });
+
+      expect(drift.drifted).toBe(false);
+      expect(drift.onDiskPath).toBe(realpathSync(runtimePath));
+      expect(drift.onDiskHash).toBe(snap.runningHash);
+    });
+
     test('reports unavailable when the running binary could not be hashed at startup', () => {
       const drift = detectDrift({
         runningSnapshot: {

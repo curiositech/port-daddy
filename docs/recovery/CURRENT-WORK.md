@@ -1560,7 +1560,7 @@ the originating PR or task ID stamped next to it.
 - [ ] **`pd guard install` also installs pre-push hook** — LOW — PR #161 has installer at `scripts/install-pre-push-hook.sh`, but `pd guard install` doesn't call it yet.
 - [ ] **`pd guard destructive-log` CLI** — LOW — PR #161 logs bypass to `~/.port-daddy/destructive-ops.log`; no pretty-print CLI yet.
 - [ ] **`pd nightshift` deprecation banner removal** — LOW — PR #163 keeps the alias for one minor version. Remove after.
-- [ ] **`merge_policy: 'auto'` actual implementation** — BLOCKED on PR #141 (harbormaster ADR draft) — PR #163 refuses it pending harbormaster.
+- [x] **`merge_policy: 'auto'` actual implementation** — SHIPPED via `lib/dispatch/auto-merge.ts` (CI-green + mergeable + 0-unresolved-threads gate, then `gh pr merge --squash`), a daemon-side sweep interval, `pd dispatch merge-sweep`, and a `pd done` confirmation hook. Deliberately NOT routed through `pd harbormaster` (PR #141's operator-approval two-key queue) — that remains the `pd review --accept` path for `merge_policy='review'`.
 - [ ] **Dashboard `panel-backend` dead-code cleanup** — LOW — PR #138 stripped the nav-item; the `panel-backend` div + `refreshBackend()` JS still live as dormant code in `public/index.html`. Clean up after the FCC port lands (pairs with critical chad #6).
 - [ ] **MCP tool registration for `pd backend`** — LOW — manifest+completions are green via `routes=[]` punt; if any MCP client needs to call `pd backend`, registration is missing.
 

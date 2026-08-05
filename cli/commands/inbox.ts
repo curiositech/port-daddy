@@ -8,6 +8,7 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import { handleSub } from './messaging.js';
 import { readCurrentContext } from '../utils/current-context.js';
 import * as ui from '../utils/ui.js';
+import { inboxMessagePreview } from '../utils/message-preview.js';
 
 /**
  * Handle `pd inbox <subcommand>` command — top-level standalone inbox access.
@@ -50,7 +51,7 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     const messages = data.messages as Array<{
       id: number;
       from: string | null;
-      content: string;
+      content: unknown;
       type: string;
       read: boolean;
       createdAt: number;
@@ -66,7 +67,7 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
       const readMark = msg.read ? ' ' : '\u2709';
       const time = new Date(msg.createdAt).toISOString().slice(11, 19);
       const from = msg.from || 'system';
-      console.log(`${readMark} [${time}] <${from}> ${msg.content.slice(0, 60)}${msg.content.length > 60 ? '...' : ''}`);
+      console.log(`${readMark} [${time}] <${from}> ${inboxMessagePreview(msg.content)}`);
     }
     console.log('');
     console.log(`${data.count} message(s)`);
@@ -151,11 +152,78 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
       console.log(`Marked ${data.marked} message(s) as read`);
     }
 
+  } else if (subcommand === 'show' || subcommand === 'read') {
+    const targetId = args[0];
+    if (!targetId) {
+      console.error(`Usage: pd inbox ${subcommand} <message-id>`);
+      process.exit(1);
+    }
+
+    const res: PdFetchResponse = await pdFetch(
+      `${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox`
+    );
+    const data = await res.json();
+
+    if (!res.ok) {
+      ui.error((data.error as string) || 'Failed to read inbox');
+      process.exit(1);
+    }
+
+    const messages = data.messages as Array<{
+      id: number;
+      from: string | null;
+      content: string;
+      type: string;
+      read: boolean;
+      createdAt: number;
+    }>;
+
+    const msg = messages.find((m) => String(m.id) === targetId.trim());
+
+    if (!msg) {
+      ui.error(`Message with ID ${targetId} not found in inbox`);
+      process.exit(1);
+    }
+
+    // Mark as read
+    if (!msg.read) {
+      try {
+        await pdFetch(`${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox/${msg.id}/read`, {
+          method: 'PUT'
+        });
+      } catch (err) {
+        // Silently ignore or log warning if marking as read fails
+      }
+    }
+
+    if (isJson(options)) {
+      console.log(JSON.stringify(msg, null, 2));
+      return;
+    }
+
+    if (isQuiet(options)) {
+      console.log(msg.content);
+      return;
+    }
+
+    const time = new Date(msg.createdAt).toISOString();
+    const from = msg.from || 'system';
+
+    console.log('');
+    console.log(`From:      ${from}`);
+    console.log(`Timestamp: ${time}`);
+    console.log(`Content:`);
+    console.log('-'.repeat(40));
+    console.log(msg.content);
+    console.log('-'.repeat(40));
+
   } else if (subcommand === 'help') {
     console.log('Usage: pd inbox [subcommand] [--agent <id>] [-j] [-q]');
     console.log('');
     console.log('Subcommands:');
     console.log('  list (default)            Read inbox messages');
+    console.log('  show <message-id>         Show full content of a message');
+    console.log('  read <message-id>         Show full content of a message');
     console.log('  send <agent-id> <message> Send a message to an agent');
     console.log('  stats                     Get inbox statistics');
     console.log('  clear                     Clear all messages');
@@ -171,7 +239,7 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
 
   } else {
     console.error(`Unknown inbox subcommand: ${subcommand}`);
-    console.error('Available: list, send, stats, clear, read-all');
+    console.error('Available: list, show, read, send, stats, clear, read-all');
     process.exit(1);
   }
 }
@@ -216,7 +284,7 @@ export async function handleSent(options: CLIOptions): Promise<void> {
   const messages = data.messages as Array<{
     id: number;
     agentId: string;
-    content: string;
+    content: unknown;
     read: boolean;
     readAt: number | null;
     createdAt: number;
@@ -232,8 +300,7 @@ export async function handleSent(options: CLIOptions): Promise<void> {
     const receipt = msg.read
       ? `✓ read ${msg.readAt ? new Date(msg.readAt).toISOString().slice(11, 19) : ''}`.trim()
       : '✉ unread';
-    const preview = String(msg.content).slice(0, 50);
-    console.log(`${receipt}  → ${msg.agentId}  ${preview}${String(msg.content).length > 50 ? '...' : ''}`);
+    console.log(`${receipt}  → ${msg.agentId}  ${inboxMessagePreview(msg.content, 50)}`);
   }
   console.log('');
   const count = (data as { count: number }).count;

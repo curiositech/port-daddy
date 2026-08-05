@@ -12,29 +12,22 @@
 \begin{figure}[H]
 \centering
 \resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  inc/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
-              minimum width=22mm,minimum height=11mm,align=center,inner sep=2pt},
-  conn/.style={->,>=Latex,thick,draw=hhink},
-  bad/.style={draw=hhink!30,thick,dashed},
-]
-\node[inc] (b)  at (0,0)  {incarnation 1\\{\scriptsize the ``boy''}};
-\node[inc] (o)  at (4,0)  {incarnation 2\\{\scriptsize the ``officer''}};
-\node[inc] (g)  at (8,0)  {incarnation 3\\{\scriptsize the ``general''}};
+\begin{tikzpicture}[font=\small,node distance=34mm]
+\node[stp box,text width=31mm] (b) {incarnation 1\\{\scriptsize the ``boy''}};
+\node[stp box,text width=31mm,right=of b] (o) {incarnation 2\\{\scriptsize the ``officer''}};
+\node[stp box,text width=31mm,right=of o] (g) {incarnation 3\\{\scriptsize the ``general''}};
 
 % Direct memory connectedness (overlapping but NOT transitive)
-\draw[conn] (b.north east) to[bend left=20]
-  node[midway,above,font=\scriptsize,text=hhink] {remembers} (o.north west);
-\draw[conn] (o.north east) to[bend left=20]
-  node[midway,above,font=\scriptsize,text=hhink] {remembers} (g.north west);
-% The non-transitive gap — faint gray line with bold red ✗ at midpoint.
-\draw[bad] (b.south) to[bend right=14] (g.south);
-\node[font=\small\bfseries,text=maydayred] at (4,-1.3) {$\times$};
-\node[font=\scriptsize\itshape,text=hhink] at (4,-2.0)
-  {no direct memory (Reid's objection)};
-
-
+\draw[stp arrow] (b.north east) to[bend left=20]
+  node[stp label] {remembers} (o.north west);
+\draw[stp arrow] (o.north east) to[bend left=20]
+  node[stp label] {remembers} (g.north west);
+\draw[draw=hhgray,line width=0.55pt,dashed]
+  (b.south) to[bend right=15] node[stp label] {no direct memory required} (g.south);
+\draw[decorate,decoration={brace,mirror,amplitude=5pt},draw=hhcobalt,line width=0.8pt]
+  ([yshift=-15mm]b.south west) -- ([yshift=-15mm]g.south east)
+  node[midway,below=5mm,font=\footnotesize\bfseries,text=hhcobalt]
+  {continuity is the transitive overlapping chain};
 \end{tikzpicture}}
 \caption{\textbf{Continuity vs.\ connectedness.} Direct memory connectedness
 (the solid top arcs) overlaps but is not transitive --- the general need not
