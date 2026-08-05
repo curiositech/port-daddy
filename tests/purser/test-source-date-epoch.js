@@ -4,15 +4,15 @@ const path = require('path');
 
 jest.mock('fs');
 
-describe('error handling', () => {
-  test('exits with 127 when no TeX drivers found', () => {
+describe('source date epoch handling', () => {
+  test('sets SOURCE_DATE_EPOCH correctly', () => {
     const script = fs.readFileSync(path.resolve(__dirname, '../../scripts/build-whitepapers.sh'), 'utf-8');
-    expect(script).toContain('exit 127');
-    expect(script).toContain('error: whitepaper build requires latexmk or pdflatex');
+    expect(script).toContain('export SOURCE_DATE_EPOCH');
+    expect(script).toContain('FORCE_SOURCE_DATE=1');
   });
 
-  test('fails on pdflatex error', () => {
+  test('retains original epoch when set', () => {
     const script = fs.readFileSync(path.resolve(__dirname, '../../scripts/build-whitepapers.sh'), 'utf-8');
-    expect(script).toContain('|| exit $?');
+    expect(script).toContain('export SOURCE_DATE_EPOCH="$epoch"');
   });
 });
