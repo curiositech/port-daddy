@@ -20,7 +20,7 @@
  */
 
 import { describe, test, expect } from '@jest/globals';
-import { resolveDaemonTarget } from '../../shared/daemon-discovery.js';
+import { DEFAULT_DAEMON_PORT, resolveDaemonTarget } from '../../shared/daemon-discovery.js';
 
 const NEVER = () => false;
 const ALWAYS = () => true;
@@ -76,10 +76,10 @@ describe('resolveDaemonTarget (the one canonical resolver)', () => {
     expect(t.port).toBeGreaterThanOrEqual(1024);
   });
 
-  test('URL without explicit port falls back to the canonical preferred port', () => {
+  test('URL without explicit port falls back to the preferred bind seed authority', () => {
     const t = resolveDaemonTarget({ PORT_DADDY_URL: 'http://myhost' }, NEVER);
     expect(t.host).toBe('myhost');
-    expect(t.port).toBe(9876);
+    expect(t.port).toBe(DEFAULT_DAEMON_PORT);
   });
 
   test('defaults to process.env + real existsSync when called with no args', () => {

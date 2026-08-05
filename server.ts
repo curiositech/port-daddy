@@ -173,7 +173,7 @@ const REPO_ROOT: string = existsSync(join(__dirname, 'apps', 'FleetBar'))
 // =============================================================================
 
 interface PortDaddyServerConfig {
-  service: { port: number; host: string };
+  service: { host: string };
   ports: { range_start: number; range_end: number; reserved: number[] };
   cleanup: { interval_ms: number };
   logging: {
@@ -199,8 +199,8 @@ const configPath: string = join(__dirname, 'config.json');
 const config: PortDaddyServerConfig = existsSync(configPath)
   ? JSON.parse(readFileSync(configPath, 'utf8')) as PortDaddyServerConfig
   : {
-      service: { port: DEFAULT_DAEMON_PORT, host: LOOPBACK_TCP_HOST },
-      ports: { range_start: 3100, range_end: 9999, reserved: [8080, 8000, DEFAULT_DAEMON_PORT] },
+      service: { host: LOOPBACK_TCP_HOST },
+      ports: { range_start: 3100, range_end: 9999, reserved: [8080, 8000] },
       cleanup: { interval_ms: 300000 },
       logging: { level: 'info', file: 'port-daddy.log', error_file: 'port-daddy-error.log' },
       security: { rate_limit: { window_ms: 60000, max_requests: 1000 } }
@@ -366,7 +366,10 @@ const PREFIX: string | undefined = process.env.PORT_DADDY_PREFIX;
 const IS_DEV_MODE: boolean = !!PREFIX;
 
 const DB_PATH: string = resolveDbPath(PREFIX ? join(PREFIX, 'port-daddy.db') : undefined);
-const PORT: number = parseInt(process.env.PORT_DADDY_PORT as string, 10) || (IS_DEV_MODE ? 9877 : config.service.port);
+// This is a preferred bind seed, not the endpoint consumers should dial.
+// bindTcpWithFallback() may select another port and atomically publishes the
+// winner for every CLI/UI/client resolver.
+const PORT: number = parseInt(process.env.PORT_DADDY_PORT as string, 10) || DEFAULT_DAEMON_PORT;
 
 // State plane (S1): classify once at boot which state this daemon mutates —
 // 'prod' | 'dev-latest' | 'ephemeral:<label>'. Pure inference from the same

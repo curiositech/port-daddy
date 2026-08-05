@@ -15,6 +15,7 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { createTestDb, createMockLogger } from '../setup-unit.js';
 import { createServices } from '../../lib/services.js';
+import { DEFAULT_DAEMON_PORT } from '../../shared/daemon-discovery.js';
 
 describe('Services Module - Claim Operations (15 tests)', () => {
   let db, services;
@@ -157,14 +158,14 @@ describe('Services Module - Claim Operations (15 tests)', () => {
     expect(result.error).toContain('No available ports');
   });
 
-  it('should skip reserved ports (8080, 8000, 9876)', () => {
+  it('should skip reserved application ports and the daemon bind seed', () => {
     const result1 = services.claim('app1:api:main', { port: 8080 });
     const result2 = services.claim('app2:api:main', { port: 8000 });
-    const result3 = services.claim('app3:api:main', { port: 9876 });
+    const result3 = services.claim('app3:api:main', { port: DEFAULT_DAEMON_PORT });
 
     expect(result1.port).not.toBe(8080);
     expect(result2.port).not.toBe(8000);
-    expect(result3.port).not.toBe(9876);
+    expect(result3.port).not.toBe(DEFAULT_DAEMON_PORT);
   });
 
   it('should store pid, cmd, cwd in service record', () => {

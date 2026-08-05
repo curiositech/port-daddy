@@ -30,7 +30,7 @@
  *
  * @example
  *   // You woke up. What's the state of the harbor?
- *   curl http://127.0.0.1:9876/sitrep?since_minutes=120 | jq '.summary'
+ *   curl "$PORT_DADDY_URL/sitrep?since_minutes=120" | jq '.summary'
  *   // → "Last 120m: 34 events, 12 notes, 0 dead agents, 3 spawned agents"
  */
 

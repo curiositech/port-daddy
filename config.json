@@ -1,12 +1,11 @@
 {
   "service": {
-    "port": 9876,
     "host": "localhost"
   },
   "ports": {
     "range_start": 3100,
     "range_end": 9999,
-    "reserved": [8080, 8000, 9876]
+    "reserved": [8080, 8000]
   },
   "cleanup": {
     "interval_ms": 300000,

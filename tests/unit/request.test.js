@@ -7,7 +7,11 @@
 
 import { describe, test, expect, beforeEach, afterEach, beforeAll, afterAll } from '@jest/globals';
 import { resolveTarget, getDisplayUrl, pdRequest, pdGet, pdPost, pdDelete, pdPut, isDaemonRunning } from '../../lib/request.js';
+import { DEFAULT_DAEMON_PORT } from '../../shared/daemon-discovery.js';
 import http from 'node:http';
+
+const EXPLICIT_TEST_PORT = 43_121;
+const EXPLICIT_TEST_URL = `http://localhost:${EXPLICIT_TEST_PORT}`;
 
 // Save/restore env vars around each test
 let savedEnv;
@@ -37,10 +41,10 @@ afterEach(() => {
 
 describe('resolveTarget()', () => {
   test('returns TCP target when PORT_DADDY_URL is set', () => {
-    process.env.PORT_DADDY_URL = 'http://localhost:9876';
+    process.env.PORT_DADDY_URL = EXPLICIT_TEST_URL;
     const target = resolveTarget();
     expect(target.host).toBe('localhost');
-    expect(target.port).toBe(9876);
+    expect(target.port).toBe(EXPLICIT_TEST_PORT);
     expect(target.socketPath).toBeUndefined();
   });
 
@@ -51,11 +55,11 @@ describe('resolveTarget()', () => {
     expect(target.port).toBe(3000);
   });
 
-  test('uses default port 9876 when URL has no explicit port', () => {
+  test('uses the preferred bind seed when an explicit URL omits its port', () => {
     process.env.PORT_DADDY_URL = 'http://myhost';
     const target = resolveTarget();
     expect(target.host).toBe('myhost');
-    expect(target.port).toBe(9876);
+    expect(target.port).toBe(DEFAULT_DAEMON_PORT);
   });
 
   test('returns socket target when PORT_DADDY_SOCK is set', () => {
@@ -68,7 +72,7 @@ describe('resolveTarget()', () => {
 
   test('PORT_DADDY_SOCK takes priority over PORT_DADDY_URL', () => {
     process.env.PORT_DADDY_SOCK = '/tmp/custom.sock';
-    process.env.PORT_DADDY_URL = 'http://localhost:9876';
+    process.env.PORT_DADDY_URL = EXPLICIT_TEST_URL;
     const target = resolveTarget();
     // SOCK is checked first
     expect(target.socketPath).toBe('/tmp/custom.sock');
@@ -89,9 +93,9 @@ describe('resolveTarget()', () => {
 
 describe('getDisplayUrl()', () => {
   test('returns tcp URL format when using TCP target', () => {
-    process.env.PORT_DADDY_URL = 'http://localhost:9876';
+    process.env.PORT_DADDY_URL = EXPLICIT_TEST_URL;
     const url = getDisplayUrl();
-    expect(url).toBe('http://localhost:9876');
+    expect(url).toBe(EXPLICIT_TEST_URL);
   });
 
   test('returns unix: prefix when using socket target', () => {
