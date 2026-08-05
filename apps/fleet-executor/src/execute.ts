@@ -39,6 +39,7 @@ import {
   resolveFleetAppLogin,
   type PRContext,
   type ReviewComment,
+  PR_FILES_PAGE_SIZE,
 } from './github.js';
 import { parseFleetShips, parseFleetSquidEvents, parseFleetXo, defaultPRShips, type ShipConfig } from './fleet.js';
 import { classifyPrAuthorship } from './fleet-identity.js';
@@ -101,14 +102,7 @@ const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 /** Per-chunk diff budget for the MAP fan-out (chars). */
 const MAP_CHUNK_CHAR_LIMIT = 12_000;
 
-/**
- * Page size used by `fetchPRContext` for GitHub's PR /files endpoint.
- *
- * That call does not paginate, so a PR at or above this many changed files
- * yields a TRUNCATED list. Anything reasoning about "the set of changed files"
- * must treat a list this long as incomplete rather than authoritative.
- */
-const PR_FILES_PAGE_SIZE = 100;
+
 /** Bound Workers AI fan-out so large diffs finish without a rate-limit stampede. */
 const MAP_CONCURRENCY = 8;
 /** The umbrella check-run name. Exported so the DLQ handler targets the same run. */
@@ -1792,8 +1786,7 @@ export function filterDiffToReviewable(diff: string): string {
     .split(/(?=^diff --git )/m)
     .filter(part => {
       if (!part.startsWith('diff --git ')) return true; // preamble, keep
-      const m = /^diff --git a\/(\S+) b\/(\S+)/.exec(part);
-      const path = m ? m[2] || m[1] : '';
+      const path = pathFromDiffLine(part.split('\n', 1)[0] ?? '') ?? '';
       return !path || isReviewableForBugs(path);
     })
     .join('');
@@ -1814,8 +1807,18 @@ export function chunkDiff(diff: string): string[] {
         chunks.push(cur);
         cur = '';
       }
-      for (let i = 0; i < part.length; i += MAP_CHUNK_CHAR_LIMIT) {
-        chunks.push(part.slice(i, i + MAP_CHUNK_CHAR_LIMIT));
+      // Re-emit the `diff --git` header on every continuation slice.
+      //
+      // A single file larger than the budget is hard-split, and without this
+      // only the FIRST slice carries the header — so `filesInChunk()` returns
+      // [] for the rest and the prompt shows NO files as present. That breaks
+      // the scope contract precisely on the largest files, which are the ones
+      // whose reviewers are most likely to be confused about what they hold.
+      const header = part.split('\n', 1)[0] ?? '';
+      const body = part.slice(header.length + 1);
+      const room = Math.max(1, MAP_CHUNK_CHAR_LIMIT - header.length - 1);
+      for (let i = 0; i < body.length; i += room) {
+        chunks.push(`${header}\n${body.slice(i, i + room)}`);
       }
       continue;
     }
@@ -1983,10 +1986,56 @@ function buildSystemPrompt(ship: ShipConfig, contract: string | null, graftText 
  */
 export function filesInChunk(diffChunk: string): string[] {
   const out = new Set<string>();
-  for (const m of diffChunk.matchAll(/^diff --git a\/(\S+) b\/(\S+)/gm)) {
-    out.add(m[2] || m[1]);
+  // Section-aware, not line-aware. A rename emits BOTH `--- a/old` and
+  // `+++ b/new`; collecting every line would report the old path as present
+  // too, telling a reviewer it holds a file that exists only under its new
+  // name. One path per file section, preferring the post-image.
+  for (const section of diffChunk.split(/(?=^diff --git )/m)) {
+    if (!section.trim()) continue;
+    let newSide: string | null = null;
+    let oldSide: string | null = null;
+    let headerSide: string | null = null;
+    for (const line of section.split('\n')) {
+      if (line.startsWith('+++ b/')) newSide ??= line.slice(6).trim() || null;
+      else if (line.startsWith('--- a/')) oldSide ??= line.slice(6).trim() || null;
+      else if (line.startsWith('diff --git a/')) headerSide ??= pathFromDiffLine(line);
+      if (newSide) break;
+    }
+    // `+++ /dev/null` on a deletion leaves newSide null, so the old path is
+    // the only truthful answer there.
+    const path = newSide ?? headerSide ?? oldSide;
+    if (path) out.add(path);
   }
   return [...out];
+}
+
+/**
+ * Extract a path from one diff line, tolerating spaces.
+ *
+ * `diff --git a/X b/Y` cannot be parsed with `\S+`: git does not escape spaces
+ * in paths, and this repository already contains `public/Untitled 2.png`. A
+ * greedy split on whitespace silently yields the wrong path — or none — and the
+ * file is then mis-marked "not in this chunk" even though its hunks are right
+ * there, which defeats the scope contract on exactly the files most likely to
+ * need it.
+ *
+ * The `+++ b/<path>` line is the reliable source: the path runs to end of line,
+ * so no delimiter ambiguity exists. `diff --git` is used only as a fallback,
+ * and there the a/ and b/ halves are separated on the ` b/` boundary nearest
+ * the middle, which is correct whenever both sides name the same file (the
+ * common case) and degrades to the whole remainder for a rename.
+ */
+function pathFromDiffLine(line: string): string | null {
+  if (line.startsWith('+++ b/')) return line.slice(6).trim() || null;
+  if (line.startsWith('+++ ')) return null; // +++ /dev/null — a deletion
+  if (line.startsWith('--- a/')) return line.slice(6).trim() || null;
+  if (line.startsWith('diff --git a/')) {
+    const rest = line.slice('diff --git a/'.length);
+    const sep = rest.lastIndexOf(' b/');
+    if (sep === -1) return rest.trim() || null;
+    return rest.slice(sep + 3).trim() || rest.slice(0, sep).trim() || null;
+  }
+  return null;
 }
 
 /**
@@ -2024,14 +2073,25 @@ function buildUserMessage(
   const present = new Set(filesInChunk(diffChunk));
   const partial = chunkCount > 1;
 
+  // If GitHub's /files call failed, `prCtx.files` is empty — but the chunk in
+  // hand plainly contains hunks. Rendering "Changed files: (none)" above them
+  // is worse than saying nothing: it tells the reviewer the PR touched nothing
+  // while showing it a diff, which undercuts the very boundary this block
+  // exists to draw. Fall back to what the chunk itself proves.
+  const fileRows = prCtx.files.length
+    ? prCtx.files.map(f => ({ filename: f.filename, adds: f.additions, dels: f.deletions }))
+    : [...present].map(filename => ({ filename, adds: null as number | null, dels: null as number | null }));
+
   // Mark in-chunk files so the model can bind a hunk to a path. Files from
   // other chunks stay listed — the reviewer should know the PR is larger than
   // what it can see — but are explicitly flagged as not visible here.
-  const fileList = prCtx.files
-    .map(f => {
-      const mark = !partial || present.has(f.filename) ? '✔' : '·';
-      const note = !partial || present.has(f.filename) ? '' : '  — not in this chunk';
-      return `- ${mark} ${f.filename} (+${f.additions}/-${f.deletions})${note}`;
+  const fileList = fileRows
+    .map(r => {
+      const here = !partial || present.has(r.filename);
+      const mark = here ? '✔' : '·';
+      const counts = r.adds === null ? '' : ` (+${r.adds}/-${r.dels})`;
+      const note = here ? '' : '  — not in this chunk';
+      return `- ${mark} ${r.filename}${counts}${note}`;
     })
     .join('\n');
 
