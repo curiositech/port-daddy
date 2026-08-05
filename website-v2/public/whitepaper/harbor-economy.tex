@@ -708,8 +708,8 @@ adversary the market is defined by}.
 \emph{Local non-forgeable identity} is a per-agent identity that no agent can edit,
 guaranteed \emph{within one trusted daemon}: the daemon is the only component that
 can hold state agents cannot reach, so it is a trusted root by construction. (The
-reference system now ships a partial slice --- daemon-minted actor souls, lookup
-credentials, and a bounded newcomer-pool gate --- while full write-boundary
+reference system now ships a partial slice --- daemon-minted \code{actor-souls}, lookup
+credentials, and a bounded newcomer pool --- while full write-boundary
 enforcement remains open. Papers 1--3 rely on the complete contract; here we only
 consume it.)
 \end{definition}
@@ -1449,8 +1449,8 @@ Resurrection / checkpoint (organ 2) & \BuiltWeak{} & passes notes, not state \\
 Outcome ledger (organ 3 --- reputation keys here) & \BuiltWeak{} & commitments,
   daemon-derived deadlines, oracle closure, API/CLI, and overdue monitoring ship;
   neutral grading and reputation binding do not \\
-Local non-forgeable identity (intra-harbor) & \BuiltWeak{} & actor souls, lookup
-  credentials, and a bounded budget gate ship; full write gating does not \\
+Local non-forgeable identity (intra-harbor) & \BuiltWeak{} & \code{actor-souls}, lookup
+  credentials, and a bounded newcomer pool ship; full write gating does not \\
 Cross-operator attestation & \Designed{}/\Vision{} & no spec for the load-bearing part \\
 Float plan $+$ signed escrow ceremony & \Designed{} & Protocol~\ref{prot:escrow} \\
 Cross-harbor capability transfer (attenuation) & \Designed{} & verified \emph{as model};
