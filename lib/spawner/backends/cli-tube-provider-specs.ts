@@ -1,5 +1,5 @@
 import { normalizeNativeHarnessSessionId } from '../../harness-session-id.js';
-import { basename, delimiter, dirname, isAbsolute, join } from 'node:path';
+import { delimiter, dirname, isAbsolute, join } from 'node:path';
 
 export type CliTubePermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions';
 
@@ -90,6 +90,17 @@ const CODEX_COORDINATION_ENV_KEYS = [
 
 const CODEX_PROFILE_SHELL_ENV_KEYS = ['ZDOTDIR', 'BASH_ENV', 'ENV'] as const;
 
+function codexEnvironmentConfig(key: string, value: string): string {
+  if (/[\0\r\n]/.test(value)) {
+    throw new Error(`Unsafe ${key} value cannot be forwarded to the Codex shell environment`);
+  }
+  const config = `shell_environment_policy.set.${key}=${JSON.stringify(value)}`;
+  if (config.length > MAX_CODEX_CONFIG_OVERRIDE_LENGTH) {
+    throw new Error(`Selected ${key} value exceeds the Codex shell environment limit`);
+  }
+  return config;
+}
+
 /**
  * Codex intentionally filters the environment exposed to model-generated
  * shells. Re-introduce only the selected-daemon and source-CLI context plus
@@ -102,13 +113,10 @@ export function codexCoordinationEnvironmentConfigs(
   for (const key of CODEX_COORDINATION_ENV_KEYS) {
     const value = key === 'PATH' ? compactCodexShellPath(env) : env[key];
     if (typeof value !== 'string' || value.length === 0) continue;
-    if (/[\0\r\n]/.test(value)) {
-      throw new Error(`Unsafe ${key} value cannot be forwarded to the Codex shell environment`);
-    }
-    configs.push(`shell_environment_policy.set.${key}=${JSON.stringify(value)}`);
+    configs.push(codexEnvironmentConfig(key, value));
   }
   for (const [key, value] of trustedCodexProfileShellEnvironment(env)) {
-    configs.push(`shell_environment_policy.set.${key}=${JSON.stringify(value)}`);
+    configs.push(codexEnvironmentConfig(key, value));
   }
   return configs;
 }
@@ -147,10 +155,11 @@ function trustedCodexProfileShellEnvironment(
   env: Readonly<Record<string, string | undefined>>,
 ): Array<readonly [typeof CODEX_PROFILE_SHELL_ENV_KEYS[number], string]> {
   const cli = env.PORT_DADDY_CLI;
-  if (!cli || !isAbsolute(cli) || basename(cli) !== 'pd') return [];
-  const devBinDir = dirname(cli);
-  if (basename(devBinDir) !== 'dev-bin') return [];
-  const shellDir = join(dirname(devBinDir), 'dev-shell');
+  const prefix = env.PORT_DADDY_PREFIX;
+  if (!cli || !prefix || !isAbsolute(prefix)) return [];
+  const expectedCli = join(prefix, 'dev-bin', 'pd');
+  if (cli !== expectedCli) return [];
+  const shellDir = join(prefix, 'dev-shell');
   const shellInit = join(shellDir, 'pd-env.sh');
   return [
     ['ZDOTDIR', shellDir],

@@ -7,6 +7,7 @@ import {
   defaultFrom,
   devCliShellInitSource,
   devCliShimSource,
+  prependPathEntry,
   shouldPurgeBerthState,
 } from '../../cli/commands/berths.js';
 
@@ -102,5 +103,14 @@ describe('named berth source-matched CLI', () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toBe('/profile/dev-bin');
     expect(result.stdout).not.toMatch(/(^|:)(\.|)(:|$)/);
+  });
+
+  test('named daemon process PATH never gains an empty lookup entry', () => {
+    expect(prependPathEntry('/profile/dev-bin', undefined)).toBe('/profile/dev-bin');
+    expect(prependPathEntry('/profile/dev-bin', '')).toBe('/profile/dev-bin');
+    expect(prependPathEntry('/profile/dev-bin', ':/usr/bin::/bin:'))
+      .toBe('/profile/dev-bin:/usr/bin:/bin');
+    expect(prependPathEntry('/profile/dev-bin', '/profile/dev-bin:/usr/bin'))
+      .toBe('/profile/dev-bin:/usr/bin');
   });
 });

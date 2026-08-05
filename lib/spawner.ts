@@ -2345,6 +2345,11 @@ export function createSpawner(deps: SpawnerDeps = {}) {
             : process.env.PORT_DADDY_CAN_SELF_DAEMON === '1'
               ? { PORT_DADDY_CLI: process.execPath }
               : {}),
+          // The daemon profile, not request-provided spawn env, is the trust
+          // anchor for any source-matched shell init derived downstream.
+          ...(process.env.PORT_DADDY_PREFIX?.trim()
+            ? { PORT_DADDY_PREFIX: process.env.PORT_DADDY_PREFIX.trim() }
+            : {}),
           ...(process.env.PD_DAEMON_LABEL?.trim()
             ? { PORT_DADDY_DAEMON: process.env.PD_DAEMON_LABEL.trim() }
             : {}),

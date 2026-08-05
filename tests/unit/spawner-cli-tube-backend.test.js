@@ -248,6 +248,7 @@ describe('buildArgs', () => {
       PATH: '/profile/dev-bin:/usr/bin',
       PORT_DADDY_URL: 'http://127.0.0.1:4567',
       PORT_DADDY_CLI: '/profile/dev-bin/pd',
+      PORT_DADDY_PREFIX: '/profile',
       PD_AGENT_ID: 'agent-test',
       ZDOTDIR: '/attacker/zsh',
       BASH_ENV: '/attacker/bash',
@@ -289,6 +290,7 @@ describe('buildArgs', () => {
     const configs = codexCoordinationEnvironmentConfigs({
       PATH: longPath,
       PORT_DADDY_CLI: '/profile/dev-bin/pd',
+      PORT_DADDY_PREFIX: '/profile',
     });
     const pathConfig = configs.find((config) => config.startsWith('shell_environment_policy.set.PATH='));
 
@@ -303,7 +305,34 @@ describe('buildArgs', () => {
     expect(() => codexCoordinationEnvironmentConfigs({
       PATH: '/usr/bin',
       PORT_DADDY_CLI: oversizedCli,
+      PORT_DADDY_PREFIX: `/${'source-cli-segment/'.repeat(40)}`.replace(/\/$/, ''),
     })).toThrow(/source CLI directory exceeds/);
+  });
+
+  test('codex shell hooks require the daemon-owned profile prefix and exact CLI path', () => {
+    const attackerCli = '/attacker/dev-bin/pd';
+    const withoutPrefix = codexCoordinationEnvironmentConfigs({
+      PATH: '/usr/bin',
+      PORT_DADDY_CLI: attackerCli,
+    });
+    const mismatchedPrefix = codexCoordinationEnvironmentConfigs({
+      PATH: '/usr/bin',
+      PORT_DADDY_CLI: attackerCli,
+      PORT_DADDY_PREFIX: '/profile',
+    });
+
+    expect(withoutPrefix.join('\n')).not.toContain('ZDOTDIR');
+    expect(mismatchedPrefix.join('\n')).not.toContain('ZDOTDIR');
+    expect(mismatchedPrefix.join('\n')).not.toContain('BASH_ENV');
+  });
+
+  test('codex fails closed before an oversized profile can emit shell hooks', () => {
+    const prefix = `/${'p'.repeat(455)}`;
+    expect(() => codexCoordinationEnvironmentConfigs({
+      PATH: '/usr/bin',
+      PORT_DADDY_CLI: `${prefix}/dev-bin/pd`,
+      PORT_DADDY_PREFIX: prefix,
+    })).toThrow(/PORT_DADDY_CLI value exceeds/);
   });
 
   test.each([

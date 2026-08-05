@@ -352,6 +352,14 @@ export function devCliShellInitSource(devBinDir: string, shim: string): string {
   ].join('\n');
 }
 
+/** Put one trusted tool directory first without creating empty PATH entries. */
+export function prependPathEntry(entry: string, inherited: string | undefined): string {
+  const rest = (inherited ?? '')
+    .split(delimiter)
+    .filter((candidate) => candidate.length > 0 && candidate !== entry);
+  return [entry, ...rest].join(delimiter);
+}
+
 function installDevCliShim(sourceDir: string, runtimeDir: string): {
   shim: string;
   shellEnvDir: string;
@@ -489,7 +497,7 @@ async function devUp(options: CLIOptions): Promise<void> {
   });
   const devCli = installDevCliShim(sourceDir, profile.runtimeDir);
   env.PORT_DADDY_CLI = devCli.shim;
-  env.PATH = `${join(profile.runtimeDir, 'dev-bin')}${delimiter}${env.PATH ?? ''}`;
+  env.PATH = prependPathEntry(join(profile.runtimeDir, 'dev-bin'), env.PATH);
   env.ZDOTDIR = devCli.shellEnvDir;
   env.BASH_ENV = devCli.shellEnvFile;
   env.ENV = devCli.shellEnvFile;

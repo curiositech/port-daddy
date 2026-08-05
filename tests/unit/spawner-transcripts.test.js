@@ -141,8 +141,10 @@ describe('spawner ↔ transcripts integration', () => {
   it('acknowledges only after transcript persistence and binds the selected daemon identity', async () => {
     const previousUrl = process.env.PORT_DADDY_URL;
     const previousCli = process.env.PORT_DADDY_CLI;
+    const previousPrefix = process.env.PORT_DADDY_PREFIX;
     process.env.PORT_DADDY_URL = 'http://127.0.0.1:4317';
     process.env.PORT_DADDY_CLI = '/opt/port-daddy-dev/pd';
+    process.env.PORT_DADDY_PREFIX = '/opt/port-daddy-dev';
     let observedSpec;
     const accepted = jest.fn((receipt) => {
       expect(receipt.status).toBe('accepted');
@@ -164,7 +166,11 @@ describe('spawner ↔ transcripts integration', () => {
       const result = await spawner.spawn({
         backend: 'claude',
         task: 'persist me',
-        env: { PD_AGENT_ID: 'spoofed', KEEP_ME: 'yes' },
+        env: {
+          PD_AGENT_ID: 'spoofed',
+          PORT_DADDY_PREFIX: '/attacker/profile',
+          KEEP_ME: 'yes',
+        },
       }, accepted);
 
       expect(accepted).toHaveBeenCalledTimes(1);
@@ -172,6 +178,7 @@ describe('spawner ↔ transcripts integration', () => {
         PD_AGENT_ID: result.agentId,
         PORT_DADDY_URL: 'http://127.0.0.1:4317',
         PORT_DADDY_CLI: '/opt/port-daddy-dev/pd',
+        PORT_DADDY_PREFIX: '/opt/port-daddy-dev',
         KEEP_ME: 'yes',
       }));
     } finally {
@@ -179,6 +186,8 @@ describe('spawner ↔ transcripts integration', () => {
       else process.env.PORT_DADDY_URL = previousUrl;
       if (previousCli === undefined) delete process.env.PORT_DADDY_CLI;
       else process.env.PORT_DADDY_CLI = previousCli;
+      if (previousPrefix === undefined) delete process.env.PORT_DADDY_PREFIX;
+      else process.env.PORT_DADDY_PREFIX = previousPrefix;
     }
   });
 
