@@ -251,3 +251,27 @@ These should NOT activate the skill (delegate as noted):
 3. "Write the script for the keynote video" → copywriting
 4. "Animate the title text" → motion-design-web
 5. "Build the conference website" → web-design-expert / frontend-design
+
+## Layout QA gate (mechanical — run before shipping)
+
+Before calling any rendered page, artifact, dashboard, deck, or component done,
+run the mechanical overflow/collision checker. It renders the page headlessly and
+flags text-vs-text collisions, clipped/ellipsis-truncated elements, text escaping
+its container, and horizontal page scroll — the visual defects a screenshot hides
+and that only appear at a specific width or in one theme.
+
+Resolve `layout-overflow-guard` from the active skill catalog before running it.
+The command below shows the standard Claude install path; use the path reported
+by your harness. If the skill is absent, install or sync it instead of skipping
+this gate.
+
+```bash
+python3 ~/.claude/skills/layout-overflow-guard/scripts/check_layout.py <file-or-url> \
+  --widths 1280,1100,860,720,390 --themes light,dark
+```
+
+You do **not** need to read `check_layout.py` — invoke it with the Bash tool and
+act on its report and exit code (non-zero = a defect). The script's source never
+enters your context; only its findings do. Drive it to zero violations across
+every width and both themes before you ship. Full detail: the
+`layout-overflow-guard` skill.

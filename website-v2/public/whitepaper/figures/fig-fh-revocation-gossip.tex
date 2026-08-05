@@ -37,17 +37,16 @@
 
 % Column x-positions and row y-positions (rows generously spaced so the
 % per-cell notes never reach into the row below).
-\def\cx{0}   \def\cy{5}   \def\cz{10}  \def\cw{15}
+\def\cx{0}   \def\cy{6}   \def\cz{12}
 \def\rA{-3.4} \def\rB{-7.4} \def\rC{-11.4}
 
 % ─── Timeline labels at the top ──────────────────────────────────
 \node[tlabel] at (0,0.4)  {$t = 0$};
-\node[tlabel] at (5,0.4)  {$t = \Delta$};
-\node[tlabel] at (10,0.4) {$t = 2\Delta$};
-\node[tlabel] at (15,0.4) {$t = 3\Delta$};
+\node[tlabel] at (6,0.4)  {$t = \Delta$};
+\node[tlabel] at (12,0.4) {$t = 2\Delta$};
 
 % ─── Witness log spanning the whole timeline ─────────────────────
-\node[witnesslog] (W) at (7.5,-1.4) {Federated Witness Log\\[1pt]\footnotesize\mdseries(roots published on each epoch boundary)};
+\node[witnesslog,minimum width=80mm] (W) at (6,-1.4) {Federated Witness Log\\[1pt]\footnotesize\mdseries(roots published on each epoch boundary)};
 
 % ─── Row A : issuer, revokes at t=0, then steady ─────────────────
 \node[harborrev] (A0) at (\cx,\rA) {Harbor $A$};
@@ -55,7 +54,6 @@
 \node[note,below=2pt of FA0] {operator revokes $c$};
 \node[harborrev] (A1) at (\cy,\rA) {Harbor $A$}; \node[filterrev,below=2pt of A1] {$c \in F_A$};
 \node[harborrev] (A2) at (\cz,\rA) {Harbor $A$}; \node[filterrev,below=2pt of A2] {$c \in F_A$};
-\node[harborrev] (A3) at (\cw,\rA) {Harbor $A$}; \node[filterrev,below=2pt of A3] {$c \in F_A$};
 
 % ─── Row B : hears at t=Δ ────────────────────────────────────────
 \node[harbor] (B0) at (\cx,\rB) {Harbor $B$};
@@ -63,7 +61,6 @@
 \node[note,below=2pt of FB0] {stale (\emph{vulnerable})};
 \node[harborrev] (B1) at (\cy,\rB) {Harbor $B$}; \node[filterrev,below=2pt of B1] {$c \in F_B$};
 \node[harborrev] (B2) at (\cz,\rB) {Harbor $B$}; \node[filterrev,below=2pt of B2] {$c \in F_B$};
-\node[harborrev] (B3) at (\cw,\rB) {Harbor $B$}; \node[filterrev,below=2pt of B3] {$c \in F_B$};
 
 % ─── Row C : hears at t=2Δ ───────────────────────────────────────
 \node[harbor] (C0) at (\cx,\rC) {Harbor $C$};
@@ -72,10 +69,8 @@
 \node[harbor] (C1) at (\cy,\rC) {Harbor $C$};
 \node[filter,below=2pt of C1] (FC1) {$c \notin F_C$};
 \node[note,below=2pt of FC1] {still stale};
-\node[harborrev] (C2) at (\cz,\rC) {Harbor $C$}; \node[filterrev,below=2pt of C2] {$c \in F_C$};
-\node[harborrev] (C3) at (\cw,\rC) {Harbor $C$};
-\node[filterrev,below=2pt of C3] (FC3) {$c \in F_C$};
-\node[note,below=2pt of FC3,text=hhteal] {auditor confirms\\no equivocation};
+\node[harborrev] (C2) at (\cz,\rC) {Harbor $C$}; \node[filterrev,below=2pt of C2] (FC2) {$c \in F_C$};
+\node[note,below=2pt of FC2,text=hhteal] {auditor can compare\\co-located roots};
 
 % ─── Gossip (anti-entropy) hops: A→B at t=Δ, B→C at t=2Δ ──────────
 \draw[gossip] (A0.east) to[bend left=8]
@@ -89,19 +84,17 @@
 \draw[publish] (B1.north) to[out=80,in=255]
   node[glab,pos=0.6]{$R_B^{(e+1)}$} ($(W.south)+(-0.2,0)$);
 \draw[publish] (C2.north) to[out=85,in=285]
-  node[glab,pos=0.62]{$R_C^{(e+1)}$} ($(W.south east)+(-0.3,0)$);
+  node[glab,pos=0.62]{$R_C^{(e+1)}$} (W.east);
 
 % ─── Bottom band: convergence claim ───────────────────────────────
 \node[draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,inner sep=6pt,
-      minimum width=164mm,align=center,font=\sffamily\footnotesize]
-      at (7.5,-14.1) {%
-  \textbf{Convergence bound (Theorem~\ref{thm:fh-conv}):}
-  with $m$ federated harbors gossiping every $\Delta$, the expected time
-  to global filter agreement on a new revocation is
-  $\Delta \cdot (1 + \ln m)$, generalizing
-  the Anchor intra-mesh bound. The witness log is the cross-check: any
-  harbor that publishes contradictory roots for the same epoch is
-  detectable in expected $O(\log m)$ audit rounds.};
+      minimum width=140mm,align=center,font=\sffamily\footnotesize]
+      at (6,-14.1) {%
+  \textbf{Conditional convergence:}
+  in a connected reliable-round overlay with randomized fan-out, epidemic
+  spread is expected $\Theta(\log m)$ rounds. An unbounded partition admits
+  no finite deadline. Contradictory roots become locally checkable once the
+  two signed values reach the same auditor.};
 
 \end{tikzpicture}%
 }
@@ -110,8 +103,8 @@ filter mechanism is unchanged from Anchor~\S2.4 of the
 companion paper, but two new pieces are bolted on: (a) per-epoch roots
 $R_X^{(e)}$ published to a shared witness log so a third party can audit any
 harbor's local view, and (b) cross-witness signatures so the auditor pattern
-generalizes Certificate Transparency~\cite{laurie2013ct}. The window between
-$t=0$ and $t=\Delta$ is the structural attacker window: bounded, named, and
-priced into the bond in \S\ref{sec:fh-settlement}.}
+generalizes Certificate Transparency~\cite{laurie2013ct}. The illustrated
+$\Delta$-spaced hops are one execution, not a universal deadline: availability
+depends on overlay connectivity and delivery assumptions.}
 \label{fig:fh-revocation}
 \end{figure}

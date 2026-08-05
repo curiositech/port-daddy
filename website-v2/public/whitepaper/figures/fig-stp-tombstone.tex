@@ -24,7 +24,7 @@
 place). A fraudulent outcome is not deleted (that would break append-only and
 auditability); it is nullified by an appended \emph{tombstone} --- a saga-style
 compensating entry --- which propagates across harbors bounded by the
-revocation-convergence window (Paper~4); the poisoned point was spendable only
+revocation-convergence window (Chapter~IV); the poisoned point was spendable only
 during that window. ``Reputation never ends'' is corrected to: monotone in
 \emph{honest} outcomes (they are never silently erased), individually revocable via
 tombstone, with bounded memory (Liu--Skrzypacz) as a tunable parameter rather than a

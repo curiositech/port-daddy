@@ -119,7 +119,7 @@ export interface WhitePaper {
   /** A one-line claim: what this chapter argues or proves, in a single sentence. */
   claim: string
   /**
-   * Engineering / proof maturity, on the volume's neutral scale. `built` /
+   * Engineering / proof maturity, on the series' neutral scale. `built` /
    * `built-weak` / `designed` / `specified` for the explaining chapters; the
    * proving chapters carry the verifier they were mechanized in.
    */
@@ -227,15 +227,15 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     thesis:
       'A swarm of autonomous coding agents, left to coordinate itself, is Hobbes’ state of nature: rational, even well-meaning actors fall into a war of all against all. The operator rationally consents to a local authority for exactly Hobbes’ reason — the alternative is worse — and that authority governs the only way any sovereign governs a population it cannot personally inspect: by making the swarm legible. The binding constraint on scale is read-poverty, not write-contention; tokens are at once the cost-of-goods and the legibility engine; and authority needs a first-class, scoped, revocable consent primitive with an inalienable operator override.',
     summary:
-      'A guided read of the volume’s flagship: legibility-with-zoom as the product a solo developer pays for today, the read-poverty bottleneck that decides the next order of magnitude, and an attention queue spined on Signal Detection Theory rather than raw throughput.',
+      'A guided read of the series’ flagship: legibility-with-zoom as the product a solo developer pays for today, the read-poverty bottleneck that decides the next order of magnitude, and an attention queue using Signal Detection Theory as an explicit decision objective rather than a universal fitted detector.',
     filename: 'legible-swarm-whitepaper',
     pdfPath: '/whitepaper/legible-swarm-whitepaper.pdf',
     readerHref: '/whitepaper/legible-swarm',
     overviewHref: '/whitepaper?paper=legible-swarm',
-    date: 'June 2026',
-    pages: 39,
-    sizeKb: 746,
-    status: 'Version 1.0',
+    date: 'August 2026',
+    pages: 40,
+    sizeKb: 762,
+    status: 'Version 1.1 (revised pre-print)',
     order: '01',
     chapter: 'I',
     group: 'explain',
@@ -345,10 +345,10 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     pdfPath: '/whitepaper/single-writer-kernel-whitepaper.pdf',
     readerHref: '/whitepaper/single-writer-kernel',
     overviewHref: '/whitepaper?paper=single-writer-kernel',
-    date: 'June 2026',
-    pages: 37,
-    sizeKb: 732,
-    status: 'Version 1.0',
+    date: 'August 2026',
+    pages: 35,
+    sizeKb: 740,
+    status: 'Version 1.1 (revised pre-print)',
     order: '02',
     chapter: 'II',
     group: 'explain',
@@ -394,7 +394,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       },
     ],
     whatYouGet:
-      'You should leave able to (a) explain why a single writer on one machine is the right call and consensus is the wrong reflex; (b) name the kernel’s invariants — mutual exclusion, idempotence, serializable transactions, a linearizable claim history — and what each buys; and (c) state, in the same words the chapter uses, exactly where the promises stop (process crash yes, power cut no; detector not regimenter).',
+      'You should leave able to (a) explain why a single writer on one machine is the right call and consensus is the wrong reflex; (b) name the kernel’s invariants — mutual exclusion, idempotence, serializable transactions, and a linearizable claim history under the stated one-daemon/no-bypass conditions — and what each buys; and (c) state exactly where the promises stop (process crash yes, power cut no; post-commit detector, not pre-commit regimenter).',
     forBuilders:
       'If you are building local coordination infrastructure for many processes, this chapter is the blueprint for the substrate: collapse to one writer, lean on the OS lock, make every mutation idempotent, and be ruthlessly honest about your durability and enforcement boundaries instead of selling a vague “ACID, distributed, bulletproof.”',
     highlights: [
@@ -417,7 +417,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       {
         title: 'Invariants, as theorems',
         content:
-          'Mutual exclusion, idempotence, a serializable consistency model with a linearizable claim history, and oracle-bound obligation closure — each stated and argued, not asserted.',
+          'Mutual exclusion, idempotence, and a serializable consistency model with a linearizable claim history under explicit one-daemon, connection, transaction, and no-bypass assumptions — each stated and argued, not asserted.',
       },
       {
         title: 'Where the promises stop',
@@ -452,7 +452,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     subtitle:
       'The hinge of the library: continuity — memory, a checkpoint, a witnessed record — turns an anonymous spawn into a person with a track record, the raw material of reputation.',
     thesis:
-      'A swarm produces work, but until that work can be attributed to something that survives the process that did it, none of it can be priced. A role is a bundle of obligation, capability, and authority — an org-chart entry any spawn can fill. A person is a role instance plus continuity: durable memory, a restorable checkpoint, and a witnessed history of outcomes keyed on an identity that cannot be freely re-picked. From this comes the volume’s central economic claim, stated identically across the papers: the reputation estimator is cheap; the substrate it scores over — witnessed outcomes on a non-forgeable identity — is the gate.',
+      'A swarm produces work, but until that work can be attributed to something that survives the process that did it, none of it can be priced. A role is a bundle of obligation, capability, and authority — an org-chart entry any spawn can fill. A person is a role instance plus continuity: durable memory, a restorable checkpoint, and a witnessed history of outcomes keyed on an identity that cannot be freely re-picked. From this comes the series’ central economic claim, stated identically across the papers: the reputation estimator is cheap; the substrate it scores over — witnessed outcomes on a non-forgeable identity — is the gate.',
     summary:
       'A guided read of the bridge chapter: the role-vs-person distinction made load-bearing, why reputation is not a bandit problem, a multi-dimensional reputation scored by neutral conflict-free judges, and the honest naming of cross-operator attestation as the unbuilt keystone.',
     filename: 'spawn-to-person-whitepaper',
@@ -462,7 +462,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     date: 'August 2026',
     pages: 34,
     sizeKb: 618,
-    status: 'Version 1.2',
+    status: 'Version 1.3 (series-aligned edition)',
     order: '03',
     chapter: 'III',
     group: 'explain',
@@ -530,7 +530,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       {
         title: 'The score is cheap; the substrate is the gate',
         content:
-          'Elo, Bradley–Terry, EigenTrust are inexpensive. The expensive part is witnessed outcomes on an identity that cannot be forged. Stated identically across the volume.',
+          'Elo, Bradley–Terry, EigenTrust are inexpensive. The expensive part is witnessed outcomes on an identity that cannot be forged. Stated identically across the series.',
       },
       {
         title: 'Why reputation is not a bandit problem',
@@ -563,19 +563,19 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     slug: 'harbor-economy',
     title: 'The Harbor Economy',
     subtitle:
-      'Where it all arrives: a three-sided market — labor, rentable agents, licensed skills — settling on one conserving bond ledger via escrow that cannot steal.',
+      'Where it all arrives: a three-sided market — labor, rentable agents, licensed skills — settling on one conserving bond ledger through explicitly trusted, conditionally restricted custody.',
     thesis:
-      'The first three chapters build a harbor for a single operator. This one is the rung above all of them — the only one whose participants are plural and mutually distrusting. The harbor economy is a three-sided market: operators sell labor and fleet-for-hire; agents and fleets are rentable assets; skills and tools are licensed — all settling on one conserving bond ledger via float-plan escrow. The chapter carries the volume’s heaviest reconciliations honestly: the missing keystone is cross-operator attestation; conservation composes upward only within one unit of account; and by Myerson–Satterthwaite a strictly conserving market must sacrifice efficiency. The defensible product is hosted trust, not the commoditized payment rail.',
+      'The first three chapters build a harbor for a single operator. This one is the rung above all of them — the only one whose participants are plural and mutually distrusting. The harbor economy is a three-sided market: operators sell labor and fleet-for-hire; agents and fleets are rentable assets; skills and tools are licensed — all settling on one conserving bond ledger via float-plan escrow. The chapter carries the series’ hardest boundary conditions honestly: cross-operator attestation is not shipped; conservation composes additively within one unit of account while cross-currency settlement needs time-indexed valuation, fee, slippage, and exposure accounts; and Myerson–Satterthwaite constrains only bilateral slices satisfying its private-information assumptions. The defensible product is hosted trust, not the commoditized payment rail.',
     summary:
-      'A guided read of the market chapter: the three-sided market and its one conserving ledger, the cross-harbor transfer ceremony and federation, and the honest reconciliations — the cohomology of double-spend, the lax functor of conservation, and the Myerson–Satterthwaite tax on any honest market.',
+      'A guided read of the market chapter: the three-sided market and its one conserving ledger, additive trace composition within a unit of account, explicit cross-currency exposure accounting, conditionally restricted custody, and the precise bilateral assumptions under which Myerson–Satterthwaite applies.',
     filename: 'harbor-economy-whitepaper',
     pdfPath: '/whitepaper/harbor-economy-whitepaper.pdf',
     readerHref: '/whitepaper/harbor-economy',
     overviewHref: '/whitepaper?paper=harbor-economy',
-    date: 'July 2026',
-    pages: 31,
-    sizeKb: 871,
-    status: 'Version 1.1',
+    date: 'August 2026',
+    pages: 30,
+    sizeKb: 869,
+    status: 'Version 1.2 (revised pre-print)',
     order: '04',
     chapter: 'IV',
     group: 'explain',
@@ -587,12 +587,12 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       assumes: [{ chapter: 'III', why: 'the market prices reputation, which the bridge chapter builds' }],
       provedBy: [
         { chapter: 'VI', why: 'the Bonded Commons proves the conservation law of the bond ledger' },
-        { chapter: 'VII', why: 'the Federated Harbor proves cross-machine federation & escrow that cannot steal' },
+        { chapter: 'VII', why: 'the Federated Harbor specifies conditional federation, custody, and bucket conservation' },
         { chapter: 'V', why: 'the Anchor Protocol proves the cross-harbor capability-transfer ceremony' },
       ],
     },
     primer:
-      'This is where the library arrives. Once agents have reputations that cannot be faked, you can do something new: trust a helper you did not build, rent a brilliant one from someone who did, and pay only for work that was actually checked. The chapter argues the harbor is a three-sided market — operators sell labor and fleet-for-hire, agents and fleets are rentable assets, and skills and tools are licensed — all settling on one conserving bond ledger through escrow that provably cannot redirect funds. Designing rules that stay honest under self-interest is mechanism design, a Nobel-winning science with hard limits this chapter refuses to wave away. It is also the most honest chapter in the volume about what is not yet built: the cross-operator attestation it leans on is specified-to-proposed, not shipped, and it names exactly which guarantees that gap suspends.',
+      'This is where the library arrives. Once agents have reputations that cannot be faked, you can do something new: trust a helper you did not build, rent a brilliant one from someone who did, and pay only for work that was actually checked. The chapter argues the harbor is a three-sided market — operators sell labor and fleet-for-hire, agents and fleets are rentable assets, and skills and tools are licensed — all settling on one conserving bond ledger. Cross-harbor settlement remains a trusted-custody design: redirect and fee bounds hold only when a non-bypassable ledger restricts recipients, fees, and terminal transitions. It is also explicit that cross-operator attestation is specified-to-proposed, not shipped.',
     glossary: [
       {
         term: 'Three-sided market',
@@ -602,12 +602,12 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       {
         term: 'Conserving bond ledger',
         definition:
-          'A settlement ledger where value can be neither conjured nor vanished — only moved. “Conservation composes upward” is a true functor only within one unit of account, and a φ-bounded lax functor across units.',
+          'A settlement ledger where value can be neither conjured nor vanished — only moved. Within one unit of account, valid traces compose by addition. Across currencies, any aggregate requires an explicit valuation instant plus fee, slippage, and exposure accounts.',
       },
       {
         term: 'Float-plan escrow',
         definition:
-          'An escrow that holds the bond during settlement and can pay out or refuse-and-return — but provably cannot redirect, equivocate, or over-extract. Trusted, but structurally bounded.',
+          'A trusted custody service whose extraction bound is conditional on a non-bypassable ledger that whitelists recipients, caps fees, and allows exactly one atomic terminal transition. Signed promises alone make theft detectable; they do not prevent it.',
       },
       {
         term: 'Hosted trust',
@@ -617,16 +617,16 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       {
         term: 'Myerson–Satterthwaite',
         definition:
-          'A 1983 impossibility: no bilateral-trade mechanism is simultaneously efficient, individually rational, and budget-balanced. Strict conservation is budget balance — so an honest market must give up efficiency, and the chapter names which.',
+          'A 1983 impossibility for bilateral trade with independent private values and overlapping supports: no Bayesian incentive-compatible, interim individually rational, ex-post efficient mechanism can also be budget-balanced. It constrains qualifying bilateral slices, not every conserving market.',
       },
     ],
     whatYouGet:
-      'You should leave able to (a) describe the three sides of the market and why they settle on one ledger; (b) explain why double-spend and equivocation are one obstruction — the non-vanishing first cohomology of a sheaf-gluing — rather than two unrelated bugs; and (c) state the three honest taxes: the unbuilt cross-operator keystone, conservation as a merely lax functor across units of account, and the Myerson–Satterthwaite efficiency sacrifice baked into any conserving market.',
+      'You should leave able to (a) describe the three sides of the market and why they settle on one ledger; (b) prove additive conservation for composed native-unit traces and explain why cross-currency totals require a valuation model; and (c) state the three honest boundaries: the unbuilt cross-operator keystone, the custody assumptions behind escrow bounds, and the exact bilateral assumptions required by Myerson–Satterthwaite.',
     forBuilders:
-      'If you are designing a marketplace for agent labor, rentable fleets, or licensed skills, this chapter is the map of what is hard and what is impossible: build for hosted trust not the payment rail; settle on one conserving ledger; use escrow that is structurally bounded; and price your bonds against named bounds rather than promising a window of zero. And do not promise efficiency you cannot have.',
+      'If you are designing a marketplace for agent labor, rentable fleets, or licensed skills, this chapter is the map of what is hard: build for hosted trust rather than the payment rail; settle on one conserving native-unit ledger; make custody restrictions non-bypassable; model cross-currency exposure explicitly; and do not transfer a bilateral impossibility theorem beyond its assumptions.',
     highlights: [
       { icon: Network, label: 'Three-sided market, one conserving ledger' },
-      { icon: Scale, label: 'Escrow that provably cannot steal' },
+      { icon: Scale, label: 'Conditional custody bound, assumptions explicit' },
       { icon: Handshake, label: 'Hosted trust is the product, not the rail' },
       { icon: Shield, label: 'Myerson–Satterthwaite named, not hidden' },
     ],
@@ -644,17 +644,17 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       {
         title: 'The cross-harbor ceremony & federation',
         content:
-          'A capability-transfer ceremony, a witness log, an escrow that cannot steal, and revocation gossip with a convergence bound let fleets on machines you do not own trade without a shared chain.',
+          'A capability-transfer ceremony, a witness log, conditionally restricted custody, and revocation gossip with expected logarithmic dissemination under a connected reliable-round model describe trade without a shared chain.',
       },
       {
         title: 'The honest reconciliations',
         content:
-          'Double-spend and equivocation are one cohomological obstruction; conservation is a lax functor across units; reputation is monotone but tombstone-revocable; every folk-theorem claim rests on a grading oracle that must be strategy-proof or bonded-and-slashed.',
+          'Sheaf language is retained only as an analogy and future formalization target; conservation composes additively within native units; cross-currency totals need a valuation model; and every folk-theorem claim includes the grading process in its monitoring assumptions.',
       },
       {
         title: 'The keystone and the tax',
         content:
-          'The missing, blocking keystone is cross-operator attestation (specified-to-proposed). And strict conservation is budget balance, so by Myerson–Satterthwaite the market sacrifices efficiency — named, not hidden.',
+          'The missing, blocking keystone is cross-operator attestation (specified-to-proposed). Myerson–Satterthwaite constrains qualifying bilateral slices, while the full market’s efficiency boundary remains to be derived.',
       },
     ],
     takeaways: [
@@ -668,7 +668,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       },
       {
         title: 'Name the impossibilities',
-        body: 'A conserving market cannot also be efficient (Myerson–Satterthwaite), and cross-operator attestation is not yet built. The chapter states both in the same breath as its ambitions.',
+        body: 'Myerson–Satterthwaite rules out a particular combination of properties only for qualifying bilateral private-value trade; the paper lists those assumptions and does not promote the result into a universal market theorem.',
       },
     ],
   },
@@ -677,34 +677,34 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     slug: 'anchor-protocol',
     title: 'The Anchor Protocol',
     subtitle:
-      'How one program proves who it is to another — on the same machine, without secrets blowing around in the wind.',
+      'A mechanically analyzed control plane for local agent swarms: signed identity, scoped authority, bounded delegation, and explicit proof boundaries.',
     thesis:
-      'When you spawn a script, that script inherits the full powers of you. Fine for code you wrote yesterday; perilous for autonomous agents you barely supervised. This paper specifies a small, embarrassingly classical bit of plumbing — a signed ID card per program, scoped to exactly what that program may do — that turns "trust me, I was launched by Erich" into something a cryptographer would shake hands on.',
+      'When you spawn a script, that script often inherits far more authority than its task needs. This paper specifies signed identity and capability cards, attenuation checks, revocation data structures, and the verifier boundary that consumes them. ProVerif checks symbolic correspondence and attenuation properties of the phase models; Kani checks bounded source properties; conformance tests cover the deployed bridge. Those layers are complementary evidence, not a proof of arbitrary-depth delegation, complete runtime interception, or hardware-level constant time.',
     summary:
       'A guided read of the Anchor Protocol paper — what an "identity for a process" should even mean, how to mint one out of off-the-shelf cryptography, and why a problem that felt unsolvable in 2010 is now a long weekend\'s work.',
     filename: 'anchor-protocol-whitepaper',
     pdfPath: '/whitepaper/anchor-protocol-whitepaper.pdf',
     readerHref: '/whitepaper/anchor-protocol',
     overviewHref: '/whitepaper?paper=anchor-protocol',
-    date: 'July 2026',
-    pages: 27,
-    sizeKb: 849,
-    status: 'Version 1.3',
+    date: 'August 2026',
+    pages: 25,
+    sizeKb: 837,
+    status: 'Version 1.4 (revised pre-print)',
     order: '05',
     chapter: 'V',
     group: 'prove',
     layer: 'proof — identity & capability',
     claim:
-      'An agent can prove who it is and what it may do with no trusted third party, and delegated authority can only ever shrink — machine-checked in ProVerif and Kani.',
-    maturity: 'verified · ProVerif + Kani',
+      'Signed cards give a verifier machine-checkable identity and authority evidence; the supplied models establish non-injective authentication correspondence and bounded attenuation, with runtime and hardware boundaries stated separately.',
+    maturity: 'mechanically analyzed · ProVerif phase models + bounded Kani checks + conformance tests',
     crossRefs: {
       proves: [
-        { chapter: 'II', why: 'mechanizes the kernel’s identity & capability claims' },
-        { chapter: 'IV', why: 'proves the cross-harbor capability-transfer ceremony' },
+        { chapter: 'II', why: 'mechanizes selected identity and capability claims used by the kernel' },
+        { chapter: 'IV', why: 'supplies the local token substrate extended by the proposed transfer ceremony' },
       ],
     },
     primer:
-      'Your laptop is — at this exact moment, while you are reading this — running about twenty programs you did not consciously start. Some you wanted (the language model in your editor, the build watcher, that weird Electron app you forgot you installed). Some are vestigial. A small but rapidly growing handful are *autonomous* — little agents your tools spawned to act on your behalf, with the same standing on your machine as you. This is the cryptographic equivalent of giving every guest at a party your house keys because they showed up with the same Uber driver. The Anchor Protocol is the boring, important plumbing that hands each program a guest pass instead — a tiny signed card listing exactly which rooms it may enter, for how long, and from whom. The card is checked at every door. The card cannot be forged. The paper is short because the idea is small; it is more careful than it had to be, because cryptography is one of those domains where 99%-correct is functionally 0%-correct. (We made a machine — ProVerif — check our work. Output in the appendix.)',
+      'A developer machine runs many short-lived programs, and autonomous helpers make user-wide ambient authority an increasingly poor default. The Anchor Protocol hands each program a signed card listing which operations it may request, for how long, and through which delegation path. Security depends on every relevant operation reaching the verifier. The paper separates symbolic protocol analysis, bounded source checks, deployed-bridge tests, and the assumptions between them so each conclusion stays inside the evidence that supports it.',
     glossary: [
       {
         term: 'Capability',
@@ -714,7 +714,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       {
         term: 'Signed token',
         definition:
-          'A short string of bytes whose contents are tamper-proof: anyone with the public key can check that nobody altered it after the issuer signed it. We use Ed25519, a modern signature scheme that is fast, small, and standard.',
+          'A message plus signature whose alteration is detectable by a verifier that has the issuer’s authentic public key, under the signature scheme’s security assumptions. The design uses Ed25519.',
       },
       {
         term: 'Delegation',
@@ -724,23 +724,23 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       {
         term: 'Revocation',
         definition:
-          'Cancelling a card before its expiry — the equivalent of telling the front desk that a hotel keycard was stolen. We use a small data structure called a cuckoo filter, gossiped between machines, so that withdrawn cards stop working within a couple of minutes everywhere.',
+          'Cancelling a card before expiry. A cuckoo-filter representation and anti-entropy gossip disseminate revocations, with expected logarithmic completion only under the stated connected reliable-round model; partitions eliminate any finite protocol deadline.',
       },
       {
         term: 'Formal verification (ProVerif)',
         definition:
-          'A way to mathematically check a protocol design against an attacker who controls every wire on your network. ProVerif is an academic tool used to verify TLS 1.3, Signal, and WireGuard. We modeled the protocol in it and pasted the resulting proofs into the paper.',
+          'Automated symbolic analysis against a Dolev–Yao network attacker. The supplied ProVerif phase models check specific correspondence, secrecy, and attenuation queries; the results do not by themselves prove the deployed runtime or properties absent from those queries.',
       },
     ],
     whatYouGet:
       'You should leave able to (a) explain to your most skeptical coworker why "the user trusts everything this script does" stops being a working model the minute the script can spawn its own scripts, (b) sketch the token-based alternative on a whiteboard with the cryptography in the right places, and (c) recognize three classic attacks by name — algorithm confusion, replay, and over-broad delegation — and know which line of which paragraph defends against each. None of this is novel. The art is in the composition.',
     forBuilders:
-      'If you are shipping anything that spawns subprocesses on a user\'s machine — an IDE plugin, an agent runtime, a build orchestrator, a self-updating CLI — this is a working blueprint for the authorization layer you have probably been meaning to write. The cryptographic primitives are standard; you can grab them off NPM. The contribution is the assembly: which check happens where, what the receiver should refuse, what to do when the card is good but the request is suspicious anyway, and how to revoke a card that you handed out two minutes ago.',
+      'If you are shipping anything that spawns subprocesses on a user\'s machine — an IDE plugin, an agent runtime, a build orchestrator, a self-updating CLI — this is a blueprint for a scoped authorization layer. The contribution is the assembly and its proof ledger: which check happens where, what the receiver refuses, what remains a runtime-interposition obligation, and how revocation behaves under both healthy gossip and partition.',
     highlights: [
       { icon: Shield, label: 'Verified in ProVerif' },
       { icon: Lock, label: 'Standard Ed25519 signatures' },
-      { icon: CheckCircle, label: 'Constant-time verification' },
-      { icon: Terminal, label: 'Withdraw a card in seconds' },
+      { icon: CheckCircle, label: 'Bounded source checks, hardware caveat explicit' },
+      { icon: Terminal, label: 'Revocation model with partition caveat' },
     ],
     sections: [
       {
@@ -756,12 +756,12 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       {
         title: 'How we know it is correct',
         content:
-          'The protocol is modeled in ProVerif, an automated verifier for security protocols. The verifier reports whether the properties (authentication, secrecy, replay-freedom) hold against an attacker who controls every message. They hold. The verifier output is reproduced in the appendix.',
+          'The phase models are checked in ProVerif, bounded source properties in Kani, and the deployed bridge in conformance tests. The paper records which queries close, including non-injective authentication, and which properties — such as arbitrary-depth delegation and hardware timing — remain outside those results.',
       },
       {
         title: 'Withdrawing a card before it expires',
         content:
-          'If a card leaks, you should be able to cancel it without restarting the world. The paper describes a small data structure (a cuckoo filter) that machines gossip between themselves so that a revoked card stops working everywhere within a couple of gossip rounds.',
+          'If a card leaks, you should be able to cancel it without restarting the world. The paper describes cuckoo-filter revocation and anti-entropy gossip, then states the load-bearing caveat: expected dissemination needs a connected reliable-round model, and a partition has no finite deadline.',
       },
       {
         title: 'Where this stops',
@@ -791,29 +791,29 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     subtitle:
       'How a group of independent programs can share a workspace without one of them being put in charge.',
     thesis:
-      'Two agents can negotiate. Twenty cannot. The expensive-and-broken solutions are to lock every drawer or to trust everyone equally. This paper proposes a third thing: agents announce what they are about to do, leave durable evidence of what they actually did, and post a small refundable deposit against making a mess. The deposit, the announcements, and the evidence together do the job a central manager would do — and they do it without a manager.',
+      'Two agents can negotiate directly; twenty need shared infrastructure. This paper proposes a commons authority that records advisory claims, durable evidence, and refundable bonds. The structural guarantees require relevant operations to pass through the runtime verifier; the economic results are conditional on their stated market, identity, monitoring, and oracle assumptions.',
     summary:
       'A guided read of the Bonded Commons paper: why mutual visibility beats locks once you have more than a handful of agents, what kind of refundable "deposit" makes that visibility honest instead of theatrical, and how a tiny insurance market beats any single human picking the deposit size by hand.',
     filename: 'agent-transactions-whitepaper',
     pdfPath: '/whitepaper/agent-transactions-whitepaper.pdf',
     readerHref: '/whitepaper/bonded-commons',
     overviewHref: '/whitepaper?paper=bonded-commons',
-    date: 'July 2026',
-    pages: 48,
-    sizeKb: 932,
-    status: 'Version 2.6 (pre-print)',
+    date: 'August 2026',
+    pages: 47,
+    sizeKb: 976,
+    status: 'Version 2.7 (revised pre-print)',
     order: '06',
     chapter: 'VI',
     group: 'prove',
     layer: 'proof — the coordinator & conservation',
     claim:
-      'Why there should be a coordinator at all, and that value can be neither conjured nor vanished in a settlement — the conservation law, verified in TLA⁺.',
-    maturity: 'verified · TLA⁺ + ProVerif',
+      'Why a shared coordinator can reduce negotiation cost, which accounting transitions preserve the bond-ledger invariant, and where Sybil, cartel, oracle, and runtime-interposition assumptions bound the mechanism claims.',
+    maturity: 'mixed evidence · bounded TLA⁺/ProVerif models + finite simulations + open runtime obligations',
     crossRefs: {
       proves: [{ chapter: 'IV', why: 'proves the conservation law of the bond ledger' }],
     },
     primer:
-      'Picture four roommates sharing a kitchen. There are two tempting solutions and they are both bad. The first is to put a lock on every drawer (slow, miserable, ruins dinner). The second is to trust everyone implicitly to never take the last egg or leave the pan in the sink (fragile, scales poorly, ends in tears). The thing that actually works in real shared kitchens — and has worked for as long as humans have shared kitchens — is the boring third option: a chore wheel on the fridge, receipts kept where everybody can see them, and a small communal kitty that pays for breakage when it happens. Elinor Ostrom won a Nobel Prize for noticing that this same pattern is how fisheries and pastures avoid the *tragedy of the commons*. We are transplanting it into the directory where your autonomous programs work. Each agent posts a small refundable deposit (the *bond*), announces what it is about to do (the *commons*), and leaves a tamper-evident record of what actually happened (the *ledger*). Clean work, the deposit comes back. Mess, the deposit pays for the cleanup. The clever part is not the deposit — that is just escrow. The clever part is that you do not need a judge.',
+      'Picture four roommates sharing a kitchen. Locks on every drawer are costly; unconditional trust is fragile. A chore board, receipts, and a communal repair fund are a third pattern. The paper transplants that pattern into a shared workspace: agents post bonds, announce intended work, and leave evidence. It does not remove judgment — settlement still depends on acceptance criteria, multiple oracles, and sometimes human arbitration — but it makes the evidence and accounting explicit enough to audit.',
     glossary: [
       {
         term: 'Commons',
@@ -847,11 +847,11 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       },
     ],
     whatYouGet:
-      'You should leave with: (a) a real intuition for why locking-everything starts to feel claustrophobic the second you have more than two agents in the same directory, (b) a feel for how a refundable deposit changes an agent\'s incentives without anybody needing to play judge, (c) a working sketch of a system where each participant leaves evidence anybody can verify later (Git already half-does this; we finish the half), and (d) — the part most authors leave out — an honest map of where this design stops being right. Small teams, low-stakes scratch work, environments with one trusted operator: stick with the lock. The mechanism only earns its keep when the agents are many, the consequences are real, and nobody has the standing to be in charge.',
+      'You should leave with: (a) an intuition for why per-resource locking becomes costly as a swarm grows, (b) the exact conditions under which refundable bonds can improve the modeled payoffs, (c) the runtime and evidence obligations needed for attribution and conservation, and (d) an honest map of the open edges — identity costs, oracle capture, cartel detection, thick-market bootstrap, and complete verifier interposition.',
     forBuilders:
       'If you are building infrastructure for multiple agents to collaborate on shared state — or multiple humans, frankly; the design does not care — this paper gives you the contracts you actually need: who announces what before they touch anything, where the evidence has to live so it cannot be quietly retconned, how a participant returns from a crash without you losing what they were doing, and (the whole back half of the paper) how to price the deposit so the buyer and seller both come out ahead. The pricing section was contributed by an actual economist. We made him write down his assumptions.',
     highlights: [
-      { icon: Scale, label: 'Conservation invariant proven (TLA+)' },
+      { icon: Scale, label: 'Conservation model-checked at recorded bounds' },
       { icon: Handshake, label: 'Market-priced participation bonds' },
       { icon: Eye, label: 'Tamper-evident workspace history' },
       { icon: Terminal, label: 'Honest recovery from agent crashes' },
@@ -880,7 +880,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       {
         title: 'Pricing the deposit',
         content:
-          'The paper gives two answers to "how big should the bond be?" — a closed-form floor (cleanup-cost lower bound times scope multiplier minus reputation discount), and a market: insurer agents bid to underwrite each transaction so the auction discovers the price. Simulation shows when the market beats a flat deposit and when it does not.',
+          'The paper gives a cleanup-cost pricing rule and a competitive-insurance mechanism. A finite simulation grid reports where the specified auction beats its chosen static baseline and where it does not; it is not a universal Pareto theorem.',
       },
       {
         title: 'Coordination as five separate things',
@@ -908,26 +908,26 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     slug: 'federated-harbor',
     title: 'The Federated Harbor',
     subtitle:
-      'How two machines run by two different people share one project without one of them being put in charge of the other.',
+      'Identity, coordination, and settlement across administrative domains — with conditional guarantees and trust boundaries stated explicitly.',
     thesis:
-      'Two daemons, two operators, one staging environment, four o\'clock demo. Inside each laptop the trust story is closed: tokens are signed, evidence is Merkle-chained, bonds are posted. Between the laptops it falls apart — Alice\'s capability card is gibberish to Bob\'s daemon and the bond she posted to cover a botched migration sits in the wrong harbor. This paper draws the federation boundary cleanly: a cross-machine capability transfer ceremony, a witness-logged revocation mesh with a named convergence bound, a settlement protocol whose escrow can refuse but cannot redirect, and an admission ceremony that is invitation-bounded rather than permissionless. Where we prove, we prove. Where we bound, we name the bound. Where we don\'t know, we say so.',
+      'Two locally coherent daemons do not automatically compose across an administrative boundary. This paper specifies cross-harbor capability transfer, witnessed revocation dissemination, a trusted custody design with a conditional extraction bound, bucket-partition conservation, and bonded admission. Expected logarithmic revocation completion requires a connected reliable-round model; a partition has no finite deadline. Custody restrictions prevent redirect only when the transfer path and keys are non-bypassable. The runtime and protocol models remain partial.',
     summary:
       'A guided read of the Federated Harbor paper — why two trustworthy local daemons can still fail jointly, what four small primitives close the gap, and the honest list of open questions the paper does not answer.',
     filename: 'federated-harbor-whitepaper',
     pdfPath: '/whitepaper/federated-harbor-whitepaper.pdf',
     readerHref: '/whitepaper/federated-harbor',
     overviewHref: '/whitepaper?paper=federated-harbor',
-    date: 'July 2026',
-    pages: 29,
-    sizeKb: 719,
-    status: 'Version 0.9.1 (pre-print)',
+    date: 'August 2026',
+    pages: 28,
+    sizeKb: 730,
+    status: 'Version 1.0 (revised pre-print)',
     order: '07',
     chapter: 'VII',
     group: 'prove',
     layer: 'proof — federation across machines',
     claim:
-      'Trust crossing between machines that do not trust each other, with revocation that converges in bounded time and an escrow that cannot steal — the cross-machine secrecy proven in ProVerif, the convergence bound named but not yet machine-checked.',
-    maturity: 'ProVerif secrecy proven · convergence bound + escrow theorem named, not yet machine-checked',
+      'A falsifiable federation design: modeled transfer properties, expected revocation dissemination under explicit network assumptions, conditional custody bounds, and finite-state conservation checks — not a deployed or trustless federation claim.',
+    maturity: 'partial · ProVerif/TLA⁺ artifacts + conditional analytical bounds; federation runtime unshipped',
     crossRefs: {
       proves: [
         { chapter: 'IV', why: 'proves the federation of the market' },
@@ -955,7 +955,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       {
         term: 'Bounded escrow',
         definition:
-          'A third party that holds the bond during cross-harbor settlement. Its decision space is exactly two outcomes: pay out, or refuse and return. It cannot redirect funds, cannot equivocate, cannot extract more than a pre-agreed fee. Trusted, but not trustlessly trusted.',
+          'A trusted third party that holds a bond during cross-harbor settlement. Its extraction bound holds only if a non-bypassable custody ledger whitelists recipients, caps the fee, and executes exactly one atomic terminal transition. Without those assumptions the full custodial balance is exposed.',
       },
       {
         term: 'Bonded sponsorship',
@@ -963,19 +963,19 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
           'How a new harbor joins the federation without prior reputation. An existing harbor posts a bond on the newcomer\'s behalf, forfeit if the newcomer misbehaves during probation. Federation-layer analogue of competitive insurance.',
       },
       {
-        term: 'Convergence bound',
+        term: 'Conditional dissemination result',
         definition:
-          'A named upper bound on how long a revocation takes to reach every federated harbor. The paper proves Δ(1 + ln m) where m is the federation size and Δ is the gossip period. The bound is the attacker\'s window, and the bond is sized to cover damage within it.',
+          'Under the stated complete-overlay, independent-uniform-peer, reliable synchronous-round model, all harbors learn a revocation in expected Θ(log m) rounds. This is not a worst-case wall-clock deadline; persistent loss or partition removes any finite bound.',
       },
     ],
     whatYouGet:
-      'You should leave able to (a) explain to a security reviewer why federating two trustworthy local daemons is harder than it looks, and which three things go wrong first; (b) sketch the cross-machine capability transfer on a whiteboard with the epoch-root binding in the right place; (c) name the threat band each protocol claim lives in — mechanized, bounded, or honestly open — and not confuse them. The paper has five named open questions and we treat that as a feature.',
+      'You should leave able to (a) explain to a security reviewer why federating two trustworthy local daemons is harder than it looks, and which three things go wrong first; (b) sketch the cross-machine capability transfer on a whiteboard with the epoch-root binding in the right place; and (c) separate mechanized, model-conditional, and open claims. The paper names five open questions and treats that boundary as part of the result.',
     forBuilders:
-      'If you are building infrastructure for two or more organizations to coordinate agent work across an administrative boundary, this paper gives you the four primitives: the transfer ceremony, the federated revocation mesh, the bounded settlement escrow, and the bonded-sponsor admission protocol. Each does exactly one job. Each is honest about what it does not do. The composition is the contribution.',
+      'If you are building infrastructure for two or more organizations to coordinate agent work across an administrative boundary, this paper gives you four proposed primitives: the transfer ceremony, federated revocation dissemination, conditionally restricted custody, and bonded-sponsor admission. It also gives the assumptions and open runtime obligations that must hold before their composition becomes an implementation guarantee.',
     highlights: [
       { icon: Network, label: 'Two harbors, no central authority' },
       { icon: GitBranch, label: 'Witness-logged revocation gossip' },
-      { icon: Scale, label: 'Bounded escrow, atomic settlement' },
+      { icon: Scale, label: 'Conditional custody bound, atomic transition' },
       { icon: Layers, label: 'Layered defense, named threat bands' },
     ],
     sections: [
@@ -995,14 +995,14 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
           'A four-message ceremony that produces a card valid at the receiving harbor, signed under the receiving harbor\'s key, with the issuing harbor\'s current epoch root bound into the envelope. No hot-path lookup back to the issuer.',
       },
       {
-        title: 'Federated revocation with a named bound',
+        title: 'Federated revocation with explicit network assumptions',
         content:
-          'The cuckoo-filter gossip of the Anchor paper, extended to multi-administrative-domain settings. Expected propagation time across m federated harbors is Δ(1 + ln m). Cross-witness equivocation is detectable in O(log m) audit rounds.',
+          'The cuckoo-filter gossip of the Anchor paper, extended to multiple administrative domains. Expected completion is Θ(log m) rounds in the stated reliable complete-overlay model; no finite deadline survives persistent loss or partition. Two conflicting signed roots are checkable in O(1) once co-located.',
       },
       {
         title: 'Cross-harbor settlement, structurally bounded',
         content:
-          'A bond posted at A clears against damage measured at B through an escrow whose decision space is two outcomes. The escrow cannot redirect funds, cannot equivocate, cannot extract more than a pre-agreed fee. Theorem 6.1 in the paper.',
+          'A bond posted at A clears against damage measured at B through trusted custody. The extraction bound is conditional on recipient whitelisting, a fee cap, exactly one atomic terminal transition, and non-bypassable transfer authority.',
       },
       {
         title: 'Admission without permissionlessness',
@@ -1012,7 +1012,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       {
         title: 'A worked example and an honest open frontier',
         content:
-          'Two organizations, three machines, one real schema migration, a real failure, a real settlement. Then a final section that names five open questions the paper does not answer — including whether trustless settlement is even possible for non-fungible reputation-priced bonds.',
+          'Two organizations, three machines, one schema migration, a failure, and a settlement trace. Then a final section names five open questions; for trustless settlement it leaves both a construction and an impossibility result open.',
       },
     ],
     takeaways: [
@@ -1022,11 +1022,11 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       },
       {
         title: 'Bound the threat instead of trying to eliminate it',
-        body: 'The convergence bound on revocation gossip is the attacker\'s window. The structurally bounded escrow is the trusted third party\'s worst-case extraction. The paper is disciplined about pricing the bond against the named bound rather than promising a window of zero. Defense in depth, in the same posture as the prior two papers.',
+        body: 'The protocol gives expected revocation latency only under explicit connectivity and delivery assumptions; any hard attacker window must come from an operator service level or fail-closed policy. The custody extraction bound is likewise conditional on non-bypassable structural restrictions.',
       },
       {
         title: 'Name the open questions, do not hide them',
-        body: 'Three of the most interesting questions in the paper — whether the correlated-equilibrium framing from Bonded survives the multi-principal extension, whether trustless settlement is possible for non-fungible bonds, whether cartels form more easily across federations than within one — are stated as open. They are not throwaway caveats. A federation paper with five named open questions is doing its job.',
+        body: 'The multi-principal correlated-equilibrium extension, trustless settlement for non-fungible bonds, and federation-layer cartel resistance are stated as open. The paper offers neither a trustless construction nor an impossibility proof and does not pretend otherwise.',
       },
     ],
   },
@@ -1084,7 +1084,7 @@ export const READING_PATHS = [
 ] as const
 
 /**
- * The library changelog: dated release waves across the whole volume, newest
+ * The library changelog: dated release waves across the whole series, newest
  * first. One entry per wave, not per commit — the per-objection history of the
  * adversarial review rounds lives at /whitepaper/rounds.
  */
@@ -1100,6 +1100,14 @@ export interface LibraryChangelogEntry {
 }
 
 export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
+  {
+    dateIso: '2026-08-04',
+    date: 'August 4, 2026',
+    title: 'The seven-paper rigor pass closes diagram, math, and assurance drift',
+    summary:
+      'All seven chapters adopt one visual and editorial system. The six companion papers receive a full figure and mathematics audit: the cartel threshold is re-derived and synchronized with its simulation, revocation claims become model-conditional expectations rather than deadlines, custody bounds name their non-bypass assumptions, cross-currency accounting becomes explicit, and each mechanized claim is scoped to the model that supports it. Versions: I 1.1, II 1.1, III 1.3, IV 1.2, V 1.4, VI 2.7, VII 1.0.',
+    chapters: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'],
+  },
   {
     dateIso: '2026-07-04',
     date: 'July 4, 2026',
@@ -1119,7 +1127,7 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
   {
     dateIso: '2026-06-10',
     date: 'June 10, 2026',
-    title: 'The Harbor Volume: seven papers become one cross-linked book',
+    title: 'The Coordination Series: seven papers become one cross-linked book',
     summary:
       'The /library guide ships and the papers are restructured as seven co-equal chapters — four explain, three prove — each declaring what it assumes, what it underwrites, and which proof discharges it. Every figure in the explain quartet is de-cluttered in the same wave.',
     chapters: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'],
