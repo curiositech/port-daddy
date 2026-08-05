@@ -15,6 +15,7 @@ import {
   recordReviewCoverage,
   createInMemoryCoverageStore,
   computeRangeDigest,
+  MAX_COMMITS_PER_HOP,
   SHIP,
   SHIP_AFTER_FIX,
   DO_NOT_SHIP,
@@ -227,6 +228,62 @@ describe('recordReviewCoverage — missing intermediate commits', () => {
   });
 });
 
+describe('recordReviewCoverage — malformed commits from untrusted JSON never throws', () => {
+  it.each([
+    ['missing (undefined)', undefined],
+    ['null', null],
+    ['a plain object', { length: 1, 0: SHA_1 }],
+    ['a scalar string', SHA_1],
+    ['a scalar number', 12345],
+    ['a scalar boolean', true],
+  ])('returns a structured rejection instead of throwing when commits is %s', async (_label, badCommits) => {
+    const store = rootedStore();
+    const outcome = await recordReviewCoverage(
+      store,
+      // Simulates a parsed-but-untrusted JSON body where `commits` does not
+      // conform to `string[]` — the type system can't stop this at the real
+      // HTTP boundary, so the runtime guard must.
+      input({ commits: badCommits as unknown as string[] }),
+    );
+    expect(outcome).toMatchObject({ accepted: false, code: 'MISSING_INTERMEDIATE_COMMITS' });
+    await expect(store.getHead(SUBJECT)).resolves.toBeNull();
+  });
+
+  it('does not throw and rejects an array containing a non-string entry', async () => {
+    const store = rootedStore();
+    const outcome = await recordReviewCoverage(
+      store,
+      input({ commits: [42 as unknown as string] }),
+    );
+    expect(outcome).toMatchObject({ accepted: false, code: 'MALFORMED_SHA' });
+  });
+});
+
+describe('recordReviewCoverage — maximum commit-range length', () => {
+  it('accepts a commits list exactly at the MAX_COMMITS_PER_HOP boundary', async () => {
+    const store = rootedStore();
+    const commits = Array.from({ length: MAX_COMMITS_PER_HOP - 1 }, (_, i) => (i + 1).toString(16).padStart(40, '0'));
+    commits.push(SHA_1);
+    const outcome = await recordReviewCoverage(store, input({ base: BASE, head: SHA_1, commits }));
+    expect(outcome).toMatchObject({ accepted: true, replay: false, advanced: true });
+  });
+
+  it('rejects a commits list one entry over MAX_COMMITS_PER_HOP without computing a digest over it', async () => {
+    const store = rootedStore();
+    // Every entry is intentionally the SAME malformed placeholder — if the
+    // implementation validated SHA shape or hashed the range before
+    // checking the length cap, this would be slow and/or fail with
+    // MALFORMED_SHA instead of the length rejection this test targets.
+    const commits: string[] = new Array(MAX_COMMITS_PER_HOP + 1).fill('not-a-real-sha');
+    const outcome = await recordReviewCoverage(store, input({ base: BASE, head: SHA_1, commits }));
+    expect(outcome).toMatchObject({
+      accepted: false,
+      code: 'MISSING_INTERMEDIATE_COMMITS',
+      message: expect.stringContaining(String(MAX_COMMITS_PER_HOP)),
+    });
+  });
+});
+
 describe('recordReviewCoverage — unverifiable range', () => {
   it('rejects a rangeDigest that does not match the canonical digest', async () => {
     const store = rootedStore();
@@ -333,6 +390,47 @@ describe('recordReviewCoverage — idempotent replay', () => {
     const replay = await recordReviewCoverage(store, input({ base: BASE, head: SHA_1, commits: [SHA_1] }));
     expect(replay).toEqual({ accepted: true, replay: true, advanced: true });
     await expect(store.getHead(SUBJECT)).resolves.toBe(SHA_2);
+  });
+
+  it('treats a retry re-stamped with a fresh recordedAt as a safe no-op for the current chain tip, keeping the original evidence', async () => {
+    const store = rootedStore();
+    const first = await recordReviewCoverage(store, input({ recordedAt: 1_700_000_000 }));
+    expect(first).toEqual({ accepted: true, replay: false, advanced: true });
+
+    // Same hop, same everything except recordedAt — the natural shape of a
+    // retry helper that re-stamps wall-clock time on every attempt.
+    const replay = await recordReviewCoverage(store, input({ recordedAt: 1_700_000_555 }));
+    expect(replay).toEqual({ accepted: true, replay: true, advanced: true });
+
+    // The persisted evidence is untouched — original recordedAt survives,
+    // the resubmitted timestamp never overwrites it.
+    await expect(store.getEvidence(SUBJECT, SHA_1)).resolves.toMatchObject({ recordedAt: 1_700_000_000 });
+  });
+
+  it('treats a retry re-stamped with a fresh recordedAt as a safe no-op for a now-superseded (non-tip) hop', async () => {
+    const store = rootedStore();
+    await recordReviewCoverage(store, input({ base: BASE, head: SHA_1, commits: [SHA_1], recordedAt: 1_700_000_000 }));
+    await recordReviewCoverage(store, input({ base: SHA_1, head: SHA_2, commits: [SHA_2], recordedAt: 1_700_000_100 }));
+
+    // SHA_1's hop is no longer the tip (SHA_2 is), but a re-stamped retry of
+    // it must still be recognized as the same evidence, not a conflict.
+    const replay = await recordReviewCoverage(
+      store,
+      input({ base: BASE, head: SHA_1, commits: [SHA_1], recordedAt: 1_700_000_999 }),
+    );
+    expect(replay).toEqual({ accepted: true, replay: true, advanced: true });
+    await expect(store.getHead(SUBJECT)).resolves.toBe(SHA_2);
+    await expect(store.getEvidence(SUBJECT, SHA_1)).resolves.toMatchObject({ recordedAt: 1_700_000_000 });
+  });
+
+  it('still rejects as a conflicting replay when recordedAt changes alongside substantive evidence', async () => {
+    const store = rootedStore();
+    await recordReviewCoverage(store, input({ recordedAt: 1_700_000_000 }));
+    const outcome = await recordReviewCoverage(
+      store,
+      input({ verdict: DO_NOT_SHIP, recordedAt: 1_700_000_555 }),
+    );
+    expect(outcome).toMatchObject({ accepted: false, code: 'CONFLICTING_REPLAY' });
   });
 
   it.each([

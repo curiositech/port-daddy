@@ -11,10 +11,21 @@
  * This module is the storage-agnostic decision core for that ledger. Each
  * accepted piece of evidence links a `subject` (an opaque caller-defined
  * chain key, e.g. `owner/repo#123`) to one reviewed hop: `base -> head`,
- * carrying the full ordered list of `commits` strictly after `base` up to
- * and including `head` — proof that nothing in between was skipped. A chain
- * with no gaps, no forks, and no missing commits is durable proof that every
- * commit on the subject received continuous review coverage.
+ * carrying the caller-supplied ordered list of `commits` strictly after
+ * `base` up to and including `head`. This core only proves *inter-hop*
+ * continuity — that hop N+1's `base` exactly equals hop N's `head`, with no
+ * gap and no fork — and that each hop's own `commits` list is
+ * self-consistent (well-formed SHAs, no duplicates, ends at `head`, digest
+ * matches). It cannot and does not verify *intra-hop* completeness: nothing
+ * here checks `commits` against real git ancestry, so a hop that silently
+ * omits a genuine intermediate commit is accepted as long as it is
+ * internally consistent. A chain with no inter-hop gaps or forks is durable
+ * proof of continuous review coverage **only when the wiring layer that
+ * calls this core is trusted to supply the complete, authoritative
+ * `base..head` git range as `commits`** (e.g. a real `git log
+ * base..head --reverse` or an equivalent verified GitHub compare) — this
+ * pure core has no independent way to detect a caller that omits real
+ * commits from an otherwise well-formed hop.
  *
  * A hop's evidence always names a `verdict`: `'SHIP'`, `'SHIP-AFTER-FIX'`, or
  * `'DO-NOT-SHIP'`. All three are recorded — the ledger is the audit trail of
@@ -59,7 +70,12 @@
  *   - self-loop                 — `head === base` can never be a real git
  *                                parent relationship.
  *   - missing intermediate
- *     commits                   — `commits` must be non-empty, contain no
+ *     commits                   — `commits` must actually be an array (an
+ *                                untrusted-JSON caller can send `undefined`,
+ *                                `null`, an object, or a scalar — all
+ *                                rejected here, never thrown), must be
+ *                                non-empty and no longer than
+ *                                {@link MAX_COMMITS_PER_HOP}, contain no
  *                                duplicates, never include `base` itself,
  *                                and end with exactly `head`: an empty or
  *                                truncated list is a caller claiming a hop
@@ -80,11 +96,18 @@
  *   - stale concurrent append   — see above.
  *
  * What gets allowed:
- *   - exact idempotent replay   — this exact evidence record was already
- *                                recorded verbatim for `(subject, head)`: a
- *                                retry of the same submission is a no-op
- *                                success, not an error, regardless of
- *                                verdict.
+ *   - idempotent replay         — this evidence is substantively identical
+ *                                to what is already recorded for `(subject,
+ *                                head)` for every field except `recordedAt`:
+ *                                a retry that re-stamps a fresh wall-clock
+ *                                `recordedAt` is still the same reviewed
+ *                                hop, not a new one, so it is a no-op
+ *                                success (returning the originally-recorded
+ *                                evidence, never overwriting it) regardless
+ *                                of verdict. Any substantive difference —
+ *                                a different `base`, `commits`, `verdict`,
+ *                                `reviewerId`, `runId`, or `evidenceLocator`
+ *                                — is a conflicting replay, not a no-op.
  *
  * Persistence errors fail closed: any {@link CoverageStore} call that throws
  * is surfaced as `PERSISTENCE_ERROR` and the record is treated as rejected —
@@ -99,6 +122,16 @@
 
 /** Exact 40-character lowercase-hex git SHA — no short SHAs, no refs. */
 const SHA_RE = /^[0-9a-f]{40}$/;
+
+/**
+ * Conservative upper bound on `commits.length` for a single hop, enforced
+ * before the O(n) SHA-format scan or the {@link computeRangeDigest} hash —
+ * both of which run on Cloudflare Workers, where CPU time and memory are
+ * bounded. No real PR hop should approach this; it exists to reject a
+ * pathological or adversarial payload cheaply (a length comparison) rather
+ * than pay for scanning or hashing it first.
+ */
+export const MAX_COMMITS_PER_HOP = 5000;
 
 /** The three coverage verdicts this ledger accepts as evidence. */
 export const VERDICTS = ['SHIP', 'SHIP-AFTER-FIX', 'DO-NOT-SHIP'] as const;
@@ -119,8 +152,12 @@ export interface CoverageInput {
   head: string;
   /**
    * Full, ordered list of commit SHAs strictly after `base` up to and
-   * including `head`. Must be non-empty, duplicate-free, exclude `base`,
-   * and end with `head`.
+   * including `head`. Must be an array, non-empty, no longer than
+   * {@link MAX_COMMITS_PER_HOP}, duplicate-free, exclude `base`, and end
+   * with `head`. This module trusts the caller to supply the complete,
+   * authoritative `base..head` range here — it verifies internal
+   * consistency, not truth against real git ancestry, so a caller that
+   * omits a genuine intermediate commit is not detected by this core alone.
    */
   commits: string[];
   /**
@@ -220,7 +257,23 @@ function isBlank(s: string): boolean {
   return typeof s !== 'string' || s.trim().length === 0;
 }
 
-/** Exact-match comparison used to distinguish idempotent replay from conflict. */
+/** Human-readable shape description for a rejection message, given an unknown (possibly untrusted-JSON) value. */
+function describeShape(v: unknown): string {
+  if (v === undefined) return 'undefined';
+  if (v === null) return 'null';
+  if (Array.isArray(v)) return 'a non-SHA array';
+  return typeof v;
+}
+
+/**
+ * Substantive-evidence comparison used to distinguish idempotent replay from
+ * conflict. Deliberately excludes `recordedAt`: a retry that resubmits
+ * otherwise-identical evidence with a freshly re-stamped wall-clock timestamp
+ * (natural behavior of a retry helper) is still the same reviewed hop, not a
+ * different one — the ledger already treats the originally-persisted record
+ * as immutable and never rewrites it on replay, so the stored `recordedAt`
+ * stays whatever it was first recorded as.
+ */
 function evidenceEqual(a: CoverageEvidence, b: CoverageEvidence): boolean {
   return (
     a.subject === b.subject &&
@@ -231,7 +284,6 @@ function evidenceEqual(a: CoverageEvidence, b: CoverageEvidence): boolean {
     a.runId === b.runId &&
     a.evidenceLocator === b.evidenceLocator &&
     a.rangeDigest === b.rangeDigest &&
-    a.recordedAt === b.recordedAt &&
     a.commits.length === b.commits.length &&
     a.commits.every((c, i) => c === b.commits[i])
   );
@@ -258,10 +310,15 @@ export async function computeRangeDigest(base: string, head: string, commits: st
  * Validate and (if accepted) durably append one review-coverage evidence
  * record.
  *
- * Order of checks: verdict, evidence completeness, SHA shape, self-loop,
- * and commit-range completeness are pure and checked first (no store
- * access needed). Range digest verification is pure but hashes, so it runs
- * after the cheaper structural checks. Only once the evidence is
+ * Order of checks: verdict, evidence completeness, SHA shape, `commits`
+ * array shape and length cap, self-loop, and commit-range completeness are
+ * pure and checked first (no store access needed) — the array-shape and
+ * length-cap checks run before the O(n) per-entry SHA scan and before
+ * {@link computeRangeDigest}'s hash, so a malformed or pathologically large
+ * `commits` value (a real risk at an untrusted-JSON HTTP boundary) is
+ * rejected cheaply instead of throwing or paying to scan/hash it. Range
+ * digest verification is pure but hashes, so it runs after the cheaper
+ * structural checks. Only once the evidence is
  * structurally sound is the store consulted — first for an exact-replay
  * check against `(subject, head)` (an idempotent replay must succeed, and a
  * conflicting one must be rejected, regardless of whether `head` is still
@@ -284,7 +341,19 @@ export async function recordReviewCoverage(store: CoverageStore, input: Coverage
   if (!SHA_RE.test(input.base) || !SHA_RE.test(input.head)) {
     return reject('MALFORMED_SHA', 'base and head must each be an exact 40-character lowercase-hex git SHA');
   }
-  if (!input.commits.every((c) => SHA_RE.test(c))) {
+  if (!Array.isArray(input.commits)) {
+    return reject(
+      'MISSING_INTERMEDIATE_COMMITS',
+      `commits must be an array of git SHAs; got ${describeShape(input.commits)}`,
+    );
+  }
+  if (input.commits.length > MAX_COMMITS_PER_HOP) {
+    return reject(
+      'MISSING_INTERMEDIATE_COMMITS',
+      `commits has ${input.commits.length} entries, exceeding the maximum of ${MAX_COMMITS_PER_HOP} per hop`,
+    );
+  }
+  if (!input.commits.every((c) => typeof c === 'string' && SHA_RE.test(c))) {
     return reject('MALFORMED_SHA', 'every entry in commits must be an exact 40-character lowercase-hex git SHA');
   }
   if (input.head === input.base) {
