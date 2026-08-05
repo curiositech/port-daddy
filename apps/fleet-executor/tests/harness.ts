@@ -92,6 +92,14 @@ export interface GitHubState {
   appSlug: string | null;
   /** `user` block on the live PR fetch — who authored the PR under review. */
   prAuthor: { login: string; type: string } | null;
+  /**
+   * `state` / `merged` on the live PR fetch — the PR's lifecycle.
+   *
+   * `undefined` OMITS the key entirely, reproducing a payload where GitHub
+   * gave us nothing, which the lifecycle gate must fail OPEN on.
+   */
+  prState: string | undefined;
+  prMerged: boolean | undefined;
 }
 
 export function freshState(): GitHubState {
@@ -131,6 +139,8 @@ export function freshState(): GitHubState {
     failGitWrites403: false,
     appSlug: 'port-daddy',
     prAuthor: { login: 'a-human', type: 'User' },
+    prState: 'open',
+    prMerged: false,
   };
 }
 
@@ -310,6 +320,8 @@ export function installGitHubFetch(state: GitHubState): void {
         title: 'Test PR',
         body: '',
         ...(state.prAuthor ? { user: state.prAuthor } : {}),
+        ...(state.prState === undefined ? {} : { state: state.prState }),
+        ...(state.prMerged === undefined ? {} : { merged: state.prMerged }),
         head: {
           sha: state.prHeadSha,
           // undefined prHeadRef omits the key entirely, reproducing a PR whose
