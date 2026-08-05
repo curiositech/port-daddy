@@ -29,6 +29,11 @@ jest.unstable_mockModule('../../cli/commands/services.js', () => ({
   autoIdentityFromPackageJson: mockAutoIdentityFromPackageJson,
 }));
 
+jest.unstable_mockModule('../../cli/utils/destructive-confirm.js', () => ({
+  requireConfirmation: jest.fn(async () => true),
+  DESTRUCTIVE_EXIT_CODE: 2,
+}));
+
 const { handleSpawn } = await import('../../cli/commands/spawn.js');
 
 function response(ok, data) {
@@ -149,6 +154,24 @@ describe('pd spawn budget enforcement', () => {
 
     const body = JSON.parse(mockPdFetch.mock.calls[0][1].body);
     expect(body.injectSquidHooks).toBe(true);
+  });
+
+  test('forwards an explicit durable cancellation reason', async () => {
+    mockPdFetch.mockResolvedValueOnce(response(true, {
+      success: true,
+      agentId: 'spawned-cancel-reason',
+      reason: 'Superseded by exact-SHA review',
+    }));
+
+    await handleSpawn(['cancel', 'spawned-cancel-reason'], {
+      reason: '  Superseded by exact-SHA review  ',
+      quiet: true,
+    });
+
+    expect(mockPdFetch).toHaveBeenCalledWith('/spawn/spawned-cancel-reason', expect.objectContaining({
+      method: 'DELETE',
+      body: JSON.stringify({ reason: 'Superseded by exact-SHA review' }),
+    }));
   });
 
   test.each(['over_budget', 'cancelled'])('exits nonzero when the daemon envelope reports success false for %s', async (status) => {

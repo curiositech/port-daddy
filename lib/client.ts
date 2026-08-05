@@ -3226,10 +3226,10 @@ class PortDaddy {
   }
 
   /**
-   * Cancel a running spawned agent by ID.
+   * Cancel a running spawned agent by ID and retain the operator's reason.
    */
-  async cancelSpawned(agentId: string): Promise<CancelSpawnedResponse> {
-    return this._request('DELETE', `/spawn/${encodeURIComponent(agentId)}`) as Promise<CancelSpawnedResponse>;
+  async cancelSpawned(agentId: string, reason = 'Cancelled by operator'): Promise<CancelSpawnedResponse> {
+    return this._request('DELETE', `/spawn/${encodeURIComponent(agentId)}`, { reason }) as Promise<CancelSpawnedResponse>;
   }
 
   /**
@@ -3999,6 +3999,7 @@ interface ListSpawnedResponse {
 interface CancelSpawnedResponse {
   success: boolean;
   agentId: string;
+  reason: string;
   message: string;
 }
 

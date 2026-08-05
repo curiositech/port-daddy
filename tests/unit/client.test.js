@@ -815,6 +815,24 @@ describe('Spawn', () => {
     expect(result.status).toBe('over_budget');
     expect(result.telemetry.costUsd).toBeCloseTo(0.154863);
   });
+
+  test('cancelSpawned sends the durable reason', async () => {
+    queueResponse({
+      success: true,
+      agentId: 'spawned-cancelled',
+      reason: 'Superseded by review',
+      message: 'Agent spawned-cancelled cancelled',
+    });
+
+    const result = await pd.cancelSpawned('spawned-cancelled', 'Superseded by review');
+
+    expect(receivedRequests[0]).toEqual(expect.objectContaining({
+      method: 'DELETE',
+      url: '/spawn/spawned-cancelled',
+      body: { reason: 'Superseded by review' },
+    }));
+    expect(result.reason).toBe('Superseded by review');
+  });
 });
 
 // =============================================================================

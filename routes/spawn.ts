@@ -603,14 +603,22 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
   fastify.delete('/spawn/:id', async (request, reply) => {
     try {
       const id = String((request.params as any).id);
+      const rawReason = (request.body as { reason?: unknown } | null)?.reason;
+      const reason = rawReason === undefined ? 'Cancelled by operator' : rawReason;
+      if (typeof reason !== 'string' || !reason.trim() || reason.trim().length > 500) {
+        reply.code(400);
+        return { success: false, error: 'reason must be a non-empty string of at most 500 characters' };
+      }
+      const normalizedReason = reason.trim();
 
-      spawner.cancel(id);
+      spawner.cancel(id, normalizedReason);
 
-      logger.info('spawn_cancel', { agentId: id });
+      logger.info('spawn_cancel', { agentId: id, reason: normalizedReason });
 
       return {
         success: true,
         agentId: id,
+        reason: normalizedReason,
         message: `Agent ${id} cancelled`,
       };
     } catch (error) {

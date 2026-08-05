@@ -4184,7 +4184,7 @@ paths:
 
     delete:
       tags: [spawn]
-      summary: Cancel a spawned agent
+      summary: Cancel a spawned agent and retain the reason
       operationId: cancelSpawnedAgent
       parameters:
         - name: id
@@ -4192,6 +4192,18 @@ paths:
           required: true
           schema:
             type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                  default: Cancelled by operator
       responses:
         '200':
           description: Cancellation accepted or agent already terminal
@@ -4204,8 +4216,12 @@ paths:
                     type: boolean
                   agentId:
                     type: string
+                  reason:
+                    type: string
                   message:
                     type: string
+        '400':
+          description: Cancellation reason is empty or exceeds 500 characters
         '500':
           $ref: '#/components/responses/InternalError'
 

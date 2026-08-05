@@ -115,6 +115,15 @@ export async function handleSpawn(
       process.exit(1);
     }
 
+    const requestedReason = options.reason;
+    if (requestedReason !== undefined && (typeof requestedReason !== 'string' || !requestedReason.trim())) {
+      ui.error('--reason must be a non-empty string');
+      process.exit(1);
+    }
+    const reason = typeof requestedReason === 'string'
+      ? requestedReason.trim()
+      : 'Cancelled by operator';
+
     const ok = await requireConfirmation({
       summary: `Spawn cancellation will stop ${agentId} mid-run, finalize its transcript, and preserve partial work for inspection.`,
       args: options as Record<string, unknown>,
@@ -124,7 +133,7 @@ export async function handleSpawn(
     const res: PdFetchResponse = await pdFetch(`/spawn/${encodeURIComponent(agentId)}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: '{}',
+      body: JSON.stringify({ reason }),
     });
 
     const data = await res.json();
@@ -140,7 +149,7 @@ export async function handleSpawn(
     }
 
     if (!isQuiet(options)) {
-      ui.success(`Agent ${agentId} cancelled`);
+      ui.success(`Agent ${agentId} cancelled: ${reason}`);
     }
     return;
   }
@@ -195,7 +204,7 @@ export async function handleSpawn(
     console.error('  -q, --quiet           Suppress output');
     console.error('');
     console.error('Subcommands:');
-    console.error('  pd spawn cancel <id>  Cancel a running spawn and retain its record');
+    console.error('  pd spawn cancel <id> --reason <text>  Cancel a run and retain the reason');
     process.exit(1);
   }
 
