@@ -504,7 +504,7 @@ Current role:
 - immediate body launch through CLI and `/spawn`;
 - preflight with backend/model/tier/identity/budget;
 - list active spawned agents;
-- kill by spawned agent id.
+- cancel by spawned agent id.
 
 Target role:
 
@@ -516,8 +516,8 @@ Target role:
 - `/spawn` must create or reference a `WorkIntent`, `WorkPlan`, `AgentNode`,
   and `AgentRun` before calling the spawner;
 - `pd spawned` becomes a view over `AgentRun` and `WorkIntent` projections;
-- `pd spawn kill <id>` becomes cancel/interrupt on a run, with a durable denial
-  or cancellation event.
+- `pd spawn cancel <id>` cancels a run, with a durable denial or cancellation
+  event; interrupt remains a separate live steering control.
 
 Deprecation copy:
 

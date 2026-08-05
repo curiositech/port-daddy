@@ -62,4 +62,4 @@ Every protocol must define:
 - claim rejection
 - spend cap breach
 - unsafe command refusal
-- successor takeover after orphaning
+- linked successor continuation after orphaning

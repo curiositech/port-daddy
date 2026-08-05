@@ -21,7 +21,7 @@ Each rung names a class of clause the Articles typically need to cover, and the 
 | C1 | Transcripted | Body streams normalized events: messages, tool calls/results, shell commands, file touches, approvals, errors, stop reasons. | `transcript-event`. |
 | C2 | Governed | Tool use routes through pre-/post-tool checks; the daemon can block destructive actions, secret exfiltration, broad writes, deploys, budget violations. | `pre-tool-gate`, `capability-lease`. |
 | C3 | Suggestible | Turn-start guidance, inbox messages, repo updates, parley suggestions, skill grafts, memory packets, conflict warnings can be injected before the next turn. | `mcp-gateway`, `hook`. |
-| C4 | Controllable | Operator can pause, interrupt, message, checkpoint, fork/take over, retire, or create a successor without destroying evidence. | `hook`. |
+| C4 | Controllable | Operator can pause, interrupt, message, checkpoint, fork, retire, or create a linked successor without destroying evidence. | `hook`. |
 | C5 | Cooperative | Node can claim files/symbols, respond to parleys, participate in a shared channel/blackboard, receive Longshoreman assignments, publish structured status. | `mcp-gateway`, `probe`. |
 | C6 | Resumable | Node can be reconstructed from transcript, memory packet, workspace, and active commitments. | `transcript-event` (as the durable record) plus whatever gate enforced the state being reconstructed. |
 

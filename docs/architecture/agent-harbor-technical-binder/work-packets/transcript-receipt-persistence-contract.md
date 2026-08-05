@@ -138,8 +138,8 @@ Required event families:
 | Files and git | `file_read`, `file_write`, `file_diff`, `file_touch`, `git_action`, `commit_created`, `pr_opened`, `check_updated`, `merge_queue_updated` |
 | Governance | `tool_preflight`, `tool_denied`, `approval_request`, `approval_result`, `capability_lease_issued`, `capability_lease_revoked` |
 | Coordination | `claim_update`, `parley_event`, `blackboard_item`, `inbox_message`, `tube_message`, `skill_graft`, `memory_retrieval` |
-| Cost and budget | `cost_accrued`, `budget_warning`, `budget_pause`, `budget_kill` |
-| Continuation | `checkpoint`, `compaction_packet`, `successor_created`, `takeover_started` |
+| Cost and budget | `cost_accrued`, `budget_warning`, `budget_pause`, `budget_cancelled` |
+| Continuation | `checkpoint`, `compaction_packet`, `successor_created`, `continuation_started` |
 | Receipts | `receipt_started`, `receipt_completed`, `receipt_verified`, `receipt_failed` |
 | Errors | `adapter_error`, `provider_error`, `transcript_gap`, `retention_failure` |
 

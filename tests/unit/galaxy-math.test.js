@@ -294,7 +294,7 @@ describe('clusterTerms', () => {
   it('falls back to top-TF for a single cluster', () => {
     const docs = [
       'daemon spawn watch loop',
-      'daemon spawn kill switch',
+      'daemon spawn emergency stop',
       'daemon budget guard',
     ];
     const terms = clusterTerms(docs, [0, 0, 0], 1);

@@ -11,7 +11,7 @@ for:
 
 - live streams in the app;
 - historical replay;
-- session takeover and successor spawning;
+- linked session continuation and successor spawning;
 - context compaction;
 - memory extraction;
 - skill creation;

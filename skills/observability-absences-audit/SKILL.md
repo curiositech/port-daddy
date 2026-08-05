@@ -130,7 +130,7 @@ Full detection detail (grep patterns, questions, fix shapes) lives in
    grants, secret access, membership changes landing only in ephemeral logs or
    nowhere. A tenant must be shown who touched their data.
 2. **COORDINATION integrity** — lock steal / **expire** / contention, port-claim
-   conflicts, split-brain / takeover *computed then dropped*. (Real: a daemon-takeover
+   conflicts, split-brain / stale-runtime replacement *computed then dropped*. (Real: a daemon-reconciliation
    module written **because of** a split-brain incident logged nothing durable.)
 3. **RESOURCE self-monitoring** — no alarm on the daemon's own DB / WAL / write growth
    (the **313 GB blind spot**: a SQLite file grew to 313 GB unnoticed).
@@ -167,7 +167,7 @@ COORDINATION (cat 2)  — P0-dogfood, forensic at GA
 - Lock steal / force-release emits a durable row (who won, who evicted)
 - Lock contention depth (waiters) is counted as a metric
 - Port-claim conflict is logged with both claimants
-- Split-brain detection + daemon takeover writes a durable forensic row
+- Split-brain detection + stale-runtime replacement writes a durable forensic row
 
 RESOURCE (cat 3)  — P0-dogfood
 - Something samples the daemon's own DB + WAL size on a timer
@@ -205,7 +205,7 @@ audit trail."
 **Expert**: A declared constant proves only that someone *intended* to log it. Grep
 its emit sites — a constant with **zero emits is a silent event**, and it's the
 highest-signal absence precisely because the intent was recorded and then abandoned.
-The most safety-critical paths (takeover, expire, reject) are the ones most likely to
+The most safety-critical paths (replace-stale, expire, reject) are the ones most likely to
 be declared-but-never-fired, because they were added under incident pressure and the
 emit call was the part that got dropped.
 **Detection**: `grep -rnoE "ActivityType\.[A-Z_]+" | sort -u` for the declared set,

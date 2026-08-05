@@ -244,7 +244,7 @@ Full profiles for the 24 personas indexed in `SKILL.md`. Each profile has the sa
 - **Technical depth**: Very deep conceptually on multi-agent systems, less interested in Port Daddy as a product than as a reference implementation of patterns.
 - **Goals**: Clear, well-documented patterns (not just a working tool) he can cite or adapt when advising clients.
 - **Friction tolerance**: High for depth, low for documentation that hides the interesting ideas behind marketing language.
-- **Wow moment**: Finding a genuinely novel coordination pattern (e.g., the claims/salvage/takeover model) documented clearly enough to explain to a client.
+- **Wow moment**: Finding a genuinely novel coordination pattern (e.g., the claims/salvage/continuation model) documented clearly enough to explain to a client.
 - **Dealbreakers**: The interesting architectural ideas being buried, undocumented, or only inferable by reading source with no accompanying rationale.
 - **Voice**: "I don't need to adopt the tool. I need to understand the idea well enough to teach it."
 

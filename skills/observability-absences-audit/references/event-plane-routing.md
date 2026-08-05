@@ -35,7 +35,7 @@ right now" question.
 | Category | Durable audit plane | Ephemeral plane |
 |---|---|---|
 | 1. Security | mint, **reject**, revoke, grant, secret-access, membership change | auth-attempt rate, reject-rate-by-reason counter |
-| 2. Coordination | lock steal/**expire**/force-release, port conflict, split-brain takeover | contention depth (waiters), lock-hold-time histogram |
+| 2. Coordination | lock steal/**expire**/force-release, port conflict, stale-runtime replacement | contention depth (waiters), lock-hold-time histogram |
 | 3. Resource | `RESOURCE_ALARM` when a threshold trips | `db_bytes`, `wal_bytes`, `writes_per_min`, `table_rows{table}` gauges |
 | 4. Failure | `CRASH`, `DEGRADED_MODE{component}` | error-rate counter, restart counter |
 | 5. Correlation | (not an event — a *field* on every durable row) | (a *field* on every log line & metric label) |

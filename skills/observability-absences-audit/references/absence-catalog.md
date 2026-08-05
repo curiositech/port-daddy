@@ -52,7 +52,7 @@ is a silent event.
 ## 2. COORDINATION integrity
 
 **Definition**: The daemon computes a coordination decision — a lock was stolen, a
-claim conflicted, a split-brain was detected and a takeover performed — and then
+claim conflicted, a split-brain was detected and a stale runtime replaced — and then
 throws the finding away instead of recording it.
 
 **The events that must exist:**
@@ -60,18 +60,18 @@ throws the finding away instead of recording it.
   not a cleanup detail)
 - lock contention (N waiters blocked on one lock)
 - port-claim conflict (two agents wanted the same berth)
-- split-brain detection + daemon takeover (the code path exists *because* an incident
+- split-brain detection + stale-runtime replacement (the code path exists *because* an incident
   happened — and yet it often logs nothing durable)
 
 **Real example (port-daddy):** `ActivityType.LOCK_EXPIRE` is defined in the enum but
-never emitted anywhere — a **dead enum is a silent event**. A daemon-takeover module,
-written specifically in response to a split-brain outage, computed the takeover and
+never emitted anywhere — a **dead enum is a silent event**. A daemon-reconciliation module,
+written specifically in response to a split-brain outage, computed the replacement and
 logged only to stdout. The most safety-critical path was the least observable.
 
 **Questions to ask:**
 - For every enum value / event constant, grep for its emit site. Any with zero emits?
 - When a lock expires vs is released cleanly, are they distinguishable in the record?
-- When a takeover fires, is there a durable row (who won, who was evicted, why)?
+- When stale-runtime replacement fires, is there a durable row (who won, who was evicted, why)?
 - Is contention (waiters queued) ever counted, or only the eventual acquire?
 
 **Grep patterns:**
@@ -79,11 +79,11 @@ logged only to stdout. The most safety-critical path was the least observable.
 # Dead-enum hunt: every constant should have an emit site.
 grep -rnoE "ActivityType\.[A-Z_]+" lib/ src/ | sort -u        # defined
 grep -rn  "ActivityType.LOCK_EXPIRE" lib/ src/                 # emitted? (often 0)
-grep -rniE 'takeover|split.?brain|steal|force.?release|preempt' lib/ src/
+grep -rniE 'replace-stale|split.?brain|steal|force.?release|preempt' lib/ src/
 grep -rniE 'EADDRINUSE|port.*in use|claim.*conflict|already claimed' lib/ src/
 ```
 
-**Fix shape**: emit takeover/steal/expire/conflict to the **durable audit plane**
+**Fix shape**: emit replace-stale/steal/expire/conflict to the **durable audit plane**
 (they are forensic); emit contention *depth* as a **metric** on the ephemeral plane.
 
 ---
