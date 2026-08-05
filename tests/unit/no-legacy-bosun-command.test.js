@@ -17,4 +17,9 @@ describe('retired Bosun command surface', () => {
     const source = readFileSync(resolve(ROOT, file), 'utf8');
     expect(source).not.toContain('install-bosun');
   });
+
+  test('install-daemon has no direct Bosun-only entrypoint', () => {
+    const source = readFileSync(resolve(ROOT, 'install-daemon.ts'), 'utf8');
+    expect(source).not.toMatch(/installBosunOnly|case 'install-bosun'|install-daemon\.js install-bosun/);
+  });
 });
