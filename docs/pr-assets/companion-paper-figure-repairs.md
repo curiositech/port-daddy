@@ -13,11 +13,11 @@ audited; the contact sheet and tour emphasize the corrected seams:
 Generated papers:
 
 - `harbor-economy-whitepaper.pdf` — 31 pages, SHA-256
-  `a346b4b0f54ec2051d60a03470703f6a49036abb99c860507650c5481ca4d1d0`;
+  `57a26f4869d32f6eccd8c8b179e769f8c39ef65c4d45ff4148bd764328da42fd`;
 - `legible-swarm-whitepaper.pdf` — 40 pages, SHA-256
-  `04b0f24054b01613d51ca55777fbaa41f237d4189a076974e6c019f496502974`;
+  `7998cec09540dc861b2a97d2536ca3a9a60e8453e55cb1e871f2ce5ac058acf9`;
 - `single-writer-kernel-whitepaper.pdf` — 35 pages, SHA-256
-  `ab4cd49f067ba1d3a6461b24a5f82c7ef450f3aec561c4c4be52e6559b6f9bd4`.
+  `0c27e537746f1662f3e23917c1071fe6800f00c4aaa836a20d1c3cc792627843`.
 
 Visual evidence:
 
