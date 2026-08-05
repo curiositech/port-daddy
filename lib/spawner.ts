@@ -22,6 +22,7 @@ import type { Counters } from './counters.js';
 import type { Bonds } from './bonds.js';
 import type { Harbors } from './harbors.js';
 import type { Transcripts, TranscriptOutput, TranscriptMessage } from './transcripts.js';
+import type { SpawnerHarborBridge } from './agent-harbor/spawner-bridge.js';
 import { parseCodexTranscript, mapCodexStreamLine, type StructuredTurn } from './spawner/codex-transcript.js';
 import { parseClaudeCodeTranscript, mapClaudeCodeStreamLine, extractClaudeCodeFinal, extractClaudeCodeUsage } from './spawner/cli-claude-code-transcript.js';
 import { parseGeminiTranscript } from './spawner/gemini-transcript.js';
@@ -297,6 +298,12 @@ interface SpawnerDeps {
    *  conversation (system prompt + task + assistant output + tool calls) to
    *  the fleet_transcripts table. Surface for `pd transcripts ...` + UI. */
   transcripts?: Transcripts;
+  /** Optional Agent Harbor bridge (lib/agent-harbor/spawner-bridge.ts). When
+   *  wired, every spawn is registered as an Agent Harbor node and its
+   *  transcript is hash-chained into the event ledger, and a real (C1-only)
+   *  compliance probe runs at finalize. Best-effort: absence or failure never
+   *  changes spawn/kill behavior, only Agent Harbor visibility for that agent. */
+  harborBridge?: SpawnerHarborBridge;
   enforceTelemetryPolicy?: boolean;
   telemetryBypassApproval?: TelemetryBypassApproval;
   /** When true (the default), a backend MUST NOT run unless its full
@@ -1484,6 +1491,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     bonds,
     harbors,
     transcripts,
+    harborBridge,
     enforceTelemetryPolicy = true,
     enforceTranscriptPolicy = true,
     telemetryBypassApproval,
@@ -1515,6 +1523,15 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       // best-effort mode: swallow
     }
   }
+
+  // ── Agent Harbor bridge (best-effort; see lib/agent-harbor/spawner-bridge.ts) ──
+  // Maps a transcript id back to the spawner agentId the harbor bridge keys
+  // on, since txAssistant/txMessages/txDelta/txFinalize only carry the
+  // former. Deliberately NOT cleaned up on finalize: the map holds a handful
+  // of short strings per in-flight + recently-finished spawn, not an
+  // unbounded leak, and a late-arriving delta after finalize (rare but
+  // possible) still needs the lookup to succeed.
+  const transcriptToAgentId = new Map<string, string>();
 
   /** Open the transcript row and record the opening system/user turns.
    *  Returns the id, or null only when recording is disabled (no module +
@@ -1557,6 +1574,11 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         timestamp: startedAt,
       });
     });
+    if (id && harborBridge) {
+      transcriptToAgentId.set(id, agentId);
+      harborBridge.registerNode(agentId, spec.identity ?? null, startedAt);
+      harborBridge.appendTranscriptEvent(agentId, 'spawn-start', startedAt);
+    }
     return id;
   }
 
@@ -1569,6 +1591,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         timestamp: ts,
       });
     });
+    const agentId = transcriptToAgentId.get(transcriptId);
+    if (agentId && harborBridge) harborBridge.appendTranscriptEvent(agentId, 'assistant-message', ts);
   }
 
   /** Record the backend's full structured conversation (reasoning / tool
@@ -1582,6 +1606,13 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         transcripts.appendMessage(transcriptId, turnToMessage(turn, ts));
       }
     });
+    const agentId = transcriptToAgentId.get(transcriptId);
+    if (agentId && harborBridge) {
+      // One chained fact per structured turn, not one per whole batch — a
+      // batch of N turns is N distinct events in the real ledger, matching
+      // what txAssistant/txDelta record per-call for the live path.
+      for (const turn of turns) harborBridge.appendTranscriptEvent(agentId, `turn:${turn.role}`, ts);
+    }
   }
 
   /** Append ONE live transcript delta mid-run (the cli-tube `onTranscriptDelta`
@@ -1593,6 +1624,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     recordOrThrow('delta', () => {
       transcripts.appendMessage(transcriptId, message);
     });
+    const agentId = transcriptToAgentId.get(transcriptId);
+    if (agentId && harborBridge) harborBridge.appendTranscriptEvent(agentId, 'delta', message.timestamp ?? Date.now());
   }
 
   function txOutput(transcriptId: string | null, output: TranscriptOutput): void {
@@ -1620,6 +1653,15 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         error,
       });
     });
+    const agentId = transcriptToAgentId.get(transcriptId);
+    if (agentId && harborBridge) {
+      harborBridge.appendTranscriptEvent(agentId, `finalize:${status}`, endedAt);
+      // Fire-and-forget: runProbeAndRecord never rejects (it catches
+      // internally), but guard here too so a future change to that contract
+      // can never surface as an unhandled rejection out of a synchronous
+      // finalize call.
+      void harborBridge.runProbeAndRecord(agentId).catch(() => {});
+    }
   }
 
   // Default bond per spawn when caller doesn't specify one. Tunable via

@@ -69,6 +69,7 @@ import { createDispatchQueue } from './lib/dispatch/queue.js';
 import { createDispatchWorker } from './lib/dispatch/worker.js';
 import { createConductorSpawnAdapter } from './lib/dispatch/conductor-adapter.js';
 import { createWorkIntentService } from './lib/agent-harbor/work-intent-service.js';
+import { createSpawnerHarborBridge } from './lib/agent-harbor/spawner-bridge.js';
 import {
   gitWorktreeAdd,
   gitPushBranch,
@@ -664,6 +665,13 @@ const transcriptArchive =
   process.env.PD_TRANSCRIPT_ARCHIVE === 'off' ? undefined : createJsonlTranscriptArchive();
 const transcripts = createTranscripts(db, { archiveSink: transcriptArchive });
 
+// Agent Harbor bridge (Slice 1: honest C1 transcript witnessing for
+// spawner-launched agents — see lib/agent-harbor/spawner-bridge.ts). Shares
+// the same db handle as `transcripts` above; best-effort by construction, so
+// wiring it can never change spawn/kill behavior, only Agent Harbor
+// visibility for spawner-launched agents.
+const spawnerHarborBridge = createSpawnerHarborBridge(db);
+
 // Session Galaxy — 2-D embedding map of recent agent sessions over
 // fleet_transcripts. createLocalEmbedder gives the batch embed(texts[])
 // interface the semanticResolver singleton lacks (its .embed is single-text);
@@ -677,6 +685,7 @@ const galaxy = createGalaxy({ db, transcripts, sessions, embedder: galaxyEmbedde
 
 const spawner = createSpawner({
   costTracker, counters, bonds, harbors, transcripts,
+  harborBridge: spawnerHarborBridge,
   enforceTelemetryPolicy: true,
   enforceTranscriptPolicy: true,
   // Live observability seam (ADR-0060): give the spawner the daemon's messaging
