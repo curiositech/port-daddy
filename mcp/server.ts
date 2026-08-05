@@ -137,6 +137,7 @@ const ESSENTIAL_TOOL_NAMES = new Set([
   // Magic tools — high-level composed operations for vibe coders
   'fleet_init',
   'active_agent_roster',
+  'durable_agent_roster',
   'swarm_awareness',
   'coordination_preflight',
   'sitrep',
@@ -154,6 +155,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   'magic': {
     description: 'High-level composed tools: fleet setup, swarm awareness, situation reports, spawning, file heat maps, agent messaging',
     tools: ['fleet_init', 'fleet_status', 'active_agent_roster', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn'],
+  },
+  'roster': {
+    description: 'Durable named AgentNode identities — hybrid expertise lookup, profile creation, session promotion, handoff attachment, and cross-runtime continuation',
+    tools: ['durable_agent_roster', 'create_durable_agent', 'promote_session_to_durable_agent', 'attach_durable_agent_handoff', 'continue_durable_agent', 'harness_continuation_matrix'],
   },
   'session-lifecycle': {
     description: 'Start/end sessions, manage agent registration (sugar commands)',
@@ -240,8 +245,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['cockpit_missions_list'],
   },
   'system': {
-    description: 'Daemon status, version, metrics, config, launch hints, relay, and harbormaster liveness',
-    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status', 'harbormaster_status'],
+    description: 'Daemon status, version, metrics, config, launch hints, relay, harbormaster liveness, and witnessed harness compatibility',
+    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status', 'harbormaster_status', 'harness_continuation_matrix'],
   },
   'tuples': {
     description: 'Shared tuple space for swarm coordination — write, read, take, scan, count',
@@ -2751,6 +2756,110 @@ const TOOLS = [
     },
   },
   {
+    name: 'harness_continuation_matrix',
+    description:
+      '[Standard] Read the honest N:N harness matrix. Returns catalog mechanics separately from fresh/stale ' +
+      'daemon-witnessed spawn, live-control, native-resume, and handoff evidence; never a scalar compliance badge.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'durable_agent_roster',
+    description:
+      '[Essential] Find durable named agents by expertise, list a system/repo roster, or inspect one AgentNode. ' +
+      'Search always combines BM25 with the shared local MiniLM embedder when available and labels any lexical fallback.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        query: { type: 'string', description: 'Expertise or task query. Omit to list.' },
+        agent_node_id: { type: 'string', description: 'Exact daemon-minted AgentNode id. Takes precedence over query.' },
+        repo_root: { type: 'string', description: 'Limit list/search to the canonical Git repository scope.' },
+        include_retired: { type: 'boolean', description: 'Include retired durable identities.' },
+        limit: { type: 'number', description: 'Maximum results (1-50 for search, 1-500 for list).' },
+      },
+    },
+  },
+  {
+    name: 'create_durable_agent',
+    description:
+      '[Standard] Mint a durable named AgentNode from an operator-authored profile. The slug is a unique human alias; ' +
+      'permissions and triggers remain explicitly declaration-only until a witnessed runtime enforces them.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        slug: { type: 'string', description: 'Meaningful hyphenated name, e.g. portdaddy-typography-expert.' },
+        display_name: { type: 'string' },
+        remit: { type: 'string', description: 'Bounded responsibility and expertise.' },
+        instructions: { type: 'string', description: 'Durable operating prompt; fail-closed secret scanned.' },
+        scope: { type: 'string', enum: ['system', 'repo'] },
+        repo_root: { type: 'string', description: 'Required for repo scope.' },
+        skills: { type: 'array', items: { type: 'string' } },
+        tools: { type: 'array', items: { type: 'string' } },
+        backends: { type: 'array', items: { type: 'string' }, description: 'Ordered backend preferences.' },
+        models: { type: 'array', items: { type: 'string' }, description: 'Optional models parallel to backends.' },
+      },
+      required: ['slug', 'remit', 'instructions', 'scope'],
+    },
+  },
+  {
+    name: 'promote_session_to_durable_agent',
+    description:
+      '[Standard] Promote a great Port Daddy session into a durable named AgentNode using an already-sanitized handoff episode. ' +
+      'The daemon verifies that the capsule and coordination session lineage agree.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        source_session_id: { type: 'string' },
+        handoff_episode_id: { type: 'number' },
+        slug: { type: 'string' },
+        display_name: { type: 'string' },
+        remit: { type: 'string' },
+        instructions: { type: 'string' },
+        scope: { type: 'string', enum: ['system', 'repo'] },
+        repo_root: { type: 'string' },
+        skills: { type: 'array', items: { type: 'string' } },
+        tools: { type: 'array', items: { type: 'string' } },
+        backends: { type: 'array', items: { type: 'string' } },
+        models: { type: 'array', items: { type: 'string' } },
+      },
+      required: ['source_session_id', 'handoff_episode_id', 'slug', 'remit', 'instructions', 'scope'],
+    },
+  },
+  {
+    name: 'attach_durable_agent_handoff',
+    description: '[Standard] Attach a new sanitized handoff episode to the matching durable AgentNode for later continuation.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        agent_node_id: { type: 'string' },
+        handoff_episode_id: { type: 'number' },
+      },
+      required: ['agent_node_id', 'handoff_episode_id'],
+    },
+  },
+  {
+    name: 'continue_durable_agent',
+    description:
+      '[Standard] Continue the same durable AgentNode in a chosen backend. Same-family native resume is used only with a ' +
+      'fresh daemon witness; every other path uses the sanitized successor brief and durable continuation receipt.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        agent_node_id: { type: 'string' },
+        target_backend: { type: 'string' },
+        mode: { type: 'string', enum: ['auto', 'native', 'handoff'] },
+        model: { type: 'string' },
+        prompt: { type: 'string' },
+        handoff_episode_id: { type: 'number', description: 'Override the profile latest handoff episode.' },
+        idempotency_key: { type: 'string' },
+        timeout_ms: { type: 'number' },
+      },
+      required: ['agent_node_id', 'target_backend', 'idempotency_key'],
+    },
+  },
+  {
     name: 'swarm_awareness',
     description:
       '[Magic] Who else is working here? Returns all active agents with their identities, purposes, ' +
@@ -4528,6 +4637,90 @@ async function handleTool(
       return JSON.stringify({ agents, channels: msgs, recent_notes: recentNotes }, null, 2);
     }
 
+    case 'durable_agent_roster': {
+      if (args.agent_node_id) {
+        res = await GET(`/durable-agents/${encodeURIComponent(String(args.agent_node_id))}`);
+        break;
+      }
+      const params = new URLSearchParams();
+      if (args.repo_root) params.set('repoRoot', String(args.repo_root));
+      if (args.include_retired === true) params.set('includeRetired', 'true');
+      if (args.limit != null) params.set('limit', String(args.limit));
+      if (args.query) {
+        params.set('q', String(args.query));
+        res = await GET(`/durable-agents/search?${params}`);
+      } else {
+        res = await GET(`/durable-agents?${params}`);
+      }
+      break;
+    }
+
+    case 'create_durable_agent':
+    case 'promote_session_to_durable_agent': {
+      const backends = Array.isArray(args.backends) ? args.backends.map(String) : [];
+      const models = Array.isArray(args.models) ? args.models.map(String) : [];
+      const body: Record<string, unknown> = {
+        slug: args.slug,
+        displayName: args.display_name,
+        remit: args.remit,
+        instructions: args.instructions,
+        scope: args.scope === 'repo'
+          ? { kind: 'repo', repoRoot: args.repo_root }
+          : { kind: 'system' },
+        skills: args.skills,
+        tools: args.tools,
+        backendPreferences: backends.map((backend, index) => ({ backend, model: models[index] ?? models[0] ?? null })),
+      };
+      if (name === 'promote_session_to_durable_agent') {
+        body.sourceSessionId = args.source_session_id;
+        body.handoffEpisodeId = args.handoff_episode_id;
+        res = await POST('/durable-agents/promote', body);
+      } else {
+        res = await POST('/durable-agents', body);
+      }
+      break;
+    }
+
+    case 'attach_durable_agent_handoff': {
+      res = await POST(`/durable-agents/${encodeURIComponent(String(args.agent_node_id))}/handoffs`, {
+        episodeId: args.handoff_episode_id,
+      });
+      break;
+    }
+
+    case 'continue_durable_agent': {
+      const id = String(args.agent_node_id);
+      let episodeId = args.handoff_episode_id as number | undefined;
+      let defaultPrompt: string | undefined;
+      if (!episodeId || !args.prompt) {
+        const detail = await GET(`/durable-agents/${encodeURIComponent(id)}`);
+        if (detail.status < 200 || detail.status >= 300 || detail.data?.success === false) {
+          return JSON.stringify(detail.data, null, 2);
+        }
+        const agent = (detail.data as Record<string, unknown>).agent as Record<string, any> | undefined;
+        episodeId ??= agent?.continuation?.episodeId as number | undefined;
+        defaultPrompt = agent?.profile?.remit as string | undefined;
+      }
+      if (!episodeId) {
+        return JSON.stringify({ success: false, error: 'durable agent has no sanitized handoff episode' });
+      }
+      res = await POST(`/memory/handoffs/${episodeId}/continue`, {
+        targetBackend: args.target_backend,
+        mode: args.mode ?? 'auto',
+        model: args.model,
+        prompt: args.prompt ?? defaultPrompt,
+        durableAgentId: id,
+        idempotencyKey: args.idempotency_key,
+        timeoutMs: args.timeout_ms,
+      }, { timeout: typeof args.timeout_ms === 'number' ? args.timeout_ms + 90_000 : 390_000 });
+      break;
+    }
+
+    case 'harness_continuation_matrix': {
+      res = await GET('/harness-adapters/continuation-matrix');
+      break;
+    }
+
     case 'active_agent_roster':
     case 'swarm_awareness': {
       const project = args.project as string | undefined;
@@ -4949,7 +5142,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.25.2',
+    version: '3.27.0',
   },
   {
     capabilities: {

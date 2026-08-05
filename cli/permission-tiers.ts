@@ -38,6 +38,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   attest: 'silent', // honest self-report (ADR-0045); read-only introspection
   version: 'silent',
   whoami: 'silent',
+  account: 'notify', // login/pair/logout mint or drop a device token; status/token refined silent below
   w: 'silent',
   find: 'silent',
   f: 'silent',
@@ -54,6 +55,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   agents: 'silent',
   swarm: 'silent',
   actors: 'silent',
+  roster: 'approval',
   actor: 'silent',
   changelog: 'silent',
   log: 'silent',
@@ -74,6 +76,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   learn: 'silent',
   tutorial: 'silent',
   sitrep: 'silent',
+  plan: 'notify',
+
   whois: 'silent',          // semantic skill-router: read-only ranking of agents by capability
   look: 'silent',
   periscope: 'silent',     // operator-loop SIGHT stage: read-only state+next-cut rollup
@@ -92,6 +96,9 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   skillgraft: 'notify',    // alias of skill-graft
   memory: 'silent',
   booty: 'notify',          // worst case: `booty add` writes blobs + provenance rows; `booty list` is silent (refined below)
+  seamanship: 'notify',     // worst case: `seamanship sync`/`index` write the local skill catalog
+                            // under ~/.port-daddy/skills; list/search/show are silent (refined below)
+  skills: 'notify',         // alias of seamanship
   'who-owns': 'silent',
   harbors: 'silent',
   'harbor-ledger': 'notify', // worst case: `harbor-ledger rebuild` truncates+replays DISPOSABLE projection tables (the event log is never touched); refined below
@@ -160,6 +167,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   backend: 'notify',        // sets the active CLI/subscription backend (caller config); status form is read-only
   backup: 'notify',         // writes a durable snapshot of the registry DB; reversible, caller-scoped
   cut: 'notify',            // cuts a release: runs builds, writes dist/release/<v>, optional sign — local, caller-scoped
+  batten: 'notify',         // worst case: `batten imprint` writes a caller-scoped receipt; verify is refined silent below
   benchmark: 'notify',      // `benchmark run` makes paid multi-backend LLM calls; refined: list-models/list-conditions/report are silent reads
   // ── approval: mutates another agent's state, no data loss ────────────────
   // Top-level entries; subcommand refinement may downgrade.
@@ -180,6 +188,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   harbormaster: 'approval', // start/stop the shared merge-owning actor; affects every agent's merges
   hm: 'approval',           // alias for harbormaster
   dispatch: 'approval',     // queues/runs autonomous dev work and spawns agents on shared state
+  suggest: 'approval',      // worst case: `suggest approve` fires a one-shot ship run (spends and
+                            // spawns, same posture as dispatch); list/dismiss refined below
   nightshift: 'approval',   // kicks off autonomous overnight feature dev across the fleet
   review: 'approval',       // approves/rejects produced dispatch work — gates others' merges
 
@@ -216,6 +226,11 @@ export const TIER_REGISTRY: Record<string, Tier> = {
  * by best-effort prefix.
  */
 export const SUBCOMMAND_TIERS: Record<string, Tier> = {
+  // account: login/pair mint a device token, logout drops it (notify); the
+  // read-only introspection subcommands are silent.
+  'account status': 'silent',
+  'account whoami': 'silent',
+  'account token': 'silent',
   // embed: local reads/embeddings are silent; prefetch performs a one-time
   // ~27 MB network download into the shared cache
   'embed': 'silent',                // default subcommand = status
@@ -241,6 +256,35 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'booty list': 'silent',
   'booty help': 'silent',
   'booty add': 'notify',
+
+  // Tender's operator suggestion queue. Reading and clearing are cheap; only
+  // `approve` actually fires a ship run, so only it keeps the group's tier.
+  'suggest': 'silent',              // default subcommand = list
+  'suggest list': 'silent',
+  'suggest help': 'silent',
+  'suggest dismiss': 'notify',
+  'suggest approve': 'approval',
+
+  // Skill registry. The read verbs mutate nothing (`outcomes` GETs
+  // /fleet/skills/outcomes from the daemon; the rest read the local catalog),
+  // while `sync` and `index` rewrite the on-disk catalog under
+  // ~/.port-daddy/skills.
+  'seamanship': 'silent',           // default subcommand = list
+  'skills': 'silent',               // default subcommand = list
+  'seamanship list': 'silent',
+  'seamanship search': 'silent',
+  'seamanship show': 'silent',
+  'seamanship outcomes': 'silent',
+  'seamanship help': 'silent',
+  'seamanship sync': 'notify',
+  'seamanship index': 'notify',
+  'skills list': 'silent',
+  'skills search': 'silent',
+  'skills show': 'silent',
+  'skills outcomes': 'silent',
+  'skills help': 'silent',
+  'skills sync': 'notify',
+  'skills index': 'notify',
 
   // salvage: list is read-only, mutations are destructive
   'salvage': 'silent',              // default subcommand = listing
@@ -315,6 +359,20 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'agent inbox clear': 'destructive',
   'agent inbox read-all': 'notify',
 
+  // durable named-agent roster: reads are silent, profile facts are notify,
+  // and continuation launches a governed child runtime.
+  'roster': 'silent',
+  'roster list': 'silent',
+  'roster ls': 'silent',
+  'roster show': 'silent',
+  'roster search': 'silent',
+  'roster create': 'notify',
+  'roster promote': 'notify',
+  'roster update': 'notify',
+  'roster attach': 'notify',
+  'roster retire': 'notify',
+  'roster continue': 'approval',
+
   // parley: list/show/fit are reads; call/respond/resolve mutate shared reconciliation state
   'parley list': 'silent',
   'parley show': 'silent',
@@ -381,7 +439,6 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'squid arm': 'notify',
   'squid off': 'notify',            // removes only pd-authored entries
   'squid disarm': 'notify',
-  'squid hooks': 'notify',
 
   // agent-CLI hooks installer
   'hooks list': 'silent',
@@ -427,6 +484,10 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
 
   // mcp
   'mcp install': 'notify',
+
+  // batten: verify is pure read; imprint writes the caller-selected receipt.
+  'batten verify': 'silent',
+  'batten imprint': 'notify',
 
   // attention: default fetch marks items read; peek/list forms are read-only
   'attention --peek': 'silent',

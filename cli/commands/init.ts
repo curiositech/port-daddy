@@ -170,6 +170,8 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
       const hooks = silentHooksInstall(undefined, { cwd });
       if (hooks.tentaclesMissing) {
         warnings.push('Agent-CLI hooks skipped — squid tentacles (bin/pd-hook-*) not on this build');
+      } else if (hooks.failures.length > 0) {
+        warnings.push(`Agent-CLI hook wiring incomplete: ${hooks.failures.join('; ')}`);
       } else if (hooks.configured > 0) {
         results.push(`Interactive hooks wired for this project (${hooks.configured} agent CLI${hooks.configured > 1 ? 's' : ''})`);
         ui.success(`Coordination hooks wired for this project — ${hooks.detected.join(', ')} (gated: only active when the daemon runs)`);
@@ -252,8 +254,11 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
 
   if (!noHook) {
     try {
-      const { installPilotSessionStartHook } = await import('../../lib/pilot-sessionstart-hook.js');
-      const hookResult = installPilotSessionStartHook({ projectDir: cwd, projectRoot: cwd });
+      const { installPilotSessionStartHook, stagePilotSessionStartHook } = await import('../../lib/pilot-sessionstart-hook.js');
+      const stagedPilot = stagePilotSessionStartHook();
+      const hookResult = stagedPilot
+        ? installPilotSessionStartHook({ projectDir: cwd, scriptPath: stagedPilot })
+        : { changed: false, settingsPath: join(cwd, '.claude', 'settings.json'), command: null, reason: 'hook script missing on this build', ok: false };
       if (hookResult.changed) {
         results.push(`SessionStart Pilot hook (${hookResult.reason})`);
         ui.success('Wired SessionStart hook — new sessions adopt the Port Daddy Pilot agent (unless --agent <other>)');

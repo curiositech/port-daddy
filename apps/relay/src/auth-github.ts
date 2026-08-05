@@ -32,6 +32,7 @@ import {
   deleteWebSession,
   countUserSessions,
   eraseUser,
+  listShipwrightMessages,
   type UserRow,
 } from './db.js';
 import type { Env } from './types.js';
@@ -282,7 +283,8 @@ export async function handleGithubCallback(request: Request, env: Env): Promise<
     userAgent: request.headers.get('User-Agent'),
   });
 
-  const dest = (env.PUBLIC_BASE_URL ?? '/').replace(/\/+$/, '') + '/';
+  // Land the freshly-signed-in user on their account page (not the bare root).
+  const dest = (env.PUBLIC_BASE_URL ?? '').replace(/\/+$/, '') + '/account';
   return new Response(null, {
     status: 302,
     headers: { Location: dest, 'Set-Cookie': sessionSetCookie(sessionValue, SESSION_TTL_SECONDS) },
@@ -308,8 +310,55 @@ export async function handleAuthMe(request: Request, env: Env): Promise<Response
   });
 }
 
+/**
+ * GET /auth/status — the minimal signed-in probe for the marketing site's
+ * header chip (portdaddy.dev fetches this cross-origin with credentials).
+ * Session cookie ONLY — this is strictly a browser surface, so pdu_ bearer
+ * tokens are deliberately not honored here. The body carries nothing beyond
+ * the public GitHub profile pair {login, avatarUrl}: no email, no ids, no
+ * token material, no session metadata (no secrets — the response is readable
+ * from another origin by design).
+ */
+export async function handleAuthStatus(request: Request, env: Env): Promise<Response> {
+  const resolved = await resolveSession(request, env);
+  const body = resolved
+    ? { code: 'OK', login: resolved.user.login, avatarUrl: resolved.user.avatar_url }
+    : { code: 'UNAUTHENTICATED', login: null, avatarUrl: null };
+  return new Response(JSON.stringify(body), {
+    status: resolved ? 200 : 401,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+  });
+}
+
+function safeOrigin(u: string | null | undefined): string | null {
+  if (!u) return null;
+  try {
+    return new URL(u).origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Defense-in-depth CSRF guard for state-changing POSTs, layered over the
+ * SameSite=Lax session cookie. Browsers always send `Origin` on POST, so a
+ * cross-site form/fetch fails this check even if the cookie policy ever loosens.
+ * A request with neither `Origin` nor `Referer` is a non-browser client (e.g.
+ * curl with an explicit cookie) and is allowed — the Lax cookie already blocks
+ * cross-site cookie delivery for browsers.
+ */
+export function isSameOrigin(request: Request, env: Env): boolean {
+  const expected = safeOrigin(env.PUBLIC_BASE_URL) ?? safeOrigin(request.url);
+  const origin = request.headers.get('Origin');
+  if (origin) return origin === expected;
+  const referer = request.headers.get('Referer');
+  if (referer) return safeOrigin(referer) === expected;
+  return true;
+}
+
 /** POST /auth/logout — delete the session and clear the cookie. */
 export async function handleLogout(request: Request, env: Env): Promise<Response> {
+  if (!isSameOrigin(request, env)) return json(403, { code: 'CROSS_ORIGIN', error: 'cross-origin request refused' });
   const value = readSessionCookie(request);
   if (value) await deleteWebSession(env.DB, hashHex(value));
   return new Response(JSON.stringify({ code: 'OK', error: null }), {
@@ -331,6 +380,13 @@ export async function handleAccountExport(request: Request, env: Env): Promise<R
   if (!resolved) return json(401, { code: 'UNAUTHENTICATED', error: 'no session' });
   const { user } = resolved;
   const sessionCount = await countUserSessions(env.DB, user.id);
+  // Shipwright conversation history is the user's own content — it leaves with
+  // them (ADR-0101 export control). Bounded to the same window the chat reads.
+  const shipwrightChats = (await listShipwrightMessages(env.DB, user.id, 500)).map((m) => ({
+    role: m.role,
+    content: m.content,
+    createdAt: m.created_at,
+  }));
   const body = {
     code: 'OK',
     error: null,
@@ -347,6 +403,7 @@ export async function handleAccountExport(request: Request, env: Env): Promise<R
       lastLoginAt: user.last_login_at,
     },
     sessions: { active: sessionCount },
+    shipwrightChats,
   };
   return new Response(JSON.stringify(body, null, 2), {
     status: 200,
@@ -363,6 +420,7 @@ export async function handleAccountExport(request: Request, env: Env): Promise<R
  * everywhere), clears this cookie; a retention job hard-deletes within 30 days.
  */
 export async function handleAccountDelete(request: Request, env: Env): Promise<Response> {
+  if (!isSameOrigin(request, env)) return json(403, { code: 'CROSS_ORIGIN', error: 'cross-origin request refused' });
   const resolved = await resolveSession(request, env);
   if (!resolved) return json(401, { code: 'UNAUTHENTICATED', error: 'no session' });
   const purged = await eraseUser(env.DB, resolved.user.id, Math.floor(Date.now() / 1000));
@@ -416,4 +474,100 @@ export async function userCanReadRepo(
   const ok = res.status === 200;
   await env.KV.put(cacheKey, ok ? '1' : '0', { expirationTtl: 300 });
   return ok;
+}
+
+/**
+ * Does the session's user have access to GitHub App installation `installationId`?
+ * GitHub is the single source of truth: `GET /user/installations` lists exactly
+ * the app installations the authenticated user can act on. Fail-closed (no token
+ * → false), cached in KV for 5 minutes keyed by (user_id, installationId). This
+ * is the tenant-ownership gate for the billing endpoints (ADR-0116): a signed-in
+ * user may only touch billing for an installation GitHub says they own.
+ */
+export async function userOwnsInstallation(
+  env: Env,
+  session: ResolvedSession,
+  installationId: number,
+): Promise<boolean> {
+  if (!session.ghToken) return false;
+  const cacheKey = `inst_owner:${session.user.id}:${installationId}`;
+  const cached = await env.KV.get(cacheKey);
+  if (cached === '1') return true;
+  if (cached === '0') return false;
+  // Paginate defensively; a user with 100+ installations is unusual but possible.
+  let ok = false;
+  for (let page = 1; page <= 5 && !ok; page++) {
+    const res = await fetch(`${GH_API}/user/installations?per_page=100&page=${page}`, {
+      headers: ghHeaders(session.ghToken),
+    });
+    if (!res.ok) break;
+    const body = (await res.json()) as { installations?: Array<{ id?: number }> };
+    const list = Array.isArray(body.installations) ? body.installations : [];
+    if (list.some((i) => i.id === installationId)) ok = true;
+    if (list.length < 100) break; // last page
+  }
+  await env.KV.put(cacheKey, ok ? '1' : '0', { expirationTtl: 300 });
+  return ok;
+}
+
+/** One GitHub App installation the signed-in user can act on. */
+export interface UserInstallation {
+  id: number;
+  /** The org/user the app is installed on (e.g. 'acme'); null if GitHub omits it. */
+  accountLogin: string | null;
+  /** 'Organization' | 'User' per GitHub; null if omitted. */
+  accountType: string | null;
+}
+
+function parseUserInstallation(x: unknown): UserInstallation | null {
+  if (!isRecord(x) || typeof x.id !== 'number' || !Number.isInteger(x.id) || x.id <= 0) return null;
+  const account = isRecord(x.account) ? x.account : null;
+  return {
+    id: x.id,
+    accountLogin: account ? orNull(account.login) : null,
+    accountType: account ? orNull(account.type) : null,
+  };
+}
+
+/**
+ * List the GitHub App installations the session's user can act on — the SAME
+ * `GET /user/installations` source of truth `userOwnsInstallation` gates on, so
+ * the billing page can only ever surface installations GitHub says are the
+ * user's own (tenant boundary, ADR-0116). Returns `null` (never `[]`) when the
+ * list could not be established — no token, GitHub error, unparseable body — so
+ * callers can render an honest "unknown" instead of a fabricated empty state
+ * (D12: reads degrade with reasons). Each returned id also warms the
+ * `inst_owner` KV cache the ownership gate reads.
+ */
+export async function listUserInstallations(
+  env: Env,
+  session: ResolvedSession,
+): Promise<UserInstallation[] | null> {
+  if (!session.ghToken) return null;
+  const out: UserInstallation[] = [];
+  for (let page = 1; page <= 5; page++) {
+    const res = await fetch(`${GH_API}/user/installations?per_page=100&page=${page}`, {
+      headers: ghHeaders(session.ghToken),
+    });
+    if (!res.ok) return null; // degraded, not empty — fail with "unknown"
+    let body: unknown;
+    try {
+      body = await res.json();
+    } catch {
+      return null;
+    }
+    const list =
+      isRecord(body) && Array.isArray(body.installations) ? body.installations : null;
+    if (!list) return null;
+    for (const raw of list) {
+      const inst = parseUserInstallation(raw);
+      if (inst) out.push(inst);
+    }
+    if (list.length < 100) break; // last page
+  }
+  // Positive-only cache warm: these ids just came from GitHub for this user.
+  for (const inst of out) {
+    await env.KV.put(`inst_owner:${session.user.id}:${inst.id}`, '1', { expirationTtl: 300 });
+  }
+  return out;
 }

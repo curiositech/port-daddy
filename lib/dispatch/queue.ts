@@ -500,6 +500,10 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     `SELECT * FROM dispatches WHERE id = ?`,
   );
 
+  const selectBySessionIdStmt = db.prepare<[string], DispatchRow>(
+    `SELECT * FROM dispatches WHERE session_id = ? ORDER BY created_at DESC LIMIT 1`,
+  );
+
   const selectAllStmt = db.prepare<[], DispatchRow>(
     `SELECT * FROM dispatches ORDER BY created_at DESC`,
   );
@@ -674,12 +678,11 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
       throw new Error('materializeProjection: timeoutMs must be a positive number');
     }
     const mergePolicy: MergePolicy = input.mergePolicy ?? 'review';
-    if (mergePolicy === 'auto') {
-      throw new Error(
-        "materializeProjection: merge_policy 'auto' requires harbormaster (PR #141); not yet implemented. " +
-          "Use 'review' (default) or 'never'.",
-      );
-    }
+    // 'auto' is wired: lib/dispatch/auto-merge.ts's sweep merges the PR itself
+    // once CI is green, the PR is mergeable, and there are zero unresolved
+    // review threads. See that module's header for the full safety gate; this
+    // is a DIFFERENT, narrower path than harbormaster.ts's operator-approval
+    // ('accepted' state) two-key merge queue, which remains untouched.
     const existing = selectByIdStmt.get(input.id);
     if (existing) return rowToDispatch(existing);
     const at = input.createdAt ?? now();
@@ -713,6 +716,16 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
 
   function get(id: string): Dispatch | null {
     const row = selectByIdStmt.get(id);
+    return row ? rowToDispatch(row) : null;
+  }
+
+  /**
+   * Find the (most recent) dispatch that ran under a given worker session id.
+   * Used by `pd done` to answer "does the session I'm ending have an
+   * auto-merge-policy dispatch that needs a scrap+merge+rebuild pass?"
+   */
+  function getBySessionId(sessionId: string): Dispatch | null {
+    const row = selectBySessionIdStmt.get(sessionId);
     return row ? rowToDispatch(row) : null;
   }
 
@@ -983,6 +996,7 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     propose,
     materializeProjection,
     get,
+    getBySessionId,
     list,
     peekNextProposed,
     claimProposed,
