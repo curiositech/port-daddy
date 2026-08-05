@@ -654,15 +654,29 @@ a producer wired, deletes what their source no longer justifies, decays
 shell-appended `PD_PHEROMONE_*` traces, and stamps a heartbeat that readers use
 to fail open when the loop dies.
 
-**Wired today: approvals (`PD_ALERT_FLEET_APPROVALS`) and panic
-(`PD_HALT`), plus the heartbeat.** The registry defines five more classes —
-`PD_INBOX_*`, `PD_CLAIM_*`, `PD_CI_*`, `PD_PARLEY_*`, `PD_ACCOMPLISHMENT_*` —
-whose builders, caps and budgets are implemented and tested but which the fleet
-daemon has no source for yet (`buildReconcileLoop` in `lib/fleet-daemon.ts`).
-That is deliberate, not an oversight: an unwired class is *degraded*, meaning
-the loop neither projects nor garbage-collects it and leaves any existing keys
-alone. Passing `() => []` instead would assert "there are none" and delete
-another writer's keys, so the cutover is incremental on purpose. Hookless
+**All seven classes are wired**, plus the heartbeat: approvals
+(`PD_ALERT_FLEET_APPROVALS`) and panic (`PD_HALT`) read the approval stream and
+the panic singleton; `PD_INBOX_*`, `PD_CLAIM_*`, `PD_PARLEY_*` and
+`PD_ACCOMPLISHMENT_*` read the agent inbox, live session claims, open parleys
+and recently-completed sessions through the adapters in
+`lib/squid/reconcile-sources.ts`.
+
+Two properties of that wiring are load-bearing. First, **absent is not empty**:
+a source the daemon cannot supply is omitted entirely, which leaves its class
+*degraded* — neither projected nor garbage-collected, existing keys untouched.
+Passing `() => []` instead would assert "there are none" and delete another
+writer's keys, so `server.ts` spreads each source conditionally rather than
+defaulting it.
+
+Second, **`PD_CI_*` is conditional on ingestion being live.** CI is the one
+class where silence is a positive claim: `null` from the source means *the
+branch is green*, not *I don't know*. A daemon whose cloud-app telemetry table
+has never received an event therefore omits the source rather than reporting
+`null` — otherwise every agent would be told a build nobody has observed is
+passing. Ingestion that starts later is picked up on the next daemon restart.
+A claim is only projected when two or more distinct live sessions hold the same
+path, since every active session holds claims and projecting all of them would
+flood the matrix with the fleet's working set. Hookless
 backends (Groq, Ollama, LM Studio) read the same key classes through
 `lib/local-citizen/ink-cloud.ts`.
 

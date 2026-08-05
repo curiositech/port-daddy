@@ -33,7 +33,16 @@ import {
 import { getSharedWebhookReceiver } from './fleet/webhook-receiver.js';
 import { getSharedApprovalStream } from './fleet/approval-stream.js';
 import { getSharedPushNotifier, setSharedPushNotifier, FleetPushNotifier } from './fleet/push-notifications.js';
-import { createReconcileLoop, type HaltState, type ReconcileLoop } from './squid/reconcile.js';
+import {
+  createReconcileLoop,
+  type Accomplishment,
+  type CiFailure,
+  type ClaimOverlap,
+  type HaltState,
+  type InboxMessage,
+  type ParleySummons,
+  type ReconcileLoop,
+} from './squid/reconcile.js';
 import { MacOSNotificationSink } from './fleet/outputs/notify-macos.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { loadEnvFiles } from './env-loader.js';
@@ -132,6 +141,33 @@ export interface FleetDaemonDeps {
    * than concluding "nobody pulled the cord" and deleting it.
    */
   panic?: () => HaltState | null | undefined;
+  /**
+   * Remaining Ink Cloud reconcile sources, injected for the same reason `panic`
+   * is: the durable stores they read (`sessions`, `agentInbox`, `parley`, the
+   * cloud-app telemetry table) are constructed in the composition root, and
+   * `lib/fleet-daemon.ts` has no business reaching for them itself.
+   *
+   * **Every one is optional, and absent is not empty.** An omitted source leaves
+   * its class *degraded*: neither projected nor garbage-collected, so the loop
+   * leaves whatever is already in the matrix alone. Passing `() => []` instead
+   * would assert "there are none of these" and delete another writer's keys.
+   * Wire a source only where the daemon can actually tell the difference between
+   * "nothing to report" and "I cannot see".
+   */
+  inbox?: () => readonly InboxMessage[];
+  claims?: () => readonly ClaimOverlap[];
+  /**
+   * Red required check, or `null` when the branch is known-green.
+   *
+   * Note the asymmetry that makes this the most dangerous of the five: for CI,
+   * `null` is a POSITIVE claim ("green"), not an absence. A daemon with no CI
+   * ingestion configured must therefore omit this source entirely rather than
+   * return `null`, or every agent gets told the build is green on the strength
+   * of an empty table. See `server.ts` for the liveness probe that decides.
+   */
+  ci?: () => CiFailure | null | undefined;
+  parley?: () => readonly ParleySummons[];
+  accomplishments?: () => readonly Accomplishment[];
   /** Daemon's own project directory. Stable install roots are protected by default. */
   daemonDir: string;
   /** Explicitly allow fleet management inside /port-daddy-stable install roots. */
@@ -1452,14 +1488,24 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
    * for rather than passing `() => []`, which would assert "there are none" and
    * delete other writers' keys.
    *
-   * @returns A loop wired to the approvals stream (and the halt state when the
-   *          composition root injected one).
+   * Each spread below is conditional for exactly that reason — `...(deps.x ? {x:
+   * deps.x} : {})` propagates *absence*, where an unconditional `x: deps.x`
+   * would hand the loop an `undefined` source and a `() => []` fallback would
+   * hand it a lie.
+   *
+   * @returns A loop wired to the approvals stream, plus whichever of the six
+   *          injected sources the composition root could actually supply.
    */
   const buildReconcileLoop = (): ReconcileLoop =>
     createReconcileLoop({
       // Passed by reference: `list()` already returns `{ agent, trigger, ... }`.
       approvals: () => getSharedApprovalStream().list(),
       ...(deps.panic ? { panic: deps.panic } : {}),
+      ...(deps.inbox ? { inbox: deps.inbox } : {}),
+      ...(deps.claims ? { claims: deps.claims } : {}),
+      ...(deps.ci ? { ci: deps.ci } : {}),
+      ...(deps.parley ? { parley: deps.parley } : {}),
+      ...(deps.accomplishments ? { accomplishments: deps.accomplishments } : {}),
       logger: {
         debug: (m, meta) => logger.debug?.(m, meta),
         info: (m, meta) => logger.info(m, meta),

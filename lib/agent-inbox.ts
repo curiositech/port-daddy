@@ -94,6 +94,14 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
     listSince: db.prepare(`
       SELECT * FROM agent_inbox WHERE agent_id = ? AND created_at > ? ORDER BY created_at DESC LIMIT ?
     `),
+    // Fleet-wide unread, every recipient at once. The per-agent `listUnread`
+    // cannot serve the Ink Cloud reconcile loop: that loop projects mail for
+    // EVERY actor in one pass and has no roster to iterate. Ordered oldest-first
+    // so a truncating LIMIT drops the freshest mail rather than starving the
+    // message that has been waiting longest.
+    listAllUnread: db.prepare(`
+      SELECT * FROM agent_inbox WHERE read = 0 ORDER BY created_at ASC LIMIT ?
+    `),
     listSent: db.prepare(`
       SELECT * FROM agent_inbox WHERE from_agent = ? ORDER BY created_at DESC LIMIT ?
     `),
@@ -231,6 +239,21 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
      * Powers `pd sent` — the sender side of the inbox. `agentId` on each message
      * is the RECIPIENT; `from` is this sender.
      */
+    /**
+     * Every unread message across every recipient, oldest first.
+     *
+     * Exists for the Ink Cloud reconcile loop, which projects one `PD_INBOX_*`
+     * key per (actor, message) and therefore needs the whole fleet's unread mail
+     * in a single synchronous read — it has no actor roster to iterate, and a
+     * per-actor query would make the tick O(agents) round trips.
+     *
+     * `limit` is a safety valve against an unbounded table, not a policy knob:
+     * the loop applies its own per-actor caps and turn budget downstream.
+     */
+    listAllUnread(limit = 500): InboxMessage[] {
+      return (stmts.listAllUnread.all(limit) as InboxRow[]).map(formatMessage);
+    },
+
     listSent(fromAgent: string, options: { limit?: number; unreadOnly?: boolean } = {}) {
       const { limit = 50, unreadOnly = false } = options;
       let rows = stmts.listSent.all(fromAgent, limit) as InboxRow[];

@@ -88,6 +88,14 @@ import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 import { createIpcServer } from './lib/ipc-server.js';
 import { createIpcRouter } from './lib/ipc-router.js';
 import { createFleetDaemon } from './lib/fleet-daemon.js';
+import {
+  accomplishmentsSource,
+  ciIngestionIsLive,
+  ciSource,
+  claimsSource,
+  inboxSource,
+  parleySource,
+} from './lib/squid/reconcile-sources.js';
 import { createRepoRegistry } from './lib/github-repo-registry.js';
 import { createOrchestratorRegistry } from './lib/orchestrator-plugins.js';
 import { createSymbolIndex } from './lib/symbol-index.js';
@@ -1010,6 +1018,22 @@ const fleetDaemon = createFleetDaemon({
   // HALT source for the Ink Cloud reconcile loop. Wired here (not imported by
   // lib/fleet-daemon.ts) because nothing under lib/ imports from routes/.
   panic: readPanicState,
+  // The remaining Ink Cloud classes, wired to the durable stores constructed
+  // above. Adapters live in lib/squid/reconcile-sources.ts so the mappings are
+  // unit-testable without a running server; see that module for why returning
+  // `[]` is a factual claim rather than a safe default.
+  inbox: inboxSource(agentInbox),
+  claims: claimsSource(sessions),
+  parley: parleySource(parley),
+  accomplishments: accomplishmentsSource(sessions),
+  // CI is conditional on purpose. `null` from this source means "the branch is
+  // green" — a positive claim — so a daemon whose telemetry table has never
+  // received an event must not wire it at all. Omitted, the class stays
+  // degraded and the loop leaves any existing PD_CI key untouched; wired, it
+  // reports the latest red check. Ingestion that begins later is picked up on
+  // the next daemon restart, which is the honest trade: better a stale
+  // "degraded" than a fabricated "green".
+  ...(ciIngestionIsLive(cloudAppTelemetry) ? { ci: ciSource(cloudAppTelemetry) } : {}),
 });
 
 // GitHub repo → project registry. Resolves a webhook's owner/repo to the
