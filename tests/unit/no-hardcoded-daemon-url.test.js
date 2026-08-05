@@ -21,58 +21,26 @@
  */
 
 import { describe, test, expect } from '@jest/globals';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve, join, relative } from 'node:path';
+import {
+  DAEMON_ENDPOINT_ENFORCED_FILES,
+  DAEMON_ENDPOINT_ENFORCED_PATH_PREFIXES,
+  LEGACY_ENDPOINT_DEBT_FILES,
+} from '../helpers/daemon-endpoint-guard-contract.js';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..', '..');
 
 // Files allowed to reference the literal canonical URL. Each entry MUST have
 // a one-line reason. New entries require reviewer sign-off.
 const ALLOWED_FILES = new Set([
-  // Canonical Swift constant — every Swift caller uses DaemonLocation.resolveBaseURL().
-  'apps/FleetBar/FleetBar/DaemonLocation.swift',
-  // pd-timeline-proto R&D window: PORT_DADDY_URL-first, localhost fallback only.
-  'core/pd-timeline-proto/src/main.rs',
   // Canonical Node helpers — these define the resolver everyone else uses.
   'shared/daemon-discovery.ts',
   'shared/paths.ts',
-  // Web dashboard config UI's intentional fallback constant when env discovery fails.
-  'fleet-config-ui/src/api.ts',
   // Daemon installer probes for the running listener via lsof — this IS the port number.
   'install-daemon.ts',
   // This guard test itself.
   'tests/unit/no-hardcoded-daemon-url.test.js',
-  // Canonical web-side resolver — the JS analogue of shared/daemon-discovery.ts.
-  'website-v2/src/lib/daemon-url.ts',
-  // routes/sitrep.ts: literal appears only in a JSDoc curl example; runtime
-  // code in the same file uses normal Fastify reply paths.
-  'routes/sitrep.ts',
-]);
-
-// We enforce the rule ONLY on production source paths. Test fixtures, copy-paste
-// examples, debug scripts, and standalone older Swift apps legitimately reference
-// the canonical URL. Drift in those locations doesn't break runtime resolution.
-const ENFORCED_PATH_PREFIXES = [
-  'lib/',
-  'routes/',
-  'cli/',
-  'bin/',
-  'mcp/',
-  'shared/',
-  'apps/FleetBar/',  // active menu-bar app — ships with the daemon
-  'public/',          // web dashboard
-  'fleet-config-ui/src/',
-  'dashboard/',
-  'core/',
-  // website-v2 is mostly marketing/docs that legitimately shows the canonical
-  // URL in code samples. Only enforce on the runtime daemon-client code under
-  // website-v2/src/lib/.
-  'website-v2/src/lib/',
-  // Note: server.ts is a single file, handled separately below.
-];
-
-const ENFORCED_FILES = new Set([
-  'server.ts',
 ]);
 
 const FORBIDDEN_PATTERNS = [
@@ -108,6 +76,7 @@ const EXCLUDE_PATH_PREFIXES = [
   'website-v2/node_modules/',
   'tests/integration/',
   'tests/benchmark/',
+  'apps/FleetBar/Tests/',
   'port-daddy-stable/',
   'core/pd-bosun/target/',
 ];
@@ -139,8 +108,8 @@ function* walk(dir) {
 }
 
 function isEnforced(rel) {
-  if (ENFORCED_FILES.has(rel)) return true;
-  return ENFORCED_PATH_PREFIXES.some((p) => rel.startsWith(p));
+  if (DAEMON_ENDPOINT_ENFORCED_FILES.has(rel)) return true;
+  return DAEMON_ENDPOINT_ENFORCED_PATH_PREFIXES.some((p) => rel.startsWith(p));
 }
 
 function findOffenders(pattern) {
@@ -149,6 +118,7 @@ function findOffenders(pattern) {
   for (const { path, rel } of walk(REPO_ROOT)) {
     if (!isEnforced(rel)) continue;
     if (ALLOWED_FILES.has(rel)) continue;
+    if (LEGACY_ENDPOINT_DEBT_FILES.has(rel)) continue;
     let content;
     try { content = readFileSync(path, 'utf-8'); }
     catch { continue; }
