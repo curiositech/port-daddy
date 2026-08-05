@@ -69,7 +69,11 @@ const TOKEN_REFRESH_TEST_KEY = generateKeyPairSync('rsa', { modulusLength: 2048 
 function reviewWithFinding(verdict: 'PASS' | 'BLOCK' = 'PASS', body = 'finding'): string {
   return [
     '```json',
-    JSON.stringify([{ path: 'src/a.ts', line: 1, severity: 'MEDIUM', body }]),
+    // Must cite a path the harness actually reports as changed (`src/x.ts`).
+    // Findings pinned to a file outside the diff are dropped before rendering,
+    // so a fixture citing an untouched file would silently post nothing and
+    // these verdict/check assertions would fail for an unrelated reason.
+    JSON.stringify([{ path: 'src/x.ts', line: 1, severity: 'MEDIUM', body }]),
     '```',
     '',
     `FLEET-VERDICT: ${verdict}`,
