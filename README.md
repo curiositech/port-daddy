@@ -111,7 +111,7 @@ unzip PortDaddy-FleetBar-macOS-arm64.zip
 ### 3. Verify
 
 ```bash
-pd doctor          # Comprehensive health check (supervision, liveness, DB, drift…)
+pd doctor          # Comprehensive health check (supervision, liveness, DB, drift, bosun…)
 pd doctor --json   # Machine-readable report with per-check severity (ok | warn | critical)
 pd doctor --ci     # CI/script mode: no prompts, exits non-zero ONLY on a CRITICAL check
 pd attest          # Honest self-report: PASS/FAIL/SKIPPED/UNKNOWN per enforced invariant
@@ -125,7 +125,7 @@ pd bench 50        # Run performance benchmarks (target: <1ms latency)
 
 `pd start` and `pd install` are binary-first: they refuse to start a source-backed `tsx server.ts` daemon unless `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` is set for a local development session. On a canonical macOS install, launchd is the sole lifecycle owner: `pd start`, `pd restart`, and `pd stop` control `homebrew.mxcl.port-daddy`, wait for one verified generation, and refuse a detached fallback when the launchd job is missing.
 
-Homebrew owns the canonical daemon service on macOS. Port Daddy does not install a second watchdog or a competing LaunchAgent; `pd install`, `pd start`, `pd stop`, and `pd restart` all converge on that one service authority.
+Bosun watchdog setup is internal to supported installer and formula flows; it has no standalone public CLI verb. It monitors the Homebrew-managed daemon without replacing the main daemon plist. For a self-installed LaunchAgent or systemd daemon, `pd install` remains the supported setup path.
 
 ### Staying current
 
@@ -817,7 +817,7 @@ curl http://127.0.0.1:9876/transcripts/compliance  # Transcript backend matrix +
 curl http://127.0.0.1:9876/transcripts/emergency   # HITL transcript emergency summary across local + cloud writers
 ```
 
-`launchctl` is the sole canonical process supervisor on macOS. The daemon owns readiness and publishes one generation identity across `/health`, `daemon.pid`, `daemon.port`, its listener, binary hash, and filesystem heartbeat. `pd status`, Doctor, FleetBar, and pd-console are observers of that shared snapshot, not additional supervisors.
+`launchctl` is the sole canonical process supervisor on macOS. The daemon owns readiness and publishes one generation identity across `/health`, `daemon.pid`, `daemon.port`, its listener, binary hash, and filesystem heartbeat. Bosun is the independent non-agent watchdog: it can ask launchd to replace a dead or wedged generation, but it never spawns one. `pd status`, Doctor, FleetBar, and pd-console are observers of that shared snapshot, not additional supervisors.
 `GET /status` and `GET /health` now fold transcript-flow health into `runtime.transcripts`, and surface critical live-run gaps (stalled live stream, missing final transcript) as HITL-tagged runtime reasons.
 
 ### Daemon berths (ADR-0084)
