@@ -28,6 +28,7 @@ import { coerceClaimType, type ClaimType } from '../lib/symbol-conflict-matrix.j
 import type { SymbolConflict } from '../lib/symbol-claims.js';
 import { KNOWN_BACKEND_IDS } from '../lib/backend-catalog.js';
 import {
+  AGENT_RUN_LIVE_EVIDENCE_MAX_AGE_MS,
   AgentRunIdempotencyConflictError,
   TERMINAL_AGENT_RUN_STATUSES,
   agentRunStatusForSpawnResult,
@@ -125,8 +126,6 @@ interface SessionsRouteDeps {
 
 type SessionLifecycle = 'durable' | 'ephemeral';
 
-const CONTINUATION_HEARTBEAT_FRESH_MS = 65_000;
-
 function continuationText(value: unknown, field: string, maxBytes: number): string {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`${field} is required`);
   const normalized = value.trim();
@@ -167,7 +166,6 @@ function continuationSuccessor(receipt: AgentRunReceipt) {
 
 function continuationEnvelope(
   receipt: AgentRunReceipt,
-  predecessor: Record<string, unknown>,
   options: {
     replayed?: boolean;
     liveProven?: boolean;
@@ -183,6 +181,11 @@ function continuationEnvelope(
   const terminal = TERMINAL_AGENT_RUN_STATUSES.has(receipt.status);
   const outcomeUnknown = receipt.status === 'unknown';
   const successor = continuationSuccessor(receipt);
+  const predecessor = receipt.predecessor ?? {
+    sessionId: receipt.predecessorSessionId,
+    purpose: null,
+    status: 'unavailable',
+  };
   return {
     success: terminal ? receipt.status === 'completed' : !outcomeUnknown,
     accepted: Boolean(successor),
@@ -191,7 +194,7 @@ function continuationEnvelope(
     outcomeUnknown,
     status: receipt.status,
     predecessor: {
-      sessionId: predecessor.id,
+      sessionId: predecessor.sessionId,
       purpose: predecessor.purpose ?? null,
       status: predecessor.status ?? null,
     },
@@ -201,6 +204,11 @@ function continuationEnvelope(
     monitorUrl: continuationReceiptUrl(receipt),
     cancelUrl: successor ? `/sessions/continuations/${encodeURIComponent(receipt.id)}` : null,
     transcriptUrl: successor ? `/transcripts?agentId=${encodeURIComponent(successor.agentId)}` : null,
+    accounting: {
+      budgetUsd: receipt.budgetUsd,
+      telemetry: receipt.telemetry,
+      evidence: receipt.telemetry ? 'backend-reported-and-durable' : 'not-yet-reported',
+    },
     liveness: successor ? {
       live: options.liveProven === true,
       evidence: options.liveProven === true
@@ -238,6 +246,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
   // This plugin registers before spawnPlugin and owns the one daemon-start
   // recovery pass for the shared spawn/continuation receipt ledger.
   const continuationReceipts = db && spawner ? createAgentRunReceiptStore(db) : null;
+  const continuationAdmissions = new Map<string, Promise<void>>();
 
   const errorStatus = (result: Record<string, unknown>) => {
     switch (result.code) {
@@ -751,6 +760,12 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
           kind: 'session-continuation',
           request: requestFingerprint,
           predecessorSessionId: predecessorId,
+          predecessor: {
+            sessionId: predecessorId,
+            purpose: typeof predecessor.purpose === 'string' ? predecessor.purpose : null,
+            status: typeof predecessor.status === 'string' ? predecessor.status : null,
+          },
+          budgetUsd: budgetUsd ?? null,
         });
       } catch (error) {
         if (error instanceof AgentRunIdempotencyConflictError) {
@@ -767,13 +782,40 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
 
       let receipt = admission.receipt;
       if (admission.replayed) {
-        const response = continuationEnvelope(receipt, predecessor, { replayed: true });
+        if (!continuationSuccessor(receipt) && receipt.status === 'accepted') {
+          const admissionSettled = continuationAdmissions.get(receipt.id);
+          if (!admissionSettled) {
+            reply.code(503);
+            reply.header('Retry-After', '1');
+            return {
+              success: false,
+              accepted: false,
+              replayed: true,
+              code: 'ADMISSION_INDETERMINATE',
+              error: 'The owning admission is not observable yet; retry the stable receipt.',
+              receipt,
+              monitorUrl: continuationReceiptUrl(receipt),
+            };
+          }
+          await admissionSettled;
+          receipt = continuationReceipts.get(receipt.id) ?? receipt;
+        }
+        const response = continuationEnvelope(receipt, { replayed: true });
         const pending = !response.terminal && !response.outcomeUnknown;
         reply.code(pending ? 202 : 200);
         reply.header('Location', response.monitorUrl);
         if (pending) reply.header('Retry-After', '1');
         return response;
       }
+
+      let settleAdmission: (() => void) | null = null;
+      const admissionSettled = new Promise<void>((resolve) => { settleAdmission = resolve; });
+      continuationAdmissions.set(receipt.id, admissionSettled);
+      const settleOwnedAdmission = () => {
+        settleAdmission?.();
+        settleAdmission = null;
+        continuationAdmissions.delete(receipt.id);
+      };
 
       const spec: SpawnSpec = {
         backend: backend as SpawnSpec['backend'],
@@ -808,19 +850,22 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
           successorSessionId: successor.sessionId,
           transcriptId: successor.transcriptId,
         });
+        settleOwnedAdmission();
         acceptRun?.(successor);
       });
       const trackedRun = run.then((result) => {
         receipt = continuationReceipts.markStatus(
           receipt.id,
           agentRunStatusForSpawnResult(result),
-          { error: result.error },
+          { error: result.error, telemetry: result.telemetry },
         );
+        settleOwnedAdmission();
         return result;
       }).catch((error) => {
         receipt = continuationReceipts.markStatus(receipt.id, 'failed', {
           error: error instanceof Error ? error.message : String(error),
         });
+        settleOwnedAdmission();
         throw error;
       });
 
@@ -837,7 +882,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
             error: error instanceof Error ? error.message : String(error),
           });
         });
-        const response = continuationEnvelope(receipt, predecessor);
+        const response = continuationEnvelope(receipt);
         reply.code(202);
         reply.header('Location', response.monitorUrl);
         reply.header('Retry-After', '1');
@@ -856,7 +901,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         status: receipt.status,
         error: first.result.error,
       });
-      return continuationEnvelope(receipt, predecessor, { run: first.result });
+      return continuationEnvelope(receipt, { run: first.result });
     } catch (error) {
       if (error instanceof Error && /(is required|safe (?:text|identifier) boundary)/.test(error.message)) {
         reply.code(400);
@@ -886,34 +931,35 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         reply.code(404);
         return { success: false, error: 'session continuation receipt not found', code: 'RECEIPT_NOT_FOUND' };
       }
-      const predecessorResult = sessions.get(receipt.predecessorSessionId) as {
-        success?: boolean;
-        session?: Record<string, unknown>;
-      };
-      const predecessor = predecessorResult.session ?? {
-        id: receipt.predecessorSessionId,
-        purpose: null,
-        status: 'unavailable',
-      };
       const agentId = receipt.successorAgentId;
       const liveRecord = agentId
         ? spawner.list().find((candidate) => candidate.agentId === agentId) ?? null
         : null;
-      const liveProven = Boolean(
+      const observedAt = Date.now();
+      const hasLiveEvidence = Boolean(
+        liveRecord?.status === 'running'
+        &&
         liveRecord?.pid
         && liveRecord.pid > 0
-        && Date.now() - liveRecord.heartbeatAt < CONTINUATION_HEARTBEAT_FRESH_MS,
+        && observedAt - liveRecord.heartbeatAt >= 0
+        && observedAt - liveRecord.heartbeatAt < AGENT_RUN_LIVE_EVIDENCE_MAX_AGE_MS,
       );
       const run = agentId ? spawner.get(agentId) : null;
       if (run && !['running', 'unknown'].includes(run.status)) {
         receipt = continuationReceipts.markStatus(receipt.id, agentRunStatusForSpawnResult(run), {
           error: run.error,
+          telemetry: run.telemetry,
+        });
+      } else if (hasLiveEvidence && !TERMINAL_AGENT_RUN_STATUSES.has(receipt.status)) {
+        receipt = continuationReceipts.markStatus(receipt.id, 'live', {
+          liveEvidence: {
+            pid: liveRecord!.pid!,
+            supervisorHeartbeatAt: liveRecord!.heartbeatAt,
+          },
         });
       } else if (run?.status === 'unknown') {
         receipt = continuationReceipts.markStatus(receipt.id, 'unknown', { error: run.error });
-      } else if (liveProven && (receipt.status === 'starting' || receipt.status === 'accepted')) {
-        receipt = continuationReceipts.markStatus(receipt.id, 'live');
-      } else if (receipt.status === 'live' && !liveProven) {
+      } else if (receipt.status === 'live' && !hasLiveEvidence) {
         receipt = continuationReceipts.markStatus(receipt.id, 'unknown', {
           error: 'The successor was previously live, but current PID and heartbeat evidence are unavailable.',
         });
@@ -922,7 +968,8 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
           error: 'The successor was admitted, but its owning runtime is no longer observable.',
         });
       }
-      const response = continuationEnvelope(receipt, predecessor, { liveProven, liveRecord, run });
+      const liveProven = receipt.status === 'live' && hasLiveEvidence;
+      const response = continuationEnvelope(receipt, { liveProven, liveRecord, run });
       if (!response.terminal && !response.outcomeUnknown) reply.header('Retry-After', '1');
       return response;
     } catch (error) {
@@ -952,14 +999,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     const cancelled = TERMINAL_AGENT_RUN_STATUSES.has(receipt.status)
       ? receipt
       : continuationReceipts.markStatus(receipt.id, 'cancelled', { error: 'Cancelled by operator.' });
-    const predecessorResult = sessions.get(receipt.predecessorSessionId) as {
-      session?: Record<string, unknown>;
-    };
-    return continuationEnvelope(cancelled, predecessorResult.session ?? {
-      id: receipt.predecessorSessionId,
-      purpose: null,
-      status: 'unavailable',
-    });
+    return continuationEnvelope(cancelled);
   });
 
   // POST /sessions/:id/takeover - Non-destructively continue an existing session

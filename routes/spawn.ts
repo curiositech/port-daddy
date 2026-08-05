@@ -15,6 +15,7 @@ import { validateChannel } from '../shared/validators.js';
 import { KNOWN_BACKEND_IDS } from '../lib/backend-catalog.js';
 import type Database from 'better-sqlite3';
 import {
+  AGENT_RUN_LIVE_EVIDENCE_MAX_AGE_MS,
   AgentRunIdempotencyConflictError,
   TERMINAL_AGENT_RUN_STATUSES,
   agentRunStatusForSpawnResult,
@@ -68,6 +69,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
   // Recovery is idempotent: sessionsPlugin also opens this shared ledger so a
   // standalone spawnPlugin and the full daemon both fail honest after restart.
   const receipts = createAgentRunReceiptStore(db);
+  const pendingAdmissions = new Map<string, Promise<void>>();
 
   const receiptMonitorUrl = (receipt: AgentRunReceipt) => `/spawn/receipts/${encodeURIComponent(receipt.id)}`;
 
@@ -304,18 +306,45 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
             idempotencyKey,
             kind: 'spawn',
             request: spec,
+            budgetUsd: spec.budgetUsd ?? null,
           });
           durableReceipt = admission.receipt;
           if (admission.replayed) {
+            if (!durableReceipt.successorAgentId && durableReceipt.status === 'accepted') {
+              const admissionSettled = pendingAdmissions.get(durableReceipt.id);
+              if (!admissionSettled) {
+                const monitorUrl = receiptMonitorUrl(durableReceipt);
+                reply.code(503);
+                reply.header('Location', monitorUrl);
+                reply.header('Retry-After', '1');
+                return {
+                  ...durableReceipt,
+                  success: false,
+                  accepted: false,
+                  replayed: true,
+                  code: 'ADMISSION_INDETERMINATE',
+                  error: 'The owning admission is not observable yet; retry the stable receipt.',
+                  monitorUrl,
+                };
+              }
+              await admissionSettled;
+              durableReceipt = receipts.get(durableReceipt.id) ?? durableReceipt;
+            }
             const monitorUrl = receiptMonitorUrl(durableReceipt);
             const settled = TERMINAL_AGENT_RUN_STATUSES.has(durableReceipt.status)
               || durableReceipt.status === 'unknown';
+            const terminal = TERMINAL_AGENT_RUN_STATUSES.has(durableReceipt.status);
+            const successorAdmitted = Boolean(
+              durableReceipt.successorAgentId
+              && durableReceipt.successorSessionId
+              && durableReceipt.transcriptId,
+            );
             reply.code(settled ? 200 : 202);
             reply.header('Location', monitorUrl);
             if (!settled) reply.header('Retry-After', '1');
             return {
-              success: durableReceipt.status !== 'unknown',
-              accepted: true,
+              success: terminal ? durableReceipt.status === 'completed' : durableReceipt.status !== 'unknown',
+              accepted: successorAdmitted,
               replayed: true,
               ...durableReceipt,
               agentId: durableReceipt.successorAgentId,
@@ -338,6 +367,17 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
           throw error;
         }
       }
+      let settleDurableAdmission: (() => void) | null = null;
+      if (durableReceipt) {
+        const receiptId = durableReceipt.id;
+        pendingAdmissions.set(receiptId, new Promise<void>((resolve) => {
+          settleDurableAdmission = () => {
+            resolve();
+            pendingAdmissions.delete(receiptId);
+            settleDurableAdmission = null;
+          };
+        }));
+      }
       let acceptRun: ((accepted: SpawnAccepted) => void) | null = null;
       const accepted = new Promise<SpawnAccepted>((resolve) => { acceptRun = resolve; });
       const run = spawner.spawn(spec, (acceptedRun) => {
@@ -347,13 +387,26 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
             successorSessionId: acceptedRun.sessionId,
             transcriptId: acceptedRun.transcriptId,
           });
+          settleDurableAdmission?.();
         }
         acceptRun?.(acceptedRun);
       });
       const trackedRun = durableReceipt
         ? run.then((result) => {
-            receipts.markStatus(durableReceipt!.id, agentRunStatusForSpawnResult(result), { error: result.error });
+            receipts.markStatus(durableReceipt!.id, agentRunStatusForSpawnResult(result), {
+              error: result.error,
+              telemetry: result.telemetry,
+            });
+            settleDurableAdmission?.();
             return result;
+          }).catch((error) => {
+            if (durableReceipt) {
+              receipts.markStatus(durableReceipt.id, 'failed', {
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+            settleDurableAdmission?.();
+            throw error;
           })
         : run;
 
@@ -425,8 +478,34 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       const agentId = receipt.successorAgentId;
       const run = agentId ? spawner.get(agentId) : null;
       const live = agentId ? spawner.list().find((agent) => agent.agentId === agentId) : null;
-      const liveProven = Boolean(live?.pid && live.pid > 0 && Date.now() - live.heartbeatAt < 65_000);
-      if (liveProven && receipt.status === 'starting') receipt = receipts.markStatus(id, 'live');
+      const observedAt = Date.now();
+      const hasLiveEvidence = Boolean(
+        live?.status === 'running'
+        && live.pid
+        && live.pid > 0
+        && observedAt - live.heartbeatAt >= 0
+        && observedAt - live.heartbeatAt < AGENT_RUN_LIVE_EVIDENCE_MAX_AGE_MS,
+      );
+      if (run && !['running', 'unknown'].includes(run.status)) {
+        receipt = receipts.markStatus(id, agentRunStatusForSpawnResult(run), {
+          error: run.error,
+          telemetry: run.telemetry,
+        });
+      } else if (hasLiveEvidence && !TERMINAL_AGENT_RUN_STATUSES.has(receipt.status)) {
+        receipt = receipts.markStatus(id, 'live', {
+          liveEvidence: {
+            pid: live!.pid!,
+            supervisorHeartbeatAt: live!.heartbeatAt,
+          },
+        });
+      } else if (run?.status === 'unknown') {
+        receipt = receipts.markStatus(id, 'unknown', { error: run.error });
+      } else if (receipt.status === 'live' && !hasLiveEvidence) {
+        receipt = receipts.markStatus(id, 'unknown', {
+          error: 'The agent was previously live, but current PID and heartbeat evidence are unavailable.',
+        });
+      }
+      const liveProven = receipt.status === 'live' && hasLiveEvidence;
       const outcomeUnknown = receipt.status === 'unknown';
       const terminal = TERMINAL_AGENT_RUN_STATUSES.has(receipt.status);
       if (!terminal && !outcomeUnknown) reply.header('Retry-After', '1');
@@ -438,7 +517,13 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         agentId,
         run,
         output: run?.output ?? null,
+        accounting: {
+          budgetUsd: receipt.budgetUsd,
+          telemetry: receipt.telemetry,
+          evidence: receipt.telemetry ? 'backend-reported-and-durable' : 'not-yet-reported',
+        },
         liveness: live ? {
+          live: liveProven,
           supervisorHeartbeatAt: live.heartbeatAt,
           lastActivityAt: live.lastActivityAt,
           pid: live.pid,

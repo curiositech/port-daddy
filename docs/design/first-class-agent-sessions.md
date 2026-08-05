@@ -119,6 +119,13 @@ worktree property, maps `running` to `live`, or treats a client observation
 timeout as a failed spawn. A lost response becomes `unknown` plus a reconnect to
 the same receipt.
 
+The receipt is the durable projection, not a view over mutable source state. It
+freezes predecessor lineage at admission and retains requested budget plus final
+backend-reported tokens and cost after the in-memory runtime record is gone.
+Concurrent exact retries wait for the owning admission to produce either the one
+successor or a pre-admission terminal fact; they never manufacture an empty
+accepted response.
+
 Historical filesystem scans may populate clearly labelled archival rows. They
 cannot override live daemon state or freshness provenance.
 

@@ -40,6 +40,7 @@ function buildApp() {
         status: 'completed',
         output: 'done',
         error: null,
+        telemetry: null,
         startedAt: 1,
         completedAt: 2,
       };
@@ -283,6 +284,110 @@ describe('spawn routes preflight', () => {
       receiptId: first.json().id,
     }));
 
+    await app.close();
+  });
+
+  test('concurrent asynchronous replay waits until the owning spawn has a durable successor', async () => {
+    const { app, spawner, register } = buildApp();
+    let admit;
+    let finish;
+    const pending = new Promise((resolve) => { finish = resolve; });
+    spawner.spawn.mockImplementation(async (_spec, onAccepted) => {
+      admit = () => onAccepted?.({
+        agentId: 'spawned-delayed',
+        name: 'delayed',
+        backend: 'claude-cli',
+        model: 'claude-sonnet-4-5-20250929',
+        status: 'accepted',
+        identity: 'port-daddy:repo:cli',
+        purpose: 'review the diff',
+        startedAt: 1,
+        heartbeatAt: 1,
+        lastActivityAt: 1,
+        pid: null,
+        deadlineAt: null,
+        transcriptId: 'tx-delayed',
+        sessionId: 'session-delayed',
+      });
+      return pending;
+    });
+    await register();
+    const headers = { Prefer: 'respond-async', 'Idempotency-Key': 'delayed-run-key' };
+    const payload = {
+      backend: 'claude-cli',
+      identity: 'port-daddy:repo:cli',
+      task: 'review the diff',
+      budgetUsd: 0.75,
+    };
+    const firstPromise = app.inject({ method: 'POST', url: '/spawn', headers, payload });
+    await new Promise((resolve) => setImmediate(resolve));
+    const replayPromise = app.inject({ method: 'POST', url: '/spawn', headers, payload });
+    let replaySettled = false;
+    void replayPromise.then(() => { replaySettled = true; });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(replaySettled).toBe(false);
+
+    admit();
+    const [first, replay] = await Promise.all([firstPromise, replayPromise]);
+    expect(first.statusCode).toBe(202);
+    expect(replay.statusCode).toBe(202);
+    expect(replay.json()).toEqual(expect.objectContaining({
+      accepted: true,
+      replayed: true,
+      agentId: 'spawned-delayed',
+      transcriptId: 'tx-delayed',
+    }));
+    expect(spawner.spawn).toHaveBeenCalledTimes(1);
+
+    finish({
+      agentId: 'spawned-delayed',
+      backend: 'claude-cli',
+      model: 'claude-sonnet-4-5-20250929',
+      status: 'completed',
+      output: 'done',
+      error: null,
+      telemetry: null,
+      startedAt: 1,
+      completedAt: 2,
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    await app.close();
+  });
+
+  test('a pre-admission no-runtime replay stays failed and never claims a successor', async () => {
+    const { app, spawner, register } = buildApp();
+    spawner.spawn.mockResolvedValue({
+      agentId: 'blocked',
+      backend: 'claude-cli',
+      model: 'claude-sonnet-4-5-20250929',
+      status: 'failed',
+      output: null,
+      error: 'No safe runtime was admitted.',
+      telemetry: null,
+      startedAt: 1,
+      completedAt: 2,
+    });
+    await register();
+    const headers = { Prefer: 'respond-async', 'Idempotency-Key': 'no-runtime-key' };
+    const payload = {
+      backend: 'claude-cli',
+      identity: 'port-daddy:repo:cli',
+      task: 'review the diff',
+      budgetUsd: 0.75,
+    };
+    const first = await app.inject({ method: 'POST', url: '/spawn', headers, payload });
+    const replay = await app.inject({ method: 'POST', url: '/spawn', headers, payload });
+
+    expect(first.json()).toEqual(expect.objectContaining({ success: false, agentId: 'blocked' }));
+    expect(replay.json()).toEqual(expect.objectContaining({
+      success: false,
+      accepted: false,
+      replayed: true,
+      status: 'no_runtime',
+      agentId: null,
+      transcriptId: null,
+    }));
+    expect(spawner.spawn).toHaveBeenCalledTimes(1);
     await app.close();
   });
 

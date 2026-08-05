@@ -69,7 +69,7 @@ sequenceDiagram
     Supervisor->>Store: "starting"
     Supervisor->>Provider: "Launch in requested worktree with selected daemon endpoint"
 
-    alt "PID and fresh heartbeat or fresh remote-provider evidence"
+    alt "Positive child PID and fresh supervisor heartbeat"
         Provider-->>Supervisor: "Runtime evidence"
         Supervisor->>Store: "live plus PID, backend, model, transcript handle"
     else "Startup cannot produce a runtime"
@@ -101,7 +101,7 @@ sequenceDiagram
 |---|---|---|---|
 | `accepted` | Durable receipt exists | The request is owned; no runtime claim yet | Open successor |
 | `starting` | Dispatch or startup attempt recorded | Runtime formation is in progress | Open successor |
-| `live` | Positive local PID plus fresh registry heartbeat, or fresh authoritative remote-provider evidence | Runtime is observable now | Open successor; interrupt if permitted |
+| `live` | Positive local child PID plus fresh supervisor heartbeat | Runtime is observable now | Open successor; interrupt if permitted |
 | `completed` | Backend terminal result and sealed collection metadata | Work ended successfully | Open successor |
 | `failed` | Backend or supervisor terminal failure evidence | Work ended unsuccessfully | Open successor |
 | `cancelled` | Explicit cancellation reason and actor | Work was intentionally stopped | Open successor |
@@ -165,6 +165,18 @@ Beacon and native surfaces show the same canonical object:
 - tokens, elapsed time, cost, and budget;
 - one obvious **Open successor** action.
 
+The receipt freezes predecessor identity, purpose, and observed terminal state at
+admission. Collection never rebuilds lineage from a mutable or archived source
+session. The same receipt also owns the requested budget and final
+backend-reported token/cost telemetry, so accounting survives daemon restart and
+in-memory spawner eviction. An idempotent replay that races admission waits for
+the owning admission fact; it does not emit `202` with an empty successor.
+Lifecycle and telemetry finalize through one compare-and-set: a late backend
+result cannot rewrite a terminal owner or attach accounting to a rejected
+transition. Likewise, `unknown` returns to `live` only when the receipt store
+itself validates a positive PID and a non-future supervisor heartbeat younger
+than the shared freshness window. Route-level belief is not authority.
+
 Decorative maritime motion is secondary. A working row may shimmer left to
 right, carry a small wave, or rotate a ship's wheel while—and only while—the
 plain state is `starting` or `live`. Reduced-motion mode removes the animation.
@@ -183,3 +195,6 @@ Nautical verbs may accompany exact state text, but never replace it.
   worktree ID, claims, transcript, and UI must all name the same directory.
 - Terminal collection is immutable. Resumption creates a linked successor; it
   does not mutate the predecessor transcript.
+- `unknown` may return to `live` only when a direct child PID and fresh
+  supervisor heartbeat are observed again. A terminal receipt never reports
+  `live`, even if a recently-completed process record is still cached.

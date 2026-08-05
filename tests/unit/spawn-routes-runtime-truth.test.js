@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import Fastify from 'fastify';
 import { chmodSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 const mockSpawnViaCliTube = jest.fn();
@@ -46,11 +46,16 @@ function makeCostTracker() {
 }
 
 function mockCoordinationFetch() {
-  return jest.fn().mockResolvedValue({
-    ok: true,
-    status: 200,
-    json: async () => ({ success: true }),
-    text: async () => 'OK',
+  return jest.fn(async (input) => {
+    const data = String(input).includes('/sugar/begin')
+      ? { success: true, sessionId: 'session-route-runtime-truth' }
+      : { success: true };
+    return {
+      ok: true,
+      status: 200,
+      json: async () => data,
+      text: async () => JSON.stringify(data),
+    };
   });
 }
 
@@ -62,7 +67,7 @@ function installFakeCli(dir, name) {
   return path;
 }
 
-async function buildApp({ transcripts, costTracker }) {
+async function buildApp({ db, transcripts, costTracker }) {
   const app = Fastify();
   const spawner = createSpawner({
     transcripts,
@@ -73,6 +78,7 @@ async function buildApp({ transcripts, costTracker }) {
 
   await app.register(spawnPlugin, {
     deps: {
+      db,
       spawner,
       costTracker,
       metrics: { errors: 0 },
@@ -98,7 +104,9 @@ describe('spawn route effective runtime truth with real preflight', () => {
   beforeEach(() => {
     db = createTestDb();
     transcripts = createTranscripts(db);
-    tmp = mkdtempSync(join(tmpdir(), 'pd-route-runtime-truth-'));
+    const scratchRoot = join(homedir(), 'coding', 'tmp');
+    mkdirSync(scratchRoot, { recursive: true });
+    tmp = mkdtempSync(join(scratchRoot, 'pd-route-runtime-truth-'));
     originalFetch = global.fetch;
     originalUseCliBackend = process.env.PD_USE_CLI_BACKEND;
     originalCliBinDirs = process.env.PD_CLI_BIN_DIRS;
@@ -131,7 +139,7 @@ describe('spawn route effective runtime truth with real preflight', () => {
   test('forced cli:codex route keeps requested high-tier model and effective codex sentinel', async () => {
     const requestedHighModel = resolveModel({ backend: 'claude', tier: 'high' });
     const costTracker = makeCostTracker();
-    const app = await buildApp({ transcripts, costTracker });
+    const app = await buildApp({ db, transcripts, costTracker });
 
     try {
       const spawnRes = await app.inject({

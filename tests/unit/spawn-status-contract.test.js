@@ -27,7 +27,7 @@ describe('spawn status contract coverage', () => {
       [
         'docs/openapi.yaml /spawn status enum',
         readRepoFile('docs/openapi.yaml'),
-        /enum: \[running, completed, failed, killed, over_budget\]/,
+        /enum: \[running, completed, failed, killed, over_budget, unknown\]/,
       ],
     ];
 

@@ -5550,13 +5550,22 @@ components:
   schemas:
     AgentRunReceipt:
       type: object
-      required: [schema, id, kind, requestHash, status, createdAt, updatedAt]
+      required: [schema, id, kind, requestHash, predecessor, status, createdAt, updatedAt, budgetUsd, telemetry]
       properties:
         schema: { const: pd.agent-run-receipt.v1 }
         id: { type: string }
         kind: { type: string, enum: [spawn, session-continuation] }
         requestHash: { type: string, pattern: '^[a-f0-9]{64}$' }
         predecessorSessionId: { type: [string, 'null'] }
+        predecessor:
+          anyOf:
+            - type: 'null'
+            - type: object
+              required: [sessionId, purpose, status]
+              properties:
+                sessionId: { type: string }
+                purpose: { type: [string, 'null'] }
+                status: { type: [string, 'null'] }
         successorSessionId: { type: [string, 'null'] }
         successorAgentId: { type: [string, 'null'] }
         transcriptId: { type: [string, 'null'] }
@@ -5567,11 +5576,23 @@ components:
         updatedAt: { type: integer }
         startedAt: { type: [integer, 'null'] }
         completedAt: { type: [integer, 'null'] }
+        budgetUsd: { type: [number, 'null'] }
+        telemetry:
+          anyOf:
+            - type: 'null'
+            - type: object
+              required: [inputTokens, outputTokens, costUsd, rateMode]
+              properties:
+                inputTokens: { type: integer, minimum: 0 }
+                cachedInputTokens: { type: integer, minimum: 0 }
+                outputTokens: { type: integer, minimum: 0 }
+                costUsd: { type: number, minimum: 0 }
+                rateMode: { type: string, enum: [exact, estimated] }
         error: { type: [string, 'null'] }
 
     SessionContinuationEnvelope:
       type: object
-      required: [success, accepted, terminal, outcomeUnknown, status, predecessor, successor, receipt, monitorUrl]
+      required: [success, accepted, terminal, outcomeUnknown, status, predecessor, successor, receipt, monitorUrl, accounting]
       properties:
         success: { type: boolean }
         accepted: { type: boolean }
@@ -5609,6 +5630,18 @@ components:
         monitorUrl: { type: string }
         cancelUrl: { type: [string, 'null'] }
         transcriptUrl: { type: [string, 'null'] }
+        accounting:
+          type: object
+          required: [budgetUsd, telemetry, evidence]
+          properties:
+            budgetUsd: { type: [number, 'null'] }
+            telemetry:
+              anyOf:
+                - type: 'null'
+                - type: object
+            evidence:
+              type: string
+              enum: [backend-reported-and-durable, not-yet-reported]
         liveness:
           anyOf:
             - type: 'null'
