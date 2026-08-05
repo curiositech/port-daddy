@@ -128,7 +128,7 @@ describe('spawn route effective runtime truth with real preflight', () => {
     if (tmp) rmSync(tmp, { recursive: true, force: true });
   });
 
-  test('forced cli:codex route keeps requested high-tier model and effective codex sentinel', async () => {
+  test('forced cli:codex route preserves runtime truth while failing closed on an unenforceable budget', async () => {
     const requestedHighModel = resolveModel({ backend: 'claude', tier: 'high' });
     const costTracker = makeCostTracker();
     const app = await buildApp({ transcripts, costTracker });
@@ -148,7 +148,7 @@ describe('spawn route effective runtime truth with real preflight', () => {
 
       expect(spawnRes.statusCode).toBe(200);
       expect(spawnRes.json()).toEqual(expect.objectContaining({
-        success: true,
+        success: false,
         backend: 'cli:codex',
         model: 'codex-cli',
         requestedBackend: 'claude',
@@ -156,18 +156,12 @@ describe('spawn route effective runtime truth with real preflight', () => {
         requestedModel: requestedHighModel,
         effectiveModel: 'codex-cli',
         backendOverrideSource: 'env',
+        budgetEnforcement: 'unsupported',
+        error: expect.stringMatching(/post-run telemetry is observation, not enforcement/),
       }));
 
-      const tx = transcripts.getTranscript(transcripts.listTranscripts()[0].id);
-      expect(tx).toEqual(expect.objectContaining({
-        backend: 'cli:codex',
-        model: 'codex-cli',
-        requested_backend: 'claude',
-        effective_backend: 'cli:codex',
-        requested_model: requestedHighModel,
-        effective_model: 'codex-cli',
-        backend_override_source: 'env',
-      }));
+      expect(mockSpawnViaCliTube).not.toHaveBeenCalled();
+      expect(transcripts.listTranscripts()).toHaveLength(0);
     } finally {
       await app.close();
     }

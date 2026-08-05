@@ -118,6 +118,12 @@ function lastClaudeEnv() {
   return claudeCalls[claudeCalls.length - 1][2].env;
 }
 
+function lastClaudeArgs() {
+  const claudeCalls = mockSpawnFn.mock.calls.filter(([cmd]) => String(cmd) === 'claude' || String(cmd).endsWith('/claude'));
+  if (!claudeCalls.length) throw new Error('No claude spawn call found');
+  return claudeCalls[claudeCalls.length - 1][1];
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   // These tests assert the claude-cli env-stripping logic by finding the spawn
@@ -220,6 +226,24 @@ describe('claude-cli — stdin is closed (stdio: ignore)', () => {
 
     const opts = claudeCalls[claudeCalls.length - 1][2];
     expect(opts.stdio).toEqual(['ignore', 'pipe', 'pipe']);
+  });
+});
+
+describe('claude-cli — provider-native hard budget', () => {
+  it('passes --max-budget-usd before the prompt', async () => {
+    const spawner = createSpawner();
+    const result = await spawner.spawn({
+      backend: 'claude-cli',
+      task: 'stay inside the budget',
+      budgetUsd: 0.5,
+    });
+
+    const args = lastClaudeArgs();
+    const budget = args.indexOf('--max-budget-usd');
+    expect(budget).toBeGreaterThan(-1);
+    expect(args[budget + 1]).toBe('0.5');
+    expect(args.at(-1)).toBe('stay inside the budget');
+    expect(result.budgetEnforcement).toBe('hard_enforced');
   });
 });
 

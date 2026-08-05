@@ -146,7 +146,7 @@ describe('spawner ↔ transcripts integration', () => {
       enforceTelemetryPolicy: true,
       enforceTranscriptPolicy: true,
       runnerOverrides: {
-        claude: async () => ({
+        'cli:claude-code': async () => ({
           output: 'Done under budget.',
           error: null,
           inputTokens: 1000,
@@ -155,8 +155,8 @@ describe('spawner ↔ transcripts integration', () => {
       },
     });
     const result = await spawner.spawn({
-      backend: 'claude',
-      model: 'claude-haiku-4-5',
+      backend: 'cli:claude-code',
+      model: 'claude-sonnet-4-6',
       identity: 'port-daddy:test:under-budget',
       task: 'finish cheaply',
       ship: 'budget-under',
@@ -164,6 +164,7 @@ describe('spawner ↔ transcripts integration', () => {
     });
 
     expect(result.status).toBe('completed');
+    expect(result.budgetEnforcement).toBe('hard_enforced');
     expect(result.error).toBeNull();
     expect(result.telemetry.costUsd).toBeCloseTo(0.0125);
 
@@ -184,7 +185,7 @@ describe('spawner ↔ transcripts integration', () => {
       enforceTelemetryPolicy: true,
       enforceTranscriptPolicy: true,
       runnerOverrides: {
-        claude: async () => ({
+        'cli:claude-code': async () => ({
           output: 'I finished the expensive work.',
           error: null,
           inputTokens: 10000,
@@ -193,8 +194,8 @@ describe('spawner ↔ transcripts integration', () => {
       },
     });
     const result = await spawner.spawn({
-      backend: 'claude',
-      model: 'claude-haiku-4-5',
+      backend: 'cli:claude-code',
+      model: 'claude-sonnet-4-6',
       identity: 'port-daddy:test:over-budget',
       task: 'finish expensively',
       ship: 'budget-over',
@@ -202,19 +203,20 @@ describe('spawner ↔ transcripts integration', () => {
     });
 
     expect(result.status).toBe('over_budget');
-    expect(result.error).toMatch(/exceeded hard budget cap/);
+    expect(result.budgetEnforcement).toBe('hard_enforced');
+    expect(result.error).toMatch(/provider-reported cost exceeded native hard budget/);
     expect(result.telemetry.costUsd).toBeCloseTo(0.154863);
 
     const rows = transcripts.listTranscripts({ ship: 'budget-over' });
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe('over_budget');
     expect(rows[0].cost_usd).toBeCloseTo(0.154863);
-    expect(rows[0].error).toMatch(/exceeded hard budget cap/);
+    expect(rows[0].error).toMatch(/provider-reported cost exceeded native hard budget/);
     const tx = transcripts.getTranscript(rows[0].id);
     expect(tx.cost_usd).toBeCloseTo(0.154863);
     expect(tx.messages.map((m) => m.content)).toEqual(expect.arrayContaining([
       'I finished the expensive work.',
-      expect.stringMatching(/\[error\] exceeded hard budget cap/),
+      expect.stringMatching(/\[error\] provider-reported cost exceeded native hard budget/),
     ]));
     expect(tx.outputs[0].type).toBe('noop');
   });

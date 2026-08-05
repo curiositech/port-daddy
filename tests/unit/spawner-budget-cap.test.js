@@ -97,7 +97,7 @@ describe('spawner hard budget cap edges', () => {
       enforceTelemetryPolicy: true,
       enforceTranscriptPolicy: true,
       runnerOverrides: {
-        claude: async () => ({
+        'cli:claude-code': async () => ({
           output: 'I used exactly the budget.',
           error: null,
           inputTokens: 1000,
@@ -107,8 +107,8 @@ describe('spawner hard budget cap edges', () => {
     });
 
     const result = await spawner.spawn({
-      backend: 'claude',
-      model: 'claude-haiku-4-5',
+      backend: 'cli:claude-code',
+      model: 'claude-sonnet-4-6',
       identity: 'port-daddy:test:exact-budget',
       task: 'match the cap',
       ship: 'budget-exact',
@@ -116,6 +116,7 @@ describe('spawner hard budget cap edges', () => {
     });
 
     expect(result.status).toBe('completed');
+    expect(result.budgetEnforcement).toBe('hard_enforced');
     expect(result.error).toBeNull();
     expect(result.telemetry.costUsd).toBeCloseTo(0.05);
 
@@ -132,7 +133,7 @@ describe('spawner hard budget cap edges', () => {
       enforceTelemetryPolicy: true,
       enforceTranscriptPolicy: true,
       runnerOverrides: {
-        claude: async () => ({
+        'cli:claude-code': async () => ({
           output: 'Large expensive run finished.',
           error: null,
           inputTokens: 9000000,
@@ -142,8 +143,8 @@ describe('spawner hard budget cap edges', () => {
     });
 
     const result = await spawner.spawn({
-      backend: 'claude',
-      model: 'claude-haiku-4-5',
+      backend: 'cli:claude-code',
+      model: 'claude-sonnet-4-6',
       identity: 'port-daddy:test:large-over-budget',
       task: 'spend a lot',
       ship: 'budget-large-over',
@@ -151,6 +152,7 @@ describe('spawner hard budget cap edges', () => {
     });
 
     expect(result.status).toBe('over_budget');
+    expect(result.budgetEnforcement).toBe('hard_enforced');
     expect(result.error).toContain('$1234.567891');
     expect(result.error).toContain('$12.3456');
     expect(result.telemetry.costUsd).toBeCloseTo(1234.567891);
@@ -173,7 +175,7 @@ describe('spawner hard budget cap edges', () => {
       enforceTelemetryPolicy: true,
       enforceTranscriptPolicy: true,
       runnerOverrides: {
-        claude: async () => ({
+        'cli:claude-code': async () => ({
           output: 'The backend returned token counts but persistence omitted cost.',
           error: null,
           inputTokens: 800,
@@ -183,8 +185,8 @@ describe('spawner hard budget cap edges', () => {
     });
 
     const result = await spawner.spawn({
-      backend: 'claude',
-      model: 'claude-haiku-4-5',
+      backend: 'cli:claude-code',
+      model: 'claude-sonnet-4-6',
       identity: `port-daddy:test:${ship}`,
       task: 'avoid crashing on missing persisted cost',
       ship,
@@ -219,7 +221,7 @@ describe('spawner hard budget cap edges', () => {
       enforceTelemetryPolicy: true,
       enforceTranscriptPolicy: true,
       runnerOverrides: {
-        claude: async () => ({
+        'cli:claude-code': async () => ({
           output: 'No valid hard cap was supplied.',
           error: null,
           inputTokens: 800,
@@ -229,8 +231,8 @@ describe('spawner hard budget cap edges', () => {
     });
 
     const result = await spawner.spawn({
-      backend: 'claude',
-      model: 'claude-haiku-4-5',
+      backend: 'cli:claude-code',
+      model: 'claude-sonnet-4-6',
       identity: `port-daddy:test:${ship}`,
       task: 'ignore invalid cap',
       ship,
@@ -244,5 +246,34 @@ describe('spawner hard budget cap edges', () => {
     const [row] = transcripts.listTranscripts({ ship });
     expect(row.status).toBe('completed');
     expect(row.cost_usd).toBeCloseTo(0.02);
+  });
+
+  test('positive budgetUsd blocks before launch when the effective backend cannot enforce it', async () => {
+    const runner = jest.fn(async () => ({
+      output: 'This must never run.',
+      error: null,
+      inputTokens: 1,
+      outputTokens: 1,
+    }));
+    const spawner = createSpawner({
+      transcripts,
+      costTracker: exactCostTracker(0.01),
+      enforceTelemetryPolicy: true,
+      enforceTranscriptPolicy: true,
+      runnerOverrides: { claude: runner },
+    });
+
+    const result = await spawner.spawn({
+      backend: 'claude',
+      model: 'claude-haiku-4-5',
+      identity: 'port-daddy:test:unsupported-hard-budget',
+      task: 'do not launch',
+      budgetUsd: 1,
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.budgetEnforcement).toBe('unsupported');
+    expect(result.error).toMatch(/post-run telemetry is observation, not enforcement/);
+    expect(runner).not.toHaveBeenCalled();
   });
 });
