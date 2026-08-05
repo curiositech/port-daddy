@@ -917,6 +917,10 @@ describe('reasoning-effort fidelity (current Claude Code request surface)', () =
 });
 
 describe('Squid bridge deadline handling', () => {
+  const SQUID_DEADLINE_MIN_MS = 1_000;
+  const SQUID_DEADLINE_MAX_MS = 21_600_000;
+
+
   test('resolveSquidBridgeConfig omits deadlineMs when neither CLI flag nor env var is set', () => {
     const oldEnv = process.env.PD_SQUID_DEADLINE_MS;
     try {
@@ -957,29 +961,56 @@ describe('Squid bridge deadline handling', () => {
     }
   });
 
-  test('invalid --deadline-ms values fail closed', () => {
-    expect(() => resolveSquidBridgeConfig({ 'deadline-ms': '0' })).toThrow(
-      'must be a positive number',
+  test('--deadline-ms rejects zero, negatives, decimals, whitespace, suffixes, and non-numeric text', () => {
+    for (const bad of ['0', '-1000', '1000.5', ' 1000', '1000 ', '1000ms', 'not-a-number', 'NaN', 'Infinity', '+1000', '1_000']) {
+      expect(() => resolveSquidBridgeConfig({ 'deadline-ms': bad })).toThrow('--deadline-ms');
+      expect(() => resolveSquidBridgeConfig({ 'deadline-ms': bad })).toThrow(
+        `${SQUID_DEADLINE_MIN_MS}-${SQUID_DEADLINE_MAX_MS}`,
+      );
+    }
+  });
+
+  test('--deadline-ms rejects values outside the inclusive [1000, 21600000] range', () => {
+    expect(() => resolveSquidBridgeConfig({ 'deadline-ms': '999' })).toThrow(
+      `${SQUID_DEADLINE_MIN_MS}-${SQUID_DEADLINE_MAX_MS}`,
     );
-    expect(() => resolveSquidBridgeConfig({ 'deadline-ms': '-1000' })).toThrow(
-      'must be a positive number',
-    );
-    expect(() => resolveSquidBridgeConfig({ 'deadline-ms': 'not-a-number' })).toThrow(
-      'must be a positive number',
+    expect(() => resolveSquidBridgeConfig({ 'deadline-ms': String(SQUID_DEADLINE_MAX_MS + 1) })).toThrow(
+      `${SQUID_DEADLINE_MIN_MS}-${SQUID_DEADLINE_MAX_MS}`,
     );
   });
 
-  test('invalid PD_SQUID_DEADLINE_MS environment variable fails closed', () => {
+  test('--deadline-ms accepts the inclusive boundary values', () => {
+    expect(resolveSquidBridgeConfig({ 'deadline-ms': String(SQUID_DEADLINE_MIN_MS) }).deadlineMs).toBe(SQUID_DEADLINE_MIN_MS);
+    expect(resolveSquidBridgeConfig({ 'deadline-ms': String(SQUID_DEADLINE_MAX_MS) }).deadlineMs).toBe(SQUID_DEADLINE_MAX_MS);
+  });
+
+  test('invalid PD_SQUID_DEADLINE_MS environment variable fails closed and names the env var', () => {
     const oldEnv = process.env.PD_SQUID_DEADLINE_MS;
     try {
-      process.env.PD_SQUID_DEADLINE_MS = 'invalid';
-      expect(() => resolveSquidBridgeConfig({})).toThrow(
-        'PD_SQUID_DEADLINE_MS must be a positive number',
-      );
+      for (const bad of ['invalid', '0', '-5000', '3.5', '5000ms', ' 5000']) {
+        process.env.PD_SQUID_DEADLINE_MS = bad;
+        expect(() => resolveSquidBridgeConfig({})).toThrow('PD_SQUID_DEADLINE_MS');
+        expect(() => resolveSquidBridgeConfig({})).toThrow(
+          `${SQUID_DEADLINE_MIN_MS}-${SQUID_DEADLINE_MAX_MS}`,
+        );
+      }
     } finally {
       if (oldEnv) process.env.PD_SQUID_DEADLINE_MS = oldEnv;
       else delete process.env.PD_SQUID_DEADLINE_MS;
     }
+  });
+
+  test('legacy --timeout and --timeout-ms are rejected with a migration message, not silently ignored', () => {
+    expect(() => resolveSquidBridgeConfig({ timeout: '5000' })).toThrow('--timeout is no longer supported');
+    expect(() => resolveSquidBridgeConfig({ timeout: '5000' })).toThrow('--deadline-ms');
+    expect(() => resolveSquidBridgeConfig({ 'timeout-ms': '5000' })).toThrow('--timeout-ms is no longer supported');
+    expect(() => resolveSquidBridgeConfig({ 'timeout-ms': '5000' })).toThrow('--deadline-ms');
+  });
+
+  test('legacy --timeout is rejected even when a valid --deadline-ms is also present', () => {
+    expect(() => resolveSquidBridgeConfig({ timeout: '5000', 'deadline-ms': '5000' })).toThrow(
+      '--timeout is no longer supported',
+    );
   });
 
   test('deadline propagates through to Codex spawn in JSON requests', async () => {
