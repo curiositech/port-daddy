@@ -11,7 +11,14 @@ import { DEFAULT_PORT_FILE, DEFAULT_SOCK } from './paths.js';
  * file is the ONLY place the literal may appear in runtime source, enforced by
  * `tests/unit/no-hardcoded-daemon-port.test.js`.
  */
-export const DEFAULT_DAEMON_PORT = 9876;
+export const PREFERRED_DAEMON_PORT = 9876;
+
+/**
+ * @deprecated Startup/allocator code should use {@link PREFERRED_DAEMON_PORT};
+ * connection code must use a published endpoint. Retained only while legacy
+ * consumers are migrated off the old name.
+ */
+export const DEFAULT_DAEMON_PORT = PREFERRED_DAEMON_PORT;
 
 /**
  * @deprecated Prefer {@link DEFAULT_DAEMON_PORT}. Retained as a back-compat
@@ -20,6 +27,105 @@ export const DEFAULT_DAEMON_PORT = 9876;
 export const CANONICAL_TCP_PORT = DEFAULT_DAEMON_PORT;
 export const LOOPBACK_TCP_HOST = process.env.PORT_DADDY_TCP_HOST?.trim() || '127.0.0.1';
 
+const PORT_RE = /^[0-9]+$/;
+
+export type PublishedDaemonPortSource = 'env' | 'port-file';
+
+export interface PublishedDaemonPort {
+  port: number;
+  source: PublishedDaemonPortSource;
+  portFile: string | null;
+}
+
+export class DaemonEndpointDiscoveryError extends Error {
+  readonly code: 'INVALID_PUBLISHED_PORT' | 'ENDPOINT_NOT_PUBLISHED' | 'UNSUPPORTED_DAEMON_URL';
+
+  constructor(
+    code: DaemonEndpointDiscoveryError['code'],
+    message: string,
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
+    this.name = 'DaemonEndpointDiscoveryError';
+    this.code = code;
+  }
+}
+
+export interface DaemonPortDiscoveryOptions {
+  env?: NodeJS.ProcessEnv;
+  portFile?: string;
+  readTextFile?: (path: string) => string;
+}
+
+function parsePublishedPort(raw: string, sourceLabel: string): number {
+  const value = raw.trim();
+  if (!PORT_RE.test(value)) {
+    throw new DaemonEndpointDiscoveryError(
+      'INVALID_PUBLISHED_PORT',
+      `${sourceLabel} must contain one decimal TCP port and nothing else`,
+    );
+  }
+  const port = Number(value);
+  if (!Number.isSafeInteger(port) || port < 1024 || port > 65535) {
+    throw new DaemonEndpointDiscoveryError(
+      'INVALID_PUBLISHED_PORT',
+      `${sourceLabel} published out-of-range TCP port ${value}; expected 1024..65535`,
+    );
+  }
+  return port;
+}
+
+/**
+ * Discover a TCP port that the selected daemon actually published.
+ *
+ * This deliberately has no preferred-port fallback. The preferred port is an
+ * allocator seed; it is not evidence that a daemon bound there. Missing
+ * publication returns `null`; malformed explicit state throws so callers do
+ * not silently connect to an unrelated listener.
+ */
+export function discoverPublishedDaemonPort(options: DaemonPortDiscoveryOptions = {}): PublishedDaemonPort | null {
+  const env = options.env ?? process.env;
+  const envPort = env.PORT_DADDY_PORT?.trim();
+  if (envPort) {
+    return {
+      port: parsePublishedPort(envPort, 'PORT_DADDY_PORT'),
+      source: 'env',
+      portFile: null,
+    };
+  }
+
+  const portFile = options.portFile ?? env.PORT_DADDY_PORT_FILE ?? DEFAULT_PORT_FILE;
+  const readTextFile = options.readTextFile ?? ((path: string) => readFileSync(path, 'utf-8'));
+  let raw: string;
+  try {
+    raw = readTextFile(portFile);
+  } catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : null;
+    if (code === 'ENOENT') return null;
+    throw new DaemonEndpointDiscoveryError(
+      'INVALID_PUBLISHED_PORT',
+      `Could not read the selected daemon port file at ${portFile}`,
+      { cause: error },
+    );
+  }
+  return {
+    port: parsePublishedPort(raw, `Selected daemon port file ${portFile}`),
+    source: 'port-file',
+    portFile,
+  };
+}
+
+export function requirePublishedDaemonPort(options: DaemonPortDiscoveryOptions = {}): PublishedDaemonPort {
+  const published = discoverPublishedDaemonPort(options);
+  if (published) return published;
+  const env = options.env ?? process.env;
+  const portFile = options.portFile ?? env.PORT_DADDY_PORT_FILE ?? DEFAULT_PORT_FILE;
+  throw new DaemonEndpointDiscoveryError(
+    'ENDPOINT_NOT_PUBLISHED',
+    `No selected daemon TCP endpoint is published. Set PORT_DADDY_URL, set PORT_DADDY_PORT, or start a daemon that writes ${portFile}.`,
+  );
+}
+
 /**
  * Resolve the daemon's TCP port.
  *
@@ -27,26 +133,15 @@ export const LOOPBACK_TCP_HOST = process.env.PORT_DADDY_TCP_HOST?.trim() || '127
  *   1. `PORT_DADDY_PORT` env var (explicit override)
  *   2. The `~/.port-daddy/daemon.port` file the daemon writes on bind
  *      (override the path with `PORT_DADDY_PORT_FILE`)
- *   3. {@link DEFAULT_DAEMON_PORT}
+ *   3. {@link PREFERRED_DAEMON_PORT} (legacy compatibility only)
+ *
+ * @deprecated Connection code must use {@link requirePublishedDaemonPort} or
+ * {@link resolveDaemonTarget}. This wrapper retains the old preferred-port
+ * fallback only until its remaining callers are migrated.
  */
 export function resolveDaemonPort(portFile = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE): number {
-  const envPort = process.env.PORT_DADDY_PORT?.trim();
-  if (envPort) {
-    const parsed = Number.parseInt(envPort, 10);
-    if (Number.isInteger(parsed) && parsed >= 1024 && parsed <= 65535) {
-      return parsed;
-    }
-  }
-  try {
-    const raw = readFileSync(portFile, 'utf-8').trim();
-    const parsed = Number.parseInt(raw, 10);
-    if (Number.isInteger(parsed) && parsed >= 1024 && parsed <= 65535) {
-      return parsed;
-    }
-  } catch {
-    // Fall through to the canonical preferred port.
-  }
-  return DEFAULT_DAEMON_PORT;
+  const published = discoverPublishedDaemonPort({ portFile });
+  return published?.port ?? PREFERRED_DAEMON_PORT;
 }
 
 /**
@@ -57,11 +152,17 @@ export const readDaemonPort = resolveDaemonPort;
 /**
  * Resolve the daemon's base TCP URL.
  *
- * Resolution order: `PORT_DADDY_URL` env var → `http://<host>:<resolveDaemonPort()>`.
+ * Resolution order: explicit `PORT_DADDY_URL` → selected daemon's published
+ * port. This strict resolver never guesses the preferred startup port.
  */
-export function resolveDaemonUrl(explicitUrl = process.env.PORT_DADDY_URL): string {
-  if (explicitUrl && explicitUrl.trim()) return explicitUrl;
-  return `http://${LOOPBACK_TCP_HOST}:${resolveDaemonPort()}`;
+export function resolveDaemonUrl(
+  explicitUrl = process.env.PORT_DADDY_URL,
+  options: DaemonPortDiscoveryOptions = {},
+): string {
+  if (explicitUrl && explicitUrl.trim()) return explicitUrl.trim();
+  const env = options.env ?? process.env;
+  const host = env.PORT_DADDY_TCP_HOST?.trim() || LOOPBACK_TCP_HOST;
+  return `http://${host}:${requirePublishedDaemonPort(options).port}`;
 }
 
 /**
@@ -69,11 +170,23 @@ export function resolveDaemonUrl(explicitUrl = process.env.PORT_DADDY_URL): stri
  */
 export const getDaemonTcpUrl = resolveDaemonUrl;
 
-export function resolveDaemonTcpTarget(explicitUrl = process.env.PORT_DADDY_URL): { host: string; port: number } {
-  const url = new URL(resolveDaemonUrl(explicitUrl));
+export function resolveDaemonTcpTarget(
+  explicitUrl = process.env.PORT_DADDY_URL,
+  options: DaemonPortDiscoveryOptions = {},
+): { host: string; port: number } {
+  const url = new URL(resolveDaemonUrl(explicitUrl, options));
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new DaemonEndpointDiscoveryError(
+      'UNSUPPORTED_DAEMON_URL',
+      `PORT_DADDY_URL must use http: or https:, got ${url.protocol}`,
+    );
+  }
+  const port = url.port
+    ? parsePublishedPort(url.port, 'PORT_DADDY_URL')
+    : url.protocol === 'https:' ? 443 : 80;
   return {
     host: url.hostname,
-    port: Number.parseInt(url.port, 10) || DEFAULT_DAEMON_PORT,
+    port,
   };
 }
 
@@ -101,7 +214,8 @@ export type DaemonTarget = SocketTarget | TcpTarget;
  *   1. `PORT_DADDY_SOCK` env  → explicit Unix socket (wins even over a URL)
  *   2. `PORT_DADDY_URL`  env  → explicit TCP URL
  *   3. the daemon's socket file ({@link DEFAULT_SOCK}) exists → Unix socket
- *   4. loopback TCP from the port file (or {@link DEFAULT_DAEMON_PORT})
+ *   4. loopback TCP from the selected daemon's published port file
+ *   5. otherwise fail closed with ENDPOINT_NOT_PUBLISHED (never guess)
  *
  * `env` and `fileExists` are injectable so callers/tests are deterministic
  * regardless of whether a real socket file happens to exist on the box.
@@ -109,10 +223,12 @@ export type DaemonTarget = SocketTarget | TcpTarget;
 export function resolveDaemonTarget(
   env: NodeJS.ProcessEnv = process.env,
   fileExists: (path: string) => boolean = existsSync,
+  options: Omit<DaemonPortDiscoveryOptions, 'env'> = {},
 ): DaemonTarget {
-  if (env.PORT_DADDY_FORCE_TCP === '1') return resolveDaemonTcpTarget(env.PORT_DADDY_URL);
+  const discoveryOptions: DaemonPortDiscoveryOptions = { ...options, env };
+  if (env.PORT_DADDY_FORCE_TCP === '1') return resolveDaemonTcpTarget(env.PORT_DADDY_URL, discoveryOptions);
   if (env.PORT_DADDY_SOCK) return { socketPath: env.PORT_DADDY_SOCK };
-  if (env.PORT_DADDY_URL) return resolveDaemonTcpTarget(env.PORT_DADDY_URL);
+  if (env.PORT_DADDY_URL) return resolveDaemonTcpTarget(env.PORT_DADDY_URL, discoveryOptions);
   if (fileExists(DEFAULT_SOCK)) return { socketPath: DEFAULT_SOCK };
-  return resolveDaemonTcpTarget(env.PORT_DADDY_URL);
+  return resolveDaemonTcpTarget(env.PORT_DADDY_URL, discoveryOptions);
 }
