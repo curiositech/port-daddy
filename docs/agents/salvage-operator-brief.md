@@ -47,23 +47,16 @@ This agent inherits the user-level **directory ownership rule** (`~/.claude/proj
 
 ## Environment / dependencies
 
-- Daemon at `localhost:9876`
+- A selected Port Daddy profile whose published endpoint resolves successfully;
+  the agent must not assume a port number
 - `pd salvage triage` and `pd salvage next` (PR #36)
 - `scripts/salvage-envelope.mjs` (PR #38)
 - ADR-0028 (the contract)
 
-## Spawn command (once PR #36 merges)
+## Scheduling
 
-```bash
-pd spawn \
-  --identity port-daddy:salvage-operator \
-  --backend claude-cli \
-  --telos "Drain salvage yard to <20 entries applying resume contract from ADR-0028" \
-  --schedule '*/30 * * * *' \
-  --prompt-file docs/agents/salvage-operator-brief.md
-```
-
-Or as a fleet entry in `pd-fleet.yml`:
+Run the operator as a fleet entry. A one-shot spawn does not own a cron
+schedule and must not be presented as if it does:
 
 ```yaml
 agents:

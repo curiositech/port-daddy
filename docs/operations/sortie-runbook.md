@@ -40,8 +40,9 @@ and metadata. Read that before guessing.
 The preflight gate (`lib/spawn-preflight.ts`) refuses a launch when any of:
 
 1. **`Cost tracker unavailable; refusing unmetered agent launch.`**
-   The daemon's cost tracker isn't wired. Restart the daemon
-   (`pd restart`) and re-check `pd status` for runtime degradation.
+   The daemon's cost tracker isn't wired. Use FleetBar to inspect and restart
+   the selected stable daemon, or rebuild the selected named development
+   daemon, then re-check `pd status` for runtime degradation.
 
 2. **`A positive budget ceiling is required for every agentic launch.`**
    The CLI requires `--budget <usd>` with a positive number. Even a sub-cent
@@ -104,14 +105,19 @@ If it lands in `blocked`, re-read the matrix above.
 ## Useful raw HTTP
 
 ```bash
+# Select the stable daemon or a named feature daemon. The exported URL is the
+# endpoint that profile actually published; it may not use the preferred port.
+eval "$(pd use stable)"
+: "${PORT_DADDY_URL:?pd use did not publish a daemon URL}"
+
 # Health
-curl -s http://localhost:9876/health | jq
+curl -s "${PORT_DADDY_URL}/health" | jq
 
 # Wallet (project daily ceiling lives here)
-curl -s http://localhost:9876/wallets/<project> | jq '.wallet.budgetUsdPerDay'
+curl -s "${PORT_DADDY_URL}/wallets/<project>" | jq '.wallet.budgetUsdPerDay'
 
 # All sorties, raw
-curl -s http://localhost:9876/sorties?limit=50 | jq '.sorties[] | {id, status, error}'
+curl -s "${PORT_DADDY_URL}/sorties?limit=50" | jq '.sorties[] | {id, status, error}'
 ```
 
 ## Source map
