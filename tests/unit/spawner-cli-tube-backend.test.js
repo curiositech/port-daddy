@@ -983,6 +983,65 @@ describe('spawnViaCliTube — failure paths', () => {
   });
 });
 
+describe('spawnViaCliTube — no deadline (absent timeoutMs)', () => {
+  test('schedules neither a termination timer nor a process-tree poller', async () => {
+    jest.useFakeTimers();
+    try {
+      const child = fakeChild({ stdout: 'still running', exitCode: 0, neverClose: true });
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi' }); // no timeoutMs
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // No termination timer, no 100ms process-tree poller.
+      expect(jest.getTimerCount()).toBe(0);
+      // No `ps` process-tree collection either — that bookkeeping only exists
+      // to feed the kill path, which never runs without a deadline.
+      expect(mockExecFileSync).not.toHaveBeenCalled();
+
+      // Advance virtual time well past the old hidden 5-minute default.
+      // Nothing should fire: no SIGTERM, no new timers.
+      await jest.advanceTimersByTimeAsync(10 * 60 * 1000);
+      expect(child.kill).not.toHaveBeenCalled();
+      expect(jest.getTimerCount()).toBe(0);
+
+      child.emit('close', 0);
+      const res = await resultPromise;
+      expect(res.error).toBeNull();
+      expect(res.exitCode).toBe(0);
+      expect(res.output).toBe('still running');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('contrast: an explicit deadline DOES schedule a termination timer', async () => {
+    jest.useFakeTimers();
+    try {
+      const child = fakeChild({ neverClose: true });
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 1000 });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(jest.getTimerCount()).toBeGreaterThan(0);
+
+      await jest.advanceTimersByTimeAsync(1000);
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+
+      child.emit('close', -1);
+      const res = await resultPromise;
+      expect(res.error).toContain('agy timed out after 1000ms');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
 describe('createCliTubeBackend', () => {
   test('binds to a specific cli and passes through other options', async () => {
     mockSpawn.mockReturnValue(fakeChild({ stdout: 'codex says hi', exitCode: 0 }));
