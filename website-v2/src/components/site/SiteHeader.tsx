@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { DocsSearch } from "@/components/docs/DocsSearch";
 import { openDocsSearch } from "@/components/docs/docsSearchEvents";
 import { useTheme } from "@/lib/theme-context";
+import { AccountChip } from "./AccountChip";
 import { PageContainer, Wordmark } from "./primitives";
 import { useHeroWordmark } from "@/lib/hero-brand-context";
 
@@ -23,6 +24,8 @@ type NavItem = {
   badge?: string;
   featured?: boolean;
   className?: string;
+  /** Extra classes on this item's row inside the "More" dropdown. */
+  menuClassName?: string;
 };
 
 const PRIMARY_NAV_ITEMS = [
@@ -32,9 +35,30 @@ const PRIMARY_NAV_ITEMS = [
   { label: "Scout", href: "/scout", end: false },
   { label: "Examples", href: "/examples", end: false },
   { label: "Blog", href: "/blog", end: false },
-  { label: "Cryptography", href: "/security", end: false },
-  { label: "The Big Idea", href: "/manifesto", end: true },
+  // The tail of the row folds into "More" until the viewport is ultra-wide:
+  // below ~1800px the centered nav otherwise collides with the search box and
+  // account chip pinned to the right column (items truncate instead of wrap).
+  {
+    label: "Cryptography",
+    href: "/security",
+    end: false,
+    className: "hidden min-[1800px]:inline-flex",
+    menuClassName: "min-[1800px]:hidden",
+  },
+  {
+    label: "The Big Idea",
+    href: "/manifesto",
+    end: true,
+    className: "hidden min-[1800px]:inline-flex",
+    menuClassName: "min-[1800px]:hidden",
+  },
 ] satisfies readonly NavItem[];
+
+// Primary-row items that fold into the "More" dropdown on narrower desktops
+// (their menuClassName hides the duplicate row once they are inline again).
+const FOLDING_PRIMARY_ITEMS: readonly NavItem[] = PRIMARY_NAV_ITEMS.filter(
+  (item) => item.menuClassName,
+);
 
 // Secondary destinations live behind the "More" dropdown to keep the top bar
 // uncrowded. Docs dropped out of the primary row but stays reachable here.
@@ -46,6 +70,13 @@ const OVERFLOW_NAV_ITEMS = [
   { label: "Library", href: "/library", end: false },
   { label: "Landscape", href: "/landscape", end: false },
 ] satisfies readonly NavItem[];
+
+// Everything the "More" popover lists: folded primary items first (visible
+// only while folded), then the permanent overflow set.
+const MORE_MENU_ITEMS: readonly NavItem[] = [
+  ...FOLDING_PRIMARY_ITEMS,
+  ...OVERFLOW_NAV_ITEMS,
+];
 
 const NAV_ITEMS: readonly NavItem[] = [
   ...PRIMARY_NAV_ITEMS,
@@ -134,7 +165,7 @@ function OverflowNavMenu() {
           sideOffset={8}
           className="z-[120] grid min-w-[14rem] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] shadow-[var(--shadow-brutal)]"
         >
-          {OVERFLOW_NAV_ITEMS.map((item) => (
+          {MORE_MENU_ITEMS.map((item) => (
             <NavLink
               key={item.href}
               to={item.href}
@@ -142,6 +173,7 @@ function OverflowNavMenu() {
               className={({ isActive }) =>
                 [
                   "flex items-center justify-between gap-[var(--space-3)] border-2 px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]",
+                  item.menuClassName ?? "",
                   isActive
                     ? "border-[var(--border-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]"
                     : "border-transparent text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-base)] hover:text-[var(--text-primary)]",
@@ -269,7 +301,9 @@ export function SiteHeader() {
           <div className="flex min-w-0 items-center justify-end gap-[var(--space-2)] lg:col-start-3">
             <CompressedNavMenu />
 
-            <div className="hidden min-w-[14rem] max-w-[19rem] flex-1 2xl:block">
+            {/* min-w kept modest so the search box shrinks before it can ever
+                collide with the centered nav or the account chip. */}
+            <div className="hidden min-w-[11rem] max-w-[19rem] flex-1 shrink 2xl:block">
               <DocsSearch variant="compact" />
             </div>
 
@@ -291,6 +325,8 @@ export function SiteHeader() {
             >
               <Github size={16} />
             </a>
+
+            <AccountChip />
 
             <Button
               type="button"

@@ -50,11 +50,15 @@
 \node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
       align=left,inner sep=6pt,
       below=20mm of defect,minimum width=110mm]
-  {{\bfseries Folk-theorem sustainability:}
-   \quad
-   $\dfrac{\delta \cdot \pi_C}{1 - \delta(1 - p_d)} \;\geq\; \pi_D$};
+  {{\bfseries Model-conditional sustainability:}
+   \quad $V_C=\dfrac{\pi_C-p_dL}{1-\delta(1-p_d)}\;\geq\;\pi_D$,
+   \quad $L=5(q_f-\mu)$};
 \end{tikzpicture}%
 }
-\caption{Cartel repeated-game node under the grim-trigger strategy. Each round a colluding member chooses between maintaining the floor $q_{\mathrm{floor}}$ or undercutting it by $\varepsilon$. Detection probability $p_d$ slashes the colluder; one-shot defection takes the $\pi_D$ gain once and forfeits future $\pi_C$ stream. The sustainability inequality on the right reduces to the closed-form threshold $p_d^\star$ used in Figure~\ref{fig:cartel-folk}.}
+\caption{Cartel repeated-game node under the supplied grim-trigger model. Each
+round a member maintains the floor or undercuts it by $\varepsilon$. Detection
+occurs before the current-round payoff and applies loss $L$; a one-shot deviation
+takes $\pi_D$ and ends the cartel stream. The displayed recurrence is specific to
+that event timing and payoff model.}
 \label{fig:cartel-game-inline}
 \end{figure}

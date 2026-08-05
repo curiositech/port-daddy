@@ -1729,3 +1729,38 @@ Always returns `200` — the report carries its own verdict (callers gate on `re
   }
 }
 ```
+
+---
+
+## Backend
+
+### GET /harness-adapters/continuation-matrix
+Read the honest N:N harness matrix. Returns catalog mechanics separately from fresh/stale daemon-witnessed spawn, live-control, native-resume, and handoff evidence; never a scalar compliance badge.
+
+---
+
+## Durable Agent Roster
+
+### GET /durable-agents
+List all durable agents in the roster.
+
+### GET /durable-agents/search
+Search durable agents using hybrid semantic and lexical (BM25) ranking.
+
+### GET /durable-agents/:id
+Read a single durable agent profile and its revision history.
+
+### POST /durable-agents
+Create/mint a new durable AgentNode profile.
+
+### POST /durable-agents/promote
+Promote a session or handoff into a durable roster identity.
+
+### PATCH /durable-agents/:id
+Update/append a new profile revision.
+
+### POST /durable-agents/:id/handoffs
+Attach a sanitized handoff episode or execution notes.
+
+### POST /durable-agents/:id/retire
+Retire a durable agent identity (soft-delete).

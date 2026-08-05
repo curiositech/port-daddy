@@ -6,9 +6,9 @@
 
 \begin{figure}[H]
 \centering
-\small
-\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{@{}p{6.7cm} p{2.2cm} p{6.0cm}@{}}
+\footnotesize
+\renewcommand{\arraystretch}{1.22}
+\begin{tabular}{@{}p{5.6cm} p{2.4cm} p{6.5cm}@{}}
 \toprule
 \textbf{Claim / mechanism} & \textbf{Maturity} & \textbf{Where it is argued} \\
 \midrule
@@ -26,7 +26,8 @@ Local non-forgeable identity & \DESIGNED &
   \S\ref{sec:identity}, Thm.~\ref{thm:necessity}; identities self-asserted today \\
 Cross-operator attestation & \VISION &
   \S\ref{sec:keystone}; named dependency owed to the market paper \\
-Reputation estimator (BT / Elo / TrueSkill / EigenTrust) & \DESIGNED$\to$\VISION &
+Reputation estimator (BT / Elo / TrueSkill / EigenTrust) &
+  \shortstack[l]{\DESIGNED{} to\\[-1pt]\VISION} &
   \S\ref{sec:substrate}; design specified, nothing scores yet \\
 Multi-dimensional reputation, neutral judges & \VISION &
   \S\ref{sec:adr0049}, Protos.~\ref{proto:judge},~\ref{proto:skill} \\
@@ -36,7 +37,7 @@ Tombstone revocation of outcomes & \DESIGNED &
   \S\ref{sec:revoke}, Proto.~\ref{proto:tombstone}; convergence is the market paper's job \\
 \bottomrule
 \end{tabular}
-\caption{\textbf{Maturity ledger for Paper 3.} Every major claim with its maturity
+\caption{\textbf{Maturity ledger for Chapter III.} Every major claim with its maturity
 label and the section that argues it (the reference system's component-level
 grounding is in Appendix~\ref{app:status}). The skeptical reader should read this
 first: most of the reputation \emph{substrate} is \DESIGNED-to-\VISION, which is

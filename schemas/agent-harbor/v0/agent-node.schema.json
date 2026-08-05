@@ -48,6 +48,10 @@
     "memoryScopeId": { "type": "string" },
     "policyId": { "type": "string" },
     "articlesSignature": { "type": "string", "description": "Signed Articles of Agreement reference; issued by the daemon, never self-declared." },
+    "profile": {
+      "$ref": "durable-agent-profile.schema.json",
+      "description": "Optional operator-authored durable roster profile. The AgentNode id remains the canonical principal; profile.slug is only a human alias."
+    },
     "createdAt": { "type": "string", "minLength": 1 },
     "lastHeartbeatAt": { "type": ["string", "null"] },
     "lastEventAt": { "type": ["string", "null"] }

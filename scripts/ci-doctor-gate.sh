@@ -169,4 +169,15 @@ if ! "$CLI_BIN" doctor --ci; then
   exit 1
 fi
 
+# 4. HONESTY (3.26.2): `pd doctor` against a DOWN daemon must EXIT NON-ZERO. Previously a
+#    dead daemon was only a WARN, so `pd doctor --ci/--json` exited 0 over a corpse — a green
+#    build atop a dead daemon. Point doctor at a port with no daemon and require a failure.
+DEAD_URL="http://127.0.0.1:59991"
+echo "Running: pd doctor --ci against a DEAD daemon at $DEAD_URL (must fail)"
+if PORT_DADDY_URL="$DEAD_URL" "$CLI_BIN" doctor --ci >/dev/null 2>&1; then
+  echo "FAIL: pd doctor --ci exited 0 while the daemon was unreachable — the exit-code lie is back" >&2
+  exit 1
+fi
+echo "OK: pd doctor gates exit non-zero when the daemon is down"
+
 echo "Doctor gate PASSED"

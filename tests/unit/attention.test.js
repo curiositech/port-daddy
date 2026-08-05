@@ -11,7 +11,7 @@ import { createMessaging } from '../../lib/messaging.js';
 import { createAttention } from '../../lib/attention.js';
 import { createTupleSpace } from '../../lib/tuples.js';
 import { createParley } from '../../lib/parley.js';
-import { renderAttentionLinework } from '../../cli/commands/attention.js';
+import { rankAttentionSuggestions, renderAttentionLinework } from '../../cli/commands/attention.js';
 
 function setup() {
   const db = createTestDb();
@@ -22,6 +22,78 @@ function setup() {
 }
 
 describe('attention.compose', () => {
+  test('empty attention recommends concrete, ranked watches instead of a channel placeholder', () => {
+    const suggestions = rankAttentionSuggestions([
+      {
+        logicalName: 'fleet:events',
+        physicalName: 'fleet:events',
+        description: null,
+        scope: 'global',
+        activeCount: 22,
+        lastMessage: Date.now(),
+        active: true,
+        source: 'observed',
+      },
+      {
+        logicalName: 'review:verdict',
+        physicalName: 'wt:repo:worktree:review:verdict',
+        description: 'Reviewer verdicts for this worktree.',
+        scope: 'worktree',
+        activeCount: 3,
+        lastMessage: Date.now(),
+        active: true,
+        source: 'declared',
+      },
+      {
+        logicalName: 'inbox:someone-else',
+        physicalName: 'inbox:someone-else',
+        description: null,
+        scope: 'global',
+        activeCount: 99,
+        lastMessage: Date.now(),
+        active: true,
+        source: 'observed',
+      },
+    ]);
+
+    expect(suggestions.map((entry) => entry.channel)).toEqual([
+      'coordination:inconsistency',
+      'fleet:events',
+      'review:verdict',
+    ]);
+    expect(suggestions[0].command).toBe('pd attention --subscribe coordination:inconsistency');
+    expect(suggestions.some((entry) => entry.channel.startsWith('inbox:'))).toBe(false);
+
+    const rendered = renderAttentionLinework({
+      success: true,
+      agentId: 'agent-x',
+      items: [],
+      counts: { total: 0, inbox: 0, channels: 0, inboxUnreadRemaining: 0 },
+      subscriptions: [],
+      suggestions,
+    });
+    expect(rendered).toContain('watch coordination:inconsistency');
+    expect(rendered).toContain('pd attention --subscribe-recommended');
+    expect(rendered).not.toContain('<channel>');
+  });
+
+  test('already subscribed physical channels are not suggested again', () => {
+    const suggestions = rankAttentionSuggestions([
+      {
+        logicalName: 'review:verdict',
+        physicalName: 'wt:repo:worktree:review:verdict',
+        description: 'Reviewer verdicts.',
+        scope: 'worktree',
+        activeCount: 3,
+        lastMessage: Date.now(),
+        active: true,
+        source: 'declared',
+      },
+    ], ['wt:repo:worktree:coordination:inconsistency', 'wt:repo:worktree:review:verdict']);
+
+    expect(suggestions).toEqual([]);
+  });
+
   test('linework renders every item that compose marks read', () => {
     const now = Date.now();
     const items = Array.from({ length: 50 }, (_, index) => ({

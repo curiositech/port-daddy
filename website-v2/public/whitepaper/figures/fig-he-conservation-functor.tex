@@ -1,7 +1,8 @@
-% Conservation as a functor: conservative (single-unit) vs lax (multi-currency).
+% Conservation under composition: native-unit accounting vs valuation boundary.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
 \providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
@@ -12,63 +13,53 @@
 \resizebox{0.96\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
-  cat/.style={draw=hhebony,thick,rounded corners=4pt,inner sep=6pt,
-              minimum width=64mm,minimum height=44mm},
-  obj/.style={draw=hhebony,thick,fill=hhsand!30,circle,inner sep=1.5pt,
-              minimum size=8mm,font=\scriptsize},
-  fmap/.style={->,>=Latex,line width=1.4pt,draw=hhcobalt},
-  mor/.style={->,>=Latex,thick,draw=hhebony},
+  panel/.style={draw=hhebony,thick,rounded corners=4pt,inner sep=6pt,
+                minimum width=66mm,minimum height=46mm},
+  state/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
+                inner sep=3pt,minimum width=17mm,font=\scriptsize},
+  flow/.style={->,>=Latex,thick,draw=hhebony},
+  boundary/.style={->,>=Latex,line width=1.4pt,draw=hhcobalt},
 ]
 
-% ─── LEFT: single-unit-of-account federation = conservative functor ────
-\node[cat,fill=hhsand!30,label={[font=\bfseries\footnotesize]north:
-  Single unit of account}] (left) at (0,0) {};
-\node[obj] (h1) at (-12mm,8mm) {$H_1$};
-\node[obj] (h2) at (12mm,8mm)  {$H_2$};
-\node[obj] (fed) at (0,-10mm)  {$F$};
-\draw[mor] (h1) -- node[above,font=\scriptsize]{$\mathit{xfer}$} (h2);
-\draw[mor] (h1) -- (fed);
-\draw[mor] (h2) -- (fed);
+% ─── LEFT: native-unit trace ────────────────────────────────────────────
+\node[panel,fill=hhsand!30,label={[font=\bfseries\footnotesize]north:
+  One native unit}] (left) at (0,0) {};
+\node[state] (x) at (-20mm,7mm) {$x$};
+\node[state] (y) at (0,7mm) {$y$};
+\node[state] (z) at (20mm,7mm) {$z$};
+\draw[flow] (x) -- node[above,font=\scriptsize]{$f$} (y);
+\draw[flow] (y) -- node[above,font=\scriptsize]{$g$} (z);
 \node[font=\scriptsize\itshape,below=2mm of left.south,text=hhink,
       text width=58mm,align=center]
-  {$F(g\circ f)=F(g)\circ F(f)$\\ conservation \emph{preserved} (proven)};
+  {$\Delta(g\!\circ\!f)=\Delta(f)+\Delta(g)$\\
+   internal moves: $\Delta(f)=\Delta(g)=0$};
 
-% ─── RIGHT: multi-currency = lax functor, bounded by phi ───────────────
-\node[cat,fill=hhsand!30,right=34mm of left,
+% ─── RIGHT: cross-currency valuation boundary ─────────────────────────
+\node[panel,fill=hhsand!30,right=34mm of left,
   label={[font=\bfseries\footnotesize]north:
-  Multi-currency / non-fungible}] (right) {};
-\node[obj] (g1) at ($(right.center)+(-12mm,8mm)$) {$H_1$};
-\node[obj] (g2) at ($(right.center)+(12mm,8mm)$)  {$H_2$};
-\node[obj] (gfed) at ($(right.center)+(0,-10mm)$) {$F$};
-\draw[mor] (g1) -- node[above,font=\scriptsize]{$\mathit{xfer}$} (g2);
-\draw[mor] (g1) -- (gfed);
-\draw[mor] (g2) -- (gfed);
-% the coherence 2-cell, bounded by phi
-\node[draw=hhcobalt,thick,fill=hhpaper,circle,inner sep=1pt,
-      font=\scriptsize,minimum size=6mm] (cell)
-      at ($(right.center)+(0,1mm)$) {$\varphi$};
+  Heterogeneous units}] (right) {};
+\node[state] (u1) at ($(right.center)+(-20mm,7mm)$) {$a\,u_1$};
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+      font=\scriptsize,align=center] (val) at ($(right.center)+(0,7mm)$)
+      {valuation $v_t$\\at instant $t$};
+\node[state] (u2) at ($(right.center)+(20mm,7mm)$) {$b\,u_2$};
+\draw[boundary] (u1) -- (val);
+\draw[boundary] (val) -- (u2);
 \node[font=\scriptsize\itshape,below=2mm of right.south,text=hhink,
       text width=58mm,align=center]
-  {$F(g\circ f)\;\overset{\varphi}{\Rightarrow}\;F(g)\circ F(f)$\\
-   \emph{lax}: preserved only up to escrow-slack $\varphi$; coherence \emph{unproven}};
+  {record fees, slippage, and exposure separately\\
+   no unit-free global sum exists};
 
-% ─── The functor arrow between the worlds ──────────────────────────────
-\draw[fmap] (left.east) -- node[above,font=\bfseries\footnotesize]
-  {as units diverge} ($(right.west)$);
+\draw[boundary] (left.east) -- node[above,font=\bfseries\footnotesize,
+  fill=hhpaper,inner sep=2pt] {conversion introduces assumptions} (right.west);
 
 
 \end{tikzpicture}%
 }
-\caption{Conservation as a (lax) functor. Within a single unit of account the map
-$F:\mathbf{Harbor}\to\mathbf{Federation}$ is a \emph{conservative functor}: it
-preserves the composition of settlement morphisms, so the per-harbor invariant
-$\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$ lifts exactly to the
-federation (proven). The moment harbors price bonds in heterogeneous units, $F$ is
-at most a \emph{lax} functor --- conservation is preserved only up to the
-bounded-escrow slack $\varphi$, and the coherence conditions are unproven. The
-headline ``conservation composes upward'' is licensed \emph{only} with this scope
-rider. The three cross-harbor open problems (settlement, equivocation, unit-of-
-account) are one sheaf-gluing obstruction in disguise; the double-spend race is
-literally the non-vanishing of the first cohomology $H^1$ of the gluing.}
+\caption{Conservation under composition. In one native unit, the supply delta of
+a composed trace is the sum of its step deltas, so zero-delta internal operations
+remain conservative. A cross-currency transfer is different: it requires a named
+valuation function and instant, plus explicit fee, slippage, and exposure accounts.
+Category-theoretic language does not remove those accounting assumptions.}
 \label{fig:he-conservation-functor}
 \end{figure}

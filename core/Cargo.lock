@@ -4720,6 +4720,7 @@ dependencies = [
  "hex",
  "hmac",
  "pd-core",
+ "proptest",
  "serde",
  "serde_json",
  "sha2",
@@ -4751,14 +4752,16 @@ name = "pd-compat"
 version = "0.1.0"
 dependencies = [
  "pd-eventlog",
+ "rusqlite",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 1.0.69",
 ]
 
 [[package]]
 name = "pd-console"
-version = "3.26.0"
+version = "3.27.0"
 dependencies = [
  "anyhow",
  "base64",
@@ -4785,7 +4788,6 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "time",
- "uuid",
 ]
 
 [[package]]
