@@ -915,3 +915,170 @@ describe('reasoning-effort fidelity (current Claude Code request surface)', () =
     expect(codexConfigForNormalizedRequest(norm)).toEqual([]);
   });
 });
+
+describe('Squid bridge deadline handling', () => {
+  test('resolveSquidBridgeConfig omits deadlineMs when neither CLI flag nor env var is set', () => {
+    const oldEnv = process.env.PD_SQUID_DEADLINE_MS;
+    try {
+      delete process.env.PD_SQUID_DEADLINE_MS;
+      const config = resolveSquidBridgeConfig({});
+      expect(config.deadlineMs).toBeUndefined();
+    } finally {
+      if (oldEnv) process.env.PD_SQUID_DEADLINE_MS = oldEnv;
+    }
+  });
+
+  test('resolveSquidBridgeConfig respects explicit --deadline-ms flag', () => {
+    const config = resolveSquidBridgeConfig({ 'deadline-ms': '5000' });
+    expect(config.deadlineMs).toBe(5000);
+  });
+
+  test('resolveSquidBridgeConfig reads PD_SQUID_DEADLINE_MS environment variable', () => {
+    const oldEnv = process.env.PD_SQUID_DEADLINE_MS;
+    try {
+      process.env.PD_SQUID_DEADLINE_MS = '30000';
+      const config = resolveSquidBridgeConfig({});
+      expect(config.deadlineMs).toBe(30000);
+    } finally {
+      if (oldEnv) process.env.PD_SQUID_DEADLINE_MS = oldEnv;
+      else delete process.env.PD_SQUID_DEADLINE_MS;
+    }
+  });
+
+  test('--deadline-ms CLI flag takes precedence over env var', () => {
+    const oldEnv = process.env.PD_SQUID_DEADLINE_MS;
+    try {
+      process.env.PD_SQUID_DEADLINE_MS = '30000';
+      const config = resolveSquidBridgeConfig({ 'deadline-ms': '5000' });
+      expect(config.deadlineMs).toBe(5000);
+    } finally {
+      if (oldEnv) process.env.PD_SQUID_DEADLINE_MS = oldEnv;
+      else delete process.env.PD_SQUID_DEADLINE_MS;
+    }
+  });
+
+  test('invalid --deadline-ms values fail closed', () => {
+    expect(() => resolveSquidBridgeConfig({ 'deadline-ms': '0' })).toThrow(
+      'must be a positive number',
+    );
+    expect(() => resolveSquidBridgeConfig({ 'deadline-ms': '-1000' })).toThrow(
+      'must be a positive number',
+    );
+    expect(() => resolveSquidBridgeConfig({ 'deadline-ms': 'not-a-number' })).toThrow(
+      'must be a positive number',
+    );
+  });
+
+  test('invalid PD_SQUID_DEADLINE_MS environment variable fails closed', () => {
+    const oldEnv = process.env.PD_SQUID_DEADLINE_MS;
+    try {
+      process.env.PD_SQUID_DEADLINE_MS = 'invalid';
+      expect(() => resolveSquidBridgeConfig({})).toThrow(
+        'PD_SQUID_DEADLINE_MS must be a positive number',
+      );
+    } finally {
+      if (oldEnv) process.env.PD_SQUID_DEADLINE_MS = oldEnv;
+      else delete process.env.PD_SQUID_DEADLINE_MS;
+    }
+  });
+
+  test('deadline propagates through to Codex spawn in JSON requests', async () => {
+    await withServer(async () => okResult('result'), async (baseUrl, seen) => {
+      const res = await fetch(`${baseUrl}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: 'Bearer local-token',
+        },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: 'Hello' }],
+        }),
+      });
+      expect(res.status).toBe(200);
+      expect(seen).toHaveLength(1);
+      // No deadline specified → timeoutMs should be undefined
+      expect(seen[0].timeoutMs).toBeUndefined();
+    }, { deadlineMs: undefined });
+  });
+
+  test('explicit deadline propagates through to Codex spawn in JSON requests', async () => {
+    await withServer(async () => okResult('result'), async (baseUrl, seen) => {
+      const res = await fetch(`${baseUrl}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: 'Bearer local-token',
+        },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: 'Hello' }],
+        }),
+      });
+      expect(res.status).toBe(200);
+      expect(seen).toHaveLength(1);
+      expect(seen[0].timeoutMs).toBe(15000);
+    }, { deadlineMs: 15000 });
+  });
+
+  test('deadline propagates through to Codex spawn in streaming requests', async () => {
+    await withServer(async () => okResult('streamed result'), async (baseUrl, seen) => {
+      const res = await fetch(`${baseUrl}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: 'Bearer local-token',
+        },
+        body: JSON.stringify({
+          stream: true,
+          messages: [{ role: 'user', content: 'Stream' }],
+        }),
+      });
+      expect(res.status).toBe(200);
+      // Consume the stream
+      await res.text();
+      expect(seen).toHaveLength(1);
+      expect(seen[0].timeoutMs).toBe(20000);
+    }, { deadlineMs: 20000 });
+  });
+
+  test('no deadline in streaming requests leaves timeoutMs undefined', async () => {
+    await withServer(async () => okResult('streamed result'), async (baseUrl, seen) => {
+      const res = await fetch(`${baseUrl}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: 'Bearer local-token',
+        },
+        body: JSON.stringify({
+          stream: true,
+          messages: [{ role: 'user', content: 'Stream' }],
+        }),
+      });
+      expect(res.status).toBe(200);
+      // Consume the stream
+      await res.text();
+      expect(seen).toHaveLength(1);
+      expect(seen[0].timeoutMs).toBeUndefined();
+    }, { deadlineMs: undefined });
+  });
+
+  test('deadline does not affect authentication or transport safeguards', async () => {
+    const server = createClaudeCodexBridgeServer({
+      authToken: 'local-token',
+      deadlineMs: 5000,
+      spawnCodex: async () => okResult('result'),
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const addr = server.address() as AddressInfo;
+    try {
+      // Missing auth token → 401 regardless of deadline
+      const res = await fetch(`http://127.0.0.1:${addr.port}/v1/messages`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ messages: [{ role: 'user', content: 'Hi' }] }),
+      });
+      expect(res.status).toBe(401);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+});
