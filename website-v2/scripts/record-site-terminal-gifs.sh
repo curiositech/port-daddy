@@ -30,8 +30,14 @@ ensure_daemon() {
 # `guard install`, which would add a managed pre-commit hook block to the
 # recording machine's git config — a recording script must not mutate a
 # contributor's hooks as a side effect of making a GIF.
+# `--yes` is REQUIRED, not decorative: `guard enable` is a destructive-tier
+# command, and without it the confirm gate prints "refusing in non-interactive
+# mode" and returns non-zero. A recording script is by definition
+# non-interactive, so the `|| true` below would have swallowed that refusal and
+# the cast would have recorded `off` anyway — the exact bug this function is
+# meant to fix. Verified by running it both ways against a live daemon.
 ensure_guard_enforce() {
-  node "$ROOT_DIR/bin/port-daddy-cli.js" guard enable --mode enforce >/dev/null 2>&1 || true
+  node "$ROOT_DIR/bin/port-daddy-cli.js" guard enable --mode enforce --yes >/dev/null 2>&1 || true
 }
 
 type_cmd() {

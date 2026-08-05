@@ -27,8 +27,11 @@ ensure_daemon() {
 # runs `pd guard status`, which on a fresh checkout records Guard as `off`.
 # Config only — never `guard install`, which would touch the recording
 # machine's git hooks (Copilot, #4924).
+# `--yes` is REQUIRED — see the matching note in record-site-terminal-gifs.sh.
+# `guard enable` is destructive-tier and refuses non-interactively without it,
+# which the `|| true` would silently swallow.
 ensure_guard_enforce() {
-  node "$ROOT_DIR/bin/port-daddy-cli.js" guard enable --mode enforce >/dev/null 2>&1 || true
+  node "$ROOT_DIR/bin/port-daddy-cli.js" guard enable --mode enforce --yes >/dev/null 2>&1 || true
 }
 
 type_cmd() {
