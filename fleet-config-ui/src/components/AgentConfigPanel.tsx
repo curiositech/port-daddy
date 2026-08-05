@@ -44,7 +44,7 @@ function activityMatchesAgent(entry: ActivityEntry, agentName: string): boolean 
     || agentMatches(entry.details, agentName);
 }
 
-function formToYamlObj(form: FleetAgent): Record<string, unknown> {
+export function formToYamlObj(form: FleetAgent): Record<string, unknown> {
   const obj: Record<string, unknown> = {};
   if (form.schedule) obj.schedule = form.schedule;
   if (form.trigger) obj.trigger = form.trigger;
@@ -58,7 +58,7 @@ function formToYamlObj(form: FleetAgent): Record<string, unknown> {
   if (form.onSuccess) obj.on_success = form.onSuccess;
   if (form.onFailure) obj.on_failure = form.onFailure;
   if (form.identity) obj.identity = form.identity;
-  if (form.timeout) obj.timeout = form.timeout;
+  if (form.deadlineMs !== undefined) obj.deadline_ms = form.deadlineMs;
   if (form.allowedTools) obj.allowedTools = form.allowedTools;
   return obj;
 }
@@ -459,10 +459,23 @@ export default function AgentConfigPanel({ agent, project, defaultTab, fleetEven
               )}
             </Field>
 
-            {/* Timeout */}
-            <Field label="Timeout (seconds)">
-              <input type="number" value={form.timeout || ''} onChange={e => setForm(f => ({ ...f, timeout: parseInt(e.target.value) || undefined }))}
-                placeholder="none" className="w-24 rounded px-2 py-1.5 text-sm font-mono" style={inputStyle} />
+            {/* Optional caller-owned task deadline. Admission and liveness are separate. */}
+            <Field label="Task deadline (minutes, optional)">
+              <input
+                type="number"
+                min="1"
+                value={form.deadlineMs ? Math.ceil(form.deadlineMs / 60_000) : ''}
+                onChange={e => {
+                  const minutes = Number.parseInt(e.target.value, 10);
+                  setForm(f => ({ ...f, deadlineMs: Number.isFinite(minutes) && minutes > 0 ? minutes * 60_000 : undefined }));
+                }}
+                placeholder="no deadline"
+                className="w-32 rounded px-2 py-1.5 text-sm font-mono"
+                style={inputStyle}
+              />
+              <div className="mt-1 text-[10px]" style={{ color: 'var(--pd-dim)' }}>
+                Blank means no task wall deadline. Admission, heartbeats, cancellation, and collection remain independent.
+              </div>
             </Field>
 
             {/* YAML Preview */}
