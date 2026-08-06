@@ -40,6 +40,8 @@ const PROCESS_TREE_MAX_BUFFER = 1024 * 1024;
 const LSOF_MAX_BUFFER = 4 * 1024 * 1024;
 const LSOF_SEARCH_DIRS = ['/usr/sbin', '/sbin', '/usr/bin', '/bin'];
 const LSOF_SEARCH_PATHS = LSOF_SEARCH_DIRS.map((dir) => `${dir}/lsof`);
+const PROC_SCAN_CONCURRENCY = 32;
+const HAS_PROC_FS = fs.existsSync('/proc');
 
 let cachedLsofPath: string | null = null;
 
@@ -51,45 +53,73 @@ export function waitForCliChildProcess(
     const hasDeadline = typeof opts.deadlineMs === 'number' && Number.isFinite(opts.deadlineMs);
     let settled = false;
     let timedOut = false;
-    let knownTreePids: number[] = [];
+    let activeTerminationSignal: NodeJS.Signals | null = null;
+    let knownTreePids: number[] = typeof child.pid === 'number' && child.pid > 0
+      ? [child.pid]
+      : [];
     let processTreeWarning: string | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    let processTreePollTimer: ReturnType<typeof setInterval> | null = null;
+    let processTreePollTimer: ReturnType<typeof setTimeout> | null = null;
     let forceKillTimer: ReturnType<typeof setTimeout> | null = null;
     let killCloseDeadlineTimer: ReturnType<typeof setTimeout> | null = null;
-    const knownStdioProcTargets = hasDeadline ? collectChildStdioProcTargets(child) : new Set<string>();
+    const knownStdioProcTargets = new Set<string>();
     const knownStdioPeerIds = new Set<string>();
+    let processTreeScanTail: Promise<void> = Promise.resolve();
 
     const rememberProcessTreeWarning = (warning: string | null): void => {
       if (!processTreeWarning && warning) processTreeWarning = warning;
     };
-    const rememberStdioIdentities = (): void => {
-      for (const target of collectChildStdioProcTargets(child)) knownStdioProcTargets.add(target);
+    const signalRememberedTree = (): void => {
+      if (!settled && activeTerminationSignal) {
+        signalCliProcessTree(child, activeTerminationSignal, knownTreePids);
+      }
+    };
+    const rememberStdioIdentitiesAsync = async (): Promise<void> => {
+      for (const target of await collectChildStdioProcTargetsAsync(child)) knownStdioProcTargets.add(target);
       if (!needsLsofStdioDiscovery(knownStdioProcTargets)) return;
-      const peerSnapshot = collectChildStdioPeerIds(child);
+      const peerSnapshot = await collectChildStdioPeerIdsAsync(child);
       for (const peerId of peerSnapshot.peerIds) knownStdioPeerIds.add(peerId);
       rememberProcessTreeWarning(peerSnapshot.warning);
     };
-    const rememberProcessTree = (includeStdioHolders = false): void => {
-      const snapshots = [collectProcessTreePids(child.pid)];
-      if (includeStdioHolders) {
-        rememberStdioIdentities();
-        const stdioHolders = collectStdioHolderPids(child, knownStdioProcTargets, knownStdioPeerIds);
-        snapshots.push(stdioHolders);
-        for (const holderPid of stdioHolders.pids) {
-          snapshots.push(collectProcessTreePids(holderPid));
+    const rememberProcessTreeAsync = (includeStdioHolders = false): Promise<void> => {
+      const scan = processTreeScanTail.then(async () => {
+        if (settled) return;
+        const snapshots = [await collectProcessTreePidsAsync(child.pid)];
+        if (includeStdioHolders) {
+          await rememberStdioIdentitiesAsync();
+          const stdioHolders = await collectStdioHolderPidsAsync(
+            child,
+            knownStdioProcTargets,
+            knownStdioPeerIds,
+          );
+          snapshots.push(stdioHolders);
+          snapshots.push(await collectProcessTreePidsAsync(stdioHolders.pids));
         }
-      }
-      const tree = mergeProcessSnapshots(...snapshots);
-      rememberProcessTreeWarning(tree.warning);
-      knownTreePids = dedupePids([...knownTreePids, ...tree.pids]);
+        if (settled) return;
+        const tree = mergeProcessSnapshots(...snapshots);
+        rememberProcessTreeWarning(tree.warning);
+        knownTreePids = dedupePids([...knownTreePids, ...tree.pids]);
+      });
+      processTreeScanTail = scan.catch(() => {});
+      return scan;
+    };
+    const scheduleProcessTreePoll = (): void => {
+      if (settled || timedOut) return;
+      processTreePollTimer = setTimeout(async () => {
+        processTreePollTimer = null;
+        if (settled || timedOut) return;
+        await rememberProcessTreeAsync();
+        signalRememberedTree();
+        scheduleProcessTreePoll();
+      }, PROCESS_TREE_POLL_MS);
+      processTreePollTimer.unref?.();
     };
 
     const settle = (code: number, spawnErr: string | null = null): void => {
       if (settled) return;
       settled = true;
       if (timer) clearTimeout(timer);
-      if (processTreePollTimer) clearInterval(processTreePollTimer);
+      if (processTreePollTimer) clearTimeout(processTreePollTimer);
       if (forceKillTimer) clearTimeout(forceKillTimer);
       if (killCloseDeadlineTimer) clearTimeout(killCloseDeadlineTimer);
       resolve({ code, timedOut, spawnErr });
@@ -98,11 +128,6 @@ export function waitForCliChildProcess(
     // No deadline: settle purely off the child's own lifecycle events. Skip
     // all process-tree bookkeeping below — it exists only to feed the kill
     // path, which never fires without a deadline.
-    if (hasDeadline) {
-      child.on('exit', () => {
-        rememberProcessTree(timedOut);
-      });
-    }
     child.on('close', (code) => {
       settle(typeof code === 'number' ? code : -1);
     });
@@ -112,23 +137,34 @@ export function waitForCliChildProcess(
 
     if (!hasDeadline) return;
 
-    rememberStdioIdentities();
-    rememberProcessTree();
-    processTreePollTimer = setInterval(rememberProcessTree, PROCESS_TREE_POLL_MS);
-    processTreePollTimer.unref?.();
+    // Process-table scans can be slow on a busy workstation. Run at most one
+    // asynchronous sample at a time and schedule the next only after it
+    // finishes; a synchronous setInterval here can queue scans faster than
+    // they complete and starve the child's own close/error events.
+    void rememberProcessTreeAsync(true).then(() => {
+      signalRememberedTree();
+      scheduleProcessTreePoll();
+    });
 
     timer = setTimeout(() => {
       timedOut = true;
-      rememberProcessTree(true);
+      activeTerminationSignal = 'SIGTERM';
       signalCliProcessTree(child, 'SIGTERM', knownTreePids);
+      void rememberProcessTreeAsync(true).then(() => {
+        signalRememberedTree();
+      });
       forceKillTimer = setTimeout(() => {
-        rememberProcessTree(true);
+        activeTerminationSignal = 'SIGKILL';
         signalCliProcessTree(child, 'SIGKILL', knownTreePids);
-        killCloseDeadlineTimer = setTimeout(() => {
-          const warningSuffix = processTreeWarning ? ` (${processTreeWarning})` : '';
-          settle(-1, `process tree did not close after SIGKILL; transcript may be incomplete${warningSuffix}`);
-        }, opts.killCloseDeadlineMs);
-        killCloseDeadlineTimer.unref?.();
+        void rememberProcessTreeAsync(true).then(() => {
+          if (settled) return;
+          signalRememberedTree();
+          killCloseDeadlineTimer = setTimeout(() => {
+            const warningSuffix = processTreeWarning ? ` (${processTreeWarning})` : '';
+            settle(-1, `process tree did not close after SIGKILL; transcript may be incomplete${warningSuffix}`);
+          }, opts.killCloseDeadlineMs);
+          killCloseDeadlineTimer.unref?.();
+        });
       }, opts.killGraceMs);
       forceKillTimer.unref?.();
     }, opts.deadlineMs);
@@ -170,32 +206,46 @@ function signalCliProcessTree(
   }
 }
 
-function collectProcessTreePids(rootPid: number | undefined): ProcessTreeSnapshot {
-  if (typeof rootPid !== 'number' || rootPid <= 0) return { pids: [], warning: null };
-  const descendants = new Map<number, number[]>();
-  try {
-    const output = childProcess.execFileSync('ps', ['-axo', 'pid=,ppid='], {
+function collectProcessTreePidsAsync(
+  rootPids: number | readonly number[] | undefined,
+): Promise<ProcessTreeSnapshot> {
+  const roots = dedupePids(
+    typeof rootPids === 'number' ? [rootPids] : (rootPids ?? []),
+  );
+  if (roots.length === 0) {
+    return Promise.resolve({ pids: [], warning: null });
+  }
+  return new Promise((resolve) => {
+    childProcess.execFile('ps', ['-axo', 'pid=,ppid='], {
       encoding: 'utf8',
       timeout: 1_000,
       maxBuffer: PROCESS_TREE_MAX_BUFFER,
-      stdio: ['ignore', 'pipe', 'ignore'],
+    }, (err, output) => {
+      if (err) {
+        resolve({
+          pids: roots,
+          warning: `process tree collection unavailable: ${formatProcessTreeError(err)}`,
+        });
+        return;
+      }
+      resolve(mergeProcessSnapshots(
+        ...roots.map((rootPid) => parseProcessTreeSnapshot(rootPid, output)),
+      ));
     });
-    for (const line of output.split('\n')) {
-      const [pidText, ppidText] = line.trim().split(/\s+/);
-      const pid = Number(pidText);
-      const ppid = Number(ppidText);
-      if (!Number.isInteger(pid) || !Number.isInteger(ppid)) continue;
-      const children = descendants.get(ppid) ?? [];
-      children.push(pid);
-      descendants.set(ppid, children);
-    }
-  } catch (err) {
-    return {
-      pids: [rootPid],
-      warning: `process tree collection unavailable: ${formatProcessTreeError(err)}`,
-    };
-  }
+  });
+}
 
+function parseProcessTreeSnapshot(rootPid: number, output: string): ProcessTreeSnapshot {
+  const descendants = new Map<number, number[]>();
+  for (const line of output.split('\n')) {
+    const [pidText, ppidText] = line.trim().split(/\s+/);
+    const pid = Number(pidText);
+    const ppid = Number(ppidText);
+    if (!Number.isInteger(pid) || !Number.isInteger(ppid)) continue;
+    const children = descendants.get(ppid) ?? [];
+    children.push(pid);
+    descendants.set(ppid, children);
+  }
   const tree = [rootPid];
   for (let index = 0; index < tree.length; index += 1) {
     for (const childPid of descendants.get(tree[index]) ?? []) {
@@ -205,40 +255,50 @@ function collectProcessTreePids(rootPid: number | undefined): ProcessTreeSnapsho
   return { pids: tree, warning: null };
 }
 
-function collectStdioHolderPids(
+async function collectStdioHolderPidsAsync(
   child: ChildProcess,
   knownProcTargets = new Set<string>(),
   knownPeerIds = new Set<string>(),
-): ProcessTreeSnapshot {
-  const procSnapshot = collectProcFdHolderPids(child, knownProcTargets);
+): Promise<ProcessTreeSnapshot> {
+  const procSnapshot = await collectProcFdHolderPidsAsync(child, knownProcTargets);
   if (!needsLsofStdioDiscovery(knownProcTargets)) return procSnapshot;
-  return mergeProcessSnapshots(procSnapshot, collectLsofStdioHolderPids(child, knownPeerIds));
+  return mergeProcessSnapshots(procSnapshot, await collectLsofStdioHolderPidsAsync(child, knownPeerIds));
 }
 
-function collectProcFdHolderPids(child: ChildProcess, knownProcTargets = new Set<string>()): ProcessTreeSnapshot {
-  if (!fs.existsSync('/proc')) return { pids: [], warning: null };
-  const targets = new Set([...knownProcTargets, ...collectChildStdioProcTargets(child)]);
+async function collectProcFdHolderPidsAsync(
+  child: ChildProcess,
+  knownProcTargets = new Set<string>(),
+): Promise<ProcessTreeSnapshot> {
+  if (!HAS_PROC_FS) return { pids: [], warning: null };
+  const targets = new Set([...knownProcTargets, ...await collectChildStdioProcTargetsAsync(child)]);
   if (targets.size === 0) return { pids: [], warning: null };
   const pids: number[] = [];
-  for (const entry of safeReadDir('/proc')) {
-    const pid = Number(entry);
-    if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid || pid === child.pid) continue;
-    for (const fdName of safeReadDir(`/proc/${pid}/fd`)) {
-      const fdTarget = safeReadLink(`/proc/${pid}/fd/${fdName}`);
-      if (fdTarget && targets.has(fdTarget)) {
-        pids.push(pid);
-        break;
+  const entries = await safeReadDirAsync('/proc');
+  for (let index = 0; index < entries.length; index += PROC_SCAN_CONCURRENCY) {
+    const batch = entries.slice(index, index + PROC_SCAN_CONCURRENCY);
+    const matches = await Promise.all(batch.map(async (entry) => {
+      const pid = Number(entry);
+      if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid || pid === child.pid) return null;
+      for (const fdName of await safeReadDirAsync(`/proc/${pid}/fd`)) {
+        const fdTarget = await safeReadLinkAsync(`/proc/${pid}/fd/${fdName}`);
+        if (fdTarget && targets.has(fdTarget)) return pid;
       }
+      return null;
+    }));
+    for (const pid of matches) {
+      if (pid !== null) pids.push(pid);
     }
   }
   return { pids: dedupePids(pids), warning: null };
 }
 
-function collectChildStdioProcTargets(child: ChildProcess): Set<string> {
+async function collectChildStdioProcTargetsAsync(child: ChildProcess): Promise<Set<string>> {
   const targets = new Set<string>();
+  if (!HAS_PROC_FS) return targets;
   if (typeof child.pid === 'number' && child.pid > 0) {
-    for (const fd of [1, 2]) {
-      const target = safeReadLink(`/proc/${child.pid}/fd/${fd}`);
+    for (const target of await Promise.all(
+      [1, 2].map((fd) => safeReadLinkAsync(`/proc/${child.pid}/fd/${fd}`)),
+    )) {
       if (target) targets.add(target);
     }
   }
@@ -246,19 +306,22 @@ function collectChildStdioProcTargets(child: ChildProcess): Set<string> {
 }
 
 function needsLsofStdioDiscovery(knownProcTargets: ReadonlySet<string>): boolean {
-  return knownProcTargets.size === 0 || !fs.existsSync('/proc');
+  return knownProcTargets.size === 0 || !HAS_PROC_FS;
 }
 
-function collectLsofStdioHolderPids(child: ChildProcess, knownPeerIds = new Set<string>()): ProcessTreeSnapshot {
-  const peerSnapshot = collectChildStdioPeerIds(child);
+async function collectLsofStdioHolderPidsAsync(
+  child: ChildProcess,
+  knownPeerIds = new Set<string>(),
+): Promise<ProcessTreeSnapshot> {
+  const peerSnapshot = knownPeerIds.size > 0
+    ? { peerIds: new Set<string>(), warning: null }
+    : await collectChildStdioPeerIdsAsync(child);
   const peerIds = new Set([...knownPeerIds, ...peerSnapshot.peerIds]);
   if (peerIds.size === 0) return { pids: [], warning: peerSnapshot.warning };
   try {
-    const output = execLsof(['-nP', '-U'], {
-      encoding: 'utf8',
+    const output = await execLsofAsync(['-nP', '-U'], {
       timeout: 1_000,
       maxBuffer: LSOF_MAX_BUFFER,
-      stdio: ['ignore', 'pipe', 'ignore'],
     });
     const pids: number[] = [];
     for (const line of output.split('\n')) {
@@ -281,17 +344,17 @@ function collectLsofStdioHolderPids(child: ChildProcess, knownPeerIds = new Set<
   }
 }
 
-function execLsof(
+async function execLsofAsync(
   args: string[],
-  options: childProcess.ExecFileSyncOptionsWithStringEncoding,
-): string {
+  options: { timeout: number; maxBuffer: number },
+): Promise<string> {
   const candidates = cachedLsofPath
     ? [cachedLsofPath, ...LSOF_SEARCH_PATHS.filter((candidate) => candidate !== cachedLsofPath)]
     : LSOF_SEARCH_PATHS;
   let lastErr: unknown = null;
   for (const candidate of candidates) {
     try {
-      const output = childProcess.execFileSync(candidate, args, options);
+      const output = await execFileUtf8(candidate, args, options);
       cachedLsofPath = candidate;
       return output;
     } catch (err) {
@@ -308,34 +371,45 @@ function isExecutableLookupFailure(err: unknown): boolean {
   return code === 'ENOENT' || code === 'EACCES' || code === 'ENOTDIR';
 }
 
-function safeReadDir(path: string): string[] {
+async function execFileUtf8(
+  command: string,
+  args: string[],
+  options: { timeout: number; maxBuffer: number },
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    childProcess.execFile(command, args, { ...options, encoding: 'utf8' }, (err, output) => {
+      if (err) reject(err);
+      else resolve(output);
+    });
+  });
+}
+
+async function safeReadDirAsync(path: string): Promise<string[]> {
   try {
-    return fs.readdirSync(path);
+    return await fs.promises.readdir(path);
   } catch {
     return [];
   }
 }
 
-function safeReadLink(path: string): string | null {
+async function safeReadLinkAsync(path: string): Promise<string | null> {
   try {
-    return fs.readlinkSync(path);
+    return await fs.promises.readlink(path);
   } catch {
     return null;
   }
 }
 
-function collectChildStdioPeerIds(child: ChildProcess): StdioPeerSnapshot {
+async function collectChildStdioPeerIdsAsync(child: ChildProcess): Promise<StdioPeerSnapshot> {
   const peerIds = new Set<string>();
   let warning: string | null = null;
-  for (const stream of [child.stdout, child.stderr]) {
+  await Promise.all([child.stdout, child.stderr].map(async (stream) => {
     const fd = getStreamFd(stream);
-    if (fd === null) continue;
+    if (fd === null) return;
     try {
-      const output = execLsof(['-nP', '-a', '-p', String(process.pid), `-d${fd}`], {
-        encoding: 'utf8',
+      const output = await execLsofAsync(['-nP', '-a', '-p', String(process.pid), `-d${fd}`], {
         timeout: 1_000,
         maxBuffer: PROCESS_TREE_MAX_BUFFER,
-        stdio: ['ignore', 'pipe', 'ignore'],
       });
       for (const line of output.split('\n')) {
         const entry = parseLsofUnixTableLine(line);
@@ -344,7 +418,7 @@ function collectChildStdioPeerIds(child: ChildProcess): StdioPeerSnapshot {
     } catch (err) {
       warning ??= `stdio peer collection unavailable: ${formatProcessTreeError(err)}`;
     }
-  }
+  }));
   return { peerIds, warning: peerIds.size === 0 ? warning : null };
 }
 

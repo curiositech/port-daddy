@@ -23,6 +23,7 @@ import { delimiter, join } from 'node:path';
 import { PassThrough, Readable } from 'node:stream';
 
 const mockSpawn = jest.fn();
+const mockExecFile = jest.fn();
 const mockExecFileSync = jest.fn();
 const originalHome = process.env.HOME;
 const originalPath = process.env.PATH;
@@ -31,6 +32,7 @@ let fakeHome;
 
 jest.unstable_mockModule('node:child_process', () => ({
   spawn: mockSpawn,
+  execFile: mockExecFile,
   execFileSync: mockExecFileSync,
 }));
 
@@ -67,8 +69,16 @@ function fakeChild({ stdout = '', stderr = '', exitCode = 0, error = null, delay
   return ee;
 }
 
+async function flushAsyncProcessDiscovery(turns = 256) {
+  for (let turn = 0; turn < turns; turn += 1) await Promise.resolve();
+}
+
 beforeEach(() => {
   mockSpawn.mockReset();
+  mockExecFile.mockReset();
+  mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
+    queueMicrotask(() => callback(null, '', ''));
+  });
   mockExecFileSync.mockReset();
   mockExecFileSync.mockReturnValue('');
   fakeHome = mkdtempSync(join(tmpdir(), 'pd-cli-tube-home-'));
@@ -779,6 +789,39 @@ describe('spawnViaCliTube — failure paths', () => {
     }
   });
 
+  test('process-tree liveness sampling is asynchronous and serialized', async () => {
+    jest.useFakeTimers();
+    try {
+      const callbacks = [];
+      mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
+        callbacks.push(callback);
+      });
+      const child = fakeChild({ neverClose: true, pid: 5151 });
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10_000 });
+      await Promise.resolve();
+
+      expect(mockExecFile).toHaveBeenCalledTimes(1);
+      expect(mockExecFileSync).not.toHaveBeenCalled();
+
+      await jest.advanceTimersByTimeAsync(5_000);
+      expect(mockExecFile).toHaveBeenCalledTimes(1);
+
+      callbacks.shift()(null, ' 5151 1\n 6161 5151\n', '');
+      await Promise.resolve();
+      await jest.advanceTimersByTimeAsync(99);
+      expect(mockExecFile).toHaveBeenCalledTimes(1);
+      await jest.advanceTimersByTimeAsync(1);
+      expect(mockExecFile).toHaveBeenCalledTimes(2);
+
+      child.emit('close', 0);
+      await expect(resultPromise).resolves.toEqual(expect.objectContaining({ exitCode: 0 }));
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('timeout sends SIGKILL but waits for close before finalizing', async () => {
     jest.useFakeTimers();
     try {
@@ -861,6 +904,7 @@ describe('spawnViaCliTube — failure paths', () => {
       expect(child.kill).toHaveBeenCalledWith('SIGTERM');
       await jest.advanceTimersByTimeAsync(5000);
       expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+      await flushAsyncProcessDiscovery();
       await jest.advanceTimersByTimeAsync(1000);
       await Promise.resolve();
 
@@ -883,7 +927,9 @@ describe('spawnViaCliTube — failure paths', () => {
     jest.useFakeTimers();
     const processKill = jest.spyOn(process, 'kill').mockImplementation(() => true);
     try {
-      mockExecFileSync.mockImplementation(() => { throw new Error('ps unavailable'); });
+      mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
+        queueMicrotask(() => callback(new Error('ps unavailable'), '', ''));
+      });
       const child = fakeChild({ neverClose: true, pid: 5151 });
       child.stdout = new PassThrough();
       child.stderr = new PassThrough();
@@ -895,18 +941,21 @@ describe('spawnViaCliTube — failure paths', () => {
       child.stdout.write('before ps failure\n');
 
       await jest.advanceTimersByTimeAsync(10);
+      await flushAsyncProcessDiscovery();
       expect(processKill).toHaveBeenCalledWith(-5151, 'SIGTERM');
       expect(processKill).toHaveBeenCalledWith(5151, 'SIGTERM');
       expect(child.kill).toHaveBeenCalledWith('SIGTERM');
 
       await jest.advanceTimersByTimeAsync(5000);
+      await flushAsyncProcessDiscovery();
       expect(processKill).toHaveBeenCalledWith(-5151, 'SIGKILL');
       expect(processKill).toHaveBeenCalledWith(5151, 'SIGKILL');
       expect(child.kill).toHaveBeenCalledWith('SIGKILL');
-      expect(mockExecFileSync).toHaveBeenCalledWith(
+      expect(mockExecFile).toHaveBeenCalledWith(
         'ps',
         ['-axo', 'pid=,ppid='],
         expect.objectContaining({ maxBuffer: 1024 * 1024 }),
+        expect.any(Function),
       );
 
       await jest.advanceTimersByTimeAsync(1000);
@@ -930,25 +979,21 @@ describe('spawnViaCliTube — failure paths', () => {
       const childPid = 51515151;
       const holderPid = 6161;
       const holderDescendantPid = 7171;
-      mockExecFileSync.mockImplementation((cmd, args) => {
+      mockExecFile.mockImplementation((cmd, args, _opts, callback) => {
+        let output = '';
         if (cmd === 'ps') {
-          return [
+          output = [
             ` ${childPid} 1`,
             ` ${holderPid} 1`,
             ` ${holderDescendantPid} ${holderPid}`,
             '',
           ].join('\n');
+        } else if (String(cmd).endsWith('/lsof') && args.includes('-d12')) {
+          output = `COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\nnode ${process.pid} user 12u  unix 0xaaa      0t0      ->0xbbb\n`;
+        } else if (String(cmd).endsWith('/lsof') && args.includes('-U')) {
+          output = `COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\nnode ${holderPid} user 1u  unix 0xbbb      0t0      ->0xaaa\n`;
         }
-        if (cmd === 'lsof') {
-          throw Object.assign(new Error('spawnSync lsof ENOENT'), { code: 'ENOENT' });
-        }
-        if (String(cmd).endsWith('/lsof') && args.includes('-d12')) {
-          return `COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\nnode ${process.pid} user 12u  unix 0xaaa      0t0      ->0xbbb\n`;
-        }
-        if (String(cmd).endsWith('/lsof') && args.includes('-U')) {
-          return `COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\nnode ${holderPid} user 1u  unix 0xbbb      0t0      ->0xaaa\n`;
-        }
-        return '';
+        callback(null, output, '');
       });
 
       const child = fakeChild({ neverClose: true, pid: childPid });
@@ -961,16 +1006,19 @@ describe('spawnViaCliTube — failure paths', () => {
       const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
 
       await jest.advanceTimersByTimeAsync(10);
-      expect(mockExecFileSync).not.toHaveBeenCalledWith('lsof', expect.anything(), expect.anything());
-      expect(mockExecFileSync).toHaveBeenCalledWith(
+      await flushAsyncProcessDiscovery();
+      expect(mockExecFile).not.toHaveBeenCalledWith('lsof', expect.anything(), expect.anything(), expect.anything());
+      expect(mockExecFile).toHaveBeenCalledWith(
         '/usr/sbin/lsof',
         expect.arrayContaining(['-nP', '-a', '-p', String(process.pid), '-d12']),
         expect.objectContaining({ maxBuffer: 1024 * 1024 }),
+        expect.any(Function),
       );
-      expect(mockExecFileSync).toHaveBeenCalledWith(
+      expect(mockExecFile).toHaveBeenCalledWith(
         '/usr/sbin/lsof',
         expect.arrayContaining(['-nP', '-U']),
         expect.objectContaining({ maxBuffer: 4 * 1024 * 1024 }),
+        expect.any(Function),
       );
       expect(processKill).toHaveBeenCalledWith(holderPid, 'SIGTERM');
       expect(processKill).toHaveBeenCalledWith(holderDescendantPid, 'SIGTERM');
@@ -978,6 +1026,7 @@ describe('spawnViaCliTube — failure paths', () => {
       expect(processKill).toHaveBeenCalledWith(-holderDescendantPid, 'SIGTERM');
 
       await jest.advanceTimersByTimeAsync(5000);
+      await flushAsyncProcessDiscovery();
       expect(processKill).toHaveBeenCalledWith(holderPid, 'SIGKILL');
       expect(processKill).toHaveBeenCalledWith(holderDescendantPid, 'SIGKILL');
       expect(processKill).toHaveBeenCalledWith(-holderPid, 'SIGKILL');
@@ -1033,6 +1082,7 @@ describe('spawnViaCliTube — no deadline (absent timeoutMs)', () => {
       expect(jest.getTimerCount()).toBe(0);
       // No `ps` process-tree collection either — that bookkeeping only exists
       // to feed the kill path, which never runs without a deadline.
+      expect(mockExecFile).not.toHaveBeenCalled();
       expect(mockExecFileSync).not.toHaveBeenCalled();
 
       // Advance virtual time well past the old hidden 5-minute default.
