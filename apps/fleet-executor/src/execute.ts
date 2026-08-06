@@ -247,6 +247,38 @@ function accumulateUsage(
 }
 
 /**
+ * Flags that stop a PARTIAL spend sum from being read as a complete one.
+ *
+ * Rationale: `usageReported` only asserts that SOME call carried a usage block.
+ * A run where 3 of 93 calls reported produces token and cost figures covering
+ * three calls, rendered beside a `calls: 93` — a plausible number that is not
+ * true, which is the exact failure this row exists to avoid. Two independent
+ * ways to be incomplete, so two separate counts:
+ *
+ *   - `unpricedCalls` — the call ran on a model absent from WORKERS_AI_RATES,
+ *     so its real tokens priced to 0. COST is understated; tokens are correct.
+ *   - `unreportedCalls` — the call returned no usage block at all, so neither
+ *     its tokens nor its cost entered any sum. BOTH are understated.
+ *
+ * @param metrics the ship's accumulated metrics
+ * @returns `{}` when every call was both priced and reported (the figures are
+ *   totals); otherwise `costIsFloor: true` plus whichever counts apply.
+ */
+export function spendHonesty(metrics: {
+  calls: number;
+  usageReports: number;
+  unpricedCalls: number;
+}): Record<string, unknown> {
+  const unreportedCalls = Math.max(0, metrics.calls - metrics.usageReports);
+  if (metrics.unpricedCalls === 0 && unreportedCalls === 0) return {};
+  return {
+    costIsFloor: true,
+    ...(metrics.unpricedCalls > 0 ? { unpricedCalls: metrics.unpricedCalls } : {}),
+    ...(unreportedCalls > 0 ? { unreportedCalls } : {}),
+  };
+}
+
+/**
  * Emit one best-effort cloud-telemetry event for a ship's run. Never throws.
  * `status`/`conclusion` drive the daemon's errorEvents aggregation; token counts
  * drive cost. A ship that ran but produced only empty output (the 2026-07-07
@@ -610,11 +642,7 @@ async function recordShipTokensInTranscript(
             // ShipMetrics.costUsd. Deriving this from the totals would price
             // every MAP token at the REDUCE model's rate.
             costUsd: metrics.costUsd,
-            // A floor, not a total, when some call ran on an unpriced model.
-            // The run page must not present it as a complete figure.
-            ...(metrics.unpricedCalls > 0
-              ? { costIsFloor: true, unpricedCalls: metrics.unpricedCalls }
-              : {}),
+            ...spendHonesty(metrics),
           }
         : {}),
     },
@@ -1354,7 +1382,7 @@ async function runShip(
       if (!text) {
         console.warn(
           `[fleet-executor] pd-${ship.name} MAP chunk ${i + 1}/${chunks.length} EMPTY on ` +
-            `${ship.cfModel}: ${describeResponseShape(res)}`,
+            `${mapModelFor(ship)}: ${describeResponseShape(res)}`,
         );
       }
 
@@ -1973,7 +2001,8 @@ async function reduceFindings(
   accumulateUsage(metrics, reduceModelFor(ship), res, text);
   if (!text) {
     console.warn(
-      `[fleet-executor] pd-${ship.name} REDUCE EMPTY on ${ship.cfModel}: ${describeResponseShape(res)}`,
+      `[fleet-executor] pd-${ship.name} REDUCE EMPTY on ${reduceModelFor(ship)}: ` +
+        `${describeResponseShape(res)}`,
     );
   }
   return text;
