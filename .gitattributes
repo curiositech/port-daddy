@@ -1,0 +1,22 @@
+# docs/roadmap/roadmap.snapshot.json is a generated read-replica of the
+# daemon's roadmap that has to stay committed (CI can't reach a local
+# daemon's SQLite to regenerate it, and tests/purser/test-roadmap-snapshot.js
+# + docs/audits/tenancy-boundary.spec.json both treat the committed copy as
+# an oracle, not a cache). It conflicts on almost every merge/rebase because
+# every regeneration stamps a fresh generatedAt and two branches routinely
+# add different new items to the same array.
+#
+# The `roadmap-snapshot` merge driver (lib/roadmap-snapshot-merge.ts via
+# scripts/merge-roadmap-snapshot.ts) resolves it per-item by slug instead of
+# by line, so disjoint additions merge cleanly and only a genuine same-slug
+# edit on both sides surfaces as a real conflict.
+#
+# The driver is registered per-checkout by `npm install` (package.json
+# "prepare" -> scripts/setup-git-merge-driver.mjs), since `git config
+# merge.*.driver` does not travel with a clone. A checkout that never ran
+# `npm install` gets ordinary textual conflicts on this file — same as
+# before — not a merge failure. Run it manually with:
+#   node scripts/setup-git-merge-driver.mjs
+# Note this only covers local `git merge`/`git rebase`; GitHub's own
+# "Update branch" / merge-queue merges run server-side and never consult it.
+docs/roadmap/roadmap.snapshot.json merge=roadmap-snapshot

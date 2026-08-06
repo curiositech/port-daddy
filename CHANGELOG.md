@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`docs/roadmap/roadmap.snapshot.json` no longer conflicts on almost every merge/rebase.** A semantic git merge driver (`lib/roadmap-snapshot-merge.ts`) resolves the committed roadmap-snapshot mirror per-item by slug instead of by text line, so two branches independently regenerating it (different `generatedAt`, different new items) merge cleanly; a genuine same-slug edit on both sides still surfaces as a real conflict. Wired into local git config via `npm install`'s `prepare` script (`scripts/setup-git-merge-driver.mjs`) — never touches the published npm package's install path. Note: this only helps local `git merge`/`git rebase`; GitHub's server-side "Update branch"/merge-queue merges don't consult local merge drivers.
+
 ### Added
 - **FleetBar Giant Squid controls.** The selected-project header now shows an unmistakable `◆ GIANT SQUID` LIVE/READY/PARTIAL/DEGRADED strip, detected/wired provider counts, the before-turn/before-edit/after-tool value being added, and native Arm/Repair/Disarm actions.
 
