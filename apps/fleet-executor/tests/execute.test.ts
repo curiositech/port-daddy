@@ -622,26 +622,44 @@ describe('non-blocking ship semantics', () => {
   });
 });
 
-describe('idempotent re-run', () => {
-  it('same deliveryId / head SHA does not double-create the check run', async () => {
+describe('idempotent re-run — a redelivery must not re-spend', () => {
+  // WHAT CHANGED AND WHY. These two cases used to pin "a re-run does the work
+  // again, then edits the comment in place instead of duplicating it." The
+  // edit-in-place half was right. The "does the work again" half was costing
+  // real money: comment posting was idempotent, but the MODEL CALLS behind the
+  // comment were not — every ship re-ran to produce text it then overwrote.
+  //
+  // On 2026-08-06 that became visible in production. Runs exceeding the Worker
+  // wall-clock were redelivered (max_retries = 3), dead-lettered, completed as
+  // `failure` by the DLQ handler — and then kept re-running ships for HOURS
+  // against a check run that could never be reopened. Identical output, paid
+  // for repeatedly, changing nothing an operator could see.
+  //
+  // So the property these now pin is stronger: a redelivery against a COMPLETED
+  // check spends NOTHING. `in_progress` is deliberately not covered by that —
+  // it is the genuine retry of a run that died mid-flight and must proceed.
+
+  it('a redelivery after completion makes ZERO further model calls', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
-    const mkAi = () =>
-      aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } }).ai;
 
+    const first = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
     const job = makeJob();
-    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
-    // Re-deliver the SAME job. The commit check-runs lookup now finds the run
-    // created on the first pass, so no second check run is created.
-    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
+    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: first.ai }));
+    expect(first.calls.length).toBeGreaterThan(0);
 
+    // Re-deliver the SAME job. The check for this head SHA is now completed.
+    const second = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: second.ai }));
+
+    // The assertion that is about money.
+    expect(second.calls.length).toBe(0);
     expect(state.checkRunsCreated).toBe(1);
-    expect(state.completed.length).toBe(2); // completed both times, same id
-    expect(state.completed[0].id).toBe(state.completed[1].id);
+    expect(state.completed.length).toBe(1); // completed once, not re-completed
   });
 
-  it('re-run edits the ship comment in place instead of posting a duplicate', async () => {
+  it('a redelivery posts no comment at all — not even an edit', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -655,7 +673,28 @@ describe('idempotent re-run', () => {
     await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
 
     expect(state.commentPosts).toBe(1); // only the first run created
-    expect(state.commentPatches).toBe(1); // the re-run edited in place
+    // Previously 1 — the re-run edited in place, having paid to regenerate
+    // identical text. Now it never gets that far.
+    expect(state.commentPatches).toBe(0);
+  });
+
+  it('a redelivery while the check is still IN PROGRESS does proceed', async () => {
+    // The retry that must still work: a run that died mid-flight leaves the
+    // check `in_progress`, and the queue redelivering it is the only thing that
+    // finishes the gate. Skipping here would strand the PR blocked forever.
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+
+    // Pre-seed an in-progress check, as an interrupted first attempt would.
+    state.existingCheckRuns = [{ id: 4242, name: 'Port Daddy Fleet', status: 'in_progress' }];
+
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.checkRunsCreated).toBe(0); // reused the existing one
+    expect(state.completed.map(c => c.id)).toEqual([4242]);
   });
 });
 

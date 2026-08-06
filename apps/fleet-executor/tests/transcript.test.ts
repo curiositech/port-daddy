@@ -216,6 +216,16 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(ai.calls.length).toBeGreaterThan(0);
     expect(state.completed).toHaveLength(1);
 
+    // A DIFFERENT head SHA, because this is a second commit being reviewed --
+    // not a redelivery of the first. Same-SHA redelivery after a decided check
+    // is now skipped on purpose (it would re-spend to change nothing), so
+    // reusing the SHA here would test the skip rather than the pause config.
+    // Model a SECOND COMMIT, not a redelivery of the first. The executor now
+    // skips a redelivery whose check already reached a verdict (it would
+    // re-spend to change nothing), so reusing the first commit's decided check
+    // here would silently test that skip instead of the pause config this case
+    // is about.
+    state.existingCheckRuns = [];
     const malformedKv = memoryKV();
     await malformedKv.put('fleet:paused', JSON.stringify({ paused: 'true' }));
     const ai2 = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
