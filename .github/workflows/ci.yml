@@ -513,11 +513,19 @@ jobs:
     # which file rots next.
     #
     # What this job deliberately does NOT gate: the auditor's verdict.
-    # generate-skill-audit.mjs maps auditor exit 1 (findings present) to success
+    # generate-skill-audit.mjs treats auditor exit 1 (findings present) as success
     # on purpose — the website should ship truth, including bad news — so a red
     # skill bundle must not turn into a red website build here. Failing the
     # library audit is skill-hygiene's job, above. This job asserts only that the
     # snapshot on disk matches the library as it currently stands, good or bad.
+    #
+    # What it emphatically DOES gate: that regeneration actually happened. A
+    # traceback also exits 1, so generate-skill-audit.mjs no longer trusts the
+    # exit code alone — it requires a freshly-written, well-formed snapshot on
+    # disk (advanced mtime + parseable expected shape) before reporting success,
+    # and reds otherwise. That is what stops this required check from going green
+    # off a frozen stale snapshot when the generator cannot run. This job never
+    # sets PD_ALLOW_MISSING_AUDITOR, so a missing auditor reds here, by design.
     runs-on: ubuntu-latest
     defaults:
       run:
