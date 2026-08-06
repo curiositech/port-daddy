@@ -7,6 +7,9 @@ export default function TuplesFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
+        <p className="font-mono text-[length:var(--type-meta-size)] font-bold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+          Feature · Tuples
+        </p>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Tuple Space
         </h1>
@@ -20,7 +23,10 @@ export default function TuplesFeature() {
 
       {/* The Problem */}
       <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">The Problem</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">01</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">The Problem</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-3">
           Pub/sub channels are great for events, but agent swarms also need a shared
           scratch pad — a place to post work items, claim tasks, and coordinate state
@@ -44,7 +50,10 @@ export default function TuplesFeature() {
 
       {/* How It Works */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">02</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">How It Works</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           The tuple space is a persistent, SQLite-backed store of JSON arrays. Each tuple
           is an ordered list of typed values. Agents write tuples with{' '}
@@ -85,7 +94,10 @@ pd tuple scan`}
 
       {/* Pattern Matching */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Pattern Matching</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">03</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Pattern Matching</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Patterns are JSON arrays where each position is either an exact value or a matcher.
           Shorter patterns match longer tuples — only the specified positions are checked.
@@ -98,7 +110,7 @@ pd tuple scan`}
             { pattern: '"<N"', desc: 'Match numbers strictly less than N (e.g. "<10" matches 0, 1, 9)' },
             { pattern: 'value', desc: 'Exact match — string, number, boolean, or null' },
           ].map(({ pattern, desc }) => (
-            <div key={pattern} className="flex items-start gap-3 border-l-4 border-[var(--border-subtle)] pl-4 py-1">
+            <div key={pattern} className="flex items-start gap-3 border-l-[length:var(--lw-stripe)] border-[var(--border-subtle)] pl-4 py-1">
               <code className="text-[var(--brand-primary)] font-mono text-sm shrink-0 mt-0.5">{pattern}</code>
               <span className="text-sm text-[var(--text-secondary)]">{desc}</span>
             </div>
@@ -108,7 +120,10 @@ pd tuple scan`}
 
       {/* Harbor Scoping */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Harbor Scoping</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">04</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Harbor Scoping</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Tuples can be scoped to a harbor namespace. Harbor-scoped reads and writes never
           see tuples from other harbors. Use this to give each project or fleet its own
@@ -129,7 +144,10 @@ pd tuple rd '["task", "*", "queued"]' --harbor myapp`}
 
       {/* TTL */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">TTL-Based Expiry</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">05</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">TTL-Based Expiry</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Tuples can be written with a time-to-live in milliseconds. Expired tuples are
           pruned automatically on every read operation.
@@ -145,7 +163,10 @@ pd tuple out '["lock-intent", "src/auth.ts", "agent-2"]' --ttl 300000`}
 
       {/* Multi-Agent Coordination */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Multi-Agent Coordination</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">06</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Multi-Agent Coordination</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           A producer agent writes work items; N consumer agents race to take them.
           The destructive <code className="text-[var(--brand-primary)] font-mono text-sm">in</code> operation
@@ -182,7 +203,10 @@ console.log('Remaining tasks:', tuples.length)`}
 
       {/* API Endpoints */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">API Endpoints</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">07</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">API Endpoints</h2>
+        </div>
 
         <div className="space-y-2">
           {[
@@ -192,8 +216,8 @@ console.log('Remaining tasks:', tuples.length)`}
             { method: 'GET', path: '/tuples/scan', desc: 'List all tuples. Query: ?harbor=' },
             { method: 'GET', path: '/tuples/count', desc: 'Count tuples. Query: ?harbor=' },
           ].map(({ method, path, desc }) => (
-            <div key={path} className="flex items-start gap-3 border-l-4 border-[var(--border-subtle)] pl-4 py-1">
-              <span className={`text-[length:var(--type-meta-size)] font-mono font-bold px-2 py-0.5 rounded shrink-0 mt-0.5 ${
+            <div key={path} className="flex items-start gap-3 border-l-[length:var(--lw-stripe)] border-[var(--border-subtle)] pl-4 py-1">
+              <span className={`text-[length:var(--type-meta-size)] font-mono font-bold px-2 py-0.5 shrink-0 mt-0.5 ${
                 method === 'POST'
                   ? 'bg-[var(--badge-teal-bg)] text-[var(--badge-teal-text)]'
                   : method === 'DELETE'
@@ -212,7 +236,7 @@ console.log('Remaining tasks:', tuples.length)`}
       </div>
 
       {/* Next */}
-      <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
+      <div className="flex flex-wrap items-center justify-between gap-4 border border-[var(--border-subtle)] bg-[color-mix(in_oklab,var(--brand-primary)_10%,var(--surface-base))] p-5">
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Related Feature</div>
           <div className="font-semibold text-[var(--text-primary)]">Harbors</div>
@@ -220,7 +244,7 @@ console.log('Remaining tasks:', tuples.length)`}
         </div>
         <Link
           to="/docs/features/harbors"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] font-medium hover:opacity-90 transition-opacity"
+          className="flex items-center gap-2 bg-[var(--brand-primary)] px-4 py-2 font-medium text-[var(--text-inverse)]"
         >
           Learn More
           <ArrowRight size={16} />

@@ -36,10 +36,15 @@ import {
   completeCheckRun,
   findFleetCheckRun,
   createIssue,
+  resolveFleetAppLogin,
   type PRContext,
   type ReviewComment,
+  PR_FILES_PAGE_SIZE,
 } from './github.js';
 import { parseFleetShips, parseFleetSquidEvents, parseFleetXo, defaultPRShips, type ShipConfig } from './fleet.js';
+import { classifyPrAuthorship } from './fleet-identity.js';
+import { classifyPrLifecycle } from './pr-lifecycle.js';
+import { fleetPrBodyTrailers } from './fleet-pr-body.js';
 import {
   resolveVerdict,
   aggregateConclusion,
@@ -84,7 +89,7 @@ import {
   XO_RECENT_IDEAS_LIMIT,
 } from './xo.js';
 import type { Proposal } from './proposals.js';
-import { decideShipGate, isDocsOnly } from './gates.js';
+import { decideShipGate, isDocsOnly, isReviewableForBugs } from './gates.js';
 import { runPurser } from './purser.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
@@ -96,6 +101,8 @@ const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 
 /** Per-chunk diff budget for the MAP fan-out (chars). */
 const MAP_CHUNK_CHAR_LIMIT = 12_000;
+
+
 /** Bound Workers AI fan-out so large diffs finish without a rate-limit stampede. */
 const MAP_CONCURRENCY = 8;
 /** The umbrella check-run name. Exported so the DLQ handler targets the same run. */
@@ -686,6 +693,15 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         headRef: '',
         baseRef: '',
         isFork: true,
+        // Authorship is unknown on a short-circuited run and nothing reads it
+        // here; empty classifies as "not the fleet", the conservative default.
+        authorLogin: '',
+        authorType: '',
+        // Likewise unknown: the run is already short-circuited by the pause, so
+        // the lifecycle gate never sees this. Empty/false is the fail-open pair
+        // (`classifyPrLifecycle` reads it as "still open").
+        state: '',
+        merged: false,
         installationId: job.installationId,
         files: [],
         diff: '',
@@ -812,6 +828,106 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // the audit trail records every attempt that got far enough to gate. A
   // write failure is swallowed and never changes the run or the gate.
   await recordRunStart(env, runId, job, prCtx, prNumber, cloudShips);
+
+  // --- SELF-REVIEW GUARD (the fleet does not review its own branches) ------
+  // WHY THIS SITS HERE — after the gating check exists, before any AI spend.
+  // "Port Daddy Fleet" is a REQUIRED status check; returning early WITHOUT
+  // completing it would leave it permanently in_progress and block the branch
+  // forever (the 2026-07-16 pause incident). So we complete it honestly and
+  // then stop.
+  //
+  // WHY AT ALL: nothing previously distinguished a human's PR from the fleet's
+  // own purser test branch, so the full roster reviewed machine-authored tests
+  // and filed findings on them — pd-qa was producing 6–11 findings per round on
+  // this repo, several hallucinated, against code the fleet had just written
+  // minutes earlier. That is pure cost and pure noise.
+  //
+  // IDENTITY, NOT BRANCH NAME: `classifyPrAuthorship` requires the author to be
+  // a Bot, and prefers matching this App's own resolved login over the
+  // attacker-controllable head ref (see src/fleet-identity.ts). A human on a
+  // branch called `purser/anything` is still reviewed normally.
+  //
+  // ZERO-TRUST UNCHANGED: config still came from the trusted default branch
+  // above; this guard reads only authorship, and adds no new trust in PR head.
+  // --- PR LIFECYCLE GATE (before authorship: needs no API call at all) ------
+  // A queue can hand us a job for a PR that has since merged or closed. The
+  // purser then authors adversarial tests for a PR that is already in the base
+  // branch — observed as #5456 (tests for #5372, merged 100 minutes earlier)
+  // and #5451 (tests for #5367). Those test PRs cannot do their job: the
+  // contract is that the reviewed PR merges THROUGH the tests.
+  //
+  // Placed ahead of the authorship guard deliberately — this reads fields the
+  // live PR fetch already returned, whereas `resolveFleetAppLogin` below may
+  // hit the API on a cold KV. Cheapest gate first.
+  //
+  // FAIL-OPEN: an absent or unrecognised state counts as open. See
+  // src/pr-lifecycle.ts — wrongly skipping a live PR silently removes its
+  // review gate, which is far worse than wrongly spending on a dead one.
+  const lifecycle = classifyPrLifecycle(prCtx);
+  if (lifecycle.over) {
+    // HUMAN-FACING: this is the entire explanation an author gets for a neutral
+    // required check, so it has to read like a sentence AND claim only what we
+    // actually observed. The earlier draft ended "…it has since ${state}",
+    // which is both ungrammatical for 'closed' and an assertion about when the
+    // job was enqueued that this code never checked and that need not be true —
+    // a delivery can be raised for a PR that was already finished.
+    const summary =
+      `Not reviewed — ${lifecycle.reason}. No ships were run and no AI was spent. ` +
+      `Fleet jobs are queued, so a delivery can arrive after the pull request it ` +
+      `was raised for has already finished.`;
+    await transcript.step(
+      'pr-lifecycle-skip',
+      null,
+      `Check concluded: neutral (pull request already ${lifecycle.state})`,
+      {
+        checkRunId,
+        conclusion: 'neutral',
+        reason: `pr-${lifecycle.state}`,
+        prState: lifecycle.state,
+        shipsRun: 0,
+      },
+    );
+    await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+    await recordRunEnd(env, runId, 'neutral', startMs);
+    return;
+  }
+
+  const fleetAppLogin = await resolveFleetAppLogin(
+    env.GITHUB_APP_ID,
+    env.GITHUB_APP_PRIVATE_KEY,
+    env.FLEET_TOKENS,
+  ).catch(() => null);
+  const authorship = classifyPrAuthorship({
+    authorLogin: prCtx.authorLogin,
+    authorType: prCtx.authorType,
+    headRef: prCtx.headRef,
+    fleetAppLogin,
+  });
+  if (authorship.fleetAuthored) {
+    const summary =
+      `Fleet-authored branch — not self-reviewed. ${authorship.reason}. ` +
+      `No ships were run and no AI was spent: reviewing the fleet's own output produces ` +
+      `machine noise on machine work, not review. The branch is still gated by the repo's ` +
+      `normal CI and requires a human to merge it.`;
+    await transcript.step(
+      'fleet-authored-skip',
+      null,
+      'Check concluded: neutral (fleet-authored branch, not self-reviewed)',
+      {
+        checkRunId,
+        conclusion: 'neutral',
+        reason: 'fleet-authored',
+        authorLogin: prCtx.authorLogin,
+        authorType: prCtx.authorType,
+        headRef: prCtx.headRef,
+        signal: authorship.signal,
+        shipsRun: 0,
+      },
+    );
+    await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+    await recordRunEnd(env, runId, 'neutral', startMs);
+    return;
+  }
 
   // Cloud squid: announce the run (fire-and-forget; disabled unless BOTH
   // RELAY_PUBLISH_URL and RELAY_PUBLISH_TOKEN are configured AND the tenant
@@ -1109,7 +1225,16 @@ async function runShip(
     ).catch(() => null);
 
     const systemPrompt = buildSystemPrompt(ship, contract, graftText);
-    const chunks = chunkDiff(prCtx.diff);
+
+    // Drop generated files BEFORE chunking. A lockfile refresh or a regenerated
+    // snapshot is often the largest thing in a diff, and every chunk of it is a
+    // model call spent on output no human wrote — while displacing real code
+    // into later chunks, which is exactly what makes each reviewer's view of
+    // the change partial. Falls back to the full diff if the filter would leave
+    // nothing, so a genuinely all-generated PR still gets looked at rather than
+    // silently passing.
+    const reviewableDiff = filterDiffToReviewable(prCtx.diff);
+    const chunks = chunkDiff(reviewableDiff || prCtx.diff);
 
     // Lookout's tools: cross-PR / cross-branch awareness. Fetched once per run and
     // injected into every MAP chunk so it can spot contradictions and duplication
@@ -1299,7 +1424,46 @@ async function runShip(
 
     // Parse the structured findings block. `null` => malformed JSON => the ship
     // is treated as errored (blocking → BLOCK, advisory → PASS, never silent).
-    const findings = parseShipFindings(output);
+    const parsedFindings = parseShipFindings(output);
+
+    // Drop findings that cite a file this PR never touched.
+    //
+    // A prompt instruction is guidance; this is enforcement. Review is
+    // map-reduce over diff chunks, and a reviewer holding several files' hunks
+    // at once can attribute a snippet from one to the path of another — on
+    // #4956 a fragment from `lib/local-citizen/ink-cloud.ts` was reported as a
+    // syntax error at a line in `lib/squid/reconcile-sources.ts`, a file that
+    // does not contain the quoted text anywhere. A finding pinned to a path
+    // outside the diff cannot be about this PR, and shipping it burns reviewer
+    // trust on every finding that IS real.
+    //
+    // Deliberately scoped to paths, not line numbers: a slightly-off line is a
+    // navigational annoyance, while a wrong FILE means the reasoning was about
+    // something else entirely.
+    // FAIL OPEN when the changed-file list is not known to be complete.
+    //
+    // `fetchPRContext` returns `files: []` when the /files call fails, and asks
+    // GitHub for `per_page=100` without paginating — so an empty list means
+    // "we don't know", and a list AT the page size may be truncated. Filtering
+    // against either would silently discard real findings, which is a far worse
+    // failure than letting a bogus one through: a dropped finding is invisible,
+    // while a wrong one is at least arguable in the thread. The prompt-level
+    // scope contract is the primary defence; this is the backstop, and a
+    // backstop that can eat correct output is not worth having.
+    const changedPaths = new Set(prCtx.files.map(f => f.filename));
+    const fileListTrustworthy = changedPaths.size > 0 && prCtx.files.length < PR_FILES_PAGE_SIZE;
+    const findings =
+      parsedFindings === null || !fileListTrustworthy
+        ? parsedFindings
+        : parsedFindings.filter(f => {
+            const cited = String((f as { path?: unknown }).path ?? '').trim();
+            if (!cited || changedPaths.has(cited)) return true;
+            console.warn(
+              `[fleet-executor] pd-${ship.name}: dropped finding citing '${cited}', ` +
+                `which is not among this PR's ${changedPaths.size} changed files`,
+            );
+            return false;
+          });
 
     // Transcript: findings parse outcome. A malformed block is a 'ship-finding'
     // marker (the ship produced output we couldn't parse); a parsed block is a
@@ -1511,6 +1675,24 @@ async function maybeStackProposal(
   }
 }
 
+/**
+ * Render the ideation stack-proposal PR's body.
+ *
+ * MOTIVATION: same deadlock as the purser's test branch (see
+ * `src/fleet-pr-body.ts`). A `fleet/<ship>-pr-<n>-<slug>` branch is based on the
+ * REVIEWED PR's head, so a gate that bounces this body strands the fix behind a
+ * permanently-blocked PR nobody can clear — the machine cannot write a human
+ * Test Plan, and no human is standing by to write one for it. The trailers
+ * declare the exemptions the guards already offer, each with a reason specific
+ * to what this branch actually is.
+ *
+ * @param ship The ideation ship that authored the fix (named in the prose).
+ * @param prCtx The reviewed PR this fix stacks on.
+ * @param proposal The parsed proposal (title/rationale/files).
+ * @param sandboxValidated Whether the repo's suite actually ran green with the
+ *   fix applied — stated honestly either way, never assumed.
+ * @returns The full markdown body for the stacked fix PR.
+ */
 function buildStackPrBody(
   ship: ShipConfig,
   prCtx: PRContext,
@@ -1527,6 +1709,10 @@ function buildStackPrBody(
     sandboxValidated
       ? `Sandbox-validated: the repo's test suite passed with this fix applied to the PR head.`
       : `Not sandbox-validated (no sandbox available this run) — review before merging.`,
+    fleetPrBodyTrailers(
+      `stacked fix proposed by pd-${ship.name} while reviewing #${prCtx.prNumber}; it carries no roadmap ` +
+        `item of its own — it is machinery attached to whichever item #${prCtx.prNumber} advances`,
+    ),
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -1587,6 +1773,25 @@ async function captureIdeas(
  * each under {@link MAP_CHUNK_CHAR_LIMIT}. A single file larger than the budget
  * is hard-split. Always returns at least one chunk (possibly empty-string).
  */
+/**
+ * Strip file sections whose diffs cannot carry a reviewable defect.
+ *
+ * Operates on `diff --git` boundaries so a dropped file takes its whole hunk
+ * set with it and never leaves an orphan header that a reviewer would try to
+ * interpret.
+ */
+export function filterDiffToReviewable(diff: string): string {
+  if (!diff || !diff.trim()) return diff;
+  return diff
+    .split(/(?=^diff --git )/m)
+    .filter(part => {
+      if (!part.startsWith('diff --git ')) return true; // preamble, keep
+      const path = pathFromDiffLine(part.split('\n', 1)[0] ?? '') ?? '';
+      return !path || isReviewableForBugs(path);
+    })
+    .join('');
+}
+
 export function chunkDiff(diff: string): string[] {
   if (!diff || !diff.trim()) return [''];
 
@@ -1598,13 +1803,24 @@ export function chunkDiff(diff: string): string[] {
   let cur = '';
   for (const part of parts) {
     if (part.length > MAP_CHUNK_CHAR_LIMIT) {
+      // An oversized single file becomes ONE chunk, over budget and whole.
+      //
+      // It used to be hard-split into raw slices, which was wrong twice over:
+      // only the first slice carried the `diff --git` header, so every
+      // continuation was un-attributable — the scope contract failing on
+      // exactly the largest files — and a reviewer handed half a function has
+      // no more chance of judging it correctly than one handed none.
+      //
+      // A file is the smallest unit that can be reviewed coherently, so it is
+      // the smallest unit we will split to. When one file exceeds the budget
+      // that is unavoidable: emit it intact and let the caller's own limits
+      // decide what to do, rather than shredding it into pieces that are
+      // cheaper to send and impossible to review.
       if (cur) {
         chunks.push(cur);
         cur = '';
       }
-      for (let i = 0; i < part.length; i += MAP_CHUNK_CHAR_LIMIT) {
-        chunks.push(part.slice(i, i + MAP_CHUNK_CHAR_LIMIT));
-      }
+      chunks.push(part);
       continue;
     }
     if (cur && cur.length + part.length > MAP_CHUNK_CHAR_LIMIT) {
@@ -1760,6 +1976,94 @@ function buildSystemPrompt(ship: ShipConfig, contract: string | null, graftText 
   return parts.join('\n\n');
 }
 
+/**
+ * Paths whose hunks appear in this chunk, read off the `diff --git` headers.
+ *
+ * The reviewer must be able to tell what it is actually looking at. A chunk
+ * concatenates several files, and the changed-file list names every file in the
+ * PR — so without this the model sees N filenames and some hunks with no way to
+ * bind one to the other, and attributing a snippet to the wrong path is the
+ * natural outcome rather than an unlucky one.
+ */
+export function filesInChunk(diffChunk: string): string[] {
+  const out = new Set<string>();
+  // Section-aware, not line-aware. A rename emits BOTH `--- a/old` and
+  // `+++ b/new`; collecting every line would report the old path as present
+  // too, telling a reviewer it holds a file that exists only under its new
+  // name. One path per file section, preferring the post-image.
+  for (const section of diffChunk.split(/(?=^diff --git )/m)) {
+    if (!section.trim()) continue;
+    let newSide: string | null = null;
+    let oldSide: string | null = null;
+    let headerSide: string | null = null;
+    for (const line of section.split('\n')) {
+      if (line.startsWith('+++ b/')) newSide ??= line.slice(6).trim() || null;
+      else if (line.startsWith('--- a/')) oldSide ??= line.slice(6).trim() || null;
+      else if (line.startsWith('diff --git a/')) headerSide ??= pathFromDiffLine(line);
+      if (newSide) break;
+    }
+    // `+++ /dev/null` on a deletion leaves newSide null, so the old path is
+    // the only truthful answer there.
+    const path = newSide ?? headerSide ?? oldSide;
+    if (path) out.add(path);
+  }
+  return [...out];
+}
+
+/**
+ * Extract a path from one diff line, tolerating spaces.
+ *
+ * `diff --git a/X b/Y` cannot be parsed with `\S+`: git does not escape spaces
+ * in paths, and this repository already contains `public/Untitled 2.png`. A
+ * greedy split on whitespace silently yields the wrong path — or none — and the
+ * file is then mis-marked "not in this chunk" even though its hunks are right
+ * there, which defeats the scope contract on exactly the files most likely to
+ * need it.
+ *
+ * The `+++ b/<path>` line is the reliable source: the path runs to end of line,
+ * so no delimiter ambiguity exists. `diff --git` is used only as a fallback,
+ * and there the a/ and b/ halves are separated on the ` b/` boundary nearest
+ * the middle, which is correct whenever both sides name the same file (the
+ * common case) and degrades to the whole remainder for a rename.
+ */
+function pathFromDiffLine(line: string): string | null {
+  if (line.startsWith('+++ b/')) return line.slice(6).trim() || null;
+  if (line.startsWith('+++ ')) return null; // +++ /dev/null — a deletion
+  if (line.startsWith('--- a/')) return line.slice(6).trim() || null;
+  if (line.startsWith('diff --git a/')) {
+    const rest = line.slice('diff --git a/'.length);
+    const sep = rest.lastIndexOf(' b/');
+    if (sep === -1) return rest.trim() || null;
+    return rest.slice(sep + 3).trim() || rest.slice(0, sep).trim() || null;
+  }
+  return null;
+}
+
+/**
+ * Build the MAP-stage prompt for one diff chunk.
+ *
+ * **The chunk is a partial view, and saying so is load-bearing.** Review is
+ * map-reduce: each call sees one chunk of a diff that may span dozens of files.
+ * Earlier this was communicated only as ` (chunk 3 of 12)` appended to a
+ * heading, with the full changed-file list rendered flat above it. That
+ * produced two systematic failure modes on a large PR, both observed on
+ * #4956:
+ *
+ *   1. *Fabricated absence.* A reviewer that cannot see `features.manifest.json`
+ *      or a test file in ITS chunk reported them missing — "no CJK tests", "not
+ *      added to the manifest", "PD_HALT_KEY is not exported" — when each was
+ *      present in another chunk. Every one of those shipped as a HIGH finding
+ *      with a one-click issue button.
+ *   2. *Misattribution.* With every path in the PR listed but no marking of
+ *      which are present here, a snippet from one file was reported at a line
+ *      number in a different file that happened to be in the same list.
+ *
+ * The fix is to make the boundary explicit: mark which files this chunk
+ * actually contains, state plainly that the rest exists and is not visible, and
+ * forbid claims that depend on having seen the whole diff. Absence is a
+ * REDUCE-stage judgement — only that stage has all the partials — so the MAP
+ * stage must not guess at it.
+ */
 function buildUserMessage(
   prCtx: PRContext,
   diffChunk: string,
@@ -1767,12 +2071,56 @@ function buildUserMessage(
   chunkCount: number,
   fleetContext = '',
 ): string {
-  const fileList = prCtx.files
-    .map(f => `- ${f.filename} (+${f.additions}/-${f.deletions})`)
+  const present = new Set(filesInChunk(diffChunk));
+  const partial = chunkCount > 1;
+
+  // If GitHub's /files call failed, `prCtx.files` is empty — but the chunk in
+  // hand plainly contains hunks. Rendering "Changed files: (none)" above them
+  // is worse than saying nothing: it tells the reviewer the PR touched nothing
+  // while showing it a diff, which undercuts the very boundary this block
+  // exists to draw. Fall back to what the chunk itself proves.
+  const fileRows = prCtx.files.length
+    ? prCtx.files.map(f => ({ filename: f.filename, adds: f.additions, dels: f.deletions }))
+    : [...present].map(filename => ({ filename, adds: null as number | null, dels: null as number | null }));
+
+  // Mark in-chunk files so the model can bind a hunk to a path. Files from
+  // other chunks stay listed — the reviewer should know the PR is larger than
+  // what it can see — but are explicitly flagged as not visible here.
+  const fileList = fileRows
+    .map(r => {
+      const here = !partial || present.has(r.filename);
+      const mark = here ? '✔' : '·';
+      const counts = r.adds === null ? '' : ` (+${r.adds}/-${r.dels})`;
+      const note = here ? '' : '  — not in this chunk';
+      return `- ${mark} ${r.filename}${counts}${note}`;
+    })
     .join('\n');
 
-  const chunkNote =
-    chunkCount > 1 ? ` (chunk ${chunkIndex + 1} of ${chunkCount})` : '';
+  const chunkNote = partial ? ` (chunk ${chunkIndex + 1} of ${chunkCount})` : '';
+
+  const scopeBlock = partial
+    ? `
+
+## SCOPE — read before reviewing
+
+You are seeing **chunk ${chunkIndex + 1} of ${chunkCount}** of this diff. The files marked \`✔\`
+above are the ONLY ones whose changes are visible to you. Files marked \`·\` are
+part of this PR and were changed, but their hunks are in another chunk that a
+different reviewer is reading.
+
+Therefore, in this stage:
+
+- **Do not report anything as missing, absent, undeclared, unexported, or
+  untested.** You cannot see most of the PR. A test, a manifest entry, an
+  export, or a registration you did not encounter is almost certainly in a
+  chunk you were not given. Claims of absence are decided later, by the stage
+  that has every chunk.
+- **Every finding must cite a path marked \`✔\`**, and the code you quote must
+  appear verbatim in the diff below. A snippet from one file reported against
+  another file's path is worse than no finding at all.
+- Report only defects you can see *in the code shown here*: a wrong condition,
+  an unhandled case, a broken invariant, a real bug in these hunks.`
+    : '';
 
   const contextBlock = fleetContext ? `\n\n${fleetContext}` : '';
 
@@ -1782,7 +2130,7 @@ function buildUserMessage(
 ${fileList || '(none)'}
 
 ## PR description
-${prCtx.body || '(none)'}${contextBlock}
+${prCtx.body || '(none)'}${scopeBlock}${contextBlock}
 
 ## Diff${chunkNote}
 \`\`\`diff

@@ -511,11 +511,21 @@ CREATE INDEX IF NOT EXISTS helm_events_harbor_idx ON helm_events (harbor_id, at)
 --                    parley is never a liveness hole.
 -- parley_positions — one row per participant identity. is_party=1 rows are
 --                    NAMED parties whose signed 'accept' is required;
---                    is_party=0 rows are reserved observers — v1 reserves
---                    the tier-labeled 'pd-mediator' seat with NO
---                    auto-behavior (the mediator's real body is plan-gated).
+--                    is_party=0 rows are reserved observers — the
+--                    tier-labeled 'pd-mediator' seat lives here.
 --                    A signed position (stance + text + signed_at) is
 --                    write-once: signatures are never edited.
+--                    MEDIATOR NOTE (src/mediator.ts, opt-in, default OFF):
+--                    the mediator's observer row reuses `position` to hold
+--                    its machine-written OBSERVATION. No schema change was
+--                    needed and none was made. Its `stance` and `signed_at`
+--                    stay NULL forever — recordMediatorObservation's SET
+--                    list names `position` alone and its WHERE pins
+--                    party_kind='mediator' AND is_party=0, so the mediator
+--                    is structurally unable to sign, to alter another
+--                    party's row, or to affect agreement (which counts
+--                    is_party=1 rows only). A NULL signed_at on that row is
+--                    the durable proof it never signed.
 -- ──────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS parleys (
   id             TEXT    PRIMARY KEY,            -- 'p_' || randomHex(16)

@@ -5,6 +5,10 @@
   --surface-strong: #e9e2d5;
   --surface-overlay: rgba(242, 238, 230, 0.95);
   --surface-sunken: #e0d9cb;
+  /* Card well (ch. 20 rule 5): light cream compresses tints, so cards sit
+     on the STRONG well (raised-on-base is an invisible 1.046:1) and always
+     carry a hairline edge. Dark keeps the raised well. */
+  --surface-card: var(--surface-strong);
   --surface-glass: rgba(247, 243, 235, 0.92);
   --scrim-backdrop: rgba(18, 18, 18, 0.62);
   --media-scrim: color-mix(in srgb, var(--code-bg) 72%, transparent);
@@ -162,6 +166,7 @@
   --surface-strong: #222833;
   --surface-overlay: rgba(16, 18, 22, 0.94);
   --surface-sunken: #0b0d11;
+  --surface-card: var(--surface-raised);
   --surface-glass: rgba(24, 28, 34, 0.9);
   --scrim-backdrop: rgba(0, 0, 0, 0.68);
   --media-scrim: color-mix(in srgb, var(--code-bg) 78%, transparent);

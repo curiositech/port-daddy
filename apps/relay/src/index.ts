@@ -22,6 +22,10 @@
  *                                                token or operator; ADR-0101)
  *   GET  /account/runs                          (HTML runs index; session +
  *                                                GitHub repo ACL; ADR-0101)
+ *   GET  /account/parleys                       (HTML; session; → a harbor's list)
+ *   GET  /account/parleys/:ns/:name             (HTML parley list; session + member)
+ *   GET  /account/parleys/:ns/:name/:id         (HTML parley detail; session + member)
+ *   POST /account/parleys/:ns/:name/:id/sign    (plain form sign; same-origin)
  *   GET  /account/shipwright                    (HTML Shipwright chat; session;
  *                                                the ONE page with inline JS —
  *                                                nonce-scoped CSP)
@@ -111,6 +115,12 @@ import {
   handleAccountDelete,
 } from './auth-github.js';
 import { handleLoginPage, handleAccountPage } from './account-page.js';
+import {
+  handleParleysIndex,
+  handleParleyListPage,
+  handleParleyDetailPage,
+  handleParleySignForm,
+} from './parleys-page.js';
 import { handleRunsPage } from './runs-page.js';
 import { handleShipwrightPage } from './shipwright-page.js';
 import {
@@ -322,6 +332,26 @@ export default {
     // Shipwright chat page (session-gated HTML; src/shipwright-page.ts).
     else if (pathname === '/account/shipwright' && method === 'GET') {
       response = await handleShipwrightPage(request, env);
+    }
+    // ── Parley HTML surface (session + harbor-member gated; parleys-page.ts) ─
+    // /account/parleys                     → redirect to a harbor (or empty state)
+    // /account/parleys/:ns/:name           → that harbor's parley list
+    // /account/parleys/:ns/:name/:id       → one parley in full
+    // /account/parleys/:ns/:name/:id/sign  → POST, plain form, script-free page
+    else if (pathname === '/account/parleys' && method === 'GET') {
+      response = await handleParleysIndex(request, env);
+    } else if (pathname.startsWith('/account/parleys/')) {
+      const seg = pathname.slice('/account/parleys/'.length).split('/').filter(Boolean).map(decodeURIComponent);
+      const [pns, pname, pid, pverb] = seg;
+      if (pns && pname && seg.length === 2 && method === 'GET') {
+        response = await handleParleyListPage(request, env, pns, pname);
+      } else if (pns && pname && pid && seg.length === 3 && method === 'GET') {
+        response = await handleParleyDetailPage(request, env, pns, pname, pid);
+      } else if (pns && pname && pid && seg.length === 4 && pverb === 'sign' && method === 'POST') {
+        response = await handleParleySignForm(request, env, pns, pname, pid);
+      } else {
+        response = new Response('Not Found', { status: 404 });
+      }
     }
 
     // ── Shipwright chat API (session-scoped; src/shipwright.ts) ──────────────
