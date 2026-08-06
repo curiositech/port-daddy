@@ -10,7 +10,7 @@
   \node[stp box,minimum width=43mm,text width=39mm,anchor=south]
     (alice-id) at ([yshift=4mm]alice.south)
     {\textbf{local non-forgeable identity}\\
-     {\scriptsize one trusted daemon \(\cdot\) \textsc{specified}}\\[-1pt]
+     {\scriptsize one trusted daemon\\[-1pt]\textsc{partial}}\\[-1pt]
      {\scriptsize Chapters I--III depend here}};
 
   \node[stp box,minimum width=58mm,minimum height=40mm] (bob) at (4.2,0)
@@ -20,7 +20,7 @@
   \node[stp box,minimum width=43mm,text width=39mm,anchor=south]
     (bob-id) at ([yshift=4mm]bob.south)
     {\textbf{local non-forgeable identity}\\
-     {\scriptsize one trusted daemon \(\cdot\) \textsc{specified}}\\[-1pt]
+     {\scriptsize one trusted daemon\\[-1pt]\textsc{partial}}\\[-1pt]
      {\scriptsize Chapters I--III depend here}};
 
   \draw[hhcobalt,line width=0.9pt,dashed] (0,-1.8) -- (0,1.8);
@@ -38,7 +38,9 @@
 secures identity \emph{within one trusted daemon} --- exactly what Chapters~I--III need
 and assume. The cross-operator boundary needs \emph{cross-operator attestation},
 which is unwritten --- a federated witness log gives log-\emph{integrity}, not
-identity-\emph{binding}. This paper depends on the solid stone and hands the market
+identity-\emph{binding}. The reference system has laid part of the local stone
+(daemon-minted \texttt{actor-souls} and a bounded newcomer pool), but full write-boundary
+enforcement remains. This paper depends on that partial local stone and hands the market
 chapters the unbuilt one \emph{by name}, rather than borrowing the single-operator
 threat model across the boundary.}
 \label{fig:keystone}

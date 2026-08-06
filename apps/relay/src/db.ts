@@ -1253,6 +1253,106 @@ export async function resolveParleyState(
   return (r.meta?.changes ?? 0) > 0;
 }
 
+/** Signature tally for one parley: how many named parties, how many signed. */
+export interface ParleySignatureTally {
+  parley_id: string;
+  parties: number;
+  signed: number;
+}
+
+/**
+ * Tally signatures across MANY parleys in a single query.
+ *
+ * Motivation: the rendered parley list wants "2 of 3 signed" on every row, and
+ * the obvious implementation — listParleyPositions per parley — is an N+1 that
+ * turns a 25-row page into 26 D1 round trips. On a Worker that is the
+ * difference between a page that feels instant and one that visibly hitches,
+ * and it scales with exactly the thing (a busy harbor) that makes the page
+ * worth loading. One GROUP BY over a bounded id list costs one round trip
+ * regardless of row count.
+ *
+ * `is_party = 1` in the WHERE clause is load-bearing, not an optimization: the
+ * denominator here must be the count of parties whose accept agreement
+ * actually requires. Counting observer seats — the pd-mediator row — would
+ * render "2 of 4 signed" on a parley that is one signature from agreed, which
+ * would be a lie about the state machine drawn from the same table the state
+ * machine reads.
+ *
+ * @param db D1 handle.
+ * @param parleyIds Parleys to tally; an empty array short-circuits with no query.
+ * @returns One tally per parley that has at least one named party, unordered.
+ */
+export async function tallyParleySignatures(
+  db: D1Database,
+  parleyIds: string[],
+): Promise<ParleySignatureTally[]> {
+  if (parleyIds.length === 0) return [];
+  const holes = parleyIds.map(() => '?').join(',');
+  const r = await db
+    .prepare(
+      `SELECT parley_id,
+              COUNT(*) AS parties,
+              SUM(CASE WHEN signed_at IS NOT NULL THEN 1 ELSE 0 END) AS signed
+       FROM parley_positions
+       WHERE is_party = 1 AND parley_id IN (${holes})
+       GROUP BY parley_id`,
+    )
+    .bind(...parleyIds)
+    .all<ParleySignatureTally>();
+  return r.results ?? [];
+}
+
+/**
+ * Record the pd-mediator's observation note on ITS OWN observer row.
+ *
+ * This is the mediator's ONLY write in the entire codebase (src/mediator.ts),
+ * and it is deliberately shaped so that the mediator's guarantees are
+ * properties of the SQL rather than promises in a comment. Two halves matter:
+ *
+ * The SET list names `position` and nothing else. `stance` and `signed_at` are
+ * not mentioned, so no argument to this function — however hostile, however
+ * mangled a model's output — can make the mediator appear to have signed. Its
+ * `signed_at` stays NULL forever, and a NULL `signed_at` is exactly what every
+ * read path (and the rendered surfaces) use to mean "has not signed".
+ *
+ * The WHERE clause pins `party_kind = 'mediator' AND party_id = MEDIATOR_ID AND
+ * is_party = 0`. A human's or daemon's row can never match, so this write
+ * cannot alter another party's recorded position; and because `is_party = 0`
+ * rows are invisible to `countUnacceptedParties`, writing here can neither
+ * cause nor block agreement. The `signed_at IS NULL` conjunct is defence in
+ * depth: it makes the statement a no-op against any row that somehow does
+ * carry a signature, so a corrupted seat degrades to silence rather than to a
+ * rewritten signature.
+ *
+ * Note also what is absent: this function never touches the `parleys` table,
+ * so a deadline, a state, and a resolution timestamp are all unreachable from
+ * the mediator's code path. Its capability is exactly "annotate my own row".
+ *
+ * Overwriting a previous note is intended — the observation tracks the record
+ * as it currently stands, and a parley that has gained two more signatures
+ * deserves a current summary rather than a stale one. Signatures are
+ * write-once; observations are not signatures, and conflating them would be
+ * the lie this whole design avoids.
+ *
+ * @param db D1 handle.
+ * @param o.parleyId The parley whose mediator seat is being annotated.
+ * @param o.note Sanitized observation text (see sanitizeObservation).
+ * @returns True iff a mediator observer row was actually annotated.
+ */
+export async function recordMediatorObservation(
+  db: D1Database,
+  o: { parleyId: string; note: string },
+): Promise<boolean> {
+  const r = await db
+    .prepare(
+      `UPDATE parley_positions SET position = ?
+       WHERE parley_id = ? AND party_kind = 'mediator' AND is_party = 0 AND signed_at IS NULL`,
+    )
+    .bind(o.note, o.parleyId)
+    .run();
+  return (r.meta?.changes ?? 0) > 0;
+}
+
 /** Lazy deadline sweep for one harbor: every expired open parley lapses. */
 export async function lapseExpiredParleys(db: D1Database, harborId: string, now: number): Promise<void> {
   await db

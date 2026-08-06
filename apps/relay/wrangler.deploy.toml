@@ -70,6 +70,16 @@ PUBLIC_BASE_URL = "https://relay.portdaddy.dev"
 # operators can retarget without a code deploy; unknown ids fail the AI call
 # with an honest AI_ERROR, they never remap silently.
 SHIPWRIGHT_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+# X4 mediator body (src/mediator.ts) — the relay-side analogue of the fleet's
+# `xo:` / `squidEvents:` consent keys. DEFAULT OFF: only the exact string "on"
+# gives the reserved pd-mediator seat its observation behavior. While off, the
+# seat renders exactly as the honest v1 it shipped as and no tokens are spent.
+# The mediator can never sign, be a party, affect agreement, or change a
+# deadline — that is enforced in code, not by this switch.
+PARLEY_MEDIATOR = "off"
+# Workers AI model for those observations. A NON-`@cf/` value is REJECTED (the
+# committed default is used instead) — Workers AI only, never an external runner.
+PARLEY_MEDIATOR_MODEL = "@cf/meta/llama-3.1-8b-instruct"
 
 [[d1_databases]]
 binding = "DB"
@@ -175,6 +185,16 @@ GITHUB_OAUTH_CLIENT_ID = "Iv23litgGckMU4QVW4i8"
 # Login stays disabled unless the matching secrets are set for --env latest.
 PUBLIC_BASE_URL = "https://relay-latest.erich-owens.workers.dev"
 SHIPWRIGHT_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+# X4 mediator body (src/mediator.ts) — the relay-side analogue of the fleet's
+# `xo:` / `squidEvents:` consent keys. DEFAULT OFF: only the exact string "on"
+# gives the reserved pd-mediator seat its observation behavior. While off, the
+# seat renders exactly as the honest v1 it shipped as and no tokens are spent.
+# The mediator can never sign, be a party, affect agreement, or change a
+# deadline — that is enforced in code, not by this switch.
+PARLEY_MEDIATOR = "off"
+# Workers AI model for those observations. A NON-`@cf/` value is REJECTED (the
+# committed default is used instead) — Workers AI only, never an external runner.
+PARLEY_MEDIATOR_MODEL = "@cf/meta/llama-3.1-8b-instruct"
 
 [[env.latest.d1_databases]]
 binding = "DB"

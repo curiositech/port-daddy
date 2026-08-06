@@ -460,9 +460,9 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/spawn-to-person',
     overviewHref: '/whitepaper?paper=spawn-to-person',
     date: 'August 2026',
-    pages: 34,
+    pages: 35,
     sizeKb: 618,
-    status: 'Version 1.3 (series-aligned edition)',
+    status: 'Version 1.4 (collected-volume edition)',
     order: '03',
     chapter: 'III',
     group: 'explain',
@@ -573,9 +573,9 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/harbor-economy',
     overviewHref: '/whitepaper?paper=harbor-economy',
     date: 'August 2026',
-    pages: 30,
+    pages: 31,
     sizeKb: 869,
-    status: 'Version 1.2 (revised pre-print)',
+    status: 'Version 1.3 (collected-volume edition)',
     order: '04',
     chapter: 'IV',
     group: 'explain',
@@ -1100,6 +1100,14 @@ export interface LibraryChangelogEntry {
 }
 
 export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
+  {
+    dateIso: '2026-08-05',
+    date: 'August 5, 2026',
+    title: 'Spawn-to-Person diagrams and implementation status align',
+    summary:
+      'Chapter III advances to Version 1.4: three repaired figures distinguish the shipped local actor-soul and commitment substrates from the still-open write-boundary, neutral-grading, reputation, and cross-operator-attestation obligations. The 35-page standalone, contact sheet, animated page tour, and SHA-256 proof manifest are published together.',
+    chapters: ['III'],
+  },
   {
     dateIso: '2026-08-04',
     date: 'August 4, 2026',
