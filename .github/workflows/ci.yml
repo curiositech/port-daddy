@@ -552,10 +552,16 @@ jobs:
         run: npm run prebuild
 
       - name: Fail if any generated artifact drifted from its source
-        # Same file list as website-v2's `test:generated-drift` script, which is
-        # the local one-liner for reproducing this failure before pushing.
+        # Delegates to website-v2's `check:generated-drift` so the gated file
+        # list lives in EXACTLY ONE place. It was duplicated here and in
+        # package.json, and a divergence would silently shrink the gate — which
+        # is this gate's own failure mode: the drift proof on this PR showed a
+        # route-table edit moving sitemap.xml while leaving llms.txt
+        # byte-identical, so a list missing one file reports green on real drift.
+        # The wrapper exists only to attach the ::error:: annotation; the script
+        # is the authority on what is checked.
         run: |
-          if ! git diff --exit-code -- public/llms.txt public/sitemap.xml public/robots.txt public/skill-audit.json; then
+          if ! npm run --silent check:generated-drift; then
             echo "::error::Generated artifacts are stale. Run 'cd website-v2 && npm run prebuild' and commit the result."
             exit 1
           fi
