@@ -162,6 +162,30 @@ describe('purser per-call model/cost/prompt/response', () => {
     expect(detail.model).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
     expect(detail.usageReported).toBe(true);
     expect(detail.response).toBe('not json at all');
+
+    // A FAILED call still costs money, and this row is the only place that says
+    // so. The failure path is where accounting matters MOST -- a run that burns
+    // budget producing unusable output is exactly the run an operator needs to
+    // find, and it is the one least likely to be looked at otherwise.
+    //
+    // Raised in review: this case asserted model and response only, while its
+    // own name promised "model/cost/prompt/response" and the PR body claimed
+    // accounting survives a parse failure. The name was right and the
+    // assertions were not.
+    expect(detail.inputTokens).toBe(50);
+    expect(detail.outputTokens).toBe(10);
+    // 50/1e6*0.051 + 10/1e6*0.335 = 0.00000255 + 0.00000335 = 0.0000059,
+    // which costUsdForModel rounds to 6 decimals -> 0.000006. Asserted at the
+    // ROUNDED value on purpose: at these token counts the rounding is a ~1.7%
+    // move, so a test written against the unrounded arithmetic fails for a
+    // reason unrelated to the behaviour under test (it did, first time). The
+    // 6-decimal quantisation is deliberate -- see spend.ts, it keeps sub-cent
+    // Workers AI costs from vanishing to zero.
+    expect(detail.costUsd).toBeCloseTo(0.000006, 7);
+    // And the prompts that produced the unusable output -- a rejection without
+    // its prompt cannot be diagnosed, only noticed.
+    expect(detail.systemPrompt as string).toContain('STEEL-MAN phase');
+    expect(detail.userPrompt as string).toContain('Add widget frobbing');
   });
 
   it('an oversized PR body/diff is truncated in the transcript honestly, never silently dropped', async () => {
