@@ -15,11 +15,19 @@ describe('capText', () => {
     expect(capText('')).toEqual({ text: '', truncated: false, length: 0 });
   });
 
-  it('handles null/undefined input as empty text (never throws)', () => {
-    // @ts-expect-error — exercising the runtime guard for hostile/missing input.
-    expect(capText(undefined)).toEqual({ text: '', truncated: false, length: 0 });
-    // @ts-expect-error — same, null.
-    expect(capText(null)).toEqual({ text: '', truncated: false, length: 0 });
+  it('treats any non-string as empty text, and never throws', () => {
+    // capText takes `unknown` deliberately: it runs on the best-effort
+    // transcript path, where the value came back from a model. The signature
+    // used to say `string` while the body defended against undefined, so this
+    // test needed @ts-expect-error to prove the guard worked -- the directive
+    // was evidence the type was lying, not evidence the test was hostile.
+    //
+    // Non-strings are treated as EMPTY rather than coerced. String({}) would
+    // write "[object Object]" into a field a human reads as the model's actual
+    // prompt, which is worse than an obvious blank.
+    for (const bad of [undefined, null, 42, {}, [], true, Symbol('s'), () => {}]) {
+      expect(capText(bad)).toEqual({ text: '', truncated: false, length: 0 });
+    }
   });
 
   it('truncates text longer than the default cap, reporting the ORIGINAL length', () => {

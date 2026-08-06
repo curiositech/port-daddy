@@ -34,9 +34,27 @@ export interface CappedText {
   length: number;
 }
 
-/** Cap `text` to `cap` characters (default {@link TRANSCRIPT_TEXT_CAP}), honestly. */
-export function capText(text: string, cap: number = TRANSCRIPT_TEXT_CAP): CappedText {
-  const value = text ?? '';
+/**
+ * Cap `text` to `cap` characters (default {@link TRANSCRIPT_TEXT_CAP}), honestly.
+ *
+ * `text` is `unknown` rather than `string` on purpose. This runs on the
+ * best-effort transcript path, where every caller is handing over a value that
+ * came back from a model: `extractAiText` can yield undefined, and a response
+ * envelope can carry a number or an object where a string was expected. The
+ * function's contract is that it NEVER throws -- a transcript row is diagnostic
+ * detail and must not be able to fail the review it is describing -- so the
+ * type has to admit what the callers can actually pass. Narrowing it to
+ * `string` only moved the problem to a `@ts-expect-error` at the test that
+ * proved the guard works, which is the signature lying about the contract.
+ *
+ * @param text any value; non-strings are treated as empty rather than coerced,
+ *   because `String(someObject)` would write "[object Object]" into a field a
+ *   human reads as the model's actual prompt.
+ * @param cap maximum characters to keep
+ * @returns the capped text, whether it was cut, and the ORIGINAL length
+ */
+export function capText(text: unknown, cap: number = TRANSCRIPT_TEXT_CAP): CappedText {
+  const value = typeof text === 'string' ? text : '';
   const length = value.length;
   if (length <= cap) return { text: value, truncated: false, length };
   return { text: value.slice(0, cap), truncated: true, length };

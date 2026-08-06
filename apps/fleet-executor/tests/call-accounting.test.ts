@@ -45,12 +45,26 @@ describe('perCallAccounting', () => {
     expect(perCallAccounting('@cf/x', 'a string response').usageReported).toBe(false);
   });
 
-  it('costs 0 for an unpriced model, but STILL reports usage as reported (tokens are real)', () => {
+  it('an unpriced model records real tokens and NO cost -- not a cost of zero', () => {
+    // The distinction this whole row exists to preserve: "we do not know what
+    // this cost" is not "this cost nothing". costUsdForModel returns 0 for a
+    // model absent from WORKERS_AI_RATES, so stamping it would make an unpriced
+    // call indistinguishable from a genuinely free one on a page whose entire
+    // job is to be believed. The tokens are real and are still recorded.
     const res = { response: 'x', usage: { prompt_tokens: 500, completion_tokens: 500 } };
     const acc = perCallAccounting('@cf/some/unpriced-model', res);
     expect(acc.usageReported).toBe(true);
     expect(acc.inputTokens).toBe(500);
-    expect(acc.costUsd).toBe(0);
+    expect(acc.outputTokens).toBe(500);
+    expect(acc.costUsd).toBeUndefined();
+    expect(acc.unpricedModel).toBe(true);
+  });
+
+  it('a PRICED model still carries a cost and no unpriced marker', () => {
+    const res = { response: 'x', usage: { prompt_tokens: 500, completion_tokens: 500 } };
+    const acc = perCallAccounting('@cf/openai/gpt-oss-120b', res);
+    expect(acc.costUsd).toBeGreaterThan(0);
+    expect(acc.unpricedModel).toBeUndefined();
   });
 
   it('carries cached-input tokens when the model reports prefix-cache hits', () => {

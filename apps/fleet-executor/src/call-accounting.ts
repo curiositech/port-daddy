@@ -16,7 +16,7 @@
  */
 
 import { extractWorkersAiUsage } from './telemetry.js';
-import { costUsdForModel } from './spend.js';
+import { costUsdForModel, isPricedModel } from './spend.js';
 
 export interface CallAccounting {
   model: string;
@@ -30,8 +30,23 @@ export interface CallAccounting {
   inputTokens?: number;
   outputTokens?: number;
   cachedInputTokens?: number;
-  /** USD cost for this ONE call, at `model`'s rate. Omitted when usage is not reported. */
+  /**
+   * USD cost for this ONE call, at `model`'s rate.
+   *
+   * OMITTED in both cases where the number would not be true: when the model
+   * reported no usage, and when the model has no published rate. The second is
+   * the subtler one -- costUsdForModel returns 0 for an unpriced model, so
+   * stamping it would make an unpriced call indistinguishable from a genuinely
+   * free one on a page whose whole job is to be believed.
+   */
   costUsd?: number;
+  /**
+   * True when the model has no entry in WORKERS_AI_RATES. Tokens are still
+   * recorded and correct; only the cost is unknowable. Present so a reader can
+   * tell "we do not know what this cost" from "this cost nothing" -- an absent
+   * `costUsd` alone cannot distinguish the two.
+   */
+  unpricedModel?: boolean;
 }
 
 /** Derive one call's accounting from its raw Workers AI result. Never throws. */
@@ -41,12 +56,16 @@ export function perCallAccounting(model: string, res: unknown): CallAccounting {
   if (!usageReported) return { model, usageReported };
   const inputTokens = u.inputTokens ?? 0;
   const outputTokens = u.outputTokens ?? 0;
+  const priced = isPricedModel(model);
   return {
     model,
     usageReported,
     inputTokens,
     outputTokens,
     cachedInputTokens: u.cachedInputTokens ?? 0,
-    costUsd: costUsdForModel(model, inputTokens, outputTokens),
+    // Cost only when it can be true. See CallAccounting.costUsd.
+    ...(priced
+      ? { costUsd: costUsdForModel(model, inputTokens, outputTokens) }
+      : { unpricedModel: true }),
   };
 }

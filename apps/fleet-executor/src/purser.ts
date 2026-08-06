@@ -38,7 +38,8 @@ import { postShipComment, type PRContext } from './github.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
 import { extractWorkersAiUsage } from './telemetry.js';
 import { perCallAccounting } from './call-accounting.js';
-import { capText } from './transcript-text.js';
+import { capText, type CappedText } from './transcript-text.js';
+
 import { stripThinkSpans } from './xo.js';
 import {
   createOrUpdateBranch,
@@ -68,6 +69,39 @@ import { emitSquidEvent } from './squid-events.js';
 import { emitInterruption } from './interruptions.js';
 
 // ---------------------------------------------------------------------------
+
+/**
+ * The browsable detail of ONE Purser model call: what it was told, and what it
+ * said back.
+ *
+ * A helper rather than nine inline fields per step, because the two REJECTION
+ * steps originally carried the response and not the prompts -- and a rejection
+ * is the case where you most want the prompt, since the question being answered
+ * is "why did the model produce something unusable". Nine fields repeated at
+ * five call sites is an invitation to write four of them; one spread is not.
+ *
+ * @param system capped system prompt (the contract the model was given)
+ * @param user capped user prompt (the PR block)
+ * @param response capped model response
+ * @returns a flat detail block to spread into a transcript step
+ */
+function callDetail(
+  system: CappedText,
+  user: CappedText,
+  response: CappedText,
+): Record<string, unknown> {
+  return {
+    systemPrompt: system.text,
+    systemPromptTruncated: system.truncated,
+    systemPromptLength: system.length,
+    userPrompt: user.text,
+    userPromptTruncated: user.truncated,
+    userPromptLength: user.length,
+    response: response.text,
+    responseTruncated: response.truncated,
+    responseLength: response.length,
+  };
+}
 
 /** Output cap for the steel-man call (a contract is small). */
 const STEELMAN_MAX_TOKENS = 2048;
@@ -666,15 +700,7 @@ export async function runPurser(
         responseShape: steelCall.text ? undefined : describeResponseShape(steelCall.res),
         outputLength: steelCall.text.length,
         ...steelAccounting,
-        systemPrompt: steelSystemCap.text,
-        systemPromptTruncated: steelSystemCap.truncated,
-        systemPromptLength: steelSystemCap.length,
-        userPrompt: steelUserCap.text,
-        userPromptTruncated: steelUserCap.truncated,
-        userPromptLength: steelUserCap.length,
-        response: steelResponseCap.text,
-        responseTruncated: steelResponseCap.truncated,
-        responseLength: steelResponseCap.length,
+        ...callDetail(steelSystemCap, steelUserCap, steelResponseCap),
       });
       return advisoryPass;
     }
@@ -687,15 +713,7 @@ export async function runPurser(
         obligationCount: steel.obligations.length,
         testTargets: steel.testTargets,
         ...steelAccounting,
-        systemPrompt: steelSystemCap.text,
-        systemPromptTruncated: steelSystemCap.truncated,
-        systemPromptLength: steelSystemCap.length,
-        userPrompt: steelUserCap.text,
-        userPromptTruncated: steelUserCap.truncated,
-        userPromptLength: steelUserCap.length,
-        response: steelResponseCap.text,
-        responseTruncated: steelResponseCap.truncated,
-        responseLength: steelResponseCap.length,
+        ...callDetail(steelSystemCap, steelUserCap, steelResponseCap),
       },
     );
 
@@ -713,15 +731,7 @@ export async function runPurser(
         error: 'test-author output was not the required fenced JSON files block',
         outputLength: testsCall.text.length,
         ...testsAccounting,
-        systemPrompt: testsSystemCap.text,
-        systemPromptTruncated: testsSystemCap.truncated,
-        systemPromptLength: testsSystemCap.length,
-        userPrompt: testsUserCap.text,
-        userPromptTruncated: testsUserCap.truncated,
-        userPromptLength: testsUserCap.length,
-        response: testsResponseCap.text,
-        responseTruncated: testsResponseCap.truncated,
-        responseLength: testsResponseCap.length,
+        ...callDetail(testsSystemCap, testsUserCap, testsResponseCap),
       });
       return advisoryPass;
     }
@@ -731,9 +741,7 @@ export async function runPurser(
         error: validation.reason,
         fileCount: files.length,
         ...testsAccounting,
-        response: testsResponseCap.text,
-        responseTruncated: testsResponseCap.truncated,
-        responseLength: testsResponseCap.length,
+        ...callDetail(testsSystemCap, testsUserCap, testsResponseCap),
       });
       return advisoryPass;
     }
@@ -743,9 +751,7 @@ export async function runPurser(
         await transcript.step('purser-tests', ship.name, `pd-${ship.name}: authored tests REJECTED`, {
           error: `path outside testPaths prefixes (${ship.testPaths.join(', ')}): ${stray.path}`,
           ...testsAccounting,
-          response: testsResponseCap.text,
-          responseTruncated: testsResponseCap.truncated,
-          responseLength: testsResponseCap.length,
+          ...callDetail(testsSystemCap, testsUserCap, testsResponseCap),
         });
         return advisoryPass;
       }
@@ -762,15 +768,7 @@ export async function runPurser(
         files: fileSummaries,
         totalBytes: fileSummaries.reduce((acc, f) => acc + f.bytes, 0),
         ...testsAccounting,
-        systemPrompt: testsSystemCap.text,
-        systemPromptTruncated: testsSystemCap.truncated,
-        systemPromptLength: testsSystemCap.length,
-        userPrompt: testsUserCap.text,
-        userPromptTruncated: testsUserCap.truncated,
-        userPromptLength: testsUserCap.length,
-        response: testsResponseCap.text,
-        responseTruncated: testsResponseCap.truncated,
-        responseLength: testsResponseCap.length,
+        ...callDetail(testsSystemCap, testsUserCap, testsResponseCap),
       },
     );
 
