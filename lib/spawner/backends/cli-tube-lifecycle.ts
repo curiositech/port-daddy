@@ -101,7 +101,7 @@ export function waitForCliChildProcess(
         knownTreePids = dedupePids([...knownTreePids, ...tree.pids]);
       });
       processTreeScanTail = scan.catch(() => {});
-      return scan;
+      return processTreeScanTail;
     };
     const scheduleProcessTreePoll = (): void => {
       if (settled || timedOut) return;
