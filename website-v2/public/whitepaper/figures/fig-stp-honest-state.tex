@@ -16,14 +16,14 @@ Episodic memory (continuity organ 1) & \BUILT &
   \S\ref{sec:organs}; runs in the reference system (App.~\ref{app:status}) \\
 Checkpoint / restart organ (organ 2) & \BUILTWEAK &
   \S\ref{sec:organs} --- forwards a summary, not execution state \\
-Outcome ledger (organ 3 --- reputation keys on it) & \DESIGNED &
-  \S\ref{sec:organs}, Def.~\ref{def:oracle}; oracle-bound closure specified \\
+Outcome ledger (organ 3 --- reputation keys on it) & \BUILTWEAK &
+  \S\ref{sec:organs}, Def.~\ref{def:oracle}; commitments and oracle closure ship, grading does not \\
 Cost meter (efficiency axis source) & \BUILT &
   \S\ref{sec:adr0049}; per-task accounting recorded today \\
 Bond / escrow / slash & \BUILT &
   used throughout; conservation property holds in the reference system \\
-Local non-forgeable identity & \DESIGNED &
-  \S\ref{sec:identity}, Thm.~\ref{thm:necessity}; identities self-asserted today \\
+Local non-forgeable identity & \BUILTWEAK &
+  \S\ref{sec:identity}, Thm.~\ref{thm:necessity}; actor-souls ship, full write gating does not \\
 Cross-operator attestation & \VISION &
   \S\ref{sec:keystone}; named dependency owed to the market paper \\
 Reputation estimator (BT / Elo / TrueSkill / EigenTrust) &
@@ -40,8 +40,8 @@ Tombstone revocation of outcomes & \DESIGNED &
 \caption{\textbf{Maturity ledger for Chapter III.} Every major claim with its maturity
 label and the section that argues it (the reference system's component-level
 grounding is in Appendix~\ref{app:status}). The skeptical reader should read this
-first: most of the reputation \emph{substrate} is \DESIGNED-to-\VISION, which is
-the paper's central, deliberate admission --- the score is cheap, the substrate is
-the gate, and the substrate is mostly unbuilt.}
+first: the local commitment and identity substrates are partial, while neutral
+judging, reputation, and cross-operator binding remain \DESIGNED-to-\VISION. The
+score is cheap; the trustworthy substrate remains the gate.}
 \label{fig:honest-state}
 \end{figure}

@@ -83,6 +83,23 @@ export interface GitHubState {
   labelPosts: Array<{ number: number; labels: string[] }>;
   /** When true, EVERY Git Data write (blobs/trees/commits/refs) returns 403. */
   failGitWrites403: boolean;
+
+  // --- Fleet self-identity (self-review guard) -----------------------------
+  /**
+   * Slug returned by `GET /app`, i.e. this App's identity. `null` makes the
+   * endpoint 404 so `resolveFleetAppLogin` yields null (the unresolvable case).
+   */
+  appSlug: string | null;
+  /** `user` block on the live PR fetch — who authored the PR under review. */
+  prAuthor: { login: string; type: string } | null;
+  /**
+   * `state` / `merged` on the live PR fetch — the PR's lifecycle.
+   *
+   * `undefined` OMITS the key entirely, reproducing a payload where GitHub
+   * gave us nothing, which the lifecycle gate must fail OPEN on.
+   */
+  prState: string | undefined;
+  prMerged: boolean | undefined;
 }
 
 export function freshState(): GitHubState {
@@ -120,6 +137,10 @@ export function freshState(): GitHubState {
     prPatches: [],
     labelPosts: [],
     failGitWrites403: false,
+    appSlug: 'port-daddy',
+    prAuthor: { login: 'a-human', type: 'User' },
+    prState: 'open',
+    prMerged: false,
   };
 }
 
@@ -152,6 +173,12 @@ export function installGitHubFetch(state: GitHubState): void {
       }
     }
     state.records.push({ method, url, body });
+
+    // --- App self-identity (resolveFleetAppLogin) ---
+    if (url === 'https://api.github.com/app' && method === 'GET') {
+      if (!state.appSlug) return text('not found', 404);
+      return json({ slug: state.appSlug });
+    }
 
     // --- installation access token mint ---
     if (url.includes('/app/installations/') && url.includes('/access_tokens') && method === 'POST') {
@@ -292,6 +319,9 @@ export function installGitHubFetch(state: GitHubState): void {
         number: 7,
         title: 'Test PR',
         body: '',
+        ...(state.prAuthor ? { user: state.prAuthor } : {}),
+        ...(state.prState === undefined ? {} : { state: state.prState }),
+        ...(state.prMerged === undefined ? {} : { merged: state.prMerged }),
         head: {
           sha: state.prHeadSha,
           // undefined prHeadRef omits the key entirely, reproducing a PR whose

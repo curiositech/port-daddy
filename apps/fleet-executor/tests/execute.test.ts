@@ -63,7 +63,11 @@ const REVIEWER_PLUS_QA_YAML = fleetYaml([
 function reviewWithFinding(verdict: 'PASS' | 'BLOCK' = 'PASS', body = 'finding'): string {
   return [
     '```json',
-    JSON.stringify([{ path: 'src/a.ts', line: 1, severity: 'MEDIUM', body }]),
+    // Must cite a path the harness actually reports as changed (`src/x.ts`).
+    // Findings pinned to a file outside the diff are dropped before rendering,
+    // so a fixture citing an untouched file would silently post nothing and
+    // these verdict/check assertions would fail for an unrelated reason.
+    JSON.stringify([{ path: 'src/x.ts', line: 1, severity: 'MEDIUM', body }]),
     '```',
     '',
     `FLEET-VERDICT: ${verdict}`,
@@ -112,6 +116,157 @@ describe('zero-trust config + contract fetching', () => {
     // And specifically the config + contract were read from main.
     expect(state.contentsRefs).toContainEqual({ path: 'pd-fleet.yml', ref: 'main' });
     expect(state.contentsRefs).toContainEqual({ path: 'fleet/ships/code-reviewer.md', ref: 'main' });
+  });
+});
+
+describe('PR lifecycle gate — a finished PR is not reviewed', () => {
+  /** Installation token, so the run reaches the gate rather than dying at mint. */
+  function tokenKv(): ReturnType<typeof memoryKV> {
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    return kv;
+  }
+
+  // A queue can deliver a job long after it was enqueued. Observed live:
+  // #5456 authored five adversarial test files for #5372 a hundred minutes
+  // AFTER #5372 merged. A test branch stacked under a merged PR can never be
+  // merged through, so the whole run is waste.
+
+  it('a MERGED pr runs ZERO ships but still completes the required check', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    state.prState = 'closed';
+    state.prMerged = true;
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding(), qa: reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: tokenKv(), AI: ai.ai }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.reviews).toHaveLength(0);
+    expect(state.commentPosts).toBe(0);
+    // The required check must never be left hanging — that blocks a branch forever.
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].summary).toMatch(/already merged/);
+    // The summary is the ONLY explanation an author gets for a neutral required
+    // check, so it must not assert something we never checked. We do not know
+    // when the job was enqueued relative to the merge — a delivery can be
+    // raised for a PR that had already finished.
+    expect(state.completed[0].summary).not.toMatch(/enqueued while/i);
+    expect(state.completed[0].summary).not.toMatch(/has since (merged|closed)/i);
+  });
+
+  it('a CLOSED-unmerged pr is skipped too', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prState = 'closed';
+    state.prMerged = false;
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: tokenKv(), AI: ai.ai }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed[0].summary).toMatch(/is closed/);
+  });
+
+  it('an OPEN pr is reviewed normally — the gate does not fire', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: tokenKv(), AI: ai.ai }));
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.completed[0].summary).not.toMatch(/already merged|is closed/);
+  });
+
+  it('FAILS OPEN when GitHub omits the lifecycle fields entirely', async () => {
+    // The load-bearing case. Skipping a live PR silently removes its review
+    // gate and reports neutral, which reads exactly like a clean run.
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prState = undefined;
+    state.prMerged = undefined;
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: tokenKv(), AI: ai.ai }));
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.reviews.length).toBeGreaterThan(0);
+  });
+});
+
+describe('self-review guard — the fleet does not review its own branches', () => {
+  /** Seed the App-login cache so authorship resolves on the STRONG signal. */
+  function fleetKv(): ReturnType<typeof memoryKV> {
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    void kv.put('fleet_app_login', 'port-daddy[bot]');
+    return kv;
+  }
+
+  it('a fleet-authored purser branch completes the required check and runs ZERO ships', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    state.prAuthor = { login: 'port-daddy[bot]', type: 'Bot' };
+    state.prHeadRef = 'purser/pr-4763-tests';
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding(), qa: reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: fleetKv(), AI: ai.ai }));
+
+    // No AI spend, no review, no comments — the whole point.
+    expect(ai.calls).toHaveLength(0);
+    expect(state.reviews).toHaveLength(0);
+    expect(state.commentPosts).toBe(0);
+
+    // …but the REQUIRED "Port Daddy Fleet" check is still completed, never left
+    // in_progress. An absent/hanging required check blocks the branch forever.
+    expect(state.checkRunsCreated).toBe(1);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].summary).toContain('Fleet-authored branch — not self-reviewed');
+  });
+
+  it('the same skip applies to an ideation `fleet/` stacked-fix branch', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prAuthor = { login: 'port-daddy[bot]', type: 'Bot' };
+    state.prHeadRef = 'fleet/qa-pr-7-add-guard';
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: fleetKv(), AI: ai.ai }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed[0].conclusion).toBe('neutral');
+  });
+
+  it("a HUMAN's PR is still reviewed normally — ships run, review posted", async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prAuthor = { login: 'erichowens', type: 'User' };
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: fleetKv(), AI: ai.ai }));
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.reviews.length).toBeGreaterThan(0);
+    expect(state.completed[0].summary).not.toContain('not self-reviewed');
+  });
+
+  it("a HUMAN on a `purser/` branch is STILL reviewed — a branch name grants nothing", async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prAuthor = { login: 'mallory', type: 'User' };
+    state.prHeadRef = 'purser/pr-1-tests';
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: fleetKv(), AI: ai.ai }));
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.completed[0].summary).not.toContain('not self-reviewed');
+  });
+
+  it('a DIFFERENT bot is reviewed normally when the fleet App login is known', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prAuthor = { login: 'dependabot[bot]', type: 'Bot' };
+    state.prHeadRef = 'dependabot/npm_and_yarn/x';
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: fleetKv(), AI: ai.ai }));
+
+    expect(ai.calls.length).toBeGreaterThan(0);
   });
 });
 
