@@ -12,40 +12,43 @@ import {
   writeCurrentContext,
 } from '../../cli/utils/current-context.js';
 
+// Every env var resolveContextSlot() consults, so tests get a clean slate
+// regardless of which agent harness (if any) is actually running them —
+// e.g. this suite runs fine under Claude Code, which sets CLAUDE_CODE_SESSION_ID
+// in the ambient environment and would otherwise leak into the "headless
+// fallback" tests below.
+const CONTEXT_ENV_VARS = [
+  'PORT_DADDY_CONTEXT_SLOT',
+  'PORT_DADDY_CONTEXT_DIR',
+  'CODEX_THREAD_ID',
+  'CLAUDE_SESSION_ID',
+  'CLAUDE_CODE_SESSION_ID',
+  'CURSOR_SESSION_ID',
+  'AIDER_SESSION_ID',
+  'COPILOT_SESSION_ID',
+  'TERM_SESSION_ID',
+  'PD_AGENT_ID',
+  'PD_SESSION_ID',
+];
+
 describe('current-context helper', () => {
   let projectDir;
-  let originalSlot;
-  let originalContextDir;
-  let originalCodexThreadId;
-
-  let originalAgentId;
-  let originalSessionId;
+  let originalEnv;
 
   beforeEach(() => {
     projectDir = mkdtempSync(join(tmpdir(), 'pd-current-context-'));
-    originalSlot = process.env.PORT_DADDY_CONTEXT_SLOT;
-    originalContextDir = process.env.PORT_DADDY_CONTEXT_DIR;
-    originalCodexThreadId = process.env.CODEX_THREAD_ID;
-    originalAgentId = process.env.PD_AGENT_ID;
-    originalSessionId = process.env.PD_SESSION_ID;
-    delete process.env.PORT_DADDY_CONTEXT_SLOT;
-    delete process.env.PORT_DADDY_CONTEXT_DIR;
-    delete process.env.CODEX_THREAD_ID;
-    delete process.env.PD_AGENT_ID;
-    delete process.env.PD_SESSION_ID;
+    originalEnv = {};
+    for (const name of CONTEXT_ENV_VARS) {
+      originalEnv[name] = process.env[name];
+      delete process.env[name];
+    }
   });
 
   afterEach(() => {
-    if (originalSlot === undefined) delete process.env.PORT_DADDY_CONTEXT_SLOT;
-    else process.env.PORT_DADDY_CONTEXT_SLOT = originalSlot;
-    if (originalContextDir === undefined) delete process.env.PORT_DADDY_CONTEXT_DIR;
-    else process.env.PORT_DADDY_CONTEXT_DIR = originalContextDir;
-    if (originalCodexThreadId === undefined) delete process.env.CODEX_THREAD_ID;
-    else process.env.CODEX_THREAD_ID = originalCodexThreadId;
-    if (originalAgentId === undefined) delete process.env.PD_AGENT_ID;
-    else process.env.PD_AGENT_ID = originalAgentId;
-    if (originalSessionId === undefined) delete process.env.PD_SESSION_ID;
-    else process.env.PD_SESSION_ID = originalSessionId;
+    for (const name of CONTEXT_ENV_VARS) {
+      if (originalEnv[name] === undefined) delete process.env[name];
+      else process.env[name] = originalEnv[name];
+    }
   });
 
   it('isolates context by slot while keeping a legacy pointer', () => {
@@ -115,6 +118,49 @@ describe('current-context helper', () => {
 
     expect(resolveContextSlot()).toBe('codex-thread-with-spaces');
     expect(readCurrentContext(projectDir)?.sessionId).toBe('session-a');
+  });
+
+  it('recognizes other coding-agent harness session ids beyond Codex', () => {
+    const originalClaudeSessionId = process.env.CLAUDE_SESSION_ID;
+    delete process.env.PORT_DADDY_CONTEXT_SLOT;
+    process.env.CLAUDE_SESSION_ID = 'abc-123';
+
+    try {
+      expect(resolveContextSlot()).toBe('claude-abc-123');
+    } finally {
+      if (originalClaudeSessionId === undefined) delete process.env.CLAUDE_SESSION_ID;
+      else process.env.CLAUDE_SESSION_ID = originalClaudeSessionId;
+    }
+  });
+
+  it('falls back to a stable headless slot — not a per-process ppid — with no TTY or known agent env var', () => {
+    delete process.env.PORT_DADDY_CONTEXT_SLOT;
+
+    // No TTY in the Jest process and no known agent-harness env var set by
+    // beforeEach's cleanup, so this exercises the true bottom fallback.
+    expect(resolveContextSlot()).toBe('headless');
+
+    // The regression this guards: a real `pd begin` (one process) followed
+    // by `git commit`'s hook-forked `pd guard check` (a DIFFERENT process,
+    // and thus a different process.ppid) must resolve to the SAME slot so
+    // the hook can find the session the calling shell just wrote. Mocking
+    // process.ppid proves the slot no longer depends on it.
+    const originalPpidDescriptor = Object.getOwnPropertyDescriptor(process, 'ppid');
+    try {
+      Object.defineProperty(process, 'ppid', { value: 111111, configurable: true });
+      writeCurrentContext({
+        agentId: 'agent-headless',
+        sessionId: 'session-headless',
+        purpose: 'pd begin, process A',
+        identity: 'port-daddy',
+      }, projectDir);
+
+      Object.defineProperty(process, 'ppid', { value: 222222, configurable: true });
+      expect(resolveContextSlot()).toBe('headless');
+      expect(readCurrentContext(projectDir)?.sessionId).toBe('session-headless');
+    } finally {
+      if (originalPpidDescriptor) Object.defineProperty(process, 'ppid', originalPpidDescriptor);
+    }
   });
 
   it('does not reuse another ppid slot through the legacy pointer', () => {
