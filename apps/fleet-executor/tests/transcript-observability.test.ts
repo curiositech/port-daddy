@@ -11,7 +11,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { executeFleet } from '../src/execute.js';
+import { executeFleet, mapChunkCharLimit } from '../src/execute.js';
+import { MODEL_CONTEXT_TOKENS } from '../src/spend.js';
 import { TRANSCRIPT_TEXT_CAP } from '../src/transcript-text.js';
 import {
   freshState,
@@ -61,6 +62,32 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
 });
+
+/**
+ * Lines per file such that EACH file becomes its own chunk.
+ *
+ * Sized from the real budget rather than typed. These fixtures used to
+ * hard-code "~11,000 chars" against a 12,000-char budget; when the budget
+ * became derived from the MAP model's context window they silently stopped
+ * producing a fan-out at all -- one chunk, no REDUCE, and assertions about
+ * "2 map-chunk rows" failing for a reason with nothing to do with
+ * observability. A fixture that encodes a constant is a fixture that expires.
+ *
+ * One chunk PER FILE rather than "enough total to split", because the tests
+ * that use this need a known chunk COUNT: the REDUCE merge prompt is built from
+ * the partials, so five chunks is what pushes it past TRANSCRIPT_TEXT_CAP. An
+ * oversized single file is emitted whole as one chunk (chunkDiff), so making
+ * each file individually exceed the budget makes the count exact.
+ *
+ * Sized against the LARGEST budget any known model yields, so this holds
+ * whichever model the ship resolves to.
+ *
+ * @returns lines of `+line\n` to put in each file
+ */
+function linesToForceChunking(): number {
+  const budget = Math.max(...Object.keys(MODEL_CONTEXT_TOKENS).map(mapChunkCharLimit));
+  return Math.ceil((budget * 1.1) / '+line\n'.length);
+}
 
 describe('a transcript row names the model that row actually ran on', () => {
   it('MAP rows are accounted at the MAP model, not the ship\'s configured one', () => {
@@ -143,7 +170,8 @@ describe('per-call model/cost/prompt/response reach the transcript', () => {
 
   it('a multi-chunk run records model/cost/prompt/response on BOTH map-chunk rows and the reduce row', async () => {
     const file = (name: string) =>
-      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` + '+line\n'.repeat(1500);
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
+      '+line\n'.repeat(linesToForceChunking());
     state.prDiff = file('a.ts') + file('b.ts');
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
@@ -185,7 +213,8 @@ describe('per-call model/cost/prompt/response reach the transcript', () => {
     // 24,000-char transcript cap — so the run page must say so rather than
     // just cutting it.
     const file = (name: string) =>
-      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` + '+line\n'.repeat(1830); // ~11,000 chars
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
+      '+line\n'.repeat(linesToForceChunking());
     state.prDiff = ['a', 'b', 'c', 'd', 'e'].map(n => file(`${n}.ts`)).join('');
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
