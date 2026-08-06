@@ -28,6 +28,7 @@ const mockExecFileSync = jest.fn();
 const originalHome = process.env.HOME;
 const originalPath = process.env.PATH;
 const originalCliBinDirs = process.env.PD_CLI_BIN_DIRS;
+const realSetImmediate = setImmediate;
 let fakeHome;
 
 jest.unstable_mockModule('node:child_process', () => ({
@@ -69,8 +70,12 @@ function fakeChild({ stdout = '', stderr = '', exitCode = 0, error = null, delay
   return ee;
 }
 
-async function flushAsyncProcessDiscovery(turns = 256) {
-  for (let turn = 0; turn < turns; turn += 1) await Promise.resolve();
+async function waitForAsyncProcessDiscovery(predicate, label, turns = 256) {
+  for (let turn = 0; turn < turns; turn += 1) {
+    if (predicate()) return;
+    await new Promise((resolve) => realSetImmediate(resolve));
+  }
+  throw new Error(`Timed out waiting for async process discovery: ${label}`);
 }
 
 beforeEach(() => {
@@ -809,7 +814,10 @@ describe('spawnViaCliTube — failure paths', () => {
       expect(mockExecFile).toHaveBeenCalledTimes(1);
 
       callbacks.shift()(null, ' 5151 1\n 6161 5151\n', '');
-      await Promise.resolve();
+      await waitForAsyncProcessDiscovery(
+        () => jest.getTimerCount() >= 2,
+        'serialized poll timer',
+      );
       await jest.advanceTimersByTimeAsync(99);
       expect(mockExecFile).toHaveBeenCalledTimes(1);
       await jest.advanceTimersByTimeAsync(1);
@@ -904,10 +912,12 @@ describe('spawnViaCliTube — failure paths', () => {
       expect(child.kill).toHaveBeenCalledWith('SIGTERM');
       await jest.advanceTimersByTimeAsync(5000);
       expect(child.kill).toHaveBeenCalledWith('SIGKILL');
-      await flushAsyncProcessDiscovery();
+      await waitForAsyncProcessDiscovery(
+        () => jest.getTimerCount() >= 1,
+        'kill-close hard deadline',
+      );
       await jest.advanceTimersByTimeAsync(1000);
-      await Promise.resolve();
-
+      await expect(resultPromise).resolves.toEqual(expect.objectContaining({ exitCode: -1 }));
       expect(settled).toBe(true);
       expect(stdoutDestroy).not.toHaveBeenCalled();
       expect(stderrDestroy).not.toHaveBeenCalled();
@@ -941,13 +951,19 @@ describe('spawnViaCliTube — failure paths', () => {
       child.stdout.write('before ps failure\n');
 
       await jest.advanceTimersByTimeAsync(10);
-      await flushAsyncProcessDiscovery();
+      await waitForAsyncProcessDiscovery(
+        () => processKill.mock.calls.some(([pid, signal]) => pid === 5151 && signal === 'SIGTERM'),
+        'root-pid SIGTERM fallback',
+      );
       expect(processKill).toHaveBeenCalledWith(-5151, 'SIGTERM');
       expect(processKill).toHaveBeenCalledWith(5151, 'SIGTERM');
       expect(child.kill).toHaveBeenCalledWith('SIGTERM');
 
       await jest.advanceTimersByTimeAsync(5000);
-      await flushAsyncProcessDiscovery();
+      await waitForAsyncProcessDiscovery(
+        () => processKill.mock.calls.some(([pid, signal]) => pid === 5151 && signal === 'SIGKILL'),
+        'root-pid SIGKILL fallback',
+      );
       expect(processKill).toHaveBeenCalledWith(-5151, 'SIGKILL');
       expect(processKill).toHaveBeenCalledWith(5151, 'SIGKILL');
       expect(child.kill).toHaveBeenCalledWith('SIGKILL');
@@ -1006,7 +1022,16 @@ describe('spawnViaCliTube — failure paths', () => {
       const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
 
       await jest.advanceTimersByTimeAsync(10);
-      await flushAsyncProcessDiscovery();
+      await waitForAsyncProcessDiscovery(
+        () => mockExecFile.mock.calls.some(([cmd, args]) => (
+          String(cmd).endsWith('/lsof') && args.includes('-U')
+        )),
+        'lsof stdio-holder scan',
+      );
+      await waitForAsyncProcessDiscovery(
+        () => processKill.mock.calls.some(([pid, signal]) => pid === holderPid && signal === 'SIGTERM'),
+        'stdio-holder SIGTERM',
+      );
       expect(mockExecFile).not.toHaveBeenCalledWith('lsof', expect.anything(), expect.anything(), expect.anything());
       expect(mockExecFile).toHaveBeenCalledWith(
         '/usr/sbin/lsof',
@@ -1026,7 +1051,10 @@ describe('spawnViaCliTube — failure paths', () => {
       expect(processKill).toHaveBeenCalledWith(-holderDescendantPid, 'SIGTERM');
 
       await jest.advanceTimersByTimeAsync(5000);
-      await flushAsyncProcessDiscovery();
+      await waitForAsyncProcessDiscovery(
+        () => processKill.mock.calls.some(([pid, signal]) => pid === holderPid && signal === 'SIGKILL'),
+        'stdio-holder SIGKILL',
+      );
       expect(processKill).toHaveBeenCalledWith(holderPid, 'SIGKILL');
       expect(processKill).toHaveBeenCalledWith(holderDescendantPid, 'SIGKILL');
       expect(processKill).toHaveBeenCalledWith(-holderPid, 'SIGKILL');
