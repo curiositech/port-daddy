@@ -8,9 +8,17 @@
  * This is acceptable in tests since the key directory is a standard user config path.
  */
 
-import { describe, test, expect } from '@jest/globals';
+import { describe, test, expect, jest, afterAll } from '@jest/globals';
 import { createNoteEncryption } from '../../lib/note-encryption.js';
 import { randomBytes } from 'node:crypto';
+
+// createNoteEncryption() logs key-acquisition events (loaded/generated/migrated)
+// via console.error by design. Silence it before the module-init call below so
+// CI output isn't drowned in expected, non-failure logging.
+const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+afterAll(() => {
+  consoleErrorSpy.mockRestore();
+});
 
 // Create one instance shared across tests — this avoids repeated key file I/O
 const enc = createNoteEncryption();

@@ -38,6 +38,18 @@ const { createNoteEncryption } = await import('../../lib/note-encryption.js');
 const { createTestDb, createMockFetch, waitFor } = await import('../setup-unit.js');
 const { createWebhooks, WebhookEvent } = await import('../../lib/webhooks.js');
 
+// These tests deliberately drive note-encryption.ts and webhooks.ts through
+// their failure paths (bad permissions, missing master key), which log via
+// console.error by design. Silence it so CI output isn't drowned in expected,
+// asserted-on error logs.
+let consoleErrorSpy;
+beforeAll(() => {
+  consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+});
+afterAll(() => {
+  consoleErrorSpy.mockRestore();
+});
+
 // =============================================================================
 // lib/note-encryption.ts — verifyPermissions code path
 // =============================================================================

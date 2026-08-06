@@ -34,6 +34,18 @@ jest.unstable_mockModule('node:fs', () => ({
 
 const { createNoteEncryption } = await import('../../lib/note-encryption.js');
 
+// These tests deliberately drive createNoteEncryption() through its failure
+// paths (bad permissions, chmod/statSync errors), which log via console.error
+// by design. Silence it so CI output isn't drowned in expected, asserted-on
+// error logs.
+let consoleErrorSpy;
+beforeAll(() => {
+  consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+});
+afterAll(() => {
+  consoleErrorSpy.mockRestore();
+});
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

@@ -26,9 +26,21 @@
  *   error logged. The fix is `catch { return null }` in the catch block.
  */
 
+import { jest } from '@jest/globals';
 import { createHmac, randomBytes, createCipheriv } from 'node:crypto';
 import { createTestDb, createMockFetch, waitFor } from '../setup-unit.js';
 import { createWebhooks, WebhookEvent } from '../../lib/webhooks.js';
+
+// These tests deliberately exercise decryptSecret's failure path (rotated/missing
+// master key), which logs via console.error by design. Silence it so CI output
+// isn't drowned in expected, asserted-on error logs.
+let consoleErrorSpy;
+beforeAll(() => {
+  consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+});
+afterAll(() => {
+  consoleErrorSpy.mockRestore();
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
