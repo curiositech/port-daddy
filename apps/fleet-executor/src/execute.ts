@@ -35,6 +35,7 @@ import {
   createCheckRun,
   completeCheckRun,
   findFleetCheckRun,
+  findFleetCheckRunState,
   createIssue,
   resolveFleetAppLogin,
   type PRContext,
@@ -973,9 +974,48 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   if (cloudShips.length === 0) return;
 
   // --- Check run (idempotent: reuse one for this head SHA) -----------------
-  let checkRunId = await findFleetCheckRun(owner, repo, prCtx.headSha, CHECK_NAME, token).catch(
-    () => null,
-  );
+  //
+  // IDEMPOTENCY, AND WHY IT IS ABOUT MONEY. A queue redelivery re-runs this
+  // whole function. Comment posting is already idempotent -- a re-run edits the
+  // ship comment in place rather than duplicating it -- but the MODEL CALLS
+  // behind that comment are not: every ship is re-run to produce the text it
+  // then overwrites. Identical output, paid for again.
+  //
+  // When the check for this head SHA is already COMPLETED that spend buys
+  // literally nothing, because a finished check run cannot be reopened. The
+  // work cannot change the gate, cannot change the comment's meaning, and
+  // cannot be seen by anyone. Observed 2026-08-06: runs that exceeded the
+  // Worker wall-clock were redelivered, dead-lettered, completed as `failure`
+  // by the DLQ handler -- and then kept re-running ships for HOURS against a
+  // gate that could never go green again.
+  //
+  // So a completed check is a full stop. `in_progress` is NOT: that is the
+  // genuine retry of a run that died mid-flight, and it must proceed.
+  const existing = await findFleetCheckRunState(
+    owner,
+    repo,
+    prCtx.headSha,
+    CHECK_NAME,
+    token,
+  ).catch(() => null);
+  //
+  // `neutral` is deliberately NOT terminal. The fleet completes neutral when it
+  // DEFERRED rather than decided -- paused by the kill switch, skipped by the PR
+  // lifecycle gate, skipped by the self-review guard. Treating those as decided
+  // would strand a PR permanently unreviewed: unpause the fleet, redeliver, and
+  // the guard would skip forever. Only `success` and `failure` mean ships
+  // actually ran and reached a verdict.
+  const DECIDED: ReadonlySet<string> = new Set(['success', 'failure']);
+  if (existing && existing.status === 'completed' && DECIDED.has(existing.conclusion ?? '')) {
+    console.log(
+      `[fleet-executor] ${owner}/${repo}@${prCtx.headSha}: check already decided ` +
+        `(${existing.conclusion}) — skipping ${cloudShips.length} ship(s). ` +
+        `A redelivery cannot reopen a finished check, so running them would spend and change nothing.`,
+    );
+    return;
+  }
+
+  let checkRunId = existing?.id ?? null;
   if (!checkRunId) {
     // No swallow: a createCheckRun failure must propagate so the job RETRIES.
     checkRunId = await createCheckRun(owner, repo, CHECK_NAME, prCtx.headSha, token, detailsUrl);
