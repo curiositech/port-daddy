@@ -207,6 +207,23 @@ describe('the division of labour that makes two stages necessary', () => {
     expect(src).toContain('decided later, by the stage that has every chunk');
   });
 
+  it('a diagnostic names the model that actually ran, not the configured one', () => {
+    // THE BELIEF: tiering makes `ship.cfModel` mean only "what this ship
+    // REDUCES with", so every place that names a model has to be re-read. The
+    // blackout warnings are the ones that matter most: they exist so an
+    // empty-returning model is legible instead of a mystery green check
+    // (2026-07-07 postmortem), and a warning that names the wrong model sends
+    // whoever reads it to check the wrong model's status page.
+    //
+    // Raised in review on the tiering PR. Pinned here rather than fixed
+    // quietly, because "grep for the other places cfModel is assumed" is
+    // exactly the follow-through that gets skipped.
+    const src = readExecuteSource();
+    expect(src).not.toMatch(/MAP chunk[^`]*EMPTY on[^`]*`\s*\+\s*`\$\{ship\.cfModel\}/);
+    expect(src).toContain('${mapModelFor(ship)}: ${describeResponseShape(res)}');
+    expect(src).toContain('REDUCE EMPTY on ${reduceModelFor(ship)}');
+  });
+
   it('a single-chunk diff skips REDUCE entirely', () => {
     // THE BELIEF: REDUCE earns its cost only when there is something to
     // reconcile. One chunk means no cross-chunk judgement exists to make, so
