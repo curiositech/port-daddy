@@ -51,6 +51,7 @@ import {
   parseShipFindings,
   type ShipResult,
   type Verdict,
+  reviewEventFor,
 } from './verdict.js';
 import {
   parseProposals,
@@ -93,11 +94,26 @@ import { decideShipGate, isDocsOnly, isReviewableForBugs } from './gates.js';
 import { runPurser } from './purser.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
-import { costUsdForModel } from './spend.js';
+import { costUsdForModel, isPricedModel } from './spend.js';
 
 const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 
 // ---------------------------------------------------------------------------
+
+/**
+ * The model that scans one chunk.
+ *
+ * Falls back to `cfModel` so a ship with no tiering behaves exactly as before --
+ * untiered, but never silently broken.
+ */
+export function mapModelFor(ship: { cfModel: string; cfMapModel?: string }): string {
+  return ship.cfMapModel ?? ship.cfModel;
+}
+
+/** The model that synthesises across chunks. Always the ship's capable model. */
+export function reduceModelFor(ship: { cfModel: string }): string {
+  return ship.cfModel;
+}
 
 /** Per-chunk diff budget for the MAP fan-out (chars). */
 const MAP_CHUNK_CHAR_LIMIT = 12_000;
@@ -161,6 +177,32 @@ interface ShipMetrics {
    * "this run was free". (2026-08-04: a 9-call run showed 0/0 tokens.)
    */
   usageReports: number;
+  /**
+   * USD accumulated PER CALL, each priced at the model THAT call used.
+   *
+   * Not derivable from the totals any more. Once MAP and REDUCE can run on
+   * different models (see {@link mapModelFor}), applying one rate to a ship's
+   * summed tokens prices every cheap MAP token at the capable model's rate and
+   * reports a cost the operator was never charged -- overstating it by roughly
+   * the tiering saving, which is to say by exactly the amount the tiering was
+   * introduced to produce. Cost has to be summed where the model is known.
+   */
+  costUsd: number;
+  /**
+   * Distinct models this ship actually called, in first-call order. The run
+   * page shows this instead of the ship's configured `cfModel`, because with
+   * tiering those are no longer the same claim: `cfModel` is what the ship
+   * reduces with, and a reader deserves to see that 92 of 93 calls went
+   * somewhere cheaper.
+   */
+  modelsUsed: string[];
+  /**
+   * Calls made against a model with no entry in WORKERS_AI_RATES. Their tokens
+   * count but their cost is unknowable, so {@link costUsd} is a FLOOR whenever
+   * this is non-zero -- and the transcript must say so rather than presenting a
+   * partial sum as a total.
+   */
+  unpricedCalls: number;
 }
 
 function newShipMetrics(): ShipMetrics {
@@ -171,16 +213,35 @@ function newShipMetrics(): ShipMetrics {
     calls: 0,
     allEmpty: true,
     usageReports: 0,
+    costUsd: 0,
+    modelsUsed: [],
+    unpricedCalls: 0,
   };
 }
 
-/** Fold one ai.run result's usage + emptiness into a ship's running metrics. */
-function accumulateUsage(metrics: ShipMetrics, res: unknown, text: string): void {
+/**
+ * Fold one ai.run result's usage + emptiness into a ship's running metrics.
+ *
+ * `model` is the model THIS call ran on, not the ship's configured one. It is a
+ * required parameter rather than an optional convenience precisely so that a
+ * future call site cannot forget it and silently mis-price itself.
+ */
+function accumulateUsage(
+  metrics: ShipMetrics,
+  model: string,
+  res: unknown,
+  text: string,
+): void {
   const u = extractWorkersAiUsage(res);
   metrics.inputTokens += u.inputTokens ?? 0;
   metrics.outputTokens += u.outputTokens ?? 0;
   metrics.cachedInputTokens += u.cachedInputTokens ?? 0;
   metrics.calls += 1;
+  metrics.costUsd = Math.round(
+    (metrics.costUsd + costUsdForModel(model, u.inputTokens ?? 0, u.outputTokens ?? 0)) * 1e6,
+  ) / 1e6;
+  if (!isPricedModel(model)) metrics.unpricedCalls += 1;
+  if (!metrics.modelsUsed.includes(model)) metrics.modelsUsed.push(model);
   if (u.inputTokens != null || u.outputTokens != null) metrics.usageReports += 1;
   if (text) metrics.allEmpty = false;
 }
@@ -527,9 +588,14 @@ async function recordShipTokensInTranscript(
     usageReported
       ? `pd-${ship.name}: ${metrics.inputTokens.toLocaleString('en-US')} in / ` +
         `${metrics.outputTokens.toLocaleString('en-US')} out tokens over ${metrics.calls} call(s)`
-      : `pd-${ship.name}: token usage not reported by ${ship.cfModel} (${metrics.calls} call(s))`,
+      : `pd-${ship.name}: token usage not reported by ${metrics.modelsUsed.join(' + ') || ship.cfModel} ` +
+        `(${metrics.calls} call(s))`,
     {
+      // `model` stays the ship's configured (REDUCE) model for backward
+      // compatibility with existing run-page readers; `models` is the honest
+      // list of what actually ran, which under tiering is not the same thing.
       model: ship.cfModel,
+      models: metrics.modelsUsed,
       calls: metrics.calls,
       usageReported,
       usageReports: metrics.usageReports,
@@ -540,7 +606,15 @@ async function recordShipTokensInTranscript(
             inputTokens: metrics.inputTokens,
             outputTokens: metrics.outputTokens,
             cachedInputTokens: metrics.cachedInputTokens,
-            costUsd: costUsdForModel(ship.cfModel, metrics.inputTokens, metrics.outputTokens),
+            // Summed per call at each call's own model rate -- see
+            // ShipMetrics.costUsd. Deriving this from the totals would price
+            // every MAP token at the REDUCE model's rate.
+            costUsd: metrics.costUsd,
+            // A floor, not a total, when some call ran on an unpriced model.
+            // The run page must not present it as a complete figure.
+            ...(metrics.unpricedCalls > 0
+              ? { costIsFloor: true, unpricedCalls: metrics.unpricedCalls }
+              : {}),
           }
         : {}),
     },
@@ -562,7 +636,9 @@ async function recordShipSpend(
   metrics: ShipMetrics,
 ): Promise<void> {
   if (!env.DB) return;
-  const cost = costUsdForModel(ship.cfModel, metrics.inputTokens, metrics.outputTokens);
+  // Per-call sum (see ShipMetrics.costUsd), NOT a single rate applied to the
+  // ship's totals -- MAP and REDUCE may have run on different models.
+  const cost = metrics.costUsd;
   try {
     await env.DB.prepare(
       `INSERT INTO fleet_run_spend
@@ -1105,7 +1181,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   if (reviewComments.length > 0 || summary.trim()) {
     // Best-effort: createReview never throws (see github.ts), so a review
     // failure can't fail the gate or block completing the check run.
-    await createReview(owner, repo, prNumber, 'COMMENT', reviewBody, reviewComments, prCtx.headSha, token);
+    // A blocking ship with HIGH findings REJECTS the PR rather than commenting
+    // beside it -- see reviewEventFor(). Anything else stays COMMENT.
+    const reviewEvent = reviewEventFor(results);
+    await createReview(owner, repo, prNumber, reviewEvent, reviewBody, reviewComments, prCtx.headSha, token);
   }
 
   await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token, detailsUrl);
@@ -1261,12 +1340,12 @@ async function runShip(
         ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
       };
       const res = await env.AI.run(
-        ship.cfModel as Parameters<typeof env.AI.run>[0],
+        mapModelFor(ship) as Parameters<typeof env.AI.run>[0],
         request,
         aiOptions(env, ship.name),
       );
       const { text, shape } = extractAiText(res);
-      accumulateUsage(metrics, res, text);
+      accumulateUsage(metrics, mapModelFor(ship), res, text);
 
       // Diagnose the silent-blank case: an empty result makes a ship post nothing
       // and resolve PASS. Log the model + response shape so an empty-returning
@@ -1891,7 +1970,7 @@ async function reduceFindings(
     aiOptions(env, ship.name),
   );
   const { text } = extractAiText(res);
-  accumulateUsage(metrics, res, text);
+  accumulateUsage(metrics, reduceModelFor(ship), res, text);
   if (!text) {
     console.warn(
       `[fleet-executor] pd-${ship.name} REDUCE EMPTY on ${ship.cfModel}: ${describeResponseShape(res)}`,

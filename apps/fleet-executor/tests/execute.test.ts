@@ -570,7 +570,12 @@ describe('inline GitHub review', () => {
 
     expect(state.reviews).toHaveLength(1);
     const review = state.reviews[0];
-    expect(review.event).toBe('COMMENT');
+    // This fixture is a BLOCKING ship returning BLOCK with a HIGH finding —
+    // the one case the fleet now rejects outright rather than commenting
+    // beside. See reviewEventFor() and tests/review-event.test.ts for the
+    // restraints (advisory ships, non-HIGH findings, errored ships and empty
+    // finding lists all stay COMMENT).
+    expect(review.event).toBe('REQUEST_CHANGES');
     expect(review.comments).toHaveLength(1);
     expect(review.comments[0]).toEqual({
       path: 'src/x.ts',

@@ -20,6 +20,18 @@ export interface ShipConfig {
   trigger: string | string[];
   prompt: string;
   cfModel: string;
+  /**
+   * Model for the MAP fan-out, when it should differ from `cfModel`.
+   *
+   * MAP scans one chunk in isolation and is forbidden from cross-chunk
+   * judgement; REDUCE does the synthesis. Those are different jobs needing
+   * different capability, and MAP runs N times to REDUCE's one — so paying the
+   * capable model's rate on every chunk spends the most on the stage that needs
+   * the least. Undefined means "same as cfModel", which is honest but untiered;
+   * see tests/map-reduce-invariants.test.ts for why that is a regression rather
+   * than a default.
+   */
+  cfMapModel?: string;
   temperature: number | null;
   role: string;
   telos: string;
@@ -436,6 +448,11 @@ Output format:
 
 Be direct. Cite specific lines. Flag ADR violations if you see them.`,
       cfModel: CODER_CF_MODEL,
+      // MAP scans chunks in isolation; REDUCE synthesises across them. Only the
+      // latter needs the capable model, and MAP runs once per chunk — on a
+      // 92-chunk diff that is 92 calls at 6.9x the input rate for work the
+      // cheap model does as well.
+      cfMapModel: CHEAP_CF_MODEL,
       temperature: null,
       role: 'Catch the bugs the diff would otherwise ship.',
       telos: 'Catch the bugs the diff would otherwise ship; cite ADRs.',
