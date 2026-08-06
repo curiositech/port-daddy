@@ -10,6 +10,8 @@ const PUBLIC_COMMAND_SURFACES = [
   'completions/port-daddy.zsh',
   'features.manifest.json',
   'README.md',
+  'cli/commands/diagnostics.ts',
+  'scripts/e2e-compiled-cli-surface.sh',
 ];
 
 describe('retired Bosun command surface', () => {
