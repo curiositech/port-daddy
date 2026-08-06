@@ -100,6 +100,8 @@ import {
   MODEL_CONTEXT_TOKENS,
   hasKnownContextWindow,
 } from './spend.js';
+import { perCallAccounting } from './call-accounting.js';
+import { capText } from './transcript-text.js';
 
 const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 
@@ -267,6 +269,16 @@ interface ShipMetrics {
    * partial sum as a total.
    */
   unpricedCalls: number;
+  /**
+   * The ship's system prompt (contract + graft + output-format instructions),
+   * captured ONCE -- it is identical across every MAP chunk of a ship's run, so
+   * storing it per-chunk would multiply a several-KB string by the chunk count
+   * for no new information. Set once in {@link runShip} right after the prompt
+   * is built; {@link recordShipTokensInTranscript} stamps it (capped) onto the
+   * ship's one `ship-spend` transcript row, which is where the run page reads
+   * "what was this ship told" from.
+   */
+  systemPrompt?: string;
 }
 
 function newShipMetrics(): ShipMetrics {
@@ -708,6 +720,16 @@ async function recordShipTokensInTranscript(
             costUsd: metrics.costUsd,
             ...spendHonesty(metrics),
           }
+        : {}),
+      // The ship's system prompt (contract + output format), captured once --
+      // see ShipMetrics.systemPrompt. Present regardless of usage reporting:
+      // "what was this ship told" is independent of whether the model echoed
+      // token counts back.
+      ...(metrics.systemPrompt
+        ? (() => {
+            const c = capText(metrics.systemPrompt as string);
+            return { systemPrompt: c.text, systemPromptTruncated: c.truncated, systemPromptLength: c.length };
+          })()
         : {}),
     },
   );
@@ -1396,6 +1418,9 @@ async function runShip(
     ).catch(() => null);
 
     const systemPrompt = buildSystemPrompt(ship, contract, graftText);
+    // Captured once for the ship's ship-spend transcript row (see
+    // ShipMetrics.systemPrompt) -- identical across every MAP call below.
+    metrics.systemPrompt = systemPrompt;
 
     // Drop generated files BEFORE chunking. A lockfile refresh or a regenerated
     // snapshot is often the largest thing in a diff, and every chunk of it is a
@@ -1452,26 +1477,54 @@ async function runShip(
 
       // Transcript: one row per MAP chunk (best-effort). `shape` records which
       // envelope produced the text; `responseShape` is only stamped on an empty
-      // result so a future blackout is diagnosable from D1 alone.
+      // result so a future blackout is diagnosable from D1 alone. Also carries
+      // this ONE call's model/tokens/cost (call-accounting.ts) and the actual
+      // prompt sent + response received (capped; transcript-text.ts) -- the
+      // per-call detail the run page needs to make MAP chunks browsable, not
+      // just countable.
+      //
+      // The model is mapModelFor(ship), NOT ship.cfModel: under tiering those
+      // differ, and a row that names the wrong model prices itself wrong and
+      // tells the operator a MAP chunk ran somewhere it did not.
+      const promptCap = capText(userMessage);
+      const responseCap = capText(text);
       await transcript.step('map-chunk', ship.name, `MAP chunk ${i + 1}/${chunks.length}`, {
         chunkIndex: i,
         chunkCount: chunks.length,
         outputLength: text.length,
         shape,
         ...(text ? {} : { responseShape: describeResponseShape(res) }),
+        ...perCallAccounting(mapModelFor(ship), res),
+        prompt: promptCap.text,
+        promptTruncated: promptCap.truncated,
+        promptLength: promptCap.length,
+        response: responseCap.text,
+        responseTruncated: responseCap.truncated,
+        responseLength: responseCap.length,
       });
       return text;
     });
 
     // --- REDUCE: manager merges the partials (only when fan-out > 1) --------
-    const output =
-      chunks.length === 1 ? partials[0] ?? '' : await reduceFindings(ship, partials, env, metrics);
+    const reduced = chunks.length === 1 ? null : await reduceFindings(ship, partials, env, metrics);
+    const output = chunks.length === 1 ? partials[0] ?? '' : reduced!.text;
 
-    // Transcript: the REDUCE step exists only on a multi-chunk fan-out.
-    if (chunks.length > 1) {
+    // Transcript: the REDUCE step exists only on a multi-chunk fan-out. Carries
+    // this call's model/tokens/cost (call-accounting.ts) and the actual merge
+    // prompt + merged response (capped; transcript-text.ts), same as a MAP row.
+    if (chunks.length > 1 && reduced) {
+      const reducePromptCap = capText(reduced.userMessage);
+      const reduceResponseCap = capText(reduced.text);
       await transcript.step('reduce', ship.name, `REDUCE pd-${ship.name}`, {
         chunkCount: chunks.length,
         outputLength: output.length,
+        ...perCallAccounting(reduceModelFor(ship), reduced.res),
+        prompt: reducePromptCap.text,
+        promptTruncated: reducePromptCap.truncated,
+        promptLength: reducePromptCap.length,
+        response: reduceResponseCap.text,
+        responseTruncated: reduceResponseCap.truncated,
+        responseLength: reduceResponseCap.length,
       });
     }
 
@@ -2034,6 +2087,15 @@ export async function mapWithConcurrency<T, R>(
   return results;
 }
 
+/** One REDUCE call's result, including what it takes to account for it. */
+interface ReduceResult {
+  text: string;
+  /** The raw Workers AI result (for perCallAccounting at the call site). */
+  res: unknown;
+  /** The merge prompt actually sent (for the run page's browsable transcript). */
+  userMessage: string;
+}
+
 /**
  * REDUCE step: one manager call that merges the per-chunk partial reviews into a
  * single structured findings block + exactly one FLEET-VERDICT line.
@@ -2043,7 +2105,7 @@ async function reduceFindings(
   partials: string[],
   env: ExecutorEnv,
   metrics: ShipMetrics,
-): Promise<string> {
+): Promise<ReduceResult> {
   const mergeVerb = ship.ideation ? 'proposals' : 'findings';
   const managerSystem =
     `You are the fleet REDUCE manager for ship pd-${ship.name}. You receive ` +
@@ -2079,7 +2141,7 @@ async function reduceFindings(
         `${describeResponseShape(res)}`,
     );
   }
-  return text;
+  return { text, res, userMessage };
 }
 
 function buildSummary(results: ShipResult[], conclusion: string): string {

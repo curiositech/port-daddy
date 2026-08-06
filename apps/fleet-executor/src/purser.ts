@@ -37,6 +37,8 @@ import type { ShipResult, Verdict } from './verdict.js';
 import { postShipComment, type PRContext } from './github.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
 import { extractWorkersAiUsage } from './telemetry.js';
+import { perCallAccounting } from './call-accounting.js';
+import { capText } from './transcript-text.js';
 import { stripThinkSpans } from './xo.js';
 import {
   createOrUpdateBranch,
@@ -646,20 +648,33 @@ export async function runPurser(
     }
 
     // --- a. STEEL-MAN -------------------------------------------------------
-    const steelCall = await purserAiCall(
-      ship,
-      env,
-      steelManSystemPrompt(ship, graftText),
-      prBlock(prCtx),
-      STEELMAN_MAX_TOKENS,
-      metrics,
-    );
+    // System/user text built once so the SAME strings are both what is SENT to
+    // the model and what is CAPTURED (capped) into the transcript step below —
+    // the run page's browsable per-call detail must show the real prompt, not
+    // a re-derived approximation.
+    const steelSystem = steelManSystemPrompt(ship, graftText);
+    const steelUser = prBlock(prCtx);
+    const steelCall = await purserAiCall(ship, env, steelSystem, steelUser, STEELMAN_MAX_TOKENS, metrics);
+    const steelAccounting = perCallAccounting(ship.cfModel, steelCall.res);
+    const steelSystemCap = capText(steelSystem);
+    const steelUserCap = capText(steelUser);
+    const steelResponseCap = capText(steelCall.text);
     const steel = parseSteelMan(steelCall.text);
     if (!steel) {
       await transcript.step('purser-steelman', ship.name, `pd-${ship.name}: steel-man MALFORMED`, {
         error: 'steel-man output was not the required fenced JSON contract',
         responseShape: steelCall.text ? undefined : describeResponseShape(steelCall.res),
         outputLength: steelCall.text.length,
+        ...steelAccounting,
+        systemPrompt: steelSystemCap.text,
+        systemPromptTruncated: steelSystemCap.truncated,
+        systemPromptLength: steelSystemCap.length,
+        userPrompt: steelUserCap.text,
+        userPromptTruncated: steelUserCap.truncated,
+        userPromptLength: steelUserCap.length,
+        response: steelResponseCap.text,
+        responseTruncated: steelResponseCap.truncated,
+        responseLength: steelResponseCap.length,
       });
       return advisoryPass;
     }
@@ -671,23 +686,42 @@ export async function runPurser(
         purpose: steel.purpose,
         obligationCount: steel.obligations.length,
         testTargets: steel.testTargets,
+        ...steelAccounting,
+        systemPrompt: steelSystemCap.text,
+        systemPromptTruncated: steelSystemCap.truncated,
+        systemPromptLength: steelSystemCap.length,
+        userPrompt: steelUserCap.text,
+        userPromptTruncated: steelUserCap.truncated,
+        userPromptLength: steelUserCap.length,
+        response: steelResponseCap.text,
+        responseTruncated: steelResponseCap.truncated,
+        responseLength: steelResponseCap.length,
       },
     );
 
     // --- b. AUTHOR TESTS ----------------------------------------------------
-    const testsCall = await purserAiCall(
-      ship,
-      env,
-      testAuthorSystemPrompt(ship, steel, graftText),
-      prBlock(prCtx),
-      TESTS_MAX_TOKENS,
-      metrics,
-    );
+    const testsSystem = testAuthorSystemPrompt(ship, steel, graftText);
+    const testsUser = prBlock(prCtx);
+    const testsCall = await purserAiCall(ship, env, testsSystem, testsUser, TESTS_MAX_TOKENS, metrics);
+    const testsAccounting = perCallAccounting(ship.cfModel, testsCall.res);
+    const testsSystemCap = capText(testsSystem);
+    const testsUserCap = capText(testsUser);
+    const testsResponseCap = capText(testsCall.text);
     const files = parseAuthoredFiles(testsCall.text);
     if (!files) {
       await transcript.step('purser-tests', ship.name, `pd-${ship.name}: test authoring MALFORMED`, {
         error: 'test-author output was not the required fenced JSON files block',
         outputLength: testsCall.text.length,
+        ...testsAccounting,
+        systemPrompt: testsSystemCap.text,
+        systemPromptTruncated: testsSystemCap.truncated,
+        systemPromptLength: testsSystemCap.length,
+        userPrompt: testsUserCap.text,
+        userPromptTruncated: testsUserCap.truncated,
+        userPromptLength: testsUserCap.length,
+        response: testsResponseCap.text,
+        responseTruncated: testsResponseCap.truncated,
+        responseLength: testsResponseCap.length,
       });
       return advisoryPass;
     }
@@ -696,6 +730,10 @@ export async function runPurser(
       await transcript.step('purser-tests', ship.name, `pd-${ship.name}: authored tests REJECTED`, {
         error: validation.reason,
         fileCount: files.length,
+        ...testsAccounting,
+        response: testsResponseCap.text,
+        responseTruncated: testsResponseCap.truncated,
+        responseLength: testsResponseCap.length,
       });
       return advisoryPass;
     }
@@ -704,6 +742,10 @@ export async function runPurser(
       if (stray) {
         await transcript.step('purser-tests', ship.name, `pd-${ship.name}: authored tests REJECTED`, {
           error: `path outside testPaths prefixes (${ship.testPaths.join(', ')}): ${stray.path}`,
+          ...testsAccounting,
+          response: testsResponseCap.text,
+          responseTruncated: testsResponseCap.truncated,
+          responseLength: testsResponseCap.length,
         });
         return advisoryPass;
       }
@@ -719,6 +761,16 @@ export async function runPurser(
       {
         files: fileSummaries,
         totalBytes: fileSummaries.reduce((acc, f) => acc + f.bytes, 0),
+        ...testsAccounting,
+        systemPrompt: testsSystemCap.text,
+        systemPromptTruncated: testsSystemCap.truncated,
+        systemPromptLength: testsSystemCap.length,
+        userPrompt: testsUserCap.text,
+        userPromptTruncated: testsUserCap.truncated,
+        userPromptLength: testsUserCap.length,
+        response: testsResponseCap.text,
+        responseTruncated: testsResponseCap.truncated,
+        responseLength: testsResponseCap.length,
       },
     );
 
