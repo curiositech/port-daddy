@@ -551,20 +551,26 @@ async function handleListSubscriptions(agentId: string, options: CLIOptions): Pr
   }
 }
 
-export async function handleAttention(options: CLIOptions): Promise<void> {
-  if (options.help === true) {
-    console.log('Usage: pd attention [--peek] [--limit N] [--agent ID] [--json]');
-    console.log('       pd attention --subscribe <channel>');
-    console.log('       pd attention --subscribe-recommended');
-    console.log('       pd attention --unsubscribe <channel>');
-    console.log('       pd attention --subscriptions');
-    console.log('');
-    console.log('Read direct inbox messages plus watched coordination channels in one call.');
-    console.log('With no watches, the empty state ranks concrete channels and explains why each matters.');
-    console.log('Use --subscribe-recommended to arm that ranked set in one command.');
-    return;
-  }
+/**
+ * `pd attention --help`. Lives here rather than in the CLI's TOPIC_HELP because
+ * the flags it documents are parsed by handleAttention below and drift with it;
+ * bin/port-daddy-cli.ts indexes it from VERB_HELP. This text used to sit inside
+ * the handler behind `if (options.help)`, which the dispatch-level --help
+ * short-circuit made unreachable — it had never actually printed.
+ */
+export const ATTENTION_HELP: string = [
+  'Usage: pd attention [--peek] [--limit N] [--agent ID] [--json]',
+  '       pd attention --subscribe <channel>',
+  '       pd attention --subscribe-recommended',
+  '       pd attention --unsubscribe <channel>',
+  '       pd attention --subscriptions',
+  '',
+  'Read direct inbox messages plus watched coordination channels in one call.',
+  'With no watches, the empty state ranks concrete channels and explains why each matters.',
+  'Use --subscribe-recommended to arm that ranked set in one command.',
+].join('\n');
 
+export async function handleAttention(options: CLIOptions): Promise<void> {
   const agentId = resolveAgentId(options);
   if (!agentId) {
     ui.error('No agent identity resolved. Pass --agent <id>, set $PD_AGENT_ID, or run `pd begin` first.');

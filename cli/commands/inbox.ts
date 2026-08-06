@@ -245,20 +245,34 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
 }
 
 /**
+ * `pd sent --help`. Indexed by VERB_HELP in bin/port-daddy-cli.ts, which
+ * short-circuits --help before any handler runs — so the copy of this text that
+ * used to live inside handleSent could never print. Verb-specific usage beats
+ * the messaging TOPIC here because `sent` gets one line in that topic and six
+ * of its own flags.
+ */
+export const SENT_HELP: string = [
+  'Usage: pd sent [--unread] [--limit <n>] [--agent <id>] [-j] [-q]',
+  '',
+  'Show messages YOU sent and their read receipts (read + when).',
+  '  --unread        Only messages not yet read by the recipient',
+  '  --limit <n>     Max messages to show (default 50)',
+  // The full chain, not a summary of it. handleSent resolves
+  //   --agent || AGENT_ID || current session || cli-<pid>
+  // and that last hop is the one worth documenting: outside a session with no
+  // AGENT_ID set, `pd sent` silently queries a per-process identity that has
+  // never sent anything, so it prints "No sent messages" and looks like data
+  // loss rather than a missing identity.
+  '  --agent <id>    Sender identity',
+  '                  (default: --agent, else $AGENT_ID, else the current',
+  '                   session, else cli-<pid>)',
+].join('\n');
+
+/**
  * Handle `pd sent` — read receipts: the messages YOU sent and whether each was
  * read, and when. The sender side of the inbox (`pd inbox` is the recipient side).
  */
 export async function handleSent(options: CLIOptions): Promise<void> {
-  if (options.help) {
-    console.log('Usage: pd sent [--unread] [--limit <n>] [--agent <id>] [-j] [-q]');
-    console.log('');
-    console.log('Show messages YOU sent and their read receipts (read + when).');
-    console.log('  --unread        Only messages not yet read by the recipient');
-    console.log('  --limit <n>     Max messages to show (default 50)');
-    console.log('  --agent <id>    Sender identity (default: AGENT_ID env or current session)');
-    process.exit(0);
-  }
-
   const agentId: string =
     (options.agent as string) || process.env.AGENT_ID || readCurrentContext()?.agentId || `cli-${process.pid}`;
 

@@ -101,28 +101,40 @@ function baseProfile(options: CLIOptions, slug: string) {
   };
 }
 
-function printHelp(): void {
-  console.error('Usage: pd roster <subcommand> [options]');
-  console.error('');
-  console.error('Durable named agents (AgentNode identities, not live process registrations):');
-  console.error('  list [--repo <path>] [--all]              List durable agents');
-  console.error('  show <agent-node-id>                      Show profile, revisions, and continuation history');
-  console.error('  search <query> [--repo <path>]            Hybrid BM25 + shared MiniLM expertise search');
-  console.error('  create <slug> --remit <text> --instructions <text> [--scope system|repo]');
-  console.error('  promote <session-id> --episode <id> --slug <name> --remit <text> --instructions <text>');
-  console.error('  update <agent-node-id> [profile flags]    Append a new profile revision');
-  console.error('  attach <agent-node-id> --episode <id>     Attach a sanitized handoff episode');
-  console.error('  continue <agent-node-id> --backend <id> [--mode auto|native|handoff] [--model <id>]');
-  console.error('  retire <agent-node-id>                    Retire without deleting history');
-  console.error('');
-  console.error('Profile flags: --name, --skills a,b, --tools a,b, --backend a,b, --model x,');
-  console.error('               --filesystem inherit|repo|workspace|read-only, --network inherit|none|restricted|full');
-}
+/**
+ * The one roster help text. `pd roster help` prints it below; `pd roster --help`
+ * reaches it through VERB_HELP in bin/port-daddy-cli.ts, whose dispatch-level
+ * --help short-circuit runs before this handler is ever called. Keeping it as a
+ * single exported const is what stops those two paths from drifting apart —
+ * before this, the `options.help` arm here was simply unreachable dead code.
+ */
+export const ROSTER_HELP: string = [
+  'Usage: pd roster <subcommand> [options]',
+  '',
+  'Durable named agents (AgentNode identities, not live process registrations):',
+  '  list [--repo <path>] [--all]              List durable agents',
+  '  show <agent-node-id>                      Show profile, revisions, and continuation history',
+  '  search <query> [--repo <path>]            Hybrid BM25 + shared MiniLM expertise search',
+  '  create <slug> --remit <text> --instructions <text> [--scope system|repo]',
+  '  promote <session-id> --episode <id> --slug <name> --remit <text> --instructions <text>',
+  '  update <agent-node-id> [profile flags]    Append a new profile revision',
+  '  attach <agent-node-id> --episode <id>     Attach a sanitized handoff episode',
+  '  continue <agent-node-id> --backend <id> [--mode auto|native|handoff] [--model <id>]',
+  '  retire <agent-node-id>                    Retire without deleting history',
+  '',
+  'Profile flags: --name, --skills a,b, --tools a,b, --backend a,b, --model x,',
+  '               --filesystem inherit|repo|workspace|read-only, --network inherit|none|restricted|full',
+].join('\n');
 
 export async function handleRoster(subcommand: string | undefined, args: string[], options: CLIOptions): Promise<void> {
   const sub = subcommand ?? 'list';
-  if (sub === 'help' || options.help) {
-    printHelp();
+  if (sub === 'help') {
+    // stdout, NOT stderr: asking for help is a success, and `pd roster --help`
+    // reaches the same text through the dispatch short-circuit, which prints to
+    // stdout. Two spellings of one request must land on the same stream or
+    // `pd roster help > usage.txt` silently writes an empty file. The
+    // unknown-subcommand path below keeps console.error — that one IS an error.
+    console.log(ROSTER_HELP);
     return;
   }
 
@@ -278,6 +290,6 @@ export async function handleRoster(subcommand: string | undefined, args: string[
   }
 
   ui.error(`Unknown roster subcommand: ${sub}`);
-  printHelp();
+  console.error(ROSTER_HELP);
   process.exit(1);
 }

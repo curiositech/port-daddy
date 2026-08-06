@@ -50,7 +50,7 @@ import {
   // Sessions
   handleSession, handleSessions, handleNote, handleNotes,
   // Agents & Resurrection
-  handleAgent, handleAgents, handleRoster,
+  handleAgent, handleAgents, handleRoster, ROSTER_HELP,
   handleSalvage,
   // Changelog
   handleChangelog,
@@ -58,7 +58,7 @@ import {
   handleBooty,
   // Inbox
   handleInbox,
-  handleSent,
+  handleSent, SENT_HELP,
   // Tunnel
   handleTunnel,
   // Activity
@@ -83,7 +83,7 @@ import {
   // Sugar commands
   handleBegin, handleDone, handleWhoami, handleWithLock,
   // Attention (inbox + subscribed channels — see docs/RELEASING.md for hook wiring)
-  handleAttention,
+  handleAttention, ATTENTION_HELP,
   // Nudge (suggestibility layer — claim-overlap heads-up, ADR-0039)
   handleNudge,
   // Tutorial
@@ -647,14 +647,67 @@ function readCurrentSession(): { sessionId: string; agentId?: string; purpose?: 
 // global help. TOPIC_HELP is keyed by topic name (messaging, sessions, …), NOT
 // by command name, so `pd inbox --help` needs this indirection. Exported for
 // the help-topic-aliases unit test.
+//
+// The map earns an entry ONLY when the target topic's body actually documents
+// the verb — either the verb itself, or the verb the entry is a shell alias of
+// (`ps`/`l`/`services` all dispatch to handleFind, which the ports topic
+// documents). That rule is why several plausible-looking families are absent:
+// pointing `pd cut --help` at the orchestration topic would answer a question
+// about cutting a release with a page on `pd up`/`pd down`, and confidently
+// wrong help is worse than the global help's honest everything-list. Verbs with
+// no page that documents them stay on buildHelp() and are pinned as
+// known-uncovered in tests/unit/help-topic-aliases.test.js so the gap can only
+// shrink. When you write a topic that covers one, delete it from that list and
+// add it here.
 export const HELP_TOPIC_ALIASES: Record<string, string> = {
   // messaging family: durable directed (inbox/send) + ephemeral pub/sub
   inbox: 'messaging', send: 'messaging', sent: 'messaging', tube: 'messaging',
   pub: 'messaging', publish: 'messaging', broadcast: 'messaging',
   sub: 'messaging', subscribe: 'messaging', listen: 'messaging',
   channels: 'messaging', wait: 'messaging',
+  // ports family: every arm of the claim/release/find dispatch, single-letter
+  // aliases included, because `pd c --help` is exactly when you've forgotten
+  // what `c` was.
+  claim: 'ports', c: 'ports', release: 'ports', r: 'ports',
+  find: 'ports', f: 'ports', list: 'ports', l: 'ports', ps: 'ports', services: 'ports',
+  url: 'ports', env: 'ports',
+  // locks: `locks` is itself a topic key and resolves directly.
+  lock: 'locks', unlock: 'locks',
+  // sugar, NOT sessions: begin/done/whoami/with-lock are the compound verbs and
+  // the sugar topic is the only page that spells out their flags. `pd done
+  // --help` previously landed on the sessions topic, which documents `session
+  // end` and never says the word "done".
+  begin: 'sugar', done: 'sugar', whoami: 'sugar', 'with-lock': 'sugar',
+  n: 'sugar', u: 'sugar', d: 'sugar',
+  session: 'sessions', takeover: 'sessions', note: 'sessions', notes: 'sessions',
+  feedback: 'sessions',
+  agent: 'agents', swarm: 'agents', salvage: 'agents', resurrection: 'agents',
+  actor: 'actors',
+  up: 'orchestration', down: 'orchestration', scan: 'orchestration', s: 'orchestration',
+  projects: 'orchestration', p: 'orchestration', health: 'orchestration',
+  // `pd init` is the project half of `pd setup`, and the setup topic documents
+  // the pass-throughs (--no-init/--no-fleet/--no-hook) that steer it.
+  hooks: 'setup', init: 'setup',
+  memory: 'semantic', graph: 'semantic',
+  advise: 'advisor', preflight: 'advisor', compass: 'advisor',
+  secrets: 'secret',
+  learn: 'tutorial',
   skillgraft: 'skill-graft',
-  done: 'sessions', begin: 'sessions',
+};
+
+// Per-verb help for commands whose usage is too specific to fold into a family
+// topic. These three texts already existed inside their handlers behind an
+// `if (options.help)` guard that the dispatch short-circuit above them made
+// unreachable — they had never printed. Rather than keep two help systems,
+// each module now exports its text and this table is the single dispatch-side
+// index of them; `pd roster help` still prints the same string from the same
+// const. Ordered AFTER TOPIC_HELP but BEFORE the alias map in the resolver, so
+// a verb-specific page beats its family page (`pd sent --help` prints the sent
+// usage, not the whole messaging topic) while a real topic still wins outright.
+export const VERB_HELP: Record<string, string> = {
+  attention: ATTENTION_HELP,
+  roster: ROSTER_HELP,
+  sent: SENT_HELP,
 };
 
 /**
@@ -739,7 +792,7 @@ function buildHelp(): string {
  * Topic-specific detailed help maps.
  * Each topic shows relevant commands with flags and examples.
  */
-const TOPIC_HELP: Record<string, string> = {
+export const TOPIC_HELP: Record<string, string> = {
   setup: `Setup — Install the full local Port Daddy environment
 
 Commands:
@@ -1373,13 +1426,33 @@ The tutorial walks you through:
 Run: pd learn`,
 };
 
+/**
+ * Resolve `pd <cmd> --help` to its help text, or null when only the global help
+ * fits. Exact resolution order — a real topic wins outright, then a verb-
+ * specific page, then a family alias:
+ *
+ *     TOPIC_HELP[cmd] ?? VERB_HELP[cmd] ?? TOPIC_HELP[HELP_TOPIC_ALIASES[cmd]]
+ *
+ * EXPORTED AND CALLED BY THE DISPATCH (not duplicated there) for one reason:
+ * the coverage test must exercise the SAME code the CLI runs. When the resolver
+ * lived inline in the dispatch, the test could only regex the source for the
+ * `??` chain — and a reviewer proved that hole by replacing the chain with
+ * `buildHelp()` behind a comment that still matched the regex: ten green tests,
+ * the whole feature reverted. A test that imports and runs THIS function cannot
+ * be fooled that way. Returns null (not buildHelp()) so the caller owns the
+ * fallback and the test can distinguish "resolved to a page" from "fell back".
+ */
+export function resolveVerbHelp(cmd: string): string | null {
+  return TOPIC_HELP[cmd] ?? VERB_HELP[cmd] ?? TOPIC_HELP[HELP_TOPIC_ALIASES[cmd]] ?? null;
+}
+
 // HELP is built lazily via getHelp() for context-aware output
 
 // =============================================================================
 // Command Suggestion (fuzzy "did you mean?")
 // =============================================================================
 
-const ALL_COMMANDS: string[] = [
+export const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'tube', 'wait', 'lock', 'unlock', 'locks',
   'up', 'down', 'setup', 'init', 'cut', 'batten', 'scan', 's', 'projects', 'p',
@@ -2557,8 +2630,9 @@ export async function main(): Promise<void> {
   // demos (website-terminal-recordings reviewer flags /ERROR:/). Falls back to
   // the global help for commands without a dedicated topic.
   if (options.help) {
-    const topicHelp = TOPIC_HELP[command as string] ?? TOPIC_HELP[HELP_TOPIC_ALIASES[command as string]];
-    console.log(topicHelp || buildHelp());
+    // resolveVerbHelp is the single authority (exported, unit-tested by
+    // execution). The dispatch owns only the fallback to global help.
+    console.log(resolveVerbHelp(command as string) ?? buildHelp());
     process.exit(0);
   }
 
