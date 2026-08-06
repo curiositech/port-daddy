@@ -14,12 +14,20 @@
  * "answer every comment" rule lives in AGENTS.md doctrine and is judged by the
  * adversarial reviewer.
  *
- * A thread NEEDS A REPLY when all of:
+ * A thread NEEDS A REPLY when both of:
  *   - it is not resolved, and
- *   - it is not outdated (the code it pointed at still exists), and
  *   - the LAST comment is from someone other than the PR author — i.e. the ball
  *     is in the author's court (a reviewer spoke last and got no response).
  * Resolving the thread, or the author replying after the reviewer, satisfies it.
+ *
+ * OUTDATED IS NOT AN ANSWER. GitHub marks a thread outdated exactly when the
+ * author pushes a change to the lines it points at — which is precisely the
+ * moment they acted on the feedback and have something worth saying. Treating
+ * that as "answered" (the original behaviour, observed swallowing a real thread
+ * on PR #5437) let the guard print "all N answered" while a reviewer sat there
+ * with no response and a silent force-push. Outdated threads therefore still
+ * count as unanswered; they are just REPORTED differently — "you changed these
+ * lines, say what you changed" rather than "here is a fresh nit".
  *
  * The author can answer EITHER by replying in the thread OR by resolving it.
  * This gate checks for that engagement (presence); whether the reply is serious
@@ -37,9 +45,19 @@ import { execFileSync } from 'node:child_process'
 
 export const LABEL = 'needs-comment-replies'
 
+// Outdated threads arrive in a clump — one push that reformats a file can strand
+// a dozen at once — and a wall of them buries the reviewer-spoke-last group that
+// needs a considered reply. Cap what we RENDER, never what we count: the number
+// in the headline stays honest, the list stops being a scroll wall.
+export const OUTDATED_LIMIT = 20
+
 /**
  * Pure decision core. Given review threads + the PR author's login, return the
  * threads still waiting on the author. No I/O — trivially unit-testable.
+ *
+ * `isOutdated` rides along on each unanswered entry rather than filtering it out:
+ * both shapes owe the reviewer a response, but only the reporting differs, and
+ * that decision belongs to the caller that renders.
  *
  * @param {Array<{isResolved:boolean, isOutdated:boolean, path?:string, url?:string,
  *                comments:Array<{authorLogin:string|null}>}>} threads
@@ -49,7 +67,7 @@ export const LABEL = 'needs-comment-replies'
 export function classifyThreads(threads, prAuthorLogin) {
   const list = Array.isArray(threads) ? threads : []
   const unanswered = list.filter((t) => {
-    if (!t || t.isResolved || t.isOutdated) return false
+    if (!t || t.isResolved) return false
     const comments = Array.isArray(t.comments) ? t.comments : []
     if (comments.length === 0) return false
     const last = comments[comments.length - 1]
@@ -57,7 +75,10 @@ export function classifyThreads(threads, prAuthorLogin) {
     // Author (or anyone on the author's side) spoke last → engaged. Only a
     // reviewer-has-the-last-word, still-open thread counts as ignored.
     return lastAuthor !== prAuthorLogin
-  })
+  }).map((t) => ({ ...t, isOutdated: Boolean(t.isOutdated) }))
+  // `answered` is derived, never independently tallied: the one invariant this
+  // gate lives or dies by is answered + unanswered === total, and the bug it is
+  // replacing was exactly a thread going missing from both buckets' arithmetic.
   return { unanswered, total: list.length, answered: list.length - unanswered.length }
 }
 
@@ -192,21 +213,55 @@ function main() {
     return
   }
 
-  const lines = unanswered.map((t) => `  • ${t.path ?? 'thread'} — ${t.url ?? '(no link)'}`)
+  // Two groups because they ask for two different things. A live thread wants a
+  // decision (fixed / deferred / contested). An outdated one means you ALREADY
+  // touched those lines — the reviewer just cannot see what you did, so the ask
+  // is a one-line report, not a fresh triage. Collapsing them into one list is
+  // what made outdated threads feel like noise and got them skipped in the first
+  // place.
+  const live = unanswered.filter((t) => !t.isOutdated)
+  const outdated = unanswered.filter((t) => t.isOutdated)
+  const bullet = (t) => `  • ${t.path ?? 'thread'} — ${t.url ?? '(no link)'}`
+  const item = (t) => `- \`${t.path ?? 'thread'}\` — ${t.url ?? ''}`
+  // Only the outdated bucket is capped; the live one is the group you must read.
+  const shownOutdated = outdated.slice(0, OUTDATED_LIMIT)
+  const elided = outdated.length - shownOutdated.length
+
   console.error(
     `\n✗ check-pr-comments-answered: ${unanswered.length} of ${total} review thread(s) are unanswered ` +
-    `(a reviewer spoke last and got no reply, and the thread is open):\n`,
+    `(a reviewer spoke last and the thread is still open):\n`,
   )
-  for (const l of lines) console.error(l)
+  if (live.length > 0) {
+    console.error(`  Reviewer spoke last (${live.length}):`)
+    for (const t of live) console.error(bullet(t))
+  }
+  if (outdated.length > 0) {
+    console.error(
+      `\n  You changed these lines — say what you changed, or resolve (${outdated.length}):`,
+    )
+    for (const t of shownOutdated) console.error(bullet(t))
+    if (elided > 0) console.error(`  …and ${elided} more`)
+  }
   console.error(
     '\nReply to each thread (fixed / deferred-with-reason / contested-because) or resolve it. ' +
     'Per AGENTS.md you must engage every review comment before merge. This check is ADVISORY — it ' +
     `does not block the merge, but it carries the \`${LABEL}\` label and re-runs when you respond.\n`,
   )
+
+  const sections = []
+  if (live.length > 0) {
+    sections.push(`**Reviewer spoke last (${live.length}):**\n\n${live.map(item).join('\n')}`)
+  }
+  if (outdated.length > 0) {
+    const tail = elided > 0 ? `\n- …and ${elided} more` : ''
+    sections.push(
+      `**You changed these lines — say what you changed, or resolve (${outdated.length}):**\n\n` +
+      shownOutdated.map(item).join('\n') + tail,
+    )
+  }
   writeStepSummary(
     `## ⚠️ ${unanswered.length} unanswered review thread(s) — PR #${number}\n\n` +
-    `${answered}/${total} answered. Reply to or resolve the rest:\n\n` +
-    unanswered.map((t) => `- \`${t.path ?? 'thread'}\` — ${t.url ?? ''}`).join('\n'),
+    `${answered}/${total} answered.\n\n${sections.join('\n\n')}`,
   )
   process.exitCode = 1
 }
