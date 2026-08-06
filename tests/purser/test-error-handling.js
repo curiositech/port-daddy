@@ -1,16 +1,24 @@
-const { execFileSync } = require('child_process');
-const { repoRoot } = require('../test-utils');
+const { execSync } = require('child_process');
 
-describe('error handling', () => {
-  it('handles missing sources gracefully', () => {
-    const output = execFileSync('bash', ['-c', 'cd tests/purser/missing-sources && ../scripts/build-whitepapers.sh paper_epoch'], { cwd: repoRoot, encoding: 'utf8', stderr: 'pipe' });
-    
-    expect(output).toContain('No sources found for paper');
+describe('Error Handling', () => {
+  test('Should fail on generate-mega-whitepaper error', () => {
+    try {
+      execSync('sh scripts/build-whitepapers.sh', { env: { ...process.env, GENERATE_MEGA_WHITEPAPER_ERROR: '1' } });
+      expect(false).toBe(true);
+    } catch (e) {
+      expect(e.toString()).toContain('Failed to generate mega-volume');
+    }
   });
 
-  it('fails on invalid git commands', () => {
-    const output = execFileSync('bash', ['-c', 'cd tests/purser/invalid-git && ../scripts/build-whitepapers.sh paper_epoch'], { cwd: repoRoot, encoding: 'utf8', stderr: 'pipe' });
-    
-    expect(output).toContain('Failed to determine paper epoch');
+  test('Should handle missing mega-volume.tex', () => {
+    try {
+      fs.unlinkSync('website-v2/public/whitepaper/coordination-papers-mega-volume.tex');
+      execSync('sh scripts/build-whitepapers.sh');
+      expect(false).toBe(true);
+    } catch (e) {
+      expect(e.toString()).toContain('Missing required file');
+    } finally {
+      fs.writeFileSync('website-v2/public/whitepaper/coordination-papers-mega-volume.tex', '');
+    }
   });
 });
