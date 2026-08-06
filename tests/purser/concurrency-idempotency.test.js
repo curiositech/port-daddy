@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { handleSessionIntelIngest } from '../../apps/relay/src/session-intel.js';
 import { makeD1, makeEnv } from '../session-intel.test.js';
 
