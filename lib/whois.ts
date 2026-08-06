@@ -143,9 +143,9 @@ export interface Whois {
 function tokenize(text: string): string[] {
   // Shared Unicode-safe analyzer — see lib/lexical-index.ts. Replaces an
   // ASCII-only split that deleted every non-Latin term from whois search.
-  return analyze(text)
-    .slice()
-    .filter((token) => token.length > 1);
+  // No .slice(): analyze() already returns a fresh array and filter() does not
+  // mutate, so the copy was a per-query allocation buying nothing.
+  return analyze(text).filter((token) => token.length > 1);
 }
 
 interface CorpusEntry {

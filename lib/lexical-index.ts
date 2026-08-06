@@ -148,7 +148,21 @@ export class TopK<T> {
     this.down(0);
   }
 
-  /** Highest score first. Ties broken by the caller's own comparator. */
+  /**
+   * Drain the kept items, highest score first.
+   *
+   * `tieBreak` orders items that ARE being kept; it does not decide WHICH are
+   * kept. {@link push} discards anything scoring `<=` the current worst, so at
+   * the cutoff a tie is resolved by arrival order — first one in wins — and no
+   * comparator can reach that decision. Stated explicitly because "ties broken
+   * by the caller's comparator" reads like a guarantee about selection, and a
+   * caller relying on that would get a stable-looking result that quietly
+   * depends on corpus iteration order.
+   *
+   * @param tieBreak optional comparator applied to equal scores, for
+   *   presentation order only
+   * @returns the kept items, descending by score
+   */
   drain(tieBreak?: (a: T, b: T) => number): { score: number; value: T }[] {
     return [...this.heap].sort(
       (a, b) => b.score - a.score || (tieBreak ? tieBreak(a.value, b.value) : 0),

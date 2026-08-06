@@ -20,14 +20,64 @@
  */
 import { describe, expect, test } from '@jest/globals';
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
 import { analyze, fold } from '../../lib/lexical-index.js';
 import { tokenize as skillTokenize } from '../../lib/skill-graft-bm25.js';
 
-describe('every consumer shares one analyzer', () => {
-  test('skill-graft tokenize IS the shared analyzer', () => {
+/** The four modules that each hand-rolled the same broken tokenizer. */
+const CONSUMERS = [
+  'lib/skill-graft-bm25.ts',
+  'lib/whois.ts',
+  'lib/durable-agent-roster.ts',
+  'lib/agent-harbor/memory-episodes.ts',
+] as const;
+
+/** The ASCII-only split, in the spellings all four of them used. */
+const ASCII_ONLY_SPLIT = /split\(\s*\/\[\^a-z0-9/;
+
+/** Repo root, from this file's own URL (ESM: no __dirname). */
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+function consumerSource(rel: string): string {
+  return readFileSync(join(REPO_ROOT, rel), 'utf8');
+}
+
+describe('one analyzer, and no way back to four', () => {
+  test('skill-graft tokenize IS the shared analyzer, value for value', () => {
+    // The only consumer whose tokenizer is exported, so the only one whose
+    // equality can be asserted behaviourally rather than structurally. The
+    // other three are module-private, and widening their API purely to be
+    // testable would be a worse trade than the source assertions below.
     for (const s of ['café résumé', '日本語', 'ЖУРНАЛ', 'lib/squid/reconcile.ts', '']) {
       expect(skillTokenize(s)).toEqual(analyze(s));
     }
+  });
+
+  test.each(CONSUMERS)('%s delegates to the shared analyzer', rel => {
+    const src = consumerSource(rel);
+    expect(src).toMatch(/from '.*lexical-index\.js'/);
+    expect(src).toMatch(/\banalyze\(/);
+  });
+
+  test.each(CONSUMERS)('%s has no ASCII-only splitter left in it', rel => {
+    // The actual anti-regression property. `[^a-z0-9]+` makes every non-ASCII
+    // character a delimiter, which is what deleted 'ЖУРНАЛ' and '日本語'
+    // entirely and truncated 'résumé' into a different English word. This
+    // assertion fails if any consumer reintroduces it -- including a FIFTH
+    // module added to CONSUMERS later, which is the drift this suite exists
+    // to catch.
+    //
+    // FAILING HERE MEANS: this module contains an ASCII-only split again.
+    // Non-ASCII text is not degraded by it, it is DESTROYED -- an empty token
+    // list is no match at all, and it fails silently, so the symptom reads as
+    // "the document isn't there". Call analyze() from lib/lexical-index.ts.
+    //
+    // (No message argument: this suite runs under Jest, whose expect() takes
+    // only the value. The explanation lives here instead.)
+    expect(consumerSource(rel)).not.toMatch(ASCII_ONLY_SPLIT);
   });
 });
 

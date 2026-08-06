@@ -23,8 +23,19 @@ import type { SkillEntry } from './shipwright/skill-index.js';
 
 // ─── Tokenizer + Porter stemmer ─────────────────────────────────────────────
 
-/** Lowercase, split on non-alphanumeric, drop 1-char tokens — same shape
- *  `lib/whois.ts`'s tokenizer uses, plus a stemming pass. */
+/**
+ * Tokenize via the shared Unicode-safe analyzer (`lib/lexical-index.ts`).
+ *
+ * This docstring used to describe the thing that was wrong — "lowercase, split
+ * on non-alphanumeric, drop 1-char tokens, same shape as lib/whois.ts's" — and
+ * that description was the bug: splitting on non-alphanumeric makes every
+ * non-ASCII character a delimiter. Left in place it would have invited the next
+ * reader to "restore" the behaviour it names.
+ *
+ * NO stemming happens here. {@link tokenizeAndStem} is the stemming pass, and
+ * it is a separate function because BM25 indexing and query analysis do not
+ * always want the same aggressiveness.
+ */
 export function tokenize(text: string): string[] {
   // Shared Unicode-safe analyzer (lib/lexical-index.ts). This was the original
   // ASCII-only split — `[^a-z0-9]+` makes every non-ASCII character a
