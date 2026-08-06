@@ -974,6 +974,10 @@ describe('spawnViaCliTube — failure paths', () => {
         expect.any(Function),
       );
 
+      await waitForAsyncProcessDiscovery(
+        () => jest.getTimerCount() >= 1,
+        'root-fallback kill-close hard deadline',
+      );
       await jest.advanceTimersByTimeAsync(1000);
       const res = await resultPromise;
       expect(res.exitCode).toBe(-1);
