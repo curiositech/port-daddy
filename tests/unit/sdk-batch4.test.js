@@ -966,6 +966,35 @@ describe('Route error codes: sessions', () => {
     expect(res.json().code).toBe('VALIDATION_ERROR');
   });
 
+  test('POST /notes returns AMBIGUOUS_ACTIVE_SESSION when two sessions are active and no sessionId/agentId is given', async () => {
+    await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'Session A' } });
+    await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'Session B' } });
+
+    const res = await app.inject({ method: 'POST', url: '/notes', payload: { content: 'which session am I?' } });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json().code).toBe('AMBIGUOUS_ACTIVE_SESSION');
+  });
+
+  test('POST /notes resolves the ambiguity when agentId is given (mcp add_note fix regression guard)', async () => {
+    const owner = await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'Session A', agentId: 'agent-owner' },
+    });
+    const ownerSessionId = owner.json().id;
+    await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'Session B' } });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/notes',
+      payload: { content: 'scoped by agentId', agentId: 'agent-owner' },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().sessionId).toBe(ownerSessionId);
+  });
+
   test('POST /sessions with conflicting files returns FILE_CONFLICT', async () => {
     // Create a session and claim files
     await app.inject({

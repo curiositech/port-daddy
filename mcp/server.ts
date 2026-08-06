@@ -1135,7 +1135,9 @@ const TOOLS = [
       '[Essential] Add a note to the current session or create a quick standalone note. ' +
       'Notes are immutable — once added, they cannot be edited or deleted. ' +
       'Use liberally: progress updates, decisions made, blockers hit, handoffs to other agents. ' +
-      'Usage: add_note({content: "Switched to PKCE flow for SPAs", type: "decision"})',
+      'If multiple sessions are active in this worktree and session_id is omitted, this fails with ' +
+      'AMBIGUOUS_ACTIVE_SESSION — pass agent_id (from your begin_session response) or session_id to disambiguate. ' +
+      'Usage: add_note({content: "Switched to PKCE flow for SPAs", type: "decision", agent_id: "agent-abc123"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -1151,6 +1153,13 @@ const TOOLS = [
         session_id: {
           type: 'string',
           description: 'Session ID to add note to (omit for active session or quick note)',
+        },
+        agent_id: {
+          type: 'string',
+          description:
+            'Your agent ID (from begin_session response). Disambiguates which session to write to ' +
+            'when multiple sessions are active in this worktree — otherwise omitting session_id fails ' +
+            'with AMBIGUOUS_ACTIVE_SESSION.',
         },
       },
       required: ['content'],
@@ -3897,6 +3906,7 @@ async function handleTool(
       const body: Record<string, unknown> = { content: args.content };
       if (args.type) body.type = args.type;
       if (args.session_id) body.sessionId = args.session_id;
+      if (args.agent_id) body.agentId = args.agent_id;
 
       res = await POST('/notes', body);
       break;
