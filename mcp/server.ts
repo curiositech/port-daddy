@@ -1138,7 +1138,9 @@ const TOOLS = [
       '[Essential] Add a note to the current session or create a quick standalone note. ' +
       'Notes are immutable — once added, they cannot be edited or deleted. ' +
       'Use liberally: progress updates, decisions made, blockers hit, handoffs to other agents. ' +
-      'Usage: add_note({content: "Switched to PKCE flow for SPAs", type: "decision"})',
+      'If this MCP process has no cached begin_session attachment and multiple sessions are active, ' +
+      'pass agent_id (from your begin_session response) or session_id to avoid AMBIGUOUS_ACTIVE_SESSION. ' +
+      'Usage: add_note({content: "Switched to PKCE flow for SPAs", type: "decision", agent_id: "agent-abc123"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -1154,6 +1156,13 @@ const TOOLS = [
         session_id: {
           type: 'string',
           description: 'Session ID to add note to. Omit to use the session this process attached to via begin_session, if any; otherwise a quick standalone note.',
+        },
+        agent_id: {
+          type: 'string',
+          description:
+            'Your agent ID (from begin_session response). Disambiguates which session to write to ' +
+            'when multiple sessions are active in this worktree — otherwise omitting session_id fails ' +
+            'with AMBIGUOUS_ACTIVE_SESSION.',
         },
       },
       required: ['content'],
@@ -3913,7 +3922,9 @@ async function handleTool(
       const body: Record<string, unknown> = { content: args.content };
       if (args.type) body.type = args.type;
       const noteSessionId = resolveSessionId(args);
+      const noteAgentId = resolveAgentId(args);
       if (noteSessionId) body.sessionId = noteSessionId;
+      if (noteAgentId) body.agentId = noteAgentId;
 
       res = await POST('/notes', body);
       break;
