@@ -7,6 +7,9 @@ export default function PortsFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
+        <p className="font-mono text-[length:var(--type-meta-size)] font-bold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+          Feature · Ports
+        </p>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Atomic Port Assignment
         </h1>
@@ -19,7 +22,10 @@ export default function PortsFeature() {
 
       {/* The Problem */}
       <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">The Problem</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">01</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">The Problem</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-3">
           When multiple AI agents work on the same project, they often need to spin up services
           on specific ports. Without coordination, this leads to:
@@ -42,7 +48,10 @@ export default function PortsFeature() {
 
       {/* The Solution */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">02</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">How It Works</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Port Daddy uses deterministic hashing to map semantic identities to ports.
           The same identity always gets the same port, across restarts, across machines.
@@ -61,23 +70,26 @@ Port 3001 assigned to myapp:api:main`}
 
       {/* Identity Format */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Identity Format</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">03</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Identity Format</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Identities follow a hierarchical format: <code className="text-[var(--brand-primary)]">project:stack:context</code>
         </p>
 
         <div className="grid sm:grid-cols-3 gap-4">
-          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="lw-stripe-card p-3">
             <code className="text-[var(--brand-primary)] font-mono">project</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Your project name</p>
             <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">e.g., myapp, frontend, api</p>
           </div>
-          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="lw-stripe-card p-3">
             <code className="text-[var(--brand-primary)] font-mono">stack</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Service layer</p>
             <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">e.g., api, web, worker</p>
           </div>
-          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="lw-stripe-card p-3">
             <code className="text-[var(--brand-primary)] font-mono">context</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Environment/context</p>
             <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">e.g., main, dev, test</p>
@@ -87,10 +99,13 @@ Port 3001 assigned to myapp:api:main`}
 
       {/* CLI Commands */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">CLI Commands</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">04</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">CLI Commands</h2>
+        </div>
 
         <div className="space-y-3">
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd claim &lt;identity&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Claim a port for a service. Idempotent — returns the same port on repeat calls.</p>
             <DocsCodeBlock
@@ -103,7 +118,7 @@ Port 3001 assigned to myapp:api:main`}
             />
           </div>
 
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd release &lt;identity&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Release a port claim. Safe to call even if the port is not claimed.</p>
             <DocsCodeBlock
@@ -112,7 +127,7 @@ Port 3001 assigned to myapp:api:main`}
             />
           </div>
 
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd find &lt;identity&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Look up the port assigned to an identity without claiming a new one.</p>
             <DocsCodeBlock
@@ -121,7 +136,7 @@ Port 3001 assigned to myapp:api:main`}
             />
           </div>
 
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd services</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">List all active port claims with identity, port, and last-seen timestamp.</p>
             <DocsCodeBlock
@@ -135,7 +150,10 @@ myapp:frontend:main  3000   2s ago`}
 
       {/* Auto-Detection */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Auto-Detection</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">05</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Auto-Detection</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Port Daddy can scan your project and automatically detect services based on
           framework signatures (package.json, Cargo.toml, etc.).
@@ -153,7 +171,10 @@ myapp:frontend:main  3000   2s ago`}
 
       {/* SDK Example */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">SDK Usage</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">06</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">SDK Usage</h2>
+        </div>
 
         <DocsCodeBlock
           language="typescript"
@@ -172,7 +193,7 @@ await pd.release('myapp:api:main')`}
       </div>
 
       {/* Next */}
-      <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
+      <div className="flex flex-wrap items-center justify-between gap-4 border border-[var(--border-subtle)] bg-[color-mix(in_oklab,var(--brand-primary)_10%,var(--surface-base))] p-5">
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Next Feature</div>
           <div className="font-semibold text-[var(--text-primary)]">Swarm Radio</div>
@@ -180,7 +201,7 @@ await pd.release('myapp:api:main')`}
         </div>
         <Link
           to="/docs/features/radio"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] font-medium hover:bg-[var(--brand-primary)] transition-colors"
+          className="flex items-center gap-2 bg-[var(--brand-primary)] px-4 py-2 font-medium text-[var(--text-inverse)]"
         >
           Learn More
           <ArrowRight size={16} />

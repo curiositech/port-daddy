@@ -25,8 +25,22 @@ export interface GitHubState {
   commentPatches: number;
   existingComments: Array<{ id: number; body: string }>;
   checkRunsCreated: number;
-  /** existing check runs returned by the commit check-runs lookup. */
-  existingCheckRuns: Array<{ id: number; name: string }>;
+  /**
+   * Existing check runs returned by the commit check-runs lookup.
+   *
+   * `status` is tracked because the executor uses it for idempotency: a
+   * COMPLETED check means a redelivery must not re-run the ships (the gate is
+   * decided and cannot be reopened, so the model calls would buy nothing).
+   * Without status here, that guard would be untestable and silently inert.
+   */
+  existingCheckRuns: Array<{
+    id: number;
+    name: string;
+    status?: string;
+    conclusion?: string | null;
+    /** The commit this check belongs to. GitHub's lookup is PER-SHA. */
+    headSha?: string;
+  }>;
   completed: Array<{ id: number; conclusion: string; summary: string; detailsUrl?: string }>;
   /** details_url values sent on check-run CREATE (undefined when omitted). */
   createdDetailsUrls: Array<string | undefined>;
@@ -83,6 +97,23 @@ export interface GitHubState {
   labelPosts: Array<{ number: number; labels: string[] }>;
   /** When true, EVERY Git Data write (blobs/trees/commits/refs) returns 403. */
   failGitWrites403: boolean;
+
+  // --- Fleet self-identity (self-review guard) -----------------------------
+  /**
+   * Slug returned by `GET /app`, i.e. this App's identity. `null` makes the
+   * endpoint 404 so `resolveFleetAppLogin` yields null (the unresolvable case).
+   */
+  appSlug: string | null;
+  /** `user` block on the live PR fetch — who authored the PR under review. */
+  prAuthor: { login: string; type: string } | null;
+  /**
+   * `state` / `merged` on the live PR fetch — the PR's lifecycle.
+   *
+   * `undefined` OMITS the key entirely, reproducing a payload where GitHub
+   * gave us nothing, which the lifecycle gate must fail OPEN on.
+   */
+  prState: string | undefined;
+  prMerged: boolean | undefined;
 }
 
 export function freshState(): GitHubState {
@@ -120,6 +151,10 @@ export function freshState(): GitHubState {
     prPatches: [],
     labelPosts: [],
     failGitWrites403: false,
+    appSlug: 'port-daddy',
+    prAuthor: { login: 'a-human', type: 'User' },
+    prState: 'open',
+    prMerged: false,
   };
 }
 
@@ -152,6 +187,12 @@ export function installGitHubFetch(state: GitHubState): void {
       }
     }
     state.records.push({ method, url, body });
+
+    // --- App self-identity (resolveFleetAppLogin) ---
+    if (url === 'https://api.github.com/app' && method === 'GET') {
+      if (!state.appSlug) return text('not found', 404);
+      return json({ slug: state.appSlug });
+    }
 
     // --- installation access token mint ---
     if (url.includes('/app/installations/') && url.includes('/access_tokens') && method === 'POST') {
@@ -292,6 +333,9 @@ export function installGitHubFetch(state: GitHubState): void {
         number: 7,
         title: 'Test PR',
         body: '',
+        ...(state.prAuthor ? { user: state.prAuthor } : {}),
+        ...(state.prState === undefined ? {} : { state: state.prState }),
+        ...(state.prMerged === undefined ? {} : { merged: state.prMerged }),
         head: {
           sha: state.prHeadSha,
           // undefined prHeadRef omits the key entirely, reproducing a PR whose
@@ -305,7 +349,13 @@ export function installGitHubFetch(state: GitHubState): void {
 
     // --- commit check-runs lookup (idempotency) ---
     if (/\/commits\/[^/]+\/check-runs/.test(url)) {
-      return json({ check_runs: state.existingCheckRuns });
+      // Filter by SHA, as GitHub does. Returning every check run regardless of
+      // commit made a second commit look like it already had a decided gate,
+      // which is the opposite of the truth and would hide a real re-review.
+      const wanted = url.match(/\/commits\/([^/]+)\/check-runs/)?.[1] ?? '';
+      return json({
+        check_runs: state.existingCheckRuns.filter(c => !c.headSha || c.headSha === wanted),
+      });
     }
 
     // --- list issue comments (edit-in-place lookup) ---
@@ -335,13 +385,23 @@ export function installGitHubFetch(state: GitHubState): void {
       // Future lookups for this head SHA now find it.
       const headSha = (body as { head_sha?: string })?.head_sha ?? '';
       const name = (body as { name?: string })?.name ?? '';
-      state.existingCheckRuns.push({ id, name });
-      void headSha;
+      state.existingCheckRuns.push({ id, name, status: 'in_progress', headSha });
       return json({ id });
     }
     // --- complete check run ---
     const completeMatch = url.match(/\/check-runs\/(\d+)$/);
     if (completeMatch && method === 'PATCH') {
+      // Mirror GitHub: completing a check run makes it `completed` for every
+      // later lookup. The executor's redelivery guard reads exactly this.
+      const completedId = Number(completeMatch[1]);
+      const row = state.existingCheckRuns.find(c => c.id === completedId);
+      if (row) {
+        row.status = 'completed';
+        // The conclusion matters as much as the status: only success/failure
+        // mean ships ran and decided. `neutral` is a deferral (paused,
+        // lifecycle-skipped) and must stay re-runnable.
+        row.conclusion = (body as { conclusion?: string })?.conclusion ?? null;
+      }
       state.completed.push({
         id: Number(completeMatch[1]),
         conclusion: (body as { conclusion?: string })?.conclusion ?? '',

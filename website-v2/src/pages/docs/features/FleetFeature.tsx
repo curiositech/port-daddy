@@ -8,6 +8,9 @@ export default function FleetFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
+        <p className="font-mono text-[length:var(--type-meta-size)] font-bold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+          Feature · Fleet
+        </p>
         <h1 className="text-4xl font-semibold tracking-tight text-[var(--text-primary)]">
           Fleet &amp; the GitHub App
         </h1>
@@ -24,7 +27,10 @@ export default function FleetFeature() {
 
       {/* Local fleet in brief */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">The Local Fleet, Briefly</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">01</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">The Local Fleet, Briefly</h2>
+        </div>
         <p className="leading-relaxed text-[var(--text-secondary)]">
           The local half is covered in depth by the{' '}
           <Link to="/docs/cli/fleet" className="text-[var(--brand-primary)] underline">pd fleet CLI reference</Link>
@@ -33,7 +39,7 @@ export default function FleetFeature() {
           The short version:
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2 border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-4">
+          <div className="lw-stripe-card space-y-2 p-4 pl-5">
             <div className="font-semibold text-[var(--text-primary)]">CLI mode</div>
             <p className="text-sm text-[var(--text-secondary)]">
               Runs in your terminal until Ctrl+C. Good for development and one-off fleet runs.
@@ -46,7 +52,7 @@ pd fleet status  # Inspect
 pd fleet down    # Stop`}
             />
           </div>
-          <div className="space-y-2 border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-4">
+          <div className="lw-stripe-card space-y-2 p-4 pl-5 [--stripe:var(--brand-accent)]">
             <div className="font-semibold text-[var(--text-primary)]">Daemon mode</div>
             <p className="text-sm text-[var(--text-secondary)]">
               The daemon auto-discovers <code className="font-mono text-[length:var(--type-meta-size)] text-[var(--brand-primary)]">pd-fleet.yml</code> in
@@ -69,7 +75,10 @@ curl "$PD_URL/fleet/events"         # SSE stream`}
 
       {/* 1. The ship roster */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">The Ship Roster</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">02</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">The Ship Roster</h2>
+        </div>
         <p className="leading-relaxed text-[var(--text-secondary)]">
           When a pull request opens (or synchronizes), the cloud executor parses your repo&apos;s{' '}
           <code className="font-mono text-sm text-[var(--brand-primary)]">pd-fleet.yml</code>{' '}
@@ -78,7 +87,7 @@ curl "$PD_URL/fleet/events"         # SSE stream`}
         </p>
 
         {/* Reviewers */}
-        <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+        <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
           <div className="font-semibold text-[var(--text-primary)]">Reviewer ships</div>
           <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
             <code className="font-mono text-[length:var(--type-meta-size)] text-[var(--brand-primary)]">code-reviewer</code>,{' '}
@@ -123,7 +132,7 @@ curl "$PD_URL/fleet/events"         # SSE stream`}
         </div>
 
         {/* Ideation crew */}
-        <div className="border-l-4 border-[var(--brand-accent)] pl-4">
+        <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-accent)] pl-4">
           <div className="font-semibold text-[var(--text-primary)]">Ideation crew</div>
           <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
             <code className="font-mono text-[length:var(--type-meta-size)] text-[var(--brand-primary)]">spark</code>{' '}
@@ -155,7 +164,7 @@ curl "$PD_URL/fleet/events"         # SSE stream`}
         </div>
 
         {/* The Purser */}
-        <div className="border-l-4 border-[var(--error)] pl-4">
+        <div className="border-l-[length:var(--lw-stripe)] border-[var(--error)] pl-4">
           <div className="flex items-center gap-2 font-semibold text-[var(--text-primary)]">
             <Anchor size={16} className="shrink-0 text-[var(--error)]" />
             The Purser — the adversarial ship
@@ -192,15 +201,18 @@ curl "$PD_URL/fleet/events"         # SSE stream`}
 
       {/* 2. Stacked PRs */}
       <div className="space-y-4">
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-[var(--text-primary)]">
-          <GitPullRequest size={18} className="shrink-0 text-[var(--brand-primary)]" />
-          Stacked PRs, Both Directions
-        </h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">03</span>
+          <h2 className="flex items-center gap-2 text-xl font-semibold text-[var(--text-primary)]">
+            <GitPullRequest size={18} className="shrink-0 text-[var(--brand-primary)]" />
+            Stacked PRs, Both Directions
+          </h2>
+        </div>
         <p className="leading-relaxed text-[var(--text-secondary)]">
           The fleet stacks in two directions, and they are not the same operation:
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2 border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-4">
+          <div className="lw-stripe-card space-y-2 p-4 pl-5">
             <div className="font-semibold text-[var(--text-primary)]">Tests stacked <em>under</em> your PR</div>
             <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
               The Purser cuts a branch from your PR&apos;s base, pushes its contract tests to it,
@@ -211,7 +223,7 @@ curl "$PD_URL/fleet/events"         # SSE stream`}
               then your change on top of it.
             </p>
           </div>
-          <div className="space-y-2 border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-4">
+          <div className="lw-stripe-card space-y-2 p-4 pl-5 [--stripe:var(--brand-accent)]">
             <div className="font-semibold text-[var(--text-primary)]">Fixes stacked <em>on top</em> of your head</div>
             <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
               When the ideation crew codes a small fix, it cuts a branch from your PR&apos;s{' '}
@@ -222,7 +234,7 @@ curl "$PD_URL/fleet/events"         # SSE stream`}
             </p>
           </div>
         </div>
-        <div className="border-l-4 border-[var(--brand-accent)] pl-4">
+        <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-accent)] pl-4">
           <div className="font-semibold text-[var(--text-primary)]">The guards</div>
           <ul className="mt-1 space-y-1 text-sm text-[var(--text-secondary)]">
             <li>
@@ -249,7 +261,10 @@ curl "$PD_URL/fleet/events"         # SSE stream`}
 
       {/* 3. Skill grafting */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Skill Grafting</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">04</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Skill Grafting</h2>
+        </div>
         <p className="leading-relaxed text-[var(--text-secondary)]">
           Ships can graft skills from your repo&apos;s{' '}
           <code className="font-mono text-sm text-[var(--brand-primary)]">skills/</code> catalog into their prompts:
@@ -287,7 +302,10 @@ curl "$PD_URL/fleet/events"         # SSE stream`}
 
       {/* 4. Squid-harnessed cloud agents */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Squid-Harnessed: Cloud Runs on the Relay Fabric</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">05</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Squid-Harnessed: Cloud Runs on the Relay Fabric</h2>
+        </div>
         <p className="leading-relaxed text-[var(--text-secondary)]">
           Cloud ships are not a separate universe. Every cloud run is squid-harnessed: it emits
           coordination events into the PD relay fabric —{' '}
@@ -299,7 +317,7 @@ curl "$PD_URL/fleet/events"         # SSE stream`}
           the FleetBar cost panel counts cloud spend next to local spend and a degraded cloud run
           surfaces to the operator instead of failing silently.
         </p>
-        <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+        <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
           <div className="font-semibold text-[var(--text-primary)]">The deliberation transcript page</div>
           <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
             Every check run&apos;s <em>Details</em> link opens{' '}
@@ -316,7 +334,10 @@ curl "$PD_URL/fleet/events"         # SSE stream`}
 
       {/* 5. Sign in + your runs */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Sign In and See Your Runs</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">06</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Sign In and See Your Runs</h2>
+        </div>
         <p className="leading-relaxed text-[var(--text-secondary)]">
           Log in with GitHub at{' '}
           <code className="font-mono text-sm text-[var(--brand-primary)]">relay.portdaddy.dev/login</code>. The relay
@@ -413,8 +434,9 @@ curl "$PD_URL/fleet/events"         # SSE stream`}
         </ul>
       </div>
 
-      {/* Next */}
-      <div className="flex items-center justify-between border border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/5 p-5">
+      {/* Next — cobalt wash well with an ink hairline edge (story hues are
+          accents, never chrome — ch. 20 rule 1). Wraps on narrow viewports. */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border border-[var(--border-subtle)] bg-[color-mix(in_oklab,var(--brand-primary)_10%,var(--surface-base))] p-5">
         <div>
           <div className="text-sm text-[var(--text-muted)]">CLI Reference</div>
           <div className="font-semibold text-[var(--text-primary)]">pd fleet</div>

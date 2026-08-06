@@ -1,8 +1,8 @@
 {
   "auditor_version": "0.2.0",
   "summary": {
-    "total": 162,
-    "passing": 162,
+    "total": 301,
+    "passing": 301,
     "failing": 0
   },
   "skills": [
@@ -17,8 +17,64 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "agent-compliance-conformance",
+      "root": "skills/agent-compliance-conformance",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "agent-context-partitioner",
+      "root": "skills/agent-context-partitioner",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "agent-control-command-contract",
+      "root": "skills/agent-control-command-contract",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
       "name": "agent-conversation-protocols",
       "root": "skills/agent-conversation-protocols",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "agent-creator",
+      "root": "skills/agent-creator",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "agent-discovery-directories-guilds",
+      "root": "skills/agent-discovery-directories-guilds",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -102,6 +158,19 @@
       ]
     },
     {
+      "name": "agent-visual-evidence-manifest",
+      "root": "skills/agent-visual-evidence-manifest",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
       "name": "agent-work-receipt-designer",
       "root": "skills/agent-work-receipt-designer",
       "ok": true,
@@ -126,6 +195,16 @@
         "examples",
         "references"
       ]
+    },
+    {
+      "name": "agentic-calendar-coordination",
+      "root": "skills/agentic-calendar-coordination",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
     },
     {
       "name": "agentic-coding-product-research",
@@ -172,6 +251,18 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "agentic-software-installation",
+      "root": "skills/agentic-software-installation",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
       "name": "agentic-zero-trust-security",
       "root": "skills/agentic-zero-trust-security",
       "ok": true,
@@ -180,6 +271,55 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "agentspeak-bdi",
+      "root": "skills/agentspeak-bdi",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "agha-actor-model",
+      "root": "skills/agha-actor-model",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "ai-engineer",
+      "root": "skills/ai-engineer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples"
+      ]
+    },
+    {
+      "name": "alphago-deep-rl",
+      "root": "skills/alphago-deep-rl",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "diagrams",
+        "references"
+      ]
     },
     {
       "name": "always-on-agent-applications",
@@ -222,6 +362,52 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "api-versioning-strategy",
+      "root": "skills/api-versioning-strategy",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "architecture-binder-of-record",
+      "root": "skills/architecture-binder-of-record",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "articles-of-agreement-auditor",
+      "root": "skills/articles-of-agreement-auditor",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "astro-islands-architect",
+      "root": "skills/astro-islands-architect",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "background-job-orchestrator",
       "root": "skills/background-job-orchestrator",
       "ok": true,
@@ -231,6 +417,87 @@
       "missing_indexes_failure": [],
       "missing_indexes_warning": [
         "scripts"
+      ]
+    },
+    {
+      "name": "background-job-queue-design",
+      "root": "skills/background-job-queue-design",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "bad-faith-rhetoric-detector",
+      "root": "skills/bad-faith-rhetoric-detector",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "bdi-agency-model",
+      "root": "skills/bdi-agency-model",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "diagrams",
+        "references"
+      ]
+    },
+    {
+      "name": "bdi-agent-design-mora",
+      "root": "skills/bdi-agent-design-mora",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "diagrams",
+        "references"
+      ]
+    },
+    {
+      "name": "bdi-models-and-systems-reducing-the-gap",
+      "root": "skills/bdi-models-and-systems-reducing-the-gap",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "bdi-soft-systems",
+      "root": "skills/bdi-soft-systems",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "beale-rise-up-revolt",
+      "root": "skills/beale-rise-up-revolt",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "diagrams",
+        "references"
       ]
     },
     {
@@ -246,6 +513,45 @@
     {
       "name": "beautiful-gui-design",
       "root": "skills/beautiful-gui-design",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "bellifemine-2007-jade-fipa",
+      "root": "skills/bellifemine-2007-jade-fipa",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "diagrams",
+        "references"
+      ]
+    },
+    {
+      "name": "bordini-hubner-2007-jason",
+      "root": "skills/bordini-hubner-2007-jason",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "diagrams",
+        "references"
+      ]
+    },
+    {
+      "name": "bratman-israel-pollack-1988-plans-resource-bounded-reasoning",
+      "root": "skills/bratman-israel-pollack-1988-plans-resource-bounded-reasoning",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -268,6 +574,28 @@
       ]
     },
     {
+      "name": "cdm-interviewer",
+      "root": "skills/cdm-interviewer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "cdn-cache-control-headers",
+      "root": "skills/cdn-cache-control-headers",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "charrier-et-al-big-brother-logic",
       "root": "skills/charrier-et-al-big-brother-logic",
       "ok": true,
@@ -276,6 +604,48 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "circuit-breakers-and-retries",
+      "root": "skills/circuit-breakers-and-retries",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "closed-form-marbling-renderer",
+      "root": "skills/closed-form-marbling-renderer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "cloudflare-workers-debugging",
+      "root": "skills/cloudflare-workers-debugging",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "color-contrast-auditor",
+      "root": "skills/color-contrast-auditor",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples"
+      ]
     },
     {
       "name": "color-theory-palette-harmony-expert",
@@ -291,6 +661,26 @@
       ]
     },
     {
+      "name": "content-security-policy-headers",
+      "root": "skills/content-security-policy-headers",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "context-economics-for-agent-swarms",
+      "root": "skills/context-economics-for-agent-swarms",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "cooperative-vibe-coding",
       "root": "skills/cooperative-vibe-coding",
       "ok": true,
@@ -299,6 +689,33 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "coordination-topology-architect",
+      "root": "skills/coordination-topology-architect",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references",
+        "templates"
+      ]
+    },
+    {
+      "name": "coordination-verb-broker-migration",
+      "root": "skills/coordination-verb-broker-migration",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
     },
     {
       "name": "cost-accrual-tracker",
@@ -323,6 +740,26 @@
     {
       "name": "cost-verification-auditor",
       "root": "skills/cost-verification-auditor",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "cryptoeconomic-protocol-security",
+      "root": "skills/cryptoeconomic-protocol-security",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "d1-and-supabase-migrations",
+      "root": "skills/d1-and-supabase-migrations",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -621,6 +1058,53 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "db-retention-and-compaction",
+      "root": "skills/db-retention-and-compaction",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "decker-lesser-1995-gpgp-taems",
+      "root": "skills/decker-lesser-1995-gpgp-taems",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "derived-index-consent-boundary",
+      "root": "skills/derived-index-consent-boundary",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "destructive-action-policy-matrix",
+      "root": "skills/destructive-action-policy-matrix",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
       "name": "developer-surface-strategist",
       "root": "skills/developer-surface-strategist",
       "ok": true,
@@ -633,6 +1117,16 @@
       ]
     },
     {
+      "name": "discourse-coordinator",
+      "root": "skills/discourse-coordinator",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "distributed-algorithms",
       "root": "skills/distributed-algorithms",
       "ok": true,
@@ -641,6 +1135,49 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "distributed-tracing-w3c-context",
+      "root": "skills/distributed-tracing-w3c-context",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "dockerfile-build-cache-mastery",
+      "root": "skills/dockerfile-build-cache-mastery",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "duckdb-analytics",
+      "root": "skills/duckdb-analytics",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "embedded-agency",
+      "root": "skills/embedded-agency",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "diagrams",
+        "references"
+      ]
     },
     {
       "name": "empirical-systems-evaluation",
@@ -687,6 +1224,16 @@
     {
       "name": "execution-lifecycle-manager",
       "root": "skills/execution-lifecycle-manager",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "feature-flag-rollout-strategist",
+      "root": "skills/feature-flag-rollout-strategist",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -765,6 +1312,18 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "fischer-lynch-paterson-1985-flp-impossibility",
+      "root": "skills/fischer-lynch-paterson-1985-flp-impossibility",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
       "name": "fleet-event-spawn-trust",
       "root": "skills/fleet-event-spawn-trust",
       "ok": true,
@@ -773,6 +1332,19 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "focus-receipt-proof-gate",
+      "root": "skills/focus-receipt-proof-gate",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
     },
     {
       "name": "frame0-wireframing",
@@ -797,6 +1369,26 @@
     {
       "name": "git-best-practices",
       "root": "skills/git-best-practices",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "github-actions-matrix-patterns",
+      "root": "skills/github-actions-matrix-patterns",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "go-pprof-profiling",
+      "root": "skills/go-pprof-profiling",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -831,6 +1423,58 @@
       ]
     },
     {
+      "name": "grafana-dashboard-builder",
+      "root": "skills/grafana-dashboard-builder",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "graphql-n-plus-one-dataloader",
+      "root": "skills/graphql-n-plus-one-dataloader",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "hierarchical-skill-repr",
+      "root": "skills/hierarchical-skill-repr",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "hierarchical-skills-representation",
+      "root": "skills/hierarchical-skills-representation",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "high-quality-latex-whitepaper",
+      "root": "skills/high-quality-latex-whitepaper",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "hoare-1978-csp",
       "root": "skills/hoare-1978-csp",
       "ok": true,
@@ -843,6 +1487,36 @@
     {
       "name": "hong-et-al-2024-metagpt",
       "root": "skills/hong-et-al-2024-metagpt",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "hono-patterns",
+      "root": "skills/hono-patterns",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "hsts-planning-scheduling",
+      "root": "skills/hsts-planning-scheduling",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "htmx-progressive-enhancement",
+      "root": "skills/htmx-progressive-enhancement",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -881,8 +1555,93 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "idempotency-key-patterns",
+      "root": "skills/idempotency-key-patterns",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "intercultural-discourse",
+      "root": "skills/intercultural-discourse",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "international-code-of-signals",
+      "root": "skills/international-code-of-signals",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references",
+        "scripts"
+      ]
+    },
+    {
       "name": "ipc-communication-patterns",
       "root": "skills/ipc-communication-patterns",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "kafka-consumer-group-design",
+      "root": "skills/kafka-consumer-group-design",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "kubernetes-debugging-runbook",
+      "root": "skills/kubernetes-debugging-runbook",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "kubernetes-graceful-shutdown",
+      "root": "skills/kubernetes-graceful-shutdown",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "latex-whitepaper-engineering",
+      "root": "skills/latex-whitepaper-engineering",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "legibility-for-agentic-systems",
+      "root": "skills/legibility-for-agentic-systems",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -914,6 +1673,19 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "liu-2023-agentbench",
+      "root": "skills/liu-2023-agentbench",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "diagrams",
+        "references"
+      ]
+    },
+    {
       "name": "llm-router",
       "root": "skills/llm-router",
       "ok": true,
@@ -922,6 +1694,19 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "local-first-tenancy-boundary",
+      "root": "skills/local-first-tenancy-boundary",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
     },
     {
       "name": "log-aggregation-architect",
@@ -936,6 +1721,42 @@
     {
       "name": "logging-observability",
       "root": "skills/logging-observability",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "logical-fallacy-detector",
+      "root": "skills/logical-fallacy-detector",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "lora-training-2026",
+      "root": "skills/lora-training-2026",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "agents",
+        "references",
+        "scripts"
+      ]
+    },
+    {
+      "name": "macaroon-capability-credentials",
+      "root": "skills/macaroon-capability-credentials",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -977,7 +1798,41 @@
       "missing_indexes_warning": [
         "examples",
         "references",
-        "scripts"
+        "scripts",
+        "templates"
+      ]
+    },
+    {
+      "name": "manager-driven-team-orchestrator",
+      "root": "skills/manager-driven-team-orchestrator",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "mcp-server-design",
+      "root": "skills/mcp-server-design",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "mcp-trust-broker",
+      "root": "skills/mcp-trust-broker",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
       ]
     },
     {
@@ -1048,6 +1903,44 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "nano-banana-image-gen",
+      "root": "skills/nano-banana-image-gen",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "native-app-designer",
+      "root": "skills/native-app-designer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "nau-au-kuter-2003-shop2",
+      "root": "skills/nau-au-kuter-2003-shop2",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "diagrams",
+        "references"
+      ]
+    },
+    {
       "name": "next-move",
       "root": "skills/next-move",
       "ok": true,
@@ -1057,6 +1950,62 @@
       "missing_indexes_failure": [],
       "missing_indexes_warning": [
         "prompts",
+        "references"
+      ]
+    },
+    {
+      "name": "nisan-et-al-2007-algorithmic-game-theory",
+      "root": "skills/nisan-et-al-2007-algorithmic-game-theory",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "node-memory-leak-hunting",
+      "root": "skills/node-memory-leak-hunting",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "normative-bdi-agents",
+      "root": "skills/normative-bdi-agents",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "oauth2-and-oidc-from-scratch",
+      "root": "skills/oauth2-and-oidc-from-scratch",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "observability-absences-audit",
+      "root": "skills/observability-absences-audit",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
         "references"
       ]
     },
@@ -1091,6 +2040,16 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "opentelemetry-instrumentation",
+      "root": "skills/opentelemetry-instrumentation",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "operad-task-decomposition",
       "root": "skills/operad-task-decomposition",
       "ok": true,
@@ -1101,8 +2060,31 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "operator-surface-authority-designer",
+      "root": "skills/operator-surface-authority-designer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
       "name": "ostrom-commons-governance",
       "root": "skills/ostrom-commons-governance",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "outbox-pattern-implementation",
+      "root": "skills/outbox-pattern-implementation",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -1121,8 +2103,51 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "park-2023-generative-agents",
+      "root": "skills/park-2023-generative-agents",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "diagrams",
+        "references"
+      ]
+    },
+    {
       "name": "pd-relay-zero-trust",
       "root": "skills/pd-relay-zero-trust",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "playwright-e2e-design",
+      "root": "skills/playwright-e2e-design",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "pnpm-workspace-monorepo",
+      "root": "skills/pnpm-workspace-monorepo",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "political-philosophy-of-computation",
+      "root": "skills/political-philosophy-of-computation",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -1188,6 +2213,59 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "port-daddy-users",
+      "root": "skills/port-daddy-users",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "postgres-connection-pooling",
+      "root": "skills/postgres-connection-pooling",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "postgres-explain-analyzer",
+      "root": "skills/postgres-explain-analyzer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "postgres-row-level-security",
+      "root": "skills/postgres-row-level-security",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "premium-deck-builder",
+      "root": "skills/premium-deck-builder",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references",
+        "scripts"
+      ]
+    },
+    {
       "name": "product-appeal-analyzer",
       "root": "skills/product-appeal-analyzer",
       "ok": true,
@@ -1214,8 +2292,119 @@
       ]
     },
     {
+      "name": "product-roadmap-focus",
+      "root": "skills/product-roadmap-focus",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "productive-discourse-facilitator",
+      "root": "skills/productive-discourse-facilitator",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "prompt-engineer",
+      "root": "skills/prompt-engineer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "provable-action-adjudicator",
+      "root": "skills/provable-action-adjudicator",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "proverif-tamarin-protocol-modeling",
       "root": "skills/proverif-tamarin-protocol-modeling",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "python-asyncio-pitfalls",
+      "root": "skills/python-asyncio-pitfalls",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "rag-retrieval-pattern-design",
+      "root": "skills/rag-retrieval-pattern-design",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "rao-georgeff-1991-modeling-rational-agents-bdi",
+      "root": "skills/rao-georgeff-1991-modeling-rational-agents-bdi",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "diagrams",
+        "references"
+      ]
+    },
+    {
+      "name": "rao-georgeff-1995-bdi-agents-from-theory-to-practice",
+      "root": "skills/rao-georgeff-1995-bdi-agents-from-theory-to-practice",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "diagrams",
+        "references"
+      ]
+    },
+    {
+      "name": "rate-limiting-strategy",
+      "root": "skills/rate-limiting-strategy",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "react-server-components-boundary",
+      "root": "skills/react-server-components-boundary",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -1247,6 +2436,16 @@
       ]
     },
     {
+      "name": "redis-patterns-expert",
+      "root": "skills/redis-patterns-expert",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "redteam-review",
       "root": "skills/redteam-review",
       "ok": true,
@@ -1255,6 +2454,42 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "resilience-wiring-for-load-once-deps",
+      "root": "skills/resilience-wiring-for-load-once-deps",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "resource-bounded-planning",
+      "root": "skills/resource-bounded-planning",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "responsible-logging",
+      "root": "skills/responsible-logging",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
     },
     {
       "name": "reverse-proxy-for-agents",
@@ -1402,6 +2637,18 @@
       ]
     },
     {
+      "name": "self-monitoring-resource-alarms",
+      "root": "skills/self-monitoring-resource-alarms",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
       "name": "semantic-conflict-prediction",
       "root": "skills/semantic-conflict-prediction",
       "ok": true,
@@ -1410,6 +2657,49 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "server-sent-events-vs-websockets",
+      "root": "skills/server-sent-events-vs-websockets",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "session-pr-audit",
+      "root": "skills/session-pr-audit",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "sheaf-cohomology-multiagent-debug",
+      "root": "skills/sheaf-cohomology-multiagent-debug",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "shoham-leyton-brown-2009-mas-foundations",
+      "root": "skills/shoham-leyton-brown-2009-mas-foundations",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "diagrams",
+        "references"
+      ]
     },
     {
       "name": "skill-architect",
@@ -1466,6 +2756,53 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "smith-1980-contract-net-protocol",
+      "root": "skills/smith-1980-contract-net-protocol",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "diagrams",
+        "references"
+      ]
+    },
+    {
+      "name": "socratic-questioning",
+      "root": "skills/socratic-questioning",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "solely-responsible-agent",
+      "root": "skills/solely-responsible-agent",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "solo-operator-business-site",
+      "root": "skills/solo-operator-business-site",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "sound-design-and-audio",
       "root": "skills/sound-design-and-audio",
       "ok": true,
@@ -1491,6 +2828,48 @@
       ]
     },
     {
+      "name": "status-attestation-split-plane",
+      "root": "skills/status-attestation-split-plane",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "steel-man-argument",
+      "root": "skills/steel-man-argument",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "stigmergic-diffusion-medium",
+      "root": "skills/stigmergic-diffusion-medium",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "structured-logging-design",
+      "root": "skills/structured-logging-design",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "swarm-invocation-designer",
       "root": "skills/swarm-invocation-designer",
       "ok": true,
@@ -1503,8 +2882,58 @@
       ]
     },
     {
+      "name": "tailwind-v4-expert",
+      "root": "skills/tailwind-v4-expert",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "tanstack-query-server-state",
+      "root": "skills/tanstack-query-server-state",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "task-decomposer",
       "root": "skills/task-decomposer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "technical-evangelism-for-formal-systems",
+      "root": "skills/technical-evangelism-for-formal-systems",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "terraform-module-design",
+      "root": "skills/terraform-module-design",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "three-sided-agent-labor-market",
+      "root": "skills/three-sided-agent-labor-market",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -1523,8 +2952,40 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "toulmin-argument-analysis",
+      "root": "skills/toulmin-argument-analysis",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "transformers-js-onnx-pipelines",
+      "root": "skills/transformers-js-onnx-pipelines",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "tunnels-for-agents",
       "root": "skills/tunnels-for-agents",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "typescript-narrowing-expert",
+      "root": "skills/typescript-narrowing-expert",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -1591,8 +3052,28 @@
       ]
     },
     {
+      "name": "vite-build-optimizer",
+      "root": "skills/vite-build-optimizer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "wang-et-al-2025-tdag",
       "root": "skills/wang-et-al-2025-tdag",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "wave-by-wave-parley",
+      "root": "skills/wave-by-wave-parley",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -1612,6 +3093,26 @@
         "examples",
         "references"
       ]
+    },
+    {
+      "name": "webauthn-passkey-implementation",
+      "root": "skills/webauthn-passkey-implementation",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "webhook-receiver-design",
+      "root": "skills/webhook-receiver-design",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
     },
     {
       "name": "websocket-realtime-expert",
@@ -1734,8 +3235,53 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "windags-skill-cdm-elicitation",
+      "root": "skills/windags-skill-cdm-elicitation",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "wooldridge-multiagent-intro",
+      "root": "skills/wooldridge-multiagent-intro",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "work-intake-node-shaping",
+      "root": "skills/work-intake-node-shaping",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
       "name": "wu-2023-autogen",
       "root": "skills/wu-2023-autogen",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "zero-downtime-database-migration",
+      "root": "skills/zero-downtime-database-migration",
       "ok": true,
       "orphans": [],
       "drift": [],
