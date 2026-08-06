@@ -31,7 +31,8 @@
     "test:figure-palette": "node scripts/check-figure-palette.mjs",
     "test:install-commands": "node scripts/check-install-commands.mjs",
     "record:gifs": "bash scripts/record-site-terminal-gifs.sh --all && bash scripts/record-agent-terminal-gifs.sh --all",
-    "test:gifs": "node scripts/check-terminal-recordings.mjs"
+    "test:gifs": "node scripts/check-terminal-recordings.mjs",
+    "test:generated-drift": "npm run prebuild && git diff --exit-code -- public/llms.txt public/sitemap.xml public/robots.txt public/skill-audit.json"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
