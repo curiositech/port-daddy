@@ -29,6 +29,52 @@ const identity = (t: string) => t;
 
 // ─── analyzer ────────────────────────────────────────────────────────────────
 
+describe('IDF never goes negative, however common the term', () => {
+  test('a term in EVERY document scores >= 0, not below zero', () => {
+    // The classic BM25 footgun. The unsmoothed Robertson/Sparck-Jones form,
+    //     log((N - df + 0.5) / (df + 0.5))
+    // goes NEGATIVE once a term appears in more than half the corpus, so a
+    // document containing a common term scores WORSE than one that doesn't --
+    // ranking is then actively inverted for exactly the terms users type most.
+    //
+    // The `1 +` in the implementation is what prevents it: the argument stays
+    // above 1 even at df === N, so the log stays non-negative. That `1 +` is
+    // load-bearing and looks like a rounding nicety, which is why it is pinned
+    // here rather than left to a comment.
+    const idx = buildIndex(
+      ['alpha common', 'beta common', 'gamma common', 'delta common'].map((text, i) => ({
+        id: String(i),
+        terms: analyze(text),
+      })),
+    );
+
+    // Present in 4 of 4.
+    expect(idx.idf('common')).toBeGreaterThanOrEqual(0);
+    // Present in 3 of 4 -- past the halfway point where the unsmoothed form flips.
+    const three = buildIndex(
+      ['x common', 'y common', 'z common', 'w alone'].map((text, i) => ({
+        id: String(i),
+        terms: analyze(text),
+      })),
+    );
+    expect(three.idf('common')).toBeGreaterThan(0);
+    // And a rare term still outranks the common one.
+    expect(three.idf('alone')).toBeGreaterThan(three.idf('common'));
+  });
+
+  test('a term in exactly HALF the corpus is positive and finite', () => {
+    const idx = buildIndex(
+      ['a half', 'b half', 'c other', 'd other'].map((text, i) => ({
+        id: String(i),
+        terms: analyze(text),
+      })),
+    );
+    const v = idx.idf('half');
+    expect(Number.isFinite(v)).toBe(true);
+    expect(v).toBeGreaterThan(0);
+  });
+});
+
 describe('a lone CJK character is a word, not debris', () => {
   test('a single CJK character survives analysis', () => {
     // The asymmetry that makes this worth its own case: analyze() drops lone
