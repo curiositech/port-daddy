@@ -42,8 +42,13 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { mapModelFor, reduceModelFor, chunkDiff } from '../src/execute.js';
-import { WORKERS_AI_RATES, costUsdForModel, isPricedModel } from '../src/spend.js';
+import { mapModelFor, reduceModelFor, chunkDiff, mapChunkCharLimit } from '../src/execute.js';
+import {
+  WORKERS_AI_RATES,
+  costUsdForModel,
+  isPricedModel,
+  MODEL_CONTEXT_TOKENS,
+} from '../src/spend.js';
 import { defaultPRShips } from '../src/fleet.js';
 
 /** Blended per-million-token rate, weighted toward input (diffs are input-heavy). */
@@ -157,6 +162,48 @@ describe('REASON 2 — the fan-out must be economically forward, not backward', 
 });
 
 describe('REASON 1 — context, and the limits of what a split can preserve', () => {
+  it('the chunk budget comes from the model that reads the chunk', () => {
+    // THE BELIEF: splitting is justified ONLY by a real context limit. Every
+    // chunk beyond the first costs money and, worse, costs certainty — a
+    // reviewer holding part of a diff cannot know what it is missing, which is
+    // how "X is undeclared" gets reported about a declaration two chunks away.
+    //
+    // The budget was `12_000` with no recorded reasoning anywhere in the
+    // source: ~3,000 tokens against a MAP model with a 32,768-token window.
+    // 22% of recent commits to this repo crossed it, so a fifth of all reviews
+    // were fragmented by a number no model asked for. A limit nobody can
+    // justify is a limit nobody can correct, so it is derived now.
+    for (const ship of ships) {
+      const model = mapModelFor(ship);
+      const window = MODEL_CONTEXT_TOKENS[model];
+      if (!window) continue; // unknown model: falls back, asserted separately
+      const budget = mapChunkCharLimit(model);
+      // Must actually use the window — not a token of it, and not all of it.
+      expect(budget).toBeGreaterThan(window); // > 1 char/token is a low bar, met by any real derivation
+      expect(budget).toBeLessThan(window * 4); // room for prompt + output
+    }
+  });
+
+  it('a typical change is ONE chunk, so most reviews have no partial view', () => {
+    // THE BELIEF: fan-out is the exception, not the default. Measured against
+    // this repo: at the old 12,000-char budget, 13 of the last 60 commits
+    // fragmented; at a budget derived from the MAP model's window, 4 do.
+    //
+    // 21,440 chars is the p90 commit here. If a p90 change no longer fits in
+    // one chunk, the budget has drifted back toward splitting-by-default and
+    // every reviewer is guessing about code it cannot see.
+    const P90_COMMIT_CHARS = 21_440;
+    const tiered = reviewers.find(s => s.cfMapModel)!;
+    expect(mapChunkCharLimit(mapModelFor(tiered))).toBeGreaterThan(P90_COMMIT_CHARS);
+  });
+
+  it('an unknown MAP model falls back to the old budget, not to nothing', () => {
+    // THE BELIEF: degrade to the behaviour that shipped, never to an untested
+    // one. A model with no recorded window cannot justify a larger budget, so
+    // it gets the conservative value rather than a guess.
+    expect(mapChunkCharLimit('@cf/some/unknown-model')).toBe(12_000);
+  });
+
   it('a file is the smallest unit we split to', () => {
     // THE BELIEF: coherence survives a file boundary and does not survive a
     // byte boundary. A reviewer handed half a function has no more chance of

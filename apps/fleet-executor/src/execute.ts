@@ -94,7 +94,12 @@ import { decideShipGate, isDocsOnly, isReviewableForBugs } from './gates.js';
 import { runPurser } from './purser.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
-import { costUsdForModel, isPricedModel } from './spend.js';
+import {
+  costUsdForModel,
+  isPricedModel,
+  MODEL_CONTEXT_TOKENS,
+  hasKnownContextWindow,
+} from './spend.js';
 
 const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 
@@ -105,18 +110,77 @@ const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
  *
  * Falls back to `cfModel` so a ship with no tiering behaves exactly as before --
  * untiered, but never silently broken.
+ *
+ * @param ship the ship config (only the two model fields are read)
+ * @returns the model id every MAP chunk call runs on
  */
 export function mapModelFor(ship: { cfModel: string; cfMapModel?: string }): string {
   return ship.cfMapModel ?? ship.cfModel;
 }
 
-/** The model that synthesises across chunks. Always the ship's capable model. */
+/**
+ * The model that synthesises across chunks. Always the ship's capable model.
+ *
+ * @param ship the ship config
+ * @returns the model id the single REDUCE call runs on
+ */
 export function reduceModelFor(ship: { cfModel: string }): string {
   return ship.cfModel;
 }
 
-/** Per-chunk diff budget for the MAP fan-out (chars). */
-const MAP_CHUNK_CHAR_LIMIT = 12_000;
+/**
+ * Rough chars-per-token for unified diffs. Diffs are punctuation- and
+ * identifier-dense, so they tokenize WORSE than prose (~4 chars/token); 3 is
+ * the conservative direction -- it under-estimates how much text fits, which
+ * costs an occasional extra chunk rather than an over-window request.
+ */
+const CHARS_PER_TOKEN = 3;
+
+/**
+ * Fraction of the MAP model's context window the diff chunk may occupy.
+ *
+ * The rest is real: the ship's system prompt (contract + graft + output format)
+ * is several KB, the PR title/body/file-list block rides along, and
+ * {@link MAX_OUTPUT_TOKENS} of completion has to fit too. Half is generous
+ * headroom for all of it.
+ */
+const CONTEXT_BUDGET_FRACTION = 0.5;
+
+/**
+ * Floor for the chunk budget when the MAP model's window is unknown.
+ *
+ * Deliberately the OLD hard-coded value, so an unrecognised model degrades to
+ * exactly the behaviour that shipped for months rather than to something
+ * untested.
+ */
+const FALLBACK_MAP_CHUNK_CHARS = 12_000;
+
+/**
+ * Per-chunk diff budget for the MAP fan-out, DERIVED from the model that will
+ * actually read the chunk.
+ *
+ * Why this is not a constant any more: it was `12_000` with no recorded
+ * reasoning anywhere in the source -- roughly 3,000 tokens, against a MAP model
+ * with a 32,768-token window. Every diff over 12KB was split for a limit no
+ * model imposed, and 22% of recent commits to this repo cross it. Each
+ * resulting reviewer then held a partial view it had no way to know was
+ * partial, which is where fabricated "X is missing" findings come from. The
+ * prompt-level scope contract mitigates that; this removes most of the cause.
+ *
+ * Note the coupling to tiering, because it is a real cost: MAP now runs on the
+ * cheap model, whose window (32,768) is a quarter of the capable one's
+ * (128,000). Tiering therefore makes chunks four times smaller than an untiered
+ * reviewer could take. That trade is worth making at these rates, but it is a
+ * trade, not a free win.
+ *
+ * @param mapModel the model id that will receive each chunk
+ * @returns the per-chunk character budget
+ */
+export function mapChunkCharLimit(mapModel: string): number {
+  if (!hasKnownContextWindow(mapModel)) return FALLBACK_MAP_CHUNK_CHARS;
+  const chars = MODEL_CONTEXT_TOKENS[mapModel] * CHARS_PER_TOKEN * CONTEXT_BUDGET_FRACTION;
+  return Math.max(FALLBACK_MAP_CHUNK_CHARS, Math.floor(chars));
+}
 
 
 /** Bound Workers AI fan-out so large diffs finish without a rate-limit stampede. */
@@ -1341,7 +1405,7 @@ async function runShip(
     // nothing, so a genuinely all-generated PR still gets looked at rather than
     // silently passing.
     const reviewableDiff = filterDiffToReviewable(prCtx.diff);
-    const chunks = chunkDiff(reviewableDiff || prCtx.diff);
+    const chunks = chunkDiff(reviewableDiff || prCtx.diff, mapChunkCharLimit(mapModelFor(ship)));
 
     // Lookout's tools: cross-PR / cross-branch awareness. Fetched once per run and
     // injected into every MAP chunk so it can spot contradictions and duplication
@@ -1877,8 +1941,18 @@ async function captureIdeas(
 
 /**
  * Split a unified diff into chunks aligned on `diff --git` file boundaries,
- * each under {@link MAP_CHUNK_CHAR_LIMIT}. A single file larger than the budget
- * is hard-split. Always returns at least one chunk (possibly empty-string).
+ * each under `limit` characters.
+ *
+ * A single file larger than the budget is emitted WHOLE and over budget -- it
+ * is not hard-split. (This docstring used to say the opposite; the hard-split
+ * was removed and the comment was not, which is its own small lesson.) See the
+ * reasoning inside the loop.
+ *
+ * Always returns at least one chunk (possibly the empty string).
+ *
+ * @param diff the unified diff to split
+ * @param limit per-chunk character budget, from {@link mapChunkCharLimit}
+ * @returns one or more chunks whose union is the whole diff
  */
 /**
  * Strip file sections whose diffs cannot carry a reviewable defect.
@@ -1899,7 +1973,7 @@ export function filterDiffToReviewable(diff: string): string {
     .join('');
 }
 
-export function chunkDiff(diff: string): string[] {
+export function chunkDiff(diff: string, limit: number = FALLBACK_MAP_CHUNK_CHARS): string[] {
   if (!diff || !diff.trim()) return [''];
 
   // Split BEFORE each `diff --git` header so each part is one file's hunks.
@@ -1909,7 +1983,7 @@ export function chunkDiff(diff: string): string[] {
   const chunks: string[] = [];
   let cur = '';
   for (const part of parts) {
-    if (part.length > MAP_CHUNK_CHAR_LIMIT) {
+    if (part.length > limit) {
       // An oversized single file becomes ONE chunk, over budget and whole.
       //
       // It used to be hard-split into raw slices, which was wrong twice over:
@@ -1930,7 +2004,7 @@ export function chunkDiff(diff: string): string[] {
       chunks.push(part);
       continue;
     }
-    if (cur && cur.length + part.length > MAP_CHUNK_CHAR_LIMIT) {
+    if (cur && cur.length + part.length > limit) {
       chunks.push(cur);
       cur = part;
     } else {

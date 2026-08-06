@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { executeFleet, mapWithConcurrency } from '../src/execute.js';
+import { executeFleet, mapWithConcurrency, mapChunkCharLimit } from '../src/execute.js';
+import { MODEL_CONTEXT_TOKENS } from '../src/spend.js';
 import {
   freshState,
   installGitHubFetch,
@@ -517,9 +518,21 @@ describe('deterministic ship resolution', () => {
 
 describe('map-reduce fan-out', () => {
   it('chunks a large diff into N map calls + exactly 1 manager reduce call', async () => {
-    // Two files, each ~9KB, exceed the 12KB chunk budget combined → 2 chunks.
+    // Sized RELATIVE to the real budget, not to a number typed here. These
+    // fixtures used to hard-code ~9KB files against a 12KB budget; when the
+    // budget became derived from the MAP model's context window they silently
+    // stopped testing fan-out at all -- one chunk, no REDUCE, and an assertion
+    // about "2 map calls" failing for a reason with nothing to do with
+    // map-reduce. A fixture that encodes a constant is a fixture that expires.
+    //
+    // Sized against the LARGEST budget any known model yields, so the diff
+    // fans out whichever model the ship under test resolves to -- and stays
+    // correct if a model with a bigger window is added later.
+    const budget = Math.max(...Object.keys(MODEL_CONTEXT_TOKENS).map(mapChunkCharLimit));
+    const linesPerFile = Math.ceil((budget * 0.6) / '+line\n'.length);
     const file = (name: string) =>
-      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` + '+line\n'.repeat(1500);
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
+      '+line\n'.repeat(linesPerFile);
     state.prDiff = file('a.ts') + file('b.ts');
 
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
