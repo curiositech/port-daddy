@@ -29,6 +29,27 @@ const identity = (t: string) => t;
 
 // ─── analyzer ────────────────────────────────────────────────────────────────
 
+describe('a lone CJK character is a word, not debris', () => {
+  test('a single CJK character survives analysis', () => {
+    // The asymmetry that makes this worth its own case: analyze() drops lone
+    // LATIN characters (identifier debris) and KEEPS lone CJK ones (whole
+    // words). 猫 is "cat". A tokenizer that treats the two the same either
+    // floods the index with debris or silently deletes a real query term --
+    // whois did the latter until a review caught it.
+    expect(analyze('猫')).toEqual(['猫']);
+    expect(analyze('山')).toEqual(['山']);
+    // ...while a lone Latin character is still dropped.
+    expect(analyze('a')).toEqual([]);
+  });
+
+  test('CJK bigrams are over CHARACTERS, never sub-character radicals', () => {
+    // 猫 decomposes visually into 犭+ 苗, but those are strokes, not tokens.
+    // Splitting there would index parts no query will ever contain.
+    expect(analyze('猫')).toEqual(['猫']);
+    expect(analyze('日本語')).toEqual(['日本', '本語']);
+  });
+});
+
 describe('fold', () => {
   test('diacritics fold to their base letter', () => {
     expect(fold('café')).toBe(fold('cafe'));

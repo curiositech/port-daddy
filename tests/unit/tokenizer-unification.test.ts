@@ -62,6 +62,22 @@ describe('one analyzer, and no way back to four', () => {
     expect(src).toMatch(/\banalyze\(/);
   });
 
+  test.each(CONSUMERS)('%s does not post-filter analyze() by token length', rel => {
+    // A single CJK character is a WHOLE WORD -- 猫 is "cat", 山 is "mountain" --
+    // so analyze() deliberately keeps it (lexical-index.ts line ~93) while
+    // dropping lone LATIN characters as identifier debris.
+    //
+    // The inherited tokenizers all ended with `.filter(t => t.length > 1)`.
+    // Carried past analyze(), that filter deletes exactly the CJK singles and
+    // nothing else, so `whois('猫')` tokenized to [] -- no match, silently,
+    // which is the same failure this analyzer was written to remove. It shipped
+    // that way in this PR's first commit and a reviewer caught it.
+    //
+    // Asserted structurally because the tokenizers are module-private; the
+    // behavioural half is 'a lone CJK character survives' in lexical-index.
+    expect(consumerSource(rel)).not.toMatch(/analyze\([^)]*\)[\s\S]{0,80}?\.length\s*>\s*1/);
+  });
+
   test.each(CONSUMERS)('%s has no ASCII-only splitter left in it', rel => {
     // The actual anti-regression property. `[^a-z0-9]+` makes every non-ASCII
     // character a delimiter, which is what deleted 'ЖУРНАЛ' and '日本語'

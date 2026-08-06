@@ -143,9 +143,17 @@ export interface Whois {
 function tokenize(text: string): string[] {
   // Shared Unicode-safe analyzer — see lib/lexical-index.ts. Replaces an
   // ASCII-only split that deleted every non-Latin term from whois search.
-  // No .slice(): analyze() already returns a fresh array and filter() does not
-  // mutate, so the copy was a per-query allocation buying nothing.
-  return analyze(text).filter((token) => token.length > 1);
+  // NO post-filter. The inherited tokenizer ended with
+  // `.filter(t => t.length > 1)` to drop single-character identifier debris,
+  // and carrying that over past analyze() silently destroyed CJK: analyze()
+  // deliberately KEEPS a lone CJK character because 猫 and 山 are whole words,
+  // and the length filter then deleted them, so a single-character query
+  // returned an empty token list -- no match, silently, which is precisely the
+  // bug this analyzer was written to fix.
+  //
+  // The filter was never needed anyway: analyze() already drops Latin
+  // single-characters ('a' -> []), so it only ever removed the CJK case.
+  return analyze(text);
 }
 
 interface CorpusEntry {
