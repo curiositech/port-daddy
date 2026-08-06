@@ -71,14 +71,18 @@ describe('agent run receipt admission', () => {
       request: { backend: 'cli:codex', task: 'one' },
     });
 
-    expect(() => store.accept({
-      idempotencyKey: 'drift-key',
-      kind: 'spawn',
-      request: { backend: 'cli:codex', task: 'two' },
-    })).toThrow(expect.objectContaining({
-      constructor: AgentRunIdempotencyConflictError,
-      receiptId: first.receipt.id,
-    }));
+    let conflict;
+    try {
+      store.accept({
+        idempotencyKey: 'drift-key',
+        kind: 'spawn',
+        request: { backend: 'cli:codex', task: 'two' },
+      });
+    } catch (err) {
+      conflict = err;
+    }
+    expect(conflict).toBeInstanceOf(AgentRunIdempotencyConflictError);
+    expect(conflict.receiptId).toBe(first.receipt.id);
     expect(db.prepare('SELECT COUNT(*) AS n FROM agent_run_receipts').get().n).toBe(1);
   });
 
