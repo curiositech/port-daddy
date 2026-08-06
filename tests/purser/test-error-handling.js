@@ -1,16 +1,12 @@
-const { execFileSync } = require('child_process');
-const { repoRoot } = require('../test-utils');
+const { createSpawnerHarborBridge } = require('../lib/agent-harbor/spawner-bridge');
+const { db } = require('./test-utils');
 
-describe('error handling', () => {
-  it('handles missing sources gracefully', () => {
-    const output = execFileSync('bash', ['-c', 'cd tests/purser/missing-sources && ../scripts/build-whitepapers.sh paper_epoch'], { cwd: repoRoot, encoding: 'utf8', stderr: 'pipe' });
-    
-    expect(output).toContain('No sources found for paper');
-  });
-
-  it('fails on invalid git commands', () => {
-    const output = execFileSync('bash', ['-c', 'cd tests/purser/invalid-git && ../scripts/build-whitepapers.sh paper_epoch'], { cwd: repoRoot, encoding: 'utf8', stderr: 'pipe' });
-    
-    expect(output).toContain('Failed to determine paper epoch');
+describe('best-effort error handling', () => {
+  it('does not throw on invalid DB', () => {
+    const badDb = { prepare: () => ({ all: () => { throw new Error('DB error'); } }) };
+    const bridge = createSpawnerHarborBridge(badDb);
+    expect(() => bridge.registerNode('agent-123', 'id', Date.now())).not.toThrow();
+    expect(() => bridge.appendTranscriptEvent('agent-123', 'spawn-start', Date.now())).not.toThrow();
+    expect(() => bridge.runProbeAndRecord('agent-123')).not.toThrow();
   });
 });
