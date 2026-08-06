@@ -16,90 +16,7 @@
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { handleSessionIntelIngest, handleSessionIntelPending } from '../src/session-intel.js';
-import type { Env } from '../src/types.js';
-
-const OPERATOR = 'super-secret-operator-token-32bytes-min';
-
-// ── A minimal, real in-memory D1 mock: enough of prepare/bind/run/all/batch
-// to exercise the actual INSERT + SELECT statements session-intel.ts issues. ──
-interface Row {
-  id: string;
-  batch_id: string;
-  kind: string;
-  digest_date: string;
-  title: string;
-  occurrences: number;
-  session_count: number;
-  payload_json: string;
-  status: string;
-  created_at: number;
-}
-
-function makeD1(): { db: D1Database; rows: Row[] } {
-  const rows: Row[] = [];
-
-  function prepare(sql: string) {
-    // `INSERT OR IGNORE INTO ...` — real SQL in session-intel.ts as of the
-    // deterministic-id fix; matches with or without the OR IGNORE modifier.
-    const isInsert = /^INSERT (?:OR IGNORE )?INTO session_intel_findings/.test(sql);
-    const isSelect = /^SELECT/.test(sql) && sql.includes('FROM session_intel_findings');
-    let boundArgs: unknown[] = [];
-    const stmt = {
-      bind: (...args: unknown[]) => {
-        boundArgs = args;
-        return stmt;
-      },
-      run: async () => {
-        if (isInsert) {
-          // 9 bound placeholders — `status` is a literal 'pending' in the SQL
-          // itself, not a `?`, matching the real INSERT in session-intel.ts.
-          const [id, batch_id, kind, digest_date, title, occurrences, session_count, payload_json, created_at] = boundArgs as [
-            string, string, string, string, string, number, number, string, number,
-          ];
-          // OR IGNORE semantics: a duplicate primary key is a no-op (0 changes),
-          // same as real SQLite/D1 — this is what makes the idempotency test
-          // (re-ingest same day -> no duplicate row) actually mean something.
-          if (rows.some(r => r.id === id)) {
-            return { success: true, meta: { changes: 0 } };
-          }
-          rows.push({ id, batch_id, kind, digest_date, title, occurrences, session_count, payload_json, status: 'pending', created_at });
-          return { success: true, meta: { changes: 1 } };
-        }
-        return { success: true, meta: { changes: 0 } };
-      },
-      all: async () => {
-        if (isSelect) {
-          const limit = boundArgs[0] as number;
-          const results = [...rows]
-            .filter(r => r.status === 'pending')
-            .sort((a, b) => b.created_at - a.created_at)
-            .slice(0, limit);
-          return { results, success: true };
-        }
-        return { results: [], success: true };
-      },
-    };
-    return stmt;
-  }
-
-  const db = {
-    prepare,
-    batch: async (stmts: ReturnType<typeof prepare>[]) => {
-      const results = [];
-      for (const s of stmts) results.push(await (s as unknown as { run: () => Promise<unknown> }).run());
-      return results;
-    },
-  } as unknown as D1Database;
-
-  return { db, rows };
-}
-
-function makeEnv(db: D1Database, operatorToken = OPERATOR): Env {
-  return {
-    DB: db,
-    RELAY_OPERATOR_TOKEN: operatorToken,
-  } as unknown as Env;
-}
+import { OPERATOR, makeD1, makeEnv } from './session-intel-fixtures.js';
 
 function req(path: string, method: string, token: string | null, body?: unknown): Request {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -254,6 +171,36 @@ describe('session-intel ingest — defense-in-depth redaction check', () => {
     expect(rows[0].session_count).toBe(2);
     expect(JSON.parse(rows[0].payload_json)).toEqual(GOOD_FINDING.payload);
   });
+
+  it('rejects a base64-encoded secret shape (flagged by pd-purser adversarial tests)', async () => {
+    const { db, rows } = makeD1();
+    const encoded = Buffer.from('token: sk-ant-abc123def456ghi789jkl').toString('base64');
+    const res = await handleSessionIntelIngest(
+      req('/v1/session-intel/ingest', 'POST', OPERATOR, {
+        digestDate: '2026-08-05',
+        findings: [{ ...GOOD_FINDING, payload: { excerpt: encoded } }],
+      }),
+      makeEnv(db),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.code).toBe('UNREDACTED_CONTENT');
+    expect(rows.length).toBe(0);
+  });
+
+  it('does not false-positive on ordinary base64-shaped strings with no secret inside', async () => {
+    const { db, rows } = makeD1();
+    const encoded = Buffer.from('just an ordinary excerpt of build output, nothing sensitive here').toString('base64');
+    const res = await handleSessionIntelIngest(
+      req('/v1/session-intel/ingest', 'POST', OPERATOR, {
+        digestDate: '2026-08-05',
+        findings: [{ ...GOOD_FINDING, payload: { excerpt: encoded } }],
+      }),
+      makeEnv(db),
+    );
+    expect(res.status).toBe(200);
+    expect(rows.length).toBe(1);
+  });
 });
 
 describe('session-intel ingest — idempotency', () => {
@@ -270,6 +217,24 @@ describe('session-intel ingest — idempotency', () => {
     expect(firstBody.accepted).toBe(1);
     expect(secondBody.accepted).toBe(0); // OR IGNORE absorbed the retry
     expect(rows.length).toBe(1); // still exactly one row, not two
+  });
+
+  it('5 concurrent identical ingests still land exactly one row (flagged by pd-purser adversarial tests)', async () => {
+    // Every concurrent request legitimately succeeds at the HTTP layer --
+    // that's the correct idempotent-POST contract (a retry is not an error).
+    // The real dedup signal is `accepted` and the row count, not the HTTP
+    // status: only ONE request's insert should actually land.
+    const { db, rows } = makeD1();
+    const env = makeEnv(db);
+    const body = { digestDate: '2026-08-05', findings: [GOOD_FINDING] };
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () => handleSessionIntelIngest(req('/v1/session-intel/ingest', 'POST', OPERATOR, body), env)),
+    );
+    expect(results.every(r => r.status === 200)).toBe(true);
+    const bodies = await Promise.all(results.map(r => r.json()));
+    const totalAccepted = bodies.reduce((sum: number, b: any) => sum + b.accepted, 0);
+    expect(totalAccepted).toBe(1); // exactly one of the 5 was the real insert
+    expect(rows.length).toBe(1); // and exactly one row landed, not five
   });
 
   it('the same (digestDate, kind, title) produces the same id across independent ingest calls', async () => {
