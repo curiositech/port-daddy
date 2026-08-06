@@ -218,10 +218,18 @@ describe('the division of labour that makes two stages necessary', () => {
     // Raised in review on the tiering PR. Pinned here rather than fixed
     // quietly, because "grep for the other places cfModel is assumed" is
     // exactly the follow-through that gets skipped.
+    //
+    // The `$` is concatenated away from the `{` in the expected substrings
+    // below. They are SOURCE TEXT being searched for, not interpolations -- but
+    // written literally they read as a template placeholder inside a plain
+    // quoted string, which is a genuinely suspicious shape everywhere else, so
+    // CodeQL flags it and is right to. Splitting keeps the searched-for bytes
+    // identical while removing the ambiguity for the next reader.
+    const INTERP = '$' + '{';
     const src = readExecuteSource();
     expect(src).not.toMatch(/MAP chunk[^`]*EMPTY on[^`]*`\s*\+\s*`\$\{ship\.cfModel\}/);
-    expect(src).toContain('${mapModelFor(ship)}: ${describeResponseShape(res)}');
-    expect(src).toContain('REDUCE EMPTY on ${reduceModelFor(ship)}');
+    expect(src).toContain(`${INTERP}mapModelFor(ship)}: ${INTERP}describeResponseShape(res)}`);
+    expect(src).toContain(`REDUCE EMPTY on ${INTERP}reduceModelFor(ship)}`);
   });
 
   it('a single-chunk diff skips REDUCE entirely', () => {
