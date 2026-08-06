@@ -181,6 +181,19 @@ interface RawAgent {
   testPaths?: unknown;
   /** Any ship: repo skill ids to graft onto the prompt (skill-graft.ts). */
   graft?: unknown;
+  /**
+   * Any ship: the model that scans ONE chunk (`map_model:` in pd-fleet.yml;
+   * `mapModel` / `cfMapModel` accepted too, since operators write all three).
+   * REDUCE keeps the ship's `cfModel`.
+   *
+   * Readable from YAML and not only from code because a tiering only the
+   * hardcoded fallback ships can express is a tiering the operator cannot use
+   * -- exactly the half-implemented shape map-reduce-invariants.test.ts exists
+   * to make impossible.
+   */
+  map_model?: unknown;
+  mapModel?: unknown;
+  cfMapModel?: unknown;
 }
 
 /**
@@ -227,6 +240,47 @@ function deriveCfModel(agent: RawAgent, name: string): string {
     }
   }
   return isReviewBot(name) ? CODER_CF_MODEL : DEFAULT_CF_MODEL;
+}
+
+/**
+ * The MAP-stage model for a ship, from `map_model:` in pd-fleet.yml.
+ *
+ * Rationale: MAP runs once per chunk and REDUCE runs once, so the cheap model
+ * belongs on the stage that repeats. Making this operator-settable is the
+ * difference between a tiering feature and a tiering that only the built-in
+ * fallback ships happen to have.
+ *
+ * Three guards, each for a failure that would otherwise be silent:
+ *
+ *   1. An id outside {@link KNOWN_GOOD_CF_MODELS} is DROPPED, not remapped.
+ *      A nonexistent Workers AI id does not error -- it returns a blank the
+ *      parser reads as "clean" -- so a typo here would silence every chunk of
+ *      the ship while REDUCE dutifully reported nothing found. Dropping falls
+ *      back to an untiered run: more expensive, but never mute.
+ *   2. A MAP pin equal to the ship's REDUCE model is dropped as a no-op, so
+ *      `mapModelFor(ship) !== reduceModelFor(ship)` stays a meaningful claim.
+ *   3. Nothing here can pin a ship ONTO the expensive model, because only the
+ *      cheap id is in the honored set. Tiering can save money; it cannot spend
+ *      more of it.
+ *
+ * @param agent the raw pd-fleet.yml agent entry
+ * @param cfModel the ship's already-resolved REDUCE model
+ * @returns the MAP model id, or undefined for an untiered ship
+ */
+function deriveMapModel(agent: RawAgent, cfModel: string): string | undefined {
+  const raw = agent.map_model ?? agent.mapModel ?? agent.cfMapModel;
+  if (typeof raw !== 'string') return undefined;
+  const pin = raw.trim();
+  if (!KNOWN_GOOD_CF_MODELS.has(pin)) {
+    if (pin) {
+      console.warn(
+        `[fleet-executor] map_model '${pin}' is not a known-good Cloudflare id; ` +
+          `running this ship untiered rather than risking a silent blank MAP stage`,
+      );
+    }
+    return undefined;
+  }
+  return pin === cfModel ? undefined : pin;
 }
 
 /**
@@ -392,12 +446,18 @@ export function parseFleetShips(fleetYaml: string, trigger: string): ShipConfig[
     const telos = typeof agent.telos === 'string' ? agent.telos : '';
     const role = telos || (typeof agent.role === 'string' ? agent.role : '') || `${name} ship`;
     const ideation = purser ? false : deriveIdeation(name, agent.class);
+    const shipCfModel = purser ? derivePurserModel(agent, name) : deriveCfModel(agent, name);
+    const shipMapModel = deriveMapModel(agent, shipCfModel);
 
     ships.push({
       name,
       trigger: agent.trigger as string | string[],
       prompt,
-      cfModel: purser ? derivePurserModel(agent, name) : deriveCfModel(agent, name),
+      cfModel: shipCfModel,
+      // MAP-stage pin, dropped rather than remapped when unusable -- see
+      // deriveMapModel(). Spread so an untiered ship has NO key at all rather
+      // than an explicit undefined, keeping `cfMapModel` absent in snapshots.
+      ...(shipMapModel ? { cfMapModel: shipMapModel } : {}),
       temperature: coerceTemperature(agent.temperature),
       role,
       telos,
