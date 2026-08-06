@@ -992,6 +992,36 @@ describe('spawnViaCliTube — failure paths', () => {
     }
   });
 
+  test('unexpected process discovery failures remain best effort and collection still settles', async () => {
+    jest.useFakeTimers();
+    try {
+      mockExecFile.mockImplementation(() => {
+        throw new Error('unexpected process discovery failure');
+      });
+      const child = fakeChild({ neverClose: true, pid: 5151 });
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
+
+      await jest.advanceTimersByTimeAsync(10);
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+      await waitForAsyncProcessDiscovery(
+        () => jest.getTimerCount() >= 1,
+        'kill-close timer after unexpected discovery failure',
+      );
+      await jest.advanceTimersByTimeAsync(1000);
+
+      await expect(resultPromise).resolves.toEqual(expect.objectContaining({
+        exitCode: -1,
+        error: expect.stringContaining('process tree did not close after SIGKILL'),
+      }));
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('timeout discovers inherited stdio holders through known lsof paths when PATH omits lsof', async () => {
     jest.useFakeTimers();
     const processKill = jest.spyOn(process, 'kill').mockImplementation(() => true);
