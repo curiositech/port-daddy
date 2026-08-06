@@ -36,9 +36,14 @@
  * Escape hatch (visible + auditable, mirroring the other guards):
  *   <!-- pr-comments-exempt: <reason> -->   in the PR body skips the whole gate.
  *
- * I/O: reads the live PR via `gh` (GraphQL for review threads), so it needs no
- * extra deps and runs the same locally as in Actions. With no PR context it is a
- * no-op (exit 0). The pure decision (`classifyThreads`) is exported and unit-tested.
+ * I/O: reads the live PR via `gh` (GraphQL for review threads, PAGINATED to the
+ * end so a >100-thread PR is not silently truncated — that truncation was itself
+ * a #5437-shaped false green), so it needs no extra deps and runs the same
+ * locally as in Actions. With no PR context it is a no-op (exit 0). main() is a
+ * thin fetch→decide→print shell: the gate's whole verdict — exit code, label,
+ * the two rendered groups, the truncation refusal — lives in the exported,
+ * unit-tested pure functions `classifyThreads` and `decideCommentGate`, so no
+ * pass/fail logic can hide from the test suite the way the outdated-skip once did.
  */
 import { readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
@@ -82,6 +87,128 @@ export function classifyThreads(threads, prAuthorLogin) {
   return { unanswered, total: list.length, answered: list.length - unanswered.length }
 }
 
+/**
+ * The GATE's verdict — pure, so the thing CI actually acts on (exit code, which
+ * label to set, the two rendered groups) is unit-testable instead of buried in
+ * main(). classifyThreads answers "which threads owe a reply"; this answers the
+ * question the check exists to ask: "does this PR pass, and what do we print?"
+ * Testing only classifyThreads let the original PR-#5437 bug relocate one layer
+ * up (a `.filter(t => !t.isOutdated)` in main) with every unit test still green
+ * — the exact false-green this guard is about. So the verdict is a function too.
+ *
+ * `truncated` is the pagination guard (Blocker 3): if the fetch could not see
+ * every thread, we CANNOT honestly say "all N answered". An unseen thread is
+ * indistinguishable from an unanswered one, so we fail toward "you still owe
+ * replies" — never toward a green check computed over a partial list. That is
+ * verbatim the #5437 failure mode (a real unanswered thread hidden from the
+ * count), so it gets the same answer: incomplete ⇒ not green.
+ *
+ * @param {Array<object>} threads  review threads (see classifyThreads)
+ * @param {string} prAuthorLogin
+ * @param {{truncated?:boolean, prNumber?:number|null}} [opts]
+ * @returns {{
+ *   exitCode:number, clean:boolean, truncated:boolean, total:number, answered:number,
+ *   unansweredLive:Array<object>, unansweredOutdated:Array<object>,
+ *   shownOutdated:Array<object>, elided:number,
+ *   stdoutLine:string, stderrText:string, summaryText:string
+ * }}
+ */
+export function decideCommentGate(threads, prAuthorLogin, opts = {}) {
+  const truncated = Boolean(opts.truncated)
+  const prNumber = opts.prNumber ?? null
+  const head = prNumber != null ? ` — PR #${prNumber}` : ''
+
+  const { unanswered, total, answered } = classifyThreads(threads, prAuthorLogin)
+  // Two groups because they ask for two different things. A live thread wants a
+  // decision (fixed / deferred / contested). An outdated one means you ALREADY
+  // touched those lines — the reviewer just cannot see what you did, so the ask
+  // is a one-line report. Collapsing them is what made outdated threads read as
+  // noise and got them skipped in the first place.
+  const unansweredLive = unanswered.filter((t) => !t.isOutdated)
+  const unansweredOutdated = unanswered.filter((t) => t.isOutdated)
+  // Only the outdated bucket is capped — the live one is the group you must read
+  // — and ONLY the render is capped, never the count in the headline.
+  const shownOutdated = unansweredOutdated.slice(0, OUTDATED_LIMIT)
+  const elided = unansweredOutdated.length - shownOutdated.length
+
+  // Green requires BOTH nothing owed AND a complete view. Truncation alone flips
+  // the verdict red even when every visible thread is answered.
+  const clean = unanswered.length === 0 && !truncated
+  const exitCode = clean ? 0 : 1
+
+  const bullet = (t) => `  • ${t.path ?? 'thread'} — ${t.url ?? '(no link)'}`
+  const item = (t) => `- \`${t.path ?? 'thread'}\` — ${t.url ?? ''}`
+  const truncNoteErr =
+    '  ⚠ the review-thread list was TRUNCATED (more threads than one page returns); this result is ' +
+    'INCOMPLETE. Unseen threads are treated as unanswered — reply/resolve and re-run so every thread is seen.'
+  const truncNoteMd =
+    '> ⚠️ **Incomplete:** the review-thread list was truncated (more threads than one page returns). ' +
+    'Unseen threads are treated as unanswered; this is not a green result until every thread can be seen.'
+
+  if (clean) {
+    return {
+      exitCode, clean, truncated, total, answered,
+      unansweredLive, unansweredOutdated, shownOutdated, elided,
+      stdoutLine: `check-pr-comments-answered: all ${total} review thread(s) answered or resolved. ✅`,
+      stderrText: '',
+      summaryText: `## ✅ Review comments${head}\n\nAll ${total} review thread(s) answered or resolved.`,
+    }
+  }
+
+  // ── red path ──────────────────────────────────────────────────────────────
+  const errLines = []
+  errLines.push('')
+  errLines.push(
+    `✗ check-pr-comments-answered: ${unanswered.length} of ${total} review thread(s) are unanswered ` +
+    `(a reviewer spoke last and the thread is still open):`,
+  )
+  errLines.push('')
+  if (unansweredLive.length > 0) {
+    errLines.push(`  Reviewer spoke last (${unansweredLive.length}):`)
+    for (const t of unansweredLive) errLines.push(bullet(t))
+  }
+  if (unansweredOutdated.length > 0) {
+    errLines.push('')
+    errLines.push(`  You changed these lines — say what you changed, or resolve (${unansweredOutdated.length}):`)
+    for (const t of shownOutdated) errLines.push(bullet(t))
+    if (elided > 0) errLines.push(`  …and ${elided} more`)
+  }
+  if (truncated) {
+    errLines.push('')
+    errLines.push(truncNoteErr)
+  }
+  errLines.push('')
+  errLines.push(
+    'Reply to each thread (fixed / deferred-with-reason / contested-because) or resolve it. ' +
+    'Per AGENTS.md you must engage every review comment before merge. This check is ADVISORY — it ' +
+    `does not block the merge, but it carries the \`${LABEL}\` label and re-runs when you respond.`,
+  )
+  const stderrText = errLines.join('\n')
+
+  const sections = []
+  if (unansweredLive.length > 0) {
+    sections.push(`**Reviewer spoke last (${unansweredLive.length}):**\n\n${unansweredLive.map(item).join('\n')}`)
+  }
+  if (unansweredOutdated.length > 0) {
+    const tail = elided > 0 ? `\n- …and ${elided} more` : ''
+    sections.push(
+      `**You changed these lines — say what you changed, or resolve (${unansweredOutdated.length}):**\n\n` +
+      shownOutdated.map(item).join('\n') + tail,
+    )
+  }
+  if (truncated) sections.push(truncNoteMd)
+  const heading = unanswered.length > 0
+    ? `## ⚠️ ${unanswered.length} unanswered review thread(s)${head}`
+    : `## ⚠️ Review comments — incomplete${head}`
+  const summaryText = `${heading}\n\n${answered}/${total} answered${truncated ? ' (of the threads visible so far)' : ''}.\n\n${sections.join('\n\n')}`
+
+  return {
+    exitCode, clean, truncated, total, answered,
+    unansweredLive, unansweredOutdated, shownOutdated, elided,
+    stdoutLine: '', stderrText, summaryText,
+  }
+}
+
 /** First `<!-- pr-comments-exempt: reason -->` directive in the body, if any. */
 export function hasExempt(body) {
   if (!body) return false
@@ -113,13 +240,20 @@ function resolvePrNumber() {
   return null
 }
 
+// `$cursor` walks reviewThreads a page at a time. `pageInfo{hasNextPage}` is the
+// truth we were flying blind without: reviewThreads(first:100) alone truncates a
+// >100-thread PR SILENTLY — the same "a real thread never entered the count, so
+// the guard printed all-answered" failure this whole PR exists to kill, just at
+// the page boundary. We paginate to the end so it normally never truncates, and
+// still surface hasNextPage so a partial fetch fails red instead of false-green.
 const THREADS_QUERY = `
-query($owner:String!, $repo:String!, $number:Int!) {
+query($owner:String!, $repo:String!, $number:Int!, $cursor:String) {
   repository(owner:$owner, name:$repo) {
     pullRequest(number:$number) {
       author { login }
       body
-      reviewThreads(first: 100) {
+      reviewThreads(first: 100, after: $cursor) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           isResolved
           isOutdated
@@ -132,26 +266,44 @@ query($owner:String!, $repo:String!, $number:Int!) {
 }`
 
 function fetchPr(owner, repo, number) {
-  const out = gh([
-    'api', 'graphql',
-    '-f', `query=${THREADS_QUERY}`,
-    '-F', `owner=${owner}`,
-    '-F', `repo=${repo}`,
-    '-F', `number=${number}`,
-  ])
-  const pr = JSON.parse(out)?.data?.repository?.pullRequest
-  if (!pr) return null
-  const threads = (pr.reviewThreads?.nodes ?? []).map((t) => {
-    const comments = (t.comments?.nodes ?? []).map((c) => ({ authorLogin: c.author?.login ?? null, url: c.url }))
-    return {
-      isResolved: t.isResolved,
-      isOutdated: t.isOutdated,
-      path: t.path,
-      url: comments[0]?.url,
-      comments,
+  const threads = []
+  let authorLogin = null
+  let body = ''
+  let cursor = null
+  let truncated = false
+  // Bound the loop so a bad cursor can never spin forever; 50 pages × 100 = 5000
+  // threads is far past any real PR, and if we somehow hit it we mark truncated
+  // (fail red) rather than pretend the list is complete.
+  for (let page = 0; page < 50; page++) {
+    const args = [
+      'api', 'graphql',
+      '-f', `query=${THREADS_QUERY}`,
+      '-F', `owner=${owner}`,
+      '-F', `repo=${repo}`,
+      '-F', `number=${number}`,
+    ]
+    if (cursor) args.push('-F', `cursor=${cursor}`)
+    const pr = JSON.parse(gh(args))?.data?.repository?.pullRequest
+    if (!pr) return page === 0 ? null : { authorLogin, body, threads, truncated }
+    authorLogin = pr.author?.login ?? authorLogin
+    body = pr.body ?? body
+    const rt = pr.reviewThreads ?? {}
+    for (const t of rt.nodes ?? []) {
+      const comments = (t.comments?.nodes ?? []).map((c) => ({ authorLogin: c.author?.login ?? null, url: c.url }))
+      threads.push({ isResolved: t.isResolved, isOutdated: t.isOutdated, path: t.path, url: comments[0]?.url, comments })
     }
-  })
-  return { authorLogin: pr.author?.login ?? null, body: pr.body ?? '', threads }
+    const info = rt.pageInfo ?? {}
+    if (!info.hasNextPage) return { authorLogin, body, threads, truncated: false }
+    if (!info.endCursor) {
+      // hasNextPage true but no cursor to advance → we cannot see the rest.
+      truncated = true
+      break
+    }
+    cursor = info.endCursor
+  }
+  // Fell off the page bound (or lost the cursor) with more still to come: the
+  // view is provably incomplete — hand that up so the gate refuses to go green.
+  return { authorLogin, body, threads, truncated: true }
 }
 
 function syncLabel(owner, repo, number, want) {
@@ -204,66 +356,16 @@ function main() {
     return
   }
 
-  const { unanswered, total, answered } = classifyThreads(pr.threads, pr.authorLogin)
-  syncLabel(owner, repo, number, unanswered.length > 0)
-
-  if (unanswered.length === 0) {
-    console.log(`check-pr-comments-answered: all ${total} review thread(s) answered or resolved. ✅`)
-    writeStepSummary(`## ✅ Review comments — PR #${number}\n\nAll ${total} review thread(s) answered or resolved.`)
-    return
-  }
-
-  // Two groups because they ask for two different things. A live thread wants a
-  // decision (fixed / deferred / contested). An outdated one means you ALREADY
-  // touched those lines — the reviewer just cannot see what you did, so the ask
-  // is a one-line report, not a fresh triage. Collapsing them into one list is
-  // what made outdated threads feel like noise and got them skipped in the first
-  // place.
-  const live = unanswered.filter((t) => !t.isOutdated)
-  const outdated = unanswered.filter((t) => t.isOutdated)
-  const bullet = (t) => `  • ${t.path ?? 'thread'} — ${t.url ?? '(no link)'}`
-  const item = (t) => `- \`${t.path ?? 'thread'}\` — ${t.url ?? ''}`
-  // Only the outdated bucket is capped; the live one is the group you must read.
-  const shownOutdated = outdated.slice(0, OUTDATED_LIMIT)
-  const elided = outdated.length - shownOutdated.length
-
-  console.error(
-    `\n✗ check-pr-comments-answered: ${unanswered.length} of ${total} review thread(s) are unanswered ` +
-    `(a reviewer spoke last and the thread is still open):\n`,
-  )
-  if (live.length > 0) {
-    console.error(`  Reviewer spoke last (${live.length}):`)
-    for (const t of live) console.error(bullet(t))
-  }
-  if (outdated.length > 0) {
-    console.error(
-      `\n  You changed these lines — say what you changed, or resolve (${outdated.length}):`,
-    )
-    for (const t of shownOutdated) console.error(bullet(t))
-    if (elided > 0) console.error(`  …and ${elided} more`)
-  }
-  console.error(
-    '\nReply to each thread (fixed / deferred-with-reason / contested-because) or resolve it. ' +
-    'Per AGENTS.md you must engage every review comment before merge. This check is ADVISORY — it ' +
-    `does not block the merge, but it carries the \`${LABEL}\` label and re-runs when you respond.\n`,
-  )
-
-  const sections = []
-  if (live.length > 0) {
-    sections.push(`**Reviewer spoke last (${live.length}):**\n\n${live.map(item).join('\n')}`)
-  }
-  if (outdated.length > 0) {
-    const tail = elided > 0 ? `\n- …and ${elided} more` : ''
-    sections.push(
-      `**You changed these lines — say what you changed, or resolve (${outdated.length}):**\n\n` +
-      shownOutdated.map(item).join('\n') + tail,
-    )
-  }
-  writeStepSummary(
-    `## ⚠️ ${unanswered.length} unanswered review thread(s) — PR #${number}\n\n` +
-    `${answered}/${total} answered.\n\n${sections.join('\n\n')}`,
-  )
-  process.exitCode = 1
+  // fetch → decide → print. Every non-trivial choice (verdict, label, the two
+  // rendered groups, the truncation refusal) lives in decideCommentGate, which
+  // is unit-tested; main() only performs I/O so no gate logic can hide from the
+  // suite the way the outdated-filter once did.
+  const decision = decideCommentGate(pr.threads, pr.authorLogin, { truncated: pr.truncated, prNumber: number })
+  syncLabel(owner, repo, number, decision.exitCode !== 0)
+  if (decision.stdoutLine) console.log(decision.stdoutLine)
+  if (decision.stderrText) console.error(decision.stderrText)
+  if (decision.summaryText) writeStepSummary(decision.summaryText)
+  process.exitCode = decision.exitCode
 }
 
 // Only run the CI path when invoked directly (so the unit test can import the
