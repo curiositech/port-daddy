@@ -1,7 +1,8 @@
 /**
  * Semantic 3-way merge for `docs/roadmap/roadmap.snapshot.json`.
  *
- * The snapshot is a committed read-replica of the daemon's roadmap
+ * Why this exists (the motivation/rationale for the whole module): the
+ * snapshot is a committed read-replica of the daemon's roadmap
  * (`scripts/export-roadmap-snapshot.ts`) — it has to stay committed because:
  *   - CI cannot reach a developer's local daemon/SQLite to regenerate it.
  *   - `tests/purser/test-roadmap-snapshot.js` asserts on its exact committed
@@ -18,20 +19,21 @@
  *
  * Pure and I/O-free so it is unit-testable; `scripts/merge-roadmap-snapshot.ts`
  * wraps it as a git merge driver (`%O %A %B` on the command line).
+ *
+ * Reuses `SnapshotItem`/`RoadmapSnapshot` from `lib/roadmap-link-core.ts`
+ * (the roadmap-link gate's own model of this exact JSON file) instead of
+ * redefining the shape here — one type per file-on-disk, so a future schema
+ * change can't drift between the two consumers. `Snapshot` only adds `count`,
+ * which `RoadmapSnapshot` doesn't need (the gate never reads it) but the file
+ * on disk always carries.
  */
+import type { SnapshotItem, RoadmapSnapshot } from './roadmap-link-core.js';
 
-export interface SnapshotItem {
-  slug: string;
-  status: string;
-  summaryMd?: string;
-}
+export type { SnapshotItem };
 
-export interface Snapshot {
-  generatedAt: number;
-  harbor?: string;
-  source?: string;
+/** The on-disk snapshot shape: `RoadmapSnapshot` plus the `count` field `export-roadmap-snapshot.ts` writes (and this module keeps in sync with `items.length` on every merge). */
+export interface Snapshot extends RoadmapSnapshot {
   count: number;
-  items: SnapshotItem[];
 }
 
 /** A slug where ours and theirs disagree, and neither side just matches base. */
@@ -49,6 +51,20 @@ export interface MergeOutcome {
   conflicts: MergeConflict[];
 }
 
+/**
+ * Structural equality for one roadmap item, treating `summaryMd` presence
+ * loosely (`undefined` and `''` compare equal) so a round-trip through JSON
+ * (which may drop an empty-string field) never reads as a spurious diff.
+ *
+ * Purpose: this is the primitive every merge decision below is built on — it
+ * has to agree with itself on what "unchanged" means, or the 3-way merge's
+ * whole "unchanged-on-one-side wins" logic silently misfires.
+ *
+ * @param a one side of the comparison, or `null` if the item is absent there.
+ * @param b the other side, or `null` if the item is absent there.
+ * @returns `true` when both sides are `null`, or both are present with the
+ *   same `slug`/`status`/`summaryMd`.
+ */
 function itemsEqual(a: SnapshotItem | null, b: SnapshotItem | null): boolean {
   if (!a || !b) return a === b;
   return a.slug === b.slug && a.status === b.status && (a.summaryMd ?? '') === (b.summaryMd ?? '');
@@ -58,10 +74,26 @@ function itemsEqual(a: SnapshotItem | null, b: SnapshotItem | null): boolean {
  * Merge `ours` and `theirs` against their common ancestor `base` (null if
  * unavailable — everything then reads as "both sides changed it").
  *
- * Per slug, standard 3-way resolution: unchanged-on-one-side wins; identical
- * changes on both sides collapse to one; a real divergence is reported as a
- * conflict (and `ours` is kept as the best-effort placeholder so the output
- * stays valid JSON for a human to finish resolving).
+ * Design/rationale: per slug, this runs the same 3-way logic `git merge`
+ * itself would run on a single line — unchanged-on-one-side wins, identical
+ * changes on both sides collapse to one — but keyed by roadmap-item slug
+ * instead of by text line, which is the whole point (see module docstring
+ * for why a line-based diff conflicts on nearly every merge of this file). A
+ * real divergence — both sides changed the same slug, and not to the same
+ * thing — is reported as a conflict; the merged snapshot still gets a
+ * non-null placeholder for that slug (`ours`, falling back to `theirs`, then
+ * `base`) so the file stays valid, parseable JSON for a human to finish
+ * resolving by hand, rather than silently dropping the item because one side
+ * happened to delete it.
+ *
+ * @param base the common-ancestor snapshot, or `null` if git couldn't supply
+ *   one (e.g. an unrelated-histories merge) — every slug then reads as
+ *   changed by whichever side(s) have it.
+ * @param ours the current branch's snapshot (git's `%A`).
+ * @param theirs the incoming branch's snapshot (git's `%B`).
+ * @returns the merged `Snapshot` (slug-sorted, `count` recomputed from the
+ *   merged `items.length`, `generatedAt` set to `max(ours, theirs)`) plus the
+ *   list of slugs that could not be resolved automatically.
  */
 export function mergeSnapshots(base: Snapshot | null, ours: Snapshot, theirs: Snapshot): MergeOutcome {
   const baseMap = new Map((base?.items ?? []).map((i) => [i.slug, i]));
@@ -95,8 +127,13 @@ export function mergeSnapshots(base: Snapshot | null, ours: Snapshot, theirs: Sn
     }
 
     // Both sides changed this slug, and not to the same thing — real conflict.
+    // Keep a non-null placeholder (prefer ours, then theirs, then base) so a
+    // side that DELETED the slug doesn't make the other side's edit vanish
+    // from the best-effort merge — that would make the conflict harder to
+    // find and resolve, not easier.
     conflicts.push({ slug, base: b, ours: o, theirs: t });
-    if (o) merged.push(o); // keep the file well-formed; caller must still fail loudly
+    const placeholder = o ?? t ?? b;
+    if (placeholder) merged.push(placeholder);
   }
 
   merged.sort((a, b) => a.slug.localeCompare(b.slug));

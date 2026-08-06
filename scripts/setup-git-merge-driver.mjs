@@ -30,7 +30,15 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DRIVER_NAME = 'roadmap-snapshot';
-const DRIVER_CMD = 'npx tsx scripts/merge-roadmap-snapshot.ts %O %A %B';
+// %O/%A/%B are quoted: git substitutes them textually into this string before
+// handing it to the shell, and an unquoted substitution would word-split on
+// any space in the temp path. In practice git spawns the driver with cwd set
+// to the worktree root and passes bare relative names like `.merge_file_xxxx`
+// (verified empirically, including with the worktree's own directory name
+// containing spaces), so this hasn't been observed to break — but quoting is
+// free, standard practice for shell-interpolated placeholders, and guards
+// against any git version/platform that behaves differently.
+const DRIVER_CMD = 'npx tsx scripts/merge-roadmap-snapshot.ts "%O" "%A" "%B"';
 
 function main() {
   try {

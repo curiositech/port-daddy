@@ -56,6 +56,33 @@ describe('mergeSnapshots', () => {
     });
   });
 
+  test('ours DELETES a slug that theirs EDITED — a real conflict, and the merged file keeps theirs\' edit rather than silently dropping the item', () => {
+    const base = snap([item('w', 'backlog'), item('keep')], 1_000);
+    const ours = snap([item('keep')], 2_000); // ours dropped "w" entirely
+    const theirs = snap([item('w', 'now'), item('keep')], 3_000); // theirs advanced "w"
+
+    const { snapshot, conflicts } = mergeSnapshots(base, ours, theirs);
+
+    expect(conflicts).toHaveLength(1);
+    expect(conflicts[0]).toMatchObject({ slug: 'w', ours: null, theirs: item('w', 'now') });
+    // The item must still be present in the merged output — dropping it
+    // silently would make the conflict harder to notice and resolve, not
+    // easier (this is the fix for the Copilot review finding on this PR).
+    expect(snapshot.items.find((i) => i.slug === 'w')).toEqual(item('w', 'now'));
+  });
+
+  test('theirs DELETES a slug that ours EDITED — symmetric case, ours\' edit is kept', () => {
+    const base = snap([item('v', 'backlog'), item('keep')], 1_000);
+    const ours = snap([item('v', 'now'), item('keep')], 2_000); // ours advanced "v"
+    const theirs = snap([item('keep')], 3_000); // theirs dropped "v" entirely
+
+    const { snapshot, conflicts } = mergeSnapshots(base, ours, theirs);
+
+    expect(conflicts).toHaveLength(1);
+    expect(conflicts[0]).toMatchObject({ slug: 'v', ours: item('v', 'now'), theirs: null });
+    expect(snapshot.items.find((i) => i.slug === 'v')).toEqual(item('v', 'now'));
+  });
+
   test('one side edits a slug, the other leaves it untouched — the edit wins, no conflict', () => {
     const base = snap([item('y', 'backlog')], 1_000);
     const ours = snap([item('y', 'now')], 2_000); // ours advanced status

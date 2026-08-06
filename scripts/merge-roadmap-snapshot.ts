@@ -53,8 +53,15 @@ function main(): void {
 
   if (conflicts.length > 0) {
     console.error(`✗ roadmap-snapshot merge driver: ${conflicts.length} item(s) changed differently on both sides — resolve by hand:`);
-    for (const c of conflicts) console.error(`  - ${c.slug}`);
-    console.error('  (A best-effort merge — "ours" for the conflicting slugs — was written; fix those entries and re-run `git add`.)');
+    for (const c of conflicts) {
+      // Mirror mergeSnapshots' own placeholder choice (ours, else theirs —
+      // base is unreachable here, see lib/roadmap-snapshot-merge.ts) so this
+      // message never claims something the written file doesn't actually
+      // contain.
+      const kept = c.ours ? 'ours' : 'theirs (ours deleted this slug)';
+      console.error(`  - ${c.slug} — wrote ${kept}; the other side's version still needs review`);
+    }
+    console.error('  (The merged file above is a best-effort starting point, not a resolution — fix the flagged entries and re-run `git add`.)');
     console.error('  Or re-run `npx tsx scripts/export-roadmap-snapshot.ts` against the daemon and commit that instead.');
     process.exit(1);
     return;
