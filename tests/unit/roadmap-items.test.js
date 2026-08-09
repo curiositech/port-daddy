@@ -199,6 +199,25 @@ describe('list and get', () => {
       expect(reupserted.estimate).toBe(8);
       expect(roadmap.get('keep-estimate', 'fleet').estimate).toBe(8);
     });
+
+    test('an explicit estimate of 0 round-trips as 0, not null — rowToItem must not treat it as falsy-unset', () => {
+      // `rowToItem()` maps the column with `typeof row.estimate === 'number' ? row.estimate :
+      // null`, not a `||`/`??`-on-the-value check, precisely so a real 0 survives. This is the
+      // same DB-level read path covered above for 5 and 8, exercised at 0 specifically because a
+      // falsy-coercion bug (e.g. `row.estimate || null`) would silently turn 0 into null here
+      // while every other value kept working — the class of bug proportional/fallback logic
+      // downstream (routes/roadmap.ts's board handler) depends on this module getting right.
+      roadmap.upsert({ slug: 'zero-estimate', summaryMd: 'x', harbor: 'fleet' });
+      db.prepare('UPDATE roadmap_items SET estimate = ? WHERE slug = ? AND harbor = ?').run(
+        0,
+        'zero-estimate',
+        'fleet',
+      );
+
+      expect(roadmap.get('zero-estimate', 'fleet').estimate).toBe(0);
+      const listed = roadmap.list({ harbor: 'fleet' }).find((i) => i.slug === 'zero-estimate');
+      expect(listed.estimate).toBe(0);
+    });
   });
 });
 
