@@ -74,6 +74,8 @@ export interface GitHubState {
   failConfig401: number;
   /** if set, the first N check-run CREATE (POST) calls return 500 (no id). */
   failCreateCheckRun: number;
+  /** if set, the first N check-run completion PATCH calls return 401. */
+  failCompleteCheckRun401: number;
 
   // --- Git Data API + stacked-PR surface (purser) --------------------------
   /** branch name → commit sha, as maintained by the git refs endpoints. */
@@ -139,6 +141,7 @@ export function freshState(): GitHubState {
     failTokenMintTimes: 0,
     failConfig401: 0,
     failCreateCheckRun: 0,
+    failCompleteCheckRun401: 0,
     gitRefs: new Map(),
     blobsCreated: 0,
     treesCreated: 0,
@@ -415,6 +418,10 @@ export function installGitHubFetch(state: GitHubState): void {
     // --- complete check run ---
     const completeMatch = url.match(/\/check-runs\/(\d+)$/);
     if (completeMatch && method === 'PATCH') {
+      if (state.failCompleteCheckRun401 > 0) {
+        state.failCompleteCheckRun401 -= 1;
+        return text('cached installation token revoked', 401);
+      }
       const id = Number(completeMatch[1]);
       const conclusion = (body as { conclusion?: string })?.conclusion ?? '';
       state.completed.push({

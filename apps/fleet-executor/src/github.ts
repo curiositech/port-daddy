@@ -169,6 +169,19 @@ export async function invalidateInstallationToken(
 // ---------------------------------------------------------------------------
 // PR helpers
 
+/**
+ * Page size for the PR `/files` endpoint.
+ *
+ * Exported because anything reasoning about whether the changed-file list is
+ * COMPLETE must compare against the same number this fetch uses. Hard-coding it
+ * in two places lets the truncation logic drift silently the moment either side
+ * changes, and a wrong answer there means real findings get dropped.
+ *
+ * This call does not paginate, so a PR at or above this many files yields a
+ * TRUNCATED list that must be treated as incomplete rather than authoritative.
+ */
+export const PR_FILES_PAGE_SIZE = 100;
+
 export interface PRFile {
   filename: string;
   status: string;
@@ -268,7 +281,7 @@ export async function fetchPRContext(
     fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
       headers: ghHeaders(token),
     }),
-    fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=100`, {
+    fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=${PR_FILES_PAGE_SIZE}`, {
       headers: ghHeaders(token),
     }),
     fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
@@ -724,17 +737,41 @@ export async function completeCheckRun(
   if (!checkRunId) return;
   // details_url is (re)stamped on completion too, so a run that REUSED an
   // older check run (idempotent retry path) still links to its own page.
-  await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
-    method: 'PATCH',
-    headers: ghHeaders(token),
-    body: JSON.stringify({
-      status: 'completed',
-      conclusion,
-      completed_at: new Date().toISOString(),
-      output: { title: 'Port Daddy Fleet', summary },
-      ...(detailsUrl ? { details_url: detailsUrl } : {}),
-    }),
+  const body = JSON.stringify({
+    status: 'completed',
+    conclusion,
+    completed_at: new Date().toISOString(),
+    output: { title: 'Port Daddy Fleet', summary },
+    ...(detailsUrl ? { details_url: detailsUrl } : {}),
   });
+  const maxAttempts = 3;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    if (attempt > 1) await new Promise(resolve => setTimeout(resolve, 250 * (attempt - 1)));
+    try {
+      const res = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`,
+        { method: 'PATCH', headers: ghHeaders(token), body },
+      );
+      if (res.ok) return;
+      const detail = (await res.text()).slice(0, 500);
+      lastError = new Error(
+        `complete check run ${checkRunId} failed ${res.status}${detail ? `: ${detail}` : ''}`,
+      );
+      // A rejected credential must be refreshed, not retried unchanged. Other
+      // permanent 4xx responses are equally unactionable with the same token.
+      if (res.status !== 429 && res.status < 500) throw lastError;
+    } catch (error) {
+      lastError = error;
+      if (error instanceof Error && /failed 4\d\d\b/.test(error.message)) throw error;
+    }
+  }
+  // A required check left in_progress is worse than a retried queue delivery:
+  // transient completion failures get the bounded retry above; exhaustion
+  // still bubbles to the queue, which reuses the check and ultimately DLQs.
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`complete check run ${checkRunId} failed after ${maxAttempts} attempts`);
 }
 
 /**

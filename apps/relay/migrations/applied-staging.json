@@ -6,6 +6,30 @@
       "file": "2026-07-23-user-tokens.sql",
       "appliedAt": "2026-08-04T00:00:00Z",
       "note": "seeded at ADR-0119 adoption — was hand-applied to prod before the staging channel existed"
+    },
+    {
+      "file": "2026-08-04-mercy-health.sql",
+      "appliedAt": "2026-08-05T13:07:32Z"
+    },
+    {
+      "file": "2026-08-04-operator-interruptions.sql",
+      "appliedAt": "2026-08-05T13:07:32Z"
+    },
+    {
+      "file": "2026-08-04-remote-harbors.sql",
+      "appliedAt": "2026-08-05T13:07:32Z"
+    },
+    {
+      "file": "2026-08-04-shipwright-chats.sql",
+      "appliedAt": "2026-08-05T13:07:32Z"
+    },
+    {
+      "file": "2026-08-04-x3-presence-helm.sql",
+      "appliedAt": "2026-08-05T13:07:32Z"
+    },
+    {
+      "file": "2026-08-04-x4-parleys.sql",
+      "appliedAt": "2026-08-05T13:07:32Z"
     }
   ]
 }

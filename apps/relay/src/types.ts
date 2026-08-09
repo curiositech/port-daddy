@@ -14,8 +14,11 @@ export interface Env {
   KV: KVNamespace;
   // Queue producer — one FleetRunJob per GitHub delivery handed to the
   // fleet-executor Worker. Optional so the relay still deploys before the
-  // 'fleet-runs' queue is provisioned; ingress guards on its presence.
+  // Substantive AI reviews stay on the serialized fleet-runs queue. Synthetic
+  // merge-group propagation uses a separate deterministic queue so an OOMing
+  // review cannot starve GitHub's required merge-queue check.
   FLEET_RUNS?: Queue<FleetRunJob>;
+  FLEET_GATES?: Queue<FleetRunJob>;
   // Workers AI — fleet control-plane smoke-test + optimize-prompt endpoints.
   // Optional so the relay still type-checks/deploys before the [ai] binding is
   // provisioned; the handlers fail closed with AI_ERROR when it is absent.
@@ -99,6 +102,7 @@ export interface FleetRunJob {
     sender?: Record<string, unknown>;
     repository?: Record<string, unknown>;
     pull_request?: Record<string, unknown>;
+    merge_group?: Record<string, unknown>;
     push?: Record<string, unknown>;
   };
 }

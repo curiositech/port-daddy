@@ -5,6 +5,7 @@ import {
   freshState,
   installGitHubFetch,
   memoryKV,
+  memoryD1,
   makeEnv,
   makeJob,
   type GitHubState,
@@ -43,13 +44,20 @@ describe('DLQ handler', () => {
     state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
     const kv = memoryKV();
     seedToken(kv, 42);
-    const env = makeEnv({ FLEET_TOKENS: kv });
+    const d1 = memoryD1();
+    const env = makeEnv({ FLEET_TOKENS: kv, DB: d1.db });
 
     await handleDlqJob(makeJob(), env);
 
     expect(state.completed).toHaveLength(1);
     expect(state.completed[0]).toMatchObject({ id: 4242, conclusion: 'failure' });
     expect(state.completed[0].summary).toContain('dead-lettered');
+    expect(d1.runs).toHaveLength(1);
+    expect(d1.runs[0]).toMatchObject({
+      id: 'run:delivery-abc',
+      deliveryId: 'delivery-abc',
+      headSha: 'HEADSHA',
+    });
   });
 
   it('routes a fleet-runs-dlq batch through the handler and always acks', async () => {
@@ -67,6 +75,29 @@ describe('DLQ handler', () => {
     expect(msg.ack).toHaveBeenCalledTimes(1);
     expect(msg.retry).not.toHaveBeenCalled();
     expect(state.completed[0]).toMatchObject({ id: 77, conclusion: 'failure' });
+  });
+
+  it('fails a dead-lettered merge-group check instead of treating it as unparseable', async () => {
+    state.existingCheckRuns.push({ id: 88, name: 'Port Daddy Fleet' });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const job = makeJob({
+      eventType: 'merge_group',
+      action: 'checks_requested',
+      prNumber: null,
+      payloadMinimal: {
+        merge_group: {
+          head_sha: 'queue-head-sha',
+          base_ref: 'refs/heads/main',
+        },
+      },
+    });
+
+    await handleDlqJob(job, makeEnv({ FLEET_TOKENS: kv }));
+
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0]).toMatchObject({ id: 88, conclusion: 'failure' });
+    expect(state.completed[0].summary).toContain('dead-lettered');
   });
 
   it('emits an error telemetry event for the dropped run when configured', async () => {

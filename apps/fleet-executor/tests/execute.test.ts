@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { generateKeyPairSync } from 'node:crypto';
 import { executeFleet, mapWithConcurrency } from '../src/execute.js';
 import {
   freshState,
@@ -54,6 +55,11 @@ const REVIEWER_PLUS_QA_YAML = fleetYaml([
   { name: 'qa', blocking: false },
 ]);
 
+const TOKEN_REFRESH_TEST_KEY = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({
+  type: 'pkcs8',
+  format: 'pem',
+}) as string;
+
 /**
  * A reviewer-ship output carrying a REAL findings block, so it renders to a
  * posted comment. Reviewer ships with no findings now render to silence (the
@@ -63,7 +69,11 @@ const REVIEWER_PLUS_QA_YAML = fleetYaml([
 function reviewWithFinding(verdict: 'PASS' | 'BLOCK' = 'PASS', body = 'finding'): string {
   return [
     '```json',
-    JSON.stringify([{ path: 'src/a.ts', line: 1, severity: 'MEDIUM', body }]),
+    // Must cite a path the harness actually reports as changed (`src/x.ts`).
+    // Findings pinned to a file outside the diff are dropped before rendering,
+    // so a fixture citing an untouched file would silently post nothing and
+    // these verdict/check assertions would fail for an unrelated reason.
+    JSON.stringify([{ path: 'src/x.ts', line: 1, severity: 'MEDIUM', body }]),
     '```',
     '',
     `FLEET-VERDICT: ${verdict}`,
@@ -267,6 +277,59 @@ describe('self-review guard — the fleet does not review its own branches', () 
 });
 
 describe('pull_request action routing', () => {
+  it('reuses a completed exact-head App-owned receipt without duplicate AI spend', async () => {
+    state.existingCheckRuns.push({
+      id: 73,
+      name: 'Port Daddy Fleet',
+      headSha: 'HEADSHA',
+      status: 'completed',
+      conclusion: 'neutral',
+      details_url: 'https://relay.example/fleet/runs/exact-head-review',
+      app: { id: 3810450 },
+    });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'should not run\n\nFLEET-VERDICT: PASS' },
+    });
+
+    await executeFleet(
+      makeJob({ action: 'reopened', deliveryId: 'delivery-reopened-duplicate' }),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }),
+    );
+
+    expect(state.checkRunsCreated).toBe(0);
+    expect(state.completed).toHaveLength(0);
+    expect(ai.calls).toHaveLength(0);
+    expect(state.records.some(record => record.url.includes('/pulls/7'))).toBe(false);
+  });
+
+  it('does not trust a foreign exact-head namesake receipt', async () => {
+    state.existingCheckRuns.push({
+      id: 74,
+      name: 'Port Daddy Fleet',
+      headSha: 'HEADSHA',
+      status: 'completed',
+      conclusion: 'success',
+      app: { id: 999 },
+    });
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'looks ok\n\nFLEET-VERDICT: PASS' },
+    });
+
+    await executeFleet(
+      makeJob({ action: 'reopened', deliveryId: 'delivery-reopened-foreign' }),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }),
+    );
+
+    expect(state.checkRunsCreated).toBe(1);
+    expect(state.completed).toHaveLength(1);
+    expect(ai.calls.some(call => call.ship === 'code-reviewer')).toBe(true);
+  });
+
   it('acks an obsolete synchronize delivery before creating a check or spending AI', async () => {
     state.prHeadSha = 'NEWESTSHA';
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
@@ -324,6 +387,138 @@ describe('pull_request action routing', () => {
       expect(ai.calls).toHaveLength(0);
     },
   );
+});
+
+describe('merge-group gate propagation', () => {
+  it('propagates only after every PR in the merge group has an App-owned review', async () => {
+    state.mergeQueueEntries = [
+      { position: 1, prNumber: 6, headSha: 'FIRSTSHA', groupHeadSha: 'FIRSTGROUPSHA' },
+      { position: 2, prNumber: 7, headSha: 'HEADSHA', groupHeadSha: 'MERGEGROUPSHA' },
+    ];
+    state.existingCheckRuns.push(
+      {
+        id: 76,
+        name: 'Port Daddy Fleet',
+        headSha: 'FIRSTSHA',
+        status: 'completed',
+        conclusion: 'success',
+        app: { id: 3810450 },
+      },
+      {
+        id: 77,
+        name: 'Port Daddy Fleet',
+        headSha: 'HEADSHA',
+        status: 'completed',
+        conclusion: 'success',
+        details_url: 'https://relay.example/fleet/runs/reviewed',
+        app: { id: 3810450 },
+      },
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'must not run' } });
+
+    await executeFleet(
+      makeJob({
+        eventType: 'merge_group',
+        action: 'checks_requested',
+        prNumber: null,
+        payloadMinimal: {
+          merge_group: {
+            head_sha: 'MERGEGROUPSHA',
+            head_ref: 'refs/heads/an-untrusted-format-with-no-pr-number',
+            base_ref: 'refs/heads/main',
+          },
+        },
+      }),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }),
+    );
+
+    expect(state.records.some(record =>
+      record.url.endsWith('/check-runs') &&
+      (record.body as { head_sha?: string })?.head_sha === 'MERGEGROUPSHA'
+    )).toBe(true);
+    expect(state.completed.at(-1)).toMatchObject({
+      conclusion: 'success',
+      detailsUrl: 'https://relay.example/fleet/runs/reviewed',
+    });
+    expect(state.completed.at(-1)?.summary).toContain('PR #7');
+    expect(state.completed.at(-1)?.summary).toContain('PR #6');
+    expect(ai.calls).toHaveLength(0);
+  });
+
+  it('fails closed when the upstream Fleet check is not owned by this App', async () => {
+    state.existingCheckRuns.push({
+      id: 88,
+      name: 'Port Daddy Fleet',
+      headSha: 'HEADSHA',
+      status: 'completed',
+      conclusion: 'success',
+      app: { id: 999 },
+    });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+
+    await executeFleet(
+      makeJob({
+        eventType: 'merge_group',
+        action: 'checks_requested',
+        payloadMinimal: {
+          merge_group: {
+            head_sha: 'MERGEGROUPSHA',
+            base_ref: 'refs/heads/main',
+          },
+        },
+      }),
+      makeEnv({ FLEET_TOKENS: kv }),
+    );
+
+    expect(state.completed.at(-1)?.conclusion).toBe('failure');
+    expect(state.completed.at(-1)?.summary).toContain('failed closed');
+    expect(state.completed.at(-1)?.summary).toContain('foreign App');
+  });
+
+  it('fails closed and completes the check when the merge-queue query fails', async () => {
+    state.failMergeQueueQuery = true;
+    const kv = memoryKV();
+    seedToken(kv, 42);
+
+    await executeFleet(
+      makeJob({
+        eventType: 'merge_group',
+        action: 'checks_requested',
+        prNumber: null,
+        payloadMinimal: {
+          merge_group: { head_sha: 'MERGEGROUPSHA', base_ref: 'refs/heads/main' },
+        },
+      }),
+      makeEnv({ FLEET_TOKENS: kv }),
+    );
+
+    expect(state.completed.at(-1)?.conclusion).toBe('failure');
+    expect(state.completed.at(-1)?.summary).toContain('fetch merge queue failed 503');
+  });
+
+  it('fails closed when GitHub returns no merge-queue membership', async () => {
+    state.mergeQueueEntries = [];
+    const kv = memoryKV();
+    seedToken(kv, 42);
+
+    await executeFleet(
+      makeJob({
+        eventType: 'merge_group',
+        action: 'checks_requested',
+        prNumber: null,
+        payloadMinimal: {
+          merge_group: { head_sha: 'MERGEGROUPSHA', base_ref: 'refs/heads/main' },
+        },
+      }),
+      makeEnv({ FLEET_TOKENS: kv }),
+    );
+
+    expect(state.completed.at(-1)?.conclusion).toBe('failure');
+    expect(state.completed.at(-1)?.summary).toContain('does not match');
+  });
 });
 
 describe('MAP fan-out', () => {
@@ -426,6 +621,31 @@ describe('blocking-ship verdict → check conclusion', () => {
     // No check was completed (no falsely-green or stray verdict on GitHub).
     expect(state.completed).toHaveLength(0);
   });
+
+  it('evicts a revoked cached token and retries check completion exactly once', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.failCompleteCheckRun401 = 1;
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'looks good\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    await executeFleet(
+      makeJob(),
+      makeEnv({
+        FLEET_TOKENS: kv,
+        GITHUB_APP_PRIVATE_KEY: TOKEN_REFRESH_TEST_KEY,
+        AI: ai,
+      }),
+    );
+
+    expect(state.tokenMints).toBe(1);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.records.filter(record => /\/check-runs\/\d+$/.test(record.url))).toHaveLength(2);
+    expect(JSON.parse((await kv.get('github_inst_42')) ?? '{}').token).toBe('tok-1');
+  });
 });
 
 describe('deterministic ship resolution', () => {
@@ -512,6 +732,50 @@ describe('deterministic ship resolution', () => {
 });
 
 describe('map-reduce fan-out', () => {
+  it('fails closed before AI spend when a diff exceeds the Worker chunk budget', async () => {
+    state.prDiff =
+      'diff --git a/src/huge.ts b/src/huge.ts\n--- a/src/huge.ts\n+++ b/src/huge.ts\n' +
+      `+${'x'.repeat(12_000 * 2 + 1)}\n`;
+
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'should not run\n\nFLEET-VERDICT: PASS' },
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('failure');
+    expect(state.completed[0].summary).toContain('1 review chunk');
+    expect(state.completed[0].summary).toContain('24,000-character / 2-chunk queue budget');
+    expect(state.completed[0].summary).toContain('no AI was spent');
+  });
+
+  it('fails closed before AI spend when file-coherent chunks exceed the count budget', async () => {
+    const file = (name: string) =>
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` + '+line\n'.repeat(1_300);
+    state.prDiff = file('a.ts') + file('b.ts') + file('c.ts');
+
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'should not run\n\nFLEET-VERDICT: PASS' },
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('failure');
+    expect(state.completed[0].summary).toContain('3 review chunks');
+    expect(state.completed[0].summary).toContain('24,000-character / 2-chunk queue budget');
+    expect(state.completed[0].summary).toContain('no AI was spent');
+  });
+
   it('chunks a large diff into N map calls + exactly 1 manager reduce call', async () => {
     // Two files, each ~9KB, exceed the 12KB chunk budget combined → 2 chunks.
     const file = (name: string) =>
@@ -532,6 +796,39 @@ describe('map-reduce fan-out', () => {
     const reduceCalls = ai.calls.filter(c => c.ship === 'code-reviewer' && c.phase === 'reduce');
     expect(mapCalls.length).toBe(2); // N chunks
     expect(reduceCalls.length).toBe(1); // 1 manager
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('keeps at most one Workers AI response envelope resident during MAP', async () => {
+    const file = (name: string) =>
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` + '+line\n'.repeat(1500);
+    state.prDiff = file('a.ts') + file('b.ts');
+
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const base = aiStub({
+      perShip: { 'code-reviewer': 'partial\n\nFLEET-VERDICT: PASS' },
+      managerOutput: 'merged review\n\nFLEET-VERDICT: PASS',
+    });
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const serialAi = {
+      run: async (...args: Parameters<typeof base.ai.run>) => {
+        inFlight += 1;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        try {
+          await new Promise(resolve => setTimeout(resolve, 5));
+          return await base.ai.run(...args);
+        } finally {
+          inFlight -= 1;
+        }
+      },
+    } as typeof base.ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: serialAi }));
+
+    expect(maxInFlight).toBe(1);
     expect(state.completed[0].conclusion).toBe('success');
   });
 
@@ -615,25 +912,26 @@ describe('idempotent re-run', () => {
     await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
 
     expect(state.checkRunsCreated).toBe(1);
-    expect(state.completed.length).toBe(2); // completed both times, same id
+    expect(state.completed).toHaveLength(2); // completed both times, same App-owned id
     expect(state.completed[0].id).toBe(state.completed[1].id);
   });
 
-  it('re-run edits the ship comment in place instead of posting a duplicate', async () => {
+  it('an unreceipted re-run edits the ship comment in place instead of posting a duplicate', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
-    const mkAi = () =>
-      aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } }).ai;
-
     const job = makeJob();
-    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
+    const firstAi = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: firstAi.ai }));
     // Simulate the comment now existing on GitHub.
     state.existingComments = [{ id: 555, body: 'old\n\n<!-- pd-ship:code-reviewer -->' }];
-    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
+    const secondAi = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: secondAi.ai }));
 
     expect(state.commentPosts).toBe(1); // only the first run created
-    expect(state.commentPatches).toBe(1); // the re-run edited in place
+    expect(state.commentPatches).toBe(1); // without a receipt URL, the re-run still executes
+    expect(firstAi.calls.length).toBeGreaterThan(0);
+    expect(secondAi.calls.length).toBeGreaterThan(0);
   });
 });
 

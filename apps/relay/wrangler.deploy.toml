@@ -112,6 +112,12 @@ binding = "AI"
 binding = "FLEET_RUNS"
 queue = "fleet-runs"
 
+# Deterministic, zero-AI merge-group propagation must not wait behind a long or
+# memory-failing substantive review on the serialized fleet-runs FIFO.
+[[queues.producers]]
+binding = "FLEET_GATES"
+queue = "fleet-gates"
+
 [observability]
 enabled = true
 
@@ -229,6 +235,10 @@ binding = "AI"
 [[env.latest.queues.producers]]
 binding = "FLEET_RUNS"
 queue = "fleet-runs-staging"
+
+[[env.latest.queues.producers]]
+binding = "FLEET_GATES"
+queue = "fleet-gates-staging"
 
 [env.latest.observability]
 enabled = true

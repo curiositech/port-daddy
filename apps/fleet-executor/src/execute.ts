@@ -26,6 +26,7 @@ import {
   getInstallationTokenCached,
   invalidateInstallationToken,
   fetchPRContext,
+  fetchMergeGroupMembers,
   fetchRepoFile,
   fetchOpenPullRequests,
   listRecentBranches,
@@ -34,11 +35,12 @@ import {
   createReview,
   createCheckRun,
   completeCheckRun,
-  findFleetCheckRun,
+  findOwnedFleetCheckRun,
   createIssue,
   resolveFleetAppLogin,
   type PRContext,
   type ReviewComment,
+  PR_FILES_PAGE_SIZE,
 } from './github.js';
 import { parseFleetShips, parseFleetSquidEvents, parseFleetXo, defaultPRShips, type ShipConfig } from './fleet.js';
 import { classifyPrAuthorship } from './fleet-identity.js';
@@ -88,7 +90,7 @@ import {
   XO_RECENT_IDEAS_LIMIT,
 } from './xo.js';
 import type { Proposal } from './proposals.js';
-import { decideShipGate, isDocsOnly } from './gates.js';
+import { decideShipGate, isDocsOnly, isReviewableForBugs } from './gates.js';
 import { runPurser } from './purser.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
@@ -100,8 +102,30 @@ const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 
 /** Per-chunk diff budget for the MAP fan-out (chars). */
 const MAP_CHUNK_CHAR_LIMIT = 12_000;
-/** Bound Workers AI fan-out so large diffs finish without a rate-limit stampede. */
-const MAP_CONCURRENCY = 8;
+
+/**
+ * Keep only one Workers AI response envelope resident at a time. Some models
+ * include prompt text plus prompt/output token-id arrays in the binding result;
+ * retaining two such envelopes concurrently was enough to exceed the Worker's
+ * memory limit on an otherwise modest two-chunk review. The queue is FIFO and
+ * fail-closed, so predictable serial progress is more important than fan-out
+ * latency here.
+ */
+const MAP_CONCURRENCY = 1;
+/**
+ * Hard per-delivery admission budget. Even with serial MAP calls, three chunks
+ * fan out to four model calls per ship and can monopolize the single FIFO long
+ * enough to starve required merge-group checks while ideation ships add more
+ * deliveries behind it. Rejecting those reviews up front is fail-closed, cheap,
+ * and actionable: the author can split the PR into bounded review units.
+ */
+const MAX_REVIEW_CHUNKS = 2;
+/**
+ * Absolute review-input budget. A file is the smallest coherent chunk, so one
+ * oversized file deliberately remains whole; this byte-like character cap
+ * keeps that exception from bypassing the delivery admission budget.
+ */
+const MAX_REVIEW_DIFF_CHARS = MAP_CHUNK_CHAR_LIMIT * MAX_REVIEW_CHUNKS;
 /** The umbrella check-run name. Exported so the DLQ handler targets the same run. */
 export const CHECK_NAME = 'Port Daddy Fleet';
 
@@ -416,8 +440,8 @@ async function recordRunStart(
   prCtx: PRContext,
   prNumber: number,
   ships: ShipConfig[],
-): Promise<void> {
-  if (!env.DB) return;
+): Promise<boolean> {
+  if (!env.DB) return true;
   const prUrl = `https://github.com/${job.repoFullName}/pull/${prNumber}`;
   try {
     await env.DB.prepare(
@@ -436,8 +460,39 @@ async function recordRunStart(
         nowSec(),
       )
       .run();
+    return true;
   } catch (err) {
     console.error(`[fleet-executor] fleet_runs insert failed run=${runId}: ${String(err)}`);
+    return false;
+  }
+}
+
+/**
+ * Ensure a check receipt resolves even when the best-effort run-header write
+ * above failed transiently or the completion originates from the DLQ path.
+ * The insert is idempotent and never clobbers a richer existing row.
+ */
+export async function ensureRunRow(
+  env: ExecutorEnv,
+  runId: string,
+  deliveryId: string,
+  repoFullName: string | null,
+  prNumber: number | null,
+  headSha: string,
+): Promise<void> {
+  if (!env.DB) return;
+  const repo = repoFullName ?? 'unknown/unknown';
+  const prUrl = prNumber != null ? `https://github.com/${repo}/pull/${prNumber}` : '';
+  try {
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO fleet_runs
+         (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha, conclusion, ships_csv, ms, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', '', 0, ?)`,
+    )
+      .bind(runId, deliveryId, repo, prNumber ?? 0, prUrl, headSha, nowSec())
+      .run();
+  } catch (error) {
+    console.error(`[fleet-executor] ensureRunRow failed run=${runId}: ${String(error)}`);
   }
 }
 
@@ -586,6 +641,145 @@ async function recordShipSpend(
 
 const REVIEWABLE_PR_ACTIONS = new Set(['opened', 'synchronize', 'reopened', 'ready_for_review']);
 
+/**
+ * Complete a required check with one credential-recovery attempt.
+ *
+ * Installation tokens can be revoked before their advertised expiry. A plain
+ * queue retry would otherwise keep loading the same rejected token from KV and
+ * strand the required check until the cache TTL elapsed. Evict only this
+ * installation's entry, mint once, and retry the idempotent PATCH; every other
+ * error still bubbles to the queue unchanged.
+ */
+async function completeCheckRunWithTokenRefresh(
+  env: ExecutorEnv,
+  installationId: number,
+  owner: string,
+  repo: string,
+  checkRunId: number,
+  conclusion: 'success' | 'failure' | 'neutral',
+  summary: string,
+  token: string,
+  detailsUrl?: string | null,
+): Promise<void> {
+  try {
+    await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token, detailsUrl);
+    return;
+  } catch (error) {
+    if (!is401(error)) throw error;
+    console.warn(
+      `[fleet-executor] check completion rejected cached token for installation=${installationId}; refreshing once`,
+    );
+  }
+
+  await invalidateInstallationToken(installationId, env.FLEET_TOKENS);
+  const refreshedToken = await getInstallationTokenCached(
+    env.GITHUB_APP_ID,
+    env.GITHUB_APP_PRIVATE_KEY,
+    installationId,
+    env.FLEET_TOKENS,
+    true,
+  );
+  await completeCheckRun(
+    owner,
+    repo,
+    checkRunId,
+    conclusion,
+    summary,
+    refreshedToken,
+    detailsUrl,
+  );
+}
+
+async function executeMergeGroupGate(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+  if (job.action !== 'checks_requested' || !job.repoFullName || !job.installationId) return;
+  const [owner, repo] = job.repoFullName.split('/');
+  if (!owner || !repo) return;
+  const group = job.payloadMinimal.merge_group as Record<string, unknown> | undefined;
+  const headSha = typeof group?.head_sha === 'string' ? group.head_sha : '';
+  const baseRef = typeof group?.base_ref === 'string' ? group.base_ref : '';
+  if (!headSha) return;
+
+  let token = await getInstallationTokenCached(
+    env.GITHUB_APP_ID,
+    env.GITHUB_APP_PRIVATE_KEY,
+    job.installationId,
+    env.FLEET_TOKENS,
+  );
+  const appId = Number(env.GITHUB_APP_ID);
+  if (!Number.isSafeInteger(appId)) throw new Error('invalid GitHub App id');
+  const establishCheck = async (): Promise<number | null> => {
+    const existing = await findOwnedFleetCheckRun(
+      owner,
+      repo,
+      headSha,
+      CHECK_NAME,
+      appId,
+      token,
+    );
+    return existing?.id ?? await createCheckRun(owner, repo, CHECK_NAME, headSha, token);
+  };
+  let checkRunId: number | null;
+  try {
+    checkRunId = await establishCheck();
+  } catch (error) {
+    if (!is401(error)) throw error;
+    await invalidateInstallationToken(job.installationId, env.FLEET_TOKENS);
+    token = await getInstallationTokenCached(
+      env.GITHUB_APP_ID,
+      env.GITHUB_APP_PRIVATE_KEY,
+      job.installationId,
+      env.FLEET_TOKENS,
+      true,
+    );
+    checkRunId = await establishCheck();
+  }
+  if (!checkRunId) {
+    throw new Error(`cannot establish merge-group Fleet gate for ${owner}/${repo}@${headSha}`);
+  }
+
+  let conclusion: 'success' | 'failure' = 'failure';
+  let detailsUrl: string | null = null;
+  let summary: string;
+  try {
+    const members = await fetchMergeGroupMembers(owner, repo, baseRef, headSha, token);
+    const reviewed = await mapWithConcurrency(members, 4, async member => ({
+      ...member,
+      check: await findOwnedFleetCheckRun(
+        owner,
+        repo,
+        member.headSha,
+        CHECK_NAME,
+        appId,
+        token,
+      ),
+    }));
+    const missing = reviewed.filter(({ check }) =>
+      check?.status !== 'completed' || (check.conclusion !== 'success' && check.conclusion !== 'neutral')
+    );
+    const target = reviewed.at(-1);
+    detailsUrl = target?.check?.detailsUrl ?? null;
+    if (missing.length === 0) {
+      conclusion = 'success';
+      summary = `Merge-group gate verified completed, App-owned Port Daddy Fleet reviews for ${reviewed.map(member => `PR #${member.prNumber}`).join(', ')}.`;
+    } else {
+      summary = `Merge-group gate failed closed: Fleet review is missing, incomplete, or owned by a foreign App for ${missing.map(member => `PR #${member.prNumber}`).join(', ')}.`;
+    }
+  } catch (error) {
+    summary = `Merge-group gate failed closed: ${error instanceof Error ? error.message : String(error)}.`;
+  }
+  await completeCheckRunWithTokenRefresh(
+    env,
+    job.installationId,
+    owner,
+    repo,
+    checkRunId,
+    conclusion,
+    summary,
+    token,
+    detailsUrl,
+  );
+}
+
 /** The fleet trigger used by reviewable pull_request deliveries. */
 function triggerFor(job: FleetRunJob): string | null {
   if (job.eventType !== 'pull_request') return null;
@@ -599,6 +793,11 @@ function triggerFor(job: FleetRunJob): string | null {
  * for non-actionable events, which are simply skipped).
  */
 export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+  if (job.eventType === 'merge_group') {
+    await executeMergeGroupGate(job, env);
+    return;
+  }
+
   if (!env.AI) return;
 
   const trigger = triggerFor(job);
@@ -657,9 +856,18 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         job.installationId,
         env.FLEET_TOKENS,
       );
-      let checkRunId = await findFleetCheckRun(owner, repo, headSha, CHECK_NAME, token).catch(
-        () => null,
-      );
+      const pausedAppId = Number(env.GITHUB_APP_ID);
+      if (!Number.isSafeInteger(pausedAppId)) throw new Error('invalid GitHub App id');
+      let checkRunId = (
+        await findOwnedFleetCheckRun(
+          owner,
+          repo,
+          headSha,
+          CHECK_NAME,
+          pausedAppId,
+          token,
+        ).catch(() => null)
+      )?.id ?? null;
       if (!checkRunId) {
         checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token, detailsUrl);
       }
@@ -667,7 +875,17 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         'Fleet paused by operator; no automated review was performed for this delivery. ' +
         'Resume the fleet (POST /v1/fleet/pause {"paused":false}) or review this PR manually.';
       if (checkRunId) {
-        await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+        await completeCheckRunWithTokenRefresh(
+          env,
+          job.installationId,
+          owner,
+          repo,
+          checkRunId,
+          'neutral',
+          summary,
+          token,
+          detailsUrl,
+        );
       }
       await transcript.step(
         'check-completed',
@@ -703,7 +921,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         files: [],
         diff: '',
       };
-      await recordRunStart(env, runId, job, stubPrCtx, prNumber, []);
+      const recorded = await recordRunStart(env, runId, job, stubPrCtx, prNumber, []);
+      if (!recorded) {
+        await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, headSha);
+      }
       await recordRunEnd(env, runId, 'neutral', startMs);
     } catch (err) {
       console.error(
@@ -725,6 +946,37 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   } catch (err) {
     // Token mint is infrastructure — let the queue retry.
     throw new Error(`token mint failed: ${String(err)}`);
+  }
+
+  // --- EXACT-HEAD RECEIPT DEDUPE (pre-fetch, pre-spend) -------------------
+  // Reopened/ready deliveries and queue retries can repeat after this exact
+  // commit already received a conclusive review. Reuse only a completed
+  // success/neutral check owned by this exact App on the immutable payload
+  // SHA. A foreign namesake, failure, in-progress check, or changed SHA earns
+  // no authority and continues through the normal review path.
+  const eventHead = prPayload.head && typeof prPayload.head === 'object'
+    ? (prPayload.head as Record<string, unknown>).sha
+    : null;
+  const appId = Number(env.GITHUB_APP_ID);
+  if (typeof eventHead === 'string' && eventHead && Number.isSafeInteger(appId)) {
+    const existingReceipt = await findOwnedFleetCheckRun(
+      owner,
+      repo,
+      eventHead,
+      CHECK_NAME,
+      appId,
+      token,
+    ).catch(() => null);
+    if (
+      existingReceipt?.status === 'completed' &&
+      (existingReceipt.conclusion === 'success' || existingReceipt.conclusion === 'neutral') &&
+      existingReceipt.detailsUrl
+    ) {
+      console.log(
+        `[fleet-executor] delivery=${deliveryId} exact head ${eventHead.slice(0, 12)} already has App-owned ${existingReceipt.conclusion} receipt; skipping duplicate review`,
+      );
+      return;
+    }
   }
 
   // --- PR context + trusted config (default branch ONLY) -------------------
@@ -762,9 +1014,6 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // files/diff endpoints above describe the current head. Never spend AI on that
   // mismatched combination or attach a current-diff verdict to an obsolete SHA.
   // Acknowledge stale deliveries; the newest synchronize event owns the gate.
-  const eventHead = prPayload.head && typeof prPayload.head === 'object'
-    ? (prPayload.head as Record<string, unknown>).sha
-    : null;
   if (typeof eventHead === 'string' && eventHead && eventHead !== prCtx.headSha) {
     console.log(
       `[fleet-executor] delivery=${deliveryId} stale head ${eventHead.slice(0, 12)}; current=${prCtx.headSha.slice(0, 12)}; skipping`,
@@ -802,9 +1051,16 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   if (cloudShips.length === 0) return;
 
   // --- Check run (idempotent: reuse one for this head SHA) -----------------
-  let checkRunId = await findFleetCheckRun(owner, repo, prCtx.headSha, CHECK_NAME, token).catch(
-    () => null,
-  );
+  let checkRunId = (
+    await findOwnedFleetCheckRun(
+      owner,
+      repo,
+      prCtx.headSha,
+      CHECK_NAME,
+      appId,
+      token,
+    ).catch(() => null)
+  )?.id ?? null;
   if (!checkRunId) {
     // No swallow: a createCheckRun failure must propagate so the job RETRIES.
     checkRunId = await createCheckRun(owner, repo, CHECK_NAME, prCtx.headSha, token, detailsUrl);
@@ -824,7 +1080,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // Written AFTER the gating check is established but BEFORE any ship runs, so
   // the audit trail records every attempt that got far enough to gate. A
   // write failure is swallowed and never changes the run or the gate.
-  await recordRunStart(env, runId, job, prCtx, prNumber, cloudShips);
+  const recorded = await recordRunStart(env, runId, job, prCtx, prNumber, cloudShips);
+  if (!recorded) {
+    await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, prCtx.headSha);
+  }
 
   // --- SELF-REVIEW GUARD (the fleet does not review its own branches) ------
   // WHY THIS SITS HERE — after the gating check exists, before any AI spend.
@@ -947,8 +1206,57 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       reason: 'credits-exhausted',
       installationId: job.installationId,
     });
-    await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+    await completeCheckRunWithTokenRefresh(
+      env,
+      job.installationId,
+      owner,
+      repo,
+      checkRunId,
+      'neutral',
+      summary,
+      token,
+      detailsUrl,
+    );
     await recordRunEnd(env, runId, 'neutral', startMs);
+    return;
+  }
+
+  // --- LARGE-DIFF ADMISSION GATE (pre-spend, fail-closed) ------------------
+  // The same chunks are used by every map-reduce ship. Keep this gate after
+  // the check + run header exist, but before the first model call, so an
+  // oversized review becomes one explicit failure instead of repeated Worker
+  // OOMs that monopolize the single-concurrency queue and eventually DLQ.
+  const reviewChunkCount = chunkDiff(prCtx.diff).length;
+  const reviewDiffChars = prCtx.diff.length;
+  if (reviewDiffChars > MAX_REVIEW_DIFF_CHARS || reviewChunkCount > MAX_REVIEW_CHUNKS) {
+    const summary =
+      `Fleet failed closed: this diff requires ${reviewDiffChars.toLocaleString('en-US')} characters ` +
+      `across ${reviewChunkCount} review chunk${reviewChunkCount === 1 ? '' : 's'}, above the ` +
+      `${MAX_REVIEW_DIFF_CHARS.toLocaleString('en-US')}-character / ${MAX_REVIEW_CHUNKS}-chunk ` +
+      `queue budget. Split the pull request into smaller ` +
+      `reviewable changes and push again; no ships ran and no AI was spent.`;
+    await transcript.step('check-completed', null, 'Check concluded: failure (diff admission budget)', {
+      checkRunId,
+      conclusion: 'failure',
+      reason: 'diff-admission-budget',
+      reviewDiffChars,
+      maxReviewDiffChars: MAX_REVIEW_DIFF_CHARS,
+      reviewChunkCount,
+      maxReviewChunks: MAX_REVIEW_CHUNKS,
+      shipsRun: 0,
+    });
+    await completeCheckRunWithTokenRefresh(
+      env,
+      job.installationId,
+      owner,
+      repo,
+      checkRunId,
+      'failure',
+      summary,
+      token,
+      detailsUrl,
+    );
+    await recordRunEnd(env, runId, 'failure', startMs);
     return;
   }
 
@@ -996,7 +1304,17 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         conclusion: 'neutral',
         pausedBeforeShip: ship.name,
       });
-      await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+      await completeCheckRunWithTokenRefresh(
+        env,
+        job.installationId,
+        owner,
+        repo,
+        checkRunId,
+        'neutral',
+        summary,
+        token,
+        detailsUrl,
+      );
       await recordRunEnd(env, runId, 'neutral', startMs);
       return;
     }
@@ -1105,7 +1423,17 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     await createReview(owner, repo, prNumber, 'COMMENT', reviewBody, reviewComments, prCtx.headSha, token);
   }
 
-  await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token, detailsUrl);
+  await completeCheckRunWithTokenRefresh(
+    env,
+    job.installationId,
+    owner,
+    repo,
+    checkRunId,
+    conclusion,
+    summary,
+    token,
+    detailsUrl,
+  );
 
   // Cloud squid: the run is over (fire-and-forget).
   emitSquidEvent(env, 'run-concluded', {
@@ -1222,7 +1550,16 @@ async function runShip(
     ).catch(() => null);
 
     const systemPrompt = buildSystemPrompt(ship, contract, graftText);
-    const chunks = chunkDiff(prCtx.diff);
+
+    // Drop generated files BEFORE chunking. A lockfile refresh or a regenerated
+    // snapshot is often the largest thing in a diff, and every chunk of it is a
+    // model call spent on output no human wrote — while displacing real code
+    // into later chunks, which is exactly what makes each reviewer's view of
+    // the change partial. Falls back to the full diff if the filter would leave
+    // nothing, so a genuinely all-generated PR still gets looked at rather than
+    // silently passing.
+    const reviewableDiff = filterDiffToReviewable(prCtx.diff);
+    const chunks = chunkDiff(reviewableDiff || prCtx.diff);
 
     // Lookout's tools: cross-PR / cross-branch awareness. Fetched once per run and
     // injected into every MAP chunk so it can spot contradictions and duplication
@@ -1248,13 +1585,14 @@ async function runShip(
         max_tokens: MAX_OUTPUT_TOKENS,
         ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
       };
-      const res = await env.AI.run(
+      let res: unknown = await env.AI.run(
         ship.cfModel as Parameters<typeof env.AI.run>[0],
         request,
         aiOptions(env, ship.name),
       );
       const { text, shape } = extractAiText(res);
       accumulateUsage(metrics, res, text);
+      const responseShape = text ? undefined : describeResponseShape(res);
 
       // Diagnose the silent-blank case: an empty result makes a ship post nothing
       // and resolve PASS. Log the model + response shape so an empty-returning
@@ -1263,9 +1601,14 @@ async function runShip(
       if (!text) {
         console.warn(
           `[fleet-executor] pd-${ship.name} MAP chunk ${i + 1}/${chunks.length} EMPTY on ` +
-            `${ship.cfModel}: ${describeResponseShape(res)}`,
+            `${ship.cfModel}: ${responseShape}`,
         );
       }
+
+      // Workers AI may return large prompt/token-id arrays alongside the text.
+      // Drop the envelope before the D1 transcript write yields so the next MAP
+      // call cannot overlap with that native-backed response in memory.
+      res = undefined;
 
       // Transcript: one row per MAP chunk (best-effort). `shape` records which
       // envelope produced the text; `responseShape` is only stamped on an empty
@@ -1275,7 +1618,7 @@ async function runShip(
         chunkCount: chunks.length,
         outputLength: text.length,
         shape,
-        ...(text ? {} : { responseShape: describeResponseShape(res) }),
+        ...(responseShape ? { responseShape } : {}),
       });
       return text;
     });
@@ -1412,7 +1755,46 @@ async function runShip(
 
     // Parse the structured findings block. `null` => malformed JSON => the ship
     // is treated as errored (blocking → BLOCK, advisory → PASS, never silent).
-    const findings = parseShipFindings(output);
+    const parsedFindings = parseShipFindings(output);
+
+    // Drop findings that cite a file this PR never touched.
+    //
+    // A prompt instruction is guidance; this is enforcement. Review is
+    // map-reduce over diff chunks, and a reviewer holding several files' hunks
+    // at once can attribute a snippet from one to the path of another — on
+    // #4956 a fragment from `lib/local-citizen/ink-cloud.ts` was reported as a
+    // syntax error at a line in `lib/squid/reconcile-sources.ts`, a file that
+    // does not contain the quoted text anywhere. A finding pinned to a path
+    // outside the diff cannot be about this PR, and shipping it burns reviewer
+    // trust on every finding that IS real.
+    //
+    // Deliberately scoped to paths, not line numbers: a slightly-off line is a
+    // navigational annoyance, while a wrong FILE means the reasoning was about
+    // something else entirely.
+    // FAIL OPEN when the changed-file list is not known to be complete.
+    //
+    // `fetchPRContext` returns `files: []` when the /files call fails, and asks
+    // GitHub for `per_page=100` without paginating — so an empty list means
+    // "we don't know", and a list AT the page size may be truncated. Filtering
+    // against either would silently discard real findings, which is a far worse
+    // failure than letting a bogus one through: a dropped finding is invisible,
+    // while a wrong one is at least arguable in the thread. The prompt-level
+    // scope contract is the primary defence; this is the backstop, and a
+    // backstop that can eat correct output is not worth having.
+    const changedPaths = new Set(prCtx.files.map(f => f.filename));
+    const fileListTrustworthy = changedPaths.size > 0 && prCtx.files.length < PR_FILES_PAGE_SIZE;
+    const findings =
+      parsedFindings === null || !fileListTrustworthy
+        ? parsedFindings
+        : parsedFindings.filter(f => {
+            const cited = String((f as { path?: unknown }).path ?? '').trim();
+            if (!cited || changedPaths.has(cited)) return true;
+            console.warn(
+              `[fleet-executor] pd-${ship.name}: dropped finding citing '${cited}', ` +
+                `which is not among this PR's ${changedPaths.size} changed files`,
+            );
+            return false;
+          });
 
     // Transcript: findings parse outcome. A malformed block is a 'ship-finding'
     // marker (the ship produced output we couldn't parse); a parsed block is a
@@ -1718,10 +2100,30 @@ async function captureIdeas(
 }
 
 /**
- * Split a unified diff into chunks aligned on `diff --git` file boundaries,
- * each under {@link MAP_CHUNK_CHAR_LIMIT}. A single file larger than the budget
- * is hard-split. Always returns at least one chunk (possibly empty-string).
+ * Split a unified diff into chunks aligned on `diff --git` file boundaries.
+ * Chunks stay under {@link MAP_CHUNK_CHAR_LIMIT} unless a single coherent file
+ * exceeds it; admission limits are enforced by the caller. Always returns at
+ * least one chunk (possibly empty-string).
  */
+/**
+ * Strip file sections whose diffs cannot carry a reviewable defect.
+ *
+ * Operates on `diff --git` boundaries so a dropped file takes its whole hunk
+ * set with it and never leaves an orphan header that a reviewer would try to
+ * interpret.
+ */
+export function filterDiffToReviewable(diff: string): string {
+  if (!diff || !diff.trim()) return diff;
+  return diff
+    .split(/(?=^diff --git )/m)
+    .filter(part => {
+      if (!part.startsWith('diff --git ')) return true; // preamble, keep
+      const path = pathFromDiffLine(part.split('\n', 1)[0] ?? '') ?? '';
+      return !path || isReviewableForBugs(path);
+    })
+    .join('');
+}
+
 export function chunkDiff(diff: string): string[] {
   if (!diff || !diff.trim()) return [''];
 
@@ -1733,13 +2135,24 @@ export function chunkDiff(diff: string): string[] {
   let cur = '';
   for (const part of parts) {
     if (part.length > MAP_CHUNK_CHAR_LIMIT) {
+      // An oversized single file becomes ONE chunk, over budget and whole.
+      //
+      // It used to be hard-split into raw slices, which was wrong twice over:
+      // only the first slice carried the `diff --git` header, so every
+      // continuation was un-attributable — the scope contract failing on
+      // exactly the largest files — and a reviewer handed half a function has
+      // no more chance of judging it correctly than one handed none.
+      //
+      // A file is the smallest unit that can be reviewed coherently, so it is
+      // the smallest unit we will split to. When one file exceeds the budget
+      // that is unavoidable: emit it intact and let the caller's own limits
+      // decide what to do, rather than shredding it into pieces that are
+      // cheaper to send and impossible to review.
       if (cur) {
         chunks.push(cur);
         cur = '';
       }
-      for (let i = 0; i < part.length; i += MAP_CHUNK_CHAR_LIMIT) {
-        chunks.push(part.slice(i, i + MAP_CHUNK_CHAR_LIMIT));
-      }
+      chunks.push(part);
       continue;
     }
     if (cur && cur.length + part.length > MAP_CHUNK_CHAR_LIMIT) {
@@ -1895,6 +2308,94 @@ function buildSystemPrompt(ship: ShipConfig, contract: string | null, graftText 
   return parts.join('\n\n');
 }
 
+/**
+ * Paths whose hunks appear in this chunk, read off the `diff --git` headers.
+ *
+ * The reviewer must be able to tell what it is actually looking at. A chunk
+ * concatenates several files, and the changed-file list names every file in the
+ * PR — so without this the model sees N filenames and some hunks with no way to
+ * bind one to the other, and attributing a snippet to the wrong path is the
+ * natural outcome rather than an unlucky one.
+ */
+export function filesInChunk(diffChunk: string): string[] {
+  const out = new Set<string>();
+  // Section-aware, not line-aware. A rename emits BOTH `--- a/old` and
+  // `+++ b/new`; collecting every line would report the old path as present
+  // too, telling a reviewer it holds a file that exists only under its new
+  // name. One path per file section, preferring the post-image.
+  for (const section of diffChunk.split(/(?=^diff --git )/m)) {
+    if (!section.trim()) continue;
+    let newSide: string | null = null;
+    let oldSide: string | null = null;
+    let headerSide: string | null = null;
+    for (const line of section.split('\n')) {
+      if (line.startsWith('+++ b/')) newSide ??= line.slice(6).trim() || null;
+      else if (line.startsWith('--- a/')) oldSide ??= line.slice(6).trim() || null;
+      else if (line.startsWith('diff --git a/')) headerSide ??= pathFromDiffLine(line);
+      if (newSide) break;
+    }
+    // `+++ /dev/null` on a deletion leaves newSide null, so the old path is
+    // the only truthful answer there.
+    const path = newSide ?? headerSide ?? oldSide;
+    if (path) out.add(path);
+  }
+  return [...out];
+}
+
+/**
+ * Extract a path from one diff line, tolerating spaces.
+ *
+ * `diff --git a/X b/Y` cannot be parsed with `\S+`: git does not escape spaces
+ * in paths, and this repository already contains `public/Untitled 2.png`. A
+ * greedy split on whitespace silently yields the wrong path — or none — and the
+ * file is then mis-marked "not in this chunk" even though its hunks are right
+ * there, which defeats the scope contract on exactly the files most likely to
+ * need it.
+ *
+ * The `+++ b/<path>` line is the reliable source: the path runs to end of line,
+ * so no delimiter ambiguity exists. `diff --git` is used only as a fallback,
+ * and there the a/ and b/ halves are separated on the ` b/` boundary nearest
+ * the middle, which is correct whenever both sides name the same file (the
+ * common case) and degrades to the whole remainder for a rename.
+ */
+function pathFromDiffLine(line: string): string | null {
+  if (line.startsWith('+++ b/')) return line.slice(6).trim() || null;
+  if (line.startsWith('+++ ')) return null; // +++ /dev/null — a deletion
+  if (line.startsWith('--- a/')) return line.slice(6).trim() || null;
+  if (line.startsWith('diff --git a/')) {
+    const rest = line.slice('diff --git a/'.length);
+    const sep = rest.lastIndexOf(' b/');
+    if (sep === -1) return rest.trim() || null;
+    return rest.slice(sep + 3).trim() || rest.slice(0, sep).trim() || null;
+  }
+  return null;
+}
+
+/**
+ * Build the MAP-stage prompt for one diff chunk.
+ *
+ * **The chunk is a partial view, and saying so is load-bearing.** Review is
+ * map-reduce: each call sees one chunk of a diff that may span dozens of files.
+ * Earlier this was communicated only as ` (chunk 3 of 12)` appended to a
+ * heading, with the full changed-file list rendered flat above it. That
+ * produced two systematic failure modes on a large PR, both observed on
+ * #4956:
+ *
+ *   1. *Fabricated absence.* A reviewer that cannot see `features.manifest.json`
+ *      or a test file in ITS chunk reported them missing — "no CJK tests", "not
+ *      added to the manifest", "PD_HALT_KEY is not exported" — when each was
+ *      present in another chunk. Every one of those shipped as a HIGH finding
+ *      with a one-click issue button.
+ *   2. *Misattribution.* With every path in the PR listed but no marking of
+ *      which are present here, a snippet from one file was reported at a line
+ *      number in a different file that happened to be in the same list.
+ *
+ * The fix is to make the boundary explicit: mark which files this chunk
+ * actually contains, state plainly that the rest exists and is not visible, and
+ * forbid claims that depend on having seen the whole diff. Absence is a
+ * REDUCE-stage judgement — only that stage has all the partials — so the MAP
+ * stage must not guess at it.
+ */
 function buildUserMessage(
   prCtx: PRContext,
   diffChunk: string,
@@ -1902,12 +2403,56 @@ function buildUserMessage(
   chunkCount: number,
   fleetContext = '',
 ): string {
-  const fileList = prCtx.files
-    .map(f => `- ${f.filename} (+${f.additions}/-${f.deletions})`)
+  const present = new Set(filesInChunk(diffChunk));
+  const partial = chunkCount > 1;
+
+  // If GitHub's /files call failed, `prCtx.files` is empty — but the chunk in
+  // hand plainly contains hunks. Rendering "Changed files: (none)" above them
+  // is worse than saying nothing: it tells the reviewer the PR touched nothing
+  // while showing it a diff, which undercuts the very boundary this block
+  // exists to draw. Fall back to what the chunk itself proves.
+  const fileRows = prCtx.files.length
+    ? prCtx.files.map(f => ({ filename: f.filename, adds: f.additions, dels: f.deletions }))
+    : [...present].map(filename => ({ filename, adds: null as number | null, dels: null as number | null }));
+
+  // Mark in-chunk files so the model can bind a hunk to a path. Files from
+  // other chunks stay listed — the reviewer should know the PR is larger than
+  // what it can see — but are explicitly flagged as not visible here.
+  const fileList = fileRows
+    .map(r => {
+      const here = !partial || present.has(r.filename);
+      const mark = here ? '✔' : '·';
+      const counts = r.adds === null ? '' : ` (+${r.adds}/-${r.dels})`;
+      const note = here ? '' : '  — not in this chunk';
+      return `- ${mark} ${r.filename}${counts}${note}`;
+    })
     .join('\n');
 
-  const chunkNote =
-    chunkCount > 1 ? ` (chunk ${chunkIndex + 1} of ${chunkCount})` : '';
+  const chunkNote = partial ? ` (chunk ${chunkIndex + 1} of ${chunkCount})` : '';
+
+  const scopeBlock = partial
+    ? `
+
+## SCOPE — read before reviewing
+
+You are seeing **chunk ${chunkIndex + 1} of ${chunkCount}** of this diff. The files marked \`✔\`
+above are the ONLY ones whose changes are visible to you. Files marked \`·\` are
+part of this PR and were changed, but their hunks are in another chunk that a
+different reviewer is reading.
+
+Therefore, in this stage:
+
+- **Do not report anything as missing, absent, undeclared, unexported, or
+  untested.** You cannot see most of the PR. A test, a manifest entry, an
+  export, or a registration you did not encounter is almost certainly in a
+  chunk you were not given. Claims of absence are decided later, by the stage
+  that has every chunk.
+- **Every finding must cite a path marked \`✔\`**, and the code you quote must
+  appear verbatim in the diff below. A snippet from one file reported against
+  another file's path is worse than no finding at all.
+- Report only defects you can see *in the code shown here*: a wrong condition,
+  an unhandled case, a broken invariant, a real bug in these hunks.`
+    : '';
 
   const contextBlock = fleetContext ? `\n\n${fleetContext}` : '';
 
@@ -1917,7 +2462,7 @@ function buildUserMessage(
 ${fileList || '(none)'}
 
 ## PR description
-${prCtx.body || '(none)'}${contextBlock}
+${prCtx.body || '(none)'}${scopeBlock}${contextBlock}
 
 ## Diff${chunkNote}
 \`\`\`diff

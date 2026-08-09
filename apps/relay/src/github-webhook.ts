@@ -51,20 +51,23 @@ function err(code: string, detail: string, status = 400): Response {
 // keeps the per-(sender, channel) chain stable across deliveries.
 const GITHUB_SENDER = hashHex('github:webhook');
 
-// Only these (event, action) pairs warrant a fleet run. GitHub Apps fire a
-// flood of workflow_run / check_run / push events on every CI cycle; the
-// executor only reviews pull_request changes, so we never enqueue the rest.
-// (The full event stream is still PUBLISHED to channels for other subscribers.)
+// Only these (event, action) pairs warrant a fleet run. Pull-request events run
+// the substantive review; merge-group events propagate that reviewed verdict
+// to GitHub's synthetic queue SHA so the required App-owned check cannot vanish
+// at the queue boundary.
 const FLEET_PR_ACTIONS = new Set(['opened', 'synchronize', 'reopened', 'ready_for_review']);
 function shouldEnqueueFleetRun(eventType: string, action: string | null): boolean {
-  return eventType === 'pull_request' && FLEET_PR_ACTIONS.has(action ?? '');
+  return (
+    (eventType === 'pull_request' && FLEET_PR_ACTIONS.has(action ?? '')) ||
+    (eventType === 'merge_group' && action === 'checks_requested')
+  );
 }
 
 // GitHub Apps fire a flood of workflow_run / check_run / push / *_review events
 // on every CI cycle. Persisting and fanning out all of them bloats the D1 event
 // table (and every per-channel hash chain) with ambient noise that no subscriber
-// reads. We persist + publish + enqueue ONLY the PR-family (event, action) pairs
-// below; every other event is still HMAC-verified (security gate unchanged) and
+// reads. We persist + publish + enqueue ONLY the PR-family and required
+// merge-group pairs below; every other event is still HMAC-verified and
 // acknowledged with 204, but writes nothing to D1 and starts no fleet run.
 const PERSIST_EVENT_TYPES = new Set([
   'pull_request:opened',
@@ -77,8 +80,9 @@ const PERSIST_EVENT_TYPES = new Set([
 ]);
 function shouldPersistEvent(eventType: string, action: string | null): boolean {
   return (
-    eventType === 'pull_request' &&
-    PERSIST_EVENT_TYPES.has(action ? `${eventType}:${action}` : eventType)
+    (eventType === 'pull_request' &&
+      PERSIST_EVENT_TYPES.has(action ? `${eventType}:${action}` : eventType)) ||
+    (eventType === 'merge_group' && action === 'checks_requested')
   );
 }
 
@@ -284,7 +288,7 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
   //    we've already published to channels. The executor's own retry/DLQ owns
   //    durability from here. installation.id / pull_request.number are read
   //    from the verified payload (no GitHub API call from the relay).
-  if (env.FLEET_RUNS && shouldEnqueueFleetRun(eventType, action)) {
+  if ((env.FLEET_RUNS || env.FLEET_GATES) && shouldEnqueueFleetRun(eventType, action)) {
     const installation =
       payload.installation && typeof payload.installation === 'object'
         ? (payload.installation as Record<string, unknown>)
@@ -293,6 +297,10 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
       payload.pull_request && typeof payload.pull_request === 'object'
         ? (payload.pull_request as Record<string, unknown>)
         : null;
+    const mergeGroup =
+      payload.merge_group && typeof payload.merge_group === 'object'
+        ? (payload.merge_group as Record<string, unknown>)
+        : null;
     const job: FleetRunJob = {
       deliveryId,
       eventType,
@@ -300,20 +308,34 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
       repoFullName,
       installationId:
         installation && typeof installation.id === 'number' ? installation.id : null,
+      // merge_group refs are not an identity contract. The executor resolves
+      // exact membership from base_ref + the synthetic head SHA instead.
       prNumber: pull && typeof pull.number === 'number' ? pull.number : null,
       payloadMinimal: {
         sender: (payload.sender as Record<string, unknown>) ?? undefined,
         repository: (payload.repository as Record<string, unknown>) ?? undefined,
         pull_request: pull ?? undefined,
+        merge_group: mergeGroup ?? undefined,
         push: (payload.push as Record<string, unknown>) ?? undefined,
       },
     };
+    const queue = eventType === 'merge_group'
+      ? (env.FLEET_GATES ?? env.FLEET_RUNS)
+      : env.FLEET_RUNS;
+    if (!queue) {
+      await appendAudit(env.DB, {
+        action: 'fleet_run_enqueue_failed',
+        target: repoFullName ?? '',
+        detail: `event=${eventType} delivery=${deliveryId} queue=unbound`,
+      }).catch(() => {});
+      return new Response(null, { status: 204 });
+    }
     try {
-      await env.FLEET_RUNS.send(job);
+      await queue.send(job);
       await appendAudit(env.DB, {
         action: 'fleet_run_enqueued',
         target: repoFullName ?? '',
-        detail: `event=${eventType} delivery=${deliveryId}`,
+        detail: `event=${eventType} delivery=${deliveryId} queue=${eventType === 'merge_group' && env.FLEET_GATES ? 'fleet-gates' : 'fleet-runs'}`,
       });
     } catch {
       // Best-effort: record and move on. The webhook still succeeds (204);

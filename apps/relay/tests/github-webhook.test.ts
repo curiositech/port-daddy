@@ -18,7 +18,7 @@ import { describe, it, expect } from 'vitest';
 import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha256';
 import { handleGithubWebhook, channelsForWebhook } from '../src/github-webhook.js';
-import type { Env } from '../src/types.js';
+import type { Env, FleetRunJob } from '../src/types.js';
 
 const SECRET = 'super-secret-webhook-key';
 
@@ -76,7 +76,12 @@ function makeMockD1(cap: Captured): D1Database {
 }
 
 // ── DO mock: record every channel publish() routed to it ──────────────────────
-function makeEnv(cap: Captured, publishedChannels: string[], secret: string | undefined = SECRET): Env {
+function makeEnv(
+  cap: Captured,
+  publishedChannels: string[],
+  secret: string | undefined = SECRET,
+  enqueued?: FleetRunJob[],
+): Env {
   const harborChannel = {
     idFromName: (name: string) => ({ name }),
     get: (_id: { name: string }) => ({
@@ -104,6 +109,15 @@ function makeEnv(cap: Captured, publishedChannels: string[], secret: string | un
     JWKS_FAIL_SOFT_SECONDS: '600',
     REVOCATION_BROADCAST_TIMEOUT_MS: '5000',
     RATE_LIMIT_WINDOW_MS: '60000',
+    ...(enqueued
+      ? {
+          FLEET_RUNS: {
+            async send(job: FleetRunJob) {
+              enqueued.push(job);
+            },
+          },
+        }
+      : {}),
   } as unknown as Env;
 }
 
@@ -269,6 +283,55 @@ describe('handleGithubWebhook — ambient-noise event filter', () => {
     workflow_run: { id: 99, conclusion: 'success' },
     repository: { full_name: 'curiositech/port-daddy', id: 42 },
     sender: { login: 'octocat', id: 1 },
+  });
+
+  it('persists and enqueues merge-group checks requested for the required gate', async () => {
+    const cap: Captured = { events: [], audits: [] };
+    const published: string[] = [];
+    const enqueued: FleetRunJob[] = [];
+    const env = makeEnv(cap, published, SECRET, enqueued);
+    const gateJobs: FleetRunJob[] = [];
+    env.FLEET_GATES = {
+      async send(job: FleetRunJob) {
+        gateJobs.push(job);
+      },
+    } as Queue<FleetRunJob>;
+    const body = JSON.stringify({
+      action: 'checks_requested',
+      installation: { id: 42 },
+      merge_group: {
+        head_sha: 'MERGEGROUPSHA',
+        head_ref: 'refs/heads/gh-readonly-queue/main/pr-5062-base',
+      },
+      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      sender: { login: 'github-merge-queue[bot]', id: 1 },
+    });
+
+    const res = await handleGithubWebhook(
+      webhookReq({
+        body,
+        signature: sign(SECRET, body),
+        event: 'merge_group',
+        delivery: 'merge-group-1',
+      }),
+      env,
+    );
+
+    expect(res.status).toBe(204);
+    expect(published).toEqual([
+      'github:webhook:merge_group',
+      'github:webhook:merge_group:checks_requested',
+      'github:curiositech/port-daddy:merge_group',
+    ]);
+    expect(enqueued).toHaveLength(0);
+    expect(gateJobs).toHaveLength(1);
+    expect(gateJobs[0]).toMatchObject({
+      eventType: 'merge_group',
+      action: 'checks_requested',
+      prNumber: null,
+      installationId: 42,
+      payloadMinimal: { merge_group: { head_sha: 'MERGEGROUPSHA' } },
+    });
   });
 
   it('204 and persists NOTHING for a non-PR event (still audited as ignored)', async () => {
