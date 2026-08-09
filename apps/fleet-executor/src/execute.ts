@@ -422,8 +422,10 @@ export async function ensureRunRow(
   const repo = repoFullName ?? 'unknown/unknown';
   const prUrl = prNumber != null ? `https://github.com/${repo}/pull/${prNumber}` : '';
   try {
-    // Same column order/count as recordRunStart's INSERT (id, delivery_id,
-    // repo_full_name, pr_number, pr_url, head_sha, ships_csv, created_at) —
+    // Columns: (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha,
+    // conclusion, ships_csv, ms, created_at) — a superset of recordRunStart's
+    // INSERT: the same identity/context columns plus a placeholder 'pending'
+    // conclusion and 0 ms (recordRunComplete stamps the real values later).
     // ships_csv is empty since this is only ever the no-ships-info fallback
     // (recordRunStart already succeeded with the real list, or this is the
     // DLQ path, which never has a ship list to begin with).
