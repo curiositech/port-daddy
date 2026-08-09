@@ -378,6 +378,15 @@ export async function readBranchFiles(
  * (404, network, malformed response) collapses to null — the caller's contract
  * is "null means unknown, treat as a rejection", never "null means no file so
  * skip the check".
+ *
+ * @param owner repository owner (org or user) of the target repo
+ * @param repo repository name of the target repo
+ * @param path repo-relative POSIX path to read, e.g. `jest.config.js`
+ * @param ref the ref to read at — the PR's BASE sha, so the content is the
+ *            trusted pre-merge state rather than anything the PR proposes
+ * @param token an installation token authorised for that repo
+ * @returns the file's decoded UTF-8 text, or null for every failure and
+ *          not-a-file case (the caller must treat null as unverifiable)
  */
 export async function fetchRepoFileText(
   owner: string,
@@ -413,6 +422,14 @@ export async function fetchRepoFileText(
  * truncated listing is worse than none, because a missing path could just be
  * past the truncation boundary rather than genuinely absent, so callers must
  * treat it as unknown, not as a clean miss.
+ *
+ * @param owner repository owner (org or user) of the target repo
+ * @param repo repository name of the target repo
+ * @param sha the tree-ish to list — the PR's BASE sha, so imports are checked
+ *            against the trusted pre-merge tree
+ * @param token an installation token authorised for that repo
+ * @returns a Set of every blob/tree path at that sha, or null when the request
+ *          failed, returned no tree, or GitHub truncated the listing
  */
 export async function fetchRepoTreePaths(
   owner: string,
