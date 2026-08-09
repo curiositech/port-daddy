@@ -60,6 +60,11 @@
  *   PUT  /v1/config/issuers/:issuer_id      (operator; acceptance criterion #1)
  *   DELETE /v1/cache/jwks/:issuer_id        (operator; acceptance criterion #3)
  *   GET  /v1/audit                           (operator; acceptance criterion #4)
+ *
+ *   X6 (RFC 9745/8594): every /auth/* and /billing/* route above is ALSO
+ *   served at /v1/auth/* and /v1/billing/* (canonical). The bare forms are
+ *   deprecated aliases: same handlers, byte-identical bodies, plus
+ *   Deprecation/Sunset/Link headers and KV sightings (src/deprecations.ts).
  */
 
 import type { Env } from './types.js';
@@ -96,6 +101,13 @@ import {
 } from './fleet-observability.js';
 import { handleFleetRunPage } from './fleet-run-page.js';
 import { runRetentionSweep } from './retention-sweep.js';
+import {
+  matchDeprecation,
+  canonicalizeDeprecatedPath,
+  withDeprecationHeaders,
+  renderTombstone,
+  recordDeprecationSighting,
+} from './deprecations.js';
 import { runMercySweep, handleMercyStatus, handleMercyPage } from './mercy.js';
 import {
   runInterruptionNagSweep,
@@ -190,9 +202,18 @@ function notFound(): Response {
 }
 
 export default {
-  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
-    const { pathname, method } = { pathname: url.pathname, method: request.method };
+    // X6 (RFC 9745/8594): /auth/* and /billing/* are canonical under /v1/;
+    // the bare paths remain as deprecated aliases. Aliasing is PURE path
+    // canonicalization before routing - same handlers, byte-identical bodies -
+    // and the deprecated (bare) form additionally gets Deprecation/Sunset/Link
+    // headers plus a cheap KV sighting on the way out (never a hot-path D1
+    // write). See src/deprecations.ts.
+    const rawPathname = url.pathname;
+    const pathname = canonicalizeDeprecatedPath(rawPathname);
+    const method = request.method;
+    const deprecation = matchDeprecation(rawPathname);
 
     // CORS preflight
     if (method === 'OPTIONS') {
@@ -204,7 +225,13 @@ export default {
 
     try {
     // ── Health ──────────────────────────────────────────────────────────────
-    if (pathname === '/health' && method === 'GET') {
+    // -- X6 tombstone: a sunset surface answers a structured 410 (still
+    // decorated and sighted below) instead of dispatching to a handler. --
+    if (deprecation !== null && deprecation.tombstoned) {
+      response = renderTombstone(deprecation, rawPathname);
+    }
+
+    else if (pathname === '/health' && method === 'GET') {
       response = handleHealth(env);
     }
 
@@ -520,6 +547,12 @@ export default {
       );
     }
 
+    // X6: deprecated-alias responses carry Deprecation/Sunset/Link and record
+    // a last-seen sighting in KV (flushed to D1 by the retention sweep).
+    if (deprecation !== null) {
+      response = withDeprecationHeaders(response, deprecation, rawPathname);
+      recordDeprecationSighting(env, ctx, deprecation, request, Math.floor(Date.now() / 1000));
+    }
     return CREDENTIALED_CORS_PATHS.has(pathname) ? corsCredentialed(response) : cors(response);
   },
 
@@ -539,7 +572,7 @@ export default {
           else
             console.log(
               `[relay] retention sweep: pruned ${r.runStepsPruned} steps / ${r.runsPruned} runs / ` +
-                `${r.eventsPruned} events, reaped ${r.sessionsReaped} sessions, hard-deleted ${r.usersHardDeleted} users`,
+                `${r.eventsPruned} events, reaped ${r.sessionsReaped} sessions, hard-deleted ${r.usersHardDeleted} users, flushed ${r.sightingsFlushed} deprecation sightings`,
             );
         }),
       );

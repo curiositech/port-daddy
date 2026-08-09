@@ -743,6 +743,13 @@ jobs:
       - name: vitest (incl. hv:2 harbor-card parity fixture ⇄ core/harbor-card-rs)
         run: npx vitest run
 
+      # X6 deprecation lifecycle (RFC 9745/8594): fails from 7 days before any
+      # registered sunset until the surface is tombstoned (structured 410) or
+      # the sunset is extended by commit. Same function the vitest suite
+      # demonstrates on synthetic fixtures.
+      - name: X6 sunset gate (apps/relay/src/deprecations.json)
+        run: node scripts/check-sunsets.mjs
+
   fleetbar:
     # Build + unit-test the FleetBar Swift menu bar app. Its tests never ran in
     # CI before, so FleetPopoverTests rotted red on main unnoticed (the
