@@ -2293,6 +2293,34 @@ impl ConsoleView {
         if self.active_tab >= self.tabs.len() {
             self.active_tab = self.tabs.len() - 1;
         }
+        // The removed tab's panes are gone from every workspace at once —
+        // prune their bounds along with any panes closed within tabs.
+        self.prune_leaf_bounds();
+    }
+    /// Close the focused pane in the active tab, then drop its now-dead
+    /// `leaf_bounds` entry. `Workspace::close` is a pure mux-layer op and has
+    /// no notion of the GPUI-side per-frame bounds cache, so the caller (us)
+    /// is responsible for keeping the two in sync. Without this, a closed
+    /// pane's stale bounds linger in the map forever; `hit_test_drop` iterates
+    /// the whole map, so a stale entry can nondeterministically win a hit-test
+    /// and hand back a `DropTarget` for a pane that no longer exists — a ghost
+    /// flicker, and the resulting drop is a no-op since the target is gone.
+    fn close_focused_pane(&mut self) {
+        self.ws_mut().close();
+        self.prune_leaf_bounds();
+    }
+    /// Drop any `leaf_bounds` entries for panes that no longer exist in any
+    /// tab's live pane tree. See `close_focused_pane` for why this matters.
+    /// Cheap: only runs on pane-removing actions, never per-frame. Delegates
+    /// to `mux::retain_live_panes` — the GPUI-free module where the
+    /// retention logic is actually unit-tested.
+    fn prune_leaf_bounds(&mut self) {
+        let live: Vec<PaneId> = self
+            .tabs
+            .iter()
+            .flat_map(|t| t.workspace.leaves())
+            .collect();
+        crate::mux::retain_live_panes(&mut self.leaf_bounds.borrow_mut(), &live);
     }
     fn switch_tab(&mut self, delta: isize) {
         let n = self.tabs.len() as isize;
@@ -2472,7 +2500,7 @@ impl ConsoleView {
                 self.ws_mut().split(Dir::Col, s);
             }
             "x" => {
-                self.ws_mut().close();
+                self.close_focused_pane();
             }
             "o" | "tab" => self.ws_mut().focus_next(),
             "O" => self.ws_mut().focus_prev(),
@@ -5823,7 +5851,7 @@ fn pane_ctrl(
                 "zoom" => this.toggle_zoom(id),
                 "close" => {
                     this.ws_mut().focus(id);
-                    this.ws_mut().close();
+                    this.close_focused_pane();
                 }
                 // Mouse-driven "add a pane of a kind": focus this pane, then open
                 // the surface picker (same flow as Ctrl-A i).

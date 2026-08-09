@@ -14,6 +14,7 @@
 //! [`Workspace::focus_next`]/[`focus_prev`](Workspace::focus_prev),
 //! [`Workspace::resize`], [`Workspace::swap_surface`], [`Workspace::bind_entity`].
 
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 /// Stable per-pane identifier. Never reused within a [`Workspace`].
@@ -454,6 +455,27 @@ impl Workspace {
     }
 }
 
+/// Drop every entry in a per-pane cache whose id is no longer a live leaf.
+///
+/// The GPUI shell (`app.rs`) keeps a per-frame `leaf_bounds` cache
+/// (`PaneId` → screen `Bounds<Pixels>`) that mouse-drag hit-testing scans on
+/// every pointer move. That cache is populated by rendering, but nothing ever
+/// removed an entry when its pane closed — the tree operations here
+/// (`Workspace::close`, tab close) live in this GPUI-free module and have no
+/// reach into the GPUI-side cache. Left unpruned, a closed pane's bounds
+/// linger forever; because the hit-test iterates the whole cache, a stale
+/// entry can nondeterministically win and hand back a drop target for a pane
+/// that no longer exists — a ghost flicker, and the resulting drop is a
+/// silent no-op since the target is gone.
+///
+/// `V` is generic (the GPUI value type isn't available in this dependency-free
+/// module) so the exact retention logic used in production is exercised
+/// directly by this module's headless test suite below, not reimplemented.
+pub fn retain_live_panes<V>(cache: &mut HashMap<PaneId, V>, live_leaves: &[PaneId]) {
+    let live: HashSet<PaneId> = live_leaves.iter().copied().collect();
+    cache.retain(|id, _| live.contains(id));
+}
+
 /// The console's first-screen workspace. Deep-linked panes are user experiences,
 /// so an explicit initial surface opens as a single full workspace; the no-arg
 /// launch keeps the overview layout.
@@ -812,6 +834,59 @@ mod tests {
         let mut ws = Workspace::new(SurfaceKind::Roadmap);
         assert!(!ws.close());
         assert_eq!(ws.pane_count(), 1);
+    }
+
+    /// Regression for the review finding on PR #3140: `leaf_bounds` (the
+    /// GPUI shell's per-frame pane-bounds cache used by mouse-drag
+    /// hit-testing) must not keep a stale entry for a pane after it closes.
+    /// A stale entry can nondeterministically win `hit_test_drop`'s scan and
+    /// hand back a `DropTarget` for a pane id that no longer exists.
+    ///
+    /// This exercises the real `retain_live_panes` helper that `app.rs`'s
+    /// `ConsoleView::prune_leaf_bounds` calls after every pane-closing
+    /// action — same function, generic over the cached value type so it's
+    /// testable here without GPUI's `Bounds<Pixels>`.
+    #[test]
+    fn retain_live_panes_drops_bounds_for_a_closed_pane() {
+        let mut ws = Workspace::new(SurfaceKind::Roadmap); // id 1
+        let a1 = ws.split(Dir::Row, agent("a1")); // id 2, focused
+        let a2 = ws.split(Dir::Row, agent("a2")); // id 3, focused
+        assert_eq!(ws.leaves(), vec![1, a1, a2]);
+
+        // Simulate a render pass populating the GPUI-side bounds cache for
+        // every currently-live leaf (mirrors app.rs's per-frame insert).
+        let mut leaf_bounds: HashMap<PaneId, (f32, f32, f32, f32)> = HashMap::new();
+        for id in ws.leaves() {
+            leaf_bounds.insert(id, (0.0, 0.0, 100.0, 100.0));
+        }
+        assert_eq!(leaf_bounds.len(), 3);
+
+        // Close the focused pane (a2) — same op as the leader "x" key and the
+        // pane-corner close button, both of which now call
+        // `ConsoleView::close_focused_pane` (close + prune, in that order).
+        assert!(ws.close());
+        assert_eq!(ws.leaves(), vec![1, a1]);
+        assert!(!ws.leaves().contains(&a2), "a2 must be gone from the tree");
+
+        // Before the fix this cache entry would simply never be removed —
+        // `retain_live_panes` is the prune step that keeps it in sync.
+        retain_live_panes(&mut leaf_bounds, &ws.leaves());
+
+        assert!(
+            !leaf_bounds.contains_key(&a2),
+            "closed pane a2's bounds must be pruned from the cache"
+        );
+        assert!(leaf_bounds.contains_key(&1) && leaf_bounds.contains_key(&a1));
+        assert_eq!(leaf_bounds.len(), 2);
+
+        // The exact bug: a hit-test that (pre-fix) scanned the whole cache
+        // could still see `a2`'s bounds and resolve a drop target for a pane
+        // that doesn't exist. With the cache pruned, no live scan can ever
+        // produce that id again.
+        assert!(
+            leaf_bounds.keys().all(|id| ws.leaves().contains(id)),
+            "every remaining cache entry must correspond to a live pane"
+        );
     }
 
     #[test]
