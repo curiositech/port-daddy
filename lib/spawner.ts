@@ -304,6 +304,7 @@ interface AgentRecord extends SpawnedAgent {
    * are rejected 401 without a verified credential.
    */
   actorCredential?: string | null;
+  terminalNotified: boolean;
 }
 
 export interface ResolvedSpawnRuntime {
@@ -349,6 +350,12 @@ interface SpawnerDeps {
    * Absent → no publishing (the spawn still runs); same posture as before.
    */
   tubeClient?: TubeClientLike;
+  /** Called once after a registered agent settles into any terminal status. */
+  onTerminal?: (event: {
+    agentId: string;
+    status: SpawnResult['status'];
+    completedAt: number;
+  }) => void;
 }
 
 const ANSI_RESET = '\x1b[0m';
@@ -1577,7 +1584,33 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     telemetryBypassApproval,
     runnerOverrides = {},
     tubeClient,
+    onTerminal,
   } = deps;
+
+  /**
+   * Publish one terminal transition for a registered agent.
+   *
+   * Design: kill and backend completion can race through separate paths. The
+   * record-local latch makes the callback exactly-once while keeping callback
+   * failures from corrupting the already-settled spawn result.
+   *
+   * @param record Internal agent record after its terminal fields are written.
+   * @returns Nothing; observer failures are intentionally isolated.
+   */
+  function notifyTerminal(record: AgentRecord): void {
+    if (record.terminalNotified || record.status === 'running' || record.completedAt === null) return;
+    record.terminalNotified = true;
+    try {
+      onTerminal?.({
+        agentId: record.agentId,
+        status: record.status,
+        completedAt: record.completedAt,
+      });
+    } catch {
+      // Lifecycle observers may clean up timers or projections, but cannot
+      // retroactively turn a terminal provider result into a spawn failure.
+    }
+  }
 
   // ── Transcript helpers ──────────────────────────────────────────────────
   // Fail-loud under enforcement (the daemon's posture): if recording throws,
@@ -2164,6 +2197,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       childProcess: null,
       bondId,
       bondUsd,
+      terminalNotified: false,
     };
     agents.set(agentId, record);
 
@@ -2529,6 +2563,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       });
     }
 
+    notifyTerminal(record);
+
     return {
       agentId,
       name: displayName,
@@ -2578,7 +2614,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
    */
   function kill(agentId: string): void {
     const record = agents.get(agentId);
-    if (!record) return;
+    // A delayed supervisor callback is allowed to arrive after normal
+    // completion. Terminal records are immutable: never rewrite them as killed,
+    // re-finalize their transcript, or slash a bond a second time.
+    if (!record || record.status !== 'running') return;
 
     // Clean up heartbeat
     if (record.heartbeatInterval) {
@@ -2597,6 +2636,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     record.status = 'killed';
     record.completedAt = Date.now();
+    notifyTerminal(record);
     counters?.bump('spawn.killed', metricDims(record.backend, record.model, record.identity));
 
     // Kill is an intervention, not a clean exit — slash the bond so the

@@ -83,7 +83,13 @@ export function createBudgetPause(deps: PauseDeps) {
 
   function scheduleExpiry(record: PendingKill): NodeJS.Timeout {
     const delay = Math.max(0, record.expiresAt - Date.now());
-    const timer = setTimeout(() => {
+    let timer: NodeJS.Timeout;
+    timer = setTimeout(() => {
+      // A cancelled or extended entry may share this agent id with a stale
+      // callback already queued by the event loop. Only the timer currently
+      // stored in the map owns the transition to expired.
+      const current = pending.get(record.agentId);
+      if (!current || current.timer !== timer) return;
       pending.delete(record.agentId);
       emit('budget:resolved', {
         action: 'expired',
@@ -96,6 +102,33 @@ export function createBudgetPause(deps: PauseDeps) {
     // Don't keep the event loop alive just for a pending-kill timer.
     timer.unref?.();
     return timer;
+  }
+
+  /**
+   * Cancel a pending kill after the target run reaches a terminal state.
+   *
+   * Purpose: provider telemetry can arm the grace timer during final result
+   * accounting. The run may then settle normally before that timer expires;
+   * retaining it would later target an already-completed agent. Cancellation
+   * is deliberately idempotent so completion, explicit kill, and shutdown
+   * races can all call it safely.
+   *
+   * @param agentId Spawned agent whose pending timer should be disarmed.
+   * @param reason Auditable terminal reason included in the resolution event.
+   * @returns True only when this call removed a live pending timer.
+   */
+  function cancel(agentId: string, reason = 'agent-terminal'): boolean {
+    const entry = pending.get(agentId);
+    if (!entry) return false;
+    clearTimeout(entry.timer);
+    pending.delete(agentId);
+    emit('budget:resolved', {
+      action: 'cancelled',
+      agentId,
+      project: entry.record.project,
+      reason,
+    });
+    return true;
   }
 
   /**
@@ -221,7 +254,7 @@ export function createBudgetPause(deps: PauseDeps) {
     pending.clear();
   }
 
-  return { arm, list, get, resolve, shutdown, graceMs, maxExtensions };
+  return { arm, cancel, list, get, resolve, shutdown, graceMs, maxExtensions };
 }
 
 export type BudgetPause = ReturnType<typeof createBudgetPause>;

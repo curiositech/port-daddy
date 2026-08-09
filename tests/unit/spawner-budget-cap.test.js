@@ -91,9 +91,11 @@ describe('spawner hard budget cap edges', () => {
   });
 
   test('exact cost equal to budgetUsd remains completed and readable', async () => {
+    const onTerminal = jest.fn();
     const spawner = createSpawner({
       transcripts,
       costTracker: exactCostTracker(0.05),
+      onTerminal,
       enforceTelemetryPolicy: true,
       enforceTranscriptPolicy: true,
       runnerOverrides: {
@@ -118,6 +120,16 @@ describe('spawner hard budget cap edges', () => {
     expect(result.status).toBe('completed');
     expect(result.error).toBeNull();
     expect(result.telemetry.costUsd).toBeCloseTo(0.05);
+    expect(onTerminal).toHaveBeenCalledTimes(1);
+    expect(onTerminal).toHaveBeenCalledWith(expect.objectContaining({
+      agentId: result.agentId,
+      status: 'completed',
+    }));
+
+    // A stale delayed budget callback cannot rewrite terminal truth.
+    spawner.kill(result.agentId);
+    expect(spawner.list().find((agent) => agent.agentId === result.agentId)?.status).toBe('completed');
+    expect(onTerminal).toHaveBeenCalledTimes(1);
 
     const [row] = transcripts.listTranscripts({ ship: 'budget-exact' });
     expect(row.status).toBe('completed');
