@@ -10,7 +10,7 @@
 CREATE TABLE IF NOT EXISTS identities (
   daemon_fingerprint TEXT    PRIMARY KEY,
   pub_key            TEXT    NOT NULL,
-  proof_method       TEXT    NOT NULL CHECK (proof_method IN ('oidc','acme','wot')),
+  proof_method       TEXT    NOT NULL CHECK (proof_method IN ('oidc','acme','wot','operator-provisioned')),
   proof_metadata     TEXT    NOT NULL,
   expires_at         INTEGER,
   revoked            INTEGER NOT NULL DEFAULT 0,

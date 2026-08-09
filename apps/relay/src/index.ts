@@ -15,6 +15,9 @@
  *   POST /v1/fleet/optimize-prompt            (operator; rewrite a ship prompt)
  *   POST /v1/fleet/save                       (operator; commit to new branch + PR)
  *   POST /v1/fleet/pause                       (operator; toggle fleet kill switch)
+ *   POST /v1/fleet/executor-identity           (operator; provision the fleet
+ *                                               executor's Ed25519 identity +
+ *                                               hv:2 card; plan N2)
  *   GET  /v1/fleet/activity                    (operator; recent fleet runs)
  *   GET  /v1/fleet/health                      (operator; paused flag + last-run age)
  *   GET  /v1/fleet/runs/:id                    (operator; one run + transcript)
@@ -79,6 +82,7 @@ import {
   handleAudit,
 } from './handlers.js';
 import { handleGithubWebhook } from './github-webhook.js';
+import { handleProvisionFleetExecutor } from './fleet-executor-identity.js';
 import { handleSessionIntelIngest, handleSessionIntelPending } from './session-intel.js';
 import {
   handleFleetConfig,
@@ -249,6 +253,12 @@ export default {
     }
     else if (pathname === '/v1/fleet/save' && method === 'POST') {
       response = await handleFleetSave(request, env);
+    }
+    // Fleet-executor identity provisioning (operator; plan N2). The ONLY way
+    // an executor identity or card comes to exist — there is deliberately no
+    // bearer-token publish ingest anywhere in this router.
+    else if (pathname === '/v1/fleet/executor-identity' && method === 'POST') {
+      response = await handleProvisionFleetExecutor(request, env);
     }
 
     // ── Session Intelligence cloud-mining ingest (operator-gated) ────────────
