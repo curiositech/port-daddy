@@ -7,7 +7,7 @@
  * `renderPrTemplate` directly and feeds them realistic view models, so a
  * captured PNG is a picture of production markup — not a mockup.
  *
- * Three states:
+ * Four states:
  *   - shipwright-main.html      installations present → the Open-PR deck
  *     template ships in the page. Because the deck lives in a <template>
  *     (client JS clones it into validated panels), the main capture also
@@ -16,6 +16,10 @@
  *   - shipwright-degraded.html  installation list unknown + a github_error
  *     notice — the honest-degradation state.
  *   - shipwright-empty.html     zero installations — the install-the-app teach.
+ *   - shipwright-capped.html    the spend-cap refusal (chat-spend-caps): the
+ *     honesty strip stating the daily budget, plus the in-chat refusal the
+ *     client renders from the 429 body — the message text is the production
+ *     spendCapNotice() string, wrapped in the page's own error-message markup.
  *
  * Run with: npx vite-node scripts/render-shipwright-page.mts
  * Output:   .artifacts/shipwright-*.html
@@ -23,6 +27,7 @@
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { renderShipwrightPage, renderPrTemplate } from '../src/shipwright-page.js';
+import { spendCapNotice, SHIPWRIGHT_DAILY_MESSAGES_DEFAULT } from '../src/shipwright.js';
 import type { UserRow } from '../src/db.js';
 
 const OUT = new URL('../.artifacts/', import.meta.url).pathname;
@@ -80,4 +85,27 @@ writeFileSync(
   renderShipwrightPage(operator, NONCE, { installations: [], notice: null }),
 );
 
-console.log(`rendered 3 shipwright states into ${OUT}`);
+// Capped: the spend-cap refusal (chat-spend-caps). The honesty strip carries
+// the stated budget; the chat log shows the exchange as the client renders it
+// — the user's attempted turn, then the refusal built from the PRODUCTION
+// spendCapNotice() copy in the page's own msg-error markup (the client feeds
+// the 429 body's `error` string to the same addMsg('error', …) path).
+const capped = renderShipwrightPage(operator, NONCE, {
+  installations,
+  notice: null,
+  dailyMessages: SHIPWRIGHT_DAILY_MESSAGES_DEFAULT,
+});
+const cappedLog = [
+  '<main class="chat"><div class="log">',
+  '<div class="msg msg-user"><span class="who">You</span>',
+  '<p>Add one more reviewer ship to the roster?</p></div>',
+  '<div class="msg msg-ship msg-error"><span class="who">Trouble</span>',
+  `<p>${spendCapNotice(3 * 3600)}</p></div>`,
+  '</div></main>',
+].join('\n');
+writeFileSync(
+  `${OUT}shipwright-capped.html`,
+  capped.replace('<script nonce=', cappedLog + '\n<script nonce='),
+);
+
+console.log(`rendered 4 shipwright states into ${OUT}`);

@@ -31,6 +31,11 @@ const ERASURE_HARD_DELETE_DAYS = 30;
 // states this retention to the user (no silent unbounded growth; ground
 // truth #7's incident class).
 export const SHIPWRIGHT_RETENTION_DAYS = 30;
+// Spend-cap counter rows (chat-spend-caps) are dead the moment their UTC day
+// ends — the chat route only ever reads the CURRENT day's row. A short grace
+// window keeps very-recent rows around for debugging a cap dispute, then the
+// sweep prunes them so the table stays O(active users), not O(history).
+export const SHIPWRIGHT_SPEND_RETENTION_DAYS = 7;
 
 export interface SweepResult {
   now: number;
@@ -41,6 +46,7 @@ export interface SweepResult {
   sessionsReaped: number;
   usersHardDeleted: number;
   shipwrightChatsPruned: number;
+  shipwrightSpendPruned: number;
   errors: string[];
 }
 
@@ -111,6 +117,16 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     'shipwright_chats',
   );
 
+  // R1c — spend-cap counters (chat-spend-caps): only the current UTC day's
+  // row is ever read, so anything past a short grace horizon is pure growth.
+  const shipwrightSpendPruned = await deleteOlderThan(
+    env.DB,
+    'DELETE FROM shipwright_spend WHERE window_start < ?',
+    now - SHIPWRIGHT_SPEND_RETENTION_DAYS * DAY_SECONDS,
+    errors,
+    'shipwright_spend',
+  );
+
   // R2 — reap expired web sessions (bounded growth; not a security fix).
   const sessionsReaped = await deleteOlderThan(
     env.DB,
@@ -140,6 +156,13 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     errors,
     'shipwright_chats(erased)',
   );
+  await deleteOlderThan(
+    env.DB,
+    'DELETE FROM shipwright_spend WHERE user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)',
+    erasureHorizon,
+    errors,
+    'shipwright_spend(erased)',
+  );
   const usersHardDeleted = await deleteOlderThan(
     env.DB,
     'DELETE FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?',
@@ -157,6 +180,7 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     sessionsReaped,
     usersHardDeleted,
     shipwrightChatsPruned,
+    shipwrightSpendPruned,
     errors,
   };
 }
