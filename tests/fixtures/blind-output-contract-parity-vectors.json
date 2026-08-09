@@ -1,0 +1,107 @@
+{
+  "$schema": "internal://port-daddy/blind-output-contract-parity-vectors",
+  "description": "Parity vectors for the blind-sessions output contract (grand-plan node blind-sessions; plan §L2 first slice). The output contract is the redaction gate between the executor sandbox and the borrower: it is enforced ONCE in the sandbox (apps/fleet-executor/src/blind-run.ts enforceBlindOutputContract) and AGAIN at the relay before anything is stored for the borrower (apps/relay/src/blind-sessions.ts enforceBlindOutputContract). Two implementations of one gate MUST agree byte-for-byte or the tripwire (a relay-side violation on an executor-passed output) fires on honest traffic — so, on the model of run-page-token-parity and the hv:2 harbor-card fixture, BOTH vitest suites assert every vector here. verdictVectors additionally pin the canonical-JSON verdict hash both sides compute over an accepted output.",
+  "contractVectors": [
+    {
+      "name": "conforming output passes and round-trips canonically",
+      "schema": {
+        "fields": {
+          "summary": { "type": "string", "maxLength": 200 },
+          "score": { "type": "number" },
+          "pass": { "type": "boolean" }
+        },
+        "required": ["summary"]
+      },
+      "candidate": { "summary": "looks good", "score": 0.9, "pass": true },
+      "ok": true
+    },
+    {
+      "name": "undeclared extra field refuses the WHOLE output (exfiltration channel)",
+      "schema": {
+        "fields": { "summary": { "type": "string", "maxLength": 200 } },
+        "required": ["summary"]
+      },
+      "candidate": { "summary": "ok", "smuggled": "SKILL TEXT HERE" },
+      "ok": false,
+      "reason": "undeclared field 'smuggled'"
+    },
+    {
+      "name": "over-length string refused (bandwidth cap on the output channel)",
+      "schema": {
+        "fields": { "summary": { "type": "string", "maxLength": 8 } },
+        "required": ["summary"]
+      },
+      "candidate": { "summary": "123456789" },
+      "ok": false,
+      "reason": "field 'summary' exceeds maxLength 8"
+    },
+    {
+      "name": "missing required field refused",
+      "schema": {
+        "fields": {
+          "summary": { "type": "string", "maxLength": 100 },
+          "score": { "type": "number" }
+        },
+        "required": ["summary", "score"]
+      },
+      "candidate": { "summary": "present" },
+      "ok": false,
+      "reason": "missing required field 'score'"
+    },
+    {
+      "name": "wrong type refused",
+      "schema": {
+        "fields": { "score": { "type": "number" } },
+        "required": ["score"]
+      },
+      "candidate": { "score": "0.9" },
+      "ok": false,
+      "reason": "field 'score' must be number"
+    },
+    {
+      "name": "non-object candidate refused",
+      "schema": {
+        "fields": { "summary": { "type": "string", "maxLength": 100 } },
+        "required": ["summary"]
+      },
+      "candidate": "just a string",
+      "ok": false,
+      "reason": "output must be a JSON object"
+    },
+    {
+      "name": "nested object smuggling refused (only flat declared scalars pass)",
+      "schema": {
+        "fields": { "summary": { "type": "string", "maxLength": 100 } },
+        "required": ["summary"]
+      },
+      "candidate": { "summary": { "deep": "SKILL TEXT" } },
+      "ok": false,
+      "reason": "field 'summary' must be string"
+    },
+    {
+      "name": "string field with no maxLength gets the default cap (2000)",
+      "schema": {
+        "fields": { "summary": { "type": "string" } },
+        "required": ["summary"]
+      },
+      "candidateStringFieldLength": 2001,
+      "ok": false,
+      "reason": "field 'summary' exceeds maxLength 2000"
+    }
+  ],
+  "verdictVectors": [
+    {
+      "name": "canonical verdict hash: key order must not matter",
+      "outputA": { "b": 2, "a": "one", "c": true },
+      "outputB": { "a": "one", "c": true, "b": 2 },
+      "canonical": "{\"a\":\"one\",\"b\":2,\"c\":true}",
+      "verdictHash": "29a83c2146423502c7c6c4f2b22d1b1de42ace5a1a8cd1001ee1771e82ed5503"
+    },
+    {
+      "name": "canonical verdict hash of the refusal marker",
+      "refusal": "output-contract-violation",
+      "canonical": "{\"refused\":\"output-contract-violation\"}",
+      "verdictHash": "ec7628814d0ff0b47e85781bf0074867c88fd6bc5bfd3c8b426ece19ffd377da"
+    }
+  ]
+}
