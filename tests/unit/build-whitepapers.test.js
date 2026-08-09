@@ -72,4 +72,12 @@ describe('reproducible whitepaper source scoping', () => {
     expect(script).toContain('BUILD_DIR="$REPO_ROOT/.cache/whitepaper-build"');
     expect(script).not.toContain('mktemp -d');
   });
+
+  test('builder fails clearly when neither TeX driver is installed', () => {
+    const script = readFileSync(buildScript, 'utf8');
+
+    expect(script).toContain('if ! command -v pdflatex >/dev/null 2>&1; then');
+    expect(script).toContain('error: whitepaper build requires latexmk or pdflatex');
+    expect(script).toContain('exit 127');
+  });
 });
