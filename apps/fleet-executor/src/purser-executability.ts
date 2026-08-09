@@ -43,6 +43,7 @@ export const JEST_CONFIG_CANDIDATES: readonly string[] = [
  * executor would be a code-execution surface this module exists to avoid, not
  * add — a purely textual scan is the safer tool for the job.
  *
+ * @param source raw text of a `jest.config.*` file, read from the PR's base ref
  * @returns Every glob string found across all `testMatch` occurrences, or null
  *          when the source contains none (caller must treat null as "cannot
  *          verify", not as "no restriction").
@@ -60,7 +61,24 @@ export function extractJestTestMatch(source: string): string[] | null {
   return patterns.length > 0 ? patterns : null;
 }
 
-/** Pull `.jest.testMatch` out of a package.json source, if present. */
+/**
+ * Pull `.jest.testMatch` out of a package.json source, if present.
+ *
+ * The purpose is coverage of the second place a repo can declare test
+ * discovery: plenty of projects carry no `jest.config.*` at all and configure
+ * jest inline under the `jest` key of package.json. Reading only the config
+ * file would make those repos look like "discovery configuration unknown",
+ * which this gate treats as a rejection — correct as a fail-closed default, but
+ * needlessly so when the answer is sitting in package.json. Parsing is strict
+ * JSON (never `eval`) for the same reason the config scan is textual: the
+ * executor must never execute repo-authored code.
+ *
+ * @param source raw text of a `package.json` from the PR's base ref
+ * @returns the declared `jest.testMatch` globs, or null when the source is not
+ *          valid JSON, has no `jest.testMatch` array, or that array holds no
+ *          strings — all of which the caller must read as "unknown", never as
+ *          "unrestricted"
+ */
 export function extractPackageJsonTestMatch(source: string): string[] | null {
   let doc: unknown;
   try {
@@ -82,6 +100,10 @@ export function extractPackageJsonTestMatch(source: string): string[] | null {
  * throwing — a glob it cannot fully parse still narrows correctly on the parts
  * it does understand, which is enough for a rejection check (never a silent
  * pass on an unparseable pattern, since every OTHER pattern is still checked).
+ *
+ * @param glob one jest `testMatch` entry, optionally `<rootDir>/`-prefixed
+ * @returns an anchored RegExp that a repo-relative POSIX path can be tested
+ *          against
  */
 export function globToRegExp(glob: string): RegExp {
   const stripped = glob.replace(/^<rootDir>\/?/, '');
@@ -116,6 +138,21 @@ export function globToRegExp(glob: string): RegExp {
   return new RegExp(out);
 }
 
+/**
+ * Would ANY of the repo's declared `testMatch` globs discover this path?
+ *
+ * The design intent is that discovery is a disjunction, not a conjunction: jest
+ * runs a file if it matches at least one pattern, so a gate that demanded every
+ * pattern match would reject files the runner would happily execute. Multi-
+ * project configs (this repo's own shape) make that concrete — one project
+ * claims `tests/unit/**`, another `tests/integration/**`, and a legitimate file
+ * matches exactly one of them.
+ *
+ * @param path repo-relative POSIX path of an authored test file
+ * @param patterns every `testMatch` glob gathered from the repo's real config
+ * @returns true when at least one pattern matches, i.e. the real runner would
+ *          find the file
+ */
 export function matchesAnyTestMatch(path: string, patterns: string[]): boolean {
   return patterns.some(p => globToRegExp(p).test(path));
 }
@@ -125,6 +162,10 @@ export function matchesAnyTestMatch(path: string, patterns: string[]): boolean {
  * file's source — the ONLY imports this module verifies. Bare specifiers
  * (`from 'vitest'`) are package imports; resolving those would mean walking
  * node_modules, which is not this gate's job and is not what broke #5860.
+ *
+ * @param source the authored test file's contents
+ * @returns the de-duplicated relative specifiers exactly as written (e.g.
+ *          `'../support'`), in first-seen order
  */
 export function extractRelativeImports(source: string): string[] {
   const specs = new Set<string>();
@@ -140,7 +181,20 @@ export function extractRelativeImports(source: string): string[] {
   return [...specs];
 }
 
-/** POSIX-join a relative specifier against the directory of the importing file. */
+/**
+ * POSIX-join a relative specifier against the directory of the importing file.
+ *
+ * Hand-rolled rather than `node:path` on purpose: this module runs inside a
+ * Cloudflare Worker, where the repo tree is a set of forward-slash strings from
+ * the GitHub trees API and never a real filesystem. Normalising `.`/`..` here
+ * keeps the resolver platform-agnostic and keeps the comparison against those
+ * API strings exact.
+ *
+ * @param fromPath repo-relative POSIX path of the importing file
+ * @param spec a relative specifier from that file, e.g. `../support`
+ * @returns the normalised repo-relative path the specifier points at, with no
+ *          extension appended
+ */
 function joinRelative(fromPath: string, spec: string): string {
   const fromDir = fromPath.includes('/') ? fromPath.slice(0, fromPath.lastIndexOf('/')) : '';
   const segments = `${fromDir}/${spec}`.split('/');
@@ -167,7 +221,22 @@ const RESOLVE_SUFFIXES = [
   '/index.jsx',
 ];
 
-/** Every path this specifier could plausibly resolve to, from the importer. */
+/**
+ * Every path this specifier could plausibly resolve to, from the importer.
+ *
+ * The rationale for enumerating candidates instead of resolving precisely is
+ * that the executor has no module resolver — only a flat set of repo paths. So
+ * the gate asks the weaker, safer question: does ANY plausible resolution of
+ * this specifier exist in the tree? That biases toward accepting an import that
+ * really is there under some extension, and only rejects when nothing by any
+ * spelling exists, which is the #5860 failure (`../support` matched nothing at
+ * all).
+ *
+ * @param fromPath repo-relative POSIX path of the importing file
+ * @param spec the relative specifier written in that file
+ * @returns candidate repo-relative paths — the bare join plus each supported
+ *          extension and `index.*` form — to be tested for existence
+ */
 export function resolveImportCandidates(fromPath: string, spec: string): string[] {
   const joined = joinRelative(fromPath, spec);
   return RESOLVE_SUFFIXES.map(suf => `${joined}${suf}`);
@@ -185,6 +254,14 @@ export interface ExecutabilityEvidence {
  * would discover them, and do their relative imports resolve to something
  * real? FAILS CLOSED on missing evidence — a jest config or tree the executor
  * could not fetch/parse is a REJECTION, never a silent pass.
+ *
+ * @param files the authored test files, path + contents, as they would be
+ *              committed
+ * @param evidence the target repo's OWN discovery config and file tree at the
+ *                 PR's base sha; either field being null means "unverifiable"
+ * @returns `{ ok: true }` only when every file is discoverable AND every
+ *          relative import resolves; otherwise `{ ok: false, reason }` with an
+ *          operator-readable reason naming the offending path
  */
 export function checkGeneratedTestsExecutable(
   files: StackedFile[],
