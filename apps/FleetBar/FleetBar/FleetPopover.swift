@@ -38,6 +38,7 @@ struct FleetPopover: View {
     @ObservedObject var costStore: CostStore
     @ObservedObject var secretsStore: SecretsStore
     @ObservedObject var backendStore: BackendStore
+    @ObservedObject var interruptionsStore: InterruptionsStore
     @StateObject private var budgetStore = BudgetPauseStore()
     @StateObject private var approvalStore = SpawnApprovalStore()
     @StateObject private var berthStore = BerthStore()
@@ -46,11 +47,18 @@ struct FleetPopover: View {
     @State private var appeared = false
     @State private var showingSettings = false
 
-    init(store: FleetStore, costStore: CostStore, secretsStore: SecretsStore = SecretsStore(autoStart: false), backendStore: BackendStore = BackendStore()) {
+    init(
+        store: FleetStore,
+        costStore: CostStore,
+        secretsStore: SecretsStore = SecretsStore(autoStart: false),
+        backendStore: BackendStore = BackendStore(),
+        interruptionsStore: InterruptionsStore = InterruptionsStore(autoStart: false)
+    ) {
         self.store = store
         self.costStore = costStore
         self.secretsStore = secretsStore
         self.backendStore = backendStore
+        self.interruptionsStore = interruptionsStore
     }
 
     private var recentAgentHighlights: [RecentAgentHighlight] {
@@ -98,6 +106,7 @@ struct FleetPopover: View {
             withAnimation(.smooth(duration: 0.4)) { appeared = true }
             budgetStore.start()
             approvalStore.start()
+            Task { await interruptionsStore.refresh() }
         }
         .onDisappear {
             budgetStore.stop()
@@ -108,9 +117,20 @@ struct FleetPopover: View {
     @ViewBuilder
     private var popoverContent: some View {
         VStack(spacing: 0) {
-            // HITL first: spawns held by the trust gate lead everything else
-            // in the dropdown (ADR-0093 — a pending human gate is unmissable).
-            SpawnApprovalSection(store: approvalStore)
+            // HITL first: operator interruptions (docs/hitl-interruptions.md §4)
+            // and spawns held by the trust gate lead everything else in the
+            // dropdown — a pending human gate is unmissable.
+            InterruptionsSection(store: interruptionsStore)
+            Divider().opacity(0.5)
+            SpawnApprovalSection(
+                store: approvalStore,
+                criticalBlockTitle: interruptionsStore.criticalSpawnBlockTitle,
+                openAnswerPage: {
+                    if let url = interruptionsStore.answerPageURL {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+            )
             if store.versionSkew.needsAttention {
                 versionSkewBanner(store.versionSkew)
                 Divider().opacity(0.5)
@@ -1017,6 +1037,7 @@ struct FleetPopover: View {
             ForEach(Array(store.projects.enumerated()), id: \.element.id) { index, project in
                 ProjectSection(
                     project: project,
+                    spawnBlockTitle: interruptionsStore.criticalSpawnBlockTitle,
                     isExpanded: store.expandedProjects.contains(project.id),
                     onToggle: { withAnimation(Fleet.Motion.expandSpring) { store.toggleProject(project.id) } },
                     onOpenProject: {
@@ -1182,6 +1203,8 @@ private struct ConsoleMetric: View {
 
 struct ProjectSection: View {
     let project: FleetProject
+    /// Title of the open critical operator ask blocking new agent work, or nil.
+    var spawnBlockTitle: String? = nil
     let isExpanded: Bool
     let onToggle: () -> Void
     let onOpenProject: () -> Void
@@ -1283,6 +1306,7 @@ struct ProjectSection: View {
                     ForEach(Array(orderedAgents.enumerated()), id: \.element.id) { index, agent in
                         AgentRow(
                             agent: agent,
+                            spawnBlockTitle: spawnBlockTitle,
                             onInspect: { onInspectAgent(agent.name) },
                             onRunAgent: { onRunAgent(agent.name) },
                             onPauseToggle: { onPauseToggle(agent.name, agent.status == .paused) },
@@ -1413,6 +1437,9 @@ struct ProjectReadinessRow: View {
 
 struct AgentRow: View {
     let agent: FleetAgent
+    /// Title of the open critical operator ask blocking new agent work, or nil.
+    /// Run starts NEW work, so it is disabled while set (HITL contract §4.3).
+    var spawnBlockTitle: String? = nil
     let onInspect: () -> Void
     let onRunAgent: () -> Void
     let onPauseToggle: () -> Void
@@ -1469,7 +1496,12 @@ struct AgentRow: View {
                     Button("Run", action: onRunAgent)
                         .buttonStyle(.borderless)
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Fleet.Color.active)
+                        .foregroundStyle(spawnBlockTitle == nil ? Fleet.Color.active : Fleet.Color.dormant)
+                        .disabled(spawnBlockTitle != nil)
+                        .help(
+                            spawnBlockTitle.map { "Blocked: critical operator ask “\($0)” is open. Answer it on the web first." }
+                                ?? "Run this agent now"
+                        )
                 }
             }
             if let purpose = agent.purpose, !purpose.isEmpty {
