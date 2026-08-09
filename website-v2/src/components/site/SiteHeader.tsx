@@ -93,7 +93,11 @@ function navItemClass(
 
   return [
     displayClass,
-    "shrink-0 items-center gap-[var(--space-2)] border-2 px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] xl:px-[var(--space-3)]",
+    // Padding grows past --space-2 only once the nav is roomy again (the same
+    // 1800px threshold where Cryptography/The Big Idea rejoin the primary row)
+    // — growing it as early as xl (1280px) ate exactly the width the compact
+    // header needs to fit inline nav without colliding with the search box.
+    "shrink-0 items-center gap-[var(--space-2)] border-2 px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] min-[1800px]:px-[var(--space-3)]",
     featuredDesktop
       ? "border-[var(--border-strong)] bg-[var(--text-primary)] text-[var(--surface-base)] hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)]"
       : isActive
@@ -153,7 +157,7 @@ function OverflowNavMenu() {
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="inline-flex shrink-0 items-center gap-[var(--space-2)] border-2 border-transparent px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] xl:px-[var(--space-3)]"
+          className="inline-flex shrink-0 items-center gap-[var(--space-2)] border-2 border-transparent px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] min-[1800px]:px-[var(--space-3)]"
         >
           More
           <ChevronDown size={14} aria-hidden="true" />
@@ -195,7 +199,7 @@ function CompressedNavMenu() {
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="inline-flex shrink-0 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] 2xl:hidden"
+          className="inline-flex shrink-0 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] min-[1440px]:hidden"
           aria-label="Open site navigation"
         >
           <Menu size={18} aria-hidden="true" />
@@ -287,7 +291,7 @@ export function SiteHeader() {
 
           <nav
             aria-label="Primary"
-            className="hidden min-w-0 items-center justify-center gap-[var(--space-2)] 2xl:flex"
+            className="hidden min-w-0 items-center justify-center gap-[var(--space-2)] min-[1440px]:flex"
           >
             {PRIMARY_NAV_ITEMS.map((item) => (
               <PrimaryNavItem key={item.href} item={item} />
@@ -295,22 +299,24 @@ export function SiteHeader() {
             <OverflowNavMenu />
           </nav>
 
-          {/* Pin controls to the last column. Below 2xl the primary nav is
+          {/* Pin controls to the last column. Below 1440px the primary nav is
               display:none, so without an explicit column it auto-places into the
               empty middle track and the controls float mid-bar. */}
           <div className="flex min-w-0 items-center justify-end gap-[var(--space-2)] lg:col-start-3">
             <CompressedNavMenu />
 
             {/* min-w kept modest so the search box shrinks before it can ever
-                collide with the centered nav or the account chip. */}
-            <div className="hidden min-w-[11rem] max-w-[19rem] flex-1 shrink 2xl:block">
+                collide with the centered nav or the account chip — this floor
+                is the whole reason inline nav can start below the old 1536px
+                cutoff without the compact search box spilling into it. */}
+            <div className="hidden min-w-[7rem] max-w-[15rem] flex-1 shrink min-[1440px]:block">
               <DocsSearch variant="compact" />
             </div>
 
             <button
               type="button"
               onClick={openDocsSearch}
-              className="inline-flex border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] 2xl:hidden"
+              className="inline-flex border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] min-[1440px]:hidden"
               aria-label="Search documentation"
             >
               <Search size={16} />

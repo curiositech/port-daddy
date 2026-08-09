@@ -164,7 +164,10 @@ export interface SpawnSpec {
   // default spawn is unchanged (writes allowed, full-tier bond).
   capabilities?: string[];
   env?: Record<string, string>;
-  timeout?: number;    // ms, default 300000
+  /** Explicit caller/operator wallclock deadline in milliseconds. An omitted
+   * value leaves cli-tube agents alive until exit or cancellation; API
+   * backends retain their compatibility deadline in backendAbortSignal(). */
+  timeout?: number;
   allowedTools?: string;  // for claude-cli backend: tool permission string
   maxTokens?: number;     // for claude/claude-cli backends
   // Transcript provenance (fleet ships set these so the dashboard surfaces
