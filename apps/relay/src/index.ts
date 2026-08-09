@@ -60,10 +60,12 @@
  *   PUT  /v1/config/issuers/:issuer_id      (operator; acceptance criterion #1)
  *   DELETE /v1/cache/jwks/:issuer_id        (operator; acceptance criterion #3)
  *   GET  /v1/audit                           (operator; acceptance criterion #4)
+ *   GET  /v1/quotas/:harbor_fingerprint      (operator; X8 quota counters + shadow-vs-enforce delta)
  */
 
 import type { Env } from './types.js';
 import { HarborChannel } from './harbor-channel.js';
+import { HarborQuota } from './harbor-quota.js';
 import {
   handleHealth,
   handleHandshake,
@@ -135,6 +137,7 @@ import {
   handleStripeWebhook,
   handleBillingBalance,
   handlePortalLink,
+  handleQuotaStatus,
 } from './billing.js';
 import {
   handleCreateHarbor,
@@ -155,8 +158,9 @@ import {
   handleRespondParley,
 } from './parleys.js';
 
-// Re-export Durable Object class for wrangler to pick up
+// Re-export Durable Object classes for wrangler to pick up
 export { HarborChannel };
+export { HarborQuota };
 
 function cors(response: Response): Response {
   const headers = new Headers(response.headers);
@@ -411,6 +415,12 @@ export default {
     else if (pathname.startsWith('/billing/balance/') && method === 'GET') {
       const installationId = decodeURIComponent(pathname.slice('/billing/balance/'.length));
       response = await handleBillingBalance(request, env, installationId);
+    }
+
+    // X8 quota counters + shadow-vs-enforce delta (operator; src/billing.ts)
+    else if (pathname.startsWith('/v1/quotas/') && method === 'GET') {
+      const harborFp = decodeURIComponent(pathname.slice('/v1/quotas/'.length));
+      response = await handleQuotaStatus(request, env, harborFp, _ctx);
     }
     else if (pathname === '/billing/portal' && method === 'POST') {
       response = await handlePortalLink(request, env);
