@@ -102,8 +102,8 @@ fn live_predecessor_is_not_clobbered() {
     // Give the acceptor a moment to be ready.
     thread::sleep(Duration::from_millis(50));
 
-    let err = bind_listener(&path)
-        .expect_err("second bind over a LIVE broker must refuse, not clobber");
+    let err =
+        bind_listener(&path).expect_err("second bind over a LIVE broker must refuse, not clobber");
     assert_eq!(
         err.kind(),
         std::io::ErrorKind::AddrInUse,
@@ -183,7 +183,10 @@ fn raw_secret_never_crosses_socket_on_bad_request() {
     drop(client);
     server.join().unwrap();
 
-    assert!(buf.contains("bad-request"), "first line should be bad-request: {buf}");
+    assert!(
+        buf.contains("bad-request"),
+        "first line should be bad-request: {buf}"
+    );
     assert_eq!(second.trim_end(), "{\"type\":\"pong\"}");
     for line in [&buf, &second] {
         assert!(!line.contains(SECRET), "secret leaked over socket: {line}");
@@ -194,8 +197,8 @@ fn raw_secret_never_crosses_socket_on_bad_request() {
 /// Sanity that a too-short read returning before the newline does not parse.
 #[test]
 fn reader_blocks_until_newline_then_parses_once() {
-    use std::io::Cursor;
     use pd_broker::transport::read_one_request;
+    use std::io::Cursor;
     // Two requests back to back, no trailing newline on the buffer end — the
     // second still parses because it has its own newline.
     let mut reader = Cursor::new(b"{\"type\":\"ping\"}\n{\"type\":\"ping\"}\n".to_vec());
