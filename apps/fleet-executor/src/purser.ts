@@ -409,6 +409,12 @@ async function purserAiCall(
   user: string,
   maxTokens: number,
   metrics: PurserMetrics,
+  /**
+   * Model for THIS step, when it differs from the ship's own. Already guarded
+   * by fleet.ts against unknown ids, so an unusable pin arrives here as
+   * undefined rather than as a model that silently returns blank.
+   */
+  stepModel?: string,
 ): Promise<{ text: string; res: unknown }> {
   const request = {
     messages: [
@@ -419,7 +425,7 @@ async function purserAiCall(
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
   const res = await env.AI.run(
-    ship.cfModel as Parameters<typeof env.AI.run>[0],
+    (stepModel ?? ship.cfModel) as Parameters<typeof env.AI.run>[0],
     request,
     aiOptions(env, ship.name),
   );
@@ -769,6 +775,7 @@ export async function runPurser(
       prBlock(prCtx),
       PLAN_MAX_TOKENS,
       metrics,
+      ship.cfPlanModel,
     );
 
     // FAST PATH: a model that ignored "plan only" and returned complete files
@@ -816,6 +823,7 @@ export async function runPurser(
           prBlock(prCtx),
           TESTS_MAX_TOKENS,
           metrics,
+          ship.cfAuthorModel,
         );
         return call.text;
       });

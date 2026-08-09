@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { parseFleetShips, type ShipConfig } from '../src/fleet.js';
 import {
   extractCodeFence,
   parseTestPlan,
@@ -189,5 +190,72 @@ describe('authorTestFiles', () => {
   it('never emits a file whose body is only whitespace', async () => {
     const res = await authorTestFiles([plan[0]], async () => '```ts\n   \n```');
     expect(res.files).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Per-step model tiering.
+//
+// The purser's steps have opposite cost shapes: PLAN reads the whole diff and
+// emits a few paths (input-heavy), AUTHOR reads the same diff and emits a whole
+// file (output-heavy). One model for both is wrong in one direction whichever
+// is picked, so each step resolves its own.
+
+describe('purser step model tiering', () => {
+  const yamlFor = (extra: string) =>
+    [
+      'fleet:',
+      '  agents:',
+      '    purser:',
+      '      class: purser',
+      '      trigger: pull_request:opened',
+      ...extra.split('\n').filter(Boolean).map(l => `      ${l}`),
+    ].join('\n');
+
+  const purserFrom = (extra = '') =>
+    parseFleetShips(yamlFor(extra), 'pull_request:opened')!.find(s => s.name === 'purser')!;
+
+  // Repo convention (see cfMapModel): an absent step key means "same as cfModel".
+  // These assert the EFFECTIVE model, which is the question that matters.
+  const planOf = (s: ShipConfig) => s.cfPlanModel ?? s.cfModel;
+  const authorOf = (s: ShipConfig) => s.cfAuthorModel ?? s.cfModel;
+
+  const CHEAP = '@cf/qwen/qwen3-30b-a3b-fp8';
+  const MID = '@cf/openai/gpt-oss-20b';
+
+  it('defaults PLAN to the cheap model and AUTHOR to the mid tier', () => {
+    const ship = purserFrom();
+    expect(ship.cfModel).toBe(CHEAP);
+    expect(planOf(ship)).toBe(CHEAP);
+    expect(authorOf(ship)).toBe(MID);
+  });
+
+  it('an explicit cheap author_model pin WINS over the mid-tier default', () => {
+    // The operator opting back down to save money must not be silently upgraded.
+    expect(authorOf(purserFrom(`author_model: '${CHEAP}'`))).toBe(CHEAP);
+  });
+
+  it('accepts the camelCase spellings operators actually write', () => {
+    expect(authorOf(purserFrom(`authorModel: '${CHEAP}'`))).toBe(CHEAP);
+    expect(planOf(purserFrom(`planModel: '${MID}'`))).toBe(MID);
+  });
+
+  it('DROPS an unknown id back to the tier default rather than remapping it', () => {
+    // A nonexistent Workers AI id returns blank, not an error — the #654 outage.
+    expect(authorOf(purserFrom("author_model: '@cf/some/nonexistent'"))).toBe(MID);
+  });
+
+  it('cannot pin a step onto the review bot model', () => {
+    // gpt-oss-120b is reached by ROLE, never by pin. The bound survives the tier.
+    expect(authorOf(purserFrom("author_model: '@cf/openai/gpt-oss-120b'"))).toBe(MID);
+  });
+
+  it('non-purser ships get no step-model keys at all', () => {
+    const ships = parseFleetShips(
+      ['fleet:', '  agents:', '    qa:', '      trigger: pull_request:opened', '      prompt: check it'].join('\n'),
+      'pull_request:opened',
+    )!;
+    expect(ships[0].cfPlanModel).toBeUndefined();
+    expect(ships[0].cfAuthorModel).toBeUndefined();
   });
 });
