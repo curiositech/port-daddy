@@ -295,8 +295,8 @@ function fetchPr(owner, repo, number) {
     const info = rt.pageInfo ?? {}
     if (!info.hasNextPage) return { authorLogin, body, threads, truncated: false }
     if (!info.endCursor) {
-      // hasNextPage true but no cursor to advance → we cannot see the rest.
-      truncated = true
+      // hasNextPage true but no cursor to advance → we cannot see the rest;
+      // fall through to the truncated:true return below.
       break
     }
     cursor = info.endCursor
