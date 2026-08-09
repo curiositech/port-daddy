@@ -80,6 +80,14 @@ PARLEY_MEDIATOR = "off"
 # Workers AI model for those observations. A NON-`@cf/` value is REJECTED (the
 # committed default is used instead) — Workers AI only, never an external runner.
 PARLEY_MEDIATOR_MODEL = "@cf/meta/llama-3.1-8b-instruct"
+# X8 quotas (src/harbor-quota.ts): per-harbor daily budgets + the enforcement
+# switch. SHADOW BY DEFAULT — only the exact string "enforce" makes budget
+# exhaustion refuse (429 + Retry-After + credit-ledger pointer); "shadow"
+# counts the would-have-denied delta and refuses nothing. Flip only after the
+# shadow soak's delta (GET /v1/quotas/:fp) supports it.
+QUOTA_ENFORCE = "shadow"
+HARBOR_DAILY_EVENT_BUDGET = "100000"
+HARBOR_DAILY_BYTE_BUDGET = "268435456"
 
 [[d1_databases]]
 binding = "DB"
@@ -90,11 +98,17 @@ migrations_dir = "migrations"
 [durable_objects]
 bindings = [
   { name = "HARBOR_CHANNEL", class_name = "HarborChannel" },
+  { name = "HARBOR_QUOTA", class_name = "HarborQuota" },
 ]
 
 [[migrations]]
 tag = "v0001"
 new_classes = ["HarborChannel"]
+
+# X8 quotas: one aggregating quota DO per harbor (src/harbor-quota.ts).
+[[migrations]]
+tag = "v0002"
+new_classes = ["HarborQuota"]
 
 [[kv_namespaces]]
 # JWKS cache and pinned relay key cache
@@ -202,6 +216,10 @@ PARLEY_MEDIATOR = "off"
 # Workers AI model for those observations. A NON-`@cf/` value is REJECTED (the
 # committed default is used instead) — Workers AI only, never an external runner.
 PARLEY_MEDIATOR_MODEL = "@cf/meta/llama-3.1-8b-instruct"
+# X8 quotas — same regime as prod (shadow by default; see the prod block).
+QUOTA_ENFORCE = "shadow"
+HARBOR_DAILY_EVENT_BUDGET = "100000"
+HARBOR_DAILY_BYTE_BUDGET = "268435456"
 
 [[env.latest.d1_databases]]
 binding = "DB"
@@ -212,11 +230,13 @@ database_name = "port-daddy-relay-staging"
 database_id = "2239f238-c5f1-423a-ba62-448a4c4d8f59"
 migrations_dir = "migrations"
 
-# Same DO class as prod; environments get their OWN namespace instance, so
-# relay-latest's HarborChannel state is fully isolated from prod's.
+# Same DO classes as prod; environments get their OWN namespace instances, so
+# relay-latest's HarborChannel/HarborQuota state is fully isolated from prod's.
+# ([[migrations]] are top-level and shared — v0002 registers HarborQuota.)
 [env.latest.durable_objects]
 bindings = [
   { name = "HARBOR_CHANNEL", class_name = "HarborChannel" },
+  { name = "HARBOR_QUOTA", class_name = "HarborQuota" },
 ]
 
 [[env.latest.kv_namespaces]]

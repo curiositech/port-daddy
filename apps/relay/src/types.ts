@@ -85,6 +85,21 @@ export interface Env {
   JWKS_FAIL_SOFT_SECONDS: string;
   REVOCATION_BROADCAST_TIMEOUT_MS: string;
   RATE_LIMIT_WINDOW_MS: string;
+  // X8 quotas (src/harbor-quota.ts). The aggregating per-harbor quota DO.
+  // Optional so the relay still type-checks/deploys before the binding is
+  // provisioned; while absent, the publish path falls back to the legacy
+  // HarborChannel in-memory rate limiter (rate limiting never fails open).
+  HARBOR_QUOTA?: DurableObjectNamespace;
+  // Per-harbor daily budgets, as decimal strings (vars, not secrets). Unset
+  // or unparsable values fall back to the committed defaults in
+  // harbor-quota.ts — never to "unlimited".
+  HARBOR_DAILY_EVENT_BUDGET?: string;
+  HARBOR_DAILY_BYTE_BUDGET?: string;
+  // X8 enforcement switch. ONLY the exact string 'enforce' turns budget
+  // refusal on; anything else (including unset) is SHADOW mode: over-budget
+  // traffic passes and the would-have-denied delta is recorded. The flip is
+  // a deliberate, data-backed config change — see resolveQuotaSettings.
+  QUOTA_ENFORCE?: string;
 }
 
 /**
