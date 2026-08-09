@@ -404,6 +404,100 @@ export async function fetchOpenPullRequests(
   }
 }
 
+/** One open PR with the fields the MEDIATOR needs (src/mediator.ts). */
+export interface OpenPRDetailed {
+  number: number;
+  title: string;
+  /** PR author's GitHub login (claim identity for the conflict parley). */
+  author: string;
+  /** unix seconds — decides CLAIM order (earlier-created = first claimant). */
+  createdAt: number;
+  /** unix seconds — the recency the pair cap prioritizes by. */
+  updatedAt: number;
+  /** Head SHA the neutral check run posts against. */
+  headSha: string;
+  draft: boolean;
+}
+
+/**
+ * List the repo's open PRs WITH author/timestamps/head — the mediator's view.
+ *
+ * Separate from {@link fetchOpenPullRequests} (Lookout's slimmer shape) on
+ * purpose: Lookout's callers and prompt renderer depend on the exact OpenPR
+ * shape, and widening it for the mediator would couple two features that
+ * merely share an endpoint. Sorted by GitHub `updated desc`, which IS the
+ * recency prioritization the pair cap consumes — the first N entries are the
+ * N most recently active PRs. Best-effort: [] on any failure.
+ */
+export async function fetchOpenPullRequestsDetailed(
+  owner: string,
+  repo: string,
+  token: string,
+  limit = 100,
+): Promise<OpenPRDetailed[]> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls?state=open&per_page=${Math.min(limit, 100)}&sort=updated&direction=desc`,
+      { headers: ghHeaders(token) },
+    );
+    if (!res.ok) return [];
+    const body = (await res.json()) as Array<{
+      number: number;
+      title: string;
+      draft?: boolean;
+      user?: { login?: string };
+      created_at?: string;
+      updated_at?: string;
+      head?: { sha?: string };
+    }>;
+    const toUnix = (s: string | undefined): number => {
+      const ms = s ? Date.parse(s) : NaN;
+      return Number.isFinite(ms) ? Math.floor(ms / 1000) : 0;
+    };
+    return body.map((p) => ({
+      number: p.number,
+      title: p.title ?? '',
+      author: p.user?.login ?? '',
+      createdAt: toUnix(p.created_at),
+      updatedAt: toUnix(p.updated_at),
+      headSha: p.head?.sha ?? '',
+      draft: p.draft === true,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetch one PR's changed files WITH patches — the mediator's symbol source.
+ *
+ * One page only ({@link PR_FILES_PAGE_SIZE}), same truncation stance as the
+ * main PR-context fetch: a 100+-file PR yields a PARTIAL symbol set, which
+ * can only produce FEWER predicted collisions, never invented ones — the
+ * conservative direction for a feature that convenes people. Best-effort:
+ * [] on any failure.
+ */
+export async function fetchPRFilePatches(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  token: string,
+): Promise<Array<{ filename: string; patch?: string }>> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=${PR_FILES_PAGE_SIZE}`,
+      { headers: ghHeaders(token) },
+    );
+    if (!res.ok) return [];
+    const body = (await res.json()) as Array<{ filename?: string; patch?: string }>;
+    return body
+      .filter((f): f is { filename: string; patch?: string } => typeof f.filename === 'string')
+      .map((f) => (f.patch === undefined ? { filename: f.filename } : { filename: f.filename, patch: f.patch }));
+  } catch {
+    return [];
+  }
+}
+
 /**
  * List recently-updated branches (feature branches + worktree branches). Lookout
  * uses this to notice work-in-flight that isn't a PR yet. Best-effort: [] on

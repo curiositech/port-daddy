@@ -44,16 +44,28 @@
  *    → 401, insufficient role → 403, bad shapes → 400, closed/duplicate →
  *    409); D1 throws bubble to index.ts's controlled INTERNAL_ERROR envelope.
  *
+ * SHIPPED since v1 (grand-plan node mediator-body — see src/mediator-body.ts
+ * for the executor-facing half, and apps/fleet-executor/src/mediator.ts for
+ * the prediction engine):
+ *  - agent-first summonses with delivery acknowledgment riding the hash
+ *    chain (D11: only a daemon refuse/escalate — or the absence of any
+ *    declared daemon — wakes the human), recorded in parley_summonses;
+ *  - the human Approve/Modify/Reject gate before IRREVERSIBLE actions only
+ *    (merge/revert/force-push), rendered on src/parleys-page.ts, with
+ *    Modify's free text re-injected into the losing agent's re-execution;
+ *  - Helm-configured default outcomes on expiry: 'first-proceeds' records
+ *    first-claimant-proceeds/second-rebases in outcome_json on lapse
+ *    ({@link lapseOneExpiredParley}); plain 'lapse' stays the default;
+ *  - symbol-level conflict prediction, neutral check runs, auto-convening
+ *    at ≥0.7 confidence (one open parley per PR pair), all behind the
+ *    `kill-mediator` flag (fleet:kill-mediator KV; POST /v1/fleet/mediator).
+ *
  * Deferred from the plan (v2+), marked honestly:
- *  - turns on `parley:<id>` channels, agent-first summons + daemon
- *    refuse/escalate (D11), and delivery-acknowledged summonses;
- *  - the human gate (Approve/Modify/Reject with Modify re-injection) before
- *    irreversible actions, and Helm-configured default outcomes on expiry
- *    (v1 expiry is a plain lapse — the artifact records that no agreement
- *    was reached);
- *  - the REST of the mediator's body: symbol-level conflict prediction,
- *    neutral check runs, auto-convening at ≥0.7 confidence, `kill-mediator`
- *    flag (this slice ships observations only — see src/mediator.ts);
+ *  - turns on `parley:<id>` channels (live turn-taking; today the chain
+ *    events ARE the turns and the artifact is the record);
+ *  - tree-sitter parsing inside the executor CONTAINER (the shipped
+ *    prediction engine is a deterministic diff-symbol extractor — see the
+ *    header of apps/fleet-executor/src/mediator.ts for the boundary);
  *  - parley receipts as merge currency (receipt_sig, check-run attachment);
  *  - Mercy summons-ack SLO + parley-fatigue metric (v1 ships only the open
  *    parley count on /mercy, fail-safe null).
@@ -69,16 +81,21 @@ import {
   createParley,
   getHarborByName,
   getHarborRole,
+  getHelm,
   getIdentity,
+  getMediatorPairForParley,
   getParley,
   getUserByLogin,
   lapseExpiredParleys,
+  lapseParleyWithOutcome,
+  listExpiredOpenParleys,
   listParleyPositions,
   listParleys,
   resolveParleyState,
   signParleyPosition,
   type HarborRole,
   type HarborRow,
+  type ParleyExpiryDefault,
   type ParleyPartySeed,
   type ParleyPositionRow,
   type ParleyRow,
@@ -179,15 +196,132 @@ export async function resolveParleyInHarbor(
   let parley = await getParley(env.DB, parleyId);
   if (!parley || parley.harbor_id !== harbor.id) return null;
   if (parley.state === 'open' && parley.deadline_at < now) {
-    await resolveParleyState(env.DB, { parleyId: parley.id, state: 'lapsed', at: now });
+    await lapseOneExpiredParley(env, harbor.id, parley, now);
     parley = (await getParley(env.DB, parleyId)) ?? parley;
   }
   return parley;
 }
 
+// ── Expiry defaults (mediator-body slice 4) ───────────────────────────────────
+
+/**
+ * Lapse ONE expired parley, applying the Helm's configured expiry default.
+ *
+ * v1's expiry was a plain lapse — the artifact recorded only that no
+ * agreement was reached, which on a mediator-convened conflict parley left
+ * both agents equally stuck. The Helm (X3's explicit authority record) now
+ * configures what a deadline lapse MEANS in its harbor:
+ *
+ *   'lapse'          — v1 behavior, unchanged. The default.
+ *   'first-proceeds' — the FIRST CLAIMANT proceeds and the second rebases,
+ *                      recorded in outcome_json so both agents (and both
+ *                      humans) read the same resolved fact off the artifact.
+ *
+ * The default applies only where claim ranks exist (mediator-convened
+ * parleys); a human-convened parley has no claimant order, so imposing a
+ * winner on it would be invented authority — it lapses plainly regardless
+ * of the helm setting. Both writes CAS on state='open', so racing readers
+ * lapse the parley exactly once and the recorded outcome is never rewritten.
+ *
+ * The parley remains 'lapsed' either way: the outcome is a RECORDED DEFAULT,
+ * not a fabricated agreement — nobody signed anything, and the artifact says
+ * exactly that. Enforcement (who actually merges first) stays with daemons
+ * and CI, per the relay's orders-and-attests doctrine.
+ *
+ * @param env Worker env.
+ * @param harborId The harbor whose helm configures the default.
+ * @param parley The expired, still-open parley row.
+ * @param now Unix seconds.
+ * @param helmDefault Pre-read helm default (optional; read here when absent).
+ */
+export async function lapseOneExpiredParley(
+  env: Env,
+  harborId: string,
+  parley: ParleyRow,
+  now: number,
+  helmDefault?: ParleyExpiryDefault,
+): Promise<void> {
+  let mode: ParleyExpiryDefault = helmDefault ?? 'lapse';
+  if (helmDefault === undefined) {
+    try {
+      const helm = await getHelm(env.DB, harborId);
+      mode = helm?.parley_expiry_default ?? 'lapse';
+    } catch {
+      mode = 'lapse'; // a helm read failure must never stall an expiry
+    }
+  }
+
+  if (mode === 'first-proceeds') {
+    const positions = await listParleyPositions(env.DB, parley.id);
+    const first = positions.find((p) => p.is_party === 1 && p.claim_rank === 1);
+    const second = positions.find((p) => p.is_party === 1 && p.claim_rank === 2);
+    if (first && second) {
+      const pair = await getMediatorPairForParley(env.DB, parley.id);
+      const outcome = {
+        default: 'first-claimant-proceeds',
+        source: 'helm-default',
+        proceeds: {
+          party: first.party_label,
+          pr: pair ? pair.first_pr : null,
+        },
+        rebases: {
+          party: second.party_label,
+          pr: pair ? (pair.first_pr === pair.pr_lo ? pair.pr_hi : pair.pr_lo) : null,
+        },
+        repo: pair?.repo ?? null,
+        appliedAt: now,
+      };
+      await lapseParleyWithOutcome(env.DB, {
+        parleyId: parley.id,
+        at: now,
+        outcomeJson: JSON.stringify(outcome),
+      });
+      return;
+    }
+    // No claim ranks (human-convened): fall through to the plain lapse.
+  }
+  await resolveParleyState(env.DB, { parleyId: parley.id, state: 'lapsed', at: now });
+}
+
+/**
+ * Lazy expiry sweep for one harbor, Helm-default aware — the list-path
+ * replacement for the old bulk `lapseExpiredParleys` UPDATE. Reads the helm
+ * ONCE, then applies {@link lapseOneExpiredParley} per expired parley so a
+ * 'first-proceeds' harbor records an outcome on every mediator lapse while
+ * plain harbors keep the exact v1 behavior (and cost: one SELECT that is
+ * empty almost always).
+ */
+export async function applyParleyExpiries(env: Env, harborId: string, now: number): Promise<void> {
+  let mode: ParleyExpiryDefault = 'lapse';
+  try {
+    const helm = await getHelm(env.DB, harborId);
+    mode = helm?.parley_expiry_default ?? 'lapse';
+  } catch {
+    mode = 'lapse';
+  }
+  if (mode === 'lapse') {
+    // v1 fast path, byte-identical behavior: one bulk UPDATE, no per-parley
+    // reads. The overwhelmingly common configuration costs what it always did.
+    await lapseExpiredParleys(env.DB, harborId, now);
+    return;
+  }
+  const expired = await listExpiredOpenParleys(env.DB, harborId, now);
+  for (const parley of expired) {
+    await lapseOneExpiredParley(env, harborId, parley, now, mode);
+  }
+}
+
 // ── Serialization ─────────────────────────────────────────────────────────────
 
 function parleyJson(p: ParleyRow): Record<string, unknown> {
+  let outcome: unknown = null;
+  if (p.outcome_json) {
+    try {
+      outcome = JSON.parse(p.outcome_json);
+    } catch {
+      outcome = null; // corrupt outcome renders as absent, never as a lie
+    }
+  }
   return {
     id: p.id,
     subject: p.subject,
@@ -196,6 +330,8 @@ function parleyJson(p: ParleyRow): Record<string, unknown> {
     deadlineAt: p.deadline_at,
     createdAt: p.created_at,
     resolvedAt: p.resolved_at,
+    convenedBy: p.convened_by ?? 'user',
+    outcome,
   };
 }
 
@@ -330,6 +466,8 @@ export async function handleCreateParley(
     deadline_at: now + Math.round(deadlineHours * 3600),
     created_at: now,
     resolved_at: null,
+    convened_by: 'user',
+    outcome_json: null,
   };
   await createParley(env.DB, {
     id: parley.id,
@@ -373,8 +511,9 @@ export async function handleListParleys(
 
   const now = Math.floor(Date.now() / 1000);
   // Lazy expiry: every expired open parley lapses before we serve the list —
-  // a deadline that has passed is never rendered as still-open.
-  await lapseExpiredParleys(env.DB, gate.harbor.id, now);
+  // a deadline that has passed is never rendered as still-open. Helm-default
+  // aware: a 'first-proceeds' harbor records the default outcome as it lapses.
+  await applyParleyExpiries(env, gate.harbor.id, now);
   const rows = await listParleys(env.DB, gate.harbor.id);
   return json(200, { code: 'OK', error: null, parleys: rows.map(parleyJson) });
 }

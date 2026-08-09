@@ -42,7 +42,14 @@ import {
   type ReviewComment,
   PR_FILES_PAGE_SIZE,
 } from './github.js';
-import { parseFleetShips, parseFleetSquidEvents, parseFleetXo, defaultPRShips, type ShipConfig } from './fleet.js';
+import { parseFleetShips, parseFleetSquidEvents, parseFleetXo, parseFleetMediator, defaultPRShips, type ShipConfig } from './fleet.js';
+import {
+  consumeMediatorReinjection,
+  renderMediatorOrders,
+  runMediatorScan,
+  buildMediatorScanIo,
+} from './mediator.js';
+import { fetchOpenPullRequestsDetailed, fetchPRFilePatches } from './github.js';
 import { classifyPrAuthorship } from './fleet-identity.js';
 import { classifyPrLifecycle } from './pr-lifecycle.js';
 import { fleetPrBodyTrailers } from './fleet-pr-body.js';
@@ -1119,6 +1126,23 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // NOTHING about proposals, comments, or the check conclusion.
   const xoEnabled = fleetYaml ? parseFleetXo(fleetYaml) : false;
 
+  // MEDIATOR CONSENT + re-injection consume (grand-plan node mediator-body).
+  // If a human's Modify verdict is pending for THIS PR (control-plane KV,
+  // written by the relay's gate), consume it once and prepend it to every
+  // ship's context — this run IS the losing agent's re-execution.
+  const mediatorConfig = parseFleetMediator(fleetYaml ?? '');
+  let mediatorOrders = '';
+  if (mediatorConfig.enabled) {
+    const reinjection = await consumeMediatorReinjection(env, job.repoFullName, prNumber);
+    if (reinjection) {
+      mediatorOrders = renderMediatorOrders(reinjection);
+      await transcript.step('mediator-reinjection', null,
+        `Mediator gate MODIFY re-injected (parley ${reinjection.parleyId}, decided by ${reinjection.decidedBy})`,
+        { parleyId: reinjection.parleyId, action: reinjection.action, decidedBy: reinjection.decidedBy },
+      );
+    }
+  }
+
   // Cloud-executable ships only (execution ships dispatch to GHA elsewhere).
   const cloudShips = ships.filter(s => !s.needsExecution);
   if (cloudShips.length === 0) return;
@@ -1454,7 +1478,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     const metrics = newShipMetrics();
     const result = ship.purser
       ? await runPurser(ship, prCtx, env, token, transcript, metrics, graftText, runId, squidConsent)
-      : await runShip(ship, prCtx, token, env, branch, transcript, metrics, graftText, runId, squidConsent, xoEnabled);
+      : await runShip(ship, prCtx, token, env, branch, transcript, metrics, graftText, runId, squidConsent, xoEnabled, mediatorOrders);
     results.push(result);
     // Cloud squid: one ship-verdict event per ship that ran (fire-and-forget).
     emitSquidEvent(env, 'ship-verdict', {
@@ -1564,6 +1588,46 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     conclusion,
   });
   await recordRunEnd(env, runId, conclusion, startMs);
+
+  // --- MEDIATOR SCAN (grand-plan node mediator-body; src/mediator.ts) -------
+  // Runs AFTER the run has concluded — a prediction can never change this
+  // run's verdict, exactly like squid telemetry. All gates (tenant consent,
+  // kill-mediator flag, N2 identity) live inside runMediatorScan and fail
+  // closed to inert; the whole call is additionally fenced here so no scan
+  // failure can ever surface as a run failure.
+  try {
+    const scan = await runMediatorScan(env, {
+      repo: job.repoFullName,
+      deliveredPr: prNumber,
+      config: mediatorConfig,
+      io: buildMediatorScanIo({
+        env,
+        owner,
+        repo,
+        token,
+        listOpenPrs: fetchOpenPullRequestsDetailed,
+        fetchPatches: fetchPRFilePatches,
+        createCheckRun,
+        completeCheckRun,
+      }),
+    });
+    if (scan.ran || scan.reason !== 'disabled') {
+      const fired = scan.predictions.filter((p) => p.fired);
+      await transcript.step('mediator-scan', null,
+        scan.ran
+          ? `Mediator scan: ${scan.pairsConsidered} pair(s) considered, ${fired.length} prediction(s) fired`
+          : `Mediator scan: did not run (${scan.reason})`,
+        {
+          ran: scan.ran,
+          reason: scan.reason,
+          pairsConsidered: scan.pairsConsidered,
+          fired: fired.map((p) => ({ otherPr: p.otherPr, confidence: p.confidence, convened: p.convene?.ok ?? false })),
+        },
+      );
+    }
+  } catch {
+    // The concluded run stands; a mediator failure is a mediator failure.
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1654,6 +1718,13 @@ async function runShip(
   squidConsent = false,
   /** Tenant `xo: true` consent from pd-fleet.yml (default false) — src/xo.ts. */
   xoEnabled = false,
+  /**
+   * MEDIATOR ORDERS ('' ⇒ none): a human gate's Modify verdict re-injected
+   * into this (losing) PR's re-execution — src/mediator.ts
+   * renderMediatorOrders. Prepended to every ship's fleet context so the
+   * whole re-run sees the human's instructions verbatim.
+   */
+  mediatorOrders = '',
 ): Promise<ShipResult> {
   try {
     // ZERO-TRUST: ship contract is read from the trusted branch, NEVER PR head.
@@ -1695,13 +1766,13 @@ async function runShip(
     // injected into every MAP chunk so it can spot contradictions and duplication
     // against OTHER open PRs and feature branches. Best-effort (helpers return []
     // on failure) — Lookout degrades to single-PR reasoning, never crashes.
-    let fleetContext = '';
+    let fleetContext = mediatorOrders;
     if (ship.name === 'lookout') {
       const [openPRs, branches] = await Promise.all([
         fetchOpenPullRequests(prCtx.owner, prCtx.repo, token, prCtx.prNumber),
         listRecentBranches(prCtx.owner, prCtx.repo, token),
       ]);
-      fleetContext = renderFleetContext(openPRs, branches);
+      fleetContext = mediatorOrders + renderFleetContext(openPRs, branches);
     }
 
     // --- MAP: one ship call per diff chunk ---------------------------------
