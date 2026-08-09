@@ -755,3 +755,53 @@ describe('runPurser — multi-step authoring', () => {
     expect((step.detail as { rawHead: string }).rawHead).toContain('rather discuss the weather');
   });
 });
+
+describe('runPurser — per-file validation keeps the good files', () => {
+  it('one unusable PATH drops that file only; the rest still stack', async () => {
+    // The set-level validator used to reject all four files because one had a
+    // `..` in it, quietly undoing the partial-success property that per-file
+    // authoring exists to provide.
+    const plan = [
+      '```json',
+      JSON.stringify({
+        files: [
+          { path: '../../etc/evil.test.ts', intent: 'escape' },
+          { path: 'tests/purser/good.test.ts', intent: 'real' },
+        ],
+      }),
+      '```',
+    ].join('\n');
+    const body = '```ts\nit("ok", () => {});\n```';
+    const { ai } = seqAi([STEELMAN_JSON, plan, body, body]);
+    const rec = recorder();
+
+    await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
+
+    // The good file shipped...
+    expect(state.stackedPrs).toHaveLength(1);
+    const testsStep = rec.steps.find(s => s.kind === 'purser-tests')!;
+    expect((testsStep.detail as { files: Array<{ path: string }> }).files.map(f => f.path)).toEqual([
+      'tests/purser/good.test.ts',
+    ]);
+    // ...and the traversal path was never written anywhere.
+    const blobs = state.records.filter(r => r.url.includes('/git/blobs'));
+    expect(blobs).toHaveLength(1);
+    expect(JSON.stringify(state.records)).not.toContain('etc/evil');
+  });
+
+  it('when EVERY path is unusable it is still an advisory PASS with no git writes', async () => {
+    const plan = '```json' + '\n' + JSON.stringify({ files: [{ path: '../../etc/evil.test.ts' }] }) + '\n```';
+    const { ai } = seqAi([STEELMAN_JSON, plan, '```ts\nit("x",()=>{});\n```']);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true }), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ blocking: false, verdict: 'PASS', errored: false });
+    expect(state.records.filter(r => r.url.includes('/git/'))).toHaveLength(0);
+    const step = rec.steps.find(s => s.kind === 'purser-tests')!;
+    expect(step.title).toMatch(/REJECTED/);
+    expect((step.detail as { error: string }).error).toMatch(/traversal/);
+  });
+});

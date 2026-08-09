@@ -761,7 +761,7 @@ export async function runPurser(
 
     // FAST PATH: a model that ignored "plan only" and returned complete files
     // has already done the work — take it and skip the per-file calls.
-    let files = parseAuthoredFiles(planCall.text) ?? [];
+    let files: StackedFile[] = parseAuthoredFiles(planCall.text) ?? [];
     let authorFailures: AuthorFailure[] = [];
     let plan: PlannedFile[] = [];
 
@@ -830,22 +830,53 @@ export async function runPurser(
         { authored: files.map(f => f.path), failures: authorFailures },
       );
     }
-    const validation = validateStackedFiles(files);
-    if (!validation.ok) {
+    // VALIDATE PER FILE, THEN AS A SET.
+    //
+    // Validating only the set made one unusable path reject every file beside
+    // it — which quietly undid the partial-success property the per-file
+    // authoring exists to provide: three good tests discarded because a fourth
+    // path had a `..` in it. Each file is checked ALONE first (reusing the same
+    // audited validator, so no path rule is duplicated or weakened here), and a
+    // failure drops that ONE file with a named reason.
+    //
+    // Nothing is loosened by this. A file that survives has passed exactly the
+    // checks it passed before, so a traversal path is still never written; it
+    // simply no longer takes its innocent neighbours with it.
+    const kept: StackedFile[] = [];
+    for (const f of files) {
+      const perFile = validateStackedFiles([f]);
+      if (!perFile.ok) {
+        authorFailures.push({ path: f.path, reason: perFile.reason });
+        continue;
+      }
+      if (
+        ship.testPaths.length > 0 &&
+        !ship.testPaths.some(g => f.path === g || f.path.startsWith(`${g}/`))
+      ) {
+        authorFailures.push({
+          path: f.path,
+          reason: `path outside testPaths prefixes (${ship.testPaths.join(', ')})`,
+        });
+        continue;
+      }
+      kept.push(f);
+    }
+    files = kept;
+
+    // Set-level properties (count ceiling, duplicate paths) can only be judged
+    // on the survivors, so this runs after the per-file pass and stays
+    // all-or-nothing — a set that breaks them has no honest subset to keep.
+    const validation = files.length > 0 ? validateStackedFiles(files) : { ok: false as const, reason: '' };
+    if (files.length === 0 || !validation.ok) {
       await transcript.step('purser-tests', ship.name, `pd-${ship.name}: authored tests REJECTED`, {
-        error: validation.reason,
+        error:
+          files.length === 0
+            ? authorFailures.map(f => `${f.path}: ${f.reason}`).join('; ') || 'no usable files'
+            : (validation as { reason: string }).reason,
         fileCount: files.length,
+        failures: authorFailures,
       });
       return advisoryPass;
-    }
-    if (ship.testPaths.length > 0) {
-      const stray = files.find(f => !ship.testPaths.some(g => f.path === g || f.path.startsWith(`${g}/`)));
-      if (stray) {
-        await transcript.step('purser-tests', ship.name, `pd-${ship.name}: authored tests REJECTED`, {
-          error: `path outside testPaths prefixes (${ship.testPaths.join(', ')}): ${stray.path}`,
-        });
-        return advisoryPass;
-      }
     }
     const fileSummaries = files.map(f => ({
       path: f.path,
