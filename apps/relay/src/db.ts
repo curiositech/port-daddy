@@ -18,7 +18,7 @@ import { randomHex } from './crypto.js';
 export interface IdentityRow {
   daemon_fingerprint: string;
   pub_key: string;
-  proof_method: 'oidc' | 'acme' | 'wot';
+  proof_method: 'oidc' | 'acme' | 'wot' | 'operator-provisioned';
   proof_metadata: string;  // JSON
   expires_at: number | null;
   revoked: number;
@@ -204,6 +204,36 @@ export async function getChainHead(
   };
 }
 
+/**
+ * Every chain head on ONE channel, across senders.
+ *
+ * Chains are per (sender, channel), so a channel can legitimately carry one
+ * head per writer — but some channels have exactly one AUTHORIZED writer
+ * (e.g. the fleet executor's per-run fleet-cloud run channels). This query is
+ * the raw material for chain-head anomaly detection: see
+ * detectChainHeadAnomalies in src/fleet-executor-identity.ts.
+ */
+export async function listChainHeadsForChannel(
+  db: D1Database,
+  channel: string
+): Promise<ChainHead[]> {
+  const rows = await db.prepare(
+    'SELECT * FROM chain_heads WHERE channel = ? ORDER BY sender ASC'
+  ).bind(channel).all<{
+    sender: string; channel: string; tip_seq: number; tip_hash: string;
+    issued_at: number; signed_head: string; anchors_json: string | null;
+  }>();
+  return rows.results.map((row) => ({
+    sender: row.sender,
+    channel: row.channel,
+    tip_seq: row.tip_seq,
+    tip_hash: row.tip_hash,
+    issued_at: row.issued_at,
+    signed_head: row.signed_head,
+    ...(row.anchors_json ? { anchors: JSON.parse(row.anchors_json) } : {}),
+  }));
+}
+
 export async function upsertChainHead(
   db: D1Database,
   head: ChainHead
@@ -264,11 +294,13 @@ export async function revokeByIssuer(
   let offset = 0;
 
   while (true) {
-    // Paginate through all OIDC identities — D1 query limit is 100k rows,
-    // so we use small pages to stay within limits and avoid timeout risk.
+    // Paginate through all issuer-scoped identities (OIDC exchanges AND
+    // operator-provisioned fleet-executor identities, whose proof_metadata
+    // records the same {issuer, jti, iat} shape) — D1 query limit is 100k
+    // rows, so we use small pages to stay within limits and avoid timeout risk.
     const rows = await db.prepare(
       `SELECT daemon_fingerprint, proof_metadata FROM identities
-       WHERE proof_method = 'oidc'
+       WHERE proof_method IN ('oidc', 'operator-provisioned')
        ORDER BY daemon_fingerprint ASC
        LIMIT ? OFFSET ?`
     ).bind(REVOKE_PAGE_SIZE, offset).all<{ daemon_fingerprint: string; proof_metadata: string }>();
