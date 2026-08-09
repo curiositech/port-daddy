@@ -169,6 +169,19 @@ export async function invalidateInstallationToken(
 // ---------------------------------------------------------------------------
 // PR helpers
 
+/**
+ * Page size for the PR `/files` endpoint.
+ *
+ * Exported because anything reasoning about whether the changed-file list is
+ * COMPLETE must compare against the same number this fetch uses. Hard-coding it
+ * in two places lets the truncation logic drift silently the moment either side
+ * changes, and a wrong answer there means real findings get dropped.
+ *
+ * This call does not paginate, so a PR at or above this many files yields a
+ * TRUNCATED list that must be treated as incomplete rather than authoritative.
+ */
+export const PR_FILES_PAGE_SIZE = 100;
+
 export interface PRFile {
   filename: string;
   status: string;
@@ -268,7 +281,7 @@ export async function fetchPRContext(
     fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
       headers: ghHeaders(token),
     }),
-    fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=100`, {
+    fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=${PR_FILES_PAGE_SIZE}`, {
       headers: ghHeaders(token),
     }),
     fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
@@ -686,9 +699,54 @@ export async function findFleetCheckRun(
     { headers: ghHeaders(token) },
   );
   if (!res.ok) return null;
-  const body = (await res.json()) as { check_runs?: Array<{ id: number; name: string }> };
+  const body = (await res.json()) as {
+    check_runs?: Array<{ id: number; name: string; status?: string; conclusion?: string | null }>;
+  };
   const match = (body.check_runs ?? []).find(c => c.name === name);
   return match?.id ?? null;
+}
+
+/**
+ * The fleet check run for a head SHA, WITH its status -- the id alone cannot
+ * answer "has this already been decided?".
+ *
+ * Why that question matters: a queue redelivery re-runs the whole fleet from
+ * scratch. Comment posting is idempotent (edited in place), but the MODEL CALLS
+ * are not -- the ship is re-run to produce the comment it then overwrites. When
+ * the check has already been COMPLETED, that spend buys nothing at all: the
+ * gate is resolved and a finished check run cannot be reopened, so the work
+ * cannot even change the answer.
+ *
+ * Observed on 2026-08-06: runs exceeding the Worker wall-clock were redelivered
+ * up to `max_retries` times, dead-lettered, completed as `failure` by the DLQ
+ * handler -- and ships kept re-running and re-posting for hours afterwards
+ * against a gate that could never go green.
+ *
+ * @param owner repository owner
+ * @param repo repository name
+ * @param headSha the PR head commit
+ * @param name the check-run name to look for
+ * @param token an installation token
+ * @returns the check run's id and status, or null when absent/unreadable
+ */
+export async function findFleetCheckRunState(
+  owner: string,
+  repo: string,
+  headSha: string,
+  name: string,
+  token: string,
+): Promise<{ id: number; status: string; conclusion: string | null } | null> {
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/commits/${headSha}/check-runs?per_page=100`,
+    { headers: ghHeaders(token) },
+  );
+  if (!res.ok) return null;
+  const body = (await res.json()) as {
+    check_runs?: Array<{ id: number; name: string; status?: string; conclusion?: string | null }>;
+  };
+  const match = (body.check_runs ?? []).find(c => c.name === name);
+  if (!match) return null;
+  return { id: match.id, status: match.status ?? '', conclusion: match.conclusion ?? null };
 }
 
 // ---------------------------------------------------------------------------

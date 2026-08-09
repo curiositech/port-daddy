@@ -708,6 +708,24 @@ fleet:
           # 262k ctx, native structured outputs) — the right Workers AI tier for
           # a code reviewer that emits JSON findings.
           model: '@cf/moonshotai/kimi-k2.7-code'
+      # MAP/REDUCE tiering, Cloudflare path only. The executor splits a large
+      # diff on file boundaries and scans each chunk independently (MAP), then
+      # makes ONE call to reconcile them (REDUCE). MAP runs N times and REDUCE
+      # once, so the cheap model belongs on the repeating stage: scanning a
+      # chunk for local defects is mechanical, while deciding what is genuinely
+      # missing across chunks is judgement.
+      #
+      # code-reviewer is the ship with the most to gain -- it is the only one
+      # that reduces on the expensive model, so it was the only one paying that
+      # rate per chunk. On the 92-chunk shape that motivated this (PR #4956),
+      # tiering is roughly a 68% cut in this ship's spend.
+      #
+      # Guards live in deriveMapModel() (apps/fleet-executor/src/fleet.ts): an
+      # unrecognised id is DROPPED rather than honoured, because a nonexistent
+      # Workers AI id returns a blank the parser reads as "clean" -- a typo here
+      # would silence every chunk while REDUCE reported nothing found. Untiered
+      # costs more; mute costs the truth.
+      map_model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false

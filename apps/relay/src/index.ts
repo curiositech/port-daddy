@@ -79,6 +79,7 @@ import {
   handleAudit,
 } from './handlers.js';
 import { handleGithubWebhook } from './github-webhook.js';
+import { handleSessionIntelIngest, handleSessionIntelPending } from './session-intel.js';
 import {
   handleFleetConfig,
   handleFleetValidate,
@@ -248,6 +249,14 @@ export default {
     }
     else if (pathname === '/v1/fleet/save' && method === 'POST') {
       response = await handleFleetSave(request, env);
+    }
+
+    // ── Session Intelligence cloud-mining ingest (operator-gated) ────────────
+    else if (pathname === '/v1/session-intel/ingest' && method === 'POST') {
+      response = await handleSessionIntelIngest(request, env);
+    }
+    else if (pathname === '/v1/session-intel/pending' && method === 'GET') {
+      response = await handleSessionIntelPending(request, env);
     }
 
     // ── Fleet observability + kill switch (operator-gated) ───────────────────

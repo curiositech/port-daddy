@@ -152,6 +152,14 @@ describe('whitepaper metadata sync', () => {
       expect(bytes, `${paper.id} PDF should be > 10 KB`).toBeGreaterThan(10_000)
     }
   })
+
+  test('audited Harbor metadata names the collected-volume edition', () => {
+    const byId = new Map(WHITE_PAPERS.map((paper) => [paper.id, paper]))
+    expect(byId.get('harbor-economy')).toMatchObject({
+      pages: 31,
+      status: 'Version 1.3 (collected-volume edition)',
+    })
+  })
 })
 
 describe('whitepaper copy hygiene', () => {
