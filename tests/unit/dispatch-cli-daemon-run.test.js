@@ -69,6 +69,14 @@ jest.unstable_mockModule('../../cli/utils/fetch.js', () => ({
 
 jest.unstable_mockModule('../../cli/utils/ui.js', () => mockUi);
 
+// The HITL pre-flight (docs/hitl-interruptions.md §4.3) polls the relay when
+// the developer's machine is signed in via `pd account login` — a unit test
+// must never make that network call. Gate coverage lives in
+// interruptions-cli.test.js; here it always passes.
+jest.unstable_mockModule('../../cli/commands/interruptions.js', () => ({
+  preflightInterruptionsGate: jest.fn(async () => true),
+}));
+
 const { handleDispatch } = await import('../../cli/commands/dispatch.js');
 
 function dispatch(overrides = {}) {

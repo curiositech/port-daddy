@@ -43,6 +43,14 @@ jest.unstable_mockModule('../../lib/fleet-channels.js', () => ({
   resolveFleetChannel: jest.fn((channel) => channel),
 }));
 
+// The HITL pre-flight (docs/hitl-interruptions.md §4.3) polls the relay when
+// the developer's machine is signed in via `pd account login` — a unit test
+// must never make that network call. Wiring is covered in
+// fleet-interruptions-gate.test.js; here the gate always passes.
+jest.unstable_mockModule('../../cli/commands/interruptions.js', () => ({
+  preflightInterruptionsGate: jest.fn(async () => true),
+}));
+
 const { handleFleet } = await import('../../cli/commands/fleet.js');
 
 function response(ok, data) {
