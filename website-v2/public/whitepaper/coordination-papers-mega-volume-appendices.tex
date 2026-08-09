@@ -1,0 +1,110 @@
+% Volume-owned synthesis, status, roadmap, concordance, and bibliography.
+% Kept separate from the orchestration root so the publication remains a
+% bounded two-chunk review even after the compiled PDF is attached.
+
+\clearpage
+\part{Volume appendices}
+\appendix
+\renewcommand{\thesection}{\Alph{section}}
+\renewcommand{\thefigure}{A.\arabic{figure}}
+\renewcommand{\thetable}{A.\arabic{table}}
+\renewcommand{\theHsection}{volume.appendix.\arabic{section}}
+\renewcommand{\theHsubsection}{volume.appendix.\arabic{section}.\arabic{subsection}}
+\renewcommand{\theHsubsubsection}{volume.appendix.\arabic{section}.\arabic{subsection}.\arabic{subsubsection}}
+\renewcommand{\theHfigure}{volume.appendix.\arabic{figure}}
+\renewcommand{\theHtable}{volume.appendix.\arabic{table}}
+\renewcommand{\theHequation}{volume.appendix.\arabic{equation}}
+\renewcommand{\theHlstlisting}{volume.appendix.\arabic{lstlisting}}
+\fancyhead[L]{\small\itshape\color{hhgray} Collected-volume appendices}
+\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Collected Volume}
+
+\section{Consolidated implementation and assurance ledger}\label{app:volume-status}
+\small
+\renewcommand{\arraystretch}{1.22}
+\begin{tabularx}{\textwidth}{@{}p{0.21\textwidth}p{0.15\textwidth}X@{}}
+\toprule
+\textbf{Mechanism or claim} & \textbf{Grade} & \textbf{Current evidence and boundary}\\
+\midrule
+Single-writer SQLite/WAL kernel, claims, sessions, messaging & \Built & Running daemon paths and regression tests; power-loss durability remains configuration-dependent.\\
+Legibility and digest-with-zoom surfaces & \BuiltWeak & Multiple live projections exist, but roadmap/database fragmentation shows that a projection can still disagree with its authority source.\\
+Durable commitments and obligation monitor & \BuiltWeak & Durable records, daemon-derived deadlines, oracle-bound closure, CLI/API exposure, periodic overdue detection, and tests ship. A witnessed reputation-grade outcome ledger, sanctions, and non-forgeable owner identity do not.\\
+Execution-state checkpoint and successor restoration & \Designed & Notes and summaries can continue work; they are not a portable execution-state checkpoint. Adapter support is heterogeneous.\\
+Local non-forgeable actor identity & \BuiltWeak & Daemon-minted identity and bounded fail-closed slices exist; the full guarantee still depends on complete write-boundary enforcement.\\
+Anchor authentication and attenuation models & \Closed & ProVerif/Kani/conformance evidence applies at the recorded model and implementation bounds, not to arbitrary chain depth or every deployed bridge.\\
+Bond ledger, escrow, and conservation slices & \BuiltWeak & Local accounting paths and finite model checks exist; the full grading, insurance, and market mechanism remains incomplete.\\
+Cross-harbor capability transfer, revocation, custody, and settlement & \Designed & Protocols and bounded models exist; the federation runtime, non-bypassable custody, and deployment-calibrated dissemination evidence remain open.\\
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\section{Research and engineering roadmap}\label{app:volume-roadmap}
+The roadmap is organized by the kind of evidence that can close each claim. A
+proof obligation should not be disguised as a feature, and an empirical
+parameter should not be invented in prose.
+
+\subsection{Add to the papers}
+\begin{enumerate}[leftmargin=*]
+\item Add a notation and assumption concordance for identity roots, principals,
+harbors, clocks, rounds, currencies, and oracle trust.
+\item Add explicit claim-to-artifact matrices linking every closed or partial
+claim to a model, test, route, trace, or counterexample.
+\item Add deployment-calibrated case studies for attention, obligation breach,
+identity reset, partition healing, and settlement dispute.
+\item Add a comparative chapter mapping the stack to object capabilities,
+reference monitors, transparency logs, workflow engines, and agent frameworks.
+\end{enumerate}
+
+\subsection{Prove or falsify}
+\begin{enumerate}[leftmargin=*]
+\item State complete strategies, deviations, information sets, and parameter
+regions for the signaling, cartel, sponsor, judge, and correlated-equilibrium
+claims; include coalition deviations where relevant.
+\item Mechanize revocation dissemination only under an explicit graph, scheduler,
+delivery, and partition model; report expectations and tails separately.
+\item Prove the multi-currency bucket-partition invariant and characterize the
+minimal non-bypassable custody interface required for any extraction bound.
+\item Establish model-to-runtime conformance obligations for token verification,
+replay rejection, identity minting, settlement, and cross-harbor envelopes.
+\item Define the game class before stating any price-of-anarchy or welfare bound,
+then supply tight examples or counterexamples.
+\end{enumerate}
+
+\subsection{Try, measure, and add to the code}
+\begin{enumerate}[leftmargin=*]
+\item Finish a reputation-grade witnessed-outcome ledger on the shipped
+commitment substrate, with neutral-judge conflicts, appeals, and sanctions.
+\item Close actor identity at every security-relevant write boundary and test
+identity-reset laundering against shared budgets and bonds.
+\item Implement portable execution-state checkpoint/successor restoration where
+adapters permit it; grade unsupported adapters honestly.
+\item Prototype HPKE-sealed relay ingress with pinned key rotation, replay
+windows, and downgrade tests.
+\item Build a small federated witness-log, revocation, custody, and settlement
+testbed; run partitions, redelivery, crash recovery, equivocation, and stale-key
+chaos experiments.
+\item Instrument false alarms, misses, review latency, breach rates, detection
+probability, slashing, judge disagreement, and identity churn before fitting the
+attention or incentive parameters used by the papers.
+\item Make roadmap and other operator projections prove which database and
+revision they summarize, then gate publication on projection/source agreement.
+\end{enumerate}
+
+\section{Notation and cross-chapter concordance}
+\begin{tabularx}{\textwidth}{@{}p{0.18\textwidth}X@{}}
+\toprule
+\textbf{Term} & \textbf{Volume-wide meaning}\\
+\midrule
+Harbor & One local administrative and transactional authority, normally one daemon and its durable database.\\
+Principal & The human or organization whose policy and resources an agent ultimately exercises; not interchangeable with a process identity.\\
+Role & A bundle of obligations, capabilities, and authority that a spawn may fill.\\
+Person & A role instance plus continuity and a witnessed outcome history bound to an identity that cannot be freely re-picked.\\
+Oracle & An external or independently checkable reference used to close a commitment or adjudicate an outcome; its trust model must be named.\\
+Round & A model step in a dissemination or protocol analysis, not automatically a wall-clock deadline.\\
+Closed & The exact recorded model/property has been mechanically discharged; no whole-system implication is assumed without a conformance argument.\\
+\bottomrule
+\end{tabularx}
+
+\clearpage
+\section{References}
+\addcontentsline{toc}{section}{References}
+\pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-bibliography.tex}{bibliography}
