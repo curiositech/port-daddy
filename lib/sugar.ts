@@ -48,6 +48,8 @@ interface SessionsModule {
   updateMetadata?(sessionId: string, patch: Record<string, unknown>): Record<string, unknown>;
   /** Append an immutable session note. Optional: older deps may not provide it. */
   addNote?(sessionId: string, content: string, options?: Record<string, unknown>): Record<string, unknown>;
+  /** Take over a session non-destructively */
+  takeover?(sessionId: string, options?: Record<string, unknown>): Record<string, unknown>;
 }
 
 interface ActivityLogModule {
@@ -64,7 +66,7 @@ interface ActivityLogModule {
  * gate: slug validation (--roadmap), draft genesis (--roadmap-new).
  */
 interface RoadmapItemsModule {
-  list(options?: { harbor?: string; status?: 'all'; limit?: number }): Array<{ slug: string; harbor: string }>;
+  list(options?: { harbor?: string; status?: 'all' | 'now' | 'backlog'; limit?: number }): Array<{ slug: string; summaryMd: string; status: string; harbor: string }>;
   /** Exact existence check across all harbors — no list() cap involved. */
   slugExists(slug: string): boolean;
   upsert(input: {
@@ -75,6 +77,33 @@ interface RoadmapItemsModule {
     project?: string;
     notes?: Array<{ at: number; by: string; text: string }>;
   }): { slug: string; harbor: string };
+}
+
+interface FeedbackModule {
+  list(options?: { harbor?: string; status?: 'open' | 'all'; limit?: number }): Array<{
+    feedbackId: string;
+    slug: string;
+    summary: string;
+    severity: string;
+    status: string;
+    droppedBy: string;
+    surface: string | null;
+    at: number;
+  }>;
+}
+
+interface CommitmentsModule {
+  create(input: {
+    ownerActorId: string;
+    objectText: string;
+    successCheck?: string | null;
+    impossibleCheck?: string | null;
+    motivationCheck?: string | null;
+    scope?: 'claim' | 'review' | 'standing' | 'default';
+    commitmentStrategy?: 'single' | 'open';
+  }): any;
+  close(id: string, oracleRef: string): any;
+  list(options?: Record<string, unknown>): any;
 }
 
 interface SugarDeps {
@@ -93,6 +122,8 @@ interface SugarDeps {
    * without touching a real repo.
    */
   gitOriginChecker?: GitOriginChecker;
+  feedback?: FeedbackModule;
+  commitments?: CommitmentsModule;
 }
 
 interface BeginOptions {
@@ -140,6 +171,10 @@ interface DoneOptions {
    */
   skipOriginCheck?: boolean;
   skipOriginCheckReason?: string;
+  noPr?: boolean;
+  subtask?: boolean;
+  forceIncomplete?: boolean;
+  forceIncompleteReason?: string;
 }
 
 interface WhoamiOptions {
@@ -420,7 +455,7 @@ export function createSugar(deps: SugarDeps) {
     // Opt out with an explicit `agentId` or `force: true`.
     const resumeParsed = identity ? parseIdentity(identity) : null;
     const resumeProject = resumeParsed && resumeParsed.valid ? resumeParsed.project : null;
-    if (!options.agentId && !force && resumeProject) {
+    if (!force && !options.agentId && resumeProject) {
       // Scope to the current worktree. When the policy resolved a worktree use
       // its id; otherwise let list() auto-detect via getWorktreeId() (same
       // default sessions.start() uses), so create + lookup agree.
@@ -439,6 +474,30 @@ export function createSugar(deps: SugarDeps) {
       let matchAgent: { identity?: unknown; timeSinceHeartbeat?: unknown } | undefined;
       for (const s of activeRows) {
         if (!s || s.identityProject !== resumeProject || typeof s.agentId !== 'string') continue;
+        
+        let storedIdentity: string | null = null;
+        if (s.metadata && typeof s.metadata === 'object') {
+          const metaObj = s.metadata as Record<string, unknown>;
+          if (typeof metaObj.identity === 'string') {
+            storedIdentity = metaObj.identity;
+          }
+        } else if (s.metadata && typeof s.metadata === 'string') {
+          try {
+            const parsed = JSON.parse(s.metadata);
+            if (parsed && typeof parsed.identity === 'string') {
+              storedIdentity = parsed.identity;
+            }
+          } catch (e) {}
+        }
+
+        if (storedIdentity === identity) {
+          match = s;
+          const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
+          if (agentResult && agentResult.agent) matchAgent = agentResult.agent;
+          break;
+        }
+
+        // Fallback to agent roster
         const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
         if (agentResult && agentResult.agent && agentResult.agent.identity === identity) {
           match = s;
@@ -446,7 +505,115 @@ export function createSugar(deps: SugarDeps) {
           break;
         }
       }
+
+      if (!match) {
+        // Fall back to recently closed (completed or abandoned) sessions of the same identity in the same worktree
+        const listOptsClosed: Record<string, unknown> = { allWorktrees: false, limit: 50 };
+        if (worktreePolicy.worktree) listOptsClosed.worktreeId = worktreePolicy.worktree.id;
+        const allSessions = sessions.list(listOptsClosed);
+        const allRows: Array<Record<string, unknown>> =
+          allSessions && typeof allSessions === 'object' && Array.isArray((allSessions as { sessions?: unknown[] }).sessions)
+            ? ((allSessions as { sessions: Array<Record<string, unknown>> }).sessions)
+            : [];
+        for (const s of allRows) {
+          if (!s || s.status === 'active' || s.identityProject !== resumeProject || typeof s.agentId !== 'string') {
+            continue;
+          }
+
+          let storedIdentity: string | null = null;
+          if (s.metadata && typeof s.metadata === 'object') {
+            const metaObj = s.metadata as Record<string, unknown>;
+            if (typeof metaObj.identity === 'string') {
+              storedIdentity = metaObj.identity;
+            }
+          } else if (s.metadata && typeof s.metadata === 'string') {
+            try {
+              const parsed = JSON.parse(s.metadata);
+              if (parsed && typeof parsed.identity === 'string') {
+                storedIdentity = parsed.identity;
+              }
+            } catch (e) {}
+          }
+
+          if (storedIdentity === identity) {
+            match = s;
+            const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
+            if (agentResult && agentResult.agent) matchAgent = agentResult.agent;
+            break;
+          }
+
+          // Fallback to agent roster
+          const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
+          if (agentResult && agentResult.agent && agentResult.agent.identity === identity) {
+            match = s;
+            matchAgent = agentResult.agent;
+            break;
+          }
+        }
+      }
+
       if (match && typeof match.id === 'string' && typeof match.agentId === 'string') {
+        if (match.status !== 'active' && sessions.takeover) {
+          // Resumption / takeover of recently closed session
+          const finalAgentId = options.agentId || match.agentId;
+          const takeoverRes = sessions.takeover(match.id, {
+            agentId: finalAgentId,
+            purpose: purpose.trim(),
+            project: resumeProject,
+            worktreeId: worktreePolicy.worktree?.id || undefined,
+            durable: durable,
+            claimFiles: true,
+            metadata: {
+              ...rentMetadata,
+              takeoverReason: 'Idempotent resumption of recently closed session',
+            }
+          }) as any;
+
+          if (takeoverRes && takeoverRes.success) {
+            materializePendingRoadmapNew();
+            const displayName = takeoverRes.sessionName || purpose.trim();
+            const resumed: Record<string, unknown> = {
+              success: true,
+              resumed: true,
+              takeover: true,
+              agentId: finalAgentId,
+              sessionId: takeoverRes.successorId,
+              agentName: displayName,
+              sessionName: displayName,
+              name: displayName,
+              identity: identity || null,
+              purpose: purpose.trim(),
+              lifecycle: durable ? 'durable' : 'ephemeral',
+              agentRegistered: false,
+              sessionStarted: false,
+            };
+            if (worktreePolicy.worktree) resumed.worktree = worktreePolicy.worktree;
+            if (takeoverRes.claimedFiles) resumed.fileClaims = takeoverRes.claimedFiles;
+            if (takeoverRes.conflicts) resumed.fileConflicts = takeoverRes.conflicts;
+            if (rent.roadmapLink) resumed.roadmapLink = rent.roadmapLink;
+            if (rent.sidequestReason) resumed.sidequestReason = rent.sidequestReason;
+            if (rent.roadmapCreated) resumed.roadmapCreated = true;
+            if (rent.roadmapExisting) resumed.roadmapExisting = true;
+
+            // Auto-enroll commitment for takeover
+            if (deps.commitments) {
+              deps.commitments.create({
+                ownerActorId: finalAgentId,
+                objectText: `De-register agent and close session for project: ${identity || 'default'}`,
+                scope: 'default',
+                commitmentStrategy: 'single',
+                successCheck: `session:${takeoverRes.successorId}:completed`,
+              });
+            }
+
+            activityLog.log('sugar_begin', {
+              agentId: finalAgentId,
+              details: 'sugar_begin_takeover_closed',
+              metadata: { sessionId: takeoverRes.successorId, predecessorSessionId: match.id, identity: identity || null },
+            });
+            return resumed;
+          }
+        } else if (match.status === 'active') {
         // A session is a DURABLE WORK CONTEXT: resume it whether a process is
         // actively driving it (active) or it's been parked since you closed your
         // laptop (dormant). Only a `done` session forks a fresh one. See
@@ -519,6 +686,7 @@ export function createSugar(deps: SugarDeps) {
         // decision.action === 'create' falls through to start a fresh session.
       }
     }
+  }
 
     // Crowded-main-worktree gate. `--allow-main-worktree` survives only
     // when the operator is alone in the main worktree. As soon as another
@@ -633,9 +801,11 @@ export function createSugar(deps: SugarDeps) {
       sessionOpts.files = files;
       if (force) sessionOpts.force = force;
     }
-    if (metadata && typeof metadata === 'object') {
-      sessionOpts.metadata = metadata;
-    }
+    const sessionMetadata = {
+      ...(metadata && typeof metadata === 'object' ? metadata : {}),
+      identity: identity || null,
+    };
+    sessionOpts.metadata = sessionMetadata;
     if (durable) {
       sessionOpts.durable = true;
     }
@@ -700,6 +870,17 @@ export function createSugar(deps: SugarDeps) {
         lifecycle,
       } as unknown as Record<string, unknown>,
     });
+
+    // Auto-enroll commitment to complete session (Law 1: daemon/module derives deadline)
+    if (deps.commitments) {
+      deps.commitments.create({
+        ownerActorId: agentId,
+        objectText: `De-register agent and close session for project: ${identity || 'default'}`,
+        scope: 'default',
+        commitmentStrategy: 'single',
+        successCheck: `session:${sessionResult.id}:completed`,
+      });
+    }
 
     return response;
   }
@@ -772,6 +953,7 @@ export function createSugar(deps: SugarDeps) {
     // those through without the push/PR-URL gate.
     // =========================================================================
     let effectiveNote = typeof note === 'string' ? note : undefined;
+    const isSubtaskOrNoPr = options.noPr === true || options.subtask === true;
 
     if (status === 'completed') {
       if (!skipOriginCheck) {
@@ -779,12 +961,19 @@ export function createSugar(deps: SugarDeps) {
         //    actionable error when they forget BOTH things).
         const sentinel = checkResultNoteSentinel(effectiveNote);
         if (!sentinel.ok) {
-          return {
-            success: false,
-            code: 'RESULT_NOTE_MISSING_SENTINEL',
-            error: 'pd done refused — ' + noteSentinelErrorMessage(),
-            hint: noteSentinelErrorMessage(),
-          };
+          if (isSubtaskOrNoPr) {
+            const standardSentinel = 'not-applicable: subtask code delivery';
+            effectiveNote = effectiveNote && effectiveNote.trim()
+              ? `${effectiveNote.trim()}\n\n${standardSentinel}`
+              : standardSentinel;
+          } else {
+            return {
+              success: false,
+              code: 'RESULT_NOTE_MISSING_SENTINEL',
+              error: 'pd done refused — ' + noteSentinelErrorMessage(),
+              hint: noteSentinelErrorMessage(),
+            };
+          }
         }
 
         // 2) Origin-push check. The cwd we run git in is the session's
@@ -834,6 +1023,46 @@ export function createSugar(deps: SugarDeps) {
       }
     }
 
+    // 3) Plan checklist validation
+    if (status === 'completed') {
+      const planNotesResult = sessions.getNotes(sessionId, { type: 'todo_list', limit: 1 });
+      const planNotes = (planNotesResult.success && Array.isArray(planNotesResult.notes) ? planNotesResult.notes : []) as Array<{ content: string }>;
+      if (planNotes.length > 0) {
+        const latestPlan = planNotes[0].content;
+        const uncheckedRegex = /\[\s\]/;
+        if (uncheckedRegex.test(latestPlan)) {
+          const forceIncomplete = options.forceIncomplete === true;
+          const forceIncompleteReason = typeof options.forceIncompleteReason === 'string'
+            ? options.forceIncompleteReason.trim()
+            : '';
+
+          if (!forceIncomplete) {
+            return {
+              success: false,
+              code: 'PLAN_UNCHECKED_ITEMS',
+              error: 'pd done refused — your session plan still has unchecked todo items.',
+              hint: 'Complete the items, update your plan with "pd plan check <id>", or close with "pd done --force-incomplete --reason \\"<why>\\"".',
+            };
+          }
+
+          if (!forceIncompleteReason || forceIncompleteReason.length < 12) {
+            return {
+              success: false,
+              code: 'FORCE_INCOMPLETE_REASON_REQUIRED',
+              error: 'pd done --force-incomplete requires --reason "<reason>" (min 12 chars).',
+              hint: 'Provide a clear description of why the plan is incomplete (e.g., "features deferred to next ticket").',
+            };
+          }
+
+          // Prepend incomplete marker to final note
+          const overrideStamp = `[OPERATOR-OVERRIDE force-incomplete] reason: ${forceIncompleteReason}`;
+          effectiveNote = effectiveNote && effectiveNote.length > 0
+            ? `${overrideStamp}\n${effectiveNote}`
+            : overrideStamp;
+        }
+      }
+    }
+
     // Count notes before ending (end adds the handoff note)
     const notesBefore = sessions.getNotes(sessionId);
     const beforeCount = (notesBefore.notes as unknown[] || []).length;
@@ -857,6 +1086,21 @@ export function createSugar(deps: SugarDeps) {
     if (effectiveAgentId) {
       const unregResult = agents.unregister(effectiveAgentId);
       agentUnregistered = !!unregResult.unregistered;
+    }
+
+    // Close associated commitments
+    if (deps.commitments && effectiveAgentId) {
+      try {
+        const openCommitments = deps.commitments.list({ ownerActorId: effectiveAgentId, state: 'open' }) as any;
+        const rows = Array.isArray(openCommitments) ? openCommitments : (openCommitments?.commitments || []);
+        for (const c of rows) {
+          if (c.successCheck === `session:${sessionId}:completed`) {
+            deps.commitments.close(c.id, `session:${sessionId}:completed`);
+          }
+        }
+      } catch (err) {
+        // Fail silently
+      }
     }
 
     const totalNotes = beforeCount + (effectiveNote ? 1 : 0);
@@ -885,6 +1129,7 @@ export function createSugar(deps: SugarDeps) {
       agentUnregistered,
       notesCount: totalNotes,
       finalNote: !!effectiveNote,
+      releasedFiles: (sessionResult as any).releasedFiles,
     };
   }
 
@@ -1201,5 +1446,80 @@ export function createSugar(deps: SugarDeps) {
     return response;
   }
 
-  return { begin, done, whoami, relink };
+  function getWelcomeBriefing(harbor?: string) {
+    const nextHarbor = harbor || 'fleet';
+    
+    // 1. Next most important thing on the roadmap
+    let nextRoadmap: Record<string, any> | null = null;
+    if (deps.roadmapItems) {
+      const nowItems = deps.roadmapItems.list({ harbor: nextHarbor, status: 'now', limit: 1 });
+      if (nowItems.length > 0) {
+        nextRoadmap = nowItems[0];
+      } else {
+        const backlogItems = deps.roadmapItems.list({ harbor: nextHarbor, status: 'backlog', limit: 1 });
+        if (backlogItems.length > 0) {
+          nextRoadmap = backlogItems[0];
+        }
+      }
+    }
+
+    // 2. Ongoing projects (active sessions)
+    const active = sessions.list({ status: 'active', limit: 10 });
+    const ongoing: Array<Record<string, any>> = [];
+    const activeRows: Array<Record<string, any>> =
+      active && typeof active === 'object' && Array.isArray((active as any).sessions)
+        ? ((active as any).sessions)
+        : [];
+    for (const s of activeRows) {
+      if (!s) continue;
+      const agentResult = agents.get(s.agentId) as any;
+      const agentName = agentResult?.agent?.name || s.agentName || s.name || 'Anonymous Agent';
+      const identity = agentResult?.agent?.identity || s.identity || null;
+      ongoing.push({
+        sessionId: s.id,
+        agentId: s.agentId,
+        agentName,
+        identity,
+        purpose: s.purpose,
+        worktree: s.worktree,
+      });
+    }
+
+    // 3. High-pri bugs needing attention (open feedback)
+    const highPriBugs: Array<Record<string, any>> = [];
+    if (deps.feedback) {
+      const openFeedback = deps.feedback.list({ harbor: nextHarbor, status: 'open', limit: 50 });
+      for (const f of openFeedback) {
+        if (f.severity === 'high' || f.severity === 'critical') {
+          highPriBugs.push(f);
+        }
+      }
+    }
+
+    // 4. Dormant or engineering excellence opportunities
+    const dormant: Array<Record<string, any>> = [];
+    for (const s of activeRows) {
+      if (!s) continue;
+      const agentResult = agents.get(s.agentId) as any;
+      const beat = agentResult?.agent?.timeSinceHeartbeat;
+      if (typeof beat === 'number' && beat > 30 * 60 * 1000) { // dormant for > 30 minutes
+        dormant.push({
+          sessionId: s.id,
+          purpose: s.purpose,
+          agentId: s.agentId,
+          lastActiveAgoMinutes: Math.floor(beat / (60 * 1000)),
+        });
+      }
+    }
+
+    return {
+      success: true,
+      nextRoadmap,
+      ongoing,
+      highPriBugs,
+      dormant,
+    };
+  }
+
+  return { begin, done, whoami, relink, getWelcomeBriefing };
 }

@@ -20,6 +20,7 @@ import {
   parseMacDiagnosticReport,
   readRecentMacDiagnosticCrashReports,
   assessMacDiagnosticCrashReports,
+  isCanonicalRuntimeTarget,
 } from '../../cli/commands/diagnostics.js';
 import { resolveDistributionRoot } from '../../shared/daemon-binary.js';
 
@@ -786,5 +787,65 @@ describe('scanRegistryDbFiles', () => {
 
   test('returns empty for a missing directory', () => {
     expect(scanRegistryDbFiles('/nonexistent/dir/xyz')).toEqual([]);
+  });
+});
+
+/**
+ * `pd status` turns the control-plane verdict into its EXIT CODE, and that
+ * verdict is built from the CANONICAL ~/.port-daddy files plus the canonical
+ * launchd job. So the moment any env var redirects the CLI at a different
+ * daemon, comparing that daemon's /health against canonical files produces a
+ * false "control plane diverged" — a hard failure against a healthy daemon.
+ *
+ * These cases pin every redirect var INDEPENDENTLY, because the bug this
+ * guards against was exactly one missing entry in the list: PORT_DADDY_PORT is
+ * resolution step 1 in shared/daemon-discovery.ts (ahead of the daemon.port
+ * file), so omitting it reintroduced the failure through the most common
+ * redirect of all.
+ */
+describe('isCanonicalRuntimeTarget', () => {
+  const REDIRECTS = [
+    'PORT_DADDY_URL',
+    'PORT_DADDY_SOCK',
+    'PORT_DADDY_PORT',
+    'PORT_DADDY_TCP_HOST',
+    'PORT_DADDY_PREFIX',
+    'PORT_DADDY_PID_FILE',
+    'PORT_DADDY_PORT_FILE',
+    'PORT_DADDY_HEARTBEAT_FILE',
+    'PD_HOME',
+  ];
+
+  function withEnv(overrides, fn) {
+    const saved = {};
+    for (const key of REDIRECTS) {
+      saved[key] = process.env[key];
+      delete process.env[key];
+    }
+    try {
+      for (const [k, v] of Object.entries(overrides)) process.env[k] = v;
+      return fn();
+    } finally {
+      for (const key of REDIRECTS) {
+        if (saved[key] === undefined) delete process.env[key];
+        else process.env[key] = saved[key];
+      }
+    }
+  }
+
+  test('a clean environment IS the canonical target', () => {
+    expect(withEnv({}, isCanonicalRuntimeTarget)).toBe(true);
+  });
+
+  test.each(REDIRECTS)('%s alone makes the target non-canonical', (key) => {
+    const value = key === 'PORT_DADDY_PORT' ? '9999' : '/tmp/pd-redirected';
+    expect(withEnv({ [key]: value }, isCanonicalRuntimeTarget)).toBe(false);
+  });
+
+  test('an empty or whitespace-only override does not count as a redirect', () => {
+    // Callers routinely export these as '' to mean "unset"; treating that as a
+    // redirect would silently disable the verdict for canonical daemons.
+    expect(withEnv({ PORT_DADDY_PORT: '' }, isCanonicalRuntimeTarget)).toBe(true);
+    expect(withEnv({ PORT_DADDY_PID_FILE: '   ' }, isCanonicalRuntimeTarget)).toBe(true);
   });
 });

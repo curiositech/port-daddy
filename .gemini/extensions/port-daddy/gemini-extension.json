@@ -1,6 +1,6 @@
 {
   "name": "port-daddy",
-  "version": "3.26.4",
+  "version": "3.27.0",
   "description": "Port Daddy coordination skill catalog and MCP server for Gemini CLI.",
   "contextFileName": "GEMINI.md",
   "mcpServers": {

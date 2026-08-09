@@ -1,6 +1,6 @@
 {
   "name": "port-daddy",
-  "version": "3.26.4",
+  "version": "3.27.0",
   "description": "Authoritative port management and service orchestration for multi-agent development — port-daddy up/down, atomic assignment, pub/sub messaging, distributed locks, agent registry, and project:stack:context semantic identities",
   "main": "./dist/server.js",
   "type": "module",
@@ -46,6 +46,7 @@
     "check:readme-freshness": "node scripts/check-readme-freshness.mjs --staged",
     "check:skill-mirrors": "node scripts/sync-skill-mirrors.mjs --check",
     "sync:skill-mirrors": "node scripts/sync-skill-mirrors.mjs",
+    "check:rich-docs": "node scripts/check-rich-docs.mjs",
     "parity": "tsx scripts/check-parity.ts",
     "preversion": "npm run parity && npm test -- --no-coverage",
     "postversion": "tsx scripts/sync-version.ts && node scripts/check-version-drift.mjs && git add .claude-plugin/plugin.json .gemini/extensions/port-daddy/gemini-extension.json mcp-server.json mcp/server.ts server.ts website-v2/src/data/referenceCatalog.ts public/samples/manifest.json VERSION core/pd-console/Cargo.toml README.md docs/openapi.yaml && git commit --amend --no-edit",

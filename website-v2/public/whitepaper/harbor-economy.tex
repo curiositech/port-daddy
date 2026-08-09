@@ -1,7 +1,7 @@
 \documentclass[11pt,a4paper]{article}
 
 % ═══════════════════════════════════════════════════════════════════════════════
-%  THE HARBOR ECONOMY  —  Paper 4 of the Harbor Volume (L3: the market)
+%  THE HARBOR ECONOMY  —  Chapter IV of the Port Daddy Coordination Papers
 %  House style matched to anchor-protocol-whitepaper.tex + agent-transactions +
 %  federated-harbor.  hh-* palette, fancyhdr, TikZ figures in figures/.
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -10,12 +10,13 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
+\usepackage{microtype}
 \usepackage{geometry}
 \usepackage{amsmath,amssymb,amsthm}
-\usepackage{hyperref}
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{booktabs}
+\usepackage{tabularx}
 \usepackage{array}
 \usepackage{graphicx}
 \usepackage{fancyhdr}
@@ -23,6 +24,8 @@
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\captionsetup{font=small,labelfont=bf}
 
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,%
   shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
@@ -157,14 +160,14 @@
 \fancyhf{}
 \fancyhead[L]{\small\itshape\color{hhgray} The Harbor Economy}
 \fancyhead[R]{\small\color{hhgray}\thepage}
-\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ Paper 4 of 4 \textperiodcentered\ pre-release}
+\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter IV of VII}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 % ─── Title ────────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{Technical White Paper --- Harbor Volume, Paper 4}}\\[0.5cm]
+  {\Large\textsc{Port Daddy Coordination Papers --- Chapter IV of VII}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{The Harbor Economy:}}\\[0.2cm]
   {\Large A Three-Sided Market for Agent Labor,\\
@@ -176,10 +179,11 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{July 2026\\Version 1.1 --- Harbor Volume, Paper 4 of 4 (L3 --- the market)}
+\date{August 2026\\Version 1.2 (revised pre-print)}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \begin{document}
+\setlength{\emergencystretch}{2em}
 
 \maketitle
 \thispagestyle{empty}
@@ -187,7 +191,7 @@
 \vspace{0.6cm}
 
 \begin{abstract}\noindent
-The first three papers of this volume build a harbor for a \emph{single} operator:
+The first three chapters build a harbor for a \emph{single} operator:
 a daemon, a coordination protocol, a legible authority anyone would pay for today,
 and the continuity that turns an anonymous \emph{spawn} into an accountable
 \emph{person}. This paper is the rung above all of them --- the only one whose
@@ -197,22 +201,27 @@ and fleets are rentable assets; skills and tools are licensed --- all settling o
 \emph{one} conserving bond ledger via float-plan escrow. We present the
 \textbf{cross-harbor capability-transfer ceremony} and the federation that lets
 fleets on machines you do not own trade without a shared chain: a witness log, an
-escrow that provably cannot steal, and revocation gossip with a convergence bound.
-We carry the volume's heaviest reconciliations honestly rather than papering over
+escrow whose extraction bound is conditional on non-bypassable, recipient-whitelisted
+custody, and revocation gossip with an expected convergence result under a connected,
+reliable-round model.
+We carry the series' heaviest reconciliations honestly rather than papering over
 them. The keystone the market leans on is \textbf{local non-forgeable identity}
 --- an identity no agent can edit \emph{within a single trusted daemon} --- and
 that primitive covers a single-operator threat model, \emph{not} the
 cross-operator adversary this market is defined by; the missing, blocking keystone
 is \textbf{cross-operator attestation}, which is specified-to-proposed, not built.
-``Conservation composes upward'' is a true functor only within a single unit of
-account, and a $\varphi$-bounded \emph{lax} functor otherwise. The double-spend and
-equivocation problems are one obstruction: the non-vanishing of the first
-cohomology of a sheaf-gluing. Reputation is monotone in honest outcomes but
+Conservation composes under sequential ledger operations because balance change is
+additive. Cross-currency accounting requires a named valuation instant and explicit
+fee/slippage accounts; ``lax functor'' does not repair an undefined unit conversion.
+The later sheaf language is retained only as a research analogy, not a theorem.
+Reputation is monotone in honest outcomes but
 individually revocable by a propagating tombstone --- it ends, by design, when an
 outcome is shown fraudulent. Every folk-theorem incentive-compatibility claim rests
 on a grading oracle that must be made strategy-proof or bonded-and-slashed. And
-strict conservation is budget balance, so by Myerson--Satterthwaite the market must
-sacrifice efficiency. The defensible product is \textbf{hosted trust} --- a
+strict conservation is budget balance. Myerson--Satterthwaite constrains a bilateral
+private-value slice only under its regularity assumptions; this paper does not yet
+prove incentive compatibility or identify which desideratum the full market gives up.
+The defensible product is \textbf{hosted trust} --- a
 verified ledger, a relay, and a reputation system --- not the commoditized payment
 rail.
 \end{abstract}
@@ -225,11 +234,11 @@ settlement, applied category theory, federation, Port Daddy
 \vspace{0.4cm}
 \noindent\textit{Reading time: approximately 45 minutes end-to-end; about 12
 minutes for \S\ref{sec:thesis}--\S\ref{sec:three-sides} alone (the market thesis).
-This is Paper~4 of a four-paper volume and is written cold: no prior platform
+This is Chapter~IV of a seven-chapter collection and is written cold: no prior platform
 knowledge is assumed. It can be read first, but \S\ref{sec:keystone} leans on
-Paper~3 (\emph{From Spawn to Person}) for the identity substrate, and the
-cryptographic hop-bound authorization chain it rides on is proven in Paper~2
-(\emph{The Anchor Protocol substrate}).}
+Chapter~III (\emph{From Spawn to Person}) for the identity substrate, while the
+cryptographic hop-bound authorization chain is analyzed in Chapter~V
+(\emph{The Anchor Protocol}).}
 
 \vspace{0.5cm}
 
@@ -299,12 +308,11 @@ An implementer &
 \end{tabular}
 \end{table}
 
-\noindent\textbf{Reading order within the volume.} Paper~1 (\emph{The Legible
-Swarm}, L2 --- the wedge) is the front door. Paper~2 (\emph{The Anchor Protocol
-substrate}, L0/L1) is the cryptographic and kernel core. Paper~3 (\emph{From Spawn
-to Person}, the L3 identity bridge) supplies the durable identity and the outcome
-ledger this paper trades on. \emph{This} paper, Paper~4, is the market that stands
-on all three.
+\noindent\textbf{Reading order within the collection.} Chapter~I (\emph{The Legible
+Swarm}) is the front door; Chapter~II (\emph{The Single-Writer Kernel}) is the local
+transactional floor; Chapter~III (\emph{From Spawn to Person}) supplies continuity
+and reputation. \emph{This} chapter is the market. Chapters~V--VII then deepen the
+cryptographic, economic, and federation arguments.
 
 \xrefbox{\textbf{Dramatis personae.} Every mechanism in this paper is dramatized
 end-to-end with the same cast, so an abstraction is never introduced without a
@@ -323,7 +331,7 @@ reason the rest of the paper exists. We price everything in an abstract unit, th
 
 A solo operator running a swarm of coding agents needs three things --- legibility,
 accountability, and safety --- and needs \emph{no cryptography at all}, because she
-owns every machine in the harbor. That is the single-player wedge of Paper~1. The
+owns every machine in the harbor. That is the single-player wedge of Chapter~I. The
 instant two operators trade, the world changes. Alice's frigates touch your
 repository. You must now price work done by agents you did not spawn, owned by a
 principal you do not trust, using skills you cannot inspect. That is a
@@ -360,19 +368,19 @@ primitive. The harbor comes first; the trade comes when the ships do.}
 
 \subsection{The through-line: why a market needs persons, not spawns}
 
-The whole volume climbs one spine (the vertical arrow in
+The whole series climbs one spine (the vertical arrow in
 Figure~\ref{fig:he-stack-map}):
-\[
-\text{memory} \to \text{checkpoint} \to \text{continuity} \to
-\underbrace{\text{a \emph{person}, not a \emph{spawn}}}_{\text{Paper 3}} \to
-\text{registered outcomes} \to \text{reputation} \to
-\underbrace{\text{a tradeable asset} \to \text{the market}}_{\text{this paper}}.
-\]
+\begin{align*}
+\text{memory} &\to \text{checkpoint} \to \text{continuity}
+\to \text{a person, not a spawn} && \text{(Chapter III)}\\
+&\to \text{registered outcomes} \to \text{reputation}
+\to \text{tradeable asset} \to \text{market} && \text{(this chapter).}
+\end{align*}
 Sides 2 and 3 of the market --- renting an \emph{asset}, licensing a \emph{good}
 --- presuppose that there is a \emph{thing} to rent or sell that cannot be
 costlessly cloned. You cannot rent a reputation that any spawn can fork, and you
 cannot license a skill whose track record is unverifiable. The canonical
-cross-layer sentence, repeated identically in Papers~3 and~4, states the dependency
+cross-layer sentence, repeated in Chapters~III and~IV, states the dependency
 exactly:
 
 \pullquote{The score is cheap; the substrate it scores over --- witnessed outcomes
@@ -472,26 +480,22 @@ dropped:
 
 \pullquote{The harbor economy is a three-sided market \emph{by design}; two-sided
 until reputation ships. The third side \emph{is} the tradeable-person terminus of
-Paper~3.}
+Chapter~III.}
 
 Today there is no reputation estimator in the reference implementation; it is a
 gated phase on the roadmap. So sides 2 and 3 are \Designed{}, not shipped. What
 \emph{is} shipped is the escrow $+$ conservation floor they will sit on. We do not
 overclaim the market.
 
-\subsection*{The category-theory caveat: not ``one structure, three decorations''}
+\subsection*{One ledger, three different reputation keys}
 
-It is tempting to call the three sides ``three decorations of one category'': all
-ride one float-plan escrow, so they share the same conservation object. That is
-true \emph{at the conservation object}. It is false at the \emph{identity object}.
+All three sides ride one float-plan escrow, but they do not share one identity key.
 Each side keys reputation on a different entity --- the \textbf{principal} for
 labor, the \textbf{asset owner} for rental, the \textbf{content hash} (a specific
-skill version) for licensing. Three different ``what reputation keys on'' means
-three partial functors into the ledger that \emph{disagree on the identity object}
-(the dashed-red band in Figure~\ref{fig:he-three-sided}). The honest claim is:
-\emph{isomorphic at the conservation object, non-isomorphic at the identity
-object}. Asserting full isomorphism without that qualifier is the decorative-analogy
-failure (\S\ref{sec:conservation}).
+skill version) for licensing. The shared settlement table therefore needs a tagged
+subject identifier such as $(\mathit{kind},\mathit{id},\mathit{version})$; otherwise
+non-equivalent reputation subjects collide. The dashed band in
+Figure~\ref{fig:he-three-sided} marks this schema distinction.
 
 \begin{exercises}
 \item State the operational test for ``how many sides'' in one sentence, then apply
@@ -661,7 +665,7 @@ leased agent mid-task --- while the \emph{owner} bears the reputational conseque
 \keyidea{This is the cleanest economic argument for the runtime \textbf{jail} ---
 the per-agent tool-allowlist plus scoped filesystem that the safety layer enforces:
 the jail is not just safety hygiene, it is the \emph{residual control right that
-makes leasing an agent contractible at all}. Here we must respect the volume's
+makes leasing an agent contractible at all}. Here we must respect the series'
 \emph{capability vs.\ permission} distinction (\S\ref{sec:keystone}): the jail
 allocates \emph{capability} (what the leased agent \emph{can} do at runtime). The
 deontic layer separately governs \emph{permission} (what it \emph{may} do).
@@ -692,7 +696,7 @@ the seller's incentive to ship quality.
 % ═══════════════════════════════════════════════════════════════════════════════
 
 Everything above assumes a counterparty's identity is real. This section confronts
-the volume's single \emph{blocking} reconciliation: the identity primitive the
+the series' single \emph{blocking} reconciliation: the identity primitive the
 whole market leans on covers a threat model that \emph{excludes the cross-operator
 adversary the market is defined by}.
 
@@ -703,8 +707,11 @@ adversary the market is defined by}.
 \begin{definition}[Local non-forgeable identity]\label{def:local-id}
 \emph{Local non-forgeable identity} is a per-agent identity that no agent can edit,
 guaranteed \emph{within one trusted daemon}: the daemon is the only component that
-can hold state agents cannot reach, so it is a trusted root by construction. (Papers
-1--3 specify and rely on it; here we only consume it.)
+can hold state agents cannot reach, so it is a trusted root by construction. (The
+reference system now ships a partial slice --- daemon-minted \texttt{actor-souls}, lookup
+credentials, and a bounded newcomer pool --- while full write-boundary
+enforcement remains open. Papers 1--3 rely on the complete contract; here we only
+consume it.)
 \end{definition}
 
 For a single-operator harbor this is exactly right and is correctly named the
@@ -750,7 +757,7 @@ bond-farming works by spawning fresh \emph{agents} under one principal
 (\textbf{Douceur}'s Sybil attack~\cite{douceur2002}: \emph{free identities defeat
 any reputation or quorum system}). Defining the principal as a first-class economic
 entity is the cleanest Sybil fix; its cryptographic binding is the identity object
-specified in Paper~3 and consumed here.
+specified in Chapter~III and consumed here.
 
 \begin{exercises}
 \item In one sentence, state why a reputation system layered on forgeable
@@ -766,80 +773,73 @@ specified in Paper~3 and consumed here.
 \end{exercises}
 
 % ═══════════════════════════════════════════════════════════════════════════════
-\section{Conservation as a functor (and where it is only lax)}\label{sec:conservation}
+\section{Conservation under composition}\label{sec:conservation}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-The economy's single cross-boundary invariant is ``conservation composes upward.''
-This section states it precisely --- and demotes it to its proven scope, because the
-strong version is false exactly where the open problems live.
+The economy's single cross-boundary invariant is that internal ledger operations
+redistribute value rather than create or destroy it. This section states the
+compositional claim directly and separates it from cross-currency valuation.
 
 \input{figures/fig-he-conservation-functor}
 
-Each harbor is an object carrying internal structure: a finite category whose
-objects are $\{\text{wallet}, \text{escrow}, \text{commons}\}$ and whose morphisms
-are the legal money-flows (debit, escrow, slash, settle, refund). The conservation
-law (Property~\ref{prop:conservation}) is a \emph{commuting-diagram constraint} in
-the sense of \textbf{Spivak's ologs}~\cite{spivak2012} (\emph{an olog is a category
-whose objects are types, whose arrows are functional relations, and whose commuting
-diagrams are invariants}): every path of settlement morphisms composes to the same
-total. The four terminal settlement states are four morphisms out of the escrow
-object that must all commute with the conservation functional.
+Let a ledger state be $x=(W,E,C)$ and let a valid transaction trace $f:x\to y$
+carry external balance change $\Delta(f)=S(y)-S(x)$ for $S(x)=W+E+C$.
+Sequential traces compose by concatenation and satisfy
+$\Delta(g\circ f)=\Delta(g)+\Delta(f)$. Internal escrow, refund, and slash traces
+have $\Delta=0$; top-ups and withdrawals are explicit boundary flows. This is the
+entire conservation claim. Category language can describe trace composition, but
+it does not add a currency-conversion theorem.
 
-\begin{theorem}[Single-unit federation is a conservative functor]\label{thm:functor}
-Restrict to harbors that price bonds in a single, shared unit of account. Then the
-federation map $F:\mathbf{Harbor}\to\mathbf{Federation}$, sending each harbor to its
-ledger and each cross-harbor transfer to the corresponding federated morphism,
-preserves composition: $F(g\circ f)=F(g)\circ F(f)$. Consequently the per-harbor
-invariant lifts \emph{exactly} to the federation, with only an in-escrow accounting
-term for in-flight bonds. (\Designed{}; proof sketch in Appendix~\ref{app:proofs}.)
+\begin{theorem}[Single-unit conservation composes]\label{thm:functor}
+Suppose all harbors use one unit of account and every cross-harbor transfer is a
+matched atomic move from source escrow to either destination settlement or source
+refund, with an explicit in-flight bucket. Then any finite composition of internal
+and cross-harbor operations has total external balance change equal to the sum of
+its recorded top-ups and withdrawals. In particular, a trace containing only
+internal transfers has $\Delta=0$. (\Designed{}; proof sketch in
+Appendix~\ref{app:proofs}.)
 \end{theorem}
 
-\begin{theorem}[Multi-currency federation is at most lax]\label{thm:lax}
-If harbors price bonds in heterogeneous units, $F$ is at most a \emph{lax} functor:
-conservation is preserved only up to the bounded-escrow slack $\varphi$, via a
-coherence 2-cell $F(g\circ f)\overset{\varphi}{\Rightarrow}F(g)\circ F(f)$, and the
-coherence conditions are \emph{unproven}. (\Open{}.)
-\end{theorem}
+\begin{property}[Cross-currency valuation boundary]\label{thm:lax}
+With heterogeneous units, exact conservation is defined per native unit. A scalar
+portfolio total additionally requires a valuation map $v_t$ at a named instant
+$t$, plus explicit fee and slippage accounts. If rates move between legs, the
+mark-to-market difference is economic exposure, not a failure of functoriality.
+Bounding that exposure by $\varphi$ requires a separate oracle-latency and price-move
+assumption that this paper has not proved. (\Open{}.)
+\end{property}
 
-\pullquote{The slogan ``conservation composes upward'' is licensed \emph{only} with
-its scope rider: a conservation-preserving functor in single-unit-of-account
-federation (proven); a $\varphi$-bounded lax functor with unproven coherence in
-multi-currency. The headline says ``functor''; honesty requires the footnote say
-``lax functor where the units diverge.''}
+\pullquote{Conservation is exact per unit of account. A cross-currency scalar is a
+valuation, and every valuation must name its rate source, time, fees, and exposure
+bound. ``Lax functor'' is not a substitute for those data.}
 
 \subsection{The Myerson--Satterthwaite corner}\label{sec:ms}
 
 Strict conservation (Property~\ref{prop:conservation}) is exactly \emph{budget
 balance}. That is not free.
 
-\begin{theorem}[The sacrificed corner]\label{thm:ms}
-By \textbf{Myerson--Satterthwaite}~(1983)~\cite{myerson1983} (\emph{no mechanism for
-bilateral trade under two-sided private information can be simultaneously efficient,
-incentive-compatible, individually-rational, and budget-balanced}), a market that
-imposes strict conservation \emph{cannot} also be efficient and individually-
-rational and incentive-compatible. The harbor economy keeps budget balance
-(conservation), incentive compatibility (settlement is a direct mechanism in the
-sense of \textbf{Myerson}~1981~\cite{myerson1981}), and individual rationality
-(no party is forced to trade). \emph{The corner it gives up is efficiency}: the
-slashing/commons buffer is the budget-balancing wedge that makes the realized
-price-of-anarchy strictly worse than first-best.
+\begin{theorem}[Conditional bilateral-trade boundary]\label{thm:ms}
+For any bilateral slice of this market satisfying the Myerson--Satterthwaite
+assumptions---independent private buyer and seller values drawn from overlapping
+continuous supports, Bayesian incentive compatibility, interim individual
+rationality, and budget balance---no mechanism is also ex-post efficient
+everywhere~\cite{myerson1983}. This theorem constrains such a slice; it does not by
+itself prove incentive compatibility of the harbor mechanism or identify the
+desideratum sacrificed by the full three-sided market.
 \end{theorem}
 
-We name this explicitly rather than hide it, and we decline the
-d'Aspremont--Gérard-Varet (AGV) escape (which buys budget balance $+$ Bayesian-IC at
-the cost of dominant-strategy IC and individual rationality) because IR --- nobody
-is forced to enter the harbor --- is non-negotiable for a \emph{voluntary}
-federation.
+The current design establishes a conservation goal and voluntary entry; it has not
+proved truthfulness. An AGV-style mechanism changes the incentive and participation
+notions and generally offers expected rather than ex-post balance. Comparing those
+alternatives requires a fully specified type and transfer model, which remains open.
 
 \begin{exercises}
-\item State Myerson--Satterthwaite in one sentence, then identify which of its four
-  desiderata the harbor sacrifices and why.
-\item Theorem~\ref{thm:functor} requires a \emph{single} unit of account. Give a
-  concrete two-harbor example where heterogeneous units make $F$ fail to preserve
-  composition (the source of Theorem~\ref{thm:lax}'s slack $\varphi$).
-\item \openstar Write the coherence 2-cells of the lax functor in
-  Theorem~\ref{thm:lax} explicitly and bound them by $\varphi$. Determine whether
-  the pentagon/triangle coherence holds.
+\item State Myerson--Satterthwaite in one sentence and list the assumptions that
+  must be checked before applying it to one harbor trade.
+\item Give a two-currency example in which native-unit conservation holds but the
+  marked-to-market scalar changes because $v_t$ moves.
+\item \openstar Specify an oracle-latency and price-move model that yields a valid
+  $\varphi$ exposure bound for Property~\ref{thm:lax}.
 \end{exercises}
 
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -848,9 +848,9 @@ federation.
 
 The \emph{cross-harbor capability-transfer ceremony} is the market's identity-level
 hot path: how an authorization minted under Alice's harbor becomes usable, safely,
-inside Bob's. Paper~2 proves the cryptographic substrate (the hop-bound
-authorization chain, mechanically verified with a protocol model checker and a Rust
-verifier); \emph{this} section is the ceremony that rides that substrate across a
+inside Bob's. Chapter~V analyzes the cryptographic substrate (a hop-bound
+authorization chain checked by protocol models plus a bounded Rust verification
+layer); \emph{this} section is the ceremony that rides that substrate across a
 boundary.
 
 \input{figures/fig-fh-xfer-ceremony}
@@ -903,14 +903,13 @@ attenuated and nowhere wider.
 \keyidea{Capability \emph{attenuation} is the safety property here: a transferred
 card can only \emph{narrow} authority --- $C_B' = \mathrm{att}_B(\mathrm{att}_A(C_A))$
 --- never widen it. This is the cross-boundary form of the attenuation-monotonicity
-that the hop-bound authorization chain guarantees within one harbor (Paper~2). It is
+that the hop-bound authorization chain checks within one harbor (Chapter~V). It is
 what makes ``rent my agent for an afternoon'' safe to say to a stranger.}
 
 \pitfall{Do not let the federation theorems borrow the substrate's ``formally
-verified'' halo. The hop-bound authorization chain is mechanized (a protocol model
-checker plus a Rust verifier, in Paper~2). The \emph{federation} theorems
-(convergence, bounded escrow) are pen-and-paper plus a TLA\textsuperscript{+}
-extension; they are \Designed{}, not mechanized. Two different confidence levels,
+verified'' halo. The hop-bound authorization chain has bounded symbolic and Rust
+evidence in Chapter~V. The \emph{federation} claims are design arguments plus a
+bounded TLA\textsuperscript{+} extension; they are \Designed{}, not deployed. Two different confidence levels,
 never blurred.}
 
 \begin{exercises}
@@ -955,9 +954,11 @@ state it as such rather than burying it.
 
 \input{figures/fig-fh-settlement}
 
-The bounded escrow is honest about its trust: it does \emph{not} claim trustless
-settlement. The worst-case extraction is the pre-agreed fee $\varphi$ --- \emph{
-trusted-but-bounded}, not trustless. This is a deliberate departure from the
+The escrow construction is honest about its trust: it does \emph{not} claim
+trustless settlement. Its loss bound is conditional on a non-bypassable custody
+ledger that exposes only a recipient whitelist, a fee cap, and one atomic terminal
+transition. If that authority boundary can be bypassed, the worst-case loss is the
+full balance in custody, not merely the pre-agreed fee $\varphi$. This is a deliberate departure from the
 hash-timelock baseline (\textbf{Herlihy}~2018~\cite{herlihy2018}, atomic cross-chain
 swaps), and the right comparison is the formal model of mutually-distrusting
 commerce without a shared chain: \textbf{Herlihy, Liskov \& Shrira}~(2022, \emph{
@@ -965,11 +966,12 @@ Cross-Chain Deals and Adversarial Commerce})~\cite{hls2022}. The harbor's bounde
 escrow is a ``trusted third party / watchtower'' point in that design space; we
 locate it there explicitly rather than reinvent it.
 
-\begin{conjecture}[Trustless cross-harbor settlement]\label{conj:trustless}\label{thm:fh-escrow-bound}
-Trustless settlement for \emph{non-fungible, reputation-priced} bonds is impossible
-(unlike HTLC for fungible value). Proving or refuting this is the deepest crypto-
-economic question in the layer. (\Open{}.)
-\end{conjecture}
+\begin{remark}\label{conj:trustless}
+\textbf{Open problem: trustless cross-harbor settlement.} It is unknown here whether
+non-fungible, reputation-priced bonds admit a useful trustless settlement protocol
+under the paper's availability and privacy requirements. An HTLC comparison does not
+prove impossibility because the asset and adjudication models differ. (\Open{}.)
+\end{remark}
 
 \subsection{Revocation gossip and the equivocation race}\label{sec:fh-revocation}\label{sec:revocation}
 
@@ -979,8 +981,9 @@ Federated revocation propagates by anti-entropy gossip
 (\textbf{Demers et al.}~1987~\cite{demers1987}) with a probabilistic-membership
 filter (a cuckoo filter --- a compact structure that answers ``is this card
 revoked?'' with no false negatives and a tunable false-positive rate). The
-federation's convergence bound, expected $\Delta(1+\ln m)$ for $m$ harbors,
-inherits Demers' \emph{average-case, honest-participant, random-peer} model.
+federation therefore has expected $\Theta(\log m)$-round dissemination only under
+a connected reliable-round overlay with the stated randomized peer-selection model.
+This asymptotic expectation is not an exact constant or a partition-tolerant deadline.
 
 \begin{protocol}[Federated revocation gossip]\label{prot:gossip}
 \textbf{State:} each harbor $X$ keeps a revocation filter $F_X$ and a current epoch
@@ -992,46 +995,50 @@ root $R_X^{(e)}$ published to a shared witness log.
     deltas (anti-entropy). A card present in either filter becomes present in both.
   \item \emph{Audit.} Any third party compares each harbor's published roots in the
     witness log; a harbor that publishes two contradictory roots for one epoch is
-    \emph{equivocating} and is detectable in expected $O(\log m)$ audit rounds, then
-    slashed against its witness bond.
+    \emph{equivocating}. Verification is constant work once both signed roots are
+    co-located; delivery to an auditor has the overlay's separate dissemination delay.
 \end{enumerate}
-\textbf{Post:} every honest harbor learns the revocation within expected
-$\Delta(1+\ln m)$; the interval $[0,\Delta]$ is the named, bounded attacker window.
+\textbf{Post, conditionally:} in the connected reliable-round model, every honest
+harbor learns the revocation in expected $\Theta(\Delta\log m)$ time. Under an
+unbounded partition there is no finite global-learning bound.
 \end{protocol}
 
 \paragraph{The revocation race, dramatized.} Alice revokes $a_2$'s card $c$ at
 $t=0$ (say she discovers it was misbehaving). Harbor~$B$, which rented $a_2$, has not
 yet heard: for the interval $[0,\Delta]$, $B$'s filter is stale and $c$ is still
 spendable there. At $t=\Delta$ gossip reaches $B$, which adds $c$ to $F_B$ and
-refuses further use. Harbor~$C$, two hops away, learns at $t=2\Delta$. The exposure
-is exactly the one stale window at $B$ --- and Conjecture~\ref{conj:eq-bound} says
+refuses further use. Harbor~$C$, two hops away, learns at $t=2\Delta$. This is one
+illustrated execution; a different schedule or partition produces a different
+window. Conjecture~\ref{conj:eq-bound} says
 the bond Alice posted on $c$ must dominate whatever $a_2$ could spend at $B$ inside
 that window, or a well-capitalized Bob could rationally race the gossip.
 
 \pitfall{The threat is \emph{adversarial}, not stochastic. An attacker who controls
 peer selection or partitions the gossip graph (an \emph{eclipse attack},
 \textbf{Heilman et al.}~2015~\cite{heilman2015}) breaks the expected-time guarantee.
-The honest statement is: convergence is bounded \emph{under partial synchrony with
-honest-majority gossip}, and that is a cryptographic assumption, not a free lemma.}
+The honest statement is conditional: a finite service-level bound needs eventual
+connectivity and a known post-stabilization delivery bound; epidemic analysis then
+supplies an expectation within that model, not an adversarial deadline.}
 
 Detection-after-the-fact deters only if the slashed bond exceeds the value
 extractable during the detection window. This is the analogue of the
 \emph{cleanup lower bound} (the companion result that a cleanup bond must cover the
 worst-case cost of the damage it underwrites), and we state it as a target:
 
-\begin{conjecture}[Equivocation Lower Bound]\label{conj:eq-bound}\label{thm:fh-conv}
-The witness bond must dominate the maximum value spendable against a revoked-but-not-
-yet-converged capability across the \emph{worst-case} (not expected) detection
-window. Without it, a well-capitalized adversary can rationally equivocate, extract,
-and eat the slash. (\Open{}; analogue of the proven cleanup lower bound.)
+\begin{conjecture}[Equivocation Lower Bound]\label{conj:eq-bound}
+For a deployment that advertises a finite freshness window $T$, the witness bond
+must dominate the maximum value spendable against a revoked-but-not-yet-observed
+capability over $T$. If partitions are unbounded, no finite bond covers the worst
+case; the system must instead fail closed on stale roots or cap spend independently.
+(\Open{}; analogue of the cleanup lower bound.)
 \end{conjecture}
 
 \input{figures/fig-fh-threat-bands}
 
 \begin{exercises}
-\item The convergence bound is $\Delta(1+\ln m)$ \emph{expected}. Name the two
-  assumptions that make it false in the adversarial setting, and the partial-
-  synchrony assumption that rescues a weaker version.
+\item State the connectivity, peer-selection, and delivery assumptions needed for
+  expected $\Theta(\Delta\log m)$ dissemination. Explain why none yields a deadline
+  during an unbounded partition.
 \item Trace a revoked capability through Figure~\ref{fig:fh-revocation}: at which
   harbor, and at what time, can it still be spent? That window is what
   Conjecture~\ref{conj:eq-bound} must price.
@@ -1055,7 +1062,8 @@ load-bearing.
 
 \keyidea{The reconciled statement: \textbf{reputation is monotone in \emph{honest}
 witnessed outcomes, but a witnessed outcome is itself revocable via a propagating
-tombstone}, bounded by the same revocation-convergence bound as capabilities. ``Never
+tombstone}. Dissemination has the same model and partition caveats as capability
+revocation. ``Never
 decays'' applies to honest outcomes only; it is \emph{not} an anti-revocation
 property.}
 
@@ -1064,20 +1072,18 @@ We also decline to assert no-decay as a virtue: bounded memory is a design param
 Bubbles}~\cite{liu2014}, show unbounded records create reputation \emph{bubbles},
 not stability). The horizon is a tunable, and $\infty$ is rarely optimal.
 
-\subsection{Why the Sagas functor does not transport}
+\subsection{Why Sagas-style compensation does not restore reputation}
 
 It is tempting to fix revocation with compensating transactions
 (\textbf{Garcia-Molina \& Salem}~1987, \emph{Sagas}~\cite{sagas1987}), as the bond
 ledger does. But the analogy fails structurally:
 
-\begin{proposition}[Sagas does not transport to reputation]\label{prop:no-saga}
-The bond ledger is a free monoid on settlement events; conservation is a monoid
-homomorphism to $(\mathbb{Z},+)$ preserved by concatenation, so a compensating entry
-restores the conserved total. Reputation has \emph{no} conserved quantity: a
-tombstone does not ``give back'' the trust spent during the propagation window.
-Therefore the Sagas functor that works for bonds does not transport to reputation.
-Reputation revocation is tombstone-propagation bounded by the convergence bound,
-\emph{not} compensation.
+\begin{proposition}[Compensation does not erase reliance]\label{prop:no-saga}
+A ledger can append a compensating transaction that restores a numerical balance.
+A reputation tombstone cannot undo decisions counterparties already made while
+relying on the invalid outcome. It can only change future evaluations after the
+tombstone is observed. Reputation repair therefore requires dissemination plus an
+explicit remedy for past reliance; it is not equivalent to ledger compensation.
 \end{proposition}
 
 This is why Sagas appears in the bond-settlement prior art but \emph{not} in the
@@ -1091,20 +1097,20 @@ daemon derives the grade.'' But the grade is produced by a capturable evaluator
 
 \input{figures/fig-he-grading-oracle}
 
-\begin{theorem}[The folk theorem needs an exogenous signal]\label{thm:folk}
-An imperfect-monitoring folk theorem (\textbf{Green--Porter}~1984; \textbf{Abreu--
-Pearce--Stacchetti}~1990~\cite{aps1990}) requires the public-signal distribution to
-be common knowledge and \emph{exogenous}. If the signal (the grade) is produced by a
-strategic, capturable agent, the signal is endogenous and the folk theorem does not
-apply as stated. The market's deepest theorem sits on an un-modeled foundation
-unless the oracle is made strategy-proof or the judges are bonded.
+\begin{theorem}[The monitoring model must include the evaluator]\label{thm:folk}
+An imperfect-public-monitoring equilibrium result requires a specified conditional
+distribution of public signals given modeled actions and strategies. If a strategic
+grader chooses the signal but is omitted from the game, that distribution is not
+fixed by the model and the claimed equilibrium result is unsupported. One must
+either constrain the signal mechanically or include the grader, its information,
+payoffs, and deviations as part of the game~\cite{aps1990}.
 \end{theorem}
 
 \noindent\textbf{The two resolutions (both used).}
-\emph{Fix A --- strategy-proof by construction:} ground settlement in
-\emph{machine-checkable} oracles the agent cannot author (a passing test id, a
-merged commit hash, a satisfied policy check). Where this is possible, the oracle is
-strategy-proof and Theorem~\ref{thm:folk}'s premise is met.
+\emph{Fix A --- mechanically constrained evidence:} ground settlement in evidence
+the agent cannot directly author (a CI-issued test result, a protected merge event,
+or an independently evaluated policy check). This narrows the signal channel; it
+does not make the task metric universally strategy-proof.
 \emph{Fix B --- bond-and-slash the judges:} where machine-checking is impossible
 (aesthetics, ambiguous quality), the human/LLM judges get their \emph{own} bond and
 their \emph{own} reputation; a judge later contradicted by re-audit is slashed. The
@@ -1126,8 +1132,8 @@ the re-audit made it expensive --- and the recursion stops at the second panel,
 whose own evidence is machine-checkable (the same diff, the same tests).
 
 \begin{exercises}
-\item State the exact assumption Theorem~\ref{thm:folk} needs about the public
-  signal, and explain why a capturable grader violates it.
+\item State the signal-model assumption Theorem~\ref{thm:folk} needs and explain
+  why an omitted strategic grader leaves it undefined.
 \item Classify three settlement criteria as machine-checkable (Fix A) or judge-
   dependent (Fix B): a unit test passing; a merged SHA; ``the refactor is
   tasteful.''
@@ -1227,39 +1233,34 @@ price), plus sampled adversarial re-audit of high-velocity pairs.
 \end{exercises}
 
 % ═══════════════════════════════════════════════════════════════════════════════
-\section{The sheaf-gluing problem (one question, three guises)}\label{sec:sheaf}
+\section{A gluing analogy for the open federation problem}\label{sec:sheaf}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-Three of the layer's open problems --- trustless cross-harbor settlement, the
-equivocation/convergence race, and the cross-harbor unit-of-account --- are the
-\emph{same} problem in different clothes.
+Three open problems---cross-harbor settlement, equivocation under partitions, and
+cross-currency valuation---share a local-to-global shape. That resemblance motivates
+an analogy; it does not yet define a sheaf or a cohomology theory.
 
-\begin{conjecture}[The gluing obstruction]\label{conj:sheaf}
-Consider the assignment $\mathrm{harbor}\mapsto\mathrm{its\ ledger}$. Federation
-succeeds iff this assignment forms a \emph{sheaf}: local sections (per-harbor
-ledgers) glue to a unique global section (federated state) exactly when they agree
-on overlaps (cross-harbor conservation). The double-spend / equivocation race is the
-\emph{non-vanishing of the first cohomology $H^1$ of the gluing} --- the precise
-obstruction to gluing local-consistent ledgers into one global-consistent state.
-Open Problems on settlement (Conj.~\ref{conj:trustless}), equivocation
-(Conj.~\ref{conj:eq-bound}), and unit-of-account
-(Theorem~\ref{thm:lax}) are this single obstruction. (\Open{}.)
+\begin{conjecture}[Formalization target, not established result]\label{conj:sheaf}
+A future treatment may define a site of overlapping administrative domains and a
+presheaf of signed ledger views, then ask when compatible local sections admit a
+unique global section. This paper has not specified the site, restriction maps,
+coefficient object, or cocycles; therefore it makes no claim that a particular
+$H^1$ is defined or non-zero. The immediate engineering obligations remain the
+concrete ones: matched custody transitions, freshness policy under partitions, and
+time-indexed valuation.
 \end{conjecture}
 
-This earns the Spivak/applied-category-theory citation honestly rather than
-decoratively (\textbf{Fong \& Spivak}, \emph{Seven Sketches in
-Compositionality}~\cite{fong2019}): it sharpens three vague problems into one precise
-one and tells a defense exactly what it must kill --- the $H^1$ class.
+Fong and Spivak's compositionality program~\cite{fong2019} suggests vocabulary for
+a future formalization. Until the site and coefficient data are defined, the paper
+uses ``gluing'' only to organize engineering questions.
 
 \begin{exercises}
-\item In one sentence each, restate Conjectures~\ref{conj:trustless},
-  \ref{conj:eq-bound}, and Theorem~\ref{thm:lax} as facets of the gluing
-  obstruction.
-\item Why is double-spend ``$H^1 \ne 0$'' and not ``$H^0 \ne 0$''? (Hint: $H^0$ is
-  global sections; $H^1$ is the obstruction to building one.)
-\item \openstar Either exhibit a defense that forces $H^1 = 0$ for a bounded gossip
-  topology, or prove no such defense exists without consensus (which would refute
-  the federation thesis's no-consensus stance).
+\item Name the site, cover, restriction maps, and coefficient object a genuine
+  sheaf model of federated ledger views would require.
+\item Explain why two incompatible signed roots are evidence of equivocation but
+  are not, without further definitions, a cohomology class.
+\item \openstar Build a small formal gluing model for a bounded gossip topology and
+  state exactly what consistency result it proves.
 \end{exercises}
 
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -1272,9 +1273,8 @@ defended; they are holes.
 \begin{enumerate}[leftmargin=1.6em,itemsep=3pt]
   \item \textbf{Multi-dimensional reputation aggregation.} ``Accuracy/aesthetics/
     efficiency judged by separate experts'' has no specified combination rule.
-    Categorically, it is a functor into a product object with no chosen universal
-    map to $\mathbb{R}$; you cannot have ``separate axes'' and ``one buyer-readable
-    score'' without specifying the cone. (\Vision{}.)
+    You cannot have ``separate axes'' and ``one buyer-readable score'' without
+    specifying an aggregation function and its trade-offs. (\Vision{}.)
   \item \textbf{Float-plan amendment under scope drift.} The four states assume the
     acceptance criteria were right. Mid-flight re-specification needs a re-sign
     protocol with escrow top-up/refund delta, preserving conservation.
@@ -1333,9 +1333,9 @@ explicitly against atomic cross-chain swaps~\cite{herlihy2018} and the
 adversarial-commerce model of Herlihy, Liskov \& Shrira~\cite{hls2022}; reputation
 revocation is contrasted with Sagas-style compensation~\cite{sagas1987}.
 
-\paragraph{Applied category theory.} Conservation-as-functor and the sheaf-gluing
-framing use ologs~\cite{spivak2012} and the compositionality program of Fong \&
-Spivak~\cite{fong2019}; the commons-governance reading draws on
+\paragraph{Applied category theory.} The trace-composition notation and proposed
+gluing formalization draw vocabulary from ologs~\cite{spivak2012} and Fong \&
+Spivak~\cite{fong2019}; no cohomology claim is made. The commons-governance reading draws on
 Ostrom~\cite{ostrom1990}, and the auction machinery on standard algorithmic game
 theory~\cite{nrtv2007}.
 
@@ -1393,20 +1393,21 @@ Agent transaction rails & UCP~\cite{ucp2026}; ACP~\cite{acp2025};
 \section{Conclusion}\label{sec:conclusion}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-The harbor-master makes a swarm legible, accountable, and safe for one operator (the
-wedge of Paper~1). When operators sail out to trade, the \emph{same} ledger that
+The harbor-master makes a swarm legible and accountable for one operator (the
+wedge of Chapter~I). When operators sail out to trade, the \emph{same} ledger that
 kept one operator's swarm honest becomes the market that lets fleets who don't trust
 each other work together: three sides, one bond, hosted trust. We have not papered
 over the cost of that claim. The keystone identity primitive --- local
 non-forgeable identity --- covers a single-operator threat model and must be
 extended to cross-operator attestation before the boundary is honestly one
-``neither controls.'' Conservation composes upward only as a functor within a single
-unit of account, and a $\varphi$-bounded lax functor otherwise. Reputation is
+``neither controls.'' Conservation composes exactly within each unit of account;
+cross-currency totals require time-indexed valuation and an explicit exposure model. Reputation is
 monotone in honest outcomes and revocable by tombstone, not by Sagas. Every
-folk-theorem result rests on a grading oracle that must be machine-checkable or
-bonded. And strict conservation is budget balance, so by Myerson--Satterthwaite the
-market gives up efficiency. The bones are good and the floor is built; the spine the
-market trades on is designed, not shipped --- and this paper says so in the same
+folk-theorem result rests on a grading process included in the monitoring model.
+Myerson--Satterthwaite constrains bilateral slices only when its assumptions hold;
+the paper does not yet prove which corner the full market sacrifices. The bones are good and the floor is built; the spine the
+market trades on has partial local identity and outcome substrates but no complete
+reputation or cross-operator binding --- and this paper says so in the same
 words throughout, because a market built on an overstated keystone is a market built
 on sand.
 
@@ -1423,7 +1424,7 @@ with a proof or a written protocol, and which are still proposed. The single-lin
 summary: an \Built{} conserving bond ledger, an \Built{} continuity organ (episodic
 memory), a \BuiltWeak{} checkpoint, and a richly \Designed{}-and-model-verified
 protocol stack --- but the spine the market trades on (cross-operator identity
-$\to$ outcome ledger $\to$ reputation) is \Designed{}-to-\Vision{}. Today the harbor
+$\to$ outcome ledger $\to$ reputation) is \BuiltWeak{}-to-\Vision{}. Today the harbor
 economy is a two-sided market with a proof-backed roadmap to three.
 
 \begin{table}[H]
@@ -1434,7 +1435,7 @@ implementation. ``Module'' names refer to source files in the implementation;
 ``model'' means a mechanized proof artifact; ``property test'' means a randomized
 test exercising the invariant.}
 \label{tab:honest-state}
-\begin{tabular}{@{}p{6.8cm} l p{5.2cm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X l >{\raggedright\arraybackslash}p{0.31\textwidth}@{}}
 \toprule
 \textbf{Claim / mechanism} & \textbf{State} & \textbf{Grounding} \\
 \midrule
@@ -1445,9 +1446,11 @@ Conservation $\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$ & \Built
 No-spawn-without-bond & \BuiltWeak{} & escrow-first; runtime gate is a roadmap item \\
 Episodic memory (continuity organ 1) & \Built{} & episodic-memory module \\
 Resurrection / checkpoint (organ 2) & \BuiltWeak{} & passes notes, not state \\
-Outcome ledger (organ 3 --- reputation keys here) & \Designed{} & commitment module
-  (specified; partial) \\
-Local non-forgeable identity (intra-harbor) & \Designed{} & specified, not shipped \\
+Outcome ledger (organ 3 --- reputation keys here) & \BuiltWeak{} & commitments,
+  daemon-derived deadlines, oracle closure, API/CLI, and overdue monitoring ship;
+  neutral grading and reputation binding do not ship \\
+Local non-forgeable identity (intra-harbor) & \BuiltWeak{} & \texttt{actor-souls}, lookup
+  credentials, and a bounded newcomer pool ship; full write gating does not ship \\
 Cross-operator attestation & \Designed{}/\Vision{} & no spec for the load-bearing part \\
 Float plan $+$ signed escrow ceremony & \Designed{} & Protocol~\ref{prot:escrow} \\
 Cross-harbor capability transfer (attenuation) & \Designed{} & verified \emph{as model};
@@ -1459,15 +1462,15 @@ Three-sided market (labor / rental / licensing) & \Designed{} & two-sided in rea
 Skill licensing (metered $+$ clawback $+$ Merkle proof) & \Designed{} &
   cross-harbor verifiability undeployed \\
 Federation: witness log, capability transfer & \Designed{} & companion federation paper \\
-Bounded escrow (extraction $\le \varphi$) & \Designed{} (theorem) &
-  trustless variant conjectured impossible \\
+Recipient-whitelisted escrow custody & \Designed{} (conditional property) &
+  requires non-bypassable authority; no runtime conformance \\
 Cross-harbor conservation & \Designed{} (property) & proof sketch
   (App.~\ref{app:proofs}) $+$ TLA\textsuperscript{+} \\
-Federated revocation convergence & \Designed{} (theorem) & equivocation race \Open{} \\
+Federated revocation dissemination & \Designed{} (conditional expectation) & no finite partition deadline; equivocation delivery \Open{} \\
 Hosted-trust moat / rail separation & \Designed{} (positioning) & not a code artifact \\
 Competitive underwriting (4th side) & \Vision{} & composition unresolved \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \section{Proof sketches}\label{app:proofs}
@@ -1475,46 +1478,35 @@ Competitive underwriting (4th side) & \Vision{} & composition unresolved \\
 We sketch the three load-bearing results; full proofs of the conservation results
 appear in the companion federation paper.
 
-\begin{proof}[Proof sketch of Theorem~\ref{thm:functor} (single-unit federation is a
-conservative functor)]
-Fix a shared unit of account. Each harbor $H$ is a finite category $\mathcal{C}_H$
-with objects $\{\text{wallet},\text{escrow},\text{commons}\}$ and morphisms the legal
-money-flows; the conservation invariant is the statement that the total mass
-functional $\mu:\mathcal{C}_H\to(\mathbb{Z},+)$ is constant along every morphism. A
-cross-harbor transfer is a morphism in the federation category $\mathbf{Federation}$
-whose effect is an escrow debit at the source and a matching escrow credit at the
-destination, plus an in-flight escrow term. Define $F$ on objects by sending each
-harbor to its ledger and on morphisms by sending each transfer to the paired
-debit/credit. Because every generating morphism preserves $\mu$ and $F$ sends
-composites of generators to composites of their images by construction,
-$F(g\circ f)=F(g)\circ F(f)$. Hence $F$ is a functor and $\mu$ lifts exactly, the
-only residual being the in-flight escrow term, which nets to zero on settlement.
+\begin{proof}[Proof sketch of Theorem~\ref{thm:functor}]
+For a valid trace $f:x\to y$, define $\Delta(f)=S(y)-S(x)$. For composable traces
+$f:x\to y$ and $g:y\to z$,
+\[
+\Delta(g\circ f)=S(z)-S(x)=[S(z)-S(y)]+[S(y)-S(x)]
+=\Delta(g)+\Delta(f).
+\]
+Every internal generating operation has zero delta because its debits and credits
+match, including a cross-harbor move through the explicit in-flight bucket. By
+induction on trace length, a composition of internal generators has zero delta;
+top-ups and withdrawals contribute exactly their recorded boundary amounts.
 \end{proof}
 
-\begin{proof}[Proof sketch of Theorem~\ref{thm:lax} (multi-currency federation is at
-most lax)]
-With heterogeneous units, a cross-harbor transfer must pass through a conversion at
-the boundary. The conversion is exact only if rates are globally consistent; in
-general it leaves a residual bounded by the pre-agreed escrow slack $\varphi$. So
-$F(g\circ f)$ and $F(g)\circ F(f)$ differ by a $\varphi$-bounded $2$-cell rather than
-being equal, i.e.\ $F$ is at most a lax functor. Whether the coherence (pentagon /
-triangle) conditions hold for this $2$-cell is open; this is precisely the
-unit-of-account facet of the gluing obstruction (Conjecture~\ref{conj:sheaf}).
+\begin{proof}[Boundary note for Property~\ref{thm:lax}]
+Native-unit conservation follows by applying Theorem~\ref{thm:functor} separately
+to each unit. A scalar valuation $V_t(x)=\sum_j v_{t,j}x_j$ changes either when
+native balances change or when the valuation vector $v_t$ changes. The second term
+is mark-to-market exposure. No finite $\varphi$ follows without assumptions bounding
+rate movement, oracle delay, fees, and slippage; those assumptions are not supplied
+here.
 \end{proof}
 
 \begin{proof}[Proof of Theorem~\ref{thm:ms} (the sacrificed corner)]
-Strict conservation (Property~\ref{prop:conservation}) is budget balance: every
-credit has a matching debit, so the mechanism runs no deficit or surplus.
-Myerson--Satterthwaite~\cite{myerson1983} states that no bilateral-trade mechanism
-under two-sided private information is simultaneously efficient, Bayesian
-incentive-compatible, individually rational, and budget-balanced. The harbor keeps
-budget balance (conservation), incentive compatibility (settlement is a direct
-mechanism~\cite{myerson1981}), and individual rationality (no one is forced to
-trade). By the theorem, the fourth desideratum --- efficiency --- cannot also hold;
-the slashing/commons buffer is the budget-balancing wedge that pushes the realized
-allocation strictly below first-best. The AGV escape is declined because it buys
-budget balance and Bayesian-IC at the cost of individual rationality, which is
-non-negotiable for a voluntary federation.
+Restrict attention to a bilateral slice satisfying the assumptions stated in
+Theorem~\ref{thm:ms}. The Myerson--Satterthwaite impossibility then rules out the
+simultaneous achievement of all four desiderata. The implication is conditional:
+before declaring which corner the harbor gives up, a mechanism must specify its
+types and transfers and prove its incentive and participation properties. The
+present paper has not done so, hence makes no stronger allocation claim.
 \end{proof}
 % ═══════════════════════════════════════════════════════════════════════════════
 \begin{thebibliography}{99}

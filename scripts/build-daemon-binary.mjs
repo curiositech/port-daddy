@@ -115,7 +115,7 @@ async function smokeBinary() {
 
 const bunVersion = run('bun', ['--version']).trim();
 mkdirSync(DIST_DIR, { recursive: true });
-run('bun', ['build', '--compile', 'server.ts', '--outfile', OUTFILE], { stdio: 'inherit' });
+run('bun', ['build', '--compile', 'bin/port-daddy-daemon.ts', '--outfile', OUTFILE], { stdio: 'inherit' });
 
 let smoke = null;
 if (!args.has('--no-smoke')) {
@@ -131,7 +131,7 @@ writeFileSync(MANIFEST, `${JSON.stringify({
   sizeBytes: stats.size,
   sha256: sha256(OUTFILE),
   builtAt: new Date().toISOString(),
-  builder: 'bun build --compile server.ts',
+  builder: 'bun build --compile bin/port-daddy-daemon.ts',
   bunVersion,
   resourceRootEnv: 'PORT_DADDY_RESOURCE_DIR',
   sqliteBackend: 'bun:sqlite',

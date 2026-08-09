@@ -1,4 +1,4 @@
-% The L0->L3 stack map, viewed from Paper 4 (the L3 market rung).
+% The L0->L3 stack map, viewed from Chapter IV (the L3 market rung).
 % Design: one bold title + small-caps whom per rung, one italic content line
 % with an honest-state tag; the through-line and dependency moral live in the
 % caption, not the canvas.
@@ -34,28 +34,29 @@
    \textit{digest-with-zoom, roadmap-as-truth, adversarial review, the console}\hfill{\footnotesize\textsc{built}}};
 \node[rung,fill=hhsand!30,draw=hhcobalt,very thick,above=5mm of l2] (l3)
   {{\bfseries L3 --- Economy \& federation}\hfill{\footnotesize\textsc{for operators, plural \& distrusting}}\\[2pt]
-   \textit{cross-harbor capability transfer, float-plan escrow, reputation, federation}\hfill{\footnotesize\textsc{whitepaper'd}}};
+   \textit{cross-harbor capability transfer, float-plan escrow, reputation, federation}\hfill{\footnotesize\textsc{designed}}};
 
 % "this paper" flag on L3
 \node[anchor=west,font=\bfseries\footnotesize,text=hhcobalt]
   at ([xshift=3mm]l3.east) {$\blacktriangleleft$ this paper};
 
 % companion papers, left column
-\node[paper,anchor=east] at ([xshift=-9mm]l0.west) {Paper 2\\\emph{Anchor} (L0--L1)};
-\node[paper,anchor=east] at ([xshift=-9mm]l2.west) {Paper 1\\\emph{Legible Swarm}};
-\node[paper,anchor=east] at ([xshift=-9mm]$(l2.north west)!0.5!(l3.south west)$) {Paper 3\\\emph{the bridge}};
-\node[paper,draw=hhcobalt,very thick,anchor=east] at ([xshift=-9mm]l3.west) {\textbf{Paper 4}\\\emph{this}};
+\node[paper,anchor=east] at ([xshift=-9mm]l0.west) {Chapter II\\\emph{Kernel}};
+\node[paper,anchor=east] at ([xshift=-9mm]l2.west) {Chapter I\\\emph{Legible Swarm}};
+\node[paper,anchor=east] at ([xshift=-9mm]$(l2.north west)!0.5!(l3.south west)$) {Chapter III\\\emph{the bridge}};
+\node[paper,draw=hhcobalt,very thick,anchor=east] at ([xshift=-9mm]l3.west) {\textbf{Chapter IV}\\\emph{this}};
 
 \end{tikzpicture}%
 }
 \caption{Where this paper sits. The L0$\to$L3 stack: each rung serves
-a different \emph{whom}, and each announces what it assumes from below. Papers
-1--3 climb L2, L0/L1, and the L3 identity bridge respectively; \emph{The Harbor
+a different \emph{whom}, and each announces what it assumes from below. Chapters
+I--III establish legibility, the kernel, and the L3 identity bridge; \emph{The Harbor
 Economy} is the top rung --- the only layer whose participants are plural and
 mutually distrusting, and it depends on every rung below it. It consumes the
 \emph{implemented} bond ledger from L0, the cryptographic hop-bound authorization
-chain from L1, and the legible \emph{person} from Paper~3, and turns them into a
-market. The volume's spine runs straight up this stack: memory $\to$ checkpoint
+chain from L1, and the legible \emph{person} from Chapter~III, and turns them into a
+market. Chapters V--VII deepen the protocol, incentive, and federation seams;
+chapter numbers are not layer numbers. The series spine runs up this stack: memory $\to$ checkpoint
 $\to$ continuity $\to$ a \emph{person} not a \emph{spawn} $\to$ registered outcomes
 $\to$ \textbf{reputation} $\to$ a tradeable asset $\to$ \textbf{the market} --- the
 same memory that makes the single-player wedge good is what turns a spawn into a
