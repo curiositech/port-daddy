@@ -1137,9 +1137,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     return;
   }
 
-  // Cloud squid: announce the run (fire-and-forget; disabled unless BOTH
-  // RELAY_PUBLISH_URL and RELAY_PUBLISH_TOKEN are configured AND the tenant
-  // opted in via `squidEvents: true` in pd-fleet.yml).
+  // Cloud squid: announce the run (fire-and-forget; disabled unless
+  // RELAY_PUBLISH_URL + the executor's Ed25519 key + harbor card are all
+  // configured AND the tenant opted in via `squidEvents: true` in
+  // pd-fleet.yml). Signed zero-trust publish — see src/squid-events.ts.
   emitSquidEvent(env, 'run-started', { repo: job.repoFullName, pr: prNumber, runId }, squidConsent);
 
   // --- SPEND CIRCUIT-BREAKER (pre-spend, before any ship runs) --------------
