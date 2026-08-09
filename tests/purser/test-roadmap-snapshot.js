@@ -43,7 +43,7 @@ const expectedProgram = new Map([
 
 describe('roadmap snapshot', () => {
   it('is internally consistent, unique, and deterministically ordered', () => {
-    assert.equal(snapshot.count, 260);
+    assert.equal(snapshot.count, 261);
     assert.equal(snapshot.count, snapshot.items.length);
 
     const slugs = snapshot.items.map(({ slug }) => slug);
