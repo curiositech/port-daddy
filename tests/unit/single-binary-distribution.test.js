@@ -11,6 +11,8 @@ describe('single binary distribution path', () => {
     expect(script).toContain("bin/port-daddy-bundle.ts");
     expect(script).toContain('writeEmbeddedAssetsModule');
     expect(script).toContain('writeEmbeddedNativeCoreModule');
+    expect(script).toContain('stageSquidReleaseAssets');
+    expect(script).toContain("scripts/smoke-squid-release.mjs");
     expect(script).toContain('targetArch');
     expect(script).toContain('requestedArch !== process.arch');
     expect(script).toContain("run('bash', ['scripts/build-core.sh']");
@@ -23,17 +25,40 @@ describe('single binary distribution path', () => {
 
   test('single binary entrypoint can route daemon mode before loading the CLI', () => {
     const bundle = readFileSync(join(process.cwd(), 'bin', 'port-daddy-bundle.ts'), 'utf8');
+    const daemonBundle = readFileSync(join(process.cwd(), 'bin', 'port-daddy-daemon.ts'), 'utf8');
+    const daemonBuild = readFileSync(join(process.cwd(), 'scripts', 'build-daemon-binary.mjs'), 'utf8');
 
     expect(bundle).toContain("process.env.PORT_DADDY_CAN_SELF_DAEMON = '1'");
     expect(bundle).toContain('embedded-native-core.generated.js');
     expect(bundle).toContain("await import('koffi')");
     expect(bundle).toContain('__PORT_DADDY_KOFFI_LOAD_ERROR__');
     expect(bundle).toContain("process.argv[2] === '__daemon'");
+    expect(bundle).toContain("process.argv[2] === 'start' && process.argv.includes('--foreground')");
+    expect(bundle).toContain('resolveDbIntegrityHelperInvocation(process.argv)');
+    expect(bundle).toContain('runDbIntegrityHelper(dbIntegrityHelper)');
     expect(bundle).toContain("await import('../server.js')");
     expect(bundle).toContain('PORT_DADDY_SUPPRESS_CLI_MAIN');
     expect(bundle).toContain("await import('./port-daddy-cli.ts')");
     expect(bundle).toContain('port-daddy-cli.js is the npm shim');
     expect(bundle).toContain('await cli.main()');
+    expect(daemonBundle).toContain('resolveDbIntegrityHelperInvocation(process.argv)');
+    expect(daemonBundle).toContain('runDbIntegrityHelper(dbIntegrityHelper)');
+    expect(daemonBundle).toContain("await import('../server.js')");
+    expect(daemonBuild).toContain("'bin/port-daddy-daemon.ts'");
+    expect(daemonBuild).not.toContain("['build', '--compile', 'server.ts'");
+  });
+
+  test('server publishes its PID and heartbeat before opening the registry', () => {
+    const server = readFileSync(join(process.cwd(), 'server.ts'), 'utf8');
+    const leaseWrite = server.indexOf('const bosunHeartbeat = createBosunHeartbeat({');
+    const databaseOpen = server.indexOf('const db: DatabaseInstance = initDatabase({');
+    const listener = server.indexOf('sockServer.listen(SOCK_PATH');
+
+    expect(leaseWrite).toBeGreaterThan(0);
+    expect(leaseWrite).toBeLessThan(databaseOpen);
+    expect(server.indexOf('bosunHeartbeat.start();')).toBeLessThan(databaseOpen);
+    expect(server.indexOf('await createDbIntegrityProofOutOfProcess(DB_PATH)')).toBeLessThan(databaseOpen);
+    expect(server.indexOf('bosunHeartbeat.startProbing();')).toBeGreaterThan(listener);
   });
 
   test('runs MCP in-process instead of shelling out through tsx', () => {
@@ -86,6 +111,7 @@ describe('single binary distribution path', () => {
     expect(buildScript).toContain('isolated-bin');
     expect(buildScript).toContain('copyFileSync(outfile, isolatedOutfile)');
     expect(buildScript).toContain('companionFiles');
+    expect(buildScript).toContain('repair-capable companion scripts staged beside every locally built artifact');
   });
 
   test('compiled CLI relaunches short pd binary through sibling port-daddy before daemon work', () => {

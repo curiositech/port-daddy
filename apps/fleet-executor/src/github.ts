@@ -169,6 +169,19 @@ export async function invalidateInstallationToken(
 // ---------------------------------------------------------------------------
 // PR helpers
 
+/**
+ * Page size for the PR `/files` endpoint.
+ *
+ * Exported because anything reasoning about whether the changed-file list is
+ * COMPLETE must compare against the same number this fetch uses. Hard-coding it
+ * in two places lets the truncation logic drift silently the moment either side
+ * changes, and a wrong answer there means real findings get dropped.
+ *
+ * This call does not paginate, so a PR at or above this many files yields a
+ * TRUNCATED list that must be treated as incomplete rather than authoritative.
+ */
+export const PR_FILES_PAGE_SIZE = 100;
+
 export interface PRFile {
   filename: string;
   status: string;
@@ -184,10 +197,66 @@ export interface PRContext {
   title: string;
   body: string;
   headSha: string;
+  /**
+   * The PR's head BRANCH name (e.g. 'feat/widget'). Empty when the payload
+   * omits it. Used as the BASE of an ideation ship's stacked-fix PR so the
+   * ship's code lands ON TOP of the review diff.
+   */
+  headRef: string;
   baseSha: string;
+  /** The PR's base BRANCH name (e.g. 'main'). Empty when the payload omits it. */
+  baseRef: string;
+  /**
+   * True when the PR head lives in a DIFFERENT repo than the base (a fork PR),
+   * or when the head repo is unknown/deleted while the base repo is known
+   * (conservative: treated as a fork). The purser only RETARGETS same-repo PRs.
+   */
+  isFork: boolean;
+  /**
+   * `pull_request.user.login` (e.g. `port-daddy[bot]`). Carried so the
+   * self-review guard can ask WHO wrote this PR without a second API call.
+   * Empty when GitHub omits it — which `classifyPrAuthorship` reads as
+   * "not the fleet", the conservative direction for a review skip.
+   */
+  authorLogin: string;
+  /**
+   * `pull_request.user.type` — `Bot` for GitHub App authored PRs, `User` for
+   * humans. The self-review guard requires `Bot`, so a human can never inherit
+   * machine trust by naming their branch `purser/…`.
+   */
+  authorType: string;
+  /**
+   * `pull_request.state` from the LIVE PR — `open` or `closed`.
+   *
+   * Carried so the fleet can decline to review a PR that is already over. The
+   * queue can deliver a job long after it was enqueued (retry, backlog drain,
+   * an executor outage), so the state at enqueue time is not the state now.
+   * Empty when GitHub omits it, which {@link classifyPrLifecycle} reads as
+   * "still open" — the fail-open direction for a review gate.
+   */
+  state: string;
+  /**
+   * `pull_request.merged` from the LIVE PR. Checked ahead of {@link state}
+   * because GitHub reports a merged PR as `closed`, and a purser test branch
+   * stacked under an already-merged PR can never be merged through.
+   */
+  merged: boolean;
   installationId: number;
   files: PRFile[];
   diff: string;
+}
+
+/**
+ * Fork detection from the webhook payload's head/base repo full names.
+ * Both absent (minimal test payloads) ⇒ same-repo. Head absent while base is
+ * known (deleted fork repo) ⇒ conservative: fork.
+ */
+function computeIsFork(headRepoFullName: unknown, baseRepoFullName: unknown): boolean {
+  const head = typeof headRepoFullName === 'string' ? headRepoFullName : null;
+  const base = typeof baseRepoFullName === 'string' ? baseRepoFullName : null;
+  if (head === null && base === null) return false;
+  if (head === null || base === null) return true;
+  return head !== base;
 }
 
 export async function fetchPRContext(
@@ -197,16 +266,22 @@ export async function fetchPRContext(
   prPayload: Record<string, unknown>,
   token: string,
 ): Promise<PRContext> {
-  const pr = prPayload as {
+  const eventPr = prPayload as {
     number: number;
     title: string;
     body: string;
-    head: { sha: string };
-    base: { sha: string };
+    user?: { login?: string; type?: string } | null;
+    state?: string;
+    merged?: boolean;
+    head: { sha: string; ref?: string; repo?: { full_name?: string } | null };
+    base: { sha: string; ref?: string; repo?: { full_name?: string } | null };
   };
 
-  const [filesRes, diffRes] = await Promise.all([
-    fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=100`, {
+  const [prRes, filesRes, diffRes] = await Promise.all([
+    fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
+      headers: ghHeaders(token),
+    }),
+    fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=${PR_FILES_PAGE_SIZE}`, {
       headers: ghHeaders(token),
     }),
     fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
@@ -214,6 +289,10 @@ export async function fetchPRContext(
     }),
   ]);
 
+  if (!prRes.ok) {
+    throw new Error(`fetch pull request failed ${prRes.status}: ${await prRes.text()}`);
+  }
+  const livePr = (await prRes.json()) as typeof eventPr;
   const files: PRFile[] = filesRes.ok ? ((await filesRes.json()) as PRFile[]) : [];
   const diff = diffRes.ok ? await diffRes.text() : '';
 
@@ -221,10 +300,26 @@ export async function fetchPRContext(
     owner,
     repo,
     prNumber,
-    title: pr.title ?? '',
-    body: pr.body ?? '',
-    headSha: pr.head?.sha ?? '',
-    baseSha: pr.base?.sha ?? '',
+    title: livePr.title ?? '',
+    body: livePr.body ?? '',
+    headSha: livePr.head?.sha ?? '',
+    headRef: livePr.head?.ref ?? '',
+    baseSha: livePr.base?.sha ?? '',
+    baseRef: livePr.base?.ref ?? '',
+    isFork: computeIsFork(livePr.head?.repo?.full_name, livePr.base?.repo?.full_name),
+    // Authorship comes from the LIVE PR (same zero-trust posture as head.ref /
+    // repo full_names above): the webhook payload is attacker-influenced in
+    // ways the authoritative fetch is not, and this field gates the
+    // self-review skip. Fall back to the event payload only when the live PR
+    // omits it, so a minimal test payload still classifies.
+    authorLogin: livePr.user?.login ?? eventPr.user?.login ?? '',
+    authorType: livePr.user?.type ?? eventPr.user?.type ?? '',
+    // Lifecycle from the LIVE PR ONLY — never the event payload. The webhook
+    // describes the PR as it was when the job was ENQUEUED; this gate exists
+    // precisely because that can differ from now, so falling back to the event
+    // would reintroduce the bug it prevents. Absent ⇒ '' / false ⇒ fail open.
+    state: typeof livePr.state === 'string' ? livePr.state : '',
+    merged: livePr.merged === true,
     installationId: 0,
     files,
     diff,
@@ -604,9 +699,117 @@ export async function findFleetCheckRun(
     { headers: ghHeaders(token) },
   );
   if (!res.ok) return null;
-  const body = (await res.json()) as { check_runs?: Array<{ id: number; name: string }> };
+  const body = (await res.json()) as {
+    check_runs?: Array<{ id: number; name: string; status?: string; conclusion?: string | null }>;
+  };
   const match = (body.check_runs ?? []).find(c => c.name === name);
   return match?.id ?? null;
+}
+
+/**
+ * The fleet check run for a head SHA, WITH its status -- the id alone cannot
+ * answer "has this already been decided?".
+ *
+ * Why that question matters: a queue redelivery re-runs the whole fleet from
+ * scratch. Comment posting is idempotent (edited in place), but the MODEL CALLS
+ * are not -- the ship is re-run to produce the comment it then overwrites. When
+ * the check has already been COMPLETED, that spend buys nothing at all: the
+ * gate is resolved and a finished check run cannot be reopened, so the work
+ * cannot even change the answer.
+ *
+ * Observed on 2026-08-06: runs exceeding the Worker wall-clock were redelivered
+ * up to `max_retries` times, dead-lettered, completed as `failure` by the DLQ
+ * handler -- and ships kept re-running and re-posting for hours afterwards
+ * against a gate that could never go green.
+ *
+ * @param owner repository owner
+ * @param repo repository name
+ * @param headSha the PR head commit
+ * @param name the check-run name to look for
+ * @param token an installation token
+ * @returns the check run's id and status, or null when absent/unreadable
+ */
+export async function findFleetCheckRunState(
+  owner: string,
+  repo: string,
+  headSha: string,
+  name: string,
+  token: string,
+): Promise<{ id: number; status: string; conclusion: string | null } | null> {
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/commits/${headSha}/check-runs?per_page=100`,
+    { headers: ghHeaders(token) },
+  );
+  if (!res.ok) return null;
+  const body = (await res.json()) as {
+    check_runs?: Array<{ id: number; name: string; status?: string; conclusion?: string | null }>;
+  };
+  const match = (body.check_runs ?? []).find(c => c.name === name);
+  if (!match) return null;
+  return { id: match.id, status: match.status ?? '', conclusion: match.conclusion ?? null };
+}
+
+// ---------------------------------------------------------------------------
+// Fleet self-identity
+
+/** KV key holding the resolved `<app-slug>[bot]` login. */
+const APP_LOGIN_KEY = 'fleet_app_login';
+/** Cache the App slug for a day — it changes only if the App is renamed. */
+const APP_LOGIN_TTL_SECONDS = 24 * 60 * 60;
+
+/**
+ * Resolve THIS App's bot login (`<app-slug>[bot]`), KV-cached.
+ *
+ * PURPOSE / DESIGN: the self-review skip (src/execute.ts, via
+ * `classifyPrAuthorship` in src/fleet-identity.ts) needs to know which GitHub
+ * account IS the fleet, so it can tell a fleet-authored branch apart from a
+ * human's. Hard-coding `port-daddy[bot]` would silently mis-identify every
+ * other tenant's installation, and reading it from the webhook payload would
+ * let the thing being judged supply the judge's identity. Instead we ask
+ * GitHub, under our OWN App JWT, what App these credentials belong to — a
+ * value no PR can influence.
+ *
+ * FAIL DIRECTION: returns `null` rather than throwing or guessing. `null`
+ * degrades the authorship classification to the weaker `bot-and-branch`
+ * signal (see `classifyPrAuthorship`), which the review skip may still accept
+ * — the cost of a false positive there is one unreviewed machine branch, not
+ * an unmerged human PR.
+ *
+ * @param appId The GitHub App id (numeric string).
+ * @param privateKeyPem PEM private key used to mint the App JWT.
+ * @param kv Token-cache namespace, reused for the day-long slug cache.
+ * @returns `<slug>[bot]`, or `null` when it could not be determined.
+ */
+export async function resolveFleetAppLogin(
+  appId: string,
+  privateKeyPem: string,
+  kv: KVNamespace,
+): Promise<string | null> {
+  try {
+    const cached = await kv.get(APP_LOGIN_KEY);
+    if (cached) return cached;
+  } catch {
+    /* cache read failure is not fatal — fall through to the API */
+  }
+  try {
+    const jwt = await mintAppJwt(appId, privateKeyPem);
+    const res = await fetch('https://api.github.com/app', {
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'port-daddy-fleet/1.0',
+      },
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { slug?: string };
+    if (!body.slug) return null;
+    const login = `${body.slug}[bot]`;
+    await kv.put(APP_LOGIN_KEY, login, { expirationTtl: APP_LOGIN_TTL_SECONDS }).catch(() => {});
+    return login;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------

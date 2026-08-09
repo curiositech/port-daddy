@@ -11,35 +11,28 @@
 \begin{figure}[H]
 \centering
 \resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  box/.style={draw=hhebony,thick,rounded corners=2pt,inner sep=4pt,align=center,
-              minimum height=10mm},
-  bad/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
-  good/.style={->,>=Latex,thick,draw=hhink},
-]
-% TOP — the attacks against self-asserted strings
-\node[font=\bfseries,anchor=west] at (-0.3,3.2)
-  {Self-asserted id (\texttt{project:stack:context}) --- both attacks are free:};
-\node[box,fill=hhsand!30] (bad1) at (0,1.8) {agent ``X''\\(bad record)};
-\node[box,fill=hhsand!30,right=34mm of bad1] (bad2) {agent ``X'\,'\\(fresh, clean)};
-\draw[bad] (bad1) -- node[midway,above,font=\scriptsize,text=hhink]
-  {respawn = \textbf{whitewash}} (bad2);
-\node[box,fill=hhsand!30,right=32mm of bad2] (syb)
-  {1000 $\times$ ``X$_i$''\\(forged quorum)};
-\draw[bad] (bad2) -- node[midway,above,font=\scriptsize,text=hhink]
-  {replicate = \textbf{Sybil}} (syb);
+\begin{tikzpicture}[font=\small,node distance=20mm]
+\node[stp heading,anchor=west] (freeh)
+  {SELF-ASSERTED LABEL --- RESET AND REPLICATION ARE FREE};
+\node[stp box,text width=34mm,below=4mm of freeh,anchor=north west] (bad1)
+  {agent ``X''\\{\scriptsize bad record}};
+\node[stp box,text width=34mm,right=of bad1] (bad2)
+  {agent ``X'\,'\\{\scriptsize fresh label, clean record}};
+\node[stp box,text width=34mm,right=of bad2] (syb)
+  {1000 $\times$ ``X$_i$''\\{\scriptsize forged quorum}};
+\draw[stp dashed arrow] (bad1) -- (bad2);
+\draw[stp dashed arrow] (bad2) -- (syb);
 
-% BOTTOM — the fix: daemon-minted non-forgeable id bound to credential + principal
-\node[font=\bfseries,anchor=west] at (-0.3,-0.6)
-  {Daemon-minted, non-forgeable identity, bound to a principal:};
-\node[box,fill=hhsand!30,draw=hhink,thick] (daemon) at (1.2,-2.3)
-  {daemon mints\\a non-forgeable id};
-\node[box,fill=hhpaper,right=14mm of daemon] (cred) {non-re-pickable\\credential (key)};
-\node[box,fill=hhpaper,right=12mm of cred] (princ) {principal\\(owns the fleet,\\posts bonds)};
-\draw[good] (daemon) -- (cred);
-\draw[good] (cred) -- (princ);
-
+\node[stp heading,anchor=west,below=18mm of bad1.south west] (boundh)
+  {BOUND IDENTITY --- SANCTIONS FOLLOW THE PRINCIPAL};
+\node[stp box,text width=34mm,below=4mm of boundh,anchor=north west] (daemon)
+  {daemon mints\\{\scriptsize a local identity}};
+\node[stp accent box,text width=34mm,right=of daemon] (cred)
+  {non-re-pickable\\credential\\{\scriptsize identity cannot be shed}};
+\node[stp box,text width=34mm,right=of cred] (princ)
+  {principal\\{\scriptsize owns the fleet, posts bonds}};
+\draw[stp arrow] (daemon) -- (cred);
+\draw[stp arrow] (cred) -- (princ);
 \end{tikzpicture}}
 \caption{\textbf{The non-forgeable root forecloses the two classic attacks.} With
 self-asserted strings (top), whitewashing and Sybil are free. A daemon-minted,

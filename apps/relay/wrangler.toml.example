@@ -84,3 +84,26 @@ queue = "fleet-runs"
 
 [observability]
 enabled = true
+
+# ---------------------------------------------------------------------------
+# Cron Triggers — one scheduled() handler dispatches on event.cron:
+#   "0 */6 * * *"  — retention + session-reap + erasure sweep (ADR-0101).
+#   "*/5 * * * *"  — MERCY v1 hospital-ship health sweep (src/mercy.ts).
+#
+# MERCY paging — optional. On a subsystem's first red sweep, MERCY opens a
+# dedupe row in mercy_incidents and POSTs ONE JSON page to this webhook URL
+# (never a second page while the incident stays unresolved):
+#
+#   echo "<url>" | wrangler secret put MERCY_PAGE_WEBHOOK
+#
+# Treat the URL as a SECRET: PagerDuty/Grafana OnCall ingest URLs embed
+# routing keys. Recommended targets (Cloudflare has NO native on-call
+# rotation — be honest with yourself about this):
+#   * PagerDuty Events API v2:  https://events.pagerduty.com/… via a small
+#     bridge, or a PagerDuty "Custom Event Transformer" endpoint.
+#   * Grafana OnCall inbound webhook (free tier includes rotations).
+#   * Cloudflare Notification webhook destinations only fan out CF-originated
+#     alerts (Health Checks, Workers alerts) — they do not receive MERCY's
+#     POSTs. Pair them WITH this webhook, not instead of it.
+# Full operator runbook (dashboard clicks for Health Checks + Notification
+# policies, and what CF cannot do): docs/mercy-oncall.md

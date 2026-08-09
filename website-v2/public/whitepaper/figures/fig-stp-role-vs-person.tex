@@ -12,45 +12,33 @@
 \begin{figure}[H]
 \centering
 \resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  role/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
-               minimum width=26mm,minimum height=14mm,align=center,inner sep=3pt},
-  inst/.style={draw=hhink,thick,fill=hhpaper,circle,minimum size=9mm,inner sep=1pt,
-               font=\footnotesize},
-  lbl/.style={font=\bfseries,anchor=south},
-  arr/.style={->,>=Latex,thick,draw=hhink},
-]
-% LEFT: the org chart (roles)
-\node[lbl,anchor=south west,font=\bfseries\footnotesize] at (-1.4,4.2) {ROLE = \{obligation, capability, authority\}};
-\node[role] (nav) at (0,3) {navigator\\{\scriptsize plan \& route}};
-\node[role,below=4mm of nav] (cart) {cartographer\\{\scriptsize map the repo}};
-\node[role,below=4mm of cart] (look) {lookout\\{\scriptsize watch for risk}};
+\begin{tikzpicture}[font=\small]
+\node[stp heading] (rh) at (-5.8,2.6) {ROLE};
+\node[stp box,text width=29mm] (role) at (-5.8,1.25)
+  {\textbf{job description}\\[2pt]
+   {\scriptsize obligation\\capability\\authority}};
+\node[stp box,text width=29mm] (fill) at (-5.8,-0.4)
+  {\textit{fillable}\\{\scriptsize by any spawn}};
+\node[stp box,text width=29mm] (history) at (-5.8,-1.95)
+  {\textit{history-free}\\{\scriptsize no reputation}};
 
-
-% RIGHT: the person (a continuity thread walking through role-instances)
-\node[lbl,anchor=south west,font=\bfseries\footnotesize] at (6.0,4.2) {PERSON = a role instance \emph{+ continuity}};
-\node[inst] (i1) at (6.6,3) {$a$};
-\node[inst,right=14mm of i1] (i2) {$a$};
-\node[inst,right=14mm of i2] (i3) {$a$};
-\node[inst,right=14mm of i3] (i4) {$a$};
-\draw[arr,draw=hhink,very thick] (i1) -- (i2) -- (i3) -- (i4);
-\node[font=\footnotesize,above=1mm of i1] {fills nav};
-\node[font=\footnotesize,above=1mm of i2] {fills cart};
-\node[font=\footnotesize,above=1mm of i3] {fills cart};
-\node[font=\footnotesize,above=1mm of i4] {fills look};
-% witnessed outcomes accumulating along the thread
-\node[draw=hhink,fill=hhpaper,rounded corners=1pt,below=5mm of i1,
-      font=\scriptsize] {+win};
-\node[draw=hhink,fill=hhpaper,rounded corners=1pt,below=5mm of i2,
-      font=\scriptsize] {+win};
-\node[draw=maydayred,fill=maydayred!10,rounded corners=1pt,below=5mm of i3,
-      font=\scriptsize,text=maydayred] {--loss};
-\node[draw=hhink,fill=hhpaper,rounded corners=1pt,below=5mm of i4,
-      font=\scriptsize] {+win};
-% The mapping arrow: a person fills roles over time
-\draw[arr,draw=hhink,dashed] (look.east) to[bend right=12]
-  node[midway,below,font=\scriptsize,text=hhink] {fills, over time} (i1.south west);
+\node[stp heading] (ph) at (1.7,2.6)
+  {PERSON = one identity through role instances};
+\node[stp box,text width=20mm] (i1) at (-2.35,1.25)
+  {navigator\\{\scriptsize outcome: pass}};
+\node[stp box,text width=20mm] (i2) at (0.35,1.25)
+  {cartographer\\{\scriptsize outcome: pass}};
+\node[stp box,text width=20mm] (i3) at (3.05,1.25)
+  {cartographer\\{\scriptsize outcome: fail}};
+\node[stp box,text width=20mm] (i4) at (5.75,1.25)
+  {lookout\\{\scriptsize outcome: pass}};
+\draw[stp arrow] (i1) -- (i2);
+\draw[stp arrow] (i2) -- (i3);
+\draw[stp arrow] (i3) -- (i4);
+\node[stp accent box,text width=92mm] (thread) at (1.7,-0.65)
+  {\textbf{continuity} --- witnessed history follows the identity, not the role};
+\draw[stp accent arrow] (i1.south) -- ++(0,-3mm) -| (thread.north west);
+\draw[stp accent arrow] (i4.south) -- ++(0,-3mm) -| (thread.north east);
 \end{tikzpicture}}
 \caption{\textbf{Role vs.\ person.} A \emph{role} (left) is an org-chart entry ---
 obligations, capabilities, authority --- fillable by any spawn and carrying no

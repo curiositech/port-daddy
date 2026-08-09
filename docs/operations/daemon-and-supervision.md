@@ -28,6 +28,34 @@ release + `brew upgrade`, not rebuild the repo.**
   read `~/.port-daddy/daemon.port` (env `PORT_DADDY_URL` overrides). Hardcoding `9876` is a
   standing defect with its own CI regiment (see the consolidation TODO).
 
+### The atomic lifecycle contract
+
+The components are separate because they answer different questions, but only
+one component owns process lifecycle:
+
+| Component | Authority | Must never do |
+|---|---|---|
+| **launchd** (`homebrew.mxcl.port-daddy`) | Sole canonical process parent, start, stop, replacement, and resurrection | Compete with a detached CLI-spawned canonical daemon |
+| **daemon** | Publish readiness and one generation lease: health PID, listener port, PID file, port file, and heartbeat | Silently walk the canonical listener from `:9876` to a fallback port |
+| **Bosun** | Detect a dead/stale/wedged generation and request replacement through launchd | Spawn a daemon itself or substitute an old heartbeat PID for launchd truth |
+| **status / Doctor / FleetBar / pd-console** | Observe and explain the same generation snapshot | Become another supervisor or report isolated facts as overall health |
+
+On canonical macOS installs, `pd start`, `pd restart`, and `pd stop` mutate only
+the launchd job. `restart` is one `launchctl kickstart -k`, followed by a
+readiness wait of up to 120 seconds and two stable identity samples. If the
+launchd plist is missing, `start` and `restart` fail with `pd install`; they do
+not fall back to a detached process. A busy canonical port fails closed unless
+an isolated non-canonical runtime explicitly sets `PD_ALLOW_TCP_FALLBACK=1`.
+
+The daemon writes its PID and atomic heartbeat before opening the production
+registry. The full SQLite `integrity_check` remains a boot gate, but a packaged
+binary performs that read-only scan in a child process so the parent heartbeat
+continues while a large registry is checked. The HTTP wedge probe is armed only
+after the Unix listener exists. `pd status` and Doctor call the runtime
+**converged** only when launchd, `/health`, `daemon.pid`, `daemon.port`, the
+canonical port, the running/on-disk binary hash, and Bosun heartbeat describe
+the same generation.
+
 ## Supervisors & watchdogs (the multi-headed part)
 
 | launchd job | What it is | Runs | Touch? |
@@ -46,7 +74,7 @@ should detect and not duplicate it). Its `.plist.bak-*` was also deleted.
 
 ## Why liveness ≠ freshness (the watchdog's blind spot)
 
-`com.portdaddy.bosun` restarts the daemon when it is **dead or its heartbeat is stale** — never when
+`com.portdaddy.bosun` asks launchd to replace the daemon when it is **dead or its heartbeat is stale** — never when
 it runs **old code**. A stale-but-responsive daemon is "healthy" to it, so it keeps it alive forever;
 and `KeepAlive` resurrects it stale after any manual kill. `pd doctor` *detects* the drift
 ("Code hash: Mismatch → run restart") but **nothing acts on it**. Detection without enforcement —

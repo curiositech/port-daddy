@@ -65,16 +65,59 @@ database_name = "port-daddy-relay"
 database_id = "0907431b-9af0-48b5-b2b0-07e6b660bd41"
 
 # ---------------------------------------------------------------------------
+# OPTIONAL — Cloudflare Sandboxes (Containers beta) for the purser ship.
+# NOT ENABLED: this block is documentation, not a live binding. When the
+# SANDBOX binding exists, the purser (src/purser.ts) executes its authored
+# adversarial tests against the PR head inside an isolated container and
+# reports REAL pass/fail. When absent (this default), src/sandbox-runner.ts
+# returns executed:false and the purser NEVER fabricates test results —
+# its verdict then follows the ship's blockWithoutSandbox flag (default:
+# advisory; never block on tests that were never run).
+#
+# To enable (requires the Containers beta on your account):
+#   1. npm i @cloudflare/sandbox   (and a Dockerfile per its README)
+#   2. export the Sandbox class from src/index.ts:
+#        export { Sandbox } from '@cloudflare/sandbox';
+#   3. Uncomment and adjust:
+#
+[[containers]]
+class_name = "Sandbox"
+image = "./Dockerfile"
+instance_type = "basic"
+
+[[durable_objects.bindings]]
+name = "SANDBOX"
+class_name = "Sandbox"
+
+[[migrations]]
+tag = "v1-purser-sandbox"
+new_sqlite_classes = ["Sandbox"]
+
+# ---------------------------------------------------------------------------
 # Queue consumer — one message per GitHub delivery, enqueued by relay.
 # A blocking ship that never completes must never leave a green/pending gate,
 # so after `max_retries` exhausted the message lands in the DLQ where a
 # follow-up handler completes the check run as 'failure' (fail-closed).
 [[queues.consumers]]
 queue = "fleet-runs"
-max_batch_size = 10
+# Fleet reviews can consume the full Worker wall-clock budget and each run has
+# its own bounded model fan-out. Keep one delivery per invocation AND one active
+# invocation so obsolete/current heads cannot multiply that fan-out, exhaust
+# model capacity, or race the stale-head check before either run finishes.
+max_batch_size = 1
+max_concurrency = 1
 max_batch_timeout = 30
 max_retries = 3
 dead_letter_queue = "fleet-runs-dlq"
+
+# DLQ consumer — the same Worker handles it (index.ts routes on batch.queue).
+# Without this production binding, dead-lettered jobs accumulate forever and
+# their required 'Port Daddy Fleet' checks remain stuck in_progress.
+[[queues.consumers]]
+queue = "fleet-runs-dlq"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 1
 
 # ---------------------------------------------------------------------------
 # Plaintext vars. GITHUB_APP_PRIVATE_KEY is a *secret*, set out-of-band:
@@ -83,9 +126,15 @@ dead_letter_queue = "fleet-runs-dlq"
 # DEFAULT_BRANCH is the TRUSTED ref every config/contract file is read from.
 # It is NEVER pull_request.head — that is the zero-trust invariant.
 [vars]
-RUN_DETAILS_BASE_URL = "https://port-daddy-relay.erich-owens.workers.dev"
+RUN_DETAILS_BASE_URL = "https://relay.portdaddy.dev"
 GITHUB_APP_ID = "3810450"
 DEFAULT_BRANCH = "main"
+# XO synthesis officer model (src/xo.ts): the idea editor pass + the advisory
+# "XO's orders" triage, active only for tenants with `xo: true` in pd-fleet.yml.
+# Workers AI ONLY — must be a `@cf/` id; any other value is ignored and the
+# executor falls back to this default (resolveXoModel). The deepseek-r1 distill
+# emits <think> reasoning spans; the executor strips them before parsing.
+XO_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
 
 # ---------------------------------------------------------------------------
 # Secrets (documented; set via `wrangler secret put`, never committed):

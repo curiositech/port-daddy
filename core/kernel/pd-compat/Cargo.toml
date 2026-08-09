@@ -13,3 +13,10 @@ pd-eventlog = { path = "../pd-eventlog" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+# A second raw connection + a temp-file DB let the partial-import test inject a
+# deterministic mid-batch append failure (a RAISE(ABORT) trigger keyed on the
+# failing record's subject) without a mock store.
+rusqlite.workspace = true
+tempfile.workspace = true

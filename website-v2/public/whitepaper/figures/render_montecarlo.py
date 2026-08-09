@@ -12,13 +12,13 @@ Writes:
   website-v2/public/whitepaper/figures/fig-sybil-deposit-floor.pdf
   website-v2/public/whitepaper/figures/fig-cartel-folk-theorem.pdf
 
-Style — Harbor Heritage palette:
-  sandstone  #D4C5A9   base / cards
-  cinnabar   #CC3D2E   primary accent
-  ebony      #1E1B18   text / axes
-  ink        #2C2A26   secondary
-  brass      #B08D57   tertiary
-  patina     #5C7A6A   muted / safe regions
+Style — Port Daddy paper palette:
+  cobalt     #003FB8   primary data / emphasis
+  teal       #00564C   favorable / verified regions
+  amber      #6B4500   caution / comparison
+  ebony      #121212   text / axes
+  ink        #1B1712   secondary text
+  sandstone  #D8C7A6   grid / neutral structure
 """
 
 from __future__ import annotations
@@ -39,14 +39,14 @@ LOGS = REPO / "proofs" / "bonded" / "pareto"
 
 # ── palette ─────────────────────────────────────────────────────────────
 SAND = "#E9DCC4"
-SAND_DEEP = "#D4C5A9"
-EBONY = "#1E1B18"
-INK = "#2C2A26"
-CINNABAR = "#CC3D2E"
-BRASS = "#B08D57"
-PATINA = "#5C7A6A"
-MUTED = "#8A8377"
-PAPER = "#FBF7EE"
+SAND_DEEP = "#D8C7A6"
+EBONY = "#121212"
+INK = "#1B1712"
+COBALT = "#003FB8"
+TEAL = "#00564C"
+AMBER = "#6B4500"
+GRAY = "#5C5650"
+PAPER = "#FBF7EF"
 
 plt.rcParams.update({
     "font.family": "serif",
@@ -111,7 +111,7 @@ def fig_pareto_dominance(out: Path) -> None:
                 (float(r["sigma_r"]), float(r["pareto_dominance_rate"]))
             )
     # Distinct, readable colors against the sand background.
-    colors = {0: EBONY, 1: BRASS, 3: CINNABAR}
+    colors = {0: TEAL, 1: AMBER, 3: COBALT}
     markers = {0: "o", 1: "s", 3: "^"}
     labels = {0: "no cartel", 1: "1 colluder", 3: "3 colluders"}
     for cs in (0, 1, 3):
@@ -142,7 +142,7 @@ def fig_pareto_dominance(out: Path) -> None:
     by_n.sort()
     xs = [p[0] for p in by_n]
     ys = [p[1] for p in by_n]
-    bars = ax.bar(xs, ys, width=1.6, color=PATINA, edgecolor=EBONY, linewidth=1.0)
+    bars = ax.bar(xs, ys, width=1.6, color=TEAL, edgecolor=EBONY, linewidth=1.0)
     for b, y in zip(bars, ys):
         ax.text(b.get_x() + b.get_width() / 2, y + 0.015,
                 f"{y:.2f}", ha="center", va="bottom",
@@ -175,7 +175,7 @@ def fig_sybil_deposit_floor(out: Path) -> None:
             by_k[k].append(
                 (float(r["b_dep"]), float(r["mean_sybil_net"]))
             )
-    colors = {1: CINNABAR, 3: BRASS}
+    colors = {1: COBALT, 3: AMBER}
     labels = {1: "K = 1 Sybil identity", 3: "K = 3 Sybil identities"}
     for k in (1, 3):
         pts = sorted(by_k[k])
@@ -206,7 +206,7 @@ def fig_sybil_deposit_floor(out: Path) -> None:
         ax.plot(xs, ys, "s-", color=colors[k], linewidth=2.2, markersize=6,
                 label=labels[k])
     # Annotate the deficit→0 region.
-    ax.axhspan(-1, 5, color=PATINA, alpha=0.18,
+    ax.axhspan(-1, 5, color=TEAL, alpha=0.14,
                label="commons fully reimbursed")
     ax.set_xscale("log")
     ax.set_xlabel(r"per-identity deposit $B_{\mathrm{dep}}$ (USD)")
@@ -242,7 +242,7 @@ def fig_cartel_folk(out: Path) -> None:
     # Left: sustainability map.
     ax = axes[0]
     im = ax.imshow(grid_sustainable.astype(float), aspect="auto",
-                   cmap=matplotlib.colors.ListedColormap([PAPER, CINNABAR]),
+                   cmap=matplotlib.colors.ListedColormap([PAPER, COBALT]),
                    origin="lower", extent=[-0.5, len(pds) - 0.5, -0.5, len(deltas) - 0.5])
     ax.set_xticks(range(len(pds)))
     ax.set_xticklabels([f"{p:.2f}" for p in pds])
@@ -267,19 +267,26 @@ def fig_cartel_folk(out: Path) -> None:
                            color=EBONY, linewidth=2.5)
                 break
     legend_elems = [
-        Patch(facecolor=CINNABAR, edgecolor=EBONY, label="sustainable"),
+        Patch(facecolor=COBALT, edgecolor=EBONY, label="sustainable"),
         Patch(facecolor=PAPER, edgecolor=EBONY, label="collapses"),
     ]
     ax.legend(handles=legend_elems, loc="upper center",
               bbox_to_anchor=(0.5, -0.22), ncol=2, frameon=False)
 
-    # Right: lifespan vs p_d, one line per delta.
+    # Right: lifespan vs p_d. Detection time is independent of delta in this
+    # model, so averaging the delta rows is more honest than drawing four
+    # nearly coincident curves. The analytical comparator is a geometric
+    # waiting time truncated at the simulation's 200-round horizon.
     ax = axes[1]
-    cmap_lifespan = matplotlib.colormaps.get_cmap("YlOrBr")
-    for i, d in enumerate(deltas):
-        ax.plot(pds, grid_lifespan[i], "o-", linewidth=2.2, markersize=6,
-                color=cmap_lifespan(0.35 + 0.55 * i / max(len(deltas) - 1, 1)),
-                label=fr"$\delta = {d:.2f}$")
+    mean_lifespan = grid_lifespan.mean(axis=0)
+    horizon = 200
+    expected_lifespan = [
+        (1.0 - (1.0 - p) ** horizon) / p for p in pds
+    ]
+    ax.plot(pds, mean_lifespan, "o-", linewidth=2.4, markersize=6,
+            color=COBALT, label="simulation mean")
+    ax.plot(pds, expected_lifespan, "--", linewidth=1.8,
+            color=TEAL, label=r"$\mathbb{E}[\min(G,200)]$")
     ax.axhline(10, color=EBONY, linewidth=0.8, linestyle=":",
                alpha=0.7, label="10-round target")
     ax.set_xscale("log")

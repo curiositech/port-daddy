@@ -26,6 +26,11 @@ import type { Env } from './types.js';
 
 const DAY_SECONDS = 24 * 60 * 60;
 const ERASURE_HARD_DELETE_DAYS = 30;
+// Shipwright conversations are kept longer than the 7-day event horizon (an
+// operator returns to a half-designed fleet), but never forever — the page
+// states this retention to the user (no silent unbounded growth; ground
+// truth #7's incident class).
+export const SHIPWRIGHT_RETENTION_DAYS = 30;
 
 export interface SweepResult {
   now: number;
@@ -35,6 +40,7 @@ export interface SweepResult {
   runsPruned: number;
   sessionsReaped: number;
   usersHardDeleted: number;
+  shipwrightChatsPruned: number;
   errors: string[];
 }
 
@@ -96,6 +102,15 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     'events',
   );
 
+  // R1b — Shipwright chats age out on their own (longer, stated) horizon.
+  const shipwrightChatsPruned = await deleteOlderThan(
+    env.DB,
+    'DELETE FROM shipwright_chats WHERE created_at < ?',
+    now - SHIPWRIGHT_RETENTION_DAYS * DAY_SECONDS,
+    errors,
+    'shipwright_chats',
+  );
+
   // R2 — reap expired web sessions (bounded growth; not a security fix).
   const sessionsReaped = await deleteOlderThan(
     env.DB,
@@ -115,6 +130,16 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     errors,
     'web_sessions(erased)',
   );
+  // Defensive: eraseUser already purged the account's Shipwright chats at
+  // delete time; this catches rows soft-deleted users somehow still own so the
+  // hard-delete below never orphans conversation content.
+  await deleteOlderThan(
+    env.DB,
+    'DELETE FROM shipwright_chats WHERE user_id IN (SELECT id FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?)',
+    erasureHorizon,
+    errors,
+    'shipwright_chats(erased)',
+  );
   const usersHardDeleted = await deleteOlderThan(
     env.DB,
     'DELETE FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?',
@@ -131,6 +156,7 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     runsPruned,
     sessionsReaped,
     usersHardDeleted,
+    shipwrightChatsPruned,
     errors,
   };
 }
