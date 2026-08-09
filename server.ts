@@ -100,6 +100,7 @@ import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
 import { normalizeSelfSalvage } from './lib/telos-salvage.js';
 import { createOperatorPermissions } from './lib/operator-permissions.js';
 import { createCounters } from './lib/counters.js';
+import { createUsageTelemetry } from './lib/usage-telemetry.js';
 import { createMetricsRegistry } from './lib/metrics-registry.js';
 import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
@@ -527,6 +528,15 @@ const tuples = createTupleSpace(db);
 const blobs = createBlobStore();
 const booty = createBootyStore(db);
 const counters = createCounters(db);
+// Restores wiring dropped by a bad merge-conflict resolution in 8a6b7610b
+// (2026-05-05): usageTelemetry was never re-instantiated after that merge,
+// so routes/usage.ts's `!usageTelemetry` guard silently no-op'd every
+// /usage/trace call for ~3 months. See lib/usage-telemetry.ts.
+const usageTelemetry = createUsageTelemetry(
+  db,
+  { version: VERSION, codeHash: CODE_HASH, buildDate: new Date(STARTED_AT).toISOString() },
+  { counters },
+);
 const metricsRegistry = createMetricsRegistry();
 const semanticResolver = createSemanticResolver(db, {
   // Stable, daemon-portable cache (~/.port-daddy/transformers-cache) shared with
@@ -1485,7 +1495,7 @@ await registerAllRoutes(
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
     harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, booty, fleetDaemon, repoRegistry,
-    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, durableAgentRoster, costTracker, cloudAppTelemetry, counters, metricsRegistry,
+    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, durableAgentRoster, costTracker, cloudAppTelemetry, counters, metricsRegistry, usageTelemetry,
     contextTracker,
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,

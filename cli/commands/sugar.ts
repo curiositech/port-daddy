@@ -482,8 +482,7 @@ export async function handleBegin(
     // Interactive wizard
     purpose = await promptText({ label: 'What are you working on?', required: true }) || undefined;
     if (!purpose) {
-      ui.error('Purpose is required');
-      process.exit(1);
+      throw new Error('Purpose is required');
     }
 
     // Prompt for optional identity with auto-detection
@@ -516,14 +515,13 @@ export async function handleBegin(
   } else if (!purpose) {
     await fetchAndRenderWelcomeBriefing(options.harbor as string || undefined);
     printBeginUsage();
-    process.exit(1);
+    throw new Error('Purpose is required — see usage above.');
   }
 
   const lifecycle = resolveBeginLifecycle(options);
   if (!lifecycle.success) {
-    ui.error(lifecycle.error);
     printBeginUsage();
-    process.exit(1);
+    throw new Error(lifecycle.error);
   }
 
   // Rent-at-claim (S3): one line — link if obvious, opt-out reason if not.
@@ -532,8 +530,7 @@ export async function handleBegin(
     rent = await promptBeginRent();
   }
   if (!rent.ok) {
-    ui.error(rent.error || RENT_GATE_MESSAGE);
-    process.exit(1);
+    throw new Error(rent.error || RENT_GATE_MESSAGE);
   }
 
   // Auto-detect identity from package.json if not provided
@@ -563,9 +560,8 @@ export async function handleBegin(
 
   const worktreePolicy = resolveCliSessionWorktreePolicy(options);
   if (!worktreePolicy.success) {
-    ui.error(worktreePolicy.error || 'Session worktree policy failed');
     if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
-    process.exit(1);
+    throw new Error(worktreePolicy.error || 'Session worktree policy failed');
   }
   attachCliSessionWorktreePolicy(body, worktreePolicy);
 
@@ -578,8 +574,7 @@ export async function handleBegin(
   const data = await res.json();
 
   if (!res.ok) {
-    ui.error((data.error as string) || 'Failed to begin');
-    process.exit(1);
+    throw new Error((data.error as string) || 'Failed to begin');
   }
 
   // Write local context file

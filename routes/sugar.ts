@@ -20,6 +20,7 @@ interface SugarRouteDeps {
   metrics: { errors: number };
   logger: {
     info(msg: string, meta?: Record<string, unknown>): void;
+    warn(msg: string, meta?: Record<string, unknown>): void;
     error(msg: string, meta?: Record<string, unknown>): void;
   };
 }
@@ -112,6 +113,18 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
           || result.code === 'ROADMAP_ITEMS_UNAVAILABLE'
           ? 400
           : 500;
+        // Was previously silent: the success path logged sugar_begin but a
+        // rejection (bad lifecycle, rent gate, worktree policy, ...) left no
+        // trace anywhere. This is the single highest-volume operator-visible
+        // friction path, so it needs to be findable after the fact.
+        logger.warn('sugar_begin_rejected', {
+          code: result.code,
+          error: result.error,
+          identity,
+          lifecycle,
+          purpose,
+          status,
+        });
         reply.code(status);
         return result;
       }
