@@ -52,6 +52,10 @@
  *   GET  /v1/harbors/:namespace/:name/parleys  (member-gated; list parleys — lazy expiry)
  *   GET  /v1/harbors/:namespace/:name/parleys/:id          (member-gated; detail + positions)
  *   POST /v1/harbors/:namespace/:name/parleys/:id/respond  (named-party-gated; sign a position)
+ *   PUT  /v1/harbor/card                     (signed self-report of declared capabilities; X5)
+ *   GET  /v1/harbor/directory                (public; listed/consented harbors only; X5)
+ *   GET  /v1/harbor/whois?q=                 (public; TF-IDF + demonstrated ranking; X5)
+ *   PUT  /v1/harbor/directory/weights        (operator; ranking weights — audit-logged; X5)
  *   POST /v1/exchange                        (OIDC → PD card)
  *   POST /v1/revoke
  *   POST /v1/revoke-by-issuer               (operator; acceptance criterion #2)
@@ -148,6 +152,12 @@ import {
   handleSetHelm,
   handleGetHelm,
 } from './presence.js';
+import {
+  handlePutHarborCard,
+  handleDirectory,
+  handleWhois,
+  handleSetDirectoryWeights,
+} from './directory.js';
 import {
   handleCreateParley,
   handleListParleys,
@@ -414,6 +424,20 @@ export default {
     }
     else if (pathname === '/billing/portal' && method === 'POST') {
       response = await handlePortalLink(request, env);
+    }
+
+    // ── X5 directory + whois (consent-first, D3; src/directory.ts) ───────────
+    else if (pathname === '/v1/harbor/card' && method === 'PUT') {
+      response = await handlePutHarborCard(request, env);
+    }
+    else if (pathname === '/v1/harbor/directory' && method === 'GET') {
+      response = await handleDirectory(env);
+    }
+    else if (pathname === '/v1/harbor/directory/weights' && method === 'PUT') {
+      response = await handleSetDirectoryWeights(request, env);
+    }
+    else if (pathname === '/v1/harbor/whois' && method === 'GET') {
+      response = await handleWhois(request, env);
     }
 
     // ── Remote harbors (grand-plan X2 v1; src/harbors.ts) ────────────────────
