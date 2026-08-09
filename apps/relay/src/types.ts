@@ -54,6 +54,25 @@ export interface Env {
   STRIPE_PRICE_STARTER?: string;
   STRIPE_PRICE_PRO?: string;
   STRIPE_PRICE_TEAM?: string;
+  // MERCY paging (src/mercy.ts). Optional secret: a webhook URL POSTed exactly
+  // once per unresolved red incident (PagerDuty Events / Grafana OnCall /
+  // Cloudflare Notifications bridge — see docs/mercy-oncall.md). Unset ⇒
+  // incidents are still recorded in D1, but nobody is paged.
+  MERCY_PAGE_WEBHOOK?: string;
+  // Workers AI model id for the Shipwright chat (src/shipwright.ts). A var,
+  // not a secret. Optional: unset ⇒ the module's committed default is used.
+  SHIPWRIGHT_MODEL?: string;
+  // X4 mediator body opt-in (src/mediator.ts). The relay-side analogue of the
+  // fleet's per-tenant `xo:` / `squidEvents:` consent keys. A var, not a
+  // secret. ONLY the exact string 'on' enables the pd-mediator seat's
+  // observation behavior; unset or anything else ⇒ OFF (the honest v1 seat
+  // with no body, and not one token of model spend).
+  PARLEY_MEDIATOR?: string;
+  // Workers AI model id for the mediator's observations. A var, not a secret.
+  // Optional: unset ⇒ mediator.ts's committed default. A NON-`@cf/` value is
+  // REJECTED (not honored) — Workers AI only, never Anthropic/Claude Code/an
+  // external runner. See resolveMediatorModel.
+  PARLEY_MEDIATOR_MODEL?: string;
   // Vars from wrangler.toml
   RELAY_VERSION: string;
   EVENT_RETENTION_DAYS: string;

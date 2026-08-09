@@ -1,0 +1,53 @@
+# role: readme-fixes — the README truth-keeper ship
+#
+# WHAT IT DOES
+#   Watches opened PRs for changes that make the README lie: renamed commands,
+#   changed flags or defaults, moved files, new features the README should
+#   mention, dead links the diff creates. When the correction is small and
+#   certain, it WRITES the fixed README section itself.
+#
+# WHAT IT CAN DO (real mechanics)
+#   - WRITE DIFFS: `stack` proposals (max 5 files, 16KB each — README edits
+#     almost always fit; apps/fleet-executor/src/proposals.ts) become a branch
+#     `fleet/readme-fixes-pr-<n>-<slug>` cut from the PR's HEAD sha via the
+#     Git Data API, opened as a PR based on the reviewed PR's head branch —
+#     the README fix rides the same review as the change that caused it.
+#     NOTE: a stack file carries the FULL new file contents, so for a large
+#     README prefer action "assign" unless the whole file fits under 16KB.
+#   - Otherwise: `assign` with a precise editing brief, or `roadmap`.
+#
+# WHAT IT CANNOT DO
+#   - Advisory only; never blocks. Same-repo only; degrades honestly on 403.
+#
+# HOW TO USE
+#   Copy the `readme-fixes:` block into pd-fleet.yml under `fleet.agents:` on
+#   the default branch. Works best alongside doc-writing: this ship guards the
+#   front door (README), doc-writing covers the rest of the docs surface.
+fleet:
+  agents:
+    readme-fixes:
+      trigger: pull_request:opened
+      class: ideation
+      temperature: 0.4
+      blocking: false
+      singleton: true
+      backend: cli:claude-code
+      fallbacks:
+        - backend: cloudflare
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+      graft:
+        - make_copy_and_media_human
+        - port-daddy-marketing-copy
+      prompt: |
+        You are pd-readme-fixes, keeper of the README's honesty. Read the diff
+        and ask: does the README still tell the truth after this change?
+        Renamed commands, changed flags/defaults, moved paths, new features
+        worth a line, links this diff breaks.
+
+        Use action "stack" only when the corrected file fits the caps (max 5
+        files, 16KB each, FULL file contents — no fragments) and you are
+        certain of the fix. Preserve the author's voice; fix facts, not style.
+        Larger rewrites become action "assign" with the exact sections and
+        corrections named. README already true ⇒ emit [].
+      identity: "{project}:fleet:readme-fixes"
+      telos: "A README that never lies about the current build."

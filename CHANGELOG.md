@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **FleetBar Giant Squid controls.** The selected-project header now shows an unmistakable `◆ GIANT SQUID` LIVE/READY/PARTIAL/DEGRADED strip, detected/wired provider counts, the before-turn/before-edit/after-tool value being added, and native Arm/Repair/Disarm actions.
+
+### Fixed
+- **`pd squid on` is now the one truthful full-harness command.** The duplicate `pd squid hooks` surface was removed; setup, init, doctor, and repair guidance use the canonical interactive installer and real provider scopes. Codex/agy user-level hooks now require an exact armed-project registry match, so disarming one repo actually makes them inert there without removing hooks needed by another repo.
+- **Squid release cargo is proved end to end.** Tentacles, statusline, and the Pilot SessionStart hook share one runtime asset resolver and declarative Batten manifest. Release CI launches the staged binary outside the source tree and verifies all four provider configs, identity surfaces, and READY JSON status before packaging.
+- **Prompt injections are bounded and fresh.** Next-turn narration is limited to 12 exact-project entries and 4 KiB, with 30-minute TTL enforcement for timestamped alerts and pheromones.
+
+## [3.27.0] - 2026-07-23
+
+### Added
+- **`pd account` — GitHub device-flow login for the CLI (ADR-0101 Phase 1).** `pd account login` (alias `pair`) runs the GitHub device flow, opens the browser, and stores a `pdu_` personal access token at `~/.port-daddy/account.json` (0600); `pd account status | logout | token` round it out. This gives the CLI (and, next, FleetBar / pd-console) a real cloud identity. Relay-side: a `user_tokens` table (SHA-256 of the token only, revocable), `POST /auth/device/start` + `/auth/device/token` (GitHub device-flow proxy — GitHub tokens never leave the relay), and `GET /auth/whoami` (accepts a `pdu_` bearer or the browser session cookie). Requires "Enable Device Flow" on the GitHub App and the `user_tokens` D1 migration.
+- **Storefront account surfaces (ADR-0101 Phase 1).** Server-rendered, script-free `/login` and `/account` pages on the relay, built to the ch20 story-linework design (warm substrate, cobalt knockout slab, ICS signal flags). GitHub login now lands on a real signed-in `/account` page (identity plate, export/delete) instead of a 404; `/` redirects to `/account`.
+- **`activate-accounts.sh`** — one-shot operator helper to set the six accounts/login/run-page Worker secrets across the relay + fleet-executor.
+- **Runtime egress-assertion gate** (`lib/safe/egress-assertion.ts`, ADR-0101 Critical 1) — fail-closed "local-only uploads nothing" check with a `verified` flag so an unobservable host is never a silent pass.
+
+### Fixed
+- **`pd squid hooks` on a compiled install** — the `pd-hook-*` tentacles are now shipped in the release tarball next to `pd`, and `tentaclePath()` resolves them relative to `process.execPath` instead of a synthetic `import.meta.url` (which collapsed to a bogus `/bin/pd-hook-prompt` in the single-file binary).
+- **CSRF defense-in-depth** on `POST /account/delete` + `/auth/logout` — cross-origin requests are refused (403) on top of the existing `SameSite=Lax` session cookie.
+
+## [3.26.4] - 2026-07-23
+
+### Fixed
+- **Completes the "Bosun watchdog survives `brew upgrade`" fix (3.26.3).** 3.26.3 made the plist's `ExecStart` reference the stable `<prefix>/bin/pd-bosun` symlink, but three OTHER launch-critical fields — `WorkingDirectory`, `StandardOutPath`, and `StandardErrorPath` — still embedded the versioned Cellar keg path (`join(__dirname, …)`), which the next `brew upgrade` deletes. launchd cannot `chdir` to a missing WorkingDirectory or open a log file under a deleted keg, so the watchdog would still fail to launch (`EX_CONFIG`) on the upgrade after next. Those now use the version-independent durable home (`~/.port-daddy/pd-bosun.log`, WorkingDirectory `~/.port-daddy`), so every launch-critical field in `com.portdaddy.bosun.plist` is now upgrade-stable.
+
+## [3.26.3] - 2026-07-23
+
+### Fixed
+- **The Bosun watchdog survives `brew upgrade` — it no longer points at a deleted keg.** The generated `com.portdaddy.bosun.plist` embedded a **versioned** Cellar path (e.g. `.../3.26.1_2/bin/pd-bosun`); the next `brew upgrade` deletes that keg, so launchd's `ExecStart` failed with `EX_CONFIG` and a crashing daemon (the known upstream Bun 1.2.21 #676 segfault family) no longer auto-restarted — turning an ordinary crash into a silent outage until someone re-ran `port-daddy install-bosun` by hand. The plist now references the **version-stable `<prefix>/bin/pd-bosun` symlink** that Homebrew repoints on every upgrade, so it stays valid across upgrades. The formula's `post_install` already calls `install-bosun`, so this makes that regeneration produce a durable plist (derived from `process.execPath`, covering both the brew-symlink invocation and the brew-keg invocation during `post_install`). Non-Homebrew/source installs are unchanged (they fall back to the existing resolver).
+
 ## [3.26.2] - 2026-07-23
 
 ### Fixed

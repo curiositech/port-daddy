@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Port Daddy API
-  version: 3.26.2
+  version: 3.27.0
   description: >
     Authoritative port management and service orchestration for multi-agent
     development. Provides atomic port assignment, pub/sub messaging, distributed
@@ -65,6 +65,8 @@ tags:
     description: Durable maritime actor directory
   - name: memory
     description: Episodic memory, session harvest, and backend-neutral continuation handoffs
+  - name: harness-adapters
+    description: Harness mechanics, runtime evidence, and N:N continuation compatibility
 
 paths:
   # ===========================================================================
@@ -4850,6 +4852,213 @@ paths:
         '200':
           description: Panic cleared
 
+  /harness-adapters/continuation-matrix:
+    get:
+      tags: [harness-adapters]
+      summary: Read the N:N harness continuation matrix and runtime evidence
+      operationId: getHarnessContinuationMatrix
+      description: >
+        Expands every registered source adapter family against every target
+        family. Mechanical native and sanitized-handoff paths come from the
+        backend catalog, while completed spawn transcripts and continuation
+        receipts are reported separately as timestamped witnesses. Discovery
+        and self-report never advance runtime conformance, stale witnesses stay
+        labeled, and this endpoint never emits a numeric compliance badge.
+      responses:
+        '200':
+          description: Mechanical compatibility and daemon-witnessed evidence
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '../schemas/agent-harbor/v0/harness-continuation-matrix.schema.json'
+        '500':
+          description: Harness evidence could not be read
+
+  /durable-agents:
+    get:
+      tags: [agents]
+      summary: List durable named AgentNode identities
+      operationId: listDurableAgents
+      description: >
+        Reads append-only AgentNode profile facts. Durable identities remain
+        visible without a live body; the legacy /agent-roster endpoint remains
+        the separate process/session projection.
+      parameters:
+        - name: scopeKey
+          in: query
+          schema: { type: string }
+        - name: repoRoot
+          in: query
+          schema: { type: string }
+          description: Canonicalizes linked worktrees through the shared Git common directory.
+        - name: includeRetired
+          in: query
+          schema: { type: boolean }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500 }
+      responses:
+        '200':
+          description: Durable roster
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, agents, count]
+                properties:
+                  success: { const: true }
+                  agents:
+                    type: array
+                    items: { $ref: '#/components/schemas/DurableAgentRecord' }
+                  count: { type: integer }
+    post:
+      tags: [agents]
+      summary: Mint a durable named AgentNode
+      operationId: createDurableAgent
+      description: >
+        Loopback-only. Secret-scans operator-authored profile text, mints an
+        opaque daemon-owned AgentNode id, and appends revision one. Human slugs
+        are aliases rather than principals. Permission and trigger declarations
+        do not claim runtime enforcement.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DurableAgentProfileInput' }
+      responses:
+        '201': { description: AgentNode profile appended }
+        '400': { description: Invalid scope, slug, or profile }
+        '409': { description: Alias already exists in this scope }
+        '422': { description: Profile quarantined by secret scanning }
+        '503': { description: Required scanner unavailable }
+
+  /durable-agents/search:
+    get:
+      tags: [agents]
+      summary: Find durable agents by expertise
+      operationId: searchDurableAgents
+      description: >
+        Fuses BM25 and shared Xenova/all-MiniLM-L6-v2 semantic rankings with
+        reciprocal-rank fusion. A semantic outage returns an explicitly degraded
+        lexical fallback with pd doctor remediation; it never silently presents
+        lexical-only ranking as normal.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 4096 }
+        - name: repoRoot
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50 }
+      responses:
+        '200': { description: Ranked agents with lexical and semantic rank evidence }
+        '400': { description: Invalid query }
+
+  /durable-agents/promote:
+    post:
+      tags: [agents]
+      summary: Promote a session into a durable named AgentNode
+      operationId: promoteSessionToDurableAgent
+      description: >
+        Loopback-only. Requires a sanitized handoff-capsule episode whose source
+        agrees with the native harness session being promoted. Port Daddy
+        coordination may enrich the handoff but is not required. Raw provider
+        transcripts are never stored in the profile.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sourceSessionId, handoffEpisodeId, slug, scope, remit, instructions]
+              properties:
+                sourceSessionId: { type: string }
+                handoffEpisodeId: { type: integer, minimum: 1 }
+                slug: { type: string }
+                scope: { type: object }
+                remit: { type: string }
+                instructions: { type: string }
+              additionalProperties: true
+      responses:
+        '201': { description: Session promoted with durable lineage }
+        '404': { description: Session or handoff episode not found }
+        '409': { description: Session and capsule lineage disagree }
+
+  /durable-agents/{id}:
+    get:
+      tags: [agents]
+      summary: Read one durable agent and all profile revisions
+      operationId: getDurableAgent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Current AgentNode profile, revision history, and continuation receipts }
+        '404': { description: Durable agent not found }
+    patch:
+      tags: [agents]
+      summary: Append a durable agent profile revision
+      operationId: updateDurableAgent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: New append-only profile revision }
+        '404': { description: Durable agent not found }
+
+  /durable-agents/{id}/handoffs:
+    post:
+      tags: [agents]
+      summary: Attach a sanitized handoff episode to a durable agent
+      operationId: attachDurableAgentHandoff
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [episodeId]
+              properties:
+                episodeId: { type: integer, minimum: 1 }
+      responses:
+        '201': { description: Handoff attached through a new profile revision }
+        '409': { description: Capsule identity does not match this AgentNode }
+
+  /durable-agents/{id}/retire:
+    post:
+      tags: [agents]
+      summary: Retire a durable agent without deleting history
+      operationId: retireDurableAgent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Retired profile revision appended }
+        '404': { description: Durable agent not found }
+
   /memory/handoffs:
     post:
       tags: [memory]
@@ -5131,6 +5340,60 @@ components:
       description: Process ID of the calling process
 
   schemas:
+    DurableAgentProfileInput:
+      type: object
+      required: [slug, scope, remit, instructions]
+      properties:
+        slug:
+          type: string
+          pattern: '^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$'
+        displayName: { type: string }
+        scope:
+          type: object
+          required: [kind]
+          properties:
+            kind: { type: string, enum: [system, repo] }
+            repoRoot: { type: [string, 'null'] }
+        remit: { type: string, minLength: 1 }
+        instructions: { type: string, minLength: 1 }
+        skills: { type: array, items: { type: string } }
+        tools: { type: array, items: { type: string } }
+        backendPreferences:
+          type: array
+          items:
+            type: object
+            required: [backend]
+            properties:
+              backend: { type: string }
+              model: { type: [string, 'null'] }
+        lifecycle: { type: string, enum: [ready, paused, retired] }
+      additionalProperties: true
+
+    DurableAgentRecord:
+      type: object
+      required: [agentNodeId, identity, class, authority, status, complianceLevel, profile, ledgerSeq, continuation]
+      properties:
+        agentNodeId: { type: string }
+        identity: { type: string }
+        class: { const: voyager }
+        authority: { const: local }
+        status: { type: string, enum: [active, paused, retired] }
+        complianceLevel: { type: string }
+        profile:
+          $ref: '../schemas/agent-harbor/v0/durable-agent-profile.schema.json'
+        ledgerSeq: { type: integer }
+        continuation:
+          type: object
+          required: [available, episodeId, endpoint, durableAgentId, receipts]
+          properties:
+            available: { type: boolean }
+            episodeId: { type: [integer, 'null'] }
+            endpoint: { type: [string, 'null'] }
+            durableAgentId: { type: string }
+            receipts:
+              type: array
+              items: { $ref: '#/components/schemas/ContinuationReceipt' }
+
     ContinuationReceipt:
       type: object
       required:

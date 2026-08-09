@@ -17,13 +17,15 @@ import { handleDaemon } from './daemon.js';
 import { handleGuard } from './guard.js';
 import { handleInit } from './init.js';
 import { handleMcpInstall } from './mcp-install.js';
-import { installSquidHooks } from './squid.js';
+import { silentHooksInstall, unregisterSquidProject } from './hooks-install.js';
 import {
   ensureGeminiPortDaddyExtension,
   formatSkillSyncSummary,
   syncAgentSkills,
 } from '../../lib/skill-sync.js';
 import { installPilotAgents, resolvePilotSourceDir } from '../../lib/pilot-agent-render.js';
+import { installSlashCommand, installStatusline, stageStatusline } from '../../lib/squid/identity.js';
+import { installPilotSessionStartHook, stagePilotSessionStartHook } from '../../lib/pilot-sessionstart-hook.js';
 import {
   HARBOR_AREAS,
   loadFirstValueRecord,
@@ -427,7 +429,7 @@ async function installProjectHarness(projectDir: string | null, options: Record<
 
   if (options['no-harness']) {
     ui.info('Skipping Squid hooks and Guard (--no-harness)');
-    installRemediation('Project harness', 'pd setup, or pd squid hooks && pd guard install --mode enforce');
+    installRemediation('Project harness', 'pd squid on && pd guard install --mode enforce');
     return true;
   }
 
@@ -436,19 +438,36 @@ async function installProjectHarness(projectDir: string | null, options: Record<
   if (!options['no-squid-hooks']) {
     ui.step('Installing Squid hooks for local agent runtimes');
     try {
-      const results = await installSquidHooks(projectDir);
-      for (const result of results) {
-        const proof = result.verified ? 'verified live' : 'contract installed';
-        ui.success(`${result.binaryName}: ${proof}`);
+      const result = silentHooksInstall(undefined, { cwd: projectDir });
+      if (result.tentaclesMissing) throw new Error('required pd-hook-* assets are missing from this build');
+      if (result.failures.length) throw new Error(result.failures.join('; '));
+      if (result.detected.length === 0) ui.info('No supported agent CLIs detected; pd squid on can be re-run after installation');
+      else ui.success(`Daemon-gated hooks wired: ${result.detected.join(', ')}`);
+
+      const stagedStatusline = stageStatusline();
+      if (!stagedStatusline) throw new Error('pd-statusline is missing from this build');
+      const statusline = installStatusline(projectDir, stagedStatusline);
+      if (!statusline.ok || statusline.reason.includes('user statusLine')) {
+        throw new Error(`visible ◆ PD identity was not installed: ${statusline.reason}`);
       }
+
+      const stagedPilot = stagePilotSessionStartHook();
+      if (!stagedPilot) throw new Error('Pilot SessionStart hook is missing from this build');
+      const pilot = installPilotSessionStartHook({ projectDir, scriptPath: stagedPilot });
+      if (!pilot.ok) throw new Error(`Pilot SessionStart hook was not installed: ${pilot.reason}`);
+
+      const slash = installSlashCommand(projectDir);
+      if (!slash.ok) throw new Error(`/squid command was not installed: ${slash.reason}`);
+      ui.success('◆ PD identity, Pilot steering, and /squid control are visible in new sessions');
     } catch (err) {
+      unregisterSquidProject(projectDir);
       ok = false;
       ui.warn(`Squid hooks could not be installed: ${(err as Error).message}`);
-      installRemediation('Squid hooks', 'pd squid hooks');
+      installRemediation('Squid hooks', 'pd squid on');
     }
   } else {
     ui.info('Skipping Squid hooks (--no-squid-hooks)');
-    installRemediation('Squid hooks', 'pd squid hooks');
+    installRemediation('Squid hooks', 'pd squid on');
   }
 
   if (!options['no-guard']) {

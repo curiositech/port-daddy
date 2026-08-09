@@ -221,6 +221,9 @@ export function runCli(args, options = {}) {
     // roadmap-link gate — opt out via the bounded env exemption. Tests that
     // cover the gate itself clear this via extraEnv.
     PD_RENT_EXEMPT: 'chore',
+    // Override comparable on-disk binary path to prevent binary drift checks
+    // from failing against host-installed versions of Port Daddy.
+    PORT_DADDY_BIN_OVERRIDE: process.execPath,
     NO_COLOR: '1',
     CI: '1'
   };
@@ -228,6 +231,9 @@ export function runCli(args, options = {}) {
   // Ensure color-forcing variables are removed so NO_COLOR is respected without warnings
   delete testEnv.FORCE_COLOR;
   delete testEnv.COLORTERM;
+  delete testEnv.PD_AGENT_ID;
+  delete testEnv.PD_SESSION_ID;
+  delete testEnv.PD_ACTOR;
   
   const result = spawnSync(TSX_PATH, [cliPath, ...finalArgs], {
     encoding: 'utf-8',
@@ -271,12 +277,18 @@ export function runCliViaIpc(args, options = {}) {
     PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',
     PORT_DADDY_ALLOW_MAIN_WORKTREE_SESSION: '1',
     PORT_DADDY_NON_INTERACTIVE: '1',
+    // Override comparable on-disk binary path to prevent binary drift checks
+    // from failing against host-installed versions of Port Daddy.
+    PORT_DADDY_BIN_OVERRIDE: process.execPath,
     NO_COLOR: '1',
     CI: '1'
   };
 
   delete testEnv.FORCE_COLOR;
   delete testEnv.COLORTERM;
+  delete testEnv.PD_AGENT_ID;
+  delete testEnv.PD_SESSION_ID;
+  delete testEnv.PD_ACTOR;
 
   const result = spawnSync(TSX_PATH, [cliPath, ...args], {
     encoding: 'utf-8',

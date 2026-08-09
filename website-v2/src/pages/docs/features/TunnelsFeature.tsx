@@ -7,6 +7,9 @@ export default function TunnelsFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
+        <p className="font-mono text-[length:var(--type-meta-size)] font-bold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+          Feature · Tunnels
+        </p>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Tunnels
         </h1>
@@ -19,7 +22,10 @@ export default function TunnelsFeature() {
 
       {/* The Problem */}
       <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">The Problem</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">01</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">The Problem</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed mb-3">
           Local dev servers are invisible to the outside world. When you need to share a running
           service with a remote collaborator or receive webhook callbacks, you hit a wall:
@@ -42,7 +48,10 @@ export default function TunnelsFeature() {
 
       {/* How It Works */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">02</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">How It Works</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Port Daddy spawns your tunnel provider's CLI as a child process, parses the public URL
           from its stdout, and stores it alongside your port claim in SQLite. When you release the
@@ -74,7 +83,10 @@ myapp:web   -> https://def456.ngrok.io   ngrok   2m uptime`}
 
       {/* Provider Support */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Supported Providers</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">03</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Supported Providers</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Port Daddy auto-detects which provider CLIs are installed on your system and picks the
           best available one. You can override with the <code className="text-[var(--brand-primary)]">--provider</code> flag.
@@ -82,17 +94,17 @@ myapp:web   -> https://def456.ngrok.io   ngrok   2m uptime`}
         </p>
 
         <div className="grid sm:grid-cols-3 gap-4">
-          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="lw-stripe-card p-3">
             <code className="text-[var(--brand-primary)] font-mono">ngrok</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Stable URLs, auth, dashboard</p>
             <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Best for webhooks and APIs</p>
           </div>
-          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="lw-stripe-card p-3">
             <code className="text-[var(--brand-primary)] font-mono">cloudflared</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Cloudflare network, free tier</p>
             <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Best for web previews</p>
           </div>
-          <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+          <div className="lw-stripe-card p-3">
             <code className="text-[var(--brand-primary)] font-mono">localtunnel</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Zero config, no signup</p>
             <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Best for quick sharing</p>
@@ -102,10 +114,13 @@ myapp:web   -> https://def456.ngrok.io   ngrok   2m uptime`}
 
       {/* CLI Commands */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">CLI Commands</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">04</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">CLI Commands</h2>
+        </div>
 
         <div className="space-y-3">
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd tunnel start &lt;identity&gt; --provider &lt;name&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Start a tunnel for a claimed service. Auto-selects provider if not specified.</p>
             <DocsCodeBlock
@@ -114,7 +129,7 @@ myapp:web   -> https://def456.ngrok.io   ngrok   2m uptime`}
             />
           </div>
 
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd tunnel stop &lt;identity&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Tear down the tunnel for a service. Also happens automatically when the port is released.</p>
             <DocsCodeBlock
@@ -123,7 +138,7 @@ myapp:web   -> https://def456.ngrok.io   ngrok   2m uptime`}
             />
           </div>
 
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd tunnel list</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">List all active tunnels with public URLs, providers, and uptime.</p>
             <DocsCodeBlock
@@ -139,7 +154,7 @@ myapp:web   -> https://def456.ngrok.io   ngrok   2m uptime`}
             />
           </div>
 
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd tunnel providers</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Check which tunnel provider CLIs are installed on the system.</p>
             <DocsCodeBlock
@@ -154,7 +169,10 @@ localtunnel   not found`}
 
       {/* SDK Usage */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">SDK Usage</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">05</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">SDK Usage</h2>
+        </div>
 
         <DocsCodeBlock
           language="typescript"
@@ -180,7 +198,7 @@ myapp:api -> https://abc123.ngrok.io`}
       </div>
 
       {/* Next */}
-      <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
+      <div className="flex flex-wrap items-center justify-between gap-4 border border-[var(--border-subtle)] bg-[color-mix(in_oklab,var(--brand-primary)_10%,var(--surface-base))] p-5">
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Next Feature</div>
           <div className="font-semibold text-[var(--text-primary)]">Always-On Avatars</div>
@@ -188,7 +206,7 @@ myapp:api -> https://abc123.ngrok.io`}
         </div>
         <Link
           to="/docs/features/avatars"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] font-medium hover:bg-[var(--brand-primary)] transition-colors"
+          className="flex items-center gap-2 bg-[var(--brand-primary)] px-4 py-2 font-medium text-[var(--text-inverse)]"
         >
           Learn More
           <ArrowRight size={16} />

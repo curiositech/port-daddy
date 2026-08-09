@@ -38,10 +38,11 @@ import {
   mkdirSync,
   copyFileSync,
   chmodSync,
+  realpathSync,
+  rmSync,
 } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import * as ui from '../utils/ui.js';
 import { PD_HOME } from '../../shared/paths.js';
 import {
@@ -56,9 +57,8 @@ import {
   removeJsonHooks,
   stripCodexHooksTomlBlock,
 } from '../../lib/squid/hook-shape.js';
+import { resolveSquidAsset } from '../../lib/squid/assets.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = join(__dirname, '..', '..');
 const DEFAULT_HOME = process.env.HOME || process.env.USERPROFILE || '';
 const SQUID_DAEMON_HEARTBEAT_STALE_SECONDS = 30;
 
@@ -104,10 +104,14 @@ function gateWrapperScript(): string {
     'age=$((now - modified))',
     `[ "$age" -ge -${SQUID_DAEMON_HEARTBEAT_STALE_SECONDS} ] 2>/dev/null || exit 0`,
     `[ "$age" -le ${SQUID_DAEMON_HEARTBEAT_STALE_SECONDS} ] 2>/dev/null || exit 0`,
-    '# (b) cwd inside a pd-enabled project? walk up for a .portdaddy/ marker.',
+    '# (b) cwd inside a project explicitly armed by `pd squid on`?',
     'd=$PWD',
     'while [ -n "$d" ] && [ "$d" != "/" ]; do',
     '  if [ -d "$d/.portdaddy" ]; then',
+    '    project_root=$(cd "$d" 2>/dev/null && pwd -P) || exit 0',
+    '    registry="$PD_HOME/squid/projects"',
+    '    [ -f "$registry" ] || exit 0',
+    '    grep -Fqx "$project_root" "$registry" 2>/dev/null || exit 0',
     '    exec "$PD_HOME/bin/squid/${0##*/}" "$@"',
     '  fi',
     '  d=$(dirname "$d")',
@@ -116,6 +120,56 @@ function gateWrapperScript(): string {
     'exit 0',
     '',
   ].join('\n');
+}
+
+// ─── Per-project arm registry ────────────────────────────────────────────────
+
+export function squidProjectRegistryPath(pdHome = PD_HOME): string {
+  return join(pdHome, 'squid', 'projects');
+}
+
+function canonicalProjectRoot(cwd: string): string {
+  const absolute = resolve(cwd);
+  try { return realpathSync(absolute); } catch { return absolute; }
+}
+
+export function readArmedSquidProjects(registryPath = squidProjectRegistryPath()): string[] {
+  if (!existsSync(registryPath)) return [];
+  try {
+    return [...new Set(readFileSync(registryPath, 'utf8').split('\n').map((line) => line.trim()).filter(Boolean))].sort();
+  } catch {
+    return [];
+  }
+}
+
+export function registerSquidProject(cwd: string, registryPath = squidProjectRegistryPath()): string {
+  const project = canonicalProjectRoot(cwd);
+  const projects = [...new Set([...readArmedSquidProjects(registryPath), project])].sort();
+  mkdirSync(dirname(registryPath), { recursive: true });
+  writeFileSync(registryPath, `${projects.join('\n')}\n`, { mode: 0o600 });
+  chmodSync(registryPath, 0o600);
+  return project;
+}
+
+export function unregisterSquidProject(cwd: string, registryPath = squidProjectRegistryPath()): boolean {
+  const project = canonicalProjectRoot(cwd);
+  const before = readArmedSquidProjects(registryPath);
+  const after = before.filter((entry) => entry !== project);
+  if (after.length === before.length) return false;
+  if (after.length === 0) rmSync(registryPath, { force: true });
+  else {
+    writeFileSync(registryPath, `${after.join('\n')}\n`, { mode: 0o600 });
+    chmodSync(registryPath, 0o600);
+  }
+  return true;
+}
+
+export function clearArmedSquidProjects(registryPath = squidProjectRegistryPath()): void {
+  rmSync(registryPath, { force: true });
+}
+
+export function isSquidProjectArmed(cwd: string, registryPath = squidProjectRegistryPath()): boolean {
+  return readArmedSquidProjects(registryPath).includes(canonicalProjectRoot(cwd));
 }
 
 // ─── Tentacle staging ────────────────────────────────────────────────────────
@@ -133,7 +187,7 @@ export interface StageResult {
  * is staged and the caller surfaces guidance.
  */
 export function stageTentacles(
-  sourceDir = join(PROJECT_ROOT, 'bin'),
+  sourceDir?: string,
   destBinDir = tentacleBinDir(),
 ): StageResult {
   const realDir = join(destBinDir, 'squid');
@@ -145,8 +199,9 @@ export function stageTentacles(
   const missing: TentacleName[] = [];
 
   for (const name of TENTACLES) {
-    const src = join(sourceDir, name);
-    if (!existsSync(src)) {
+    const explicit = sourceDir ? join(sourceDir, name) : null;
+    const src = explicit ? (existsSync(explicit) ? explicit : null) : resolveSquidAsset(join('bin', name));
+    if (!src) {
       missing.push(name);
       continue;
     }
@@ -159,7 +214,7 @@ export function stageTentacles(
     chmodSync(wrapper, 0o755);
     staged.push(wrapper);
   }
-  return { staged, missing, sourceDir };
+  return { staged, missing, sourceDir: sourceDir ?? 'runtime asset resolver' };
 }
 
 // ─── Target definitions ──────────────────────────────────────────────────────
@@ -343,6 +398,53 @@ export interface SilentHooksResult {
   configured: number;
   detected: string[];
   tentaclesMissing: boolean;
+  failures: string[];
+}
+
+export interface HookTargetStatus {
+  name: string;
+  slug: string;
+  detected: boolean;
+  projectPath: string | null;
+  userPath: string;
+  projectWired: boolean;
+  userWired: boolean;
+  expectedScope: 'project' | 'user';
+  wired: boolean;
+  note?: string;
+  projectArmed: boolean;
+}
+
+function configCarriesPdHook(path: string): boolean {
+  try {
+    return existsSync(path) && readFileSync(path, 'utf8').includes(PD_HOOK_MARKER);
+  } catch {
+    return false;
+  }
+}
+
+/** Read-only truth used by `pd squid status --json` and operator surfaces. */
+export function inspectHookTargets(home = DEFAULT_HOME, cwd = process.cwd()): HookTargetStatus[] {
+  const projectArmed = isSquidProjectArmed(cwd);
+  return buildTargets(home).map((target) => {
+    const projectPath = target.projectConfigPath?.(cwd) ?? null;
+    const projectWired = projectPath ? configCarriesPdHook(projectPath) : false;
+    const userWired = configCarriesPdHook(target.userConfigPath);
+    const expectedScope = target.projectConfigPath ? 'project' : 'user';
+    return {
+      name: target.name,
+      slug: target.slug,
+      detected: target.detect(),
+      projectPath,
+      userPath: target.userConfigPath,
+      projectWired,
+      userWired,
+      expectedScope,
+      wired: projectArmed && (expectedScope === 'project' ? projectWired : userWired),
+      note: target.note,
+      projectArmed,
+    };
+  });
 }
 
 /**
@@ -360,12 +462,20 @@ export function silentHooksInstall(
     configured: 0,
     detected: detected.map((t) => t.slug),
     tentaclesMissing: stage.missing.length > 0,
+    failures: [],
   };
-  if (result.tentaclesMissing) return result;
+  if (result.tentaclesMissing || detected.length === 0) return result;
+  registerSquidProject(cwd);
 
   for (const target of detected) {
     const results = wireTarget(target, cwd, false);
     if (results.some((r) => r.success && !r.skipped)) result.configured++;
+    for (const failure of results.filter((r) => !r.success)) {
+      result.failures.push(`${target.slug}: ${failure.error ?? 'configuration failed'}`);
+    }
+  }
+  if (result.failures.length > 0 || result.configured < detected.length) {
+    unregisterSquidProject(cwd);
   }
   return result;
 }
@@ -380,9 +490,12 @@ export async function handleHooks(
   const sub = positional[0] ?? 'install';
   const targets = buildTargets(home);
 
-  if (sub === 'list' || options.list) {
+  if (isHooksStatusRequest(sub, options)) {
     console.log('');
     ui.info('Port Daddy agent-CLI hooks (per-project, daemon-gated)');
+    console.log('');
+    const cwd = process.cwd();
+    console.log(`  This project: ${isSquidProjectArmed(cwd) ? '\x1b[32mARMED\x1b[0m' : '\x1b[2mnot armed\x1b[0m'} (${canonicalProjectRoot(cwd)})`);
     console.log('');
     for (const t of targets) {
       const present = t.detect();
@@ -408,6 +521,7 @@ export async function handleHooks(
         if (r.success && !r.skipped) ui.success(`${t.name} (${scope}): cleared ${r.path}`);
       }
     }
+    clearArmedSquidProjects();
     console.log('');
     return;
   }
@@ -421,13 +535,14 @@ export async function handleHooks(
   if (detected.length === 0) {
     ui.warn('No agent CLIs detected (looked for claude, codex, gemini, agy).');
     console.log('');
+    process.exitCode = 1;
     return;
   }
 
   const cwd = process.cwd();
   console.log('  Detected: ' + detected.map((t) => t.name).join(', '));
   console.log(`  Wires coordination into their interactive sessions for THIS project (${cwd}).`);
-  console.log('  Hooks are inert unless the pd daemon is running and you are inside a pd project.');
+  console.log('  Hooks are inert unless the pd daemon is running and this exact project root is armed.');
   console.log('');
 
   const assumeYes = !!options.yes || !!options.y || !ui.canPrompt();
@@ -443,11 +558,14 @@ export async function handleHooks(
     console.log('  The hook scripts (bin/pd-hook-*) ship with the Giant Squid Harness.');
     console.log('  Update Port Daddy, then re-run `pd hooks install`.');
     console.log('');
+    process.exitCode = 1;
     return;
   }
   ui.success(`Staged tentacles + gate → ${tentacleBinDir()}`);
+  registerSquidProject(cwd);
 
   const alsoUser = !!options.user;
+  const failures: string[] = [];
   console.log('');
   console.log('  Wiring hooks:');
   for (const target of detected) {
@@ -455,16 +573,29 @@ export async function handleHooks(
     for (const r of results) {
       if (r.skipped) continue;
       if (r.success) console.log(`    \x1b[32m✓\x1b[0m ${target.name.padEnd(22)} ${r.path}`);
-      else console.log(`    \x1b[31m✗\x1b[0m ${target.name.padEnd(22)} ${r.error}`);
+      else {
+        failures.push(`${target.slug}: ${r.error ?? 'configuration failed'}`);
+        console.log(`    \x1b[31m✗\x1b[0m ${target.name.padEnd(22)} ${r.error}`);
+      }
     }
     if (target.note) console.log(`      \x1b[2m${target.note}\x1b[0m`);
   }
 
   console.log('');
-  ui.success('Coordination hooks wired for this project (active only when the daemon is up).');
+  if (failures.length > 0) {
+    unregisterSquidProject(cwd);
+    ui.warn(`Hook installation failed closed; this project remains inert (${failures.join('; ')}).`);
+    process.exitCode = 1;
+  } else {
+    ui.success('Coordination hooks wired for this project (active only when the daemon is up).');
+  }
   if (detected.some((t) => t.slug === 'codex')) {
     console.log('  Codex: run `codex` → `/hooks` once to trust the pd hooks (persisted thereafter).');
   }
   console.log('  Verify:  pd hooks list   ·   Remove:  pd hooks uninstall');
   console.log('');
+}
+
+export function isHooksStatusRequest(sub: string, options: Record<string, unknown>): boolean {
+  return sub === 'list' || sub === 'status' || !!options.list || !!options.status;
 }

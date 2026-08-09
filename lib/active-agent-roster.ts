@@ -1,3 +1,6 @@
+import type { SquidConformance, SquidConformanceLevel } from './squid/conformance.js';
+import { unprotectedSquidConformance } from './squid/conformance.js';
+
 export interface ActiveAgentRosterAgent {
   id: string;
   name?: string | null;
@@ -50,6 +53,7 @@ export interface ActiveAgentRosterInput {
   claims?: ActiveAgentRosterClaim[];
   now?: number;
   project?: string | null;
+  squidForWorktree?: (worktreeRoot: string | null) => SquidConformance;
 }
 
 export interface ActiveAgentHarness {
@@ -78,6 +82,7 @@ export interface ActiveAgentRosterItem {
   liveness: string;
   lastHeartbeat: number | null;
   harness: ActiveAgentHarness;
+  squid: SquidConformance;
   worktree: ActiveAgentWorktree;
   activeSession: ActiveAgentRosterSession | null;
   sessions: ActiveAgentRosterSession[];
@@ -96,6 +101,7 @@ export interface ActiveAgentRoster {
   generatedAt: number;
   project: string | null;
   count: number;
+  squidSummary: Record<SquidConformanceLevel, number>;
   agents: ActiveAgentRosterItem[];
 }
 
@@ -263,6 +269,13 @@ export function buildActiveAgentRoster(input: ActiveAgentRosterInput): ActiveAge
       const computedIdentity = [agent.identityProject, agent.identityStack, agent.identityContext].filter(Boolean).join(':') || null;
       const identity = agent.identity ?? computedIdentity;
 
+      const worktree = worktreeFrom(agent, agentSessions);
+      const squid = input.squidForWorktree
+        ? input.squidForWorktree(worktree.root)
+        : unprotectedSquidConformance(worktree.root
+          ? 'Squid conformance was not inspected for this worktree.'
+          : 'Agent has no local worktree root.');
+
       return {
         id: agent.id,
         label: itemLabel(agent),
@@ -273,7 +286,8 @@ export function buildActiveAgentRoster(input: ActiveAgentRosterInput): ActiveAge
         liveness: agent.healthAssessment?.liveness ?? (activeSession?.status === 'active' ? 'alive' : 'unknown'),
         lastHeartbeat: agent.lastHeartbeat ?? null,
         harness: inferHarness(agent),
-        worktree: worktreeFrom(agent, agentSessions),
+        squid,
+        worktree,
         activeSession,
         sessions: agentSessions,
         touchedFiles,
@@ -289,11 +303,20 @@ export function buildActiveAgentRoster(input: ActiveAgentRosterInput): ActiveAge
     .filter((item) => item.liveness === 'alive' || item.activeSession?.status === 'active')
     .sort((left, right) => (right.lastHeartbeat ?? right.activeSession?.updatedAt ?? 0) - (left.lastHeartbeat ?? left.activeSession?.updatedAt ?? 0));
 
+  const squidSummary: Record<SquidConformanceLevel, number> = {
+    LIVE: 0,
+    READY: 0,
+    PARTIAL: 0,
+    UNPROTECTED: 0,
+  };
+  for (const agent of roster) squidSummary[agent.squid.level] += 1;
+
   return {
     success: true,
     generatedAt: now,
     project,
     count: roster.length,
+    squidSummary,
     agents: roster,
   };
 }
