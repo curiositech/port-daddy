@@ -38,7 +38,10 @@ export const JEST_CONFIG_CANDIDATES: readonly string[] = [
 /**
  * Extract every `testMatch: [...]` array literal from a jest.config.* source,
  * including ones nested inside a `projects: [...]` multi-project config (this
- * repo's own shape). Regex, not a JS parser: the config source is fetched from
+ * repo's own shape). The purpose is to learn discovery from the repo's own
+ * configuration rather than from what a ship claims about itself.
+ *
+ * Regex, not a JS parser, by deliberate design: the config source is fetched from
  * the TRUSTED base ref, but `import()`/`eval()` of arbitrary repo JS inside the
  * executor would be a code-execution surface this module exists to avoid, not
  * add — a purely textual scan is the safer tool for the job.
@@ -93,7 +96,9 @@ export function extractPackageJsonTestMatch(source: string): string[] | null {
 }
 
 /**
- * Convert one jest `testMatch` glob into a RegExp. Supports the subset jest
+ * Convert one jest `testMatch` glob into a RegExp.
+ *
+ * The design goal is a deliberately partial glob engine. It supports the subset jest
  * itself documents and this fleet's targets actually use: a leading
  * `<rootDir>/`, `**`, `*`, `?`, and brace alternation `{a,b}`. Anything this
  * function does not model is treated as a literal character rather than
@@ -159,7 +164,8 @@ export function matchesAnyTestMatch(path: string, patterns: string[]): boolean {
 
 /**
  * Pull every relative (`./` or `../`) import/require specifier out of a test
- * file's source — the ONLY imports this module verifies. Bare specifiers
+ * file's source — the ONLY imports this module verifies. The rationale for that
+ * narrow scope: bare specifiers
  * (`from 'vitest'`) are package imports; resolving those would mean walking
  * node_modules, which is not this gate's job and is not what broke #5860.
  *
@@ -253,7 +259,9 @@ export interface ExecutabilityEvidence {
  * The gate itself: do these authored files live where the real test runner
  * would discover them, and do their relative imports resolve to something
  * real? FAILS CLOSED on missing evidence — a jest config or tree the executor
- * could not fetch/parse is a REJECTION, never a silent pass.
+ * could not fetch/parse is a REJECTION, never a silent pass. The rationale for
+ * that asymmetry: a gate whose evidence is missing has proven nothing, and the
+ * purser must never spend a PR's base ref on a claim it did not verify.
  *
  * @param files the authored test files, path + contents, as they would be
  *              committed

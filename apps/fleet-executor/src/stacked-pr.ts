@@ -371,7 +371,9 @@ export async function readBranchFiles(
 
 /**
  * Fetch a single file's raw text content from a ref, or null when missing, not a
- * file, or the fetch itself failed. Used to read the target repo's OWN
+ * file, or the fetch itself failed.
+ *
+ * Its purpose is to read the target repo's OWN
  * test-discovery config (jest testMatch) so the purser can verify its authored
  * tests actually live somewhere the real runner will find them, instead of
  * trusting only pd-fleet.yml's operator-declared `testPaths`. Any failure mode
@@ -415,9 +417,10 @@ export async function fetchRepoFileText(
 }
 
 /**
- * Fetch the FULL set of file paths in the repo tree at `sha` (recursive), used
- * to verify a generated test file's relative imports actually resolve to
- * something real instead of a module that does not exist. Null when the tree
+ * Fetch the FULL set of file paths in the repo tree at `sha` (recursive).
+ *
+ * Its purpose is to verify a generated test file's relative imports actually
+ * resolve to something real instead of a module that does not exist. Null when the tree
  * could not be fetched OR GitHub truncated it (`truncated: true`) — a
  * truncated listing is worse than none, because a missing path could just be
  * past the truncation boundary rather than genuinely absent, so callers must
