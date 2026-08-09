@@ -32,6 +32,7 @@ import {
   type FleetRunningState,
 } from '../../lib/fleet-running-state.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
+import { preflightInterruptionsGate } from './interruptions.js';
 
 // ─── Load .env.local / .env for API keys ────────────────────────────────────
 // Searches: cwd, parent dir, home directory. Later files overwrite earlier ones,
@@ -1397,6 +1398,15 @@ async function fleetPush(options: CLIOptions, action?: string): Promise<void> {
 export async function handleFleet(positional: string[], _options: Record<string, unknown>): Promise<void> {
   const subcommand = positional[0] || 'help';
 
+  // HITL contract §4.3 (docs/hitl-interruptions.md): the subcommands that
+  // START new agent work must refuse while a critical operator ask is open.
+  // Read-only subcommands (status, validate, inspect, …) stay ungated.
+  const startsNewWork =
+    subcommand === 'up' || subcommand === 'run' || subcommand === 'approve';
+  if (startsNewWork && !(await preflightInterruptionsGate(`pd fleet ${subcommand}`))) {
+    process.exit(1);
+  }
+
   switch (subcommand) {
     case 'up':
       await fleetUp(positional.slice(1));
@@ -1538,6 +1548,10 @@ export async function handleFleet(positional: string[], _options: Record<string,
       // Try running it as an agent name
       const config = loadFleetConfig(process.cwd());
       if (config?.agents.find(a => a.name === subcommand)) {
+        // Same §4.3 gate as `pd fleet run` — this path also starts new work.
+        if (!(await preflightInterruptionsGate(`pd fleet ${subcommand}`))) {
+          process.exit(1);
+        }
         await runAgentByName(subcommand, config);
       } else {
         ui.error(`Unknown: pd fleet ${subcommand}`);

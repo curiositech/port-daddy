@@ -1269,6 +1269,34 @@ describe('CLI Integration Tests', () => {
     });
   });
 
+  describe('Interruptions CLI (HITL surface 3, docs/hitl-interruptions.md §4)', () => {
+    test('not signed in renders honest UNKNOWN with exit 2, never all-clear', () => {
+      const home = mkdtempSync(join(tmpdir(), 'pd-interruptions-int-'));
+      try {
+        const result = runCli(['interruptions', '--json'], { env: { PD_HOME: home } });
+        expect(result.status).toBe(2);
+        const parsed = JSON.parse(result.stdout);
+        expect(parsed.status).toBe('unknown');
+        expect(parsed.reason).toContain('pd account login');
+      } finally {
+        rmSync(home, { recursive: true, force: true });
+      }
+    });
+
+    test('human output warns UNKNOWN and never claims all-clear', () => {
+      const home = mkdtempSync(join(tmpdir(), 'pd-interruptions-int2-'));
+      try {
+        const result = runCli(['interruptions'], { env: { PD_HOME: home } });
+        expect(result.status).toBe(2);
+        const text = `${result.stdout}\n${result.stderr}`;
+        expect(text).toContain('UNKNOWN');
+        expect(text).not.toContain('No open operator interruptions');
+      } finally {
+        rmSync(home, { recursive: true, force: true });
+      }
+    });
+  });
+
   describe('Inbox CLI Commands', () => {
     const receiverId = `rec-agent-${Date.now()}`;
     const senderId = `send-agent-${Date.now()}`;

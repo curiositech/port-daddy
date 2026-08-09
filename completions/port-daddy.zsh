@@ -1307,6 +1307,13 @@ _pd_cmd_plan() {
     '2:data:'
 }
 
+_pd_cmd_interruptions() {
+  _arguments \
+    '(-j --json)'{-j,--json}'[JSON output for scripts]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress non-essential output]' \
+    '(-h --help)'{-h,--help}'[show help]'
+}
+
 _pd_cmd_whoami() {
   _arguments \
     '--agent[agent ID]:agent ID:_pd_complete_agents' \
@@ -2323,6 +2330,7 @@ _port_daddy() {
     'whoami:show current agent/session context'
     'w:show current context (alias for whoami)'
     'account:sign in to your Port Daddy cloud account (GitHub device flow)'
+    'interruptions:list open HITL operator asks (answer/ack is web-only)'
     'attention:read inbox + subscribed channels in one call (run first thing every session)'
     'nudge:suggestibility nudges — claim-overlap heads-up (list/accept/decline/scan)'
     'with-lock:run a command while holding a lock'
@@ -2550,6 +2558,7 @@ _port_daddy() {
         begin|b)                _pd_cmd_begin ;;
         done)                   _pd_cmd_done ;;
         plan)                   _pd_cmd_plan ;;
+        interruptions)          _pd_cmd_interruptions ;;
         whoami|w)               _pd_cmd_whoami ;;
         with-lock)              _pd_cmd_with_lock ;;
         n)                      _pd_cmd_note ;;

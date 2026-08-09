@@ -106,7 +106,7 @@ set -l __pd_commands \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
     'start' 'stop' 'restart' 'status' 'install' 'install-bosun' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'self-update' 'upgrade' 'mcp' \
     'setup' 'init' 'cut' 'batten' 'hooks' \
-    'plan' 'version' 'help'
+    'plan' 'interruptions' 'version' 'help'
 
 # Register each command for both `port-daddy` and `pd`
 for prog in port-daddy pd
@@ -523,6 +523,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a whoami -d 'Show current agent/session context'
     complete -c $prog -n __pd_needs_command -a w -d 'Show current context (alias for whoami)'
     complete -c $prog -n __pd_needs_command -a account -d 'Sign in to your Port Daddy cloud account (device flow)'
+    complete -c $prog -n __pd_needs_command -a interruptions -d 'List open HITL operator asks (answer/ack is web-only)'
     complete -c $prog -n __pd_needs_command -a attention -d 'Inbox + subscribed channels in one call (run first thing every session)'
     complete -c $prog -n __pd_needs_command -a nudge -d 'Suggestibility nudges — claim-overlap heads-up (list/accept/decline/scan)'
     complete -c $prog -n __pd_needs_command -a with-lock -d 'Run a command while holding a lock'
@@ -854,6 +855,10 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command plan" -a 'show set check' -d 'Action'
     complete -c $prog -n "__pd_using_command plan" -l session -d 'Session ID' -x
     complete -c $prog -n "__pd_using_command plan" -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'
+
+    # interruptions (HITL open-ask listing; answer/ack is web-only)
+    complete -c $prog -n "__pd_using_command interruptions" -l json -d 'JSON output for scripts'
+    complete -c $prog -n "__pd_using_command interruptions" -l quiet -d 'Suppress non-essential output'
 
     # whoami / w
     complete -c $prog -n "__pd_using_command whoami" -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'

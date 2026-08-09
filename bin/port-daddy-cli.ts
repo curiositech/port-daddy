@@ -121,6 +121,8 @@ import {
   handleFeedback,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
   handleSitrep, handleSay, handleLook, handlePheromone, handlePlan,
+  // HITL operator interruptions (docs/hitl-interruptions.md §4, surface 3)
+  handleInterruptions,
   // Coordination advisor / suggestibility
   handleAdvisor,
   // Maritime actor directory
@@ -689,6 +691,7 @@ function buildHelp(): string {
     `  ${G}pd done${Z} "summary"        ${tag('notify')} Finish up — I'll clean everything`,
     `  ${G}pd whoami${Z}                ${tag('silent')} See your current context`,
     `  ${G}pd attention${Z}             ${tag('notify')} What other agents queued for you (run first thing!)`,
+    `  ${G}pd interruptions${Z}         ${tag('silent')} Open HITL asks blocking your agents (exit 1 when any)`,
     '',
     `${A}Ports:${Z}`,
     `  ${G}pd claim${Z} <id>            ${tag('notify')} I'll assign a port  ${D}(c)${Z}`,
@@ -1411,6 +1414,7 @@ const ALL_COMMANDS: string[] = [
   'safe',
   'relay',
   'plan',
+  'interruptions',
   'suggest',
   'seamanship', 'skills',
 ];
@@ -2975,6 +2979,12 @@ export async function main(): Promise<void> {
 
       case 'plan':
         await handlePlan(positional, options);
+        break;
+
+      // HITL operator interruptions — list open asks; answer/ack is web-only
+      // (docs/hitl-interruptions.md §4, surface 3)
+      case 'interruptions':
+        await handleInterruptions(positional, options);
         break;
 
       case 'pheromone':

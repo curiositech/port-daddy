@@ -77,6 +77,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   tutorial: 'silent',
   sitrep: 'silent',
   plan: 'notify',
+  interruptions: 'silent', // read-only poll of open HITL operator asks; answer/ack is web-only
 
   whois: 'silent',          // semantic skill-router: read-only ranking of agents by capability
   look: 'silent',

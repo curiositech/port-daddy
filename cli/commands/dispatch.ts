@@ -40,6 +40,7 @@ import { isJson, isQuiet } from '../types.js';
 import * as ui from '../utils/ui.js';
 import { pdFetch, isDaemonRunning } from '../utils/fetch.js';
 import { handleReview } from './review.js';
+import { preflightInterruptionsGate } from './interruptions.js';
 
 function usage(): never {
   console.error('Usage: pd dispatch <subcommand> [args]');
@@ -546,6 +547,12 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
   // -- run --------------------------------------------------------------
   if (subcommand === 'run') {
     const dryRun = !options['really-run'] && !options.reallyRun;
+    // HITL contract §4.3: refuse NEW dependent work while a critical operator
+    // ask is open (docs/hitl-interruptions.md). Dry runs stay allowed — they
+    // launch nothing.
+    if (!dryRun && !(await preflightInterruptionsGate('pd dispatch run'))) {
+      process.exit(1);
+    }
     const rest = args.slice(1);
     const wantsNext = rest.includes('--next') || !!options.next;
     if (wantsNext) {

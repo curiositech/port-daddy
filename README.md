@@ -303,7 +303,7 @@ Every `pd` command is classified by how much shared state it touches. The tier i
 
 | Tier | What it means | Examples |
 |---|---|---|
-| `silent` | Read-only. Safe to run anywhere. | `pd status`, `pd whoami`, `pd notes`, `pd briefing`, `pd sessions`, `pd actors`, `pd roster search`, `pd find`, `pd look`, `pd periscope`, `pd doctor` |
+| `silent` | Read-only. Safe to run anywhere. | `pd status`, `pd whoami`, `pd notes`, `pd briefing`, `pd sessions`, `pd actors`, `pd roster search`, `pd find`, `pd look`, `pd periscope`, `pd doctor`, `pd interruptions` |
 | `notify` | Mutates your own state. Reversible. | `pd note`, `pd begin`, `pd done`, `pd claim`, `pd lock`, `pd takeover`, `pd backup`, `pd cut`, `pd backend`, `pd plan` |
 | `approval` | Affects other agents. No data loss. | `pd pub`, `pd spawn`, `pd sortie`, `pd up`, `pd dispatch`, `pd parley`, `pd squid`, `pd harbor create` |
 | `destructive` | Releases someone else's resources or removes records. Prompts. | `pd restore`, `pd salvage claim`, `pd fleet panic`, `pd unlock --force` (full list below) |
@@ -439,6 +439,29 @@ pd wait myapp:api                                  # block until a service is he
 pd attention                                       # session-start mailbox aggregator
 pd nudge                                           # list pending suggestibility nudges
 ```
+
+### Operator Interruptions (HITL)
+
+When an agent hits a wall only a human can move, it files an **operator
+interruption** on the relay (docs/hitl-interruptions.md). The CLI is one of
+the surfaces required to show them:
+
+```bash
+pd interruptions            # list OPEN asks: title, urgency, source agent, age
+pd interruptions --json     # {status: "open"|"none"|"unknown"} for scripts
+```
+
+Exit codes are the notice: `0` none open · `1` open asks exist · `2` state
+UNKNOWN (failed poll or not signed in — never reported as all-clear).
+`critical`/`high` asks render red. Requires `pd account login` (device-flow
+`pdu_` token). Answering or acking is **web-only by design** — the CLI
+deep-links to `/account/interruptions`; a bearer token an agent holds must
+never be able to silence its own escalations.
+
+While an open **critical** ask exists, commands that start new dependent agent
+work — `pd fleet up|run|approve` and `pd dispatch run` — refuse to launch,
+print the ask's title, and link to the answer page. Non-critical asks warn
+without blocking.
 
 ### Durable Commitments
 

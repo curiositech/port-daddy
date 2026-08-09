@@ -2600,6 +2600,21 @@
       "mcp": [
         "whois"
       ]
+    },
+    "interruptions": {
+      "description": "HITL operator interruptions CLI surface (docs/hitl-interruptions.md §4): list open asks with honest three-valued state (open/none/unknown) and a fleet-dispatch pre-flight that refuses new dependent work on an open critical ask; answer/ack is web-only by design",
+      "cli": [
+        "interruptions"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "interruptions"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
     }
   }
 }

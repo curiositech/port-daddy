@@ -80,5 +80,6 @@ export * from './batten.js';
 export * from './embed.js';
 export * from './skill-graft.js';
 export * from './plan.js';
+export * from './interruptions.js';
 export * from './suggest.js';
 export * from './seamanship.js';

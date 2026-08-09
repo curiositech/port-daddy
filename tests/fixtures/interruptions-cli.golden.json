@@ -1,0 +1,30 @@
+{
+  "_comment": "Golden output for pd interruptions (tests/unit/interruptions-cli.test.js). Rendered with color:false and a fixed clock (NOW_MS=1754700000000). If the renderer's shape changes on purpose, update these lines to match the new intended output — never weaken the assertions.",
+  "openListing": [
+    "3 open operator interruptions — agents are waiting on you",
+    "",
+    "  CRITICAL  Sandbox missing for fail-closed run",
+    "            from purser-qa · open 12m",
+    "  HIGH      GitHub App lacks contents: write",
+    "            from shipwright · open 1h 04m",
+    "  NORMAL    Choose a card design",
+    "            from designer · open 1d 1h",
+    "",
+    "Answer or ack (web only): https://relay.example/account/interruptions"
+  ],
+  "emptyListing": [
+    "No open operator interruptions."
+  ],
+  "unknownListing": [
+    "Operator interruption state UNKNOWN — relay returned HTTP 503",
+    "  This is NOT an all-clear. Agents may be blocked on you right now.",
+    "  Check the web surface: https://relay.example/account/interruptions"
+  ],
+  "criticalGate": [
+    "BLOCKED: refusing to start new dependent work (pd fleet up).",
+    "An unresolved CRITICAL operator interruption is open:",
+    "  • Sandbox missing for fail-closed run (from purser-qa, open 12m)",
+    "Answer or ack it first: https://relay.example/account/interruptions",
+    "Then re-run this command."
+  ]
+}

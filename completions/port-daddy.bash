@@ -103,6 +103,8 @@ _port_daddy() {
     files add who-owns integration
     # Sugar (compound commands)
     begin b done plan whoami w account attention nudge with-lock n u d learn tutorial
+    # HITL operator interruptions (list-only; answer/ack is web-only)
+    interruptions
     # Briefing & History
     briefing history
     # Consolidated read/write (3.8.4)
@@ -1833,6 +1835,13 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     sitrep)
       _pd_opts '--since --project --stack --limit-activity --limit-notes --json --quiet'
+      ;;
+
+    # -----------------------------------------------------------------------
+    # interruptions  [--json]  (HITL open-ask listing; answer/ack is web-only)
+    # -----------------------------------------------------------------------
+    interruptions)
+      _pd_opts '--json --quiet'
       ;;
 
     # -----------------------------------------------------------------------
