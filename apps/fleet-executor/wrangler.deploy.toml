@@ -65,21 +65,26 @@ database_name = "port-daddy-relay"
 database_id = "0907431b-9af0-48b5-b2b0-07e6b660bd41"
 
 # ---------------------------------------------------------------------------
-# OPTIONAL — Cloudflare Sandboxes (Containers beta) for the purser ship.
-# NOT ENABLED: this block is documentation, not a live binding. When the
-# SANDBOX binding exists, the purser (src/purser.ts) executes its authored
-# adversarial tests against the PR head inside an isolated container and
-# reports REAL pass/fail. When absent (this default), src/sandbox-runner.ts
-# returns executed:false and the purser NEVER fabricates test results —
-# its verdict then follows the ship's blockWithoutSandbox flag (default:
-# advisory; never block on tests that were never run).
+# Cloudflare Sandboxes (Containers) for the purser ship — LIVE since #4612
+# (2026-08-04). `npm i @cloudflare/sandbox`, the Dockerfile, and the
+# `export { Sandbox } from '@cloudflare/sandbox'` in src/index.ts are all in
+# place, and `wrangler deploy` below builds + pushes the container image and
+# edits the `fleet-executor-sandbox` container application on every deploy
+# (confirmed in deploy-fleet-executor.yml logs: "SUCCESS  Modified
+# application fleet-executor-sandbox"). When the SANDBOX binding resolves at
+# runtime, the purser (src/purser.ts) executes its authored adversarial tests
+# against the PR head inside this container and reports REAL pass/fail; when
+# `resolveSandbox()` in src/sandbox-runner.ts cannot resolve it, it returns
+# executed:false and the purser NEVER fabricates test results — its verdict
+# then follows the ship's blockWithoutSandbox flag (default: advisory; never
+# block on tests that were never run).
 #
-# To enable (requires the Containers beta on your account):
-#   1. npm i @cloudflare/sandbox   (and a Dockerfile per its README)
-#   2. export the Sandbox class from src/index.ts:
-#        export { Sandbox } from '@cloudflare/sandbox';
-#   3. Uncomment and adjust:
-#
+# OPEN QUESTION (2026-08-06): purser runs have been observed reporting
+# "SANDBOX binding absent" (e.g. PR #6186, 2026-08-05T23:35Z) hours after a
+# deploy log confirmed the container application was live. The config and
+# deploy pipeline check out; if this recurs, the next step is `wrangler tail`
+# on the deployed Worker during a live purser run to see what `env.SANDBOX`
+# actually is, rather than assuming the binding was never provisioned.
 [[containers]]
 class_name = "Sandbox"
 image = "./Dockerfile"

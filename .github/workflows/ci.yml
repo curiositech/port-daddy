@@ -3,8 +3,14 @@ name: CI
 on:
   push:
     branches: [main]
+  # No `branches:` filter here on purpose: the purser stacks test PRs onto
+  # other PRs (test-pr -> reviewed-pr -> ... -> main), so most open PRs at any
+  # given time have a non-main base. A `branches: [main]` filter meant only
+  # the bottom of each stack ever got real `npm test`/`tsc` signal — every PR
+  # above it merged through Fleetbot's presence check and nothing else. Run
+  # on every pull_request event regardless of base so the whole stack gets
+  # tested against its own head, not just once it reaches main.
   pull_request:
-    branches: [main]
   # Merge queue: GitHub builds a temporary branch (latest main + queued PRs)
   # and requires every required check to report on it before merging.
   merge_group:
