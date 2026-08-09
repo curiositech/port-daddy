@@ -37,6 +37,7 @@ import {
   type ClaimRegionArgs,
   type ReleaseRegionArgs,
 } from '../lib/editor-claims-mcp.js';
+import { serializeSwarmDigest, serializeLegacySwarmSnapshot } from '../lib/swarm-awareness-digest.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -2863,7 +2864,9 @@ const TOOLS = [
     name: 'swarm_awareness',
     description:
       '[Magic] Who else is working here? Returns all active agents with their identities, purposes, ' +
-      'file claims, session notes, heartbeat freshness, harness lane, and session-control affordances. One call to understand the whole swarm.',
+      'file claims, latest session note, heartbeat freshness, harness lane, and session-control affordances. ' +
+      'One call to understand the whole swarm. Output is a bounded digest (hard character budget, explicit ' +
+      'omission counters); the full-fidelity roster lives at GET /agent-roster on the daemon.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -4723,12 +4726,18 @@ async function handleTool(
 
     case 'active_agent_roster':
     case 'swarm_awareness': {
+      // An MCP tool result must fit in the calling agent's context window;
+      // the raw roster (full squid matrices, complete note bodies, unbounded
+      // claim lists, pretty-printed) has blown past harness token caps in
+      // production. Both paths below go through the digest layer, which
+      // shapes and hard-budgets the output. Full fidelity stays on the
+      // /agent-roster HTTP endpoint for FleetBar / Control Center.
       const project = args.project as string | undefined;
       const rosterQs = new URLSearchParams({ limit: '50' });
       if (project) rosterQs.set('project', project);
       const rosterRes = await GET(`/agent-roster?${rosterQs}`);
       if (rosterRes.status >= 200 && rosterRes.status < 300 && rosterRes.data && rosterRes.data.success !== false) {
-        return JSON.stringify(rosterRes.data, null, 2);
+        return serializeSwarmDigest(rosterRes.data);
       }
 
       const qs = project ? `?identityPrefix=${encodeURIComponent(project)}` : '';
@@ -4740,12 +4749,12 @@ async function handleTool(
         GET('/files'),
         GET(`/salvage/pending${project ? '?project=' + encodeURIComponent(project) : ''}`),
       ]);
-      return JSON.stringify({
-        active_agents: (agentsRes.data as Record<string, unknown>)?.agents ?? [],
-        sessions: (sessionsRes.data as Record<string, unknown>)?.sessions ?? [],
-        file_claims: (filesRes.data as Record<string, unknown>)?.claims ?? (filesRes.data as Record<string, unknown>)?.files ?? [],
-        dead_agents: (salvageRes.data as Record<string, unknown>)?.agents ?? [],
-      }, null, 2);
+      return serializeLegacySwarmSnapshot({
+        agents: ((agentsRes.data as Record<string, unknown>)?.agents ?? []) as unknown[],
+        sessions: ((sessionsRes.data as Record<string, unknown>)?.sessions ?? []) as unknown[],
+        claims: ((filesRes.data as Record<string, unknown>)?.claims ?? (filesRes.data as Record<string, unknown>)?.files ?? []) as unknown[],
+        deadAgents: ((salvageRes.data as Record<string, unknown>)?.agents ?? []) as unknown[],
+      });
     }
 
     case 'sitrep':
