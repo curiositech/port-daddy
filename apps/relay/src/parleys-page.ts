@@ -51,21 +51,29 @@ import type { Env } from './types.js';
 import type { UserRow } from './db.js';
 import { resolveSession, isSameOrigin } from './auth-github.js';
 import {
+  getFleetPaused,
+  getMediatorKilled,
+  getMediatorPairForParley,
+  getParleyGate,
   listHarborsForUser,
   listParleyPositions,
   listParleys,
-  lapseExpiredParleys,
+  listParleySummonses,
   tallyParleySignatures,
   type HarborRow,
+  type ParleyGateRow,
   type ParleyPositionRow,
   type ParleyRow,
+  type ParleySummonsRow,
 } from './db.js';
 import {
+  applyParleyExpiries,
   resolveHarborMembership,
   resolveParleyInHarbor,
   handleRespondParley,
   MEDIATOR_ID,
 } from './parleys.js';
+import { renderGateVerdict, type GateVerdictOutcome } from './mediator-body.js';
 import { HEAD, TOKENS } from './account-page.js';
 
 /** How many parleys one rendered list shows (newest first). */
@@ -150,6 +158,16 @@ const NOTICES: Record<string, { tone: 'ok' | 'warn'; text: string }> = {
   'bad-stance': { tone: 'warn', text: 'Pick Accept or Reject. Nothing was recorded.' },
   'bad-position': { tone: 'warn', text: 'That position text was too long to record. Nothing was recorded — shorten it and sign again.' },
   error: { tone: 'warn', text: 'The relay could not record that position. Nothing was recorded; try again.' },
+  // ── gate verdicts (mediator-body) ──────────────────────────────────────────
+  'verdict-approved': { tone: 'ok', text: 'Approved. The irreversible action may proceed; the verdict is write-once and recorded below.' },
+  'verdict-modified': { tone: 'ok', text: 'Modified. Your instructions are recorded and will be re-injected into the losing agent’s re-execution.' },
+  'verdict-rejected': { tone: 'ok', text: 'Rejected. The irreversible action does not proceed; the verdict is write-once and recorded below.' },
+  'gate-decided': { tone: 'warn', text: 'This gate already has a verdict. Verdicts are write-once — nothing was recorded.' },
+  'no-gate': { tone: 'warn', text: 'This parley has no approve gate, so there is nothing to decide. Nothing was recorded.' },
+  'bad-verdict': { tone: 'warn', text: 'Pick Approve, Modify, or Reject. Nothing was recorded.' },
+  'modify-text-required': { tone: 'warn', text: 'Modify needs instructions (up to 2000 chars) — that text is what the losing agent re-executes with. Nothing was recorded.' },
+  'fleet-paused': { tone: 'warn', text: 'The fleet is paused, so the relay will not accept a verdict it cannot enforce. Nothing was recorded — resume the fleet first.' },
+  'mediator-killed': { tone: 'warn', text: 'The kill-mediator flag is set: the mediator is inert and its gates accept no verdicts. Nothing was recorded.' },
 };
 
 // ── page CSS (story-linework; TOKENS single-sourced from account-page.ts) ────
@@ -236,6 +254,37 @@ ${TOKENS}
 .sb-field textarea:focus{border-color:var(--cobalt);outline:2px solid var(--cobalt);outline-offset:1px}
 .btn-sign{margin-top:18px;font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:700;letter-spacing:.02em;padding:11px 20px;border:2px solid var(--border-strong);background:var(--cobalt);color:var(--on-accent);cursor:pointer}
 .btn-sign:hover{background:var(--border-strong);color:var(--surface-base)}
+/* summons strip (mediator-body: agent-first delivery acknowledgment) */
+.summons{border:1px solid var(--hair);background:var(--surface-card);margin-top:12px}
+.summons .sm-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px;padding:12px 20px}
+.summons .sm-row + .sm-row{border-top:1px solid var(--hair)}
+.sm-who{font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:700;color:var(--text-primary)}
+.sm-daemon{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--text-muted);overflow-wrap:anywhere}
+.chip.summoned{background:transparent;color:var(--amber);border-color:var(--amber)}
+.chip.acked{background:var(--health);color:var(--on-accent);border-color:var(--border-strong)}
+.chip.refused{background:var(--error);color:var(--on-accent);border-color:var(--border-strong)}
+.chip.escalated{background:transparent;color:var(--error);border-color:var(--error)}
+.sm-hash{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--text-muted);overflow-wrap:anywhere}
+.sm-note{padding:10px 20px 14px;font-size:13.5px;color:var(--text-muted);line-height:1.6;max-width:72ch;border-top:1px solid var(--hair)}
+/* gate panel (mediator-body: human approve gate, irreversible actions only) */
+.gatebox{margin-top:34px;border:2px solid var(--border-strong);background:var(--surface-raised);padding:20px 22px 22px}
+.gatebox h2{font-size:19px;font-weight:700;letter-spacing:-.01em}
+.gatebox .gb-lede{margin-top:8px;font-size:14.5px;color:var(--text-secondary);line-height:1.6;max-width:66ch}
+.gb-action{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:4px 10px;border:2px solid var(--error);color:var(--error);margin-left:10px;vertical-align:middle}
+.gb-verdicts{display:flex;flex-wrap:wrap;gap:12px;margin-top:18px}
+.btn-verdict{font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:700;letter-spacing:.02em;padding:11px 20px;border:2px solid var(--border-strong);cursor:pointer;background:var(--surface-base);color:var(--text-primary)}
+.btn-verdict.approve{background:var(--health);color:var(--on-accent)}
+.btn-verdict.reject{background:var(--error);color:var(--on-accent)}
+.btn-verdict:hover{filter:brightness(.92)}
+.btn-verdict:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.gb-paused{margin-top:14px;font-size:14px;color:var(--amber);line-height:1.6;max-width:64ch;padding-left:14px;box-shadow:inset 3px 0 0 var(--amber)}
+.gb-verdict-record{margin-top:16px;padding:14px 18px;border:1px solid var(--hair);background:var(--surface-card)}
+.gb-verdict-record .gv-state{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.gb-verdict-record .gv-state.approved{color:var(--health)}
+.gb-verdict-record .gv-state.modified{color:var(--cobalt)}
+.gb-verdict-record .gv-state.rejected{color:var(--error)}
+.gb-verdict-record p{margin-top:6px;font-size:14px;color:var(--text-secondary);line-height:1.6}
+.gb-modify-text{margin-top:10px;font-size:14.5px;line-height:1.62;color:var(--text-primary);white-space:pre-wrap;overflow-wrap:anywhere;padding-left:14px;box-shadow:inset 2px 0 0 var(--cobalt)}
 .closedbox{margin-top:34px;border:1px dashed var(--hair-strong);padding:20px 22px;max-width:68ch}
 .closedbox .cb-title{font-weight:700;font-size:17px}
 .closedbox p{margin-top:8px;font-size:14.5px;color:var(--text-secondary);line-height:1.62}
@@ -402,6 +451,14 @@ export interface ParleyDetailView {
   viewerSeat: ParleyPositionRow | null;
   notice: string | null;
   nowSec: number;
+  /** The human approve gate, when this parley carries one (mediator-body). */
+  gate: ParleyGateRow | null;
+  /** The delivery-acknowledged summons ledger (mediator-convened parleys). */
+  summonses: ParleySummonsRow[];
+  /** True ⇒ verdict buttons render DISABLED (no verdict the relay can't enforce). */
+  fleetPaused: boolean;
+  /** True ⇒ the gate panel renders inert (kill-mediator flag). */
+  mediatorKilled: boolean;
 }
 
 // ── list rendering ───────────────────────────────────────────────────────────
@@ -579,6 +636,135 @@ function renderMediatorSeat(pos: ParleyPositionRow | undefined): string {
 }
 
 /**
+ * Render the summons ledger for a mediator-convened parley.
+ *
+ * Every row shows WHO was summoned, WHICH daemon speaks for them (or that
+ * none does), the delivery state, and the chain coordinates of the summons —
+ * because a summons here is not a notification, it is a signed event on the
+ * hash chain, and showing its hash lets anyone verify delivery independently
+ * of this page. The D11 legend under the strip states the agent-first rule
+ * in the same plain terms the state machine enforces it.
+ *
+ * @param summonses The parley's summons rows (may be empty ⇒ renders '').
+ * @returns An HTML fragment, or '' when this parley has no summonses.
+ */
+function renderSummonsSection(summonses: ParleySummonsRow[]): string {
+  if (summonses.length === 0) return '';
+  const rows = summonses
+    .map((s) => {
+      const daemon = s.daemon_fingerprint
+        ? `<span class="sm-daemon">daemon ${esc(s.daemon_fingerprint.slice(0, 16))}…</span>`
+        : '<span class="sm-daemon">no declared daemon — escalated to the human</span>';
+      const stateChip = `<span class="chip ${esc(s.state)}">${esc(s.state)}</span>`;
+      const ack =
+        s.response_hash !== null
+          ? `<span class="sm-hash">ack ${esc(s.response_hash.slice(0, 16))}… seq ${s.response_seq}</span>`
+          : '';
+      return `<div class="sm-row">
+        <span class="sm-who">${esc(s.party_label)}</span>
+        ${daemon}
+        ${stateChip}
+        <span class="sm-hash">summons ${esc(s.summons_hash.slice(0, 16))}… seq ${s.summons_seq}</span>
+        ${ack}
+      </div>`;
+    })
+    .join('');
+  return `<p class="sect-label">Summonses &mdash; delivery-acknowledged, on the chain</p>
+  <div class="summons">
+    ${rows}
+    <p class="sm-note">Agent-first: each party&rsquo;s declared daemon is summoned before its human, and only a
+    daemon <b>refuse</b> or <b>escalate</b> &mdash; or the absence of any declared daemon &mdash; wakes the human.
+    Every summons and every response is a signed, hash-chained relay event; the coordinates above are
+    independently verifiable on the chain.</p>
+  </div>`;
+}
+
+/**
+ * Render the human approve gate panel, or nothing when the parley has none.
+ *
+ * The gate exists for IRREVERSIBLE actions only, and the panel says so. Four
+ * genuinely different states render four genuinely different things:
+ *
+ *   1. decided            → the verdict record (who, what, when, Modify text);
+ *   2. pending + can act  → the Approve / Modify / Reject form;
+ *   3. pending + paused   → the SAME buttons, disabled, with the reason —
+ *                           this is the one place the no-dead-buttons rule
+ *                           bends, deliberately: a paused fleet is temporary,
+ *                           the action WILL become available again, and
+ *                           hiding the buttons would read as "no gate here";
+ *   4. pending + viewer not a named party → an honest read-only panel.
+ *
+ * The kill-mediator flag renders the panel inert (state 3's rendering with
+ * its own copy) — no surface offers a verdict the mediator cannot carry.
+ *
+ * @param view The detail view model.
+ * @returns An HTML fragment, or '' when this parley carries no gate.
+ */
+function renderGateSection(view: ParleyDetailView): string {
+  const { gate, harbor, parley, viewerSeat } = view;
+  if (!gate) return '';
+
+  const head = `<h2>Human approve gate<span class="gb-action">${esc(gate.action)}</span></h2>
+    <p class="gb-lede">This parley guards an <b>irreversible</b> action. The mediator predicted the conflict and
+    convened the parley, but only a named human party can let a ${esc(gate.action)} proceed &mdash; agents cannot
+    approve their own irreversible actions.</p>`;
+
+  if (gate.state !== 'pending') {
+    const when = gate.verdict_at !== null ? ` on ${fmtWhen(gate.verdict_at)}` : '';
+    const modify =
+      gate.state === 'modified' && gate.modify_text
+        ? `<div class="gb-modify-text">${esc(gate.modify_text)}</div>
+           <p>These instructions are re-injected into the losing agent&rsquo;s re-execution.</p>`
+        : '';
+    return `<div class="gatebox">
+      ${head}
+      <div class="gb-verdict-record">
+        <span class="gv-state ${esc(gate.state)}">${esc(gate.state)}</span>
+        <p>Decided by <b>${esc(gate.verdict_by_label ?? 'unknown')}</b>${esc(when)}. Verdicts are write-once.</p>
+        ${modify}
+      </div>
+    </div>`;
+  }
+
+  const viewerMayDecide = viewerSeat !== null;
+  if (!viewerMayDecide) {
+    return `<div class="gatebox">
+      ${head}
+      <div class="gb-verdict-record">
+        <span class="gv-state">pending</span>
+        <p>Awaiting a verdict from a named party. You can read this gate because you are a member of this
+        harbor, but only the parties named to the parley may decide it.</p>
+      </div>
+    </div>`;
+  }
+
+  const blocked = view.fleetPaused || view.mediatorKilled;
+  const disabledAttr = blocked ? ' disabled' : '';
+  const blockedNote = view.mediatorKilled
+    ? `<p class="gb-paused">The <b>kill-mediator</b> flag is set: the mediator is inert and this gate accepts no
+       verdicts until an operator clears it.</p>`
+    : view.fleetPaused
+      ? `<p class="gb-paused">The fleet is <b>paused</b>. These buttons are disabled because the relay refuses to
+         record a verdict it cannot enforce &mdash; resume the fleet to decide this gate.</p>`
+      : '';
+  const action = `/account/parleys/${encodeURIComponent(harbor.namespace)}/${encodeURIComponent(harbor.name)}/${encodeURIComponent(parley.id)}/verdict`;
+  return `<form class="gatebox" method="post" action="${esc(action)}">
+    ${head}
+    <div class="gb-verdicts">
+      <button type="submit" class="btn-verdict approve" name="verdict" value="approve"${disabledAttr}>Approve</button>
+      <button type="submit" class="btn-verdict" name="verdict" value="modify"${disabledAttr}>Modify</button>
+      <button type="submit" class="btn-verdict reject" name="verdict" value="reject"${disabledAttr}>Reject</button>
+    </div>
+    <div class="sb-field">
+      <label for="modify_text">Modify instructions (required for Modify)</label>
+      <textarea id="modify_text" name="modify_text" maxlength="2000"${blocked ? ' disabled' : ''}
+        placeholder="What the losing agent should do differently on re-execution."></textarea>
+    </div>
+    ${blockedNote}
+  </form>`;
+}
+
+/**
  * Render the sign form, or the honest reason there is no form.
  *
  * This function is where the "no dead buttons" rule is actually enforced, and
@@ -695,11 +881,48 @@ export function renderParleyDetailPage(user: UserRow, view: ParleyDetailView): s
 
   ${mediator ? `<p class="sect-label">Reserved seat</p><div class="seats">${renderMediatorSeat(mediator)}</div>` : ''}
 
+  ${renderSummonsSection(view.summonses)}
+
+  ${renderOutcomeSection(view.parley)}
+
+  ${renderGateSection(view)}
+
   ${renderSignSection(view)}
 
   <p><a class="backlink" href="${esc(listHref)}">&larr; All parleys in ${esc(slug)}</a></p>
 </main>`,
   );
+}
+
+/**
+ * Render the Helm-default outcome recorded on a lapsed parley, when any.
+ *
+ * A 'first-proceeds' lapse is the one place a closed parley carries MORE
+ * information than "no agreement": the Helm's configured default elected a
+ * claim order, and both humans (and both agents) should read the identical
+ * fact off this page. The copy is careful to say what this is — a recorded
+ * DEFAULT, not a signed agreement — because nobody signed anything.
+ *
+ * @param parley The parley row (outcome_json read; hostile JSON tolerated).
+ * @returns An HTML fragment, or '' when no outcome was recorded.
+ */
+function renderOutcomeSection(parley: ParleyRow): string {
+  if (!parley.outcome_json) return '';
+  let outcome: { default?: unknown; proceeds?: { party?: unknown; pr?: unknown }; rebases?: { party?: unknown; pr?: unknown }; repo?: unknown };
+  try {
+    outcome = JSON.parse(parley.outcome_json) as typeof outcome;
+  } catch {
+    return ''; // corrupt outcome renders as absent, never as a fabrication
+  }
+  if (outcome.default !== 'first-claimant-proceeds') return '';
+  const pr = (v: unknown) => (typeof v === 'number' ? ` (PR #${v})` : '');
+  return `<div class="closedbox">
+    <div class="cb-title">Deadline lapsed &mdash; the Helm&rsquo;s default outcome applied.</div>
+    <p>No agreement was signed before the deadline, and this harbor&rsquo;s Helm configures expiry as
+    <b>first claimant proceeds</b>: <b>${esc(outcome.proceeds?.party)}</b>${esc(pr(outcome.proceeds?.pr))} proceeds,
+    and <b>${esc(outcome.rebases?.party)}</b>${esc(pr(outcome.rebases?.pr))} rebases. This is a recorded default,
+    not a signed agreement &mdash; the artifact says exactly that, and enforcement stays with daemons and CI.</p>
+  </div>`;
 }
 
 // ── handlers ─────────────────────────────────────────────────────────────────
@@ -818,7 +1041,7 @@ export async function handleParleyListPage(
   let items: ParleyListItem[] | null = null;
   let truncated = false;
   try {
-    await lapseExpiredParleys(env.DB, gate.harbor.id, nowSec);
+    await applyParleyExpiries(env, gate.harbor.id, nowSec);
     const rows = await listParleys(env.DB, gate.harbor.id, PARLEY_LIST_LIMIT + 1);
     truncated = rows.length > PARLEY_LIST_LIMIT;
     const shown = rows.slice(0, PARLEY_LIST_LIMIT);
@@ -903,6 +1126,30 @@ export async function handleParleyDetailPage(
   const viewerSeat =
     positions.find((p) => p.party_kind === 'user' && p.party_id === session.user.id && p.is_party === 1) ?? null;
 
+  // Mediator-body extras — each read best-effort: a failed gate/summons read
+  // renders the parley WITHOUT its panel rather than failing the whole page
+  // (the parley itself is the artifact; the panels are annotations on it).
+  let mediatorGate: ParleyGateRow | null = null;
+  let summonses: ParleySummonsRow[] = [];
+  let fleetPaused = false;
+  let mediatorKilled = false;
+  try {
+    mediatorGate = await getParleyGate(env.DB, parley.id);
+    summonses = await listParleySummonses(env.DB, parley.id);
+  } catch {
+    mediatorGate = null;
+    summonses = [];
+  }
+  try {
+    fleetPaused = await getFleetPaused(env.KV);
+    mediatorKilled = await getMediatorKilled(env.KV);
+  } catch {
+    // Unknown flag state ⇒ treat as BLOCKED, not as clear: rendering live
+    // verdict buttons on an unreadable pause flag could accept a verdict the
+    // relay cannot enforce, and the server-side twin would refuse it anyway.
+    fleetPaused = mediatorGate !== null;
+  }
+
   return htmlResponse(
     renderParleyDetailPage(session.user, {
       harbor: gate.harbor,
@@ -911,8 +1158,145 @@ export async function handleParleyDetailPage(
       viewerSeat,
       notice: readNotice(new URL(request.url)),
       nowSec,
+      gate: mediatorGate,
+      summonses,
+      fleetPaused,
+      mediatorKilled,
     }),
   );
+}
+
+/**
+ * Map a gate-verdict outcome onto this surface's notice vocabulary.
+ *
+ * Total over {@link GateVerdictOutcome} so a new outcome degrades to the
+ * generic honest notice rather than a blank page.
+ */
+function noticeForVerdict(outcome: GateVerdictOutcome): string {
+  switch (outcome) {
+    case 'approved':
+      return 'verdict-approved';
+    case 'modified':
+      return 'verdict-modified';
+    case 'rejected':
+      return 'verdict-rejected';
+    case 'mediator-killed':
+      return 'mediator-killed';
+    case 'fleet-paused':
+      return 'fleet-paused';
+    case 'no-gate':
+      return 'no-gate';
+    case 'gate-decided':
+      return 'gate-decided';
+    case 'not-a-party':
+      return 'not-a-party';
+    case 'bad-verdict':
+      return 'bad-verdict';
+    case 'modify-text-required':
+      return 'modify-text-required';
+    default:
+      return 'error';
+  }
+}
+
+/**
+ * POST /account/parleys/:ns/:name/:id/verdict — decide the human approve gate.
+ *
+ * Same discipline as the sign form, for the same reasons: same-origin checked
+ * before anything is parsed, session + member + parley gates funneling into
+ * the identical 404, a plain urlencoded form under the script-free CSP, and
+ * every DECISION delegated to the one state machine
+ * ({@link renderGateVerdict} in src/mediator-body.ts) — this handler only
+ * parses the form, resolves the viewer's named-party standing, and renders
+ * the outcome as a redirect notice.
+ *
+ * The named-party requirement is resolved HERE, next to the gates, exactly
+ * like the sign path resolves viewerSeat: "may this person decide?" is an
+ * authorization question and stays out of the state machine's way.
+ *
+ * @param request The form POST.
+ * @param env Worker env.
+ * @param namespace Harbor namespace from the path.
+ * @param name Harbor name from the path.
+ * @param parleyId Parley id from the path.
+ * @returns 302 /login, a 403 page, the 404 page, or a 303 back with a notice.
+ */
+export async function handleParleyVerdictForm(
+  request: Request,
+  env: Env,
+  namespace: string,
+  name: string,
+  parleyId: string,
+): Promise<Response> {
+  if (!isSameOrigin(request, env)) {
+    return htmlResponse(
+      shellPage(
+        'Port Daddy — Refused',
+        'parleys',
+        `<main class="page"><div class="notice">
+          <span class="eyebrow">Parleys</span>
+          <h1>Cross-origin request refused</h1>
+          <p>That verdict did not come from this site, so it was not recorded. Decide from the parley page
+          itself. Nothing was changed.</p>
+        </div></main>`,
+      ),
+      403,
+    );
+  }
+  const session = await resolveSession(request, env);
+  if (!session) return toLogin();
+  const gate = await resolveHarborMembership(env, session.user, namespace, name);
+  if (!gate) return notFoundPage();
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const parley = await resolveParleyInHarbor(env, gate.harbor, parleyId, nowSec);
+  if (!parley) return notFoundPage();
+
+  const detailHref = `/account/parleys/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/${encodeURIComponent(parleyId)}`;
+  const back = (notice: string) =>
+    new Response(null, {
+      status: 303,
+      headers: { Location: `${detailHref}?notice=${encodeURIComponent(notice)}`, 'Cache-Control': 'no-store' },
+    });
+
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return back('error');
+  }
+  const verdictRaw = form.get('verdict');
+  const modifyRaw = form.get('modify_text');
+
+  let outcome: GateVerdictOutcome;
+  try {
+    const positions = await listParleyPositions(env.DB, parley.id);
+    const viewerSeat =
+      positions.find((p) => p.party_kind === 'user' && p.party_id === session.user.id && p.is_party === 1) ?? null;
+    const parleyGate = await getParleyGate(env.DB, parley.id);
+
+    // The losing agent's re-execution target: the SECOND CLAIMANT's PR (the
+    // first claimant proceeds — the same claim order the expiry default uses).
+    let loserTarget: { repo: string; pr: number } | null = null;
+    const pair = await getMediatorPairForParley(env.DB, parley.id);
+    if (pair) {
+      loserTarget = { repo: pair.repo, pr: pair.first_pr === pair.pr_lo ? pair.pr_hi : pair.pr_lo };
+    }
+
+    outcome = await renderGateVerdict(env, {
+      parley,
+      gate: parleyGate,
+      viewerIsNamedParty: viewerSeat !== null,
+      user: session.user,
+      verdict: typeof verdictRaw === 'string' ? verdictRaw : '',
+      modifyText: typeof modifyRaw === 'string' ? modifyRaw : null,
+      loserTarget,
+      now: nowSec,
+    });
+  } catch {
+    outcome = 'error';
+  }
+  return back(noticeForVerdict(outcome));
 }
 
 /**

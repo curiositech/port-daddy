@@ -409,6 +409,72 @@ export function parseFleetXo(fleetYaml: string): boolean {
   return value === true || value === 'true';
 }
 
+/** The tenant's mediator opt-in block (grand-plan node mediator-body). */
+export interface FleetMediatorConfig {
+  /** True only on an explicit `enabled: true` (fail-closed consent). */
+  enabled: boolean;
+  /** 'namespace/name' of the relay harbor conflict parleys convene in. */
+  harbor: string | null;
+  /** The irreversible action the human gate guards, when declared. */
+  action: 'merge' | 'revert' | 'force-push' | null;
+  /** author login (lowercased) → daemon fingerprint that speaks for them (D11). */
+  daemons: Record<string, string>;
+}
+
+/**
+ * MEDIATOR CONSENT: does this repo's pd-fleet.yml opt in to symbol-level
+ * conflict prediction and auto-convened parleys (src/mediator.ts)? The
+ * mediator posts neutral check runs on the tenant's PRs and reports predicted
+ * conflicts — with PR numbers, author logins, and symbol names — to the
+ * relay, so it is opt-in per tenant exactly like squidEvents and xo, never
+ * ambient. Shape, under `fleet:`:
+ *
+ *   mediator:
+ *     enabled: true                # required, strict (true / 'true' only)
+ *     harbor: alice/dock           # required for convening (ns/name)
+ *     action: merge                # optional; creates the human gate
+ *     daemons:                     # optional; agent-first summons targets
+ *       alice: <64-hex fingerprint>
+ *
+ * Same zero-trust rule as every other config read: TRUSTED default branch
+ * only, never the PR head. Anything malformed degrades to disabled or to the
+ * affected field's absence — a config typo must never widen behavior.
+ *
+ * @param fleetYaml The raw pd-fleet.yml body from the trusted default branch.
+ * @returns The parsed mediator config; `enabled: false` on any refusal path.
+ */
+export function parseFleetMediator(fleetYaml: string): FleetMediatorConfig {
+  const off: FleetMediatorConfig = { enabled: false, harbor: null, action: null, daemons: {} };
+  let doc: unknown;
+  try {
+    doc = parseYaml(fleetYaml);
+  } catch {
+    return off;
+  }
+  const fleet = (doc as { fleet?: { mediator?: unknown } } | null)?.fleet;
+  if (!fleet || typeof fleet !== 'object') return off;
+  const m = (fleet as { mediator?: unknown }).mediator;
+  if (!m || typeof m !== 'object' || Array.isArray(m)) return off;
+  const mm = m as { enabled?: unknown; harbor?: unknown; action?: unknown; daemons?: unknown };
+  if (mm.enabled !== true && mm.enabled !== 'true') return off;
+
+  const harbor =
+    typeof mm.harbor === 'string' && /^[^/\s]+\/[^/\s]+$/.test(mm.harbor.trim())
+      ? mm.harbor.trim().toLowerCase()
+      : null;
+  const action =
+    mm.action === 'merge' || mm.action === 'revert' || mm.action === 'force-push' ? mm.action : null;
+  const daemons: Record<string, string> = {};
+  if (mm.daemons && typeof mm.daemons === 'object' && !Array.isArray(mm.daemons)) {
+    for (const [login, fp] of Object.entries(mm.daemons as Record<string, unknown>)) {
+      if (typeof fp === 'string' && /^[0-9a-f]{64}$/i.test(fp.trim())) {
+        daemons[login.toLowerCase()] = fp.trim().toLowerCase();
+      }
+    }
+  }
+  return { enabled: true, harbor, action, daemons };
+}
+
 /**
  * Deterministically parse pd-fleet.yml and return every ship whose trigger
  * matches `trigger`. Pure (no Workers AI). Reads the ENTIRE document.
