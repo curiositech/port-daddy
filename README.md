@@ -365,7 +365,7 @@ The full verb surface, grouped by what you're trying to do. One-liners; run `pd 
 
 **Situational awareness** — `status`, `whoami`/`w`, `look`, `sitrep`, `briefing`, `morning`, `periscope`/`sight`/`scope`, `activity`, `changelog`, `history`, `log`, `advise`/`preflight`/`compass`, `attention`, `nudge`, `swarm`, `actors`/`actor`, `agents`, `roster`, `whois`
 
-The MCP `swarm_awareness` / `active_agent_roster` tools return a **bounded digest** of the roster — compact JSON under a hard character budget, with explicit omission counters when agents, claims, or notes are capped — so a tool result always fits in the calling agent's context window. The full-fidelity roster (complete note bodies, all claims, per-provider squid detail) stays on `GET /agent-roster` for FleetBar and Control Center.
+The MCP `swarm_awareness` / `active_agent_roster` tools return a **bounded digest** of the roster — compact JSON under a hard character budget, with explicit omission counters when agents, claims, or notes are capped — so a tool result always fits in the calling agent's context window. The full-fidelity roster (complete note bodies, all claims, per-provider squid detail) stays on `GET /agent-roster` for FleetBar and Control Center. This sits under a universal, tool-agnostic backstop: **every** MCP tool result passes through an output governor (`lib/mcp-output-governor.ts`) before it reaches the caller, so no tool — with or without its own digest — can overflow a harness's tool-result cap. Override the budget with `PD_MCP_MAX_OUTPUT_CHARS`.
 
 **Messaging** — `pub`/`publish`, `sub`/`subscribe`/`listen`, `broadcast`, `channels`, `tube`, `inbox`, `message`, `quorum`, `parley`
 

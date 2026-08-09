@@ -38,6 +38,7 @@ import {
   type ReleaseRegionArgs,
 } from '../lib/editor-claims-mcp.js';
 import { serializeSwarmDigest, serializeLegacySwarmSnapshot } from '../lib/swarm-awareness-digest.js';
+import { governToolOutput } from '../lib/mcp-output-governor.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -5185,8 +5186,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     const result = await handleTool(name, (args ?? {}) as Record<string, unknown>);
+    // Universal backstop: no tool result leaves this server unbounded. Smart
+    // shaping (digests) happens per-tool; this guarantees the contract even
+    // for tools that lack one. See lib/mcp-output-governor.ts.
     return {
-      content: [{ type: 'text' as const, text: result }],
+      content: [{ type: 'text' as const, text: governToolOutput(name, result) }],
     };
   } catch (error) {
     if (error instanceof McpError) throw error;
