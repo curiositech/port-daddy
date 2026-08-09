@@ -32,6 +32,9 @@
  *   GET  /v1/shipwright/history                 (session; own chat history)
  *   POST /v1/shipwright/chat                    (session; Workers AI, SSE)
  *   POST /v1/shipwright/clear                   (session; delete own history)
+ *   POST /v1/shipwright/open-pr                 (session; PR into the user's own
+ *                                                installation's repo — validated
+ *                                                rosters only, server re-checks)
  *   GET  /account/billing                       (HTML billing page; session +
  *                                                GitHub installation ownership; ADR-0116)
  *   POST /billing/checkout                     (session; Stripe Checkout for a credit pack)
@@ -127,6 +130,7 @@ import {
   handleShipwrightChat,
   handleShipwrightHistory,
   handleShipwrightClear,
+  handleShipwrightOpenPr,
 } from './shipwright.js';
 import { handleBillingPage } from './billing-page.js';
 import { handleDeviceStart, handleDeviceToken, handleWhoami } from './device-flow.js';
@@ -363,6 +367,9 @@ export default {
     }
     else if (pathname === '/v1/shipwright/clear' && method === 'POST') {
       response = await handleShipwrightClear(request, env);
+    }
+    else if (pathname === '/v1/shipwright/open-pr' && method === 'POST') {
+      response = await handleShipwrightOpenPr(request, env);
     }
 
     // ── GitHub login BFF (ADR-0101 Phase 1) ──────────────────────────────────
