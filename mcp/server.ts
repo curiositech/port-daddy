@@ -39,6 +39,7 @@ import {
 } from '../lib/editor-claims-mcp.js';
 import { serializeSwarmDigest, serializeLegacySwarmSnapshot } from '../lib/swarm-awareness-digest.js';
 import { governToolOutput } from '../lib/mcp-output-governor.js';
+import { setActiveSession, clearActiveSession, resolveSessionId, resolveAgentId } from '../lib/mcp-session-cache.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -1152,7 +1153,7 @@ const TOOLS = [
         },
         session_id: {
           type: 'string',
-          description: 'Session ID to add note to (omit for active session or quick note)',
+          description: 'Session ID to add note to. Omit to use the session this process attached to via begin_session, if any; otherwise a quick standalone note.',
         },
       },
       required: ['content'],
@@ -1195,7 +1196,7 @@ const TOOLS = [
       properties: {
         session_id: {
           type: 'string',
-          description: 'Session ID (omit for recent notes)',
+          description: 'Session ID. Omit to use the session this process attached to via begin_session; if none, recent notes.',
         },
         limit: {
           type: 'number',
@@ -1216,7 +1217,7 @@ const TOOLS = [
     inputSchema: {
       type: 'object' as const,
       properties: {
-        session_id: { type: 'string', description: 'Session ID' },
+        session_id: { type: 'string', description: 'Session ID. Omit to use the session this process attached to via begin_session.' },
         paths: {
           type: 'array',
           items: { type: 'string' },
@@ -1238,7 +1239,6 @@ const TOOLS = [
         },
         force: { type: 'boolean', description: 'Claim despite conflicts' },
       },
-      required: ['session_id'],
     },
   },
   {
@@ -1247,11 +1247,11 @@ const TOOLS = [
       '[Standard] Declare symbol-level claims for the active session. A `modify` claim AUTO-RESERVES its ' +
       'blast radius (read-claims on every downstream caller), so a contract change holds its callers stable. ' +
       'Returns predicted conflicts (direct/dependency/signature/transitive) with other active sessions — advisory, never blocks. ' +
-      'Usage: claim_symbols({session_id, claims: [{filePath: "lib/server.ts", symbolPath: "createRoutes", type: "modify"}]})',
+      'Usage: claim_symbols({claims: [{filePath: "lib/server.ts", symbolPath: "createRoutes", type: "modify"}]}) — session_id optional, defaults to the session begin_session attached.',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        session_id: { type: 'string', description: 'Session ID' },
+        session_id: { type: 'string', description: 'Session ID. Omit to use the session this process attached to via begin_session.' },
         claims: {
           type: 'array',
           description: 'Symbol claims to declare',
@@ -1268,7 +1268,7 @@ const TOOLS = [
         auto_derive_radius: { type: 'boolean', description: 'Auto-reserve each modify\'s blast radius (default true)' },
         radius_depth: { type: 'number', description: 'How far the auto-reservation reaches (default 3)' },
       },
-      required: ['session_id', 'claims'],
+      required: ['claims'],
     },
   },
   {
@@ -1279,7 +1279,7 @@ const TOOLS = [
       properties: {
         session_id: {
           type: 'string',
-          description: 'Session ID',
+          description: 'Session ID. Omit to use the session this process attached to via begin_session.',
         },
         files: {
           type: 'array',
@@ -1300,7 +1300,6 @@ const TOOLS = [
           },
         },
       },
-      required: ['session_id'],
     },
   },
 
@@ -1312,14 +1311,14 @@ const TOOLS = [
     inputSchema: {
       type: 'object' as const,
       properties: {
-        session_id: { type: 'string', description: 'Session ID' },
+        session_id: { type: 'string', description: 'Session ID. Omit to use the session this process attached to via begin_session.' },
         phase: {
           type: 'string',
           enum: ['planning', 'in_progress', 'testing', 'reviewing', 'completed', 'abandoned'],
           description: 'Session phase',
         },
       },
-      required: ['session_id', 'phase'],
+      required: ['phase'],
     },
   },
 
@@ -3476,22 +3475,33 @@ async function handleTool(
         } catch {
           // salvage context is best-effort — never fail begin_session over it
         }
+        // Cache this process's session so later session-scoped calls
+        // (add_note, claim_files, ...) don't need session_id/agent_id
+        // re-supplied on every call. See lib/mcp-session-cache.ts.
+        const data = res.data as Record<string, unknown>;
+        const agentId = typeof data.agentId === 'string' ? data.agentId : undefined;
+        const sessionId = typeof data.sessionId === 'string' ? data.sessionId : undefined;
+        if (agentId && sessionId) setActiveSession({ agentId, sessionId });
       }
       break;
     }
 
     case 'end_session_full': {
       const body: Record<string, unknown> = {};
-      if (args.agent_id) body.agentId = args.agent_id;
-      if (args.session_id) body.sessionId = args.session_id;
+      const agentId = resolveAgentId(args);
+      const sessionId = resolveSessionId(args);
+      if (agentId) body.agentId = agentId;
+      if (sessionId) body.sessionId = sessionId;
       if (args.note) body.note = args.note;
       if (args.status) body.status = args.status;
       res = await POST('/sugar/done', body);
+      if (res.status >= 200 && res.status < 300) clearActiveSession();
       break;
     }
 
     case 'whoami': {
-      const qs = args.agent_id ? `?agentId=${encodeURIComponent(args.agent_id as string)}` : '';
+      const agentId = resolveAgentId(args);
+      const qs = agentId ? `?agentId=${encodeURIComponent(agentId)}` : '';
       res = await GET(`/sugar/whoami${qs}`);
       break;
     }
@@ -3777,8 +3787,10 @@ async function handleTool(
       const body: Record<string, unknown> = {};
       if (args.project_root) body.projectRoot = args.project_root;
       if (args.task) body.task = args.task;
-      if (args.session_id) body.sessionId = args.session_id;
-      if (args.agent_id) body.agentId = args.agent_id;
+      const preflightSessionId = resolveSessionId(args);
+      const preflightAgentId = resolveAgentId(args);
+      if (preflightSessionId) body.sessionId = preflightSessionId;
+      if (preflightAgentId) body.agentId = preflightAgentId;
       if (args.files) body.files = args.files;
       if (args.include_channels) body.includeChannels = true;
       if (args.include_tuple_hints) body.includeTupleHints = true;
@@ -3900,7 +3912,8 @@ async function handleTool(
     case 'add_note': {
       const body: Record<string, unknown> = { content: args.content };
       if (args.type) body.type = args.type;
-      if (args.session_id) body.sessionId = args.session_id;
+      const noteSessionId = resolveSessionId(args);
+      if (noteSessionId) body.sessionId = noteSessionId;
 
       res = await POST('/notes', body);
       break;
@@ -3923,8 +3936,9 @@ async function handleTool(
       if (args.limit) params.set('limit', String(args.limit));
       if (args.project) params.set('project', args.project as string);
       const qs = params.toString() ? `?${params.toString()}` : '';
-      if (args.session_id) {
-        res = await GET(`/sessions/${args.session_id}/notes${qs}`);
+      const listNotesSessionId = resolveSessionId(args);
+      if (listNotesSessionId) {
+        res = await GET(`/sessions/${listNotesSessionId}/notes${qs}`);
       } else {
         res = await GET(`/notes${qs}`);
       }
@@ -3932,7 +3946,15 @@ async function handleTool(
     }
 
     case 'claim_files': {
-      res = await POST(`/sessions/${args.session_id}/files`, {
+      const claimFilesSessionId = resolveSessionId(args);
+      if (!claimFilesSessionId) {
+        return JSON.stringify({
+          success: false,
+          error: 'No session_id given and no active session cached in this process. Call begin_session first, or pass session_id explicitly.',
+          code: 'NO_ACTIVE_SESSION',
+        }, null, 2);
+      }
+      res = await POST(`/sessions/${claimFilesSessionId}/files`, {
         files: args.paths ?? [],
         regions: args.regions,
         force: args.force,
@@ -3941,7 +3963,15 @@ async function handleTool(
     }
 
     case 'claim_symbols': {
-      res = await POST(`/sessions/${args.session_id}/symbols`, {
+      const claimSymbolsSessionId = resolveSessionId(args);
+      if (!claimSymbolsSessionId) {
+        return JSON.stringify({
+          success: false,
+          error: 'No session_id given and no active session cached in this process. Call begin_session first, or pass session_id explicitly.',
+          code: 'NO_ACTIVE_SESSION',
+        }, null, 2);
+      }
+      res = await POST(`/sessions/${claimSymbolsSessionId}/symbols`, {
         claims: args.claims ?? [],
         autoDeriveRadius: args.auto_derive_radius,
         radiusDepth: args.radius_depth,
@@ -3950,7 +3980,15 @@ async function handleTool(
     }
 
     case 'release_files': {
-      res = await DELETE(`/sessions/${encodeURIComponent(args.session_id as string)}/files`, {
+      const releaseFilesSessionId = resolveSessionId(args);
+      if (!releaseFilesSessionId) {
+        return JSON.stringify({
+          success: false,
+          error: 'No session_id given and no active session cached in this process. Call begin_session first, or pass session_id explicitly.',
+          code: 'NO_ACTIVE_SESSION',
+        }, null, 2);
+      }
+      res = await DELETE(`/sessions/${encodeURIComponent(releaseFilesSessionId)}/files`, {
         files: args.files ?? [],
         regions: args.regions,
       });
@@ -3972,7 +4010,15 @@ async function handleTool(
 
     // ── Session Phases ──────────────────────────────────────────────
     case 'set_session_phase': {
-      res = await PUT(`/sessions/${encodeURIComponent(args.session_id as string)}/phase`, {
+      const phaseSessionId = resolveSessionId(args);
+      if (!phaseSessionId) {
+        return JSON.stringify({
+          success: false,
+          error: 'No session_id given and no active session cached in this process. Call begin_session first, or pass session_id explicitly.',
+          code: 'NO_ACTIVE_SESSION',
+        }, null, 2);
+      }
+      res = await PUT(`/sessions/${encodeURIComponent(phaseSessionId)}/phase`, {
         phase: args.phase,
       });
       break;
