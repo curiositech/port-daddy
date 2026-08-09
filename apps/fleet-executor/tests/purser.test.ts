@@ -654,3 +654,104 @@ describe('runPurser — HITL interruption escalation (src/interruptions.ts wirin
     expect(interruptionPosts()).toHaveLength(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// The multi-step authoring path (plan -> one call per file).
+//
+// The fixtures above exercise the FAST path: they return complete
+// {path, contents} files from the plan call, so the per-file calls are skipped.
+// These tests drive the path that actually runs when a model obeys the plan
+// contract — the path that replaced the single all-or-nothing JSON call.
+
+const PLAN_JSON = [
+  '```json',
+  JSON.stringify({
+    files: [
+      { path: 'tests/purser/a.test.ts', intent: 'empty input' },
+      { path: 'tests/purser/b.test.ts', intent: 'negative ids' },
+    ],
+  }),
+  '```',
+].join('\n');
+
+/** A file body with the newlines and quotes that used to break JSON escaping. */
+const FILE_A = ['```ts', 'it("frobs empty input", () => {', '  expect(f("")).toBe(0);', '});', '```'].join('\n');
+const FILE_B = ['```ts', 'it("rejects negative ids", () => {', '  expect(() => f(-1)).toThrow("bad id");', '});', '```'].join('\n');
+
+describe('runPurser — multi-step authoring', () => {
+  it('plans, then issues ONE authoring call per planned file', async () => {
+    const { ai } = seqAi([STEELMAN_JSON, PLAN_JSON, FILE_A, FILE_B]);
+    const rec = recorder();
+
+    await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
+
+    // steel-man + plan + one per file = 4.
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(4);
+    const planStep = rec.steps.find(s => s.kind === 'purser-plan')!;
+    expect(planStep.title).toContain('planned 2');
+
+    const testsStep = rec.steps.find(s => s.kind === 'purser-tests')!;
+    expect((testsStep.detail as { files: Array<{ path: string }> }).files.map(f => f.path)).toEqual([
+      'tests/purser/a.test.ts',
+      'tests/purser/b.test.ts',
+    ]);
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
+  it('commits the file body verbatim — quotes and newlines survive, unescaped', async () => {
+    const { ai } = seqAi([STEELMAN_JSON, PLAN_JSON, FILE_A, FILE_B]);
+    const rec = recorder();
+
+    await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
+
+    const blobs = state.records.filter(r => r.url.includes('/git/blobs'));
+    const bodies = blobs.map(b => String((b.body as { content?: string })?.content ?? ''));
+    expect(bodies.some(b => b.includes('expect(f("")).toBe(0);'))).toBe(true);
+    expect(bodies.some(b => b.includes('expect(() => f(-1)).toThrow("bad id");'))).toBe(true);
+  });
+
+  it('PARTIAL SUCCESS: one bad file no longer costs the good ones', async () => {
+    // b.test.ts comes back as a refusal; a.test.ts is fine.
+    const { ai } = seqAi([STEELMAN_JSON, PLAN_JSON, FILE_A, 'I cannot write this test.']);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics(),
+    );
+
+    // The old shape returned zero files and an advisory PASS with nothing stacked.
+    expect(state.stackedPrs).toHaveLength(1);
+    const testsStep = rec.steps.find(s => s.kind === 'purser-tests')!;
+    expect(testsStep.title).toContain('1/2');
+    expect((testsStep.detail as { failures: Array<{ path: string }> }).failures[0].path).toBe(
+      'tests/purser/b.test.ts',
+    );
+    expect(result.errored).toBe(false);
+  });
+
+  it('every file failing is an honest advisory PASS, never a fabricated stack', async () => {
+    const { ai } = seqAi([STEELMAN_JSON, PLAN_JSON, 'nope.', 'also nope.']);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true }), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ blocking: false, verdict: 'PASS', errored: false });
+    expect(state.stackedPrs).toHaveLength(0);
+    const step = rec.steps.find(s => s.kind === 'purser-tests')!;
+    expect(step.title).toMatch(/FAILED/);
+  });
+
+  it('a malformed plan records the RAW HEAD, not just a length', async () => {
+    const { ai } = seqAi([STEELMAN_JSON, 'I would rather discuss the weather.']);
+    const rec = recorder();
+
+    await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
+
+    const step = rec.steps.find(s => s.kind === 'purser-plan')!;
+    expect(step.title).toMatch(/MALFORMED/);
+    // The whole point: a future failure is diagnosable from the transcript.
+    expect((step.detail as { rawHead: string }).rawHead).toContain('rather discuss the weather');
+  });
+});

@@ -61,6 +61,13 @@ import {
   MAX_NAMED_FAILURES,
   type SandboxRunOutcome,
 } from './sandbox-runner.js';
+import {
+  authorTestFiles,
+  parseTestPlan,
+  MAX_PLANNED_FILES,
+  type AuthorFailure,
+  type PlannedFile,
+} from './purser-authoring.js';
 import { fleetPrBodyTrailers } from './fleet-pr-body.js';
 import { emitSquidEvent } from './squid-events.js';
 import { emitInterruption } from './interruptions.js';
@@ -69,8 +76,19 @@ import { emitInterruption } from './interruptions.js';
 
 /** Output cap for the steel-man call (a contract is small). */
 const STEELMAN_MAX_TOKENS = 2048;
-/** Output cap for the test-authoring call (test files are not small). */
+/**
+ * Output cap for ONE file's authoring call.
+ *
+ * This is a per-FILE budget now, not a budget shared by every file in one
+ * response. Under the old single-call contract, four files split one 4096-token
+ * cap and the fourth reliably truncated mid-string — which, in a JSON payload,
+ * invalidated the whole response including the three good files.
+ */
 const TESTS_MAX_TOKENS = 4096;
+/** Output cap for the PLAN call (paths + intents; deliberately small). */
+const PLAN_MAX_TOKENS = 1024;
+/** Head of a malformed response recorded for diagnosis. See {@link runPurser}. */
+const RAW_DIAGNOSTIC_CHARS = 2000;
 /** Diff budget for the purser's prompts (chars). */
 const PURSER_DIFF_CHAR_LIMIT = 24_000;
 /** Transcript cap for the sandbox failure tail. */
@@ -262,29 +280,84 @@ function steelManSystemPrompt(ship: ShipConfig, graftText: string): string {
   );
 }
 
-function testAuthorSystemPrompt(ship: ShipConfig, steel: SteelManContract, graftText: string): string {
+/** The contract block shared by the PLAN and AUTHOR prompts. */
+function contractBlock(steel: SteelManContract): string {
+  return (
+    `Purpose: ${steel.purpose}\n` +
+    `Obligations:\n${steel.obligations.map(o => `- ${o}`).join('\n')}\n` +
+    (steel.testTargets.length
+      ? `Test targets:\n${steel.testTargets.map(t => `- ${t}`).join('\n')}\n`
+      : '')
+  );
+}
+
+/**
+ * PLAN prompt — decide WHICH files to write, not what is in them.
+ *
+ * Small JSON on purpose: this is the same shape and size as the steel-man call,
+ * which is the purser step that has always parsed reliably. File CONTENTS are
+ * not requested here — they travel as raw code fences in the per-file authoring
+ * step, where no escaping can corrupt them.
+ *
+ * A model that ignores the instruction and returns complete `{path, contents}`
+ * files is not punished: {@link runPurser} takes them via
+ * {@link parseAuthoredFiles} and skips the per-file calls entirely.
+ */
+function testPlanSystemPrompt(ship: ShipConfig, steel: SteelManContract, graftText: string): string {
   const pathNote =
     ship.testPaths.length > 0
-      ? `Every file path MUST live under one of these prefixes: ${ship.testPaths.join(', ')}.\n`
+      ? `Every path MUST live under one of these prefixes: ${ship.testPaths.join(', ')}.\n`
       : '';
+  return (
+    graftText +
+    `You are pd-${ship.name}, running the TEST PLANNING phase. ` +
+    `You hold this contract for the PR (its best interpretation):\n\n` +
+    contractBlock(steel) +
+    `\nPlan the adversarial test files that would GRILL this contract — edge ` +
+    `cases, boundary values, error paths, concurrency and idempotency where ` +
+    `relevant. Do NOT write the tests yet. Name the files and what each one is ` +
+    `for.\n\n` +
+    pathNote +
+    `Paths must be relative (no leading '/', no '..'). At most ${MAX_PLANNED_FILES} files — ` +
+    `prefer fewer, denser files over many thin ones.\n\n` +
+    `Output EXACTLY one fenced JSON object and nothing else:\n\n` +
+    '```json\n' +
+    '{ "files": [ { "path": "<repo-relative test file path>", "intent": "<what this file grills>" } ] }\n' +
+    '```'
+  );
+}
+
+/**
+ * AUTHOR prompt — write ONE file, emitted as a raw code fence.
+ *
+ * The response contract is a bare fenced block, so the file's newlines, quotes
+ * and backslashes are never escaped and therefore can never be mis-escaped.
+ * This is the specific failure the split exists to remove: a JSON string value
+ * carrying a whole source file is the most fragile thing a model can be asked
+ * for, and it cost a 2026-08-09 run its entire 6KB of authored tests.
+ */
+function fileAuthorSystemPrompt(
+  ship: ShipConfig,
+  steel: SteelManContract,
+  planned: PlannedFile,
+  graftText: string,
+): string {
   return (
     graftText +
     `You are pd-${ship.name}, running the ADVERSARIAL TEST AUTHORING phase. ` +
     `You hold this contract for the PR (its best interpretation):\n\n` +
-    `Purpose: ${steel.purpose}\n` +
-    `Obligations:\n${steel.obligations.map(o => `- ${o}`).join('\n')}\n` +
-    (steel.testTargets.length ? `Test targets:\n${steel.testTargets.map(t => `- ${t}`).join('\n')}\n` : '') +
-    `\nWrite adversarial unit + integration tests that GRILL this contract: ` +
-    `edge cases, boundary values, error paths, concurrency and idempotency ` +
-    `where relevant. The PR must satisfy its best interpretation, not its ` +
-    `laziest. Use the repo's existing test framework and idioms as evident ` +
-    `from the diff.\n\n` +
-    pathNote +
-    `Paths must be relative (no leading '/', no '..'), at most 10 files, each ` +
-    `under 48KB.\n\n` +
-    `Output EXACTLY one fenced JSON object and nothing else:\n\n` +
-    '```json\n' +
-    '{ "files": [ { "path": "<repo-relative test file path>", "contents": "<full file contents>" } ] }\n' +
+    contractBlock(steel) +
+    `\nWrite EXACTLY ONE file: \`${planned.path}\`.\n` +
+    (planned.intent ? `Its job: ${planned.intent}\n` : '') +
+    `\nIt must GRILL the contract above — the PR has to satisfy its best ` +
+    `interpretation, not its laziest. Use the repo's existing test framework ` +
+    `and idioms as evident from the diff. The file must be complete and ` +
+    `runnable on its own: real imports, no placeholders, no "// TODO", no ` +
+    `elisions like "... rest unchanged".\n\n` +
+    `Output the file as ONE fenced code block and nothing else — no JSON, no ` +
+    `commentary before or after:\n\n` +
+    '```ts\n' +
+    '// the complete contents of ' + planned.path + '\n' +
     '```'
   );
 }
@@ -674,22 +747,88 @@ export async function runPurser(
       },
     );
 
-    // --- b. AUTHOR TESTS ----------------------------------------------------
-    const testsCall = await purserAiCall(
+    // --- b. PLAN TESTS ------------------------------------------------------
+    // One small-JSON call names the files; the contents come one call each,
+    // below. See purser-authoring.ts for why this is split.
+    const planCall = await purserAiCall(
       ship,
       env,
-      testAuthorSystemPrompt(ship, steel, graftText),
+      testPlanSystemPrompt(ship, steel, graftText),
       prBlock(prCtx),
-      TESTS_MAX_TOKENS,
+      PLAN_MAX_TOKENS,
       metrics,
     );
-    const files = parseAuthoredFiles(testsCall.text);
-    if (!files) {
-      await transcript.step('purser-tests', ship.name, `pd-${ship.name}: test authoring MALFORMED`, {
-        error: 'test-author output was not the required fenced JSON files block',
-        outputLength: testsCall.text.length,
+
+    // FAST PATH: a model that ignored "plan only" and returned complete files
+    // has already done the work — take it and skip the per-file calls.
+    let files = parseAuthoredFiles(planCall.text) ?? [];
+    let authorFailures: AuthorFailure[] = [];
+    let plan: PlannedFile[] = [];
+
+    if (files.length > 0) {
+      await transcript.step(
+        'purser-plan',
+        ship.name,
+        `pd-${ship.name}: plan call returned ${files.length} complete file(s) (per-file calls skipped)`,
+        { files: files.map(f => f.path), aiCallsSaved: files.length },
+      );
+    } else {
+      const parsedPlan = parseTestPlan(planCall.text);
+      if (!parsedPlan) {
+        await transcript.step('purser-plan', ship.name, `pd-${ship.name}: test plan MALFORMED`, {
+          error: 'plan output was neither a file plan nor a complete files block',
+          outputLength: planCall.text.length,
+          // The old code recorded ONLY the length, which is unactionable: every
+          // past failure was undiagnosable after the fact. The head of the real
+          // response is what says whether the model refused, truncated, or
+          // simply labelled its fence differently.
+          rawHead: planCall.text.slice(0, RAW_DIAGNOSTIC_CHARS),
+          responseShape: planCall.text ? undefined : describeResponseShape(planCall.res),
+        });
+        return advisoryPass;
+      }
+      plan = parsedPlan;
+      await transcript.step(
+        'purser-plan',
+        ship.name,
+        `pd-${ship.name}: planned ${plan.length} adversarial test file(s)`,
+        { files: plan.map(p => ({ path: p.path, intent: p.intent })) },
+      );
+
+      // --- c. AUTHOR EACH FILE (one call per file) --------------------------
+      const authored = await authorTestFiles(plan, async (path, intent) => {
+        const call = await purserAiCall(
+          ship,
+          env,
+          fileAuthorSystemPrompt(ship, steel, { path, intent }, graftText),
+          prBlock(prCtx),
+          TESTS_MAX_TOKENS,
+          metrics,
+        );
+        return call.text;
+      });
+      files = authored.files;
+      authorFailures = authored.failures;
+    }
+
+    if (files.length === 0) {
+      await transcript.step('purser-tests', ship.name, `pd-${ship.name}: test authoring FAILED`, {
+        error: 'no planned file authored usable contents',
+        planned: plan.map(p => p.path),
+        failures: authorFailures,
       });
       return advisoryPass;
+    }
+    // PARTIAL SUCCESS is a real outcome now: the files that authored cleanly
+    // still get stacked, and the ones that did not are named rather than
+    // silently dropped. The old all-or-nothing shape returned zero here.
+    if (authorFailures.length > 0) {
+      await transcript.step(
+        'purser-tests',
+        ship.name,
+        `pd-${ship.name}: authored ${files.length}/${plan.length} planned file(s)`,
+        { authored: files.map(f => f.path), failures: authorFailures },
+      );
     }
     const validation = validateStackedFiles(files);
     if (!validation.ok) {
