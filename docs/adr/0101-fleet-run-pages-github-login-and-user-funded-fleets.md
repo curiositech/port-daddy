@@ -378,3 +378,25 @@ node docs/audits/tenancy_boundary_audit.mjs \
 Update the spec's three booleans only when the backing artifact exists (the CI
 egress test, the export/delete endpoints, the shared ladder constant) — never
 ahead of it.
+
+### Gate progress (re-audited 2026-07-14 after Phase 1)
+
+Phase 1 closed two of the three criticals; the spec booleans were flipped only
+because their artifacts now exist in-repo:
+
+| Gate | At design time | After Phase 1 | Backing artifact |
+|------|----------------|---------------|------------------|
+| scope ladder ordered | ✗ | **✓** | `apps/relay/src/scope-ladder.ts` (declared once, imported) |
+| export/delete per tier | ✗ | **✓** | repo: `DELETE /v1/fleet/runs/:id` + JSON `GET`; team: `GET /account/export` + `POST /account/delete` (soft-delete + session purge + PII null now, 30-day hard delete); private: user-owned files; public: git history |
+| local-only uploads-nothing testable | ✗ | **✓** | `lib/safe/egress-assertion.ts` — fail-closed assertion that no considered flow reaches a non-loopback host, over the existing `egress-snapshot` capture; `tests/unit/safe-egress-assertion.test.ts` gives it teeth (a phone-home fixture MUST fail; an unverifiable host reports `verified:false`, never a silent pass) |
+
+Score: **64 → 92.** The runtime-verifiable check now exists: `assertLocalOnlyNoEgress`
+turns an egress snapshot into a PASS/FAIL verdict and fails on any egress to a
+non-loopback host that is not an explicitly-allowed (paired-relay) destination,
+so `localOnlyMode.uploadsNothingTestable` is now backed by a real artifact. The
+remaining hardening is to drive it from a live daemon-boot integration test
+(spawn the daemon local-only, capture, assert) so a regression in the boot path
+is caught end-to-end, not only over fixtures. Phase 1 deliberately did **not**
+ship account storage (email + user rows) without the matching erasure path —
+storing PII with no delete is the exact tenancy regression this audit exists to
+catch.

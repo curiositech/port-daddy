@@ -32,6 +32,7 @@ export type TentacleResolver = (name: TentacleName) => string;
 export interface HookCommand {
   type: 'command';
   command: string;
+  statusMessage?: string;
 }
 export interface HookMatcher {
   matcher?: string;
@@ -39,8 +40,17 @@ export interface HookMatcher {
 }
 
 /** Canonical single-matcher entry (matcher omitted entirely when undefined). */
-export function hookEntry(command: string, matcher?: string): HookMatcher {
-  return { ...(matcher ? { matcher } : {}), hooks: [{ type: 'command', command }] };
+export const SQUID_HOOK_STATUS = {
+  prompt: '◆ PD TURN · adding fresh coordination context',
+  preTool: '◆ PD EDIT · checking ownership before mutation',
+  postTool: '◆ PD TRACE · adding the outcome to fleet context',
+} as const;
+
+export function hookEntry(command: string, matcher?: string, statusMessage?: string): HookMatcher {
+  return {
+    ...(matcher ? { matcher } : {}),
+    hooks: [{ type: 'command', command, ...(statusMessage ? { statusMessage } : {}) }],
+  };
 }
 
 /** True if any hook in the entry points at one of our tentacles. */
@@ -113,9 +123,9 @@ export function buildJsonHookMap(
   const ev = vendor === 'gemini' ? GEMINI_EVENTS : vendor === 'agy' ? AGY_EVENTS : CLAUDE_EVENTS;
   const matcher = vendor === 'gemini' ? GEMINI_TOOL_MATCHER : vendor === 'agy' ? AGY_TOOL_MATCHER : CLAUDE_TOOL_MATCHER;
   return {
-    [ev.prompt]: [hookEntry(resolve('pd-hook-prompt'))],
-    [ev.preTool]: [hookEntry(resolve('pd-hook-pre-tool'), matcher)],
-    [ev.postTool]: [hookEntry(resolve('pd-hook-post-tool'), matcher)],
+    [ev.prompt]: [hookEntry(resolve('pd-hook-prompt'), undefined, SQUID_HOOK_STATUS.prompt)],
+    [ev.preTool]: [hookEntry(resolve('pd-hook-pre-tool'), matcher, SQUID_HOOK_STATUS.preTool)],
+    [ev.postTool]: [hookEntry(resolve('pd-hook-post-tool'), matcher, SQUID_HOOK_STATUS.postTool)],
   };
 }
 
@@ -129,28 +139,74 @@ export const CODEX_PD_MARKER = 'Port Daddy Giant Squid Harness tentacles';
  * adapter and tests count marker occurrences for idempotency.
  */
 export const CODEX_PD_END_MARKER = 'PD_SQUID_TENTACLES_END';
-export const CODEX_TOOL_MATCHER = 'apply_patch|edit|write|str_replace_editor|shell|run_shell_command';
+export const CODEX_TOOL_MATCHER =
+  'Bash|apply_patch|Edit|Write|edit|write|str_replace_editor|shell|shell_command|exec_command|unified_exec|run_shell_command';
+
+export interface CodexHooksTomlOptions {
+  comments?: string[];
+}
+
+/**
+ * Remove the Port Daddy block while preserving every unrelated TOML table.
+ * Fenced current blocks are exact. Legacy unfenced blocks stop at the next
+ * non-hook top-level table because their hook tables cannot be distinguished
+ * from adjacent user-authored hook tables after the fact.
+ */
+export function stripCodexHooksTomlBlock(text: string): string {
+  const lines = text.split('\n');
+  const out: string[] = [];
+  let skipping = false;
+  let fenced = false;
+  for (const line of lines) {
+    if (!skipping && line.includes(CODEX_PD_MARKER)) {
+      skipping = true;
+      fenced = text.includes(CODEX_PD_END_MARKER);
+      continue;
+    }
+    if (skipping) {
+      if (fenced) {
+        if (line.includes(CODEX_PD_END_MARKER)) skipping = false;
+        continue;
+      }
+      const trimmed = line.trim();
+      if (trimmed.startsWith('[') && !trimmed.startsWith('[[hooks.') && !trimmed.startsWith('[hooks')) {
+        skipping = false;
+        out.push(line);
+      }
+      continue;
+    }
+    out.push(line);
+  }
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').replace(/\s*$/, '\n');
+}
 
 function tomlString(v: string): string {
   return '"' + v.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 }
 
 /**
- * Hand-emit Codex's `[hooks]` TOML block. PreToolUse + UserPromptSubmit are SYNC
- * (the gate must block); PostToolUse is ASYNC (fire-and-forget pheromone). Shape
- * verified against codex v0.139.0 — matches the squid adapter byte-for-byte.
+ * Hand-emit Codex's `[hooks]` TOML block. All three handlers are synchronous:
+ * current Codex parses `async = true` but skips that handler entirely. Shape
+ * verified against Codex v0.144.4 and shared by both installation paths.
  */
-export function codexHooksTomlBlock(resolve: TentacleResolver): string {
+export function codexHooksTomlBlock(
+  resolve: TentacleResolver,
+  options: CodexHooksTomlOptions = {},
+): string {
   const L: string[] = [];
   L.push(`# ${CODEX_PD_MARKER}.`);
+  for (const comment of options.comments ?? []) {
+    L.push(`# ${comment.replace(/[\r\n]+/g, ' ')}`);
+  }
   L.push('# PreToolUse is synchronous so pd-hook-pre-tool can BLOCK a foreign-locked');
   L.push('# file (exit 2 + stderr, OR exit 0 + permissionDecision:"deny" JSON on stdout).');
-  L.push('# PostToolUse is async (pheromone append). UserPromptSubmit is sync (envelope).');
+  L.push('# Codex skips async command hooks, so PostToolUse is synchronous too.');
   L.push('');
   L.push('[[hooks.UserPromptSubmit]]');
   L.push('[[hooks.UserPromptSubmit.hooks]]');
   L.push('type = "command"');
   L.push(`command = ${tomlString(resolve('pd-hook-prompt'))}`);
+  L.push(`statusMessage = ${tomlString(SQUID_HOOK_STATUS.prompt)}`);
   L.push('timeout = 10');
   L.push('async = false');
   L.push('');
@@ -159,6 +215,7 @@ export function codexHooksTomlBlock(resolve: TentacleResolver): string {
   L.push('[[hooks.PreToolUse.hooks]]');
   L.push('type = "command"');
   L.push(`command = ${tomlString(resolve('pd-hook-pre-tool'))}`);
+  L.push(`statusMessage = ${tomlString(SQUID_HOOK_STATUS.preTool)}`);
   L.push('timeout = 10');
   L.push('async = false');
   L.push('');
@@ -167,8 +224,9 @@ export function codexHooksTomlBlock(resolve: TentacleResolver): string {
   L.push('[[hooks.PostToolUse.hooks]]');
   L.push('type = "command"');
   L.push(`command = ${tomlString(resolve('pd-hook-post-tool'))}`);
+  L.push(`statusMessage = ${tomlString(SQUID_HOOK_STATUS.postTool)}`);
   L.push('timeout = 10');
-  L.push('async = true');
+  L.push('async = false');
   L.push(`# ${CODEX_PD_END_MARKER}`);
   L.push('');
   return L.join('\n');

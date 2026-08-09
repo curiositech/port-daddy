@@ -50,7 +50,7 @@ import {
   // Sessions
   handleSession, handleSessions, handleNote, handleNotes,
   // Agents & Resurrection
-  handleAgent, handleAgents,
+  handleAgent, handleAgents, handleRoster,
   handleSalvage,
   // Changelog
   handleChangelog,
@@ -120,7 +120,7 @@ import {
   handleParley,
   handleFeedback,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
-  handleSitrep, handleSay, handleLook, handlePheromone,
+  handleSitrep, handleSay, handleLook, handlePheromone, handlePlan,
   // Coordination advisor / suggestibility
   handleAdvisor,
   // Maritime actor directory
@@ -136,6 +136,7 @@ import {
   // Durable backups of port-registry.db (ADR-0037)
   handleBackup,
   handleCut,
+  handleBatten,
   handleRestore,
   // Honest attestation / loud-fail invariants (ADR-0045)
   handleAttest,
@@ -153,12 +154,17 @@ import {
   handlePeriscope,
   // Coast Guard read path — `pd coast-guard status` (ADR-0050 legibility)
   handleCoastGuard,
+  // Suggest — Tender's suggestion queue (approve/dismiss)
+  handleSuggest,
+  // Seamanship — skill registry, search, graft, outcomes
+  handleSeamanship,
 } from '../cli/commands/index.js';
 // pd memory — Core/Recall/Archival vocabulary + episodic memory dispatcher.
 // Imported directly (not via index.js) so the tier subcommands take precedence
 // over the older semantic.ts export. See docs/adr/0035-three-tier-memory-vocabulary.md
 import { handleMemory } from '../cli/commands/memory.js';
 import { handleRelay } from '../cli/commands/relay.js';
+import { handleAccount } from '../cli/commands/account.js';
 import { handleWhois } from '../cli/commands/whois.js';
 // Daemon Berths (ADR-0084): `pd dev up/down/list` + `pd use` per-shell targeting.
 import { handleDevBerth, handleUse } from '../cli/commands/berths.js';
@@ -210,13 +216,13 @@ const TIER_1_COMMANDS: Set<string> = new Set([
 
 const TIER_2_COMMANDS: Set<string> = new Set([
   'pub', 'publish', 'sub', 'subscribe', 'wait', 'broadcast', 'listen', 'tube',
-  'agent', 'agents', 'actor', 'actors',
+  'agent', 'agents', 'actor', 'actors', 'roster',
   'up', 'down', 'watch', 'swarm', 'fleet',
   'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
   'advise', 'preflight', 'compass', 'guard',
   'metrics', 'health', 'dashboard',
   'bench', 'benchmark', 'demo', 'tuple', 'sortie', 'roadmap',
-  'secret', 'secrets', 'skill-graft'
+  'secret', 'secrets', 'skill-graft', 'plan'
 ]);
 
 /**
@@ -648,6 +654,7 @@ export const HELP_TOPIC_ALIASES: Record<string, string> = {
   sub: 'messaging', subscribe: 'messaging', listen: 'messaging',
   channels: 'messaging', wait: 'messaging',
   skillgraft: 'skill-graft',
+  done: 'sessions', begin: 'sessions',
 };
 
 /**
@@ -779,6 +786,8 @@ Commands:
     --allow-main-worktree    Explicitly allow an integration session in the main worktree
 
   session end [note]         End the active session (completed)
+    --no-pr                  Bypass mandatory PR URL check
+    --subtask                Bypass mandatory PR URL check (subtask code delivery)
   session done [note]        Alias for "session end"
   session abandon [note]     End active session (abandoned)
   session takeover <id> [note]  Create successor; preserve predecessor notes
@@ -1102,6 +1111,8 @@ Commands:
     --self-salvage         Queue unfinished-but-doable telos for salvage
     --why-stopped <text>   Explain why the telos was not fulfilled
     --next-plan <text>     Leave the next concrete continuation move
+    --no-pr                Bypass mandatory PR URL check
+    --subtask              Bypass mandatory PR URL check (subtask code delivery)
 
   whoami                   Show current agent/session context
                            Reads from .portdaddy/current.json
@@ -1371,14 +1382,14 @@ Run: pd learn`,
 const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'tube', 'wait', 'lock', 'unlock', 'locks',
-  'up', 'down', 'setup', 'init', 'cut', 'scan', 's', 'projects', 'p',
-  'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'send', 'sent', 'log', 'activity',
+  'up', 'down', 'setup', 'init', 'cut', 'batten', 'scan', 's', 'projects', 'p',
+  'agent', 'agents', 'actor', 'actors', 'roster', 'swarm', 'inbox', 'send', 'sent', 'log', 'activity',
   'wallet', 'bond',
   'session', 'sessions', 'takeover', 'note', 'notes', 'say',
-  'begin', 'done', 'whoami', 'attention', 'nudge', 'with-lock', 'learn',
+  'begin', 'done', 'whoami', 'account', 'attention', 'nudge', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
-  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update', 'upgrade',
+  'start', 'stop', 'restart', 'status', 'install', 'install-bosun', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update', 'upgrade',
   'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'benchmark', 'look', 'sitrep', 'roadmap',
   'advise', 'preflight', 'compass', 'guard', 'hooks',
   'salvage', 'resurrection', 'changelog', 'booty', 'tunnel',
@@ -1399,6 +1410,9 @@ const ALL_COMMANDS: string[] = [
   'coast-guard', 'cg',
   'safe',
   'relay',
+  'plan',
+  'suggest',
+  'seamanship', 'skills',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2608,6 +2622,11 @@ export async function main(): Promise<void> {
         await handleRelay(positional, options);
         break;
 
+      // Account — GitHub device-flow login for the CLI (ADR-0101 Phase 1)
+      case 'account':
+        process.exitCode = await handleAccount(positional);
+        break;
+
       case 'wait':
         await handleWait(positional, options);
         break;
@@ -2674,6 +2693,10 @@ export async function main(): Promise<void> {
 
       case 'actors':
         await handleActors([], options);
+        break;
+
+      case 'roster':
+        await handleRoster(positional[0], positional.slice(1), options);
         break;
 
       // Self-healing / resurrection
@@ -2771,6 +2794,10 @@ export async function main(): Promise<void> {
 
       case 'install':
         await handleDaemon('install', options);
+        break;
+
+      case 'install-bosun':
+        await handleDaemon('install-bosun', options);
         break;
 
       case 'uninstall':
@@ -2915,6 +2942,17 @@ export async function main(): Promise<void> {
         handleCoastGuard(positional[0], options);
         break;
 
+      // Tender suggestion queue — list, approve, dismiss
+      case 'suggest':
+        await handleSuggest(positional, options);
+        break;
+
+      // Skill registry, search, graft, outcomes
+      case 'seamanship':
+      case 'skills':
+        await handleSeamanship(positional, options);
+        break;
+
       case 'history':
         await handleHistory(options);
         break;
@@ -2933,6 +2971,10 @@ export async function main(): Promise<void> {
 
       case 'sitrep':
         await handleSitrep(options);
+        break;
+
+      case 'plan':
+        await handlePlan(positional, options);
         break;
 
       case 'pheromone':
@@ -2965,6 +3007,10 @@ export async function main(): Promise<void> {
 
       case 'cut':
         await handleCut(positional, options);
+        break;
+
+      case 'batten':
+        await handleBatten(positional, options);
         break;
 
       case 'attest':

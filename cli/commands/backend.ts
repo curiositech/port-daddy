@@ -16,6 +16,7 @@
  *   pd backend use <name>            emit shell export for PD_USE_CLI_BACKEND
  *                                    (only meaningful for cli:claude-code / cli:codex)
  *   pd backend cost [--today|--week|--month]   spend rollup by backend
+ *   pd backend adapters [--probe]    N:N portability contract + local discovery
  *
  * `backend use` prints an `export PD_USE_CLI_BACKEND=<value>` line to stdout
  * intended to be evaluated by the shell. It also writes the value to
@@ -35,8 +36,16 @@ import {
   getBackendCatalogEntry,
   detectForcedCliBackend,
   detectForcedCliBackendValue,
+  harnessAdapterCapabilityRows,
+  renderHarnessAdapterMarkdown,
   type BackendCatalogEntry,
+  type HarnessAdapterCapabilities,
 } from '../../lib/backend-catalog.js';
+import { probeHarnessAdapters, type HarnessProbeStatus } from '../../lib/harness-adapter-probe.js';
+import {
+  buildHarnessContinuationMatrix,
+  renderHarnessContinuationMatrix,
+} from '../../lib/harness-conformance.js';
 
 interface FleetModelEntry {
   id: string;
@@ -54,6 +63,7 @@ interface FleetModelEntry {
   readinessStatus?: string;
   readinessSummary?: string;
   readinessNextStep?: string;
+  adapter?: HarnessAdapterCapabilities;
 }
 
 interface FleetModelsResponse {
@@ -113,11 +123,67 @@ function offlineCatalogFallback(): FleetModelsResponse {
       tagline: b.tagline,
       recommended: b.recommended,
       pdUseCliBackendValue: b.pdUseCliBackendValue,
+      adapter: b.adapter,
       isForcedByEnv: detectForcedCliBackend() === b.id,
       readinessStatus: 'unknown',
       readinessSummary: 'daemon unreachable — readiness not probed',
     })),
   };
+}
+
+function probeBadge(status: HarnessProbeStatus): string {
+  switch (status) {
+    case 'discovered': return '◐ discovered';
+    case 'unavailable': return '○ unavailable';
+    case 'not-supported': return '— handoff';
+    case 'unverified': return '? unverified';
+  }
+}
+
+async function adaptersCommand(options: CLIOptions): Promise<void> {
+  const rows = harnessAdapterCapabilityRows();
+  const probe = options.probe ? probeHarnessAdapters() : null;
+  const matrix = buildHarnessContinuationMatrix({ discovery: probe });
+  if (isJson(options)) {
+    console.log(JSON.stringify({ success: true, adapters: rows, probe, matrix }, null, 2));
+    return;
+  }
+
+  console.log('');
+  ui.info('Harness adapter contract — N adapters, never N² bridges');
+  console.log('');
+  process.stdout.write(renderHarnessAdapterMarkdown(rows));
+  console.log('');
+  ui.info(
+    `${matrix.summary.adapterFamilies} adapter families × ${matrix.summary.adapterFamilies} targets = ${matrix.summary.paths} paths: `
+    + `${matrix.summary.nativePaths} native, ${matrix.summary.handoffPaths} sanitized handoff, `
+    + `${matrix.summary.unsupportedPaths} unsupported.`,
+  );
+
+  if (options.matrix) {
+    console.log('');
+    process.stdout.write(renderHarnessContinuationMatrix(matrix));
+  } else {
+    ui.info('Run `pd backend adapters --matrix` for the indexed N×N compatibility grid.');
+  }
+
+  if (!probe) {
+    console.log('');
+    ui.info('Run `pd backend adapters --probe` to discover local binaries, advertised flags, and declared transcript roots.');
+    console.log('');
+    return;
+  }
+
+  console.log('');
+  ui.info('Discovery only — this does not prove spawn, resume, or transcript conformance');
+  console.log('');
+  for (const adapter of probe.adapters) {
+    console.log(`  ${adapter.family}`);
+    console.log(`    spawn       ${probeBadge(adapter.spawn.status)} — ${adapter.spawn.detail}`);
+    console.log(`    resume      ${probeBadge(adapter.resume.status)} — ${adapter.resume.detail}`);
+    console.log(`    transcript  ${probeBadge(adapter.transcript.status)} — ${adapter.transcript.detail}`);
+  }
+  console.log('');
 }
 
 function rankBackends(entries: FleetModelEntry[]): FleetModelEntry[] {
@@ -413,6 +479,11 @@ function printHelp(): void {
   console.log('  pd backend cost --month        Last 30 days');
   console.log('  pd backend cost --since 12h    Custom window');
   console.log('');
+  console.log('  pd backend adapters            Show the generated N:N harness contract');
+  console.log('  pd backend adapters --probe    Discover local adapter advertisements without a model call');
+  console.log('  pd backend adapters --matrix   Print the indexed N×N native/handoff compatibility grid');
+  console.log('  pd backend adapters --json     Machine-readable contract, matrix, and probe report');
+  console.log('');
   console.log('Activate a choice in your shell:');
   console.log('  eval "$(pd backend use claude-code)"');
   console.log('');
@@ -434,6 +505,10 @@ export async function handleBackend(
       return;
     case 'cost':
       await costCommand(options);
+      return;
+    case 'adapters':
+    case 'capabilities':
+      await adaptersCommand(options);
       return;
     case 'help':
     case '-h':

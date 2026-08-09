@@ -1135,6 +1135,16 @@ export function createSessions(
     return result.changes;
   }
 
+  // Ids of an agent's currently-active sessions. Read this BEFORE abandonByAgent so a
+  // caller (e.g. the zombie-protocol death handler) can harvest each session's notes
+  // while they are still queryable, then abandon them.
+  function activeSessionIdsByAgent(agentId: string): string[] {
+    const rows = db.prepare(
+      `SELECT id FROM sessions WHERE status = 'active' AND agent_id = ?`
+    ).all(agentId) as Array<{ id: string }>;
+    return rows.map((r) => r.id);
+  }
+
   function mergeMetadata(row: SessionRow, patch: Record<string, unknown>, now = Date.now()) {
     const existing = safeJsonParse(row.metadata) ?? {};
     const next = {
@@ -2261,6 +2271,7 @@ export function createSessions(
     end,
     abandon,
     abandonByAgent,
+    activeSessionIdsByAgent,
     remove,
     takeover,
     addNote,

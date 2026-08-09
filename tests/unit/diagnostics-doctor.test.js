@@ -20,7 +20,9 @@ import {
   parseMacDiagnosticReport,
   readRecentMacDiagnosticCrashReports,
   assessMacDiagnosticCrashReports,
+  isCanonicalRuntimeTarget,
 } from '../../cli/commands/diagnostics.js';
+import { resolveDistributionRoot } from '../../shared/daemon-binary.js';
 
 describe('plistTargetsLegacyDaemon', () => {
   // Why: existing installs from the tsx-server.ts era keep a stale plist
@@ -385,10 +387,14 @@ describe('countBunCrashSignatures / assessCrashSignature', () => {
     expect(a.hint).toContain('#676');
   });
 
-  test('assessCrashSignature: multiple crashes is CRITICAL (crash-looping)', () => {
+  test('assessCrashSignature: multiple crashes is CRITICAL but does not overstate a possibly-historical scan', () => {
     const a = assessCrashSignature({ crashCount: 4 });
     expect(a.severity).toBe('critical');
-    expect(a.detail).toContain('crash-looping');
+    expect(a.detail).toContain('crashed repeatedly');
+    // Honesty (3.26.2): a log-tail scan (possibly unrotated) must NOT assert present-tense
+    // "the daemon is crash-looping" as fact — it points at live uptime instead.
+    expect(a.detail).not.toMatch(/is crash-looping/);
+    expect(a.detail).toMatch(/pd status/);
   });
 
   test('assessCrashSignature hint says downgrading does not fix it', () => {
@@ -673,6 +679,75 @@ describe('resolveBosunBinary', () => {
     expect(r.exists).toBe(false);
     expect(r.binaryPath).toContain('pd-bosun');
   });
+
+  // Regression (found live during the v3.25.1/3.25.2 brew rollout, 2026-07-15):
+  // `pd doctor`'s Bosun check fed resolveBosunBinary() a naive
+  // `join(__dirname, '..', '..')` libDir, which is a bun:// virtual path for a
+  // compiled binary and never exists on disk — so `pd doctor` always reported
+  // "pd-bosun binary not built" for every packaged/Homebrew install, even one
+  // where Bosun was genuinely installed, loaded, and healthy (confirmed via
+  // `pd-bosun status` and `launchctl list` on the operator's machine). The fix
+  // routes the same libDir through resolveDistributionRoot() first — exactly
+  // what describeResourceDir() already does for the identical reason.
+  test('resolveDistributionRoot recovers the real install root from a bun virtual moduleDir, so the binary is found', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'pd-bosun-doctor-'));
+    try {
+      writeFileSync(join(tmp, 'pd-bosun'), '#!/bin/sh\necho stub\n');
+      chmodSync(join(tmp, 'pd-bosun'), 0o755);
+
+      // Naive join(__dirname, '..', '..') on a bun:// virtual moduleDir —
+      // this is what the doctor check used to pass directly to
+      // resolveBosunBinary(), and it can never resolve to a real path.
+      const naiveLibDir = join('/$bunfs/root/cli/commands', '..', '..');
+      const naive = resolveBosunBinary(naiveLibDir);
+      expect(naive.exists).toBe(false);
+
+      // resolveDistributionRoot() recovers the real root from execPath for an
+      // "unconventional layout" binary (neither dist/daemon/ nor dist/) —
+      // exactly the shape of a Homebrew Cellar bin/ directory.
+      const resolvedRoot = resolveDistributionRoot(
+        '/$bunfs/root/cli/commands',
+        {},
+        join(tmp, 'port-daddy'),
+      );
+      const fixed = resolveBosunBinary(resolvedRoot);
+      expect(fixed.exists).toBe(true);
+      expect(fixed.binaryPath).toBe(join(tmp, 'pd-bosun'));
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  // Regression (3.26.2): a compiled `pd` whose `__dirname` collapses to `/` (so
+  // `join(__dirname,'..','..')` is `/`) must NOT resolve the distribution root to `/`. That
+  // made doctor print `resolvedRoot=/`, `expectedBinary=/dist/daemon/... (MISSING)` yet report
+  // a GREEN "Resource directory" check, AND broke `pd setup` (it looked for `/node_modules/.bin/tsx`).
+  // `/` now routes through execPath-based resolution like a bun-virtual path.
+  test('resolveDistributionRoot("/") does not return "/" — routes through execPath', () => {
+    const root = resolveDistributionRoot('/', {}, '/opt/homebrew/Cellar/port-daddy/3.26.2/bin/pd');
+    expect(root).not.toBe('/');
+    expect(root).toBe('/opt/homebrew/Cellar/port-daddy/3.26.2/bin');
+  });
+
+  // Regression (2026-07-23): Homebrew installs the watchdog at `<root>/bin/pd-bosun`
+  // (next to `pd`), NOT flat at `<root>/pd-bosun`. The resolver only checked the flat
+  // path + source/dist fallbacks, so when the distribution root resolved to the keg
+  // ROOT (rather than keg/bin) it reported "not built" while the binary was present.
+  // Now `<root>/bin/pd-bosun` and `<root>/libexec/bin/pd-bosun` are candidates.
+  test('finds the watchdog under the Homebrew bin/ layout (<root>/bin/pd-bosun)', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'pd-bosun-brew-'));
+    try {
+      mkdirSync(join(tmp, 'bin'), { recursive: true });
+      writeFileSync(join(tmp, 'bin', 'pd-bosun'), '#!/bin/sh\necho stub\n');
+      chmodSync(join(tmp, 'bin', 'pd-bosun'), 0o755);
+
+      const r = resolveBosunBinary(tmp);
+      expect(r.exists).toBe(true);
+      expect(r.binaryPath).toBe(join(tmp, 'bin', 'pd-bosun'));
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
 });
 
 // BUG 3 (2026-07-14 halt-mandate): a launchd-claimed PID must be re-verified —
@@ -712,5 +787,65 @@ describe('scanRegistryDbFiles', () => {
 
   test('returns empty for a missing directory', () => {
     expect(scanRegistryDbFiles('/nonexistent/dir/xyz')).toEqual([]);
+  });
+});
+
+/**
+ * `pd status` turns the control-plane verdict into its EXIT CODE, and that
+ * verdict is built from the CANONICAL ~/.port-daddy files plus the canonical
+ * launchd job. So the moment any env var redirects the CLI at a different
+ * daemon, comparing that daemon's /health against canonical files produces a
+ * false "control plane diverged" — a hard failure against a healthy daemon.
+ *
+ * These cases pin every redirect var INDEPENDENTLY, because the bug this
+ * guards against was exactly one missing entry in the list: PORT_DADDY_PORT is
+ * resolution step 1 in shared/daemon-discovery.ts (ahead of the daemon.port
+ * file), so omitting it reintroduced the failure through the most common
+ * redirect of all.
+ */
+describe('isCanonicalRuntimeTarget', () => {
+  const REDIRECTS = [
+    'PORT_DADDY_URL',
+    'PORT_DADDY_SOCK',
+    'PORT_DADDY_PORT',
+    'PORT_DADDY_TCP_HOST',
+    'PORT_DADDY_PREFIX',
+    'PORT_DADDY_PID_FILE',
+    'PORT_DADDY_PORT_FILE',
+    'PORT_DADDY_HEARTBEAT_FILE',
+    'PD_HOME',
+  ];
+
+  function withEnv(overrides, fn) {
+    const saved = {};
+    for (const key of REDIRECTS) {
+      saved[key] = process.env[key];
+      delete process.env[key];
+    }
+    try {
+      for (const [k, v] of Object.entries(overrides)) process.env[k] = v;
+      return fn();
+    } finally {
+      for (const key of REDIRECTS) {
+        if (saved[key] === undefined) delete process.env[key];
+        else process.env[key] = saved[key];
+      }
+    }
+  }
+
+  test('a clean environment IS the canonical target', () => {
+    expect(withEnv({}, isCanonicalRuntimeTarget)).toBe(true);
+  });
+
+  test.each(REDIRECTS)('%s alone makes the target non-canonical', (key) => {
+    const value = key === 'PORT_DADDY_PORT' ? '9999' : '/tmp/pd-redirected';
+    expect(withEnv({ [key]: value }, isCanonicalRuntimeTarget)).toBe(false);
+  });
+
+  test('an empty or whitespace-only override does not count as a redirect', () => {
+    // Callers routinely export these as '' to mean "unset"; treating that as a
+    // redirect would silently disable the verdict for canonical daemons.
+    expect(withEnv({ PORT_DADDY_PORT: '' }, isCanonicalRuntimeTarget)).toBe(true);
+    expect(withEnv({ PORT_DADDY_PID_FILE: '   ' }, isCanonicalRuntimeTarget)).toBe(true);
   });
 });

@@ -17,6 +17,7 @@ import {
   handleFleetRun,
   handleFleetHealth,
   handleFleetPause,
+  handleDeleteFleetRun,
 } from '../src/fleet-observability.js';
 import { FLEET_PAUSED_KEY } from '../src/db.js';
 import type { Env } from '../src/types.js';
@@ -39,7 +40,7 @@ function makeKV(seed: Record<string, string> = {}): KVNamespace {
 function makeMockD1(handlers: {
   onFirst?: (query: string, bound: unknown[]) => unknown;
   onAll?: (query: string, bound: unknown[]) => unknown[];
-  onRun?: (query: string, bound: unknown[]) => void;
+  onRun?: (query: string, bound: unknown[]) => void | number;
 }): D1Database {
   const stmtFor = (query: string) => {
     let bound: unknown[] = [];
@@ -51,7 +52,7 @@ function makeMockD1(handlers: {
       async all<T>(): Promise<{ results: T[] }> {
         return { results: (handlers.onAll?.(query, bound) ?? []) as T[] };
       },
-      async run() { handlers.onRun?.(query, bound); return { success: true }; },
+      async run() { const changes = handlers.onRun?.(query, bound); return { success: true, meta: { changes: typeof changes === 'number' ? changes : 0 } }; },
     };
     return stmt as unknown as D1PreparedStatement;
   };
@@ -326,5 +327,35 @@ describe('handleFleetPause + handleFleetHealth', () => {
     expect(health.paused).toBe(false);
     expect(health.lastRunAgeSec).not.toBeNull();
     expect(health.lastRunAgeSec!).toBeGreaterThanOrEqual(30);
+  });
+});
+
+// ── DELETE /v1/fleet/runs/:id (ADR-0101 export/delete per-tier) ────────────────
+
+describe('handleDeleteFleetRun', () => {
+  it('rejects without the operator token (401)', async () => {
+    const res = await handleDeleteFleetRun(req('/v1/fleet/runs/run-new', 'DELETE', null), makeEnv(), 'run-new');
+    expect(res.status).toBe(401);
+  });
+
+  it('deletes steps + run and reports the count', async () => {
+    const seen: string[] = [];
+    const db = makeMockD1({
+      onRun: (q) => {
+        if (q.includes('DELETE FROM fleet_run_steps')) { seen.push('steps'); return 1; }
+        if (q.includes('DELETE FROM fleet_runs')) { seen.push('run'); return 1; }
+        return 0;
+      },
+    });
+    const res = await handleDeleteFleetRun(req('/v1/fleet/runs/run-new', 'DELETE', OPERATOR), makeEnv({ db }), 'run-new');
+    expect(res.status).toBe(200);
+    expect((await res.json() as { deleted: number }).deleted).toBe(1);
+    expect(seen).toEqual(['steps', 'run']); // transcript rows removed before the header
+  });
+
+  it('404s an unknown run id', async () => {
+    const db = makeMockD1({ onRun: () => 0 }); // no rows changed
+    const res = await handleDeleteFleetRun(req('/v1/fleet/runs/nope', 'DELETE', OPERATOR), makeEnv({ db }), 'nope');
+    expect(res.status).toBe(404);
   });
 });

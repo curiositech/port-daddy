@@ -14,7 +14,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import handler from '../src/index.js';
 import { TRANSCRIPT_EMERGENCY_EVENT } from '../../../lib/transcript-emergency-constants.js';
-import { executeFleet } from '../src/execute.js';
+import { executeFleet, mapChunkCharLimit } from '../src/execute.js';
+import { MODEL_CONTEXT_TOKENS } from '../src/spend.js';
 import {
   freshState,
   installGitHubFetch,
@@ -76,7 +77,13 @@ afterEach(() => {
 });
 
 describe('kill switch (KV fleet:paused)', () => {
-  it('paused (boolean "true") ⇒ no AI calls, no GitHub calls, job acked', async () => {
+  it('paused (boolean "true") ⇒ no AI calls, no review posts, but STILL posts a neutral check', async () => {
+    // Regression test for the 2026-07-16 incident: an out-of-band
+    // `fleet:paused=true` left "Port Daddy Fleet" (a REQUIRED merge-queue
+    // check) silently ABSENT on every PR for 4 days because the old
+    // behavior was to return before ever creating a check run. Paused must
+    // still post something — a neutral check — so the required-check gate
+    // can never hang on total silence.
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -92,19 +99,59 @@ describe('kill switch (KV fleet:paused)', () => {
       {} as ExecutionContext,
     );
 
-    // Acked without retry — the job is consumed, nothing was done.
+    // Acked without retry — the job is consumed.
     expect(msg.ack).toHaveBeenCalledTimes(1);
     expect(msg.retry).not.toHaveBeenCalled();
-    // Zero AI spend, zero GitHub traffic, zero check runs, zero transcript writes.
+    // Zero AI spend, zero review/comment posts — but the required check WAS
+    // created and completed neutral, never left silently absent.
     expect(ai.calls).toHaveLength(0);
-    expect(state.records).toHaveLength(0);
-    expect(state.completed).toHaveLength(0);
     expect(state.commentPosts).toBe(0);
-    expect(d1.runs).toHaveLength(0);
-    expect(d1.steps).toHaveLength(0);
+    expect(state.reviews).toHaveLength(0);
+    expect(state.checkRunsCreated).toBe(1);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].summary).toContain('Fleet paused by operator');
+    expect(d1.runs).toHaveLength(1);
+    expect(d1.runs[0].conclusion).toBe('neutral');
+    expect(d1.steps.map(s => s.kind)).toEqual(['check-completed']);
   });
 
-  it('paused (JSON {paused:true}) ⇒ skips, while {paused:false} runs normally', async () => {
+  it('paused ⇒ reuses an existing check run for the same head SHA (idempotent retry)', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    await kv.put('fleet:paused', 'true');
+    const ai = aiStub({ perShip: {} });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }));
+    expect(state.checkRunsCreated).toBe(1);
+
+    // A retried delivery for the SAME head SHA must reuse the check run, not
+    // create a second one.
+    await executeFleet(
+      makeJob({ deliveryId: 'delivery-retry' }),
+      makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }),
+    );
+    expect(state.checkRunsCreated).toBe(1);
+    expect(state.completed).toHaveLength(2);
+    expect(state.completed.every(c => c.conclusion === 'neutral')).toBe(true);
+  });
+
+  it('paused with no head sha in the payload ⇒ cannot post a check, still acks (no throw)', async () => {
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    await kv.put('fleet:paused', 'true');
+    const ai = aiStub({ perShip: {} });
+
+    const job = makeJob({ payloadMinimal: { pull_request: { number: 7 } } });
+    await expect(
+      executeFleet(job, makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db })),
+    ).resolves.toBeUndefined();
+    expect(state.checkRunsCreated).toBe(0);
+    expect(ai.calls).toHaveLength(0);
+  });
+
+  it('paused (JSON {paused:true}) ⇒ skips AI + review, posts neutral check; {paused:false} runs normally', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -113,14 +160,19 @@ describe('kill switch (KV fleet:paused)', () => {
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }));
     expect(ai.calls).toHaveLength(0);
-    expect(state.completed).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('neutral');
 
-    // Flip to resumed: the same job now runs to completion.
+    // Flip to resumed: the same job (new delivery id) now runs to completion.
     await kv.put('fleet:paused', JSON.stringify({ paused: false, pausedAt: 2 }));
     const ai2 = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
-    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai2.ai, DB: memoryD1().db }));
+    await executeFleet(
+      makeJob({ deliveryId: 'delivery-resumed' }),
+      makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai2.ai, DB: memoryD1().db }),
+    );
     expect(ai2.calls.length).toBeGreaterThan(0);
-    expect(state.completed).toHaveLength(1);
+    expect(state.completed).toHaveLength(2);
+    expect(state.completed[1].conclusion).toBe('success');
   });
 
   it('absent / corrupt flag ⇒ NOT paused (fail-safe keeps the gate running)', async () => {
@@ -164,6 +216,16 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(ai.calls.length).toBeGreaterThan(0);
     expect(state.completed).toHaveLength(1);
 
+    // A DIFFERENT head SHA, because this is a second commit being reviewed --
+    // not a redelivery of the first. Same-SHA redelivery after a decided check
+    // is now skipped on purpose (it would re-spend to change nothing), so
+    // reusing the SHA here would test the skip rather than the pause config.
+    // Model a SECOND COMMIT, not a redelivery of the first. The executor now
+    // skips a redelivery whose check already reached a verdict (it would
+    // re-spend to change nothing), so reusing the first commit's decided check
+    // here would silently test that skip instead of the pause config this case
+    // is about.
+    state.existingCheckRuns = [];
     const malformedKv = memoryKV();
     await malformedKv.put('fleet:paused', JSON.stringify({ paused: 'true' }));
     const ai2 = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
@@ -229,11 +291,11 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
     expect(run.ms).toBeGreaterThanOrEqual(0);
 
     // Single chunk ⇒ no reduce step. Order: map-chunk → ship-verdict →
-    // review-posted → check-completed.
+    // review-posted → ship-spend → check-completed.
     const kinds = d1.steps.map(s => s.kind);
-    expect(kinds).toEqual(['map-chunk', 'ship-verdict', 'review-posted', 'check-completed']);
+    expect(kinds).toEqual(['map-chunk', 'ship-verdict', 'review-posted', 'ship-spend', 'check-completed']);
     // seq is monotonic from 0.
-    expect(d1.steps.map(s => s.seq)).toEqual([0, 1, 2, 3]);
+    expect(d1.steps.map(s => s.seq)).toEqual([0, 1, 2, 3, 4]);
     // The verdict step carries the parsed findings as its detail (here: empty).
     const verdict = d1.steps.find(s => s.kind === 'ship-verdict');
     expect(verdict?.ship).toBe('code-reviewer');
@@ -242,8 +304,21 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
   });
 
   it('a multi-chunk run records 2 map-chunk steps + exactly one reduce step', async () => {
+    // Sized RELATIVE to the real budget, not to a number typed here. These
+    // fixtures used to hard-code ~9KB files against a 12KB budget; when the
+    // budget became derived from the MAP model's context window they silently
+    // stopped testing fan-out at all -- one chunk, no REDUCE, and an assertion
+    // about "2 map calls" failing for a reason with nothing to do with
+    // map-reduce. A fixture that encodes a constant is a fixture that expires.
+    //
+    // Sized against the LARGEST budget any known model yields, so the diff
+    // fans out whichever model the ship under test resolves to -- and stays
+    // correct if a model with a bigger window is added later.
+    const budget = Math.max(...Object.keys(MODEL_CONTEXT_TOKENS).map(mapChunkCharLimit));
+    const linesPerFile = Math.ceil((budget * 0.6) / '+line\n'.length);
     const file = (name: string) =>
-      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` + '+line\n'.repeat(1500);
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
+      '+line\n'.repeat(linesPerFile);
     state.prDiff = file('a.ts') + file('b.ts');
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
@@ -266,6 +341,7 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
       'reduce',
       'ship-verdict',
       'review-posted',
+      'ship-spend',
       'check-completed',
     ]);
   });

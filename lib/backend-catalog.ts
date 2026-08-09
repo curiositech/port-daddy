@@ -29,6 +29,92 @@ import { join } from 'node:path';
 
 export type BackendCostModel = 'subscription' | 'metered' | 'local' | 'cli';
 
+export type HarnessSpawnTransport =
+  | 'agent-cli'
+  | 'provider-sdk'
+  | 'provider-http'
+  | 'model-server-http'
+  | 'custom-command';
+
+export type HarnessPromptTransport =
+  | 'argument'
+  | 'stdin'
+  | 'json-body'
+  | 'sdk-argument'
+  | 'custom';
+
+export type HarnessInteractiveChannel =
+  | 'terminal'
+  | 'stream-json'
+  | 'remote-control'
+  | 'app-server'
+  | 'acp'
+  | 'http'
+  | 'none';
+
+export type HarnessAuthMode =
+  | 'oauth-subscription'
+  | 'api-key'
+  | 'api-token'
+  | 'delegated-cli'
+  | 'local-none'
+  | 'custom';
+
+export type HarnessTranscriptFormat =
+  | 'claude-jsonl'
+  | 'codex-rollout-jsonl'
+  | 'gemini-session-json'
+  | 'agy-log'
+  | 'port-daddy-jsonl'
+  | 'aider-chat-history'
+  | 'none'
+  | 'custom';
+
+export interface HarnessCommandTemplate {
+  /** Executable only; never a shell fragment. */
+  executable: string;
+  /** argv template. Supported placeholders are documented in ADR-0118. */
+  args: readonly string[];
+  promptTransport: HarnessPromptTransport;
+}
+
+export interface HarnessProbeSpec {
+  executable: string;
+  spawnHelpArgs: readonly string[];
+  spawnEvidence: readonly string[];
+  resumeHelpArgs?: readonly string[];
+  resumeEvidence?: readonly string[];
+}
+
+export interface HarnessAdapterCapabilities {
+  /** Stable adapter family. Several billing rows may share one harness. */
+  family: string;
+  spawn: {
+    transport: HarnessSpawnTransport;
+    command?: HarnessCommandTemplate;
+  };
+  resume: {
+    /** True only when the harness itself can restore prior context. */
+    native: boolean;
+    /** `history` restores messages but not a stable harness session identity. */
+    scope: 'session' | 'history' | 'none';
+    command?: HarnessCommandTemplate;
+  };
+  /** Every N:N target must be able to receive a sanitized handoff capsule. */
+  acceptsInitialPrompt: boolean;
+  interactiveChannels: readonly HarnessInteractiveChannel[];
+  transcript: {
+    format: HarnessTranscriptFormat;
+    owner: 'harness' | 'port-daddy' | 'remote-provider' | 'none';
+    stability: 'documented' | 'observed' | 'internal' | 'none';
+    root?: string;
+  };
+  authModes: readonly HarnessAuthMode[];
+  limitations: readonly string[];
+  /** Optional, side-effect-free help probe. Never launches a model call. */
+  probe?: HarnessProbeSpec;
+}
+
 export interface BackendCatalogEntry {
   /** Internal id used throughout PD (spawner, readiness, cost-tracker). */
   id: string;
@@ -66,7 +152,228 @@ export interface BackendCatalogEntry {
    * options ahead of metered ones in the FleetBar/dashboard picker.
    */
   recommended?: boolean;
+  /** N:N continuation mechanics for this concrete backend route. */
+  adapter: HarnessAdapterCapabilities;
 }
+
+const CLAUDE_CLI_ADAPTER: HarnessAdapterCapabilities = {
+  family: 'claude-code',
+  spawn: {
+    transport: 'agent-cli',
+    command: { executable: 'claude', args: ['-p', '{prompt}'], promptTransport: 'argument' },
+  },
+  resume: {
+    native: true,
+    scope: 'session',
+    command: { executable: 'claude', args: ['--resume', '{sessionId}', '-p', '{prompt}'], promptTransport: 'argument' },
+  },
+  acceptsInitialPrompt: true,
+  interactiveChannels: ['terminal', 'stream-json', 'remote-control'],
+  transcript: {
+    format: 'claude-jsonl',
+    owner: 'harness',
+    stability: 'observed',
+    root: '~/.claude/projects',
+  },
+  authModes: ['oauth-subscription', 'api-key'],
+  limitations: [
+    'Native resume requires a canonical UUID, an explicit Claude JSONL transcript reference, and daemon-witnessed session metadata bound to the canonical source workspace; another harness must enter through a sanitized handoff capsule.',
+  ],
+  probe: {
+    executable: 'claude',
+    spawnHelpArgs: ['--help'],
+    spawnEvidence: ['--print', '--output-format'],
+    resumeHelpArgs: ['--help'],
+    resumeEvidence: ['--resume', '--fork-session'],
+  },
+};
+
+const CODEX_CLI_ADAPTER: HarnessAdapterCapabilities = {
+  family: 'codex-cli',
+  spawn: {
+    transport: 'agent-cli',
+    command: { executable: 'codex', args: ['exec', '--json', '{prompt}'], promptTransport: 'argument' },
+  },
+  resume: {
+    native: true,
+    scope: 'session',
+    command: { executable: 'codex', args: ['exec', 'resume', '{sessionId}', '{prompt}'], promptTransport: 'argument' },
+  },
+  acceptsInitialPrompt: true,
+  interactiveChannels: ['terminal', 'app-server'],
+  transcript: {
+    format: 'codex-rollout-jsonl',
+    owner: 'harness',
+    stability: 'observed',
+    root: '~/.codex/sessions',
+  },
+  authModes: ['oauth-subscription', 'api-key'],
+  limitations: [
+    'Native resume requires a canonical UUID, an explicit Codex rollout reference, and daemon-witnessed session_meta bound to the canonical source workspace; cross-harness continuation creates a successor from a handoff capsule.',
+  ],
+  probe: {
+    executable: 'codex',
+    spawnHelpArgs: ['exec', '--help'],
+    spawnEvidence: ['Run Codex non-interactively', '[PROMPT]'],
+    resumeHelpArgs: ['exec', 'resume', '--help'],
+    resumeEvidence: ['Resume a previous session', '[SESSION_ID]'],
+  },
+};
+
+const AGY_CLI_ADAPTER: HarnessAdapterCapabilities = {
+  family: 'agy-cli',
+  spawn: {
+    transport: 'agent-cli',
+    command: { executable: 'agy', args: ['--print', '{prompt}'], promptTransport: 'argument' },
+  },
+  resume: {
+    native: true,
+    scope: 'session',
+    command: { executable: 'agy', args: ['--conversation', '{sessionId}', '--print', '{prompt}'], promptTransport: 'argument' },
+  },
+  acceptsInitialPrompt: true,
+  interactiveChannels: ['terminal'],
+  transcript: { format: 'agy-log', owner: 'harness', stability: 'observed' },
+  authModes: ['delegated-cli'],
+  limitations: [
+    'Native resume requires a canonical UUID, the conversation-keyed brain transcript, and an exact workspace-to-conversation binding in Antigravity last_conversations metadata.',
+    'Structured transcript streaming is not documented; Port Daddy currently captures prompt plus final output.',
+  ],
+  probe: {
+    executable: 'agy',
+    spawnHelpArgs: ['--help'],
+    spawnEvidence: ['--print', '--prompt-interactive'],
+    resumeHelpArgs: ['--help'],
+    resumeEvidence: ['--conversation', '--continue'],
+  },
+};
+
+const GEMINI_CLI_ADAPTER: HarnessAdapterCapabilities = {
+  family: 'gemini-cli',
+  spawn: {
+    transport: 'agent-cli',
+    command: { executable: 'gemini', args: ['--prompt', '{prompt}'], promptTransport: 'argument' },
+  },
+  resume: {
+    native: true,
+    scope: 'session',
+    command: { executable: 'gemini', args: ['--resume', '{sessionId}', '--prompt', '{prompt}'], promptTransport: 'argument' },
+  },
+  acceptsInitialPrompt: true,
+  interactiveChannels: ['terminal', 'acp'],
+  transcript: {
+    format: 'gemini-session-json',
+    owner: 'harness',
+    stability: 'observed',
+    root: '~/.gemini',
+  },
+  authModes: ['oauth-subscription', 'api-key'],
+  limitations: [
+    'Gemini UUID resume is project-scoped and requires an explicit chat reference; Port Daddy witnesses the canonical UUID, project hash, registry entry, chat file, and canonical workspace before launch.',
+  ],
+  probe: {
+    executable: 'gemini',
+    spawnHelpArgs: ['--help'],
+    spawnEvidence: ['--prompt', '--output-format'],
+    resumeHelpArgs: ['--help'],
+    resumeEvidence: ['--resume', '--list-sessions'],
+  },
+};
+
+function promptOnlyCliAdapter(
+  family: string,
+  executable: string,
+  authModes: readonly HarnessAuthMode[],
+  limitations: readonly string[],
+): HarnessAdapterCapabilities {
+  return {
+    family,
+    spawn: {
+      transport: 'agent-cli',
+      command: { executable, args: ['-p', '{prompt}'], promptTransport: 'argument' },
+    },
+    resume: { native: false, scope: 'none' },
+    acceptsInitialPrompt: true,
+    interactiveChannels: ['terminal'],
+    transcript: { format: 'none', owner: 'none', stability: 'none' },
+    authModes,
+    limitations,
+    probe: {
+      executable,
+      spawnHelpArgs: ['--help'],
+      spawnEvidence: ['-p'],
+    },
+  };
+}
+
+function apiAdapter(
+  family: string,
+  transport: 'provider-sdk' | 'provider-http',
+  authModes: readonly HarnessAuthMode[],
+  limitations: readonly string[] = [],
+): HarnessAdapterCapabilities {
+  return {
+    family,
+    spawn: { transport },
+    resume: { native: false, scope: 'none' },
+    acceptsInitialPrompt: true,
+    interactiveChannels: ['http'],
+    transcript: {
+      format: 'port-daddy-jsonl',
+      owner: 'port-daddy',
+      stability: 'internal',
+    },
+    authModes,
+    limitations: [
+      'Provider calls have no native harness session identity; continuation is reconstructed from a handoff capsule.',
+      ...limitations,
+    ],
+  };
+}
+
+function localModelServerAdapter(family: string): HarnessAdapterCapabilities {
+  return {
+    family,
+    spawn: { transport: 'model-server-http' },
+    resume: { native: false, scope: 'none' },
+    acceptsInitialPrompt: true,
+    interactiveChannels: ['http'],
+    transcript: { format: 'port-daddy-jsonl', owner: 'port-daddy', stability: 'internal' },
+    authModes: ['local-none'],
+    limitations: [
+      'A model server is not an agent harness; Port Daddy must own tools, transcript, state, and continuation.',
+    ],
+  };
+}
+
+const AIDER_ADAPTER: HarnessAdapterCapabilities = {
+  family: 'aider',
+  spawn: {
+    transport: 'agent-cli',
+    command: { executable: 'aider', args: ['--message', '{prompt}'], promptTransport: 'argument' },
+  },
+  resume: {
+    native: true,
+    scope: 'history',
+    command: {
+      executable: 'aider',
+      args: ['--restore-chat-history', '--chat-history-file', '{historyFile}', '--message', '{prompt}'],
+      promptTransport: 'argument',
+    },
+  },
+  acceptsInitialPrompt: true,
+  interactiveChannels: ['terminal'],
+  transcript: { format: 'aider-chat-history', owner: 'harness', stability: 'documented' },
+  authModes: ['api-key', 'delegated-cli'],
+  limitations: ['History restoration replays messages but does not preserve a stable Aider session identity.'],
+  probe: {
+    executable: 'aider',
+    spawnHelpArgs: ['--help'],
+    spawnEvidence: ['--message', '--message-file'],
+    resumeHelpArgs: ['--help'],
+    resumeEvidence: ['--restore-chat-history', '--chat-history-file'],
+  },
+};
 
 export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
   // ──── Subscription / free-at-marginal-cost ─────────────────────────────
@@ -80,6 +387,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     models: ['claude-sonnet-4-6', 'claude-opus-4-8', 'claude-haiku-4-5'],
     pdUseCliBackendValue: 'claude-code',
     recommended: true,
+    adapter: CLAUDE_CLI_ADAPTER,
   },
   {
     id: 'cli:codex',
@@ -91,6 +399,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     models: ['gpt-5', 'gpt-5-codex'],
     pdUseCliBackendValue: 'codex',
     recommended: true,
+    adapter: CODEX_CLI_ADAPTER,
   },
   {
     id: 'cli:agy',
@@ -101,6 +410,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     tagline: 'Antigravity CLI through your existing agy authentication',
     models: [],
     pdUseCliBackendValue: 'agy',
+    adapter: AGY_CLI_ADAPTER,
   },
   {
     id: 'cli:gemini',
@@ -111,6 +421,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     tagline: 'Google-account Gemini CLI free tier powers spawns at $0 marginal',
     models: ['gemini-2.5-flash', 'gemini-2.5-pro'],
     pdUseCliBackendValue: 'gemini',
+    adapter: GEMINI_CLI_ADAPTER,
   },
   {
     id: 'cli:groq',
@@ -121,6 +432,12 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     tagline: 'Groq LPU speed through your existing groq CLI login',
     models: ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b'],
     pdUseCliBackendValue: 'groq',
+    adapter: promptOnlyCliAdapter(
+      'groq-cli',
+      'groq',
+      ['delegated-cli', 'api-key'],
+      ['No stable session-id resume or structured transcript surface is documented for the installed Port Daddy integration.'],
+    ),
   },
   {
     id: 'cli:grok',
@@ -131,6 +448,15 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     tagline: 'SuperGrok subscription powers spawns at $0 marginal',
     models: ['grok-4', 'grok-code-fast-1'],
     pdUseCliBackendValue: 'grok',
+    adapter: promptOnlyCliAdapter(
+      'grok-claude-proxy',
+      'grok',
+      ['delegated-cli'],
+      [
+        'The current grok command is a Claude proxy, not an independent durable harness.',
+        'Resume ownership remains with the underlying Claude session and is not exposed by the wrapper.',
+      ],
+    ),
   },
 
   // ──── Metered (pay per token) ───────────────────────────────────────────
@@ -141,6 +467,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'Metered through `claude` CLI',
     description: 'The `claude` binary in non-tube mode; tier-aware (low/mid/high → haiku/sonnet/opus).',
     models: ['haiku', 'sonnet', 'opus'],
+    adapter: CLAUDE_CLI_ADAPTER,
   },
   {
     id: 'claude',
@@ -149,6 +476,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'Metered API — pennies per spawn',
     description: 'Direct Anthropic API via @anthropic-ai/sdk. Requires ANTHROPIC_API_KEY.',
     models: ['claude-haiku-4-5', 'claude-sonnet-4-6', 'claude-opus-4-8'],
+    adapter: apiAdapter('anthropic-api', 'provider-sdk', ['api-key']),
   },
   {
     id: 'gemini',
@@ -157,6 +485,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'Metered API — pennies per spawn',
     description: 'Google Gemini REST API (generateContent). Requires GEMINI_API_KEY. Default model: gemini-2.5-flash.',
     models: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'],
+    adapter: apiAdapter('gemini-api', 'provider-http', ['api-key']),
   },
   {
     id: 'cloudflare',
@@ -173,6 +502,12 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
       '@cf/nvidia/nemotron-3-120b-a12b',
       '@cf/meta/llama-4-scout-17b-16e-instruct',
     ],
+    adapter: apiAdapter(
+      'cloudflare-workers-ai',
+      'provider-http',
+      ['api-token'],
+      ['Workers AI model calls are stateless; Cloudflare Agents durable state is a separate runtime adapter, not implied by this row.'],
+    ),
   },
   {
     id: 'openai',
@@ -181,6 +516,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'Metered API — pennies per spawn',
     description: 'Direct OpenAI API. Requires OPENAI_API_KEY. Default model: gpt-5-mini.',
     models: ['gpt-5-nano', 'gpt-5-mini', 'gpt-5', 'gpt-4.1-mini', 'gpt-4o-mini', 'o4-mini'],
+    adapter: apiAdapter('openai-api', 'provider-http', ['api-key']),
   },
   {
     id: 'groq',
@@ -189,6 +525,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'Cheap metered — fast open-weight models on LPU hardware',
     description: 'Groq OpenAI-compatible API. Requires GROQ_API_KEY. Default model: llama-3.3-70b-versatile.',
     models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'],
+    adapter: apiAdapter('groq-api', 'provider-http', ['api-key']),
   },
   {
     id: 'codex',
@@ -197,6 +534,25 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'Metered through `codex` CLI',
     description: 'Legacy adapter that drives `codex` CLI in non-tube mode.',
     models: ['gpt-5.4-mini', 'gpt-5.3-codex', 'gpt-5.4'],
+    adapter: CODEX_CLI_ADAPTER,
+  },
+  {
+    id: 'deepseek',
+    name: 'DeepSeek',
+    costModel: 'metered',
+    framing: 'Metered API — pennies per spawn',
+    description: 'DeepSeek OpenAI-compatible API. Requires DEEPSEEK_API_KEY. deepseek-chat = V3 general/coder, deepseek-reasoner = R1 reasoning.',
+    models: ['deepseek-chat', 'deepseek-reasoner'],
+    adapter: apiAdapter('deepseek-api', 'provider-http', ['api-key']),
+  },
+  {
+    id: 'xai',
+    name: 'xAI (Grok API)',
+    costModel: 'metered',
+    framing: 'Metered API — pennies per spawn',
+    description: 'xAI (Grok) OpenAI-compatible API. Requires XAI_API_KEY.',
+    models: ['grok-2-latest', 'grok-code-fast-1', 'grok-3'],
+    adapter: apiAdapter('xai-api', 'provider-http', ['api-key']),
   },
 
   // ──── Local / free ──────────────────────────────────────────────────────
@@ -207,6 +563,16 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'FREE — runs on your machine',
     description: 'Local Ollama daemon. Free, but quality depends on your hardware.',
     models: [],
+    adapter: localModelServerAdapter('ollama'),
+  },
+  {
+    id: 'lmstudio',
+    name: 'LM Studio (local)',
+    costModel: 'local',
+    framing: 'FREE — runs on your machine',
+    description: 'Local LM Studio server. Serves whatever model is currently loaded in the app.',
+    models: ['local-model'],
+    adapter: localModelServerAdapter('lmstudio'),
   },
   {
     id: 'aider',
@@ -215,6 +581,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'Metered — depends on Aider model config',
     description: 'Drives the `aider` CLI; underlying model provider auth is external.',
     models: ['gpt-4.1-mini', 'gpt-4.1', 'gpt-5'],
+    adapter: AIDER_ADAPTER,
   },
   {
     id: 'custom',
@@ -223,8 +590,106 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'Cost depends on the command',
     description: 'Run an arbitrary command as a spawn. Operator declares the cost shape.',
     models: ['custom-low', 'custom-mid', 'custom-high'],
+    adapter: {
+      family: 'custom-command',
+      spawn: { transport: 'custom-command' },
+      resume: { native: false, scope: 'none' },
+      acceptsInitialPrompt: true,
+      interactiveChannels: ['none'],
+      transcript: { format: 'custom', owner: 'port-daddy', stability: 'internal' },
+      authModes: ['custom'],
+      limitations: ['Capabilities are operator-declared and remain unverified until a concrete adapter probe exists.'],
+    },
   },
 ];
+
+export interface HarnessAdapterCapabilityRow {
+  family: string;
+  backendIds: string[];
+  spawnTransport: HarnessSpawnTransport;
+  spawnCommand: string | null;
+  resume: 'session' | 'history' | 'handoff-only';
+  resumeCommand: string | null;
+  acceptsInitialPrompt: boolean;
+  interactiveChannels: string[];
+  transcript: string;
+  authModes: string[];
+  limitations: string[];
+}
+
+function formatCommand(command: HarnessCommandTemplate | undefined): string | null {
+  if (!command) return null;
+  return [command.executable, ...command.args].join(' ');
+}
+
+/**
+ * Collapse billing/provider routes onto their concrete harness adapter family.
+ * This is the N-side of N:N portability: adding a backend implements one
+ * adapter contract, never a bespoke bridge to every other backend.
+ */
+export function harnessAdapterCapabilityRows(
+  catalog: readonly BackendCatalogEntry[] = BACKEND_CATALOG,
+): HarnessAdapterCapabilityRow[] {
+  const rows = new Map<string, HarnessAdapterCapabilityRow>();
+  for (const backend of catalog) {
+    const adapter = backend.adapter;
+    const existing = rows.get(adapter.family);
+    if (existing) {
+      existing.backendIds.push(backend.id);
+      continue;
+    }
+    rows.set(adapter.family, {
+      family: adapter.family,
+      backendIds: [backend.id],
+      spawnTransport: adapter.spawn.transport,
+      spawnCommand: formatCommand(adapter.spawn.command),
+      resume: adapter.resume.native && adapter.resume.scope !== 'none'
+        ? adapter.resume.scope
+        : 'handoff-only',
+      resumeCommand: formatCommand(adapter.resume.command),
+      acceptsInitialPrompt: adapter.acceptsInitialPrompt,
+      interactiveChannels: [...adapter.interactiveChannels],
+      transcript: `${adapter.transcript.owner}:${adapter.transcript.format}`,
+      authModes: [...adapter.authModes],
+      limitations: [...adapter.limitations],
+    });
+  }
+  return [...rows.values()];
+}
+
+function markdownCell(value: string): string {
+  return value.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
+}
+
+/** Generated operator/developer view used by ADR-0118 and `pd backend adapters`. */
+export function renderHarnessAdapterMarkdown(
+  rows: readonly HarnessAdapterCapabilityRow[] = harnessAdapterCapabilityRows(),
+): string {
+  const lines = [
+    '| Adapter family | Backend routes | Spawn | Native resume | Handoff input | Live channel | Transcript | Auth | Known limitation |',
+    '|---|---|---|---|---|---|---|---|---|',
+  ];
+  for (const row of rows) {
+    const spawn = row.spawnCommand
+      ? `\`${row.spawnCommand}\``
+      : row.spawnTransport;
+    const resume = row.resumeCommand
+      ? `${row.resume}: \`${row.resumeCommand}\``
+      : row.resume;
+    lines.push(
+      `| ${markdownCell(row.family)} `
+      + `| ${markdownCell(row.backendIds.join(', '))} `
+      + `| ${markdownCell(spawn)} `
+      + `| ${markdownCell(resume)} `
+      + `| ${row.acceptsInitialPrompt ? 'initial prompt' : 'none'} `
+      + `| ${markdownCell(row.interactiveChannels.join(', '))} `
+      + `| ${markdownCell(row.transcript)} `
+      + `| ${markdownCell(row.authModes.join(', '))} `
+      + `| ${markdownCell(row.limitations.join(' '))} |`,
+    );
+  }
+  return `${lines.join('\n')}\n`;
+}
 
 /**
  * Lookup helper. Returns undefined for unknown ids so callers can

@@ -20,7 +20,13 @@ description: >
   pheromones, MCP tools, dashboard, anchors, and operational tooling.
   27 plan parts organized into 6 tiers with sub-DAGs for complex nodes.
 
-default_model: claude-sonnet-4-20250514
+# Declarative intent, not a concrete model id (ADR-0057 model-abstraction
+# unification): "<backend>:<capability>", resolved via lib/model-registry.ts
+# resolveModel({backend, capability}) by any future runtime consumer of this
+# DAG plan. No code currently executes this field (scripts/validate-dag.js
+# only checks the key is present) — kept declarative so a future executor
+# never inherits a stale pinned model id.
+default_model: claude:balanced
 
 coordination_model:
   type: dag

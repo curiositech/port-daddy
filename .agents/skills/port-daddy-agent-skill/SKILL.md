@@ -60,6 +60,27 @@ profile/api-tokens?template=workers-ai)" — with the gap filed as feedback if
 the button is not built yet. Operators do not read AGENTS.md; they should not
 have to.
 
+## Giant Squid harness
+
+For a Port Daddy project, `pd squid on` is the one full arm switch. It stages
+the local lifecycle tentacles, wires every detected interactive CLI in its real
+scope (Claude/Gemini project config; Codex/agy daemon-gated user config), adds
+the `◆ PD` statusline, installs Pilot SessionStart steering, and adds `/squid`.
+Do not use or recommend the removed `pd squid hooks` fork; `pd hooks install`
+is the narrower hook-only repair surface.
+
+Read `pd squid status` before claiming the harness works. `LIVE` means complete
+wiring plus a fresh daemon heartbeat; `READY` means complete wiring with the
+daemon down; `PARTIAL` and `DEGRADED` require repair. Use `--json` when another
+surface needs the same truth and `pd squid tap` to inspect the exact bounded
+next-turn envelope. User-level Codex/agy entries do not make hooks global: the
+wrapper requires the exact project root in the arm registry. `pd squid off`
+removes that root while preserving other projects.
+
+The operator drives this through FleetBar's selected-project `◆ GIANT SQUID`
+strip. It exposes state, provider count, and Arm/Repair/Disarm without asking the
+operator to run these agent-facing commands.
+
 ## Default Agent Happy Path
 
 Use this path before you reach for advanced coordination. It is the normal
@@ -67,17 +88,28 @@ agent loop for repo work on this machine.
 
 ```bash
 pd status
+pd sitrep --template
 pd briefing
 pd salvage --project <project> --limit 20
 pd begin "<bounded task>" --identity <project>:<agent> --lifecycle durable
 pd whoami
+pd plan set "- [ ] Setup X\n- [ ] Fix Y\n- [ ] Verify Z"
 pd advise <likely-path> --task "<plain-language task>"
 pd note "Scope: <files>. Assumptions: <truth>. Validation: <commands>."
 pd session files add <path>
-# work, validate, and keep notes current
+# work, validate, check off plan, and keep notes current
+pd plan check "Setup X"
 pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
 ```
+
+## Plan & Todo List Tracking
+
+Every agent must establish a versioned todo checklist using `pd plan set`.
+- **Set a plan**: Run `pd plan set` with markdown checklist items.
+- **View latest plan**: Run `pd plan show` or `pd plan`.
+- **Mark item completed**: Run `pd plan check <index>` (e.g., `pd plan check 1` or `pd plan check "step one"`).
+- **Close session gate**: `pd done` checks your active plan. If any unchecked `[ ]` items remain, the close operation fails closed. Bypass with `pd done --force-incomplete --reason "<why>"` if incomplete work is intentionally handshaked or deferred.
 
 ## Session Continuity
 
@@ -126,6 +158,56 @@ After drift, prefer explicit session ids for notes and file claims. If
 disagree, call it a coordination bug. Leave the best durable evidence you can,
 fix the bounded bug if this slice can safely absorb it, or continue with a
 clear note about the degraded coordination path.
+
+Harness continuation is a separate identity boundary from Port Daddy session
+takeover. Never replay a raw Claude, Codex, Gemini, or agy transcript into a
+different runtime. Persist a sanitized handoff capsule first. Native resume is
+valid only when the source and effective target backend share the same catalog
+adapter family, the source id is a UUID rather than an option-shaped token, and
+the daemon can bind bounded local evidence to the canonical source workspace.
+Claude, Codex, and Gemini need an explicit transcript reference; agy also needs
+its current workspace-to-conversation cache binding. The witnessed workspace
+device/inode must still match at the final CLI child boundary. Missing or stale evidence
+is not a reason to replay a transcript; it means native resume is unavailable
+and cross-harness continuation must start a successor from the sanitized
+capsule. Never trust the capsule's historical workspace path as execution cwd.
+Reuse its reverified source witness; for a history-only, API, or model-server
+source, pass an explicit current `targetWorkdir` that resolves to the intended
+user-owned checkout. On `POST /memory/handoffs/:episodeId/continue`, choose the concrete
+`targetBackend` and use `mode: auto` (default), `native`, or `handoff`. Auto
+restores only a matching session-scoped adapter family and otherwise sends the
+versioned sanitized successor brief to a new target session. Explicit native
+must fail rather than silently changing identity semantics; explicit handoff
+always creates a successor, even inside one family. Use a stable idempotency key
+and trust the owner-leased continuation
+receipt, not a model's claim that it resumed. A backend override that changes
+adapter family, a lost accepted-to-running lease, or a failed terminal receipt
+transition must fail closed before Port Daddy reports success.
+
+Inspect portability with `pd backend adapters --matrix` or
+`GET /harness-adapters/continuation-matrix`. Read the grid as declared mechanics,
+not proof: `N` means same-family native resume is mechanically available and `H`
+means a sanitized successor handoff is available. `--probe` is discovery only.
+Only durable completed spawn transcripts, continuation receipts, or dedicated
+live-control receipts can mark the corresponding predicate witnessed; evidence
+older than seven days remains visible but stale. Never turn catalog declarations,
+help output, path existence, or an agent's self-report into a numeric conformance
+badge.
+
+Durable roster identity is another layer again. Use `pd roster list` and
+`pd roster search "<expertise>" [--repo <path>]` when the question is which
+long-lived named expert should receive work, even when no body is currently
+running. A roster alias such as `portdaddy-typography-expert` is a human label;
+the daemon-minted `agent_node_...` is the principal. Create one with `pd roster
+create`, or promote a proven session only after storing its sanitized handoff
+capsule, then use `pd roster promote <session-id> --episode <id> ...`. Profile
+edits append revisions. `pd roster continue <agent-node-id> --backend <id>`
+chooses a new body without changing the person and reuses the same witnessed
+native-or-successor continuation receipt path described above. Stored trigger
+and permission fields are declarations, not proof they are active or enforced.
+Roster expertise search fuses BM25 with the shared MiniLM embedder; treat a
+`degraded` lexical fallback as repair work and run `pd doctor`.
+
 
 ## Telos vs Purpose
 
@@ -437,6 +519,12 @@ Authority rules:
 - Stable Homebrew (`:9876`) is the operator's canonical local runtime. Dev
   berths are proof for a branch, not proof that FleetBar's stable surface is
   fixed.
+- On canonical macOS, launchd is the only process lifecycle owner. `pd start`,
+  `pd restart`, and `pd stop` control that launchd job and verify one generation;
+  they must never create a detached fallback. The daemon owns readiness, Bosun
+  only requests launchd replacement for a dead/stale heartbeat, and
+  status/Doctor/native UIs only observe their shared PID, port, heartbeat, and
+  binary identity. If those facts disagree, call the control plane diverged.
 - Cross-machine coordination should sync durable events, receipts, leases, and
   replayable intent through a harbor/relay ledger. Do not pretend SQLite files
   merge peer-to-peer or share a writable registry across machines.

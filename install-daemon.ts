@@ -35,9 +35,39 @@ const ERROR_LOG_PATH: string = join(__dirname, 'port-daddy-error.log');
 // ~/coding/port-daddy/dist, useless"). The `dist/core` and source-tree
 // `target/release` paths remain dev fallbacks only. `resolveBosunBinaryPath`
 // mirrors this order in shared code consumed by `pd doctor`.
-const BOSUN_BINARY_PATH: string = resolveBosunBinaryPath(__dirname);
-const BOSUN_LOG_PATH: string = join(__dirname, 'pd-bosun.log');
-const BOSUN_ERROR_LOG_PATH: string = join(__dirname, 'pd-bosun-error.log');
+// Prefer the version-STABLE Homebrew symlink `<prefix>/bin/pd-bosun` over a versioned Cellar keg
+// path. `resolveBosunBinaryPath` resolves to the *current* keg (e.g. .../3.26.2_2/bin/pd-bosun),
+// which the NEXT `brew upgrade` deletes — leaving the launchd watchdog's ExecStart pointing at a
+// dead keg (spawn fails with EX_CONFIG, so a crashing daemon no longer auto-restarts) until
+// someone re-runs `install-bosun` by hand. The `<prefix>/bin/pd-bosun` symlink is repointed by
+// brew on every upgrade, so a plist that references it stays valid across upgrades. Derived from
+// process.execPath: the running `port-daddy` lives at `<prefix>/bin/port-daddy` (symlink) or
+// `<prefix>/Cellar/port-daddy/<ver>/bin/port-daddy` (keg, e.g. when brew's post_install invokes it).
+// Pure derivation (exported for tests): given the running binary's execPath, return the
+// version-stable `<prefix>/bin/pd-bosun` symlink path if it exists, else null. Injectable
+// `exists` keeps it filesystem-free to test both the brew-keg and brew-symlink invocations.
+export function stableBosunPathFromExec(execPath: string, exists: (p: string) => boolean): string | null {
+  const cellar: number = execPath.indexOf('/Cellar/port-daddy/');
+  const stable: string = cellar >= 0
+    ? join(execPath.slice(0, cellar), 'bin', 'pd-bosun') // <prefix>/Cellar/port-daddy/<ver>/bin/pd → <prefix>/bin/pd-bosun
+    : join(dirname(execPath), 'pd-bosun');               // <prefix>/bin/pd (symlink) → <prefix>/bin/pd-bosun
+  return exists(stable) ? stable : null;
+}
+function resolveStableBosunBinaryPath(): string {
+  try {
+    return stableBosunPathFromExec(process.execPath, existsSync) ?? resolveBosunBinaryPath(__dirname);
+  } catch {
+    return resolveBosunBinaryPath(__dirname);
+  }
+}
+const BOSUN_BINARY_PATH: string = resolveStableBosunBinaryPath();
+// Logs go to the DURABLE home (~/.port-daddy), NOT the versioned keg (`join(__dirname, …)`).
+// A keg-relative StandardOutPath is deleted by the next `brew upgrade`, so launchd can no longer
+// open the log file and the watchdog job fails to launch — the same stale-Cellar-path outage the
+// stable-symlink ExecStart fix targets. `~/.port-daddy` is checkout- and version-independent.
+const DURABLE_HOME: string = join(homedir(), '.port-daddy');
+const BOSUN_LOG_PATH: string = join(DURABLE_HOME, 'pd-bosun.log');
+const BOSUN_ERROR_LOG_PATH: string = join(DURABLE_HOME, 'pd-bosun-error.log');
 const DARWIN_OPERATOR_TOOL_PATHS = [
   '/Applications/Codex.app/Contents/Resources',
   '/opt/homebrew/bin',
@@ -320,7 +350,7 @@ export function generateBosunPlist(daemonLabel: string): string {
     <string>${BOSUN_ERROR_LOG_PATH}</string>
 
     <key>WorkingDirectory</key>
-    <string>${__dirname}</string>
+    <string>${DURABLE_HOME}</string>
 
     <key>EnvironmentVariables</key>
     <dict>
@@ -756,6 +786,49 @@ function install(): void {
   }
 }
 
+/**
+ * Wire ONLY the Bosun watchdog (+ freshness self-heal) for a Homebrew-managed
+ * install, without touching the main daemon plist at all.
+ *
+ * Why this exists separately from `install()`: the Homebrew formula's
+ * `post_install` runs during `brew install`/`brew upgrade`, BEFORE the
+ * operator (or brew's own post-upgrade service-restart) has necessarily
+ * started `homebrew.mxcl.port-daddy`. Calling the full `install()` at that
+ * moment would see `brewDaemonServiceLoaded() === false` and fall into the
+ * standalone-daemon branch — writing + loading a `com.portdaddy.daemon`
+ * LaunchAgent that binds :9876 directly. When the operator later runs
+ * `brew services start port-daddy`, THAT job would try to bind the same
+ * port too: two competing KeepAlive supervisors, the exact "daemon fighting
+ * itself" failure mode `installMacOS()`'s dedup guard exists to prevent in
+ * the other direction (brew-already-loaded before a manual `port-daddy
+ * install`).
+ *
+ * Bosun itself has no such ordering hazard — `pd-bosun watch` just polls a
+ * heartbeat file and, on staleness, `launchctl kickstart`s whatever label it
+ * was told to watch. Pointed at `BREW_DAEMON_LABEL`, it's safe to install at
+ * ANY point before or after brew's own service is running: if the brew job
+ * isn't loaded yet, a kickstart attempt just fails quietly and retries on the
+ * next tick once it is loaded. So this is the one operation `post_install`
+ * can call unconditionally.
+ */
+function installBosunOnly(): void {
+  console.log('Installing Bosun watchdog (Homebrew-managed daemon)...');
+  console.log(`  Platform: ${PLATFORM}`);
+  let ok: boolean;
+  if (PLATFORM === 'darwin') {
+    ok = installBosunMacOS(BREW_DAEMON_LABEL) && installFreshnessMacOS();
+  } else if (PLATFORM === 'linux') {
+    ok = installBosunLinux();
+  } else {
+    console.log(`  Platform "${PLATFORM}" has no Bosun watchdog integration.`);
+    return;
+  }
+  if (!ok) {
+    console.error('  Bosun watchdog install did not complete cleanly (see above).');
+    process.exitCode = 1;
+  }
+}
+
 function uninstall(): void {
   console.log('Uninstalling Port Daddy daemon...');
 
@@ -857,6 +930,9 @@ export function runInstallDaemonCli(command: string | undefined = process.argv[2
     case 'install':
       install();
       break;
+    case 'install-bosun':
+      installBosunOnly();
+      break;
     case 'uninstall':
       uninstall();
       break;
@@ -868,9 +944,10 @@ export function runInstallDaemonCli(command: string | undefined = process.argv[2
 Port Daddy Daemon Installer
 
 Usage:
-  node install-daemon.js install   - Install and start daemon
-  node install-daemon.js uninstall - Stop and uninstall daemon
-  node install-daemon.js status    - Check daemon status
+  node install-daemon.js install        - Install and start daemon
+  node install-daemon.js install-bosun  - Wire only the Bosun watchdog (brew-managed daemon)
+  node install-daemon.js uninstall      - Stop and uninstall daemon
+  node install-daemon.js status         - Check daemon status
 
 Supported platforms:
   macOS   - LaunchAgent (auto-start on login)

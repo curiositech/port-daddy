@@ -329,6 +329,34 @@ pub unsafe extern "C" fn pd_keystore_authorize_json(req: *const c_char, len: usi
     .unwrap_or_else(|_| respond(false, "internal error"))
 }
 
+#[derive(Deserialize)]
+struct FfiPruneExpired {
+    now_ms: i64,
+}
+
+/// Garbage-collect grants past their hard expiry (revoked tombstones and merely
+/// aged-out entries alike) from the kernel custody store. In: `{now_ms}`. Out:
+/// `{ok, pruned}` — the count reclaimed. The daemon owns the cadence; the clock is
+/// supplied so the sweep is deterministic and never reads wall time itself.
+/// # Safety
+/// `req` must be null or point to `len` readable bytes (the koffi C-ABI contract).
+#[no_mangle]
+pub unsafe extern "C" fn pd_keystore_prune_expired_json(req: *const c_char, len: usize) -> *mut c_char {
+    catch_unwind(|| {
+        let s = match read_request(req, len) {
+            Ok(s) => s,
+            Err(p) => return p,
+        };
+        let r: FfiPruneExpired = match serde_json::from_str(&s) {
+            Ok(r) => r,
+            Err(e) => return respond(false, format!("request parse error: {e}")),
+        };
+        let pruned = keystore::prune_expired(r.now_ms);
+        respond_value(json!({"ok": true, "pruned": pruned}))
+    })
+    .unwrap_or_else(|_| respond(false, "internal error"))
+}
+
 /// Reclaim a string returned by this library. The caller MUST call this exactly
 /// once for every non-null pointer received.
 /// # Safety
@@ -424,6 +452,25 @@ mod tests {
         )).unwrap();
         assert_eq!(discharged["ok"], false);
         assert!(discharged["discharge"].is_null(), "rent-due must yield no discharge");
+    }
+
+    // The prune export round-trips its JSON contract. Called with now_ms:0 so it
+    // sweeps nothing (every issued grant expires after 0) — this keeps the assertion
+    // stable and never disturbs another parallel test's grant in the shared store.
+    #[test]
+    fn keystore_prune_expired_over_ffi_round_trips() {
+        let resp: serde_json::Value = serde_json::from_str(&call_export(
+            pd_keystore_prune_expired_json,
+            &json!({"now_ms": 0}).to_string(),
+        ))
+        .unwrap();
+        assert_eq!(resp["ok"], true);
+        assert_eq!(resp["pruned"], 0, "nothing expires at or before epoch 0");
+
+        // Malformed input fails closed (no panic across the boundary).
+        let bad: serde_json::Value =
+            serde_json::from_str(&call_export(pd_keystore_prune_expired_json, "not json")).unwrap();
+        assert_eq!(bad["ok"], false);
     }
 
     const ROOT: &[u8] = b"pd-canonical-root-key-0000000001";

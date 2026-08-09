@@ -9,9 +9,12 @@ import {
   detectForcedCliBackend,
   detectForcedCliBackendValue,
   getBackendCatalogEntry,
+  harnessAdapterCapabilityRows,
   recommendedBackendIds,
+  renderHarnessAdapterMarkdown,
   resolveEffectiveSpawnBackend,
 } from '../../lib/backend-catalog.js';
+import { renderHarnessContinuationMatrix } from '../../lib/harness-conformance.js';
 
 describe('backend-catalog', () => {
   test('includes the cli-tube backends introduced in PR #109', () => {
@@ -57,6 +60,65 @@ describe('backend-catalog', () => {
     for (const entry of BACKEND_CATALOG) {
       expect(allowed.has(entry.costModel)).toBe(true);
     }
+  });
+
+  test('every backend declares a shell-free N:N adapter contract', () => {
+    for (const entry of BACKEND_CATALOG) {
+      expect(entry.adapter.family).toMatch(/^[a-z0-9-]+$/);
+      expect(entry.adapter.acceptsInitialPrompt).toBe(true);
+      expect(entry.adapter.authModes.length).toBeGreaterThan(0);
+      expect(entry.adapter.limitations.length).toBeGreaterThan(0);
+      for (const command of [entry.adapter.spawn.command, entry.adapter.resume.command]) {
+        if (!command) continue;
+        expect(command.executable).not.toMatch(/\s|[;&|]/);
+        expect(command.args).not.toContain('-c');
+        expect(command.args.join(' ')).not.toMatch(/\s(?:&&|\|\||;)\s/);
+      }
+    }
+  });
+
+  test('capability rows collapse provider routes onto one adapter family', () => {
+    const rows = harnessAdapterCapabilityRows();
+    expect(rows.length).toBeLessThan(BACKEND_CATALOG.length);
+    expect(rows.find((row) => row.family === 'claude-code')).toMatchObject({
+      backendIds: ['cli:claude-code', 'claude-cli'],
+      resume: 'session',
+      transcript: 'harness:claude-jsonl',
+    });
+    expect(rows.find((row) => row.family === 'codex-cli')).toMatchObject({
+      backendIds: ['cli:codex', 'codex'],
+      resume: 'session',
+      transcript: 'harness:codex-rollout-jsonl',
+    });
+    expect(rows.find((row) => row.family === 'cloudflare-workers-ai')).toMatchObject({
+      resume: 'handoff-only',
+      transcript: 'port-daddy:port-daddy-jsonl',
+    });
+    expect(rows.find((row) => row.family === 'aider')).toMatchObject({ resume: 'history' });
+  });
+
+  test('ADR-0118 generated adapter table matches the executable catalog', () => {
+    const adr = readFileSync(new URL('../../docs/adr/0118-harness-adapter-contract.md', import.meta.url), 'utf8');
+    const beginMarker = '<!-- BEGIN GENERATED HARNESS ADAPTER TABLE -->';
+    const endMarker = '<!-- END GENERATED HARNESS ADAPTER TABLE -->';
+    const begin = adr.indexOf(beginMarker);
+    const end = adr.indexOf(endMarker);
+    expect(begin).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(begin);
+    const checkedIn = adr.slice(begin + beginMarker.length, end).trim();
+    expect(checkedIn).toBe(renderHarnessAdapterMarkdown().trim());
+  });
+
+  test('ADR-0118 generated N by N matrix matches executable continuation rules', () => {
+    const adr = readFileSync(new URL('../../docs/adr/0118-harness-adapter-contract.md', import.meta.url), 'utf8');
+    const beginMarker = '<!-- BEGIN GENERATED HARNESS CONTINUATION MATRIX -->';
+    const endMarker = '<!-- END GENERATED HARNESS CONTINUATION MATRIX -->';
+    const begin = adr.indexOf(beginMarker);
+    const end = adr.indexOf(endMarker);
+    expect(begin).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(begin);
+    const checkedIn = adr.slice(begin + beginMarker.length, end).trim();
+    expect(checkedIn).toBe(`\`\`\`text\n${renderHarnessContinuationMatrix().trim()}\n\`\`\``);
   });
 
   test('detectForcedCliBackend maps env values to catalog ids', () => {

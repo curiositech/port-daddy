@@ -42,6 +42,10 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { cliBinarySearchPath, resolveCliBinary } from '../../cli-bin-dirs.js';
 import {
+  sameWorkspaceIdentity,
+  type WorkspaceIdentity,
+} from '../../workspace-identity.js';
+import {
   buildCliTubeArgs,
   CLI_TUBE_PROVIDER_SPECS,
   CLI_TUBE_TOOLS,
@@ -75,7 +79,15 @@ export interface CliTubeOptions {
    * `cli:<tool>:<uuid>`. Pass `null` to suppress publishing.
    */
   tube?: string | null;
-  /** Per-spawn timeout (ms). Default 5 minutes. */
+  /**
+   * Optional wall-clock deadline (ms) for the CLI invocation. When omitted,
+   * NO deadline is enforced — the child may run indefinitely (still
+   * externally observable via `onStreamLine` and the tube channel while it
+   * runs). When set, the full process tree gets SIGTERM at the deadline and
+   * SIGKILL after a grace period, with honest `timedOut` evidence in the
+   * result. This is the CLI's own process deadline, distinct from any
+   * transport/network timeout a caller may apply separately.
+   */
   timeoutMs?: number;
   /** Working directory for the child process. */
   cwd?: string;
@@ -121,6 +133,10 @@ export interface CliTubeOptions {
    * Ignored for CLIs that don't support the flag.
    */
   permissionMode?: CliTubePermissionMode;
+  /** Validated harness-owned session id for native resume. */
+  resumeSessionId?: string;
+  /** Canonical workspace identity rechecked immediately before child spawn. */
+  workspaceIdentity?: WorkspaceIdentity;
 }
 
 export interface CliTubeResult {
@@ -152,7 +168,6 @@ export interface TubeClientLike {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
 const TIMEOUT_KILL_GRACE_MS = 5_000;
 const TIMEOUT_KILL_CLOSE_DEADLINE_MS = 1_000;
 
@@ -179,6 +194,7 @@ export function buildArgs(
   permissionMode?: CliTubePermissionMode,
   codexConfig?: string[],
   timeoutMs?: number,
+  resumeSessionId?: string,
 ): { args: string[]; stdin: string | null } {
   return buildCliTubeArgs(cli, {
     prompt,
@@ -187,6 +203,7 @@ export function buildArgs(
     permissionMode,
     codexConfig,
     timeoutMs,
+    resumeSessionId,
   });
 }
 
@@ -198,7 +215,10 @@ export function buildArgs(
  *   - exit code 0 + non-empty output → success
  *   - exit code != 0 with auth-related stderr → wrapped as auth error
  *     and the wrapper's `nextStep` hint is included in `error`
- *   - timeout → SIGTERM then SIGKILL after 5s; `error` reports timeout
+ *   - no `timeoutMs` (deadline) supplied → no deadline enforced; the child
+ *     runs until it exits on its own, however long that takes
+ *   - explicit `timeoutMs` (deadline) reached → SIGTERM then SIGKILL after
+ *     5s; `error` reports the deadline miss
  *   - binary not found → ENOENT-style error; no retry
  */
 export async function spawnViaCliTube(
@@ -256,7 +276,12 @@ export async function spawnViaCliTube(
   for (const key of provider.stripEnvKeys ?? []) {
     delete env[key];
   }
-  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  // No fallback: an absent deadline means no deadline. `deadlineMs` stays
+  // `undefined` all the way down to `waitForCliChildProcess`, which then
+  // schedules neither a termination timer nor process-tree polling.
+  const deadlineMs = typeof opts.timeoutMs === 'number' && Number.isFinite(opts.timeoutMs)
+    ? opts.timeoutMs
+    : undefined;
   const tubeChannel = opts.tube === null ? null : (opts.tube ?? generateTubeChannel(cli));
 
   // For codex, we use --output-last-message to capture a clean final
@@ -278,10 +303,30 @@ export async function spawnViaCliTube(
     model: opts.model,
     permissionMode: opts.permissionMode,
     codexConfig: opts.codexConfig,
-    timeoutMs,
+    timeoutMs: deadlineMs,
+    resumeSessionId: opts.resumeSessionId,
   });
 
   const startedAt = Date.now();
+
+  if (
+    opts.resumeSessionId
+    && (
+      !opts.workspaceIdentity
+      || !opts.cwd
+      || !sameWorkspaceIdentity(opts.cwd, opts.workspaceIdentity)
+    )
+  ) {
+    if (tempDir) rmSync(tempDir, { recursive: true, force: true });
+    return {
+      output: '',
+      exitCode: 1,
+      error: 'Native resume blocked: canonical workspace identity changed before child launch.',
+      tube: tubeChannel,
+      durationMs: Date.now() - startedAt,
+      rawStdout: '',
+    };
+  }
 
   const child = spawnChild(binary, args, {
     cwd: opts.cwd || process.cwd(),
@@ -336,7 +381,7 @@ export async function spawnViaCliTube(
   let result: CliChildWaitResult;
   try {
     result = await waitForCliChildProcess(child, {
-      timeoutMs,
+      deadlineMs,
       killGraceMs: TIMEOUT_KILL_GRACE_MS,
       killCloseDeadlineMs: TIMEOUT_KILL_CLOSE_DEADLINE_MS,
     });
@@ -372,13 +417,13 @@ export async function spawnViaCliTube(
     if (result.spawnErr.includes('ENOENT') || result.spawnErr.includes('not found')) {
       error = `${cli} binary "${binary}" not found on PATH. Install it and retry. ${provider.authNextStep}`;
     } else if (result.timedOut) {
-      error = `${cli} timed out after ${timeoutMs}ms: ${result.spawnErr}`;
+      error = `${cli} timed out after ${deadlineMs}ms: ${result.spawnErr}`;
     } else {
       error = `Failed to spawn ${binary}: ${result.spawnErr}`;
     }
   } else if (result.timedOut) {
     const detail = formatCliErrorDetail(stderrText || rawStdout);
-    error = `${cli} timed out after ${timeoutMs}ms${detail ? `: ${detail}` : ''}`;
+    error = `${cli} timed out after ${deadlineMs}ms${detail ? `: ${detail}` : ''}`;
   } else if (result.code !== 0) {
     const failureText = stderrText || rawStdout;
     const failureLc = failureText.toLowerCase();

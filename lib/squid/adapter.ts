@@ -36,11 +36,17 @@ import {
   existsSync,
   chmodSync,
 } from 'node:fs';
-import { join, dirname, resolve } from 'node:path';
+import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
-import { fileURLToPath } from 'node:url';
 import { spawn as spawnChild } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
+import {
+  CODEX_PD_MARKER,
+  SQUID_HOOK_STATUS,
+  codexHooksTomlBlock,
+  stripCodexHooksTomlBlock,
+} from './hook-shape.js';
+import { resolveSquidAsset, squidAssetCandidates } from './assets.js';
 
 // ─── Interface (verbatim from ADR §3, plus a `verified` honesty flag) ─────────
 
@@ -125,12 +131,20 @@ export const SQUID_HOOK_METADATA: Record<SquidHookPurpose, SquidHookMetadata> = 
 
 // ─── Tentacle locations ───────────────────────────────────────────────────────
 
-const __adapter_dir = dirname(fileURLToPath(import.meta.url));
-
-/** Absolute path to a pd-hook-* tentacle binary shipped in `bin/`. */
+/**
+ * Absolute path to a pd-hook-* tentacle binary. Resolves across the layouts we
+ * actually ship in, because a compiled single-file `pd` binary has a SYNTHETIC
+ * `import.meta.url` — the old `../../bin` walk from it collapsed to a bogus
+ * `/bin/pd-hook-*`. We therefore prefer the running binary's own directory
+ * (where the release tarball co-locates the tentacles next to `pd`, exactly as
+ * it does `pd-bosun`), then a `bin/` beside it, then the dev-from-source path.
+ */
 export function tentaclePath(name: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool'): string {
-  // lib/squid/adapter.ts → ../../bin/<name>
-  return resolve(__adapter_dir, '..', '..', 'bin', name);
+  const found = resolveSquidAsset(join('bin', name));
+  if (found) return found;
+  // Nothing found — return the installed-layout path so the error names the
+  // place a user would actually look, not a bogus `/bin/...`.
+  return squidAssetCandidates(join('bin', name))[0];
 }
 
 /** Assert the tentacles exist and are executable; throws a clear error if not. */
@@ -188,7 +202,7 @@ function diagnoseJsonHookFile(
   events: Record<string, SquidHookPurpose>,
 ): SquidProviderHookDiagnosis {
   const cfg = readJsonConfig(configPath);
-  const hint = `Run: pd squid hooks --provider ${providerName === 'claude-code' ? 'claude' : providerName}`;
+  const hint = 'Run: pd squid on';
   if (!cfg) {
     return { providerName, binaryName, configPath, ok: false, detail: 'hook config missing or invalid JSON', hint };
   }
@@ -231,7 +245,7 @@ function diagnoseJsonHookFile(
 
 function diagnoseCodexHookFile(workspaceRoot: string): SquidProviderHookDiagnosis {
   const configPath = join(workspaceRoot, '.codex', 'config.toml');
-  const hint = 'Run: pd squid hooks --provider codex';
+  const hint = 'Run: pd squid on';
   if (!existsSync(configPath)) {
     return { providerName: 'codex', binaryName: 'codex', configPath, ok: false, detail: 'hook config missing', hint };
   }
@@ -335,6 +349,7 @@ function runCli(
 interface ClaudeHookCommand {
   type: 'command';
   command: string;
+  statusMessage?: string;
 }
 interface ClaudeHookMatcher {
   name?: string;
@@ -351,12 +366,13 @@ interface ClaudeSettings {
 /** A tentacle command shaped for a Claude Code settings.json hook entry. */
 function claudeHookEntry(command: string, purpose: SquidHookPurpose, matcher?: string): ClaudeHookMatcher {
   const meta = SQUID_HOOK_METADATA[purpose];
+  const statusMessage = SQUID_HOOK_STATUS[purpose];
   return {
     name: meta.displayName,
     description: meta.description,
     privacy: meta.privacy,
     ...(matcher ? { matcher } : {}),
-    hooks: [{ type: 'command', command }],
+    hooks: [{ type: 'command', command, statusMessage }],
   };
 }
 
@@ -620,17 +636,20 @@ export class CodexSquidAdapter implements GiantSquidAdapter {
     const cfgPath = join(workspaceRoot, '.codex', 'config.toml');
     mkdirSync(dirname(cfgPath), { recursive: true });
 
-    const block = codexHooksTomlBlock({
-      prompt: tentaclePath('pd-hook-prompt'),
-      pre: tentaclePath('pd-hook-pre-tool'),
-      post: tentaclePath('pd-hook-post-tool'),
+    const block = codexHooksTomlBlock((name) => tentaclePath(name), {
+      comments: [
+        `Privacy: ${SQUID_HOOK_PRIVACY_NOTICE}`,
+        `${SQUID_HOOK_METADATA.prompt.displayName}: ${SQUID_HOOK_METADATA.prompt.description}`,
+        `${SQUID_HOOK_METADATA.preTool.displayName}: ${SQUID_HOOK_METADATA.preTool.description}`,
+        `${SQUID_HOOK_METADATA.postTool.displayName}: ${SQUID_HOOK_METADATA.postTool.description}`,
+      ],
     });
 
     const existing = existsSync(cfgPath) ? readFileSync(cfgPath, 'utf8') : '';
-    if (existing.includes(CODEX_PD_MARKER)) {
-      return; // already injected — idempotent
-    }
-    writeFileSync(cfgPath, existing + (existing && !existing.endsWith('\n') ? '\n' : '') + block, {
+    const base = stripCodexHooksTomlBlock(existing).replace(/\s*$/, '');
+    const next = `${base}${base ? '\n\n' : ''}${block}`;
+    if (next === existing) return;
+    writeFileSync(cfgPath, next, {
       mode: 0o644,
     });
   }
@@ -684,68 +703,6 @@ export class CodexSquidAdapter implements GiantSquidAdapter {
 
     return runCli(this.binaryName, args, cwd, env, opts.timeoutMs);
   }
-}
-
-// ─── Codex TOML emitter (no TOML dep available) ───────────────────────────────
-
-const CODEX_PD_MARKER = 'Port Daddy Giant Squid Harness tentacles (ADR-0091)';
-
-/** Codex tool-name regex covering edit + shell tools (Codex tool naming). */
-const CODEX_TOOL_MATCHER = 'apply_patch|edit|write|str_replace_editor|shell|run_shell_command';
-
-/** TOML basic-string escape (backslash + double-quote). */
-function tomlString(v: string): string {
-  return '"' + v.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
-}
-
-/**
- * Hand-emit a valid Codex `[hooks]` TOML block. Codex's schema (v0.139.0):
- *   [[hooks.PreToolUse]]            # array-of-tables, one per matcher group
- *   matcher = "<regex>"
- *   [[hooks.PreToolUse.hooks]]      # the commands to run for that group
- *   type = "command"
- *   command = "<abs path>"
- *   timeout = 10
- *   async = false                   # PreToolUse must be SYNC to block
- * PostToolUse is async (fire-and-forget pheromone). UserPromptSubmit is sync.
- */
-function codexHooksTomlBlock(t: { prompt: string; pre: string; post: string }): string {
-  const L: string[] = [];
-  L.push(`# ${CODEX_PD_MARKER}.`);
-  L.push(`# Privacy: ${SQUID_HOOK_PRIVACY_NOTICE}`);
-  L.push(`# ${SQUID_HOOK_METADATA.prompt.displayName}: ${SQUID_HOOK_METADATA.prompt.description}`);
-  L.push(`# ${SQUID_HOOK_METADATA.preTool.displayName}: ${SQUID_HOOK_METADATA.preTool.description}`);
-  L.push(`# ${SQUID_HOOK_METADATA.postTool.displayName}: ${SQUID_HOOK_METADATA.postTool.description}`);
-  L.push('# PreToolUse is synchronous so pd-hook-pre-tool can enforce ADR-0092 coordinate-before-you-cut.');
-  L.push('# PostToolUse is async (compact local coordination trace). UserPromptSubmit is sync (briefing envelope).');
-  L.push('');
-  // UserPromptSubmit (sync)
-  L.push('[[hooks.UserPromptSubmit]]');
-  L.push('[[hooks.UserPromptSubmit.hooks]]');
-  L.push('type = "command"');
-  L.push(`command = ${tomlString(t.prompt)}`);
-  L.push('timeout = 10');
-  L.push('async = false');
-  L.push('');
-  // PreToolUse (sync, the enforced gate)
-  L.push('[[hooks.PreToolUse]]');
-  L.push(`matcher = ${tomlString(CODEX_TOOL_MATCHER)}`);
-  L.push('[[hooks.PreToolUse.hooks]]');
-  L.push('type = "command"');
-  L.push(`command = ${tomlString(t.pre)}`);
-  L.push('timeout = 10');
-  L.push('async = false');
-  L.push('');
-  // PostToolUse (async pheromone)
-  L.push('[[hooks.PostToolUse]]');
-  L.push(`matcher = ${tomlString(CODEX_TOOL_MATCHER)}`);
-  L.push('[[hooks.PostToolUse.hooks]]');
-  L.push('type = "command"');
-  L.push(`command = ${tomlString(t.post)}`);
-  L.push('timeout = 10');
-  L.push('async = true');
-  L.push('');
-  return L.join('\n');
 }
 
 // ─── AntigravitySquidAdapter (agy) — IMPLEMENTED ──────────────────────────────

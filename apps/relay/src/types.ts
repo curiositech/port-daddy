@@ -28,6 +28,15 @@ export interface Env {
   // MUST equal the fleet-executor's RUN_PAGE_SECRET. Optional: unset ⇒ the page
   // only opens with the operator token.
   RUN_PAGE_SECRET?: string;
+  // Previous run-page HMAC secret, accepted during a rotation grace window
+  // (ADR-0101 Z1). Optional; unset ⇒ single-key verification.
+  RUN_PAGE_SECRET_PREV?: string;
+  // GitHub login BFF (ADR-0101 Phase 1). Reuses the existing GitHub App's OAuth
+  // client. Login is DISABLED unless all four are set (page/API return 503).
+  GITHUB_OAUTH_CLIENT_ID?: string;      // var (the App's client id)
+  GITHUB_OAUTH_CLIENT_SECRET?: string;  // secret
+  USER_TOKEN_WRAPPING_KEY?: string;     // secret, 32-byte hex; AES-GCM wraps the gh token
+  PUBLIC_BASE_URL?: string;             // var, relay's public origin; redirect_uri base
   // GitHub App credentials — fleet control-plane config read + save (PR) path.
   // GITHUB_APP_PRIVATE_KEY is a secret (PEM); the rest may be vars.
   GITHUB_APP_ID?: string;
@@ -35,6 +44,35 @@ export interface Env {
   GITHUB_OWNER?: string;                  // repo owner (e.g. 'port-daddy-dev')
   GITHUB_REPO?: string;                   // repo name (e.g. 'port-daddy')
   DEFAULT_BRANCH?: string;                // trusted ref the executor reads from
+  // Stripe billing + prepaid credits (ADR-0116). The relay is the billing
+  // authority. Billing endpoints return 503 (BILLING_UNCONFIGURED) unless both
+  // secrets are set, so the relay still deploys before Stripe is provisioned.
+  STRIPE_SECRET_KEY?: string;             // secret — Stripe REST Bearer token
+  STRIPE_WEBHOOK_SECRET?: string;         // secret — whsec_… HMAC for /billing/webhook
+  // Optional preconfigured Stripe Price ids per credit pack. When unset the
+  // checkout session builds an inline price_data at the pack's amount instead.
+  STRIPE_PRICE_STARTER?: string;
+  STRIPE_PRICE_PRO?: string;
+  STRIPE_PRICE_TEAM?: string;
+  // MERCY paging (src/mercy.ts). Optional secret: a webhook URL POSTed exactly
+  // once per unresolved red incident (PagerDuty Events / Grafana OnCall /
+  // Cloudflare Notifications bridge — see docs/mercy-oncall.md). Unset ⇒
+  // incidents are still recorded in D1, but nobody is paged.
+  MERCY_PAGE_WEBHOOK?: string;
+  // Workers AI model id for the Shipwright chat (src/shipwright.ts). A var,
+  // not a secret. Optional: unset ⇒ the module's committed default is used.
+  SHIPWRIGHT_MODEL?: string;
+  // X4 mediator body opt-in (src/mediator.ts). The relay-side analogue of the
+  // fleet's per-tenant `xo:` / `squidEvents:` consent keys. A var, not a
+  // secret. ONLY the exact string 'on' enables the pd-mediator seat's
+  // observation behavior; unset or anything else ⇒ OFF (the honest v1 seat
+  // with no body, and not one token of model spend).
+  PARLEY_MEDIATOR?: string;
+  // Workers AI model id for the mediator's observations. A var, not a secret.
+  // Optional: unset ⇒ mediator.ts's committed default. A NON-`@cf/` value is
+  // REJECTED (not honored) — Workers AI only, never Anthropic/Claude Code/an
+  // external runner. See resolveMediatorModel.
+  PARLEY_MEDIATOR_MODEL?: string;
   // Vars from wrangler.toml
   RELAY_VERSION: string;
   EVENT_RETENTION_DAYS: string;

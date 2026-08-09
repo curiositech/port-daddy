@@ -18,17 +18,39 @@
 #   3. Set secrets:
 #        echo "<value>" | wrangler secret put RELAY_OPERATOR_TOKEN
 #        echo "<value>" | wrangler secret put RELAY_ED25519_PRIVATE_KEY_HEX
+#        # GitHub login (ADR-0101 Phase 1) — login stays DISABLED (503) until all
+#        # four of GITHUB_OAUTH_CLIENT_ID (var, below), PUBLIC_BASE_URL (var,
+#        # below), and these two secrets are present:
+#        cat client-secret.txt        | wrangler secret put GITHUB_OAUTH_CLIENT_SECRET
+#        openssl rand -hex 32         | wrangler secret put USER_TOKEN_WRAPPING_KEY
+#        # Also register the OAuth callback on the GitHub App:
+#        #   https://<relay-origin>/auth/github/callback
 #
 #   4. Deploy:
 #        wrangler deploy
 #
 # Local dev:
 #   wrangler dev --local   (uses local D1 sqlite, local DO)
+#
+# RELEASE CHANNELS (ADR-0119): the TOP-LEVEL config below is PROD
+# (port-daddy-relay @ relay.portdaddy.dev), deployed ONLY from a release tag
+# (v*) by .github/workflows/deploy-relay-prod.yml via `wrangler versions
+# upload` + `wrangler versions deploy`. The [env.latest] block at the bottom is
+# the per-merge staging channel (relay-latest + staging D1), deployed on every
+# push to main by .github/workflows/deploy-relay.yml.
 
 name = "port-daddy-relay"
 main = "src/index.ts"
 compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
+
+# Branded public origin. Requires the `portdaddy.dev` zone on this Cloudflare
+# account; `wrangler deploy` then provisions the cert + DNS for the hostname.
+# The Worker keeps its default *.workers.dev URL too, so already-minted run-page
+# links stay resolvable during the cutover.
+routes = [
+  { pattern = "relay.portdaddy.dev", custom_domain = true },
+]
 
 [vars]
 RELAY_VERSION = "0.1.0"
@@ -38,11 +60,32 @@ JWKS_CACHE_TTL_SECONDS = "600"
 JWKS_FAIL_SOFT_SECONDS = "3600"
 REVOCATION_BROADCAST_TIMEOUT_MS = "5000"
 RATE_LIMIT_WINDOW_MS = "60000"
+# GitHub login BFF (ADR-0101 Phase 1). Public, non-secret values. The client id
+# is the existing GitHub App's OAuth client id (public); PUBLIC_BASE_URL is the
+# relay's own origin and is the exact base of the registered redirect_uri.
+# Login is disabled until the two matching secrets are also set (see header).
+GITHUB_OAUTH_CLIENT_ID = "Iv23litgGckMU4QVW4i8"
+PUBLIC_BASE_URL = "https://relay.portdaddy.dev"
+# Workers AI model for the Shipwright chat (src/shipwright.ts). A plain var so
+# operators can retarget without a code deploy; unknown ids fail the AI call
+# with an honest AI_ERROR, they never remap silently.
+SHIPWRIGHT_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+# X4 mediator body (src/mediator.ts) — the relay-side analogue of the fleet's
+# `xo:` / `squidEvents:` consent keys. DEFAULT OFF: only the exact string "on"
+# gives the reserved pd-mediator seat its observation behavior. While off, the
+# seat renders exactly as the honest v1 it shipped as and no tokens are spent.
+# The mediator can never sign, be a party, affect agreement, or change a
+# deadline — that is enforced in code, not by this switch.
+PARLEY_MEDIATOR = "off"
+# Workers AI model for those observations. A NON-`@cf/` value is REJECTED (the
+# committed default is used instead) — Workers AI only, never an external runner.
+PARLEY_MEDIATOR_MODEL = "@cf/meta/llama-3.1-8b-instruct"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "port-daddy-relay"
 database_id = "0907431b-9af0-48b5-b2b0-07e6b660bd41"
+migrations_dir = "migrations"
 
 [durable_objects]
 bindings = [
@@ -58,6 +101,12 @@ new_classes = ["HarborChannel"]
 binding = "KV"
 id = "4dc3eaaefbf14b1b90c0d60621b610ae"
 
+# Workers AI — fleet smoke-test/optimize-prompt (fleet-control.ts) + the
+# Shipwright chat (shipwright.ts). Env.AI is optional in code, so the Worker
+# still deploys if this block is removed; handlers fail closed without it.
+[ai]
+binding = "AI"
+
 # Fleet-executor handoff: relay enqueues one FleetRunJob per GitHub delivery.
 [[queues.producers]]
 binding = "FLEET_RUNS"
@@ -65,3 +114,124 @@ queue = "fleet-runs"
 
 [observability]
 enabled = true
+
+# Cron Triggers. One scheduled() handler dispatches on event.cron:
+#   "0 */6 * * *"  — ADR-0101 retention + session-reap + erasure hard-delete
+#                    sweep (plus a MERCY sweep — every fire takes vitals).
+#   "*/5 * * * *"  — MERCY v1 hospital-ship health sweep (src/mercy.ts): D1
+#                    read/write latency, KV echo, DO channel echo, queue-binding
+#                    presence, fleet-executor liveness, 24h error rate. Writes
+#                    one mercy_health snapshot per fire; red transitions open a
+#                    mercy_incidents row and page MERCY_PAGE_WEBHOOK once.
+#
+# MERCY paging secret (optional — incidents are recorded either way):
+#   echo "https://…" | wrangler secret put MERCY_PAGE_WEBHOOK
+# The URL is treated as a secret (PagerDuty/Grafana OnCall ingest URLs embed
+# credentials). See docs/mercy-oncall.md for the PagerDuty / Cloudflare
+# Notifications bridge and the honest limits of Cloudflare-native alerting.
+[triggers]
+crons = ["0 */6 * * *", "*/5 * * * *"]
+
+# ---------------------------------------------------------------------------
+# LATEST channel (ADR-0119) — the per-merge staging Worker: relay-latest.
+#
+# Deployed on every push to main by .github/workflows/deploy-relay.yml
+# (`wrangler deploy --env latest`). No custom domain — it lives on its
+# *.workers.dev URL. It binds its OWN staging D1 (below) so a merge can never
+# touch production data; migrations are rehearsed here first and recorded in
+# migrations/applied-staging.json before the prod gate lets them ship.
+#
+# NOTE: Wrangler environments do NOT inherit top-level vars/bindings — every
+# binding is repeated here on purpose. Keep this block in lockstep with the
+# prod config above when adding a binding or var. Durable Object [[migrations]]
+# ARE shared (top-level) across environments.
+#
+# One-time provisioning for this environment:
+#
+#   1. Create the staging D1 database and paste its id below:
+#        wrangler d1 create port-daddy-relay-staging
+#   2. Set the latest-channel secrets (independent of prod's):
+#        echo "<value>" | wrangler secret put RELAY_OPERATOR_TOKEN --env latest
+#        echo "<value>" | wrangler secret put RELAY_ED25519_PRIVATE_KEY_HEX --env latest
+#        # (plus GITHUB_WEBHOOK_SECRET / login secrets if exercising those paths)
+#   3. First deploy (CI does this on the next merge anyway):
+#        wrangler deploy --config wrangler.deploy.toml --env latest
+
+[env.latest]
+name = "relay-latest"
+
+# CRITICAL: environments INHERIT top-level `routes`, which carries the custom
+# domain relay.portdaddy.dev. Without this empty override, `wrangler deploy
+# --env latest` reassigns the PRODUCTION domain to the staging Worker — wrangler
+# says so in a warning that is easy to miss in CI logs:
+#   "The 'env.latest' environment inherits the top-level 'routes' configuration,
+#    which includes the custom domain(s): relay.portdaddy.dev. Deploying this
+#    environment will reassign these custom domains away from the top-level
+#    Worker."
+# The latest channel lives on its *.workers.dev URL and must own no domain.
+routes = []
+
+[env.latest.vars]
+RELAY_VERSION = "0.1.0"
+EVENT_RETENTION_DAYS = "7"
+SESSION_TTL_SECONDS = "3600"
+JWKS_CACHE_TTL_SECONDS = "600"
+JWKS_FAIL_SOFT_SECONDS = "3600"
+REVOCATION_BROADCAST_TIMEOUT_MS = "5000"
+RATE_LIMIT_WINDOW_MS = "60000"
+GITHUB_OAUTH_CLIENT_ID = "Iv23litgGckMU4QVW4i8"
+# The latest channel's own origin. Replace <account> with this Cloudflare
+# account's workers.dev subdomain (shown by `wrangler deploy --env latest`).
+# Login stays disabled unless the matching secrets are set for --env latest.
+PUBLIC_BASE_URL = "https://relay-latest.erich-owens.workers.dev"
+SHIPWRIGHT_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+# X4 mediator body (src/mediator.ts) — the relay-side analogue of the fleet's
+# `xo:` / `squidEvents:` consent keys. DEFAULT OFF: only the exact string "on"
+# gives the reserved pd-mediator seat its observation behavior. While off, the
+# seat renders exactly as the honest v1 it shipped as and no tokens are spent.
+# The mediator can never sign, be a party, affect agreement, or change a
+# deadline — that is enforced in code, not by this switch.
+PARLEY_MEDIATOR = "off"
+# Workers AI model for those observations. A NON-`@cf/` value is REJECTED (the
+# committed default is used instead) — Workers AI only, never an external runner.
+PARLEY_MEDIATOR_MODEL = "@cf/meta/llama-3.1-8b-instruct"
+
+[[env.latest.d1_databases]]
+binding = "DB"
+database_name = "port-daddy-relay-staging"
+# PLACEHOLDER — provision with `wrangler d1 create port-daddy-relay-staging`
+# and paste the returned database_id here. CI deploys of --env latest fail
+# with a clear "database not found" until this is a real id.
+database_id = "2239f238-c5f1-423a-ba62-448a4c4d8f59"
+migrations_dir = "migrations"
+
+# Same DO class as prod; environments get their OWN namespace instance, so
+# relay-latest's HarborChannel state is fully isolated from prod's.
+[env.latest.durable_objects]
+bindings = [
+  { name = "HARBOR_CHANNEL", class_name = "HarborChannel" },
+]
+
+[[env.latest.kv_namespaces]]
+# JWKS cache and pinned relay key cache — shared with prod is acceptable
+# (pure cache, keyed by issuer URL), so the same namespace id is reused.
+binding = "KV"
+id = "4dc3eaaefbf14b1b90c0d60621b610ae"
+
+# Workers AI binding — environments do NOT inherit top-level bindings, so the
+# [ai] block is repeated here on purpose (see the NOTE above).
+[env.latest.ai]
+binding = "AI"
+
+# Same queue as prod: staging deliveries would enqueue real fleet runs, so the
+# latest channel keeps the producer binding for parity but points at a staging
+# queue. Provision once: `wrangler queues create fleet-runs-staging`.
+[[env.latest.queues.producers]]
+binding = "FLEET_RUNS"
+queue = "fleet-runs-staging"
+
+[env.latest.observability]
+enabled = true
+
+[env.latest.triggers]
+crons = ["0 */6 * * *", "*/5 * * * *"]

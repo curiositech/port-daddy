@@ -110,6 +110,12 @@ const TOOL_FEATURE_MAP = {
   'agent_heartbeat': 'agents',
   'list_agents': 'agents',
   'active_agent_roster': 'agents',
+  'durable_agent_roster': 'durable_agent_roster',
+  'create_durable_agent': 'durable_agent_roster',
+  'promote_session_to_durable_agent': 'durable_agent_roster',
+  'attach_durable_agent_handoff': 'durable_agent_roster',
+  'continue_durable_agent': 'durable_agent_roster',
+  'harness_continuation_matrix': 'backend',
 
   // Salvage
   'check_salvage': 'salvage',
@@ -326,6 +332,9 @@ const MCP_EXEMPT_FEATURES = new Set([
   'recovery',       // PR #65 magic-link account recovery. API-only single-use token issue/consume consumed by out-of-band recovery flows (proofs/bonded/recovery/magic-link.pv). Intentionally NO MCP surface — an agent must not be able to mint or consume account-recovery tokens.
   'dispatch',       // PR #163 operator queue for autonomous feature dev (ADR-0035). Operator-driven: `pd dispatch/nightshift/review/morning` + POST/GET /dispatches over the daemon queue. Workers are spawned by the daemon, not by an agent calling a tool mid-turn; accept/reject is a human/operator decision. CLI/HTTP-only, MCP wrapper deferred (same posture as popper).
   'fleet_hitl_proposals', // Operator HITL queue for fleet ship ideas. Ships submit inert proposals over HTTP; approve/reject happens in FleetBar/pd-console and approval hands off to dispatch. No MCP tool should let an agent approve its own proposal.
+  'suggest',        // PR #322 Tender suggestion queue. Same self-approval hazard as fleet_hitl_proposals: the Tender ship writes suggestions and `POST /fleet/suggestions/:id/approve` fires a one-shot ship run, so an MCP tool would let a fleet agent approve — and fund — its own fleet's suggestion. Operator-driven via `pd suggest` / FleetBar. Intentionally NO MCP surface.
+  'fleet_registry', // PR #322 Tender ship-health registry. GET/POST /fleet/registry is the Tender's health-score data plane consumed by FleetBar and pd-console (operator read model, same posture as transcripts/resource_governance), and POST /fleet/run/:ship fires a ship run — the same inversion popper and dispatch avoid (the model deciding to spend on a run mid-turn). CLI/HTTP-only, MCP wrapper deferred.
+  'seamanship',     // PR #322 skill registry (`pd seamanship list/search/show/sync/outcomes/index`, alias `pd skills`). Agents do not reach skills through a tool call today: harnesses load SKILL.md directly and fleet ships receive them via the pd-fleet.yml `graft:` key, resolved server-side from the trusted branch. A search/show MCP wrapper is the natural surface once the Phase 3 BM25+Tool2Vec catalog engine lands; deferred until then rather than wrapping the Phase 1 substring scan.
   'transcripts',    // Fleet ship-run records. Operator-facing read/delete surface (`pd transcripts`, routes/transcripts.ts) consumed by the FleetBar/dashboard ship-run views. Read-only telemetry browsing, not an agent-driving tool; MCP wrapper deferred.
   'relay',          // Cloud relay config/status (ADR-0049). CLI `pd relay url/status/exchange` + HTTP daemon routes for relay config. Relay exchange is an operator/CI token operation; agents use the relay channel directly, not a tool that calls /relay/exchange. MCP wrapper deferred.
   'session_galaxy', // 2-D embedding map of recent agent sessions (routes/galaxy.ts: GET /galaxy/map + /galaxy/session/:id). An operator visualization surface consumed by fleet-ui, pd-console, and the FleetBar webview — cross-session t-SNE scatter data is for human eyes, not an agent-driving tool (an agent inspecting peers uses the sessions/transcripts/parley surfaces directly). MCP wrapper deferred indefinitely.
@@ -770,11 +779,11 @@ describe('MCP tiered tool loading', () => {
     'begin_session', 'end_session_full', 'whoami',
     'claim_port', 'release_port', 'add_note',
     'acquire_lock', 'list_services',
-    'fleet_init', 'swarm_awareness', 'coordination_preflight', 'catch_me_up', 'spawn',
+    'fleet_init', 'swarm_awareness', 'durable_agent_roster', 'coordination_preflight', 'catch_me_up', 'spawn',
   ];
 
   const CATEGORY_NAMES = [
-    'magic', 'session-lifecycle', 'trust', 'safety', 'advisor', 'ports', 'sessions', 'notes', 'locks',
+    'magic', 'roster', 'session-lifecycle', 'trust', 'safety', 'advisor', 'ports', 'sessions', 'notes', 'locks',
     'messaging', 'agents', 'actors', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
     'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples',
     'fleet-control', 'semantic', 'feedback', 'cockpit',
@@ -825,10 +834,10 @@ describe('MCP tiered tool loading', () => {
     }
   });
 
-  it('tiered mode should expose 14 tools (13 essential + pd_discover)', () => {
+  it('tiered mode should expose 15 tools (14 essential + pd_discover)', () => {
     // In default (non-full) mode, only essential + pd_discover are listed
     const tieredCount = ESSENTIAL_NAMES.length + 1; // +1 for pd_discover
-    expect(tieredCount).toBe(14);
+    expect(tieredCount).toBe(15);
   });
 });
 

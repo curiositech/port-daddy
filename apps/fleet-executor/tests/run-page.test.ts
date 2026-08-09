@@ -17,13 +17,15 @@ describe('runDetailsUrl', () => {
     expect(await runDetailsUrl({ RUN_DETAILS_BASE_URL: BASE, RUN_PAGE_SECRET: 'short' }, 'run:d1')).toBeNull();
   });
 
-  it('builds <base>/fleet/runs/<id>?t=<hmac> with the id URL-encoded and base trimmed', async () => {
+  it('builds <base>/fleet/runs/<id>?t=v1.<hmac> with the id URL-encoded and base trimmed', async () => {
     const url = await runDetailsUrl(
       { RUN_DETAILS_BASE_URL: BASE + '/', RUN_PAGE_SECRET: SECRET },
       'run:d/1',
     );
     const token = await runPageToken(SECRET, 'run:d/1');
-    expect(url).toBe(`${BASE}/fleet/runs/run%3Ad%2F1?t=${token}`);
+    // ADR-0101 Z1: the token carries a `v1.` version prefix so the relay can
+    // rotate its signing secret without invalidating already-stamped links.
+    expect(url).toBe(`${BASE}/fleet/runs/run%3Ad%2F1?t=v1.${token}`);
     expect(token).toMatch(/^[0-9a-f]{64}$/);
   });
 

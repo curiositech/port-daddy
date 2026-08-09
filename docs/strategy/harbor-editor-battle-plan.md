@@ -56,7 +56,7 @@ Each open file = one `LoroDoc` holding a `LoroText`. Every actor gets a stable L
 - **LAN (P4):** iroh 1.0 QUIC/mDNS for direct P2P doc+ephemeral sync, host daemon's tube SSE as the coordination bus. **iroh is net-new — it appears nowhere in the codebase today** (verified), so it is gated behind a topology phase, never the critical path.
 - **Remote (P5):** daemon on a remote host over the partially-built relay (`lib/relay-client.ts`, `routes/relay.ts` exist; ADR-0027/0049 mesh is design-plus-partial, **not** the full iroh-relay NAT-traversal stack); Loro's E2E-encrypted doc channel keeps buffer contents private — only ciphertext + signed claim metadata transit the relay.
 
-**Bespoke viz (Track B, isolated).** `pd-timeline-proto` (Vello 0.3 + Parley + wgpu, `core/pd-timeline-proto/src/{data,scene,main}.rs`, M4 Max confirmed) renders a living-harbor presence/causal-thread overlay fed by `GET /activity/timeline`. Stays **workspace-excluded with its own Cargo.lock** so heavy GPU deps never hit the Linux CI gate (mirrors the current arrangement; FleetPopoverTests rot is the cautionary tale). NOT on the critical path.
+**Bespoke viz (Track B, isolated).** `pd-timeline-proto` (Vello 0.3 + Parley + wgpu, `core/pd-timeline-proto/src/{data,scene,main}.rs` — proposed, unbuilt, M4 Max confirmed) renders a living-harbor presence/causal-thread overlay fed by `GET /activity/timeline`. Stays **workspace-excluded with its own Cargo.lock** so heavy GPU deps never hit the Linux CI gate (mirrors the current arrangement; FleetPopoverTests rot is the cautionary tale). NOT on the critical path.
 
 **Agent bridge.** `agent.rs` conversation mux (629 LOC, 8 backends, per-agent tube channel, typed SSE `StreamEnvelope`s) gives inline per-file agent chat + steering for free. Plus an **ACP+MCP bridge** (grafted from B): expose PD claims/guard/salvage/nudge to ACP agents so PD coordinates the agents Zed/JetBrains already host — coordinate-the-swarm even if our own editor lags.
 
@@ -102,11 +102,25 @@ Agents reach all of this through agent-neutral MCP tools (`claim_region`, `relea
 
 ## 7. The first two weeks (what to build Monday)
 
+> **HISTORICAL — P0 through P3 described below are SHIPPED, not next-up.** This
+> section was written before the build started; read it as a record of intent,
+> not a to-do list. Confirmed merged on `origin/main`: P0 read-only editor
+> surface (#563), the editor perf rescue / virtualized `CodeBuffer` (#896), P2
+> LAN substrate — editor_sync/edit+coord channels/presence/blob (#727), P3
+> agents-as-peers + region claims + wedge + commit gate (#728), the wedge wired
+> into the live app stages 1+2 (#729), and the P3.5 salvage proptest
+> foundation (#1539). What is genuinely still open: P1 *interactive* human
+> keystroke editing (live text input/undo/tree-sitter reparse — unbuilt), the
+> P3.5 end-to-end salvage demo (unbuilt), the claim-validator 409 write-block
+> (#983, open), and P4 capability enforcement / P5 remote-harbor (both
+> unbuilt). #2237 (file navigator), #3140 (pane snap-drag), and #1960 (editor
+> reskin) are also open, unmerged follow-on work, not part of the plan below.
+
 **Worktree, branch, coordinate first** (`git worktree add ~/coding/tmp/harbor-editor-p0 -b harbor-editor-p0`; `pd begin --identity port-daddy:editor:p0`; claim `core/pd-console/src/mux.rs` + a new `editor.rs`).
 
 **Week 1 — P0 walking skeleton (reuse-only, zero buffer work):**
 1. Add `SurfaceKind::Editor { path: String, region: Option<(u32,u32)> }` to `mux.rs:33`; extend the `title()` match (mux.rs:65) and `bind_entity` (mux.rs:266) to repoint the path.
-2. New `core/pd-console/src/editor.rs`: a read-only `Pane` impl — `view()` renders file lines as `Block::Row`s with a gutter column; `refresh()` reads the file (later: daemon `/blob`). Renders in **both** GPUI (`app.rs`) and ratatui (`term.rs`) — prove one-pane-two-faces before any CRDT.
+2. New `core/pd-console/src/editor.rs` <!-- cite-exempt: historical filename — shipped as core/pd-console/src/editor_pane.rs -->: a read-only `Pane` impl — `view()` renders file lines as `Block::Row`s with a gutter column; `refresh()` reads the file (later: daemon `/blob`). Renders in **both** GPUI (`app.rs`) and ratatui (`term.rs`) — prove one-pane-two-faces before any CRDT.
 3. Wire `FileTree` selection → `Workspace::split(Dir, SurfaceKind::Editor{..})`. Unit-test the new mux path alongside the existing `split_creates_two_panes` test (mux.rs:417).
 4. **Exit criterion:** open a file from the tree into a real editor pane in the GPUI window; same file shows in the TUI. No buffer yet — this de-risks the surface with zero from-scratch cost.
 

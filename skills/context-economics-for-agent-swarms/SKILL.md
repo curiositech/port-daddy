@@ -97,14 +97,28 @@ buying degradation, not capability.
 
 ### 2. Which compaction strategy when context fills
 
+**Two families of move, both non-destructive when done right.** *Macro-compaction*
+operates on message *ranges*: lay a non-destructive **overlay** over a span of cold
+history — a pointer overlay when the range is reconstructable, a summary overlay when it
+isn't — and never delete the original, so you can always zoom back. When you re-summarize,
+pass the *old summary back in view* and update it rather than re-deriving from scratch
+(that iterative discipline is what stops recursive-summarization collapse — see FAILURE
+MODES). *Micro-compaction* is the cheap read-time pass underneath: truncate individual
+aged tool outputs (keep the last ~4 intact, replace oversized rows with previews)
+continuously, long before you reach for a macro pass.
+
 ```
 Is the dropped content reconstructable from a durable artifact (git, DB, files)?
-├─ YES → prefer EVICTION + POINTER. Drop the bytes, keep a path/ID to re-fetch.
-│         (Cheapest, lossless-by-reference. PD's claims/notes/tuples are pointers.)
+├─ YES → prefer EVICTION + POINTER — macro-compaction as a POINTER OVERLAY. Keep a
+│         path/ID/summary in place of the raw bytes; the original stays reachable,
+│         zoom-back intact. (Cheapest, lossless-by-reference. PD's claims/notes/tuples
+│         are pointers.)
 └─ NO  → must SUMMARIZE. Choose:
     ├─ Single long thread nearing the limit
-    │   → IN-CONTEXT COMPACTION: summarize history, reinitiate window with the
-    │     summary + recent artifact refs. Maximize RECALL first, then trim for precision.
+    │   → IN-CONTEXT COMPACTION — macro-compaction as a SUMMARY OVERLAY: summarize
+    │     history *ranges*, reinitiate the window with the summary + recent artifact refs.
+    │     Keep the old summary in view and originals underneath; never delete outright.
+    │     Maximize RECALL first, then trim for precision.
     ├─ Long task with milestones
     │   → STRUCTURED NOTE-TAKING: agent writes durable notes OUTSIDE the window,
     │     pulls them back on demand. (PD: `pd note`, episodic memory.)
@@ -112,6 +126,18 @@ Is the dropped content reconstructable from a durable artifact (git, DB, files)?
         → SUB-AGENT ISOLATION: spawn clean-window workers, each returns a
           1–2K digest. Isolation IS compaction — the parent never sees the bloat.
 ```
+
+> **Boundary rule — never split a pair.** Any move that summarizes or truncates message
+> history — macro range overlays and micro tool-output truncation alike — must shift its
+> boundaries so a `tool_use` and its matching `tool_result` are never separated. Drop one
+> and keep the other and you get a hard 400 that only `/clear` fixes: this is the
+> claude-code #14173 / #40305 failure class, and it is exactly why boundary-aware ranges
+> exist. Make it a precondition on every compaction step, not a cleanup afterthought.
+
+*Durable-agents cross-reference:* micro/macro compaction, overlays, and boundary-aware
+ranges are the *in-session* half of the durable-agent picture. For the full industry
+comparison (Cloudflare, Temporal, LangGraph, Letta) and how Port Daddy's primitives map
+onto it, see `docs/research/durable-agents-landscape-2026-07.md`.
 
 ### 3. Shared digest (the swarm's compaction) — granularity
 

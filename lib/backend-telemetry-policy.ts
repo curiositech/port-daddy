@@ -244,7 +244,7 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
         return blocked(
           backend,
           'Ollama model is required; pass --model to anchor an exact rate.',
-          'Re-run with --model <name>, e.g. --model qwen2.5-coder:7b.'
+          `Re-run with --model <name>, e.g. --model ${resolveModel({ backend: 'ollama', capability: 'cheap' })}.`
         );
       }
       if (!hasExactModelRate(effectiveModel, 'ollama')) {

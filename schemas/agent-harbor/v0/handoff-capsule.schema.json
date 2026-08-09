@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/handoff-capsule.schema.json",
+  "title": "HandoffCapsuleV0",
+  "description": "Backend-neutral, allowlisted continuation context. Operator turns and durable decisions are mandatory context; transcript tail and artifact summaries are budget-degradable. Only a redacted capsule that passes the local structured scanner and external gitleaks stdin may cross the handoff boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.handoff-capsule.v0" },
+    "capsuleId": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "capturedAt": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "adapter": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "sessionId": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "agentId": { "type": ["string", "null"], "maxLength": 1024 },
+        "workflowId": { "type": ["string", "null"], "maxLength": 1024 },
+        "transcriptRef": { "type": ["string", "null"], "maxLength": 32768 }
+      },
+      "required": ["adapter", "sessionId", "agentId", "workflowId", "transcriptRef"]
+    },
+    "target": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "adapter": { "type": ["string", "null"], "maxLength": 1024 },
+        "agentId": { "type": ["string", "null"], "maxLength": 1024 }
+      },
+      "required": ["adapter", "agentId"]
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": { "type": ["string", "null"], "maxLength": 1024 },
+        "projectDir": { "type": ["string", "null"], "maxLength": 32768 },
+        "harbor": { "type": ["string", "null"], "maxLength": 1024 }
+      },
+      "required": ["project", "projectDir", "harbor"]
+    },
+    "workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cwd": { "type": ["string", "null"], "maxLength": 32768 },
+        "repoRoot": { "type": ["string", "null"], "maxLength": 32768 },
+        "branch": { "type": ["string", "null"], "maxLength": 32768 },
+        "worktreeId": { "type": ["string", "null"], "maxLength": 1024 },
+        "gitHead": { "type": ["string", "null"], "maxLength": 1024 },
+        "dirtyFiles": { "type": "array", "maxItems": 5000, "items": { "type": "string", "minLength": 1, "maxLength": 32768 } }
+      },
+      "required": ["cwd", "repoRoot", "branch", "worktreeId", "gitHead", "dirtyFiles"]
+    },
+    "telos": { "type": "string", "minLength": 1, "maxLength": 131072 },
+    "operatorTurns": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "at": { "type": ["string", "null"], "maxLength": 128 },
+          "text": { "type": "string", "minLength": 1, "maxLength": 1048576 }
+        },
+        "required": ["id", "at", "text"]
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "at": { "type": ["string", "null"], "maxLength": 128 },
+          "text": { "type": "string", "minLength": 1, "maxLength": 131072 },
+          "source": { "enum": ["operator", "agent", "coordination"] }
+        },
+        "required": ["id", "at", "text", "source"]
+      }
+    },
+    "coordination": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "at": { "type": ["string", "null"], "maxLength": 128 },
+          "text": { "type": "string", "minLength": 1, "maxLength": 131072 },
+          "kind": { "enum": ["scope", "result", "blocker", "note"] }
+        },
+        "required": ["id", "at", "text", "kind"]
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": { "type": "string", "minLength": 1, "maxLength": 32768 },
+          "kind": { "type": ["string", "null"], "maxLength": 128 },
+          "summary": { "type": ["string", "null"], "maxLength": 131072 },
+          "sourceBlockId": { "type": ["string", "null"], "maxLength": 1024 }
+        },
+        "required": ["path", "kind", "summary", "sourceBlockId"]
+      }
+    },
+    "tail": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "at": { "type": ["string", "null"], "maxLength": 128 },
+          "text": { "type": "string", "minLength": 1, "maxLength": 1048576 },
+          "role": { "enum": ["operator", "assistant", "tool", "system"] }
+        },
+        "required": ["id", "at", "text", "role"]
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requestedTokens": { "type": ["integer", "null"], "minimum": 1 },
+        "estimatedTokens": { "type": "integer", "minimum": 1 },
+        "omitted": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tail": { "type": "integer", "minimum": 0 },
+            "artifacts": { "type": "integer", "minimum": 0 }
+          },
+          "required": ["tail", "artifacts"]
+        }
+      },
+      "required": ["requestedTokens", "estimatedTokens", "omitted"]
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "state": { "enum": ["clean", "redacted"] },
+        "allowlistedFieldsOnly": { "const": true },
+        "redactedValues": { "type": "integer", "minimum": 0 },
+        "localScanner": { "const": "port-daddy-gitleaks-rules" },
+        "externalScanner": { "const": "gitleaks-stdin" },
+        "failClosed": { "const": true }
+      },
+      "required": ["state", "allowlistedFieldsOnly", "redactedValues", "localScanner", "externalScanner", "failClosed"]
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "contentHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      },
+      "required": ["algorithm", "contentHash"]
+    }
+  },
+  "required": [
+    "schema",
+    "capsuleId",
+    "capturedAt",
+    "source",
+    "target",
+    "identity",
+    "workspace",
+    "telos",
+    "operatorTurns",
+    "decisions",
+    "coordination",
+    "artifacts",
+    "tail",
+    "budget",
+    "safety",
+    "integrity"
+  ]
+}

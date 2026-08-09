@@ -3,7 +3,8 @@
  * nightshift queue onto ADR-0035's schema and 8-state machine.
  *
  * Covers every transition in the state machine, the migration from
- * nightshift_intents, the merge_policy gate (auto refused without PR #141),
+ * nightshift_intents, the merge_policy column (review|auto|never — 'auto'
+ * merges are gated by lib/dispatch/auto-merge.ts, see dispatch-auto-merge.test.js),
  * and the base_branch column.
  */
 
@@ -134,10 +135,9 @@ describe('propose', () => {
     expect(() => queue.propose({ goal: 'foo', timeoutMs: 0 })).toThrow(/timeout/);
   });
 
-  test('refuses merge_policy=auto without harbormaster (PR #141)', () => {
-    expect(() =>
-      queue.propose({ goal: 'auto-merge me', mergePolicy: 'auto' }),
-    ).toThrow(/harbormaster|PR #141/);
+  test("accepts merge_policy='auto' (lib/dispatch/auto-merge.ts owns the merge gate)", () => {
+    const d = queue.propose({ goal: 'auto-merge me', mergePolicy: 'auto' });
+    expect(d.mergePolicy).toBe('auto');
   });
 
   test("accepts merge_policy='never'", () => {
@@ -203,6 +203,19 @@ describe('claim (proposed -> claimed)', () => {
     expect(() =>
       queue.claim({ id: 'no-such-id', worktreePath: '/w', branch: 'b', sessionId: 's' }),
     ).toThrow(/not found/);
+  });
+});
+
+describe('getBySessionId', () => {
+  test('finds the dispatch claimed under a given session id', () => {
+    const d = queue.propose({ goal: 'foo' });
+    queue.claim({ id: d.id, worktreePath: '/w', branch: 'b', sessionId: 'sess-42' });
+    const found = queue.getBySessionId('sess-42');
+    expect(found?.id).toBe(d.id);
+  });
+
+  test('returns null for an unknown session id', () => {
+    expect(queue.getBySessionId('no-such-session')).toBeNull();
   });
 });
 

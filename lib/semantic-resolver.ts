@@ -1,11 +1,13 @@
 import type Database from 'better-sqlite3';
-import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import type { GraphEdges } from './graph-edges.js';
 import type { Counters } from './counters.js';
 import type { TupleSpace } from './tuples.js';
 import type { SemanticAlias } from './semantic-terms.js';
+import { createGatedLoader } from './observability/gated-loader.js';
+import type { LogGovernor } from './observability/log-governor.js';
 
 /**
  * Default local embedding model used for term-level semantic resolution.
@@ -228,10 +230,23 @@ interface SemanticResolverOptions {
     error(msg: string, meta?: Record<string, unknown>): void;
     info?(msg: string, meta?: Record<string, unknown>): void;
   };
+  /**
+   * Governed logger. When provided, embedder-load failures and per-alias resolution errors are
+   * deduped/rate-limited instead of logging the full error on every fleet-agent tick — the fix
+   * for the `semantic_resolution_failed` 7,182×-in-a-loop write storm. Optional so existing
+   * callers/tests are unaffected; without it, logging falls back to `logger.error`.
+   */
+  governor?: Pick<LogGovernor, 'governed'>;
   embedder?: {
     modelId: string;
     embed(texts: string[]): Promise<number[][]>;
   };
+  /**
+   * Factory for the lazily-loaded embedder (defaults to the ONNX/transformers loader). Injectable
+   * so the gated-loader failure path — the actual `semantic_resolution_failed` runaway — is testable
+   * without a real native dependency. Ignored when `embedder` is supplied directly.
+   */
+  embedderFactory?: () => Promise<{ modelId: string; embed(texts: string[]): Promise<number[][]> }>;
 }
 
 interface SemanticTermRow {
@@ -576,6 +591,44 @@ export function createLocalEmbedder(
 }
 
 /**
+ * `bun build --compile` extracts onnxruntime-node's `.node` N-API binding to
+ * a fresh temp directory on first use, but does not carry along its sibling
+ * runtime library (`libonnxruntime.*.dylib` / `libonnxruntime.so.1`), which
+ * the binding links via an `@rpath`-relative (macOS) / rpath-relative
+ * (Linux) entry expecting it to sit right next to it. Without this, every
+ * daemon boot fails semantic resolution with "Library not loaded:
+ * @rpath/libonnxruntime.*.dylib".
+ *
+ * Fix: point the dynamic linker's fallback search path at wherever the real
+ * runtime library actually lives — dyld/the ELF loader consult
+ * DYLD_FALLBACK_LIBRARY_PATH / LD_LIBRARY_PATH at the actual dlopen() call,
+ * so this works regardless of where Bun's own extraction puts the `.node`
+ * binding. Checked in order: a source/dev override, the location
+ * scripts/build-single-binary.mjs packages the library into (a sibling of
+ * the compiled executable), and the plain node_modules layout for
+ * non-compiled (npm/source) installs.
+ */
+export function ensureOnnxRuntimeNativeLibFindable(): void {
+  if (process.platform !== 'darwin' && process.platform !== 'linux') return;
+
+  const platformArch = `${process.platform}-${process.arch}`;
+  const candidates = [
+    process.env.PORT_DADDY_RESOURCE_DIR?.trim()
+      ? join(process.env.PORT_DADDY_RESOURCE_DIR.trim(), 'dist', 'native', 'onnxruntime-node', platformArch)
+      : null,
+    process.execPath ? join(dirname(process.execPath), 'native', 'onnxruntime-node', platformArch) : null,
+    join(process.cwd(), 'node_modules', 'onnxruntime-node', 'bin', 'napi-v6', process.platform, process.arch),
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  const nativeDir = candidates.find(candidate => existsSync(candidate));
+  if (!nativeDir) return;
+
+  const envVar = process.platform === 'darwin' ? 'DYLD_FALLBACK_LIBRARY_PATH' : 'LD_LIBRARY_PATH';
+  const existing = process.env[envVar];
+  process.env[envVar] = existing ? `${nativeDir}:${existing}` : nativeDir;
+}
+
+/**
  * Lazily load the local embedding pipeline with persistent filesystem cache.
  *
  * The first use may download model artifacts. Subsequent uses on the same
@@ -583,6 +636,7 @@ export function createLocalEmbedder(
  */
 async function createDefaultEmbedder(cacheDir: string, modelId: string): Promise<{ modelId: string; embed(texts: string[]): Promise<number[][]> }> {
   mkdirSync(cacheDir, { recursive: true });
+  ensureOnnxRuntimeNativeLibFindable();
   const { env, pipeline } = await import('@huggingface/transformers');
   env.cacheDir = cacheDir;
   env.useFSCache = true;
@@ -801,7 +855,17 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
     `),
   };
 
-  let embedderPromise: Promise<{ modelId: string; embed(texts: string[]): Promise<number[][]> }> | null = null;
+  // The embedder is a load-once native dependency (ONNX/transformers). Previously it was memoized
+  // as `embedderPromise` and NEVER reset on failure, so a missing dylib became a permanently-rejected
+  // promise re-awaited on every fleet-agent tick — 7,182 failures, one error log + DB row each, and
+  // a 313 GB write storm. The gated loader wraps creation in a circuit breaker: after a few failures
+  // it stops re-attempting the load (no repeated dlopen, no per-tick spam) and periodically re-probes,
+  // so a genuinely transient failure still recovers.
+  const embedderLoader = createGatedLoader(
+    options.embedderFactory ?? (() => createDefaultEmbedder(cacheDir, modelId)),
+    { name: `embedder:${modelId}`, failureThreshold: 3, openTimeoutMs: 300_000 },
+    options.governor as LogGovernor | undefined,
+  );
   const vectorCache = new Map<string, number[]>();
   let queue = Promise.resolve();
 
@@ -828,14 +892,13 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
   }
 
   /**
-   * Resolve the embedder, creating it once on first use.
+   * Resolve the embedder. An injected embedder (tests, custom backends) bypasses the loader.
+   * Otherwise the gated loader memoizes success and, on persistent failure, throws CircuitOpenError
+   * fast (without re-attempting the native load) so callers skip optional enrichment cheaply.
    */
   async function getEmbedder() {
     if (options.embedder) return options.embedder;
-    if (!embedderPromise) {
-      embedderPromise = createDefaultEmbedder(cacheDir, modelId);
-    }
-    return embedderPromise;
+    return embedderLoader.get();
   }
 
   /**
@@ -1097,12 +1160,28 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
       recordDecisionSignals(event, candidates, observation.agentId);
       return event;
     } catch (error) {
-      logger?.error('semantic_resolution_failed', {
-        error: (error as Error).message,
-        term: alias.canonical,
-        sourceType: observation.sourceType,
-        sourceId: observation.sourceId,
-      });
+      // Governed: keyed on the STABLE event name (never the term/sourceId) so a broken embedder
+      // collapses 7,182 identical failures into a few lines + a suppression rollup per window.
+      if (options.governor) {
+        options.governor.governed({
+          key: 'semantic_resolution_failed',
+          level: 'error',
+          message: 'semantic_resolution_failed',
+          meta: {
+            error: (error as Error).message,
+            term: alias.canonical,
+            sourceType: observation.sourceType,
+            sourceId: observation.sourceId,
+          },
+        });
+      } else {
+        logger?.error('semantic_resolution_failed', {
+          error: (error as Error).message,
+          term: alias.canonical,
+          sourceType: observation.sourceType,
+          sourceId: observation.sourceId,
+        });
+      }
 
       const event = persistResolutionEvent({
         projectDir: observation.projectDir,

@@ -17,7 +17,7 @@
 
 import { jest } from '@jest/globals';
 import { EventEmitter } from 'node:events';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { PassThrough, Readable } from 'node:stream';
@@ -42,6 +42,7 @@ const {
   CLI_TUBE_PROVIDER_SPECS,
   CLI_TUBE_TOOLS,
 } = await import('../../lib/spawner/backends/cli-tube.js');
+const { captureWorkspaceIdentity } = await import('../../lib/workspace-identity.js');
 
 // Helper: build a fake ChildProcess that we can drive from the test.
 // `stdout` may be a string (emitted as one chunk) or an array of strings
@@ -189,6 +190,33 @@ describe('buildArgs', () => {
     expect(args).toContain('--json');
   });
 
+  test.each([
+    ['claude-code', '11111111-1111-4111-8111-111111111111', ['--resume', '11111111-1111-4111-8111-111111111111', '-p'], []],
+    ['codex', '22222222-2222-4222-8222-222222222222', ['exec', 'resume', '22222222-2222-4222-8222-222222222222'], ['--sandbox', 'workspace-write']],
+    ['agy', '33333333-3333-4333-8333-333333333333', ['--conversation', '33333333-3333-4333-8333-333333333333', '--print'], []],
+    ['gemini', '44444444-4444-4444-8444-444444444444', ['--resume', '44444444-4444-4444-8444-444444444444', '-p'], []],
+  ])('%s builds native-resume argv without replaying another harness shape', (cli, sessionId, expected, forbidden) => {
+    const { args } = buildArgs(cli, 'continue', undefined, undefined, undefined, undefined, undefined, sessionId);
+    expect(args).toEqual(expect.arrayContaining(expected));
+    expect(args[args.length - 1]).toBe('continue');
+    for (const value of forbidden) expect(args).not.toContain(value);
+  });
+
+  test('rejects native resume for prompt-only wrappers and unsafe session ids', () => {
+    expect(() => buildArgs('groq', 'continue', undefined, undefined, undefined, undefined, undefined, 'session-1'))
+      .toThrow(/does not expose native session resume/);
+    expect(() => buildArgs('gemini', 'continue', undefined, undefined, undefined, undefined, undefined, 'bad\nsession'))
+      .toThrow(/safe non-empty harness identifier/);
+  });
+
+  test.each(['claude-code', 'codex', 'agy', 'gemini'])(
+    '%s rejects option-shaped resume identities before argv construction',
+    (cli) => {
+      expect(() => buildArgs(cli, 'continue', undefined, undefined, undefined, undefined, undefined, '--last'))
+        .toThrow(/canonical UUID/);
+    },
+  );
+
   test('codex includes --output-last-message when outputPath provided', () => {
     const { args } = buildArgs('codex', 'hi', '/tmp/fake.txt');
     const idx = args.indexOf('--output-last-message');
@@ -260,6 +288,27 @@ describe('CLI tube provider registry contract', () => {
 });
 
 describe('spawnViaCliTube — provider policy behavior', () => {
+  test('rechecks native-resume workspace identity at the CLI child boundary', async () => {
+    const workspace = join(fakeHome, 'workspace');
+    const movedWorkspace = join(fakeHome, 'moved-workspace');
+    mkdirSync(workspace);
+    const workspaceIdentity = captureWorkspaceIdentity(workspace);
+    if (!workspaceIdentity) throw new Error('workspace identity unavailable');
+    renameSync(workspace, movedWorkspace);
+    mkdirSync(workspace);
+
+    const res = await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'do not run',
+      cwd: workspaceIdentity.canonicalPath,
+      resumeSessionId: '11111111-1111-4111-8111-111111111111',
+      workspaceIdentity,
+    });
+
+    expect(res.error).toMatch(/workspace identity changed before child launch/);
+    expect(mockSpawn).not.toHaveBeenCalled();
+  });
+
   test.each(CLI_TUBE_TOOLS)('%s auth failures include provider-specific next-step guidance', async (cli) => {
     mockSpawn.mockReturnValue(fakeChild({
       stdout: '',
@@ -929,6 +978,91 @@ describe('spawnViaCliTube — failure paths', () => {
       await resultPromise;
     } finally {
       processKill.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+});
+
+describe('spawnViaCliTube — no deadline (absent timeoutMs)', () => {
+  test.each([NaN, Infinity, -Infinity])(
+    'normalizes non-finite timeout %s before argv construction and lifecycle scheduling',
+    async (timeoutMs) => {
+      jest.useFakeTimers();
+      const buildArgsSpy = jest.spyOn(CLI_TUBE_PROVIDER_SPECS.agy, 'buildArgs');
+      try {
+        const child = fakeChild({ stdout: 'still running', exitCode: 0, neverClose: true });
+        mockSpawn.mockReturnValue(child);
+
+        const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(buildArgsSpy).toHaveBeenCalledWith(expect.objectContaining({ timeoutMs: undefined }));
+        expect(mockSpawn.mock.calls[0][1]).not.toContain('--print-timeout');
+        expect(jest.getTimerCount()).toBe(0);
+
+        child.emit('close', 0);
+        await expect(resultPromise).resolves.toEqual(expect.objectContaining({ exitCode: 0 }));
+      } finally {
+        buildArgsSpy.mockRestore();
+        jest.useRealTimers();
+      }
+    },
+  );
+
+  test('schedules neither a termination timer nor a process-tree poller', async () => {
+    jest.useFakeTimers();
+    try {
+      const child = fakeChild({ stdout: 'still running', exitCode: 0, neverClose: true });
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi' }); // no timeoutMs
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // No termination timer, no 100ms process-tree poller.
+      expect(jest.getTimerCount()).toBe(0);
+      // No `ps` process-tree collection either — that bookkeeping only exists
+      // to feed the kill path, which never runs without a deadline.
+      expect(mockExecFileSync).not.toHaveBeenCalled();
+
+      // Advance virtual time well past the old hidden 5-minute default.
+      // Nothing should fire: no SIGTERM, no new timers.
+      await jest.advanceTimersByTimeAsync(10 * 60 * 1000);
+      expect(child.kill).not.toHaveBeenCalled();
+      expect(jest.getTimerCount()).toBe(0);
+
+      child.emit('close', 0);
+      const res = await resultPromise;
+      expect(res.error).toBeNull();
+      expect(res.exitCode).toBe(0);
+      expect(res.output).toBe('still running');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('contrast: an explicit deadline DOES schedule a termination timer', async () => {
+    jest.useFakeTimers();
+    try {
+      const child = fakeChild({ neverClose: true });
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 1000 });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(jest.getTimerCount()).toBeGreaterThan(0);
+
+      await jest.advanceTimersByTimeAsync(1000);
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+
+      child.emit('close', -1);
+      const res = await resultPromise;
+      expect(res.error).toContain('agy timed out after 1000ms');
+    } finally {
       jest.useRealTimers();
     }
   });
