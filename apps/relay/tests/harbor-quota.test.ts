@@ -36,7 +36,6 @@ import {
   resolveQuotaSettings,
   quotaGateResponse,
   secondsToUtcMidnight,
-  utcDayKey,
   harborQuotaKey,
   type QuotaVerdict,
   type QuotaStatus,
