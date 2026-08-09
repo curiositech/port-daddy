@@ -81,7 +81,11 @@ describe('symbol conflict prediction (daemon e2e)', () => {
       method: 'POST',
       body: { claims: [{ filePath: file, symbolPath: 'createRoutes', type: 'modify' }], autoDeriveRadius: false },
     });
-    expect(c2.ok).toBe(true);
+    // ast-a2-1: Claim validator now rejects blocking conflicts (409 instead of advisory).
+    // Two sessions both modifying the same symbol = direct blocking conflict.
+    expect(c2.ok).toBe(false);
+    expect(c2.status).toBe(409);
+    expect(c2.data.code).toBe('BLOCKING_CONFLICT');
     expect(Array.isArray(c2.data.conflicts)).toBe(true);
     const direct = c2.data.conflicts.find((k) => k.type === 'direct');
     expect(direct).toBeDefined();

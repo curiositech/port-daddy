@@ -1,0 +1,96 @@
+{
+  "_comment": "Declarative manifest of every artifact that MUST ship inside a Port Daddy release tarball. This is the single source of truth for `pd batten verify` (the fail-loud staging gate) and `pd batten imprint` (the content-addressed seal). Populated from the ACTUAL staging steps in .github/workflows/release.yml (job build-binaries). Generalizes the ad-hoc `test -s dist/<name>` checks that #3496 (pd-bosun) and the squid-tentacle step introduced: instead of a scatter of per-binary shell asserts that each silently drift, every required artifact is declared here once and validated together. `buildCmd` is informational (batten VALIDATES staging, it does not build). Paths are relative to the staged dir passed to `pd batten verify --staged-dir <dir>` (dist/ in CI).",
+  "version": 1,
+  "artifacts": [
+    {
+      "id": "pd",
+      "buildCmd": "node scripts/build-single-binary.mjs --outfile=dist/pd",
+      "sourcePath": "dist/pd",
+      "stagedPath": "pd",
+      "required": true,
+      "executable": true,
+      "minBytes": 1024
+    },
+    {
+      "id": "port-daddy",
+      "buildCmd": "node scripts/build-single-binary.mjs --outfile=dist/pd (companion binary the pd launcher execs)",
+      "sourcePath": "dist/port-daddy",
+      "stagedPath": "port-daddy",
+      "required": true,
+      "executable": true,
+      "minBytes": 1024
+    },
+    {
+      "id": "port-daddy-manifest",
+      "buildCmd": "node scripts/build-single-binary.mjs --outfile=dist/pd (writes port-daddy-manifest.json next to the binary)",
+      "sourcePath": "dist/port-daddy-manifest.json",
+      "stagedPath": "port-daddy-manifest.json",
+      "required": true,
+      "executable": false,
+      "minBytes": 2
+    },
+    {
+      "id": "pd-bosun",
+      "buildCmd": "cargo build --manifest-path core/pd-bosun/Cargo.toml --release -j 1 && cp core/target/release/pd-bosun dist/pd-bosun",
+      "sourcePath": "dist/pd-bosun",
+      "stagedPath": "pd-bosun",
+      "required": true,
+      "executable": true,
+      "minBytes": 1024
+    },
+    {
+      "id": "pd-hook-prompt",
+      "buildCmd": "cp bin/pd-hook-prompt dist/pd-hook-prompt (POSIX shell tentacle; no build)",
+      "sourcePath": "bin/pd-hook-prompt",
+      "stagedPath": "pd-hook-prompt",
+      "required": true,
+      "executable": true,
+      "minBytes": 1
+    },
+    {
+      "id": "pd-hook-pre-tool",
+      "buildCmd": "cp bin/pd-hook-pre-tool dist/pd-hook-pre-tool (POSIX shell tentacle; no build)",
+      "sourcePath": "bin/pd-hook-pre-tool",
+      "stagedPath": "pd-hook-pre-tool",
+      "required": true,
+      "executable": true,
+      "minBytes": 1
+    },
+    {
+      "id": "pd-hook-post-tool",
+      "buildCmd": "cp bin/pd-hook-post-tool dist/pd-hook-post-tool (POSIX shell tentacle; no build)",
+      "sourcePath": "bin/pd-hook-post-tool",
+      "stagedPath": "pd-hook-post-tool",
+      "required": true,
+      "executable": true,
+      "minBytes": 1
+    },
+    {
+      "id": "pd-statusline",
+      "buildCmd": "cp bin/pd-statusline dist/bin/pd-statusline (staged under bin/ per lib/squid/adapter.ts tentaclePath fallback)",
+      "sourcePath": "bin/pd-statusline",
+      "stagedPath": "bin/pd-statusline",
+      "required": true,
+      "executable": true,
+      "minBytes": 1
+    },
+    {
+      "id": "sessionstart-pilot",
+      "buildCmd": "cp hooks/sessionstart-pilot.mjs dist/hooks/sessionstart-pilot.mjs (dependency-free Pilot steering hook)",
+      "sourcePath": "hooks/sessionstart-pilot.mjs",
+      "stagedPath": "hooks/sessionstart-pilot.mjs",
+      "required": true,
+      "executable": false,
+      "minBytes": 100
+    },
+    {
+      "id": "native-onnxruntime",
+      "_comment": "onnxruntime-node runtime libs (libonnxruntime.*.dylib / libonnxruntime.so.1) staged by scripts/build-single-binary.mjs (#3561). Filenames are platform-specific, so this asserts the directory exists and is non-empty rather than a single file. required:false — it is a semantic-search perf enhancement, NOT a silent-capability regression of the pd-bosun/tentacle class; a build without onnxruntime-node must still be able to release.",
+      "sourcePath": "dist/native",
+      "stagedPath": "native",
+      "type": "dir",
+      "required": false,
+      "executable": false
+    }
+  ]
+}

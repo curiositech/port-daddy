@@ -22,6 +22,7 @@ import {
   mergeSessionWorktreeMetadata,
 } from '../lib/worktree-policy.js';
 import { coerceClaimType, type ClaimType } from '../lib/symbol-conflict-matrix.js';
+import type { SymbolConflict } from '../lib/symbol-claims.js';
 
 interface SessionsRouteDeps {
   sessions: {
@@ -832,8 +833,8 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
   });
 
   // POST /sessions/:id/symbols — declare symbol-level claims; a `modify` auto-reserves
-  // its blast radius (read-claims on every downstream caller). Returns predicted
-  // conflicts with other active sessions (advisory — never blocks).
+  // its blast radius (read-claims on every downstream caller). Pre-flight validator (ast-a2-1)
+  // rejects blocking conflicts. Returns predicted conflicts with other active sessions.
   fastify.post('/sessions/:id/symbols', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!symbolClaims) {
       reply.code(501);
@@ -861,6 +862,23 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         autoDeriveRadius: body.autoDeriveRadius,
         radiusDepth: typeof body.radiusDepth === 'number' ? body.radiusDepth : undefined,
       });
+
+      // ast-a2-1: Claim validator pre-flight — reject blocking conflicts.
+      // A blocking conflict means the symbol is already held in a way that makes
+      // concurrent modification unsafe (e.g., two sessions modifying the same symbol
+      // or one modifying a function another is calling). This gate makes symbol
+      // conflicts predictable for the wedge rendering.
+      const blockingConflicts = (result.conflicts as SymbolConflict[]).filter(c => c.severity === 'blocking');
+      if (blockingConflicts.length > 0) {
+        reply.code(409);
+        return {
+          success: false,
+          error: 'symbol claim rejected: blocking conflict(s) with active session(s)',
+          code: 'BLOCKING_CONFLICT',
+          conflicts: blockingConflicts,
+        };
+      }
+
       return { success: true, ...result };
     } catch (error) {
       metrics.errors++;

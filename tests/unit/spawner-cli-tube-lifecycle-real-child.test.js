@@ -76,6 +76,45 @@ describe('cli-tube real timeout lifecycle', () => {
     await expectPidDead(survivorPid);
   });
 
+  test('no deadline: a real child outliving the old hidden 5-minute default is never killed', async () => {
+    // Uses a fake clock on the PARENT (test) process only — the real child
+    // below runs on its own real V8/event loop and is unaffected by it. This
+    // lets the test prove "no termination timer fires even after 10 virtual
+    // minutes" without ever waiting real minutes.
+    const previousAgyBin = process.env.PD_CLI_AGY_BIN;
+    process.env.PD_CLI_AGY_BIN = installSlowExitingAgy(tempDir, 150);
+
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+    try {
+      const resultPromise = spawnViaCliTube({
+        cli: 'agy',
+        prompt: 'run past the old hidden default',
+        // No timeoutMs: no deadline.
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(jest.getTimerCount()).toBe(0);
+
+      // Advance the parent's virtual clock ten minutes past the old hidden
+      // 5-minute default. The real child (a separate process) keeps running
+      // on real wall-clock time, unaffected.
+      await jest.advanceTimersByTimeAsync(10 * 60 * 1000);
+      expect(jest.getTimerCount()).toBe(0);
+
+      // The real child exits on its own (real ~150ms); the wait settles off
+      // its `close` event, never off a fake timer.
+      const res = await resultPromise;
+      expect(res.error).toBeNull();
+      expect(res.exitCode).toBe(0);
+      // Cleanup leaves no handles: nothing was ever scheduled to clear.
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      jest.useRealTimers();
+      restoreEnv('PD_CLI_AGY_BIN', previousAgyBin);
+    }
+  });
+
   test('kills an inherited-stdio descendant even when the CLI parent exits before timeout', async () => {
     const parentPidFile = join(tempDir, 'parent.pid');
     const launcherPidFile = join(tempDir, 'launcher.pid');
@@ -161,6 +200,20 @@ writeFileSync(pidFile, String(survivor.pid));
 survivor.unref();
 
 setInterval(() => {}, 1000);
+`);
+  chmodSync(file, 0o755);
+  return file;
+}
+
+function installSlowExitingAgy(dir, sleepMs) {
+  const binDir = join(dir, 'slow-exit-bin');
+  mkdirSync(binDir, { recursive: true });
+  const file = join(binDir, 'agy');
+  writeFileSync(file, `#!${process.execPath}
+setTimeout(() => {
+  console.log('done sleeping');
+  process.exit(0);
+}, ${sleepMs});
 `);
   chmodSync(file, 0o755);
   return file;

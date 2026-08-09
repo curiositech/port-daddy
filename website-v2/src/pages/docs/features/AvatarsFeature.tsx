@@ -7,6 +7,9 @@ export default function AvatarsFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
+        <p className="font-mono text-[length:var(--type-meta-size)] font-bold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+          Feature · Avatars
+        </p>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Always-On Fleet Agents
         </h1>
@@ -17,7 +20,10 @@ export default function AvatarsFeature() {
 
       {/* Quick Start */}
       <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Get Started in 30 Seconds</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">01</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Get Started in 30 Seconds</h2>
+        </div>
         <DocsCodeBlock code={`cd ~/my-project
 pd fleet init          # Creates pd-fleet.yml + git hook
 pd fleet up            # Starts 5 agents
@@ -29,9 +35,12 @@ git commit -m "test"   # QA, docs, cartographer fire automatically`} />
 
       {/* How It Works */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">02</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">How It Works</h2>
+        </div>
         <div className="space-y-3">
-          <div className="flex items-start gap-3 border-l-4 border-[var(--brand-primary)] pl-4">
+          <div className="flex items-start gap-3 border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4">
             <FileText size={16} className="text-[var(--brand-primary)] mt-0.5 shrink-0" />
             <div>
               <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">1. Declare</h3>
@@ -40,7 +49,7 @@ git commit -m "test"   # QA, docs, cartographer fire automatically`} />
               </p>
             </div>
           </div>
-          <div className="flex items-start gap-3 border-l-4 border-[var(--brand-secondary)] pl-4">
+          <div className="flex items-start gap-3 border-l-[length:var(--lw-stripe)] border-[var(--brand-secondary)] pl-4">
             <GitCommit size={16} className="text-[var(--brand-secondary)] mt-0.5 shrink-0" />
             <div>
               <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">2. Wire</h3>
@@ -49,7 +58,7 @@ git commit -m "test"   # QA, docs, cartographer fire automatically`} />
               </p>
             </div>
           </div>
-          <div className="flex items-start gap-3 border-l-4 border-[var(--brand-accent)] pl-4">
+          <div className="flex items-start gap-3 border-l-[length:var(--lw-stripe)] border-[var(--brand-accent)] pl-4">
             <Zap size={16} className="text-[var(--brand-accent)] mt-0.5 shrink-0" />
             <div>
               <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">3. Run</h3>
@@ -63,9 +72,12 @@ git commit -m "test"   # QA, docs, cartographer fire automatically`} />
 
       {/* Activation Modes */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Two Activation Modes</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">03</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Two Activation Modes</h2>
+        </div>
         <div className="space-y-3">
-          <div className="border-l-4 border-[var(--brand-secondary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-secondary)] pl-4">
             <div className="flex items-center gap-2">
               <Zap size={14} className="text-[var(--brand-secondary)]" />
               <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">Triggered</h3>
@@ -75,7 +87,7 @@ git commit -m "test"   # QA, docs, cartographer fire automatically`} />
             </p>
             <DocsCodeBlock code={`qa:\n  trigger: git:committed\n  backend: cloudflare\n  model: '@cf/qwen/qwen3-30b-a3b-fp8'`} />
           </div>
-          <div className="border-l-4 border-[var(--brand-secondary)] pl-4">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-secondary)] pl-4">
             <div className="flex items-center gap-2">
               <Clock size={14} className="text-[var(--brand-secondary)]" />
               <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">Scheduled</h3>
@@ -93,7 +105,10 @@ git commit -m "test"   # QA, docs, cartographer fire automatically`} />
 
       {/* Agent Chaining */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Agent Chaining</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">04</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Agent Chaining</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           One agent&apos;s output becomes another agent&apos;s trigger. <code>on_success: publish channel</code> pushes
           a message to a pub/sub channel. Any agent with <code>trigger: channel</code> fires automatically.
@@ -112,7 +127,10 @@ spider:
 
       {/* Safety */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Safety</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">05</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Safety</h2>
+        </div>
         <div className="space-y-2">
           {[
             { icon: <Shield size={14} />, title: 'Scoped tools', desc: 'Each agent declares exactly which tools it can use' },
@@ -120,7 +138,7 @@ spider:
             { icon: <GitCommit size={14} />, title: 'DAG validation', desc: 'Cycle detection at config time, not runtime' },
             { icon: <FileText size={14} />, title: 'Immutable notes', desc: 'Session notes cannot be edited or deleted' },
           ].map(item => (
-            <div key={item.title} className="flex items-start gap-3 border-l-4 border-[var(--border-subtle)] pl-4 py-1">
+            <div key={item.title} className="flex items-start gap-3 border-l-[length:var(--lw-stripe)] border-[var(--border-subtle)] pl-4 py-1">
               <span className="text-[var(--brand-primary)] mt-0.5">{item.icon}</span>
               <div>
                 <p className="text-[length:var(--type-meta-size)] font-bold text-[var(--text-primary)] m-0">{item.title}</p>
@@ -133,17 +151,20 @@ spider:
 
       {/* Templates */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Templates</h2>
+        <div className="lw-sect-head flex items-baseline gap-[var(--space-3)]">
+          <span className="font-mono text-[length:var(--type-meta-size)] font-bold text-[var(--brand-primary)]">06</span>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Templates</h2>
+        </div>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Two template packs ship with Port Daddy:
         </p>
         <div className="space-y-2">
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4 py-1">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4 py-1">
             <p className="text-sm font-bold text-[var(--text-primary)] m-0">Starter Fleet</p>
             <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0 mt-1">QA, Documentarian, Cartographer, Spark, Spider. Commit-triggered.</p>
             <code className="text-[length:var(--type-meta-size)] text-[var(--brand-primary)] mt-1 block">pd fleet init</code>
           </div>
-          <div className="border-l-4 border-[var(--brand-primary)] pl-4 py-1">
+          <div className="border-l-[length:var(--lw-stripe)] border-[var(--brand-primary)] pl-4 py-1">
             <p className="text-sm font-bold text-[var(--text-primary)] m-0">Always-On Fleet</p>
             <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0 mt-1">Health monitor, lock janitor, session reaper, dep watcher, changelog writer.</p>
             <code className="text-[length:var(--type-meta-size)] text-[var(--brand-primary)] mt-1 block">templates/pd-fleet-always-on.yml</code>
@@ -152,7 +173,7 @@ spider:
       </div>
 
       {/* Next */}
-      <div className="flex items-center justify-between p-5 rounded-xl bg-gradient-to-r from-[var(--brand-primary)]/5 to-transparent border border-[var(--brand-primary)]/20">
+      <div className="flex flex-wrap items-center justify-between gap-4 border border-[var(--border-subtle)] bg-[color-mix(in_oklab,var(--brand-primary)_10%,var(--surface-base))] p-5">
         <div>
           <div className="text-sm text-[var(--text-muted)] mb-1">Learn More</div>
           <div className="font-semibold text-[var(--text-primary)]">Fleet Tutorial</div>
@@ -160,7 +181,7 @@ spider:
         </div>
         <Link
           to="/tutorials/fleet"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] font-medium transition-colors"
+          className="flex items-center gap-2 bg-[var(--brand-primary)] px-4 py-2 font-medium text-[var(--brand-primary-foreground)]"
         >
           Read Tutorial
           <ArrowRight size={16} />

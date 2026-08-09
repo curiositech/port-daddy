@@ -29,11 +29,8 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { PD_HOME } from '../../shared/paths.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = join(__dirname, '..', '..');
+import { resolveSquidAsset } from './assets.js';
 
 export const STATUSLINE_BIN = 'pd-statusline';
 /** Marker substring identifying OUR statusLine command (mirror of PD_HOOK_MARKER). */
@@ -50,15 +47,18 @@ export interface IdentityResult {
   changed: boolean;
   path: string;
   reason: string;
+  /** False for a real failure (missing asset, unparsable config) — not merely "no-op". */
+  ok: boolean;
 }
 
 /** Copy bin/pd-statusline → ~/.port-daddy/bin/. Returns null if not on this build. */
 export function stageStatusline(
-  sourceDir = join(PROJECT_ROOT, 'bin'),
+  sourceDir?: string,
   destBinDir = join(PD_HOME, 'bin'),
 ): string | null {
-  const src = join(sourceDir, STATUSLINE_BIN);
-  if (!existsSync(src)) return null;
+  const explicit = sourceDir ? join(sourceDir, STATUSLINE_BIN) : null;
+  const src = explicit ? (existsSync(explicit) ? explicit : null) : resolveSquidAsset(join('bin', STATUSLINE_BIN));
+  if (!src) return null;
   const dst = stagedStatuslinePath(destBinDir);
   mkdirSync(dirname(dst), { recursive: true });
   copyFileSync(src, dst);
@@ -90,23 +90,23 @@ export function installStatusline(scopeDir: string, stagedPath = stagedStatuslin
   const settingsPath = join(scopeDir, '.claude', 'settings.json');
   const staged = stagedPath;
   if (!existsSync(staged)) {
-    return { changed: false, path: settingsPath, reason: 'statusline not staged — run pd setup' };
+    return { changed: false, path: settingsPath, reason: 'statusline not staged — run pd setup', ok: false };
   }
   const settings = readSettings(settingsPath);
   if (settings === null) {
-    return { changed: false, path: settingsPath, reason: 'settings.json is not valid JSON — skipping' };
+    return { changed: false, path: settingsPath, reason: 'settings.json is not valid JSON — skipping', ok: false };
   }
   const current = settings.statusLine?.command;
   if (typeof current === 'string' && !current.includes(STATUSLINE_MARKER)) {
-    return { changed: false, path: settingsPath, reason: 'user statusLine present — not touching it' };
+    return { changed: false, path: settingsPath, reason: 'user statusLine present — not touching it', ok: true };
   }
   if (current === staged) {
-    return { changed: false, path: settingsPath, reason: 'already wired' };
+    return { changed: false, path: settingsPath, reason: 'already wired', ok: true };
   }
   settings.statusLine = { type: 'command', command: staged, padding: 0 };
   mkdirSync(dirname(settingsPath), { recursive: true });
   writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
-  return { changed: true, path: settingsPath, reason: current ? 'refreshed' : 'wired' };
+  return { changed: true, path: settingsPath, reason: current ? 'refreshed' : 'wired', ok: true };
 }
 
 /** Remove OUR statusLine (marker-matched) from <scopeDir>/.claude/settings.json. */
@@ -114,15 +114,15 @@ export function uninstallStatusline(scopeDir: string): IdentityResult {
   const settingsPath = join(scopeDir, '.claude', 'settings.json');
   const settings = readSettings(settingsPath);
   if (settings === null || !existsSync(settingsPath)) {
-    return { changed: false, path: settingsPath, reason: 'no settings' };
+    return { changed: false, path: settingsPath, reason: 'no settings', ok: true };
   }
   const current = settings.statusLine?.command;
   if (typeof current !== 'string' || !current.includes(STATUSLINE_MARKER)) {
-    return { changed: false, path: settingsPath, reason: 'no pd statusLine' };
+    return { changed: false, path: settingsPath, reason: 'no pd statusLine', ok: true };
   }
   delete settings.statusLine;
   writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
-  return { changed: true, path: settingsPath, reason: 'removed' };
+  return { changed: true, path: settingsPath, reason: 'removed', ok: true };
 }
 
 /**
@@ -150,18 +150,18 @@ export function installSlashCommand(projectDir: string): IdentityResult {
   const path = join(projectDir, '.claude', 'commands', SLASH_COMMAND_FILENAME);
   const body = slashCommandBody();
   if (existsSync(path) && readFileSync(path, 'utf8') === body) {
-    return { changed: false, path, reason: 'already installed' };
+    return { changed: false, path, reason: 'already installed', ok: true };
   }
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, body, 'utf8');
-  return { changed: true, path, reason: 'installed' };
+  return { changed: true, path, reason: 'installed', ok: true };
 }
 
 export function uninstallSlashCommand(projectDir: string): IdentityResult {
   const path = join(projectDir, '.claude', 'commands', SLASH_COMMAND_FILENAME);
-  if (!existsSync(path)) return { changed: false, path, reason: 'not installed' };
+  if (!existsSync(path)) return { changed: false, path, reason: 'not installed', ok: true };
   rmSync(path);
-  return { changed: true, path, reason: 'removed' };
+  return { changed: true, path, reason: 'removed', ok: true };
 }
 
 // ─── Status probes (the non-diegetic readout) ────────────────────────────────
@@ -193,6 +193,7 @@ export interface IdentityStatus {
   statuslineProject: boolean;
   statuslineUser: boolean;
   slashCommand: boolean;
+  pilotSessionStart: boolean;
   daemonAlive: boolean;
 }
 
@@ -216,11 +217,14 @@ export function readIdentityStatus(projectDir: string, home = process.env.HOME |
     const cmd = settings?.statusLine?.command;
     return typeof cmd === 'string' && cmd.includes(STATUSLINE_MARKER);
   };
+  const projectSettings = readSettings(join(projectDir, '.claude', 'settings.json'));
+  const pilotSessionStart = JSON.stringify(projectSettings?.hooks ?? {}).includes('sessionstart-pilot.mjs');
   return {
     statuslineStaged: existsSync(stagedStatuslinePath()),
     statuslineProject: wired(projectDir),
     statuslineUser: home ? wired(home) : false,
     slashCommand: existsSync(join(projectDir, '.claude', 'commands', SLASH_COMMAND_FILENAME)),
+    pilotSessionStart,
     daemonAlive: isSquidDaemonHeartbeatFresh(),
   };
 }

@@ -20,6 +20,18 @@ export interface ShipConfig {
   trigger: string | string[];
   prompt: string;
   cfModel: string;
+  /**
+   * Model for the MAP fan-out, when it should differ from `cfModel`.
+   *
+   * MAP scans one chunk in isolation and is forbidden from cross-chunk
+   * judgement; REDUCE does the synthesis. Those are different jobs needing
+   * different capability, and MAP runs N times to REDUCE's one — so paying the
+   * capable model's rate on every chunk spends the most on the stage that needs
+   * the least. Undefined means "same as cfModel", which is honest but untiered;
+   * see tests/map-reduce-invariants.test.ts for why that is a regression rather
+   * than a default.
+   */
+  cfMapModel?: string;
   temperature: number | null;
   role: string;
   telos: string;
@@ -41,6 +53,37 @@ export interface ShipConfig {
    * that forgets the field still gets the ideation contract).
    */
   ideation: boolean;
+  /**
+   * When true, this is a PURSER ship (`class: purser` in pd-fleet.yml): an
+   * adversarial gatekeeper that steel-mans the PR into its best-interpretation
+   * contract, authors adversarial tests against it, and stacks the reviewed PR
+   * on top of a test branch (src/purser.ts). Purser ships run AFTER the
+   * reviewer/ideation ships and are OFF unless explicitly declared — there is
+   * no purser in {@link defaultPRShips} (safe rollout).
+   */
+  purser: boolean;
+  /**
+   * Purser only. When true AND the ship is blocking, the purser BLOCKS when it
+   * could not execute its tests (no SANDBOX binding / sandbox error) — an
+   * explicit fail-closed opt-in. Default false: never block on tests that were
+   * never run.
+   */
+  blockWithoutSandbox: boolean;
+  /**
+   * Purser only, optional (`testPaths:` in pd-fleet.yml). Path prefixes the
+   * purser's authored test files must live under (e.g. ['tests/purser']).
+   * Empty ⇒ any path passing the global stacked-pr whitelist is allowed.
+   */
+  testPaths: string[];
+  /**
+   * ANY ship, optional (`graft: [skill-id, ...]` in pd-fleet.yml). Repo skill
+   * ids whose `skills/<id>/SKILL.md` is fetched from the TRUSTED default
+   * branch and prepended to the ship's prompt under `## Grafted skill: <id>`
+   * (src/skill-graft.ts). Capped at {@link MAX_GRAFTS_PER_SHIP} at parse time;
+   * unknown ids degrade to a transcript warning, never a failure. A purser
+   * declared without a graft list gets {@link PURSER_DEFAULT_GRAFT}.
+   */
+  graft: string[];
 }
 
 /**
@@ -130,6 +173,27 @@ interface RawAgent {
   temperature?: unknown;
   blocking?: unknown;
   class?: unknown;
+  /** Purser: direct model pin (still guarded by KNOWN_GOOD_CF_MODELS). */
+  model?: unknown;
+  /** Purser: block when tests could not be executed (default false). */
+  blockWithoutSandbox?: unknown;
+  /** Purser: path prefixes authored tests must live under. */
+  testPaths?: unknown;
+  /** Any ship: repo skill ids to graft onto the prompt (skill-graft.ts). */
+  graft?: unknown;
+  /**
+   * Any ship: the model that scans ONE chunk (`map_model:` in pd-fleet.yml;
+   * `mapModel` / `cfMapModel` accepted too, since operators write all three).
+   * REDUCE keeps the ship's `cfModel`.
+   *
+   * Readable from YAML and not only from code because a tiering only the
+   * hardcoded fallback ships can express is a tiering the operator cannot use
+   * -- exactly the half-implemented shape map-reduce-invariants.test.ts exists
+   * to make impossible.
+   */
+  map_model?: unknown;
+  mapModel?: unknown;
+  cfMapModel?: unknown;
 }
 
 /**
@@ -178,6 +242,97 @@ function deriveCfModel(agent: RawAgent, name: string): string {
   return isReviewBot(name) ? CODER_CF_MODEL : DEFAULT_CF_MODEL;
 }
 
+/**
+ * The MAP-stage model for a ship, from `map_model:` in pd-fleet.yml.
+ *
+ * Rationale: MAP runs once per chunk and REDUCE runs once, so the cheap model
+ * belongs on the stage that repeats. Making this operator-settable is the
+ * difference between a tiering feature and a tiering that only the built-in
+ * fallback ships happen to have.
+ *
+ * Three guards, each for a failure that would otherwise be silent:
+ *
+ *   1. An id outside {@link KNOWN_GOOD_CF_MODELS} is DROPPED, not remapped.
+ *      A nonexistent Workers AI id does not error -- it returns a blank the
+ *      parser reads as "clean" -- so a typo here would silence every chunk of
+ *      the ship while REDUCE dutifully reported nothing found. Dropping falls
+ *      back to an untiered run: more expensive, but never mute.
+ *   2. A MAP pin equal to the ship's REDUCE model is dropped as a no-op, so
+ *      `mapModelFor(ship) !== reduceModelFor(ship)` stays a meaningful claim.
+ *   3. Nothing here can pin a ship ONTO the expensive model, because only the
+ *      cheap id is in the honored set. Tiering can save money; it cannot spend
+ *      more of it.
+ *
+ * @param agent the raw pd-fleet.yml agent entry
+ * @param cfModel the ship's already-resolved REDUCE model
+ * @returns the MAP model id, or undefined for an untiered ship
+ */
+function deriveMapModel(agent: RawAgent, cfModel: string): string | undefined {
+  const raw = agent.map_model ?? agent.mapModel ?? agent.cfMapModel;
+  if (typeof raw !== 'string') return undefined;
+  const pin = raw.trim();
+  if (!KNOWN_GOOD_CF_MODELS.has(pin)) {
+    if (pin) {
+      console.warn(
+        `[fleet-executor] map_model '${pin}' is not a known-good Cloudflare id; ` +
+          `running this ship untiered rather than risking a silent blank MAP stage`,
+      );
+    }
+    return undefined;
+  }
+  return pin === cfModel ? undefined : pin;
+}
+
+/**
+ * Fallback persona prompt for a purser ship declared without a `prompt:` — the
+ * purser's operational prompts (steel-man + test authoring) are built in
+ * src/purser.ts; the YAML prompt only flavors its persona, so a minimal config
+ * (`class: purser` + trigger) still works.
+ */
+const PURSER_DEFAULT_PROMPT =
+  'You are pd-purser, the fleet’s adversarial purser. Steel-man each PR into ' +
+  'the strongest, most complete interpretation of its contract, then demand the ' +
+  'PR satisfy that interpretation — not its laziest reading. Firm, adversarial, ' +
+  'professional. Demands come with reasons; never abuse.';
+
+/** Purser model: honor a direct `model:` pin when known-good, else the usual derivation. */
+function derivePurserModel(agent: RawAgent, name: string): string {
+  if (typeof agent.model === 'string' && KNOWN_GOOD_CF_MODELS.has(agent.model)) {
+    return agent.model;
+  }
+  return deriveCfModel(agent, name);
+}
+
+/** Coerce a YAML list value into a clean string[] (drops non-strings/blanks). */
+function coerceStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+}
+
+/** Hard cap on grafted skills per ship (mirrors skill-graft.ts). */
+export const MAX_GRAFTS_PER_SHIP = 3;
+
+/**
+ * Default skill graft for a purser declared without a `graft:` list — the two
+ * repo skills that most directly sharpen its job (both verified to exist in
+ * skills/): the adversarial-test-harness playbook and the steel-man method.
+ */
+export const PURSER_DEFAULT_GRAFT: readonly string[] = [
+  'sandboxed-adversarial-test-harness',
+  'steel-man-argument',
+];
+
+/**
+ * Derive a ship's skill-graft list from its `graft:` config. Capped at
+ * {@link MAX_GRAFTS_PER_SHIP}. A purser with no configured graft gets
+ * {@link PURSER_DEFAULT_GRAFT}; every other ship defaults to none.
+ */
+function deriveGraft(value: unknown, purser: boolean): string[] {
+  const ids = coerceStringList(value).slice(0, MAX_GRAFTS_PER_SHIP);
+  if (ids.length === 0 && purser) return [...PURSER_DEFAULT_GRAFT];
+  return ids;
+}
+
 function deriveNeedsExecution(name: string, allowedTools: unknown): boolean {
   if (CLOUD_STATIC_SHIPS.has(name)) return false;
   return EXECUTION_TOOLS_RE.test(typeof allowedTools === 'string' ? allowedTools : '');
@@ -195,6 +350,63 @@ function triggerMatches(trigger: unknown, requested: string): boolean {
   return triggers.some(
     t => typeof t === 'string' && (t === requested || t === `${reqEvent}:*`),
   );
+}
+
+/**
+ * TENANCY CONSENT (cloud squid): does this repo's pd-fleet.yml opt in to
+ * fleet-cloud coordination events? The executor announces run lifecycle events
+ * (run-started / ship-verdict / pr-stacked / run-concluded — src/squid-events.ts)
+ * onto the shared relay channel; those events carry the tenant's repo name, PR
+ * numbers, ship verdicts, and stacked-PR urls, so emission requires the TENANT'S
+ * explicit consent, not just the operator's env wiring.
+ *
+ * Consent is a top-level `squidEvents: true` under `fleet:` in pd-fleet.yml,
+ * read from the TRUSTED default branch (same zero-trust fetch as the ship
+ * config — never the PR head). Strict coercion, same rules as `blocking:`:
+ * only `true` / `'true'` opt in; absent key, `yes`, `1`, an unparseable doc,
+ * or a missing pd-fleet.yml all mean NO (default false, fail-closed).
+ */
+export function parseFleetSquidEvents(fleetYaml: string): boolean {
+  let doc: unknown;
+  try {
+    doc = parseYaml(fleetYaml);
+  } catch {
+    return false;
+  }
+  const fleet = (doc as { fleet?: { squidEvents?: unknown } } | null)?.fleet;
+  if (!fleet || typeof fleet !== 'object') return false;
+  const value = fleet.squidEvents;
+  return value === true || value === 'true';
+}
+
+/**
+ * XO CONSENT: does this repo's pd-fleet.yml opt in to the XO synthesis officer
+ * (src/xo.ts)? The XO adds two ADVISORY behaviors — an editor pass that
+ * curates ideation proposals before they are filed, and an "XO's orders"
+ * triage section on the review comment — both of which spend extra Workers AI
+ * tokens and add model-judged text to the tenant's PR surfaces, so they are
+ * opt-in per tenant, never ambient.
+ *
+ * Same rules and same rationale as {@link parseFleetSquidEvents}: a top-level
+ * `xo: true` under `fleet:` in pd-fleet.yml, read from the TRUSTED default
+ * branch (never the PR head — the zero-trust invariant). Strict coercion: only
+ * `true` / `'true'` opt in; absent key, `yes`, `1`, an unparseable doc, or a
+ * missing pd-fleet.yml all mean NO (default false, fail-closed on consent).
+ *
+ * @param fleetYaml The raw pd-fleet.yml body from the trusted default branch.
+ * @returns True only when the tenant explicitly opted in with `xo: true`.
+ */
+export function parseFleetXo(fleetYaml: string): boolean {
+  let doc: unknown;
+  try {
+    doc = parseYaml(fleetYaml);
+  } catch {
+    return false;
+  }
+  const fleet = (doc as { fleet?: { xo?: unknown } } | null)?.fleet;
+  if (!fleet || typeof fleet !== 'object') return false;
+  const value = fleet.xo;
+  return value === true || value === 'true';
 }
 
 /**
@@ -223,26 +435,43 @@ export function parseFleetShips(fleetYaml: string, trigger: string): ShipConfig[
     const agent = rawUnknown as RawAgent;
     if (!triggerMatches(agent.trigger, trigger)) continue;
 
-    const prompt = typeof agent.prompt === 'string' ? agent.prompt.trim() : '';
+    const purser = agent.class === 'purser';
+    const rawPrompt = typeof agent.prompt === 'string' ? agent.prompt.trim() : '';
+    // A purser ship's operational prompts are built in code (src/purser.ts), so
+    // its YAML `prompt:` is optional persona flavor; every other ship without a
+    // prompt is a deterministic/bodied ship (or malformed) and is skipped.
+    const prompt = rawPrompt || (purser ? PURSER_DEFAULT_PROMPT : '');
     if (!prompt) continue; // deterministic/bodied ships and malformed entries
 
     const telos = typeof agent.telos === 'string' ? agent.telos : '';
     const role = telos || (typeof agent.role === 'string' ? agent.role : '') || `${name} ship`;
-    const ideation = deriveIdeation(name, agent.class);
+    const ideation = purser ? false : deriveIdeation(name, agent.class);
+    const shipCfModel = purser ? derivePurserModel(agent, name) : deriveCfModel(agent, name);
+    const shipMapModel = deriveMapModel(agent, shipCfModel);
 
     ships.push({
       name,
       trigger: agent.trigger as string | string[],
       prompt,
-      cfModel: deriveCfModel(agent, name),
+      cfModel: shipCfModel,
+      // MAP-stage pin, dropped rather than remapped when unusable -- see
+      // deriveMapModel(). Spread so an untiered ship has NO key at all rather
+      // than an explicit undefined, keeping `cfMapModel` absent in snapshots.
+      ...(shipMapModel ? { cfMapModel: shipMapModel } : {}),
       temperature: coerceTemperature(agent.temperature),
       role,
       telos,
       // Ideation ships are advisory by definition — they can never gate a merge,
       // even if pd-fleet.yml mistakenly sets `blocking: true` on one.
       blocking: ideation ? false : coerceBlocking(agent.blocking),
-      needsExecution: deriveNeedsExecution(name, agent.allowedTools),
+      // Purser runs entirely against the GitHub API + Workers AI: cloud-executable
+      // by contract, regardless of any allowedTools relic.
+      needsExecution: purser ? false : deriveNeedsExecution(name, agent.allowedTools),
       ideation,
+      purser,
+      blockWithoutSandbox: purser ? coerceBlocking(agent.blockWithoutSandbox) : false,
+      testPaths: purser ? coerceStringList(agent.testPaths) : [],
+      graft: deriveGraft(agent.graft, purser),
     });
   }
 
@@ -279,12 +508,21 @@ Output format:
 
 Be direct. Cite specific lines. Flag ADR violations if you see them.`,
       cfModel: CODER_CF_MODEL,
+      // MAP scans chunks in isolation; REDUCE synthesises across them. Only the
+      // latter needs the capable model, and MAP runs once per chunk — on a
+      // 92-chunk diff that is 92 calls at 6.9x the input rate for work the
+      // cheap model does as well.
+      cfMapModel: CHEAP_CF_MODEL,
       temperature: null,
       role: 'Catch the bugs the diff would otherwise ship.',
       telos: 'Catch the bugs the diff would otherwise ship; cite ADRs.',
       blocking: true,
       needsExecution: false,
       ideation: false,
+      purser: false,
+      blockWithoutSandbox: false,
+      testPaths: [],
+      graft: [],
     },
     {
       name: 'qa',
@@ -309,6 +547,10 @@ Output:
       blocking: false,
       needsExecution: false,
       ideation: false,
+      purser: false,
+      blockWithoutSandbox: false,
+      testPaths: [],
+      graft: [],
     },
     {
       name: 'red-team',
@@ -333,6 +575,10 @@ For each finding: write the falsifiable attack construction and its impact. Be a
       blocking: true,
       needsExecution: false,
       ideation: false,
+      purser: false,
+      blockWithoutSandbox: false,
+      testPaths: [],
+      graft: [],
     },
     {
       name: 'copy-pm',
@@ -385,6 +631,10 @@ Rules:
       blocking: false,
       needsExecution: false,
       ideation: false,
+      purser: false,
+      blockWithoutSandbox: false,
+      testPaths: [],
+      graft: [],
     },
     ...ideationDefaults(),
   ];
@@ -413,6 +663,10 @@ function ideationDefaults(): ShipConfig[] {
     blocking: false,
     needsExecution: false,
     ideation: true,
+    purser: false,
+    blockWithoutSandbox: false,
+    testPaths: [],
+    graft: [],
   });
 
   return [
@@ -441,8 +695,9 @@ function ideationDefaults(): ShipConfig[] {
       `You are pd-lookout, Port Daddy's trouble-ahead watch. Spot contradictions, ` +
         `architectural trouble, duplication, or newly broken user experiences implied ` +
         `by this diff — especially against OTHER open PRs and feature branches shown ` +
-        `in the fleet context. Set "severity" and prefer action "parley" for genuine ` +
-        `multi-way conflicts, "roadmap" to log a risk. Alert; do not fix.`,
+        `in the fleet context. Set "severity" and use action "roadmap" to flag a ` +
+        `contradiction or risk for tracking — you can raise the alarm but cannot ` +
+        `coordinate agents. Alert; do not fix.`,
     ),
     mk(
       'snipe',

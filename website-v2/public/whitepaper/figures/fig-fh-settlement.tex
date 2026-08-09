@@ -24,14 +24,16 @@
                inner sep=3pt,font=\sffamily\footnotesize,align=left,
                text width=44mm},
   edge/.style={->,>=Latex,thick,draw=hhebony},
-  forbidedge/.style={->,>=Latex,thick,draw=maydayred,line width=1.1pt},
+  constraint/.style={draw=maydayred,thick,fill=maydayred!8,rounded corners=3pt,
+                     inner sep=5pt,align=left,font=\sffamily\footnotesize,
+                     text width=42mm},
 ]
 
 % ─── Parties at top: Alice's principal (poster), Bob's principal (claimant) ─
 \node[party] (PA) at (0,0)
   {Alice (principal)\\\footnotesize bond poster};
 \node[escrow,right=22mm of PA] (E)
-  {\textbf{Bonded Escrow}\\\footnotesize bonded; \emph{cannot redirect};\\\footnotesize fee $\phi$ capped};
+  {\textbf{Bonded Escrow}\\\footnotesize recipient whitelist; fee cap;\\\footnotesize one atomic terminal transition};
 \node[party,right=22mm of E] (PB)
   {Bob (principal)\\\footnotesize damage claimant};
 
@@ -43,13 +45,14 @@
 \node[stepbox,below=14mm of PB.south,xshift=2mm] (s3) {%
   \textbf{3.} Escrow verifies inclusion of $\alpha$'s actions in $R_B^{(e)}$ and matches against acceptance preconditions signed at step 1. \emph{Two outcomes only.}};
 
-% ─── Outcome nodes — placed directly below each stepbox ──────────────────────
-\node[party,fill=hhteal!30,below=28mm of s2.south] (Op) {%
+% ─── Assumptions and outcomes, with orthogonal routing ───────────────────────
+\node[constraint,below=24mm of s1.south] (guard) {%
+  \textbf{Required authority boundary:} neither harbor can bypass the
+  recipient whitelist, fee cap, or atomic terminal-state transition.};
+\node[party,fill=hhteal!30,below=24mm of s2.south] (Op) {%
   \textbf{Clear:}\\\footnotesize $B$ paid out of bond,\\\footnotesize remainder refunded};
-\node[party,fill=hhamber!20,below=28mm of s3.south] (Or) {%
+\node[party,fill=hhamber!20,below=24mm of s3.south] (Or) {%
   \textbf{Refuse:}\\\footnotesize bond returned to $A$,\\\footnotesize escrow logs reason};
-\node[party,draw=maydayred,line width=1.1pt,fill=maydayred!10,below=28mm of s1.south] (Of) {%
-  \textcolor{maydayred}{\textbf{$\times$~Forbidden:}}\\\footnotesize redirect, equivocate,\\\footnotesize delay past TTL};
 
 % ─── Flow edges ────────────────────────────────────────────────────
 \draw[edge] (PA.south) -- (s1.north);
@@ -57,23 +60,17 @@
 \draw[edge] (PB.south) -- (s3.north);
 \draw[edge] (s1.east) -- (s2.west);
 \draw[edge] (s2.east) -- (s3.west);
-% Outcomes from the escrow verification step (s3)
-\draw[edge] (s3.south) -- (Op.north);
-\draw[edge] (s3.south) -- (Or.north);
-% Forbidden: structurally blocked — red barred connector
-\draw[forbidedge] (E.south) -- (Of.north);
-\node[font=\sffamily\scriptsize\itshape,text=maydayred,below=2pt of Of.south,text width=34mm,align=center]{blocked structurally\\(Theorem~\ref{thm:fh-escrow-bound})};
+% Outcomes from the verification step share a clear orthogonal branch.
+\coordinate (fork) at ($(s3.south)+(0,-10mm)$);
+\draw[edge] (s3.south) -- (fork) -| (Op.north);
+\draw[edge] (fork) -- (Or.north);
 
 \end{tikzpicture}%
 }
-\caption{Cross-harbor settlement protocol. The escrow is a third party in
-the sense that neither $A$ nor $B$ alone can compel an outcome, but it is
-\emph{not} a trusted third party in the operational sense: the protocol
-restricts its decision space to two outcomes (clear or refuse) and prices its
-maximum extractable fee $\phi$ up front. Redirecting funds, equivocating
-about a clearing decision, or delaying past TTL are structurally forbidden by
-the property checks in Theorem~\ref{thm:fh-escrow-bound}. The escrow is a
-\emph{bounded} third party --- the bond it holds plus the cap on $\phi$ make
-its misbehavior bounded-loss rather than catastrophic.}
+\caption{Cross-harbor settlement protocol. The custody bound is conditional,
+not automatic: the escrow authority must enforce a recipient whitelist, a fee
+cap, and exactly one atomic terminal transition, and neither harbor may possess
+an out-of-band bypass. Under those assumptions the outcome space is clear or
+refuse. Without them, the worst-case loss is the full balance held in custody.}
 \label{fig:fh-settlement}
 \end{figure}

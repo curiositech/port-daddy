@@ -11,6 +11,7 @@
 
 \begin{figure}[H]
 \centering
+\resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\sffamily\small,
   lane/.style={font=\sffamily\bfseries\footnotesize,anchor=east},
@@ -88,6 +89,7 @@
   node[midway,font=\sffamily\footnotesize\itshape,below,text=hhink]
   {salvage parent};
 \end{tikzpicture}
+}
 \caption{Worked-example timeline (App~D). Three swimlanes for the three architectural layers; events placed by wall-clock minute on the $x$-axis. Layer~1 (structural) issues the capability at $t_0$, releases on TTL after crash, and re-issues for the successor. Layer~3 (economic) posts \$6 in escrow at $t_0+1$ and settles at $t_0+24$. Layer~2 (attribution) accumulates evidence-chain entries $h_1$--$h_5$ on $\alpha$'s timeline and $h_6$--$h_8$ on $\beta$'s, linked by an explicit \emph{salvage parent} edge so attribution survives the identity disposal at minute~12.}
 \label{fig:worked-example}
 \end{figure}
