@@ -170,7 +170,7 @@ _port_daddy() {
     # Project onboarding
     setup init cut batten
     # Daemon lifecycle
-    start stop restart install install-bosun uninstall dev use daemon ci-gate self-update upgrade mcp
+    start stop restart install uninstall dev use daemon ci-gate self-update upgrade mcp
     # Bonds / Wallets — FleetControl hardening
     wallet bond
     # Info

@@ -2080,7 +2080,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     } else if (bosunRunning === false) {
       warn('Bosun watchdog',
         `pd-bosun binary present at ${bosunPath} but not active${bosunReason ? ` (${bosunReason})` : ''}`,
-        'Heartbeat writer is the daemon-side fallback; run `port-daddy install-bosun` to wire the supervisor');
+        'Heartbeat writer is the daemon-side fallback; repair supervision in FleetBar or reinstall the Homebrew package');
     } else {
       check('Bosun watchdog', true, `pd-bosun present at ${bosunPath}${bosunReason ? ` (${bosunReason})` : ''}`);
     }

@@ -491,7 +491,6 @@ covered start;     skip "start"     "would start the daemon process; lifecycle, 
 covered stop;      skip "stop"      "would stop a daemon; lifecycle, not surface-tested here"
 covered restart;   skip "restart"   "would restart a daemon; lifecycle, not surface-tested here"
 covered install;   skip "install"   "would register a launchd service on the host"
-covered install-bosun; skip "install-bosun" "would register the Bosun watchdog launchd/systemd job on the host"
 covered uninstall; skip "uninstall" "would deregister a launchd service on the host"
 covered up;        skip "up"        "would START services declared in .portdaddyrc (real child processes)"
 covered down;      skip "down"      "would stop an 'up' session (system processes)"
