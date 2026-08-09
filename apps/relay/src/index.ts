@@ -126,7 +126,13 @@ import {
   handleParleyListPage,
   handleParleyDetailPage,
   handleParleySignForm,
+  handleParleyVerdictForm,
 } from './parleys-page.js';
+import {
+  handleMediatorConvene,
+  handleMediatorSummonsRespond,
+  handleMediatorToggle,
+} from './mediator-body.js';
 import { handleRunsPage } from './runs-page.js';
 import { handleShipwrightPage } from './shipwright-page.js';
 import {
@@ -363,9 +369,24 @@ export default {
         response = await handleParleyDetailPage(request, env, pns, pname, pid);
       } else if (pns && pname && pid && seg.length === 4 && pverb === 'sign' && method === 'POST') {
         response = await handleParleySignForm(request, env, pns, pname, pid);
+      } else if (pns && pname && pid && seg.length === 4 && pverb === 'verdict' && method === 'POST') {
+        response = await handleParleyVerdictForm(request, env, pns, pname, pid);
       } else {
         response = new Response('Not Found', { status: 404 });
       }
+    }
+
+    // ── Mediator body (grand-plan node mediator-body; src/mediator-body.ts) ──
+    // Machine routes: signed chained envelopes only (delegated to the ONE
+    // publish gate); the kill toggle is operator-gated like /v1/fleet/pause.
+    else if (pathname === '/v1/mediator/convene' && method === 'POST') {
+      response = await handleMediatorConvene(request, env);
+    }
+    else if (pathname === '/v1/mediator/summons/respond' && method === 'POST') {
+      response = await handleMediatorSummonsRespond(request, env);
+    }
+    else if (pathname === '/v1/fleet/mediator' && method === 'POST') {
+      response = await handleMediatorToggle(request, env);
     }
 
     // ── Shipwright chat API (session-scoped; src/shipwright.ts) ──────────────

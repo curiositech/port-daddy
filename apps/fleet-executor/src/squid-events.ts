@@ -335,6 +335,128 @@ export function emitSquidEvent(
   }
 }
 
+// ── Awaited chained publish (mediator transport) ─────────────────────────────
+
+/** What one awaited chained publish did — honest, enumerated. */
+export interface ChainedPublishResult {
+  ok: boolean;
+  /** 'disabled' (identity/env absent), 'network' (fetch threw), or the relay's error code. */
+  code: string | null;
+  /** HTTP status from the relay, when a response arrived. */
+  status: number | null;
+  /** Chain coordinates on success (the DELIVERY RECEIPT into the chain). */
+  seq: number | null;
+  hash: string | null;
+  channel: string | null;
+  /** The relay's parsed response body (for callers that need more). */
+  body: unknown;
+}
+
+/**
+ * Sign one event on a fleet-cloud channel and POST it — AWAITED.
+ *
+ * This is the mediator's transport (grand-plan node mediator-body): a summons
+ * must NEVER be fire-and-forget, so unlike {@link emitSquidEvent} the caller
+ * awaits the result and reads the relay's answer — the returned (seq, hash)
+ * is the delivery receipt the summons ledger records. It shares this module's
+ * per-channel chain state and identity memo, so mediator events and squid
+ * telemetry on the same channel would chain correctly together (in practice
+ * they use disjoint channel suffixes), and it serializes on the channel tail
+ * so an interleaved fire-and-forget event cannot fork the chain.
+ *
+ * Same hard contract as the squid otherwise: missing env ⇒ `disabled` with
+ * ZERO fetches; a mismatched key/card pair ⇒ `disabled`; it never throws.
+ *
+ * @param env The squid env surface (identity + publish URL).
+ * @param channelSuffix Channel WITHIN the fleet-cloud family, e.g.
+ *        `mediator:owner-repo` → full channel `<relayFp>:fleet-cloud:<suffix>`.
+ * @param bodyObj JSON-serializable event body (rides base64url in ciphertext).
+ * @param url The relay endpoint to POST `{ card, event }` to — /v1/publish
+ *        or a mediator route that delegates to it.
+ */
+export async function publishChainedEvent(
+  env: SquidEnv,
+  channelSuffix: string,
+  bodyObj: unknown,
+  url: string,
+): Promise<ChainedPublishResult> {
+  const none: ChainedPublishResult = { ok: false, code: 'disabled', status: null, seq: null, hash: null, channel: null, body: null };
+  const keyHex = env.FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX;
+  const card = env.FLEET_EXECUTOR_HARBOR_CARD;
+  if (!url || !keyHex || !card) return none;
+  const identity = deriveSquidIdentity(keyHex, card);
+  if (!identity) return none;
+
+  const channel = `${identity.relayFp}:${SQUID_CHANNEL_FAMILY}:${channelSuffix}`;
+  let state = chains.get(channel);
+  if (!state) {
+    state = { seq: 0, prevHash: ZERO_HASH, tail: Promise.resolve() };
+    chains.set(channel, state);
+  }
+  const chained = state;
+
+  // Serialize behind any in-flight event on this channel, then sign + send.
+  const run = chained.tail.catch(() => undefined).then(async (): Promise<ChainedPublishResult> => {
+    const ciphertext = base64UrlEncode(new TextEncoder().encode(JSON.stringify(bodyObj)));
+    const seq = chained.seq + 1;
+    const prev_hash = chained.prevHash;
+    const iat = Math.floor(Date.now() / 1000);
+    const this_hash = computeSquidEventHash({
+      prev_hash,
+      sender: identity.fingerprint,
+      channel,
+      seq,
+      iat,
+      ciphertext,
+    });
+    const sig = toHex(ed.sign(fromHex(this_hash), identity.seed));
+    // Advance the local chain before the fetch settles — the relay's chain
+    // check is authoritative, exactly as in emitSquidEvent.
+    chained.seq = seq;
+    chained.prevHash = this_hash;
+
+    const event: SquidRelayEvent = {
+      v: 1,
+      sender: identity.fingerprint,
+      channel,
+      seq,
+      prev_hash,
+      this_hash,
+      iat,
+      ciphertext,
+      sig,
+    };
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card: identity.card, event }),
+      });
+      let body: unknown = null;
+      try {
+        body = await res.json();
+      } catch {
+        body = null;
+      }
+      const b = body as { code?: string } | null;
+      return {
+        ok: res.status === 200 || res.status === 201,
+        code: res.status === 200 || res.status === 201 ? null : (b?.code ?? String(res.status)),
+        status: res.status,
+        seq,
+        hash: this_hash,
+        channel,
+        body,
+      };
+    } catch {
+      return { ok: false, code: 'network', status: null, seq, hash: this_hash, channel, body: null };
+    }
+  });
+  // Keep the channel tail joined so later fire-and-forget events serialize.
+  chained.tail = run.then(() => undefined, () => undefined);
+  return run;
+}
+
 /**
  * Await every in-flight squid publish (all channel tails). For tests and for
  * teardown paths that WANT best-effort delivery before an isolate exits;
