@@ -10,6 +10,8 @@
 //! Uses only std for the server (no extra dev-deps); the crate's dev tokio
 //! provides the runtime `subscribe_agent` spawns onto.
 
+#[path = "../src/berths.rs"]
+mod berths; // agent.rs's DaemonClient::discover() needs crate::berths::default_url()
 #[path = "../src/agent.rs"]
 mod agent;
 
