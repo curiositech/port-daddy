@@ -164,4 +164,40 @@ describe('GET /roadmap/board persists the derived plan into graph_edges', () => 
     await edgesApp.inject({ method: 'GET', url: '/roadmap/board' });
     expect(graphEdges.list({ scope: 'planner:deps', limit: 100 })).toHaveLength(0);
   });
+
+  test('graphEdges absent from deps (bare unit fixtures) skips persistence without erroring', async () => {
+    // `app`/`db` (top-level beforeEach) registers the plugin with only { roadmapItems,
+    // roadmapPromote } — exactly the fixture shape used by every other test in this file, and by
+    // tests that predate this PR. The route must render successfully without ever touching
+    // writePlanEdges/graph_edges when that dependency is missing.
+    const res = await app.inject({ method: 'GET', url: '/roadmap/board' });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain('Planner Board');
+  });
+
+  test('a writePlanEdges failure is caught and logged — board rendering still succeeds', async () => {
+    const failingGraphEdges = {
+      replaceScope: () => {
+        throw new Error('simulated graph_edges write failure');
+      },
+      list: () => [],
+    };
+    const roadmapItems = createRoadmapItems({ db: edgesDb, tuples: createTupleSpace(edgesDb), now: () => 1_700_000_000_000 });
+    // edgesDb already has the seeded hierarchy from the outer beforeEach's roadmapItems instance
+    // (same db connection), so a fresh createRoadmapItems here just re-wraps the same tables.
+    const roadmapPromote = { promoteFromFeedback: () => { throw new Error('not used'); } };
+    const failingApp = Fastify();
+    await failingApp.register(roadmapPlugin, {
+      deps: { roadmapItems, roadmapPromote, graphEdges: failingGraphEdges },
+    });
+    await failingApp.ready();
+
+    const res = await failingApp.inject({ method: 'GET', url: '/roadmap/board' });
+    // The try/catch around writePlanEdges must swallow the failure — a persistence error can
+    // never break board rendering, which is the one user-visible thing this route does.
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain('Planner Board');
+
+    await failingApp.close();
+  });
 });
