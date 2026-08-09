@@ -199,6 +199,7 @@ run_read "roadmap"           roadmap     -- roadmap
 run_read "roadmap items"     roadmap     -- roadmap items
 run_read "secret list"       secret      -- secret list
 run_read "briefing"          briefing    -- briefing
+run_read "interruptions"     interruptions -- interruptions
 run_read "sitrep"            sitrep      -- sitrep
 run_read "look"              look        -- look
 run_read "periscope"         periscope   -- periscope
