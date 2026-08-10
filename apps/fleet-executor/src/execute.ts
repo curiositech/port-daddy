@@ -770,8 +770,74 @@ function triggerFor(job: FleetRunJob): string | null {
  * error so the queue consumer can retry; returns normally otherwise (including
  * for non-actionable events, which are simply skipped).
  */
+/**
+ * Report `Port Daddy Fleet` on a merge-queue branch.
+ *
+ * WHY A PASS-THROUGH AND NOT A REVIEW. The queue branch is `main` + the queued
+ * PRs, and every PR in it was already gated by the full fleet at
+ * `pull_request` time. Re-running every ship on each queue permutation would
+ * re-spend the entire review budget per entry, per reorder, to re-derive a
+ * verdict the fleet already published — while the queue branch's own CI (which
+ * DOES run on `merge_group`) is what actually exercises the combined code. This
+ * repo already takes that position elsewhere: scripts/check-roadmap-link.ts
+ * treats `merge_group` heads as a pass-through for exactly this reason.
+ *
+ * What matters is that the context REPORTS. It is required on the merge queue,
+ * so a context that never appears is not a strict gate — it is a permanent
+ * deadlock, which is what it had been since 2026-08-06.
+ *
+ * Fails soft on purpose: any error here leaves the check absent, which is
+ * exactly today's behaviour, so this can never be worse than not running.
+ *
+ * @param job the merge_group delivery
+ * @param env executor bindings (token minting + details url)
+ */
+async function reportMergeGroupPassThrough(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+  const mergeGroup = job.payloadMinimal?.merge_group as Record<string, unknown> | undefined;
+  const headSha = typeof mergeGroup?.head_sha === 'string' ? mergeGroup.head_sha : '';
+  if (!job.repoFullName || !job.installationId || !headSha) return;
+  const [owner, repo] = job.repoFullName.split('/');
+  if (!owner || !repo) return;
+
+  const token = await getInstallationTokenCached(
+    env.GITHUB_APP_ID,
+    env.GITHUB_APP_PRIVATE_KEY,
+    job.installationId,
+    env.FLEET_TOKENS,
+  ).catch(() => null);
+  if (!token) return;
+
+  try {
+    const checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token, null);
+    await completeCheckRun(
+      owner,
+      repo,
+      checkRunId,
+      'success',
+      'Merge-queue pass-through. Every PR in this group was reviewed by the fleet at ' +
+        'pull_request time; the queue branch is gated by its own CI, which runs on ' +
+        'merge_group. The fleet does not re-review each queue permutation.',
+      token,
+      null,
+    );
+  } catch (err) {
+    // Absent check == today's behaviour. Never throw: a failure here must not
+    // retry the job or dead-letter it.
+    console.error(`[fleet-executor] merge_group pass-through failed for ${job.repoFullName}@${headSha}: ${String(err)}`);
+  }
+}
+
 export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
   if (!env.AI) return;
+
+  // MERGE QUEUE: handled before every guard below, all of which assume a PR.
+  // A merge_group delivery has no pull_request and no prNumber, so it would
+  // otherwise fall straight out of `!job.prNumber` and report nothing — the
+  // deadlock this branch exists to end.
+  if (job.eventType === 'merge_group') {
+    await reportMergeGroupPassThrough(job, env);
+    return;
+  }
 
   const trigger = triggerFor(job);
   if (!trigger) return;
