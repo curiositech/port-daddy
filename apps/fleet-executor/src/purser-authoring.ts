@@ -96,7 +96,28 @@ const FENCE_RE = /```[ \t]*[A-Za-z0-9+#._-]*[ \t]*\r?\n([\s\S]*?)\r?\n?```/g;
  */
 function looksLikeCode(text: string): boolean {
   if (!text.includes('\n')) return false;
-  return /[;{}()=]/.test(text) && /\b(import|const|let|function|it|test|describe|def|class|assert|expect)\b/.test(text);
+  // Keywords must appear SYNTACTICALLY, not as English words.
+  //
+  // The first version of this check asked for "any of these keywords, plus any
+  // of this punctuation", which a refusal satisfies without being code:
+  //
+  //   "I cannot write this test.
+  //    It would need network access (which is unavailable)."
+  //
+  // `test` matches as a word, `(` matches as punctuation, and the purser
+  // commits the model's apology to disk as a .test.ts file — a file that then
+  // fails as a merge gate on a PR that did nothing wrong. Raised by the qa bot
+  // on #6790; it was right.
+  //
+  // So a declaration must START a line, or a test/assertion keyword must be
+  // CALLED, or the text must carry syntax prose does not: an arrow function or
+  // a statement-terminating semicolon.
+  return (
+    /^\s*(?:import|export|from|const|let|var|function|func|class|def|package|public|private)\b/m.test(text) ||
+    /\b(?:it|test|describe|expect|assert|require)\s*\(/.test(text) ||
+    /=>/.test(text) ||
+    /;\s*$/m.test(text)
+  );
 }
 
 /**

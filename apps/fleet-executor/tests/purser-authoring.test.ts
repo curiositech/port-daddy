@@ -53,6 +53,29 @@ describe('extractCodeFence', () => {
     expect(extractCodeFence('I cannot write these tests.')).toBeNull();
     expect(extractCodeFence('')).toBeNull();
   });
+
+  it('rejects a multi-line REFUSAL that happens to contain code-ish punctuation', () => {
+    // Raised by the qa bot on #6790, and it was a real defect: the first
+    // heuristic asked for "a keyword, plus some punctuation", which this
+    // satisfies without being code — `test` as an English word and a paren.
+    // Accepting it commits the model's apology as a .test.ts file, which then
+    // fails as a merge gate on a PR that did nothing wrong.
+    expect(
+      extractCodeFence('I cannot write this test.\nIt would need network access (which is unavailable).'),
+    ).toBeNull();
+  });
+
+  it('still accepts real unfenced code in several languages', () => {
+    // The tightening must not throw away the case the fallback exists for.
+    expect(extractCodeFence('import x from "y";\nit("a", () => {});')).not.toBeNull();
+    expect(extractCodeFence('def test_frob():\n    assert frob() == 1')).not.toBeNull();
+    expect(extractCodeFence('describe("suite", () => {\n  // ...\n});')).not.toBeNull();
+  });
+
+  it('returns null when every fence is empty', () => {
+    // Raised by the qa bot on #6790: multiple fences, none with usable content.
+    expect(extractCodeFence('```ts\n\n```\ntext\n```js\n   \n```')).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------
