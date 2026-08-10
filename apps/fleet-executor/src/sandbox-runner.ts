@@ -205,7 +205,13 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
     };
   }
 
-  const testCommand = params.testCommand ?? 'npm ci --no-audit --no-fund && npm test';
+  // --onnxruntime-node-install=skip: onnxruntime-node's postinstall fetches CUDA/
+  // TensorRT provider binaries unconditionally on linux-x64 (platform-gated, not
+  // GPU-detected) — this sandbox has no GPU and OOMs unpacking a library it can
+  // never use. The purser's tests never need real embedding inference.
+  const testCommand =
+    params.testCommand ??
+    'npm ci --no-audit --no-fund --onnxruntime-node-install=skip && npm test';
   const cloneUrl = `https://x-access-token:${params.token}@github.com/${params.owner}/${params.repo}.git`;
 
   // Compose ONE script: shallow-fetch the head SHA, graft the test files in
