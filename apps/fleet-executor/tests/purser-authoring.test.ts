@@ -245,6 +245,19 @@ describe('purser step model tiering', () => {
     expect(authorOf(purserFrom("author_model: '@cf/some/nonexistent'"))).toBe(MID);
   });
 
+  it('warns, but still defaults, when the key is present and EMPTY', () => {
+    // Not the same as an absent key: someone typed `author_model:` and left it
+    // blank, which is the most likely half-finished edit and used to be the one
+    // mistake that produced no output at all. (pd-code-reviewer HIGH on #6813.)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(authorOf(purserFrom("author_model: ''"))).toBe(MID);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('present but empty'));
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it('cannot pin a step onto the review bot model', () => {
     // gpt-oss-120b is reached by ROLE, never by pin. The bound survives the tier.
     expect(authorOf(purserFrom("author_model: '@cf/openai/gpt-oss-120b'"))).toBe(MID);

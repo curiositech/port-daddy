@@ -349,7 +349,19 @@ function deriveMapModel(agent: RawAgent, cfModel: string): string | undefined {
 function deriveStepModel(raw: unknown, shipModel: string, label: string): StepPin {
   if (typeof raw !== 'string') return { supplied: false };
   const pin = raw.trim();
-  if (!pin) return { supplied: false };
+  if (!pin) {
+    // `plan_model: ""` falls back to the tier default like any unusable pin,
+    // but it is NOT the same as the key being absent: someone typed the key and
+    // left it blank. Staying silent there was inconsistent with the unknown-id
+    // path below, which warns — so the one config mistake most likely to be a
+    // half-finished edit was the one mistake that produced no output at all.
+    // (Raised HIGH by pd-code-reviewer on #6813.)
+    console.warn(
+      `[fleet-executor] ${label} is present but empty; using the step default. ` +
+        `Remove the key to silence this, or give it a known-good Cloudflare id.`,
+    );
+    return { supplied: false };
+  }
   if (!KNOWN_GOOD_CF_MODELS.has(pin)) {
     console.warn(
       `[fleet-executor] ${label} '${pin}' is not a known-good Cloudflare id; ` +
