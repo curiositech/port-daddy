@@ -218,7 +218,12 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
   // (base64 so contents survive quoting), run the test command.
   const lines: string[] = [
     'set -e',
-    'mkdir -p /work && cd /work',
+    // rm -rf first: a retried run (network flake, transient sandbox error)
+    // can land in the SAME warm container as its failed predecessor, which
+    // already has /work/repo with `origin` set — `git remote add` then dies
+    // with "remote origin already exists" before a single test runs. Start
+    // from a clean slate every attempt so the script is retry-idempotent.
+    'rm -rf /work && mkdir -p /work && cd /work',
     `git init -q repo && cd repo`,
     `git remote add origin ${shq(cloneUrl)}`,
     `git fetch -q --depth 1 origin ${shq(params.headSha)}`,
