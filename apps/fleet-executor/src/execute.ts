@@ -603,6 +603,55 @@ async function recordRunStart(
 }
 
 /**
+ * Guarantee a `fleet_runs` row exists before a check run's completion is
+ * published — an idempotent (INSERT OR IGNORE) backstop independent of
+ * `recordRunStart`'s own best-effort write.
+ *
+ * `recordRunStart` deliberately swallows write failures ("NEVER aborts the
+ * run" — correct: an audit-log hiccup must not block gating). But that means
+ * a transient D1 error at exactly that moment leaves NO row behind, while the
+ * check run on GitHub still completes normally with a real conclusion — its
+ * `details_url` then points at a run id with no row, and the run page 404s
+ * ("Run not found") even though nothing else went wrong. `dlq.ts`'s
+ * completion path has the same gap: it never calls `recordRunStart` at all.
+ * Calling this once, right after `recordRunStart`, closes both: if the
+ * INSERT OR REPLACE above already succeeded this is a guaranteed no-op (same
+ * primary key); if it silently failed, this creates a minimal-but-truthful
+ * fallback row so the link a completed check publishes always resolves to
+ * something real.
+ */
+export async function ensureRunRow(
+  env: ExecutorEnv,
+  runId: string,
+  deliveryId: string,
+  repoFullName: string | null,
+  prNumber: number | null,
+  headSha: string,
+): Promise<void> {
+  if (!env.DB) return;
+  const repo = repoFullName ?? 'unknown/unknown';
+  const prUrl = prNumber != null ? `https://github.com/${repo}/pull/${prNumber}` : '';
+  try {
+    // Columns: (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha,
+    // conclusion, ships_csv, ms, created_at) — a superset of recordRunStart's
+    // INSERT: the same identity/context columns plus a placeholder 'pending'
+    // conclusion and 0 ms (recordRunComplete stamps the real values later).
+    // ships_csv is empty since this is only ever the no-ships-info fallback
+    // (recordRunStart already succeeded with the real list, or this is the
+    // DLQ path, which never has a ship list to begin with).
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO fleet_runs
+         (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha, conclusion, ships_csv, ms, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, 0, ?)`,
+    )
+      .bind(runId, deliveryId, repo, prNumber ?? 0, prUrl, headSha, '', nowSec())
+      .run();
+  } catch (err) {
+    console.error(`[fleet-executor] ensureRunRow failed run=${runId}: ${String(err)}`);
+  }
+}
+
+/**
  * Stamp the final conclusion + wall-clock elapsed onto the fleet_runs row.
  * Best-effort: a write failure NEVER changes the gate (the check run is already
  * the authoritative surface on GitHub).
@@ -770,8 +819,74 @@ function triggerFor(job: FleetRunJob): string | null {
  * error so the queue consumer can retry; returns normally otherwise (including
  * for non-actionable events, which are simply skipped).
  */
+/**
+ * Report `Port Daddy Fleet` on a merge-queue branch.
+ *
+ * WHY A PASS-THROUGH AND NOT A REVIEW. The queue branch is `main` + the queued
+ * PRs, and every PR in it was already gated by the full fleet at
+ * `pull_request` time. Re-running every ship on each queue permutation would
+ * re-spend the entire review budget per entry, per reorder, to re-derive a
+ * verdict the fleet already published — while the queue branch's own CI (which
+ * DOES run on `merge_group`) is what actually exercises the combined code. This
+ * repo already takes that position elsewhere: scripts/check-roadmap-link.ts
+ * treats `merge_group` heads as a pass-through for exactly this reason.
+ *
+ * What matters is that the context REPORTS. It is required on the merge queue,
+ * so a context that never appears is not a strict gate — it is a permanent
+ * deadlock, which is what it had been since 2026-08-06.
+ *
+ * Fails soft on purpose: any error here leaves the check absent, which is
+ * exactly today's behaviour, so this can never be worse than not running.
+ *
+ * @param job the merge_group delivery
+ * @param env executor bindings (token minting + details url)
+ */
+async function reportMergeGroupPassThrough(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+  const mergeGroup = job.payloadMinimal?.merge_group as Record<string, unknown> | undefined;
+  const headSha = typeof mergeGroup?.head_sha === 'string' ? mergeGroup.head_sha : '';
+  if (!job.repoFullName || !job.installationId || !headSha) return;
+  const [owner, repo] = job.repoFullName.split('/');
+  if (!owner || !repo) return;
+
+  const token = await getInstallationTokenCached(
+    env.GITHUB_APP_ID,
+    env.GITHUB_APP_PRIVATE_KEY,
+    job.installationId,
+    env.FLEET_TOKENS,
+  ).catch(() => null);
+  if (!token) return;
+
+  try {
+    const checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token, null);
+    await completeCheckRun(
+      owner,
+      repo,
+      checkRunId,
+      'success',
+      'Merge-queue pass-through. Every PR in this group was reviewed by the fleet at ' +
+        'pull_request time; the queue branch is gated by its own CI, which runs on ' +
+        'merge_group. The fleet does not re-review each queue permutation.',
+      token,
+      null,
+    );
+  } catch (err) {
+    // Absent check == today's behaviour. Never throw: a failure here must not
+    // retry the job or dead-letter it.
+    console.error(`[fleet-executor] merge_group pass-through failed for ${job.repoFullName}@${headSha}: ${String(err)}`);
+  }
+}
+
 export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
   if (!env.AI) return;
+
+  // MERGE QUEUE: handled before every guard below, all of which assume a PR.
+  // A merge_group delivery has no pull_request and no prNumber, so it would
+  // otherwise fall straight out of `!job.prNumber` and report nothing — the
+  // deadlock this branch exists to end.
+  if (job.eventType === 'merge_group') {
+    await reportMergeGroupPassThrough(job, env);
+    return;
+  }
 
   const trigger = triggerFor(job);
   if (!trigger) return;
@@ -1036,6 +1151,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // the audit trail records every attempt that got far enough to gate. A
   // write failure is swallowed and never changes the run or the gate.
   await recordRunStart(env, runId, job, prCtx, prNumber, cloudShips);
+  // Backstop: guarantee the row exists even if the write above silently
+  // failed, so every completion path below can rely on details_url resolving
+  // to a real run page (see ensureRunRow's docstring).
+  await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, prCtx.headSha);
 
   // --- SELF-REVIEW GUARD (the fleet does not review its own branches) ------
   // WHY THIS SITS HERE — after the gating check exists, before any AI spend.

@@ -1,13 +1,13 @@
 {
-  "generatedAt": 1785972321000,
+  "generatedAt": 1786311699759,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 261,
+  "count": 272,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
       "status": "now",
-      "summaryMd": "Wedge 1 launch assets from the GTM strategy (§6): Show HN post + founder note, and the portdaddy.dev /accountability launch page (hero, before/after, compliance ladder, git-guard demo, install CTA). Spawned by distribution-dogfood-gtm-strategy."
+      "summaryMd": "Wedge 1 launch assets from the GTM strategy (\u00a76): Show HN post + founder note, and the portdaddy.dev /accountability launch page (hero, before/after, compliance ladder, git-guard demo, install CTA). Spawned by distribution-dogfood-gtm-strategy."
     },
     {
       "slug": "active-agent-roster",
@@ -72,7 +72,7 @@
     {
       "slug": "adr-0043-phase-1-adr-sync-wiring",
       "status": "now",
-      "summaryMd": "ADR-0043 partial: lib/adr-matrix.ts parser shipped (Phase 0); Phase 1 missing — no cli/commands/adr.ts, no POST /adr/sync."
+      "summaryMd": "ADR-0043 partial: lib/adr-matrix.ts parser shipped (Phase 0); Phase 1 missing \u2014 no cli/commands/adr.ts, no POST /adr/sync."
     },
     {
       "slug": "adr-0043-phase-1-daemon-route-and-cli",
@@ -152,7 +152,7 @@
     {
       "slug": "adr-0045-phase-6-watchdog-and-signed-attestation",
       "status": "now",
-      "summaryMd": "Continuous watchdog (PASS->FAIL -> pheromone+notify+FleetBar red); sign clean reports with actor identity (ADR-0040) — non-repudiable green"
+      "summaryMd": "Continuous watchdog (PASS->FAIL -> pheromone+notify+FleetBar red); sign clean reports with actor identity (ADR-0040) \u2014 non-repudiable green"
     },
     {
       "slug": "adr-0046-phase-0-conversation-multiplex-shell",
@@ -237,7 +237,7 @@
     {
       "slug": "adr-0048-phase-2-L2-readsurfaces",
       "status": "now",
-      "summaryMd": "L2 SPINE: the read-surfaces — suggestibility briefings (agent read), Attention Queue (operator read), resurrection-with-memory (successor read), discovery/pd whois index. Done when tuples/pheromones/memories are READ in >=3 surfaces."
+      "summaryMd": "L2 SPINE: the read-surfaces \u2014 suggestibility briefings (agent read), Attention Queue (operator read), resurrection-with-memory (successor read), discovery/pd whois index. Done when tuples/pheromones/memories are READ in >=3 surfaces."
     },
     {
       "slug": "adr-0048-phase-3-L2-legibility-digest",
@@ -317,7 +317,7 @@
     {
       "slug": "adr-0050-phase-7-compulsion",
       "status": "backlog",
-      "summaryMd": "feat(coast-guard): rent→slash advisory-only — pure policy + breach ledger (ADR-0050 ph7)"
+      "summaryMd": "feat(coast-guard): rent\u2192slash advisory-only \u2014 pure policy + breach ledger (ADR-0050 ph7)"
     },
     {
       "slug": "adr-0052-phase-3a-coordination-bench-v1",
@@ -377,7 +377,7 @@
     {
       "slug": "adr-0096-signed-guidance-envelope",
       "status": "backlog",
-      "summaryMd": "feat(agent-harbor): M5 turn-start suggestibility — signed guidance channel, fail-closed verifier, ProVerif-gated C3 (ADR-0096)"
+      "summaryMd": "feat(agent-harbor): M5 turn-start suggestibility \u2014 signed guidance channel, fail-closed verifier, ProVerif-gated C3 (ADR-0096)"
     },
     {
       "slug": "adr-0097-m6-context-memory-search-contracts",
@@ -407,7 +407,7 @@
     {
       "slug": "adr-0101-fleet-run-pages",
       "status": "now",
-      "summaryMd": "ADR-0101: user-account wedge — capability-URL fleet run pages (details_url, Phase 0 shipped), GitHub OAuth login + user/session schema (Phase 1), BYOK + Stripe-credit + anchor-macaroon fleet funding (Phases 2-3)."
+      "summaryMd": "ADR-0101: user-account wedge \u2014 capability-URL fleet run pages (details_url, Phase 0 shipped), GitHub OAuth login + user/session schema (Phase 1), BYOK + Stripe-credit + anchor-macaroon fleet funding (Phases 2-3)."
     },
     {
       "slug": "adr-0101-phase-1-github-login",
@@ -437,7 +437,7 @@
     {
       "slug": "adr-doc-reconciliation-sweep",
       "status": "now",
-      "summaryMd": "Doc rot sweep from wf_74723755 (39 documentation lies + 9-collision numbering crisis). Concrete punch list: supersede-in-place 0030(whois)/0031(Spider)/0032(Lookout)/0038(claim_forest) with 'Superseded (implemented differently)' status + pointer to shipped mechanism; fix FALSE-GREEN attestations 0045:74 (identity check 'enabled' — does not exist) and 0053 (Relay 'verifies discharges/ProVerif' — zero macaroon wiring in apps/relay/src); flip 0037/0091 Proposed->Partial-Ship with shipped/gap tables; annotate 0090 phases 0-4 SUPERSEDED-by-durable-home-wave; correct 0086/0085 Implementation Matrix to ground truth (schema-only-shipped, edge-writers zero-callers); rename 0090-the-harbor->0097, pd-adr-090-hook-installer->next-free, 0091 roadmap slugs adr-0089->adr-0091; RECOVER orphaned ADR-0096 (signed-guidance, Accepted but trapped in ~20 worktrees); author a docs/adr/REGISTRY.md + pre-commit collision gate; binder reconciliation deltas ch02/05/06/09 (whois/claim_forest/squid/halt/durable-home all uncovered). Owner: doc-reconciliation dispatch. Decision-type: empirical (mechanical truth-fixes). Acceptance: every ADR status matches ground truth; zero number collisions; 0096 on main; binder covers the shipped substrate."
+      "summaryMd": "Doc rot sweep from wf_74723755 (39 documentation lies + 9-collision numbering crisis). Concrete punch list: supersede-in-place 0030(whois)/0031(Spider)/0032(Lookout)/0038(claim_forest) with 'Superseded (implemented differently)' status + pointer to shipped mechanism; fix FALSE-GREEN attestations 0045:74 (identity check 'enabled' \u2014 does not exist) and 0053 (Relay 'verifies discharges/ProVerif' \u2014 zero macaroon wiring in apps/relay/src); flip 0037/0091 Proposed->Partial-Ship with shipped/gap tables; annotate 0090 phases 0-4 SUPERSEDED-by-durable-home-wave; correct 0086/0085 Implementation Matrix to ground truth (schema-only-shipped, edge-writers zero-callers); rename 0090-the-harbor->0097, pd-adr-090-hook-installer->next-free, 0091 roadmap slugs adr-0089->adr-0091; RECOVER orphaned ADR-0096 (signed-guidance, Accepted but trapped in ~20 worktrees); author a docs/adr/REGISTRY.md + pre-commit collision gate; binder reconciliation deltas ch02/05/06/09 (whois/claim_forest/squid/halt/durable-home all uncovered). Owner: doc-reconciliation dispatch. Decision-type: empirical (mechanical truth-fixes). Acceptance: every ADR status matches ground truth; zero number collisions; 0096 on main; binder covers the shipped substrate."
     },
     {
       "slug": "adr-number-collision-guard",
@@ -447,32 +447,32 @@
     {
       "slug": "agent-harbor-c1-event-ledger",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C1 — event ledger and projections (binder ch18 Work Order C1)"
+      "summaryMd": "Agent Harbor C1 \u2014 event ledger and projections (binder ch18 Work Order C1)"
     },
     {
       "slug": "agent-harbor-c2-compliance-probes",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C2 — adapter compliance probes (binder ch18 Work Order C2)"
+      "summaryMd": "Agent Harbor C2 \u2014 adapter compliance probes (binder ch18 Work Order C2)"
     },
     {
       "slug": "agent-harbor-c3-operator-control-panel",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C3 — operator control panel (binder ch18 Work Order C3)"
+      "summaryMd": "Agent Harbor C3 \u2014 operator control panel (binder ch18 Work Order C3)"
     },
     {
       "slug": "agent-harbor-c5-governance-tool-gates",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C5 — governance and tool gates (binder ch18 Work Order C5)"
+      "summaryMd": "Agent Harbor C5 \u2014 governance and tool gates (binder ch18 Work Order C5)"
     },
     {
       "slug": "agent-harbor-c8-setup-doctor-remediation",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C8 — setup and doctor remediation (binder ch18 Work Order C8)"
+      "summaryMd": "Agent Harbor C8 \u2014 setup and doctor remediation (binder ch18 Work Order C8)"
     },
     {
       "slug": "agent-harbor-daemon-routes",
       "status": "backlog",
-      "summaryMd": "feat(agent-harbor): C-routes daemon HTTP layer — ch09 read API over C1 projections (closes I0 Contradiction 1)"
+      "summaryMd": "feat(agent-harbor): C-routes daemon HTTP layer \u2014 ch09 read API over C1 projections (closes I0 Contradiction 1)"
     },
     {
       "slug": "agent-harbor-docs-skill-collision-hygiene",
@@ -482,7 +482,7 @@
     {
       "slug": "agent-harbor-f0-contract-freeze",
       "status": "now",
-      "summaryMd": "Agent Harbor v0 contract freeze — ADR-0095 + 11 schemas + fixture tests (binder ch18 Work Order F0)"
+      "summaryMd": "Agent Harbor v0 contract freeze \u2014 ADR-0095 + 11 schemas + fixture tests (binder ch18 Work Order F0)"
     },
     {
       "slug": "agent-harbor-runtime-refactor-contract-dag",
@@ -497,7 +497,7 @@
     {
       "slug": "app-lane-auto-refresh",
       "status": "backlog",
-      "summaryMd": "feat(dist): app-lane auto-refresh — main/tap watcher, FleetBar lanes, date-sorted dev bundles"
+      "summaryMd": "feat(dist): app-lane auto-refresh \u2014 main/tap watcher, FleetBar lanes, date-sorted dev bundles"
     },
     {
       "slug": "ast-a0-intra-file-call-edges",
@@ -507,7 +507,7 @@
     {
       "slug": "ast-a1-1-cross-file-resolution",
       "status": "done",
-      "summaryMd": "A1.1 cross-file import resolution — DONE (#576 + #593 hardening: NodeNext .js->.ts, boundary clamp, dropped bogus baseUrl probe). Cross-file IMPORT edges resolve. Unblocks ast-a1-3."
+      "summaryMd": "A1.1 cross-file import resolution \u2014 DONE (#576 + #593 hardening: NodeNext .js->.ts, boundary clamp, dropped bogus baseUrl probe). Cross-file IMPORT edges resolve. Unblocks ast-a1-3."
     },
     {
       "slug": "ast-a1-2-references-edges",
@@ -517,7 +517,7 @@
     {
       "slug": "ast-a1-3-cross-file-call-resolution",
       "status": "done",
-      "summaryMd": "A1.3 cross-file CALL resolution — DONE (#594). extractCallEdges resolves imported callees via importMap; cross-file blast-radius + signature conflicts fire (proven). Follow-up: aliased/namespace imports."
+      "summaryMd": "A1.3 cross-file CALL resolution \u2014 DONE (#594). extractCallEdges resolves imported callees via importMap; cross-file blast-radius + signature conflicts fire (proven). Follow-up: aliased/namespace imports."
     },
     {
       "slug": "ast-a1-4-incremental-index-refresh",
@@ -537,7 +537,7 @@
     {
       "slug": "ast-a2-2-symbol-graph-visualization",
       "status": "backlog",
-      "summaryMd": "Cross-file symbol-graph overlay in the Harbor Editor: Layer A (syntax.rs) calls the daemon symbol-index (Layer B: lib/symbol-index.ts, routes/symbols.ts — GET /symbols, /symbols/blast-radius, POST /conflicts/predict) over HTTP and projects what-calls-this / who-imports / blast-radius results into the open buffer, anchored on Loro cursors at render time. Fast-follow to harbor-editor-p1-loro-buffer. Agreed in parley daff1056 (COLLAPSED)."
+      "summaryMd": "Cross-file symbol-graph overlay in the Harbor Editor: Layer A (syntax.rs) calls the daemon symbol-index (Layer B: lib/symbol-index.ts, routes/symbols.ts \u2014 GET /symbols, /symbols/blast-radius, POST /conflicts/predict) over HTTP and projects what-calls-this / who-imports / blast-radius results into the open buffer, anchored on Loro cursors at render time. Fast-follow to harbor-editor-p1-loro-buffer. Agreed in parley daff1056 (COLLAPSED)."
     },
     {
       "slug": "ast-a2-3-predict-conflicts-session-preflight",
@@ -563,6 +563,11 @@
       "slug": "ast-a4-1-go-rust-grammars",
       "status": "parked",
       "summaryMd": "A4.1 (optional) Wire tree-sitter-go / tree-sitter-rust + extraction (symbols, imports, intra-file calls). Done when a Go and Rust file parse with symbols + call edges."
+    },
+    {
+      "slug": "audit-git-hooks-env-bypass",
+      "status": "backlog",
+      "summaryMd": "CI auditor: scan all git hooks + shim/hook installers for in-band env-var security bypasses (binary-agnostic-wall, ADR-0053/0102); non-zero exit gates CI; fixes pre-push hook silent PD_SHIM_OFF stand-down."
     },
     {
       "slug": "beacon-durable-agent-roster",
@@ -602,7 +607,7 @@
     {
       "slug": "booty-artifact-harvest",
       "status": "backlog",
-      "summaryMd": "feat(booty): S4a artifact harvest — provenance over the blob store"
+      "summaryMd": "feat(booty): S4a artifact harvest \u2014 provenance over the blob store"
     },
     {
       "slug": "bosun-plist-stale-cellar-path-on-upgrade",
@@ -623,6 +628,11 @@
       "slug": "claude-squid-mode-visual-20260716",
       "status": "backlog",
       "summaryMd": "fix(squid): honest pd squid on reporting + centralized capability tokens"
+    },
+    {
+      "slug": "cli-spawn-liveness-and-collection",
+      "status": "merge",
+      "summaryMd": "Make local coding-agent spawns durable, observable, explicitly cancellable, and free of hidden task wallclock deadlines."
     },
     {
       "slug": "cloudflare-agent-telemetry-unified-reporting",
@@ -672,32 +682,32 @@
     {
       "slug": "control-contract-wirer",
       "status": "backlog",
-      "summaryMd": "Wave-2 owner of binder CR-1 + CR-2: wire the operator control verbs to a real contract. CURRENT STATE (audited 2026-07-14, control_contract_audit: FAIL 56/100): pd-console buttons POST a generic F0 ControlCommand with no control_commands table or daemon ingress (CR-1, zero hits on main), single collapsed 'control' verb, no terminal states, authorization from ui-state — plus the live interrupt route is lease-less fire-and-forget contradicting lib/agent-harbor/control-gate.ts doctrine (CR-2). TARGET CONTRACT (audited: PASS 100/100, spec at the session ledger): six distinct verbs (steer/interrupt/pause/kill/checkpoint/fork) each with queued/delivered/acknowledged/failed/expired/unsupported terminals; four backends honestly declared (local-process: all six; cloud-worker-body: steer/interrupt/kill; hook-only-session: steer/interrupt; observed-import: NONE — buttons render disabled with reason, never false affordances); authorization re-checks authoritative lease at delivery time per control-gate doctrine, never the roster projection. Acceptance: control_commands table + ingress exist; ch02 remote-interrupt race test passes; control_contract_audit on the SHIPPED spec passes; every unsupported verb x backend pair renders a disabled control with stated reason. Unblocks: roadmap-reconciler-agent unattended mode (dependency 2 of 3)."
+      "summaryMd": "Wave-2 owner of binder CR-1 + CR-2: wire the operator control verbs to a real contract. CURRENT STATE (audited 2026-07-14, control_contract_audit: FAIL 56/100): pd-console buttons POST a generic F0 ControlCommand with no control_commands table or daemon ingress (CR-1, zero hits on main), single collapsed 'control' verb, no terminal states, authorization from ui-state \u2014 plus the live interrupt route is lease-less fire-and-forget contradicting lib/agent-harbor/control-gate.ts doctrine (CR-2). TARGET CONTRACT (audited: PASS 100/100, spec at the session ledger): six distinct verbs (steer/interrupt/pause/kill/checkpoint/fork) each with queued/delivered/acknowledged/failed/expired/unsupported terminals; four backends honestly declared (local-process: all six; cloud-worker-body: steer/interrupt/kill; hook-only-session: steer/interrupt; observed-import: NONE \u2014 buttons render disabled with reason, never false affordances); authorization re-checks authoritative lease at delivery time per control-gate doctrine, never the roster projection. Acceptance: control_commands table + ingress exist; ch02 remote-interrupt race test passes; control_contract_audit on the SHIPPED spec passes; every unsupported verb x backend pair renders a disabled control with stated reason. Unblocks: roadmap-reconciler-agent unattended mode (dependency 2 of 3)."
     },
     {
       "slug": "coordination-papers-empirical-program",
       "status": "backlog",
-      "summaryMd": "Run the empirical program behind the papers: estimate miss/false-alarm costs, detection and slash probabilities, discount and payoff parameters; validate judge reliability and conflicts; chaos-test partitions, redelivery, crash recovery, and identity-reset laundering; publish reproducible traces."
+      "summaryMd": "Measure operator miss and false-alarm costs, judge validity, crash and partition behavior, identity-reset resistance, revocation lag, and other parameters with reproducible, versioned trace bundles."
     },
     {
       "slug": "coordination-papers-mega-volume",
       "status": "now",
-      "summaryMd": "Publish the seven-paper Coordination Papers as one cohesive collected volume with a global introduction, collated contents and references, consolidated status ledger, notation concordance, research appendix, full-page visual audit, library surface, and production artifact."
+      "summaryMd": "Publish the audited seven-paper coordination series as a coherent collected volume with corrected figures and math, implementation-status ledger, collated table of contents and references, proof roadmap, library metadata, reproducible build receipts, and production artifact verification."
     },
     {
       "slug": "coordination-papers-proof-program",
       "status": "backlog",
-      "summaryMd": "Close the whitepaper proof obligations: theorem assumption/deviation matrices, settlement/custody conservation, revocation dissemination bounds under partitions, model-to-runtime conformance, Proof-of-Attention game class and tightness, and explicit conditionality for grading-oracle incentive compatibility."
+      "summaryMd": "Close theorem, security, game-theoretic, conservation, dissemination, oracle-independence, Proof-of-Attention, and model-to-runtime conformance obligations under named adversaries and parameter regions."
     },
     {
       "slug": "coordination-papers-runtime-closure",
       "status": "backlog",
-      "summaryMd": "Close the code gaps exposed by the papers: reputation-grade witnessed outcomes on commitments, actor identity at every write boundary, portable execution checkpoints, sealed cross-harbor relay, witness-log revocation, custody and settlement prototype, and projection-consistency enforcement."
+      "summaryMd": "Close publication runtime gaps exposed by the rigor pass: resumable Fleet ships and review chunks, bounded GitHub I/O, the fleet_run_spend migration, exact-head memory and empty-provider receipts, stale-head coalescing, promotion criteria for paper claims, and witnessed implementation-status evidence."
     },
     {
       "slug": "daemon-down-hard-stop-mandate",
       "status": "now",
-      "summaryMd": "KEYSTONE (operator top mandate 2026-07-14: 'it is insane port-daddy does not grind to a halt when the daemon is down — it MUST, super loud'). Reconciliation confirms: every enforcement claim is theatrical while ~30 lib/*.ts modules open SQLite directly and only 4 command files call isDaemonRunning; guard.ts note-per-commit rent check FAILS OPEN (daemon/git failure => no rent owed); 6 quiet-degrade surfaces (dispatch.ts:270 silent direct-DB fallback, post-commit-hook curl discarded, MCP text-not-McpError server.ts:4995, FleetBar dot, brew Running:true lie with no watchdog). Build: (1) new ADR 'Daemon-Down Hard-Stop Mandate' generalizing guard structural-escalation to all write surfaces; (2) guard rent check fail CLOSED+loud; (3) a shared daemon-liveness precondition on direct-SQLite writes (loud refuse, not silent fallback); (4) supervision watchdog reconciling brew/launchd Running:true vs actual liveness. Owner: halt-mandate dispatch. Decision-type: HITL (the fail-closed policy is an operator call) + empirical (the wiring). Acceptance: with daemon killed, a pd write refuses loudly instead of hitting local SQLite; the rent check blocks; pd doctor is not the only thing that catches the brew lie."
+      "summaryMd": "KEYSTONE (operator top mandate 2026-07-14: 'it is insane port-daddy does not grind to a halt when the daemon is down \u2014 it MUST, super loud'). Reconciliation confirms: every enforcement claim is theatrical while ~30 lib/*.ts modules open SQLite directly and only 4 command files call isDaemonRunning; guard.ts note-per-commit rent check FAILS OPEN (daemon/git failure => no rent owed); 6 quiet-degrade surfaces (dispatch.ts:270 silent direct-DB fallback, post-commit-hook curl discarded, MCP text-not-McpError server.ts:4995, FleetBar dot, brew Running:true lie with no watchdog). Build: (1) new ADR 'Daemon-Down Hard-Stop Mandate' generalizing guard structural-escalation to all write surfaces; (2) guard rent check fail CLOSED+loud; (3) a shared daemon-liveness precondition on direct-SQLite writes (loud refuse, not silent fallback); (4) supervision watchdog reconciling brew/launchd Running:true vs actual liveness. Owner: halt-mandate dispatch. Decision-type: HITL (the fail-closed policy is an operator call) + empirical (the wiring). Acceptance: with daemon killed, a pd write refuses loudly instead of hitting local SQLite; the rent check blocks; pd doctor is not the only thing that catches the brew lie."
     },
     {
       "slug": "daemon-reliability-release",
@@ -706,8 +716,13 @@
     },
     {
       "slug": "dev-berth-daemon-registration",
-      "status": "now",
-      "summaryMd": "WIP (operator flagged unfinished 2026-07-14): every daemon launched locally for a dev berth must self-register in ~/.port-daddy/dev-daemons.json so FleetBar/Control Center can see it — else dev daemons are invisible in the sanctioned shell (the show-me-runbook hard rule: dev-triple launches with PD_DAEMON_TIER/LABEL/SOURCE_DIR so the berth registers). Evidence tonight: lsof showed a dev-latest daemon on :9886 and multiple dispatch-worktree daemons that FleetBar has no view of. Finish: on daemon boot, if a non-prod tier/label is set, upsert the berth into dev-daemons.json (pid, port, tier, label, sourceDir, gitRev, health-url); prune dead berths on read; every dev-berth launch path (pd dev up, package-console --devbuild, dispatch worktree daemons, dev-triple) goes through it. Acceptance: launch a dev berth by any path and it appears in FleetBar's Daemons list with correct tier/label; killing it prunes it. Owner: dev-berth dispatch. Decision-type: empirical."
+      "status": "merge",
+      "summaryMd": "Make named development daemons discoverable by published runtime identity and prove backend changes against selected feature builds."
+    },
+    {
+      "slug": "document-operator-raw-git-escape",
+      "status": "backlog",
+      "summaryMd": "Operator-only guide for the emergency raw-git escape path (real git by absolute path) when the daemon is down; kept out of all agent-facing skill surfaces per ADR-0102, with an anti-leak guard test."
     },
     {
       "slug": "door-generalize-write-boundary-enforcement",
@@ -731,8 +746,8 @@
     },
     {
       "slug": "durable-agent-cross-harness-resumption",
-      "status": "backlog",
-      "summaryMd": "Resume a sanitized handoff capsule in a different harness or backend without replaying raw transcripts, with explicit capability loss and source-to-target lineage."
+      "status": "merge",
+      "summaryMd": "Resume durable coding-agent work across harnesses with immutable predecessor lineage, one admitted successor, collectible receipts, and honest liveness."
     },
     {
       "slug": "durable-agent-handoff-capsule",
@@ -760,11 +775,6 @@
       "summaryMd": "Daemon-witnessed same-harness session continuation with UUID and workspace-bound evidence, owner-leased receipts, and truthful native resume semantics."
     },
     {
-      "slug": "durable-asynchronous-spawn-receipts",
-      "status": "now",
-      "summaryMd": "Durable idempotent admission, lifecycle, liveness, cancellation, and collection receipts for background agent runs."
-    },
-    {
       "slug": "feat-backend-dropdown-spawn-forecast",
       "status": "backlog",
       "summaryMd": "feat(fleet): backend dropdown in FleetBar popover + GET /fleet/forecast spawn-rate estimator"
@@ -772,7 +782,7 @@
     {
       "slug": "feat-harbor-editor-fast",
       "status": "backlog",
-      "summaryMd": "perf(pd-console): rebuild Harbor editor — virtualized tight code surface, syntax color, author column"
+      "summaryMd": "perf(pd-console): rebuild Harbor editor \u2014 virtualized tight code surface, syntax color, author column"
     },
     {
       "slug": "feat-native-skill-graft-fleet-ships",
@@ -812,7 +822,7 @@
     {
       "slug": "fleet-respawn-breaker-durability",
       "status": "backlog",
-      "summaryMd": "Respawn circuit breaker does not survive the crash class it guards: respawnCounts (lib/fleet-engine.ts:2195) is an in-memory Map, so a fleet-engine process restart resets every agent's death count to zero — the 345-respawn zombie failure shape at the layer above (launchd KeepAlive) can reproduce here whenever the engine itself is churned. Also: (a) respawn fires immediately on the death event with no jittered backoff (bounded only by maxRespawns=3); (b) dead-agent matching uses substring deadId.includes(name), which can respawn the wrong agent when one name is a substring of another identity. Fix: persist respawn counts (or derive from resurrection-event history in the registry) with a TTL window; add full-jitter backoff before respawn; exact-match on identity. Acceptance: restarting the fleet engine mid-storm does not reset the breaker (test proves count survives); agents named 'scout' and 'scout-2' never cross-respawn."
+      "summaryMd": "Respawn circuit breaker does not survive the crash class it guards: respawnCounts (lib/fleet-engine.ts:2195) is an in-memory Map, so a fleet-engine process restart resets every agent's death count to zero \u2014 the 345-respawn zombie failure shape at the layer above (launchd KeepAlive) can reproduce here whenever the engine itself is churned. Also: (a) respawn fires immediately on the death event with no jittered backoff (bounded only by maxRespawns=3); (b) dead-agent matching uses substring deadId.includes(name), which can respawn the wrong agent when one name is a substring of another identity. Fix: persist respawn counts (or derive from resurrection-event history in the registry) with a TTL window; add full-jitter backoff before respawn; exact-match on identity. Acceptance: restarting the fleet engine mid-storm does not reset the breaker (test proves count survives); agents named 'scout' and 'scout-2' never cross-respawn."
     },
     {
       "slug": "fleet-run-spend-recording",
@@ -832,12 +842,12 @@
     {
       "slug": "fleet-trigger-fire-time-gate",
       "status": "backlog",
-      "summaryMd": "Duplicate-execution defect (open since PR #655, still unfixed 2026-07-14): armed fleet triggers have no fire-time gate or idempotency key — zero lastFired/dedup hits in lib/fleet-engine.ts — so a daemon restart or double evaluation double-fires a trigger and spawns duplicate agents (duplicate spend). Fix per at-least-once queue discipline: persist last_fired_at per trigger in the registry (survives restarts, unlike in-memory state); derive a spawn idempotency key from (trigger-id, scheduled-fire-time) and dedupe at the spawn preflight — the DB row is the dedup primitive, not process memory. Acceptance: kill and restart the daemon around a trigger's fire window; exactly one spawn occurs; a unit test proves the (trigger, fire-time) key dedupes."
+      "summaryMd": "Duplicate-execution defect (open since PR #655, still unfixed 2026-07-14): armed fleet triggers have no fire-time gate or idempotency key \u2014 zero lastFired/dedup hits in lib/fleet-engine.ts \u2014 so a daemon restart or double evaluation double-fires a trigger and spawns duplicate agents (duplicate spend). Fix per at-least-once queue discipline: persist last_fired_at per trigger in the registry (survives restarts, unlike in-memory state); derive a spawn idempotency key from (trigger-id, scheduled-fire-time) and dedupe at the spawn preflight \u2014 the DB row is the dedup primitive, not process memory. Acceptance: kill and restart the daemon around a trigger's fire window; exactly one spawn occurs; a unit test proves the (trigger, fire-time) key dedupes."
     },
     {
       "slug": "fleet-v2-adversarial-prosecutor",
-      "status": "backlog",
-      "summaryMd": "The prosecutor ship: write+run tests to FALSIFY the PR's stated objective, post red evidence (ADR-0117 D3; confirmed white space). Blocked-by: fleet-v2-sandbox-execution. Blocks: fleet-v2-remediation-loop."
+      "status": "merge",
+      "summaryMd": "Preserve exact-SHA adversarial review coverage and fail closed on missing, stale, malformed, or unprovable evidence."
     },
     {
       "slug": "fleet-v2-remediation-loop",
@@ -867,17 +877,22 @@
     {
       "slug": "gantt-real-estimate-wiring",
       "status": "now",
-      "summaryMd": "Wire real roadmap_items.estimate into the Gantt scheduler (routes/roadmap.ts's GET /roadmap/board handler) instead of the hardcoded estimate:1 every task got. lib/roadmap-items.ts now exposes estimate on RoadmapItem/reads it from the DB row; routes/roadmap.ts looks it up per-task with an explicit fallback of 1 only when genuinely unset. started_at/due_at stay unwired — lib/planner-schedule.ts's schedule() is a purely relative CPM engine with no absolute-date anchor concept."
+      "summaryMd": "Wire real roadmap_items.estimate into the Gantt scheduler (routes/roadmap.ts's GET /roadmap/board handler) instead of the hardcoded estimate:1 every task got. lib/roadmap-items.ts now exposes estimate on RoadmapItem/reads it from the DB row; routes/roadmap.ts looks it up per-task with an explicit fallback of 1 only when genuinely unset. started_at/due_at stay unwired \u2014 lib/planner-schedule.ts's schedule() is a purely relative CPM engine with no absolute-date anchor concept."
     },
     {
       "slug": "giant-squid-hook-reliability-and-operator-proof",
       "status": "backlog",
-      "summaryMd": "Make Giant Squid hooks install reliably across supported agents, ship verified assets, and expose visible honest operator proof."
+      "summaryMd": "Ship Giant Squid harness activation, conformance, named feature-daemon proof, atomic daemon reachability, current agent documentation, and a versioned Homebrew release."
+    },
+    {
+      "slug": "git-guard-no-agent-escape",
+      "status": "backlog",
+      "summaryMd": "ADR-0102: remove agent-mintable PD_SHIM_OFF git-guard escape"
     },
     {
       "slug": "github-webhook-delivery-dedup",
       "status": "backlog",
-      "summaryMd": "Inbound webhook receiver (routes/github-webhook.ts, io-wiring Phase 2) has no idempotency and no replay protection: X-GitHub-Delivery is extracted (line ~222) but never used as a dedup key, and the handler publishes to fleet channels unconditionally — every GitHub redelivery (automatic retry, manual Redeliver, or attacker replay of a captured request, which stays valid forever since GitHub HMAC signs no timestamp) re-fires fleet triggers and duplicates spawns/spend. The 500-on-publish-failure path invites retries that re-publish already-succeeded channels (partial-publish duplication). Composes with fleet-trigger-fire-time-gate: two layers between GitHub and a spawn, neither idempotent. Fix per receiver discipline: durable inbound_webhook_deliveries table keyed UNIQUE(provider, delivery_id) in the registry (safe post-#2067 durable home — pre-fix this table would have been wiped every brew upgrade, erasing replay memory); insert-first with status, publish, then mark published; redelivery of a published id acks 204 without republishing; redelivery of an unpublished id retries only unpublished channels. Signature layer needs NO change (raw-body HMAC + timingSafeEqual + two-tier auth verified sound 2026-07-14). Acceptance: replaying a captured valid request twice publishes fleet events exactly once (unit test); a redelivery after simulated partial publish completes only the missing channels."
+      "summaryMd": "Inbound webhook receiver (routes/github-webhook.ts, io-wiring Phase 2) has no idempotency and no replay protection: X-GitHub-Delivery is extracted (line ~222) but never used as a dedup key, and the handler publishes to fleet channels unconditionally \u2014 every GitHub redelivery (automatic retry, manual Redeliver, or attacker replay of a captured request, which stays valid forever since GitHub HMAC signs no timestamp) re-fires fleet triggers and duplicates spawns/spend. The 500-on-publish-failure path invites retries that re-publish already-succeeded channels (partial-publish duplication). Composes with fleet-trigger-fire-time-gate: two layers between GitHub and a spawn, neither idempotent. Fix per receiver discipline: durable inbound_webhook_deliveries table keyed UNIQUE(provider, delivery_id) in the registry (safe post-#2067 durable home \u2014 pre-fix this table would have been wiped every brew upgrade, erasing replay memory); insert-first with status, publish, then mark published; redelivery of a published id acks 204 without republishing; redelivery of an unpublished id retries only unpublished channels. Signature layer needs NO change (raw-body HMAC + timingSafeEqual + two-tier auth verified sound 2026-07-14). Acceptance: replaying a captured valid request twice publishes fleet events exactly once (unit test); a redelivery after simulated partial publish completes only the missing channels."
     },
     {
       "slug": "gpui-agent-observatory",
@@ -907,7 +922,7 @@
     {
       "slug": "guard-enforcement-messaging-integrity",
       "status": "backlog",
-      "summaryMd": "Coordination Guard messaging is inconsistent with its enforcement, training agents into alarm fatigue: observed repeatedly 2026-07-14 that (a) 'Port Daddy: commit blocked by Coordination Guard' prints while the commit actually LANDS (verified by git log immediately after, multiple times), and (b) the '1 commit(s) have no coordination note' rent complaint keeps firing after the note was paid (stale count). An enforcement gate whose 'blocked' means 'proceeded anyway' and whose debt counter doesn't clear teaches every agent to ignore it — the worst possible property for a guard. Fix: make the block message truthful (if the hook allows the commit, say ADVISORY; if it blocks, actually exit non-zero before the commit object is created), and recompute the unpaid-rent count after note writes within the same session. Acceptance: a deliberately rent-unpaid commit either lands with an ADVISORY-labeled message or is actually absent from git log — never 'blocked'+landed; paying a note clears the counter on the next check."
+      "summaryMd": "Coordination Guard messaging is inconsistent with its enforcement, training agents into alarm fatigue: observed repeatedly 2026-07-14 that (a) 'Port Daddy: commit blocked by Coordination Guard' prints while the commit actually LANDS (verified by git log immediately after, multiple times), and (b) the '1 commit(s) have no coordination note' rent complaint keeps firing after the note was paid (stale count). An enforcement gate whose 'blocked' means 'proceeded anyway' and whose debt counter doesn't clear teaches every agent to ignore it \u2014 the worst possible property for a guard. Fix: make the block message truthful (if the hook allows the commit, say ADVISORY; if it blocks, actually exit non-zero before the commit object is created), and recompute the unpaid-rent count after note writes within the same session. Acceptance: a deliberately rent-unpaid commit either lands with an ADVISORY-labeled message or is actually absent from git log \u2014 never 'blocked'+landed; paying a note clears the counter on the next check."
     },
     {
       "slug": "guard-merge-blast-radius-fix",
@@ -915,9 +930,14 @@
       "summaryMd": "Fix coordination-guard stagedFiles() misattributing a merge's pass-through files to the merging session's blast radius. Shipped as PR #3130 (this commit resolves a real content conflict with a concurrently-regenerated main roadmap snapshot)."
     },
     {
+      "slug": "guard-refusal-escalation-skill",
+      "status": "backlog",
+      "summaryMd": "Agent-skill decision tree: correct escalation path on a coordination-guard / pd-shim refusal \u2014 fix the guard input or escalate to operator; no in-band bypass (ADR-0102)."
+    },
+    {
       "slug": "guard-stash-pop-interception",
       "status": "backlog",
-      "summaryMd": "Coordination Guard shim intercepts git stash PUSH but not POP/APPLY — live incident 2026-07-14: a session in worktree daemon-single-truth ran git stash pop, the shim let it through, and it partially applied ANOTHER session's stash (stash@{0}, codex-gpui-harness-mux 72 files) into the worktree: staged foreign changes + conflict markers across pd-console/skills/cli. The stash stack is shared mutable state across ALL worktrees (lives in .git), so pop/apply without an explicit stash ref is exactly as cross-session-dangerous as push. Fix: shim intercepts bare 'git stash pop/apply' (no ref) with the same refuse+bypass pattern as push; allow 'apply <sha>' / 'pop stash@{n}' with explicit refs; message points at the SHA-capture workflow already documented in the repo worktree guidance. Acceptance: bare pop in a worktree is refused with PD_SHIM_OFF bypass offered; explicit-ref apply passes."
+      "summaryMd": "Coordination Guard shim intercepts git stash PUSH but not POP/APPLY \u2014 live incident 2026-07-14: a session in worktree daemon-single-truth ran git stash pop, the shim let it through, and it partially applied ANOTHER session's stash (stash@{0}, codex-gpui-harness-mux 72 files) into the worktree: staged foreign changes + conflict markers across pd-console/skills/cli. The stash stack is shared mutable state across ALL worktrees (lives in .git), so pop/apply without an explicit stash ref is exactly as cross-session-dangerous as push. Fix: shim intercepts bare 'git stash pop/apply' (no ref) with the same refuse+bypass pattern as push; allow 'apply <sha>' / 'pop stash@{n}' with explicit refs; message points at the SHA-capture workflow already documented in the repo worktree guidance. Acceptance: bare pop in a worktree is refused with PD_SHIM_OFF bypass offered; explicit-ref apply passes."
     },
     {
       "slug": "harbor-card-rs-ffi-hardening",
@@ -932,7 +952,7 @@
     {
       "slug": "harbor-editor",
       "status": "now",
-      "summaryMd": "Harbor Editor — cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
+      "summaryMd": "Harbor Editor \u2014 cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
     },
     {
       "slug": "harbor-replicaid-agent-branch-clock",
@@ -942,7 +962,7 @@
     {
       "slug": "harbor-salvage-replay-convergence",
       "status": "backlog",
-      "summaryMd": "test(harbor): P3.5 salvage foundation — Loro op-replay convergence property tests"
+      "summaryMd": "test(harbor): P3.5 salvage foundation \u2014 Loro op-replay convergence property tests"
     },
     {
       "slug": "harbormaster-mcp-parity",
@@ -955,14 +975,19 @@
       "summaryMd": "Root cause confirmed: prod CONTROL_KV fleet:paused=true set out-of-band since 2026-07-16, bypassing the audited pause endpoint, no audit trail. Fleet-executor's paused path now always mints a neutral required check-run instead of returning silently. PR #3355. Flag reset to false in prod (operator-directed)."
     },
     {
+      "slug": "hitl-operator-interruptions-surfaces",
+      "status": "backlog",
+      "summaryMd": "HITL operator interruptions across PD surfaces (docs/hitl-interruptions.md). Relay+web shipped earlier; this receipt covers the CLI surface (grand-plan DAG node hitl-cli): pd interruptions listing + fleet-dispatch critical-ask pre-flight."
+    },
+    {
       "slug": "idea-mining-pipeline",
       "status": "backlog",
-      "summaryMd": "R2b, spec'd by corpus survey (2026-07-14): ~750 raw ideas across 12 sources; the dominant vein is 400+ open GitHub issues labeled fleet-idea (pd-spark 172 / pd-spider 111 / pd-lookout 83 / pd-snipe 33 — Spark/Spider write ISSUES not files; the 'missing' S41-S43 + 05-16 exhaust live there). Pipeline: normalize to {id,title,body,source,date} reusing the existing MD slug parsers (roadmap-progress.ts/ideas-trove); dedupe vs committed snapshot slugs + within-corpus via EMBEDDINGS (pd embed/MiniLM, cos>=0.85 dup, 0.65-0.85 EXTENDS:slug, else novel) with BM25 recall blocker — NEVER keyword lists; batch 15-25 by embedding-cluster, gh-issues first, Trove/Next-Cuts last (already curated); Haiku-class filter scores viability/duplication-confirm/decision-type; funnel ~750 -> 180-250 -> 60-100 clean candidates for expensive ranking into the new schema. Owner: idea-miner dispatch. Decision-type: empirical. Blocked-by: roadmap-schema-wiring (candidates land with owner/priority/decision-type fields)."
+      "summaryMd": "R2b, spec'd by corpus survey (2026-07-14): ~750 raw ideas across 12 sources; the dominant vein is 400+ open GitHub issues labeled fleet-idea (pd-spark 172 / pd-spider 111 / pd-lookout 83 / pd-snipe 33 \u2014 Spark/Spider write ISSUES not files; the 'missing' S41-S43 + 05-16 exhaust live there). Pipeline: normalize to {id,title,body,source,date} reusing the existing MD slug parsers (roadmap-progress.ts/ideas-trove); dedupe vs committed snapshot slugs + within-corpus via EMBEDDINGS (pd embed/MiniLM, cos>=0.85 dup, 0.65-0.85 EXTENDS:slug, else novel) with BM25 recall blocker \u2014 NEVER keyword lists; batch 15-25 by embedding-cluster, gh-issues first, Trove/Next-Cuts last (already curated); Haiku-class filter scores viability/duplication-confirm/decision-type; funnel ~750 -> 180-250 -> 60-100 clean candidates for expensive ranking into the new schema. Owner: idea-miner dispatch. Decision-type: empirical. Blocked-by: roadmap-schema-wiring (candidates land with owner/priority/decision-type fields)."
     },
     {
       "slug": "ideas-search-keyword-nlp-defect",
       "status": "backlog",
-      "summaryMd": "Hard-rule violation found by corpus survey: lib/ideas-search.ts dedupe (scoreFields/tokenize) is naive token-overlap KEYWORD matching — the exact approach banned by the no-keyword-NLP rule (catastrophic recall). Replace with the shared-embedder path (pd embed / MiniLM per the hybrid-search directive) + BM25 baseline; the idea-mining-pipeline must not extend the current matcher. Acceptance: ideas-search dedupe uses embeddings or BM25; a paraphrase pair that token-overlap misses is caught in a regression test. Owner: idea-miner dispatch (same wave). Decision-type: empirical."
+      "summaryMd": "Hard-rule violation found by corpus survey: lib/ideas-search.ts dedupe (scoreFields/tokenize) is naive token-overlap KEYWORD matching \u2014 the exact approach banned by the no-keyword-NLP rule (catastrophic recall). Replace with the shared-embedder path (pd embed / MiniLM per the hybrid-search directive) + BM25 baseline; the idea-mining-pipeline must not extend the current matcher. Acceptance: ideas-search dedupe uses embeddings or BM25; a paraphrase pair that token-overlap misses is caught in a regression test. Owner: idea-miner dispatch (same wave). Decision-type: empirical."
     },
     {
       "slug": "ideas-trove-queryable-surface",
@@ -972,7 +997,7 @@
     {
       "slug": "io-wiring",
       "status": "now",
-      "summaryMd": "Wire the pluggable trigger/output registry into the fleet engine so fleet agents can fire on and emit to file, webhook, notify, email, SMS, iMessage and calendar — not just singular trigger:/schedule:. Phased: io-wiring-phase-1..5."
+      "summaryMd": "Wire the pluggable trigger/output registry into the fleet engine so fleet agents can fire on and emit to file, webhook, notify, email, SMS, iMessage and calendar \u2014 not just singular trigger:/schedule:. Phased: io-wiring-phase-1..5."
     },
     {
       "slug": "io-wiring-phase-1-registry-engine",
@@ -1007,12 +1032,17 @@
     {
       "slug": "local-first-tenancy-boundary-hardening",
       "status": "backlog",
-      "summaryMd": "Tenancy-boundary audit 2026-07-14: FAIL 24/100, six criticals against the local-first promise. (1-3) tier-crossing-no-consent on fleet-cloud-pr-review (PR diffs to Workers AI via one-time YAML config, no boundary moment), email-out (public-tier sends, trust-gated but no crossing screen), and recovery-runbooks-in-public-docs (machine paths/username/backup schedule merged to the PUBLIC repo in #2129 — operator decision D3: intentional open-operations posture, or scrub/relocate policy needed?). (4) local-mode-uploads-not-testable: no runtime egress assertion proving a daemon without cloud config uploads nothing — add a CI blocked-socket test. (5) no-export-delete-per-tier: registry has backup/restore + tombstones now, but D1/KV/R2 cloud tiers have no verified export/delete tooling. (6) scope-ladder-unordered: private->repo->team->public is implied across binder ch06 but declared nowhere as the single source consent/role logic derives from — declare it once in ch06 (feeds binder customer-axis coverage). Repo visibility confirmed PUBLIC, so the snapshot/docs crossings are real, not theoretical. Acceptance: re-run tenancy_boundary_audit.mjs -> pass, with the egress test in CI and the ladder declared in ch06."
+      "summaryMd": "Tenancy-boundary audit 2026-07-14: FAIL 24/100, six criticals against the local-first promise. (1-3) tier-crossing-no-consent on fleet-cloud-pr-review (PR diffs to Workers AI via one-time YAML config, no boundary moment), email-out (public-tier sends, trust-gated but no crossing screen), and recovery-runbooks-in-public-docs (machine paths/username/backup schedule merged to the PUBLIC repo in #2129 \u2014 operator decision D3: intentional open-operations posture, or scrub/relocate policy needed?). (4) local-mode-uploads-not-testable: no runtime egress assertion proving a daemon without cloud config uploads nothing \u2014 add a CI blocked-socket test. (5) no-export-delete-per-tier: registry has backup/restore + tombstones now, but D1/KV/R2 cloud tiers have no verified export/delete tooling. (6) scope-ladder-unordered: private->repo->team->public is implied across binder ch06 but declared nowhere as the single source consent/role logic derives from \u2014 declare it once in ch06 (feeds binder customer-axis coverage). Repo visibility confirmed PUBLIC, so the snapshot/docs crossings are real, not theoretical. Acceptance: re-run tenancy_boundary_audit.mjs -> pass, with the egress test in CI and the ladder declared in ch06."
     },
     {
       "slug": "mcp-roadmap-receipt-parity",
       "status": "backlog",
-      "summaryMd": "Surface-parity gap (developer-surface review 2026-07-14, verified via pd_discover): the MCP roadmap category is read+promote only (roadmap_list/get/progress/claims/promote) — no roadmap_touch, no upsert. But the Coordination Guard's receipt rent demands a roadmap touch/upsert before commits on coordination surfaces, and rent-at-claim requires a roadmap link at begin — so MCP-only agents (claude.ai web sessions, shell-less surfaces) are STRUCTURALLY unable to pay rent; only Bash-wielding agents can comply, via CLI shell-out. Fix the narrow gap: add roadmap_touch to the MCP roadmap category (receipt notes on existing items), and a governance-gated upsert if item creation is intended for MCP at all — otherwise keep creation behind the sanctioned drop_feedback -> roadmap_promote funnel and say so in the guard's error message. Acceptance: an MCP-only session can satisfy the guard's roadmap-receipt requirement end-to-end without Bash; the guard's rent error names the MCP path."
+      "summaryMd": "Surface-parity gap (developer-surface review 2026-07-14, verified via pd_discover): the MCP roadmap category is read+promote only (roadmap_list/get/progress/claims/promote) \u2014 no roadmap_touch, no upsert. But the Coordination Guard's receipt rent demands a roadmap touch/upsert before commits on coordination surfaces, and rent-at-claim requires a roadmap link at begin \u2014 so MCP-only agents (claude.ai web sessions, shell-less surfaces) are STRUCTURALLY unable to pay rent; only Bash-wielding agents can comply, via CLI shell-out. Fix the narrow gap: add roadmap_touch to the MCP roadmap category (receipt notes on existing items), and a governance-gated upsert if item creation is intended for MCP at all \u2014 otherwise keep creation behind the sanctioned drop_feedback -> roadmap_promote funnel and say so in the guard's error message. Acceptance: an MCP-only session can satisfy the guard's roadmap-receipt requirement end-to-end without Bash; the guard's rent error names the MCP path."
+    },
+    {
+      "slug": "mcp-tool-output-budgets",
+      "status": "backlog",
+      "summaryMd": "Every MCP tool result must fit the calling agent's context window. swarm_awareness/active_agent_roster now return a bounded digest (compact JSON, hard 30K-char ceiling, explicit omission counters) instead of the raw pretty-printed roster that hit 256K chars in production. Full fidelity stays on GET /agent-roster. Follow-on candidates: audit other list-shaped MCP tools (sitrep, file_heat, notes) for the same unbounded-output defect."
     },
     {
       "slug": "migration-fixture-rehearsal-ci",
@@ -1032,12 +1062,12 @@
     {
       "slug": "nightshift-overnight-autonomy",
       "status": "now",
-      "summaryMd": "Revive Nightshift as overnight autonomy. Nightshift was never deleted — it was renamed to `pd dispatch` (ADR-0035) and folded into the Conductor (ADR-0060), so the queue/HITL/worker path is MORE built than the original. The one lost capability is the unattended overnight run: the `dispatch-runner` ship is commented out in pd-fleet.yml AND parseCronInterval (lib/fleet-engine.ts ~2452) coerces cron like `0 1 * * *` into a fixed ~10-min interval, so it can never fire at an absolute hour. MAKE IT WORK: (1) implement real cron field parsing (absolute hour/minute) in fleet-engine, (2) re-enable the dispatch-runner ship with a nightly schedule, (3) surface it on the FleetBar Nightshift/Conductor surface, (4) soak one real overnight cycle before declaring done. Operator explicitly wants this feature back."
+      "summaryMd": "Revive Nightshift as overnight autonomy. Nightshift was never deleted \u2014 it was renamed to `pd dispatch` (ADR-0035) and folded into the Conductor (ADR-0060), so the queue/HITL/worker path is MORE built than the original. The one lost capability is the unattended overnight run: the `dispatch-runner` ship is commented out in pd-fleet.yml AND parseCronInterval (lib/fleet-engine.ts ~2452) coerces cron like `0 1 * * *` into a fixed ~10-min interval, so it can never fire at an absolute hour. MAKE IT WORK: (1) implement real cron field parsing (absolute hour/minute) in fleet-engine, (2) re-enable the dispatch-runner ship with a nightly schedule, (3) surface it on the FleetBar Nightshift/Conductor surface, (4) soak one real overnight cycle before declaring done. Operator explicitly wants this feature back."
     },
     {
       "slug": "onnxruntime-node-rpath-dylib-fix",
       "status": "done",
-      "summaryMd": "Every daemon boot failed semantic resolution (skill-graft search, semantic term resolution, skill index) with 'Library not loaded: @rpath/libonnxruntime.*.dylib' — bun build --compile extracts onnxruntime-node's .node binding but drops its @rpath-linked sibling runtime library. Fixed: build-single-binary.mjs packages the real dylib to dist/native/onnxruntime-node/<platform>-<arch>/, semantic-resolver.ts points DYLD_FALLBACK_LIBRARY_PATH/LD_LIBRARY_PATH at it before the transformers import, release.yml ships the dir. Verified by reproducing the bug in isolation + building/booting the real compiled binary. PR: fix/onnxruntime-node-dylib-rpath. Companion Formula fix (prefix.install \"native\") needed in curiositech/homebrew-tap."
+      "summaryMd": "Every daemon boot failed semantic resolution (skill-graft search, semantic term resolution, skill index) with 'Library not loaded: @rpath/libonnxruntime.*.dylib' \u2014 bun build --compile extracts onnxruntime-node's .node binding but drops its @rpath-linked sibling runtime library. Fixed: build-single-binary.mjs packages the real dylib to dist/native/onnxruntime-node/<platform>-<arch>/, semantic-resolver.ts points DYLD_FALLBACK_LIBRARY_PATH/LD_LIBRARY_PATH at it before the transformers import, release.yml ships the dir. Verified by reproducing the bug in isolation + building/booting the real compiled binary. PR: fix/onnxruntime-node-dylib-rpath. Companion Formula fix (prefix.install \"native\") needed in curiositech/homebrew-tap."
     },
     {
       "slug": "operator-surface-consolidation",
@@ -1047,7 +1077,7 @@
     {
       "slug": "operator-surface-triad-binder",
       "status": "backlog",
-      "summaryMd": "binder: ch19 operator surface triad (Scout/FleetBar/pd-console), technical specs, Hypatia's audit. AMENDED 2026-07-14 with surface-authority audit + D2 decision brief: audit scored session capabilities 88/100 with one critical (agent-control-verbs on pd-console, daemonEnforceable false — CR-1, gated on control-contract-wirer; render disabled-with-reason until then). Passing placements: registry-durability-status, release-overdue-signal, tier-crossing-consent-prompts -> FleetBar ambient (1 screen, cool bus); reunification-plan-approval, roadmap-curation-planner -> pd-console deep (multi-screen, cool); pr-review-intake-annotations -> Scout intake. D2 RECOMMENDATION (resolves CR-7): triad = Scout/FleetBar/pd-console; Fleet Control Center is NOT a fourth surface but FleetBar's deep-window FACE (fleet-ui as webview content), ambient/consent only, deep-linking to pd-console for anything >1 evidence screen; edit ch01+ch20 to state this. Awaiting operator ratification."
+      "summaryMd": "binder: ch19 operator surface triad (Scout/FleetBar/pd-console), technical specs, Hypatia's audit. AMENDED 2026-07-14 with surface-authority audit + D2 decision brief: audit scored session capabilities 88/100 with one critical (agent-control-verbs on pd-console, daemonEnforceable false \u2014 CR-1, gated on control-contract-wirer; render disabled-with-reason until then). Passing placements: registry-durability-status, release-overdue-signal, tier-crossing-consent-prompts -> FleetBar ambient (1 screen, cool bus); reunification-plan-approval, roadmap-curation-planner -> pd-console deep (multi-screen, cool); pr-review-intake-annotations -> Scout intake. D2 RECOMMENDATION (resolves CR-7): triad = Scout/FleetBar/pd-console; Fleet Control Center is NOT a fourth surface but FleetBar's deep-window FACE (fleet-ui as webview content), ambient/consent only, deep-linking to pd-console for anything >1 evidence screen; edit ch01+ch20 to state this. Awaiting operator ratification."
     },
     {
       "slug": "parley-sugar-fanout-receipts",
@@ -1062,22 +1092,17 @@
     {
       "slug": "pd-console-cull-and-defects",
       "status": "backlog",
-      "summaryMd": "pd-console: cull 14 dead/thin/redundant panes (26→13) + fix 5 operator-named defects"
+      "summaryMd": "pd-console: cull 14 dead/thin/redundant panes (26\u219213) + fix 5 operator-named defects"
     },
     {
       "slug": "pd-console-file-navigator",
       "status": "backlog",
-      "summaryMd": "feat(pd-console): file-navigator — history, up/back, metadata columns, dynamic sort"
+      "summaryMd": "feat(pd-console): file-navigator \u2014 history, up/back, metadata columns, dynamic sort"
     },
     {
       "slug": "pd-console-live-chat-attach-proof",
       "status": "backlog",
       "summaryMd": "Prove pd-console live chat/session attach with exact-window artifacts and a same-process control path."
-    },
-    {
-      "slug": "pd-console-pane-snap-drag",
-      "status": "now",
-      "summaryMd": "pd-console: pane move_leaf primitive + BetterSnapTool-style drag-to-edge ghost-outline snap — first roadmap item toward the Pane-App/Portolan composed-tabs vision."
     },
     {
       "slug": "pd-console-story-linework-shell",
@@ -1092,7 +1117,7 @@
     {
       "slug": "pd-safe-scan",
       "status": "backlog",
-      "summaryMd": "feat(safe): pd safe — the AI sniffer (Phase A read-only posture scan + Phase B secret corral, ADR-0088)"
+      "summaryMd": "feat(safe): pd safe \u2014 the AI sniffer (Phase A read-only posture scan + Phase B secret corral, ADR-0088)"
     },
     {
       "slug": "pd-session-coordination-hardening",
@@ -1125,9 +1150,14 @@
       "summaryMd": "Fully build out infrastructure for the provable action adjudicator (north-star Ledger RCP-9): a tamper-resistant reference monitor at the tool-call boundary that compiles natural-language policy into a Datalog/Souffle policy DAG (plus Lean 4 decide-proofs for arithmetic constraints, compiled offline, checked at ~us latency at runtime) and adjudicates every agent action Permit/Deny/Permit-with-Obligation before execution, recording verdicts into a provenance DAG. Builds on shipped substrate: ADR-0093 event-spawn trust gate, Agent Harbor gate+probes+ledger, Coordination Guard enforce mode. Production baselines now exist in the literature (FORGE arxiv:2602.16708, AgentSpec ICSE'26, AgentBC, Lean-Agent Protocol) and the skills/provable-action-adjudicator bundle documents the architecture. Ledger classifies RCP-9 as OPEN research feeding IMP-7/IMP-9 (machine-side containment); promote to a build lane once an ADR scopes the interception point (fleet-engine spawn path + MCP tool boundary) and the policy-compilation pipeline."
     },
     {
+      "slug": "provenance-gated-git-guard",
+      "status": "backlog",
+      "summaryMd": "ADR-0119: git-guard has no agent-mintable escape. PD_SHIM_OFF removed from shim + pre-push hook; refusal points only to corrective action. Renumbered from colliding 0102 (salvage-envelope owns 0102). Stale bypass-still-works tests inverted to assert removal; red-team fixture proves no in-band escape. (PR #3145)"
+    },
+    {
       "slug": "release-safety-pipeline",
       "status": "now",
-      "summaryMd": "Operator mandate 2026-07-14 ('I'm not doing shit with brew'): every Homebrew cut must be atomic, automated, self-healing, gated — and NO gate may ever report a failure as success. HONEST SCORECARD (verified tonight): (a) SHADOW TRAFFIC before promotion = NONE (soak-binary.sh is synthetic load only; no replay of mirrored real requests at the candidate). (b) AUTO LOCAL INSTALL = PARTIAL (release.yml builds+rolls tap; no automated post-release brew-upgrade+verify loop on the operator machine). (c) SOAK UNDER LOAD = YES (soak-binary.sh); TEST-DB POISON PROTECTION = YES (assertNotProdInTest fail-closed); TEST-TRAFFIC TELEMETRY ISOLATION = NONE (no test-context filter in cost-tracker/activity/counters — test requests would pollute prod cost/activity/event streams). (d) ATOMIC + SELF-HEALING = NONE (no promote-only-if-all-green; no auto-rollback via brew-pin-previous + restore durable-home backup stamp + scream when a promoted build misbehaves under a watch window). The kill-daemon acceptance test from #2381 (kill -> restart+alert+doctor-red) is the template for the daemon-liveness portion of the battery; tonight's wedged-alive daemon (fresh heartbeat, dead HTTP, held the socket so restarts refused) is the proof the battery must probe /health not heartbeat age. Owner: release-safety dispatch. Decision-type: HITL (promote/rollback policy) + empirical (harness). Acceptance: a candidate failing the live battery (shadow traffic + kill-daemon-recovers + soak) CANNOT promote; a promoted build misbehaving in the watch window auto-rolls-back and screams; test traffic never reaches prod telemetry; every gate verifies authoritative state and can never pass on an error."
+      "summaryMd": "pd batten declarative release-artifact verify+imprint gate (generalizes #3496 test -s); NO gate reports failure as success"
     },
     {
       "slug": "rent-at-claim-begin-gate",
@@ -1142,7 +1172,7 @@
     {
       "slug": "resume-flow-joins",
       "status": "backlog",
-      "summaryMd": "Resume-story ground truth (2026-07-14, link-by-link with file:line evidence): the roadmap->agent->transcript->resume walk is ~60 percent substrate, zero percent wired — every gap is a JOIN or INVOCATION, not new storage. Bundle: (L1) roadmap_item_status_events is append-only + indexed but has NO read path (only INSERT and DELETE touch it) — add listStatusEvents(slug) + a roadmap history surface (~15 lines); (L2) fleet_transcripts records full conversations for daemon-spawned ships (indexed by spawned_agent_id) but nothing performs the item->agent->transcript walk, and interactive Claude-Code sessions are unlinked — add getTranscriptByAgentId join + capture the CC session id/jsonl path in the sessionstart hook; (L3) sessions.takeover() restores notes+claims but never attaches the predecessor's fleet_transcripts id (the link is available at :1293) — attach it so successors can load prior messages; wire the orphaned telos-salvage capsule (normalizeSelfSalvage has zero external callers); (L5) the advisor's context-integrity checks (ownership mismatch, salvage overlap, claim conflicts, symbol staleness) exist but are never invoked at resume — call advisor.evaluate inside takeover()/claim_salvage and return the advice: that IS the 'lookout briefs you on contradictions at reopen' the operator asked for. (L4 true execution checkpoints remain ABSENT — only WAL checkpoints + control-ladder capability labels; approximate belief-state = transcript pointer + last note + claims, which L3 provides.) Owner: resume-flow dispatch. Decision-type: empirical. Priority: high — this moves the operator's 'throw open any old session and continue' from Wave-3-blocked to Wave-1/2-buildable since the read-path joins need neither control-contract nor ADR-0040. Acceptance: pd roadmap history <slug> names agents/sessions; takeover response includes predecessor transcript id + advisor advice; an interactive CC session leaves a queryable transcript anchor."
+      "summaryMd": "Resume-story ground truth (2026-07-14, link-by-link with file:line evidence): the roadmap->agent->transcript->resume walk is ~60 percent substrate, zero percent wired \u2014 every gap is a JOIN or INVOCATION, not new storage. Bundle: (L1) roadmap_item_status_events is append-only + indexed but has NO read path (only INSERT and DELETE touch it) \u2014 add listStatusEvents(slug) + a roadmap history surface (~15 lines); (L2) fleet_transcripts records full conversations for daemon-spawned ships (indexed by spawned_agent_id) but nothing performs the item->agent->transcript walk, and interactive Claude-Code sessions are unlinked \u2014 add getTranscriptByAgentId join + capture the CC session id/jsonl path in the sessionstart hook; (L3) sessions.takeover() restores notes+claims but never attaches the predecessor's fleet_transcripts id (the link is available at :1293) \u2014 attach it so successors can load prior messages; wire the orphaned telos-salvage capsule (normalizeSelfSalvage has zero external callers); (L5) the advisor's context-integrity checks (ownership mismatch, salvage overlap, claim conflicts, symbol staleness) exist but are never invoked at resume \u2014 call advisor.evaluate inside takeover()/claim_salvage and return the advice: that IS the 'lookout briefs you on contradictions at reopen' the operator asked for. (L4 true execution checkpoints remain ABSENT \u2014 only WAL checkpoints + control-ladder capability labels; approximate belief-state = transcript pointer + last note + claims, which L3 provides.) Owner: resume-flow dispatch. Decision-type: empirical. Priority: high \u2014 this moves the operator's 'throw open any old session and continue' from Wave-3-blocked to Wave-1/2-buildable since the read-path joins need neither control-contract nor ADR-0040. Acceptance: pd roadmap history <slug> names agents/sessions; takeover response includes predecessor transcript id + advisor advice; an interactive CC session leaves a queryable transcript anchor."
     },
     {
       "slug": "roadmap-dedup-cleanup-and-cross-harbor-prevention",
@@ -1152,7 +1182,7 @@
     {
       "slug": "roadmap-delete-tombstones",
       "status": "backlog",
-      "summaryMd": "Zombie-resurrection defect: pd roadmap delete hard-deletes the row AND its status-event audit rows, but the registry is now a multi-replica system (durable home, instance shards, committed snapshot, backups) reconciled by union-merge (scripts/registry-reunify.ts, #2109) — a delete in one replica silently resurrects from any replica that still carries the row. Fix per offline-first discipline: soft-delete tombstones. Add deleted_at INTEGER NULL to roadmap_items (PRAGMA-guarded ALTER + verifyCoreSchema sentinel); pd roadmap delete sets deleted_at + appends a status event instead of DELETE; reads filter deleted_at IS NULL via partial index; reunify/sync treats a newer deleted_at as a winning write (tombstone beats resurrection); snapshot export carries tombstones; GC purges tombstones older than the longest replica lag (>= 90d). Acceptance: deleting an item in replica A, then reunifying a replica B that still has the live row, leaves the item deleted; unit test proves it; audit rows preserved."
+      "summaryMd": "Zombie-resurrection defect: pd roadmap delete hard-deletes the row AND its status-event audit rows, but the registry is now a multi-replica system (durable home, instance shards, committed snapshot, backups) reconciled by union-merge (scripts/registry-reunify.ts, #2109) \u2014 a delete in one replica silently resurrects from any replica that still carries the row. Fix per offline-first discipline: soft-delete tombstones. Add deleted_at INTEGER NULL to roadmap_items (PRAGMA-guarded ALTER + verifyCoreSchema sentinel); pd roadmap delete sets deleted_at + appends a status event instead of DELETE; reads filter deleted_at IS NULL via partial index; reunify/sync treats a newer deleted_at as a winning write (tombstone beats resurrection); snapshot export carries tombstones; GC purges tombstones older than the longest replica lag (>= 90d). Acceptance: deleting an item in replica A, then reunifying a replica B that still has the live row, leaves the item deleted; unit test proves it; audit rows preserved."
     },
     {
       "slug": "roadmap-delete-verb-and-harbor-fix",
@@ -1162,7 +1192,7 @@
     {
       "slug": "roadmap-harbor-default-worktree-trap",
       "status": "backlog",
-      "summaryMd": "pd roadmap upsert defaults harbor to the repo/project dir name, so agents working in worktrees silently file items under the WORKTREE name as harbor — live incident 2026-07-14: three items landed under harbor 'daemon-single-truth-2' and had to be deleted and re-filed under port-daddy. The reunification run exposed the accumulated damage: items scattered under accidental harbors like 'port-daddy-backend-budget-hard-cap' and 'parley-sugar'. Fix: derive the default harbor from the MAIN repo identity (git common-dir / origin remote name), never the worktree dir; warn loudly when the derived harbor has never been seen before ('new harbor <x> — intentional? pass --harbor to confirm'); the reconciler's curation pass re-harbors existing strays (already in roadmap-reconciler-agent scope). Acceptance: pd roadmap upsert from inside .claude/worktrees/<name> without --harbor lands in the parent repo's harbor; a brand-new harbor name requires explicit --harbor."
+      "summaryMd": "pd roadmap upsert defaults harbor to the repo/project dir name, so agents working in worktrees silently file items under the WORKTREE name as harbor \u2014 live incident 2026-07-14: three items landed under harbor 'daemon-single-truth-2' and had to be deleted and re-filed under port-daddy. The reunification run exposed the accumulated damage: items scattered under accidental harbors like 'port-daddy-backend-budget-hard-cap' and 'parley-sugar'. Fix: derive the default harbor from the MAIN repo identity (git common-dir / origin remote name), never the worktree dir; warn loudly when the derived harbor has never been seen before ('new harbor <x> \u2014 intentional? pass --harbor to confirm'); the reconciler's curation pass re-harbors existing strays (already in roadmap-reconciler-agent scope). Acceptance: pd roadmap upsert from inside .claude/worktrees/<name> without --harbor lands in the parent repo's harbor; a brand-new harbor name requires explicit --harbor."
     },
     {
       "slug": "roadmap-jira-tool-design",
@@ -1172,7 +1202,7 @@
     {
       "slug": "roadmap-link-gate",
       "status": "now",
-      "summaryMd": "Non-blocking CI gate: every PR declares its roadmap item (committed snapshot + label→human-approval fallback + loud-on-broken). Daemon is the only writer; CI reads the mirror."
+      "summaryMd": "Non-blocking CI gate: every PR declares its roadmap item (committed snapshot + label\u2192human-approval fallback + loud-on-broken). Daemon is the only writer; CI reads the mirror."
     },
     {
       "slug": "roadmap-linked-worktree-harbor-resolution",
@@ -1182,12 +1212,22 @@
     {
       "slug": "roadmap-reconciler-agent",
       "status": "backlog",
-      "summaryMd": "Wave-2 registry steward owning CR-3 (roadmap single system of record). Architecture decided + audited (agentic-app-architecture, 100/100 all five axes, 2026-07-14): TRANSPARENCY — headless fleet agent whose plan IS the dry-run (registry-reunify --dry-run posted as note/PR body before any apply); every run leaves the plan, superseded-row attribution, and counts in the receipt. STATE — pd sessions/notes durable history; per-run reconciliation receipts promoted to episodic memory/booty; decisions append-only (revise by new event, never edit). CONTEXT — deterministic merge stays LLM-FREE (the shipped script is the merge engine); LLM only for curation proposals (re-harboring the accidental harbors, demoting the 70 status-now items) with a stable cached system prefix. CAPABILITIES — tools: registry-reunify, sqlite read, gh, pd notes/roadmap; MCP: pd core only; secrets: gh keychain credential store (secret-store custody), token never in argv/env/transcript. EXECUTION — coding-agent finish line: union snapshot export committed via worktree-isolated PR with Roadmap-Item trailer; DB apply gated on dry-run receipt; HUMAN GATE on anything destructive (deletes, re-harboring, status demotions); pure union-append may auto-apply. DEPENDENCIES: (1) roadmap-delete-tombstones before any RECURRING reconciliation (zombie-resurrection); (2) control-contract-wirer (CR-1/CR-2) before long-running unattended mode — until control commands have a real counterparty, runs must be short atomic bursts; (3) v3.25.0 cutover complete (docs/recovery/V3.25.0-DURABLE-HOME-CUTOVER.md). Acceptance: one full reconcile cycle leaves live daemon, committed snapshot, and gate universe reporting identical item counts, with a receipt PR."
+      "summaryMd": "Wave-2 registry steward owning CR-3 (roadmap single system of record). Architecture decided + audited (agentic-app-architecture, 100/100 all five axes, 2026-07-14): TRANSPARENCY \u2014 headless fleet agent whose plan IS the dry-run (registry-reunify --dry-run posted as note/PR body before any apply); every run leaves the plan, superseded-row attribution, and counts in the receipt. STATE \u2014 pd sessions/notes durable history; per-run reconciliation receipts promoted to episodic memory/booty; decisions append-only (revise by new event, never edit). CONTEXT \u2014 deterministic merge stays LLM-FREE (the shipped script is the merge engine); LLM only for curation proposals (re-harboring the accidental harbors, demoting the 70 status-now items) with a stable cached system prefix. CAPABILITIES \u2014 tools: registry-reunify, sqlite read, gh, pd notes/roadmap; MCP: pd core only; secrets: gh keychain credential store (secret-store custody), token never in argv/env/transcript. EXECUTION \u2014 coding-agent finish line: union snapshot export committed via worktree-isolated PR with Roadmap-Item trailer; DB apply gated on dry-run receipt; HUMAN GATE on anything destructive (deletes, re-harboring, status demotions); pure union-append may auto-apply. DEPENDENCIES: (1) roadmap-delete-tombstones before any RECURRING reconciliation (zombie-resurrection); (2) control-contract-wirer (CR-1/CR-2) before long-running unattended mode \u2014 until control commands have a real counterparty, runs must be short atomic bursts; (3) v3.25.0 cutover complete (docs/recovery/V3.25.0-DURABLE-HOME-CUTOVER.md). Acceptance: one full reconcile cycle leaves live daemon, committed snapshot, and gate universe reporting identical item counts, with a receipt PR."
     },
     {
       "slug": "roadmap-schema-wiring",
       "status": "now",
-      "summaryMd": "R1b, rescoped by schema-archaeology evidence (2026-07-14): the structured-roadmap schema mostly EXISTS but is unwired — ADR-0086's 7 planner columns (kind/priority/assignee_id/description_md/started_at/due_at/estimate) live in db.ts but the CRUD layer ignores all of them, writePlanEdges/parentEdge/dependsOnEdge/linkEdge have ZERO callers, and the live planner UI derives hierarchy from ADR-slug tokens + priority from status instead of reading columns/edges. Work: (1) wire all 7 columns through RoadmapItem/upsert/routes; (2) wire writePlanEdges into upsert + backfill dependencies_json -> graph_edges depends_on (ADR-0086 rules graph_edges wins; retire the JSON after popper refactor at roadmap-popper.ts:171); (3) make panes prefer stored priority/kind with derivation as null-fallback; (4) ADD what is genuinely missing: decision_kind column (HITL|empirical|aesthetic), tags, widened ArtifactType (issue/worktree/branch/manifest/binder/agent/skill/script), POST /roadmap/items/:slug/links endpoint, itemLegitimacy(item,edges) scorer (owner+priority+estimate+parent+link = legit); (5) feed stored estimate + persisted edges into the CPM scheduler (Gantt substrate already built: planner-schedule.ts criticalPath/makespan + planner-board HTML Gantt). Owner: roadmap-schema dispatch. Decision-type: empirical (HITL only on the decision_kind enum naming). Acceptance: an item created via route with owner+deps+priority renders in the planner pane from STORED fields; popper honors edge-based deps; legitimacy chip visible."
+      "summaryMd": "R1b, rescoped by schema-archaeology evidence (2026-07-14): the structured-roadmap schema mostly EXISTS but is unwired \u2014 ADR-0086's 7 planner columns (kind/priority/assignee_id/description_md/started_at/due_at/estimate) live in db.ts but the CRUD layer ignores all of them, writePlanEdges/parentEdge/dependsOnEdge/linkEdge have ZERO callers, and the live planner UI derives hierarchy from ADR-slug tokens + priority from status instead of reading columns/edges. Work: (1) wire all 7 columns through RoadmapItem/upsert/routes; (2) wire writePlanEdges into upsert + backfill dependencies_json -> graph_edges depends_on (ADR-0086 rules graph_edges wins; retire the JSON after popper refactor at roadmap-popper.ts:171); (3) make panes prefer stored priority/kind with derivation as null-fallback; (4) ADD what is genuinely missing: decision_kind column (HITL|empirical|aesthetic), tags, widened ArtifactType (issue/worktree/branch/manifest/binder/agent/skill/script), POST /roadmap/items/:slug/links endpoint, itemLegitimacy(item,edges) scorer (owner+priority+estimate+parent+link = legit); (5) feed stored estimate + persisted edges into the CPM scheduler (Gantt substrate already built: planner-schedule.ts criticalPath/makespan + planner-board HTML Gantt). Owner: roadmap-schema dispatch. Decision-type: empirical (HITL only on the decision_kind enum naming). Acceptance: an item created via route with owner+deps+priority renders in the planner pane from STORED fields; popper honors edge-based deps; legitimacy chip visible."
+    },
+    {
+      "slug": "rust-kernel-bugfix-sweep",
+      "status": "now",
+      "summaryMd": "Fix the real bugs the rustdoc-backfill Opus agents found-but-didn't-fix (documentation-only scope at the time): pd-anchor keystore.rs soft-revoke is dead code (hard HashMap::remove instead of the revoked flag), pd-core KernelEvent.id vs pd-eventlog's sequence-derived id can diverge, pd-runtime BackendCapacity doesn't enforce active_jobs<=max_parallel_jobs, pd-eventlog KernelProjection::apply double-counts on replay, harbor-card-rs verify() doesn't validate iat or alg, pd-compat import_sessions has no rollback on partial failure."
+    },
+    {
+      "slug": "rust-kernel-integration-e2e-redteam-tests",
+      "status": "now",
+      "summaryMd": "Fill the Rust kernel (pd-anchor, harbor-card-rs, pd-core, pd-runtime, pd-eventlog) with real integration tests, TS<->Rust FFI end-to-end round-trip tests, and adversarial redteam/whitehat security tests (forged macaroons, replay attacks, timing side-channel probes on constant-time compares, malformed/fuzzed FFI input, capability-escalation attempts) \u2014 going beyond the rustdoc-backfill doctests, which only proved happy-path examples work."
     },
     {
       "slug": "rust-kernel-rustdoc-doctest-backfill",
@@ -1220,6 +1260,11 @@
       "summaryMd": "tests/unit/skill-graft-cli.test.js 'shorthand query renders guidance and lexical fallback note' fails on any machine with a warm ~/.port-daddy/skill-index.sqlite: the test expects the 'Semantic Tool2Vec tier is cold or unconfigured' note but the CLI under test finds the developer's real warm index (machine-state leak; reproduced on clean origin/main 2026-07-14, passes in CI only because runners are cold). Acceptance: the test pins its index location to a temp dir (or PD-test env override) and passes on a machine with a warm real index; full tests/unit suite green locally."
     },
     {
+      "slug": "spawner-agent-harbor-bridge-c1-witnessing",
+      "status": "now",
+      "summaryMd": "Bridge lib/spawner.ts agentIds into Agent Harbor as real, honestly-witnessed C1 (Transcripted) nodes via a new spawner-bridge.ts module + spawner-child AdapterKind (complianceCeiling C1). Reuses the existing event-ledger hash-chaining and transcripts.ts message log \u2014 no new hashing. kill correctly stays denied through control-gate.ts (C1 < C4 required) \u2014 the point is real evidence, not a forged grant. C2+ gateway-routing is future, separate work."
+    },
+    {
       "slug": "squid-contract-harness-daemon-boot-fix",
       "status": "backlog",
       "summaryMd": "feat(squid): harden bridge and document agent harness"
@@ -1237,7 +1282,7 @@
     {
       "slug": "state-plane-s1-daemon-plane-identity",
       "status": "backlog",
-      "summaryMd": "S1 — Daemon state-plane identity: classifyPlane at boot, surfaced on /version, /health, berth registry, heartbeat, and CLI write banner"
+      "summaryMd": "S1 \u2014 Daemon state-plane identity: classifyPlane at boot, surfaced on /version, /health, berth registry, heartbeat, and CLI write banner"
     },
     {
       "slug": "suggest-b1-1-suggestions-table",
@@ -1282,7 +1327,7 @@
     {
       "slug": "visual-evidence-doctrine",
       "status": "backlog",
-      "summaryMd": "docs(skill): visual-evidence doctrine — non-interruptive screenshot capture for every agent"
+      "summaryMd": "docs(skill): visual-evidence doctrine \u2014 non-interruptive screenshot capture for every agent"
     },
     {
       "slug": "visual-task-agent-intake",
@@ -1297,7 +1342,7 @@
     {
       "slug": "wire-writeplanedges-graph-edges",
       "status": "done",
-      "summaryMd": "Wire writePlanEdges (lib/planner-edges.ts) into the GET /roadmap/board route so graph_edges actually gets populated with real hierarchy + depends_on rows derived from roadmap_items.dependencies_json, instead of staying empty forever (ADR-0086 §3 schema had zero callers). Shipped: PR #3591."
+      "summaryMd": "Wire writePlanEdges (lib/planner-edges.ts) into the GET /roadmap/board route so graph_edges actually gets populated with real hierarchy + depends_on rows derived from roadmap_items.dependencies_json, instead of staying empty forever (ADR-0086 \u00a73 schema had zero callers). Shipped: PR #3591."
     },
     {
       "slug": "workintent-dispatch-intake",
@@ -1308,6 +1353,16 @@
       "slug": "workintent-dispatch-isolation",
       "status": "backlog",
       "summaryMd": "fix(dispatch): isolate WorkIntent worktrees"
+    },
+    {
+      "slug": "durable-asynchronous-spawn-receipts",
+      "status": "now",
+      "summaryMd": "Durable idempotent admission, lifecycle, liveness, cancellation, and collection receipts for background agent runs."
+    },
+    {
+      "slug": "pd-console-pane-snap-drag",
+      "status": "now",
+      "summaryMd": "pd-console: pane move_leaf primitive + BetterSnapTool-style drag-to-edge ghost-outline snap \u2014 first roadmap item toward the Pane-App/Portolan composed-tabs vision."
     }
   ]
 }
