@@ -12,7 +12,7 @@ const expectedProgram = new Map([
     {
       status: 'now',
       summaryMd:
-        'Publish the seven-paper Coordination Papers as one cohesive collected volume with a global introduction, collated contents and references, consolidated status ledger, notation concordance, research appendix, full-page visual audit, library surface, and production artifact.',
+        'Publish the audited seven-paper coordination series as a coherent collected volume with corrected figures and math, implementation-status ledger, collated table of contents and references, proof roadmap, library metadata, reproducible build receipts, and production artifact verification.',
     },
   ],
   [
@@ -20,7 +20,7 @@ const expectedProgram = new Map([
     {
       status: 'backlog',
       summaryMd:
-        'Close the whitepaper proof obligations: theorem assumption/deviation matrices, settlement/custody conservation, revocation dissemination bounds under partitions, model-to-runtime conformance, Proof-of-Attention game class and tightness, and explicit conditionality for grading-oracle incentive compatibility.',
+        'Close theorem, security, game-theoretic, conservation, dissemination, oracle-independence, Proof-of-Attention, and model-to-runtime conformance obligations under named adversaries and parameter regions.',
     },
   ],
   [
@@ -28,7 +28,7 @@ const expectedProgram = new Map([
     {
       status: 'backlog',
       summaryMd:
-        'Run the empirical program behind the papers: estimate miss/false-alarm costs, detection and slash probabilities, discount and payoff parameters; validate judge reliability and conflicts; chaos-test partitions, redelivery, crash recovery, and identity-reset laundering; publish reproducible traces.',
+        'Measure operator miss and false-alarm costs, judge validity, crash and partition behavior, identity-reset resistance, revocation lag, and other parameters with reproducible, versioned trace bundles.',
     },
   ],
   [
@@ -36,14 +36,14 @@ const expectedProgram = new Map([
     {
       status: 'backlog',
       summaryMd:
-        'Close the code gaps exposed by the papers: reputation-grade witnessed outcomes on commitments, actor identity at every write boundary, portable execution checkpoints, sealed cross-harbor relay, witness-log revocation, custody and settlement prototype, and projection-consistency enforcement.',
+        'Close publication runtime gaps exposed by the rigor pass: resumable Fleet ships and review chunks, bounded GitHub I/O, the fleet_run_spend migration, exact-head memory and empty-provider receipts, stale-head coalescing, promotion criteria for paper claims, and witnessed implementation-status evidence.',
     },
   ],
 ]);
 
 describe('roadmap snapshot', () => {
   it('is internally consistent, unique, and deterministically ordered', () => {
-    assert.equal(snapshot.count, 261);
+    assert.equal(snapshot.count, 272);
     assert.equal(snapshot.count, snapshot.items.length);
 
     const slugs = snapshot.items.map(({ slug }) => slug);

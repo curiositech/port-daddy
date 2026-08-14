@@ -775,6 +775,11 @@
       "summaryMd": "Daemon-witnessed same-harness session continuation with UUID and workspace-bound evidence, owner-leased receipts, and truthful native resume semantics."
     },
     {
+      "slug": "durable-asynchronous-spawn-receipts",
+      "status": "now",
+      "summaryMd": "Durable idempotent admission, lifecycle, liveness, cancellation, and collection receipts for background agent runs."
+    },
+    {
       "slug": "feat-backend-dropdown-spawn-forecast",
       "status": "backlog",
       "summaryMd": "feat(fleet): backend dropdown in FleetBar popover + GET /fleet/forecast spawn-rate estimator"
@@ -1105,6 +1110,11 @@
       "summaryMd": "Prove pd-console live chat/session attach with exact-window artifacts and a same-process control path."
     },
     {
+      "slug": "pd-console-pane-snap-drag",
+      "status": "now",
+      "summaryMd": "pd-console: pane move_leaf primitive + BetterSnapTool-style drag-to-edge ghost-outline snap \u2014 first roadmap item toward the Pane-App/Portolan composed-tabs vision."
+    },
+    {
       "slug": "pd-console-story-linework-shell",
       "status": "now",
       "summaryMd": "Rebuild pd-console around the story-linework operator shell: flat L0-L3 navigation, honest state framing, Conjure wave blocks, persistent native PTY, and motion/reduced-motion proof."
@@ -1353,16 +1363,6 @@
       "slug": "workintent-dispatch-isolation",
       "status": "backlog",
       "summaryMd": "fix(dispatch): isolate WorkIntent worktrees"
-    },
-    {
-      "slug": "durable-asynchronous-spawn-receipts",
-      "status": "now",
-      "summaryMd": "Durable idempotent admission, lifecycle, liveness, cancellation, and collection receipts for background agent runs."
-    },
-    {
-      "slug": "pd-console-pane-snap-drag",
-      "status": "now",
-      "summaryMd": "pd-console: pane move_leaf primitive + BetterSnapTool-style drag-to-edge ghost-outline snap \u2014 first roadmap item toward the Pane-App/Portolan composed-tabs vision."
     }
   ]
 }
