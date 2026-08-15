@@ -151,7 +151,26 @@ jobs:
             const [ma,mi,pa]=process.argv[1].split('.').map(Number);
             console.log(process.argv[2]==='minor'?[ma,mi+1,0].join('.'):[ma,mi,pa+1].join('.'));
           " "$current" "$bump")
-          echo "current=$current"; echo "bump=$bump"; echo "next=$next"
+          echo "current=$current"; echo "bump=$bump"; echo "derived=$next"
+
+          # VERSION FLOOR — the formula decides the minimum shippable version.
+          # Without this the train deadlocks permanently: off 3.27.0 it derives
+          # patch → 3.27.1, and the preflight below correctly refuses because
+          # the tap only accepts our current tarball layout from its cutoff
+          # (3.28.0) onward. That is exactly what happened on 2026-08-10 and
+          # 2026-08-13 — two scheduled runs, both dead at the same step, no
+          # release. The constraint had been written as a note in a PR body,
+          # which is not a control. Now the train asks the live formula for the
+          # floor and bumps to it.
+          entries=$(grep -m1 'TARBALL_ENTRIES:' .github/workflows/release.yml | sed 's/.*TARBALL_ENTRIES:[[:space:]]*//')
+          floor=$(node scripts/check-formula-compat.mjs --min-accepted-version --entries "$entries")
+          next=$(node -e "
+            const cmp=(a,b)=>{const p=s=>s.split('.').map(Number);const[x,y]=[p(a),p(b)];
+              for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0);}return 0;};
+            const [derived,floorV]=process.argv.slice(1);
+            console.log(cmp(derived,floorV)<0?floorV:derived);
+          " "$next" "$floor")
+          echo "floor=$floor"; echo "next=$next"
           echo "next=$next" >> "$GITHUB_OUTPUT"
           echo "bump=$bump" >> "$GITHUB_OUTPUT"
 
