@@ -1,0 +1,62 @@
+{
+  "$comment": [
+    "Purser-authored tests that are NOT executable, and why. scripts/run-purser-tests.mjs",
+    "reads this file, refuses to run the entries, and prints every one of them on each CI",
+    "run so a quarantined test can never be mistaken for a passing one.",
+    "",
+    "This list exists because these files were authored but never executed by any runner —",
+    "tests/purser was outside jest's testMatch, so nothing here had ever run. Wiring the",
+    "directory into CI surfaced them all at once. A quarantined entry is a DEBT, not a",
+    "decision: fix the entry and delete it from this file.",
+    "",
+    "An entry is only legitimate here if the TEST cannot run. A test that runs and FAILS",
+    "belongs in CI failing — that is the gate working. Do not quarantine a red test to get",
+    "a green build."
+  ],
+  "quarantined": [
+    {
+      "file": "test-build-script-rebuild.js",
+      "reason": "UNSAFE: appends to tracked scripts/build-whitepapers.sh and website-v2/src/data/whitePapers.ts at repoRoot with no cleanup, dirtying the checkout for every later CI step. Its first assertion is also unsatisfiable — it edits a working-tree file and then asserts `git rev-parse HEAD` changed, which no file edit can do.",
+      "fix": "Run against an isolated fixture repo and restore mutated files in a finally block; replace the HEAD-moved assertion with one about the rebuild decision it actually means to test."
+    },
+    {
+      "file": "test-rebase-epoch-stability.js",
+      "reason": "UNSAFE: runs `git commit --amend --date=...` with cwd tests/purser/rebase-test. That directory was never committed, which is the only reason the amend is currently inert. If anyone creates it as a plain directory inside this repo rather than a standalone `git init` sandbox, the amend rewrites port-daddy's real HEAD commit.",
+      "fix": "Create the fixture as an isolated `git init` sandbox outside the repo's worktree. Note the test's premise also appears inverted: build-whitepapers.sh exists because author time SURVIVES rebase, yet this asserts the epoch must change."
+    },
+    {
+      "file": "test-edge-cases-paper-epoch.js",
+      "reason": "Fixture directories tests/purser/empty-repo and tests/purser/dependency-test were never committed by 1cad994, so the test dies on `cd`. It also invokes `./build-whitepapers.sh paper_epoch`, but paper_epoch is an internal bash function, not a subcommand — the argument parses as FILTER, matches no paper, and exits 0.",
+      "fix": "Commit the fixtures and call the epoch logic through a real entry point."
+    },
+    {
+      "file": "test-error-handling.js",
+      "reason": "Fixture directories tests/purser/missing-sources and tests/purser/invalid-git were never committed, and the relative path ../scripts/build-whitepapers.sh would resolve to tests/purser/scripts/ regardless.",
+      "fix": "Commit the fixtures and correct the path. NOTE: this test is chasing a REAL defect — see paper-epoch-silent-fallback below."
+    },
+    {
+      "file": "test-concurrency-idempotency.js",
+      "reason": "ENVIRONMENT: needs a TeX Live toolchain; fails with `latexmk: command not found`. Not a code defect and not a broken test. Its second case is also misnamed — execFileSync is synchronous, so the two builds run in sequence, not concurrently.",
+      "fix": "Run on a TeX-provisioned runner, or add a tool guard that skips loudly when latexmk is absent."
+    }
+  ],
+  "$findings": [
+    "Two REAL subject defects surfaced by the quarantined tests. They are not fixed here and",
+    "deserve their own work:",
+    "",
+    "1. paper-epoch-silent-fallback — paper_epoch() in scripts/build-whitepapers.sh swallows",
+    "   every failure path into a fallback: an empty source set yields the last HEAD commit,",
+    "   then the constant 1700000000. A paper whose sources resolve to nothing (a typo'd or",
+    "   moved filename) still produces a plausible epoch and a confidently reproducible-looking",
+    "   PDF. The script's stated purpose is catching published-PDF drift; a silent fallback is",
+    "   how drift gets stamped as authoritative.",
+    "",
+    "2. build-script-not-a-dependency — --changed-since computes per-paper TeX dependency sets",
+    "   but never treats build-whitepapers.sh itself as a dependency of any paper, so editing",
+    "   the renderer invalidates no PDF at all.",
+    "",
+    "Also worth a one-line fix by whoever owns the follow-up: three of these files reference",
+    "website-v2/public/whitepaper/spawn-to-person-whitepaper.tex, which does not exist. The",
+    "source is spawn-to-person.tex; only the output PDF carries the -whitepaper suffix."
+  ]
+}
