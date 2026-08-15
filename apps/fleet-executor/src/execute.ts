@@ -1393,7 +1393,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // --- ONE GitHub Review with all inline comments + a roll-up summary -------
   // Inline review is the PRIMARY surface; the per-ship issue comments posted
   // during each runShip() remain for backward-compatible history.
-  const summary = buildSummary(results, conclusion);
+  const summary = buildSummary(results, conclusion, runId);
 
   // --- XO TRIAGE (advisory-findings curation; src/xo.ts) --------------------
   // The XO ranks which ADVISORY findings are worth doing for THIS PR and the
@@ -2241,7 +2241,7 @@ async function reduceFindings(
   return text;
 }
 
-function buildSummary(results: ShipResult[], conclusion: string): string {
+function buildSummary(results: ShipResult[], conclusion: string, runId: string): string {
   const lines = results.map(r => {
     const tag = r.blocking ? ' [BLOCKING]' : '';
     // A ship that produced nothing is reported as exactly that. It must never
@@ -2258,6 +2258,15 @@ function buildSummary(results: ShipResult[], conclusion: string): string {
   });
   lines.push('');
   lines.push(`Verdict: ${conclusion.toUpperCase()}`);
+  lines.push('');
+  // Every finding above is one model's judgement, not gospel — see PR #6790's
+  // qa-bot history. Flagging costs one command and is durably captured (not a
+  // comment that scrolls off the PR), so name it inline instead of hoping the
+  // reviewer already knows `pd feedback` exists.
+  lines.push(
+    `Disagree with a verdict above? \`pd feedback --fleetbot-review ${runId} "why it's wrong"\` ` +
+      `— durably captured and queryable (\`pd feedback fleetbot\`), not lost to PR scroll.`,
+  );
   return lines.join('\n');
 }
 

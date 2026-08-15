@@ -34,6 +34,7 @@ interface DropBody {
   source?: unknown;
   suggested?: unknown;
   hook?: unknown;
+  fleetbotRunId?: unknown;
   project?: unknown;
   harbor?: unknown;
   ttlMs?: unknown;
@@ -91,6 +92,8 @@ export const feedbackPlugin: FastifyPluginAsync<{ deps: FeedbackDeps }> = async 
     if (suggested) input.suggested = suggested;
     const hook = asString(body.hook);
     if (hook) input.hook = hook;
+    const fleetbotRunId = asString(body.fleetbotRunId);
+    if (fleetbotRunId) input.fleetbotRunId = fleetbotRunId;
     const project = asString(body.project);
     if (project) input.project = project;
     const harbor = asString(body.harbor);

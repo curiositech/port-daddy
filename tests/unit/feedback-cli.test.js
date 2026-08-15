@@ -23,7 +23,7 @@ jest.unstable_mockModule('../../lib/fleet-engine.js', () => ({
   loadFleetConfig,
 }));
 
-const { handleFeedback } = await import('../../cli/commands/feedback.js');
+const { handleFeedback, parseFleetbotRef } = await import('../../cli/commands/feedback.js');
 
 function jsonResponse(body, ok = true) {
   return { ok, json: async () => body };
@@ -270,5 +270,101 @@ describe('pd feedback bare form', () => {
     await handleFeedback(['drop'], { slug: 'manual', summary: 'm', as: 'a', high: true, 'no-auto-surface': true });
     expect(lastPostBody().severity).toBe('high');
     expect(lastPostBody().surface).toBeUndefined();
+  });
+});
+
+describe('parseFleetbotRef', () => {
+  test('passes a bare run id through unchanged', () => {
+    expect(parseFleetbotRef('run:delivery-abc123')).toBe('run:delivery-abc123');
+  });
+
+  test('trims whitespace on a bare ref', () => {
+    expect(parseFleetbotRef('  run:delivery-abc123  ')).toBe('run:delivery-abc123');
+  });
+
+  test('extracts + decodes the run id from a run-page capability URL', () => {
+    const url = 'https://relay.port-daddy.dev/fleet/runs/run%3Adelivery-abc123?t=v1.deadbeef';
+    expect(parseFleetbotRef(url)).toBe('run:delivery-abc123');
+  });
+
+  test('falls back to the raw URL when it does not match the /fleet/runs/ shape', () => {
+    const url = 'https://example.com/not-a-run-page';
+    expect(parseFleetbotRef(url)).toBe(url);
+  });
+});
+
+describe('pd feedback --fleetbot-review', () => {
+  test('bare form sets fleetbotRunId, surface=Fleetbot, severity=high by default', async () => {
+    pdFetch.mockResolvedValueOnce(jsonResponse({
+      entry: { feedbackId: 'fb-15', severity: 'high', surface: 'Fleetbot', slug: 's', droppedBy: 'cli:t', fleetbotRunId: 'run:delivery-abc123' },
+    }, true));
+
+    await handleFeedback(['qa-bot flagged a non-bug'], { 'fleetbot-review': 'run:delivery-abc123' });
+
+    const body = lastPostBody();
+    expect(body.fleetbotRunId).toBe('run:delivery-abc123');
+    expect(body.surface).toBe('Fleetbot');
+    expect(body.severity).toBe('high');
+  });
+
+  test('resolves a pasted run-page URL to its bare run id', async () => {
+    pdFetch.mockResolvedValueOnce(jsonResponse({ entry: { feedbackId: 'fb-16', severity: 'high', surface: 'Fleetbot', slug: 's', droppedBy: 'cli:t' } }, true));
+
+    await handleFeedback(
+      ['this verdict is wrong'],
+      { 'fleetbot-review': 'https://relay.port-daddy.dev/fleet/runs/run%3Adelivery-xyz?t=v1.deadbeef' },
+    );
+
+    expect(lastPostBody().fleetbotRunId).toBe('run:delivery-xyz');
+  });
+
+  test('explicit --surface / --severity win over the fleetbot-review defaults', async () => {
+    pdFetch.mockResolvedValueOnce(jsonResponse({ entry: { feedbackId: 'fb-17', severity: 'low', surface: 'Fleet', slug: 's', droppedBy: 'cli:t' } }, true));
+
+    await handleFeedback(
+      ['minor nit only'],
+      { 'fleetbot-review': 'run:delivery-abc123', surface: 'Fleet', severity: 'low' },
+    );
+
+    const body = lastPostBody();
+    expect(body.surface).toBe('Fleet');
+    expect(body.severity).toBe('low');
+    expect(body.fleetbotRunId).toBe('run:delivery-abc123');
+  });
+
+  test('works through the explicit drop subcommand too', async () => {
+    pdFetch.mockResolvedValueOnce(jsonResponse({ entry: { feedbackId: 'fb-18', severity: 'high', surface: 'Fleetbot', slug: 'manual', droppedBy: 'a' } }, true));
+
+    await handleFeedback(
+      ['drop'],
+      { slug: 'manual', summary: 'wrong verdict', as: 'a', 'fleetbot-review': 'run:delivery-abc123' },
+    );
+
+    const body = lastPostBody();
+    expect(body.fleetbotRunId).toBe('run:delivery-abc123');
+    expect(body.surface).toBe('Fleetbot');
+    expect(body.severity).toBe('high');
+  });
+
+  test('no --fleetbot-review means no fleetbotRunId on the body', async () => {
+    pdFetch.mockResolvedValueOnce(jsonResponse({ entry: { feedbackId: 'fb-19', severity: 'medium', surface: null, slug: 's', droppedBy: 'cli:t' } }, true));
+    await handleFeedback(['ordinary feedback'], {});
+    expect(lastPostBody().fleetbotRunId).toBeUndefined();
+  });
+
+  test('fleetbot subcommand lists with surface=Fleetbot and status=open by default', async () => {
+    pdFetch.mockResolvedValueOnce(jsonResponse({ entries: [] }, true));
+    await handleFeedback(['fleetbot'], {});
+    const url = pdFetch.mock.calls[0][0];
+    expect(url).toContain('surface=Fleetbot');
+    expect(url).toContain('status=open');
+  });
+
+  test('fleetbot subcommand honors an explicit --status override', async () => {
+    pdFetch.mockResolvedValueOnce(jsonResponse({ entries: [] }, true));
+    await handleFeedback(['fleetbot'], { status: 'all' });
+    const url = pdFetch.mock.calls[0][0];
+    expect(url).toContain('surface=Fleetbot');
+    expect(url).toContain('status=all');
   });
 });

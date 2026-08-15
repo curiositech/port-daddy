@@ -18,7 +18,7 @@ import { readCurrentContext } from '../utils/current-context.js';
 
 const SUBCOMMANDS = new Set([
   'drop', 'list', 'show', 'harvest', 'ack', 'summary',
-  'recent', 'mine', 'open', 'help', '--help', '-h',
+  'recent', 'mine', 'open', 'fleetbot', 'help', '--help', '-h',
 ]);
 
 function readSummaryFromStdin(): Promise<string> {
@@ -63,6 +63,31 @@ function inferSurfaceFromCwd(): string | undefined {
   return undefined;
 }
 
+/**
+ * Resolve `--fleetbot-review <ref>` into a bare fleet run id.
+ *
+ * Agents/humans copy this from wherever they're looking at the verdict:
+ *   - the run-page capability URL fleetbot already posts as the check run's
+ *     "Details" link — `https://relay.../fleet/runs/run%3A<id>?t=v1.<hmac>`
+ *   - or the bare run id itself (`run:<deliveryId>`) if they already have it.
+ *
+ * Both resolve to the same `run:<deliveryId>` string that lib/feedback.ts
+ * stores as `fleetbotRunId`. Anything else is returned trimmed, unparsed —
+ * the daemon doesn't validate shape, so an unrecognized ref still gets
+ * captured rather than rejected.
+ */
+export function parseFleetbotRef(raw: string): string {
+  const trimmed = raw.trim();
+  if (!/^https?:\/\//i.test(trimmed)) return trimmed;
+  const m = /\/fleet\/runs\/([^/?#]+)/.exec(trimmed);
+  if (!m) return trimmed;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return m[1];
+  }
+}
+
 function severityFromOptions(options: CLIOptions): string | undefined {
   const explicit = readString(options, 'severity');
   if (explicit) return explicit;
@@ -87,6 +112,26 @@ function slugFromSummary(summary: string): string {
   return slug || `feedback-${Date.now().toString(36)}`;
 }
 
+/**
+ * Applies `--fleetbot-review <ref>` to a drop body in place: sets
+ * `fleetbotRunId`, and — unless the caller already gave an explicit value —
+ * defaults `surface` to 'Fleetbot' and `severity` to 'high'. A wrong or
+ * low-quality gate verdict is by default worth operator attention; explicit
+ * `--surface`/`--severity`/shortcut flags still win.
+ */
+function applyFleetbotReview(
+  body: Record<string, unknown>,
+  options: CLIOptions,
+  explicitSurface: string | undefined,
+  explicitSeverity: string | undefined,
+): void {
+  const ref = readString(options, 'fleetbot-review', 'fleetbotReview');
+  if (!ref) return;
+  body.fleetbotRunId = parseFleetbotRef(ref);
+  if (!explicitSurface) body.surface = 'Fleetbot';
+  if (!explicitSeverity) body.severity = 'high';
+}
+
 function inferDroppedBy(options: CLIOptions): string {
   const explicit = readString(options, 'as', 'droppedBy', 'agent');
   if (explicit) return explicit;
@@ -106,6 +151,7 @@ interface FeedbackEntry {
   source: 'agent' | 'human' | 'mcp' | 'cli' | 'unknown';
   suggested: string | null;
   hook: string | null;
+  fleetbotRunId: string | null;
   droppedBy: string;
   project: string | null;
   harbor: string;
@@ -175,6 +221,7 @@ function printEntry(entry: FeedbackEntry): void {
   console.log(`  ${tag} ${entry.severity.padEnd(8)} ${surface.padEnd(14)} ${entry.slug}  ${status}`);
   console.log(`     ${entry.summary}`);
   if (entry.hook) console.log(`     hook: ${entry.hook}`);
+  if (entry.fleetbotRunId) console.log(`     fleetbot run: ${entry.fleetbotRunId}`);
   if (entry.suggested) console.log(`     suggest: ${entry.suggested}`);
   console.log(`     id=${entry.feedbackId.slice(0, 8)}  by=${entry.droppedBy}  source=${entry.source}`);
 }
@@ -201,10 +248,22 @@ Subcommands:
   pd feedback recent                      Alias: list --status open --limit 10
   pd feedback open                        Alias: list --status open
   pd feedback mine                        Alias: list filtered to current agent/user
+  pd feedback fleetbot [--status ...] [--limit ...]   Alias: list --surface Fleetbot --status open
   pd feedback show <feedbackId>
   pd feedback ack <feedbackId> [--into <slug>]   Alias for harvest
   pd feedback harvest <feedbackId> [--into <slug>]
   pd feedback summary
+
+Flagging a fleetbot verdict as wrong/low-quality:
+  pd feedback --fleetbot-review <run-id-or-run-page-url> "why the verdict is wrong"
+  pd feedback drop --slug X --summary Y --as Z --fleetbot-review <ref>
+
+  <ref> is either the bare fleet run id (run:<deliveryId>) or the run-page
+  URL fleetbot already posts as the check run's "Details" link — paste
+  either and it resolves to the same run. Defaults surface=Fleetbot and
+  severity=high unless you pass --surface/--severity yourself. Durably
+  captured in the same feedback stream (queryable, not a comment that
+  scrolls off the PR) — browse flags with \`pd feedback fleetbot\`.
 
 Severity shortcuts (instead of --severity X):
   --critical / --high / --medium / --low
@@ -243,6 +302,7 @@ Project scoping:
     }
     const severity = severityFromOptions(options);
     if (severity) body.severity = severity;
+    applyFleetbotReview(body, options, explicitSurface, severity);
     const sourceOverride = readString(options, 'source');
     if (sourceOverride) body.source = sourceOverride;
     const hook = readString(options, 'hook');
@@ -272,6 +332,7 @@ Project scoping:
     console.log(`Feedback dropped: ${data.entry.feedbackId}`);
     console.log(`  ${data.entry.severity}  ${data.entry.surface ?? '—'}  ${data.entry.slug}`);
     console.log(`  by ${data.entry.droppedBy}`);
+    if (data.entry.fleetbotRunId) console.log(`  fleetbot run: ${data.entry.fleetbotRunId}`);
     return;
   }
 
@@ -293,6 +354,7 @@ Project scoping:
     }
     const severity = severityFromOptions(options);
     if (severity) body.severity = severity;
+    applyFleetbotReview(body, options, surface, severity);
     const sourceOverride = readString(options, 'source');
     if (sourceOverride) body.source = sourceOverride;
     const hook = readString(options, 'hook');
@@ -321,10 +383,11 @@ Project scoping:
     }
     console.log(`Feedback dropped: ${data.entry.feedbackId}`);
     console.log(`  ${data.entry.severity}  ${data.entry.surface ?? '—'}  ${data.entry.slug}`);
+    if (data.entry.fleetbotRunId) console.log(`  fleetbot run: ${data.entry.fleetbotRunId}`);
     return;
   }
 
-  if (sub === 'list' || sub === 'recent' || sub === 'open' || sub === 'mine') {
+  if (sub === 'list' || sub === 'recent' || sub === 'open' || sub === 'mine' || sub === 'fleetbot') {
     const params = new URLSearchParams();
     const harbor = readString(options, 'harbor');
     if (harbor) params.set('harbor', harbor);
@@ -335,7 +398,11 @@ Project scoping:
     const severity = severityFromOptions(options);
     if (severity) params.set('severity', severity);
     const surface = readString(options, 'surface');
-    if (surface) params.set('surface', surface);
+    if (surface) {
+      params.set('surface', surface);
+    } else if (sub === 'fleetbot') {
+      params.set('surface', 'Fleetbot');
+    }
     let status = readString(options, 'status');
     let limit = readNumber(options, 'limit');
     // Alias defaults — explicit options always win.
@@ -344,6 +411,7 @@ Project scoping:
       if (limit === undefined) limit = 10;
     }
     if (sub === 'open' && !status) status = 'open';
+    if (sub === 'fleetbot' && !status) status = 'open';
     if (status) params.set('status', status);
     if (limit !== undefined) params.set('limit', String(limit));
     const qs = params.toString();
@@ -365,7 +433,11 @@ Project scoping:
       for (const e of entries) console.log(e.feedbackId);
       return;
     }
-    const label = sub === 'mine' ? `${entries.length} entry(ies) by you` : `${entries.length} entry(ies)`;
+    const label = sub === 'mine'
+      ? `${entries.length} entry(ies) by you`
+      : sub === 'fleetbot'
+        ? `${entries.length} fleetbot-review flag(s)`
+        : `${entries.length} entry(ies)`;
     console.log(label);
     for (const e of entries) printEntry(e);
     return;

@@ -598,6 +598,24 @@ describe('inline GitHub review', () => {
     // Blocking ship emitted BLOCK → the check still fails (gate is the check run).
     expect(state.completed[0].conclusion).toBe('failure');
   });
+
+  it('review body ends with a pd feedback --fleetbot-review footer naming this run', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'FLEET-VERDICT: PASS' } }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    expect(state.reviews).toHaveLength(1);
+    // makeJob()'s default deliveryId is 'delivery-abc' -> runId 'run:delivery-abc'
+    // (execute.ts: `const runId = \`run:${deliveryId}\`;`) — the footer must name
+    // the SAME run a reader is looking at, not a placeholder.
+    expect(state.reviews[0].body).toContain(
+      'pd feedback --fleetbot-review run:delivery-abc "why it\'s wrong"',
+    );
+    expect(state.reviews[0].body).toContain('pd feedback fleetbot');
+  });
 });
 
 describe('non-blocking ship semantics', () => {

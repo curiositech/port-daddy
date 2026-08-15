@@ -22,8 +22,16 @@
  * Tuple shapes:
  *   ['feedback:dropped', feedbackId,
  *     { slug, summary, surface?, severity, status, source,
- *       suggested?, hook?, droppedBy, project?, harbor, at,
+ *       suggested?, hook?, fleetbotRunId?, droppedBy, project?, harbor, at,
  *       harvestedAt? }]
+ *
+ * fleetbotRunId (surface='Fleetbot' by convention) is the extension this
+ * primitive grows for "this fleetbot verdict on a PR was wrong/low-quality" —
+ * see `pd feedback --fleetbot-review <run-id>`. It is NOT a parallel
+ * mechanism: it is the exact same drop/list/harvest lifecycle with one extra
+ * pointer back to the `fleet_runs` row (relay D1) the flag is about, so
+ * `pd feedback fleetbot` / `pd feedback list --surface Fleetbot` is a normal
+ * filtered read of the one feedback stream, not a second store.
  *
  *   ['feedback:harvested', feedbackId,
  *     { harvestedBy, harvestedAt, intoSlug? }]
@@ -68,6 +76,12 @@ export interface FeedbackEntry {
   source: FeedbackSource;
   suggested: string | null;
   hook: string | null;
+  /**
+   * Pointer to the `fleet_runs.id` (relay D1, shape `run:<deliveryId>`) this
+   * feedback is flagging a verdict on. Null for every ordinary feedback drop;
+   * set only via `pd feedback --fleetbot-review <runId>`.
+   */
+  fleetbotRunId: string | null;
   droppedBy: string;
   project: string | null;
   harbor: string;
@@ -85,6 +99,7 @@ export interface DropFeedbackInput {
   source?: FeedbackSource;
   suggested?: string;
   hook?: string;
+  fleetbotRunId?: string;
   project?: string;
   harbor?: string;
   ttlMs?: number;
@@ -151,6 +166,7 @@ export function createFeedback(deps: FeedbackDeps) {
       surface: entry.surface ?? null,
       suggested: entry.suggested ?? null,
       hook: entry.hook ?? null,
+      fleetbotRunId: entry.fleetbotRunId ?? null,
       project: entry.project ?? null,
       harvestedAt: typeof entry.harvestedAt === 'number' ? entry.harvestedAt : null,
       harvestedIntoSlug: entry.harvestedIntoSlug ?? null,
@@ -193,6 +209,7 @@ export function createFeedback(deps: FeedbackDeps) {
       source: asEnum(input.source, SOURCES, 'unknown'),
       suggested: input.suggested?.trim() || null,
       hook: input.hook?.trim() || null,
+      fleetbotRunId: input.fleetbotRunId?.trim() || null,
       droppedBy: input.droppedBy,
       project: input.project ?? null,
       harbor,

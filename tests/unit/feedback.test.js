@@ -83,6 +83,39 @@ describe('drop', () => {
   });
 });
 
+describe('fleetbot-review flagging', () => {
+  test('carries fleetbotRunId through drop, get, and list', () => {
+    const entry = feedback.drop({
+      slug: 'wrong-qa-verdict-pr-6790',
+      summary: 'qa-bot BLOCKed a fix that had no bug — see thread',
+      droppedBy: 'agent-reviewer',
+      surface: 'Fleetbot',
+      severity: 'high',
+      fleetbotRunId: 'run:delivery-abc123',
+    });
+
+    expect(entry.fleetbotRunId).toBe('run:delivery-abc123');
+
+    const fetched = feedback.get(entry.feedbackId);
+    expect(fetched.fleetbotRunId).toBe('run:delivery-abc123');
+
+    const listed = feedback.list({ surface: 'Fleetbot' });
+    expect(listed.map((e) => e.fleetbotRunId)).toEqual(['run:delivery-abc123']);
+  });
+
+  test('fleetbotRunId defaults to null when not a flag drop', () => {
+    const entry = feedback.drop({ slug: 's', summary: 'x', droppedBy: 'a' });
+    expect(entry.fleetbotRunId).toBeNull();
+  });
+
+  test('blank fleetbotRunId normalizes to null, not an empty string', () => {
+    const entry = feedback.drop({
+      slug: 's', summary: 'x', droppedBy: 'a', fleetbotRunId: '   ',
+    });
+    expect(entry.fleetbotRunId).toBeNull();
+  });
+});
+
 describe('list', () => {
   beforeEach(() => {
     feedback.drop({ slug: 'a', summary: 'low one', droppedBy: 'agent-1', severity: 'low' });
