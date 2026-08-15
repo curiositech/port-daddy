@@ -214,7 +214,16 @@ jobs:
           git config user.email "release-train@portdaddy.dev"
           git add -A
           git commit -m "chore(release): bump to $NEXT"
-          git push -u origin "$branch"
+          # Push with the PAT explicitly. `GH_TOKEN` only authenticates `gh` —
+          # `git push` uses the credentials actions/checkout persisted, which
+          # are the job's read-only GITHUB_TOKEN (this workflow declares
+          # `permissions: contents: read`). That mismatch failed the first run
+          # that ever got this far (2026-08-15): the bump was derived, all 11
+          # version surfaces synced, the commit was made, and then
+          # "Permission to curiositech/port-daddy.git denied to
+          # github-actions[bot] ... 403". The tag job below already pushed this
+          # way; this line simply did not.
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/$branch"
           body=$(printf '%s\n' \
             "## Summary" \
             "Automated release-train bump: \`$LATEST_TAG\` → \`v$NEXT\` ($BUMP). $COMMITS unreleased commits touch daemon-facing surfaces." \
@@ -227,7 +236,9 @@ jobs:
             "- CI on this PR (distribution-freshness + version-drift gates prove every version surface moved together)" \
             "- release.yml's soak + batten + formula-compat gates on the tag" \
             "- fresh-install smoke (tarball path + brew path) after publish")
-          gh pr create --title "chore(release): bump to $NEXT" --body "$body"
+          # --head/--base explicitly: the push above sets no upstream tracking
+          # ref, so gh cannot infer either from the local branch.
+          gh pr create --base main --head "$branch" --title "chore(release): bump to $NEXT" --body "$body"
           gh pr merge --auto --squash "$branch"
 
   tag-and-publish:
