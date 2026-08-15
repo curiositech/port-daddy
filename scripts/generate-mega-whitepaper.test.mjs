@@ -40,6 +40,35 @@ test('missing TeX imports fail with source context', () => {
   );
 });
 
+test('TeX imports that escape the containment root fail closed', () => {
+  const root = resolve('.cache/mega-generator-containment-test');
+  const chapterDir = resolve(root, 'chapters');
+  const outsideDir = resolve('.cache/mega-generator-containment-outside');
+  mkdirSync(chapterDir, { recursive: true });
+  mkdirSync(outsideDir, { recursive: true });
+  // A real, readable file: the import must be refused for being outside the
+  // root, not merely because it happens to be missing.
+  writeFileSync(resolve(outsideDir, 'secret.tex'), 'leaked\n', 'utf8');
+  try {
+    assert.throws(
+      () =>
+        inlineInputs(
+          '\\input{../../mega-generator-containment-outside/secret}',
+          chapterDir,
+          [],
+          root,
+        ),
+      /refusing to inline .* escapes /,
+    );
+    // The same file, reachable from inside the root, still inlines.
+    writeFileSync(resolve(chapterDir, 'figure.tex'), 'kept\n', 'utf8');
+    assert.match(inlineInputs('\\input{figure}', chapterDir, [], root), /kept/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
 test('reference ordering is locale-independent and normalized', () => {
   const refs = [{ body: '{Zulu}' }, { body: '\\emph{alpha}' }, { body: 'Beta' }];
   refs.sort(compareNormalizedReferences);
