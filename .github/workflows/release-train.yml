@@ -72,19 +72,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Resolve a token that can trigger CI
-        id: token
+      # PRESENCE CHECK ONLY — this step must never carry the secret VALUE.
+      # It used to write the resolved token to $GITHUB_OUTPUT and later steps
+      # read it back. GitHub redacts secrets that pass through step outputs, so
+      # the consuming step received an empty string, `git push` silently fell
+      # back to the credential helper actions/checkout installed, and the run
+      # died with "Permission to curiositech/port-daddy.git denied to
+      # github-actions[bot]" — while appearing to use a PAT. Steps that need
+      # the token now read `secrets.X || secrets.Y` directly in their own env,
+      # which is what the tag-and-publish job below always did.
+      - name: Verify a CI-triggering token exists
         env:
-          RELEASE_TRAIN_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN }}
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          HAS_TRAIN_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN != '' }}
+          HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
         run: |
           set -euo pipefail
-          if [ -n "${RELEASE_TRAIN_TOKEN:-}" ]; then
+          if [ "$HAS_TRAIN_TOKEN" = "true" ]; then
             echo "using RELEASE_TRAIN_TOKEN"
-            echo "token=$RELEASE_TRAIN_TOKEN" >> "$GITHUB_OUTPUT"
-          elif [ -n "${HOMEBREW_TAP_TOKEN:-}" ]; then
-            echo "::warning::RELEASE_TRAIN_TOKEN not set — falling back to HOMEBREW_TAP_TOKEN. Set a dedicated RELEASE_TRAIN_TOKEN (classic PAT, repo scope) for least surprise."
-            echo "token=$HOMEBREW_TAP_TOKEN" >> "$GITHUB_OUTPUT"
+          elif [ "$HAS_TAP_TOKEN" = "true" ]; then
+            echo "::warning::RELEASE_TRAIN_TOKEN not set — falling back to HOMEBREW_TAP_TOKEN. That PAT was minted to dispatch the Homebrew tap and may not carry push rights to THIS repo; if the bump push 403s, that is why. Set a dedicated RELEASE_TRAIN_TOKEN (classic PAT, repo scope)."
           else
             echo "::error::Neither RELEASE_TRAIN_TOKEN nor HOMEBREW_TAP_TOKEN is set. A PAT is REQUIRED: PRs opened and Releases published with the workflow GITHUB_TOKEN do not trigger CI or release.yml, so the train would silently stall. Create a classic PAT with repo scope and save it as RELEASE_TRAIN_TOKEN."
             exit 1
@@ -192,7 +198,8 @@ jobs:
       - name: Open the version-bump PR with auto-merge armed
         if: steps.version.outputs.next != ''
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          # Read the secret DIRECTLY — never via a step output (redacted).
+          GH_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
           NEXT: ${{ steps.version.outputs.next }}
           BUMP: ${{ steps.version.outputs.bump }}
           LATEST_TAG: ${{ steps.measure.outputs.latest_tag }}
