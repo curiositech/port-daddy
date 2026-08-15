@@ -166,11 +166,25 @@ CREATE INDEX IF NOT EXISTS fleet_run_steps_run_idx ON fleet_run_steps (run_id);
 -- fleet_ideas pipeline the spark/spider/lookout/snipe ideation ships
 -- already use, rather than inventing a second proposal-tracking mechanism.
 -- ──────────────────────────────────────────────────────────────────────────
+-- IDEMPOTENCY IS ENFORCED HERE, NOT IN THE HANDLER. `id` is not random: it is
+-- 'sif_' || SHA-256(digestDate || ' ' || kind || ' ' || title) truncated to 32
+-- hex (deterministicFindingId in src/session-intel.ts), so this PRIMARY KEY is
+-- the natural key (digest_date, kind, title) in disguise. The ingest handler
+-- writes with `INSERT OR IGNORE`, which means SQLite -- not application code --
+-- arbitrates duplicates: N concurrent ingests of the same digest serialize on
+-- the PK, exactly one insert lands (changes=1) and the rest are absorbed
+-- (changes=0). There is deliberately NO read-then-write "does it already
+-- exist?" check in the handler; that would be a TOCTOU race under real
+-- concurrency, whereas the constraint cannot lose one.
+-- Consequence for the API: a duplicate ingest is a successful no-op (200,
+-- accepted:0), not a 409 -- the dedup signal is `accepted` and the row count,
+-- not the HTTP status. Changing the id derivation without adding a
+-- UNIQUE (digest_date, kind, title) index would silently drop this guarantee.
 CREATE TABLE IF NOT EXISTS session_intel_findings (
-  id             TEXT    PRIMARY KEY,            -- 'sif_' || randomHex(16)
-  batch_id       TEXT    NOT NULL,               -- one id per ingest call (one local digest run)
+  id             TEXT    PRIMARY KEY,            -- 'sif_' || sha256(digest_date+kind+title)[:32] -- the idempotency key
+  batch_id       TEXT    NOT NULL,               -- one id per ingest call (one local digest run); NOT part of the identity
   kind           TEXT    NOT NULL,               -- 'coordination-suggestion'|'recurring-eureka-arc'
-  digest_date    TEXT    NOT NULL,               -- YYYY-MM-DD, the local digest cycle's date (idempotency aid)
+  digest_date    TEXT    NOT NULL,               -- YYYY-MM-DD, the local digest cycle's date (part of the identity above)
   title          TEXT    NOT NULL,
   occurrences    INTEGER NOT NULL,
   session_count  INTEGER NOT NULL,               -- distinct sessions this recurred across (>= 2, guard already applied locally)

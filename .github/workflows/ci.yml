@@ -4,7 +4,13 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    # `purser/**` is here because the purser RETARGETS a reviewed PR onto its
+    # generated adversarial-test branch, so that PR's base is no longer `main`.
+    # With a base-main-only filter this workflow never triggered on a retargeted
+    # PR — it got no CI at all, and the adversarial tests it was supposedly
+    # gated on became an advisory comment. A gate that cannot report is not a
+    # gate. Retargeted PRs now run the same required checks as everything else.
+    branches: [main, 'purser/**']
   # Merge queue: GitHub builds a temporary branch (latest main + queued PRs)
   # and requires every required check to report on it before merging.
   merge_group:
@@ -784,6 +790,35 @@ jobs:
   # passes when each dependency either succeeded or was skipped — failing only
   # on a real failure or cancellation. Point branch protection at THIS check
   # alone and the queue converges without dropping any actual enforcement.
+  purser-tests:
+    # The purser's adversarial tests land in `tests/purser/` and are written
+    # with node:test (`test-*.js`) or vitest (`*.test.js`). Root `npm test` is
+    # jest, whose two projects match only `tests/unit/**` and
+    # `tests/integration/**` — so NOTHING in tests/purser has ever been executed
+    # by any runner. 52 open purser branches' worth of "blocking" tests, none of
+    # which could fail a build.
+    #
+    # This job runs the node:test half. The vitest half is collected by
+    # apps/relay's config, because vitest is a dependency of apps/relay and not
+    # of the root package — see the comment there.
+    #
+    # Deliberately NOT path-gated. A purser test asserts against the repo it
+    # guards, so scoping it to changes under tests/purser would mean the code it
+    # exists to police could change without it running — the exact failure mode
+    # `relay-tests` documents one job below.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Adversarial purser tests (node:test)
+        run: npm run test:purser
+
   ci-gate:
     name: ci-gate
     if: always()
@@ -804,6 +839,12 @@ jobs:
       - fleetbar
       - integration-tests
       - lint
+      # Both of these RAN but did not GATE: neither was in this needs list, so a
+      # red relay or a red purser test left ci-gate green and the PR mergeable.
+      # An adversarial test that cannot fail a build is decoration, which is the
+      # whole reason the purser gate was rebuilt.
+      - purser-tests
+      - relay-tests
       - rust-console
       - rust-console-gpui
       - rust-kernel
