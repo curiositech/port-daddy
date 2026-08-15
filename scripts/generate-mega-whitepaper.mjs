@@ -14,7 +14,7 @@
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, extname, resolve } from 'node:path';
+import { dirname, extname, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -37,10 +37,31 @@ function readUtf8(path) {
   return readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 }
 
-function inlineInputs(tex, sourceDir, stack = []) {
+/**
+ * True when `target` is the root itself or lives underneath it. `resolve` has
+ * already normalized away any `..` segments, so a contained path is exactly one
+ * whose relative form neither escapes upward nor restarts from another root.
+ */
+function isContainedBy(root, target) {
+  const rel = relative(root, target);
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+}
+
+function inlineInputs(tex, sourceDir, stack = [], root = repoRoot) {
   return tex.replace(/\\(?:input|include)\{([^}]+)\}/g, (_whole, rawRef) => {
     const withExt = extname(rawRef) ? rawRef : `${rawRef}.tex`;
     const imported = resolve(sourceDir, withExt);
+    // The generator's contract is that the collected volume is assembled from
+    // the repository's own chapters and nothing else. Without this check a
+    // single `\input{../../../secrets}` in any sourced TeX file would be read
+    // and inlined verbatim into a published 247-page PDF. Fail closed instead:
+    // an import that escapes the repository is a defect in the chapter, not a
+    // path to silently follow.
+    if (!isContainedBy(root, imported)) {
+      throw new Error(
+        `refusing to inline ${rawRef} from ${sourceDir}: ${imported} escapes ${root}`,
+      );
+    }
     if (stack.includes(imported)) {
       throw new Error(`cyclic TeX import: ${[...stack, imported].join(' -> ')}`);
     }
@@ -52,7 +73,7 @@ function inlineInputs(tex, sourceDir, stack = []) {
     }
     return [
       `% BEGIN INLINED ${rawRef}`,
-      inlineInputs(child, dirname(imported), [...stack, imported]),
+      inlineInputs(child, dirname(imported), [...stack, imported], root),
       `% END INLINED ${rawRef}`,
     ].join('\n');
   });
