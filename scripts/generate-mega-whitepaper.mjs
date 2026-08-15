@@ -13,7 +13,7 @@
  * silently from its chapters.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, extname, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -41,10 +41,48 @@ function readUtf8(path) {
  * True when `target` is the root itself or lives underneath it. `resolve` has
  * already normalized away any `..` segments, so a contained path is exactly one
  * whose relative form neither escapes upward nor restarts from another root.
+ *
+ * This is a purely LEXICAL test. It is necessary but NOT sufficient — see
+ * realContainedBy below for why.
  */
 function isContainedBy(root, target) {
   const rel = relative(root, target);
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+}
+
+/**
+ * The same question asked of the path the filesystem will ACTUALLY open.
+ *
+ * A lexical check alone is defeated by one symlink: a link that lives inside
+ * the root but points outside it is, textually, an inside path — `relative()`
+ * reports no `..` — while `readFileSync` cheerfully follows it and returns the
+ * outside file. The containment guard then reads as enforced while the escape
+ * it exists to stop still works.
+ *
+ * Both sides are realpath'd. Resolving only the target would break every
+ * legitimate import whenever the ROOT itself is reached through a link — which
+ * is the normal case on macOS, where `/tmp` is a symlink to `/private/tmp`, and
+ * CI runs a macos-latest leg.
+ *
+ * A target that cannot be realpath'd (it does not exist yet) is NOT judged
+ * here: that is the missing-import case, and it belongs to the read below so
+ * the caller still gets `cannot inline X from Y` rather than a containment
+ * error that misdescribes the problem.
+ */
+function realContainedBy(root, target) {
+  let realTarget;
+  try {
+    realTarget = realpathSync(target);
+  } catch {
+    return true; // not resolvable — let the read report it honestly
+  }
+  let realRoot;
+  try {
+    realRoot = realpathSync(root);
+  } catch {
+    realRoot = root;
+  }
+  return isContainedBy(realRoot, realTarget);
 }
 
 function inlineInputs(tex, sourceDir, stack = [], root = repoRoot) {
@@ -57,7 +95,7 @@ function inlineInputs(tex, sourceDir, stack = [], root = repoRoot) {
     // and inlined verbatim into a published 247-page PDF. Fail closed instead:
     // an import that escapes the repository is a defect in the chapter, not a
     // path to silently follow.
-    if (!isContainedBy(root, imported)) {
+    if (!isContainedBy(root, imported) || !realContainedBy(root, imported)) {
       throw new Error(
         `refusing to inline ${rawRef} from ${sourceDir}: ${imported} escapes ${root}`,
       );

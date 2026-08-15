@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
@@ -63,6 +63,41 @@ test('TeX imports that escape the containment root fail closed', () => {
     // The same file, reachable from inside the root, still inlines.
     writeFileSync(resolve(chapterDir, 'figure.tex'), 'kept\n', 'utf8');
     assert.match(inlineInputs('\\input{figure}', chapterDir, [], root), /kept/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
+test('a symlink inside the root cannot smuggle a file from outside it', () => {
+  const root = resolve('.cache/mega-generator-symlink-test');
+  const outsideDir = resolve('.cache/mega-generator-symlink-outside');
+  mkdirSync(root, { recursive: true });
+  mkdirSync(outsideDir, { recursive: true });
+  writeFileSync(resolve(outsideDir, 'secret.tex'), 'TOP SECRET PAYLOAD\n', 'utf8');
+  // The link LIVES inside the root, so the lexical check sees no `..` and
+  // passes it. Only resolving the real path catches the escape.
+  symlinkSync(resolve(outsideDir, 'secret.tex'), resolve(root, 'innocent.tex'));
+  try {
+    assert.throws(
+      () => inlineInputs('\\input{innocent}', root, [], root),
+      /refusing to inline innocent .* escapes /,
+      'a symlink pointing outside the root must be refused, not followed',
+    );
+    // And the payload must not reach the output by any path.
+    let leaked = '';
+    try {
+      leaked = inlineInputs('\\input{innocent}', root, [], root);
+    } catch {
+      /* expected */
+    }
+    assert.doesNotMatch(leaked, /TOP SECRET PAYLOAD/);
+
+    // A symlink that stays INSIDE the root is still legitimate and must work,
+    // so the guard is rejecting escapes rather than symlinks as a category.
+    writeFileSync(resolve(root, 'real-figure.tex'), 'kept\n', 'utf8');
+    symlinkSync(resolve(root, 'real-figure.tex'), resolve(root, 'aliased.tex'));
+    assert.match(inlineInputs('\\input{aliased}', root, [], root), /kept/);
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(outsideDir, { recursive: true, force: true });
