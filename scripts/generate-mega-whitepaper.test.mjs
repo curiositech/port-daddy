@@ -109,6 +109,37 @@ test('a symlink inside the root cannot smuggle a file from outside it', () => {
   }
 });
 
+test('a dangling symlink is reported as a missing import, not as an escape', () => {
+  const root = resolve('.cache/mega-generator-dangling-test');
+  const outsideDir = resolve('.cache/mega-generator-dangling-outside');
+  try {
+    mkdirSync(root, { recursive: true });
+    mkdirSync(outsideDir, { recursive: true });
+    // Points OUTSIDE the root, at a file that does not exist. realpathSync
+    // cannot resolve it, so the containment check declines to judge and the
+    // read reports it — which is the honest error here: nothing was smuggled,
+    // the import is simply missing. Pinned because flipping that `return true`
+    // to `false` would still refuse the import, but would describe it as an
+    // escape, sending the next reader hunting for an attack that never
+    // happened.
+    symlinkSync(resolve(outsideDir, 'never-created.tex'), resolve(root, 'dangling.tex'));
+
+    assert.throws(
+      () => inlineInputs('\\input{dangling}', root, [], root),
+      /cannot inline dangling from /,
+      'a dangling symlink is a missing import, and must be described as one',
+    );
+    // Specifically NOT the containment error.
+    assert.throws(
+      () => inlineInputs('\\input{dangling}', root, [], root),
+      (error) => !/refusing to inline/.test(error.message),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
 test('reference ordering is locale-independent and normalized', () => {
   const refs = [{ body: '{Zulu}' }, { body: '\\emph{alpha}' }, { body: 'Beta' }];
   refs.sort(compareNormalizedReferences);
