@@ -72,13 +72,18 @@ test('TeX imports that escape the containment root fail closed', () => {
 test('a symlink inside the root cannot smuggle a file from outside it', () => {
   const root = resolve('.cache/mega-generator-symlink-test');
   const outsideDir = resolve('.cache/mega-generator-symlink-outside');
-  mkdirSync(root, { recursive: true });
-  mkdirSync(outsideDir, { recursive: true });
-  writeFileSync(resolve(outsideDir, 'secret.tex'), 'TOP SECRET PAYLOAD\n', 'utf8');
-  // The link LIVES inside the root, so the lexical check sees no `..` and
-  // passes it. Only resolving the real path catches the escape.
-  symlinkSync(resolve(outsideDir, 'secret.tex'), resolve(root, 'innocent.tex'));
+  // Setup lives INSIDE the try so `finally` still cleans up if any of it
+  // throws — symlinkSync is the most likely to (EEXIST after a crashed run,
+  // EPERM on a platform without symlink rights), and leaving fixtures behind
+  // would make the next run fail for a different reason than the real one.
   try {
+    mkdirSync(root, { recursive: true });
+    mkdirSync(outsideDir, { recursive: true });
+    writeFileSync(resolve(outsideDir, 'secret.tex'), 'TOP SECRET PAYLOAD\n', 'utf8');
+    // The link LIVES inside the root, so the lexical check sees no `..` and
+    // passes it. Only resolving the real path catches the escape.
+    symlinkSync(resolve(outsideDir, 'secret.tex'), resolve(root, 'innocent.tex'));
+
     assert.throws(
       () => inlineInputs('\\input{innocent}', root, [], root),
       /refusing to inline innocent .* escapes /,

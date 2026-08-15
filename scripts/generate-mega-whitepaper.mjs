@@ -68,6 +68,14 @@ function isContainedBy(root, target) {
  * here: that is the missing-import case, and it belongs to the read below so
  * the caller still gets `cannot inline X from Y` rather than a containment
  * error that misdescribes the problem.
+ *
+ * The root is resolved WITHOUT a guard, deliberately. By the time it is
+ * reached, two things are already known: the caller short-circuits on the
+ * lexical check, so `target` is lexically under `root`; and `realpathSync`
+ * succeeded on `target`, so the target exists — which means every ancestor
+ * directory on its path exists too, `root` among them. A `try/catch` here
+ * would be an untestable branch guarding a condition that cannot occur, and an
+ * unreachable fallback is worse than none: it reads as a handled case.
  */
 function realContainedBy(root, target) {
   let realTarget;
@@ -76,12 +84,7 @@ function realContainedBy(root, target) {
   } catch {
     return true; // not resolvable — let the read report it honestly
   }
-  let realRoot;
-  try {
-    realRoot = realpathSync(root);
-  } catch {
-    realRoot = root;
-  }
+  const realRoot = realpathSync(root);
   return isContainedBy(realRoot, realTarget);
 }
 
