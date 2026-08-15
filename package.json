@@ -30,6 +30,7 @@
     "test:coverage": "npm test -- --coverage",
     "test:ci": "npm test",
     "test:bun": "bun test tests/bun/",
+    "test:purser": "node --test tests/purser/test-*.js",
     "typecheck": "tsc --noEmit",
     "generate:console-model-tiers": "tsx scripts/generate-console-model-tiers.ts --write",
     "check:console-model-tiers": "tsx scripts/generate-console-model-tiers.ts",
