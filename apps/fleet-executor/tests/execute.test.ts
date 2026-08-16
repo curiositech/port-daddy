@@ -1065,3 +1065,95 @@ describe('executeFleet — merge_group (merge-queue gate)', () => {
     expect(state.records.filter(r => r.url.includes('/check-runs'))).toHaveLength(0);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHANTOM MERGE notice.
+//
+// A reviewed PR retargeted onto `purser/pr-<n>-tests` merges into that staging
+// branch, not the default branch — but GitHub stamps it `MERGED` either way, so
+// the change looks shipped while it sits in a branch nobody is watching.
+// Observed 2026-08-10: six PRs recorded as merged, `main` containing none.
+
+describe('executeFleet — phantom merge (merged, but not to the default branch)', () => {
+  function envWithToken(ai: unknown) {
+    const kv = memoryKV();
+    void kv.put(
+      'github_inst_42',
+      JSON.stringify({ token: 'tok-seeded', expiresAt: Date.now() + 3_600_000 }),
+    );
+    return makeEnv({ AI: ai as never, FLEET_TOKENS: kv });
+  }
+
+  function closedJob(baseRef: string) {
+    return makeJob({
+      eventType: 'pull_request',
+      action: 'closed',
+      prNumber: 7020,
+      payloadMinimal: {
+        pull_request: { number: 7020, merged: true, base: { ref: baseRef } },
+      },
+    } as Partial<ReturnType<typeof makeJob>>);
+  }
+
+  function commentBodies(state: ReturnType<typeof freshState>) {
+    return state.records
+      .filter(r => r.url.includes('/issues/') && r.url.includes('/comments') && r.method === 'POST')
+      .map(r => (r.body as { body: string }).body);
+  }
+
+  it('says plainly that the merge did not reach the default branch', async () => {
+    const { ai } = aiStub({ perShip: {} });
+    const state = freshState();
+    installGitHubFetch(state);
+
+    await executeFleet(closedJob('purser/pr-7020-tests'), envWithToken(ai));
+
+    const bodies = commentBodies(state);
+    expect(bodies).toHaveLength(1);
+    // The whole point is that "MERGED" is not the same as "shipped". If this
+    // wording ever softens into something a reader can skim past, the notice
+    // stops doing its job.
+    expect(bodies[0]).toContain('not to the default branch');
+    expect(bodies[0]).toContain('purser/pr-7020-tests');
+  });
+
+  it('spends NOTHING on models — it is an annotation, not a review', async () => {
+    const { ai } = aiStub({ perShip: { 'code-reviewer': 'x\n\nFLEET-VERDICT: PASS' } });
+    const state = freshState();
+    installGitHubFetch(state);
+
+    await executeFleet(closedJob('purser/pr-7020-tests'), envWithToken(ai));
+
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+  });
+
+  it('never posts a check run — this must not gate anything', async () => {
+    const { ai } = aiStub({ perShip: {} });
+    const state = freshState();
+    installGitHubFetch(state);
+
+    await executeFleet(closedJob('purser/pr-7020-tests'), envWithToken(ai));
+
+    // A notice that can fail a PR would be a new way to block merges, which is
+    // the opposite of the problem being solved.
+    expect(state.records.filter(r => r.url.includes('/check-runs'))).toHaveLength(0);
+  });
+
+  it('says nothing when the base ref is missing (never invents a destination)', async () => {
+    const { ai } = aiStub({ perShip: {} });
+    const state = freshState();
+    installGitHubFetch(state);
+
+    await executeFleet(
+      makeJob({
+        eventType: 'pull_request',
+        action: 'closed',
+        prNumber: 7020,
+        payloadMinimal: { pull_request: { number: 7020, merged: true } },
+      } as Partial<ReturnType<typeof makeJob>>),
+      envWithToken(ai),
+    );
+
+    expect(commentBodies(state)).toHaveLength(0);
+  });
+});

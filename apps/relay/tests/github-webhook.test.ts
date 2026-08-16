@@ -465,3 +465,81 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     expect((sent[0] as { eventType: string }).eventType).toBe('pull_request');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHANTOM MERGE: a merge that reports success without shipping anything.
+//
+// The purser retargets a reviewed PR onto `purser/pr-<n>-tests`, so shipping is
+// a two-hop chain of which only hop one is automated. On hop one GitHub stamps
+// the PR `MERGED` — indistinguishable from work that actually landed — and the
+// change sits in a staging branch nobody is watching. Observed 2026-08-10: six
+// PRs recorded as merged were all stranded this way, with `main` containing
+// none of them.
+
+describe('fleet enqueue — phantom merge (merged, but not to the default branch)', () => {
+  function envWithQueue(sent: unknown[]) {
+    const cap: Captured = { events: [], audits: [] };
+    const env = makeEnv(cap, []) as unknown as Record<string, unknown>;
+    env.FLEET_RUNS = { async send(job: unknown) { sent.push(job); } };
+    return env as unknown as Env;
+  }
+
+  function closedBody(opts: { merged: boolean; baseRef: string }) {
+    return JSON.stringify({
+      action: 'closed',
+      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      sender: { login: 'octocat', id: 1 },
+      installation: { id: 777 },
+      pull_request: {
+        number: 7020,
+        merged: opts.merged,
+        base: { ref: opts.baseRef },
+      },
+    });
+  }
+
+  it('enqueues when a PR merges into a purser staging branch', async () => {
+    const sent: unknown[] = [];
+    const body = closedBody({ merged: true, baseRef: 'purser/pr-7020-tests' });
+    const res = await handleGithubWebhook(
+      webhookReq({ body, signature: sign(SECRET, body), event: 'pull_request', delivery: 'pm-1' }),
+      envWithQueue(sent)
+    );
+
+    expect(res.status).toBe(204);
+    expect(sent).toHaveLength(1);
+    const job = sent[0] as {
+      eventType: string;
+      action: string;
+      prNumber: number | null;
+      payloadMinimal: { pull_request?: { base?: { ref?: string } } };
+    };
+    expect(job.action).toBe('closed');
+    expect(job.prNumber).toBe(7020);
+    // The staging branch is what the executor looks the real gate up by;
+    // losing it loses the notice.
+    expect(job.payloadMinimal.pull_request?.base?.ref).toBe('purser/pr-7020-tests');
+  });
+
+  it('ignores a PR that merged into the default branch — that one really shipped', async () => {
+    const sent: unknown[] = [];
+    const body = closedBody({ merged: true, baseRef: 'main' });
+    const res = await handleGithubWebhook(
+      webhookReq({ body, signature: sign(SECRET, body), event: 'pull_request', delivery: 'pm-2' }),
+      envWithQueue(sent)
+    );
+    expect(res.status).toBe(204);
+    expect(sent).toHaveLength(0);
+  });
+
+  it('ignores a PR closed WITHOUT merging — abandoning strands nothing', async () => {
+    const sent: unknown[] = [];
+    const body = closedBody({ merged: false, baseRef: 'purser/pr-7020-tests' });
+    const res = await handleGithubWebhook(
+      webhookReq({ body, signature: sign(SECRET, body), event: 'pull_request', delivery: 'pm-3' }),
+      envWithQueue(sent)
+    );
+    expect(res.status).toBe(204);
+    expect(sent).toHaveLength(0);
+  });
+});

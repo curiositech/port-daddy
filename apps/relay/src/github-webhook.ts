@@ -82,8 +82,62 @@ const FLEET_MERGE_GROUP_ACTIONS = new Set(['checks_requested']);
  *
  * A check that cannot be produced is not a gate, it is a deadlock.
  */
-function shouldEnqueueFleetRun(eventType: string, action: string | null): boolean {
-  if (eventType === 'pull_request') return FLEET_PR_ACTIONS.has(action ?? '');
+/**
+ * Branch namespace the purser publishes its stacked adversarial-test branches
+ * under (`purser/pr-<n>-tests`). See fleet-executor's stacked-pr.ts.
+ */
+const PURSER_TEST_BRANCH_PREFIX = 'purser/';
+
+/**
+ * Whether this delivery is a PHANTOM MERGE: a reviewed PR that just merged into
+ * a purser test-staging branch rather than into the default branch.
+ *
+ * THE FALSE SIGNAL THIS EXISTS TO CATCH. The purser retargets a reviewed PR
+ * onto `purser/pr-<n>-tests` so the PR must merge THROUGH its own contract's
+ * tests. That is a two-hop chain — reviewed PR → staging branch → test PR →
+ * main — but only the first hop is automated. When hop one completes, GitHub
+ * reports the reviewed PR as `state: MERGED`, which reads to every human and
+ * every agent as "this shipped". It did not: the work is sitting in a staging
+ * branch, and if the test PR never merges, it sits there forever.
+ *
+ * Observed 2026-08-10: six PRs recorded as merged in a triage session had all
+ * landed in dead-end staging branches; `main` contained none of them. The
+ * success signal was, and is, a lie unless hop two also happens.
+ *
+ * A merge that reports success without shipping anything is worse than a
+ * failure, because nobody goes looking for it.
+ */
+export function isPhantomMergeCandidate(
+  eventType: string,
+  action: string | null,
+  payload: Record<string, unknown>,
+): boolean {
+  if (eventType !== 'pull_request' || action !== 'closed') return false;
+  const pull =
+    payload.pull_request && typeof payload.pull_request === 'object'
+      ? (payload.pull_request as Record<string, unknown>)
+      : null;
+  // `closed` fires for abandoned PRs too; only a MERGE strands work.
+  if (pull?.merged !== true) return false;
+  const base =
+    pull.base && typeof pull.base === 'object' ? (pull.base as Record<string, unknown>) : null;
+  const baseRef = typeof base?.ref === 'string' ? base.ref : '';
+  return baseRef.startsWith(PURSER_TEST_BRANCH_PREFIX);
+}
+
+function shouldEnqueueFleetRun(
+  eventType: string,
+  action: string | null,
+  payload: Record<string, unknown>,
+): boolean {
+  if (eventType === 'pull_request') {
+    if (FLEET_PR_ACTIONS.has(action ?? '')) return true;
+    // Narrowly gated on the payload, not just the action: `closed` fires on
+    // every PR in the repo, and only the tiny subset that merged into a purser
+    // staging branch needs the phantom-merge notice. Everything else is still
+    // dropped here, so this adds no ambient job volume.
+    return isPhantomMergeCandidate(eventType, action, payload);
+  }
   if (eventType === 'merge_group') return FLEET_MERGE_GROUP_ACTIONS.has(action ?? '');
   return false;
 }
@@ -231,7 +285,7 @@ async function maybeEnqueueFleetRun(
   repoFullName: string | null,
   payload: Record<string, unknown>,
 ): Promise<void> {
-  if (!env.FLEET_RUNS || !shouldEnqueueFleetRun(eventType, action)) return;
+  if (!env.FLEET_RUNS || !shouldEnqueueFleetRun(eventType, action, payload)) return;
   const installation =
     payload.installation && typeof payload.installation === 'object'
       ? (payload.installation as Record<string, unknown>)

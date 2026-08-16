@@ -876,6 +876,90 @@ async function reportMergeGroupPassThrough(job: FleetRunJob, env: ExecutorEnv): 
   }
 }
 
+/**
+ * Say plainly, on the PR itself, that a merge did NOT reach the default branch.
+ *
+ * WHY THIS EXISTS. The purser retargets a reviewed PR onto its own
+ * `purser/pr-<n>-tests` branch so the PR merges THROUGH its contract's tests.
+ * That makes shipping a two-hop chain (reviewed PR → staging branch → test PR →
+ * main) of which only hop one is automated. On hop one GitHub stamps the
+ * reviewed PR `MERGED` — the same word it uses for work that actually shipped —
+ * so readers reasonably stop looking. If hop two never happens the work is
+ * stranded in a branch nobody is watching, indefinitely, while every dashboard
+ * and every `gh pr view` agrees it is done.
+ *
+ * Observed 2026-08-10: six PRs a triage session had recorded as merged were all
+ * sitting in dead-end staging branches, with `main` containing none of them.
+ *
+ * This does NOT auto-merge the test PR. Fleet-authored branches are held for a
+ * human on purpose (the fleet check reports `neutral` on them, saying so), and
+ * quietly promoting them would trade a visibility bug for a governance one. The
+ * fix for an invisible state is to make it visible.
+ *
+ * Zero model spend: one lookup, one idempotent comment.
+ *
+ * Fails soft: any error leaves today's behaviour (no notice), never a retry or
+ * a dead-letter, because this is an annotation and must not gate anything.
+ */
+async function reportPhantomMerge(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+  const pull = job.payloadMinimal?.pull_request as Record<string, unknown> | undefined;
+  const base =
+    pull?.base && typeof pull.base === 'object' ? (pull.base as Record<string, unknown>) : null;
+  const stagingBranch = typeof base?.ref === 'string' ? base.ref : '';
+  if (!job.repoFullName || !job.installationId || !job.prNumber || !stagingBranch) return;
+  const [owner, repo] = job.repoFullName.split('/');
+  if (!owner || !repo) return;
+
+  const token = await getInstallationTokenCached(
+    env.GITHUB_APP_ID,
+    env.GITHUB_APP_PRIVATE_KEY,
+    job.installationId,
+    env.FLEET_TOKENS,
+  ).catch(() => null);
+  if (!token) return;
+
+  try {
+    // The real gate is whatever open PR has the staging branch as its HEAD.
+    // Look it up rather than deriving a number from the branch name, so a
+    // renamed or reused branch can never point the reader at the wrong PR.
+    const open = await fetchOpenPullRequests(owner, repo, token, job.prNumber, 100);
+    const gate = open.find((p) => p.headRef === stagingBranch);
+
+    const remaining = gate
+      ? `The remaining gate is #${gate.number} ` +
+        `(https://github.com/${owner}/${repo}/pull/${gate.number}) — that PR merges ` +
+        `\`${stagingBranch}\` into the default branch, carrying this work with it. ` +
+        `Until it merges, this work has not shipped.`
+      : `No open PR currently merges \`${stagingBranch}\` into the default branch, so ` +
+        `there is nothing scheduled to carry this work onward. It is stranded until ` +
+        `one is opened.`;
+
+    await postShipComment(
+      owner,
+      repo,
+      job.prNumber,
+      'phantom-merge',
+      'merge destination check',
+      `**Merged — but not to the default branch.**\n\n` +
+        `This PR merged into \`${stagingBranch}\`, the purser's stacked test branch it ` +
+        `was retargeted onto. GitHub reports it as \`MERGED\`, which is true of *this* ` +
+        `PR and not of the change: the code is in a staging branch, not in the default ` +
+        `branch.\n\n${remaining}\n\n` +
+        `To verify any PR in this repo for real, check its base rather than its state:\n` +
+        '```bash\n' +
+        `gh pr view ${job.prNumber} --json baseRefName,state\n` +
+        '```\n' +
+        `Do not use \`gh api compare/<sha>...main\` for this — the repo squash-merges, ` +
+        `so it reports "diverged" even for changes that genuinely landed.`,
+      token,
+    );
+  } catch (err) {
+    console.error(
+      `[fleet-executor] phantom-merge notice failed for ${job.repoFullName}#${job.prNumber}: ${String(err)}`,
+    );
+  }
+}
+
 export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
   if (!env.AI) return;
 
@@ -885,6 +969,14 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // deadlock this branch exists to end.
   if (job.eventType === 'merge_group') {
     await reportMergeGroupPassThrough(job, env);
+    return;
+  }
+
+  // PHANTOM MERGE: also before the guards below. A `closed` delivery has no
+  // review trigger, so it would fall out of `triggerFor` and say nothing —
+  // which is exactly the silence that lets stranded work look shipped.
+  if (job.eventType === 'pull_request' && job.action === 'closed') {
+    await reportPhantomMerge(job, env);
     return;
   }
 
