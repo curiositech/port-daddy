@@ -303,10 +303,22 @@ function contractBlock(steel: SteelManContract): string {
  * files is not punished: {@link runPurser} takes them via
  * {@link parseAuthoredFiles} and skips the per-file calls entirely.
  */
-function testPlanSystemPrompt(ship: ShipConfig, steel: SteelManContract, graftText: string): string {
+export function testPlanSystemPrompt(ship: ShipConfig, steel: SteelManContract, graftText: string): string {
+  // Say DIRECTORY, and show the trailing slash, because the validator means a
+  // directory: it keeps a file only when `path === g || path.startsWith(g +
+  // '/')`. Asking for a "prefix" invited the literal reading and got it — on
+  // #7175 the model planned `tests/purser-authoring.test.ts`, mirroring the
+  // source file it was grilling. That IS under the prefix `tests/purser`, so
+  // the model complied with the instruction as written, and the validator
+  // rejected it anyway. Every file failed the same way and the run stacked
+  // nothing, which reads as "the purser produced no tests" rather than "the
+  // purser was asked for the wrong thing".
   const pathNote =
     ship.testPaths.length > 0
-      ? `Every path MUST live under one of these prefixes: ${ship.testPaths.join(', ')}.\n`
+      ? `Every path MUST be INSIDE one of these directories: ` +
+        `${ship.testPaths.map(p => `${p}/`).join(', ')} ` +
+        `(note the trailing slash — e.g. '${ship.testPaths[0]}/my-case.test.ts' is inside it, ` +
+        `but '${ship.testPaths[0]}-my-case.test.ts' is NOT and will be rejected).\n`
       : '';
   return (
     graftText +
