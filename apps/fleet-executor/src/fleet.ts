@@ -32,6 +32,20 @@ export interface ShipConfig {
    * than a default.
    */
   cfMapModel?: string;
+  /**
+   * Purser only: model for the PLAN step, when it should differ from
+   * {@link cfModel}. Undefined means "same as cfModel".
+   */
+  cfPlanModel?: string;
+  /**
+   * Purser only: model for the per-file AUTHOR step, when it should differ from
+   * {@link cfModel}. Undefined means "same as cfModel".
+   *
+   * Split from {@link cfPlanModel} because the two steps have opposite cost
+   * shapes — PLAN is input-heavy and output-tiny, AUTHOR is the reverse — so one
+   * model for both is wrong in one direction whichever one is picked.
+   */
+  cfAuthorModel?: string;
   temperature: number | null;
   role: string;
   telos: string;
@@ -126,13 +140,51 @@ const WORKING_CF_MODEL = CHEAP_CF_MODEL; // guard fallback: cheap + verified wor
 const DEFAULT_CF_MODEL = CHEAP_CF_MODEL; // every ship except the review bot
 const CODER_CF_MODEL = REVIEW_BOT_CF_MODEL; // the code review bot only
 
-// Cloudflare model ids the executor honors as an explicit ship pin. Only the
-// cheap model is honorable — the review bot gets gpt-oss by ROLE (below), not by
-// pin, so no other ship can accidentally pin its way onto the expensive model. An
-// id OUTSIDE this set is remapped to {@link WORKING_CF_MODEL} (the cheap model),
-// because a nonexistent Workers AI id doesn't error — it yields a blank response
-// the parser reads as "clean", silencing the ship.
-const KNOWN_GOOD_CF_MODELS: ReadonlySet<string> = new Set(['@cf/qwen/qwen3-30b-a3b-fp8']);
+/**
+ * MID TIER — for the steps where the cheap model's output is not good enough but
+ * the review bot's model is more than the job needs.
+ *
+ * Per M tokens (Cloudflare pricing page, mirrored in lib/cost-tracker.ts):
+ *
+ *   cheap  qwen3-30b-a3b   $0.051 in / $0.335 out
+ *   MID    gpt-oss-20b     $0.200 in / $0.300 out
+ *   pricey gpt-oss-120b    $0.350 in / $0.750 out
+ *
+ * Note the shape: the mid tier is ~4x the cheap model on INPUT but slightly
+ * CHEAPER on OUTPUT. So it is the wrong choice for a step that reads a large
+ * diff and emits a little (planning), and a defensible one for a step that
+ * reads the same diff and emits a whole file (authoring) — where it buys a
+ * dense 20B model over a 30B MoE with ~3B active parameters, which is the
+ * difference between test code that runs and test code that merely looks like
+ * test code.
+ *
+ * VERIFIED to exist before being honored: developers.cloudflare.com documents
+ * `@cf/openai/gpt-oss-20b`. This matters more than it sounds — a nonexistent
+ * Workers AI id does not error, it returns a blank the parser reads as "clean",
+ * and two phantom kimi ids did exactly that to this fleet in #654 (they are
+ * still in cost-tracker.ts, labelled, as the tombstone).
+ */
+const MID_CF_MODEL = '@cf/openai/gpt-oss-20b';
+
+// Cloudflare model ids the executor honors as an explicit ship pin: the cheap
+// model and the MID tier. The review bot's gpt-oss-120b is deliberately NOT here
+// — it is reached by ROLE (below), never by pin, so no ship can pin its way onto
+// the most expensive model. An id OUTSIDE this set is remapped to
+// {@link WORKING_CF_MODEL} (the cheap model), because a nonexistent Workers AI id
+// doesn't error — it yields a blank response the parser reads as "clean",
+// silencing the ship.
+//
+// The old invariant here was "tiering can save money; it cannot spend more of
+// it", true when the cheap id was the only honored one. Admitting the mid tier
+// weakens that to a BOUND rather than a ratchet: a pin can now cost more per
+// call, but it still cannot reach the review bot's model, and the ceiling stays
+// operator-visible in one place. That trade is the point of the tier — some
+// steps were producing output too weak to use, and output nobody can use is not
+// a saving.
+const KNOWN_GOOD_CF_MODELS: ReadonlySet<string> = new Set([
+  '@cf/qwen/qwen3-30b-a3b-fp8',
+  '@cf/openai/gpt-oss-20b',
+]);
 
 /**
  * Guard a requested Cloudflare model id: pass through a known-good one, else
@@ -194,6 +246,14 @@ interface RawAgent {
   map_model?: unknown;
   mapModel?: unknown;
   cfMapModel?: unknown;
+  /** Purser: model for the PLAN step (`plan_model:`; aliases accepted). */
+  plan_model?: unknown;
+  planModel?: unknown;
+  cfPlanModel?: unknown;
+  /** Purser: model for the per-file AUTHOR step (`author_model:`; aliases accepted). */
+  author_model?: unknown;
+  authorModel?: unknown;
+  cfAuthorModel?: unknown;
 }
 
 /**
@@ -268,19 +328,103 @@ function deriveCfModel(agent: RawAgent, name: string): string {
  * @returns the MAP model id, or undefined for an untiered ship
  */
 function deriveMapModel(agent: RawAgent, cfModel: string): string | undefined {
-  const raw = agent.map_model ?? agent.mapModel ?? agent.cfMapModel;
-  if (typeof raw !== 'string') return undefined;
+  // MAP has no default tier: an absent or unusable pin means "run untiered".
+  return deriveStepModel(agent.map_model ?? agent.mapModel ?? agent.cfMapModel, cfModel, 'map_model')
+    .model;
+}
+
+/**
+ * Resolve ONE step's model pin against {@link KNOWN_GOOD_CF_MODELS}.
+ *
+ * Shared by every per-step tier ({@link deriveMapModel} and the purser's
+ * plan/author steps) so there is exactly one place where an unknown id is
+ * dropped. Duplicating this guard per step is how one step quietly ends up
+ * remapping where the others drop.
+ *
+ * @param raw the operator's value, in any of the accepted spellings
+ * @param shipModel the ship's already-resolved default model
+ * @param label the YAML key, for the warning
+ * @returns the pinned id, or undefined to mean "use the ship's own model"
+ */
+function deriveStepModel(raw: unknown, shipModel: string, label: string): StepPin {
+  if (typeof raw !== 'string') return { supplied: false };
   const pin = raw.trim();
-  if (!KNOWN_GOOD_CF_MODELS.has(pin)) {
-    if (pin) {
-      console.warn(
-        `[fleet-executor] map_model '${pin}' is not a known-good Cloudflare id; ` +
-          `running this ship untiered rather than risking a silent blank MAP stage`,
-      );
-    }
-    return undefined;
+  if (!pin) {
+    // `plan_model: ""` falls back to the tier default like any unusable pin,
+    // but it is NOT the same as the key being absent: someone typed the key and
+    // left it blank. Staying silent there was inconsistent with the unknown-id
+    // path below, which warns — so the one config mistake most likely to be a
+    // half-finished edit was the one mistake that produced no output at all.
+    // (Raised HIGH by pd-code-reviewer on #6813.)
+    console.warn(
+      `[fleet-executor] ${label} is present but empty; using the step default. ` +
+        `Remove the key to silence this, or give it a known-good Cloudflare id.`,
+    );
+    return { supplied: false };
   }
-  return pin === cfModel ? undefined : pin;
+  if (!KNOWN_GOOD_CF_MODELS.has(pin)) {
+    console.warn(
+      `[fleet-executor] ${label} '${pin}' is not a known-good Cloudflare id; ` +
+        `running this step untiered rather than risking a silent blank stage`,
+    );
+    return { supplied: false };
+  }
+  // A pin equal to the ship's own model resolves to undefined (repo convention:
+  // absent means "same as cfModel") but is still SUPPLIED, so a caller with a
+  // default knows not to override it. Collapsing those two cases is what made
+  // an operator pinning back down to the cheap model get silently upgraded.
+  return { supplied: true, ...(pin === shipModel ? {} : { model: pin }) };
+}
+
+/**
+ * The outcome of reading one step's model pin.
+ *
+ * `supplied` answers "did the operator make a choice here?" — distinct from
+ * `model`, which answers "which model, if it differs from the ship's own". A
+ * step with a DEFAULT must apply that default only when nothing was supplied;
+ * a step without one (map) treats both the same.
+ */
+interface StepPin {
+  supplied: boolean;
+  model?: string;
+}
+
+/**
+ * The purser's PLAN-step model. Defaults to the cheap model.
+ *
+ * PLAN reads the whole diff and emits a handful of paths, so its cost is
+ * dominated by INPUT — exactly where the cheap model's $0.051/M wins and the
+ * mid tier's $0.200/M would be paid for nothing. Naming files is not the step
+ * that needed more capability.
+ */
+function derivePurserPlanModel(agent: RawAgent, cfModel: string): string | undefined {
+  const pin = deriveStepModel(
+    agent.plan_model ?? agent.planModel ?? agent.cfPlanModel,
+    cfModel,
+    'plan_model',
+  );
+  if (pin.supplied) return pin.model;
+  return CHEAP_CF_MODEL === cfModel ? undefined : CHEAP_CF_MODEL;
+}
+
+/**
+ * The purser's per-file AUTHOR-step model. Defaults to {@link MID_CF_MODEL}.
+ *
+ * This is the step whose output is a runnable source file, and the one whose
+ * failures are expensive in both directions: a weak model writes tests that
+ * look plausible and do not run, and since those tests become a merge gate, a
+ * bad one blocks a good PR. It is also the step where the mid tier is nearly
+ * free — authoring is output-heavy and gpt-oss-20b's output rate ($0.300/M) is
+ * *below* the cheap model's ($0.335/M); only the input side costs more.
+ */
+function derivePurserAuthorModel(agent: RawAgent, cfModel: string): string | undefined {
+  const pin = deriveStepModel(
+    agent.author_model ?? agent.authorModel ?? agent.cfAuthorModel,
+    cfModel,
+    'author_model',
+  );
+  if (pin.supplied) return pin.model;
+  return MID_CF_MODEL === cfModel ? undefined : MID_CF_MODEL;
 }
 
 /**
@@ -448,6 +592,11 @@ export function parseFleetShips(fleetYaml: string, trigger: string): ShipConfig[
     const ideation = purser ? false : deriveIdeation(name, agent.class);
     const shipCfModel = purser ? derivePurserModel(agent, name) : deriveCfModel(agent, name);
     const shipMapModel = deriveMapModel(agent, shipCfModel);
+    // Per-step tiers exist only for the purser, whose steps genuinely differ in
+    // job and cost shape. Deriving them for every ship would put two keys in
+    // every snapshot that nothing reads.
+    const shipPlanModel = purser ? derivePurserPlanModel(agent, shipCfModel) : undefined;
+    const shipAuthorModel = purser ? derivePurserAuthorModel(agent, shipCfModel) : undefined;
 
     ships.push({
       name,
@@ -458,6 +607,10 @@ export function parseFleetShips(fleetYaml: string, trigger: string): ShipConfig[
       // deriveMapModel(). Spread so an untiered ship has NO key at all rather
       // than an explicit undefined, keeping `cfMapModel` absent in snapshots.
       ...(shipMapModel ? { cfMapModel: shipMapModel } : {}),
+      // Same spread-when-present rule as cfMapModel: an untiered step has NO key
+      // rather than an explicit undefined.
+      ...(shipPlanModel ? { cfPlanModel: shipPlanModel } : {}),
+      ...(shipAuthorModel ? { cfAuthorModel: shipAuthorModel } : {}),
       temperature: coerceTemperature(agent.temperature),
       role,
       telos,
