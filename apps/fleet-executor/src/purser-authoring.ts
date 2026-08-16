@@ -111,12 +111,27 @@ function looksLikeCode(text: string): boolean {
   //
   // So a declaration must START a line, or a test/assertion keyword must be
   // CALLED, or the text must carry syntax prose does not: an arrow function or
-  // a statement-terminating semicolon.
+  // statement-terminating semicolons.
+  //
+  // The semicolon signal needs TWO of them, on separate lines. One is not
+  // evidence of code — English uses the semicolon too, and a refusal that
+  // reaches for it walks straight through a single-semicolon check:
+  //
+  //   "I cannot write this test;
+  //    network access is unavailable."
+  //
+  // which is the same class of defect the qa bot caught above, reopened by a
+  // different clause. Real source states more than once; a refusal apologises
+  // once. None of the languages this fallback exists for are admitted by the
+  // semicolon rule alone — every accepted sample is already carried by the
+  // declaration, call, or arrow signal — so requiring a second one costs
+  // nothing real and closes the hole.
+  const terminatedStatements = text.match(/;[ \t]*$/gm)?.length ?? 0;
   return (
     /^\s*(?:import|export|from|const|let|var|function|func|class|def|package|public|private)\b/m.test(text) ||
     /\b(?:it|test|describe|expect|assert|require)\s*\(/.test(text) ||
     /=>/.test(text) ||
-    /;\s*$/m.test(text)
+    terminatedStatements >= 2
   );
 }
 

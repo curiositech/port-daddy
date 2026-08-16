@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { runPurser, parseSteelMan, parseAuthoredFiles, type TranscriptLike, type PurserMetrics } from '../src/purser.js';
+import { runPurser, parseSteelMan, parseAuthoredFiles, testPlanSystemPrompt, type TranscriptLike, type PurserMetrics } from '../src/purser.js';
 import { parseFleetShips, PURSER_DEFAULT_GRAFT, type ShipConfig } from '../src/fleet.js';
 import { executeFleet } from '../src/execute.js';
 import type { PRContext } from '../src/github.js';
@@ -289,6 +289,27 @@ describe('runPurser — authored-test validation', () => {
     const step = rec.steps.find(s => s.kind === 'purser-tests')!;
     expect((step.detail as { error: string }).error).toMatch(/testPaths/);
     expect(state.stackedPrs).toHaveLength(0);
+  });
+
+  it('the plan prompt asks for a DIRECTORY, not a string prefix', () => {
+    // The failure this pins, observed on #7175: the prompt said "prefixes:
+    // tests/purser", the model planned `tests/purser-authoring.test.ts`
+    // (mirroring the file it was grilling), and the validator — which requires
+    // `path === g || path.startsWith(g + '/')` — rejected every file. The run
+    // stacked nothing, and the transcript read as though the purser had failed
+    // to produce tests rather than having been asked for the wrong shape.
+    const prompt = testPlanSystemPrompt(
+      mkShip({ testPaths: ['tests/purser'] }),
+      { purpose: 'p', obligations: ['o'], testTargets: ['src/widget.ts'] },
+      '',
+    );
+
+    expect(prompt).toContain('tests/purser/');
+    expect(prompt).toMatch(/INSIDE one of these directories/);
+    // The sibling path is named as a counter-example, so the instruction and
+    // the enforcement agree on the one case that silently produced no tests.
+    expect(prompt).toContain('tests/purser-my-case.test.ts');
+    expect(prompt).not.toMatch(/under one of these prefixes/);
   });
 
   it('valid tests record files + bytes in the purser-tests step', async () => {

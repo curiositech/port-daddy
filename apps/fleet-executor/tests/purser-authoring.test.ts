@@ -65,6 +65,32 @@ describe('extractCodeFence', () => {
     ).toBeNull();
   });
 
+  it('rejects a multi-line REFUSAL that ends a line with a semicolon', () => {
+    // The XO asked for the borderline case on #6790. This is it, and the
+    // heuristic accepted it before this test existed: `;$` matched, so a
+    // refusal got committed as a .test.ts file — the very outcome the check
+    // above was added to prevent, reopened by a different clause. English
+    // uses the semicolon; one of them is not evidence of code.
+    expect(
+      extractCodeFence('I cannot write this test;\nnetwork access is unavailable.'),
+    ).toBeNull();
+    expect(extractCodeFence('I cannot do this;\nsorry.')).toBeNull();
+  });
+
+  it('refuses a single line even when it is real code', () => {
+    // Deliberately conservative in the safe direction: the fallback only ever
+    // sees an UNFENCED response, where the cost of accepting prose (a broken
+    // merge gate on an innocent PR) far exceeds the cost of rejecting a
+    // one-line file the model should have fenced.
+    expect(extractCodeFence('export const x = 1;')).toBeNull();
+  });
+
+  it('still accepts real unfenced code carried only by semicolons', () => {
+    // The tightening must not cost the fallback a real file: two terminated
+    // statements, and no declaration/call/arrow signal anywhere.
+    expect(extractCodeFence('foo.bar();\nbaz.qux();')).not.toBeNull();
+  });
+
   it('still accepts real unfenced code in several languages', () => {
     // The tightening must not throw away the case the fallback exists for.
     expect(extractCodeFence('import x from "y";\nit("a", () => {});')).not.toBeNull();
