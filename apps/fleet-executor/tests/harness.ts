@@ -504,6 +504,13 @@ export interface D1Capture {
   creditTableMissing: boolean;
   /** Set true to make EVERY `.run()` throw (transcript-write failure path). */
   failAll: boolean;
+  /**
+   * When true, the NEXT `INSERT OR REPLACE INTO fleet_runs` (recordRunStart's
+   * write, specifically — not ensureRunRow's `OR IGNORE`) throws once, then
+   * resets to false. Simulates a transient D1 hiccup at exactly the moment
+   * recordRunStart writes, to test ensureRunRow's backstop closes the gap.
+   */
+  failNextRecordRunStartInsert: boolean;
   /** Number of `.run()` calls attempted (including the ones that threw). */
   runCalls: number;
 }
@@ -526,6 +533,7 @@ export function memoryD1(): D1Capture {
     ledger: [],
     creditTableMissing: false,
     failAll: false,
+    failNextRecordRunStartInsert: false,
     runCalls: 0,
   };
 
@@ -534,6 +542,10 @@ export function memoryD1(): D1Capture {
       async run() {
         cap.runCalls += 1;
         if (cap.failAll) throw new Error('D1 unavailable');
+        if (cap.failNextRecordRunStartInsert && /INSERT OR REPLACE INTO fleet_runs/i.test(sql)) {
+          cap.failNextRecordRunStartInsert = false;
+          throw new Error('D1 unavailable (simulated recordRunStart failure)');
+        }
         if (/INTO fleet_run_spend/i.test(sql)) {
           cap.spend.push({
             runId: args[0],
@@ -545,18 +557,27 @@ export function memoryD1(): D1Capture {
             costUsd: Number(args[6]),
           });
         } else if (/INTO fleet_runs/i.test(sql)) {
-          runsById.set(String(args[0]), {
-            id: args[0],
-            deliveryId: args[1],
-            repo: args[2],
-            prNumber: args[3],
-            prUrl: args[4],
-            headSha: args[5],
-            shipsCsv: args[6],
-            createdAt: args[7],
-            conclusion: 'pending',
-            ms: 0,
-          });
+          // Real SQLite/D1 honors OR IGNORE (no-op on an existing primary key)
+          // vs OR REPLACE (overwrite) differently — ensureRunRow's backstop
+          // relies on exactly that distinction to never clobber a row
+          // recordRunStart already wrote successfully.
+          const isIgnore = /INSERT OR IGNORE/i.test(sql);
+          if (isIgnore && runsById.has(String(args[0]))) {
+            // no-op, matching real D1
+          } else {
+            runsById.set(String(args[0]), {
+              id: args[0],
+              deliveryId: args[1],
+              repo: args[2],
+              prNumber: args[3],
+              prUrl: args[4],
+              headSha: args[5],
+              shipsCsv: args[6],
+              createdAt: args[7],
+              conclusion: 'pending',
+              ms: 0,
+            });
+          }
         } else if (/INTO fleet_run_steps/i.test(sql)) {
           cap.steps.push({
             runId: args[0],

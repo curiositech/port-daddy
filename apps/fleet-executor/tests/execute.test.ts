@@ -987,3 +987,81 @@ describe('cloud telemetry emission (cost + failure surface)', () => {
     expect((shipRun as { metadata?: { blackout?: boolean } }).metadata?.blackout).toBe(true);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MERGE QUEUE pass-through.
+//
+// `Port Daddy Fleet` is a REQUIRED context on the merge queue. The executor
+// used to fall straight out of `!job.prNumber` for a merge_group delivery (that
+// payload has no pull_request at all), so the context was never produced and the
+// queue deadlocked: observed 2026-08-10 with `main` frozen since 2026-08-06 and
+// the queue head AWAITING_CHECKS for 9+ hours.
+
+describe('executeFleet — merge_group (merge-queue gate)', () => {
+  const QUEUE_SHA = 'b8ae3f4202aeb2b25d7be69b7a3ed6898957c8c1';
+
+  // The harness's app key is a placeholder that cannot sign a JWT, so a live
+  // mint is impossible here. Seeding the cache keeps these tests about the
+  // pass-through behaviour; the token layer has its own tests.
+  function envWithToken(ai: unknown) {
+    const kv = memoryKV();
+    void kv.put(
+      'github_inst_42',
+      JSON.stringify({ token: 'tok-seeded', expiresAt: Date.now() + 3_600_000 }),
+    );
+    return makeEnv({ AI: ai as never, FLEET_TOKENS: kv });
+  }
+
+  function mergeGroupJob(over: Record<string, unknown> = {}) {
+    return makeJob({
+      eventType: 'merge_group',
+      action: 'checks_requested',
+      prNumber: null,
+      payloadMinimal: {
+        merge_group: { head_sha: QUEUE_SHA },
+        ...(over.payloadMinimal as Record<string, unknown> | undefined),
+      },
+      ...over,
+    } as Partial<ReturnType<typeof makeJob>>);
+  }
+
+  it('posts a SUCCESS check on the queue-branch head sha', async () => {
+    const { ai } = aiStub({ perShip: {} });
+    const state = freshState();
+    installGitHubFetch(state);
+
+    await executeFleet(mergeGroupJob(), envWithToken(ai));
+
+    const created = state.records.filter(r => r.url.endsWith('/check-runs') && r.method === 'POST');
+    expect(created).toHaveLength(1);
+    expect((created[0].body as { name: string; head_sha: string }).name).toBe('Port Daddy Fleet');
+    // The QUEUE branch sha is the only one GitHub is waiting on.
+    expect((created[0].body as { head_sha: string }).head_sha).toBe(QUEUE_SHA);
+
+    const completed = state.records.filter(r => r.url.includes('/check-runs/') && r.method === 'PATCH');
+    expect(completed).toHaveLength(1);
+    expect((completed[0].body as { conclusion: string }).conclusion).toBe('success');
+  });
+
+  it('spends NOTHING on models — it is a pass-through, not a re-review', async () => {
+    const { ai } = aiStub({ perShip: { 'code-reviewer': 'x\n\nFLEET-VERDICT: PASS' } });
+    const state = freshState();
+    installGitHubFetch(state);
+
+    await executeFleet(mergeGroupJob(), envWithToken(ai));
+
+    // Re-reviewing every queue permutation would re-spend the whole review
+    // budget per entry, per reorder, to re-derive a verdict already published.
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+  });
+
+  it('posts nothing when the payload carries no head_sha (never invents one)', async () => {
+    const { ai } = aiStub({ perShip: {} });
+    const state = freshState();
+    installGitHubFetch(state);
+
+    await executeFleet(mergeGroupJob({ payloadMinimal: { merge_group: {} } }), envWithToken(ai));
+
+    expect(state.records.filter(r => r.url.includes('/check-runs'))).toHaveLength(0);
+  });
+});
