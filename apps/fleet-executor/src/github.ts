@@ -182,6 +182,26 @@ export async function invalidateInstallationToken(
  */
 export const PR_FILES_PAGE_SIZE = 100;
 
+/** Default check-run output title — what a normal, ship-decided run shows. */
+export const CHECK_OUTPUT_TITLE = 'Port Daddy Fleet';
+
+/**
+ * Output title for a check the fleet failed WITHOUT reaching a verdict.
+ *
+ * `blockWithoutSandbox: false` encodes a deliberate promise: the fleet never
+ * blocks on tests it could not run. That promise held inside the purser and
+ * then leaked at the edge — when a job dies outright (sandbox OOM, exhausted
+ * retries, dead-letter) the DLQ completes the gate `failure` to stay fail-
+ * closed, and a reader sees the same red `Port Daddy Fleet` they would see if
+ * their code were genuinely wrong.
+ *
+ * Observed 2026-08-10: ten-plus correct PRs were read as rejected this way,
+ * and each was re-diagnosed from scratch because nothing on the check said
+ * "this is us, not you". The gate still blocks — that part is right, an
+ * unverified change should not merge — but it must not lie about why.
+ */
+export const CHECK_OUTPUT_TITLE_INFRA = 'Port Daddy Fleet — infrastructure failure (no verdict)';
+
 export interface PRFile {
   filename: string;
   status: string;
@@ -681,6 +701,18 @@ export async function completeCheckRun(
   summary: string,
   token: string,
   detailsUrl?: string | null,
+  /**
+   * Check-run output title. Defaults to the plain check name.
+   *
+   * Exposed because the title is the ONLY part of a completed check that
+   * GitHub renders in the PR's checks list. Two very different events —
+   * "ships ran and one returned BLOCK" and "the job died before any ship ran"
+   * — both complete as `failure`, and with a shared title they are one
+   * identical red X. The distinction only existed inside the summary, which
+   * you have to click through to read, so in practice a fleet infrastructure
+   * outage was indistinguishable from the PR being genuinely wrong.
+   */
+  title?: string,
 ): Promise<boolean> {
   if (!checkRunId) return false;
   // details_url is (re)stamped on completion too, so a run that REUSED an
@@ -689,7 +721,7 @@ export async function completeCheckRun(
     status: 'completed',
     conclusion,
     completed_at: new Date().toISOString(),
-    output: { title: 'Port Daddy Fleet', summary },
+    output: { title: title ?? CHECK_OUTPUT_TITLE, summary },
     ...(detailsUrl ? { details_url: detailsUrl } : {}),
   });
   const MAX_ATTEMPTS = 3;

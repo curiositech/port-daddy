@@ -20,6 +20,7 @@ import {
   getInstallationTokenCached,
   findFleetCheckRun,
   completeCheckRun,
+  CHECK_OUTPUT_TITLE_INFRA,
 } from './github.js';
 import { emitCloudTelemetry } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
@@ -55,8 +56,13 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
   }
   const { owner, repo, headSha, installationId, prNumber } = target;
   const summary =
-    `pd-fleet: run for ${owner}/${repo} PR #${prNumber ?? '?'} was lost (job exhausted retries / ` +
-    `dead-lettered). This gate is failed rather than left stuck in-progress.`;
+    `**This is a fleet infrastructure failure, not a verdict on your change.** No ship ` +
+    `reached a conclusion about this PR: the run for ${owner}/${repo} PR #${prNumber ?? '?'} ` +
+    `was lost (job exhausted retries / dead-lettered) before producing one.\n\n` +
+    `The gate is failed rather than left stuck in-progress so an unverified change cannot ` +
+    `merge on a technicality — but nothing here says your code is wrong. Re-run the fleet ` +
+    `once the cause is cleared; if it keeps landing here, the fault is ours and worth ` +
+    `reporting rather than working around.`;
 
   try {
     const token = await getInstallationTokenCached(
@@ -75,7 +81,22 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
       // details_url it publishes would always 404 ("Run not found") — the
       // DLQ variant of the same gap execute.ts's ensureRunRow closes.
       await ensureRunRow(env, runId, job.deliveryId, job.repoFullName ?? `${owner}/${repo}`, prNumber, headSha);
-      await completeCheckRun(owner, repo, checkRunId, 'failure', summary, token, detailsUrl);
+      // `failure` (not neutral) is deliberate and load-bearing: execute.ts's
+      // DECIDED set treats only success/failure as terminal, and a
+      // non-terminal DLQ completion is what once let redelivered jobs re-run
+      // ships for HOURS against a gate that could never go green. The
+      // conclusion stays; only the LABEL changes, so the distinction is
+      // visible in the checks list without reopening that loop.
+      await completeCheckRun(
+        owner,
+        repo,
+        checkRunId,
+        'failure',
+        summary,
+        token,
+        detailsUrl,
+        CHECK_OUTPUT_TITLE_INFRA,
+      );
     } else {
       console.error(
         `[fleet-executor] DLQ: no '${CHECK_NAME}' check run found for ${owner}/${repo}@${headSha}`,

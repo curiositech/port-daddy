@@ -52,6 +52,39 @@ describe('DLQ handler', () => {
     expect(state.completed[0].summary).toContain('dead-lettered');
   });
 
+  // `blockWithoutSandbox: false` promises the fleet never blocks on tests it
+  // could not run. That promise held inside the purser and leaked here: a job
+  // that dies outright completes `failure`, which rendered as the same red
+  // `Port Daddy Fleet` a genuine BLOCK does. Ten-plus correct PRs were read as
+  // rejected on 2026-08-10 because of it, each re-diagnosed from scratch.
+  it('labels the gate as OUR failure, not a verdict on the PR', async () => {
+    state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+
+    await handleDlqJob(makeJob(), makeEnv({ FLEET_TOKENS: kv }));
+
+    // The title is the ONLY part of a completed check rendered in the PR's
+    // checks list. If this collapses back to the bare check name, the
+    // distinction becomes invisible again without clicking through.
+    expect(state.completed[0].title).toContain('infrastructure failure');
+    expect(state.completed[0].title).not.toBe('Port Daddy Fleet');
+    expect(state.completed[0].summary).toContain('not a verdict on your change');
+  });
+
+  it('still fails CLOSED — an unverified change must not merge', async () => {
+    state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+
+    await handleDlqJob(makeJob(), makeEnv({ FLEET_TOKENS: kv }));
+
+    // Relabelling must not soften the gate. `failure` is also load-bearing for
+    // execute.ts's DECIDED set: a non-terminal conclusion here is what once let
+    // redelivered jobs re-run ships for hours against an unwinnable gate.
+    expect(state.completed[0].conclusion).toBe('failure');
+  });
+
   it('routes a fleet-runs-dlq batch through the handler and always acks', async () => {
     state.existingCheckRuns.push({ id: 77, name: 'Port Daddy Fleet' });
     const kv = memoryKV();

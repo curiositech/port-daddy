@@ -41,7 +41,13 @@ export interface GitHubState {
     /** The commit this check belongs to. GitHub's lookup is PER-SHA. */
     headSha?: string;
   }>;
-  completed: Array<{ id: number; conclusion: string; summary: string; detailsUrl?: string }>;
+  completed: Array<{
+    id: number;
+    conclusion: string;
+    summary: string;
+    title: string;
+    detailsUrl?: string;
+  }>;
   /** details_url values sent on check-run CREATE (undefined when omitted). */
   createdDetailsUrls: Array<string | undefined>;
   /** GitHub Reviews created via POST /pulls/{n}/reviews (inline comments). */
@@ -406,6 +412,11 @@ export function installGitHubFetch(state: GitHubState): void {
         id: Number(completeMatch[1]),
         conclusion: (body as { conclusion?: string })?.conclusion ?? '',
         summary: (body as { output?: { summary?: string } })?.output?.summary ?? '',
+        // The title is the only part of a completed check GitHub renders in the
+        // PR's checks list, so it is what tells a reader whether the fleet
+        // judged their code or merely fell over. Captured to make that
+        // assertable.
+        title: (body as { output?: { title?: string } })?.output?.title ?? '',
         detailsUrl: (body as { details_url?: string })?.details_url,
       });
       return json({ ok: true });
