@@ -93,6 +93,12 @@ function pushFinding(findings, recommendations, severity, id, message, recommend
  * @param {string} spec.workOrder.output
  * @param {string} spec.workOrder.owner
  * @param {string} spec.workOrder.proofGate
+ * @param {object} [options] - Optional. Omitting it preserves the original
+ *   one-argument behaviour exactly, so existing callers are unaffected.
+ * @param {number} [options.now] - Epoch ms to evaluate `reviewDate` against.
+ *   Defaults to `Date.now()`. Supply it when a caller needs a deterministic
+ *   verdict — a committed fixture asserted against the wall clock silently
+ *   becomes a dated failure, which is what this parameter exists to prevent.
  * @returns {{pass:boolean, score:number, findings:Array, recommendations:string[]}}
  */
 export function auditFocusReceipt(spec, options = {}) {
