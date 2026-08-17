@@ -60,5 +60,5 @@ ax.set_ylabel('expected operator opens (log)'); ax.legend(fontsize=8.5,loc='uppe
 ax.set_title('Panel C — the zoom advantage (sparse flagged set)\nadaptive $\\ll$ flat when positives are rare',fontsize=11)
 ax.grid(alpha=0.25,axis='y',which='both')
 
-plt.tight_layout(); plt.savefig('/home/claude/b1_figure.png',dpi=150,bbox_inches='tight')
+plt.tight_layout(); plt.savefig('b1_figure.png',dpi=150,bbox_inches='tight')
 print("B1 figure regenerated.")

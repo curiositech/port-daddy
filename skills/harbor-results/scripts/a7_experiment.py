@@ -224,5 +224,5 @@ ax.set_title('Panel 3 — split-digest (A1)\ndisjoint readers force the sum of f
 ax.legend(fontsize=9);ax.set_ylim(-0.03,1.03);ax.grid(alpha=0.25)
 
 plt.tight_layout()
-plt.savefig('/home/claude/a7_figure.png',dpi=150,bbox_inches='tight')
+plt.savefig('a7_figure.png',dpi=150,bbox_inches='tight')
 print("\nFigure saved to a7_figure.png")
