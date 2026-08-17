@@ -15,7 +15,7 @@
 | (not in repo) `GeminiFeedback.pdf`, `harbor-feedback-and-exercise-solutions.pdf`, `port_daddy_feedback_analysis_v2.pdf` | The three external reviews (user uploads). Attach for W4. |
 
 **Standing directives for every wave prompt below (assume them even if a prompt is trimmed):**
-- Clone `curiositech/port-daddy`. Read the three harbor skills' SKILL.md files, then `skills/harbor-results/references/results-compendium.md` for the relevant R#, then `skills/harbor-results/references/l3-tacit-lessons.md` (all 10 lessons — every one prevents a repeated mistake).
+- Clone `curiositech/port-daddy` and run `npm run skills:sync` (adds `-- --scope user` for ~/.claude) so the runtimes discover the skills. Read the three harbor skills' SKILL.md files, then `skills/harbor-results/references/results-compendium.md` for the relevant R#, then `skills/harbor-results/references/l3-tacit-lessons.md` (all 10 lessons — every one prevents a repeated mistake).
 - Follow `skills/falsification-first`: sweep before proving; mutation-test any checker; tag every number **[verified]** or **[internal, script, seed 20260816]**; file wrong turns in `docs/harbor-research/wrong-turns/`.
 - Write deliverables in the `skills/harbor-exposition` house style; lint with `python3 skills/harbor-exposition/scripts/check_style.py <draft>`.
 - Build with `docs/harbor-research/tex/preamble.tex` (see §3.6 traps). Commit sources to the repo; compiled PDFs stay out of version control.
