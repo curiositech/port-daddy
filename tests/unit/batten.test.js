@@ -362,3 +362,51 @@ describe('handleBatten imprint — fail-loud CLI contract', () => {
     stderr.mockRestore();
   });
 });
+
+// The Homebrew tap's release-evidence verifier compares imprint.sourceCommit
+// against the candidate commit it is asked to roll and refuses the formula
+// update on a mismatch. It was never emitted, so v3.28.0 built, signed,
+// notarized and published GREEN, then failed in the tap with "sourceCommit
+// does not match candidate" — leaving every brew user on 3.27.0. Pin it.
+describe('imprintArtifacts — sourceCommit (the tap release-evidence contract)', () => {
+  let staged;
+  const oneArtifact = {
+    version: 1,
+    artifacts: [{ id: 'pd', stagedPath: 'pd', required: true, executable: true, minBytes: 1 }],
+  };
+  beforeEach(() => {
+    staged = mkdtempSync(join(DURABLE_SCRATCH, 'pd-batten-commit-'));
+    writeExec(join(staged, 'pd'), '#!/bin/sh\necho hi\n');
+  });
+  afterEach(() => {
+    rmSync(staged, { recursive: true, force: true });
+  });
+
+  test('records a full lowercase commit sha', () => {
+    const record = imprintArtifacts(oneArtifact, staged);
+    expect(record).toHaveProperty('sourceCommit');
+    expect(record.sourceCommit).toMatch(/^[0-9a-f]{40}$/);
+  });
+
+  test('prefers GITHUB_SHA — the commit the tag build actually ships', () => {
+    const prev = process.env.GITHUB_SHA;
+    process.env.GITHUB_SHA = 'a'.repeat(40);
+    try {
+      expect(imprintArtifacts(oneArtifact, staged).sourceCommit).toBe('a'.repeat(40));
+    } finally {
+      if (prev === undefined) delete process.env.GITHUB_SHA;
+      else process.env.GITHUB_SHA = prev;
+    }
+  });
+
+  test('ignores a malformed GITHUB_SHA rather than emitting junk evidence', () => {
+    const prev = process.env.GITHUB_SHA;
+    process.env.GITHUB_SHA = 'not-a-sha';
+    try {
+      expect(imprintArtifacts(oneArtifact, staged).sourceCommit).toMatch(/^[0-9a-f]{40}$/);
+    } finally {
+      if (prev === undefined) delete process.env.GITHUB_SHA;
+      else process.env.GITHUB_SHA = prev;
+    }
+  });
+});
