@@ -205,14 +205,25 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
     };
   }
 
-  const testCommand = params.testCommand ?? 'npm ci --no-audit --no-fund && npm test';
+  // --onnxruntime-node-install=skip: onnxruntime-node's postinstall fetches CUDA/
+  // TensorRT provider binaries unconditionally on linux-x64 (platform-gated, not
+  // GPU-detected) — this sandbox has no GPU and OOMs unpacking a library it can
+  // never use. The purser's tests never need real embedding inference.
+  const testCommand =
+    params.testCommand ??
+    'npm ci --no-audit --no-fund --onnxruntime-node-install=skip && npm test';
   const cloneUrl = `https://x-access-token:${params.token}@github.com/${params.owner}/${params.repo}.git`;
 
   // Compose ONE script: shallow-fetch the head SHA, graft the test files in
   // (base64 so contents survive quoting), run the test command.
   const lines: string[] = [
     'set -e',
-    'mkdir -p /work && cd /work',
+    // rm -rf first: a retried run (network flake, transient sandbox error)
+    // can land in the SAME warm container as its failed predecessor, which
+    // already has /work/repo with `origin` set — `git remote add` then dies
+    // with "remote origin already exists" before a single test runs. Start
+    // from a clean slate every attempt so the script is retry-idempotent.
+    'rm -rf /work && mkdir -p /work && cd /work',
     `git init -q repo && cd repo`,
     `git remote add origin ${shq(cloneUrl)}`,
     `git fetch -q --depth 1 origin ${shq(params.headSha)}`,

@@ -33,10 +33,14 @@ function expectFile(path, needle) {
 
 try {
   if (!existsSync(pd)) fail(`compiled pd not found: ${pd}`);
+  // Single-supervisor (3.28) tarball layout: tentacles live ONLY under bin/
+  // (the formula pkgshare-installs the directory and lib/squid/assets.ts
+  // resolves execDir/../share/port-daddy/bin). The flat top-level copies were
+  // dropped with pd-bosun in the 3.28 cutover.
   for (const asset of [
-    'pd-hook-prompt',
-    'pd-hook-pre-tool',
-    'pd-hook-post-tool',
+    'bin/pd-hook-prompt',
+    'bin/pd-hook-pre-tool',
+    'bin/pd-hook-post-tool',
     'bin/pd-statusline',
     'hooks/sessionstart-pilot.mjs',
   ]) {

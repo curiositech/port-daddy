@@ -2,9 +2,22 @@ name: Fresh-install smoke
 
 # "Does the SHIPPED release work on a clean machine?" — the test class that every
 # in-repo smoke is blind to (Gatekeeper quarantine, code signing, the published
-# feed). Downloads the real GitHub release artifacts onto a pristine runner and
-# exercises them. Runs AFTER a release, on a daily schedule, and on demand — never
-# on PR push, so it gates published releases rather than in-flight branches.
+# feed, the brew formula's own install logic). Two jobs:
+#
+#   fresh-install — downloads the real GitHub release artifacts onto a pristine
+#     runner and exercises them (the tarball / latest.json path `pd upgrade` and
+#     FleetBar take).
+#   brew-install — the path actual humans take: `brew tap curiositech/tap &&
+#     brew install port-daddy`, then proves the installed keg serves.
+#
+# Runs AFTER a release, on a daily schedule, and on demand — never on PR push,
+# so it gates published releases rather than in-flight branches.
+#
+# HISTORY THIS FILE MUST NOT REPEAT: from its creation (#553) through 2026-08-09
+# this workflow failed on EVERY run — `gh release download` ran from a temp dir
+# with no --repo and died in ~30s — and because scheduled failures notified
+# nobody, seven releases shipped with the gate red and no one noticed. That is
+# why notify-failure exists: a red run now files/refreshes a GitHub issue.
 
 on:
   release:
@@ -40,8 +53,112 @@ jobs:
 
       - name: Fresh-install smoke against the published release
         # inputs.tag is operator-supplied — pass it through env, never interpolate
-        # untrusted input directly into the run script.
+        # untrusted input directly into the run script. On release triggers the
+        # assets are still uploading (release.yml runs AFTER publish), so the
+        # smoke waits for latest.json — the last-uploaded asset — before pulling.
         env:
           GH_TOKEN: ${{ github.token }}
-          PD_RELEASE_TAG: ${{ inputs.tag }}
+          PD_RELEASE_TAG: ${{ inputs.tag || (github.event_name == 'release' && github.event.release.tag_name) || '' }}
+          PD_WAIT_FOR_ASSETS: ${{ github.event_name == 'release' && '1' || '' }}
         run: bash scripts/fresh-install-smoke.sh
+
+  brew-install:
+    # The literal blank-machine user path. Everything the fresh-install job
+    # proves about the artifacts, this proves about the FORMULA: tap resolves,
+    # the bottle URL + sha256 are right, install() places every file, and the
+    # installed keg actually serves. A formula/tarball drift (the class the
+    # release-side check-formula-compat.mjs preflight guards) surfaces here on
+    # the consuming side within a day even if it slips a release.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # macOS runners ship brew on PATH; ubuntu runners carry linuxbrew at
+      # /home/linuxbrew but do NOT put it on PATH (and some images drop it
+      # entirely — installing it fresh IS the blank-machine path).
+      - name: Put Homebrew on PATH (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          if [ ! -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+            NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          fi
+          echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
+          echo "/home/linuxbrew/.linuxbrew/sbin" >> "$GITHUB_PATH"
+
+      - name: Tap + install from Homebrew (the real user path)
+        run: |
+          set -euo pipefail
+          brew tap curiositech/tap
+          brew install port-daddy
+
+      - name: Installed keg is complete and reports a real version
+        run: |
+          set -euo pipefail
+          pd version
+          PKGSHARE="$(brew --prefix)/opt/port-daddy/share/port-daddy"
+          # >=3.28.0 kegs carry the pkgshare runtime cargo; pre-cutover kegs
+          # (still current until the next release) keep the flat-bin layout.
+          if [ -d "$PKGSHARE/skills/port-daddy-agent-skill" ]; then
+            test -s "$PKGSHARE/skills/port-daddy-agent-skill/SKILL.md"
+            test -s "$PKGSHARE/agents/port-daddy-pilot/AGENT.md"
+            test -x "$PKGSHARE/bin/pd-hook-prompt"
+            echo "pkgshare runtime cargo present (single-supervisor layout)"
+          else
+            echo "pre-3.28 keg layout (no pkgshare cargo) — acceptable until the cutover release ships"
+          fi
+
+      - name: Installed daemon boots and serves /health
+        run: |
+          set -euo pipefail
+          WORK="$(mktemp -d)"
+          PORT=19733
+          export HOME="$WORK/home"; mkdir -p "$HOME"
+          PORT_DADDY_PORT="$PORT" PORT_DADDY_PREFIX="$WORK/prefix" PORT_DADDY_DB="$WORK/registry.db" \
+            PORT_DADDY_NO_FLEET=1 PORT_DADDY_NO_FLEETBAR=1 PORT_DADDY_SILENT=1 \
+            "$(brew --prefix)/bin/port-daddy" start --foreground >"$WORK/daemon.log" 2>&1 &
+          DAEMON_PID=$!
+          trap 'kill "$DAEMON_PID" 2>/dev/null || true' EXIT
+          ready=0
+          for _ in $(seq 1 40); do
+            if curl -fsS -o /dev/null "http://127.0.0.1:$PORT/health" 2>/dev/null; then ready=1; break; fi
+            kill -0 "$DAEMON_PID" 2>/dev/null || { echo "daemon exited before /health:"; cat "$WORK/daemon.log"; exit 1; }
+            sleep 0.5
+          done
+          [ "$ready" = 1 ] || { echo "daemon never became healthy:"; cat "$WORK/daemon.log"; exit 1; }
+          curl -fsS "http://127.0.0.1:$PORT/health"
+          echo
+          echo "brew-installed daemon serves /health"
+
+  notify-failure:
+    # A scheduled gate nobody reads is not a gate — this workflow was red for
+    # its ENTIRE LIFE before anyone noticed. Any failure now files (or
+    # refreshes) a single tracking issue so the breakage has a face.
+    needs: [fresh-install, brew-install]
+    if: always() && contains(needs.*.result, 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: File or refresh the failure issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_TITLE: 'Fresh-install smoke failing — shipped release broken on clean machines'
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          body=$(printf '%s\n' \
+            "The fresh-install / brew-install smoke failed: $RUN_URL" \
+            "" \
+            "This means the PUBLISHED release (or the Homebrew formula) is broken for real users on a clean machine — quarantined app, bad checksum, formula/tarball drift, or a daemon that will not boot. Triage the run log; do not let this sit: this exact workflow was silently red for its entire life once before, across seven shipped releases." \
+            "" \
+            "Auto-filed by .github/workflows/fresh-install.yml; close when a green run confirms the fix.")
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title \"$ISSUE_TITLE\"" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$ISSUE_TITLE" --body "$body"
+          fi
