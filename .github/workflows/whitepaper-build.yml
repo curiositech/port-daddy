@@ -123,7 +123,11 @@ jobs:
           # Chapter III digests pinned on main, red-looping this PR. Restore
           # anything whose transitive TeX sources did not move; a paper that
           # really did change still ships its fresh render.
+          # NB: this step runs under the container's /bin/sh (dash), not bash, so
+          # no process substitution — the list goes through a temp file.
           if [ -n "$base" ] && git cat-file -e "$base^{commit}" 2>/dev/null; then
+            unchanged_list="$RUNNER_TEMP/whitepaper-unchanged.txt"
+            bash scripts/build-whitepapers.sh --list-unchanged-since "$base" > "$unchanged_list"
             restored=0
             while IFS= read -r pdf; do
               [ -n "$pdf" ] || continue
@@ -131,10 +135,9 @@ jobs:
               git checkout -- "$pdf"
               echo "restored $pdf (no TeX source changed since $base)"
               restored=$((restored + 1))
-            done < <(bash scripts/build-whitepapers.sh --list-unchanged-since "$base")
+            done < "$unchanged_list"
             if [ "$restored" -gt 0 ]; then
-              echo "::notice::Restored $restored PDF(s) that the full rebuild" \
-                   "restated without any source change (renderer drift)."
+              echo "::notice::Restored $restored PDF(s) that the full rebuild restated without any source change (renderer drift)."
             fi
           fi
 

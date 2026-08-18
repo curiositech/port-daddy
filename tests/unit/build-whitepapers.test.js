@@ -1,6 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const repoRoot = process.cwd();
@@ -117,37 +118,49 @@ describe('reproducible whitepaper source scoping', () => {
     ]);
   });
 
-  test('a paper is excluded exactly across the commit that changed it', () => {
-    // Anchored to the target paper's OWN history rather than to a fixed ref, so
-    // it cannot rot: `last` is recomputed each run as the newest commit touching
-    // Spawn-to-Person's transitive sources. Across `last` the paper must be
-    // excluded from the restore list (a rebuild has a real reason to touch it);
-    // at `last` it must be included again (nothing has moved since).
-    //
-    // A fixed historical ref would not do — this repository's history is
-    // squashed and begins 2026-08-05, so "changed since the root commit" is
-    // already false for several papers and would say nothing about the guard.
-    const sources = bashFunction(
-      'paper_sources',
-      'website-v2/public/whitepaper',
-      'spawn-to-person.tex',
-    ).split('\n');
-    const spawnPdf = 'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf';
+  // The bidirectional case runs against a purpose-built repository rather than
+  // this one's history. `unit-tests` checks out at depth 1, so `<sha>^` is not
+  // resolvable there — an earlier version of this test anchored to the commit
+  // that last touched Spawn-to-Person and passed locally while failing in CI for
+  // that reason alone. Deepening the checkout would slow every job in the matrix
+  // to serve one test; building the two-commit history the assertion actually
+  // needs costs nothing and pins the same behaviour.
+  //
+  // `PAPERS` is overridden after sourcing, so this exercises the real
+  // `list_unchanged_since` / `paper_changed_since` against real git history —
+  // only the paper table is synthetic.
+  test('a paper is excluded exactly when its own source moved', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'whitepaper-scope-'));
+    const g = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
+    try {
+      g('init', '-q', '-b', 'main');
+      g('config', 'user.email', 'test@example.invalid');
+      g('config', 'user.name', 'whitepaper test');
+      mkdirSync(join(dir, 'papers'), { recursive: true });
+      writeFileSync(join(dir, 'papers', 'alpha.tex'), '\\documentclass{article}\n');
+      writeFileSync(join(dir, 'papers', 'beta.tex'), '\\documentclass{article}\n');
+      g('add', '-A');
+      g('commit', '-qm', 'both papers');
+      const base = g('rev-parse', 'HEAD');
 
-    const last = git('log', '-1', '--format=%H', 'HEAD', '--', ...sources);
-    expect(last).not.toBe('');
-    expect(listUnchangedSince(last)).toContain(spawnPdf);
+      // Only beta moves.
+      writeFileSync(join(dir, 'papers', 'beta.tex'), '\\documentclass{article}\n% revised\n');
+      g('add', '-A');
+      g('commit', '-qm', 'revise beta');
 
-    const before = git('rev-parse', `${last}^`);
-    expect(listUnchangedSince(before)).not.toContain(spawnPdf);
+      const listed = execFileSync(
+        '/bin/bash',
+        ['-c',
+          'source "$1"; cd "$2"; PAPERS=("papers|alpha.tex|out/alpha.pdf" "papers|beta.tex|out/beta.pdf"); list_unchanged_since "$3"',
+          'whitepaper-test', buildScript, dir, base],
+        { encoding: 'utf8' },
+      ).trim().split('\n').filter(Boolean);
 
-    // ...and the guard is per-paper, not a global on/off: a paper that commit
-    // did not touch stays restorable across the same boundary.
-    const agentTxMoved = git('log', '--format=%H', `${before}..HEAD`, '--',
-      'website-v2/public/whitepaper/agent-transactions-whitepaper.tex');
-    if (agentTxMoved === '') {
-      expect(listUnchangedSince(before))
-        .toContain('website-v2/public/whitepaper/agent-transactions-whitepaper.pdf');
+      // alpha is restorable (a rebuild would only be restating it); beta is not,
+      // because its render genuinely changed and must survive.
+      expect(listed).toEqual(['out/alpha.pdf']);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });
