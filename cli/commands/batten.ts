@@ -35,6 +35,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as ui from '../utils/ui.js';
@@ -92,6 +93,22 @@ export interface ImprintRecord {
   version: number;
   generatedAt: string;
   stagedDir: string;
+  /**
+   * The commit these artifacts were built from, as a full lowercase SHA.
+   *
+   * The Homebrew tap's release-evidence verifier compares this against the
+   * candidate commit it is asked to roll and REFUSES the formula update on a
+   * mismatch — that is the whole point of the imprint: proving the bytes came
+   * from the commit being tagged. It was never emitted, so v3.28.0 built,
+   * signed, notarized, and published green and then failed in the tap with
+   * "sourceCommit does not match candidate" (undefined matches nothing),
+   * leaving every `brew upgrade` user on 3.27.0.
+   *
+   * Resolved from GITHUB_SHA (set on every Actions runner) and otherwise from
+   * `git rev-parse HEAD`; `null` only outside a git checkout, which the
+   * verifier will correctly still reject.
+   */
+  sourceCommit: string | null;
   artifacts: Record<string, ArtifactImprint>;
   /** required artifacts that were absent at imprint time (empty on a sealed release). */
   missingRequired: string[];
@@ -288,9 +305,31 @@ export function imprintArtifacts(manifest: ReleaseManifest, stagedDir: string): 
     version: 1,
     generatedAt: new Date().toISOString(),
     stagedDir: stagedDirAbs,
+    sourceCommit: resolveSourceCommit(),
     artifacts,
     missingRequired,
   };
+}
+
+/**
+ * The commit the staged artifacts were built from, as a full lowercase SHA.
+ *
+ * Prefers GITHUB_SHA — on a tag build that is exactly the commit the tap will
+ * be asked to roll — and falls back to the working tree's HEAD for local
+ * imprints. Returns null when neither is available rather than guessing, so a
+ * consumer sees "no evidence" instead of a plausible-but-wrong commit.
+ */
+function resolveSourceCommit(): string | null {
+  const fromEnv = process.env.GITHUB_SHA?.trim().toLowerCase();
+  if (fromEnv && /^[0-9a-f]{40}$/.test(fromEnv)) return fromEnv;
+  try {
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' })
+      .trim()
+      .toLowerCase();
+    return /^[0-9a-f]{40}$/.test(head) ? head : null;
+  } catch {
+    return null;
+  }
 }
 
 function stagedDirFromOptions(options: CLIOptions): string {
