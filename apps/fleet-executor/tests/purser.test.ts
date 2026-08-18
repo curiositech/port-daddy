@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { runPurser, parseSteelMan, parseAuthoredFiles, type TranscriptLike, type PurserMetrics } from '../src/purser.js';
+import { runPurser, parseSteelMan, parseAuthoredFiles, testPlanSystemPrompt, type TranscriptLike, type PurserMetrics } from '../src/purser.js';
 import { parseFleetShips, PURSER_DEFAULT_GRAFT, type ShipConfig } from '../src/fleet.js';
 import { executeFleet } from '../src/execute.js';
 import type { PRContext } from '../src/github.js';
@@ -289,6 +289,27 @@ describe('runPurser — authored-test validation', () => {
     const step = rec.steps.find(s => s.kind === 'purser-tests')!;
     expect((step.detail as { error: string }).error).toMatch(/testPaths/);
     expect(state.stackedPrs).toHaveLength(0);
+  });
+
+  it('the plan prompt asks for a DIRECTORY, not a string prefix', () => {
+    // The failure this pins, observed on #7175: the prompt said "prefixes:
+    // tests/purser", the model planned `tests/purser-authoring.test.ts`
+    // (mirroring the file it was grilling), and the validator — which requires
+    // `path === g || path.startsWith(g + '/')` — rejected every file. The run
+    // stacked nothing, and the transcript read as though the purser had failed
+    // to produce tests rather than having been asked for the wrong shape.
+    const prompt = testPlanSystemPrompt(
+      mkShip({ testPaths: ['tests/purser'] }),
+      { purpose: 'p', obligations: ['o'], testTargets: ['src/widget.ts'] },
+      '',
+    );
+
+    expect(prompt).toContain('tests/purser/');
+    expect(prompt).toMatch(/INSIDE one of these directories/);
+    // The sibling path is named as a counter-example, so the instruction and
+    // the enforcement agree on the one case that silently produced no tests.
+    expect(prompt).toContain('tests/purser-my-case.test.ts');
+    expect(prompt).not.toMatch(/under one of these prefixes/);
   });
 
   it('valid tests record files + bytes in the purser-tests step', async () => {
@@ -652,5 +673,156 @@ describe('runPurser — HITL interruption escalation (src/interruptions.ts wirin
     await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai, ...hitlEnv }), 'tok', rec.transcript, freshMetrics());
     await new Promise(r => setTimeout(r, 0));
     expect(interruptionPosts()).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The multi-step authoring path (plan -> one call per file).
+//
+// The fixtures above exercise the FAST path: they return complete
+// {path, contents} files from the plan call, so the per-file calls are skipped.
+// These tests drive the path that actually runs when a model obeys the plan
+// contract — the path that replaced the single all-or-nothing JSON call.
+
+const PLAN_JSON = [
+  '```json',
+  JSON.stringify({
+    files: [
+      { path: 'tests/purser/a.test.ts', intent: 'empty input' },
+      { path: 'tests/purser/b.test.ts', intent: 'negative ids' },
+    ],
+  }),
+  '```',
+].join('\n');
+
+/** A file body with the newlines and quotes that used to break JSON escaping. */
+const FILE_A = ['```ts', 'it("frobs empty input", () => {', '  expect(f("")).toBe(0);', '});', '```'].join('\n');
+const FILE_B = ['```ts', 'it("rejects negative ids", () => {', '  expect(() => f(-1)).toThrow("bad id");', '});', '```'].join('\n');
+
+describe('runPurser — multi-step authoring', () => {
+  it('plans, then issues ONE authoring call per planned file', async () => {
+    const { ai } = seqAi([STEELMAN_JSON, PLAN_JSON, FILE_A, FILE_B]);
+    const rec = recorder();
+
+    await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
+
+    // steel-man + plan + one per file = 4.
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(4);
+    const planStep = rec.steps.find(s => s.kind === 'purser-plan')!;
+    expect(planStep.title).toContain('planned 2');
+
+    const testsStep = rec.steps.find(s => s.kind === 'purser-tests')!;
+    expect((testsStep.detail as { files: Array<{ path: string }> }).files.map(f => f.path)).toEqual([
+      'tests/purser/a.test.ts',
+      'tests/purser/b.test.ts',
+    ]);
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
+  it('commits the file body verbatim — quotes and newlines survive, unescaped', async () => {
+    const { ai } = seqAi([STEELMAN_JSON, PLAN_JSON, FILE_A, FILE_B]);
+    const rec = recorder();
+
+    await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
+
+    const blobs = state.records.filter(r => r.url.includes('/git/blobs'));
+    const bodies = blobs.map(b => String((b.body as { content?: string })?.content ?? ''));
+    expect(bodies.some(b => b.includes('expect(f("")).toBe(0);'))).toBe(true);
+    expect(bodies.some(b => b.includes('expect(() => f(-1)).toThrow("bad id");'))).toBe(true);
+  });
+
+  it('PARTIAL SUCCESS: one bad file no longer costs the good ones', async () => {
+    // b.test.ts comes back as a refusal; a.test.ts is fine.
+    const { ai } = seqAi([STEELMAN_JSON, PLAN_JSON, FILE_A, 'I cannot write this test.']);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics(),
+    );
+
+    // The old shape returned zero files and an advisory PASS with nothing stacked.
+    expect(state.stackedPrs).toHaveLength(1);
+    const testsStep = rec.steps.find(s => s.kind === 'purser-tests')!;
+    expect(testsStep.title).toContain('1/2');
+    expect((testsStep.detail as { failures: Array<{ path: string }> }).failures[0].path).toBe(
+      'tests/purser/b.test.ts',
+    );
+    expect(result.errored).toBe(false);
+  });
+
+  it('every file failing is an honest advisory PASS, never a fabricated stack', async () => {
+    const { ai } = seqAi([STEELMAN_JSON, PLAN_JSON, 'nope.', 'also nope.']);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true }), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ blocking: false, verdict: 'PASS', errored: false });
+    expect(state.stackedPrs).toHaveLength(0);
+    const step = rec.steps.find(s => s.kind === 'purser-tests')!;
+    expect(step.title).toMatch(/FAILED/);
+  });
+
+  it('a malformed plan records the RAW HEAD, not just a length', async () => {
+    const { ai } = seqAi([STEELMAN_JSON, 'I would rather discuss the weather.']);
+    const rec = recorder();
+
+    await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
+
+    const step = rec.steps.find(s => s.kind === 'purser-plan')!;
+    expect(step.title).toMatch(/MALFORMED/);
+    // The whole point: a future failure is diagnosable from the transcript.
+    expect((step.detail as { rawHead: string }).rawHead).toContain('rather discuss the weather');
+  });
+});
+
+describe('runPurser — per-file validation keeps the good files', () => {
+  it('one unusable PATH drops that file only; the rest still stack', async () => {
+    // The set-level validator used to reject all four files because one had a
+    // `..` in it, quietly undoing the partial-success property that per-file
+    // authoring exists to provide.
+    const plan = [
+      '```json',
+      JSON.stringify({
+        files: [
+          { path: '../../etc/evil.test.ts', intent: 'escape' },
+          { path: 'tests/purser/good.test.ts', intent: 'real' },
+        ],
+      }),
+      '```',
+    ].join('\n');
+    const body = '```ts\nit("ok", () => {});\n```';
+    const { ai } = seqAi([STEELMAN_JSON, plan, body, body]);
+    const rec = recorder();
+
+    await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
+
+    // The good file shipped...
+    expect(state.stackedPrs).toHaveLength(1);
+    const testsStep = rec.steps.find(s => s.kind === 'purser-tests')!;
+    expect((testsStep.detail as { files: Array<{ path: string }> }).files.map(f => f.path)).toEqual([
+      'tests/purser/good.test.ts',
+    ]);
+    // ...and the traversal path was never written anywhere.
+    const blobs = state.records.filter(r => r.url.includes('/git/blobs'));
+    expect(blobs).toHaveLength(1);
+    expect(JSON.stringify(state.records)).not.toContain('etc/evil');
+  });
+
+  it('when EVERY path is unusable it is still an advisory PASS with no git writes', async () => {
+    const plan = '```json' + '\n' + JSON.stringify({ files: [{ path: '../../etc/evil.test.ts' }] }) + '\n```';
+    const { ai } = seqAi([STEELMAN_JSON, plan, '```ts\nit("x",()=>{});\n```']);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true }), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ blocking: false, verdict: 'PASS', errored: false });
+    expect(state.records.filter(r => r.url.includes('/git/'))).toHaveLength(0);
+    const step = rec.steps.find(s => s.kind === 'purser-tests')!;
+    expect(step.title).toMatch(/REJECTED/);
+    expect((step.detail as { error: string }).error).toMatch(/traversal/);
   });
 });

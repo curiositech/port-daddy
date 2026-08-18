@@ -251,7 +251,13 @@ jobs:
             "## Test Plan" \
             "- CI on this PR (distribution-freshness + version-drift gates prove every version surface moved together)" \
             "- release.yml's soak + batten + formula-compat gates on the tag" \
-            "- fresh-install smoke (tarball path + brew path) after publish")
+            "- fresh-install smoke (tarball path + brew path) after publish" \
+            "" \
+            "The bump was validated in the run that produced it: \`npm ci\` clean, \`sync-version.ts\` stamped every version surface, and \`check:version-drift\` confirmed all surfaces agree on the new version before this PR was opened. No hand edits were made to the generated commit." \
+            "" \
+            "<!-- visual-exempt: version-bump only. sync-version.ts stamps version STRINGS into core/pd-console/Cargo.toml, public/samples/manifest.json and website-v2/src/data/referenceCatalog.ts; no rendered surface, layout, or asset changes, so there is nothing to screenshot. -->" \
+            "" \
+            "Roadmap-Item: release-safety-pipeline")
           # --head/--base explicitly: the push above sets no upstream tracking
           # ref, so gh cannot infer either from the local branch.
           gh pr create --base main --head "$branch" --title "chore(release): bump to $NEXT" --body "$body"
