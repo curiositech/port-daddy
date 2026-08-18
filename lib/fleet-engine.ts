@@ -1148,14 +1148,44 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     const cleanupHandles: Array<() => void> = [];
 
     if (agent.schedule) {
-      // Scheduled agent: arm the interval. Fleet daemon boot must stay cheap;
+      // Scheduled agent: arm the schedule. Fleet daemon boot must stay cheap;
       // agents that truly need a boot-time pass can opt in with run_on_start.
-      // Convert cron to ms (simplified: support */N * * * * format)
-      const intervalMs = parseCronInterval(agent.schedule);
+      const schedule = agent.schedule;
       if (agent.runOnStart) {
         void requestAgentRun(agent, { source: 'schedule' });
       }
-      record.interval = setInterval(() => { void requestAgentRun(agent, { source: 'schedule' }); }, intervalMs);
+      if (isAbsoluteCronSchedule(schedule)) {
+        // Fixed-clock schedule ("0 1 * * *", "15 * * * *"): a plain
+        // setInterval either coerces through parseCronInterval's
+        // DEFAULT_INTERVAL fallback (the daily-at-1am-fires-every-10-min bug;
+        // see pd-fleet.yml's dispatch-runner precondition notes) or drifts
+        // off the intended wall-clock time across days. Arm a self-re-arming
+        // setTimeout chain instead: each firing recomputes the delay to the
+        // NEXT occurrence and reschedules. The handle lives in the same
+        // `record.interval` slot the */N path below uses, so
+        // stopRunningRecord's `clearInterval(record.interval)` still cancels
+        // it — Node's timer implementation clears a setTimeout handle via
+        // clearInterval interchangeably with clearTimeout.
+        // `scheduleNext`'s FIRST call runs synchronously inside `startAgent`,
+        // before `running.set(agent.name, record)` (below) has executed — so
+        // the stopped/running guard belongs inside the fired callback (which
+        // only ever runs later, well after this record is registered), not
+        // around the initial arm.
+        const scheduleNext = () => {
+          const delay = computeNextAbsoluteFireDelayMs(schedule) ?? DEFAULT_INTERVAL;
+          record.interval = setTimeout(() => {
+            if (stopped || !running.has(agent.name)) return; // torn down while pending
+            void requestAgentRun(agent, { source: 'schedule' });
+            scheduleNext();
+          }, delay);
+        };
+        scheduleNext();
+      } else {
+        // */N step schedules (and anything parseCronInterval can't parse)
+        // keep the fixed-interval fast path — kept exactly as it was.
+        const intervalMs = parseCronInterval(schedule);
+        record.interval = setInterval(() => { void requestAgentRun(agent, { source: 'schedule' }); }, intervalMs);
+      }
     }
 
     // Resolve the agent's trigger list. `triggers:` is the canonical plural
@@ -2519,10 +2549,13 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
 // ─── Cron Helpers ───────────────────────────────────────────────────────────
 
-export function parseCronInterval(cron: string): number {
-  const MIN_INTERVAL = 60000;  // 1 minute minimum — prevents runaway agents
-  const DEFAULT_INTERVAL = 600000;  // 10 minutes
+// Hoisted out of parseCronInterval (unchanged values, unchanged fast paths)
+// so computeNextAbsoluteFireDelayMs below can share the same DEFAULT_INTERVAL
+// as an honest last-resort fallback.
+const MIN_INTERVAL = 60000;  // 1 minute minimum — prevents runaway agents
+const DEFAULT_INTERVAL = 600000;  // 10 minutes
 
+export function parseCronInterval(cron: string): number {
   const parts = cron.trim().split(/\s+/);
   if (parts.length < 5) return DEFAULT_INTERVAL;
 
@@ -2543,4 +2576,58 @@ export function parseCronInterval(cron: string): number {
   }
 
   return DEFAULT_INTERVAL;
+}
+
+/**
+ * True when `cron` is a fixed-clock schedule this module can honor with an
+ * exact next-fire computation: "M H * * *" (once a day at H:M) or
+ * "M * * * *" (once an hour at minute M), where M and H are literal
+ * integers — never a step value (the `startsWith('*​/')` patterns
+ * parseCronInterval already fast-paths above). Day-of-month, month, and
+ * day-of-week must all be `*`; a constrained day field (a weekday list,
+ * "1,15", an "L"/"W" modifier, …) would need real calendar walking this
+ * module doesn't implement, so such schedules fall back to
+ * parseCronInterval's coarser interval semantics rather than risk firing on
+ * the wrong day. Honest limitation, not a silent one: see startAgent's
+ * scheduling branch.
+ */
+export function isAbsoluteCronSchedule(cron: string): boolean {
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5) return false;
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+  if (dayOfMonth !== '*' || month !== '*' || dayOfWeek !== '*') return false;
+  if (!/^\d+$/.test(minute) || Number(minute) > 59) return false;
+  if (hour === '*') return true;
+  return /^\d+$/.test(hour) && Number(hour) <= 23;
+}
+
+/**
+ * Delay in ms from `now` to the next fire time of an isAbsoluteCronSchedule
+ * cron ("0 1 * * *" -> next 01:00; "15 * * * *" -> next :15). Returns null
+ * when `cron` isn't such a schedule — callers should treat null as "not
+ * applicable" (parseCronInterval's DEFAULT_INTERVAL is the honest fallback,
+ * same as every other unparsed pattern).
+ *
+ * `now` defaults to Date.now() and exists as a parameter purely so tests can
+ * pin it; production callers always omit it.
+ */
+export function computeNextAbsoluteFireDelayMs(cron: string, now: number = Date.now()): number | null {
+  if (!isAbsoluteCronSchedule(cron)) return null;
+  const [minuteField, hourField] = cron.trim().split(/\s+/);
+  const minute = Number(minuteField);
+
+  const next = new Date(now);
+  next.setSeconds(0, 0);
+
+  if (hourField === '*') {
+    // "M * * * *" — fire every hour at minute M.
+    next.setMinutes(minute);
+    if (next.getTime() <= now) next.setHours(next.getHours() + 1);
+    return next.getTime() - now;
+  }
+
+  // "M H * * *" — fire once a day at H:M.
+  next.setHours(Number(hourField), minute, 0, 0);
+  if (next.getTime() <= now) next.setDate(next.getDate() + 1);
+  return next.getTime() - now;
 }

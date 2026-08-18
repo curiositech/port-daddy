@@ -81,7 +81,7 @@ jest.unstable_mockModule('yaml', () => ({
 
 // ─── Imports (after mocks) ───────────────────────────────────────────────────
 
-const { loadFleetConfig, createFleetRunner, resolveFleetAgentRuntime, validateTopology } = await import('../../lib/fleet-engine.js');
+const { loadFleetConfig, createFleetRunner, resolveFleetAgentRuntime, validateTopology, parseCronInterval, isAbsoluteCronSchedule, computeNextAbsoluteFireDelayMs } = await import('../../lib/fleet-engine.js');
 const { resolveFleetChannel } = await import('../../lib/fleet-channels.js');
 const { getDaemonTcpUrl } = await import('../../shared/daemon-discovery.js');
 
@@ -1305,16 +1305,23 @@ test('valid cron */10 * * * * returns 600000ms', () => {
   expect(calls[0][1]).toBe(600000);
 });
 
-test('valid cron 0 * * * * returns 3600000ms', () => {
+test('valid cron 0 * * * * arms a setTimeout at the next top of the hour (was a boot-anchored setInterval — same drift bug as the daily-absolute case)', () => {
+  // "0 * * * *" is a fixed-minute pattern ("M * * * *"), one of the two
+  // shapes isAbsoluteCronSchedule/computeNextAbsoluteFireDelayMs now handle.
+  // The old fixed-3600000ms setInterval fired at boot+1h, boot+2h, ... never
+  // converging on wall-clock :00 — the same anchoring defect the named
+  // daily-at-1am bug had, just capped at 59 minutes of drift instead of
+  // firing every 10 minutes. It now gets the same next-fire-time treatment.
+  jest.setSystemTime(new Date(2026, 0, 15, 9, 30, 0, 0)); // 09:30 — 30 min to :00
   const config = makeConfig({ schedule: '0 * * * *' });
   const runner = createFleetRunner(config, '/tmp/proj');
 
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
   const setIntervalSpy = jest.spyOn(global, 'setInterval');
   runner.startAgent(config.agents[0]);
 
-  const calls = setIntervalSpy.mock.calls;
-  expect(calls.length).toBeGreaterThan(0);
-  expect(calls[0][1]).toBe(3600000);
+  expect(setIntervalSpy).not.toHaveBeenCalled();
+  expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 30 * 60 * 1000);
 });
 
 test('valid cron 0 */4 * * * returns 14400000ms', () => {
@@ -1327,6 +1334,156 @@ test('valid cron 0 */4 * * * returns 14400000ms', () => {
   const calls = setIntervalSpy.mock.calls;
   expect(calls.length).toBeGreaterThan(0);
   expect(calls[0][1]).toBe(14400000);
+});
+
+// ─── Absolute (fixed-clock) cron schedules ───────────────────────────────────
+//
+// Regression coverage for the bug pd-fleet.yml's dispatch-runner precondition
+// notes named: parseCronInterval coerced an absolute hour-of-day schedule
+// ("0 1 * * *") to DEFAULT_INTERVAL, so a daily-at-1am agent's setInterval
+// fired every 10 minutes instead. isAbsoluteCronSchedule/
+// computeNextAbsoluteFireDelayMs now route "M H * * *" and "M * * * *"
+// patterns to a self-re-arming setTimeout chain that fires on the actual
+// next occurrence instead.
+
+describe('isAbsoluteCronSchedule', () => {
+  test('recognizes a fixed daily hour-of-day pattern', () => {
+    expect(isAbsoluteCronSchedule('0 1 * * *')).toBe(true);
+  });
+
+  test('recognizes a fixed minute-of-hour pattern (hour wildcard)', () => {
+    expect(isAbsoluteCronSchedule('15 * * * *')).toBe(true);
+  });
+
+  test('rejects */N step patterns — those stay on the interval fast path', () => {
+    expect(isAbsoluteCronSchedule('*/5 * * * *')).toBe(false);
+    expect(isAbsoluteCronSchedule('0 */4 * * *')).toBe(false);
+  });
+
+  test('rejects a constrained day-of-week field (honest limitation: no calendar walk)', () => {
+    // pd-fleet.yml's tenderfoot ship uses "0 8 * * 1" (Monday 8am). This
+    // module doesn't walk weekdays, so it declines rather than fire on the
+    // wrong day — parseCronInterval's coarser fallback still applies.
+    expect(isAbsoluteCronSchedule('0 8 * * 1')).toBe(false);
+  });
+
+  test('rejects a constrained day-of-month field', () => {
+    expect(isAbsoluteCronSchedule('0 1 15 * *')).toBe(false);
+  });
+
+  test('rejects malformed/too-short input', () => {
+    expect(isAbsoluteCronSchedule('garbage')).toBe(false);
+    expect(isAbsoluteCronSchedule('0 25 * * *')).toBe(false); // hour out of range
+  });
+});
+
+describe('computeNextAbsoluteFireDelayMs', () => {
+  test('"0 1 * * *" schedules the next 01:00 later the same day', () => {
+    const now = new Date(2026, 0, 15, 0, 30, 0, 0).getTime(); // Jan 15, 00:30
+    const expected = new Date(2026, 0, 15, 1, 0, 0, 0).getTime() - now;
+    expect(computeNextAbsoluteFireDelayMs('0 1 * * *', now)).toBe(expected);
+  });
+
+  test('"0 1 * * *" rolls to tomorrow\'s 01:00 once today\'s has passed', () => {
+    const now = new Date(2026, 0, 15, 1, 30, 0, 0).getTime(); // Jan 15, 01:30 — past today's tick
+    const expected = new Date(2026, 0, 16, 1, 0, 0, 0).getTime() - now;
+    expect(computeNextAbsoluteFireDelayMs('0 1 * * *', now)).toBe(expected);
+  });
+
+  test('"15 * * * *" schedules the next :15 within the current or next hour', () => {
+    const now = new Date(2026, 0, 15, 9, 45, 0, 0).getTime(); // Jan 15, 09:45 — past this hour's :15
+    const expected = new Date(2026, 0, 15, 10, 15, 0, 0).getTime() - now;
+    expect(computeNextAbsoluteFireDelayMs('15 * * * *', now)).toBe(expected);
+  });
+
+  test('returns null for schedules isAbsoluteCronSchedule rejects', () => {
+    expect(computeNextAbsoluteFireDelayMs('*/5 * * * *')).toBeNull();
+    expect(computeNextAbsoluteFireDelayMs('0 8 * * 1')).toBeNull();
+    expect(computeNextAbsoluteFireDelayMs('garbage')).toBeNull();
+  });
+});
+
+test('malformed schedule keeps DEFAULT_INTERVAL via parseCronInterval', () => {
+  expect(parseCronInterval('garbage')).toBe(600000);
+});
+
+test('startAgent: "0 1 * * *" arms a setTimeout at the next 01:00, not a fixed setInterval', () => {
+  jest.setSystemTime(new Date(2026, 0, 15, 0, 59, 0, 0)); // 1 minute before 01:00
+  const config = makeConfig({ schedule: '0 1 * * *' });
+  const runner = createFleetRunner(config, '/tmp/proj');
+
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  const setIntervalSpy = jest.spyOn(global, 'setInterval');
+  runner.startAgent(config.agents[0]);
+
+  expect(setIntervalSpy).not.toHaveBeenCalled();
+  expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 60000);
+});
+
+test('startAgent: malformed schedule still uses the setInterval fast path at DEFAULT_INTERVAL', () => {
+  const config = makeConfig({ schedule: 'garbage' });
+  const runner = createFleetRunner(config, '/tmp/proj');
+
+  const setIntervalSpy = jest.spyOn(global, 'setInterval');
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  runner.startAgent(config.agents[0]);
+
+  expect(setIntervalSpy.mock.calls[0][1]).toBe(600000);
+  expect(setTimeoutSpy).not.toHaveBeenCalled();
+});
+
+test('startAgent: "*/5 * * * *" keeps the 5-minute setInterval fast path untouched', () => {
+  const config = makeConfig({ schedule: '*/5 * * * *' });
+  const runner = createFleetRunner(config, '/tmp/proj');
+
+  const setIntervalSpy = jest.spyOn(global, 'setInterval');
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  runner.startAgent(config.agents[0]);
+
+  expect(setIntervalSpy.mock.calls[0][1]).toBe(300000);
+  expect(setTimeoutSpy).not.toHaveBeenCalled();
+});
+
+test('startAgent: absolute schedule re-arms a fresh setTimeout after firing', async () => {
+  jest.setSystemTime(new Date(2026, 0, 15, 0, 59, 0, 0)); // 1 minute before 01:00
+  const config = makeConfig({ schedule: '0 1 * * *' });
+  const runner = createFleetRunner(config, '/tmp/proj');
+
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  runner.startAgent(config.agents[0]);
+  expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 60000);
+
+  setTimeoutSpy.mockClear();
+  global.fetch.mockClear();
+
+  // Fire the 01:00 tick.
+  await jest.advanceTimersByTimeAsync(60000);
+
+  // The scheduled run actually fired...
+  expect(global.fetch).toHaveBeenCalled();
+  const spawnCall = global.fetch.mock.calls.find((c) => String(c[0]).includes('/spawn'));
+  expect(spawnCall).toBeDefined();
+
+  // ...and the chain re-armed a NEW setTimeout for tomorrow's 01:00 (24h out),
+  // proving stopRunningRecord's single clearInterval(record.interval) call
+  // would still have something live to cancel — this is not a one-shot timer.
+  expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 86400000);
+});
+
+test('startAgent: absolute schedule chain does not re-arm after stopRunningRecord (fleet stopAll)', async () => {
+  jest.setSystemTime(new Date(2026, 0, 15, 0, 59, 0, 0));
+  const config = makeConfig({ schedule: '0 1 * * *' });
+  const runner = createFleetRunner(config, '/tmp/proj');
+  runner.startAgent(config.agents[0]);
+
+  runner.stopAll();
+
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  await jest.advanceTimersByTimeAsync(60000);
+
+  // stopAll() cleared the pending timeout before it could fire, so no
+  // re-arm setTimeout call should ever land.
+  expect(setTimeoutSpy).not.toHaveBeenCalled();
 });
 
 // ─── Topology Validation (CSP DAG Property) ─────────────────────────────────

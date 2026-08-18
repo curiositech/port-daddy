@@ -404,29 +404,37 @@ fleet:
       identity: "{project}:fleet:spark"
       telos: "Comment buildable product opportunities that can be assigned to PR-producing bots."
 
-    # ─── Dispatch runner (DISABLED by default; see docs/proposals/pd-nightshift.md) ──
+    # ─── Dispatch runner (see docs/proposals/pd-nightshift.md) ───────────
     # Renamed from `nightshift-runner` per ADR-0035 -- the verb generalized. This
     # ship is the cron path for `pd dispatch`. It fires once a night at 1am,
     # pops the next proposed dispatch, and runs it autonomously in a fresh
     # worktree under ~/coding/tmp/port-daddy-dispatch-<idShort>.
     #
-    # Uncomment after:
+    # Preconditions for enabling:
     #   1. operator has reviewed the first PR opened by a dispatch run,
     #   2. the pre-receive hook denying push-to-main inside dispatch worktrees
     #      is wired (PR #161's destructive-op shim is the current floor),
     #   3. the fleet engine's cron parser supports absolute hour-of-day
-    #      patterns (PR #137).
+    #      patterns (PR #137) -- SATISFIED: parseCronInterval no longer
+    #      coerces "0 1 * * *" to DEFAULT_INTERVAL; startAgent now arms a
+    #      self-re-arming setTimeout chain for fixed-clock schedules
+    #      (isAbsoluteCronSchedule / computeNextAbsoluteFireDelayMs,
+    #      lib/fleet-engine.ts) instead of a fixed setInterval.
     #
-    # dispatch-runner:
-    #   schedule: "0 1 * * *"        # 1am daily; one tick per night
-    #   backend: custom              # runs `pd dispatch run --next --really-run`
-    #   singleton: true
-    #   cooldown_ms: 21600000        # 6h cooldown between runs
-    #   timeout: 14400000            # 4h max wall-clock per spawn
-    #   daily_cap_usd: 10            # fleet-level ceiling; per-dispatch budget also applies
-    #   prompt: "pd dispatch run --next --really-run"
-    #   identity: "{project}:fleet:dispatch-runner"
-    #   telos: "Drain the operator's dispatch queue without supervision, bounded by cost and time."
+    # Uncommented by operator decision with precondition 1 still open and
+    # unverified in-repo -- nothing here attests to that review having
+    # happened; treat it as outstanding until the record says otherwise.
+    #
+    dispatch-runner:
+      schedule: "0 1 * * *"        # 1am daily; one tick per night
+      backend: custom              # runs `pd dispatch run --next --really-run`
+      singleton: true
+      cooldown_ms: 21600000        # 6h cooldown between runs
+      timeout: 14400000            # 4h max wall-clock per spawn
+      daily_cap_usd: 10            # fleet-level ceiling; per-dispatch budget also applies
+      prompt: "pd dispatch run --next --really-run"
+      identity: "{project}:fleet:dispatch-runner"
+      telos: "Drain the operator's dispatch queue without supervision, bounded by cost and time."
 
     # ─── The Purser (DISABLED by default; uncomment to enable) ───────
     # Adversarial gatekeeper, cloud-executed by apps/fleet-executor
