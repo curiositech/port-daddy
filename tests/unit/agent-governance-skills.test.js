@@ -25,7 +25,33 @@ const audited = [
 const skillIds = audited.map((a) => a[0]);
 
 function sample(skillId) {
-  return JSON.parse(readFileSync(join(repo, 'skills', skillId, 'examples', 'sample-input.json'), 'utf8'));
+  const parsed = JSON.parse(readFileSync(join(repo, 'skills', skillId, 'examples', 'sample-input.json'), 'utf8'));
+  return rollReviewDatesForward(parsed);
+}
+
+/**
+ * Push any `reviewDate` in a sample fixture into the future.
+ *
+ * The happy-path samples must produce ZERO findings, but several auditors
+ * compare `reviewDate` against today — so a static date is a time bomb.
+ * focus-receipt-proof-gate's sample was dated 2026-08-15 and began failing on
+ * exactly that day, turning main red and blocking every PR behind ci-gate.
+ * The elapsed-review-date rule stays covered by the weak-input fixtures, which
+ * are supposed to produce findings.
+ */
+function rollReviewDatesForward(node) {
+  if (Array.isArray(node)) return node.map(rollReviewDatesForward);
+  if (node && typeof node === 'object') {
+    return Object.fromEntries(
+      Object.entries(node).map(([k, v]) => [
+        k,
+        k === 'reviewDate' && typeof v === 'string'
+          ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+          : rollReviewDatesForward(v),
+      ]),
+    );
+  }
+  return node;
 }
 
 describe('agent-governance auditors pass their sample and reject malformed input', () => {
