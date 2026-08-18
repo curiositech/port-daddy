@@ -388,6 +388,37 @@ describe('imprintArtifacts — sourceCommit (the tap release-evidence contract)'
     expect(record.sourceCommit).toMatch(/^[0-9a-f]{40}$/);
   });
 
+  // The tap's verify-port-daddy-release-evidence.py requires FOUR things of an
+  // imprint: sourceCommit === candidate, releaseVersion === tag,
+  // missingRequired === [], and exactly one sealed `archives` entry for the
+  // uploaded tarball whose sha256/bytes match the file on disk. Emitting three
+  // of four is a failed roll — v3.28.0 died on sourceCommit and v3.28.1 on
+  // releaseVersion, each a separate published-but-unrollable release. Pin all
+  // four together so the next gap fails here, not in another repo.
+  test('seals the full evidence the tap verifier requires', () => {
+    const archive = join(staged, 'pd-darwin-arm64.tar.gz');
+    writeFileSync(archive, 'tarball-bytes-here');
+    const record = imprintArtifacts(oneArtifact, staged, {
+      releaseVersion: 'v9.9.9',
+      archives: ['pd-darwin-arm64.tar.gz'],
+    });
+    expect(record.releaseVersion).toBe('v9.9.9');
+    expect(record.missingRequired).toEqual([]);
+    expect(record.archives).toHaveLength(1);
+    const [sealed] = record.archives;
+    expect(sealed.name).toBe('pd-darwin-arm64.tar.gz');
+    expect(sealed.bytes).toBe(readFileSync(archive).length);
+    expect(sealed.sha256).toBe(
+      createHash('sha256').update(readFileSync(archive)).digest('hex'),
+    );
+  });
+
+  test('releaseVersion is null — not a guess — when the tag is not supplied', () => {
+    const record = imprintArtifacts(oneArtifact, staged);
+    expect(record.releaseVersion).toBeNull();
+    expect(record.archives).toEqual([]);
+  });
+
   test('prefers GITHUB_SHA — the commit the tag build actually ships', () => {
     const prev = process.env.GITHUB_SHA;
     process.env.GITHUB_SHA = 'a'.repeat(40);
