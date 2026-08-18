@@ -169,6 +169,19 @@ export async function invalidateInstallationToken(
 // ---------------------------------------------------------------------------
 // PR helpers
 
+/**
+ * Page size for the PR `/files` endpoint.
+ *
+ * Exported because anything reasoning about whether the changed-file list is
+ * COMPLETE must compare against the same number this fetch uses. Hard-coding it
+ * in two places lets the truncation logic drift silently the moment either side
+ * changes, and a wrong answer there means real findings get dropped.
+ *
+ * This call does not paginate, so a PR at or above this many files yields a
+ * TRUNCATED list that must be treated as incomplete rather than authoritative.
+ */
+export const PR_FILES_PAGE_SIZE = 100;
+
 export interface PRFile {
   filename: string;
   status: string;
@@ -268,7 +281,7 @@ export async function fetchPRContext(
     fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
       headers: ghHeaders(token),
     }),
-    fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=100`, {
+    fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=${PR_FILES_PAGE_SIZE}`, {
       headers: ghHeaders(token),
     }),
     fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
@@ -644,6 +657,22 @@ export async function createCheckRun(
   return body.id ?? 0;
 }
 
+/**
+ * Complete a check run. Returns whether the PATCH actually succeeded — unlike
+ * the old fire-and-forget version, a failure here is never silently
+ * swallowed.
+ *
+ * The completion PATCH is retried locally (bounded, with backoff) on a
+ * transient failure (network blip, GitHub 5xx, rate limit) because it is a
+ * pure idempotent write. This is deliberately NOT done by throwing and
+ * letting the whole job retry via the queue: by the time this is called the
+ * ships have already run and `createReview` may have already posted a review
+ * comment (not idempotent — a job-level retry would spend AI again and post
+ * a duplicate review just to redo one PATCH). Failure is logged internally
+ * on every attempt and on final exhaustion — this function never throws, so
+ * it can never turn a completion hiccup into an expensive job-level replay.
+ * The boolean return is there for callers/tests that want to react further.
+ */
 export async function completeCheckRun(
   owner: string,
   repo: string,
@@ -652,21 +681,47 @@ export async function completeCheckRun(
   summary: string,
   token: string,
   detailsUrl?: string | null,
-): Promise<void> {
-  if (!checkRunId) return;
+): Promise<boolean> {
+  if (!checkRunId) return false;
   // details_url is (re)stamped on completion too, so a run that REUSED an
   // older check run (idempotent retry path) still links to its own page.
-  await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
-    method: 'PATCH',
-    headers: ghHeaders(token),
-    body: JSON.stringify({
-      status: 'completed',
-      conclusion,
-      completed_at: new Date().toISOString(),
-      output: { title: 'Port Daddy Fleet', summary },
-      ...(detailsUrl ? { details_url: detailsUrl } : {}),
-    }),
+  const body = JSON.stringify({
+    status: 'completed',
+    conclusion,
+    completed_at: new Date().toISOString(),
+    output: { title: 'Port Daddy Fleet', summary },
+    ...(detailsUrl ? { details_url: detailsUrl } : {}),
   });
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    if (attempt > 1) await sleep(250 * (attempt - 1));
+    let res: Response;
+    try {
+      res = await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
+        method: 'PATCH',
+        headers: ghHeaders(token),
+        body,
+      });
+    } catch (err) {
+      console.error(
+        `[fleet-executor] completeCheckRun network error attempt=${attempt}/${MAX_ATTEMPTS} check=${checkRunId}: ${String(err)}`,
+      );
+      continue;
+    }
+    if (res.ok) return true;
+    console.error(
+      `[fleet-executor] completeCheckRun PATCH failed attempt=${attempt}/${MAX_ATTEMPTS} check=${checkRunId} status=${res.status}`,
+    );
+  }
+  console.error(
+    `[fleet-executor] completeCheckRun EXHAUSTED retries for check=${checkRunId} owner=${owner} repo=${repo} — ` +
+      'check will remain in_progress until a future run reuses/DLQ-completes it (findFleetCheckRun idempotency path).',
+  );
+  return false;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
@@ -686,9 +741,54 @@ export async function findFleetCheckRun(
     { headers: ghHeaders(token) },
   );
   if (!res.ok) return null;
-  const body = (await res.json()) as { check_runs?: Array<{ id: number; name: string }> };
+  const body = (await res.json()) as {
+    check_runs?: Array<{ id: number; name: string; status?: string; conclusion?: string | null }>;
+  };
   const match = (body.check_runs ?? []).find(c => c.name === name);
   return match?.id ?? null;
+}
+
+/**
+ * The fleet check run for a head SHA, WITH its status -- the id alone cannot
+ * answer "has this already been decided?".
+ *
+ * Why that question matters: a queue redelivery re-runs the whole fleet from
+ * scratch. Comment posting is idempotent (edited in place), but the MODEL CALLS
+ * are not -- the ship is re-run to produce the comment it then overwrites. When
+ * the check has already been COMPLETED, that spend buys nothing at all: the
+ * gate is resolved and a finished check run cannot be reopened, so the work
+ * cannot even change the answer.
+ *
+ * Observed on 2026-08-06: runs exceeding the Worker wall-clock were redelivered
+ * up to `max_retries` times, dead-lettered, completed as `failure` by the DLQ
+ * handler -- and ships kept re-running and re-posting for hours afterwards
+ * against a gate that could never go green.
+ *
+ * @param owner repository owner
+ * @param repo repository name
+ * @param headSha the PR head commit
+ * @param name the check-run name to look for
+ * @param token an installation token
+ * @returns the check run's id and status, or null when absent/unreadable
+ */
+export async function findFleetCheckRunState(
+  owner: string,
+  repo: string,
+  headSha: string,
+  name: string,
+  token: string,
+): Promise<{ id: number; status: string; conclusion: string | null } | null> {
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/commits/${headSha}/check-runs?per_page=100`,
+    { headers: ghHeaders(token) },
+  );
+  if (!res.ok) return null;
+  const body = (await res.json()) as {
+    check_runs?: Array<{ id: number; name: string; status?: string; conclusion?: string | null }>;
+  };
+  const match = (body.check_runs ?? []).find(c => c.name === name);
+  if (!match) return null;
+  return { id: match.id, status: match.status ?? '', conclusion: match.conclusion ?? null };
 }
 
 // ---------------------------------------------------------------------------

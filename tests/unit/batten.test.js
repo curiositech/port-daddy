@@ -69,9 +69,19 @@ describe('loadManifest', () => {
   test('the real repo release-artifacts.json parses and declares the #3496 cargo', () => {
     const real = loadManifest(resolveManifestPath());
     const ids = real.artifacts.map((a) => a.id);
-    // The silent-failure class this system closes: watchdog + tentacles.
-    for (const id of ['pd', 'port-daddy', 'pd-bosun', 'pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'sessionstart-pilot']) {
+    // The silent-failure class this system closes: tentacles + hooks + the
+    // pkgshare payloads (`pd setup`'s skill + Pilot sources). pd-bosun left the
+    // cargo with the 3.28 single-supervisor cutover — the tap formula's tarball
+    // gate now REJECTS a >=3.28.0 tarball that carries it, so asserting its
+    // presence here would ship a brew-breaking release.
+    for (const id of ['pd', 'port-daddy', 'pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'sessionstart-pilot', 'agent-skill', 'pilot-agent']) {
       expect(ids).toContain(id);
+    }
+    expect(ids).not.toContain('pd-bosun');
+    // Tentacles ship ONLY under bin/ — a flat top-level stagedPath would fail
+    // the formula's tarball-entry hash.
+    for (const a of real.artifacts) {
+      if (a.id.startsWith('pd-hook-')) expect(a.stagedPath).toBe(`bin/${a.id}`);
     }
   });
 

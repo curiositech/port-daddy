@@ -35,10 +35,12 @@ import {
   createCheckRun,
   completeCheckRun,
   findFleetCheckRun,
+  findFleetCheckRunState,
   createIssue,
   resolveFleetAppLogin,
   type PRContext,
   type ReviewComment,
+  PR_FILES_PAGE_SIZE,
 } from './github.js';
 import { parseFleetShips, parseFleetSquidEvents, parseFleetXo, defaultPRShips, type ShipConfig } from './fleet.js';
 import { classifyPrAuthorship } from './fleet-identity.js';
@@ -50,6 +52,7 @@ import {
   parseShipFindings,
   type ShipResult,
   type Verdict,
+  reviewEventFor,
 } from './verdict.js';
 import {
   parseProposals,
@@ -88,18 +91,99 @@ import {
   XO_RECENT_IDEAS_LIMIT,
 } from './xo.js';
 import type { Proposal } from './proposals.js';
-import { decideShipGate, isDocsOnly } from './gates.js';
+import { decideShipGate, isDocsOnly, isReviewableForBugs } from './gates.js';
 import { runPurser } from './purser.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
-import { costUsdForModel } from './spend.js';
+import {
+  costUsdForModel,
+  isPricedModel,
+  MODEL_CONTEXT_TOKENS,
+  hasKnownContextWindow,
+} from './spend.js';
 
 const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 
 // ---------------------------------------------------------------------------
 
-/** Per-chunk diff budget for the MAP fan-out (chars). */
-const MAP_CHUNK_CHAR_LIMIT = 12_000;
+/**
+ * The model that scans one chunk.
+ *
+ * Falls back to `cfModel` so a ship with no tiering behaves exactly as before --
+ * untiered, but never silently broken.
+ *
+ * @param ship the ship config (only the two model fields are read)
+ * @returns the model id every MAP chunk call runs on
+ */
+export function mapModelFor(ship: { cfModel: string; cfMapModel?: string }): string {
+  return ship.cfMapModel ?? ship.cfModel;
+}
+
+/**
+ * The model that synthesises across chunks. Always the ship's capable model.
+ *
+ * @param ship the ship config
+ * @returns the model id the single REDUCE call runs on
+ */
+export function reduceModelFor(ship: { cfModel: string }): string {
+  return ship.cfModel;
+}
+
+/**
+ * Rough chars-per-token for unified diffs. Diffs are punctuation- and
+ * identifier-dense, so they tokenize WORSE than prose (~4 chars/token); 3 is
+ * the conservative direction -- it under-estimates how much text fits, which
+ * costs an occasional extra chunk rather than an over-window request.
+ */
+const CHARS_PER_TOKEN = 3;
+
+/**
+ * Fraction of the MAP model's context window the diff chunk may occupy.
+ *
+ * The rest is real: the ship's system prompt (contract + graft + output format)
+ * is several KB, the PR title/body/file-list block rides along, and
+ * {@link MAX_OUTPUT_TOKENS} of completion has to fit too. Half is generous
+ * headroom for all of it.
+ */
+const CONTEXT_BUDGET_FRACTION = 0.5;
+
+/**
+ * Floor for the chunk budget when the MAP model's window is unknown.
+ *
+ * Deliberately the OLD hard-coded value, so an unrecognised model degrades to
+ * exactly the behaviour that shipped for months rather than to something
+ * untested.
+ */
+const FALLBACK_MAP_CHUNK_CHARS = 12_000;
+
+/**
+ * Per-chunk diff budget for the MAP fan-out, DERIVED from the model that will
+ * actually read the chunk.
+ *
+ * Why this is not a constant any more: it was `12_000` with no recorded
+ * reasoning anywhere in the source -- roughly 3,000 tokens, against a MAP model
+ * with a 32,768-token window. Every diff over 12KB was split for a limit no
+ * model imposed, and 22% of recent commits to this repo cross it. Each
+ * resulting reviewer then held a partial view it had no way to know was
+ * partial, which is where fabricated "X is missing" findings come from. The
+ * prompt-level scope contract mitigates that; this removes most of the cause.
+ *
+ * Note the coupling to tiering, because it is a real cost: MAP now runs on the
+ * cheap model, whose window (32,768) is a quarter of the capable one's
+ * (128,000). Tiering therefore makes chunks four times smaller than an untiered
+ * reviewer could take. That trade is worth making at these rates, but it is a
+ * trade, not a free win.
+ *
+ * @param mapModel the model id that will receive each chunk
+ * @returns the per-chunk character budget
+ */
+export function mapChunkCharLimit(mapModel: string): number {
+  if (!hasKnownContextWindow(mapModel)) return FALLBACK_MAP_CHUNK_CHARS;
+  const chars = MODEL_CONTEXT_TOKENS[mapModel] * CHARS_PER_TOKEN * CONTEXT_BUDGET_FRACTION;
+  return Math.max(FALLBACK_MAP_CHUNK_CHARS, Math.floor(chars));
+}
+
+
 /** Bound Workers AI fan-out so large diffs finish without a rate-limit stampede. */
 const MAP_CONCURRENCY = 8;
 /** The umbrella check-run name. Exported so the DLQ handler targets the same run. */
@@ -158,6 +242,32 @@ interface ShipMetrics {
    * "this run was free". (2026-08-04: a 9-call run showed 0/0 tokens.)
    */
   usageReports: number;
+  /**
+   * USD accumulated PER CALL, each priced at the model THAT call used.
+   *
+   * Not derivable from the totals any more. Once MAP and REDUCE can run on
+   * different models (see {@link mapModelFor}), applying one rate to a ship's
+   * summed tokens prices every cheap MAP token at the capable model's rate and
+   * reports a cost the operator was never charged -- overstating it by roughly
+   * the tiering saving, which is to say by exactly the amount the tiering was
+   * introduced to produce. Cost has to be summed where the model is known.
+   */
+  costUsd: number;
+  /**
+   * Distinct models this ship actually called, in first-call order. The run
+   * page shows this instead of the ship's configured `cfModel`, because with
+   * tiering those are no longer the same claim: `cfModel` is what the ship
+   * reduces with, and a reader deserves to see that 92 of 93 calls went
+   * somewhere cheaper.
+   */
+  modelsUsed: string[];
+  /**
+   * Calls made against a model with no entry in WORKERS_AI_RATES. Their tokens
+   * count but their cost is unknowable, so {@link costUsd} is a FLOOR whenever
+   * this is non-zero -- and the transcript must say so rather than presenting a
+   * partial sum as a total.
+   */
+  unpricedCalls: number;
 }
 
 function newShipMetrics(): ShipMetrics {
@@ -168,18 +278,69 @@ function newShipMetrics(): ShipMetrics {
     calls: 0,
     allEmpty: true,
     usageReports: 0,
+    costUsd: 0,
+    modelsUsed: [],
+    unpricedCalls: 0,
   };
 }
 
-/** Fold one ai.run result's usage + emptiness into a ship's running metrics. */
-function accumulateUsage(metrics: ShipMetrics, res: unknown, text: string): void {
+/**
+ * Fold one ai.run result's usage + emptiness into a ship's running metrics.
+ *
+ * `model` is the model THIS call ran on, not the ship's configured one. It is a
+ * required parameter rather than an optional convenience precisely so that a
+ * future call site cannot forget it and silently mis-price itself.
+ */
+function accumulateUsage(
+  metrics: ShipMetrics,
+  model: string,
+  res: unknown,
+  text: string,
+): void {
   const u = extractWorkersAiUsage(res);
   metrics.inputTokens += u.inputTokens ?? 0;
   metrics.outputTokens += u.outputTokens ?? 0;
   metrics.cachedInputTokens += u.cachedInputTokens ?? 0;
   metrics.calls += 1;
+  metrics.costUsd = Math.round(
+    (metrics.costUsd + costUsdForModel(model, u.inputTokens ?? 0, u.outputTokens ?? 0)) * 1e6,
+  ) / 1e6;
+  if (!isPricedModel(model)) metrics.unpricedCalls += 1;
+  if (!metrics.modelsUsed.includes(model)) metrics.modelsUsed.push(model);
   if (u.inputTokens != null || u.outputTokens != null) metrics.usageReports += 1;
   if (text) metrics.allEmpty = false;
+}
+
+/**
+ * Flags that stop a PARTIAL spend sum from being read as a complete one.
+ *
+ * Rationale: `usageReported` only asserts that SOME call carried a usage block.
+ * A run where 3 of 93 calls reported produces token and cost figures covering
+ * three calls, rendered beside a `calls: 93` — a plausible number that is not
+ * true, which is the exact failure this row exists to avoid. Two independent
+ * ways to be incomplete, so two separate counts:
+ *
+ *   - `unpricedCalls` — the call ran on a model absent from WORKERS_AI_RATES,
+ *     so its real tokens priced to 0. COST is understated; tokens are correct.
+ *   - `unreportedCalls` — the call returned no usage block at all, so neither
+ *     its tokens nor its cost entered any sum. BOTH are understated.
+ *
+ * @param metrics the ship's accumulated metrics
+ * @returns `{}` when every call was both priced and reported (the figures are
+ *   totals); otherwise `costIsFloor: true` plus whichever counts apply.
+ */
+export function spendHonesty(metrics: {
+  calls: number;
+  usageReports: number;
+  unpricedCalls: number;
+}): Record<string, unknown> {
+  const unreportedCalls = Math.max(0, metrics.calls - metrics.usageReports);
+  if (metrics.unpricedCalls === 0 && unreportedCalls === 0) return {};
+  return {
+    costIsFloor: true,
+    ...(metrics.unpricedCalls > 0 ? { unpricedCalls: metrics.unpricedCalls } : {}),
+    ...(unreportedCalls > 0 ? { unreportedCalls } : {}),
+  };
 }
 
 /**
@@ -442,6 +603,55 @@ async function recordRunStart(
 }
 
 /**
+ * Guarantee a `fleet_runs` row exists before a check run's completion is
+ * published — an idempotent (INSERT OR IGNORE) backstop independent of
+ * `recordRunStart`'s own best-effort write.
+ *
+ * `recordRunStart` deliberately swallows write failures ("NEVER aborts the
+ * run" — correct: an audit-log hiccup must not block gating). But that means
+ * a transient D1 error at exactly that moment leaves NO row behind, while the
+ * check run on GitHub still completes normally with a real conclusion — its
+ * `details_url` then points at a run id with no row, and the run page 404s
+ * ("Run not found") even though nothing else went wrong. `dlq.ts`'s
+ * completion path has the same gap: it never calls `recordRunStart` at all.
+ * Calling this once, right after `recordRunStart`, closes both: if the
+ * INSERT OR REPLACE above already succeeded this is a guaranteed no-op (same
+ * primary key); if it silently failed, this creates a minimal-but-truthful
+ * fallback row so the link a completed check publishes always resolves to
+ * something real.
+ */
+export async function ensureRunRow(
+  env: ExecutorEnv,
+  runId: string,
+  deliveryId: string,
+  repoFullName: string | null,
+  prNumber: number | null,
+  headSha: string,
+): Promise<void> {
+  if (!env.DB) return;
+  const repo = repoFullName ?? 'unknown/unknown';
+  const prUrl = prNumber != null ? `https://github.com/${repo}/pull/${prNumber}` : '';
+  try {
+    // Columns: (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha,
+    // conclusion, ships_csv, ms, created_at) — a superset of recordRunStart's
+    // INSERT: the same identity/context columns plus a placeholder 'pending'
+    // conclusion and 0 ms (recordRunComplete stamps the real values later).
+    // ships_csv is empty since this is only ever the no-ships-info fallback
+    // (recordRunStart already succeeded with the real list, or this is the
+    // DLQ path, which never has a ship list to begin with).
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO fleet_runs
+         (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha, conclusion, ships_csv, ms, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, 0, ?)`,
+    )
+      .bind(runId, deliveryId, repo, prNumber ?? 0, prUrl, headSha, '', nowSec())
+      .run();
+  } catch (err) {
+    console.error(`[fleet-executor] ensureRunRow failed run=${runId}: ${String(err)}`);
+  }
+}
+
+/**
  * Stamp the final conclusion + wall-clock elapsed onto the fleet_runs row.
  * Best-effort: a write failure NEVER changes the gate (the check run is already
  * the authoritative surface on GitHub).
@@ -524,9 +734,14 @@ async function recordShipTokensInTranscript(
     usageReported
       ? `pd-${ship.name}: ${metrics.inputTokens.toLocaleString('en-US')} in / ` +
         `${metrics.outputTokens.toLocaleString('en-US')} out tokens over ${metrics.calls} call(s)`
-      : `pd-${ship.name}: token usage not reported by ${ship.cfModel} (${metrics.calls} call(s))`,
+      : `pd-${ship.name}: token usage not reported by ${metrics.modelsUsed.join(' + ') || ship.cfModel} ` +
+        `(${metrics.calls} call(s))`,
     {
+      // `model` stays the ship's configured (REDUCE) model for backward
+      // compatibility with existing run-page readers; `models` is the honest
+      // list of what actually ran, which under tiering is not the same thing.
       model: ship.cfModel,
+      models: metrics.modelsUsed,
       calls: metrics.calls,
       usageReported,
       usageReports: metrics.usageReports,
@@ -537,7 +752,11 @@ async function recordShipTokensInTranscript(
             inputTokens: metrics.inputTokens,
             outputTokens: metrics.outputTokens,
             cachedInputTokens: metrics.cachedInputTokens,
-            costUsd: costUsdForModel(ship.cfModel, metrics.inputTokens, metrics.outputTokens),
+            // Summed per call at each call's own model rate -- see
+            // ShipMetrics.costUsd. Deriving this from the totals would price
+            // every MAP token at the REDUCE model's rate.
+            costUsd: metrics.costUsd,
+            ...spendHonesty(metrics),
           }
         : {}),
     },
@@ -559,7 +778,9 @@ async function recordShipSpend(
   metrics: ShipMetrics,
 ): Promise<void> {
   if (!env.DB) return;
-  const cost = costUsdForModel(ship.cfModel, metrics.inputTokens, metrics.outputTokens);
+  // Per-call sum (see ShipMetrics.costUsd), NOT a single rate applied to the
+  // ship's totals -- MAP and REDUCE may have run on different models.
+  const cost = metrics.costUsd;
   try {
     await env.DB.prepare(
       `INSERT INTO fleet_run_spend
@@ -598,8 +819,74 @@ function triggerFor(job: FleetRunJob): string | null {
  * error so the queue consumer can retry; returns normally otherwise (including
  * for non-actionable events, which are simply skipped).
  */
+/**
+ * Report `Port Daddy Fleet` on a merge-queue branch.
+ *
+ * WHY A PASS-THROUGH AND NOT A REVIEW. The queue branch is `main` + the queued
+ * PRs, and every PR in it was already gated by the full fleet at
+ * `pull_request` time. Re-running every ship on each queue permutation would
+ * re-spend the entire review budget per entry, per reorder, to re-derive a
+ * verdict the fleet already published — while the queue branch's own CI (which
+ * DOES run on `merge_group`) is what actually exercises the combined code. This
+ * repo already takes that position elsewhere: scripts/check-roadmap-link.ts
+ * treats `merge_group` heads as a pass-through for exactly this reason.
+ *
+ * What matters is that the context REPORTS. It is required on the merge queue,
+ * so a context that never appears is not a strict gate — it is a permanent
+ * deadlock, which is what it had been since 2026-08-06.
+ *
+ * Fails soft on purpose: any error here leaves the check absent, which is
+ * exactly today's behaviour, so this can never be worse than not running.
+ *
+ * @param job the merge_group delivery
+ * @param env executor bindings (token minting + details url)
+ */
+async function reportMergeGroupPassThrough(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+  const mergeGroup = job.payloadMinimal?.merge_group as Record<string, unknown> | undefined;
+  const headSha = typeof mergeGroup?.head_sha === 'string' ? mergeGroup.head_sha : '';
+  if (!job.repoFullName || !job.installationId || !headSha) return;
+  const [owner, repo] = job.repoFullName.split('/');
+  if (!owner || !repo) return;
+
+  const token = await getInstallationTokenCached(
+    env.GITHUB_APP_ID,
+    env.GITHUB_APP_PRIVATE_KEY,
+    job.installationId,
+    env.FLEET_TOKENS,
+  ).catch(() => null);
+  if (!token) return;
+
+  try {
+    const checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token, null);
+    await completeCheckRun(
+      owner,
+      repo,
+      checkRunId,
+      'success',
+      'Merge-queue pass-through. Every PR in this group was reviewed by the fleet at ' +
+        'pull_request time; the queue branch is gated by its own CI, which runs on ' +
+        'merge_group. The fleet does not re-review each queue permutation.',
+      token,
+      null,
+    );
+  } catch (err) {
+    // Absent check == today's behaviour. Never throw: a failure here must not
+    // retry the job or dead-letter it.
+    console.error(`[fleet-executor] merge_group pass-through failed for ${job.repoFullName}@${headSha}: ${String(err)}`);
+  }
+}
+
 export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
   if (!env.AI) return;
+
+  // MERGE QUEUE: handled before every guard below, all of which assume a PR.
+  // A merge_group delivery has no pull_request and no prNumber, so it would
+  // otherwise fall straight out of `!job.prNumber` and report nothing — the
+  // deadlock this branch exists to end.
+  if (job.eventType === 'merge_group') {
+    await reportMergeGroupPassThrough(job, env);
+    return;
+  }
 
   const trigger = triggerFor(job);
   if (!trigger) return;
@@ -802,9 +1089,48 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   if (cloudShips.length === 0) return;
 
   // --- Check run (idempotent: reuse one for this head SHA) -----------------
-  let checkRunId = await findFleetCheckRun(owner, repo, prCtx.headSha, CHECK_NAME, token).catch(
-    () => null,
-  );
+  //
+  // IDEMPOTENCY, AND WHY IT IS ABOUT MONEY. A queue redelivery re-runs this
+  // whole function. Comment posting is already idempotent -- a re-run edits the
+  // ship comment in place rather than duplicating it -- but the MODEL CALLS
+  // behind that comment are not: every ship is re-run to produce the text it
+  // then overwrites. Identical output, paid for again.
+  //
+  // When the check for this head SHA is already COMPLETED that spend buys
+  // literally nothing, because a finished check run cannot be reopened. The
+  // work cannot change the gate, cannot change the comment's meaning, and
+  // cannot be seen by anyone. Observed 2026-08-06: runs that exceeded the
+  // Worker wall-clock were redelivered, dead-lettered, completed as `failure`
+  // by the DLQ handler -- and then kept re-running ships for HOURS against a
+  // gate that could never go green again.
+  //
+  // So a completed check is a full stop. `in_progress` is NOT: that is the
+  // genuine retry of a run that died mid-flight, and it must proceed.
+  const existing = await findFleetCheckRunState(
+    owner,
+    repo,
+    prCtx.headSha,
+    CHECK_NAME,
+    token,
+  ).catch(() => null);
+  //
+  // `neutral` is deliberately NOT terminal. The fleet completes neutral when it
+  // DEFERRED rather than decided -- paused by the kill switch, skipped by the PR
+  // lifecycle gate, skipped by the self-review guard. Treating those as decided
+  // would strand a PR permanently unreviewed: unpause the fleet, redeliver, and
+  // the guard would skip forever. Only `success` and `failure` mean ships
+  // actually ran and reached a verdict.
+  const DECIDED: ReadonlySet<string> = new Set(['success', 'failure']);
+  if (existing && existing.status === 'completed' && DECIDED.has(existing.conclusion ?? '')) {
+    console.log(
+      `[fleet-executor] ${owner}/${repo}@${prCtx.headSha}: check already decided ` +
+        `(${existing.conclusion}) — skipping ${cloudShips.length} ship(s). ` +
+        `A redelivery cannot reopen a finished check, so running them would spend and change nothing.`,
+    );
+    return;
+  }
+
+  let checkRunId = existing?.id ?? null;
   if (!checkRunId) {
     // No swallow: a createCheckRun failure must propagate so the job RETRIES.
     checkRunId = await createCheckRun(owner, repo, CHECK_NAME, prCtx.headSha, token, detailsUrl);
@@ -825,6 +1151,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // the audit trail records every attempt that got far enough to gate. A
   // write failure is swallowed and never changes the run or the gate.
   await recordRunStart(env, runId, job, prCtx, prNumber, cloudShips);
+  // Backstop: guarantee the row exists even if the write above silently
+  // failed, so every completion path below can rely on details_url resolving
+  // to a real run page (see ensureRunRow's docstring).
+  await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, prCtx.headSha);
 
   // --- SELF-REVIEW GUARD (the fleet does not review its own branches) ------
   // WHY THIS SITS HERE — after the gating check exists, before any AI spend.
@@ -1102,7 +1432,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   if (reviewComments.length > 0 || summary.trim()) {
     // Best-effort: createReview never throws (see github.ts), so a review
     // failure can't fail the gate or block completing the check run.
-    await createReview(owner, repo, prNumber, 'COMMENT', reviewBody, reviewComments, prCtx.headSha, token);
+    // A blocking ship with HIGH findings REJECTS the PR rather than commenting
+    // beside it -- see reviewEventFor(). Anything else stays COMMENT.
+    const reviewEvent = reviewEventFor(results);
+    await createReview(owner, repo, prNumber, reviewEvent, reviewBody, reviewComments, prCtx.headSha, token);
   }
 
   await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token, detailsUrl);
@@ -1222,7 +1555,16 @@ async function runShip(
     ).catch(() => null);
 
     const systemPrompt = buildSystemPrompt(ship, contract, graftText);
-    const chunks = chunkDiff(prCtx.diff);
+
+    // Drop generated files BEFORE chunking. A lockfile refresh or a regenerated
+    // snapshot is often the largest thing in a diff, and every chunk of it is a
+    // model call spent on output no human wrote — while displacing real code
+    // into later chunks, which is exactly what makes each reviewer's view of
+    // the change partial. Falls back to the full diff if the filter would leave
+    // nothing, so a genuinely all-generated PR still gets looked at rather than
+    // silently passing.
+    const reviewableDiff = filterDiffToReviewable(prCtx.diff);
+    const chunks = chunkDiff(reviewableDiff || prCtx.diff, mapChunkCharLimit(mapModelFor(ship)));
 
     // Lookout's tools: cross-PR / cross-branch awareness. Fetched once per run and
     // injected into every MAP chunk so it can spot contradictions and duplication
@@ -1249,12 +1591,12 @@ async function runShip(
         ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
       };
       const res = await env.AI.run(
-        ship.cfModel as Parameters<typeof env.AI.run>[0],
+        mapModelFor(ship) as Parameters<typeof env.AI.run>[0],
         request,
         aiOptions(env, ship.name),
       );
       const { text, shape } = extractAiText(res);
-      accumulateUsage(metrics, res, text);
+      accumulateUsage(metrics, mapModelFor(ship), res, text);
 
       // Diagnose the silent-blank case: an empty result makes a ship post nothing
       // and resolve PASS. Log the model + response shape so an empty-returning
@@ -1263,7 +1605,7 @@ async function runShip(
       if (!text) {
         console.warn(
           `[fleet-executor] pd-${ship.name} MAP chunk ${i + 1}/${chunks.length} EMPTY on ` +
-            `${ship.cfModel}: ${describeResponseShape(res)}`,
+            `${mapModelFor(ship)}: ${describeResponseShape(res)}`,
         );
       }
 
@@ -1412,7 +1754,46 @@ async function runShip(
 
     // Parse the structured findings block. `null` => malformed JSON => the ship
     // is treated as errored (blocking → BLOCK, advisory → PASS, never silent).
-    const findings = parseShipFindings(output);
+    const parsedFindings = parseShipFindings(output);
+
+    // Drop findings that cite a file this PR never touched.
+    //
+    // A prompt instruction is guidance; this is enforcement. Review is
+    // map-reduce over diff chunks, and a reviewer holding several files' hunks
+    // at once can attribute a snippet from one to the path of another — on
+    // #4956 a fragment from `lib/local-citizen/ink-cloud.ts` was reported as a
+    // syntax error at a line in `lib/squid/reconcile-sources.ts`, a file that
+    // does not contain the quoted text anywhere. A finding pinned to a path
+    // outside the diff cannot be about this PR, and shipping it burns reviewer
+    // trust on every finding that IS real.
+    //
+    // Deliberately scoped to paths, not line numbers: a slightly-off line is a
+    // navigational annoyance, while a wrong FILE means the reasoning was about
+    // something else entirely.
+    // FAIL OPEN when the changed-file list is not known to be complete.
+    //
+    // `fetchPRContext` returns `files: []` when the /files call fails, and asks
+    // GitHub for `per_page=100` without paginating — so an empty list means
+    // "we don't know", and a list AT the page size may be truncated. Filtering
+    // against either would silently discard real findings, which is a far worse
+    // failure than letting a bogus one through: a dropped finding is invisible,
+    // while a wrong one is at least arguable in the thread. The prompt-level
+    // scope contract is the primary defence; this is the backstop, and a
+    // backstop that can eat correct output is not worth having.
+    const changedPaths = new Set(prCtx.files.map(f => f.filename));
+    const fileListTrustworthy = changedPaths.size > 0 && prCtx.files.length < PR_FILES_PAGE_SIZE;
+    const findings =
+      parsedFindings === null || !fileListTrustworthy
+        ? parsedFindings
+        : parsedFindings.filter(f => {
+            const cited = String((f as { path?: unknown }).path ?? '').trim();
+            if (!cited || changedPaths.has(cited)) return true;
+            console.warn(
+              `[fleet-executor] pd-${ship.name}: dropped finding citing '${cited}', ` +
+                `which is not among this PR's ${changedPaths.size} changed files`,
+            );
+            return false;
+          });
 
     // Transcript: findings parse outcome. A malformed block is a 'ship-finding'
     // marker (the ship produced output we couldn't parse); a parsed block is a
@@ -1719,10 +2100,39 @@ async function captureIdeas(
 
 /**
  * Split a unified diff into chunks aligned on `diff --git` file boundaries,
- * each under {@link MAP_CHUNK_CHAR_LIMIT}. A single file larger than the budget
- * is hard-split. Always returns at least one chunk (possibly empty-string).
+ * each under `limit` characters.
+ *
+ * A single file larger than the budget is emitted WHOLE and over budget -- it
+ * is not hard-split. (This docstring used to say the opposite; the hard-split
+ * was removed and the comment was not, which is its own small lesson.) See the
+ * reasoning inside the loop.
+ *
+ * Always returns at least one chunk (possibly the empty string).
+ *
+ * @param diff the unified diff to split
+ * @param limit per-chunk character budget, from {@link mapChunkCharLimit}
+ * @returns one or more chunks whose union is the whole diff
  */
-export function chunkDiff(diff: string): string[] {
+/**
+ * Strip file sections whose diffs cannot carry a reviewable defect.
+ *
+ * Operates on `diff --git` boundaries so a dropped file takes its whole hunk
+ * set with it and never leaves an orphan header that a reviewer would try to
+ * interpret.
+ */
+export function filterDiffToReviewable(diff: string): string {
+  if (!diff || !diff.trim()) return diff;
+  return diff
+    .split(/(?=^diff --git )/m)
+    .filter(part => {
+      if (!part.startsWith('diff --git ')) return true; // preamble, keep
+      const path = pathFromDiffLine(part.split('\n', 1)[0] ?? '') ?? '';
+      return !path || isReviewableForBugs(path);
+    })
+    .join('');
+}
+
+export function chunkDiff(diff: string, limit: number = FALLBACK_MAP_CHUNK_CHARS): string[] {
   if (!diff || !diff.trim()) return [''];
 
   // Split BEFORE each `diff --git` header so each part is one file's hunks.
@@ -1732,17 +2142,28 @@ export function chunkDiff(diff: string): string[] {
   const chunks: string[] = [];
   let cur = '';
   for (const part of parts) {
-    if (part.length > MAP_CHUNK_CHAR_LIMIT) {
+    if (part.length > limit) {
+      // An oversized single file becomes ONE chunk, over budget and whole.
+      //
+      // It used to be hard-split into raw slices, which was wrong twice over:
+      // only the first slice carried the `diff --git` header, so every
+      // continuation was un-attributable — the scope contract failing on
+      // exactly the largest files — and a reviewer handed half a function has
+      // no more chance of judging it correctly than one handed none.
+      //
+      // A file is the smallest unit that can be reviewed coherently, so it is
+      // the smallest unit we will split to. When one file exceeds the budget
+      // that is unavoidable: emit it intact and let the caller's own limits
+      // decide what to do, rather than shredding it into pieces that are
+      // cheaper to send and impossible to review.
       if (cur) {
         chunks.push(cur);
         cur = '';
       }
-      for (let i = 0; i < part.length; i += MAP_CHUNK_CHAR_LIMIT) {
-        chunks.push(part.slice(i, i + MAP_CHUNK_CHAR_LIMIT));
-      }
+      chunks.push(part);
       continue;
     }
-    if (cur && cur.length + part.length > MAP_CHUNK_CHAR_LIMIT) {
+    if (cur && cur.length + part.length > limit) {
       chunks.push(cur);
       cur = part;
     } else {
@@ -1810,10 +2231,11 @@ async function reduceFindings(
     aiOptions(env, ship.name),
   );
   const { text } = extractAiText(res);
-  accumulateUsage(metrics, res, text);
+  accumulateUsage(metrics, reduceModelFor(ship), res, text);
   if (!text) {
     console.warn(
-      `[fleet-executor] pd-${ship.name} REDUCE EMPTY on ${ship.cfModel}: ${describeResponseShape(res)}`,
+      `[fleet-executor] pd-${ship.name} REDUCE EMPTY on ${reduceModelFor(ship)}: ` +
+        `${describeResponseShape(res)}`,
     );
   }
   return text;
@@ -1895,6 +2317,94 @@ function buildSystemPrompt(ship: ShipConfig, contract: string | null, graftText 
   return parts.join('\n\n');
 }
 
+/**
+ * Paths whose hunks appear in this chunk, read off the `diff --git` headers.
+ *
+ * The reviewer must be able to tell what it is actually looking at. A chunk
+ * concatenates several files, and the changed-file list names every file in the
+ * PR — so without this the model sees N filenames and some hunks with no way to
+ * bind one to the other, and attributing a snippet to the wrong path is the
+ * natural outcome rather than an unlucky one.
+ */
+export function filesInChunk(diffChunk: string): string[] {
+  const out = new Set<string>();
+  // Section-aware, not line-aware. A rename emits BOTH `--- a/old` and
+  // `+++ b/new`; collecting every line would report the old path as present
+  // too, telling a reviewer it holds a file that exists only under its new
+  // name. One path per file section, preferring the post-image.
+  for (const section of diffChunk.split(/(?=^diff --git )/m)) {
+    if (!section.trim()) continue;
+    let newSide: string | null = null;
+    let oldSide: string | null = null;
+    let headerSide: string | null = null;
+    for (const line of section.split('\n')) {
+      if (line.startsWith('+++ b/')) newSide ??= line.slice(6).trim() || null;
+      else if (line.startsWith('--- a/')) oldSide ??= line.slice(6).trim() || null;
+      else if (line.startsWith('diff --git a/')) headerSide ??= pathFromDiffLine(line);
+      if (newSide) break;
+    }
+    // `+++ /dev/null` on a deletion leaves newSide null, so the old path is
+    // the only truthful answer there.
+    const path = newSide ?? headerSide ?? oldSide;
+    if (path) out.add(path);
+  }
+  return [...out];
+}
+
+/**
+ * Extract a path from one diff line, tolerating spaces.
+ *
+ * `diff --git a/X b/Y` cannot be parsed with `\S+`: git does not escape spaces
+ * in paths, and this repository already contains `public/Untitled 2.png`. A
+ * greedy split on whitespace silently yields the wrong path — or none — and the
+ * file is then mis-marked "not in this chunk" even though its hunks are right
+ * there, which defeats the scope contract on exactly the files most likely to
+ * need it.
+ *
+ * The `+++ b/<path>` line is the reliable source: the path runs to end of line,
+ * so no delimiter ambiguity exists. `diff --git` is used only as a fallback,
+ * and there the a/ and b/ halves are separated on the ` b/` boundary nearest
+ * the middle, which is correct whenever both sides name the same file (the
+ * common case) and degrades to the whole remainder for a rename.
+ */
+function pathFromDiffLine(line: string): string | null {
+  if (line.startsWith('+++ b/')) return line.slice(6).trim() || null;
+  if (line.startsWith('+++ ')) return null; // +++ /dev/null — a deletion
+  if (line.startsWith('--- a/')) return line.slice(6).trim() || null;
+  if (line.startsWith('diff --git a/')) {
+    const rest = line.slice('diff --git a/'.length);
+    const sep = rest.lastIndexOf(' b/');
+    if (sep === -1) return rest.trim() || null;
+    return rest.slice(sep + 3).trim() || rest.slice(0, sep).trim() || null;
+  }
+  return null;
+}
+
+/**
+ * Build the MAP-stage prompt for one diff chunk.
+ *
+ * **The chunk is a partial view, and saying so is load-bearing.** Review is
+ * map-reduce: each call sees one chunk of a diff that may span dozens of files.
+ * Earlier this was communicated only as ` (chunk 3 of 12)` appended to a
+ * heading, with the full changed-file list rendered flat above it. That
+ * produced two systematic failure modes on a large PR, both observed on
+ * #4956:
+ *
+ *   1. *Fabricated absence.* A reviewer that cannot see `features.manifest.json`
+ *      or a test file in ITS chunk reported them missing — "no CJK tests", "not
+ *      added to the manifest", "PD_HALT_KEY is not exported" — when each was
+ *      present in another chunk. Every one of those shipped as a HIGH finding
+ *      with a one-click issue button.
+ *   2. *Misattribution.* With every path in the PR listed but no marking of
+ *      which are present here, a snippet from one file was reported at a line
+ *      number in a different file that happened to be in the same list.
+ *
+ * The fix is to make the boundary explicit: mark which files this chunk
+ * actually contains, state plainly that the rest exists and is not visible, and
+ * forbid claims that depend on having seen the whole diff. Absence is a
+ * REDUCE-stage judgement — only that stage has all the partials — so the MAP
+ * stage must not guess at it.
+ */
 function buildUserMessage(
   prCtx: PRContext,
   diffChunk: string,
@@ -1902,12 +2412,56 @@ function buildUserMessage(
   chunkCount: number,
   fleetContext = '',
 ): string {
-  const fileList = prCtx.files
-    .map(f => `- ${f.filename} (+${f.additions}/-${f.deletions})`)
+  const present = new Set(filesInChunk(diffChunk));
+  const partial = chunkCount > 1;
+
+  // If GitHub's /files call failed, `prCtx.files` is empty — but the chunk in
+  // hand plainly contains hunks. Rendering "Changed files: (none)" above them
+  // is worse than saying nothing: it tells the reviewer the PR touched nothing
+  // while showing it a diff, which undercuts the very boundary this block
+  // exists to draw. Fall back to what the chunk itself proves.
+  const fileRows = prCtx.files.length
+    ? prCtx.files.map(f => ({ filename: f.filename, adds: f.additions, dels: f.deletions }))
+    : [...present].map(filename => ({ filename, adds: null as number | null, dels: null as number | null }));
+
+  // Mark in-chunk files so the model can bind a hunk to a path. Files from
+  // other chunks stay listed — the reviewer should know the PR is larger than
+  // what it can see — but are explicitly flagged as not visible here.
+  const fileList = fileRows
+    .map(r => {
+      const here = !partial || present.has(r.filename);
+      const mark = here ? '✔' : '·';
+      const counts = r.adds === null ? '' : ` (+${r.adds}/-${r.dels})`;
+      const note = here ? '' : '  — not in this chunk';
+      return `- ${mark} ${r.filename}${counts}${note}`;
+    })
     .join('\n');
 
-  const chunkNote =
-    chunkCount > 1 ? ` (chunk ${chunkIndex + 1} of ${chunkCount})` : '';
+  const chunkNote = partial ? ` (chunk ${chunkIndex + 1} of ${chunkCount})` : '';
+
+  const scopeBlock = partial
+    ? `
+
+## SCOPE — read before reviewing
+
+You are seeing **chunk ${chunkIndex + 1} of ${chunkCount}** of this diff. The files marked \`✔\`
+above are the ONLY ones whose changes are visible to you. Files marked \`·\` are
+part of this PR and were changed, but their hunks are in another chunk that a
+different reviewer is reading.
+
+Therefore, in this stage:
+
+- **Do not report anything as missing, absent, undeclared, unexported, or
+  untested.** You cannot see most of the PR. A test, a manifest entry, an
+  export, or a registration you did not encounter is almost certainly in a
+  chunk you were not given. Claims of absence are decided later, by the stage
+  that has every chunk.
+- **Every finding must cite a path marked \`✔\`**, and the code you quote must
+  appear verbatim in the diff below. A snippet from one file reported against
+  another file's path is worse than no finding at all.
+- Report only defects you can see *in the code shown here*: a wrong condition,
+  an unhandled case, a broken invariant, a real bug in these hunks.`
+    : '';
 
   const contextBlock = fleetContext ? `\n\n${fleetContext}` : '';
 
@@ -1917,7 +2471,7 @@ function buildUserMessage(
 ${fileList || '(none)'}
 
 ## PR description
-${prCtx.body || '(none)'}${contextBlock}
+${prCtx.body || '(none)'}${scopeBlock}${contextBlock}
 
 ## Diff${chunkNote}
 \`\`\`diff
