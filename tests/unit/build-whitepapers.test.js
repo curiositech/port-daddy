@@ -202,4 +202,73 @@ describe('reproducible whitepaper source scoping', () => {
     expect(workflow.indexOf('renderer_changed=0'))
       .toBeLessThan(workflow.indexOf('build_papers()'));
   });
+
+  // Raised by pd-qa: the two tests above read the workflow's TEXT. That proves
+  // the lines are present, not that the shell does the right thing with them.
+  // This runs the real detection block, lifted out of the workflow, against
+  // purpose-built git history -- so a regex that silently stops matching, or a
+  // comparison against the wrong ref, fails here instead of six minutes into a
+  // TeX build.
+  function rendererDetection() {
+    const workflow = readFileSync(
+      join(repoRoot, '.github', 'workflows', 'whitepaper-build.yml'), 'utf8');
+    const start = workflow.indexOf('          renderer_changed=0');
+    const end = workflow.indexOf('          build_papers()');
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    return workflow.slice(start, end).replace(/^ {10}/gm, '');
+  }
+
+  function detectIn(dir, base) {
+    const script = `${rendererDetection()}\necho "RESULT=$renderer_changed"`;
+    const out = execFileSync('/bin/sh', ['-c', script], {
+      cwd: dir, encoding: 'utf8', env: { ...process.env, base },
+    });
+    return /RESULT=1/.test(out);
+  }
+
+  function workflowRepo(secondLine) {
+    const dir = mkdtempSync(join(tmpdir(), 'renderer-pin-'));
+    const g = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
+    g('init', '-q', '-b', 'main');
+    g('config', 'user.email', 'test@example.invalid');
+    g('config', 'user.name', 'renderer test');
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true });
+    const file = join(dir, '.github', 'workflows', 'whitepaper-build.yml');
+    writeFileSync(file, 'jobs:\n  build:\n    container:\n      image: texlive/texlive@sha256:aaa\n');
+    g('add', '-A'); g('commit', '-qm', 'base');
+    const base = g('rev-parse', 'HEAD');
+    writeFileSync(file, secondLine);
+    g('add', '-A'); g('commit', '-qm', 'second');
+    return { dir, base };
+  }
+
+  test('renderer detection fires on a real pin change and not otherwise', () => {
+    // pin actually changes -> must fire
+    const changed = workflowRepo(
+      'jobs:\n  build:\n    container:\n      image: texlive/texlive@sha256:bbb\n');
+    try {
+      expect(detectIn(changed.dir, changed.base)).toBe(true);
+    } finally { rmSync(changed.dir, { recursive: true, force: true }); }
+
+    // workflow edited but the image line untouched -> must NOT fire, or every
+    // unrelated workflow tweak would force a full rebuild and re-commit all
+    // seven PDFs.
+    const unrelated = workflowRepo(
+      'jobs:\n  build:\n    container:\n      image: texlive/texlive@sha256:aaa\n    timeout-minutes: 30\n');
+    try {
+      expect(detectIn(unrelated.dir, unrelated.base)).toBe(false);
+    } finally { rmSync(unrelated.dir, { recursive: true, force: true }); }
+  });
+
+  test('renderer detection tolerates whitespace around the image value', () => {
+    // Raised by pd-qa. The regex allows padding on both sides; this proves it
+    // rather than asserting it, since a tightened regex would fail closed in the
+    // worst way -- silently not rebuilding after a real re-pin.
+    const spaced = workflowRepo(
+      'jobs:\n  build:\n    container:\n      image:   texlive/texlive@sha256:ccc\n');
+    try {
+      expect(detectIn(spaced.dir, spaced.base)).toBe(true);
+    } finally { rmSync(spaced.dir, { recursive: true, force: true }); }
+  });
 });
