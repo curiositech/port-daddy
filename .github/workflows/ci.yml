@@ -179,7 +179,15 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Run unit tests
-        run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
+        # `purser` is selected explicitly alongside `unit`: --selectProjects is an
+        # allowlist, so a new jest project is invisible here until it is named.
+        # That is how tests/purser/ stayed inert — see tests/unit/purser-routing.test.js.
+        run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit purser
+
+      - name: Run purser adversarial tests (node:test set)
+        # Routed per-file by tests/purser/ROUTING.json; the jest-shaped ones ran
+        # in the step above, these target node:test.
+        run: npm run test:purser
 
       - name: Daemon backend transcript E2E (hermetic CLI fallback)
         # BIG BROKEN E2E for the launchd-path/stale-Claude-override regression.
