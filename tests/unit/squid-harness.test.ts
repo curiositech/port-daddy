@@ -670,8 +670,21 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
         PD_ACTOR: 'retry_exhaustion_agent',
       },
       encoding: 'utf8',
-      timeout: 5000,
+      // The hook's portable lock path retries 200 times, and each iteration
+      // spawns four processes (mkdir, find, grep, and the stubbed sleep) — ~800
+      // spawns in total. Stubbing sleep removes the waiting but not the spawn
+      // cost, so this test is spawn-bound, not time-bound. Measured at ~1.06s on
+      // Linux (~1.3ms/spawn); macOS spawn is several times slower and the hosted
+      // runners are loaded, which put the old 5000ms budget right on the cliff —
+      // it failed on macos-latest on 2026-08-19 while ubuntu passed on the same
+      // commit. The budget is a harness guard, not the thing under test.
+      timeout: 30_000,
     });
+    // Assert the signal FIRST. spawnSync reports a killed child as
+    // `status: null`, so a blown budget used to surface as "expected 0,
+    // received null" — indistinguishable from the hook genuinely misbehaving.
+    // A SIGTERM here means the budget was too small, not that the hook failed.
+    expect(result.signal).toBeNull();
     expect(result.status).toBe(0);
 
     const rows = readFileSync(matrix, 'utf8')

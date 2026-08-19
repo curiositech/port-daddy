@@ -229,7 +229,19 @@ jobs:
       # Per-matrix filename (darwin/linux both run this job → same-named asset
       # would clobber on the shared Release). Name it after the tarball it seals.
       - name: Batten — imprint sealed release artifacts (sha256 record)
-        run: ./dist/pd batten imprint --staged-dir dist --out dist/${{ matrix.artifact }}-imprint.json
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        # --release-version and --archive are REQUIRED evidence, not extras: the
+        # tap's verify-port-daddy-release-evidence.py rejects an imprint whose
+        # releaseVersion does not equal the tag, and demands the tarball itself
+        # be sealed (name + sha256 + bytes) so it can cross-check the uploaded
+        # bytes against the dispatch payload. v3.28.0 and v3.28.1 both published
+        # green and then failed the roll on exactly these fields.
+        run: |
+          ./dist/pd batten imprint --staged-dir dist \
+            --release-version "$RELEASE_TAG" \
+            --archive "dist/${{ matrix.artifact }}.tar.gz" \
+            --out "dist/${{ matrix.artifact }}-imprint.json"
 
       - name: Upload release imprint to release
         uses: softprops/action-gh-release@v2
