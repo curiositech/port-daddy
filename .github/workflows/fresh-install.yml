@@ -75,6 +75,16 @@ jobs:
         os: [macos-14, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
+      # Checked out so the README's own quick-start examples can be executed
+      # against the brew-installed daemon below — the only place in CI where a
+      # genuinely fresh install exists to run them against.
+      - uses: actions/checkout@v4
+
+      - name: Set up Node (for the README accuracy gate)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       # macOS runners ship brew on PATH; ubuntu runners carry linuxbrew at
       # /home/linuxbrew but do NOT put it on PATH (and some images drop it
       # entirely — installing it fresh IS the blank-machine path).
@@ -131,6 +141,16 @@ jobs:
           curl -fsS "http://127.0.0.1:$PORT/health"
           echo
           echo "brew-installed daemon serves /health"
+
+          # The README's `readme-verify: run` blocks, executed against this
+          # blank-machine daemon. Everywhere else in CI the front door is only
+          # surface-checked; here it is the literal claim under test — a new user
+          # brew-installs, pastes the quick start, and it works. The gate runs
+          # inside this step because the daemon dies with it (trap on EXIT).
+          PATH="$(brew --prefix)/bin:$PATH" \
+          PORT_DADDY_PORT="$PORT" PORT_DADDY_URL="http://127.0.0.1:$PORT" \
+          PORT_DADDY_PREFIX="$WORK/prefix" PORT_DADDY_DB="$WORK/registry.db" \
+            node "$GITHUB_WORKSPACE/scripts/check-readme-accuracy.mjs" --ci --run
 
   notify-failure:
     # A scheduled gate nobody reads is not a gate — this workflow was red for

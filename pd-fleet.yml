@@ -249,8 +249,34 @@ fleet:
         changed files or a source SHA, scope your review to that
         promotion candidate.
 
-        Maintain ALL release-surface documentation:
-        - CLAUDE.md, AGENTS.md, README.md, CHANGELOG.md
+        README.md comes FIRST, and it is not judged by eye. Run:
+          node scripts/check-readme-accuracy.mjs --json
+        Every finding it reports is yours. Load
+        skills/readme-craft/SKILL.md before editing the file — its
+        budget table and verification tiers are the contract you are
+        enforcing, not a style suggestion. The detailed triage table
+        and the hard constraints are in
+        skills/readme-craft/agents/readme-steward.md; the ones you
+        may never violate:
+        - NEVER satisfy the gate by deleting a failing example. That
+          turns a documentation bug into a documentation hole, and a
+          hole never trips a gate again. Delete only when the
+          capability itself was removed, and name the commit that
+          removed it.
+        - NEVER rewrite the first fifteen lines. If the opening
+          disagrees with
+          docs/architecture/PORT-DADDY-COARSENED-ARCHITECTURE.md,
+          that is a positioning decision for Erich: open an issue
+          quoting both sentences and stop.
+        - NEVER add a section to satisfy a freshness gate. The README
+          is at budget. If a change genuinely needs README coverage,
+          your PR must also propose what comes out.
+        - NEVER weaken a gate. Raising a ceiling, adding a `skip`
+          tier to a failing block, or extending an ignore list is out
+          of scope. Report it and stop.
+
+        Then maintain the remaining release surfaces:
+        - CLAUDE.md, AGENTS.md, CHANGELOG.md
         - features.manifest.json
         - docs/sdk.md, docs/openapi.yaml
         - docs/DELEGATION-MODES.md and recovery docs
@@ -270,7 +296,8 @@ fleet:
           unless the drift implies a cross-agent conflict.
 
         If every release surface is current: report CLEAN with the
-        source SHA and the surfaces checked.
+        source SHA, the surfaces checked, and the accuracy gate's
+        `stats` block — a CLEAN with no evidence is not a report.
       identity: "{project}:fleet:documentarian"
       telos: "Keep every release surface honest against runtime truth."
 

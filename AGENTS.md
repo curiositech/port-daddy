@@ -234,16 +234,49 @@ Documents`.
 - **Keep durable roles briefing-ready.** When a Pilot or named role maintains a
   ledger, treat it as a curated projection over notes, not a replacement for
   notes. Privacy, authority, and staleness metadata travel with the entry.
-- **Keep the README current.** When a slice changes a surface an operator or
-  contributor reads about, update `README.md` in the same PR — a stale README is a
-  caught lie just like a stale citation. This is now enforced at commit time:
-  the pre-commit hook runs `scripts/check-readme-freshness.mjs`, which blocks a
-  commit that stages `cli/permission-tiers.ts`, `mcp/server.ts`,
+- **Keep the README current, and keep it short.** The README is a distribution
+  artifact: it renders on npmjs.com and on the repo landing page, so a stale README is
+  a shipped defect, not a docs chore. Two gates hold it, and they ask different
+  questions.
+
+  *Did you consider it?* — `scripts/check-readme-freshness.mjs`, at commit time. It
+  blocks a commit that stages `cli/permission-tiers.ts`, `mcp/server.ts`,
   `docs/openapi.yaml`, `pd-fleet.yml`, `features.manifest.json`, or a NEW
-  `cli/commands/` file without a staged README.md. If the change is genuinely internal, bypass with
-  `PD_README_OK=1 git commit …` (the bypass is logged). The README's title
-  version is a synced surface (`scripts/sync-version.ts` +
-  `check-version-drift.mjs`), so never hand-edit the version number.
+  `cli/commands/` file without a staged `README.md`. Bypass a genuinely internal
+  change with `PD_README_OK=1 git commit …` (the bypass is logged).
+
+  *Is it true?* — `scripts/check-readme-accuracy.mjs`, in CI and release-blocking
+  (`readme-accuracy-guard`). It resolves every `pd` verb and flag in every example
+  against the CLI registry, checks that every image and link exists, and enforces the
+  length budget. `--run` executes the `readme-verify: run` blocks against a
+  brew-installed daemon in the fresh-install smoke, which is the literal claim that a
+  new user can paste the quick start and have it work.
+
+  **Before editing `README.md`, load `skills/readme-craft/SKILL.md`.** It carries the
+  section grammar, the budget, and the verification tiers. The rules that bite most
+  often:
+  - **Ship a deletion in most README PRs.** The freshness gate's cheapest satisfaction
+    is always "add a paragraph", so without a counterweight the front door grows
+    monotonically. The length budget is that counterweight. If a change needs README
+    coverage and the file is at budget, say what comes out.
+  - **Reference material goes to `docs/` and `pd help`.** Command indexes, flag tables,
+    and environment-variable lists do not belong on the front door — `pd help` is
+    generated from the registry it documents and therefore cannot drift.
+  - **Never fix a failing example by deleting it.** That converts a documentation bug
+    into a documentation hole, and the hole never trips a gate again.
+  - **Never rewrite the opening fifteen lines on your own authority.** If they
+    disagree with `docs/architecture/PORT-DADDY-COARSENED-ARCHITECTURE.md`, that is a
+    positioning decision for the operator. Quote both and stop.
+
+  The README's version is a synced surface: `scripts/sync-version.ts` stamps the
+  `<!-- pd:version X.Y.Z -->` anchor on line 1 and `check-version-drift.mjs` gates it.
+  Never hand-edit it, and never delete the anchor.
+
+- **Document what you write.** `scripts/check-rich-docs.mjs --changed <base>` runs in
+  CI as `docstring-ratchet` and blocks on functions declared or modified *by this PR*
+  that lack a docstring covering inputs, outputs, and why the thing exists.
+  Pre-existing debt in a file you touched is grandfathered — see the whole backlog with
+  `npm run check:rich-docs`. New Rust `pub` items additionally get runnable doctests.
 
 ## Pull Request Operating Procedure
 

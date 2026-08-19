@@ -44,6 +44,7 @@
     "check:pr-comments": "node scripts/check-pr-comments-answered.mjs",
     "check:version-drift": "node scripts/check-version-drift.mjs",
     "check:readme-freshness": "node scripts/check-readme-freshness.mjs --staged",
+    "check:readme-accuracy": "node scripts/check-readme-accuracy.mjs",
     "check:skill-mirrors": "node scripts/sync-skill-mirrors.mjs --check",
     "sync:skill-mirrors": "node scripts/sync-skill-mirrors.mjs",
     "check:rich-docs": "node scripts/check-rich-docs.mjs",

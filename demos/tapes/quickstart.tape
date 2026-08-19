@@ -1,7 +1,7 @@
 # Port Daddy - Quick Start
 # The core "begin -> note -> whoami -> done" workflow
 
-Output demos/gifs/quickstart.gif
+Output website-v2/public/gifs/quickstart.gif
 
 Set Shell "zsh"
 Set Theme "Catppuccin Mocha"
@@ -17,6 +17,12 @@ Hide
 Type "setopt INTERACTIVE_COMMENTS"
 Enter
 Sleep 200ms
+# Record from a neutral directory. Recording inside the repo makes the GIF depend on
+# the recorder's branch state — `pd done` refuses a session whose branch has no
+# upstream, so a local unpushed worktree would bake a refusal into the hero image.
+Type "mkdir -p ~/.port-daddy/demo-cwd && cd ~/.port-daddy/demo-cwd"
+Enter
+Sleep 200ms
 Type "pd done 2>/dev/null; pd agent register --agent demo-agent --purpose 'cleanup' 2>/dev/null; curl -sX DELETE http://localhost:9876/agents/demo-agent 2>/dev/null"
 Enter
 Sleep 500ms
@@ -29,7 +35,7 @@ Sleep 500ms
 Type "# Start a session - registers you and tracks your work"
 Enter
 Sleep 800ms
-Type `pd begin "Building the payment API" --lifecycle durable`
+Type `pd begin "Building the payment API" --lifecycle durable --sidequest "readme quickstart demo"`
 Enter
 Sleep 2s
 
@@ -57,7 +63,7 @@ Sleep 2s
 Type "# Wrap up - ends session cleanly"
 Enter
 Sleep 800ms
-Type `pd done "Payment API complete, all tests passing"`
+Type `pd done "Payment API complete, all tests passing. no-pr-yet: demo session"`
 Enter
 Sleep 2s
 

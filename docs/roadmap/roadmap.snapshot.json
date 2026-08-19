@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1787086097875,
+  "generatedAt": 1787122454049,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 274,
+  "count": 275,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -1168,6 +1168,11 @@
       "slug": "provenance-gated-git-guard",
       "status": "backlog",
       "summaryMd": "ADR-0119: git-guard has no agent-mintable escape. PD_SHIM_OFF removed from shim + pre-push hook; refusal points only to corrective action. Renumbered from colliding 0102 (salvage-envelope owns 0102). Stale bypass-still-works tests inverted to assert removal; red-team fixture proves no in-band escape. (PR #3145)"
+    },
+    {
+      "slug": "readme-front-door-and-accuracy-gate",
+      "status": "merge",
+      "summaryMd": "Rewrite the README from a 1046-line feature list into a 268-line front door, and gate it so it stays true. Ships skills/readme-craft (the craft, encoded, with a project-agnostic scorecard and a fence-parser library), scripts/check-readme-accuracy.mjs (release-blocking: every pd verb/flag resolved against cli/permission-tiers.ts, every image/link resolved, length budget enforced, --run executed against a brew-installed daemon in the fresh-install smoke), and a line-scoped docstring ratchet. The documentarian ship owns ongoing upkeep with explicit limits. Open follow-ups: dark-variant GIF placeholders (quickstart/salvage/mayday are 1.4KB stubs), per-verb flag declarations in the CLI (would narrow the corpus-wide flag check), and burning down the pre-existing docstring backlog."
     },
     {
       "slug": "release-safety-pipeline",
