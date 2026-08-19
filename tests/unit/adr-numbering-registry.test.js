@@ -63,6 +63,13 @@ describe('ADR numbering registry (post 0119→0121 renumber)', () => {
     }
   });
 
+  test('stubs and live entries are disjoint — no file is both', () => {
+    const liveFiles = new Set(Object.values(registry.numbers));
+    for (const stub of registry.stubs) {
+      expect(liveFiles.has(stub.file)).toBe(false);
+    }
+  });
+
   test('no live ADR file on disk is missing from the registry', () => {
     const onDisk = readdirSync(ADR_DIR).filter((f) => /^\d{4}-.*\.md$/.test(f));
     const registered = new Set([

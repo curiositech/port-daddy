@@ -1365,6 +1365,10 @@ describe('isAbsoluteCronSchedule', () => {
     // module doesn't walk weekdays, so it declines rather than fire on the
     // wrong day — parseCronInterval's coarser fallback still applies.
     expect(isAbsoluteCronSchedule('0 8 * * 1')).toBe(false);
+    // Same honesty for a constrained day-of-month and a fully-pinned date:
+    // any non-'*' calendar field declines to the interval fallback.
+    expect(isAbsoluteCronSchedule('0 1 15 * *')).toBe(false);
+    expect(isAbsoluteCronSchedule('0 1 15 6 *')).toBe(false);
   });
 
   test('rejects a constrained day-of-month field', () => {
