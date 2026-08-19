@@ -183,12 +183,43 @@ const FALLBACK_MAP_CHUNK_CHARS = 12_000;
 export function mapChunkCharLimit(mapModel: string): number {
   if (!hasKnownContextWindow(mapModel)) return FALLBACK_MAP_CHUNK_CHARS;
   const chars = MODEL_CONTEXT_TOKENS[mapModel] * CHARS_PER_TOKEN * CONTEXT_BUDGET_FRACTION;
-  return Math.max(FALLBACK_MAP_CHUNK_CHARS, Math.floor(chars));
+  return Math.min(MAP_CHUNK_CHARS_CEILING, Math.max(FALLBACK_MAP_CHUNK_CHARS, Math.floor(chars)));
 }
 
+/**
+ * Hard ceiling on the per-chunk character budget, whatever the model's window.
+ *
+ * WHY (issue #7743, 2026-08-19): deriving the budget purely from the context
+ * window turned a 128k-token model into ~192KB chunks — 16× the budget that
+ * shipped for months — and every in-flight MAP call holds several copies of
+ * its chunk (the chunk string, the composed prompt, the serialized request).
+ * Multiplied by the fan-out, peak resident memory scaled with window size ×
+ * concurrency, and runs began dying to uncatchable platform kills (attempt
+ * markers with no recorded failure — memory, not CPU: attempts died well
+ * under the 300s cpu_ms ceiling's reach). A model's ABILITY to read 192KB per
+ * call was never a reason to spend isolate memory doing so; 48KB (~16k
+ * tokens) is ample diff context per call and keeps the memory product an
+ * order of magnitude smaller.
+ */
+const MAP_CHUNK_CHARS_CEILING = 48_000;
 
-/** Bound Workers AI fan-out so large diffs finish without a rate-limit stampede. */
-const MAP_CONCURRENCY = 8;
+/**
+ * Bound Workers AI fan-out so large diffs finish without a rate-limit
+ * stampede — and, since #7743, so concurrent in-flight prompts stop being a
+ * memory multiplier: halved from 8, because 4 × the chunk ceiling bounds the
+ * in-flight prompt text where 8 × an unbounded budget did not.
+ */
+const MAP_CONCURRENCY = 4;
+
+/**
+ * Cap on MAP chunks per ship. Bounds all three budgets a huge diff would
+ * otherwise spend freely — memory (chunks held), wall-clock (waves × call
+ * latency inside the queue consumer's window), and dollars (calls). A diff
+ * beyond the cap is reviewed on its first chunks, and the truncation is
+ * recorded HONESTLY: a `map-truncated` transcript step names how much was
+ * dropped, so a partial review can never masquerade as a full one.
+ */
+const MAX_MAP_CHUNKS_PER_SHIP = 8;
 /** The umbrella check-run name. Exported so the DLQ handler targets the same run. */
 export const CHECK_NAME = 'Port Daddy Fleet';
 
@@ -1613,7 +1644,21 @@ async function runShip(
     // nothing, so a genuinely all-generated PR still gets looked at rather than
     // silently passing.
     const reviewableDiff = filterDiffToReviewable(prCtx.diff);
-    const chunks = chunkDiff(reviewableDiff || prCtx.diff, mapChunkCharLimit(mapModelFor(ship)));
+    const allChunks = chunkDiff(reviewableDiff || prCtx.diff, mapChunkCharLimit(mapModelFor(ship)));
+    // Cap the MAP fan-out per ship (#7743): memory, wall-clock and spend all
+    // scale with chunk count, and an oversized diff must degrade to an honest
+    // partial review — recorded below — rather than kill the whole run.
+    const chunks = allChunks.slice(0, MAX_MAP_CHUNKS_PER_SHIP);
+    if (allChunks.length > chunks.length) {
+      const dropped = allChunks.length - chunks.length;
+      const droppedChars = allChunks.slice(chunks.length).reduce((n, c) => n + c.length, 0);
+      await transcript.step(
+        'map-truncated',
+        ship.name,
+        `Diff truncated for review: ${dropped} of ${allChunks.length} chunks dropped (~${Math.round(droppedChars / 1000)}KB)`,
+        { keptChunks: chunks.length, totalChunks: allChunks.length, droppedChars },
+      );
+    }
 
     // Lookout's tools: cross-PR / cross-branch awareness. Fetched once per run and
     // injected into every MAP chunk so it can spot contradictions and duplication
