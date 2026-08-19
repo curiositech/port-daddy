@@ -53,7 +53,7 @@ function scaffold(root, version) {
   w('website-v2/src/data/referenceCatalog.ts', `export const PORT_DADDY_VERSION = '${version}';\n`);
   w('VERSION', `${version}\n`);
   w('core/pd-console/Cargo.toml', `[package]\nname = "pd-console"\nversion = "${version}"\nedition = "2021"\n`);
-  w('README.md', `# ⚓ Port Daddy (v${version})\n\nHello.\n`);
+  w('README.md', `<!-- pd:version ${version} -->\n# ⚓ Port Daddy\n\nHello.\n`);
   w('docs/openapi.yaml', `openapi: 3.1.0\ninfo:\n  title: Port Daddy API\n  version: ${version}\n`);
 }
 
@@ -78,7 +78,10 @@ describe('version drift gate (scripts/check-version-drift.mjs)', () => {
     expect(stdout).toMatch(/VERSION →/);
     expect(stdout).toMatch(/core\/pd-console\/Cargo\.toml/);
     // The front-door surfaces added after the README rotted at 3.13 for months.
-    expect(stdout).toMatch(/README\.md \(title version\)/);
+    // The stamp lives in a machine anchor rather than the H1: a version baked into
+    // the title is a drift surface with no reader benefit, since the npm badge
+    // reports the published version live.
+    expect(stdout).toMatch(/README\.md \(version anchor\)/);
     expect(stdout).toMatch(/docs\/openapi\.yaml \(info\.version\)/);
   });
 
