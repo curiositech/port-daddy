@@ -163,4 +163,30 @@ describe('reproducible whitepaper source scoping', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  // The renderer is the other half of reproducibility, and the half that was
+  // missing. SOURCE_DATE_EPOCH pinning makes a rebuild of unchanged source
+  // byte-identical on the SAME TeX Live; it does nothing across versions. On
+  // 2026-08-16 `texlive/texlive:latest` was republished, and the PGF/TikZ update
+  // it carried rewrote five PDFs whose sources had not moved.
+  test('the whitepaper renderer is pinned by digest, not by a floating tag', () => {
+    const workflow = readFileSync(
+      join(repoRoot, '.github', 'workflows', 'whitepaper-build.yml'), 'utf8');
+
+    expect(workflow).toMatch(/image:\s*texlive\/texlive@sha256:[0-9a-f]{64}/);
+    expect(workflow).not.toMatch(/image:\s*texlive\/texlive:latest/);
+  });
+
+  test('a renderer re-pin stands the restore guard down', () => {
+    // Without this the two guards fight: re-pinning the renderer legitimately
+    // moves every artifact, but no TeX source changed, so the restore step would
+    // revert the whole re-render and the repository could never adopt a new TeX
+    // Live at all.
+    const workflow = readFileSync(
+      join(repoRoot, '.github', 'workflows', 'whitepaper-build.yml'), 'utf8');
+
+    expect(workflow).toContain('renderer_changed=1');
+    expect(workflow).toMatch(/\^\[-\+\]\[\[:space:\]\]\*image:\[\[:space:\]\]\*texlive\/texlive/);
+    expect(workflow).toContain('if [ "$renderer_changed" = "0" ]');
+  });
 });
