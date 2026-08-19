@@ -11,6 +11,7 @@ import {
   type PurserMetrics,
 } from '../src/purser.js';
 import { parseFleetShips, PURSER_DEFAULT_GRAFT, type ShipConfig } from '../src/fleet.js';
+import { aggregateConclusion } from '../src/verdict.js';
 import { executeFleet } from '../src/execute.js';
 import type { PRContext } from '../src/github.js';
 import {
@@ -247,6 +248,8 @@ describe('runPurser — steel-man failure modes', () => {
     // failed to build, but it also never quietly passes over its own breakage —
     // errored:true fails the run so the malformed steel-man gets fixed.
     expect(result).toMatchObject({ ship: 'purser', blocking: true, verdict: 'BLOCK', errored: true });
+    // …and that errored result really does resolve to a run-level failure.
+    expect(aggregateConclusion([result])).toBe('failure');
     const step = rec.steps.find(s => s.kind === 'purser-steelman');
     expect(step).toBeDefined();
     expect(step!.title).toMatch(/MALFORMED/);

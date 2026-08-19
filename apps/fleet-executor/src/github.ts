@@ -589,12 +589,19 @@ export async function upsertPrBodySection(
     const block = `${startMarker}\n${section}\n${endMarker}`;
     const startIdx = current.indexOf(startMarker);
     const endIdx = current.indexOf(endMarker);
-    const next =
-      startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx
-        ? current.slice(0, startIdx) + block + current.slice(endIdx + endMarker.length)
-        : current.trimEnd()
-          ? `${current.trimEnd()}\n\n${block}`
-          : block;
+    const bothAbsent = startIdx === -1 && endIdx === -1;
+    const wellFormedPair = startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx;
+    // A body carrying only ONE of the markers, or the pair inverted, is a
+    // corrupted section (someone hand-edited it). Appending here would plant a
+    // duplicate marker, and the NEXT replace would then span from the orphan
+    // to the far marker — swallowing whatever author prose sat between them.
+    // Refuse instead; the caller transcripts the miss loudly.
+    if (!bothAbsent && !wellFormedPair) return false;
+    const next = wellFormedPair
+      ? current.slice(0, startIdx) + block + current.slice(endIdx + endMarker.length)
+      : current.trimEnd()
+        ? `${current.trimEnd()}\n\n${block}`
+        : block;
     if (next === current) return true; // already up to date — no write needed
     if (next.length > GITHUB_PR_BODY_MAX) return false; // never truncate a human's body
     const patch = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
