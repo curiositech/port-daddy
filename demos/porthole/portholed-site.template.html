@@ -1,0 +1,295 @@
+<meta charset="utf-8">
+<title>Porthole — terminal recordings that are real text</title>
+@@PLAYER_CSS@@
+<style>
+  /* ── portholed.com brand layer ── */
+  :root {
+    --brass: #c9963f; --brass-hi: #e3b45f; --sea: #0a0f16; --sea-2: #0f1620;
+    --s-bg: var(--sea); --s-card: var(--sea-2); --s-text: #fbf7ef; --s-mut: #97a0ac;
+    --s-hair: rgba(251,247,239,0.13); --s-code-bg: #101722;
+  }
+  :root[data-theme="light"] {
+    --brass: #a0731f; --brass-hi: #c9963f; --s-bg: #fbf7ef; --s-card: #f2ecdf;
+    --s-text: #17191d; --s-mut: #5c6470; --s-hair: rgba(23,25,29,0.15); --s-code-bg: #efe8d8;
+  }
+  body { background: var(--s-bg); color: var(--s-text); }
+  .site { max-width: 1120px; margin: 0 auto; padding: 0 28px 80px; }
+  .draft { position: fixed; top: 14px; right: -44px; transform: rotate(38deg); z-index: 50;
+    background: var(--brass); color: #17191d; font: 700 11px/1 var(--mono); letter-spacing: 0.12em;
+    padding: 7px 48px; }
+
+  .nav { display: flex; align-items: center; gap: 14px; padding: 22px 0 0; }
+  .nav .sp { flex: 1; }
+  .nav a { color: var(--s-mut); font-size: 13px; text-decoration: none; }
+  .nav a:hover { color: var(--s-text); }
+  .wordmark { display: flex; align-items: center; gap: 11px; font: 700 17px var(--mono); color: var(--s-text); }
+
+  /* CSS porthole logo: brass ring, bolts, glass, caret */
+  .ring { position: relative; width: 34px; height: 34px; border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, var(--brass-hi), var(--brass) 58%, #8a6420);
+    display: grid; place-items: center; flex: none; }
+  .ring::before { content: ""; position: absolute; inset: 5px; border-radius: 50%; background: #0b1018;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.8); }
+  .ring i { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #6e5019; }
+  .ring i:nth-child(1){top:2px;left:50%;margin-left:-1.5px} .ring i:nth-child(2){bottom:2px;left:50%;margin-left:-1.5px}
+  .ring i:nth-child(3){left:2px;top:50%;margin-top:-1.5px} .ring i:nth-child(4){right:2px;top:50%;margin-top:-1.5px}
+  .ring b { position: relative; width: 7px; height: 11px; background: var(--lime); animation: blink 1.2s steps(1) infinite; }
+
+  .hero { padding: 56px 0 26px; }
+  .hero h1 { font-size: clamp(30px, 4.6vw, 56px); font-weight: 700; line-height: 1.05;
+    letter-spacing: -0.015em; max-width: 24ch; text-wrap: balance; margin: 0; }
+  .hero h1 em { font-style: normal; color: var(--brass-hi); }
+  .hero .sub { font-size: 15.5px; color: var(--s-mut); max-width: 62ch; margin: 16px 0 0; }
+  .hero .sub b { color: var(--s-text); }
+  .install { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 22px 0 34px; }
+  .install code { background: var(--s-code-bg); border: 1px solid var(--s-hair); padding: 11px 16px;
+    font: 600 13.5px var(--mono); color: var(--s-text); user-select: all; }
+  .install code::before { content: "$ "; color: var(--lime); }
+  .install .soon { font-size: 12px; color: var(--s-mut); }
+
+  section.blk { margin-top: 74px; }
+  .eyebrow2 { font: 700 12px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--brass-hi); margin-bottom: 10px; }
+  .blk h2 { font-size: clamp(22px, 3vw, 34px); line-height: 1.12; margin: 0 0 12px; max-width: 30ch; text-wrap: balance; }
+  .blk .body { font-size: 14.5px; color: var(--s-mut); max-width: 68ch; }
+  .blk .body b { color: var(--s-text); }
+  .blk .body a { color: var(--cobalt); }
+  :root[data-theme="dark"] .blk .body a { color: #7ea6ff; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 22px; }
+  .stat { background: var(--s-card); border: 1px solid var(--s-hair); padding: 18px 16px; }
+  .stat .n { font: 700 30px var(--mono); color: var(--rust); font-variant-numeric: tabular-nums; }
+  .stat .k { font-size: 12.5px; color: var(--s-mut); margin-top: 6px; }
+
+  .pillars { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 26px; }
+  .pillar { background: var(--s-card); border: 1px solid var(--s-hair); border-top: 3px solid var(--brass); padding: 20px 18px; }
+  .pillar h3 { margin: 0 0 8px; font-size: 15px; }
+  .pillar p { font-size: 13.5px; color: var(--s-mut); margin: 0 0 12px; }
+  .pillar pre { background: var(--s-code-bg); border: 1px solid var(--s-hair); padding: 12px; margin: 0;
+    font: 12.5px/1.6 var(--mono); overflow-x: auto; }
+  .pillar pre .c { color: var(--lime); } .pillar pre .d { color: var(--s-mut); }
+
+  .personas { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-top: 24px; }
+  .persona { border: 1px solid var(--s-hair); padding: 18px 16px; background: var(--s-card); }
+  .persona .who { font: 700 13px var(--mono); color: var(--brass-hi); }
+  .persona .trigger { font-size: 13.5px; margin: 8px 0 10px; }
+  .persona .flow { font: 12px/1.7 var(--mono); color: var(--s-mut); }
+  .persona .flow code { color: var(--s-text); }
+
+  .tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 24px; }
+  .tier { border: 1px solid var(--s-hair); background: var(--s-card); padding: 22px 20px; }
+  .tier.mid { border-color: var(--brass); }
+  .tier h3 { margin: 0; font-size: 15px; }
+  .tier .price { font: 700 26px var(--mono); margin: 10px 0 4px; }
+  .tier .price small { font-size: 12px; color: var(--s-mut); font-weight: 400; }
+  .tier ul { margin: 12px 0 0; padding: 0; list-style: none; font-size: 13px; color: var(--s-mut); }
+  .tier li { padding: 5px 0 5px 18px; position: relative; }
+  .tier li::before { content: "⚓"; position: absolute; left: 0; font-size: 10px; color: var(--brass-hi); }
+
+  .faq { margin-top: 22px; max-width: 76ch; }
+  .faq dt { font: 700 14px var(--mono); margin-top: 20px; }
+  .faq dd { margin: 8px 0 0; font-size: 14px; color: var(--s-mut); }
+  .faq dd b { color: var(--s-text); }
+
+  .foot { margin-top: 90px; padding-top: 22px; border-top: 1px solid var(--s-hair);
+    display: flex; flex-wrap: wrap; gap: 10px 26px; font-size: 12.5px; color: var(--s-mut); }
+  .foot a { color: var(--s-mut); text-decoration: none; }
+  .foot a:hover { color: var(--s-text); }
+  .foot .fam b { color: var(--brass-hi); }
+</style>
+
+<div class="draft">DESIGN DRAFT</div>
+<div class="site">
+  <nav class="nav">
+    <span class="wordmark"><span class="ring"><i></i><i></i><i></i><i></i><b></b></span>porthole</span>
+    <span class="sp"></span>
+    <a href="#record">record</a><a href="#test">test</a><a href="#share">share</a><a href="#pricing">pricing</a>
+    <a href="https://portdaddy.dev">by port daddy ↗</a>
+  </nav>
+
+  <header class="hero">
+    <h1>Rewind your terminal. <em>The whole session. Every line. One link.</em></h1>
+    <p class="sub">Porthole records the real session — every byte, every color, every timestamp — and replays it
+    with <b>full scrollback</b>: the part every terminal player throws away and every GIF never had.
+    Scroll the history. Search it. Copy the exact command. Freeze it as a CI golden so the demo can’t rot.
+    The recording below is live — try the ◐ toggle, the speed chips, or select any line.</p>
+    <div class="install">
+      <code>brew install curiositech/tap/porthole</code>
+      <span class="soon">in development — this page is the working design draft</span>
+    </div>
+  </header>
+
+  <div class="cast-tabs" role="tablist" id="tabs"></div>
+  <section class="win" aria-label="Terminal replay">
+    <div class="win-bar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="win-title"><b id="titleName">pd</b><span id="titleDims"></span></div>
+      <div style="display:flex; gap:10px; align-items:center;"><span class="win-hint">select any line — it’s real text</span><button class="theme-btn" id="themeBtn" aria-label="Toggle light/dark theme">◐</button></div>
+    </div>
+    <div class="term-wrap">
+      <div class="term-scroll" id="term" tabindex="0" aria-live="off"></div>
+      <div class="scroll-cues"><button id="cueUp" aria-label="Scroll up">▲</button><button id="cueDn" aria-label="Scroll down">▼</button></div>
+      <button class="resume-pill" id="resume">▼ resume follow</button>
+    </div>
+    <div class="ctl">
+      <button id="play" aria-label="Play or pause">❚❚</button>
+      <button id="restart" aria-label="Restart">↺</button>
+      <div class="speeds" id="speeds"></div>
+      <div class="seek" id="seek"><div class="rail"><div class="fill" id="fill"></div></div></div>
+      <div class="time" id="time">0.0s / 0.0s</div>
+      <button id="speedCycle" aria-label="Cycle playback speed">1×</button>
+      <button id="wrapBtn" aria-pressed="false" aria-label="Toggle line wrapping">↩<span class="lbl"> wrap</span></button>
+      <button id="copyAll" aria-label="Copy full transcript">⧉<span class="lbl"> transcript</span></button>
+    </div>
+  </section>
+  <div class="provenance" id="prov"></div>
+
+  <section class="blk">
+    <div class="eyebrow2">why this exists</div>
+    <h2>We audited our own demo GIFs. It went badly.</h2>
+    <p class="body">Before building Porthole we read all 47 terminal recordings on our own site, byte by byte.
+    The pipeline truncated every command at 18 lines. Errors shipped on camera and nobody noticed,
+    because <b>nobody reviews pixels</b>. A recording that is text gets reviewed like text — in the PR diff.</p>
+    <div class="stats">
+      <div class="stat"><div class="n">12/47</div><div class="k">recordings shipped errors, empty payoffs, or corrupted commands on camera</div></div>
+      <div class="stat"><div class="n">18</div><div class="k">lines — everything past this was silently amputated by the old pipeline</div></div>
+      <div class="stat"><div class="n">~13%</div><div class="k">of each terminal cropped off by CSS on two pages. Pixels don’t complain.</div></div>
+      <div class="stat"><div class="n">0</div><div class="k">of those recordings were selectable, scrollable, or testable. All of them were GIFs.</div></div>
+    </div>
+  </section>
+
+  <section class="blk" id="record">
+    <div class="eyebrow2">the loop</div>
+    <h2>Record. Test. Share. One cast, three jobs.</h2>
+    <div class="pillars">
+      <div class="pillar" id="rec"><h3>Record</h3>
+        <p>One command, real PTY, open asciicast format. Colors, timing, spinners, full-screen TUIs — vim and tmux replay faithfully. Input is never captured.</p>
+        <pre><span class="c">$</span> porthole rec -c "pd status"
+<span class="d">recorded 14.1s → pd-status.cast</span>
+<span class="c">$</span> porthole open pd-status.cast
+<span class="d">local player → http://localhost:4310</span></pre></div>
+      <div class="pillar" id="test"><h3>Test — demos that can’t rot</h3>
+        <p>Scenarios in <code>porthole.yml</code> re-record in CI and diff the settled transcript against a committed golden. Your demos are now snapshot tests. They cannot rot.</p>
+        <pre><span class="c">$</span> porthole test
+<span class="d">quickstart ✓  transcript matches golden</span>
+<span class="d">salvage    ✗  line 12: "Unknown command"</span>
+<span class="d">→ diff: .porthole/salvage.diff.html</span></pre></div>
+      <div class="pillar" id="share"><h3>Share</h3>
+        <p>A hosted, scrubbable link that deep-links to any line — cite line 482 of an incident the way you cite a stack frame. Secret scrub runs before anything leaves your machine.</p>
+        <pre><span class="c">$</span> porthole share pd-status.cast
+<span class="d">scrub: 0 findings · 14s · public</span>
+<span class="d">→ portholed.com/p/x7Qk2 (copied)</span></pre></div>
+    </div>
+  </section>
+
+  <section class="blk">
+    <div class="eyebrow2">flight recorder</div>
+    <h2>The bug happened an hour ago. The replay still exists.</h2>
+    <p class="body">With the shell hook enabled, Porthole keeps the last 15 minutes of your terminal in a
+    local ring buffer — never uploaded, input never captured. When something breaks,
+    <code>porthole save-last 10m</code> turns hindsight into a cast. Attach it to the issue and the
+    maintainer watches the failure happen: the exact flags, the 40-second hang, the error that
+    flashed past. <b>“Steps to reproduce” becomes a link.</b> CLI authors can embed the same ring
+    buffer in-process and offer a replay on crash — session replay for terminals.</p>
+  </section>
+
+  <section class="blk">
+    <div class="eyebrow2">who reaches for it</div>
+    <h2>Six people, one recorder.</h2>
+    <div class="personas">
+      <div class="persona"><div class="who">the maintainer</div>
+        <div class="trigger">The README GIF shows flags that were removed two releases ago.</div>
+        <div class="flow"><code>porthole rec</code> → <code>embed --readme</code> → CI golden test. The demo can’t lie anymore.</div></div>
+      <div class="persona"><div class="who">the devrel engineer</div>
+        <div class="trigger">Forty tutorial pages, and every release quietly stales a few.</div>
+        <div class="flow"><code>porthole.yml</code> in docs CI → embeds re-record per release → drift fails the build.</div></div>
+      <div class="persona"><div class="who">the bug reporter</div>
+        <div class="trigger">It broke twenty minutes ago and the repro is already fading.</div>
+        <div class="flow">flight recorder → <code>save-last 10m</code> → <code>share --issue</code>. The maintainer scrubs at 2×.</div></div>
+      <div class="persona"><div class="who">the incident responder</div>
+        <div class="trigger">Shift change, 2 a.m., mid-incident. The next on-call needs the whole trail.</div>
+        <div class="flow"><code>rec --attach</code> on the tmux pane → <code>share --team</code> → timestamped handoff.</div></div>
+      <div class="persona"><div class="who">the educator</div>
+        <div class="trigger">Students screenshot slides and re-type commands with the wrong quotes.</div>
+        <div class="flow">record once → students pause at 0.5× and copy every command. No install for them.</div></div>
+      <div class="persona"><div class="who">the fleet operator</div>
+        <div class="trigger">A PR says “tests pass.” The receipt should show the terminal proving it.</div>
+        <div class="flow">agents auto-record → PR links the replay with exit-status provenance → review at 2×.</div></div>
+    </div>
+  </section>
+
+  <section class="blk">
+    <div class="eyebrow2">yours, not ours</div>
+    <h2>Reskin it with CSS variables. Nothing else.</h2>
+    <p class="body">The player is headless-core + tokens: every color is a documented <code>--ph-*</code>
+    custom property, state is exposed as <code>data-*</code> attributes, and the default skin is one
+    plain stylesheet you can skip. The ◐ toggle above is the token system working — your site’s
+    dark-mode switch drives every embed the same way.</p>
+    <div class="pillars" style="margin-top:18px">
+      <div class="pillar"><h3>Your brand, three lines</h3><pre>porthole-player {
+  --ph-bg: #0c1020; --ph-4: #7aa2ff;
+  --ph-font: "Berkeley Mono", monospace;
+}</pre></div>
+      <div class="pillar"><h3>Or faithful mode</h3><pre>&lt;porthole-player src="demo.cast"
+   theme="faithful"&gt;
+<span class="d">← replays the palette the recorder’s
+   terminal actually used</span></pre></div>
+    </div>
+  </section>
+
+  <section class="blk" id="pricing">
+    <div class="eyebrow2">pricing (draft)</div>
+    <h2>Free to record forever. Pay for the places it lives.</h2>
+    <div class="tiers">
+      <div class="tier"><h3>Free</h3><div class="price">$0</div>
+        <ul><li>record, replay, test locally — no account, ever</li><li>anonymous shares live 7 days</li><li>signed in: 3 permanent public links + README embed kit</li></ul></div>
+      <div class="tier mid"><h3>Pro</h3><div class="price">$9 <small>/mo, draft</small></div>
+        <ul><li>unlimited permanent links, private + expiring</li><li>full-transcript search, line deep-links</li><li>custom-domain embeds, no watermark</li></ul></div>
+      <div class="tier"><h3>Team</h3><div class="price">$10 <small>/seat, draft</small></div>
+        <ul><li>org library, SSO, retention policy</li><li>golden-transcript CI runner reporting into PRs</li><li>named slots: docs embeds that update on release</li></ul></div>
+    </div>
+  </section>
+
+  <section class="blk">
+    <div class="eyebrow2">honest answers</div>
+    <h2>The questions you’d ask next.</h2>
+    <dl class="faq">
+      <dt>Does it capture full-screen TUIs — vim, htop, tmux?</dt>
+      <dd>Capture: always — a PTY recorder gets every byte. Replay: TUIs render in a faithful
+      fixed grid (never wrapped), and their final frame stays in the transcript when they exit.
+      The <b>TUI (vim)</b> tab above is a live example.</dd>
+      <dt>What about secrets?</dt>
+      <dd>Keystrokes are never recorded. Before any share, a scrubber scans the reconstructed
+      transcript for paths, tokens, and emails and makes you look at what it found. Local files
+      never leave your machine without an explicit <code>share</code>.</dd>
+      <dt>Can I put one in a GitHub README?</dt>
+      <dd>GitHub strips scripts, so the embed kit generates an SVG poster of your payoff frame —
+      still real text in the SVG — linking to the live player.</dd>
+      <dt>Isn’t this asciinema?</dt>
+      <dd>asciinema is excellent and Porthole speaks its format natively. The difference is what
+      happens after capture: terminal players — asciinema’s included — replay a fixed viewport, so
+      anything that scrolls off the top is gone. Porthole keeps <b>the whole session</b>, adds the
+      flight recorder, and turns recordings into CI assertions. Your existing .cast files work here
+      unchanged.</dd>
+      <dt>What format is a recording?</dt>
+      <dd><b>asciicast</b> — the open NDJSON format from asciinema. No lock-in: your casts play
+      in any asciicast tool, and Porthole plays any asciicast you already have.</dd>
+      <dt>Self-host?</dt>
+      <dd><code>porthole export --html</code> emits a single self-contained file — player, cast,
+      themes, zero dependencies. Host it anywhere. This page’s player is exactly that file.</dd>
+    </dl>
+  </section>
+
+  <footer class="foot">
+    <span class="fam"><b>porthole</b> is a Port Daddy instrument</span>
+    <a href="https://portdaddy.dev">portdaddy.dev</a>
+    <a href="#">portholed.com</a>
+    <a href="#">harbord.ai</a>
+    <a href="#">agentsd.ai</a>
+    <span>© 2026 Curiositech</span>
+  </footer>
+</div>
+<div class="toast" id="toast">copied</div>
+
+<script type="text/plain" id="cast-quickstart">@@CAST_QUICKSTART@@</script>
+<script type="text/plain" id="cast-tui">@@CAST_TUI@@</script>
+@@PLAYER_JS@@

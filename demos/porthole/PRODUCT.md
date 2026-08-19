@@ -155,3 +155,52 @@ architecture the ecosystem converged on:
    own their chrome while the engine stays an npm dependency that keeps updating.
 
 Opinionated default skin is fine — the sin is opinion without exits.
+
+## 9. Flight recorder — retrospective bug replay (operator question, answered: yes)
+
+CLI apps can absolutely use this for retrospective bug reporting, and it may be the
+single most viral capability:
+
+- **Shell-level**: `porthole enable-flight` installs a shell-init hook that keeps a
+  rolling ring buffer (default: last 15 min or 2MB of PTY bytes + timestamps, in a
+  0600 local file, never uploaded). After something breaks: `porthole save-last 10m`
+  materializes the buffer as a cast; secret-scrub runs before any `share`.
+- **App-level SDK**: a CLI author embeds the recorder in-process (it is just bytes +
+  monotonic timestamps — trivial overhead). On crash/panic the app prints:
+  "replay of the last 5 minutes saved to ./crash-1234.cast — attach it with
+  `porthole share --issue`". Sentry Session Replay, but for terminals, and the
+  artifact is an open text format the maintainer can grep.
+- **Why replay beats logs for bugs**: the maintainer sees *order and timing* — the
+  flag the reporter actually typed, the spinner that hung for 40s, the error that
+  flashed and scrolled away. Scrub at 2×, pause on the failure frame, copy the exact
+  command. "Steps to reproduce" becomes a link.
+- **Trust boundaries**: local-first by default; ring buffer never leaves the machine
+  without an explicit share; input keystrokes are never captured; scrub is mandatory
+  interactive on first share to a public target.
+
+## 10. Positioning (competitive cartography, 2026-08-19)
+
+Full research in PR discussion. Load-bearing corrections and rulings:
+- **Do not lead with "selectable text"** — asciinema's player is DOM text and advertises
+  copy-paste. The empty positions on the map are: (1) **scrollback in a shared replay**
+  (zero products), (2) **retroactive flight-recorder capture** (zero terminal-native
+  products; Sentry proved the demand shape), (3) **promoting a real session into a CI
+  assertion** (VHS golden-tests scripts, never captures), (4) hosted+embeddable+tested
+  in one artifact, (5) line-level deep links, (6) hosted redaction.
+- **Frame: "the terminal's flight recorder."** Taglines: "Rewind your terminal." /
+  "Demos that can't rot." / "The whole session. Every line. One link."
+- **Sequencing:** scrollback+search+share first (demoable wedge) → flight recorder
+  (moat) → golden-transcript CI (monetization). Do NOT enter via agent-JSONL replay —
+  three entrants in six months (claude-replay 815★, AgentReplay, AGR); our PTY-level
+  capture out-scopes them but arguing there wastes the launch.
+- **Tiers (evidence-fitted):** Free = unlimited local + 7-day anonymous shares
+  (asciinema's own archival precedent) + 3 permalinks signed-in; Pro ~$9/mo = permanent/
+  private links, search, deep-links, custom domains; Team ~$10/seat = org library, SSO,
+  CI runner. CI is the paid wedge; storage is the COGS trap (LogRocket lesson). Don't
+  gate privacy hostilely (CodeSandbox/Excalidraw norm).
+- **VHS relationship:** complement, not enemy — VHS scripts demos; Porthole records
+  sessions; "record once, assert forever" flanks it where tapes drift from reality.
+- **⚠ Naming risk:** github.com/subh05sus/porthole is an existing terminal *port-management*
+  tool (kill switch/service viewer TUI) — "porthole under Port Daddy" may read as another
+  port utility, fighting the flight-recorder frame. Operator decision needed before brand
+  equity accrues to portholed.com.
