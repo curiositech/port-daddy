@@ -10,7 +10,9 @@
  *
  * For each dead-lettered {@link FleetRunJob} it: mints an installation token,
  * finds the stuck check run for the PR head SHA, completes it as **failure**, and
- * emits an error telemetry event so the drop is operator-visible. Best-effort per
+ * emits an error telemetry event so the drop is operator-visible. The summary it
+ * writes carries the LAST recorded per-attempt failure (delivery-failure.ts), so
+ * the gate says what killed the run instead of only that it died. Best-effort per
  * message; a failure here is logged and the message acked (it has already
  * exhausted retries — re-queuing it would loop).
  */
@@ -24,6 +26,11 @@ import {
 import { emitCloudTelemetry } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
 import { CHECK_NAME, ensureRunRow } from './execute.js';
+import {
+  deadLetterSummary,
+  readLastDeliveryFailure,
+  runIdForDelivery,
+} from './delivery-failure.js';
 
 interface DlqTarget {
   owner: string;
@@ -54,11 +61,24 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
     return;
   }
   const { owner, repo, headSha, installationId, prNumber } = target;
-  const summary =
-    `pd-fleet: run for ${owner}/${repo} PR #${prNumber ?? '?'} was lost (job exhausted retries / ` +
-    `dead-lettered). This gate is failed rather than left stuck in-progress.`;
+  // Same deterministic run id the main consumer used, so the failed gate still
+  // links to whatever transcript the lost run managed to write — and so the
+  // per-attempt failures the retry path recorded are readable from here.
+  const runId = runIdForDelivery(job.deliveryId);
 
   try {
+    // Inside the try deliberately. This function is documented "never throws",
+    // and its caller acks the message immediately after it returns; a throw
+    // here would leave a dead-lettered job unacked on a queue whose own
+    // max_retries is 1. readLastDeliveryFailure guards itself, but that
+    // guarantee should be enforced here rather than borrowed from a second
+    // function's discipline.
+    const summary = deadLetterSummary(
+      owner,
+      repo,
+      prNumber,
+      await readLastDeliveryFailure(env, runId),
+    );
     const token = await getInstallationTokenCached(
       env.GITHUB_APP_ID,
       env.GITHUB_APP_PRIVATE_KEY,
@@ -67,9 +87,6 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
     );
     const checkRunId = await findFleetCheckRun(owner, repo, headSha, CHECK_NAME, token);
     if (checkRunId) {
-      // Same deterministic run id the main consumer used, so the failed gate
-      // still links to whatever transcript the lost run managed to write.
-      const runId = `run:${job.deliveryId}`;
       const detailsUrl = await runDetailsUrl(env, runId);
       // This path never calls recordRunStart at all, so without this the
       // details_url it publishes would always 404 ("Run not found") — the

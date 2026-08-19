@@ -855,18 +855,32 @@ export async function findFleetCheckRunState(
   headSha: string,
   name: string,
   token: string,
-): Promise<{ id: number; status: string; conclusion: string | null } | null> {
+): Promise<{ id: number; status: string; conclusion: string | null; summary: string } | null> {
   const res = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/commits/${headSha}/check-runs?per_page=100`,
     { headers: ghHeaders(token) },
   );
   if (!res.ok) return null;
   const body = (await res.json()) as {
-    check_runs?: Array<{ id: number; name: string; status?: string; conclusion?: string | null }>;
+    check_runs?: Array<{
+      id: number;
+      name: string;
+      status?: string;
+      conclusion?: string | null;
+      output?: { summary?: string | null } | null;
+    }>;
   };
   const match = (body.check_runs ?? []).find(c => c.name === name);
   if (!match) return null;
-  return { id: match.id, status: match.status ?? '', conclusion: match.conclusion ?? null };
+  // `summary` comes back on the list endpoint and carries the DLQ handler's
+  // dead-letter marker, which is how the caller tells a gate that ships decided
+  // apart from one a lost job failed — see dead-letter-marker.ts.
+  return {
+    id: match.id,
+    status: match.status ?? '',
+    conclusion: match.conclusion ?? null,
+    summary: match.output?.summary ?? '',
+  };
 }
 
 // ---------------------------------------------------------------------------
