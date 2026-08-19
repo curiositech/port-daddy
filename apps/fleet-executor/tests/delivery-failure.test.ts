@@ -301,3 +301,58 @@ describe('a dead-lettered check does not strand the head SHA', () => {
     expect(verdict!.summary).not.toContain('dead-lettered');
   });
 });
+
+describe('the read-back path degrades honestly (pd-qa findings on #7377)', () => {
+  it('falls back to the step title when detail is malformed JSON', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    await recordDeliveryFailure(env, makeJob(), 2, new Error('real cause'));
+
+    // Corrupt the stored detail the way a truncated or half-written row would.
+    const step = db.steps.find(s => s.kind === DELIVERY_FAILURE_KIND)!;
+    step.detail = '{"attempt": 2, "error": "unterminated';
+
+    const last = await readLastDeliveryFailure(env, runIdForDelivery('delivery-abc'));
+    // Not null: the row is still evidence. The attempt comes from the seq (which
+    // does not depend on the JSON) and the cause from the human-readable title.
+    expect(last).not.toBeNull();
+    expect(last!.attempt).toBe(2);
+    expect(last!.error).toContain('real cause');
+  });
+
+  it('returns null rather than throwing when the read itself fails', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    await recordDeliveryFailure(env, makeJob(), 1, new Error('written fine'));
+    db.failAll = true; // D1 goes away between the write and the read
+
+    await expect(
+      readLastDeliveryFailure(env, runIdForDelivery('delivery-abc')),
+    ).resolves.toBeNull();
+  });
+
+  it('a failed read still yields a complete dead-letter summary, not a broken one', async () => {
+    state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const env = makeEnv({ FLEET_TOKENS: kv, DB: db.db });
+    await recordDeliveryFailure(env, makeJob(), 3, new Error('cause that will be unreadable'));
+    db.failAll = true;
+
+    await handleDlqJob(makeJob(), env);
+
+    const summary = String(state.completed[0].summary);
+    expect(summary).toContain('dead-lettered');
+    expect(summary).toContain('No per-attempt failure was recorded');
+    // The marker must survive the degraded path, or the SHA stays stranded.
+    expect(summary).toContain(DEAD_LETTER_MARKER);
+  });
+
+  it('names an empty cause instead of trailing a dangling colon', () => {
+    const summary = deadLetterSummary('o', 'r', 7, { attempt: 2, error: '   ' });
+    expect(summary).toContain('carried no readable cause');
+    expect(summary).not.toMatch(/:\s*\n/);
+    expect(summary).toContain(DEAD_LETTER_MARKER);
+  });
+});

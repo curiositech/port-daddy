@@ -190,6 +190,17 @@ export function deadLetterSummary(
       `the transcript — check the fleet-executor Worker logs.\n\n${DEAD_LETTER_MARKER}`
     );
   }
+  // A blank error would render "Last recorded failure (attempt 2): " — a
+  // dangling colon that reads as truncation rather than as absence.
+  // `readLastDeliveryFailure` never emits one, but this function is exported
+  // and its contract should not depend on that.
+  const error = failure.error.trim();
+  if (!error) {
+    return (
+      `${base}\n\nA failure was recorded for this delivery but carried no readable cause.` +
+      `\n\n${DEAD_LETTER_MARKER}`
+    );
+  }
   const which = failure.attempt > 0 ? `attempt ${failure.attempt}` : 'the last attempt';
-  return `${base}\n\nLast recorded failure (${which}): ${failure.error}\n\n${DEAD_LETTER_MARKER}`;
+  return `${base}\n\nLast recorded failure (${which}): ${error}\n\n${DEAD_LETTER_MARKER}`;
 }
