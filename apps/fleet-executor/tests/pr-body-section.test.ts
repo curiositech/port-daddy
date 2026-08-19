@@ -75,6 +75,23 @@ describe('upsertPrBodySection', () => {
     expect(rec.patched).toBe(`${START}\nCONTRACT v1\n${END}`);
   });
 
+  it('refuses a corrupted section — an orphaned or inverted marker pair returns false, no PATCH', async () => {
+    // Appending beside an orphan marker would plant a duplicate, and the NEXT
+    // replace would then swallow author prose between the orphan and the far
+    // marker. Corruption is refused, never papered over.
+    const orphanStart = stubPr(`intro\n${START}\nhalf-deleted section`);
+    expect(await upsert('C')).toBe(false);
+    expect(orphanStart.patched).toBeNull();
+
+    const orphanEnd = stubPr(`intro\n${END}\ntrailing`);
+    expect(await upsert('C')).toBe(false);
+    expect(orphanEnd.patched).toBeNull();
+
+    const inverted = stubPr(`${END}\nbetween\n${START}`);
+    expect(await upsert('C')).toBe(false);
+    expect(inverted.patched).toBeNull();
+  });
+
   it('returns false (never throws) when the GET or PATCH fails — the caller transcripts it', async () => {
     stubPr('x', { failGet: true });
     expect(await upsert('C')).toBe(false);

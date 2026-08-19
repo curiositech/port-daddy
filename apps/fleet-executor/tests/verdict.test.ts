@@ -163,6 +163,15 @@ describe('aggregateConclusion', () => {
     ).toBe('failure');
   });
 
+  it('failure when a BLOCKING ship has no usable output and an advisory ship errored together', () => {
+    expect(
+      aggregateConclusion([
+        r({ blocking: true, verdict: 'PASS', noUsableOutput: true }),
+        r({ errored: true }),
+      ]),
+    ).toBe('failure');
+  });
+
   it('a broken advisory ship dominates an otherwise all-green fleet', () => {
     expect(
       aggregateConclusion([
