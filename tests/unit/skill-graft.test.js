@@ -644,6 +644,19 @@ describe('expandFirstHopCandidates', () => {
     for (const entry of expanded) expect(entry.via).toBeUndefined();
   });
 
+  test('a self-edge never boosts its own seed (belt-and-suspenders guard)', async () => {
+    const { expandFirstHopCandidates, PAIRS_WITH_WEIGHT } = await import('../../lib/skill-graft.js');
+    // The scanners already exclude a skill's own id, but the expansion guard
+    // must hold even against a hand-built self-referential adjacency.
+    const fused = [{ id: 'narcissus', fusedScore: 0.02 }];
+    const adjacency = new Map([
+      ['narcissus', [{ target: 'narcissus', weight: PAIRS_WITH_WEIGHT }]],
+    ]);
+    const expanded = expandFirstHopCandidates(fused, 1, adjacency);
+    expect(expanded).toEqual([{ id: 'narcissus', fusedScore: 0.02 }]);
+    expect(expanded[0].via).toBeUndefined();
+  });
+
   test('duplicate edges from one seed to one target keep the higher-weight boost (max wins, never sums)', async () => {
     const { expandFirstHopCandidates, PAIRS_WITH_WEIGHT, PROSE_MENTION_WEIGHT, HOP_DECAY } =
       await import('../../lib/skill-graft.js');
@@ -665,6 +678,22 @@ describe('expandFirstHopCandidates', () => {
 });
 
 describe('buildSkillAdjacency + first-hop expansion end-to-end through craft()', () => {
+  test('a catalog with no pairs-with fields and no prose mentions builds an empty adjacency', async () => {
+    const { buildSkillAdjacency } = await import('../../lib/skill-graft.js');
+    writeSkill(tmpRoot, 'loner-one', 'entirely self-contained description alpha');
+    writeSkill(tmpRoot, 'loner-two', 'another unconnected description beta');
+    const graft = makeGraftIndex(tmpRoot);
+    await graft.refresh();
+    // Rebuild directly from the scanned entries the index holds: no curated
+    // edges, no cross-mentions — the graph must be empty, which is what
+    // makes the zero-degree byte-identical guarantee structural.
+    const catalog = (await graft.craft('entirely self-contained description alpha')).shortlist;
+    const adjacency = buildSkillAdjacency(
+      catalog.map((e) => ({ id: e.id, description: e.description, sourcePath: join(tmpRoot, e.id, 'SKILL.md') })),
+    );
+    expect(adjacency.size).toBe(0);
+  });
+
   test('a pairs-with frontmatter edge surfaces its target as a first-hop candidate with via/hopSeed provenance', async () => {
     writeSkill(tmpRoot, 'seed-skill', 'central topic words filler alpha', {
       pairsWith: ['paired-neighbor'],
