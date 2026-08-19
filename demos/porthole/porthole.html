@@ -430,6 +430,19 @@
 [8.720847, "o", "\r\n"]
 [10.83231, "x", "0"]
 </script>
+<script type="text/plain" id="cast-tui">{"version":2,"width":100,"height":28,"timestamp":1787136772,"command":"bash -c \"printf \\\"\\\\033[1;36m~/coding/port-daddy\\\\033[0m \\\\033[1;32m❯\\\\033[0m \\\"; sleep 0.5; printf \\\"vim demos/porthole/drive.sh\\\\n\\\"; sleep 0.4; expect vim-tour.exp; printf \\\"\\\\033[1;36m~/coding/port-daddy\\\\033[0m \\\\033[1;32m❯\\\\033[0m back in the shell — the TUI frame above is preserved\\\\n\\\"; sleep 1\"","env":{"SHELL":"/bin/zsh"}}
+[0.012323, "o", "\u001b[1;36m~/coding/port-daddy\u001b[0m \u001b[1;32m❯\u001b[0m "]
+[0.523274, "o", "vim demos/porthole/drive.sh\r\n"]
+[0.959186, "o", "spawn vim -N -u NORC -c syntax on -c set nonumber laststatus=2 drive.sh\r\r\r\n"]
+[7.008942, "o", "\u001b[m\u001b[m\u001b[0m\u001b[H\u001b[2J\u001b[28;1H\"drive.sh\" 30L, 596B\u001b[2;1H½\u001b[6n\u001b[2;1H  \u001b[3;1H\u001bPzz\u001b\\\u001b[0%m\u001b[6n\u001b[3;1H           \u001b[1;1H\u001b[1;1H\u001b[34m#!/usr/bin/env bash\r\r\n# Honest demo driver: typing is simulated, every byte of output is a real\u001b[0m\u001b[2;74H\u001b[K\u001b[3;1H\u001b[34m# command running against the real installed daemon. No filtering, no truncation.\u001b[0m\u001b[3;82H\u001b[K\u001b[4;1H\u001b[33mset\u001b[0m\u001b[36m \u001b[0m\u001b[35m-uo\u001b[0m\u001b[36m pipefail\r\r\n\r\r\nPROMPT_DIR\u001b[0m=\u001b[33m\"\u001b[0m\u001b[31m~/coding/port-daddy\u001b[0m\u001b[33m\"\u001b[0m\r\r\n\u001b[36mtype_cmd() {\u001b[0m\r\r\n  \u001b[33mlocal\u001b[0m \u001b[36mtext\u001b[0m=\u001b[33m\"\u001b[0m\u001b[35m$1\u001b[0m\u001b[33m\"\u001b[0m i\r\r\n  \u001b[33mprintf\u001b[0m \u001b[33m'\u001b[0m\u001b[31m\\033[1;36m%s\\033[0m \\033[1;32mâ\u001b[0m\u001b[34m~]\u001b[0m\u001b[31m¯\\033[0m \u001b[0m\u001b[33m'\u001b[0m \u001b[33m\"\u001b[0m\u001b[35m$PROMPT_DIR\u001b[0m\u001b[33m\"\r\r\n\u001b[0m  \u001b[33msleep\u001b[0m \u001b[31m0\u001b[0m.\u001b[31m6\u001b[0m\r\r\n  \u001b[33mfor ((i = \u001b[0m\u001b[31m0\u001b[0m\u001b[33m; i < \u001b[0m\u001b[35m${#text}\u001b[0m\u001b[33m; i += \u001b[0m\u001b[31m1\u001b[0m\u001b[33m));\u001b[0m \u001b[33mdo\r\r\n\u001b[0m    \u001b[33mprintf\u001b[0m \u001b[33m'\u001b[0m\u001b[31m%s\u001b[0m\u001b[33m'\u001b[0m \u001b[33m\"\u001b[0m\u001b[35m${text\u001b[0m\u001b[33m:\u001b[0m\u001b[35m$i\u001b[0m\u001b[33m:1\u001b[0m\u001b[35m}\u001b[0m\u001b[33m\"\r\r\n\u001b[0m    \u001b[33msleep\u001b[0m \u001b[31m0\u001b[0m.\u001b"]
+[7.008947, "o", "[31m028\u001b[0m\r\r\n"]
+[7.00899, "o", "  \u001b[33mdone\r\r\n\u001b[0m  \u001b[33msleep\u001b[0m \u001b[31m0\u001b[0m.\u001b[31m35\u001b[0m\r\r\n  \u001b[33mprintf\u001b[0m \u001b[33m'\u001b[0m\u001b[31m\\n\u001b[0m\u001b[33m'\u001b[0m\r\r\n\u001b[36m}\r\r\n\r\r\nrun() {\u001b[0m\r\r\n  type_cmd \u001b[33m\"\u001b[0m\u001b[35m$1\u001b[0m\u001b[33m\"\u001b[0m\r\r\n  bash \u001b[35m-c\u001b[0m \u001b[33m\"\u001b[0m\u001b[35m$1\u001b[0m\u001b[33m\"\u001b[0m \u001b[31m2\u001b[0m\u001b[33m>&1\r\r\n\u001b[0m  \u001b[33mprintf\u001b[0m \u001b[33m'\u001b[0m\u001b[31m\\n\u001b[0m\u001b[33m'\r\r\n\u001b[0m  \u001b[33msleep\u001b[0m \u001b[31m0\u001b[0m.\u001b[31m9\u001b[0m\r\r\n\u001b[36m}\u001b[0m\r\r\n\r\r\n\u001b[33msleep\u001b[0m \u001b[31m0\u001b[0m.\u001b[31m4\u001b[0m\r\r\n\u001b[1m\u001b[7mdrive.sh                                                                                            \u001b[1;1H"]
+[7.011168, "o", "\r\r\n\r\r\n\r\r\n\r\r\n\r\r\n\r\r\n\u001b[0m\u001b[1;1H\u001b[4M\u001b[23;1H\u001b[4L\u001b[23;1H\u001b[33mfor\u001b[0m cmd \u001b[33min\u001b[0m \u001b[33m\"\u001b[0m\u001b[35m$@\u001b[0m\u001b[33m\"\u001b[0m; \u001b[33mdo\u001b[0m\r\r\n  run \u001b[33m\"\u001b[0m\u001b[35m$cmd\u001b[0m\u001b[33m\"\r\r\ndone\r\r\nsleep\u001b[0m \u001b[31m1\u001b[0m.\u001b[31m2\u001b[0m\u001b[28;1H\u001b[K\u001b[26;1H\u001b[23;1H\u001b[4M\u001b[1;1H\u001b[4L\u001b[1;1H\u001b[34m#!/usr/bin/env bash\r\r\n# Honest demo driver: typing is simulated, every byte of output is a real\r\r\n# command running against the real installed daemon. No filtering, no truncation.\u001b[0m\r\r\n\u001b[33mset\u001b[0m\u001b[36m \u001b[0m\u001b[35m-uo\u001b[0m\u001b[36m pipefail\u001b[1;1H\u001b[28;1H\u001b[0m/type_cmd\r"]
+[7.011962, "o", "\u001b[7;1H\u001b[28;1H\u001b[K\u001b[28;1H:q\r"]
+[7.013009, "o", "\u001b[28;1H\u001b[K\u001b[28;1H"]
+[7.014394, "o", "\u001b[1;36m~/coding/port-daddy\u001b[0m \u001b[1;32m❯\u001b[0m back in the shell — the TUI frame above is preserved\r\n"]
+[8.022303, "x", "0"]
+</script>
 
 <script>
 (() => {
@@ -444,15 +457,48 @@
 
   // ── VT interpreter with infinite scrollback ─────────────────────
   class VT {
-    constructor(cols) {
-      this.cols = cols; this.lines = [[]]; this.row = 0; this.col = 0; this.screenTop = 0;
+    constructor(cols, rows) {
+      this.cols = cols; this.rows = rows || 28; this.lines = [[]]; this.row = 0; this.col = 0; this.screenTop = 0;
       this.st = this.baseStyle(); this.dirty = new Set([0]); this.cursorVisible = true;
-      this.state = "n"; this.buf = "";
+      this.state = "n"; this.buf = ""; this.alt = false; this.saved = null; this.savedCur = null;
+      this.top = 0; this.bot = null; this.sawAlt = false;
+    }
+    regionBot() { return this.bot !== null ? this.bot : (this.alt ? this.rows - 1 : null); }
+    lineFeed() {
+      const b = this.regionBot();
+      if (b !== null && this.row === this.screenTop + b) this.scrollUp(1);
+      else { this.row++; this.line(this.row); this.dirty.add(this.row); }
+    }
+    scrollUp(n) {
+      const a = this.screenTop + this.top, b = this.screenTop + (this.regionBot() ?? this.rows - 1);
+      this.line(b);
+      for (let i = 0; i < n; i++) { this.lines.splice(a, 1); this.lines.splice(b, 0, []); }
+      for (let r = a; r <= b; r++) this.dirty.add(r);
+    }
+    scrollDown(n) {
+      const a = this.screenTop + this.top, b = this.screenTop + (this.regionBot() ?? this.rows - 1);
+      this.line(b);
+      for (let i = 0; i < n; i++) { this.lines.splice(b, 1); this.lines.splice(a, 0, []); }
+      for (let r = a; r <= b; r++) this.dirty.add(r);
+    }
+    enterAlt() {
+      this.sawAlt = true;
+      if (this.alt) return;
+      this.saved = { row: this.row, col: this.col, screenTop: this.screenTop, st: { ...this.st } };
+      this.alt = true; this.screenTop = this.lines.length; this.row = this.screenTop; this.col = 0;
+      this.top = 0; this.bot = null; this.line(this.screenTop + this.rows - 1);
+      for (let r = this.screenTop; r < this.screenTop + this.rows; r++) this.dirty.add(r);
+    }
+    leaveAlt() {
+      if (!this.alt) return;
+      this.alt = false; this.top = 0; this.bot = null;
+      this.row = this.saved.row; this.col = this.saved.col; this.screenTop = this.saved.screenTop;
+      this.st = { ...this.saved.st }; this.saved = null;
     }
     baseStyle() { return { fg: null, bg: null, b: false, d: false, i: false, u: false, inv: false }; }
     line(r) { while (this.lines.length <= r) this.lines.push([]); return this.lines[r]; }
     put(ch) {
-      if (this.col >= this.cols) { this.row++; this.col = 0; this.line(this.row); this.dirty.add(this.row); }
+      if (this.col >= this.cols) { this.lineFeed(); this.col = 0; }
       const L = this.line(this.row);
       while (L.length < this.col) L.push({ ch: " ", st: this.baseStyle() });
       L[this.col] = { ch, st: { ...this.st } };
@@ -462,7 +508,7 @@
       for (const ch of data) {
         if (this.state === "n") {
           if (ch === "\x1b") { this.state = "e"; }
-          else if (ch === "\n") { this.row++; this.line(this.row); this.dirty.add(this.row); }
+          else if (ch === "\n") { this.lineFeed(); }
           else if (ch === "\r") { this.col = 0; }
           else if (ch === "\b") { this.col = Math.max(0, this.col - 1); }
           else if (ch === "\t") { this.col = (Math.floor(this.col / 8) + 1) * 8; }
@@ -472,6 +518,11 @@
           if (ch === "[") { this.state = "c"; this.buf = ""; }
           else if (ch === "]") { this.state = "o"; this.buf = ""; }
           else if (ch === "(" || ch === ")") { this.state = "skip1"; }
+          else if (ch === "P" || ch === "^" || ch === "_") { this.state = "dcs"; }
+          else if (ch === "M") { if (this.row === this.screenTop + this.top) this.scrollDown(1); else this.row = Math.max(0, this.row - 1); this.state = "n"; }
+          else if (ch === "D") { this.lineFeed(); this.state = "n"; }
+          else if (ch === "7") { this.savedCur = { row: this.row, col: this.col, st: { ...this.st } }; this.state = "n"; }
+          else if (ch === "8") { if (this.savedCur) { this.row = this.savedCur.row; this.col = this.savedCur.col; this.st = { ...this.savedCur.st }; this.line(this.row); } this.state = "n"; }
           else { this.state = "n"; }
         } else if (this.state === "skip1") { this.state = "n"; }
         else if (this.state === "o") {
@@ -479,6 +530,8 @@
           else if (ch === "\x1b") this.state = "oe";
           else this.buf += ch;
         } else if (this.state === "oe") { this.state = ch === "\\" ? "n" : "o"; }
+        else if (this.state === "dcs") { if (ch === "\x1b") this.state = "dcse"; }
+        else if (this.state === "dcse") { this.state = ch === "\\" ? "n" : "dcs"; }
         else if (this.state === "c") {
           if (/[@-~]/.test(ch)) { this.csi(this.buf, ch); this.state = "n"; }
           else this.buf += ch;
@@ -501,9 +554,35 @@
           const r = isNaN(p[0]) ? 1 : p[0], c = isNaN(p[1]) ? 1 : p[1];
           this.row = this.screenTop + r - 1; this.col = c - 1; this.line(this.row); this.dirty.add(this.row); break;
         }
+        case "r": {
+          const b0 = isNaN(p[0]) ? 1 : p[0], b1 = isNaN(p[1]) ? this.rows : p[1];
+          this.top = b0 - 1; this.bot = b1 - 1; this.row = this.screenTop; this.col = 0; break;
+        }
+        case "L": { // insert n lines at cursor, push region down
+          const b = this.screenTop + (this.regionBot() ?? this.rows - 1); this.line(b);
+          for (let i = 0; i < n; i++) { this.lines.splice(b, 1); this.lines.splice(this.row, 0, []); }
+          for (let r = this.row; r <= b; r++) this.dirty.add(r); break;
+        }
+        case "M": { // delete n lines at cursor, pull region up
+          const b = this.screenTop + (this.regionBot() ?? this.rows - 1); this.line(b);
+          for (let i = 0; i < n; i++) { this.lines.splice(this.row, 1); this.lines.splice(b, 0, []); }
+          for (let r = this.row; r <= b; r++) this.dirty.add(r); break;
+        }
+        case "@": { const L = this.line(this.row); const blanks = Array.from({length: n}, () => ({ ch: " ", st: this.baseStyle() }));
+          while (L.length < this.col) L.push({ ch: " ", st: this.baseStyle() });
+          L.splice(this.col, 0, ...blanks); L.length = Math.min(L.length, this.cols); this.dirty.add(this.row); break; }
+        case "P": { const L = this.line(this.row); L.splice(this.col, n); this.dirty.add(this.row); break; }
+        case "S": this.scrollUp(n); break;
+        case "T": this.scrollDown(n); break;
+        case "s": this.savedCur = { row: this.row, col: this.col, st: { ...this.st } }; break;
+        case "u": if (this.savedCur) { this.row = this.savedCur.row; this.col = this.savedCur.col; this.st = { ...this.savedCur.st }; this.line(this.row); } break;
         case "J": {
           const mode = isNaN(p[0]) ? 0 : p[0];
-          if (mode === 2 || mode === 3) { this.screenTop = this.lines.length; this.row = this.screenTop; this.col = 0; this.line(this.row); this.dirty.add(this.row); }
+          if ((mode === 2 || mode === 3) && this.alt) {
+            for (let r = this.screenTop; r < this.screenTop + this.rows; r++) { this.lines[r] = []; this.dirty.add(r); }
+            this.line(this.screenTop + this.rows - 1);
+          }
+          else if (mode === 2 || mode === 3) { this.screenTop = this.lines.length; this.row = this.screenTop; this.col = 0; this.line(this.row); this.dirty.add(this.row); }
           else if (mode === 0) { const L = this.line(this.row); L.length = Math.min(L.length, this.col); this.dirty.add(this.row);
             for (let r = this.row + 1; r < this.lines.length; r++) { this.lines[r] = []; this.dirty.add(r); } }
           break;
@@ -516,8 +595,8 @@
           this.dirty.add(this.row); break;
         }
         case "X": { const L = this.line(this.row); for (let i = 0; i < n; i++) if (L[this.col + i]) L[this.col + i] = { ch: " ", st: this.baseStyle() }; this.dirty.add(this.row); break; }
-        case "h": if (priv && (p[0] === 25)) this.cursorVisible = true; if (priv && p[0] === 1049) { this.screenTop = this.lines.length; this.row = this.screenTop; this.col = 0; this.line(this.row); } break;
-        case "l": if (priv && (p[0] === 25)) this.cursorVisible = false; break;
+        case "h": if (priv && p[0] === 25) this.cursorVisible = true; if (priv && (p[0] === 1049 || p[0] === 1047 || p[0] === 47)) this.enterAlt(); break;
+        case "l": if (priv && p[0] === 25) this.cursorVisible = false; if (priv && (p[0] === 1049 || p[0] === 1047 || p[0] === 47)) this.leaveAlt(); break;
         default: break;
       }
     }
@@ -568,6 +647,7 @@
   const casts = {
     quickstart: { label: "Quickstart", text: document.getElementById("cast-quickstart").textContent },
     coordination: { label: "Long output", text: document.getElementById("cast-coordination").textContent },
+    tui: { label: "TUI (vim)", text: document.getElementById("cast-tui").textContent },
   };
   let cast, vt, idx, playedT, playing, lastTick, speed = 1, follow = true, raf;
   // setSpeed defined later (hoisted usage safe: chips built before first click)
@@ -616,7 +696,10 @@
 
   function load(name, autoplay = true) {
     cast = parseCast(casts[name].text);
-    vt = new VT(cast.cols);
+    vt = new VT(cast.cols, cast.rows);
+    const isTui = cast.events.some(([, d]) => d.includes("\u001b[?1049h") || d.includes("\u001b[?47h") || d.includes("\u001b[?1047h") || d.includes("\u001b[6n"));
+    cast.isTui = isTui;
+    if (isTui) { wrapUser = false; } else if (wrapUser === false) { wrapUser = null; }
     idx = 0; playedT = 0; playing = false; lastTick = null;
     term.innerHTML = ""; lineEls.length = 0;
     $("titleName").textContent = "pd — " + casts[name].label.toLowerCase();
@@ -634,7 +717,7 @@
   }
 
   function seekTo(t) {
-    if (t < playedT) { vt = new VT(cast.cols); idx = 0; term.innerHTML = ""; lineEls.length = 0; playedT = 0; }
+    if (t < playedT) { vt = new VT(cast.cols, cast.rows); idx = 0; term.innerHTML = ""; lineEls.length = 0; playedT = 0; }
     while (idx < cast.events.length && cast.events[idx][0] <= t) { vt.feed(cast.events[idx][1]); idx++; }
     playedT = t; applyDirty(); updateTime();
   }
@@ -698,6 +781,7 @@
     $("wrapBtn").setAttribute("aria-pressed", String(on));
   }
   function autoWrap() {
+    if (cast && cast.isTui) { setWrap(false); return; }
     if (wrapUser !== null) { setWrap(wrapUser); return; }
     const inner = term.clientWidth - 58; // padding
     setWrap(inner < cast.cols * charW());
