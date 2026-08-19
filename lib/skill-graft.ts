@@ -771,8 +771,14 @@ export function buildSkillAdjacency(skills: readonly SkillEntry[]): SkillAdjacen
   if (skills.length === 0) return adjacency;
 
   const hyphenatedIds = skills.map((s) => s.id).filter((id) => ID_HAS_HYPHEN.test(id));
+  // Hyphen-aware boundaries, NOT plain \b: a hyphen IS a \b word boundary,
+  // so `\bwindags-ops\b` would match inside `windags-ops-extended` — a false
+  // edge to the shorter id, and (with the g-flag cursor advanced past it)
+  // the longer id's own mention consumed and missed. Lookarounds excluding
+  // [\w-] make an id match only when it is not embedded in a longer
+  // hyphenated token, regardless of alternation order.
   const mentionRegex = hyphenatedIds.length > 0
-    ? new RegExp(`\\b(${hyphenatedIds.map(escapeRegExpLiteral).join('|')})\\b`, 'g')
+    ? new RegExp(`(?<![\\w-])(${hyphenatedIds.map(escapeRegExpLiteral).join('|')})(?![\\w-])`, 'g')
     : null;
 
   for (const skill of skills) {
