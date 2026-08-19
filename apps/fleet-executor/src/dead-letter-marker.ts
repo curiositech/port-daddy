@@ -27,6 +27,31 @@
  * surviving an edit. It renders invisibly in GitHub's checks UI.
  */
 
+/**
+ * The sentence the DLQ handler wrote BEFORE the marker existed.
+ *
+ * The marker is the right mechanism and prose matching is normally the wrong
+ * one — a human-facing summary gets reworded, and a gate that unstrands PRs
+ * must not hinge on a sentence surviving an edit. This one exception is safe
+ * because it matches only the PAST: checks completed before the marker
+ * deployed on 2026-08-19. That text is frozen — it is already written into
+ * check runs on GitHub and cannot be re-worded retroactively.
+ *
+ * WHY IT IS NEEDED AT ALL, which I got wrong the first time. The marker is
+ * written going forward, so it recognises dead-letters created after deploy —
+ * and every PR that was actually stranded had been stranded BEFORE it. #7278,
+ * #7339 and #7344 each carried a completed `failure` with the bare sentence
+ * and no marker, so the guard in execute.ts still read them as decided and
+ * returned before creating a check run. A reopen produced full GitHub CI and
+ * no fleet check, exactly as it had under the old executor. A forward-only
+ * sentinel with no backfill path rescued none of the PRs it was written for.
+ *
+ * Matching a fragment rather than the whole sentence: the summary now carries
+ * the recorded cause appended after it, so the full string is no longer an
+ * equality test.
+ */
+const LEGACY_DEAD_LETTER_PHRASE = 'was lost (job exhausted retries / dead-lettered)';
+
 /** Machine-readable stamp on a check completed by the DLQ handler. */
 export const DEAD_LETTER_MARKER = '<!-- pd-fleet:dead-lettered -->';
 
@@ -37,5 +62,6 @@ export const DEAD_LETTER_MARKER = '<!-- pd-fleet:dead-lettered -->';
  * it is NOT a verdict, so a later delivery is allowed to run for real.
  */
 export function isDeadLetteredSummary(summary: string | null | undefined): boolean {
-  return typeof summary === 'string' && summary.includes(DEAD_LETTER_MARKER);
+  if (typeof summary !== 'string') return false;
+  return summary.includes(DEAD_LETTER_MARKER) || summary.includes(LEGACY_DEAD_LETTER_PHRASE);
 }
