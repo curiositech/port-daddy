@@ -1401,6 +1401,16 @@ describe('computeNextAbsoluteFireDelayMs', () => {
     expect(computeNextAbsoluteFireDelayMs('0 8 * * 1')).toBeNull();
     expect(computeNextAbsoluteFireDelayMs('garbage')).toBeNull();
   });
+
+  test('"0 0 * * *" just after midnight schedules the NEXT midnight, never an immediate fire', () => {
+    // The exact boundary: hour 0 with `now` seconds past 00:00 must roll the
+    // day forward (next.getTime() <= now branch), not fire at once or today.
+    const now = new Date(2026, 0, 15, 0, 0, 30, 0).getTime(); // Jan 15, 00:00:30
+    const expected = new Date(2026, 0, 16, 0, 0, 0, 0).getTime() - now;
+    const delay = computeNextAbsoluteFireDelayMs('0 0 * * *', now);
+    expect(delay).toBe(expected);
+    expect(delay).toBeGreaterThan(0);
+  });
 });
 
 test('malformed schedule keeps DEFAULT_INTERVAL via parseCronInterval', () => {
