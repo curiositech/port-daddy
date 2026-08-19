@@ -153,6 +153,23 @@ describe('every purser test is routed or explicitly quarantined', () => {
 
     expect(silent).toEqual([]);
 
+    // …and DECLARING is not ASSERTING. Raised by pd-qa on 2026-08-19, and it is
+    // right: the check above is satisfied by `test('x', () => {})`, which runs,
+    // reports green, and proves nothing. That is the same "looks like coverage,
+    // isn't" shape this whole manifest exists to eliminate — a routed file that
+    // asserts nothing is worse than a quarantined one, because it is counted.
+    //
+    // Both dialects in this directory count. The jest-style files use `expect(`
+    // and the node:test files use `assert.` / `assert(`; a floor of one either
+    // way is all this can honestly claim, since no regex can tell a real
+    // assertion from a vacuous one (`expect(true).toBe(true)` passes this, and
+    // catching THAT is the tautology-sniffer's job, not the manifest's).
+    const ASSERTS = /\b(expect|assert)\s*[.(]/;
+    const hollow = routed.filter((file) =>
+      !ASSERTS.test(readFileSync(join(purserDir, file), 'utf8')));
+
+    expect(hollow).toEqual([]);
+
     // The three dispositions must also exactly partition the directory: no file
     // counted twice, none unaccounted for.
     const excluded = entries
