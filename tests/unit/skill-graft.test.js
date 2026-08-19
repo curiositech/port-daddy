@@ -712,9 +712,13 @@ describe('buildSkillAdjacency + first-hop expansion end-to-end through craft()',
     // regression guard: both shapes must produce the same curated edge.
     const dir = join(tmpRoot, 'string-seed');
     mkdirSync(dir, { recursive: true });
+    // A HYBRID list — one bare string, one {skill, reason} object — in the
+    // same pairs-with array: entries are parsed independently, so mixed
+    // shapes (which real catalogs drift into) must both produce edges.
     writeFileSync(join(dir, 'SKILL.md'),
-      `---\nname: string-seed\ndescription: |\n  central topic words filler alpha\npairs-with:\n  - string-paired-neighbor\n---\n\n# string-seed\n`);
+      `---\nname: string-seed\ndescription: |\n  central topic words filler alpha\npairs-with:\n  - string-paired-neighbor\n  - skill: object-paired-neighbor\n    reason: object-shape entry in the same list\n---\n\n# string-seed\n`);
     writeSkill(tmpRoot, 'string-paired-neighbor', 'a skill about completely unrelated vocabulary zebra giraffe');
+    writeSkill(tmpRoot, 'object-paired-neighbor', 'another skill about totally different vocabulary walrus penguin');
 
     const graft = makeGraftIndex(tmpRoot);
     await graft.refresh();
@@ -724,6 +728,10 @@ describe('buildSkillAdjacency + first-hop expansion end-to-end through craft()',
     expect(neighbor).toBeDefined();
     expect(neighbor.via).toBe('first-hop');
     expect(neighbor.hopSeed).toBe('string-seed');
+    const objectNeighbor = result.shortlist.find((e) => e.id === 'object-paired-neighbor');
+    expect(objectNeighbor).toBeDefined();
+    expect(objectNeighbor.via).toBe('first-hop');
+    expect(objectNeighbor.hopSeed).toBe('string-seed');
   });
 
   test('a prose-mention edge (hyphenated id inside SKILL.md body) also surfaces as first-hop provenance', async () => {
