@@ -1,5 +1,5 @@
 from playwright.sync_api import sync_playwright
-import json, sys
+import json
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
