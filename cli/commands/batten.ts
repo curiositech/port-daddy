@@ -15,6 +15,7 @@
  *     the anti-silent-failure gate.
  *
  *   pd batten imprint [--staged-dir <dir>] [--manifest <file>] [--out <file>]
+      [--release-version <vX.Y.Z>] [--archive <tarball> ...]
  *     sha256 every staged artifact and write a release-imprint.json — the
  *     content-addressed record of the sealed cargo (id -> {sha256, bytes,
  *     stagedPath}).
@@ -36,7 +37,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as ui from '../utils/ui.js';
 import type { CLIOptions } from '../types.js';
@@ -89,6 +90,13 @@ export interface ArtifactImprint {
   sha256: string;
 }
 
+/** A sealed distributable archive: the tarball uploaded to the release. */
+export interface ArchiveImprint {
+  name: string;
+  sha256: string;
+  bytes: number;
+}
+
 export interface ImprintRecord {
   version: number;
   generatedAt: string;
@@ -109,6 +117,25 @@ export interface ImprintRecord {
    * verifier will correctly still reject.
    */
   sourceCommit: string | null;
+  /**
+   * The exact v-prefixed release tag these artifacts were sealed for.
+   *
+   * The tap verifier requires `imprint.releaseVersion === <tag>`; an imprint
+   * that cannot name its own release is not evidence. Null when no
+   * --release-version was supplied (a local imprint), which the verifier
+   * correctly rejects.
+   */
+  releaseVersion: string | null;
+  /**
+   * The sealed distributable archive(s) — name, sha256 and byte count of the
+   * tarball actually uploaded to the release.
+   *
+   * `artifacts` seals the files that went INTO the tarball; the tap needs the
+   * tarball ITSELF sealed, and cross-checks the digest against both the bytes
+   * on disk and the digest in the dispatch payload. Without this the evidence
+   * is unverifiable no matter how complete `artifacts` is.
+   */
+  archives: ArchiveImprint[];
   artifacts: Record<string, ArtifactImprint>;
   /** required artifacts that were absent at imprint time (empty on a sealed release). */
   missingRequired: string[];
@@ -277,7 +304,18 @@ function sha256File(absPath: string): { sha256: string; bytes: number } {
  * artifacts (type: dir) are skipped (a dir has no single stable hash). Returns
  * the imprint record plus the list of required-but-absent artifacts.
  */
-export function imprintArtifacts(manifest: ReleaseManifest, stagedDir: string): ImprintRecord {
+export interface ImprintOptions {
+  /** The v-prefixed release tag this imprint is evidence for. */
+  releaseVersion?: string | null;
+  /** Paths to the distributable archive(s) to seal (the uploaded tarball). */
+  archives?: string[];
+}
+
+export function imprintArtifacts(
+  manifest: ReleaseManifest,
+  stagedDir: string,
+  options: ImprintOptions = {},
+): ImprintRecord {
   const stagedDirAbs = resolve(stagedDir);
   const artifacts: Record<string, ArtifactImprint> = {};
   const missingRequired: string[] = [];
@@ -301,11 +339,23 @@ export function imprintArtifacts(manifest: ReleaseManifest, stagedDir: string): 
     artifacts[entry.id] = { id: entry.id, stagedPath: entry.stagedPath, bytes, sha256 };
   }
 
+  const archives: ArchiveImprint[] = (options.archives ?? []).map((archivePath) => {
+    const abs = isAbsolute(archivePath) ? archivePath : join(stagedDirAbs, archivePath);
+    const bytes = statSync(abs).size;
+    return {
+      name: basename(abs),
+      sha256: createHash('sha256').update(readFileSync(abs)).digest('hex'),
+      bytes,
+    };
+  });
+
   return {
     version: 1,
     generatedAt: new Date().toISOString(),
     stagedDir: stagedDirAbs,
     sourceCommit: resolveSourceCommit(),
+    releaseVersion: options.releaseVersion?.trim() || null,
+    archives,
     artifacts,
     missingRequired,
   };
@@ -386,7 +436,17 @@ async function runImprint(options: CLIOptions): Promise<void> {
   const manifestPath = manifestFromOptions(options);
   const manifest = loadManifest(manifestPath);
   const stagedDir = stagedDirFromOptions(options);
-  const record = imprintArtifacts(manifest, stagedDir);
+  const rawArchives = options.archive ?? options.archives;
+  const archiveList = Array.isArray(rawArchives)
+    ? rawArchives.map(String)
+    : typeof rawArchives === 'string' && rawArchives.length > 0
+      ? [rawArchives]
+      : [];
+  const releaseVersionRaw = options['release-version'] ?? options.releaseVersion;
+  const record = imprintArtifacts(manifest, stagedDir, {
+    releaseVersion: typeof releaseVersionRaw === 'string' ? releaseVersionRaw : null,
+    archives: archiveList,
+  });
 
   const outRaw = options.out;
   const outPath = typeof outRaw === 'string'
@@ -426,6 +486,7 @@ Usage:
       Collects ALL failures and exits nonzero with a per-artifact report.
 
   pd batten imprint [--staged-dir <dir>] [--manifest <file>] [--out <file>]
+      [--release-version <vX.Y.Z>] [--archive <tarball> ...]
       sha256 every staged artifact and write release-imprint.json
       (default: <staged-dir>/release-imprint.json).
 

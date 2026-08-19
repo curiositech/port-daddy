@@ -471,19 +471,32 @@ fleet:
       # demanded they be satisfied, and then passed the gate anyway — the demand
       # was advisory, which is another way of saying it was optional.
       #
-      # This is safe to switch on precisely BECAUSE of the line below it.
-      # `blocking` only ever fires on `executed && !passed` — tests that really
-      # ran and really failed. When no sandbox is provisioned the tests are not
-      # executed, and `blockWithoutSandbox: false` keeps the verdict advisory:
-      # the purser never blocks on tests it could not run. So the worst case of
-      # enabling this is the correct case — a red gate on a PR whose own tests
-      # fail against its own head.
+      # Two distinct ways the check goes red, deliberately kept apart:
+      #   1. JUDGMENT — `blocking` fires on `executed && !passed`: tests that
+      #      really ran and really failed. When no sandbox is provisioned the
+      #      tests are not executed, and `blockWithoutSandbox: false` keeps that
+      #      VERDICT advisory: the purser never rules on tests it could not run.
+      #   2. MACHINERY — broken-ship doctrine (2026-08-19, verdict.ts): a
+      #      malformed steel-man/plan, failed authoring, rejected or
+      #      non-executable tests, a 403 on the stack, or a crash is not a
+      #      verdict at all — the ship itself broke, and the run FAILS whatever
+      #      the flags say, so the breakage gets fixed instead of tolerated.
+      #      (The 2026-08-19 run: testPaths pointed outside jest's testMatch,
+      #      every authored test was rejected, nothing was stacked, run stayed
+      #      green. Never again.)
       blocking: true
       blockWithoutSandbox: false # true (+blocking) ⇒ fail-closed when tests could not
                                  # be executed; default false: never block on tests
                                  # that were never run
       testPaths:                 # optional: authored tests must live under these
-        - tests/purser           # prefixes (also bounded by the global path whitelist)
+        # prefixes (also bounded by the global path whitelist). MUST sit inside
+        # the repo's own jest testMatch (tests/unit/**, tests/integration/**) or
+        # the executability gate rejects every authored file and the purser is a
+        # broken ship — which now FAILS the run. The old value `tests/purser`
+        # was outside testMatch, so every authored test was guaranteed-rejected
+        # ("the test runner would never find it. Nothing was stacked.",
+        # 2026-08-19 run).
+        - tests/unit/purser
       graft:                     # optional on ANY ship: repo skill ids whose
         - sandboxed-adversarial-test-harness   # skills/<id>/SKILL.md (trusted
         - steel-man-argument     # branch only, ~6KB each, max 3) is prepended to

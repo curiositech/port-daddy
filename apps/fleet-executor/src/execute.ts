@@ -93,6 +93,7 @@ import {
 import type { Proposal } from './proposals.js';
 import { decideShipGate, isDocsOnly, isReviewableForBugs } from './gates.js';
 import { runPurser } from './purser.js';
+import { isDeadLetteredSummary } from './dead-letter-marker.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
 import {
@@ -1120,8 +1121,24 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // would strand a PR permanently unreviewed: unpause the fleet, redeliver, and
   // the guard would skip forever. Only `success` and `failure` mean ships
   // actually ran and reached a verdict.
+  //
+  // …and a DLQ-completed `failure` is NOT decided either, for the same reason
+  // `neutral` isn't: no ship ran, nothing was reviewed, no verdict was reached.
+  // A lost job's red gate is honest fail-closed output, but counting it as
+  // DECIDED strands the head SHA permanently — every later delivery returns
+  // right here, before even creating a check run, so no retry can ever produce
+  // a real verdict and the only escape is a brand-new commit. Observed
+  // 2026-08-19: #7278, #7339 and #7344 each lost one run to a dead-letter and
+  // were then unreviewable at that SHA; reopening them re-ran all of GitHub
+  // Actions CI while the fleet check never reappeared at all.
   const DECIDED: ReadonlySet<string> = new Set(['success', 'failure']);
-  if (existing && existing.status === 'completed' && DECIDED.has(existing.conclusion ?? '')) {
+  const deadLettered = isDeadLetteredSummary(existing?.summary);
+  if (
+    existing &&
+    existing.status === 'completed' &&
+    DECIDED.has(existing.conclusion ?? '') &&
+    !deadLettered
+  ) {
     console.log(
       `[fleet-executor] ${owner}/${repo}@${prCtx.headSha}: check already decided ` +
         `(${existing.conclusion}) — skipping ${cloudShips.length} ship(s). ` +
@@ -1129,8 +1146,18 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     );
     return;
   }
+  if (deadLettered) {
+    console.log(
+      `[fleet-executor] ${owner}/${repo}@${prCtx.headSha}: previous check was dead-lettered, ` +
+        `not decided — running ${cloudShips.length} ship(s) for a real verdict.`,
+    );
+  }
 
-  let checkRunId = existing?.id ?? null;
+  // A finished check cannot be reopened, so a dead-lettered one must not be
+  // REUSED either: completing it again would be a no-op against a gate GitHub
+  // considers closed. Mint a fresh check run instead — GitHub surfaces the
+  // newest run of a given name, so the new one is what the branch rule reads.
+  let checkRunId = deadLettered ? null : existing?.id ?? null;
   if (!checkRunId) {
     // No swallow: a createCheckRun failure must propagate so the job RETRIES.
     checkRunId = await createCheckRun(owner, repo, CHECK_NAME, prCtx.headSha, token, detailsUrl);
@@ -1465,13 +1492,14 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
  * sentence ("… returned no usable output — nothing was reviewed"), never a
  * verdict word, so neither the transcript nor the run page can render it as a
  * pass. The returned result carries `noUsableOutput: true`, which
- * {@link aggregateConclusion} gates on: fail-closed for a blocking ship,
- * `neutral` (visible, non-blocking) for an advisory one.
+ * {@link aggregateConclusion} gates on: a broken ship fails the run whatever
+ * its blocking flag (broken-ship doctrine, 2026-08-19).
  *
  * `verdict` is still populated because {@link ShipResult} requires it — BLOCK
  * for a blocking ship (absence of a review is not approval) and PASS for an
- * advisory one (advisory paths fail open) — but `noUsableOutput` is the
- * authoritative signal and every renderer must key on it first.
+ * advisory one (advisory judgment cannot object on its own) — but
+ * `noUsableOutput` is the authoritative signal and every renderer must key on
+ * it first.
  *
  * @param ship The ship whose output could not be used.
  * @param transcript The run's best-effort step recorder.
@@ -1637,9 +1665,9 @@ async function runShip(
     // --- NO USABLE OUTPUT gate (src/usable-output.ts) ----------------------
     // Before either contract is parsed: did the model say ANYTHING its contract
     // asked for? If not, the ship reviewed nothing, and must never be folded
-    // into a clean PASS. Blocking ships fail closed here; advisory ships do not
-    // fail the merge gate but are reported honestly (aggregateConclusion turns
-    // them into `neutral`, never `success`).
+    // into a clean PASS. A ship in this state is BROKEN, and a broken ship
+    // fails the run whatever its blocking flag (aggregateConclusion returns
+    // `failure`; broken-ship doctrine, 2026-08-19).
     const usability = classifyShipOutput(output, { ideation: ship.ideation });
     if (!usability.usable) {
       return await recordNoUsableOutput(ship, transcript, usability.reason, {
@@ -1651,10 +1679,13 @@ async function runShip(
 
     // --- IDEATION ships: proposals, not findings ---------------------------
     // spark / spider / lookout / snipe propose forward work. Parse the validated
-    // Proposal schema and render it into REAL actionable Port Daddy syntax. These
-    // ships are always advisory: they NEVER gate a merge and NEVER contribute
-    // inline review comments, so a malformed block just falls back to the raw
-    // model output — it can't destabilize the check.
+    // Proposal schema and render it into REAL actionable Port Daddy syntax.
+    // Their JUDGMENT is always advisory — a proposal never gates a merge and
+    // never contributes inline review comments. Their MACHINERY is not: a
+    // malformed proposal block means the ship is broken, and a broken ship
+    // fails the run (`errored: true` → aggregateConclusion `failure`;
+    // broken-ship doctrine, 2026-08-19). The raw model output is still posted
+    // so the prose isn't lost while the breakage gets fixed.
     if (ship.ideation) {
       const proposals = parseProposals(output);
 
@@ -1712,13 +1743,21 @@ async function runShip(
           : '';
       // When proposals parse to a real set → post the actionable render. When the
       // ship proposed nothing (empty array) → silence. When the block was
-      // malformed (null) → post the raw output so the model's prose isn't lost.
-      const body = rendered || (proposals === null ? output : '');
+      // malformed (null) → post the raw output so the model's prose isn't lost,
+      // and record the ship as BROKEN rather than laundering it into a PASS.
+      const malformed = proposals === null;
+      const body = rendered || (malformed ? output : '');
 
-      await transcript.step('ship-verdict', ship.name, `pd-${ship.name}: PASS (ideation)`, {
-        proposals: curated ?? 'malformed',
-        posted: !!body.trim(),
-      });
+      await transcript.step(
+        malformed ? 'ship-finding' : 'ship-verdict',
+        ship.name,
+        malformed
+          ? `pd-${ship.name}: proposal block MALFORMED — broken ship, fails the run`
+          : `pd-${ship.name}: PASS (ideation)`,
+        malformed
+          ? { error: 'failed to parse proposals', posted: !!body.trim() }
+          : { proposals: curated, posted: !!body.trim() },
+      );
 
       await postShipComment(
         prCtx.owner,
@@ -1747,7 +1786,7 @@ async function runShip(
         ship: ship.name,
         blocking: false,
         verdict: 'PASS',
-        errored: false,
+        errored: malformed,
         findings: [],
       };
     }
@@ -2246,14 +2285,15 @@ function buildSummary(results: ShipResult[], conclusion: string): string {
     const tag = r.blocking ? ' [BLOCKING]' : '';
     // A ship that produced nothing is reported as exactly that. It must never
     // print as `PASS` here — this summary is the check-run body an operator
-    // reads before merging.
+    // reads before merging. Broken states (error / no usable output) fail the
+    // run whatever the ship's blocking flag — see aggregateConclusion.
     const state = r.noUsableOutput
-      ? 'no usable output — nothing was reviewed'
+      ? 'no usable output — nothing was reviewed (broken ship ⇒ run FAILED)'
       : r.errored
-        ? 'error'
+        ? 'error (broken ship ⇒ run FAILED)'
         : r.verdict;
     const advisory =
-      !r.blocking && (r.verdict === 'BLOCK' || r.errored || r.noUsableOutput) ? ' (advisory)' : '';
+      !r.blocking && r.verdict === 'BLOCK' && !r.errored && !r.noUsableOutput ? ' (advisory)' : '';
     return `- pd-${r.ship}${tag}: ${state}${advisory}`;
   });
   lines.push('');
