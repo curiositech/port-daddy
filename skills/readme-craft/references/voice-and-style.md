@@ -46,9 +46,9 @@ matter most for a README.
 - Code font for anything typed: commands, flags, filenames, environment variables, field
   names. Bold for UI elements.
 - Numbered lists for sequences. Bulleted lists for everything else.
-- Descriptive link text. Never "click here", never a bare URL, never "see the docs".
-  "See [the delegation modes guide](docs/DELEGATION-MODES.md)" tells a reader scanning
-  links what they will get.
+- Descriptive link text. Never "click here", never a bare URL, never "see the docs". A
+  link reading `[the delegation modes guide]` tells a reader scanning links what they will
+  get; one reading `[here]` tells them nothing and forces a round trip.
 
 **Global audience**
 - Avoid idiom that does not translate, culture-specific references, and humor that depends

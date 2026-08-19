@@ -71,8 +71,8 @@ correct, and belongs somewhere else:
 |---|---|---|
 | Command index (every verb, grouped) | ~30 | `pd help` — generated from the registry, so it cannot drift |
 | Destructive-command list (35 entries) | ~40 | `docs/operations/` and the confirmation prompts themselves |
-| Permission-tier table + audit-trail prose | ~55 | `docs/operations/permission-tiers.md` |
-| Environment-variable reference | ~15 | `docs/reference/configuration.md` |
+| Permission-tier table + audit-trail prose | ~55 | `docs/operations/permission-tiers.md` (proposed) |
+| Environment-variable reference | ~15 | `docs/reference/configuration.md` (proposed) |
 | Per-feature deep sections (tuples, pheromones, actors, roster, arbiter, booty…) | ~350 | `docs/` pages, one each, linked from the docs map |
 | Daemon-operations detail (berths, backup, cut, batten, distribution) | ~65 | `docs/operations/` |
 | Every "as of ADR-00XX" aside | scattered | delete; the ADR link carries it |
@@ -88,7 +88,7 @@ Run a dozen coding agents at once without them stepping on each other.
 
 [3 live badges]
 
-![Two agents coordinating through the daemon](website-v2/public/gifs/quickstart.gif)
+![An agent opening a session, leaving notes, and closing out with a result](website-v2/public/gifs/quickstart.gif)
 
 Point ten agents at one repository and they will race: two claim port 3000, two edit the
 same file, one dies mid-task and takes its context with it. Port Daddy is a local daemon
@@ -122,11 +122,11 @@ roadmap. It passes, or it refuses loudly. There is no bypass.
 
 | Metric | Before | After |
 |---|---|---|
-| Lines | 1,046 | ~330 |
-| Fences | 43 | 17 |
-| Top-level sections | 24 | 10 |
-| First runnable command | line 27, an 11th-step workflow | line 22, a first success |
-| Hero media | broken path | a recording that already existed in the repo, unused |
+| Lines | 1,046 | 268 |
+| Fences | 43 | 11 |
+| Top-level sections | 24 | 9 |
+| First runnable command | line 27, an 11th-step workflow | line 29, the install |
+| Hero media | broken path | a recording the repo already generated but never linked |
 | Identity statement | five comma-joined nouns | one sentence a stranger can act on |
 
 ## The generalizable moves
