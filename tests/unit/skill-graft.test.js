@@ -715,6 +715,31 @@ describe('buildSkillAdjacency + first-hop expansion end-to-end through craft()',
     expect(seed.via).toBeUndefined();
   });
 
+  test('an id that prefixes a longer id never steals its mention (hyphen-aware boundaries)', async () => {
+    // `\\b` treats a hyphen as a boundary, so a plain-\\b regex would match
+    // `windags-ops` INSIDE `windags-ops-extended` — a false edge to the
+    // shorter id AND, with the g-flag cursor advanced, the longer id's own
+    // mention consumed and missed. The lookaround boundaries must credit
+    // the mention to the longer id only.
+    writeSkill(tmpRoot, 'windags-ops', 'short operational skill vocabulary');
+    writeSkill(tmpRoot, 'windags-ops-extended', 'longer operational skill vocabulary');
+    const dir = join(tmpRoot, 'mentioner');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'SKILL.md'),
+      `---\nname: mentioner\ndescription: |\n  central topic words filler alpha\n---\n\n# mentioner\n\nThis skill builds on windags-ops-extended for the long-form flow.\n`);
+
+    const { buildSkillAdjacency } = await import('../../lib/skill-graft.js');
+    const adjacency = buildSkillAdjacency([
+      { id: 'windags-ops', description: 'short', sourcePath: join(tmpRoot, 'windags-ops', 'SKILL.md') },
+      { id: 'windags-ops-extended', description: 'long', sourcePath: join(tmpRoot, 'windags-ops-extended', 'SKILL.md') },
+      { id: 'mentioner', description: 'central topic', sourcePath: join(dir, 'SKILL.md') },
+    ]);
+    const edges = adjacency.get('mentioner') ?? [];
+    const targets = edges.map((e) => e.target);
+    expect(targets).toContain('windags-ops-extended');
+    expect(targets).not.toContain('windags-ops');
+  });
+
   test('a pairs-with target that is not a real catalog skill never reaches the shortlist', async () => {
     // A typo'd or uninstalled pairs-with target honestly enters the
     // adjacency, but craft()'s merge drops any fused id with no catalog
