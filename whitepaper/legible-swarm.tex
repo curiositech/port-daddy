@@ -851,6 +851,25 @@ bounded critique--refine protocol. This is the wedge's local analog of the
 federate across operators: the same conflict-free-judge discipline, scoped
 first to one operator and then opened to a market.
 
+\subsection{Sole-responsibility roles and the specialization boundary}\label{sec:sole-roles}
+
+The single-writer discipline (\S\ref{sec:local}) generalizes naturally from data files to system functions. When an invariant is critical, the authority assigns a \textbf{sole-responsibility role} (an avatar holding exclusive write capability over an invariant):
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+\item \emph{Roadmap Owner:} The single avatar authorized to commit mutations to the phase plan.
+\item \emph{Test Suite Curator:} The sole agent authorized to land modifications to regression suites.
+\item \emph{Release Avatar:} The sole gatekeeper authorized to execute deployment tags.
+\end{itemize}
+
+\begin{theorem}[Queueing Specialization Boundary]\label{thm:specialization}
+Let requests for an invariant-critical function $F$ arrive as a Poisson stream at rate $\lambda_F$. A sole specialist operates as an $M/M/1$ queue with service rate $\mu_{\mathrm{spec}}$, while a pooled generalist swarm operates as an $M/M/c$ queue with total service rate $c \mu_{\mathrm{pool}}$.
+
+Sole ownership strictly dominates pooled generalist service in mean response time if and only if the specialist efficiency ratio exceeds the queueing congestion threshold:
+\begin{equation}
+\frac{\mu_{\mathrm{spec}}}{\mu_{\mathrm{pool}}} \;>\; 1 + \frac{(c-1)\lambda_F}{c\mu_{\mathrm{pool}} - \lambda_F}.
+\end{equation}
+Below this threshold, sole ownership buys strict single-writer accountability at an explicit latency price that must be budgeted rather than obscured.
+\end{theorem}
+
 \subsection{Completionist obligation: completion as a verifier, not a vibe}\label{sec:completionist}
 
 The operator's standing complaint is the agent that \emph{declares completion while
@@ -1513,6 +1532,18 @@ Theorem~\ref{thm:split-digest} dictates that the system must never ask the worke
 
 \input{figures/legible-swarm-read-surfaces}
 
+\subsection{Context paging: virtual memory for the context window}\label{sec:context-paging}
+
+Context compaction can be formalized as \textbf{virtual memory for language models}: the local file buffer is backing store, the finite context window is the resident set, and paging tools act as the memory management unit (MMU).
+
+\begin{theorem}[Context Paging Competitiveness]\label{thm:paging}
+Let the context window hold $k$ active pages, with offline optimal page-replacement incurring cost $\mathrm{OPT}$. Under an online \textbf{recency-plus-pin policy} (where pins correspond to load-bearing spans verified by deterministic structural features), the online paging cost satisfies the Sleator--Tarjan competitive bound~\cite{sleatortarjan1985}:
+\begin{equation}
+\mathrm{Cost}_{\mathrm{online}} \;\le\; \frac{k}{k - h + 1} \cdot \mathrm{OPT} \;+\; \phi N c_{\mathrm{refetch}},
+\end{equation}
+where $h \le k$ is the size of the verifiable pinned set, and $\phi \in [0, 1]$ represents the fraction of forgeable/unverified features subject to adversarial eviction. Under marking with randomized eviction, competitiveness against oblivious adversaries improves to $O(\log k)$.
+\end{theorem}
+
 The most counterintuitive instance is \emph{forgetting as compaction}.
 \textbf{Pheromone decay} --- multiplying every stored coordination trace by a decay
 factor each interval --- implements \textbf{stigmergy} (\textbf{Grass\'e
@@ -2095,6 +2126,11 @@ John R.\ Douceur.
 \bibitem{ostrom1990}
 Elinor Ostrom.
 \newblock \textit{Governing the Commons: The Evolution of Institutions for Collective Action}. Cambridge University Press, 1990.
+
+\bibitem{sleatortarjan1985}
+Daniel D.\ Sleator and Robert E.\ Tarjan.
+\newblock Amortized efficiency of list update and paging rules.
+\newblock \textit{Communications of the ACM}, 28(2):202--208, 1985.
 
 \end{thebibliography}
 

@@ -186,6 +186,26 @@ In a condominium harbor, sovereignty is replaced by a shared \textbf{charter}. T
 \end{table}
 
 \clearpage
-\section{References}
+\section{The Clean-Room Harbor: Derek and Erin}\label{app:clean-room}
+
+The commercial apex of ``hosted trust as a product'' is the \textbf{Clean-Room Harbor}: executing a proprietary AI agent stack $S$ (owned by Erin) over a confidential corporate dataset $D$ (owned by Derek) while provably bounding exfiltration in both directions.
+
+\subsection{Information-Flow Lattice and Dual Declassification Gates}
+We define a Decentralized Label Model (DLM) lattice $\{\bot\} \le \{D\}, \{E\} \le \{D, E\}$. Derek's raw data enters labeled $\{D\}$; Erin's weights and prompts enter labeled $\{E\}$. Any computation over both inherits the join label $\{D, E\}$.
+
+The hypervisor daemon completely mediates all execution paths ($\{\mathrm{fs}, \mathrm{net}, \mathrm{exec}\}$), routing all output through exactly two auditable declassification gates:
+\begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
+\item \textbf{Erin's Exit Gate ($G \to E$):} Schema-restricted aggregates only; Differential Privacy (DP) Laplace noise drawn against a metered privacy budget $\epsilon$; verbatim-span suppression against $D$'s corpus; and $c$ canary sentinels planted in $D$.
+\item \textbf{Derek's Exit Gate ($G \to D$):} Task outputs and reports only; Erin's model weights execute as a sealed enclave capability that Derek can invoke but cannot inspect or export.
+\end{enumerate}
+
+\begin{theorem}[Conditional Noninterference and Privacy Conservation]\label{thm:cleanroom}
+Under complete hypervisor mediation of all I/O channels and correct gate enforcement:
+\begin{enumerate}[nosep]
+\item \textbf{Noninterference:} No $\{D\}$-labeled information reaches Erin beyond gate-released DP aggregates, and no $\{E\}$-labeled intellectual property reaches Derek beyond task reports.
+\item \textbf{$\epsilon$-Conservation:} The cumulative privacy loss over any execution trace strictly satisfies $\sum_{i} \epsilon_i \le \mathcal{E}_{\mathrm{budget}}$.
+\item \textbf{Canary Detection Power:} With $c$ planted canaries and gate false-negative rate $\beta$, an exfiltration attempt spanning $k$ canary tokens is detected with probability $\ge 1 - \beta^k$.
+\end{enumerate}
+\end{theorem}
 \addcontentsline{toc}{section}{References}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-bibliography.tex}{bibliography}

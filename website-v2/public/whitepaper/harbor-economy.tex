@@ -1356,6 +1356,20 @@ mechanism for exactly that layer; the retail protocols are evidence the layer be
 it is arriving on schedule, and hosted trust (\S\ref{sec:hosted-trust}) is what
 they will need bolted on.
 
+\subsection{Mechanism 9: The Adversarial Test Market and Purchased Assurance}\label{sec:adversarial-tests}
+
+Beyond labor and IP licensing, the Harbor Economy establishes an internal market for **adversarial test generation**, formalizing PR verification as an interactive proof system (delegated computation~\cite{goldwasser2008} and multi-agent debate~\cite{irving2018}).
+
+\begin{theorem}[Purchased Assurance Bound]\label{thm:assurance}
+Let an author-agent submit a Float Plan implementation with a proposed diff. Let $k$ independent, conflict-free test-writing agents each discover planted or latent flaws with independent detection probability $d \in (0, 1)$. The probability that a critical flaw survives undetected across all $k$ reviewers is bounded by:
+\begin{equation}
+\Pr(\text{Defect Undetected}) \;\le\; (1 - d)^k.
+\end{equation}
+Truthful effort is a strictly dominant strategy for test-writers under a bounty-per-killed-mutant and slash-per-false-alarm contract satisfying the Becker condition $\rho d B > G$. The operator's assurance level $1 - (1-d)^k$ is thus a purchasable commodity priced at $k \cdot (\text{bounty} + \text{bond carry})$, making ``hosted trust as a service'' a quantifiable line item.
+\end{theorem}
+
+The ground-truth oracle for evaluating test-writers is \textbf{mutation testing kill rates} against held-out syntactic mutation operators, preventing agents from overfitting tests to known test suites.
+
 \begin{table}[H]
 \centering
 \small
@@ -1606,6 +1620,14 @@ detached-content merchant authorization, JCS canonicalization), 2026.
 \bibitem{datadome2026} DataDome. ``Agent Trust Management and the Universal
 Commerce Protocol,'' 2026.
 \texttt{datadome.co/agent-trust-management/universal-commerce-protocol/}.
+
+\bibitem{goldwasser2008} S. Goldwasser, Y. T. Kalai, and G. N. Rothblum.
+\newblock Delegating computation: Interactive proofs for Muggles.
+\newblock \textit{STOC}, pp. 613--622, 2008.
+
+\bibitem{irving2018} G. Irving, P. Christiano, and D. Amodei.
+\newblock AI safety via debate.
+\newblock \textit{arXiv preprint arXiv:1805.00899}, 2018.
 
 \end{thebibliography}
 

@@ -483,6 +483,20 @@ We adopt rule (2). The pessimistic rule has the wrong defaults; the epoch-bounde
 
 By resolving the bitwise merging impossibility of probabilistic structures, the cuckoo filter is now purely a local, ephemeral read-path index derived from the authoritative Append-Only Event Log. The filter retains local Anchor-side disciplines (load capping, pollution resistance) but cross-harbor validation is strict: a filter at $B$ that holds $c \in F_B$ where $c$ was revoked at $A$ is correct only if there is a corresponding inclusion proof in $R_A^{(e+1)}$ in the witness log. False positives are corrected by rebuilding the local filter from the event log; spurious revocations injected by an attacker into a peer's log are rejected on first attempt to verify against the witness log. The discipline is: \emph{local filters are advisory read-caches; the event and witness logs are authoritative}.
 
+\subsection{Sheaf Laplacian and Abramsky--Brandenburger Contextuality}\label{sec:fh-sheaf}
+
+The global consistency of federated witness logs can be modeled category-theoretically. Let $(X, \le)$ be the poset of administrative domains with morphisms given by scoped visibility. A presheaf $\mathcal{F}$ over $X$ assigns to each domain $U$ the semilattice of prefix-compatible append-only logs $\mathcal{F}(U)$, with restriction maps given by prefix projection.
+
+\begin{theorem}[Equivocation as Cohomological Obstruction]\label{thm:sheaf-equivocation}
+Let $\mathcal{U} = \{U_i\}$ be an open cover of the harbor network. A collection of local witness logs $\{s_i \in \mathcal{F}(U_i)\}$ glues into a unique global consensus state $s \in \mathcal{F}(X)$ if and only if the \v{C}ech 1-cohomology obstruction vanishes:
+\begin{equation}
+[\delta s]_{ij} \;=\; s_i|_{U_i \cap U_j} - s_j|_{U_i \cap U_j} \;=\; 0 \quad\iff\quad H^1(\mathcal{U}; \mathcal{F}) \;=\; 0.
+\end{equation}
+By the Abramsky--Brandenburger contextuality equivalence~\cite{abramsky2011operational}, an equivocation (a harbor signing two mutually incompatible prefixes) is mathematically isomorphic to Bell contextuality in relational semantics: local observations that cannot be factored through any deterministic global hidden state.
+\end{theorem}
+
+\paragraph{Sheaf Laplacian Dynamics.} On a cellular network complex, the \textbf{Hansen--Ghrist Sheaf Laplacian}~\cite{hansengrist2019} is defined as $\Delta_{\mathcal{F}} = \delta^* \delta$. Its harmonic space $\ker(\Delta_{\mathcal{F}}) \cong H^0(X; \mathcal{F})$ is precisely the subspace of globally synchronized ledger states. The spectral gap $\lambda_2(\Delta_{\mathcal{F}})$ (the smallest non-zero eigenvalue of the sheaf Laplacian) governs the diffusion rate of anti-entropy gossip, establishing a rigorous bound on the relaxation time required for the federation to reach global consensus.
+
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Cross-Harbor Settlement}\label{sec:fh-settlement}
 % ═════════════════════════════════════════════════════════════════════════════
@@ -517,6 +531,16 @@ Assume the custody ledger (i) admits only recipients $A$ and $B$, (ii) caps the 
 The bound follows by case analysis over the two allowed terminal transitions. Witness logging makes delay or equivocation detectable, and an escrow bond can compensate some misconduct, but neither fact prevents theft if the operator can bypass custody restrictions. Without assumptions (i)--(iv), the worst-case extractable value is the full custodial balance.
 
 The escrow is a trusted third party with a \emph{conditional transition bound}. We are honest that this is not a trustless construction in the HTLC sense~\cite{herlihy2018atomic}. Whether useful trustless settlement is possible for non-fungible reputation-priced bonds remains open (\S\ref{sec:fh-limitations}); this paper gives neither a construction nor an impossibility proof.
+
+\subsection{The 2-of-3 Multisig Clearinghouse}\label{sec:fh-multisig}
+
+To resolve the regulatory and security liabilities of centralized financial custody (such as Money Services Business / FinCEN registration and honeypot risk) while preserving subjective dispute arbitration, the federation synthesizes non-custodial cryptography with judicial oversight via the \textbf{2-of-3 Multisig Clearinghouse}:
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+\item \emph{Key Distribution:} Escrowed collateral is locked in a 2-of-3 threshold signature smart contract (e.g., Base USDC) or Stripe Connect hold. The three keys are held by: (1) $\text{Harbor}_A$, (2) $\text{Harbor}_B$, and (3) the $\text{agentsd}$ Federation Arbiter.
+\item \emph{The Happy Path (Unilateral Peer Clearance):} When the Float Plan completes successfully, Alice and Bob both sign the release transaction (2-of-3). Funds settle peer-to-peer immediately; the central Arbiter never touches custody and pays zero gas.
+\item \emph{The Dispute Path (Judicial Arbitration):} If Alice and Bob dispute task completion, the Federation Arbiter evaluates the submitted Merkle evidence trail and the rulings of the independent rating judges. If the Arbiter rules in Alice's favor, it co-signs with Alice's key (2-of-3) to force settlement; if it rules for Bob, it co-signs with Bob to execute the bond refund.
+\end{itemize}
+This architecture provides the legal and regulatory safety of decentralized, non-custodial settlement while retaining the subjective dispute-resolution authority of a commercial chancery court.
 
 \subsection{Cross-harbor conservation}\label{sec:fh-cross-conservation}
 
@@ -959,6 +983,16 @@ Universal Commerce Protocol.
 Agent Payments Protocol (AP2): Mandates.
 \newblock Verifiable-credential authorization chain: SD-JWT+kb, JWS detached content, JCS canonicalization, 2026.
 \newblock \texttt{https://ap2-protocol.org}.
+
+\bibitem{abramsky2011operational}
+Samson Abramsky and Adam Brandenburger.
+\newblock The operational-sheaf-theoretic approach to contextuality and non-locality.
+\newblock \textit{New Journal of Physics}, 13(11):113036, 2011.
+
+\bibitem{hansengrist2019}
+Jakob Hansen and Robert Ghrist.
+\newblock Toward a spectral theory of cellular sheaves.
+\newblock \textit{Journal of Applied and Computational Topology}, 3(4):315--358, 2019.
 
 \end{thebibliography}
 

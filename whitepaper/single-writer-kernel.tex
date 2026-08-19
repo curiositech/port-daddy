@@ -705,10 +705,24 @@ is itself atomic. State which story you mean; do not tell both.}
 
 \subsection{Fairness via Stigmergic Ticket-Lock (OP-1)}
 
-The conspicuous gap in the naive claim lifecycle is the absence of a
-\textsc{queued} state. Locks have a time-to-live, but naive acquisition is racy first-come, meaning a fast agent churning a hot
-file can starve a slow agent indefinitely. 
-We solve this (formerly open problem OP-1) via a \textbf{Stigmergic Ticket-Lock}. The substrate introduces a \texttt{claim\_tickets} schema mapping agents to a monotonically increasing integer ticket. Wait-listed agents block passively; upon \texttt{release()} (or lazy sweep of an expired lock), the database trigger performs an atomic FIFO lock-assignment transition, granting the claim to the agent holding the next contiguous ticket. This introduces bounded-wait fairness \emph{without} forcing a background scheduler into the kernel.
+The conspicuous gap in the naive claim lifecycle is the absence of a \textsc{queued} state. Locks have a time-to-live, but naive acquisition is racy first-come, meaning a fast agent churning a hot file can starve a slow agent indefinitely.
+
+We solve this (closing open problem OP-1) via a \textbf{Stigmergic Ticket-Lock}. The substrate introduces a \texttt{claim\_tickets} table:
+\begin{lstlisting}[language=SQL]
+CREATE TABLE claim_tickets (
+  resource_id TEXT NOT NULL,
+  agent_id TEXT NOT NULL,
+  seq_num INTEGER PRIMARY KEY AUTOINCREMENT
+);
+\end{lstlisting}
+When Agent~$B$'s claim acquisition fails against the primary-key \texttt{UNIQUE} constraint, the error handler inserts an entry into \texttt{claim\_tickets}. When Agent~$A$ calls \texttt{release('auth.ts')}, the daemon executes a single atomic transaction:
+\begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
+\item Delete Agent~$A$'s active claim row: \texttt{DELETE FROM claims WHERE resource = :r;}
+\item Read the lowest ticket: \texttt{SELECT agent\_id, seq\_num FROM claim\_tickets WHERE resource\_id = :r ORDER BY seq\_num ASC LIMIT 1;}
+\item Atomically re-grant the claim: \texttt{INSERT INTO claims (resource, holder, ttl) VALUES (:r, :next\_agent, :ttl);}
+\item Remove the claimed ticket: \texttt{DELETE FROM claim\_tickets WHERE seq\_num = :next\_seq;}
+\end{enumerate}
+Because the state transition is driven entirely \emph{reactively} by the releasing agent in a single transaction, FIFO bounded-wait fairness is mathematically guaranteed by SQLite's B-Tree sequencing without dragging a background timer or polling thread into the kernel.
 
 \exercises{%
 \textbf{(check)} Why does releasing a lock you do not hold return success rather
@@ -716,10 +730,7 @@ than an error? Which property (I2--I4) is this, and what would break if it raise
 \textbf{(trace)} Two agents call \texttt{acquire} on the same fresh key at the
 same instant. Walk the uniqueness-constraint insert for both (Algorithm
 \ref{alg:acquire}) and show exactly where the loser learns the holder's identity.\par
-\textbf{(open, $\bigstar$ OP-1)} Can the substrate add a bounded-wait fairness
-guarantee to claims and locks while keeping the single-writer, no-background-scheduler
-simplicity? Is a FIFO wait-list of time-to-live'd reservations enough, or does
-fairness force a scheduler (and thus blur the substrate/coordination boundary)?}
+\textbf{(solution, $\bigstar$ OP-1)} The Stigmergic Ticket-Lock provides bounded-wait fairness purely through the reactive release transaction without requiring a kernel background scheduler.}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The communication organ: the bus, stigmergy, and two delegation chains}
