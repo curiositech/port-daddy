@@ -662,7 +662,11 @@ export function memoryD1(): D1Capture {
         // ordered by seq (see src/delivery-failure.ts). Served from the same
         // `steps` array the INSERT path above appends to, so a test that writes
         // a failure through the real code can read it back through the real code.
-        if (/FROM fleet_run_steps/i.test(sql)) {
+        // Guarded against JOIN queries: the adjudicator's epidemic-evidence
+        // SELECT (below) also reads fleet_run_steps but joins fleet_runs and
+        // binds a different arg shape — without this guard the generic matcher
+        // would intercept it and misparse (ship, kinds…) as (runId, kind).
+        if (/FROM fleet_run_steps/i.test(sql) && !/JOIN fleet_runs/i.test(sql)) {
           if (cap.failAll) throw new Error('D1 unavailable');
           const [runId, kind] = args;
           const matching = cap.steps
