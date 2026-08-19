@@ -1411,6 +1411,18 @@ describe('computeNextAbsoluteFireDelayMs', () => {
     expect(delay).toBe(expected);
     expect(delay).toBeGreaterThan(0);
   });
+
+  test('"0 0 * * *" one second before midnight fires in exactly one second', () => {
+    const now = new Date(2026, 0, 15, 23, 59, 59, 0).getTime(); // Jan 15, 23:59:59
+    expect(computeNextAbsoluteFireDelayMs('0 0 * * *', now)).toBe(1000);
+  });
+
+  test('"0 0 * * *" at the exact fire instant rolls a full day forward, never zero', () => {
+    // delay 0 would re-fire immediately in a tight loop; <= comparison must
+    // push the equal-instant case to the next day.
+    const now = new Date(2026, 0, 15, 0, 0, 0, 0).getTime(); // Jan 15, 00:00:00.000
+    expect(computeNextAbsoluteFireDelayMs('0 0 * * *', now)).toBe(24 * 60 * 60 * 1000);
+  });
 });
 
 test('malformed schedule keeps DEFAULT_INTERVAL via parseCronInterval', () => {
@@ -1432,6 +1444,21 @@ test('startAgent: "0 1 * * *" arms a setTimeout at the next 01:00, not a fixed s
 
 test('startAgent: malformed schedule still uses the setInterval fast path at DEFAULT_INTERVAL', () => {
   const config = makeConfig({ schedule: 'garbage' });
+  const runner = createFleetRunner(config, '/tmp/proj');
+
+  const setIntervalSpy = jest.spyOn(global, 'setInterval');
+  const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+  runner.startAgent(config.agents[0]);
+
+  expect(setIntervalSpy.mock.calls[0][1]).toBe(600000);
+  expect(setTimeoutSpy).not.toHaveBeenCalled();
+});
+
+test('startAgent: constrained day-of-week "0 8 * * 1" falls back to the setInterval path at DEFAULT_INTERVAL', () => {
+  // Well-formed cron, but isAbsoluteCronSchedule rejects the constrained
+  // day field, so the absolute setTimeout chain must NOT engage; the agent
+  // stays on parseCronInterval's conservative interval instead.
+  const config = makeConfig({ schedule: '0 8 * * 1' });
   const runner = createFleetRunner(config, '/tmp/proj');
 
   const setIntervalSpy = jest.spyOn(global, 'setInterval');
