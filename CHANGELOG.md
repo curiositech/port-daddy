@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.28.2] - 2026-08-18
+
+## [3.28.1] - 2026-08-18
+
+## [3.28.0] - 2026-08-15
+
 ### Added
 - **Shared-harbors groundwork ADR wave (0122–0126).** Five accepted ADRs anchor the shared-harbors program: ADR-0122 Harbor Authority (one writer per harbor, authority epochs, writer leases, queue-only relay firings — the ADR binder ch02 demanded before team/public harbors), ADR-0123 Cloud Vault / Account KMS (key hierarchy, per-harbor key derivation, custody in the Rust kernel, no email-only recovery), ADR-0124 Transcript Redaction (`raw|scrubbed|redacted|unknown` states; sync fails closed on `unknown`), ADR-0125 iOS Operator Surface (`ios` joins the sanctioned surface set; native SwiftUI HITL-first; supersedes ADR-0105's PWA-first stance), and ADR-0126 Shared-Harbors Re-sequencing (the Tier-3 operator decision log: cloud/mobile/team harbors move from M10-last to now; formal supersessions of the daemon-mesh/phone-plan/V4-DAG planning regimes).
 - **ADR-0119 numbering collision resolved.** The durable named-agent roster ADR is renumbered to 0121 with a forwarding stub; 0119 is held solely by the relay release-channels ADR. Registry regenerated via the collision guard.

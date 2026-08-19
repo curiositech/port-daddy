@@ -6,40 +6,80 @@
  *
  *   a. STEEL-MAN — one AI call over the PR title/body/diff produces the
  *      best-interpretation contract: purpose + testable obligations[] +
- *      testTargets[]. Malformed output ⇒ transcript error, advisory PASS, stop
- *      (the purser never bluffs).
+ *      testTargets[]. The parsed contract is then UPSERTED INTO THE REVIEWED
+ *      PR'S BODY (operator mandate, 2026-08-19: the steel-man argument and its
+ *      obligations are the best chronology of what a PR should be, and the PR
+ *      summary is where that chronology lives — maintained by this agent,
+ *      edit-in-place between HTML markers). Malformed output ⇒ transcript
+ *      error and a BROKEN-SHIP result (`errored: true`, which fails the run —
+ *      see the doctrine note below); the purser never bluffs a contract.
  *   b. AUTHOR TESTS — a second AI call authors adversarial unit + integration
  *      test files that grill the contract's edge cases. Files are validated by
- *      the stacked-pr path whitelist + size caps (model output is untrusted).
+ *      the stacked-pr path whitelist + size caps (model output is untrusted),
+ *      then by the EXECUTABILITY GATE (src/purser-executability.ts, fail
+ *      closed): every authored path must live inside the repo's OWN,
+ *      evidence-fetched jest `testMatch` (never just an operator-declared
+ *      `testPaths` prefix), and every relative import must resolve to a real
+ *      file. Unknown/unfetchable evidence is a REJECTION, not a pass. A
+ *      rejection here preserves the steel-man contract + authored tests as
+ *      evidence in a comment (never fabricated as executed), stops BEFORE
+ *      touching the Git Data API — no branch, no test PR, no retarget — and
+ *      returns a BROKEN-SHIP result so the run fails until the authoring or
+ *      config defect is fixed. (Root-caused by #5860: five tests lived outside the repo's
+ *      configured jest discovery path and imported a nonexistent module; the
+ *      purser retargeted the reviewed PR onto them anyway.)
  *   c. SANDBOX (feature-flagged) — when env.SANDBOX exists, the repo's test
  *      runner executes the new tests against the PR head in a Cloudflare
  *      Sandbox. Absent binding ⇒ executed:false, NEVER fabricated results.
- *   d. STACK — branch `purser/pr-<n>-tests` is cut from the PR's BASE sha, a
- *      test PR is opened for it, and the reviewed PR is RETARGETED onto the
- *      test branch so it sits stacked on top of the tests and must satisfy
- *      them. Fork PRs get the test PR + a comment but NO retarget. A 403
- *      (App lacks `contents: write`) degrades honestly: tests are posted
- *      inline in a comment, the missing permission is named, and the verdict
- *      stays advisory.
+ *   d. STACK — branch `purser/pr-<n>-tests` is cut from the PR's BASE sha and
+ *      a test PR is opened for it. The reviewed PR is RETARGETED onto the
+ *      test branch — so it sits stacked on top of the tests and must satisfy
+ *      them — ONLY when it is same-repo (not a fork) AND `sandbox.executed`
+ *      is true: retargeting onto tests that were merely authored but never
+ *      run hides the true origin/main diff and shrinks normal CI for no
+ *      verified benefit (the other half of #5860 — "the body admitted they
+ *      were not run"). Fork PRs, and same-repo PRs whose tests did not
+ *      execute, get the test PR + a comment explaining why NOT retargeted,
+ *      but the implementation PR's base is left untouched. A 403 (App lacks
+ *      `contents: write`) degrades honestly — tests are posted inline in a
+ *      comment and the missing permission is named + escalated — but it is
+ *      still a BROKEN-SHIP result: the run fails until the permission lands.
  *   e. VERDICT — blocking iff pd-fleet.yml says `blocking: true`. BLOCK while
  *      sandbox-executed tests fail on the PR head. Sandbox unavailable ⇒ the
  *      `blockWithoutSandbox` flag decides (default false ⇒ advisory): the
  *      purser never blocks on tests that were never run unless the operator
- *      explicitly opted into fail-closed.
+ *      explicitly opted into fail-closed. (This governs the ship's PASS/BLOCK
+ *      merge-gate verdict; RETARGETING is a separate, stricter action — see d.)
  *
  * Comment tone: firm, adversarial, professional. Demands, with reasons.
  * Never abusive.
+ *
+ * THE BROKEN-SHIP DOCTRINE (operator ruling, 2026-08-19; see verdict.ts
+ * `aggregateConclusion`). The purser used to degrade every machinery failure —
+ * malformed steel-man, malformed plan, failed authoring, rejected or
+ * non-executable tests, a 403 on the stack, an outright crash — to an ADVISORY
+ * PASS "so it never blocks on work it could not do". The observable result:
+ * the purser authored tests into a directory the repo's own test runner would
+ * never discover, stacked nothing, and the run stayed green. That is a broken
+ * ship sailing past the gate it exists to keep. Machinery failures now return
+ * `errored: true` under the ship's REAL blocking flag, which fails the run —
+ * the breakage gets fixed in the diff that surfaced it. The ONE deliberate
+ * exception is sandbox ABSENCE on well-formed, executable, stacked tests:
+ * that is a configured deployment state (`blockWithoutSandbox` decides it),
+ * not a breakage.
  */
 
 import type { ExecutorEnv } from './env.js';
 import type { ShipConfig } from './fleet.js';
 import type { ShipResult, Verdict } from './verdict.js';
-import { postShipComment, type PRContext } from './github.js';
+import { postShipComment, upsertPrBodySection, type PRContext } from './github.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
 import { extractWorkersAiUsage } from './telemetry.js';
 import { stripThinkSpans } from './xo.js';
 import {
   createOrUpdateBranch,
+  fetchRepoFileText,
+  fetchRepoTreePaths,
   findOpenPrForBranch,
   openStackedPr,
   readBranchFiles,
@@ -49,6 +89,13 @@ import {
   type StackedFile,
   type StackedPrResult,
 } from './stacked-pr.js';
+import {
+  checkGeneratedTestsExecutable,
+  extractJestTestMatch,
+  extractPackageJsonTestMatch,
+  JEST_CONFIG_CANDIDATES,
+  type ExecutabilityEvidence,
+} from './purser-executability.js';
 import {
   decideRerun,
   decodeFingerprint,
@@ -61,6 +108,13 @@ import {
   MAX_NAMED_FAILURES,
   type SandboxRunOutcome,
 } from './sandbox-runner.js';
+import {
+  authorTestFiles,
+  parseTestPlan,
+  MAX_PLANNED_FILES,
+  type AuthorFailure,
+  type PlannedFile,
+} from './purser-authoring.js';
 import { fleetPrBodyTrailers } from './fleet-pr-body.js';
 import { emitSquidEvent } from './squid-events.js';
 import { emitInterruption } from './interruptions.js';
@@ -69,8 +123,19 @@ import { emitInterruption } from './interruptions.js';
 
 /** Output cap for the steel-man call (a contract is small). */
 const STEELMAN_MAX_TOKENS = 2048;
-/** Output cap for the test-authoring call (test files are not small). */
+/**
+ * Output cap for ONE file's authoring call.
+ *
+ * This is a per-FILE budget now, not a budget shared by every file in one
+ * response. Under the old single-call contract, four files split one 4096-token
+ * cap and the fourth reliably truncated mid-string — which, in a JSON payload,
+ * invalidated the whole response including the three good files.
+ */
 const TESTS_MAX_TOKENS = 4096;
+/** Output cap for the PLAN call (paths + intents; deliberately small). */
+const PLAN_MAX_TOKENS = 1024;
+/** Head of a malformed response recorded for diagnosis. See {@link runPurser}. */
+const RAW_DIAGNOSTIC_CHARS = 2000;
 /** Diff budget for the purser's prompts (chars). */
 const PURSER_DIFF_CHAR_LIMIT = 24_000;
 /** Transcript cap for the sandbox failure tail. */
@@ -119,7 +184,8 @@ const JSON_FENCE_RE = /```[ \t]*[A-Za-z0-9]*[ \t]*\r?\n([\s\S]*?)\r?\n?```/;
  * {@link parseAuthoredFiles}) then applies the SAME strict shape validation as
  * before and returns null on any deviation, so widening extraction can only
  * ever recover a contract the model really did emit — it can never invent one.
- * When nothing parses, the purser still degrades honestly to an advisory PASS.
+ * When nothing parses, the purser reports itself broken (`errored: true`) and
+ * the run fails — never a quiet pass.
  *
  * The 2026-08-04 run recorded `steel-man output was not the required fenced
  * JSON contract` with `outputLength: 1416` — 1.4KB of model output discarded
@@ -177,8 +243,9 @@ function stringArray(value: unknown): string[] | null {
 /**
  * Parse the steel-man contract. Accepts `contract` as either an obligations
  * array directly or `{ obligations: [...] }`. Returns null on ANY deviation —
- * a malformed steel-man means the purser stops (advisory PASS), it never
- * improvises a contract the author will then be held to.
+ * a malformed steel-man means the purser stops as a BROKEN SHIP (errored ⇒
+ * the run fails); it never improvises a contract the author will then be
+ * held to.
  */
 export function parseSteelMan(output: string): SteelManContract | null {
   const parsed = parseFencedJson(output);
@@ -262,29 +329,96 @@ function steelManSystemPrompt(ship: ShipConfig, graftText: string): string {
   );
 }
 
-function testAuthorSystemPrompt(ship: ShipConfig, steel: SteelManContract, graftText: string): string {
+/** The contract block shared by the PLAN and AUTHOR prompts. */
+function contractBlock(steel: SteelManContract): string {
+  return (
+    `Purpose: ${steel.purpose}\n` +
+    `Obligations:\n${steel.obligations.map(o => `- ${o}`).join('\n')}\n` +
+    (steel.testTargets.length
+      ? `Test targets:\n${steel.testTargets.map(t => `- ${t}`).join('\n')}\n`
+      : '')
+  );
+}
+
+/**
+ * PLAN prompt — decide WHICH files to write, not what is in them.
+ *
+ * Small JSON on purpose: this is the same shape and size as the steel-man call,
+ * which is the purser step that has always parsed reliably. File CONTENTS are
+ * not requested here — they travel as raw code fences in the per-file authoring
+ * step, where no escaping can corrupt them.
+ *
+ * A model that ignores the instruction and returns complete `{path, contents}`
+ * files is not punished: {@link runPurser} takes them via
+ * {@link parseAuthoredFiles} and skips the per-file calls entirely.
+ */
+export function testPlanSystemPrompt(ship: ShipConfig, steel: SteelManContract, graftText: string): string {
+  // Say DIRECTORY, and show the trailing slash, because the validator means a
+  // directory: it keeps a file only when `path === g || path.startsWith(g +
+  // '/')`. Asking for a "prefix" invited the literal reading and got it — on
+  // #7175 the model planned `tests/purser-authoring.test.ts`, mirroring the
+  // source file it was grilling. That IS under the prefix `tests/purser`, so
+  // the model complied with the instruction as written, and the validator
+  // rejected it anyway. Every file failed the same way and the run stacked
+  // nothing, which reads as "the purser produced no tests" rather than "the
+  // purser was asked for the wrong thing".
   const pathNote =
     ship.testPaths.length > 0
-      ? `Every file path MUST live under one of these prefixes: ${ship.testPaths.join(', ')}.\n`
+      ? `Every path MUST be INSIDE one of these directories: ` +
+        `${ship.testPaths.map(p => `${p}/`).join(', ')} ` +
+        `(note the trailing slash — e.g. '${ship.testPaths[0]}/my-case.test.ts' is inside it, ` +
+        `but '${ship.testPaths[0]}-my-case.test.ts' is NOT and will be rejected).\n`
       : '';
+  return (
+    graftText +
+    `You are pd-${ship.name}, running the TEST PLANNING phase. ` +
+    `You hold this contract for the PR (its best interpretation):\n\n` +
+    contractBlock(steel) +
+    `\nPlan the adversarial test files that would GRILL this contract — edge ` +
+    `cases, boundary values, error paths, concurrency and idempotency where ` +
+    `relevant. Do NOT write the tests yet. Name the files and what each one is ` +
+    `for.\n\n` +
+    pathNote +
+    `Paths must be relative (no leading '/', no '..'). At most ${MAX_PLANNED_FILES} files — ` +
+    `prefer fewer, denser files over many thin ones.\n\n` +
+    `Output EXACTLY one fenced JSON object and nothing else:\n\n` +
+    '```json\n' +
+    '{ "files": [ { "path": "<repo-relative test file path>", "intent": "<what this file grills>" } ] }\n' +
+    '```'
+  );
+}
+
+/**
+ * AUTHOR prompt — write ONE file, emitted as a raw code fence.
+ *
+ * The response contract is a bare fenced block, so the file's newlines, quotes
+ * and backslashes are never escaped and therefore can never be mis-escaped.
+ * This is the specific failure the split exists to remove: a JSON string value
+ * carrying a whole source file is the most fragile thing a model can be asked
+ * for, and it cost a 2026-08-09 run its entire 6KB of authored tests.
+ */
+function fileAuthorSystemPrompt(
+  ship: ShipConfig,
+  steel: SteelManContract,
+  planned: PlannedFile,
+  graftText: string,
+): string {
   return (
     graftText +
     `You are pd-${ship.name}, running the ADVERSARIAL TEST AUTHORING phase. ` +
     `You hold this contract for the PR (its best interpretation):\n\n` +
-    `Purpose: ${steel.purpose}\n` +
-    `Obligations:\n${steel.obligations.map(o => `- ${o}`).join('\n')}\n` +
-    (steel.testTargets.length ? `Test targets:\n${steel.testTargets.map(t => `- ${t}`).join('\n')}\n` : '') +
-    `\nWrite adversarial unit + integration tests that GRILL this contract: ` +
-    `edge cases, boundary values, error paths, concurrency and idempotency ` +
-    `where relevant. The PR must satisfy its best interpretation, not its ` +
-    `laziest. Use the repo's existing test framework and idioms as evident ` +
-    `from the diff.\n\n` +
-    pathNote +
-    `Paths must be relative (no leading '/', no '..'), at most 10 files, each ` +
-    `under 48KB.\n\n` +
-    `Output EXACTLY one fenced JSON object and nothing else:\n\n` +
-    '```json\n' +
-    '{ "files": [ { "path": "<repo-relative test file path>", "contents": "<full file contents>" } ] }\n' +
+    contractBlock(steel) +
+    `\nWrite EXACTLY ONE file: \`${planned.path}\`.\n` +
+    (planned.intent ? `Its job: ${planned.intent}\n` : '') +
+    `\nIt must GRILL the contract above — the PR has to satisfy its best ` +
+    `interpretation, not its laziest. Use the repo's existing test framework ` +
+    `and idioms as evident from the diff. The file must be complete and ` +
+    `runnable on its own: real imports, no placeholders, no "// TODO", no ` +
+    `elisions like "... rest unchanged".\n\n` +
+    `Output the file as ONE fenced code block and nothing else — no JSON, no ` +
+    `commentary before or after:\n\n` +
+    '```ts\n' +
+    '// the complete contents of ' + planned.path + '\n' +
     '```'
   );
 }
@@ -324,6 +458,12 @@ async function purserAiCall(
   user: string,
   maxTokens: number,
   metrics: PurserMetrics,
+  /**
+   * Model for THIS step, when it differs from the ship's own. Already guarded
+   * by fleet.ts against unknown ids, so an unusable pin arrives here as
+   * undefined rather than as a model that silently returns blank.
+   */
+  stepModel?: string,
 ): Promise<{ text: string; res: unknown }> {
   const request = {
     messages: [
@@ -334,7 +474,7 @@ async function purserAiCall(
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
   const res = await env.AI.run(
-    ship.cfModel as Parameters<typeof env.AI.run>[0],
+    (stepModel ?? ship.cfModel) as Parameters<typeof env.AI.run>[0],
     request,
     aiOptions(env, ship.name),
   );
@@ -343,11 +483,72 @@ async function purserAiCall(
   return { text, res };
 }
 
+/**
+ * Gather the evidence {@link checkGeneratedTestsExecutable} needs, from the PR's
+ * BASE sha (the trusted, zero-trust ref — never the PR head): the repo's real
+ * jest testMatch patterns and its full file tree. Every fetch degrades to null
+ * on failure (network error, 404, unparseable) rather than throwing — the gate
+ * itself fails closed on null, so a fetch failure here still ends in rejection,
+ * never a silent pass.
+ */
+async function gatherExecutabilityEvidence(
+  prCtx: PRContext,
+  token: string,
+): Promise<ExecutabilityEvidence> {
+  let testMatchPatterns: string[] | null = null;
+  for (const name of JEST_CONFIG_CANDIDATES) {
+    const text = await fetchRepoFileText(prCtx.owner, prCtx.repo, name, prCtx.baseSha, token);
+    if (text) {
+      testMatchPatterns = extractJestTestMatch(text);
+      if (testMatchPatterns) break;
+    }
+  }
+  if (!testMatchPatterns) {
+    const pkg = await fetchRepoFileText(prCtx.owner, prCtx.repo, 'package.json', prCtx.baseSha, token);
+    if (pkg) testMatchPatterns = extractPackageJsonTestMatch(pkg);
+  }
+  const repoTreePaths = await fetchRepoTreePaths(prCtx.owner, prCtx.repo, prCtx.baseSha, token);
+  return { testMatchPatterns, repoTreePaths };
+}
+
 // ---------------------------------------------------------------------------
 // Comment rendering — firm, adversarial, professional. Demands, with reasons.
 
 function renderObligations(steel: SteelManContract): string {
   return steel.obligations.map((o, i) => `${i + 1}. ${o}`).join('\n');
+}
+
+/**
+ * HTML markers bounding the purser's contract section in the reviewed PR's
+ * body. Exported so tests (and any future renderer) locate the section by the
+ * same strings the writer uses — the two can never drift apart.
+ */
+export const PURSER_CONTRACT_START = '<!-- pd-purser:contract:start -->';
+export const PURSER_CONTRACT_END = '<!-- pd-purser:contract:end -->';
+
+/**
+ * Render the steel-manned contract as the PR-summary section the purser
+ * maintains between {@link PURSER_CONTRACT_START} and
+ * {@link PURSER_CONTRACT_END}.
+ *
+ * WHY THE PR BODY AND NOT ONLY A COMMENT (operator mandate, 2026-08-19): the
+ * PR summary is the durable chronology of what a PR should be — it is what a
+ * future reader, a bisect, or a release note reads first. The steel-man
+ * argument and its obligations ARE that chronology, so an agent maintains
+ * them there, edit-in-place, on every fresh steel-man.
+ *
+ * @param steel The parsed steel-man contract (purpose + obligations).
+ * @returns Markdown for the section body (markers are added by the caller).
+ */
+export function buildContractBodySection(steel: SteelManContract): string {
+  return [
+    '---',
+    '## Contract (steel-manned by pd-purser)',
+    `**Purpose:** ${steel.purpose}`,
+    `**Obligations — the interpretation this PR is held to:**\n${renderObligations(steel)}`,
+    '_Maintained by pd-purser, edit-in-place on each fresh steel-man. Dispute an ' +
+      'obligation on the purser’s review thread, with reasons — do not delete this section._',
+  ].join('\n\n');
 }
 
 function renderSandboxSection(sandbox: SandboxRunOutcome): string {
@@ -413,6 +614,14 @@ interface CommentParams {
   retargeted: boolean;
   degradedReason: string | null;
   isFork: boolean;
+  /**
+   * Set when a stacked test PR exists but retargeting was deliberately SKIPPED
+   * (never attempted) because the tests were not executed — as opposed to
+   * `retargeted: false` with no reason, which means an attempted retarget
+   * failed. Distinguishing the two keeps the comment honest about whether the
+   * purser even tried.
+   */
+  retargetSkipReason: string | null;
 }
 
 function buildPurserComment(p: CommentParams): string {
@@ -450,6 +659,12 @@ function buildPurserComment(p: CommentParams): string {
         `**The stack:** the tests live in #${p.stackedPr.number} (${p.stackedPr.url}). ` +
           `This PR comes from a fork, so I have not retargeted it — but the demand ` +
           `is unchanged: the PR must satisfy those tests before it merges.`,
+      );
+    } else if (p.retargetSkipReason) {
+      parts.push(
+        `**The stack:** the tests live in #${p.stackedPr.number} (${p.stackedPr.url}). ` +
+          `This PR has NOT been retargeted onto them: ${p.retargetSkipReason} The demand ` +
+          `stands regardless: satisfy those tests before this merges.`,
       );
     } else {
       parts.push(
@@ -571,11 +786,15 @@ export async function runPurser(
   /** Tenant `squidEvents: true` consent from pd-fleet.yml (default false). */
   squidConsent = false,
 ): Promise<ShipResult> {
-  const advisoryPass: ShipResult = {
+  // The BROKEN-SHIP result (see the module doc): the purser's machinery failed
+  // to do its job, so it says so under its REAL blocking flag. `errored: true`
+  // is the authoritative signal — aggregateConclusion fails the run on it
+  // whatever the flag, so the breakage gets fixed instead of tolerated.
+  const brokenShip: ShipResult = {
     ship: ship.name,
-    blocking: false,
-    verdict: 'PASS',
-    errored: false,
+    blocking: ship.blocking,
+    verdict: ship.blocking ? 'BLOCK' : 'PASS',
+    errored: true,
     findings: [],
   };
 
@@ -661,7 +880,7 @@ export async function runPurser(
         responseShape: steelCall.text ? undefined : describeResponseShape(steelCall.res),
         outputLength: steelCall.text.length,
       });
-      return advisoryPass;
+      return brokenShip;
     }
     await transcript.step(
       'purser-steelman',
@@ -674,39 +893,163 @@ export async function runPurser(
       },
     );
 
-    // --- b. AUTHOR TESTS ----------------------------------------------------
-    const testsCall = await purserAiCall(
+    // --- a.5 THE CONTRACT GOES INTO THE PR SUMMARY --------------------------
+    // Operator mandate (2026-08-19): the steel-man argument and its obligations
+    // are the best chronology of what a PR should be, and that chronology
+    // belongs in the PR's own body — the summary every reader and every gate
+    // reads first — not only in a comment that scrolls away. Edit-in-place
+    // between HTML markers; the author's own prose is never touched. The
+    // outcome is recorded either way so a missed write is loud, not silent.
+    const summaryPosted = await upsertPrBodySection(
+      prCtx.owner,
+      prCtx.repo,
+      prCtx.prNumber,
+      PURSER_CONTRACT_START,
+      PURSER_CONTRACT_END,
+      buildContractBodySection(steel),
+      token,
+    );
+    await transcript.step(
+      'purser-contract-posted',
+      ship.name,
+      summaryPosted
+        ? `pd-${ship.name}: steel-man contract (${steel.obligations.length} obligation(s)) written into the PR summary`
+        : `pd-${ship.name}: FAILED to write the steel-man contract into the PR summary`,
+      { posted: summaryPosted, obligationCount: steel.obligations.length },
+    );
+
+    // --- b. PLAN TESTS ------------------------------------------------------
+    // One small-JSON call names the files; the contents come one call each,
+    // below. See purser-authoring.ts for why this is split.
+    const planCall = await purserAiCall(
       ship,
       env,
-      testAuthorSystemPrompt(ship, steel, graftText),
+      testPlanSystemPrompt(ship, steel, graftText),
       prBlock(prCtx),
-      TESTS_MAX_TOKENS,
+      PLAN_MAX_TOKENS,
       metrics,
+      ship.cfPlanModel,
     );
-    const files = parseAuthoredFiles(testsCall.text);
-    if (!files) {
-      await transcript.step('purser-tests', ship.name, `pd-${ship.name}: test authoring MALFORMED`, {
-        error: 'test-author output was not the required fenced JSON files block',
-        outputLength: testsCall.text.length,
-      });
-      return advisoryPass;
-    }
-    const validation = validateStackedFiles(files);
-    if (!validation.ok) {
-      await transcript.step('purser-tests', ship.name, `pd-${ship.name}: authored tests REJECTED`, {
-        error: validation.reason,
-        fileCount: files.length,
-      });
-      return advisoryPass;
-    }
-    if (ship.testPaths.length > 0) {
-      const stray = files.find(f => !ship.testPaths.some(g => f.path === g || f.path.startsWith(`${g}/`)));
-      if (stray) {
-        await transcript.step('purser-tests', ship.name, `pd-${ship.name}: authored tests REJECTED`, {
-          error: `path outside testPaths prefixes (${ship.testPaths.join(', ')}): ${stray.path}`,
+
+    // FAST PATH: a model that ignored "plan only" and returned complete files
+    // has already done the work — take it and skip the per-file calls.
+    let files: StackedFile[] = parseAuthoredFiles(planCall.text) ?? [];
+    let authorFailures: AuthorFailure[] = [];
+    let plan: PlannedFile[] = [];
+
+    if (files.length > 0) {
+      await transcript.step(
+        'purser-plan',
+        ship.name,
+        `pd-${ship.name}: plan call returned ${files.length} complete file(s) (per-file calls skipped)`,
+        { files: files.map(f => f.path), aiCallsSaved: files.length },
+      );
+    } else {
+      const parsedPlan = parseTestPlan(planCall.text);
+      if (!parsedPlan) {
+        await transcript.step('purser-plan', ship.name, `pd-${ship.name}: test plan MALFORMED`, {
+          error: 'plan output was neither a file plan nor a complete files block',
+          outputLength: planCall.text.length,
+          // The old code recorded ONLY the length, which is unactionable: every
+          // past failure was undiagnosable after the fact. The head of the real
+          // response is what says whether the model refused, truncated, or
+          // simply labelled its fence differently.
+          rawHead: planCall.text.slice(0, RAW_DIAGNOSTIC_CHARS),
+          responseShape: planCall.text ? undefined : describeResponseShape(planCall.res),
         });
-        return advisoryPass;
+        return brokenShip;
       }
+      plan = parsedPlan;
+      await transcript.step(
+        'purser-plan',
+        ship.name,
+        `pd-${ship.name}: planned ${plan.length} adversarial test file(s)`,
+        { files: plan.map(p => ({ path: p.path, intent: p.intent })) },
+      );
+
+      // --- c. AUTHOR EACH FILE (one call per file) --------------------------
+      const authored = await authorTestFiles(plan, async (path, intent) => {
+        const call = await purserAiCall(
+          ship,
+          env,
+          fileAuthorSystemPrompt(ship, steel, { path, intent }, graftText),
+          prBlock(prCtx),
+          TESTS_MAX_TOKENS,
+          metrics,
+          ship.cfAuthorModel,
+        );
+        return call.text;
+      });
+      files = authored.files;
+      authorFailures = authored.failures;
+    }
+
+    if (files.length === 0) {
+      await transcript.step('purser-tests', ship.name, `pd-${ship.name}: test authoring FAILED`, {
+        error: 'no planned file authored usable contents',
+        planned: plan.map(p => p.path),
+        failures: authorFailures,
+      });
+      return brokenShip;
+    }
+    // PARTIAL SUCCESS is a real outcome now: the files that authored cleanly
+    // still get stacked, and the ones that did not are named rather than
+    // silently dropped. The old all-or-nothing shape returned zero here.
+    if (authorFailures.length > 0) {
+      await transcript.step(
+        'purser-tests',
+        ship.name,
+        `pd-${ship.name}: authored ${files.length}/${plan.length} planned file(s)`,
+        { authored: files.map(f => f.path), failures: authorFailures },
+      );
+    }
+    // VALIDATE PER FILE, THEN AS A SET.
+    //
+    // Validating only the set made one unusable path reject every file beside
+    // it — which quietly undid the partial-success property the per-file
+    // authoring exists to provide: three good tests discarded because a fourth
+    // path had a `..` in it. Each file is checked ALONE first (reusing the same
+    // audited validator, so no path rule is duplicated or weakened here), and a
+    // failure drops that ONE file with a named reason.
+    //
+    // Nothing is loosened by this. A file that survives has passed exactly the
+    // checks it passed before, so a traversal path is still never written; it
+    // simply no longer takes its innocent neighbours with it.
+    const kept: StackedFile[] = [];
+    for (const f of files) {
+      const perFile = validateStackedFiles([f]);
+      if (!perFile.ok) {
+        authorFailures.push({ path: f.path, reason: perFile.reason });
+        continue;
+      }
+      if (
+        ship.testPaths.length > 0 &&
+        !ship.testPaths.some(g => f.path === g || f.path.startsWith(`${g}/`))
+      ) {
+        authorFailures.push({
+          path: f.path,
+          reason: `path outside testPaths prefixes (${ship.testPaths.join(', ')})`,
+        });
+        continue;
+      }
+      kept.push(f);
+    }
+    files = kept;
+
+    // Set-level properties (count ceiling, duplicate paths) can only be judged
+    // on the survivors, so this runs after the per-file pass and stays
+    // all-or-nothing — a set that breaks them has no honest subset to keep.
+    const validation = files.length > 0 ? validateStackedFiles(files) : { ok: false as const, reason: '' };
+    if (files.length === 0 || !validation.ok) {
+      await transcript.step('purser-tests', ship.name, `pd-${ship.name}: authored tests REJECTED`, {
+        error:
+          files.length === 0
+            ? authorFailures.map(f => `${f.path}: ${f.reason}`).join('; ') || 'no usable files'
+            : (validation as { reason: string }).reason,
+        fileCount: files.length,
+        failures: authorFailures,
+      });
+      return brokenShip;
     }
     const fileSummaries = files.map(f => ({
       path: f.path,
@@ -721,6 +1064,64 @@ export async function runPurser(
         totalBytes: fileSummaries.reduce((acc, f) => acc + f.bytes, 0),
       },
     );
+
+    // --- b.5 EXECUTABILITY GATE (fail closed) --------------------------------
+    // validateStackedFiles (path safety) and ship.testPaths (an OPERATOR-
+    // DECLARED prefix) do not prove the repo's REAL test runner would ever
+    // discover these files, or that they load without crashing on a missing
+    // import. #5860 shipped files that passed both checks yet lived outside the
+    // repo's own jest.config.js testMatch and imported a module that did not
+    // exist — Jest would never have run them, and the purser retargeted the
+    // reviewed PR onto them anyway. This checks against the repo's ACTUAL
+    // evidence (its own jest config + file tree at the PR's base sha), never
+    // against configuration the purser only trusts because it wrote it.
+    const evidence = await gatherExecutabilityEvidence(prCtx, token);
+    const executability = checkGeneratedTestsExecutable(files, evidence);
+    if (!executability.ok) {
+      await transcript.step('purser-tests', ship.name, `pd-${ship.name}: authored tests NON-EXECUTABLE`, {
+        error: executability.reason,
+        fileCount: files.length,
+      });
+      const notExecuted: SandboxRunOutcome = {
+        executed: false,
+        passed: null,
+        outputTail: '',
+        failures: [],
+        reason: `not executed: ${executability.reason}`,
+      };
+      // Preserve the contract + authored tests as ADVISORY EVIDENCE (same
+      // inline-tests treatment as the 403 degradation below) and explicitly do
+      // NOT open a branch, stack a test PR, or touch the reviewed PR's base —
+      // publishing a branch of provably non-executable tests would be worse
+      // than the fork case, not better.
+      await postShipComment(
+        prCtx.owner,
+        prCtx.repo,
+        prCtx.prNumber,
+        ship.name,
+        ship.role,
+        buildPurserComment({
+          prCtx,
+          steel,
+          files,
+          sandbox: notExecuted,
+          stackedPr: null,
+          retargeted: false,
+          degradedReason: `these authored tests failed the executability gate: ${executability.reason}`,
+          isFork: prCtx.isFork,
+          retargetSkipReason: null,
+        }),
+        token,
+      );
+      // Never fabricate a sandbox result for tests that structurally could not
+      // run, and never retarget the implementation PR's base onto them — but a
+      // purser that authored undiscoverable tests IS a broken ship: `errored`
+      // fails the run so the authoring/config defect gets fixed, instead of
+      // the demand quietly evaporating (the 2026-08-19 tests/purser incident:
+      // testPaths pointed outside the repo's jest testMatch, every authored
+      // file was rejected here, nothing was stacked, and the run stayed green).
+      return brokenShip;
+    }
 
     // --- c. SANDBOX (feature-flagged; honest when absent) -------------------
     const sandbox = await runTestsInSandbox({
@@ -753,6 +1154,7 @@ export async function runPurser(
     let stackedPr: StackedPrResult | null = null;
     let retargeted = false;
     let degradedReason: string | null = null;
+    let retargetSkipReason: string | null = null;
 
     try {
       await createOrUpdateBranch(
@@ -783,8 +1185,14 @@ export async function runPurser(
         ship: ship.name,
         url: stackedPr.url,
       }, squidConsent);
-      // GUARD: only same-repo (non-fork) PRs are retargeted onto the tests.
-      if (!prCtx.isFork) {
+      // GUARD: only same-repo (non-fork) PRs are retargeted onto the tests, and
+      // ONLY when the exact generated tests were actually EXECUTED — sandbox
+      // absent (the default deploy, no SANDBOX binding) means the tests were
+      // authored but never run, exactly the #5860 failure mode ("the body
+      // admitted they were not run"). Retargeting a PR onto an unexecuted
+      // contract hides the true origin/main diff and shrinks normal CI for no
+      // verified benefit — the purser must not do that on faith.
+      if (!prCtx.isFork && sandbox.executed) {
         try {
           await retargetPrBase(prCtx.owner, prCtx.repo, prCtx.prNumber, branchName, token);
           retargeted = true;
@@ -793,6 +1201,10 @@ export async function runPurser(
             `[fleet-executor] pd-${ship.name} retarget #${prCtx.prNumber} failed: ${String(err)}`,
           );
         }
+      } else if (!prCtx.isFork && !sandbox.executed) {
+        retargetSkipReason =
+          'the adversarial tests were authored but not executed ' +
+          `(${sandbox.reason ?? 'sandbox unavailable'}), so there is no verified result to hold this PR to.`;
       }
     } catch (err) {
       if (err instanceof GitHubApiError && err.status === 403) {
@@ -830,7 +1242,9 @@ export async function runPurser(
         testPrNumber: stackedPr?.number ?? null,
         testPrUrl: stackedPr?.url ?? null,
         retargeted,
+        sandboxExecuted: sandbox.executed,
         ...(degradedReason ? { degraded: degradedReason } : {}),
+        ...(retargetSkipReason ? { retargetSkipped: retargetSkipReason } : {}),
       },
     );
 
@@ -850,16 +1264,22 @@ export async function runPurser(
         retargeted,
         degradedReason,
         isFork: prCtx.isFork,
+        retargetSkipReason,
       }),
       token,
     );
 
     // --- e. VERDICT ---------------------------------------------------------
-    // 403 degradation ⇒ verdict stays advisory regardless of flags.
+    // Stacking degraded (403 / Git Data failure) ⇒ the fleet's machinery could
+    // not do its job. The comment above still carries the contract + inline
+    // tests (honest degradation), and the interruption escalated the human
+    // ask — but the run must not stay green over it: `errored` fails the run
+    // until the permission/failure is fixed (broken-ship doctrine). A sandbox
+    // FAILURE observed before the degradation still reads as BLOCK.
     if (degradedReason && !stackedPr) {
       const verdict: Verdict =
-        sandbox.executed && sandbox.passed === false ? 'BLOCK' : 'PASS';
-      return { ship: ship.name, blocking: false, verdict, errored: false, findings: [] };
+        sandbox.executed && sandbox.passed === false ? 'BLOCK' : brokenShip.verdict;
+      return { ...brokenShip, verdict };
     }
 
     let verdict: Verdict;
@@ -892,15 +1312,27 @@ export async function runPurser(
     }
     return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings: [] };
   } catch (err) {
-    // The purser's philosophy: it never blocks on work it could not do. An
-    // unexpected crash surfaces as an advisory errored result (⇒ neutral
-    // conclusion at worst), never a fabricated BLOCK.
+    // An unexpected crash is the definition of a broken ship: it surfaces as
+    // an errored result under the ship's real blocking flag, which fails the
+    // run (broken-ship doctrine, 2026-08-19). The verdict word is never a
+    // fabricated judgment — `errored` is the authoritative signal.
     console.error(`[fleet-executor] pd-${ship.name} crashed: ${String(err)}`);
-    await transcript.step('ship-verdict', ship.name, `pd-${ship.name}: PASS (errored)`, {
+    await transcript.step(
+      'ship-verdict',
+      ship.name,
+      `pd-${ship.name}: ${ship.blocking ? 'BLOCK' : 'PASS'} (errored — broken ship, fails the run)`,
+      {
+        errored: true,
+        error: String(err).slice(0, 300),
+      },
+    );
+    return {
+      ship: ship.name,
+      blocking: ship.blocking,
+      verdict: ship.blocking ? 'BLOCK' : 'PASS',
       errored: true,
-      error: String(err).slice(0, 300),
-    });
-    return { ship: ship.name, blocking: false, verdict: 'PASS', errored: true, findings: [] };
+      findings: [],
+    };
   }
 }
 
