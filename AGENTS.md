@@ -701,6 +701,19 @@ This applies to every technical document, design doc, tutorial, blog post, ADR, 
 - The public website deploy target is Cloudflare Pages project `port-daddy`, serving `port-daddy.pages.dev` and `portdaddy.dev`. Build with `npm --prefix website-v2 run build`, then deploy from `website-v2/` with `npx wrangler pages deploy dist --project-name port-daddy --branch main --commit-hash "$(git rev-parse HEAD)" --commit-message "$(git log -1 --pretty=%s)"`.
 - Deploy from a clean checkout or clean temporary worktree. If `origin/main` moved after your local website commit, deploy latest `origin/main` unless the user explicitly requested a specific commit. After deploy, smoke `https://portdaddy.dev/...` and at least one changed asset/page; for visual work, verify with Playwright or the in-app browser instead of trusting Wrangler success alone.
 
+### Domain Portfolio (owned, operator-registered 2026-08)
+
+The operator holds these domains; consult before naming/branding decisions and never suggest
+buying a name on this list:
+
+- `portdaddy.dev` — primary product site (live, Cloudflare Pages `port-daddy`).
+- `portdaddy.app` — reserved for the packaged desktop/app-store distribution surface (FleetBar/Control Center installers or app deep links).
+- `portholed.com` — Porthole: terminal capture/replay/share/test product (see `demos/porthole/PRODUCT.md`); target home for hosted cast sharing + the marketing site.
+- `harbord.ai` — Harbor brand (editor/governed-workspace surface).
+- `agentsd.ai` — agentsd greenfield scaffold (operator decision 2026-07-15): the agents-daemon brand.
+- `agentsdaemon.com` — long-form/defensive twin of agentsd.ai; redirect to agentsd.ai when live.
+
+
 ### Blog Post Hard Requirements
 
 Any PR that adds, rewrites, or runs a "voice pass" on a post under `website-v2/src/data/blog/` MUST satisfy the following before merging. These are floors, not aspirations — a "voice pass" that skips them is a process bug.
