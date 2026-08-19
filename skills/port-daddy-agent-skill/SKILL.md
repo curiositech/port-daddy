@@ -103,6 +103,30 @@ pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
 ```
 
+## SITREP — the end-of-turn table (per-repo dial)
+
+Repos can compel an end-of-turn situation report. When the repo's
+`agent.config.json` (or `.portdaddy/sitrep.json` / `.portdaddy/project.json`)
+carries `"sitrep": { "endOfTurn": "suggest" | "enforce" }`, the squid harness
+injects the contract into every turn and you MUST end each turn with the
+SITREP markdown table (`pd sitrep --template` prints the scaffold, pre-filled
+with your active roadmap claims):
+
+| Idea / Suggestion / Remediation | Source (Agent/Operator) | Status | Related PR/Issue | Docs / Roadmap Link |
+
+Rules:
+- Track every idea for future development raised in the session, every roadmap
+  item claimed, and work assigned to you by other agents.
+- Update Status with the turn's progress; carry unresolved rows forward.
+- Any row you are writing code for MUST carry a roadmap link from the moment
+  the row is created — mint one first: `pd roadmap upsert <slug> --summary "..."
+  --estimate <units>`.
+- Under `enforce`, a turn that ends without the table is an incomplete turn.
+
+Operators set the dial per repo at the account screen
+(`relay.portdaddy.dev/account/repos`, signed-in only) and converge devices via
+`GET /v1/repo-settings`; the local dial file is what the hooks read.
+
 ## Plan & Todo List Tracking
 
 Every agent must establish a versioned todo checklist using `pd plan set`.

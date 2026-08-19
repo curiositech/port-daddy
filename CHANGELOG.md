@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Per-repo configuration screen on the account surface (`/account/repos`).** Signed-in operators configure agent behavior repository-by-repository — one record across all their devices. The first setting is the **Sitrep end-of-turn dial** (`off | suggest | enforce`). Adds are gated by the same GitHub read-ACL as `/account/runs`; storage is a new `repo_settings` D1 table; devices read `GET /v1/repo-settings` with a `pdu_` device token. The portdaddy.dev header account menu links the screen.
+- **SITREP end-of-turn compulsion (per-repo squid dial).** New `sitrep.endOfTurn` dial in `agent.config.json` / `.portdaddy/{sitrep,project}.json` (env override `PD_SITREP`; default `off`). When on, the `pd-hook-prompt` tentacle injects the SITREP table contract into every turn and the Pilot SessionStart hook teaches it at session birth: end each turn with the ideas/claims/assigned-work table, and any row with code being written must link a roadmap item at creation. `pd sitrep --template` now pre-fills the table with the session's active roadmap-pop claims and prints the contract rules.
+- **Roadmap planner columns are live end to end (ADR-0086).** `kind`, `priority`, `assignee_id`, `description_md`, `started_at`, `due_at`, and `estimate` now flow through `RoadmapItem`, `POST/GET /roadmap/items`, and `pd roadmap upsert` (`--kind --priority --estimate --start --due --assignee --description`); the flat `pd roadmap` list renders them inline.
+- **pd-console opens on the roadmap Gantt.** The Planner pane renders a critical-path Gantt (kernel `pd-anchor` CPM scheduler — one canonical implementation) as its leading section, and the default no-arg workspace is now Roadmap | (Fleet / Lane) with the Gantt focused. The headless repl gains `:planner` / `:gantt` / `:roadmap`.
+
+### Changed
+- **`GET /roadmap/board` schedules with real estimates** instead of the hardcoded `estimate: 1` — the board's Gantt is a duration chart now (`gantt-real-estimate-wiring`).
+- **pd-console daemon discovery defaults to the stable berth** (`http://127.0.0.1:9876`) when no `PORT_DADDY_URL`, `console-daemon.url`, or `daemon.port` is present, instead of panicking before the window opens.
+
 ## [3.28.2] - 2026-08-18
 
 ## [3.28.1] - 2026-08-18
