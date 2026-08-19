@@ -6,12 +6,11 @@
  * All actions are real — they run against the live daemon.
  */
 
-import { execFile } from 'node:child_process';
 import { ANSI, flag, highlightChannel } from '../../lib/maritime.js';
 import * as ui from '../utils/ui.js';
 import { pdFetch, getDaemonUrl } from '../utils/fetch.js';
 import { canPrompt, promptText, promptIdentity, promptConfirm, promptSelect, printRoger } from '../utils/prompt.js';
-import { openControllingTerminalInput } from '../utils/tty.js';
+import { readLineFromControllingTerminal } from '../utils/tty.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 
 // Tutorial state — track what we create so we can clean up
@@ -51,28 +50,33 @@ function box(lines: string[], width = 63): void {
   const bottom = `  \u2514${'─'.repeat(width)}\u2518`;
   process.stderr.write(top + '\n');
   for (const line of lines) {
-    process.stderr.write(`  \u2502 ${line.padEnd(width - 2)} \u2502\n`);
+    // Pad on VISIBLE width. `padEnd` counts ANSI escape bytes as characters, so
+    // every coloured line (flags, cyan commands) came up short and the right
+    // border went ragged — the first thing an operator sees in the welcome box.
+    const pad = ' '.repeat(Math.max(0, width - 2 - ui.visibleWidth(line)));
+    process.stderr.write(`  \u2502 ${line}${pad} \u2502\n`);
   }
   process.stderr.write(bottom + '\n');
 }
 
 async function pressEnter(): Promise<void> {
   if (!canPrompt()) return;
-  const { createInterface } = await import('node:readline');
-  // Read from the controlling terminal (/dev/tty) when available. Under the
-  // bun-compiled binary `process.stdin` can hand back immediate EOF on a real
-  // terminal, which made `rl.question` resolve instantly and auto-skip every
-  // "Press Enter" — the tutorial blasted through. `/dev/tty` is robust there.
-  const ctty = openControllingTerminalInput();
-  const input = ctty?.stream ?? process.stdin;
-  const rl = createInterface({ input, output: process.stderr });
-  await new Promise<void>((resolve) => {
-    rl.question(`\n  ${ANSI.dim}Press Enter to continue...${ANSI.reset}`, () => {
-      rl.close();
-      resolve();
-    });
-  });
-  ctty?.close();
+  process.stderr.write(`\n  ${ANSI.dim}Press Enter to continue...${ANSI.reset}`);
+
+  // Read from the controlling terminal (/dev/tty). Under the bun-compiled
+  // binary `process.stdin` can hand back immediate EOF on a real terminal,
+  // which made readline resolve instantly and auto-skip every "Press Enter" —
+  // the tutorial blasted through (#207). Reading /dev/tty as a *stream* then
+  // crashed it outright (ENXIO under bun, EBADF under node), so this goes
+  // through the blocking line reader instead.
+  if (readLineFromControllingTerminal() === null) {
+    // No controlling terminal to read (rare: canPrompt() said fd 0 is a tty).
+    // Fall back to stdin rather than blasting through every lesson.
+    const { createInterface } = await import('node:readline');
+    const rl = createInterface({ input: process.stdin, output: process.stderr });
+    await new Promise<void>((resolve) => { rl.question('', () => { rl.close(); resolve(); }); });
+  }
+
   process.stderr.write('\n');
 }
 
@@ -307,33 +311,33 @@ async function lesson6Coordination(): Promise<void> {
   await pressEnter();
 }
 
-async function lesson7Dashboard(): Promise<void> {
-  lessonHeader(7, 'The Dashboard');
+async function lesson7Surfaces(): Promise<void> {
+  lessonHeader(7, 'Seeing Your Fleet');
 
-  const dashUrl = getDaemonUrl();
+  process.stderr.write(`  Everything you just did is live state on the daemon. Here it is:\n\n`);
 
-  process.stderr.write(`  Everything you just did is visible in the web dashboard.\n\n`);
-  process.stderr.write(`    ${ANSI.fgCyan}pd dashboard${ANSI.reset}\n\n`);
-  process.stderr.write(`  Opens ${ANSI.fgCyan}${dashUrl}${ANSI.reset} in your browser.\n\n`);
-  process.stderr.write(`  You'll see:\n`);
-  process.stderr.write(`    \u2022 Services panel with your claimed ports\n`);
-  process.stderr.write(`    \u2022 Sessions panel with your session history\n`);
-  process.stderr.write(`    \u2022 Agents panel showing who's registered\n`);
-  process.stderr.write(`    \u2022 Channels showing messages you published\n`);
-  process.stderr.write(`    \u2022 Activity log of everything that happened\n`);
-
-  const openDash = await promptConfirm('Open the dashboard now?', false);
-  if (openDash) {
-    const openCmd = process.platform === 'darwin' ? 'open'
-      : process.platform === 'win32' ? 'start'
-      : 'xdg-open';
-    execFile(openCmd, [dashUrl], (err) => {
-      if (err) {
-        process.stderr.write(`  Could not open browser. Visit: ${dashUrl}\n`);
-      }
-    });
-    process.stderr.write(`\n  Opening ${dashUrl}...\n`);
+  try {
+    const res: PdFetchResponse = await pdFetch('/health');
+    const health = await res.json() as {
+      version?: string;
+      active_ports?: number;
+      fleet?: { projects?: number; agents?: number };
+    };
+    process.stderr.write(`    Daemon:       ${ANSI.fgGreen}${health.version ?? 'unknown'}${ANSI.reset} at ${ANSI.fgCyan}${getDaemonUrl()}${ANSI.reset}\n`);
+    process.stderr.write(`    Active ports: ${health.active_ports ?? 0}\n`);
+    process.stderr.write(`    Fleet:        ${health.fleet?.projects ?? 0} project(s), ${health.fleet?.agents ?? 0} agent(s)\n`);
+  } catch {
+    ui.warn('Could not reach daemon \u2014 skipping live snapshot');
   }
+
+  process.stderr.write(`\n  Three sanctioned surfaces render that same state:\n\n`);
+  process.stderr.write(`    ${ANSI.fgCyan}pd dashboard${ANSI.reset}   ${ANSI.dim}# full terminal UI, right here in your shell${ANSI.reset}\n`);
+  process.stderr.write(`    ${ANSI.fgCyan}pd status${ANSI.reset}      ${ANSI.dim}# one-shot daemon health${ANSI.reset}\n`);
+  process.stderr.write(`    ${ANSI.fgCyan}pd sitrep${ANSI.reset}      ${ANSI.dim}# what the fleet is doing right now${ANSI.reset}\n\n`);
+  process.stderr.write(`  Plus the desktop surfaces: ${ANSI.bold}FleetBar${ANSI.reset} in the menu bar, and from it\n`);
+  process.stderr.write(`  ${ANSI.bold}Control Center${ANSI.reset} and the ${ANSI.bold}Operator Console${ANSI.reset} (pd-console).\n\n`);
+  process.stderr.write(`  ${flag('uniform')}  ${ANSI.dim}The old browser dashboard is retired. ${getDaemonUrl()} is the${ANSI.reset}\n`);
+  process.stderr.write(`     ${ANSI.dim}daemon's HTTP API now, not a UI \u2014 don't point a browser at it.${ANSI.reset}\n`);
 
   await pressEnter();
 }
@@ -407,8 +411,12 @@ async function lesson9Dns(): Promise<void> {
   // List DNS records
   try {
     const listRes: PdFetchResponse = await pdFetch('/dns');
-    const records = await listRes.json();
-    const count = Array.isArray(records) ? records.length : 0;
+    // /dns answers { success, records, count } — reading it as a bare array
+    // reported "0 total" one line after registering a record.
+    const body = await listRes.json() as { records?: unknown[]; count?: number };
+    const count = typeof body?.count === 'number'
+      ? body.count
+      : Array.isArray(body?.records) ? body.records.length : 0;
     process.stderr.write(`\n  DNS records (${count} total)\n`);
   } catch {
     // silently skip listing if daemon is offline
@@ -644,7 +652,7 @@ async function summary(): Promise<void> {
     `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 4:  Leaving immutable notes`,
     `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 5:  Agent resurrection and salvage`,
     `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 6:  Channels and locks for coordination`,
-    `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 7:  The web dashboard`,
+    `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 7:  Surfaces \u2014 dashboard, status, FleetBar`,
     `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 8:  Ending sessions cleanly`,
     `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 9:  DNS and service discovery`,
     `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 10: Stack orchestration with .portdaddyrc`,
@@ -670,7 +678,7 @@ async function summary(): Promise<void> {
     `${ANSI.fgCyan}pd lock <name>${ANSI.reset}     Acquire a distributed lock`,
     `${ANSI.fgCyan}pd briefing <id>${ANSI.reset}   Full project briefing`,
     `${ANSI.fgCyan}pd scan [dir]${ANSI.reset}      Discover services in a project`,
-    `${ANSI.fgCyan}pd dashboard${ANSI.reset}       Open the web dashboard`,
+    `${ANSI.fgCyan}pd dashboard${ANSI.reset}       Terminal dashboard (the web one is retired)`,
     `${ANSI.fgCyan}pd learn${ANSI.reset}           Run this tutorial again`,
     '',
     `All commands support: ${ANSI.fgCyan}--json${ANSI.reset} (-j), ${ANSI.fgCyan}--quiet${ANSI.reset} (-q),`,
@@ -776,7 +784,7 @@ export async function handleLearn(): Promise<void> {
   await lesson4Notes();
   await lesson5Resurrection();
   await lesson6Coordination();
-  await lesson7Dashboard();
+  await lesson7Surfaces();
   await lesson8Ending();
   await lesson9Dns();
   await lesson10Orchestration();
