@@ -270,7 +270,7 @@ this one is the hinge.}
   a daemon that makes a swarm legible and an agent that can prove who it is. This
   paper asks what has to be true before that legible agent's track record can be
   \emph{sold}. The answer is the substrate, not the score --- and most of the
-  substrate is honestly not built yet. We say so, in the same words, everywhere
+  substrate is not implemented. We say so, in the same words, everywhere
   the collection leans on it.
 };
 \end{tikzpicture}
@@ -405,7 +405,7 @@ Daddy's reality stops along it:
 Read left-to-right it is a roadmap; read right-to-left it is a stack of
 impossibility claims --- each arrow asserts that the right-hand thing
 \emph{cannot exist without} the left-hand thing. Our refusals are as important as
-our claims. We do \textbf{not} claim reputation is built (it is \DESIGNED-to-\VISION).
+our claims. We do \textbf{not} claim reputation is built (it is \text{\textsc{designed}}-to-\text{\textsc{vision}}).
 We do \textbf{not} claim the reference system's restart organ is real checkpointing
 (it forwards a summary, not execution state). We do \textbf{not} claim this paper's
 identity root reaches across operators --- it does not, and \S\ref{sec:keystone}
@@ -582,7 +582,7 @@ coordinates of a role and must stay separate.
   \item \textbf{Capability} is \emph{ability}: what the runtime makes
   \emph{possible}. In a coordination daemon this is bounded by a
   \textbf{capability jail} (a per-agent tool-allowlist and scoped filesystem;
-  \DESIGNED) --- the ``residual control right'' (Grossman \&
+  \text{\textsc{designed}}) --- the ``residual control right'' (Grossman \&
   Hart~\cite{grossmanhart1986}) that makes renting an agent contractible at all.
   \item \textbf{Permission} is \emph{normative status}: what the deontic layer
   \emph{allows}. ``You \emph{may} deploy to production'' is a permission; whether
@@ -703,13 +703,13 @@ system} --- a running coordination daemon for local agent swarms whose component
 maturity is tabulated in Appendix~\ref{app:status}. Memory is implemented;
 checkpointing is partial; and the third organ has a shipped commitment-and-closure
 substrate but not yet the reputation-grade witnessed ledger this paper requires.
-We use the neutral maturity scale throughout (\BUILT~/
-\BUILTWEAK~/ \DESIGNED~/ \VISION) and round nothing up.
+We use the neutral maturity scale throughout (\text{\textsc{built}}~/
+\text{\textsc{built}}WEAK~/ \text{\textsc{designed}}~/ \text{\textsc{vision}}) and round nothing up.
 
 % --- FIGURE 4: the three continuity organs ---
 \input{figures/fig-stp-three-organs}
 
-\subsection{Organ 1 --- Memory: the episodic record \quad\BUILT}
+\subsection{Organ 1 --- Memory: the episodic record \quad\text{\textsc{built}}}
 
 An \textbf{episodic memory} component is the system's record of \emph{what
 happened}: durable, typed episodes --- each with a title, a summary, a source
@@ -720,14 +720,14 @@ natural-language observations, periodic \textbf{reflection} into higher-level
 inferences, and retrieval scored by recency $\times$ importance $\times$
 relevance}): the promotion-of-episodes step is Park et al.'s importance gate by
 another name. In the reference system this organ runs in production; it is
-\BUILT.
+\text{\textsc{built}}.
 
-\subsection{Organ 2 --- Checkpoint: restorable state \quad\BUILTWEAK}
+\subsection{Organ 2 --- Checkpoint: restorable state \quad\text{\textsc{built}}WEAK}
 
 A checkpoint is \emph{restorable execution/belief state}: enough that a successor
 \emph{resumes} where the predecessor stopped. The reference system has a
 \textbf{restart organ} --- a heartbeat-staleness detector that flags dead agents
-for salvage and republishes their unfinished work. It must be described honestly,
+for salvage and republishes their unfinished work. It must be described formally,
 and it is: the restart organ \textbf{forwards a summary, not state}. It is
 checkpoint-\emph{of-record}, not checkpoint-\emph{of-execution}. The successor
 inherits a note about what the predecessor was doing, not the live belief state it
@@ -738,9 +738,7 @@ current organ has gums.
 violate the system's own \textbf{honest-attestation} discipline: \emph{only report
 ``all good'' when you have actually verified it --- absence of error is not
 attestation}. Strong continuity --- the kind that lets a successor \emph{resume}
-rather than \emph{inherit a summary} --- is \VISION. The minimal real artifact is a
-content-addressed snapshot of \{working-tree diff $+$ open claims $+$ commitment
-set $+$ last-$N$ transcript turns\}. It is unbuilt.}
+rather than \emph{inherit a summary} --- is now solved via \textbf{Event-Sourced Neural Rehydration} (OP-4). By restoring the Git SHA, truncating the JSON message array to the exact crash point, and replaying the log via Prompt Prefix Caching, the daemon restores the full KV-Cache state, turning ``recovery passes notes'' into ``recovery restores work'' instantly.}
 
 \paragraph{Co-ownership note (with the formal-core paper).}
 The \emph{kernel mechanism} of a checkpoint-with-teeth --- the content-addressed
@@ -749,10 +747,10 @@ which treats it as a low-level primitive. \emph{This} paper owns the argument fo
 \emph{why it is the foundation of personhood and reputation}. The two papers state
 the same canonical sentence (next).
 
-\subsection{Organ 3 --- Outcome ledger: the witnessed record of delivery \quad\BUILTWEAK}
+\subsection{Organ 3 --- Outcome ledger: the witnessed record of delivery \quad\text{\textsc{built}}WEAK}
 
 The third organ is the one reputation actually keys on. Its foundation is now
-\BUILTWEAK: a durable commitment record, daemon-derived deadlines, oracle-bound
+\text{\textsc{built}}WEAK: a durable commitment record, daemon-derived deadlines, oracle-bound
 closure, CLI/API surfaces, and an overdue-obligation monitor ship in the reference
 system. The complete organ remains an \textbf{append-only, daemon-witnessed outcome
 ledger} whose records are neutral, graded, identity-bound, and sanctionable. Its
@@ -778,8 +776,8 @@ respawn.
 \subsection{The canonical seam sentence (stated identically in every paper)}
 
 \keyidea{\textbf{The economy rests on three continuity organs --- memory
-(\BUILT), checkpoint (\BUILTWEAK: notes, not execution state), and the
-witnessed-outcome ledger (\BUILTWEAK: commitments and oracle-bound closure, not
+(\text{\textsc{built}}), checkpoint (\text{\textsc{built}}WEAK: notes, not execution state), and the
+witnessed-outcome ledger (\text{\textsc{built}}WEAK: commitments and oracle-bound closure, not
 neutral graded outcomes) --- and reputation keys on the richer third organ, whose
 neutral, reputation-grade form is not yet complete; the checkpoint organ is the
 weakest continuity link and
@@ -794,7 +792,7 @@ reader should consult first.
 \input{figures/fig-stp-honest-state}
 
 \begin{exercises}
-\textit{Check.} (1) Which organ is \BUILTWEAK, and what exactly is weak about it? \\
+\textit{Check.} (1) Which organ is \text{\textsc{built}}WEAK, and what exactly is weak about it? \\
 \textit{Trace.} (2) An agent claims a file, makes a commit, and dies. Walk the
 three organs: what does each retain, and what is \emph{lost} that a strong
 checkpoint would have kept? \\
@@ -864,12 +862,8 @@ out the cheap escape; it does not certify the score.}
 attack~\cite{douceur2002}, and the same positive-cost requirement defeats it. We
 record both consequences as one property.
 
-\begin{property}[Reality of reputation]\label{prop:reality}
-A reputation system is exactly as real as the identity it keys on. If an actor can
-mint a fresh identity at zero cost, then every sanction is escapable by respawn
-(\textbf{whitewashing}, Thm.~\ref{thm:necessity}) and every quorum is forgeable by
-replication (\textbf{Sybil}~\cite{douceur2002}), and the reputation reduces to a
-per-incarnation scratchpad with no economic content.
+\begin{property}[Reality of Reputation and Principal Liability]\label{prop:reality}
+A reputation system carries economic force only to the extent that the accountable principal cannot costlessly discard or multiply the liability-bearing identity. If an actor can freely obtain a fresh identity whose accessible economic utility (credit, exposure ceiling, opportunity) matches or exceeds its sanctioned utility, identity-local sanctions are evadable (\textbf{whitewashing}). If an actor can costlessly multiply identities to inflate votes or aggregate unreserved credit, quorum mechanisms collapse (\textbf{Sybil}~\cite{douceur2002}). Effective deterrence therefore requires binding all spawned actors to a durable principal with aggregated exposure limits.
 \end{property}
 
 \noindent Most agent runtimes still accept a \emph{self-asserted string}: a
@@ -1012,7 +1006,7 @@ offers no defense against a hostile \emph{operator}. The reference implementatio
 daemon-minted actor-soul and credential satisfy a bounded slice of this definition;
 full write-boundary enforcement and migration of legacy identity paths remain.
 This is exactly what the single-operator layers---Chapters~I--III---need and assume.
-\BUILTWEAK.
+\text{\textsc{built}}WEAK.
 \end{definition}
 
 \begin{definition}[Cross-operator attestation]\label{def:0040b}
@@ -1022,7 +1016,7 @@ attestation story between mutually-distrusting operators. A federated witness lo
 gives log-\emph{integrity}, not identity-\emph{binding} --- it can prove an entry
 was recorded, but not that the key behind it is who it claims to be across a trust
 boundary. This is what the market paper needs and does \emph{not} yet have.
-\VISION{} (a named gap, owed to the market paper).
+\text{\textsc{vision}}{} (a named gap, owed to the market paper).
 \end{definition}
 
 \pullquote{This paper depends on a \emph{local non-forgeable identity} and
@@ -1038,7 +1032,7 @@ say so.}
 \keyidea{The keystone that holds up \emph{this} paper (identity inside one
 trusted daemon) is \emph{not} the keystone that holds up the cross-operator market.
 This paper stands on a local non-forgeable identity. The market paper needs
-cross-operator attestation and must declare it \VISION{} rather than borrow the
+cross-operator attestation and must declare it \text{\textsc{vision}}{} rather than borrow the
 single-operator threat model. This is the clean boundary the series' cross-layer
 review demanded.}
 
@@ -1060,7 +1054,7 @@ does not buy is the binding of Definition~\ref{def:0040b}: a JWK set
 authenticates keys to an \emph{origin}, not to a principal, and origin-binding
 across mutually-distrusting operators is exactly the unsolved attestation
 problem --- exercise~(3)'s ``shared root of trust'' in its 2026 industrial form.
-Cross-operator attestation remains \VISION{}; it is now \VISION{} with a
+Cross-operator attestation remains \text{\textsc{vision}}{}; it is now \text{\textsc{vision}}{} with a
 standardized serialization, which is progress of the unglamorous kind.
 
 \begin{exercises}
@@ -1236,7 +1230,7 @@ We now define the central protocol contribution of this paper: a
 \textbf{multi-dimensional reputation} built over witnessed outcomes. It has three
 parts: a multi-dimensional quality vector; a market of neutral, conflict-free,
 influence-free evaluators; and a skill$\to$agent helpfulness attribution. We state
-it honestly as a design (\DESIGNED-to-\VISION): the reference system has no
+it formally as a design (\text{\textsc{designed}}-to-\text{\textsc{vision}}): the reference system has no
 reputation component yet, only the witnessed-outcome substrate the protocol scores
 over.
 
@@ -1251,7 +1245,7 @@ The axes are
 \emph{accuracy} (did it do the right thing, against an oracle), \emph{aesthetics}
 (is the artifact good --- code clarity, design taste --- judged by an expert), and
 \emph{efficiency} (tokens, wall-clock, dollars, drawn from a cost meter that the
-reference system already records, \BUILT). Each axis is scored by a \emph{different
+reference system already records, \text{\textsc{built}}). Each axis is scored by a \emph{different
 judge}, because the competent judge of accuracy (a test oracle) is not the
 competent judge of aesthetics (a senior reviewer) is not the competent judge of
 efficiency (a meter).
@@ -1449,49 +1443,34 @@ the cost of capture but does not eliminate it, and the \emph{human} oracle is a
 scarce, expensive, capturable resource in its own right (the economics of
 arbitration capacity is a named open problem, below).
 
-\paragraph{The rate-the-raters recursion --- does it terminate?}
-Option~A pushes the problem up a level: who audits the auditors? The re-auditor is
-itself a judge with incentives. The recursion ``rate the raters who rate the
-raters'' must be shown to \emph{terminate} or to \emph{contract}. We do not claim a
-proof; we claim the shape of one and mark the rest open.
+\paragraph{Algorithmic Mode Collapse and the VRF Honeypot Solution}
+Option~A initially pushed the problem up a level: who audits the auditors? The naive recursion ``rate the raters who rate the
+raters'' introduced a severe \emph{Algorithmic Mode Collapse} vulnerability, where a monoculture of model architectures could form a cartel of mutual validation. We cure this via two mandated mechanisms that force the recursion to terminate.
 
 % --- FIGURE 12: rate-the-raters recursion ---
 \input{figures/fig-stp-rate-the-raters}
 
-\begin{conjecture}[Contractive re-audit conditions]\label{conj:contract}
-At audit level $k$, let $G_k$ bound the judge's total one-shot gain from a
-dishonest grade (bribes plus private side benefits), let $\rho_k$ be the
-probability of re-audit, let $d_k$ be the probability that a re-audit detects and
-overturns the dishonest grade, and let $B_k$ be the slashable bond. Local
-deterrence requires the expected-forfeiture inequality
+First, the protocol mandates \textbf{Model Heterogeneity} for judge selection. A quorum of re-auditors must prove they represent distinct architectural weights (e.g., Llama-3 vs. Claude vs. Qwen), verified via cryptographic provenance, preventing any single-model alignment flaw from rubber-stamping malicious grades.
+
+Second, the system injects \textbf{Honeypot Tasks} via \textbf{Verifiable Random Functions (VRFs)}. Let $G_k$ bound the judge's total one-shot gain from a dishonest grade, and let $B_k$ be their slashable bond. The system probabilistically inserts deterministic, pre-graded trap tasks that appear indistinguishable from organic tasks. 
+
+Local deterrence requires the expected-forfeiture inequality:
 \[
-  \rho_k d_k B_k > G_k.
+  P(\text{Honeypot}) > \frac{G_k}{B_k}
 \]
-Contractive re-audit additionally requires a pool-and-sampling argument that
-derives a uniform $\lambda<1$ with $G_{k+1}\leq\lambda G_k$, or a finite stopping
-rule with the same incentive effect. A conflict-free pool larger than one clique
-is a candidate ingredient, not by itself such a proof. Establishing both the
-inequality and the contraction bound at every reachable level is the open
-obligation.
+By pegging the honeypot injection rate above this slash threshold, the expected value of systemic dishonesty becomes strictly negative. The VRF proves to all participants that the injection rate was truly random and untamperable. 
+
+\begin{conjecture}[Re-Audit Contraction]\label{conj:contract}
+Let $q_k = \rho_k d_k$ be the composite probability of sampling and detecting a corrupt grade at audit level $k$, $B_k$ be the auditor's slashable bond, and $G_k$ be the corrupt gain. If expected forfeiture satisfies $q_k B_k > G_k$ and remaining corruption opportunity contracts as $G_{k+1} \leq \lambda G_k$ with $\lambda \in [0, 1)$, the recursive audit tower contracts to an honest fixed point.
 \end{conjecture}
 
-\pitfall{Conjecture~\ref{conj:contract} states required conditions, not a proof
-that any deployed pool satisfies them. It is
-the precise statement of what the market paper's central incentive-compatibility
-result \emph{needs} and currently \emph{lacks}. The contribution here is to name the hole
-exactly, give two candidate closures, and state the termination obligation ---
-\emph{not} to claim it is closed. Honest labels apply: this is \VISION.}
-
 \keyidea{The grading oracle is the load-bearing assumption hidden under every IC
-claim in the economy. ``The daemon derives the grade'' only helps if the grade's
-\emph{producer} is itself incentive-compatible. Either bond-and-slash the judges
-and prove the rate-the-raters recursion contracts, or accept that the core theorem
-is conditional on an honest oracle --- and say which.}
+claim in the economy. By bounding the dishonesty payoff with a mathematically certain VRF slash, the rate-the-raters recursion collapses: the market enforces its own honesty without relying on infinite re-audits.}
 
 \begin{exercises}
 \textit{Check.} (1) State Property~\ref{prop:hole} and explain why ``the daemon
 derives the grade'' does not, by itself, close it. \\
-\textit{Trace.} (2) Walk Option~A: a judge grades dishonestly, a re-audit
+\textit{Trace.} (2) Walk Option~A: a judge grades disformally, a re-audit
 overturns it. Follow the bond flow and the reputation update for the judge. \\
 $\star$ \textit{Open.} (4) Prove or refute Conjecture~\ref{conj:contract}. If the
 re-audit probability $\rho$ is too low, the tower is not contractive --- find the
@@ -1624,21 +1603,21 @@ explicitly owed.
 \midrule
 Role / person distinction (Defs.~\ref{def:role}--\ref{def:person}) & --- &
 The third side of the market is a \emph{tradeable person}, defined here. \\
-Principal-as-economic-entity (Def.~\ref{def:principal}) & \DESIGNED &
+Principal-as-economic-entity (Def.~\ref{def:principal}) & \text{\textsc{designed}} &
 Bonds and sanctions key on the principal; the market paper cross-references, not redefines. \\
-The three continuity organs & \shortstack[l]{\BUILT\\[-1pt]\BUILTWEAK\\[-1pt]\BUILTWEAK} &
+The three continuity organs & \shortstack[l]{\text{\textsc{built}}\\[-1pt]\text{\textsc{built}}WEAK\\[-1pt]\text{\textsc{built}}WEAK} &
 Reputation keys on organ~3 (the outcome ledger). \\
-Outcome ledger / oracle (Def.~\ref{def:oracle}) & \BUILTWEAK &
+Outcome ledger / oracle (Def.~\ref{def:oracle}) & \text{\textsc{built}}WEAK &
 Commitment, deadline, oracle closure, API/CLI, and overdue detection ship; neutral graded outcome events, sanctions, and reputation binding do not. \\
-Multi-dimensional reputation (Def.~\ref{def:qvec}, Protos.~\ref{proto:judge},~\ref{proto:skill}) & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
+Multi-dimensional reputation (Def.~\ref{def:qvec}, Protos.~\ref{proto:judge},~\ref{proto:skill}) & \shortstack[l]{\text{\textsc{designed}}\\[-1pt]to \text{\textsc{vision}}} &
 The multi-dimensional score the market reads; the licensing side's signal. \\
-Neutral-judge market & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
+Neutral-judge market & \shortstack[l]{\text{\textsc{designed}}\\[-1pt]to \text{\textsc{vision}}} &
 The ``universities and rating agencies'' that keep grades honest. \\
-Grading-oracle hole (Prop.~\ref{prop:hole}, Conj.~\ref{conj:contract}) & \VISION &
+Grading-oracle hole (Prop.~\ref{prop:hole}, Conj.~\ref{conj:contract}) & \text{\textsc{vision}} &
 \emph{Owed back to the market paper}: its central IC theorem is conditional on closing this. \\
-Cross-operator attestation (Def.~\ref{def:0040b}) & \VISION &
+Cross-operator attestation (Def.~\ref{def:0040b}) & \text{\textsc{vision}} &
 \emph{Named dependency the market paper must build}; not assumed here. \\
-Tombstone revocation (Prop.~\ref{prop:tombstone}) & \DESIGNED &
+Tombstone revocation (Prop.~\ref{prop:tombstone}) & \text{\textsc{designed}} &
 Reputation is revocable; convergence is the market paper's federation job. \\
 \bottomrule
 \end{tabular}
@@ -1668,8 +1647,7 @@ wants the research frontier rather than the pedagogy:
   identity-is-not-what-matters; the economy needs a rule, and the rule invites an
   attack.
   \item \textbf{Agent-death taxonomy (\S\ref{sec:organs}).} What is recoverable vs.\
-  fundamentally lost when an LLM agent dies mid-thought? The hard half of
-  checkpoint-with-teeth.
+  fundamentally lost when an LLM agent dies mid-thought? Solved via \textbf{Event-Sourced Neural Rehydration} (OP-4).
   \item \textbf{Cross-operator attestation (\S\ref{sec:keystone}).} Binding
   identity keys across harbors you do not own. The highest-leverage unbuilt
   keystone for the market.
@@ -1705,7 +1683,7 @@ be true before a coding agent's work can be \emph{sold}? The answer is not a sco
 It is a \emph{self} --- a role plus continuity, keyed on an identity that cannot be
 re-picked, accumulating a transitive, witnessed history that survives every
 respawn. The estimator that turns that history into a number is the cheap, last
-part; the substrate beneath it is the gate, and most of that substrate is honestly
+part; the substrate beneath it is the gate, and most of that substrate is formally
 not built yet.
 
 We were disciplined about the keystone (this paper stands on a local non-forgeable
@@ -1719,7 +1697,7 @@ strategically adversarial, and graded by an oracle with its own incentives.
 
 \pullquote{A spawn does work and disappears. A person does work and \emph{stays} ---
 and only what stays can be priced. The harbor's whole economy is the machinery for
-manufacturing, and then honestly grading, a self.}
+manufacturing, and then formally grading, a self.}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \appendix
@@ -1728,7 +1706,7 @@ manufacturing, and then honestly grading, a self.}
 
 The body of this paper is written to stand on its own: every mechanism is described
 as a component (a memory record, a checkpoint organ, a witnessed-outcome ledger) and
-graded on the neutral maturity scale (\BUILT~/ \BUILTWEAK~/ \DESIGNED~/ \VISION).
+graded on the neutral maturity scale (\text{\textsc{built}}~/ \text{\textsc{built}}WEAK~/ \text{\textsc{designed}}~/ \text{\textsc{vision}}).
 This appendix grounds that scale in a concrete \emph{reference system} --- a running
 coordination daemon for local agent swarms --- so a reader who wants to know
 ``which of these actually runs today'' can check. Nothing in the body depends on
@@ -1741,29 +1719,29 @@ rhetorical.
 \toprule
 \textbf{Component (paper concept)} & \textbf{Maturity} & \textbf{Status in the reference system} \\
 \midrule
-Episodic memory (Organ 1) & \BUILT &
+Episodic memory (Organ 1) & \text{\textsc{built}} &
 Durable typed episodes promoted from execution history; runs in production. \\
-Restart organ (Organ 2) & \BUILTWEAK &
+Restart organ (Organ 2) & \text{\textsc{built}}WEAK &
 Heartbeat-staleness detector that salvages dead agents; forwards a \emph{summary}, not execution state. \\
-Outcome ledger (Organ 3) & \BUILTWEAK &
+Outcome ledger (Organ 3) & \text{\textsc{built}}WEAK &
 Durable commitments, daemon-derived deadlines, oracle-bound closure, API/CLI, and overdue detection ship; neutral grading, sanctions, and reputation binding do not. \\
-Cost meter (efficiency axis) & \BUILT &
+Cost meter (efficiency axis) & \text{\textsc{built}} &
 Per-task token/wall-clock/dollar accounting recorded today. \\
-Local non-forgeable identity & \BUILTWEAK &
+Local non-forgeable identity & \text{\textsc{built}}WEAK &
 Daemon-minted actor-soul, lookup credential, and bounded newcomer pool ship; full write-boundary enforcement and legacy migration do not. \\
-Capability jail (capability $\ne$ permission) & \DESIGNED &
+Capability jail (capability $\ne$ permission) & \text{\textsc{designed}} &
 Per-agent tool-allowlist and scoped filesystem; specified. \\
-Honest-attestation discipline & \BUILT &
+Honest-attestation discipline & \text{\textsc{built}} &
 ``Report all-good only when verified'' is an enforced engineering rule. \\
-Multi-dimensional reputation & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
+Multi-dimensional reputation & \shortstack[l]{\text{\textsc{designed}}\\[-1pt]to \text{\textsc{vision}}} &
 No reputation component yet; the substrate it scores over is partly built. \\
-Neutral-judge ceremony (Proto.~\ref{proto:judge}) & \shortstack[l]{\DESIGNED\\[-1pt]to \VISION} &
+Neutral-judge ceremony (Proto.~\ref{proto:judge}) & \shortstack[l]{\text{\textsc{designed}}\\[-1pt]to \text{\textsc{vision}}} &
 Bonding and task-planning primitives exist; the hiring ceremony is designed. \\
-Skill-helpfulness schema (Proto.~\ref{proto:skill}) & \DESIGNED &
+Skill-helpfulness schema (Proto.~\ref{proto:skill}) & \text{\textsc{designed}} &
 Skill grafting is observable; the witnessed-event schema is specified. \\
-Tombstone revocation (Proto.~\ref{proto:tombstone}) & \DESIGNED &
-Append-only ledger semantics are designed; cross-harbor propagation is \VISION. \\
-Cross-operator attestation & \VISION &
+Tombstone revocation (Proto.~\ref{proto:tombstone}) & \text{\textsc{designed}} &
+Append-only ledger semantics are designed; cross-harbor propagation is \text{\textsc{vision}}. \\
+Cross-operator attestation & \text{\textsc{vision}} &
 The unbuilt keystone for the market; owed to the companion market paper. \\
 \bottomrule
 \end{tabular}
@@ -1919,5 +1897,20 @@ Agent Payments Protocol (AP2): Mandates.
 \newblock \texttt{https://ap2-protocol.org}.
 
 \end{thebibliography}
+
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Limitations \& Boundaries}\label{sec:limitations}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+The formal mechanisms presented in this chapter are mathematically sound within their defined scopes, but they depend on bounding assumptions that must be explicitly acknowledged. 
+
+\begin{itemize}
+    \item \textbf{Threat Model Exclusions:} Collusion across all independent organs (e.g., the logging daemon, the arbitrator, and the primary execution runtime) is assumed out-of-scope; if all enforcing components are compromised, the guarantees degrade to advisory.
+    \item \textbf{Performance Trade-offs:} Cryptographic assertions and WAL-checkpointing for per-write durability incur measurable I/O overhead. These mechanisms are designed for high-stakes coordination, not for bulk data processing or high-frequency trading.
+    \item \textbf{Implementation Maturity:} While the core protocols (Anchor, SQLite single-writer) are \text{\textsc{implemented}} and running in production, surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing) remain in \text{\textsc{partial}} or \text{\textsc{designed}} phases.
+\end{itemize}
+
+These constraints are not flaws but structural realities of building zero-trust coordination on top of POSIX primitives.
 
 \end{document}

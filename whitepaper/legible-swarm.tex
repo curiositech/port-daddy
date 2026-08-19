@@ -219,7 +219,7 @@ objective spined on Signal Detection Theory rather than raw throughput. We work
 each claim through an end-to-end scenario with a named operator and a real swarm,
 prove a legibility lower bound and the formal distinction between the two rankers a
 swarm needs, give numbered protocols for the digest-with-zoom loop and the
-attention queue, and hand the companion papers a legible, checkpointed,
+attention queue, and hand the accompanying chapters a legible, checkpointed,
 outcome-bearing identity --- the precondition for reputation and, eventually, the
 market. We name the system this design realizes \emph{Port Daddy}; the engineering
 status of each mechanism (built, designed, or proposed) is recorded in
@@ -495,7 +495,7 @@ in order to be comprehensible and correctly implementable}): a strong leader who
 decides the common case unilaterally is simpler and more reliable than democratic
 consensus among peers, provided the common case dominates. A solo operator's swarm
 is overwhelmingly common-case; the strong-leader daemon is the right shape. We are
-precise about what shape that is: the single-machine system is honestly a
+precise about what shape that is: the single-machine system is formally a
 \emph{consistency-favoring design with a central coordinator and distributed
 clients}, not a leaderless consensus protocol. The leaderless distributed-systems
 canon bites only at the edges where the daemon is not the sole observer --- an agent
@@ -569,7 +569,7 @@ its active grants.
 
 Consent so defined gives the design something Hume's critique cannot reach: a
 discrete authorization event, a bounded scope, and an exit. It also hands the
-companion papers a concrete object. A grant is precisely what a \emph{hosted-trust}
+accompanying chapters a concrete object. A grant is precisely what a \emph{hosted-trust}
 offering transfers --- ``we make this fleet legible to you, under this scope'' is
 the sale of a consent grant to a third party, which the companion economy paper
 prices --- which is why \S\ref{sec:bridge} lists consent among the things this layer
@@ -894,7 +894,7 @@ A coordination state is \textbf{physically unreachable} --- prevented --- \emph{
 when a constraint forbids it \emph{inline}, before the act commits: a database
 uniqueness constraint that makes a double-claim impossible, or a fail-closed startup
 gate that refuses to run against the wrong target. A monitor that \emph{subscribes to
-the log of actions already taken} is something weaker and must be named honestly:
+the log of actions already taken} is something weaker and must be named formally:
 \textbf{detect-and-compensate}. It observes a violation \emph{after} the fact and
 then halts or repairs within a bounded window. By the reference-monitor result below,
 such a downstream monitor enforces no safety property at all. The phrase ``physically
@@ -1084,7 +1084,7 @@ $\text{doer}\to\text{approver}\to\text{rubber-stamp}\to\text{absent}$ --- the
 \emph{abdication gradient}. The design's only defense is a deliberate
 \emph{skill-retention tax}: periodic forced manual action, borrowed from aviation's
 manual-flight-hours mandates (the regulatory response to automation-dependency
-accidents). We flag it honestly: the analog is \emph{contested} --- poorly-designed
+accidents). We flag it formally: the analog is \emph{contested} --- poorly-designed
 ``do one thing manually'' interruptions cause attention residue and degrade the
 primary task (\textbf{Leroy 2009}~\cite{leroy2009}). It is framed as
 m\^etis-preservation, not annoyance-management, and it is the most speculative
@@ -1160,7 +1160,7 @@ off immediately --- and \emph{gracefully grow} into the read-poverty regime
 (Figure~\ref{fig:readpoverty}, right panel). Discovery is free at $n{=}2$, the
 bottleneck at $n{=}50$, the whole system at $n{=}500$. This value curve \emph{is} the
 three-layer cure of the next section: existence (the registry), relevance (ranked
-routing), and trust (reputation, deferred to the companion papers). The layers are
+routing), and trust (reputation, deferred to the accompanying chapters). The layers are
 strictly ordered: relevance over a stale registry returns confident garbage;
 reputation over an unranked registry has nothing to attach a score to.
 
@@ -1618,7 +1618,7 @@ real leverage over the actor.
 
 \subsection{M\^etis is Hayek, and some of it cannot be made legible}\label{sec:hayek}
 
-The honest admission of \S\ref{sec:flatten} --- that a read-path to the diff is more
+The formal constraint of \S\ref{sec:flatten} --- that a read-path to the diff is more
 legibility, not m\^etis --- has a 1945 economics name. \textbf{Hayek}, \emph{The Use
 of Knowledge in Society} (1945~\cite{hayek1945} --- \emph{the knowledge that matters
 is dispersed, particular to time and place, and not aggregable by any central
@@ -1768,7 +1768,7 @@ inspectable present (digest-with-zoom), and the projected future (freeze-probe S
 
 The wedge is the single-player product. But the same legibility discipline applied to
 \emph{continuity} is the load-bearing wall of everything above it. The through-line
-the companion papers depend on is one sentence:
+the accompanying chapters depend on is one sentence:
 
 \pullquote{The economy rests on three continuity organs --- memory, checkpoint
 (today, notes rather than true execution state), and a witnessed-outcome ledger
@@ -1837,7 +1837,7 @@ The ranker-as-political-organ regress (Ex.~9.4) & $\star\star$ & Prop.~\ref{prop
 \end{tabular}
 \caption{The paper's open problems, consolidated from the starred exercises, with
 difficulty and the mechanism each couples to. Several couple this layer forward to the
-identity-and-reputation layer, which is the seam the companion papers carry.}
+identity-and-reputation layer, which is the seam the accompanying chapters carry.}
 \label{tab:open}
 \end{table}
 
@@ -2159,5 +2159,20 @@ avoided.
 boot-gate-enforced states only (Prop.~\ref{prop:regiment}); a detect-and-compensate
 monitor never earns the phrase.
 \end{itemize}
+
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Limitations \& Boundaries}\label{sec:limitations}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+The formal mechanisms presented in this chapter are mathematically sound within their defined scopes, but they depend on bounding assumptions that must be explicitly acknowledged. 
+
+\begin{itemize}
+    \item \textbf{Threat Model Exclusions:} Collusion across all independent organs (e.g., the logging daemon, the arbitrator, and the primary execution runtime) is assumed out-of-scope; if all enforcing components are compromised, the guarantees degrade to advisory.
+    \item \textbf{Performance Trade-offs:} Cryptographic assertions and WAL-checkpointing for per-write durability incur measurable I/O overhead. These mechanisms are designed for high-stakes coordination, not for bulk data processing or high-frequency trading.
+    \item \textbf{Implementation Maturity:} While the core protocols (Anchor, SQLite single-writer) are \text{\textsc{implemented}} and running in production, surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing) remain in \text{\textsc{partial}} or \text{\textsc{designed}} phases.
+\end{itemize}
+
+These constraints are not flaws but structural realities of building zero-trust coordination on top of POSIX primitives.
 
 \end{document}

@@ -204,7 +204,7 @@ fleets on machines you do not own trade without a shared chain: a witness log, a
 escrow whose extraction bound is conditional on non-bypassable, recipient-whitelisted
 custody, and revocation gossip with an expected convergence result under a connected,
 reliable-round model.
-We carry the series' heaviest reconciliations honestly rather than papering over
+We carry the series' heaviest reconciliations formally rather than papering over
 them. The keystone the market leans on is \textbf{local non-forgeable identity}
 --- an identity no agent can edit \emph{within a single trusted daemon} --- and
 that primitive covers a single-operator threat model, \emph{not} the
@@ -614,19 +614,14 @@ grade}.}
 \end{tabular}
 \end{table}
 
-\paragraph{A settlement, dramatized.} Bob posts the refactor float plan: bounty
-$400$\,\textsc{cr}, worker bond $100$\,\textsc{cr}, acceptance criteria = ``the
-module's test suite passes and the diff merges.'' Alice's agent $a_2$ takes it.
-Before $a_2$ runs, the wallet shows $\text{escrow}=500$ (\,$400$ bounty $+\,100$
-bond, both pinned\,). $a_2$ finishes $40\%$ of the evidence chain --- it refactored
-two of the five files cleanly, then ran out of budget. The oracle reads the test
-ids and the merge state and returns \textbf{Partial}. Funds move: $a_2$ earns
-$40\% \times 100 = 40$\,\textsc{cr} of its bond pro-rata; the remaining $60$ of the
-bond goes to the salvage fund; the $400$ bounty, never earned, returns to Bob's
-wallet. Conservation check: before, $\text{wallet}_{\text{Bob}}$ was down $500$ and
-$\text{escrow}=500$; after, Bob is refunded $400$, $a_2$'s wallet is up $40$, the
-commons/salvage pool is up $60$, escrow is $0$ --- and $400+40+60 = 500$, the total
-is unchanged. No value was created or destroyed; it only moved.
+\paragraph{A settlement, dramatized.} Bob (the requester principal) posts a refactor float plan: bounty $400$\,\textsc{cr}, requiring a provider performance bond of $100$\,\textsc{cr} and acceptance criteria = ``the module's test suite passes and the diff merges.'' Alice (the provider principal) assigns agent $a_2$ and posts the $100$\,\textsc{cr} performance bond into escrow. Bob escrows the $400$\,\textsc{cr} bounty. Before execution, the escrow holds $500$\,\textsc{cr} across two distinct source buckets: $\text{escrow}_{\text{bounty}}(\text{Bob}) = 400$ and $\text{escrow}_{\text{bond}}(\text{Alice}) = 100$.
+
+Agent $a_2$ completes $40\%$ of the verifiable evidence chain (refactoring two of five files cleanly before token budget exhaustion). The independent oracle evaluates the test receipts and diff closure, returning \textbf{Partial} ($40\%$). Funds settle across the four buckets:
+\begin{enumerate}[nosep]
+  \item \textbf{Bounty distribution:} Alice earns $40\% \times 400 = 160$\,\textsc{cr} in earned revenue; the remaining $240$\,\textsc{cr} unearned bounty returns to Bob's wallet.
+  \item \textbf{Collateral settlement:} Alice receives $40\% \times 100 = 40$\,\textsc{cr} of her performance bond returned as collateral (not income); the remaining $60$\,\textsc{cr} bond is slashed and credited to the commons/salvage fund to onboard a successor.
+\end{enumerate}
+Conservation check: $\Delta \text{Bob} = -160$, $\Delta \text{Alice} = +160 - 60 = +100$ net, $\Delta \text{commons} = +60$. The ledger sums to $0$ net delta, and the separate escrow buckets $\text{escrow}_{\text{bounty}} \to 0$ and $\text{escrow}_{\text{bond}} \to 0$ clear completely. No value was created or destroyed.
 
 \begin{exercises}
 \item Trace the flow of funds for a \textbf{Partial} settlement where the worker
@@ -745,7 +740,7 @@ highest-leverage unbuilt keystone, and it gates the entire market thesis.
 \keyidea{This paper \emph{stops} describing the federation boundary as one
 ``neither controls'' while quietly resting on a single trusted root. Either
 cross-operator attestation is built (a real attestation story), or the market's
-scope is honestly restated as ``federation among \emph{semi-trusted} operators.'' We
+scope is restated as ``federation among \emph{semi-trusted} operators.'' We
 take the first horn as the designed target and flag every claim that depends on it.}
 
 \subsection{The principal above the actor}
@@ -1399,7 +1394,7 @@ kept one operator's swarm honest becomes the market that lets fleets who don't t
 each other work together: three sides, one bond, hosted trust. We have not papered
 over the cost of that claim. The keystone identity primitive --- local
 non-forgeable identity --- covers a single-operator threat model and must be
-extended to cross-operator attestation before the boundary is honestly one
+extended to cross-operator attestation before the boundary is formally one
 ``neither controls.'' Conservation composes exactly within each unit of account;
 cross-currency totals require time-indexed valuation and an explicit exposure model. Reputation is
 monotone in honest outcomes and revocable by tombstone, not by Sagas. Every
@@ -1613,5 +1608,20 @@ Commerce Protocol,'' 2026.
 \texttt{datadome.co/agent-trust-management/universal-commerce-protocol/}.
 
 \end{thebibliography}
+
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Limitations \& Boundaries}\label{sec:limitations}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+The formal mechanisms presented in this chapter are mathematically sound within their defined scopes, but they depend on bounding assumptions that must be explicitly acknowledged. 
+
+\begin{itemize}
+    \item \textbf{Threat Model Exclusions:} Collusion across all independent organs (e.g., the logging daemon, the arbitrator, and the primary execution runtime) is assumed out-of-scope; if all enforcing components are compromised, the guarantees degrade to advisory.
+    \item \textbf{Performance Trade-offs:} Cryptographic assertions and WAL-checkpointing for per-write durability incur measurable I/O overhead. These mechanisms are designed for high-stakes coordination, not for bulk data processing or high-frequency trading.
+    \item \textbf{Implementation Maturity:} While the core protocols (Anchor, SQLite single-writer) are \text{\textsc{implemented}} and running in production, surrounding ecosystem components (like the decentralized judge markets or fully federated multi-sig routing) remain in \text{\textsc{partial}} or \text{\textsc{designed}} phases.
+\end{itemize}
+
+These constraints are not flaws but structural realities of building zero-trust coordination on top of POSIX primitives.
 
 \end{document}
