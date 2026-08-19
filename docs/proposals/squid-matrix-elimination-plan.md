@@ -148,7 +148,7 @@ INSERT OR IGNORE INTO coord_dropped_writes (id, count) VALUES (1, 0);
 
 ### 3.2 Tentacle rewrite — exact before/after, sqlite3 CLI replacing grep/sed/mkdir
 
-**New shared shell library, sourced by all four tentacles: `bin/pd-squid-lib.sh`**
+**New shared shell library, sourced by all four tentacles: `bin/pd-squid-lib.sh`** (proposed)
 
 ```sh
 #!/bin/sh
@@ -323,7 +323,7 @@ COUNTS=$("$SQLITE" -readonly -cmd "PRAGMA busy_timeout=200;" "$DB" "
 ```
 A 200ms `busy_timeout` here (shorter than the 400ms used elsewhere) because statusline renders are the highest-frequency, lowest-value read — cheap to skip entirely under contention, and unlike `pd-hook-prompt` a missed statusline render has essentially zero cost to the agent's actual work.
 
-### 3.3 Write validation, provenance, and field caps (daemon-side, `lib/squid/coordination.ts`, new file)
+### 3.3 Write validation, provenance, and field caps (daemon-side, `lib/squid/coordination.ts`, new file) (proposed)
 
 ```ts
 // lib/squid/coordination.ts — the ONE shared read/write module (collapses the
@@ -587,7 +587,7 @@ This is not optional insurance — passive checkpoints (what `wal_autocheckpoint
 
 **Step 0.5 — verification, sequenced immediately after Step 0 and before PR2's RPC routes are scoped as "just wire routes":**
 
-1. Inspect the daemon's actual listener setup (`lib/daemon-server.ts` or equivalent entry point — locate via `grep -rn "createServer\|listen(" lib/ routes/` at execution time) and confirm whether it already binds a UDS in addition to its TCP `:9886` listener.
+1. Inspect the daemon's actual listener setup (`lib/daemon-server.ts` or equivalent entry point — locate via `grep -rn "createServer\|listen(" lib/ routes/` at execution time) and confirm whether it already binds a UDS in addition to its TCP `:9886` listener. (proposed)
 2. If a UDS HTTP listener already exists: confirm its exact path matches (or update `squid_socket_path()` to match) and confirm it serves the same Express/router stack the new `/squid/*` routes will mount onto.
 3. **If no UDS listener exists** (the more likely case, given the "reserved" comment), this is a build task, scoped explicitly as part of PR2, not assumed free:
 
@@ -681,7 +681,7 @@ Collapse `lib/squid/identity.ts::readMatrixSnapshot()` and `lib/local-citizen/in
 ### PR2 — Schema + daemon RPC routes + concurrency/perf tests, dark (zero operator-visible change)
 
 1. Re-verify the next-available migration number (§3.1 — do not assume `087` without re-checking `migrations/` at execution time) and land `migrations/08X_squid_coordination.sql` (§3.1).
-2. Land `lib/squid/coordination.ts` (§3.3) and `routes/squid-coordination.ts` (§3.4), mounted on the UDS listener confirmed/built in Step 0.5.
+2. Land `lib/squid/coordination.ts` (§3.3) and `routes/squid-coordination.ts` (§3.4), mounted on the UDS listener confirmed/built in Step 0.5. (proposed)
 3. Port the existing real K=8 concurrency test — confirmed present today at `tests/unit/squid-harness.test.ts:611`, `'K=8 concurrent post-tool appends produce 8 intact pheromone lines (Jamie Madrox)'`, using `Promise.all` over spawned processes — to assert against the new sqlite path instead of the flat file. **Do not write this test from scratch; port the existing one**, since it already encodes the right concurrency shape. **Extend it to K=9 by adding the daemon's own long-lived connection as a concurrent participant, not just 8 independent `sqlite3` subprocesses** — this is Debate Verdict 1's "one genuinely novel risk this migration introduces" and is closed as a first-class test, not left as a design note (§6.7).
 4. Add the **component-level** realistic-scale stress test (§6.2a) — a direct `db.prepare().all()` benchmark with no process-spawn overhead and no dependency on any hook understanding the sqlite backend. This is the direct, mandatory fix for G5's silent violation at the query layer and must exist before any hook is cut over. **The full hook-level end-to-end benchmark (invoking `runHook('pd-hook-prompt', ...)`) is explicitly NOT a PR2 gate** — it depends on `pd-hook-prompt` already speaking the sqlite backend, which is PR3's deliverable. It is scoped as a PR3 merge gate instead (§4 PR3, §6.2b). This resolves the sequencing contradiction in the original draft, which stated both "PR2 is dark, zero hook change" and "PR2 must contain a test that exercises the rewritten hook" — those cannot both be true, and the component/E2E split is the resolution, not a combined-PR2+PR3 unit.
 5. Add `.github/workflows/ci.yml` step: explicit `apt-get install -y sqlite3` (Linux) + `sqlite3 --version` verification **plus the `exp()` math-function capability check from §3.7b** on both `ubuntu-latest` and `macos-latest` matrix legs. Currently absent — `sqlite3` has been an implicit, unverified assumption in this repo's CI. GitHub's `actions/runner-images#11279` (Dec 2024) documents a real historical stretch where `sqlite3` was silently absent from `ubuntu-24.04` runners; treat this as a permanent tripwire, not one-time insurance. The math-function check is not optional insurance either — it is the same class of previously-unverified assumption, closed for the same reason.
@@ -694,7 +694,7 @@ Collapse `lib/squid/identity.ts::readMatrixSnapshot()` and `lib/local-citizen/in
 ### PR3 — Read-path cutover (`pd-hook-prompt`, `pd-statusline`)
 
 1. Rewrite `bin/pd-hook-prompt` and `bin/pd-statusline` per §3.2's AFTER pseudocode, gated behind `PD_MATRIX_BACKEND` (default remains `flatfile`).
-2. Land `bin/pd-squid-lib.sh`.
+2. Land `bin/pd-squid-lib.sh`. (proposed)
 3. **Mandatory merge gate, new in this revision:** the full hook-level end-to-end stress test (§6.2b) — `runHook('pd-hook-prompt', { env: { PD_MATRIX_BACKEND: 'sqlite' }, ... })` against 5,000+ seeded rows, asserting wall-clock latency under the stated bound. This is where that test correctly belongs (it depends on the rewritten hook, which is this PR's deliverable), not PR2.
 4. Worst-case bug surface: stale or missing injected context — never wrong tool enforcement, since neither of these two hooks can `exit 2`.
 5. Operator flips `PD_MATRIX_BACKEND=sqlite` manually after local smoke testing (`pd squid tap` against a seeded sqlite fixture). Flipping back is a one-line env edit — no redeploy, no rebuild, no hook reinstall.
@@ -717,7 +717,7 @@ Collapse `lib/squid/identity.ts::readMatrixSnapshot()` and `lib/local-citizen/in
 Bake criterion: the operator's own real daily usage exercising `PD_MATRIX_BACKEND=sqlite` without incident — a single-operator machine has no canary population to size a calendar-duration bake against, so this is usage-gated, not date-gated.
 
 1. Flip default to `sqlite`.
-2. Stop writing `matrix.env` anywhere; `lib/squid/matrix.ts`'s flat-file internals replaced by calls into `lib/squid/coordination.ts`, **keeping the same exported function names** (`setKey`/`appendPheromone`/`setLock`/etc.) to minimize churn at remaining call sites that import from `matrix.ts`.
+2. Stop writing `matrix.env` anywhere; `lib/squid/matrix.ts`'s flat-file internals replaced by calls into `lib/squid/coordination.ts`, **keeping the same exported function names** (`setKey`/`appendPheromone`/`setLock`/etc.) to minimize churn at remaining call sites that import from `matrix.ts`. (proposed)
 3. **`PD_MATRIX_BACKEND` flag disposition, stated explicitly (previously ambiguous):** the flag's "verified to actually restore identical hook behavior" property (§9 G12) applies **only through PR4** — that is the last state where both a working flatfile implementation and a working sqlite implementation coexist behind the flag. PR5 deletes the flat-file internals entirely (step 2 above), so the flag can no longer restore flatfile behavior by definition. **This PR removes `PD_MATRIX_BACKEND` as a functioning dual-mode switch and either (a) deletes all references to it as dead code, or (b) freezes it as a sqlite-only no-op that logs a deprecation warning if set to `flatfile` and proceeds on sqlite anyway** — option (b) is preferred, to avoid a silent behavior change for any external script that still sets the env var out of habit. Whichever is chosen, it is a stated decision in this PR's description and in the new ADR (§10), not left as ambiguous "the flag still exists but nobody's sure what it does" dead code.
 4. Full file-by-file disposition per §5 executed: rewrite demos/release scripts/skills/prompts/website copy, update ADR statuses, add the CHANGELOG entry, fix `docs/roadmap/roadmap.snapshot.json` via normal tooling (patch-append-only, no hand-edit).
 5. Each of PR1–PR5 is its own tracked roadmap item from the start, not one mega-issue filed at the end — this is the direct structural fix for the RECONCILE TODO's actual failure mode (an unscheduled code comment, not a tracked gated unit of work).
@@ -734,15 +734,15 @@ Bake criterion: the operator's own real daily usage exercising `PD_MATRIX_BACKEN
 | 2 | `bin/pd-statusline` | Statusline badge counts (missed by original brief) | REWRITE | §3.2 AFTER lands; badge renders correctly at 3k+ seeded rows | PR3 |
 | 3 | `bin/pd-hook-pre-tool` | Enforced lock gate, `exit 2` | REWRITE | Adversarial suite §6.1 (incl. §6.1a TOCTOU) passes | PR4 |
 | 4 | `bin/pd-hook-post-tool` | Pheromone writer, mkdir-lock fallback | REWRITE | Fail-open suite passes; no `mkdir`/`flock` code remains | PR4 |
-| 5 | `bin/pd-squid-lib.sh` | — | NEW (shared shell helper) | Sourced by all 4 hooks above, zero duplication of `squid_sql_escape`/`squid_db_path`/`squid_check_math_functions` | PR3 |
+| 5 | `bin/pd-squid-lib.sh` (proposed) | — | NEW (shared shell helper) | Sourced by all 4 hooks above, zero duplication of `squid_sql_escape`/`squid_db_path`/`squid_check_math_functions` | PR3 |
 | 6 | `lib/squid/matrix.ts` | Flat-file engine + RECONCILE TODO | REPLACE internals, keep exported names | Zero `node:fs` matrix-file I/O remains; RECONCILE TODO comment deleted (superseded by §3.6) | PR5 |
 | 7 | `lib/squid/identity.ts` (`readMatrixSnapshot`) | 2nd independent parser | REWRITE — call shared module | `tests/unit/squid-identity.test.ts` passes unmodified after PR1 | PR1 |
 | 8 | `lib/local-citizen/ink-cloud.ts` | 3rd independent parser/writer | REWRITE — call shared module | No independent regex parsing remains | PR1 |
 | 9 | `lib/local-citizen/runner.ts` | Thin consumer of #8 | No independent work | Follows #8 automatically | PR1 |
 | 10 | `lib/local-citizen/README.md` | Documents #8's lock-key algorithm | REWRITE | Reflects sqlite-backed lock naming (`squid:file:<suffix>`) | PR5 |
 | 11 | `lib/fleet-daemon.ts` (`syncApprovalAlert`) | Real production daemon writer | REWRITE — in-process `coordination.upsertAlert`, actor set to `'system:fleet-daemon'` (§3.3) | No `matrix.ts` import remains in this file; call site passes non-empty actor | PR4 |
-| 12 | `lib/squid/coordination.ts` | — | NEW — shared read/write module | Exports `spray`/`upsertAlert`/`recordDroppedWrite`, unit-tested incl. field-cap tests (§6.10) | PR2 |
-| 13 | `routes/squid-coordination.ts` | — | NEW — daemon RPC routes | `POST /squid/pheromone`, `POST /squid/lock/acquire` respond correctly, mounted on UDS listener (#46) | PR2 |
+| 12 | `lib/squid/coordination.ts` (proposed) | — | NEW — shared read/write module | Exports `spray`/`upsertAlert`/`recordDroppedWrite`, unit-tested incl. field-cap tests (§6.10) | PR2 |
+| 13 | `routes/squid-coordination.ts` (proposed) | — | NEW — daemon RPC routes | `POST /squid/pheromone`, `POST /squid/lock/acquire` respond correctly, mounted on UDS listener (#46) | PR2 |
 | 14 | `migrations/08X_squid_coordination.sql` | — | NEW (number re-verified at PR2 execution time, §3.1) | Applies cleanly against a fresh DB and against the operator's real (post-VACUUM) DB | PR2 |
 | 15 | `lib/spawner.ts` | Comment-only ADR-0091 reference | Citation update only | No functional change; ADR number corrected | PR5 |
 | 16 | `routes/spawn.ts` | Same as #15 | Citation update only | Same | PR5 |
@@ -762,7 +762,7 @@ Bake criterion: the operator's own real daily usage exercising `PD_MATRIX_BACKEN
 | 30 | `docs/adr/0091-giant-squid-harness.md` | Original design, Status: Proposed | Status → Superseded (data-store sections only; hook-wiring sections stay live) | §10 | PR5 |
 | 31 | `docs/adr/0108-port-daddy-harness.md` | Status: Proposed, stale "No ADR-0091 exists" + self-numbering bug (line 167) | REWRITE — fix both bugs, reconcile against new ADR | §10 | PR5 |
 | 32 | `docs/adr/0051-port-daddy-harness.md` | Already a correct redirect stub → 0108 | No change | Already resolved | — |
-| 33 | `docs/architecture/.../2026-07-06-next-gen-reconciliation.md` | Historical work packet, flagged this exact TODO, never completed | No edit (historical); its TODO is closed by this plan | §10 | — |
+| 33 | `docs/architecture/agent-harbor-technical-binder/work-packets/2026-07-06-next-gen-reconciliation.md` | Historical work packet, flagged this exact TODO, never completed | No edit (historical); its TODO is closed by this plan | §10 | — |
 | 34 | `docs/proposals/articles-of-agreement-harness-roadmap.md` | Lists the dead-0051 reference as pending | Update reference to 0108 or the new ADR number | No dangling 0051 citation remains | PR5 |
 | 35 | `docs/roadmap/roadmap.snapshot.json` | Machine-managed, patch-append-only | No hand-edit; new item entered via normal tooling | Roadmap reflects PR1–PR5 as tracked items | Step 0 / ongoing |
 | 36 | `docs/proposals/squid-harness-v2-grown-up-harness.md` | Orthogonal (agent-context/compaction axis) | No change; cite for numbering consistency | — | — |
@@ -776,7 +776,7 @@ Bake criterion: the operator's own real daily usage exercising `PD_MATRIX_BACKEN
 | 44 | `apps/fleet-executor/src/execute.ts`, `apps/fleet-executor/tests/map-chunk-scope.test.ts` | Reference `ink-cloud.ts` only as an example file path in an unrelated regression fixture | No functional change; one-line path follow-up only if `ink-cloud.ts` is ever renamed (it isn't in this plan) | — | — |
 | 45 | `tests/unit/spawn-routes-preflight.test.js` | Comment-only ADR-0091 reference, no matrix-file I/O | **No change — comment-only citation** | ADR number corrected if the comment cites 0091's data-store sections specifically; otherwise untouched | PR5 (citation sweep only, if applicable) |
 | 46 | `lib/squid/hook-shape.ts` | Defines the `timeout=10` budget this whole plan is calibrated against (§1, §2.1, §2.3); exercised by G11's vendor-parity test (§6.5) | **No change — referenced for context, not modified.** Contains no matrix-file I/O; the timeout figure and vendor-adapter shape it defines are load-bearing inputs to this plan's design, not migration targets | Confirmed via source read: zero `matrix.env`/`coord_*`/`locks` references in this file | — |
-| 47 | `lib/daemon-server.ts` (or equivalent daemon entry point) | Existing TCP `:9886` listener; UDS listener status unconfirmed prior to this revision | VERIFY (§3.7 Step 0.5); BUILD the additive UDS listener if absent | §3.7's `/health` UDS smoke-test curl returns 200 | Step 0.5 / PR2 |
+| 47 | `lib/daemon-server.ts` (or equivalent daemon entry point, proposed) | Existing TCP `:9886` listener; UDS listener status unconfirmed prior to this revision | VERIFY (§3.7 Step 0.5); BUILD the additive UDS listener if absent | §3.7's `/health` UDS smoke-test curl returns 200 | Step 0.5 / PR2 |
 
 **Explicit non-goal, stated here and repeated in the new ADR (§10):** this store is single-machine only. Cross-machine coordination is Seam A (Harbors) territory per `PORT-DADDY-COARSENED-ARCHITECTURE.md`, entirely out of scope. `INTEGER PRIMARY KEY AUTOINCREMENT` is used, not ULIDs — the cross-host-merge concern that would justify ULIDs doesn't apply to a store explicitly declared non-syncing. **"Ink Cloud" survives as a UX/marketing metaphor** on the website (item 28) even though the mechanism becomes sqlite — a naming decision made explicitly here, not left to drift.
 
@@ -1124,7 +1124,7 @@ Every criterion below names the exact test/artifact that proves it — no criter
 
 - **New ADR** (resolve the actual next-free ADR number at write time by scanning `docs/adr/`, do not guess a number in advance — this repo has already collided ADR numbers once, per the `adr-0089-binnacle-quartermaster-ui` citation resolving to an unrelated file, §2.4), titled **"Squid Coordination Store: SQLite Replaces the Ink Cloud Flat File."**
 - **Explicitly supersedes ADR-0091's data-store sections only**: the matrix.env format, the mkdir-based locking, the never-built RECONCILE TODO, and success criterion G5 (replaced by G1/G2 above). ADR-0091's hook-event-wiring and vendor-adapter design (`hook-shape.ts` matchers, `ClaudeCliSquidAdapter`/`CodexSquidAdapter`/`GeminiSquidAdapter`) is **unaffected and stays live** — only the storage layer underneath it changes. Set `docs/adr/0091-giant-squid-harness.md`'s Status header to **Superseded**, with a pointer to the new ADR, in PR5.
-- **Reconciles against ADR-0108, not the dead ADR-0051.** `docs/adr/0108-port-daddy-harness.md` gets two fixes in the same PR5 commit, not two separate follow-ups: (1) its stale line 167 claim *"No ADR-0091 exists on disk"* is corrected — 0091 exists, is Superseded by the new ADR, not absent; (2) its own internal self-reference bug — the file is numbered 0108 on disk but refers to itself as "ADR-0051" in its own prose (found during this plan's verification pass, not previously flagged) — is corrected to consistently say 0108. This closes a TODO two prior attempts (`docs/architecture/.../2026-07-06-next-gen-reconciliation.md` and a roadmap-snapshot item on branch `claude/reconcile-adr-0091-0051`) logged and failed to execute — the third attempt must not cite the same dead number (0051) the first two did.
+- **Reconciles against ADR-0108, not the dead ADR-0051.** `docs/adr/0108-port-daddy-harness.md` gets two fixes in the same PR5 commit, not two separate follow-ups: (1) its stale line 167 claim *"No ADR-0091 exists on disk"* is corrected — 0091 exists, is Superseded by the new ADR, not absent; (2) its own internal self-reference bug — the file is numbered 0108 on disk but refers to itself as "ADR-0051" in its own prose (found during this plan's verification pass, not previously flagged) — is corrected to consistently say 0108. This closes a TODO two prior attempts (`docs/architecture/agent-harbor-technical-binder/work-packets/2026-07-06-next-gen-reconciliation.md` and a roadmap-snapshot item on branch `claude/reconcile-adr-0091-0051`) logged and failed to execute — the third attempt must not cite the same dead number (0051) the first two did.
 - **New ADR's own success-criteria table** is the table in §9 above, verbatim — every row already names its proving test, satisfying its own requirement rather than repeating ADR-0091's mistake of a spec with no corresponding realistic-scale test.
 - **New ADR must also state the environment-portability scope explicitly** (§2.5, §11 item 6): verified on macOS + GitHub Actions `ubuntu-latest`/`macos-latest`; Alpine/musl, WSL, and locked-down corporate Linux are named as unverified, not silently assumed compatible.
 - **Does not touch** `docs/proposals/squid-harness-v2-grown-up-harness.md` — confirmed orthogonal (durable agent-context/compaction axis, cited for numbering-convention consistency only, §5 item 36) — and does not touch `docs/roadmap/roadmap.snapshot.json` directly (patch-append-only; enter as a normal roadmap item through existing tooling per §4).
