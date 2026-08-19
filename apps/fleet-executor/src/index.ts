@@ -28,7 +28,7 @@
 import type { ExecutorEnv, FleetRunJob } from './env.js';
 import { executeFleet } from './execute.js';
 import { handleDlqJob } from './dlq.js';
-import { recordDeliveryFailure } from './delivery-failure.js';
+import { recordDeliveryAttemptStart, recordDeliveryFailure } from './delivery-failure.js';
 
 export type { ExecutorEnv, FleetRunJob } from './env.js';
 export { executeFleet } from './execute.js';
@@ -56,6 +56,14 @@ export default {
 
     for (const message of batch.messages) {
       try {
+        // Attempt-start marker BEFORE any work: the one write that survives an
+        // uncatchable platform kill (memory/CPU), so a dead-letter with starts
+        // but no failures is positive evidence of that class — issue #7743.
+        await recordDeliveryAttemptStart(
+          env,
+          message.body,
+          (message as unknown as { attempts?: number }).attempts ?? 0,
+        );
         await executeFleet(message.body, env);
         message.ack();
       } catch (err) {

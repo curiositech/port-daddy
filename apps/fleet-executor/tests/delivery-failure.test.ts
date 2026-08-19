@@ -4,11 +4,15 @@ import { handleDlqJob } from '../src/dlq.js';
 import { executeFleet } from '../src/execute.js';
 import { DEAD_LETTER_MARKER, isDeadLetteredSummary } from '../src/dead-letter-marker.js';
 import {
+  DELIVERY_ATTEMPT_KIND,
+  DELIVERY_ATTEMPT_SEQ_BASE,
   DELIVERY_FAILURE_KIND,
   DELIVERY_FAILURE_SEQ_BASE,
+  countDeliveryAttemptStarts,
   deadLetterSummary,
   describeDeliveryError,
   readLastDeliveryFailure,
+  recordDeliveryAttemptStart,
   recordDeliveryFailure,
   runIdForDelivery,
 } from '../src/delivery-failure.js';
@@ -119,6 +123,80 @@ describe('a lost delivery records why it died', () => {
     const env = makeEnv({});
     await expect(recordDeliveryFailure(env, makeJob(), 1, new Error('x'))).resolves.toBeUndefined();
     await expect(readLastDeliveryFailure(env, 'run:delivery-abc')).resolves.toBeNull();
+  });
+});
+
+describe('attempt-start markers make uncatchable kills visible (#7743)', () => {
+  it('the consumer records a start marker BEFORE executing, so a platform kill still leaves evidence', async () => {
+    const db = memoryD1();
+    const msg = fakeMessage(makeJob(), 2);
+    // Token mint throws (no seeded token), so this delivery fails — but the
+    // start marker must already be on the transcript from before the work.
+    await handler.queue!(
+      fakeBatch([msg]),
+      makeEnv({ FLEET_TOKENS: memoryKV(), DB: db.db }),
+      {} as ExecutionContext,
+    );
+
+    const starts = db.steps.filter(s => s.kind === DELIVERY_ATTEMPT_KIND);
+    expect(starts).toHaveLength(1);
+    expect(Number(starts[0].seq)).toBe(DELIVERY_ATTEMPT_SEQ_BASE + 2);
+    expect(String(starts[0].title)).toContain('attempt 2 started');
+    // Its band sits above the failure band, so neither overwrites the other.
+    expect(DELIVERY_ATTEMPT_SEQ_BASE).toBeGreaterThan(DELIVERY_FAILURE_SEQ_BASE);
+  });
+
+  it('counts starts per run and degrades to 0 without a DB or on a throwing one', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    await recordDeliveryAttemptStart(env, makeJob(), 1);
+    await recordDeliveryAttemptStart(env, makeJob(), 2);
+    expect(await countDeliveryAttemptStarts(env, runIdForDelivery('delivery-abc'))).toBe(2);
+
+    expect(await countDeliveryAttemptStarts(makeEnv({}), runIdForDelivery('delivery-abc'))).toBe(0);
+    db.failAll = true;
+    expect(await countDeliveryAttemptStarts(env, runIdForDelivery('delivery-abc'))).toBe(0);
+  });
+
+  it('a recorder failure never blocks the delivery', async () => {
+    const db = memoryD1();
+    db.failAll = true;
+    await expect(recordDeliveryAttemptStart(makeEnv({ DB: db.db }), makeJob(), 1)).resolves.toBeUndefined();
+  });
+
+  it('starts-but-no-failure turns the gate summary into a diagnosis, not a shrug', async () => {
+    state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const env = makeEnv({ FLEET_TOKENS: kv, DB: db.db });
+
+    // Three attempts began; none recorded a failure — the uncatchable-kill shape.
+    for (const attempt of [1, 2, 3]) await recordDeliveryAttemptStart(env, makeJob(), attempt);
+    await handleDlqJob(makeJob(), env);
+
+    const summary = String(state.completed[0].summary);
+    expect(summary).toContain('dead-lettered');
+    expect(summary).toContain('3 delivery attempt(s) recorded a start marker but no failure');
+    expect(summary).toContain('terminated without a catchable error');
+    expect(summary).toContain(DEAD_LETTER_MARKER);
+    expect(summary).not.toContain('No per-attempt failure was recorded');
+  });
+
+  it('a recorded failure still wins the summary over start markers — the thrown cause is more specific', async () => {
+    state.existingCheckRuns.push({ id: 77, name: 'Port Daddy Fleet' });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const env = makeEnv({ FLEET_TOKENS: kv, DB: db.db });
+
+    await recordDeliveryAttemptStart(env, makeJob(), 1);
+    await recordDeliveryFailure(env, makeJob(), 1, new Error('token mint failed'));
+    await handleDlqJob(makeJob(), env);
+
+    const summary = String(state.completed[0].summary);
+    expect(summary).toContain('token mint failed');
+    expect(summary).not.toContain('terminated without a catchable error');
   });
 });
 

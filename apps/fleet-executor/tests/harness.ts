@@ -662,6 +662,15 @@ export function memoryD1(): D1Capture {
         // ordered by seq (see src/delivery-failure.ts). Served from the same
         // `steps` array the INSERT path above appends to, so a test that writes
         // a failure through the real code can read it back through the real code.
+        // Attempt-start count: COUNT(*) of one kind for one run (issue #7743's
+        // uncatchable-kill evidence). Matched BEFORE the generic step read-back
+        // below, which shares the FROM clause but returns a row, not a count.
+        if (/COUNT\(\*\)/i.test(sql) && /FROM fleet_run_steps/i.test(sql)) {
+          if (cap.failAll) throw new Error('D1 unavailable');
+          const [runId, kind] = args;
+          const n = cap.steps.filter(st => st.runId === runId && st.kind === String(kind)).length;
+          return { n } as unknown as Record<string, unknown>;
+        }
         // Guarded against JOIN queries: the adjudicator's epidemic-evidence
         // SELECT (below) also reads fleet_run_steps but joins fleet_runs and
         // binds a different arg shape — without this guard the generic matcher

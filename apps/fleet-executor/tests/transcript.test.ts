@@ -113,7 +113,10 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(state.completed[0].summary).toContain('Fleet paused by operator');
     expect(d1.runs).toHaveLength(1);
     expect(d1.runs[0].conclusion).toBe('neutral');
-    expect(d1.steps.map(s => s.kind)).toEqual(['check-completed']);
+    // The consumer stamps a delivery-attempt marker on EVERY delivery — paused
+    // ones included (#7743: an attempt's existence must be provable even when
+    // the run itself does nothing). The pause still spends nothing beyond it.
+    expect(d1.steps.map(s => s.kind)).toEqual(['delivery-attempt', 'check-completed']);
   });
 
   it('paused ⇒ reuses an existing check run for the same head SHA (idempotent retry)', async () => {
