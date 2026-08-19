@@ -184,3 +184,13 @@ describe('reasoning-model envelopes (DeepSeek V4, qwq, r1-distill)', () => {
     expect(stripThinkTags('<think>a</think>real<think>b</think> answer')).toBe('real answer');
   });
 });
+
+describe('malformed think tags (pd-qa on #7788)', () => {
+  it('nested blocks leave no residue', () => {
+    expect(stripThinkTags('<think>a<think>b</think>c</think>real answer')).toBe('real answer');
+  });
+
+  it('an orphan closer is dropped but the surrounding output is kept', () => {
+    expect(stripThinkTags('half a thought</think>the actual answer')).toBe('half a thoughtthe actual answer');
+  });
+});
