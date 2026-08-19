@@ -493,3 +493,52 @@ describe('the DLQ handler fails the gate even on a malformed job', () => {
     ).resolves.toBeUndefined();
   });
 });
+
+describe('checks dead-lettered BEFORE the marker existed are still recoverable', () => {
+  // The exact summary GitHub is holding for #7278/#7339/#7344 — written by the
+  // pre-marker DLQ handler, verbatim from check run 95964283666.
+  const LEGACY_SUMMARY =
+    'pd-fleet: run for curiositech/port-daddy PR #7339 was lost (job exhausted retries / ' +
+    'dead-lettered). This gate is failed rather than left stuck in-progress.';
+
+  it('recognises a legacy dead-letter that carries no marker', () => {
+    expect(LEGACY_SUMMARY).not.toContain(DEAD_LETTER_MARKER);
+    expect(isDeadLetteredSummary(LEGACY_SUMMARY)).toBe(true);
+  });
+
+  it('still recognises a marked one, and still refuses a ship-decided one', () => {
+    expect(isDeadLetteredSummary(deadLetterSummary('o', 'r', 7, null))).toBe(true);
+    expect(isDeadLetteredSummary('- pd-qa: PASS\n\nVerdict: SUCCESS')).toBe(false);
+  });
+
+  it('RE-RUNS the ships on a legacy dead-lettered check', async () => {
+    // Without this, a PR stranded before the marker deployed stays stranded
+    // forever: the guard reads a bare `failure` as decided and returns before
+    // creating a check run. Reproduced live on 2026-08-19 — reopening all three
+    // PRs re-ran every GitHub job and produced no fleet check at all.
+    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      fleetParser: JSON.stringify([
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+      ]),
+      perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    state.existingCheckRuns.push({
+      id: 4242,
+      name: 'Port Daddy Fleet',
+      status: 'completed',
+      conclusion: 'failure',
+      summary: LEGACY_SUMMARY,
+      headSha: 'HEADSHA',
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: memoryD1().db }));
+
+    const minted = state.existingCheckRuns.filter(c => c.id !== 4242);
+    expect(minted, 'no fresh check run — the legacy SHA is still stranded').toHaveLength(1);
+    expect(state.completed.some(c => c.id === minted[0].id)).toBe(true);
+  });
+});
