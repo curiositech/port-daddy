@@ -82,7 +82,10 @@ export async function surveyOpenPrs(
     // failed read degrades that PR to 'pending' (never docketed as actionable)
     // rather than failing the whole survey — one sick endpoint must not blind
     // the seat to every other PR.
-    let checks: PrSnapshot['checks'] = 'pending';
+    // No initializer: definite assignment on both try and catch paths, and
+    // the compiler proves it — a dead initial value would only mask a future
+    // path that forgets to assign.
+    let checks: PrSnapshot['checks'];
     let approved = false;
     let changesRequested = false;
     try {
