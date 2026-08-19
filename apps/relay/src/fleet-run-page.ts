@@ -563,7 +563,7 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
         bodyHtml: `<p class="meta">${esc(
           blocking
             ? 'This is a blocking ship, so the fleet check failed closed — an absent review is not an approval.'
-            : 'This is an advisory ship, so it did not fail the merge gate; it is reported here rather than counted as a pass.',
+            : 'This ship is advisory in judgment, but a ship that returned nothing is broken — the fleet check fails until it is fixed.',
         )}</p>`,
       };
     }
@@ -613,8 +613,10 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
         }
         return {
           icon: '💡',
-          tone: 'neutral',
-          headline: `${shipLabel} ran as an ideation ship (advisory) — its proposal block was malformed.`,
+          tone: 'block',
+          headline:
+            `${shipLabel} emitted a malformed proposal block — a broken ship, so the ` +
+            `fleet check fails until it is fixed.`,
           bodyHtml: '',
         };
       }
@@ -650,10 +652,10 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
       if (typeof obj.error === 'string') {
         return {
           icon: '⚖️',
-          tone: 'neutral',
+          tone: 'block',
           headline:
-            'The purser could not steel-man this PR — its contract output was malformed, ' +
-            'so it stopped honestly (advisory, no bluffed contract).',
+            'The purser could not steel-man this PR — its contract output was malformed. ' +
+            'No contract was bluffed, and the broken ship fails the fleet check until fixed.',
           bodyHtml: '',
         };
       }
@@ -671,12 +673,30 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
       };
     }
 
+    // The steel-man contract being written into the reviewed PR's body (the PR
+    // summary) — the operator-mandated chronology of what the PR should be.
+    case 'purser-contract-posted': {
+      const posted = obj.posted === true;
+      return {
+        icon: '📜',
+        tone: posted ? 'info' : 'block',
+        headline:
+          title ||
+          (posted
+            ? 'The steel-man contract was written into the PR summary.'
+            : 'FAILED to write the steel-man contract into the PR summary.'),
+        bodyHtml: '',
+      };
+    }
+
     case 'purser-tests': {
       if (typeof obj.error === 'string') {
         return {
           icon: '🧪',
-          tone: 'neutral',
-          headline: `The purser's authored tests did not survive validation — ${obj.error}. Nothing was stacked.`,
+          tone: 'block',
+          headline:
+            `The purser's authored tests did not survive validation — ${obj.error}. ` +
+            `Nothing was stacked, and the broken ship fails the fleet check until fixed.`,
           bodyHtml: '',
         };
       }

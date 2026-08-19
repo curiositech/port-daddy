@@ -147,8 +147,8 @@ export interface ShipResult {
    *
    * It is kept SEPARATE from `errored` on purpose. `errored` means the ship's
    * job crashed or emitted a corrupt block; `noUsableOutput` means it completed
-   * and said nothing usable. They gate identically (both fail a blocking ship
-   * closed, both make an advisory ship neutral rather than green) but they read
+   * and said nothing usable. They gate identically (both are BROKEN-SHIP states
+   * and fail the run — see {@link aggregateConclusion}) but they read
    * differently to an operator, and conflating them is how the original bug —
    * "PASS · clean" for a ship that returned nothing — stayed invisible.
    */
@@ -204,37 +204,40 @@ export function reviewEventFor(results: ShipResult[]): 'COMMENT' | 'REQUEST_CHAN
 /**
  * Aggregate ship results into the umbrella check-run conclusion.
  *
- *   failure  — any BLOCKING ship returned BLOCK, errored, or produced no
- *              usable output
- *   neutral  — all blocking ships passed, but a non-blocking ship objected,
- *              errored, or produced no usable output
- *   success  — all blocking ships passed and no non-blocking objection
+ *   failure  — any BLOCKING ship returned BLOCK; OR any ship AT ALL — advisory
+ *              included — errored or produced no usable output (a BROKEN ship)
+ *   neutral  — every ship ran intact, all blocking ships passed, but a
+ *              non-blocking ship objected (advisory judgment stays advisory)
+ *   success  — every ship ran intact, all blocking ships passed, no advisory
+ *              objection
  *
  * Errors on a blocking ship are treated as BLOCK (fail-closed): we never let a
  * gate-keeper's failure silently pass a merge.
  *
- * NO USABLE OUTPUT (src/usable-output.ts) is gated on the same doctrine, and
- * the asymmetry is deliberate:
+ * THE BROKEN-SHIP DOCTRINE (operator ruling, 2026-08-19). "Advisory" scopes a
+ * ship's JUDGMENT, not its machinery. An advisory ship saying BLOCK is an
+ * opinion the operator chose not to gate on — that stays `neutral`. But an
+ * advisory ship that errored, returned no usable output, or emitted a
+ * malformed block did not render an opinion at all: the fleet itself is
+ * broken, and a fleet run that silently tolerates its own broken ships trains
+ * everyone to ignore the fleet. Earlier doctrine resolved these to `neutral`
+ * ("advisory paths fail open"), and the observable result was an entire run —
+ * pd-spark, pd-lookout, pd-spider returning nothing usable, pd-snipe emitting
+ * a malformed proposal block — sailing past the merge gate with nobody forced
+ * to fix anything. A broken ship now FAILS the run, whatever its blocking
+ * flag, so the breakage gets fixed in the diff that surfaced it instead of
+ * accumulating as tolerated rot.
  *
- *   - A BLOCKING ship that produced nothing did NOT clear the gate. Absence of
- *     a review is not approval, so it fails closed exactly like an error —
- *     `success` must never be returned on the strength of a reviewer that
- *     reviewed nothing.
- *   - An ADVISORY ship that produced nothing must NOT fail the merge gate
- *     (advisory paths fail open, by doctrine), but it must not be laundered
- *     into `success` either. `neutral` is the honest resolution: GitHub does
- *     not block a merge on a neutral check, and the operator still sees that
- *     the ship came back with nothing instead of a green tick it never earned.
+ * NO USABLE OUTPUT (src/usable-output.ts) is one of the broken-ship states:
+ * absence of a review is not approval, and it is not "advisory silence"
+ * either — it is a ship that reviewed nothing, and it fails the run.
  */
 export function aggregateConclusion(results: ShipResult[]): Conclusion {
-  const blockingFailure = results.some(
-    r => r.blocking && (r.errored || r.noUsableOutput === true || r.verdict === 'BLOCK'),
-  );
-  if (blockingFailure) return 'failure';
+  const brokenShip = results.some(r => r.errored || r.noUsableOutput === true);
+  const blockingBlock = results.some(r => r.blocking && r.verdict === 'BLOCK');
+  if (brokenShip || blockingBlock) return 'failure';
 
-  const advisoryObjection = results.some(
-    r => !r.blocking && (r.verdict === 'BLOCK' || r.errored || r.noUsableOutput === true),
-  );
+  const advisoryObjection = results.some(r => !r.blocking && r.verdict === 'BLOCK');
   if (advisoryObjection) return 'neutral';
 
   return 'success';

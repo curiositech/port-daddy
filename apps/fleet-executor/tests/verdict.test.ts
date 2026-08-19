@@ -146,4 +146,30 @@ describe('aggregateConclusion', () => {
       aggregateConclusion([r({ blocking: true, verdict: 'PASS' }), r({ verdict: 'BLOCK' })]),
     ).toBe('neutral');
   });
+
+  // Broken-ship doctrine (operator ruling, 2026-08-19): "advisory" scopes a
+  // ship's JUDGMENT, not its machinery. A ship that errored or returned
+  // nothing usable rendered no opinion — the fleet is broken, and the run
+  // fails until it is fixed, whatever the ship's blocking flag.
+  it('failure when an ADVISORY ship errors — a broken ship is not an opinion', () => {
+    expect(
+      aggregateConclusion([r({ blocking: true, verdict: 'PASS' }), r({ errored: true })]),
+    ).toBe('failure');
+  });
+
+  it('failure when an ADVISORY ship produced no usable output', () => {
+    expect(
+      aggregateConclusion([r({ blocking: true, verdict: 'PASS' }), r({ noUsableOutput: true })]),
+    ).toBe('failure');
+  });
+
+  it('a broken advisory ship dominates an otherwise all-green fleet', () => {
+    expect(
+      aggregateConclusion([
+        r({ ship: 'code-reviewer', blocking: true, verdict: 'PASS' }),
+        r({ ship: 'spark', verdict: 'PASS' }),
+        r({ ship: 'snipe', verdict: 'PASS', errored: true }),
+      ]),
+    ).toBe('failure');
+  });
 });

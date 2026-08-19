@@ -538,6 +538,77 @@ async function findExistingComment(
 }
 
 // ---------------------------------------------------------------------------
+// PR body sections (the PR summary as a fleet-maintained record)
+
+/** GitHub rejects PR bodies longer than this (422), same cap as comments. */
+const GITHUB_PR_BODY_MAX = 65536;
+
+/**
+ * Upsert a marked section into a pull request's BODY — the PR summary.
+ *
+ * MOTIVATION / DESIGN: the PR summary is the durable chronology of what a PR
+ * is supposed to be; comments scroll away, check runs expire, but the body is
+ * what every future reader (and every PR-requirements gate) reads first. When
+ * the fleet derives something that IS that chronology — the purser's
+ * steel-manned contract and its obligations (operator mandate, 2026-08-19) —
+ * it belongs in the body, maintained by an agent, not buried in a comment.
+ *
+ * Idempotent edit-in-place: the section lives between `startMarker` and
+ * `endMarker` (HTML comments, invisible in rendered markdown). Present ⇒
+ * replaced; absent ⇒ appended. The rest of the body — the author's own words —
+ * is never touched, and a body that would exceed GitHub's hard cap is left
+ * alone entirely rather than truncating a human's prose.
+ *
+ * @param owner Repo owner.
+ * @param repo Repo name.
+ * @param prNumber The PR whose body carries the section.
+ * @param startMarker Opening HTML-comment marker (must be unique per section).
+ * @param endMarker Closing HTML-comment marker.
+ * @param section The markdown to place between the markers.
+ * @param token Installation token (needs `pull_requests: write`).
+ * @returns true when the body already carried the section or the PATCH landed;
+ *   false on any fetch/PATCH failure or cap overflow — the caller records the
+ *   outcome in the transcript so a silent miss is impossible.
+ */
+export async function upsertPrBodySection(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  startMarker: string,
+  endMarker: string,
+  section: string,
+  token: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
+      headers: ghHeaders(token),
+    });
+    if (!res.ok) return false;
+    const pr = (await res.json()) as { body?: string | null };
+    const current = pr.body ?? '';
+    const block = `${startMarker}\n${section}\n${endMarker}`;
+    const startIdx = current.indexOf(startMarker);
+    const endIdx = current.indexOf(endMarker);
+    const next =
+      startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx
+        ? current.slice(0, startIdx) + block + current.slice(endIdx + endMarker.length)
+        : current.trimEnd()
+          ? `${current.trimEnd()}\n\n${block}`
+          : block;
+    if (next === current) return true; // already up to date — no write needed
+    if (next.length > GITHUB_PR_BODY_MAX) return false; // never truncate a human's body
+    const patch = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
+      method: 'PATCH',
+      headers: ghHeaders(token),
+      body: JSON.stringify({ body: next }),
+    });
+    return patch.ok;
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Issues (fleet idea capture)
 
 /**

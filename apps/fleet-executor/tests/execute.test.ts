@@ -859,7 +859,7 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     expect(state.completed[0].conclusion).toBe('success');
   });
 
-  it('malformed proposal JSON on an ideation ship falls back to raw output and never gates', async () => {
+  it('malformed proposal JSON on an ideation ship posts the raw output AND fails the run', async () => {
     state.files.set('main:pd-fleet.yml', ideationYaml('spark', 1.25));
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -872,8 +872,11 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     const bodies = commentBodiesOf(state);
     // Raw prose is preserved rather than dropped.
     expect(bodies.some(b => b.includes('I think we could build stuff.'))).toBe(true);
-    // Malformed ideation output must NOT flip the check to neutral/failure.
-    expect(state.completed[0].conclusion).toBe('success');
+    // Broken-ship doctrine (2026-08-19): a malformed proposal block is not an
+    // opinion — it is a broken ship, and a broken ship fails the run even
+    // though ideation JUDGMENT never gates. The pd-snipe malformed block on
+    // the 2026-08-19 run sailed through green; it must not again.
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('ideation ships run alongside a blocking reviewer without affecting its gate', async () => {
