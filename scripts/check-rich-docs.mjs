@@ -7,7 +7,7 @@
  * motivation, purpose, or philosophy.
  *
  * Usage:
- *   node scripts/check-rich-docs.mjs [--staged]
+ *   node scripts/check-rich-docs.mjs [--staged] [--changed <base-ref>]
  */
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
@@ -235,6 +235,87 @@ function getStagedFiles() {
   }
 }
 
+/**
+ * Files a branch changed relative to a base ref — the ratchet mode.
+ *
+ * Motivation: the repo carries a real backlog of undocumented functions, so a
+ * whole-tree gate can only ever be advisory, and an advisory gate is one people learn
+ * to scroll past. Scoping the gate to what a PR actually touched makes it blocking
+ * without demanding a repo-wide backfill first: the debt cannot grow, and every PR
+ * that touches an old file pays down the part it touched. The backlog is then a
+ * separate, schedulable job rather than a permanent excuse for a yellow light.
+ *
+ * @param {string} base A git ref (e.g. `origin/main`) to diff against.
+ * @returns {string[]} Repo-relative paths of added/modified files.
+ */
+function getChangedFiles(base) {
+  try {
+    const stdout = execFileSync('git', ['diff', '--name-only', '--diff-filter=AM', `${base}...HEAD`], { encoding: 'utf8' });
+    return stdout.split('\n').map(f => f.trim()).filter(Boolean);
+  } catch (err) {
+    console.error(`Error diffing against ${base}: ${err.message}`);
+    return [];
+  }
+}
+
+/**
+ * Post-image line ranges a diff touched, per file.
+ *
+ * Why line-scoped and not file-scoped: a file-scoped ratchet charges a one-line bug fix
+ * the full documentation debt of whatever file it landed in — 600 findings for a typo,
+ * in this repo's real numbers. That is not a ratchet, it is a tax on touching old code,
+ * and its only stable outcome is that people stop running the gate. Scoping to the lines
+ * the author actually wrote makes the rule the one they would agree with anyway: document
+ * what you write. Pre-existing debt stays visible in the whole-tree run and gets burned
+ * down on purpose rather than ambushing an unrelated PR.
+ *
+ * @param {string} base A git ref to diff against.
+ * @returns {Map<string, Array<[number, number]>>} Repo-relative path -> inclusive
+ *          `[start, end]` line ranges in the new file.
+ */
+function getChangedLineRanges(base) {
+  const ranges = new Map();
+  let out = '';
+  try {
+    out = execFileSync('git', ['diff', '--unified=0', '--diff-filter=AM', `${base}...HEAD`], {
+      encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
+    });
+  } catch (err) {
+    console.error(`Error diffing hunks against ${base}: ${err.message}`);
+    return ranges;
+  }
+
+  let file = null;
+  for (const line of out.split('\n')) {
+    const plus = /^\+\+\+ b\/(.+)$/.exec(line);
+    if (plus) { file = plus[1]; if (!ranges.has(file)) ranges.set(file, []); continue; }
+    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(line);
+    if (hunk && file) {
+      const start = Number(hunk[1]);
+      const count = hunk[2] === undefined ? 1 : Number(hunk[2]);
+      if (count > 0) ranges.get(file).push([start, start + count - 1]);
+    }
+  }
+  return ranges;
+}
+
+/**
+ * Does a reported line sit inside a range the diff touched?
+ *
+ * A finding is padded by a few lines above the declaration so that a docstring the
+ * author edited counts as touching the function it documents — the docstring sits above
+ * the `fn`/`function` line the checker reports, so an exact-line test would let a
+ * gutted docstring through.
+ *
+ * @param {Array<[number, number]>} ranges Changed ranges for the file.
+ * @param {number} line The reported declaration line.
+ * @returns {boolean} True when the finding is the author's to answer for.
+ */
+function lineIsChanged(ranges, line) {
+  const PAD = 12; // a docstring block above the declaration
+  return ranges.some(([a, b]) => line >= a - PAD && line <= b + PAD);
+}
+
 function getAllFiles(dir, fileList = []) {
   const files = readdirSync(dir);
   for (const file of files) {
@@ -269,17 +350,26 @@ function main() {
 
   const args = process.argv.slice(2);
   const useStaged = args.includes('--staged');
+  const changedIdx = args.indexOf('--changed');
+  const changedBase = changedIdx >= 0 ? args[changedIdx + 1] : null;
+
+  const isCheckable = (f) => {
+    const ext = extname(f);
+    const isTest = f.endsWith('.test.ts') || f.endsWith('.spec.ts') || f.endsWith('.test.js');
+    const isDts = f.endsWith('.d.ts');
+    return (ext === '.ts' || ext === '.rs') && !isTest && !isDts;
+  };
 
   let files = [];
-  if (useStaged) {
+  if (changedBase) {
+    console.log(`${DIM}Scanning files CHANGED against ${changedBase}...${RESET}`);
+    files = getChangedFiles(changedBase)
+      .filter(isCheckable)
+      .map(f => join(ROOT, f))
+      .filter(f => existsSync(f));
+  } else if (useStaged) {
     console.log(`${DIM}Scanning STAGED files only...${RESET}`);
-    const staged = getStagedFiles();
-    files = staged.filter(f => {
-      const ext = extname(f);
-      const isTest = f.endsWith('.test.ts') || f.endsWith('.spec.ts') || f.endsWith('.test.js');
-      const isDts = f.endsWith('.d.ts');
-      return (ext === '.ts' || ext === '.rs') && !isTest && !isDts;
-    }).map(f => join(ROOT, f));
+    files = getStagedFiles().filter(isCheckable).map(f => join(ROOT, f));
   } else {
     console.log(`${DIM}Scanning all library files in workspace...${RESET}`);
     // Scan targeted library directories
@@ -294,7 +384,7 @@ function main() {
 
   console.log(`${DIM}Found ${files.length} file(s) to check.${RESET}\n`);
 
-  const errors = [];
+  let errors = [];
 
   for (const file of files) {
     try {
@@ -306,6 +396,22 @@ function main() {
       }
     } catch (err) {
       console.warn(`${YELLOW}⚠ Failed to check file ${file}: ${err.message}${RESET}`);
+    }
+  }
+
+  // Ratchet: in --changed mode, hold the author to the lines they wrote, not to
+  // whatever debt already lived in the file they touched. See getChangedLineRanges().
+  if (changedBase) {
+    const ranges = getChangedLineRanges(changedBase);
+    const before = errors.length;
+    errors = errors.filter((e) => {
+      const rel = e.file.startsWith(ROOT) ? e.file.slice(ROOT.length + 1) : e.file;
+      const fileRanges = ranges.get(rel);
+      return fileRanges ? lineIsChanged(fileRanges, e.line) : false;
+    });
+    const grandfathered = before - errors.length;
+    if (grandfathered > 0) {
+      console.log(`${DIM}${grandfathered} pre-existing issue(s) in touched files are grandfathered — run without --changed to see the full backlog.${RESET}\n`);
     }
   }
 

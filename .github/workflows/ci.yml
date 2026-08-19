@@ -54,6 +54,65 @@ jobs:
       - name: Version drift guard (every surface must match package.json)
         run: node scripts/check-version-drift.mjs
 
+  readme-accuracy-guard:
+    # The front door ships: README.md renders on npmjs.com and on the repo landing
+    # page, so a README that describes verbs the CLI no longer has is a shipped
+    # defect, not a docs chore. check-readme-freshness.mjs (pre-commit) asks "did
+    # you consider the README?"; this asks the other question — "is it TRUE?" — and
+    # fires on renames and removals in commits that never touch a watched path.
+    # It also enforces the length budget, which is the counterweight that stops the
+    # freshness gate from driving the front door to grow without bound.
+    #
+    # Surface-only here: verbs and flags are resolved against the registry and the
+    # CLI sources, with no daemon required. `--run` execution of run-tier blocks
+    # happens in release.yml, where a real daemon is up.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+
+      # The gate can block a release, so its own parsing is proven before it is
+      # trusted — including the no-node_modules fallback that only ever executes
+      # in the fresh-install smoke and would otherwise be found broken there.
+      - name: Test the gate's own parsers
+        run: node --test scripts/check-readme-accuracy.test.mjs
+
+      - name: README accuracy guard (every example must resolve against the CLI)
+        run: node scripts/check-readme-accuracy.mjs --ci
+
+  docstring-ratchet:
+    # "Every function has docs" as a ratchet, not a wall. scripts/check-rich-docs.mjs
+    # has always been able to scan the whole tree; the tree has a real backlog, so a
+    # whole-tree gate could only ever be advisory — and an advisory gate is one people
+    # learn to scroll past. This scopes the check to the LINES this PR wrote, which
+    # makes it blocking and fair at the same time: the debt cannot grow, and touching
+    # an old file costs you only the part of it you touched. The backlog stays visible
+    # via `npm run check:rich-docs` and gets burned down deliberately.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the ratchet diffs against the base branch
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+      - name: Docstring ratchet (new and changed functions must be documented)
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$BASE_REF"
+          node scripts/check-rich-docs.mjs --changed "origin/$BASE_REF"
+
   doc-citation-guard:
     # The machine-checkable half of the ship checklist's "citations are real" killer
     # item (AGENTS.md § Pull Request Operating Procedure). Verifies that backtick'd
@@ -807,10 +866,12 @@ jobs:
       - brand-color-guard
       - compiled-daemon-smoke
       - doc-citation-guard
+      - docstring-ratchet
       - fleet-ui
       - fleetbar
       - integration-tests
       - lint
+      - readme-accuracy-guard
       - rust-console
       - rust-console-gpui
       - rust-kernel

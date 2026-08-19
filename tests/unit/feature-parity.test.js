@@ -309,8 +309,13 @@ describe('README Parity (manifest → docs)', () => {
     test.each(readmeTestCases)(
       'feature "$feature" (docs.readme=true) is mentioned in README.md',
       ({ feature, cliCommands }) => {
-        // The feature name OR at least one of its CLI commands must appear in README
-        const featureMentioned = readmeContent.toLowerCase().includes(feature.toLowerCase());
+        // The feature name OR at least one of its CLI commands must appear in README.
+        // Manifest keys are snake_case; prose is not. Normalize word separators on both
+        // sides so `budget_guard` is satisfied by "budget guard" — otherwise an API-only
+        // feature with no CLI verbs can only be satisfied by writing a snake_case token
+        // into prose, which is a contract nobody can meet while writing readable English.
+        const normalize = (s) => s.toLowerCase().replace(/[_-]+/g, ' ');
+        const featureMentioned = normalize(readmeContent).includes(normalize(feature));
         const anyCmdMentioned = cliCommands.some(cmd =>
           readmeContent.includes(`pd ${cmd}`) || readmeContent.includes(cmd)
         );

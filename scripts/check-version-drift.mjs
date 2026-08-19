@@ -129,9 +129,12 @@ const SOURCE_SURFACES = [
     get: () => literalFrom('core/pd-console/Cargo.toml', /^version\s*=\s*"(\d+\.\d+\.\d+[\w.\-+]*)"/m),
   },
   {
-    // The repo's front door. Rotted from 3.13 to 3.24 before being gated.
-    name: 'README.md (title version)',
-    get: () => literalFrom('README.md', /^# ⚓ Port Daddy \(v(\d+\.\d+\.\d+[\w.\-+]*)\)/m),
+    // The repo's front door. Rotted from 3.13 to 3.24 before being gated. The
+    // stamp lives in a machine anchor rather than the H1: a version baked into
+    // the title is a drift surface with no reader benefit, since the npm badge
+    // right below it reports the published version live and can never go stale.
+    name: 'README.md (version anchor)',
+    get: () => literalFrom('README.md', /^<!-- pd:version (\d+\.\d+\.\d+[\w.\-+]*) -->/m),
   },
   {
     // The daemon's API version IS the product version; lied at 3.10.0 for months.

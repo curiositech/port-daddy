@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`readme-craft` skill.** `skills/readme-craft/` encodes what makes a README worth reading: the ten-second and two-minute gates, the identity interview, per-section grammar, a length budget, verification tiers, and the anti-patterns that produce a 1,000-line front door. Ships `readme-scorecard.mjs` (project-agnostic rubric scorer) and `extract-examples.mjs` (delimiter-tracking fence parser, exported as a library).
+- **README accuracy gate (`scripts/check-readme-accuracy.mjs`).** Release-blocking via the `readme-accuracy-guard` CI job. Resolves every `pd` verb and flag in every README example against `cli/permission-tiers.ts` and the CLI sources, checks that every image and link exists, and enforces the length budget. `--json` for agents, `--run` to execute `readme-verify: run` blocks against a real daemon — which the fresh-install smoke now does against a brew-installed keg, so "paste the quick start on a blank machine" is a tested claim. Unverifiable checks are reported as unresolved, never as passes.
+- **Docstring ratchet (`docstring-ratchet` CI job).** `check-rich-docs.mjs --changed <base>` scopes the docstring requirement to the lines a PR actually wrote, making it blocking without demanding a repo-wide backfill.
+
+### Changed
+- **README rewritten.** 1,046 lines to 268. Leads with what Port Daddy is — one daemon owning one durable truth, with one enforced write boundary — rather than a list of features, shows a working recording above the fold, and moves the command index, permission-tier tables, and per-feature reference into `docs/` and `pd help`.
+- **The README version stamp moved out of the title** into a `<!-- pd:version -->` anchor. `sync-version.ts` and `check-version-drift.mjs` gate the anchor; the npm badge reports the published version live.
+- **The documentarian fleet ship now owns README accuracy with tooling and limits.** It runs the accuracy gate, loads `readme-craft` before editing, and may not satisfy a gate by deleting the failing example, rewrite the positioning statement, or weaken a ceiling.
+
+### Fixed
+- **The hero recording showed commands the CLI now refuses.** `demos/tapes/quickstart.tape` was replaying a `pd begin` without roadmap rent and a `pd done` without a result receipt. The tape now satisfies both contracts and records from a neutral directory, so the GIF no longer depends on the recorder's branch state. `vhs.yml` records `demos/tapes/*.tape` as well, which is why the drift went unnoticed.
+- **`feature-parity.test.js` could not be satisfied by readable prose.** Manifest keys are snake_case, so an API-only feature with no CLI verbs could only pass by writing `budget_guard` into a sentence. Word separators are now normalized on both sides.
+
 ## [3.28.2] - 2026-08-18
 
 ## [3.28.1] - 2026-08-18

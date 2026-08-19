@@ -136,14 +136,14 @@ console.log(`  ✓ core/pd-console/Cargo.toml version → ${version}`);
 // every other distribution surface (see also scripts/check-readme-freshness.mjs
 // for the content-freshness commit gate).
 const readmePath = join(ROOT, 'README.md');
-const readmeVersionRe = /^(# ⚓ Port Daddy \(v)[\w.\-+]+(\))/m;
+const readmeVersionRe = /^(<!-- pd:version )[\w.\-+]+( -->)/m;
 let readmeContent = readFileSync(readmePath, 'utf-8');
 if (!readmeVersionRe.test(readmeContent)) {
-  throw new Error(`sync-version.ts: README.md title version "# ⚓ Port Daddy (vX.Y.Z)" not found — the front-door version would silently rot again. Restore the title before releasing.`);
+  throw new Error(`sync-version.ts: README.md version anchor "<!-- pd:version X.Y.Z -->" not found — the front-door version would silently rot again. Restore the anchor before releasing.`);
 }
 readmeContent = readmeContent.replace(readmeVersionRe, `$1${version}$2`);
 writeFileSync(readmePath, readmeContent);
-console.log(`  ✓ README.md title → ${version}`);
+console.log(`  ✓ README.md version anchor → ${version}`);
 
 // docs/openapi.yaml info.version — the daemon's API version IS the product
 // version; it lied at 3.10.0 for months before being added here.

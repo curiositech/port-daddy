@@ -1,0 +1,52 @@
+{
+  "skill": "readme-craft",
+  "status": "initial",
+  "provenance": {
+    "kind": "first-party",
+    "source": "manual",
+    "owners": ["port-daddy"]
+  },
+  "authorship": {
+    "maintainers": ["port-daddy"]
+  },
+  "structure": {
+    "decision_points": true,
+    "failure_modes": true,
+    "worked_examples": true,
+    "quality_gates": true,
+    "not_for": true,
+    "mermaid": true
+  },
+  "affordances": {
+    "scripts": true,
+    "templates": false,
+    "examples": true,
+    "references": true,
+    "agents": true,
+    "assets": false,
+    "browser_open_review": false,
+    "fork_runtime": false,
+    "hooks_runtime": false,
+    "channel_notes": false,
+    "scheduled_task_notes": true
+  },
+  "knowledge_depth": {
+    "l1": true,
+    "l2": true,
+    "l3": true
+  },
+  "pairs_with": [
+    "port-daddy-marketing-copy",
+    "port-daddy-expository-writer",
+    "api-documentation-generator",
+    "devtool-documentation",
+    "technical-writer"
+  ],
+  "validation": {
+    "repo_validator_passed": null,
+    "notes": [
+      "Initial draft 2026-08-18. Sources: ink and VHS README anatomy, Diátaxis, the standard-readme spec, and the Google developer documentation style guide. The worked rewrite in examples/before-after.md uses Port Daddy's own pre-rewrite README as the case, measured with the skill's own scorecard.",
+      "scripts/extract-examples.mjs is a library first and a CLI second: scripts/check-readme-accuracy.mjs in this repo imports extractFences() and shellInvocations() rather than re-implementing fence parsing."
+    ]
+  }
+}
