@@ -1,0 +1,110 @@
+\documentclass[11pt,a4paper]{article}
+\input{preamble}
+\title{\textbf{The Papers}\\[4pt]
+\large Publishable units extractable from the coordination program,\\ with venues, novelty claims, and honest prior-art positioning\\[3pt]
+\normalsize Document 4 of 4}
+\author{Prepared for Erich Owens}
+\date{August 2026}
+\begin{document}
+\maketitle
+
+\noindent\textbf{Framing.} The 240-page volume is not itself a paper --- it is a research program from which several genuinely publishable papers can be lifted. Below are eight, ordered by readiness. For each: the thesis, the results it carries, the honest novelty (what is new vs.\ what is imported), the target venue, and the readiness gate (what must be true before submission). The discipline throughout: claim novelty only where the survey found no prior art, and position everything else as \emph{application} of a named literature --- a paper that says ``we apply Ramadge--Wonham to LLM sandboxing'' is publishable and honest; one that claims to invent supervisory control is neither.
+
+\section{Paper 1 --- ``The Price of a Summary''}
+\emph{Information floors, adaptive zoom, and split heads for operator legibility.}
+\begin{description}[leftmargin=0em,style=unboxed]
+\item[Thesis.] Machine-generated summaries for human oversight obey information-theoretic limits, and the standard practice of one summary serving both a downstream agent and a human overseer is provably lossy.
+\item[Results.] The split-digest characterization (A1: one head serves two readers iff comonotone; the operator and successor readers are not); the digest--zoom Pareto frontier (B1: a two-constraint rate--distortion program with the covering floor as its worst-case corner, plus a zoom-advantage theorem from adaptive group testing); the derived regret head (A2: the surfacing rule as a likelihood-ratio criterion); and the falsification experiment (A7: empirical miss-rate vs.\ token budget against the floor, with an adversarial-feature panel).
+\item[Novelty, honestly.] \emph{New:} the two-constraint (false-negative-priced) rate--distortion formulation for this setting and the split-head characterization for oversight surfaces; the survey found no prior ``one-sided distortion'' / false-negative-constrained lossy compression for binary sources, so position this against rate--distortion--classification theory rather than assuming prior art. \emph{Imported:} group testing (Dorfman 1943; Hwang 1972 generalized binary splitting; Du \& Hwang), signal detection theory, and Sleator--Tarjan-style competitive framing. \emph{The honest contribution is the synthesis and the falsifiable prediction}, not new information theory from scratch.
+\item[Venue.] A systems-meets-theory venue --- the empirical figure plus the bounds fit a strong workshop (the human-oversight or agent-safety tracks) or, with the frontier fully worked, a conference. arXiv first.
+\item[Gate.] A2 + A1 proved; A7's figure showing empirical curves hugging the floor from above; B1's frontier at least stated with the corner verified. Roughly two focused weeks.
+\end{description}
+
+\section{Paper 2 --- ``Regimented or Enforced''}
+\emph{A supervisory-control characterization of what an agent runtime can prevent.}
+\begin{description}[leftmargin=0em,style=unboxed]
+\item[Thesis.] The boundary between what an agent hypervisor can \emph{prevent} (pre-effect) and what it can only \emph{detect and compensate} (post-effect) is exactly Ramadge--Wonham controllability with respect to the uncontrollable event set of an LLM (model-internal steps, in-context content).
+\item[Results.] B3 (the controllability characterization and its partial-observation refinement) plus the re-graded policy table (force-push regimentable; confident-lie detect-only), and the concrete Supremica synthesis for a realistic policy set.
+\item[Novelty, honestly.] \emph{New:} the mapping of agent-runtime enforcement onto supervisory control theory, and the resulting exact boundary --- the survey found only emerging 2024--2026 work invoking Rushby/Goguen--Meseguer for agent guardrails, none giving the controllability characterization. \emph{Imported:} Ramadge--Wonham (1987, 1989), Lin--Wonham observability (1988), Schneider's enforceable-security-policies framing, Anderson's reference monitor. \emph{The contribution is the theorem that agent guardrails are a supervisory-control problem}, which lets designers import decades of synthesis results.
+\item[Venue.] A security or formal-methods venue; this is the most ``respectable-conference'' result in the set because it connects a hot topic (agent safety) to a classical, rigorous theory.
+\item[Gate.] B3 proved in Isabelle or Coq; the policy table populated from the corrected manuscript; one Supremica case study. Roughly one to two weeks.
+\end{description}
+
+\section{Paper 3 --- ``Reputation is Amortized Verification''}
+\emph{Inspection games, audit-tower contraction, and heterogeneous judge pools.}
+\begin{description}[leftmargin=0em,style=unboxed]
+\item[Thesis.] A bonded-judge reputation system is an inspection game; the critical audit rate is $\rho^\star=G/(dB)$; a recursive audit tower contracts under sealed sampling from disjoint judge-cliques; and a declining audit schedule that tracks the honesty posterior makes reputation a mechanism for \emph{amortizing} verification cost.
+\item[Results.] B2 in full: the stage $\rho^\star$, the $\lambda=O(1/q)$ contraction, and the $O(1)$-vs-$\Theta(T)$ amortization theorem --- with model heterogeneity identified as the source of clique-disjointness and VRF honeypots as the audit implementation.
+\item[Novelty, honestly.] \emph{New:} the amortized-verification framing and the contraction result for a \emph{stackable} audit tower with correlated (LLM) judges, and the identification of model heterogeneity as the mechanism that supplies statistical independence. \emph{Imported:} inspection games (Avenhaus--von Stengel--Zamir 2002), Becker (1968), Kreps--Wilson (1982) / Fudenberg--Levine (1989) reputation. \emph{The contribution is closing a conjecture the volume posed}, with a named implementation and a measurement obligation.
+\item[Venue.] An economics-and-computation venue (the algorithmic-game-theory community); the equilibrium content and the PRISM-games verification make it a natural fit.
+\item[Gate.] B2's three parts proved; a PRISM-games model confirming the equilibria; Gambit numeric checks. Roughly one to one-and-a-half weeks.
+\end{description}
+
+\section{Paper 4 --- ``The Sealed Harbor''}
+\emph{Mutually confidential agent computation with declassification-bounded information flow.}
+\begin{description}[leftmargin=0em,style=unboxed]
+\item[Thesis.] Two parties who will share neither data nor model can nonetheless obtain an attributable, policy-bound joint computation, with every information release explicit and bounded --- and the security boundary is the declassification gate, not token-level taint.
+\item[Results.] C1 (observational noninterference modulo declassification, via Rushby unwinding, mechanized in Isabelle/AFP); A3 ($\varepsilon$-conservation of the release ledger); A4 (canary detection power); and the leakage-budget accounting ($q\cdot b$ bits, before timing channels).
+\item[Novelty, honestly.] \emph{New:} the end-to-end clean-room \emph{design} for tool-using LLM agents (dual-attested key release, two gates, whole-worker taint because token-level taint is not soundly definable, information-theoretic leakage budget) and its mechanized noninterference-modulo-declassification theorem. \emph{Imported:} Goguen--Meseguer noninterference, Rushby intransitive noninterference (1992, already in AFP), Myers--Liskov decentralized label model, Geoffrey Smith QIF (2009), Dwork--Rothblum--Vadhan DP composition (2010), IETF RATS attestation. \emph{The contribution is that ``bring the encrypted agent to the encrypted data'' is realizable with a stated, provable flow guarantee}, correcting the naive ``taint analysis prevents exfiltration'' story.
+\item[Venue.] A security venue (the confidential-computing or information-flow community). Strong industrial relevance (the airlock product) helps.
+\item[Gate.] B3 done (C1 depends on it); C1's unwinding conditions discharged in Isabelle; A3/A4 proved; a red-team appendix on side channels. Roughly three to four weeks after B3.
+\end{description}
+
+\section{Paper 5 --- ``Continuity Without Metaphysics''}
+\emph{Provider-portable task resurrection and reputation under substrate substitution.}
+\begin{description}[leftmargin=0em,style=unboxed]
+\item[Thesis.] Durable machine-work identity requires attributable lineage, not psychological or bitwise continuity; a portable task capsule suffices for cross-provider \emph{succession}; and reputation must attach to (principal, substrate) pairs to survive engine substitution.
+\item[Results.] The capsule impossibility argument (two hidden states, one transcript) and the behavioral fidelity metric; B5 (Akerlof unraveling inside one identity; resurrection soundness); B6 (the front-loaded probation cliff); and the (corrected) identity theorem stated as a conditional.
+\item[Novelty, honestly.] \emph{New:} engine substitution as within-identity adverse selection and the (principal, engine) indexing that closes it; the probation-cliff optimality result; the provider-portability impossibility framing. \emph{Imported:} Akerlof (1970), Spence (1973), Lazear (1979) deferred compensation (as the foil the cliff result overturns), Parfit on personal identity (as an \emph{interlude}, explicitly not a premise). \emph{The contribution is operationalizing continuity as an inheritance rule with security consequences}, and a surprising scheduling result.
+\item[Venue.] Economics-and-computation, or an agents/autonomy venue; pairs naturally with Paper 3.
+\item[Gate.] B5 + B6 proved; the capsule fidelity metric measured on the cross-provider experiment. Roughly one to two weeks.
+\end{description}
+
+\section{Paper 6 --- ``What Needs an Authority''}
+\emph{The coordination boundary for multi-principal agent institutions.}
+\begin{description}[leftmargin=0em,style=unboxed]
+\item[Thesis.] In a shared multi-principal agent workspace, monotone facts (evidence, claims, offers) can be coordinated without a consensus point, while non-monotone operations (exclusive roles, revocation, finite budgets, unique settlement) require an authority --- and ``what is a conflict'' is a tractable, incremental decision inside a bounded commitment language.
+\item[Results.] B4 (the polynomial incremental conflict fragment and the NP-completeness of its one-step extension); the CALM/invariant-confluence boundary applied to the harbor; the exclusive-role epoch-safety theorem; and the typed-conflict taxonomy with its per-class resolution.
+\item[Novelty, honestly.] \emph{New:} the specific tractable commitment fragment (Horn + intervals + difference constraints) for agent-coordination conflict detection, and the application of the CALM theorem to a principal-federated agent institution. \emph{Imported:} CALM (Hellerstein--Alvaro), invariant confluence (Bailis et al.), CRDT semilattice theory, difference-constraint / negative-cycle algorithms. \emph{The contribution is a principled coordination boundary plus a decidability result for conflict detection}, replacing ``vote on everything'' and ``mesh preserves all invariants'' with the correct middle.
+\item[Venue.] A distributed-systems or databases venue; the CALM connection and the incremental-algorithm result fit that audience.
+\item[Gate.] B4 proved (with the incremental algorithm and its amortized bound); the role-epoch safety theorem; the Alice/Bob/Carl semantics stable in prototype. Roughly one to two weeks.
+\end{description}
+
+\section{Paper 7 (conditional) --- ``Cohomology of Equivocation''}
+\emph{Sheaf-theoretic fault localization under partial visibility.}
+\begin{description}[leftmargin=0em,style=unboxed]
+\item[Thesis.] Equivocation in a federated witness-log system is a global-section obstruction; under partial visibility (partitions), sheaf cohomology detects and localizes equivocators where pairwise comparison provably cannot.
+\item[Results.] The three sheaf theorem candidates (independent-equivocation counting via dim $H^1$; harmonic-support localization; consistency-radius = max prefix divergence), \emph{conditional on the commit-or-cut experiment passing}.
+\item[Novelty, honestly.] \emph{New (if it holds):} applying contextuality-style Čech cohomology to Byzantine equivocation detection --- the survey found almost no prior sheaf-on-consensus work, and the partial-visibility regime is the genuine value-add. \emph{Imported:} Abramsky--Brandenburger contextuality (2011) and its cohomology (Abramsky--Mansfield--Barbosa 2012), Hansen--Ghrist spectral sheaf theory (2019), Curry's cellular sheaves, Robinson's consistency radius; \emph{compared against} the non-sheaf state of the art (Sheng et al., BFT Protocol Forensics, CCS 2021). \emph{The honest contribution is detection/localization under partition}, feeding forensic proof extraction --- \emph{not} a replacement for cryptographic culpability, and bounded by the abelianization gap (Car\`u).
+\item[Venue.] Applied-topology or a distributed-systems venue, depending on which result dominates; the consistency-radius result is publishable even if the cohomology story is cut.
+\item[Gate.] \textbf{The commit-or-cut experiment must pass} (cohomology-only detection under partition). If it fails, this paper does not exist and the consistency-radius result folds into Paper 6. Two to three days to decide.
+\end{description}
+
+\section{Paper 8 (systems) --- ``\textsc{agentsd}: A Control Plane and Flight Recorder for AI Agents''}
+\emph{The systems paper describing the artifact.}
+\begin{description}[leftmargin=0em,style=unboxed]
+\item[Thesis.] A single-writer daemon can serve as a complete-mediation control plane and evidence-bearing flight recorder for agent swarms, with measured assurance levels and provider-portable resurrection.
+\item[Results.] The artifact itself (Phases 1--2 minimum): work-unit receipts, the effect hypervisor, typed messaging, role leases, the projection sidecar, and the assurance-level framework --- plus the adversarial differential experiments (hook vs.\ confined bypass rates; sidecar attack resistance; cross-provider resurrection fidelity).
+\item[Novelty, honestly.] \emph{New:} the integrated artifact and the assurance-level discipline; the empirical bypass/fidelity numbers. \emph{Imported:} the whole systems-security canon it builds on (Saltzer--Schroeder, Lampson confinement, Zanzibar-style authorization, SPIFFE federation, in-toto/SLSA provenance). \emph{The contribution is a working system that makes agent effects auditable and agent work portable}, evaluated adversarially rather than by demo.
+\item[Venue.] A systems venue; needs the running artifact and the experiment suite, so it trails the others.
+\item[Gate.] Phases 1--2 shipped; the experiment suite run with numbers. This is the capstone, gated on the product roadmap reaching Phase 2--3.
+\end{description}
+
+\section{Portfolio view}
+\begin{longtable}{@{}p{0.30\textwidth}p{0.22\textwidth}p{0.18\textwidth}p{0.22\textwidth}@{}}
+\toprule
+\textbf{Paper} & \textbf{Carries} & \textbf{Readiness} & \textbf{Community} \\
+\midrule
+1. Price of a Summary & A1, A2, A7, B1 & $\sim$2 weeks & theory / oversight \\
+2. Regimented or Enforced & B3 & 1--2 weeks & security / FM \\
+3. Reputation = Verification & B2 & 1--1.5 weeks & econ-and-computation \\
+4. The Sealed Harbor & C1, A3, A4 & 3--4 wk post-B3 & security / conf.\ computing \\
+5. Continuity w/o Metaphysics & B5, B6 & 1--2 weeks & econ-CS / agents \\
+6. What Needs an Authority & B4, CALM, epochs & 1--2 weeks & distributed systems \\
+7. Cohomology of Equivocation & 3 sheaf candidates & \emph{gated on experiment} & applied topology / DS \\
+8. \textsc{agentsd} (systems) & the artifact & post Phase 2--3 & systems \\
+\bottomrule
+\end{longtable}
+
+\noindent\textbf{Sequencing advice.} Papers 1, 2, and 3 are the strongest and most independent --- each stands without the others and each converts a flagged weakness or open conjecture into a theorem. Lead with them; they establish the program's credibility. Paper 4 is the highest-impact but gated on Paper 2's B3. Papers 5 and 6 are solid mid-tier that pair naturally (5 with 3 on the economics side, 6 with the systems work). Paper 7 is a coin-flip resolved cheaply by one experiment --- run it, and either gain a striking cross-disciplinary paper or lose nothing but a few days. Paper 8 is the capstone that the product roadmap produces as a byproduct. \emph{Do not} attempt a single grand paper spanning all of it --- the reviews are unanimous that the volume's breadth is its liability, and the same is true of any paper drawn from it; each result publishes best as the sharpest possible version of one idea.
+\end{document}
