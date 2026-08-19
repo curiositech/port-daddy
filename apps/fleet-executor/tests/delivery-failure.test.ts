@@ -356,3 +356,35 @@ describe('the read-back path degrades honestly (pd-qa findings on #7377)', () =>
     expect(summary).toContain(DEAD_LETTER_MARKER);
   });
 });
+
+describe('the DLQ handler fails the gate even on a malformed job', () => {
+  it('completes the check as failure when deliveryId is missing, rather than bailing', async () => {
+    // pd-qa proposed returning early on an absent deliveryId. That would be
+    // WORSE than the degraded path: bailing leaves the check stuck
+    // `in_progress` forever, which is the exact stuck-gate this handler exists
+    // to prevent. A missing id costs a useless run link, not the gate.
+    state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const job = makeJob();
+    delete (job as { deliveryId?: string }).deliveryId;
+
+    await expect(
+      handleDlqJob(job, makeEnv({ FLEET_TOKENS: kv, DB: memoryD1().db })),
+    ).resolves.toBeUndefined();
+
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0]).toMatchObject({ id: 4242, conclusion: 'failure' });
+    // …and the marker still lands, so the SHA is not stranded either.
+    expect(String(state.completed[0].summary)).toContain(DEAD_LETTER_MARKER);
+  });
+
+  it('never rejects, so the caller always reaches message.ack()', async () => {
+    state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
+    const db = memoryD1();
+    db.failAll = true; // every write throws, including the read-back's guard
+    await expect(
+      handleDlqJob(makeJob(), makeEnv({ FLEET_TOKENS: memoryKV(), DB: db.db })),
+    ).resolves.toBeUndefined();
+  });
+});

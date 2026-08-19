@@ -65,14 +65,20 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
   // links to whatever transcript the lost run managed to write — and so the
   // per-attempt failures the retry path recorded are readable from here.
   const runId = runIdForDelivery(job.deliveryId);
-  const summary = deadLetterSummary(
-    owner,
-    repo,
-    prNumber,
-    await readLastDeliveryFailure(env, runId),
-  );
 
   try {
+    // Inside the try deliberately. This function is documented "never throws",
+    // and its caller acks the message immediately after it returns; a throw
+    // here would leave a dead-lettered job unacked on a queue whose own
+    // max_retries is 1. readLastDeliveryFailure guards itself, but that
+    // guarantee should be enforced here rather than borrowed from a second
+    // function's discipline.
+    const summary = deadLetterSummary(
+      owner,
+      repo,
+      prNumber,
+      await readLastDeliveryFailure(env, runId),
+    );
     const token = await getInstallationTokenCached(
       env.GITHUB_APP_ID,
       env.GITHUB_APP_PRIVATE_KEY,
