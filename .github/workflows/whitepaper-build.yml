@@ -101,7 +101,27 @@ jobs:
             pull_request) base="$PR_BASE_SHA" ;;
             push) base="$PUSH_BEFORE_SHA" ;;
           esac
+          # Detected before anything is built, because a renderer change has to
+          # drive BOTH decisions below: it forces a full rebuild (no TeX source
+          # moved, so the incremental path would build nothing at all and the
+          # re-pin would land with stale artifacts), and it stands the restore
+          # down (no TeX source moved, so the restore would revert the whole
+          # re-render). Miss either and the repository can never adopt a new
+          # TeX Live.
+          renderer_changed=0
+          if [ -n "$base" ] && git cat-file -e "$base^{commit}" 2>/dev/null; then
+            if git diff "$base"...HEAD -- .github/workflows/whitepaper-build.yml \
+               | grep -qE '^[-+][[:space:]]*image:[[:space:]]*texlive/texlive'; then
+              renderer_changed=1
+              echo "::notice::Renderer pin changed — rebuilding every paper and keeping the fresh renders."
+            fi
+          fi
+
           build_papers() {
+            if [ "$renderer_changed" = "1" ]; then
+              bash scripts/build-whitepapers.sh
+              return
+            fi
             # PRs and pushes rebuild only papers whose transitive TeX inputs
             # changed. A builder change intentionally rebuilds the full set,
             # because it can alter every artifact. Manual runs also build all.
@@ -134,21 +154,6 @@ jobs:
           # really did change still ships its fresh render.
           # NB: this step runs under the container's /bin/sh (dash), not bash, so
           # no process substitution — the list goes through a temp file.
-          # A renderer change is the one case where every artifact may legitimately
-          # move with no TeX source change, so the restore below must stand down —
-          # otherwise a deliberate re-pin would be silently reverted and the repo
-          # could never adopt a new TeX Live at all.
-          renderer_changed=0
-          if [ -n "$base" ] && git cat-file -e "$base^{commit}" 2>/dev/null; then
-            if ! git diff --quiet "$base"...HEAD -- .github/workflows/whitepaper-build.yml; then
-              if git diff "$base"...HEAD -- .github/workflows/whitepaper-build.yml \
-                 | grep -qE '^[-+][[:space:]]*image:[[:space:]]*texlive/texlive'; then
-                renderer_changed=1
-                echo "::notice::Renderer pin changed in this PR — accepting every fresh render instead of restoring."
-              fi
-            fi
-          fi
-
           if [ "$renderer_changed" = "0" ] && [ -n "$base" ] && git cat-file -e "$base^{commit}" 2>/dev/null; then
             unchanged_list="$RUNNER_TEMP/whitepaper-unchanged.txt"
             bash scripts/build-whitepapers.sh --list-unchanged-since "$base" > "$unchanged_list"
