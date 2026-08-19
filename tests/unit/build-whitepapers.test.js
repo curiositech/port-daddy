@@ -177,16 +177,29 @@ describe('reproducible whitepaper source scoping', () => {
     expect(workflow).not.toMatch(/image:\s*texlive\/texlive:latest/);
   });
 
-  test('a renderer re-pin stands the restore guard down', () => {
-    // Without this the two guards fight: re-pinning the renderer legitimately
-    // moves every artifact, but no TeX source changed, so the restore step would
-    // revert the whole re-render and the repository could never adopt a new TeX
-    // Live at all.
+  test('a renderer re-pin drives BOTH the rebuild and the restore stand-down', () => {
+    // These are two separate decisions and missing either one is silent.
+    //
+    // Skip the forced rebuild and the incremental path builds nothing at all,
+    // because no TeX source moved -- the first attempt at this pin produced a
+    // green two-minute build job and shipped the new renderer with the OLD
+    // artifacts still committed. Skip the stand-down and the restore reverts the
+    // whole re-render. Either way the repository can never adopt a new TeX Live.
     const workflow = readFileSync(
       join(repoRoot, '.github', 'workflows', 'whitepaper-build.yml'), 'utf8');
 
     expect(workflow).toContain('renderer_changed=1');
     expect(workflow).toMatch(/\^\[-\+\]\[\[:space:\]\]\*image:\[\[:space:\]\]\*texlive\/texlive/);
+
+    // forces the full rebuild, ahead of the --changed-since path
+    expect(workflow).toMatch(
+      /build_papers\(\)\s*\{\s*\n\s*if \[ "\$renderer_changed" = "1" \]; then\s*\n\s*bash scripts\/build-whitepapers\.sh\s*\n\s*return/);
+
+    // ...and stands the restore down
     expect(workflow).toContain('if [ "$renderer_changed" = "0" ]');
+
+    // detection must precede the builds, or it cannot influence them
+    expect(workflow.indexOf('renderer_changed=0'))
+      .toBeLessThan(workflow.indexOf('build_papers()'));
   });
 });
