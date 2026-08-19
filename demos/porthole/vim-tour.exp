@@ -1,4 +1,5 @@
 #!/usr/bin/expect -f
+set stty_init "rows 28 columns 100"
 set timeout 15
 set send_slow {1 .08}
 spawn vim -N -u NORC -c "syntax on" -c "set nonumber laststatus=2" drive.sh
