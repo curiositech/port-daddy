@@ -95,6 +95,7 @@ import { decideShipGate, isDocsOnly, isReviewableForBugs } from './gates.js';
 import { repairContractOutput } from './repair.js';
 import { adjudicateBrokenShips } from './adjudicator.js';
 import { runPurser } from './purser.js';
+import { isDeadLetteredSummary } from './dead-letter-marker.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
 import {
@@ -1122,8 +1123,24 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // would strand a PR permanently unreviewed: unpause the fleet, redeliver, and
   // the guard would skip forever. Only `success` and `failure` mean ships
   // actually ran and reached a verdict.
+  //
+  // …and a DLQ-completed `failure` is NOT decided either, for the same reason
+  // `neutral` isn't: no ship ran, nothing was reviewed, no verdict was reached.
+  // A lost job's red gate is honest fail-closed output, but counting it as
+  // DECIDED strands the head SHA permanently — every later delivery returns
+  // right here, before even creating a check run, so no retry can ever produce
+  // a real verdict and the only escape is a brand-new commit. Observed
+  // 2026-08-19: #7278, #7339 and #7344 each lost one run to a dead-letter and
+  // were then unreviewable at that SHA; reopening them re-ran all of GitHub
+  // Actions CI while the fleet check never reappeared at all.
   const DECIDED: ReadonlySet<string> = new Set(['success', 'failure']);
-  if (existing && existing.status === 'completed' && DECIDED.has(existing.conclusion ?? '')) {
+  const deadLettered = isDeadLetteredSummary(existing?.summary);
+  if (
+    existing &&
+    existing.status === 'completed' &&
+    DECIDED.has(existing.conclusion ?? '') &&
+    !deadLettered
+  ) {
     console.log(
       `[fleet-executor] ${owner}/${repo}@${prCtx.headSha}: check already decided ` +
         `(${existing.conclusion}) — skipping ${cloudShips.length} ship(s). ` +
@@ -1131,8 +1148,18 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     );
     return;
   }
+  if (deadLettered) {
+    console.log(
+      `[fleet-executor] ${owner}/${repo}@${prCtx.headSha}: previous check was dead-lettered, ` +
+        `not decided — running ${cloudShips.length} ship(s) for a real verdict.`,
+    );
+  }
 
-  let checkRunId = existing?.id ?? null;
+  // A finished check cannot be reopened, so a dead-lettered one must not be
+  // REUSED either: completing it again would be a no-op against a gate GitHub
+  // considers closed. Mint a fresh check run instead — GitHub surfaces the
+  // newest run of a given name, so the new one is what the branch rule reads.
+  let checkRunId = deadLettered ? null : existing?.id ?? null;
   if (!checkRunId) {
     // No swallow: a createCheckRun failure must propagate so the job RETRIES.
     checkRunId = await createCheckRun(owner, repo, CHECK_NAME, prCtx.headSha, token, detailsUrl);
