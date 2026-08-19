@@ -29,9 +29,16 @@ import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { readLineFromControllingTerminal, type ControllingTerminalFsOps } from '../../cli/utils/tty.ts';
 
-/** Build injectable fs ops that hand back `chunks` one readSync at a time. */
+/**
+ * Injectable fs ops that hand back `chunks` one readSync at a time.
+ *
+ * Modelled on a real fd: a chunk larger than the caller's buffer is served in
+ * buffer-sized bites with the remainder held for the next read, never
+ * truncated. A fake that dropped the tail would hide exactly the long-line bug
+ * it is meant to rule out.
+ */
 function opsReturning(chunks: Array<string | Error>, log: string[] = []): ControllingTerminalFsOps & { log: string[] } {
-  let i = 0;
+  const pending: Array<string | Error> = [...chunks];
   return {
     log,
     openSync(path: string) {
@@ -40,11 +47,14 @@ function opsReturning(chunks: Array<string | Error>, log: string[] = []): Contro
     },
     readSync(fd: number, buffer: Buffer, offset: number, length: number, position: number | null) {
       log.push(`read:fd=${fd}:position=${position === null ? 'null' : String(position)}`);
-      const next = chunks[i++];
+      const next = pending.shift();
       if (next === undefined) return 0; // EOF once the script is exhausted
       if (next instanceof Error) throw next;
-      const written = buffer.write(next, offset, Math.min(length, Buffer.byteLength(next)), 'utf8');
-      return written;
+      const bytes = Buffer.from(next, 'utf8');
+      const take = Math.min(length, bytes.length);
+      if (take < bytes.length) pending.unshift(bytes.subarray(take).toString('utf8'));
+      bytes.copy(buffer, offset, 0, take);
+      return take;
     },
     closeSync(fd: number) {
       log.push(`close:${fd}`);
@@ -83,6 +93,16 @@ describe('readLineFromControllingTerminal — bun-runtime /dev/tty contract', ()
 
   test('assembles a line split across several reads', () => {
     expect(readLineFromControllingTerminal(opsReturning(['mig', 'rate', ' now\n']))).toBe('migrate now');
+  });
+
+  test('assembles a line far longer than the 256-byte read buffer', () => {
+    // The buffer is per-READ, not per-line: the loop keeps reading until it
+    // sees a newline. A 1 KiB answer must survive intact across ~4 reads.
+    const long = 'x'.repeat(1024);
+    const ops = opsReturning([`${long}\n`]);
+    expect(readLineFromControllingTerminal(ops)).toBe(long);
+    // And it really did take several reads to get there.
+    expect(ops.log.filter((l) => l.startsWith('read:')).length).toBeGreaterThan(1);
   });
 
   test('stops at the first newline and ignores trailing input', () => {
