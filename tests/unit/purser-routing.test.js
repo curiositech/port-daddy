@@ -84,6 +84,18 @@ describe('every purser test is routed or explicitly quarantined', () => {
     for (const file of nodeTests) expect(onDisk).toContain(file);
   });
 
+  test('the jest set is non-empty and every member is a real file', () => {
+    // The node:test set above has a floor and a real-file check; this one had
+    // neither, which pd-qa caught on 2026-08-19. The asymmetry mattered: if the
+    // jest-routed set ever empties, jest's purser project matches nothing and
+    // the suite passes in silence — the same "present, discovered by nothing,
+    // looking like coverage" failure this manifest exists to eliminate,
+    // surviving on whichever runner nobody guarded.
+    const jestTests = entries.filter(([, e]) => e.runner === 'jest').map(([f]) => f);
+    expect(jestTests.length).toBeGreaterThan(0);
+    for (const file of jestTests) expect(onDisk).toContain(file);
+  });
+
   test('the runner scripts derive their file lists from this manifest', () => {
     // Deriving rather than duplicating is what keeps the two in step. If either
     // grows its own hard-coded list, this fails and the drift is visible.
