@@ -131,4 +131,33 @@ describe('every purser test is routed or explicitly quarantined', () => {
       rmSync(emptyManifest, { recursive: true, force: true });
     }
   });
+
+  test('a file routed to a runner actually declares tests', () => {
+    // Raised by pd-qa, then rewritten after mutation testing showed the obvious
+    // version was worthless: comparing the routed set against the quarantined
+    // set derives BOTH from the manifest, so mislabelling the helper as
+    // `node-test` merely moved it between two lists and the assertion still
+    // passed. That is the manifest agreeing with itself.
+    //
+    // The real invariant crosses from the manifest to the files: anything routed
+    // to a runner must actually contain tests. Relabel the shared helper as
+    // `node-test` and this fails, because the helper declares none — which is
+    // exactly the mistake worth catching, since the runner would then execute a
+    // file that asserts nothing and report it as passing coverage.
+    const routed = entries
+      .filter(([, entry]) => entry.runner === 'jest' || entry.runner === 'node-test')
+      .map(([file]) => file);
+
+    const silent = routed.filter((file) => !/^\s*(describe|test|it)\s*\(/m
+      .test(readFileSync(join(purserDir, file), 'utf8')));
+
+    expect(silent).toEqual([]);
+
+    // The three dispositions must also exactly partition the directory: no file
+    // counted twice, none unaccounted for.
+    const excluded = entries
+      .filter(([, e]) => e.runner === 'quarantined' || e.runner === 'helper')
+      .map(([file]) => file);
+    expect([...routed, ...excluded].sort()).toEqual(onDisk);
+  });
 });
