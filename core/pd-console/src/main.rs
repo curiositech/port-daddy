@@ -309,10 +309,13 @@ fn main() {
     app::init_theme_from_env();
     app::init_motion_from_env();
 
-    // Canonical daemon discovery: PORT_DADDY_URL env var → daemon.port file → default.
-    // All fallback logic lives in DaemonClient::discover(); no literals here.
+    // Canonical daemon discovery: PORT_DADDY_URL env var → console-daemon.url →
+    // daemon.port file → the stable berth default. All fallback logic lives in
+    // DaemonClient::discover(); no literals here. Discovery is infallible now —
+    // with nothing registered the console opens against the stable berth and the
+    // panes render reachability honestly instead of panicking pre-window.
     let daemon_url = DaemonClient::discover()
-        .expect("daemon discovery failed")
+        .expect("daemon discovery is infallible")
         .base()
         .to_string();
 

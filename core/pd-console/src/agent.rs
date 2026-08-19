@@ -205,10 +205,13 @@ impl SseParser {
 }
 
 /// Thin client for the live daemon — discovers it the canonical way (PR #261):
-/// `PORT_DADDY_URL`, else the TCP port the running daemon wrote to
-/// `~/.port-daddy/daemon.port`. There is no hardcoded port fallback: the daemon
-/// writes that file when it boots, so its absence means there is no daemon to
-/// talk to — fail loudly with the fix rather than guess a port.
+/// `PORT_DADDY_URL`, else the operator's selected `console-daemon.url`, else the
+/// TCP port the running daemon wrote to `~/.port-daddy/daemon.port`, else the
+/// canonical stable berth. The design intent of the final fallback: a fresh
+/// console must always open — pointing at the one port the stable daemon is
+/// contractually berthed on — and render "daemon unreachable" state in-pane,
+/// rather than panicking before the window exists and leaving the operator
+/// with a stack trace instead of an instruction.
 pub struct DaemonClient {
     base: String,
     http: reqwest::Client,
@@ -401,6 +404,10 @@ impl DaemonClient {
         //      clobbering the canonical daemon.port. Delete the file to fall back
         //      to stable. The status bar shows which URL is live.
         //   3. `~/.port-daddy/daemon.port` — the canonical (stable) daemon.
+        //   4. The stable berth itself — the daemon's contractual default port.
+        //      A console that cannot find any registration still opens against
+        //      the address the stable daemon will occupy, and the panes render
+        //      reachability truthfully instead of the process dying pre-window.
         if let Ok(url) = std::env::var("PORT_DADDY_URL") {
             return Ok(Self::new(url));
         }
@@ -414,18 +421,14 @@ impl DaemonClient {
         {
             return Ok(Self::new(url));
         }
-        let port = home
+        if let Some(port) = home
             .map(|h| h.join(".port-daddy/daemon.port"))
             .and_then(|p| std::fs::read_to_string(p).ok())
             .and_then(|s| s.trim().parse::<u16>().ok())
-            .ok_or_else(|| {
-                anyhow!(
-                    "cannot locate the Port Daddy daemon: set PORT_DADDY_URL, write \
-                     ~/.port-daddy/console-daemon.url, or start the daemon (it writes \
-                     ~/.port-daddy/daemon.port)"
-                )
-            })?;
-        Ok(Self::new(format!("http://127.0.0.1:{port}")))
+        {
+            return Ok(Self::new(format!("http://127.0.0.1:{port}")));
+        }
+        Ok(Self::new(crate::berths::stable_url()))
     }
 
     /// Construct a client against an already-resolved base URL (e.g. the value

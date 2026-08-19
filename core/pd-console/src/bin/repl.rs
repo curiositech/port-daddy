@@ -141,6 +141,7 @@ use lane_pane::LanePane;
 use lineage_pane::LineagePane;
 use pane::{OperatorTurn, PaneRegistry, Subscription, SurfaceAction};
 use parley_pane::ParleyPane;
+use planner_pane::PlannerPane;
 use std::io::{self, Write};
 use std::time::Duration;
 use substrate_pane::SubstratePane;
@@ -166,7 +167,7 @@ fn banner(style: &TermStyle, daemon_url: &str) {
         "{}  {}",
         rail("└"),
         style.paint(
-            ":work <goal> · :roster · :lane · :lane-message <text> · :harbor · :edit <path> · :quit",
+            ":work <goal> · :planner · :roster · :lane · :lane-message <text> · :harbor · :edit <path> · :quit",
             Sem::Muted
         )
     );
@@ -267,6 +268,7 @@ async fn main() -> Result<()> {
     reg.register(Box::new(ActiveAgentsPane::new()));
     reg.register(Box::new(HarborPane::new()));
     reg.register(Box::new(GalaxyPane::new()));
+    reg.register(Box::new(PlannerPane::new()));
 
     let ok = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✓", Sem::Landed));
     let err = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✗", Sem::Gated));
@@ -526,6 +528,21 @@ async fn main() -> Result<()> {
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
+        } else if line == ":planner" || line == ":gantt" || line == ":roadmap" {
+            // The roadmap's critical-path Gantt — the same PlannerPane the GPUI
+            // window leads with, rendered headlessly so Linux CI and operators
+            // without a window can read the schedule (and capture evidence).
+            reg.active = reg
+                .panes
+                .iter()
+                .position(|p| p.id() == "planner")
+                .unwrap_or(0);
+            if let Err(e) = reg.refresh_active(&daemon).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
         } else if line == ":fleet" {
             // Declarative ships from pd-fleet.yml with live lifecycle (GET /fleet):
             // sailing / cooldown / dry-dock / paused / armed, each an ICS flag.
@@ -591,7 +608,7 @@ async fn main() -> Result<()> {
         } else {
             err(
                 &style,
-                "unknown command; use :work <goal>, :roster, :lane, :harbor, or :quit",
+                "unknown command; use :work <goal>, :planner, :roster, :lane, :harbor, or :quit",
             );
         }
     }

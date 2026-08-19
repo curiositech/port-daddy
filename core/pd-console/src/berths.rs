@@ -51,6 +51,21 @@ impl Berth {
     }
 }
 
+/// Base URL of the canonical stable daemon on this machine.
+///
+/// Why this exists: startup daemon discovery ([`crate::agent::DaemonClient::discover`])
+/// must never strand the operator at a panic when no `daemon.port` file exists —
+/// the design intent is that a fresh console always opens against the one port
+/// the stable daemon is contractually berthed on, and shows "unreachable" state
+/// in-pane if nothing is listening. Centralizing the URL here keeps the port
+/// literal in the single allowlisted berth module rather than scattering
+/// hardcoded daemon URLs (which the no-hardcoded-daemon-url guard forbids).
+///
+/// Returns the stable berth's `http://127.0.0.1:<STABLE_PORT>` base URL.
+pub fn stable_url() -> String {
+    format!("http://127.0.0.1:{STABLE_PORT}")
+}
+
 fn registry_path() -> Option<PathBuf> {
     dirs::home_dir().map(|h| h.join(".port-daddy/dev-daemons.json"))
 }
