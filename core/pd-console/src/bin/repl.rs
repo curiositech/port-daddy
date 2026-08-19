@@ -139,7 +139,7 @@ use galaxy_pane::GalaxyPane;
 use harbor_pane::HarborPane;
 use lane_pane::LanePane;
 use lineage_pane::LineagePane;
-use pane::{OperatorTurn, PaneRegistry, Subscription, SurfaceAction};
+use pane::{OperatorTurn, Pane, PaneRegistry, Subscription, SurfaceAction};
 use parley_pane::ParleyPane;
 use planner_pane::PlannerPane;
 use std::io::{self, Write};
@@ -255,6 +255,25 @@ async fn main() -> Result<()> {
             return Ok(());
         }
     };
+
+    // `--capture-planner <path.png>`: refresh the Planner pane against the live
+    // daemon and rasterize its Block view to a PNG, then exit. The purpose is
+    // CI-grade visual evidence on Linux — the Block rasterizer is one of the
+    // console's real renderers, so this PNG is the pane as the console draws
+    // it, not a mock. Same design as the gpui bin's `--headless-capture`.
+    let argv: Vec<String> = std::env::args().collect();
+    if let Some(pos) = argv.iter().position(|a| a == "--capture-planner") {
+        let path = argv
+            .get(pos + 1)
+            .ok_or_else(|| anyhow::anyhow!("--capture-planner requires a <path.png>"))?;
+        let mut pane = PlannerPane::new();
+        pane.refresh(&daemon).await?;
+        let png = headless_capture::render_blocks(&pane.view(), &theme::DARK, 1180).to_png();
+        std::fs::write(path, &png)?;
+        println!("planner capture written: {path}");
+        return Ok(());
+    }
+
     banner(&style, daemon.base());
 
     // Build the pane registry — register all panes once at startup.
