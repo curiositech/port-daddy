@@ -26,6 +26,7 @@
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
 import { ensureRunRow } from './execute.js';
+import { DEAD_LETTER_MARKER } from './dead-letter-marker.js';
 
 /** `fleet_run_steps.kind` for a failed queue delivery attempt. */
 export const DELIVERY_FAILURE_KIND = 'delivery-failed';
@@ -181,12 +182,14 @@ export function deadLetterSummary(
   const base =
     `pd-fleet: run for ${owner}/${repo} PR #${prNumber ?? '?'} was lost (job exhausted retries / ` +
     `dead-lettered). This gate is failed rather than left stuck in-progress.`;
+  // The marker is what lets a later delivery tell this red gate apart from a
+  // ship-decided one and run for real — see dead-letter-marker.ts.
   if (!failure) {
     return (
       `${base}\n\nNo per-attempt failure was recorded for this delivery, so the cause is not in ` +
-      `the transcript — check the fleet-executor Worker logs.`
+      `the transcript — check the fleet-executor Worker logs.\n\n${DEAD_LETTER_MARKER}`
     );
   }
   const which = failure.attempt > 0 ? `attempt ${failure.attempt}` : 'the last attempt';
-  return `${base}\n\nLast recorded failure (${which}): ${failure.error}`;
+  return `${base}\n\nLast recorded failure (${which}): ${failure.error}\n\n${DEAD_LETTER_MARKER}`;
 }

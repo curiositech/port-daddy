@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import handler from '../src/index.js';
 import { handleDlqJob } from '../src/dlq.js';
+import { executeFleet } from '../src/execute.js';
+import { DEAD_LETTER_MARKER, isDeadLetteredSummary } from '../src/dead-letter-marker.js';
 import {
   DELIVERY_FAILURE_KIND,
   DELIVERY_FAILURE_SEQ_BASE,
@@ -15,6 +17,7 @@ import {
   installGitHubFetch,
   memoryKV,
   memoryD1,
+  aiStub,
   makeEnv,
   makeJob,
   type GitHubState,
@@ -175,5 +178,126 @@ describe('deadLetterSummary', () => {
     const summary = deadLetterSummary('o', 'r', 7, { attempt: 0, error: 'something' });
     expect(summary).toContain('the last attempt');
     expect(summary).not.toContain('attempt 0');
+  });
+});
+
+describe('a dead-lettered check does not strand the head SHA', () => {
+  const DECIDED_SUMMARY = 'pd-qa: PASS. Ships ran and reached a verdict.';
+
+  it('marks the DLQ summary so a later delivery can tell it apart', async () => {
+    state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+
+    await handleDlqJob(makeJob(), makeEnv({ FLEET_TOKENS: kv, DB: memoryD1().db }));
+
+    expect(state.completed[0].summary).toContain(DEAD_LETTER_MARKER);
+    expect(isDeadLetteredSummary(state.completed[0].summary)).toBe(true);
+  });
+
+  it('does not mark a summary ships actually decided', () => {
+    expect(isDeadLetteredSummary(DECIDED_SUMMARY)).toBe(false);
+    expect(isDeadLetteredSummary('')).toBe(false);
+    expect(isDeadLetteredSummary(null)).toBe(false);
+    expect(isDeadLetteredSummary(undefined)).toBe(false);
+  });
+
+  it('RE-RUNS the ships after a dead-letter, instead of returning at the guard', async () => {
+    // This is the exact shape that stranded #7278, #7339 and #7344: one run
+    // lost to a dead-letter leaves a completed `failure` on the head SHA, and
+    // every later delivery used to return before even creating a check run.
+    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      fleetParser: JSON.stringify([
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+      ]),
+      perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: memoryD1().db });
+
+    // A dead-lettered gate already sits on this head SHA.
+    state.existingCheckRuns.push({
+      id: 4242,
+      name: 'Port Daddy Fleet',
+      status: 'completed',
+      conclusion: 'failure',
+      summary: deadLetterSummary('erichowens', 'port-daddy', 7, { attempt: 4, error: 'boom' }),
+      headSha: 'HEADSHA',
+    });
+
+    await executeFleet(makeJob(), env);
+
+    // A FRESH check run was minted (a finished one cannot be reopened, so
+    // reusing 4242 would complete a gate GitHub already considers closed)…
+    const minted = state.existingCheckRuns.filter(c => c.id !== 4242);
+    expect(minted).toHaveLength(1);
+    // …and it reached a real verdict rather than returning at the guard.
+    expect(state.completed.some(c => c.id === minted[0].id)).toBe(true);
+  });
+
+  it('still stops dead on a check that ships DID decide', async () => {
+    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      fleetParser: JSON.stringify([
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+      ]),
+      perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    state.existingCheckRuns.push({
+      id: 4242,
+      name: 'Port Daddy Fleet',
+      status: 'completed',
+      conclusion: 'failure',
+      summary: DECIDED_SUMMARY,
+      headSha: 'HEADSHA',
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: memoryD1().db }));
+
+    // No new check, no completion, no model spend — the money guard holds.
+    expect(state.existingCheckRuns).toHaveLength(1);
+    expect(state.completed).toHaveLength(0);
+  });
+
+  it('closes the loop: DLQ failure then redelivery yields a real verdict', async () => {
+    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      fleetParser: JSON.stringify([
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+      ]),
+      perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: memoryD1().db });
+
+    // 1. A run got as far as creating its in_progress gate, then was lost.
+    state.existingCheckRuns.push({
+      id: 4242,
+      name: 'Port Daddy Fleet',
+      status: 'in_progress',
+      headSha: 'HEADSHA',
+    });
+    await handleDlqJob(makeJob(), env);
+    expect(state.completed[0]).toMatchObject({ id: 4242, conclusion: 'failure' });
+
+    // 2. A later delivery for the SAME head SHA now runs for real. Nothing was
+    //    hand-fed between the two steps: step 1's PATCH wrote the marked
+    //    summary, and step 2 read it back through the same lookup GitHub serves.
+    await executeFleet(makeJob(), env);
+    const verdict = state.completed.find(c => c.id !== 4242);
+    expect(verdict, 'the redelivery reached no verdict — the SHA is still stranded').toBeDefined();
+    // A REAL verdict: ships ran and their results are in the summary. Asserting
+    // a specific conclusion would pin the stub's roster, not the un-stranding —
+    // what matters is that this gate was decided by ships rather than inherited
+    // from the dead-letter.
+    expect(verdict!.summary).toContain('pd-code-reviewer');
+    expect(verdict!.summary).not.toContain(DEAD_LETTER_MARKER);
+    expect(verdict!.summary).not.toContain('dead-lettered');
   });
 });

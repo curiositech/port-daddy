@@ -38,6 +38,12 @@ export interface GitHubState {
     name: string;
     status?: string;
     conclusion?: string | null;
+    /**
+     * The completion summary GitHub returns under `output.summary`. The
+     * executor reads it to tell a DLQ-completed failure (dead-lettered, no
+     * verdict, must stay re-runnable) apart from one ships decided.
+     */
+    summary?: string;
     /** The commit this check belongs to. GitHub's lookup is PER-SHA. */
     headSha?: string;
   }>;
@@ -382,7 +388,10 @@ export function installGitHubFetch(state: GitHubState): void {
       // which is the opposite of the truth and would hide a real re-review.
       const wanted = url.match(/\/commits\/([^/]+)\/check-runs/)?.[1] ?? '';
       return json({
-        check_runs: state.existingCheckRuns.filter(c => !c.headSha || c.headSha === wanted),
+        check_runs: state.existingCheckRuns
+          .filter(c => !c.headSha || c.headSha === wanted)
+          // Mirror GitHub's shape: the summary arrives nested under `output`.
+          .map(c => ({ ...c, output: { summary: c.summary ?? '' } })),
       });
     }
 
@@ -429,6 +438,9 @@ export function installGitHubFetch(state: GitHubState): void {
         // mean ships ran and decided. `neutral` is a deferral (paused,
         // lifecycle-skipped) and must stay re-runnable.
         row.conclusion = (body as { conclusion?: string })?.conclusion ?? null;
+        // …and so does the summary: the dead-letter marker travels in it, and
+        // the next delivery's guard reads it back through this same lookup.
+        row.summary = (body as { output?: { summary?: string } })?.output?.summary ?? '';
       }
       state.completed.push({
         id: Number(completeMatch[1]),
