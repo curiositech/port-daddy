@@ -129,3 +129,29 @@ VT) · seeking (idempotent line-snapshot replay) · self-host (single static HTM
 3. Does share ship inside pd 3.29 as an experiment, or wait for the standalone `porthole` brew tap?
 4. Screen-mode (alt-screen TUI) player: v1 requirement or fast-follow? (Transcript mode
    covers all current site demos; screen mode unlocks "record vim/tmux" virality.)
+
+## 8. Theming & distribution norms (reskinning as a first-class feature)
+
+People WILL reskin this for their own sites; design for it with the headless + tokens + slots
+architecture the ecosystem converged on:
+
+1. **Headless engine** (Radix/TanStack norm): `@portdaddy/porthole-core` = VT + transcript +
+   playback clock, framework-free; `usePorthole(cast)` hook exposes state (lines, time,
+   playing, wrapped) + actions (play, seek, setSpeed). Full-custom players build on the hook.
+2. **CSS custom properties are the public theming API**: every themable value is a documented
+   `--ph-*` token (`--ph-0..15`, `--ph-fg/bg`, `--ph-chrome`, `--ph-font`, `--ph-radius`)
+   scoped to the root; our dark/light palettes are just the default token sets. `theme` prop
+   takes a preset name, a token object, or `"faithful"` (the palette recorded in the cast
+   header — an honesty feature competitors can't copy). Prototype already proves this: the
+   ◐ toggle is a token swap, and a host page stamping `data-theme` drives every embed.
+3. **State as data attributes, structure as parts**: `data-playing/wrapped/theme/following`
+   on the root; `::part(titlebar|line|controls)` on the web component; `classNames` slot
+   object on the React wrapper. Internal class names stay private; tokens + data-attrs +
+   parts are the semver-stable styling contract.
+4. **Zero styling runtime**: one plain CSS file, skippable (`unstyled`); no CSS-in-JS, no
+   Tailwind requirement; ESM; SSR renders the final transcript as static markup (SEO +
+   no-JS fallback) and hydrates into the player; `<video>`-shaped imperative ref.
+5. **shadcn-model option**: publish the default skin as copy-paste registry source so teams
+   own their chrome while the engine stays an npm dependency that keeps updating.
+
+Opinionated default skin is fine — the sin is opinion without exits.
