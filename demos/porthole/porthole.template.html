@@ -2,41 +2,59 @@
 <title>Porthole — terminal replays that are real text</title>
 <style>
   :root {
-    --mat: #0d0f13; --chrome: #1a1d23; --chrome-hi: #232732; --term-bg: #101318;
-    --paper: #fbf7ef; --ink: #17191d; --cobalt: #0a57ff; --cobalt-deep: #003fb8;
-    --rust: #c04a1d; --lime: #b5d43d; --text-2: #9aa1ad; --hair: rgba(251,247,239,0.14);
     --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    /* dark (default) */
+    --mat: #0d0f13; --chrome: #1a1d23; --chrome-hi: #232732; --term-bg: #101318;
+    --fg-1: #fbf7ef; --on-accent: #17191d; --cobalt: #0a57ff; --cobalt-deep: #003fb8;
+    --rust: #d4693c; --lime: #b5d43d; --text-2: #9aa1ad; --hair: rgba(251,247,239,0.14);
+    --shadow: 0 24px 60px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
+    --t-fg: #d7dbe4; --t-bg: #101318; --t-sel-bg: #003fb8; --t-sel-fg: #fbf7ef;
+    --t-0:#3b414d; --t-1:#e5533a; --t-2:#8fd042; --t-3:#e0b64a; --t-4:#5b8bff; --t-5:#c07ae0; --t-6:#4fc4c9; --t-7:#d7dbe4;
+    --t-8:#59606e; --t-9:#ff7a5c; --t-10:#b5d43d; --t-11:#f0cf6e; --t-12:#7ea6ff; --t-13:#d69ae8; --t-14:#6fdbe0; --t-15:#fbf7ef;
+  }
+  :root[data-theme="light"] {
+    --mat: #efe9db; --chrome: #e5ddc9; --chrome-hi: #efe8d7; --term-bg: #fbf7ef;
+    --fg-1: #17191d; --on-accent: #fbf7ef; --cobalt: #003fb8; --cobalt-deep: #0a57ff;
+    --rust: #b3401b; --lime: #63801a; --text-2: #5f6672; --hair: rgba(23,25,29,0.16);
+    --shadow: 0 18px 44px rgba(60,50,30,0.22), 0 2px 8px rgba(60,50,30,0.14);
+    --t-fg: #2a2e36; --t-bg: #fbf7ef; --t-sel-bg: #003fb8; --t-sel-fg: #fbf7ef;
+    --t-0:#17191d; --t-1:#b3341f; --t-2:#4a7c10; --t-3:#96700a; --t-4:#003fb8; --t-5:#8a3fa8; --t-6:#0e7c82; --t-7:#454c58;
+    --t-8:#7a808c; --t-9:#d14a2e; --t-10:#5f9214; --t-11:#a97e00; --t-12:#0a57ff; --t-13:#9a54b8; --t-14:#12878e; --t-15:#0d0f13;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
-  body { background: var(--mat); color: var(--paper); font-family: var(--mono); line-height: 1.55; }
+  body { background: var(--mat); color: var(--fg-1); font-family: var(--mono); line-height: 1.55; }
   .page { max-width: 1080px; margin: 0 auto; padding: 0 28px 90px; }
 
   .doc-head { padding: 54px 0 22px; border-bottom: 1px solid var(--hair); margin-bottom: 34px; }
   .doc-head .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--lime); }
   .doc-head h1 { font-size: clamp(30px, 4.2vw, 52px); font-weight: 700; line-height: 1.04; letter-spacing: -0.015em; margin: 10px 0 0; max-width: 22ch; text-wrap: balance; }
   .doc-head .lede { font-size: 15px; color: var(--text-2); max-width: 68ch; margin-top: 14px; }
-  .doc-head .lede b { color: var(--paper); font-weight: 600; }
+  .doc-head .lede b { color: var(--fg-1); font-weight: 600; }
 
   .cast-tabs { display: flex; gap: 8px; margin: 0 0 14px; }
   .cast-tabs button { font: 700 12.5px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
     color: var(--text-2); background: transparent; border: 1px solid var(--hair); padding: 9px 14px; cursor: pointer; }
-  .cast-tabs button[aria-selected="true"] { color: var(--ink); background: var(--lime); border-color: var(--lime); }
+  .cast-tabs button[aria-selected="true"] { color: var(--on-accent); background: var(--lime); border-color: var(--lime); }
   .cast-tabs button:focus-visible, .ctl button:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
 
   /* ── window chrome ── */
   .win { background: var(--chrome); border: 1px solid rgba(0,0,0,0.5); border-radius: 10px;
-    box-shadow: 0 24px 60px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4); overflow: hidden; }
-  .win-bar { display: grid; grid-template-columns: 72px minmax(0,1fr) auto; gap: 10px; align-items: center; height: 40px;
+    box-shadow: var(--shadow); overflow: hidden; }
+  .win-bar { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 10px; align-items: center; height: 40px;
     background: linear-gradient(var(--chrome-hi), var(--chrome)); border-bottom: 1px solid rgba(0,0,0,0.45); padding: 0 14px; }
   .lights { display: flex; gap: 8px; }
   .lights i { width: 12px; height: 12px; border-radius: 50%; }
   .lights i:nth-child(1) { background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
   .win-title { text-align: center; font-size: 12.5px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .win-title b { color: var(--paper); font-weight: 600; }
+  .win-title b { color: var(--fg-1); font-weight: 600; }
   .win-hint { justify-self: end; font-size: 11.5px; color: var(--text-2); opacity: 0; transition: opacity .25s; white-space: nowrap; }
   .win:hover .win-hint { opacity: 1; }
   @media (hover: none), (max-width: 860px) { .win-hint { display: none; } }
+  @media (max-width: 640px) { #titleDims { display: none; } .win-title { font-size: 12px; } }
+  .theme-btn { justify-self: end; width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--hair);
+    background: transparent; color: var(--fg-1); cursor: pointer; font-size: 13px; line-height: 1; }
+  .theme-btn:hover { border-color: var(--cobalt); }
 
   /* ── terminal ── */
   .term-wrap { position: relative; background: var(--term-bg); }
@@ -47,7 +65,7 @@
   .pl-line::before { content: "⧉"; position: absolute; left: -24px; top: 0; color: var(--cobalt);
     opacity: 0; cursor: pointer; font-size: 12px; }
   .pl-line:hover::before { opacity: 0.9; }
-  .term-scroll ::selection { background: var(--cobalt-deep); color: var(--paper); }
+  .term-scroll ::selection { background: var(--t-sel-bg); color: var(--t-sel-fg); }
   .caret { display: inline-block; width: 0.6em; height: 1.15em; vertical-align: text-bottom;
     background: var(--lime); animation: blink 1.1s steps(1) infinite; }
   @keyframes blink { 50% { opacity: 0; } }
@@ -57,16 +75,16 @@
     justify-content: space-between; padding: 10px 0; opacity: 0; transition: opacity .25s; pointer-events: none; }
   @media (hover: hover) { .term-wrap:hover .scroll-cues { opacity: 1; } }
   .scroll-cues button { pointer-events: auto; width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--hair);
-    background: rgba(26,29,35,0.85); color: var(--paper); cursor: pointer; font-size: 12px; line-height: 1; }
+    background: var(--chrome); color: var(--fg-1); cursor: pointer; font-size: 12px; line-height: 1; }
   .scroll-cues button:hover { background: var(--cobalt-deep); border-color: var(--cobalt); }
 
   .resume-pill { position: absolute; left: 50%; transform: translateX(-50%); bottom: 12px; font: 600 12px var(--mono);
-    color: var(--ink); background: var(--lime); border: 0; padding: 6px 12px; border-radius: 999px; cursor: pointer; display: none; }
+    color: var(--on-accent); background: var(--lime); border: 0; padding: 6px 12px; border-radius: 999px; cursor: pointer; display: none; }
 
   /* ── control deck ── */
   .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 14px; background: var(--chrome);
     border-top: 1px solid rgba(0,0,0,0.45); }
-  .ctl button { touch-action: manipulation; min-height: 32px; font: 700 12px var(--mono); color: var(--paper); background: transparent;
+  .ctl button { touch-action: manipulation; min-height: 32px; font: 700 12px var(--mono); color: var(--fg-1); background: transparent;
     border: 1px solid var(--hair); border-radius: 6px; padding: 7px 10px; cursor: pointer; }
   .ctl button:hover { border-color: var(--cobalt); color: #cfe0ff; }
   .ctl .speeds { display: flex; gap: 4px; }
@@ -76,13 +94,18 @@
   .seek .rail { position: relative; width: 100%; height: 4px; background: #2a2f3a; border-radius: 2px; }
   .seek .fill { position: absolute; inset: 0 auto 0 0; width: 0%; background: var(--cobalt); border-radius: 2px; }
 
+  #speedCycle { display: none; }
   @media (max-width: 640px) {
-    .seek { order: 10; flex-basis: 100%; }
-    .ctl { padding: 10px 10px; }
-    #copyAll .lbl { display: none; }
+    .seek { order: 10; flex-basis: 100%; min-width: 0; height: 20px; }
+    .ctl { padding: 6px 10px 8px; gap: 6px; }
+    .ctl button { min-height: 30px; padding: 5px 8px; }
+    .ctl .speeds { display: none; }
+    #speedCycle { display: inline-block; min-width: 52px; }
+    #wrapBtn .lbl, #copyAll .lbl { display: none; }
+    .ctl .time { font-size: 11px; }
   }
   .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(8px); font: 600 12.5px var(--mono);
-    background: var(--paper); color: var(--ink); padding: 8px 14px; border-radius: 6px; opacity: 0; transition: all .22s; pointer-events: none; }
+    background: var(--fg-1); color: var(--on-accent); padding: 8px 14px; border-radius: 6px; opacity: 0; transition: all .22s; pointer-events: none; }
   .toast.show { opacity: 1; transform: translateX(-50%); }
 
   .provenance { display: flex; flex-wrap: wrap; gap: 10px 26px; margin-top: 16px; font-size: 12px; color: var(--text-2); }
@@ -92,7 +115,7 @@
   .note h3 { font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--rust); margin: 0 0 8px; }
   .note h3.c { color: var(--cobalt); } .note h3.l { color: var(--lime); }
   .note p { font-size: 13.5px; color: var(--text-2); margin: 0; }
-  .note p b { color: var(--paper); }
+  .note p b { color: var(--fg-1); }
 </style>
 
 <div class="page">
@@ -107,8 +130,8 @@
   <section class="win" aria-label="Terminal replay">
     <div class="win-bar">
       <div class="lights"><i></i><i></i><i></i></div>
-      <div class="win-title"><b id="titleName">pd</b> — <span id="titleDims"></span></div>
-      <div class="win-hint">select any line to copy — it’s real text</div>
+      <div class="win-title"><b id="titleName">pd</b><span id="titleDims"></span></div>
+      <div style="display:flex; gap:10px; align-items:center;"><span class="win-hint">select any line to copy — it’s real text</span><button class="theme-btn" id="themeBtn" aria-label="Toggle light/dark theme">◐</button></div>
     </div>
     <div class="term-wrap">
       <div class="term-scroll" id="term" tabindex="0" aria-live="off"></div>
@@ -121,7 +144,8 @@
       <div class="speeds" id="speeds"></div>
       <div class="seek" id="seek"><div class="rail"><div class="fill" id="fill"></div></div></div>
       <div class="time" id="time">0.0s / 0.0s</div>
-      <button id="wrapBtn" aria-pressed="false" aria-label="Toggle line wrapping">↩ wrap</button>
+      <button id="speedCycle" aria-label="Cycle playback speed">0.5×</button>
+      <button id="wrapBtn" aria-pressed="false" aria-label="Toggle line wrapping">↩<span class="lbl"> wrap</span></button>
       <button id="copyAll" aria-label="Copy full transcript">⧉<span class="lbl"> transcript</span></button>
     </div>
   </section>
@@ -142,9 +166,8 @@
 <script>
 (() => {
   // ── ANSI 16-color theme (story-linework harmonized) ─────────────
-  const THEME = ["#3b414d","#e5533a","#8fd042","#e0b64a","#5b8bff","#c07ae0","#4fc4c9","#d7dbe4",
-                 "#59606e","#ff7a5c","#b5d43d","#f0cf6e","#7ea6ff","#d69ae8","#6fdbe0","#fbf7ef"];
-  const FG_DEFAULT = "#d7dbe4", BG_DEFAULT = null;
+  const THEME = Array.from({length: 16}, (_, i) => `var(--t-${i})`);
+  const FG_DEFAULT = "var(--t-fg)", BG_DEFAULT = null;
   const c256 = n => {
     if (n < 16) return THEME[n];
     if (n < 232) { n -= 16; const l=[0,95,135,175,215,255]; return `rgb(${l[(n/36)|0]},${l[((n/6)|0)%6]},${l[n%6]})`; }
@@ -279,11 +302,12 @@
     coordination: { label: "Long output", text: document.getElementById("cast-coordination").textContent },
   };
   let cast, vt, idx, playedT, playing, lastTick, speed = 1, follow = true, raf;
+  // setSpeed defined later (hoisted usage safe: chips built before first click)
   const lineEls = [];
 
   function styleSpan(st) {
     let fg = st.fg || FG_DEFAULT, bg = st.bg || BG_DEFAULT;
-    if (st.inv) { const t = fg; fg = bg || "#101318"; bg = t; }
+    if (st.inv) { const t = fg; fg = bg || "var(--t-bg)"; bg = t; }
     let s = `color:${fg};`;
     if (bg) s += `background:${bg};`;
     if (st.b) s += "font-weight:700;";
@@ -328,7 +352,7 @@
     idx = 0; playedT = 0; playing = false; lastTick = null;
     term.innerHTML = ""; lineEls.length = 0;
     $("titleName").textContent = "pd — " + casts[name].label.toLowerCase();
-    $("titleDims").textContent = `${cast.cols}×${cast.rows} · asciicast v${cast.head.version}`;
+    $("titleDims").textContent = ` — ${cast.cols}×${cast.rows} · asciicast v${cast.head.version}`;
     term.style.setProperty('--term-h', 'min(62vh, ' + (cast.rows * 1.42 * 13.5 + 28) + 'px)');
     autoWrap();
     $("prov").innerHTML =
@@ -369,7 +393,7 @@
   for (const s of [0.25, 0.5, 1, 2]) {
     const b = document.createElement("button");
     b.textContent = s + "×"; b.setAttribute("aria-pressed", s === 1);
-    b.addEventListener("click", () => { speed = s; for (const x of $("speeds").children) x.setAttribute("aria-pressed", x === b); });
+    b.addEventListener("click", () => setSpeed(s));
     $("speeds").appendChild(b);
   }
   $("seek").addEventListener("click", e => {
@@ -425,6 +449,22 @@
     b.addEventListener("click", () => { pause(); load(name, true); });
     document.getElementById("tabs").appendChild(b);
   }
+
+  // theme: init from OS preference unless the embedding page already stamped data-theme
+  const root = document.documentElement;
+  if (!root.dataset.theme) root.dataset.theme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  $("themeBtn").addEventListener("click", () => {
+    root.dataset.theme = root.dataset.theme === "light" ? "dark" : "light";
+  });
+
+  // speed cycle button (mobile) stays in sync with the chip row
+  const SPEEDS = [0.25, 0.5, 1, 2];
+  function setSpeed(s) {
+    speed = s; $("speedCycle").textContent = s + "×";
+    const chips = Array.from($("speeds").children);
+    chips.forEach((x, i) => x.setAttribute("aria-pressed", SPEEDS[i] === s));
+  }
+  $("speedCycle").addEventListener("click", () => setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]));
 
   load("quickstart", true);
 })();
