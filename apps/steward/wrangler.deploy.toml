@@ -18,6 +18,12 @@
 #      the Worker answers 503 "seat not commissioned"):
 #        openssl rand -hex 32 | wrangler secret put STEWARD_ADMIN_TOKEN
 #
+#   2b. Give the tick eyes (read-only survey of PRs/checks/reviews; without it
+#       every wake logs "Tick held: cannot survey" and renders no verdicts).
+#       A fine-grained PAT or App installation token with contents:read +
+#       pull_requests:read + checks:read on this repo:
+#        wrangler secret put STEWARD_GITHUB_TOKEN
+#
 #   3. Deploy:
 #        wrangler deploy --config wrangler.deploy.toml
 

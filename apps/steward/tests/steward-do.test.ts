@@ -104,7 +104,9 @@ describe('the alarm — every wake writes its deck-log entry', () => {
     expect(d1.deckLog[0].entry_kind).toBe('wake');
     expect(d1.deckLog[0].wake_events).toBe(2);
     expect(String(d1.deckLog[0].summary)).toContain('pull_request:opened ×2');
-    expect(String(d1.deckLog[0].summary)).toContain('P1 PR 2');
+    // makeEnv carries no survey token, so the tick holds and says so — the
+    // wake entry always reports what the tick did (or why it could not).
+    expect(String(d1.deckLog[0].summary)).toContain('Tick held');
     // Heartbeat re-armed after the debounce alarm that queued the wakes.
     expect(storage.alarms.length).toBe(2);
     expect(await storage.get('lastWakeAt')).toBeTypeOf('number');
@@ -160,7 +162,7 @@ describe('/status — binder ch.10 answers from one GET', () => {
     expect(before.repo).toBe(REPO);
     expect(before.commissioned).toBe(false);
     expect(before.pendingWakes).toBe(1);
-    expect(String(before.tick)).toContain('P1 PR 2');
+    expect(String(before.tick)).toContain('cannot survey');
 
     await seat.alarm();
     const after = (await (await seat.fetch(req('/status'))).json()) as Record<string, unknown>;

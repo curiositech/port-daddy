@@ -1,5 +1,6 @@
 import { birthCharter, reviseCharter } from './charter.js';
 import { appendDeckLog, readDeckLog } from './ledgers.js';
+import { runTick, type TickResult } from './tick.js';
 import type { Charter, DeckLogEntry, Env, WakeEvent } from './types.js';
 
 /**
@@ -183,7 +184,9 @@ export class StewardDO {
       degraded,
       fallbackEntries: fallback.length,
       recentDeckLog: recentLog,
-      tick: 'not yet commissioned (P1 PR 2)',
+      tick: this.env.STEWARD_GITHUB_TOKEN
+        ? 'live: decides and records LAND / NEEDS-WORK / SURFACE; landing arrives in P1 PR 3'
+        : 'holding: no STEWARD_GITHUB_TOKEN, cannot survey',
     });
   }
 
@@ -279,17 +282,31 @@ export class StewardDO {
       await this.state.storage.delete([...pending.keys()]);
     }
 
+    // The tick runs on EVERY wake, heartbeats included — stale PRs must get
+    // handled even when no webhook fires (that is the heartbeat's purpose).
+    // runTick never throws; a seat that cannot survey reports "holding".
+    const tick: TickResult =
+      repo === 'unbound'
+        ? { ran: false, skipped: 'seat not yet bound to a repo', docketText: '' }
+        : await runTick(this.env, repo, now);
+    const tickLine = tick.ran
+      ? tick.verdict
+        ? `Tick: ${tick.verdict.verdict} on #${tick.verdict.prNumber}${tick.verdictLedgered ? '' : ' (ledger write FAILED)'} — ${tick.verdict.evidence}`
+        : `Tick: ${tick.docketText}`
+      : `Tick held: ${tick.skipped}`;
+
     const entry: DeckLogEntry = {
       repo,
       entryKind: events.length > 0 ? 'wake' : 'all-quiet',
       summary:
         events.length > 0
-          ? `Wake: drained ${events.length} event(s) [${summarizeKinds(events)}]. ` +
-            'Seat scaffold holding — the tick lands in P1 PR 2; no verdicts rendered.'
-          : 'ALL QUIET. Heartbeat wake; inbox empty; seat scaffold holding.',
+          ? `Wake: drained ${events.length} event(s) [${summarizeKinds(events)}]. ${tickLine}`
+          : `ALL QUIET. Heartbeat wake; inbox empty. ${tickLine}`,
       detail: JSON.stringify({
         charterVersion: charter.version,
         events: events.map(e => ({ kind: e.kind, deliveryId: e.deliveryId, prNumber: e.prNumber ?? null })),
+        docket: tick.docketText,
+        verdict: tick.verdict ?? null,
       }),
       wakeEvents: events.length,
       createdAt: Math.floor(now / 1000),
