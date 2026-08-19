@@ -1072,7 +1072,11 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   function stopRunningRecord(name: string): void {
     const record = running.get(name);
     if (!record) return;
-    if (record.interval) clearInterval(record.interval);
+    // `record.interval` may hold a setInterval handle (*/N fast path) or a
+    // setTimeout handle (absolute-schedule chain). Node treats the two clear
+    // functions interchangeably, but clear both ways so cancellation is
+    // explicitly type-correct in any runtime.
+    if (record.interval) { clearInterval(record.interval); clearTimeout(record.interval); }
     if (record.tuplePollInterval) clearInterval(record.tuplePollInterval);
     if (record.watchHandle) {
       try { record.watchHandle(); } catch { /* ignore unsubscribe failures */ }
@@ -1162,10 +1166,11 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         // off the intended wall-clock time across days. Arm a self-re-arming
         // setTimeout chain instead: each firing recomputes the delay to the
         // NEXT occurrence and reschedules. The handle lives in the same
-        // `record.interval` slot the */N path below uses, so
-        // stopRunningRecord's `clearInterval(record.interval)` still cancels
-        // it — Node's timer implementation clears a setTimeout handle via
-        // clearInterval interchangeably with clearTimeout.
+        // `record.interval` slot the */N path below uses; stopRunningRecord
+        // clears that slot both ways (clearInterval AND clearTimeout), so the
+        // pending handle is cancelled regardless of timer type. Each re-arm
+        // reassigns `record.interval`, so the slot always holds the live
+        // pending handle — a stop between ticks cancels the chain.
         // `scheduleNext`'s FIRST call runs synchronously inside `startAgent`,
         // before `running.set(agent.name, record)` (below) has executed — so
         // the stopped/running guard belongs inside the fired callback (which
