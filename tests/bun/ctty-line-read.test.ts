@@ -85,6 +85,15 @@ describe('readLineFromControllingTerminal — bun-runtime /dev/tty contract', ()
     expect(ops.log.filter((l) => l.startsWith('close:'))).toEqual(['close:42']);
   });
 
+  test('a failing close does not lose the line the operator already typed', () => {
+    // From pd-purser's adversarial contract. The close is best-effort: an fd
+    // that is already gone must not turn a successful read into a thrown
+    // EBADF — which is precisely how the stream-based predecessor died.
+    const ops = opsReturning(['bye\n']);
+    ops.closeSync = () => { throw errno('EBADF'); };
+    expect(readLineFromControllingTerminal(ops)).toBe('bye');
+  });
+
   test('a bare Enter reads as an empty line, not as "no answer"', () => {
     // `pressEnter()` and the doctor's [Y/n] both depend on this distinction:
     // '' means the operator hit Enter, null means we never got an answer.
