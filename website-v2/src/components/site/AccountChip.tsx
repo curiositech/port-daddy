@@ -47,6 +47,7 @@ const menuItemClass =
 
 const ACCOUNT_MENU_ITEMS = [
   { label: "Your runs", href: `${RELAY_ORIGIN}/account/runs` },
+  { label: "Repo settings", href: `${RELAY_ORIGIN}/account/repos` },
   { label: "Account", href: `${RELAY_ORIGIN}/account` },
   { label: "Mercy report", href: `${RELAY_ORIGIN}/account/mercy` },
 ] as const;
