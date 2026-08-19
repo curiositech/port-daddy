@@ -67,7 +67,15 @@ function writeSkill(rootDir, name, description, opts = {}) {
   mkdirSync(dir, { recursive: true });
   const tags = Array.isArray(opts.tags) ? `\n    - ${opts.tags.join('\n    - ')}` : '';
   const category = opts.category ? `category: ${opts.category}` : '';
-  const fm = `---\nname: ${name}\ndescription: |\n  ${description}\nmetadata:\n  ${category}\n  tags:${tags}\n---\n\n${opts.body ?? `# ${name}\n\nBody for ${name}.`}\n`;
+  // `pairsWith`: array of target skill ids — rendered as the same
+  // `metadata.pairs-with: [{skill, reason}]` shape real SKILL.md files in
+  // this repo use (see rag-retrieval-pattern-design/SKILL.md). Omitted
+  // entirely when not passed, so every pre-existing writeSkill() call is
+  // byte-for-byte unaffected.
+  const pairsWith = Array.isArray(opts.pairsWith) && opts.pairsWith.length > 0
+    ? `\n  pairs-with:\n${opts.pairsWith.map((id) => `    - skill: ${id}\n      reason: test fixture edge`).join('\n')}`
+    : '';
+  const fm = `---\nname: ${name}\ndescription: |\n  ${description}\nmetadata:\n  ${category}\n  tags:${tags}${pairsWith}\n---\n\n${opts.body ?? `# ${name}\n\nBody for ${name}.`}\n`;
   writeFileSync(join(dir, 'SKILL.md'), fm);
   if (opts.references) {
     const refDir = join(dir, 'references');
@@ -550,6 +558,224 @@ describe('reciprocalRankFusion', () => {
     // Both rank #1 in their own (single-entry) list — identical fused score.
     expect(fused[0].id).toBe('a');
     expect(fused[1].id).toBe('z');
+  });
+});
+
+// ─── First-hop candidate expansion (lib/skill-graft.ts) ────────────────────
+//
+// 2026-08-19 operator directive: widen the post-RRF candidate pool by one
+// graph hop (pairs-with / prose-mention edges) from the top seeds, under
+// the SAME shortlist/top/body caps craft() already enforced. These tests
+// cover the algorithm directly (expandFirstHopCandidates, deterministic
+// and fast — same style as the reciprocalRankFusion suite above) and, in a
+// second describe block further down, the end-to-end path through craft()
+// with real SKILL.md fixtures (pairs-with frontmatter + prose mentions).
+
+describe('expandFirstHopCandidates', () => {
+  test('pairs-with edge outranks prose-mention edge at equal seed score', async () => {
+    const { expandFirstHopCandidates, PAIRS_WITH_WEIGHT, PROSE_MENTION_WEIGHT } = await import('../../lib/skill-graft.js');
+    // Two seeds tied on fused score, one connected to its neighbor via
+    // pairs-with, the other via a prose mention — isolates the weight
+    // comparison from any seed-score difference.
+    const fused = [
+      { id: 'seed-pairs', fusedScore: 0.02 },
+      { id: 'seed-prose', fusedScore: 0.02 },
+    ];
+    const adjacency = new Map([
+      ['seed-pairs', [{ target: 'pairs-neighbor', weight: PAIRS_WITH_WEIGHT }]],
+      ['seed-prose', [{ target: 'prose-neighbor', weight: PROSE_MENTION_WEIGHT }]],
+    ]);
+
+    const expanded = expandFirstHopCandidates(fused, 2, adjacency);
+    const pairsEntry = expanded.find((e) => e.id === 'pairs-neighbor');
+    const proseEntry = expanded.find((e) => e.id === 'prose-neighbor');
+    expect(pairsEntry.fusedScore).toBeGreaterThan(proseEntry.fusedScore);
+    expect(pairsEntry.via).toBe('first-hop');
+    expect(pairsEntry.hopSeed).toBe('seed-pairs');
+  });
+
+  test('hop decay keeps a weak neighbor below a strong direct match', async () => {
+    const { expandFirstHopCandidates, PAIRS_WITH_WEIGHT } = await import('../../lib/skill-graft.js');
+    const fused = [
+      { id: 'strong-direct', fusedScore: 0.033 }, // e.g. matched in both BM25 + Tool2Vec at rank 1
+      { id: 'weak-seed', fusedScore: 0.005 },      // a weak but still-shortlisted direct match
+    ];
+    // Best-case edge weight (pairs-with) from the weak seed — even so, the
+    // decay must keep it from beating a genuinely strong direct match.
+    const adjacency = new Map([
+      ['weak-seed', [{ target: 'weak-neighbor', weight: PAIRS_WITH_WEIGHT }]],
+    ]);
+
+    const expanded = expandFirstHopCandidates(fused, 2, adjacency);
+    const strong = expanded.find((e) => e.id === 'strong-direct');
+    const neighbor = expanded.find((e) => e.id === 'weak-neighbor');
+    expect(neighbor.fusedScore).toBeLessThan(strong.fusedScore);
+  });
+
+  test('an id already in the fused list keeps max(own, boosted) and only gains provenance when the boost wins', async () => {
+    const { expandFirstHopCandidates } = await import('../../lib/skill-graft.js');
+    const fused = [
+      { id: 'seed', fusedScore: 0.03 },
+      { id: 'already-ranked-high', fusedScore: 0.029 }, // beats any possible boost
+      { id: 'already-ranked-low', fusedScore: 0.0001 }, // loses to the boost
+    ];
+    const adjacency = new Map([
+      ['seed', [
+        { target: 'already-ranked-high', weight: 1.0 },
+        { target: 'already-ranked-low', weight: 1.0 },
+      ]],
+    ]);
+
+    const expanded = expandFirstHopCandidates(fused, 3, adjacency);
+    const high = expanded.find((e) => e.id === 'already-ranked-high');
+    const low = expanded.find((e) => e.id === 'already-ranked-low');
+    expect(high.fusedScore).toBe(0.029); // own score wins — untouched
+    expect(high.via).toBeUndefined(); // no boost applied — not first-hop provenance
+    expect(low.fusedScore).toBeGreaterThan(0.0001); // boost wins over its tiny own score
+    expect(low.via).toBe('first-hop');
+    expect(low.hopSeed).toBe('seed');
+  });
+
+  test('an empty adjacency map returns the fused list untouched (no via field anywhere)', async () => {
+    const { expandFirstHopCandidates } = await import('../../lib/skill-graft.js');
+    const fused = [{ id: 'a', fusedScore: 0.02 }, { id: 'b', fusedScore: 0.01 }];
+    const expanded = expandFirstHopCandidates(fused, 10, new Map());
+    expect(expanded).toEqual(fused.map((e) => ({ id: e.id, fusedScore: e.fusedScore })));
+    for (const entry of expanded) expect(entry.via).toBeUndefined();
+  });
+});
+
+describe('buildSkillAdjacency + first-hop expansion end-to-end through craft()', () => {
+  test('a pairs-with frontmatter edge surfaces its target as a first-hop candidate with via/hopSeed provenance', async () => {
+    writeSkill(tmpRoot, 'seed-skill', 'central topic words filler alpha', {
+      pairsWith: ['paired-neighbor'],
+    });
+    // Deliberately zero lexical/semantic overlap with the query — the only
+    // way this skill can appear is via the pairs-with hop edge.
+    writeSkill(tmpRoot, 'paired-neighbor', 'a skill about completely unrelated vocabulary zebra giraffe');
+
+    const graft = makeGraftIndex(tmpRoot);
+    await graft.refresh();
+    const result = await graft.craft('central topic words filler alpha', { shortlistLimit: 5 });
+
+    const neighbor = result.shortlist.find((e) => e.id === 'paired-neighbor');
+    expect(neighbor).toBeDefined();
+    expect(neighbor.via).toBe('first-hop');
+    expect(neighbor.hopSeed).toBe('seed-skill');
+    // The seed itself is a plain direct match — no provenance noise on it.
+    const seed = result.shortlist.find((e) => e.id === 'seed-skill');
+    expect(seed.via).toBeUndefined();
+  });
+
+  test('a bare-string pairs-with entry (the wave-by-wave-parley shape) counts as a curated edge too', async () => {
+    // 22 real SKILL.md files list `pairs-with` as plain id strings instead
+    // of `{skill, reason}` objects (top-level in the imported windags
+    // grafts, flow-style under metadata in several port-daddy-* skills) —
+    // regression guard: both shapes must produce the same curated edge.
+    const dir = join(tmpRoot, 'string-seed');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'SKILL.md'),
+      `---\nname: string-seed\ndescription: |\n  central topic words filler alpha\npairs-with:\n  - string-paired-neighbor\n---\n\n# string-seed\n`);
+    writeSkill(tmpRoot, 'string-paired-neighbor', 'a skill about completely unrelated vocabulary zebra giraffe');
+
+    const graft = makeGraftIndex(tmpRoot);
+    await graft.refresh();
+    const result = await graft.craft('central topic words filler alpha', { shortlistLimit: 5 });
+
+    const neighbor = result.shortlist.find((e) => e.id === 'string-paired-neighbor');
+    expect(neighbor).toBeDefined();
+    expect(neighbor.via).toBe('first-hop');
+    expect(neighbor.hopSeed).toBe('string-seed');
+  });
+
+  test('a prose-mention edge (hyphenated id inside SKILL.md body) also surfaces as first-hop provenance', async () => {
+    writeSkill(tmpRoot, 'seed-alpha', 'central topic words filler alpha', {
+      body: '# seed-alpha\n\nSee also mentioned-neighbor-skill for related work.',
+    });
+    writeSkill(tmpRoot, 'mentioned-neighbor-skill', 'a skill about completely unrelated vocabulary zebra giraffe');
+
+    // Lexical-only (no synthetic-query generator/centroid store): Tool2Vec
+    // ranks EVERY cached skill with SOME cosine similarity, never a hard
+    // zero, so on a two-skill catalog it would put mentioned-neighbor-skill
+    // in the directly-fused list regardless of the hop edge and mask what
+    // this test is actually proving. BM25 has a real zero-score cutoff, so
+    // in lexical-only mode the target can only appear via the prose-mention
+    // edge.
+    const graft = createSkillGraftIndex({
+      roots: [{ label: 'test', path: tmpRoot }],
+      embedder: makeMockEmbedder(),
+    });
+    const result = await graft.craft('central topic words filler alpha', { shortlistLimit: 5 });
+
+    const neighbor = result.shortlist.find((e) => e.id === 'mentioned-neighbor-skill');
+    expect(neighbor).toBeDefined();
+    expect(neighbor.via).toBe('first-hop');
+    expect(neighbor.hopSeed).toBe('seed-alpha');
+  });
+
+  test('a non-hyphenated id is never treated as a prose mention (common-word false-positive guard)', async () => {
+    writeSkill(tmpRoot, 'seed-common-word', 'central topic words filler alpha', {
+      // "liaison" is a real single-word (no-hyphen) skill id in this repo's
+      // own catalog — exactly the common-word case the hyphen guard exists
+      // for. It shows up here in ordinary sentence prose, not as a deliberate
+      // reference.
+      body: '# seed-common-word\n\nOur liaison for this topic is out this week.',
+    });
+    // Deliberately no "word"/"words" (or any other query-stem) anywhere in
+    // this description — a coincidental BM25 hit would defeat the point of
+    // isolating the hop-edge behavior.
+    writeSkill(tmpRoot, 'liaison', 'an unrelated skill about greenhouse irrigation scheduling');
+
+    // Lexical-only, for the same reason as the prose-mention test above:
+    // isolates "did the hop edge fire" from Tool2Vec's always-nonzero
+    // similarity noise on a tiny catalog.
+    const graft = createSkillGraftIndex({
+      roots: [{ label: 'test', path: tmpRoot }],
+      embedder: makeMockEmbedder(),
+    });
+    const result = await graft.craft('central topic words filler alpha', { shortlistLimit: 5 });
+
+    const neighbor = result.shortlist.find((e) => e.id === 'liaison');
+    expect(neighbor).toBeUndefined(); // no hyphen in id → never scanned as a prose-mention target
+  });
+
+  test('caps stay unchanged: shortlist length never exceeds shortlistLimit even when hop-expansion adds many candidates', async () => {
+    // One strong seed fans out via pairs-with to far more skills than the
+    // shortlist limit allows.
+    const neighborIds = Array.from({ length: 8 }, (_, i) => `hop-neighbor-${i}`);
+    writeSkill(tmpRoot, 'hub-skill', 'central topic words filler content alpha', { pairsWith: neighborIds });
+    for (const id of neighborIds) writeSkill(tmpRoot, id, 'a skill about completely unrelated vocabulary zebra');
+    writeSkill(tmpRoot, 'other-skill', 'central topic words filler content beta');
+
+    const graft = makeGraftIndex(tmpRoot);
+    await graft.refresh();
+    const result = await graft.craft('central topic words filler content', { shortlistLimit: 3 });
+
+    expect(result.shortlist.length).toBeLessThanOrEqual(3); // cap held despite 8 fanned-out neighbors
+  });
+
+  test('a zero-degree skill (no pairs-with, no prose mentions) ranks identically to the pre-expansion shortlist', async () => {
+    // Same fixture as the very first craft() test above — none of these
+    // bodies/frontmatter mention another skill's id or declare pairs-with,
+    // so the first-hop graph contributes nothing for any of them.
+    writeSkill(tmpRoot, 'duckdb-analytics', 'analytical SQL over parquet csv json duckdb olap columnar', { category: 'Data' });
+    writeSkill(tmpRoot, 'oauth2-and-oidc-from-scratch', 'oauth2 oidc pkce authorization code flow token refresh', { category: 'Auth' });
+    writeSkill(tmpRoot, 'rag-retrieval-pattern-design', 'rag retrieval chunking hybrid bm25 dense reranking ragas', { category: 'AI' });
+
+    const graft = makeGraftIndex(tmpRoot);
+    await graft.refresh();
+    const result = await graft.craft('parquet columnar olap analytics duckdb');
+
+    expect(result.scannedCount).toBe(3);
+    expect(result.shortlist).toHaveLength(3);
+    expect(result.shortlist[0].id).toBe('duckdb-analytics');
+    expect(result.shortlist[0].similarity).toBeGreaterThan(result.shortlist[1].similarity);
+    // No hop expansion touched any entry — byte-identical to the
+    // pre-expansion shape: no `via` key on any shortlist entry at all.
+    for (const entry of result.shortlist) {
+      expect(entry.via).toBeUndefined();
+      expect(entry.hopSeed).toBeUndefined();
+    }
   });
 });
 
