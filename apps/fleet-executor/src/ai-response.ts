@@ -51,10 +51,27 @@ export interface ExtractedText {
  * half a chain-of-thought to the findings parser.
  */
 export function stripThinkTags(text: string): string {
-  return text
-    .replace(/<think>[\s\S]*?<\/think>/g, '')
-    .replace(/<think>[\s\S]*$/, '')
-    .trim();
+  // Innermost-first, to a fixpoint: a single non-greedy pass over NESTED
+  // blocks (<think>a<think>b</think>c</think>) matches the first closer and
+  // leaves `c</think>` — deliberation residue that would reach the findings
+  // parser. Matching only blocks with no inner opener, repeatedly, unwinds
+  // nesting from the inside out.
+  let out = text;
+  let prev;
+  do {
+    prev = out;
+    out = out.replace(/<think>(?:(?!<think>)[\s\S])*?<\/think>/g, '');
+  } while (out !== prev);
+  return (
+    out
+      // An unclosed OPENER swallows to end-of-string: everything after it is
+      // deliberation that never finished (max_tokens mid-think).
+      .replace(/<think>[\s\S]*$/, '')
+      // An orphan CLOSER with no opener is a stray tag from a sloppy reasoning
+      // model — drop the tag, keep the text on both sides, which is real output.
+      .replace(/<\/think>/g, '')
+      .trim()
+  );
 }
 
 /**
