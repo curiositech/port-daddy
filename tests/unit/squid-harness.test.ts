@@ -510,6 +510,68 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(ctx).not.toContain('wrong-project');
   });
 
+  test('prompt hook injects the SITREP compulsion when the repo dial is enforce', () => {
+    // The per-repo sitrep dial (agent.config.json → sitrep.endOfTurn) compels
+    // the end-of-turn table via the same envelope the steering alerts ride.
+    writeFileSync(
+      join(WORKSPACE, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'enforce' } }),
+    );
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX) },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    const ctx = (JSON.parse(r.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    }).hookSpecificOutput.additionalContext;
+    expect(ctx).toContain('SITREP enforce');
+    expect(ctx).toContain('| Idea / Suggestion / Remediation |');
+    expect(ctx).toContain('Docs / Roadmap Link');
+    expect(ctx).toContain('MUST carry a roadmap link');
+    expect(ctx).toContain('incomplete turn');
+  });
+
+  test('prompt hook stays silent about SITREP by default and honors PD_SITREP override', () => {
+    // No dial anywhere → OFF. The compulsion is opt-in per repo: an absent or
+    // unreadable config must fail toward silence, never toward shouting.
+    const quiet = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX) },
+      encoding: 'utf8',
+    });
+    expect(quiet.status).toBe(0);
+    const quietCtx = (JSON.parse(quiet.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    }).hookSpecificOutput.additionalContext;
+    expect(quietCtx).not.toContain('SITREP');
+
+    // Env override wins over the (absent) config walk; `suggest` omits the
+    // enforce-only "incomplete turn" line.
+    const suggested = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX), PD_SITREP: 'suggest' },
+      encoding: 'utf8',
+    });
+    const suggestedCtx = (JSON.parse(suggested.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    }).hookSpecificOutput.additionalContext;
+    expect(suggestedCtx).toContain('SITREP suggest');
+    expect(suggestedCtx).not.toContain('incomplete turn');
+
+    // A garbage dial value normalizes to nothing → default off.
+    const garbage = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX), PD_SITREP: 'loudly' },
+      encoding: 'utf8',
+    });
+    const garbageCtx = (JSON.parse(garbage.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    }).hookSpecificOutput.additionalContext;
+    expect(garbageCtx).not.toContain('SITREP');
+  });
+
   test('prompt hook stays fast against a large, mostly-stale, mostly-foreign matrix', () => {
     // Regression for the fleet-scale hang: a long-lived, multi-project matrix
     // accumulates thousands of PD_PHEROMONE_* lines (one per file mutation,

@@ -30,6 +30,8 @@
  *     ...
  */
 
+import { homedir } from 'node:os';
+
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
@@ -129,7 +131,9 @@ export async function handleSitrep(options: CLIOptions): Promise<void> {
     if (current?.sessionId) {
       sessionId = current.sessionId;
       agentId = current.agentId || 'unknown';
-      transcriptPath = `file:///Users/erichowens/.gemini/antigravity-cli/brain/${sessionId}/.system_generated/logs/transcript.jsonl`;
+      // Best-effort transcript pointer for Antigravity-brained sessions —
+      // built from the real homedir, never a hardcoded operator path.
+      transcriptPath = `file://${homedir()}/.gemini/antigravity-cli/brain/${sessionId}/.system_generated/logs/transcript.jsonl`;
 
       try {
         const sRes = await pdFetch(`${PORT_DADDY_URL}/sessions/${sessionId}`);
@@ -158,6 +162,32 @@ export async function handleSitrep(options: CLIOptions): Promise<void> {
       }
     }
 
+    // Live rows for the ideas table: this session's (or agent's) ACTIVE
+    // roadmap-pop claims, so the scaffold arrives pre-linked to the roadmap
+    // instead of as an empty placeholder the agent may never fill. Fail-silent:
+    // a daemon without the cartographer routes still yields the empty scaffold.
+    const claimRows: string[] = [];
+    try {
+      const cRes = await pdFetch(`${PORT_DADDY_URL}/cartographer/roadmap-claims`);
+      if (cRes.ok) {
+        const cData = (await cRes.json()) as any;
+        const claims: any[] = Array.isArray(cData?.claims) ? cData.claims : [];
+        const active = claims.filter((c) => c && c.releasedAt == null);
+        const mine = active.filter(
+          (c) =>
+            (sessionId !== 'unknown' && c.sessionId === sessionId) ||
+            (agentId !== 'unknown' && (c.agentId === agentId || c.claimedBy === agentId)),
+        );
+        for (const c of (mine.length > 0 ? mine : active).slice(0, 8)) {
+          const label = String(c.summary || c.slug || '').replace(/\|/g, '/').slice(0, 60);
+          const by = String(c.claimedBy || 'unknown').slice(0, 30);
+          claimRows.push(`| ${label} | ${by} | claimed | | ${c.slug} |`);
+        }
+      }
+    } catch {
+      // fail-silent
+    }
+
     console.log(`
 # Session Sit-Rep: ${sessionId}
 
@@ -175,7 +205,12 @@ ${latestPlan ? latestPlan : '- [ ] (No plan set yet; run "pd plan set" to define
 ## Ideas, Suggestions & Remediations
 | Idea / Suggestion / Remediation | Source (Agent/Operator) | Status | Related PR/Issue | Docs / Roadmap Link |
 | --- | --- | --- | --- | --- |
-| | | | | |
+${claimRows.length > 0 ? claimRows.join('\n') : '| | | | | |'}
+
+Rules: track every idea raised this session, every roadmap claim, and work assigned
+by other agents. Update Status with this turn's progress; carry unresolved rows
+forward. Any row you write code for MUST carry a roadmap link from the moment the
+row is created — mint one first: pd roadmap upsert <slug> --summary "..." --estimate <units>.
 
 ## Recent Activity Summary
 ${data.summary}

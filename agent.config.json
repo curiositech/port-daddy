@@ -4,5 +4,9 @@
     "scope": "local",
     "adr": "ADR-0092",
     "description": "Local edit-moment hooks must block foreign-locked edits before the cut; cloud sync is out of scope for this dial."
+  },
+  "sitrep": {
+    "endOfTurn": "enforce",
+    "description": "Agents end every turn with the SITREP table (ideas / roadmap claims / assigned work; code rows must link a roadmap item at creation). Injected per turn by pd-hook-prompt and at session start by the Pilot hook; scaffold via pd sitrep --template."
   }
 }
