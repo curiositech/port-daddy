@@ -548,6 +548,51 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
         bodyHtml: '',
       };
 
+    // The contract-repair pass (fleet-executor src/repair.ts): broken output
+    // gets up to two bounded retries before the broken-ship doctrine engages.
+    case 'ship-repair': {
+      const healed = obj.healed === true;
+      return {
+        icon: '🩹',
+        tone: healed ? 'info' : 'block',
+        headline:
+          title ||
+          (healed
+            ? `${shipLabel} emitted broken output, then healed it on a repair retry.`
+            : `${shipLabel} emitted broken output and the repair retries failed too.`),
+        bodyHtml: '',
+      };
+    }
+
+    // The broken-ship marker (fleet-executor src/adjudicator.ts) — evidence
+    // for the epidemic test; the adjudication step right after it says who
+    // the breakage gates.
+    case 'ship-broken':
+      return {
+        icon: '💥',
+        tone: 'block',
+        headline: title || `${shipLabel} is broken — repair failed; adjudicating who this gates.`,
+        bodyHtml: '',
+      };
+
+    case 'ship-adjudicated': {
+      const fleetWide = (obj as { verdict?: unknown }).verdict === 'fleet';
+      return {
+        icon: '⚖️',
+        tone: fleetWide ? 'neutral' : 'block',
+        headline:
+          title ||
+          (fleetWide
+            ? `${shipLabel}'s breakage was adjudicated a FLEET-WIDE fault — tracked in one issue; not gating this PR.`
+            : `${shipLabel}'s breakage is isolated to this PR — the failure stands.`),
+        bodyHtml: `<p class="meta">${esc(
+          fleetWide
+            ? 'The same ship is broken across other PRs, so the fault gates the fleet (who can fix it), not this author (who cannot). The run resolves neutral — visible, never green.'
+            : 'No evidence of this ship breaking on other PRs, so the breakage is plausibly caused by this diff and fails the run.',
+        )}</p>`,
+      };
+    }
+
     // A ship that produced NO USABLE OUTPUT (fleet-executor's
     // src/usable-output.ts). This must NEVER render as a pass: the ship ran and
     // reviewed nothing. The executor already writes an honest English title, so

@@ -305,6 +305,40 @@ describe('fleet run page rendering', () => {
     expect(html).toContain('outcome tone-block');
   });
 
+  it('narrates the repair pass: healed retries as info, failed ones as block', async () => {
+    const healed = await openPage(makeRun(), [
+      step('ship-repair', 'lookout', 'pd-lookout: contract repair HEALED on @cf/openai/gpt-oss-120b (output failed the no-contract-signal contract test)', {
+        healed: true, healedBy: '@cf/openai/gpt-oss-120b',
+      }),
+    ]);
+    expect(healed).toContain('contract repair HEALED');
+
+    const failed = await openPage(makeRun(), [
+      step('ship-repair', 'lookout', 'pd-lookout: contract repair FAILED after 2 attempt(s) (the fenced json proposals block was malformed)', {
+        healed: false, healedBy: '',
+      }),
+    ]);
+    expect(failed).toContain('contract repair FAILED');
+  });
+
+  it('narrates adjudication: fleet-wide faults do not gate the PR, isolated ones do', async () => {
+    const fleet = await openPage(makeRun(), [
+      step('ship-adjudicated', 'qa', 'pd-qa: adjudicated FLEET-WIDE fault (3 other PR(s) affected) — tracked in #5150 — not gating this PR', {
+        verdict: 'fleet', otherPrs: 3, issueNumber: 5150,
+      }),
+    ]);
+    expect(fleet).toContain('FLEET-WIDE');
+    expect(fleet).toContain('gates the fleet');
+
+    const isolated = await openPage(makeRun(), [
+      step('ship-adjudicated', 'qa', 'pd-qa: adjudicated ISOLATED — broken here, so the failure stands on this PR', {
+        verdict: 'isolated', otherPrs: 0,
+      }),
+    ]);
+    expect(isolated).toContain('ISOLATED');
+    expect(isolated).toContain('fails the run');
+  });
+
   it('narrates a malformed ideation proposal block as a broken ship that fails the check', async () => {
     // Legacy row shape (`proposals: 'malformed'` on a ship-verdict step) — the
     // executor now records these as ship-finding + errored, but old rows must

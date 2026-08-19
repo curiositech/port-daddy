@@ -615,6 +615,49 @@ export async function upsertPrBodySection(
   }
 }
 
+/**
+ * Find an OPEN issue whose title starts with `titlePrefix`.
+ *
+ * MOTIVATION: the adjudicator (src/adjudicator.ts) tracks each fleet-wide
+ * broken-ship fault as exactly ONE issue — the dedupe key is a stable title
+ * prefix, so re-declaring the same epidemic on every affected run refreshes
+ * nothing and spams nobody. Listing is scoped by state to keep the scan small;
+ * a closed issue deliberately does NOT match, so a fault that recurs after a
+ * fix gets a fresh issue (and a fresh page) rather than resurrecting history.
+ *
+ * @param owner Repo owner.
+ * @param repo Repo name.
+ * @param titlePrefix The stable title prefix to match (exact, case-sensitive).
+ * @param token Installation token.
+ * @returns The first matching open issue's number, or null (including on any
+ *   fetch failure — the caller then creates a fresh issue, which at worst
+ *   duplicates once rather than ever losing the tracking issue).
+ */
+export async function findOpenIssueByTitlePrefix(
+  owner: string,
+  repo: string,
+  titlePrefix: string,
+  token: string,
+): Promise<number | null> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/issues?state=open&per_page=100`,
+      { headers: ghHeaders(token) },
+    );
+    if (!res.ok) return null;
+    const issues = (await res.json()) as Array<{ number?: number; title?: string; pull_request?: unknown }>;
+    for (const issue of issues) {
+      if (issue.pull_request) continue; // /issues lists PRs too — skip them
+      if (typeof issue.title === 'string' && issue.title.startsWith(titlePrefix)) {
+        return typeof issue.number === 'number' ? issue.number : null;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Issues (fleet idea capture)
 

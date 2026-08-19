@@ -116,6 +116,7 @@ import {
   type PlannedFile,
 } from './purser-authoring.js';
 import { fleetPrBodyTrailers } from './fleet-pr-body.js';
+import { repairContractOutput } from './repair.js';
 import { emitSquidEvent } from './squid-events.js';
 import { emitInterruption } from './interruptions.js';
 
@@ -307,6 +308,44 @@ function prBlock(prCtx: PRContext): string {
   );
 }
 
+/**
+ * The steel-man output contract, factored so the REPAIR pass (src/repair.ts)
+ * restates EXACTLY the format the original prompt demanded — repair can never
+ * drift from the contract the ship was first held to.
+ */
+const STEELMAN_CONTRACT =
+  'Output EXACTLY one fenced JSON object and nothing else:\n\n' +
+  '```json\n' +
+  '{\n' +
+  '  "purpose": "<one-sentence statement of what this PR is for>",\n' +
+  '  "contract": { "obligations": ["<testable obligation>", "..."] },\n' +
+  '  "testTargets": ["<file/module/behavior the tests should target>", "..."]\n' +
+  '}\n' +
+  '```';
+
+/**
+ * The PLAN output contract for the repair pass — the fenced shape plus the
+ * ship's own testPaths directory constraint, mirroring testPlanSystemPrompt so
+ * a repaired plan is held to the same path rules as an original one.
+ *
+ * @param ship The purser ship (supplies testPaths).
+ * @returns The contract text handed to {@link repairContractOutput}.
+ */
+function planContractBlock(ship: ShipConfig): string {
+  const pathNote =
+    ship.testPaths.length > 0
+      ? `Every path MUST be INSIDE one of these directories: ` +
+        `${ship.testPaths.map(p => `${p}/`).join(', ')}\n`
+      : '';
+  return (
+    pathNote +
+    'Output EXACTLY one fenced JSON object and nothing else:\n\n' +
+    '```json\n' +
+    '{ "files": [ { "path": "<repo-relative test file path>", "intent": "<what this file grills>" } ] }\n' +
+    '```'
+  );
+}
+
 function steelManSystemPrompt(ship: ShipConfig, graftText: string): string {
   return (
     graftText +
@@ -315,14 +354,7 @@ function steelManSystemPrompt(ship: ShipConfig, graftText: string): string {
     `description, and diff, and construct the STRONGEST, most complete ` +
     `interpretation of what this change is obligated to do — the contract its ` +
     `author would claim if pressed. Not its laziest reading: its best one.\n\n` +
-    `Output EXACTLY one fenced JSON object and nothing else:\n\n` +
-    '```json\n' +
-    '{\n' +
-    '  "purpose": "<one-sentence statement of what this PR is for>",\n' +
-    '  "contract": { "obligations": ["<testable obligation>", "..."] },\n' +
-    '  "testTargets": ["<file/module/behavior the tests should target>", "..."]\n' +
-    '}\n' +
-    '```\n\n' +
+    `${STEELMAN_CONTRACT}\n\n` +
     `Each obligation must be TESTABLE — a concrete behavior a unit or ` +
     `integration test can verify, including the edge cases the diff implies ` +
     `but may not handle.`
@@ -864,6 +896,37 @@ export async function runPurser(
       );
     }
 
+    // One bounded repair pass (src/repair.ts) shared by the two purser call
+    // sites whose failures are model-formatting slips rather than judgment.
+    // The parser passed as `validate` is the only judge of healing.
+    const purserRepair = async (
+      reason: string,
+      priorOutput: string,
+      contract: string,
+      maxTokens: number,
+      validate: (text: string) => boolean,
+    ) => {
+      const outcome = await repairContractOutput({
+        shipLabel: `pd-${ship.name}`,
+        model: ship.cfModel,
+        contract,
+        priorOutput,
+        reason,
+        call: async (model, system, user) =>
+          (await purserAiCall(ship, env, system, user, maxTokens, metrics, model)).text,
+        validate,
+      });
+      await transcript.step(
+        'ship-repair',
+        ship.name,
+        outcome.healed
+          ? `pd-${ship.name}: contract repair HEALED on ${outcome.healedBy} (${reason})`
+          : `pd-${ship.name}: contract repair FAILED after ${outcome.attempts.length} attempt(s) (${reason})`,
+        { healed: outcome.healed, healedBy: outcome.healedBy, reason, attempts: outcome.attempts },
+      );
+      return outcome;
+    };
+
     // --- a. STEEL-MAN -------------------------------------------------------
     const steelCall = await purserAiCall(
       ship,
@@ -873,12 +936,26 @@ export async function runPurser(
       STEELMAN_MAX_TOKENS,
       metrics,
     );
-    const steel = parseSteelMan(steelCall.text);
+    let steelText = steelCall.text;
+    let steel = parseSteelMan(steelText);
+    if (!steel) {
+      const repair = await purserRepair(
+        'steel-man output was not the required fenced JSON contract',
+        steelText,
+        STEELMAN_CONTRACT,
+        STEELMAN_MAX_TOKENS,
+        text => parseSteelMan(text) !== null,
+      );
+      if (repair.healed) {
+        steelText = repair.text;
+        steel = parseSteelMan(steelText);
+      }
+    }
     if (!steel) {
       await transcript.step('purser-steelman', ship.name, `pd-${ship.name}: steel-man MALFORMED`, {
-        error: 'steel-man output was not the required fenced JSON contract',
+        error: 'steel-man output was not the required fenced JSON contract (repair also failed)',
         responseShape: steelCall.text ? undefined : describeResponseShape(steelCall.res),
-        outputLength: steelCall.text.length,
+        outputLength: steelText.length,
       });
       return brokenShip;
     }
@@ -933,9 +1010,27 @@ export async function runPurser(
 
     // FAST PATH: a model that ignored "plan only" and returned complete files
     // has already done the work — take it and skip the per-file calls.
-    let files: StackedFile[] = parseAuthoredFiles(planCall.text) ?? [];
+    let planText = planCall.text;
+    let files: StackedFile[] = parseAuthoredFiles(planText) ?? [];
     let authorFailures: AuthorFailure[] = [];
     let plan: PlannedFile[] = [];
+
+    // A malformed plan gets one repair pass before it counts as breakage —
+    // a repaired response may come back as either a plan OR complete files,
+    // so both parsers are accepted as proof of healing.
+    if (files.length === 0 && parseTestPlan(planText) === null) {
+      const repair = await purserRepair(
+        'plan output was neither a file plan nor a complete files block',
+        planText,
+        planContractBlock(ship),
+        PLAN_MAX_TOKENS,
+        text => parseTestPlan(text) !== null || (parseAuthoredFiles(text)?.length ?? 0) > 0,
+      );
+      if (repair.healed) {
+        planText = repair.text;
+        files = parseAuthoredFiles(planText) ?? [];
+      }
+    }
 
     if (files.length > 0) {
       await transcript.step(
@@ -945,16 +1040,16 @@ export async function runPurser(
         { files: files.map(f => f.path), aiCallsSaved: files.length },
       );
     } else {
-      const parsedPlan = parseTestPlan(planCall.text);
+      const parsedPlan = parseTestPlan(planText);
       if (!parsedPlan) {
         await transcript.step('purser-plan', ship.name, `pd-${ship.name}: test plan MALFORMED`, {
-          error: 'plan output was neither a file plan nor a complete files block',
-          outputLength: planCall.text.length,
+          error: 'plan output was neither a file plan nor a complete files block (repair also failed)',
+          outputLength: planText.length,
           // The old code recorded ONLY the length, which is unactionable: every
           // past failure was undiagnosable after the fact. The head of the real
           // response is what says whether the model refused, truncated, or
           // simply labelled its fence differently.
-          rawHead: planCall.text.slice(0, RAW_DIAGNOSTIC_CHARS),
+          rawHead: planText.slice(0, RAW_DIAGNOSTIC_CHARS),
           responseShape: planCall.text ? undefined : describeResponseShape(planCall.res),
         });
         return brokenShip;
