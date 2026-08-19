@@ -12,6 +12,11 @@
 
 #[path = "../src/agent.rs"]
 mod agent;
+// agent.rs resolves the stable-berth default via crate::berths (daemon
+// discovery's final fallback), so every target hosting agent.rs must also
+// host the berths module.
+#[path = "../src/berths.rs"]
+mod berths;
 
 use agent::DaemonClient;
 use std::io::{Read, Write};

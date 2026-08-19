@@ -319,4 +319,51 @@ describe('sessionstart-pilot.mjs hook script', () => {
     mkdirSync(join(dir, '.portdaddy'), { recursive: true });
     expect(run({ cwd: dir }, { PD_PILOT_DISABLE: '1' })).toBe('');
   });
+
+  test('omits the SITREP duty when no dial is configured (off by default)', () => {
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    const out = JSON.parse(run({ cwd: dir }));
+    expect(out.hookSpecificOutput.additionalContext).not.toContain('SITREP');
+  });
+
+  test('appends the SITREP duty when agent.config.json turns the dial on', () => {
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    writeFileSync(
+      join(dir, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'enforce' } }),
+    );
+    const out = JSON.parse(run({ cwd: dir }));
+    const ctx = out.hookSpecificOutput.additionalContext as string;
+    expect(ctx).toContain('SITREP (end-of-turn, per-repo dial)');
+    expect(ctx).toContain('pd sitrep --template');
+    expect(ctx).toContain('pd roadmap upsert');
+  });
+
+  test('resolves the dial from a PARENT directory (nested worktree cwd)', () => {
+    const dir = makeTmp();
+    const nested = join(dir, 'packages', 'deep', 'leaf');
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    mkdirSync(nested, { recursive: true });
+    writeFileSync(join(dir, 'agent.config.json'), JSON.stringify({ sitrep: 'suggest' }));
+    const out = JSON.parse(run({ cwd: nested }));
+    expect(out.hookSpecificOutput.additionalContext).toContain('SITREP');
+  });
+
+  test('PD_SITREP env override wins over config, and garbage values mean off', () => {
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    writeFileSync(
+      join(dir, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'enforce' } }),
+    );
+    const off = JSON.parse(run({ cwd: dir }, { PD_SITREP: 'off' }));
+    expect(off.hookSpecificOutput.additionalContext).not.toContain('SITREP');
+    // A malformed config never crashes and never turns the duty on.
+    writeFileSync(join(dir, 'agent.config.json'), '{not json');
+    const broken = JSON.parse(run({ cwd: dir }));
+    expect(broken.hookSpecificOutput.hookEventName).toBe('SessionStart');
+    expect(broken.hookSpecificOutput.additionalContext).not.toContain('SITREP');
+  });
 });

@@ -128,3 +128,15 @@ test('POST /roadmap/items ignores an unknown kind instead of failing the write',
   expect(post.statusCode).toBe(201);
   expect(post.json().item.kind).toBe('task'); // closed enum: unknown → default
 });
+
+test('POST /roadmap/items clamps out-of-band priority instead of storing it raw', async () => {
+  const post = await app.inject({
+    method: 'POST',
+    url: '/roadmap/items',
+    payload: { slug: 'priority-zero', summaryMd: 'x', harbor: 'fleet', priority: 0, estimate: -3 },
+  });
+  expect(post.statusCode).toBe(201);
+  const item = post.json().item;
+  expect(item.priority).toBe(1); // saturates to the strongest legal rung
+  expect(item.estimate).toBeNull(); // negative effort is absence, not poison
+});

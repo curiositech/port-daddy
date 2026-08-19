@@ -95,7 +95,10 @@ json_sitrep_level() {
   CFG="$1"
   [ -f "$CFG" ] || return 0
   if command -v jq >/dev/null 2>&1; then
-    jq -r '.sitrep.endOfTurn // .sitrep // empty' "$CFG" 2>/dev/null || true
+    # `if type` guard: a bare-string dial ("sitrep": "suggest") must fall
+    # through, and a naive `.sitrep.endOfTurn // .sitrep` hard-errors in jq
+    # when .sitrep is a string ("Cannot index string"), reading as no dial.
+    jq -r '(.sitrep | if type == "object" then .endOfTurn else . end) // empty' "$CFG" 2>/dev/null || true
     return 0
   fi
   if command -v python3 >/dev/null 2>&1; then

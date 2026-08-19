@@ -646,7 +646,7 @@ function roadmapNote(actor: string, text: string | undefined): { at: number; by:
  * @param raw - The flag value as typed by the operator.
  * @returns Epoch milliseconds, or undefined when the shape is unrecognized.
  */
-function parseWhenFlag(raw: string | undefined): number | undefined {
+export function parseWhenFlag(raw: string | undefined): number | undefined {
   if (!raw) return undefined;
   const trimmed = raw.trim();
   const relative = /^\+(\d+)d$/.exec(trimmed);

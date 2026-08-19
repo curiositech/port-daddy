@@ -69,6 +69,16 @@ describe('normalizeRepoFullName', () => {
     expect(normalizeRepoFullName(42)).toBeNull();
     expect(normalizeRepoFullName('owner/<script>')).toBeNull();
   });
+
+  it('accepts underscores/dots in names and enforces the length ceilings', () => {
+    expect(normalizeRepoFullName('owner/name-with-underscore_123')).toBe(
+      'owner/name-with-underscore_123',
+    );
+    expect(normalizeRepoFullName('owner/dotted.name')).toBe('owner/dotted.name');
+    expect(normalizeRepoFullName(`owner/${'x'.repeat(100)}`)).toBe(`owner/${'x'.repeat(100)}`);
+    expect(normalizeRepoFullName(`owner/${'x'.repeat(101)}`)).toBeNull();
+    expect(normalizeRepoFullName(`${'o'.repeat(101)}/name`)).toBeNull();
+  });
 });
 
 describe('normalizeSitrepLevel', () => {
@@ -112,6 +122,44 @@ describe('renderRepoSettingsPage', () => {
       [],
     );
     expect(evil).not.toContain('<img src=x');
+    const scripted = renderRepoSettingsPage(
+      { ...baseUser, login: '<script>alert(1)</script>' },
+      [
+        {
+          repo_full_name: 'curiositech/port-daddy',
+          sitrep_end_of_turn: 'off',
+          settings_json: '{}',
+          updated_at: 1_787_220_000,
+        },
+      ],
+    );
+    expect(scripted).not.toContain('<script>alert(1)</script>');
+    expect(scripted).toContain('&lt;script&gt;');
+  });
+
+  it('renders a local snippet whose JSON body is valid for every dial level', () => {
+    for (const level of ['off', 'suggest', 'enforce'] as const) {
+      const html = renderRepoSettingsPage(baseUser, [
+        {
+          repo_full_name: 'curiositech/port-daddy',
+          sitrep_end_of_turn: level,
+          settings_json: '{}',
+          updated_at: 1_787_220_000,
+        },
+      ]);
+      // Recover the snippet from the rendered card, drop the comment line,
+      // un-escape, and prove the body parses to the dial we rendered.
+      const m = /<code>([\s\S]*?)<\/code>/.exec(html);
+      expect(m).not.toBeNull();
+      const unescaped = m![1]!
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&');
+      const jsonBody = unescaped.split('\n').slice(1).join('\n');
+      expect(JSON.parse(jsonBody)).toEqual({ sitrep: { endOfTurn: level } });
+    }
   });
 });
 

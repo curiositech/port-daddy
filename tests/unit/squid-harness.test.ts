@@ -533,6 +533,38 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(ctx).toContain('incomplete turn');
   });
 
+  test('prompt hook resolves the SITREP dial from a parent directory and survives malformed config', () => {
+    // Config at the repo root, event cwd deep inside — the parent walk must
+    // find the dial (the repo-root dial governs every nested worktree path).
+    const nested = join(WORKSPACE, 'packages', 'deep', 'leaf');
+    mkdirSync(nested, { recursive: true });
+    writeFileSync(join(WORKSPACE, 'agent.config.json'), JSON.stringify({ sitrep: 'suggest' }));
+    const nestedRun = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: nested }),
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX) },
+      encoding: 'utf8',
+    });
+    expect(nestedRun.status).toBe(0);
+    const nestedCtx = (JSON.parse(nestedRun.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    }).hookSpecificOutput.additionalContext;
+    expect(nestedCtx).toContain('SITREP suggest');
+
+    // Malformed JSON never crashes the tentacle and never turns the duty on —
+    // the dial fails toward silence by design.
+    writeFileSync(join(WORKSPACE, 'agent.config.json'), '{definitely not json');
+    const broken = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX) },
+      encoding: 'utf8',
+    });
+    expect(broken.status).toBe(0);
+    const brokenCtx = (JSON.parse(broken.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    }).hookSpecificOutput.additionalContext;
+    expect(brokenCtx).not.toContain('SITREP');
+  });
+
   test('prompt hook stays silent about SITREP by default and honors PD_SITREP override', () => {
     // No dial anywhere → OFF. The compulsion is opt-in per repo: an absent or
     // unreadable config must fail toward silence, never toward shouting.

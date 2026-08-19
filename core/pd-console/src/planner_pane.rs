@@ -810,6 +810,59 @@ mod tests {
     }
 
     #[test]
+    fn gantt_reports_multi_node_cycles() {
+        // A → B → C → A: the kernel scheduler must refuse the whole schedule,
+        // not silently drop an edge.
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("a", "now", &["c"], Some(1)),
+            item_with("b", "now", &["a"], Some(1)),
+            item_with("c", "now", &["b"], Some(1)),
+        ];
+        let err = p.gantt().expect_err("3-node cycle must fail closed");
+        assert!(err.contains("cycle"), "reason should name the cycle: {err}");
+    }
+
+    #[test]
+    fn gantt_clamps_explicit_zero_estimates_to_one_unit() {
+        // estimate: 0 is "unsized", not "instant" — the parser drops it and the
+        // Gantt sizes the bar at one unit so the task stays visible.
+        let mut p = PlannerPane::default();
+        p.items = vec![item_with("zero", "now", &[], Some(0))];
+        let (rows, makespan) = p.gantt().expect("schedules");
+        assert_eq!(rows[0].estimate, 1);
+        assert_eq!(makespan, 1);
+    }
+
+    #[test]
+    fn gantt_bars_stay_inside_the_cell_budget_and_slugs_truncate() {
+        // One giant estimate must not overflow the 40-cell bar lane, and a slug
+        // longer than the label column truncates instead of shoving the bar.
+        let long = "a-very-long-roadmap-slug-that-exceeds-thirty-characters-easily";
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with(long, "now", &[], Some(500)),
+            item_with("tiny", "now", &[], Some(1)),
+        ];
+        let blocks = p.gantt_blocks();
+        for b in &blocks {
+            if let Block::Row(cols) = b {
+                assert_eq!(cols.len(), 3);
+                assert!(
+                    cols[0].chars().count() <= 31, // 30 label chars + the ellipsis
+                    "label column must truncate: {}",
+                    cols[0]
+                );
+                assert!(
+                    cols[1].chars().count() <= 41,
+                    "bar must stay inside the 40-cell lane (+rounding): {} cells",
+                    cols[1].chars().count()
+                );
+            }
+        }
+    }
+
+    #[test]
     fn view_leads_with_the_gantt_section() {
         let mut p = PlannerPane::default();
         p.items = vec![
