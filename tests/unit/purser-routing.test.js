@@ -14,7 +14,9 @@
  * make it impossible for it to quietly stop matching reality.
  */
 import { describe, expect, test } from '@jest/globals';
-import { readFileSync, readdirSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -100,5 +102,33 @@ describe('every purser test is routed or explicitly quarantined', () => {
 
     expect(ci).toMatch(/--selectProjects[^\n]*\bpurser\b/);
     expect(ci).toContain('npm run test:purser');
+  });
+
+  test('the node:test runner refuses an empty routing set instead of passing', () => {
+    // Raised by pd-qa: the runner has a guard for "the manifest routes nothing",
+    // and an unexercised guard is indistinguishable from a missing one. An empty
+    // set must be loud — silently exiting 0 would report success while running no
+    // adversarial tests at all, which is the failure this whole PR is about.
+    const runner = join(repoRoot, 'scripts', 'run-purser-tests.mjs');
+    const emptyManifest = mkdtempSync(join(tmpdir(), 'purser-empty-'));
+    try {
+      mkdirSync(join(emptyManifest, 'tests', 'purser'), { recursive: true });
+      writeFileSync(
+        join(emptyManifest, 'tests', 'purser', 'ROUTING.json'),
+        JSON.stringify({ files: { 'x.test.js': { runner: 'quarantined', reason: 'none' } } }),
+      );
+      copyFileSync(runner, join(emptyManifest, 'run-purser-tests.mjs'));
+      mkdirSync(join(emptyManifest, 'scripts'), { recursive: true });
+      copyFileSync(runner, join(emptyManifest, 'scripts', 'run-purser-tests.mjs'));
+
+      const result = spawnSync(process.execPath, ['scripts/run-purser-tests.mjs'], {
+        cwd: emptyManifest, encoding: 'utf8',
+      });
+
+      expect(result.status).not.toBe(0);
+      expect(`${result.stderr}${result.stdout}`).toContain('routes no files to node-test');
+    } finally {
+      rmSync(emptyManifest, { recursive: true, force: true });
+    }
   });
 });
