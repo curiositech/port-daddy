@@ -159,6 +159,17 @@ describe('reasoning-model envelopes (DeepSeek V4, qwq, r1-distill)', () => {
     expect(out.text).not.toContain('considering');
   });
 
+  it('non-string, non-array content is unreadable — falls through, never stringified', () => {
+    // A model (or an error body) putting a number/boolean/object in `content`
+    // must not surface "123" as review text; with nothing else readable the
+    // whole response is 'unknown' so it gets logged for diagnosis.
+    expect(extractAiText({ choices: [{ message: { content: 123 } }] }))
+      .toEqual({ text: '', shape: 'unknown' });
+    // …and it falls through to a readable fallback when one exists.
+    expect(extractAiText({ choices: [{ message: { content: true, reasoning_content: 'the answer' } }] }))
+      .toEqual({ text: 'the answer', shape: 'chat-completions-reasoning' });
+  });
+
   it('reads typed-part array content', () => {
     const res = { choices: [{ message: { content: [
       { type: 'text', text: 'part one. ' },
