@@ -27,7 +27,7 @@
 import { describe, expect, test } from 'bun:test';
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
-import { readLineFromControllingTerminal, type ControllingTerminalFsOps } from '../../cli/utils/tty.ts';
+import { readLineFromControllingTerminal, sleepSync, type ControllingTerminalFsOps } from '../../cli/utils/tty.ts';
 
 /**
  * Injectable fs ops that hand back `chunks` one readSync at a time.
@@ -113,9 +113,23 @@ describe('readLineFromControllingTerminal — bun-runtime /dev/tty contract', ()
     expect(readLineFromControllingTerminal(opsReturning(['yes\r\n']))).toBe('yes');
   });
 
-  test('retries on EAGAIN instead of giving up', () => {
-    const ops = opsReturning([errno('EAGAIN'), errno('EINTR'), 'ok\n']);
+  test('retries on EAGAIN instead of giving up, backing off each time', () => {
+    // The backoff is not decorative: without it the retry is a hot loop that
+    // pins a core for as long as the operator takes to answer.
+    const slept: number[] = [];
+    const ops = opsReturning([errno('EAGAIN'), errno('EINTR'), errno('EWOULDBLOCK'), 'ok\n']);
+    ops.sleep = (ms) => { slept.push(ms); };
     expect(readLineFromControllingTerminal(ops)).toBe('ok');
+    expect(slept).toEqual([10, 10, 10]);
+  });
+
+  test('sleepSync actually waits, with or without SharedArrayBuffer', () => {
+    // pd-code-reviewer flagged the Atomics.wait/SharedArrayBuffer dependency.
+    // Whichever branch this runtime takes, the contract is the same: it blocks
+    // for roughly the requested interval and never throws.
+    const started = Date.now();
+    expect(() => sleepSync(25)).not.toThrow();
+    expect(Date.now() - started).toBeGreaterThanOrEqual(20);
   });
 
   test('returns null when /dev/tty cannot be opened (no controlling terminal)', () => {

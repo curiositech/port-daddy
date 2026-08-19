@@ -69,17 +69,39 @@ export interface ControllingTerminalFsOps {
   openSync(path: string, flags: string): number;
   readSync(fd: number, buffer: Buffer, offset: number, length: number, position: number | null): number;
   closeSync(fd: number): void;
+  /** Backoff between EAGAIN retries. Injectable so tests can assert we back off. */
+  sleep?(ms: number): void;
 }
 
 const NODE_CTTY_FS: ControllingTerminalFsOps = { openSync, readSync, closeSync };
 
-/** Block the thread for `ms` without an event-loop turn (we are waiting on a human). */
-function sleepSync(ms: number): void {
+/**
+ * A slot for `Atomics.wait`, allocated once. `SharedArrayBuffer` is absent in
+ * some sandboxes and cross-origin-isolation-less contexts, so this can be null.
+ */
+const SLEEP_SLOT: Int32Array | null = (() => {
   try {
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+    return new Int32Array(new SharedArrayBuffer(4));
   } catch {
-    // SharedArrayBuffer unavailable — spin briefly rather than fail the read.
+    return null;
   }
+})();
+
+/** Block the thread for `ms` without an event-loop turn (we are waiting on a human). */
+export function sleepSync(ms: number): void {
+  if (SLEEP_SLOT) {
+    try {
+      Atomics.wait(SLEEP_SLOT, 0, 0, ms);
+      return;
+    } catch {
+      // Atomics.wait barred on this thread — fall through to the timed spin.
+    }
+  }
+  // No SharedArrayBuffer. Burn the interval rather than returning instantly:
+  // an immediate return would turn the EAGAIN retry below into a hot loop
+  // pinning a core for as long as the operator takes to answer.
+  const until = Date.now() + ms;
+  while (Date.now() < until) { /* wait out the backoff */ }
 }
 
 /**
@@ -128,7 +150,7 @@ export function readLineFromControllingTerminal(
         const code = (err as NodeJS.ErrnoException).code;
         // A non-blocking or signal-interrupted tty — keep waiting on the human.
         if (code === 'EAGAIN' || code === 'EINTR' || code === 'EWOULDBLOCK') {
-          sleepSync(10);
+          (fs.sleep ?? sleepSync)(10);
           continue;
         }
         return null;
