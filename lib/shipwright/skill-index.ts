@@ -98,6 +98,12 @@ export interface SkillEntry {
  */
 export function isPublishableSkill(entry: Pick<SkillEntry, 'visibility'>, tier: 'listed' | 'public'): boolean {
   if (tier === 'public') return entry.visibility === 'public';
+  // Only the exact 'listed' tier earns listed-tier semantics. TS can't stop
+  // a plain-JS caller (or a typo'd cast) from passing some other string, and
+  // falling through to the listed branch would hand that unknown tier the
+  // WIDER grant — a listed skill's payload served for a tier nobody defined.
+  // Unknown narrows, never widens (same law parseVisibility follows).
+  if (tier !== 'listed') return false;
   return entry.visibility === 'listed' || entry.visibility === 'public';
 }
 
