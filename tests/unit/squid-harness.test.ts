@@ -510,6 +510,104 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(ctx).not.toContain('wrong-project');
   });
 
+  test('prompt hook stays fast against a large, mostly-stale, mostly-foreign matrix', () => {
+    // Regression for the fleet-scale hang: a long-lived, multi-project matrix
+    // accumulates thousands of PD_PHEROMONE_* lines (one per file mutation,
+    // forever, no pruning at the time of the bug). Before the grep prefilter +
+    // SCAN_CAP, this tentacle scanned every line with per-line sed/date forks
+    // and took 20-30s+ (Claude Code UserPromptSubmit timeout) against a real
+    // ~3,164-line matrix. Reproduce that shape synthetically and assert the
+    // hook still completes fast AND still surfaces the one fresh, relevant
+    // entry buried in the noise.
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    const stale = new Date(Date.now() - 60 * 60_000).toISOString(); // 1h old
+    const fresh = new Date().toISOString();
+    const lines: string[] = [
+      '# ============================================================================',
+      '# PORT DADDY STIGMERGIC ATTENTION MATRIX  (~/.port-daddy/matrix.env)',
+      '# The Ink Cloud (ADR-0091). Hot cache for pd-hook-* tentacles. POSIX-readable.',
+      '',
+    ];
+    // Bulk of the noise: stale entries for an unrelated project, fleet-wide.
+    for (let i = 0; i < 3000; i++) {
+      lines.push(
+        `PD_PHEROMONE_NOISE_${i}="/repo/other-project/src/file-${i}.ts | churn | intensity:1 | ts:${stale}"`,
+      );
+    }
+    // One fresh, relevant needle at the tail (most recent — matches real
+    // append-only ordering).
+    lines.push(
+      `PD_PHEROMONE_NEEDLE="${WORKSPACE}/src/needle.ts | the fresh relevant one | ts:${fresh}"`,
+    );
+    writeFileSync(MATRIX, lines.join('\n') + '\n');
+
+    const start = Date.now();
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX) },
+      encoding: 'utf8',
+      timeout: 10_000,
+    });
+    const elapsedMs = Date.now() - start;
+
+    expect(r.status).toBe(0);
+    expect(elapsedMs).toBeLessThan(5_000);
+    const parsed = JSON.parse(r.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    };
+    expect(parsed.hookSpecificOutput.additionalContext).toContain('the fresh relevant one');
+  });
+
+  test('post-tool compacts the pheromone tail once the matrix crosses MAX_LINES', () => {
+    // The writer side of the same regression: nothing pruned matrix.env, so it
+    // grew unbounded until the reader above became too slow to finish inside a
+    // hook timeout. Seed a matrix already over a tiny compaction threshold,
+    // append one more pheromone, and assert the file was trimmed back down
+    // instead of growing forever.
+    mkdirSync(dirname(MATRIX), { recursive: true });
+    const old = new Date(Date.now() - 60 * 60_000).toISOString();
+    const seedLines = [
+      '# header',
+      'PD_ALERT_KEEPME="operator alert, never pruned"',
+      'PD_LOCK_REPO_SRC_AUTH_TS="agent_alpha"',
+    ];
+    for (let i = 0; i < 50; i++) {
+      seedLines.push(`PD_PHEROMONE_OLD_${i}="/repo/src/old-${i}.ts | churn | ts:${old}"`);
+    }
+    writeFileSync(MATRIX, seedLines.join('\n') + '\n');
+
+    const event = {
+      tool_name: 'Write',
+      tool_input: { file_path: '/repo/src/newest.ts' },
+      cwd: '/repo',
+    };
+    const r = spawnSync(bin('pd-hook-post-tool'), [], {
+      input: JSON.stringify(event),
+      env: {
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_ACTOR: 'agent_compact',
+        PD_SQUID_MATRIX_MAX_LINES: '20',
+        PD_SQUID_MATRIX_COMPACT_KEEP: '5',
+      },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+
+    const raw = readFileSync(MATRIX, 'utf8');
+    const kv = parseMatrix(raw);
+    const pherKeys = Object.keys(kv).filter((k) => k.startsWith('PD_PHEROMONE_'));
+    // Trimmed down to (at most) COMPACT_KEEP old ones + the one just appended.
+    expect(pherKeys.length).toBeLessThanOrEqual(6);
+    // Live state (alerts/locks) is never pruned by the pheromone compaction pass.
+    expect(kv['PD_ALERT_KEEPME']).toBeDefined();
+    expect(kv['PD_LOCK_REPO_SRC_AUTH_TS']).toBe('agent_alpha');
+    // The newest append always survives compaction (it happens after append).
+    const newest = pherKeys.find((k) => kv[k].includes('newest.ts'));
+    expect(newest).toBeDefined();
+  });
+
   test('K=8 concurrent post-tool appends produce 8 intact pheromone lines (Jamie Madrox)', async () => {
     const matrix = seed();
     const before = Object.keys(parseMatrix(readFileSync(matrix, 'utf8'))).filter((k) =>
