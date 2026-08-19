@@ -27,7 +27,12 @@ const MANIFEST = 'ROUTING.json';
 const routing = JSON.parse(readFileSync(join(purserDir, MANIFEST), 'utf8'));
 const onDisk = readdirSync(purserDir).filter((f) => f !== MANIFEST).sort();
 const entries = Object.entries(routing.files);
-const KNOWN_RUNNERS = new Set(['node-test', 'jest', 'quarantined', 'helper']);
+// Derived from the manifest, NOT hardcoded. Raised by pd-qa on 2026-08-19: the
+// manifest documents its own vocabulary in `runners`, and `helper` had drifted
+// out of it — the test knew the disposition, the manifest's documentation did
+// not. Two sources of truth for the same vocabulary, already disagreeing, in
+// the one file whose whole purpose is preventing exactly that.
+const KNOWN_RUNNERS = new Set(Object.keys(routing.runners ?? {}));
 
 describe('every purser test is routed or explicitly quarantined', () => {
   test('the manifest and the directory describe the same set of files', () => {
@@ -36,6 +41,17 @@ describe('every purser test is routed or explicitly quarantined', () => {
     // coverage. An entry with no file is a manifest that has rotted into
     // fiction.
     expect(Object.keys(routing.files).sort()).toEqual(onDisk);
+  });
+
+  test('the manifest documents every runner it uses', () => {
+    // Crosses from `files` to `runners` — two different parts of the manifest,
+    // so this is not the vocabulary agreeing with itself. A disposition that
+    // exists in the data but not in the documentation is how `helper` went
+    // undocumented while the test silently knew about it.
+    expect(KNOWN_RUNNERS.size).toBeGreaterThan(0);
+    const used = new Set(entries.map(([, entry]) => entry.runner));
+    const undocumented = [...used].filter((r) => !KNOWN_RUNNERS.has(r));
+    expect(undocumented).toEqual([]);
   });
 
   test('every entry names a known runner', () => {
