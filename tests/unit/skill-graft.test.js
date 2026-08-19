@@ -643,6 +643,25 @@ describe('expandFirstHopCandidates', () => {
     expect(expanded).toEqual(fused.map((e) => ({ id: e.id, fusedScore: e.fusedScore })));
     for (const entry of expanded) expect(entry.via).toBeUndefined();
   });
+
+  test('duplicate edges from one seed to one target keep the higher-weight boost (max wins, never sums)', async () => {
+    const { expandFirstHopCandidates, PAIRS_WITH_WEIGHT, PROSE_MENTION_WEIGHT, HOP_DECAY } =
+      await import('../../lib/skill-graft.js');
+    // A skill can both declare a pairs-with edge AND mention the same id in
+    // prose — the boost must be the curated weight, never a sum of the two.
+    const fused = [{ id: 'seed', fusedScore: 0.02 }];
+    const adjacency = new Map([
+      ['seed', [
+        { target: 'neighbor', weight: PROSE_MENTION_WEIGHT },
+        { target: 'neighbor', weight: PAIRS_WITH_WEIGHT },
+      ]],
+    ]);
+    const expanded = expandFirstHopCandidates(fused, 1, adjacency);
+    const neighbor = expanded.find((e) => e.id === 'neighbor');
+    expect(neighbor.fusedScore).toBeCloseTo(0.02 * PAIRS_WITH_WEIGHT * HOP_DECAY, 10);
+    expect(neighbor.via).toBe('first-hop');
+    expect(neighbor.hopSeed).toBe('seed');
+  });
 });
 
 describe('buildSkillAdjacency + first-hop expansion end-to-end through craft()', () => {
@@ -665,6 +684,25 @@ describe('buildSkillAdjacency + first-hop expansion end-to-end through craft()',
     // The seed itself is a plain direct match — no provenance noise on it.
     const seed = result.shortlist.find((e) => e.id === 'seed-skill');
     expect(seed.via).toBeUndefined();
+  });
+
+  test('a pairs-with target that is not a real catalog skill never reaches the shortlist', async () => {
+    // A typo'd or uninstalled pairs-with target honestly enters the
+    // adjacency, but craft()'s merge drops any fused id with no catalog
+    // entry (the `if (!skill) continue` guard) — ghosts cannot surface as
+    // shortlist entries or spliced grafts.
+    writeSkill(tmpRoot, 'ghost-seed', 'central topic words filler alpha', {
+      pairsWith: ['this-skill-does-not-exist-anywhere'],
+    });
+
+    const graft = makeGraftIndex(tmpRoot);
+    await graft.refresh();
+    const result = await graft.craft('central topic words filler alpha', { shortlistLimit: 5 });
+
+    expect(result.shortlist.some((e) => e.id === 'this-skill-does-not-exist-anywhere')).toBe(false);
+    expect(result.top.some((e) => e.id === 'this-skill-does-not-exist-anywhere')).toBe(false);
+    // The seed with the dangling edge still ranks normally.
+    expect(result.shortlist.some((e) => e.id === 'ghost-seed')).toBe(true);
   });
 
   test('a bare-string pairs-with entry (the wave-by-wave-parley shape) counts as a curated edge too', async () => {
