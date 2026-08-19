@@ -29,6 +29,7 @@
     "test:watch": "npm test -- --watch",
     "test:coverage": "npm test -- --coverage",
     "test:ci": "npm test",
+    "test:purser": "node scripts/run-purser-tests.mjs",
     "test:bun": "bun test tests/bun/",
     "typecheck": "tsc --noEmit",
     "generate:console-model-tiers": "tsx scripts/generate-console-model-tiers.ts --write",
