@@ -196,6 +196,17 @@ describe('isPublishableSkill: truth table across all 3 visibilities x 2 tiers', 
     expect(isPublishableSkill({ visibility }, tier)).toBe(expected);
   });
 
+  test('an unknown tier fails closed for every visibility — never falls through to listed semantics', () => {
+    // TS can't stop a plain-JS caller (or a typo'd cast) from passing some
+    // other tier string; the guard must return false rather than hand the
+    // unknown string the wider listed-tier grant.
+    for (const visibility of ['private', 'listed', 'public']) {
+      for (const tier of ['internal', 'full-bodies', '', 'LISTED', 'Public']) {
+        expect(isPublishableSkill({ visibility }, tier)).toBe(false);
+      }
+    }
+  });
+
   test('is pure: repeated calls on the same entry never mutate it or vary the result', () => {
     const entry = { visibility: 'listed' };
     const frozen = Object.freeze({ ...entry });
