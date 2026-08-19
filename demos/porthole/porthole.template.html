@@ -32,7 +32,7 @@
   .doc-head .lede { font-size: 15px; color: var(--text-2); max-width: 68ch; margin-top: 14px; }
   .doc-head .lede b { color: var(--fg-1); font-weight: 600; }
 
-  .cast-tabs { display: flex; gap: 8px; margin: 0 0 14px; }
+  .cast-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
   .cast-tabs button { font: 700 12.5px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
     color: var(--text-2); background: transparent; border: 1px solid var(--hair); padding: 9px 14px; cursor: pointer; }
   .cast-tabs button[aria-selected="true"] { color: var(--on-accent); background: var(--lime); border-color: var(--lime); }
@@ -163,6 +163,10 @@
 <script type="text/plain" id="cast-quickstart">@@CAST_QUICKSTART@@</script>
 <script type="text/plain" id="cast-coordination">@@CAST_COORDINATION@@</script>
 <script type="text/plain" id="cast-tui">@@CAST_TUI@@</script>
+<script type="text/plain" id="cast-mayday">@@CAST_MAYDAY@@</script>
+<script type="text/plain" id="cast-btop">@@CAST_BTOP@@</script>
+<script type="text/plain" id="cast-lazygit">@@CAST_LAZYGIT@@</script>
+<script type="text/plain" id="cast-fzf">@@CAST_FZF@@</script>
 
 <script>
 (() => {
@@ -211,9 +215,16 @@
     }
     leaveAlt() {
       if (!this.alt) return;
+      // real terminals discard the alt screen on exit; we keep it in the
+      // transcript ONLY if the app left visible content (vim), and drop it
+      // when the app cleared before exiting (btop, lazygit)
+      const blockStart = this.screenTop;
+      const blank = this.lines.slice(blockStart).every(L => L.every(c => c.ch === " "));
+      if (blank) { this.lines.length = blockStart; }
       this.alt = false; this.top = 0; this.bot = null;
       this.row = this.saved.row; this.col = this.saved.col; this.screenTop = this.saved.screenTop;
       this.st = { ...this.saved.st }; this.saved = null;
+      if (blank) for (let r = blockStart; r < blockStart + this.rows; r++) this.dirty.add(r);
     }
     baseStyle() { return { fg: null, bg: null, b: false, d: false, i: false, u: false, inv: false }; }
     line(r) { while (this.lines.length <= r) this.lines.push([]); return this.lines[r]; }
@@ -367,7 +378,11 @@
   const casts = {
     quickstart: { label: "Quickstart", text: document.getElementById("cast-quickstart").textContent },
     coordination: { label: "Long output", text: document.getElementById("cast-coordination").textContent },
-    tui: { label: "TUI (vim)", text: document.getElementById("cast-tui").textContent },
+    tui: { label: "vim", text: document.getElementById("cast-tui").textContent },
+    btop: { label: "btop", text: document.getElementById("cast-btop").textContent },
+    lazygit: { label: "lazygit", text: document.getElementById("cast-lazygit").textContent },
+    fzf: { label: "fzf", text: document.getElementById("cast-fzf").textContent },
+    mayday: { label: "Mayday drill", text: document.getElementById("cast-mayday").textContent },
   };
   let cast, vt, idx, playedT, playing, lastTick, speed = 1, follow = true, raf;
   // setSpeed defined later (hoisted usage safe: chips built before first click)
@@ -408,8 +423,10 @@
   const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 
   function applyDirty() {
+    // drop DOM lines beyond the transcript (alt-screen blocks discarded on exit)
+    while (lineEls.length > vt.lines.length) { const el = lineEls.pop(); if (el) el.remove(); }
     if (!vt.dirty.size) return;
-    for (const r of vt.dirty) renderLine(r);
+    for (const r of vt.dirty) { if (r < vt.lines.length) renderLine(r); else vt.dirty.delete(r); }
     vt.dirty.clear();
     if (follow) term.scrollTop = term.scrollHeight;
   }
