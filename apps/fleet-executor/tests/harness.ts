@@ -625,6 +625,21 @@ export function memoryD1(): D1Capture {
         return { success: true, meta: {} };
       },
       async first() {
+        // Delivery-failure read-back: the newest recorded failure for one run,
+        // ordered by seq (see src/delivery-failure.ts). Served from the same
+        // `steps` array the INSERT path above appends to, so a test that writes
+        // a failure through the real code can read it back through the real code.
+        if (/FROM fleet_run_steps/i.test(sql)) {
+          if (cap.failAll) throw new Error('D1 unavailable');
+          const [runId, kind] = args;
+          const matching = cap.steps
+            .filter(st => st.runId === runId && st.kind === String(kind))
+            .sort((a, b) => Number(b.seq) - Number(a.seq));
+          const row = matching[0];
+          return row
+            ? ({ seq: row.seq, title: row.title, detail: row.detail } as unknown as Record<string, unknown>)
+            : null;
+        }
         // Circuit-breaker balance read: COUNT(*) + SUM(delta_usd) for one install.
         if (/FROM credit_ledger/i.test(sql)) {
           if (cap.creditTableMissing) throw new Error('no such table: credit_ledger');
