@@ -203,14 +203,14 @@ The paper has a topology: it opens with the gestalt (\S\ref{sec:fh-intro}--\S\re
 \noindent\textbf{Suggested reading paths by reader type:}
 \begin{itemize}[nosep,leftmargin=*,topsep=2pt]
 \item \textbf{Beginner / new to the series.} Read \S\ref{sec:fh-intro} (the two-machine problem) and \S\ref{sec:fh-worked-example} (Alice and Bob, end-to-end). The worked example is written to be read cold. Look at the five figures in order. Skip the proofs on the first pass.
-\item \textbf{Distributed-systems engineer.} \S\ref{sec:fh-authority} (the topology), \S\ref{sec:fh-xfer} (transfer ceremony), \S\ref{sec:fh-revocation} (gossip and equivocation). The companion Anchor paper for the cryptographic substrate. Then \S\ref{sec:fh-limitations} for the honest open questions.
+\item \textbf{Distributed-systems engineer.} \S\ref{sec:fh-authority} (the topology), \S\ref{sec:fh-xfer} (transfer ceremony), \S\ref{sec:fh-revocation} (gossip and equivocation). Chapter~V (\emph{The Anchor Protocol}) for the cryptographic substrate. Then \S\ref{sec:fh-limitations} for the honest open questions.
 \item \textbf{Formal-methods reviewer.} Jump to \S\ref{sec:fh-formal} (the TLA+ and ProVerif extensions) and Appendix~\ref{app:fh-mech} (the verification status table). Threat bands in Figure~\ref{fig:fh-threat-bands} are the most concentrated signal of what is and is not mechanized.
 \item \textbf{Cryptoeconomic / mechanism-design reader.} \S\ref{sec:fh-settlement} (bounded escrow) and \S\ref{sec:fh-admission} (cold-start admission via bonded sponsorship). The proposal's equilibrium contributions are stated here as open work; that is honest, not coy.
 \item \textbf{Security-engineering reviewer.} \S\ref{sec:fh-threat-model} (threat model) first, then the three primitive sections in order. \S\ref{sec:fh-failure-modes} for the operationally interesting cases the protocols do not close.
 \end{itemize}
 
 \vspace{0.5cm}
-\noindent\textbf{accompanying chapters.} The Anchor Protocol pins down what it means for a process on a single machine to prove its identity to the local daemon. The Bonded Commons explains why coordination at scale needs a pre-transactional commons authority rather than per-transaction trust negotiation. This paper extends both into the cross-machine, cross-organization case. We will cite specific sections (e.g.\ \emph{Anchor~\S2.4}, \emph{Bonded~\S2}) when we depend on a primitive rather than re-derive it.
+\noindent\textbf{Volume Context.} Chapter~V (\emph{The Anchor Protocol}) formalizes process identity on a single machine. Chapter~VI (\emph{The Bonded Commons}) establishes pre-transactional commons authority and collateralized incentive alignment. This chapter extends both into the cross-machine, cross-organization regime. Specific primitives are cited directly (e.g., Chapter~V \S2.4, Chapter~VI \S2) rather than re-derived.
 
 \newpage
 \tableofcontents

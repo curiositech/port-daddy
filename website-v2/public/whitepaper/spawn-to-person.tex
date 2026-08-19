@@ -237,7 +237,7 @@ We argue at length why reputation is \emph{not} a bandit problem
 oracle's own incentive-compatibility), and we treat the grading-oracle hole in
 the core economic theorem head-on. We are disciplined about the keystone: this
 paper depends only on a \textbf{local non-forgeable identity} (an identity root
-that holds within a single trusted operator) and hands the companion market paper
+that holds within a single trusted operator) and hands Chapter~IV (\emph{The Harbor Economy})
 the unbuilt \textbf{cross-operator attestation} (binding identities across
 operators who do not trust each other) as a named dependency rather than
 assuming it. We prove that a non-forgeable identity is \emph{necessary} for any
@@ -360,8 +360,8 @@ series describes --- operators renting each other's fleets, skills licensed
 across machines, work settled against bonds (Chapter~IV) --- is impossible until a
 spawn can become a \textbf{person}: a thing with a track record that survives the
 process that built it and the operator who first ran it. Throughout this paper we
-follow two operators by name --- \textbf{Alice} and \textbf{Bob}, the same pair the
-companion market paper uses --- so that every abstract mechanism has a concrete
+follow two operators by name --- \textbf{Alice} and \textbf{Bob}, the same pair Chapter~IV
+uses --- so that every abstract mechanism has a concrete
 scene to land in. Alice wants to eventually \emph{rent Heron out} to Bob; Bob will
 only pay if Heron's track record means something he can check.
 
@@ -953,6 +953,16 @@ ceiling, climbing with witnessed history. That shape is what makes
 Theorem~\ref{thm:whitewash-cost}'s cost $W$ fall on whitewashers (who keep
 resetting their ceiling) and not on honest newcomers (who keep theirs and climb).
 A flat ``distrust all newcomers'' policy taxes the wrong party.}
+
+\begin{theorem}[Front-Loaded Probation Dominance]\label{thm:probation-dominance}
+Let a newcomer restriction schedule specify earning holdbacks $g_t \ge 0$ across periods $t \in \{0, 1, \dots, T\}$. Let honest participants have patient discount factor $\delta_h \in (0, 1)$ while strategic whitewashers (who seek short-term defection gains $G_{\max}$) have impatient discount factor $\delta_f < \delta_h$.
+
+Under the deterrence constraint $\sum_{t=0}^T \delta_f^t g_t \ge G_{\max}$, the schedule that minimizes the lifetime friction on honest newcomers $\sum_{t=0}^T \delta_h^t g_t$ is a \textbf{pure front-loaded cliff}: all holdback mass is concentrated at $t=0$ ($g_0 = G_{\max}$, $g_{t>0} = 0$). Any gradual linear ramp is strictly Pareto-dominated by an upfront probation hurdle.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Consider a standard linear programming minimization of $\sum_t \delta_h^t g_t$ subject to $\sum_t \delta_f^t g_t \ge G_{\max}$ and $g_t \ge 0$. The objective-to-constraint cost ratio at period $t$ is $\frac{\delta_h^t}{\delta_f^t} = \bigl(\frac{\delta_h}{\delta_f}\bigr)^t$. Because $\delta_h > \delta_f$, this ratio is strictly increasing with $t$. By standard exchange arguments, moving holdback mass from period $t > 0$ to period $0$ relaxes the deterrence constraint while strictly decreasing the honest cost $\sum_t \delta_h^t g_t$. Hence, the optimal newcomer screening schedule is a sharp initial probation cliff followed by immediate graduation to full capacity. \qed
+\end{proof}
 
 % --- FIGURE 6: Sybil/whitewashing and the non-forgeable root ---
 \input{figures/fig-stp-sybil-whitewash}
@@ -1742,7 +1752,7 @@ Skill grafting is observable; the witnessed-event schema is specified. \\
 Tombstone revocation (Proto.~\ref{proto:tombstone}) & \text{\textsc{designed}} &
 Append-only ledger semantics are designed; cross-harbor propagation is \text{\textsc{vision}}. \\
 Cross-operator attestation & \text{\textsc{vision}} &
-The unbuilt keystone for the market; owed to the companion market paper. \\
+The unbuilt keystone for the market; owed to Chapter~IV (\emph{The Harbor Economy}). \\
 \bottomrule
 \end{tabular}
 \caption{Maturity of each paper concept against a reference coordination daemon.

@@ -220,7 +220,7 @@ The paper builds in four layers; each layer carries a load-bearing formal claim 
 \toprule
 \textbf{Layer} & \textbf{Load-bearing artifact} & \textbf{Lives at} \\
 \midrule
-\textbf{(1) Structural prevention} & Capability-attenuated tokens; ProVerif proofs of algorithm-confusion immunity and delegation replay resistance & \S\ref{sec:structural}--\S\ref{sec:isolation}; companion Anchor paper \\
+\textbf{(1) Structural prevention} & Capability-attenuated tokens; ProVerif proofs of algorithm-confusion immunity and delegation replay resistance & \S\ref{sec:structural}--\S\ref{sec:isolation}; Chapter~V (\emph{The Anchor Protocol}) \\
 \textbf{(2) Immutable attribution} & Merkle Forest with cross-daemon inclusion proofs; EasyCrypt binding mechanization (\texttt{binding.ec}) & \S\ref{sec:merkle-forest}; Appendix~\ref{app:mech} \\
 \textbf{(3) Economic alignment} & Competitive-insurance auction; conditional Monte Carlo comparison & \S\ref{sec:youle}; \S\ref{sec:youle:welfare} \\
 \textbf{(4) Governance} & Sen-inspired design warning; advisory-conflict completeness & \S\ref{sec:sen}--\S\ref{sec:advisory} \\
@@ -233,13 +233,13 @@ The paper builds in four layers; each layer carries a load-bearing formal claim 
 \item \textbf{Formal-methods reviewer / program committee} --- abstract, then jump to Appendix~\ref{app:mech} (Formal Verification Status). The artifact registry is the most concentrated signal of what is and is not proved.
 \item \textbf{Cryptoeconomic protocol designer} --- abstract, then \S\ref{sec:youle} (auction mechanism), \S\ref{sec:youle:welfare} (welfare theorem with inline Pareto Monte Carlo), \S\ref{sec:youle:a5} (A5 Sybil-deterrence is coverage-bounded --- a surprising negative result).
 \item \textbf{AI safety researcher} --- \S\ref{sec:morality} (``What Morality Means When Death Is Cheap''), \S\ref{sec:sen} (Sen's theorem), \S\ref{sec:economic} (collateralized work contracts). Skim Appendix~\ref{app:mech} for the proof posture.
-\item \textbf{Distributed systems engineer} --- \S\ref{sec:structural}--\S\ref{sec:merkle-forest} (primitives), then the companion Anchor Protocol paper for the cryptographic-token protocol detail.
+\item \textbf{Distributed systems engineer} --- \S\ref{sec:structural}--\S\ref{sec:merkle-forest} (primitives), then Chapter~V (\emph{The Anchor Protocol}) for the cryptographic-token protocol detail.
 \item \textbf{Engineering manager evaluating multi-agent infrastructure} --- abstract, \S\ref{sec:why-consent} (``Why Agents Consent''), \S\ref{sec:economic} (bond pricing), \S\ref{sec:youle:welfare} (welfare results). The Appendix~\ref{app:mech} status registry tells you what is production-ready and what is research.
 \item \textbf{Policy / governance analyst} --- abstract, \S\ref{sec:sen}--\S\ref{sec:advisory} (the Sen's-theorem argument for advisory rather than enforced claims), \S\ref{sec:federated-sovereign} (federated sovereign).
 \end{itemize}
 
 \vspace{0.5cm}
-\noindent\textbf{accompanying chapter.} \emph{The Anchor Protocol: A Mechanically Analyzed Control Plane for Local Agent Swarms} (Owens 2026) is the cryptographic-token half of this work --- self-contained ProVerif models of the three Harbor Card phases, cuckoo-filter revocation, and bounded multi-hop delegation. Either paper can be read first; this one carries the economic and governance argument, Chapter~V (\emph{The Anchor Protocol}) carries the cryptographic protocol detail.
+\noindent\textbf{Volume Context.} Chapter~V (\emph{The Anchor Protocol}) provides the cryptographic-token foundation for this work: self-contained ProVerif models of the Harbor Card phases, cuckoo-filter revocation, and bounded multi-hop delegation. This chapter carries the economic and governance argument, while Chapter~V carries the cryptographic protocol detail.
 
 \newpage
 \tableofcontents

@@ -907,6 +907,16 @@ window, then halted or compensated'' for the rest. Crediting double-claim
 prevention to the monitor \emph{double-counts} --- the uniqueness constraint
 already did it; the monitor merely logs it.}
 
+\begin{theorem}[Synchronous State Decidability (OP-2)]\label{thm:decidability}
+A safety invariant $\phi$ is \textbf{regimentable} (strictly preventable pre-commit, making violation states physically unreachable) if and only if $\phi(S, \Delta)$ is a pure, deterministic boolean predicate decidable solely over the daemon's local, synchronous, committed database state $S$ and the incoming transaction payload $\Delta$. 
+
+Conversely, any invariant requiring external I/O, asynchronous wall-clock verification, distributed consensus, or non-deterministic grading oracles is strictly \textbf{enforceable} (post-commit, detect-and-compensate).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+In SQLite WAL mode under single-writer serialization, transaction commits occur synchronously on the database connection thread. A predicate $\phi(S, \Delta)$ computable in bounded CPU steps without yielding the event loop can be embedded directly into SQLite constraints (\texttt{UNIQUE}, \texttt{CHECK}) or transaction guard clauses; any transition yielding $\neg \phi$ rolls back atomically before state mutation. If $\phi$ depends on external network I/O or asynchronous delays, holding the exclusive transaction lock during evaluation starves the single-writer queue; hence evaluation must be deferred post-commit, converting the mechanism from a synchronous gate into an asynchronous event subscriber governed by Theorem~\ref{thm:schneider}. \qed
+\end{proof}
+
 The monitor is honest about its own coverage, which is itself a genuine security
 property: it reports each rule as \emph{enforced}, \emph{degraded}, or
 \emph{stubbed}, so a reader can never mistake a stubbed rule for an active one. We
@@ -1349,6 +1359,22 @@ re-scope I9 as \textbf{cross-machine provisioning}: it matters only against
 cross-machine synchronization or a tamperer who is not the same user.
 
 To actually solve the same-machine adversary vulnerability (OP-9) locally, we introduce \textbf{OS-Level Ephemeral Namespaces}. The central \texttt{agentsd} process is isolated to run as user \texttt{0600}. When spawning agents, it executes them within \texttt{bwrap} or \texttt{unshare} sandboxes, assigning each an ephemeral UID. IPC sockets strictly enforce \texttt{SO\_PEERCRED} validation, guaranteeing that the daemon can cryptographically bind incoming requests to a specific, sandboxed spawn instance, making same-user filesystem bypasses impossible.
+
+\subsection{Information Flow Control (IFC) and the Compute-to-Data Airlock}
+\label{sec:ifc-airlock}
+
+Capability scoping alone (such as granting an agent \texttt{fs:read:/confidential} and \texttt{net:egress:github.com}) is insufficient to prevent exfiltration: an agent granted both can read a confidential proprietary database and push the contents to an external server. The kernel resolves this via \textbf{Dynamic Taint Analysis} coupled with complete OS-level mediation.
+
+\paragraph{The Compute-to-Data Airlock protocol.}
+To allow Alice to license a proprietary agent stack $S$ (compiled Wasm or opaque container) to execute over Bob's confidential data $D$ without mutual data exfiltration:
+\begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
+\item \textbf{Isolated execution jail.} Bob's daemon spawns Alice's agent inside a sealed OS namespace (Linux user namespace, Landlock/cgroups, or macOS Seatbelt) with network interfaces disabled (\texttt{net:egress:none}).
+\item \textbf{Dynamic taint propagation.} When the agent reads any file tagged with a confidentiality label (e.g., \texttt{fs:read:/repo/finance.csv}), the kernel hypervisor tags the agent process ID and its memory context with \texttt{[TAINT: HIGH\_CONFIDENTIAL]}.
+\item \textbf{Contagion \& proxy DLP.} Any spawned sub-agent or shared memory write inherits the taint label. When the agent queries an LLM inference proxy, the proxy runs a local Data Loss Prevention (DLP) pattern scan over the prompt payload.
+\item \textbf{Egress firewall.} If a tainted process attempts raw network egress or unauthorized file writes, the hypervisor intercepts the syscall, immediately sends \texttt{SIGKILL}, and slashes the execution bond.
+\end{enumerate}
+
+This establishes a cryptographic and OS-physical DMZ: Bob's data mathematically cannot phone home, while Alice's proprietary agent weights and prompts remain inaccessible to Bob's host inspection.
 
 \exercises{%
 \textbf{(check)} The hash chain defends against nobody in scope. Name the
