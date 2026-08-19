@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractAiText, describeResponseShape } from '../src/ai-response.js';
+import { extractAiText, describeResponseShape, stripThinkTags } from '../src/ai-response.js';
 
 describe('extractAiText — reads every Workers AI / OpenAI response envelope', () => {
   it('standard Workers AI text generation: { response } — and it trims surrounding whitespace', () => {
@@ -125,5 +125,62 @@ describe('describeResponseShape — compact diagnostics for an empty/odd respons
     const circular: Record<string, unknown> = {};
     circular.self = circular;
     expect(() => describeResponseShape({ errors: circular })).not.toThrow();
+  });
+});
+
+describe('reasoning-model envelopes (DeepSeek V4, qwq, r1-distill)', () => {
+  it('strips an inline <think> block from the standard response shape', () => {
+    const res = { response: '<think>hmm, is FLEET-VERDICT: BLOCK right? no.</think>All clear.\n\nFLEET-VERDICT: PASS' };
+    const out = extractAiText(res);
+    expect(out.shape).toBe('response');
+    expect(out.text).toBe('All clear.\n\nFLEET-VERDICT: PASS');
+    // The deliberation must be GONE — an unstripped think block containing a
+    // verdict string is parsed as the verdict.
+    expect(out.text).not.toContain('BLOCK');
+  });
+
+  it('treats a response truncated mid-think as empty, not as an answer', () => {
+    const res = { response: '<think>step 1: the diff touches the gate, step 2:' };
+    const out = extractAiText(res);
+    expect(out.text).toBe('');
+  });
+
+  it('reads DeepSeek V4 chat-completions with sibling reasoning_content', () => {
+    const res = {
+      choices: [{ message: {
+        reasoning_content: 'considering whether to block...',
+        content: 'No findings.\n\nFLEET-VERDICT: PASS',
+      } }],
+      usage: { prompt_tokens: 10, completion_tokens: 5 },
+    };
+    const out = extractAiText(res);
+    expect(out.shape).toBe('chat-completions');
+    expect(out.text).toBe('No findings.\n\nFLEET-VERDICT: PASS');
+    expect(out.text).not.toContain('considering');
+  });
+
+  it('reads typed-part array content', () => {
+    const res = { choices: [{ message: { content: [
+      { type: 'text', text: 'part one. ' },
+      { type: 'text', text: 'part two.' },
+    ] } }] };
+    expect(extractAiText(res)).toEqual({ text: 'part one. part two.', shape: 'chat-completions' });
+  });
+
+  it('routes reasoning-only responses to empty with a shape that names it', () => {
+    // The whole budget went to chain-of-thought; content is empty. The
+    // reasoning is NOT the answer and must not reach the findings parser.
+    const res = { choices: [{ message: { reasoning_content: 'thinking... FLEET-VERDICT: BLOCK maybe?', content: '' } }] };
+    const out = extractAiText(res);
+    expect(out).toEqual({ text: '', shape: 'reasoning-only' });
+  });
+
+  it('surfaces reasoning length in the diagnostic shape description', () => {
+    const res = { choices: [{ message: { reasoning_content: 'x'.repeat(42), content: '' } }] };
+    expect(describeResponseShape(res)).toContain('reasoning.len=42');
+  });
+
+  it('stripThinkTags handles nested-free multiple blocks', () => {
+    expect(stripThinkTags('<think>a</think>real<think>b</think> answer')).toBe('real answer');
   });
 });
