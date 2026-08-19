@@ -31,6 +31,13 @@ export interface Env {
    * (later) the console; without it the seat answers 503, never 200.
    */
   STEWARD_ADMIN_TOKEN?: string;
+  /**
+   * GitHub token the tick surveys with (read: PRs, checks, reviews). Without
+   * it the tick skips honestly ("cannot survey; holding") — the seat never
+   * decides blind. The land-to-main capability is deliberately NOT this token:
+   * landing arrives in P1 PR 3 as a macaroon, per ADR-0109.
+   */
+  STEWARD_GITHUB_TOKEN?: string;
 }
 
 /**
