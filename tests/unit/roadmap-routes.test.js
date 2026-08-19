@@ -85,3 +85,46 @@ test('DELETE /roadmap/items/:slug removes an item, then 404s on a second delete'
   expect(again.statusCode).toBe(404);
   expect(again.json().success).toBe(false);
 });
+
+test('POST /roadmap/items accepts planner columns and GET serves them back', async () => {
+  const dueAt = 1_700_900_000_000;
+  const post = await app.inject({
+    method: 'POST',
+    url: '/roadmap/items',
+    payload: {
+      slug: 'gantt-ready',
+      summaryMd: 'A schedulable item.',
+      status: 'now',
+      harbor: 'fleet',
+      kind: 'epic',
+      priority: 2,
+      estimate: 5,
+      dueAt,
+      assigneeId: 'agent-navigator',
+      descriptionMd: 'Body text.',
+    },
+  });
+  expect(post.statusCode).toBe(201);
+  const posted = post.json().item;
+  expect(posted.kind).toBe('epic');
+  expect(posted.priority).toBe(2);
+  expect(posted.estimate).toBe(5);
+  expect(posted.dueAt).toBe(dueAt);
+
+  const show = await app.inject({ method: 'GET', url: '/roadmap/items/gantt-ready?harbor=fleet' });
+  const item = show.json().item;
+  expect(item.kind).toBe('epic');
+  expect(item.estimate).toBe(5);
+  expect(item.assigneeId).toBe('agent-navigator');
+  expect(item.descriptionMd).toBe('Body text.');
+});
+
+test('POST /roadmap/items ignores an unknown kind instead of failing the write', async () => {
+  const post = await app.inject({
+    method: 'POST',
+    url: '/roadmap/items',
+    payload: { slug: 'odd-kind', summaryMd: 'x', harbor: 'fleet', kind: 'saga' },
+  });
+  expect(post.statusCode).toBe(201);
+  expect(post.json().item.kind).toBe('task'); // closed enum: unknown → default
+});
