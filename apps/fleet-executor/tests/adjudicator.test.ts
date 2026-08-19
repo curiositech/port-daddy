@@ -94,6 +94,19 @@ describe('countOtherBrokenPrs', () => {
   it('returns null without a DB binding — no evidence, never a guess', async () => {
     expect(await countOtherBrokenPrs(undefined, REPO, 'lookout', 7, NOW)).toBeNull();
   });
+
+  it('a THROWING D1 query also returns null (never throws) — the failure stands downstream', async () => {
+    const explodingDb = {
+      prepare: () => ({
+        bind: () => ({
+          async first() {
+            throw new Error('D1 unavailable');
+          },
+        }),
+      }),
+    } as unknown as D1Database;
+    expect(await countOtherBrokenPrs(explodingDb, REPO, 'lookout', 7, NOW)).toBeNull();
+  });
 });
 
 describe('adjudicateBrokenShips', () => {
