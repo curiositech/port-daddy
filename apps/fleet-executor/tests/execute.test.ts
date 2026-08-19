@@ -5,6 +5,7 @@ import {
   freshState,
   installGitHubFetch,
   memoryKV,
+  memoryD1,
   aiStub,
   makeEnv,
   makeJob,
@@ -549,6 +550,50 @@ describe('map-reduce fan-out', () => {
     const reduceCalls = ai.calls.filter(c => c.ship === 'code-reviewer' && c.phase === 'reduce');
     expect(mapCalls.length).toBe(2); // N chunks
     expect(reduceCalls.length).toBe(1); // 1 manager
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('the chunk budget is CEILINGED, whatever the model window (#7743 memory bound)', () => {
+    // The unbounded window-derived budget (128k tokens → ~192KB chunks) was a
+    // memory multiplier that killed runs; every known model's budget must now
+    // sit within [floor, ceiling].
+    for (const model of Object.keys(MODEL_CONTEXT_TOKENS)) {
+      const budget = mapChunkCharLimit(model);
+      expect(budget).toBeGreaterThanOrEqual(12_000);
+      expect(budget).toBeLessThanOrEqual(48_000);
+    }
+    // Unknown models keep the historical fallback exactly.
+    expect(mapChunkCharLimit('@cf/some/unknown-model')).toBe(12_000);
+  });
+
+  it('an oversized diff is capped at the per-ship chunk limit and the truncation is transcribed (#7743)', async () => {
+    // 12 chunks' worth of diff (each file sized to fill one chunk) must fan
+    // out to at most 8 MAP calls, with a map-truncated step naming the drop —
+    // a partial review may never masquerade as a full one.
+    const budget = Math.max(...Object.keys(MODEL_CONTEXT_TOKENS).map(mapChunkCharLimit));
+    const linesPerFile = Math.ceil((budget * 0.9) / '+line\n'.length);
+    const file = (name: string) =>
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
+      '+line\n'.repeat(linesPerFile);
+    state.prDiff = Array.from({ length: 12 }, (_, i) => file(`f${i}.ts`)).join('');
+
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'partial\n\nFLEET-VERDICT: PASS' },
+      managerOutput: 'merged review\n\nFLEET-VERDICT: PASS',
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db }));
+
+    const mapCalls = ai.calls.filter(c => c.ship === 'code-reviewer' && c.phase === 'map');
+    expect(mapCalls.length).toBeLessThanOrEqual(8);
+    const truncated = db.steps.filter((s: { kind: string }) => s.kind === 'map-truncated');
+    expect(truncated).toHaveLength(1);
+    expect(String(truncated[0].title)).toContain('chunks dropped');
+    // Still reaches a verdict — degraded honestly, never dead.
     expect(state.completed[0].conclusion).toBe('success');
   });
 
