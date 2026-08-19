@@ -14,6 +14,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import handler from '../src/index.js';
 import { TRANSCRIPT_EMERGENCY_EVENT } from '../../../lib/transcript-emergency-constants.js';
+import { SHIP_CHECKPOINT_SEQ_BASE } from '../src/resume.js';
 import { executeFleet, mapChunkCharLimit } from '../src/execute.js';
 import { MODEL_CONTEXT_TOKENS } from '../src/spend.js';
 import {
@@ -294,11 +295,13 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
     expect(run.ms).toBeGreaterThanOrEqual(0);
 
     // Single chunk ⇒ no reduce step. Order: map-chunk → ship-verdict →
-    // review-posted → ship-spend → check-completed.
+    // review-posted → ship-result (the resume checkpoint, src/resume.ts) →
+    // ship-spend → check-completed.
     const kinds = d1.steps.map(s => s.kind);
-    expect(kinds).toEqual(['map-chunk', 'ship-verdict', 'review-posted', 'ship-spend', 'check-completed']);
-    // seq is monotonic from 0.
-    expect(d1.steps.map(s => s.seq)).toEqual([0, 1, 2, 3, 4]);
+    expect(kinds).toEqual(['map-chunk', 'ship-verdict', 'review-posted', 'ship-result', 'ship-spend', 'check-completed']);
+    // Narrative seq is monotonic from 0; the checkpoint deliberately sits in
+    // its own high block so the next attempt's narrative cannot overwrite it.
+    expect(d1.steps.map(s => s.seq)).toEqual([0, 1, 2, SHIP_CHECKPOINT_SEQ_BASE, 3, 4]);
     // The verdict step carries the parsed findings as its detail (here: empty).
     const verdict = d1.steps.find(s => s.kind === 'ship-verdict');
     expect(verdict?.ship).toBe('code-reviewer');
@@ -344,6 +347,7 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
       'reduce',
       'ship-verdict',
       'review-posted',
+      'ship-result',
       'ship-spend',
       'check-completed',
     ]);

@@ -718,6 +718,18 @@ export function memoryD1(): D1Capture {
         return null;
       },
       async all() {
+        // Ship-checkpoint read-back (src/resume.ts): serve fleet_run_steps rows
+        // for one (run_id, kind) from the same array the INSERT path appends
+        // to, so resume tests exercise the real write→read loop.
+        if (/FROM fleet_run_steps/i.test(sql)) {
+          if (cap.failAll) throw new Error('D1 unavailable');
+          const [runId, kind] = args;
+          const results = cap.steps
+            .filter(st => st.runId === runId && st.kind === String(kind))
+            .sort((a, b) => Number(a.seq) - Number(b.seq))
+            .map(st => ({ ship: st.ship, seq: st.seq, detail: st.detail }));
+          return { results };
+        }
         return { results: [] };
       },
     }),

@@ -96,6 +96,7 @@ import { repairContractOutput } from './repair.js';
 import { adjudicateBrokenShips } from './adjudicator.js';
 import { runPurser } from './purser.js';
 import { isDeadLetteredSummary } from './dead-letter-marker.js';
+import { loadShipCheckpoints, recordShipCheckpoint } from './resume.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
 import {
@@ -1368,8 +1369,30 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     fetchRepoFile(owner, repo, path, branch, token),
   );
 
+  // RESUME (src/resume.ts): a redelivery of a run the platform killed mid-way
+  // restores every ship that already completed and spends nothing re-running
+  // it. Empty map on a first attempt or any load failure — identical to today.
+  const checkpoints = await loadShipCheckpoints(env, runId);
+  if (checkpoints.size > 0) {
+    await transcript.step('run-resumed', null,
+      `Resumed after a lost attempt: ${checkpoints.size} ship(s) restored from checkpoints`, {
+        restored: [...checkpoints.keys()],
+      });
+  }
+
   const results: ShipResult[] = [];
+  let rosterIndex = -1;
   for (const ship of orderedShips) {
+    rosterIndex += 1;
+    const restored = checkpoints.get(ship.name);
+    if (restored) {
+      // The ship already ran to completion in a previous attempt; its comment
+      // is already posted (edit-in-place) and its spend already recorded.
+      // Restoring the result — not re-deriving it — is what makes four killed
+      // attempts add up to one finished run.
+      results.push(restored);
+      continue;
+    }
     // Per-ship wall-clock start: durationMs must reflect THIS ship's work
     // (including its gate/skip decision), not the cumulative run time — else
     // later ships report inflated durations that fold in every earlier ship.
@@ -1403,6 +1426,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       });
       const skipped: ShipResult = { ship: ship.name, blocking: ship.blocking, verdict: 'PASS', errored: false, findings: [] };
       results.push(skipped);
+      await recordShipCheckpoint(env, runId, rosterIndex, skipped);
       // Telemetry for a gated ship: zero AI spend, status ok (calls=0 ⇒ not a blackout).
       await emitShipTelemetry(env, job, prCtx, ship, skipped, newShipMetrics(), checkRunId, shipStartMs);
       continue;
@@ -1430,6 +1454,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       ? await runPurser(ship, prCtx, env, token, transcript, metrics, graftText, runId, squidConsent)
       : await runShip(ship, prCtx, token, env, branch, transcript, metrics, graftText, runId, squidConsent, xoEnabled);
     results.push(result);
+    await recordShipCheckpoint(env, runId, rosterIndex, result);
     // Cloud squid: one ship-verdict event per ship that ran (fire-and-forget).
     emitSquidEvent(env, 'ship-verdict', {
       repo: job.repoFullName,
