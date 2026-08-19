@@ -92,6 +92,8 @@ import {
 } from './xo.js';
 import type { Proposal } from './proposals.js';
 import { decideShipGate, isDocsOnly, isReviewableForBugs } from './gates.js';
+import { repairContractOutput } from './repair.js';
+import { adjudicateBrokenShips } from './adjudicator.js';
 import { runPurser } from './purser.js';
 import { isDeadLetteredSummary } from './dead-letter-marker.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
@@ -1414,6 +1416,25 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     await recordShipTokensInTranscript(transcript, ship, metrics);
   }
 
+  // --- BROKEN-SHIP ADJUDICATION (src/adjudicator.ts) ------------------------
+  // Repair already ran in-ship; anything still broken here is persistent.
+  // Adjudicate WHO the breakage gates: isolated ⇒ the failure stands on this
+  // PR; fleet-wide (same ship broken across other PRs) ⇒ neutral + ONE tracked
+  // issue + a HITL page on first declaration. Best-effort by construction —
+  // any adjudication failure leaves results untouched and the doctrine's
+  // fail-closed default applies.
+  await adjudicateBrokenShips(results, {
+    env,
+    owner,
+    repo,
+    prNumber,
+    runId,
+    token,
+    transcript,
+    nowEpochSec: nowSec(),
+    ...(job.installationId != null ? { installationId: job.installationId } : {}),
+  });
+
   // --- Conclusion (verdict logic is REAL; see verdict.ts) ------------------
   const conclusion = aggregateConclusion(results);
 
@@ -1651,7 +1672,7 @@ async function runShip(
     });
 
     // --- REDUCE: manager merges the partials (only when fan-out > 1) --------
-    const output =
+    let output =
       chunks.length === 1 ? partials[0] ?? '' : await reduceFindings(ship, partials, env, metrics);
 
     // Transcript: the REDUCE step exists only on a multi-chunk fan-out.
@@ -1662,13 +1683,45 @@ async function runShip(
       });
     }
 
+    // One bounded repair pass (src/repair.ts) shared by every broken-contract
+    // site below. The caller's own parser is the only judge of healing.
+    const tryRepair = async (reason: string, validate: (text: string) => boolean) => {
+      const repair = await repairContractOutput({
+        shipLabel: `pd-${ship.name}`,
+        model: reduceModelFor(ship),
+        contract: ship.ideation ? ideationOutputContract() : buildOutputContract(),
+        priorOutput: output,
+        reason,
+        call: (model, system, user) => shipRepairCall(ship, env, metrics, model, system, user),
+        validate,
+      });
+      await transcript.step(
+        'ship-repair',
+        ship.name,
+        repair.healed
+          ? `pd-${ship.name}: contract repair HEALED on ${repair.healedBy} (${reason})`
+          : `pd-${ship.name}: contract repair FAILED after ${repair.attempts.length} attempt(s) (${reason})`,
+        { healed: repair.healed, healedBy: repair.healedBy, reason, attempts: repair.attempts },
+      );
+      if (repair.healed) output = repair.text;
+      return repair.healed;
+    };
+
     // --- NO USABLE OUTPUT gate (src/usable-output.ts) ----------------------
     // Before either contract is parsed: did the model say ANYTHING its contract
-    // asked for? If not, the ship reviewed nothing, and must never be folded
-    // into a clean PASS. A ship in this state is BROKEN, and a broken ship
-    // fails the run whatever its blocking flag (aggregateConclusion returns
-    // `failure`; broken-ship doctrine, 2026-08-19).
-    const usability = classifyShipOutput(output, { ideation: ship.ideation });
+    // asked for? If not, try to REPAIR it first (broken output is usually a
+    // formatting slip on a cheap tier, not a missing review); only when repair
+    // also fails is the ship BROKEN, and a broken ship fails the run whatever
+    // its blocking flag (aggregateConclusion, broken-ship doctrine 2026-08-19 —
+    // subject to the adjudicator's fleet-fault amendment).
+    let usability = classifyShipOutput(output, { ideation: ship.ideation });
+    if (!usability.usable) {
+      const healed = await tryRepair(
+        `output failed the '${usability.reason}' contract test`,
+        text => classifyShipOutput(text, { ideation: ship.ideation }).usable,
+      );
+      if (healed) usability = classifyShipOutput(output, { ideation: ship.ideation });
+    }
     if (!usability.usable) {
       return await recordNoUsableOutput(ship, transcript, usability.reason, {
         strippedLength: usability.strippedLength,
@@ -1687,7 +1740,16 @@ async function runShip(
     // broken-ship doctrine, 2026-08-19). The raw model output is still posted
     // so the prose isn't lost while the breakage gets fixed.
     if (ship.ideation) {
-      const proposals = parseProposals(output);
+      let proposals = parseProposals(output);
+      // A malformed proposals block gets the same one-shot repair as unusable
+      // output — the model's SUBSTANCE is usually fine, the fence is not.
+      if (proposals === null) {
+        const healed = await tryRepair(
+          'the fenced json proposals block was malformed',
+          text => parseProposals(text) !== null,
+        );
+        if (healed) proposals = parseProposals(output);
+      }
 
       // --- XO EDITOR PASS (src/xo.ts) --------------------------------------
       // Before the batch is finalized (rendered / stacked / captured), the XO
@@ -1791,9 +1853,17 @@ async function runShip(
       };
     }
 
-    // Parse the structured findings block. `null` => malformed JSON => the ship
-    // is treated as errored (blocking → BLOCK, advisory → PASS, never silent).
-    const parsedFindings = parseShipFindings(output);
+    // Parse the structured findings block. `null` => malformed JSON. Repair
+    // once (the model's findings are usually fine, the fence is not); only a
+    // still-malformed block is treated as errored — a broken ship.
+    let parsedFindings = parseShipFindings(output);
+    if (parsedFindings === null) {
+      const healed = await tryRepair(
+        'the fenced json findings block was malformed',
+        text => parseShipFindings(text) !== null,
+      );
+      if (healed) parsedFindings = parseShipFindings(output);
+    }
 
     // Drop findings that cite a file this PR never touched.
     //
@@ -2280,17 +2350,65 @@ async function reduceFindings(
   return text;
 }
 
+/**
+ * One model call for the repair pass (src/repair.ts), on the executor's own
+ * AI plumbing so repair spend is metered exactly like any other ship call.
+ *
+ * MOTIVATION: repair.ts is deliberately a pure orchestration module with no
+ * env/AI imports; this adapter is the single place its calls touch Workers AI,
+ * so gateway options, session affinity, and usage accumulation stay identical
+ * to the MAP/REDUCE paths rather than being re-implemented.
+ *
+ * @param ship The ship being repaired (names the affinity header, temperature).
+ * @param env Worker bindings.
+ * @param metrics The ship's run metrics — repair tokens land here.
+ * @param model The model for THIS attempt (own tier, then escalation).
+ * @param system The repair system prompt.
+ * @param user The repair user message (carries the broken output).
+ * @returns The model's raw text ('' on an empty/odd response shape).
+ */
+async function shipRepairCall(
+  ship: ShipConfig,
+  env: ExecutorEnv,
+  metrics: ShipMetrics,
+  model: string,
+  system: string,
+  user: string,
+): Promise<string> {
+  const request = {
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ],
+    max_tokens: MAX_OUTPUT_TOKENS,
+    ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
+  };
+  const res = await env.AI.run(
+    model as Parameters<typeof env.AI.run>[0],
+    request,
+    aiOptions(env, ship.name),
+  );
+  const { text } = extractAiText(res);
+  accumulateUsage(metrics, model, res, text);
+  return text;
+}
+
 function buildSummary(results: ShipResult[], conclusion: string): string {
   const lines = results.map(r => {
     const tag = r.blocking ? ' [BLOCKING]' : '';
     // A ship that produced nothing is reported as exactly that. It must never
     // print as `PASS` here — this summary is the check-run body an operator
     // reads before merging. Broken states (error / no usable output) fail the
-    // run whatever the ship's blocking flag — see aggregateConclusion.
+    // run whatever the ship's blocking flag — unless the adjudicator judged
+    // the fault fleet-wide, in which case the check says exactly that instead
+    // of blaming this PR. See aggregateConclusion + src/adjudicator.ts.
+    const adjudication = r.brokenAdjudicated
+      ? ` — adjudicated FLEET-WIDE fault${r.brokenAdjudicated.issueNumber != null ? ` (#${r.brokenAdjudicated.issueNumber})` : ''}: not gating this PR; the fleet is on the hook`
+      : ' (broken ship ⇒ run FAILED)';
     const state = r.noUsableOutput
-      ? 'no usable output — nothing was reviewed (broken ship ⇒ run FAILED)'
+      ? `no usable output — nothing was reviewed${adjudication}`
       : r.errored
-        ? 'error (broken ship ⇒ run FAILED)'
+        ? `error${adjudication}`
         : r.verdict;
     const advisory =
       !r.blocking && r.verdict === 'BLOCK' && !r.errored && !r.noUsableOutput ? ' (advisory)' : '';

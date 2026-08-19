@@ -158,6 +158,24 @@ export interface ShipResult {
    * ship found nothing; absent on legacy/test results that predate findings.
    */
   findings?: Finding[];
+  /**
+   * Set by the adjudicator (src/adjudicator.ts) when a BROKEN result's fault
+   * was judged FLEET-WIDE — the same ship is breaking across other PRs, so
+   * gating THIS author on it would punish the one party who cannot fix it.
+   * An adjudicated breakage resolves `neutral` (never success) with a tracked
+   * issue; absent, a broken result fails the run per the doctrine.
+   */
+  brokenAdjudicated?: BrokenAdjudication;
+}
+
+/** The adjudicator's verdict that a breakage is the fleet's, not the PR's. */
+export interface BrokenAdjudication {
+  /** Only fleet-scope exists today; the field keeps future scopes explicit. */
+  scope: 'fleet';
+  /** Human-legible evidence, e.g. "broken on 4 other PR(s) in the last 72h". */
+  reason: string;
+  /** The deduplicated `fleet:broken-ship` tracking issue, when filing worked. */
+  issueNumber?: number;
 }
 
 export type Conclusion = 'success' | 'failure' | 'neutral';
@@ -231,14 +249,32 @@ export function reviewEventFor(results: ShipResult[]): 'COMMENT' | 'REQUEST_CHAN
  * NO USABLE OUTPUT (src/usable-output.ts) is one of the broken-ship states:
  * absence of a review is not approval, and it is not "advisory silence"
  * either — it is a ship that reviewed nothing, and it fails the run.
+ *
+ * THE ADJUDICATION AMENDMENT (2026-08-19, the morning the doctrine deployed
+ * and reddened every open PR at once): a broken ship still fails the run —
+ * UNLESS the adjudicator (src/adjudicator.ts) has judged the breakage a
+ * FLEET-WIDE fault, evidenced by the same ship breaking across other PRs. An
+ * adjudicated breakage resolves `neutral`, never `success`: the fault stays
+ * visible on the check, the summary, and the run page, is tracked in ONE
+ * deduplicated issue, and pages the operator on first declaration — it gates
+ * the FLEET (who can fix it) instead of each PR author (who cannot). A broken
+ * ship with no adjudication — including when no evidence was available —
+ * fails the run exactly as before: without proof of an epidemic, the doctrine
+ * applies unmodified. A broken ship's verdict word is a fail-closed
+ * convention, not a judgment, so it never counts as a BLOCK on its own.
  */
 export function aggregateConclusion(results: ShipResult[]): Conclusion {
-  const brokenShip = results.some(r => r.errored || r.noUsableOutput === true);
-  const blockingBlock = results.some(r => r.blocking && r.verdict === 'BLOCK');
-  if (brokenShip || blockingBlock) return 'failure';
+  const isBroken = (r: ShipResult) => r.errored || r.noUsableOutput === true;
 
-  const advisoryObjection = results.some(r => !r.blocking && r.verdict === 'BLOCK');
-  if (advisoryObjection) return 'neutral';
+  const brokenUnadjudicated = results.some(r => isBroken(r) && r.brokenAdjudicated == null);
+  const blockingJudgmentBlock = results.some(
+    r => r.blocking && r.verdict === 'BLOCK' && !isBroken(r),
+  );
+  if (brokenUnadjudicated || blockingJudgmentBlock) return 'failure';
+
+  const advisoryObjection = results.some(r => !r.blocking && r.verdict === 'BLOCK' && !isBroken(r));
+  const adjudicatedBreakage = results.some(r => isBroken(r) && r.brokenAdjudicated != null);
+  if (advisoryObjection || adjudicatedBreakage) return 'neutral';
 
   return 'success';
 }

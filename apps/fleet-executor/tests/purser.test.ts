@@ -254,9 +254,34 @@ describe('runPurser — steel-man failure modes', () => {
     expect(step).toBeDefined();
     expect(step!.title).toMatch(/MALFORMED/);
     expect((step!.detail as { error: string }).error).toMatch(/fenced JSON/);
-    // Stopped: exactly one AI call, nothing touched on the Git Data API.
-    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
+    // The REPAIR pass (src/repair.ts) got its two bounded attempts — one on
+    // the ship's own model, one on the escalation tier — and both failed, so
+    // the transcript carries an honest ship-repair FAILED step. 1 original +
+    // 2 repair calls, and still nothing touched on the Git Data API.
+    const repairStep = rec.steps.find(s => s.kind === 'ship-repair')!;
+    expect(repairStep).toBeDefined();
+    expect(repairStep.title).toMatch(/repair FAILED after 2 attempt/);
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(3);
     expect(state.records.filter(r => r.url.includes('/git/'))).toHaveLength(0);
+  });
+
+  it('a malformed steel-man that REPAIRS on retry proceeds normally (healed, not broken)', async () => {
+    // Call 1: garbage. Call 2 (repair, same model): the real contract. The
+    // purser then continues into planning/authoring as if nothing happened.
+    const { ai } = seqAi(['I refuse to emit JSON.', STEELMAN_JSON, TESTS_JSON]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true }), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics(),
+    );
+
+    expect(result.errored).toBe(false);
+    const repairStep = rec.steps.find(s => s.kind === 'ship-repair')!;
+    expect(repairStep.title).toMatch(/repair HEALED/);
+    const steelStep = rec.steps.find(s => s.kind === 'purser-steelman')!;
+    expect(steelStep.title).toContain('2 obligation(s)');
+    // The healed contract still reaches the PR summary.
+    expect(state.prPatches.some(p => typeof p.body === 'string')).toBe(true);
   });
 
   it('a well-formed steel-man is written into the PR SUMMARY (the PR body), between markers', async () => {
