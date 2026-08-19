@@ -37,7 +37,7 @@ describe('.mcp.json secret hygiene', () => {
 
   test('no server env value is a hardcoded hex secret; expansions stay expansions', () => {
     const hex = /^[a-f0-9]{32,}$/i;
-    for (const [name, server] of Object.entries(mcp.mcpServers)) {
+    for (const [, server] of Object.entries(mcp.mcpServers)) {
       for (const [key, value] of Object.entries(server.env ?? {})) {
         expect(typeof value).toBe('string');
         expect(hex.test(value)).toBe(false);
