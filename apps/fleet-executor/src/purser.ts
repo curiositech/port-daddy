@@ -6,8 +6,13 @@
  *
  *   a. STEEL-MAN — one AI call over the PR title/body/diff produces the
  *      best-interpretation contract: purpose + testable obligations[] +
- *      testTargets[]. Malformed output ⇒ transcript error, advisory PASS, stop
- *      (the purser never bluffs).
+ *      testTargets[]. The parsed contract is then UPSERTED INTO THE REVIEWED
+ *      PR'S BODY (operator mandate, 2026-08-19: the steel-man argument and its
+ *      obligations are the best chronology of what a PR should be, and the PR
+ *      summary is where that chronology lives — maintained by this agent,
+ *      edit-in-place between HTML markers). Malformed output ⇒ transcript
+ *      error and a BROKEN-SHIP result (`errored: true`, which fails the run —
+ *      see the doctrine note below); the purser never bluffs a contract.
  *   b. AUTHOR TESTS — a second AI call authors adversarial unit + integration
  *      test files that grill the contract's edge cases. Files are validated by
  *      the stacked-pr path whitelist + size caps (model output is untrusted),
@@ -17,9 +22,10 @@
  *      `testPaths` prefix), and every relative import must resolve to a real
  *      file. Unknown/unfetchable evidence is a REJECTION, not a pass. A
  *      rejection here preserves the steel-man contract + authored tests as
- *      advisory evidence in a comment (never fabricated as executed) and
- *      stops BEFORE touching the Git Data API — no branch, no test PR, no
- *      retarget. (Root-caused by #5860: five tests lived outside the repo's
+ *      evidence in a comment (never fabricated as executed), stops BEFORE
+ *      touching the Git Data API — no branch, no test PR, no retarget — and
+ *      returns a BROKEN-SHIP result so the run fails until the authoring or
+ *      config defect is fixed. (Root-caused by #5860: five tests lived outside the repo's
  *      configured jest discovery path and imported a nonexistent module; the
  *      purser retargeted the reviewed PR onto them anyway.)
  *   c. SANDBOX (feature-flagged) — when env.SANDBOX exists, the repo's test
@@ -35,9 +41,9 @@
  *      were not run"). Fork PRs, and same-repo PRs whose tests did not
  *      execute, get the test PR + a comment explaining why NOT retargeted,
  *      but the implementation PR's base is left untouched. A 403 (App lacks
- *      `contents: write`) degrades honestly: tests are posted inline in a
- *      comment, the missing permission is named, and the verdict stays
- *      advisory.
+ *      `contents: write`) degrades honestly — tests are posted inline in a
+ *      comment and the missing permission is named + escalated — but it is
+ *      still a BROKEN-SHIP result: the run fails until the permission lands.
  *   e. VERDICT — blocking iff pd-fleet.yml says `blocking: true`. BLOCK while
  *      sandbox-executed tests fail on the PR head. Sandbox unavailable ⇒ the
  *      `blockWithoutSandbox` flag decides (default false ⇒ advisory): the
@@ -47,12 +53,26 @@
  *
  * Comment tone: firm, adversarial, professional. Demands, with reasons.
  * Never abusive.
+ *
+ * THE BROKEN-SHIP DOCTRINE (operator ruling, 2026-08-19; see verdict.ts
+ * `aggregateConclusion`). The purser used to degrade every machinery failure —
+ * malformed steel-man, malformed plan, failed authoring, rejected or
+ * non-executable tests, a 403 on the stack, an outright crash — to an ADVISORY
+ * PASS "so it never blocks on work it could not do". The observable result:
+ * the purser authored tests into a directory the repo's own test runner would
+ * never discover, stacked nothing, and the run stayed green. That is a broken
+ * ship sailing past the gate it exists to keep. Machinery failures now return
+ * `errored: true` under the ship's REAL blocking flag, which fails the run —
+ * the breakage gets fixed in the diff that surfaced it. The ONE deliberate
+ * exception is sandbox ABSENCE on well-formed, executable, stacked tests:
+ * that is a configured deployment state (`blockWithoutSandbox` decides it),
+ * not a breakage.
  */
 
 import type { ExecutorEnv } from './env.js';
 import type { ShipConfig } from './fleet.js';
 import type { ShipResult, Verdict } from './verdict.js';
-import { postShipComment, type PRContext } from './github.js';
+import { postShipComment, upsertPrBodySection, type PRContext } from './github.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
 import { extractWorkersAiUsage } from './telemetry.js';
 import { stripThinkSpans } from './xo.js';
@@ -164,7 +184,8 @@ const JSON_FENCE_RE = /```[ \t]*[A-Za-z0-9]*[ \t]*\r?\n([\s\S]*?)\r?\n?```/;
  * {@link parseAuthoredFiles}) then applies the SAME strict shape validation as
  * before and returns null on any deviation, so widening extraction can only
  * ever recover a contract the model really did emit — it can never invent one.
- * When nothing parses, the purser still degrades honestly to an advisory PASS.
+ * When nothing parses, the purser reports itself broken (`errored: true`) and
+ * the run fails — never a quiet pass.
  *
  * The 2026-08-04 run recorded `steel-man output was not the required fenced
  * JSON contract` with `outputLength: 1416` — 1.4KB of model output discarded
@@ -222,8 +243,9 @@ function stringArray(value: unknown): string[] | null {
 /**
  * Parse the steel-man contract. Accepts `contract` as either an obligations
  * array directly or `{ obligations: [...] }`. Returns null on ANY deviation —
- * a malformed steel-man means the purser stops (advisory PASS), it never
- * improvises a contract the author will then be held to.
+ * a malformed steel-man means the purser stops as a BROKEN SHIP (errored ⇒
+ * the run fails); it never improvises a contract the author will then be
+ * held to.
  */
 export function parseSteelMan(output: string): SteelManContract | null {
   const parsed = parseFencedJson(output);
@@ -496,6 +518,39 @@ function renderObligations(steel: SteelManContract): string {
   return steel.obligations.map((o, i) => `${i + 1}. ${o}`).join('\n');
 }
 
+/**
+ * HTML markers bounding the purser's contract section in the reviewed PR's
+ * body. Exported so tests (and any future renderer) locate the section by the
+ * same strings the writer uses — the two can never drift apart.
+ */
+export const PURSER_CONTRACT_START = '<!-- pd-purser:contract:start -->';
+export const PURSER_CONTRACT_END = '<!-- pd-purser:contract:end -->';
+
+/**
+ * Render the steel-manned contract as the PR-summary section the purser
+ * maintains between {@link PURSER_CONTRACT_START} and
+ * {@link PURSER_CONTRACT_END}.
+ *
+ * WHY THE PR BODY AND NOT ONLY A COMMENT (operator mandate, 2026-08-19): the
+ * PR summary is the durable chronology of what a PR should be — it is what a
+ * future reader, a bisect, or a release note reads first. The steel-man
+ * argument and its obligations ARE that chronology, so an agent maintains
+ * them there, edit-in-place, on every fresh steel-man.
+ *
+ * @param steel The parsed steel-man contract (purpose + obligations).
+ * @returns Markdown for the section body (markers are added by the caller).
+ */
+export function buildContractBodySection(steel: SteelManContract): string {
+  return [
+    '---',
+    '## Contract (steel-manned by pd-purser)',
+    `**Purpose:** ${steel.purpose}`,
+    `**Obligations — the interpretation this PR is held to:**\n${renderObligations(steel)}`,
+    '_Maintained by pd-purser, edit-in-place on each fresh steel-man. Dispute an ' +
+      'obligation on the purser’s review thread, with reasons — do not delete this section._',
+  ].join('\n\n');
+}
+
 function renderSandboxSection(sandbox: SandboxRunOutcome): string {
   if (!sandbox.executed) {
     return (
@@ -731,11 +786,15 @@ export async function runPurser(
   /** Tenant `squidEvents: true` consent from pd-fleet.yml (default false). */
   squidConsent = false,
 ): Promise<ShipResult> {
-  const advisoryPass: ShipResult = {
+  // The BROKEN-SHIP result (see the module doc): the purser's machinery failed
+  // to do its job, so it says so under its REAL blocking flag. `errored: true`
+  // is the authoritative signal — aggregateConclusion fails the run on it
+  // whatever the flag, so the breakage gets fixed instead of tolerated.
+  const brokenShip: ShipResult = {
     ship: ship.name,
-    blocking: false,
-    verdict: 'PASS',
-    errored: false,
+    blocking: ship.blocking,
+    verdict: ship.blocking ? 'BLOCK' : 'PASS',
+    errored: true,
     findings: [],
   };
 
@@ -821,7 +880,7 @@ export async function runPurser(
         responseShape: steelCall.text ? undefined : describeResponseShape(steelCall.res),
         outputLength: steelCall.text.length,
       });
-      return advisoryPass;
+      return brokenShip;
     }
     await transcript.step(
       'purser-steelman',
@@ -832,6 +891,31 @@ export async function runPurser(
         obligationCount: steel.obligations.length,
         testTargets: steel.testTargets,
       },
+    );
+
+    // --- a.5 THE CONTRACT GOES INTO THE PR SUMMARY --------------------------
+    // Operator mandate (2026-08-19): the steel-man argument and its obligations
+    // are the best chronology of what a PR should be, and that chronology
+    // belongs in the PR's own body — the summary every reader and every gate
+    // reads first — not only in a comment that scrolls away. Edit-in-place
+    // between HTML markers; the author's own prose is never touched. The
+    // outcome is recorded either way so a missed write is loud, not silent.
+    const summaryPosted = await upsertPrBodySection(
+      prCtx.owner,
+      prCtx.repo,
+      prCtx.prNumber,
+      PURSER_CONTRACT_START,
+      PURSER_CONTRACT_END,
+      buildContractBodySection(steel),
+      token,
+    );
+    await transcript.step(
+      'purser-contract-posted',
+      ship.name,
+      summaryPosted
+        ? `pd-${ship.name}: steel-man contract (${steel.obligations.length} obligation(s)) written into the PR summary`
+        : `pd-${ship.name}: FAILED to write the steel-man contract into the PR summary`,
+      { posted: summaryPosted, obligationCount: steel.obligations.length },
     );
 
     // --- b. PLAN TESTS ------------------------------------------------------
@@ -873,7 +957,7 @@ export async function runPurser(
           rawHead: planCall.text.slice(0, RAW_DIAGNOSTIC_CHARS),
           responseShape: planCall.text ? undefined : describeResponseShape(planCall.res),
         });
-        return advisoryPass;
+        return brokenShip;
       }
       plan = parsedPlan;
       await transcript.step(
@@ -906,7 +990,7 @@ export async function runPurser(
         planned: plan.map(p => p.path),
         failures: authorFailures,
       });
-      return advisoryPass;
+      return brokenShip;
     }
     // PARTIAL SUCCESS is a real outcome now: the files that authored cleanly
     // still get stacked, and the ones that did not are named rather than
@@ -965,7 +1049,7 @@ export async function runPurser(
         fileCount: files.length,
         failures: authorFailures,
       });
-      return advisoryPass;
+      return brokenShip;
     }
     const fileSummaries = files.map(f => ({
       path: f.path,
@@ -1029,9 +1113,14 @@ export async function runPurser(
         }),
         token,
       );
-      // Never fabricate a BLOCK on tests that structurally could not run, and
-      // never retarget the implementation PR's base onto them.
-      return { ship: ship.name, blocking: false, verdict: 'PASS', errored: false, findings: [] };
+      // Never fabricate a sandbox result for tests that structurally could not
+      // run, and never retarget the implementation PR's base onto them — but a
+      // purser that authored undiscoverable tests IS a broken ship: `errored`
+      // fails the run so the authoring/config defect gets fixed, instead of
+      // the demand quietly evaporating (the 2026-08-19 tests/purser incident:
+      // testPaths pointed outside the repo's jest testMatch, every authored
+      // file was rejected here, nothing was stacked, and the run stayed green).
+      return brokenShip;
     }
 
     // --- c. SANDBOX (feature-flagged; honest when absent) -------------------
@@ -1181,11 +1270,16 @@ export async function runPurser(
     );
 
     // --- e. VERDICT ---------------------------------------------------------
-    // 403 degradation ⇒ verdict stays advisory regardless of flags.
+    // Stacking degraded (403 / Git Data failure) ⇒ the fleet's machinery could
+    // not do its job. The comment above still carries the contract + inline
+    // tests (honest degradation), and the interruption escalated the human
+    // ask — but the run must not stay green over it: `errored` fails the run
+    // until the permission/failure is fixed (broken-ship doctrine). A sandbox
+    // FAILURE observed before the degradation still reads as BLOCK.
     if (degradedReason && !stackedPr) {
       const verdict: Verdict =
-        sandbox.executed && sandbox.passed === false ? 'BLOCK' : 'PASS';
-      return { ship: ship.name, blocking: false, verdict, errored: false, findings: [] };
+        sandbox.executed && sandbox.passed === false ? 'BLOCK' : brokenShip.verdict;
+      return { ...brokenShip, verdict };
     }
 
     let verdict: Verdict;
@@ -1218,15 +1312,27 @@ export async function runPurser(
     }
     return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings: [] };
   } catch (err) {
-    // The purser's philosophy: it never blocks on work it could not do. An
-    // unexpected crash surfaces as an advisory errored result (⇒ neutral
-    // conclusion at worst), never a fabricated BLOCK.
+    // An unexpected crash is the definition of a broken ship: it surfaces as
+    // an errored result under the ship's real blocking flag, which fails the
+    // run (broken-ship doctrine, 2026-08-19). The verdict word is never a
+    // fabricated judgment — `errored` is the authoritative signal.
     console.error(`[fleet-executor] pd-${ship.name} crashed: ${String(err)}`);
-    await transcript.step('ship-verdict', ship.name, `pd-${ship.name}: PASS (errored)`, {
+    await transcript.step(
+      'ship-verdict',
+      ship.name,
+      `pd-${ship.name}: ${ship.blocking ? 'BLOCK' : 'PASS'} (errored — broken ship, fails the run)`,
+      {
+        errored: true,
+        error: String(err).slice(0, 300),
+      },
+    );
+    return {
+      ship: ship.name,
+      blocking: ship.blocking,
+      verdict: ship.blocking ? 'BLOCK' : 'PASS',
       errored: true,
-      error: String(err).slice(0, 300),
-    });
-    return { ship: ship.name, blocking: false, verdict: 'PASS', errored: true, findings: [] };
+      findings: [],
+    };
   }
 }
 

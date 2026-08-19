@@ -305,14 +305,19 @@ describe('fleet run page rendering', () => {
     expect(html).toContain('outcome tone-block');
   });
 
-  it('narrates an ideation ship whose proposal block was malformed', async () => {
+  it('narrates a malformed ideation proposal block as a broken ship that fails the check', async () => {
+    // Legacy row shape (`proposals: 'malformed'` on a ship-verdict step) — the
+    // executor now records these as ship-finding + errored, but old rows must
+    // still render, and they must render as breakage, never as an advisory
+    // shrug (broken-ship doctrine, 2026-08-19).
     const steps: FleetRunStepRow[] = [
       { run_id: RUN_ID, seq: 1, kind: 'ship-verdict', ship: 'spark', title: 'pd-spark: PASS (ideation)',
         detail: JSON.stringify({ proposals: 'malformed', posted: false }), created_at: 1_700_000_005 },
     ];
     const html = await openPage(makeRun(), steps);
-    expect(html).toContain('proposal block was malformed');
-    expect(html).toContain('advisory · ideation');
+    expect(html).toContain('malformed proposal block');
+    expect(html).toContain('broken ship');
+    expect(html).toContain('fails until it is fixed');
   });
 
   it('derives the ship outcome from the verdict step even when it is not the last step', async () => {
@@ -422,12 +427,29 @@ describe('fleet run page rendering', () => {
     expect(html).not.toContain('<b>always</b>');
   });
 
-  it('narrates a malformed purser-steelman as an honest advisory stop', async () => {
+  it('narrates a malformed purser-steelman as a broken ship — honest, and failing the check', async () => {
     const html = await openPage(makeRun(), [
       step('purser-steelman', 'purser', 'pd-purser: steel-man MALFORMED', { error: 'not fenced JSON' }),
     ]);
     expect(html).toContain('could not steel-man this PR');
-    expect(html).toContain('stopped honestly');
+    expect(html).toContain('No contract was bluffed');
+    expect(html).toContain('fails the fleet check until fixed');
+  });
+
+  it('narrates purser-contract-posted: contract into the PR summary, and the failure to do so', async () => {
+    const posted = await openPage(makeRun(), [
+      step('purser-contract-posted', 'purser',
+        'pd-purser: steel-man contract (3 obligation(s)) written into the PR summary',
+        { posted: true, obligationCount: 3 }),
+    ]);
+    expect(posted).toContain('written into the PR summary');
+
+    const failed = await openPage(makeRun(), [
+      step('purser-contract-posted', 'purser',
+        'pd-purser: FAILED to write the steel-man contract into the PR summary',
+        { posted: false, obligationCount: 3 }),
+    ]);
+    expect(failed).toContain('FAILED to write the steel-man contract');
   });
 
   it('narrates purser-tests: file count + size in KB + escaped file list', async () => {
@@ -561,7 +583,7 @@ describe('fleet run page rendering', () => {
     expect(html).toContain('outcome tone-block');
   });
 
-  it('explains fail-closed for a blocking ship and fail-open for an advisory one', async () => {
+  it('explains fail-closed for a blocking ship and the broken-ship failure for an advisory one', async () => {
     const blocking = await openPage(makeRun(), [
       step('ship-no-output', 'code-reviewer', 'pd-code-reviewer returned no usable output — nothing was reviewed.', {
         noUsableOutput: true, reason: 'empty', blocking: true,
@@ -570,13 +592,17 @@ describe('fleet run page rendering', () => {
     expect(blocking).toContain('failed closed');
     expect(blocking).toContain('an absent review is not an approval');
 
+    // Broken-ship doctrine (2026-08-19): an advisory ship that returned
+    // nothing is broken, and the fleet check fails until it is fixed. The old
+    // copy — "did not fail the merge gate" — must never render again.
     const advisory = await openPage(makeRun(), [
       step('ship-no-output', 'snipe', 'pd-snipe returned no usable output — nothing was reviewed.', {
         noUsableOutput: true, reason: 'empty', blocking: false,
       }),
     ]);
-    expect(advisory).toContain('did not fail the merge gate');
-    expect(advisory).toContain('rather than counted as a pass');
+    expect(advisory).not.toContain('did not fail the merge gate');
+    expect(advisory).toContain('a ship that returned nothing is broken');
+    expect(advisory).toContain('fails until it is fixed');
   });
 
   // ── Token metering (the same run showed "Input tokens 0 / Output tokens 0")
