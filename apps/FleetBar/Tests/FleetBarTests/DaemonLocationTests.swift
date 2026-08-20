@@ -184,6 +184,7 @@ final class DaemonLocationTests: XCTestCase {
         XCTAssertNil(DaemonLocation.validatedPort("0"))
         XCTAssertNil(DaemonLocation.validatedPort("65536"))
         XCTAssertEqual(DaemonLocation.validatedPort("1"), 1)
+        XCTAssertEqual(DaemonLocation.validatedPort("0080"), 80)
         XCTAssertEqual(DaemonLocation.validatedPort("65535"), 65535)
     }
 
