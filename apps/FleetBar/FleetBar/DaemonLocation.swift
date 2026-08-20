@@ -106,40 +106,9 @@ enum DaemonEndpoint: Equatable {
 }
 
 enum DaemonLocation {
-    // Compatibility surface for the stacked migration. These retain the
-    // current FleetBar behavior until every store has moved to DaemonEndpoint;
-    // the final slice removes them together so no intermediate PR stops the app
-    // from compiling or silently changes an unmigrated caller.
-    static let canonicalPreferredPort = 9876
-    static let devLatestPort = 9886
-
     /// Legal TCP port range for a listener. Port 0 is excluded on purpose — it
     /// is the "let the kernel pick" sentinel, never a real published endpoint.
     static let validPortRange = 1...65535
-
-    static let loopbackHost = resolveLoopbackHost(environment: ProcessInfo.processInfo.environment)
-
-    static func resolveBaseURL(channel: AppChannel = .current) -> String {
-        if let explicitURL = ProcessInfo.processInfo.environment["PORT_DADDY_URL"]?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-           !explicitURL.isEmpty {
-            return explicitURL
-        }
-
-        if channel.isDevLatest {
-            return "http://\(loopbackHost):\(devLatestPort)"
-        }
-
-        let portFile = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".port-daddy/daemon.port")
-        if let portString = try? String(contentsOf: portFile, encoding: .utf8)
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-           let port = Int(portString) {
-            return "http://\(loopbackHost):\(port)"
-        }
-
-        return "http://\(loopbackHost):\(canonicalPreferredPort)"
-    }
 
     /// Pure host resolution — injectable so tests don't depend on the real
     /// process environment.
