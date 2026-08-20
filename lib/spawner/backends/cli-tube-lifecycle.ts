@@ -156,14 +156,14 @@ export function waitForCliChildProcess(
       forceKillTimer = setTimeout(() => {
         activeTerminationSignal = 'SIGKILL';
         signalCliProcessTree(child, 'SIGKILL', knownTreePids);
+        killCloseDeadlineTimer = setTimeout(() => {
+          const warningSuffix = processTreeWarning ? ` (${processTreeWarning})` : '';
+          settle(-1, `process tree did not close after SIGKILL; transcript may be incomplete${warningSuffix}`);
+        }, opts.killCloseDeadlineMs);
+        killCloseDeadlineTimer.unref?.();
         void rememberProcessTreeAsync(true).then(() => {
           if (settled) return;
           signalRememberedTree();
-          killCloseDeadlineTimer = setTimeout(() => {
-            const warningSuffix = processTreeWarning ? ` (${processTreeWarning})` : '';
-            settle(-1, `process tree did not close after SIGKILL; transcript may be incomplete${warningSuffix}`);
-          }, opts.killCloseDeadlineMs);
-          killCloseDeadlineTimer.unref?.();
         });
       }, opts.killGraceMs);
       forceKillTimer.unref?.();
