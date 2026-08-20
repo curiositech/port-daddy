@@ -178,6 +178,15 @@ describe('reasoning-model envelopes (DeepSeek V4, qwq, r1-distill)', () => {
     expect(extractAiText(res)).toEqual({ text: 'part one. part two.', shape: 'chat-completions' });
   });
 
+  it('ignores typed parts whose text is not a string', () => {
+    const res = { choices: [{ message: { content: [
+      { type: 'text', text: 42 },
+      { type: 'text', text: 'the answer' },
+      { type: 'text', text: false },
+    ] } }] };
+    expect(extractAiText(res)).toEqual({ text: 'the answer', shape: 'chat-completions' });
+  });
+
   it('reasoning that strips to NOTHING stays empty with a shape that names it', () => {
     // max_tokens hit mid-think: the reasoning is one unclosed <think> block —
     // deliberation that never finished. There is no answer to fall back to,
@@ -199,9 +208,25 @@ describe('reasoning-model envelopes (DeepSeek V4, qwq, r1-distill)', () => {
     expect(out.text).not.toContain('BLOCK');
   });
 
+  it('removes nested think blocks through the reasoning_content fallback', () => {
+    const res = { choices: [{ message: {
+      reasoning_content: '<think>outer<think>inner BLOCK</think>tail</think>FLEET-VERDICT: PASS',
+      content: '',
+    } }] };
+    expect(extractAiText(res)).toEqual({
+      text: 'FLEET-VERDICT: PASS',
+      shape: 'chat-completions-reasoning',
+    });
+  });
+
   it('surfaces reasoning length in the diagnostic shape description', () => {
     const res = { choices: [{ message: { reasoning_content: 'x'.repeat(42), content: '' } }] };
     expect(describeResponseShape(res)).toContain('reasoning.len=42');
+  });
+
+  it('omits the reasoning length hint when reasoning_content is empty', () => {
+    const res = { choices: [{ message: { reasoning_content: '', content: '' } }] };
+    expect(describeResponseShape(res)).not.toContain('reasoning.len');
   });
 
   it('stripThinkTags handles nested-free multiple blocks', () => {
