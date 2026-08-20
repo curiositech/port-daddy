@@ -85,7 +85,13 @@ describe('hook-shape (single source of truth) matches the squid adapter exactly'
     for (const v of ['claude', 'agy'] as const) {
       const map = buildJsonHookMap(v, (n) => `/x/${n}`);
       expect(Object.keys(map)).toEqual(['UserPromptSubmit', 'PreToolUse', 'PostToolUse']);
+      expect(JSON.stringify(map)).not.toContain('statusMessage');
     }
+  });
+
+  test('gemini JSON hooks are also silent unless a tentacle emits actionable output', () => {
+    const map = buildJsonHookMap('gemini', (n) => `/x/${n}`);
+    expect(JSON.stringify(map)).not.toContain('statusMessage');
   });
 
   test('codex TOML block keeps every command hook synchronous', () => {
@@ -306,7 +312,13 @@ describe('configureTarget — per-project scope, gate-pointed commands', () => {
 
     const json = readFileSync(legacyJson, 'utf-8');
     expect(json).not.toContain('pd-hook-');
-    expect(json).toContain('/usr/local/bin/user-prompt-audit');
+    const parsedJson = JSON.parse(json) as {
+      hooks: { UserPromptSubmit: Array<{ hooks: Array<{ command: string }> }>; PreToolUse?: unknown };
+    };
+    expect(parsedJson.hooks.UserPromptSubmit).toEqual([
+      { hooks: [{ type: 'command', command: '/usr/local/bin/user-prompt-audit' }] },
+    ]);
+    expect(parsedJson.hooks.PreToolUse).toBeUndefined();
     expect(existsSync(`${codex.userConfigPath}.tmp`)).toBe(false);
   });
 

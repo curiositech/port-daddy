@@ -6,6 +6,7 @@
  */
 
 import { createTestDb } from '../setup-unit.js';
+import { jest } from '@jest/globals';
 import { createAgentInbox } from '../../lib/agent-inbox.js';
 import { createMessaging } from '../../lib/messaging.js';
 import { createAttention } from '../../lib/attention.js';
@@ -14,6 +15,7 @@ import { createParley } from '../../lib/parley.js';
 import {
   rankAttentionSuggestions,
   renderAttentionLinework,
+  handleAttention,
   unboundAttentionSummary,
 } from '../../cli/commands/attention.js';
 
@@ -37,6 +39,37 @@ describe('attention.compose', () => {
       peek: true,
       generatedAt: 1234,
     });
+  });
+
+  test('pre-session subscription mutation fails clearly before any daemon request', async () => {
+    const priorAgentId = process.env.PD_AGENT_ID;
+    const priorSessionId = process.env.PD_SESSION_ID;
+    const priorContextDir = process.env.PORT_DADDY_CONTEXT_DIR;
+    delete process.env.PD_AGENT_ID;
+    delete process.env.PD_SESSION_ID;
+    process.env.PORT_DADDY_CONTEXT_DIR = `${process.cwd()}/.portdaddy-test-unbound-${process.pid}-${Date.now()}`;
+
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((code) => {
+      throw new Error(`EXIT:${code}`);
+    });
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      await expect(handleAttention({ subscribe: 'coordination:inconsistency' }))
+        .rejects.toThrow('EXIT:2');
+      expect(errorSpy).toHaveBeenCalledWith(
+        'ERROR: This attention operation needs an agent identity. Start a session or pass --agent <id>.',
+      );
+    } finally {
+      exitSpy.mockRestore();
+      errorSpy.mockRestore();
+      if (priorAgentId === undefined) delete process.env.PD_AGENT_ID;
+      else process.env.PD_AGENT_ID = priorAgentId;
+      if (priorSessionId === undefined) delete process.env.PD_SESSION_ID;
+      else process.env.PD_SESSION_ID = priorSessionId;
+      if (priorContextDir === undefined) delete process.env.PORT_DADDY_CONTEXT_DIR;
+      else process.env.PORT_DADDY_CONTEXT_DIR = priorContextDir;
+    }
   });
 
   test('empty attention recommends concrete, ranked watches instead of a channel placeholder', () => {
