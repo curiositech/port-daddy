@@ -1,31 +1,8 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-/**
- * Stage the ONNX Runtime shared library required by Bun-compiled semantic code.
- *
- * Bun embeds and extracts `onnxruntime_binding.node`, but the binding's sibling
- * shared library is not embedded with it. Port Daddy therefore ships that
- * library as an ordinary release resource and points the platform loader at it
- * immediately before importing the local embedding pipeline.
- *
- * @param {{
- *   repoRoot: string;
- *   outputRoot: string;
- *   platform: string | null;
- *   arch: string | null;
- *   required?: boolean;
- * }} options Source checkout, release resource root, and target platform.
- * @returns {{
- *   status: 'packaged' | 'not-applicable' | 'skipped';
- *   reason: string | null;
- *   platform: string | null;
- *   arch: string | null;
- *   dir?: string;
- *   files: string[];
- * }} A manifest-ready record of the exact packaged runtime files.
- * @throws {Error} When a supported required target lacks its runtime library.
- */
+// Bun embeds the N-API binding but not its sibling ONNX shared library. Stage
+// that library as a release resource and return its manifest-ready receipt.
 export function packageOnnxRuntimeNative(options) {
   const {
     repoRoot,
@@ -99,14 +76,26 @@ export function packageOnnxRuntimeNative(options) {
 }
 
 /**
- * Compose the launch-time dynamic-loader path for packaged ONNX Runtime cargo.
- * The packaged directory wins while any operator-supplied entries remain
- * available for unrelated native dependencies.
+ * Parse and validate the compiled daemon's semantic-runtime smoke receipt.
+ * Malformed JSON and hollow success claims both fail the release build closed.
  *
- * @param {{status: string, platform: string | null, dir?: string}} nativeRuntime Packaging receipt.
- * @param {NodeJS.ProcessEnv} env Parent process environment.
- * @returns {Record<string, string>} Loader variable to merge into the child environment.
+ * @param {string} output Raw stdout from `__semantic-runtime-check`.
+ * @returns {{success: true, backends: unknown[]}}
  */
+export function parseSemanticRuntimeProof(output) {
+  let proof;
+  try {
+    proof = JSON.parse(output.trim());
+  } catch {
+    throw new Error(`compiled semantic runtime smoke returned malformed JSON: ${output.trim()}`);
+  }
+  if (proof?.success !== true || !Array.isArray(proof.backends)) {
+    throw new Error(`compiled semantic runtime smoke returned an invalid proof: ${output.trim()}`);
+  }
+  return proof;
+}
+
+// Put packaged cargo first without discarding operator loader paths.
 export function nativeLoaderEnvironment(nativeRuntime, env = process.env) {
   if (nativeRuntime.status !== 'packaged' || !nativeRuntime.dir) return {};
   const variable = nativeRuntime.platform === 'darwin'
