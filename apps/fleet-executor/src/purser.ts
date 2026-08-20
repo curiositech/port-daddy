@@ -94,6 +94,7 @@ import {
   extractJestTestMatch,
   extractPackageJsonTestMatch,
   JEST_CONFIG_CANDIDATES,
+  matchesAnyTestMatch,
   type ExecutabilityEvidence,
 } from './purser-executability.js';
 import {
@@ -331,7 +332,18 @@ const STEELMAN_CONTRACT =
  * @param ship The purser ship (supplies testPaths).
  * @returns The contract text handed to {@link repairContractOutput}.
  */
-function planContractBlock(ship: ShipConfig): string {
+function discoveryPathNote(testMatchPatterns: string[] | null): string {
+  if (!testMatchPatterns?.length) return '';
+  return (
+    'Every path MUST ALSO match at least one test-discovery pattern read from the ' +
+    'repository\'s trusted base ref:\n' +
+    `${testMatchPatterns.map(pattern => `- ${pattern}`).join('\n')}\n` +
+    'A file can be inside an allowed directory and still be invisible to the test runner; ' +
+    'an invisible path will be rejected.\n'
+  );
+}
+
+function planContractBlock(ship: ShipConfig, testMatchPatterns: string[] | null = null): string {
   const pathNote =
     ship.testPaths.length > 0
       ? `Every path MUST be INSIDE one of these directories: ` +
@@ -339,6 +351,7 @@ function planContractBlock(ship: ShipConfig): string {
       : '';
   return (
     pathNote +
+    discoveryPathNote(testMatchPatterns) +
     'Output EXACTLY one fenced JSON object and nothing else:\n\n' +
     '```json\n' +
     '{ "files": [ { "path": "<repo-relative test file path>", "intent": "<what this file grills>" } ] }\n' +
@@ -418,6 +431,40 @@ export function testPlanSystemPrompt(ship: ShipConfig, steel: SteelManContract, 
     '{ "files": [ { "path": "<repo-relative test file path>", "intent": "<what this file grills>" } ] }\n' +
     '```'
   );
+}
+
+/** Parse either accepted PLAN response shape into the paths it proposes. */
+function plannedResponsePaths(text: string): string[] | null {
+  const authored = parseAuthoredFiles(text);
+  if (authored) return authored.map(file => file.path);
+  const plan = parseTestPlan(text);
+  return plan ? plan.map(file => file.path) : null;
+}
+
+/**
+ * Is a planned path structurally eligible for a discovery repair?
+ *
+ * Traversal and paths outside the ship's configured directory
+ * belong to the existing per-file validator. Treating those as a testMatch
+ * miss would replan an entire batch and undo partial success for a bad sibling.
+ */
+function discoveryRepairEligible(path: string, ship: ShipConfig): boolean {
+  if (!validateStackedFiles([{ path, contents: '' }]).ok) return false;
+  return ship.testPaths.length === 0 ||
+    ship.testPaths.some(prefix => path === prefix || path.startsWith(`${prefix}/`));
+}
+
+/** Safe, in-scope paths the trusted runner configuration would never discover. */
+function undiscoverablePlannedPaths(
+  text: string,
+  testMatchPatterns: string[] | null,
+  ship: ShipConfig,
+): string[] {
+  if (!testMatchPatterns?.length) return [];
+  const paths = plannedResponsePaths(text);
+  if (!paths) return [];
+  return paths.filter(path =>
+    discoveryRepairEligible(path, ship) && !matchesAnyTestMatch(path, testMatchPatterns));
 }
 
 /**
@@ -1014,22 +1061,63 @@ export async function runPurser(
     let files: StackedFile[] = parseAuthoredFiles(planText) ?? [];
     let authorFailures: AuthorFailure[] = [];
     let plan: PlannedFile[] = [];
+    let evidence: ExecutabilityEvidence | null = null;
 
-    // A malformed plan gets one repair pass before it counts as breakage —
-    // a repaired response may come back as either a plan OR complete files,
-    // so both parsers are accepted as proof of healing.
-    if (files.length === 0 && parseTestPlan(planText) === null) {
+    // A malformed OR provably undiscoverable plan gets one bounded repair pass
+    // before it counts as breakage. A repaired response may come back as either
+    // a plan OR complete files, so both parsers are accepted as proof of
+    // healing. This is semantic repair, not path guessing: the model receives
+    // the exact trusted globs and our existing matcher remains the judge.
+    // Complete files are the deliberate fast path: they have already spent the
+    // authoring tokens, so they keep flowing to the existing per-file and final
+    // executability gates below. A true plan has not authored anything yet;
+    // gather evidence here, then repair bad paths before the per-file calls.
+    const plannedPaths = files.length === 0 ? plannedResponsePaths(planText) : null;
+    const hasRepairEligiblePath =
+      plannedPaths?.some(path => discoveryRepairEligible(path, ship)) ?? false;
+    if (files.length === 0 && hasRepairEligiblePath) {
+      evidence = await gatherExecutabilityEvidence(prCtx, token);
+    }
+    const undiscoverable =
+      files.length === 0
+        ? undiscoverablePlannedPaths(planText, evidence?.testMatchPatterns ?? null, ship)
+        : [];
+    if (files.length === 0 && (plannedPaths === null || undiscoverable.length > 0)) {
+      const reason =
+        plannedPaths === null
+          ? 'plan output was neither a file plan nor a complete files block'
+          : `planned path(s) miss the repository test-discovery patterns: ${undiscoverable.join(', ')}`;
       const repair = await purserRepair(
-        'plan output was neither a file plan nor a complete files block',
+        reason,
         planText,
-        planContractBlock(ship),
+        planContractBlock(ship, evidence?.testMatchPatterns ?? null),
         PLAN_MAX_TOKENS,
-        text => parseTestPlan(text) !== null || (parseAuthoredFiles(text)?.length ?? 0) > 0,
+        text => {
+          const paths = plannedResponsePaths(text);
+          return paths !== null &&
+            undiscoverablePlannedPaths(text, evidence?.testMatchPatterns ?? null, ship).length === 0;
+        },
       );
       if (repair.healed) {
         planText = repair.text;
         files = parseAuthoredFiles(planText) ?? [];
       }
+    }
+
+    // A valid-shaped plan that stayed undiscoverable after both bounded repair
+    // attempts must stop BEFORE per-file authoring. Spending more tokens on
+    // files the trusted runner cannot see would recreate #8298 with a clearer
+    // transcript but the same fleet-wide outage.
+    const remainingUndiscoverable =
+      files.length === 0
+        ? undiscoverablePlannedPaths(planText, evidence?.testMatchPatterns ?? null, ship)
+        : [];
+    if (remainingUndiscoverable.length > 0) {
+      await transcript.step('purser-plan', ship.name, `pd-${ship.name}: test plan NON-DISCOVERABLE`, {
+        files: remainingUndiscoverable,
+        testMatchPatterns: evidence?.testMatchPatterns,
+      });
+      return brokenShip;
     }
 
     if (files.length > 0) {
@@ -1170,7 +1258,7 @@ export async function runPurser(
     // reviewed PR onto them anyway. This checks against the repo's ACTUAL
     // evidence (its own jest config + file tree at the PR's base sha), never
     // against configuration the purser only trusts because it wrote it.
-    const evidence = await gatherExecutabilityEvidence(prCtx, token);
+    evidence ??= await gatherExecutabilityEvidence(prCtx, token);
     const executability = checkGeneratedTestsExecutable(files, evidence);
     if (!executability.ok) {
       await transcript.step('purser-tests', ship.name, `pd-${ship.name}: authored tests NON-EXECUTABLE`, {
