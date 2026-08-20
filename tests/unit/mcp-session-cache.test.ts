@@ -32,6 +32,8 @@ describe('mcp session cache', () => {
     expect(resolveAgentId({ agent_id: '   ' })).toBeUndefined();
     expect(resolveAgentId({ agent_id: 42 as unknown as string })).toBeUndefined();
     expect(resolveAgentId({ agent_id: null as unknown as string })).toBeUndefined();
+    expect(resolveAgentId({ agent_id: true as unknown as string })).toBeUndefined();
+    expect(resolveAgentId({ agent_id: { id: 'agent-1' } as unknown as string })).toBeUndefined();
   });
 
   test('setActiveSession makes it the resolution default', () => {
@@ -75,5 +77,7 @@ describe('mcp session cache', () => {
     expect(resolveSessionId({ session_id: null as unknown as string })).toBe('session-1');
     expect(resolveAgentId({ agent_id: 42 as unknown as string })).toBe('agent-1');
     expect(resolveAgentId({ agent_id: null as unknown as string })).toBe('agent-1');
+    expect(resolveAgentId({ agent_id: true as unknown as string })).toBe('agent-1');
+    expect(resolveAgentId({ agent_id: { id: 'agent-2' } as unknown as string })).toBe('agent-1');
   });
 });
