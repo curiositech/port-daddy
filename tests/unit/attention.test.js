@@ -66,7 +66,10 @@ describe('attention.compose', () => {
     }
   });
 
-  test('pre-session subscription mutation fails clearly before any daemon request', async () => {
+  test.each([
+    ['subscribe', { subscribe: 'coordination:inconsistency' }],
+    ['unsubscribe', { unsubscribe: 'coordination:inconsistency' }],
+  ])('pre-session %s mutation fails clearly before any daemon request', async (_operation, options) => {
     const priorAgentId = process.env.PD_AGENT_ID;
     const priorSessionId = process.env.PD_SESSION_ID;
     const priorContextDir = process.env.PORT_DADDY_CONTEXT_DIR;
@@ -80,7 +83,7 @@ describe('attention.compose', () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
 
     try {
-      await expect(handleAttention({ subscribe: 'coordination:inconsistency' }))
+      await expect(handleAttention(options))
         .rejects.toThrow('EXIT:2');
       expect(errorSpy).toHaveBeenCalledWith(
         'ERROR: This attention operation needs an agent identity. Start a session or pass --agent <id>.',
