@@ -1121,6 +1121,7 @@ describe('executeFleet — merge_group (merge-queue gate)', () => {
 // attempt N finished. These tests drive resume through the REAL read/write
 // code against the memoryD1 stub.
 import {
+  loadShipCheckpoints,
   saveShipCheckpoint,
   parseShipCheckpoint,
   SHIP_CHECKPOINT_KIND,
@@ -1243,6 +1244,43 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
 
     expect(ai.calls.filter(c => c.ship === 'code-reviewer').length).toBeGreaterThan(0);
+  });
+
+  it('a checkpoint for a ship removed from the current roster is unreachable', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      { ship: 'removed-ship', blocking: true, verdict: 'BLOCK', errored: false, findings: [] },
+    );
+
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    // Resume lookup is driven by the CURRENT ordered roster. Extra map keys
+    // are never aggregated, so parser-level roster knowledge is unnecessary.
+    expect(ai.calls.filter(c => c.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(state.completed[0].conclusion).toBe('success');
+    expect(String(state.completed[0].summary)).not.toContain('removed-ship');
+  });
+
+  it('a swallowed checkpoint write leaves no state for a later attempt to trust', async () => {
+    const d1 = memoryD1();
+    const env = makeEnv({ DB: d1.db });
+    d1.failAll = true;
+    await saveShipCheckpoint(
+      env,
+      'run:delivery-abc',
+      0,
+      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+    );
+    d1.failAll = false;
+
+    expect((await loadShipCheckpoints(env, 'run:delivery-abc')).size).toBe(0);
   });
 
   it('D1 down: checkpoint load/save swallow and the run behaves exactly as before checkpoints', async () => {
