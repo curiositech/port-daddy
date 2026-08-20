@@ -323,7 +323,7 @@ export function repairMisrootedRelativeImport(
     failure.kind !== 'unresolved-import' ||
     !failure.path ||
     !failure.specifier ||
-    !repoTreePaths
+    !(repoTreePaths instanceof Set)
   ) {
     return null;
   }
