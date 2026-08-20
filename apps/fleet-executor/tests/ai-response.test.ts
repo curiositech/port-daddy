@@ -178,12 +178,25 @@ describe('reasoning-model envelopes (DeepSeek V4, qwq, r1-distill)', () => {
     expect(extractAiText(res)).toEqual({ text: 'part one. part two.', shape: 'chat-completions' });
   });
 
-  it('routes reasoning-only responses to empty with a shape that names it', () => {
-    // The whole budget went to chain-of-thought; content is empty. The
-    // reasoning is NOT the answer and must not reach the findings parser.
-    const res = { choices: [{ message: { reasoning_content: 'thinking... FLEET-VERDICT: BLOCK maybe?', content: '' } }] };
+  it('reasoning that strips to NOTHING stays empty with a shape that names it', () => {
+    // max_tokens hit mid-think: the reasoning is one unclosed <think> block —
+    // deliberation that never finished. There is no answer to fall back to,
+    // and half a chain-of-thought must not reach the findings parser.
+    const res = { choices: [{ message: { reasoning_content: '<think>weighing whether FLEET-VERDICT: BLOCK applies', content: '' } }] };
     const out = extractAiText(res);
     expect(out).toEqual({ text: '', shape: 'reasoning-only' });
+  });
+
+  it('the reasoning fallback is think-stripped before it reaches the parser', () => {
+    // qwen3 thinking mode (#7743): content empty, whole generation in
+    // reasoning_content. The fallback hands over the answer portion only.
+    const res = { choices: [{ message: {
+      reasoning_content: '<think>maybe BLOCK? no.</think>ok\n\nFLEET-VERDICT: PASS',
+      content: '',
+    } }] };
+    const out = extractAiText(res);
+    expect(out).toEqual({ text: 'ok\n\nFLEET-VERDICT: PASS', shape: 'chat-completions-reasoning' });
+    expect(out.text).not.toContain('BLOCK');
   });
 
   it('surfaces reasoning length in the diagnostic shape description', () => {
