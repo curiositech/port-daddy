@@ -120,17 +120,22 @@ describe('current-context helper', () => {
     expect(readCurrentContext(projectDir)?.sessionId).toBe('session-a');
   });
 
-  it('recognizes other coding-agent harness session ids beyond Codex', () => {
-    const originalClaudeSessionId = process.env.CLAUDE_SESSION_ID;
-    delete process.env.PORT_DADDY_CONTEXT_SLOT;
-    process.env.CLAUDE_SESSION_ID = 'abc-123';
+  it.each([
+    ['CLAUDE_SESSION_ID', 'claude'],
+    ['CLAUDE_CODE_SESSION_ID', 'claude-code'],
+    ['CURSOR_SESSION_ID', 'cursor'],
+    ['AIDER_SESSION_ID', 'aider'],
+    ['COPILOT_SESSION_ID', 'copilot'],
+  ])('recognizes the %s coding-agent harness session id', (envName, prefix) => {
+    process.env[envName] = 'abc-123';
+    expect(resolveContextSlot()).toBe(`${prefix}-abc-123`);
+  });
 
-    try {
-      expect(resolveContextSlot()).toBe('claude-abc-123');
-    } finally {
-      if (originalClaudeSessionId === undefined) delete process.env.CLAUDE_SESSION_ID;
-      else process.env.CLAUDE_SESSION_ID = originalClaudeSessionId;
-    }
+  it('uses the declared harness precedence when multiple session ids are present', () => {
+    process.env.CURSOR_SESSION_ID = 'cursor-session';
+    process.env.COPILOT_SESSION_ID = 'copilot-session';
+
+    expect(resolveContextSlot()).toBe('cursor-cursor-session');
   });
 
   it('falls back to a stable headless slot — not a per-process ppid — with no TTY or known agent env var', () => {
