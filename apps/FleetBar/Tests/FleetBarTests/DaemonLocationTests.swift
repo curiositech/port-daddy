@@ -76,6 +76,16 @@ final class DaemonLocationTests: XCTestCase {
         XCTAssertEqual(endpoint, .available(url: "http://127.0.0.1:54321", source: .publishedPortFile))
     }
 
+    func testPublishedStablePortValidatesThePublishedFileDirectly() {
+        XCTAssertNil(DaemonLocation.publishedStablePort(portFileContents: { nil }))
+        for malformed in ["", "not-a-port", "0", "65536"] {
+            XCTAssertNil(DaemonLocation.publishedStablePort(portFileContents: { malformed }))
+        }
+        XCTAssertEqual(
+            DaemonLocation.publishedStablePort(portFileContents: { " 54321\n" }),
+            54321)
+    }
+
     // MARK: - Named profile edge cases
 
     func testProfileSelectedButNotPublishedFailsClosed() {
