@@ -1,42 +1,61 @@
-real answer')).toBe(
-      'real answer',
-    );
-    expect(
-      stripThinkTags('half a thought</think>the actual answer'),
-    ).toBe('half a thoughtthe actual answer');
-  });
+import { describe, expect, it } from '@jest/globals';
+import { extractAiText } from '../../../apps/fleet-executor/src/ai-response.js';
 
-  it('extractAiText reads typed-part array content, ignoring non‑string parts', () => {
-    const res = {
-      choices: [
-        {
-          message: {
-            content: [
-              { type: 'text', text: 42 },
-              { type: 'text', text: 'hello' },
-              { type: 'text', text: false },
-            ],
-          },
+describe('reasoning-only response classification', () => {
+  it('labels a truncated think block as reasoning-only, never as review text', () => {
+    expect(extractAiText({
+      choices: [{
+        message: {
+          content: '',
+          reasoning_content: '<think>maybe FLEET-VERDICT: BLOCK applies',
         },
+      }],
+    })).toEqual({ text: '', shape: 'reasoning-only' });
+  });
+
+  it('labels a completed think block with no answer as reasoning-only', () => {
+    expect(extractAiText({
+      choices: [{
+        message: {
+          content: '',
+          reasoning_content: '<think>internal deliberation only</think>',
+        },
+      }],
+    })).toEqual({ text: '', shape: 'reasoning-only' });
+  });
+
+  it('returns the answer after reasoning and removes verdict-like deliberation', () => {
+    const result = extractAiText({
+      choices: [{
+        message: {
+          content: '',
+          reasoning_content:
+            '<think>should this be FLEET-VERDICT: BLOCK? no</think>FLEET-VERDICT: PASS',
+        },
+      }],
+    });
+    expect(result).toEqual({
+      text: 'FLEET-VERDICT: PASS',
+      shape: 'chat-completions-reasoning',
+    });
+    expect(result.text).not.toContain('BLOCK');
+  });
+
+  it('keeps empty reasoning distinct from reasoning that stripped to empty', () => {
+    expect(extractAiText({
+      choices: [{ message: { content: '', reasoning_content: '' } }],
+    })).toEqual({ text: '', shape: 'unknown' });
+  });
+
+  it('joins reasoning across choices before stripping nested blocks', () => {
+    expect(extractAiText({
+      choices: [
+        { message: { content: '', reasoning_content: '<think>outer' } },
+        { message: { content: '', reasoning_content: '<think>inner</think>tail</think>answer' } },
       ],
-    };
-    const out = extractAiText(res);
-    expect(out.shape).toBe('chat-completions');
-    expect(out.text).toBe('hello');
+    })).toEqual({
+      text: 'answer',
+      shape: 'chat-completions-reasoning',
+    });
   });
-
-  it('unknown shape when content is a non‑string/non‑array value', () => {
-    const res = { choices: [{ message: { content: 123 } }] };
-    const out = extractAiText(res);
-    expect(out.shape).toBe('unknown');
-    expect(out.text).toBe('');
-  });
-
-  it('unknown shape when both content and reasoning are empty strings', () => {
-    const res = { choices: [{ message: { content: '', reasoning_content: '' } }] };
-    const out = extractAiText(res);
-    expect(out.shape).toBe('unknown');
-    expect(out.text).toBe('');
-  });
-
-  it('recognizes reasoning-only when reasoning contains only
+});

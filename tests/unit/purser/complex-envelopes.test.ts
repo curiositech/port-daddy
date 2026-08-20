@@ -1,100 +1,74 @@
-Final answer',
-    };
-    const out = extractAiText(res);
-    expect(out.text).toBe('Final answer');
+import { describe, expect, it } from '@jest/globals';
+import {
+  describeResponseShape,
+  extractAiText,
+} from '../../../apps/fleet-executor/src/ai-response.js';
+
+describe('AI response envelope precedence', () => {
+  it('uses the first non-empty supported envelope in documented order', () => {
+    expect(extractAiText({
+      response: '<think>discard response reasoning</think>response answer',
+      output_text: 'output answer',
+      choices: [{ message: { content: 'chat answer' } }],
+    })).toEqual({ text: 'response answer', shape: 'response' });
+
+    expect(extractAiText({
+      response: '<think>unfinished response reasoning',
+      output_text: 'output answer',
+      choices: [{ message: { content: 'chat answer' } }],
+    })).toEqual({ text: 'output answer', shape: 'output_text' });
   });
 
-  it('removes orphan closing tags but keeps surrounding text', () => {
-    const res = { response: 'partial</think>answer' };
-    const out = extractAiText(res);
-    expect(out.text).toBe('partialanswer');
-  });
-
-  it('removes unclosed opening tags and any following content', () => {
-    const res = { response: 'start ',
-          },
+  it('prefers answer content, then completion text, then reasoning', () => {
+    const allPresent = {
+      choices: [{
+        text: 'completion answer',
+        message: {
+          content: '<think>content reasoning</think>content answer',
+          reasoning_content: 'reasoning answer',
         },
-      ],
+      }],
     };
-    const out = extractAiText(res);
-    expect(out.shape).toBe('reasoning-only');
-    expect(out.text).toBe('');
+    expect(extractAiText(allPresent)).toEqual({
+      text: 'content answer',
+      shape: 'chat-completions',
+    });
+
+    const noContent = {
+      choices: [{
+        text: '<think>completion reasoning</think>completion answer',
+        message: { content: '', reasoning_content: 'reasoning answer' },
+      }],
+    };
+    expect(extractAiText(noContent)).toEqual({
+      text: 'completion answer',
+      shape: 'text-completions',
+    });
   });
 
-  it('uses the reasoning fallback for qwen3-style responses', () => {
-    const res = {
+  it('joins usable choices without stringifying malformed entries', () => {
+    const response = {
       choices: [
-        {
-          message: {
-            content: '',
-            reasoning_content:
-              'Ok\n\nFLEET-VERDICT: PASS',
-          },
-        },
+        null,
+        { message: { content: 42, reasoning_content: false } },
+        { message: { content: 'first ' } },
+        { message: { content: 'second' } },
       ],
     };
-    const out = extractAiText(res);
-    expect(out.shape).toBe('chat-completions-reasoning');
-    expect(out.text).toBe('Ok\n\nFLEET-VERDICT: PASS');
-    expect(out.text).not.toContain('BLOCK');
+    expect(extractAiText(response)).toEqual({
+      text: 'first second',
+      shape: 'chat-completions',
+    });
   });
 
-  it('removes nested think blocks within reasoning fallback', () => {
-    const res = {
-      choices: [
-        {
-          message: {
-            content: '',
-            reasoning_content:
-              'tail</think>FLEET-VERDICT: PASS',
-          },
-        },
-      ],
-    };
-    const out = extractAiText(res);
-    expect(out.shape).toBe('chat-completions-reasoning');
-    expect(out.text).toBe('FLEET-VERDICT: PASS');
+  it('reports reasoning evidence without exposing its contents', () => {
+    const description = describeResponseShape({
+      request_id: 'req-1',
+      choices: [{ message: { content: '', reasoning_content: 'private thought' } }],
+    });
+    expect(description).toContain('keys=[request_id,choices]');
+    expect(description).toContain('choices.len=1');
+    expect(description).toContain('reasoning.len=15');
+    expect(description).not.toContain('private thought');
   });
-
-  /* ---------- 3. Diagnostic shaping (obligation 5, 10) ---------- */
-  it('includes reasoning length in describeResponseShape when present', () => {
-    const res = {
-      choices: [
-        {
-          message: { reasoning_content: 'x'.repeat(42), content: '' },
-        },
-      ],
-    };
-    const desc = describeResponseShape(res);
-    expect(desc).toContain('reasoning.len=42');
-  });
-
-  it('does not include reasoning length when reasoning_content is empty', () => {
-    const res = {
-      choices: [
-        {
-          message: { reasoning_content: '', content: '' },
-        },
-      ],
-    };
-    const desc = describeResponseShape(res);
-    expect(desc).not.toContain('reasoning.len');
-  });
-
-  /* ---------- 4. stripThinkTags utility (obligation 1, 9) ---------- */
-  it('removes multiple free-standing real answer');
-    expect(stripped).toBe('real answer');
-  });
-
-  it('handles nested blocks leaving no residue', () => {
-    const stripped = stripThinkTags('c</think>real answer');
-    expect(stripped).toBe('real answer');
-  });
-
-  it('drops orphan closers without affecting surrounding text', () => {
-    const stripped = stripThinkTags('half a thought</think>the actual answer');
-    expect(stripped).toBe('half a thoughtthe actual answer');
-  });
-
-  it('truncates at an unclosed opener and removes following content', () => {
-    const stripped = stripThinkTags('begin
+});
