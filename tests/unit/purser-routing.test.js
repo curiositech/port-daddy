@@ -162,6 +162,35 @@ describe('every purser test is routed or explicitly quarantined', () => {
     }
   });
 
+  test('the node:test runner rejects a manifest path outside tests/purser', () => {
+    const runner = join(repoRoot, 'scripts', 'run-purser-tests.mjs');
+    const scratchRoot = join(homedir(), 'coding', 'tmp');
+    mkdirSync(scratchRoot, { recursive: true });
+    const escapedManifest = mkdtempSync(join(scratchRoot, 'purser-escape-'));
+    try {
+      mkdirSync(join(escapedManifest, 'tests', 'purser'), { recursive: true });
+      writeFileSync(
+        join(escapedManifest, 'tests', 'purser', 'ROUTING.json'),
+        JSON.stringify({ files: { '../../outside.test.js': { runner: 'node-test' } } }),
+      );
+      writeFileSync(
+        join(escapedManifest, 'outside.test.js'),
+        "const test = require('node:test'); test('outside', () => {});\n",
+      );
+      mkdirSync(join(escapedManifest, 'scripts'), { recursive: true });
+      copyFileSync(runner, join(escapedManifest, 'scripts', 'run-purser-tests.mjs'));
+
+      const result = spawnSync(process.execPath, ['scripts/run-purser-tests.mjs'], {
+        cwd: escapedManifest, encoding: 'utf8',
+      });
+
+      expect(result.status).not.toBe(0);
+      expect(`${result.stderr}${result.stdout}`).toContain('path escapes tests/purser');
+    } finally {
+      rmSync(escapedManifest, { recursive: true, force: true });
+    }
+  });
+
   test('a file routed to a runner actually declares tests', () => {
     // Raised by pd-qa, then rewritten after mutation testing showed the obvious
     // version was worthless: comparing the routed set against the quarantined
