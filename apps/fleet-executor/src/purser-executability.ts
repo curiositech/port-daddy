@@ -230,15 +230,60 @@ const RESOLVE_SUFFIXES = [
   '',
   '.ts',
   '.tsx',
+  '.mts',
+  '.cts',
   '.js',
   '.jsx',
   '.mjs',
   '.cjs',
   '/index.ts',
   '/index.tsx',
+  '/index.mts',
+  '/index.cts',
   '/index.js',
   '/index.jsx',
 ];
+
+/**
+ * TypeScript ESM source intentionally imports the JavaScript path that will
+ * exist after compilation. The trusted GitHub tree contains the source path,
+ * though, so an explicit `./module.js` specifier must also be checked against
+ * `./module.ts` / `./module.tsx` (and the equivalent NodeNext extensions).
+ *
+ * Keep this mapping exact. It is evidence that one runtime spelling maps to a
+ * small set of source spellings, not permission to ignore an arbitrary file
+ * extension or accept a same-basename file of an unrelated type.
+ */
+const RUNTIME_TO_SOURCE_EXTENSIONS: Readonly<Record<string, readonly string[]>> = {
+  '.js': ['.ts', '.tsx'],
+  '.jsx': ['.tsx'],
+  '.mjs': ['.mts'],
+  '.cjs': ['.cts'],
+};
+
+const SOURCE_OR_ASSET_EXTENSIONS = [
+  '.ts',
+  '.tsx',
+  '.mts',
+  '.cts',
+  '.json',
+  '.wasm',
+  '.node',
+] as const;
+
+function resolveJoinedCandidates(joined: string): string[] {
+  for (const [runtimeExtension, sourceExtensions] of Object.entries(
+    RUNTIME_TO_SOURCE_EXTENSIONS,
+  )) {
+    if (!joined.endsWith(runtimeExtension)) continue;
+    const stem = joined.slice(0, -runtimeExtension.length);
+    return [joined, ...sourceExtensions.map(extension => `${stem}${extension}`)];
+  }
+  if (SOURCE_OR_ASSET_EXTENSIONS.some(extension => joined.endsWith(extension))) {
+    return [joined];
+  }
+  return RESOLVE_SUFFIXES.map(suffix => `${joined}${suffix}`);
+}
 
 /**
  * Every path this specifier could plausibly resolve to, from the importer.
@@ -258,7 +303,7 @@ const RESOLVE_SUFFIXES = [
  */
 export function resolveImportCandidates(fromPath: string, spec: string): string[] {
   const joined = joinRelative(fromPath, spec);
-  return RESOLVE_SUFFIXES.map(suf => `${joined}${suf}`);
+  return resolveJoinedCandidates(joined);
 }
 
 export interface TrustedTreeImportRepair {
@@ -336,8 +381,7 @@ export function repairMisrootedRelativeImport(
     return null;
   }
   const matches = [...new Set(
-    RESOLVE_SUFFIXES
-      .map(suffix => `${rootRelative}${suffix}`)
+    resolveJoinedCandidates(rootRelative)
       .filter(candidate => repoTreePaths.has(candidate)),
   )];
   if (matches.length !== 1) return null;
