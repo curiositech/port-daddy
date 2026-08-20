@@ -945,11 +945,60 @@ describe('CLI Integration Tests', () => {
       }
     });
 
+    test('pd begin accumulates repeated --files groups around other options', () => {
+      const slot = `repeated-variadic-files-${Date.now()}`;
+      const files = [
+        `coord/${slot}-a.ts`,
+        `coord/${slot}-b.ts`,
+      ];
+      try {
+        const result = runCli([
+          'begin',
+          'Repeated variadic file claim regression',
+          '--identity', 'port-daddy:test:repeated-variadic-files',
+          '--files', files[0],
+          '--lifecycle', 'durable',
+          '--files', files[1],
+          '--sidequest', 'integration parser regression coverage',
+          '--json',
+        ], { env: { PORT_DADDY_CONTEXT_SLOT: slot, PD_RENT_EXEMPT: '' } });
+
+        expect(result.success).toBe(true);
+        const data = JSON.parse(result.stdout);
+        expect(data.fileClaims).toEqual(expect.arrayContaining(files));
+        expect(data.fileClaims).toHaveLength(files.length);
+
+        const done = runCli([
+          'done',
+          'Result: repeated variadic file parsing verified. not-applicable: integration test cleanup',
+          '--session', data.sessionId,
+          '--skip-origin-check', '--reason', 'repeated variadic files integration test',
+          '--json',
+        ], { env: { PORT_DADDY_CONTEXT_SLOT: slot } });
+        expect(done.success).toBe(true);
+      } finally {
+        clearTestCurrentContext(slot);
+      }
+    });
+
     test('pd begin --files without a path fails loudly', () => {
       const result = runCli([
         'begin',
         'Missing variadic file value',
         '--files',
+        '--lifecycle', 'durable',
+        '--sidequest', 'integration parser regression coverage',
+      ]);
+
+      expect(result.success).toBe(false);
+      expect(result.stderr + result.stdout).toContain('--files requires at least one path');
+    });
+
+    test('pd begin --files with an empty path fails loudly', () => {
+      const result = runCli([
+        'begin',
+        'Empty variadic file value',
+        '--files', '',
         '--lifecycle', 'durable',
         '--sidequest', 'integration parser regression coverage',
       ]);
