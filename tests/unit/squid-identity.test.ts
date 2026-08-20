@@ -117,10 +117,13 @@ describe('/squid slash command', () => {
 });
 
 describe('readMatrixSnapshot (the non-diegetic readout source)', () => {
-  test('splits alerts / pheromones / locks and unquotes values', () => {
+  test('splits valid entries while ignoring malformed matrix lines', () => {
     const matrix = join(FAKE_PD_HOME, 'matrix.env');
     writeFileSync(matrix, [
       'PD_ALERT_OPERATOR="ship the harness"',
+      'PD_ALERT_MISSING_EQUALS',
+      '123_INVALID_KEY="ignored"',
+      'not an env assignment',
       'PD_PHEROMONE_A="edited cli/commands/squid.ts"',
       'PD_LOCK_MAIN="held by session-x"',
       'UNRELATED=ignored',
