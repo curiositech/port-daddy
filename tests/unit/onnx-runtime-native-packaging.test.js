@@ -70,6 +70,15 @@ describe('ONNX Runtime release packaging', () => {
     });
   });
 
+  test('fails closed for an unknown release platform', () => {
+    expect(() => packageOnnxRuntimeNative({
+      repoRoot: root,
+      outputRoot,
+      platform: 'freebsd',
+      arch: 'x64',
+    })).toThrow('Cannot package ONNX Runtime: unsupported release platform: freebsd');
+  });
+
   test('prepends packaged cargo without discarding an existing loader path', () => {
     const nativeDir = join(outputRoot, 'native', 'onnxruntime-node', 'darwin-arm64');
     expect(nativeLoaderEnvironment({
