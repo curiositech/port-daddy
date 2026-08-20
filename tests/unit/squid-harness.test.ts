@@ -531,6 +531,23 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(r.stderr).toBe('');
   });
 
+  test('healthy prompt hook no-op with no alerts or traces emits exactly zero bytes', () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# healthy matrix with no actionable coordination\n');
+
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX) },
+      encoding: 'utf8',
+    });
+
+    expect(r.status).toBe(0);
+    expect(r.signal).toBeNull();
+    expect(r.error).toBeUndefined();
+    expect(Buffer.byteLength(r.stdout)).toBe(0);
+    expect(Buffer.byteLength(r.stderr)).toBe(0);
+  });
+
   test('prompt hook stays fast against a large, mostly-stale, mostly-foreign matrix', () => {
     // Regression for the fleet-scale hang: a long-lived, multi-project matrix
     // accumulates thousands of PD_PHEROMONE_* lines (one per file mutation,
@@ -572,6 +589,8 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     const elapsedMs = Date.now() - start;
 
     expect(r.status).toBe(0);
+    expect(r.signal).toBeNull();
+    expect(r.error).toBeUndefined();
     expect(elapsedMs).toBeLessThan(2_000);
     const parsed = JSON.parse(r.stdout) as {
       hookSpecificOutput: { additionalContext: string };
