@@ -14,6 +14,7 @@ describe('single binary distribution path', () => {
     expect(script).toContain('stageSquidReleaseAssets');
     expect(script).toContain("scripts/smoke-squid-release.mjs");
     expect(script).toContain('targetArch');
+    expect(script).toContain("from './lib/onnx-runtime-native.mjs'");
     expect(script).toContain('requestedArch !== process.arch');
     expect(script).toContain("run('bash', ['scripts/build-core.sh']");
     expect(script).toContain('dataBase64');
@@ -45,7 +46,10 @@ describe('single binary distribution path', () => {
     expect(daemonBundle).toContain('runDbIntegrityHelper(dbIntegrityHelper)');
     expect(daemonBundle).toContain("await import('../server.js')");
     expect(daemonBuild).toContain("'bin/port-daddy-daemon.ts'");
+    expect(daemonBuild).toContain("['__semantic-runtime-check']");
+    expect(daemonBuild).toContain('packageOnnxRuntimeNative');
     expect(daemonBuild).not.toContain("['build', '--compile', 'server.ts'");
+    expect(daemonBundle).toContain("process.argv[2] === '__semantic-runtime-check'");
   });
 
   test('server publishes its PID and heartbeat before opening the registry', () => {
@@ -96,6 +100,8 @@ describe('single binary distribution path', () => {
     expect(buildScript).toContain('smokeSelfHostedDaemon');
     expect(buildScript).toContain('writePdLauncher');
     expect(buildScript).toContain('launcherSource');
+    expect(buildScript).toContain('DYLD_FALLBACK_LIBRARY_PATH');
+    expect(buildScript).toContain('LD_LIBRARY_PATH');
     expect(buildScript).toContain("run('cc'");
     expect(buildScript).toContain('execv(target, child_argv)');
     expect(buildScript).toContain('setenv("PORT_DADDY_FORCE_TCP", "1", 1)');
