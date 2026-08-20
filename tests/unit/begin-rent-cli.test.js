@@ -27,6 +27,7 @@ describe('shouldRunBeginWizard — scripted begin never prompts', () => {
     ['identity', { identity: 'project:stack:context' }],
     ['agent', { agent: 'agent-1' }],
     ['files', { files: ['src/a.ts'] }],
+    ['single file', { files: 'src/a.ts' }],
     ['lifecycle', { lifecycle: 'durable' }],
     ['name', { name: 'named-session' }],
   ])('%s scoping disables the wizard even in a TTY', (_label, options) => {
@@ -35,6 +36,7 @@ describe('shouldRunBeginWizard — scripted begin never prompts', () => {
 
   test('a supplied purpose or non-interactive shell never enters the wizard', () => {
     expect(shouldRunBeginWizard('planned work', {}, true)).toBe(false);
+    expect(shouldRunBeginWizard('planned work', { identity: 'project:task' }, true)).toBe(false);
     expect(shouldRunBeginWizard(undefined, {}, false)).toBe(false);
   });
 });
