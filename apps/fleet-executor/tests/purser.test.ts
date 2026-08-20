@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   runPurser,
   parseSteelMan,
@@ -14,6 +15,7 @@ import { parseFleetShips, PURSER_DEFAULT_GRAFT, type ShipConfig } from '../src/f
 import { aggregateConclusion } from '../src/verdict.js';
 import { executeFleet } from '../src/execute.js';
 import type { PRContext } from '../src/github.js';
+import { extractJestTestMatch, matchesAnyTestMatch } from '../src/purser-executability.js';
 import {
   freshState,
   installGitHubFetch,
@@ -527,17 +529,9 @@ describe('runPurser — stacking', () => {
 });
 
 describe('runPurser — executability gate (regression: PR #5860 non-executable Purser theater)', () => {
-  // The real port-daddy jest.config.js shape: testMatch lives ONLY under
-  // tests/unit/** and tests/integration/**, nested inside `projects:`.
-  // tests/purser/** is not a jest root at all.
-  const REAL_JEST_CONFIG = [
-    'module.exports = {',
-    '  projects: [',
-    "    { displayName: 'unit', testMatch: ['<rootDir>/tests/unit/**/*.test.{js,ts}'] },",
-    "    { displayName: 'integration', testMatch: ['<rootDir>/tests/integration/**/*.test.{js,ts}'] },",
-    '  ],',
-    '};',
-  ].join('\n');
+  // Read the repository's actual config instead of copying its two patterns
+  // into a test fixture that could drift while continuing to pass.
+  const REAL_JEST_CONFIG = readFileSync(new URL('../../../jest.config.js', import.meta.url), 'utf8');
 
   function seedRealJestConfig(): void {
     state.files.set('BASESHA:jest.config.js', REAL_JEST_CONFIG);
@@ -598,6 +592,15 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
 
   it('#8298 exact shape: a non-discoverable plan is repaired BEFORE authoring, then reaches sandbox and stacks', async () => {
     seedRealJestConfig();
+    const trustedPatterns = extractJestTestMatch(REAL_JEST_CONFIG)!;
+    expect(matchesAnyTestMatch(
+      'tests/unit/purser/test-legacy-phrase-variants.ts',
+      trustedPatterns,
+    )).toBe(false);
+    expect(matchesAnyTestMatch(
+      'tests/unit/purser/legacy-phrase-variants.test.ts',
+      trustedPatterns,
+    )).toBe(true);
     const badPlan = [
       '```json',
       JSON.stringify({
@@ -654,6 +657,10 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     const planStep = rec.steps.find(s => s.kind === 'purser-plan')!;
     expect(planStep.detail).toMatchObject({
       files: [{ path: 'tests/unit/purser/legacy-phrase-variants.test.ts' }],
+    });
+    expect(rec.steps.find(s => s.kind === 'purser-sandbox')?.detail).toMatchObject({
+      executed: true,
+      passed: true,
     });
     expect(state.stackedPrs).toHaveLength(1);
   });
@@ -1172,6 +1179,12 @@ describe('runPurser — multi-step authoring', () => {
     expect(step.title).toMatch(/MALFORMED/);
     // The whole point: a future failure is diagnosable from the transcript.
     expect((step.detail as { rawHead: string }).rawHead).toContain('rather discuss the weather');
+    const repairRequest = (ai.run as ReturnType<typeof vi.fn>).mock.calls[2][1] as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    expect(repairRequest.messages[0].content).toContain(
+      'No trusted test-discovery patterns were available for this repair',
+    );
   });
 });
 
