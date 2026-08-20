@@ -63,15 +63,15 @@
     },
     "test-concurrency-idempotency.js": {
       "runner": "quarantined",
-      "reason": "imports the same nonexistent '../test-utils' helper"
+      "reason": "imports the nonexistent '../test-utils' repository fixture while probing concurrent build idempotency, so the test cannot initialize"
     },
     "test-edge-cases-paper-epoch.js": {
       "runner": "quarantined",
-      "reason": "imports the same nonexistent '../test-utils' helper"
+      "reason": "imports the nonexistent '../test-utils' repository fixture while probing paper-epoch edge cases, so the test cannot initialize"
     },
     "test-error-handling.js": {
       "runner": "quarantined",
-      "reason": "imports the same nonexistent '../test-utils' helper"
+      "reason": "imports the nonexistent '../test-utils' repository fixture while probing build-script failure handling, so the test cannot initialize"
     },
     "test-rebase-epoch-stability.js": {
       "runner": "quarantined",
