@@ -1,13 +1,10 @@
 // tests/unit/purser/invalid-runner.test.js
 import { describe, expect, test } from '@jest/globals';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const repoRoot = join(
-  join(dirname(fileURLToPath(import.meta.url)), '..', '..'),
-  '..',
-);
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const routingPath = join(repoRoot, 'tests', 'purser', 'ROUTING.json');
 const routing = JSON.parse(readFileSync(routingPath, 'utf8'));
 

@@ -17,7 +17,7 @@ test('parity check fails when a file is missing from ROUTING.json', () => {
   writeFileSync(extraFile, 'import { test } from "@jest/globals"; test("extra", () => {});');
 
   // Run the parity logic that the original test uses
-  const routingPath = join(destPurserDir, '..', '..', 'ROUTING.json');
+  const routingPath = join(destPurserDir, 'ROUTING.json');
   const routing = JSON.parse(readFileSync(routingPath, 'utf8'));
   const onDisk = readdirSync(destPurserDir).filter(f => f !== 'ROUTING.json').sort();
   const routingFiles = Object.keys(routing.files).sort();

@@ -4,7 +4,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from '@jest/globals';
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const routingPath = join(repoRoot, 'tests', 'purser', 'ROUTING.json');
 const routing = JSON.parse(readFileSync(routingPath, 'utf8'));
 
@@ -27,18 +27,14 @@ describe('quarantined entries must have a specific, non‑empty reason', () => {
     expect(failures).toEqual([]);
   });
 
-  test('reason strings are not generic placeholders', () => {
+  test('reason strings meet the routing contract specificity floor', () => {
     const quarantined = Object.entries(routing.files)
       .filter(([, entry]) => entry.runner === 'quarantined');
 
-    const generic = quarantined
-      .filter(([, entry]) => {
-        const r = entry.reason?.trim().toLowerCase();
-        // common placeholder values that lack specificity
-        return r === 'none' || r === 'unknown' || r === 'not executed' || r === 'broken';
-      })
+    const underspecified = quarantined
+      .filter(([, entry]) => entry.reason.trim().length < 40)
       .map(([file]) => file);
 
-    expect(generic).toEqual([]);
+    expect(underspecified).toEqual([]);
   });
 });
