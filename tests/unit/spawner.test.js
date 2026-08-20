@@ -691,7 +691,7 @@ describe('spawn — backend dispatch', () => {
       })
     );
     // No spec.timeout was given, so no hidden wall clock should be applied.
-    expect(cpSpawn.mock.calls[0][2].timeout).toBeUndefined();
+    expect(cpSpawn.mock.calls[0][2]).not.toHaveProperty('timeout');
   });
 
   test('aider backend honors explicit model selection', async () => {
@@ -709,7 +709,7 @@ describe('spawn — backend dispatch', () => {
       ['--yes', '--no-stream', '--model', 'gpt-5', '--message', 'Refactor carefully'],
       expect.objectContaining({ detached: true, shell: false })
     );
-    expect(cpSpawn.mock.calls[0][2].timeout).toBeUndefined();
+    expect(cpSpawn.mock.calls[0][2]).not.toHaveProperty('timeout');
   });
 
   test('aider backend with no files', async () => {
@@ -750,7 +750,7 @@ describe('spawn — backend dispatch', () => {
 
       // Verify spawn was called without a timeout in the child-process options.
       const spawnCall = cpSpawn.mock.calls[0];
-      expect(spawnCall[2].timeout).toBeUndefined();
+      expect(spawnCall[2]).not.toHaveProperty('timeout');
 
       // Advance well past the old hidden 5-minute (300000ms) default. Nothing
       // should signal the child — there is no wall clock to fire.
@@ -1489,7 +1489,7 @@ describe('spawn — claude-cli backend', () => {
       })
     );
     // No spec.timeout was given, so no hidden wall clock should be applied.
-    expect(cpSpawn.mock.calls[0][2].timeout).toBeUndefined();
+    expect(cpSpawn.mock.calls[0][2]).not.toHaveProperty('timeout');
   });
 
   test('resumes the exact Claude harness session when adapter ownership matches', async () => {
@@ -1689,7 +1689,7 @@ describe('spawn — codex backend', () => {
       })
     );
     // No spec.timeout was given, so no hidden wall clock should be applied.
-    expect(cpSpawn.mock.calls[0][2].timeout).toBeUndefined();
+    expect(cpSpawn.mock.calls[0][2]).not.toHaveProperty('timeout');
   });
 
   test('uses codex exec resume without unsupported spawn-only sandbox or cwd flags', async () => {
