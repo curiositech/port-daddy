@@ -9,12 +9,13 @@
 //
 // Exits non-zero if any test fails, so CI can gate on it.
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const purserRoot = resolve(repoRoot, 'tests/purser');
+const realPurserRoot = realpathSync(purserRoot);
 const routing = JSON.parse(
   readFileSync(resolve(purserRoot, 'ROUTING.json'), 'utf8'),
 );
@@ -36,6 +37,19 @@ const files = Object.entries(routing.files)
       withinPurser.startsWith(`..${sep}`)
     ) {
       throw new Error(`ROUTING.json path escapes tests/purser: ${file}`);
+    }
+    // Lexical confinement is not enough: Git can carry a symlink whose path is
+    // inside tests/purser while its target is outside. Resolve the actual file
+    // before execution and apply the same boundary to the target.
+    const realCandidate = realpathSync(candidate);
+    const realWithinPurser = relative(realPurserRoot, realCandidate);
+    if (
+      !realWithinPurser ||
+      isAbsolute(realWithinPurser) ||
+      realWithinPurser === '..' ||
+      realWithinPurser.startsWith(`..${sep}`)
+    ) {
+      throw new Error(`ROUTING.json path escapes tests/purser via symlink: ${file}`);
     }
     return relative(repoRoot, candidate);
   })
