@@ -132,6 +132,24 @@ describe('single binary distribution path', () => {
     expect(workflow).not.toContain('bin/port-daddy-cli.ts --outfile dist/pd');
   });
 
+  test('release evidence and clean-install workflows use their real path contracts', () => {
+    const releaseWorkflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'release.yml'), 'utf8');
+    const freshInstallWorkflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'fresh-install.yml'), 'utf8');
+
+    // Batten resolves a relative --archive from --staged-dir. Prefixing it with
+    // dist would reproduce the v3.28.2 dist/dist/<archive> release failure.
+    expect(releaseWorkflow).toContain('--archive "${{ matrix.artifact }}.tar.gz"');
+    expect(releaseWorkflow).not.toContain('--archive "dist/${{ matrix.artifact }}.tar.gz"');
+
+    // Current Homebrew trusts a fully qualified third-party formula selected
+    // by the caller. Tapping first and then installing the short name does not
+    // carry that explicit trust choice on a clean runner.
+    // https://docs.brew.sh/Tap-Trust#installing-from-a-tap
+    expect(freshInstallWorkflow).toContain('brew install curiositech/tap/port-daddy');
+    expect(freshInstallWorkflow).not.toContain('brew tap curiositech/tap');
+    expect(freshInstallWorkflow).not.toContain('brew install port-daddy');
+  });
+
   test('FleetBar packages the same Port Daddy payload with embedded Rust core proof', () => {
     const localPackager = readFileSync(join(process.cwd(), 'scripts', 'package-fleetbar.sh'), 'utf8');
     const previewPackager = readFileSync(join(process.cwd(), 'scripts', 'package-fleetbar-preview.sh'), 'utf8');

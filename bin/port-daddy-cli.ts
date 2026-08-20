@@ -180,6 +180,7 @@ import {
   shouldAutoRestartDaemonForFreshness,
   shouldCheckDaemonFreshness,
 } from '../cli/utils/freshness.js';
+import { isDaemonUnavailableError } from '../cli/utils/daemon-unavailable.js';
 import { maybeNudgeStaleness } from '../cli/utils/staleness-nudge.js';
 import { readCurrentContext } from '../cli/utils/current-context.js';
 import {
@@ -3384,9 +3385,8 @@ export async function main(): Promise<void> {
     await recordCliUsage(command, positional, options, 'ok', commandStartedAt);
   } catch (err: unknown) {
     await recordCliUsage(command, positional, options, 'error', commandStartedAt, err);
-    const error = err as Error & { code?: string; cause?: { code?: string } };
-    const errCode = error.code || error.cause?.code;
-    if (errCode === 'ECONNREFUSED' || errCode === 'ENOENT') {
+    const error = err as Error;
+    if (isDaemonUnavailableError(error)) {
       // Daemon unreachable — try direct-DB mode for Tier 1 commands
       if (TIER_1_COMMANDS.has(command)) {
         try {
