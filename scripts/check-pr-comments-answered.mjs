@@ -265,12 +265,11 @@ query($owner:String!, $repo:String!, $number:Int!, $cursor:String) {
   }
 }`
 
-function fetchPr(owner, repo, number) {
+export function fetchPr(owner, repo, number, runGh = gh) {
   const threads = []
   let authorLogin = null
   let body = ''
   let cursor = null
-  let truncated = false
   // Bound the loop so a bad cursor can never spin forever; 50 pages × 100 = 5000
   // threads is far past any real PR, and if we somehow hit it we mark truncated
   // (fail red) rather than pretend the list is complete.
@@ -283,8 +282,14 @@ function fetchPr(owner, repo, number) {
       '-F', `number=${number}`,
     ]
     if (cursor) args.push('-F', `cursor=${cursor}`)
-    const pr = JSON.parse(gh(args))?.data?.repository?.pullRequest
-    if (!pr) return page === 0 ? null : { authorLogin, body, threads, truncated }
+    const pr = JSON.parse(runGh(args))?.data?.repository?.pullRequest
+    if (!pr) {
+      // No PR on the first page means there is no target to inspect. Losing it
+      // after at least one successful page is different: we have a partial
+      // thread view, so preserve what was read but mark it incomplete. Returning
+      // `truncated: false` here would let decideCommentGate print a false green.
+      return page === 0 ? null : { authorLogin, body, threads, truncated: true }
+    }
     authorLogin = pr.author?.login ?? authorLogin
     body = pr.body ?? body
     const rt = pr.reviewThreads ?? {}

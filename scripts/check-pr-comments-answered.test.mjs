@@ -1,7 +1,13 @@
 // Pure-core tests for check-pr-comments-answered. Run with: node --test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { classifyThreads, decideCommentGate, hasExempt, OUTDATED_LIMIT } from './check-pr-comments-answered.mjs'
+import {
+  classifyThreads,
+  decideCommentGate,
+  fetchPr,
+  hasExempt,
+  OUTDATED_LIMIT,
+} from './check-pr-comments-answered.mjs'
 
 const AUTHOR = 'erichowens'
 const BOT = 'github-actions[bot]'
@@ -172,6 +178,45 @@ test('GATE: truncated fetch WITH unanswered threads still reports both the threa
   assert.equal(d.exitCode, 1)
   assert.match(d.stderrText, /Reviewer spoke last \(1\)/)
   assert.match(d.stderrText, /TRUNCATED/)
+})
+
+test('FETCH: losing the PR after a successful page returns partial data as truncated', () => {
+  const responses = [
+    {
+      data: {
+        repository: {
+          pullRequest: {
+            author: { login: AUTHOR },
+            body: 'body',
+            reviewThreads: {
+              pageInfo: { hasNextPage: true, endCursor: 'page-2' },
+              nodes: [{
+                isResolved: true,
+                isOutdated: false,
+                path: 'src/x.ts',
+                comments: { nodes: [{ author: { login: BOT }, url: 'https://example.test/thread' }] },
+              }],
+            },
+          },
+        },
+      },
+    },
+    { data: { repository: { pullRequest: null } } },
+  ]
+  const cursors = []
+  const runGh = (args) => {
+    cursors.push(args.find((arg) => arg.startsWith('cursor=')) ?? null)
+    return JSON.stringify(responses.shift())
+  }
+
+  const partial = fetchPr('curiositech', 'port-daddy', 6449, runGh)
+
+  assert.equal(partial.truncated, true)
+  assert.equal(partial.authorLogin, AUTHOR)
+  assert.equal(partial.body, 'body')
+  assert.equal(partial.threads.length, 1)
+  assert.deepEqual(cursors, [null, 'cursor=page-2'])
+  assert.equal(decideCommentGate(partial.threads, partial.authorLogin, partial).exitCode, 1)
 })
 
 test('hasExempt only matches a real directive with a reason', () => {
