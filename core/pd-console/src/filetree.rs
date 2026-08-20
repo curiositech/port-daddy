@@ -116,31 +116,81 @@ impl FileSort {
     }
 }
 
+/// One stop on the back stack: a directory the operator left, plus *when* they
+/// left it (whole seconds since the Unix epoch, `0` if the caller had no clock).
+/// The renderer turns `at_unix` into a relative age (via [`nav_age`]); the
+/// history list also carries an implicit position so a clock-less caller can
+/// still show "N steps ago".
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NavEntry {
+    /// Directory we navigated away from.
+    pub path: String,
+    /// Wall-clock seconds when we left it, or `0` if unavailable.
+    pub at_unix: i64,
+}
+
 /// Browser-style back stack of directories the operator navigated *away from*.
-/// `visit(from)` records leaving `from`; `back()` returns the last such dir.
+/// `visit(from, at)` records leaving `from` at time `at`; `back()` returns the
+/// last such dir; `jump(i)` returns an arbitrary earlier dir (clicking the
+/// history list) and drops everything after it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct NavHistory {
-    back: Vec<String>,
+    back: Vec<NavEntry>,
 }
 
 impl NavHistory {
-    /// Record that we are leaving `from` (descend / up). Coalesces a repeated
-    /// entry so the back button never stutters on a no-op move.
-    pub fn visit(&mut self, from: impl Into<String>) {
+    /// Record that we are leaving `from` (descend / up / go-to-root) at wall-clock
+    /// `at_unix` seconds (pass `0` if no clock). Coalesces a repeated entry so the
+    /// back button never stutters on a no-op move.
+    pub fn visit(&mut self, from: impl Into<String>, at_unix: i64) {
         let from = from.into();
-        if self.back.last().map(|s| s.as_str()) != Some(from.as_str()) {
-            self.back.push(from);
+        if self.back.last().map(|e| e.path.as_str()) != Some(from.as_str()) {
+            self.back.push(NavEntry { path: from, at_unix });
         }
     }
     /// Pop the previous directory, if any (the Back action).
     pub fn back(&mut self) -> Option<String> {
-        self.back.pop()
+        self.back.pop().map(|e| e.path)
+    }
+    /// Jump to the history entry at `index` (0 = oldest): returns that directory
+    /// and truncates the stack to everything strictly before it, so the popped
+    /// entry and any newer than it are consumed. `back()` == `jump(depth()-1)`.
+    /// Out-of-range index is a no-op returning `None`.
+    pub fn jump(&mut self, index: usize) -> Option<String> {
+        if index >= self.back.len() {
+            return None;
+        }
+        let target = self.back[index].path.clone();
+        self.back.truncate(index);
+        Some(target)
+    }
+    /// The history entries, oldest first (the newest = the next Back target).
+    pub fn entries(&self) -> &[NavEntry] {
+        &self.back
     }
     pub fn can_back(&self) -> bool {
         !self.back.is_empty()
     }
     pub fn depth(&self) -> usize {
         self.back.len()
+    }
+}
+
+/// Relative-age label for a history timestamp. `now`/`then` are whole Unix
+/// seconds. `then <= 0` (no clock at capture) yields `--` so the renderer can
+/// fall back to a positional "N steps ago" label. Dep-free (no chrono), matching
+/// the modified-column formatter.
+pub fn nav_age(now_unix: i64, then_unix: i64) -> String {
+    if then_unix <= 0 {
+        return "--".into();
+    }
+    let d = (now_unix - then_unix).max(0);
+    match d {
+        d if d < 5 => "just now".into(),
+        d if d < 60 => format!("{d}s ago"),
+        d if d < 3600 => format!("{}m ago", d / 60),
+        d if d < 86_400 => format!("{}h ago", d / 3600),
+        d => format!("{}d ago", d / 86_400),
     }
 }
 
@@ -153,13 +203,18 @@ pub struct FileNav {
     pub sort: FileSort,
     /// Keyboard selection cursor (row index within the current listing).
     pub cursor: usize,
+    /// Whether the parent/enclosing-directory context strip is shown (the `p`
+    /// toggle). Off by default; the renderer draws a parent breadcrumb line only
+    /// while it is on.
+    pub show_parent: bool,
 }
 
 impl FileNav {
-    /// Descend from `current` into `child`: remember where we were and reset the
-    /// cursor to the top of the new listing.
-    pub fn descend(&mut self, current: impl Into<String>) {
-        self.history.visit(current);
+    /// Descend from `current` into `child`: remember where we were (stamped at
+    /// wall-clock `at_unix`, `0` if no clock) and reset the cursor to the top of
+    /// the new listing.
+    pub fn descend(&mut self, current: impl Into<String>, at_unix: i64) {
+        self.history.visit(current, at_unix);
         self.cursor = 0;
     }
     /// Go back one step; returns the directory to show, or `None` if the stack
@@ -170,6 +225,19 @@ impl FileNav {
             self.cursor = 0;
         }
         prev
+    }
+    /// Jump to history entry `index` (clicking the history list). Returns the
+    /// directory to show, resetting the cursor; `None` if out of range.
+    pub fn jump(&mut self, index: usize) -> Option<String> {
+        let target = self.history.jump(index);
+        if target.is_some() {
+            self.cursor = 0;
+        }
+        target
+    }
+    /// Toggle the parent-context strip (the `p` shortcut).
+    pub fn toggle_parent(&mut self) {
+        self.show_parent = !self.show_parent;
     }
     /// Clamp the cursor into `[0, len)` (len 0 → cursor 0). Called after a
     /// listing is produced so a stale cursor never points off the end.
@@ -298,8 +366,8 @@ mod tests {
     fn nav_history_back_returns_previous_dirs_lifo() {
         let mut h = NavHistory::default();
         assert!(!h.can_back());
-        h.visit("/a");
-        h.visit("/a/b");
+        h.visit("/a", 100);
+        h.visit("/a/b", 200);
         assert_eq!(h.depth(), 2);
         assert!(h.can_back());
         assert_eq!(h.back(), Some("/a/b".into()));
@@ -311,21 +379,84 @@ mod tests {
     #[test]
     fn nav_history_coalesces_repeats() {
         let mut h = NavHistory::default();
-        h.visit("/a");
-        h.visit("/a");
+        h.visit("/a", 100);
+        h.visit("/a", 200);
         assert_eq!(h.depth(), 1, "leaving the same dir twice records it once");
+    }
+
+    #[test]
+    fn nav_history_records_timestamps_and_exposes_entries() {
+        let mut h = NavHistory::default();
+        h.visit("/a", 1_000);
+        h.visit("/a/b", 1_090);
+        let ents = h.entries();
+        assert_eq!(ents.len(), 2);
+        assert_eq!(ents[0].path, "/a");
+        assert_eq!(ents[0].at_unix, 1_000);
+        assert_eq!(ents[1].path, "/a/b");
+        assert_eq!(ents[1].at_unix, 1_090);
+    }
+
+    #[test]
+    fn nav_history_jump_navigates_to_earlier_dir_and_truncates() {
+        let mut h = NavHistory::default();
+        h.visit("/a", 1);
+        h.visit("/a/b", 2);
+        h.visit("/a/b/c", 3);
+        // Click the oldest entry: go to /a, drop /a/b and /a/b/c.
+        assert_eq!(h.jump(0), Some("/a".into()));
+        assert_eq!(h.depth(), 0, "jumping to index 0 clears everything at/after it");
+        assert_eq!(h.jump(0), None, "empty history jump is a no-op");
+
+        let mut h2 = NavHistory::default();
+        h2.visit("/x", 1);
+        h2.visit("/x/y", 2);
+        h2.visit("/x/y/z", 3);
+        assert_eq!(h2.jump(1), Some("/x/y".into()));
+        assert_eq!(h2.depth(), 1, "only the clicked entry's predecessors survive");
+        assert_eq!(h2.entries()[0].path, "/x");
+        assert_eq!(h2.jump(9), None, "out-of-range index is a no-op");
+    }
+
+    #[test]
+    fn nav_age_formats_relative_and_flags_missing_clock() {
+        assert_eq!(nav_age(1_000, 0), "--", "no capture clock → positional fallback");
+        assert_eq!(nav_age(1_000, 998), "just now");
+        assert_eq!(nav_age(1_000, 970), "30s ago");
+        assert_eq!(nav_age(10_000, 8_800), "20m ago");
+        assert_eq!(nav_age(100_000, 92_800), "2h ago");
+        assert_eq!(nav_age(1_000_000, 740_800), "3d ago");
+        assert_eq!(nav_age(500, 900), "just now", "future timestamp clamps to now");
     }
 
     #[test]
     fn filenav_descend_then_back_round_trips_and_resets_cursor() {
         let mut nav = FileNav::default();
         nav.cursor = 5;
-        nav.descend("/repo"); // was at /repo, descending into a child
+        nav.descend("/repo", 42); // was at /repo, descending into a child
         assert_eq!(nav.cursor, 0, "descend parks the cursor at the top");
+        assert_eq!(nav.history.entries()[0].at_unix, 42, "descend stamps the leave time");
         nav.cursor = 3;
         assert_eq!(nav.back(), Some("/repo".into()));
         assert_eq!(nav.cursor, 0, "back resets the cursor");
         assert_eq!(nav.back(), None);
+    }
+
+    #[test]
+    fn filenav_jump_and_parent_toggle() {
+        let mut nav = FileNav::default();
+        nav.descend("/a", 1);
+        nav.descend("/a/b", 2);
+        nav.cursor = 4;
+        assert_eq!(nav.jump(0), Some("/a".into()));
+        assert_eq!(nav.cursor, 0, "jump resets the cursor");
+        assert_eq!(nav.history.depth(), 0);
+
+        assert!(!nav.show_parent);
+        nav.toggle_parent();
+        assert!(nav.show_parent, "p toggles the parent-context strip on");
+        nav.toggle_parent();
+        assert!(!nav.show_parent, "p toggles it back off");
     }
 
     // ── up navigation via parent_path ───────────────────────────────────────
@@ -434,11 +565,40 @@ mod tests {
         assert_eq!(nav.cursor, 0);
     }
 
-    // ── fs listing (integration against a tempdir) ──────────────────────────
+    /// A per-test scratch directory with a globally-unique name and RAII cleanup
+    /// that fires even if the test panics. Avoids the `std::process::id()` suffix
+    /// (all threads in one cargo test binary share the same PID, so that scheme
+    /// could collide across concurrent tests) without pulling in the `tempfile`
+    /// crate: uniqueness comes from a process-wide atomic counter plus the
+    /// high-resolution clock.
+    struct ScratchDir {
+        path: PathBuf,
+    }
+    impl ScratchDir {
+        fn new(tag: &str) -> Self {
+            use std::sync::atomic::{AtomicU64, Ordering};
+            static SEQ: AtomicU64 = AtomicU64::new(0);
+            let seq = SEQ.fetch_add(1, Ordering::Relaxed);
+            let nanos = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0);
+            let path = std::env::temp_dir().join(format!("pd-ft-{tag}-{seq}-{nanos}"));
+            std::fs::create_dir_all(&path).unwrap();
+            ScratchDir { path }
+        }
+    }
+    impl Drop for ScratchDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+
+    // ── fs listing (integration against a scratch dir) ──────────────────────
     #[test]
     fn list_dir_reads_children_with_kinds_and_sizes() {
-        let base = std::env::temp_dir().join(format!("pd-ft-test-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&base);
+        let scratch = ScratchDir::new("list");
+        let base = &scratch.path;
         std::fs::create_dir_all(base.join("sub")).unwrap();
         std::fs::write(base.join("hello.txt"), b"12345").unwrap();
         let dir_str = base.to_string_lossy().into_owned();
@@ -454,7 +614,7 @@ mod tests {
 
         let err = list_dir(&base.join("does-not-exist").to_string_lossy()).unwrap_err();
         assert!(err.contains("does-not-exist"), "error names the missing path");
-        let _ = std::fs::remove_dir_all(&base);
+        // Cleanup is RAII (ScratchDir::drop), so it runs even if an assert panics.
     }
 
     fn names(v: &[FileMeta]) -> Vec<String> {
