@@ -28,6 +28,7 @@ describe('shouldRunBeginWizard — scripted begin never prompts', () => {
     ['identity', { identity: 'project:stack:context' }],
     ['agent', { agent: 'agent-1' }],
     ['files', { files: ['src/a.ts'] }],
+    ['empty files', { files: [] }],
     ['single file', { files: 'src/a.ts' }],
     ['lifecycle', { lifecycle: 'durable' }],
     ['name', { name: 'named-session' }],
