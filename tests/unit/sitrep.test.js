@@ -11,6 +11,8 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import Fastify from 'fastify';
 import { createTestDb } from '../setup-unit.js';
 import { createSessions } from '../../lib/sessions.js';
@@ -18,6 +20,8 @@ import { createAgents } from '../../lib/agents.js';
 import { createActivityLog } from '../../lib/activity.js';
 import { createResurrection } from '../../lib/resurrection.js';
 import { sitrepPlugin } from '../../routes/sitrep.js';
+
+const sitrepCliSource = readFileSync(resolve(import.meta.dirname, '../../cli/commands/sitrep.ts'), 'utf8');
 
 let db;
 let app;
@@ -49,6 +53,12 @@ afterEach(async () => {
 });
 
 describe('/sitrep', () => {
+  test('CLI uses the shared relative transport resolver for every sitrep request', () => {
+    expect(sitrepCliSource).not.toContain('PORT_DADDY_URL');
+    expect(sitrepCliSource).toContain('pdFetch(`/sitrep${qs}`)');
+    expect(sitrepCliSource).toContain('pdFetch(`/sessions/${sessionId}`)');
+  });
+
   test('returns structure with defaults when harbor is empty', async () => {
     const res = await app.inject({ method: 'GET', url: '/sitrep' });
     expect(res.statusCode).toBe(200);

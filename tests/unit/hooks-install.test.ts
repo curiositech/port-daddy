@@ -98,6 +98,8 @@ describe('hook-shape (single source of truth) matches the squid adapter exactly'
     expect(toml).not.toContain('async = true');
     const pre = toml.slice(toml.indexOf('[[hooks.PreToolUse]]'), toml.indexOf('[[hooks.PostToolUse]]'));
     expect(pre).toContain('async = false');
+    expect(toml.match(/timeout = 1/g)).toHaveLength(3);
+    expect(toml).not.toContain('statusMessage');
   });
 });
 
@@ -258,6 +260,70 @@ describe('configureTarget — per-project scope, gate-pointed commands', () => {
     uninstallTarget(codex, { scope: 'user' });
     expect(readFileSync(codex.userConfigPath, 'utf-8')).not.toContain(CODEX_PD_MARKER);
     expect(readFileSync(codex.userConfigPath, 'utf-8')).toContain('model = "o3"');
+  });
+
+  test('codex migration removes unmarked TOML and hooks.json duplicates', () => {
+    const codex = buildTargets(HOME).find((t) => t.slug === 'codex')!;
+    const legacyJson = join(HOME, '.codex', 'hooks.json');
+    mkdirSync(join(HOME, '.codex'), { recursive: true });
+    writeFileSync(codex.userConfigPath, [
+      'model = "o3"',
+      '[[hooks.UserPromptSubmit]]',
+      '[[hooks.UserPromptSubmit.hooks]]',
+      'type = "command"',
+      'command = "/old/pd-hook-prompt"',
+      'timeout = 10',
+      '[[hooks.PreToolUse]]',
+      'matcher = "Edit"',
+      '[[hooks.PreToolUse.hooks]]',
+      'type = "command"',
+      'command = "/old/pd-hook-pre-tool"',
+      '',
+      '[shell_environment_policy]',
+      'inherit = "core"',
+      '',
+    ].join('\n'));
+    writeFileSync(legacyJson, JSON.stringify({
+      hooks: {
+        UserPromptSubmit: [
+          { hooks: [{ type: 'command', command: '/old/pd-hook-prompt' }] },
+          { hooks: [{ type: 'command', command: '/usr/local/bin/user-prompt-audit' }] },
+        ],
+        PreToolUse: [{ hooks: [{ type: 'command', command: '/old/pd-hook-pre-tool' }] }],
+      },
+    }, null, 2));
+
+    configureTarget(codex, { scope: 'user' });
+    configureTarget(codex, { scope: 'user' });
+
+    const toml = readFileSync(codex.userConfigPath, 'utf-8');
+    expect(toml).toContain('[shell_environment_policy]');
+    expect(toml).not.toContain('/old/pd-hook-');
+    for (const name of TENTACLES) {
+      expect(toml.split(`/.port-daddy/bin/${name}`).length - 1).toBe(1);
+    }
+    expect(toml.split(CODEX_PD_MARKER).length - 1).toBe(1);
+
+    const json = readFileSync(legacyJson, 'utf-8');
+    expect(json).not.toContain('pd-hook-');
+    expect(json).toContain('/usr/local/bin/user-prompt-audit');
+    expect(existsSync(`${codex.userConfigPath}.tmp`)).toBe(false);
+  });
+
+  test('a malformed retired hooks.json cannot block current Codex repair', () => {
+    const codex = buildTargets(HOME).find((t) => t.slug === 'codex')!;
+    const legacyJson = join(HOME, '.codex', 'hooks.json');
+    const malformed = '{ "hooks": [';
+    mkdirSync(join(HOME, '.codex'), { recursive: true });
+    writeFileSync(codex.userConfigPath, 'model = "o3"\n');
+    writeFileSync(legacyJson, malformed);
+
+    const result = configureTarget(codex, { scope: 'user' });
+
+    expect(result.success).toBe(true);
+    expect(readFileSync(legacyJson, 'utf-8')).toBe(malformed);
+    const toml = readFileSync(codex.userConfigPath, 'utf-8');
+    expect(toml.split(CODEX_PD_MARKER).length - 1).toBe(1);
   });
 
   test('codex strip is end-fenced: user [[hooks.*]] tables AFTER our block survive', () => {

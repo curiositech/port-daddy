@@ -11,7 +11,11 @@ import { createMessaging } from '../../lib/messaging.js';
 import { createAttention } from '../../lib/attention.js';
 import { createTupleSpace } from '../../lib/tuples.js';
 import { createParley } from '../../lib/parley.js';
-import { rankAttentionSuggestions, renderAttentionLinework } from '../../cli/commands/attention.js';
+import {
+  rankAttentionSuggestions,
+  renderAttentionLinework,
+  unboundAttentionSummary,
+} from '../../cli/commands/attention.js';
 
 function setup() {
   const db = createTestDb();
@@ -22,6 +26,19 @@ function setup() {
 }
 
 describe('attention.compose', () => {
+  test('pre-session attention is an explicit successful empty state', () => {
+    expect(unboundAttentionSummary(true, 1234)).toEqual({
+      success: true,
+      bound: false,
+      items: [],
+      counts: { total: 0, inbox: 0, channels: 0, inboxUnreadRemaining: 0 },
+      subscriptions: [],
+      suggestions: [],
+      peek: true,
+      generatedAt: 1234,
+    });
+  });
+
   test('empty attention recommends concrete, ranked watches instead of a channel placeholder', () => {
     const suggestions = rankAttentionSuggestions([
       {

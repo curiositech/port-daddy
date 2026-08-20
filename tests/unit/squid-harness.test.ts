@@ -463,13 +463,13 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     const parsed = JSON.parse(r.stdout);
     expect(parsed.hookSpecificOutput.hookEventName).toBe('UserPromptSubmit');
     const ctx = parsed.hookSpecificOutput.additionalContext as string;
-    expect(ctx).toMatch(/STEERING ALERTS/);
+    expect(ctx).toMatch(/ACTIONABLE COORDINATION/);
     expect(ctx).toMatch(/stop and ack/);
     // /repo basename or path appears in the pheromone value → relevant → injected
     expect(ctx).toMatch(/deprecated v1_hook/);
   });
 
-  test('prompt envelope is fresh, exact-project scoped, and bounded to 12 entries / 4 KiB', () => {
+  test('prompt envelope is fresh, exact-project scoped, and bounded to 2 entries / 512 bytes', () => {
     mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
     const fresh = new Date().toISOString();
     const stale = new Date(Date.now() - 31 * 60_000).toISOString();
@@ -488,6 +488,7 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
         ...process.env,
         PD_MATRIX_FILE: MATRIX,
         PD_HOME: dirname(MATRIX),
+        // Attempts to raise the hard product budget are clamped by the hook.
         PD_SQUID_PROMPT_MAX_ENTRIES: '12',
         PD_SQUID_PROMPT_MAX_BYTES: '4096',
       },
@@ -501,13 +502,33 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     };
     expect(parsed.hookSpecificOutput.hookEventName).toBe('UserPromptSubmit');
     const ctx = parsed.hookSpecificOutput.additionalContext;
-    expect(Buffer.byteLength(ctx)).toBeLessThanOrEqual(4096);
-    // 12 matrix entries max; the standing "maintain an active pd plan" directive
-    // line is not a matrix entry and is excluded from the count.
-    const entries = ctx.split('\n').filter((line) => line.startsWith('- ') && !line.includes('pd plan'));
-    expect(entries).toHaveLength(12);
+    expect(Buffer.byteLength(ctx)).toBeLessThanOrEqual(512);
+    expect(Buffer.byteLength(r.stdout)).toBeLessThanOrEqual(640); // JSON framing only
+    const lines = ctx.trimEnd().split('\n');
+    expect(lines).toHaveLength(3); // one heading + two actionable facts
+    const entries = lines.filter((line) => line.startsWith('- '));
+    expect(entries).toHaveLength(2);
     expect(ctx).not.toContain('must-not-appear');
     expect(ctx).not.toContain('wrong-project');
+  });
+
+  test('prompt hook emits zero bytes when nothing actionable matches this project', () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    const fresh = new Date().toISOString();
+    writeFileSync(MATRIX, [
+      `PD_PHEROMONE_FOREIGN="${WORKSPACE}-copy/src/nope.ts | wrong-project | ts:${fresh}"`,
+      '',
+    ].join('\n'));
+
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX) },
+      encoding: 'utf8',
+    });
+
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
   });
 
   test('prompt hook stays fast against a large, mostly-stale, mostly-foreign matrix', () => {
@@ -529,7 +550,7 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
       '',
     ];
     // Bulk of the noise: stale entries for an unrelated project, fleet-wide.
-    for (let i = 0; i < 3000; i++) {
+    for (let i = 0; i < 3167; i++) {
       lines.push(
         `PD_PHEROMONE_NOISE_${i}="/repo/other-project/src/file-${i}.ts | churn | intensity:1 | ts:${stale}"`,
       );
@@ -551,11 +572,13 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     const elapsedMs = Date.now() - start;
 
     expect(r.status).toBe(0);
-    expect(elapsedMs).toBeLessThan(5_000);
+    expect(elapsedMs).toBeLessThan(2_000);
     const parsed = JSON.parse(r.stdout) as {
       hookSpecificOutput: { additionalContext: string };
     };
     expect(parsed.hookSpecificOutput.additionalContext).toContain('the fresh relevant one');
+    expect(parsed.hookSpecificOutput.additionalContext.trimEnd().split('\n')).toHaveLength(2);
+    expect(Buffer.byteLength(r.stdout)).toBeLessThanOrEqual(640);
   });
 
   test('post-tool compacts the pheromone tail once the matrix crosses MAX_LINES', () => {
@@ -712,7 +735,7 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     // Absolute paths only (the CLI runs hooks from arbitrary cwds).
     expect(cmd('PreToolUse').startsWith('/')).toBe(true);
     const gate = settings.hooks.PreToolUse[settings.hooks.PreToolUse.length - 1];
-    expect(gate.hooks[0].statusMessage).toBe('◆ PD EDIT · checking ownership before mutation');
+    expect(gate.hooks[0].statusMessage).toBeUndefined();
     expect(gate.name).toBe(SQUID_HOOK_METADATA.preTool.displayName);
     expect(gate.description).toBe(SQUID_HOOK_METADATA.preTool.description);
     expect(gate.privacy).toBe(SQUID_HOOK_METADATA.preTool.privacy);
@@ -754,7 +777,7 @@ describe('Giant Squid Harness — GeminiSquidAdapter.injectHooks', () => {
     expect(matcher).toMatch(/run_shell_command/);
     expect(cmd('BeforeTool').startsWith('/')).toBe(true);
     expect(cfg.hooks.AfterTool[cfg.hooks.AfterTool.length - 1].hooks[0].statusMessage)
-      .toBe('◆ PD TRACE · adding the outcome to fleet context');
+      .toBeUndefined();
     expect(cfg.hooks.BeforeTool[cfg.hooks.BeforeTool.length - 1].name).toBe(SQUID_HOOK_METADATA.preTool.displayName);
   });
 
@@ -805,9 +828,8 @@ describe('Giant Squid Harness — CodexSquidAdapter.injectHooks', () => {
     expect(toml).toMatch(/\[\[hooks\.PostToolUse\]\]/);
     expect(toml).toMatch(/\[\[hooks\.UserPromptSubmit\]\]/);
     expect(toml).not.toMatch(/async = true/);
-    expect(toml).toContain('statusMessage = "◆ PD TURN · adding fresh coordination context"');
-    expect(toml).toContain('statusMessage = "◆ PD EDIT · checking ownership before mutation"');
-    expect(toml).toContain('statusMessage = "◆ PD TRACE · adding the outcome to fleet context"');
+    expect(toml).not.toContain('statusMessage');
+    expect(toml.match(/timeout = 1/g)).toHaveLength(3);
     expect(toml).toContain(SQUID_HOOK_PRIVACY_NOTICE);
     expect(toml).toContain(SQUID_HOOK_METADATA.prompt.displayName);
     expect(toml).toContain(SQUID_HOOK_METADATA.preTool.displayName);
