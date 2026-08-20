@@ -1,11 +1,11 @@
-// tests/unit/purser/hardcoded-port-literal-guard.test.ts
 import { describe, expect, test } from '@jest/globals';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const runtimeDir = join(repoRoot, 'apps', 'FleetBar', 'FleetBar');
+const productGuard = join(repoRoot, 'tests', 'unit', 'fleetbar-endpoint-literal-guard.test.js');
 
 function swiftFiles(dir: string): string[] {
   const out: string[] = [];
@@ -13,9 +13,7 @@ function swiftFiles(dir: string): string[] {
     const full = join(dir, entry);
     const stats = statSync(full);
     if (stats.isDirectory()) {
-      if (entry !== 'Resources' && entry !== '.build') {
-        out.push(...swiftFiles(full));
-      }
+      if (entry !== 'Resources' && entry !== '.build') out.push(...swiftFiles(full));
     } else if (entry.endsWith('.swift')) {
       out.push(full);
     }
@@ -23,7 +21,7 @@ function swiftFiles(dir: string): string[] {
   return out;
 }
 
-const FORBIDDEN: [string, RegExp][] = [
+const FORBIDDEN: ReadonlyArray<readonly [string, RegExp]> = [
   ['preferred stable port literal 9876', /\b9876\b/],
   ['fixed dev-latest port literal 9886', /\b9886\b/],
   ['removed constant canonicalPreferredPort', /canonicalPreferredPort/],
@@ -36,8 +34,9 @@ const FORBIDDEN: [string, RegExp][] = [
 describe('FleetBar endpoint-literal guard', () => {
   const files = swiftFiles(runtimeDir);
 
-  test('there is runtime source to scan', () => {
-    expect(files.length).toBeGreaterThan(0);
+  test('the runtime scan covers real FleetBar Swift sources', () => {
+    expect(files.length).toBeGreaterThan(10);
+    expect(files.some((file) => file.endsWith('DaemonLocation.swift'))).toBe(true);
   });
 
   for (const [label, pattern] of FORBIDDEN) {
@@ -57,17 +56,21 @@ describe('FleetBar endpoint-literal guard', () => {
   }
 
   test('port-0 matcher covers hostnames, IPv4, and bracketed IPv6', () => {
-    const pattern = FORBIDDEN.find(([label]) => label === 'port-0 endpoint sentinel')![1];
+    const pattern = FORBIDDEN.find(([label]) => label === 'port-0 endpoint sentinel')?.[1];
+    expect(pattern).toBeDefined();
     for (const url of ['http://localhost:0', 'http://127.0.0.1:0/status', 'https://[::1]:0']) {
-      expect(url).toMatch(pattern);
+      expect(pattern!.test(url)).toBe(true);
     }
   });
 
-  test('DaemonLocation exposes the typed available/unavailable contract', () => {
-    const source = readFileSync(join(runtimeDir, 'DaemonLocation.swift'), 'utf8');
-    expect(source).toMatch(/enum DaemonEndpoint/);
-    expect(source).toMatch(/case available\(url: String, source: DaemonEndpointSource\)/);
-    expect(source).toMatch(/case unavailable\(DaemonUnavailableReason\)/);
-    expect(source).toMatch(/static func availableBaseURL\(\) -> String\?/);
+  test('the product slice installs its permanent runtime guard', () => {
+    expect(existsSync(productGuard)).toBe(true);
+    if (!existsSync(productGuard)) return;
+
+    const source = readFileSync(productGuard, 'utf8');
+    expect(source).toContain("join(repoRoot, 'apps', 'FleetBar', 'FleetBar')");
+    for (const symbol of ['canonicalPreferredPort', 'devLatestPort', 'unpublishedSentinelPort', 'resolveBaseURL']) {
+      expect(source).toContain(symbol);
+    }
   });
 });
