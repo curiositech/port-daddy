@@ -29,11 +29,20 @@ Branch `pr-7698-reconciled` = origin/explore_conceptual_framework_ideas + origin
 ## pd-qa dispositions
 HIGH (build error propagation): already fixed on main line 170 (`|| return 1`) — resolved by merge. MEDIUM (cross-paper citation keys): resolved by ported test "identical local citation keys stay isolated between papers". LOW (pdflatex skip): accepted; CI container guarantees the toolchain.
 
+## Local test failures triaged (2026-08-19)
+Three `npm test` failures reported from the worktree; all three predate this series (present at the PR branch's own HEAD, absent on main) and are now fixed:
+1. **spawn-whitepaper-contract** — the overhaul commits flattened the semantic maturity macros into literal `\text{\textsc{built}}`, stranding the WEAK suffix as body text so "PARTIAL" rendered as the word "builtWEAK". 57 call sites restored across the source plus the honest-state table and the three-organs caption (whose labels had been dropped outright). All 10 contract assertions verified green. Commit f44362a1. *This is the executable publication contract doing exactly its job: it exists to stop maturity claims from drifting, and it caught a drift.*
+2. **purser-mega-volume-successor** — manifest pinned at 7/202; the PR branch alone now generates 207 references, and the Landlord citation added here makes 208. Pin refreshed. Commit b2a964b9.
+3. **build-whitepapers restorable list** — asserted the first seven PAPERS entries; the mega volume is the eighth and equally restorable, so CI would have discarded a genuine render or re-churned it. List now covers the whole table, per the test's own "right in BOTH directions" comment. Commit b2a964b9.
+
+Local `npm test` also triggers macOS Keychain GUI prompts (`harbor-signing-*`) from signing tests that neither stub nor skip when no keychain exists — unrelated to this PR, invisible in CI (headless), and worth its own issue: **F5**.
+
 ## Follow-ups (named, small)
 - **F1** user_version migration ledger (correction 7b) absent from §II tex.
 - **F2** build-whitepapers.sh FILTER matched 0 papers for exact roottex in a stock container — check filter semantics.
 - **F3** after CI's auto-regen commit, bump spawn contract sha if the floating `texlive:latest` dialect drifted (pin currently matches the committed artifact).
 - **F4** rescue the two remaining chat research artifacts verbatim into research/ (titles in HANDOFF §3.7).
+- **F5** signing tests must stub the keychain or skip when unavailable; today they block local `npm test` behind GUI prompts.
 
 ## Coordination datum (worth keeping)
 Two agents independently authored `generate-mega-whitepaper.mjs` on divergent branches (#6368 vs this PR) and collided at merge — an exact-key conflict never filed in any claim registry. Chapter II's motivating problem, observed in this repo's own history.
