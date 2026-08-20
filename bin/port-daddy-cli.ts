@@ -50,7 +50,7 @@ import {
   // Sessions
   handleSession, handleSessions, handleNote, handleNotes,
   // Agents & Resurrection
-  handleAgent, handleAgents, handleRoster,
+  handleAgent, handleAgents, handleRoster, ROSTER_HELP,
   handleSalvage,
   // Changelog
   handleChangelog,
@@ -58,7 +58,7 @@ import {
   handleBooty,
   // Inbox
   handleInbox,
-  handleSent,
+  handleSent, SENT_HELP,
   // Tunnel
   handleTunnel,
   // Activity
@@ -83,7 +83,7 @@ import {
   // Sugar commands
   handleBegin, handleDone, handleWhoami, handleWithLock,
   // Attention (inbox + subscribed channels — see docs/RELEASING.md for hook wiring)
-  handleAttention,
+  handleAttention, ATTENTION_HELP,
   // Nudge (suggestibility layer — claim-overlap heads-up, ADR-0039)
   handleNudge,
   // Tutorial
@@ -120,7 +120,7 @@ import {
   handleParley,
   handleFeedback,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
-  handleSitrep, handleSay, handleLook, handlePheromone, handlePlan,
+  handleSitrep, SITREP_HELP, handleSay, handleLook, handlePheromone, handlePlan,
   // Coordination advisor / suggestibility
   handleAdvisor,
   // Maritime actor directory
@@ -653,13 +653,36 @@ export const HELP_TOPIC_ALIASES: Record<string, string> = {
   pub: 'messaging', publish: 'messaging', broadcast: 'messaging',
   sub: 'messaging', subscribe: 'messaging', listen: 'messaging',
   channels: 'messaging', wait: 'messaging',
-  hooks: 'setup',
+  claim: 'ports', c: 'ports', release: 'ports', r: 'ports',
+  find: 'ports', f: 'ports', list: 'ports', l: 'ports', ps: 'ports', services: 'ports',
+  url: 'ports', env: 'ports',
+  lock: 'locks', unlock: 'locks',
+  begin: 'sugar', done: 'sugar', whoami: 'sugar', 'with-lock': 'sugar',
+  n: 'sugar', u: 'sugar', d: 'sugar',
+  session: 'sessions', takeover: 'sessions', note: 'sessions', notes: 'sessions',
+  feedback: 'sessions',
+  agent: 'agents', agents: 'agents', swarm: 'agents', salvage: 'agents', resurrection: 'agents',
+  actor: 'actors', actors: 'actors',
+  up: 'orchestration', down: 'orchestration', scan: 'orchestration', s: 'orchestration',
+  projects: 'orchestration', p: 'orchestration', health: 'orchestration',
+  hooks: 'setup', init: 'setup',
+  memory: 'semantic', graph: 'semantic',
+  advise: 'advisor', preflight: 'advisor', compass: 'advisor',
+  secrets: 'secret',
+  learn: 'tutorial',
   skillgraft: 'skill-graft',
-  done: 'sessions', begin: 'sessions',
 };
 
-/** Commands whose modules already own precise, tested help text. */
-export const HANDLER_OWNED_HELP_COMMANDS = new Set(['attention', 'sitrep', 'squid']);
+/** Precise per-verb help whose source lives beside the flags it documents. */
+export const VERB_HELP: Record<string, string> = {
+  attention: ATTENTION_HELP,
+  sitrep: SITREP_HELP,
+  roster: ROSTER_HELP,
+  sent: SENT_HELP,
+};
+
+/** Heavy lazy-loaded commands whose own handler remains the help authority. */
+export const HANDLER_OWNED_HELP_COMMANDS = new Set(['squid']);
 
 export function shouldDispatchHelpToHandler(command: string): boolean {
   return HANDLER_OWNED_HELP_COMMANDS.has(command);
@@ -747,7 +770,7 @@ function buildHelp(): string {
  * Topic-specific detailed help maps.
  * Each topic shows relevant commands with flags and examples.
  */
-const TOPIC_HELP: Record<string, string> = {
+export const TOPIC_HELP: Record<string, string> = {
   setup: `Setup — Install the full local Port Daddy environment
 
 Commands:
@@ -1381,13 +1404,18 @@ The tutorial walks you through:
 Run: pd learn`,
 };
 
+/** The exact resolver used by `pd <verb> --help`; null means honest global help. */
+export function resolveVerbHelp(command: string): string | null {
+  return TOPIC_HELP[command] ?? VERB_HELP[command] ?? TOPIC_HELP[HELP_TOPIC_ALIASES[command]] ?? null;
+}
+
 // HELP is built lazily via getHelp() for context-aware output
 
 // =============================================================================
 // Command Suggestion (fuzzy "did you mean?")
 // =============================================================================
 
-const ALL_COMMANDS: string[] = [
+export const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'tube', 'wait', 'lock', 'unlock', 'locks',
   'up', 'down', 'setup', 'init', 'cut', 'batten', 'scan', 's', 'projects', 'p',
@@ -2565,8 +2593,7 @@ export async function main(): Promise<void> {
   // demos (website-terminal-recordings reviewer flags /ERROR:/). Falls back to
   // the global help for commands without a dedicated topic.
   if (options.help && !shouldDispatchHelpToHandler(command as string)) {
-    const topicHelp = TOPIC_HELP[command as string] ?? TOPIC_HELP[HELP_TOPIC_ALIASES[command as string]];
-    console.log(topicHelp || buildHelp());
+    console.log(resolveVerbHelp(command as string) ?? buildHelp());
     process.exit(0);
   }
 
