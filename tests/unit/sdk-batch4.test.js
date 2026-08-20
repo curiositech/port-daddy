@@ -995,6 +995,33 @@ describe('Route error codes: sessions', () => {
     expect(res.json().sessionId).toBe(ownerSessionId);
   });
 
+  test('POST /notes treats an explicit sessionId as authoritative when agentId is also given', async () => {
+    const explicit = await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'Explicit target', agentId: 'agent-explicit' },
+    });
+    const explicitSessionId = explicit.json().id;
+    await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'Agent fallback', agentId: 'agent-fallback' },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/notes',
+      payload: {
+        content: 'explicit session wins',
+        sessionId: explicitSessionId,
+        agentId: 'agent-fallback',
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().sessionId).toBe(explicitSessionId);
+  });
+
   test('POST /sessions with conflicting files returns FILE_CONFLICT', async () => {
     // Create a session and claim files
     await app.inject({
