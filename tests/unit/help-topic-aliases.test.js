@@ -1,13 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-// Source-text assertions (NOT an import): importing bin/port-daddy-cli.ts runs
-// `void main()` at module load, so — like tests/unit/cli-short-aliases.test.js —
-// we read the CLI as text and assert the wiring. This guards the messaging
-// discoverability fix: `pd send` as a top-level verb, and `pd <cmd> --help`
-// resolving to the messaging TOPIC instead of falling through to global help.
+// The CLI now has a side-effect suppression guard, so the help dispatch helper
+// is imported and executed below. Source text remains useful for table wiring.
 const ROOT = join(import.meta.dirname, '../..');
 const cliSource = readFileSync(join(ROOT, 'bin/port-daddy-cli.ts'), 'utf8');
+let shouldDispatchHelpToHandler;
+
+beforeAll(async () => {
+  process.env.PORT_DADDY_SUPPRESS_CLI_MAIN = '1';
+  ({ shouldDispatchHelpToHandler } = await import('../../bin/port-daddy-cli.ts'));
+});
 
 describe('messaging discoverability', () => {
   test('HELP_TOPIC_ALIASES maps the messaging family to the messaging topic', () => {
@@ -22,6 +25,14 @@ describe('messaging discoverability', () => {
     expect(cliSource).toMatch(
       /TOPIC_HELP\[command as string\]\s*\?\?\s*TOPIC_HELP\[HELP_TOPIC_ALIASES\[command as string\]\]/
     );
+  });
+
+  test('diagnostic verbs reach their own precise help instead of global help', () => {
+    for (const command of ['attention', 'sitrep', 'squid']) {
+      expect(shouldDispatchHelpToHandler(command)).toBe(true);
+    }
+    expect(shouldDispatchHelpToHandler('claim')).toBe(false);
+    expect(cliSource).toMatch(/\bhooks:\s*'setup'/);
   });
 
   test('`pd send` is wired as a top-level verb routing to the durable inbox send', () => {

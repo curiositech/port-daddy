@@ -77,6 +77,16 @@ next-turn envelope. User-level Codex/agy entries do not make hooks global: the
 wrapper requires the exact project root in the arm registry. `pd squid off`
 removes that root while preserving other projects.
 
+The normal hook path is invisible: no status message, no standing reminder,
+and zero stdout when there is no fresh actionable project fact or fleet-wide
+control alert.
+When coordination is genuinely useful, the prompt hook is capped at one heading
+plus two facts (512 bytes of context). A no-op turn that prints a plan/SITREP
+lecture, waits on the daemon, or scans an unbounded matrix is a product bug.
+`pd attention` is also safe before `pd begin`: without a bound identity its
+default read succeeds as an explicit empty/unbound result; subscription changes
+still require an identity.
+
 The operator drives this through FleetBar's selected-project `◆ GIANT SQUID`
 strip. It exposes state, provider count, and Arm/Repair/Disarm without asking the
 operator to run these agent-facing commands.
@@ -87,6 +97,7 @@ Use this path before you reach for advanced coordination. It is the normal
 agent loop for repo work on this machine.
 
 ```bash
+pd attention
 pd status
 pd sitrep --template
 pd briefing

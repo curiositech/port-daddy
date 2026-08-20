@@ -126,6 +126,16 @@ repo-specific mechanics:
   user config, exact-root gating, statusline, Pilot SessionStart, `/squid`, and
   machine-readable READY/LIVE state. A source-suite pass cannot substitute for
   this artifact-boundary proof.
+- **Prove the hook hot path stays invisible and bounded.** A healthy no-op turn
+  emits zero bytes and no status message, never starts the daemon or shells
+  through the full `pd` CLI, and filters file traces to the exact project root
+  before rendering them. Keep the prompt hook to one heading plus at
+  most two facts, clamp its context budget, and keep harness deadlines at one
+  second. The regression proof must include thousands of irrelevant matrix
+  entries while still surfacing one fresh exact-root fact. Installer tests must
+  also prove atomic, idempotent config writes and migration of duplicate legacy
+  Codex registrations without disturbing user hooks. Do not merge standing
+  every-turn reminders or SITREP compulsion back into the hook path.
 
 ## Core Decision Tree
 

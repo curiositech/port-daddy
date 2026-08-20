@@ -32,7 +32,6 @@ export type TentacleResolver = (name: TentacleName) => string;
 export interface HookCommand {
   type: 'command';
   command: string;
-  statusMessage?: string;
 }
 export interface HookMatcher {
   matcher?: string;
@@ -40,16 +39,12 @@ export interface HookMatcher {
 }
 
 /** Canonical single-matcher entry (matcher omitted entirely when undefined). */
-export const SQUID_HOOK_STATUS = {
-  prompt: '◆ PD TURN · adding fresh coordination context',
-  preTool: '◆ PD EDIT · checking ownership before mutation',
-  postTool: '◆ PD TRACE · adding the outcome to fleet context',
-} as const;
-
-export function hookEntry(command: string, matcher?: string, statusMessage?: string): HookMatcher {
+export function hookEntry(command: string, matcher?: string): HookMatcher {
   return {
     ...(matcher ? { matcher } : {}),
-    hooks: [{ type: 'command', command, ...(statusMessage ? { statusMessage } : {}) }],
+    // No statusMessage: a successful no-op hook is intentionally invisible.
+    // Actionable context/blocking still arrives through stdout/stderr.
+    hooks: [{ type: 'command', command }],
   };
 }
 
@@ -123,9 +118,9 @@ export function buildJsonHookMap(
   const ev = vendor === 'gemini' ? GEMINI_EVENTS : vendor === 'agy' ? AGY_EVENTS : CLAUDE_EVENTS;
   const matcher = vendor === 'gemini' ? GEMINI_TOOL_MATCHER : vendor === 'agy' ? AGY_TOOL_MATCHER : CLAUDE_TOOL_MATCHER;
   return {
-    [ev.prompt]: [hookEntry(resolve('pd-hook-prompt'), undefined, SQUID_HOOK_STATUS.prompt)],
-    [ev.preTool]: [hookEntry(resolve('pd-hook-pre-tool'), matcher, SQUID_HOOK_STATUS.preTool)],
-    [ev.postTool]: [hookEntry(resolve('pd-hook-post-tool'), matcher, SQUID_HOOK_STATUS.postTool)],
+    [ev.prompt]: [hookEntry(resolve('pd-hook-prompt'))],
+    [ev.preTool]: [hookEntry(resolve('pd-hook-pre-tool'), matcher)],
+    [ev.postTool]: [hookEntry(resolve('pd-hook-post-tool'), matcher)],
   };
 }
 
@@ -154,29 +149,63 @@ export interface CodexHooksTomlOptions {
  */
 export function stripCodexHooksTomlBlock(text: string): string {
   const lines = text.split('\n');
-  const out: string[] = [];
+  const withoutMarkedBlocks: string[] = [];
   let skipping = false;
-  let fenced = false;
   for (const line of lines) {
     if (!skipping && line.includes(CODEX_PD_MARKER)) {
       skipping = true;
-      fenced = text.includes(CODEX_PD_END_MARKER);
       continue;
     }
     if (skipping) {
-      if (fenced) {
-        if (line.includes(CODEX_PD_END_MARKER)) skipping = false;
+      if (line.includes(CODEX_PD_END_MARKER)) {
+        skipping = false;
         continue;
       }
+      // Legacy marked blocks had no end fence. Stop at the first unrelated
+      // top-level table instead of looking for an end marker somewhere else in
+      // the file (which could belong to a newer second block and swallow user
+      // configuration between the two).
       const trimmed = line.trim();
-      if (trimmed.startsWith('[') && !trimmed.startsWith('[[hooks.') && !trimmed.startsWith('[hooks')) {
+      if (trimmed.startsWith('[') && !trimmed.startsWith('[[hooks.')) {
         skipping = false;
-        out.push(line);
+        withoutMarkedBlocks.push(line);
       }
       continue;
     }
-    out.push(line);
+    withoutMarkedBlocks.push(line);
   }
+
+  // The oldest installer emitted hook tables without any marker comment. A
+  // later fenced install therefore left both sets live. Remove only complete
+  // hook groups whose command entries are all Port Daddy tentacles; mixed or
+  // user-authored groups are preserved byte-for-byte.
+  const unmarked = withoutMarkedBlocks;
+  const out: string[] = [];
+  const parentTable = /^\s*\[\[hooks\.[^.\]\s]+\]\]\s*$/;
+  for (let i = 0; i < unmarked.length;) {
+    if (!parentTable.test(unmarked[i])) {
+      out.push(unmarked[i]);
+      i += 1;
+      continue;
+    }
+
+    let end = i + 1;
+    while (end < unmarked.length) {
+      const trimmed = unmarked[end].trim();
+      if (parentTable.test(unmarked[end])) break;
+      if (trimmed.startsWith('[') && !trimmed.startsWith('[[hooks.')) break;
+      end += 1;
+    }
+    const group = unmarked.slice(i, end);
+    const commands = group
+      .map((entry) => entry.match(/^\s*command\s*=\s*["']([^"']+)["']\s*$/)?.[1])
+      .filter((entry): entry is string => typeof entry === 'string');
+    if (commands.length === 0 || !commands.every((command) => command.includes(PD_HOOK_MARKER))) {
+      out.push(...group);
+    }
+    i = end;
+  }
+
   return out.join('\n').replace(/\n{3,}/g, '\n\n').replace(/\s*$/, '\n');
 }
 
@@ -206,8 +235,7 @@ export function codexHooksTomlBlock(
   L.push('[[hooks.UserPromptSubmit.hooks]]');
   L.push('type = "command"');
   L.push(`command = ${tomlString(resolve('pd-hook-prompt'))}`);
-  L.push(`statusMessage = ${tomlString(SQUID_HOOK_STATUS.prompt)}`);
-  L.push('timeout = 10');
+  L.push('timeout = 1');
   L.push('async = false');
   L.push('');
   L.push('[[hooks.PreToolUse]]');
@@ -215,8 +243,7 @@ export function codexHooksTomlBlock(
   L.push('[[hooks.PreToolUse.hooks]]');
   L.push('type = "command"');
   L.push(`command = ${tomlString(resolve('pd-hook-pre-tool'))}`);
-  L.push(`statusMessage = ${tomlString(SQUID_HOOK_STATUS.preTool)}`);
-  L.push('timeout = 10');
+  L.push('timeout = 1');
   L.push('async = false');
   L.push('');
   L.push('[[hooks.PostToolUse]]');
@@ -224,8 +251,7 @@ export function codexHooksTomlBlock(
   L.push('[[hooks.PostToolUse.hooks]]');
   L.push('type = "command"');
   L.push(`command = ${tomlString(resolve('pd-hook-post-tool'))}`);
-  L.push(`statusMessage = ${tomlString(SQUID_HOOK_STATUS.postTool)}`);
-  L.push('timeout = 10');
+  L.push('timeout = 1');
   L.push('async = false');
   L.push(`# ${CODEX_PD_END_MARKER}`);
   L.push('');

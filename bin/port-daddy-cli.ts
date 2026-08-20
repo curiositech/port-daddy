@@ -653,9 +653,17 @@ export const HELP_TOPIC_ALIASES: Record<string, string> = {
   pub: 'messaging', publish: 'messaging', broadcast: 'messaging',
   sub: 'messaging', subscribe: 'messaging', listen: 'messaging',
   channels: 'messaging', wait: 'messaging',
+  hooks: 'setup',
   skillgraft: 'skill-graft',
   done: 'sessions', begin: 'sessions',
 };
+
+/** Commands whose modules already own precise, tested help text. */
+export const HANDLER_OWNED_HELP_COMMANDS = new Set(['attention', 'sitrep', 'squid']);
+
+export function shouldDispatchHelpToHandler(command: string): boolean {
+  return HANDLER_OWNED_HELP_COMMANDS.has(command);
+}
 
 /**
  * Build the compact main help output.
@@ -2556,7 +2564,7 @@ export async function main(): Promise<void> {
   // printed "ERROR: pd done refused …", which also poisoned recorded terminal
   // demos (website-terminal-recordings reviewer flags /ERROR:/). Falls back to
   // the global help for commands without a dedicated topic.
-  if (options.help) {
+  if (options.help && !shouldDispatchHelpToHandler(command as string)) {
     const topicHelp = TOPIC_HELP[command as string] ?? TOPIC_HELP[HELP_TOPIC_ALIASES[command as string]];
     console.log(topicHelp || buildHelp());
     process.exit(0);

@@ -39,9 +39,10 @@ import {
   copyFileSync,
   chmodSync,
   realpathSync,
+  renameSync,
   rmSync,
 } from 'node:fs';
-import { join, dirname, resolve } from 'node:path';
+import { basename, join, dirname, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import * as ui from '../utils/ui.js';
 import { PD_HOME } from '../../shared/paths.js';
@@ -310,6 +311,38 @@ export interface ConfigureResult {
 /** Resolver pointing hook commands at the GATE WRAPPERS (not the raw tentacles). */
 const gateResolver: TentacleResolver = (name) => gatePath(name);
 
+function atomicWriteConfig(path: string, content: string): void {
+  mkdirSync(dirname(path), { recursive: true });
+  const temporary = join(dirname(path), `.${basename(path)}.pd-${process.pid}-${Date.now()}.tmp`);
+  try {
+    writeFileSync(temporary, content, { mode: 0o600 });
+    renameSync(temporary, path);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
+}
+
+/**
+ * Codex once loaded ~/.codex/hooks.json; current Codex uses config.toml. Remove
+ * only Port Daddy entries from that legacy surface when present so an upgrade
+ * cannot fire both generations of synchronous hooks. User hooks survive.
+ */
+function migratedLegacyCodexHooksJson(configPath: string): { path: string; content: string } | null {
+  const path = join(dirname(configPath), 'hooks.json');
+  if (!existsSync(path)) return null;
+  const raw = readFileSync(path, 'utf-8').trim();
+  let config: Record<string, unknown>;
+  try {
+    config = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+  } catch {
+    // A malformed retired surface cannot be active, and must not prevent the
+    // current TOML hook registration from being repaired. Preserve it exactly.
+    return null;
+  }
+  if (!removeJsonHooks(config)) return null;
+  return { path, content: JSON.stringify(config, null, 2) + '\n' };
+}
+
 export function configureTarget(
   target: AgentCliTarget,
   opts: { scope: 'user' | 'project'; cwd?: string },
@@ -332,7 +365,9 @@ export function configureTarget(
       const existing = existed ? readFileSync(configPath, 'utf-8') : '';
       const base = stripCodexHooksTomlBlock(existing).replace(/\s*$/, '');
       const sep = base.length ? '\n\n' : '';
-      writeFileSync(configPath, `${base}${sep}${codexHooksTomlBlock(gateResolver)}\n`);
+      const legacy = migratedLegacyCodexHooksJson(configPath);
+      if (legacy) atomicWriteConfig(legacy.path, legacy.content);
+      atomicWriteConfig(configPath, `${base}${sep}${codexHooksTomlBlock(gateResolver)}\n`);
       return { success: true, created: !existed, path: configPath };
     }
 
@@ -342,7 +377,7 @@ export function configureTarget(
       if (raw) config = JSON.parse(raw) as Record<string, unknown>;
     }
     upsertJsonHookMap(config, buildJsonHookMap(target.vendor!, gateResolver));
-    writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
+    atomicWriteConfig(configPath, JSON.stringify(config, null, 2) + '\n');
     return { success: true, created: !existed, path: configPath };
   } catch (err) {
     return { success: false, path: configPath, error: (err as Error).message };
@@ -362,13 +397,15 @@ export function uninstallTarget(
 
   try {
     if (target.format === 'codex-toml') {
-      writeFileSync(configPath, stripCodexHooksTomlBlock(readFileSync(configPath, 'utf-8')));
+      const legacy = migratedLegacyCodexHooksJson(configPath);
+      if (legacy) atomicWriteConfig(legacy.path, legacy.content);
+      atomicWriteConfig(configPath, stripCodexHooksTomlBlock(readFileSync(configPath, 'utf-8')));
       return { success: true, path: configPath };
     }
     const raw = readFileSync(configPath, 'utf-8').trim();
     const config = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
     removeJsonHooks(config);
-    writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
+    atomicWriteConfig(configPath, JSON.stringify(config, null, 2) + '\n');
     return { success: true, path: configPath };
   } catch (err) {
     return { success: false, path: configPath, error: (err as Error).message };

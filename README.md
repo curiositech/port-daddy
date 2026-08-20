@@ -627,7 +627,7 @@ pd cockpit           # mission overview
 - `auto` — Port Daddy merges the PR itself once **all** hold: every required CI check is green, `gh` reports the PR `mergeable` (no conflicts), zero unresolved review threads, and the PR is not a draft. It never force-pushes, never uses `gh pr merge --admin`/`--auto`, and never touches a `review`/`never` dispatch. The daemon sweeps this on an interval (`PD_DISPATCH_AUTOMERGE_POLL_MS`, default 60s); `pd dispatch merge-sweep` and `pd done` also trigger an immediate check. See `lib/dispatch/auto-merge.ts` for the full gate. This is a separate, narrower mechanism from `pd harbormaster`'s operator-approval (`pd review --accept`) merge queue.
 - `never` — Port Daddy never merges; the PR sits for a manual close.
 
-### Giant Squid — visible, project-scoped agent coordination
+### Giant Squid — visible controls, invisible project-scoped hooks
 
 `pd squid on` arms the complete harness for the current project. It stages the
 three local tentacles, wires every detected agent CLI in its real interactive
@@ -647,8 +647,14 @@ Claude and Gemini use project config; Codex and agy require user config because
 their interactive hook engines do not honor a project-local equivalent. Those
 user-level entries are still project-scoped at runtime: the wrapper requires a
 fresh daemon heartbeat, a `.portdaddy/` marker, and an exact match in the Squid
-project registry. Outside an armed root they no-op. The prompt envelope accepts
-only fresh, exact-project traces and is capped at 12 entries / 4 KiB.
+project registry. Outside an armed root they no-op. A healthy no-op turn emits
+zero bytes and no status message; the hot path reads bounded local evidence and
+never waits on the daemon or launches the full CLI. When an exact-project trace
+or fleet-wide control alert is actionable, the prompt envelope is capped at one
+heading plus two facts and 512 bytes of context, with a one-second harness
+deadline. Reinstalling hooks is
+idempotent and migrates older duplicate Codex registrations while preserving
+user-owned hooks.
 
 The non-diegetic value is explicit in both CLI and FleetBar: fresh coordination
 context before a turn, foreign-ownership warning or blocking before an edit,
