@@ -31,6 +31,7 @@ import {
 import { dirname, join } from 'node:path';
 import { PD_HOME } from '../../shared/paths.js';
 import { resolveSquidAsset } from './assets.js';
+import { parseMatrix } from './matrix.js';
 
 export const STATUSLINE_BIN = 'pd-statusline';
 /** Marker substring identifying OUR statusLine command (mirror of PD_HOOK_MARKER). */
@@ -174,16 +175,22 @@ export interface MatrixSnapshot {
   locks: string[];
 }
 
-/** Read the Ink Cloud matrix the tentacles steer from. Values only, no parsing risk. */
-export function readMatrixSnapshot(matrixPath = join(PD_HOME, 'matrix.env')): MatrixSnapshot {
-  const snap: MatrixSnapshot = { path: matrixPath, exists: false, alerts: [], pheromones: [], locks: [] };
-  if (!existsSync(matrixPath)) return snap;
+/**
+ * Read the Ink Cloud matrix the tentacles steer from. Values only, no parsing
+ * risk — delegates line-parsing to `lib/squid/matrix.ts`'s `parseMatrix`, the
+ * single source of truth for the `KEY="value"` format (ADR-0091 PR1: parser
+ * consolidation), instead of re-implementing it here.
+ */
+export function readMatrixSnapshot(path = join(PD_HOME, 'matrix.env')): MatrixSnapshot {
+  const snap: MatrixSnapshot = { path, exists: false, alerts: [], pheromones: [], locks: [] };
+  if (!existsSync(path)) return snap;
   snap.exists = true;
-  const unquote = (line: string): string => line.replace(/^[A-Za-z0-9_]+="?/, '').replace(/"$/, '');
-  for (const line of readFileSync(matrixPath, 'utf8').split('\n')) {
-    if (/^PD_ALERT_[A-Za-z0-9_]+=/.test(line)) snap.alerts.push(unquote(line));
-    else if (/^PD_PHEROMONE_[A-Za-z0-9_]+=/.test(line)) snap.pheromones.push(unquote(line));
-    else if (/^PD_LOCK_[A-Za-z0-9_]+=/.test(line)) snap.locks.push(unquote(line));
+  const text = readFileSync(path, 'utf8');
+  const kv = parseMatrix(text);
+  for (const [key, value] of Object.entries(kv)) {
+    if (key.startsWith('PD_ALERT_')) snap.alerts.push(value);
+    else if (key.startsWith('PD_PHEROMONE_')) snap.pheromones.push(value);
+    else if (key.startsWith('PD_LOCK_')) snap.locks.push(value);
   }
   return snap;
 }
