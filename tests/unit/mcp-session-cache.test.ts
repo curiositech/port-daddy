@@ -28,6 +28,9 @@ describe('mcp session cache', () => {
     expect(getActiveSession()).toBeNull();
     expect(resolveSessionId({})).toBeUndefined();
     expect(resolveAgentId({})).toBeUndefined();
+    expect(resolveAgentId({ agent_id: '' })).toBeUndefined();
+    expect(resolveAgentId({ agent_id: '   ' })).toBeUndefined();
+    expect(resolveAgentId({ agent_id: 42 as unknown as string })).toBeUndefined();
     expect(resolveAgentId({ agent_id: null as unknown as string })).toBeUndefined();
   });
 
@@ -48,6 +51,8 @@ describe('mcp session cache', () => {
     setActiveSession({ agentId: 'agent-1', sessionId: 'session-1' });
     expect(resolveSessionId({ session_id: '' })).toBe('session-1');
     expect(resolveSessionId({ session_id: '   ' })).toBe('session-1');
+    expect(resolveAgentId({ agent_id: '' })).toBe('agent-1');
+    expect(resolveAgentId({ agent_id: '   ' })).toBe('agent-1');
   });
 
   test('clearActiveSession removes the default, falling back to undefined', () => {
