@@ -79,14 +79,7 @@ The prior draft claimed "the daemon does not store the full transcript; it
 stores a Blake3 hash and a sanitized excerpt." This is false for the systems
 that exist. `lib/transcripts.ts` documents itself as recording "the full
 conversation in `fleet_transcript_messages` (chronological)" (`lib/transcripts.ts:4`).
-The `fleet_transcripts` row carries, per entry (`lib/transcripts.ts:63`):
-
-```
-session_id, spawned_agent_id, trigger, backend, model,
-requested_backend, effective_backend, requested_model, effective_model,
-backend_override_source, status, started_at, ended_at,
-cost_usd, tokens_in, tokens_out, messages[], outputs[], error
-```
+The `fleet_transcripts` row stores run metadata (`lib/transcripts.ts:257`); the full conversation is stored in `fleet_transcript_messages` and artifacts in `fleet_transcript_outputs` (`lib/transcripts.ts:293`).
 
 Secrets are redacted best-effort (`redactSecrets`, `lib/transcripts.ts:406`) and
 tool-arg strings over 10KB are truncated with a SHA-256 hash kept for
