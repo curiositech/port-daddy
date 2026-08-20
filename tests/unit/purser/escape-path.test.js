@@ -8,8 +8,8 @@ import {
   rmSync,
   mkdtempSync,
 } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
-import { join, dirname, resolve, relative, sep } from 'node:path';
+import { homedir } from 'node:os';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -18,8 +18,9 @@ const runnerPath = join(repoRoot, 'scripts', 'run-purser-tests.mjs');
 describe('node:test runner path enforcement', () => {
   test('rejects a manifest path that escapes tests/purser', () => {
     // Create a temporary repository root
-    const scratchRoot = join(tmpdir(), 'purser-escape-');
-    mkdirSync(scratchRoot, { recursive: true });
+    const scratchRoot = mkdtempSync(
+      join(homedir(), 'coding', 'tmp', 'purser-escape-'),
+    );
 
     // Create a fake repository structure with a bad ROUTING.json
     const fakePurserRoot = join(scratchRoot, 'tests', 'purser');
