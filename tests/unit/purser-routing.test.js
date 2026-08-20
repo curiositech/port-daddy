@@ -16,7 +16,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -138,7 +138,9 @@ describe('every purser test is routed or explicitly quarantined', () => {
     // set must be loud — silently exiting 0 would report success while running no
     // adversarial tests at all, which is the failure this whole PR is about.
     const runner = join(repoRoot, 'scripts', 'run-purser-tests.mjs');
-    const emptyManifest = mkdtempSync(join(tmpdir(), 'purser-empty-'));
+    const scratchRoot = join(homedir(), 'coding', 'tmp');
+    mkdirSync(scratchRoot, { recursive: true });
+    const emptyManifest = mkdtempSync(join(scratchRoot, 'purser-empty-'));
     try {
       mkdirSync(join(emptyManifest, 'tests', 'purser'), { recursive: true });
       writeFileSync(
