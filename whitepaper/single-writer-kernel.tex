@@ -928,6 +928,10 @@ Conversely, any invariant requiring external I/O, asynchronous wall-clock verifi
 In SQLite WAL mode under single-writer serialization, transaction commits occur synchronously on the database connection thread. A predicate $\phi(S, \Delta)$ computable in bounded CPU steps without yielding the event loop can be embedded directly into SQLite constraints (\texttt{UNIQUE}, \texttt{CHECK}) or transaction guard clauses; any transition yielding $\neg \phi$ rolls back atomically before state mutation. If $\phi$ depends on external network I/O or asynchronous delays, holding the exclusive transaction lock during evaluation starves the single-writer queue; hence evaluation must be deferred post-commit, converting the mechanism from a synchronous gate into an asynchronous event subscriber governed by Theorem~\ref{thm:schneider}. \qed
 \end{proof}
 
+\begin{remark}[Scope: the general boundary is controllability]\label{rem:controllability-scope}
+Theorem~\ref{thm:decidability} is the \emph{operational} form of a more general boundary. In supervisory-control terms (Ramadge--Wonham, 1987), partition the event alphabet into controllable events $\Sigma_c$ (mediated effects the daemon can refuse pre-effect: writes, egress, tool execution, spawns) and uncontrollable events $\Sigma_u$ (model-internal steps: token emission, in-context reads, plan formation). A safety policy is regimentable iff it is \emph{controllable} with respect to $\Sigma_u$ --- no uncontrollable event enabled after a legal prefix can exit the specification. Theorem~\ref{thm:decidability} is the special case $\Sigma_c = \{\text{synchronous DB commits}\}$. Two consequences the special case obscures: (i) semantic properties of model output (``no confident falsehood in a report'') forbid an \emph{uncontrollable} event and are therefore detect-only \emph{forever}, at any engineering budget; (ii) compound policies that \emph{permit} an uncontrollable trigger while gating its controllable consequence --- ``no egress after reading a secret'' --- \emph{are} regimentable: record the read as taint, refuse the egress. Gate the channel, never the token.
+\end{remark}
+
 The monitor is honest about its own coverage, which is itself a genuine security
 property: it reports each rule as \emph{enforced}, \emph{degraded}, or
 \emph{stubbed}, so a reader can never mistake a stubbed rule for an active one. We
@@ -1389,7 +1393,7 @@ To allow Alice to license a proprietary agent stack $S$ (compiled Wasm or opaque
 \item \textbf{Egress firewall.} If a tainted process attempts raw network egress or unauthorized file writes, the hypervisor intercepts the syscall, immediately sends \texttt{SIGKILL}, and slashes the execution bond.
 \end{enumerate}
 
-This establishes a cryptographic and OS-physical DMZ: Bob's data mathematically cannot phone home, while Alice's proprietary agent weights and prompts remain inaccessible to Bob's host inspection.
+This establishes an engineered DMZ --- and the claim must be stated at exactly its strength. Taint propagation and the egress firewall are the \emph{containment layer}; the enforceable security property is that \textbf{every release channel is explicit, gated by the declassification policy, and bounded by its leakage budget}. Nothing here makes exfiltration mathematically impossible (timing, ordering, and side channels remain out of model); what it makes true is that any flow of Bob's data to the outside passes a named gate whose releases are logged, budgeted, and attributable --- while Alice's proprietary weights and prompts remain outside Bob's inspection surface.
 
 \exercises{%
 \textbf{(check)} The hash chain defends against nobody in scope. Name the

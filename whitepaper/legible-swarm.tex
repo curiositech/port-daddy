@@ -870,6 +870,8 @@ Sole ownership strictly dominates pooled generalist service in mean response tim
 Below this threshold, sole ownership buys strict single-writer accountability at an explicit latency price that must be budgeted rather than obscured.
 \end{theorem}
 
+\noindent\emph{Status: proposed.} The threshold form follows the standard $M/M/1$ vs.\ $M/M/c$ response-time comparison; the full derivation (including the succession corner where the sole specialist fails, an $M/M/1$ queue with breakdowns) is carried as item B8 of the research ledger.
+
 \subsection{Completionist obligation: completion as a verifier, not a vibe}\label{sec:completionist}
 
 The operator's standing complaint is the agent that \emph{declares completion while
@@ -1100,12 +1102,12 @@ intervene at exactly the moment intervention is needed}) and Scott are the
 digest erases the \emph{operator's} m\^etis. As the supervising automation gains
 autonomy --- executing longer plans end-to-end --- the operator's role slides
 $\text{doer}\to\text{approver}\to\text{rubber-stamp}\to\text{absent}$ --- the
-\emph{abdication gradient}. The design's primary active defense is the \textbf{Inception Canary} (gamified chaos engineering for human vigilance), moving beyond static ``skill-retention taxes'' (such as arbitrary manual busywork, which causes attention residue and degrades focus~\cite{leroy2009}).
+\emph{abdication gradient}. The design's primary active defense is the \textbf{Inception Canary} (a \emph{consented, blinded} vigilance probe), moving beyond static ``skill-retention taxes'' (such as arbitrary manual busywork, which causes attention residue and degrades focus~\cite{leroy2009}).
 
 \begin{protocol}{The Inception Canary protocol}\label{prot:canary}
-To continuously measure and maintain operator situation awareness without synthetic busywork:
+To continuously measure and maintain operator situation awareness without synthetic busywork. Operators enroll knowingly: the program's existence, rate $\rho_{\text{canary}}$, and stakes are disclosed at onboarding; only the \emph{which} and \emph{when} are blinded:
 \begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
-\item \textbf{Silent injection.} An out-of-band Compaction Sidecar (\S\ref{sec:tokens-digest}) secretly intercepts a fraction $\rho_{\text{canary}}$ of benign pull requests or action completions and injects a subtle, non-catastrophic anomaly (e.g., an off-by-one boundary condition, an unindexed query, or a removed regression test).
+\item \textbf{Blinded holdout replay.} An out-of-band Compaction Sidecar (\S\ref{sec:tokens-digest}) draws from a curated holdout of \emph{historical, already-fixed} defects (an off-by-one boundary condition, an unindexed query, a removed regression test), re-materializes one inside a sandboxed replay of a past work item at rate $\rho_{\text{canary}}$, and routes it through the review surface indistinguishably from live traffic. No anomaly is ever injected into a live pull request or pending action: probes are replays with known ground truth, so a missed canary costs vigilance points, never production correctness.
 \item \textbf{Attention queue surfacing.} The item is placed in the Attention Queue with standard high-regret scoring.
 \item \textbf{Dual adjudication:}
 \begin{itemize}[leftmargin=1.2em,nosep]
@@ -1115,7 +1117,7 @@ To continuously measure and maintain operator situation awareness without synthe
 \end{enumerate}
 \end{protocol}
 
-This transforms supervisory vigilance from a punitive chore into a closed, dopamine-driven verification loop that rigorously measures human situation awareness.
+This transforms supervisory vigilance from a punitive chore into a closed verification loop that rigorously measures human situation awareness --- with the operator's informed consent, on ground truth the system already knows, and with provenance every probe carries so post-hoc audit can distinguish canaries from live items in one lookup.
 
 \begin{exercises}
 \exhead{Check your understanding.}
@@ -1537,12 +1539,14 @@ Theorem~\ref{thm:split-digest} dictates that the system must never ask the worke
 Context compaction can be formalized as \textbf{virtual memory for language models}: the local file buffer is backing store, the finite context window is the resident set, and paging tools act as the memory management unit (MMU).
 
 \begin{theorem}[Context Paging Competitiveness]\label{thm:paging}
-Let the context window hold $k$ active pages, with offline optimal page-replacement incurring cost $\mathrm{OPT}$. Under an online \textbf{recency-plus-pin policy} (where pins correspond to load-bearing spans verified by deterministic structural features), the online paging cost satisfies the Sleator--Tarjan competitive bound~\cite{sleatortarjan1985}:
+Let the context window hold $k$ active pages, with offline optimal page-replacement incurring cost $\mathrm{OPT}$. Under an online \textbf{recency-plus-pin policy} (where pins correspond to load-bearing spans verified by deterministic structural features), the online paging cost satisfies the resource-augmented competitive bound of Sleator--Tarjan~\cite{sleatortarjan1985}; for the weighted case (pages of nonuniform size and refetch cost, which context spans are), the same guarantee is carried by Young's \textsc{Landlord} algorithm~\cite{young2002landlord}:
 \begin{equation}
 \mathrm{Cost}_{\mathrm{online}} \;\le\; \frac{k}{k - h + 1} \cdot \mathrm{OPT} \;+\; \phi N c_{\mathrm{refetch}},
 \end{equation}
 where $h \le k$ is the size of the verifiable pinned set, and $\phi \in [0, 1]$ represents the fraction of forgeable/unverified features subject to adversarial eviction. Under marking with randomized eviction, competitiveness against oblivious adversaries improves to $O(\log k)$.
 \end{theorem}
+
+\noindent\emph{Status: proposed.} The unweighted bound is classical; the weighted transfer and the adversarial $\phi$-degradation term are stated here as design targets, with the formal proof carried as item B9 of the research ledger (\emph{the $\phi$ budget is shared with the digest floor's forgeable-feature budget --- one number, two mechanisms}).
 
 The most counterintuitive instance is \emph{forgetting as compaction}.
 \textbf{Pheromone decay} --- multiplying every stored coordination trace by a decay
@@ -2131,6 +2135,11 @@ Elinor Ostrom.
 Daniel D.\ Sleator and Robert E.\ Tarjan.
 \newblock Amortized efficiency of list update and paging rules.
 \newblock \textit{Communications of the ACM}, 28(2):202--208, 1985.
+
+\bibitem{young2002landlord}
+Neal E.\ Young.
+\newblock On-line file caching.
+\newblock \emph{Algorithmica}, 33(3):371--383, 2002.
 
 \end{thebibliography}
 
