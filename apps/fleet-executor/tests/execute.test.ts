@@ -1180,6 +1180,53 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(resumedSteps.map(s => s.ship)).toEqual(['code-reviewer']);
   });
 
+  it('multiple checkpointed ships resume in roster order with their findings intact', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const runId = 'run:delivery-abc';
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      runId,
+      0,
+      {
+        ship: 'code-reviewer',
+        blocking: true,
+        verdict: 'PASS',
+        errored: false,
+        findings: [{ path: 'src/x.ts', line: 1, severity: 'LOW', body: 'reviewer finding' }],
+      },
+    );
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      runId,
+      1,
+      {
+        ship: 'qa',
+        blocking: false,
+        verdict: 'PASS',
+        errored: false,
+        findings: [{ path: 'src/x.ts', line: 2, severity: 'LOW', body: 'qa finding' }],
+      },
+    );
+
+    const ai = aiStub({ perShip: {} });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(d1.steps.filter(st => st.kind === 'ship-resumed').map(st => st.ship)).toEqual([
+      'code-reviewer',
+      'qa',
+    ]);
+    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.reviews).toHaveLength(1);
+    expect(state.reviews[0].comments).toEqual([
+      { path: 'src/x.ts', line: 1, body: '[code-reviewer] reviewer finding' },
+      { path: 'src/x.ts', line: 2, body: '[qa] qa finding' },
+    ]);
+  });
+
   it('a resumed BLOCK verdict fails the gate without re-running the ship', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
     const kv = memoryKV();
@@ -1283,6 +1330,30 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect((await loadShipCheckpoints(env, 'run:delivery-abc')).size).toBe(0);
   });
 
+  it('an invalid ship index uses the first reserved checkpoint slot', async () => {
+    const d1 = memoryD1();
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      1.5,
+      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+    );
+
+    expect(d1.steps).toHaveLength(1);
+    expect(d1.steps[0].seq).toBe(SHIP_CHECKPOINT_SEQ_BASE);
+  });
+
+  it('no D1 binding makes checkpoint load/save harmless no-ops', async () => {
+    const env = makeEnv({});
+    await expect(saveShipCheckpoint(
+      env,
+      'run:delivery-abc',
+      0,
+      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+    )).resolves.toBeUndefined();
+    await expect(loadShipCheckpoints(env, 'run:delivery-abc')).resolves.toEqual(new Map());
+  });
+
   it('D1 down: checkpoint load/save swallow and the run behaves exactly as before checkpoints', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
@@ -1310,6 +1381,15 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(parseShipCheckpoint('qa', JSON.stringify({
       ...good,
       findings: [{ path: 'src/x.ts', line: 0, severity: 'HIGH', body: 'bad line' }],
+    }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({
+      ...good,
+      findings: [{
+        path: 'src/x.ts',
+        line: Number.MAX_SAFE_INTEGER + 1,
+        severity: 'HIGH',
+        body: 'unsafe line',
+      }],
     }))).toBeNull();
     expect(parseShipCheckpoint('qa', JSON.stringify({
       ...good,

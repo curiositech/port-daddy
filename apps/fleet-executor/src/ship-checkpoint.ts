@@ -60,7 +60,7 @@ function parseCheckpointFindings(value: unknown): Finding[] | null {
     if (!item || typeof item !== 'object') return null;
     const finding = item as Record<string, unknown>;
     if (typeof finding.path !== 'string') return null;
-    if (!Number.isInteger(finding.line) || (finding.line as number) < 1) return null;
+    if (!Number.isSafeInteger(finding.line) || (finding.line as number) < 1) return null;
     if (typeof finding.severity !== 'string' || !VALID_SEVERITIES.has(finding.severity)) {
       return null;
     }
