@@ -172,7 +172,13 @@ enum DaemonLocation {
     /// berth directory then has no canonical berth to display rather than
     /// seeding a preferred literal (ADR-0084; allocator seeds live only in
     /// canonical daemon startup, never in this app).
-    static func publishedStablePort() -> Int? { validatedPort(readPortFile()) }
+    static func publishedStablePort() -> Int? {
+        publishedStablePort(portFileContents: readPortFile)
+    }
+
+    static func publishedStablePort(portFileContents: () -> String?) -> Int? {
+        validatedPort(portFileContents())
+    }
 
     /// Pure resolution core. Precedence (highest wins; an *explicit* source that
     /// is present but invalid fails closed rather than silently downgrading, so
