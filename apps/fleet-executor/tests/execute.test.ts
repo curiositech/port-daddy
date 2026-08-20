@@ -1264,10 +1264,19 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(parseShipCheckpoint('qa', JSON.stringify(good))).toEqual(good);
     // Row/detail ship mismatch (band collision after a roster change): refused.
     expect(parseShipCheckpoint('code-reviewer', JSON.stringify(good))).toBeNull();
-    // Unknown verdict, wrong types, non-array findings: refused.
+    // Unknown verdict, wrong types, and malformed finding payloads: refused.
     expect(parseShipCheckpoint('qa', JSON.stringify({ ...good, verdict: 'MAYBE' }))).toBeNull();
     expect(parseShipCheckpoint('qa', JSON.stringify({ ...good, blocking: 'yes' }))).toBeNull();
     expect(parseShipCheckpoint('qa', JSON.stringify({ ...good, findings: 'none' }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({ ...good, findings: [null] }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({
+      ...good,
+      findings: [{ path: 'src/x.ts', line: 0, severity: 'HIGH', body: 'bad line' }],
+    }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({
+      ...good,
+      findings: [{ path: 'src/x.ts', line: 1, severity: 'URGENT', body: 'bad severity' }],
+    }))).toBeNull();
     expect(parseShipCheckpoint('qa', 'not json')).toBeNull();
     expect(parseShipCheckpoint('', JSON.stringify(good))).toBeNull();
   });

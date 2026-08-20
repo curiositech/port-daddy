@@ -30,7 +30,7 @@
  */
 
 import type { ExecutorEnv } from './env.js';
-import type { ShipResult, Verdict } from './verdict.js';
+import type { Finding, ShipResult, Verdict } from './verdict.js';
 
 /** `fleet_run_steps.kind` for a completed ship's checkpointed result. */
 export const SHIP_CHECKPOINT_KIND = 'ship-checkpoint';
@@ -45,6 +45,35 @@ export const SHIP_CHECKPOINT_KIND = 'ship-checkpoint';
 export const SHIP_CHECKPOINT_SEQ_BASE = 3_000_000;
 
 const VALID_VERDICTS: ReadonlySet<string> = new Set(['PASS', 'BLOCK']);
+const VALID_SEVERITIES: ReadonlySet<string> = new Set(['HIGH', 'MEDIUM', 'LOW']);
+
+/**
+ * Validate the nested finding objects too. Checking only that `findings` is an
+ * array would accept rows such as `[null]`; the final review builder later
+ * dereferences every finding's path/line/body, turning a corrupt best-effort
+ * checkpoint into a run-level exception instead of safely re-running the ship.
+ */
+function parseCheckpointFindings(value: unknown): Finding[] | null {
+  if (!Array.isArray(value)) return null;
+  const findings: Finding[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') return null;
+    const finding = item as Record<string, unknown>;
+    if (typeof finding.path !== 'string') return null;
+    if (!Number.isInteger(finding.line) || (finding.line as number) < 1) return null;
+    if (typeof finding.severity !== 'string' || !VALID_SEVERITIES.has(finding.severity)) {
+      return null;
+    }
+    if (typeof finding.body !== 'string') return null;
+    findings.push({
+      path: finding.path,
+      line: finding.line as number,
+      severity: finding.severity as Finding['severity'],
+      body: finding.body,
+    });
+  }
+  return findings;
+}
 
 /**
  * Narrow validation of a checkpoint row's detail back into a {@link ShipResult}.
@@ -67,15 +96,17 @@ export function parseShipCheckpoint(shipColumn: unknown, detailJson: unknown): S
   if (typeof r.blocking !== 'boolean') return null;
   if (typeof r.errored !== 'boolean') return null;
   if (typeof r.verdict !== 'string' || !VALID_VERDICTS.has(r.verdict)) return null;
-  if (r.findings !== undefined && !Array.isArray(r.findings)) return null;
   if (r.noUsableOutput !== undefined && typeof r.noUsableOutput !== 'boolean') return null;
+  const findings =
+    r.findings === undefined ? undefined : parseCheckpointFindings(r.findings);
+  if (findings === null) return null;
   return {
     ship: shipColumn,
     blocking: r.blocking,
     verdict: r.verdict as Verdict,
     errored: r.errored,
     ...(r.noUsableOutput !== undefined ? { noUsableOutput: r.noUsableOutput as boolean } : {}),
-    ...(r.findings !== undefined ? { findings: r.findings as ShipResult['findings'] } : {}),
+    ...(findings !== undefined ? { findings } : {}),
   };
 }
 
