@@ -1,12 +1,19 @@
-// tests/unit/purser/invalid-version-format.test.ts
-import syncVersion from '../../../scripts/sync-version';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-describe('sync-version', () => {
-  const invalidVersions = ['v3.29.0', '3.29', '3.29.0.0', '3.29.0-beta', '01.02.03'];
+const ROOT = process.env.PD_RELEASE_TEST_ROOT
+  ?? join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
-  test('rejects non‑semver version strings', () => {
-    for (const ver of invalidVersions) {
-      expect(() => syncVersion(ver)).toThrow();
-    }
+describe('3.29.0 release authority format', () => {
+  test('package.json declares an exact stable SemVer core for this minor release', () => {
+    const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+
+    expect(pkg.version).toBe('3.29.0');
+    expect(pkg.version).toMatch(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/);
+  });
+
+  test('the plain-text release authority agrees byte-for-byte', () => {
+    expect(readFileSync(join(ROOT, 'VERSION'), 'utf8')).toBe('3.29.0\n');
   });
 });

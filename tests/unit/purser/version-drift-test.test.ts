@@ -1,64 +1,58 @@
-// tests/unit/purser/version-drift-test.test.ts
-import { promises as fs } from 'fs';
-import { mkdtempSync, rmSync, copyFileSync, writeFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { tmpdir } from 'os';
-import { spawnSync } from 'child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 
-describe('Version drift detection', () => {
-  const tmpDir = mkdtempSync(join(tmpdir(), 'vdrift-'));
+const ROOT = process.env.PD_RELEASE_TEST_ROOT
+  ?? join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const GATE = join(ROOT, 'scripts', 'check-version-drift.mjs');
+const VERSION_SURFACES = [
+  'package.json',
+  'mcp-server.json',
+  '.claude-plugin/plugin.json',
+  '.gemini/extensions/port-daddy/gemini-extension.json',
+  'public/samples/manifest.json',
+  'mcp/server.ts',
+  'server.ts',
+  'website-v2/src/data/referenceCatalog.ts',
+  'VERSION',
+  'core/pd-console/Cargo.toml',
+  'README.md',
+  'docs/openapi.yaml',
+];
 
-  // Helper to copy a list of files from the repository root to the temp dir
-  const copyFiles = async (paths: string[]) => {
-    for (const relPath of paths) {
-      const src = join(process.cwd(), relPath);
-      const dest = join(tmpDir, relPath);
-      await fs.mkdir(dirname(dest), { recursive: true });
-      await fs.copyFile(src, dest);
+describe('3.29.0 release drift detection', () => {
+  const scratchRoot = mkdtempSync(
+    join(homedir(), 'coding', 'tmp', 'pd-release-version-drift-'),
+  );
+
+  beforeAll(() => {
+    for (const relativePath of VERSION_SURFACES) {
+      const destination = join(scratchRoot, relativePath);
+      mkdirSync(dirname(destination), { recursive: true });
+      writeFileSync(destination, readFileSync(join(ROOT, relativePath)));
     }
-  };
 
-  beforeAll(async () => {
-    // Copy all relevant versioned files from the repo into the temp dir
-    await copyFiles([
-      'package.json',
-      'core/pd-console/Cargo.toml',
-      'public/samples/manifest.json',
-      'website-v2/src/data/referenceCatalog.ts',
-      'docs/openapi.yaml',
-      'mcp-server.json',
-      'cli/commands/diagnostics.ts',
-      'server.ts',
-      '.claude-plugin/plugin.json',
-      '.gemini/extensions/port-daddy/gemini-extension.json',
-      'scripts/check-version-drift.ts',
-    ]);
-
-    // Intentionally introduce a version drift: change package.json to 3.28.2
-    const pkgPath = join(tmpDir, 'package.json');
-    const pkgText = await fs.readFile(pkgPath, 'utf8');
-    const pkg = JSON.parse(pkgText);
+    const packagePath = join(scratchRoot, 'package.json');
+    const pkg = JSON.parse(readFileSync(packagePath, 'utf8'));
     pkg.version = '3.28.2';
-    await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2), 'utf8');
+    writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`);
   });
 
   afterAll(() => {
-    rmSync(tmpDir, { recursive: true, force: true });
+    rmSync(scratchRoot, { recursive: true, force: true });
   });
 
-  it('should fail when a drift exists between version surfaces', () => {
-    const result = spawnSync(
-      'node',
-      ['-r', 'ts-node/register', 'scripts/check-version-drift.ts'],
-      { cwd: tmpDir, encoding: 'utf8' }
-    );
+  test('the shipped gate rejects a stale package authority against 3.29.0 surfaces', () => {
+    const result = spawnSync(process.execPath, [GATE, '--root', scratchRoot], {
+      encoding: 'utf8',
+    });
+    const output = `${result.stdout}${result.stderr}`;
 
-    // Expect the script to exit with a non-zero status indicating a drift was found
-    expect(result.status).not.toBe(0);
-
-    // The error output should mention a version mismatch
-    const output = result.stderr || result.stdout || '';
-    const hasMismatch = /version|mismatch|drift/i.test(output);
-    expect(hasMismatch).toBe(true);
+    expect(result.status).toBe(1);
+    expect(output).toContain('VERSION DRIFT');
+    expect(output).toContain('package.json (3.28.2)');
+    expect(output).toContain('found 3.29.0');
   });
 });
