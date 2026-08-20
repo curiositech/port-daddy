@@ -478,13 +478,14 @@ export function shouldRunBeginWizard(
   interactive: boolean = canPrompt(),
 ): boolean {
   const hasScopingArgs = [
+    options.purpose,
     options.identity,
     options.agent,
     options.files,
     options.lifecycle,
     options.name,
   ].some((value) => value !== undefined);
-  return !purpose && interactive && !hasScopingArgs;
+  return purpose === undefined && interactive && !hasScopingArgs;
 }
 
 export async function handleBegin(
