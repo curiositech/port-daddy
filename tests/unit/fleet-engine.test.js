@@ -2146,3 +2146,47 @@ test('skillGraft that stalls never blocks a spawn: the budget elapses and the sh
   );
   errSpy.mockRestore();
 });
+
+// ---------------------------------------------------------------------------
+// pd-fleet.yml dispatch-runner manifest — executable form of pd-qa's demand on
+// PR #7279: the entry was uncommented by operator decision, so its guard rails
+// and its cron-parser precondition must be pinned by a test, not prose. Reads
+// the REAL pd-fleet.yml (realReadFileSync bypasses this file's fs mock).
+describe('pd-fleet.yml dispatch-runner manifest (armed nightly entry)', () => {
+  const manifestRaw = realReadFileSync(
+    realJoin(import.meta.dirname, '..', '..', 'pd-fleet.yml'),
+    'utf8',
+  );
+  const manifest = realYamlParse(manifestRaw);
+  const runner = manifest?.fleet?.agents?.['dispatch-runner'];
+
+  test('the entry exists (uncommented) with its identity and prompt', () => {
+    expect(runner).toBeDefined();
+    expect(runner.identity).toBe('{project}:fleet:dispatch-runner');
+    expect(runner.prompt).toBe('pd dispatch run --next --really-run');
+    expect(runner.backend).toBe('custom');
+  });
+
+  test('its schedule satisfies the cron-parser precondition this PR closes', () => {
+    // Precondition 3 in the file's own comment block: absolute hour-of-day
+    // support. Executable check — the schedule must be recognized as an
+    // absolute pattern (setTimeout chain), never coerced to DEFAULT_INTERVAL.
+    expect(runner.schedule).toBe('0 1 * * *');
+    expect(isAbsoluteCronSchedule(runner.schedule)).toBe(true);
+    expect(computeNextAbsoluteFireDelayMs(runner.schedule)).not.toBeNull();
+  });
+
+  test('the spend/blast-radius guard rails hold their reviewed values', () => {
+    expect(runner.singleton).toBe(true);
+    expect(runner.daily_cap_usd).toBe(10);
+    expect(runner.timeout).toBe(14_400_000); // 4h max wall-clock per spawn
+    expect(runner.timeout).toBeLessThanOrEqual(4 * 60 * 60 * 1000);
+    expect(runner.cooldown_ms).toBe(21_600_000); // 6h between runs
+  });
+
+  test('the open operator-review precondition stays stated in the file', () => {
+    // Precondition 1 (operator reviews the first dispatch PR) is honestly
+    // open; deleting the admission is a review-visible change, not a cleanup.
+    expect(manifestRaw).toMatch(/precondition 1 still open/i);
+  });
+});
