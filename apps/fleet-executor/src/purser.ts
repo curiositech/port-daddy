@@ -333,7 +333,13 @@ const STEELMAN_CONTRACT =
  * @returns The contract text handed to {@link repairContractOutput}.
  */
 function discoveryPathNote(testMatchPatterns: string[] | null): string {
-  if (!testMatchPatterns?.length) return '';
+  if (!testMatchPatterns?.length) {
+    return (
+      'No trusted test-discovery patterns were available for this repair. ' +
+      'Correct JSON shape alone does not prove executability; authored tests will still ' +
+      'fail the final gate unless discovery evidence can be read from the base ref.\n'
+    );
+  }
   return (
     'Every path MUST ALSO match at least one test-discovery pattern read from the ' +
     'repository\'s trusted base ref:\n' +
