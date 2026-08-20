@@ -80,7 +80,7 @@ interface SitrepResponse {
   approvals?: Array<{ id: string; agent: string; trigger: string; tier: string; project: string; timestamp: number }>;
 }
 
-export const SITREP_HELP = [
+export const SITREP_HELP: string = [
   'Usage: pd sitrep [--since MINUTES] [--project NAME] [--stack NAME]',
   '                 [--template] [--quiet] [--json]',
   '',
@@ -107,11 +107,6 @@ function fmtClock(ts: string | number | undefined): string {
  * happened in the window) are valid states, not errors.
  */
 export async function handleSitrep(options: CLIOptions): Promise<void> {
-  if (options.help === true) {
-    console.log(SITREP_HELP);
-    return;
-  }
-
   const params = new URLSearchParams();
   const since = options.since as string | number | undefined;
   if (since !== undefined) params.append('since_minutes', String(since));

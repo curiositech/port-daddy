@@ -357,7 +357,10 @@ This applies whether you confirmed interactively, used `--yes`, or were refused 
 
 ## 🗂 Command Index
 
-The full verb surface, grouped by what you're trying to do. One-liners; run `pd help <verb>` for flags. Authoritative tiers: [`cli/permission-tiers.ts`](cli/permission-tiers.ts).
+The full verb surface, grouped by what you're trying to do. One-liners; run
+`pd <verb> --help` for the precise verb page or its documented command family.
+A coverage ratchet prevents new verbs from silently falling back to generic
+help. Authoritative tiers: [`cli/permission-tiers.ts`](cli/permission-tiers.ts).
 
 **Ports & services** — `claim`/`c`, `release`/`r`, `list`/`l`, `ps`, `services`, `ports`, `url`, `env`, `find`/`f`, `scan`/`s`, `up`/`u`, `down`/`d`, `dns`, `projects`/`p`, `integration`, `wait`, `watch`
 

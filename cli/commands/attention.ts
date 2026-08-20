@@ -79,7 +79,7 @@ interface AttentionSummary {
   code?: string;
 }
 
-export const ATTENTION_HELP = [
+export const ATTENTION_HELP: string = [
   'Usage: pd attention [--peek] [--limit N] [--agent ID] [--json]',
   '       pd attention --subscribe <channel>',
   '       pd attention --subscribe-recommended',
@@ -577,11 +577,6 @@ async function handleListSubscriptions(agentId: string, options: CLIOptions): Pr
 }
 
 export async function handleAttention(options: CLIOptions): Promise<void> {
-  if (options.help === true) {
-    console.log(ATTENTION_HELP);
-    return;
-  }
-
   const agentId = resolveAgentId(options);
   if (!agentId) {
     const identityRequired =
