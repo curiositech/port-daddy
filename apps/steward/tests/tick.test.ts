@@ -9,6 +9,7 @@ import { buildDocket, classifyPr, renderDocket, type PrSnapshot } from '../src/p
 import { decideVerdict, runTick } from '../src/tick.js';
 import { surveyOpenPrs, OPERATOR_REQUEST_LABEL } from '../src/survey.js';
 import { landFailKey, shipItKey, LAND_FAIL_HOLD_AT, type SeatStore } from '../src/landing.js';
+import { ackClusterfudge, isFrozen, readClusterfudge, tripClusterfudge } from '../src/clusterfudge.js';
 import { makeEnv, memoryD1, FakeStorage } from './harness.js';
 
 const REPO = 'erichowens/port-daddy';
@@ -237,16 +238,20 @@ describe('the landing arm — armed ticks execute LAND, gated and honest', () =>
     }
     expect(((await store.get(landFailKey(12))) as string[]).length).toBe(LAND_FAIL_HOLD_AT);
 
-    // Held: the merge API is no longer called.
+    // Held: the merge API is no longer called. At the threshold the breaker
+    // has also tripped (P1 PR 4), and the freeze is the outer gate — so the
+    // reason names the freeze rather than the per-PR hold behind it.
     const held = ghLandFake(['src/x.ts'], { status: 200, body: { sha: 'y' } });
     const r = await runTick(env, REPO, NOW, held.fetchImpl, landSurvey(), store);
     expect(r.landing).toMatchObject({ attempted: false, landed: false });
-    expect(r.landing?.reason).toContain('land-fail hold');
+    expect(r.landing?.reason).toContain('CLUSTERFUDGE frozen');
     expect(held.merges.count).toBe(0);
 
-    // The operator's ship-it doubles as the reset (mirrors handleShipIt).
+    // Clearing the per-PR hold alone is NOT enough once the repo is frozen:
+    // both the ship-it and the operator's breaker ack are required.
     await store.put(shipItKey(12), { grantedBy: 'operator', grantedAt: NOW });
     await store.delete(landFailKey(12));
+    await ackClusterfudge(store, 'operator', 'ack and retry once', NOW + 1000);
     const retry = ghLandFake(['src/x.ts'], { status: 200, body: { sha: 'z' } });
     const r2 = await runTick(env, REPO, NOW, retry.fetchImpl, landSurvey(), store);
     expect(r2.landing?.landed).toBe(true);
@@ -278,6 +283,61 @@ describe('the landing arm — armed ticks execute LAND, gated and honest', () =>
     expect(r.landing).toMatchObject({ attempted: false, landed: false });
     expect(r.landing?.reason).toContain('no seat store');
     expect(merges.count).toBe(0);
+  });
+
+  it('a frozen breaker stops a perfectly healthy land — the freeze outranks every per-PR gate', async () => {
+    const store = new FakeStorage();
+    await tripClusterfudge(store, 'land-fail-loop', 'something systemic', NOW);
+    const { fetchImpl, merges } = ghLandFake(['src/a.ts'], { status: 200, body: { sha: 'x' } });
+    const r = await runTick(armedEnv(), REPO, NOW, fetchImpl, landSurvey(), store);
+    // Read-only work still happened: the verdict is decided and recorded.
+    expect(r.verdict?.verdict).toBe('LAND');
+    expect(r.landing).toMatchObject({ attempted: false, landed: false });
+    expect(r.landing?.reason).toContain('CLUSTERFUDGE frozen');
+    expect(merges.count).toBe(0);
+  });
+
+  it('the third distinct land failure trips the breaker and freezes the seat', async () => {
+    const store = new FakeStorage();
+    const env = armedEnv();
+    for (const message of ['a', 'b']) {
+      const { fetchImpl } = ghLandFake(['src/x.ts'], { status: 409, body: { message } });
+      const r = await runTick(env, REPO, NOW, fetchImpl, landSurvey(), store);
+      expect(r.landing?.reason).not.toContain('CLUSTERFUDGE');
+    }
+    expect(isFrozen(await readClusterfudge(store))).toBe(false);
+
+    const third = ghLandFake(['src/x.ts'], { status: 409, body: { message: 'c' } });
+    const r = await runTick(env, REPO, NOW, third.fetchImpl, landSurvey(), store);
+    expect(r.landing?.reason).toContain('CLUSTERFUDGE tripped (land-fail-loop)');
+
+    const breaker = await readClusterfudge(store);
+    expect(isFrozen(breaker)).toBe(true);
+    expect(breaker.tripwire).toBe('land-fail-loop');
+    expect(breaker.evidence).toContain('3 distinct causes');
+  });
+
+  it('a ship-it clears the per-PR hold but does NOT release the breaker', async () => {
+    const store = new FakeStorage();
+    await tripClusterfudge(store, 'land-fail-loop', 'systemic', NOW);
+    // Simulate the ship-it route's per-PR effects (see handleShipIt).
+    await store.put(shipItKey(12), { grantedBy: 'operator', grantedAt: NOW });
+    await store.delete(landFailKey(12));
+
+    const { fetchImpl, merges } = ghLandFake(['src/a.ts'], { status: 200, body: { sha: 'x' } });
+    const r = await runTick(armedEnv(), REPO, NOW, fetchImpl, landSurvey(), store);
+    expect(r.landing?.landed).toBe(false);
+    expect(r.landing?.reason).toContain('CLUSTERFUDGE frozen');
+    expect(merges.count).toBe(0);
+  });
+
+  it('an operator ack releases the freeze and landing resumes', async () => {
+    const store = new FakeStorage();
+    await tripClusterfudge(store, 'land-fail-loop', 'systemic', NOW);
+    await ackClusterfudge(store, 'erich', 'ack and retry once', NOW + 1000);
+    const { fetchImpl } = ghLandFake(['src/a.ts'], { status: 200, body: { sha: 'freed' } });
+    const r = await runTick(armedEnv(), REPO, NOW, fetchImpl, landSurvey(), store);
+    expect(r.landing).toMatchObject({ landed: true, sha: 'freed' });
   });
 
   it('a non-LAND verdict never grows a landing outcome', async () => {
