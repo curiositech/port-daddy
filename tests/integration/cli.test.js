@@ -909,6 +909,42 @@ describe('CLI Integration Tests', () => {
       runCli(['done', '--agent', agentId]);
     });
 
+    test('pd begin --files greedily claims every following path', () => {
+      const slot = `variadic-files-${Date.now()}`;
+      const files = [
+        `coord/${slot}-a.ts`,
+        `coord/${slot}-b.ts`,
+        `coord/${slot}-c.ts`,
+      ];
+      try {
+        const result = runCli([
+          'begin',
+          'Variadic file claim regression',
+          '--identity', 'port-daddy:test:variadic-files',
+          '--files', ...files,
+          '--lifecycle', 'durable',
+          '--sidequest', 'integration parser regression coverage',
+          '--json',
+        ], { env: { PORT_DADDY_CONTEXT_SLOT: slot, PD_RENT_EXEMPT: '' } });
+
+        expect(result.success).toBe(true);
+        const data = JSON.parse(result.stdout);
+        expect(data.fileClaims).toEqual(expect.arrayContaining(files));
+        expect(data.fileClaims).toHaveLength(files.length);
+
+        const done = runCli([
+          'done',
+          'Result: variadic file parsing verified. not-applicable: integration test cleanup',
+          '--session', data.sessionId,
+          '--skip-origin-check', '--reason', 'variadic files integration test',
+          '--json',
+        ], { env: { PORT_DADDY_CONTEXT_SLOT: slot } });
+        expect(done.success).toBe(true);
+      } finally {
+        clearTestCurrentContext(slot);
+      }
+    });
+
     test('pd begin -P works as short flag', () => {
       const result = runCli(['begin', '-P', 'Short flag test', '--lifecycle', 'durable', '-q']);
       expect(result.success).toBe(true);

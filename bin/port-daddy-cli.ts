@@ -2481,6 +2481,11 @@ export async function main(): Promise<void> {
   // (e.g. `--files A --files B`).
   const REPEATABLE_FLAGS: Set<string> = new Set(['files', 'client-arg', 'codex-config']);
 
+  // Greedily consume every following non-option token. This makes the
+  // documented `--files a b c` form equivalent to repeating the flag without
+  // leaking b/c into positional arguments.
+  const VARIADIC_FLAGS: Set<string> = new Set(['files']);
+
   const assignOption = (key: string, value: string | true): void => {
     if (REPEATABLE_FLAGS.has(key) && key in options) {
       const existing = options[key];
@@ -2515,8 +2520,15 @@ export async function main(): Promise<void> {
         const key: string = arg.slice(2);
         const next: string | undefined = args[i + 1];
         if (next && !next.startsWith('-')) {
-          assignOption(key, next);
-          i++;
+          if (VARIADIC_FLAGS.has(key)) {
+            while (args[i + 1] !== undefined && args[i + 1] !== '--' && !args[i + 1].startsWith('-')) {
+              assignOption(key, args[i + 1]);
+              i++;
+            }
+          } else {
+            assignOption(key, next);
+            i++;
+          }
         } else {
           assignOption(key, true);
         }

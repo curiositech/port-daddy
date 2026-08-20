@@ -467,6 +467,26 @@ async function fetchAndRenderWelcomeBriefing(harbor?: string): Promise<void> {
 // handleBegin — pd begin "purpose" --lifecycle durable|ephemeral [--identity X] [--files f1 f2...]
 // =============================================================================
 
+/**
+ * The guided wizard is reserved for a truly bare interactive invocation.
+ * Supplying any session-scoping flag means the caller is scripting the command;
+ * missing purpose must fail with usage instead of blocking on stdin.
+ */
+export function shouldRunBeginWizard(
+  purpose: string | undefined,
+  options: CLIOptions,
+  interactive: boolean = canPrompt(),
+): boolean {
+  const hasScopingArgs = [
+    options.identity,
+    options.agent,
+    options.files,
+    options.lifecycle,
+    options.name,
+  ].some((value) => value !== undefined);
+  return !purpose && interactive && !hasScopingArgs;
+}
+
 export async function handleBegin(
   purpose: string | undefined,
   rest: string[],
@@ -475,7 +495,7 @@ export async function handleBegin(
   // Flag takes precedence over positional
   purpose = purpose || (options.purpose as string) || undefined;
 
-  if (!purpose && canPrompt()) {
+  if (shouldRunBeginWizard(purpose, options)) {
     // Show welcome briefing first!
     await fetchAndRenderWelcomeBriefing(options.harbor as string || undefined);
 
