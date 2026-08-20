@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- **Fleet-executor retries resume instead of restarting.** Each completed ship's verdict is checkpointed to the run transcript (own seq band, no migration); a retried delivery — or a DLQ replay of it — reuses those verdicts and spends only on ships that never finished. This makes runs converge under the uncatchable platform-kill class (memory/CPU isolate termination) that survived the CPU-ceiling and MAP-memory fixes, ends the retry treadmill of re-running (and re-paying for) every ship per attempt, and lets the dead-letter summary report how many ships completed before a loss. `fleet-runs` `max_retries` raised 3→5 now that extra attempts are cheap.
+- **Fleet-executor retries resume instead of restarting.** Each completed ship's verdict is checkpointed to the run transcript (own seq band, no migration); a retried delivery — or a DLQ replay of it — reuses those verdicts and spends only on ships that never finished. This makes runs converge when attempts complete at least one ship under the uncatchable platform-kill class (memory/CPU isolate termination), ends the retry treadmill of re-running (and re-paying for) every completed ship, and lets the dead-letter summary report how many ships finished before a loss. `fleet-runs` `max_retries` is raised 3→5 for bounded headroom; a ship that dies before checkpointing can still repeat unfinished work.
 
 ## [3.28.2] - 2026-08-18
 

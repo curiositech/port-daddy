@@ -28,6 +28,11 @@ describe.each(['wrangler.deploy.toml', 'wrangler.toml.example'])('%s queue contr
     expect(dlq).toMatch(/^\s*max_retries\s*=\s*1\s*$/m);
   });
 
+  it('keeps bounded retry headroom in the deploy and operator example configs', () => {
+    const main = consumerBlock(readConfig(name), 'fleet-runs');
+    expect(main).toMatch(/^\s*max_retries\s*=\s*5\s*$/m);
+  });
+
   it('raises the CPU ceiling above the 30s default a fleet run cannot fit in', () => {
     // Exceeding the CPU budget TERMINATES the invocation: index.ts's catch
     // never runs, the message is never acked, and the platform redelivers it

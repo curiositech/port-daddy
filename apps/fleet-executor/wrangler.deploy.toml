@@ -133,10 +133,11 @@ max_batch_size = 1
 max_concurrency = 1
 max_batch_timeout = 30
 # 5, up from 3: retries RESUME past checkpointed ships (src/ship-checkpoint.ts),
-# so each extra attempt re-spends nothing on finished work and completes at
-# least one more ship before any platform kill — more headroom now buys
-# convergence instead of multiplying cost. Six total attempts covers a full
-# default roster even if every attempt dies after a single ship.
+# so an extra attempt does not re-spend on finished work and can advance the
+# run from its last durable ship. A kill before the next checkpoint may still
+# repeat unfinished work, so retries remain capped. Six total attempts cover
+# the four-ship default roster even at only one newly checkpointed ship per
+# attempt, with two attempts of bounded headroom for transient failures.
 max_retries = 5
 dead_letter_queue = "fleet-runs-dlq"
 

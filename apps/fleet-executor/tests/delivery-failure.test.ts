@@ -16,6 +16,7 @@ import {
   recordDeliveryFailure,
   runIdForDelivery,
 } from '../src/delivery-failure.js';
+import { saveShipCheckpoint } from '../src/ship-checkpoint.js';
 import {
   freshState,
   installGitHubFetch,
@@ -257,6 +258,13 @@ describe('deadLetterSummary', () => {
     expect(summary).toContain('the last attempt');
     expect(summary).not.toContain('attempt 0');
   });
+
+  it('reports durable checkpoint progress and promises resume only for that work', () => {
+    const summary = deadLetterSummary('o', 'r', 7, null, 4, 2);
+    expect(summary).toContain('2 ship(s) completed and checkpointed before the loss');
+    expect(summary).toContain('replay of this delivery resumes past them');
+    expect(summary).toContain(DEAD_LETTER_MARKER);
+  });
 });
 
 describe('a dead-lettered check does not strand the head SHA', () => {
@@ -271,6 +279,25 @@ describe('a dead-lettered check does not strand the head SHA', () => {
 
     expect(state.completed[0].summary).toContain(DEAD_LETTER_MARKER);
     expect(isDeadLetteredSummary(state.completed[0].summary)).toBe(true);
+  });
+
+  it('reads checkpoint progress into the DLQ check summary', async () => {
+    state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const env = makeEnv({ FLEET_TOKENS: kv, DB: db.db });
+    await saveShipCheckpoint(env, runIdForDelivery('delivery-abc'), 0, {
+      ship: 'code-reviewer',
+      blocking: true,
+      verdict: 'PASS',
+      errored: false,
+      findings: [],
+    });
+
+    await handleDlqJob(makeJob(), env);
+
+    expect(state.completed[0].summary).toContain('1 ship(s) completed and checkpointed');
   });
 
   it('does not mark a summary ships actually decided', () => {
