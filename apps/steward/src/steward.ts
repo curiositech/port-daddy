@@ -1,5 +1,6 @@
 import { birthCharter, reviseCharter } from './charter.js';
 import { appendDeckLog, readDeckLog } from './ledgers.js';
+import { landFailKey, shipItKey, SHIPIT_PREFIX, type ShipItGrant } from './landing.js';
 import { runTick, type TickResult } from './tick.js';
 import type { Charter, DeckLogEntry, Env, WakeEvent } from './types.js';
 
@@ -97,6 +98,10 @@ export class StewardDO {
     if (request.method === 'POST' && url.pathname === '/charter') {
       return this.handleCharterRevision(request);
     }
+    const shipIt = url.pathname.match(/^\/ship-it\/(\d+)$/);
+    if (request.method === 'POST' && shipIt) {
+      return this.handleShipIt(Number(shipIt[1]), request);
+    }
     return json({ error: 'not found' }, 404);
   }
 
@@ -174,6 +179,7 @@ export class StewardDO {
     const fallback =
       (await this.state.storage.get<DeckLogEntry[]>(StewardDO.KEY_FALLBACK_LOG)) ?? [];
     const recentLog = await readDeckLog(this.env.DB, repo, 5);
+    const grants = await this.state.storage.list<ShipItGrant>({ prefix: SHIPIT_PREFIX });
     return json({
       role: 'steward',
       repo,
@@ -185,8 +191,10 @@ export class StewardDO {
       fallbackEntries: fallback.length,
       recentDeckLog: recentLog,
       tick: this.env.STEWARD_GITHUB_TOKEN
-        ? 'live: decides and records LAND / NEEDS-WORK / SURFACE; landing arrives in P1 PR 3'
+        ? 'live: decides and records LAND / NEEDS-WORK / SURFACE, and executes LAND when armed'
         : 'holding: no STEWARD_GITHUB_TOKEN, cannot survey',
+      landing: this.env.STEWARD_LAND_TOKEN ? 'armed' : 'unarmed',
+      shipItGrants: [...grants.keys()].map(k => Number(k.slice(SHIPIT_PREFIX.length))),
     });
   }
 
@@ -249,6 +257,36 @@ export class StewardDO {
   }
 
   /**
+   * Record an operator's ship-it grant for one PR.
+   *
+   * AUTHORITY RATIONALE: the route is reachable only through the admin-token
+   * gate, so a grant is by construction an operator act — the human judgment
+   * the protected-path gate exists to require. The grant also RESETS the
+   * PR's land-fail hold: the operator saying "ship it" is the override that
+   * clears the clusterfudge tripwire, one act with both meanings. Grants are
+   * consumed by a successful land and visible on /status until then.
+   *
+   * @param prNumber - The PR the grant covers (from the route path).
+   * @param request - POST body, optionally `{grantedBy}`; defaults to `operator`.
+   * @returns 200 with the recorded grant.
+   */
+  private async handleShipIt(prNumber: number, request: Request): Promise<Response> {
+    let grantedBy = 'operator';
+    try {
+      const body = (await request.json()) as { grantedBy?: unknown };
+      if (typeof body.grantedBy === 'string' && body.grantedBy.trim()) {
+        grantedBy = body.grantedBy.trim();
+      }
+    } catch {
+      // An empty body is fine — the admin gate already establishes authority.
+    }
+    const grant: ShipItGrant = { grantedBy, grantedAt: Date.now() };
+    await this.state.storage.put(shipItKey(prNumber), grant);
+    await this.state.storage.delete(landFailKey(prNumber));
+    return json({ granted: true, prNumber, grant });
+  }
+
+  /**
    * The wake — drain the inbox, write the deck-log entry, re-arm the heartbeat.
    *
    * The sanity protocol, mechanized — the design intent of §5: every alarm firing is one episodic
@@ -288,10 +326,10 @@ export class StewardDO {
     const tick: TickResult =
       repo === 'unbound'
         ? { ran: false, skipped: 'seat not yet bound to a repo', docketText: '' }
-        : await runTick(this.env, repo, now);
+        : await runTick(this.env, repo, now, fetch, undefined, this.state.storage);
     const tickLine = tick.ran
       ? tick.verdict
-        ? `Tick: ${tick.verdict.verdict} on #${tick.verdict.prNumber}${tick.verdictLedgered ? '' : ' (ledger write FAILED)'} — ${tick.verdict.evidence}`
+        ? `Tick: ${tick.verdict.verdict} on #${tick.verdict.prNumber}${tick.verdictLedgered ? '' : ' (ledger write FAILED)'} — ${tick.verdict.evidence}${tick.landing ? ` | ${tick.landing.reason}` : ''}`
         : `Tick: ${tick.docketText}`
       : `Tick held: ${tick.skipped}`;
 
@@ -307,6 +345,7 @@ export class StewardDO {
         events: events.map(e => ({ kind: e.kind, deliveryId: e.deliveryId, prNumber: e.prNumber ?? null })),
         docket: tick.docketText,
         verdict: tick.verdict ?? null,
+        landing: tick.landing ?? null,
       }),
       wakeEvents: events.length,
       createdAt: Math.floor(now / 1000),

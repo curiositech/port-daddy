@@ -172,6 +172,36 @@ describe('/status — binder ch.10 answers from one GET', () => {
   });
 });
 
+describe('ship-it — the operator grant for protected-path landings', () => {
+  it('records the grant, clears the land-fail hold, and surfaces on /status', async () => {
+    const { seat, storage } = makeSeat();
+    await storage.put('landfails:41', ['a', 'b', 'c']);
+    const res = await seat.fetch(req('/ship-it/41', { body: { grantedBy: 'erich' } }));
+    expect(res.status).toBe(200);
+    expect((await res.json()) as object).toMatchObject({ granted: true, prNumber: 41 });
+    expect(await storage.get('shipit:41')).toMatchObject({ grantedBy: 'erich' });
+    expect(await storage.get('landfails:41')).toBeUndefined();
+
+    const status = (await (await seat.fetch(req('/status'))).json()) as Record<string, unknown>;
+    expect(status.shipItGrants).toEqual([41]);
+    expect(status.landing).toBe('unarmed'); // makeEnv carries no land token
+  });
+
+  it('an empty body defaults the grantor to operator — the admin gate is the authority', async () => {
+    const { seat, storage } = makeSeat();
+    const res = await seat.fetch(req('/ship-it/7', { method: 'POST' }));
+    expect(res.status).toBe(200);
+    expect(await storage.get('shipit:7')).toMatchObject({ grantedBy: 'operator' });
+  });
+
+  it('/status reports landing armed when the land token is set', async () => {
+    const { seat } = makeSeat(makeEnv({ DB: memoryD1().db, STEWARD_LAND_TOKEN: 'land' }));
+    const status = (await (await seat.fetch(req('/status'))).json()) as Record<string, unknown>;
+    expect(status.landing).toBe('armed');
+    expect(status.shipItGrants).toEqual([]);
+  });
+});
+
 describe('charter revision — operator and PRs only, versioned with provenance', () => {
   it('requires updatedBy', async () => {
     const { seat } = makeSeat();
@@ -245,6 +275,16 @@ describe('worker entry — the commissioning and auth gate', () => {
     const { env } = wiredEnv();
     expect((await worker.fetch(extReq(`/steward/erichowens/port-daddy/tick`, 'test-token'), env)).status).toBe(404);
     expect((await worker.fetch(extReq(`/anything`, 'test-token'), env)).status).toBe(404);
+  });
+
+  it('routes POST ship-it/<n> through the gate with the PR number in the path', async () => {
+    const { env, storage } = wiredEnv();
+    const res = await worker.fetch(
+      extReq(`/steward/erichowens/port-daddy/ship-it/88`, 'test-token', {}),
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(await storage.get('shipit:88')).toBeDefined();
   });
 
   it('POST /wake flows end-to-end through the gate into the seat inbox', async () => {
