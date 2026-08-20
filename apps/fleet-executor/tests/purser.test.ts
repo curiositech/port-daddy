@@ -658,6 +658,51 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.stackedPrs).toHaveLength(1);
   });
 
+  it('does not batch-replan an out-of-testPaths sibling or discard a valid nested file', async () => {
+    seedRealJestConfig();
+    const mixedPlan = [
+      '```json',
+      JSON.stringify({
+        files: [
+          {
+            path: 'tests/unit/else/outside.test.ts',
+            intent: 'outside this ship but visible to the repository runner',
+          },
+          {
+            path: 'tests/unit/purser/nested/inside.test.ts',
+            intent: 'valid nested file that must survive its invalid sibling',
+          },
+        ],
+      }),
+      '```',
+    ].join('\n');
+    const outsideBody = '```ts\nit("outside", () => {});\n```';
+    const insideBody = '```ts\nit("inside", () => {});\n```';
+    const { ai } = seqAi([STEELMAN_JSON, mixedPlan, outsideBody, insideBody]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(4);
+    expect(rec.steps.some(s => s.kind === 'ship-repair')).toBe(false);
+    const testsStep = rec.steps.find(s => s.kind === 'purser-tests')!;
+    expect((testsStep.detail as { files: Array<{ path: string }> }).files).toEqual([
+      expect.objectContaining({ path: 'tests/unit/purser/nested/inside.test.ts' }),
+    ]);
+    expect((testsStep.detail as { failures: Array<{ path: string }> }).failures).toEqual([
+      expect.objectContaining({ path: 'tests/unit/else/outside.test.ts' }),
+    ]);
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
   it('stops after bounded plan repair when every attempt keeps an invisible filename', async () => {
     seedRealJestConfig();
     const badPlan = [
