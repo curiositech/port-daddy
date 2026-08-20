@@ -7,8 +7,11 @@ name: Fresh-install smoke
 #   fresh-install — downloads the real GitHub release artifacts onto a pristine
 #     runner and exercises them (the tarball / latest.json path `pd upgrade` and
 #     FleetBar take).
-#   brew-install — the path actual humans take: `brew tap curiositech/tap &&
-#     brew install port-daddy`, then proves the installed keg serves.
+#   brew-install — the path actual humans take:
+#     `brew install curiositech/tap/port-daddy`, then proves the installed keg
+#     serves. The fully qualified name also makes the operator's trust choice
+#     explicit to Homebrew's third-party tap trust boundary.
+#     https://docs.brew.sh/Tap-Trust#installing-from-a-tap
 #
 # Runs AFTER a release, on a daily schedule, and on demand — never on PR push,
 # so it gates published releases rather than in-flight branches.
@@ -91,8 +94,7 @@ jobs:
       - name: Tap + install from Homebrew (the real user path)
         run: |
           set -euo pipefail
-          brew tap curiositech/tap
-          brew install port-daddy
+          brew install curiositech/tap/port-daddy
 
       - name: Installed keg is complete and reports a real version
         run: |

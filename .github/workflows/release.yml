@@ -238,9 +238,11 @@ jobs:
         # bytes against the dispatch payload. v3.28.0 and v3.28.1 both published
         # green and then failed the roll on exactly these fields.
         run: |
+          # Batten resolves relative archive paths from --staged-dir. Passing
+          # dist/<archive> here asks it to open dist/dist/<archive>.
           ./dist/pd batten imprint --staged-dir dist \
             --release-version "$RELEASE_TAG" \
-            --archive "dist/${{ matrix.artifact }}.tar.gz" \
+            --archive "${{ matrix.artifact }}.tar.gz" \
             --out "dist/${{ matrix.artifact }}-imprint.json"
 
       - name: Upload release imprint to release
