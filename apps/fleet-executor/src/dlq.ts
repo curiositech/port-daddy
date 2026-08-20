@@ -32,6 +32,7 @@ import {
   readLastDeliveryFailure,
   runIdForDelivery,
 } from './delivery-failure.js';
+import { countShipCheckpoints } from './ship-checkpoint.js';
 
 interface DlqTarget {
   owner: string;
@@ -80,6 +81,7 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
       prNumber,
       await readLastDeliveryFailure(env, runId),
       await countDeliveryAttemptStarts(env, runId),
+      await countShipCheckpoints(env, runId),
     );
     const token = await getInstallationTokenCached(
       env.GITHUB_APP_ID,

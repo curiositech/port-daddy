@@ -96,6 +96,7 @@ import { repairContractOutput } from './repair.js';
 import { adjudicateBrokenShips } from './adjudicator.js';
 import { runPurser } from './purser.js';
 import { isDeadLetteredSummary } from './dead-letter-marker.js';
+import { loadShipCheckpoints, saveShipCheckpoint } from './ship-checkpoint.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
 import {
@@ -1368,8 +1369,15 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     fetchRepoFile(owner, repo, path, branch, token),
   );
 
+  // Attempt checkpoints (src/ship-checkpoint.ts): ships completed by an
+  // EARLIER attempt of this same delivery — a platform kill (memory/CPU) is
+  // uncatchable, so retries must resume past finished work instead of
+  // re-spending into the same ceiling. Same-delivery only: runId is
+  // `run:<deliveryId>`, so a new push never inherits a stale verdict.
+  const resumedShips = await loadShipCheckpoints(env, runId);
+
   const results: ShipResult[] = [];
-  for (const ship of orderedShips) {
+  for (const [shipIndex, ship] of orderedShips.entries()) {
     // Per-ship wall-clock start: durationMs must reflect THIS ship's work
     // (including its gate/skip decision), not the cumulative run time — else
     // later ships report inflated durations that fold in every earlier ship.
@@ -1389,6 +1397,23 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
       await recordRunEnd(env, runId, 'neutral', startMs);
       return;
+    }
+
+    // RESUME: an earlier attempt of this delivery already completed this ship.
+    // Its comment is already posted (edit-in-place inside runShip), its
+    // telemetry/spend rows are already written; re-running would produce the
+    // identical result and pay for it again. Reuse the recorded verdict —
+    // findings included, so the final review and conclusion see the full run.
+    const resumed = resumedShips.get(ship.name);
+    if (resumed) {
+      await transcript.step(
+        'ship-resumed',
+        ship.name,
+        `pd-${ship.name}: resumed from a prior attempt's checkpoint — ${resumed.errored ? 'ERROR' : resumed.verdict} reused, no re-run`,
+        { verdict: resumed.verdict, errored: resumed.errored, findings: resumed.findings?.length ?? 0 },
+      );
+      results.push(resumed);
+      continue;
     }
 
     // Surface gate: skip a ship with nothing to say on this diff, spending no AI.
@@ -1445,6 +1470,11 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     // …and the same numbers into the transcript, which is what the human-facing
     // run page actually reads for its token tiles.
     await recordShipTokensInTranscript(transcript, ship, metrics);
+    // Checkpoint LAST — only after the ship's comment, telemetry, and spend
+    // rows are durable, so a resumed attempt never skips a ship whose
+    // accounting was lost with the kill. Gated-out ships are not checkpointed:
+    // re-deciding a skip costs nothing.
+    await saveShipCheckpoint(env, runId, shipIndex, result);
   }
 
   // --- BROKEN-SHIP ADJUDICATION (src/adjudicator.ts) ------------------------

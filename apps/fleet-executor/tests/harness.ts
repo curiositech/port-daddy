@@ -718,6 +718,18 @@ export function memoryD1(): D1Capture {
         return null;
       },
       async all() {
+        // Checkpoint read-back (src/ship-checkpoint.ts): every row of one kind
+        // for one run, served from the same `steps` array the INSERT path
+        // appends to — a test that checkpoints through the real code resumes
+        // through the real code.
+        if (/FROM fleet_run_steps/i.test(sql) && !/JOIN fleet_runs/i.test(sql)) {
+          if (cap.failAll) throw new Error('D1 unavailable');
+          const [runId, kind] = args;
+          const results = cap.steps
+            .filter(st => st.runId === runId && st.kind === String(kind))
+            .map(st => ({ ship: st.ship, detail: st.detail }));
+          return { results };
+        }
         return { results: [] };
       },
     }),
