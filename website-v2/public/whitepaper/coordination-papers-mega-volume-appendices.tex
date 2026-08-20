@@ -207,5 +207,35 @@ Under complete hypervisor mediation of all I/O channels and correct gate enforce
 \item \textbf{Canary Detection Power:} With $c$ planted canaries and gate false-negative rate $\beta$, an exfiltration attempt spanning $k$ canary tokens is detected with probability $\ge 1 - \beta^k$.
 \end{enumerate}
 \end{theorem}
+
+\noindent\emph{Status.} Claim (1) is verified on a finite model (exhaustive two-run equivalence to interleaving depth 7, all secret pairs, schedule secret-independence checked separately; gate-bypass and leaky-gate mutations caught with witness traces); the unbounded form is the standard unwinding obligation. Claims (2) and (3) are carried as research-ledger items A3 (release-ledger conservation with sequential/advanced composition) and A4 (canary power with SPRT latency); their proofs are short and scheduled, and the statements above are conditioned exactly as they must be --- on complete channel mediation and correct gate enforcement, which are the residual oracles.
+
+\clearpage
+\section*{Appendix: One Spine --- Why These Mechanisms and Not Others}
+\addcontentsline{toc}{section}{Appendix: One Spine}
+
+A volume this size courts a specific failure: the \emph{potpourri}, a grab bag of clever mechanisms with no account of why these and not ten others. This appendix states the account. The system has one ontology and four theorem families; every mechanism in the volume is a corollary of exactly one family, inherits a developer obligation from it, and carries that family's boundary. A proposed feature that cannot name its row in the table below is not yet a feature.
+
+\paragraph{The ontology.} One durable object bears all trust: the \textbf{evidence-carrying work unit} --- authorized by a \emph{principal} (the delegation chain's terminus), acted on through \emph{fenced, attenuating capabilities}, advanced only by \emph{admitted evidence} over typed channels, settled once, and graded on the five assurance modes (observed, coordinated, brokered, confined, attested). Agents are transient; the work unit is the case file that outlives every clerk. Everything else in the volume exists to answer one of four questions about that object.
+
+\paragraph{The four families.}
+\begin{center}
+\small
+\begin{tabular}{@{}p{0.26\textwidth}p{0.34\textwidth}p{0.32\textwidth}@{}}
+\hline
+\textbf{Theorem family (the question)} & \textbf{Mechanisms it licenses (corollaries)} & \textbf{Developer implication + boundary} \\
+\hline
+\emph{Legibility floors.} What must a human see? Information floor $\log_2\binom{N}{k}-\log_2\binom{m}{k}$; split-digest comonotonicity; derived regret head; the $R(\delta,f)$ frontier with adaptive zoom; paging competitiveness. & Digests with budgeted bits; \emph{dual} compaction heads (successor vs.\ operator); the attention queue's likelihood-ratio test; forced-zoom; context paging; pheromone decay. & Budget bits/opens/misses explicitly --- the exchange rates are theorems, not tuning. Two readers need two heads. Anomaly must be a \emph{calibrated} posterior; reputation may move it but never zero a catastrophic item. Boundary: zoom pays only when flags are sparse; floors price \emph{guarantees}, not vibes. \\
+\hline
+\emph{The controllability boundary.} What can be \emph{prevented} rather than detected? Regimentable iff controllable w.r.t.\ the uncontrollable alphabet (OP-2 is the DB-commit special case). & Pre-commit gates and SQL guards; the compute-to-data airlock; conflict rejection at proposal time; ticket-lock admission; the channel-not-token rule. & Classify every rule at design time: regimentable rules become gates; semantic rules (a confident lie) are detect-only \emph{forever} and must be priced by the economy, not promised by the runtime. Boundary: gate the channel, never the token; taint is containment, the gate is the guarantee. \\
+\hline
+\emph{Deterrence economics.} Why is honesty cheaper than fraud? $\rho d B \ge G$; the audit tower over $C$ disjoint cliques; the front-loaded probation cliff; declining audit schedules (reputation as amortized verification); four-bucket escrow conservation. & Slashable bonds; sealed VRF-sampled audits; heterogeneous judge pools; newcomer cliffs instead of ramps; per-bucket settlement; the 2-of-3 clearinghouse; the mutation-test market. & Size bonds to the worst one-shot gain; sample judges across principals \emph{and} model families (diversity is the mechanism, not a nicety); publish the audit schedule --- deterrence is a budget line. Boundary: sealed sampling is load-bearing; a leaked draw defeats the clique math; convention (confiscation vs.\ keep-gain) changes $\rho^\star$. \\
+\hline
+\emph{Federation without consensus.} What survives distrust between harbors? Signed witness logs; equivocation as a cocycle obstruction \emph{on cycles}; monotone (CALM) coordination-free operations; the conditional escrow bound. & Gossip with \emph{redundant} paths; sheaf-residual triage under partition; forensic attribution by signature; the multisig clearinghouse. & Topology is a security parameter: detection across an uncompared link requires a cycle through it --- provision redundancy as you would a bond. Signatures attribute; residuals only triage; vanishing residual is never an all-clear. Boundary: no global order is claimed, and none is needed. \\
+\hline
+\end{tabular}
+\end{center}
+
+\paragraph{The test, restated as procedure.} To admit a new mechanism: (1) name its family and the theorem it is a corollary of; (2) state the developer obligation it creates (a budget, a classification, a schedule, or a topology requirement); (3) state its boundary in the same breath as its claim, with the maturity tag the ledger requires. The eight consensus corrections, the assurance ladder, and the status tags throughout this volume are this procedure applied retroactively; this appendix is the commitment to apply it prospectively.
 \addcontentsline{toc}{section}{References}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-bibliography.tex}{bibliography}
