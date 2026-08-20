@@ -1018,9 +1018,9 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
   const args = spec.nativeResume
     ? [
         'exec',
+        '--approve-for-me',
         'resume',
         '--skip-git-repo-check',
-        '--full-auto',
         '--output-last-message', outputPath,
         '--model', model,
         '--json',
@@ -1030,7 +1030,7 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
     : [
         'exec',
         '--skip-git-repo-check',
-        '--full-auto',
+        '--approve-for-me',
         '--sandbox', 'workspace-write',
         '-C', workspace,
         '--output-last-message', outputPath,

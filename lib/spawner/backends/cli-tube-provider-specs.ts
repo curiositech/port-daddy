@@ -204,8 +204,8 @@ function buildCliTubeArgsFromSpec(
     }
     case 'codex-exec-json': {
       const args = resumeSessionId
-        ? ['exec', 'resume', '--skip-git-repo-check', '--full-auto', '--json']
-        : ['exec', '--skip-git-repo-check', '--full-auto', '--sandbox', 'workspace-write', '--json'];
+        ? ['exec', '--approve-for-me', 'resume', '--skip-git-repo-check', '--json']
+        : ['exec', '--skip-git-repo-check', '--approve-for-me', '--sandbox', 'workspace-write', '--json'];
       if (input.outputPath) args.push('--output-last-message', input.outputPath);
       pushModelArg(args, spec, input.model);
       for (const config of normalizeCodexConfigOverrides(input.codexConfig)) {

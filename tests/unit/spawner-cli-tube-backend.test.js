@@ -3,7 +3,7 @@
  *
  * Mocks node:child_process.spawn to exercise:
  *   - claude-code argv shape: `claude -p --output-format=text <prompt>`
- *   - codex argv shape: `codex exec --skip-git-repo-check --full-auto ...`
+ *   - codex argv shape: `codex exec --skip-git-repo-check --approve-for-me ...`
  *   - Tube publish: when a tubeClient is provided, the wrapper
  *     publishes the result on the channel
  *   - Auth failure mapping (stderr "unauthorized" → actionable error)
@@ -184,15 +184,24 @@ describe('buildArgs', () => {
     const { args } = buildArgs('codex', 'hello');
     expect(args[0]).toBe('exec');
     expect(args).toContain('--skip-git-repo-check');
-    expect(args).toContain('--full-auto');
+    expect(args).toContain('--approve-for-me');
+    expect(args).not.toContain('--full-auto');
     expect(args).toContain('--sandbox');
     expect(args[args.indexOf('--sandbox') + 1]).toBe('workspace-write');
     expect(args).toContain('--json');
   });
 
+  test('codex resume places the parent-only approval flag before the subcommand', () => {
+    const sessionId = '22222222-2222-4222-8222-222222222222';
+    const { args } = buildArgs('codex', 'continue', undefined, undefined, undefined, undefined, undefined, sessionId);
+    expect(args.slice(0, 3)).toEqual(['exec', '--approve-for-me', 'resume']);
+    expect(args).toContain(sessionId);
+    expect(args).not.toContain('--full-auto');
+  });
+
   test.each([
     ['claude-code', '11111111-1111-4111-8111-111111111111', ['--resume', '11111111-1111-4111-8111-111111111111', '-p'], []],
-    ['codex', '22222222-2222-4222-8222-222222222222', ['exec', 'resume', '22222222-2222-4222-8222-222222222222'], ['--sandbox', 'workspace-write']],
+    ['codex', '22222222-2222-4222-8222-222222222222', ['exec', '--approve-for-me', 'resume', '22222222-2222-4222-8222-222222222222'], ['--sandbox', 'workspace-write', '--full-auto']],
     ['agy', '33333333-3333-4333-8333-333333333333', ['--conversation', '33333333-3333-4333-8333-333333333333', '--print'], []],
     ['gemini', '44444444-4444-4444-8444-444444444444', ['--resume', '44444444-4444-4444-8444-444444444444', '-p'], []],
   ])('%s builds native-resume argv without replaying another harness shape', (cli, sessionId, expected, forbidden) => {
