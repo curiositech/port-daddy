@@ -665,6 +665,86 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.stackedPrs).toHaveLength(1);
   });
 
+  it('#8313 exact shape: one nested file is rewritten once without touching a valid sibling, then stacks', async () => {
+    seedRealJestConfig();
+    state.treeFiles.set('BASESHA', ['scripts/check-pr-comments-answered.mjs']);
+    const plan = [
+      '```json',
+      JSON.stringify({
+        files: [
+          {
+            path: 'tests/unit/purser/test-pagination-truncation.test.js',
+            intent: 'grill incomplete pagination without a false green',
+          },
+          {
+            path: 'tests/unit/purser/valid-sibling.test.js',
+            intent: 'retain an already executable sibling byte-for-byte',
+          },
+        ],
+      }),
+      '```',
+    ].join('\n');
+    const shallowImport = [
+      '```js',
+      "import { decideCommentGate } from '../../scripts/check-pr-comments-answered.mjs';",
+      "it('fails closed', () => decideCommentGate([], 'author', { truncated: true }));",
+      '```',
+    ].join('\n');
+    const repairedImport = [
+      '```js',
+      "import { decideCommentGate } from '../../../scripts/check-pr-comments-answered.mjs';",
+      "it('fails closed', () => decideCommentGate([], 'author', { truncated: true }));",
+      '```',
+    ].join('\n');
+    const validSibling = [
+      '```js',
+      "const VALID_SIBLING_MARKER = 'keep-these-bytes';",
+      "it('keeps the sibling', () => VALID_SIBLING_MARKER);",
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([
+      STEELMAN_JSON,
+      plan,
+      shallowImport,
+      validSibling,
+      repairedImport,
+    ]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(5);
+    const repairRequest = (ai.run as ReturnType<typeof vi.fn>).mock.calls[4][1] as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    expect(repairRequest.messages[0].content).toContain(
+      "tests/unit/purser/test-pagination-truncation.test.js imports '../../scripts/check-pr-comments-answered.mjs'",
+    );
+    expect(repairRequest.messages[0].content).toContain(
+      'Relative imports resolve from the directory containing',
+    );
+    expect(rec.steps.find(s => s.kind === 'purser-author-repair')).toMatchObject({
+      title: expect.stringContaining('HEALED'),
+      detail: expect.objectContaining({ attempts: 1 }),
+    });
+    expect(rec.steps.some(s => s.kind === 'purser-tests' && /NON-EXECUTABLE/.test(s.title))).toBe(false);
+    expect(state.stackedPrs).toHaveLength(1);
+    const blobBodies = state.records
+      .filter(record => record.url.includes('/git/blobs'))
+      .map(record => String((record.body as { content?: string })?.content ?? ''));
+    expect(blobBodies).toContain("const VALID_SIBLING_MARKER = 'keep-these-bytes';\nit('keeps the sibling', () => VALID_SIBLING_MARKER);");
+    expect(blobBodies.some(body => body.includes("from '../../../scripts/check-pr-comments-answered.mjs'"))).toBe(true);
+    expect(blobBodies.some(body => body.includes("from '../../scripts/check-pr-comments-answered.mjs'"))).toBe(false);
+  });
+
   it('does not batch-replan an out-of-testPaths sibling or discard a valid nested file', async () => {
     seedRealJestConfig();
     const mixedPlan = [
@@ -761,7 +841,13 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
       }),
       '```',
     ].join('\n');
-    const { ai } = seqAi([STEELMAN_JSON, badImportTests]);
+    const stillBadRepair = [
+      '```js',
+      "const { helper } = require('../support');",
+      "it('x', () => { helper(); });",
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, badImportTests, stillBadRepair]);
     const rec = recorder();
 
     await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
@@ -769,6 +855,11 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     const step = rec.steps.find(s => s.kind === 'purser-tests' && /NON-EXECUTABLE/.test(s.title));
     expect(step).toBeDefined();
     expect((step!.detail as { error: string }).error).toMatch(/does not resolve to any file/);
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(3);
+    expect(rec.steps.find(s => s.kind === 'purser-author-repair')).toMatchObject({
+      title: expect.stringContaining('FAILED'),
+      detail: expect.objectContaining({ attempts: 1 }),
+    });
     expect(state.stackedPrs).toHaveLength(0);
     // No retarget PATCH — the only PR PATCH allowed here is the steel-man
     // contract being written into the PR summary (carries `body`, never `base`).
