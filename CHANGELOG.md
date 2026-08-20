@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.28.2] - 2026-08-18
+
+## [3.28.1] - 2026-08-18
+
+## [3.28.0] - 2026-08-15
+
 ### Added
 - **Whitepaper Suite Collected Treatise Overhaul (Version 2.0).**
   - **Publication-grade Cover & Architecture Lattice**: Integrated high-craft TikZ vector diagram depicting the complete L0--L3 coordination hierarchy (Single-Writer Effect Hypervisor, Capability Security Mesh, Evidence-Bearing Work Unit $W$, Epistemic Substrate, 2-of-3 Multisig Clearinghouse, and 6-Rung Risk Ladder).

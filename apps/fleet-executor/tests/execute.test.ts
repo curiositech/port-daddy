@@ -5,6 +5,7 @@ import {
   freshState,
   installGitHubFetch,
   memoryKV,
+  memoryD1,
   aiStub,
   makeEnv,
   makeJob,
@@ -552,6 +553,50 @@ describe('map-reduce fan-out', () => {
     expect(state.completed[0].conclusion).toBe('success');
   });
 
+  it('the chunk budget is CEILINGED, whatever the model window (#7743 memory bound)', () => {
+    // The unbounded window-derived budget (128k tokens → ~192KB chunks) was a
+    // memory multiplier that killed runs; every known model's budget must now
+    // sit within [floor, ceiling].
+    for (const model of Object.keys(MODEL_CONTEXT_TOKENS)) {
+      const budget = mapChunkCharLimit(model);
+      expect(budget).toBeGreaterThanOrEqual(12_000);
+      expect(budget).toBeLessThanOrEqual(48_000);
+    }
+    // Unknown models keep the historical fallback exactly.
+    expect(mapChunkCharLimit('@cf/some/unknown-model')).toBe(12_000);
+  });
+
+  it('an oversized diff is capped at the per-ship chunk limit and the truncation is transcribed (#7743)', async () => {
+    // 12 chunks' worth of diff (each file sized to fill one chunk) must fan
+    // out to at most 8 MAP calls, with a map-truncated step naming the drop —
+    // a partial review may never masquerade as a full one.
+    const budget = Math.max(...Object.keys(MODEL_CONTEXT_TOKENS).map(mapChunkCharLimit));
+    const linesPerFile = Math.ceil((budget * 0.9) / '+line\n'.length);
+    const file = (name: string) =>
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
+      '+line\n'.repeat(linesPerFile);
+    state.prDiff = Array.from({ length: 12 }, (_, i) => file(`f${i}.ts`)).join('');
+
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'partial\n\nFLEET-VERDICT: PASS' },
+      managerOutput: 'merged review\n\nFLEET-VERDICT: PASS',
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db }));
+
+    const mapCalls = ai.calls.filter(c => c.ship === 'code-reviewer' && c.phase === 'map');
+    expect(mapCalls.length).toBeLessThanOrEqual(8);
+    const truncated = db.steps.filter((s: { kind: string }) => s.kind === 'map-truncated');
+    expect(truncated).toHaveLength(1);
+    expect(String(truncated[0].title)).toContain('chunks dropped');
+    // Still reaches a verdict — degraded honestly, never dead.
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
   it('a single-chunk diff makes one map call and no manager call', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
@@ -859,7 +904,7 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     expect(state.completed[0].conclusion).toBe('success');
   });
 
-  it('malformed proposal JSON on an ideation ship falls back to raw output and never gates', async () => {
+  it('malformed proposal JSON on an ideation ship posts the raw output AND fails the run', async () => {
     state.files.set('main:pd-fleet.yml', ideationYaml('spark', 1.25));
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -872,8 +917,11 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     const bodies = commentBodiesOf(state);
     // Raw prose is preserved rather than dropped.
     expect(bodies.some(b => b.includes('I think we could build stuff.'))).toBe(true);
-    // Malformed ideation output must NOT flip the check to neutral/failure.
-    expect(state.completed[0].conclusion).toBe('success');
+    // Broken-ship doctrine (2026-08-19): a malformed proposal block is not an
+    // opinion — it is a broken ship, and a broken ship fails the run even
+    // though ideation JUDGMENT never gates. The pd-snipe malformed block on
+    // the 2026-08-19 run sailed through green; it must not again.
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('ideation ships run alongside a blocking reviewer without affecting its gate', async () => {
@@ -985,5 +1033,83 @@ describe('cloud telemetry emission (cost + failure surface)', () => {
     );
     expect(shipRun).toMatchObject({ status: 'error', conclusion: 'failure' });
     expect((shipRun as { metadata?: { blackout?: boolean } }).metadata?.blackout).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MERGE QUEUE pass-through.
+//
+// `Port Daddy Fleet` is a REQUIRED context on the merge queue. The executor
+// used to fall straight out of `!job.prNumber` for a merge_group delivery (that
+// payload has no pull_request at all), so the context was never produced and the
+// queue deadlocked: observed 2026-08-10 with `main` frozen since 2026-08-06 and
+// the queue head AWAITING_CHECKS for 9+ hours.
+
+describe('executeFleet — merge_group (merge-queue gate)', () => {
+  const QUEUE_SHA = 'b8ae3f4202aeb2b25d7be69b7a3ed6898957c8c1';
+
+  // The harness's app key is a placeholder that cannot sign a JWT, so a live
+  // mint is impossible here. Seeding the cache keeps these tests about the
+  // pass-through behaviour; the token layer has its own tests.
+  function envWithToken(ai: unknown) {
+    const kv = memoryKV();
+    void kv.put(
+      'github_inst_42',
+      JSON.stringify({ token: 'tok-seeded', expiresAt: Date.now() + 3_600_000 }),
+    );
+    return makeEnv({ AI: ai as never, FLEET_TOKENS: kv });
+  }
+
+  function mergeGroupJob(over: Record<string, unknown> = {}) {
+    return makeJob({
+      eventType: 'merge_group',
+      action: 'checks_requested',
+      prNumber: null,
+      payloadMinimal: {
+        merge_group: { head_sha: QUEUE_SHA },
+        ...(over.payloadMinimal as Record<string, unknown> | undefined),
+      },
+      ...over,
+    } as Partial<ReturnType<typeof makeJob>>);
+  }
+
+  it('posts a SUCCESS check on the queue-branch head sha', async () => {
+    const { ai } = aiStub({ perShip: {} });
+    const state = freshState();
+    installGitHubFetch(state);
+
+    await executeFleet(mergeGroupJob(), envWithToken(ai));
+
+    const created = state.records.filter(r => r.url.endsWith('/check-runs') && r.method === 'POST');
+    expect(created).toHaveLength(1);
+    expect((created[0].body as { name: string; head_sha: string }).name).toBe('Port Daddy Fleet');
+    // The QUEUE branch sha is the only one GitHub is waiting on.
+    expect((created[0].body as { head_sha: string }).head_sha).toBe(QUEUE_SHA);
+
+    const completed = state.records.filter(r => r.url.includes('/check-runs/') && r.method === 'PATCH');
+    expect(completed).toHaveLength(1);
+    expect((completed[0].body as { conclusion: string }).conclusion).toBe('success');
+  });
+
+  it('spends NOTHING on models — it is a pass-through, not a re-review', async () => {
+    const { ai } = aiStub({ perShip: { 'code-reviewer': 'x\n\nFLEET-VERDICT: PASS' } });
+    const state = freshState();
+    installGitHubFetch(state);
+
+    await executeFleet(mergeGroupJob(), envWithToken(ai));
+
+    // Re-reviewing every queue permutation would re-spend the whole review
+    // budget per entry, per reorder, to re-derive a verdict already published.
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+  });
+
+  it('posts nothing when the payload carries no head_sha (never invents one)', async () => {
+    const { ai } = aiStub({ perShip: {} });
+    const state = freshState();
+    installGitHubFetch(state);
+
+    await executeFleet(mergeGroupJob({ payloadMinimal: { merge_group: {} } }), envWithToken(ai));
+
+    expect(state.records.filter(r => r.url.includes('/check-runs'))).toHaveLength(0);
   });
 });

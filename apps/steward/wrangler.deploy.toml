@@ -1,0 +1,50 @@
+# COMMITTED deploy config — non-credential values only (resource ids are
+# useless without an API token). Runtime secrets are set via
+# `wrangler secret put` and survive deploys.
+#
+# Port Daddy Steward — Cloudflare Worker (P1 PR 1 scaffold)
+#
+# One Durable Object per repo holds the Steward's seat: charter, wake inbox,
+# alarm heartbeat, and the append-only deck-log / merge-ledger fabric in the
+# shared port-daddy-relay D1 database. See docs/plans/THE_FULL_WHEEL.md §11 P1
+# and docs/adr/0109-the-steward-single-approver.md.
+#
+# Provisioning (run once):
+#
+#   1. Apply the ledger schema to the shared D1 database:
+#        wrangler d1 execute port-daddy-relay --file=./schema.sql
+#
+#   2. Commission the seat (the bearer token every route requires; without it
+#      the Worker answers 503 "seat not commissioned"):
+#        openssl rand -hex 32 | wrangler secret put STEWARD_ADMIN_TOKEN
+#
+#   2b. Give the tick eyes (read-only survey of PRs/checks/reviews; without it
+#       every wake logs "Tick held: cannot survey" and renders no verdicts).
+#       A fine-grained PAT or App installation token with contents:read +
+#       pull_requests:read + checks:read on this repo:
+#        wrangler secret put STEWARD_GITHUB_TOKEN
+#
+#   3. Deploy:
+#        wrangler deploy --config wrangler.deploy.toml
+
+name = "pd-steward"
+main = "src/worker.ts"
+compatibility_date = "2026-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Shared append-only history fabric — same database the relay and
+# fleet-executor already use (fleet_runs / fleet_run_steps live here too).
+[[d1_databases]]
+binding = "DB"
+database_name = "port-daddy-relay"
+database_id = "0907431b-9af0-48b5-b2b0-07e6b660bd41"
+
+# The seats themselves. new_sqlite_classes: SQLite-backed DOs are the current
+# platform default and give the seat transactional storage semantics.
+[[durable_objects.bindings]]
+name = "STEWARD"
+class_name = "StewardDO"
+
+[[migrations]]
+tag = "v1-steward-seat"
+new_sqlite_classes = ["StewardDO"]
