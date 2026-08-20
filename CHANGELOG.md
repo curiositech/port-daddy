@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.29.0] - 2026-08-20
+
 ### Added
 - **Seamanship slice 1 — the skill layer becomes auditable, owned, and graph-aware.** (1) *Weighted first-hop graft expansion*: `lib/skill-graft.ts` builds a skill-reference graph at scan time (`pairs-with` frontmatter edges outrank prose mentions) and expands the craft() candidate pool one hop from the top fused seeds with decay — ranked entries carry `via`/`hopSeed` provenance so a neighbor never surfaces silently; injection caps unchanged. Transitive closure was measured (median 40, max 145 skills) and rejected in favor of first hop (median 3, max 10). (2) *Skill ownership*: `owner` / `repos` / `visibility` frontmatter parsed catalog-wide, defaulting **private** — absence never widens exposure; `isPublishableSkill()` is the single predicate any future listing/publishing path must call; `pd seamanship list/show` surface the fields. (3) *Auditable grafts*: the fleet's native graft path now records a schema-conformant `skill-graft` transcript event (`lib/skill-graft-events.ts`, per `schemas/agent-harbor/v0/skill-graft.schema.json`) — grafts become auditable facts, not silent prompt injection; recording is fail-open so telemetry can never break a spawn. (4) `docs/research/skills-io-and-composition.md`: skills as typed transforms, the measured composition graph, and the graft/Snipe implications.
 
