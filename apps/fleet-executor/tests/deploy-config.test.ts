@@ -27,4 +27,17 @@ describe.each(['wrangler.deploy.toml', 'wrangler.toml.example'])('%s queue contr
     const dlq = consumerBlock(readConfig(name), 'fleet-runs-dlq');
     expect(dlq).toMatch(/^\s*max_retries\s*=\s*1\s*$/m);
   });
+
+  it('raises the CPU ceiling above the 30s default a fleet run cannot fit in', () => {
+    // Exceeding the CPU budget TERMINATES the invocation: index.ts's catch
+    // never runs, the message is never acked, and the platform redelivers it
+    // until it dead-letters. That failure is invisible from inside the Worker,
+    // so the only defence is not hitting the ceiling — pin it here rather than
+    // letting a config edit silently restore the default.
+    const config = readConfig(name);
+    const limits = config.split(/^\[limits\]\s*$/m)[1];
+    expect(limits, 'missing [limits] block').toBeDefined();
+    const cpuMs = Number(/^\s*cpu_ms\s*=\s*(\d+)\s*$/m.exec(limits!)?.[1]);
+    expect(cpuMs).toBe(300_000);
+  });
 });

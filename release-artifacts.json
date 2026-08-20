@@ -30,37 +30,29 @@
       "minBytes": 2
     },
     {
-      "id": "pd-bosun",
-      "buildCmd": "cargo build --manifest-path core/pd-bosun/Cargo.toml --release -j 1 && cp core/target/release/pd-bosun dist/pd-bosun",
-      "sourcePath": "dist/pd-bosun",
-      "stagedPath": "pd-bosun",
-      "required": true,
-      "executable": true,
-      "minBytes": 1024
-    },
-    {
       "id": "pd-hook-prompt",
-      "buildCmd": "cp bin/pd-hook-prompt dist/pd-hook-prompt (POSIX shell tentacle; no build)",
+      "_comment": "Single-supervisor (3.28) layout: tentacles ship ONLY under bin/. The flat top-level copies and pd-bosun were retired with the tap cutover (2026-08-05) — the formula's tarball gate rejects >=3.28.0 tarballs carrying either. lib/squid/assets.ts resolves execDir/bin and execDir/../share/port-daddy/bin.",
+      "buildCmd": "cp bin/pd-hook-prompt dist/bin/pd-hook-prompt (POSIX shell tentacle; no build)",
       "sourcePath": "bin/pd-hook-prompt",
-      "stagedPath": "pd-hook-prompt",
+      "stagedPath": "bin/pd-hook-prompt",
       "required": true,
       "executable": true,
       "minBytes": 1
     },
     {
       "id": "pd-hook-pre-tool",
-      "buildCmd": "cp bin/pd-hook-pre-tool dist/pd-hook-pre-tool (POSIX shell tentacle; no build)",
+      "buildCmd": "cp bin/pd-hook-pre-tool dist/bin/pd-hook-pre-tool (POSIX shell tentacle; no build)",
       "sourcePath": "bin/pd-hook-pre-tool",
-      "stagedPath": "pd-hook-pre-tool",
+      "stagedPath": "bin/pd-hook-pre-tool",
       "required": true,
       "executable": true,
       "minBytes": 1
     },
     {
       "id": "pd-hook-post-tool",
-      "buildCmd": "cp bin/pd-hook-post-tool dist/pd-hook-post-tool (POSIX shell tentacle; no build)",
+      "buildCmd": "cp bin/pd-hook-post-tool dist/bin/pd-hook-post-tool (POSIX shell tentacle; no build)",
       "sourcePath": "bin/pd-hook-post-tool",
-      "stagedPath": "pd-hook-post-tool",
+      "stagedPath": "bin/pd-hook-post-tool",
       "required": true,
       "executable": true,
       "minBytes": 1
@@ -79,6 +71,44 @@
       "buildCmd": "cp hooks/sessionstart-pilot.mjs dist/hooks/sessionstart-pilot.mjs (dependency-free Pilot steering hook)",
       "sourcePath": "hooks/sessionstart-pilot.mjs",
       "stagedPath": "hooks/sessionstart-pilot.mjs",
+      "required": true,
+      "executable": false,
+      "minBytes": 100
+    },
+    {
+      "id": "agent-skill",
+      "_comment": "The canonical Port Daddy agent skill the formula pkgshare-installs and `pd setup` symlinks into every runtime's skill registry. The pre-binary npm formula shipped it from the source tarball; the binary tarball must carry it explicitly or every brew install loses `pd setup`'s skill links.",
+      "buildCmd": "cp -R skills/port-daddy-agent-skill dist/skills/port-daddy-agent-skill",
+      "sourcePath": "dist/skills/port-daddy-agent-skill",
+      "stagedPath": "skills/port-daddy-agent-skill",
+      "type": "dir",
+      "required": true,
+      "executable": false
+    },
+    {
+      "id": "agent-skill-manifest",
+      "buildCmd": "cp -R skills/port-daddy-agent-skill dist/skills/port-daddy-agent-skill (SKILL.md is the file the formula's test block asserts)",
+      "sourcePath": "dist/skills/port-daddy-agent-skill/SKILL.md",
+      "stagedPath": "skills/port-daddy-agent-skill/SKILL.md",
+      "required": true,
+      "executable": false,
+      "minBytes": 100
+    },
+    {
+      "id": "pilot-agent",
+      "_comment": "Port Daddy Pilot source rendered by `pd setup` into each runtime's native agent format (lib/pilot-agent-render.ts).",
+      "buildCmd": "cp -R agents/port-daddy-pilot dist/agents/port-daddy-pilot",
+      "sourcePath": "dist/agents/port-daddy-pilot",
+      "stagedPath": "agents/port-daddy-pilot",
+      "type": "dir",
+      "required": true,
+      "executable": false
+    },
+    {
+      "id": "pilot-agent-manifest",
+      "buildCmd": "cp -R agents/port-daddy-pilot dist/agents/port-daddy-pilot (AGENT.md + agent.config.json are the files the formula's test block asserts)",
+      "sourcePath": "dist/agents/port-daddy-pilot/AGENT.md",
+      "stagedPath": "agents/port-daddy-pilot/AGENT.md",
       "required": true,
       "executable": false,
       "minBytes": 100

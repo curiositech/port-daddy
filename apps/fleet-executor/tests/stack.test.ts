@@ -259,7 +259,16 @@ describe('stack proposals — guards degrade honestly (no PR, transcript note)',
 
 describe('stack proposals — re-run idempotency', () => {
   it('a retried delivery force-updates the same branch and reuses the same PR', async () => {
+    // The retry that this path exists for is the one where the first attempt
+    // DIED before deciding -- the check is left `in_progress` and the queue
+    // redelivers to finish it. A redelivery after a decided check is now
+    // skipped outright (it would re-spend to change nothing), so this fixture
+    // pins the in-flight case, which is when force-update actually runs.
     await runSpark({});
+    for (const c of state.existingCheckRuns) {
+      c.status = 'in_progress';
+      c.conclusion = null;
+    }
     await runSpark({});
     expect(state.refCreates).toBe(1);
     expect(state.refUpdates).toBe(1);

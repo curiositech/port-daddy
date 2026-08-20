@@ -548,6 +548,51 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
         bodyHtml: '',
       };
 
+    // The contract-repair pass (fleet-executor src/repair.ts): broken output
+    // gets up to two bounded retries before the broken-ship doctrine engages.
+    case 'ship-repair': {
+      const healed = obj.healed === true;
+      return {
+        icon: '🩹',
+        tone: healed ? 'info' : 'block',
+        headline:
+          title ||
+          (healed
+            ? `${shipLabel} emitted broken output, then healed it on a repair retry.`
+            : `${shipLabel} emitted broken output and the repair retries failed too.`),
+        bodyHtml: '',
+      };
+    }
+
+    // The broken-ship marker (fleet-executor src/adjudicator.ts) — evidence
+    // for the epidemic test; the adjudication step right after it says who
+    // the breakage gates.
+    case 'ship-broken':
+      return {
+        icon: '💥',
+        tone: 'block',
+        headline: title || `${shipLabel} is broken — repair failed; adjudicating who this gates.`,
+        bodyHtml: '',
+      };
+
+    case 'ship-adjudicated': {
+      const fleetWide = (obj as { verdict?: unknown }).verdict === 'fleet';
+      return {
+        icon: '⚖️',
+        tone: fleetWide ? 'neutral' : 'block',
+        headline:
+          title ||
+          (fleetWide
+            ? `${shipLabel}'s breakage was adjudicated a FLEET-WIDE fault — tracked in one issue; not gating this PR.`
+            : `${shipLabel}'s breakage is isolated to this PR — the failure stands.`),
+        bodyHtml: `<p class="meta">${esc(
+          fleetWide
+            ? 'The same ship is broken across other PRs, so the fault gates the fleet (who can fix it), not this author (who cannot). The run resolves neutral — visible, never green.'
+            : 'No evidence of this ship breaking on other PRs, so the breakage is plausibly caused by this diff and fails the run.',
+        )}</p>`,
+      };
+    }
+
     // A ship that produced NO USABLE OUTPUT (fleet-executor's
     // src/usable-output.ts). This must NEVER render as a pass: the ship ran and
     // reviewed nothing. The executor already writes an honest English title, so
@@ -563,7 +608,7 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
         bodyHtml: `<p class="meta">${esc(
           blocking
             ? 'This is a blocking ship, so the fleet check failed closed — an absent review is not an approval.'
-            : 'This is an advisory ship, so it did not fail the merge gate; it is reported here rather than counted as a pass.',
+            : 'This ship is advisory in judgment, but a ship that returned nothing is broken — the fleet check fails until it is fixed.',
         )}</p>`,
       };
     }
@@ -613,8 +658,10 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
         }
         return {
           icon: '💡',
-          tone: 'neutral',
-          headline: `${shipLabel} ran as an ideation ship (advisory) — its proposal block was malformed.`,
+          tone: 'block',
+          headline:
+            `${shipLabel} emitted a malformed proposal block — a broken ship, so the ` +
+            `fleet check fails until it is fixed.`,
           bodyHtml: '',
         };
       }
@@ -650,10 +697,10 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
       if (typeof obj.error === 'string') {
         return {
           icon: '⚖️',
-          tone: 'neutral',
+          tone: 'block',
           headline:
-            'The purser could not steel-man this PR — its contract output was malformed, ' +
-            'so it stopped honestly (advisory, no bluffed contract).',
+            'The purser could not steel-man this PR — its contract output was malformed. ' +
+            'No contract was bluffed, and the broken ship fails the fleet check until fixed.',
           bodyHtml: '',
         };
       }
@@ -671,12 +718,30 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
       };
     }
 
+    // The steel-man contract being written into the reviewed PR's body (the PR
+    // summary) — the operator-mandated chronology of what the PR should be.
+    case 'purser-contract-posted': {
+      const posted = obj.posted === true;
+      return {
+        icon: '📜',
+        tone: posted ? 'info' : 'block',
+        headline:
+          title ||
+          (posted
+            ? 'The steel-man contract was written into the PR summary.'
+            : 'FAILED to write the steel-man contract into the PR summary.'),
+        bodyHtml: '',
+      };
+    }
+
     case 'purser-tests': {
       if (typeof obj.error === 'string') {
         return {
           icon: '🧪',
-          tone: 'neutral',
-          headline: `The purser's authored tests did not survive validation — ${obj.error}. Nothing was stacked.`,
+          tone: 'block',
+          headline:
+            `The purser's authored tests did not survive validation — ${obj.error}. ` +
+            `Nothing was stacked, and the broken ship fails the fleet check until fixed.`,
           bodyHtml: '',
         };
       }

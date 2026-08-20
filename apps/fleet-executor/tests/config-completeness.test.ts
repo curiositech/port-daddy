@@ -62,15 +62,58 @@ describe('the config type and the config parser do not drift', () => {
     const parsed = parseFleetShips(yaml, 'pull_request');
     expect(parsed, 'the fixture must parse, or this suite proves nothing').not.toBeNull();
 
+    // A SECOND fixture, because some fields are only ever emitted for a purser
+    // ship. One reviewer fixture cannot see them, and a field this suite cannot
+    // see is a field it cannot protect -- which would make the purser's own
+    // per-step model tiers the next cfMapModel: real, and reachable by nobody.
+    // Both step models are pinned to an id that DIFFERS from the ship's own
+    // model, so each key is actually emitted -- a pin equal to cfModel resolves
+    // to "absent" by repo convention and would silently prove nothing.
+    const purserYaml = [
+      'fleet:',
+      '  agents:',
+      '    purser:',
+      '      class: purser',
+      '      trigger: pull_request',
+      '      blockWithoutSandbox: true',
+      '      testPaths: [tests/purser]',
+      '      plan_model: "@cf/openai/gpt-oss-20b"',
+      '      author_model: "@cf/openai/gpt-oss-20b"',
+      '',
+    ].join('\n');
+    const parsedPurser = parseFleetShips(purserYaml, 'pull_request');
+    expect(parsedPurser, 'the purser fixture must parse, or purser-only fields go unchecked').not.toBeNull();
+    expect(
+      [parsedPurser![0].cfPlanModel, parsedPurser![0].cfAuthorModel],
+      'the purser fixture must actually exercise plan_model/author_model, or it proves nothing',
+    ).toEqual(['@cf/openai/gpt-oss-20b', '@cf/openai/gpt-oss-20b']);
+
     // The type's field list, read from the source rather than from a value --
     // an optional field absent at runtime would otherwise vanish from the check
     // precisely when it is the one being forgotten.
     const iface = fleetSource().match(/export interface ShipConfig \{([\s\S]*?)\n\}/);
     expect(iface, 'could not locate the ShipConfig interface').not.toBeNull();
-    const declared = [...iface![1].matchAll(/^  (\w+)\??:/gm)].map(m => m[1]);
-    expect(declared.length, 'parsed no fields -- the regex has drifted').toBeGreaterThan(8);
+    // Indentation-agnostic: `^\s*` rather than two literal spaces. Raised in
+    // review, and it is the failure mode this whole suite is about -- a regex
+    // pinned to one formatting style silently matches FEWER fields after a
+    // reformat, and a drift check that sees fewer fields reports less drift.
+    // It would go quiet exactly when someone touched the file.
+    const declared = [...iface![1].matchAll(/^\s*(\w+)\??:/gm)].map(m => m[1]);
 
-    const settable = new Set(Object.keys(parsed![0]));
+    const settable = new Set([...Object.keys(parsed![0]), ...Object.keys(parsedPurser![0])]);
+
+    // The extraction must account for EVERY field we already know exists --
+    // both the ones the parser emits and the ones declared code-only. A count
+    // floor (`> 8`) only catches total breakage; this catches the partial
+    // match, which is the realistic way a regex rots.
+    const known = [...settable, ...Object.keys(CODE_ONLY)];
+    const missed = known.filter(f => !declared.includes(f));
+    expect(
+      missed,
+      `The ShipConfig field extraction missed fields it should have found: ` +
+        `${missed.join(', ')}. The regex has drifted from the interface's ` +
+        `formatting, so this suite is now checking less than it claims to.`,
+    ).toEqual([]);
     const unreachable = declared.filter(f => !settable.has(f) && !(f in CODE_ONLY));
 
     expect(

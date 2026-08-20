@@ -35,6 +35,7 @@ import {
   createCheckRun,
   completeCheckRun,
   findFleetCheckRun,
+  findFleetCheckRunState,
   createIssue,
   resolveFleetAppLogin,
   type PRContext,
@@ -91,7 +92,10 @@ import {
 } from './xo.js';
 import type { Proposal } from './proposals.js';
 import { decideShipGate, isDocsOnly, isReviewableForBugs } from './gates.js';
+import { repairContractOutput } from './repair.js';
+import { adjudicateBrokenShips } from './adjudicator.js';
 import { runPurser } from './purser.js';
+import { isDeadLetteredSummary } from './dead-letter-marker.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
 import {
@@ -181,12 +185,43 @@ const FALLBACK_MAP_CHUNK_CHARS = 12_000;
 export function mapChunkCharLimit(mapModel: string): number {
   if (!hasKnownContextWindow(mapModel)) return FALLBACK_MAP_CHUNK_CHARS;
   const chars = MODEL_CONTEXT_TOKENS[mapModel] * CHARS_PER_TOKEN * CONTEXT_BUDGET_FRACTION;
-  return Math.max(FALLBACK_MAP_CHUNK_CHARS, Math.floor(chars));
+  return Math.min(MAP_CHUNK_CHARS_CEILING, Math.max(FALLBACK_MAP_CHUNK_CHARS, Math.floor(chars)));
 }
 
+/**
+ * Hard ceiling on the per-chunk character budget, whatever the model's window.
+ *
+ * WHY (issue #7743, 2026-08-19): deriving the budget purely from the context
+ * window turned a 128k-token model into ~192KB chunks — 16× the budget that
+ * shipped for months — and every in-flight MAP call holds several copies of
+ * its chunk (the chunk string, the composed prompt, the serialized request).
+ * Multiplied by the fan-out, peak resident memory scaled with window size ×
+ * concurrency, and runs began dying to uncatchable platform kills (attempt
+ * markers with no recorded failure — memory, not CPU: attempts died well
+ * under the 300s cpu_ms ceiling's reach). A model's ABILITY to read 192KB per
+ * call was never a reason to spend isolate memory doing so; 48KB (~16k
+ * tokens) is ample diff context per call and keeps the memory product an
+ * order of magnitude smaller.
+ */
+const MAP_CHUNK_CHARS_CEILING = 48_000;
 
-/** Bound Workers AI fan-out so large diffs finish without a rate-limit stampede. */
-const MAP_CONCURRENCY = 8;
+/**
+ * Bound Workers AI fan-out so large diffs finish without a rate-limit
+ * stampede — and, since #7743, so concurrent in-flight prompts stop being a
+ * memory multiplier: halved from 8, because 4 × the chunk ceiling bounds the
+ * in-flight prompt text where 8 × an unbounded budget did not.
+ */
+const MAP_CONCURRENCY = 4;
+
+/**
+ * Cap on MAP chunks per ship. Bounds all three budgets a huge diff would
+ * otherwise spend freely — memory (chunks held), wall-clock (waves × call
+ * latency inside the queue consumer's window), and dollars (calls). A diff
+ * beyond the cap is reviewed on its first chunks, and the truncation is
+ * recorded HONESTLY: a `map-truncated` transcript step names how much was
+ * dropped, so a partial review can never masquerade as a full one.
+ */
+const MAX_MAP_CHUNKS_PER_SHIP = 8;
 /** The umbrella check-run name. Exported so the DLQ handler targets the same run. */
 export const CHECK_NAME = 'Port Daddy Fleet';
 
@@ -614,6 +649,55 @@ async function recordRunStart(
 }
 
 /**
+ * Guarantee a `fleet_runs` row exists before a check run's completion is
+ * published — an idempotent (INSERT OR IGNORE) backstop independent of
+ * `recordRunStart`'s own best-effort write.
+ *
+ * `recordRunStart` deliberately swallows write failures ("NEVER aborts the
+ * run" — correct: an audit-log hiccup must not block gating). But that means
+ * a transient D1 error at exactly that moment leaves NO row behind, while the
+ * check run on GitHub still completes normally with a real conclusion — its
+ * `details_url` then points at a run id with no row, and the run page 404s
+ * ("Run not found") even though nothing else went wrong. `dlq.ts`'s
+ * completion path has the same gap: it never calls `recordRunStart` at all.
+ * Calling this once, right after `recordRunStart`, closes both: if the
+ * INSERT OR REPLACE above already succeeded this is a guaranteed no-op (same
+ * primary key); if it silently failed, this creates a minimal-but-truthful
+ * fallback row so the link a completed check publishes always resolves to
+ * something real.
+ */
+export async function ensureRunRow(
+  env: ExecutorEnv,
+  runId: string,
+  deliveryId: string,
+  repoFullName: string | null,
+  prNumber: number | null,
+  headSha: string,
+): Promise<void> {
+  if (!env.DB) return;
+  const repo = repoFullName ?? 'unknown/unknown';
+  const prUrl = prNumber != null ? `https://github.com/${repo}/pull/${prNumber}` : '';
+  try {
+    // Columns: (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha,
+    // conclusion, ships_csv, ms, created_at) — a superset of recordRunStart's
+    // INSERT: the same identity/context columns plus a placeholder 'pending'
+    // conclusion and 0 ms (recordRunComplete stamps the real values later).
+    // ships_csv is empty since this is only ever the no-ships-info fallback
+    // (recordRunStart already succeeded with the real list, or this is the
+    // DLQ path, which never has a ship list to begin with).
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO fleet_runs
+         (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha, conclusion, ships_csv, ms, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, 0, ?)`,
+    )
+      .bind(runId, deliveryId, repo, prNumber ?? 0, prUrl, headSha, '', nowSec())
+      .run();
+  } catch (err) {
+    console.error(`[fleet-executor] ensureRunRow failed run=${runId}: ${String(err)}`);
+  }
+}
+
+/**
  * Stamp the final conclusion + wall-clock elapsed onto the fleet_runs row.
  * Best-effort: a write failure NEVER changes the gate (the check run is already
  * the authoritative surface on GitHub).
@@ -791,8 +875,74 @@ function triggerFor(job: FleetRunJob): string | null {
  * error so the queue consumer can retry; returns normally otherwise (including
  * for non-actionable events, which are simply skipped).
  */
+/**
+ * Report `Port Daddy Fleet` on a merge-queue branch.
+ *
+ * WHY A PASS-THROUGH AND NOT A REVIEW. The queue branch is `main` + the queued
+ * PRs, and every PR in it was already gated by the full fleet at
+ * `pull_request` time. Re-running every ship on each queue permutation would
+ * re-spend the entire review budget per entry, per reorder, to re-derive a
+ * verdict the fleet already published — while the queue branch's own CI (which
+ * DOES run on `merge_group`) is what actually exercises the combined code. This
+ * repo already takes that position elsewhere: scripts/check-roadmap-link.ts
+ * treats `merge_group` heads as a pass-through for exactly this reason.
+ *
+ * What matters is that the context REPORTS. It is required on the merge queue,
+ * so a context that never appears is not a strict gate — it is a permanent
+ * deadlock, which is what it had been since 2026-08-06.
+ *
+ * Fails soft on purpose: any error here leaves the check absent, which is
+ * exactly today's behaviour, so this can never be worse than not running.
+ *
+ * @param job the merge_group delivery
+ * @param env executor bindings (token minting + details url)
+ */
+async function reportMergeGroupPassThrough(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+  const mergeGroup = job.payloadMinimal?.merge_group as Record<string, unknown> | undefined;
+  const headSha = typeof mergeGroup?.head_sha === 'string' ? mergeGroup.head_sha : '';
+  if (!job.repoFullName || !job.installationId || !headSha) return;
+  const [owner, repo] = job.repoFullName.split('/');
+  if (!owner || !repo) return;
+
+  const token = await getInstallationTokenCached(
+    env.GITHUB_APP_ID,
+    env.GITHUB_APP_PRIVATE_KEY,
+    job.installationId,
+    env.FLEET_TOKENS,
+  ).catch(() => null);
+  if (!token) return;
+
+  try {
+    const checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token, null);
+    await completeCheckRun(
+      owner,
+      repo,
+      checkRunId,
+      'success',
+      'Merge-queue pass-through. Every PR in this group was reviewed by the fleet at ' +
+        'pull_request time; the queue branch is gated by its own CI, which runs on ' +
+        'merge_group. The fleet does not re-review each queue permutation.',
+      token,
+      null,
+    );
+  } catch (err) {
+    // Absent check == today's behaviour. Never throw: a failure here must not
+    // retry the job or dead-letter it.
+    console.error(`[fleet-executor] merge_group pass-through failed for ${job.repoFullName}@${headSha}: ${String(err)}`);
+  }
+}
+
 export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
   if (!env.AI) return;
+
+  // MERGE QUEUE: handled before every guard below, all of which assume a PR.
+  // A merge_group delivery has no pull_request and no prNumber, so it would
+  // otherwise fall straight out of `!job.prNumber` and report nothing — the
+  // deadlock this branch exists to end.
+  if (job.eventType === 'merge_group') {
+    await reportMergeGroupPassThrough(job, env);
+    return;
+  }
 
   const trigger = triggerFor(job);
   if (!trigger) return;
@@ -995,9 +1145,74 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   if (cloudShips.length === 0) return;
 
   // --- Check run (idempotent: reuse one for this head SHA) -----------------
-  let checkRunId = await findFleetCheckRun(owner, repo, prCtx.headSha, CHECK_NAME, token).catch(
-    () => null,
-  );
+  //
+  // IDEMPOTENCY, AND WHY IT IS ABOUT MONEY. A queue redelivery re-runs this
+  // whole function. Comment posting is already idempotent -- a re-run edits the
+  // ship comment in place rather than duplicating it -- but the MODEL CALLS
+  // behind that comment are not: every ship is re-run to produce the text it
+  // then overwrites. Identical output, paid for again.
+  //
+  // When the check for this head SHA is already COMPLETED that spend buys
+  // literally nothing, because a finished check run cannot be reopened. The
+  // work cannot change the gate, cannot change the comment's meaning, and
+  // cannot be seen by anyone. Observed 2026-08-06: runs that exceeded the
+  // Worker wall-clock were redelivered, dead-lettered, completed as `failure`
+  // by the DLQ handler -- and then kept re-running ships for HOURS against a
+  // gate that could never go green again.
+  //
+  // So a completed check is a full stop. `in_progress` is NOT: that is the
+  // genuine retry of a run that died mid-flight, and it must proceed.
+  const existing = await findFleetCheckRunState(
+    owner,
+    repo,
+    prCtx.headSha,
+    CHECK_NAME,
+    token,
+  ).catch(() => null);
+  //
+  // `neutral` is deliberately NOT terminal. The fleet completes neutral when it
+  // DEFERRED rather than decided -- paused by the kill switch, skipped by the PR
+  // lifecycle gate, skipped by the self-review guard. Treating those as decided
+  // would strand a PR permanently unreviewed: unpause the fleet, redeliver, and
+  // the guard would skip forever. Only `success` and `failure` mean ships
+  // actually ran and reached a verdict.
+  //
+  // …and a DLQ-completed `failure` is NOT decided either, for the same reason
+  // `neutral` isn't: no ship ran, nothing was reviewed, no verdict was reached.
+  // A lost job's red gate is honest fail-closed output, but counting it as
+  // DECIDED strands the head SHA permanently — every later delivery returns
+  // right here, before even creating a check run, so no retry can ever produce
+  // a real verdict and the only escape is a brand-new commit. Observed
+  // 2026-08-19: #7278, #7339 and #7344 each lost one run to a dead-letter and
+  // were then unreviewable at that SHA; reopening them re-ran all of GitHub
+  // Actions CI while the fleet check never reappeared at all.
+  const DECIDED: ReadonlySet<string> = new Set(['success', 'failure']);
+  const deadLettered = isDeadLetteredSummary(existing?.summary);
+  if (
+    existing &&
+    existing.status === 'completed' &&
+    DECIDED.has(existing.conclusion ?? '') &&
+    !deadLettered
+  ) {
+    console.log(
+      `[fleet-executor] ${owner}/${repo}@${prCtx.headSha}: check already decided ` +
+        `(${existing.conclusion}) — skipping ${cloudShips.length} ship(s). ` +
+        `A redelivery cannot reopen a finished check, so running them would spend and change nothing.`,
+    );
+    return;
+  }
+  if (deadLettered) {
+    console.log(
+      `[fleet-executor] ${owner}/${repo}@${prCtx.headSha}: previous check was dead-lettered, ` +
+        `not decided — running ${cloudShips.length} ship(s) for a real verdict.`,
+    );
+  }
+
+  // A finished check cannot be reopened, so a dead-lettered one must not be
+  // REUSED either: completing it again would be a no-op against a gate GitHub
+  // considers closed. Mint a fresh check run instead — GitHub surfaces the
+  // newest run of a given name, so the new one is what the branch rule reads.
+  let checkRunId = deadLettered ? null : existing?.id ?? null;
   if (!checkRunId) {
     // No swallow: a createCheckRun failure must propagate so the job RETRIES.
     checkRunId = await createCheckRun(owner, repo, CHECK_NAME, prCtx.headSha, token, detailsUrl);
@@ -1018,6 +1233,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // the audit trail records every attempt that got far enough to gate. A
   // write failure is swallowed and never changes the run or the gate.
   await recordRunStart(env, runId, job, prCtx, prNumber, cloudShips);
+  // Backstop: guarantee the row exists even if the write above silently
+  // failed, so every completion path below can rely on details_url resolving
+  // to a real run page (see ensureRunRow's docstring).
+  await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, prCtx.headSha);
 
   // --- SELF-REVIEW GUARD (the fleet does not review its own branches) ------
   // WHY THIS SITS HERE — after the gating check exists, before any AI spend.
@@ -1250,6 +1469,25 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     await recordShipTokensInTranscript(transcript, ship, metrics);
   }
 
+  // --- BROKEN-SHIP ADJUDICATION (src/adjudicator.ts) ------------------------
+  // Repair already ran in-ship; anything still broken here is persistent.
+  // Adjudicate WHO the breakage gates: isolated ⇒ the failure stands on this
+  // PR; fleet-wide (same ship broken across other PRs) ⇒ neutral + ONE tracked
+  // issue + a HITL page on first declaration. Best-effort by construction —
+  // any adjudication failure leaves results untouched and the doctrine's
+  // fail-closed default applies.
+  await adjudicateBrokenShips(results, {
+    env,
+    owner,
+    repo,
+    prNumber,
+    runId,
+    token,
+    transcript,
+    nowEpochSec: nowSec(),
+    ...(job.installationId != null ? { installationId: job.installationId } : {}),
+  });
+
   // --- Conclusion (verdict logic is REAL; see verdict.ts) ------------------
   const conclusion = aggregateConclusion(results);
 
@@ -1328,13 +1566,14 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
  * sentence ("… returned no usable output — nothing was reviewed"), never a
  * verdict word, so neither the transcript nor the run page can render it as a
  * pass. The returned result carries `noUsableOutput: true`, which
- * {@link aggregateConclusion} gates on: fail-closed for a blocking ship,
- * `neutral` (visible, non-blocking) for an advisory one.
+ * {@link aggregateConclusion} gates on: a broken ship fails the run whatever
+ * its blocking flag (broken-ship doctrine, 2026-08-19).
  *
  * `verdict` is still populated because {@link ShipResult} requires it — BLOCK
  * for a blocking ship (absence of a review is not approval) and PASS for an
- * advisory one (advisory paths fail open) — but `noUsableOutput` is the
- * authoritative signal and every renderer must key on it first.
+ * advisory one (advisory judgment cannot object on its own) — but
+ * `noUsableOutput` is the authoritative signal and every renderer must key on
+ * it first.
  *
  * @param ship The ship whose output could not be used.
  * @param transcript The run's best-effort step recorder.
@@ -1430,7 +1669,21 @@ async function runShip(
     // nothing, so a genuinely all-generated PR still gets looked at rather than
     // silently passing.
     const reviewableDiff = filterDiffToReviewable(prCtx.diff);
-    const chunks = chunkDiff(reviewableDiff || prCtx.diff, mapChunkCharLimit(mapModelFor(ship)));
+    const allChunks = chunkDiff(reviewableDiff || prCtx.diff, mapChunkCharLimit(mapModelFor(ship)));
+    // Cap the MAP fan-out per ship (#7743): memory, wall-clock and spend all
+    // scale with chunk count, and an oversized diff must degrade to an honest
+    // partial review — recorded below — rather than kill the whole run.
+    const chunks = allChunks.slice(0, MAX_MAP_CHUNKS_PER_SHIP);
+    if (allChunks.length > chunks.length) {
+      const dropped = allChunks.length - chunks.length;
+      const droppedChars = allChunks.slice(chunks.length).reduce((n, c) => n + c.length, 0);
+      await transcript.step(
+        'map-truncated',
+        ship.name,
+        `Diff truncated for review: ${dropped} of ${allChunks.length} chunks dropped (~${Math.round(droppedChars / 1000)}KB)`,
+        { keptChunks: chunks.length, totalChunks: allChunks.length, droppedChars },
+      );
+    }
 
     // Lookout's tools: cross-PR / cross-branch awareness. Fetched once per run and
     // injected into every MAP chunk so it can spot contradictions and duplication
@@ -1507,7 +1760,7 @@ async function runShip(
 
     // --- REDUCE: manager merges the partials (only when fan-out > 1) --------
     const reduced = chunks.length === 1 ? null : await reduceFindings(ship, partials, env, metrics);
-    const output = chunks.length === 1 ? partials[0] ?? '' : reduced!.text;
+    let output = chunks.length === 1 ? partials[0] ?? '' : reduced!.text;
 
     // Transcript: the REDUCE step exists only on a multi-chunk fan-out. Carries
     // this call's model/tokens/cost (call-accounting.ts) and the actual merge
@@ -1528,13 +1781,45 @@ async function runShip(
       });
     }
 
+    // One bounded repair pass (src/repair.ts) shared by every broken-contract
+    // site below. The caller's own parser is the only judge of healing.
+    const tryRepair = async (reason: string, validate: (text: string) => boolean) => {
+      const repair = await repairContractOutput({
+        shipLabel: `pd-${ship.name}`,
+        model: reduceModelFor(ship),
+        contract: ship.ideation ? ideationOutputContract() : buildOutputContract(),
+        priorOutput: output,
+        reason,
+        call: (model, system, user) => shipRepairCall(ship, env, metrics, model, system, user),
+        validate,
+      });
+      await transcript.step(
+        'ship-repair',
+        ship.name,
+        repair.healed
+          ? `pd-${ship.name}: contract repair HEALED on ${repair.healedBy} (${reason})`
+          : `pd-${ship.name}: contract repair FAILED after ${repair.attempts.length} attempt(s) (${reason})`,
+        { healed: repair.healed, healedBy: repair.healedBy, reason, attempts: repair.attempts },
+      );
+      if (repair.healed) output = repair.text;
+      return repair.healed;
+    };
+
     // --- NO USABLE OUTPUT gate (src/usable-output.ts) ----------------------
     // Before either contract is parsed: did the model say ANYTHING its contract
-    // asked for? If not, the ship reviewed nothing, and must never be folded
-    // into a clean PASS. Blocking ships fail closed here; advisory ships do not
-    // fail the merge gate but are reported honestly (aggregateConclusion turns
-    // them into `neutral`, never `success`).
-    const usability = classifyShipOutput(output, { ideation: ship.ideation });
+    // asked for? If not, try to REPAIR it first (broken output is usually a
+    // formatting slip on a cheap tier, not a missing review); only when repair
+    // also fails is the ship BROKEN, and a broken ship fails the run whatever
+    // its blocking flag (aggregateConclusion, broken-ship doctrine 2026-08-19 —
+    // subject to the adjudicator's fleet-fault amendment).
+    let usability = classifyShipOutput(output, { ideation: ship.ideation });
+    if (!usability.usable) {
+      const healed = await tryRepair(
+        `output failed the '${usability.reason}' contract test`,
+        text => classifyShipOutput(text, { ideation: ship.ideation }).usable,
+      );
+      if (healed) usability = classifyShipOutput(output, { ideation: ship.ideation });
+    }
     if (!usability.usable) {
       return await recordNoUsableOutput(ship, transcript, usability.reason, {
         strippedLength: usability.strippedLength,
@@ -1545,12 +1830,24 @@ async function runShip(
 
     // --- IDEATION ships: proposals, not findings ---------------------------
     // spark / spider / lookout / snipe propose forward work. Parse the validated
-    // Proposal schema and render it into REAL actionable Port Daddy syntax. These
-    // ships are always advisory: they NEVER gate a merge and NEVER contribute
-    // inline review comments, so a malformed block just falls back to the raw
-    // model output — it can't destabilize the check.
+    // Proposal schema and render it into REAL actionable Port Daddy syntax.
+    // Their JUDGMENT is always advisory — a proposal never gates a merge and
+    // never contributes inline review comments. Their MACHINERY is not: a
+    // malformed proposal block means the ship is broken, and a broken ship
+    // fails the run (`errored: true` → aggregateConclusion `failure`;
+    // broken-ship doctrine, 2026-08-19). The raw model output is still posted
+    // so the prose isn't lost while the breakage gets fixed.
     if (ship.ideation) {
-      const proposals = parseProposals(output);
+      let proposals = parseProposals(output);
+      // A malformed proposals block gets the same one-shot repair as unusable
+      // output — the model's SUBSTANCE is usually fine, the fence is not.
+      if (proposals === null) {
+        const healed = await tryRepair(
+          'the fenced json proposals block was malformed',
+          text => parseProposals(text) !== null,
+        );
+        if (healed) proposals = parseProposals(output);
+      }
 
       // --- XO EDITOR PASS (src/xo.ts) --------------------------------------
       // Before the batch is finalized (rendered / stacked / captured), the XO
@@ -1606,13 +1903,21 @@ async function runShip(
           : '';
       // When proposals parse to a real set → post the actionable render. When the
       // ship proposed nothing (empty array) → silence. When the block was
-      // malformed (null) → post the raw output so the model's prose isn't lost.
-      const body = rendered || (proposals === null ? output : '');
+      // malformed (null) → post the raw output so the model's prose isn't lost,
+      // and record the ship as BROKEN rather than laundering it into a PASS.
+      const malformed = proposals === null;
+      const body = rendered || (malformed ? output : '');
 
-      await transcript.step('ship-verdict', ship.name, `pd-${ship.name}: PASS (ideation)`, {
-        proposals: curated ?? 'malformed',
-        posted: !!body.trim(),
-      });
+      await transcript.step(
+        malformed ? 'ship-finding' : 'ship-verdict',
+        ship.name,
+        malformed
+          ? `pd-${ship.name}: proposal block MALFORMED — broken ship, fails the run`
+          : `pd-${ship.name}: PASS (ideation)`,
+        malformed
+          ? { error: 'failed to parse proposals', posted: !!body.trim() }
+          : { proposals: curated, posted: !!body.trim() },
+      );
 
       await postShipComment(
         prCtx.owner,
@@ -1641,14 +1946,22 @@ async function runShip(
         ship: ship.name,
         blocking: false,
         verdict: 'PASS',
-        errored: false,
+        errored: malformed,
         findings: [],
       };
     }
 
-    // Parse the structured findings block. `null` => malformed JSON => the ship
-    // is treated as errored (blocking → BLOCK, advisory → PASS, never silent).
-    const parsedFindings = parseShipFindings(output);
+    // Parse the structured findings block. `null` => malformed JSON. Repair
+    // once (the model's findings are usually fine, the fence is not); only a
+    // still-malformed block is treated as errored — a broken ship.
+    let parsedFindings = parseShipFindings(output);
+    if (parsedFindings === null) {
+      const healed = await tryRepair(
+        'the fenced json findings block was malformed',
+        text => parseShipFindings(text) !== null,
+      );
+      if (healed) parsedFindings = parseShipFindings(output);
+    }
 
     // Drop findings that cite a file this PR never touched.
     //
@@ -2144,19 +2457,68 @@ async function reduceFindings(
   return { text, res, userMessage };
 }
 
+/**
+ * One model call for the repair pass (src/repair.ts), on the executor's own
+ * AI plumbing so repair spend is metered exactly like any other ship call.
+ *
+ * MOTIVATION: repair.ts is deliberately a pure orchestration module with no
+ * env/AI imports; this adapter is the single place its calls touch Workers AI,
+ * so gateway options, session affinity, and usage accumulation stay identical
+ * to the MAP/REDUCE paths rather than being re-implemented.
+ *
+ * @param ship The ship being repaired (names the affinity header, temperature).
+ * @param env Worker bindings.
+ * @param metrics The ship's run metrics — repair tokens land here.
+ * @param model The model for THIS attempt (own tier, then escalation).
+ * @param system The repair system prompt.
+ * @param user The repair user message (carries the broken output).
+ * @returns The model's raw text ('' on an empty/odd response shape).
+ */
+async function shipRepairCall(
+  ship: ShipConfig,
+  env: ExecutorEnv,
+  metrics: ShipMetrics,
+  model: string,
+  system: string,
+  user: string,
+): Promise<string> {
+  const request = {
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ],
+    max_tokens: MAX_OUTPUT_TOKENS,
+    ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
+  };
+  const res = await env.AI.run(
+    model as Parameters<typeof env.AI.run>[0],
+    request,
+    aiOptions(env, ship.name),
+  );
+  const { text } = extractAiText(res);
+  accumulateUsage(metrics, model, res, text);
+  return text;
+}
+
 function buildSummary(results: ShipResult[], conclusion: string): string {
   const lines = results.map(r => {
     const tag = r.blocking ? ' [BLOCKING]' : '';
     // A ship that produced nothing is reported as exactly that. It must never
     // print as `PASS` here — this summary is the check-run body an operator
-    // reads before merging.
+    // reads before merging. Broken states (error / no usable output) fail the
+    // run whatever the ship's blocking flag — unless the adjudicator judged
+    // the fault fleet-wide, in which case the check says exactly that instead
+    // of blaming this PR. See aggregateConclusion + src/adjudicator.ts.
+    const adjudication = r.brokenAdjudicated
+      ? ` — adjudicated FLEET-WIDE fault${r.brokenAdjudicated.issueNumber != null ? ` (#${r.brokenAdjudicated.issueNumber})` : ''}: not gating this PR; the fleet is on the hook`
+      : ' (broken ship ⇒ run FAILED)';
     const state = r.noUsableOutput
-      ? 'no usable output — nothing was reviewed'
+      ? `no usable output — nothing was reviewed${adjudication}`
       : r.errored
-        ? 'error'
+        ? `error${adjudication}`
         : r.verdict;
     const advisory =
-      !r.blocking && (r.verdict === 'BLOCK' || r.errored || r.noUsableOutput) ? ' (advisory)' : '';
+      !r.blocking && r.verdict === 'BLOCK' && !r.errored && !r.noUsableOutput ? ' (advisory)' : '';
     return `- pd-${r.ship}${tag}: ${state}${advisory}`;
   });
   lines.push('');

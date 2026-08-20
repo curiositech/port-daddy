@@ -130,7 +130,7 @@ describe('purser per-call model/cost/prompt/response', () => {
     expect(detail.response).toBe(STEELMAN_JSON);
   });
 
-  it('purser-tests carries model, cost, and the real system/user prompt + response', async () => {
+  it('purser-plan carries model, cost, and the real system/user prompt + response', async () => {
     const ai = seqAiWithUsage([
       { text: STEELMAN_JSON, usage: { prompt_tokens: 300, completion_tokens: 80 } },
       { text: TESTS_JSON, usage: { prompt_tokens: 400, completion_tokens: 120 } },
@@ -139,13 +139,13 @@ describe('purser per-call model/cost/prompt/response', () => {
 
     await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
 
-    const step = rec.steps.find(s => s.kind === 'purser-tests' && (s.detail as Record<string, unknown>).files)!;
+    const step = rec.steps.find(s => s.kind === 'purser-plan' && (s.detail as Record<string, unknown>).files)!;
     const detail = step.detail as Record<string, unknown>;
     expect(detail.model).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
     expect(detail.inputTokens).toBe(400);
     expect(detail.outputTokens).toBe(120);
     expect(typeof detail.systemPrompt).toBe('string');
-    expect(detail.systemPrompt as string).toContain('ADVERSARIAL TEST AUTHORING');
+    expect(detail.systemPrompt as string).toContain('TEST PLANNING phase');
     expect(detail.response).toBe(TESTS_JSON);
   });
 
