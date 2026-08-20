@@ -12,28 +12,28 @@
 \toprule
 \textbf{Claim / mechanism} & \textbf{Maturity} & \textbf{Where it is argued} \\
 \midrule
-Episodic memory (continuity organ 1) & \text{\textsc{built}} &
+Episodic memory (continuity organ 1) & \BUILT &
   \S\ref{sec:organs}; runs in the reference system (App.~\ref{app:status}) \\
-Checkpoint / restart organ (organ 2) & \text{\textsc{built}}WEAK &
+Checkpoint / restart organ (organ 2) & \BUILTWEAK &
   \S\ref{sec:organs} --- forwards a summary, not execution state \\
-Outcome ledger (organ 3 --- reputation keys on it) & \text{\textsc{built}}WEAK &
+Outcome ledger (organ 3 --- reputation keys on it) & \BUILTWEAK &
   \S\ref{sec:organs}, Def.~\ref{def:oracle}; commitments and oracle closure ship, grading does not \\
-Cost meter (efficiency axis source) & \text{\textsc{built}} &
+Cost meter (efficiency axis source) & \BUILT &
   \S\ref{sec:adr0049}; per-task accounting recorded today \\
-Bond / escrow / slash & \text{\textsc{built}} &
+Bond / escrow / slash & \BUILT &
   used throughout; conservation property holds in the reference system \\
-Local non-forgeable identity & \text{\textsc{built}}WEAK &
+Local non-forgeable identity & \BUILTWEAK &
   \S\ref{sec:identity}, Thm.~\ref{thm:necessity}; actor-souls ship, full write gating does not \\
-Cross-operator attestation & \text{\textsc{vision}} &
+Cross-operator attestation & \VISION &
   \S\ref{sec:keystone}; named dependency owed to the market paper \\
 Reputation estimator (BT / Elo / TrueSkill / EigenTrust) &
-  \shortstack[l]{\text{\textsc{designed}}{} to\\[-1pt]\text{\textsc{vision}}} &
+  \shortstack[l]{\DESIGNED{} to\\[-1pt]\VISION} &
   \S\ref{sec:substrate}; design specified, nothing scores yet \\
-Multi-dimensional reputation, neutral judges & \text{\textsc{vision}} &
+Multi-dimensional reputation, neutral judges & \VISION &
   \S\ref{sec:adr0049}, Protos.~\ref{proto:judge},~\ref{proto:skill} \\
-Grading-oracle incentive-compatibility (Conj.~\ref{conj:contract}) & \text{\textsc{vision}} &
+Grading-oracle incentive-compatibility (Conj.~\ref{conj:contract}) & \VISION &
   \S\ref{sec:oracle}; named hole, two candidate closures, no proof \\
-Tombstone revocation of outcomes & \text{\textsc{designed}} &
+Tombstone revocation of outcomes & \DESIGNED &
   \S\ref{sec:revoke}, Proto.~\ref{proto:tombstone}; convergence is the market paper's job \\
 \bottomrule
 \end{tabular}
@@ -41,7 +41,7 @@ Tombstone revocation of outcomes & \text{\textsc{designed}} &
 label and the section that argues it (the reference system's component-level
 grounding is in Appendix~\ref{app:status}). The skeptical reader should read this
 first: the local commitment and identity substrates are partial, while neutral
-judging, reputation, and cross-operator binding remain \text{\textsc{designed}}-to-\text{\textsc{vision}}. The
+judging, reputation, and cross-operator binding remain \DESIGNED-to-\VISION. The
 score is cheap; the trustworthy substrate remains the gate.}
 \label{fig:honest-state}
 \end{figure}

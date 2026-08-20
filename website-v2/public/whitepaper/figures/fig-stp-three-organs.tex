@@ -51,6 +51,6 @@
   \draw[accentarr] (o3) -- (rep);
 
 \end{tikzpicture}
-\caption{The three continuity organs, formally classified. \textbf{Episodic Memory} records what happened (typed episodes promoted out of transient history). The \textbf{Checkpoint Organ} preserves task lineage and worktree state across compaction boundaries. The \textbf{Witnessed-Outcome Ledger} enforces non-repudiable delivery against external oracles, serving as the sole cryptographic anchor for multi-agent reputation.}
+\caption{\textbf{The three continuity organs, honestly labelled.} Episodic memory (\BUILT) records what happened --- typed episodes promoted out of transient history. The checkpoint (\BUILTWEAK) is meant to preserve task lineage and worktree state across compaction boundaries, but today forwards a summary rather than execution state. The witnessed-outcome ledger (\BUILTWEAK) enforces non-repudiable delivery against external oracles and is the sole anchor reputation keys on; commitments and oracle closure ship, grading does not (\S\ref{sec:organs}).}
 \label{fig:organs}
 \end{figure}
