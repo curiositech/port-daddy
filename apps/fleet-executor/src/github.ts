@@ -802,6 +802,7 @@ export async function completeCheckRun(
   summary: string,
   token: string,
   detailsUrl?: string | null,
+  title = 'Port Daddy Fleet',
 ): Promise<boolean> {
   if (!checkRunId) return false;
   // details_url is (re)stamped on completion too, so a run that REUSED an
@@ -810,7 +811,7 @@ export async function completeCheckRun(
     status: 'completed',
     conclusion,
     completed_at: new Date().toISOString(),
-    output: { title: 'Port Daddy Fleet', summary },
+    output: { title, summary },
     ...(detailsUrl ? { details_url: detailsUrl } : {}),
   });
   const MAX_ATTEMPTS = 3;
