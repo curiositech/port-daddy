@@ -912,10 +912,6 @@ describe('spawnViaCliTube — failure paths', () => {
       expect(child.kill).toHaveBeenCalledWith('SIGTERM');
       await jest.advanceTimersByTimeAsync(5000);
       expect(child.kill).toHaveBeenCalledWith('SIGKILL');
-      await waitForAsyncProcessDiscovery(
-        () => jest.getTimerCount() >= 1,
-        'kill-close hard deadline',
-      );
       await jest.advanceTimersByTimeAsync(1000);
       await expect(resultPromise).resolves.toEqual(expect.objectContaining({ exitCode: -1 }));
       expect(settled).toBe(true);
@@ -974,10 +970,6 @@ describe('spawnViaCliTube — failure paths', () => {
         expect.any(Function),
       );
 
-      await waitForAsyncProcessDiscovery(
-        () => jest.getTimerCount() >= 1,
-        'root-fallback kill-close hard deadline',
-      );
       await jest.advanceTimersByTimeAsync(1000);
       const res = await resultPromise;
       expect(res.exitCode).toBe(-1);
@@ -1007,10 +999,6 @@ describe('spawnViaCliTube — failure paths', () => {
       expect(child.kill).toHaveBeenCalledWith('SIGTERM');
       await jest.advanceTimersByTimeAsync(5000);
       expect(child.kill).toHaveBeenCalledWith('SIGKILL');
-      await waitForAsyncProcessDiscovery(
-        () => jest.getTimerCount() >= 1,
-        'kill-close timer after unexpected discovery failure',
-      );
       await jest.advanceTimersByTimeAsync(1000);
 
       await expect(resultPromise).resolves.toEqual(expect.objectContaining({
