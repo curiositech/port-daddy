@@ -118,6 +118,38 @@ describe('resolveImportCandidates', () => {
     expect(candidates).toContain('tests/unit/helpers');
     expect(candidates).toContain('tests/unit/helpers.ts');
   });
+
+  it('maps a TypeScript ESM .js runtime specifier to the trusted .ts source path', () => {
+    const candidates = resolveImportCandidates(
+      'tests/unit/purser/test-shell-escape.test.ts',
+      '../../../apps/fleet-executor/src/sandbox-runner.js',
+    );
+    expect(candidates).toEqual([
+      'apps/fleet-executor/src/sandbox-runner.js',
+      'apps/fleet-executor/src/sandbox-runner.ts',
+      'apps/fleet-executor/src/sandbox-runner.tsx',
+    ]);
+    expect(candidates).not.toContain('apps/fleet-executor/src/sandbox-runner.js.ts');
+  });
+
+  it('accepts the exact #8397 authored import against the real TypeScript source tree', () => {
+    expect(checkGeneratedTestsExecutable([{
+      path: 'tests/unit/purser/test-shell-escape.test.ts',
+      contents: [
+        "import { buildDefaultSandboxTestCommand } from '../../../apps/fleet-executor/src/sandbox-runner.js';",
+        "it('quotes paths', () => buildDefaultSandboxTestCommand([{ path: 'a b' }]));",
+      ].join('\n'),
+    }], {
+      testMatchPatterns: ['<rootDir>/tests/unit/**/*.test.{js,ts}'],
+      repoTreePaths: new Set(['apps/fleet-executor/src/sandbox-runner.ts']),
+    })).toEqual({ ok: true });
+  });
+
+  it('does not reinterpret an explicit asset extension as source code', () => {
+    expect(resolveImportCandidates('tests/unit/x.test.ts', './fixture.json')).toEqual([
+      'tests/unit/fixture.json',
+    ]);
+  });
 });
 
 describe('repairMisrootedRelativeImport', () => {
