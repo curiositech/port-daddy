@@ -469,7 +469,7 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(ctx).toMatch(/deprecated v1_hook/);
   });
 
-  test('prompt envelope is fresh, exact-project scoped, and bounded to 2 entries / 512 bytes', () => {
+  test('default prompt envelope is fresh, exact-project scoped, and bounded to 2 entries / 512 bytes', () => {
     mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
     const fresh = new Date().toISOString();
     const stale = new Date(Date.now() - 31 * 60_000).toISOString();
@@ -488,9 +488,9 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
         ...process.env,
         PD_MATRIX_FILE: MATRIX,
         PD_HOME: dirname(MATRIX),
-        // Attempts to raise the hard product budget are clamped by the hook.
-        PD_SQUID_PROMPT_MAX_ENTRIES: '12',
-        PD_SQUID_PROMPT_MAX_BYTES: '4096',
+        // Spell out the documented defaults so this test proves the ordinary path.
+        PD_SQUID_PROMPT_MAX_ENTRIES: '2',
+        PD_SQUID_PROMPT_MAX_BYTES: '512',
       },
       encoding: 'utf8',
     });
@@ -510,6 +510,39 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(entries).toHaveLength(2);
     expect(ctx).not.toContain('must-not-appear');
     expect(ctx).not.toContain('wrong-project');
+  });
+
+  test('callers cannot raise the hard prompt budget above 2 entries / 512 bytes', () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    const fresh = new Date().toISOString();
+    const detail = 'x'.repeat(280);
+    for (let i = 0; i < 4; i++) {
+      setKey(
+        `PD_PHEROMONE_RAISE_${i}`,
+        `${WORKSPACE}/src/raise-${i}.ts | ${detail}-${i} | ts:${fresh}`,
+      );
+    }
+
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: {
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        // Adversarial override: the product clamp must win over caller input.
+        PD_SQUID_PROMPT_MAX_ENTRIES: '12',
+        PD_SQUID_PROMPT_MAX_BYTES: '4096',
+      },
+      encoding: 'utf8',
+    });
+
+    expect(r.status).toBe(0);
+    const parsed = JSON.parse(r.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    };
+    const ctx = parsed.hookSpecificOutput.additionalContext;
+    expect(Buffer.byteLength(ctx)).toBeLessThanOrEqual(512);
+    expect(ctx.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(2);
   });
 
   test('prompt hook emits zero bytes when nothing actionable matches this project', () => {
@@ -598,6 +631,40 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(parsed.hookSpecificOutput.additionalContext).toContain('the fresh relevant one');
     expect(parsed.hookSpecificOutput.additionalContext.trimEnd().split('\n')).toHaveLength(2);
     expect(Buffer.byteLength(r.stdout)).toBeLessThanOrEqual(640);
+  });
+
+  test('prompt processing only inspects the newest SCAN_CAP matching matrix lines', () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    const fresh = new Date().toISOString();
+    const lines = Array.from({ length: 6 }, (_, index) => {
+      const position = index < 3 ? `outside-scan-cap-${index}` : `inside-scan-cap-${index}`;
+      return `PD_PHEROMONE_SCAN_${index}="${WORKSPACE}/src/${position}.ts | ${position} | ts:${fresh}"`;
+    });
+    writeFileSync(MATRIX, lines.join('\n') + '\n');
+
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: {
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SQUID_PROMPT_SCAN_CAP: '3',
+        PD_SQUID_PROMPT_MAX_ENTRIES: '2',
+      },
+      encoding: 'utf8',
+      timeout: 2_000,
+    });
+
+    expect(r.status).toBe(0);
+    expect(r.error).toBeUndefined();
+    const parsed = JSON.parse(r.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    };
+    const ctx = parsed.hookSpecificOutput.additionalContext;
+    expect(ctx).not.toContain('outside-scan-cap');
+    expect(ctx).toContain('inside-scan-cap-3');
+    expect(ctx).toContain('inside-scan-cap-4');
+    expect(ctx).not.toContain('inside-scan-cap-5'); // output budget, independent of scan budget
   });
 
   test('post-tool compacts the pheromone tail once the matrix crosses MAX_LINES', () => {
