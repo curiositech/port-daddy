@@ -41,6 +41,31 @@ describe('attention.compose', () => {
     });
   });
 
+  test('pre-session human output is explicit and requires no daemon request', async () => {
+    const priorAgentId = process.env.PD_AGENT_ID;
+    const priorSessionId = process.env.PD_SESSION_ID;
+    const priorContextDir = process.env.PORT_DADDY_CONTEXT_DIR;
+    delete process.env.PD_AGENT_ID;
+    delete process.env.PD_SESSION_ID;
+    process.env.PORT_DADDY_CONTEXT_DIR = `${process.cwd()}/.portdaddy-test-unbound-human-${process.pid}-${Date.now()}`;
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    try {
+      await handleAttention({});
+      expect(logSpy).toHaveBeenCalledTimes(1);
+      expect(logSpy).toHaveBeenCalledWith('Attention clear (no active agent session).');
+    } finally {
+      logSpy.mockRestore();
+      if (priorAgentId === undefined) delete process.env.PD_AGENT_ID;
+      else process.env.PD_AGENT_ID = priorAgentId;
+      if (priorSessionId === undefined) delete process.env.PD_SESSION_ID;
+      else process.env.PD_SESSION_ID = priorSessionId;
+      if (priorContextDir === undefined) delete process.env.PORT_DADDY_CONTEXT_DIR;
+      else process.env.PORT_DADDY_CONTEXT_DIR = priorContextDir;
+    }
+  });
+
   test('pre-session subscription mutation fails clearly before any daemon request', async () => {
     const priorAgentId = process.env.PD_AGENT_ID;
     const priorSessionId = process.env.PD_SESSION_ID;
