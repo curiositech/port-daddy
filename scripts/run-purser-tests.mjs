@@ -10,17 +10,25 @@
 // Exits non-zero if any test fails, so CI can gate on it.
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const purserRoot = resolve(repoRoot, 'tests/purser');
 const routing = JSON.parse(
-  readFileSync(resolve(repoRoot, 'tests/purser/ROUTING.json'), 'utf8'),
+  readFileSync(resolve(purserRoot, 'ROUTING.json'), 'utf8'),
 );
 
 const files = Object.entries(routing.files)
   .filter(([, entry]) => entry.runner === 'node-test')
-  .map(([file]) => `tests/purser/${file}`)
+  .map(([file]) => {
+    const candidate = resolve(purserRoot, file);
+    const withinPurser = relative(purserRoot, candidate);
+    if (!withinPurser || withinPurser === '..' || withinPurser.startsWith(`..${sep}`)) {
+      throw new Error(`ROUTING.json path escapes tests/purser: ${file}`);
+    }
+    return relative(repoRoot, candidate);
+  })
   .sort();
 
 if (files.length === 0) {
