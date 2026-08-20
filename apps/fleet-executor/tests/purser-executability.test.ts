@@ -132,6 +132,21 @@ describe('resolveImportCandidates', () => {
     expect(candidates).not.toContain('apps/fleet-executor/src/sandbox-runner.js.ts');
   });
 
+  it.each([
+    ['.jsx', ['.tsx']],
+    ['.mjs', ['.mts']],
+    ['.cjs', ['.cts']],
+  ])('maps the %s runtime extension only to its declared source extension', (runtime, sources) => {
+    const candidates = resolveImportCandidates(
+      'tests/unit/purser/runtime-map.test.ts',
+      `./module${runtime}`,
+    );
+    expect(candidates).toEqual([
+      `tests/unit/purser/module${runtime}`,
+      ...sources.map(extension => `tests/unit/purser/module${extension}`),
+    ]);
+  });
+
   it('accepts the exact #8397 authored import against the real TypeScript source tree', () => {
     expect(checkGeneratedTestsExecutable([{
       path: 'tests/unit/purser/test-shell-escape.test.ts',
@@ -145,10 +160,20 @@ describe('resolveImportCandidates', () => {
     })).toEqual({ ok: true });
   });
 
-  it('does not reinterpret an explicit asset extension as source code', () => {
-    expect(resolveImportCandidates('tests/unit/x.test.ts', './fixture.json')).toEqual([
-      'tests/unit/fixture.json',
-    ]);
+  it.each(['.ts', '.tsx', '.mts', '.cts', '.json', '.wasm', '.node'])(
+    'keeps an explicit %s source or asset extension exact',
+    extension => {
+      expect(resolveImportCandidates('tests/unit/x.test.ts', `./fixture${extension}`)).toEqual([
+        `tests/unit/fixture${extension}`,
+      ]);
+    },
+  );
+
+  it('preserves extensionless fallback behavior for an unknown final suffix', () => {
+    const candidates = resolveImportCandidates('tests/unit/x.test.ts', './fixture.unknown');
+    expect(candidates).toContain('tests/unit/fixture.unknown');
+    expect(candidates).toContain('tests/unit/fixture.unknown.ts');
+    expect(candidates).toContain('tests/unit/fixture.unknown/index.ts');
   });
 });
 
