@@ -271,6 +271,15 @@ describe('the landing arm — armed ticks execute LAND, gated and honest', () =>
     expect(merges.count).toBe(0);
   });
 
+  it('an armed seat with no store bound holds — grants cannot be checked, so nothing lands', async () => {
+    const { fetchImpl, merges } = ghLandFake(['src/a.ts'], { status: 200, body: { sha: 'x' } });
+    const r = await runTick(armedEnv(), REPO, NOW, fetchImpl, landSurvey());
+    expect(r.verdict?.verdict).toBe('LAND');
+    expect(r.landing).toMatchObject({ attempted: false, landed: false });
+    expect(r.landing?.reason).toContain('no seat store');
+    expect(merges.count).toBe(0);
+  });
+
   it('a non-LAND verdict never grows a landing outcome', async () => {
     const store = new FakeStorage();
     const r = await runTick(armedEnv(), REPO, NOW, undefined as never, async () => [pr({ checks: 'red' })], store);
