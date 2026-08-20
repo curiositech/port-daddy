@@ -28,6 +28,7 @@ import {
   TENTACLES,
   buildJsonHookMap,
   codexHooksTomlBlock,
+  stripCodexHooksTomlBlock,
   CODEX_PD_MARKER,
   CODEX_TOOL_MATCHER,
   CLAUDE_TOOL_MATCHER,
@@ -400,6 +401,16 @@ describe('configureTarget — per-project scope, gate-pointed commands', () => {
       'command = "/old/pd-hook-post-tool"',
       'async = true',
       '',
+      '[[hooks.PostToolUse]]',
+      'matcher = "shell"',
+      '[[hooks.PostToolUse.hooks]]',
+      'type = "command"',
+      'command = "/usr/local/bin/user-audit"',
+      'args = [',
+      '  "--mode",',
+      '  "deep",',
+      ']',
+      '',
       '[mcp_servers.keep_me]',
       'command = "keep-server"',
       'args = ["--stdio"]',
@@ -411,9 +422,30 @@ describe('configureTarget — per-project scope, gate-pointed commands', () => {
     expect(toml).toContain('[mcp_servers.keep_me]');
     expect(toml).toContain('command = "keep-server"');
     expect(toml).toContain('args = ["--stdio"]');
+    expect(toml).toContain('command = "/usr/local/bin/user-audit"');
+    expect(toml).toContain('  "--mode",\n  "deep",');
     expect(toml).not.toContain('/old/pd-hook-post-tool');
     expect(toml).not.toContain('async = true');
     expect(toml.split(CODEX_PD_MARKER).length - 1).toBe(1);
+  });
+
+  test('codex strip preserves a mixed group when a command uses complex TOML', () => {
+    const mixed = [
+      '[[hooks.PostToolUse]]',
+      '[[hooks.PostToolUse.hooks]]',
+      'type = "command"',
+      'command = "/old/pd-hook-post-tool"',
+      '[[hooks.PostToolUse.hooks]]',
+      'type = "command"',
+      'command = """',
+      '/usr/local/bin/user-multiline-audit',
+      '"""',
+      '',
+    ].join('\n');
+
+    const stripped = stripCodexHooksTomlBlock(mixed);
+    expect(stripped).toContain('/old/pd-hook-post-tool');
+    expect(stripped).toContain('/usr/local/bin/user-multiline-audit');
   });
 });
 
