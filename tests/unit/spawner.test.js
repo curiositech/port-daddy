@@ -767,6 +767,20 @@ describe('spawn — backend dispatch', () => {
     }
   });
 
+  test('treats an explicit zero timeout as no deadline', async () => {
+    const spawner = createSpawner();
+    resolveChildProcess(0, 'completed without a deadline');
+
+    const result = await spawner.spawn({
+      backend: 'custom',
+      task: 'zero means no timeout',
+      timeout: 0,
+    });
+
+    expect(result.status).toBe('completed');
+    expect(cpSpawn.mock.calls[0][2]).not.toHaveProperty('timeout');
+  });
+
   test('explicit timeout SIGTERMs then SIGKILLs the child and reports honestly', async () => {
     jest.useFakeTimers();
     try {
