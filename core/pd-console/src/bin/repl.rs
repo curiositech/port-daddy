@@ -71,6 +71,10 @@ mod work_plan;
 // Flag/flag_for_state compile here and the fleet pane renders in the REPL too.
 #[path = "../fleet_pane.rs"]
 mod fleet_pane;
+// Fleetbot Quality is a plain reqwest + serde_json local-daemon read (no
+// maritime/gpui), so it compiles and its #[cfg(test)] suite runs here too.
+#[path = "../fleetbot_pane.rs"]
+mod fleetbot_pane;
 // Session-galaxy engine (parsing + hit-testing + selection math) — gpui-free by
 // design; its #[cfg(test)] suite runs HERE, in the rust-console CI gate. The
 // geometry helpers are canvas-only at runtime, hence the dead_code allow.

@@ -30,6 +30,7 @@ mod editor_pane;
 mod editor_sync;
 mod editor_wedge;
 mod fleet_pane;
+mod fleetbot_pane;
 mod galaxy_canvas;
 mod galaxy_pane;
 mod grid;
@@ -76,6 +77,7 @@ use conductor_pane::ConductorPane;
 use daemon_pane::DaemonPane;
 use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
+use fleetbot_pane::FleetbotQualityPane;
 use galaxy_pane::GalaxyPane;
 use harbor_pane::HarborPane;
 use health_pane::HealthPane;
@@ -540,6 +542,7 @@ fn main() {
                 let mut live_agents = ActiveAgentsPane::new();  // 24 — harness roster
                 let mut harbor     = HarborPane::new();         // 25 — Agent Node roster+detail (ch18 C3)
                 let mut galaxy      = GalaxyPane::new();        // 26 — Sextant embedding map
+                let mut fleetbot    = FleetbotQualityPane::new(); // 27 — "wrong verdict" flags (local /feedback, surface=Fleetbot)
 
                 // Pin the producer slots to the canonical grid map. If a pane is
                 // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
@@ -555,6 +558,7 @@ fn main() {
                         parley.id(), conductor.id(), daemons.id(), cloud_fleet.id(), live_agents.id(),
                         harbor.id(),
                         galaxy.id(),
+                        fleetbot.id(),
                     ],
                     grid::SLOT_PANE_IDS,
                     "producer slot order drifted from grid::SLOT_PANE_IDS",
@@ -1115,6 +1119,7 @@ fn main() {
                     let _ = live_agents.refresh(&client).await;
                     let _ = harbor.refresh(&client).await;
                     let _ = galaxy.refresh(&client).await;
+                    let _ = fleetbot.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -1254,6 +1259,7 @@ fn main() {
                         (24, live_agents.view()),
                         (25, harbor.view()),
                         (26, galaxy.view()),
+                        (27, fleetbot.view()),
                     ];
 
                     if tx
