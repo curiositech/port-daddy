@@ -716,6 +716,12 @@ daemon-witnessed runtime receipt.
 **Fix:** Build a COMBINED local preview branch — merge the PR branches locally, build the triple from that, and never push the merge branch. The operator reviews the sum, not a slice.
 **Why:** The operator reviews the intended product state, not your PR topology. Showing a partial state generates false findings that cost more than the merge does.
 
+### Letting Purser Run The Whole Repository
+**Detection:** Purser authored a small contract, but the sandbox invokes the repository's unfiltered test script. The failure names no contract case and instead ends in unrelated integration setup, daemon startup, or another suite's fixture.
+**Symptoms:** A handful of unit tests consumes minutes, a healthy PR is blocked by infrastructure it did not touch, and the author is told only that the contract failed.
+**Fix:** Keep the repository's own runner, but pass only the Purser-authored test paths after the runner's argument separator, shell-quote every path, and fail closed when the authored-file set is empty. Reproduce that exact command locally before blaming the reviewed PR.
+**Why:** Purser's authority comes from executing its stated contract. Repository-wide failures are neither that contract nor actionable review evidence.
+
 ## Worked Examples
 
 ### Example 1: Adding a new MCP tool
