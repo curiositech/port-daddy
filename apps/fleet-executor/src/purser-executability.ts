@@ -261,6 +261,109 @@ export function resolveImportCandidates(fromPath: string, spec: string): string[
   return RESOLVE_SUFFIXES.map(suf => `${joined}${suf}`);
 }
 
+export interface TrustedTreeImportRepair {
+  files: StackedFile[];
+  path: string;
+  fromSpecifier: string;
+  toSpecifier: string;
+  matchedTreePath: string;
+}
+
+function relativeModuleSpecifier(fromPath: string, targetPath: string): string {
+  const from = fromPath.split('/').slice(0, -1).filter(Boolean);
+  const target = targetPath.split('/').filter(Boolean);
+  let common = 0;
+  while (common < from.length && common < target.length && from[common] === target[common]) {
+    common++;
+  }
+  const segments = [
+    ...Array.from({ length: from.length - common }, () => '..'),
+    ...target.slice(common),
+  ];
+  const relative = segments.join('/');
+  return relative.startsWith('.') ? relative : `./${relative}`;
+}
+
+function replaceImportSpecifier(source: string, from: string, to: string): string {
+  const escaped = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const patterns = [
+    new RegExp(`(\\brequire\\(\\s*)(['"])${escaped}\\2(\\s*\\))`, 'g'),
+    new RegExp(`(\\bfrom\\s+)(['"])${escaped}\\2()`, 'g'),
+    new RegExp(`(\\bimport\\s+)(['"])${escaped}\\2()`, 'g'),
+    new RegExp(`(\\bimport\\(\\s*)(['"])${escaped}\\2(\\s*\\))`, 'g'),
+  ];
+  return patterns.reduce(
+    (text, pattern) => text.replace(
+      pattern,
+      (_match, prefix: string, quote: string, suffix: string) =>
+        `${prefix}${quote}${to}${quote}${suffix}`,
+    ),
+    source,
+  );
+}
+
+/**
+ * Correct the common generated-test mistake where a relative import climbs the
+ * wrong number of directories but otherwise names one exact root-relative file
+ * in the trusted base tree.
+ *
+ * This is deliberately narrower than module resolution: stripping the leading
+ * `./` and `../` segments must identify exactly one existing path (including
+ * the same extension/index variants used by the executability gate). Ambiguous
+ * or absent targets return null and leave the bounded model rewrite as the
+ * fallback. The caller re-runs both path safety and executability afterward.
+ */
+export function repairMisrootedRelativeImport(
+  files: StackedFile[],
+  failure: ExecutabilityResult,
+  repoTreePaths: Set<string> | null,
+): TrustedTreeImportRepair | null {
+  if (
+    failure.ok ||
+    failure.kind !== 'unresolved-import' ||
+    !failure.path ||
+    !failure.specifier ||
+    !repoTreePaths
+  ) {
+    return null;
+  }
+
+  // Only repair the observed wrong-depth shape. A missing `./local` import may
+  // be an omitted generated sibling, not an attempt to reach the repo root.
+  if (!failure.specifier.startsWith('../')) return null;
+  const rootRelative = failure.specifier.replace(/^(?:\.\.\/)+/, '');
+  if (!rootRelative || rootRelative.split('/').some(segment => segment === '.' || segment === '..')) {
+    return null;
+  }
+  const matches = [...new Set(
+    RESOLVE_SUFFIXES
+      .map(suffix => `${rootRelative}${suffix}`)
+      .filter(candidate => repoTreePaths.has(candidate)),
+  )];
+  if (matches.length !== 1) return null;
+
+  const toSpecifier = relativeModuleSpecifier(failure.path, rootRelative);
+  if (toSpecifier === failure.specifier) return null;
+  const filesAfter = files.map(file => {
+    if (file.path !== failure.path) return file;
+    return {
+      ...file,
+      contents: replaceImportSpecifier(file.contents, failure.specifier!, toSpecifier),
+    };
+  });
+  const repaired = filesAfter.find(file => file.path === failure.path);
+  const original = files.find(file => file.path === failure.path);
+  if (!repaired || !original || repaired.contents === original.contents) return null;
+
+  return {
+    files: filesAfter,
+    path: failure.path,
+    fromSpecifier: failure.specifier,
+    toSpecifier,
+    matchedTreePath: matches[0],
+  };
+}
+
 export interface ExecutabilityEvidence {
   /** testMatch glob patterns from the repo's real jest config, or null if unknown/unparseable. */
   testMatchPatterns: string[] | null;

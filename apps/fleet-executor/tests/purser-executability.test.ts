@@ -7,6 +7,7 @@ import {
   extractRelativeImports,
   resolveImportCandidates,
   checkGeneratedTestsExecutable,
+  repairMisrootedRelativeImport,
   JEST_CONFIG_CANDIDATES,
 } from '../src/purser-executability.js';
 
@@ -116,6 +117,83 @@ describe('resolveImportCandidates', () => {
     const candidates = resolveImportCandidates('tests/unit/x.test.js', './helpers');
     expect(candidates).toContain('tests/unit/helpers');
     expect(candidates).toContain('tests/unit/helpers.ts');
+  });
+});
+
+describe('repairMisrootedRelativeImport', () => {
+  it('rewrites only the unresolved import when the trusted tree proves one root target', () => {
+    const files = [
+      {
+        path: 'tests/unit/purser/mixed.test.js',
+        contents: [
+          "const mentioned = '../../scripts/check-pr-comments-answered.mjs';",
+          "import { decideCommentGate } from '../../scripts/check-pr-comments-answered.mjs';",
+          "it('works', () => decideCommentGate([]));",
+        ].join('\n'),
+      },
+      { path: 'tests/unit/purser/sibling.test.js', contents: 'SIBLING_BYTES' },
+    ];
+    const failure = checkGeneratedTestsExecutable(files, {
+      testMatchPatterns: ['<rootDir>/tests/unit/**/*.test.js'],
+      repoTreePaths: new Set(['scripts/check-pr-comments-answered.mjs']),
+    });
+
+    const repaired = repairMisrootedRelativeImport(
+      files,
+      failure,
+      new Set(['scripts/check-pr-comments-answered.mjs']),
+    );
+
+    expect(repaired).toMatchObject({
+      path: 'tests/unit/purser/mixed.test.js',
+      fromSpecifier: '../../scripts/check-pr-comments-answered.mjs',
+      toSpecifier: '../../../scripts/check-pr-comments-answered.mjs',
+      matchedTreePath: 'scripts/check-pr-comments-answered.mjs',
+    });
+    expect(repaired!.files[0].contents).toContain(
+      "from '../../../scripts/check-pr-comments-answered.mjs'",
+    );
+    expect(repaired!.files[0].contents).toContain(
+      "mentioned = '../../scripts/check-pr-comments-answered.mjs'",
+    );
+    expect(repaired!.files[1]).toEqual(files[1]);
+  });
+
+  it('refuses an ambiguous root target and leaves model repair as the fallback', () => {
+    const files = [{
+      path: 'tests/unit/purser/mixed.test.js',
+      contents: "import '../../scripts/check-pr-comments-answered';",
+    }];
+    const failure = checkGeneratedTestsExecutable(files, {
+      testMatchPatterns: ['<rootDir>/tests/unit/**/*.test.js'],
+      repoTreePaths: new Set(),
+    });
+
+    expect(repairMisrootedRelativeImport(
+      files,
+      failure,
+      new Set([
+        'scripts/check-pr-comments-answered.js',
+        'scripts/check-pr-comments-answered.ts',
+      ]),
+    )).toBeNull();
+  });
+
+  it('refuses to reinterpret a missing current-directory import as repo-rooted', () => {
+    const files = [{
+      path: 'tests/unit/purser/mixed.test.js',
+      contents: "import './scripts/check-pr-comments-answered.mjs';",
+    }];
+    const failure = checkGeneratedTestsExecutable(files, {
+      testMatchPatterns: ['<rootDir>/tests/unit/**/*.test.js'],
+      repoTreePaths: new Set(),
+    });
+
+    expect(repairMisrootedRelativeImport(
+      files,
+      failure,
+      new Set(['scripts/check-pr-comments-answered.mjs']),
+    )).toBeNull();
   });
 });
 
