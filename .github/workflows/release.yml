@@ -229,7 +229,19 @@ jobs:
       # Per-matrix filename (darwin/linux both run this job → same-named asset
       # would clobber on the shared Release). Name it after the tarball it seals.
       - name: Batten — imprint sealed release artifacts (sha256 record)
-        run: ./dist/pd batten imprint --staged-dir dist --out dist/${{ matrix.artifact }}-imprint.json
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        # --release-version and --archive are REQUIRED evidence, not extras: the
+        # tap's verify-port-daddy-release-evidence.py rejects an imprint whose
+        # releaseVersion does not equal the tag, and demands the tarball itself
+        # be sealed (name + sha256 + bytes) so it can cross-check the uploaded
+        # bytes against the dispatch payload. v3.28.0 and v3.28.1 both published
+        # green and then failed the roll on exactly these fields.
+        run: |
+          ./dist/pd batten imprint --staged-dir dist \
+            --release-version "$RELEASE_TAG" \
+            --archive "dist/${{ matrix.artifact }}.tar.gz" \
+            --out "dist/${{ matrix.artifact }}-imprint.json"
 
       - name: Upload release imprint to release
         uses: softprops/action-gh-release@v2
@@ -527,8 +539,13 @@ jobs:
     # let FleetBar rot silently across releases. The tradeoff is deliberate: a
     # flaky FleetBar build now blocks the release, which forces FleetBar to be
     # FIXED rather than bypassed.
-    needs: [build-binaries, build-fleetbar-preview]
-    if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && github.event_name == 'release' && github.event.release.prerelease == false
+    # build-latest-json is REQUIRED here: the tap's update-formula workflow
+    # validates a full payload (candidate_sha + both archive SHA-256s) and
+    # refuses anything else, and latest.json is the content-addressed record of
+    # exactly which bytes shipped. Dispatching from it means the formula pins
+    # the same checksums the update feed advertises.
+    needs: [build-binaries, build-fleetbar-preview, build-latest-json]
+    if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && needs.build-latest-json.result == 'success' && github.event_name == 'release' && github.event.release.prerelease == false
     steps:
       - name: Set release version
         id: release
@@ -539,10 +556,51 @@ jobs:
           REF_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
         run: echo "version=${REF_NAME}" >> "$GITHUB_OUTPUT"
 
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.version }}
+          fetch-depth: 0
+
+      # THE PAYLOAD THE TAP ACTUALLY REQUIRES. This job used to dispatch
+      # `{"version": "vX.Y.Z"}` alone; the tap added candidate_sha +
+      # darwin_archive_sha256 + linux_archive_sha256 during the 3.28 cutover
+      # and now hard-fails with "missing or invalid candidate SHA". v3.28.0
+      # published green here and the tap roll failed silently downstream —
+      # the same producer/consumer drift class as the tarball manifest hash,
+      # in the one hop nothing in this repo was validating. We now assert the
+      # tap's own regexes BEFORE dispatching, so a bad payload fails in THIS
+      # run instead of in another repo nobody is watching.
+      - name: Resolve the tap dispatch payload
+        id: payload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          candidate_sha="$(git rev-parse "${TAG}^{commit}")"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -p latest.json -D . --clobber
+          darwin="$(node -e 'const f=require("./latest.json");const a=f.artifacts.find(x=>x.filename==="pd-darwin-arm64.tar.gz");process.stdout.write(a?a.sha256:"")')"
+          linux="$(node -e 'const f=require("./latest.json");const a=f.artifacts.find(x=>x.filename==="pd-linux-x64.tar.gz");process.stdout.write(a?a.sha256:"")')"
+          # Mirror the tap's validation exactly — fail here, not over there.
+          [[ "$candidate_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::candidate_sha is not a 40-hex commit: '$candidate_sha'"; exit 1; }
+          [[ "$darwin" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::darwin archive sha256 missing from latest.json (got '$darwin') — the tap will reject this roll"; exit 1; }
+          [[ "$linux" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::linux archive sha256 missing from latest.json (got '$linux') — the tap will reject this roll"; exit 1; }
+          {
+            echo "candidate_sha=$candidate_sha"
+            echo "darwin=$darwin"
+            echo "linux=$linux"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Update Homebrew formula
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           repository: curiositech/homebrew-tap
           event-type: update-formula
-          client-payload: '{"version": "${{ steps.release.outputs.version }}"}'
+          client-payload: |
+            {
+              "version": "${{ steps.release.outputs.version }}",
+              "candidate_sha": "${{ steps.payload.outputs.candidate_sha }}",
+              "darwin_archive_sha256": "${{ steps.payload.outputs.darwin }}",
+              "linux_archive_sha256": "${{ steps.payload.outputs.linux }}"
+            }
