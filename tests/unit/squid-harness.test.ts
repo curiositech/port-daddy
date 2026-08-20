@@ -545,6 +545,37 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(ctx.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(2);
   });
 
+  test('non-numeric prompt budgets fall back to the hard 2-entry / 512-byte defaults', () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    const fresh = new Date().toISOString();
+    for (let i = 0; i < 4; i++) {
+      setKey(
+        `PD_PHEROMONE_INVALID_BUDGET_${i}`,
+        `${WORKSPACE}/src/invalid-budget-${i}.ts | ${'x'.repeat(280)}-${i} | ts:${fresh}`,
+      );
+    }
+
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: {
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SQUID_PROMPT_MAX_ENTRIES: 'not-a-number',
+        PD_SQUID_PROMPT_MAX_BYTES: 'NaN',
+      },
+      encoding: 'utf8',
+    });
+
+    expect(r.status).toBe(0);
+    const parsed = JSON.parse(r.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    };
+    const ctx = parsed.hookSpecificOutput.additionalContext;
+    expect(Buffer.byteLength(ctx)).toBeLessThanOrEqual(512);
+    expect(ctx.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(2);
+  });
+
   test('prompt hook emits zero bytes when nothing actionable matches this project', () => {
     mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
     const fresh = new Date().toISOString();
