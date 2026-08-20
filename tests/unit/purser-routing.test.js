@@ -191,6 +191,34 @@ describe('every purser test is routed or explicitly quarantined', () => {
     }
   });
 
+  test('the node:test runner rejects an absolute manifest path', () => {
+    const runner = join(repoRoot, 'scripts', 'run-purser-tests.mjs');
+    const scratchRoot = join(homedir(), 'coding', 'tmp');
+    mkdirSync(scratchRoot, { recursive: true });
+    const absoluteManifest = mkdtempSync(join(scratchRoot, 'purser-absolute-'));
+    try {
+      const purser = join(absoluteManifest, 'tests', 'purser');
+      const outside = join(absoluteManifest, 'outside.test.js');
+      mkdirSync(purser, { recursive: true });
+      writeFileSync(
+        join(purser, 'ROUTING.json'),
+        JSON.stringify({ files: { [outside]: { runner: 'node-test' } } }),
+      );
+      writeFileSync(outside, "const test = require('node:test'); test('outside', () => {});\n");
+      mkdirSync(join(absoluteManifest, 'scripts'), { recursive: true });
+      copyFileSync(runner, join(absoluteManifest, 'scripts', 'run-purser-tests.mjs'));
+
+      const result = spawnSync(process.execPath, ['scripts/run-purser-tests.mjs'], {
+        cwd: absoluteManifest, encoding: 'utf8',
+      });
+
+      expect(result.status).not.toBe(0);
+      expect(`${result.stderr}${result.stdout}`).toContain('path escapes tests/purser');
+    } finally {
+      rmSync(absoluteManifest, { recursive: true, force: true });
+    }
+  });
+
   test('a file routed to a runner actually declares tests', () => {
     // Raised by pd-qa, then rewritten after mutation testing showed the obvious
     // version was worthless: comparing the routed set against the quarantined

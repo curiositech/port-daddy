@@ -10,7 +10,7 @@
 // Exits non-zero if any test fails, so CI can gate on it.
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { dirname, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -22,9 +22,19 @@ const routing = JSON.parse(
 const files = Object.entries(routing.files)
   .filter(([, entry]) => entry.runner === 'node-test')
   .map(([file]) => {
+    if (isAbsolute(file)) {
+      throw new Error(`ROUTING.json path escapes tests/purser: ${file}`);
+    }
     const candidate = resolve(purserRoot, file);
     const withinPurser = relative(purserRoot, candidate);
-    if (!withinPurser || withinPurser === '..' || withinPurser.startsWith(`..${sep}`)) {
+    // path.relative() can itself be absolute on Windows when the two paths are
+    // on different drives. Treat that as outside too, not as an ordinary child.
+    if (
+      !withinPurser ||
+      isAbsolute(withinPurser) ||
+      withinPurser === '..' ||
+      withinPurser.startsWith(`..${sep}`)
+    ) {
       throw new Error(`ROUTING.json path escapes tests/purser: ${file}`);
     }
     return relative(repoRoot, candidate);
