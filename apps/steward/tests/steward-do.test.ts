@@ -14,6 +14,7 @@ import { describe, it, expect } from 'vitest';
 import { StewardDO } from '../src/steward.js';
 import worker from '../src/worker.js';
 import { makeEnv, makeState, memoryD1, type FakeStorage } from './harness.js';
+import { isFrozen, readClusterfudge, tripClusterfudge } from '../src/clusterfudge.js';
 import type { Charter, DeckLogEntry, Env } from '../src/types.js';
 
 const REPO = 'erichowens/port-daddy';
@@ -202,6 +203,61 @@ describe('ship-it — the operator grant for protected-path landings', () => {
   });
 });
 
+describe('clusterfudge — the freeze, its ack, and its vital sign', () => {
+  it('/status carries the breaker, the page, and the honest tripwire inventory', async () => {
+    const { seat, storage } = makeSeat();
+    await tripClusterfudge(storage, 'land-fail-loop', '#12 failed 3 ways', Date.now());
+    const status = (await (await seat.fetch(req('/status'))).json()) as Record<string, unknown>;
+    expect((status.clusterfudge as { tripped: boolean }).tripped).toBe(true);
+    expect(String(status.clusterfudgePage)).toContain('FROZEN pending human decision');
+    const tripwires = status.tripwires as Array<{ id: string; armed: boolean; awaits?: string }>;
+    expect(tripwires).toHaveLength(6);
+    expect(tripwires.filter(t => t.armed).map(t => t.id)).toEqual(['land-fail-loop']);
+    expect(tripwires.filter(t => !t.armed).every(t => Boolean(t.awaits))).toBe(true);
+  });
+
+  it('an ack requires a decision — a button press records nothing', async () => {
+    const { seat, storage } = makeSeat();
+    await tripClusterfudge(storage, 'land-fail-loop', 'x', Date.now());
+    const res = await seat.fetch(req('/clusterfudge/ack', { body: { ackedBy: 'erich' } }));
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toContain('decision is required');
+    expect(isFrozen(await readClusterfudge(storage))).toBe(true);
+  });
+
+  it('an ack with a decision releases the freeze and records the provenance', async () => {
+    const { seat, storage } = makeSeat();
+    await tripClusterfudge(storage, 'land-fail-loop', 'x', Date.now());
+    const res = await seat.fetch(
+      req('/clusterfudge/ack', { body: { ackedBy: 'erich', decision: 'abandon the PR' } }),
+    );
+    expect(res.status).toBe(200);
+    const state = await readClusterfudge(storage);
+    expect(isFrozen(state)).toBe(false);
+    expect(state).toMatchObject({ ackedBy: 'erich', ackDecision: 'abandon the PR' });
+  });
+
+  it('a ship-it does NOT release the breaker — a per-PR override cannot un-freeze the repo', async () => {
+    const { seat, storage } = makeSeat();
+    await tripClusterfudge(storage, 'land-fail-loop', 'x', Date.now());
+    await seat.fetch(req('/ship-it/12', { body: {} }));
+    expect(isFrozen(await readClusterfudge(storage))).toBe(true);
+  });
+
+  it('every wake says the seat is frozen, not just the one that tripped it', async () => {
+    const d1 = memoryD1();
+    const { seat, storage } = makeSeat(makeEnv({ DB: d1.db }));
+    await seat.fetch(req('/status'));
+    await tripClusterfudge(storage, 'land-fail-loop', 'x', Date.now());
+    await seat.alarm();
+    await seat.alarm();
+    expect(d1.deckLog).toHaveLength(2);
+    for (const row of d1.deckLog) {
+      expect(String(row.summary)).toContain('CLUSTERFUDGE FROZEN');
+    }
+  });
+});
+
 describe('charter revision — operator and PRs only, versioned with provenance', () => {
   it('requires updatedBy', async () => {
     const { seat } = makeSeat();
@@ -285,6 +341,20 @@ describe('worker entry — the commissioning and auth gate', () => {
     );
     expect(res.status).toBe(200);
     expect(await storage.get('shipit:88')).toBeDefined();
+  });
+
+  it('routes POST clusterfudge/ack through the gate', async () => {
+    const { env, storage } = wiredEnv();
+    await tripClusterfudge(storage, 'land-fail-loop', 'x', Date.now());
+    const res = await worker.fetch(
+      extReq(`/steward/erichowens/port-daddy/clusterfudge/ack`, 'test-token', {
+        ackedBy: 'erich',
+        decision: 'hand to a human',
+      }),
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(isFrozen(await readClusterfudge(storage))).toBe(false);
   });
 
   it('POST /wake flows end-to-end through the gate into the seat inbox', async () => {

@@ -12,6 +12,7 @@ import {
   type SeatStore,
   type ShipItGrant,
 } from './landing.js';
+import { isFrozen, readClusterfudge, tripClusterfudge } from './clusterfudge.js';
 import type { Env, MergeLedgerEntry } from './types.js';
 
 /**
@@ -222,6 +223,19 @@ async function executeLanding(
     };
   }
 
+  // The breaker outranks every per-PR gate below it: a systemic freeze means
+  // the seat has stopped trusting its own judgment, so no merge may proceed
+  // regardless of how healthy this particular PR looks (§9's freeze semantics
+  // — read-only work continued above; acting stops here).
+  const breaker = await readClusterfudge(store);
+  if (isFrozen(breaker)) {
+    return {
+      attempted: false,
+      landed: false,
+      reason: `CLUSTERFUDGE frozen (${breaker.tripwire ?? 'unknown'}) — no merges until an operator acks; ${breaker.evidence ?? 'no evidence recorded'}`,
+    };
+  }
+
   const failures = (await store.get<string[]>(landFailKey(prNumber))) ?? [];
   if (failures.length >= LAND_FAIL_HOLD_AT) {
     return {
@@ -265,9 +279,22 @@ async function executeLanding(
     failures.push(result.reason);
     await store.put(landFailKey(prNumber), failures);
   }
-  const holdNote =
-    failures.length >= LAND_FAIL_HOLD_AT
-      ? ` — ${failures.length} distinct failures, land-fail hold engaged`
-      : '';
-  return { attempted: true, landed: false, reason: `land attempt failed: ${result.reason}${holdNote}` };
+  if (failures.length < LAND_FAIL_HOLD_AT) {
+    return { attempted: true, landed: false, reason: `land attempt failed: ${result.reason}` };
+  }
+  // Threshold reached: this is §9's land-fail-loop tripwire, and it freezes
+  // the repo rather than merely holding the PR. One PR failing three distinct
+  // ways is the seat's evidence that something systemic is wrong with its
+  // model of the world — exactly the case where it must stop acting.
+  await tripClusterfudge(
+    store,
+    'land-fail-loop',
+    `#${prNumber} failed to land ${failures.length}× for ${failures.length} distinct causes: ${failures.join(' | ')}`,
+    nowMs,
+  );
+  return {
+    attempted: true,
+    landed: false,
+    reason: `land attempt failed: ${result.reason} — ${failures.length} distinct failures; CLUSTERFUDGE tripped (land-fail-loop), seat frozen pending operator ack`,
+  };
 }
