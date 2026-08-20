@@ -995,6 +995,23 @@ describe('Route error codes: sessions', () => {
     expect(res.json().sessionId).toBe(ownerSessionId);
   });
 
+  test('POST /notes creates a standalone Quick notes session for an unknown opaque agentId', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/notes',
+      payload: { content: 'standalone agent note', agentId: 'agent-without-session' },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const created = sessionsMod.get(res.json().sessionId);
+    expect(created.success).toBe(true);
+    expect(created.session).toMatchObject({
+      purpose: 'Quick notes',
+      agentId: 'agent-without-session',
+      noteCount: 1,
+    });
+  });
+
   test('POST /notes treats an explicit sessionId as authoritative when agentId is also given', async () => {
     const explicit = await app.inject({
       method: 'POST',
