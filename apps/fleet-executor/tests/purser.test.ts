@@ -596,6 +596,103 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(bodies[0]).toContain('tests/purser/test_error-handling.js');
   });
 
+  it('#8298 exact shape: a non-discoverable plan is repaired BEFORE authoring, then reaches sandbox and stacks', async () => {
+    seedRealJestConfig();
+    const badPlan = [
+      '```json',
+      JSON.stringify({
+        files: [{
+          path: 'tests/unit/purser/test-legacy-phrase-variants.ts',
+          intent: 'grill the legacy dead-letter phrase',
+        }],
+      }),
+      '```',
+    ].join('\n');
+    const repairedPlan = [
+      '```json',
+      JSON.stringify({
+        files: [{
+          path: 'tests/unit/purser/legacy-phrase-variants.test.ts',
+          intent: 'grill the legacy dead-letter phrase',
+        }],
+      }),
+      '```',
+    ].join('\n');
+    const authoredFile = [
+      '```ts',
+      "import { describe, it, expect } from 'vitest';",
+      "describe('legacy phrase', () => {",
+      "  it('keeps the exact phrase', () => expect('dead-lettered').toContain('dead-lettered'));",
+      '});',
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, badPlan, repairedPlan, authoredFile]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(4);
+    const repairRequest = (ai.run as ReturnType<typeof vi.fn>).mock.calls[2][1] as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    expect(repairRequest.messages[0].content).toContain(
+      '<rootDir>/tests/unit/**/*.test.{js,ts}',
+    );
+    const repairStep = rec.steps.find(s => s.kind === 'ship-repair')!;
+    expect(repairStep.title).toContain('HEALED');
+    expect((repairStep.detail as { reason: string }).reason).toContain(
+      'tests/unit/purser/test-legacy-phrase-variants.ts',
+    );
+    const planStep = rec.steps.find(s => s.kind === 'purser-plan')!;
+    expect(planStep.detail).toMatchObject({
+      files: [{ path: 'tests/unit/purser/legacy-phrase-variants.test.ts' }],
+    });
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
+  it('stops after bounded plan repair when every attempt keeps an invisible filename', async () => {
+    seedRealJestConfig();
+    const badPlan = [
+      '```json',
+      JSON.stringify({
+        files: [{
+          path: 'tests/unit/purser/test-never-discovered.ts',
+          intent: 'this must not consume an authoring call',
+        }],
+      }),
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, badPlan, badPlan, badPlan]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'BLOCK', errored: true });
+    // Steel-man + plan + exactly two bounded repair attempts. No file-author
+    // call is made for a path the trusted test runner cannot discover.
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(4);
+    const step = rec.steps.find(s => s.kind === 'purser-plan' && /NON-DISCOVERABLE/.test(s.title));
+    expect(step?.detail).toMatchObject({
+      files: ['tests/unit/purser/test-never-discovered.ts'],
+    });
+    expect(state.stackedPrs).toHaveLength(0);
+  });
+
   it('a path-valid file with an unresolved relative import is rejected on import resolution alone', async () => {
     seedRealJestConfig();
     // Seed a tree WITHOUT tests/unit/support.* — the import must not resolve.
