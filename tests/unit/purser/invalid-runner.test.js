@@ -17,14 +17,14 @@ describe('ROUTING.json runner validation', () => {
   });
 
   test('all runner values are non-empty strings', () => {
-    for (const [key, value] of Object.entries(routing.runners ?? {})) {
+    for (const [, value] of Object.entries(routing.runners ?? {})) {
       expect(typeof value).toBe('string');
       expect(value.trim().length).toBeGreaterThan(0);
     }
   });
 
   test('every file entry has a runner property that is a string', () => {
-    for (const [file, entry] of Object.entries(routing.files ?? {})) {
+    for (const [, entry] of Object.entries(routing.files ?? {})) {
       const runner = entry.runner;
       expect(runner).toBeDefined();
       expect(typeof runner).toBe('string');
@@ -47,7 +47,7 @@ describe('ROUTING.json runner validation', () => {
   test('quarantined entries must include a non-empty reason', () => {
     const quarantined = Object.entries(routing.files ?? {})
       .filter(([, entry]) => entry.runner === 'quarantined');
-    for (const [file, entry] of quarantined) {
+    for (const [, entry] of quarantined) {
       const reason = entry.reason ?? '';
       expect(typeof reason).toBe('string');
       expect(reason.trim().length).toBeGreaterThan(0);
