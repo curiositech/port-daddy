@@ -72,6 +72,22 @@ describe('attention.compose', () => {
     }
   });
 
+  test('malformed subscription names fail locally before any daemon request', async () => {
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((code) => {
+      throw new Error(`EXIT:${code}`);
+    });
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      await expect(handleAttention({ agent: 'agent-x', subscribe: 'bad channel/name' }))
+        .rejects.toThrow('EXIT:2');
+      expect(errorSpy).toHaveBeenCalledWith('ERROR: channel contains invalid characters');
+    } finally {
+      exitSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
+  });
+
   test('empty attention recommends concrete, ranked watches instead of a channel placeholder', () => {
     const suggestions = rankAttentionSuggestions([
       {
@@ -410,5 +426,18 @@ describe('attention.subscribe / unsubscribe / listSubscriptions', () => {
     expect(attention.subscribe('', 'ch').success).toBe(false);
     expect(attention.subscribe('agent-x', '').success).toBe(false);
     expect(attention.subscribe('agent-x', '   ').success).toBe(false);
+  });
+
+  test('subscribe and unsubscribe reject malformed channel names', () => {
+    const { attention } = setup();
+    expect(attention.subscribe('agent-x', 'bad channel/name')).toEqual({
+      success: false,
+      error: 'channel contains invalid characters',
+    });
+    expect(attention.unsubscribe('agent-x', 'bad channel/name')).toEqual({
+      success: false,
+      error: 'channel contains invalid characters',
+    });
+    expect(attention.listSubscriptions('agent-x')).toEqual([]);
   });
 });
