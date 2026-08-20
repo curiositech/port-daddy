@@ -1577,7 +1577,7 @@ describe('spawn — codex backend', () => {
       expect.arrayContaining([
         'exec',
         '--skip-git-repo-check',
-        '--full-auto',
+        '--approve-for-me',
         '--sandbox', 'workspace-write',
         '-C', '/tmp/port-daddy-codex-test',
         '--model', 'gpt-5.4-mini',
@@ -1604,8 +1604,9 @@ describe('spawn — codex backend', () => {
     });
 
     const args = cpSpawn.mock.calls[0][1];
-    expect(args.slice(0, 2)).toEqual(['exec', 'resume']);
+    expect(args.slice(0, 3)).toEqual(['exec', '--approve-for-me', 'resume']);
     expect(args).toEqual(expect.arrayContaining([sessionId, 'Continue this Codex session']));
+    expect(args).not.toContain('--full-auto');
     expect(args).not.toContain('--sandbox');
     expect(args).not.toContain('-C');
     expect(cpSpawn.mock.calls[0][2].cwd).toBe(TEST_WORKSPACE_IDENTITY.canonicalPath);
