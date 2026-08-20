@@ -150,29 +150,34 @@ export interface CodexHooksTomlOptions {
 export function stripCodexHooksTomlBlock(text: string): string {
   const lines = text.split('\n');
   const withoutMarkedBlocks: string[] = [];
-  let skipping = false;
-  for (const line of lines) {
-    if (!skipping && line.includes(CODEX_PD_MARKER)) {
-      skipping = true;
+  for (let i = 0; i < lines.length;) {
+    if (!lines[i].includes(CODEX_PD_MARKER)) {
+      withoutMarkedBlocks.push(lines[i]);
+      i += 1;
       continue;
     }
-    if (skipping) {
-      if (line.includes(CODEX_PD_END_MARKER)) {
-        skipping = false;
-        continue;
+
+    // A current fenced block is safe to remove exactly. For an old unfenced
+    // marker, remove only the marker (and its leading comments), then let the
+    // conservative group pass below distinguish all-PD groups from user hooks.
+    // This prevents a legacy block from swallowing a later [[hooks.*]] group.
+    let endFence = -1;
+    for (let j = i + 1; j < lines.length; j++) {
+      const trimmed = lines[j].trim();
+      if (lines[j].includes(CODEX_PD_MARKER)) break;
+      if (trimmed.startsWith('[') && !trimmed.startsWith('[[hooks.')) break;
+      if (lines[j].includes(CODEX_PD_END_MARKER)) {
+        endFence = j;
+        break;
       }
-      // Legacy marked blocks had no end fence. Stop at the first unrelated
-      // top-level table instead of looking for an end marker somewhere else in
-      // the file (which could belong to a newer second block and swallow user
-      // configuration between the two).
-      const trimmed = line.trim();
-      if (trimmed.startsWith('[') && !trimmed.startsWith('[[hooks.')) {
-        skipping = false;
-        withoutMarkedBlocks.push(line);
-      }
+    }
+    if (endFence >= 0) {
+      i = endFence + 1;
       continue;
     }
-    withoutMarkedBlocks.push(line);
+
+    i += 1;
+    while (i < lines.length && (!lines[i].trim() || lines[i].trim().startsWith('#'))) i += 1;
   }
 
   // The oldest installer emitted hook tables without any marker comment. A
@@ -197,10 +202,16 @@ export function stripCodexHooksTomlBlock(text: string): string {
       end += 1;
     }
     const group = unmarked.slice(i, end);
+    const commandAssignments = group.filter((entry) => /^\s*command\s*=/.test(entry)).length;
     const commands = group
       .map((entry) => entry.match(/^\s*command\s*=\s*["']([^"']+)["']\s*$/)?.[1])
       .filter((entry): entry is string => typeof entry === 'string');
-    if (commands.length === 0 || !commands.every((command) => command.includes(PD_HOOK_MARKER))) {
+    const allCommandsRecognized = commandAssignments === commands.length;
+    if (
+      commands.length === 0 ||
+      !allCommandsRecognized ||
+      !commands.every((command) => command.includes(PD_HOOK_MARKER))
+    ) {
       out.push(...group);
     }
     i = end;
