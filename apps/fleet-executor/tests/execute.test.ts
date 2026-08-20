@@ -1330,17 +1330,27 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect((await loadShipCheckpoints(env, 'run:delivery-abc')).size).toBe(0);
   });
 
-  it('an invalid ship index uses the first reserved checkpoint slot', async () => {
+  it('a checkpoint load query failure returns an empty resume map', async () => {
     const d1 = memoryD1();
-    await saveShipCheckpoint(
-      makeEnv({ DB: d1.db }),
-      'run:delivery-abc',
-      1.5,
-      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
-    );
+    const env = makeEnv({ DB: d1.db });
+    d1.failAll = true;
 
-    expect(d1.steps).toHaveLength(1);
-    expect(d1.steps[0].seq).toBe(SHIP_CHECKPOINT_SEQ_BASE);
+    await expect(loadShipCheckpoints(env, 'run:delivery-abc')).resolves.toEqual(new Map());
+  });
+
+  it('an invalid ship index uses the first reserved checkpoint slot', async () => {
+    for (const invalidIndex of [1.5, -1]) {
+      const d1 = memoryD1();
+      await saveShipCheckpoint(
+        makeEnv({ DB: d1.db }),
+        'run:delivery-abc',
+        invalidIndex,
+        { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+      );
+
+      expect(d1.steps).toHaveLength(1);
+      expect(d1.steps[0].seq).toBe(SHIP_CHECKPOINT_SEQ_BASE);
+    }
   });
 
   it('no D1 binding makes checkpoint load/save harmless no-ops', async () => {
