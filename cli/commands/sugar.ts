@@ -490,9 +490,16 @@ export function shouldRunBeginWizard(
 
 export async function handleBegin(
   purpose: string | undefined,
-  rest: string[],
-  options: CLIOptions,
+ rest: string[],
+ options: CLIOptions,
  ): Promise<void> {
+  const filesOption: unknown = options.files;
+  if (filesOption === true || (Array.isArray(filesOption) && filesOption.length === 0)) {
+    ui.error('--files requires at least one path');
+    printBeginUsage();
+    process.exit(1);
+  }
+
   // Flag takes precedence over positional
   purpose = purpose || (options.purpose as string) || undefined;
 

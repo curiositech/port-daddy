@@ -945,6 +945,19 @@ describe('CLI Integration Tests', () => {
       }
     });
 
+    test('pd begin --files without a path fails loudly', () => {
+      const result = runCli([
+        'begin',
+        'Missing variadic file value',
+        '--files',
+        '--lifecycle', 'durable',
+        '--sidequest', 'integration parser regression coverage',
+      ]);
+
+      expect(result.success).toBe(false);
+      expect(result.stderr + result.stdout).toContain('--files requires at least one path');
+    });
+
     test('pd begin -P works as short flag', () => {
       const result = runCli(['begin', '-P', 'Short flag test', '--lifecycle', 'durable', '-q']);
       expect(result.success).toBe(true);
