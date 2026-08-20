@@ -95,6 +95,7 @@ import {
   extractPackageJsonTestMatch,
   JEST_CONFIG_CANDIDATES,
   matchesAnyTestMatch,
+  repairMisrootedRelativeImport,
   type ExecutabilityEvidence,
 } from './purser-executability.js';
 import {
@@ -1276,6 +1277,51 @@ export async function runPurser(
     // against configuration the purser only trusts because it wrote it.
     evidence ??= await gatherExecutabilityEvidence(prCtx, token);
     let executability = checkGeneratedTestsExecutable(files, evidence);
+    const deterministicRepairs: Array<{
+      path: string;
+      fromSpecifier: string;
+      toSpecifier: string;
+      matchedTreePath: string;
+    }> = [];
+    while (
+      !executability.ok &&
+      executability.kind === 'unresolved-import' &&
+      deterministicRepairs.length < MAX_PLANNED_FILES
+    ) {
+      const repair = repairMisrootedRelativeImport(
+        files,
+        executability,
+        evidence.repoTreePaths,
+      );
+      if (!repair) break;
+      const candidateSafety = validateStackedFiles(repair.files);
+      if (!candidateSafety.ok) break;
+      files = repair.files;
+      deterministicRepairs.push({
+        path: repair.path,
+        fromSpecifier: repair.fromSpecifier,
+        toSpecifier: repair.toSpecifier,
+        matchedTreePath: repair.matchedTreePath,
+      });
+      executability = checkGeneratedTestsExecutable(files, evidence);
+    }
+    if (deterministicRepairs.length > 0) {
+      await transcript.step(
+        'purser-author-repair',
+        ship.name,
+        executability.ok
+          ? `pd-${ship.name}: authored-file repair HEALED ${deterministicRepairs[0].path}`
+          : `pd-${ship.name}: authored-file deterministic repair PARTIAL`,
+        {
+          strategy: 'trusted-tree-relative-import',
+          attempts: 0,
+          repairs: deterministicRepairs,
+          result: executability.ok
+            ? 'trusted executability gate passed after deterministic rewrite'
+            : executability.reason,
+        },
+      );
+    }
     if (
       !executability.ok &&
       executability.kind === 'unresolved-import' &&

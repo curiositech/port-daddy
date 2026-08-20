@@ -665,7 +665,7 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.stackedPrs).toHaveLength(1);
   });
 
-  it('#8313 exact shape: one nested file is rewritten once without touching a valid sibling, then stacks', async () => {
+  it('#8335 exact shape: one nested import is repaired deterministically without touching a valid sibling, then stacks', async () => {
     seedRealJestConfig();
     state.treeFiles.set('BASESHA', ['scripts/check-pr-comments-answered.mjs']);
     const plan = [
@@ -690,12 +690,6 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
       "it('fails closed', () => decideCommentGate([], 'author', { truncated: true }));",
       '```',
     ].join('\n');
-    const repairedImport = [
-      '```js',
-      "import { decideCommentGate } from '../../../scripts/check-pr-comments-answered.mjs';",
-      "it('fails closed', () => decideCommentGate([], 'author', { truncated: true }));",
-      '```',
-    ].join('\n');
     const validSibling = [
       '```js',
       "const VALID_SIBLING_MARKER = 'keep-these-bytes';",
@@ -707,7 +701,6 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
       plan,
       shallowImport,
       validSibling,
-      repairedImport,
     ]);
     const rec = recorder();
 
@@ -721,19 +714,17 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     );
 
     expect(result).toMatchObject({ verdict: 'PASS', errored: false });
-    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(5);
-    const repairRequest = (ai.run as ReturnType<typeof vi.fn>).mock.calls[4][1] as {
-      messages: Array<{ role: string; content: string }>;
-    };
-    expect(repairRequest.messages[0].content).toContain(
-      "tests/unit/purser/test-pagination-truncation.test.js imports '../../scripts/check-pr-comments-answered.mjs'",
-    );
-    expect(repairRequest.messages[0].content).toContain(
-      'Relative imports resolve from the directory containing',
-    );
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(4);
     expect(rec.steps.find(s => s.kind === 'purser-author-repair')).toMatchObject({
       title: expect.stringContaining('HEALED'),
-      detail: expect.objectContaining({ attempts: 1 }),
+      detail: expect.objectContaining({
+        attempts: 0,
+        strategy: 'trusted-tree-relative-import',
+        repairs: [expect.objectContaining({
+          fromSpecifier: '../../scripts/check-pr-comments-answered.mjs',
+          toSpecifier: '../../../scripts/check-pr-comments-answered.mjs',
+        })],
+      }),
     });
     expect(rec.steps.some(s => s.kind === 'purser-tests' && /NON-EXECUTABLE/.test(s.title))).toBe(false);
     expect(state.stackedPrs).toHaveLength(1);
