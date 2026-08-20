@@ -26,6 +26,7 @@ import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { readCurrentContext } from '../utils/current-context.js';
 import type { FetchOptions, PdFetchResponse } from '../utils/fetch.js';
 import { resolveTargetDir } from '../utils/channel-resolution.js';
+import { validateChannel } from '../../shared/validators.js';
 import * as ui from '../utils/ui.js';
 
 interface AttentionItem {
@@ -62,7 +63,7 @@ interface DiscoveredChannel {
 
 interface AttentionSummary {
   success: boolean;
-  bound?: boolean;
+  bound: boolean;
   agentId?: string;
   items?: AttentionItem[];
   counts?: {
@@ -598,13 +599,27 @@ export async function handleAttention(options: CLIOptions): Promise<void> {
 
   // Subscribe / unsubscribe / list subscriptions
   if (typeof options.subscribe === 'string' && options.subscribe.trim()) {
-    return handleSubscribe(agentId, options.subscribe.trim(), options);
+    const channel = options.subscribe.trim();
+    const validation = validateChannel(channel);
+    if (!validation.valid) {
+      ui.error(validation.error || 'invalid channel');
+      process.exit(2);
+      return;
+    }
+    return handleSubscribe(agentId, channel, options);
   }
   if (options['subscribe-recommended'] === true) {
     return handleSubscribeRecommended(agentId, options);
   }
   if (typeof options.unsubscribe === 'string' && options.unsubscribe.trim()) {
-    return handleUnsubscribe(agentId, options.unsubscribe.trim(), options);
+    const channel = options.unsubscribe.trim();
+    const validation = validateChannel(channel);
+    if (!validation.valid) {
+      ui.error(validation.error || 'invalid channel');
+      process.exit(2);
+      return;
+    }
+    return handleUnsubscribe(agentId, channel, options);
   }
   if (options.subscriptions === true) {
     return handleListSubscriptions(agentId, options);

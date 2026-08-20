@@ -16,6 +16,7 @@ import {
   stageTentacles,
   buildTargets,
   configureTarget,
+  commitCodexConfigMigration,
   isHooksStatusRequest,
   uninstallTarget,
   clearArmedSquidProjects,
@@ -320,6 +321,34 @@ describe('configureTarget — per-project scope, gate-pointed commands', () => {
     ]);
     expect(parsedJson.hooks.PreToolUse).toBeUndefined();
     expect(existsSync(`${codex.userConfigPath}.tmp`)).toBe(false);
+  });
+
+  test('Codex migration never retires the fallback before the current config is durable', () => {
+    const legacy = { path: '/legacy/hooks.json', content: '{"hooks":{}}\n' };
+    const attempted: string[] = [];
+
+    expect(() => commitCodexConfigMigration(
+      '/current/config.toml',
+      '# current\n',
+      legacy,
+      (path) => {
+        attempted.push(path);
+        if (path === '/current/config.toml') throw new Error('simulated current-config write failure');
+      },
+    )).toThrow('simulated current-config write failure');
+    expect(attempted).toEqual(['/current/config.toml']);
+
+    attempted.length = 0;
+    expect(() => commitCodexConfigMigration(
+      '/current/config.toml',
+      '# current\n',
+      legacy,
+      (path) => {
+        attempted.push(path);
+        if (path === legacy.path) throw new Error('simulated legacy cleanup failure');
+      },
+    )).toThrow('simulated legacy cleanup failure');
+    expect(attempted).toEqual(['/current/config.toml', '/legacy/hooks.json']);
   });
 
   test('a malformed retired hooks.json cannot block current Codex repair', () => {

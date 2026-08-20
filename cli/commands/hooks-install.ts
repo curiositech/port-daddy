@@ -343,6 +343,22 @@ function migratedLegacyCodexHooksJson(configPath: string): { path: string; conte
   return { path, content: JSON.stringify(config, null, 2) + '\n' };
 }
 
+/**
+ * Install the current Codex TOML before retiring the legacy JSON registration.
+ * Each write is atomic on its own. This order means an interrupted first write
+ * leaves the still-working legacy hooks untouched; an interrupted cleanup may
+ * briefly leave duplicates, but can never leave Codex with no Port Daddy hook.
+ */
+export function commitCodexConfigMigration(
+  configPath: string,
+  configContent: string,
+  legacy: { path: string; content: string } | null,
+  writeConfig: (path: string, content: string) => void = atomicWriteConfig,
+): void {
+  writeConfig(configPath, configContent);
+  if (legacy) writeConfig(legacy.path, legacy.content);
+}
+
 export function configureTarget(
   target: AgentCliTarget,
   opts: { scope: 'user' | 'project'; cwd?: string },
@@ -366,8 +382,11 @@ export function configureTarget(
       const base = stripCodexHooksTomlBlock(existing).replace(/\s*$/, '');
       const sep = base.length ? '\n\n' : '';
       const legacy = migratedLegacyCodexHooksJson(configPath);
-      if (legacy) atomicWriteConfig(legacy.path, legacy.content);
-      atomicWriteConfig(configPath, `${base}${sep}${codexHooksTomlBlock(gateResolver)}\n`);
+      commitCodexConfigMigration(
+        configPath,
+        `${base}${sep}${codexHooksTomlBlock(gateResolver)}\n`,
+        legacy,
+      );
       return { success: true, created: !existed, path: configPath };
     }
 
@@ -398,8 +417,11 @@ export function uninstallTarget(
   try {
     if (target.format === 'codex-toml') {
       const legacy = migratedLegacyCodexHooksJson(configPath);
-      if (legacy) atomicWriteConfig(legacy.path, legacy.content);
-      atomicWriteConfig(configPath, stripCodexHooksTomlBlock(readFileSync(configPath, 'utf-8')));
+      commitCodexConfigMigration(
+        configPath,
+        stripCodexHooksTomlBlock(readFileSync(configPath, 'utf-8')),
+        legacy,
+      );
       return { success: true, path: configPath };
     }
     const raw = readFileSync(configPath, 'utf-8').trim();
