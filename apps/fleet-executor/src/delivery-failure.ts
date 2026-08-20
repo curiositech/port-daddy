@@ -284,10 +284,20 @@ export function deadLetterSummary(
   prNumber: number | null,
   failure: DeliveryFailure | null,
   attemptStarts = 0,
+  checkpointedShips = 0,
 ): string {
   const base =
     `pd-fleet: run for ${owner}/${repo} PR #${prNumber ?? '?'} was lost (job exhausted retries / ` +
     `dead-lettered). This gate is failed rather than left stuck in-progress.`;
+  // Resume progress (src/ship-checkpoint.ts): a dead-letter that completed N
+  // ships before the loss should say so — it tells the operator a DLQ replay
+  // will resume from ship N+1, not restart, and it distinguishes "died at the
+  // first ship" from "died one ship short of done".
+  const progress =
+    checkpointedShips > 0
+      ? `\n\n${checkpointedShips} ship(s) completed and checkpointed before the loss — a DLQ ` +
+        `replay of this delivery resumes past them instead of re-running the whole fleet.`
+      : '';
   // The marker is what lets a later delivery tell this red gate apart from a
   // ship-decided one and run for real — see dead-letter-marker.ts.
   if (!failure) {
@@ -301,12 +311,12 @@ export function deadLetterSummary(
         `${base}\n\n${attemptStarts} delivery attempt(s) recorded a start marker but no failure — ` +
         `the attempts began and were terminated without a catchable error (a platform kill: ` +
         `memory or CPU limit). Check the fleet-executor Worker metrics/logs for the terminator.` +
-        `\n\n${DEAD_LETTER_MARKER}`
+        `${progress}\n\n${DEAD_LETTER_MARKER}`
       );
     }
     return (
       `${base}\n\nNo per-attempt failure was recorded for this delivery, so the cause is not in ` +
-      `the transcript — check the fleet-executor Worker logs.\n\n${DEAD_LETTER_MARKER}`
+      `the transcript — check the fleet-executor Worker logs.${progress}\n\n${DEAD_LETTER_MARKER}`
     );
   }
   // A blank error would render "Last recorded failure (attempt 2): " — a
@@ -317,9 +327,9 @@ export function deadLetterSummary(
   if (!error) {
     return (
       `${base}\n\nA failure was recorded for this delivery but carried no readable cause.` +
-      `\n\n${DEAD_LETTER_MARKER}`
+      `${progress}\n\n${DEAD_LETTER_MARKER}`
     );
   }
   const which = failure.attempt > 0 ? `attempt ${failure.attempt}` : 'the last attempt';
-  return `${base}\n\nLast recorded failure (${which}): ${error}\n\n${DEAD_LETTER_MARKER}`;
+  return `${base}\n\nLast recorded failure (${which}): ${error}${progress}\n\n${DEAD_LETTER_MARKER}`;
 }

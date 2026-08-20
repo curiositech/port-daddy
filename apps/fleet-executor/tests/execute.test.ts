@@ -1113,3 +1113,162 @@ describe('executeFleet — merge_group (merge-queue gate)', () => {
     expect(state.records.filter(r => r.url.includes('/check-runs'))).toHaveLength(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Attempt checkpoints — retries RESUME instead of restarting (ship-checkpoint.ts).
+// The platform-kill dead-letter class (#7743, run 103e3650: four attempts, all
+// terminated uncatchably) is survivable only if attempt N+1 skips the ships
+// attempt N finished. These tests drive resume through the REAL read/write
+// code against the memoryD1 stub.
+import {
+  saveShipCheckpoint,
+  parseShipCheckpoint,
+  SHIP_CHECKPOINT_KIND,
+  SHIP_CHECKPOINT_SEQ_BASE,
+} from '../src/ship-checkpoint.js';
+
+describe('attempt checkpoints — retries resume, never re-spend', () => {
+  it('a completed run leaves one parseable checkpoint row per ship that ran', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': reviewWithFinding('PASS'),
+        qa: 'FLEET-VERDICT: PASS',
+      },
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    const checkpoints = d1.steps.filter(st => st.kind === SHIP_CHECKPOINT_KIND);
+    expect(checkpoints.map(c => c.ship).sort()).toEqual(['code-reviewer', 'qa']);
+    for (const row of checkpoints) {
+      expect(Number(row.seq)).toBeGreaterThanOrEqual(SHIP_CHECKPOINT_SEQ_BASE);
+      const parsed = parseShipCheckpoint(row.ship, row.detail);
+      expect(parsed?.ship).toBe(row.ship);
+    }
+  });
+
+  it('a retried delivery reuses a checkpointed ship: no AI re-spend, result still aggregated', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    // Attempt 1 (simulated): code-reviewer finished before the platform kill.
+    const runId = 'run:delivery-abc'; // makeJob()'s deterministic run id
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      runId,
+      0,
+      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+    );
+
+    const ai = aiStub({ perShip: { qa: 'FLEET-VERDICT: PASS' } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    // The resumed ship never touched a model; the fresh ship did.
+    expect(ai.calls.filter(c => c.ship === 'code-reviewer')).toHaveLength(0);
+    expect(ai.calls.filter(c => c.ship === 'qa').length).toBeGreaterThan(0);
+    // Its verdict still reached the aggregate: both ships PASS => success.
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('success');
+    // And the resume is legible in the transcript.
+    const resumedSteps = d1.steps.filter(st => st.kind === 'ship-resumed');
+    expect(resumedSteps.map(s => s.ship)).toEqual(['code-reviewer']);
+  });
+
+  it('a resumed BLOCK verdict fails the gate without re-running the ship', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      {
+        ship: 'code-reviewer',
+        blocking: true,
+        verdict: 'BLOCK',
+        errored: false,
+        findings: [{ path: 'src/x.ts', line: 1, severity: 'HIGH', body: 'checkpointed finding' }],
+      },
+    );
+
+    const ai = aiStub({ perShip: { qa: 'FLEET-VERDICT: PASS' } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(c => c.ship === 'code-reviewer')).toHaveLength(0);
+    expect(state.completed[0].conclusion).toBe('failure');
+  });
+
+  it('a corrupt checkpoint row is ignored — the ship re-runs (fail-open to work, closed to trust)', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    // Raw garbage in the checkpoint band: unparseable detail must never resume.
+    d1.steps.push({
+      runId: 'run:delivery-abc',
+      seq: SHIP_CHECKPOINT_SEQ_BASE,
+      kind: SHIP_CHECKPOINT_KIND,
+      ship: 'code-reviewer',
+      title: 'corrupt',
+      detail: '{not json',
+    });
+
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(c => c.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it("another delivery's checkpoints never leak in: run ids partition resume state", async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    // A checkpoint from a DIFFERENT delivery (new push = new deliveryId).
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:some-other-delivery',
+      0,
+      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+    );
+
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(c => c.ship === 'code-reviewer').length).toBeGreaterThan(0);
+  });
+
+  it('D1 down: checkpoint load/save swallow and the run behaves exactly as before checkpoints', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    d1.failAll = true;
+
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('parseShipCheckpoint refuses mis-attributed or malformed rows', () => {
+    const good = { ship: 'qa', blocking: false, verdict: 'PASS', errored: false };
+    expect(parseShipCheckpoint('qa', JSON.stringify(good))).toEqual(good);
+    // Row/detail ship mismatch (band collision after a roster change): refused.
+    expect(parseShipCheckpoint('code-reviewer', JSON.stringify(good))).toBeNull();
+    // Unknown verdict, wrong types, non-array findings: refused.
+    expect(parseShipCheckpoint('qa', JSON.stringify({ ...good, verdict: 'MAYBE' }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({ ...good, blocking: 'yes' }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({ ...good, findings: 'none' }))).toBeNull();
+    expect(parseShipCheckpoint('qa', 'not json')).toBeNull();
+    expect(parseShipCheckpoint('', JSON.stringify(good))).toBeNull();
+  });
+});
