@@ -10,7 +10,8 @@ final class FleetProposalSectionSnapshotTests: XCTestCase {
         guard let output = env["FLEETBAR_PROPOSAL_SNAPSHOT_OUT"], !output.isEmpty else {
             throw XCTSkip("Set FLEETBAR_PROPOSAL_SNAPSHOT_OUT to render the Fleet Proposals visual artifact.")
         }
-        let baseURL = env["FLEETBAR_PROPOSAL_SNAPSHOT_BASE_URL"] ?? DaemonLocation.resolveBaseURL()
+        let baseURL = env["FLEETBAR_PROPOSAL_SNAPSHOT_BASE_URL"]
+            ?? DaemonLocation.availableBaseURL() ?? "http://127.0.0.1:8080"
         let store = FleetProposalStore(autoStart: false, baseURL: baseURL)
         await store.refresh()
         XCTAssertGreaterThan(store.pending.count, 0, "snapshot fixture daemon should expose pending proposals")
