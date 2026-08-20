@@ -224,7 +224,7 @@ final class DispatchStore: ObservableObject {
     /// honest "daemon route missing" banner instead of pretending things are fine.
     @Published private(set) var dispatchRouteMissing = false
 
-    private let baseURL: String
+    private let baseURL: String?
     // `nonisolated(unsafe)` so the nonisolated `deinit` may invalidate the timer
     // under Swift 6 strict concurrency (a non-Sendable `Timer?` is otherwise
     // inaccessible from deinit). Mirrors CostStore/SecretsStore, which already
@@ -233,7 +233,7 @@ final class DispatchStore: ObservableObject {
     private let session: URLSession
 
     init(autoStart: Bool = true, baseURL: String? = nil, session: URLSession = .shared) {
-        self.baseURL = baseURL ?? DaemonLocation.resolveBaseURL()
+        self.baseURL = baseURL ?? DaemonLocation.availableBaseURL()
         self.session = session
 
         guard autoStart else { return }
@@ -332,7 +332,7 @@ final class DispatchStore: ObservableObject {
             lastError = "Dispatch intent cannot be empty."
             return nil
         }
-        guard let url = URL(string: "\(baseURL)/dispatches") else { return nil }
+        guard let baseURL, let url = URL(string: "\(baseURL)/dispatches") else { return nil }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -377,7 +377,7 @@ final class DispatchStore: ObservableObject {
     }
 
     private func postReview(id: String, decision: String, reason: String?) async {
-        guard let url = URL(string: "\(baseURL)/dispatches/\(id)/review") else { return }
+        guard let baseURL, let url = URL(string: "\(baseURL)/dispatches/\(id)/review") else { return }
         var body: [String: Any] = ["decision": decision]
         if let reason { body["reason"] = reason }
 
@@ -406,7 +406,7 @@ final class DispatchStore: ObservableObject {
     // MARK: - HTTP fetchers
 
     private func fetchDispatches() async -> [DispatchEnvelope]? {
-        guard var components = URLComponents(string: "\(baseURL)/dispatches") else { return nil }
+        guard let baseURL, var components = URLComponents(string: "\(baseURL)/dispatches") else { return nil }
         components.queryItems = [URLQueryItem(name: "state", value: "*")]
         guard let url = components.url else { return nil }
 
@@ -438,7 +438,7 @@ final class DispatchStore: ObservableObject {
         await withTaskGroup(of: (String, String?).self) { group in
             for env in envelopes {
                 group.addTask { [baseURL, session] in
-                    guard let url = URL(string: "\(baseURL)/dispatches/\(env.id)/transcript-summary") else {
+                    guard let baseURL, let url = URL(string: "\(baseURL)/dispatches/\(env.id)/transcript-summary") else {
                         return (env.id, nil)
                     }
                     do {
@@ -462,7 +462,7 @@ final class DispatchStore: ObservableObject {
     }
 
     private func fetchPopperStatus() async -> PopperStatusSnapshot? {
-        guard let url = URL(string: "\(baseURL)/popper/status") else { return nil }
+        guard let baseURL, let url = URL(string: "\(baseURL)/popper/status") else { return nil }
         do {
             let (data, response) = try await session.data(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
@@ -481,7 +481,7 @@ final class DispatchStore: ObservableObject {
     }
 
     private func fetchHarbormasterStatus() async -> HarbormasterStatusSnapshot? {
-        guard let url = URL(string: "\(baseURL)/harbormaster/status") else { return nil }
+        guard let baseURL, let url = URL(string: "\(baseURL)/harbormaster/status") else { return nil }
         do {
             let (data, response) = try await session.data(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
