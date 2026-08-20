@@ -718,10 +718,15 @@ struct FleetPopover: View {
     }
 
     private func berthTooltip(_ b: DaemonBerthResponse?) -> String {
-        // Resolve the canonical port through DaemonLocation rather than hardcoding
-        // it — the no-hardcoded-daemon-port guard (and ADR-0084) keep the literal
-        // in exactly one place.
-        guard let b else { return "Connected to the stable berth (port \(DaemonLocation.canonicalPreferredPort))" }
+        guard let b else {
+            guard let daemonURL = store.daemonURL else {
+                return "Control plane unavailable · \(store.controlPlaneUnavailableReason?.summary ?? "no endpoint resolved")"
+            }
+            guard let url = URL(string: daemonURL), let port = url.port else {
+                return "Daemon berth unknown · \(daemonURL)"
+            }
+            return "Daemon berth unknown · port \(port)"
+        }
         var parts = ["\(b.label) berth · port \(b.port)"]
         if let branch = b.gitBranch, !branch.isEmpty {
             let rev = b.gitRev.map { " @ \($0)" } ?? ""
@@ -1085,19 +1090,39 @@ struct FleetPopover: View {
     //
     // Whisper-quiet. The user glances here, never stares.
 
+    private var footerSymbol: String {
+        guard store.isControlPlaneAvailable else { return "bolt.horizontal.circle" }
+        return store.isConnected
+            ? "antenna.radiowaves.left.and.right"
+            : "antenna.radiowaves.left.and.right.slash"
+    }
+
+    private var footerLabel: String {
+        guard store.isControlPlaneAvailable else { return "Unavailable" }
+        return store.isConnected ? "Live" : "Polling"
+    }
+
+    private var footerHelp: String {
+        if let source = store.endpointSource {
+            return "Endpoint from \(source.label) · \(store.daemonLabel)"
+        }
+        return store.controlPlaneUnavailableReason?.summary ?? "No daemon endpoint resolved."
+    }
+
     private var footer: some View {
         HStack(spacing: Fleet.Space.xs) {
-            Image(systemName: store.isConnected
-                  ? "antenna.radiowaves.left.and.right"
-                  : "antenna.radiowaves.left.and.right.slash")
+            Image(systemName: footerSymbol)
                 .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(store.isConnected ? Fleet.Color.healthy : Fleet.Color.warning)
+                .foregroundStyle(store.isControlPlaneAvailable
+                    ? (store.isConnected ? Fleet.Color.healthy : Fleet.Color.warning)
+                    : Fleet.Color.failure)
                 .symbolEffect(.variableColor.iterative, isActive: store.isConnected)
                 .contentTransition(.symbolEffect(.replace))
 
-            Text(store.isConnected ? "Live" : "Polling")
+            Text(footerLabel)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .help(footerHelp)
 
             Spacer()
 
