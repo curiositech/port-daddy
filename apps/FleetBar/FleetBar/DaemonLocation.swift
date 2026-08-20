@@ -276,23 +276,27 @@ enum DaemonLocation {
     /// A well-formed `http(s)` base URL with a non-empty host and an explicit,
     /// in-range port. User info and request-specific path/query/fragment state
     /// are rejected because callers append their own route paths.
-    static func validatedLoopbackURL(_ raw: String) -> String? {
+    static func validatedLoopbackURL(
+        _ raw: String,
+        requireExplicitPort: Bool = true
+    ) -> String? {
         guard let components = URLComponents(string: raw),
               let scheme = components.scheme?.lowercased(),
               scheme == "http" || scheme == "https",
               let host = components.host, !host.isEmpty,
-              let port = components.port,
-              validPortRange.contains(port),
               components.user == nil,
               components.password == nil,
               components.query == nil,
               components.fragment == nil,
               components.path.isEmpty || components.path == "/" else { return nil }
 
+        if requireExplicitPort, components.port == nil { return nil }
+        if let port = components.port, !validPortRange.contains(port) { return nil }
+
         var normalized = URLComponents()
         normalized.scheme = scheme
         normalized.host = host
-        normalized.port = port
+        normalized.port = components.port
         return normalized.string
     }
 
