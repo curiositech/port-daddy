@@ -446,25 +446,57 @@ fleet:
       class: purser
       trigger: pull_request:opened
       model: '@cf/qwen/qwen3-30b-a3b-fp8'  # guarded: unknown ids remap to known-good
+      # PER-STEP TIERS. The purser is a pipeline, not one call, and its steps
+      # have opposite cost shapes — so one model for all of them is wrong in one
+      # direction whichever id is picked:
+      #
+      #   PLAN   reads the whole diff, emits a handful of paths  → INPUT-heavy
+      #   AUTHOR reads the same diff, emits a whole test file     → OUTPUT-heavy
+      #
+      # Per M tokens: qwen3-30b $0.051 in / $0.335 out; gpt-oss-20b $0.200 in /
+      # $0.300 out. So the mid tier is ~4x on input and slightly CHEAPER on
+      # output. Planning stays cheap; authoring — the step whose output has to
+      # be a runnable file, and whose failures now block a merge — gets the mid
+      # tier. Both are guarded by the same known-good set as `model:`: an
+      # unknown id falls back to the tier default rather than silently
+      # returning blank, and NEITHER can reach the review bot's gpt-oss-120b.
+      #
+      # Omit both to accept these defaults. `planModel`/`authorModel` and
+      # `cfPlanModel`/`cfAuthorModel` are accepted spellings too.
+      plan_model: '@cf/qwen/qwen3-30b-a3b-fp8'    # default (cheap)
+      author_model: '@cf/openai/gpt-oss-20b'      # default (mid tier)
       # THE GATE. `blocking: true` means a sandbox-executed test FAILURE fails
       # the check run, so a PR cannot merge while it contradicts its own
       # best-interpretation contract. Until now the purser authored tests,
       # demanded they be satisfied, and then passed the gate anyway — the demand
       # was advisory, which is another way of saying it was optional.
       #
-      # This is safe to switch on precisely BECAUSE of the line below it.
-      # `blocking` only ever fires on `executed && !passed` — tests that really
-      # ran and really failed. When no sandbox is provisioned the tests are not
-      # executed, and `blockWithoutSandbox: false` keeps the verdict advisory:
-      # the purser never blocks on tests it could not run. So the worst case of
-      # enabling this is the correct case — a red gate on a PR whose own tests
-      # fail against its own head.
+      # Two distinct ways the check goes red, deliberately kept apart:
+      #   1. JUDGMENT — `blocking` fires on `executed && !passed`: tests that
+      #      really ran and really failed. When no sandbox is provisioned the
+      #      tests are not executed, and `blockWithoutSandbox: false` keeps that
+      #      VERDICT advisory: the purser never rules on tests it could not run.
+      #   2. MACHINERY — broken-ship doctrine (2026-08-19, verdict.ts): a
+      #      malformed steel-man/plan, failed authoring, rejected or
+      #      non-executable tests, a 403 on the stack, or a crash is not a
+      #      verdict at all — the ship itself broke, and the run FAILS whatever
+      #      the flags say, so the breakage gets fixed instead of tolerated.
+      #      (The 2026-08-19 run: testPaths pointed outside jest's testMatch,
+      #      every authored test was rejected, nothing was stacked, run stayed
+      #      green. Never again.)
       blocking: true
       blockWithoutSandbox: false # true (+blocking) ⇒ fail-closed when tests could not
                                  # be executed; default false: never block on tests
                                  # that were never run
       testPaths:                 # optional: authored tests must live under these
-        - tests/purser           # prefixes (also bounded by the global path whitelist)
+        # prefixes (also bounded by the global path whitelist). MUST sit inside
+        # the repo's own jest testMatch (tests/unit/**, tests/integration/**) or
+        # the executability gate rejects every authored file and the purser is a
+        # broken ship — which now FAILS the run. The old value `tests/purser`
+        # was outside testMatch, so every authored test was guaranteed-rejected
+        # ("the test runner would never find it. Nothing was stacked.",
+        # 2026-08-19 run).
+        - tests/unit/purser
       graft:                     # optional on ANY ship: repo skill ids whose
         - sandboxed-adversarial-test-harness   # skills/<id>/SKILL.md (trusted
         - steel-man-argument     # branch only, ~6KB each, max 3) is prepended to
@@ -708,6 +740,24 @@ fleet:
           # 262k ctx, native structured outputs) — the right Workers AI tier for
           # a code reviewer that emits JSON findings.
           model: '@cf/moonshotai/kimi-k2.7-code'
+      # MAP/REDUCE tiering, Cloudflare path only. The executor splits a large
+      # diff on file boundaries and scans each chunk independently (MAP), then
+      # makes ONE call to reconcile them (REDUCE). MAP runs N times and REDUCE
+      # once, so the cheap model belongs on the repeating stage: scanning a
+      # chunk for local defects is mechanical, while deciding what is genuinely
+      # missing across chunks is judgement.
+      #
+      # code-reviewer is the ship with the most to gain -- it is the only one
+      # that reduces on the expensive model, so it was the only one paying that
+      # rate per chunk. On the 92-chunk shape that motivated this (PR #4956),
+      # tiering is roughly a 68% cut in this ship's spend.
+      #
+      # Guards live in deriveMapModel() (apps/fleet-executor/src/fleet.ts): an
+      # unrecognised id is DROPPED rather than honoured, because a nonexistent
+      # Workers AI id returns a blank the parser reads as "clean" -- a typo here
+      # would silence every chunk while REDUCE reported nothing found. Untiered
+      # costs more; mute costs the truth.
+      map_model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false

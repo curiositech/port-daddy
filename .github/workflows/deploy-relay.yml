@@ -148,7 +148,23 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add apps/relay/migrations/applied-staging.json
           git commit -m "chore(relay): record staging-applied migrations [skip ci]"
-          git push origin HEAD:main || echo "::warning::ledger push blocked by branch protection — add github-actions[bot] to the bypass list so the staging ledger stays current"
+          # FAIL LOUD. This push used to be `|| echo ::warning::`, which kept the
+          # staging deploy GREEN while the ledger silently rotted — and the ledger
+          # is the ONLY thing the prod release gate reads. That fail-soft produced
+          # a closed deadlock on 2026-08-10: ruleset 17604542 rejected the bot's
+          # push ("Changes must be made through a pull request"), so six 2026-08-04
+          # migrations were applied to staging but never recorded; the prod relay
+          # deploy was gate-blocked for five days; and the prod deploy was itself
+          # what would have shipped the merge_group fix that makes the required
+          # "Port Daddy Fleet" check post on queue branches — which is what the
+          # ruleset was waiting for. A warning nobody reads is not a signal.
+          if ! git push origin HEAD:main; then
+            echo "::error title=Staging ledger push REJECTED::The ledger is now stale, which silently blocks EVERY prod relay release (deploy-relay-prod.yml reads this file as gate truth)."
+            echo "Fix (one of):"
+            echo "  1. Add github-actions[bot] to the bypass list of the ruleset protecting main (preferred — keeps the ledger self-maintaining)."
+            echo "  2. Land the ledger by hand: node scripts/check-migrations-gate.mjs --record, then PR apps/relay/migrations/applied-staging.json to main."
+            exit 1
+          fi
 
       # One-time self-provisioning, idempotent on every run: the staging queue,
       # plus staging-only secrets. Staging secrets are ROTATED on each deploy —

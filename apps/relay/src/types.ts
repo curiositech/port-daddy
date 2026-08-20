@@ -100,6 +100,8 @@ export interface FleetRunJob {
     repository?: Record<string, unknown>;
     pull_request?: Record<string, unknown>;
     push?: Record<string, unknown>;
+    /** merge_group deliveries only: carries `head_sha` for the queue branch. */
+    merge_group?: Record<string, unknown>;
   };
 }
 

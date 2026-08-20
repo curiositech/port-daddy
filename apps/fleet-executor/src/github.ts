@@ -169,6 +169,19 @@ export async function invalidateInstallationToken(
 // ---------------------------------------------------------------------------
 // PR helpers
 
+/**
+ * Page size for the PR `/files` endpoint.
+ *
+ * Exported because anything reasoning about whether the changed-file list is
+ * COMPLETE must compare against the same number this fetch uses. Hard-coding it
+ * in two places lets the truncation logic drift silently the moment either side
+ * changes, and a wrong answer there means real findings get dropped.
+ *
+ * This call does not paginate, so a PR at or above this many files yields a
+ * TRUNCATED list that must be treated as incomplete rather than authoritative.
+ */
+export const PR_FILES_PAGE_SIZE = 100;
+
 export interface PRFile {
   filename: string;
   status: string;
@@ -268,7 +281,7 @@ export async function fetchPRContext(
     fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
       headers: ghHeaders(token),
     }),
-    fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=100`, {
+    fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=${PR_FILES_PAGE_SIZE}`, {
       headers: ghHeaders(token),
     }),
     fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
@@ -525,6 +538,127 @@ async function findExistingComment(
 }
 
 // ---------------------------------------------------------------------------
+// PR body sections (the PR summary as a fleet-maintained record)
+
+/** GitHub rejects PR bodies longer than this (422), same cap as comments. */
+const GITHUB_PR_BODY_MAX = 65536;
+
+/**
+ * Upsert a marked section into a pull request's BODY — the PR summary.
+ *
+ * MOTIVATION / DESIGN: the PR summary is the durable chronology of what a PR
+ * is supposed to be; comments scroll away, check runs expire, but the body is
+ * what every future reader (and every PR-requirements gate) reads first. When
+ * the fleet derives something that IS that chronology — the purser's
+ * steel-manned contract and its obligations (operator mandate, 2026-08-19) —
+ * it belongs in the body, maintained by an agent, not buried in a comment.
+ *
+ * Idempotent edit-in-place: the section lives between `startMarker` and
+ * `endMarker` (HTML comments, invisible in rendered markdown). Present ⇒
+ * replaced; absent ⇒ appended. The rest of the body — the author's own words —
+ * is never touched, and a body that would exceed GitHub's hard cap is left
+ * alone entirely rather than truncating a human's prose.
+ *
+ * @param owner Repo owner.
+ * @param repo Repo name.
+ * @param prNumber The PR whose body carries the section.
+ * @param startMarker Opening HTML-comment marker (must be unique per section).
+ * @param endMarker Closing HTML-comment marker.
+ * @param section The markdown to place between the markers.
+ * @param token Installation token (needs `pull_requests: write`).
+ * @returns true when the body already carried the section or the PATCH landed;
+ *   false on any fetch/PATCH failure or cap overflow — the caller records the
+ *   outcome in the transcript so a silent miss is impossible.
+ */
+export async function upsertPrBodySection(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  startMarker: string,
+  endMarker: string,
+  section: string,
+  token: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
+      headers: ghHeaders(token),
+    });
+    if (!res.ok) return false;
+    const pr = (await res.json()) as { body?: string | null };
+    const current = pr.body ?? '';
+    const block = `${startMarker}\n${section}\n${endMarker}`;
+    const startIdx = current.indexOf(startMarker);
+    const endIdx = current.indexOf(endMarker);
+    const bothAbsent = startIdx === -1 && endIdx === -1;
+    const wellFormedPair = startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx;
+    // A body carrying only ONE of the markers, or the pair inverted, is a
+    // corrupted section (someone hand-edited it). Appending here would plant a
+    // duplicate marker, and the NEXT replace would then span from the orphan
+    // to the far marker — swallowing whatever author prose sat between them.
+    // Refuse instead; the caller transcripts the miss loudly.
+    if (!bothAbsent && !wellFormedPair) return false;
+    const next = wellFormedPair
+      ? current.slice(0, startIdx) + block + current.slice(endIdx + endMarker.length)
+      : current.trimEnd()
+        ? `${current.trimEnd()}\n\n${block}`
+        : block;
+    if (next === current) return true; // already up to date — no write needed
+    if (next.length > GITHUB_PR_BODY_MAX) return false; // never truncate a human's body
+    const patch = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
+      method: 'PATCH',
+      headers: ghHeaders(token),
+      body: JSON.stringify({ body: next }),
+    });
+    return patch.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Find an OPEN issue whose title starts with `titlePrefix`.
+ *
+ * MOTIVATION: the adjudicator (src/adjudicator.ts) tracks each fleet-wide
+ * broken-ship fault as exactly ONE issue — the dedupe key is a stable title
+ * prefix, so re-declaring the same epidemic on every affected run refreshes
+ * nothing and spams nobody. Listing is scoped by state to keep the scan small;
+ * a closed issue deliberately does NOT match, so a fault that recurs after a
+ * fix gets a fresh issue (and a fresh page) rather than resurrecting history.
+ *
+ * @param owner Repo owner.
+ * @param repo Repo name.
+ * @param titlePrefix The stable title prefix to match (exact, case-sensitive).
+ * @param token Installation token.
+ * @returns The first matching open issue's number, or null (including on any
+ *   fetch failure — the caller then creates a fresh issue, which at worst
+ *   duplicates once rather than ever losing the tracking issue).
+ */
+export async function findOpenIssueByTitlePrefix(
+  owner: string,
+  repo: string,
+  titlePrefix: string,
+  token: string,
+): Promise<number | null> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/issues?state=open&per_page=100`,
+      { headers: ghHeaders(token) },
+    );
+    if (!res.ok) return null;
+    const issues = (await res.json()) as Array<{ number?: number; title?: string; pull_request?: unknown }>;
+    for (const issue of issues) {
+      if (issue.pull_request) continue; // /issues lists PRs too — skip them
+      if (typeof issue.title === 'string' && issue.title.startsWith(titlePrefix)) {
+        return typeof issue.number === 'number' ? issue.number : null;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Issues (fleet idea capture)
 
 /**
@@ -644,6 +778,22 @@ export async function createCheckRun(
   return body.id ?? 0;
 }
 
+/**
+ * Complete a check run. Returns whether the PATCH actually succeeded — unlike
+ * the old fire-and-forget version, a failure here is never silently
+ * swallowed.
+ *
+ * The completion PATCH is retried locally (bounded, with backoff) on a
+ * transient failure (network blip, GitHub 5xx, rate limit) because it is a
+ * pure idempotent write. This is deliberately NOT done by throwing and
+ * letting the whole job retry via the queue: by the time this is called the
+ * ships have already run and `createReview` may have already posted a review
+ * comment (not idempotent — a job-level retry would spend AI again and post
+ * a duplicate review just to redo one PATCH). Failure is logged internally
+ * on every attempt and on final exhaustion — this function never throws, so
+ * it can never turn a completion hiccup into an expensive job-level replay.
+ * The boolean return is there for callers/tests that want to react further.
+ */
 export async function completeCheckRun(
   owner: string,
   repo: string,
@@ -652,21 +802,47 @@ export async function completeCheckRun(
   summary: string,
   token: string,
   detailsUrl?: string | null,
-): Promise<void> {
-  if (!checkRunId) return;
+): Promise<boolean> {
+  if (!checkRunId) return false;
   // details_url is (re)stamped on completion too, so a run that REUSED an
   // older check run (idempotent retry path) still links to its own page.
-  await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
-    method: 'PATCH',
-    headers: ghHeaders(token),
-    body: JSON.stringify({
-      status: 'completed',
-      conclusion,
-      completed_at: new Date().toISOString(),
-      output: { title: 'Port Daddy Fleet', summary },
-      ...(detailsUrl ? { details_url: detailsUrl } : {}),
-    }),
+  const body = JSON.stringify({
+    status: 'completed',
+    conclusion,
+    completed_at: new Date().toISOString(),
+    output: { title: 'Port Daddy Fleet', summary },
+    ...(detailsUrl ? { details_url: detailsUrl } : {}),
   });
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    if (attempt > 1) await sleep(250 * (attempt - 1));
+    let res: Response;
+    try {
+      res = await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
+        method: 'PATCH',
+        headers: ghHeaders(token),
+        body,
+      });
+    } catch (err) {
+      console.error(
+        `[fleet-executor] completeCheckRun network error attempt=${attempt}/${MAX_ATTEMPTS} check=${checkRunId}: ${String(err)}`,
+      );
+      continue;
+    }
+    if (res.ok) return true;
+    console.error(
+      `[fleet-executor] completeCheckRun PATCH failed attempt=${attempt}/${MAX_ATTEMPTS} check=${checkRunId} status=${res.status}`,
+    );
+  }
+  console.error(
+    `[fleet-executor] completeCheckRun EXHAUSTED retries for check=${checkRunId} owner=${owner} repo=${repo} — ` +
+      'check will remain in_progress until a future run reuses/DLQ-completes it (findFleetCheckRun idempotency path).',
+  );
+  return false;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
@@ -686,9 +862,68 @@ export async function findFleetCheckRun(
     { headers: ghHeaders(token) },
   );
   if (!res.ok) return null;
-  const body = (await res.json()) as { check_runs?: Array<{ id: number; name: string }> };
+  const body = (await res.json()) as {
+    check_runs?: Array<{ id: number; name: string; status?: string; conclusion?: string | null }>;
+  };
   const match = (body.check_runs ?? []).find(c => c.name === name);
   return match?.id ?? null;
+}
+
+/**
+ * The fleet check run for a head SHA, WITH its status -- the id alone cannot
+ * answer "has this already been decided?".
+ *
+ * Why that question matters: a queue redelivery re-runs the whole fleet from
+ * scratch. Comment posting is idempotent (edited in place), but the MODEL CALLS
+ * are not -- the ship is re-run to produce the comment it then overwrites. When
+ * the check has already been COMPLETED, that spend buys nothing at all: the
+ * gate is resolved and a finished check run cannot be reopened, so the work
+ * cannot even change the answer.
+ *
+ * Observed on 2026-08-06: runs exceeding the Worker wall-clock were redelivered
+ * up to `max_retries` times, dead-lettered, completed as `failure` by the DLQ
+ * handler -- and ships kept re-running and re-posting for hours afterwards
+ * against a gate that could never go green.
+ *
+ * @param owner repository owner
+ * @param repo repository name
+ * @param headSha the PR head commit
+ * @param name the check-run name to look for
+ * @param token an installation token
+ * @returns the check run's id and status, or null when absent/unreadable
+ */
+export async function findFleetCheckRunState(
+  owner: string,
+  repo: string,
+  headSha: string,
+  name: string,
+  token: string,
+): Promise<{ id: number; status: string; conclusion: string | null; summary: string } | null> {
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/commits/${headSha}/check-runs?per_page=100`,
+    { headers: ghHeaders(token) },
+  );
+  if (!res.ok) return null;
+  const body = (await res.json()) as {
+    check_runs?: Array<{
+      id: number;
+      name: string;
+      status?: string;
+      conclusion?: string | null;
+      output?: { summary?: string | null } | null;
+    }>;
+  };
+  const match = (body.check_runs ?? []).find(c => c.name === name);
+  if (!match) return null;
+  // `summary` comes back on the list endpoint and carries the DLQ handler's
+  // dead-letter marker, which is how the caller tells a gate that ships decided
+  // apart from one a lost job failed — see dead-letter-marker.ts.
+  return {
+    id: match.id,
+    status: match.status ?? '',
+    conclusion: match.conclusion ?? null,
+    summary: match.output?.summary ?? '',
+  };
 }
 
 // ---------------------------------------------------------------------------

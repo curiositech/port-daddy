@@ -12,7 +12,17 @@ See [`VERSIONING.md`](VERSIONING.md) for semver policy and the canonical list of
 
 ## 1. Public release
 
-The release boundary is a git tag plus a GitHub Release. The workflow `.github/workflows/release.yml` builds notarized binaries from the tagged commit and automatically dispatches to `curiositech/homebrew-tap` to roll the formula.
+**The release train does this for you.** `.github/workflows/release-train.yml`
+runs Mondays + Thursdays: it measures unreleased daemon-surface commits, runs
+the formula-compat preflight (`scripts/check-formula-compat.mjs` — the tap
+formula must accept the tarball layout release.yml will produce), opens a
+version-bump PR with every version surface synced and the CHANGELOG stamped,
+auto-merges it on green, then tags and publishes the Release. To pause it,
+open an issue titled `Release train: hold`; to force a cut now, dispatch the
+workflow. The manual recipe below remains the fallback when the train can't
+run (and for major bumps, which stay human).
+
+The release boundary is a git tag plus a GitHub Release. The workflow `.github/workflows/release.yml` builds notarized binaries from the tagged commit — soaking the exact packaged binary for 180s, running `pd batten verify` and the formula-compat preflight before sealing anything — and automatically dispatches to `curiositech/homebrew-tap` to roll the formula. After publish, `.github/workflows/fresh-install.yml` smokes the published artifacts AND the literal `brew install` path on pristine runners, and files an issue if either fails.
 
 **npm distribution is retired** (2026-07-04, operator decision): brew, the release binaries, and `latest.json` cover every supported install path; the npm token had been dead since 3.15.0 so the registry was eight releases stale anyway. `.github/workflows/publish.yml` remains as the manual path if npm is ever revived — if so, `npm deprecate` the stale versions first.
 

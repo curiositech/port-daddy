@@ -23,6 +23,8 @@ export type ResponseShape =
   | 'output_text' // OpenAI Responses API convenience aggregate
   | 'responses-api' // OpenAI Responses API structured output[]
   | 'chat-completions' // OpenAI Chat Completions choices[].message.content
+  | 'chat-completions-reasoning' // reasoning models: content empty, choices[].message.reasoning_content set
+  | 'text-completions' // classic Completions / vLLM: choices[].text
   | 'empty' // null / non-object
   | 'unknown'; // an object we couldn't extract text from (logged for diagnosis)
 
@@ -78,18 +80,39 @@ export function extractAiText(res: unknown): ExtractedText {
   }
 
   // 4. OpenAI Chat Completions: { choices: [ { message: { content: "..." } } ] }
+  //    Plus two envelopes the 2026-08-19 spider blackout proved real (#7743's
+  //    tail showed qwen3-30b answering with keys=[choices,…,prompt_token_ids,…]
+  //    and choices.len=1 that this function read as EMPTY):
+  //    4b. reasoning models (qwen3 thinking mode) can return content: "" with
+  //        the entire generation in message.reasoning_content — better to hand
+  //        the caller's contract parser the reasoning text (which usually
+  //        embeds the answer) than to blank the ship;
+  //    4c. classic Completions / vLLM: { choices: [ { text: "..." } ] } with
+  //        no message object at all.
   if (Array.isArray(o.choices)) {
-    const parts: string[] = [];
+    const content: string[] = [];
+    const reasoning: string[] = [];
+    const plain: string[] = [];
     for (const ch of o.choices) {
       if (!ch || typeof ch !== 'object') continue;
-      const msg = (ch as Record<string, unknown>).message;
+      const choice = ch as Record<string, unknown>;
+      const msg = choice.message;
       if (msg && typeof msg === 'object') {
-        const t = firstString((msg as Record<string, unknown>).content);
-        if (t) parts.push(t);
+        const m = msg as Record<string, unknown>;
+        const t = firstString(m.content);
+        if (t) content.push(t);
+        const r = firstString(m.reasoning_content);
+        if (r) reasoning.push(r);
       }
+      const p = firstString(choice.text);
+      if (p) plain.push(p);
     }
-    const text = parts.join('').trim();
-    if (text) return { text, shape: 'chat-completions' };
+    const contentText = content.join('').trim();
+    if (contentText) return { text: contentText, shape: 'chat-completions' };
+    const plainText = plain.join('').trim();
+    if (plainText) return { text: plainText, shape: 'text-completions' };
+    const reasoningText = reasoning.join('').trim();
+    if (reasoningText) return { text: reasoningText, shape: 'chat-completions-reasoning' };
   }
 
   return { text: '', shape: 'unknown' };

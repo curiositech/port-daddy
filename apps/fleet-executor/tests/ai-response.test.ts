@@ -49,6 +49,44 @@ describe('extractAiText — reads every Workers AI / OpenAI response envelope', 
     expect(extractAiText(res)).toEqual({ text: 'fallback', shape: 'output_text' });
   });
 
+  it('classic Completions / vLLM: choices[].text with no message object (#7743 tail: qwen3-30b)', () => {
+    // The 2026-08-19 spider blackout: qwen3-30b answered in a vLLM completion
+    // envelope (prompt_token_ids, kv_transfer_params, choices[].text) and this
+    // parser read EMPTY — the ship was blanked by our parser, not the model.
+    const res = {
+      choices: [{ text: 'findings here\n\nFLEET-VERDICT: PASS', index: 0, finish_reason: 'stop' }],
+      prompt_token_ids: [1, 2],
+      kv_transfer_params: null,
+      response: null,
+      usage: {},
+    };
+    expect(extractAiText(res)).toEqual({
+      text: 'findings here\n\nFLEET-VERDICT: PASS',
+      shape: 'text-completions',
+    });
+  });
+
+  it('reasoning models: empty content falls back to message.reasoning_content, labeled honestly', () => {
+    const res = {
+      choices: [{ message: { content: '', reasoning_content: 'thinking… answer: PASS' } }],
+    };
+    expect(extractAiText(res)).toEqual({
+      text: 'thinking… answer: PASS',
+      shape: 'chat-completions-reasoning',
+    });
+  });
+
+  it('real content always beats reasoning and completions-text — precedence is content > text > reasoning', () => {
+    const res = {
+      choices: [{ text: 'plain', message: { content: 'the answer', reasoning_content: 'thoughts' } }],
+    };
+    expect(extractAiText(res)).toEqual({ text: 'the answer', shape: 'chat-completions' });
+    const noContent = {
+      choices: [{ text: 'plain', message: { content: '', reasoning_content: 'thoughts' } }],
+    };
+    expect(extractAiText(noContent)).toEqual({ text: 'plain', shape: 'text-completions' });
+  });
+
   it('null / non-object → empty', () => {
     expect(extractAiText(null)).toEqual({ text: '', shape: 'empty' });
     expect(extractAiText(undefined)).toEqual({ text: '', shape: 'empty' });
