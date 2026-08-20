@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import {
   nativeLoaderEnvironment,
   packageOnnxRuntimeNative,
+  parseSemanticRuntimeProof,
 } from '../../scripts/lib/onnx-runtime-native.mjs';
 
 const SCRATCH_ROOT = join(homedir(), 'coding', 'tmp');
@@ -77,6 +78,16 @@ describe('ONNX Runtime release packaging', () => {
       platform: 'freebsd',
       arch: 'x64',
     })).toThrow('Cannot package ONNX Runtime: unsupported release platform: freebsd');
+  });
+
+  test('fails closed for malformed semantic runtime output', () => {
+    expect(() => parseSemanticRuntimeProof('not-json'))
+      .toThrow('compiled semantic runtime smoke returned malformed JSON: not-json');
+  });
+
+  test('fails closed for a hollow semantic runtime proof', () => {
+    expect(() => parseSemanticRuntimeProof(JSON.stringify({ success: false, backends: [] })))
+      .toThrow(/compiled semantic runtime smoke returned an invalid proof/);
   });
 
   test('prepends packaged cargo without discarding an existing loader path', () => {

@@ -9,6 +9,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import {
   nativeLoaderEnvironment,
   packageOnnxRuntimeNative,
+  parseSemanticRuntimeProof,
 } from './lib/onnx-runtime-native.mjs';
 
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -131,11 +132,7 @@ function smokeSemanticRuntime(nativeRuntime) {
       ...nativeLoaderEnvironment(nativeRuntime),
     },
   });
-  const proof = JSON.parse(output.trim());
-  if (proof?.success !== true || !Array.isArray(proof.backends)) {
-    throw new Error(`compiled semantic runtime smoke returned an invalid proof: ${output.trim()}`);
-  }
-  return proof;
+  return parseSemanticRuntimeProof(output);
 }
 
 const bunVersion = run('bun', ['--version']).trim();
