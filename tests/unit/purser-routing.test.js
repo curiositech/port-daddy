@@ -15,7 +15,7 @@
  */
 import { describe, expect, test } from '@jest/globals';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -109,6 +109,21 @@ describe('every purser test is routed or explicitly quarantined', () => {
     expect(jestConfig).toContain('testMatch: purserJestTests');
   });
 
+  test('quarantined files are absent from the actual Jest purser project', () => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        join(repoRoot, 'node_modules', 'jest', 'bin', 'jest.js'),
+        '--selectProjects', 'purser', '--listTests', '--runInBand',
+      ],
+      { cwd: repoRoot, encoding: 'utf8' },
+    );
+    const output = `${result.stdout}${result.stderr}`;
+    expect(result.status).toBe(0);
+    expect(output).toContain('whitepaper-hashes.test.js');
+    expect(output).not.toContain('test-build-script-rebuild.js');
+  });
+
   test('a helper entry is not a test file in disguise', () => {
     // `helper` is the one runner that legitimately never executes, so it is the
     // one an inert test could hide behind.
@@ -159,6 +174,43 @@ describe('every purser test is routed or explicitly quarantined', () => {
       expect(`${result.stderr}${result.stdout}`).toContain('routes no files to node-test');
     } finally {
       rmSync(emptyManifest, { recursive: true, force: true });
+    }
+  });
+
+  test('the node:test runner never executes a quarantined file', () => {
+    const runner = join(repoRoot, 'scripts', 'run-purser-tests.mjs');
+    const scratchRoot = join(homedir(), 'coding', 'tmp');
+    mkdirSync(scratchRoot, { recursive: true });
+    const quarantineFixture = mkdtempSync(join(scratchRoot, 'purser-quarantine-'));
+    try {
+      const purser = join(quarantineFixture, 'tests', 'purser');
+      mkdirSync(purser, { recursive: true });
+      writeFileSync(
+        join(purser, 'ROUTING.json'),
+        JSON.stringify({ files: {
+          'runs.test.js': { runner: 'node-test' },
+          'must-not-run.test.js': { runner: 'quarantined', reason: 'behavioral exclusion fixture' },
+        } }),
+      );
+      writeFileSync(
+        join(purser, 'runs.test.js'),
+        "const test = require('node:test'); test('runs', () => {});\n",
+      );
+      writeFileSync(
+        join(purser, 'must-not-run.test.js'),
+        "require('node:fs').writeFileSync('quarantined-ran', 'yes');\n",
+      );
+      mkdirSync(join(quarantineFixture, 'scripts'), { recursive: true });
+      copyFileSync(runner, join(quarantineFixture, 'scripts', 'run-purser-tests.mjs'));
+
+      const result = spawnSync(process.execPath, ['scripts/run-purser-tests.mjs'], {
+        cwd: quarantineFixture, encoding: 'utf8',
+      });
+
+      expect(result.status).toBe(0);
+      expect(existsSync(join(quarantineFixture, 'quarantined-ran'))).toBe(false);
+    } finally {
+      rmSync(quarantineFixture, { recursive: true, force: true });
     }
   });
 
@@ -216,6 +268,35 @@ describe('every purser test is routed or explicitly quarantined', () => {
       expect(`${result.stderr}${result.stdout}`).toContain('path escapes tests/purser');
     } finally {
       rmSync(absoluteManifest, { recursive: true, force: true });
+    }
+  });
+
+  test('the node:test runner rejects a symlink that escapes tests/purser', () => {
+    const runner = join(repoRoot, 'scripts', 'run-purser-tests.mjs');
+    const scratchRoot = join(homedir(), 'coding', 'tmp');
+    mkdirSync(scratchRoot, { recursive: true });
+    const symlinkManifest = mkdtempSync(join(scratchRoot, 'purser-symlink-'));
+    try {
+      const purser = join(symlinkManifest, 'tests', 'purser');
+      const outside = join(symlinkManifest, 'outside.test.js');
+      mkdirSync(purser, { recursive: true });
+      writeFileSync(
+        join(purser, 'ROUTING.json'),
+        JSON.stringify({ files: { 'linked.test.js': { runner: 'node-test' } } }),
+      );
+      writeFileSync(outside, "const test = require('node:test'); test('outside', () => {});\n");
+      symlinkSync(outside, join(purser, 'linked.test.js'));
+      mkdirSync(join(symlinkManifest, 'scripts'), { recursive: true });
+      copyFileSync(runner, join(symlinkManifest, 'scripts', 'run-purser-tests.mjs'));
+
+      const result = spawnSync(process.execPath, ['scripts/run-purser-tests.mjs'], {
+        cwd: symlinkManifest, encoding: 'utf8',
+      });
+
+      expect(result.status).not.toBe(0);
+      expect(`${result.stderr}${result.stdout}`).toContain('escapes tests/purser via symlink');
+    } finally {
+      rmSync(symlinkManifest, { recursive: true, force: true });
     }
   });
 
