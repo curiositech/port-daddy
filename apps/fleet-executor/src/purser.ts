@@ -1245,6 +1245,7 @@ export async function runPurser(
       {
         files: fileSummaries,
         totalBytes: fileSummaries.reduce((acc, f) => acc + f.bytes, 0),
+        failures: authorFailures,
       },
     );
 
