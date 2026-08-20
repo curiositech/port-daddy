@@ -85,15 +85,16 @@ describe('globToRegExp / matchesAnyTestMatch', () => {
 });
 
 describe('extractRelativeImports', () => {
-  it('finds require(), import ... from, and dynamic import() specifiers', () => {
+  it('finds require(), import ... from, side-effect import, and dynamic import() specifiers', () => {
     const src = [
       "const a = require('../support');",
       "import { b } from './helpers.js';",
+      "import './setup.js';",
       "const c = await import('../../lib/x.js');",
       "import 'vitest';", // bare specifier — not relative, must not be captured
     ].join('\n');
     expect(extractRelativeImports(src)).toEqual(
-      expect.arrayContaining(['../support', './helpers.js', '../../lib/x.js']),
+      expect.arrayContaining(['../support', './helpers.js', './setup.js', '../../lib/x.js']),
     );
     expect(extractRelativeImports(src)).not.toContain('vitest');
   });
@@ -136,8 +137,10 @@ describe('checkGeneratedTestsExecutable — the gate', () => {
       repoTreePaths: new Set(['tests/support.js']), // import WOULD resolve...
     });
     // ...but the path check runs first and rejects regardless.
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: false,
+      kind: 'undiscoverable-path',
+      path: 'tests/purser/test_error-handling.js',
       reason: expect.stringContaining("outside the repo's configured test discovery path"),
     });
   });
@@ -147,7 +150,7 @@ describe('checkGeneratedTestsExecutable — the gate', () => {
       [{ path: 'tests/unit/widget.test.js', contents: 'it("x", () => {});' }],
       { testMatchPatterns: null, repoTreePaths: new Set() },
     );
-    expect(result.ok).toBe(false);
+    expect(result).toMatchObject({ ok: false, kind: 'missing-discovery-evidence' });
   });
 
   it('fails closed when the repo tree is unknown (null), even for a discoverable path with no imports', () => {
@@ -156,7 +159,31 @@ describe('checkGeneratedTestsExecutable — the gate', () => {
       { testMatchPatterns: realJestPatterns, repoTreePaths: null },
     );
     expect(result.ok).toBe(false);
-    expect(result).toMatchObject({ reason: expect.stringContaining('file tree could not be fetched') });
+    expect(result).toMatchObject({
+      kind: 'missing-tree-evidence',
+      reason: expect.stringContaining('file tree could not be fetched'),
+    });
+  });
+
+  it('#8313: names the nested file and unresolved specifier so only that file can be repaired', () => {
+    const result = checkGeneratedTestsExecutable(
+      [{
+        path: 'tests/unit/purser/test-pagination-truncation.test.js',
+        contents: "import '../../scripts/check-pr-comments-answered.mjs';",
+      }],
+      {
+        testMatchPatterns: realJestPatterns,
+        repoTreePaths: new Set(['scripts/check-pr-comments-answered.mjs']),
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      kind: 'unresolved-import',
+      path: 'tests/unit/purser/test-pagination-truncation.test.js',
+      specifier: '../../scripts/check-pr-comments-answered.mjs',
+      reason: expect.stringContaining('does not resolve'),
+    });
   });
 
   it('a relative import resolving to ANOTHER generated file (not just the repo tree) is accepted', () => {

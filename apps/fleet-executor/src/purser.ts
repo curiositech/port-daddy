@@ -487,7 +487,12 @@ function fileAuthorSystemPrompt(
   steel: SteelManContract,
   planned: PlannedFile,
   graftText: string,
+  repairFailure?: string,
 ): string {
+  const repairNote = repairFailure
+    ? `\nA previous draft for this exact path failed the trusted executability gate:\n` +
+      `${repairFailure}\nRewrite the complete file and fix that failure. Do not move or rename it.\n`
+    : '';
   return (
     graftText +
     `You are pd-${ship.name}, running the ADVERSARIAL TEST AUTHORING phase. ` +
@@ -499,7 +504,11 @@ function fileAuthorSystemPrompt(
     `interpretation, not its laziest. Use the repo's existing test framework ` +
     `and idioms as evident from the diff. The file must be complete and ` +
     `runnable on its own: real imports, no placeholders, no "// TODO", no ` +
-    `elisions like "... rest unchanged".\n\n` +
+    `elisions like "... rest unchanged". Relative imports resolve from the ` +
+    `directory containing ${planned.path}; count every required '..' segment ` +
+    `from that directory and never invent a module — imports must name real repository files.\n` +
+    repairNote +
+    `\n` +
     `Output the file as ONE fenced code block and nothing else — no JSON, no ` +
     `commentary before or after:\n\n` +
     '```ts\n' +
@@ -1266,7 +1275,80 @@ export async function runPurser(
     // evidence (its own jest config + file tree at the PR's base sha), never
     // against configuration the purser only trusts because it wrote it.
     evidence ??= await gatherExecutabilityEvidence(prCtx, token);
-    const executability = checkGeneratedTestsExecutable(files, evidence);
+    let executability = checkGeneratedTestsExecutable(files, evidence);
+    if (
+      !executability.ok &&
+      executability.kind === 'unresolved-import' &&
+      executability.path
+    ) {
+      // #8313: discovery-aware planning healed the filenames, then an authored
+      // file nested at tests/unit/purser imported ../../scripts/... as though
+      // it lived one directory higher. The trusted gate caught it, but throwing
+      // away every authored file made the fleet-wide outage permanent. Give
+      // ONLY the offending file one bounded rewrite with the exact gate error;
+      // siblings keep their original bytes, and the same safety + executability
+      // validators remain the sole judges of whether healing occurred.
+      const repairPath = executability.path;
+      const repairIntent = plan.find(item => item.path === repairPath)?.intent ??
+        'preserve the authored test intent while fixing its executability failure';
+      const repairError = executability.reason;
+      const repaired = await authorTestFiles(
+        [{ path: repairPath, intent: repairIntent }],
+        async (path, intent) => {
+          const call = await purserAiCall(
+            ship,
+            env,
+            fileAuthorSystemPrompt(
+              ship,
+              steel,
+              { path, intent },
+              graftText,
+              repairError,
+            ),
+            prBlock(prCtx),
+            TESTS_MAX_TOKENS,
+            metrics,
+            ship.cfAuthorModel,
+          );
+          return call.text;
+        },
+      );
+
+      let repairReason = repaired.failures[0]?.reason ?? 'repair emitted no usable file';
+      let healed = false;
+      if (repaired.files.length === 1) {
+        const candidate = files.map(file =>
+          file.path === repairPath ? repaired.files[0] : file,
+        );
+        const candidateSafety = validateStackedFiles(candidate);
+        if (!candidateSafety.ok) {
+          repairReason = candidateSafety.reason;
+        } else {
+          const candidateExecutability = checkGeneratedTestsExecutable(candidate, evidence);
+          if (candidateExecutability.ok) {
+            files = candidate;
+            executability = candidateExecutability;
+            healed = true;
+            repairReason = 'trusted executability gate passed after one rewrite';
+          } else {
+            repairReason = candidateExecutability.reason;
+          }
+        }
+      }
+      await transcript.step(
+        'purser-author-repair',
+        ship.name,
+        healed
+          ? `pd-${ship.name}: authored-file repair HEALED ${repairPath}`
+          : `pd-${ship.name}: authored-file repair FAILED ${repairPath}`,
+        {
+          path: repairPath,
+          originalError: repairError,
+          result: repairReason,
+          attempts: 1,
+        },
+      );
+    }
     if (!executability.ok) {
       await transcript.step('purser-tests', ship.name, `pd-${ship.name}: authored tests NON-EXECUTABLE`, {
         error: executability.reason,

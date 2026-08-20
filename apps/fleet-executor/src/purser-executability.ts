@@ -25,7 +25,19 @@
 
 import type { StackedFile } from './stacked-pr.js';
 
-export type ExecutabilityResult = { ok: true } | { ok: false; reason: string };
+export type ExecutabilityResult =
+  | { ok: true }
+  | {
+      ok: false;
+      reason: string;
+      kind:
+        | 'missing-discovery-evidence'
+        | 'undiscoverable-path'
+        | 'missing-tree-evidence'
+        | 'unresolved-import';
+      path?: string;
+      specifier?: string;
+    };
 
 /** Jest config file names tried, in order, on the PR's BASE sha. */
 export const JEST_CONFIG_CANDIDATES: readonly string[] = [
@@ -178,6 +190,7 @@ export function extractRelativeImports(source: string): string[] {
   const patterns = [
     /\brequire\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/g,
     /\bfrom\s+['"](\.\.?\/[^'"]+)['"]/g,
+    /\bimport\s+['"](\.\.?\/[^'"]+)['"]/g,
     /\bimport\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/g,
   ];
   for (const re of patterns) {
@@ -278,6 +291,7 @@ export function checkGeneratedTestsExecutable(
   if (!evidence.testMatchPatterns) {
     return {
       ok: false,
+      kind: 'missing-discovery-evidence',
       reason:
         "the repo's test-discovery configuration (jest testMatch) could not be found or parsed — " +
         'cannot verify these files would ever be discovered and run',
@@ -287,6 +301,8 @@ export function checkGeneratedTestsExecutable(
     if (!matchesAnyTestMatch(f.path, evidence.testMatchPatterns)) {
       return {
         ok: false,
+        kind: 'undiscoverable-path',
+        path: f.path,
         reason:
           `${f.path} is outside the repo's configured test discovery path ` +
           `(testMatch: ${evidence.testMatchPatterns.join(', ')}) — the test runner would never find it`,
@@ -296,6 +312,7 @@ export function checkGeneratedTestsExecutable(
   if (!evidence.repoTreePaths) {
     return {
       ok: false,
+      kind: 'missing-tree-evidence',
       reason: "the repository file tree could not be fetched — cannot verify these files' imports resolve",
     };
   }
@@ -307,6 +324,9 @@ export function checkGeneratedTestsExecutable(
       if (!resolves) {
         return {
           ok: false,
+          kind: 'unresolved-import',
+          path: f.path,
+          specifier: spec,
           reason: `${f.path} imports '${spec}', which does not resolve to any file in the repository or in this authored set`,
         };
       }
