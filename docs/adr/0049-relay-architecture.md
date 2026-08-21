@@ -48,6 +48,10 @@ auto-reconnect with Last-Event-ID, one-direction-per-stream matches the model.
 Per ADR-0025: Ed25519 harbor cards (Phase 2) for runtime credentials.
 OIDC bootstrap for external publishers (GitHub Actions OIDC primary in v0).
 Admin-approved WoT allowlist for self-hosted/harbor-local deployments.
+Operator-provisioned identities are a narrow later extension for managed
+service actors such as Fleet Executor: an operator-authenticated endpoint
+registers only the actor's public key, and Relay issues a capability-limited
+card whose private key never reaches Relay.
 
 ### Namespacing
 `<harbor_fingerprint>:<channel>` where `harbor_fingerprint = SHA256(harbor_pub_key)` (hex).
@@ -83,8 +87,8 @@ D1 schema:
 CREATE TABLE identities (
   daemon_fingerprint TEXT PRIMARY KEY,
   pub_key            TEXT NOT NULL,
-  proof_method       TEXT NOT NULL CHECK (proof_method IN ('oidc','acme','wot')),
-  proof_metadata     TEXT NOT NULL,   -- JSON: issuer/jti/iat for oidc; cert/acme-account for acme; pairing-receipt for wot
+  proof_method       TEXT NOT NULL CHECK (proof_method IN ('oidc','acme','wot','operator-provisioned')),
+  proof_metadata     TEXT NOT NULL,   -- JSON: issuer/jti/iat for oidc or operator-provisioned; cert/acme-account for acme; pairing-receipt for wot
   expires_at         INTEGER,
   revoked            INTEGER NOT NULL DEFAULT 0,
   revoked_reason     TEXT,
@@ -168,6 +172,7 @@ CREATE TABLE audit_log (
 | GET  | /v1/subscribe/:session_id | SSE stream; long-lived |
 | POST | /v1/publish | Publish one event (harbor card in Authorization header) |
 | POST | /v1/exchange | OIDC token → PD card exchange |
+| POST | /v1/fleet/executor-identity | Register Fleet Executor public key and mint its relay-scoped card (operator-only) |
 | POST | /v1/revoke | Revoke a JTI; triggers broadcast on _relay:revocations |
 | POST | /v1/revoke-by-issuer | Bulk revoke all cards from an issuer in a time window (A8 recovery) |
 | GET  | /v1/chain-head/:sender/:channel | Latest signed chain head |

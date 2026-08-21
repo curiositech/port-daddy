@@ -126,6 +126,14 @@ describe('emitSquidEvent — enablement gates', () => {
     await flushSquidEvents();
     expect(fn).not.toHaveBeenCalled();
   });
+
+  it('is silently disabled for short or non-hex Ed25519 seeds', async () => {
+    const fn = stubFetch();
+    emitSquidEvent({ ...ENV, FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX: '123' }, 'run-started', PAYLOAD, true);
+    emitSquidEvent({ ...ENV, FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX: 'g'.repeat(64) }, 'run-started', PAYLOAD, true);
+    await flushSquidEvents();
+    expect(fn).not.toHaveBeenCalled();
+  });
 });
 
 describe('emitSquidEvent — the signed /v1/publish dialect', () => {

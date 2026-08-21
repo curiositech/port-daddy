@@ -440,6 +440,11 @@ describe('GATE 2 — a second writer on a concluded run channel is detected', ()
     const env = makeEnv(db);
     const channel = RUN_CHANNEL();
 
+    // The raw query is bound, not interpolated: empty and hostile-looking
+    // channel values return an empty set before any writer exists.
+    expect(await listChainHeadsForChannel(env.DB, channel)).toEqual([]);
+    expect(await listChainHeadsForChannel(env.DB, "' OR 1=1 --")).toEqual([]);
+
     // Writer A runs the run to conclusion (tip_seq = 2).
     const a = await provision(env, SEED_A, 'staging');
     const chainA: LocalChain = { seq: 0, prev: ZERO_HASH };
@@ -526,6 +531,11 @@ describe('GATE 3 — revoke-by-issuer rotation', () => {
     const revoked = await revokeRes.json() as { ok: boolean; revoked_count: number; revoked_jtis: string[] };
     expect(revoked.ok).toBe(true);
     expect(revoked.revoked_jtis).toContain(a.jti);
+    expect(db.revocations.get(a.jti)).toEqual(expect.objectContaining({
+      jti: a.jti,
+      revoking_daemon: 'relay-operator',
+      reason: 'issuer-bulk-revoke',
+    }));
 
     // The old card no longer verifies: the jti check inside verifyCard fires.
     const afterRevoke = await publish(env, a.card, await signedEnvelope(SEED_A, a.fingerprint, channel, chainA, { type: 'ship-verdict' }));
