@@ -183,6 +183,32 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(events).not.toContain(secretArg);
   });
 
+  test('debug timing falls back to date when Perl is unavailable', () => {
+    const pdHome = join(SANDBOX, 'debug-no-perl-home');
+    const binDir = join(pdHome, 'bin');
+    stageTentacles(SRC, binDir);
+    mkdirSync(join(pdHome, 'squid'), { recursive: true });
+    writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
+
+    const wrapper = join(binDir, 'pd-hook-pre-tool');
+    writeFileSync(wrapper, readFileSync(wrapper, 'utf8').replaceAll('/usr/bin/perl', '/definitely/missing/perl'));
+    const out = execFileSync(wrapper, [], {
+      cwd: REPO,
+      env: { ...process.env, PD_HOME: pdHome, PD_HOOK_PROVIDER: 'codex' },
+      input: '{"session_id":"must-fall-back-without-json-parser"}',
+      encoding: 'utf8',
+    });
+
+    expect(out).toBe('');
+    const lines = readFileSync(join(pdHome, 'squid', 'hook-events.log'), 'utf8').trim().split('\n');
+    expect(lines).toHaveLength(2);
+    expect(lines.map((line) => line.split('\t')[7])).toEqual([
+      expect.stringMatching(/^\d+000$/),
+      expect.stringMatching(/^\d+000$/),
+    ]);
+    expect(lines.every((line) => line.includes('\theartbeat_missing\t') || line.startsWith('v1\tstart\t'))).toBe(true);
+  });
+
   test('concurrent debug hooks serialize complete event lines instead of corrupting the timeline', async () => {
     const pdHome = join(SANDBOX, 'concurrent-debug-home');
     const binDir = join(pdHome, 'bin');

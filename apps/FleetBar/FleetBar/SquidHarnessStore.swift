@@ -216,6 +216,11 @@ final class SquidHarnessStore: ObservableObject {
                 : result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
             return
         }
+        guard decoded.schemaVersion == 1 else {
+            snapshot = nil
+            message = "Squid status uses an unsupported data format. Update FleetBar before relying on it."
+            return
+        }
         snapshot = decoded
         message = decoded.state == .degraded ? "The harness needs repair before it can protect this project." : nil
     }
@@ -264,6 +269,11 @@ final class SquidHarnessStore: ObservableObject {
             debugSnapshot = nil
             let detail = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
             debugMessage = detail.isEmpty ? "Squid hook timing is unavailable." : detail
+            return
+        }
+        guard decoded.schemaVersion == 1 else {
+            debugSnapshot = nil
+            debugMessage = "Squid hook timing uses an unsupported data format. Update FleetBar before relying on it."
             return
         }
         debugSnapshot = decoded
