@@ -116,6 +116,34 @@ describe('attention.compose', () => {
     }
   });
 
+  test('bound empty attention is a one-request fast path with local protocol suggestions', async () => {
+    const fetchMock = jest.fn(async () => new Response(JSON.stringify({
+      success: true,
+      agentId: 'agent-x',
+      items: [],
+      counts: { total: 0, inbox: 0, channels: 0, inboxUnreadRemaining: 0 },
+      subscriptions: [],
+      peek: true,
+      generatedAt: 1234,
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }));
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    try {
+      await handleAttention({ agent: 'agent-x', peek: true, json: true }, { fetch: fetchMock });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock.mock.calls[0][0]).toBe('/attention?agentId=agent-x&peek=true');
+      const printed = JSON.parse(logSpy.mock.calls[0][0]);
+      expect(printed.suggestions.map((entry) => entry.channel)).toEqual([
+        'coordination:inconsistency',
+      ]);
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
   test('empty attention recommends concrete, ranked watches instead of a channel placeholder', () => {
     const suggestions = rankAttentionSuggestions([
       {
