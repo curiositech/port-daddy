@@ -1,4 +1,4 @@
-import { handleBegin } from '../../../cli/commands/sugar.js';
+import { handleBegin, resolveBeginRent } from '../../../cli/commands/sugar.js';
 import { jest } from '@jest/globals';
 
 describe('short sidequest reason boundary', () => {
@@ -26,9 +26,9 @@ describe('short sidequest reason boundary', () => {
     expect(process.exit).not.toHaveBeenCalled();
   });
 
-  test('sidequest reason of 12 characters passes', async () => {
-    const options = { ...baseOptions, sidequest: 'a'.repeat(12) };
-    await expect(handleBegin('test purpose', baseFiles, options)).resolves.toBeUndefined();
+  test('sidequest reason of 12 characters passes the pure rent boundary', () => {
+    const result = resolveBeginRent({ sidequest: 'a'.repeat(12) }, {});
+    expect(result).toMatchObject({ ok: true, sidequestReason: 'a'.repeat(12) });
     expect(process.exit).not.toHaveBeenCalled();
   });
 });
