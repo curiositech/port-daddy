@@ -900,6 +900,104 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.prPatches.filter(p => p.base)).toHaveLength(0);
   });
 
+  it('authors with trusted Jest evidence and repairs every incompatible sibling before stacking', async () => {
+    seedRealJestConfig();
+    state.files.set('BASESHA:package.json', '{"type":"module"}');
+    const firstPath = 'tests/unit/purser/release-version.test.ts';
+    const secondPath = 'tests/unit/purser/release-manifest.test.ts';
+    const plan = [
+      '```json',
+      JSON.stringify({
+        files: [
+          { path: firstPath, intent: 'grill the release version transition' },
+          { path: secondPath, intent: 'grill the release manifest transition' },
+        ],
+      }),
+      '```',
+    ].join('\n');
+    const vitestFirst = [
+      '```ts',
+      "import { describe, it, expect } from 'vitest';",
+      "describe('version', () => it('moves', () => expect(true).toBe(true)));",
+      '```',
+    ].join('\n');
+    const vitestSecond = [
+      '```ts',
+      "import { describe, it, expect } from 'vitest';",
+      "describe('manifest', () => it('moves', () => expect(true).toBe(true)));",
+      '```',
+    ].join('\n');
+    const jestFirst = [
+      '```ts',
+      "describe('version', () => it('moves', () => expect(true).toBe(true)));",
+      '```',
+    ].join('\n');
+    const jestSecond = [
+      '```ts',
+      "describe('manifest', () => it('moves', () => expect(true).toBe(true)));",
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([
+      STEELMAN_JSON,
+      plan,
+      vitestFirst,
+      vitestSecond,
+      jestFirst,
+      jestSecond,
+    ]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    const calls = (ai.run as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls).toHaveLength(6);
+    for (const callIndex of [2, 3]) {
+      const request = calls[callIndex][1] as {
+        messages: Array<{ role: string; content: string }>;
+      };
+      expect(request.messages[0].content).toContain(
+        'Trusted runner evidence (authoritative, not inferred from the PR diff)',
+      );
+      expect(request.messages[0].content).toContain('<rootDir>/tests/unit/**/*.test.{js,ts}');
+      expect(request.messages[0].content).toContain(
+        "Never import from 'vitest', 'bun:test', or 'node:test'",
+      );
+      expect(request.messages[0].content).toContain(
+        'type=module, so do not use an unbound __dirname',
+      );
+    }
+    const repairSteps = rec.steps.filter(s => s.kind === 'purser-author-repair');
+    expect(repairSteps).toHaveLength(2);
+    expect(repairSteps[0]).toMatchObject({
+      title: expect.stringContaining(`HEALED ${firstPath}`),
+      detail: expect.objectContaining({
+        repairNumber: 1,
+        result: expect.stringContaining(`next failing sibling: ${secondPath} imports 'vitest'`),
+      }),
+    });
+    expect(repairSteps[1]).toMatchObject({
+      title: expect.stringContaining(`HEALED ${secondPath}`),
+      detail: expect.objectContaining({
+        repairNumber: 2,
+        result: 'trusted executability gate passed after one rewrite',
+      }),
+    });
+    expect(rec.steps.find(s => s.kind === 'purser-sandbox')?.detail).toMatchObject({
+      executed: true,
+      passed: true,
+    });
+    expect(state.blobsCreated).toBe(2);
+    expect(state.stackedPrs).toHaveLength(1);
+  });
+
   it('re-authors an incompatible reused suite in place instead of preserving a broken runner loop', async () => {
     seedRealJestConfig();
     state.files.set('BASESHA:package.json', '{"type":"module"}');
