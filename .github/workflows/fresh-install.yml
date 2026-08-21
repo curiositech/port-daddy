@@ -105,26 +105,9 @@ jobs:
           FORMULA_URL: https://raw.githubusercontent.com/curiositech/homebrew-tap/main/Formula/port-daddy.rb
         run: |
           set -euo pipefail
-          if ! expected_version=$(node scripts/release-workflow-state.mjs validate-tag "$EXPECTED_TAG"); then
-            echo "::error::release tag '$EXPECTED_TAG' is not a stable vX.Y.Z tag."
-            exit 1
-          fi
-          formula_path="$RUNNER_TEMP/port-daddy-formula.rb"
-          matched=0
-          for attempt in $(seq 1 180); do
-            rm -f "$formula_path"
-            if curl -fsSL -H 'Cache-Control: no-cache' \
-              "${FORMULA_URL}?run=${GITHUB_RUN_ID}&attempt=${attempt}" -o "$formula_path" && \
-              node scripts/release-workflow-state.mjs formula-matches "$EXPECTED_TAG" "$formula_path" >/dev/null 2>&1; then
-              matched=1
-              echo "Tap source now advertises Port Daddy $expected_version (attempt $attempt)."
-              break
-            fi
-            echo "Tap has not reached $EXPECTED_TAG yet (attempt $attempt/180); waiting 10s."
-            sleep 10
-          done
-          if [ "$matched" != "1" ]; then
-            echo "::error::tap formula did not reach $EXPECTED_TAG within 30 minutes."
+          if ! expected_version=$(node scripts/release-workflow-state.mjs \
+            wait-for-formula "$EXPECTED_TAG" "$FORMULA_URL" "$GITHUB_RUN_ID"); then
+            echo "::error::tap formula did not reach a valid exact $EXPECTED_TAG release within 30 minutes."
             exit 1
           fi
           brew tap curiositech/tap

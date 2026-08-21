@@ -34,12 +34,65 @@ export function compareStableVersions(left, right) {
   return 0;
 }
 
+function parseBooleanFlag(value, label) {
+  if (value === true || value === 'true') return true;
+  if (value === false || value === 'false') return false;
+  throw new Error(`${label} must be true or false`);
+}
+
+export function selectTokenSource(hasTrainToken, hasTapToken) {
+  if (parseBooleanFlag(hasTrainToken, 'hasTrainToken')) return 'RELEASE_TRAIN_TOKEN';
+  if (parseBooleanFlag(hasTapToken, 'hasTapToken')) return 'HOMEBREW_TAP_TOKEN';
+  throw new Error('neither RELEASE_TRAIN_TOKEN nor HOMEBREW_TAP_TOKEN is available');
+}
+
 export function extractFormulaVersion(source) {
   return /^\s*version\s+"([^"]+)"\s*$/m.exec(source)?.[1] ?? null;
 }
 
 export function formulaMatchesRelease(source, tag) {
   return extractFormulaVersion(source) === stableVersionFromTag(tag);
+}
+
+const defaultSleep = (delayMs) => new Promise((resolveSleep) => setTimeout(resolveSleep, delayMs));
+
+export async function waitForFormula({
+  tag,
+  formulaUrl,
+  runId = 'release',
+  attempts = 180,
+  delayMs = 10_000,
+  fetchImpl = globalThis.fetch,
+  sleep = defaultSleep,
+  log = () => {},
+}) {
+  const version = stableVersionFromTag(tag);
+  if (!Number.isInteger(attempts) || attempts < 1) {
+    throw new Error('attempts must be a positive integer');
+  }
+  if (typeof fetchImpl !== 'function') {
+    throw new Error('fetch implementation is unavailable');
+  }
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const requestUrl = new URL(formulaUrl);
+      requestUrl.searchParams.set('run', runId);
+      requestUrl.searchParams.set('attempt', String(attempt));
+      const response = await fetchImpl(requestUrl, { headers: { 'Cache-Control': 'no-cache' } });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (formulaMatchesRelease(await response.text(), tag)) {
+        log(`Tap source now advertises Port Daddy ${version} (attempt ${attempt}).`);
+        return version;
+      }
+      log(`Tap has not reached ${tag} yet (attempt ${attempt}/${attempts}).`);
+    } catch (error) {
+      log(`Tap formula check failed on attempt ${attempt}/${attempts}: ${error.message}`);
+    }
+    if (attempt < attempts) await sleep(delayMs);
+  }
+
+  throw new Error(`tap formula did not reach ${tag} after ${attempts} attempts`);
 }
 
 export function selectVersionTransition(version, candidates) {
@@ -87,6 +140,8 @@ function usage() {
     '  release-workflow-state.mjs newer-than <candidate> <previous>',
     '  release-workflow-state.mjs find-transition <version> <git-range>',
     '  release-workflow-state.mjs formula-matches <tag> <formula-path>',
+    '  release-workflow-state.mjs wait-for-formula <tag> <formula-url> [run-id]',
+    '  release-workflow-state.mjs require-token <has-train-token> <has-tap-token>',
   ].join('\n');
 }
 
@@ -96,7 +151,7 @@ function requireArg(args, index, label) {
   return value;
 }
 
-function main(args) {
+async function main(args) {
   const command = requireArg(args, 0, 'command');
   if (command === 'validate-version') {
     const version = requireArg(args, 1, 'version');
@@ -132,15 +187,34 @@ function main(args) {
     process.stdout.write(`${stableVersionFromTag(tag)}\n`);
     return;
   }
+  if (command === 'wait-for-formula') {
+    const tag = requireArg(args, 1, 'tag');
+    const formulaUrl = requireArg(args, 2, 'formula URL');
+    const runId = args[3] || 'release';
+    const version = await waitForFormula({
+      tag,
+      formulaUrl,
+      runId,
+      log: (message) => process.stderr.write(`${message}\n`),
+    });
+    process.stdout.write(`${version}\n`);
+    return;
+  }
+  if (command === 'require-token') {
+    const source = selectTokenSource(
+      requireArg(args, 1, 'has-train-token flag'),
+      requireArg(args, 2, 'has-tap-token flag'),
+    );
+    process.stdout.write(`${source}\n`);
+    return;
+  }
   throw new Error(`unknown command '${command}'\n${usage()}`);
 }
 
 const entryPath = process.argv[1] ? resolve(process.argv[1]) : '';
 if (entryPath === fileURLToPath(import.meta.url)) {
-  try {
-    main(process.argv.slice(2));
-  } catch (error) {
+  main(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`release-workflow-state: ${error.message}\n`);
     process.exitCode = 1;
-  }
+  });
 }

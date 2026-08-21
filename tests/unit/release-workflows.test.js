@@ -8,8 +8,10 @@ import {
   findVersionTransition,
   formulaMatchesRelease,
   parseStableVersion,
+  selectTokenSource,
   selectVersionTransition,
   stableVersionFromTag,
+  waitForFormula,
 } from '../../scripts/release-workflow-state.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -36,6 +38,7 @@ describe('release workflow topology contracts', () => {
     const tokenExpression = '${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}';
 
     expect(train).toContain(tokenExpression);
+    expect(train).toContain('release-workflow-state.mjs require-token');
     expect(release).toContain('Authenticated tap access:');
     expect(release).toContain(`token: ${tokenExpression}`);
     expect(release).not.toContain('token: ${{ secrets.HOMEBREW_TAP_TOKEN }}');
@@ -49,8 +52,7 @@ describe('release workflow topology contracts', () => {
     expect(waitStep).toBeGreaterThan(-1);
     expect(installStep).toBeGreaterThan(waitStep);
     expect(workflow).toContain('EXPECTED_TAG: ${{ github.event.release.tag_name }}');
-    expect(workflow).toContain('release-workflow-state.mjs validate-tag "$EXPECTED_TAG"');
-    expect(workflow).toContain('release-workflow-state.mjs formula-matches "$EXPECTED_TAG" "$formula_path"');
+    expect(workflow).toContain('wait-for-formula "$EXPECTED_TAG" "$FORMULA_URL" "$GITHUB_RUN_ID"');
     expect(workflow).toContain('brew info --json=v2 curiositech/tap/port-daddy');
     expect(workflow).toContain('if [ "$actual_version" != "$expected_version" ]');
   });
@@ -61,11 +63,13 @@ describe('release workflow state', () => {
     const badVersion = spawnSync(process.execPath, [STATE_HELPER, 'validate-version', '3.29']);
     const badTag = spawnSync(process.execPath, [STATE_HELPER, 'validate-tag', '3.29.0']);
     const validTag = spawnSync(process.execPath, [STATE_HELPER, 'validate-tag', 'v3.29.0']);
+    const missingTokens = spawnSync(process.execPath, [STATE_HELPER, 'require-token', 'false', 'false']);
 
     expect(badVersion.status).toBe(1);
     expect(badTag.status).toBe(1);
     expect(validTag.status).toBe(0);
     expect(validTag.stdout.toString()).toBe('3.29.0\n');
+    expect(missingTokens.status).toBe(1);
   });
 
   test('accepts only plain stable versions and v-prefixed stable tags', () => {
@@ -107,11 +111,88 @@ describe('release workflow state', () => {
     expect(findVersionTransition('3.29.0', 'v3.28.0..head', git)).toBe('bump');
   });
 
+  test('fails transparently for an invalid git range or malformed package state', () => {
+    const invalidRange = () => { throw new Error('bad revision'); };
+    expect(() => findVersionTransition('3.29.0', 'missing..head', invalidRange)).toThrow('bad revision');
+
+    const malformedPackage = (args) => {
+      if (args[0] === 'rev-list') return 'broken';
+      if (args[1] === 'broken:package.json') return '{not-json';
+      return '';
+    };
+    expect(() => findVersionTransition('3.29.0', 'base..head', malformedPackage)).toThrow(SyntaxError);
+  });
+
   test('matches only the formula version declaration for the exact release tag', () => {
     const formula = 'class PortDaddy < Formula\n  version "3.29.0"\nend\n';
     expect(extractFormulaVersion(formula)).toBe('3.29.0');
     expect(formulaMatchesRelease(formula, 'v3.29.0')).toBe(true);
     expect(formulaMatchesRelease(formula, 'v3.30.0')).toBe(false);
     expect(formulaMatchesRelease('desc "version 3.29.0"\n', 'v3.29.0')).toBe(false);
+  });
+
+  test('formula polling survives network and content failures before exact success', async () => {
+    const outcomes = [
+      new Error('network down'),
+      'not a formula',
+      'version "3.28.0"\n',
+      'version "3.29.0"\n',
+    ];
+    const requests = [];
+    const delays = [];
+    const fetchImpl = async (url) => {
+      requests.push(url);
+      const outcome = outcomes.shift();
+      if (outcome instanceof Error) throw outcome;
+      return { ok: true, status: 200, text: async () => outcome };
+    };
+
+    await expect(waitForFormula({
+      tag: 'v3.29.0',
+      formulaUrl: 'https://example.test/port-daddy.rb',
+      runId: 'run-42',
+      attempts: 4,
+      delayMs: 5,
+      fetchImpl,
+      sleep: async (delay) => delays.push(delay),
+    })).resolves.toBe('3.29.0');
+    expect(requests).toHaveLength(4);
+    expect(requests[3].searchParams.get('attempt')).toBe('4');
+    expect(requests[3].searchParams.get('run')).toBe('run-42');
+    expect(delays).toEqual([5, 5, 5]);
+  });
+
+  test('formula polling rejects malformed tags and persistent network failure', async () => {
+    let fetchCalls = 0;
+    const fetchImpl = async () => {
+      fetchCalls += 1;
+      throw new Error('offline');
+    };
+    const common = {
+      formulaUrl: 'https://example.test/port-daddy.rb',
+      attempts: 2,
+      delayMs: 0,
+      fetchImpl,
+      sleep: async () => {},
+    };
+
+    await expect(waitForFormula({ ...common, tag: 'v3.29' })).rejects.toThrow('not a stable vx.y.z tag');
+    expect(fetchCalls).toBe(0);
+    await expect(waitForFormula({ ...common, tag: 'v3.29.0' })).rejects.toThrow(
+      'tap formula did not reach v3.29.0 after 2 attempts',
+    );
+    expect(fetchCalls).toBe(2);
+
+    const staleFetch = async () => ({ ok: true, status: 200, text: async () => 'version "3.28.0"\n' });
+    await expect(waitForFormula({ ...common, tag: 'v3.29.0', fetchImpl: staleFetch })).rejects.toThrow(
+      'tap formula did not reach v3.29.0 after 2 attempts',
+    );
+  });
+
+  test('token selection prefers the train credential, falls back, and fails closed', () => {
+    expect(selectTokenSource('true', 'true')).toBe('RELEASE_TRAIN_TOKEN');
+    expect(selectTokenSource('false', 'true')).toBe('HOMEBREW_TAP_TOKEN');
+    expect(() => selectTokenSource('false', 'false')).toThrow('neither RELEASE_TRAIN_TOKEN');
+    expect(() => selectTokenSource('yes', 'false')).toThrow('must be true or false');
   });
 });
