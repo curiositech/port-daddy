@@ -1448,6 +1448,7 @@ export async function runPurser(
       // guessed the same foreign runner: healing the first merely reveals the
       // second failure.
       const repairPath = executability.path;
+      // Set size is the 1-based repair ordinal recorded in the transcript.
       authoredRepairPaths.add(repairPath);
       const repairIntent = plan.find(item => item.path === repairPath)?.intent ??
         'preserve the authored test intent while fixing its executability failure';
