@@ -21,6 +21,9 @@
 export const TENTACLES = ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool'] as const;
 export type TentacleName = (typeof TENTACLES)[number];
 
+/** Every interactive hook must either finish or become visibly overdue within one second. */
+export const SQUID_HOOK_DEADLINE_MS = 1_000;
+
 /** Marker substring present in every command we write — used for idempotent dedupe. */
 export const PD_HOOK_MARKER = 'pd-hook-';
 
@@ -32,6 +35,7 @@ export type TentacleResolver = (name: TentacleName) => string;
 export interface HookCommand {
   type: 'command';
   command: string;
+  timeout?: number;
 }
 export interface HookMatcher {
   matcher?: string;
@@ -39,12 +43,12 @@ export interface HookMatcher {
 }
 
 /** Canonical single-matcher entry (matcher omitted entirely when undefined). */
-export function hookEntry(command: string, matcher?: string): HookMatcher {
+export function hookEntry(command: string, matcher?: string, timeout?: number): HookMatcher {
   return {
     ...(matcher ? { matcher } : {}),
     // No statusMessage: a successful no-op hook is intentionally invisible.
     // Actionable context/blocking still arrives through stdout/stderr.
-    hooks: [{ type: 'command', command }],
+    hooks: [{ type: 'command', command, ...(timeout ? { timeout } : {}) }],
   };
 }
 
@@ -117,10 +121,16 @@ export function buildJsonHookMap(
 ): Record<string, HookMatcher[]> {
   const ev = vendor === 'gemini' ? GEMINI_EVENTS : vendor === 'agy' ? AGY_EVENTS : CLAUDE_EVENTS;
   const matcher = vendor === 'gemini' ? GEMINI_TOOL_MATCHER : vendor === 'agy' ? AGY_TOOL_MATCHER : CLAUDE_TOOL_MATCHER;
+  // Claude and Antigravity express hook timeouts in seconds; Gemini CLI uses
+  // milliseconds. Sources (verified 2026-08-21):
+  // https://code.claude.com/docs/en/hooks#command-hook-fields
+  // https://github.com/google-gemini/gemini-cli/blob/main/docs/hooks/reference.md
+  // https://www.agy.dev/docs/ide/hooks/
+  const timeout = vendor === 'gemini' ? SQUID_HOOK_DEADLINE_MS : SQUID_HOOK_DEADLINE_MS / 1_000;
   return {
-    [ev.prompt]: [hookEntry(resolve('pd-hook-prompt'))],
-    [ev.preTool]: [hookEntry(resolve('pd-hook-pre-tool'), matcher)],
-    [ev.postTool]: [hookEntry(resolve('pd-hook-post-tool'), matcher)],
+    [ev.prompt]: [hookEntry(resolve('pd-hook-prompt'), undefined, timeout)],
+    [ev.preTool]: [hookEntry(resolve('pd-hook-pre-tool'), matcher, timeout)],
+    [ev.postTool]: [hookEntry(resolve('pd-hook-post-tool'), matcher, timeout)],
   };
 }
 
@@ -246,7 +256,7 @@ export function codexHooksTomlBlock(
   L.push('[[hooks.UserPromptSubmit.hooks]]');
   L.push('type = "command"');
   L.push(`command = ${tomlString(resolve('pd-hook-prompt'))}`);
-  L.push('timeout = 1');
+  L.push(`timeout = ${SQUID_HOOK_DEADLINE_MS / 1_000}`);
   L.push('async = false');
   L.push('');
   L.push('[[hooks.PreToolUse]]');
@@ -254,7 +264,7 @@ export function codexHooksTomlBlock(
   L.push('[[hooks.PreToolUse.hooks]]');
   L.push('type = "command"');
   L.push(`command = ${tomlString(resolve('pd-hook-pre-tool'))}`);
-  L.push('timeout = 1');
+  L.push(`timeout = ${SQUID_HOOK_DEADLINE_MS / 1_000}`);
   L.push('async = false');
   L.push('');
   L.push('[[hooks.PostToolUse]]');
@@ -262,7 +272,7 @@ export function codexHooksTomlBlock(
   L.push('[[hooks.PostToolUse.hooks]]');
   L.push('type = "command"');
   L.push(`command = ${tomlString(resolve('pd-hook-post-tool'))}`);
-  L.push('timeout = 1');
+  L.push(`timeout = ${SQUID_HOOK_DEADLINE_MS / 1_000}`);
   L.push('async = false');
   L.push(`# ${CODEX_PD_END_MARKER}`);
   L.push('');

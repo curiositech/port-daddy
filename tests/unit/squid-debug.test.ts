@@ -1,0 +1,108 @@
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import {
+  clearSquidHookDebugEvents,
+  disableSquidHookDebug,
+  enableSquidHookDebug,
+  readSquidHookDebugSnapshot,
+  squidHookDebugPaths,
+} from '../../lib/squid/debug.js';
+
+const SANDBOX = join(process.cwd(), '.scratch', `squid-debug-${process.pid}`);
+const PD_HOME = join(SANDBOX, 'pd-home');
+const WORKSPACE = join(SANDBOX, 'repo');
+
+function event(args: {
+  kind: 'start' | 'finish';
+  run: string;
+  session?: string;
+  provider?: string;
+  phase?: string;
+  hook?: string;
+  at: number;
+  deadline?: number;
+  outcome?: string;
+  exit?: string;
+  workspace?: string;
+}): string {
+  return [
+    'v1',
+    args.kind,
+    args.run,
+    args.session ?? 'codex:4242',
+    args.provider ?? 'codex',
+    args.phase ?? 'edit',
+    args.hook ?? 'pd-hook-pre-tool',
+    String(args.at),
+    String(args.deadline ?? 1000),
+    args.outcome ?? '-',
+    args.exit ?? '-',
+    Buffer.from(args.workspace ?? WORKSPACE).toString('base64'),
+  ].join('\t');
+}
+
+beforeEach(() => {
+  rmSync(SANDBOX, { recursive: true, force: true });
+  mkdirSync(WORKSPACE, { recursive: true });
+});
+
+afterAll(() => rmSync(SANDBOX, { recursive: true, force: true }));
+
+test('enable starts a fresh private capture and disable preserves its timeline', () => {
+  const paths = squidHookDebugPaths(PD_HOME);
+  mkdirSync(join(PD_HOME, 'squid'), { recursive: true });
+  writeFileSync(paths.events, 'stale event');
+
+  const enabled = enableSquidHookDebug(PD_HOME);
+  expect(enabled.enabled).toBe(true);
+  expect(readFileSync(paths.events, 'utf8')).toBe('');
+
+  writeFileSync(paths.events, `${event({ kind: 'start', run: 'run-1', at: 1000 })}\n`);
+  const disabled = disableSquidHookDebug(PD_HOME);
+  expect(disabled.enabled).toBe(false);
+  expect(readFileSync(paths.events, 'utf8')).toContain('run-1');
+  clearSquidHookDebugEvents(PD_HOME);
+  expect(readFileSync(paths.events, 'utf8')).toBe('');
+});
+
+test('groups steps by runtime session with actual and expected timestamps', () => {
+  const paths = squidHookDebugPaths(PD_HOME);
+  mkdirSync(join(PD_HOME, 'squid'), { recursive: true });
+  writeFileSync(paths.enabled, '2026-08-21T20:00:00.000Z\n');
+  writeFileSync(paths.events, [
+    event({ kind: 'start', run: 'run-complete', at: 1_000 }),
+    event({ kind: 'finish', run: 'run-complete', at: 1_120, outcome: 'executed', exit: '0' }),
+    event({ kind: 'start', run: 'run-overdue', at: 2_000, phase: 'trace', hook: 'pd-hook-post-tool' }),
+  ].join('\n') + '\n');
+
+  const snapshot = readSquidHookDebugSnapshot({ pdHome: PD_HOME, cwd: WORKSPACE, nowMs: 3_500 });
+  expect(snapshot.enabled).toBe(true);
+  expect(snapshot.sessions).toHaveLength(1);
+  expect(snapshot.sessions[0].state).toBe('overdue');
+  expect(snapshot.sessions[0].steps).toHaveLength(2);
+  const complete = snapshot.sessions[0].steps.find((step) => step.id === 'run-complete')!;
+  expect(complete.state).toBe('completed');
+  expect(complete.durationMs).toBe(120);
+  expect(complete.expectedBy).toBe('1970-01-01T00:00:02.000Z');
+  const overdue = snapshot.sessions[0].steps.find((step) => step.id === 'run-overdue')!;
+  expect(overdue.state).toBe('overdue');
+  expect(overdue.description).toMatch(/No completion arrived by the deadline/);
+});
+
+test('renders no-op outcomes and drops malformed or out-of-workspace records', () => {
+  const paths = squidHookDebugPaths(PD_HOME);
+  mkdirSync(join(PD_HOME, 'squid'), { recursive: true });
+  writeFileSync(paths.events, [
+    event({ kind: 'start', run: 'run-skip', at: 1_000 }),
+    event({ kind: 'finish', run: 'run-skip', at: 1_010, outcome: 'project_disarmed', exit: '0' }),
+    event({ kind: 'start', run: 'outside', at: 1_100, workspace: join(SANDBOX, 'other') }),
+    'v1\tstart\tbad\ttool_input=secret',
+  ].join('\n') + '\n');
+
+  const snapshot = readSquidHookDebugSnapshot({ pdHome: PD_HOME, cwd: WORKSPACE, nowMs: 2_000 });
+  expect(snapshot.sessions).toHaveLength(1);
+  expect(snapshot.sessions[0].steps[0].state).toBe('skipped');
+  expect(snapshot.sessions[0].steps[0].description).toMatch(/project is not armed/);
+  expect(JSON.stringify(snapshot)).not.toContain('tool_input=secret');
+  expect(snapshot.privacy).toMatch(/no argv/);
+});

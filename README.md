@@ -642,6 +642,7 @@ pd squid on                 # full harness: Claude, Codex, Gemini, and agy
 pd squid status             # LIVE / READY / PARTIAL / DEGRADED readout
 pd squid status --json      # stable FleetBar/automation contract
 pd squid tap                # exact bounded context entering the next turn
+pd squid debug status       # sanitized per-session hook timing and deadlines
 pd squid off                # disarm this project without breaking other repos
 pd hooks install            # hook-only repair surface
 ```
@@ -662,8 +663,16 @@ user-owned hooks.
 The non-diegetic value is explicit in both CLI and FleetBar: fresh coordination
 context before a turn, foreign-ownership warning or blocking before an edit,
 and a compact fleet trace after a tool. FleetBar's selected-project strip shows
-the live state and provider count and exposes Arm, Repair, and Disarm buttons;
-routine operation does not require the operator to open a terminal.
+the live state and provider count and exposes Arm, Repair, Disarm, and Inspect
+buttons; routine operation does not require the operator to open a terminal.
+Inspect opens an opt-in hook timeline grouped by agent session. Every PD TURN,
+PD EDIT, and PD TRACE row shows its actual start/finish, one-second expected-by
+timestamp, duration, gate outcome, and a short explanation. Overdue rows mean a
+start record missed its deadline without a completion record. Capture is off by
+default, bounded to 2 MiB of local timing events, and has no fields for argv,
+environment snapshots, prompts, tool inputs/results, stdout, or stderr. Agents can use
+`pd squid debug on|off|status|clear --json` for the same contract when repairing
+the operator surface.
 
 ### Giant Squid — Claude-to-Codex bridge
 
