@@ -12,4 +12,14 @@ describe('extractCodeFence mixed fences', () => {
   expect(true).toBe(true);
 });`;
     const out = extractCodeFence([
-      '
+      '```json',
+      fixture,
+      '```',
+      '```ts',
+      source,
+      '```',
+    ].join('\n'));
+
+    expect(out).toBe(source);
+  });
+});
