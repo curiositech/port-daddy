@@ -4,6 +4,10 @@
 
 Accepted — 2026-06-10. Four-voice deliberation (proponent / pragmatic / antagonist / acme-specialist) completed; all three deliberators returned `accept` or `accept-with-conditions`; no ship blockers. ADR-0049 depends on this.
 
+Amended — 2026-08-21. Relay-managed service actors may use the narrowly scoped
+`operator-provisioned` proof method described below; this does not change the
+OIDC-first bootstrap decision for arbitrary external publishers or daemons.
+
 ## Context
 
 The PD Relay (see ADR-0026) federates events between local daemons and external publishers (CI runners, browsers, bots). It is outbound-only from the daemon and end-to-end encrypted, but it requires an authentication and identity layer:
@@ -48,7 +52,7 @@ A tie at this level means the matrix can't auto-decide; per `pki-decision-matrix
 - **v1 secondary identity bootstrap**: **ACME** (DNS-01 only) for daemons that want name-bound identity (`erichs.users.portdaddy.dev` or a user's own domain). Issued via a self-hosted `step-ca` ACME CA on the managed subdomain to avoid Let's Encrypt rate-limit dependency.
 - **v2**: self-hosted OIDC issuer support (Keycloak / Authentik / Dex) and bring-your-own-domain ACME with EAB binding to a PD account.
 
-Concretely: the relay's identity registry stores `(daemon_fingerprint, identifier, proof_method, proof_metadata, exp, revoked_at)` where `proof_method ∈ {oidc, acme, wot}`. `proof_metadata` is proof-method-specific and must be able to store OIDC issuer/JTI/iat/audience data, ACME DNS identifier/issuer/account/renewal metadata, and WoT pairing or allowlist receipt data. All three proof methods are first-class from day one in the data model; **only OIDC exchange and self-hosted/harbor-local admin-approved WoT issuance ship in v0**.
+Concretely: the relay's identity registry stores `(daemon_fingerprint, identifier, proof_method, proof_metadata, exp, revoked_at)` where `proof_method ∈ {oidc, acme, wot, operator-provisioned}`. `proof_metadata` is proof-method-specific and must be able to store OIDC issuer/JTI/iat/audience data, ACME DNS identifier/issuer/account/renewal metadata, WoT pairing or allowlist receipt data, and an operator-provisioned service actor's issuer/JTI/iat/deployment tuple. OIDC, ACME, and WoT are the general bootstrap methods; **only OIDC exchange and self-hosted/harbor-local admin-approved WoT issuance ship in v0**. `operator-provisioned` is not a general fourth bootstrap lane: it is reserved for Relay-managed service actors, requires the Relay operator credential, registers only a public key, and mints a narrowly capability-scoped Relay-issued card.
 
 v0 acceptance requirements:
 
@@ -119,7 +123,7 @@ The specialist explicitly *does not* recommend ACME for v0 over OIDC for the sam
 - Developer daemon bootstrap can use GitHub-backed OIDC only after a concrete device/browser login exchange is implemented; until then, daemon enrollment uses the explicit admin-approved WoT lane.
 - Card lifecycle is bounded: OIDC tokens expire in minutes; PD cards minted from them inherit ≤1h expiry per Phase 2 contract.
 - Path to ACME (v1) and self-hosted OIDC issuers (v2) is documented and additive.
-- Identity registry data model accommodates all three proof methods from day 1.
+- Identity registry data model accommodates the three general proof methods plus the narrowly scoped operator-provisioned service-actor method.
 - Phase 3 attenuation (ADR forthcoming) composes over PD cards regardless of how they were bootstrapped, so PKI choice is decoupled from the attenuation layer.
 
 **Negative**:
@@ -149,7 +153,7 @@ Re-open this ADR if any of the following occur:
 
 | Step | Description | Estimate | Depends on |
 |------|-------------|---------:|------------|
-| 1 | Identity registry schema: `(fingerprint, identifier, proof_method, proof_metadata, exp, revoked_at)` plus proof issuer/JTI/iat or minted-at metadata | 0.25w | — |
+| 1 | Identity registry schema: `(fingerprint, identifier, proof_method, proof_metadata, exp, revoked_at)` plus proof issuer/JTI/iat or minted-at metadata; later migrations may add operator-provisioned managed service identities | 0.25w | — |
 | 2 | OIDC verifier: JWKS fetch + cache + signature verify + exact `aud`/`exp`/`iss`/`nbf` checks; disabled issuers bypass cached JWKS | 0.5w | (1) |
 | 3 | OIDC → PD card exchange endpoint (`/v1/exchange`); fail-closed claim → cap mapping; rate limits per issuer claim; issuer/time-window bulk revocation | 0.5w | (2) |
 | 4 | GitHub Actions OIDC integration test using a real GH Actions runner | 0.25w | (3) |
@@ -178,7 +182,7 @@ This decision preserves or weakens these invariants from `references/threat-mode
 | I5 (loss of relay does not lose past evidence) | **Preserved.** Chain anchoring is independent. |
 | I6 (revocation ≤5s) | **Preserved with a new requirement.** Card revocation remains ≤5s, and OIDC issuer compromise recovery requires revoke-all-by-issuer-and-time with the same broadcast target. |
 | I7 (AuthN ≠ AuthZ) | **Preserved with a new requirement.** OIDC = AuthN; PD card cap[] = AuthZ; unrecognized or ambiguous claims reject instead of auto-creating namespaces. |
-| I8 (identity registry update requires proof) | **Preserved after revision.** OIDC token signature is proof; ACME DNS-01 will be proof; v0 WoT requires explicit admin allowlist or signed pairing receipt and is self-hosted/harbor-local only. |
+| I8 (identity registry update requires proof) | **Preserved after revision.** OIDC token signature is proof; ACME DNS-01 will be proof; v0 WoT requires explicit admin allowlist or signed pairing receipt and is self-hosted/harbor-local only; operator-provisioned service identities require the Relay operator credential and subsequently prove private-key possession on every signed publish. |
 
 No invariants are intentionally weakened after these acceptance conditions. Adversary A8 (compromised PKI authority) gains a new attack surface (the GitHub OIDC issuer), so the v0 implementation must ship issuer disablement, JTI auditability, cached-JWKS bypass on compromise, and bulk card revocation by issuer/time window.
 
