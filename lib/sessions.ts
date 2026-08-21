@@ -534,13 +534,13 @@ export function createSessions(
       SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project
       FROM session_notes sn
       JOIN sessions s ON s.id = sn.session_id
-      WHERE sn.session_id = ? ORDER BY sn.created_at ASC
+      WHERE sn.session_id = ? ORDER BY sn.created_at ASC, sn.id ASC
     `),
     getNotesBySessionAndType: db.prepare(`
       SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project
       FROM session_notes sn
       JOIN sessions s ON s.id = sn.session_id
-      WHERE sn.session_id = ? AND sn.type = ? ORDER BY sn.created_at ASC
+      WHERE sn.session_id = ? AND sn.type = ? ORDER BY sn.created_at ASC, sn.id ASC
     `),
     countActiveFilesBySession: db.prepare(`
       SELECT COUNT(*) as count FROM session_files WHERE session_id = ? AND released_at IS NULL
@@ -1582,7 +1582,7 @@ export function createSessions(
 
       // Apply limit
       if (notes.length > limit) {
-        notes = notes.slice(0, limit);
+        notes = notes.slice(Math.max(notes.length - limit, 0));
       }
     } else if (agentId || projectPattern) {
       // Get notes by agent/project pattern across sessions

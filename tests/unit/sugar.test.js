@@ -575,6 +575,33 @@ describe('sugar.done', () => {
     expect(result.code).toBe('PLAN_UNCHECKED_ITEMS');
   });
 
+  test('validates the latest plan when an older plan had unchecked todo items', () => {
+    const { sugar, sessions } = setup();
+
+    const begin = sugar.begin({ lifecycle: 'ephemeral',
+      purpose: 'Latest plan test',
+      agentId: 'plan-test-latest',
+    });
+    expect(begin.success).toBe(true);
+
+    sessions.addNote(begin.sessionId, '- [ ] todo one', { type: 'todo_list' });
+    sessions.addNote(begin.sessionId, '- [x] todo one', { type: 'todo_list' });
+
+    const latestPlan = sessions.getNotes(begin.sessionId, { type: 'todo_list', limit: 1 });
+    expect(latestPlan.success).toBe(true);
+    expect(latestPlan.notes).toHaveLength(1);
+    expect(latestPlan.notes[0].content).toBe('- [x] todo one');
+
+    const result = sugar.done({
+      agentId: 'plan-test-latest',
+      sessionId: begin.sessionId,
+      note: VALID_RESULT_NOTE_WITH_PR,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.sessionStatus).toBe('completed');
+  });
+
   test('succeeds pd done with forceIncomplete and reason', () => {
     const { sugar, sessions } = setup();
 
