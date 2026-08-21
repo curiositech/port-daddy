@@ -147,12 +147,16 @@ describe('single binary distribution path', () => {
     expect(releaseWorkflow).toContain('--archive "${{ matrix.artifact }}.tar.gz"');
     expect(releaseWorkflow).not.toContain('--archive "dist/${{ matrix.artifact }}.tar.gz"');
 
-    // Current Homebrew trusts a fully qualified third-party formula selected
-    // by the caller. Tapping first and then installing the short name does not
-    // carry that explicit trust choice on a clean runner.
+    // The release-triggered smoke waits for the tap's exact formula version,
+    // refreshes Homebrew only after that boundary, and still installs the fully
+    // qualified formula so the caller's explicit trust choice remains visible.
     // https://docs.brew.sh/Tap-Trust#installing-from-a-tap
-    expect(freshInstallWorkflow).toContain('brew install curiositech/tap/port-daddy');
-    expect(freshInstallWorkflow).not.toContain('brew tap curiositech/tap');
+    const waitForFormula = freshInstallWorkflow.indexOf('Wait for the tap formula to match this release');
+    const refreshTap = freshInstallWorkflow.indexOf('brew tap curiositech/tap', waitForFormula);
+    const qualifiedInstall = freshInstallWorkflow.indexOf('brew install curiositech/tap/port-daddy', refreshTap);
+    expect(waitForFormula).toBeGreaterThan(-1);
+    expect(refreshTap).toBeGreaterThan(waitForFormula);
+    expect(qualifiedInstall).toBeGreaterThan(refreshTap);
     expect(freshInstallWorkflow).not.toContain('brew install port-daddy');
   });
 
