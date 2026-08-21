@@ -57,7 +57,11 @@ function populatedState(): TutorialState {
 }
 
 async function loadProduct(): Promise<TutorialModule> {
-  return await import('../../../cli/commands/tutorial.ts') as unknown as TutorialModule;
+  const module = await import('../../../cli/commands/tutorial.ts') as unknown as Record<string, unknown>;
+  if (typeof module.cleanupTutorialState !== 'function') {
+    throw new TypeError('tutorial product marker exists without cleanupTutorialState export');
+  }
+  return module as TutorialModule;
 }
 
 describe('tutorial cleanup error resilience', () => {

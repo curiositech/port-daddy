@@ -15,7 +15,11 @@ const TUTORIAL_SOURCE = readFileSync(join(ROOT, 'cli', 'commands', 'tutorial.ts'
 const PRODUCT_READY = TUTORIAL_SOURCE.includes('export async function runWithTutorialCleanup(');
 
 async function loadProduct(): Promise<TutorialModule> {
-  return await import('../../../cli/commands/tutorial.ts') as unknown as TutorialModule;
+  const module = await import('../../../cli/commands/tutorial.ts') as unknown as Record<string, unknown>;
+  if (typeof module.runWithTutorialCleanup !== 'function') {
+    throw new TypeError('tutorial product marker exists without runWithTutorialCleanup export');
+  }
+  return module as TutorialModule;
 }
 
 describe('pd learn cleanup lifecycle', () => {
