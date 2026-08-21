@@ -899,6 +899,62 @@ describe('CLI Integration Tests', () => {
   // Flag Alternatives (v3.6)
   // =========================================================================
   describe('Flag Alternatives (v3.6)', () => {
+    test('pd plan set preserves a quoted Markdown checklist that starts with a dash', async () => {
+      const sessionResult = runCli([
+        'session',
+        'start',
+        'Plan Markdown payload test',
+        '--lifecycle',
+        'durable',
+        '--json',
+      ]);
+      expect(sessionResult.success).toBe(true);
+      const sessionData = JSON.parse(sessionResult.stdout);
+      const checklist = '- [ ] Preserve "quotes" and \\ paths\n- [x] Read it back exactly';
+
+      try {
+        const setResult = runCli(['plan', 'set', checklist, '--session', sessionData.id]);
+        expect(setResult.success).toBe(true);
+        expect(setResult.stdout).toContain('Plan updated');
+
+        const notesResult = await requestWithRetry(`/sessions/${sessionData.id}/notes?type=todo_list`);
+        expect(notesResult.ok).toBe(true);
+        expect(notesResult.data.notes.at(-1).content).toBe(checklist);
+      } finally {
+        runCli(['session', 'rm', sessionData.id]);
+      }
+    });
+
+    test('pd plan set preserves the first checklist positional after preceding flags', async () => {
+      const sessionResult = runCli([
+        'session',
+        'start',
+        'Plan Markdown flags-first test',
+        '--lifecycle',
+        'durable',
+        '--json',
+      ]);
+      expect(sessionResult.success).toBe(true);
+      const sessionData = JSON.parse(sessionResult.stdout);
+      const checklist = '- [ ] Flags may precede this payload';
+
+      try {
+        const setResult = runCli(['plan', 'set', '--session', sessionData.id, checklist]);
+        expect(setResult.success).toBe(true);
+
+        const notesResult = await requestWithRetry(`/sessions/${sessionData.id}/notes?type=todo_list`);
+        expect(notesResult.ok).toBe(true);
+        expect(notesResult.data.notes.at(-1).content).toBe(checklist);
+      } finally {
+        runCli(['session', 'rm', sessionData.id]);
+      }
+    });
+
+    test('pd plan set does not special-case a malformed checklist marker', () => {
+      const result = runCli(['plan', 'set', '- [x]missing-space-after-marker']);
+      expect(result.success).toBe(false);
+    });
+
     test('pd begin --purpose works as flag alternative to positional', () => {
       const result = runCli(['begin', '--purpose', 'Flag alternative test', '--lifecycle', 'durable', '-q']);
       expect(result.success).toBe(true);
