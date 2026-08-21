@@ -100,4 +100,30 @@ describe('pd learn cleanup lifecycle', () => {
     expect(state.inboxReceiverAgent).toBeUndefined();
     expect(state.inboxSenderAgent).toBeUndefined();
   });
+
+  test('preserves the lock owner until a failed lock release can be retried', async () => {
+    const state = populatedState();
+    const calls: string[] = [];
+    let lockReleaseStatus = 500;
+    const fakeFetch = async (path: string): Promise<PdFetchResponse> => {
+      calls.push(path);
+      if (path === '/locks/tutorial-lock') return response(lockReleaseStatus);
+      return response();
+    };
+
+    await cleanupTutorialState(state, fakeFetch);
+
+    expect(state.lockName).toBe('tutorial-lock');
+    expect(state.lockOwnerAgent).toBe('tutorial-lock-agent');
+    expect(calls).not.toContain('/agents/tutorial-lock-agent');
+    expect(state.inboxReceiverAgent).toBeUndefined();
+    expect(state.inboxSenderAgent).toBeUndefined();
+
+    lockReleaseStatus = 200;
+    await cleanupTutorialState(state, fakeFetch);
+
+    expect(state.lockName).toBeUndefined();
+    expect(state.lockOwnerAgent).toBeUndefined();
+    expect(calls).toContain('/agents/tutorial-lock-agent');
+  });
 });
