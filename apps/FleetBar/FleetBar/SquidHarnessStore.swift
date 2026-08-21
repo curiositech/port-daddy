@@ -46,6 +46,41 @@ struct SquidHarnessValue: Codable, Equatable, Sendable {
     let afterTool: String
 }
 
+enum SquidHookCircuitState: String, Codable, Sendable {
+    case closed
+    case open
+    case halfOpen = "half_open"
+}
+
+struct SquidHookCircuit: Codable, Equatable, Sendable, Identifiable {
+    let hook: String
+    let label: String
+    let state: SquidHookCircuitState
+    let consecutiveFailures: Int
+    let openedAt: String?
+    let retryAt: String?
+    let lastReason: String
+    let lastDurationMs: Int
+    let lastExitCode: Int?
+    let updatedAt: String
+
+    var id: String { hook }
+}
+
+struct SquidHookHealthThresholds: Codable, Equatable, Sendable {
+    let consecutiveFailures: Int
+    let slowMs: Int
+    let cooldownMs: Int
+}
+
+struct SquidHookHealthSnapshot: Codable, Equatable, Sendable {
+    let degraded: Bool
+    let capturedAt: String
+    let thresholds: SquidHookHealthThresholds
+    let circuits: [SquidHookCircuit]
+    let remediation: String
+}
+
 struct SquidHarnessSnapshot: Codable, Equatable, Sendable {
     let schemaVersion: Int
     let state: SquidHarnessLifecycle
@@ -55,6 +90,7 @@ struct SquidHarnessSnapshot: Codable, Equatable, Sendable {
     let providers: [SquidHarnessProviderStatus]
     let identity: SquidHarnessIdentityStatus
     let value: SquidHarnessValue
+    let health: SquidHookHealthSnapshot?
 
     var detectedProviderCount: Int { providers.filter(\.detected).count }
     var wiredProviderCount: Int { providers.filter { $0.detected && $0.wired }.count }
@@ -133,6 +169,7 @@ struct SquidHookDebugSnapshot: Codable, Equatable, Sendable {
     let workspace: String?
     let privacy: String
     let retention: SquidHookDebugRetention
+    let health: SquidHookHealthSnapshot?
     let sessions: [SquidHookDebugSession]
 
     var overdueCount: Int {
@@ -222,7 +259,11 @@ final class SquidHarnessStore: ObservableObject {
             return
         }
         snapshot = decoded
-        message = decoded.state == .degraded ? "The harness needs repair before it can protect this project." : nil
+        if decoded.state == .degraded, let circuit = decoded.health?.circuits.first(where: { $0.state != .closed }) {
+            message = "\(circuit.label) disabled itself after repeated \(circuit.lastReason.replacingOccurrences(of: "_", with: " ")) events. Choose Repair."
+        } else {
+            message = decoded.state == .degraded ? "The harness needs repair before it can protect this project." : nil
+        }
     }
 
     func arm(projectDir: String) async {
@@ -333,7 +374,7 @@ struct SquidHarnessStrip: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                Text("Before each turn: context · before each edit: collision gate · after each tool: fleet trace")
+                Text("Before each turn: context · before each edit: collision gate · cumulative session evidence; no post-tool process")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -438,6 +479,11 @@ struct SquidHookDebugSheet: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Fleet.Color.warning)
                 }
+                if snapshot?.health?.degraded == true {
+                    Label("HOOK DISABLED", systemImage: "bolt.slash.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Fleet.Color.failure)
+                }
                 Spacer()
                 Button(snapshot?.enabled == true ? "Stop capture" : "Start capture") {
                     Task { await store.setDebugCapture(snapshot?.enabled != true, projectDir: projectDir) }
@@ -457,6 +503,20 @@ struct SquidHookDebugSheet: View {
                     .font(.callout.weight(.medium))
                     .foregroundStyle(.secondary)
                     .accessibilityLabel("Squid debug status: \(message)")
+            }
+            if let health = snapshot?.health,
+               let circuit = health.circuits.first(where: { $0.state != .closed }) {
+                VStack(alignment: .leading, spacing: Fleet.Space.xs) {
+                    Text("\(circuit.label) is \(circuit.state.rawValue.uppercased()) after \(circuit.consecutiveFailures) consecutive unhealthy calls; the last reason was \(circuit.lastReason.replacingOccurrences(of: "_", with: " ")).")
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(Fleet.Color.failure)
+                    Text(health.remediation)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(Fleet.Space.s)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Fleet.Color.failure.opacity(0.08), in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous))
             }
         }
         .padding(Fleet.Space.l)

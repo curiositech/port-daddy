@@ -1,10 +1,13 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   clearSquidHookDebugEvents,
   disableSquidHookDebug,
   enableSquidHookDebug,
+  readSquidHookHealth,
   readSquidHookDebugSnapshot,
+  resetSquidHookHealth,
+  squidHookHealthDir,
   squidHookDebugPaths,
 } from '../../lib/squid/debug.js';
 
@@ -108,4 +111,56 @@ test('renders no-op outcomes and drops malformed or out-of-workspace records', (
   expect(snapshot.sessions[0].steps[0].description).toMatch(/project is not armed/);
   expect(JSON.stringify(snapshot)).not.toContain('tool_input=secret');
   expect(snapshot.privacy).toMatch(/no argv/);
+});
+
+test('distinguishes contained failures, latency violations, intentional blocks, and open-circuit skips', () => {
+  const paths = squidHookDebugPaths(PD_HOME);
+  mkdirSync(join(PD_HOME, 'squid'), { recursive: true });
+  writeFileSync(paths.events, [
+    event({ kind: 'start', run: 'failed', at: 1_000 }),
+    event({ kind: 'finish', run: 'failed', at: 1_020, outcome: 'failure_swallowed', exit: '127' }),
+    event({ kind: 'start', run: 'slow', at: 2_000 }),
+    event({ kind: 'finish', run: 'slow', at: 2_300, outcome: 'slow', exit: '0' }),
+    event({ kind: 'start', run: 'blocked', at: 3_000 }),
+    event({ kind: 'finish', run: 'blocked', at: 3_010, outcome: 'blocked', exit: '2' }),
+    event({ kind: 'start', run: 'open', at: 4_000 }),
+    event({ kind: 'finish', run: 'open', at: 4_001, outcome: 'circuit_open', exit: '0' }),
+  ].join('\n') + '\n');
+
+  const steps = readSquidHookDebugSnapshot({ pdHome: PD_HOME, cwd: WORKSPACE, nowMs: 5_000 }).sessions[0].steps;
+  expect(steps.find((step) => step.id === 'failed')).toMatchObject({ state: 'failed', exitCode: 127 });
+  expect(steps.find((step) => step.id === 'failed')?.description).toMatch(/contained and counted toward self-disable/);
+  expect(steps.find((step) => step.id === 'slow')).toMatchObject({ state: 'failed', durationMs: 300 });
+  expect(steps.find((step) => step.id === 'slow')?.description).toMatch(/latency budget/);
+  expect(steps.find((step) => step.id === 'blocked')).toMatchObject({ state: 'blocked', exitCode: 2 });
+  expect(steps.find((step) => step.id === 'open')).toMatchObject({ state: 'skipped', durationMs: 1 });
+  expect(steps.find((step) => step.id === 'open')?.description).toMatch(/disabled itself/);
+});
+
+test('validates sanitized breaker state, derives half-open probes, and repairs atomically', () => {
+  const healthDir = squidHookHealthDir(PD_HOME);
+  mkdirSync(healthDir, { recursive: true });
+  writeFileSync(
+    join(healthDir, 'pd-hook-pre-tool.state'),
+    'v1\topen\t3\t1000\t301000\texit_127\t20\t127\t1000\n',
+  );
+  writeFileSync(join(healthDir, 'pd-hook-prompt.state'), 'v1\topen\tsecret prompt payload\n');
+  mkdirSync(join(healthDir, 'pd-hook-pre-tool.probe'));
+
+  const health = readSquidHookHealth(PD_HOME, 2_000);
+  expect(health.degraded).toBe(true);
+  expect(health.circuits).toEqual([
+    expect.objectContaining({
+      hook: 'pd-hook-pre-tool',
+      state: 'half_open',
+      consecutiveFailures: 3,
+      lastReason: 'exit_127',
+      lastExitCode: 127,
+    }),
+  ]);
+  expect(JSON.stringify(health)).not.toContain('secret prompt payload');
+
+  resetSquidHookHealth(PD_HOME);
+  expect(existsSync(healthDir)).toBe(true);
+  expect(readSquidHookHealth(PD_HOME).degraded).toBe(false);
 });

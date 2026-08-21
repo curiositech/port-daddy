@@ -59,7 +59,14 @@ import {
   removeJsonHooks,
   stripCodexHooksTomlBlock,
 } from '../../lib/squid/hook-shape.js';
-import { SQUID_HOOK_DEBUG_MAX_BYTES, SQUID_HOOK_DEBUG_TRIM_BYTES } from '../../lib/squid/debug.js';
+import {
+  SQUID_HOOK_BREAKER_COOLDOWN_MS,
+  SQUID_HOOK_BREAKER_FAILURE_THRESHOLD,
+  SQUID_HOOK_BREAKER_SLOW_MS,
+  SQUID_HOOK_DEBUG_MAX_BYTES,
+  SQUID_HOOK_DEBUG_TRIM_BYTES,
+  resetSquidHookHealth,
+} from '../../lib/squid/debug.js';
 import { resolveSquidAsset } from '../../lib/squid/assets.js';
 
 const DEFAULT_HOME = process.env.HOME || process.env.USERPROFILE || '';
@@ -115,6 +122,15 @@ function gateWrapperScript(): string {
     'case "$pd_provider" in claude|codex|gemini|agy) ;; *) pd_provider=unknown ;; esac',
     `pd_deadline_ms="${'${PD_HOOK_DEADLINE_MS:-'}${SQUID_HOOK_DEADLINE_MS}}"`,
     `case "$pd_deadline_ms" in ""|*[!0-9]*) pd_deadline_ms=${SQUID_HOOK_DEADLINE_MS} ;; esac`,
+    `pd_failure_threshold="${'${PD_HOOK_FAILURE_THRESHOLD:-'}${SQUID_HOOK_BREAKER_FAILURE_THRESHOLD}}"`,
+    `case "$pd_failure_threshold" in ""|*[!0-9]*) pd_failure_threshold=${SQUID_HOOK_BREAKER_FAILURE_THRESHOLD} ;; esac`,
+    `pd_slow_ms="${'${PD_HOOK_SLOW_MS:-'}${SQUID_HOOK_BREAKER_SLOW_MS}}"`,
+    `case "$pd_slow_ms" in ""|*[!0-9]*) pd_slow_ms=${SQUID_HOOK_BREAKER_SLOW_MS} ;; esac`,
+    `pd_cooldown_ms="${'${PD_HOOK_BREAKER_COOLDOWN_MS:-'}${SQUID_HOOK_BREAKER_COOLDOWN_MS}}"`,
+    `case "$pd_cooldown_ms" in ""|*[!0-9]*) pd_cooldown_ms=${SQUID_HOOK_BREAKER_COOLDOWN_MS} ;; esac`,
+    `[ "$pd_failure_threshold" -gt 0 ] 2>/dev/null || pd_failure_threshold=${SQUID_HOOK_BREAKER_FAILURE_THRESHOLD}`,
+    `[ "$pd_slow_ms" -gt 0 ] 2>/dev/null || pd_slow_ms=${SQUID_HOOK_BREAKER_SLOW_MS}`,
+    `[ "$pd_cooldown_ms" -gt 0 ] 2>/dev/null || pd_cooldown_ms=${SQUID_HOOK_BREAKER_COOLDOWN_MS}`,
     '',
     'pd_debug_now_ms() {',
     '  if [ -x /usr/bin/perl ]; then',
@@ -122,6 +138,9 @@ function gateWrapperScript(): string {
     '  else',
     '    printf "%s000" "$(date +%s)"',
     '  fi',
+    '}',
+    'pd_epoch_ms() {',
+    '  printf "%s000" "$(date +%s)"',
     '}',
     'pd_debug_lock_acquire() {',
     '  pd_attempt=0',
@@ -154,6 +173,146 @@ function gateWrapperScript(): string {
     '}',
     'pd_debug_skip() {',
     '  pd_debug_finish "$1" 0',
+    '  exit 0',
+    '}',
+    '',
+    '# Fail-open circuit breaker. The state format is intentionally tiny and',
+    '# sanitized: lifecycle state and timing only, never hook input or output.',
+    'pd_health_dir="$PD_HOME/squid/health"',
+    'pd_state_file="$pd_health_dir/$pd_hook.state"',
+    'pd_probe_dir="$pd_health_dir/$pd_hook.probe"',
+    'pd_state_lock="$pd_health_dir/$pd_hook.state.lock"',
+    'pd_notice_file="$pd_health_dir/remediation.notice"',
+    'pd_breaker_state=closed',
+    'pd_failure_count=0',
+    'pd_opened_ms=0',
+    'pd_retry_ms=0',
+    'pd_last_reason=none',
+    'pd_last_duration_ms=0',
+    'pd_last_exit=-',
+    'pd_updated_ms=0',
+    'pd_is_probe=0',
+    'pd_time_file="$pd_health_dir/$pd_hook.time.$$"',
+    'pd_health_load() {',
+    '  [ -f "$pd_state_file" ] || return 0',
+    '  IFS="$(printf "\\t")" read -r pd_version pd_loaded_state pd_loaded_failures pd_loaded_opened pd_loaded_retry pd_loaded_reason pd_loaded_duration pd_loaded_exit pd_loaded_updated < "$pd_state_file" 2>/dev/null || return 0',
+    '  [ "$pd_version" = v1 ] || return 0',
+    '  case "$pd_loaded_state" in closed|open) ;; *) return 0 ;; esac',
+    '  case "$pd_loaded_failures:$pd_loaded_opened:$pd_loaded_retry:$pd_loaded_duration:$pd_loaded_updated" in *[!0-9:]*) return 0 ;; esac',
+    '  case "$pd_loaded_reason" in ""|*[!a-z0-9_-]*) return 0 ;; esac',
+    '  case "$pd_loaded_exit" in -|[0-9]|[0-9][0-9]|[0-9][0-9][0-9]) ;; *) return 0 ;; esac',
+    '  pd_breaker_state=$pd_loaded_state',
+    '  pd_failure_count=$pd_loaded_failures',
+    '  pd_opened_ms=$pd_loaded_opened',
+    '  pd_retry_ms=$pd_loaded_retry',
+    '  pd_last_reason=$pd_loaded_reason',
+    '  pd_last_duration_ms=$pd_loaded_duration',
+    '  pd_last_exit=$pd_loaded_exit',
+    '  pd_updated_ms=$pd_loaded_updated',
+    '}',
+    'pd_health_write() {',
+    '  umask 077',
+    '  mkdir -p "$pd_health_dir" 2>/dev/null || return 0',
+    '  pd_state_tmp="$pd_state_file.$$"',
+    '  printf "v1\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n" "$1" "$2" "$3" "$4" "$5" "$6" "$7" "$8" > "$pd_state_tmp" 2>/dev/null || return 0',
+    '  chmod 600 "$pd_state_tmp" 2>/dev/null || true',
+    '  mv "$pd_state_tmp" "$pd_state_file" 2>/dev/null || rm -f "$pd_state_tmp" 2>/dev/null || true',
+    '}',
+    'pd_health_state_lock_acquire() {',
+    '  pd_lock_attempt=0',
+    '  while ! mkdir "$pd_state_lock" 2>/dev/null; do',
+    '    pd_lock_attempt=$((pd_lock_attempt + 1))',
+    '    pd_state_lock_now=$(date +%s 2>/dev/null || printf 0)',
+    '    pd_state_lock_modified=$(stat -f %m "$pd_state_lock" 2>/dev/null || true)',
+    '    case "$pd_state_lock_modified" in ""|*[!0-9]*) pd_state_lock_modified=$(stat -c %Y "$pd_state_lock" 2>/dev/null || true) ;; esac',
+    '    case "$pd_state_lock_now:$pd_state_lock_modified" in *[!0-9:]*) ;; *) [ $((pd_state_lock_now - pd_state_lock_modified)) -gt 5 ] 2>/dev/null && rmdir "$pd_state_lock" 2>/dev/null ;; esac',
+    '    [ "$pd_lock_attempt" -lt 20 ] || return 1',
+    '    sleep 0.01',
+    '  done',
+    '}',
+    'pd_health_state_lock_release() {',
+    '  rmdir "$pd_state_lock" 2>/dev/null || true',
+    '}',
+    'pd_health_notice_open() {',
+    '  case "$pd_hook" in pd-hook-prompt) pd_hook_label="PD TURN" ;; pd-hook-pre-tool) pd_hook_label="PD EDIT" ;; *) pd_hook_label="PD TRACE" ;; esac',
+    '  umask 077',
+    '  mkdir -p "$pd_health_dir" 2>/dev/null || return 0',
+    '  pd_notice_tmp="$pd_notice_file.$$"',
+    '  printf "◆ PD SAFE MODE · %s disabled after %s consecutive failed or slow calls. Open FleetBar > Giant Squid > Repair.\\n" "$pd_hook_label" "$pd_failure_count" > "$pd_notice_tmp" 2>/dev/null || return 0',
+    '  chmod 600 "$pd_notice_tmp" 2>/dev/null || true',
+    '  mv "$pd_notice_tmp" "$pd_notice_file" 2>/dev/null || rm -f "$pd_notice_tmp" 2>/dev/null || true',
+    '}',
+    'pd_health_notice_emit() {',
+    '  [ "$pd_hook" = pd-hook-prompt ] || return 0',
+    '  [ -f "$pd_notice_file" ] || return 0',
+    '  pd_notice_claim="$pd_notice_file.emit.$$"',
+    '  mv "$pd_notice_file" "$pd_notice_claim" 2>/dev/null || return 0',
+    '  cat "$pd_notice_claim" 2>/dev/null || true',
+    '  rm -f "$pd_notice_claim" 2>/dev/null || true',
+    '}',
+    'pd_health_record_unhealthy() {',
+    '  pd_reason=$1',
+    '  pd_exit_value=$2',
+    '  pd_duration_value=$3',
+    '  pd_health_state_lock_acquire || return 0',
+    '  pd_health_load',
+    '  pd_was_open=$pd_breaker_state',
+    '  pd_health_now=$(pd_epoch_ms 2>/dev/null) || pd_health_now=0',
+    '  pd_failure_count=$((pd_failure_count + 1))',
+    '  if [ "$pd_is_probe" -eq 1 ] || [ "$pd_failure_count" -ge "$pd_failure_threshold" ]; then',
+    '    pd_breaker_state=open',
+    '    pd_opened_ms=$pd_health_now',
+    '    pd_retry_ms=$((pd_health_now + pd_cooldown_ms))',
+    '    pd_health_write open "$pd_failure_count" "$pd_opened_ms" "$pd_retry_ms" "$pd_reason" "$pd_duration_value" "$pd_exit_value" "$pd_health_now"',
+    '    rmdir "$pd_probe_dir" 2>/dev/null || true',
+    '    [ "$pd_was_open" = open ] || pd_health_notice_open',
+    '  else',
+    '    pd_health_write closed "$pd_failure_count" 0 0 "$pd_reason" "$pd_duration_value" "$pd_exit_value" "$pd_health_now"',
+    '  fi',
+    '  pd_health_state_lock_release',
+    '}',
+    'pd_health_record_healthy() {',
+    '  if [ -f "$pd_state_file" ] || [ -d "$pd_probe_dir" ]; then',
+    '    pd_health_state_lock_acquire || return 0',
+    '    rm -f "$pd_state_file" 2>/dev/null || true',
+    '    rmdir "$pd_probe_dir" 2>/dev/null || true',
+    '    rm -f "$pd_notice_file" 2>/dev/null || true',
+    '    pd_health_state_lock_release',
+    '  fi',
+    '}',
+    'pd_health_probe_acquire() {',
+    '  mkdir "$pd_probe_dir" 2>/dev/null && return 0',
+    '  pd_probe_now=$(date +%s 2>/dev/null || printf 0)',
+    '  pd_probe_modified=$(stat -f %m "$pd_probe_dir" 2>/dev/null || true)',
+    '  case "$pd_probe_modified" in ""|*[!0-9]*) pd_probe_modified=$(stat -c %Y "$pd_probe_dir" 2>/dev/null || true) ;; esac',
+    '  case "$pd_probe_now:$pd_probe_modified" in *[!0-9:]*) return 1 ;; esac',
+    '  [ $((pd_probe_now - pd_probe_modified)) -gt 5 ] 2>/dev/null || return 1',
+    '  rmdir "$pd_probe_dir" 2>/dev/null || return 1',
+    '  mkdir "$pd_probe_dir" 2>/dev/null',
+    '}',
+    'pd_health_duration_read() {',
+    '  pd_duration_ms=0',
+    '  pd_elapsed=',
+    '  while IFS=" " read -r pd_time_kind pd_time_value; do',
+    '    if [ "$pd_time_kind" = real ]; then pd_elapsed=$pd_time_value; break; fi',
+    '  done < "$pd_time_file" 2>/dev/null || true',
+    '  rm -f "$pd_time_file" 2>/dev/null || true',
+    '  case "$pd_elapsed" in',
+    '    [0-9]*.[0-9][0-9])',
+    '      pd_seconds=${pd_elapsed%.*}',
+    '      pd_hundredths=${pd_elapsed#*.}',
+    '      case "$pd_seconds:$pd_hundredths" in *[!0-9:]*) return 0 ;; esac',
+    '      pd_seconds=${pd_seconds#0}; [ -n "$pd_seconds" ] || pd_seconds=0',
+    '      pd_hundredths=${pd_hundredths#0}; [ -n "$pd_hundredths" ] || pd_hundredths=0',
+    '      pd_duration_ms=$((pd_seconds * 1000 + pd_hundredths * 10))',
+    '      ;;',
+    '  esac',
+    '}',
+    'pd_health_signal() {',
+    '  trap - HUP INT TERM',
+    '  rm -f "$pd_time_file" 2>/dev/null || true',
+    '  pd_health_record_unhealthy signal 124 "$pd_slow_ms"',
+    '  pd_debug_finish interrupted 124',
     '  exit 0',
     '}',
     'if [ -f "$pd_debug_dir/debug.enabled" ]; then',
@@ -190,16 +349,55 @@ function gateWrapperScript(): string {
     '    project_root=$(cd "$d" 2>/dev/null && pwd -P) || pd_debug_skip project_unreadable',
     '    registry="$PD_HOME/squid/projects"',
     '    [ -f "$registry" ] || pd_debug_skip registry_missing',
-    '    grep -Fqx "$project_root" "$registry" 2>/dev/null || pd_debug_skip project_disarmed',
-    '    if [ "$pd_debug" -eq 1 ]; then',
-    '      printf "%s" "$pd_input" | "$PD_HOME/bin/squid/${0##*/}" "$@"',
-    '      pd_exit=$?',
-    '      pd_debug_finish executed "$pd_exit"',
-    '      exit "$pd_exit"',
+    '    pd_project_armed=0',
+    '    while IFS= read -r pd_registered_project; do',
+    '      if [ "$pd_registered_project" = "$project_root" ]; then pd_project_armed=1; break; fi',
+    '    done < "$registry" 2>/dev/null || true',
+    '    [ "$pd_project_armed" -eq 1 ] || pd_debug_skip project_disarmed',
+    '    pd_health_load',
+    '    pd_health_notice_emit',
+    '    if [ "$pd_breaker_state" = open ]; then',
+    '      pd_health_now=$(pd_epoch_ms 2>/dev/null) || pd_health_now=0',
+    '      [ "$pd_health_now" -ge "$pd_retry_ms" ] 2>/dev/null || pd_debug_skip circuit_open',
+    '      mkdir -p "$pd_health_dir" 2>/dev/null || pd_debug_skip circuit_open',
+    '      pd_health_probe_acquire || pd_debug_skip half_open_busy',
+    '      pd_is_probe=1',
     '    fi',
-    '    exec "$PD_HOME/bin/squid/${0##*/}" "$@"',
+    '    [ -d "$pd_health_dir" ] || mkdir -p "$pd_health_dir" 2>/dev/null || true',
+    '    trap pd_health_signal HUP INT TERM',
+    '    pd_real_hook="$PD_HOME/bin/squid/${0##*/}"',
+    '    if [ ! -x "$pd_real_hook" ]; then',
+    '      printf "real 0.00\\nuser 0.00\\nsys 0.00\\n" > "$pd_time_file" 2>/dev/null || true',
+    '      pd_exit=127',
+    '    elif [ "$pd_debug" -eq 1 ]; then',
+    '      { time -p printf "%s" "$pd_input" | "$pd_real_hook" "$@" 2>&3; } 3>&2 2> "$pd_time_file"',
+    '      pd_exit=$?',
+    '    else',
+    '      { time -p "$pd_real_hook" "$@" 2>&3; } 3>&2 2> "$pd_time_file"',
+    '      pd_exit=$?',
+    '    fi',
+    '    trap - HUP INT TERM',
+    '    pd_health_duration_read',
+    '    if [ "$pd_exit" -eq 2 ]; then',
+    '      pd_health_record_healthy',
+    '      pd_debug_finish blocked 2',
+    '      exit 2',
+    '    fi',
+    '    if [ "$pd_exit" -eq 0 ] && [ "$pd_duration_ms" -lt "$pd_slow_ms" ]; then',
+    '      pd_health_record_healthy',
+    '      pd_debug_finish executed 0',
+    '      exit 0',
+    '    fi',
+    '    if [ "$pd_exit" -eq 0 ]; then',
+    '      pd_health_record_unhealthy slow 0 "$pd_duration_ms"',
+    '      pd_debug_finish slow 0',
+    '      exit 0',
+    '    fi',
+    '    pd_health_record_unhealthy "exit_$pd_exit" "$pd_exit" "$pd_duration_ms"',
+    '    pd_debug_finish failure_swallowed "$pd_exit"',
+    '    exit 0',
     '  fi',
-    '  d=$(dirname "$d")',
+    '  d=${d%/*}; [ -n "$d" ] || d=/',
     'done',
     '# not a pd project (or daemon down) -> no-op; allow the tool (fail open).',
     'pd_debug_skip no_project',
@@ -275,29 +473,50 @@ export function stageTentacles(
   sourceDir?: string,
   destBinDir = tentacleBinDir(),
 ): StageResult {
+  const resolved = TENTACLES.map((name) => {
+    const explicit = sourceDir ? join(sourceDir, name) : null;
+    const source = explicit ? (existsSync(explicit) ? explicit : null) : resolveSquidAsset(join('bin', name));
+    return { name, source };
+  });
+  const missing = resolved.filter((candidate) => candidate.source === null).map((candidate) => candidate.name);
+  if (missing.length > 0) {
+    return { staged: [], missing, sourceDir: sourceDir ?? 'runtime asset resolver' };
+  }
+
   const realDir = join(destBinDir, 'squid');
   const binDir = destBinDir;
+  const healthDir = join(dirname(binDir), 'squid', 'health');
   mkdirSync(realDir, { recursive: true });
   mkdirSync(binDir, { recursive: true });
+  mkdirSync(healthDir, { recursive: true, mode: 0o700 });
+  chmodSync(healthDir, 0o700);
 
   const staged: string[] = [];
-  const missing: TentacleName[] = [];
-
-  for (const name of TENTACLES) {
-    const explicit = sourceDir ? join(sourceDir, name) : null;
-    const src = explicit ? (existsSync(explicit) ? explicit : null) : resolveSquidAsset(join('bin', name));
-    if (!src) {
-      missing.push(name);
-      continue;
+  const suffix = `.stage-${process.pid}-${Date.now()}`;
+  const temporary: string[] = [];
+  try {
+    for (const { name, source } of resolved) {
+      const src = source as string;
+      const realDst = join(realDir, name);
+      const realTmp = `${realDst}${suffix}`;
+      const wrapper = join(binDir, name);
+      const wrapperTmp = `${wrapper}${suffix}`;
+      copyFileSync(src, realTmp);
+      chmodSync(realTmp, 0o755);
+      writeFileSync(wrapperTmp, gateWrapperScript(), { mode: 0o755 });
+      chmodSync(wrapperTmp, 0o755);
+      temporary.push(realTmp, wrapperTmp);
     }
-    const realDst = join(realDir, name);
-    copyFileSync(src, realDst);
-    chmodSync(realDst, 0o755);
-    // gate wrapper that delegates to the real tentacle
-    const wrapper = join(binDir, name);
-    writeFileSync(wrapper, gateWrapperScript(), { mode: 0o755 });
-    chmodSync(wrapper, 0o755);
-    staged.push(wrapper);
+
+    for (const { name } of resolved) {
+      const realDst = join(realDir, name);
+      const wrapper = join(binDir, name);
+      renameSync(`${realDst}${suffix}`, realDst);
+      renameSync(`${wrapper}${suffix}`, wrapper);
+      staged.push(wrapper);
+    }
+  } finally {
+    for (const path of temporary) rmSync(path, { force: true });
   }
   return { staged, missing, sourceDir: sourceDir ?? 'runtime asset resolver' };
 }
@@ -504,7 +723,12 @@ export function uninstallTarget(
   let configPath: string;
   if (opts.scope === 'user') configPath = target.userConfigPath;
   else if (target.projectConfigPath) configPath = target.projectConfigPath(opts.cwd ?? process.cwd());
-  else return { success: true, path: '', skipped: 'no project surface' };
+  else if (target.format === 'codex-toml') {
+    // Current Codex reads user config, but releases before 3.30 also wrote a
+    // project-local TOML block. Sweep that retired surface so a cached or future
+    // project loader cannot keep calling a deleted Homebrew Cellar path.
+    configPath = join(opts.cwd ?? process.cwd(), '.codex', 'config.toml');
+  } else return { success: true, path: '', skipped: 'no project surface' };
 
   if (!existsSync(configPath)) return { success: true, path: configPath, skipped: 'no config' };
 
@@ -540,6 +764,10 @@ function wireTarget(target: AgentCliTarget, cwd: string, alsoUser: boolean): Con
     if (alsoUser) out.push(configureTarget(target, { scope: 'user' }));
   } else {
     // codex/agy: user-level is the only interactive surface; the gate scopes it.
+    if (target.format === 'codex-toml') {
+      const cleanup = uninstallTarget(target, { scope: 'project', cwd });
+      if (!cleanup.success) out.push(cleanup);
+    }
     out.push(configureTarget(target, { scope: 'user' }));
   }
   return out;
@@ -606,10 +834,12 @@ export function inspectHookTargets(home = DEFAULT_HOME, cwd = process.cwd()): Ho
  */
 export function silentHooksInstall(
   home = DEFAULT_HOME,
-  opts: { cwd?: string } = {},
+  opts: { cwd?: string; stage?: StageResult; resetHealthOnSuccess?: boolean } = {},
 ): SilentHooksResult {
   const cwd = opts.cwd ?? process.cwd();
-  const stage = stageTentacles();
+  // `pd squid on` already stages once for the whole arm transaction. Reuse
+  // that fulfilled result instead of repeating release-asset discovery/copies.
+  const stage = opts.stage ?? stageTentacles();
   const detected = buildTargets(home).filter((t) => t.detect());
   const result: SilentHooksResult = {
     configured: 0,
@@ -629,6 +859,8 @@ export function silentHooksInstall(
   }
   if (result.failures.length > 0 || result.configured < detected.length) {
     unregisterSquidProject(cwd);
+  } else if (opts.resetHealthOnSuccess !== false) {
+    resetSquidHookHealth();
   }
   return result;
 }
@@ -740,6 +972,7 @@ export async function handleHooks(
     ui.warn(`Hook installation failed closed; this project remains inert (${failures.join('; ')}).`);
     process.exitCode = 1;
   } else {
+    resetSquidHookHealth();
     ui.success('Coordination hooks wired for this project (active only when the daemon is up).');
   }
   if (detected.some((t) => t.slug === 'codex')) {

@@ -27,12 +27,42 @@ export const SQUID_HOOK_DEBUG_SCHEMA_VERSION = 1;
 export { SQUID_HOOK_DEADLINE_MS };
 export const SQUID_HOOK_DEBUG_MAX_BYTES = 2 * 1024 * 1024;
 export const SQUID_HOOK_DEBUG_TRIM_BYTES = Math.floor(SQUID_HOOK_DEBUG_MAX_BYTES * 0.75);
+/** NASA-style explicit hook reliability thresholds: testable, versioned, and operator-visible. */
+export const SQUID_HOOK_BREAKER_FAILURE_THRESHOLD = 3;
+export const SQUID_HOOK_BREAKER_SLOW_MS = 250;
+export const SQUID_HOOK_BREAKER_COOLDOWN_MS = 5 * 60 * 1_000;
 const SQUID_HOOK_DEBUG_MAX_READ_BYTES = SQUID_HOOK_DEBUG_MAX_BYTES * 2;
 const SQUID_HOOK_DEBUG_MAX_STEPS = 2_000;
 
 export type SquidHookProvider = 'claude' | 'codex' | 'gemini' | 'agy' | 'unknown';
 export type SquidHookPhase = 'turn' | 'edit' | 'trace';
 export type SquidHookStepState = 'running' | 'overdue' | 'completed' | 'skipped' | 'blocked' | 'failed';
+export type SquidHookCircuitState = 'closed' | 'open' | 'half_open';
+
+export interface SquidHookCircuit {
+  hook: string;
+  label: 'PD TURN' | 'PD EDIT' | 'PD TRACE';
+  state: SquidHookCircuitState;
+  consecutiveFailures: number;
+  openedAt: string | null;
+  retryAt: string | null;
+  lastReason: string;
+  lastDurationMs: number;
+  lastExitCode: number | null;
+  updatedAt: string;
+}
+
+export interface SquidHookHealthSnapshot {
+  degraded: boolean;
+  capturedAt: string;
+  thresholds: {
+    consecutiveFailures: number;
+    slowMs: number;
+    cooldownMs: number;
+  };
+  circuits: SquidHookCircuit[];
+  remediation: string;
+}
 
 export interface SquidHookDebugPaths {
   enabled: string;
@@ -76,6 +106,7 @@ export interface SquidHookDebugSnapshot {
   workspace: string | null;
   privacy: string;
   retention: { maxBytes: number; eventPath: string };
+  health: SquidHookHealthSnapshot;
   sessions: SquidHookDebugSession[];
 }
 
@@ -98,6 +129,94 @@ export function squidHookDebugPaths(pdHome = PD_HOME): SquidHookDebugPaths {
   return {
     enabled: join(dir, 'debug.enabled'),
     events: join(dir, 'hook-events.log'),
+  };
+}
+
+/**
+ * Resolve the private circuit-breaker directory shared by hook wrappers and
+ * operator readers. The design keeps health outside provider configuration so
+ * an upgrade can replace wrappers without losing the reason they disabled.
+ *
+ * @param pdHome Port Daddy state root.
+ * @returns Absolute directory containing sanitized hook health state.
+ */
+export function squidHookHealthDir(pdHome = PD_HOME): string {
+  return join(pdHome, 'squid', 'health');
+}
+
+/**
+ * Clear breaker latches only after a successful operator-visible repair. This
+ * explicit reset is the recovery boundary: config writes or partial staging do
+ * not silently manufacture a healthy state.
+ *
+ * @param pdHome Port Daddy state root whose hook health is repaired.
+ */
+export function resetSquidHookHealth(pdHome = PD_HOME): void {
+  const healthDir = squidHookHealthDir(pdHome);
+  rmSync(healthDir, { recursive: true, force: true });
+  mkdirSync(healthDir, { recursive: true, mode: 0o700 });
+  chmodSync(healthDir, 0o700);
+}
+
+/**
+ * Read the shell breaker's tiny, sanitized state files. No prompt, tool input,
+ * argv, environment, stdout, or stderr can enter this contract.
+ *
+ * @param pdHome Port Daddy state root containing the hook health directory.
+ * @param nowMs Capture time used to make the returned snapshot deterministic.
+ * @returns Validated health state suitable for CLI JSON and FleetBar.
+ */
+export function readSquidHookHealth(pdHome = PD_HOME, nowMs = Date.now()): SquidHookHealthSnapshot {
+  const healthDir = squidHookHealthDir(pdHome);
+  const circuits = [
+    ['pd-hook-prompt', 'PD TURN'],
+    ['pd-hook-pre-tool', 'PD EDIT'],
+    ['pd-hook-post-tool', 'PD TRACE'],
+  ].flatMap(([hook, label]) => {
+    const statePath = join(healthDir, `${hook}.state`);
+    if (!existsSync(statePath)) return [];
+    try {
+      const fields = readFileSync(statePath, 'utf8').trim().split('\t');
+      if (fields.length !== 9 || fields[0] !== 'v1') return [];
+      const [, rawState, failuresRaw, openedRaw, retryRaw, reason, durationRaw, exitRaw, updatedRaw] = fields;
+      if (rawState !== 'closed' && rawState !== 'open') return [];
+      if (!/^[a-z0-9_-]{1,48}$/.test(reason)) return [];
+      const values = [failuresRaw, openedRaw, retryRaw, durationRaw, updatedRaw];
+      if (values.some((value) => !/^[0-9]{1,16}$/.test(value))) return [];
+      if (exitRaw !== '-' && !/^[0-9]{1,3}$/.test(exitRaw)) return [];
+      const failures = Number(failuresRaw);
+      const openedAtMs = Number(openedRaw);
+      const retryAtMs = Number(retryRaw);
+      const durationMs = Number(durationRaw);
+      const updatedAtMs = Number(updatedRaw);
+      if (![failures, openedAtMs, retryAtMs, durationMs, updatedAtMs].every(Number.isSafeInteger)) return [];
+      const halfOpen = rawState === 'open' && existsSync(join(healthDir, `${hook}.probe`));
+      return [{
+        hook,
+        label: label as SquidHookCircuit['label'],
+        state: halfOpen ? 'half_open' as const : rawState,
+        consecutiveFailures: failures,
+        openedAt: openedAtMs > 0 ? iso(openedAtMs) : null,
+        retryAt: retryAtMs > 0 ? iso(retryAtMs) : null,
+        lastReason: reason,
+        lastDurationMs: durationMs,
+        lastExitCode: exitRaw === '-' ? null : Number(exitRaw),
+        updatedAt: iso(updatedAtMs),
+      } satisfies SquidHookCircuit];
+    } catch {
+      return [];
+    }
+  });
+  return {
+    degraded: circuits.some((circuit) => circuit.state === 'open' || circuit.state === 'half_open'),
+    capturedAt: iso(nowMs),
+    thresholds: {
+      consecutiveFailures: SQUID_HOOK_BREAKER_FAILURE_THRESHOLD,
+      slowMs: SQUID_HOOK_BREAKER_SLOW_MS,
+      cooldownMs: SQUID_HOOK_BREAKER_COOLDOWN_MS,
+    },
+    circuits,
+    remediation: 'Open FleetBar, select Giant Squid, and choose Repair. Successful repair restages stable wrappers and clears the latch.',
   };
 }
 
@@ -196,6 +315,7 @@ export function readSquidHookDebugSnapshot(options: {
     workspace,
     privacy: 'Sanitized timing only: no argv, environment snapshot, prompts, tool inputs, tool results, stdout, or stderr are captured.',
     retention: { maxBytes: SQUID_HOOK_DEBUG_MAX_BYTES, eventPath: paths.events },
+    health: readSquidHookHealth(pdHome, nowMs),
     sessions: [...sessionsByKey.values()].sort((a, b) => Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt)),
   };
 }
@@ -301,9 +421,10 @@ function buildStep(start: RawEvent, finish: RawEvent | null, nowMs: number): Squ
 
 function stepState(start: RawEvent, finish: RawEvent | null, nowMs: number): SquidHookStepState {
   if (!finish) return nowMs > start.atMs + start.deadlineMs ? 'overdue' : 'running';
+  if (finish.outcome === 'blocked' || finish.exitCode === 2) return 'blocked';
+  if (['failure_swallowed', 'slow', 'interrupted'].includes(finish.outcome ?? '')) return 'failed';
   if (finish.outcome !== 'executed') return 'skipped';
   if (finish.exitCode === 0) return 'completed';
-  if (finish.exitCode === 2) return 'blocked';
   return 'failed';
 }
 
@@ -322,9 +443,18 @@ function describeStep(phase: SquidHookPhase, state: SquidHookStepState, outcome:
         : state === 'blocked'
           ? 'The hook deliberately blocked the operation because its safety check failed.'
           : state === 'failed'
-            ? `The hook failed with exit status ${exitCode ?? 'unknown'}; the host should surface the actionable error.`
+            ? failureDescription(outcome, exitCode)
             : `The gate skipped the hook (${outcomeLabel(outcome)}) and allowed the tool to proceed.`;
   return `${first} ${second}`;
+}
+
+function failureDescription(outcome: string | null, exitCode: number | null): string {
+  if (outcome === 'slow') return 'It exceeded the latency budget, so the call was contained and counted toward self-disable.';
+  if (outcome === 'interrupted') return 'It was interrupted, failed open, and counted toward self-disable.';
+  if (outcome === 'failure_swallowed') {
+    return `It exited unexpectedly with status ${exitCode ?? 'unknown'}; the failure was contained and counted toward self-disable.`;
+  }
+  return `It failed with exit status ${exitCode ?? 'unknown'}; inspect hook health for remediation.`;
 }
 
 function outcomeLabel(outcome: string | null): string {
@@ -336,6 +466,8 @@ function outcomeLabel(outcome: string | null): string {
     case 'project_unreadable': return 'project root could not be resolved';
     case 'registry_missing': return 'Squid project registry missing';
     case 'project_disarmed': return 'this project is not armed';
+    case 'circuit_open': return 'the hook disabled itself after repeated unhealthy calls';
+    case 'half_open_busy': return 'another call owns the single recovery probe';
     default: return outcome ?? 'inactive gate';
   }
 }

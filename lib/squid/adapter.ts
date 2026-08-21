@@ -151,6 +151,25 @@ export function tentaclePath(name: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-h
   return squidAssetCandidates(join('bin', name))[0];
 }
 
+/**
+ * Stable hook command path written into vendor lifecycle configuration.
+ *
+ * `tentaclePath()` locates the versioned release asset so it can be staged;
+ * lifecycle configuration must never retain that packaging path. Homebrew
+ * removes old Cellar directories during upgrade, while this user-owned shim is
+ * replaced atomically by every successful Squid repair.
+ *
+ * @param name Hook executable whose durable command interface is required.
+ * @param pdHome Port Daddy state root that owns the stable shim directory.
+ * @returns Absolute, upgrade-stable path for provider lifecycle configuration.
+ */
+export function hookCommandPath(
+  name: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool',
+  pdHome = process.env.PD_HOME?.trim() || join(homedir(), '.port-daddy'),
+): string {
+  return join(pdHome, 'bin', name);
+}
+
 /** Assert the tentacles exist and are executable; throws a clear error if not. */
 export function assertTentaclesPresent(): void {
   for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool'] as const) {
@@ -177,7 +196,7 @@ export interface SquidProviderHookDiagnosis {
 }
 
 function hasPortDaddyHook(group: ClaudeHookMatcher | undefined, purpose: SquidHookPurpose): boolean {
-  if (!group?.hooks?.some((hook) => hook.command?.includes(tentaclePath(commandForPurpose(purpose))))) {
+  if (!group?.hooks?.some((hook) => hook.command?.includes(hookCommandPath(commandForPurpose(purpose))))) {
     return false;
   }
   const meta = SQUID_HOOK_METADATA[purpose];
@@ -259,8 +278,8 @@ function diagnoseCodexHookFile(workspaceRoot: string): SquidProviderHookDiagnosi
     SQUID_HOOK_PRIVACY_NOTICE,
     SQUID_HOOK_METADATA.prompt.displayName,
     SQUID_HOOK_METADATA.preTool.displayName,
-    tentaclePath('pd-hook-prompt'),
-    tentaclePath('pd-hook-pre-tool'),
+    hookCommandPath('pd-hook-prompt'),
+    hookCommandPath('pd-hook-pre-tool'),
   ];
   const missing = required.filter((needle) => !text.includes(needle));
   if (missing.length > 0) {
@@ -412,9 +431,9 @@ export class ClaudeCliSquidAdapter implements GiantSquidAdapter {
 
     const wanted: Record<string, ClaudeHookMatcher> = {
       // UserPromptSubmit has no tool matcher — it always fires.
-      UserPromptSubmit: claudeHookEntry(tentaclePath('pd-hook-prompt'), 'prompt'),
+      UserPromptSubmit: claudeHookEntry(hookCommandPath('pd-hook-prompt'), 'prompt'),
       // Only a decision-bearing direct edit earns a synchronous tool hook.
-      PreToolUse: claudeHookEntry(tentaclePath('pd-hook-pre-tool'), 'preTool', CLAUDE_TOOL_MATCHER),
+      PreToolUse: claudeHookEntry(hookCommandPath('pd-hook-pre-tool'), 'preTool', CLAUDE_TOOL_MATCHER),
     };
 
     for (const [event, entry] of Object.entries(wanted)) {
@@ -537,8 +556,8 @@ export class GeminiSquidAdapter implements GiantSquidAdapter {
     cfg['hooks'] = hooks;
     removeJsonHooks(cfg);
     const wanted: Record<string, ClaudeHookMatcher> = {
-      [GEMINI_EVENT.prompt]: claudeHookEntry(tentaclePath('pd-hook-prompt'), 'prompt'),
-      [GEMINI_EVENT.preTool]: claudeHookEntry(tentaclePath('pd-hook-pre-tool'), 'preTool', GEMINI_TOOL_MATCHER),
+      [GEMINI_EVENT.prompt]: claudeHookEntry(hookCommandPath('pd-hook-prompt'), 'prompt'),
+      [GEMINI_EVENT.preTool]: claudeHookEntry(hookCommandPath('pd-hook-pre-tool'), 'preTool', GEMINI_TOOL_MATCHER),
     };
     for (const [event, entry] of Object.entries(wanted)) {
       const existing = hooks[event] ?? [];
@@ -634,7 +653,7 @@ export class CodexSquidAdapter implements GiantSquidAdapter {
     const cfgPath = join(workspaceRoot, '.codex', 'config.toml');
     mkdirSync(dirname(cfgPath), { recursive: true });
 
-    const block = codexHooksTomlBlock((name) => tentaclePath(name), {
+    const block = codexHooksTomlBlock((name) => hookCommandPath(name), {
       comments: [
         `Privacy: ${SQUID_HOOK_PRIVACY_NOTICE}`,
         `${SQUID_HOOK_METADATA.prompt.displayName}: ${SQUID_HOOK_METADATA.prompt.description}`,
@@ -791,8 +810,8 @@ export class AntigravitySquidAdapter implements GiantSquidAdapter {
     // PostToolUse/UserPromptSubmit), matched on its OWN tool names plus the
     // Claude/Gemini ones, so we cast a wide matcher.
     const wanted: Record<string, ClaudeHookMatcher> = {
-      UserPromptSubmit: claudeHookEntry(tentaclePath('pd-hook-prompt'), 'prompt'),
-      PreToolUse: claudeHookEntry(tentaclePath('pd-hook-pre-tool'), 'preTool', AGY_TOOL_MATCHER),
+      UserPromptSubmit: claudeHookEntry(hookCommandPath('pd-hook-prompt'), 'prompt'),
+      PreToolUse: claudeHookEntry(hookCommandPath('pd-hook-pre-tool'), 'preTool', AGY_TOOL_MATCHER),
     };
     for (const [event, entry] of Object.entries(wanted)) {
       const existing = hooks[event] ?? [];
