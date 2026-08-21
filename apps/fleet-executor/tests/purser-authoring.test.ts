@@ -74,6 +74,11 @@ describe('extractCodeFence', () => {
     expect(extractCodeFence(`\`\`\`ts\n${rawTimeline}\n\`\`\``)).toBeNull();
   });
 
+  it('rejects a JSON string even when its value contains source-looking syntax', () => {
+    const encodedSource = JSON.stringify('test("looks real", () => expect(true).toBe(true));');
+    expect(extractCodeFence(`\`\`\`ts\n${encodedSource}\n\`\`\``)).toBeNull();
+  });
+
   it('chooses real source over a longer fenced data fixture', () => {
     const fixture = JSON.stringify({ sessions: Array.from({ length: 20 }, (_, i) => ({ id: i })) }, null, 2);
     const source = 'test("drops data-only author output", () => {\n  expect(true).toBe(true);\n});';
