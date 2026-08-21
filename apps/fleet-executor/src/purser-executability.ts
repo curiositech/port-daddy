@@ -34,7 +34,8 @@ export type ExecutabilityResult =
         | 'missing-discovery-evidence'
         | 'undiscoverable-path'
         | 'missing-tree-evidence'
-        | 'unresolved-import';
+        | 'unresolved-import'
+        | 'incompatible-runner';
       path?: string;
       specifier?: string;
     };
@@ -107,6 +108,18 @@ export function extractPackageJsonTestMatch(source: string): string[] | null {
   return out.length > 0 ? out : null;
 }
 
+/** Does the trusted package manifest put JavaScript in ESM mode? */
+export function extractPackageTypeModule(source: string): boolean | null {
+  let doc: unknown;
+  try {
+    doc = JSON.parse(source);
+  } catch {
+    return null;
+  }
+  const type = (doc as { type?: unknown } | null)?.type;
+  return typeof type === 'string' ? type === 'module' : false;
+}
+
 /**
  * Convert one jest `testMatch` glob into a RegExp.
  *
@@ -177,9 +190,10 @@ export function matchesAnyTestMatch(path: string, patterns: string[]): boolean {
 /**
  * Pull every relative (`./` or `../`) import/require specifier out of a test
  * file's source — the ONLY imports this module verifies. The rationale for that
- * narrow scope: bare specifiers
- * (`from 'vitest'`) are package imports; resolving those would mean walking
- * node_modules, which is not this gate's job and is not what broke #5860.
+ * narrow scope: resolving arbitrary package imports would mean walking
+ * node_modules, which this Cloudflare-side gate cannot do. Known runner
+ * mismatches are checked separately by `extractBareImports` against the
+ * repository's trusted discovery configuration.
  *
  * @param source the authored test file's contents
  * @returns the de-duplicated relative specifiers exactly as written (e.g.
@@ -198,6 +212,121 @@ export function extractRelativeImports(source: string): string[] {
     while ((m = re.exec(source))) specs.add(m[1]);
   }
   return [...specs];
+}
+
+/** Bare package imports used by an authored test, in first-seen order. */
+export function extractBareImports(source: string): string[] {
+  const matches: Array<{ index: number; specifier: string }> = [];
+  const patterns = [
+    /\brequire\(\s*['"]([^'"]+)['"]\s*\)/g,
+    /\bfrom\s+['"]([^'"]+)['"]/g,
+    /\bimport\s+['"]([^'"]+)['"]/g,
+    /\bimport\(\s*['"]([^'"]+)['"]\s*\)/g,
+  ];
+  for (const re of patterns) {
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(source))) {
+      const specifier = m[1];
+      if (!specifier.startsWith('.') && !specifier.startsWith('/')) {
+        matches.push({ index: m.index, specifier });
+      }
+    }
+  }
+  matches.sort((a, b) => a.index - b.index);
+  return [...new Set(matches.map(match => match.specifier))];
+}
+
+function maskJsTriviaAndStringText(source: string): string {
+  const out = Array<string>(source.length).fill(' ');
+  let mode: 'code' | 'single' | 'double' | 'template' | 'line-comment' | 'block-comment' = 'code';
+  const templateExpressionDepth: number[] = [];
+
+  for (let i = 0; i < source.length; i += 1) {
+    const ch = source[i];
+    const next = source[i + 1];
+
+    if (mode === 'line-comment') {
+      if (ch === '\n') {
+        out[i] = ch;
+        mode = 'code';
+      }
+      continue;
+    }
+    if (mode === 'block-comment') {
+      if (ch === '*' && next === '/') {
+        i += 1;
+        mode = 'code';
+      }
+      continue;
+    }
+    if (mode === 'single' || mode === 'double') {
+      if (ch === '\\') {
+        i += 1;
+      } else if ((mode === 'single' && ch === "'") || (mode === 'double' && ch === '"')) {
+        mode = 'code';
+      }
+      continue;
+    }
+    if (mode === 'template') {
+      if (ch === '\\') {
+        i += 1;
+      } else if (ch === '`') {
+        mode = 'code';
+      } else if (ch === '$' && next === '{') {
+        templateExpressionDepth.push(1);
+        i += 1;
+        mode = 'code';
+      }
+      continue;
+    }
+
+    if (ch === '/' && next === '/') {
+      i += 1;
+      mode = 'line-comment';
+      continue;
+    }
+    if (ch === '/' && next === '*') {
+      i += 1;
+      mode = 'block-comment';
+      continue;
+    }
+    if (ch === "'") {
+      mode = 'single';
+      continue;
+    }
+    if (ch === '"') {
+      mode = 'double';
+      continue;
+    }
+    if (ch === '`') {
+      mode = 'template';
+      continue;
+    }
+    if (templateExpressionDepth.length > 0 && ch === '{') {
+      templateExpressionDepth[templateExpressionDepth.length - 1] += 1;
+      out[i] = ch;
+      continue;
+    }
+    if (templateExpressionDepth.length > 0 && ch === '}') {
+      const top = templateExpressionDepth.length - 1;
+      templateExpressionDepth[top] -= 1;
+      if (templateExpressionDepth[top] === 0) {
+        templateExpressionDepth.pop();
+        mode = 'template';
+      } else {
+        out[i] = ch;
+      }
+      continue;
+    }
+    out[i] = ch;
+  }
+  return out.join('');
+}
+
+function usesUnboundDirname(source: string): boolean {
+  const code = maskJsTriviaAndStringText(source);
+  if (/\b(?:const|let|var)\s+__dirname\b/.test(code)) return false;
+  return /\b__dirname\b/.test(code);
 }
 
 /**
@@ -413,6 +542,8 @@ export interface ExecutabilityEvidence {
   testMatchPatterns: string[] | null;
   /** Every path in the repo tree at the PR's base sha, or null if unknown (fetch failed/truncated). */
   repoTreePaths: Set<string> | null;
+  /** Whether the trusted package.json sets `type: module`; null when unavailable. */
+  packageTypeModule?: boolean | null;
 }
 
 /**
@@ -453,6 +584,33 @@ export function checkGeneratedTestsExecutable(
         reason:
           `${f.path} is outside the repo's configured test discovery path ` +
           `(testMatch: ${evidence.testMatchPatterns.join(', ')}) — the test runner would never find it`,
+      };
+    }
+  }
+  const foreignRunnerImports = new Set(['bun:test', 'node:test', 'vitest']);
+  for (const f of files) {
+    const incompatible = extractBareImports(f.contents).find(specifier =>
+      foreignRunnerImports.has(specifier),
+    );
+    if (incompatible) {
+      return {
+        ok: false,
+        kind: 'incompatible-runner',
+        path: f.path,
+        specifier: incompatible,
+        reason:
+          `${f.path} imports '${incompatible}', but the trusted discovery configuration routes ` +
+          `this file through Jest — the authored contract would fail in the runner before a test case executes`,
+      };
+    }
+    if (evidence.packageTypeModule === true && usesUnboundDirname(f.contents)) {
+      return {
+        ok: false,
+        kind: 'incompatible-runner',
+        path: f.path,
+        reason:
+          `${f.path} uses __dirname without declaring it in a package with type=module — ` +
+          `Jest would fail to load the authored contract before a test case executes`,
       };
     }
   }

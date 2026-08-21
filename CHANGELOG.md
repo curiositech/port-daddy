@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.30.0] - 2026-08-21
+
+### Added
+- **Trusted executor identity, mediator, and Mercy telemetry complete the remote-fleet control loop.** Relay now provisions operator-approved Fleet Executor identities, verifies signed publish/run reports against the current relay and channel, enforces durable per-harbor daily budgets, predicts mediator conflicts, chains summonses and acknowledgements, and requires a human gate for irreversible actions. The Mercy surface reports hook health and SLO burn with request correlation, bounded identifiers, fail-closed quota errors, and readable mobile evidence.
+
+### Fixed
+- **Agent startup coordination is fast and nonblocking.** Empty `pd attention` calls no longer run channel discovery/history scans inline, and operator-state Guard probes moved behind an asynchronous stale-while-revalidate cache. A fresh current-main daemon now returns real source-CLI attention calls in 0.81–0.94 seconds instead of the observed cold/contention path near 60 seconds, while preserving inbox, channel, and parley delivery semantics.
+- **Fleet and tutorial cleanup paths fail safely.** Executor credentials stay out of transcripts, retryable telemetry drains ride the Worker execution context, generated Purser duplicates no longer masquerade as coverage, and tutorial cleanup preserves its lock owner across retries.
+- **Release publication detects and recovers carrier topology.** Version-transition discovery, token failures, tap polling, and fresh-install contracts are executable tests rather than path-only checks, so a rebased/Purser-carried release can still tag the exact version transition and fail loudly when publication authority is unavailable.
+
 ## [3.29.0] - 2026-08-20
 
 ### Added

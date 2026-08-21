@@ -16,6 +16,7 @@ import { aggregateConclusion } from '../src/verdict.js';
 import { executeFleet } from '../src/execute.js';
 import type { PRContext } from '../src/github.js';
 import { extractJestTestMatch, matchesAnyTestMatch } from '../src/purser-executability.js';
+import { encodeFingerprint, fingerprintDiff, withAuthoredTests } from '../src/purser-rerun.js';
 import {
   freshState,
   installGitHubFetch,
@@ -623,7 +624,6 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     ].join('\n');
     const authoredFile = [
       '```ts',
-      "import { describe, it, expect } from 'vitest';",
       "describe('legacy phrase', () => {",
       "  it('keeps the exact phrase', () => expect('dead-lettered').toContain('dead-lettered'));",
       '});',
@@ -855,6 +855,108 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     // No retarget PATCH — the only PR PATCH allowed here is the steel-man
     // contract being written into the PR summary (carries `body`, never `base`).
     expect(state.prPatches.filter(p => p.base)).toHaveLength(0);
+  });
+
+  it('repairs one mixed-runner draft, then fails as broken machinery instead of stacking incompatible tests', async () => {
+    seedRealJestConfig();
+    state.files.set('BASESHA:package.json', '{"type":"module"}');
+    const incompatibleTests = [
+      '```json',
+      JSON.stringify({
+        files: [{
+          path: 'tests/unit/purser/mixed-runner.test.ts',
+          contents: "import { test } from 'bun:test';\ntest('contract', () => {});",
+        }],
+      }),
+      '```',
+    ].join('\n');
+    const stillIncompatible = [
+      '```ts',
+      "import { test } from 'node:test';",
+      "test('contract', () => {});",
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, incompatibleTests, stillIncompatible]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'BLOCK', errored: true });
+    expect(rec.steps.find(s => s.kind === 'purser-author-repair')).toMatchObject({
+      title: expect.stringContaining('FAILED'),
+      detail: expect.objectContaining({
+        originalError: expect.stringContaining("imports 'bun:test'"),
+        result: expect.stringContaining("imports 'node:test'"),
+      }),
+    });
+    expect(state.stackedPrs).toHaveLength(0);
+    expect(state.prPatches.filter(p => p.base)).toHaveLength(0);
+  });
+
+  it('re-authors an incompatible reused suite in place instead of preserving a broken runner loop', async () => {
+    seedRealJestConfig();
+    state.files.set('BASESHA:package.json', '{"type":"module"}');
+    const testPath = 'tests/unit/purser/reused-runner.test.ts';
+    const branch = 'purser/pr-7-tests';
+    const fingerprint = withAuthoredTests(fingerprintDiff(mkCtx().diff ?? ''), [testPath]);
+    (state.openPRs as Array<Record<string, unknown>>).push({
+      number: 8669,
+      title: 'purser: adversarial tests for #7',
+      head: { ref: branch },
+      base: { ref: 'main' },
+      html_url: 'https://github.com/test/pr/8669',
+      body: encodeFingerprint(fingerprint),
+    });
+    state.files.set(
+      `${branch}:${testPath}`,
+      "import { test } from 'bun:test';\ntest('contract', () => {});",
+    );
+    state.gitRefs.set(branch, 'old-invalid-commit');
+
+    const plan = [
+      '```json',
+      JSON.stringify({ files: [{ path: testPath, intent: 'exercise the release contract' }] }),
+      '```',
+    ].join('\n');
+    const repairedFile = [
+      '```ts',
+      "describe('release contract', () => {",
+      "  it('runs under the trusted Jest globals', () => expect(true).toBe(true));",
+      '});',
+      '```',
+    ].join('\n');
+    const { ai } = seqAi([STEELMAN_JSON, plan, repairedFile]);
+    const rec = recorder();
+
+    const result = await runPurser(
+      mkShip({ blocking: true, testPaths: ['tests/unit/purser'] }),
+      mkCtx(),
+      makeEnv({ AI: ai, SANDBOX: sandboxStub(0) }),
+      'tok',
+      rec.transcript,
+      freshMetrics(),
+    );
+
+    expect(result).toMatchObject({ verdict: 'PASS', errored: false });
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(3);
+    expect(rec.steps.find(s => s.kind === 'purser-rerun')).toMatchObject({
+      title: expect.stringContaining('REJECTED non-executable reused tests'),
+      detail: expect.objectContaining({ action: 'author-fresh' }),
+    });
+    expect(state.refUpdates).toBe(1);
+    expect(state.refCreates).toBe(0);
+    expect(state.stackedPrs).toHaveLength(0);
+    expect(state.prPatches).toContainEqual(expect.objectContaining({
+      number: 8669,
+      body: expect.stringContaining('purser-contract-fingerprint'),
+    }));
   });
 
   it('positive control: a path-valid file whose relative import DOES resolve passes the gate and stacks normally', async () => {

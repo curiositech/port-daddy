@@ -2,9 +2,11 @@ import { describe, it, expect } from 'vitest';
 import {
   extractJestTestMatch,
   extractPackageJsonTestMatch,
+  extractPackageTypeModule,
   globToRegExp,
   matchesAnyTestMatch,
   extractRelativeImports,
+  extractBareImports,
   resolveImportCandidates,
   checkGeneratedTestsExecutable,
   repairMisrootedRelativeImport,
@@ -34,6 +36,24 @@ describe('extractJestTestMatch', () => {
 
   it('returns null when no testMatch is present', () => {
     expect(extractJestTestMatch('module.exports = { testEnvironment: "node" };')).toBeNull();
+  });
+});
+
+describe('trusted package and runner evidence', () => {
+  it('reads package module mode without executing the manifest', () => {
+    expect(extractPackageTypeModule('{"type":"module"}')).toBe(true);
+    expect(extractPackageTypeModule('{"type":"commonjs"}')).toBe(false);
+    expect(extractPackageTypeModule('{}')).toBe(false);
+    expect(extractPackageTypeModule('{broken')).toBeNull();
+  });
+
+  it('extracts bare runner imports but not relative repository imports', () => {
+    expect(extractBareImports([
+      "import { test } from 'bun:test';",
+      "import { helper } from '../../../src/helper.js';",
+      "const later = import('vitest');",
+      "require('node:test');",
+    ].join('\n'))).toEqual(['bun:test', 'vitest', 'node:test']);
   });
 });
 
@@ -400,6 +420,101 @@ describe('checkGeneratedTestsExecutable — the gate', () => {
     const result = checkGeneratedTestsExecutable(
       [{ path: 'tests/unit/widget.test.js', contents: 'it("x", () => {});' }],
       { testMatchPatterns: realJestPatterns, repoTreePaths: new Set() },
+    );
+    expect(result).toEqual({ ok: true });
+  });
+
+  it.each(['bun:test', 'node:test', 'vitest'])(
+    'rejects %s in a file the trusted configuration runs with Jest',
+    runner => {
+      const result = checkGeneratedTestsExecutable(
+        [{
+          path: 'tests/unit/purser/runner.contract.test.ts',
+          contents: `import { test } from '${runner}';\ntest('contract', () => {});`,
+        }],
+        { testMatchPatterns: realJestPatterns, repoTreePaths: new Set() },
+      );
+      expect(result).toMatchObject({
+        ok: false,
+        kind: 'incompatible-runner',
+        path: 'tests/unit/purser/runner.contract.test.ts',
+        specifier: runner,
+      });
+    },
+  );
+
+  it('rejects unbound __dirname before an ESM Jest loader can blame the reviewed PR', () => {
+    const result = checkGeneratedTestsExecutable(
+      [{
+        path: 'tests/unit/purser/esm.contract.test.ts',
+        contents: "import { join } from 'node:path';\nconst fixture = join(__dirname, 'fixture');\nit('x', () => fixture);",
+      }],
+      {
+        testMatchPatterns: realJestPatterns,
+        repoTreePaths: new Set(),
+        packageTypeModule: true,
+      },
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      kind: 'incompatible-runner',
+      path: 'tests/unit/purser/esm.contract.test.ts',
+      reason: expect.stringContaining('before a test case executes'),
+    });
+  });
+
+  it('accepts a locally derived ESM dirname under Jest', () => {
+    const result = checkGeneratedTestsExecutable(
+      [{
+        path: 'tests/unit/purser/esm.contract.test.ts',
+        contents: [
+          "import { dirname, join } from 'node:path';",
+          "import { fileURLToPath } from 'node:url';",
+          'const __dirname = dirname(fileURLToPath(import.meta.url));',
+          "it('x', () => join(__dirname, 'fixture'));",
+        ].join('\n'),
+      }],
+      {
+        testMatchPatterns: realJestPatterns,
+        repoTreePaths: new Set(),
+        packageTypeModule: true,
+      },
+    );
+    expect(result).toEqual({ ok: true });
+  });
+
+  it.each([
+    "const fixture = __dirname + '/fixture';",
+    "const fixture = import(__dirname + '/fixture.js');",
+    "const fixture = `${__dirname}/fixture`;",
+  ])('rejects an unbound ESM dirname outside path-helper calls: %s', contents => {
+    const result = checkGeneratedTestsExecutable(
+      [{ path: 'tests/unit/purser/esm.contract.test.ts', contents }],
+      {
+        testMatchPatterns: realJestPatterns,
+        repoTreePaths: new Set(),
+        packageTypeModule: true,
+      },
+    );
+    expect(result).toMatchObject({ ok: false, kind: 'incompatible-runner' });
+  });
+
+  it('ignores __dirname examples inside comments and fixture strings', () => {
+    const result = checkGeneratedTestsExecutable(
+      [{
+        path: 'tests/unit/purser/esm.contract.test.ts',
+        contents: [
+          "const direct = \"__dirname + '/fixture'\";",
+          'const template = `path.resolve(__dirname, "fixture")`;',
+          '// import(__dirname + "/fixture.js")',
+          "it('documents the token', () => expect(direct + template).toContain('__dirname'));",
+        ].join('\n'),
+      }],
+      {
+        testMatchPatterns: realJestPatterns,
+        repoTreePaths: new Set(),
+        packageTypeModule: true,
+      },
     );
     expect(result).toEqual({ ok: true });
   });
