@@ -11,18 +11,21 @@ import * as ui from '../utils/ui.js';
 import { pdFetch, getDaemonUrl } from '../utils/fetch.js';
 import { canPrompt, promptText, promptIdentity, promptConfirm, promptSelect, printRoger } from '../utils/prompt.js';
 import { readLineFromControllingTerminal } from '../utils/tty.js';
-import type { PdFetchResponse } from '../utils/fetch.js';
+import type { FetchOptions, PdFetchResponse } from '../utils/fetch.js';
 
 // Tutorial state — track what we create so we can clean up
-interface TutorialState {
+export interface TutorialState {
   claimedPorts: string[];
   sessionId: string | null;
   agentId: string | null;
   dnsIdentity?: string;
   lockName?: string;
+  lockOwnerAgent?: string;
   inboxSenderAgent?: string;
   inboxReceiverAgent?: string;
 }
+
+type TutorialFetch = (path: string, options?: FetchOptions) => Promise<PdFetchResponse>;
 
 // Mutable state — reset at the start of each handleLearn() invocation
 const state: TutorialState = {
@@ -37,6 +40,7 @@ function resetState(): void {
   state.agentId = null;
   state.dnsIdentity = undefined;
   state.lockName = undefined;
+  state.lockOwnerAgent = undefined;
   state.inboxSenderAgent = undefined;
   state.inboxReceiverAgent = undefined;
 }
@@ -354,7 +358,9 @@ async function lesson8Ending(): Promise<void> {
     const endSession = await promptConfirm('End your tutorial session?', true);
     if (endSession) {
       try {
-        const body: Record<string, unknown> = { note: 'Completed Port Daddy tutorial' };
+        const body: Record<string, unknown> = {
+          note: 'Result: Completed Port Daddy tutorial. not-applicable: tutorial exercise',
+        };
         if (state.agentId) body.agentId = state.agentId;
         if (state.sessionId) body.sessionId = state.sessionId;
 
@@ -491,26 +497,48 @@ async function lesson11Locks(): Promise<void> {
   process.stderr.write(`  Let's acquire a lock, check it, and release it.\n\n`);
 
   const lockName = 'tutorial-lock';
+  const lockOwnerAgent = `tutorial-lock-agent-${Date.now()}`;
 
-  // Acquire lock
   try {
-    const acquireRes: PdFetchResponse = await pdFetch(`/locks/${encodeURIComponent(lockName)}`, {
+    const registerRes: PdFetchResponse = await pdFetch('/agents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ owner: 'tutorial-agent', ttl: 60000 }),
+      body: JSON.stringify({
+        id: lockOwnerAgent,
+        type: 'tutorial',
+        purpose: 'Distributed lock demo owner',
+      }),
     });
-    const lock = await acquireRes.json();
-
-    if (acquireRes.ok) {
-      state.lockName = lockName;
-      printRoger(`Lock acquired: ${lockName}`);
-      process.stderr.write(`    Owner: ${lock.owner || 'tutorial-agent'}\n`);
-      process.stderr.write(`    TTL: ${lock.ttl || 60000}ms\n`);
+    if (registerRes.ok) {
+      state.lockOwnerAgent = lockOwnerAgent;
     } else {
-      ui.warn(`Could not acquire lock: ${lock.error || 'unknown error'}`);
+      ui.warn('Could not register the lock demo owner — skipping the live lock demo');
     }
   } catch {
-    ui.warn('Could not reach daemon \u2014 skipping live lock demo');
+    ui.warn('Could not reach daemon — skipping the live lock demo');
+  }
+
+  // Acquire lock
+  if (state.lockOwnerAgent) {
+    try {
+      const acquireRes: PdFetchResponse = await pdFetch(`/locks/${encodeURIComponent(lockName)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner: state.lockOwnerAgent, ttl: 60000 }),
+      });
+      const lock = await acquireRes.json();
+
+      if (acquireRes.ok) {
+        state.lockName = lockName;
+        printRoger(`Lock acquired: ${lockName}`);
+        process.stderr.write(`    Owner: ${lock.owner || state.lockOwnerAgent}\n`);
+        process.stderr.write(`    TTL: ${lock.ttl || 60000}ms\n`);
+      } else {
+        ui.warn(`Could not acquire lock: ${lock.error || 'unknown error'}`);
+      }
+    } catch {
+      ui.warn('Could not reach daemon \u2014 skipping live lock demo');
+    }
   }
 
   // Check lock status
@@ -531,12 +559,21 @@ async function lesson11Locks(): Promise<void> {
       await pdFetch(`/locks/${encodeURIComponent(lockName)}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ owner: 'tutorial-agent' }),
+        body: JSON.stringify({ owner: state.lockOwnerAgent }),
       });
       printRoger('Lock released');
       state.lockName = undefined; // already cleaned up
     } catch {
       ui.warn('Could not release lock \u2014 it will auto-expire');
+    }
+  }
+
+  if (state.lockOwnerAgent) {
+    try {
+      const response = await pdFetch(`/agents/${encodeURIComponent(state.lockOwnerAgent)}`, { method: 'DELETE' });
+      if (response.ok || response.status === 404) state.lockOwnerAgent = undefined;
+    } catch {
+      ui.warn('Could not unregister the lock demo owner — cleanup will retry');
     }
   }
 
@@ -694,60 +731,105 @@ async function summary(): Promise<void> {
 // Cleanup
 // ─────────────────────────────────────────────────────────────────────
 
-async function cleanup(): Promise<void> {
-  for (const id of state.claimedPorts) {
+/**
+ * Release every temporary tutorial resource. Exported only as a direct test
+ * seam; this is not a CLI or public API surface.
+ */
+export async function cleanupTutorialState(
+  tutorialState: TutorialState,
+  fetchImpl: TutorialFetch = pdFetch,
+): Promise<void> {
+  const unreleasedPorts: string[] = [];
+  for (const id of tutorialState.claimedPorts) {
     try {
-      await pdFetch('/release', {
+      const response = await fetchImpl('/release', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       });
-    } catch {}
+      if (!response.ok && response.status !== 404) unreleasedPorts.push(id);
+    } catch {
+      unreleasedPorts.push(id);
+    }
   }
+  tutorialState.claimedPorts = unreleasedPorts;
 
-  if (state.sessionId && state.agentId) {
+  if (tutorialState.sessionId && tutorialState.agentId) {
     try {
-      await pdFetch('/sugar/done', {
+      const response = await fetchImpl('/sugar/done', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          agentId: state.agentId,
-          sessionId: state.sessionId,
-          note: 'Tutorial cleanup',
+          agentId: tutorialState.agentId,
+          sessionId: tutorialState.sessionId,
+          note: 'Result: Tutorial cleanup completed. not-applicable: tutorial exercise',
         }),
       });
+      if (response.ok || response.status === 404) {
+        tutorialState.sessionId = null;
+        tutorialState.agentId = null;
+      }
     } catch {}
   }
 
   // Clean up DNS record from lesson 9
-  if (state.dnsIdentity) {
+  if (tutorialState.dnsIdentity) {
     try {
-      await pdFetch(`/dns/${encodeURIComponent(state.dnsIdentity)}`, { method: 'DELETE' });
+      const response = await fetchImpl(`/dns/${encodeURIComponent(tutorialState.dnsIdentity)}`, { method: 'DELETE' });
+      if (response.ok || response.status === 404) tutorialState.dnsIdentity = undefined;
     } catch {}
   }
 
   // Clean up lock from lesson 11 (if not already released)
-  if (state.lockName) {
+  if (tutorialState.lockName) {
     try {
-      await pdFetch(`/locks/${encodeURIComponent(state.lockName)}`, {
+      const response = await fetchImpl(`/locks/${encodeURIComponent(tutorialState.lockName)}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ owner: 'tutorial-agent' }),
+        body: JSON.stringify({ owner: tutorialState.lockOwnerAgent ?? 'tutorial-agent' }),
       });
+      if (response.ok || response.status === 404) tutorialState.lockName = undefined;
+    } catch {}
+  }
+
+  if (tutorialState.lockOwnerAgent) {
+    try {
+      const response = await fetchImpl(`/agents/${encodeURIComponent(tutorialState.lockOwnerAgent)}`, { method: 'DELETE' });
+      if (response.ok || response.status === 404) tutorialState.lockOwnerAgent = undefined;
     } catch {}
   }
 
   // Clean up inbox agents from lesson 13
-  if (state.inboxReceiverAgent) {
+  if (tutorialState.inboxReceiverAgent) {
     try {
-      await pdFetch(`/agents/${encodeURIComponent(state.inboxReceiverAgent)}/inbox`, { method: 'DELETE' });
-      await pdFetch(`/agents/${encodeURIComponent(state.inboxReceiverAgent)}`, { method: 'DELETE' });
+      await fetchImpl(`/agents/${encodeURIComponent(tutorialState.inboxReceiverAgent)}/inbox`, { method: 'DELETE' });
+    } catch {}
+    try {
+      const response = await fetchImpl(`/agents/${encodeURIComponent(tutorialState.inboxReceiverAgent)}`, { method: 'DELETE' });
+      if (response.ok || response.status === 404) tutorialState.inboxReceiverAgent = undefined;
     } catch {}
   }
-  if (state.inboxSenderAgent) {
+  if (tutorialState.inboxSenderAgent) {
     try {
-      await pdFetch(`/agents/${encodeURIComponent(state.inboxSenderAgent)}`, { method: 'DELETE' });
+      const response = await fetchImpl(`/agents/${encodeURIComponent(tutorialState.inboxSenderAgent)}`, { method: 'DELETE' });
+      if (response.ok || response.status === 404) tutorialState.inboxSenderAgent = undefined;
     } catch {}
+  }
+}
+
+async function cleanup(): Promise<void> {
+  await cleanupTutorialState(state);
+}
+
+/** Test seam for the lifecycle guarantee used by handleLearn(). */
+export async function runWithTutorialCleanup(
+  run: () => Promise<void>,
+  cleanupFn: () => Promise<void> = cleanup,
+): Promise<void> {
+  try {
+    await run();
+  } finally {
+    await cleanupFn();
   }
 }
 
@@ -766,48 +848,37 @@ export async function handleLearn(): Promise<void> {
   resetState();
 
   // Handle Ctrl+C gracefully — register before any daemon interaction
-  process.on('SIGINT', async () => {
+  const handleInterrupt = async () => {
     process.stderr.write(`\n\n  ${flag('november')} Tutorial interrupted \u2014 cleaning up...\n`);
     await cleanup();
     process.exit(0);
-  });
+  };
+  process.once('SIGINT', handleInterrupt);
 
-  const ready = await welcome();
-  if (!ready) {
-    process.stderr.write(`\n  No worries \u2014 run ${ANSI.fgCyan}pd learn${ANSI.reset} anytime.\n\n`);
-    return;
-  }
+  try {
+    await runWithTutorialCleanup(async () => {
+      const ready = await welcome();
+      if (!ready) {
+        process.stderr.write(`\n  No worries \u2014 run ${ANSI.fgCyan}pd learn${ANSI.reset} anytime.\n\n`);
+        return;
+      }
 
-  await lesson1Flags();
-  await lesson2Claim();
-  await lesson3Session();
-  await lesson4Notes();
-  await lesson5Resurrection();
-  await lesson6Coordination();
-  await lesson7Surfaces();
-  await lesson8Ending();
-  await lesson9Dns();
-  await lesson10Orchestration();
-  await lesson11Locks();
-  await lesson12Phases();
-  await lesson13Inbox();
-  await summary();
-
-  // Clean up tutorial ports (session already ended in lesson 8)
-  for (const id of state.claimedPorts) {
-    try {
-      await pdFetch('/release', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
-      });
-    } catch {}
-  }
-
-  // Clean up DNS record from lesson 9
-  if (state.dnsIdentity) {
-    try {
-      await pdFetch(`/dns/${encodeURIComponent(state.dnsIdentity)}`, { method: 'DELETE' });
-    } catch {}
+      await lesson1Flags();
+      await lesson2Claim();
+      await lesson3Session();
+      await lesson4Notes();
+      await lesson5Resurrection();
+      await lesson6Coordination();
+      await lesson7Surfaces();
+      await lesson8Ending();
+      await lesson9Dns();
+      await lesson10Orchestration();
+      await lesson11Locks();
+      await lesson12Phases();
+      await lesson13Inbox();
+      await summary();
+    });
+  } finally {
+    process.removeListener('SIGINT', handleInterrupt);
   }
 }
