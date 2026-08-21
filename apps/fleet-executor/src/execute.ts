@@ -75,7 +75,7 @@ import {
 } from './stacked-pr.js';
 import { runTestsInSandbox } from './sandbox-runner.js';
 import { createSkillGraftCache, type SkillGraftCache } from './skill-graft.js';
-import { emitSquidEvent } from './squid-events.js';
+import { emitSquidEvent, reportRunTotals } from './squid-events.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
 import {
   classifyShipOutput,
@@ -1581,6 +1581,11 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     runId,
     verdict: conclusion,
   }, squidConsent);
+  // X7 reconciliation: report this run's event total out-of-band under the
+  // N2 card so the relay can measure fire-and-forget loss. Queued behind the
+  // run-concluded event on the channel tail; same never-disturbs-a-run
+  // contract as the squid itself.
+  reportRunTotals(env, runId, squidConsent);
 
   // --- Transcript: check completion + final run header (best-effort) --------
   await transcript.step('check-completed', null, `Check concluded: ${conclusion}`, {

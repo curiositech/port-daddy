@@ -339,9 +339,55 @@ CREATE TABLE IF NOT EXISTS mercy_health (
   at                      INTEGER NOT NULL,               -- unix seconds (sweep time)
   overall                 TEXT    NOT NULL CHECK (overall IN ('green','yellow','red')),
   remote_harbors_possible INTEGER NOT NULL,               -- 0/1 (D1 + DO channel not red)
-  subsystems_json         TEXT    NOT NULL                -- [{name,status,latencyMs,detail}]
+  subsystems_json         TEXT    NOT NULL,               -- [{name,status,latencyMs,detail}]
+  hooks_json              TEXT                            -- [{name,status,metric,detail}] per-feature hooks (X7)
 );
 CREATE INDEX IF NOT EXISTS mercy_health_at_idx ON mercy_health (at);
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- MERCY HOOKS (grand-plan node x7-mercy-hooks; plan §X7; src/mercy-hooks.ts;
+-- migration 2026-08-09-z-mercy-hooks.sql).
+--
+-- mercy_hook_events        — per-feature hook ledger: hot paths (publish
+--                            quota refusals, run-report gaps) append one row
+--                            per signal; the sweep aggregates and prunes.
+-- squid_run_reconciliation — run-concluded reconciliation: one row per
+--                            executor run report, claimed-vs-received event
+--                            totals; gap != 0 is the honest loss metric
+--                            fire-and-forget telemetry cannot self-produce.
+-- mercy_slo_windows        — 5-minute SLO burn buckets (per-window request /
+--                            5xx counts, written via ctx.waitUntil); the
+--                            sweep computes multiwindow burn from them.
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS mercy_hook_events (
+  id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  at       INTEGER NOT NULL,                              -- unix seconds
+  hook     TEXT    NOT NULL,                              -- e.g. 'x8_quota_exhausted'
+  severity TEXT    NOT NULL CHECK (severity IN ('info','warn','crit')),
+  detail   TEXT                                           -- operator-facing; never secrets
+);
+CREATE INDEX IF NOT EXISTS mercy_hook_events_hook_at_idx
+  ON mercy_hook_events (hook, at);
+CREATE INDEX IF NOT EXISTS mercy_hook_events_at_idx
+  ON mercy_hook_events (at);
+
+CREATE TABLE IF NOT EXISTS squid_run_reconciliation (
+  run_id      TEXT    PRIMARY KEY,                        -- 'run:<deliveryId>'
+  channel     TEXT    NOT NULL,                           -- '<relayFp>:fleet-cloud:<runId>'
+  sender      TEXT    NOT NULL,                           -- executor daemon fingerprint
+  claimed     INTEGER NOT NULL,                           -- events the executor says it sent
+  received    INTEGER NOT NULL,                           -- events rows the relay actually has
+  gap         INTEGER NOT NULL,                           -- claimed - received (loss when > 0)
+  reported_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS squid_run_reconciliation_at_idx
+  ON squid_run_reconciliation (reported_at);
+
+CREATE TABLE IF NOT EXISTS mercy_slo_windows (
+  window_start INTEGER PRIMARY KEY,                       -- unix seconds, floored to 300s
+  requests     INTEGER NOT NULL DEFAULT 0,
+  errors       INTEGER NOT NULL DEFAULT 0                 -- HTTP 5xx only (4xx are the caller's)
+);
 
 -- ──────────────────────────────────────────────────────────────────────────
 -- Shipwright chat (src/shipwright.ts) — conversational fleet-config architect.

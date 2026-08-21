@@ -457,6 +457,104 @@ export async function publishChainedEvent(
   return run;
 }
 
+// ── Run-concluded reconciliation report (x7-mercy-hooks slice 2) ─────────────
+
+/**
+ * Canonical run-report hash — MUST stay byte-identical to the relay's
+ * (apps/relay/src/run-report.ts runReportHash), or every report is rejected
+ * with BAD_SIG. '|'-joined, same idiom as the event hash.
+ */
+export function computeRunReportHash(fields: {
+  sender: string;
+  channel: string;
+  runId: string;
+  eventsSent: number;
+  iat: number;
+}): string {
+  const canonical = [
+    'run-report',
+    fields.sender,
+    fields.channel,
+    fields.runId,
+    String(fields.eventsSent),
+    String(fields.iat),
+  ].join('|');
+  return toHex(sha256(new TextEncoder().encode(canonical)));
+}
+
+/** Derive the relay's run-report endpoint from the publish endpoint. */
+export function runReportUrl(publishUrl: string): string {
+  return publishUrl.replace(/\/v1\/publish\/?$/, '/v1/fleet/run-report');
+}
+
+/**
+ * Report this run's per-channel event total to the relay — the OUT-OF-BAND
+ * claim that makes fire-and-forget loss measurable (grand-plan §X7 slice 2).
+ *
+ * Why out-of-band: a dropped squid event truncates the observable chain (the
+ * relay rejects everything after it as SEQ_MISMATCH), so the run-concluded
+ * EVENT can never carry the claim for exactly the runs that lost events. This
+ * report is a separate signed POST under the same N2 identity: the relay
+ * compares `events_sent` (this isolate's final chain seq for the run channel)
+ * against the events rows it actually holds, and a nonzero gap becomes the
+ * `squid_reconciliation` MERCY metric.
+ *
+ * Same hard contract as {@link emitSquidEvent}: fire-and-forget (queued on
+ * the channel tail so it counts every in-flight event first, never awaited by
+ * callers, every rejection swallowed), tenant-consent gated, silently
+ * disabled on missing/misconfigured env, and NEVER able to disturb a run.
+ * A run whose channel saw no events sends no report — there is no claim to
+ * reconcile, and inventing a zero would be noise, not honesty.
+ */
+export function reportRunTotals(env: SquidEnv, runId: string, tenantOptIn: boolean): void {
+  if (tenantOptIn !== true) return; // tenant has not consented — silently, no fetch
+  const url = env.RELAY_PUBLISH_URL;
+  const keyHex = env.FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX;
+  const card = env.FLEET_EXECUTOR_HARBOR_CARD;
+  if (!url || !keyHex || !card) return; // feature disabled — silently, no fetch
+
+  try {
+    const identity = deriveSquidIdentity(keyHex, card);
+    if (!identity) return; // misconfigured key/card pair — silently disabled
+
+    const channel = `${identity.relayFp}:${SQUID_CHANNEL_FAMILY}:${runId}`;
+    const state = chains.get(channel);
+    // No chain state at all = no event was ever even ATTEMPTED on this run's
+    // channel (emitSquidEvent creates the state synchronously) — no claim.
+    if (!state) return;
+
+    const chained = state;
+    chained.tail = chained.tail
+      .then(async () => {
+        // Read the seq AFTER the tail drains so every queued event is counted
+        // (seq only advances inside the tail; a synchronous read would race).
+        const eventsSent = chained.seq;
+        if (eventsSent === 0) return; // every queued event failed to even sign
+        const iat = Math.floor(Date.now() / 1000);
+        const hash = computeRunReportHash({
+          sender: identity.fingerprint,
+          channel,
+          runId,
+          eventsSent,
+          iat,
+        });
+        const sig = toHex(ed.sign(fromHex(hash), identity.seed));
+        await fetch(runReportUrl(url), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            card: identity.card,
+            report: { run_id: runId, channel, events_sent: eventsSent, iat },
+            sig,
+          }),
+        });
+      })
+      .catch(() => undefined); // never let a report disturb the run
+  } catch {
+    // Never let a report disturb the run.
+  }
+}
+
 /**
  * Await every in-flight squid publish (all channel tails). For tests and for
  * teardown paths that WANT best-effort delivery before an isolate exits;

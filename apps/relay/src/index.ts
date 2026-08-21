@@ -18,6 +18,9 @@
  *   POST /v1/fleet/executor-identity           (operator; provision the fleet
  *                                               executor's Ed25519 identity +
  *                                               hv:2 card; plan N2)
+ *   POST /v1/fleet/run-report                  (signed under the N2 card;
+ *                                               run-concluded reconciliation —
+ *                                               claimed-vs-received totals; X7)
  *   GET  /v1/fleet/activity                    (operator; recent fleet runs)
  *   GET  /v1/fleet/health                      (operator; paused flag + last-run age)
  *   GET  /v1/fleet/runs/:id                    (operator; one run + transcript)
@@ -85,6 +88,9 @@ import {
 } from './handlers.js';
 import { handleGithubWebhook } from './github-webhook.js';
 import { handleProvisionFleetExecutor } from './fleet-executor-identity.js';
+import { handleRunReport } from './run-report.js';
+import { recordSloSample } from './mercy-hooks.js';
+import { randomHex } from './crypto.js';
 import { handleSessionIntelIngest, handleSessionIntelPending } from './session-intel.js';
 import {
   handleFleetConfig,
@@ -203,15 +209,63 @@ function notFound(): Response {
   return Response.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 });
 }
 
+/**
+ * requestId threading (x7-mercy-hooks slice 3), done at the ONE choke point
+ * every module's response passes through instead of rewriting ~20 handler
+ * signatures: every response gains an `X-Request-Id` header, and every JSON
+ * ERROR envelope (status ≥ 400) additionally gains a `requestId` field — so a
+ * caller quoting an error can always hand the operator a correlatable id,
+ * whichever module produced the envelope. Success bodies (including SSE
+ * streams) pass through untouched.
+ */
+async function withRequestId(response: Response, requestId: string): Promise<Response> {
+  const headers = new Headers(response.headers);
+  headers.set('X-Request-Id', requestId);
+  if (response.status >= 400 && (headers.get('Content-Type') ?? '').includes('application/json')) {
+    try {
+      const body = (await response.clone().json()) as unknown;
+      if (typeof body === 'object' && body !== null && !Array.isArray(body)) {
+        (body as Record<string, unknown>).requestId = requestId;
+        return new Response(JSON.stringify(body), { status: response.status, headers });
+      }
+    } catch {
+      // Header claimed JSON but the body was not — header-only threading.
+    }
+  }
+  return new Response(response.body, { status: response.status, headers });
+}
+
+async function finalizeResponse(
+  response: Response,
+  requestId: string,
+  pathname: string,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  const correlated = await withRequestId(response, requestId);
+  const sloSample = recordSloSample(env.DB, Date.now(), correlated.status >= 500);
+  try {
+    ctx.waitUntil(sloSample);
+  } catch {
+    void sloSample;
+  }
+  return CREDENTIALED_CORS_PATHS.has(pathname)
+    ? corsCredentialed(correlated)
+    : cors(correlated);
+}
+
 export default {
-  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // One id per request, minted before any routing so even the INTERNAL_ERROR
+    // path carries it. The `req_` prefix keeps it recognizable in logs.
+    const requestId = `req_${randomHex(8)}`;
     const url = new URL(request.url);
     const { pathname, method } = { pathname: url.pathname, method: request.method };
 
     // CORS preflight
     if (method === 'OPTIONS') {
       const preflight = new Response(null, { status: 204 });
-      return CREDENTIALED_CORS_PATHS.has(pathname) ? corsCredentialed(preflight) : cors(preflight);
+      return finalizeResponse(preflight, requestId, pathname, env, ctx);
     }
 
     let response: Response = notFound();
@@ -269,6 +323,13 @@ export default {
     // bearer-token publish ingest anywhere in this router.
     else if (pathname === '/v1/fleet/executor-identity' && method === 'POST') {
       response = await handleProvisionFleetExecutor(request, env);
+    }
+    // Run-concluded reconciliation (x7-mercy-hooks slice 2): the executor
+    // reports its per-run event totals under its N2 card; the relay records
+    // claimed-vs-received. Signed like a publish — no bearer dialect here
+    // either.
+    else if (pathname === '/v1/fleet/run-report' && method === 'POST') {
+      response = await handleRunReport(request, env);
     }
 
     // ── Session Intelligence cloud-mining ingest (operator-gated) ────────────
@@ -451,7 +512,7 @@ export default {
     // X8 quota counters + shadow-vs-enforce delta (operator; src/billing.ts)
     else if (pathname.startsWith('/v1/quotas/') && method === 'GET') {
       const harborFp = decodeURIComponent(pathname.slice('/v1/quotas/'.length));
-      response = await handleQuotaStatus(request, env, harborFp, _ctx);
+      response = await handleQuotaStatus(request, env, harborFp, ctx);
     }
     else if (pathname === '/billing/portal' && method === 'POST') {
       response = await handlePortalLink(request, env);
@@ -554,14 +615,21 @@ export default {
     } catch (e) {
       // Global fail-closed boundary: any uncaught throw (D1/KV/Durable Object
       // infra error) becomes a controlled {error,code} envelope, never a raw
-      // runtime 500. Matches the contract every handler already uses.
+      // runtime 500. Matches the contract every handler already uses. The
+      // requestId in the log line is the same one the caller receives.
+      console.error(`[relay] ${requestId} INTERNAL_ERROR ${method} ${pathname}:`, e);
       response = Response.json(
         { error: 'internal relay error', code: 'INTERNAL_ERROR' },
         { status: 500 },
       );
     }
 
-    return CREDENTIALED_CORS_PATHS.has(pathname) ? corsCredentialed(response) : cors(response);
+    // x7 slice 3 — requestId on every response (and inside every JSON error
+    // envelope), then one SLO burn sample per request via waitUntil so the
+    // write never sits on the response path. 5xx only: a caller's 4xx is not
+    // the relay burning its own budget. recordSloSample never rejects; test
+    // harnesses may pass a bare object as ctx, hence the guard.
+    return finalizeResponse(response, requestId, pathname, env, ctx);
   },
 
   // Cron Triggers (ADR-0101; runtime-verification-for-agents). The Worker has
