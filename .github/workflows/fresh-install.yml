@@ -91,6 +91,51 @@ jobs:
           echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
           echo "/home/linuxbrew/.linuxbrew/sbin" >> "$GITHUB_PATH"
 
+      # release.published starts this workflow before release.yml has built the
+      # assets and dispatched the tap. Installing immediately therefore proves
+      # whatever formula was current before the release, not the release that
+      # triggered this run. Poll the tap's source-of-truth version first, then
+      # refresh Homebrew and assert its resolved metadata agrees.
+      - name: Wait for the tap formula to match this release
+        if: github.event_name == 'release'
+        env:
+          EXPECTED_TAG: ${{ github.event.release.tag_name }}
+          FORMULA_URL: https://raw.githubusercontent.com/curiositech/homebrew-tap/main/Formula/port-daddy.rb
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$EXPECTED_TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::release tag '$EXPECTED_TAG' is not a stable vX.Y.Z tag."
+            exit 1
+          fi
+          expected_version="${EXPECTED_TAG#v}"
+          matched=0
+          for attempt in $(seq 1 180); do
+            formula=$(curl -fsSL -H 'Cache-Control: no-cache' \
+              "${FORMULA_URL}?run=${GITHUB_RUN_ID}&attempt=${attempt}" || true)
+            if printf '%s\n' "$formula" | grep -Fq "version \"$expected_version\""; then
+              matched=1
+              echo "Tap source now advertises Port Daddy $expected_version (attempt $attempt)."
+              break
+            fi
+            echo "Tap has not reached $EXPECTED_TAG yet (attempt $attempt/180); waiting 10s."
+            sleep 10
+          done
+          if [ "$matched" != "1" ]; then
+            echo "::error::tap formula did not reach $EXPECTED_TAG within 30 minutes."
+            exit 1
+          fi
+          brew tap curiositech/tap
+          brew update --quiet
+          brew info --json=v2 curiositech/tap/port-daddy > "$RUNNER_TEMP/port-daddy-formula.json"
+          actual_version=$(ruby -rjson -e \
+            'puts JSON.parse(File.read(ARGV.fetch(0))).fetch("formulae").first.fetch("versions").fetch("stable")' \
+            "$RUNNER_TEMP/port-daddy-formula.json")
+          if [ "$actual_version" != "$expected_version" ]; then
+            echo "::error::Homebrew resolved Port Daddy $actual_version after the tap source reached $expected_version."
+            exit 1
+          fi
+          echo "Homebrew resolves the exact triggering release: $actual_version."
+
       - name: Install the fully qualified Homebrew formula
         run: |
           set -euo pipefail
