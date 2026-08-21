@@ -12,10 +12,14 @@ export interface Env {
   HARBOR_CHANNEL: DurableObjectNamespace;
   // Workers KV — JWKS cache + pinned relay key cache
   KV: KVNamespace;
-  // Queue producer — one FleetRunJob per GitHub delivery handed to the
-  // fleet-executor Worker. Optional so the relay still deploys before the
-  // 'fleet-runs' queue is provisioned; ingress guards on its presence.
+  // Queue producers — one FleetRunJob per GitHub delivery handed to the
+  // fleet-executor Worker. Substantive AI reviews stay serialized on
+  // fleet-runs. Deterministic merge-group pass-through checks use fleet-gates
+  // so a long review cannot starve GitHub's required merge-queue context.
+  // Both remain optional so the relay can start before queue provisioning;
+  // a partially provisioned routing state is recorded in the audit log.
   FLEET_RUNS?: Queue<FleetRunJob>;
+  FLEET_GATES?: Queue<FleetRunJob>;
   // Workers AI — fleet control-plane smoke-test + optimize-prompt endpoints.
   // Optional so the relay still type-checks/deploys before the [ai] binding is
   // provisioned; the handlers fail closed with AI_ERROR when it is absent.

@@ -112,6 +112,13 @@ binding = "AI"
 binding = "FLEET_RUNS"
 queue = "fleet-runs"
 
+# Required merge-group checks are deterministic and make no AI calls. Keep
+# them off the serialized review FIFO so a long review cannot starve GitHub's
+# required merge-queue context.
+[[queues.producers]]
+binding = "FLEET_GATES"
+queue = "fleet-gates"
+
 [observability]
 enabled = true
 
@@ -229,6 +236,10 @@ binding = "AI"
 [[env.latest.queues.producers]]
 binding = "FLEET_RUNS"
 queue = "fleet-runs-staging"
+
+[[env.latest.queues.producers]]
+binding = "FLEET_GATES"
+queue = "fleet-gates-staging"
 
 [env.latest.observability]
 enabled = true
