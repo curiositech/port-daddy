@@ -37,7 +37,7 @@ private actor SquidHarnessVisualFixture {
       "value": {
         "beforeTurn":"fresh context",
         "beforeEdit":"collision gate",
-        "afterTool":"fleet trace"
+        "afterTool":"no per-tool process; cumulative session evidence"
       }
     """
 
@@ -141,7 +141,7 @@ private actor SquidHarnessVisualFixture {
                 "id":"claude-trace-1","phase":"trace","label":"PD TRACE","hook":"pd-hook-post-tool","state":"skipped",
                 "startedAt":"2026-08-21T19:59:58.000Z","expectedBy":"2026-08-21T19:59:59.000Z","finishedAt":"2026-08-21T19:59:58.012Z",
                 "durationMs":12,"deadlineMs":1000,"outcome":"project_disarmed","exitCode":0,
-                "description":"PD TRACE is recording a compact coordination outcome after the tool without retaining its payload. The gate skipped the hook because this project was not armed."
+                "description":"PD TRACE is a legacy post-tool record retained for migration diagnostics; current installs use cumulative session evidence instead. The gate skipped the hook because this project was not armed."
               }]
             }
           ]

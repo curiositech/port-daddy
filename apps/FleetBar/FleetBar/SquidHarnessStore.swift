@@ -483,7 +483,7 @@ struct SquidHookDebugSheet: View {
                 Text(snapshot?.enabled == true ? "Waiting for the next hook invocation" : "Capture is off")
                     .font(.headline)
                 Text(snapshot?.enabled == true
-                     ? "New PD TURN, PD EDIT, and PD TRACE steps will appear here automatically."
+                     ? "New PD TURN and direct PD EDIT steps will appear here automatically; retained PD TRACE rows are legacy history."
                      : "Start capture to see what each agent session is running and whether it met its deadline.")
                     .font(.body)
                     .foregroundStyle(.secondary)

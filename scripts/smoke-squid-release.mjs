@@ -31,6 +31,21 @@ function expectFile(path, needle) {
   }
 }
 
+function expectAbsent(path, needle) {
+  if (!existsSync(path)) fail(`expected file was not written: ${path}`);
+  if (readFileSync(path, 'utf8').includes(needle)) {
+    fail(`expected ${path} not to contain ${JSON.stringify(needle)}`);
+  }
+}
+
+function expectCount(path, needle, count) {
+  if (!existsSync(path)) fail(`expected file was not written: ${path}`);
+  const actual = readFileSync(path, 'utf8').split(needle).length - 1;
+  if (actual !== count) {
+    fail(`expected ${path} to contain ${JSON.stringify(needle)} ${count} time(s), got ${actual}`);
+  }
+}
+
 try {
   if (!existsSync(pd)) fail(`compiled pd not found: ${pd}`);
   // Single-supervisor (3.28) tarball layout: tentacles live ONLY under bin/
@@ -76,13 +91,37 @@ try {
   if (!arm.stdout.includes('Giant Squid harness ARMED')) fail('arm output did not claim the fully armed state');
   if (!arm.stdout.includes('PORT DADDY IS ADDING VALUE OUTSIDE THE CONVERSATION')) fail('arm output omitted the non-diegetic value card');
 
-  expectFile(join(project, '.claude', 'settings.json'), 'pd-hook-pre-tool');
+  const claudeConfig = join(project, '.claude', 'settings.json');
+  const geminiConfig = join(project, '.gemini', 'settings.json');
+  const codexConfig = join(home, '.codex', 'config.toml');
+  const agyConfig = join(home, '.gemini', 'hooks.json');
+
+  expectFile(claudeConfig, 'pd-hook-pre-tool');
   expectFile(join(project, '.claude', 'settings.json'), 'sessionstart-pilot.mjs');
   expectFile(join(project, '.claude', 'settings.json'), 'pd-statusline');
   expectFile(join(project, '.claude', 'commands', 'squid.md'), 'pd squid');
-  expectFile(join(project, '.gemini', 'settings.json'), 'pd-hook-pre-tool');
-  expectFile(join(home, '.codex', 'config.toml'), 'Port Daddy Giant Squid Harness tentacles');
-  expectFile(join(home, '.gemini', 'hooks.json'), 'pd-hook-pre-tool');
+  expectFile(geminiConfig, 'pd-hook-pre-tool');
+  expectFile(codexConfig, 'Port Daddy Giant Squid Harness tentacles');
+  expectFile(agyConfig, 'pd-hook-pre-tool');
+
+  // Release invariant: each provider gets one turn briefing and one direct-edit
+  // gate. The post-tool binary remains staged for safe migration/debug history,
+  // but it must never be registered into an interactive lifecycle again.
+  for (const config of [claudeConfig, geminiConfig, agyConfig]) {
+    expectCount(config, 'pd-hook-prompt', 1);
+    expectCount(config, 'pd-hook-pre-tool', 1);
+    expectAbsent(config, 'pd-hook-post-tool');
+  }
+  expectCount(codexConfig, '[[hooks.UserPromptSubmit]]', 1);
+  expectCount(codexConfig, '[[hooks.PreToolUse]]', 1);
+  expectCount(codexConfig, '[[hooks.PreToolUse.hooks]]', 1);
+  expectAbsent(codexConfig, 'pd-hook-post-tool');
+  expectAbsent(codexConfig, '[[hooks.PostToolUse]]');
+  expectFile(codexConfig, 'matcher = "apply_patch|Edit|Write|edit|write|str_replace_editor"');
+  for (const broadTool of ['Bash', 'exec_command', 'shell_command', 'unified_exec', 'run_shell_command']) {
+    expectAbsent(codexConfig, `matcher = "${broadTool}`);
+    expectAbsent(codexConfig, `|${broadTool}`);
+  }
   for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool']) {
     expectFile(join(pdHome, 'bin', name), '.portdaddy');
     expectFile(join(pdHome, 'bin', 'squid', name));

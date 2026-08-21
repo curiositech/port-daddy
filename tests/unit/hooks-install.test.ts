@@ -26,6 +26,7 @@ import {
 } from '../../cli/commands/hooks-install.js';
 import {
   TENTACLES,
+  REGISTERED_TENTACLES,
   buildJsonHookMap,
   codexHooksTomlBlock,
   stripCodexHooksTomlBlock,
@@ -65,29 +66,30 @@ afterAll(() => rmSync(SANDBOX, { recursive: true, force: true }));
 describe('hook-shape (single source of truth) matches the squid adapter exactly', () => {
   test('tool matchers are the canonical squid values', () => {
     expect(CLAUDE_TOOL_MATCHER).toBe('Edit|Write|MultiEdit|NotebookEdit');
-    expect(GEMINI_TOOL_MATCHER).toBe('replace|write_file|edit|run_shell_command');
+    expect(GEMINI_TOOL_MATCHER).toBe('replace|write_file|edit');
     // agy must include multi_replace_file_content (the bit the installer had forked off)
     expect(AGY_TOOL_MATCHER).toBe(
       'Edit|Write|MultiEdit|write_to_file|replace_file_content|multi_replace_file_content|replace|write_file|edit|apply_patch',
     );
-    expect(CODEX_TOOL_MATCHER).toContain('Bash');
-    expect(CODEX_TOOL_MATCHER).toContain('apply_patch');
-    expect(CODEX_TOOL_MATCHER).toContain('exec_command');
+    expect(CODEX_TOOL_MATCHER).toBe('apply_patch|Edit|Write|edit|write|str_replace_editor');
+    for (const readOnlyOrOpaque of ['Bash', 'exec_command', 'shell', 'shell_command', 'unified_exec', 'run_shell_command']) {
+      expect(CODEX_TOOL_MATCHER).not.toContain(readOnlyOrOpaque);
+    }
   });
 
-  test('gemini uses native event names BeforeAgent/BeforeTool/AfterTool', () => {
+  test('gemini uses native turn/edit event names without shell or after-tool fan-out', () => {
     const map = buildJsonHookMap('gemini', (n) => `/x/${n}`);
-    expect(Object.keys(map)).toEqual(['BeforeAgent', 'BeforeTool', 'AfterTool']);
+    expect(Object.keys(map)).toEqual(['BeforeAgent', 'BeforeTool']);
     expect(GEMINI_EVENTS.preTool).toBe('BeforeTool');
     expect(map.BeforeTool[0].matcher).toBe(GEMINI_TOOL_MATCHER);
     expect(map.BeforeAgent[0].matcher).toBeUndefined(); // prompt hook has no matcher
     expect(map.BeforeAgent[0].hooks[0].timeout).toBe(1000);
   });
 
-  test('claude/agy use UserPromptSubmit/PreToolUse/PostToolUse', () => {
+  test('claude/agy use only UserPromptSubmit and direct PreToolUse', () => {
     for (const v of ['claude', 'agy'] as const) {
       const map = buildJsonHookMap(v, (n) => `/x/${n}`);
-      expect(Object.keys(map)).toEqual(['UserPromptSubmit', 'PreToolUse', 'PostToolUse']);
+      expect(Object.keys(map)).toEqual(['UserPromptSubmit', 'PreToolUse']);
       expect(JSON.stringify(map)).not.toContain('statusMessage');
       expect(map.UserPromptSubmit[0].hooks[0].timeout).toBe(1);
     }
@@ -98,18 +100,24 @@ describe('hook-shape (single source of truth) matches the squid adapter exactly'
     expect(JSON.stringify(map)).not.toContain('statusMessage');
   });
 
-  test('codex TOML block keeps every command hook synchronous', () => {
+  test('codex TOML budgets one turn hook plus direct edits and no per-tool trace', () => {
     const toml = codexHooksTomlBlock((n) => `/abs/${n}`);
     expect(toml).toContain(CODEX_PD_MARKER);
     expect(toml).toContain(`matcher = "${CODEX_TOOL_MATCHER}"`);
-    // Codex parses async handlers but skips them, so post-tool must be sync too.
-    const post = toml.slice(toml.indexOf('[[hooks.PostToolUse]]'));
-    expect(post).toContain('async = false');
+    expect(toml).not.toContain('[[hooks.PostToolUse]]');
+    expect(toml).not.toContain('/abs/pd-hook-post-tool');
     expect(toml).not.toContain('async = true');
-    const pre = toml.slice(toml.indexOf('[[hooks.PreToolUse]]'), toml.indexOf('[[hooks.PostToolUse]]'));
+    const pre = toml.slice(toml.indexOf('[[hooks.PreToolUse]]'));
     expect(pre).toContain('async = false');
-    expect(toml.match(/timeout = 1/g)).toHaveLength(3);
+    expect(toml.match(/timeout = 1/g)).toHaveLength(2);
     expect(toml).not.toContain('statusMessage');
+  });
+
+  test('a read-only six-tool Codex batch schedules zero PD tool hooks', () => {
+    const readOnlyBatch = ['Bash', 'exec_command', 'shell', 'shell_command', 'unified_exec', 'run_shell_command'];
+    const matcher = new RegExp(`^(?:${CODEX_TOOL_MATCHER})$`);
+    expect(readOnlyBatch.filter((tool) => matcher.test(tool))).toEqual([]);
+    expect(REGISTERED_TENTACLES).toEqual(['pd-hook-prompt', 'pd-hook-pre-tool']);
   });
 });
 
@@ -381,9 +389,10 @@ describe('configureTarget — per-project scope, gate-pointed commands', () => {
     const toml = readFileSync(codex.userConfigPath, 'utf-8');
     expect(toml).toContain('[shell_environment_policy]');
     expect(toml).not.toContain('/old/pd-hook-');
-    for (const name of TENTACLES) {
+    for (const name of REGISTERED_TENTACLES) {
       expect(toml.split(`/.port-daddy/bin/${name}`).length - 1).toBe(1);
     }
+    expect(toml).not.toContain('/.port-daddy/bin/pd-hook-post-tool');
     expect(toml).toContain('PD_HOOK_PROVIDER=codex');
     expect(toml.split(CODEX_PD_MARKER).length - 1).toBe(1);
 
