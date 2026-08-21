@@ -80,6 +80,10 @@ interface AttentionSummary {
   code?: string;
 }
 
+interface AttentionHandlerDeps {
+  fetch?: (path: string, options?: FetchOptions) => Promise<PdFetchResponse>;
+}
+
 export const ATTENTION_HELP: string = [
   'Usage: pd attention [--peek] [--limit N] [--agent ID] [--json]',
   '       pd attention --subscribe <channel>',
@@ -577,7 +581,7 @@ async function handleListSubscriptions(agentId: string, options: CLIOptions): Pr
   }
 }
 
-export async function handleAttention(options: CLIOptions): Promise<void> {
+export async function handleAttention(options: CLIOptions, deps: AttentionHandlerDeps = {}): Promise<void> {
   const agentId = resolveAgentId(options);
   if (!agentId) {
     const identityRequired =
@@ -630,7 +634,8 @@ export async function handleAttention(options: CLIOptions): Promise<void> {
   if (options.peek === true) params.set('peek', 'true');
   if (options.limit !== undefined) params.set('limit', String(options.limit));
 
-  const res: PdFetchResponse = await attentionFetch(`/attention?${params}`);
+  const fetchAttention = deps.fetch ?? attentionFetch;
+  const res: PdFetchResponse = await fetchAttention(`/attention?${params}`);
   const data = (await res.json()) as unknown as AttentionSummary;
   if (!res.ok || !data.success) {
     ui.error(data.error || 'attention fetch failed');
@@ -638,7 +643,13 @@ export async function handleAttention(options: CLIOptions): Promise<void> {
   }
 
   if ((data.items || []).length === 0) {
-    data.suggestions = await discoverAttentionSuggestions(data.subscriptions || [], options);
+    // SessionStart must remain a strict one-request fast path. The old empty
+    // state synchronously called /channels/discover?observed=true, turning a
+    // completed inbox read into a whole-history channel scan that was observed
+    // taking almost a minute under daemon contention. Stable protocol channels
+    // can be ranked locally; richer discovery remains available explicitly via
+    // `pd attention --subscribe-recommended`.
+    data.suggestions = rankAttentionSuggestions([], data.subscriptions || []);
   }
 
   data.bound = true;
