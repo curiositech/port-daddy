@@ -23,6 +23,7 @@ const VERSION_SURFACES = [
 ];
 
 describe('release drift detection', () => {
+  mkdirSync(join(homedir(), 'coding', 'tmp'), { recursive: true });
   const scratchRoot = mkdtempSync(
     join(homedir(), 'coding', 'tmp', 'pd-release-version-drift-'),
   );
