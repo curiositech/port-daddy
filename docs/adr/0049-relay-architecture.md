@@ -164,7 +164,7 @@ CREATE TABLE audit_log (
 ) STRICT;
 ```
 
-### HTTP Surface (full surface in `apps/relay/openapi.yaml`)
+### HTTP Surface (full surface in `skills/pd-relay-zero-trust/openapi.yaml`)
 
 | Method | Path | Description |
 |--------|------|-------------|
