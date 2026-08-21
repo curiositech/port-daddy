@@ -292,7 +292,7 @@ export async function lapseOneExpiredParley(
  * empty almost always).
  */
 export async function applyParleyExpiries(env: Env, harborId: string, now: number): Promise<void> {
-  let mode: ParleyExpiryDefault = 'lapse';
+  let mode: ParleyExpiryDefault;
   try {
     const helm = await getHelm(env.DB, harborId);
     mode = helm?.parley_expiry_default ?? 'lapse';

@@ -55,7 +55,7 @@
  */
 
 import type { ExecutorEnv } from './env.js';
-import { parseFleetMediator, type FleetMediatorConfig } from './fleet.js';
+import { type FleetMediatorConfig } from './fleet.js';
 import { publishChainedEvent, type ChainedPublishResult, type SquidEnv } from './squid-events.js';
 import type { OpenPRDetailed } from './github.js';
 
@@ -517,7 +517,7 @@ export function buildMediatorScanIo(deps: {
     conclusion: 'success' | 'failure' | 'neutral',
     summary: string,
     token: string,
-  ) => Promise<void>;
+  ) => Promise<boolean>;
 }): MediatorScanIo {
   const conveneUrl = (deps.env.RELAY_PUBLISH_URL ?? '').replace(
     /\/v1\/publish$/,
