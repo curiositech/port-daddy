@@ -100,13 +100,15 @@ jobs:
           HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
         run: |
           set -euo pipefail
-          if [ "$HAS_TRAIN_TOKEN" = "true" ]; then
-            echo "using RELEASE_TRAIN_TOKEN"
-          elif [ "$HAS_TAP_TOKEN" = "true" ]; then
-            echo "::warning::RELEASE_TRAIN_TOKEN not set — falling back to HOMEBREW_TAP_TOKEN. That PAT was minted to dispatch the Homebrew tap and may not carry push rights to THIS repo; if the bump push 403s, that is why. Set a dedicated RELEASE_TRAIN_TOKEN (classic PAT, repo scope)."
-          else
+          token_source=$(node scripts/release-workflow-state.mjs require-token \
+            "$HAS_TRAIN_TOKEN" "$HAS_TAP_TOKEN") || {
             echo "::error::Neither RELEASE_TRAIN_TOKEN nor HOMEBREW_TAP_TOKEN is set. A PAT is REQUIRED: PRs opened and Releases published with the workflow GITHUB_TOKEN do not trigger CI or release.yml, so the train would silently stall. Create a classic PAT with repo scope and save it as RELEASE_TRAIN_TOKEN."
             exit 1
+          }
+          if [ "$token_source" = "RELEASE_TRAIN_TOKEN" ]; then
+            echo "using RELEASE_TRAIN_TOKEN"
+          else
+            echo "::warning::RELEASE_TRAIN_TOKEN not set — falling back to HOMEBREW_TAP_TOKEN. That PAT was minted to dispatch the Homebrew tap and may not carry push rights to THIS repo; if the bump push 403s, that is why. Set a dedicated RELEASE_TRAIN_TOKEN (classic PAT, repo scope)."
           fi
 
       - name: Hold switch — skip when the operator has paused the train
@@ -337,7 +339,8 @@ jobs:
           HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
         run: |
           set -euo pipefail
-          if [ "$HAS_TRAIN_TOKEN" != "true" ] && [ "$HAS_TAP_TOKEN" != "true" ]; then
+          if ! node scripts/release-workflow-state.mjs require-token \
+            "$HAS_TRAIN_TOKEN" "$HAS_TAP_TOKEN" >/dev/null; then
             echo "::error::No RELEASE_TRAIN_TOKEN or HOMEBREW_TAP_TOKEN is available to publish a recursive release event."
             exit 1
           fi
