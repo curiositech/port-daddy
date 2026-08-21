@@ -96,11 +96,14 @@ test('renders no-op outcomes and drops malformed or out-of-workspace records', (
     event({ kind: 'start', run: 'run-skip', at: 1_000 }),
     event({ kind: 'finish', run: 'run-skip', at: 1_010, outcome: 'project_disarmed', exit: '0' }),
     event({ kind: 'start', run: 'outside', at: 1_100, workspace: join(SANDBOX, 'other') }),
+    event({ kind: 'start', run: 'traversal', at: 1_150, workspace: join(WORKSPACE, '..', 'escape') }),
+    'v1\tstart\tbad-base64\tcodex:4242\tcodex\tedit\tpd-hook-pre-tool\t1200\t1000\t-\t-\t***',
     'v1\tstart\tbad\ttool_input=secret',
   ].join('\n') + '\n');
 
   const snapshot = readSquidHookDebugSnapshot({ pdHome: PD_HOME, cwd: WORKSPACE, nowMs: 2_000 });
   expect(snapshot.sessions).toHaveLength(1);
+  expect(snapshot.sessions[0].steps.map((step) => step.id)).toEqual(['run-skip']);
   expect(snapshot.sessions[0].steps[0].state).toBe('skipped');
   expect(snapshot.sessions[0].steps[0].description).toMatch(/project is not armed/);
   expect(JSON.stringify(snapshot)).not.toContain('tool_input=secret');
