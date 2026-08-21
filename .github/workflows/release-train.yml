@@ -13,8 +13,10 @@ name: Release Train
 #      silently broke every would-be release after v3.27.0),
 #   3. opens a version-bump PR (conventional-commit-derived bump, every
 #      version surface synced, CHANGELOG stamped) with auto-merge armed, and
-#   4. when that PR merges, tags the commit and publishes the GitHub Release —
-#      which triggers release.yml: build, sign, 180s soak of the exact
+#   4. when the version bump reaches main (directly or through a Purser
+#      carrier), detects that package.json is ahead of the latest tag, tags
+#      the exact merged tree, and publishes the GitHub Release — which
+#      triggers release.yml: build, sign, 180s soak of the exact
 #      packaged binary, batten verify, formula-compat preflight, tap roll.
 #      The fresh-install workflow then smokes the published artifacts AND the
 #      brew install path on pristine runners.
@@ -264,55 +266,130 @@ jobs:
           gh pr merge --auto --squash "$branch"
 
   tag-and-publish:
-    # Fires when a release-train bump PR merges to main: tag the merge commit
-    # and publish the Release, which triggers release.yml end to end.
+    # Every merged PR to main gets a cheap state check. The old head-prefix
+    # predicate silently missed release bumps that arrived through a Purser
+    # carrier because the main-bound head was `purser/pr-...`, not
+    # `release-train/...`. The merged tree is the authority now: a plain
+    # package version newer than every stable tag, with a matching CHANGELOG
+    # section, is an unpublished release regardless of branch topology.
     if: >-
       github.event_name == 'pull_request' &&
       github.event.pull_request.merged == true &&
-      github.event.pull_request.base.ref == 'main' &&
-      startsWith(github.event.pull_request.head.ref, 'release-train/')
+      github.event.pull_request.base.ref == 'main'
+    concurrency:
+      group: release-train-tag-and-publish
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 0
-          # Same reason as the cut job: the persisted extraheader wins over any
-          # credentials in a push URL, so the tag push needs the PAT HERE.
+
+      - name: Detect an unpublished merged release version
+        id: release
+        env:
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          if ! printf '%s' "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::package.json version '$version' at $MERGE_SHA is not a plain x.y.z."
+            exit 1
+          fi
+          tag="v$version"
+          if git show-ref --verify --quiet "refs/tags/$tag"; then
+            echo "$tag already exists — this merge carries no unpublished release."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          latest=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)
+          if [ -n "$latest" ]; then
+            node -e '
+              const parse = value => value.replace(/^v/, "").split(".").map(Number);
+              const [next, previous] = process.argv.slice(1).map(parse);
+              const cmp = next.findIndex((part, i) => part !== previous[i]);
+              if (cmp < 0 || next[cmp] < previous[cmp]) process.exit(1);
+            ' "$version" "$latest" || {
+              echo "::error::untagged package version $version is not newer than latest stable tag $latest."
+              exit 1
+            }
+          fi
+          range="$MERGE_SHA"
+          if [ -n "$latest" ]; then range="$latest..$MERGE_SHA"; fi
+          release_sha=""
+          while IFS= read -r candidate; do
+            candidate_version=$(git show "${candidate}:package.json" | jq -r '.version')
+            parent_version=$(git show "${candidate}^:package.json" 2>/dev/null | jq -r '.version' || true)
+            if [ "$candidate_version" = "$version" ] && [ "$parent_version" != "$version" ]; then
+              release_sha="$candidate"
+              break
+            fi
+          done < <(git rev-list --reverse "$range" -- package.json)
+          if [ -z "$release_sha" ]; then
+            echo "::error::could not locate the first commit that transitioned package.json to unpublished version $version."
+            exit 1
+          fi
+          if ! grep -Fq "## [$version] -" CHANGELOG.md; then
+            echo "::error::package version $version is unpublished but CHANGELOG.md has no dated [$version] section."
+            exit 1
+          fi
+          {
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "release_sha=$release_sha"
+            echo "should_publish=true"
+          } >> "$GITHUB_OUTPUT"
+          echo "Unpublished release $tag detected at exact version-transition commit $release_sha (observed by merge $MERGE_SHA)."
+
+      - name: Verify a release-publication token exists
+        if: steps.release.outputs.should_publish == 'true'
+        env:
+          HAS_TRAIN_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN != '' }}
+          HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+        run: |
+          set -euo pipefail
+          if [ "$HAS_TRAIN_TOKEN" != "true" ] && [ "$HAS_TAP_TOKEN" != "true" ]; then
+            echo "::error::No RELEASE_TRAIN_TOKEN or HOMEBREW_TAP_TOKEN is available to publish a recursive release event."
+            exit 1
+          fi
+
+      # Re-checkout only for the mutating path. Ordinary main PRs must not
+      # depend on PAT health merely to prove there is no new version to tag.
+      - name: Authenticate release publication
+        if: steps.release.outputs.should_publish == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.release_sha }}
+          fetch-depth: 0
           token: ${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
 
       - name: Tag the merged bump and publish the Release
+        if: steps.release.outputs.should_publish == 'true'
         env:
           # A PAT is REQUIRED here: a Release published with GITHUB_TOKEN does
           # not trigger release.yml (GitHub suppresses recursive events), so
           # binaries would never build and the tap would never roll.
           GH_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
-          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          RELEASE_SHA: ${{ steps.release.outputs.release_sha }}
+          VERSION: ${{ steps.release.outputs.version }}
+          TAG: ${{ steps.release.outputs.tag }}
         run: |
           set -euo pipefail
           if [ -z "${GH_TOKEN:-}" ]; then
             echo "::error::No PAT available (RELEASE_TRAIN_TOKEN / HOMEBREW_TAP_TOKEN) — cannot publish a Release that triggers release.yml. Publish manually: gh release create v<version> --generate-notes"
             exit 1
           fi
-          # The version comes from the merged tree, not from any PR-controlled
-          # string — read it at the merge commit and validate its shape.
-          git checkout "$MERGE_SHA"
-          version=$(node -p "require('./package.json').version")
-          if ! printf '%s' "$version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::package.json version '$version' at merge commit is not a plain x.y.z — refusing to tag."
-            exit 1
-          fi
-          tag="v$version"
-          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-            echo "Tag $tag already exists — nothing to do."
+          if git show-ref --verify --quiet "refs/tags/$TAG"; then
+            echo "Tag $TAG appeared while this serialized job waited — nothing to do."
             exit 0
           fi
           git config user.name "port-daddy-release-train"
           git config user.email "release-train@portdaddy.dev"
-          git tag -a "$tag" -m "Port Daddy $version — release train"
-          git push origin "$tag"
-          gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$MERGE_SHA" \
-            --generate-notes --title "$tag — release train"
-          echo "Release $tag published — release.yml takes it from here (build → sign → soak → batten → formula-compat → tap roll), then fresh-install smokes the result."
+          git tag -a "$TAG" "$RELEASE_SHA" -m "Port Daddy $VERSION — release train"
+          git push origin "$TAG"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$RELEASE_SHA" \
+            --generate-notes --title "$TAG — release train"
+          echo "Release $TAG published — release.yml takes it from here (build → sign → soak → batten → formula-compat → tap roll), then fresh-install smokes the result."
