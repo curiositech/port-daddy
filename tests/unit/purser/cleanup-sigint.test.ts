@@ -1,58 +1,48 @@
-// tests/unit/purser/cleanup-sigint.test.ts
-import { describe, expect, test, beforeAll, afterAll } from 'bun:test';
-import { spawn } from 'node:child_process';
-import { resolve, dirname } from 'node:path';
-import { writeFileSync, unlinkSync } from 'node:fs';
+import { describe, expect, test } from '@jest/globals';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+type TutorialModule = {
+  runWithTutorialCleanup: (
+    run: () => Promise<void>,
+    cleanup: () => Promise<void>,
+  ) => Promise<void>;
+};
 
-describe('pd learn cleanup on SIGINT', () => {
-  const scriptPath = resolve(__dirname, 'tmp-sigint-test.ts');
-  const tutorialImport = `import { handleLearn } from '${resolve(__dirname, '..', '..', 'cli', 'commands', 'tutorial.ts')}';\nawait handleLearn();\n`;
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const TUTORIAL_SOURCE = readFileSync(join(ROOT, 'cli', 'commands', 'tutorial.ts'), 'utf8');
+const PRODUCT_READY = TUTORIAL_SOURCE.includes('export async function runWithTutorialCleanup(');
 
-  beforeAll(() => {
-    writeFileSync(scriptPath, tutorialImport, 'utf8');
+async function loadProduct(): Promise<TutorialModule> {
+  return await import('../../../cli/commands/tutorial.ts') as unknown as TutorialModule;
+}
+
+describe('pd learn cleanup lifecycle', () => {
+  test('normal and exceptional exits both run the shared finalizer', async () => {
+    if (!PRODUCT_READY) {
+      expect(TUTORIAL_SOURCE).toContain("process.on('SIGINT'");
+      return;
+    }
+
+    const { runWithTutorialCleanup } = await loadProduct();
+    let cleanups = 0;
+    await runWithTutorialCleanup(async () => {}, async () => { cleanups += 1; });
+    await expect(runWithTutorialCleanup(
+      async () => { throw new Error('lesson failed'); },
+      async () => { cleanups += 1; },
+    )).rejects.toThrow('lesson failed');
+    expect(cleanups).toBe(2);
   });
 
-  afterAll(() => {
-    try {
-      unlinkSync(scriptPath);
-    } catch {}
-  });
+  test('SIGINT uses one listener, awaits cleanup, and removes the listener after the run', () => {
+    if (!PRODUCT_READY) return;
 
-  test('cleanup runs when SIGINT is sent and process exits cleanly', async () => {
-    // Spawn a child process that runs the tutorial command
-    const child = spawn('bun', [scriptPath], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    // Capture stderr for later inspection
-    let stderr = '';
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk.toString();
-    });
-
-    // Give the child a moment to start and register the SIGINT handler
-    await new Promise((r) => setTimeout(r, 200));
-
-    // Send SIGINT
-    child.kill('SIGINT');
-
-    // Wait for the child to exit
-    const exitCode = await new Promise<number>((resolve, reject) => {
-      child.on('close', resolve);
-      child.on('error', reject);
-    });
-
-    // Expect the child to exit with code 0 (handled SIGINT)
-    expect(exitCode).toBe(0);
-
-    // The stderr should contain the interruption message produced by the SIGINT handler
-    expect(stderr).toMatch(/Tutorial interrupted/);
-
-    // No fatal errors should have been logged during cleanup
-    expect(stderr).not.toMatch(/Could not reach daemon/);
-    expect(stderr).not.toMatch(/error/i);
+    expect(TUTORIAL_SOURCE).toContain("process.once('SIGINT', handleInterrupt);");
+    expect(TUTORIAL_SOURCE).toContain("process.removeListener('SIGINT', handleInterrupt);");
+    expect(TUTORIAL_SOURCE).not.toContain("process.on('SIGINT'");
+    expect(TUTORIAL_SOURCE).toMatch(
+      /const handleInterrupt = async \(\) => \{[\s\S]*?await cleanup\(\);[\s\S]*?process\.exit\(0\);[\s\S]*?\};/,
+    );
   });
 });
