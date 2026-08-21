@@ -32,6 +32,14 @@ import {
 import { ensureSquidClaudeHome } from '../../lib/squid/bridge-client-home.js';
 import { squidTokens } from '../../lib/squid/terminal.js';
 import { resolveSquidAsset } from '../../lib/squid/assets.js';
+import {
+  clearSquidHookDebugEvents,
+  disableSquidHookDebug,
+  enableSquidHookDebug,
+  readSquidHookDebugSnapshot,
+  type SquidHookDebugSnapshot,
+  type SquidHookStepState,
+} from '../../lib/squid/debug.js';
 import type { CLIOptions } from '../types.js';
 import * as ui from '../utils/ui.js';
 
@@ -102,6 +110,9 @@ export async function handleSquid(args: string[], options: CLIOptions): Promise<
     case 'tap':
       handleSquidTap(options);
       return;
+    case 'debug':
+      handleSquidDebug(rest, options);
+      return;
     case 'help':
     case '--help':
     case '-h':
@@ -109,9 +120,83 @@ export async function handleSquid(args: string[], options: CLIOptions): Promise<
       return;
     default:
       ui.error(`Unknown squid command: ${sub}`);
-      console.log('Use `pd squid on|off|status|tap`, or `pd hooks install` for hook-only repair.');
+      console.log('Use `pd squid on|off|status|tap|debug`, or `pd hooks install` for hook-only repair.');
       process.exitCode = 1;
       return;
+  }
+}
+
+/** Opt-in, sanitized per-session timing for the generated interactive hook gate. */
+export function handleSquidDebug(args: string[], options: CLIOptions): void {
+  const sub = args[0] ?? 'status';
+  const cwd = String(options.cwd ?? options.workdir ?? process.cwd());
+  let snapshot: SquidHookDebugSnapshot;
+  if (sub === 'on' || sub === 'enable') {
+    snapshot = enableSquidHookDebug();
+  } else if (sub === 'off' || sub === 'disable') {
+    snapshot = disableSquidHookDebug();
+  } else if (sub === 'clear') {
+    snapshot = clearSquidHookDebugEvents();
+  } else if (sub === 'status' || sub === 'show' || sub === 'list') {
+    snapshot = readSquidHookDebugSnapshot({ cwd });
+  } else {
+    ui.error(`Unknown squid debug command: ${sub}`);
+    console.log('Use `pd squid debug on|off|status|clear`.');
+    process.exitCode = 1;
+    return;
+  }
+
+  // Mutations return the global snapshot; narrow it to the selected project so
+  // FleetBar and the CLI share one stable contract.
+  if (sub !== 'status' && sub !== 'show' && sub !== 'list') {
+    snapshot = readSquidHookDebugSnapshot({ cwd });
+  }
+  if (options.json || options.j) {
+    console.log(JSON.stringify(snapshot, null, 2));
+    return;
+  }
+  printSquidDebugSnapshot(snapshot, sub);
+}
+
+function printSquidDebugSnapshot(snapshot: SquidHookDebugSnapshot, action: string): void {
+  const c = squidTokens('stdout');
+  console.log('');
+  if (action === 'on' || action === 'enable') ui.success('Squid hook debug capture enabled');
+  else if (action === 'off' || action === 'disable') ui.success('Squid hook debug capture disabled; retained timeline is still readable');
+  else if (action === 'clear') ui.success('Squid hook debug timeline cleared');
+  else ui.info(`Squid hook debug — ${snapshot.enabled ? 'ON' : 'OFF'}`);
+  console.log(`  workspace: ${snapshot.workspace ?? 'all projects'}`);
+  console.log(`  privacy:   ${snapshot.privacy}`);
+  console.log(`  retention: bounded to ${Math.round(snapshot.retention.maxBytes / 1024 / 1024)} MiB locally`);
+  console.log('');
+  if (snapshot.sessions.length === 0) {
+    console.log(`  ${c.dim(snapshot.enabled ? 'Waiting for the next hook invocation…' : 'No retained hook invocations. Enable debug capture to begin.')}`);
+    console.log('');
+    return;
+  }
+  for (const session of snapshot.sessions) {
+    console.log(`  ${c.pilot(session.providerLabel)}  ${session.runtimeSessionId}  ${c.dim(session.workspaceLabel)}`);
+    console.log(`    ${stateGlyph(session.state)} ${session.state.toUpperCase()} · last activity ${session.lastActivityAt}`);
+    for (const step of session.steps) {
+      const finish = step.finishedAt ?? 'still running';
+      const duration = step.durationMs === null ? '' : ` · ${step.durationMs}ms`;
+      console.log(`    ${stateGlyph(step.state)} ${step.label.padEnd(8)} ${step.state.toUpperCase()}`);
+      console.log(`      actual    ${step.startedAt} → ${finish}${duration}`);
+      console.log(`      expected  by ${step.expectedBy} (${step.deadlineMs}ms)`);
+      console.log(`      ${step.description}`);
+    }
+    console.log('');
+  }
+}
+
+function stateGlyph(state: SquidHookStepState): string {
+  switch (state) {
+    case 'completed': return '✓';
+    case 'skipped': return '○';
+    case 'running': return '●';
+    case 'blocked': return '⊘';
+    case 'overdue': return '!';
+    case 'failed': return '×';
   }
 }
 
@@ -875,6 +960,7 @@ function printHelp(): void {
   pd squid off    [--all] [--cwd <repo>]         Disarm it (hooks, statusline, /squid)
   pd squid status [--json]                       Non-diegetic readout of every surface
   pd squid tap                                   Preview the next-turn injection envelope
+  pd squid debug on|off|status|clear [--json]    Sanitized per-session hook timeline
   pd squid bridge [bridge options] [-- <client> <args...>]
   pd squid codex  [bridge options] [-- <client> <args...>]
   pd squid pro    [bridge options] [-- <client> <args...>]

@@ -9,7 +9,7 @@
  *
  * Sandbox lives under the repo's .scratch/ — NEVER /tmp.
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync, readFileSync, rmSync, statSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -81,6 +81,7 @@ describe('hook-shape (single source of truth) matches the squid adapter exactly'
     expect(GEMINI_EVENTS.preTool).toBe('BeforeTool');
     expect(map.BeforeTool[0].matcher).toBe(GEMINI_TOOL_MATCHER);
     expect(map.BeforeAgent[0].matcher).toBeUndefined(); // prompt hook has no matcher
+    expect(map.BeforeAgent[0].hooks[0].timeout).toBe(1000);
   });
 
   test('claude/agy use UserPromptSubmit/PreToolUse/PostToolUse', () => {
@@ -88,6 +89,7 @@ describe('hook-shape (single source of truth) matches the squid adapter exactly'
       const map = buildJsonHookMap(v, (n) => `/x/${n}`);
       expect(Object.keys(map)).toEqual(['UserPromptSubmit', 'PreToolUse', 'PostToolUse']);
       expect(JSON.stringify(map)).not.toContain('statusMessage');
+      expect(map.UserPromptSubmit[0].hooks[0].timeout).toBe(1);
     }
   });
 
@@ -136,7 +138,79 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(wrapper).toContain('squid/projects');
     expect(wrapper).toContain('grep -Fqx "$project_root"');
     expect(wrapper).toContain('exec "$PD_HOME/bin/squid/${0##*/}"');
-    expect(wrapper.trim().endsWith('exit 0')).toBe(true); // fail-open default
+    expect(wrapper.trim().endsWith('pd_debug_skip no_project')).toBe(true); // fail-open default
+    expect(wrapper).toContain('debug.enabled');
+    expect(wrapper).toContain('hook-events.log');
+    expect(wrapper).not.toContain('tool_input');
+    expect(wrapper).not.toContain('tool_result');
+  });
+
+  test('debug capture records sanitized no-op timing without retaining stdin or argv', () => {
+    const pdHome = join(SANDBOX, 'debug-gate-home');
+    const binDir = join(pdHome, 'bin');
+    stageTentacles(SRC, binDir);
+    mkdirSync(join(pdHome, 'squid'), { recursive: true });
+    writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
+
+    const secretInput = '{"session_id":"session-abc-123","tool_input":"prompt-secret-that-must-not-land"}';
+    const secretArg = 'argv-secret-that-must-not-land';
+    const out = execFileSync(join(binDir, 'pd-hook-pre-tool'), [secretArg], {
+      cwd: REPO,
+      env: {
+        ...process.env,
+        PD_HOME: pdHome,
+        PD_HOOK_PROVIDER: 'codex',
+        PD_HOOK_DEADLINE_MS: '1000',
+      },
+      input: secretInput,
+      encoding: 'utf8',
+    });
+
+    expect(out).toBe('');
+    const events = readFileSync(join(pdHome, 'squid', 'hook-events.log'), 'utf8');
+    expect(events).toContain('\tcodex:session-abc-123\t');
+    expect(events).toContain('\tcodex\tedit\tpd-hook-pre-tool\t');
+    expect(events).toContain('\theartbeat_missing\t0\t');
+    expect(events).not.toContain(secretInput);
+    expect(events).not.toContain(secretArg);
+  });
+
+  test('concurrent debug hooks serialize complete event lines instead of corrupting the timeline', async () => {
+    const pdHome = join(SANDBOX, 'concurrent-debug-home');
+    const binDir = join(pdHome, 'bin');
+    stageTentacles(SRC, binDir);
+    mkdirSync(join(pdHome, 'squid'), { recursive: true });
+    writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
+    const wrapper = join(binDir, 'pd-hook-pre-tool');
+
+    const run = () => new Promise<void>((resolve, reject) => {
+      const child = spawn(wrapper, [], {
+        cwd: REPO,
+        env: {
+          ...process.env,
+          PD_HOME: pdHome,
+          PD_HOOK_PROVIDER: 'codex',
+          PD_HOOK_DEADLINE_MS: '1000',
+        },
+        stdio: ['pipe', 'ignore', 'pipe'],
+      });
+      let stderr = '';
+      child.stderr.setEncoding('utf8');
+      child.stderr.on('data', (chunk) => { stderr += chunk; });
+      child.on('error', reject);
+      child.on('exit', (code) => code === 0 ? resolve() : reject(new Error(`hook exited ${code}: ${stderr}`)));
+      child.stdin.end('{"session_id":"concurrent-session"}');
+    });
+
+    await Promise.all(Array.from({ length: 12 }, run));
+
+    const lines = readFileSync(join(pdHome, 'squid', 'hook-events.log'), 'utf8').trim().split('\n');
+    expect(lines).toHaveLength(24);
+    expect(lines.every((line) => line.split('\t').length === 12)).toBe(true);
+    expect(lines.filter((line) => line.startsWith('v1\tstart\t'))).toHaveLength(12);
+    expect(lines.filter((line) => line.startsWith('v1\tfinish\t'))).toHaveLength(12);
+    expect(lines.every((line) => line.includes('\tcodex:concurrent-session\t'))).toBe(true);
+    expect(existsSync(join(pdHome, 'squid', 'debug-write.lock'))).toBe(false);
   });
 
   test('delegates with a fresh heartbeat and fails open when it becomes stale', () => {
@@ -310,6 +384,7 @@ describe('configureTarget — per-project scope, gate-pointed commands', () => {
     for (const name of TENTACLES) {
       expect(toml.split(`/.port-daddy/bin/${name}`).length - 1).toBe(1);
     }
+    expect(toml).toContain('PD_HOOK_PROVIDER=codex');
     expect(toml.split(CODEX_PD_MARKER).length - 1).toBe(1);
 
     const json = readFileSync(legacyJson, 'utf-8');

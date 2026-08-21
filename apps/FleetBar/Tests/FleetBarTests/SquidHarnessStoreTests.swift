@@ -35,6 +35,44 @@ final class SquidHarnessStoreTests: XCTestCase {
     }
     """
 
+    private let debugJSON = """
+    {
+      "schemaVersion": 1,
+      "enabled": true,
+      "enabledAt": "2026-08-21T20:00:00.000Z",
+      "capturedAt": "2026-08-21T20:00:02.000Z",
+      "workspace": "/work/repo",
+      "privacy": "Sanitized timing only: no argv, environment snapshot, prompts, tool inputs, tool results, stdout, or stderr are captured.",
+      "retention": {"maxBytes":2097152,"eventPath":"/home/.port-daddy/squid/hook-events.log"},
+      "sessions": [{
+        "id":"codex-codex:42-repo",
+        "runtimeSessionId":"codex:42",
+        "provider":"codex",
+        "providerLabel":"Codex",
+        "workspace":"/work/repo",
+        "workspaceLabel":"repo",
+        "state":"overdue",
+        "startedAt":"2026-08-21T20:00:00.000Z",
+        "lastActivityAt":"2026-08-21T20:00:00.000Z",
+        "steps":[{
+          "id":"run-1",
+          "phase":"edit",
+          "label":"PD EDIT",
+          "hook":"pd-hook-pre-tool",
+          "state":"overdue",
+          "startedAt":"2026-08-21T20:00:00.000Z",
+          "expectedBy":"2026-08-21T20:00:01.000Z",
+          "finishedAt":null,
+          "durationMs":null,
+          "deadlineMs":1000,
+          "outcome":null,
+          "exitCode":null,
+          "description":"PD EDIT is checking project ownership and destructive-command safety before mutation. No completion arrived by the deadline."
+        }]
+      }]
+    }
+    """
+
     func testRefreshDecodesMachineReadableSquidStatus() async {
         let json = readyJSON
         let calls = SquidCallRecorder()
@@ -87,5 +125,38 @@ final class SquidHarnessStoreTests: XCTestCase {
         await store.refresh(projectDir: "/work/repo")
         XCTAssertNil(store.snapshot)
         XCTAssertEqual(store.message, "packaged asset missing")
+    }
+
+    func testRefreshDebugDecodesPerSessionDeadlineTimeline() async {
+        let json = debugJSON
+        let calls = SquidCallRecorder()
+        let store = SquidHarnessStore { arguments in
+            await calls.append(arguments)
+            return SquidCommandResult(status: 0, stdout: json, stderr: "")
+        }
+
+        await store.refreshDebug(projectDir: "/work/repo")
+
+        let recorded = await calls.values
+        XCTAssertEqual(recorded, [["squid", "debug", "status", "--json", "--cwd", "/work/repo"]])
+        XCTAssertEqual(store.debugSnapshot?.enabled, true)
+        XCTAssertEqual(store.debugSnapshot?.overdueCount, 1)
+        XCTAssertEqual(store.debugSnapshot?.sessions.first?.steps.first?.expectedBy, "2026-08-21T20:00:01.000Z")
+        XCTAssertNil(store.debugMessage)
+    }
+
+    func testDebugCaptureToggleUsesMachineReadableOperatorSurface() async {
+        let json = debugJSON
+        let calls = SquidCallRecorder()
+        let store = SquidHarnessStore { arguments in
+            await calls.append(arguments)
+            return SquidCommandResult(status: 0, stdout: json, stderr: "")
+        }
+
+        await store.setDebugCapture(true, projectDir: "/work/repo")
+
+        let recorded = await calls.values
+        XCTAssertEqual(recorded, [["squid", "debug", "on", "--json", "--cwd", "/work/repo"]])
+        XCTAssertEqual(store.debugMessage, "Capturing sanitized hook timing for new invocations.")
     }
 }
