@@ -37,10 +37,12 @@ name: Deploy fleet-executor (Cloudflare Worker)
 #                                (plan N2): Ed25519 seed + the hv:2 card from
 #                                the relay's POST /v1/fleet/executor-identity.
 #                                OPTIONAL: unset ⇒ squid events silently off.
-#                                PRODUCTION provisioning is a one-time HUMAN
-#                                action (operator runs `wrangler secret put`
-#                                with prod credentials); staging may
-#                                self-provision against relay-latest.
+#                                Provisioning is agent-owned and writes both
+#                                values directly to Wrangler over stdin. Until
+#                                FleetBar exposes this action, an agent handles
+#                                it after explicit operator authorization; the
+#                                operator is never sent to a terminal or given
+#                                copy-paste secret commands.
 
 on:
   push:
