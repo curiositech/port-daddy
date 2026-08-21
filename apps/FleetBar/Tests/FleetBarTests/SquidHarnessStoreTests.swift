@@ -6,6 +6,21 @@ private actor SquidCallRecorder {
     func append(_ value: [String]) { values.append(value) }
 }
 
+private actor SquidResultQueue {
+    private var values: [SquidCommandResult]
+
+    init(_ values: [SquidCommandResult]) {
+        self.values = values
+    }
+
+    func next() -> SquidCommandResult {
+        guard !values.isEmpty else {
+            return SquidCommandResult(status: 1, stdout: "", stderr: "No queued Squid result")
+        }
+        return values.removeFirst()
+    }
+}
+
 @MainActor
 final class SquidHarnessStoreTests: XCTestCase {
     private let readyJSON = """
@@ -143,6 +158,43 @@ final class SquidHarnessStoreTests: XCTestCase {
         XCTAssertEqual(store.debugSnapshot?.overdueCount, 1)
         XCTAssertEqual(store.debugSnapshot?.sessions.first?.steps.first?.expectedBy, "2026-08-21T20:00:01.000Z")
         XCTAssertNil(store.debugMessage)
+    }
+
+    func testMalformedDebugJSONClearsStaleTimelineAndSurfacesCLIError() async {
+        let queue = SquidResultQueue([
+            SquidCommandResult(status: 0, stdout: debugJSON, stderr: ""),
+            SquidCommandResult(status: 1, stdout: "{not-json", stderr: "debug timeline unreadable"),
+        ])
+        let store = SquidHarnessStore { _ in await queue.next() }
+
+        await store.refreshDebug(projectDir: "/work/repo")
+        XCTAssertNotNil(store.debugSnapshot)
+
+        await store.refreshDebug(projectDir: "/work/repo")
+        XCTAssertNil(store.debugSnapshot)
+        XCTAssertEqual(store.debugMessage, "debug timeline unreadable")
+    }
+
+    func testIncompleteDebugJSONDoesNotMasqueradeAsAnEmptyTimeline() async {
+        let incomplete = """
+        {
+          "schemaVersion": 1,
+          "enabled": true,
+          "enabledAt": null,
+          "capturedAt": "2026-08-21T20:00:02.000Z",
+          "workspace": "/work/repo",
+          "privacy": "Sanitized timing only.",
+          "retention": {"maxBytes":2097152,"eventPath":"/hook-events.log"}
+        }
+        """
+        let store = SquidHarnessStore { _ in
+            SquidCommandResult(status: 0, stdout: incomplete, stderr: "")
+        }
+
+        await store.refreshDebug(projectDir: "/work/repo")
+
+        XCTAssertNil(store.debugSnapshot)
+        XCTAssertEqual(store.debugMessage, "Squid hook timing is unavailable.")
     }
 
     func testDebugCaptureToggleUsesMachineReadableOperatorSurface() async {

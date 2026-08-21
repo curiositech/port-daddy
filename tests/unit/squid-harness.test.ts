@@ -1147,6 +1147,24 @@ describe('Giant Squid Harness — headless voyage adapter wiring', () => {
 });
 
 describe('Giant Squid command surface', () => {
+  test('unknown debug subcommands fail with the supported action list', async () => {
+    const log = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const error = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const previous = process.exitCode;
+    process.exitCode = undefined;
+    try {
+      await handleSquid(['debug', 'invalid'], {});
+      expect(process.exitCode).toBe(1);
+      const output = [...log.mock.calls, ...error.mock.calls].flat().join('\n');
+      expect(output).toContain('Unknown squid debug command: invalid');
+      expect(output).toContain('pd squid debug on|off|status|clear');
+    } finally {
+      process.exitCode = previous;
+      log.mockRestore();
+      error.mockRestore();
+    }
+  });
+
   test('removed pd squid hooks command fails and points to the canonical surfaces', async () => {
     const log = jest.spyOn(console, 'log').mockImplementation(() => undefined);
     const error = jest.spyOn(console, 'error').mockImplementation(() => undefined);

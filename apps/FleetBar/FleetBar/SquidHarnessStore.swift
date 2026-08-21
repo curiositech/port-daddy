@@ -261,11 +261,13 @@ final class SquidHarnessStore: ObservableObject {
     private func decodeDebug(_ result: SquidCommandResult) {
         guard let data = result.stdout.data(using: .utf8),
               let decoded = try? JSONDecoder().decode(SquidHookDebugSnapshot.self, from: data) else {
+            debugSnapshot = nil
             let detail = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
             debugMessage = detail.isEmpty ? "Squid hook timing is unavailable." : detail
             return
         }
         debugSnapshot = decoded
+        debugMessage = nil
         if result.status != 0 {
             let detail = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
             if !detail.isEmpty { debugMessage = detail }
