@@ -19,7 +19,10 @@ The PD Relay (see ADR-0026) federates events between local daemons and external 
 
 The Anchor Protocol (ADR-0014) names the daemon as a per-machine root CA issuing Ed25519 harbor cards. That ADR is silent on **federation**: how daemons trust each other's cards on the relay, and how non-daemon publishers (CI/bots) bootstrap identity. This ADR fills that gap.
 
-We considered four options (full discussion in `skills/pd-relay-zero-trust/references/pki-options-{acme,oidc,web-of-trust}.md`):
+We considered four options (full discussion in
+`skills/pd-relay-zero-trust/references/pki-options-acme.md`,
+`skills/pd-relay-zero-trust/references/pki-options-oidc.md`, and
+`skills/pd-relay-zero-trust/references/pki-options-web-of-trust.md`):
 
 1. **ACME** (RFC 8555 + extensions): daemon binds Ed25519 key to a name via DNS-01 or HTTP-01 control proof; relay accepts cards from name-bound daemons.
 2. **OIDC**: daemons and external publishers present OIDC tokens (esp. GitHub Actions OIDC); relay verifies signature against issuer JWKS and exchanges for a short-lived PD card.
@@ -28,7 +31,8 @@ We considered four options (full discussion in `skills/pd-relay-zero-trust/refer
 
 ## Decision Matrix at Time of Decision
 
-`scripts/pki_decision.py` run with default weights and default scores produced an exact tie at the top:
+`skills/pd-relay-zero-trust/scripts/pki_decision.py` run with default weights and
+default scores produced an exact tie at the top:
 
 | Option | Score | Notes |
 |--------|------:|-------|
