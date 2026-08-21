@@ -38,6 +38,10 @@ import {
 } from '../src/crypto.js';
 import worker from '../src/index.js';
 import type { Env, RelayEvent } from '../src/types.js';
+// The provisioning script is intentionally plain ESM so an agent can invoke
+// it directly after installing relay dependencies.
+// @ts-expect-error JavaScript module has no declaration file.
+import { installExecutorSecrets } from '../scripts/provision-fleet-executor.mjs';
 
 // ── Stateful in-memory D1 mock ───────────────────────────────────────────────
 // Implements exactly the tables/queries the provisioning + publish + revoke
@@ -257,6 +261,51 @@ const SEED_B = '22'.repeat(32);
 const RUN_CHANNEL = () => `${RELAY_FP}:fleet-cloud:run:d-1`;
 
 describe('provisioning — POST /v1/fleet/executor-identity', () => {
+  it('passes the private seed and card only through Wrangler stdin', () => {
+    const seedHex = 'private-seed-must-never-be-logged';
+    const card = 'hv2-card-must-never-be-logged';
+    const calls: Array<{
+      command: string;
+      args: string[];
+      input: string;
+      shell: boolean;
+      stdio: string[];
+    }> = [];
+    const logs: string[] = [];
+    const run = (
+      command: string,
+      args: string[],
+      options: { input: string; shell: boolean; stdio: string[] },
+    ) => {
+      calls.push({ command, args, input: options.input, shell: options.shell, stdio: options.stdio });
+      return { status: 0 };
+    };
+
+    installExecutorSecrets(
+      { seedHex, card },
+      {
+        run,
+        wranglerBin: '/safe/wrangler',
+        configPath: '/safe/wrangler.deploy.toml',
+        log: (message: string) => logs.push(message),
+      },
+    );
+
+    expect(calls).toHaveLength(2);
+    expect(calls.map((call) => call.args[2])).toEqual([
+      'FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX',
+      'FLEET_EXECUTOR_HARBOR_CARD',
+    ]);
+    expect(calls.map((call) => call.input)).toEqual([`${seedHex}\n`, `${card}\n`]);
+    expect(calls.every((call) => call.shell === false)).toBe(true);
+    expect(calls.every((call) => call.stdio.join(',') === 'pipe,pipe,pipe')).toBe(true);
+    const processMetadata = JSON.stringify(calls.map(({ command, args }) => ({ command, args })));
+    expect(processMetadata).not.toContain(seedHex);
+    expect(processMetadata).not.toContain(card);
+    expect(logs.join('\n')).not.toContain(seedHex);
+    expect(logs.join('\n')).not.toContain(card);
+  });
+
   it('requires the operator token', async () => {
     const env = makeEnv(new MockD1());
     const res = await handleProvisionFleetExecutor(
