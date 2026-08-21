@@ -1,6 +1,6 @@
 // tests/unit/purser/concurrent-executions.test.ts
 import { handleBegin } from '../../../cli/commands/sugar.js';
-import { describe, test, expect } from '@jest/globals';
+import { describe, test } from '@jest/globals';
 
 describe('concurrent pd begin invocations', () => {
   // Define a set of error scenarios that should each throw an error
