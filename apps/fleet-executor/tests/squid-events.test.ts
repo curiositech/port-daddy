@@ -22,6 +22,9 @@ import {
   flushSquidEvents,
   resetSquidChains,
   computeSquidEventHash,
+  computeRunReportHash,
+  reportRunTotals,
+  runReportUrl,
   SQUID_SCHEMA,
   SQUID_CHANNEL_FAMILY,
   ZERO_HASH,
@@ -259,6 +262,101 @@ describe('emitSquidEvent — never disturbs the run', () => {
     await flushSquidEvents();
     const second = JSON.parse(String((fn.mock.calls[1] as unknown as [string, RequestInit])[1].body)) as CapturedPublish;
     expect(second.event.seq).toBe(2); // no local retry, no seq reuse
+  });
+});
+
+// ── Run-concluded reconciliation report (x7-mercy-hooks slice 2) ─────────────
+
+describe('reportRunTotals — the out-of-band claim', () => {
+  it('POSTs the signed per-run total to /v1/fleet/run-report AFTER the channel tail drains', async () => {
+    const fn = stubFetch();
+    emitSquidEvent(ENV, 'run-started', PAYLOAD, true);
+    emitSquidEvent(ENV, 'ship-verdict', { ...PAYLOAD, ship: 'purser', verdict: 'APPROVE' }, true);
+    emitSquidEvent(ENV, 'run-concluded', { ...PAYLOAD, verdict: 'success' }, true);
+    reportRunTotals(ENV, PAYLOAD.runId, true);
+    await flushSquidEvents();
+
+    expect(fn).toHaveBeenCalledTimes(4);
+    // The report is queued on the channel tail, so it is the LAST call — every
+    // in-flight event is counted before the claim is made.
+    const [url, init] = fn.mock.calls[3] as unknown as [string, RequestInit];
+    expect(url).toBe('https://relay.example/v1/fleet/run-report');
+    const body = JSON.parse(String(init.body)) as {
+      card: string;
+      report: { run_id: string; channel: string; events_sent: number; iat: number };
+      sig: string;
+    };
+    expect(body.card).toBe(CARD);
+    expect(body.report.run_id).toBe(PAYLOAD.runId);
+    expect(body.report.channel).toBe(`${RELAY_FP}:${SQUID_CHANNEL_FAMILY}:${PAYLOAD.runId}`);
+    expect(body.report.events_sent).toBe(3);
+
+    // The signature verifies against the executor's public key over the
+    // canonical report hash — the relay-side check, run here.
+    const hash = computeRunReportHash({
+      sender: FP,
+      channel: body.report.channel,
+      runId: body.report.run_id,
+      eventsSent: body.report.events_sent,
+      iat: body.report.iat,
+    });
+    expect(ed.verify(fromHexT(body.sig), fromHexT(hash), PUB)).toBe(true);
+  });
+
+  it('counts events the network ATE — the claim is the local chain, not delivery', async () => {
+    let calls = 0;
+    const fn = vi.fn(async () => {
+      calls += 1;
+      if (calls === 2) throw new Error('dropped'); // second event never delivered
+      return new Response('{}', { status: 200 });
+    });
+    vi.stubGlobal('fetch', fn as unknown as typeof fetch);
+    emitSquidEvent(ENV, 'run-started', PAYLOAD, true);
+    emitSquidEvent(ENV, 'ship-verdict', { ...PAYLOAD, ship: 'purser' }, true);
+    reportRunTotals(ENV, PAYLOAD.runId, true);
+    await flushSquidEvents();
+    const [, init] = fn.mock.calls[2] as unknown as [string, RequestInit];
+    const body = JSON.parse(String(init.body)) as { report: { events_sent: number } };
+    // Claimed 2 although only 1 arrived — exactly the gap the relay records.
+    expect(body.report.events_sent).toBe(2);
+  });
+
+  it('is gated exactly like the squid: tenant consent, env presence, and a non-empty channel', async () => {
+    const fn = stubFetch();
+    reportRunTotals(ENV, PAYLOAD.runId, false); // tenant did not consent
+    reportRunTotals({}, PAYLOAD.runId, true); // env missing
+    reportRunTotals(ENV, PAYLOAD.runId, true); // nothing was ever sent on this channel
+    await flushSquidEvents();
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('never throws — not on a rejected fetch, not on a throwing fetch', async () => {
+    const fn = vi.fn(async () => {
+      throw new Error('network down');
+    });
+    vi.stubGlobal('fetch', fn as unknown as typeof fetch);
+    emitSquidEvent(ENV, 'run-started', PAYLOAD, true);
+    expect(() => reportRunTotals(ENV, PAYLOAD.runId, true)).not.toThrow();
+    await expect(flushSquidEvents()).resolves.toBeUndefined();
+  });
+
+  it('derives the report endpoint from the publish endpoint', () => {
+    expect(runReportUrl('https://relay.example/v1/publish')).toBe('https://relay.example/v1/fleet/run-report');
+    expect(runReportUrl('https://relay.example/v1/publish/')).toBe('https://relay.example/v1/fleet/run-report');
+  });
+
+  it('pins the canonical report hash to the known-answer vector shared with the relay suite', () => {
+    // The SAME vector is asserted by apps/relay/tests/run-report.test.ts
+    // against runReportHash — drift on either side breaks one of the suites.
+    expect(
+      computeRunReportHash({
+        sender: 'ab'.repeat(32),
+        channel: `${'cd'.repeat(32)}:fleet-cloud:run:kat-1`,
+        runId: 'run:kat-1',
+        eventsSent: 7,
+        iat: 1_755_000_000,
+      }),
+    ).toBe('311980675485f76132a2aa0cb01d9dbdc1af8956c9a6992699c46c06c9284de6');
   });
 });
 

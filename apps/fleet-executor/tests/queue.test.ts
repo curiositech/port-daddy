@@ -27,6 +27,21 @@ function fakeBatch(messages: ReturnType<typeof fakeMessage>[]) {
   return { queue: 'fleet-runs', messages } as unknown as MessageBatch<FleetRunJob>;
 }
 
+interface CapturingCtx extends ExecutionContext {
+  waited: Promise<unknown>[];
+}
+
+function capturingCtx(): CapturingCtx {
+  const waited: Promise<unknown>[] = [];
+  return {
+    waited,
+    waitUntil(promise: Promise<unknown>) {
+      waited.push(promise);
+    },
+    passThroughOnException() {},
+  } as unknown as CapturingCtx;
+}
+
 let state: GitHubState;
 
 beforeEach(() => {
@@ -51,14 +66,17 @@ describe('queue consumer', () => {
     }).ai;
 
     const msg = fakeMessage(makeJob());
+    const ctx = capturingCtx();
     await handler.queue!(
       fakeBatch([msg]),
       makeEnv({ FLEET_TOKENS: kv, AI: ai }),
-      {} as ExecutionContext,
+      ctx,
     );
 
     expect(msg.ack).toHaveBeenCalledTimes(1);
     expect(msg.retry).not.toHaveBeenCalled();
+    expect(ctx.waited).toHaveLength(1);
+    await Promise.all(ctx.waited);
   });
 
   it('retries a message when the orchestrator throws (recoverable infra error)', async () => {
@@ -73,10 +91,12 @@ describe('queue consumer', () => {
     });
 
     const msg = fakeMessage(makeJob());
-    await handler.queue!(fakeBatch([msg]), env, {} as ExecutionContext);
+    const ctx = capturingCtx();
+    await handler.queue!(fakeBatch([msg]), env, ctx);
 
     expect(msg.retry).toHaveBeenCalledTimes(1);
     expect(msg.ack).not.toHaveBeenCalled();
+    expect(ctx.waited).toHaveLength(0);
   });
 });
 

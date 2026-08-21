@@ -173,7 +173,7 @@ const OPERATOR_TOKEN = 'operator-token-0123456789abcdef-0123456789abcdef';
 const RELAY_PRIV = '42'.repeat(32);
 const RELAY_FP = toHex(sha256(fromHex(pubKeyFromPrivKey(RELAY_PRIV))));
 
-function makeEnv(db: MockD1): Env {
+function makeEnv(db: MockD1, quotaFetch?: () => Promise<Response>): Env {
   return {
     DB: db as unknown as D1Database,
     HARBOR_CHANNEL: {
@@ -185,6 +185,12 @@ function makeEnv(db: MockD1): Env {
             : new Response('{}', { status: 200 }),
       }),
     } as unknown as DurableObjectNamespace,
+    ...(quotaFetch ? {
+      HARBOR_QUOTA: {
+        idFromName: () => ({}),
+        get: () => ({ fetch: quotaFetch }),
+      } as unknown as DurableObjectNamespace,
+    } : {}),
     KV: {} as KVNamespace,
     RELAY_OPERATOR_TOKEN: OPERATOR_TOKEN,
     RELAY_ED25519_PRIVATE_KEY_HEX: RELAY_PRIV,
@@ -432,6 +438,28 @@ describe('GATE 1 — squid/1 envelope end-to-end against the relay chain verific
       }),
     ).toBe('276464292b650ab5985097ccdbef76bb4e3eb8842500dd5a05027890b5efa957');
   });
+
+  for (const [failure, quotaFetch] of [
+    ['a non-2xx response', async () => new Response('upstream failed', { status: 500 })],
+    ['invalid JSON', async () => new Response('not json', { status: 200 })],
+    ['an invalid verdict shape', async () => Response.json({ allowed: 'yes' })],
+    ['a thrown fetch', async () => { throw new Error('quota DO unavailable'); }],
+  ] as const) {
+    it(`fails closed with 503 QUOTA_ERROR when the quota gate returns ${failure}`, async () => {
+      const db = new MockD1();
+      const env = makeEnv(db, quotaFetch);
+      const { card, fingerprint } = await provision(env, SEED_A, 'staging');
+      const chain: LocalChain = { seq: 0, prev: ZERO_HASH };
+      const event = await signedEnvelope(SEED_A, fingerprint, RUN_CHANNEL(), chain, { type: 'run-started' });
+
+      const res = await publish(env, card, event);
+
+      expect(res.status).toBe(503);
+      expect((await res.json()) as { code: string }).toMatchObject({ code: 'QUOTA_ERROR' });
+      expect(db.eventInserts).toBe(0);
+      expect(db.events).toHaveLength(0);
+    });
+  }
 });
 
 describe('GATE 2 — a second writer on a concluded run channel is detected', () => {

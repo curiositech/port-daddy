@@ -53,6 +53,7 @@ import {
   type QuotaCheckRequest,
   type QuotaVerdict,
 } from './harbor-quota.js';
+import { recordHookEvent } from './mercy-hooks.js';
 import type {
   Env,
   ClientHello,
@@ -74,6 +75,26 @@ import type {
 function err(code: string, detail: string, status = 400): Response {
   const body: RelayError = { error: detail, code };
   return Response.json(body, { status });
+}
+
+function isQuotaVerdict(value: unknown): value is QuotaVerdict {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const verdict = value as Record<string, unknown>;
+  if (typeof verdict.allowed !== 'boolean') return false;
+  if (verdict.shadow !== undefined && typeof verdict.shadow !== 'boolean') return false;
+  if (
+    verdict.retryAfterSeconds !== undefined &&
+    (!Number.isSafeInteger(verdict.retryAfterSeconds) || (verdict.retryAfterSeconds as number) <= 0)
+  ) {
+    return false;
+  }
+  if (verdict.allowed) {
+    return verdict.code === undefined && verdict.retryAfterSeconds === undefined;
+  }
+  return (
+    (verdict.code === 'RATE_LIMITED' || verdict.code === 'QUOTA_EXHAUSTED') &&
+    typeof verdict.retryAfterSeconds === 'number'
+  );
 }
 
 function clientIp(request: Request): string {
@@ -493,13 +514,40 @@ export async function handlePublish(
         enforce: settings.enforce,
       };
       const quotaStub = env.HARBOR_QUOTA.get(env.HARBOR_QUOTA.idFromName(harborQuotaKey(harborFp)));
-      const quotaResp = await quotaStub.fetch('http://do/?action=check', {
-        method: 'POST',
-        body: JSON.stringify(checkBody),
-      });
-      const verdict = await quotaResp.json() as QuotaVerdict;
+      let verdict: QuotaVerdict;
+      try {
+        const quotaResp = await quotaStub.fetch('http://do/?action=check', {
+          method: 'POST',
+          body: JSON.stringify(checkBody),
+        });
+        if (!quotaResp.ok) {
+          return err('QUOTA_ERROR', 'Harbor quota gate unavailable or returned an invalid verdict', 503);
+        }
+        const candidate: unknown = await quotaResp.json();
+        if (!isQuotaVerdict(candidate)) {
+          return err('QUOTA_ERROR', 'Harbor quota gate unavailable or returned an invalid verdict', 503);
+        }
+        verdict = candidate;
+      } catch {
+        return err('QUOTA_ERROR', 'Harbor quota gate unavailable or returned an invalid verdict', 503);
+      }
+      // X8 mercy hooks (x7-mercy-hooks): budget verdicts feed the hook
+      // ledger the sweep aggregates — an enforced 429 as `x8_quota_exhausted`,
+      // a shadow-mode pass that enforcement WOULD have refused as
+      // `x8_quota_shadow_denied` (the flip-decision signal). recordHookEvent
+      // never throws; a plain rate-limit refusal predates X8 and is not one
+      // of its hooks.
+      const hookNow = Math.floor(Date.now() / 1000);
+      if (verdict.shadow === true) {
+        await recordHookEvent(env.DB, 'x8_quota_shadow_denied', 'warn', `harbor ${harborFp}: over daily budget, passed in shadow`, hookNow);
+      }
       const refusal = quotaGateResponse(verdict, rateLimit);
-      if (refusal) return refusal;
+      if (refusal) {
+        if (verdict.code === 'QUOTA_EXHAUSTED') {
+          await recordHookEvent(env.DB, 'x8_quota_exhausted', 'warn', `harbor ${harborFp}: publish refused 429 QUOTA_EXHAUSTED`, hookNow);
+        }
+        return refusal;
+      }
     } else {
       // Deploy-order fallback: HARBOR_QUOTA binding not provisioned yet.
       // Rate limiting must never fail open, so the legacy in-memory
