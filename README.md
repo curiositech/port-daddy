@@ -671,7 +671,10 @@ FleetBar marks Giant Squid `DEGRADED` with the affected hook, reason, timestamps
 and retry time. One half-open probe may recover automatically; FleetBar's
 **Repair** button restages and rewires the shims and clears the latch only after
 the repair succeeds. Intentional edit denial remains `exit 2` and never counts
-against hook health.
+against hook health. Portable latency measurement uses the external POSIX
+`/usr/bin/time -p -o` interface so dash cannot leak reserved-word timing output
+or silently report a slow hook as healthy. If that dependency is unavailable,
+the hook fails open, self-disables, and asks for FleetBar Repair.
 
 Hook reliability is treated as an integration contract, with the same evidence
 required locally, in CI on macOS and Linux, and from the compiled release:
@@ -680,7 +683,7 @@ required locally, in CI on macOS and Linux, and from the compiled release:
 |---|---:|---|
 | HOOK-R1 durable command interface | no `/Cellar/` lifecycle paths | adapter/install unit tests plus `scripts/smoke-squid-release.mjs` |
 | HOOK-R2 bounded lifecycle topology | one turn hook, one direct-edit hook, zero post-tool hooks | hook-shape, provider-adapter, and compiled-release tests |
-| HOOK-R3 fail-open containment | 3 unhealthy calls; 250 ms; no execution retry | executable wrapper failure/slow/exit-2 tests |
+| HOOK-R3 fail-open containment | 3 unhealthy calls; 250 ms; no execution retry | executable wrapper failure/slow/exit-2/missing-timer tests on macOS and Linux |
 | HOOK-R4 safe recovery | 5-minute OPEN cooldown; one HALF_OPEN probe | concurrent breaker and probe tests |
 | HOOK-R5 operator remediation | `DEGRADED` plus FleetBar Repair | JSON contract and FleetBar store/UI tests |
 | HOOK-R6 artifact portability | source tree absent at runtime | compiled CLI release smoke from a staged directory |
