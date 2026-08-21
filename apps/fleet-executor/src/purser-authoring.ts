@@ -104,8 +104,8 @@ function looksLikeCode(text: string, requireMultipleLines = true): boolean {
   // decisive guard for the #8736 failure; the syntax signals below must never
   // be allowed to bless a JSON fixture as an executable test file.
   try {
-    const parsed = JSON.parse(text.trim()) as unknown;
-    if (parsed !== null && typeof parsed === 'object') return false;
+    JSON.parse(text.trim());
+    return false;
   } catch {
     // Source code is not expected to parse as JSON; continue with syntax cues.
   }
