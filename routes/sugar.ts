@@ -20,6 +20,7 @@ interface SugarRouteDeps {
   metrics: { errors: number };
   logger: {
     info(msg: string, meta?: Record<string, unknown>): void;
+    warn(msg: string, meta?: Record<string, unknown>): void;
     error(msg: string, meta?: Record<string, unknown>): void;
   };
 }
@@ -112,6 +113,13 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
           || result.code === 'ROADMAP_ITEMS_UNAVAILABLE'
           ? 400
           : 500;
+        logger.warn('sugar_begin_rejected', {
+          code: result.code,
+          error: result.error,
+          identity,
+          lifecycle,
+          purpose,
+        });
         reply.code(status);
         return result;
       }
