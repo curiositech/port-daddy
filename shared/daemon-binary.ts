@@ -168,6 +168,36 @@ export function isBunCompiledRuntime(signals: BunRuntimeSignals): boolean {
 }
 
 /**
+ * Environment required by Port Daddy's pinned Bun 1.2.21 runtime to avoid the
+ * concurrent JSC crash family tracked in #676. JavaScriptCore reads these
+ * values only when the child process starts, so every long-lived Bun child
+ * must inherit them. Set PORT_DADDY_JSC_SAFE_MODE=0 to opt out.
+ */
+export function jscSafeModeEnv(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  if (env.PORT_DADDY_JSC_SAFE_MODE === '0') return {};
+  return {
+    BUN_JSC_useConcurrentGC: '0',
+    BUN_JSC_useConcurrentJIT: '0',
+  };
+}
+
+/**
+ * Merge one or more child environments and apply the JSC mitigation last.
+ * The exact opt-out is read from the fully merged environment, so a named
+ * profile may disable safe mode deliberately while ordinary overlays cannot
+ * accidentally restore the crash-prone concurrent settings.
+ */
+export function mergeJscSafeModeEnv(
+  ...sources: Array<NodeJS.ProcessEnv | undefined>
+): NodeJS.ProcessEnv {
+  const merged: NodeJS.ProcessEnv = {};
+  for (const source of sources) {
+    if (source) Object.assign(merged, source);
+  }
+  return { ...merged, ...jscSafeModeEnv(merged) };
+}
+
+/**
  * One-shot guard so the unconventional-layout warning doesn't spam
  * stderr every time the resolver is called (CLI invocations chain
  * through it many times per command).
