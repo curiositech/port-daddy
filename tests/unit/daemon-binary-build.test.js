@@ -1,8 +1,10 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   daemonBinaryName,
+  jscSafeModeEnv,
+  mergeJscSafeModeEnv,
   resolveDaemonLaunchCommand,
   resolveOnnxRuntimeNativeLaunchEnv,
 } from '../../shared/daemon-binary.js';
@@ -76,5 +78,71 @@ describe('daemon binary launch contract', () => {
     writeFileSync(nativePath, 'not a directory');
 
     expect(resolveOnnxRuntimeNativeLaunchEnv(root, binaryPath, {}, 'darwin', 'arm64')).toEqual({});
+  });
+});
+
+describe('JSC safe-mode launch environment', () => {
+  test('enables the pinned Bun runtime mitigation by default', () => {
+    expect(jscSafeModeEnv({})).toEqual({
+      BUN_JSC_useConcurrentGC: '0',
+      BUN_JSC_useConcurrentJIT: '0',
+    });
+  });
+
+  test('supports the existing explicit opt-out', () => {
+    expect(jscSafeModeEnv({ PORT_DADDY_JSC_SAFE_MODE: '0' })).toEqual({});
+    expect(jscSafeModeEnv({ PORT_DADDY_JSC_SAFE_MODE: '1' })).toEqual({
+      BUN_JSC_useConcurrentGC: '0',
+      BUN_JSC_useConcurrentJIT: '0',
+    });
+  });
+
+  test('applies safe mode after ordinary child-environment overlays', () => {
+    expect(mergeJscSafeModeEnv(
+      { OTHER: 'base', BUN_JSC_useConcurrentGC: '1' },
+      { OTHER: 'profile', BUN_JSC_useConcurrentJIT: '1' },
+    )).toMatchObject({
+      OTHER: 'profile',
+      BUN_JSC_useConcurrentGC: '0',
+      BUN_JSC_useConcurrentJIT: '0',
+    });
+  });
+
+  test('honors only the exact opt-out from the fully merged child environment', () => {
+    expect(mergeJscSafeModeEnv(
+      { PORT_DADDY_JSC_SAFE_MODE: '1', BUN_JSC_useConcurrentGC: 'base' },
+      { PORT_DADDY_JSC_SAFE_MODE: '0', BUN_JSC_useConcurrentJIT: 'profile' },
+    )).toMatchObject({
+      PORT_DADDY_JSC_SAFE_MODE: '0',
+      BUN_JSC_useConcurrentGC: 'base',
+      BUN_JSC_useConcurrentJIT: 'profile',
+    });
+
+    for (const invalidOptOut of [undefined, '', 'false', '0 ', 'invalid']) {
+      expect(mergeJscSafeModeEnv({
+        PORT_DADDY_JSC_SAFE_MODE: invalidOptOut,
+        BUN_JSC_useConcurrentGC: '1',
+        BUN_JSC_useConcurrentJIT: '1',
+      })).toMatchObject({
+        BUN_JSC_useConcurrentGC: '0',
+        BUN_JSC_useConcurrentJIT: '0',
+      });
+    }
+  });
+
+  test('every non-launchd long-lived Bun child routes through the executable merge boundary', () => {
+    const daemonSource = readFileSync(join(process.cwd(), 'cli/commands/daemon.ts'), 'utf8');
+    const spawnDaemonStart = daemonSource.indexOf('function spawnDaemon(');
+    const foregroundStart = daemonSource.indexOf("spawn(process.execPath, ['start', '--foreground']");
+
+    expect(spawnDaemonStart).toBeGreaterThan(-1);
+    expect(daemonSource.slice(spawnDaemonStart, spawnDaemonStart + 500)).toContain('mergeJscSafeModeEnv(');
+    expect(foregroundStart).toBeGreaterThan(-1);
+    expect(daemonSource.slice(foregroundStart, foregroundStart + 250)).toContain('mergeJscSafeModeEnv(process.env)');
+
+    const harbormasterSource = readFileSync(join(process.cwd(), 'cli/commands/harbormaster.ts'), 'utf8');
+    const harbormasterStart = harbormasterSource.indexOf("'harbormaster', 'start', '--foreground'");
+    expect(harbormasterStart).toBeGreaterThan(-1);
+    expect(harbormasterSource.slice(harbormasterStart, harbormasterStart + 300)).toContain('mergeJscSafeModeEnv(process.env)');
   });
 });
