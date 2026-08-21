@@ -722,6 +722,12 @@ daemon-witnessed runtime receipt.
 **Fix:** Keep the repository's own runner, but pass only the Purser-authored test paths after the runner's argument separator, shell-quote every path, and fail closed when the authored-file set is empty. Reproduce that exact command locally before blaming the reviewed PR.
 **Why:** Purser's authority comes from executing its stated contract. Repository-wide failures are neither that contract nor actionable review evidence.
 
+### Calling A Purser Loader Failure A Contract Failure
+**Detection:** Purser's sandbox says `Test suite failed to run`, reports zero executed tests, imports `bun:test`, `node:test`, or `vitest` into a Jest-discovered file, or uses an unbound `__dirname` in an ESM package.
+**Symptoms:** A healthy implementation PR is marked `BLOCK` even though no authored assertion ran; an invalid stacked test PR becomes a second red PR; pushing again reuses the same broken files forever.
+**Fix:** Treat runner compatibility as trusted executability evidence before the sandbox and again before every reuse. Replace an incompatible reused suite in place through the normal bounded authoring path; give a newly authored mismatch one rewrite with the exact loader error. If the trusted gate still fails, classify Purser as broken machinery, do not stack or retarget the files, and say explicitly that the implementation contract was not tested. Only an executed test-case failure may become a contract `BLOCK`.
+**Why:** A runner rejecting Purser's file is evidence about Purser, not the reviewed change. Keeping those failure domains separate makes an adversarial gate strict without making it arbitrary.
+
 ## Worked Examples
 
 ### Example 1: Adding a new MCP tool

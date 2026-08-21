@@ -93,10 +93,12 @@ import {
   checkGeneratedTestsExecutable,
   extractJestTestMatch,
   extractPackageJsonTestMatch,
+  extractPackageTypeModule,
   JEST_CONFIG_CANDIDATES,
   matchesAnyTestMatch,
   repairMisrootedRelativeImport,
   type ExecutabilityEvidence,
+  type ExecutabilityResult,
 } from './purser-executability.js';
 import {
   decideRerun,
@@ -590,6 +592,7 @@ async function gatherExecutabilityEvidence(
   prCtx: PRContext,
   token: string,
 ): Promise<ExecutabilityEvidence> {
+  const pkg = await fetchRepoFileText(prCtx.owner, prCtx.repo, 'package.json', prCtx.baseSha, token);
   let testMatchPatterns: string[] | null = null;
   for (const name of JEST_CONFIG_CANDIDATES) {
     const text = await fetchRepoFileText(prCtx.owner, prCtx.repo, name, prCtx.baseSha, token);
@@ -599,11 +602,14 @@ async function gatherExecutabilityEvidence(
     }
   }
   if (!testMatchPatterns) {
-    const pkg = await fetchRepoFileText(prCtx.owner, prCtx.repo, 'package.json', prCtx.baseSha, token);
     if (pkg) testMatchPatterns = extractPackageJsonTestMatch(pkg);
   }
   const repoTreePaths = await fetchRepoTreePaths(prCtx.owner, prCtx.repo, prCtx.baseSha, token);
-  return { testMatchPatterns, repoTreePaths };
+  return {
+    testMatchPatterns,
+    repoTreePaths,
+    packageTypeModule: pkg ? extractPackageTypeModule(pkg) : null,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -804,7 +810,43 @@ async function rerunExistingTests(
   files: StackedFile[],
   testPr: { number: number; url: string },
   reason: string,
+  verifiedExecutability?: ExecutabilityResult,
 ): Promise<ShipResult> {
+  const executability = verifiedExecutability ?? checkGeneratedTestsExecutable(
+    files,
+    await gatherExecutabilityEvidence(prCtx, token),
+  );
+  if (!executability.ok) {
+    await transcript.step(
+      'purser-tests',
+      ship.name,
+      `pd-${ship.name}: reused tests NON-EXECUTABLE`,
+      {
+        testPrNumber: testPr.number,
+        error: executability.reason,
+        fileCount: files.length,
+      },
+    );
+    await postShipComment(
+      prCtx.owner,
+      prCtx.repo,
+      prCtx.prNumber,
+      ship.name,
+      ship.role,
+      `**Re-run stopped — the existing Purser tests are not executable by this repository's trusted runner.**\n\n` +
+        `The tests in #${testPr.number} (${testPr.url}) were not run and are not evidence that this PR violates its contract. ` +
+        `Purser machinery failed closed before the sandbox: ${executability.reason}\n\n` +
+        `Repair or close the test PR, then re-run Fleet. The implementation PR must not be blamed for a contract file the runner cannot load.`,
+      token,
+    );
+    return {
+      ship: ship.name,
+      blocking: ship.blocking,
+      verdict: ship.blocking ? 'BLOCK' : 'PASS',
+      errored: true,
+      findings: [],
+    };
+  }
   const sandbox = await runTestsInSandbox({
     sandboxBinding: env.SANDBOX,
     owner: prCtx.owner,
@@ -935,6 +977,37 @@ export async function runPurser(
       rerunNote = `re-run probe failed (${String(err).slice(0, 120)}); authoring fresh`;
     }
 
+    let verifiedReuse: ExecutabilityResult | undefined;
+    if (reused) {
+      verifiedReuse = checkGeneratedTestsExecutable(
+        reused.files,
+        await gatherExecutabilityEvidence(prCtx, token),
+      );
+      if (
+        !verifiedReuse.ok &&
+        (verifiedReuse.kind === 'incompatible-runner' ||
+          verifiedReuse.kind === 'unresolved-import' ||
+          verifiedReuse.kind === 'undiscoverable-path')
+      ) {
+        rerunNote =
+          `re-authoring: existing Purser tests are not executable by the trusted runner ` +
+          `(${verifiedReuse.reason})`;
+        await transcript.step(
+          'purser-rerun',
+          ship.name,
+          `pd-${ship.name}: REJECTED non-executable reused tests from #${reused.testPr.number}; authoring fresh`,
+          {
+            testPrNumber: reused.testPr.number,
+            files: reused.files.map(f => f.path),
+            reason: verifiedReuse.reason,
+            action: 'author-fresh',
+          },
+        );
+        reused = null;
+        verifiedReuse = undefined;
+      }
+    }
+
     if (reused) {
       await transcript.step(
         'purser-rerun',
@@ -956,6 +1029,7 @@ export async function runPurser(
         reused.files,
         reused.testPr,
         rerunNote ?? '',
+        verifiedReuse,
       );
     }
 
@@ -1324,7 +1398,8 @@ export async function runPurser(
     }
     if (
       !executability.ok &&
-      executability.kind === 'unresolved-import' &&
+      (executability.kind === 'unresolved-import' ||
+        executability.kind === 'incompatible-runner') &&
       executability.path
     ) {
       // #8313: discovery-aware planning healed the filenames, then an authored

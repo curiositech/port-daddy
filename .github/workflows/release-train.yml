@@ -73,17 +73,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # Check out WITH the PAT so the credentials git persists are the
-          # PAT's. Without this, checkout writes an
-          # `http.https://github.com/.extraheader` Authorization header for the
-          # read-only GITHUB_TOKEN into the local git config — and that header
-          # applies to every github.com request, OVERRIDING credentials
-          # embedded in a push URL. That is why three consecutive fixes all
-          # still failed with "denied to github-actions[bot]" while apparently
-          # pushing as a PAT: the URL userinfo was never what git actually
-          # sent. Setting it here is the fix; the push below is then a plain
-          # `git push origin`.
-          token: ${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
+
+      # Keep discovery and diagnostics on the workflow GITHUB_TOKEN. An
+      # expired publishing PAT must not prevent the train from checking out
+      # the repository and explaining which credential needs repair.
 
       # PRESENCE CHECK ONLY — this step must never carry the secret VALUE.
       # It used to write the resolved token to $GITHUB_OUTPUT and later steps
@@ -210,6 +203,16 @@ jobs:
         with:
           node-version: 22
 
+      # Re-checkout only for the mutating path. This replaces checkout's
+      # read-only extraheader with the PAT-backed credential immediately
+      # before the commit and push that require it.
+      - name: Authenticate release mutation
+        if: steps.version.outputs.next != ''
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
+
       - name: Open the version-bump PR with auto-merge armed
         if: steps.version.outputs.next != ''
         env:
@@ -236,9 +239,9 @@ jobs:
           git config user.email "release-train@portdaddy.dev"
           git add -A
           git commit -m "chore(release): bump to $NEXT"
-          # Plain `git push origin` is correct HERE only because the checkout
-          # above was given the PAT, so the credentials git persisted are the
-          # PAT's. Do not "fix" this by embedding credentials in a push URL:
+          # Plain `git push origin` is correct HERE because the authenticated
+          # checkout immediately above persisted the PAT credential. Do not
+          # "fix" this by embedding credentials in a push URL:
           # checkout's `http.https://github.com/.extraheader` applies to every
           # github.com request and silently overrides URL userinfo, which is
           # how three consecutive attempts on 2026-08-15 all failed with

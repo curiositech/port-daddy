@@ -44,6 +44,22 @@ describe('release workflow topology contracts', () => {
     expect(release).not.toContain('token: ${{ secrets.HOMEBREW_TAP_TOKEN }}');
   });
 
+  test('release discovery stays independent from the publishing credential', () => {
+    const workflow = readWorkflow('release-train.yml');
+    const tokenExpression = '${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}';
+    const firstCheckout = workflow.indexOf('- uses: actions/checkout@v4');
+    const tokenCheck = workflow.indexOf('- name: Verify a CI-triggering token exists');
+    const authenticatedCheckout = workflow.indexOf('- name: Authenticate release mutation');
+    const openPr = workflow.indexOf('- name: Open the version-bump PR with auto-merge armed');
+
+    expect(firstCheckout).toBeGreaterThan(-1);
+    expect(tokenCheck).toBeGreaterThan(firstCheckout);
+    expect(authenticatedCheckout).toBeGreaterThan(tokenCheck);
+    expect(openPr).toBeGreaterThan(authenticatedCheckout);
+    expect(workflow.slice(firstCheckout, tokenCheck)).not.toContain('token:');
+    expect(workflow.slice(authenticatedCheckout, openPr)).toContain(`token: ${tokenExpression}`);
+  });
+
   test('release-triggered brew smoke waits for and resolves the exact formula version', () => {
     const workflow = readWorkflow('fresh-install.yml');
     const waitStep = workflow.indexOf('Wait for the tap formula to match this release');
