@@ -236,6 +236,12 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Run unit tests
+        # Two consecutive required macOS jobs exhausted V8's ~2 GiB default
+        # heap after nearly five minutes of otherwise-passing tests. Keep the
+        # larger budget scoped to Jest so setup-node and every other step retain
+        # their normal process limits.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
 
       - name: Test CLI tools
