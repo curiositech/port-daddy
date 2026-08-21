@@ -141,6 +141,17 @@ max_batch_timeout = 30
 max_retries = 5
 dead_letter_queue = "fleet-runs-dlq"
 
+# Required merge-group checks are deterministic and make no AI calls. Keep them
+# on an independent FIFO so substantive reviews cannot starve the GitHub merge
+# queue while preserving max_concurrency=1 for each workload.
+[[queues.consumers]]
+queue = "fleet-gates"
+max_batch_size = 1
+max_concurrency = 1
+max_batch_timeout = 5
+max_retries = 3
+dead_letter_queue = "fleet-runs-dlq"
+
 # DLQ consumer — the same Worker handles it (index.ts routes on batch.queue).
 # Without this production binding, dead-lettered jobs accumulate forever and
 # their required 'Port Daddy Fleet' checks remain stuck in_progress.

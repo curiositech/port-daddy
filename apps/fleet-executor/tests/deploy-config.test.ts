@@ -33,6 +33,14 @@ describe.each(['wrangler.deploy.toml', 'wrangler.toml.example'])('%s queue contr
     expect(main).toMatch(/^\s*max_retries\s*=\s*5\s*$/m);
   });
 
+  it('isolates deterministic merge-group gates from substantive review latency', () => {
+    const gates = consumerBlock(readConfig(name), 'fleet-gates');
+    expect(gates).toMatch(/^\s*max_batch_size\s*=\s*1\s*$/m);
+    expect(gates).toMatch(/^\s*max_concurrency\s*=\s*1\s*$/m);
+    expect(gates).toMatch(/^\s*max_batch_timeout\s*=\s*5\s*$/m);
+    expect(gates).toMatch(/^\s*dead_letter_queue\s*=\s*"fleet-runs-dlq"\s*$/m);
+  });
+
   it('raises the CPU ceiling above the 30s default a fleet run cannot fit in', () => {
     // Exceeding the CPU budget TERMINATES the invocation: index.ts's catch
     // never runs, the message is never acked, and the platform redelivers it

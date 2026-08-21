@@ -82,6 +82,11 @@ id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
 binding = "FLEET_RUNS"
 queue = "fleet-runs"
 
+# Deterministic merge-group pass-through checks must not wait behind AI review.
+[[queues.producers]]
+binding = "FLEET_GATES"
+queue = "fleet-gates"
+
 [observability]
 enabled = true
 
