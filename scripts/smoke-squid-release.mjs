@@ -104,6 +104,16 @@ try {
   expectFile(codexConfig, 'Port Daddy Giant Squid Harness tentacles');
   expectFile(agyConfig, 'pd-hook-pre-tool');
 
+  // Configuration is a durable interface; release-asset paths are packaging
+  // details. A Homebrew upgrade may delete the current Cellar version, so every
+  // provider must retain only the user-owned stable shim.
+  for (const config of [claudeConfig, geminiConfig, codexConfig, agyConfig]) {
+    expectFile(config, join(pdHome, 'bin', 'pd-hook-prompt'));
+    expectFile(config, join(pdHome, 'bin', 'pd-hook-pre-tool'));
+    expectAbsent(config, '/Cellar/');
+    expectAbsent(config, staged);
+  }
+
   // Release invariant: each provider gets one turn briefing and one direct-edit
   // gate. The post-tool binary remains staged for safe migration/debug history,
   // but it must never be registered into an interactive lifecycle again.
@@ -170,7 +180,54 @@ try {
     fail(`unarmed sibling project crossed the exact-root gate: ${siblingProbe.stderr || siblingProbe.stdout}`);
   }
 
-  process.stdout.write(`SQUID RELEASE SMOKE PASS: ${snapshot.providers.length} providers, state ${snapshot.state}\n`);
+  // Exercise the compiled wrapper's containment contract, not merely its
+  // generated text. A missing-runtime-style exit 127 must never leak to the
+  // provider, must open after three calls, and must stop executing the child.
+  const breakerCount = join(pdHome, 'breaker-count');
+  writeFileSync(
+    join(pdHome, 'bin', 'squid', 'pd-hook-pre-tool'),
+    `#!/bin/sh\nprintf x >> '${breakerCount}'\nexit 127\n`,
+    { mode: 0o755 },
+  );
+  const runEditGate = () => spawnSync(join(pdHome, 'bin', 'pd-hook-pre-tool'), [], {
+    cwd: project,
+    env,
+    input: JSON.stringify({ cwd: project, tool_name: 'Edit', tool_input: { file_path: 'README.md' } }),
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const failure = runEditGate();
+    if (failure.status !== 0) fail(`breaker leaked child exit ${failure.status} on attempt ${attempt + 1}`);
+  }
+  const openStarted = performance.now();
+  const openProbe = runEditGate();
+  const openDurationMs = performance.now() - openStarted;
+  if (openProbe.status !== 0) fail(`open circuit exited ${openProbe.status}`);
+  if (readFileSync(breakerCount, 'utf8') !== 'xxx') fail('open circuit executed the unhealthy child again');
+  if (openDurationMs >= 500) fail(`open circuit no-op took ${Math.round(openDurationMs)} ms`);
+
+  const degradedStatus = spawnSync(pd, ['squid', 'status', '--json', '--cwd', project], {
+    cwd: root,
+    env,
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  if (degradedStatus.status !== 1) fail(`degraded status should exit 1, got ${degradedStatus.status}`);
+  const degraded = JSON.parse(degradedStatus.stdout);
+  const editCircuit = degraded.health?.circuits?.find((item) => item.hook === 'pd-hook-pre-tool');
+  if (degraded.state !== 'DEGRADED' || editCircuit?.lastReason !== 'exit_127') {
+    fail('compiled status did not expose the opened edit-hook circuit');
+  }
+  const firstNotice = runPromptGate(project);
+  const secondNotice = runPromptGate(project);
+  if (!firstNotice.stdout.includes('PD SAFE MODE') || secondNotice.stdout.includes('PD SAFE MODE')) {
+    fail('compiled wrapper did not emit exactly one turn-level remediation notice');
+  }
+
+  process.stdout.write(
+    `SQUID RELEASE SMOKE PASS: ${snapshot.providers.length} providers, state ${snapshot.state}, open no-op ${Math.round(openDurationMs)}ms\n`,
+  );
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

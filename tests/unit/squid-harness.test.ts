@@ -39,6 +39,7 @@ import {
   SQUID_HOOK_METADATA,
   SQUID_HOOK_PRIVACY_NOTICE,
   diagnoseSquidHookInstall,
+  hookCommandPath,
   tentaclePath,
 } from '../../lib/squid/adapter.js';
 import { handleSquid, installHeadlessSquidHooks } from '../../cli/commands/squid.js';
@@ -846,8 +847,9 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     const settings = JSON.parse(readFileSync(settingsPath, 'utf8'));
 
     const cmd = (event: string) => settings.hooks[event][settings.hooks[event].length - 1].hooks[0].command;
-    expect(cmd('UserPromptSubmit')).toBe(tentaclePath('pd-hook-prompt'));
-    expect(cmd('PreToolUse')).toBe(tentaclePath('pd-hook-pre-tool'));
+    expect(cmd('UserPromptSubmit')).toBe(hookCommandPath('pd-hook-prompt'));
+    expect(cmd('PreToolUse')).toBe(hookCommandPath('pd-hook-pre-tool'));
+    expect(cmd('UserPromptSubmit')).not.toContain('/Cellar/');
     expect(settings.hooks.PostToolUse).toBeUndefined();
     // Absolute paths only (the CLI runs hooks from arbitrary cwds).
     expect(cmd('PreToolUse').startsWith('/')).toBe(true);
@@ -913,8 +915,8 @@ describe('Giant Squid Harness — GeminiSquidAdapter.injectHooks', () => {
     const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'));
 
     const cmd = (event: string) => cfg.hooks[event][cfg.hooks[event].length - 1].hooks[0].command;
-    expect(cmd('BeforeAgent')).toBe(tentaclePath('pd-hook-prompt'));
-    expect(cmd('BeforeTool')).toBe(tentaclePath('pd-hook-pre-tool'));
+    expect(cmd('BeforeAgent')).toBe(hookCommandPath('pd-hook-prompt'));
+    expect(cmd('BeforeTool')).toBe(hookCommandPath('pd-hook-pre-tool'));
     expect(cfg.hooks.AfterTool).toBeUndefined();
     // The BeforeTool matcher covers direct edits but deliberately excludes shell.
     const matcher = cfg.hooks.BeforeTool[cfg.hooks.BeforeTool.length - 1].matcher as string;
@@ -976,7 +978,8 @@ describe('Giant Squid Harness — CodexSquidAdapter.injectHooks', () => {
     expect(toml).toMatch(/\[\[hooks\.PreToolUse\]\]/);
     expect(toml).toMatch(/\[\[hooks\.PreToolUse\.hooks\]\]/);
     expect(toml).toMatch(/async = false/);
-    expect(toml).toMatch(new RegExp(`command = "${tentaclePath('pd-hook-pre-tool')}"`.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')));
+    expect(toml).toMatch(new RegExp(`command = "${hookCommandPath('pd-hook-pre-tool')}"`.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')));
+    expect(toml).not.toContain('/Cellar/');
     // UserPromptSubmit is present; observational PostToolUse is deliberately absent.
     expect(toml).not.toMatch(/\[\[hooks\.PostToolUse\]\]/);
     expect(toml).toMatch(/\[\[hooks\.UserPromptSubmit\]\]/);
@@ -1090,8 +1093,8 @@ describe('Giant Squid Harness — AntigravitySquidAdapter.injectHooks', () => {
     expect(existsSync(cfgPath)).toBe(true);
     const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'));
     const cmd = (event: string) => cfg.hooks[event][cfg.hooks[event].length - 1].hooks[0].command;
-    expect(cmd('UserPromptSubmit')).toBe(tentaclePath('pd-hook-prompt'));
-    expect(cmd('PreToolUse')).toBe(tentaclePath('pd-hook-pre-tool'));
+    expect(cmd('UserPromptSubmit')).toBe(hookCommandPath('pd-hook-prompt'));
+    expect(cmd('PreToolUse')).toBe(hookCommandPath('pd-hook-pre-tool'));
     expect(cfg.hooks.PostToolUse).toBeUndefined();
     // The matcher must cover agy's edit tool names (write_to_file/replace_file_content).
     const matcher = cfg.hooks.PreToolUse[cfg.hooks.PreToolUse.length - 1].matcher as string;

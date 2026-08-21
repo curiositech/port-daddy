@@ -6,12 +6,13 @@ import { spawn as spawnChild, execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import {
   DEFAULT_SQUID_MAX_REQUEST_BYTES,
   listenClaudeCodexBridge,
 } from '../../lib/squid/claude-codex-bridge.js';
 import {
+  hookCommandPath,
   squidAdapters,
 } from '../../lib/squid/adapter.js';
 import { normalizeCodexConfigOverrides } from '../../lib/spawner/backends/cli-tube.js';
@@ -36,7 +37,9 @@ import {
   clearSquidHookDebugEvents,
   disableSquidHookDebug,
   enableSquidHookDebug,
+  readSquidHookHealth,
   readSquidHookDebugSnapshot,
+  resetSquidHookHealth,
   type SquidHookDebugSnapshot,
   type SquidHookStepState,
 } from '../../lib/squid/debug.js';
@@ -381,6 +384,16 @@ export async function installHeadlessSquidHooks(
     throw new Error(`Unsupported Squid hook provider(s): ${missing.join(', ')}`);
   }
 
+  // Adapters emit only the stable ~/.port-daddy/bin contract. Stage that
+  // contract before touching provider config so a headless voyage cannot pin a
+  // versioned Homebrew Cellar path.
+  const { stageTentacles } = await import('./hooks-install.js');
+  const stableBinDir = dirname(hookCommandPath('pd-hook-prompt'));
+  const stage = stageTentacles(undefined, stableBinDir);
+  if (stage.missing.length > 0) {
+    throw new Error(`Cannot install Squid hooks; release assets missing: ${stage.missing.join(', ')}`);
+  }
+
   const results: SquidHookInstallResult[] = [];
   for (const adapter of selected) {
     await adapter.injectHooks(workspaceRoot);
@@ -390,6 +403,7 @@ export async function installHeadlessSquidHooks(
       verified: adapter.verified,
     });
   }
+  resetSquidHookHealth(dirname(stableBinDir));
   return results;
 }
 
@@ -504,7 +518,9 @@ async function handleSquidOn(options: CLIOptions): Promise<void> {
   if (stage.missing.length > 0) {
     problems.push(`tentacles missing on this build (${stage.missing.join(', ')}) — hooks skipped`);
   }
-  const hooks = stage.missing.length === 0 ? silentHooksInstall(undefined, { cwd }) : null;
+  const hooks = stage.missing.length === 0
+    ? silentHooksInstall(undefined, { cwd, stage, resetHealthOnSuccess: false })
+    : null;
   if (hooks && hooks.detected.length === 0) problems.push('no supported agent CLIs detected');
   if (hooks?.failures.length) problems.push(...hooks.failures.map((failure) => `hook wiring: ${failure}`));
   if (hooks && hooks.detected.length > hooks.configured) {
@@ -537,6 +553,7 @@ async function handleSquidOn(options: CLIOptions): Promise<void> {
   // always downgrades the banner and the exit code, never just a log line.
   const armed = problems.length === 0;
   if (armed) {
+    resetSquidHookHealth();
     ui.success('Giant Squid harness ARMED for this project');
   } else {
     unregisterSquidProject(cwd);
@@ -614,14 +631,16 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   const home = process.env.HOME || process.env.USERPROFILE || '';
   const { tentacleBinDir } = await import('./hooks-install.js');
   const conformance = readSquidConformance(cwd, { home });
+  const health = readSquidHookHealth();
   const matrix = readMatrixSnapshot();
   // Preserve the FleetBar lifecycle enum while publishing the richer shared
   // conformance level used by the roster and pd-console.
-  const state = conformance.level === 'UNPROTECTED'
+  const baseState = conformance.level === 'UNPROTECTED'
     ? 'OFF'
     : conformance.level === 'PARTIAL' && conformance.detectedProviders > 0
       ? 'DEGRADED'
       : conformance.level;
+  const state = baseState !== 'OFF' && health.degraded ? 'DEGRADED' : baseState;
   const snapshot = {
     schemaVersion: 1,
     state,
@@ -636,6 +655,7 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
     missing: conformance.missing,
     repair: conformance.repair,
     truth: conformance.truth,
+    health,
     matrix,
     value: {
       beforeTurn: 'Inject only fresh, project-relevant coordination context.',
@@ -646,19 +666,25 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
 
   if (options.json || options.j) {
     console.log(JSON.stringify(snapshot, null, 2));
-    if (conformance.level === 'PARTIAL') process.exitCode = 1;
+    if (conformance.level === 'PARTIAL' || health.degraded) process.exitCode = 1;
     return;
   }
   const c = squidTokens('stdout');
   const yes = (v: boolean, on = 'armed', off = 'not armed'): string => (v ? c.ok(`✓ ${on}`) : c.dim(`✗ ${off}`));
 
   console.log('');
-  ui.info(`Giant Squid harness — ${conformance.level} · ${conformance.score}% conformance`);
+  ui.info(`Giant Squid harness — ${state} · ${conformance.score}% conformance`);
   console.log('');
   printSquidValueCard(c);
   console.log('');
   console.log(`  Daemon        ${conformance.daemonAlive ? c.ok('✓ alive') : c.bad('✗ down — every hook no-ops (gate fails open)')}`);
   console.log(`  Tentacles     ${yes(conformance.tentaclesStaged, `staged at ${tentacleBinDir()}`, 'not fully staged — pd squid on')}`);
+  if (health.degraded) {
+    for (const circuit of health.circuits.filter((candidate) => candidate.state !== 'closed')) {
+      console.log(`  Circuit       ${c.bad(`✗ ${circuit.label} ${circuit.state.toUpperCase()}`)} — ${circuit.lastReason}; retry ${circuit.retryAt ?? 'after repair'}`);
+    }
+    console.log(`  Remediation   ${health.remediation}`);
+  }
   console.log('');
   console.log('  Interactive hook wiring (config carries the pd-hook- marker):');
   for (const target of conformance.providers) {
@@ -703,7 +729,7 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   }
   console.log(`  ${c.dim('Next-turn injection preview: pd squid tap')}`);
   console.log('');
-  if (conformance.level === 'PARTIAL') process.exitCode = 1;
+  if (conformance.level === 'PARTIAL' || health.degraded) process.exitCode = 1;
 }
 
 function printSquidValueCard(c: ReturnType<typeof squidTokens>): void {

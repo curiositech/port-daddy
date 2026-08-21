@@ -662,6 +662,29 @@ intentionally only one turn hook plus one direct-edit gate. Opaque shell/exec
 tools do not schedule Port Daddy hooks, and no `PostToolUse` process is
 installed; session claims and notes are the cumulative outcome record.
 
+Provider configuration always calls the stable user-owned
+`~/.port-daddy/bin/pd-hook-*` shims, never a versioned Homebrew Cellar path.
+Hooks do not retry. After three consecutive unexpected exits or executions over
+250 ms, that hook opens a five-minute fail-open circuit: subsequent calls are
+immediate no-ops, the next turn gets one concise remediation notice, and
+FleetBar marks Giant Squid `DEGRADED` with the affected hook, reason, timestamps,
+and retry time. One half-open probe may recover automatically; FleetBar's
+**Repair** button restages and rewires the shims and clears the latch only after
+the repair succeeds. Intentional edit denial remains `exit 2` and never counts
+against hook health.
+
+Hook reliability is treated as an integration contract, with the same evidence
+required locally, in CI on macOS and Linux, and from the compiled release:
+
+| Requirement | Bound | Verification evidence |
+|---|---:|---|
+| HOOK-R1 durable command interface | no `/Cellar/` lifecycle paths | adapter/install unit tests plus `scripts/smoke-squid-release.mjs` |
+| HOOK-R2 bounded lifecycle topology | one turn hook, one direct-edit hook, zero post-tool hooks | hook-shape, provider-adapter, and compiled-release tests |
+| HOOK-R3 fail-open containment | 3 unhealthy calls; 250 ms; no execution retry | executable wrapper failure/slow/exit-2 tests |
+| HOOK-R4 safe recovery | 5-minute OPEN cooldown; one HALF_OPEN probe | concurrent breaker and probe tests |
+| HOOK-R5 operator remediation | `DEGRADED` plus FleetBar Repair | JSON contract and FleetBar store/UI tests |
+| HOOK-R6 artifact portability | source tree absent at runtime | compiled CLI release smoke from a staged directory |
+
 The non-diegetic value is explicit in both CLI and FleetBar: fresh coordination
 context before a turn and foreign-ownership warning or blocking before a direct
 edit. FleetBar's selected-project strip shows

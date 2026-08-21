@@ -88,6 +88,16 @@ environment snapshots, prompts, tool inputs/results, stdout, or stderr. Operator
 FleetBar Squid strip's Inspect button for this same surface. Retained PD TRACE
 rows are legacy history; current installs do not schedule a PostToolUse process.
 
+Every staged hook command is a stable `~/.port-daddy/bin/pd-hook-*` shim; a
+provider config that names a Homebrew Cellar version is stale and must be
+repaired. Hooks never retry in the agent's critical path. Three consecutive
+unexpected exits or executions over the 250 ms health budget open a five-minute
+circuit breaker: later calls immediately fail open, one next-turn notice points
+the operator to FleetBar, and the Inspect sheet shows the affected hook, last
+reason, timestamps, and retry time. FleetBar's **Repair** button atomically
+restages the shims, rewires providers, and clears the latch only after success.
+An intentional direct-edit block (`exit 2`) is enforcement, not a hook failure.
+
 The normal hook path is invisible: no status message, no standing reminder,
 and zero stdout when there is no fresh actionable project fact or fleet-wide
 control alert. Its topology is deliberately bounded to one turn briefing plus a

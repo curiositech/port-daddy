@@ -104,6 +104,42 @@ final class SquidHarnessStoreTests: XCTestCase {
         XCTAssertNil(store.message)
     }
 
+    func testRefreshSurfacesOpenHookCircuitWithFleetBarRepairLanguage() async {
+        let degraded = """
+        {
+          "schemaVersion": 1,
+          "state": "DEGRADED",
+          "workspace": "/work/repo",
+          "daemonAlive": true,
+          "tentaclesStaged": true,
+          "providers": [],
+          "identity": {
+            "statuslineStaged": true, "statuslineProject": true, "statuslineUser": false,
+            "slashCommand": true, "pilotSessionStart": true, "daemonAlive": true
+          },
+          "value": {"beforeTurn":"context","beforeEdit":"gate","afterTool":"cumulative"},
+          "health": {
+            "degraded": true,
+            "capturedAt": "2026-08-21T20:00:02.000Z",
+            "thresholds": {"consecutiveFailures":3,"slowMs":250,"cooldownMs":300000},
+            "circuits": [{
+              "hook":"pd-hook-pre-tool","label":"PD EDIT","state":"open","consecutiveFailures":3,
+              "openedAt":"2026-08-21T20:00:00.000Z","retryAt":"2026-08-21T20:05:00.000Z",
+              "lastReason":"exit_127","lastDurationMs":4,"lastExitCode":127,"updatedAt":"2026-08-21T20:00:00.000Z"
+            }],
+            "remediation":"Open FleetBar, select Giant Squid, and choose Repair."
+          }
+        }
+        """
+        let store = SquidHarnessStore { _ in SquidCommandResult(status: 0, stdout: degraded, stderr: "") }
+
+        await store.refresh(projectDir: "/work/repo")
+
+        XCTAssertEqual(store.snapshot?.state, .degraded)
+        XCTAssertEqual(store.snapshot?.health?.circuits.first?.state, .open)
+        XCTAssertEqual(store.message, "PD EDIT disabled itself after repeated exit 127 events. Choose Repair.")
+    }
+
     func testArmUsesFullHarnessCommandThenRefreshes() async {
         let json = readyJSON
         let calls = SquidCallRecorder()
