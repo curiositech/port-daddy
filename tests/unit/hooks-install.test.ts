@@ -347,7 +347,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(existsSync(join(pdHome, 'squid', 'health', 'pd-hook-pre-tool.state.lock'))).toBe(false);
   });
 
-  test('slow hooks open the breaker and later calls are constant-time no-ops', () => {
+  test('slow hooks open the breaker under POSIX dash and later calls are constant-time no-ops', () => {
     const pdHome = join(SANDBOX, 'breaker-slow-home');
     const binDir = join(pdHome, 'bin');
     const count = join(pdHome, 'slow-count');
@@ -362,7 +362,9 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
       PD_HOOK_SLOW_MS: '20',
       PD_HOOK_BREAKER_COOLDOWN_MS: '60000',
     };
-    const run = () => execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+    const wrapper = join(binDir, 'pd-hook-prompt');
+    const shell = existsSync('/bin/dash') ? '/bin/dash' : wrapper;
+    const run = () => execFileSync(shell, shell === wrapper ? [] : [wrapper], {
       cwd: REPO, env, input: '{}', encoding: 'utf8',
     });
 
