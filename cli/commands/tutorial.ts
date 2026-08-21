@@ -556,19 +556,23 @@ async function lesson11Locks(): Promise<void> {
   // Release lock
   if (state.lockName) {
     try {
-      await pdFetch(`/locks/${encodeURIComponent(lockName)}`, {
+      const releaseRes: PdFetchResponse = await pdFetch(`/locks/${encodeURIComponent(lockName)}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ owner: state.lockOwnerAgent }),
       });
-      printRoger('Lock released');
-      state.lockName = undefined; // already cleaned up
+      if (releaseRes.ok || releaseRes.status === 404) {
+        printRoger('Lock released');
+        state.lockName = undefined; // already cleaned up
+      } else {
+        ui.warn('Could not release lock \u2014 cleanup will retry');
+      }
     } catch {
-      ui.warn('Could not release lock \u2014 it will auto-expire');
+      ui.warn('Could not release lock \u2014 cleanup will retry');
     }
   }
 
-  if (state.lockOwnerAgent) {
+  if (!state.lockName && state.lockOwnerAgent) {
     try {
       const response = await pdFetch(`/agents/${encodeURIComponent(state.lockOwnerAgent)}`, { method: 'DELETE' });
       if (response.ok || response.status === 404) state.lockOwnerAgent = undefined;
@@ -792,7 +796,9 @@ export async function cleanupTutorialState(
     } catch {}
   }
 
-  if (tutorialState.lockOwnerAgent) {
+  // The owner is part of the lock-release credential. Preserve it whenever
+  // lock cleanup failed so a later finalizer pass can retry the same release.
+  if (!tutorialState.lockName && tutorialState.lockOwnerAgent) {
     try {
       const response = await fetchImpl(`/agents/${encodeURIComponent(tutorialState.lockOwnerAgent)}`, { method: 'DELETE' });
       if (response.ok || response.status === 404) tutorialState.lockOwnerAgent = undefined;
