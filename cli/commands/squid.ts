@@ -640,7 +640,7 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
     value: {
       beforeTurn: 'Inject only fresh, project-relevant coordination context.',
       beforeEdit: 'Warn or block when another agent owns the target.',
-      afterTool: 'Leave a compact trace so the fleet can coordinate without transcript replay.',
+      afterTool: 'No per-tool process; session claims and notes carry cumulative outcomes.',
     },
   };
 
@@ -679,7 +679,7 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   console.log('  What this actually gives the agent:');
   console.log(`    TURN   ${yes(conformance.capabilities.suggestibility, 'fresh suggestibility envelope', 'inactive')}`);
   console.log(`    EDIT   ${yes(conformance.capabilities.editProtection, 'claim/lock collision gate', 'inactive')}`);
-  console.log(`    TRACE  ${yes(conformance.capabilities.trace, 'post-tool pheromone trace', 'inactive')}`);
+  console.log(`    TRACE  ${c.ok('✓ retired — cumulative session evidence replaces per-tool processes')}`);
   console.log(`    INBOX  ${yes(conformance.capabilities.inbox, 'direct attention at SessionStart', 'manual pd attention only')}`);
   console.log(`    PARLEY ${yes(conformance.capabilities.parleyDelivery, 'turn delivery to inbox', 'daemon unavailable')}`);
   console.log(`    ${c.dim('Not claimed: automatic Parley convening, unsaved-buffer backup, or skill grafting.')}`);
@@ -710,7 +710,7 @@ function printSquidValueCard(c: ReturnType<typeof squidTokens>): void {
   console.log(`  ${c.pilot('◆ PORT DADDY IS ADDING VALUE OUTSIDE THE CONVERSATION')}`);
   console.log(`    ${c.ok('BEFORE TURN')}  fresh coordination context enters the next prompt`);
   console.log(`    ${c.warn('BEFORE EDIT')}  foreign ownership becomes visible before a collision`);
-  console.log(`    ${c.dim('AFTER TOOL')}   compact traces keep the fleet legible without replaying transcripts`);
+  console.log(`    ${c.dim('AFTER TOOL')}   no hook process; claims and notes are the cumulative record`);
 }
 
 /** Probe the local Claude⇄Codex bridge so status shows whether a pilot is live. */

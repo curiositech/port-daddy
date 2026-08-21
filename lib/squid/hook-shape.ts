@@ -21,6 +21,17 @@
 export const TENTACLES = ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool'] as const;
 export type TentacleName = (typeof TENTACLES)[number];
 
+/**
+ * Tentacles registered in agent hook lifecycles.
+ *
+ * `pd-hook-post-tool` remains staged so older installs and retained debug logs
+ * can be inspected and removed safely, but it is deliberately not registered.
+ * A synchronous process after every tool multiplied a parallel Codex batch into
+ * a visible queue and duplicated the cumulative evidence already carried by
+ * session claims and notes.
+ */
+export const REGISTERED_TENTACLES = ['pd-hook-prompt', 'pd-hook-pre-tool'] as const;
+
 /** Every interactive hook must either finish or become visibly overdue within one second. */
 export const SQUID_HOOK_DEADLINE_MS = 1_000;
 
@@ -106,7 +117,7 @@ export const CLAUDE_TOOL_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit';
 // ─── Gemini CLI (native event names) ──────────────────────────────────────────
 
 export const GEMINI_EVENTS = { prompt: 'BeforeAgent', preTool: 'BeforeTool', postTool: 'AfterTool' } as const;
-export const GEMINI_TOOL_MATCHER = 'replace|write_file|edit|run_shell_command';
+export const GEMINI_TOOL_MATCHER = 'replace|write_file|edit';
 
 // ─── Antigravity (agy) — Claude-shaped engine, broad matcher ─────────────────
 
@@ -130,7 +141,6 @@ export function buildJsonHookMap(
   return {
     [ev.prompt]: [hookEntry(resolve('pd-hook-prompt'), undefined, timeout)],
     [ev.preTool]: [hookEntry(resolve('pd-hook-pre-tool'), matcher, timeout)],
-    [ev.postTool]: [hookEntry(resolve('pd-hook-post-tool'), matcher, timeout)],
   };
 }
 
@@ -145,7 +155,7 @@ export const CODEX_PD_MARKER = 'Port Daddy Giant Squid Harness tentacles';
  */
 export const CODEX_PD_END_MARKER = 'PD_SQUID_TENTACLES_END';
 export const CODEX_TOOL_MATCHER =
-  'Bash|apply_patch|Edit|Write|edit|write|str_replace_editor|shell|shell_command|exec_command|unified_exec|run_shell_command';
+  'apply_patch|Edit|Write|edit|write|str_replace_editor';
 
 export interface CodexHooksTomlOptions {
   comments?: string[];
@@ -235,9 +245,12 @@ function tomlString(v: string): string {
 }
 
 /**
- * Hand-emit Codex's `[hooks]` TOML block. All three handlers are synchronous:
- * current Codex parses `async = true` but skips that handler entirely. Shape
- * verified against Codex v0.144.4 and shared by both installation paths.
+ * Hand-emit Codex's deliberately small `[hooks]` TOML block. The turn briefing
+ * and direct-edit gate are synchronous because they can affect the current
+ * decision. There is no PostToolUse handler: current Codex skips async command
+ * hooks, and a synchronous observational process per tool created unbounded UI
+ * fan-out without adding a blocking decision. Shape verified against Codex
+ * v0.144.4 and shared by both installation paths.
  */
 export function codexHooksTomlBlock(
   resolve: TentacleResolver,
@@ -250,7 +263,7 @@ export function codexHooksTomlBlock(
   }
   L.push('# PreToolUse is synchronous so pd-hook-pre-tool can BLOCK a foreign-locked');
   L.push('# file (exit 2 + stderr, OR exit 0 + permissionDecision:"deny" JSON on stdout).');
-  L.push('# Codex skips async command hooks, so PostToolUse is synchronous too.');
+  L.push('# Per-tool PostToolUse tracing is intentionally retired; claims and notes are cumulative.');
   L.push('');
   L.push('[[hooks.UserPromptSubmit]]');
   L.push('[[hooks.UserPromptSubmit.hooks]]');
@@ -264,14 +277,6 @@ export function codexHooksTomlBlock(
   L.push('[[hooks.PreToolUse.hooks]]');
   L.push('type = "command"');
   L.push(`command = ${tomlString(resolve('pd-hook-pre-tool'))}`);
-  L.push(`timeout = ${SQUID_HOOK_DEADLINE_MS / 1_000}`);
-  L.push('async = false');
-  L.push('');
-  L.push('[[hooks.PostToolUse]]');
-  L.push(`matcher = ${tomlString(CODEX_TOOL_MATCHER)}`);
-  L.push('[[hooks.PostToolUse.hooks]]');
-  L.push('type = "command"');
-  L.push(`command = ${tomlString(resolve('pd-hook-post-tool'))}`);
   L.push(`timeout = ${SQUID_HOOK_DEADLINE_MS / 1_000}`);
   L.push('async = false');
   L.push(`# ${CODEX_PD_END_MARKER}`);

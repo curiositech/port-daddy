@@ -12,7 +12,7 @@
  *   2. pd-hook-pre-tool EXIT 0 on an unlocked path and on the owner's own lock.
  *   3. pd-hook-post-tool flock-appends a PD_PHEROMONE_* into the matrix.
  *   4. pd-hook-prompt emits the seeded PD_ALERT_* + a relevant PD_PHEROMONE_*.
- *   5. ClaudeCliSquidAdapter.injectHooks wires the three tentacles into
+ *   5. ClaudeCliSquidAdapter.injectHooks wires the turn briefing and edit gate into
  *      .claude/settings.json with absolute paths.
  */
 
@@ -836,7 +836,7 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
 });
 
 describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
-  test('wires the three tentacles into .claude/settings.json with absolute paths', async () => {
+  test('wires only the decision-bearing turn/edit tentacles with absolute paths', async () => {
     const adapter = new ClaudeCliSquidAdapter();
     expect(adapter.verified).toBe(true);
     await adapter.injectHooks(WORKSPACE);
@@ -848,7 +848,7 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     const cmd = (event: string) => settings.hooks[event][settings.hooks[event].length - 1].hooks[0].command;
     expect(cmd('UserPromptSubmit')).toBe(tentaclePath('pd-hook-prompt'));
     expect(cmd('PreToolUse')).toBe(tentaclePath('pd-hook-pre-tool'));
-    expect(cmd('PostToolUse')).toBe(tentaclePath('pd-hook-post-tool'));
+    expect(settings.hooks.PostToolUse).toBeUndefined();
     // Absolute paths only (the CLI runs hooks from arbitrary cwds).
     expect(cmd('PreToolUse').startsWith('/')).toBe(true);
     const gate = settings.hooks.PreToolUse[settings.hooks.PreToolUse.length - 1];
@@ -868,14 +868,43 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     );
     expect(pdEntries.length).toBe(1);
   });
+
+  test('injectHooks removes legacy PD PostToolUse and preserves the user hook beside it', async () => {
+    const settingsPath = join(WORKSPACE, '.claude', 'settings.json');
+    mkdirSync(dirname(settingsPath), { recursive: true });
+    writeFileSync(settingsPath, JSON.stringify({
+      hooks: {
+        PostToolUse: [
+          {
+            matcher: 'Edit|Write',
+            hooks: [{ type: 'command', command: tentaclePath('pd-hook-post-tool') }],
+          },
+          {
+            matcher: 'Write',
+            hooks: [{ type: 'command', command: '/usr/local/bin/user-audit' }],
+          },
+        ],
+      },
+    }));
+
+    await new ClaudeCliSquidAdapter().injectHooks(WORKSPACE);
+    const settings = JSON.parse(readFileSync(settingsPath, 'utf8'));
+    expect(settings.hooks.PostToolUse).toEqual([
+      {
+        matcher: 'Write',
+        hooks: [{ type: 'command', command: '/usr/local/bin/user-audit' }],
+      },
+    ]);
+    expect(JSON.stringify(settings)).not.toContain('pd-hook-post-tool');
+  });
 });
 
 describe('Giant Squid Harness — GeminiSquidAdapter.injectHooks', () => {
   // Gemini CLI (v0.36.0) reads settings.json `hooks` keyed by the GEMINI event
-  // names (BeforeTool/AfterTool/BeforeAgent), same {matcher, hooks:[{type,command}]}
+  // names (BeforeTool/BeforeAgent), same {matcher, hooks:[{type,command}]}
   // shape as Claude, with regex matchers over Gemini tool names. Confirmed by
   // reading the installed gemini bundle's EVENT_MAPPING + TOOL_NAME_MAPPING.
-  test('wires the three tentacles into .gemini/settings.json under Gemini event names', async () => {
+  test('wires only turn/direct-edit tentacles under Gemini event names', async () => {
     const adapter = new GeminiSquidAdapter();
     await adapter.injectHooks(WORKSPACE);
 
@@ -886,15 +915,13 @@ describe('Giant Squid Harness — GeminiSquidAdapter.injectHooks', () => {
     const cmd = (event: string) => cfg.hooks[event][cfg.hooks[event].length - 1].hooks[0].command;
     expect(cmd('BeforeAgent')).toBe(tentaclePath('pd-hook-prompt'));
     expect(cmd('BeforeTool')).toBe(tentaclePath('pd-hook-pre-tool'));
-    expect(cmd('AfterTool')).toBe(tentaclePath('pd-hook-post-tool'));
-    // The BeforeTool matcher must cover the Gemini edit/shell tool names.
+    expect(cfg.hooks.AfterTool).toBeUndefined();
+    // The BeforeTool matcher covers direct edits but deliberately excludes shell.
     const matcher = cfg.hooks.BeforeTool[cfg.hooks.BeforeTool.length - 1].matcher as string;
     expect(matcher).toMatch(/replace/);
     expect(matcher).toMatch(/write_file/);
-    expect(matcher).toMatch(/run_shell_command/);
+    expect(matcher).not.toMatch(/run_shell_command/);
     expect(cmd('BeforeTool').startsWith('/')).toBe(true);
-    expect(cfg.hooks.AfterTool[cfg.hooks.AfterTool.length - 1].hooks[0].statusMessage)
-      .toBeUndefined();
     expect(cfg.hooks.BeforeTool[cfg.hooks.BeforeTool.length - 1].name).toBe(SQUID_HOOK_METADATA.preTool.displayName);
   });
 
@@ -940,17 +967,16 @@ describe('Giant Squid Harness — CodexSquidAdapter.injectHooks', () => {
     expect(toml).toMatch(/\[\[hooks\.PreToolUse\.hooks\]\]/);
     expect(toml).toMatch(/async = false/);
     expect(toml).toMatch(new RegExp(`command = "${tentaclePath('pd-hook-pre-tool')}"`.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')));
-    // PostToolUse + UserPromptSubmit are present and synchronous. Codex skips
-    // command hooks configured with async=true.
-    expect(toml).toMatch(/\[\[hooks\.PostToolUse\]\]/);
+    // UserPromptSubmit is present; observational PostToolUse is deliberately absent.
+    expect(toml).not.toMatch(/\[\[hooks\.PostToolUse\]\]/);
     expect(toml).toMatch(/\[\[hooks\.UserPromptSubmit\]\]/);
     expect(toml).not.toMatch(/async = true/);
     expect(toml).not.toContain('statusMessage');
-    expect(toml.match(/timeout = 1/g)).toHaveLength(3);
+    expect(toml.match(/timeout = 1/g)).toHaveLength(2);
     expect(toml).toContain(SQUID_HOOK_PRIVACY_NOTICE);
     expect(toml).toContain(SQUID_HOOK_METADATA.prompt.displayName);
     expect(toml).toContain(SQUID_HOOK_METADATA.preTool.displayName);
-    expect(toml).toContain(SQUID_HOOK_METADATA.postTool.displayName);
+    expect(toml).not.toContain(SQUID_HOOK_METADATA.postTool.displayName);
   });
 
   test('injectHooks is idempotent (re-run does not duplicate the PD block)', async () => {
@@ -1046,7 +1072,7 @@ describe('Giant Squid Harness — AntigravitySquidAdapter.injectHooks', () => {
     else process.env.GEMINI_DIR = savedGeminiDir;
   });
 
-  test('writes hooks.json into GeminiDir with the three tentacles (Claude event names)', async () => {
+  test('writes only turn/direct-edit hooks into GeminiDir', async () => {
     const adapter = new AntigravitySquidAdapter();
     await adapter.injectHooks(WORKSPACE);
 
@@ -1056,7 +1082,7 @@ describe('Giant Squid Harness — AntigravitySquidAdapter.injectHooks', () => {
     const cmd = (event: string) => cfg.hooks[event][cfg.hooks[event].length - 1].hooks[0].command;
     expect(cmd('UserPromptSubmit')).toBe(tentaclePath('pd-hook-prompt'));
     expect(cmd('PreToolUse')).toBe(tentaclePath('pd-hook-pre-tool'));
-    expect(cmd('PostToolUse')).toBe(tentaclePath('pd-hook-post-tool'));
+    expect(cfg.hooks.PostToolUse).toBeUndefined();
     // The matcher must cover agy's edit tool names (write_to_file/replace_file_content).
     const matcher = cfg.hooks.PreToolUse[cfg.hooks.PreToolUse.length - 1].matcher as string;
     expect(matcher).toMatch(/write_to_file/);

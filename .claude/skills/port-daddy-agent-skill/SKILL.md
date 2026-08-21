@@ -79,17 +79,20 @@ removes that root while preserving other projects.
 
 When hook behavior is slow or confusing, use `pd squid debug on` only for the
 diagnostic window, reproduce the turn, then read `pd squid debug status` (or
-`--json`). It groups PD TURN, PD EDIT, and PD TRACE invocations by runtime agent
+`--json`). It groups PD TURN and direct PD EDIT invocations by runtime agent
 session and shows actual start/finish, the one-second expected-by timestamp,
 duration, gate outcome, and a short explanation. A start with no completion by
 its deadline is `OVERDUE`. `pd squid debug off` stops capture while preserving
 the bounded local timeline; `clear` removes it. The format cannot retain argv,
 environment snapshots, prompts, tool inputs/results, stdout, or stderr. Operators use the
-FleetBar Squid strip's Inspect button for this same surface.
+FleetBar Squid strip's Inspect button for this same surface. Retained PD TRACE
+rows are legacy history; current installs do not schedule a PostToolUse process.
 
 The normal hook path is invisible: no status message, no standing reminder,
 and zero stdout when there is no fresh actionable project fact or fleet-wide
-control alert.
+control alert. Its topology is deliberately bounded to one turn briefing plus a
+gate only for direct file-edit tools. Broad shell/exec tools and observational
+PostToolUse hooks are excluded; claims and notes carry cumulative outcomes.
 When coordination is genuinely useful, the prompt hook is capped at one heading
 plus two facts (512 bytes of context). A no-op turn that prints a plan/SITREP
 lecture, waits on the daemon, or scans an unbounded matrix is a product bug.

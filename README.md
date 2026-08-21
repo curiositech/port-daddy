@@ -656,23 +656,26 @@ zero bytes and no status message; the hot path reads bounded local evidence and
 never waits on the daemon or launches the full CLI. When an exact-project trace
 or fleet-wide control alert is actionable, the prompt envelope is capped at one
 heading plus two facts and 512 bytes of context, with a one-second harness
-deadline. Reinstalling hooks is
-idempotent and migrates older duplicate Codex registrations while preserving
-user-owned hooks.
+deadline. Reinstalling hooks is idempotent and migrates older duplicate
+registrations while preserving user-owned hooks. The installed graph is
+intentionally only one turn hook plus one direct-edit gate. Opaque shell/exec
+tools do not schedule Port Daddy hooks, and no `PostToolUse` process is
+installed; session claims and notes are the cumulative outcome record.
 
 The non-diegetic value is explicit in both CLI and FleetBar: fresh coordination
-context before a turn, foreign-ownership warning or blocking before an edit,
-and a compact fleet trace after a tool. FleetBar's selected-project strip shows
+context before a turn and foreign-ownership warning or blocking before a direct
+edit. FleetBar's selected-project strip shows
 the live state and provider count and exposes Arm, Repair, Disarm, and Inspect
 buttons; routine operation does not require the operator to open a terminal.
-Inspect opens an opt-in hook timeline grouped by agent session. Every PD TURN,
-PD EDIT, and PD TRACE row shows its actual start/finish, one-second expected-by
+Inspect opens an opt-in hook timeline grouped by agent session. Every PD TURN
+and direct PD EDIT row shows its actual start/finish, one-second expected-by
 timestamp, duration, gate outcome, and a short explanation. Overdue rows mean a
 start record missed its deadline without a completion record. Capture is off by
 default, bounded to 2 MiB of local timing events, and has no fields for argv,
 environment snapshots, prompts, tool inputs/results, stdout, or stderr. Agents can use
 `pd squid debug on|off|status|clear --json` for the same contract when repairing
-the operator surface.
+the operator surface. PD TRACE rows may remain in retained timelines from older
+three-hook installs; new installs never schedule them.
 
 ### Giant Squid — Claude-to-Codex bridge
 

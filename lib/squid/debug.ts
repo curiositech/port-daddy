@@ -312,7 +312,7 @@ function describeStep(phase: SquidHookPhase, state: SquidHookStepState, outcome:
     ? 'PD TURN is gathering fresh coordination context before the agent begins this turn.'
     : phase === 'edit'
       ? 'PD EDIT is checking project ownership and destructive-command safety before mutation.'
-      : 'PD TRACE is recording a compact coordination outcome after the tool without retaining its payload.';
+      : 'PD TRACE is a legacy post-tool record retained for migration diagnostics; current installs use cumulative session evidence instead.';
   const second = state === 'running'
     ? 'It is still inside its configured deadline.'
     : state === 'overdue'
