@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.30.1] - 2026-08-21
+
+### Fixed
+- **Plans now follow the documented CLI syntax and close against the newest checklist.** `pd plan set "- [ ] ..."` preserves quoted Markdown without requiring an extra `--`, while `pd plan show` and `pd done` agree on the latest plan revision even when an older checklist was incomplete.
+- **Coordination failures stay safe and observable.** Guard guidance no longer teaches agents the operator escape hatch, every long-lived Bun child receives the JavaScriptCore safe-mode environment, and rejected `pd begin` attempts reach usage telemetry without creating ghost sessions.
+- **Supported Homebrew installs stay quiet on successful commands.** Canonical `pd`, `port-daddy`, and `port-daddy-daemon` executables in a flat `bin/` layout no longer emit the internal unconventional-layout warning; noncanonical binaries still warn and retain the safe fallback.
+
 ## [3.30.0] - 2026-08-21
 
 ### Added
