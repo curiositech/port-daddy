@@ -2505,6 +2505,18 @@ export async function main(): Promise<void> {
   for (let i = 1; i < args.length; i++) {
     const arg: string = args[i];
 
+    // `pd plan set` documents a quoted Markdown checklist whose first line is
+    // normally `- [ ] ...`. Preserve that one argv payload as data instead of
+    // interpreting every character after the leading dash as a short flag.
+    const isPlanChecklistPayload = command === 'plan'
+      && args[1] === 'set'
+      && positional.length === 1
+      && /^- \[(?: |x|X|-)\](?:\s|$)/.test(arg);
+    if (isPlanChecklistPayload) {
+      positional.push(arg);
+      continue;
+    }
+
     if (arg === '--') {
       positional.push(...args.slice(i + 1));
       break;
