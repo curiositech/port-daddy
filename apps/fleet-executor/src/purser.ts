@@ -490,12 +490,24 @@ function fileAuthorSystemPrompt(
   steel: SteelManContract,
   planned: PlannedFile,
   graftText: string,
+  evidence: ExecutabilityEvidence,
   repairFailure?: string,
 ): string {
   const repairNote = repairFailure
     ? `\nA previous draft for this exact path failed the trusted executability gate:\n` +
       `${repairFailure}\nRewrite the complete file and fix that failure. Do not move or rename it.\n`
     : '';
+  const runnerNote = evidence.testMatchPatterns?.length
+    ? `\nTrusted runner evidence (authoritative, not inferred from the PR diff): this ` +
+      `repository routes \`${planned.path}\` through Jest. Its testMatch patterns are: ` +
+      `${evidence.testMatchPatterns.join(', ')}. Use Jest globals such as describe, test/it, ` +
+      `and expect (or the repository's existing Jest imports). Never import from 'vitest', ` +
+      `'bun:test', or 'node:test'; those runners are incompatible with this path.` +
+      (evidence.packageTypeModule === true
+        ? ` The trusted package.json sets type=module, so do not use an unbound __dirname.\n`
+        : '\n')
+    : `\nTrusted test-runner evidence is unavailable. Do not guess or import a runner-specific ` +
+      `API; use only test idioms directly evidenced by repository files.\n`;
   return (
     graftText +
     `You are pd-${ship.name}, running the ADVERSARIAL TEST AUTHORING phase. ` +
@@ -510,6 +522,7 @@ function fileAuthorSystemPrompt(
     `elisions like "... rest unchanged". Relative imports resolve from the ` +
     `directory containing ${planned.path}; count every required '..' segment ` +
     `from that directory and never invent a module — imports must name real repository files.\n` +
+    runnerNote +
     repairNote +
     `\n` +
     `Output the file as ONE fenced code block and nothing else — no JSON, no ` +
@@ -580,15 +593,8 @@ async function purserAiCall(
   return { text, res };
 }
 
-/**
- * Gather the evidence {@link checkGeneratedTestsExecutable} needs, from the PR's
- * BASE sha (the trusted, zero-trust ref — never the PR head): the repo's real
- * jest testMatch patterns and its full file tree. Every fetch degrades to null
- * on failure (network error, 404, unparseable) rather than throwing — the gate
- * itself fails closed on null, so a fetch failure here still ends in rejection,
- * never a silent pass.
- */
-async function gatherExecutabilityEvidence(
+/** Cheap runner evidence used before authoring; deliberately omits the tree. */
+async function gatherTrustedRunnerEvidence(
   prCtx: PRContext,
   token: string,
 ): Promise<ExecutabilityEvidence> {
@@ -604,12 +610,33 @@ async function gatherExecutabilityEvidence(
   if (!testMatchPatterns) {
     if (pkg) testMatchPatterns = extractPackageJsonTestMatch(pkg);
   }
-  const repoTreePaths = await fetchRepoTreePaths(prCtx.owner, prCtx.repo, prCtx.baseSha, token);
   return {
     testMatchPatterns,
-    repoTreePaths,
+    repoTreePaths: null,
     packageTypeModule: pkg ? extractPackageTypeModule(pkg) : null,
   };
+}
+
+/**
+ * Gather the evidence {@link checkGeneratedTestsExecutable} needs, from the PR's
+ * BASE sha (the trusted, zero-trust ref — never the PR head): the repo's real
+ * Jest testMatch patterns and its full file tree. Every fetch degrades to null
+ * on failure (network error, 404, unparseable) rather than throwing — the gate
+ * itself fails closed on null, so a fetch failure here still ends in rejection,
+ * never a silent pass.
+ *
+ * Runner evidence may be supplied from the authoring phase so successful plans
+ * do not refetch package/config files. The expensive recursive tree read stays
+ * deferred until authored files survive local path validation.
+ */
+async function gatherExecutabilityEvidence(
+  prCtx: PRContext,
+  token: string,
+  runnerEvidence?: ExecutabilityEvidence,
+): Promise<ExecutabilityEvidence> {
+  const trustedRunner = runnerEvidence ?? await gatherTrustedRunnerEvidence(prCtx, token);
+  const repoTreePaths = await fetchRepoTreePaths(prCtx.owner, prCtx.repo, prCtx.baseSha, token);
+  return { ...trustedRunner, repoTreePaths };
 }
 
 // ---------------------------------------------------------------------------
@@ -1152,6 +1179,7 @@ export async function runPurser(
     let authorFailures: AuthorFailure[] = [];
     let plan: PlannedFile[] = [];
     let evidence: ExecutabilityEvidence | null = null;
+    let authoringEvidence: ExecutabilityEvidence | null = null;
 
     // A malformed OR provably undiscoverable plan gets one bounded repair pass
     // before it counts as breakage. A repaired response may come back as either
@@ -1241,11 +1269,15 @@ export async function runPurser(
       );
 
       // --- c. AUTHOR EACH FILE (one call per file) --------------------------
+      // The final executability gate already needs this trusted evidence. Pull
+      // it forward so authoring sees the actual Jest contract even when a
+      // release/version diff contains no test-runner clues of its own.
+      authoringEvidence = evidence ?? await gatherTrustedRunnerEvidence(prCtx, token);
       const authored = await authorTestFiles(plan, async (path, intent) => {
         const call = await purserAiCall(
           ship,
           env,
-          fileAuthorSystemPrompt(ship, steel, { path, intent }, graftText),
+          fileAuthorSystemPrompt(ship, steel, { path, intent }, graftText, authoringEvidence!),
           prBlock(prCtx),
           TESTS_MAX_TOKENS,
           metrics,
@@ -1349,7 +1381,7 @@ export async function runPurser(
     // reviewed PR onto them anyway. This checks against the repo's ACTUAL
     // evidence (its own jest config + file tree at the PR's base sha), never
     // against configuration the purser only trusts because it wrote it.
-    evidence ??= await gatherExecutabilityEvidence(prCtx, token);
+    evidence ??= await gatherExecutabilityEvidence(prCtx, token, authoringEvidence ?? undefined);
     let executability = checkGeneratedTestsExecutable(files, evidence);
     const deterministicRepairs: Array<{
       path: string;
@@ -1396,20 +1428,27 @@ export async function runPurser(
         },
       );
     }
-    if (
+    const authoredRepairPaths = new Set<string>();
+    while (
       !executability.ok &&
       (executability.kind === 'unresolved-import' ||
         executability.kind === 'incompatible-runner') &&
-      executability.path
+      executability.path &&
+      authoredRepairPaths.size < MAX_PLANNED_FILES &&
+      !authoredRepairPaths.has(executability.path)
     ) {
       // #8313: discovery-aware planning healed the filenames, then an authored
       // file nested at tests/unit/purser imported ../../scripts/... as though
       // it lived one directory higher. The trusted gate caught it, but throwing
       // away every authored file made the fleet-wide outage permanent. Give
-      // ONLY the offending file one bounded rewrite with the exact gate error;
-      // siblings keep their original bytes, and the same safety + executability
-      // validators remain the sole judges of whether healing occurred.
+      // Each distinct offending file gets one bounded rewrite with the exact
+      // gate error. Siblings keep their original bytes, and the same safety +
+      // executability validators remain the sole judges of whether healing
+      // occurred. This matters when two independently-authored siblings both
+      // guessed the same foreign runner: healing the first merely reveals the
+      // second failure.
       const repairPath = executability.path;
+      authoredRepairPaths.add(repairPath);
       const repairIntent = plan.find(item => item.path === repairPath)?.intent ??
         'preserve the authored test intent while fixing its executability failure';
       const repairError = executability.reason;
@@ -1424,6 +1463,7 @@ export async function runPurser(
               steel,
               { path, intent },
               graftText,
+              evidence,
               repairError,
             ),
             prBlock(prCtx),
@@ -1446,11 +1486,16 @@ export async function runPurser(
           repairReason = candidateSafety.reason;
         } else {
           const candidateExecutability = checkGeneratedTestsExecutable(candidate, evidence);
-          if (candidateExecutability.ok) {
+          if (
+            candidateExecutability.ok ||
+            (!candidateExecutability.ok && candidateExecutability.path !== repairPath)
+          ) {
             files = candidate;
             executability = candidateExecutability;
             healed = true;
-            repairReason = 'trusted executability gate passed after one rewrite';
+            repairReason = candidateExecutability.ok
+              ? 'trusted executability gate passed after one rewrite'
+              : `this file passed after one rewrite; next failing sibling: ${candidateExecutability.reason}`;
           } else {
             repairReason = candidateExecutability.reason;
           }
@@ -1467,6 +1512,7 @@ export async function runPurser(
           originalError: repairError,
           result: repairReason,
           attempts: 1,
+          repairNumber: authoredRepairPaths.size,
         },
       );
     }
