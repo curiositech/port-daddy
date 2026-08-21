@@ -575,9 +575,9 @@ tracked work instead of vanishing. The mechanism:
 
 These bite every contributor session; they are not theoretical.
 
-- **`git add -A` is refused by the pd-shim.** When you truly mean "stage
-  everything" (rare — prefer explicit paths), set `PD_SHIM_OFF=1 git add`
-  deliberately so the bypass is intentional and visible in the command.
+- **`git add -A` is refused by the pd-shim.** Stage explicit paths. If the
+  refusal is factually wrong, fix the claim/session input and publish the
+  inconsistency; an agent does not disable the guard it is meant to obey.
 - **The `~/.port-daddy/bin/git` shim sets `core.pager=delta`, which falls
   back to `bat`.** If `bat` is not installed, `git log` / `git show` /
   `git commit` emit `command not found: bat` and can swallow output. Run
