@@ -900,50 +900,37 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
     expect(state.prPatches.filter(p => p.base)).toHaveLength(0);
   });
 
-  it('authors with trusted Jest evidence and repairs every incompatible sibling before stacking', async () => {
+  it('authors with trusted Jest evidence and repairs three incompatible siblings before stacking', async () => {
     seedRealJestConfig();
     state.files.set('BASESHA:package.json', '{"type":"module"}');
-    const firstPath = 'tests/unit/purser/release-version.test.ts';
-    const secondPath = 'tests/unit/purser/release-manifest.test.ts';
+    const paths = [
+      'tests/unit/purser/release-version.test.ts',
+      'tests/unit/purser/release-manifest.test.ts',
+      'tests/unit/purser/release-artifacts.test.ts',
+    ];
     const plan = [
       '```json',
       JSON.stringify({
-        files: [
-          { path: firstPath, intent: 'grill the release version transition' },
-          { path: secondPath, intent: 'grill the release manifest transition' },
-        ],
+        files: paths.map(path => ({ path, intent: `grill ${path}` })),
       }),
       '```',
     ].join('\n');
-    const vitestFirst = [
+    const vitestFiles = paths.map((_, index) => [
       '```ts',
       "import { describe, it, expect } from 'vitest';",
-      "describe('version', () => it('moves', () => expect(true).toBe(true)));",
+      `describe('foreign-${index}', () => it('loads', () => expect(true).toBe(true)));`,
       '```',
-    ].join('\n');
-    const vitestSecond = [
+    ].join('\n'));
+    const jestFiles = paths.map((_, index) => [
       '```ts',
-      "import { describe, it, expect } from 'vitest';",
-      "describe('manifest', () => it('moves', () => expect(true).toBe(true)));",
+      `describe('jest-${index}', () => it('loads', () => expect(true).toBe(true)));`,
       '```',
-    ].join('\n');
-    const jestFirst = [
-      '```ts',
-      "describe('version', () => it('moves', () => expect(true).toBe(true)));",
-      '```',
-    ].join('\n');
-    const jestSecond = [
-      '```ts',
-      "describe('manifest', () => it('moves', () => expect(true).toBe(true)));",
-      '```',
-    ].join('\n');
+    ].join('\n'));
     const { ai } = seqAi([
       STEELMAN_JSON,
       plan,
-      vitestFirst,
-      vitestSecond,
-      jestFirst,
-      jestSecond,
+      ...vitestFiles,
+      ...jestFiles,
     ]);
     const rec = recorder();
 
@@ -958,8 +945,8 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
 
     expect(result).toMatchObject({ verdict: 'PASS', errored: false });
     const calls = (ai.run as ReturnType<typeof vi.fn>).mock.calls;
-    expect(calls).toHaveLength(6);
-    for (const callIndex of [2, 3]) {
+    expect(calls).toHaveLength(8);
+    for (const callIndex of [2, 3, 4]) {
       const request = calls[callIndex][1] as {
         messages: Array<{ role: string; content: string }>;
       };
@@ -975,26 +962,26 @@ describe('runPurser — executability gate (regression: PR #5860 non-executable 
       );
     }
     const repairSteps = rec.steps.filter(s => s.kind === 'purser-author-repair');
-    expect(repairSteps).toHaveLength(2);
-    expect(repairSteps[0]).toMatchObject({
-      title: expect.stringContaining(`HEALED ${firstPath}`),
-      detail: expect.objectContaining({
-        repairNumber: 1,
-        result: expect.stringContaining(`next failing sibling: ${secondPath} imports 'vitest'`),
-      }),
-    });
-    expect(repairSteps[1]).toMatchObject({
-      title: expect.stringContaining(`HEALED ${secondPath}`),
-      detail: expect.objectContaining({
-        repairNumber: 2,
-        result: 'trusted executability gate passed after one rewrite',
-      }),
-    });
+    expect(repairSteps).toHaveLength(3);
+    for (const [index, step] of repairSteps.entries()) {
+      expect(step).toMatchObject({
+        title: expect.stringContaining(`HEALED ${paths[index]}`),
+        detail: expect.objectContaining({ repairNumber: index + 1 }),
+      });
+      const resultDetail = (step.detail as { result: string }).result;
+      if (index < paths.length - 1) {
+        expect(resultDetail).toContain(
+          `next failing sibling: ${paths[index + 1]} imports 'vitest'`,
+        );
+      } else {
+        expect(resultDetail).toBe('trusted executability gate passed after one rewrite');
+      }
+    }
     expect(rec.steps.find(s => s.kind === 'purser-sandbox')?.detail).toMatchObject({
       executed: true,
       passed: true,
     });
-    expect(state.blobsCreated).toBe(2);
+    expect(state.blobsCreated).toBe(3);
     expect(state.stackedPrs).toHaveLength(1);
   });
 
