@@ -24,16 +24,17 @@ describe('extractCodeFence', () => {
   });
 
   it('accepts any info-string, or none', () => {
+    const source = 'test("works", () => {});';
     for (const info of ['', 'ts', 'TypeScript', 'javascript', 'js']) {
-      expect(extractCodeFence(`\`\`\`${info}\ncode()\n\`\`\``)).toBe('code()');
+      expect(extractCodeFence(`\`\`\`${info}\n${source}\n\`\`\``)).toBe(source);
     }
   });
 
   it('ignores a draft fence inside a think span and takes the real answer', () => {
     const out = extractCodeFence(
-      ['<think>', 'maybe:', '```ts', 'DRAFT', '```', '</think>', '```ts', 'FINAL', '```'].join('\n'),
+      ['<think>', 'maybe:', '```ts', 'const DRAFT = true;', '```', '</think>', '```ts', 'const FINAL = true;', '```'].join('\n'),
     );
-    expect(out).toBe('FINAL');
+    expect(out).toBe('const FINAL = true;');
   });
 
   it('takes the LONGEST fence when a model narrates with snippets first', () => {
@@ -53,6 +54,49 @@ describe('extractCodeFence', () => {
   it('returns null for prose that is plainly not a file', () => {
     expect(extractCodeFence('I cannot write these tests.')).toBeNull();
     expect(extractCodeFence('')).toBeNull();
+  });
+
+  it('rejects the exact #8736 failure: a fenced JSON fixture is not a TypeScript test', () => {
+    const rawTimeline = JSON.stringify({
+      schemaVersion: 1,
+      enabled: true,
+      privacy: 'Sanitized timing only.',
+      sessions: [{
+        id: 'codex-session',
+        steps: [{
+          state: 'running',
+          deadlineMs: 1000,
+          description: 'A misleading fixture value can even contain expect(true).toBe(true).',
+        }],
+      }],
+    }, null, 2);
+
+    expect(extractCodeFence(`\`\`\`ts\n${rawTimeline}\n\`\`\``)).toBeNull();
+  });
+
+  it('chooses real source over a longer fenced data fixture', () => {
+    const fixture = JSON.stringify({ sessions: Array.from({ length: 20 }, (_, i) => ({ id: i })) }, null, 2);
+    const source = 'test("drops data-only author output", () => {\n  expect(true).toBe(true);\n});';
+    const out = extractCodeFence([
+      '```json',
+      fixture,
+      '```',
+      '```ts',
+      source,
+      '```',
+    ].join('\n'));
+
+    expect(out).toBe(source);
+  });
+
+  it('keeps source-like fenced tests in non-TypeScript languages', () => {
+    expect(extractCodeFence('```python\ndef test_frob():\n    assert frob() == 1\n```')).not.toBeNull();
+    expect(extractCodeFence('```rust\n#[test]\nfn rejects_empty_input() { assert!(true); }\n```')).not.toBeNull();
+    expect(extractCodeFence('```bash\n#!/bin/sh\nset -eu\ntest -f package.json\n```')).not.toBeNull();
+  });
+
+  it('does not mistake fenced prose containing a function call for source', () => {
+    expect(extractCodeFence('```text\nPlease call cleanup() before trying again.\nThis is advice, not a test.\n```')).toBeNull();
   });
 
   it('rejects a multi-line REFUSAL that happens to contain code-ish punctuation', () => {

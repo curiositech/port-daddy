@@ -89,13 +89,26 @@ export type AuthorCall = (path: string, intent: string) => Promise<string>;
 const FENCE_RE = /```[ \t]*[A-Za-z0-9+#._-]*[ \t]*\r?\n([\s\S]*?)\r?\n?```/g;
 
 /**
- * Heuristic for "this looks like source, not an apology". Used ONLY on the
- * unfenced fallback path, where accepting prose would commit a file containing
- * a model's refusal. Deliberately cheap and conservative: real test files are
- * multi-line and contain punctuation that prose does not.
+ * Heuristic for "this looks like source, not prose or a data fixture".
+ *
+ * A fence is formatting, not authority. The live #8736 Purser witness returned
+ * a complete debug-snapshot JSON fixture inside a source fence; longest-fence
+ * selection then committed that fixture as a `.test.ts` file and stacked a
+ * syntax-invalid PR. Apply the same source-likeness gate to fenced candidates
+ * and the unfenced fallback, while allowing a real one-line fenced test.
  */
-function looksLikeCode(text: string): boolean {
-  if (!text.includes('\n')) return false;
+function looksLikeCode(text: string, requireMultipleLines = true): boolean {
+  if (requireMultipleLines && !text.includes('\n')) return false;
+  // A structured-data document stays data even when one of its string values
+  // happens to contain source-looking text such as `expect(...)`. This is the
+  // decisive guard for the #8736 failure; the syntax signals below must never
+  // be allowed to bless a JSON fixture as an executable test file.
+  try {
+    const parsed = JSON.parse(text.trim()) as unknown;
+    if (parsed !== null && typeof parsed === 'object') return false;
+  } catch {
+    // Source code is not expected to parse as JSON; continue with syntax cues.
+  }
   // Keywords must appear SYNTACTICALLY, not as English words.
   //
   // The first version of this check asked for "any of these keywords, plus any
@@ -128,8 +141,9 @@ function looksLikeCode(text: string): boolean {
   // nothing real and closes the hole.
   const terminatedStatements = text.match(/;[ \t]*$/gm)?.length ?? 0;
   return (
-    /^\s*(?:import|export|from|const|let|var|function|func|class|def|package|public|private)\b/m.test(text) ||
+    /^\s*(?:import|export|from|const|let|var|function|func|fn|class|def|package|public|private|use|mod|struct|enum|trait|impl|interface|type|namespace|module)\b/m.test(text) ||
     /\b(?:it|test|describe|expect|assert|require)\s*\(/.test(text) ||
+    /^\s*(?:#!\/|#\s*include\b|@test\b|\[\[)/m.test(text) ||
     /=>/.test(text) ||
     terminatedStatements >= 2
   );
@@ -143,10 +157,10 @@ function looksLikeCode(text: string): boolean {
  *   1. Think spans are stripped FIRST. A reasoning model drafts inside
  *      `<think>…</think>`, so a first-fence-wins reader would happily return a
  *      DISCARDED draft instead of the final answer.
- *   2. The LONGEST fenced block, not the first. Models routinely open with a
- *      one-line illustrative snippet and emit the real file second; first-wins
- *      would commit the snippet as the whole test file — a file that "parsed"
- *      but tested nothing, which is worse than a clean failure.
+ *   2. The LONGEST SOURCE-LIKE fenced block, not merely the longest fence.
+ *      Models routinely include a large JSON fixture beside the real test, or
+ *      open with a one-line illustrative snippet. A fence containing only data
+ *      or prose is not an authored test and must never reach the stack.
  *   3. The bare response, only when it {@link looksLikeCode}. Covers the model
  *      that forgets the fence, without ever committing prose to a .ts file.
  *
@@ -158,13 +172,20 @@ export function extractCodeFence(output: string): string | null {
   if (!text.trim()) return null;
 
   let best: string | null = null;
+  let sawFence = false;
   FENCE_RE.lastIndex = 0;
   for (let m = FENCE_RE.exec(text); m !== null; m = FENCE_RE.exec(text)) {
+    sawFence = true;
     const body = m[1];
-    if (!body.trim()) continue;
+    if (!body.trim() || !looksLikeCode(body, false)) continue;
     if (best === null || body.length > best.length) best = body;
   }
   if (best !== null) return best;
+  // The bare fallback exists for responses that forgot fences entirely. Once
+  // the model emitted a fence, never reinterpret the whole fenced response as
+  // source: fence markers plus a source-looking JSON string value can otherwise
+  // make rejected data walk straight back in through the fallback.
+  if (sawFence) return null;
 
   const bare = text.trim();
   return looksLikeCode(bare) ? bare : null;
