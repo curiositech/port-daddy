@@ -10,7 +10,6 @@ const repoRoot = join(
   '..',
   '..',
   '..',
-  '..',
 );
 const workflowYml = readFileSync(
   join(repoRoot, '.github', 'workflows', 'ci.yml'),
@@ -31,6 +30,7 @@ describe('NODE_OPTIONS environment variable scoping', () => {
 
     const macosStep = namedStep(macosJob, 'Run unit tests');
     expect(macosStep).toBeDefined();
+    expect(macosJob.env).toBeUndefined();
     expect(macosStep.env).toEqual({
       NODE_OPTIONS: '--max-old-space-size=4096',
     });
@@ -47,7 +47,7 @@ describe('NODE_OPTIONS environment variable scoping', () => {
     expect(ubuntuStep.env).toBeUndefined();
   });
 
-  test('Only the macOS job sets NODE_OPTIONS', () => {
+  test('only the macOS unit-test step sets NODE_OPTIONS', () => {
     const jobs = workflow.jobs;
     let count = 0;
     let jobIdWithNodeOptions = null;

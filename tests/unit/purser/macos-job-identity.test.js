@@ -5,7 +5,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const repoRoot = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+  '..',
+);
 const workflow = parse(
   readFileSync(join(repoRoot, '.github', 'workflows', 'ci.yml'), 'utf8')
 );
@@ -27,25 +32,38 @@ describe('macOS job identity constraints', () => {
     expect(job['runs-on']).toBe('macos-latest');
   });
 
-  test('macOS job sets NODE_OPTIONS correctly and only there', () => {
+  test('macOS Jest step sets NODE_OPTIONS correctly and only there', () => {
     const macosJob = workflow.jobs[macosJobId];
     const ubuntuJob = workflow.jobs[ubuntuJobId];
+    const macosStep = namedStep(macosJob, 'Run unit tests');
+    const ubuntuStep = namedStep(ubuntuJob, 'Run unit tests');
 
-    // macOS job env must exist and match exactly
-    expect(macosJob.env).toEqual({ NODE_OPTIONS: expectedNodeOptions });
+    // The larger heap belongs only to the process that needs it. Setup, type
+    // checking, and the rest of the job retain their normal process limits.
+    expect(macosJob.env).toBeUndefined();
+    expect(macosStep.env).toEqual({ NODE_OPTIONS: expectedNodeOptions });
 
-    // Ubuntu job must not have NODE_OPTIONS
+    // Ubuntu's job and Jest step remain unchanged.
     expect(ubuntuJob.env).toBeUndefined();
+    expect(ubuntuStep.env).toBeUndefined();
 
-    // No other job should set NODE_OPTIONS
+    // No job-level or other step-level NODE_OPTIONS may broaden the policy.
+    const stepsWithNodeOptions = [];
     for (const [jobId, job] of Object.entries(workflow.jobs)) {
-      if (jobId === macosJobId) continue;
       if (job.env && job.env.NODE_OPTIONS !== undefined) {
         throw new Error(
           `Job "${jobId}" sets NODE_OPTIONS unexpectedly: ${job.env.NODE_OPTIONS}`
         );
       }
+      for (const step of job.steps ?? []) {
+        if (step.env?.NODE_OPTIONS !== undefined) {
+          stepsWithNodeOptions.push(`${jobId}:${step.name}`);
+        }
+      }
     }
+    expect(stepsWithNodeOptions).toEqual([
+      'unit-tests-macos:Run unit tests',
+    ]);
   });
 
   test('macOS job run command contains Jest invocation with correct flags', () => {
@@ -62,24 +80,11 @@ describe('macOS job identity constraints', () => {
     expect(ubuntuStep.run).toContain('--selectProjects unit');
   });
 
-  test('no other job shares the same NODE_OPTIONS or Jest run flags', () => {
-    const jobsWithNodeOptions = [];
-    const jobsWithJestFlags = [];
-
-    for (const [jobId, job] of Object.entries(workflow.jobs)) {
-      if (job.env && job.env.NODE_OPTIONS === expectedNodeOptions) {
-        jobsWithNodeOptions.push(jobId);
-      }
-      const step = namedStep(job, 'Run unit tests');
-      if (step && step.run.includes('node_modules/jest/bin/jest.js')) {
-        jobsWithJestFlags.push(jobId);
-      }
+  test('both required node-22 jobs keep their Jest run flags', () => {
+    for (const jobId of [macosJobId, ubuntuJobId]) {
+      const step = namedStep(workflow.jobs[jobId], 'Run unit tests');
+      expect(step.run).toContain('node_modules/jest/bin/jest.js');
+      expect(step.run).toContain('--selectProjects unit');
     }
-
-    // Only macOS job should have the specific NODE_OPTIONS
-    expect(jobsWithNodeOptions).toEqual([macosJobId]);
-
-    // Both macOS and Ubuntu jobs should run Jest with the flag
-    expect(jobsWithJestFlags.sort()).toEqual([macosJobId, ubuntuJobId].sort());
   });
 });
