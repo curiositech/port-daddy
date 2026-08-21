@@ -368,9 +368,9 @@ work; never reset or clobber the main checkout.
 
 ### Shell gotchas (real and recurring)
 
-- **`git add -A` is refused by the pd-shim.** When you truly mean all (rare;
-  prefer explicit paths), use `PD_SHIM_OFF=1 git add` so the bypass is
-  deliberate.
+- **`git add -A` is refused by the pd-shim.** Stage explicit paths. If the
+  refusal is wrong, repair the session/claim input and publish the
+  inconsistency; do not disable the guard.
 - **The `~/.port-daddy/bin/git` shim sets `core.pager=delta` → `bat`.** If
   `bat` is absent, `git log` / `git show` / `git commit` emit `command not
   found: bat` and can swallow output. Use `git -c core.pager=cat …` or
@@ -412,8 +412,9 @@ The friction below costs every fresh session real time. Internalize it.
 - **A `git add -A` / `reset --hard` / `rebase` refused with "coordination
   guard … could not be verified"** (not the routine advisory refusal) means the
   daemon-side guard couldn't confirm your session. Re-run `pd begin`, then
-  retry; only fall back to `PD_SHIM_OFF=1` for a genuinely session-less isolated
-  worktree that holds nothing but your own commit.
+  retry. If direct session state, claims, and the refusal still disagree,
+  publish exact evidence to `coordination:inconsistency` and surface the blocker
+  to the operator instead of routing around the guard.
 - **Environment variables override context slot**: When running Port Daddy commands (like `pd begin`, `pd done`, `pd session files add`) inside subagent execution lanes spawned by harnesses (such as Antigravity/Claude Code), the harness may inject `PD_SESSION_ID` and `PD_AGENT_ID` of the parent/old session into the environment. Because the CLI prioritizes these environment variables over context slot files, any command will resolve to that old session (which may be completed, leading to "No active session found"). Fix this by prefixing your commands with `PD_SESSION_ID="" PD_AGENT_ID=""` to force the CLI to read the active context from the filesystem context slots.
 - **Binary drift in integration tests on dev machine**: Ephemeral test daemons started by the integration test framework will verify binary hashes. If there's a global Homebrew or PATH-installed `pd` binary, it may cause false positive "binary drift" checks. Fix this by overriding the comparable on-disk path by setting `PORT_DADDY_BIN_OVERRIDE: process.execPath` inside the test environment for both the CLI runs and the ephemeral daemon spawns (now configured automatically in `tests/helpers/integration-setup.js` and `tests/helpers/ephemeral-daemon.js`).
 - **Roadmap receipts for core coordination changes**: Changes to core coordination paths (like `cli/commands/sessions.ts`) are monitored by the Coordination Guard. The guard will block commits affecting these files unless the committing agent has touched/upserted a corresponding roadmap item (e.g. via `pd roadmap touch <slug> --harbor port-daddy --note <why>`). Note that `--harbor port-daddy` must be specified if you are working in a temporary sandboxed worktree where the folder name diverges from the default repo name.
