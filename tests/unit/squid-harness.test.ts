@@ -931,7 +931,13 @@ describe('Giant Squid Harness — GeminiSquidAdapter.injectHooks', () => {
     // Seed a foreign hook + an unrelated setting that must survive.
     const seeded = {
       theme: 'dark',
-      hooks: { BeforeTool: [{ matcher: 'replace', hooks: [{ type: 'command', command: '/usr/bin/true' }] }] },
+      hooks: {
+        BeforeTool: [{ matcher: 'replace', hooks: [{ type: 'command', command: '/usr/bin/true' }] }],
+        AfterTool: [
+          { matcher: 'replace', hooks: [{ type: 'command', command: tentaclePath('pd-hook-post-tool') }] },
+          { matcher: 'replace', hooks: [{ type: 'command', command: '/usr/local/bin/user-after-tool' }] },
+        ],
+      },
     };
     writeFileSync(cfgPath, JSON.stringify(seeded));
 
@@ -946,6 +952,10 @@ describe('Giant Squid Harness — GeminiSquidAdapter.injectHooks', () => {
     expect(before.some((g: { hooks: { command: string }[] }) => g.hooks.some((h) => h.command === '/usr/bin/true'))).toBe(true);
     const pd = before.filter((g: { hooks: { command: string }[] }) => g.hooks.some((h) => h.command.includes('pd-hook-')));
     expect(pd.length).toBe(1);
+    expect(cfg.hooks.AfterTool).toEqual([
+      { matcher: 'replace', hooks: [{ type: 'command', command: '/usr/local/bin/user-after-tool' }] },
+    ]);
+    expect(JSON.stringify(cfg)).not.toContain('pd-hook-post-tool');
   });
 });
 
@@ -1096,7 +1106,13 @@ describe('Giant Squid Harness — AntigravitySquidAdapter.injectHooks', () => {
     mkdirSync(dirname(cfgPath), { recursive: true });
     writeFileSync(
       cfgPath,
-      JSON.stringify({ hooks: { PreToolUse: [{ matcher: 'Write', hooks: [{ type: 'command', command: '/usr/bin/true' }] }] } }),
+      JSON.stringify({ hooks: {
+        PreToolUse: [{ matcher: 'Write', hooks: [{ type: 'command', command: '/usr/bin/true' }] }],
+        PostToolUse: [
+          { matcher: 'Write', hooks: [{ type: 'command', command: tentaclePath('pd-hook-post-tool') }] },
+          { matcher: 'Write', hooks: [{ type: 'command', command: '/usr/local/bin/user-post-tool' }] },
+        ],
+      } }),
     );
     const adapter = new AntigravitySquidAdapter();
     await adapter.injectHooks(WORKSPACE);
@@ -1106,6 +1122,10 @@ describe('Giant Squid Harness — AntigravitySquidAdapter.injectHooks', () => {
     expect(pre.some((g: { hooks: { command: string }[] }) => g.hooks.some((h) => h.command === '/usr/bin/true'))).toBe(true);
     const pd = pre.filter((g: { hooks: { command: string }[] }) => g.hooks.some((h) => h.command.includes('pd-hook-')));
     expect(pd.length).toBe(1);
+    expect(cfg.hooks.PostToolUse).toEqual([
+      { matcher: 'Write', hooks: [{ type: 'command', command: '/usr/local/bin/user-post-tool' }] },
+    ]);
+    expect(JSON.stringify(cfg)).not.toContain('pd-hook-post-tool');
   });
 });
 

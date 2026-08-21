@@ -45,7 +45,7 @@ final class SquidHarnessStoreTests: XCTestCase {
       "value": {
         "beforeTurn":"fresh context",
         "beforeEdit":"collision gate",
-        "afterTool":"fleet trace"
+        "afterTool":"no per-tool process; cumulative session evidence"
       }
     }
     """
@@ -195,6 +195,22 @@ final class SquidHarnessStoreTests: XCTestCase {
 
         XCTAssertNil(store.debugSnapshot)
         XCTAssertEqual(store.debugMessage, "Squid hook timing is unavailable.")
+    }
+
+    func testUnsupportedDebugSchemaClearsStaleTimelineAndFailsClosed() async {
+        let unsupported = debugJSON.replacingOccurrences(of: "\"schemaVersion\": 1", with: "\"schemaVersion\": 2")
+        let queue = SquidResultQueue([
+            SquidCommandResult(status: 0, stdout: debugJSON, stderr: ""),
+            SquidCommandResult(status: 0, stdout: unsupported, stderr: ""),
+        ])
+        let store = SquidHarnessStore { _ in await queue.next() }
+
+        await store.refreshDebug(projectDir: "/work/repo")
+        XCTAssertNotNil(store.debugSnapshot)
+
+        await store.refreshDebug(projectDir: "/work/repo")
+        XCTAssertNil(store.debugSnapshot)
+        XCTAssertEqual(store.debugMessage, "Squid hook timing uses an unsupported data format. Update FleetBar before relying on it.")
     }
 
     func testDebugCaptureToggleUsesMachineReadableOperatorSurface() async {
