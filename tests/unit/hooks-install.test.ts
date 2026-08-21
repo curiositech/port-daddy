@@ -376,6 +376,33 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(readSquidHookHealth(pdHome).circuits[0]).toMatchObject({ state: 'open', lastReason: 'slow' });
   });
 
+  test('a missing external timer fails open, self-disables, and requests repair', () => {
+    const pdHome = join(SANDBOX, 'breaker-timer-missing-home');
+    const binDir = join(pdHome, 'bin');
+    const count = join(pdHome, 'timer-missing-child-count');
+    stageTentacles(SRC, binDir);
+    writeFileSync(join(binDir, 'squid', 'pd-hook-prompt'), `#!/bin/sh\nprintf x >> '${count}'\nexit 0\n`, { mode: 0o755 });
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    const env = {
+      ...process.env,
+      PD_HOME: pdHome,
+      PD_HOOK_FAILURE_THRESHOLD: '1',
+      PD_HOOK_TIME_BIN: join(pdHome, 'missing-time'),
+      PD_HOOK_BREAKER_COOLDOWN_MS: '60000',
+    };
+    const run = () => execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+      cwd: REPO, env, input: '{}', encoding: 'utf8',
+    });
+
+    expect(run()).toBe('');
+    expect(run()).toContain('PD SAFE MODE');
+    expect(existsSync(count)).toBe(false);
+    expect(readSquidHookHealth(pdHome).circuits[0]).toMatchObject({
+      state: 'open', lastReason: 'timer_missing', lastExitCode: 126,
+    });
+  });
+
   test('intentional edit blocks never count as hook failures', () => {
     const pdHome = join(SANDBOX, 'breaker-block-home');
     const binDir = join(pdHome, 'bin');
