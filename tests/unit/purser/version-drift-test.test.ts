@@ -22,10 +22,14 @@ const VERSION_SURFACES = [
   'docs/openapi.yaml',
 ];
 
-describe('3.29.0 release drift detection', () => {
+describe('release drift detection', () => {
   const scratchRoot = mkdtempSync(
     join(homedir(), 'coding', 'tmp', 'pd-release-version-drift-'),
   );
+  const authorityVersion = JSON.parse(
+    readFileSync(join(ROOT, 'package.json'), 'utf8'),
+  ).version as string;
+  const driftedVersion = authorityVersion === '0.0.1' ? '0.0.2' : '0.0.1';
 
   beforeAll(() => {
     for (const relativePath of VERSION_SURFACES) {
@@ -36,7 +40,7 @@ describe('3.29.0 release drift detection', () => {
 
     const packagePath = join(scratchRoot, 'package.json');
     const pkg = JSON.parse(readFileSync(packagePath, 'utf8'));
-    pkg.version = '3.28.2';
+    pkg.version = driftedVersion;
     writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`);
   });
 
@@ -44,7 +48,7 @@ describe('3.29.0 release drift detection', () => {
     rmSync(scratchRoot, { recursive: true, force: true });
   });
 
-  test('the shipped gate rejects a stale package authority against 3.29.0 surfaces', () => {
+  test('the shipped gate rejects a package authority that differs from stamped surfaces', () => {
     const result = spawnSync(process.execPath, [GATE, '--root', scratchRoot], {
       encoding: 'utf8',
     });
@@ -52,7 +56,7 @@ describe('3.29.0 release drift detection', () => {
 
     expect(result.status).toBe(1);
     expect(output).toContain('VERSION DRIFT');
-    expect(output).toContain('package.json (3.28.2)');
-    expect(output).toContain('found 3.29.0');
+    expect(output).toContain(`package.json (${driftedVersion})`);
+    expect(output).toContain(`found ${authorityVersion}`);
   });
 });

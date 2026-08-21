@@ -4,11 +4,12 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = process.env.PD_RELEASE_TEST_ROOT
   ?? join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const EXPECTED_VERSION = '3.29.0';
 
 function read(relativePath: string): string {
   return readFileSync(join(ROOT, relativePath), 'utf8');
 }
+
+const authorityVersion = JSON.parse(read('package.json')).version as string;
 
 const versionChecks = [
   { file: 'package.json', regex: /"version"\s*:\s*"([\d.]+)"/ },
@@ -26,16 +27,13 @@ const versionChecks = [
   { file: 'server.ts', regex: /EMBEDDED_PACKAGE_VERSION:\s*string\s*=\s*['"]([\d.]+)['"]/ },
 ];
 
-describe('3.29.0 release version surfaces', () => {
-  test.each(versionChecks)('$file is stamped with the release version', ({ file, regex }) => {
+describe('release version surfaces', () => {
+  test.each(versionChecks)('$file agrees with the package authority', ({ file, regex }) => {
     const match = read(file).match(regex);
-    expect(match?.[1]).toBe(EXPECTED_VERSION);
+    expect(match?.[1]).toBe(authorityVersion);
   });
 
-  test('the previous version is absent from every stamped field', () => {
-    for (const { file, regex } of versionChecks) {
-      const match = read(file).match(regex);
-      expect(match?.[1]).not.toBe('3.28.2');
-    }
+  test('the package authority is a stable SemVer core', () => {
+    expect(authorityVersion).toMatch(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/);
   });
 });
