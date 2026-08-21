@@ -77,6 +77,16 @@ next-turn envelope. User-level Codex/agy entries do not make hooks global: the
 wrapper requires the exact project root in the arm registry. `pd squid off`
 removes that root while preserving other projects.
 
+When hook behavior is slow or confusing, use `pd squid debug on` only for the
+diagnostic window, reproduce the turn, then read `pd squid debug status` (or
+`--json`). It groups PD TURN, PD EDIT, and PD TRACE invocations by runtime agent
+session and shows actual start/finish, the one-second expected-by timestamp,
+duration, gate outcome, and a short explanation. A start with no completion by
+its deadline is `OVERDUE`. `pd squid debug off` stops capture while preserving
+the bounded local timeline; `clear` removes it. The format cannot retain argv,
+environment snapshots, prompts, tool inputs/results, stdout, or stderr. Operators use the
+FleetBar Squid strip's Inspect button for this same surface.
+
 The normal hook path is invisible: no status message, no standing reminder,
 and zero stdout when there is no fresh actionable project fact or fleet-wide
 control alert.
@@ -88,8 +98,8 @@ default read succeeds as an explicit empty/unbound result; subscription changes
 still require an identity.
 
 The operator drives this through FleetBar's selected-project `◆ GIANT SQUID`
-strip. It exposes state, provider count, and Arm/Repair/Disarm without asking the
-operator to run these agent-facing commands.
+strip. It exposes state, provider count, Arm/Repair/Disarm, and the hook timeline
+without asking the operator to run these agent-facing commands.
 
 ## Default Agent Happy Path
 
