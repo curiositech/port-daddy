@@ -203,6 +203,7 @@ export function mergeJscSafeModeEnv(
  * through it many times per command).
  */
 let warnedUnconventionalLayout = false;
+const PACKAGED_BIN_EXECUTABLE_RE = /^(?:pd|port-daddy|port-daddy-daemon)(?:\.exe)?$/i;
 
 export function resolveDistributionRoot(
   moduleDir: string,
@@ -226,6 +227,12 @@ export function resolveDistributionRoot(
   }
   if (basename(execDir) === 'dist') {
     return parentDir;
+  }
+  // Homebrew and other flat package managers install the compiled entrypoint
+  // in a `bin/` directory and keep its runtime assets beside it. That is a
+  // supported distribution layout, not an operator-actionable anomaly.
+  if (basename(execDir) === 'bin' && PACKAGED_BIN_EXECUTABLE_RE.test(basename(execPath))) {
+    return execDir;
   }
 
   // Unconventional layout (user-built binary, non-Homebrew install
