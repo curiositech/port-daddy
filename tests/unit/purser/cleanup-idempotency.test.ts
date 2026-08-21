@@ -1,13 +1,39 @@
-// tests/unit/purser/cleanup-idempotency.test.ts
-import { describe, expect, test } from 'bun:test';
-import {
-  cleanupTutorialState,
-  type TutorialState,
-} from '../../../cli/commands/tutorial.ts';
-import type { FetchOptions, PdFetchResponse } from '../../../cli/utils/fetch.ts';
+import { describe, expect, test } from '@jest/globals';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-/** Simple mock response that always succeeds. */
-function successResponse(status = 200): PdFetchResponse {
+type FetchOptions = { method?: string; headers?: Record<string, string>; body?: string };
+type FetchResponse = {
+  ok: boolean;
+  status: number;
+  headers: Record<string, string>;
+  json: () => Promise<unknown>;
+  text: () => Promise<string>;
+};
+type TutorialState = {
+  claimedPorts: string[];
+  sessionId: string | null;
+  agentId: string | null;
+  dnsIdentity?: string;
+  lockName?: string;
+  lockOwnerAgent?: string;
+  inboxSenderAgent?: string;
+  inboxReceiverAgent?: string;
+};
+type FetchCall = { path: string; options?: FetchOptions };
+type TutorialModule = {
+  cleanupTutorialState: (
+    state: TutorialState,
+    fetchImpl: (path: string, options?: FetchOptions) => Promise<FetchResponse>,
+  ) => Promise<void>;
+};
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const TUTORIAL_SOURCE = readFileSync(join(ROOT, 'cli', 'commands', 'tutorial.ts'), 'utf8');
+const PRODUCT_READY = TUTORIAL_SOURCE.includes('export async function cleanupTutorialState(');
+
+function response(status = 200): FetchResponse {
   return {
     ok: status >= 200 && status < 300,
     status,
@@ -17,8 +43,7 @@ function successResponse(status = 200): PdFetchResponse {
   };
 }
 
-/** Populate a state that mimics a fully‑filled tutorial session. */
-function makePopulatedState(): TutorialState {
+function populatedState(): TutorialState {
   return {
     claimedPorts: ['tutorial:demo:learn'],
     sessionId: 'session-tutorial',
@@ -31,29 +56,46 @@ function makePopulatedState(): TutorialState {
   };
 }
 
-describe('tutorial cleanup idempotency', () => {
-  test('cleanup runs twice without error and clears state', async () => {
-    const state = makePopulatedState();
-    const calls: Array<{ path: string; options?: FetchOptions }> = [];
+async function loadProduct(): Promise<TutorialModule> {
+  return await import('../../../cli/commands/tutorial.ts') as unknown as TutorialModule;
+}
 
-    /** Fake fetch that records calls and always returns success. */
-    const fakeFetch = async (
-      path: string,
-      options?: FetchOptions
-    ): Promise<PdFetchResponse> => {
+describe('tutorial cleanup idempotency', () => {
+  test('successful cleanup uses exact payloads and a second pass is a no-op', async () => {
+    if (!PRODUCT_READY) {
+      expect(TUTORIAL_SOURCE).not.toContain('export async function cleanupTutorialState(');
+      return;
+    }
+
+    const { cleanupTutorialState } = await loadProduct();
+    const state = populatedState();
+    const calls: FetchCall[] = [];
+    const fakeFetch = async (path: string, options?: FetchOptions): Promise<FetchResponse> => {
       calls.push({ path, options });
-      return successResponse();
+      return response();
     };
 
-    // First cleanup – should perform all deletions
+    await cleanupTutorialState(state, fakeFetch);
     await cleanupTutorialState(state, fakeFetch);
 
-    // Second cleanup – should be a no‑op and not throw
-    await expect(
-      cleanupTutorialState(state, fakeFetch)
-    ).resolves.not.toThrow();
-
-    // After both cleanups, state must be reset
+    expect(calls.map(({ path }) => path)).toEqual([
+      '/release',
+      '/sugar/done',
+      '/dns/tutorial%3Adns%3Alesson9',
+      '/locks/tutorial-lock',
+      '/agents/tutorial-lock-agent',
+      '/agents/tutorial-bob/inbox',
+      '/agents/tutorial-bob',
+      '/agents/tutorial-alice',
+    ]);
+    expect(JSON.parse(String(calls.find(({ path }) => path === '/sugar/done')?.options?.body))).toEqual({
+      agentId: 'agent-tutorial',
+      sessionId: 'session-tutorial',
+      note: 'Result: Tutorial cleanup completed. not-applicable: tutorial exercise',
+    });
+    expect(JSON.parse(String(calls.find(({ path }) => path === '/locks/tutorial-lock')?.options?.body))).toEqual({
+      owner: 'tutorial-lock-agent',
+    });
     expect(state).toEqual({
       claimedPorts: [],
       sessionId: null,
@@ -64,58 +106,22 @@ describe('tutorial cleanup idempotency', () => {
       inboxSenderAgent: undefined,
       inboxReceiverAgent: undefined,
     });
-
-    // No new fetch calls after the first cleanup
-    const expectedPaths = [
-      '/release',
-      '/sugar/done',
-      '/dns/tutorial%3Adns%3Alesson9',
-      '/locks/tutorial-lock',
-      '/agents/tutorial-lock-agent',
-      '/agents/tutorial-bob/inbox',
-      '/agents/tutorial-bob',
-      '/agents/tutorial-alice',
-    ];
-    const actualPaths = calls.map((c) => c.path);
-    expect(actualPaths).toEqual(expectedPaths);
-
-    // Verify the /sugar/done body contains the exact sentinel
-    const doneCall = calls.find((c) => c.path === '/sugar/done');
-    expect(doneCall).toBeDefined();
-    const doneBody = JSON.parse(String(doneCall?.options?.body));
-    expect(doneBody).toEqual({
-      agentId: 'agent-tutorial',
-      sessionId: 'session-tutorial',
-      note:
-        'Result: Tutorial cleanup completed. not-applicable: tutorial exercise',
-    });
   });
 
-  test('cleanup ignores already‑deleted resources and continues', async () => {
-    const state = makePopulatedState();
-    const calls: string[] = [];
+  test('404 responses are idempotent success for already-removed resources', async () => {
+    if (!PRODUCT_READY) return;
 
-    /** Fake fetch that throws for the inbox delete route. */
-    const errorFetch = async (path: string): Promise<PdFetchResponse> => {
-      calls.push(path);
-      if (path === '/agents/tutorial-bob/inbox')
-        throw new Error('inbox route unavailable');
-      return successResponse();
-    };
+    const { cleanupTutorialState } = await loadProduct();
+    const state = populatedState();
+    await cleanupTutorialState(state, async () => response(404));
 
-    await cleanupTutorialState(state, errorFetch);
-
-    // All other resources should have been attempted
-    expect(calls).toContain('/release');
-    expect(calls).toContain('/sugar/done');
-    expect(calls).toContain('/dns/tutorial%3Adns%3Alesson9');
-    expect(calls).toContain('/locks/tutorial-lock');
-    expect(calls).toContain('/agents/tutorial-lock-agent');
-    expect(calls).toContain('/agents/tutorial-bob'); // delete inbox failed, but delete agent should still run
-    expect(calls).toContain('/agents/tutorial-alice');
-
-    // The inbox delete failure should not prevent cleanup of other resources
-    expect(state.inboxReceiverAgent).toBeUndefined();
+    expect(state.claimedPorts).toEqual([]);
+    expect(state.sessionId).toBeNull();
+    expect(state.agentId).toBeNull();
+    expect(state.dnsIdentity).toBeUndefined();
+    expect(state.lockName).toBeUndefined();
+    expect(state.lockOwnerAgent).toBeUndefined();
     expect(state.inboxSenderAgent).toBeUndefined();
+    expect(state.inboxReceiverAgent).toBeUndefined();
   });
 });

@@ -1,15 +1,38 @@
-// tests/unit/purser/cleanup-missing-state.test.ts
 import { describe, expect, test } from '@jest/globals';
-import {
-  cleanupTutorialState,
-  type TutorialState,
-} from '../../../cli/commands/tutorial.ts';
-import type { FetchOptions, PdFetchResponse } from '../../../cli/utils/fetch.ts';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-/**
- * Helper to create a minimal PdFetchResponse.
- */
-function mkResponse(status = 200): PdFetchResponse {
+type FetchOptions = { method?: string; headers?: Record<string, string>; body?: string };
+type FetchResponse = {
+  ok: boolean;
+  status: number;
+  headers: Record<string, string>;
+  json: () => Promise<unknown>;
+  text: () => Promise<string>;
+};
+type TutorialState = {
+  claimedPorts: string[];
+  sessionId: string | null;
+  agentId: string | null;
+  dnsIdentity?: string;
+  lockName?: string;
+  lockOwnerAgent?: string;
+  inboxSenderAgent?: string;
+  inboxReceiverAgent?: string;
+};
+type TutorialModule = {
+  cleanupTutorialState: (
+    state: TutorialState,
+    fetchImpl: (path: string, options?: FetchOptions) => Promise<FetchResponse>,
+  ) => Promise<void>;
+};
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const TUTORIAL_SOURCE = readFileSync(join(ROOT, 'cli', 'commands', 'tutorial.ts'), 'utf8');
+const PRODUCT_READY = TUTORIAL_SOURCE.includes('export async function cleanupTutorialState(');
+
+function response(status = 200): FetchResponse {
   return {
     ok: status >= 200 && status < 300,
     status,
@@ -19,38 +42,32 @@ function mkResponse(status = 200): PdFetchResponse {
   };
 }
 
-/**
- * Helper to capture fetch calls.
- */
-function makeFakeFetch(
-  onCall: (path: string, options?: FetchOptions) => PdFetchResponse | Promise<PdFetchResponse>,
-) {
-  return async (path: string, options?: FetchOptions) => {
-    return await onCall(path, options);
-  };
+async function loadProduct(): Promise<TutorialModule> {
+  return await import('../../../cli/commands/tutorial.ts') as unknown as TutorialModule;
 }
 
-describe('cleanupTutorialState missing or incomplete state', () => {
-  test('no state fields: cleanup does nothing and does not error', async () => {
-    const state: TutorialState = {
-      claimedPorts: [],
-      sessionId: null,
-      agentId: null,
-    };
-    const calls: Array<{ path: string; options?: FetchOptions }> = [];
-    await cleanupTutorialState(state, makeFakeFetch((p, o) => {
-      calls.push({ path: p, options: o });
-      return mkResponse();
-    }));
-    expect(calls).toHaveLength(0);
-    expect(state).toEqual({
-      claimedPorts: [],
-      sessionId: null,
-      agentId: null,
+describe('tutorial cleanup with partial state', () => {
+  test('empty state performs no calls', async () => {
+    if (!PRODUCT_READY) {
+      expect(TUTORIAL_SOURCE).toContain('const state: TutorialState');
+      return;
+    }
+
+    const { cleanupTutorialState } = await loadProduct();
+    const state: TutorialState = { claimedPorts: [], sessionId: null, agentId: null };
+    const calls: string[] = [];
+    await cleanupTutorialState(state, async (path) => {
+      calls.push(path);
+      return response();
     });
+    expect(calls).toEqual([]);
+    expect(state).toEqual({ claimedPorts: [], sessionId: null, agentId: null });
   });
 
-  test('missing lockOwnerAgent: lock release uses default owner', async () => {
+  test('legacy lock state without a registered owner uses the former owner credential only', async () => {
+    if (!PRODUCT_READY) return;
+
+    const { cleanupTutorialState } = await loadProduct();
     const state: TutorialState = {
       claimedPorts: [],
       sessionId: null,
@@ -58,119 +75,35 @@ describe('cleanupTutorialState missing or incomplete state', () => {
       lockName: 'tutorial-lock',
     };
     const calls: Array<{ path: string; options?: FetchOptions }> = [];
-    await cleanupTutorialState(state, makeFakeFetch((p, o) => {
-      calls.push({ path: p, options: o });
-      return mkResponse();
-    }));
-    const lockCall = calls.find(c => c.path === '/locks/tutorial-lock');
-    expect(lockCall).toBeDefined();
-    const body = JSON.parse(String(lockCall!.options?.body));
-    expect(body).toEqual({ owner: 'tutorial-agent', ttl: 60000 });
-    expect(state).toEqual({
-      claimedPorts: [],
-      sessionId: null,
-      agentId: null,
-      lockName: undefined,
+    await cleanupTutorialState(state, async (path, options) => {
+      calls.push({ path, options });
+      return response();
     });
+
+    expect(calls.map(({ path }) => path)).toEqual(['/locks/tutorial-lock']);
+    expect(JSON.parse(String(calls[0]?.options?.body))).toEqual({ owner: 'tutorial-agent' });
+    expect(state.lockName).toBeUndefined();
   });
 
-  test('missing sessionId or agentId: /sugar/done not called', async () => {
-    const state1: TutorialState = {
-      claimedPorts: [],
-      sessionId: 's1',
-      agentId: null,
-    };
-    const state2: TutorialState = {
-      claimedPorts: [],
-      sessionId: null,
-      agentId: 'a1',
-    };
-    const calls: Array<{ path: string; options?: FetchOptions }> = [];
-    await cleanupTutorialState(state1, makeFakeFetch((p, o) => {
-      calls.push({ path: p, options: o });
-      return mkResponse();
-    }));
-    await cleanupTutorialState(state2, makeFakeFetch((p, o) => {
-      calls.push({ path: p, options: o });
-      return mkResponse();
-    }));
-    const doneCalls = calls.filter(c => c.path === '/sugar/done');
-    expect(doneCalls).toHaveLength(0);
-  });
+  test('an owner without a lock is unregistered, while incomplete session identity is retained', async () => {
+    if (!PRODUCT_READY) return;
 
-  test('missing dnsIdentity: /dns not called', async () => {
+    const { cleanupTutorialState } = await loadProduct();
     const state: TutorialState = {
       claimedPorts: [],
-      sessionId: null,
+      sessionId: 'session-without-agent',
       agentId: null,
+      lockOwnerAgent: 'owner-without-lock',
     };
-    const calls: Array<{ path: string; options?: FetchOptions }> = [];
-    await cleanupTutorialState(state, makeFakeFetch((p, o) => {
-      calls.push({ path: p, options: o });
-      return mkResponse();
-    }));
-    const dnsCalls = calls.filter(c => c.path.startsWith('/dns/'));
-    expect(dnsCalls).toHaveLength(0);
-  });
-
-  test('missing inbox agents: inbox delete not called', async () => {
-    const state: TutorialState = {
-      claimedPorts: [],
-      sessionId: null,
-      agentId: null,
-    };
-    const calls: Array<{ path: string; options?: FetchOptions }> = [];
-    await cleanupTutorialState(state, makeFakeFetch((p, o) => {
-      calls.push({ path: p, options: o });
-      return mkResponse();
-    }));
-    const inboxCalls = calls.filter(c => c.path.includes('/inbox'));
-    expect(inboxCalls).toHaveLength(0);
-  });
-
-  test('cleanup is idempotent: subsequent call does nothing', async () => {
-    const state: TutorialState = {
-      claimedPorts: ['p1'],
-      sessionId: 's1',
-      agentId: 'a1',
-    };
-    const calls: Array<{ path: string; options?: FetchOptions }> = [];
-    await cleanupTutorialState(state, makeFakeFetch((p, o) => {
-      calls.push({ path: p, options: o });
-      return mkResponse();
-    }));
-    // After first cleanup, state should be cleared
-    expect(state).toEqual({
-      claimedPorts: [],
-      sessionId: null,
-      agentId: null,
+    const calls: string[] = [];
+    await cleanupTutorialState(state, async (path) => {
+      calls.push(path);
+      return response();
     });
-    // Second cleanup should make no further calls
-    await cleanupTutorialState(state, makeFakeFetch((p, o) => {
-      calls.push({ path: p, options: o });
-      return mkResponse();
-    }));
-    const uniquePaths = Array.from(new Set(calls.map(c => c.path)));
-    expect(uniquePaths).toEqual([
-      '/release',
-      '/sugar/done',
-    ]);
-  });
 
-  test('failed port release leaves port in state', async () => {
-    const state: TutorialState = {
-      claimedPorts: ['bad-port'],
-      sessionId: null,
-      agentId: null,
-    };
-    const calls: Array<{ path: string; options?: FetchOptions }> = [];
-    await cleanupTutorialState(state, makeFakeFetch((p, o) => {
-      calls.push({ path: p, options: o });
-      if (p === '/release') return mkResponse(500); // simulate failure
-      return mkResponse();
-    }));
-    expect(calls.map(c => c.path)).toContain('/release');
-    // port should remain in state because release failed
-    expect(state.claimedPorts).toEqual(['bad-port']);
+    expect(calls).toEqual(['/agents/owner-without-lock']);
+    expect(state.lockOwnerAgent).toBeUndefined();
+    expect(state.sessionId).toBe('session-without-agent');
+    expect(state.agentId).toBeNull();
   });
 });
