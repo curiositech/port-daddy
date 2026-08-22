@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { executeFleet, mapWithConcurrency } from '../src/execute.js';
+import { executeFleet, mapWithConcurrency, mapChunkCharLimit } from '../src/execute.js';
+import { MODEL_CONTEXT_TOKENS } from '../src/spend.js';
 import {
   freshState,
   installGitHubFetch,
   memoryKV,
+  memoryD1,
   aiStub,
   makeEnv,
   makeJob,
@@ -63,7 +65,11 @@ const REVIEWER_PLUS_QA_YAML = fleetYaml([
 function reviewWithFinding(verdict: 'PASS' | 'BLOCK' = 'PASS', body = 'finding'): string {
   return [
     '```json',
-    JSON.stringify([{ path: 'src/a.ts', line: 1, severity: 'MEDIUM', body }]),
+    // Must cite a path the harness actually reports as changed (`src/x.ts`).
+    // Findings pinned to a file outside the diff are dropped before rendering,
+    // so a fixture citing an untouched file would silently post nothing and
+    // these verdict/check assertions would fail for an unrelated reason.
+    JSON.stringify([{ path: 'src/x.ts', line: 1, severity: 'MEDIUM', body }]),
     '```',
     '',
     `FLEET-VERDICT: ${verdict}`,
@@ -112,6 +118,79 @@ describe('zero-trust config + contract fetching', () => {
     // And specifically the config + contract were read from main.
     expect(state.contentsRefs).toContainEqual({ path: 'pd-fleet.yml', ref: 'main' });
     expect(state.contentsRefs).toContainEqual({ path: 'fleet/ships/code-reviewer.md', ref: 'main' });
+  });
+});
+
+describe('PR lifecycle gate — a finished PR is not reviewed', () => {
+  /** Installation token, so the run reaches the gate rather than dying at mint. */
+  function tokenKv(): ReturnType<typeof memoryKV> {
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    return kv;
+  }
+
+  // A queue can deliver a job long after it was enqueued. Observed live:
+  // #5456 authored five adversarial test files for #5372 a hundred minutes
+  // AFTER #5372 merged. A test branch stacked under a merged PR can never be
+  // merged through, so the whole run is waste.
+
+  it('a MERGED pr runs ZERO ships but still completes the required check', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    state.prState = 'closed';
+    state.prMerged = true;
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding(), qa: reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: tokenKv(), AI: ai.ai }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.reviews).toHaveLength(0);
+    expect(state.commentPosts).toBe(0);
+    // The required check must never be left hanging — that blocks a branch forever.
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].summary).toMatch(/already merged/);
+    // The summary is the ONLY explanation an author gets for a neutral required
+    // check, so it must not assert something we never checked. We do not know
+    // when the job was enqueued relative to the merge — a delivery can be
+    // raised for a PR that had already finished.
+    expect(state.completed[0].summary).not.toMatch(/enqueued while/i);
+    expect(state.completed[0].summary).not.toMatch(/has since (merged|closed)/i);
+  });
+
+  it('a CLOSED-unmerged pr is skipped too', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prState = 'closed';
+    state.prMerged = false;
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: tokenKv(), AI: ai.ai }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed[0].summary).toMatch(/is closed/);
+  });
+
+  it('an OPEN pr is reviewed normally — the gate does not fire', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: tokenKv(), AI: ai.ai }));
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.completed[0].summary).not.toMatch(/already merged|is closed/);
+  });
+
+  it('FAILS OPEN when GitHub omits the lifecycle fields entirely', async () => {
+    // The load-bearing case. Skipping a live PR silently removes its review
+    // gate and reports neutral, which reads exactly like a clean run.
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.prState = undefined;
+    state.prMerged = undefined;
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding() } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: tokenKv(), AI: ai.ai }));
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.reviews.length).toBeGreaterThan(0);
   });
 });
 
@@ -440,9 +519,21 @@ describe('deterministic ship resolution', () => {
 
 describe('map-reduce fan-out', () => {
   it('chunks a large diff into N map calls + exactly 1 manager reduce call', async () => {
-    // Two files, each ~9KB, exceed the 12KB chunk budget combined → 2 chunks.
+    // Sized RELATIVE to the real budget, not to a number typed here. These
+    // fixtures used to hard-code ~9KB files against a 12KB budget; when the
+    // budget became derived from the MAP model's context window they silently
+    // stopped testing fan-out at all -- one chunk, no REDUCE, and an assertion
+    // about "2 map calls" failing for a reason with nothing to do with
+    // map-reduce. A fixture that encodes a constant is a fixture that expires.
+    //
+    // Sized against the LARGEST budget any known model yields, so the diff
+    // fans out whichever model the ship under test resolves to -- and stays
+    // correct if a model with a bigger window is added later.
+    const budget = Math.max(...Object.keys(MODEL_CONTEXT_TOKENS).map(mapChunkCharLimit));
+    const linesPerFile = Math.ceil((budget * 0.6) / '+line\n'.length);
     const file = (name: string) =>
-      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` + '+line\n'.repeat(1500);
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
+      '+line\n'.repeat(linesPerFile);
     state.prDiff = file('a.ts') + file('b.ts');
 
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
@@ -459,6 +550,50 @@ describe('map-reduce fan-out', () => {
     const reduceCalls = ai.calls.filter(c => c.ship === 'code-reviewer' && c.phase === 'reduce');
     expect(mapCalls.length).toBe(2); // N chunks
     expect(reduceCalls.length).toBe(1); // 1 manager
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('the chunk budget is CEILINGED, whatever the model window (#7743 memory bound)', () => {
+    // The unbounded window-derived budget (128k tokens → ~192KB chunks) was a
+    // memory multiplier that killed runs; every known model's budget must now
+    // sit within [floor, ceiling].
+    for (const model of Object.keys(MODEL_CONTEXT_TOKENS)) {
+      const budget = mapChunkCharLimit(model);
+      expect(budget).toBeGreaterThanOrEqual(12_000);
+      expect(budget).toBeLessThanOrEqual(48_000);
+    }
+    // Unknown models keep the historical fallback exactly.
+    expect(mapChunkCharLimit('@cf/some/unknown-model')).toBe(12_000);
+  });
+
+  it('an oversized diff is capped at the per-ship chunk limit and the truncation is transcribed (#7743)', async () => {
+    // 12 chunks' worth of diff (each file sized to fill one chunk) must fan
+    // out to at most 8 MAP calls, with a map-truncated step naming the drop —
+    // a partial review may never masquerade as a full one.
+    const budget = Math.max(...Object.keys(MODEL_CONTEXT_TOKENS).map(mapChunkCharLimit));
+    const linesPerFile = Math.ceil((budget * 0.9) / '+line\n'.length);
+    const file = (name: string) =>
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
+      '+line\n'.repeat(linesPerFile);
+    state.prDiff = Array.from({ length: 12 }, (_, i) => file(`f${i}.ts`)).join('');
+
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'partial\n\nFLEET-VERDICT: PASS' },
+      managerOutput: 'merged review\n\nFLEET-VERDICT: PASS',
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db }));
+
+    const mapCalls = ai.calls.filter(c => c.ship === 'code-reviewer' && c.phase === 'map');
+    expect(mapCalls.length).toBeLessThanOrEqual(8);
+    const truncated = db.steps.filter((s: { kind: string }) => s.kind === 'map-truncated');
+    expect(truncated).toHaveLength(1);
+    expect(String(truncated[0].title)).toContain('chunks dropped');
+    // Still reaches a verdict — degraded honestly, never dead.
     expect(state.completed[0].conclusion).toBe('success');
   });
 
@@ -493,7 +628,12 @@ describe('inline GitHub review', () => {
 
     expect(state.reviews).toHaveLength(1);
     const review = state.reviews[0];
-    expect(review.event).toBe('COMMENT');
+    // This fixture is a BLOCKING ship returning BLOCK with a HIGH finding —
+    // the one case the fleet now rejects outright rather than commenting
+    // beside. See reviewEventFor() and tests/review-event.test.ts for the
+    // restraints (advisory ships, non-HIGH findings, errored ships and empty
+    // finding lists all stay COMMENT).
+    expect(review.event).toBe('REQUEST_CHANGES');
     expect(review.comments).toHaveLength(1);
     expect(review.comments[0]).toEqual({
       path: 'src/x.ts',
@@ -527,26 +667,44 @@ describe('non-blocking ship semantics', () => {
   });
 });
 
-describe('idempotent re-run', () => {
-  it('same deliveryId / head SHA does not double-create the check run', async () => {
+describe('idempotent re-run — a redelivery must not re-spend', () => {
+  // WHAT CHANGED AND WHY. These two cases used to pin "a re-run does the work
+  // again, then edits the comment in place instead of duplicating it." The
+  // edit-in-place half was right. The "does the work again" half was costing
+  // real money: comment posting was idempotent, but the MODEL CALLS behind the
+  // comment were not — every ship re-ran to produce text it then overwrote.
+  //
+  // On 2026-08-06 that became visible in production. Runs exceeding the Worker
+  // wall-clock were redelivered (max_retries = 3), dead-lettered, completed as
+  // `failure` by the DLQ handler — and then kept re-running ships for HOURS
+  // against a check run that could never be reopened. Identical output, paid
+  // for repeatedly, changing nothing an operator could see.
+  //
+  // So the property these now pin is stronger: a redelivery against a COMPLETED
+  // check spends NOTHING. `in_progress` is deliberately not covered by that —
+  // it is the genuine retry of a run that died mid-flight and must proceed.
+
+  it('a redelivery after completion makes ZERO further model calls', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
-    const mkAi = () =>
-      aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } }).ai;
 
+    const first = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
     const job = makeJob();
-    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
-    // Re-deliver the SAME job. The commit check-runs lookup now finds the run
-    // created on the first pass, so no second check run is created.
-    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
+    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: first.ai }));
+    expect(first.calls.length).toBeGreaterThan(0);
 
+    // Re-deliver the SAME job. The check for this head SHA is now completed.
+    const second = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: second.ai }));
+
+    // The assertion that is about money.
+    expect(second.calls.length).toBe(0);
     expect(state.checkRunsCreated).toBe(1);
-    expect(state.completed.length).toBe(2); // completed both times, same id
-    expect(state.completed[0].id).toBe(state.completed[1].id);
+    expect(state.completed.length).toBe(1); // completed once, not re-completed
   });
 
-  it('re-run edits the ship comment in place instead of posting a duplicate', async () => {
+  it('a redelivery posts no comment at all — not even an edit', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -560,7 +718,28 @@ describe('idempotent re-run', () => {
     await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
 
     expect(state.commentPosts).toBe(1); // only the first run created
-    expect(state.commentPatches).toBe(1); // the re-run edited in place
+    // Previously 1 — the re-run edited in place, having paid to regenerate
+    // identical text. Now it never gets that far.
+    expect(state.commentPatches).toBe(0);
+  });
+
+  it('a redelivery while the check is still IN PROGRESS does proceed', async () => {
+    // The retry that must still work: a run that died mid-flight leaves the
+    // check `in_progress`, and the queue redelivering it is the only thing that
+    // finishes the gate. Skipping here would strand the PR blocked forever.
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+
+    // Pre-seed an in-progress check, as an interrupted first attempt would.
+    state.existingCheckRuns = [{ id: 4242, name: 'Port Daddy Fleet', status: 'in_progress' }];
+
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.checkRunsCreated).toBe(0); // reused the existing one
+    expect(state.completed.map(c => c.id)).toEqual([4242]);
   });
 });
 
@@ -725,7 +904,7 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     expect(state.completed[0].conclusion).toBe('success');
   });
 
-  it('malformed proposal JSON on an ideation ship falls back to raw output and never gates', async () => {
+  it('malformed proposal JSON on an ideation ship posts the raw output AND fails the run', async () => {
     state.files.set('main:pd-fleet.yml', ideationYaml('spark', 1.25));
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -738,8 +917,11 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     const bodies = commentBodiesOf(state);
     // Raw prose is preserved rather than dropped.
     expect(bodies.some(b => b.includes('I think we could build stuff.'))).toBe(true);
-    // Malformed ideation output must NOT flip the check to neutral/failure.
-    expect(state.completed[0].conclusion).toBe('success');
+    // Broken-ship doctrine (2026-08-19): a malformed proposal block is not an
+    // opinion — it is a broken ship, and a broken ship fails the run even
+    // though ideation JUDGMENT never gates. The pd-snipe malformed block on
+    // the 2026-08-19 run sailed through green; it must not again.
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
   it('ideation ships run alongside a blocking reviewer without affecting its gate', async () => {
@@ -851,5 +1033,379 @@ describe('cloud telemetry emission (cost + failure surface)', () => {
     );
     expect(shipRun).toMatchObject({ status: 'error', conclusion: 'failure' });
     expect((shipRun as { metadata?: { blackout?: boolean } }).metadata?.blackout).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MERGE QUEUE pass-through.
+//
+// `Port Daddy Fleet` is a REQUIRED context on the merge queue. The executor
+// used to fall straight out of `!job.prNumber` for a merge_group delivery (that
+// payload has no pull_request at all), so the context was never produced and the
+// queue deadlocked: observed 2026-08-10 with `main` frozen since 2026-08-06 and
+// the queue head AWAITING_CHECKS for 9+ hours.
+
+describe('executeFleet — merge_group (merge-queue gate)', () => {
+  const QUEUE_SHA = 'b8ae3f4202aeb2b25d7be69b7a3ed6898957c8c1';
+
+  // The harness's app key is a placeholder that cannot sign a JWT, so a live
+  // mint is impossible here. Seeding the cache keeps these tests about the
+  // pass-through behaviour; the token layer has its own tests.
+  function envWithToken(ai: unknown) {
+    const kv = memoryKV();
+    void kv.put(
+      'github_inst_42',
+      JSON.stringify({ token: 'tok-seeded', expiresAt: Date.now() + 3_600_000 }),
+    );
+    return makeEnv({ AI: ai as never, FLEET_TOKENS: kv });
+  }
+
+  function mergeGroupJob(over: Record<string, unknown> = {}) {
+    return makeJob({
+      eventType: 'merge_group',
+      action: 'checks_requested',
+      prNumber: null,
+      payloadMinimal: {
+        merge_group: { head_sha: QUEUE_SHA },
+        ...(over.payloadMinimal as Record<string, unknown> | undefined),
+      },
+      ...over,
+    } as Partial<ReturnType<typeof makeJob>>);
+  }
+
+  it('posts a SUCCESS check on the queue-branch head sha', async () => {
+    const { ai } = aiStub({ perShip: {} });
+    const state = freshState();
+    installGitHubFetch(state);
+
+    await executeFleet(mergeGroupJob(), envWithToken(ai));
+
+    const created = state.records.filter(r => r.url.endsWith('/check-runs') && r.method === 'POST');
+    expect(created).toHaveLength(1);
+    expect((created[0].body as { name: string; head_sha: string }).name).toBe('Port Daddy Fleet');
+    // The QUEUE branch sha is the only one GitHub is waiting on.
+    expect((created[0].body as { head_sha: string }).head_sha).toBe(QUEUE_SHA);
+
+    const completed = state.records.filter(r => r.url.includes('/check-runs/') && r.method === 'PATCH');
+    expect(completed).toHaveLength(1);
+    expect((completed[0].body as { conclusion: string }).conclusion).toBe('success');
+  });
+
+  it('spends NOTHING on models — it is a pass-through, not a re-review', async () => {
+    const { ai } = aiStub({ perShip: { 'code-reviewer': 'x\n\nFLEET-VERDICT: PASS' } });
+    const state = freshState();
+    installGitHubFetch(state);
+
+    await executeFleet(mergeGroupJob(), envWithToken(ai));
+
+    // Re-reviewing every queue permutation would re-spend the whole review
+    // budget per entry, per reorder, to re-derive a verdict already published.
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+  });
+
+  it('posts nothing when the payload carries no head_sha (never invents one)', async () => {
+    const { ai } = aiStub({ perShip: {} });
+    const state = freshState();
+    installGitHubFetch(state);
+
+    await executeFleet(mergeGroupJob({ payloadMinimal: { merge_group: {} } }), envWithToken(ai));
+
+    expect(state.records.filter(r => r.url.includes('/check-runs'))).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Attempt checkpoints — retries RESUME instead of restarting (ship-checkpoint.ts).
+// The platform-kill dead-letter class (#7743, run 103e3650: four attempts, all
+// terminated uncatchably) is survivable only if attempt N+1 skips the ships
+// attempt N finished. These tests drive resume through the REAL read/write
+// code against the memoryD1 stub.
+import {
+  loadShipCheckpoints,
+  saveShipCheckpoint,
+  parseShipCheckpoint,
+  SHIP_CHECKPOINT_KIND,
+  SHIP_CHECKPOINT_SEQ_BASE,
+} from '../src/ship-checkpoint.js';
+
+describe('attempt checkpoints — retries resume, never re-spend', () => {
+  it('a completed run leaves one parseable checkpoint row per ship that ran', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': reviewWithFinding('PASS'),
+        qa: 'FLEET-VERDICT: PASS',
+      },
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    const checkpoints = d1.steps.filter(st => st.kind === SHIP_CHECKPOINT_KIND);
+    expect(checkpoints.map(c => c.ship).sort()).toEqual(['code-reviewer', 'qa']);
+    for (const row of checkpoints) {
+      expect(Number(row.seq)).toBeGreaterThanOrEqual(SHIP_CHECKPOINT_SEQ_BASE);
+      const parsed = parseShipCheckpoint(row.ship, row.detail);
+      expect(parsed?.ship).toBe(row.ship);
+    }
+  });
+
+  it('a retried delivery reuses a checkpointed ship: no AI re-spend, result still aggregated', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    // Attempt 1 (simulated): code-reviewer finished before the platform kill.
+    const runId = 'run:delivery-abc'; // makeJob()'s deterministic run id
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      runId,
+      0,
+      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+    );
+
+    const ai = aiStub({ perShip: { qa: 'FLEET-VERDICT: PASS' } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    // The resumed ship never touched a model; the fresh ship did.
+    expect(ai.calls.filter(c => c.ship === 'code-reviewer')).toHaveLength(0);
+    expect(ai.calls.filter(c => c.ship === 'qa').length).toBeGreaterThan(0);
+    // Its verdict still reached the aggregate: both ships PASS => success.
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('success');
+    // And the resume is legible in the transcript.
+    const resumedSteps = d1.steps.filter(st => st.kind === 'ship-resumed');
+    expect(resumedSteps.map(s => s.ship)).toEqual(['code-reviewer']);
+  });
+
+  it('multiple checkpointed ships resume in roster order with their findings intact', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    const runId = 'run:delivery-abc';
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      runId,
+      0,
+      {
+        ship: 'code-reviewer',
+        blocking: true,
+        verdict: 'PASS',
+        errored: false,
+        findings: [{ path: 'src/x.ts', line: 1, severity: 'LOW', body: 'reviewer finding' }],
+      },
+    );
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      runId,
+      1,
+      {
+        ship: 'qa',
+        blocking: false,
+        verdict: 'PASS',
+        errored: false,
+        findings: [{ path: 'src/x.ts', line: 2, severity: 'LOW', body: 'qa finding' }],
+      },
+    );
+
+    const ai = aiStub({ perShip: {} });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(d1.steps.filter(st => st.kind === 'ship-resumed').map(st => st.ship)).toEqual([
+      'code-reviewer',
+      'qa',
+    ]);
+    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.reviews).toHaveLength(1);
+    expect(state.reviews[0].comments).toEqual([
+      { path: 'src/x.ts', line: 1, body: '[code-reviewer] reviewer finding' },
+      { path: 'src/x.ts', line: 2, body: '[qa] qa finding' },
+    ]);
+  });
+
+  it('a resumed BLOCK verdict fails the gate without re-running the ship', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      {
+        ship: 'code-reviewer',
+        blocking: true,
+        verdict: 'BLOCK',
+        errored: false,
+        findings: [{ path: 'src/x.ts', line: 1, severity: 'HIGH', body: 'checkpointed finding' }],
+      },
+    );
+
+    const ai = aiStub({ perShip: { qa: 'FLEET-VERDICT: PASS' } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(c => c.ship === 'code-reviewer')).toHaveLength(0);
+    expect(state.completed[0].conclusion).toBe('failure');
+  });
+
+  it('a corrupt checkpoint row is ignored — the ship re-runs (fail-open to work, closed to trust)', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    // Raw garbage in the checkpoint band: unparseable detail must never resume.
+    d1.steps.push({
+      runId: 'run:delivery-abc',
+      seq: SHIP_CHECKPOINT_SEQ_BASE,
+      kind: SHIP_CHECKPOINT_KIND,
+      ship: 'code-reviewer',
+      title: 'corrupt',
+      detail: '{not json',
+    });
+
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(c => c.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it("another delivery's checkpoints never leak in: run ids partition resume state", async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    // A checkpoint from a DIFFERENT delivery (new push = new deliveryId).
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:some-other-delivery',
+      0,
+      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+    );
+
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls.filter(c => c.ship === 'code-reviewer').length).toBeGreaterThan(0);
+  });
+
+  it('a checkpoint for a ship removed from the current roster is unreachable', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    await saveShipCheckpoint(
+      makeEnv({ DB: d1.db }),
+      'run:delivery-abc',
+      0,
+      { ship: 'removed-ship', blocking: true, verdict: 'BLOCK', errored: false, findings: [] },
+    );
+
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    // Resume lookup is driven by the CURRENT ordered roster. Extra map keys
+    // are never aggregated, so parser-level roster knowledge is unnecessary.
+    expect(ai.calls.filter(c => c.ship === 'code-reviewer').length).toBeGreaterThan(0);
+    expect(state.completed[0].conclusion).toBe('success');
+    expect(String(state.completed[0].summary)).not.toContain('removed-ship');
+  });
+
+  it('a swallowed checkpoint write leaves no state for a later attempt to trust', async () => {
+    const d1 = memoryD1();
+    const env = makeEnv({ DB: d1.db });
+    d1.failAll = true;
+    await saveShipCheckpoint(
+      env,
+      'run:delivery-abc',
+      0,
+      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+    );
+    d1.failAll = false;
+
+    expect((await loadShipCheckpoints(env, 'run:delivery-abc')).size).toBe(0);
+  });
+
+  it('a checkpoint load query failure returns an empty resume map', async () => {
+    const d1 = memoryD1();
+    const env = makeEnv({ DB: d1.db });
+    d1.failAll = true;
+
+    await expect(loadShipCheckpoints(env, 'run:delivery-abc')).resolves.toEqual(new Map());
+  });
+
+  it('an invalid ship index uses the first reserved checkpoint slot', async () => {
+    for (const invalidIndex of [1.5, -1]) {
+      const d1 = memoryD1();
+      await saveShipCheckpoint(
+        makeEnv({ DB: d1.db }),
+        'run:delivery-abc',
+        invalidIndex,
+        { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+      );
+
+      expect(d1.steps).toHaveLength(1);
+      expect(d1.steps[0].seq).toBe(SHIP_CHECKPOINT_SEQ_BASE);
+    }
+  });
+
+  it('no D1 binding makes checkpoint load/save harmless no-ops', async () => {
+    const env = makeEnv({});
+    await expect(saveShipCheckpoint(
+      env,
+      'run:delivery-abc',
+      0,
+      { ship: 'code-reviewer', blocking: true, verdict: 'PASS', errored: false, findings: [] },
+    )).resolves.toBeUndefined();
+    await expect(loadShipCheckpoints(env, 'run:delivery-abc')).resolves.toEqual(new Map());
+  });
+
+  it('D1 down: checkpoint load/save swallow and the run behaves exactly as before checkpoints', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const d1 = memoryD1();
+    d1.failAll = true;
+
+    const ai = aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('parseShipCheckpoint refuses mis-attributed or malformed rows', () => {
+    const good = { ship: 'qa', blocking: false, verdict: 'PASS', errored: false };
+    expect(parseShipCheckpoint('qa', JSON.stringify(good))).toEqual(good);
+    // Row/detail ship mismatch (band collision after a roster change): refused.
+    expect(parseShipCheckpoint('code-reviewer', JSON.stringify(good))).toBeNull();
+    // Unknown verdict, wrong types, and malformed finding payloads: refused.
+    expect(parseShipCheckpoint('qa', JSON.stringify({ ...good, verdict: 'MAYBE' }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({ ...good, blocking: 'yes' }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({ ...good, findings: 'none' }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({ ...good, findings: [null] }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({
+      ...good,
+      findings: [{ path: 'src/x.ts', line: 0, severity: 'HIGH', body: 'bad line' }],
+    }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({
+      ...good,
+      findings: [{
+        path: 'src/x.ts',
+        line: Number.MAX_SAFE_INTEGER + 1,
+        severity: 'HIGH',
+        body: 'unsafe line',
+      }],
+    }))).toBeNull();
+    expect(parseShipCheckpoint('qa', JSON.stringify({
+      ...good,
+      findings: [{ path: 'src/x.ts', line: 1, severity: 'URGENT', body: 'bad severity' }],
+    }))).toBeNull();
+    expect(parseShipCheckpoint('qa', 'not json')).toBeNull();
+    expect(parseShipCheckpoint('', JSON.stringify(good))).toBeNull();
   });
 });

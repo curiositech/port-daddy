@@ -152,6 +152,30 @@ describe('whitepaper metadata sync', () => {
       expect(bytes, `${paper.id} PDF should be > 10 KB`).toBeGreaterThan(10_000)
     }
   })
+
+  test('audited Harbor metadata names the collected-volume edition', () => {
+    const byId = new Map(WHITE_PAPERS.map((paper) => [paper.id, paper]))
+    expect(byId.get('harbor-economy')).toMatchObject({
+      pages: 31,
+      status: 'Version 1.3 (collected-volume edition)',
+    })
+  })
+
+  test('audited Legible metadata names the collected-volume edition', () => {
+    const byId = new Map(WHITE_PAPERS.map((paper) => [paper.id, paper]))
+    expect(byId.get('legible-swarm')).toMatchObject({
+      pages: 40,
+      status: 'Version 1.2 (collected-volume edition)',
+    })
+  })
+
+  test('audited Single-Writer Kernel metadata names its collected-volume edition', () => {
+    const kernel = WHITE_PAPERS.find((paper) => paper.id === 'single-writer-kernel')
+    expect(kernel).toMatchObject({
+      pages: 35,
+      status: 'Version 1.2 (collected-volume edition)',
+    })
+  })
 })
 
 describe('whitepaper copy hygiene', () => {

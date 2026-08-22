@@ -25,6 +25,12 @@ import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha256';
 import { timingSafeEqual, toHex, randomHex } from './crypto.js';
 import { operatorOnly } from './handlers.js';
+import {
+  CREDIT_LEDGER_POINTER,
+  harborQuotaKey,
+  resolveQuotaSettings,
+  type QuotaStatus,
+} from './harbor-quota.js';
 import { resolveSession, userOwnsInstallation, isSameOrigin } from './auth-github.js';
 import type { Env, RelayError } from './types.js';
 
@@ -666,4 +672,137 @@ export async function handlePortalLink(request: Request, env: Env): Promise<Resp
   }
   if (form) return redirect303(created.body.url);
   return Response.json({ url: created.body.url });
+}
+
+// ── X8: cached balance + the quota status surface ─────────────────────────────
+//
+// The credit ledger is read ASYNCHRONOUSLY where latency matters: the publish
+// hot path never touches D1 for billing at all (its budget inputs are env
+// vars fed to the HarborQuota DO), and surfaces that want a balance next to
+// quota data read it through this KV cache — stale-while-revalidate, so a
+// stale entry answers immediately while a background refresh (via
+// ctx.waitUntil) brings it current. Enforcement against the balance is
+// therefore EVENTUAL by design: at worst BILLING_STATUS_CACHE_TTL_SECONDS
+// behind the ledger, and that trade is stated here rather than hidden.
+
+/** How long a cached billing status is served without a background refresh. */
+export const BILLING_STATUS_CACHE_TTL_SECONDS = 300;
+
+interface CachedBillingStatusRecord {
+  status: InstallationBillingStatus;
+  fetchedAt: number; // unix seconds
+}
+
+/** A billing status read through the KV cache, labeled with its freshness. */
+export interface CachedBillingStatus extends InstallationBillingStatus {
+  /** Unix seconds the underlying D1 read happened. */
+  cachedAt: number;
+  /** True when the entry was older than the TTL (a refresh was scheduled). */
+  stale: boolean;
+}
+
+const billingStatusCacheKey = (installationId: number): string =>
+  `billing:status:${installationId}`;
+
+/**
+ * Read an installation's billing status through KV, keeping the D1 ledger
+ * read OFF the caller's latency path after the first hit.
+ *
+ * - Cache hit, fresh: returns the cached value; D1 is not touched.
+ * - Cache hit, stale: returns the cached value IMMEDIATELY and schedules a
+ *   D1 refresh via `opts.waitUntil` (or best-effort fire-and-forget when the
+ *   caller has no ExecutionContext, e.g. tests).
+ * - Cache miss: one synchronous D1 read (first-reader cost, stated), cached.
+ *
+ * @param env Worker env (KV + DB bindings).
+ * @param installationId Installation whose ledger balance to read. Callers
+ *   MUST have already established tenant ownership or operator authority.
+ * @param opts.waitUntil ExecutionContext.waitUntil, so a stale refresh
+ *   outlives the response without delaying it.
+ * @param opts.now Unix-seconds clock override for tests.
+ */
+export async function getCachedBillingStatus(
+  env: Env,
+  installationId: number,
+  opts?: { waitUntil?: (p: Promise<unknown>) => void; now?: number },
+): Promise<CachedBillingStatus> {
+  const key = billingStatusCacheKey(installationId);
+  const now = opts?.now ?? Math.floor(Date.now() / 1000);
+
+  const cached = (await env.KV.get(key, 'json')) as CachedBillingStatusRecord | null;
+  if (cached && typeof cached.fetchedAt === 'number' && cached.status) {
+    const stale = now - cached.fetchedAt > BILLING_STATUS_CACHE_TTL_SECONDS;
+    if (stale) {
+      const refresh = (async () => {
+        const fresh = await getBillingStatus(env.DB, installationId);
+        await env.KV.put(key, JSON.stringify({ status: fresh, fetchedAt: now } satisfies CachedBillingStatusRecord));
+      })();
+      if (opts?.waitUntil) opts.waitUntil(refresh.catch(() => {}));
+      else void refresh.catch(() => {});
+    }
+    return { ...cached.status, cachedAt: cached.fetchedAt, stale };
+  }
+
+  const fresh = await getBillingStatus(env.DB, installationId);
+  await env.KV.put(key, JSON.stringify({ status: fresh, fetchedAt: now } satisfies CachedBillingStatusRecord));
+  return { ...fresh, cachedAt: now, stale: false };
+}
+
+// ── GET /v1/quotas/:harborFp ──────────────────────────────────────────────────
+
+/**
+ * Operator-only view of one harbor's daily quota counters — the surface the
+ * shadow-vs-enforce FLIP DECISION is read from (grand-plan §X8): today's
+ * event/byte counts, the shadow-denied delta (what enforcement WOULD have
+ * refused), the enforced-denied tally, the budgets and mode in force, and the
+ * credit-ledger pointer a 429 hands out. Optional `?installation=<id>` pairs
+ * the counters with that installation's CACHED balance (see
+ * {@link getCachedBillingStatus}) so budget data and credit stand side by
+ * side without a hot D1 read.
+ */
+export async function handleQuotaStatus(
+  request: Request,
+  env: Env,
+  harborFp: string,
+  ctx?: ExecutionContext,
+): Promise<Response> {
+  const reject = operatorOnly(request, env);
+  if (reject) return reject;
+
+  if (!/^[0-9a-f]{64}$/.test(harborFp)) {
+    return err('BAD_REQUEST', 'harbor fingerprint must be 64 lowercase hex chars', 400);
+  }
+  if (!env.HARBOR_QUOTA) {
+    return err('QUOTA_UNCONFIGURED', 'HARBOR_QUOTA Durable Object binding is not provisioned', 503);
+  }
+
+  const stub = env.HARBOR_QUOTA.get(env.HARBOR_QUOTA.idFromName(harborQuotaKey(harborFp)));
+  const res = await stub.fetch('http://do/?action=status');
+  if (!res.ok) {
+    return err('QUOTA_ERROR', `quota DO returned HTTP ${res.status}`, 502);
+  }
+  const status = (await res.json()) as QuotaStatus;
+  const settings = resolveQuotaSettings(env);
+
+  let billing: CachedBillingStatus | null = null;
+  const instRaw = new URL(request.url).searchParams.get('installation');
+  if (instRaw !== null) {
+    const installationId = Number(instRaw);
+    if (!Number.isInteger(installationId) || installationId <= 0) {
+      return err('BAD_REQUEST', 'installation must be a positive integer', 400);
+    }
+    billing = await getCachedBillingStatus(env, installationId, {
+      waitUntil: ctx ? (p) => ctx.waitUntil(p) : undefined,
+    });
+  }
+
+  return Response.json({
+    harbor: harborFp,
+    mode: settings.enforce ? 'enforce' : 'shadow',
+    budgets: { dailyEvents: settings.eventBudget, dailyBytes: settings.byteBudget },
+    day: status.day,
+    counters: status.counters,
+    credit_ledger: CREDIT_LEDGER_POINTER,
+    billing,
+  });
 }

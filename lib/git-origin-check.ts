@@ -46,6 +46,22 @@ export interface OriginCheckResult {
 export interface GitOriginChecker {
   /** Returns ok=true only when the branch is fully pushed to its upstream. */
   checkBranchOnOrigin(cwd?: string): OriginCheckResult;
+  /**
+   * Returns ok=true only for a ledger-only worktree: no tracked/untracked
+   * changes and no commits absent from every remote ref. This is the narrow
+   * `pd done --no-pr` path for a session that produced durable notes but no
+   * repository artifact.
+   */
+  checkLedgerOnly?(cwd?: string): LedgerOnlyCheckResult;
+}
+
+export interface LedgerOnlyCheckResult {
+  ok: boolean;
+  code?: 'NO_REPO' | 'DIRTY_WORKTREE' | 'UNPUBLISHED_COMMITS' | 'GIT_ERROR';
+  error?: string;
+  hint?: string;
+  unpublishedCommits?: number;
+  dirtyEntries?: number;
 }
 
 function gitExecOptions(cwd?: string): ExecFileSyncOptionsWithStringEncoding {
@@ -156,6 +172,77 @@ export function createGitOriginChecker(): GitOriginChecker {
       }
 
       return { ok: true, branch, upstream, ahead: 0 };
+    },
+
+    /**
+     * Prove there is no repository artifact for a `--no-pr` session. The
+     * design checks both worktree state and commits absent from every remote
+     * ref so a convenience flag cannot silently orphan unpublished work.
+     *
+     * @param cwd - Worktree whose local and remote-reachability state is inspected.
+     * @returns Structured success or the exact failed ledger-only invariant.
+     */
+    checkLedgerOnly(cwd?: string): LedgerOnlyCheckResult {
+      const opts = gitExecOptions(cwd);
+      const rootRes = tryGit(['rev-parse', '--show-toplevel'], opts);
+      if (!rootRes.ok) {
+        return {
+          ok: false,
+          code: 'NO_REPO',
+          error: 'Not inside a Git repository (or git is unavailable).',
+          hint: 'A --no-pr close still requires a verifiably clean repository worktree.',
+        };
+      }
+
+      const statusRes = tryGit(['status', '--porcelain=v1', '--untracked-files=all'], opts);
+      if (!statusRes.ok) {
+        return {
+          ok: false,
+          code: 'GIT_ERROR',
+          error: `Could not inspect worktree cleanliness: ${statusRes.err}`,
+          hint: 'Inspect the worktree and preserve or revert every local change before closing --no-pr.',
+        };
+      }
+      const dirtyEntries = statusRes.out ? statusRes.out.split('\n').filter(Boolean).length : 0;
+      if (dirtyEntries > 0) {
+        return {
+          ok: false,
+          code: 'DIRTY_WORKTREE',
+          error: `Worktree has ${dirtyEntries} uncommitted or untracked entr${dirtyEntries === 1 ? 'y' : 'ies'}.`,
+          hint: 'Commit and publish the work, or remove only verified session-owned residue before closing --no-pr.',
+          dirtyEntries,
+        };
+      }
+
+      const unpublishedRes = tryGit(['rev-list', '--count', 'HEAD', '--not', '--remotes'], opts);
+      if (!unpublishedRes.ok) {
+        return {
+          ok: false,
+          code: 'GIT_ERROR',
+          error: `Could not inspect unpublished commits: ${unpublishedRes.err}`,
+          hint: 'Fetch the canonical remote and verify the branch has no unpublished commits.',
+        };
+      }
+      const unpublishedCommits = Number.parseInt(unpublishedRes.out, 10);
+      if (!Number.isFinite(unpublishedCommits) || unpublishedCommits < 0) {
+        return {
+          ok: false,
+          code: 'GIT_ERROR',
+          error: `Unexpected unpublished commit count: "${unpublishedRes.out}"`,
+          hint: 'Fetch the canonical remote and verify the branch has no unpublished commits.',
+        };
+      }
+      if (unpublishedCommits > 0) {
+        return {
+          ok: false,
+          code: 'UNPUBLISHED_COMMITS',
+          error: `Branch contains ${unpublishedCommits} commit${unpublishedCommits === 1 ? '' : 's'} absent from every remote ref.`,
+          hint: 'Push the branch and open a PR; --no-pr is only for sessions with no repository artifact.',
+          unpublishedCommits,
+        };
+      }
+
+      return { ok: true, dirtyEntries: 0, unpublishedCommits: 0 };
     },
   };
 }

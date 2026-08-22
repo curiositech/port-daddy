@@ -28,6 +28,40 @@ export const WORKERS_AI_RATES: Record<string, WorkersAiRate> = {
   '@cf/qwen/qwen3-30b-a3b-fp8': { input: 0.051, output: 0.335 },
 };
 
+/**
+ * Context window per model, in TOKENS, as published by Cloudflare.
+ *
+ * Here rather than in a comment because the MAP chunk budget is DERIVED from it
+ * (see mapChunkCharLimit in execute.ts). The budget used to be a bare
+ * `const MAP_CHUNK_CHAR_LIMIT = 12_000` with no recorded reasoning anywhere in
+ * the source -- about 3,000 tokens, which is 9% of the cheap model's window and
+ * 2% of the capable one's. Every diff over 12KB was therefore split for no
+ * reason any model imposed, and each resulting reviewer got a partial view it
+ * could not know was partial. That is where fabricated "X is missing" findings
+ * come from; the prompt-level scope contract mitigates a wound we inflicted.
+ *
+ * A number nobody can justify is a number nobody can correct. Deriving the
+ * budget from these means changing the MAP model changes the budget, and the
+ * invariants suite fails if a model is used without an entry here.
+ *
+ * Source: developers.cloudflare.com/workers-ai/models/<id> (verified 2026-08-06).
+ */
+export const MODEL_CONTEXT_TOKENS: Record<string, number> = {
+  '@cf/openai/gpt-oss-120b': 128_000,
+  '@cf/qwen/qwen3-30b-a3b-fp8': 32_768,
+};
+
+/**
+ * True when this model's context window is known, so a budget derived from it
+ * is a real bound rather than a guess.
+ *
+ * @param model Workers AI model id
+ * @returns whether {@link MODEL_CONTEXT_TOKENS} has an entry
+ */
+export function hasKnownContextWindow(model: string): boolean {
+  return Object.prototype.hasOwnProperty.call(MODEL_CONTEXT_TOKENS, model);
+}
+
 /** True when we have a rate for this model id (so cost is real, not guessed). */
 export function isPricedModel(model: string): boolean {
   return Object.prototype.hasOwnProperty.call(WORKERS_AI_RATES, model);

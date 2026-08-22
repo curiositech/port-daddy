@@ -107,9 +107,15 @@ function mkCtx(): PRContext {
     isFork: false,
     authorLogin: 'a-human',
     authorType: 'User',
+    // Open PR: the lifecycle gate must let these fixtures through.
+    state: 'open',
+    merged: false,
     installationId: 42,
     files: [],
     diff: 'diff --git a/src/widget.ts b/src/widget.ts\n+frob',
+    diffBytes: 0,
+    diffTruncated: false,
+    filesTruncated: false,
   };
 }
 
