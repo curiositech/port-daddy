@@ -104,6 +104,9 @@ describe('cli/utils/actor-credential', () => {
     expect(resolveCliActorCredential()).toBe('ENV0001.env-secret');
     // Env wins even when the asserted agentId matches the context's.
     expect(resolveCliActorCredential('ctx-agent')).toBe('ENV0001.env-secret');
+    // And even when it does NOT: the env override is unconditional — it is
+    // the operator's explicit word, checked before any agentId matching.
+    expect(resolveCliActorCredential('someone-else')).toBe('ENV0001.env-secret');
   });
 
   test('PORT_DADDY_ACTOR_CREDENTIAL is the fallback env spelling; PD_ACTOR_CREDENTIAL beats it', () => {

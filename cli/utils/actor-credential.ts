@@ -102,8 +102,9 @@ export function persistCliActorCredential(credential: string, agentId?: string |
     const dir = actorStoreDir();
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     // 0o600: the file holds a plaintext bearer credential — owner read/write
-    // only, same posture as an SSH private key. Other local users must not be
-    // able to read (and thus present) this shell's soul.
+    // only, same posture as an SSH private key and the custody bar ADR-0040
+    // sets for plaintext bearer credentials at rest. Other local users must
+    // not be able to read (and thus present) this shell's soul.
     writeFileSync(actorFilePath(), JSON.stringify({ agentId: agentId ?? null, credential }, null, 2), { mode: 0o600 });
   } catch {
     // Best-effort: an unpersistable credential only costs a re-mint later.
