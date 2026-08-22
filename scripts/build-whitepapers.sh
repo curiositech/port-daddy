@@ -42,6 +42,19 @@ clean_build_dir
 mkdir -p "$BUILD_DIR"
 trap clean_build_dir EXIT
 
+# Toolchain note. SOURCE_DATE_EPOCH is pinned per paper (see paper_epoch), so a
+# rebuild of unchanged source on the SAME renderer is byte-identical. It is not
+# byte-identical across renderer versions: CI builds inside `texlive/texlive`,
+# and a TeX Live package update changes output even when nothing in this repo
+# moved. Observed 2026-08-18 — a PGF/TikZ update began emitting line widths as
+# `0.39851` where the 2026-08-05 render emitted `0.3985`, shifting five
+# untouched PDFs by a few dozen bytes each and breaking the digests that
+# tests/unit/spawn-whitepaper-contract.test.js pins for Chapter III.
+#
+# So "the bytes differ" does NOT imply "the source changed". Only the transitive
+# TeX source set is authoritative about which artifacts a change can affect,
+# which is what paper_changed_since / --list-unchanged-since exist to answer.
+#
 # paper table: "<srcdir>|<root.tex>|<dest published pdf path>"
 PAPERS=(
   "$PUB|agent-transactions-whitepaper.tex|$PUB/agent-transactions-whitepaper.pdf"
@@ -54,9 +67,19 @@ PAPERS=(
 )
 
 CHANGED_SINCE=""
+LIST_UNCHANGED_SINCE=""
 if [ "${1:-}" = "--changed-since" ]; then
   [ -n "${2:-}" ] || { echo "--changed-since requires a git ref" >&2; exit 2; }
   CHANGED_SINCE="$2"
+  shift 2
+elif [ "${1:-}" = "--list-unchanged-since" ]; then
+  # Print the destination PDF of every paper whose transitive TeX sources did
+  # NOT change since a ref, then exit without building. Callers that must run a
+  # full rebuild (a builder change can alter any artifact) use this to restore
+  # the artifacts the rebuild had no source-level reason to touch — see the
+  # toolchain note above `PAPERS`.
+  [ -n "${2:-}" ] || { echo "--list-unchanged-since requires a git ref" >&2; exit 2; }
+  LIST_UNCHANGED_SINCE="$2"
   shift 2
 fi
 FILTER="${1:-}"
@@ -130,8 +153,29 @@ build_one() {
   (
     cd "$srcdir"
     export SOURCE_DATE_EPOCH="$epoch" FORCE_SOURCE_DATE=1
-    latexmk -pdf -interaction=nonstopmode -halt-on-error -file-line-error \
-            -outdir="$outdir" "$roottex"
+    if command -v latexmk >/dev/null 2>&1; then
+      latexmk -pdf -interaction=nonstopmode -halt-on-error -file-line-error \
+              -outdir="$outdir" "$roottex"
+    else
+      # BasicTeX can ship pdfTeX without latexmk. These papers use inline
+      # bibliographies, so bounded pdflatex passes are a complete fallback:
+      # pass 1 writes labels/TOC, pass 2 resolves them, and two extra passes
+      # cover the rare long-TOC case that still reports changed labels.
+      if ! command -v pdflatex >/dev/null 2>&1; then
+        echo "error: whitepaper build requires latexmk or pdflatex" >&2
+        exit 127
+      fi
+      local pass
+      for pass in 1 2 3 4; do
+        echo "pdflatex fallback pass $pass/4"
+        pdflatex -interaction=nonstopmode -halt-on-error -file-line-error \
+                 -output-directory="$outdir" "$roottex" || exit $?
+        if [ "$pass" -ge 2 ] && [ -f "$outdir/$base.log" ] \
+          && ! grep -Eq 'Rerun to get cross-references right|Label\(s\) may have changed' "$outdir/$base.log"; then
+          break
+        fi
+      done
+    fi
   )
   local rc=$?
   if [ $rc -ne 0 ] || [ ! -f "$outdir/$base.pdf" ]; then
@@ -147,8 +191,20 @@ build_one() {
   return 0
 }
 
+list_unchanged_since() {
+  local ref="$1" row srcdir roottex dest
+  for row in "${PAPERS[@]}"; do
+    IFS='|' read -r srcdir roottex dest <<< "$row"
+    paper_changed_since "$ref" "$srcdir" "$roottex" || printf '%s\n' "$dest"
+  done
+}
+
 main() {
   local row srcdir roottex dest base
+  if [ -n "$LIST_UNCHANGED_SINCE" ]; then
+    list_unchanged_since "$LIST_UNCHANGED_SINCE"
+    return 0
+  fi
   for row in "${PAPERS[@]}"; do
     IFS='|' read -r srcdir roottex dest <<< "$row"
     base="${roottex%.tex}"
