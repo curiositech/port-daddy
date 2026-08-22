@@ -194,7 +194,11 @@ export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDep
       const oldAgentId = (request.params as any).agentId as string;
       const { newAgentId } = request.body as any;
 
-      if (!newAgentId) {
+      // The successor id must be a non-empty STRING: a truthy non-string
+      // (number, object) would slip past requireSalvageIdentity's typeof
+      // narrowing (it treats non-strings as "no asserted id", skipping the
+      // alias-mismatch check) and land unvalidated in the successor record.
+      if (typeof newAgentId !== 'string' || !newAgentId.trim()) {
         reply.code(400);
         return { error: 'newAgentId required' };
       }
