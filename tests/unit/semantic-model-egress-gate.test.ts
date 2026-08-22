@@ -150,6 +150,14 @@ describe('resolveRemoteModelPolicy — the behavior matrix', () => {
     expect(policy.allowRemote).toBe(true);
   });
 
+  test('opt-in + TRANSFORMERS_OFFLINE=0 + uncached → remote-allowed (0 is not a veto)', () => {
+    const policy = resolveRemoteModelPolicy(emptyCacheDir(), DEFAULT_SEMANTIC_MODEL_ID, {
+      [ALLOW_MODEL_DOWNLOAD_ENV]: '1',
+      TRANSFORMERS_OFFLINE: '0',
+    });
+    expect(policy).toEqual({ allowRemote: true, cached: false, mode: 'remote-allowed' });
+  });
+
   test('opt-in + TRANSFORMERS_OFFLINE + uncached → unavailable (offline always wins)', () => {
     const policy = resolveRemoteModelPolicy(emptyCacheDir(), DEFAULT_SEMANTIC_MODEL_ID, {
       [ALLOW_MODEL_DOWNLOAD_ENV]: '1',
