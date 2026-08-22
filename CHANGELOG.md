@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Operators can now record per-repo agent settings on their account.** The portdaddy.dev relay gains `/account/repos`, a session-gated, script-free screen where each repository the operator's GitHub identity can read carries its own agent settings — starting with the SITREP end-of-turn dial (off | suggest | enforce). Settings live in a new `repo_settings` D1 table, and paired devices converge through `GET /v1/repo-settings` (device token or session cookie). The page is honest about the enforcement point: each clone's local `agent.config.json` dial, with the exact snippet rendered per repository — the server never reaches into checkouts.
+
 ### Fixed
 - **Release supervision and promotion now enforce the supported single-supervisor boundary end to end.** `pd doctor` keeps optional legacy Bosun state visible without treating its deliberate v3.28+ absence as a critical defect, while redirected doctor targets no longer borrow canonical launchd or registry evidence. Release CI omits the retired watchdog build, attests both sealed platform archives, and waits for the Homebrew tap's credential-independent, evidence-verified self-promotion instead of relying on a fragile cross-repository write token.
 
