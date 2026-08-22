@@ -26,6 +26,14 @@ describe('static endpoint discovery', () => {
         source,
         `${file} should not contain bare http:// URLs with localhost or loopback and numeric ports`,
       ).not.toMatch(/https?:\/\/(?:localhost|127\.0\.0\.1):[0-9]{1,5}/)
+      // A schemeless claim like "localhost:9876" teaches the same fixed endpoint,
+      // so reject any loopback host followed by a numeric port. Placeholder ports
+      // (e.g. template interpolation of a discovered port) contain no digits after
+      // the colon and remain allowed.
+      expect(
+        source,
+        `${file} should not contain schemeless localhost/loopback claims with fixed numeric ports`,
+      ).not.toMatch(/(?:localhost|127\.0\.0\.1):[0-9]{1,5}/)
 
       // Static content SHOULD teach discovery patterns
       // Note: Not all files will have all patterns, but at least they shouldn't have hardcoded URLs
