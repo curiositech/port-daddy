@@ -42,6 +42,25 @@ export const WORKERS_AI_RATES: Record<string, WorkersAiRate> = {
   '@cf/deepseek-ai/deepseek-v4-pro-0813': { input: 1.32, output: 3.96 },
   '@cf/google/gemma-4-26b-a4b-it': { input: 0.1, output: 0.3 },
   '@cf/nvidia/nemotron-3-120b-a12b': { input: 0.5, output: 1.5 },
+  // Full-universe admission (operator directive 2026-08-22, PR #9249): every
+  // CURRENT, non-deprecated, Cloudflare-hosted text-generation model with a
+  // published price is honored — selection happens at assignment time on the
+  // scoreboard, not by shrinking the pin-able universe. Exclusions (deprecated
+  // tier, unpriced ids, the kimi-k2.6 phantom tombstone, non-text models) are
+  // documented rulings in the roster reference, not silent omissions.
+  '@cf/meta/llama-3.3-70b-instruct-fp8-fast': { input: 0.293, output: 2.253 },
+  '@cf/meta/llama-3.1-8b-instruct-fp8': { input: 0.152, output: 0.287 },
+  '@cf/meta/llama-3.2-1b-instruct': { input: 0.027, output: 0.201 },
+  '@cf/meta/llama-3.2-3b-instruct': { input: 0.051, output: 0.335 },
+  '@cf/meta/llama-3.2-11b-vision-instruct': { input: 0.049, output: 0.676 },
+  '@cf/meta/llama-4-scout-17b-16e-instruct': { input: 0.27, output: 0.85 },
+  '@cf/mistralai/mistral-small-3.1-24b-instruct': { input: 0.351, output: 0.555 },
+  '@cf/qwen/qwen2.5-coder-32b-instruct': { input: 0.66, output: 1.0 },
+  '@cf/qwen/qwq-32b': { input: 0.66, output: 1.0 },
+  '@cf/qwen/qwen3.8-27b': { input: 0.45, output: 3.2 },
+  '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b': { input: 0.497, output: 4.881 },
+  '@cf/ibm-granite/granite-4.0-h-micro': { input: 0.017, output: 0.112 },
+  '@cf/aisingapore/gemma-sea-lion-v4-27b-it': { input: 0.351, output: 0.555 },
 };
 
 /**
@@ -76,6 +95,19 @@ export const MODEL_CONTEXT_TOKENS: Record<string, number> = {
   '@cf/deepseek-ai/deepseek-v4-pro-0813': 1_048_576,
   '@cf/google/gemma-4-26b-a4b-it': 256_000,
   '@cf/nvidia/nemotron-3-120b-a12b': 256_000,
+  '@cf/meta/llama-3.3-70b-instruct-fp8-fast': 24_000,
+  '@cf/meta/llama-3.1-8b-instruct-fp8': 32_000,
+  '@cf/meta/llama-3.2-1b-instruct': 60_000,
+  '@cf/meta/llama-3.2-3b-instruct': 80_000,
+  '@cf/meta/llama-3.2-11b-vision-instruct': 128_000,
+  '@cf/meta/llama-4-scout-17b-16e-instruct': 131_000,
+  '@cf/mistralai/mistral-small-3.1-24b-instruct': 128_000,
+  '@cf/qwen/qwen2.5-coder-32b-instruct': 32_768,
+  '@cf/qwen/qwq-32b': 24_000,
+  '@cf/qwen/qwen3.8-27b': 262_144,
+  '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b': 80_000,
+  '@cf/ibm-granite/granite-4.0-h-micro': 131_000,
+  '@cf/aisingapore/gemma-sea-lion-v4-27b-it': 128_000,
 };
 
 /**

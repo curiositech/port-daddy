@@ -69,6 +69,32 @@ the model-review artifact linked from the PR):
   says otherwise; snipe/spark/spider deliberately stay qwen3-30b as the
   control population.
 
+## Accounting for the full 228-model catalog
+
+The catalog's 228 entries break down as: roughly 200 are image, video,
+text-to-speech, speech recognition, music, embeddings, reranking,
+translation, classification, or safety models — physically not text
+generators and therefore not coding-agent candidates in any configuration —
+plus ~40 AI-Gateway third-party text models (Claude/GPT/Gemini/Grok/Kimi-K3
+etc., unreachable from `env.AI` without a gateway-binding architecture
+change) and ~30 Cloudflare-hosted text-generation entries, of which several
+are catalog-Deprecated.
+
+**Ruling (operator directive, PR #9249): every CURRENT, non-deprecated,
+Cloudflare-hosted text-generation model with a published price is HONORED**
+— 23 models as of 2026-08-22. Being honored means a pin runs as declared;
+assignments still go to the models the evidence supports, and the
+scoreboard judges everything. The named exclusions, each a documented
+ruling, not taste:
+
+| Excluded | Why |
+|---|---|
+| The catalog's Deprecated tier (llama-2/3/3.1 plain, gemma-2b/7b/3-12b, mistral-7b v0.1/v0.2, phi-2, hermes-2-pro, sqlcoder-7b, kimi-k2.5, bart, uform) | Cloudflare can retire them at any time → the silent-blank failure mode the set exists to prevent |
+| `@cf/meta/llama-3.1-8b-instruct-fast` | No published price → unmeterable, violates the admission contract's rate leg |
+| `@cf/meta/llama-guard-3-8b` | A safety classifier, not a generator — cannot review code |
+| `@cf/moonshotai/kimi-k2.6` | The #654 phantom-id tombstone: the identical id once returned silent blanks fleet-wide. Needs one witnessed live call before admission; K2.7-Code covers the family |
+| LoRA-base variants (`*-lora`) | Inference scaffolds for adapters, not standalone reviewers |
+
 ## Cloudflare-hosted text-generation candidates (current, non-deprecated)
 
 Verified prices from the pricing page 2026-08-22 where shown; others need a

@@ -131,7 +131,11 @@ describe('resolveCfModel — the empty-model guard', () => {
     expect(resolveCfModel('@cf/openai/gpt-oss-120b')).toBe('@cf/openai/gpt-oss-120b');
     expect(resolveCfModel('@cf/moonshotai/kimi-k2.7-code')).toBe('@cf/moonshotai/kimi-k2.7-code');
     expect(resolveCfModel('@cf/openai/gpt-oss-20b')).toBe('@cf/openai/gpt-oss-20b');
-    expect(resolveCfModel('@cf/qwen/qwen2.5-coder-32b-instruct')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    // Full-universe admission: qwen2.5-coder is verified+priced, so it now
+    // passes through too. Only unverified ids remap.
+    expect(resolveCfModel('@cf/qwen/qwen2.5-coder-32b-instruct')).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+    // The #654 phantom tombstone stays OUT until a witnessed live call.
+    expect(resolveCfModel('@cf/moonshotai/kimi-k2.6')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
     expect(resolveCfModel('@cf/some/nonexistent-model')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
   });
 });
