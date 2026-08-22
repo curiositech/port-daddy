@@ -29,6 +29,8 @@ import {
   signEnvelope,
   verifyEnvelopeSig,
   ENVELOPE_SCHEMA_ID,
+  canonicalJson,
+  envelopeBindingMessage,
 } from '../src/envelope.js';
 import type { RelayReadableEnvelope, SealedEnvelope } from '../src/envelope.js';
 import { base64UrlEncode, pubKeyFromPrivKey } from '../src/crypto.js';
@@ -375,5 +377,78 @@ describe('envelope signing — real signature over the binding', () => {
     expect(validate(envelope)).toEqual([]);
     expect(await verifyEnvelopeSig(envelope)).toBe(true);
     expect(await verifyEnvelopeSig({ ...envelope, ciphertext: 'Zm9yZ2Vk' })).toBe(false);
+  });
+});
+
+// ── Binding-message injectivity + canonicalization ───────────────────────────
+//
+// These pin two properties that a plain `[...].join('|')` + `JSON.stringify`
+// binding did NOT have. Both were established by probing the real function,
+// not by reading it, and both fail against the previous implementation.
+describe('envelopeBindingMessage — the signature actually binds the tuple', () => {
+  const base = {
+    classification: 'relay_readable' as const,
+    harbor: 'h', channel: 'c', sender: 's', seq: 1, iat: 1000,
+  };
+
+  it('SECURITY: a separator inside a field cannot forge a different routing tuple', () => {
+    // harbor="a|b" channel="c"  vs  harbor="a" channel="b|c".
+    // Under an unprefixed join these produce identical bytes, so one signature
+    // validates for both — a cross-channel replay. Length prefixing makes the
+    // framing injective, so they must differ.
+    const shifted = envelopeBindingMessage({ ...base, harbor: 'a|b', channel: 'c', payload: {} } as never);
+    const other = envelopeBindingMessage({ ...base, harbor: 'a', channel: 'b|c', payload: {} } as never);
+    expect(shifted).not.toBe(other);
+  });
+
+  it('SECURITY: the same shifting attack on channel/sender is also blocked', () => {
+    const a = envelopeBindingMessage({ ...base, channel: 'x|y', sender: 'z', payload: {} } as never);
+    const b = envelopeBindingMessage({ ...base, channel: 'x', sender: 'y|z', payload: {} } as never);
+    expect(a).not.toBe(b);
+  });
+
+  it('a multi-byte field cannot collide with a shorter one (byte length, not UTF-16 length)', () => {
+    const a = envelopeBindingMessage({ ...base, harbor: 'é', payload: {} } as never);
+    const b = envelopeBindingMessage({ ...base, harbor: 'ee', payload: {} } as never);
+    expect(a).not.toBe(b);
+  });
+
+  it('payload key ORDER does not change the binding (cross-implementation verifiability)', () => {
+    // A verifier that rebuilt the object differently must still hash the same
+    // bytes, or it rejects a valid signature.
+    const a = envelopeBindingMessage({ ...base, payload: { x: 1, y: 2 } } as never);
+    const b = envelopeBindingMessage({ ...base, payload: { y: 2, x: 1 } } as never);
+    expect(a).toBe(b);
+  });
+
+  it('nested key order is also normalized, while array order is preserved', () => {
+    const a = envelopeBindingMessage({ ...base, payload: { o: { m: 1, n: 2 }, arr: [1, 2] } } as never);
+    const b = envelopeBindingMessage({ ...base, payload: { arr: [1, 2], o: { n: 2, m: 1 } } } as never);
+    expect(a).toBe(b);
+    // Arrays are semantic: reordering them IS a different payload.
+    const reordered = envelopeBindingMessage({ ...base, payload: { o: { m: 1, n: 2 }, arr: [2, 1] } } as never);
+    expect(reordered).not.toBe(a);
+  });
+
+  it('a genuinely different payload value still changes the binding', () => {
+    const a = envelopeBindingMessage({ ...base, payload: { x: 1 } } as never);
+    const b = envelopeBindingMessage({ ...base, payload: { x: 2 } } as never);
+    expect(a).not.toBe(b);
+  });
+
+  it('survives the transit round trip (sign here, verify after parse)', () => {
+    const orig = { ...base, payload: { zeta: 1, alpha: { n: [1, 2], m: 'x' } } } as never;
+    expect(envelopeBindingMessage(JSON.parse(JSON.stringify(orig)))).toBe(envelopeBindingMessage(orig));
+  });
+});
+
+describe('canonicalJson', () => {
+  it('sorts object keys recursively and is stable', () => {
+    expect(canonicalJson({ b: 1, a: { d: 2, c: 3 } })).toBe('{"a":{"c":3,"d":2},"b":1}');
+  });
+  it('preserves array order and handles primitives/null', () => {
+    expect(canonicalJson([3, 1, 2])).toBe('[3,1,2]');
+    expect(canonicalJson(null)).toBe('null');
+    expect(canonicalJson('s')).toBe('"s"');
   });
 });

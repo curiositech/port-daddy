@@ -232,18 +232,57 @@ export function tryDecodeTransitEnvelope(transit: string): RelayEnvelopeV1 | nul
 
 // ── Envelope signing ─────────────────────────────────────────────────────────
 //
-// Binding: sha256( "pd.relay.envelope.v1|<classification>|<harbor>|<channel>|
-// <sender>|<seq>|<iat>|<content_hash>" ) where content_hash = sha256 of the
-// AEAD ciphertext string (sealed) or of JSON.stringify(payload)
-// (relay_readable). JSON.stringify is key-order-stable across a parse ->
-// stringify round trip, so producer and verifier hash identical bytes; full
-// cross-language canonicalization arrives with pd-vault key ids.
+// Binding: sha256 over the LENGTH-PREFIXED join of the routing tuple and a
+// content hash. Two properties are load-bearing here, and both were found
+// false in an earlier draft of this file by direct probe rather than by
+// reading:
+//
+// 1. UNAMBIGUOUS CONCATENATION. A plain `[...].join('|')` is ambiguous the
+//    moment any component may contain the separator: harbor="a|b" channel="c"
+//    and harbor="a" channel="b|c" produce byte-identical joins, so ONE
+//    signature validates for TWO different routing tuples — a cross-channel
+//    replay in the very mechanism meant to prevent it. Length-prefixing each
+//    component (`<byteLen>:<value>`) makes the encoding injective: the decoder
+//    of the framing can only read back the tuple that was written, whatever
+//    characters the values contain. This must not depend on a charset
+//    restriction elsewhere; a binding is not allowed to be safe by accident.
+//
+// 2. KEY-ORDER INDEPENDENCE. `JSON.stringify` emits keys in insertion order,
+//    so a verifier that rebuilt the payload object differently — a different
+//    library, another language, a re-serialized proxy — hashes different bytes
+//    and rejects a perfectly good signature. `canonicalJson` sorts object keys
+//    recursively so the content hash depends on the payload's VALUE, not on
+//    how it was assembled. (Arrays keep their order: it is semantic.)
+//
+// Byte length, not `.length`: JS string length counts UTF-16 units, so a
+// multi-byte character would otherwise let two distinct values share a prefix.
+
+const BINDING_ENCODER = new TextEncoder();
+
+/** `<utf8ByteLength>:<value>` — the injective framing described above. */
+function lengthPrefixed(value: string): string {
+  return `${BINDING_ENCODER.encode(value).length}:${value}`;
+}
+
+/**
+ * Deterministic JSON: object keys sorted recursively, arrays left in order.
+ * Produces the same bytes for the same value regardless of how the object was
+ * built, which is what lets a different implementation verify our signatures.
+ */
+export function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, v]) => v !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`;
+}
 
 export function envelopeBindingMessage(envelope: UnsignedEnvelope | RelayEnvelopeV1): string {
   const contentHash =
     envelope.classification === 'sealed'
       ? hashHex(envelope.ciphertext)
-      : hashHex(JSON.stringify(envelope.payload));
+      : hashHex(canonicalJson(envelope.payload));
   return hashHex(
     [
       ENVELOPE_SCHEMA_ID,
@@ -254,7 +293,9 @@ export function envelopeBindingMessage(envelope: UnsignedEnvelope | RelayEnvelop
       String(envelope.seq),
       String(envelope.iat),
       contentHash,
-    ].join('|')
+    ]
+      .map(lengthPrefixed)
+      .join('|')
   );
 }
 
