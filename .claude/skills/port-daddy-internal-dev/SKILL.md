@@ -270,7 +270,8 @@ project on the user's machine. **Every change to a public surface MUST
 update every mirror in the same coherent slice.**
 
 For the actual release ceremony (tagging, GitHub Release, `release.yml`,
-brew tap roll via `publish.yml`), follow `docs/RELEASING.md`.
+archive provenance, and the tap's credential-independent self-promotion),
+follow `docs/RELEASING.md`.
 For semver policy and the canonical list of *version surfaces* that must
 all bump in lockstep, see `docs/VERSIONING.md`.
 
@@ -289,7 +290,7 @@ Public surfaces, in approximate update order:
 7. Any plugin/extension manifests (Codex `.codex/skills/`, Gemini `.gemini/extensions/port-daddy/`, Claude `.claude/skills/`).
 8. **Binary smoke-test** (per `docs/RELEASING.md` §3, "local feature dev") for any change in `lib/`, `routes/`, `server.ts`, or `mcp/`. Source-mode `tsx server.ts` lies about what users actually run.
 
-The Homebrew formula is no longer a per-PR concern — it rolls during the release ceremony via the `curiositech/homebrew-tap` repo and `publish.yml`. See `docs/RELEASING.md` §1 ("public release") step J.
+The Homebrew formula is no longer a per-PR concern. The `curiositech/homebrew-tap` workflow discovers stable `latest.json` on a serialized schedule, independently peels the release tag, verifies both Batten imprints and archive digests, and requires GitHub provenance for v3.30.3+. Source `release.yml` waits for the exact formula version but never writes across repositories. See `docs/RELEASING.md` §1 step J.
 
 If you cannot land all of these in one commit, leave a `pd actor lookout`
 message naming the gaps and link the follow-up issue. Lookout is the role
@@ -781,13 +782,12 @@ it in one commit.** Land the rename in phases through Cartographer:
 
 **Slice:** Ship `v0.42.0`.
 
-1. Worktree, identity, scope note.
-2. Tag locally: `git tag -a v0.42.0 -m "<changelog summary>"`.
-3. Compute tarball sha256: `curl -sSL <github tag tarball> | shasum -a 256`.
-4. Update the **in-repo** primary `Formula/port-daddy.rb`: `url`, `sha256`, version-string-in-tests if present, post_install if `install.sh` changed. Then mirror the same change into the external tap repo (`homebrew-port-daddy/Formula/port-daddy.rb`) — both must match before the brew install command in step 5 will succeed for users.
-5. `brew install --build-from-source ./Formula/port-daddy.rb` locally; confirm install path, daemon launches, `pd status` healthy.
-6. `pd actor lookout --message "Brew formula v0.42.0 ready: <sha256>. Surfaces audited: README, CHANGELOG, website, skill bundle."`
-7. Push the tag from port-daddy first, then commit + push the formula.
+1. Land the version-bump PR from a claimed Port Daddy release worktree.
+2. Tag the merged commit and publish the GitHub Release; `release.yml` builds, seals, and attests both archives.
+3. Confirm each archive has provenance bound to `curiositech/port-daddy`, `.github/workflows/release.yml`, `refs/tags/v0.42.0`, and the exact tag commit.
+4. Let `curiositech/homebrew-tap` self-discover the stable feed. Its serialized workflow verifies the independent tag, both Batten imprints, advertised digests, and provenance before committing the formula.
+5. If promotion needs repair, fix the tap through its own claimed worktree and PR, then dispatch `update-formula.yml` on the tap's default branch. Do not manufacture a partial repository-dispatch payload.
+6. Require the source `update-homebrew` wait and pristine artifact/Homebrew install lanes to pass, then record the release, tap commit, and installed doctor evidence in the Port Daddy note.
 
 ## Quality Gates (contributor)
 
