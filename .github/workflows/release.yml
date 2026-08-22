@@ -406,48 +406,17 @@ jobs:
           # previous release tag, so both trees must be present.
           fetch-depth: 0
 
+      # The decision logic lives in scripts/console-release-gate.mjs — a
+      # unit-tested module (tests/unit/console-release-gate.test.js), not
+      # inline bash, so the tested code IS the shipped code. It fails open
+      # toward building: the gate saves money, it does not guard correctness,
+      # so its own malfunction must never block or skew a release.
       - name: Decide whether the console changed since the previous release
         id: gate
         env:
           CURR_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           FORCE: ${{ inputs.force_console && 'true' || 'false' }}
-        run: |
-          set -euo pipefail
-          if [ "$FORCE" = "true" ]; then
-            echo "build=true" >> "$GITHUB_OUTPUT"
-            echo "force_console=true — building pd-console unconditionally." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          # Previous release tag = the v* tag immediately below CURR_TAG in
-          # semver order. Diffing against the immediate predecessor is
-          # transitive: if several consecutive releases skip the console, each
-          # skip proved its own tag-to-tag interval clean.
-          PREV_TAG="$(git tag -l 'v*' --sort=-v:refname | awk -v c="$CURR_TAG" 'found { print; exit } $0 == c { found=1 }')"
-          if [ -z "$PREV_TAG" ]; then
-            echo "build=true" >> "$GITHUB_OUTPUT"
-            echo "No previous v* tag below $CURR_TAG — building the console."
-            exit 0
-          fi
-          # -I'^version = ': postversion (scripts/sync-version.ts) stamps the
-          # release version into core/pd-console/Cargo.toml on EVERY release,
-          # so a bare path diff is non-empty every time. Ignoring pure
-          # `version = "…"` lines leaves only real application/packaging
-          # changes; a genuine dependency change still shows through its
-          # `checksum = …` / `source = …` lines in Cargo.lock.
-          if git diff --quiet -I'^version = ' "$PREV_TAG" "$CURR_TAG" -- core/pd-console scripts/package-pd-console.sh; then
-            echo "build=false" >> "$GITHUB_OUTPUT"
-            {
-              echo "### pd-console NOT re-cut"
-              echo ""
-              echo "\`core/pd-console\` and \`scripts/package-pd-console.sh\` are unchanged between \`$PREV_TAG\` and \`$CURR_TAG\` (version-string churn aside)."
-              echo "The newest console binary remains the one attached to the last release that built it; this release's \`latest.json\` carries no console entry."
-              echo "To cut one anyway (e.g. after a signing-cert rotation), re-run release.yml via workflow_dispatch with \`force_console: true\`."
-            } >> "$GITHUB_STEP_SUMMARY"
-            echo "pd-console unchanged $PREV_TAG..$CURR_TAG — skipping the console build."
-          else
-            echo "build=true" >> "$GITHUB_OUTPUT"
-            echo "pd-console changed since $PREV_TAG — building."
-          fi
+        run: node scripts/console-release-gate.mjs
 
       - name: Install Rust toolchain (stable)
         if: steps.gate.outputs.build == 'true'
