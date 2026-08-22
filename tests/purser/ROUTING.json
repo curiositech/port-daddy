@@ -132,6 +132,62 @@
     "oom-protection.test.ts": {
       "runner": "quarantined",
       "reason": "vitest + apps/fleet-executor/src; belongs in apps/fleet-executor"
+    },
+    "design-system-adversarial.test.ts": {
+      "runner": "quarantined",
+      "reason": "written for @playwright/test, which is not a dependency of this repo, and drives a live rendered site -- neither the jest purser project nor node --test can load or host it"
+    },
+    "layout-adversarial.test.ts": {
+      "runner": "quarantined",
+      "reason": "@playwright/test spec against a live browser session; playwright is not installed here and no purser runner hosts a browser -- cannot execute in this directory's lanes"
+    },
+    "marquee-fade-adversarial.test.ts": {
+      "runner": "quarantined",
+      "reason": "@playwright/test spec -- the dependency is absent from package.json and the test needs a served website-v2 instance plus a chromium host that no purser runner provides"
+    },
+    "nav-breakpoint-adversarial.test.ts": {
+      "runner": "quarantined",
+      "reason": "@playwright/test spec exercising responsive breakpoints in a real browser -- playwright is not a repo dependency and tests/purser routes only node-test and jest"
+    },
+    "visual-regression-adversarial.test.ts": {
+      "runner": "quarantined",
+      "reason": "@playwright/test visual-regression spec -- needs the absent playwright package, a live site, and screenshot baselines that were never committed; unrunnable by construction here"
+    },
+    "linework-tokens-tests.js": {
+      "runner": "quarantined",
+      "reason": "requires the absent `playwright` package and chromium.launch()es against a live site; a plain script (no describe/test), so no routed runner could even count its checks"
+    },
+    "marquee-fade-tests.js": {
+      "runner": "quarantined",
+      "reason": "playwright-driving script (chromium.launch against a served site) with no test declarations; the dependency is not installed and no purser runner hosts a browser"
+    },
+    "nav-breakpoint-tests.js": {
+      "runner": "quarantined",
+      "reason": "requires the absent `playwright` package to drive chromium through nav breakpoints on a live site -- unrunnable in this directory's node-test/jest lanes"
+    },
+    "sibling-pages-tests.js": {
+      "runner": "quarantined",
+      "reason": "playwright chromium script crawling sibling pages of a served website-v2 -- playwright is not a dependency and nothing in tests/purser provides a running site"
+    },
+    "test-marquee-fade.js": {
+      "runner": "quarantined",
+      "reason": "duplicate playwright chromium drill of marquee-fade behaviour against a live site; same missing-dependency, missing-server construction as marquee-fade-tests.js"
+    },
+    "test-nav-breakpoint.js": {
+      "runner": "quarantined",
+      "reason": "playwright chromium script for nav breakpoints -- requires the absent playwright package and a served site, neither of which the purser runners supply"
+    },
+    "test-scroll-length.js": {
+      "runner": "quarantined",
+      "reason": "playwright chromium script measuring landing-page scroll length on a live site -- the dependency is absent and no purser runner hosts a browser or server"
+    },
+    "test-sibling-pages.js": {
+      "runner": "quarantined",
+      "reason": "playwright chromium script hitting sibling pages of a running site -- unrunnable here: playwright is not installed and tests/purser has no browser or server lane"
+    },
+    "test-token-implementation.js": {
+      "runner": "quarantined",
+      "reason": "bare top-level expect() calls with no test()/describe declaration -- jest defines expect only inside a test context and refuses a suite that declares no tests, so this file cannot run as written"
     }
   }
 }
