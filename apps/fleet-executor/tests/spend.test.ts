@@ -2,6 +2,7 @@
  * Unit tests for Workers AI spend derivation (src/spend.ts).
  */
 
+import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
 import {
   costUsdForModel,
@@ -80,5 +81,47 @@ describe('costUsdForModel', () => {
       '@cf/zai-org/glm-4.7-flash',
       '@cf/zai-org/glm-5.2',
     ]);
+  });
+});
+
+describe('model-dossier parity (the Shipwright board can never drift from the executor)', () => {
+  // The relay's Shipwright page and system prompt render apps/relay/src/
+  // model-dossier.json as "the models the fleet honors, at these prices".
+  // That is a second copy of what THIS package enforces — so per the repo's
+  // fixture-parity rule, this suite reads the identical JSON bytes and pins
+  // it to the live tables. A model admitted (or retired) in spend.ts without
+  // a dossier edit — or a dossier price that disagrees with the metered rate
+  // — fails here, not in front of an operator.
+  const dossier = JSON.parse(
+    readFileSync(new URL('../../relay/src/model-dossier.json', import.meta.url), 'utf8'),
+  ) as {
+    models: Array<{
+      id: string;
+      inputUsdPerM: number;
+      outputUsdPerM: number;
+      contextTokens: number;
+      verdict: string;
+    }>;
+  };
+
+  it('the dossier lists exactly the honored set — no extras, no omissions', () => {
+    const dossierIds = dossier.models.map((m) => m.id).sort();
+    expect(dossierIds).toEqual([...KNOWN_GOOD_CF_MODELS].sort());
+  });
+
+  it('every dossier price and context window equals what the executor meters and budgets', () => {
+    for (const m of dossier.models) {
+      const rate = WORKERS_AI_RATES[m.id];
+      expect(rate, `${m.id} missing from WORKERS_AI_RATES`).toBeDefined();
+      expect(rate!.input, `${m.id} input rate`).toBe(m.inputUsdPerM);
+      expect(rate!.output, `${m.id} output rate`).toBe(m.outputUsdPerM);
+      expect(MODEL_CONTEXT_TOKENS[m.id], `${m.id} context window`).toBe(m.contextTokens);
+    }
+  });
+
+  it('every verdict is one the board renders', () => {
+    for (const m of dossier.models) {
+      expect(['adopted', 'bench'], m.id).toContain(m.verdict);
+    }
   });
 });
