@@ -111,7 +111,7 @@ unzip PortDaddy-FleetBar-macOS-arm64.zip
 ### 3. Verify
 
 ```bash
-pd doctor          # Comprehensive health check (supervision, liveness, DB, drift, bosun…)
+pd doctor          # Comprehensive health check (supervision, liveness, DB, drift, optional Bosun context…)
 pd doctor --json   # Machine-readable report with per-check severity (ok | warn | critical)
 pd doctor --ci     # CI/script mode: no prompts, exits non-zero ONLY on a CRITICAL check
 pd attest          # Honest self-report: PASS/FAIL/SKIPPED/UNKNOWN per enforced invariant
@@ -125,7 +125,7 @@ pd bench 50        # Run performance benchmarks (target: <1ms latency)
 
 `pd start` and `pd install` are binary-first: they refuse to start a source-backed `tsx server.ts` daemon unless `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` is set for a local development session. On a canonical macOS install, launchd is the sole lifecycle owner: `pd start`, `pd restart`, and `pd stop` control `homebrew.mxcl.port-daddy`, wait for one verified generation, and refuse a detached fallback when the launchd job is missing.
 
-`pd install-bosun` wires only the Bosun watchdog (ADR-0036) against a Homebrew-managed daemon (`homebrew.mxcl.port-daddy`), without touching the main daemon plist — it's what the `curiositech/homebrew-tap` formula's `post_install` calls, since the full `pd install` would otherwise race `brew services start port-daddy` for the daemon's own supervision. Not needed outside a brew install; `pd install` already wires Bosun for a self-installed LaunchAgent/systemd daemon.
+Bosun (`pd-bosun`, ADR-0036) is an optional legacy/opt-in watchdog. Since v3.28, supported installs use exactly one lifecycle supervisor — Homebrew launchd on macOS or the installed LaunchAgent/systemd service elsewhere — plus the daemon's own heartbeat writer. The release archives and Homebrew `post_install` deliberately do not install Bosun; `pd doctor` reports its absence as contextual warning, never a critical failure or repair request.
 
 ### Staying current
 
@@ -932,11 +932,11 @@ pd restore <id>                    # roll the DB back (destructive tier, prompts
 
 ### Cutting a release (`pd cut`)
 
-`pd cut` orchestrates a local release cut — daemon binary, Rust kernel cdylib, FleetBar.app — with honest `signed:false` marking unless `--require-sign` (fail-closed signing, ADR-0057). For Port Daddy itself, the release boundary is the signed-binary cut: tagging `v<version>` triggers `release.yml`, which rebuilds daemon, CLI, and MCP server as signed/notarized binaries (ADR-0028) and publishes a `latest.json` update feed (version + per-artifact URL + SHA-256 + signed flag). The brew tap (`curiositech/homebrew-tap`) is bumped via `publish.yml`.
+`pd cut` orchestrates a local release cut — daemon binary, Rust kernel cdylib, FleetBar.app — with honest `signed:false` marking unless `--require-sign` (fail-closed signing, ADR-0057). For Port Daddy itself, the release boundary is the signed-binary cut: tagging `v<version>` triggers `release.yml`, which rebuilds daemon, CLI, and MCP server as signed/notarized binaries (ADR-0028), emits GitHub/Sigstore provenance for each platform archive, and publishes a `latest.json` update feed (version + per-artifact URL + SHA-256 + signed flag). The `curiositech/homebrew-tap` workflow discovers stable releases on a serialized schedule, verifies the tag, dual Batten imprints, archive digests, and v3.30.3+ provenance, then updates the formula without a cross-repository write token.
 
 ### Batten down the release (`pd batten`)
 
-`release-artifacts.json` is the declarative manifest of every binary and runtime asset that MUST ship inside a release tarball (`pd`, `port-daddy`, its manifest, the `pd-bosun` watchdog, the squid tentacles, `pd-statusline`, and the Pilot SessionStart hook). `pd batten verify --staged-dir dist` asserts each staged artifact is present, executable where declared, and at least its `minBytes` — collecting **every** failure and exiting nonzero with a per-artifact report, so a release can never silently ship with a missing watchdog or missing hooks (the failure class that shipped GREEN when each binary had its own scattered `test -s`). The release job then launches the staged `pd` from outside the source tree and proves `pd squid on` writes the canonical Claude, Codex, Gemini, and agy configs plus every identity asset. `pd batten imprint --staged-dir dist --out <file>` sha256s the sealed cargo into a `release-imprint.json` record. Both subcommands are offline (node stdlib only) and never touch the daemon.
+`release-artifacts.json` is the declarative manifest of every binary and runtime asset that MUST ship inside a release tarball (`pd`, `port-daddy`, its manifest, the Squid tentacles, `pd-statusline`, and the Pilot SessionStart hook). `pd-bosun` is intentionally absent from v3.28+ single-supervisor archives. `pd batten verify --staged-dir dist` asserts each declared artifact is present, executable where required, and at least its `minBytes` — collecting **every** failure and exiting nonzero with a per-artifact report. The release job then launches the staged `pd` from outside the source tree and proves `pd squid on` writes the canonical Claude, Codex, Gemini, and agy configs plus every identity asset. `pd batten imprint --staged-dir dist --out <file>` sha256s the sealed cargo into a `release-imprint.json` record. Both subcommands are offline (node stdlib only) and never touch the daemon.
 
 ### Single-binary distribution
 
