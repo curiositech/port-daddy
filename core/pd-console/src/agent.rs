@@ -212,6 +212,13 @@ impl SseParser {
 pub struct DaemonClient {
     base: String,
     http: reqwest::Client,
+    /// ADR-0040 daemon-minted actor credential captured from this console's
+    /// own `POST /sugar/begin` (#8877 / ADR-0122). Attributed daemon writes —
+    /// `/sugar/done`, `POST /sessions/:id/files` — are rejected 401 without
+    /// it, so every such request attaches it as `x-actor-credential`. Interior
+    /// mutability (Mutex) because the client is shared by reference across
+    /// panes/threads and the credential arrives after construction.
+    actor_credential: std::sync::Mutex<Option<String>>,
 }
 
 /// Durable daemon truth returned for one operator WorkIntent. `intent` and
@@ -447,6 +454,29 @@ impl DaemonClient {
                 .timeout(std::time::Duration::from_secs(15))
                 .build()
                 .expect("reqwest client with static config cannot fail to build"),
+            actor_credential: std::sync::Mutex::new(None),
+        }
+    }
+
+    /// The ADR-0040 actor credential this console holds, if `begin_session`
+    /// has minted (or the operator injected `PD_ACTOR_CREDENTIAL`). Attributed
+    /// daemon writes attach it as the `x-actor-credential` header; without it
+    /// the daemon rejects them 401 (#8877 fail-closed, by design).
+    fn actor_credential(&self) -> Option<String> {
+        if let Some(held) = self.actor_credential.lock().ok().and_then(|c| c.clone()) {
+            return Some(held);
+        }
+        std::env::var("PD_ACTOR_CREDENTIAL")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+    }
+
+    /// Attach the actor credential (when held) to an outgoing request.
+    fn with_actor_credential(&self, req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        match self.actor_credential() {
+            Some(credential) => req.header("x-actor-credential", credential),
+            None => req,
         }
     }
 
@@ -782,8 +812,10 @@ impl DaemonClient {
     ) -> Result<()> {
         let body = region_claim_body(path, start_line, end_line, agent_id);
         let resp = self
-            .http
-            .post(format!("{}/sessions/{session_id}/files", self.base))
+            .with_actor_credential(
+                self.http
+                    .post(format!("{}/sessions/{session_id}/files", self.base)),
+            )
             .json(&body)
             .send()
             .await
@@ -989,13 +1021,22 @@ impl DaemonClient {
             body["identity"] = serde_json::json!(identity);
         }
         let resp = self
-            .http
-            .post(format!("{}/sugar/begin", self.base))
+            .with_actor_credential(self.http.post(format!("{}/sugar/begin", self.base)))
             .json(&body)
             .send()
             .await
             .context("POST /sugar/begin")?;
-        ensure_success(resp, "begin_session").await?;
+        let resp = ensure_success(resp, "begin_session").await?;
+        // #8877 / ADR-0122: an uncredentialed begin MINTS this console's
+        // ADR-0040 soul and returns the credential exactly once. Capture it —
+        // `end_session` and `claim_region` are rejected 401 without it.
+        if let Ok(v) = resp.json::<serde_json::Value>().await {
+            if let Some(credential) = v.get("credential").and_then(|c| c.as_str()) {
+                if let Ok(mut held) = self.actor_credential.lock() {
+                    *held = Some(credential.to_string());
+                }
+            }
+        }
         Ok(())
     }
 
@@ -1010,8 +1051,7 @@ impl DaemonClient {
             None => serde_json::json!({}),
         };
         let resp = self
-            .http
-            .post(format!("{}/sugar/done", self.base))
+            .with_actor_credential(self.http.post(format!("{}/sugar/done", self.base)))
             .json(&body)
             .send()
             .await
