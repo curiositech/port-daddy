@@ -1021,6 +1021,9 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
   for (const key of CODEX_DAEMON_CONTEXT_ENV_KEYS) {
     delete env[key];
   }
+  // Current Codex defines --approve-for-me as automatic review *using* the
+  // workspace-write sandbox. Passing --sandbox beside it is a hard CLI error,
+  // so keep this one policy flag as the single source of truth.
   const args = spec.nativeResume
     ? [
         'exec',
@@ -1037,7 +1040,6 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
         'exec',
         '--skip-git-repo-check',
         '--approve-for-me',
-        '--sandbox', 'workspace-write',
         '-C', workspace,
         '--output-last-message', outputPath,
         '--model', model,

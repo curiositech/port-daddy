@@ -1665,6 +1665,7 @@ describe('spawn — claude-cli backend', () => {
 describe('spawn — codex backend', () => {
   test('spawns codex exec and returns the captured final message', async () => {
     const spawner = createSpawner();
+    const codexWorkdir = join(process.cwd(), '.scratch', 'port-daddy-codex-test');
     mockChildProcess.stdout.on.mockImplementation(() => {});
     mockChildProcess.stderr.on.mockImplementation(() => {});
     mockChildProcess.on.mockImplementation((event, cb) => {
@@ -1680,7 +1681,7 @@ describe('spawn — codex backend', () => {
     const result = await spawner.spawn({
       backend: 'codex',
       task: 'Say exactly: Codex clean output',
-      workdir: '/tmp/port-daddy-codex-test',
+      workdir: codexWorkdir,
     });
 
     expect(result.status).toBe('completed');
@@ -1692,16 +1693,16 @@ describe('spawn — codex backend', () => {
         'exec',
         '--skip-git-repo-check',
         '--approve-for-me',
-        '--sandbox', 'workspace-write',
-        '-C', '/tmp/port-daddy-codex-test',
+        '-C', codexWorkdir,
         '--model', 'gpt-5.4-mini',
         '--json',
         'Say exactly: Codex clean output',
       ]),
       expect.objectContaining({
-        cwd: '/tmp/port-daddy-codex-test',
+        cwd: codexWorkdir,
       })
     );
+    expect(cpSpawn.mock.calls[0][1]).not.toContain('--sandbox');
     // No spec.timeout was given, so no hidden wall clock should be applied.
     expect(cpSpawn.mock.calls[0][2]).not.toHaveProperty('timeout');
   });
