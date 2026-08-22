@@ -147,6 +147,7 @@ describe('readMatrixSnapshot (the non-diegetic readout source)', () => {
     expect(snap.pheromones).toHaveLength(20);
     expect(snap.window.returned.pheromones).toBe(20);
     expect(snap.window.truncated).toMatchObject({ pheromones: true, any: true });
+    expect(snap.window.valueCharsTruncated).toEqual({ alerts: 0, pheromones: 20, locks: 0, any: true });
     expect(Math.max(...snap.pheromones.map((value) => value.length))).toBeLessThanOrEqual(512);
     expect(Buffer.byteLength(JSON.stringify(snap))).toBeLessThan(16 * 1024);
   });

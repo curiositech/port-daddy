@@ -38,6 +38,7 @@ import {
   disableSquidHookDebug,
   enableSquidHookDebug,
   readSquidHookDebugSnapshot,
+  readSquidHookStatusSnapshot,
   resetSquidHookHealth,
   SQUID_HOOK_STATUS_MAX_STEPS,
   type SquidHookDebugSnapshot,
@@ -631,7 +632,7 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   const home = process.env.HOME || process.env.USERPROFILE || '';
   const { tentacleBinDir } = await import('./hooks-install.js');
   const conformance = readSquidConformance(cwd, { home });
-  const debug = readSquidHookDebugSnapshot({ cwd, maxSteps: SQUID_HOOK_STATUS_MAX_STEPS });
+  const debug = readSquidHookStatusSnapshot({ cwd, maxSteps: SQUID_HOOK_STATUS_MAX_STEPS });
   const health = debug.health;
   const matrix = readMatrixSnapshot();
   // Preserve the FleetBar lifecycle enum while publishing the richer shared
@@ -733,6 +734,10 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
     console.log(`    steering alerts   ${matrix.window.totals.alerts}${matrix.alerts.map((a) => `\n      ${c.bad('!')} ${a}`).join('')}${matrix.window.truncated.alerts ? `\n      ${c.dim(`… showing ${matrix.alerts.length} most recent`)}` : ''}`);
     console.log(`    pheromone traces  ${matrix.window.totals.pheromones}${matrix.pheromones.slice(-5).map((p) => `\n      ${c.dim(`· ${p}`)}`).join('')}${matrix.window.totals.pheromones > 5 ? `\n      ${c.dim(`… showing 5 most recent`)}` : ''}`);
     console.log(`    locks             ${matrix.window.totals.locks}${matrix.locks.map((l) => `\n      ${c.dim(`⊘ ${l}`)}`).join('')}${matrix.window.truncated.locks ? `\n      ${c.dim(`… showing ${matrix.locks.length} most recent`)}` : ''}`);
+    if (matrix.window.valueCharsTruncated.any) {
+      const clipped = matrix.window.valueCharsTruncated;
+      console.log(`    ${c.dim(`value clipping    alerts=${clipped.alerts} pheromones=${clipped.pheromones} locks=${clipped.locks} (max ${matrix.window.maxValueChars} chars)`)}`);
+    }
   }
   console.log('');
   await printBridgeProbe(options);

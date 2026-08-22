@@ -238,8 +238,8 @@ async function promptBeginRent(): Promise<BeginRentResolution> {
   return resolveBeginRent({ sidequest: reason || '' }, {}, false);
 }
 
-const HELPFUL_SUGGESTION_LIMIT = 3;
-const HELPFUL_SUGGESTION_TIMEOUT_MS = 75;
+export const HELPFUL_SUGGESTION_LIMIT = 3;
+export const HELPFUL_SUGGESTION_TIMEOUT_MS = 75;
 
 export interface HelpfulPeerSuggestion {
   agentId: string;
@@ -275,6 +275,57 @@ export function selectHelpfulPeerSuggestions(
 }
 
 /**
+ * Fetch bounded arrival guidance through the shared daemon resolver. The
+ * injected fetcher makes the latency and fail-open contract executable in a
+ * unit fixture without consulting a developer's live daemon.
+ *
+ * @param purpose - Natural-language purpose sent to hybrid peer resolution.
+ * @param currentAgentId - Newly created agent excluded from its own suggestions.
+ * @param fetcher - Daemon fetch implementation, injectable for timing-contract tests.
+ * @returns Reviewed peer suggestions, or an empty list on timeout or failure.
+ */
+export async function fetchHelpfulPeerSuggestions(
+  purpose: string,
+  currentAgentId: string | undefined,
+  fetcher: typeof pdFetch = pdFetch,
+): Promise<HelpfulPeerSuggestion[]> {
+  const controller = new AbortController();
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const params = new URLSearchParams({
+      q: purpose,
+      kind: 'agent',
+      limit: String(HELPFUL_SUGGESTION_LIMIT + 1),
+    });
+    const request = fetcher(`/whois?${params.toString()}`, {
+      timeout: HELPFUL_SUGGESTION_TIMEOUT_MS,
+      retry: false,
+      signal: controller.signal,
+    });
+    const res = await Promise.race([
+      request,
+      new Promise<null>((resolveDeadline) => {
+        deadline = setTimeout(() => {
+          controller.abort();
+          resolveDeadline(null);
+        }, HELPFUL_SUGGESTION_TIMEOUT_MS);
+      }),
+    ]);
+    if (!res) return [];
+    if (!res.ok) return [];
+    const data = await res.json();
+    return selectHelpfulPeerSuggestions(
+      Array.isArray(data.hits) ? data.hits as unknown as HelpfulPeerSuggestion[] : [],
+      currentAgentId,
+    );
+  } catch {
+    return [];
+  } finally {
+    if (deadline) clearTimeout(deadline);
+  }
+}
+
+/**
  * Render optional live-peer guidance after a successful begin. The purpose of
  * the short deadline and silent catch is failure containment: coordination
  * enrichment must never delay or invalidate session creation.
@@ -284,21 +335,10 @@ export function selectHelpfulPeerSuggestions(
  * @returns A promise that settles after printing useful guidance or a silent no-op.
  */
 async function showHelpfulSuggestions(purpose: string, currentAgentId: string | undefined): Promise<void> {
-  try {
-    const params = new URLSearchParams({
-      q: purpose,
-      kind: 'agent',
-      limit: String(HELPFUL_SUGGESTION_LIMIT + 1),
-    });
-    const res = await pdFetch(`/whois?${params.toString()}`, { timeout: HELPFUL_SUGGESTION_TIMEOUT_MS });
-    if (!res.ok) return;
-    const data = await res.json();
-    const hits = selectHelpfulPeerSuggestions(
-      Array.isArray(data.hits) ? data.hits as unknown as HelpfulPeerSuggestion[] : [],
-      currentAgentId,
-    );
-    if (hits.length === 0) return;
+  const hits = await fetchHelpfulPeerSuggestions(purpose, currentAgentId);
+  if (hits.length === 0) return;
 
+  try {
     console.error(`\n${ui.fmtCyan('Useful live peers for this session:')}`);
     for (const hit of hits) {
       const label = hit.agentName ? `${hit.agentName} (${hit.agentId})` : hit.agentId;
@@ -306,8 +346,7 @@ async function showHelpfulSuggestions(purpose: string, currentAgentId: string | 
     }
     console.error('');
   } catch {
-    // Optional guidance is fail-open and silent. Session creation already
-    // succeeded, and onboarding must never wait behind a cold embedder.
+    // Rendering is optional too; session creation already succeeded.
   }
 }
 

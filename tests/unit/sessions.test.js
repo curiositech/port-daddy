@@ -790,6 +790,7 @@ describe('Sessions Module', () => {
       const result = sessions.getNotes(started.id, { limit: 3 });
 
       expect(result.count).toBe(3);
+      expect(result.total).toBe(10);
       expect(result.notes.map(note => note.content)).toEqual(['Note 7', 'Note 8', 'Note 9']);
     });
 

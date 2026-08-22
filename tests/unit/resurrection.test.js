@@ -296,6 +296,7 @@ describe('Resurrection Module', () => {
         getNotes: jest.fn(() => ({
           success: true,
           notes: [{ content: 'one' }, { content: 'two' }],
+          total: 9,
         })),
       };
       resurrection = createResurrection(db, { sessions });
@@ -309,6 +310,7 @@ describe('Resurrection Module', () => {
       expect(result.agents).toHaveLength(3);
       expect(sessions.getNotes).toHaveBeenCalledTimes(3);
       expect(sessions.getNotes).toHaveBeenCalledWith(expect.any(String), { limit: 2 });
+      expect(result.agents[0]).toMatchObject({ notes: ['one', 'two'], noteCount: 9 });
     });
   });
 

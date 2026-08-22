@@ -173,6 +173,10 @@ function projectSalvage(value: unknown, noteLimit: number): UnknownRecord {
   const row = asRecord(value);
   const rawNotes = Array.isArray(row.notes) ? row.notes : [];
   const notes = rawNotes.slice(-noteLimit).map((note) => boundedText(note, SITREP_LIMITS.maxNoteChars) ?? '');
+  const reportedTotal = Number(row.noteCount ?? row.note_count);
+  const totalNotes = Number.isSafeInteger(reportedTotal) && reportedTotal >= 0
+    ? Math.max(reportedTotal, rawNotes.length)
+    : rawNotes.length;
   return {
     id: row.id ?? row.agentId ?? row.agent_id,
     agentId: row.agentId ?? row.agent_id ?? row.id,
@@ -188,9 +192,9 @@ function projectSalvage(value: unknown, noteLimit: number): UnknownRecord {
     identityContext: row.identityContext,
     notes,
     noteWindow: {
-      total: rawNotes.length,
+      total: totalNotes,
       returned: notes.length,
-      truncated: rawNotes.length > notes.length,
+      truncated: totalNotes > notes.length,
     },
   };
 }

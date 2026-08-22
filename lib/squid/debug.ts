@@ -267,6 +267,14 @@ export function clearSquidHookDebugEvents(pdHome = PD_HOME): SquidHookDebugSnaps
   return readSquidHookDebugSnapshot({ pdHome });
 }
 
+/**
+ * Build the sanitized per-session timing projection from the bounded event
+ * tail. The design accepts a smaller `maxSteps` for unified status so routine
+ * introspection cannot serialize the full debug-retention budget.
+ *
+ * @param options - Optional PD home, workspace filter, clock, and step-window cap.
+ * @returns A privacy-preserving debug snapshot with explicit window metadata.
+ */
 export function readSquidHookDebugSnapshot(options: {
   pdHome?: string;
   cwd?: string;
@@ -344,6 +352,39 @@ export function readSquidHookDebugSnapshot(options: {
     },
     health: readSquidHookHealth(pdHome, nowMs),
     sessions: [...sessionsByKey.values()].sort((a, b) => Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt)),
+  };
+}
+
+/**
+ * Read the routine `pd squid status` projection. Retained timelines remain on
+ * disk after debug is disabled so an explicit `pd squid debug status` can
+ * diagnose the last failure, but ordinary status must not disclose runtime
+ * session identifiers or absolute workspace/event paths from that archive.
+ * The design makes opt-in diagnostics and ambient privacy separate interfaces.
+ *
+ * @param options - The same bounded workspace and clock options as the full debug reader.
+ * @returns Full detail while debug is enabled; metadata-only status otherwise.
+ */
+export function readSquidHookStatusSnapshot(options: {
+  pdHome?: string;
+  cwd?: string;
+  nowMs?: number;
+  maxSteps?: number;
+} = {}): SquidHookDebugSnapshot {
+  const snapshot = readSquidHookDebugSnapshot(options);
+  if (snapshot.enabled) return snapshot;
+  return {
+    ...snapshot,
+    enabledAt: null,
+    workspace: null,
+    privacy: `${snapshot.privacy} Retained session details are hidden from routine status while debug capture is off.`,
+    retention: { ...snapshot.retention, eventPath: '' },
+    window: {
+      totalSteps: snapshot.window.totalSteps,
+      returnedSteps: 0,
+      truncated: snapshot.window.totalSteps > 0,
+    },
+    sessions: [],
   };
 }
 
