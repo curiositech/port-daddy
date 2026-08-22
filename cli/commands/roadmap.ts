@@ -251,7 +251,16 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
   } else {
     for (const item of items) {
       const head = item.summaryMd.trim().split('\n')[0] ?? '';
-      console.log(`  - ${item.slug} [${item.status}]`);
+      // Planner columns render inline when set: kind (non-task), priority
+      // (non-default), estimate, owner, due date — so the flat list reads as
+      // a plan, not just a pile of slugs.
+      const meta: string[] = [item.status];
+      if (item.kind && item.kind !== 'task') meta.push(item.kind);
+      if (item.priority && item.priority !== 3) meta.push(`P${item.priority}`);
+      if (item.estimate) meta.push(`est ${item.estimate}`);
+      if (item.assigneeId) meta.push(`@${item.assigneeId}`);
+      if (item.dueAt) meta.push(`due ${new Date(item.dueAt).toISOString().slice(0, 10)}`);
+      console.log(`  - ${item.slug} [${meta.join(' · ')}]`);
       if (head) console.log(`    ${head}`);
     }
   }
@@ -625,11 +634,37 @@ function roadmapNote(actor: string, text: string | undefined): { at: number; by:
   };
 }
 
+/**
+ * Parse a human-friendly point-in-time flag into epoch milliseconds.
+ *
+ * Why three shapes: roadmap authoring must be a one-liner, and the three ways
+ * an operator naturally states a date are "a timestamp I copied" (epoch ms),
+ * "a calendar day" (ISO `YYYY-MM-DD`, read as local midnight), and "N days
+ * from now" (`+Nd`). Anything else returns undefined so the caller can reject
+ * loudly instead of silently scheduling for 1970.
+ *
+ * @param raw - The flag value as typed by the operator.
+ * @returns Epoch milliseconds, or undefined when the shape is unrecognized.
+ */
+export function parseWhenFlag(raw: string | undefined): number | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  const relative = /^\+(\d+)d$/.exec(trimmed);
+  if (relative) return Date.now() + Number.parseInt(relative[1], 10) * 86_400_000;
+  if (/^\d{13}$/.test(trimmed)) return Number.parseInt(trimmed, 10);
+  const parsed = Date.parse(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 async function handleRoadmapUpsert(args: string[], options: CLIOptions): Promise<void> {
   const slug = readRoadmapSlug(args, options);
   const summaryMd = readRoadmapSummary(args, options);
   if (!slug || !summaryMd) {
-    ui.error('Usage: pd roadmap upsert <slug> --summary <md> [--status <now|backlog|parked|merge|done>] [--as <agentId>]');
+    ui.error(
+      'Usage: pd roadmap upsert <slug> --summary <md> [--status <now|backlog|parked|merge|done>] ' +
+        '[--kind <project|epic|story|task|subtask|bug|chore>] [--priority <1-5>] [--estimate <units>] ' +
+        '[--start <YYYY-MM-DD|+Nd>] [--due <YYYY-MM-DD|+Nd>] [--assignee <id>] [--description <md>] [--as <agentId>]',
+    );
     process.exit(1);
   }
 
@@ -649,6 +684,36 @@ async function handleRoadmapUpsert(args: string[], options: CLIOptions): Promise
   if (project) body.project = project;
   const dependencies = readOption(options, 'dependencies', 'deps');
   if (dependencies) body.dependencies = dependencies.split(',').map((s) => s.trim()).filter(Boolean);
+  // Planner columns (ADR-0086) — the fields that make an item readable on a
+  // board and schedulable on a Gantt, writable from the same one-liner.
+  const kind = readOption(options, 'kind');
+  if (kind) body.kind = kind;
+  const priority = readOption(options, 'priority');
+  if (priority) body.priority = Number.parseInt(priority, 10);
+  const estimate = readOption(options, 'estimate', 'est');
+  if (estimate) body.estimate = Number.parseInt(estimate, 10);
+  const assignee = readOption(options, 'assignee', 'assigneeId');
+  if (assignee) body.assigneeId = assignee;
+  const description = readOption(options, 'description', 'descriptionMd', 'body');
+  if (description) body.descriptionMd = description;
+  const startRaw = readOption(options, 'start', 'startedAt');
+  if (startRaw) {
+    const startedAt = parseWhenFlag(startRaw);
+    if (startedAt === undefined) {
+      ui.error(`--start '${startRaw}' is not a date (use YYYY-MM-DD, +Nd, or epoch ms)`);
+      process.exit(1);
+    }
+    body.startedAt = startedAt;
+  }
+  const dueRaw = readOption(options, 'due', 'dueAt');
+  if (dueRaw) {
+    const dueAt = parseWhenFlag(dueRaw);
+    if (dueAt === undefined) {
+      ui.error(`--due '${dueRaw}' is not a date (use YYYY-MM-DD, +Nd, or epoch ms)`);
+      process.exit(1);
+    }
+    body.dueAt = dueAt;
+  }
 
   try {
     const item = await postRoadmapItem(body);
@@ -659,6 +724,9 @@ async function handleRoadmapUpsert(args: string[], options: CLIOptions): Promise
     ui.success(`Roadmap item '${item.slug}' upserted`);
     console.log(`  status:  ${item.status}`);
     console.log(`  harbor:  ${item.harbor}`);
+    console.log(`  kind:    ${item.kind} · P${item.priority}${item.estimate ? ` · est ${item.estimate}` : ''}`);
+    if (item.assigneeId) console.log(`  owner:   ${item.assigneeId}`);
+    if (item.dueAt) console.log(`  due:     ${new Date(item.dueAt).toISOString().slice(0, 10)}`);
   } catch (error) {
     ui.error(error instanceof Error ? error.message : 'roadmap upsert failed');
     process.exit(1);
