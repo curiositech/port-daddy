@@ -24,7 +24,7 @@ Two harnesses produced the evidence. Every sheet states which one, in the image.
 | Label | What it is | Why it is real |
 | --- | --- | --- |
 | **REAL WORKER** | `wrangler dev --local` → workerd + miniflare running **`apps/relay/src/index.ts` unchanged**, with a local D1 that had the **real migration chain** (all 15 `apps/relay/migrations/*.sql`, sorted — the same order the relay test suite and `check-migrations.mjs` use) applied by `wrangler d1 execute --local`. Requests are ordinary HTTP over `127.0.0.1`. | Routing, auth, guards, SQL, transactions and JSON serialisation are the shipped code paths — not a fake D1 and not a hand-called function. |
-| **IN-PROCESS PROBE** | `rollback-probe.ts`: the real `src/roadmap-mirror.ts` bundled by the relay's own esbuild and run against a `node:sqlite` D1 adapter with the **same real migration chain** — the fixture idiom of `apps/relay/tests/roadmap-mirror.test.ts`. | Used for exactly one proof (sheet 06) and for a stated reason: see below. |
+| **IN-PROCESS PROBE** | `rollback-probe.ts`: the real `apps/relay/src/roadmap-mirror.ts` bundled by the relay's own esbuild and run against a `node:sqlite` D1 adapter with the **same real migration chain** — the fixture idiom of `apps/relay/tests/roadmap-mirror.test.ts`. | Used for exactly one proof (sheet 06) and for a stated reason: see below. |
 
 **Why sheet 06 is not real-Worker.** The mid-batch rollback can only be observed if a
 statement *inside* `replaceRoadmapMirror`'s single `env.DB.batch()` fails. Over HTTP that
@@ -96,7 +96,43 @@ PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers \
 
 A GIF was **not** produced: the only ffmpeg available here is Playwright's stripped build
 (`--disable-everything`; no `palettegen`/`paletteuse`, no gif muxer), so `walkthrough.webm`
-is the motion artifact. GitHub renders `.webm` inline in a PR body via `<video>`.
+is the motion artifact. GitHub's blob view renders it with a video player.
+
+## The sheets, inline
+
+This gallery is the reliable way to *see* the evidence: this file is written through git,
+so GitHub renders these embeds directly. (The PR body cannot carry them — the tooling used
+to write PR descriptions here strips image markdown, which is why the body links to this
+file instead of embedding.)
+
+### 01 — Null states
+
+![Null states: never-synced repo, empty-but-synced mirror, another repo, another account, unknown slug](01-null-states.png)
+
+### 02 — The mirror holding the real roadmap (watermark + board by status)
+
+![Mirror header with generatedAt vs receivedAt and the derived staleness, the board grouped into five lanes, and the activity tail](02-mirror-board.png)
+
+### 03 — Item detail, edges in both directions
+
+![One item in full with edgesOut and edgesIn](03-item-detail-edges.png)
+
+### 04 — Tombstone: off the board, still queryable
+
+![The tombstoned item served with deleted:true, cross-checked against the board that omits it](04-tombstone.png)
+
+### 05 — Payload guards refuse loudly
+
+![413 TOO_MANY_ITEMS, 413 PAYLOAD_TOO_LARGE, 400 BAD_STATUS, 401 UNAUTHENTICATED, and an unchanged read-back](05-payload-guards.png)
+
+### 06 — Atomic rollback (in-process probe)
+
+![Before and after a replace that fails mid-batch: watermark, lane counts and row count all unchanged](06-atomic-rollback.png)
+
+### Motion
+
+[`walkthrough.webm`](walkthrough.webm) — 11 s: push → read → re-push replaces → the
+tombstoned slug leaves the board.
 
 ## Tooling committed alongside
 
@@ -125,9 +161,13 @@ PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers \
 
 Step 2 is not byte-reproducible and is not meant to be: `receivedAt`, the request ids and
 the staleness delta come from the clock at capture time, so the sha256s above pin *these*
-artifacts, not future runs. Step 3 **is** deterministic from the committed `run-log.json`
-(modulo font rasterisation), which is what makes the sheets auditable: change a number in
-a sheet and it will no longer match the log committed beside it.
+artifacts, not future runs. Step 3 **is** deterministic for the PNGs: re-rendering from the
+committed `run-log.json` reproduces all six sha256s above byte-for-byte (verified — that is
+how the "unused binding" review fix was shown to change no output). That is what makes the
+sheets auditable: change a number in a sheet and it will no longer match the log committed
+beside it. `walkthrough.webm` is the exception — it is a live screen *recording*, so VP8
+encoding and frame timing make each render a new file with the same content; the committed
+webm is the one from the capture run this manifest describes.
 
 Everything runs offline. `wrangler` prints a "Proxy environment variables detected"
 warning in this environment; nothing in the capture leaves `127.0.0.1`.
@@ -136,6 +176,6 @@ warning in this environment; nothing in the capture leaves `127.0.0.1`.
 
 - **`/account/export` and erasure (ADR-0101) and the retention-sweep activity cap.** Real
   behaviours in this diff, covered by `apps/relay/tests/roadmap-mirror.test.ts` and
-  `tests/retention-sweep.test.ts`, but they produce no read-model surface worth a sheet —
+  `apps/relay/tests/retention-sweep.test.ts`, but they produce no read-model surface worth a sheet —
   an export JSON blob screenshot would be padding, not evidence.
 - **Anything resembling the operator's board/item pages.** They do not exist yet. PR 3/4.

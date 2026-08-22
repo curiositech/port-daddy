@@ -230,7 +230,6 @@ function laneColumn(st, items, limit = 7) {
 function sheetBoard(runLog) {
   const a2 = byId(runLog, 'a2');
   const b2 = byId(runLog, 'b2');
-  const aug = runLog.augmentation;
   const board = b2.body.board;
   const lanes = STATUSES.map((st) => laneColumn(st, board[st] ?? [])).join('');
   const total = STATUSES.reduce((n, st) => n + (board[st] ?? []).length, 0);
