@@ -32,16 +32,32 @@ describe('release workflow topology contracts', () => {
     expect(workflow).not.toContain("startsWith(github.event.pull_request.head.ref, 'release-train/')");
   });
 
-  test('release publication and tap dispatch prefer the dedicated train token', () => {
+  test('release publication uses the train token while tap promotion needs no cross-repo credential', () => {
     const train = readWorkflow('release-train.yml');
     const release = readWorkflow('release.yml');
     const tokenExpression = '${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}';
 
     expect(train).toContain(tokenExpression);
     expect(train).toContain('release-workflow-state.mjs require-token');
-    expect(release).toContain('Authenticated tap access:');
-    expect(release).toContain(`token: ${tokenExpression}`);
-    expect(release).not.toContain('token: ${{ secrets.HOMEBREW_TAP_TOKEN }}');
+    expect(release).toContain('Wait for independently verified Homebrew promotion');
+    expect(release).toContain('wait-for-formula "$EXPECTED_TAG" "$FORMULA_URL" "$GITHUB_RUN_ID"');
+    expect(release).not.toContain('repository-dispatch');
+    expect(release).not.toContain('HOMEBREW_TAP_TOKEN');
+  });
+
+  test('release archives carry provenance and do not rebuild retired Bosun', () => {
+    const release = readWorkflow('release.yml');
+    const binaryJob = release.slice(
+      release.indexOf('  build-binaries:'),
+      release.indexOf('  build-fleetbar-preview:'),
+    );
+
+    expect(binaryJob).toContain('attestations: write');
+    expect(binaryJob).toContain('id-token: write');
+    expect(binaryJob).toContain('uses: actions/attest-build-provenance@v3');
+    expect(binaryJob).toContain('subject-path: dist/${{ matrix.artifact }}.tar.gz');
+    expect(binaryJob).not.toContain('npm run build:bosun');
+    expect(binaryJob).not.toContain('dtolnay/rust-toolchain');
   });
 
   test('release discovery stays independent from the publishing credential', () => {
