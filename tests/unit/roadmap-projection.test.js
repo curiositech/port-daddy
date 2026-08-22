@@ -431,6 +431,35 @@ describe('GET /roadmap/projection', () => {
     expect(res.body).toBe(serializeRoadmapProjection(body));
   });
 
+  test('a THROW inside the projection build is a controlled 500, not an unhandled route error', async () => {
+    // 503 (below) is "there is no db at all". This is the other error path:
+    // a db that IS present but whose read throws — a malformed row, or a table
+    // this projection expects on a DB predating it, which is exactly the case
+    // the tolerant-reader claim is about. Untested until now, so the catch
+    // could have been deleted and every other test would still pass.
+    //
+    // It has to stay a controlled envelope: this route is served by the
+    // operator's own daemon, and an unhandled throw in one read model should
+    // not decide what the rest of the daemon's routes do.
+    const exploding = {
+      prepare() {
+        throw new Error('SQLITE_CORRUPT: database disk image is malformed');
+      },
+    };
+    app = Fastify();
+    await app.register(roadmapPlugin, { deps: { ...stubDeps(), db: exploding } });
+    await app.ready();
+
+    const res = await app.inject({ method: 'GET', url: '/roadmap/projection' });
+    expect(res.statusCode).toBe(500);
+    const body = JSON.parse(res.body);
+    expect(body.success).toBe(false);
+    // The thrown message is surfaced rather than swallowed into a generic
+    // string — this is the operator's own daemon, so the cause is useful here
+    // and there is no untrusted caller to leak it to.
+    expect(body.error).toMatch(/SQLITE_CORRUPT/);
+  });
+
   test('self-degrades with 503 when the daemon mode carries no db', async () => {
     app = Fastify();
     await app.register(roadmapPlugin, { deps: stubDeps() });
