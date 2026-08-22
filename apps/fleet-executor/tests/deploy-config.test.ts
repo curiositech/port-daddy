@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { parseFleetShips } from '../src/fleet.js';
 
 const APP_ROOT = fileURLToPath(new URL('..', import.meta.url));
+const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 
 function readConfig(name: string): string {
   return readFileSync(`${APP_ROOT}/${name}`, 'utf8');
@@ -30,7 +32,16 @@ describe.each(['wrangler.deploy.toml', 'wrangler.toml.example'])('%s queue contr
 
   it('keeps bounded retry headroom in the deploy and operator example configs', () => {
     const main = consumerBlock(readConfig(name), 'fleet-runs');
-    expect(main).toMatch(/^\s*max_retries\s*=\s*5\s*$/m);
+    const maxRetries = Number(/^\s*max_retries\s*=\s*(\d+)\s*$/m.exec(main)?.[1]);
+    const fleetYaml = readFileSync(`${REPO_ROOT}/pd-fleet.yml`, 'utf8');
+    const prShips = parseFleetShips(fleetYaml, 'pull_request:opened');
+
+    expect(prShips, 'repository PR fleet must parse').not.toBeNull();
+    // max_retries excludes the first delivery. Even if the platform ends each
+    // invocation immediately after one durable ship checkpoint, the retry
+    // budget must cover the current roster and two transient no-progress runs.
+    expect(maxRetries + 1).toBeGreaterThanOrEqual(prShips!.length + 2);
+    expect(maxRetries).toBe(12);
   });
 
   it('isolates deterministic merge-group gates from substantive review latency', () => {

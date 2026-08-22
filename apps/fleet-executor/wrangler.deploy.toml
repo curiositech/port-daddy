@@ -132,13 +132,13 @@ queue = "fleet-runs"
 max_batch_size = 1
 max_concurrency = 1
 max_batch_timeout = 30
-# 5, up from 3: retries RESUME past checkpointed ships (src/ship-checkpoint.ts),
-# so an extra attempt does not re-spend on finished work and can advance the
-# run from its last durable ship. A kill before the next checkpoint may still
-# repeat unfinished work, so retries remain capped. Six total attempts cover
-# the four-ship default roster even at only one newly checkpointed ship per
+# Retries RESUME past checkpointed ships (src/ship-checkpoint.ts), so an extra
+# attempt does not re-spend on finished work and can advance the run from its
+# last durable ship. A kill before the next checkpoint may still repeat
+# unfinished work, so retries remain capped. Thirteen total attempts cover this
+# repository's eleven-ship PR roster even at only one newly checkpointed ship per
 # attempt, with two attempts of bounded headroom for transient failures.
-max_retries = 5
+max_retries = 12
 dead_letter_queue = "fleet-runs-dlq"
 
 # Required merge-group checks are deterministic and make no AI calls. Keep them
