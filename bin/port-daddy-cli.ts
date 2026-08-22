@@ -1299,7 +1299,7 @@ Commands:
     --status <s>            now|backlog|parked|merge|done
     --kind <k>              project|epic|story|task|subtask|bug|chore (default: task)
     --priority <1-5>        1 highest .. 5 lowest (default: 3)
-    --estimate <units>      Effort units — the Gantt/CPM node duration
+    --estimate <units>      Effort units (positive whole number) — the Gantt/CPM node duration
     --start <when>          Actual start: YYYY-MM-DD, +Nd, or epoch ms
     --due <when>            Target finish: YYYY-MM-DD, +Nd, or epoch ms
     --assignee <id>         Agent/person the item is assigned to

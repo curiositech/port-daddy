@@ -874,6 +874,113 @@ mod tests {
     }
 
     #[test]
+    fn gantt_picks_the_longer_diamond_branch_as_the_critical_path() {
+        // A chain can only have one answer; a DIAMOND is where a CPM scheduler
+        // can be wrong and still look plausible. Fork into two branches of
+        // different duration, rejoin, and the join must wait on the LONGER one.
+        //
+        //   fork(2)  0..2
+        //     ├─ b-short(1)  2..3   → slack 4, hatched
+        //     └─ c-long(5)   2..7   → critical, solid
+        //   d-join(2)  7..9                 makespan 9
+        //
+        // The slugs are chosen so the SHORT branch sorts first: the scheduler
+        // walks predecessors id-ordered, so a join that took its first (or its
+        // last-written) predecessor instead of the MAXIMUM finish would start
+        // d-join at 3 and crown b-short critical. That is the wrong-branch bug
+        // this test exists to catch — see the negative assertions below.
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("fork", "now", &[], Some(2)),
+            item_with("b-short", "backlog", &["fork"], Some(1)),
+            item_with("c-long", "backlog", &["fork"], Some(5)),
+            item_with("d-join", "backlog", &["b-short", "c-long"], Some(2)),
+        ];
+        let (rows, makespan) = p.gantt().expect("schedules");
+        let row = |slug: &str| {
+            rows.iter()
+                .find(|r| r.slug == slug)
+                .unwrap_or_else(|| panic!("no scheduled row for {slug}"))
+        };
+
+        // The join waits on the long branch: 2 + 5 + 2, not 2 + 1 + 2.
+        assert_eq!(makespan, 9, "makespan must follow the long branch");
+        assert_eq!(row("c-long").finish, 7);
+        assert_eq!(row("b-short").finish, 3);
+        assert_eq!(
+            row("d-join").start,
+            7,
+            "join must start at the LONGER predecessor's finish, not the first one's"
+        );
+
+        // The critical path is exactly fork → c-long → d-join.
+        for slug in ["fork", "c-long", "d-join"] {
+            let r = row(slug);
+            assert!(r.critical, "{slug} sits on the longer branch: must be critical");
+            assert_eq!(r.slack, 0, "{slug} is critical: slack must be 0");
+        }
+        // …and the short branch is off it, holding exactly the branch
+        // difference (5 − 1) as slack. Both halves matter: a scheduler that
+        // marked everything critical would pass the loop above alone.
+        let short = row("b-short");
+        assert!(!short.critical, "the shorter branch must NOT be critical");
+        assert_eq!(short.slack, 4, "slack is the branch difference");
+        assert_eq!(rows.iter().filter(|r| r.critical).count(), 3);
+
+        // What the operator actually sees: critical bars solid, slack hatched.
+        let blocks = p.gantt_blocks();
+        let bar = |slug: &str| -> String {
+            blocks
+                .iter()
+                .find_map(|b| match b {
+                    Block::Row(cells) if cells[0] == slug => Some(cells[1].clone()),
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("no bar row for {slug}"))
+        };
+        let long_bar = bar("c-long");
+        assert!(
+            long_bar.contains('█') && !long_bar.contains('▓'),
+            "critical bar must render solid: {long_bar:?}"
+        );
+        let short_bar = bar("b-short");
+        assert!(
+            short_bar.contains('▓') && !short_bar.contains('█'),
+            "slack bar must render hatched, not solid: {short_bar:?}"
+        );
+    }
+
+    #[test]
+    fn gantt_join_waits_on_the_longest_path_not_the_direct_edge() {
+        // The other diamond shape: a → b, then b reaches c BOTH directly and
+        // the long way round through d. Only the detour has a node of its own,
+        // so nothing here can carry slack (every task is on the longest path) —
+        // what this pins is that the direct b → c edge does not let c start
+        // early once a longer route to the same join exists.
+        //
+        //   a(2) 0..2 → b(3) 2..5 ─┬─────────────→ c(2)
+        //                          └→ d(4) 5..9 ──┘  9..11   makespan 11
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("a", "now", &[], Some(2)),
+            item_with("b", "backlog", &["a"], Some(3)),
+            item_with("c", "backlog", &["b", "d"], Some(2)),
+            item_with("d", "backlog", &["b"], Some(4)),
+        ];
+        let (rows, makespan) = p.gantt().expect("schedules");
+        let row = |slug: &str| rows.iter().find(|r| r.slug == slug).unwrap();
+        assert_eq!(makespan, 11);
+        assert_eq!(
+            row("c").start,
+            9,
+            "c must wait for the detour through d, not the direct edge from b"
+        );
+        // Every task lies on the longest path, so all four are critical.
+        assert_eq!(rows.iter().filter(|r| r.critical).count(), 4);
+        assert!(rows.iter().all(|r| r.slack == 0));
+    }
+
+    #[test]
     fn gantt_excludes_done_items_and_their_edges() {
         let mut p = PlannerPane::default();
         p.items = vec![
@@ -1017,6 +1124,79 @@ mod tests {
         assert!(labels[1].len() <= (BAR_CELLS + 1) as usize);
         let ticks = ruler[1].chars().filter(|c| *c == '|').count();
         assert!(ticks >= 5, "expected ≥5 ticks on a year span, got {ticks}");
+    }
+
+    #[test]
+    fn axis_stays_readable_at_the_tightest_spans() {
+        // Sub-day spans are not representable: estimates are whole units and
+        // `gantt_blocks` clamps with `.max(1)`, so ONE DAY is the tightest axis
+        // this pane can ever be asked to draw. Every span on the bottom ladder
+        // rung (step 1, up to 8 daily ticks) must still produce two well-formed
+        // rows whose labels never run into one another — at these spans the
+        // ticks are only 5 cells apart while a label is 5 chars wide, so the
+        // collision-dropping in `axis_rows` is doing real work here.
+        let today = time::Date::from_calendar_date(2026, time::Month::August, 22).unwrap();
+        let lane = (BAR_CELLS + 1) as usize;
+        for span in 1..=8 {
+            assert_eq!(axis_tick_step(span), 1, "span {span} is a 1-day-step span");
+            let rows = axis_rows(span, today);
+            let (labels, ruler) = match (&rows[0], &rows[1]) {
+                (Block::Row(a), Block::Row(b)) => (a[1].clone(), b[1].clone()),
+                other => panic!("axis must be two Rows, got {other:?}"),
+            };
+            // The axis still renders: a full-width ruler framed at both ends.
+            assert_eq!(
+                ruler.chars().count(),
+                lane,
+                "span {span}: ruler must fill the bar lane"
+            );
+            assert!(
+                ruler.starts_with('|') && ruler.ends_with('|'),
+                "span {span}: today and the landing day must both be ticked: {ruler:?}"
+            );
+            assert!(
+                labels.chars().count() <= lane,
+                "span {span}: labels must not overrun the lane: {labels:?}"
+            );
+            // No collisions: a label written over its neighbour would splice
+            // the two into a token that is neither `today` nor `MM-DD`.
+            for tok in labels.split_whitespace() {
+                let is_date = tok.len() == 5
+                    && tok.as_bytes()[2] == b'-'
+                    && tok.chars().filter(char::is_ascii_digit).count() == 4;
+                assert!(
+                    tok == "today" || is_date,
+                    "span {span}: spliced/overlapping label {tok:?} in {labels:?}"
+                );
+            }
+            // Labels are placed left to right with at least one space between
+            // them, so the printed order is the chronological order.
+            let printed: Vec<&str> = labels.split_whitespace().collect();
+            assert_eq!(
+                printed.first().copied(),
+                Some("today"),
+                "span {span}: unit 0 is always the today-marker: {labels:?}"
+            );
+            assert!(
+                printed.len() <= 8,
+                "span {span}: at most 8 labels fit the lane, got {}",
+                printed.len()
+            );
+        }
+
+        // The degenerate floor spelled out: a one-day plan is `today` at cell 0
+        // and the landing tick at cell 40. The landing label does not fit
+        // beside it (5 chars from cell 40 would overrun the 41-cell lane), so
+        // it is dropped — but its TICK survives, which is the invariant that
+        // keeps the geometry honest when the text will not fit.
+        let rows = axis_rows(1, today);
+        let (labels, ruler) = match (&rows[0], &rows[1]) {
+            (Block::Row(a), Block::Row(b)) => (a[1].clone(), b[1].clone()),
+            other => panic!("axis must be two Rows, got {other:?}"),
+        };
+        assert_eq!(labels, "today");
+        assert_eq!(ruler.matches('|').count(), 2, "ruler: {ruler:?}");
+        assert_eq!(ruler.chars().nth(BAR_CELLS as usize), Some('|'));
     }
 
     #[test]
