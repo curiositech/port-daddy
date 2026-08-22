@@ -650,11 +650,24 @@ jobs:
 
       - name: Install Rust toolchain (stable)
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Cache Rust build artefacts
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: core/kernel
+
+      # fmt/clippy widening (grand-plan node fmt-clippy-widening — ADR-0120's
+      # "mechanical cleanup PR"): pd-anchor is the canonical macaroon discharge
+      # gate, so it gets the same strict-lint treatment rust-harbor-card
+      # pioneered. Scoped to -p pd-anchor on purpose; the sibling kernel crates
+      # join as their sweeps land.
+      - name: cargo fmt --check (pd-anchor)
+        run: cargo fmt -p pd-anchor -- --check
+
+      - name: cargo clippy (pd-anchor)
+        run: cargo clippy -p pd-anchor --all-targets -- -D warnings
 
       - name: cargo check
         run: cargo check --workspace
@@ -681,11 +694,24 @@ jobs:
 
       - name: Install Rust toolchain (stable)
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Cache Rust build artefacts
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: core
+
+      # fmt/clippy widening (grand-plan node fmt-clippy-widening — ADR-0120's
+      # "mechanical cleanup PR"): a TCB slice that mints credentials should not
+      # carry clippy debt. Scoped to -p pd-broker; pd-console's burn-down is a
+      # deliberate follow-up (~40k LOC of GPU code, and an agent is active in
+      # that crate).
+      - name: cargo fmt --check (pd-broker)
+        run: cargo fmt -p pd-broker -- --check
+
+      - name: cargo clippy (pd-broker)
+        run: cargo clippy -p pd-broker --all-targets -- -D warnings
 
       - name: cargo test pd-broker (TCB behavior + DoS isolation + framing)
         run: cargo test -p pd-broker
