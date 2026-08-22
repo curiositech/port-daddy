@@ -711,13 +711,28 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     const respectsRepo = runPrompt({ PD_SITREP: 'loudly' });
     expect(respectsRepo.stdout).toBe('');
 
-    // Garbage everywhere → closed enum rejects both → default enforce.
+    // Garbage everywhere → closed enum rejects both → default enforce, and
+    // neither garbage token may pass through into the injected envelope.
     writeFileSync(
       join(WORKSPACE, 'agent.config.json'),
       JSON.stringify({ sitrep: { endOfTurn: 'quietly' } }),
     );
     const fallsToDefault = runPrompt({ PD_SITREP: 'loudly' });
-    expect(promptCtx(fallsToDefault)).toContain('SITREP enforce');
+    const defaultCtx = promptCtx(fallsToDefault);
+    expect(defaultCtx).toContain('SITREP enforce');
+    expect(defaultCtx).not.toContain('loudly');
+    expect(defaultCtx).not.toContain('quietly');
+  });
+
+  test('SITREP dial: bogus env value alone resolves enforce and never leaks into the envelope', () => {
+    // No config anywhere; PD_SITREP carries garbage. The closed enum must
+    // reject it, resolve the DEFAULT (enforce), and the garbage token must
+    // not be echoed into the injected contract.
+    const r = runPrompt({ PD_SITREP: 'banana' });
+    expect(r.status).toBe(0);
+    const ctx = promptCtx(r);
+    expect(ctx).toContain('SITREP enforce');
+    expect(ctx).not.toContain('banana');
   });
 
   test('SITREP dial precedence: agent.config.json → .portdaddy/sitrep.json → .portdaddy/project.json', () => {
@@ -800,6 +815,34 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
       encoding: 'utf8',
     });
     expect(promptCtx(r)).toContain('SITREP suggest');
+  });
+
+  test('SITREP dial conflict: the nearest directory wins over an ancestor, regardless of file rank', () => {
+    // The contract is nearest-wins: the walk exhausts ALL three candidate
+    // files in each directory before ascending, so a child repo's opt-out in
+    // a LOWER-ranked file beats an ancestor's enforce in the HIGHEST-ranked
+    // file — while the ancestor itself keeps its own dial.
+    writeFileSync(
+      join(WORKSPACE, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'enforce' } }),
+    );
+    const child = join(WORKSPACE, 'pkg');
+    mkdirSync(join(child, '.portdaddy'), { recursive: true });
+    writeFileSync(
+      join(child, '.portdaddy', 'sitrep.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'off' } }),
+    );
+
+    const fromChild = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: child }),
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX) },
+      encoding: 'utf8',
+    });
+    expect(fromChild.status).toBe(0);
+    expect(fromChild.stdout).toBe('');
+
+    const fromParent = runPrompt();
+    expect(promptCtx(fromParent)).toContain('SITREP enforce');
   });
 
   test.each([3, 14, 41])(
