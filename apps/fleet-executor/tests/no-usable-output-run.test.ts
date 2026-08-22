@@ -122,15 +122,21 @@ describe('a ship that produced no usable output is never reported as a pass', ()
   });
 });
 
-describe('gate semantics: advisory fails open, blocking fails closed', () => {
-  it('an ADVISORY ship with no usable output does NOT fail the merge gate', async () => {
+describe('gate semantics: a broken ship fails the run whatever its blocking flag', () => {
+  it('an ADVISORY ship with no usable output FAILS the run — broken-ship doctrine (2026-08-19)', async () => {
+    // "Advisory" scopes a ship's judgment, not its machinery. A ship that
+    // reviewed nothing is broken, and the run fails until it is fixed — the
+    // earlier `neutral` resolution let a whole run of empty ships (pd-spark /
+    // pd-lookout / pd-spider, 2026-08-19) sail past the merge gate.
     await runFleet({ yaml: ADVISORY_REVIEWER, ship: 'qa', output: NOTHING_USABLE });
-    expect(state.completed[0].conclusion).not.toBe('failure');
+    expect(state.completed[0].conclusion).toBe('failure');
   });
 
-  it('…but it is reported, not laundered into success', async () => {
+  it('…and the summary says the broken ship failed the run, never PASS', async () => {
     await runFleet({ yaml: ADVISORY_REVIEWER, ship: 'qa', output: NOTHING_USABLE });
-    expect(state.completed[0].conclusion).toBe('neutral');
+    const summary = state.completed[0].summary ?? '';
+    expect(summary).toContain('broken ship');
+    expect(summary).not.toMatch(/pd-qa\S*: PASS/);
   });
 
   it('a BLOCKING ship with no usable output FAILS CLOSED', async () => {

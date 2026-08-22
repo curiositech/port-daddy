@@ -29,6 +29,7 @@ import { createTupleSpace } from '../../lib/tuples.js';
 function passingChecker() {
   return {
     checkBranchOnOrigin: () => ({ ok: true, branch: 'feat/test', upstream: 'origin/feat/test', ahead: 0 }),
+    checkLedgerOnly: () => ({ ok: true, dirtyEntries: 0, unpublishedCommits: 0 }),
   };
 }
 
@@ -575,6 +576,33 @@ describe('sugar.done', () => {
     expect(result.code).toBe('PLAN_UNCHECKED_ITEMS');
   });
 
+  test('validates the latest plan when an older plan had unchecked todo items', () => {
+    const { sugar, sessions } = setup();
+
+    const begin = sugar.begin({ lifecycle: 'ephemeral',
+      purpose: 'Latest plan test',
+      agentId: 'plan-test-latest',
+    });
+    expect(begin.success).toBe(true);
+
+    sessions.addNote(begin.sessionId, '- [ ] todo one', { type: 'todo_list' });
+    sessions.addNote(begin.sessionId, '- [x] todo one', { type: 'todo_list' });
+
+    const latestPlan = sessions.getNotes(begin.sessionId, { type: 'todo_list', limit: 1 });
+    expect(latestPlan.success).toBe(true);
+    expect(latestPlan.notes).toHaveLength(1);
+    expect(latestPlan.notes[0].content).toBe('- [x] todo one');
+
+    const result = sugar.done({
+      agentId: 'plan-test-latest',
+      sessionId: begin.sessionId,
+      note: VALID_RESULT_NOTE_WITH_PR,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.sessionStatus).toBe('completed');
+  });
+
   test('succeeds pd done with forceIncomplete and reason', () => {
     const { sugar, sessions } = setup();
 
@@ -708,6 +736,7 @@ describe('pd done origin rule', () => {
         calls++;
         return { ok: true, branch: 'feat/x', upstream: 'origin/feat/x', ahead: 0 };
       },
+      checkLedgerOnly: () => ({ ok: true, dirtyEntries: 0, unpublishedCommits: 0 }),
     };
   }
 
@@ -754,6 +783,137 @@ describe('pd done origin rule', () => {
     expect(result.originCheckCode).toBe('NO_UPSTREAM');
     expect(result.error).toMatch(/no upstream/);
     expect(result.hint).toMatch(/git push -u origin/);
+  });
+
+  test('--no-pr closes only a verified clean ledger-only branch without an upstream', () => {
+    const checker = {
+      ...noUpstreamChecker(),
+      checkLedgerOnly: () => ({ ok: true, dirtyEntries: 0, unpublishedCommits: 0 }),
+    };
+    const { sugar, sessions } = setup({ gitOriginChecker: checker });
+    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Ledger-only close', agentId: 'ledger-only-agent' });
+
+    const result = sugar.done({
+      agentId: 'ledger-only-agent',
+      sessionId: begin.sessionId,
+      note: 'Result: reconciliation notes recorded; no repository changes were made.',
+      noPr: true,
+    });
+
+    expect(result.success).toBe(true);
+    const handoff = sessions.getNotes(begin.sessionId).notes.find((note) => note.type === 'handoff');
+    expect(handoff.content).toContain('not-applicable: ledger-only session, no repository artifact');
+  });
+
+  test('--no-pr still refuses dirty or unpublished repository work', () => {
+    const checker = {
+      ...noUpstreamChecker(),
+      checkLedgerOnly: () => ({
+        ok: false,
+        code: 'DIRTY_WORKTREE',
+        error: 'Worktree has 1 uncommitted or untracked entry.',
+        hint: 'Preserve the work first.',
+        dirtyEntries: 1,
+      }),
+    };
+    const { sugar } = setup({ gitOriginChecker: checker });
+    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Dirty no-pr close', agentId: 'dirty-no-pr-agent' });
+    const result = sugar.done({
+      agentId: 'dirty-no-pr-agent',
+      sessionId: begin.sessionId,
+      note: 'Result: attempted ledger close.',
+      noPr: true,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('LEDGER_ONLY_CHECK_FAILED');
+    expect(result.ledgerOnlyCheckCode).toBe('DIRTY_WORKTREE');
+    expect(result.dirtyEntries).toBe(1);
+  });
+
+  test('--no-pr verifies ledger-only cleanliness even when the branch is fully pushed', () => {
+    const checker = {
+      checkBranchOnOrigin: () => ({ ok: true, branch: 'feat/x', upstream: 'origin/feat/x', ahead: 0 }),
+      checkLedgerOnly: () => ({
+        ok: false,
+        code: 'DIRTY_WORKTREE',
+        error: 'Worktree has 2 uncommitted or untracked entries.',
+        hint: 'Preserve the work first.',
+        dirtyEntries: 2,
+      }),
+    };
+    const { sugar } = setup({ gitOriginChecker: checker });
+    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Pushed but dirty close', agentId: 'pushed-dirty-agent' });
+
+    const result = sugar.done({
+      agentId: 'pushed-dirty-agent',
+      sessionId: begin.sessionId,
+      note: 'Result: attempted ledger close.',
+      noPr: true,
+    });
+
+    expect(result).toMatchObject({
+      success: false,
+      code: 'LEDGER_ONLY_CHECK_FAILED',
+      ledgerOnlyCheckCode: 'DIRTY_WORKTREE',
+      dirtyEntries: 2,
+      originCheckCode: null,
+    });
+  });
+
+  test('--no-pr still refuses dirty work when skip-origin-check is requested', () => {
+    const checker = {
+      checkBranchOnOrigin: () => { throw new Error('origin gate must be skipped'); },
+      checkLedgerOnly: () => ({
+        ok: false,
+        code: 'DIRTY_WORKTREE',
+        error: 'Worktree has 1 uncommitted or untracked entry.',
+        hint: 'Preserve the work first.',
+        dirtyEntries: 1,
+      }),
+    };
+    const { sugar } = setup({ gitOriginChecker: checker });
+    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Dirty override close', agentId: 'dirty-override-agent' });
+
+    const result = sugar.done({
+      agentId: 'dirty-override-agent',
+      sessionId: begin.sessionId,
+      note: 'Result: attempted ledger close.',
+      noPr: true,
+      skipOriginCheck: true,
+      skipOriginCheckReason: 'operator accepts no upstream for ledger-only work',
+    });
+
+    expect(result).toMatchObject({
+      success: false,
+      code: 'LEDGER_ONLY_CHECK_FAILED',
+      ledgerOnlyCheckCode: 'DIRTY_WORKTREE',
+      dirtyEntries: 1,
+      originCheckCode: null,
+    });
+  });
+
+  test('--no-pr plus skip-origin-check closes only after ledger verification and records both markers', () => {
+    const checker = {
+      checkBranchOnOrigin: () => { throw new Error('origin gate must be skipped'); },
+      checkLedgerOnly: () => ({ ok: true, dirtyEntries: 0, unpublishedCommits: 0 }),
+    };
+    const { sugar, sessions } = setup({ gitOriginChecker: checker });
+    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Clean override close', agentId: 'clean-override-agent' });
+
+    const result = sugar.done({
+      agentId: 'clean-override-agent',
+      sessionId: begin.sessionId,
+      note: 'Result: verified ledger-only completion.',
+      noPr: true,
+      skipOriginCheck: true,
+      skipOriginCheckReason: 'operator accepts no upstream for ledger-only work',
+    });
+
+    expect(result.success).toBe(true);
+    const handoff = sessions.getNotes(begin.sessionId).notes.find((entry) => entry.type === 'handoff');
+    expect(handoff.content).toContain('[OPERATOR-OVERRIDE skip-origin-check]');
+    expect(handoff.content).toContain('not-applicable: ledger-only session, no repository artifact');
   });
 
   test('refuses pd done when result note lacks a sentinel', () => {
@@ -832,7 +992,7 @@ describe('pd done origin rule', () => {
     const notes_no_pr = sessions.getNotes(b_no_pr.sessionId).notes;
     const handoff_no_pr = notes_no_pr.find((n) => n.type === 'handoff');
     expect(handoff_no_pr).toBeTruthy();
-    expect(handoff_no_pr.content).toContain('not-applicable: subtask code delivery');
+    expect(handoff_no_pr.content).toContain('not-applicable: ledger-only session, no repository artifact');
 
     const b_subtask = sugar.begin({ lifecycle: 'ephemeral', purpose: 'subtask flag case', agentId: 'subtask-flag-agent' });
     const r_subtask = sugar.done({
