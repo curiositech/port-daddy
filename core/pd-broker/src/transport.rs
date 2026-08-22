@@ -76,10 +76,7 @@ pub fn bind_listener(path: &Path) -> std::io::Result<UnixListener> {
                 // A live broker answered — do NOT steal its socket.
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::AddrInUse,
-                    format!(
-                        "a broker is already listening on {}",
-                        path.display()
-                    ),
+                    format!("a broker is already listening on {}", path.display()),
                 ));
             }
             // Nobody is listening: stale socket file from a crashed predecessor.
@@ -144,9 +141,7 @@ pub fn read_one_request<R: BufRead>(reader: &mut R) -> std::io::Result<Option<Re
         if !line.ends_with('\n') {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!(
-                    "request exceeded {MAX_REQUEST_BYTES} bytes without a newline terminator"
-                ),
+                format!("request exceeded {MAX_REQUEST_BYTES} bytes without a newline terminator"),
             ));
         }
         if line.trim().is_empty() {

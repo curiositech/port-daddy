@@ -1612,6 +1612,45 @@ export function resolveBosunBinary(rootDir: string): { binaryPath: string; exist
   return { binaryPath, exists: existsSync(binaryPath) };
 }
 
+export interface BosunWatchdogAssessment {
+  severity: Severity;
+  detail: string;
+  hint?: string;
+}
+
+/**
+ * Assess the optional external Bosun watchdog without confusing it with the
+ * supported daemon lifecycle boundary. Since v3.28, Homebrew launchd (or the
+ * installed systemd/LaunchAgent service) is the sole process supervisor and
+ * the daemon writes its own heartbeat. A missing pd-bosun is therefore visible
+ * configuration context, never a release-blocking health failure.
+ */
+export function assessBosunWatchdog(input: {
+  present: boolean;
+  binaryPath: string;
+  running: boolean | null;
+  reason?: string | null;
+}): BosunWatchdogAssessment {
+  if (!input.present) {
+    return {
+      severity: 'warn',
+      detail: 'pd-bosun not installed (optional since v3.28 single-supervisor cutover)',
+      hint: 'No repair is required; FleetBar Health shows the authoritative daemon supervisor and heartbeat.',
+    };
+  }
+  if (input.running === false) {
+    return {
+      severity: 'warn',
+      detail: `optional pd-bosun binary present at ${input.binaryPath} but not active${input.reason ? ` (${input.reason})` : ''}`,
+      hint: 'Use FleetBar Health to remove or repair stale optional Bosun wiring.',
+    };
+  }
+  return {
+    severity: 'ok',
+    detail: `optional pd-bosun present at ${input.binaryPath}${input.reason ? ` (${input.reason})` : ''}`,
+  };
+}
+
 /**
  * Find scattered `port-registry*.db` files in a directory. The known continuity
  * bug (db-fragmentation): backups and brew-Cellar copies leave multiple
@@ -1999,16 +2038,24 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   let daemonSupervisionRepairForHarbor: { command: string; description: string } | null = null;
   try {
     if (process.platform === 'darwin') {
-      const supervision = assessSupervisionIntegrity({
-        supervisors: gatherLaunchdSupervisors(),
-        daemonReachable: daemonRunning,
-      });
-      daemonSupervisedForHarbor = supervision.severity === 'ok';
-      if (supervision.severity !== 'ok') {
-        daemonSupervisionDetailForHarbor = supervision.detail;
-        daemonSupervisionRepairForHarbor = supervision.repair ?? null;
+      if (!isCanonicalRuntimeTarget()) {
+        warn(
+          'Supervision integrity',
+          'Canonical launchd supervision not assessed for an explicitly redirected daemon target',
+          'No canonical supervisor claim is applied to this isolated target.',
+        );
+      } else {
+        const supervision = assessSupervisionIntegrity({
+          supervisors: gatherLaunchdSupervisors(),
+          daemonReachable: daemonRunning,
+        });
+        daemonSupervisedForHarbor = supervision.severity === 'ok';
+        if (supervision.severity !== 'ok') {
+          daemonSupervisionDetailForHarbor = supervision.detail;
+          daemonSupervisionRepairForHarbor = supervision.repair ?? null;
+        }
+        recordAssessment('Supervision integrity', supervision);
       }
-      recordAssessment('Supervision integrity', supervision);
     } else if (process.platform === 'linux') {
       const homedir = (await import('node:os')).homedir();
       const unitPath: string = join(homedir, '.config', 'systemd', 'user', 'port-daddy.service');
@@ -2043,10 +2090,11 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   }
 
   // -------------------------------------------------------------------------
-  // 8b. Bosun watchdog — the Rust heartbeat/PID supervisor (core/pd-bosun).
-  //     Previously this was silently skipped when the binary was missing; now
-  //     it is a loud WARN that names the exact build command. Running-state is
-  //     read from the daemon's guardians.bosun when reachable.
+  // 8b. Optional Bosun watchdog (core/pd-bosun). Since v3.28 the installed
+  //     launchd/systemd service is the sole lifecycle supervisor and the daemon
+  //     writes its own heartbeat. Preserve Bosun visibility for legacy/opt-in
+  //     installs, but never fail a supported binary-free distribution for its
+  //     deliberate absence. Running-state comes from guardians.bosun.
   // -------------------------------------------------------------------------
   try {
     // `libDir` is a naive `join(__dirname, '..', '..')` — correct for a source
@@ -2087,20 +2135,12 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     }
     const bosunPresent = daemonBinaryExists ?? bosun.exists;
     const bosunPath = daemonBinaryPath ?? bosun.binaryPath;
-    if (!bosunPresent) {
-      // Required (halt-mandate): a brew/tarball install with NO watchdog binary
-      // leaves the daemon with no independent heartbeat/PID supervisor. This is a
-      // shipping defect, not a warning — fail the doctor so it can't reach users.
-      criticalFail('Bosun watchdog',
-        'pd-bosun watchdog binary is MISSING — the daemon has no independent heartbeat/PID supervisor',
-        'Reinstall so the supervisor ships: `brew reinstall port-daddy` (or `npm run build:bosun` in a source checkout)');
-    } else if (bosunRunning === false) {
-      warn('Bosun watchdog',
-        `pd-bosun binary present at ${bosunPath} but not active${bosunReason ? ` (${bosunReason})` : ''}`,
-        'Heartbeat writer is the daemon-side fallback; run `port-daddy install-bosun` to wire the supervisor');
-    } else {
-      check('Bosun watchdog', true, `pd-bosun present at ${bosunPath}${bosunReason ? ` (${bosunReason})` : ''}`);
-    }
+    recordAssessment('Bosun watchdog', assessBosunWatchdog({
+      present: bosunPresent,
+      binaryPath: bosunPath,
+      running: bosunRunning,
+      reason: bosunReason,
+    }));
   } catch (err: unknown) {
     check('Bosun watchdog', false, `Error: ${(err as Error).message}`);
   }
@@ -2217,12 +2257,14 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   // backing up the wrong registry). One is healthy; more than one is a WARN.
   // -------------------------------------------------------------------------
   try {
-    const registryDbs = scanRegistryDbFiles(PD_HOME);
     const activeDb = resolveDbPath();
     const activeDir = activeDb.slice(0, activeDb.lastIndexOf('/'));
-    // Also count a registry living outside ~/.port-daddy (e.g. a brew Cellar copy).
-    const extra = activeDir && activeDir !== PD_HOME ? scanRegistryDbFiles(activeDir) : [];
-    const all = Array.from(new Set([...registryDbs, ...extra]));
+    // Canonical doctor looks for scattered copies across ~/.port-daddy and the
+    // active DB directory. An explicitly redirected doctor must not pull the
+    // operator's production registry into an isolated test/berth verdict.
+    const canonicalDbs = isCanonicalRuntimeTarget() ? scanRegistryDbFiles(PD_HOME) : [];
+    const activeDbs = activeDir ? scanRegistryDbFiles(activeDir) : [];
+    const all = Array.from(new Set([...canonicalDbs, ...activeDbs]));
     if (all.length <= 1) {
       check('DB fragmentation', true, all.length === 1 ? `Single registry: ${all[0]}` : 'No scattered registry copies');
     } else {

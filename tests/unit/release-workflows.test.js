@@ -32,16 +32,70 @@ describe('release workflow topology contracts', () => {
     expect(workflow).not.toContain("startsWith(github.event.pull_request.head.ref, 'release-train/')");
   });
 
-  test('release publication and tap dispatch prefer the dedicated train token', () => {
+  test('release publication uses the train token while tap promotion needs no cross-repo credential', () => {
     const train = readWorkflow('release-train.yml');
     const release = readWorkflow('release.yml');
     const tokenExpression = '${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}';
 
     expect(train).toContain(tokenExpression);
     expect(train).toContain('release-workflow-state.mjs require-token');
-    expect(release).toContain('Authenticated tap access:');
-    expect(release).toContain(`token: ${tokenExpression}`);
-    expect(release).not.toContain('token: ${{ secrets.HOMEBREW_TAP_TOKEN }}');
+    expect(release).toContain('Wait for independently verified Homebrew promotion');
+    expect(release).toContain('wait-for-formula "$EXPECTED_TAG" "$FORMULA_URL" "$GITHUB_RUN_ID"');
+    expect(release).not.toContain('repository-dispatch');
+    expect(release).not.toContain('HOMEBREW_TAP_TOKEN');
+  });
+
+  test('release archives carry provenance and do not rebuild retired Bosun', () => {
+    const release = readWorkflow('release.yml');
+    const binaryJob = release.slice(
+      release.indexOf('  build-binaries:'),
+      release.indexOf('  build-fleetbar-preview:'),
+    );
+
+    expect(binaryJob).toContain('attestations: write');
+    expect(binaryJob).toContain('id-token: write');
+    expect(binaryJob).toContain('uses: actions/attest-build-provenance@v3');
+    expect(binaryJob).toContain('subject-path: dist/${{ matrix.artifact }}.tar.gz');
+    expect(binaryJob).not.toContain('npm run build:bosun');
+    expect(binaryJob).not.toContain('dtolnay/rust-toolchain');
+  });
+
+  test('doctor gate shortens Unix socket paths for deeply named worktrees', () => {
+    const script = join(ROOT, 'scripts', 'ci-doctor-gate.sh');
+    const shortRoot = '/Users/test/coding/tmp/pd-doctor-sockets';
+    const deepRoot = `/Users/test/coding/tmp/${'deep-worktree-segment/'.repeat(5)}port-daddy`;
+    const deep = spawnSync('bash', [script, '--print-socket-paths'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PD_DOCTOR_GATE_SOCKET_ROOT: deepRoot,
+        PD_DOCTOR_GATE_SHORT_SOCKET_ROOT: shortRoot,
+        PD_DOCTOR_GATE_PID_TOKEN: '4242',
+      },
+    });
+
+    expect(deep.status).toBe(0);
+    const [socketPath, ipcPath] = deep.stdout.trim().split('\n');
+    expect(socketPath).toBe(`${shortRoot}/d.4242.sock`);
+    expect(ipcPath).toBe(`${shortRoot}/i.4242.sock`);
+    expect(socketPath.length).toBeLessThan(96);
+    expect(ipcPath.length).toBeLessThan(96);
+
+    const ordinaryRoot = '/Users/test/coding/port-daddy';
+    const ordinary = spawnSync('bash', [script, '--print-socket-paths'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PD_DOCTOR_GATE_SOCKET_ROOT: ordinaryRoot,
+        PD_DOCTOR_GATE_SHORT_SOCKET_ROOT: shortRoot,
+        PD_DOCTOR_GATE_PID_TOKEN: '4242',
+      },
+    });
+    expect(ordinary.status).toBe(0);
+    expect(ordinary.stdout.trim().split('\n')).toEqual([
+      `${ordinaryRoot}/.pdg.4242.sock`,
+      `${ordinaryRoot}/.pdg.4242.ipc`,
+    ]);
   });
 
   test('release discovery stays independent from the publishing credential', () => {
