@@ -64,4 +64,11 @@ describe.each(['wrangler.deploy.toml', 'wrangler.toml.example'])('%s queue contr
     const cpuMs = Number(/^\s*cpu_ms\s*=\s*(\d+)\s*$/m.exec(limits!)?.[1]);
     expect(cpuMs).toBe(300_000);
   });
+
+  it('keeps production delivery diagnostics queryable', () => {
+    const config = readConfig(name);
+    const observability = config.split(/^\[observability\]\s*$/m)[1];
+    expect(observability, 'missing [observability] block').toBeDefined();
+    expect(observability).toMatch(/^\s*enabled\s*=\s*true\s*$/m);
+  });
 });

@@ -27,6 +27,7 @@
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
 import { executeFleet } from './execute.js';
+import { CheckRunCompletionError } from './github.js';
 import { handleDlqJob } from './dlq.js';
 import { recordDeliveryAttemptStart, recordDeliveryFailure } from './delivery-failure.js';
 import { flushSquidEvents } from './squid-events.js';
@@ -140,7 +141,11 @@ export default {
           err,
         );
         await markFleetIntentRetrying(env, message.body, attempt, err);
-        message.retry();
+        if (err instanceof CheckRunCompletionError && err.retryAfterSeconds) {
+          message.retry({ delaySeconds: err.retryAfterSeconds });
+        } else {
+          message.retry();
+        }
       }
     }
   },
