@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1787393876236,
+  "generatedAt": 1787406790046,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 278,
+  "count": 279,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -812,7 +812,12 @@
     {
       "slug": "fix-fleet-live-introspection-20260822",
       "status": "backlog",
-      "summaryMd": "feat(fleet): make Cloud runs durable and visible"
+      "summaryMd": "Native signed-in Cloud Fleet introspection across FleetBar and pd-console"
+    },
+    {
+      "slug": "fix-fleet-ship-resilience-20260822",
+      "status": "backlog",
+      "summaryMd": "fix(fleet): circuit-break provider failures"
     },
     {
       "slug": "fix-skill-graft-tool2vec-vocabulary-gap",

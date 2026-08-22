@@ -76,6 +76,19 @@ export class FleetAiCircuit {
 }
 
 /**
+ * Normalize Cloudflare's 1-based delivery counter at the trust boundary.
+ * Direct callers and malformed counters take the conservative final-attempt
+ * path; counters from older queue configurations are capped so transcripts
+ * never claim an impossible `4/3` provider budget.
+ */
+export function normalizeProviderQueueAttempt(attempt: unknown): number {
+  if (typeof attempt !== 'number' || !Number.isInteger(attempt) || attempt <= 0) {
+    return PROVIDER_MAX_DELIVERY_ATTEMPTS;
+  }
+  return Math.min(attempt, PROVIDER_MAX_DELIVERY_ATTEMPTS);
+}
+
+/**
  * Full-jitter queue delay for a provider retry.
  *
  * `attempt=1` samples [1,15], attempt 2 [1,30], and so on. The injected random
@@ -114,11 +127,17 @@ export function describeAiFailure(error: unknown): AiFailureDetail {
   const status =
     numberField(record, ['status', 'statusCode', 'httpStatus']) ??
     numberField(cause, ['status', 'statusCode', 'httpStatus']) ??
-    labelledNumber(rawMessage, /\b(?:http(?:\s+status)?|status)\s*[:=]?\s*(\d{3})\b/i);
+    labelledNumber(
+      rawMessage,
+      /\b(?:http(?:\/\d(?:\.\d)?)?(?:\s+status)?|status)\s*[:=]?\s*(\d{3})\b/i,
+    );
   const code =
     numberField(record, ['code', 'errorCode', 'internalCode']) ??
     numberField(cause, ['code', 'errorCode', 'internalCode']) ??
-    labelledNumber(rawMessage, /\b(?:internal\s+)?code\s*[:=]?\s*(\d{3,5})\b/i);
+    labelledNumber(
+      rawMessage,
+      /\b(?:(?:workers?\s+ai\s+)?(?:internal\s+)?(?:error\s+)?code|workers?\s+ai\s+error)\s*[:=#-]?\s*(\d{3,5})\b/i,
+    );
   const retryAfterSeconds =
     numberField(record, ['retryAfterSeconds', 'retry_after', 'retryAfter']) ??
     numberField(cause, ['retryAfterSeconds', 'retry_after', 'retryAfter']);

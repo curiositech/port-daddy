@@ -83,6 +83,7 @@ import {
   describeAiFailure,
   FleetAiCircuit,
   FleetAiDependencyError,
+  normalizeProviderQueueAttempt,
   PROVIDER_MAX_DELIVERY_ATTEMPTS,
 } from './ai-resilience.js';
 import {
@@ -986,9 +987,7 @@ export async function executeFleet(
   const transcript = new Transcript(env.DB, runId, (failure) =>
     emitTranscriptWriteFailureTelemetry(env, job, failure)
   );
-  const queueAttempt = Number.isInteger(options.queueAttempt) && (options.queueAttempt ?? 0) > 0
-    ? options.queueAttempt as number
-    : PROVIDER_MAX_DELIVERY_ATTEMPTS;
+  const queueAttempt = normalizeProviderQueueAttempt(options.queueAttempt);
   const aiCircuit = new FleetAiCircuit();
 
   // --- KILL SWITCH ---------------------------------------------------------
@@ -1570,7 +1569,8 @@ export async function executeFleet(
         'provider-circuit-open',
         ship.name,
         `Workers AI circuit OPEN after delivery attempt ${queueAttempt}/${PROVIDER_MAX_DELIVERY_ATTEMPTS}; ` +
-          `${skippedShips.length} remaining ship(s) skipped`,
+          `${skippedShips.length} remaining ship(s) skipped; fleet-wide dependency fault: ` +
+          `${result.brokenAdjudicated?.reason ?? 'provider retry budget exhausted'}`,
         {
           attempt: queueAttempt,
           maxAttempts: PROVIDER_MAX_DELIVERY_ATTEMPTS,
@@ -1578,6 +1578,7 @@ export async function executeFleet(
           status: failure?.status ?? null,
           code: failure?.code ?? null,
           retryable: failure?.retryable ?? false,
+          brokenAdjudicated: result.brokenAdjudicated ?? null,
         },
       );
       break;
