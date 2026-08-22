@@ -132,6 +132,10 @@
     "oom-protection.test.ts": {
       "runner": "quarantined",
       "reason": "vitest + apps/fleet-executor/src; belongs in apps/fleet-executor"
+    },
+    "dangling-symlink-test.js": {
+      "runner": "quarantined",
+      "reason": "broken by construction: destructures test/assert/mkdirSync/symlinkSync out of fs/promises (none are exports), calls an inlineInputs that is never imported, and uses fs.writeFile with no fs in scope; the working rewrite of this contract runs in scripts/generate-mega-whitepaper.test.mjs ('a dangling symlink is reported as a missing import, not as an escape')"
     }
   }
 }
