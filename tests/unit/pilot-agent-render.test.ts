@@ -319,4 +319,61 @@ describe('sessionstart-pilot.mjs hook script', () => {
     mkdirSync(join(dir, '.portdaddy'), { recursive: true });
     expect(run({ cwd: dir }, { PD_PILOT_DISABLE: '1' })).toBe('');
   });
+
+  // ── SITREP duty at session birth (operator doctrine 2026-08-22) ──
+  // SessionStart teaches the same per-repo sitrep.endOfTurn dial the per-turn
+  // pd-hook-prompt tentacle enforces: default enforce, opt-out per repo.
+
+  test('teaches the end-of-turn SITREP duty by default (dial enforce)', () => {
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    const out = JSON.parse(run({ cwd: dir }));
+    const ctx = out.hookSpecificOutput.additionalContext as string;
+    expect(ctx).toContain('Port Daddy Pilot'); // base steering still present
+    expect(ctx).toContain('SITREP (end-of-turn, per-repo dial)');
+    expect(ctx).toContain('pd sitrep --template');
+    expect(ctx).toContain('pd roadmap upsert');
+  });
+
+  test('omits the SITREP duty when the repo dials endOfTurn off', () => {
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    writeFileSync(
+      join(dir, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'off' } }),
+    );
+    const out = JSON.parse(run({ cwd: dir }));
+    const ctx = out.hookSpecificOutput.additionalContext as string;
+    expect(ctx).toContain('Port Daddy Pilot');
+    expect(ctx).not.toContain('SITREP (end-of-turn');
+  });
+
+  test('PD_SITREP env override wins over the repo dial at session start', () => {
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    writeFileSync(
+      join(dir, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'enforce' } }),
+    );
+    const silenced = JSON.parse(run({ cwd: dir }, { PD_SITREP: 'off' }));
+    expect(silenced.hookSpecificOutput.additionalContext).not.toContain('SITREP (end-of-turn');
+
+    writeFileSync(
+      join(dir, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'off' } }),
+    );
+    const compelled = JSON.parse(run({ cwd: dir }, { PD_SITREP: 'suggest' }));
+    expect(compelled.hookSpecificOutput.additionalContext).toContain('SITREP (end-of-turn');
+  });
+
+  test('.portdaddy/sitrep.json governs the SessionStart duty like the prompt tentacle', () => {
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    writeFileSync(
+      join(dir, '.portdaddy', 'sitrep.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'off' } }),
+    );
+    const out = JSON.parse(run({ cwd: dir }));
+    expect(out.hookSpecificOutput.additionalContext).not.toContain('SITREP (end-of-turn');
+  });
 });
