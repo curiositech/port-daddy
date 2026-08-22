@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Planning documents can be chomped into first-class roadmap items.** `pd roadmap chomp <doc.md…>` parses any markdown planning doc — headings become a project→epic→story→task hierarchy, checklists become tasks, explicit "depends on / blocked by / requires" phrasing becomes dependencies, and the filename becomes a provenance tag. The default run is a preview; `--emit-pr-plan <dir>` performs the idempotent write through the daemon and emits the doc-removal PR artifacts (regenerated roadmap snapshot, a machine-readable work receipt, a git-rm list, and a ready PR body), so roadmap changes land through a reviewed PR instead of a silent write. Derived rows carry `source_refs_json` pointing at the source doc and commit, re-runs never clobber rows enriched after the first chomp, and the legacy three-pile `pd roadmap import-markdown` now runs through the same single ingestion path. Optional `--enrich` polishes long-section summaries through the daemon's existing LLM backend resolution and degrades honestly to deterministic extraction when no backend is configured.
+
 ### Fixed
 - **Release supervision and promotion now enforce the supported single-supervisor boundary end to end.** `pd doctor` keeps optional legacy Bosun state visible without treating its deliberate v3.28+ absence as a critical defect, while redirected doctor targets no longer borrow canonical launchd or registry evidence. Release CI omits the retired watchdog build, attests both sealed platform archives, and waits for the Homebrew tap's credential-independent, evidence-verified self-promotion instead of relying on a fragile cross-repository write token.
 

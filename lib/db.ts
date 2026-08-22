@@ -452,6 +452,11 @@ export const CORE_SCHEMA_SQL = `
     started_at INTEGER,
     due_at INTEGER,
     estimate INTEGER,
+    -- Provenance of derived items (JSON array). Populated by ingestion paths
+    -- (e.g. pd roadmap chomp) with the source documents + commit SHA a row
+    -- was derived from, so an item outlives the planning doc it came from.
+    -- Named to converge with the roadmap-item enrichment fields program.
+    source_refs_json TEXT,
     -- Soft-delete tombstone. The registry is a multi-replica system reconciled
     -- by union-merge (scripts/registry-reunify.ts); a hard DELETE in one
     -- replica silently resurrects from any replica still carrying the row.
@@ -786,6 +791,12 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
     }
     db.prepare('CREATE INDEX IF NOT EXISTS idx_roadmap_items_kind_priority ON roadmap_items(kind, priority)').run();
     db.prepare('CREATE INDEX IF NOT EXISTS idx_roadmap_items_assignee ON roadmap_items(assignee_id)').run();
+    // source_refs_json landed after the seven planner columns, so it needs its
+    // own sentinel: a DB migrated by an older daemon has `kind` but not this.
+    const hasSourceRefs = roadmapColumns.some(column => column.name === 'source_refs_json');
+    if (!hasSourceRefs) {
+      db.prepare('ALTER TABLE roadmap_items ADD COLUMN source_refs_json TEXT').run();
+    }
   } catch (err) {
     console.warn(
       `[port-daddy] WARNING: Could not migrate roadmap_items planner columns: ${(err as Error).message}`

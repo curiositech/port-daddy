@@ -141,6 +141,7 @@ pd ideas list
 pd roadmap
 pd roadmap pop [--kind <k>] [--slug <s>] [--as <id>] [--begin]
 pd roadmap release <slug>
+pd roadmap chomp <doc.md...> [--emit-pr-plan <dir>] [--dry-run] [--status <s>] [--enrich]
 pd feedback <command>
 pd pheromone <command>
 pd demo <name>
