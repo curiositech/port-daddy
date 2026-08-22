@@ -132,6 +132,26 @@
     "oom-protection.test.ts": {
       "runner": "quarantined",
       "reason": "vitest + apps/fleet-executor/src; belongs in apps/fleet-executor"
+    },
+    "namespace-collision-test.js": {
+      "runner": "quarantined",
+      "reason": "spawns pdflatex against the #6366 collected-volume preamble -- the unit-tests runners install no TeX (only the whitepaper-build job does), so like undefined-references.test.js it can only pass in that job; as written it also uses __dirname under the ESM jest purser project, which cannot load"
+    },
+    "missing-citation-test.js": {
+      "runner": "quarantined",
+      "reason": "pdflatex-dependent probe of undefined-citation failure in the #6366 preamble; TeX exists only in the whitepaper-build job, never on the unit-tests runners, and the file's __dirname breaks under the ESM jest purser project anyway"
+    },
+    "chapter-numbering-test.js": {
+      "runner": "quarantined",
+      "reason": "compiles a fixture with pdflatex to check chapter-local numbering -- impossible on the TeX-less unit-tests runners (whitepaper-build is the only job with a TeX toolchain), and __dirname in ESM keeps it from even loading under the jest purser project"
+    },
+    "environment-styling-test.js": {
+      "runner": "quarantined",
+      "reason": "pdflatex compilation probe of the #6366 environments (lsexercises/stpprotocol/...) -- runnable only inside the whitepaper-build job's TeX toolchain, not the purser runners; also relies on __dirname under ESM jest"
+    },
+    "two-pass-compilation-test.js": {
+      "runner": "quarantined",
+      "reason": "runs two real pdflatex passes over a fixture volume -- the unit-tests runners have no TeX (only whitepaper-build does), so this can never pass where the purser runners execute; __dirname under ESM jest is a second, independent blocker"
     }
   }
 }
