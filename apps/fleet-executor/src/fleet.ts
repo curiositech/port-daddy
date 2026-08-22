@@ -192,7 +192,9 @@ const MID_CF_MODEL = '@cf/openai/gpt-oss-20b';
 //   3. it has a MODEL_CONTEXT_TOKENS entry so chunk budgets stay derived.
 //
 // map-reduce-invariants.test.ts enforces 2–3; the roster reference records 1.
-const KNOWN_GOOD_CF_MODELS: ReadonlySet<string> = new Set([
+// Exported so the admission contract is a TESTED invariant, not roster prose:
+// spend.test.ts asserts every member is priced and has a known context window.
+export const KNOWN_GOOD_CF_MODELS: ReadonlySet<string> = new Set([
   '@cf/qwen/qwen3-30b-a3b-fp8',
   '@cf/openai/gpt-oss-20b',
   '@cf/openai/gpt-oss-120b',
