@@ -282,11 +282,12 @@ describe('pull_request action routing', () => {
       perShip: { 'code-reviewer': 'should not run\n\nFLEET-VERDICT: PASS' },
     });
 
-    await executeFleet(
+    const disposition = await executeFleet(
       makeJob({ action: 'synchronize' }),
       makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }),
     );
 
+    expect(disposition).toEqual({ kind: 'stale-head' });
     expect(state.checkRunsCreated).toBe(0);
     expect(state.completed).toHaveLength(0);
     expect(ai.calls).toHaveLength(0);
@@ -696,10 +697,11 @@ describe('idempotent re-run — a redelivery must not re-spend', () => {
 
     // Re-deliver the SAME job. The check for this head SHA is now completed.
     const second = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
-    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: second.ai }));
+    const disposition = await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: second.ai }));
 
     // The assertion that is about money.
     expect(second.calls.length).toBe(0);
+    expect(disposition).toEqual({ kind: 'already-decided', conclusion: 'success' });
     expect(state.checkRunsCreated).toBe(1);
     expect(state.completed.length).toBe(1); // completed once, not re-completed
   });

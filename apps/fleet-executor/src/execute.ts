@@ -918,7 +918,25 @@ async function reportMergeGroupPassThrough(job: FleetRunJob, env: ExecutorEnv): 
   }
 }
 
-export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+export type FleetExecutionDisposition =
+  | { kind: 'stale-head' }
+  | { kind: 'already-decided'; conclusion: 'success' | 'failure' }
+  | { kind: 'no-cloud-ships' };
+
+/**
+ * Execute one verified Fleet delivery against the current pull-request head.
+ * The design returns an explicit disposition only when the immutable webhook
+ * head is stale, allowing the queue wrapper to close admission truth without
+ * misrepresenting that acknowledgement as a model-backed verdict.
+ *
+ * @param job - Queue delivery normalized by the signed webhook ingress.
+ * @param env - Executor bindings for GitHub, D1, KV, Queues, and Workers AI.
+ * @returns A stale-head acknowledgement marker, or void for ordinary paths.
+ */
+export async function executeFleet(
+  job: FleetRunJob,
+  env: ExecutorEnv,
+): Promise<FleetExecutionDisposition | void> {
   if (!env.AI) return;
 
   // MERGE QUEUE: handled before every guard below, all of which assume a PR.
@@ -1103,7 +1121,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     console.log(
       `[fleet-executor] delivery=${deliveryId} stale head ${eventHead.slice(0, 12)}; current=${prCtx.headSha.slice(0, 12)}; skipping`,
     );
-    return;
+    return { kind: 'stale-head' };
   }
 
   // --- Resolve ships -------------------------------------------------------
@@ -1150,7 +1168,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
 
   // Cloud-executable ships only (execution ships dispatch to GHA elsewhere).
   const cloudShips = ships.filter(s => !s.needsExecution);
-  if (cloudShips.length === 0) return;
+  if (cloudShips.length === 0) return { kind: 'no-cloud-ships' };
 
   // --- Check run (idempotent: reuse one for this head SHA) -----------------
   //
@@ -1207,7 +1225,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         `(${existing.conclusion}) — skipping ${cloudShips.length} ship(s). ` +
         `A redelivery cannot reopen a finished check, so running them would spend and change nothing.`,
     );
-    return;
+    return {
+      kind: 'already-decided',
+      conclusion: existing.conclusion as 'success' | 'failure',
+    };
   }
   if (deadLettered) {
     console.log(

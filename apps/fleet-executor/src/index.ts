@@ -30,6 +30,12 @@ import { executeFleet } from './execute.js';
 import { handleDlqJob } from './dlq.js';
 import { recordDeliveryAttemptStart, recordDeliveryFailure } from './delivery-failure.js';
 import { flushSquidEvents } from './squid-events.js';
+import {
+  beginFleetIntentAttempt,
+  finishFleetIntentFromRun,
+  markFleetIntentRetrying,
+  markFleetIntentTerminal,
+} from './run-intent.js';
 
 export type { ExecutorEnv, FleetRunJob } from './env.js';
 export { executeFleet } from './execute.js';
@@ -56,16 +62,49 @@ export default {
     }
 
     for (const message of batch.messages) {
+      const attempt = (message as unknown as { attempts?: number }).attempts ?? 0;
       try {
+        const intentDecision = await beginFleetIntentAttempt(env, message.body, attempt);
+        if (intentDecision === 'skip') {
+          // A newer PR generation owns the required check.  The queue cannot
+          // delete this stale message, so acknowledge it here before GitHub or
+          // model work.  The superseded intent remains visible to operators.
+          message.ack();
+          continue;
+        }
         // Attempt-start marker BEFORE any work: the one write that survives an
         // uncatchable platform kill (memory/CPU), so a dead-letter with starts
         // but no failures is positive evidence of that class — issue #7743.
         await recordDeliveryAttemptStart(
           env,
           message.body,
-          (message as unknown as { attempts?: number }).attempts ?? 0,
+          attempt,
         );
-        await executeFleet(message.body, env);
+        const disposition = await executeFleet(message.body, env);
+        if (disposition?.kind === 'stale-head') {
+          await markFleetIntentTerminal(
+            env,
+            message.body.deliveryId,
+            'cancelled',
+            'payload head is no longer current; acknowledged without model spend',
+          );
+        } else if (disposition?.kind === 'already-decided') {
+          await markFleetIntentTerminal(
+            env,
+            message.body.deliveryId,
+            disposition.conclusion,
+            'required check already held a model-backed verdict; acknowledged without duplicate spend',
+          );
+        } else if (disposition?.kind === 'no-cloud-ships') {
+          await markFleetIntentTerminal(
+            env,
+            message.body.deliveryId,
+            'cancelled',
+            'trusted Fleet configuration contains no Cloud-executable review ships',
+          );
+        } else {
+          await finishFleetIntentFromRun(env, message.body);
+        }
         // Squid delivery never blocks the Fleet verdict, but Workers may
         // terminate floating promises after the queue handler returns. Extend
         // the event lifetime so the run-concluded event and reconciliation
@@ -97,9 +136,10 @@ export default {
         await recordDeliveryFailure(
           env,
           message.body,
-          (message as unknown as { attempts?: number }).attempts ?? 0,
+          attempt,
           err,
         );
+        await markFleetIntentRetrying(env, message.body, attempt, err);
         message.retry();
       }
     }

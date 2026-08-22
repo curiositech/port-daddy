@@ -39,6 +39,12 @@ import {
   ChainError,
 } from './db.js';
 import { harborChannelKey } from './harbor-channel.js';
+import {
+  markFleetRunIntentEnqueued,
+  markFleetRunIntentEnqueueFailed,
+  reserveFleetRunIntent,
+  type FleetIntentReservation,
+} from './fleet-run-intents.js';
 import type { Env, RelayEvent, ChainHead, RelayError, FleetRunJob } from './types.js';
 
 function err(code: string, detail: string, status = 400): Response {
@@ -257,13 +263,57 @@ async function maybeEnqueueFleetRun(
     payload.pull_request && typeof payload.pull_request === 'object'
       ? (payload.pull_request as Record<string, unknown>)
       : null;
+  const pullHead =
+    pull?.head && typeof pull.head === 'object'
+      ? (pull.head as Record<string, unknown>)
+      : null;
+  const prNumber = pull && typeof pull.number === 'number' ? pull.number : null;
+  const headSha = pullHead && typeof pullHead.sha === 'string' ? pullHead.sha : null;
+  const now = Math.floor(Date.now() / 1000);
+  let reservation: FleetIntentReservation | null = null;
+
+  // merge_group is a separate, short deterministic gate queue.  The durable
+  // PR-generation ledger is only for pull_request review work where a newer
+  // head can supersede an older queued generation.
+  if (eventType === 'pull_request' && deliveryId && repoFullName && prNumber && headSha) {
+    try {
+      reservation = await reserveFleetRunIntent(env.DB, {
+        deliveryId,
+        repoFullName,
+        prNumber,
+        prUrl: `https://github.com/${repoFullName}/pull/${prNumber}`,
+        headSha,
+        eventType,
+        action,
+        now,
+      });
+      if (!reservation.shouldEnqueue) {
+        await appendAudit(env.DB, {
+          action: 'fleet_run_enqueue_duplicate',
+          target: repoFullName,
+          detail: `event=${eventType} delivery=${deliveryId} state=${reservation.state}`,
+        });
+        return;
+      }
+    } catch (intentError) {
+      // Rollback compatibility: a new relay can briefly run before the additive
+      // migration is applied.  Preserve the legacy queue path and make the
+      // missing admission receipt visible in audit instead of dropping a gate.
+      reservation = null;
+      await appendAudit(env.DB, {
+        action: 'fleet_run_intent_failed',
+        target: repoFullName,
+        detail: `delivery=${deliveryId} error=${String(intentError).slice(0, 300)}`,
+      }).catch(() => {});
+    }
+  }
   const job: FleetRunJob = {
     deliveryId,
     eventType,
     action,
     repoFullName,
     installationId: installation && typeof installation.id === 'number' ? installation.id : null,
-    prNumber: pull && typeof pull.number === 'number' ? pull.number : null,
+    prNumber,
     payloadMinimal: {
       sender: (payload.sender as Record<string, unknown>) ?? undefined,
       repository: (payload.repository as Record<string, unknown>) ?? undefined,
@@ -278,12 +328,15 @@ async function maybeEnqueueFleetRun(
   };
   try {
     await queue.send(job);
-    await appendAudit(env.DB, {
-      action: 'fleet_run_enqueued',
-      target: repoFullName ?? '',
-      detail: `event=${eventType} delivery=${deliveryId} queue=${queueName}`,
-    });
-  } catch {
+  } catch (queueError) {
+    if (reservation) {
+      await markFleetRunIntentEnqueueFailed(
+        env.DB,
+        deliveryId,
+        String(queueError),
+        Math.floor(Date.now() / 1000),
+      ).catch(() => {});
+    }
     // Best-effort: record and move on. The webhook still succeeds (204);
     // a missed enqueue means the executor simply doesn't run for this
     // delivery — the required check stays absent (PR blocked), never green.
@@ -292,6 +345,33 @@ async function maybeEnqueueFleetRun(
       target: repoFullName ?? '',
       detail: `event=${eventType} delivery=${deliveryId} queue=${queueName}`,
     }).catch(() => {});
+    return;
+  }
+
+  if (reservation) {
+    // queue.send and D1 cannot share a transaction.  Supersede older work only
+    // AFTER the new message exists; if this projection write fails, both jobs
+    // may run but the required check is never silently lost.
+    await markFleetRunIntentEnqueued(env.DB, deliveryId, Math.floor(Date.now() / 1000)).catch(
+      async (intentError) => {
+        await appendAudit(env.DB, {
+          action: 'fleet_run_intent_failed',
+          target: repoFullName ?? '',
+          detail: `delivery=${deliveryId} phase=enqueued error=${String(intentError).slice(0, 300)}`,
+        }).catch(() => {});
+      },
+    );
+  }
+
+  try {
+    await appendAudit(env.DB, {
+      action: 'fleet_run_enqueued',
+      target: repoFullName ?? '',
+      detail: `event=${eventType} delivery=${deliveryId} queue=${queueName}`,
+    });
+  } catch {
+    // The queue already owns the message.  An audit write must never turn a
+    // successful admission into a webhook failure/retry and duplicate spend.
   }
 }
 
