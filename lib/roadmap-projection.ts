@@ -64,6 +64,19 @@ export const ROADMAP_PROJECTION_VERSION = 1 as const;
 /** A live claim is only trustworthy while its stream evidence is this fresh. */
 export const ROADMAP_LIVE_EVIDENCE_MAX_AGE_MS = AGENT_RUN_LIVE_EVIDENCE_MAX_AGE_MS;
 
+/**
+ * How far ahead of the reader's clock an evidence timestamp may sit before the
+ * projection stops believing it.
+ *
+ * Distributed clocks disagree by seconds routinely — a daemon a second ahead is
+ * not lying — so a small forward window stays live. Beyond it, the row is not
+ * evidence of anything that has happened, and treating it as fresh is exactly
+ * the fake freshness law 13 forbids: `Math.max(0, now - at)` clamped negative
+ * ages to 0, so ONE future-dated row rendered "live — events arriving"
+ * permanently, immune to the freshness window entirely.
+ */
+export const ROADMAP_LIVE_EVIDENCE_MAX_SKEW_MS = 30_000;
+
 /** Dispatch states that mean "the work already ended" — never live. */
 const TERMINAL_DISPATCH_STATES = new Set([
   'accepted',
@@ -324,6 +337,23 @@ function computeLiveEvidence(input: {
       ageMs: null,
       maxAgeMs,
       label: 'stale — dispatch trail without stream evidence',
+    };
+  }
+
+  // Future-dated evidence is refused BEFORE the freshness comparison: the
+  // clamp below would otherwise turn a negative age into 0 and make it look
+  // maximally fresh. Fails closed — an unbelievable timestamp yields
+  // not-live, never live.
+  const skewMs = lastEvidenceAt - input.now;
+  if (skewMs > ROADMAP_LIVE_EVIDENCE_MAX_SKEW_MS) {
+    return {
+      live: false,
+      source: 'popper-dispatch',
+      dispatchId: input.dispatchId,
+      lastEvidenceAt,
+      ageMs: 0,
+      maxAgeMs,
+      label: `unverifiable — evidence dated ${Math.round(skewMs / 1000)}s in the future`,
     };
   }
 

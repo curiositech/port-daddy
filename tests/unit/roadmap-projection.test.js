@@ -241,6 +241,52 @@ describe('roadmap-projection', () => {
     expect(stale.liveEvidence.label).toBe('showing cached truth — last evidence 3600s');
   });
 
+  test('law 13: evidence dated in the FUTURE can never render live', () => {
+    // The bypass this pins: ageMs was Math.max(0, now - lastEvidenceAt), so a
+    // future-dated row clamped to age 0, satisfied `ageMs <= maxAge`, and
+    // rendered "live — events arriving" FOREVER. Clock skew on another device,
+    // a corrupt row, or a bad write would each produce a permanently-LIVE item
+    // backed by evidence that has not happened yet — precisely the fake
+    // freshness law 13 exists to forbid.
+    seedItem(db, {
+      id: 'i-future', slug: 'popper-future', summary: 'Evidence from tomorrow',
+      status: 'backlog', touched: NOW - 1_000, dispatchId: 'd-future',
+    });
+    db.prepare(`INSERT INTO dispatches (id, slug, goal, state, requested_by, created_at, started_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .run('d-future', 'popper-future', 'Evidence from tomorrow', 'in_progress',
+        'roadmap-popper', NOW + 86_400_000, NOW + 86_400_000);
+
+    const p = buildRoadmapProjection(db, '/nonexistent/port-daddy', {
+      harbor: 'port-daddy', now: clock,
+    });
+    const future = p.items.find((i) => i.slug === 'popper-future');
+    expect(future.liveEvidence.live).toBe(false);
+    expect(future.liveEvidence.label).toMatch(/future/i);
+  });
+
+  test('law 13: small forward clock skew is tolerated rather than treated as corruption', () => {
+    // Distributed clocks disagree by seconds all the time; a daemon a second
+    // ahead of the reader is not lying about its evidence. Only skew beyond
+    // the tolerance is refused, so this stays a corruption guard and does not
+    // become a flaky-clock guard.
+    seedItem(db, {
+      id: 'i-skew', slug: 'popper-skew', summary: 'A second ahead',
+      status: 'backlog', touched: NOW - 1_000, dispatchId: 'd-skew',
+    });
+    db.prepare(`INSERT INTO dispatches (id, slug, goal, state, requested_by, created_at, started_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .run('d-skew', 'popper-skew', 'A second ahead', 'in_progress',
+        'roadmap-popper', NOW - 10_000, NOW + 1_000);
+
+    const p = buildRoadmapProjection(db, '/nonexistent/port-daddy', {
+      harbor: 'port-daddy', now: clock,
+    });
+    const skew = p.items.find((i) => i.slug === 'popper-skew');
+    expect(skew.liveEvidence.live).toBe(true);
+    expect(skew.liveEvidence.ageMs).toBe(0);
+  });
+
   test('law 13: a settled dispatch and a ghost dispatch id both stay non-live', () => {
     seedItem(db, {
       id: 'i-done', slug: 'popper-done', summary: 'Already settled',
