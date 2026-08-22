@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
@@ -38,6 +38,106 @@ test('missing TeX imports fail with source context', () => {
     () => inlineInputs('\\input{not-present}', fixtureDir, []),
     /cannot inline not-present from .*mega-generator-missing-import-test/,
   );
+});
+
+test('TeX imports that escape the containment root fail closed', () => {
+  const root = resolve('.cache/mega-generator-containment-test');
+  const chapterDir = resolve(root, 'chapters');
+  const outsideDir = resolve('.cache/mega-generator-containment-outside');
+  mkdirSync(chapterDir, { recursive: true });
+  mkdirSync(outsideDir, { recursive: true });
+  // A real, readable file: the import must be refused for being outside the
+  // root, not merely because it happens to be missing.
+  writeFileSync(resolve(outsideDir, 'secret.tex'), 'leaked\n', 'utf8');
+  try {
+    assert.throws(
+      () =>
+        inlineInputs(
+          '\\input{../../mega-generator-containment-outside/secret}',
+          chapterDir,
+          [],
+          root,
+        ),
+      /refusing to inline .* escapes /,
+    );
+    // The same file, reachable from inside the root, still inlines.
+    writeFileSync(resolve(chapterDir, 'figure.tex'), 'kept\n', 'utf8');
+    assert.match(inlineInputs('\\input{figure}', chapterDir, [], root), /kept/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
+test('a symlink inside the root cannot smuggle a file from outside it', () => {
+  const root = resolve('.cache/mega-generator-symlink-test');
+  const outsideDir = resolve('.cache/mega-generator-symlink-outside');
+  // Setup lives INSIDE the try so `finally` still cleans up if any of it
+  // throws — symlinkSync is the most likely to (EEXIST after a crashed run,
+  // EPERM on a platform without symlink rights), and leaving fixtures behind
+  // would make the next run fail for a different reason than the real one.
+  try {
+    mkdirSync(root, { recursive: true });
+    mkdirSync(outsideDir, { recursive: true });
+    writeFileSync(resolve(outsideDir, 'secret.tex'), 'TOP SECRET PAYLOAD\n', 'utf8');
+    // The link LIVES inside the root, so the lexical check sees no `..` and
+    // passes it. Only resolving the real path catches the escape.
+    symlinkSync(resolve(outsideDir, 'secret.tex'), resolve(root, 'innocent.tex'));
+
+    assert.throws(
+      () => inlineInputs('\\input{innocent}', root, [], root),
+      /refusing to inline innocent .* escapes /,
+      'a symlink pointing outside the root must be refused, not followed',
+    );
+    // And the payload must not reach the output by any path.
+    let leaked = '';
+    try {
+      leaked = inlineInputs('\\input{innocent}', root, [], root);
+    } catch {
+      /* expected */
+    }
+    assert.doesNotMatch(leaked, /TOP SECRET PAYLOAD/);
+
+    // A symlink that stays INSIDE the root is still legitimate and must work,
+    // so the guard is rejecting escapes rather than symlinks as a category.
+    writeFileSync(resolve(root, 'real-figure.tex'), 'kept\n', 'utf8');
+    symlinkSync(resolve(root, 'real-figure.tex'), resolve(root, 'aliased.tex'));
+    assert.match(inlineInputs('\\input{aliased}', root, [], root), /kept/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(outsideDir, { recursive: true, force: true });
+  }
+});
+
+test('a dangling symlink is reported as a missing import, not as an escape', () => {
+  const root = resolve('.cache/mega-generator-dangling-test');
+  const outsideDir = resolve('.cache/mega-generator-dangling-outside');
+  try {
+    mkdirSync(root, { recursive: true });
+    mkdirSync(outsideDir, { recursive: true });
+    // Points OUTSIDE the root, at a file that does not exist. realpathSync
+    // cannot resolve it, so the containment check declines to judge and the
+    // read reports it — which is the honest error here: nothing was smuggled,
+    // the import is simply missing. Pinned because flipping that `return true`
+    // to `false` would still refuse the import, but would describe it as an
+    // escape, sending the next reader hunting for an attack that never
+    // happened.
+    symlinkSync(resolve(outsideDir, 'never-created.tex'), resolve(root, 'dangling.tex'));
+
+    assert.throws(
+      () => inlineInputs('\\input{dangling}', root, [], root),
+      /cannot inline dangling from /,
+      'a dangling symlink is a missing import, and must be described as one',
+    );
+    // Specifically NOT the containment error.
+    assert.throws(
+      () => inlineInputs('\\input{dangling}', root, [], root),
+      (error) => !/refusing to inline/.test(error.message),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(outsideDir, { recursive: true, force: true });
+  }
 });
 
 test('reference ordering is locale-independent and normalized', () => {

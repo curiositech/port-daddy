@@ -21,9 +21,35 @@ import {
   defaultSkillCatalogRoots,
   collectSkillUnion,
   syncAgentSkills,
+  type SkillCatalogRoot,
   type SkillEntry,
 } from '../../lib/skill-sync.js';
+import { loadSkillCatalog, type SkillVisibility } from '../../lib/shipwright/skill-index.js';
 import * as ui from '../utils/ui.js';
+
+// ── provenance ──────────────────────────────────────────────────────────────
+//
+// Ownership/visibility live in frontmatter (owner, repos, visibility) that
+// `loadSkillCatalog` already parses defensively (absence -> private, unknown
+// values coerce down, never up). `collectSkillUnion` above is the lighter
+// symlink-farm scanner list/show otherwise use, so we build a side lookup
+// from the shared frontmatter parser and merge it in for display only —
+// this is a rendering concern, not a publish decision. Any path that
+// actually exports/publishes a skill must call `isPublishableSkill` instead.
+
+export interface SkillProvenance {
+  owner?: string;
+  repos: string[];
+  visibility: SkillVisibility;
+}
+
+function loadSkillProvenance(roots: SkillCatalogRoot[]): Map<string, SkillProvenance> {
+  const byId = new Map<string, SkillProvenance>();
+  for (const entry of loadSkillCatalog(roots.map((r) => r.path))) {
+    byId.set(entry.id, { owner: entry.owner, repos: entry.repos, visibility: entry.visibility });
+  }
+  return byId;
+}
 
 export async function handleSeamanship(args: string[], options: CLIOptions): Promise<void> {
   const subcommand = args[0] ?? 'list';
@@ -50,9 +76,14 @@ async function cmdList(options: CLIOptions): Promise<void> {
   const union = collectSkillUnion(roots);
   // collectSkillUnion returns { skills: SkillEntry[] } — iterate directly
   const entries: SkillEntry[] = union.skills;
+  const provenance = loadSkillProvenance(roots);
 
   if (isJson(options)) {
-    console.log(JSON.stringify({ skills: entries, count: entries.length }, null, 2));
+    const withProvenance = entries.map((e) => ({
+      ...e,
+      ...(provenance.get(e.id) ?? { visibility: 'private' as const, repos: [] }),
+    }));
+    console.log(JSON.stringify({ skills: withProvenance, count: withProvenance.length }, null, 2));
     return;
   }
 
@@ -63,9 +94,22 @@ async function cmdList(options: CLIOptions): Promise<void> {
 
   console.log(`\n  Skills (${entries.length} from ${roots.length} roots)\n`);
   for (const e of [...entries].sort((a, b) => a.id.localeCompare(b.id))) {
-    console.log(`  ${e.id.padEnd(40)}  ${e.sourceLabel}`);
+    const visibility = provenance.get(e.id)?.visibility ?? 'private';
+    const marker = formatVisibilityMarker(visibility);
+    console.log(`  ${e.id.padEnd(40)}  ${e.sourceLabel}${marker ? ui.dim(marker) : ''}`);
   }
   console.log();
+}
+
+/**
+ * Compact list-row marker for a non-default visibility. `'private'` is the
+ * unmarked, common-case default — it returns `''` so a clean listing (every
+ * skill still on the default tier) stays clean, per the tenancy skill's
+ * doctrine that absence of a grant should read as ordinary, not as a
+ * missing label. Only `'listed'`/`'public'` earn a visible marker.
+ */
+export function formatVisibilityMarker(visibility: SkillVisibility): string {
+  return visibility === 'private' ? '' : `  [${visibility}]`;
 }
 
 // ── search ────────────────────────────────────────────────────────────────────
@@ -117,7 +161,27 @@ async function cmdShow(args: string[], _options: CLIOptions): Promise<void> {
   if (!entry) { ui.error(`Skill not found: ${id}`); process.exit(1); }
 
   if (!existsSync(entry.skillFile)) { ui.error(`SKILL.md missing at ${entry.skillFile}`); process.exit(1); }
+
+  const line = formatOwnershipLine(loadSkillProvenance(roots).get(id));
+  if (line) console.log(ui.dim(line));
   console.log(readFileSync(entry.skillFile, 'utf8'));
+}
+
+/**
+ * One line describing ownership/scope, or null when there's nothing beyond
+ * the unmarked default (no declared owner, no repos, private) — the common
+ * case for a skill whose frontmatter never opted into anything, which
+ * should print exactly like it always did before provenance existed.
+ */
+export function formatOwnershipLine(provenance: SkillProvenance | undefined): string | null {
+  const owner = provenance?.owner;
+  const repos = provenance?.repos ?? [];
+  const visibility = provenance?.visibility ?? 'private';
+  if (!owner && repos.length === 0 && visibility === 'private') return null;
+
+  const parts = [`owner: ${owner ?? '(unattributed)'}`, `visibility: ${visibility}`];
+  if (repos.length) parts.push(`repos: ${repos.join(', ')}`);
+  return `  ${parts.join('  ·  ')}`;
 }
 
 // ── sync ──────────────────────────────────────────────────────────────────────
