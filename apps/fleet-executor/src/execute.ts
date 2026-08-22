@@ -1563,16 +1563,36 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       reviewComments.push({ path: f.path, line: f.line, body: `[${r.ship}] ${f.body}` });
     }
   }
+  // The required check is the durable verdict boundary. Local PATCH retries
+  // are bounded inside completeCheckRun; if all of them fail, propagate the
+  // failure so the queue redelivers and ultimately DLQs instead of acking a
+  // ghost in-progress check. Ship checkpoints make that retry no-spend. Keep
+  // the non-idempotent aggregate review after this boundary so a completion
+  // retry cannot post duplicate reviews.
+  const checkCompleted = await completeCheckRun(
+    owner,
+    repo,
+    checkRunId,
+    conclusion,
+    summary,
+    token,
+    detailsUrl,
+  );
+  if (!checkCompleted) {
+    throw new Error(
+      `Port Daddy Fleet check completion failed after bounded retries for ${owner}/${repo}#${prNumber} ` +
+        `(check ${checkRunId})`,
+    );
+  }
+
   if (reviewComments.length > 0 || summary.trim()) {
     // Best-effort: createReview never throws (see github.ts), so a review
-    // failure can't fail the gate or block completing the check run.
+    // failure cannot undo the already-durable required check conclusion.
     // A blocking ship with HIGH findings REJECTS the PR rather than commenting
     // beside it -- see reviewEventFor(). Anything else stays COMMENT.
     const reviewEvent = reviewEventFor(results);
     await createReview(owner, repo, prNumber, reviewEvent, reviewBody, reviewComments, prCtx.headSha, token);
   }
-
-  await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token, detailsUrl);
 
   // Cloud squid: the run is over (fire-and-forget).
   emitSquidEvent(env, 'run-concluded', {

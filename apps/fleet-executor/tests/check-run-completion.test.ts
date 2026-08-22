@@ -16,10 +16,10 @@
  *   swallowed — the job was acked as a success and the check stayed
  *   `in_progress` on GitHub forever, with no retry and no DLQ chance to fix
  *   it. completeCheckRun now retries the PATCH locally (bounded, since it's a
- *   pure idempotent write) and returns whether it ultimately succeeded,
- *   without ever throwing (a naive "just throw and let the job retry" fix
- *   would re-spend AI on every ship and re-post a duplicate review, since
- *   createReview already ran by the time completion is reached).
+ *   pure idempotent write) and returns whether it ultimately succeeded.
+ *   executeFleet must treat false as a queue-level failure after checkpointed
+ *   ships are durable and before posting the non-idempotent aggregate review,
+ *   so redelivery is no-spend/no-duplicate and DLQ completion stays reachable.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -181,13 +181,11 @@ describe('completeCheckRun (Bug B: no more silently-swallowed PATCH failures)', 
     ).resolves.toBe(false);
   });
 
-  it('a persistently-failing completion PATCH does not cascade into a job-level retry', async () => {
-    // This is the core Bug B regression: before the fix, executeFleet's bare
-    // `await completeCheckRun(...)` with no res.ok check meant a PATCH failure
-    // was invisible — the job "succeeded" either way. After the fix it must
-    // STILL not throw (re-running the whole job here would re-spend AI and
-    // post a duplicate review — see the module docstring), it must just be
-    // logged. Assert the run completes without executeFleet itself throwing.
+  it('a persistently-failing completion PATCH propagates before aggregate review', async () => {
+    // This is the executable ack boundary. Returning normally would make the
+    // queue consumer ack a ghost in-progress required check. Rejecting lets the
+    // consumer retry/DLQ, while ordering completion before createReview keeps
+    // that retry from posting a duplicate non-idempotent aggregate review.
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -207,6 +205,8 @@ describe('completeCheckRun (Bug B: no more silently-swallowed PATCH failures)', 
 
     await expect(
       executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: memoryD1().db })),
-    ).resolves.toBeUndefined();
+    ).rejects.toThrow('Port Daddy Fleet check completion failed after bounded retries');
+    expect(state.completed).toHaveLength(0);
+    expect(state.reviews).toHaveLength(0);
   });
 });

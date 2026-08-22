@@ -879,14 +879,13 @@ export async function createCheckRun(
  *
  * The completion PATCH is retried locally (bounded, with backoff) on a
  * transient failure (network blip, GitHub 5xx, rate limit) because it is a
- * pure idempotent write. This is deliberately NOT done by throwing and
- * letting the whole job retry via the queue: by the time this is called the
- * ships have already run and `createReview` may have already posted a review
- * comment (not idempotent — a job-level retry would spend AI again and post
- * a duplicate review just to redo one PATCH). Failure is logged internally
- * on every attempt and on final exhaustion — this function never throws, so
- * it can never turn a completion hiccup into an expensive job-level replay.
- * The boolean return is there for callers/tests that want to react further.
+ * pure idempotent write. Failure is logged internally on every attempt and on
+ * final exhaustion; this function returns false rather than throwing so each
+ * caller can apply its own lifecycle policy. The Fleet executor treats false
+ * as a queue-level failure after ship checkpoints are durable and before the
+ * non-idempotent aggregate review is posted. Redelivery therefore resumes
+ * without AI re-spend or duplicate reviews, while the DLQ remains able to
+ * resolve a persistently lost required check honestly.
  */
 export async function completeCheckRun(
   owner: string,

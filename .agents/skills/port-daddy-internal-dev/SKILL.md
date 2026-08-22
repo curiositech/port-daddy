@@ -598,6 +598,12 @@ re-asking them is the failure mode this section exists to kill.
    is inherited from main. Never `--admin` over a real red. Cloudflare Pages
    may be external/advisory, but prove that from branch protection before
    treating it as non-blocking.
+   A Fleet receipt that says concluded while GitHub's required check remains
+   `in_progress` is the same class of stop: inspect both sides of the delivery
+   interface. The executor must propagate an exhausted `completeCheckRun`
+   result into queue retry/DLQ before acknowledging the message. Keep ship
+   checkpoints durable and post non-idempotent aggregate reviews only after
+   the required check PATCH succeeds, so retries neither re-spend nor duplicate.
 4. **Answer every review thread.** Copilot and claude-review inline comments
    are first-class reviews: fix-and-reply, or dismiss-with-reason against
    origin/main. A PR with unanswered threads is not "ready".
