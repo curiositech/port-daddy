@@ -55,14 +55,18 @@ function sseMessage(payload) {
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('Watch Module — createWatch()', () => {
+  const testDaemonUrl = 'http://127.0.0.1:4319';
   let createWatch;
   let parseRetryAfterMs;
   let httpRequestSpy;
   let activeFakes = [];
+  let previousDaemonUrl;
 
   beforeEach(async () => {
     jest.useFakeTimers();
     activeFakes = [];
+    previousDaemonUrl = process.env.PORT_DADDY_URL;
+    process.env.PORT_DADDY_URL = testDaemonUrl;
 
     // We need to dynamically import the module fresh each time so jest.useFakeTimers applies.
     // Use an HTTP spy by patching global http module behavior.
@@ -76,6 +80,8 @@ describe('Watch Module — createWatch()', () => {
     jest.useRealTimers();
     jest.restoreAllMocks();
     activeFakes = [];
+    if (previousDaemonUrl === undefined) delete process.env.PORT_DADDY_URL;
+    else process.env.PORT_DADDY_URL = previousDaemonUrl;
   });
 
   // ─── Factory ──────────────────────────────────────────────────────────────
