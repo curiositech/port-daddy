@@ -54,6 +54,10 @@
     {
       "file": "2026-08-22-fleet-run-intents.sql",
       "appliedAt": "2026-08-22T17:39:02Z"
+    },
+    {
+      "file": "2026-08-22-repo-settings.sql",
+      "appliedAt": "2026-08-22T21:45:35Z"
     }
   ]
 }

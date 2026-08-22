@@ -15,7 +15,10 @@ describe('applied-staging.json timestamp validation', () => {
 
   const filePath = path.resolve(process.cwd(), 'apps/relay/migrations/applied-staging.json');
   const raw = fs.readFileSync(filePath, 'utf8');
-  const data = JSON.parse(raw) as Array<{ file: string; appliedAt: string }>;
+  const ledger = JSON.parse(raw) as {
+    applied: Array<{ file: string; appliedAt: string }>;
+  };
+  const data = ledger.applied;
 
   test('all new migrations have the correct appliedAt timestamp', () => {
     const entriesWithTimestamp = data.filter(e => e.appliedAt === expectedTimestamp);
