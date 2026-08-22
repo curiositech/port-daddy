@@ -315,9 +315,10 @@ impl PlannerPane {
     /// in solid fill, everything else hatched, capped so the pane's first screen
     /// stays a chart rather than a scroll. The design intent is that this is the
     /// FIRST thing an operator sees on launch (mux default workspace), so the
-    /// section leads with the makespan/critical-path summary the chart answers.
+    /// section leads with the makespan/critical-path summary the chart answers,
+    /// and the bars sit under a labeled time axis (see [`axis_rows`]) so the
+    /// chart reads in dates, not just relative geometry.
     fn gantt_blocks(&self) -> Vec<Block> {
-        const BAR_CELLS: i64 = 40;
         const MAX_ROWS: usize = 24;
         let mut blocks = Vec::new();
         match self.gantt() {
@@ -338,9 +339,10 @@ impl PlannerPane {
             Ok((rows, makespan)) => {
                 let crit_n = rows.iter().filter(|r| r.critical).count();
                 blocks.push(Block::Header(format!(
-                    "Gantt — critical path · {} task(s) · makespan {} unit(s)",
+                    "Gantt — critical path · {} task(s) · makespan {} day(s) · 1 est unit = 1 day · ticks {}d",
                     rows.len(),
-                    makespan
+                    makespan,
+                    axis_tick_step(makespan.max(1)),
                 )));
                 blocks.push(Block::Chip {
                     label: format!("{crit_n} on the critical path"),
@@ -351,6 +353,8 @@ impl PlannerPane {
                     },
                 });
                 let span = makespan.max(1);
+                let today = time::OffsetDateTime::now_utc().date();
+                blocks.extend(axis_rows(span, today));
                 for r in rows.iter().take(MAX_ROWS) {
                     let lead = (r.start * BAR_CELLS / span) as usize;
                     let fill = (((r.finish - r.start) * BAR_CELLS + span - 1) / span).max(1) as usize;
@@ -394,6 +398,104 @@ struct GanttRow {
     critical: bool,
     slack: i64,
     estimate: i64,
+}
+
+/// Width of the Gantt bar lane in character cells — shared by the bars and the
+/// time axis so tick cells land exactly where bar starts land (both use the
+/// same `value * BAR_CELLS / span` integer mapping).
+const BAR_CELLS: i64 = 40;
+
+/// Pick the tick spacing (in schedule units ≈ days) for a Gantt time axis.
+///
+/// Why adaptive: the schedule's span varies from a couple of days to a year+,
+/// and a fixed cadence either crowds the lane with labels or leaves it bare.
+/// The ladder is calendar-shaped on purpose — day, 2-day, week, fortnight,
+/// 4-week, quarter, half-year, year — so the ticks the operator sees are the
+/// time units they plan in (days → weeks → months-ish), not arbitrary decimals.
+/// The chosen step is the smallest rung that keeps the lane at ≤ 8 ticks,
+/// which leaves room for a date label per tick in a 40-cell lane.
+///
+/// @param span - Schedule makespan in units (1 unit = 1 day by convention).
+/// @returns The tick step in units, always ≥ 1.
+fn axis_tick_step(span: i64) -> i64 {
+    const LADDER: [i64; 8] = [1, 2, 7, 14, 28, 91, 182, 364];
+    for step in LADDER {
+        // Ceiling division: count INTERVALS the span actually needs — plain
+        // integer division under-counts a partial trailing interval and lets
+        // one tick too many crowd the lane.
+        if (span + step - 1) / step <= 8 {
+            return step;
+        }
+    }
+    // Beyond the ladder: whole multiples of a year until ≤ 8 ticks fit.
+    let years = span / (364 * 8) + 1;
+    years * 364
+}
+
+/// Build the two time-axis rows that sit directly above the Gantt bars: a
+/// date-label row and a tick ruler row, both in the bar column so the
+/// consecutive-`Row` alignment of every renderer (terminal pad-to-column,
+/// raster fixed thirds, GPUI) lines the ticks up with the bars beneath.
+///
+/// Why the axis exists: bars without an x-axis are only relative geometry —
+/// the operator asked for actual time units. The CPM schedule is relative
+/// (ADR-0086: no absolute-date anchor), so the axis anchors unit 0 at TODAY
+/// under the declared planning convention 1 estimate unit = 1 day; tick 0 is
+/// labeled `today` (the today-marker) and later ticks carry real `MM-DD`
+/// dates at the adaptive cadence of [`axis_tick_step`]. The convention is
+/// stated in the meta column so the axis never pretends to more precision
+/// than the schedule has.
+///
+/// @param span - Schedule makespan in units (clamped ≥ 1 by the caller).
+/// @param today - The anchor date for unit 0 (injected so tests are stable).
+/// @returns Two `Block::Row`s (labels, then ruler) to push before the bars.
+fn axis_rows(span: i64, today: time::Date) -> Vec<Block> {
+    let step = axis_tick_step(span);
+    let lane = (BAR_CELLS + 1) as usize;
+    let mut ruler: Vec<char> = vec!['-'; lane];
+    let mut labels: Vec<char> = vec![' '; lane];
+    let mut last_label_end: Option<usize> = None;
+    let mut t = 0;
+    while t <= span {
+        let cell = (t * BAR_CELLS / span.max(1)) as usize;
+        ruler[cell] = '|';
+        let text = if t == 0 {
+            "today".to_string()
+        } else {
+            let d = today + time::Duration::days(t);
+            format!("{:02}-{:02}", u8::from(d.month()), d.day())
+        };
+        // Place the label at its tick cell unless it would collide with the
+        // previous label (≥1 space gap) or run past the lane — dropped labels
+        // keep their tick mark, so geometry stays exact even when text won't fit.
+        let start = cell;
+        let end = start + text.len();
+        let collides = last_label_end.is_some_and(|prev| start <= prev);
+        if end <= lane && !collides {
+            for (i, ch) in text.chars().enumerate() {
+                labels[start + i] = ch;
+            }
+            last_label_end = Some(end); // end index +1 gap is implied by `<=`
+        }
+        t += step;
+    }
+    // Close the frame: the schedule's end always gets a tick, even when the
+    // makespan is not a multiple of the step (its date label is often what
+    // the operator wants most — "when does the plan land").
+    ruler[BAR_CELLS as usize] = '|';
+    // The meta (third) column stays EMPTY on axis rows: the raster renderer
+    // lays Row columns out in fixed thirds, and a 41-cell lane overflows its
+    // column — over an empty meta cell that overflow is harmless (bars do the
+    // same), while meta text there would collide with the axis. The unit
+    // convention lives in the Gantt header instead.
+    vec![
+        Block::Row(vec![
+            String::new(),
+            labels.into_iter().collect::<String>().trim_end().to_string(),
+            String::new(),
+        ]),
+        Block::Row(vec![String::new(), ruler.into_iter().collect(), String::new()]),
+    ]
 }
 
 impl Pane for PlannerPane {
@@ -860,6 +962,84 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn axis_tick_step_adapts_from_days_to_weeks_to_quarters() {
+        assert_eq!(axis_tick_step(1), 1);
+        assert_eq!(axis_tick_step(8), 1); // 8 daily ticks still fit
+        assert_eq!(axis_tick_step(9), 2); // …9 don't: step up to 2-day
+        assert_eq!(axis_tick_step(16), 2);
+        assert_eq!(axis_tick_step(17), 7); // weeks
+        assert_eq!(axis_tick_step(56), 7);
+        assert_eq!(axis_tick_step(57), 14); // fortnights
+        assert_eq!(axis_tick_step(200), 28); // 4-week blocks
+        assert_eq!(axis_tick_step(700), 91); // quarters
+        assert_eq!(axis_tick_step(3000), 364 * 2); // beyond the ladder: whole years
+    }
+
+    #[test]
+    fn axis_rows_anchor_today_and_align_ticks_with_bar_cells() {
+        let today = time::Date::from_calendar_date(2026, time::Month::August, 22).unwrap();
+        let rows = axis_rows(9, today);
+        assert_eq!(rows.len(), 2);
+        let (labels, ruler) = match (&rows[0], &rows[1]) {
+            (Block::Row(a), Block::Row(b)) => (a.clone(), b.clone()),
+            other => panic!("axis must be two Rows, got {other:?}"),
+        };
+        // Today-marker: unit 0 is labeled `today`, and later ticks carry real
+        // MM-DD dates at the adaptive step (span 9 → 2-day ticks).
+        assert!(labels[1].starts_with("today"), "labels: {:?}", labels[1]);
+        assert!(labels[1].contains("08-24"), "labels: {:?}", labels[1]);
+        // Meta cells stay empty on axis rows — the raster renderer's fixed
+        // column thirds would collide meta text with the overflowing lane.
+        assert_eq!(labels[2], "");
+        assert_eq!(ruler[2], "");
+        // Tick cells use the same integer mapping as bar lead cells, so a bar
+        // starting at unit 2 begins exactly under the unit-2 tick.
+        let ruler_cells: Vec<char> = ruler[1].chars().collect();
+        assert_eq!(ruler_cells.len() as i64, BAR_CELLS + 1);
+        assert_eq!(ruler_cells[0], '|'); // today
+        assert_eq!(ruler_cells[(2 * BAR_CELLS / 9) as usize], '|');
+        assert_eq!(ruler_cells[BAR_CELLS as usize], '|'); // schedule end is always framed
+    }
+
+    #[test]
+    fn axis_drops_colliding_labels_but_never_their_ticks() {
+        let today = time::Date::from_calendar_date(2026, time::Month::August, 22).unwrap();
+        // span 364 → 91-day ticks: five labels of 5 chars across 41 cells fit
+        // only where they keep a gap; every tick must still be marked.
+        let rows = axis_rows(364, today);
+        let (labels, ruler) = match (&rows[0], &rows[1]) {
+            (Block::Row(a), Block::Row(b)) => (a.clone(), b.clone()),
+            other => panic!("axis must be two Rows, got {other:?}"),
+        };
+        assert!(labels[1].len() <= (BAR_CELLS + 1) as usize);
+        let ticks = ruler[1].chars().filter(|c| *c == '|').count();
+        assert!(ticks >= 5, "expected ≥5 ticks on a year span, got {ticks}");
+    }
+
+    #[test]
+    fn gantt_blocks_lead_with_the_time_axis_above_the_bars() {
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("a", "now", &[], Some(2)),
+            item_with("b", "backlog", &["a"], Some(3)),
+        ];
+        let blocks = p.gantt_blocks();
+        // Header, chip, then the axis label row, the ruler row, then bars —
+        // one consecutive Row run so every renderer column-aligns axis + bars.
+        let rows: Vec<&Vec<String>> = blocks
+            .iter()
+            .filter_map(|b| match b {
+                Block::Row(cells) => Some(cells),
+                _ => None,
+            })
+            .collect();
+        assert!(rows.len() >= 4, "axis rows + bar rows expected");
+        assert!(rows[0][1].starts_with("today"));
+        assert!(rows[1][1].starts_with('|'));
+        assert!(rows[2][1].contains('█') || rows[3][1].contains('█'));
     }
 
     #[test]

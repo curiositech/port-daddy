@@ -32,9 +32,13 @@ PORT_DADDY_URL=http://127.0.0.1:9876 pd-console-repl --capture-planner console-p
 - [console-planner-gantt.png](./console-planner-gantt.png) — the Planner
   pane's leading Gantt section: CPM schedule from the kernel `pd-anchor`
   scheduler (ADR-0086) over the remaining roadmap items, makespan + critical
-  count in the header, solid bars for the critical chain, hatched bars with
-  slack (`sN`) for everything else, per-bar estimate (`eN`), followed by the
-  epic tree the pane always rendered.
+  count + the time-unit convention in the header, a labeled time axis
+  directly above the bars (tick 0 = `today`, real `MM-DD` dates at the
+  adaptive day/week/fortnight/quarter cadence of `axis_tick_step`, ruler
+  ticks on the same integer cell mapping the bars use), solid bars for the
+  critical chain, hatched bars with slack (`sN`) for everything else,
+  per-bar estimate (`eN`), followed by the epic tree the pane always
+  rendered.
 
 The schedule math itself (dependency chaining, critical marking, done-item
 exclusion, unsized-item default, cycle refusal, bar/label budgets) is covered

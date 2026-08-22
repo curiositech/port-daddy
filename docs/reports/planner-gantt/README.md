@@ -11,7 +11,12 @@ write path (`POST /roadmap/items`).
   bar geometry now comes from real `roadmap_items.estimate` values (a
   5-unit epic is five times the width of a 1-unit task), critical-path bars
   highlighted — a duration chart, not the old unweighted
-  topological-depth chart (`gantt-real-estimate-wiring`).
+  topological-depth chart (`gantt-real-estimate-wiring`). The chart carries
+  a labeled time axis: unit 0 anchored at render time under the declared
+  convention 1 estimate unit = 1 day, a teal `today` marker, real `MM-DD`
+  date labels at an adaptive cadence (day → 2-day → week → fortnight →
+  4-week → quarter as the span grows), and gridlines aligned to the bars'
+  percent geometry.
 - [board-tree.png](./board-tree.png) — the same board's Tree tab: status /
   priority / critical-path chips per item, estimate and slack inline.
 - [board-walkthrough.gif](./board-walkthrough.gif) /
