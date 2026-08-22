@@ -32,6 +32,7 @@ function fullFacts(overrides: Partial<SquidConformanceFacts> = {}): SquidConform
     projectRoot: '/repo',
     projectArmed: true,
     daemonAlive: true,
+    daemonReady: true,
     tentaclesStaged: true,
     statuslineStaged: true,
     statuslineVisible: true,
@@ -102,6 +103,18 @@ describe('Giant Squid conformance', () => {
     expect(result.repair).toBe('port-daddy start');
   });
 
+  test('READY stays honest while the live daemon is still behind its boot gate', () => {
+    const result = deriveSquidConformance(fullFacts({ daemonAlive: true, daemonReady: false }));
+
+    expect(result.level).toBe('READY');
+    expect(result.daemonAlive).toBe(true);
+    expect(result.daemonReady).toBe(false);
+    expect(result.capabilities.suggestibility).toBe(false);
+    expect(result.capabilities.inbox).toBe(false);
+    expect(result.missing).toContain('daemon readiness lease does not match the current PID');
+    expect(result.repair).toContain('finish its boot checks');
+  });
+
   test('PARTIAL names incomplete provider wiring and supplies one repair command', () => {
     const result = deriveSquidConformance(fullFacts({
       providers: [provider({ configured: false, wired: false, missingTentacles: ['pd-hook-pre-tool'] })],
@@ -160,6 +173,8 @@ describe('Giant Squid conformance', () => {
     writeFileSync(join(fakeHome, '.gemini', 'hooks.json'), JSON.stringify({ hooks: hookCommands }));
     writeFileSync(join(workspace, '.claude', 'commands', 'squid.md'), 'squid');
     writeFileSync(join(pdHome, 'heartbeat'), 'alive');
+    writeFileSync(join(pdHome, 'daemon.pid'), '4242');
+    writeFileSync(join(pdHome, 'daemon.ready'), '4242\n');
     for (const name of TENTACLES) {
       writeFileSync(join(pdHome, 'bin', name), 'gate');
       writeFileSync(join(pdHome, 'bin', 'squid', name), 'tentacle');
@@ -175,9 +190,21 @@ describe('Giant Squid conformance', () => {
     });
 
     expect(result.level).toBe('LIVE');
+    expect(result.daemonReady).toBe(true);
     expect(result.detectedProviders).toBe(4);
     expect(result.wiredProviders).toBe(4);
     expect(result.providers.every((entry) => entry.wired)).toBe(true);
     expect(result.capabilities.inbox).toBe(true);
+
+    writeFileSync(join(pdHome, 'daemon.ready'), '4241\n');
+    const booting = readSquidConformance(workspace, {
+      home: fakeHome,
+      pdHome,
+      now: Date.now(),
+      commandExists: () => true,
+    });
+    expect(booting.level).toBe('READY');
+    expect(booting.daemonAlive).toBe(true);
+    expect(booting.daemonReady).toBe(false);
   });
 });
