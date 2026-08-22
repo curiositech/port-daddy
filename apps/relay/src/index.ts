@@ -106,6 +106,11 @@ import {
   handleInterruptionsPage,
 } from './interruptions.js';
 import {
+  handleRegisterApnsDevice,
+  handleUnregisterApnsDevice,
+  handleListApnsDevices,
+} from './push-apns.js';
+import {
   handleGithubLogin,
   handleGithubCallback,
   handleAuthMe,
@@ -293,6 +298,18 @@ export default {
     else if (pathname.startsWith('/v1/interruptions/') && pathname.endsWith('/ack') && method === 'POST') {
       const id = decodeURIComponent(pathname.slice('/v1/interruptions/'.length, -'/ack'.length));
       response = await handleAckInterruption(request, env, id);
+    }
+
+    // ── APNs device registry — iOS interruption pages (src/push-apns.ts) ─────
+    else if (pathname === '/v1/push/apns/devices' && method === 'POST') {
+      response = await handleRegisterApnsDevice(request, env);
+    }
+    else if (pathname === '/v1/push/apns/devices' && method === 'GET') {
+      response = await handleListApnsDevices(request, env);
+    }
+    else if (pathname.startsWith('/v1/push/apns/devices/') && method === 'DELETE') {
+      const deviceId = decodeURIComponent(pathname.slice('/v1/push/apns/devices/'.length));
+      response = await handleUnregisterApnsDevice(request, env, deviceId);
     }
 
     // ── Fleet run page (HTML; check-run details_url target, ADR-0101) ────────

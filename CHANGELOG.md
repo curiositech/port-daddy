@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **APNs push for HITL interruptions (WS-D slice D5).** `apps/relay/src/push-apns.ts` — ES256 token-auth JWT signed in-Worker via WebCrypto and cached under Apple's refresh window, `sendApnsPush` with typed outcomes (delivered / token-gone / retryable / config-missing), a device-token registry migration, and registration endpoints bound to the authenticated account+device. A 410 marks the token dead; an unconfigured APNs is a silent no-op, so the relay runs identically without it. The decaying-nag schedule is preserved, not replaced — pushes follow the existing interruption cadence rather than inventing a second one.
+
 ## [3.28.2] - 2026-08-18
 
 ## [3.28.1] - 2026-08-18
