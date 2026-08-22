@@ -11,6 +11,10 @@
  * Fail CLOSED: any missing header, signature mismatch, or parse error returns a
  * 4xx and publishes NOTHING.
  *
+ * N1 (ADR-0123 §6): the transit body is a labeled relay_readable envelope —
+ * classification, reason, and a relay-key signature — never bare
+ * plaintext-as-base64 in the ciphertext slot.
+ *
  * Channel normalization follows the canonical GitHub channel spec. A single
  * delivery fans out to 3 channels (global / action-scoped / repo-scoped):
  *   - github:webhook:<event>
@@ -25,12 +29,17 @@ import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha256';
 import {
   computeEventHash,
-  base64UrlEncode,
   timingSafeEqual,
   toHex,
   hashHex,
   ZERO_HASH,
 } from './crypto.js';
+import {
+  encodeTransitEnvelope,
+  signEnvelope,
+  ENVELOPE_SCHEMA_ID,
+} from './envelope.js';
+import type { RelayReadableEnvelope } from './envelope.js';
 import {
   getLastEventSeq,
   insertEvent,
@@ -50,6 +59,12 @@ function err(code: string, detail: string, status = 400): Response {
 // SHA256("github:webhook"), hex. Lets operators identify the GitHub stream and
 // keeps the per-(sender, channel) chain stable across deliveries.
 const GITHUB_SENDER = hashHex('github:webhook');
+
+// The honest label ADR-0123 §6 (N1) requires on every relay-readable stream:
+// this event class transits unencrypted because GitHub already serves the same
+// bytes to any authorized watcher of the repo — the relay adds no exposure.
+export const GITHUB_RELAY_READABLE_REASON =
+  'github webhook relay: payload is GitHub-public data';
 
 // Only these (event, action) pairs warrant a fleet run. GitHub Apps fire a
 // flood of workflow_run / check_run / push events on every CI cycle; the
@@ -129,16 +144,48 @@ export function channelsForWebhook(
  * Internal publish path for one already-verified GitHub event on one channel.
  * Mirrors the tail of handlePublish (insertEvent → upsertChainHead → DO fanout)
  * but performs NO card auth — HMAC was the gate.
+ *
+ * The transit body is a labeled relay_readable envelope (ADR-0123 §6, N1),
+ * built per channel because seq/channel are part of the signed binding. The
+ * envelope serializes into the frame's `ciphertext` slot, so chain hashing and
+ * chain_verify.py are unchanged.
  */
 async function publishGithubEventToChannel(
   env: Env,
   channel: string,
-  ciphertext: string
+  payload: Record<string, unknown>
 ): Promise<{ ok: true; seq: number } | { ok: false; response: Response }> {
   const last = await getLastEventSeq(env.DB, GITHUB_SENDER, channel);
   const seq = (last?.seq ?? 0) + 1;
   const prevHash = last?.this_hash ?? ZERO_HASH;
   const iat = Math.floor(Date.now() / 1000);
+
+  const colon = channel.indexOf(':');
+  const unsigned: Omit<RelayReadableEnvelope, 'sig'> = {
+    schema: ENVELOPE_SCHEMA_ID,
+    v: 1,
+    classification: 'relay_readable',
+    harbor: colon >= 0 ? channel.slice(0, colon) : channel,
+    channel,
+    sender: GITHUB_SENDER,
+    seq,
+    iat,
+    payload,
+    reason: GITHUB_RELAY_READABLE_REASON,
+  };
+  // Envelope signature: the relay's existing Ed25519 key (the one that already
+  // signs ServerHello and chain heads). It attests "the relay ingested this
+  // from an HMAC-verified GitHub delivery" — relay ingest attestation, not
+  // sender authorship (GITHUB_SENDER is a fingerprint with no keypair).
+  // Per-account pd-vault key ids replace key management here when the vault
+  // lands; the alg and binding construction stay.
+  const envelope: RelayReadableEnvelope = {
+    ...unsigned,
+    sig: await signEnvelope(env.RELAY_ED25519_PRIVATE_KEY_HEX, unsigned),
+  };
+  // Egress gate (N1): encodeTransitEnvelope asserts classification, so an
+  // unlabeled body cannot leave this producer.
+  const ciphertext = encodeTransitEnvelope(envelope);
 
   const thisHash = computeEventHash({
     prev_hash: prevHash,
@@ -158,7 +205,10 @@ async function publishGithubEventToChannel(
     this_hash: thisHash,
     iat,
     ciphertext,
-    sig: '', // unsigned: GitHub HMAC was the authentication gate
+    // Frame-level sig stays empty: it is specified as the SENDER's Ed25519
+    // signature over this_hash, and GITHUB_SENDER holds no key. Authenticity
+    // travels on the envelope sig above; GitHub HMAC was the ingress gate.
+    sig: '',
   };
 
   try {
@@ -334,19 +384,16 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
 
   const channels = channelsForWebhook(eventType, action, repoFullName);
 
-  // Opaque Base64URL JSON ciphertext — the relay does not encrypt; consumers read
-  // the plaintext envelope. Identical bytes published to each channel.
-  const ciphertext = base64UrlEncode(
-    enc.encode(
-      JSON.stringify({
-        event_type: eventType,
-        delivery_id: deliveryId,
-        action,
-        repository: repoFullName,
-        payload,
-      })
-    )
-  );
+  // Structured relay-readable payload. Per-channel envelope construction (seq
+  // and channel are signed binding fields) happens in
+  // publishGithubEventToChannel, so bytes now differ per channel by design.
+  const webhookPayload: Record<string, unknown> = {
+    event_type: eventType,
+    delivery_id: deliveryId,
+    action,
+    repository: repoFullName,
+    payload,
+  };
 
   // 6. Ambient-noise gate. Only PR-family events earn a D1 write + fan-out.
   //    Every other event was still HMAC-verified above (security gate is
@@ -371,7 +418,7 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
   //    the delivery — rather than crashing into a raw runtime 500.
   try {
     for (const channel of channels) {
-      const result = await publishGithubEventToChannel(env, channel, ciphertext);
+      const result = await publishGithubEventToChannel(env, channel, webhookPayload);
       if (!result.ok) return result.response;
       await appendAudit(env.DB, {
         action: 'github_webhook_publish',

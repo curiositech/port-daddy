@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/relay/v1/envelope.schema.json",
+  "title": "RelayTransitEnvelope",
+  "description": "The v1 transit envelope for every event crossing the relay (ADR-0123 §6, the N1 invariant: sealed or labeled, no third state). A discriminated union on `classification`: `sealed` events are AEAD-encrypted under a key from the account-KMS hierarchy and the relay stores/forwards them without ever reading plaintext (I1); `relay_readable` events are streams the relay legitimately processes (GitHub webhook ingress, fleet-cloud telemetry) and MUST carry a human-readable `reason` naming why this event class is relay-readable — the honest label that replaces plaintext-as-base64 sitting in a field the trust story calls ciphertext. The envelope is the transit BODY of the ADR-0049 chain frame: it serializes as Base64URL JSON into the frame's opaque `ciphertext` slot, so per-(sender,channel) chain hashing (computeEventHash) and skills/pd-relay-zero-trust/scripts/chain_verify.py are unchanged — the chain commits the envelope bytes as an opaque string, and the frame's prev_hash/this_hash therefore live OUTSIDE this envelope (this_hash is computed over the serialized envelope and cannot appear inside it). Routing metadata (harbor, channel, sender, seq, iat) is duplicated into the envelope and covered by `sig` so a valid envelope for one channel/seq cannot be spliced into another — the same end-to-end binding posture as agent-harbor guidance-envelope (ADR-0096: proxies are untrusted plumbing). Tolerant-reader posture per ADR-0095 §6: additionalProperties true; unknown fields are preserved, never silently dropped.",
+  "type": "object",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "schema": { "const": "pd.relay.envelope.v1" },
+        "v": { "const": 1 },
+        "classification": { "const": "sealed", "description": "AEAD-sealed under the account-KMS hierarchy. The relay verifies STRUCTURE (alg/epoch/nonce/ciphertext present) but can never read the payload; an E2E channel receiving anything else is a crit invariant breach (ADR-0123 §6, ADR-0045 loud-fail)." },
+        "harbor": { "type": "string", "minLength": 1, "description": "Harbor fingerprint prefix of the channel — the routing tenant. Matches the outer frame channel's prefix before the first ':'." },
+        "channel": { "type": "string", "minLength": 1, "description": "Full channel string including the harbor prefix, identical to the outer frame's channel. Part of the signed binding: a valid envelope for channel A cannot be spliced into channel B." },
+        "sender": { "type": "string", "minLength": 1, "description": "Sender fingerprint (hex), identical to the outer frame's sender. Part of the signed binding." },
+        "seq": { "type": "integer", "minimum": 1, "description": "Per-(sender, channel) chain sequence, identical to the outer frame's seq. Part of the signed binding: a valid envelope for seq 5 cannot be replayed as seq 9." },
+        "iat": { "type": "integer", "minimum": 0, "description": "Unix timestamp, identical to the outer frame's iat. Part of the signed binding." },
+        "alg": { "enum": ["aes-256-gcm"], "description": "AEAD algorithm. Closed enum: aes-256-gcm is the only algorithm in the v1 trust story; additions are additive schema revisions, never silent." },
+        "epoch": { "type": "integer", "minimum": 0, "description": "Key epoch under the account-KMS hierarchy (ADR-0123): rotation advances the epoch without re-keying history." },
+        "nonce": { "type": "string", "minLength": 1, "description": "Base64URL AEAD nonce, unique per (key, epoch)." },
+        "ciphertext": { "type": "string", "minLength": 1, "description": "Base64URL AEAD ciphertext — genuinely sealed bytes, the only field of this variant the relay cannot interpret." },
+        "sig": {
+          "type": "object",
+          "description": "REQUIRED, non-empty. Signature over sha256 of the canonical binding 'pd.relay.envelope.v1|<classification>|<harbor>|<channel>|<sender>|<seq>|<iat>|<content_hash>' where content_hash = sha256 of the `ciphertext` string (sealed) or of the serialized `payload` (relay_readable). key_id carries the signer's key identity — for ed25519 the sender's public key (hex); for hmac-sha256 the shared-secret binding id (interim until pd-vault key ids land).",
+          "properties": {
+            "alg": { "enum": ["ed25519", "hmac-sha256"] },
+            "key_id": { "type": "string", "minLength": 1 },
+            "value": { "type": "string", "minLength": 1 }
+          },
+          "required": ["alg", "key_id", "value"]
+        }
+      },
+      "required": ["schema", "v", "classification", "harbor", "channel", "sender", "seq", "iat", "alg", "epoch", "nonce", "ciphertext", "sig"],
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "properties": {
+        "schema": { "const": "pd.relay.envelope.v1" },
+        "v": { "const": 1 },
+        "classification": { "const": "relay_readable", "description": "A stream the relay legitimately processes. The label is the honest state ADR-0123 §6 demands: never plaintext masquerading as ciphertext, always an explicit, counted, justified classification." },
+        "harbor": { "type": "string", "minLength": 1, "description": "Harbor fingerprint prefix of the channel — the routing tenant ('github' for the webhook ingress stream). Matches the outer frame channel's prefix before the first ':'." },
+        "channel": { "type": "string", "minLength": 1, "description": "Full channel string including the harbor prefix, identical to the outer frame's channel. Part of the signed binding: a valid envelope for channel A cannot be spliced into channel B." },
+        "sender": { "type": "string", "minLength": 1, "description": "Sender fingerprint (hex), identical to the outer frame's sender. Part of the signed binding." },
+        "seq": { "type": "integer", "minimum": 1, "description": "Per-(sender, channel) chain sequence, identical to the outer frame's seq. Part of the signed binding: a valid envelope for seq 5 cannot be replayed as seq 9." },
+        "iat": { "type": "integer", "minimum": 0, "description": "Unix timestamp, identical to the outer frame's iat. Part of the signed binding." },
+        "payload": { "type": "object", "description": "Structured JSON the relay may read and process. For the GitHub webhook stream: { event_type, delivery_id, action, repository, payload }." },
+        "reason": { "type": "string", "minLength": 1, "description": "REQUIRED human-readable justification for why this event class is relay-readable, e.g. 'github webhook relay: payload is GitHub-public data'. An empty or missing reason makes the envelope invalid — the label is not optional decoration, it is the audit trail." },
+        "sig": {
+          "type": "object",
+          "description": "REQUIRED, non-empty. Same binding construction as the sealed variant: sha256 of 'pd.relay.envelope.v1|<classification>|<harbor>|<channel>|<sender>|<seq>|<iat>|<content_hash>' with content_hash = sha256 of the serialized `payload`. For relay-ingested streams (GitHub webhook) the relay signs with its own ed25519 key: the signature attests 'the relay ingested this from a verified origin', not sender authorship.",
+          "properties": {
+            "alg": { "enum": ["ed25519", "hmac-sha256"] },
+            "key_id": { "type": "string", "minLength": 1 },
+            "value": { "type": "string", "minLength": 1 }
+          },
+          "required": ["alg", "key_id", "value"]
+        }
+      },
+      "required": ["schema", "v", "classification", "harbor", "channel", "sender", "seq", "iat", "payload", "reason", "sig"],
+      "additionalProperties": true
+    }
+  ]
+}

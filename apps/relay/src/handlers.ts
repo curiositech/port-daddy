@@ -44,6 +44,7 @@ import {
   ChainError,
 } from './db.js';
 import { verifyCard, extractCardSub, extractBearerToken, CardError, matchCapability } from './auth.js';
+import { tryDecodeTransitEnvelope } from './envelope.js';
 import { fetchJwks, verifyOidcToken, invalidateJwksCache, OidcError } from './oidc.js';
 import { harborChannelKey } from './harbor-channel.js';
 import type {
@@ -504,6 +505,21 @@ export async function handlePublish(
   // Verify event signature: sig over this_hash, using daemon's own key
   const sigValid = await verifyEd25519(identity.pub_key, event.this_hash, event.sig);
   if (!sigValid) return err('BAD_SIG', 'Event signature invalid', 401);
+
+  // N1 classification probe (ADR-0123 §6), detect-and-warn window: every
+  // transit body must be a sealed|relay_readable envelope. A body without the
+  // label (any pre-envelope daemon publish) is still accepted this release; the
+  // audit row sizes the blast radius before this gate flips to reject.
+  // Relay-produced events are gated harder at their producer
+  // (github-webhook.ts: assertClassified on egress).
+  if (!tryDecodeTransitEnvelope(event.ciphertext)) {
+    await appendAudit(env.DB, {
+      daemon_fingerprint: sub,
+      action: 'publish_unclassified_envelope',
+      target: channelName,
+      detail: `seq=${event.seq} transit body carries no sealed|relay_readable classification`,
+    }).catch(() => {});
+  }
 
   // Persist event
   try {

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Relay envelope schema v1 — every relay-bound event is classified (WS-A slice A1).** A `sealed | relay_readable` discriminated union (`schemas/relay/v1/envelope.schema.json`, `apps/relay/src/envelope.ts`): sealed carries ciphertext, relay_readable carries structured payload plus a REQUIRED human-readable reason for why that class may transit unencrypted. Both require a real signature. `assertClassified` is the egress boundary — unclassified input throws rather than shipping.
+
+### Fixed
+- **The GitHub webhook path stops calling plaintext "ciphertext".** It wrote base64 plaintext into the ciphertext slot with an empty signature; it now emits a labeled, signed `relay_readable` envelope stating that the payload is GitHub-public data. Honest labeling ships before sealing exists — the encryption claim stops being false at the busiest chain.
+
 ## [3.28.2] - 2026-08-18
 
 ## [3.28.1] - 2026-08-18
