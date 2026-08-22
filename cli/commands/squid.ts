@@ -25,6 +25,7 @@ import {
   uninstallStatusline,
 } from '../../lib/squid/identity.js';
 import { readSquidConformance } from '../../lib/squid/conformance.js';
+import { sanitizeRoutineSquidStatusDetails } from '../../lib/squid/status-privacy.js';
 import {
   installPilotSessionStartHook,
   stagePilotSessionStartHook,
@@ -634,7 +635,15 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   const conformance = readSquidConformance(cwd, { home });
   const debug = readSquidHookStatusSnapshot({ cwd, maxSteps: SQUID_HOOK_STATUS_MAX_STEPS });
   const health = debug.health;
-  const matrix = readMatrixSnapshot();
+  const rawMatrix = readMatrixSnapshot();
+  const details = sanitizeRoutineSquidStatusDetails({
+    workspace: cwd,
+    providers: conformance.providers,
+    repair: conformance.repair,
+    matrix: rawMatrix,
+    debugEnabled: debug.enabled,
+  });
+  const matrix = details.matrix;
   // Preserve the FleetBar lifecycle enum while publishing the richer shared
   // conformance level used by the roster and pd-console.
   const baseState = conformance.level === 'UNPROTECTED'
@@ -648,18 +657,19 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
     state,
     level: conformance.level,
     score: conformance.score,
-    workspace: cwd,
+    workspace: details.workspace,
     daemonAlive: conformance.daemonAlive,
     tentaclesStaged: conformance.tentaclesStaged,
-    providers: conformance.providers,
+    providers: details.providers,
     identity: conformance.identity,
     capabilities: conformance.capabilities,
     missing: conformance.missing,
-    repair: conformance.repair,
+    repair: details.repair,
     truth: conformance.truth,
     health,
     matrix,
     debug,
+    detailsHidden: details.detailsHidden,
     value: {
       beforeTurn: 'Inject only fresh, project-relevant coordination context.',
       beforeEdit: 'Warn or block when another agent owns the target.',
@@ -681,7 +691,8 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   printSquidValueCard(c);
   console.log('');
   console.log(`  Daemon        ${conformance.daemonAlive ? c.ok('✓ alive') : c.bad('✗ down — every hook no-ops (gate fails open)')}`);
-  console.log(`  Tentacles     ${yes(conformance.tentaclesStaged, `staged at ${tentacleBinDir()}`, 'not fully staged — pd squid on')}`);
+  const stagedLabel = debug.enabled ? `staged at ${tentacleBinDir()}` : 'staged';
+  console.log(`  Tentacles     ${yes(conformance.tentaclesStaged, stagedLabel, 'not fully staged — pd squid on')}`);
   if (health.degraded) {
     for (const circuit of health.circuits.filter((candidate) => candidate.state !== 'closed')) {
       console.log(`  Circuit       ${c.bad(`✗ ${circuit.label} ${circuit.state.toUpperCase()}`)} — ${circuit.lastReason}; retry ${circuit.retryAt ?? 'after repair'}`);
@@ -704,7 +715,7 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   }
   console.log('');
   console.log('  Interactive hook wiring (config carries the pd-hook- marker):');
-  for (const target of conformance.providers) {
+  for (const target of details.providers) {
     const mark = target.wired
       ? c.ok(`${target.expectedScope} wired`)
       : target.configured
@@ -727,9 +738,14 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   console.log(`    PARLEY ${yes(conformance.capabilities.parleyDelivery, 'turn delivery to inbox', 'daemon unavailable')}`);
   console.log(`    ${c.dim('Not claimed: automatic Parley convening, unsaved-buffer backup, or skill grafting.')}`);
   console.log('');
-  console.log(`  Ink Cloud matrix ${c.dim(`(${matrix.path})`)}:`);
+  console.log(`  Ink Cloud matrix${debug.enabled ? ` ${c.dim(`(${matrix.path})`)}` : ''}:`);
   if (!matrix.exists) {
     console.log(`    ${c.dim('no matrix yet — nothing is being injected')}`);
+  } else if (!debug.enabled) {
+    console.log(`    steering alerts   ${matrix.window.totals.alerts}`);
+    console.log(`    pheromone traces  ${matrix.window.totals.pheromones}`);
+    console.log(`    locks             ${matrix.window.totals.locks}`);
+    console.log(`    ${c.dim('retained values and paths hidden; enable Squid debug for explicit diagnostics')}`);
   } else {
     console.log(`    steering alerts   ${matrix.window.totals.alerts}${matrix.alerts.map((a) => `\n      ${c.bad('!')} ${a}`).join('')}${matrix.window.truncated.alerts ? `\n      ${c.dim(`… showing ${matrix.alerts.length} most recent`)}` : ''}`);
     console.log(`    pheromone traces  ${matrix.window.totals.pheromones}${matrix.pheromones.slice(-5).map((p) => `\n      ${c.dim(`· ${p}`)}`).join('')}${matrix.window.totals.pheromones > 5 ? `\n      ${c.dim(`… showing 5 most recent`)}` : ''}`);
@@ -745,7 +761,7 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   if (conformance.missing.length > 0) {
     console.log('  Missing for full conformance:');
     for (const item of conformance.missing) console.log(`    ${c.bad('✗')} ${item}`);
-    if (conformance.repair) console.log(`  Repair: ${conformance.repair}`);
+    if (details.repair) console.log(`  Repair: ${details.repair}`);
     console.log('');
   }
   console.log(`  ${c.dim('Next-turn injection preview: pd squid tap')}`);

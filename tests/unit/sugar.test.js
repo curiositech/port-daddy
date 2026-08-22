@@ -861,6 +861,61 @@ describe('pd done origin rule', () => {
     });
   });
 
+  test('--no-pr still refuses dirty work when skip-origin-check is requested', () => {
+    const checker = {
+      checkBranchOnOrigin: () => { throw new Error('origin gate must be skipped'); },
+      checkLedgerOnly: () => ({
+        ok: false,
+        code: 'DIRTY_WORKTREE',
+        error: 'Worktree has 1 uncommitted or untracked entry.',
+        hint: 'Preserve the work first.',
+        dirtyEntries: 1,
+      }),
+    };
+    const { sugar } = setup({ gitOriginChecker: checker });
+    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Dirty override close', agentId: 'dirty-override-agent' });
+
+    const result = sugar.done({
+      agentId: 'dirty-override-agent',
+      sessionId: begin.sessionId,
+      note: 'Result: attempted ledger close.',
+      noPr: true,
+      skipOriginCheck: true,
+      skipOriginCheckReason: 'operator accepts no upstream for ledger-only work',
+    });
+
+    expect(result).toMatchObject({
+      success: false,
+      code: 'LEDGER_ONLY_CHECK_FAILED',
+      ledgerOnlyCheckCode: 'DIRTY_WORKTREE',
+      dirtyEntries: 1,
+      originCheckCode: null,
+    });
+  });
+
+  test('--no-pr plus skip-origin-check closes only after ledger verification and records both markers', () => {
+    const checker = {
+      checkBranchOnOrigin: () => { throw new Error('origin gate must be skipped'); },
+      checkLedgerOnly: () => ({ ok: true, dirtyEntries: 0, unpublishedCommits: 0 }),
+    };
+    const { sugar, sessions } = setup({ gitOriginChecker: checker });
+    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Clean override close', agentId: 'clean-override-agent' });
+
+    const result = sugar.done({
+      agentId: 'clean-override-agent',
+      sessionId: begin.sessionId,
+      note: 'Result: verified ledger-only completion.',
+      noPr: true,
+      skipOriginCheck: true,
+      skipOriginCheckReason: 'operator accepts no upstream for ledger-only work',
+    });
+
+    expect(result.success).toBe(true);
+    const handoff = sessions.getNotes(begin.sessionId).notes.find((entry) => entry.type === 'handoff');
+    expect(handoff.content).toContain('[OPERATOR-OVERRIDE skip-origin-check]');
+    expect(handoff.content).toContain('not-applicable: ledger-only session, no repository artifact');
+  });
+
   test('refuses pd done when result note lacks a sentinel', () => {
     const checker = spyingChecker();
     const { sugar, sessions } = setup({ gitOriginChecker: checker });

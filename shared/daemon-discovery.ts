@@ -56,6 +56,11 @@ export interface DaemonPortDiscoveryOptions {
   readTextFile?: (path: string) => string;
 }
 
+export interface DaemonTargetDiscoveryOptions extends DaemonPortDiscoveryOptions {
+  /** Injectable canonical socket path for hermetic component tests. */
+  socketPath?: string;
+}
+
 /**
  * Parse an endpoint publication as one strict decimal TCP port. The design
  * rejects coercible junk so malformed state cannot redirect a client.
@@ -195,15 +200,49 @@ export function resolvePublishedDaemonUrl(
 ): string {
   const env = options.env ?? process.env;
   const selectedUrl = explicitUrl ?? env.PORT_DADDY_URL;
-  if (selectedUrl?.trim()) return selectedUrl.trim();
+  if (selectedUrl?.trim()) {
+    const value = selectedUrl.trim();
+    let url: URL;
+    try {
+      url = new URL(value);
+    } catch (cause) {
+      throw new DaemonEndpointDiscoveryError(
+        'UNSUPPORTED_DAEMON_URL',
+        'PORT_DADDY_URL must be an absolute HTTP URL',
+        { cause },
+      );
+    }
+    // The current Node clients use node:http. Accepting https here would send
+    // plaintext bytes to a TLS port, so fail closed until every transport can
+    // carry the protocol as an explicit interface field.
+    if (url.protocol !== 'http:') {
+      throw new DaemonEndpointDiscoveryError(
+        'UNSUPPORTED_DAEMON_URL',
+        `PORT_DADDY_URL must use http: with the current daemon transport, got ${url.protocol}`,
+      );
+    }
+    return value;
+  }
   const host = env.PORT_DADDY_TCP_HOST?.trim() || LOOPBACK_TCP_HOST;
   return `http://${host}:${requirePublishedDaemonPort(options).port}`;
 }
 
 /**
- * @deprecated Prefer {@link resolveDaemonUrl}. Back-compat alias.
+ * @deprecated Prefer {@link resolvePublishedDaemonUrl}. This compatibility
+ * display helper never manufactures the preferred port and returns an empty
+ * value when no endpoint is published, so eager legacy imports stay inert.
  */
-export const getDaemonTcpUrl = resolveDaemonUrl;
+export function getDaemonTcpUrl(
+  explicitUrl?: string,
+  options: DaemonPortDiscoveryOptions = {},
+): string {
+  try {
+    return resolvePublishedDaemonUrl(explicitUrl, options);
+  } catch (error) {
+    if (error instanceof DaemonEndpointDiscoveryError && error.code === 'ENDPOINT_NOT_PUBLISHED') return '';
+    throw error;
+  }
+}
 
 /**
  * Convert a proven daemon URL into Node HTTP connection coordinates. The
@@ -218,15 +257,15 @@ export function resolveDaemonTcpTarget(
   options: DaemonPortDiscoveryOptions = {},
 ): { host: string; port: number } {
   const url = new URL(resolvePublishedDaemonUrl(explicitUrl, options));
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+  if (url.protocol !== 'http:') {
     throw new DaemonEndpointDiscoveryError(
       'UNSUPPORTED_DAEMON_URL',
-      `PORT_DADDY_URL must use http: or https:, got ${url.protocol}`,
+      `PORT_DADDY_URL must use http: with the current daemon transport, got ${url.protocol}`,
     );
   }
   return {
     host: url.hostname,
-    port: url.port ? parsePort(url.port, 'PORT_DADDY_URL') : url.protocol === 'https:' ? 443 : 80,
+    port: url.port ? parsePort(url.port, 'PORT_DADDY_URL') : 80,
   };
 }
 
@@ -263,12 +302,13 @@ export type DaemonTarget = SocketTarget | TcpTarget;
 export function resolveDaemonTarget(
   env: NodeJS.ProcessEnv = process.env,
   fileExists: (path: string) => boolean = existsSync,
-  options: Omit<DaemonPortDiscoveryOptions, 'env'> = {},
+  options: Omit<DaemonTargetDiscoveryOptions, 'env'> = {},
 ): DaemonTarget {
-  const discoveryOptions: DaemonPortDiscoveryOptions = { ...options, env };
+  const { socketPath = DEFAULT_SOCK, ...portOptions } = options;
+  const discoveryOptions: DaemonPortDiscoveryOptions = { ...portOptions, env };
   if (env.PORT_DADDY_FORCE_TCP === '1') return resolveDaemonTcpTarget(env.PORT_DADDY_URL, discoveryOptions);
   if (env.PORT_DADDY_SOCK) return { socketPath: env.PORT_DADDY_SOCK };
   if (env.PORT_DADDY_URL) return resolveDaemonTcpTarget(env.PORT_DADDY_URL, discoveryOptions);
-  if (fileExists(DEFAULT_SOCK)) return { socketPath: DEFAULT_SOCK };
+  if (fileExists(socketPath)) return { socketPath };
   return resolveDaemonTcpTarget(env.PORT_DADDY_URL, discoveryOptions);
 }
