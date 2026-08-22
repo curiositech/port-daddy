@@ -40,7 +40,16 @@ export type EnvelopeSigAlg = (typeof ENVELOPE_SIG_ALGS)[number];
 
 export interface EnvelopeSig {
   alg: EnvelopeSigAlg;
-  /** ed25519: signer public key (hex). hmac-sha256: shared-secret binding id (interim until pd-vault key ids). */
+  /**
+   * ed25519: signer public key (hex). hmac-sha256: shared-secret binding id
+   * (interim until pd-vault key ids).
+   *
+   * Written by the producer, so on its own it names a key rather than proving
+   * anything about one — it is the lookup hint a verifier resolves against a
+   * roster, not the key a verifier trusts. It is covered by the signature
+   * (envelopeBindingMessage) and checked against the caller's accepted set
+   * (verifyEnvelopeSignedBy); neither makes it an authority by itself.
+   */
   key_id: string;
   /** hex signature over envelopeBindingMessage(). Non-empty — an empty sig is unclassified-grade invalid. */
   value: string;
@@ -330,7 +339,21 @@ export function canonicalJson(value: unknown): string {
   return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`;
 }
 
-export function envelopeBindingMessage(envelope: UnsignedEnvelope | RelayEnvelopeV1): string {
+/**
+ * The signing key is itself a component, in the header position JWS gives
+ * `kid`. That is what makes the signature commit to WHICH key produced it:
+ * without it, a signature is a free-floating proof over the routing tuple, and
+ * `sig.key_id` — the only identity-shaped field on the envelope — is a claim
+ * the signature does not cover.
+ *
+ * Verifiers pass the key they independently decided to accept, never the one
+ * the envelope asserts. That is the whole reason this parameter exists; see
+ * verifyEnvelopeSignedBy.
+ */
+export function envelopeBindingMessage(
+  envelope: UnsignedEnvelope | RelayEnvelopeV1,
+  keyIdHex: string
+): string {
   const contentHash =
     envelope.classification === 'sealed'
       ? hashHex(envelope.ciphertext)
@@ -339,6 +362,7 @@ export function envelopeBindingMessage(envelope: UnsignedEnvelope | RelayEnvelop
     [
       ENVELOPE_SCHEMA_ID,
       envelope.classification,
+      keyIdHex,
       envelope.harbor,
       envelope.channel,
       envelope.sender,
@@ -356,18 +380,58 @@ export async function signEnvelope(
   privKeyHex: string,
   unsigned: UnsignedEnvelope
 ): Promise<EnvelopeSig> {
-  const value = await signEd25519(privKeyHex, envelopeBindingMessage(unsigned));
-  return { alg: 'ed25519', key_id: pubKeyFromPrivKey(privKeyHex), value };
+  const keyId = pubKeyFromPrivKey(privKeyHex);
+  const value = await signEd25519(privKeyHex, envelopeBindingMessage(unsigned, keyId));
+  return { alg: 'ed25519', key_id: keyId, value };
 }
 
 /**
- * Verify an ed25519 envelope signature against sig.key_id. hmac-sha256
- * verification needs the shared secret and lives with its holder, so it
- * returns false here rather than pretending.
+ * Verify that this envelope was signed by one of `acceptedKeysHex`.
+ *
+ * The accepted keys are the caller's to resolve, and the caller must resolve
+ * them: an envelope's `sig.key_id` is written by whoever produced the envelope,
+ * so verifying against it proves only that the producer held the key they
+ * themselves nominated. Anyone can generate a keypair. Passing the envelope's
+ * own key_id back in reproduces exactly that, which is why it has to be written
+ * out at the call site instead of being this function's default.
+ *
+ * Both call sites that would want this already hold the right key: a daemon's
+ * `identity.pub_key`, read from D1 by authenticated fingerprint, and the
+ * relay's own public key derived from RELAY_ED25519_PRIVATE_KEY_HEX. The
+ * parameter is a set, not one key, because rotation leaves a sender with
+ * several keys valid over a stored corpus and epoch-tagged rotation is the
+ * plan — one key would force a caller to guess which epoch signed a given
+ * envelope, or to loop and thereby build "try every key" by hand.
+ *
+ * Resolving key_id to a key set is deliberately NOT done here. That resolution
+ * needs the harbor's signed member roster, and the relay holds no harbor key
+ * ("phone book, never a key holder"), so a shared module that reached for a
+ * roster would be the relay claiming an authority it is not allowed to have.
+ * The same split is already shipped for OIDC: verifyOidcToken takes the JWKS
+ * its caller fetched rather than fetching one itself.
+ *
+ * `sig.key_id` must name one of the accepted keys, which is what makes it an
+ * authenticated field rather than a rewritable hint: an intermediary that
+ * edits it turns a good envelope into a rejected one instead of silently
+ * re-attributing it.
+ *
+ * hmac-sha256 verification needs the shared secret and lives with its holder,
+ * so it returns false here rather than pretending.
  */
-export async function verifyEnvelopeSig(envelope: RelayEnvelopeV1): Promise<boolean> {
+export async function verifyEnvelopeSignedBy(
+  envelope: RelayEnvelopeV1,
+  acceptedKeysHex: readonly string[]
+): Promise<boolean> {
   if (envelope.sig.alg !== 'ed25519') return false;
-  return verifyEd25519(envelope.sig.key_id, envelopeBindingMessage(envelope), envelope.sig.value);
+  for (const accepted of acceptedKeysHex) {
+    if (accepted !== envelope.sig.key_id) continue;
+    if (
+      await verifyEd25519(accepted, envelopeBindingMessage(envelope, accepted), envelope.sig.value)
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

@@ -27,7 +27,7 @@ import {
   decodeTransitEnvelope,
   tryDecodeTransitEnvelope,
   signEnvelope,
-  verifyEnvelopeSig,
+  verifyEnvelopeSignedBy,
   ENVELOPE_SCHEMA_ID,
   canonicalJson,
   envelopeBindingMessage,
@@ -330,6 +330,11 @@ describe('assertClassified — regression pin on the pre-N1 shape', () => {
 
 describe('envelope signing — real signature over the binding', () => {
   const PRIV = '11'.repeat(32);
+  const PUB = pubKeyFromPrivKey(PRIV);
+  // A second, unrelated keypair. Nothing about it is privileged — that is the
+  // point: it is what any stranger can mint for themselves in one line.
+  const ATTACKER_PRIV = '22'.repeat(32);
+  const ATTACKER_PUB = pubKeyFromPrivKey(ATTACKER_PRIV);
 
   function unsignedReadable(): Omit<RelayReadableEnvelope, 'sig'> {
     return {
@@ -355,25 +360,25 @@ describe('envelope signing — real signature over the binding', () => {
     const envelope: RelayReadableEnvelope = { ...unsigned, sig };
     assertClassified(envelope);
     expect(validate(envelope)).toEqual([]);
-    expect(await verifyEnvelopeSig(envelope)).toBe(true);
+    expect(await verifyEnvelopeSignedBy(envelope, [PUB])).toBe(true);
 
     const decoded = decodeTransitEnvelope(encodeTransitEnvelope(envelope));
     expect(decoded).toEqual(envelope);
-    expect(await verifyEnvelopeSig(decoded)).toBe(true);
+    expect(await verifyEnvelopeSignedBy(decoded, [PUB])).toBe(true);
   });
 
   it('verification fails when a signed binding field is spliced (channel swap)', async () => {
     const unsigned = unsignedReadable();
     const envelope: RelayReadableEnvelope = { ...unsigned, sig: await signEnvelope(PRIV, unsigned) };
     const spliced = { ...envelope, channel: 'github:webhook:issues' };
-    expect(await verifyEnvelopeSig(spliced)).toBe(false);
+    expect(await verifyEnvelopeSignedBy(spliced, [PUB])).toBe(false);
   });
 
   it('verification fails when the relay-readable payload is tampered', async () => {
     const unsigned = unsignedReadable();
     const envelope: RelayReadableEnvelope = { ...unsigned, sig: await signEnvelope(PRIV, unsigned) };
     const tampered = { ...envelope, payload: { event_type: 'pull_request', delivery_id: 'forged' } };
-    expect(await verifyEnvelopeSig(tampered)).toBe(false);
+    expect(await verifyEnvelopeSignedBy(tampered, [PUB])).toBe(false);
   });
 
   // The three tamper cases below were added because mutation testing showed the
@@ -388,7 +393,7 @@ describe('envelope signing — real signature over the binding', () => {
     // attributed to another member on their shared channel.
     const unsigned = unsignedReadable();
     const envelope: RelayReadableEnvelope = { ...unsigned, sig: await signEnvelope(PRIV, unsigned) };
-    expect(await verifyEnvelopeSig({ ...envelope, sender: 'a'.repeat(64) })).toBe(false);
+    expect(await verifyEnvelopeSignedBy({ ...envelope, sender: 'a'.repeat(64) }, [PUB])).toBe(false);
   });
 
   it('verification fails when seq is moved (replay at another chain position)', async () => {
@@ -396,8 +401,8 @@ describe('envelope signing — real signature over the binding', () => {
     // the per-(sender, channel) chain, so the chain would order forgeries.
     const unsigned = unsignedReadable();
     const envelope: RelayReadableEnvelope = { ...unsigned, sig: await signEnvelope(PRIV, unsigned) };
-    expect(await verifyEnvelopeSig({ ...envelope, seq: unsigned.seq + 1 })).toBe(false);
-    expect(await verifyEnvelopeSig({ ...envelope, seq: unsigned.seq - 1 })).toBe(false);
+    expect(await verifyEnvelopeSignedBy({ ...envelope, seq: unsigned.seq + 1 }, [PUB])).toBe(false);
+    expect(await verifyEnvelopeSignedBy({ ...envelope, seq: unsigned.seq - 1 }, [PUB])).toBe(false);
   });
 
   it('verification fails when iat is moved (replay at another time)', async () => {
@@ -405,14 +410,90 @@ describe('envelope signing — real signature over the binding', () => {
     // the timestamp could be rewritten without invalidating the signature.
     const unsigned = unsignedReadable();
     const envelope: RelayReadableEnvelope = { ...unsigned, sig: await signEnvelope(PRIV, unsigned) };
-    expect(await verifyEnvelopeSig({ ...envelope, iat: unsigned.iat + 3600 })).toBe(false);
+    expect(await verifyEnvelopeSignedBy({ ...envelope, iat: unsigned.iat + 3600 }, [PUB])).toBe(false);
   });
 
   it('verification fails when the harbor is swapped (cross-tenant splice)', async () => {
     // Unbound harbor: a signature made in one tenant would validate in another.
     const unsigned = unsignedReadable();
     const envelope: RelayReadableEnvelope = { ...unsigned, sig: await signEnvelope(PRIV, unsigned) };
-    expect(await verifyEnvelopeSig({ ...envelope, harbor: 'other-harbor' })).toBe(false);
+    expect(await verifyEnvelopeSignedBy({ ...envelope, harbor: 'other-harbor' }, [PUB])).toBe(false);
+  });
+
+  // ── The signer is the caller's to decide ──────────────────────────────────
+  //
+  // Every tamper case above keeps the victim's signature and edits a field
+  // around it, so all of them fail for the same reason: the bytes moved out
+  // from under a signature nobody re-made. None of them says anything about an
+  // attacker who simply signs their own envelope, and until these tests the
+  // suite had no second keypair in it at all. That is the case that matters,
+  // because an envelope names its own signing key: verifying against the key
+  // the envelope nominates asks "did whoever made this hold the key they chose
+  // to write down", which everyone can answer yes to.
+
+  it('SECURITY: an attacker who re-signs with their own key is rejected', async () => {
+    const unsigned = unsignedReadable();
+    // Not a tampered envelope — a complete, internally consistent one, signed
+    // end to end by a key that is simply not ours. Every field is coherent and
+    // key_id honestly names the key that signed it.
+    const forged: RelayReadableEnvelope = {
+      ...unsigned,
+      sig: await signEnvelope(ATTACKER_PRIV, unsigned),
+    };
+
+    // Premise, pinned so the rejection below cannot pass for the wrong reason:
+    // the forgery is well-formed and its signature is real. If this failed,
+    // the next assertion would be rejecting a broken envelope rather than an
+    // unauthorized signer, and would prove nothing.
+    assertClassified(forged);
+    expect(validate(forged)).toEqual([]);
+    expect(await verifyEnvelopeSignedBy(forged, [ATTACKER_PUB])).toBe(true);
+
+    // The accepted set is the whole difference.
+    expect(await verifyEnvelopeSignedBy(forged, [PUB])).toBe(false);
+  });
+
+  it('SECURITY: an empty accepted-key set verifies nothing', async () => {
+    // A caller whose roster lookup came back empty has resolved no key, and the
+    // honest answer to "was this signed by one of the keys I accept" is no.
+    // Fail closed: the alternative — treating "no keys" as "any key" — is the
+    // shape that turns a lookup miss into an authentication bypass.
+    const unsigned = unsignedReadable();
+    const envelope: RelayReadableEnvelope = { ...unsigned, sig: await signEnvelope(PRIV, unsigned) };
+    expect(await verifyEnvelopeSignedBy(envelope, [])).toBe(false);
+  });
+
+  it('accepts a signature from any key in the set, which is what rotation needs', async () => {
+    // Rotation leaves a sender with several keys valid across a stored corpus:
+    // envelopes signed before the rotation stay valid, and re-signing history
+    // is not on the table. So the set has to admit an old key without the
+    // caller knowing which epoch signed which envelope.
+    const unsigned = unsignedReadable();
+    const envelope: RelayReadableEnvelope = { ...unsigned, sig: await signEnvelope(PRIV, unsigned) };
+    const retiredKey = pubKeyFromPrivKey('33'.repeat(32));
+    expect(await verifyEnvelopeSignedBy(envelope, [retiredKey, PUB])).toBe(true);
+    expect(await verifyEnvelopeSignedBy(envelope, [PUB, retiredKey])).toBe(true);
+    // ...and a set of keys that simply does not include the signer still fails,
+    // so the loop is not just returning true once it has more than one key.
+    expect(await verifyEnvelopeSignedBy(envelope, [retiredKey, ATTACKER_PUB])).toBe(false);
+  });
+
+  it('SECURITY: key_id cannot be rewritten in transit to an accepted key', async () => {
+    // key_id is the field a verifier would read to decide WHICH key to look up.
+    // If it were not covered by the signature it would be editable by anything
+    // on the path, and an envelope signed by one accepted key could be
+    // re-attributed to another. Both guards are checked here: the rewritten
+    // key_id no longer names the key that signed, and the binding message the
+    // signature covers no longer matches either.
+    const unsigned = unsignedReadable();
+    const envelope: RelayReadableEnvelope = { ...unsigned, sig: await signEnvelope(PRIV, unsigned) };
+    const relabelled = {
+      ...envelope,
+      sig: { ...envelope.sig, key_id: ATTACKER_PUB },
+    };
+    // Both keys are accepted, so the only thing that can reject this is that
+    // key_id was edited — not that the attacker's key is unknown to us.
+    expect(await verifyEnvelopeSignedBy(relabelled, [PUB, ATTACKER_PUB])).toBe(false);
   });
 
   it('signs and verifies the sealed variant over the AEAD ciphertext', async () => {
@@ -433,8 +514,8 @@ describe('envelope signing — real signature over the binding', () => {
     const envelope: SealedEnvelope = { ...unsigned, sig: await signEnvelope(PRIV, unsigned) };
     assertClassified(envelope);
     expect(validate(envelope)).toEqual([]);
-    expect(await verifyEnvelopeSig(envelope)).toBe(true);
-    expect(await verifyEnvelopeSig({ ...envelope, ciphertext: 'Zm9yZ2Vk' })).toBe(false);
+    expect(await verifyEnvelopeSignedBy(envelope, [PUB])).toBe(true);
+    expect(await verifyEnvelopeSignedBy({ ...envelope, ciphertext: 'Zm9yZ2Vk' }, [PUB])).toBe(false);
   });
 });
 
@@ -448,6 +529,12 @@ describe('envelopeBindingMessage — the signature actually binds the tuple', ()
     classification: 'relay_readable' as const,
     harbor: 'h', channel: 'c', sender: 's', seq: 1, iat: 1000,
   };
+
+  // Every binding is computed under a signing key now, so these tests need one.
+  // Its value is arbitrary except that it must be constant: the properties
+  // below are about the OTHER components, and a varying key would change every
+  // digest for a reason none of them is testing.
+  const KEY = 'ab'.repeat(32);
 
   it('SECURITY: an unpaired surrogate cannot forge a different routing tuple', () => {
     // The separator fix below made the framing injective over BYTES. This pins
@@ -469,12 +556,12 @@ describe('envelopeBindingMessage — the signature actually binds the tuple', ()
 
     // The binding must now refuse the ill-formed value rather than hash it.
     expect(() =>
-      envelopeBindingMessage({ ...base, channel: lone, payload: {} } as never),
+      envelopeBindingMessage({ ...base, channel: lone, payload: {} } as never, KEY),
     ).toThrow(EnvelopeClassificationError);
     // The well-formed twin still binds normally — the guard rejects ill-formed
     // input, it does not reject U+FFFD or non-ASCII generally.
     expect(
-      envelopeBindingMessage({ ...base, channel: replacement, payload: {} } as never),
+      envelopeBindingMessage({ ...base, channel: replacement, payload: {} } as never, KEY),
     ).toMatch(/^[0-9a-f]{64}$/);
   });
 
@@ -501,37 +588,37 @@ describe('envelopeBindingMessage — the signature actually binds the tuple', ()
     // Under an unprefixed join these produce identical bytes, so one signature
     // validates for both — a cross-channel replay. Length prefixing makes the
     // framing injective, so they must differ.
-    const shifted = envelopeBindingMessage({ ...base, harbor: 'a|b', channel: 'c', payload: {} } as never);
-    const other = envelopeBindingMessage({ ...base, harbor: 'a', channel: 'b|c', payload: {} } as never);
+    const shifted = envelopeBindingMessage({ ...base, harbor: 'a|b', channel: 'c', payload: {} } as never, KEY);
+    const other = envelopeBindingMessage({ ...base, harbor: 'a', channel: 'b|c', payload: {} } as never, KEY);
     expect(shifted).not.toBe(other);
   });
 
   it('SECURITY: the same shifting attack on channel/sender is also blocked', () => {
-    const a = envelopeBindingMessage({ ...base, channel: 'x|y', sender: 'z', payload: {} } as never);
-    const b = envelopeBindingMessage({ ...base, channel: 'x', sender: 'y|z', payload: {} } as never);
+    const a = envelopeBindingMessage({ ...base, channel: 'x|y', sender: 'z', payload: {} } as never, KEY);
+    const b = envelopeBindingMessage({ ...base, channel: 'x', sender: 'y|z', payload: {} } as never, KEY);
     expect(a).not.toBe(b);
   });
 
   it('a multi-byte field cannot collide with a shorter one (byte length, not UTF-16 length)', () => {
-    const a = envelopeBindingMessage({ ...base, harbor: 'é', payload: {} } as never);
-    const b = envelopeBindingMessage({ ...base, harbor: 'ee', payload: {} } as never);
+    const a = envelopeBindingMessage({ ...base, harbor: 'é', payload: {} } as never, KEY);
+    const b = envelopeBindingMessage({ ...base, harbor: 'ee', payload: {} } as never, KEY);
     expect(a).not.toBe(b);
   });
 
   it('payload key ORDER does not change the binding (cross-implementation verifiability)', () => {
     // A verifier that rebuilt the object differently must still hash the same
     // bytes, or it rejects a valid signature.
-    const a = envelopeBindingMessage({ ...base, payload: { x: 1, y: 2 } } as never);
-    const b = envelopeBindingMessage({ ...base, payload: { y: 2, x: 1 } } as never);
+    const a = envelopeBindingMessage({ ...base, payload: { x: 1, y: 2 } } as never, KEY);
+    const b = envelopeBindingMessage({ ...base, payload: { y: 2, x: 1 } } as never, KEY);
     expect(a).toBe(b);
   });
 
   it('nested key order is also normalized, while array order is preserved', () => {
-    const a = envelopeBindingMessage({ ...base, payload: { o: { m: 1, n: 2 }, arr: [1, 2] } } as never);
-    const b = envelopeBindingMessage({ ...base, payload: { arr: [1, 2], o: { n: 2, m: 1 } } } as never);
+    const a = envelopeBindingMessage({ ...base, payload: { o: { m: 1, n: 2 }, arr: [1, 2] } } as never, KEY);
+    const b = envelopeBindingMessage({ ...base, payload: { arr: [1, 2], o: { n: 2, m: 1 } } } as never, KEY);
     expect(a).toBe(b);
     // Arrays are semantic: reordering them IS a different payload.
-    const reordered = envelopeBindingMessage({ ...base, payload: { o: { m: 1, n: 2 }, arr: [2, 1] } } as never);
+    const reordered = envelopeBindingMessage({ ...base, payload: { o: { m: 1, n: 2 }, arr: [2, 1] } } as never, KEY);
     expect(reordered).not.toBe(a);
   });
 
@@ -543,22 +630,22 @@ describe('envelopeBindingMessage — the signature actually binds the tuple', ()
     // shape no binding test covered.
     const a = envelopeBindingMessage({
       ...base, payload: { items: [{ path: 'a.ts', mode: 'edit' }, { path: 'b.ts', mode: 'add' }] },
-    } as never);
+    } as never, KEY);
     const b = envelopeBindingMessage({
       ...base, payload: { items: [{ mode: 'edit', path: 'a.ts' }, { mode: 'add', path: 'b.ts' }] },
-    } as never);
+    } as never, KEY);
     expect(a).toBe(b);
     // Element ORDER is still semantic — reordering the list is a different
     // payload, same as the flat-array case above.
     const swapped = envelopeBindingMessage({
       ...base, payload: { items: [{ path: 'b.ts', mode: 'add' }, { path: 'a.ts', mode: 'edit' }] },
-    } as never);
+    } as never, KEY);
     expect(swapped).not.toBe(a);
   });
 
   it('a genuinely different payload value still changes the binding', () => {
-    const a = envelopeBindingMessage({ ...base, payload: { x: 1 } } as never);
-    const b = envelopeBindingMessage({ ...base, payload: { x: 2 } } as never);
+    const a = envelopeBindingMessage({ ...base, payload: { x: 1 } } as never, KEY);
+    const b = envelopeBindingMessage({ ...base, payload: { x: 2 } } as never, KEY);
     expect(a).not.toBe(b);
   });
 
@@ -568,7 +655,7 @@ describe('envelopeBindingMessage — the signature actually binds the tuple', ()
     // field it is named for is dropped from the binding entirely. Removing
     // `sender`, `seq`, or `iat` from the component list used to leave the whole
     // suite green — this is the test that notices.
-    const reference = envelopeBindingMessage({ ...base, payload: {} } as never);
+    const reference = envelopeBindingMessage({ ...base, payload: {} } as never, KEY);
     const variants: Array<readonly [string, Record<string, unknown>]> = [
       ['harbor', { harbor: 'h2' }],
       ['channel', { channel: 'c2' }],
@@ -578,10 +665,22 @@ describe('envelopeBindingMessage — the signature actually binds the tuple', ()
     ];
     for (const [field, override] of variants) {
       expect(
-        envelopeBindingMessage({ ...base, payload: {}, ...override } as never),
+        envelopeBindingMessage({ ...base, payload: {}, ...override } as never, KEY),
         `${field} is not bound into the signature`,
       ).not.toBe(reference);
     }
+  });
+
+  it('SECURITY: the signing key is bound — the same tuple under a different key differs', () => {
+    // Without this component the signature is a proof over the routing tuple
+    // alone, unattached to any key, and `sig.key_id` is a label the signature
+    // does not cover. Binding it is what lets a verifier say the signature was
+    // made BY a particular key rather than merely that some key made it.
+    const otherKey = 'cd'.repeat(32);
+    expect(otherKey).not.toBe(KEY);
+    expect(envelopeBindingMessage({ ...base, payload: {} } as never, otherKey)).not.toBe(
+      envelopeBindingMessage({ ...base, payload: {} } as never, KEY),
+    );
   });
 
   it('KNOWN ANSWER: the binding digest is the wire contract, schema tag and classification included', () => {
@@ -589,6 +688,11 @@ describe('envelopeBindingMessage — the signature actually binds the tuple', ()
     // a constant, and `classification` is fixed within each variant. Dropping
     // either from the component list changes these digests and nothing else in
     // the suite, so this is where they are pinned.
+    //
+    // The key below is the ed25519 public key for private key '11' * 32 — the
+    // same key the signing tests use — so an implementer in another language
+    // can derive it, reproduce these digests, and then check a real signature
+    // against them rather than only the digest.
     //
     // What each one stops: the schema tag prevents a signature over some other
     // pd binding message of the same arity from being replayed as an envelope
@@ -607,8 +711,13 @@ describe('envelopeBindingMessage — the signature actually binds the tuple', ()
       payload: { event_type: 'pull_request', delivery_id: 'd-3' },
       reason: 'github webhook relay: payload is GitHub-public data',
     };
-    expect(envelopeBindingMessage(readable as never)).toBe(
-      'ba742248ad168e4ea4ec3bf3eb017d0657d205cd72f9b29281833446b352b916',
+    const VECTOR_KEY = 'd04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737';
+    expect(VECTOR_KEY, 'the vector key must stay derivable from the signing tests\' private key').toBe(
+      pubKeyFromPrivKey('11'.repeat(32)),
+    );
+
+    expect(envelopeBindingMessage(readable as never, VECTOR_KEY)).toBe(
+      'dba03ec1e47df6c683967c20bedad01f4b94d4f013de98132dab089c3a62404c',
     );
 
     const sealed = {
@@ -618,14 +727,16 @@ describe('envelopeBindingMessage — the signature actually binds the tuple', ()
       alg: 'aes-256-gcm', epoch: 1, nonce: 'AAAAAAAAAAAAAAAB',
       ciphertext: 'kx3fO2ZQm1sVJb9tYc4hRw7nE8pLdAq6uG5iT0XyBjM',
     };
-    expect(envelopeBindingMessage(sealed as never)).toBe(
-      'd83b2945dba250077672737ca7bb12e5b26490589fce0e00b16df6a73ecadf3a',
+    expect(envelopeBindingMessage(sealed as never, VECTOR_KEY)).toBe(
+      'c4b649b4985c0150b9d7c4b5c4bcf6776146f13c00a7d980659f977d0c61101c',
     );
   });
 
   it('survives the transit round trip (sign here, verify after parse)', () => {
     const orig = { ...base, payload: { zeta: 1, alpha: { n: [1, 2], m: 'x' } } } as never;
-    expect(envelopeBindingMessage(JSON.parse(JSON.stringify(orig)))).toBe(envelopeBindingMessage(orig));
+    expect(envelopeBindingMessage(JSON.parse(JSON.stringify(orig)), KEY)).toBe(
+      envelopeBindingMessage(orig, KEY),
+    );
   });
 });
 
