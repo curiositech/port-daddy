@@ -67,6 +67,23 @@ for (const level of ['off', 'suggest', 'enforce']) {
     throw new Error(`repo_settings.sitrep_end_of_turn CHECK is missing level '${level}'`);
   }
 }
+if (!repoSettingsSql.includes('json_valid')) {
+  throw new Error('repo_settings.settings_json lost its json_valid CHECK');
+}
+// Prove both CHECKs bite at the storage layer, not just parse.
+db.exec("INSERT INTO users (id, github_user_id, login, created_at) VALUES ('u_chk', 1, 'chk', 0)");
+for (const bad of [
+  `INSERT INTO repo_settings (user_id, repo_full_name, sitrep_end_of_turn, created_at, updated_at)
+     VALUES ('u_chk', 'a/b', 'loudly', 0, 0)`,
+  `INSERT INTO repo_settings (user_id, repo_full_name, settings_json, created_at, updated_at)
+     VALUES ('u_chk', 'a/b', 'not json', 0, 0)`,
+]) {
+  let rejected = false;
+  try { db.exec(bad); } catch { rejected = true; }
+  if (!rejected) throw new Error('repo_settings CHECK constraints did not reject an invalid row');
+}
+db.exec("DELETE FROM repo_settings WHERE user_id = 'u_chk'");
+db.exec("DELETE FROM users WHERE id = 'u_chk'");
 
 const tableCount = Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_schema WHERE type = 'table'").get().n);
 console.log(`relay migration chain PASS: ${migrations.length} files, ${tableCount} tables`);

@@ -118,7 +118,8 @@ function json(status: number, body: unknown): Response {
  * URL, and local config snippets — one closed shape at the entry door keeps
  * every downstream surface simple. GitHub's own rules are looser in places;
  * this accepts the practical intersection (word chars, dots, dashes; no
- * leading/trailing separators; both segments 1..100 chars).
+ * leading dot on either segment — the rejection lives in the regex itself so
+ * there is exactly one shape to reason about; both segments 1..100 chars).
  *
  * @param raw - The user-typed repository identifier.
  * @returns The trimmed `owner/name`, or null when the shape is invalid.
@@ -126,10 +127,10 @@ function json(status: number, body: unknown): Response {
 export function normalizeRepoFullName(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   const trimmed = raw.trim().replace(/^https:\/\/github\.com\//, '').replace(/\.git$/, '');
-  const m = /^([A-Za-z0-9](?:[A-Za-z0-9-]{0,98}[A-Za-z0-9])?)\/([A-Za-z0-9._-]{1,100})$/.exec(trimmed);
+  const m = /^([A-Za-z0-9](?:[A-Za-z0-9-]{0,98}[A-Za-z0-9])?)\/([A-Za-z0-9_-][A-Za-z0-9._-]{0,99})$/.exec(trimmed);
   const owner = m?.[1];
   const name = m?.[2];
-  if (!owner || !name || name.startsWith('.')) return null;
+  if (!owner || !name) return null;
   return `${owner}/${name}`;
 }
 
