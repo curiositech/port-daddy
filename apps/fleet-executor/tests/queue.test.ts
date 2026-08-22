@@ -79,6 +79,51 @@ describe('queue consumer', () => {
     await Promise.all(ctx.waited);
   });
 
+  it('closes a stale-head admission receipt instead of leaving it running forever', async () => {
+    state.prHeadSha = 'NEWESTSHA';
+    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const intent = { state: 'queued', error: null as string | null };
+    const db = {
+      prepare(sql: string) {
+        let bound: unknown[] = [];
+        const stmt = {
+          bind(...values: unknown[]) { bound = values; return stmt; },
+          async first<T>() {
+            if (sql.includes('SELECT state FROM fleet_run_intents')) {
+              return { state: intent.state } as T;
+            }
+            return null;
+          },
+          async all<T>() { return { results: [] as T[] }; },
+          async run() {
+            if (sql.includes("SET state = 'running'")) intent.state = 'running';
+            if (sql.includes('UPDATE fleet_run_intents') && sql.includes('SET state = ?')) {
+              intent.state = String(bound[0]);
+              intent.error = bound[3] == null ? null : String(bound[3]);
+            }
+            return { success: true, meta: { changes: 1 } };
+          },
+        };
+        return stmt;
+      },
+      batch: async () => [],
+    } as unknown as D1Database;
+    const msg = fakeMessage(makeJob({ action: 'synchronize' }));
+
+    await handler.queue!(
+      fakeBatch([msg]),
+      makeEnv({ FLEET_TOKENS: kv, DB: db }),
+      capturingCtx(),
+    );
+
+    expect(msg.ack).toHaveBeenCalledTimes(1);
+    expect(msg.retry).not.toHaveBeenCalled();
+    expect(intent.state).toBe('cancelled');
+    expect(intent.error).toContain('no longer current');
+  });
+
   it('retries a message when the orchestrator throws (recoverable infra error)', async () => {
     // Force a token mint to fail repeatedly: no seeded KV + token mint 401s,
     // so getInstallationTokenCached throws and executeFleet re-throws.

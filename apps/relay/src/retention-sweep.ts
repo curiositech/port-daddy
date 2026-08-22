@@ -7,7 +7,8 @@
  * sweep periodically. It is scheduled *remediation/maintenance*, not a pure
  * monitor: it enforces three invariants Phase 1 introduced but left unbounded.
  *
- *   R1 retention   — events + fleet_run_steps + fleet_runs older than
+ *   R1 retention   — events + fleet_run_steps + fleet_runs + terminal admission
+ *                    receipts older than
  *                    EVENT_RETENTION_DAYS are pruned (the knob was declared but
  *                    never read — fleet_run_steps grew unbounded; ADR-0101 OQ4).
  *   R2 session reap— expired web_sessions are deleted (resolveSession already
@@ -39,6 +40,7 @@ export interface SweepResult {
   eventsPruned: number;
   runStepsPruned: number;
   runsPruned: number;
+  runIntentsPruned: number;
   sessionsReaped: number;
   usersHardDeleted: number;
   shipwrightChatsPruned: number;
@@ -115,6 +117,17 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     retentionHorizon,
     errors,
     'fleet_runs',
+  );
+  // Active admission rows are never retention-pruned: they are the only durable
+  // evidence that queued/retrying work exists before a transcript materializes.
+  const runIntentsPruned = await deleteOlderThan(
+    env.DB,
+    `DELETE FROM fleet_run_intents
+      WHERE state IN ('superseded','enqueue_failed','success','failure','neutral','cancelled')
+        AND finished_at IS NOT NULL AND finished_at < ?`,
+    retentionHorizon,
+    errors,
+    'fleet_run_intents',
   );
   const eventsPruned = await deleteOlderThan(
     env.DB,
@@ -196,6 +209,7 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     eventsPruned,
     runStepsPruned,
     runsPruned,
+    runIntentsPruned,
     sessionsReaped,
     usersHardDeleted,
     shipwrightChatsPruned,

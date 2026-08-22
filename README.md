@@ -647,6 +647,24 @@ pd cockpit           # mission overview
 - `auto` — Port Daddy merges the PR itself once **all** hold: every required CI check is green, `gh` reports the PR `mergeable` (no conflicts), zero unresolved review threads, and the PR is not a draft. It never force-pushes, never uses `gh pr merge --admin`/`--auto`, and never touches a `review`/`never` dispatch. The daemon sweeps this on an interval (`PD_DISPATCH_AUTOMERGE_POLL_MS`, default 60s); `pd dispatch merge-sweep` and `pd done` also trigger an immediate check. See `lib/dispatch/auto-merge.ts` for the full gate. This is a separate, narrower mechanism from `pd harbormaster`'s operator-approval (`pd review --accept`) merge queue.
 - `never` — Port Daddy never merges; the PR sits for a manual close.
 
+### Cloud Fleet — live run receipts
+
+The signed-in website at `/account/runs` is the operator's durable Cloud Fleet
+activity surface. It shows a PR review from webhook admission onward, before a
+queue consumer or transcript exists, and links into the live receipt at
+`/fleet/runs/:id`. Receipts distinguish one logical PR-head generation from its
+at-least-once queue delivery attempts and ship transcript steps. They expose
+queued, running, retrying, superseded, failed-admission, and terminal states,
+plus actual and estimated timestamps; active pages refresh on a bounded cadence
+and preserve reduced-motion preferences.
+
+Repeated delivery IDs are idempotent. A successfully enqueued newer head marks
+strictly older active generations superseded, and the executor checks that
+durable admission row before expensive work. Queue-ahead and expected-time
+values are explicitly D1-derived estimates, never a claim about Cloudflare's
+internal queue position. Intent-only receipts remain exportable/deletable and
+active receipts are never retention-pruned.
+
 ### Giant Squid — visible controls, invisible project-scoped hooks
 
 `pd squid on` arms the complete harness for the current project. It stages the
