@@ -128,6 +128,44 @@ final class RoadmapProjectionCodableTests: XCTestCase {
     /// nothing behind it. The chip must refuse. A stale chip is a small
     /// disappointment; a fake LIVE is an operator acting on a body that
     /// stopped talking.
+    /// The `lastEvidenceAt != nil` clause of the LIVE guard had nothing behind
+    /// it. Every existing stale case also has `ageMs == nil`, so `let age =
+    /// ageMs` fails first and that clause never decides anything — delete it
+    /// from the guard and the suite still passes. This is the case where it is
+    /// the only thing standing between a projection and a fake LIVE: an age
+    /// arrives, it is fresh, and there is still no timestamp saying when the
+    /// evidence was seen.
+    func testAFreshAgeWithNoEvidenceTimestampIsStillStale() {
+        let ageWithoutTimestamp = RoadmapLiveEvidence(
+            live: true,
+            source: "popper-dispatch",
+            dispatchId: "dsp_ghost",
+            lastEvidenceAt: nil,
+            ageMs: 1_000,
+            maxAgeMs: 65_000,
+            label: "live — events arriving"
+        )
+        XCTAssertEqual(ageWithoutTimestamp.displayState, .stale)
+    }
+
+    /// The window is inclusive: `age <= maxAgeMs`. The existing expiry case
+    /// uses maxAgeMs + 1, so the boundary itself was never pinned and could
+    /// flip to exclusive without failing anything. Design law 13 says LIVE
+    /// renders with a recent heartbeat; a heartbeat landing exactly on the
+    /// server's own deadline is still inside the window it defines.
+    func testAgeExactlyAtTheDeadlineIsStillLive() {
+        let onTheBoundary = RoadmapLiveEvidence(
+            live: true,
+            source: "popper-dispatch",
+            dispatchId: "dsp_live",
+            lastEvidenceAt: 1_755_820_000_000,
+            ageMs: 65_000,
+            maxAgeMs: 65_000,
+            label: "live — events arriving"
+        )
+        XCTAssertEqual(onTheBoundary.displayState, .live)
+    }
+
     func testClaimedLiveWithoutEvidenceRendersStale() {
         let lying = RoadmapLiveEvidence(
             live: true,

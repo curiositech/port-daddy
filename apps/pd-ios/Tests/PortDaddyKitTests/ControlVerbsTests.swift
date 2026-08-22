@@ -101,6 +101,21 @@ final class ControlVerbsTests: XCTestCase {
         XCTAssertTrue(reason.contains("Kill"), "pause's reason should name the real alternative")
     }
 
+    /// Fork gets the same content pin pause has. Without it, fork's rationale
+    /// is covered only by the generic assertions — non-empty, and not the
+    /// tables-disagree marker — and both of those pass on "not implemented
+    /// yet", which is the phrasing `unsupportedReason`'s own contract forbids.
+    func testRemoteForkReasonNamesCheckpointRatherThanShrugging() {
+        let support = ControlVerbs.support(for: .fork, on: .cloudflareRemote)
+        XCTAssertFalse(support.isSupported)
+        let reason = support.reason ?? ""
+        XCTAssertTrue(reason.contains("Checkpoint"), "fork's reason should name the real alternative")
+        XCTAssertFalse(
+            reason.lowercased().contains("not implement"),
+            "a reason about Port Daddy's backlog is not a reason about the backend"
+        )
+    }
+
     func testObservedOnlyBackendSupportsNothingAndHidesNothing() {
         XCTAssertEqual(ControlVerbs.supportedVerbs[.hookOnlyObserved], [])
         XCTAssertEqual(ControlVerbs.unsupportedVerbs(for: .hookOnlyObserved), ControlVerb.allCases)
