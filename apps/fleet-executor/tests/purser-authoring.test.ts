@@ -271,14 +271,16 @@ describe('purser step model tiering', () => {
 
   const CHEAP = '@cf/qwen/qwen3-30b-a3b-fp8';
   const MID = '@cf/openai/gpt-oss-20b';
-  const AUTHOR = '@cf/openai/gpt-oss-120b';
+  const AUTHOR = '@cf/deepseek-ai/deepseek-v4-flash-0731';
 
-  it('defaults PLAN to the cheap model and AUTHOR to the strongest verified tier', () => {
+  it('defaults PLAN to the cheap model and AUTHOR to the agentic-coding tier', () => {
     // Operator ruling 2026-08-22, from the live D1 record: on the gpt-oss-20b
     // mid tier the author step ended 121 sets NON-EXECUTABLE and failed 83 of
     // 110 rewrites in 14 days, gating the fleet neutral on 249 of 584 runs
-    // (#8870). Authoring is the step whose failures gate the fleet — it gets
-    // the strongest verified tier by default.
+    // (#8870). Authoring a runnable file IS agentic coding, so the default is
+    // the tier with the strongest independent agentic-coding record
+    // (deepseek-v4-flash-0731; see AUTHOR_CF_MODEL's docblock) — while the
+    // repair rewrite deliberately stays on a DIFFERENT family (gpt-oss-120b).
     const ship = purserFrom();
     expect(ship.cfModel).toBe(CHEAP);
     expect(planOf(ship)).toBe(CHEAP);

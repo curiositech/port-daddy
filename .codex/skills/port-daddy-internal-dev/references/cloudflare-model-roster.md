@@ -28,35 +28,46 @@ Workers AI id returns a blank the parser reads as "clean" — never as a cost
 ceiling. Economic direction for MAP fan-out is enforced separately in
 `deriveMapModel` (a MAP pin pricier than the ship's REDUCE model is dropped).
 
-## Fleet tier assignments (as of 2026-08-22)
+## Fleet tier assignments (as of 2026-08-22, evening — repertoire expansion)
 
 | Tier | Model | $/M in | $/M out | Ctx | Used by |
 |---|---|---|---|---|---|
-| cheap (default) | `@cf/qwen/qwen3-30b-a3b-fp8` | 0.051 | 0.335 | 32k | every ship not listed below; purser PLAN; code-reviewer MAP |
-| mid (opt-down only) | `@cf/openai/gpt-oss-20b` | 0.200 | 0.300 | 128k | nothing by default — purser AUTHOR until 2026-08-22 (see below) |
-| strong | `@cf/openai/gpt-oss-120b` | 0.350 | 0.750 | 128k | purser AUTHOR + author-repair, contract-repair escalation, red-team, `*reviewer` role default |
-| code frontier | `@cf/moonshotai/kimi-k2.7-code` | 0.950 | 4.000 | 262k | code-reviewer REDUCE (declared pin, honored since 2026-08-22) |
+| cheap control | `@cf/qwen/qwen3-30b-a3b-fp8` | 0.051 | 0.335 | 32k | spark/spider/snipe + the dormant ships — the A/B control population |
+| cheap agentic | `@cf/zai-org/glm-4.7-flash` | 0.060 | 0.400 | 131k | qa, lookout, purser PLAN, code-reviewer MAP — the "repo mechanic" of the 30B class (59.2% SWE-bench vs qwen's 22%) |
+| cheap diversity | `@cf/google/gemma-4-26b-a4b-it` | 0.100 | 0.300 | 256k | tautology-sniffer — third cheap-class family for the scoreboard A/B |
+| mid (opt-down only) | `@cf/openai/gpt-oss-20b` | 0.200 | 0.300 | 128k | nothing by default — the refuted former AUTHOR tier |
+| agentic coder | `@cf/deepseek-ai/deepseek-v4-flash-0731` | 0.440 | 1.320 | 1M | purser AUTHOR (Terminal-Bench 2.1 82.7; beats its own Pro on 9 agent benches) |
+| strong util | `@cf/openai/gpt-oss-120b` | 0.350 | 0.750 | 128k | contract-repair + author-repair escalation, `*reviewer` role default — cross-family repairer by design |
+| reasoning flagship | `@cf/deepseek-ai/deepseek-v4-pro-0813` | 1.320 | 3.960 | 1M | red-team (80.6% SWE-bench Verified; whole-PR attack surfaces in one window) |
+| code frontier | `@cf/zai-org/glm-5.2` | 1.400 | 4.400 | 262k | code-reviewer REDUCE (62.1 SWE-bench Pro — beats GPT-5.5, independently verified) |
+| admitted, unassigned | `@cf/moonshotai/kimi-k2.7-code` (0.95/4.00, 262k), `@cf/nvidia/nemotron-3-120b-a12b` (0.50/1.50, 256k) | | | | pin-able candidates; kimi's numbers are vendor-only and disputed, nemotron's agentic tool-reliability profile is strong |
 | XO | `@cf/deepseek-ai/deepseek-r1-distill-qwen-32b` | — | — | — | XO synthesis only (src/xo.ts) |
 
-Decision record, 2026-08-22 (operator directive "choose better models, justify"):
+Decision record, 2026-08-22 (operator directives "choose better models,
+justify" + "add new models to your repertoire"; full research + sources in
+the model-review artifact linked from the PR):
 
-- **Purser AUTHOR: gpt-oss-20b → gpt-oss-120b.** Live D1, 14 days: 121
-  authored-test sets NON-EXECUTABLE, 83/110 author-repairs FAILED (75%), 124
-  purser BROKEN-SHIP runs, 249 of 584 fleet runs adjudicated neutral (#8870).
-  Upgrade cost ≈ $1/2wk on ~2.5M output tokens. The author-repair rewrite also
-  now runs on the escalation tier, never the tier that just failed.
-- **code-reviewer: kimi-k2.7-code pin honored.** The yml declared it with a
-  written rationale; the guard silently remapped it to gpt-oss-120b. ~$6/2wk
-  at live volume (187 calls, 4.0M in / 0.51M out).
-- **red-team: gpt-oss-120b pin honored** (yml declares "runs on cloudflare's
-  biggest model"). 21 calls/14d — cents.
-- **Cheap ships stay cheap by config**: the stale gpt-oss-120b pins on
-  gardener/qa/test-hunter/documentarian/simplifier/cartographer/spark/spider/
-  lookout/test-author/tautology-sniffer/tenderfoot/officer-of-the-watch/
-  developer-onboarding-sentinel (and snipe's qwen2.5-coder pin) were re-written
-  to the cheap id they actually ran on — the config now tells the truth
-  instead of the guard silently overriding it. Their 14-day health justified
-  no upgrade: single-digit broken counts with contract repair healing most.
+- **Purser AUTHOR: gpt-oss-20b → gpt-oss-120b → deepseek-v4-flash-0731 (same
+  day).** The 20b record: 121 NON-EXECUTABLE sets, 83/110 repairs FAILED,
+  124 BROKEN runs, 249/584 fleet-neutral (#8870). 120b was the first safe
+  upgrade; the repertoire pass replaced it with the model holding the
+  strongest *independent agentic-coding* record at comparable cost.
+  Author-repair stays on gpt-oss-120b — author and repairer from different
+  families, so one family's blind spot can't both write and "fix" a file.
+- **The cheap class is now a three-family A/B** (qwen3-30b control /
+  glm-4.7-flash agentic / gemma-4 diversity) that `fleet-ship-stats.mjs`
+  judges empirically — glm-4.7-flash's 59.2%-vs-22% SWE-bench edge over
+  qwen3-30b at the same price is the reason qa/lookout/PLAN/MAP moved first.
+- **code-reviewer REDUCE: kimi-k2.7-code → glm-5.2.** Kimi's gains are
+  vendor-only benchmarks practitioners publicly dispute; GLM-5.2 has
+  independent third-party validation (62.1 SWE-bench Pro, 74.4 FrontierSWE,
+  81.0 Terminal-Bench) at a comparable price. Kimi stays admitted/pin-able.
+- **red-team: gpt-oss-120b → deepseek-v4-pro-0813.** The yml always declared
+  "biggest available" intent; at 21 calls/2wk the reasoning flagship costs
+  under a dollar.
+- **Dormant/other ships stay on the cheap control** until the scoreboard
+  says otherwise; snipe/spark/spider deliberately stay qwen3-30b as the
+  control population.
 
 ## Cloudflare-hosted text-generation candidates (current, non-deprecated)
 

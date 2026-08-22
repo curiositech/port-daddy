@@ -149,7 +149,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/zai-org/glm-4.7-flash'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -453,18 +453,26 @@ fleet:
       #   PLAN   reads the whole diff, emits a handful of paths  → INPUT-heavy
       #   AUTHOR reads the same diff, emits a whole test file     → OUTPUT-heavy
       #
-      # Per M tokens: qwen3-30b $0.051 in / $0.335 out; gpt-oss-120b $0.350 in
-      # / $0.750 out. Planning stays cheap; authoring — the step whose output
-      # has to be a RUNNABLE file, and whose failures gate the fleet under the
-      # broken-ship doctrine — runs on the strongest verified tier.
-      #
       # Why not the gpt-oss-20b mid tier anymore (operator ruling 2026-08-22,
       # from the live D1 record over 14 days): 121 authored sets ended
       # NON-EXECUTABLE, 83 of 110 author-repairs FAILED, 124 purser
       # BROKEN-SHIP runs adjudicated the fleet neutral on 249 of 584 runs
-      # (#8870). The author step's total output over that window was ~2.5M
-      # tokens — the tier upgrade costs about a dollar per two weeks against
-      # a fleet whose verdicts were half washed out.
+      # (#8870). Total author output that window was ~2.5M tokens, so tier
+      # upgrades here cost single-digit dollars per two weeks against a fleet
+      # whose verdicts were half washed out.
+      #
+      # PLAN → GLM-4.7-Flash ($0.060/$0.400, 131k ctx): reads the whole diff,
+      # emits paths — the agentic 30B specialist at cheap-tier price, with 4x
+      # qwen3-30b's context so big diffs stop truncating.
+      # AUTHOR → DeepSeek V4-Flash-0731 ($0.44/$1.32, 1M ctx): authoring a
+      # runnable test file IS agentic coding, and this model's independent
+      # record on exactly that shape (Terminal-Bench 2.1 82.7, DeepSWE 54.4 —
+      # it beats DeepSeek's own Pro on nine agent benchmarks) beats
+      # gpt-oss-120b's mixed code-domain record at comparable blended cost.
+      # The one-shot author-repair rewrite stays on gpt-oss-120b (the
+      # escalation model) so the author and its repairer come from DIFFERENT
+      # model families — one family's blind spot can't both write and "fix"
+      # the same broken file.
       #
       # Both tiers are guarded by the same known-good set as `model:`: an
       # unknown id falls back to the tier default rather than silently
@@ -472,8 +480,8 @@ fleet:
       #
       # Omit both to accept these defaults. `planModel`/`authorModel` and
       # `cfPlanModel`/`cfAuthorModel` are accepted spellings too.
-      plan_model: '@cf/qwen/qwen3-30b-a3b-fp8'    # default (cheap)
-      author_model: '@cf/openai/gpt-oss-120b'     # default (strongest verified tier)
+      plan_model: '@cf/zai-org/glm-4.7-flash'
+      author_model: '@cf/deepseek-ai/deepseek-v4-flash-0731'
       # THE GATE. `blocking: true` means a sandbox-executed test FAILURE fails
       # the check run, so a PR cannot merge while it contradicts its own
       # best-interpretation contract. Until now the purser authored tests,
@@ -590,7 +598,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/zai-org/glm-4.7-flash'
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, parley_suggestion, dispatch_command_suggestion]
@@ -745,14 +753,15 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          # Code-specialized coder model (Moonshot Kimi K2.7 Code, 1T MoE,
-          # 262k ctx, native structured outputs) — the right Workers AI tier for
-          # a code reviewer that emits JSON findings.
-          # HONORED as of 2026-08-22: this pin used to be silently remapped to
-          # the reviewer default (kimi was outside the known-good set); it is
-          # now verified + priced ($0.950/M in, $4.000/M out — roughly $6 per
-          # two weeks at this ship's live volume) and runs as declared.
-          model: '@cf/moonshotai/kimi-k2.7-code'
+          # GLM-5.2 (Z.ai, 262k ctx): the strongest open coding model with
+          # INDEPENDENT benchmark validation — 62.1 SWE-bench Pro (beats
+          # GPT-5.5), 74.4% FrontierSWE, 81.0 Terminal-Bench 2.1. Chosen over
+          # the previous Kimi K2.7-Code pin (2026-08-22): kimi's numbers are
+          # vendor-only benchmarks that practitioners publicly dispute, at a
+          # comparable price ($1.40/$4.40 vs $0.95/$4.00 per M). Roughly
+          # $8/2wk at this ship's live volume; MAP below stays on the cheap
+          # agentic tier so chunk fan-out doesn't pay this rate.
+          model: '@cf/zai-org/glm-5.2'
       # MAP/REDUCE tiering, Cloudflare path only. The executor splits a large
       # diff on file boundaries and scans each chunk independently (MAP), then
       # makes ONE call to reconcile them (REDUCE). MAP runs N times and REDUCE
@@ -770,7 +779,11 @@ fleet:
       # Workers AI id returns a blank the parser reads as "clean" -- a typo here
       # would silence every chunk while REDUCE reported nothing found. Untiered
       # costs more; mute costs the truth.
-      map_model: '@cf/qwen/qwen3-30b-a3b-fp8'
+      # MAP on GLM-4.7-Flash rather than qwen3-30b (2026-08-22): same cost
+      # class ($0.060 vs $0.051/M in) but the agentic-coding specialist of the
+      # 30B class — 59.2% SWE-bench vs qwen3-30b's 22% — and chunk scanning
+      # IS agentic code reading. 131k ctx also quadruples the chunk budget.
+      map_model: '@cf/zai-org/glm-4.7-flash'
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false
@@ -805,9 +818,11 @@ fleet:
     red-team:
       trigger: pull_request:opened
       # Novel attack construction benefits from headroom. anthropic
-      # sonnet is a soft preference here, NOT a pin — if only
-      # cloudflare's biggest model is available, red-team runs on
-      # it and accepts the quality trade.
+      # sonnet is a soft preference here, NOT a pin. On Cloudflare,
+      # red-team runs DeepSeek V4-Pro (2026-08-22): 80.6% SWE-bench
+      # Verified, a genuine reasoning flagship with a 1M-token window
+      # for whole-PR attack surfaces — at red-team's tiny live volume
+      # (21 calls per two weeks) it costs well under a dollar.
       backend: cli:claude-code
       fallbacks:
         - backend: cli:codex
@@ -816,7 +831,7 @@ fleet:
         - backend: openai
           model: gpt-5
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/deepseek-ai/deepseek-v4-pro-0813'
       cooldown_ms: 600000
       dedupe_window_ms: 1800000
       singleton: false
@@ -910,7 +925,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/google/gemma-4-26b-a4b-it'
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false

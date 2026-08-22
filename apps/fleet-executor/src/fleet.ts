@@ -199,6 +199,16 @@ export const KNOWN_GOOD_CF_MODELS: ReadonlySet<string> = new Set([
   '@cf/openai/gpt-oss-20b',
   '@cf/openai/gpt-oss-120b',
   '@cf/moonshotai/kimi-k2.7-code',
+  // Repertoire expansion, operator directive 2026-08-22 ("add new models"):
+  // each admitted with a pricing-page-verified rate and a model-page-verified
+  // context window; the community/benchmark evidence behind each is in the
+  // roster reference and the model-review artifact it links.
+  '@cf/zai-org/glm-4.7-flash', // 59.2% SWE-bench at cheap-tier price — the repo mechanic
+  '@cf/zai-org/glm-5.2', // strongest open coding model (62.1 SWE-bench Pro, indep. verified)
+  '@cf/deepseek-ai/deepseek-v4-flash-0731', // beats its own Pro on 9 agent benches; 1M ctx
+  '@cf/deepseek-ai/deepseek-v4-pro-0813', // 80.6% SWE-bench Verified; 1M ctx reasoning
+  '@cf/google/gemma-4-26b-a4b-it', // cheap-class diversity; best speed/reliability balance
+  '@cf/nvidia/nemotron-3-120b-a12b', // strongest agentic tool-reliability profile in class
 ]);
 
 /**
@@ -474,13 +484,19 @@ function derivePurserPlanModel(agent: RawAgent, cfModel: string): string | undef
  * output tokens per two weeks) is about a dollar; the mid tier was saving
  * that dollar by burning the fleet's verdict signal.
  *
- * Why not a pricier coder model (kimi-k2.7-code, $4.000/M out): 120b is the
- * fleet's proven known-good strongest tier — it is already the model contract
- * repair escalates to, and its envelope is fully handled. Escalate further
- * only if the non-executable rate persists in the stats surface
- * (scripts/fleet-ship-stats.mjs) after this lands.
+ * Which strong tier (revised same day, repertoire expansion): the author step
+ * IS agentic coding — emit a runnable file against a real repo tree — and the
+ * independent record for deepseek-v4-flash-0731 on exactly that shape
+ * (Terminal-Bench 2.1 82.7, DeepSWE 54.4; it beats DeepSeek's own Pro on nine
+ * agent benchmarks) is far stronger than gpt-oss-120b's mixed code-domain
+ * record, at a comparable blended price ($0.44/$1.32 vs $0.35/$0.75) and a 1M
+ * context that ends diff-truncation for authoring. The repair rewrite stays
+ * on {@link REPAIR_ESCALATION_MODEL} (gpt-oss-120b) deliberately: author and
+ * repairer now come from different model families, so one family's blind
+ * spot cannot both write and "fix" the same broken file. Judged on its
+ * after-window via scripts/fleet-ship-stats.mjs.
  */
-const AUTHOR_CF_MODEL = '@cf/openai/gpt-oss-120b';
+const AUTHOR_CF_MODEL = '@cf/deepseek-ai/deepseek-v4-flash-0731';
 
 /**
  * The purser's per-file AUTHOR-step model. Defaults to {@link AUTHOR_CF_MODEL}.

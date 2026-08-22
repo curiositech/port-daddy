@@ -45,6 +45,10 @@ const MODEL_RATES: Array<[string, ModelRate]> = [
   ['@cf/moonshotai/kimi-k2.6',                  { input: 0.950, cachedInput: 0.160, output: 4.000, label: 'Kimi K2.6 (phantom Workers AI id — never existed, retired 2026-07 #654; row kept so historical cost events still price)' }],
   ['@cf/moonshotai/kimi-k2.5',                  { input: 0.600, cachedInput: 0.100, output: 3.000, label: 'Kimi K2.5 (phantom Workers AI id — never existed, retired 2026-07 #654; row kept so historical cost events still price)' }],
   ['@cf/zai-org/glm-4.7-flash',                 { input: 0.060, output: 0.400, label: 'Cloudflare Workers AI GLM-4.7-Flash' }],
+  ['@cf/zai-org/glm-5.2',                       { input: 1.400, output: 4.400, label: 'Cloudflare Workers AI GLM-5.2 (verified live pricing page 2026-08-22; code-reviewer reduce)' }],
+  ['@cf/deepseek-ai/deepseek-v4-flash-0731',    { input: 0.440, output: 1.320, label: 'Cloudflare Workers AI DeepSeek V4-Flash-0731 (verified 2026-08-22; purser author tier)' }],
+  ['@cf/deepseek-ai/deepseek-v4-pro-0813',      { input: 1.320, output: 3.960, label: 'Cloudflare Workers AI DeepSeek V4-Pro-0813 (verified 2026-08-22; red-team)' }],
+  ['@cf/google/gemma-4-26b-a4b-it',             { input: 0.100, output: 0.300, label: 'Cloudflare Workers AI Gemma 4 26B A4B (verified 2026-08-22)' }],
   // qwen2.5-coder-32b: the 2026-07-07 blackout hotfix pinned every ship to this,
   // the PRICIEST qwen ($0.66/$1.00 — src pricing page). No longer a default (ships
   // fell back to qwen3-30b, ~13x cheaper input), but still pinnable, so a
