@@ -31,7 +31,7 @@ const { handleInterruptions } = await import('../../cli/commands/interruptions.j
 describe('pd interruptions --json (script surface)', () => {
   let server;
   let relayUrl;
-  /** Per-test relay behavior: { status, body } or a function(req) → same. */
+  /** Per-test relay behavior: { status, body }. */
   let relayResponse;
   /** Every request the command actually put on the wire. */
   let received;
@@ -45,8 +45,7 @@ describe('pd interruptions --json (script surface)', () => {
         url: req.url,
         authorization: req.headers.authorization ?? null,
       });
-      const { status, body } =
-        typeof relayResponse === 'function' ? relayResponse(req) : relayResponse;
+      const { status, body } = relayResponse;
       res.writeHead(status, { 'Content-Type': 'application/json' });
       res.end(typeof body === 'string' ? body : JSON.stringify(body));
     });

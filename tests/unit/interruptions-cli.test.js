@@ -81,6 +81,11 @@ describe('formatInterruptionAge', () => {
     expect(formatInterruptionAge(NOW_S - 90_000, NOW_MS)).toBe('1d 1h');
   });
 
+  test('month-old asks keep the day granularity (no overflow past 24d)', () => {
+    // 30 days + 5 hours
+    expect(formatInterruptionAge(NOW_S - (30 * 86_400 + 5 * 3_600), NOW_MS)).toBe('30d 5h');
+  });
+
   test('a clock-skewed future timestamp clamps to <1m, never negative', () => {
     expect(formatInterruptionAge(NOW_S + 500, NOW_MS)).toBe('<1m');
   });
