@@ -19,16 +19,32 @@ PR_NUMBER = os.environ.get("PD_TUBE_PR")
 URL = ""
 
 def discover_daemon_url():
+    # Mirrors the repo's canonical resolution order (shared/daemon-discovery.ts):
+    # explicit URL -> PORT_DADDY_PORT env override -> published port file, then
+    # fail closed instead of guessing a well-known endpoint.
     explicit = os.environ.get("PORT_DADDY_URL") or os.environ.get("PORT_DADDY_DAEMON_URL")
     if explicit:
         return explicit.rstrip("/")
+    host = (os.environ.get("PORT_DADDY_TCP_HOST") or "").strip() or "127.0.0.1"
+    env_port = (os.environ.get("PORT_DADDY_PORT") or "").strip()
+    if env_port:
+        try:
+            port = int(env_port)
+            if 1024 <= port <= 65535:
+                return f"http://{host}:{port}"
+        except ValueError as err:
+            # An unparseable env override is ignored (not fatal) so discovery can
+            # still fall through to the published port file, matching resolveDaemonPort().
+            del err
     port_file = Path(os.environ.get("PORT_DADDY_PORT_FILE", Path.home() / ".port-daddy" / "daemon.port"))
     try:
         port = int(port_file.read_text().strip())
         if 1024 <= port <= 65535:
-            return f"http://127.0.0.1:{port}"
-    except (OSError, ValueError):
-        pass
+            return f"http://{host}:{port}"
+    except (OSError, ValueError) as err:
+        # No readable/valid publication here is an expected state, not an error:
+        # fall through to the fail-closed RuntimeError below instead of guessing.
+        del err
     raise RuntimeError("No Port Daddy daemon endpoint is published; select or start a daemon and retry.")
 
 def configure():

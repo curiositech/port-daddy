@@ -172,8 +172,8 @@
     {
       "path": "examples/pd-tube/agent-responder.py",
       "url": "/samples/files/examples/pd-tube/agent-responder.py",
-      "bytes": 5470,
-      "sha256": "27b28cc244564a044ff2c918f1b2b2a7c6e82c54b723bc87876d3bf32bee0d76"
+      "bytes": 6383,
+      "sha256": "224c243e5e950602b518a2f9506701721423cf9d5db0cc0067f2ef04f88fd3fb"
     },
     {
       "path": "examples/pd-tube/button-to-agent.html",
