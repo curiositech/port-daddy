@@ -26,6 +26,8 @@ export interface StaleAgent {
   staleSince: number;
   status: SalvageQueueStatus;
   notes?: string[];
+  /** Exact session-note total when available, even when notes is a bounded tail. */
+  noteCount?: number;
   // Semantic identity components for prefix filtering
   identityProject: string | null;
   identityStack: string | null;
@@ -60,6 +62,7 @@ interface ResurrectionSessions {
   getNotes(sessionId?: string | null, options?: { limit?: number }): {
     success: boolean;
     notes?: Array<{ content?: unknown }>;
+    total?: number;
   };
 }
 
@@ -126,11 +129,20 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
     listPending: db.prepare(`
       SELECT * FROM resurrection_queue WHERE status = 'pending' ORDER BY detected_at ASC
     `),
+    listPendingLimited: db.prepare(`
+      SELECT * FROM resurrection_queue WHERE status = 'pending' ORDER BY detected_at ASC LIMIT ?
+    `),
     listPendingByProject: db.prepare(`
       SELECT * FROM resurrection_queue WHERE status = 'pending' AND identity_project = ? ORDER BY detected_at ASC
     `),
+    listPendingByProjectLimited: db.prepare(`
+      SELECT * FROM resurrection_queue WHERE status = 'pending' AND identity_project = ? ORDER BY detected_at ASC LIMIT ?
+    `),
     listPendingByProjectStack: db.prepare(`
       SELECT * FROM resurrection_queue WHERE status = 'pending' AND identity_project = ? AND identity_stack = ? ORDER BY detected_at ASC
+    `),
+    listPendingByProjectStackLimited: db.prepare(`
+      SELECT * FROM resurrection_queue WHERE status = 'pending' AND identity_project = ? AND identity_stack = ? ORDER BY detected_at ASC LIMIT ?
     `),
     listAll: db.prepare(`SELECT * FROM resurrection_queue ORDER BY detected_at DESC LIMIT ?`),
     listAllByProject: db.prepare(`
@@ -147,6 +159,15 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
         CASE WHEN identity_context IS NOT NULL THEN ':' || identity_context ELSE '' END
       ) LIKE ? ESCAPE '\\'
       ORDER BY detected_at ASC
+    `),
+    listPendingByPatternLimited: db.prepare(`
+      SELECT * FROM resurrection_queue
+      WHERE status = 'pending' AND (
+        identity_project ||
+        CASE WHEN identity_stack IS NOT NULL THEN ':' || identity_stack ELSE '' END ||
+        CASE WHEN identity_context IS NOT NULL THEN ':' || identity_context ELSE '' END
+      ) LIKE ? ESCAPE '\\'
+      ORDER BY detected_at ASC LIMIT ?
     `),
     listAllByPattern: db.prepare(`
       SELECT * FROM resurrection_queue 
@@ -203,12 +224,28 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       .map((note) => typeof note === 'string' ? note : String(note));
   }
 
-  function notesForRow(row: ResurrectionQueueRow, metadata: QueueMetadata): string[] {
-    const fallback = normalizeNotes(metadata.notes);
+  /**
+   * Read one bounded salvage-note tail while preserving its exact total. The
+   * design separates recovery preview cost from completeness metadata so a
+   * caller never has to materialize hundreds of notes merely to say how many
+   * were omitted.
+   *
+   * @param row Resurrection queue record whose session may own live notes.
+   * @param metadata Persisted fallback capsule used when the session is gone.
+   * @param maxNotes Maximum note bodies to materialize for this entry.
+   * @returns A bounded recent-note array plus the exact available-note total.
+   */
+  function notesForRow(
+    row: ResurrectionQueueRow,
+    metadata: QueueMetadata,
+    maxNotes = noteLimit,
+  ): { notes: string[]; total: number } {
+    const fallbackAll = normalizeNotes(metadata.notes);
+    const fallback = { notes: fallbackAll.slice(-maxNotes), total: fallbackAll.length };
     if (!row.session_id || !deps.sessions) return fallback;
 
     try {
-      const result = deps.sessions.getNotes(row.session_id, { limit: noteLimit });
+      const result = deps.sessions.getNotes(row.session_id, { limit: maxNotes });
       if (!result.success || !Array.isArray(result.notes)) return fallback;
 
       const liveNotes = result.notes
@@ -216,19 +253,20 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
         .filter((content) => content !== null && content !== undefined)
         .map((content) => typeof content === 'string' ? content : String(content));
 
-      return liveNotes.length > 0 ? liveNotes : fallback;
+      const reportedTotal = Number.isFinite(result.total) && (result.total ?? -1) >= 0
+        ? Math.floor(result.total as number)
+        : liveNotes.length;
+      return liveNotes.length > 0
+        ? { notes: liveNotes.slice(-maxNotes), total: Math.max(reportedTotal, liveNotes.length) }
+        : fallback;
     } catch {
       return fallback;
     }
   }
 
-  function applyLimit<T>(rows: T[], limit?: number): T[] {
-    if (!Number.isFinite(limit) || !limit || limit <= 0) return rows;
-    return rows.slice(0, Math.floor(limit));
-  }
-
-  function formatQueueEntry(row: ResurrectionQueueRow): StaleAgent {
+  function formatQueueEntry(row: ResurrectionQueueRow, maxNotes = noteLimit): StaleAgent {
     const metadata = parseMetadata(row.metadata);
+    const noteWindow = notesForRow(row, metadata, maxNotes);
     return {
       id: row.agent_id,
       name: row.agent_name,
@@ -237,7 +275,8 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       lastHeartbeat: metadata.lastHeartbeat || 0,
       staleSince: row.detected_at,
       status: row.status as SalvageQueueStatus,
-      notes: notesForRow(row, metadata),
+      notes: noteWindow.notes,
+      noteCount: noteWindow.total,
       identityProject: row.identity_project,
       identityStack: row.identity_stack,
       identityContext: row.identity_context,
@@ -323,26 +362,39 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
      * Get pending resurrections
      * Filters by identity prefix if provided (project or project:stack)
      */
-    pending(options: { project?: string; stack?: string; limit?: number } = {}) {
+    pending(options: { project?: string; stack?: string; limit?: number; noteLimit?: number } = {}) {
       let rows: ResurrectionQueueRow[];
+      const rowLimit = Number.isFinite(options.limit) && (options.limit ?? 0) > 0
+        ? Math.floor(options.limit as number)
+        : null;
+      const entryNoteLimit = Number.isFinite(options.noteLimit) && (options.noteLimit ?? 0) > 0
+        ? Math.floor(options.noteLimit as number)
+        : noteLimit;
 
       if (options.project?.includes('*') || options.stack?.includes('*')) {
         const pattern = options.project + (options.stack ? ':' + options.stack : '');
         const sqlPattern = patternToSql(pattern);
-        rows = stmts.listPendingByPattern.all(sqlPattern) as ResurrectionQueueRow[];
+        rows = (rowLimit === null
+          ? stmts.listPendingByPattern.all(sqlPattern)
+          : stmts.listPendingByPatternLimited.all(sqlPattern, rowLimit)) as ResurrectionQueueRow[];
       } else if (options.project && options.stack) {
-        rows = stmts.listPendingByProjectStack.all(options.project, options.stack) as ResurrectionQueueRow[];
+        rows = (rowLimit === null
+          ? stmts.listPendingByProjectStack.all(options.project, options.stack)
+          : stmts.listPendingByProjectStackLimited.all(options.project, options.stack, rowLimit)) as ResurrectionQueueRow[];
       } else if (options.project) {
-        rows = stmts.listPendingByProject.all(options.project) as ResurrectionQueueRow[];
+        rows = (rowLimit === null
+          ? stmts.listPendingByProject.all(options.project)
+          : stmts.listPendingByProjectLimited.all(options.project, rowLimit)) as ResurrectionQueueRow[];
       } else {
-        rows = stmts.listPending.all() as ResurrectionQueueRow[];
+        rows = (rowLimit === null
+          ? stmts.listPending.all()
+          : stmts.listPendingLimited.all(rowLimit)) as ResurrectionQueueRow[];
       }
-      const limitedRows = applyLimit(rows, options.limit);
 
       return {
         success: true,
-        agents: limitedRows.map(formatQueueEntry),
-        count: limitedRows.length,
+        agents: rows.map((row) => formatQueueEntry(row, entryNoteLimit)),
+        count: rows.length,
         filtered: !!options.project,
       };
     },
@@ -402,13 +454,15 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       emitter.emit('agent:resurrecting', formatQueueEntry(stmts.get.get(agentId) as ResurrectionQueueRow));
 
       const metadata = parseMetadata(row.metadata);
+      const noteWindow = notesForRow(row, metadata);
       return {
         success: true,
         agent: formatQueueEntry(row),
         context: {
           sessionId: row.session_id,
           purpose: row.purpose,
-          notes: notesForRow(row, metadata),
+          notes: noteWindow.notes,
+          noteCount: noteWindow.total,
         },
       };
     },

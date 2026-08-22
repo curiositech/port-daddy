@@ -27,7 +27,8 @@ import { createLLMClient } from './llm-call.js';
 import { transportToAdapter } from './coordination-judge.js';
 import { IoDispatch, type DispatchOutputResult, type IoDispatchDeps } from './fleet/io-dispatch.js';
 import { evaluateTrustGate, type TrustPolicy, type TrustTier } from './fleet/trust.js';
-import { createSkillGraftIndex, renderSkillGraftContext, type SkillGraftIndex } from './skill-graft.js';
+import { createSkillGraftIndex, renderSkillGraftContext, type SkillGraftIndex, type SkillGraftResult } from './skill-graft.js';
+import { buildSkillGraftEvent } from './skill-graft-events.js';
 import { PD_HOME } from '../shared/paths.js';
 import {
   loadWatcherPidRegistry,
@@ -562,7 +563,7 @@ function getFleetDaemonUrl(): string {
 // ─── Lifecycle Events ──────────────────────────────────────────────────────
 
 export interface FleetEvent {
-  type: 'agent_started' | 'agent_completed' | 'agent_failed' | 'agent_paused' | 'agent_resumed' | 'watcher_started' | 'watcher_triggered' | 'fleet_started' | 'fleet_stopped' | 'trust_gate_refused' | 'trust_gate_queued';
+  type: 'agent_started' | 'agent_completed' | 'agent_failed' | 'agent_paused' | 'agent_resumed' | 'watcher_started' | 'watcher_triggered' | 'fleet_started' | 'fleet_stopped' | 'trust_gate_refused' | 'trust_gate_queued' | 'skill_graft_recorded';
   agent?: string;
   identity?: string;
   project?: string;
@@ -1767,7 +1768,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
    * perfectly synchronous; see the call site below for how it's consumed
    * without forcing an `await` on the common case either.
    */
-  function buildAgentTask(agent: FleetAgent, context?: FleetRunContext): string | Promise<string> {
+  function buildAgentTask(agent: FleetAgent, identity: string, context?: FleetRunContext): string | Promise<string> {
     const basePrompt = agent.prompt.trim();
     const messageText = context ? (context.messageContent ?? serializeMessage(context.message)).trim() : '';
 
@@ -1792,7 +1793,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     }
 
     if (!agent.skillGraft) return task;
-    return appendSkillGraftContext(agent, task);
+    return appendSkillGraftContext(agent, task, identity);
   }
 
   /**
@@ -1814,7 +1815,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
    * (see emitSemanticAliasTuples/observeSemanticAliases below), now with an
    * explicit latency bound so advisory enrichment can't hold a spawn hostage.
    */
-  async function appendSkillGraftContext(agent: FleetAgent, task: string): Promise<string> {
+  async function appendSkillGraftContext(agent: FleetAgent, task: string, identity: string): Promise<string> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const budget = new Promise<typeof SKILL_GRAFT_TIMED_OUT>((resolve) => {
@@ -1827,12 +1828,45 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         return task;
       }
       const rendered = renderSkillGraftContext(result);
+      recordSkillGraftEvents(agent, identity, result);
       return rendered ? `${task}\n\n${rendered}` : task;
     } catch (err) {
       console.error(`[Fleet] skill-graft failed for agent "${agent.name}" (continuing without it):`, (err as Error).message);
       return task;
     } finally {
       if (timer) clearTimeout(timer);
+    }
+  }
+
+  /**
+   * Turn a successful craft-and-splice into auditable skill-graft transcript
+   * facts (schemas/agent-harbor/v0/skill-graft.schema.json, lib/skill-graft-
+   * events.ts) via the SAME `emit()` sink every other spawn-lifecycle fact
+   * (agent_started, trust_gate_refused, ...) already goes through — no new
+   * sink. This closes the "grafts are auditable facts... not silent prompt
+   * injection" gap the schema's own description calls out (see
+   * skills/legibility-for-agentic-systems, F5).
+   *
+   * Deliberately its own try/catch, separate from `appendSkillGraftContext`'s:
+   * recording is advisory telemetry ABOUT a splice that already succeeded, so
+   * a broken `onEvent` handler (or any other recording failure) must never
+   * unwind the already-rendered grafted task — fail-open with a logged
+   * warning, same posture the budget/craft() failure paths above use.
+   */
+  function recordSkillGraftEvents(agent: FleetAgent, identity: string, result: SkillGraftResult): void {
+    try {
+      const events = buildSkillGraftEvent({
+        agentNodeId: identity,
+        result,
+        grantedBy: `fleet-ship:${identity}`,
+      });
+      if (events.length === 0) return;
+      emit({
+        type: 'skill_graft_recorded', agent: agent.name, identity, project,
+        timestamp: Date.now(), details: { grafts: events },
+      });
+    } catch (err) {
+      console.error(`[Fleet] skill-graft event recording failed for agent "${agent.name}" (continuing without it):`, (err as Error).message);
     }
   }
 
@@ -2006,7 +2040,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       // Only await when skill-graft actually returned a Promise (agent.skillGraft
       // is set) — see buildAgentTask's doc comment for why the fast path must
       // stay perfectly synchronous.
-      const taskResult = buildAgentTask(agent, context);
+      const taskResult = buildAgentTask(agent, identity, context);
       const task = typeof taskResult === 'string' ? taskResult : await taskResult;
       emitSemanticAliasTuples(agent, task, context);
       observeSemanticAliases(agent, task, context, now);

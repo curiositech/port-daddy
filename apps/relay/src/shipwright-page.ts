@@ -13,13 +13,26 @@
  * exclusively through DOM textContent — never innerHTML — so neither party
  * can inject markup. The only HTML on the page is the server-rendered shell.
  *
- * HONEST MVP: the page states plainly that the Shipwright cannot open a PR —
- * the operator copies/downloads the YAML and commits it themselves.
+ * PR-OPENING (grand-plan §shipwright-pr-open): a roster that VALIDATES gets an
+ * "Open PR" deck — a plain HTML form POST to /v1/shipwright/open-pr, no client
+ * JS in the submission path. The page renders the form ONCE, server-side, into
+ * a <template>: the installation <select> only ever contains installations
+ * GitHub says the signed-in user owns (listUserInstallations — the
+ * billing-page tenancy idiom), so the user never submits an id the server did
+ * not offer. The client script merely CLONES the template into each panel
+ * whose verdict is valid and fills the hidden yaml field; the server
+ * re-validates everything on POST regardless. When the installation list is
+ * unavailable (no GitHub App, degraded GitHub) the deck degrades to an honest
+ * note and the copy/download path still works.
  */
 
 import type { Env } from './types.js';
 import type { UserRow } from './db.js';
-import { resolveSession } from './auth-github.js';
+import {
+  resolveSession,
+  listUserInstallations,
+  type UserInstallation,
+} from './auth-github.js';
 import { randomHex } from './crypto.js';
 import { HEAD, TOKENS } from './account-page.js';
 import { SHIPWRIGHT_RETENTION_DAYS } from './retention-sweep.js';
@@ -93,6 +106,16 @@ body{display:flex;flex-direction:column}
 .composer .hints{display:flex;justify-content:space-between;gap:10px;margin-top:6px;flex-wrap:wrap}
 .composer .hint{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--text-ghost)}
 .composer .clear{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600;color:var(--error);background:none;border:none;cursor:pointer;text-decoration:underline;text-underline-offset:3px;padding:0}
+/* the Open-PR deck inside a validated yaml panel — plain form, no JS submit */
+.prform{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-top:1px solid var(--hair-strong);padding:10px 12px;background:var(--surface-card)}
+.prform .pr-label{flex-basis:100%;font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
+.prform select,.prform input[type=text]{border:1px solid var(--hair-strong);background:var(--surface-raised);padding:6px 8px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;min-width:0}
+.prform input[type=text]{flex:1 1 180px}
+.prform button[type=submit]{font-family:"IBM Plex Mono",monospace;font-size:12.5px;font-weight:700;letter-spacing:.03em;padding:7px 14px;border:2px solid var(--border-strong);background:var(--cobalt);color:var(--on-accent);cursor:pointer}
+.prform button[type=submit]:hover{background:var(--border-strong);color:var(--surface-base)}
+.prform .pr-note{flex-basis:100%;font-size:12.5px;color:var(--text-muted);line-height:1.5}
+.pr-unavail{border-top:1px solid var(--hair-strong);padding:10px 12px;background:var(--surface-card);font-size:12.5px;color:var(--text-secondary);line-height:1.55}
+.notice-strip{margin-top:12px;background:var(--surface-card);border:1px solid var(--hair);padding:10px 16px;font-size:13.5px;line-height:1.55;box-shadow:inset 3px 0 0 var(--amber)}
 @media (max-width:640px){.site-header{padding:12px 16px}.masthead,.chat{padding-left:14px;padding-right:14px}.msg{max-width:100%}.composer form{flex-direction:column;align-items:stretch}}
 `;
 
@@ -203,11 +226,23 @@ const CLIENT_JS = `
     var pre = el('pre');
     pre.appendChild(el('code', null, code));
     box.appendChild(pre);
-    var note = el('p', null,
-      'Commit this yourself: save as pd-fleet.yml at the repo root and open a ' +
-      'PR to your default branch. The Shipwright cannot open the PR for you yet.');
-    note.className = 'musing';
-    box.appendChild(note);
+    // The Open-PR deck: cloned from the server-rendered template, ONLY onto a
+    // panel whose deterministic verdict is valid. Client-side UX only — the
+    // server re-validates on POST, so hiding/showing here gates nothing.
+    if (verdict && verdict.valid) {
+      var tpl = document.getElementById('prform-tpl');
+      if (tpl && tpl.content && tpl.content.firstElementChild) {
+        var deck = tpl.content.firstElementChild.cloneNode(true);
+        var yfield = deck.querySelector('textarea[name=yaml]');
+        if (yfield) yfield.value = code;
+        box.appendChild(deck);
+      }
+    } else {
+      var note = el('p', 'musing',
+        'Fix the roster until the badge is green - the Open PR deck appears only on a ' +
+        'roster the parser accepts. You can always copy or download and commit by hand.');
+      box.appendChild(note);
+    }
     return box;
   }
 
@@ -356,8 +391,72 @@ const CLIENT_JS = `
 })();
 `;
 
+// ── Open-PR deck (shipwright-pr-open) ────────────────────────────────────────
+
+export interface ShipwrightPageView {
+  /** null = could not establish the list (no token / GitHub error) — honest note. */
+  installations: UserInstallation[] | null;
+  /** Whitelisted notice key from ?notice=, or null. */
+  notice: string | null;
+}
+
+/**
+ * The ONLY notices this page renders — a fixed whitelist keyed by the codes
+ * the open-pr form dialect 303s back with. Raw query text is never echoed.
+ * (Success needs no notice: a successful form POST 303s straight to the PR.)
+ */
+export const SHIPWRIGHT_NOTICES: Record<string, string> = {
+  pr_unconfigured: 'Opening PRs is unavailable: the GitHub App is not configured on this relay. Copy or download the YAML and commit it by hand.',
+  cross_origin: 'Cross-origin request refused — use the Open PR button on this page.',
+  bad_request: 'That request did not make sense — no PR was opened. Check the repo field (owner/name) and try again.',
+  bad_json: 'That request did not make sense — no PR was opened. Try again.',
+  invalid_yaml: 'That roster does not validate, so no PR was opened. The server re-checks every roster itself — fix the YAML until the badge is green.',
+  not_from_chat: 'That YAML is not a roster the Shipwright emitted in your conversation, so no PR was opened.',
+  forbidden: 'That installation is not yours — GitHub decides ownership, and it said no. No PR was opened.',
+  repo_not_installed: 'The Port Daddy Fleet GitHub App is not installed on that repository (or it belongs to a different installation). Install it there, then try again.',
+  github_error: 'GitHub had a problem — no PR was opened. Try again shortly.',
+};
+
+/**
+ * Server-render the Open-PR deck ONCE into a <template> the client clones into
+ * each panel whose verdict is valid. Tenancy shape (the billing-page idiom):
+ * the <select> holds only installations GitHub attributes to the signed-in
+ * user, so the form can never submit an id the server did not offer — and the
+ * POST re-verifies ownership server-side anyway. Degraded and empty states
+ * stay honest instead of rendering a dead button.
+ */
+export function renderPrTemplate(installations: UserInstallation[] | null): string {
+  if (installations === null) {
+    return `<template id="prform-tpl"><div class="pr-unavail"><b>Open PR unavailable:</b> your GitHub App
+    installations could not be listed just now, so the button is not shown (never guessed). Copy or
+    download the YAML and commit it by hand — or reload to retry.</div></template>`;
+  }
+  if (installations.length === 0) {
+    return `<template id="prform-tpl"><div class="pr-unavail"><b>One step first:</b> install the Port Daddy
+    Fleet GitHub App on your repository, then reload — the Shipwright can then open the PR for you.
+    Until then, copy or download the YAML and commit it by hand.</div></template>`;
+  }
+  const options = installations
+    .map((i) => `<option value="${i.id}">${esc(i.accountLogin ?? `installation ${i.id}`)}</option>`)
+    .join('');
+  return `<template id="prform-tpl"><form class="prform" method="post" action="/v1/shipwright/open-pr">
+    <span class="pr-label">Open the PR from here — validated rosters only</span>
+    <select name="installationId" aria-label="GitHub App installation">${options}</select>
+    <input type="text" name="repo" placeholder="owner/repo" required pattern="[A-Za-z0-9_.\\-]+/[A-Za-z0-9_.\\-]+" aria-label="Repository (owner/name)">
+    <textarea name="yaml" hidden></textarea>
+    <button type="submit">Open PR</button>
+    <span class="pr-note">Commits pd-fleet.yml to a <b>fresh branch</b> of that repo and opens a PR — never a
+    push to an existing branch, never a merge; your review stays the gate. Prefer your own hands?
+    Copy or download above and commit it yourself.</span>
+  </form></template>`;
+}
+
 /** Render the page shell. `nonce` admits the one inline script under CSP. */
-export function renderShipwrightPage(user: UserRow, nonce: string): string {
+export function renderShipwrightPage(user: UserRow, nonce: string, view: ShipwrightPageView): string {
+  const noticeText = view.notice ? SHIPWRIGHT_NOTICES[view.notice] : undefined;
+  const noticeHtml = noticeText
+    ? `<div class="notice-strip" role="status">${noticeText}</div>`
+    : '';
   return `<!DOCTYPE html><html lang="en"><head><title>Port Daddy — Shipwright</title>${HEAD}<style>${CSS}</style></head><body>
 <header class="site-header">
   <a class="sh-brand" href="/account"><span class="sh-mark" aria-hidden="true">pd</span>Port Daddy</a>
@@ -371,11 +470,14 @@ export function renderShipwrightPage(user: UserRow, nonce: string): string {
   <span class="eyebrow">portdaddy.dev · account · shipwright</span>
   <h1>The <span class="accent rec">Shipwright</span> — design your fleet</h1>
   <div class="honesty">
-    <p><b>Honest limits:</b> the Shipwright designs your <b>pd-fleet.yml</b> in conversation, but it
-    <b>cannot open a PR or touch your repo</b> — you copy or download the YAML and commit it yourself.
-    Conversations stay on this account only, are yours to export or delete, and are pruned after
+    <p><b>Honest limits:</b> the Shipwright designs your <b>pd-fleet.yml</b> in conversation, and once
+    a roster <b>validates</b> it can <b>open the PR in your own repo</b> at your click — always a fresh
+    branch + PR into a repo whose GitHub App installation you own; it never pushes to existing
+    branches, never merges, and cannot read your repo. Your review stays the gate. Conversations stay
+    on this account only, are yours to export or delete, and are pruned after
     ${SHIPWRIGHT_RETENTION_DAYS} days.</p>
   </div>
+  ${noticeHtml}
 </section>
 <main class="chat">
   <div id="log" class="log" aria-live="polite" aria-label="Conversation with the Shipwright">
@@ -398,6 +500,7 @@ export function renderShipwrightPage(user: UserRow, nonce: string): string {
     </div>
   </div>
 </main>
+${renderPrTemplate(view.installations)}
 <script nonce="${nonce}">${CLIENT_JS}</script>
 </body></html>`;
 }
@@ -412,8 +515,18 @@ export async function handleShipwrightPage(request: Request, env: Env): Promise<
   if (!session) {
     return new Response(null, { status: 302, headers: { Location: '/login' } });
   }
+  const rawNotice = new URL(request.url).searchParams.get('notice');
+  const notice = rawNotice && SHIPWRIGHT_NOTICES[rawNotice] ? rawNotice : null;
+  // The Open-PR deck needs the tenancy list; a GitHub hiccup degrades the deck
+  // to an honest note (D12), never the whole chat page.
+  let installations: UserInstallation[] | null = null;
+  try {
+    installations = await listUserInstallations(env, session);
+  } catch {
+    installations = null;
+  }
   const nonce = randomHex(16);
-  return new Response(renderShipwrightPage(session.user, nonce), {
+  return new Response(renderShipwrightPage(session.user, nonce, { installations, notice }), {
     status: 200,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
@@ -423,7 +536,7 @@ export async function handleShipwrightPage(request: Request, env: Env): Promise<
         "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; " +
         'font-src https://fonts.gstatic.com; img-src \'self\' data:; ' +
         `script-src 'nonce-${nonce}'; connect-src 'self'; ` +
-        "form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+        "form-action 'self' https://github.com; base-uri 'none'; frame-ancestors 'none'",
       'Referrer-Policy': 'no-referrer',
       'X-Content-Type-Options': 'nosniff',
     },

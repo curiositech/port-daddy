@@ -1035,10 +1035,11 @@ the canonical sentence the rest of the series depends on:
 
 \pullquote{The economy rests on three continuity organs --- memory
 (\textsc{implemented}), checkpoint (\textsc{partial}: notes, not execution state),
-and a witnessed-outcome ledger (\textsc{specified}) --- and reputation keys on the
-third, which does not yet exist; the checkpoint organ is the weakest
-\emph{implemented} link, and a checkpoint with teeth (a real execution-state
-snapshot) is the literal foundation of the cross-machine economy.}
+and a witnessed-outcome ledger (\textsc{partial}: commitments and oracle-bound closure,
+not neutral graded outcomes) --- and reputation keys on the richer third organ,
+which does not yet exist; the checkpoint organ is the weakest continuity link,
+and a checkpoint with teeth (a real execution-state snapshot) is the literal
+foundation of the cross-machine economy.}
 
 \textbf{Memory} --- session records, durable notes, and the operation log --- is
 \Built, and the kernel even forbids amnesia: a monitor rule guards that an active
@@ -1053,9 +1054,12 @@ restoring work --- is open problem OP-4, the most important unbuilt thing at thi
 layer because it is the literal foundation of any reputation economy.
 
 \textbf{The witnessed-outcome ledger} --- the durable record of what an agent
-actually delivered --- is the organ on which reputation keys. It is \Designed{}
-only; the personhood paper builds it. OP-4 (here) and the outcome-ledger gap (the
-personhood paper) are the \emph{same} finding viewed from two ends.
+actually delivered --- is the organ on which reputation keys. A \BuiltWeak{}
+substrate now ships: durable commitments, daemon-derived deadlines, oracle-bound
+closure, API/CLI surfaces, and overdue detection. Neutral graded outcome events,
+sanctions, identity binding, and reputation updates remain absent. OP-4 (here) and
+that richer outcome-ledger gap (the personhood paper) are the \emph{same} finding
+viewed from two ends.
 
 \subsection{The operation log and tamper-evidence}
 
@@ -1141,7 +1145,7 @@ I8 & Forbidden-state handling & constraint/boot (regimented) + monitor (detected
 I9 & Tamper-evidence of the audit log & hash chain & \BuiltWeak{} (re-scoped to the economy layer, \S\ref{sec:merkle}) \\
 I10 & Honest self-report & scoped attestation report & \Built \\
 I11 & Runtime parity (interpreter $\equiv$ test bindings) & runtime-shim layer & \BuiltWeak{} (OP-3) \\
-I12 & Non-forgeable identity & per-actor signing keys & \Designed{} (substrate present, gating absent) \\
+I12 & Non-forgeable identity & actor-soul id + lookup credential & \BuiltWeak{} (bounded gate ships; universal write gating absent) \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -1270,7 +1274,7 @@ Buggy cooperating agent & \textbf{in} & Claims, commitments, post-commit monitor
 Misbehaving agent (ignores advisory claims) & partial & Edit-surface claims are \emph{advisory coordination}, not OS-enforced isolation. A malicious agent can write the file anyway (no kernel-level sandbox such as Landlock, \texttt{unveil}, or Seatbelt). \\
 Same-user process (reads/edits the DB) & \textbf{out} & The database is owner-read/write only; the signing key is being migrated to the OS keychain. Hash-chain tamper-evidence defends against \emph{nobody} under this exclusion (\S\ref{sec:merkle}). \\
 Different-uid process & \textbf{in (partial)} & Owner-only permissions; but the socket peer-credential check is a software handshake, not the kernel-enforced socket credential (\texttt{SO\_PEERCRED}) --- a real authentication caveat. \\
-Cross-machine / cross-operator & \textbf{out (economy layer)} & Needs non-forgeable identity (\Designed) and cross-operator attestation (the economy paper). \\
+Cross-machine / cross-operator & \textbf{out (economy layer)} & Needs the complete local identity contract (\BuiltWeak) and cross-operator attestation (the economy paper). \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -1341,18 +1345,18 @@ state this here so no reader carries the (legitimate) ``mechanically verified
 macaroon'' result forward into the (false) belief that the kernel can presently
 \emph{compel} a same-user agent through it.
 
-\subsection{Self-asserted identity bounds every other invariant}
+\subsection{Partial actor-soul identity bounds every other invariant}
 
-Today an actor's identity is whatever the session claims it to be (I12 is
-\Designed). This silently bounds the security weight of I7, I8, and I9: every rule
-that keys on identity (lock-owner validity, capability-escalation, note
-monotonicity, owner-scoped release) is unforgeable only up to impersonation. A
-malicious agent simply claims to be another actor. The native capability-escalation
-enforcement is theater if the capability set it checks hangs off a forgeable
-identity. This dependency --- I12 gates the soundness of I7, I8, and I9 --- is a
-hard precondition, stated here so the reader does not over-trust the enforcement
-organ. It is also the central reason the cross-machine layer, where identities
-genuinely conflict, must make identity cryptographic.
+The reference system now mints an opaque actor-soul id and lookup credential inside
+the daemon, and the budget guard assigns fresh actors to a shared bounded newcomer
+pool (I12 is \BuiltWeak). Legacy session paths and security-relevant writes that do
+not yet require that credential remain impersonable. This still bounds the security
+weight of I7, I8, and I9: lock-owner validity, capability escalation, note
+monotonicity, and owner-scoped release are only as strong as their least-protected
+identity path. This dependency --- complete I12 enforcement gates the soundness of
+I7, I8, and I9 --- is a hard precondition, stated here so the reader does not
+over-trust the enforcement organ. It is also the central reason the cross-machine
+layer, where identities genuinely conflict, must make identity cryptographic.
 
 \subsection{Hash-chain tamper-evidence, re-scoped to cross-machine provisioning}
 \label{sec:merkle}
@@ -1433,8 +1437,10 @@ over-assume.
 
 \subsection{The explicit non-provisions}
 \begin{itemize}[leftmargin=1.4em]
-  \item The substrate does \emph{not} provide non-forgeable identity yet (I12,
-  \Designed).
+  \item The substrate does \emph{not} provide end-to-end non-forgeable identity
+  yet. I12 is \BuiltWeak: daemon-minted actor souls, lookup credentials, and a
+  bounded newcomer pool enforced by the budget guard ship; universal
+  write-boundary enforcement does not.
   \item It does \emph{not} provide fair/queued exclusion (OP-1), cross-organ
   transactional atomicity by default (\S\ref{sec:atomicity}), a real
   execution-checkpoint (OP-4), or any cross-machine guarantee (the economy layer ---
@@ -1592,9 +1598,9 @@ and compensates; it does not regiment, and we credit the only genuine pre-commit
 regimentation to the uniqueness constraint and the boot-admission gate. Cross-organ
 atomicity is a buildable defect, not a frontier. Hash-chain tamper-evidence is
 re-scoped to cross-machine provisioning, where it actually defends someone. And the
-two genuinely soft spots --- non-forgeable identity (I12) and a checkpoint with
-teeth (OP-4) --- are exactly the two things a cross-machine economy and a durable
-notion of agent personhood lean on hardest.
+two genuinely soft spots --- partial local identity enforcement (I12) and a
+checkpoint with teeth (OP-4) --- are exactly the two things a cross-machine
+economy and a durable notion of agent personhood lean on hardest.
 
 \pullquote{The kernel is solid where it is local and provisional exactly where a
 cross-machine economy would need it to be cryptographic and continuous. That is not
@@ -1661,7 +1667,7 @@ Self-attestation & attestation, invariant-registry modules & boot gate + pre-fli
 Authorization chain & delegation-chain module & mechanically verified \\
 Enforcement gate (macaroon discharge) & kernel macaroon module & crypto verified; in-band, not yet compulsory (\S\ref{sec:enforcement-gap}) \\
 Runtime-parity shim & runtime-shim module & normalizes binding differences \\
-Identity (signing keys) & keychain, identity modules & gating not yet enforced \\
+Identity (actor souls + credentials) & actor-souls, budget-guard modules & bounded gate ships; full write-boundary enforcement absent \\
 \bottomrule
 \end{tabular}
 \end{table}

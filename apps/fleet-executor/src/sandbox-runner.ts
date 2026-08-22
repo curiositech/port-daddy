@@ -178,10 +178,36 @@ export interface SandboxRunParams {
   /** Installation token used for the authenticated clone. */
   token: string;
   /**
-   * The repo's test runner invocation. Defaults to `npm test` after an
-   * `npm ci`; repos with another runner can be supported later via config.
+   * The repo's test runner invocation. Defaults to `npm test -- <authored
+   * paths>` after an `npm ci`; repos with another runner can be supported
+   * later via config.
    */
   testCommand?: string;
+}
+
+const DEFAULT_INSTALL_COMMAND =
+  'npm ci --no-audit --no-fund --onnxruntime-node-install=skip';
+
+/**
+ * Build the default sandbox command around only the contract files the purser
+ * authored.
+ *
+ * Running the repository's unfiltered test script made a four-file unit
+ * contract boot unrelated integration infrastructure. A failure in that
+ * infrastructure then blocked the reviewed PR without naming a failed
+ * contract case. Passing paths after npm's `--` keeps the repository's own
+ * runner and configuration while limiting execution to the evidence under
+ * review. Every path is shell-quoted because authored filenames cross a trust
+ * boundary even after the stacked-file path checks have accepted them.
+ */
+export function buildDefaultSandboxTestCommand(
+  files: ReadonlyArray<Pick<StackedFile, 'path'>>,
+): string {
+  if (files.length === 0) {
+    throw new Error('cannot build a Purser test command without authored files');
+  }
+  const authoredPaths = files.map(file => shq(file.path)).join(' ');
+  return `${DEFAULT_INSTALL_COMMAND} && npm test -- ${authoredPaths}`;
 }
 
 /**
@@ -191,6 +217,15 @@ export interface SandboxRunParams {
  * honest `executed: false` outcome instead.
  */
 export async function runTestsInSandbox(params: SandboxRunParams): Promise<SandboxRunOutcome> {
+  if (params.testCommand === undefined && params.files.length === 0) {
+    return {
+      executed: false,
+      passed: null,
+      outputTail: '',
+      failures: [],
+      reason: 'no Purser-authored test files were supplied — nothing was executed',
+    };
+  }
   const sandbox = resolveSandbox(
     params.sandboxBinding,
     `purser-${params.owner}-${params.repo}-${params.headSha}`,
@@ -205,14 +240,24 @@ export async function runTestsInSandbox(params: SandboxRunParams): Promise<Sandb
     };
   }
 
-  const testCommand = params.testCommand ?? 'npm ci --no-audit --no-fund && npm test';
+  // --onnxruntime-node-install=skip: onnxruntime-node's postinstall fetches CUDA/
+  // TensorRT provider binaries unconditionally on linux-x64 (platform-gated, not
+  // GPU-detected) — this sandbox has no GPU and OOMs unpacking a library it can
+  // never use. The purser's tests never need real embedding inference.
+  const testCommand =
+    params.testCommand ?? buildDefaultSandboxTestCommand(params.files);
   const cloneUrl = `https://x-access-token:${params.token}@github.com/${params.owner}/${params.repo}.git`;
 
   // Compose ONE script: shallow-fetch the head SHA, graft the test files in
   // (base64 so contents survive quoting), run the test command.
   const lines: string[] = [
     'set -e',
-    'mkdir -p /work && cd /work',
+    // rm -rf first: a retried run (network flake, transient sandbox error)
+    // can land in the SAME warm container as its failed predecessor, which
+    // already has /work/repo with `origin` set — `git remote add` then dies
+    // with "remote origin already exists" before a single test runs. Start
+    // from a clean slate every attempt so the script is retry-idempotent.
+    'rm -rf /work && mkdir -p /work && cd /work',
     `git init -q repo && cd repo`,
     `git remote add origin ${shq(cloneUrl)}`,
     `git fetch -q --depth 1 origin ${shq(params.headSha)}`,
