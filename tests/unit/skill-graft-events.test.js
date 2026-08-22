@@ -69,6 +69,8 @@ jest.unstable_mockModule('yaml', () => ({
 
 const { buildSkillGraftEvent, SKILL_GRAFT_INITIAL_OUTCOME } = await import('../../lib/skill-graft-events.js');
 const { createFleetRunner } = await import('../../lib/fleet-engine.js');
+const TEST_DAEMON_URL = 'http://127.0.0.1:4319';
+let previousFleetDaemonUrl;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -113,6 +115,8 @@ function makeGraftResult(overrides = {}) {
 beforeEach(() => {
   jest.clearAllMocks();
   jest.useFakeTimers();
+  previousFleetDaemonUrl = process.env.PD_URL;
+  process.env.PD_URL = TEST_DAEMON_URL;
   mockExecSync.mockReturnValue('main');
   const mockChild = {
     pid: 1234,
@@ -132,6 +136,8 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.useRealTimers();
+  if (previousFleetDaemonUrl === undefined) delete process.env.PD_URL;
+  else process.env.PD_URL = previousFleetDaemonUrl;
 });
 
 // ─── buildSkillGraftEvent (pure) ─────────────────────────────────────────────
