@@ -47,15 +47,15 @@ final class BudgetPauseStore: ObservableObject {
     @Published private(set) var isConnected: Bool = false
     @Published var lastError: String?
 
-    private let baseURL: String
+    private let baseURL: String?
     private var pendingTask: Task<Void, Never>?
     private var resolvedTask: Task<Void, Never>?
 
-    /// Resolves the daemon URL via DaemonLocation (env var → discovery file →
-    /// canonical fallback). NEVER hardcode a port here — the daemon may run
-    /// on a non-default port (CI, multi-machine, custom installs).
+    /// Resolves the daemon URL via DaemonLocation (explicit configuration →
+    /// published discovery). NEVER invent a port here — the daemon may run on
+    /// a non-default port or be unavailable until it publishes one.
     init(baseURL: String? = nil) {
-        self.baseURL = baseURL ?? DaemonLocation.resolveBaseURL()
+        self.baseURL = baseURL ?? DaemonLocation.availableBaseURL()
     }
 
     // 2026-07-08 (issue #676 investigation): `start()` used to assign fresh
@@ -104,7 +104,7 @@ final class BudgetPauseStore: ObservableObject {
 
     /// One-shot fetch. Sets pendingKills to authoritative server list.
     func refresh() async {
-        guard let url = URL(string: "\(baseURL)/budget/pending") else { return }
+        guard let baseURL, let url = URL(string: "\(baseURL)/budget/pending") else { return }
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
@@ -138,7 +138,7 @@ final class BudgetPauseStore: ObservableObject {
     }
 
     private func resolve(agentId: String, body: [String: Any]) async {
-        guard let url = URL(string: "\(baseURL)/budget/pending/\(agentId)/resolve") else { return }
+        guard let baseURL, let url = URL(string: "\(baseURL)/budget/pending/\(agentId)/resolve") else { return }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -163,7 +163,7 @@ final class BudgetPauseStore: ObservableObject {
     private func subscribe(channel: String) -> Task<Void, Never> {
         let baseURL = self.baseURL
         return Task { [weak self] in
-            guard let url = URL(string: "\(baseURL)/msg/\(channel)/subscribe") else { return }
+            guard let baseURL, let url = URL(string: "\(baseURL)/msg/\(channel)/subscribe") else { return }
             while !Task.isCancelled {
                 do {
                     let (stream, response) = try await URLSession.shared.bytes(from: url)

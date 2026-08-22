@@ -1,7 +1,8 @@
 % Figure — the three continuity organs the whole economy rests on: memory
 % (implemented), checkpoint (partial: notes, not execution state), and the
-% witnessed-outcome ledger (specified). Reputation keys on the third, which
-% does not yet exist. The canonical sentence lives in the caption.
+% witnessed-outcome ledger (partial substrate). Reputation keys on the richer
+% full reputation-grade third organ, which does not yet exist. The canonical
+% sentence lives in the caption.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
@@ -31,7 +32,7 @@
    recovery passes durable \emph{notes} --- not execution state};
 
 \node[organ,fill=hhsand!30,right=8mm of chk] (ledger)
-  {{\bfseries\footnotesize 3.\ Witnessed-outcome ledger}\hfill{\footnotesize\color{hhamber}\textsf{specified}}\\[3pt]
+  {{\bfseries\footnotesize 3.\ Witnessed-outcome ledger}\hfill{\footnotesize\color{hhamber}\textsf{partial}}\\[3pt]
    the durable, oracle-bound record of what an agent actually delivered};
 
 \draw[link,hhteal] (mem.east) -- (chk.west);
@@ -39,7 +40,7 @@
 
 % The weakest-link marker over checkpoint
 \node[font=\bfseries\footnotesize,text=hhink,above=2mm of chk]
-  {$\bigstar$ the weakest \emph{implemented} link};
+  {$\bigstar$ the weakest \emph{continuity} link};
 
 \end{tikzpicture}%
 }
@@ -51,10 +52,12 @@ $\to$ market --- bottoms out \emph{here}, in the kernel. \textbf{Memory} is
 active session's note count from regressing). \textbf{Checkpoint} is
 \textsf{partial}: recovery (heartbeat $\to$ stale/dead $\to$ queue $\to$ salvage
 handoff) passes the durable notes but does not capture execution state, so it is the
-weakest implemented link --- a checkpoint with teeth (a real execution-state
+weakest continuity link --- a checkpoint with teeth (a real execution-state
 snapshot, OP-4) is the literal foundation of a cross-machine reputation economy.
-\textbf{The witnessed-outcome ledger}, on which reputation actually keys, is
-\textsf{specified} only --- it does not yet exist. One ``the foundation is soft
-here'' claim, not three.}
+\textbf{The witnessed-outcome ledger}, on which reputation actually keys, has a
+\textsf{partial} shipped substrate: durable commitments, daemon-derived deadlines,
+oracle-bound closure, and overdue detection. Neutral graded outcomes, sanctions,
+and reputation binding do not yet exist. One ``the foundation is soft here'' claim,
+not three.}
 \label{fig:swk-continuity-organs}
 \end{figure}

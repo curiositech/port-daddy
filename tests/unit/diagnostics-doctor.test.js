@@ -680,6 +680,33 @@ describe('resolveBosunBinary', () => {
     expect(r.binaryPath).toContain('pd-bosun');
   });
 
+  test('resolveDistributionRoot accepts packaged bin layouts silently but still warns for arbitrary paths', () => {
+    const warnings = [];
+    const originalWarn = console.warn;
+    console.warn = (...args) => warnings.push(args.join(' '));
+
+    try {
+      const homebrewRoot = resolveDistributionRoot(
+        '/$bunfs/root/cli/commands',
+        {},
+        '/opt/homebrew/Cellar/port-daddy/3.30.0/bin/port-daddy',
+      );
+      expect(homebrewRoot).toBe('/opt/homebrew/Cellar/port-daddy/3.30.0/bin');
+      expect(warnings).toEqual([]);
+
+      const arbitraryRoot = resolveDistributionRoot(
+        '/$bunfs/root/cli/commands',
+        {},
+        '/Users/example/bin/custom-tool',
+      );
+      expect(arbitraryRoot).toBe('/Users/example/bin');
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain('unconventional layout');
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+
   // Regression (found live during the v3.25.1/3.25.2 brew rollout, 2026-07-15):
   // `pd doctor`'s Bosun check fed resolveBosunBinary() a naive
   // `join(__dirname, '..', '..')` libDir, which is a bun:// virtual path for a

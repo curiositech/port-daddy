@@ -107,9 +107,11 @@ function coerceEvidence(value: unknown): string[] {
  *   - A block that is malformed JSON, not
  *     an array, or has a bad element shape  → `null` (PARSE FAILURE)
  *
- * Ideation ships are advisory, so the executor treats a `null` here as "post
- * the raw model output, no structured actions" — it NEVER gates a merge. But
- * the schema is still validated so a well-formed block always renders correctly.
+ * An ideation ship's JUDGMENT is advisory, so a `null` still posts the raw
+ * model output (no structured actions) — but a `null` is a BROKEN ship, and
+ * the executor records it `errored: true`, which fails the run
+ * (aggregateConclusion; broken-ship doctrine, 2026-08-19). The schema is
+ * validated so a well-formed block always renders correctly.
  */
 export function parseProposals(output: string): Proposal[] | null {
   if (!output) return [];

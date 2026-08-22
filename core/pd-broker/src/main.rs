@@ -47,8 +47,8 @@ fn install_signal_handlers() {
         // the broker; per-connection writes already handle the resulting error.
         libc::signal(libc::SIGPIPE, libc::SIG_IGN);
         // SIGTERM / SIGINT request a graceful shutdown.
-        libc::signal(libc::SIGTERM, on_term as libc::sighandler_t);
-        libc::signal(libc::SIGINT, on_term as libc::sighandler_t);
+        libc::signal(libc::SIGTERM, on_term as *const () as libc::sighandler_t);
+        libc::signal(libc::SIGINT, on_term as *const () as libc::sighandler_t);
     }
 }
 
@@ -56,16 +56,16 @@ fn install_signal_handlers() {
 /// over `PD_BROKER_SECRET` (env). Refuses a file with looser-than-0600 perms.
 fn load_secret() -> Result<Vec<u8>, String> {
     if let Ok(path) = std::env::var("PD_BROKER_SECRET_FILE") {
-        let meta = std::fs::metadata(&path)
-            .map_err(|e| format!("cannot stat secret file {path}: {e}"))?;
+        let meta =
+            std::fs::metadata(&path).map_err(|e| format!("cannot stat secret file {path}: {e}"))?;
         let mode = meta.permissions().mode() & 0o777;
         if mode & 0o077 != 0 {
             return Err(format!(
                 "secret file {path} has mode {mode:o}; must be 0600 (group/other must have no access)"
             ));
         }
-        let bytes = std::fs::read(&path)
-            .map_err(|e| format!("cannot read secret file {path}: {e}"))?;
+        let bytes =
+            std::fs::read(&path).map_err(|e| format!("cannot read secret file {path}: {e}"))?;
         let trimmed = trim_trailing_newline(bytes);
         if trimmed.is_empty() {
             return Err(format!("secret file {path} is empty"));
@@ -97,7 +97,9 @@ fn load_key(var: &str, dev_default: &[u8]) -> Result<Vec<u8>, String> {
         _ => {
             if std::env::var("PD_BROKER_DEV").as_deref() == Ok("1") {
                 if cfg!(debug_assertions) {
-                    eprintln!("pd-broker: {var} unset, using dev default (PD_BROKER_DEV=1, debug build)");
+                    eprintln!(
+                        "pd-broker: {var} unset, using dev default (PD_BROKER_DEV=1, debug build)"
+                    );
                     Ok(dev_default.to_vec())
                 } else {
                     eprintln!(
@@ -109,7 +111,9 @@ fn load_key(var: &str, dev_default: &[u8]) -> Result<Vec<u8>, String> {
                     ))
                 }
             } else {
-                Err(format!("set {var} (or PD_BROKER_DEV=1 for a dev key in debug builds)"))
+                Err(format!(
+                    "set {var} (or PD_BROKER_DEV=1 for a dev key in debug builds)"
+                ))
             }
         }
     }
@@ -131,10 +135,7 @@ fn run() -> Result<(), String> {
         "PD_BROKER_MACAROON_ROOT_KEY",
         b"dev-macaroon-root-key-32-bytes!!",
     )?;
-    let ticket_signing_key = load_key(
-        "PD_BROKER_TICKET_KEY",
-        b"dev-ticket-signing-key-32-bytes!",
-    )?;
+    let ticket_signing_key = load_key("PD_BROKER_TICKET_KEY", b"dev-ticket-signing-key-32-bytes!")?;
 
     let ticket_ttl_ms = std::env::var("PD_BROKER_TICKET_TTL_MS")
         .ok()

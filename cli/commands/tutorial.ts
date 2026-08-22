@@ -6,24 +6,26 @@
  * All actions are real — they run against the live daemon.
  */
 
-import { execFile } from 'node:child_process';
 import { ANSI, flag, highlightChannel } from '../../lib/maritime.js';
 import * as ui from '../utils/ui.js';
 import { pdFetch, getDaemonUrl } from '../utils/fetch.js';
 import { canPrompt, promptText, promptIdentity, promptConfirm, promptSelect, printRoger } from '../utils/prompt.js';
-import { openControllingTerminalInput } from '../utils/tty.js';
-import type { PdFetchResponse } from '../utils/fetch.js';
+import { readLineFromControllingTerminal } from '../utils/tty.js';
+import type { FetchOptions, PdFetchResponse } from '../utils/fetch.js';
 
 // Tutorial state — track what we create so we can clean up
-interface TutorialState {
+export interface TutorialState {
   claimedPorts: string[];
   sessionId: string | null;
   agentId: string | null;
   dnsIdentity?: string;
   lockName?: string;
+  lockOwnerAgent?: string;
   inboxSenderAgent?: string;
   inboxReceiverAgent?: string;
 }
+
+type TutorialFetch = (path: string, options?: FetchOptions) => Promise<PdFetchResponse>;
 
 // Mutable state — reset at the start of each handleLearn() invocation
 const state: TutorialState = {
@@ -38,6 +40,7 @@ function resetState(): void {
   state.agentId = null;
   state.dnsIdentity = undefined;
   state.lockName = undefined;
+  state.lockOwnerAgent = undefined;
   state.inboxSenderAgent = undefined;
   state.inboxReceiverAgent = undefined;
 }
@@ -51,28 +54,33 @@ function box(lines: string[], width = 63): void {
   const bottom = `  \u2514${'─'.repeat(width)}\u2518`;
   process.stderr.write(top + '\n');
   for (const line of lines) {
-    process.stderr.write(`  \u2502 ${line.padEnd(width - 2)} \u2502\n`);
+    // Pad on VISIBLE width. `padEnd` counts ANSI escape bytes as characters, so
+    // every coloured line (flags, cyan commands) came up short and the right
+    // border went ragged — the first thing an operator sees in the welcome box.
+    const pad = ' '.repeat(Math.max(0, width - 2 - ui.visibleWidth(line)));
+    process.stderr.write(`  \u2502 ${line}${pad} \u2502\n`);
   }
   process.stderr.write(bottom + '\n');
 }
 
 async function pressEnter(): Promise<void> {
   if (!canPrompt()) return;
-  const { createInterface } = await import('node:readline');
-  // Read from the controlling terminal (/dev/tty) when available. Under the
-  // bun-compiled binary `process.stdin` can hand back immediate EOF on a real
-  // terminal, which made `rl.question` resolve instantly and auto-skip every
-  // "Press Enter" — the tutorial blasted through. `/dev/tty` is robust there.
-  const ctty = openControllingTerminalInput();
-  const input = ctty?.stream ?? process.stdin;
-  const rl = createInterface({ input, output: process.stderr });
-  await new Promise<void>((resolve) => {
-    rl.question(`\n  ${ANSI.dim}Press Enter to continue...${ANSI.reset}`, () => {
-      rl.close();
-      resolve();
-    });
-  });
-  ctty?.close();
+  process.stderr.write(`\n  ${ANSI.dim}Press Enter to continue...${ANSI.reset}`);
+
+  // Read from the controlling terminal (/dev/tty). Under the bun-compiled
+  // binary `process.stdin` can hand back immediate EOF on a real terminal,
+  // which made readline resolve instantly and auto-skip every "Press Enter" —
+  // the tutorial blasted through (#207). Reading /dev/tty as a *stream* then
+  // crashed it outright (ENXIO under bun, EBADF under node), so this goes
+  // through the blocking line reader instead.
+  if (readLineFromControllingTerminal() === null) {
+    // No controlling terminal to read (rare: canPrompt() said fd 0 is a tty).
+    // Fall back to stdin rather than blasting through every lesson.
+    const { createInterface } = await import('node:readline');
+    const rl = createInterface({ input: process.stdin, output: process.stderr });
+    await new Promise<void>((resolve) => { rl.question('', () => { rl.close(); resolve(); }); });
+  }
+
   process.stderr.write('\n');
 }
 
@@ -307,33 +315,33 @@ async function lesson6Coordination(): Promise<void> {
   await pressEnter();
 }
 
-async function lesson7Dashboard(): Promise<void> {
-  lessonHeader(7, 'The Dashboard');
+async function lesson7Surfaces(): Promise<void> {
+  lessonHeader(7, 'Seeing Your Fleet');
 
-  const dashUrl = getDaemonUrl();
+  process.stderr.write(`  Everything you just did is live state on the daemon. Here it is:\n\n`);
 
-  process.stderr.write(`  Everything you just did is visible in the web dashboard.\n\n`);
-  process.stderr.write(`    ${ANSI.fgCyan}pd dashboard${ANSI.reset}\n\n`);
-  process.stderr.write(`  Opens ${ANSI.fgCyan}${dashUrl}${ANSI.reset} in your browser.\n\n`);
-  process.stderr.write(`  You'll see:\n`);
-  process.stderr.write(`    \u2022 Services panel with your claimed ports\n`);
-  process.stderr.write(`    \u2022 Sessions panel with your session history\n`);
-  process.stderr.write(`    \u2022 Agents panel showing who's registered\n`);
-  process.stderr.write(`    \u2022 Channels showing messages you published\n`);
-  process.stderr.write(`    \u2022 Activity log of everything that happened\n`);
-
-  const openDash = await promptConfirm('Open the dashboard now?', false);
-  if (openDash) {
-    const openCmd = process.platform === 'darwin' ? 'open'
-      : process.platform === 'win32' ? 'start'
-      : 'xdg-open';
-    execFile(openCmd, [dashUrl], (err) => {
-      if (err) {
-        process.stderr.write(`  Could not open browser. Visit: ${dashUrl}\n`);
-      }
-    });
-    process.stderr.write(`\n  Opening ${dashUrl}...\n`);
+  try {
+    const res: PdFetchResponse = await pdFetch('/health');
+    const health = await res.json() as {
+      version?: string;
+      active_ports?: number;
+      fleet?: { projects?: number; agents?: number };
+    };
+    process.stderr.write(`    Daemon:       ${ANSI.fgGreen}${health.version ?? 'unknown'}${ANSI.reset} at ${ANSI.fgCyan}${getDaemonUrl()}${ANSI.reset}\n`);
+    process.stderr.write(`    Active ports: ${health.active_ports ?? 0}\n`);
+    process.stderr.write(`    Fleet:        ${health.fleet?.projects ?? 0} project(s), ${health.fleet?.agents ?? 0} agent(s)\n`);
+  } catch {
+    ui.warn('Could not reach daemon \u2014 skipping live snapshot');
   }
+
+  process.stderr.write(`\n  Three sanctioned surfaces render that same state:\n\n`);
+  process.stderr.write(`    ${ANSI.fgCyan}pd dashboard${ANSI.reset}   ${ANSI.dim}# full terminal UI, right here in your shell${ANSI.reset}\n`);
+  process.stderr.write(`    ${ANSI.fgCyan}pd status${ANSI.reset}      ${ANSI.dim}# one-shot daemon health${ANSI.reset}\n`);
+  process.stderr.write(`    ${ANSI.fgCyan}pd sitrep${ANSI.reset}      ${ANSI.dim}# what the fleet is doing right now${ANSI.reset}\n\n`);
+  process.stderr.write(`  Plus the desktop surfaces: ${ANSI.bold}FleetBar${ANSI.reset} in the menu bar, and from it\n`);
+  process.stderr.write(`  ${ANSI.bold}Control Center${ANSI.reset} and the ${ANSI.bold}Operator Console${ANSI.reset} (pd-console).\n\n`);
+  process.stderr.write(`  ${flag('uniform')}  ${ANSI.dim}The old browser dashboard is retired. ${getDaemonUrl()} is the${ANSI.reset}\n`);
+  process.stderr.write(`     ${ANSI.dim}daemon's HTTP API now, not a UI \u2014 don't point a browser at it.${ANSI.reset}\n`);
 
   await pressEnter();
 }
@@ -350,7 +358,9 @@ async function lesson8Ending(): Promise<void> {
     const endSession = await promptConfirm('End your tutorial session?', true);
     if (endSession) {
       try {
-        const body: Record<string, unknown> = { note: 'Completed Port Daddy tutorial' };
+        const body: Record<string, unknown> = {
+          note: 'Result: Completed Port Daddy tutorial. not-applicable: tutorial exercise',
+        };
         if (state.agentId) body.agentId = state.agentId;
         if (state.sessionId) body.sessionId = state.sessionId;
 
@@ -407,8 +417,12 @@ async function lesson9Dns(): Promise<void> {
   // List DNS records
   try {
     const listRes: PdFetchResponse = await pdFetch('/dns');
-    const records = await listRes.json();
-    const count = Array.isArray(records) ? records.length : 0;
+    // /dns answers { success, records, count } — reading it as a bare array
+    // reported "0 total" one line after registering a record.
+    const body = await listRes.json() as { records?: unknown[]; count?: number };
+    const count = typeof body?.count === 'number'
+      ? body.count
+      : Array.isArray(body?.records) ? body.records.length : 0;
     process.stderr.write(`\n  DNS records (${count} total)\n`);
   } catch {
     // silently skip listing if daemon is offline
@@ -483,26 +497,48 @@ async function lesson11Locks(): Promise<void> {
   process.stderr.write(`  Let's acquire a lock, check it, and release it.\n\n`);
 
   const lockName = 'tutorial-lock';
+  const lockOwnerAgent = `tutorial-lock-agent-${Date.now()}`;
 
-  // Acquire lock
   try {
-    const acquireRes: PdFetchResponse = await pdFetch(`/locks/${encodeURIComponent(lockName)}`, {
+    const registerRes: PdFetchResponse = await pdFetch('/agents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ owner: 'tutorial-agent', ttl: 60000 }),
+      body: JSON.stringify({
+        id: lockOwnerAgent,
+        type: 'tutorial',
+        purpose: 'Distributed lock demo owner',
+      }),
     });
-    const lock = await acquireRes.json();
-
-    if (acquireRes.ok) {
-      state.lockName = lockName;
-      printRoger(`Lock acquired: ${lockName}`);
-      process.stderr.write(`    Owner: ${lock.owner || 'tutorial-agent'}\n`);
-      process.stderr.write(`    TTL: ${lock.ttl || 60000}ms\n`);
+    if (registerRes.ok) {
+      state.lockOwnerAgent = lockOwnerAgent;
     } else {
-      ui.warn(`Could not acquire lock: ${lock.error || 'unknown error'}`);
+      ui.warn('Could not register the lock demo owner — skipping the live lock demo');
     }
   } catch {
-    ui.warn('Could not reach daemon \u2014 skipping live lock demo');
+    ui.warn('Could not reach daemon — skipping the live lock demo');
+  }
+
+  // Acquire lock
+  if (state.lockOwnerAgent) {
+    try {
+      const acquireRes: PdFetchResponse = await pdFetch(`/locks/${encodeURIComponent(lockName)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner: state.lockOwnerAgent, ttl: 60000 }),
+      });
+      const lock = await acquireRes.json();
+
+      if (acquireRes.ok) {
+        state.lockName = lockName;
+        printRoger(`Lock acquired: ${lockName}`);
+        process.stderr.write(`    Owner: ${lock.owner || state.lockOwnerAgent}\n`);
+        process.stderr.write(`    TTL: ${lock.ttl || 60000}ms\n`);
+      } else {
+        ui.warn(`Could not acquire lock: ${lock.error || 'unknown error'}`);
+      }
+    } catch {
+      ui.warn('Could not reach daemon \u2014 skipping live lock demo');
+    }
   }
 
   // Check lock status
@@ -520,15 +556,28 @@ async function lesson11Locks(): Promise<void> {
   // Release lock
   if (state.lockName) {
     try {
-      await pdFetch(`/locks/${encodeURIComponent(lockName)}`, {
+      const releaseRes: PdFetchResponse = await pdFetch(`/locks/${encodeURIComponent(lockName)}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ owner: 'tutorial-agent' }),
+        body: JSON.stringify({ owner: state.lockOwnerAgent }),
       });
-      printRoger('Lock released');
-      state.lockName = undefined; // already cleaned up
+      if (releaseRes.ok || releaseRes.status === 404) {
+        printRoger('Lock released');
+        state.lockName = undefined; // already cleaned up
+      } else {
+        ui.warn('Could not release lock \u2014 cleanup will retry');
+      }
     } catch {
-      ui.warn('Could not release lock \u2014 it will auto-expire');
+      ui.warn('Could not release lock \u2014 cleanup will retry');
+    }
+  }
+
+  if (!state.lockName && state.lockOwnerAgent) {
+    try {
+      const response = await pdFetch(`/agents/${encodeURIComponent(state.lockOwnerAgent)}`, { method: 'DELETE' });
+      if (response.ok || response.status === 404) state.lockOwnerAgent = undefined;
+    } catch {
+      ui.warn('Could not unregister the lock demo owner — cleanup will retry');
     }
   }
 
@@ -644,7 +693,7 @@ async function summary(): Promise<void> {
     `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 4:  Leaving immutable notes`,
     `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 5:  Agent resurrection and salvage`,
     `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 6:  Channels and locks for coordination`,
-    `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 7:  The web dashboard`,
+    `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 7:  Surfaces \u2014 dashboard, status, FleetBar`,
     `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 8:  Ending sessions cleanly`,
     `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 9:  DNS and service discovery`,
     `${ANSI.fgGreen}\u2713${ANSI.reset} Lesson 10: Stack orchestration with .portdaddyrc`,
@@ -670,7 +719,7 @@ async function summary(): Promise<void> {
     `${ANSI.fgCyan}pd lock <name>${ANSI.reset}     Acquire a distributed lock`,
     `${ANSI.fgCyan}pd briefing <id>${ANSI.reset}   Full project briefing`,
     `${ANSI.fgCyan}pd scan [dir]${ANSI.reset}      Discover services in a project`,
-    `${ANSI.fgCyan}pd dashboard${ANSI.reset}       Open the web dashboard`,
+    `${ANSI.fgCyan}pd dashboard${ANSI.reset}       Terminal dashboard (the web one is retired)`,
     `${ANSI.fgCyan}pd learn${ANSI.reset}           Run this tutorial again`,
     '',
     `All commands support: ${ANSI.fgCyan}--json${ANSI.reset} (-j), ${ANSI.fgCyan}--quiet${ANSI.reset} (-q),`,
@@ -686,60 +735,107 @@ async function summary(): Promise<void> {
 // Cleanup
 // ─────────────────────────────────────────────────────────────────────
 
-async function cleanup(): Promise<void> {
-  for (const id of state.claimedPorts) {
+/**
+ * Release every temporary tutorial resource. Exported only as a direct test
+ * seam; this is not a CLI or public API surface.
+ */
+export async function cleanupTutorialState(
+  tutorialState: TutorialState,
+  fetchImpl: TutorialFetch = pdFetch,
+): Promise<void> {
+  const unreleasedPorts: string[] = [];
+  for (const id of tutorialState.claimedPorts) {
     try {
-      await pdFetch('/release', {
+      const response = await fetchImpl('/release', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       });
-    } catch {}
+      if (!response.ok && response.status !== 404) unreleasedPorts.push(id);
+    } catch {
+      unreleasedPorts.push(id);
+    }
   }
+  tutorialState.claimedPorts = unreleasedPorts;
 
-  if (state.sessionId && state.agentId) {
+  if (tutorialState.sessionId && tutorialState.agentId) {
     try {
-      await pdFetch('/sugar/done', {
+      const response = await fetchImpl('/sugar/done', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          agentId: state.agentId,
-          sessionId: state.sessionId,
-          note: 'Tutorial cleanup',
+          agentId: tutorialState.agentId,
+          sessionId: tutorialState.sessionId,
+          note: 'Result: Tutorial cleanup completed. not-applicable: tutorial exercise',
         }),
       });
+      if (response.ok || response.status === 404) {
+        tutorialState.sessionId = null;
+        tutorialState.agentId = null;
+      }
     } catch {}
   }
 
   // Clean up DNS record from lesson 9
-  if (state.dnsIdentity) {
+  if (tutorialState.dnsIdentity) {
     try {
-      await pdFetch(`/dns/${encodeURIComponent(state.dnsIdentity)}`, { method: 'DELETE' });
+      const response = await fetchImpl(`/dns/${encodeURIComponent(tutorialState.dnsIdentity)}`, { method: 'DELETE' });
+      if (response.ok || response.status === 404) tutorialState.dnsIdentity = undefined;
     } catch {}
   }
 
   // Clean up lock from lesson 11 (if not already released)
-  if (state.lockName) {
+  if (tutorialState.lockName) {
     try {
-      await pdFetch(`/locks/${encodeURIComponent(state.lockName)}`, {
+      const response = await fetchImpl(`/locks/${encodeURIComponent(tutorialState.lockName)}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ owner: 'tutorial-agent' }),
+        body: JSON.stringify({ owner: tutorialState.lockOwnerAgent ?? 'tutorial-agent' }),
       });
+      if (response.ok || response.status === 404) tutorialState.lockName = undefined;
+    } catch {}
+  }
+
+  // The owner is part of the lock-release credential. Preserve it whenever
+  // lock cleanup failed so a later finalizer pass can retry the same release.
+  if (!tutorialState.lockName && tutorialState.lockOwnerAgent) {
+    try {
+      const response = await fetchImpl(`/agents/${encodeURIComponent(tutorialState.lockOwnerAgent)}`, { method: 'DELETE' });
+      if (response.ok || response.status === 404) tutorialState.lockOwnerAgent = undefined;
     } catch {}
   }
 
   // Clean up inbox agents from lesson 13
-  if (state.inboxReceiverAgent) {
+  if (tutorialState.inboxReceiverAgent) {
     try {
-      await pdFetch(`/agents/${encodeURIComponent(state.inboxReceiverAgent)}/inbox`, { method: 'DELETE' });
-      await pdFetch(`/agents/${encodeURIComponent(state.inboxReceiverAgent)}`, { method: 'DELETE' });
+      await fetchImpl(`/agents/${encodeURIComponent(tutorialState.inboxReceiverAgent)}/inbox`, { method: 'DELETE' });
+    } catch {}
+    try {
+      const response = await fetchImpl(`/agents/${encodeURIComponent(tutorialState.inboxReceiverAgent)}`, { method: 'DELETE' });
+      if (response.ok || response.status === 404) tutorialState.inboxReceiverAgent = undefined;
     } catch {}
   }
-  if (state.inboxSenderAgent) {
+  if (tutorialState.inboxSenderAgent) {
     try {
-      await pdFetch(`/agents/${encodeURIComponent(state.inboxSenderAgent)}`, { method: 'DELETE' });
+      const response = await fetchImpl(`/agents/${encodeURIComponent(tutorialState.inboxSenderAgent)}`, { method: 'DELETE' });
+      if (response.ok || response.status === 404) tutorialState.inboxSenderAgent = undefined;
     } catch {}
+  }
+}
+
+async function cleanup(): Promise<void> {
+  await cleanupTutorialState(state);
+}
+
+/** Test seam for the lifecycle guarantee used by handleLearn(). */
+export async function runWithTutorialCleanup(
+  run: () => Promise<void>,
+  cleanupFn: () => Promise<void> = cleanup,
+): Promise<void> {
+  try {
+    await run();
+  } finally {
+    await cleanupFn();
   }
 }
 
@@ -758,48 +854,37 @@ export async function handleLearn(): Promise<void> {
   resetState();
 
   // Handle Ctrl+C gracefully — register before any daemon interaction
-  process.on('SIGINT', async () => {
+  const handleInterrupt = async () => {
     process.stderr.write(`\n\n  ${flag('november')} Tutorial interrupted \u2014 cleaning up...\n`);
     await cleanup();
     process.exit(0);
-  });
+  };
+  process.once('SIGINT', handleInterrupt);
 
-  const ready = await welcome();
-  if (!ready) {
-    process.stderr.write(`\n  No worries \u2014 run ${ANSI.fgCyan}pd learn${ANSI.reset} anytime.\n\n`);
-    return;
-  }
+  try {
+    await runWithTutorialCleanup(async () => {
+      const ready = await welcome();
+      if (!ready) {
+        process.stderr.write(`\n  No worries \u2014 run ${ANSI.fgCyan}pd learn${ANSI.reset} anytime.\n\n`);
+        return;
+      }
 
-  await lesson1Flags();
-  await lesson2Claim();
-  await lesson3Session();
-  await lesson4Notes();
-  await lesson5Resurrection();
-  await lesson6Coordination();
-  await lesson7Dashboard();
-  await lesson8Ending();
-  await lesson9Dns();
-  await lesson10Orchestration();
-  await lesson11Locks();
-  await lesson12Phases();
-  await lesson13Inbox();
-  await summary();
-
-  // Clean up tutorial ports (session already ended in lesson 8)
-  for (const id of state.claimedPorts) {
-    try {
-      await pdFetch('/release', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
-      });
-    } catch {}
-  }
-
-  // Clean up DNS record from lesson 9
-  if (state.dnsIdentity) {
-    try {
-      await pdFetch(`/dns/${encodeURIComponent(state.dnsIdentity)}`, { method: 'DELETE' });
-    } catch {}
+      await lesson1Flags();
+      await lesson2Claim();
+      await lesson3Session();
+      await lesson4Notes();
+      await lesson5Resurrection();
+      await lesson6Coordination();
+      await lesson7Surfaces();
+      await lesson8Ending();
+      await lesson9Dns();
+      await lesson10Orchestration();
+      await lesson11Locks();
+      await lesson12Phases();
+      await lesson13Inbox();
+      await summary();
+    });
+  } finally {
+    process.removeListener('SIGINT', handleInterrupt);
   }
 }

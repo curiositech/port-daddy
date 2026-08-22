@@ -1,14 +1,14 @@
 name: Release Cadence
 
 # Operator directive (2026-07-14): we do not publish daemon versions to
-# Homebrew often enough, and stale installed daemons drift from main. This
-# workflow makes the drift loud: every Monday it measures how long daemon
-# surfaces on main have gone unreleased and files/updates a single
-# "Homebrew release overdue" issue when the cadence slips.
+# Homebrew often enough, and stale installed daemons drift from main.
 #
-# It nags; it does not release. Releases stay human-triggered because every
-# release artifact must be soaked (run, not just built) before publishing —
-# see the soak gate introduced with PR #681.
+# Since 2026-08-09 the RELEASE TRAIN (.github/workflows/release-train.yml)
+# actually CUTS releases on schedule — this workflow is now the train's
+# WATCHDOG. If the cadence still slips (the train is held, broken, stalled on
+# a red bump PR, or its PAT died), this files/updates a single "Homebrew
+# release overdue" issue so the failure has a face. When this fires, the
+# question is "why didn't the train cut?", not "who will run RELEASING.md".
 
 on:
   schedule:
@@ -46,8 +46,12 @@ jobs:
           tag_date=$(git log -1 --format=%ct "$latest_tag")
           now=$(date +%s)
           days=$(( (now - tag_date) / 86400 ))
-          # Only daemon-facing surfaces count toward the cadence.
-          commits=$(git rev-list --count "$latest_tag"..HEAD -- server.ts lib/ cli/ shared/ package.json)
+          # Only daemon-facing surfaces count toward the cadence. Keep this
+          # list in lockstep with release-train.yml's DAEMON_PATHSPEC — the
+          # old narrow list (server.ts lib/ cli/ shared/ package.json) was
+          # blind to routes/, mcp/, bin/, hooks/ and the packaging itself, and
+          # reported "0 unreleased daemon commits" while the daemon churned.
+          commits=$(git rev-list --count "$latest_tag"..HEAD -- server.ts lib/ cli/ shared/ routes/ mcp/ bin/ hooks/ skills/port-daddy-agent-skill/ agents/port-daddy-pilot/ package.json release-artifacts.json .github/workflows/release.yml)
           echo "latest_tag=$latest_tag" >> "$GITHUB_OUTPUT"
           echo "days=$days" >> "$GITHUB_OUTPUT"
           echo "commits=$commits" >> "$GITHUB_OUTPUT"
@@ -71,11 +75,11 @@ jobs:
 
           Operator standing order: publish daemon versions to Homebrew regularly. Stale installed daemons drift from main and fork machine truth.
 
-          Release checklist:
-          1. Cut the release per the repo release process (\`.github/workflows/release.yml\` builds binaries on tag publish).
-          2. **Soak the built artifacts before publishing** — run them, do not just build them (hard rule; see the PR #681 soak gate).
-          3. Update the Homebrew formula and \`brew upgrade\` the operator machine.
-          4. Verify \`pd doctor\` passes on the upgraded install — especially the "Database home" durability check.
+          **The release train (\`.github/workflows/release-train.yml\`) should have cut this already** — this issue firing means the train failed. Triage in order:
+          1. Is there an open "Release train: hold" issue? Close it if the hold is stale.
+          2. Is a \`release-train/*\` bump PR stuck open with red CI or unresolved review? Fix and let auto-merge land it.
+          3. Did the train's last run fail (missing/expired \`RELEASE_TRAIN_TOKEN\` / \`HOMEBREW_TAP_TOKEN\`, or a formula-compat mismatch with curiositech/homebrew-tap)? Check its run log.
+          4. Worst case, cut by hand per \`docs/RELEASING.md\` — release.yml still soaks, battens, and formula-checks everything on tag publish.
 
           This issue is refreshed weekly by \`.github/workflows/release-cadence.yml\` and should be closed by the release that clears the backlog.
           EOF
