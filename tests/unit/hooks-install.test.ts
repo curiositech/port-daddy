@@ -348,8 +348,28 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(out).toContain('pd-hook-prompt');
   });
 
+  test('does not delegate when the readiness lease belongs to another daemon generation', () => {
+    const pdHome = join(SANDBOX, 'generation-mismatch-home');
+    const binDir = join(pdHome, 'bin');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome, 7001);
+    writeFileSync(join(pdHome, 'daemon.pid'), '7002');
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+
+    const out = execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+      cwd: REPO,
+      env: { ...process.env, PD_HOME: pdHome },
+      input: '{}',
+      encoding: 'utf8',
+    });
+
+    expect(out).toBe('');
+  });
+
   test.each(['daemon.ready', 'daemon.pid', 'heartbeat'])(
-    'fails open instead of trusting a symlinked %s lease',
+    'fails open instead of trusting a symlinked %s lease with an otherwise matching generation',
     (leaseName) => {
       const pdHome = join(SANDBOX, `symlink-${leaseName.replace('.', '-')}-home`);
       const binDir = join(pdHome, 'bin');

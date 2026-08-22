@@ -78,8 +78,8 @@ export interface SquidConformanceFacts {
   projectRoot: string | null;
   projectArmed: boolean;
   daemonAlive: boolean;
-  /** Optional only for backwards-compatible fact producers; readers set it explicitly. */
-  daemonReady?: boolean;
+  /** Exact PID-matching readiness lease; liveness alone never implies readiness. */
+  daemonReady: boolean;
   tentaclesStaged: boolean;
   statuslineStaged: boolean;
   statuslineVisible: boolean;
@@ -172,7 +172,9 @@ function quoteCliPath(path: string): string {
 }
 
 export function deriveSquidConformance(facts: SquidConformanceFacts): SquidConformance {
-  const daemonReady = facts.daemonReady ?? facts.daemonAlive;
+  // Fail closed for legacy JavaScript callers as well as typed callers. A fresh
+  // heartbeat begins before the daemon finishes its boot-integrity gate.
+  const daemonReady = facts.daemonReady === true;
   const daemonOperational = facts.daemonAlive && daemonReady;
   const ephemeralProjectRoot = Boolean(facts.projectRoot && (
     facts.projectRoot === '/tmp'
