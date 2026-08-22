@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **The end-of-turn SITREP is now the harness's visible value surface.** A per-repo `sitrep.endOfTurn` dial (`off` | `suggest` | `enforce`, default `enforce`; `PD_SITREP` env override, then `agent.config.json` → `.portdaddy/sitrep.json` → `.portdaddy/project.json`) governs a standing end-of-turn SITREP table contract injected each turn by the Squid prompt tentacle and taught at session birth by the Pilot SessionStart hook: track ideas, roadmap claims, and assigned work; update Status each turn; carry unresolved rows forward; and mint a roadmap link before writing code for a row. The coordination envelope keeps its existing invisible-and-bounded byte caps — the SITREP block is a constant-size contract that rides outside them. This supplants the earlier quiet-hooks doctrine by operator decision (2026-08-22).
+
 ### Fixed
+- **`pd sitrep --template` no longer hardcodes an operator's home directory in the transcript pointer** — the path is derived from the running user's homedir — **and its Ideas/Suggestions/Remediations table pre-fills from active roadmap-pop claims** (fail-silent back to the blank scaffold when the cartographer routes are absent) instead of emitting an empty placeholder row.
 - **Release supervision and promotion now enforce the supported single-supervisor boundary end to end.** `pd doctor` keeps optional legacy Bosun state visible without treating its deliberate v3.28+ absence as a critical defect, while redirected doctor targets no longer borrow canonical launchd or registry evidence. Release CI omits the retired watchdog build, attests both sealed platform archives, and waits for the Homebrew tap's credential-independent, evidence-verified self-promotion instead of relying on a fragile cross-repository write token.
 
 ## [3.30.2] - 2026-08-21
