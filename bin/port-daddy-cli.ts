@@ -1299,13 +1299,13 @@ Commands:
     --status <s>            now|backlog|parked|merge|done
     --kind <k>              project|epic|story|task|subtask|bug|chore (default: task)
     --priority <1-5>        1 highest .. 5 lowest (default: 3)
-    --estimate <units>      Effort units — the Gantt/CPM node duration
+    --estimate <units>      Effort units (positive whole number) — the Gantt/CPM node duration
     --start <when>          Actual start: YYYY-MM-DD, +Nd, or epoch ms
     --due <when>            Target finish: YYYY-MM-DD, +Nd, or epoch ms
     --assignee <id>         Durable owner — a roster agentNodeId or slug (validated
                             against pd roster; unknown owners are rejected)
     --unassign              Clear the owner (sends explicit null)
-    --actual <units>        Effort actually spent (same units as --estimate)
+    --actual <units>        Effort actually spent (positive whole number, same units as --estimate)
     --tag <t>               Add a tag (repeatable); --clear-tags empties the set
     --description <md>      Long-form body markdown (summary stays the headline)
     --as <agentId>          Actor recorded on the receipt

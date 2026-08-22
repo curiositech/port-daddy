@@ -669,17 +669,83 @@ function roadmapNote(actor: string, text: string | undefined): { at: number; by:
 }
 
 /**
+ * Parse a whole-number planner flag (`--priority`, `--estimate`, `--actual`)
+ * inside an inclusive band. Returns undefined when the operator's value is not
+ * a whole number in that band, so the caller can reject it the way it rejects
+ * a bad date.
+ *
+ * Why the CLI rejects rather than leaning on the server's sanitizers: the
+ * daemon's `clampPriority` / `positiveOrNull` pass (lib/roadmap-items.ts) does
+ * keep garbage out of the table — nothing invalid is ever persisted — but it
+ * cannot tell a typo from an intent, and on this write path the two coincide
+ * destructively. `Number.parseInt('abc', 10)` is NaN, `JSON.stringify` puts
+ * NaN on the wire as `null`, and an explicit `null` is this API's CLEAR
+ * sentinel. So `--estimate abc` does not "do nothing": it WIPES an estimate a
+ * board or import already recorded, and `--priority xyz` resets a stored 1 to
+ * the default 3 — silently, from the same command whose contract is that
+ * fields it was not asked to change are preserved. Out-of-band numbers
+ * saturate the same silent way (`--priority 99` → 5, `--estimate -5` → null).
+ *
+ * Non-interactive callers (HTTP bodies, markdown import, older rows) keep that
+ * documented saturating behaviour, which is deliberate for them. The CLI is
+ * the one surface where a human typed the value and can retype it, so here the
+ * value is checked before it can clear anything.
+ *
+ * @param raw - The flag value as typed by the operator.
+ * @param min - Smallest accepted value, inclusive.
+ * @param max - Largest accepted value, inclusive.
+ * @returns The integer, or undefined when it is not a whole number in band.
+ */
+function parseBandedIntFlag(raw: string, min: number, max: number): number | undefined {
+  const trimmed = raw.trim();
+  if (!/^[+-]?\d+$/.test(trimmed)) return undefined;
+  const n = Number.parseInt(trimmed, 10);
+  if (!Number.isSafeInteger(n) || n < min || n > max) return undefined;
+  return n;
+}
+
+/**
  * Parse a human-friendly point-in-time flag into epoch milliseconds.
  *
  * Why three shapes: roadmap authoring must be a one-liner, and the three ways
  * an operator naturally states a date are "a timestamp I copied" (epoch ms),
- * "a calendar day" (ISO `YYYY-MM-DD`, read as local midnight), and "N days
- * from now" (`+Nd`). Anything else returns undefined so the caller can reject
- * loudly instead of silently scheduling for 1970.
+ * "a calendar day" (ISO `YYYY-MM-DD`, read as UTC midnight — the same instant
+ * `Date.parse` gives a date-only ISO string, and the anchor the Gantt reads),
+ * and "N days from now" (`+Nd`). Anything else returns undefined so the caller
+ * can reject loudly instead of silently scheduling for 1970.
+ *
+ * Why the shape is matched EXACTLY rather than handed to `Date.parse`:
+ * `Date.parse` is lenient in ways that are indistinguishable from a typo once
+ * they reach the database. It rolls calendar overflow forward instead of
+ * failing (`2023-02-30` → 2023-03-02, `2026-02-29` → 2026-03-01), and it
+ * accepts partial dates (`2026` → 2026-01-01). Every one of those silently
+ * stores a DIFFERENT day than the operator typed and schedules the Gantt bar
+ * against it, with no error to notice. So: match `YYYY-MM-DD`, build the
+ * instant, then round-trip the Y/M/D back out and reject if the calendar
+ * moved. A wrong date the operator can see beats a wrong date they cannot.
  *
  * @param raw - The flag value as typed by the operator.
  * @returns Epoch milliseconds, or undefined when the shape is unrecognized.
  */
+export function parseWhenFlag(raw: string | undefined): number | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  const relative = /^\+(\d+)d$/.exec(trimmed);
+  if (relative) return Date.now() + Number.parseInt(relative[1], 10) * 86_400_000;
+  if (/^\d{13}$/.test(trimmed)) return Number.parseInt(trimmed, 10);
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (!iso) return undefined;
+  const year = Number.parseInt(iso[1], 10);
+  const month = Number.parseInt(iso[2], 10);
+  const day = Number.parseInt(iso[3], 10);
+  const ms = Date.UTC(year, month - 1, day);
+  if (!Number.isFinite(ms)) return undefined;
+  const back = new Date(ms);
+  const roundTrips =
+    back.getUTCFullYear() === year && back.getUTCMonth() + 1 === month && back.getUTCDate() === day;
+  return roundTrips ? ms : undefined;
+}
+
 /**
  * Collect every `--tag` occurrence into a string list.
  *
@@ -713,16 +779,6 @@ function collectTagOptions(options: CLIOptions): string[] | undefined {
  */
 function firstTagOption(options: CLIOptions): string | undefined {
   return collectTagOptions(options)?.[0];
-}
-
-export function parseWhenFlag(raw: string | undefined): number | undefined {
-  if (!raw) return undefined;
-  const trimmed = raw.trim();
-  const relative = /^\+(\d+)d$/.exec(trimmed);
-  if (relative) return Date.now() + Number.parseInt(relative[1], 10) * 86_400_000;
-  if (/^\d{13}$/.test(trimmed)) return Number.parseInt(trimmed, 10);
-  const parsed = Date.parse(trimmed);
-  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 async function handleRoadmapUpsert(args: string[], options: CLIOptions): Promise<void> {
@@ -759,11 +815,35 @@ async function handleRoadmapUpsert(args: string[], options: CLIOptions): Promise
   const kind = readOption(options, 'kind');
   if (kind) body.kind = kind;
   const priority = readOption(options, 'priority');
-  if (priority) body.priority = Number.parseInt(priority, 10);
+  if (priority) {
+    const parsed = parseBandedIntFlag(priority, 1, 5);
+    if (parsed === undefined) {
+      ui.error(`--priority '${priority}' is not a whole number in 1..5 (1 highest .. 5 lowest)`);
+      process.exit(1);
+    }
+    body.priority = parsed;
+  }
   const estimate = readOption(options, 'estimate', 'est');
-  if (estimate) body.estimate = Number.parseInt(estimate, 10);
+  if (estimate) {
+    const parsed = parseBandedIntFlag(estimate, 1, Number.MAX_SAFE_INTEGER);
+    if (parsed === undefined) {
+      ui.error(`--estimate '${estimate}' is not a positive whole number of effort units`);
+      process.exit(1);
+    }
+    body.estimate = parsed;
+  }
+  // --actual carries the SAME NaN-clears-the-field hazard as --estimate (both
+  // ride positiveOrNull, and NaN serializes to the null CLEAR sentinel), so it
+  // gets the same in-band CLI check rather than inheriting the silent wipe.
   const actual = readOption(options, 'actual');
-  if (actual) body.actual = Number.parseInt(actual, 10);
+  if (actual) {
+    const parsed = parseBandedIntFlag(actual, 1, Number.MAX_SAFE_INTEGER);
+    if (parsed === undefined) {
+      ui.error(`--actual '${actual}' is not a positive whole number of effort units`);
+      process.exit(1);
+    }
+    body.actual = parsed;
+  }
   // Durable owner: --assignee takes a roster agentNodeId or slug (the daemon
   // validates against the durable-agent roster and 400s unknown owners);
   // --unassign sends the explicit null that clears ownership.

@@ -64,7 +64,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     container:
-      image: texlive/texlive:latest
+      # Pinned by digest, not by tag. `texlive/texlive:latest` moves: it was
+      # republished 2026-08-16, and the PGF/TikZ update that came with it began
+      # emitting line widths as `0.39851` where the 2026-08-05 render emitted
+      # `0.3985` — rewriting five PDFs whose sources had not changed and breaking
+      # the Chapter III digests pinned on main. SOURCE_DATE_EPOCH pinning cannot
+      # help with that; only pinning the renderer can.
+      #
+      # To upgrade deliberately: change this digest, and expect every published
+      # PDF and every digest that pins one to move in the same commit.
+      image: texlive/texlive@sha256:ee8ecc627897eabeb42d862d8187546483455e66ce94aa5c2bce1b45a977ab27
     steps:
       - name: Ensure git present
         run: command -v git >/dev/null 2>&1 || (apt-get update && apt-get install -y git)
@@ -92,7 +101,27 @@ jobs:
             pull_request) base="$PR_BASE_SHA" ;;
             push) base="$PUSH_BEFORE_SHA" ;;
           esac
+          # Detected before anything is built, because a renderer change has to
+          # drive BOTH decisions below: it forces a full rebuild (no TeX source
+          # moved, so the incremental path would build nothing at all and the
+          # re-pin would land with stale artifacts), and it stands the restore
+          # down (no TeX source moved, so the restore would revert the whole
+          # re-render). Miss either and the repository can never adopt a new
+          # TeX Live.
+          renderer_changed=0
+          if [ -n "$base" ] && git cat-file -e "$base^{commit}" 2>/dev/null; then
+            if git diff "$base"...HEAD -- .github/workflows/whitepaper-build.yml \
+               | grep -qE '^[-+][[:space:]]*image:[[:space:]]*texlive/texlive'; then
+              renderer_changed=1
+              echo "::notice::Renderer pin changed — rebuilding every paper and keeping the fresh renders."
+            fi
+          fi
+
           build_papers() {
+            if [ "$renderer_changed" = "1" ]; then
+              bash scripts/build-whitepapers.sh
+              return
+            fi
             # PRs and pushes rebuild only papers whose transitive TeX inputs
             # changed. A builder change intentionally rebuilds the full set,
             # because it can alter every artifact. Manual runs also build all.
@@ -125,7 +154,7 @@ jobs:
           # really did change still ships its fresh render.
           # NB: this step runs under the container's /bin/sh (dash), not bash, so
           # no process substitution — the list goes through a temp file.
-          if [ -n "$base" ] && git cat-file -e "$base^{commit}" 2>/dev/null; then
+          if [ "$renderer_changed" = "0" ] && [ -n "$base" ] && git cat-file -e "$base^{commit}" 2>/dev/null; then
             unchanged_list="$RUNNER_TEMP/whitepaper-unchanged.txt"
             bash scripts/build-whitepapers.sh --list-unchanged-since "$base" > "$unchanged_list"
             restored=0
