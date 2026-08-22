@@ -934,7 +934,11 @@ async function main(): Promise<void> {
         `left panel clock = T0+${STILL_CLOCK_OFFSET_MS}ms; right panel is a SECOND throwaway registry, migrated and never seeded`,
       ),
     });
-    const f = join(outDir, 'null-and-empty-states.png');
+    // Filename deliberately avoids the literal token `null`: a sanitizer on the
+    // PR-body path mangled this artifact's URL twice (once wrapping it in code
+    // backticks, once stripping the <img src> outright) while every sibling URL
+    // survived. The page still says NULL where the API does.
+    const f = join(outDir, 'empty-and-zero-activity-states.png');
     await shoot(browser, html, f);
     artifacts.push({ file: f, what: 'null item + empty board' });
   }
