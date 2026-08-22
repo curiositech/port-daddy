@@ -535,6 +535,27 @@ describe('envelopeBindingMessage — the signature actually binds the tuple', ()
     expect(reordered).not.toBe(a);
   });
 
+  it('a list of records binds identically regardless of each record\'s key order', () => {
+    // The canonicalJson unit test above pins the serialization; this pins that
+    // the BINDING inherits it, which is the property a cross-language verifier
+    // actually depends on. A payload shaped like a list of records is the
+    // ordinary case — files changed, members, receipts — and it was the one
+    // shape no binding test covered.
+    const a = envelopeBindingMessage({
+      ...base, payload: { items: [{ path: 'a.ts', mode: 'edit' }, { path: 'b.ts', mode: 'add' }] },
+    } as never);
+    const b = envelopeBindingMessage({
+      ...base, payload: { items: [{ mode: 'edit', path: 'a.ts' }, { mode: 'add', path: 'b.ts' }] },
+    } as never);
+    expect(a).toBe(b);
+    // Element ORDER is still semantic — reordering the list is a different
+    // payload, same as the flat-array case above.
+    const swapped = envelopeBindingMessage({
+      ...base, payload: { items: [{ path: 'b.ts', mode: 'add' }, { path: 'a.ts', mode: 'edit' }] },
+    } as never);
+    expect(swapped).not.toBe(a);
+  });
+
   it('a genuinely different payload value still changes the binding', () => {
     const a = envelopeBindingMessage({ ...base, payload: { x: 1 } } as never);
     const b = envelopeBindingMessage({ ...base, payload: { x: 2 } } as never);
@@ -658,6 +679,26 @@ describe('canonicalJson', () => {
   it('sorts object keys recursively and is stable', () => {
     expect(canonicalJson({ b: 1, a: { d: 2, c: 3 } })).toBe('{"a":{"c":3,"d":2},"b":1}');
   });
+  it('recurses INTO array elements — an object inside an array is canonicalized too', () => {
+    // Every other array in this suite holds primitives ([3,1,2], [1,2]), so
+    // nothing pinned what happens to an OBJECT inside one. Replacing the
+    // recursive branch with a plain JSON.stringify(value) — which preserves
+    // insertion order for keys nested in arrays — left all 866 tests green.
+    //
+    // The shape this protects is the common one: a payload carrying a LIST OF
+    // RECORDS. Without recursion, {items:[{b,a}]} and {items:[{a,b}]} hash
+    // differently, so a verifier that rebuilt the list in another key order
+    // rejects a valid signature — the exact failure canonicalization exists to
+    // prevent, just one level deeper than the existing tests reach.
+    expect(canonicalJson([{ b: 1, a: 2 }])).toBe('[{"a":2,"b":1}]');
+    // Premise, pinned separately: these are genuinely different insertion
+    // orders, so the assertion above cannot pass for the wrong reason.
+    expect(JSON.stringify([{ b: 1, a: 2 }])).not.toBe(JSON.stringify([{ a: 2, b: 1 }]));
+    expect(canonicalJson([{ b: 1, a: 2 }])).toBe(canonicalJson([{ a: 2, b: 1 }]));
+    // …and it keeps recursing: object → array → object → array.
+    expect(canonicalJson({ z: [{ y: [3, 1], x: 0 }] })).toBe('{"z":[{"x":0,"y":[3,1]}]}');
+  });
+
   it('preserves array order and handles primitives/null', () => {
     expect(canonicalJson([3, 1, 2])).toBe('[3,1,2]');
     expect(canonicalJson(null)).toBe('null');
