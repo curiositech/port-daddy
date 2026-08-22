@@ -495,6 +495,32 @@ const PUSH: ApnsPushMessage = {
 };
 
 describe('sendApnsPush', () => {
+  it('clamps a long collapse id to 64 BYTES, not 64 UTF-16 units, on a code-point boundary', async () => {
+    // Apple caps apns-collapse-id at 64 BYTES and rejects an over-long one,
+    // which turns a nag into a failed send. `.slice(0, 64)` counts UTF-16 code
+    // units, so it overshoots for anything non-ASCII: 64 'é' is 128 bytes, and
+    // 40 emoji sliced to 64 units is also 128. Every id this module generates
+    // is ASCII, so only a caller-supplied collapseId reaches this — which is
+    // why it is worth pinning rather than trusting the current alphabet.
+    const enc = new TextEncoder();
+    const calls = stubFetch([{ status: 200 }, { status: 200 }]);
+    const f = makeDb();
+    const { kv } = makeKv();
+    const env = makeEnv(f.db, kv, apnsVars());
+
+    await sendApnsPush(DEVICE_TOKEN, { ...PUSH, collapseId: 'é'.repeat(64) }, env);
+    const accented = calls[0].headers['apns-collapse-id'] as string;
+    expect(enc.encode(accented).length).toBeLessThanOrEqual(64);
+    expect(accented.length).toBe(32); // 32 two-byte chars, not 64
+
+    // A surrogate pair must never be cut in half — the result stays well-formed.
+    await sendApnsPush(DEVICE_TOKEN, { ...PUSH, collapseId: '🚢'.repeat(40) }, env);
+    const emoji = calls[1].headers['apns-collapse-id'] as string;
+    expect(enc.encode(emoji).length).toBeLessThanOrEqual(64);
+    expect(emoji.isWellFormed()).toBe(true);
+    expect(emoji).toBe('🚢'.repeat(16)); // 16 × 4 bytes = 64, exactly at the cap
+  });
+
   it('delivers with honest headers: topic, alert type, priority 10 for critical, per-ask collapse id', async () => {
     const calls = stubFetch([{ status: 200 }]);
     const f = makeDb();

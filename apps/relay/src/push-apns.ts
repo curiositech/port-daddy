@@ -222,10 +222,42 @@ export async function getApnsJwt(env: Env, nowMs: number = Date.now()): Promise<
 
 // ── Send path ─────────────────────────────────────────────────────────────────
 
+/** Apple's documented cap on `apns-collapse-id`, in BYTES. */
+const COLLAPSE_ID_MAX_BYTES = 64;
+
+/**
+ * Truncate to Apple's 64-BYTE `apns-collapse-id` limit.
+ *
+ * `.slice(0, 64)` counts UTF-16 code units, not bytes, so it overshoots for
+ * any non-ASCII input — 64 'é' is 128 UTF-8 bytes, and 40 emoji sliced to 64
+ * units is also 128. Apple rejects an over-long collapse id, which would turn
+ * a nag into a failed send. Cut on a code POINT boundary (spreading the string
+ * iterates by code point, so a surrogate pair is never split into a lone half)
+ * and stop before the byte budget is exceeded.
+ *
+ * Every id this module generates is ASCII, so today this only bites a
+ * caller-supplied `collapseId`. That is the reason to fix it rather than to
+ * skip it: a length rule that happens to hold because of the current input
+ * alphabet is not a length rule.
+ */
+function clampCollapseId(value: string): string {
+  const enc = new TextEncoder();
+  if (enc.encode(value).length <= COLLAPSE_ID_MAX_BYTES) return value;
+  let out = '';
+  let bytes = 0;
+  for (const ch of value) {
+    const size = enc.encode(ch).length;
+    if (bytes + size > COLLAPSE_ID_MAX_BYTES) break;
+    out += ch;
+    bytes += size;
+  }
+  return out;
+}
+
 function defaultCollapseId(push: ApnsPushMessage): string {
-  if (push.collapseId) return push.collapseId.slice(0, 64);
+  if (push.collapseId) return clampCollapseId(push.collapseId);
   if (push.kind === 'digest') return 'pd-interruptions-digest';
-  return (push.interruptionId ? `pd-oi-${push.interruptionId}` : 'pd-interruptions').slice(0, 64);
+  return clampCollapseId(push.interruptionId ? `pd-oi-${push.interruptionId}` : 'pd-interruptions');
 }
 
 function buildApnsBody(push: ApnsPushMessage): Record<string, unknown> {
