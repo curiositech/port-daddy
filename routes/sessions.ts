@@ -23,6 +23,13 @@ import {
 } from '../lib/worktree-policy.js';
 import { coerceClaimType, type ClaimType } from '../lib/symbol-conflict-matrix.js';
 import type { SymbolConflict } from '../lib/symbol-claims.js';
+import {
+  extractActorCredential,
+  resolveWriteIdentity,
+  stampIdentityMetadata,
+  type IdentityVerifier,
+  type IdentityWriteVerdict,
+} from '../lib/identity-write-boundary.js';
 
 interface SessionsRouteDeps {
   sessions: {
@@ -106,6 +113,13 @@ interface SessionsRouteDeps {
     list(sessionId: string): unknown[];
     release(sessionId: string): number;
   };
+  /**
+   * ADR-0040 souls store (subset). When wired, session/note/file-claim writes
+   * enforce the daemon-minted credential (#8877 / ADR-0122 slice 1): a
+   * presented credential must verify (401 otherwise), and a bare self-asserted
+   * agentId is admitted only as a flagged, logged legacy downgrade.
+   */
+  actorSouls?: IdentityVerifier | null;
 }
 
 type SessionLifecycle = 'durable' | 'ephemeral';
@@ -129,7 +143,7 @@ function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
 // =============================================================================
 export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = async (fastify, opts) => {
   const { deps } = opts;
-  const { sessions, metrics, logger, activityLog, symbolClaims } = deps;
+  const { sessions, metrics, logger, activityLog, symbolClaims, actorSouls } = deps;
 
   const errorStatus = (result: Record<string, unknown>) => {
     switch (result.code) {
@@ -192,6 +206,55 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     return { success: true, agentId };
   };
 
+  /**
+   * #8877 / ADR-0122 slice 1: the identity write boundary for this plugin's
+   * mutation routes.
+   *
+   * Why it exists: sessions and notes are durable attributed records, and the
+   * legacy `mutationAgentId` helper accepted whatever string the caller
+   * asserted — the impersonation gap issue #8877 records. This wrapper keeps
+   * the legacy extraction (body `agentId`, `x-agent-id` header) but routes the
+   * result through `resolveWriteIdentity`, whose design is: a presented
+   * daemon-minted credential must verify (invalid ⇒ 401, never a silent
+   * fallback), a valid credential cannot write under another soul's name
+   * (403), and a bare self-asserted agentId is admitted only as a LOGGED,
+   * FLAGGED legacy downgrade so no attributed write is silently unverified.
+   *
+   * @param request - The incoming Fastify request (headers + body carriers).
+   * @param bodyAgentId - The raw `agentId` field from the request body.
+   * @param route - Route label for structured downgrade/reject logs.
+   * @returns On success, the effective agentId plus the full identity verdict
+   *          (verified / downgraded / anonymous) for stamping records and
+   *          responses; on failure, the HTTP status and error body to return.
+   */
+  const mutationIdentity = (
+    request: FastifyRequest,
+    bodyAgentId: unknown,
+    route: string,
+  ):
+    | { success: true; agentId: string | null; verdict: Extract<IdentityWriteVerdict, { ok: true }> }
+    | { success: false; httpStatus: number; result: Record<string, unknown> } => {
+    const base = mutationAgentId(request, bodyAgentId);
+    if (!base.success) {
+      return { success: false, httpStatus: 400, result: base.result };
+    }
+    const verdict = resolveWriteIdentity({
+      souls: actorSouls,
+      credential: extractActorCredential(request.headers as Record<string, unknown>, request.body),
+      assertedAgentId: base.agentId,
+      route,
+      logger,
+    });
+    if (!verdict.ok) {
+      return {
+        success: false,
+        httpStatus: verdict.httpStatus,
+        result: { success: false, error: verdict.error, code: verdict.code },
+      };
+    }
+    return { success: true, agentId: verdict.agentId, verdict };
+  };
+
   const authorizeFileMutationRoute = (
     sessionId: string,
     agentId: string | null,
@@ -252,6 +315,25 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     return { success: true };
   };
 
+  /**
+   * Shared handler for the canonical `POST /notes` and the compat alias
+   * `POST /sessions/:id/notes`.
+   *
+   * Purpose: notes are the durable narrative of record (they feed
+   * changelog-from-note, briefings, and roster projections), so this is a
+   * security-relevant write boundary. The design enforces, in order: content
+   * validation, the #8877 identity write boundary (forged credentials 401
+   * before anything persists; self-asserted ids admitted only as a visible
+   * downgrade), the adversarial-project envelope guard, and only then the
+   * actual note write — with the identity verdict echoed on the response.
+   *
+   * @param request - The incoming Fastify request.
+   * @param reply - Fastify reply used to set the HTTP status code.
+   * @param routeSessionId - Session id from the path for the alias route, or
+   *        null for `POST /notes` (session comes from the body / agent scope).
+   * @returns The note-write result body, including an `identity` verdict for
+   *          attributed writes.
+   */
   const writeNote = (
     request: FastifyRequest,
     reply: FastifyReply,
@@ -266,6 +348,14 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         error: 'content must be a non-empty string',
         code: 'VALIDATION_ERROR'
       };
+    }
+
+    // #8877: notes are durable attributed records — enforce the identity
+    // write boundary before anything is persisted.
+    const noteIdentity = mutationIdentity(request, agentId, routeSessionId ? 'POST /sessions/:id/notes' : 'POST /notes');
+    if (!noteIdentity.success) {
+      reply.code(noteIdentity.httpStatus);
+      return noteIdentity.result;
     }
 
     const sessionId = routeSessionId ?? bodySessionId;
@@ -293,17 +383,24 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       }
     }
 
-    const result = sessions.quickNote(writtenContent, { sessionId, agentId, type });
+    const result = sessions.quickNote(writtenContent, { sessionId, agentId: noteIdentity.agentId, type });
 
     if (!result.success) {
       reply.code(noteWriteStatus(result));
       return result;
     }
 
+    // Surface the identity verdict on the response so a downgraded (legacy
+    // self-asserted) note write is visible to the caller, never silent.
+    if (noteIdentity.verdict.kind !== 'anonymous') {
+      result.identity = noteIdentity.verdict.identity;
+    }
+
     logger.info('session_note_added', {
       noteId: result.noteId,
       sessionId: result.sessionId,
-      type: type || 'note'
+      type: type || 'note',
+      identityVerified: noteIdentity.verdict.kind === 'verified'
     });
 
     if (activityLog?.log) {
@@ -340,9 +437,9 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
-      const sessionAgent = mutationAgentId(request, agentId);
+      const sessionAgent = mutationIdentity(request, agentId, 'POST /sessions');
       if (!sessionAgent.success) {
-        reply.code(400);
+        reply.code(sessionAgent.httpStatus);
         return sessionAgent.result;
       }
 
@@ -390,10 +487,15 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         allowMainWorktree,
       });
 
+      // #8877: the session row is the durable attributed record — stamp the
+      // identity verdict into its metadata so a legacy self-asserted start
+      // stays visibly downgraded on the record itself.
+      const stampedMetadata = stampIdentityMetadata(mergedMetadata, sessionAgent.verdict);
+
       const result = sessions.start(purpose, {
         agentId: sessionAgent.agentId,
         files,
-        metadata: mergedMetadata,
+        metadata: stampedMetadata,
         worktreeId: worktreePolicy.worktree?.id,
         durable: lifecycle === 'durable',
       });
@@ -403,11 +505,16 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return { ...result, code: result.code || 'VALIDATION_ERROR' };
       }
 
+      if (sessionAgent.verdict.kind !== 'anonymous') {
+        result.identity = sessionAgent.verdict.identity;
+      }
+
       logger.info('session_started', {
         sessionId: result.id,
         purpose,
         agentId: sessionAgent.agentId,
-        filesCount: files ? files.length : 0
+        filesCount: files ? files.length : 0,
+        identityVerified: sessionAgent.verdict.kind === 'verified'
       });
 
       if (activityLog?.log) {
@@ -535,9 +642,9 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const sessionIdParam = (request.params as any).id;
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
       const body = (request.body || {}) as any;
-      const sessionAgent = mutationAgentId(request, body.agentId);
+      const sessionAgent = mutationIdentity(request, body.agentId, 'POST /sessions/:id/takeover');
       if (!sessionAgent.success) {
-        reply.code(400);
+        reply.code(sessionAgent.httpStatus);
         return sessionAgent.result;
       }
       const lifecycle = parseSessionLifecycle(body.lifecycle);
@@ -565,7 +672,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         note: typeof body.note === 'string' ? body.note : null,
         project: typeof body.project === 'string' ? body.project : null,
         worktreeId: typeof body.worktreeId === 'string' ? body.worktreeId : worktreePolicy.worktree?.id ?? null,
-        metadata,
+        metadata: stampIdentityMetadata(metadata, sessionAgent.verdict),
         durable: lifecycle ? lifecycle === 'durable' : typeof body.durable === 'boolean' ? body.durable : undefined,
         claimFiles: typeof body.claimFiles === 'boolean' ? body.claimFiles : undefined,
       });
@@ -576,10 +683,15 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return result;
       }
 
+      if (sessionAgent.verdict.kind !== 'anonymous') {
+        result.identity = sessionAgent.verdict.identity;
+      }
+
       logger.info('session_taken_over', {
         predecessorId: result.predecessorId,
         successorId: result.successorId,
         claimsTransferred: result.claimsTransferred,
+        identityVerified: sessionAgent.verdict.kind === 'verified',
       });
 
       return result;
@@ -775,9 +887,9 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         }
       }
 
-      const requestAgent = mutationAgentId(request, agentId);
+      const requestAgent = mutationIdentity(request, agentId, 'POST /sessions/:id/files');
       if (!requestAgent.success) {
-        reply.code(400);
+        reply.code(requestAgent.httpStatus);
         return requestAgent.result;
       }
 
@@ -930,9 +1042,9 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
-      const requestAgent = mutationAgentId(request, agentId);
+      const requestAgent = mutationIdentity(request, agentId, 'DELETE /sessions/:id/files');
       if (!requestAgent.success) {
-        reply.code(400);
+        reply.code(requestAgent.httpStatus);
         return requestAgent.result;
       }
 
