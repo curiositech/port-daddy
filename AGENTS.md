@@ -154,6 +154,17 @@ checklist. These extend (don't repeat) `## Port Daddy First`, `## Skill maintena
 is part of every slice`, `## Operator UX Expectations`, and `## Writing Technical
 Documents`.
 
+- **Supplant, don't migrate (operator directive, 2026-08-22, VERY IMPORTANT).**
+  Port Daddy has no users yet. When a new feature or mechanism overlaps an old
+  one, the new one REPLACES the old exhaustively in the same slice: delete the
+  legacy code path, update every caller, and leave behind no compat shims, no
+  feature-flagged "legacy mode", no downgrade fallbacks, and no deprecation
+  windows. Backwards compatibility is built ONLY when the operator explicitly
+  asks for it, per surface, in their own words. Origin incident: the
+  2026-08-22 identity-write-boundary review, where a "loud legacy downgrade"
+  path that still admitted self-asserted identities was rejected — enforcement
+  is theater as long as the legacy path survives.
+
 - **Never assert a competitor/platform claim without researching and citing it
   (operator directive, VERY IMPORTANT).** Before you state what a competitor or
   external platform can or can't do — a Cloudflare/OpenAI/GitHub feature,

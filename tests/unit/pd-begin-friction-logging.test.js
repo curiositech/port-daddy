@@ -14,6 +14,7 @@ import { createAgents } from '../../lib/agents.js';
 import { createSessions } from '../../lib/sessions.js';
 import { createSugar } from '../../lib/sugar.js';
 import { createUsageTelemetry } from '../../lib/usage-telemetry.js';
+import { createTestActorSouls } from '../helpers/actor-credentials.js';
 
 process.env.CI = '1';
 
@@ -159,6 +160,9 @@ describe('sugar_begin route rejection logging', () => {
     const sessions = createSessions(db);
     const activityLog = createActivityLog(db);
     sessions.setActivityLog(activityLog);
+    // #8877 / ADR-0122: /sugar/begin is the identity mint door; the route
+    // plugin needs a real souls store to mint for uncredentialed begins.
+    createRealSugar.souls = createTestActorSouls(db);
     return createSugar({
       agents,
       sessions,
@@ -180,11 +184,13 @@ describe('sugar_begin route rejection logging', () => {
     const warn = jest.fn();
     const app = Fastify();
 
+    const sugar = createRealSugar();
     await app.register(sugarPlugin, {
       deps: {
-        sugar: createRealSugar(),
+        sugar,
         metrics: { errors: 0 },
         logger: { info: jest.fn(), warn, error: jest.fn() },
+        actorSouls: createRealSugar.souls,
       },
     });
 
@@ -219,11 +225,13 @@ describe('sugar_begin route rejection logging', () => {
     const warn = jest.fn();
     const app = Fastify();
 
+    const sugar = createRealSugar();
     await app.register(sugarPlugin, {
       deps: {
-        sugar: createRealSugar(),
+        sugar,
         metrics: { errors: 0 },
         logger: { info: jest.fn(), warn, error: jest.fn() },
+        actorSouls: createRealSugar.souls,
       },
     });
 
@@ -266,6 +274,7 @@ describe('sugar_begin route rejection logging', () => {
         },
         metrics: { errors: 0 },
         logger: { info: jest.fn(), warn, error: jest.fn() },
+        actorSouls: createTestActorSouls(createTestDb()),
       },
     });
 

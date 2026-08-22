@@ -20,6 +20,9 @@
  */
 
 import { jest } from '@jest/globals';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 // Capture every call into the cli-tube backend so we can inspect what the
 // spawner forwarded. Return a minimal, valid claude-code result so the spawner's
@@ -31,6 +34,7 @@ const spawnViaCliTube = jest.fn(async () => ({
     '{"type":"result","subtype":"success","result":"done",' +
     '"usage":{"input_tokens":5,"output_tokens":6}}',
   tube: 'dispatch:abc',
+  coastGuardReceipt: { tool: 'pd-coast-guard', agentId: 'mocked-agent' },
 }));
 
 jest.unstable_mockModule('../../lib/spawner/backends/cli-tube.js', () => ({
@@ -49,9 +53,19 @@ const { createSpawner } = await import('../../lib/spawner.js');
 // backend is fully mocked, so no real subprocess or worktree is touched.
 let restoreIsolation;
 let restoreCoastGuard;
+let restoreHome;
+let fixtureHome;
 beforeAll(() => {
   restoreIsolation = process.env.PD_SPAWN_ISOLATION_OFF;
   restoreCoastGuard = process.env.PD_COAST_GUARD_OFF;
+  restoreHome = process.env.HOME;
+  // The spawner's dotenv inventory (loadDotenvOnce) must include the portable
+  // fallback ~/.port-daddy-env so its keys reach the Coast Guard scrub list.
+  // Point HOME at a fixture home carrying exactly that file; loadDotenvOnce is
+  // lazy (first spawn) and cached, so setting HOME here is early enough.
+  fixtureHome = mkdtempSync(join(tmpdir(), 'pd-cli-tube-secret-scrub-'));
+  writeFileSync(join(fixtureHome, '.port-daddy-env'), 'PORT_DADDY_REVIEW_SECRET=must-not-reach-child\n');
+  process.env.HOME = fixtureHome;
   process.env.PD_SPAWN_ISOLATION_OFF = '1';
   process.env.PD_COAST_GUARD_OFF = '1';
 });
@@ -60,6 +74,9 @@ afterAll(() => {
   else process.env.PD_SPAWN_ISOLATION_OFF = restoreIsolation;
   if (restoreCoastGuard === undefined) delete process.env.PD_COAST_GUARD_OFF;
   else process.env.PD_COAST_GUARD_OFF = restoreCoastGuard;
+  if (restoreHome === undefined) delete process.env.HOME;
+  else process.env.HOME = restoreHome;
+  if (fixtureHome) rmSync(fixtureHome, { recursive: true, force: true });
 });
 
 beforeEach(() => {
@@ -72,6 +89,7 @@ beforeEach(() => {
       '{"type":"result","subtype":"success","result":"done",' +
       '"usage":{"input_tokens":5,"output_tokens":6}}',
     tube: 'dispatch:abc',
+    coastGuardReceipt: { tool: 'pd-coast-guard', agentId: 'mocked-agent' },
   });
 });
 
@@ -97,7 +115,7 @@ describe('spawner threads tube observability into cli-tube (ADR-0060)', () => {
     const tubeClient = { publish: jest.fn(async () => ({ ok: true, id: 1 })) };
     const spawner = makeSpawner(tubeClient);
 
-    await spawner.spawn({
+    const result = await spawner.spawn({
       backend: 'cli:claude-code',
       task: 'do the thing',
       // This is exactly what intentToSpawnSpec stamps for a folded dispatch.
@@ -112,6 +130,19 @@ describe('spawner threads tube observability into cli-tube (ADR-0060)', () => {
     // backend cannot publish and `pd tube dispatch:abc123` shows nothing.
     expect(arg.tubeClient).toBe(tubeClient);
     expect(typeof arg.tubeClient.publish).toBe('function');
+    // ADR-0050: the spawner threads the confinement parameterization into the
+    // cli-tube backend (identity, backend, scope-tier write policy) and the
+    // dotenv scrub inventory includes the portable ~/.port-daddy-env keys.
+    expect(arg.coastGuard).toEqual(expect.objectContaining({
+      agentId: result.agentId,
+      backend: 'cli:claude-code',
+      writePolicy: 'unrestricted',
+    }));
+    expect(arg.coastGuard.dotenvKeys).toContain('PORT_DADDY_REVIEW_SECRET');
+    expect(result.coastGuard).toEqual(expect.objectContaining({
+      tool: 'pd-coast-guard',
+      agentId: 'mocked-agent',
+    }));
   });
 
   test('leaves tube undefined for a spawn WITHOUT a tubeChannel (sortie/orchestrator default)', async () => {

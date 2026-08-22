@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["htdag", "executionPlan"],
+  "properties": {
+    "htdag": {
+      "type": "object",
+      "description": "The Hierarchical Task DAG created from the prompt"
+    },
+    "executionPlan": {
+      "type": "object",
+      "description": "Wave-based execution plan",
+      "properties": {
+        "waves": {
+          "type": "array",
+          "description": "Parallel execution waves"
+        },
+        "nodeSkillMappings": {
+          "type": "object",
+          "description": "Mapping of DAG nodes to skills"
+        }
+      }
+    },
+    "estimatedMetrics": {
+      "type": "object",
+      "description": "Predicted execution metrics",
+      "properties": {
+        "cost": { "type": "number" },
+        "duration": { "type": "number" },
+        "parallelism": { "type": "number" }
+      }
+    },
+    "expansion": {
+      "type": "object",
+      "description": "Nodes marked for dynamic expansion",
+      "properties": {
+        "expandableNodes": {
+          "type": "array",
+          "description": "Nodes that exceed executor capability"
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

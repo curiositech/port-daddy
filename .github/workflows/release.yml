@@ -29,6 +29,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
+      attestations: write
+      id-token: write
     env:
       # THE single source of truth for the tarball's top-level entries. Both
       # the formula-compat preflight and the tar command consume this list, so
@@ -61,20 +63,6 @@ jobs:
 
       - name: Build dedicated daemon binary
         run: npm run build:daemon:dist
-
-      # The compiled-daemon smoke runs `pd doctor`, which (pre-3.28 runtime)
-      # criticals a missing supervisor. Build bosun BEFORE the smoke so the
-      # booted daemon resolves core/target/release/pd-bosun — but do NOT stage
-      # it into dist/. The 3.28 single-supervisor cutover (tap commit
-      # 2026-08-05) makes Homebrew the sole daemon supervisor: the formula's
-      # self-verifying tarball gate REJECTS any >=3.28.0 tarball that still
-      # carries pd-bosun or the flat tentacle copies. These build steps retire
-      # with the codex/3-28-* runtime PRs that delete the doctor checks.
-      - name: Install Rust toolchain (for pd-bosun watchdog)
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build pd-bosun before the smoke (required watchdog)
-        run: npm run build:bosun
 
       - name: Smoke dedicated daemon binary
         run: bash scripts/smoke-compiled-daemon.sh
@@ -183,7 +171,7 @@ jobs:
           cp -R agents/port-daddy-pilot dist/agents/port-daddy-pilot
 
       # THE generalized gate. Every required artifact (pd, port-daddy, its
-      # manifest, pd-bosun, the squid tentacles, pd-statusline) is declared in
+      # manifest, the squid tentacles, pd-statusline) is declared in
       # release-artifacts.json; `pd batten verify` asserts each is present,
       # executable where required, and >= minBytes — collecting ALL failures and
       # exiting nonzero with a per-artifact report. This REPLACES the scattered
@@ -220,6 +208,16 @@ jobs:
         # BEFORE we sealed anything; `pd batten verify` proved every member is
         # present and well-formed.
         run: cd dist && tar -czf ${{ matrix.artifact }}.tar.gz $TARBALL_ENTRIES
+
+      # GitHub/Sigstore provenance binds the exact archive bytes to this
+      # repository, workflow, tag ref, and source commit. The Homebrew tap
+      # independently enforces those fields for v3.30.3+ before accepting a
+      # digest. Required permissions are intentionally scoped to this matrix
+      # job: https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations
+      - name: Attest sealed release archive
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: dist/${{ matrix.artifact }}.tar.gz
 
       # Content-address the sealed cargo: sha256 every staged artifact into
       # release-imprint.json and ship it as a release asset. This is the
@@ -526,13 +524,10 @@ jobs:
   # .github/workflows/publish.yml remains if npm distribution is ever revived;
   # the registry package should be `npm deprecate`d when a working token exists.
 
-  # Roll the brew tap ONLY for a real, non-prerelease published Release. A
-  # prerelease (vX.Y.Z-rc.N) builds + signs binaries but must NEVER roll the tap —
-  # candidates are opt-in (RELEASING.md §2). A workflow_dispatch re-run also skips
-  # this (it's for re-building a failed release, not re-rolling the tap); dispatch
-  # the tap by hand via RELEASING.md §1 step J if a real release needs a re-roll.
-  # Previously this fired for ANY release event incl. prereleases — an RC would have
-  # shipped to every `brew upgrade` user.
+  # The tap discovers stable latest.json on its own serialized schedule. This
+  # job is the producer-side acknowledgement: it waits until the independently
+  # verified formula reaches the exact published tag. No cross-repository write
+  # credential is needed, and a stranded roll stays red in this release run.
   update-homebrew:
     runs-on: ubuntu-latest
     # FleetBar is now ESSENTIAL (operator directive 2026-06-18): a release ships
@@ -541,11 +536,9 @@ jobs:
     # let FleetBar rot silently across releases. The tradeoff is deliberate: a
     # flaky FleetBar build now blocks the release, which forces FleetBar to be
     # FIXED rather than bypassed.
-    # build-latest-json is REQUIRED here: the tap's update-formula workflow
-    # validates a full payload (candidate_sha + both archive SHA-256s) and
-    # refuses anything else, and latest.json is the content-addressed record of
-    # exactly which bytes shipped. Dispatching from it means the formula pins
-    # the same checksums the update feed advertises.
+    # build-latest-json is REQUIRED: it is the public discovery record consumed
+    # by the tap. The tap also peels the independent Git tag, validates both
+    # Batten imprints, and requires GitHub provenance for v3.30.3+.
     needs: [build-binaries, build-fleetbar-preview, build-latest-json]
     if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && needs.build-latest-json.result == 'success' && github.event_name == 'release' && github.event.release.prerelease == false
     steps:
@@ -561,59 +554,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.release.outputs.version }}
-          fetch-depth: 0
 
-      # THE PAYLOAD THE TAP ACTUALLY REQUIRES. This job used to dispatch
-      # `{"version": "vX.Y.Z"}` alone; the tap added candidate_sha +
-      # darwin_archive_sha256 + linux_archive_sha256 during the 3.28 cutover
-      # and now hard-fails with "missing or invalid candidate SHA". v3.28.0
-      # published green here and the tap roll failed silently downstream —
-      # the same producer/consumer drift class as the tarball manifest hash,
-      # in the one hop nothing in this repo was validating. We now assert the
-      # tap's own regexes BEFORE dispatching, so a bad payload fails in THIS
-      # run instead of in another repo nobody is watching.
-      - name: Resolve the tap dispatch payload
-        id: payload
+      - name: Wait for independently verified Homebrew promotion
         env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.release.outputs.version }}
+          EXPECTED_TAG: ${{ steps.release.outputs.version }}
+          FORMULA_URL: https://raw.githubusercontent.com/curiositech/homebrew-tap/main/Formula/port-daddy.rb
         run: |
           set -euo pipefail
-          candidate_sha="$(git rev-parse "${TAG}^{commit}")"
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -p latest.json -D . --clobber
-          darwin="$(node -e 'const f=require("./latest.json");const a=f.artifacts.find(x=>x.filename==="pd-darwin-arm64.tar.gz");process.stdout.write(a?a.sha256:"")')"
-          linux="$(node -e 'const f=require("./latest.json");const a=f.artifacts.find(x=>x.filename==="pd-linux-x64.tar.gz");process.stdout.write(a?a.sha256:"")')"
-          # Mirror the tap's validation exactly — fail here, not over there.
-          [[ "$candidate_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::candidate_sha is not a 40-hex commit: '$candidate_sha'"; exit 1; }
-          [[ "$darwin" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::darwin archive sha256 missing from latest.json (got '$darwin') — the tap will reject this roll"; exit 1; }
-          [[ "$linux" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::linux archive sha256 missing from latest.json (got '$linux') — the tap will reject this roll"; exit 1; }
-          {
-            echo "candidate_sha=$candidate_sha"
-            echo "darwin=$darwin"
-            echo "linux=$linux"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Update Homebrew formula
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ -z "${GH_TOKEN:-}" ]; then
-            echo "::error::No RELEASE_TRAIN_TOKEN or HOMEBREW_TAP_TOKEN is available for the tap dispatch."
-            exit 1
-          fi
-          gh api repos/curiositech/homebrew-tap --jq '"Authenticated tap access: \(.full_name)"'
-
-      - name: Dispatch Homebrew formula update
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
-          repository: curiositech/homebrew-tap
-          event-type: update-formula
-          client-payload: |
-            {
-              "version": "${{ steps.release.outputs.version }}",
-              "candidate_sha": "${{ steps.payload.outputs.candidate_sha }}",
-              "darwin_archive_sha256": "${{ steps.payload.outputs.darwin }}",
-              "linux_archive_sha256": "${{ steps.payload.outputs.linux }}"
-            }
+          node scripts/release-workflow-state.mjs \
+            wait-for-formula "$EXPECTED_TAG" "$FORMULA_URL" "$GITHUB_RUN_ID"

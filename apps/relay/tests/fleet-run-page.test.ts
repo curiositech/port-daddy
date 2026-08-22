@@ -161,6 +161,60 @@ describe('fleet run page gate', () => {
   });
 });
 
+describe('fleet run page — live intent-only receipt', () => {
+  it('renders queued progress and refreshes without fabricating a transcript', async () => {
+    const intent = {
+      delivery_id: 'delivery-live',
+      repo_full_name: 'erichowens/port-daddy',
+      pr_number: 8889,
+      pr_url: 'https://github.com/erichowens/port-daddy/pull/8889',
+      head_sha: 'a'.repeat(40),
+      event_type: 'pull_request',
+      action: 'synchronize',
+      generation: 4,
+      state: 'queued',
+      attempt_count: 0,
+      queued_at: 1_700_000_000,
+      started_at: null,
+      last_progress_at: 1_700_000_000,
+      finished_at: null,
+      superseded_by: null,
+      last_error: null,
+    };
+    const db = {
+      prepare(sql: string) {
+        let bound: unknown[] = [];
+        const stmt = {
+          bind(...values: unknown[]) { bound = values; return stmt; },
+          async first<T>() {
+            if (sql.includes('fleet_run_intents') && bound[0] === 'delivery-live') {
+              return intent as T;
+            }
+            return null;
+          },
+          async all<T>() { return { results: [] as T[] }; },
+          async run() { return { success: true }; },
+        };
+        return stmt;
+      },
+    } as unknown as D1Database;
+
+    const runId = 'intent:delivery-live';
+    const res = await handleFleetRunPage(
+      req(runId, { bearer: OPERATOR }),
+      makeEnv({ db }),
+      runId,
+    );
+    const html = await res.text();
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Refresh')).toBe('5');
+    expect(html).toContain('badge queued');
+    expect(html).toContain('Waiting for a Fleet worker');
+    expect(html).toContain('No ship has started yet');
+    expect(html).not.toContain('Check concluded');
+  });
+});
+
 // ── Rendering ────────────────────────────────────────────────────────────────
 
 describe('fleet run page rendering', () => {

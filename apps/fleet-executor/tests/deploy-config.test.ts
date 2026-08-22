@@ -37,8 +37,8 @@ describe.each(['wrangler.deploy.toml', 'wrangler.toml.example'])('%s queue contr
     const prShips = parseFleetShips(fleetYaml, 'pull_request:opened');
 
     expect(prShips, 'repository PR fleet must parse').not.toBeNull();
-    // max_retries excludes the first delivery. Even if the platform ends each
-    // invocation immediately after one durable ship checkpoint, the retry
+    // max_retries excludes the first delivery. The consumer intentionally
+    // returns the message after one durable ship checkpoint, so the retry
     // budget must cover the current roster and two transient no-progress runs.
     expect(maxRetries + 1).toBeGreaterThanOrEqual(prShips!.length + 2);
     expect(maxRetries).toBe(12);
@@ -63,5 +63,12 @@ describe.each(['wrangler.deploy.toml', 'wrangler.toml.example'])('%s queue contr
     expect(limits, 'missing [limits] block').toBeDefined();
     const cpuMs = Number(/^\s*cpu_ms\s*=\s*(\d+)\s*$/m.exec(limits!)?.[1]);
     expect(cpuMs).toBe(300_000);
+  });
+
+  it('keeps production delivery diagnostics queryable', () => {
+    const config = readConfig(name);
+    const observability = config.split(/^\[observability\]\s*$/m)[1];
+    expect(observability, 'missing [observability] block').toBeDefined();
+    expect(observability).toMatch(/^\s*enabled\s*=\s*true\s*$/m);
   });
 });

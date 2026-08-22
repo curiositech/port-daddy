@@ -13,6 +13,7 @@ import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { readCurrentContext, writeCurrentContext } from '../utils/current-context.js';
+import { resolveCliActorCredential } from '../utils/actor-credential.js';
 import { loadFleetConfig } from '../../lib/fleet-engine.js';
 import { deriveChangelogFromNote } from '../../lib/changelog-from-note.js';
 import {
@@ -49,10 +50,27 @@ function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
   return normalized === 'durable' || normalized === 'ephemeral' ? normalized : null;
 }
 
+/**
+ * Build the SDK client for session commands, carrying the ADR-0040 actor
+ * credential (#8877 / ADR-0122).
+ *
+ * Credential resolution order: the PD_ACTOR_CREDENTIAL /
+ * PORT_DADDY_ACTOR_CREDENTIAL env vars, then the per-worktree context file —
+ * but the context credential is used ONLY when the context's agentId matches
+ * the agent this client will assert, because presenting soul A's credential
+ * while asserting agent B's name is exactly the laundering the daemon now
+ * rejects (403 IDENTITY_ALIAS_MISMATCH). Commands that mint (session start /
+ * takeover) call `pd.ensureActorCredential()` when nothing resolves here.
+ *
+ * @param options - Parsed CLI options (`--agent` wins over context).
+ * @returns A PortDaddy client with agentId + credential set when available.
+ */
 function createSessionClient(options: CLIOptions): PortDaddy {
   const current = readCurrentContext();
+  const agentId = (typeof options.agent === 'string' ? options.agent : undefined) || current?.agentId || `cli-${process.pid}`;
   return new PortDaddy({
-    agentId: (typeof options.agent === 'string' ? options.agent : undefined) || current?.agentId || `cli-${process.pid}`,
+    agentId,
+    credential: resolveCliActorCredential(agentId),
     pid: process.pid,
   });
 }
@@ -292,6 +310,18 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
   }
 
   const pd = createSessionClient(options);
+  // #8877: an attributed session start requires a daemon-minted credential.
+  // Mint one through POST /actors/register when this shell does not already
+  // hold one (env or matching context); the alias binds the asserted agentId
+  // to the minted soul so nobody else can assert it uncredentialed.
+  if (!pd.credential && pd.agentId) {
+    try {
+      await pd.ensureActorCredential(pd.agentId);
+    } catch (error) {
+      ui.error(`Failed to mint actor credential: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  }
   const body: Record<string, unknown> = { purpose };
   if (pd.agentId) body.agentId = pd.agentId;
   if (options.force) body.force = true;
@@ -351,6 +381,17 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
   }
 
   const sessionId = data.id as string;
+  // Persist the session + minted credential so follow-up commands in this
+  // shell (files claim/release, notes, session end) present the same soul.
+  if (pd.agentId) {
+    writeCurrentContext({
+      agentId: pd.agentId,
+      sessionId,
+      purpose,
+      startedAt: Date.now(),
+      credential: pd.credential ?? null,
+    });
+  }
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
   } else if (isQuiet(options)) {
@@ -503,6 +544,16 @@ async function sessionTakeover(rest: string[], options: CLIOptions): Promise<voi
   }
 
   const pd = createSessionClient(options);
+  // #8877: takeover rewrites session lineage — always attributed, credential
+  // required. Mint one when this shell holds none.
+  if (!pd.credential && pd.agentId) {
+    try {
+      await pd.ensureActorCredential(pd.agentId);
+    } catch (error) {
+      ui.error(`Failed to mint actor credential: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  }
   const body: Parameters<PortDaddy['takeoverSession']>[1] = {
     note,
     purpose: typeof options.purpose === 'string' ? options.purpose : undefined,
@@ -544,6 +595,8 @@ async function sessionTakeover(rest: string[], options: CLIOptions): Promise<voi
         purpose: typeof successor?.purpose === 'string' ? successor.purpose : undefined,
         identity: typeof successor?.identityProject === 'string' ? successor.identityProject : null,
         startedAt: typeof successor?.createdAt === 'number' ? successor.createdAt : Date.now(),
+        // Keep the soul credential with the successor context (#8877).
+        credential: pd.credential ?? null,
       });
     }
   }

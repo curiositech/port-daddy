@@ -152,6 +152,59 @@ try {
     if (!provider?.detected || !provider?.wired) fail(`${slug} was not detected and wired in its canonical scope`);
   }
 
+  // The compiled launcher has a 64 KiB stdout boundary. Prove a real retained
+  // history is projected into a complete, explicitly truncated JSON document
+  // instead of exiting zero after slicing the document mid-object.
+  const debugDir = join(pdHome, 'squid');
+  const debugStartedAt = Date.now() - 10_000;
+  mkdirSync(debugDir, { recursive: true });
+  writeFileSync(join(debugDir, 'debug.enabled'), `${new Date(debugStartedAt).toISOString()}\n`);
+  const workspaceB64 = Buffer.from(project).toString('base64');
+  const debugEvents = Array.from({ length: 3_500 }, (_, index) => [
+    'v1',
+    'start',
+    `release-debug-${index}`,
+    'codex:release-smoke',
+    'codex',
+    'edit',
+    'pd-hook-pre-tool',
+    String(debugStartedAt + index),
+    '1000',
+    '-',
+    '-',
+    workspaceB64,
+  ].join('\t'));
+  writeFileSync(join(debugDir, 'hook-events.log'), `${debugEvents.join('\n')}\n`);
+  const debugStatus = spawnSync(pd, ['squid', 'debug', 'status', '--json', '--cwd', project], {
+    cwd: root,
+    env,
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  if (debugStatus.status !== 0) {
+    fail(`debug status probe exited ${debugStatus.status}\nstdout:\n${debugStatus.stdout}\nstderr:\n${debugStatus.stderr}`);
+  }
+  const debugBytes = Buffer.byteLength(debugStatus.stdout);
+  if (debugBytes >= 64 * 1024) fail(`debug status emitted ${debugBytes} bytes; compiled ceiling is 65536`);
+  let debugSnapshot;
+  try {
+    debugSnapshot = JSON.parse(debugStatus.stdout);
+  } catch (error) {
+    fail(`debug status did not emit complete JSON: ${String(error)}`);
+  }
+  if (debugSnapshot.window?.totalSteps !== 3_500 || !debugSnapshot.window?.truncated) {
+    fail('compiled debug status did not advertise its bounded history window');
+  }
+  if (!(debugSnapshot.window.returnedSteps > 0 && debugSnapshot.window.returnedSteps < 3_500)) {
+    fail(`compiled debug status returned an invalid step window: ${JSON.stringify(debugSnapshot.window)}`);
+  }
+  const newestDebugStep = debugSnapshot.sessions
+    .flatMap((session) => session.steps)
+    .find((step) => step.id === 'release-debug-3499');
+  if (!newestDebugStep?.startedAt || !newestDebugStep?.expectedBy) {
+    fail('compiled debug status dropped the newest actual/expected timestamps');
+  }
+
   // Prove the staged user-level gate is scoped to the exact armed root. A
   // sibling Port Daddy project must stay inert even while the heartbeat is
   // fresh and the underlying prompt tentacle has context it could emit.
@@ -226,7 +279,7 @@ try {
   }
 
   process.stdout.write(
-    `SQUID RELEASE SMOKE PASS: ${snapshot.providers.length} providers, state ${snapshot.state}, open no-op ${Math.round(openDurationMs)}ms\n`,
+    `SQUID RELEASE SMOKE PASS: ${snapshot.providers.length} providers, state ${snapshot.state}, debug ${debugBytes} bytes, open no-op ${Math.round(openDurationMs)}ms\n`,
   );
 } finally {
   rmSync(root, { recursive: true, force: true });

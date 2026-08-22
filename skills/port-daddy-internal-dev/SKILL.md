@@ -69,6 +69,11 @@ repo-specific mechanics:
   When inheriting stale work, prefer `pd takeover <old-session-id> [reason]`
   (or `pd session takeover <old-session-id> [reason]`) over deleting or silently reusing the old session; notes and claim
   history are append-only evidence.
+- **Supplant, don't migrate.** No users yet (operator directive, 2026-08-22):
+  a new mechanism that overlaps an old one replaces it exhaustively in the same
+  slice — delete the legacy path, fix every caller, no compat shims, no
+  "legacy mode" flags, no downgrade fallbacks, no deprecation windows.
+  Backwards compatibility only when the operator explicitly asks, per surface.
 - **Assume broken; verify both ends.** After any write, read it back from the
   surface that should serve it, and prove cold start (daemon down → elegant
   operator instruction, never a stack trace), worktrees, a second user, and the
@@ -270,7 +275,8 @@ project on the user's machine. **Every change to a public surface MUST
 update every mirror in the same coherent slice.**
 
 For the actual release ceremony (tagging, GitHub Release, `release.yml`,
-brew tap roll via `publish.yml`), follow `docs/RELEASING.md`.
+archive provenance, and the tap's credential-independent self-promotion),
+follow `docs/RELEASING.md`.
 For semver policy and the canonical list of *version surfaces* that must
 all bump in lockstep, see `docs/VERSIONING.md`.
 
@@ -289,7 +295,7 @@ Public surfaces, in approximate update order:
 7. Any plugin/extension manifests (Codex `.codex/skills/`, Gemini `.gemini/extensions/port-daddy/`, Claude `.claude/skills/`).
 8. **Binary smoke-test** (per `docs/RELEASING.md` §3, "local feature dev") for any change in `lib/`, `routes/`, `server.ts`, or `mcp/`. Source-mode `tsx server.ts` lies about what users actually run.
 
-The Homebrew formula is no longer a per-PR concern — it rolls during the release ceremony via the `curiositech/homebrew-tap` repo and `publish.yml`. See `docs/RELEASING.md` §1 ("public release") step J.
+The Homebrew formula is no longer a per-PR concern. The `curiositech/homebrew-tap` workflow discovers stable `latest.json` on a serialized schedule, independently peels the release tag, verifies both Batten imprints and archive digests, and requires GitHub provenance for v3.30.3+. Source `release.yml` waits for the exact formula version but never writes across repositories. See `docs/RELEASING.md` §1 step J.
 
 If you cannot land all of these in one commit, leave a `pd actor lookout`
 message naming the gaps and link the follow-up issue. Lookout is the role
@@ -425,6 +431,7 @@ The friction below costs every fresh session real time. Internalize it.
 - **Arrival and sitrep are on the critical path**: optional `pd begin` peer guidance is semantic-only, capped to three, fail-open, and budgeted at 75 ms total — disable reconnect retries, abort the active request, and test a transport that never settles. Sitrep must project and cap every top-level collection, nested salvage notes, and text field; preserve exact note totals separately from the DB-bounded preview. `--quiet` must request a summary-only route rather than fetching a full payload and discarding it locally. A fast database query that serializes 200 KB of histories is still a failed launcher interface.
 - **A preferred port is not endpoint evidence**: startup may seed `9876`, but SDK/CLI connection resolvers must use an explicit URL, a real socket, or a strictly parsed published port. Keep forgiving seed helpers separate from strict connection helpers, including public display fields and socket-to-TCP fallback. Reject a protocol the returned connection target cannot carry: the current Node target is HTTP-only, so accepting `https:` and then calling `node:http` is a plaintext-to-TLS-port defect, not compatibility. Fixture-test absent, malformed, unreadable, environment-published, file-published, unsupported-protocol, and constructor-URL-over-socket cases without consulting the developer's live daemon. The compiled smoke must use AF_UNIX-safe paths under `~/coding/tmp` and prove Unix plus TCP health on both boots.
 - **Provider CLI policy flags are versioned interfaces**: dogfood the exact packaged spawn argv against the installed provider CLI, not only a mocked child process. Current Codex defines `--approve-for-me` as automatic review inside `workspace-write`; combining it with `--sandbox workspace-write` is a hard parse error before an agent starts. Direct spawn and Tube builders must share this compatibility invariant, and a reviewer that cannot launch is a product red, not a reason to waive review.
+- **A Cloudflare Queue delivery is not a logical Fleet run**: persist an ingress intent before `queue.send()`, idempotently key it by webhook delivery id, and assign a monotonic generation per repo + PR. Only supersede older active generations after the newer queue send succeeds; otherwise a transient admission failure can erase the last valid review. The executor must compare-and-swap that intent before spend so duplicate deliveries, retries, and stale heads acknowledge without re-running ships. Project activity from the intent ledger plus `fleet_runs`; label D1-known queue depth and expected timestamps as estimates, never Cloudflare-internal position. Keep active rows out of retention deletion, delete intent-only receipts through the same operator contract, and test the webhook, executor race, rollback-without-table path, signed-in receipt, and terminal retention seams independently.
 
 ## Show-Me Runbook (operator demos)
 
@@ -781,13 +788,12 @@ it in one commit.** Land the rename in phases through Cartographer:
 
 **Slice:** Ship `v0.42.0`.
 
-1. Worktree, identity, scope note.
-2. Tag locally: `git tag -a v0.42.0 -m "<changelog summary>"`.
-3. Compute tarball sha256: `curl -sSL <github tag tarball> | shasum -a 256`.
-4. Update the **in-repo** primary `Formula/port-daddy.rb`: `url`, `sha256`, version-string-in-tests if present, post_install if `install.sh` changed. Then mirror the same change into the external tap repo (`homebrew-port-daddy/Formula/port-daddy.rb`) — both must match before the brew install command in step 5 will succeed for users.
-5. `brew install --build-from-source ./Formula/port-daddy.rb` locally; confirm install path, daemon launches, `pd status` healthy.
-6. `pd actor lookout --message "Brew formula v0.42.0 ready: <sha256>. Surfaces audited: README, CHANGELOG, website, skill bundle."`
-7. Push the tag from port-daddy first, then commit + push the formula.
+1. Land the version-bump PR from a claimed Port Daddy release worktree.
+2. Tag the merged commit and publish the GitHub Release; `release.yml` builds, seals, and attests both archives.
+3. Confirm each archive has provenance bound to `curiositech/port-daddy`, `.github/workflows/release.yml`, `refs/tags/v0.42.0`, and the exact tag commit.
+4. Let `curiositech/homebrew-tap` self-discover the stable feed. Its serialized workflow verifies the independent tag, both Batten imprints, advertised digests, and provenance before committing the formula.
+5. If promotion needs repair, fix the tap through its own claimed worktree and PR, then dispatch `update-formula.yml` on the tap's default branch. Do not manufacture a partial repository-dispatch payload.
+6. Require the source `update-homebrew` wait and pristine artifact/Homebrew install lanes to pass, then record the release, tap commit, and installed doctor evidence in the Port Daddy note.
 
 ## Quality Gates (contributor)
 
