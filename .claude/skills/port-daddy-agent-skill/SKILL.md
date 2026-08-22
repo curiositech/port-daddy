@@ -70,12 +70,22 @@ Do not use or recommend the removed `pd squid hooks` fork; `pd hooks install`
 is the narrower hook-only repair surface.
 
 Read `pd squid status` before claiming the harness works. `LIVE` means complete
-wiring plus a fresh daemon heartbeat; `READY` means complete wiring with the
-daemon down; `PARTIAL` and `DEGRADED` require repair. Use `--json` when another
-surface needs the same truth and `pd squid tap` to inspect the exact bounded
-next-turn envelope. User-level Codex/agy entries do not make hooks global: the
-wrapper requires the exact project root in the arm registry. `pd squid off`
-removes that root while preserving other projects.
+wiring plus a fresh daemon heartbeat and an exact `daemon.ready` → `daemon.pid`
+generation match. `READY` means the wiring is complete but the daemon is down
+or still behind its boot checks; `PARTIAL` and `DEGRADED` require repair. Use
+`--json` when another surface needs the same truth and `pd squid tap` to inspect
+the exact bounded next-turn envelope. User-level Codex/agy entries do not make
+hooks global: the wrapper requires the exact project root in the arm registry.
+`pd squid off` removes that root while preserving other projects.
+
+Do not infer hook readiness from the Bosun heartbeat alone. The daemon starts
+that heartbeat before its database-integrity gate so its supervisor will not
+kill a legitimately slow boot. The shared Claude/Codex/Gemini/agy wrapper first
+requires the ready PID to match the live PID, then checks heartbeat freshness
+and exact project arming. A missing, malformed, stale, or displaced generation
+is an immediate successful no-op; `pd squid status --json` exposes
+`daemonAlive` and `daemonReady` separately, and debug mode explains the skipped
+boot/displacement step without retaining prompt or tool content.
 
 When hook behavior is slow or confusing, use `pd squid debug on` only for the
 diagnostic window, reproduce the turn, then read `pd squid status` or the
