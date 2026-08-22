@@ -202,8 +202,12 @@ public enum MaritimeSignals {
     public static func signal(for state: CoordinationState) -> SignalCode {
         // Force-unwrap is safe and intentional: signalForState is exhaustive
         // over CoordinationState, and MaritimeSignalsParityTests asserts that
-        // against the generated fixture. A missing entry is a compile-time-
-        // adjacent bug that must fail loudly, never render a default flag.
+        // key set directly (Set(signalForState.keys) == Set(allCases)) before
+        // it ever calls this function. That ordering matters — this is a
+        // dictionary literal, not a switch, so the compiler does NOT check
+        // exhaustiveness, and a new enum case would otherwise reach this line
+        // and abort the test process instead of naming itself.
+        // A missing entry must fail loudly, never render a default flag.
         guard let code = signalForState[state] else {
             preconditionFailure(
                 "\(unknownStateErrorPrefix)\(state.rawValue). Known states: \(knownStatesJoined)"

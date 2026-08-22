@@ -38,6 +38,20 @@ final class MaritimeSignalsParityTests: XCTestCase {
     }
 
     func testSignalForStateMatches() throws {
+        // Assert the KEY SET before touching signal(for:). signalForState is a
+        // dictionary literal, not a switch, so it gets no exhaustiveness
+        // checking from the compiler — a new CoordinationState case compiles
+        // clean and only shows up at the preconditionFailure in signal(for:).
+        // A preconditionFailure inside XCTest aborts the whole test process
+        // rather than failing one case, so without this line a missing entry
+        // takes the rest of the suite down with it and reports as a crash
+        // instead of naming the state that is missing.
+        XCTAssertEqual(
+            Set(MaritimeSignals.signalForState.keys),
+            Set(CoordinationState.allCases),
+            "signalForState is missing an entry for a CoordinationState case (or has one for a state that no longer exists)"
+        )
+
         let expected = try stringMap(try fixture(), "signalForState")
         XCTAssertEqual(expected.count, CoordinationState.allCases.count)
         for state in CoordinationState.allCases {
