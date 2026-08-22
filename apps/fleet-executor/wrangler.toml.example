@@ -132,10 +132,10 @@ max_batch_size = 1
 max_concurrency = 1
 max_batch_timeout = 30
 # Resumed attempts skip durable ship checkpoints. Keep this example aligned
-# with the deploy config: six total attempts cover the four-ship default roster
-# even at one newly checkpointed ship per attempt, while still bounding a ship
-# that repeatedly dies before it can checkpoint.
-max_retries = 5
+# with the deploy config: thirteen total attempts cover this repository's
+# eleven-ship PR roster even at one newly checkpointed ship per attempt, with two
+# attempts of bounded headroom for transient failures.
+max_retries = 12
 dead_letter_queue = "fleet-runs-dlq"
 
 # Required merge-group checks are deterministic and make no AI calls. Keep them
