@@ -938,7 +938,7 @@ async function main(): Promise<void> {
     // PR-body path mangled this artifact's URL twice (once wrapping it in code
     // backticks, once stripping the <img src> outright) while every sibling URL
     // survived. The page still says NULL where the API does.
-    const f = join(outDir, 'empty-and-zero-activity-states.png');
+    const f = join(outDir, 'empty-states.png');
     await shoot(browser, html, f);
     artifacts.push({ file: f, what: 'null item + empty board' });
   }

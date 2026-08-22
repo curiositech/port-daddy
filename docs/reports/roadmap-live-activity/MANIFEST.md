@@ -152,7 +152,7 @@ printed **verbatim**. Board `counts.attention = 3`. None of them roll up to
 (enqueued on a real `FleetApprovalStream`) with its `decisionUrl`.
 Raw: `responses/items-attention-activity.json`.
 
-### `empty-and-zero-activity-states.png` — 329 KB · 2720×1460
+### `empty-states.png` — 329 KB · 2720×1460
 **NULL / EMPTY.** Left: an existing item with zero activity —
 `attachments: []`, `dispatch: null`, `assigneeId: null`, stage `stacked`,
 HTTP **200 not 404** (`GET /roadmap/items/nobody-is-on-this-slice/activity`).
@@ -160,12 +160,18 @@ Right: an empty board — a **second** throwaway registry, migrated and never
 seeded, so `items: []` and every count is `0`.
 Raw: `responses/item-null-state-activity.json`, `responses/board-activity-empty.json`.
 
-> Filename note: this artifact deliberately avoids the literal token `null` in its
-> path. A sanitizer somewhere on the PR-body write path mangled its URL twice —
-> once wrapping it in code backticks, once stripping the `<img src>` attribute
-> outright — while every sibling URL in the same body survived untouched. The
-> rename is a workaround for that transport, not a softening of the claim: the
-> image and the archived response still show `attachments: []` and `dispatch: null`.
+> Filename note: this artifact was renamed twice
+> (`null-and-empty-states.png` → `empty-and-zero-activity-states.png` →
+> `empty-states.png`) because its embed in the PR body was corrupted on three
+> separate writes — code backticks inside the markdown parens, then a stripped
+> `<img src>`, then backticks again — while every sibling URL in the same body
+> survived untouched each time. The renames shorten and distinguish the URL to
+> get the embed to land. They are a workaround for that write path, not a
+> softening of the claim: the image and the archived responses still show
+> `attachments: []`, `dispatch: null`, `assigneeId: null`, HTTP 200 not 404, and
+> a board with `items: []` and every count `0`. If the embed still looks broken
+> in the rendered PR, treat this artifact as unproven and open the committed PNG
+> directly — do not assume it landed.
 
 ### `board-feed-motion.gif` — 370 KB · 1160×573 · 6 frames · 1.7 s/frame
 ### `board-feed-motion.webm` — 213 KB · 1160×573 · 10.2 s · vp8
