@@ -1,106 +1,97 @@
-// tests/unit/purser/cli-command-validation.test.ts
-
-import { promises as fs } from 'fs';
-import path from 'path';
+/**
+ * Purser contract for #7504, obligations 1 and 6 — every `pd` command the
+ * README shows in a checkable example must exist in the authoritative CLI
+ * registry (cli/permission-tiers.ts), and the checker must have real teeth
+ * (it must be able to FAIL on a verb that does not exist).
+ *
+ * REPAIRED IN PLACE (argue-with-the-test protocol). Defects in the authored
+ * draft, each fixed while keeping the adversarial intent:
+ *
+ *   1. FAILED TO LOAD. `__dirname` does not exist in this repo's test
+ *      runtime (jest runs .ts tests as ESM); the suite crashed before any
+ *      assertion. Repaired with `dirname(fileURLToPath(import.meta.url))`.
+ *   2. FANTASY LAYOUT. The draft demanded a `cli/commands/<verb>.{ts,js}`
+ *      file per README verb. The real CLI has no file-per-verb contract:
+ *      cli/permission-tiers.ts's TIER_REGISTRY is the dispatch authority,
+ *      and its keys include aliases (`w`, `f`, `l`, `ps`) and grouped verbs
+ *      that share one source file. Demanding a file per verb fails honest
+ *      READMEs and passes drifted ones — the check is now against the REAL
+ *      registry, loaded through #7504's own `loadCommandSurface()` (the
+ *      exact loader the readme-accuracy-guard CI job dispatches on, TS-AST
+ *      parse with a guarded regex fallback), so this test and the gate
+ *      cannot disagree about what the surface is.
+ *   3. FANTASY REGISTRY SHAPE. The draft guessed at exports
+ *      (`mod.permissionTiers` / `mod.default` / "the module itself") — none
+ *      of which is the real named export, and the last of which would have
+ *      treated helper exports like `ALL_TIERS` as verbs.
+ *   4. PROSE FALSE POSITIVES. `\bpd\s+(\w+)/g` over the WHOLE document
+ *      matches English ("pd help", "pd verb and subcommand" in prose,
+ *      alt-text, anchors). The real obligation is about the EXAMPLES, so
+ *      extraction now uses #7504's own fence parser
+ *      (skills/readme-craft/scripts/extract-examples.mjs) over checkable
+ *      (`surface`/`run`-tier) blocks — the same corpus the CI gate checks.
+ *
+ * Strengthened with the negative test #7504's PR body performed by hand:
+ * the surface must REJECT a plausible fake verb (`notez`) while accepting
+ * its real neighbor (`notes`) — a validator that cannot fail is not one.
+ */
+import { readFileSync } from 'fs';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { test, expect } from '@jest/globals';
+// #7504's own registry loader and fence parser — the same code the
+// readme-accuracy-guard CI job runs, so test and gate cannot disagree.
+import { loadCommandSurface } from '../../../scripts/check-readme-accuracy.mjs';
+import { extractFences, shellInvocations } from '../../../skills/readme-craft/scripts/extract-examples.mjs';
 
-const readmePath = path.resolve(__dirname, '../../../README.md');
-const cliCommandsDir = path.resolve(__dirname, '../../../cli/commands');
-const permissionTiersPath = path.resolve(__dirname, '../../../cli/permission-tiers.ts');
+const here = dirname(fileURLToPath(import.meta.url));
+const readmePath = path.resolve(here, '../../../README.md');
+
+/** Placeholder tokens an author writes deliberately; not a real verb. */
+const PLACEHOLDER = /^(<.*>|\[.*\]|\.\.\.|\$\{?\w+\}?)$/;
 
 /**
- * Extract all unique pd verb names from the README.
- *
- * We look for occurrences of `pd <verb>` in any context (code fences, inline
- * examples, etc.). The regex is intentionally simple – it matches a word
- * following `pd` and stops at the first non‑word character.
+ * Extract every `pd <verb>` from the README's checkable example blocks —
+ * the corpus the accuracy gate itself checks.
  */
-async function extractReadmeVerbs(): Promise<Set<string>> {
-  const content = await fs.readFile(readmePath, 'utf8');
-  const verbRegex = /\bpd\s+(\w+)/g;
-  const verbs = new Set<string>();
-  let match: RegExpExecArray | null;
-  while ((match = verbRegex.exec(content)) !== null) {
-    verbs.add(match[1]);
+function extractReadmeVerbs(): Map<string, number> {
+  const content = readFileSync(readmePath, 'utf8');
+  const verbs = new Map<string, number>();
+  for (const block of extractFences(content)) {
+    if (block.tier !== 'surface' && block.tier !== 'run') continue;
+    for (const inv of shellInvocations(block.code)) {
+      if (inv.argv[0] !== 'pd' && inv.argv[0] !== 'port-daddy') continue;
+      const verb = inv.argv[1];
+      if (!verb || PLACEHOLDER.test(verb)) continue;
+      verbs.set(verb, (verbs.get(verb) ?? 0) + 1);
+    }
   }
   return verbs;
 }
 
-/**
- * Load the permission tiers registry from cli/permission-tiers.ts.
- *
- * The module may export the registry as a default export, a named export,
- * or simply as the module itself. We try all common patterns.
- */
-async function loadPermissionTiers(): Promise<Record<string, unknown>> {
-  const mod = await import(permissionTiersPath);
-  if (mod.permissionTiers && typeof mod.permissionTiers === 'object') {
-    return mod.permissionTiers as Record<string, unknown>;
-  }
-  if (mod.default && typeof mod.default === 'object') {
-    return mod.default as Record<string, unknown>;
-  }
-  // Fallback: the module itself is the registry.
-  return mod as Record<string, unknown>;
-}
+test('README CLI commands are valid against the real registry', () => {
+  const surface = loadCommandSurface();
+  const readmeVerbs = extractReadmeVerbs();
 
-/**
- * Verify that every command referenced in the README exists in the permission
- * tiers registry and that a source file exists in cli/commands.
- *
- * If any command is missing, the test fails with a clear diagnostic.
- */
-test('README CLI commands are valid', async () => {
-  const [readmeVerbs, permissionTiers] = await Promise.all([
-    extractReadmeVerbs(),
-    loadPermissionTiers(),
-  ]);
+  // A README with no checkable pd examples would make this a vacuous pass.
+  expect(readmeVerbs.size).toBeGreaterThan(0);
 
-  const validVerbs = new Set<string>(Object.keys(permissionTiers));
-
-  const missingInTiers: string[] = [];
-  const missingInSources: string[] = [];
-
-  for (const verb of readmeVerbs) {
-    if (!validVerbs.has(verb)) {
-      missingInTiers.push(verb);
-      continue; // No point checking sources if the tier is missing
-    }
-
-    const tsPath = path.join(cliCommandsDir, `${verb}.ts`);
-    const jsPath = path.join(cliCommandsDir, `${verb}.js`);
-
-    try {
-      await fs.access(tsPath);
-    } catch {
-      try {
-        await fs.access(jsPath);
-      } catch {
-        missingInSources.push(verb);
-      }
-    }
-  }
-
-  const errors: string[] = [];
+  const missingInTiers = [...readmeVerbs.keys()].filter((v) => !surface.verbs.has(v));
   if (missingInTiers.length) {
-    errors.push(
-      `The following commands are referenced in README but missing from permission-tiers.ts: ${missingInTiers.join(
-        ', ',
-      )}`,
+    throw new Error(
+      `The following commands are referenced in README examples but missing from cli/permission-tiers.ts: ${missingInTiers.join(', ')}`,
     );
   }
-  if (missingInSources.length) {
-    errors.push(
-      `The following commands are referenced in README but missing from cli/commands: ${missingInSources.join(
-        ', ',
-      )}`,
-    );
-  }
+});
 
-  if (errors.length) {
-    throw new Error(errors.join('\n'));
-  }
-
-  // Ensure the test actually ran and found nothing
-  expect(errors).toHaveLength(0);
+test('the registry surface has teeth: rejects a fake verb, accepts its real neighbor', () => {
+  const surface = loadCommandSurface();
+  // The exact injection #7504's PR body verified by hand (`pd notez` →
+  // unknown-verb), now pinned executable: if the loader ever degrades into
+  // accepting everything (or into an empty set its own minimum-size guard
+  // somehow missed), this fails.
+  expect(surface.verbs.has('notes')).toBe(true);
+  expect(surface.verbs.has('notez')).toBe(false);
+  // Sanity: the surface is the real, full registry, not a stub.
+  expect(surface.verbs.size).toBeGreaterThanOrEqual(50);
 });
