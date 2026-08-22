@@ -188,6 +188,76 @@ describe('identity write boundary — sugar routes', () => {
 });
 
 // =============================================================================
+// sugar routes with the souls store UNAVAILABLE (fail-closed verifier)
+// =============================================================================
+describe('identity write boundary — sugar routes with actorSouls unavailable', () => {
+  let app;
+  let beginCalls;
+
+  beforeEach(async () => {
+    beginCalls = [];
+    app = Fastify();
+    await app.register(sugarPlugin, {
+      deps: {
+        sugar: {
+          begin: (options) => {
+            beginCalls.push(options);
+            return { success: true, agentId: 'generated-agent', sessionId: 'session-1' };
+          },
+          done: () => ({ success: true }),
+          relink: () => ({ success: true }),
+          whoami: () => ({ success: true }),
+        },
+        metrics: { errors: 0 },
+        logger: silentLogger,
+        actorSouls: null,
+      },
+    });
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  test('/sugar/begin is 503 IDENTITY_VERIFIER_UNAVAILABLE even for an uncredentialed caller — the mint door never opens blind', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sugar/begin',
+      payload: { purpose: 'no verifier', lifecycle: 'durable' },
+    });
+    expect(res.statusCode).toBe(503);
+    expect(res.json().code).toBe('IDENTITY_VERIFIER_UNAVAILABLE');
+    expect(beginCalls).toHaveLength(0);
+  });
+
+  test('/sugar/begin with a credential is 503 too — never verified by assumption', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sugar/begin',
+      payload: { purpose: 'no verifier', lifecycle: 'durable', credential: 'ANYID.secret' },
+    });
+    expect(res.statusCode).toBe(503);
+    expect(res.json().code).toBe('IDENTITY_VERIFIER_UNAVAILABLE');
+    expect(beginCalls).toHaveLength(0);
+  });
+
+  test('/sugar/done with a credential while the store is down is 503; without one it is still 401', async () => {
+    const withCredential = await app.inject({
+      method: 'POST',
+      url: '/sugar/done',
+      payload: { credential: 'ANYID.secret' },
+    });
+    expect(withCredential.statusCode).toBe(503);
+    expect(withCredential.json().code).toBe('IDENTITY_VERIFIER_UNAVAILABLE');
+
+    const without = await app.inject({ method: 'POST', url: '/sugar/done', payload: {} });
+    expect(without.statusCode).toBe(401);
+    expect(without.json().code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
+  });
+});
+
+// =============================================================================
 // /locks/:name acquire / release / extend
 // =============================================================================
 describe('identity write boundary — locks routes', () => {
@@ -242,6 +312,41 @@ describe('identity write boundary — locks routes', () => {
       method: 'POST',
       url: '/locks/deploy',
       payload: { owner: 'agent-1', ttl: 60000, credential: 'FORGED.creds' },
+    });
+    expect(res.statusCode).toBe(401);
+    expect(res.json().code).toBe('IDENTITY_CREDENTIAL_INVALID');
+  });
+
+  test('a forged credential on release is rejected 401 and the lock stays held', async () => {
+    const holder = mintTestActor(souls, 'forge-release-holder');
+    await app.inject({
+      method: 'POST',
+      url: '/locks/forge-release',
+      payload: { owner: 'forge-release-holder', ttl: 60000 },
+      headers: holder.headers,
+    });
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/locks/forge-release',
+      payload: { owner: 'forge-release-holder', credential: 'FORGED.creds' },
+    });
+    expect(res.statusCode).toBe(401);
+    expect(res.json().code).toBe('IDENTITY_CREDENTIAL_INVALID');
+    expect(locks.check('forge-release').held).toBe(true);
+  });
+
+  test('a forged credential on extend is rejected 401', async () => {
+    const holder = mintTestActor(souls, 'forge-extend-holder');
+    await app.inject({
+      method: 'POST',
+      url: '/locks/forge-extend',
+      payload: { owner: 'forge-extend-holder', ttl: 60000 },
+      headers: holder.headers,
+    });
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/locks/forge-extend',
+      payload: { ttl: 120000, credential: 'FORGED.creds' },
     });
     expect(res.statusCode).toBe(401);
     expect(res.json().code).toBe('IDENTITY_CREDENTIAL_INVALID');
@@ -347,6 +452,101 @@ describe('identity write boundary — locks routes', () => {
     expect(locks.check('happy').held).toBe(false);
   });
 
+  test('a second acquire by the SAME soul with the same valid credential is 409 LOCK_HELD — no re-entrancy, no silent extension', async () => {
+    // lib/locks.acquire treats ANY existing row as "lock is held" — it never
+    // special-cases the current holder — so the route-level contract for a
+    // duplicate acquire (the sequential shape of two racing acquires) is a
+    // 409 LOCK_HELD naming the holder, with the original expiry untouched.
+    const holder = mintTestActor(souls, 'reentry-holder');
+    const first = await app.inject({
+      method: 'POST',
+      url: '/locks/reentry',
+      payload: { owner: 'reentry-holder', ttl: 60000 },
+      headers: holder.headers,
+    });
+    expect(first.statusCode).toBe(200);
+    const originalExpiry = locks.check('reentry').expiresAt;
+
+    const second = await app.inject({
+      method: 'POST',
+      url: '/locks/reentry',
+      payload: { owner: 'reentry-holder', ttl: 120000 },
+      headers: holder.headers,
+    });
+    expect(second.statusCode).toBe(409);
+    expect(second.json().code).toBe('LOCK_HELD');
+    expect(second.json().holder).toBe('reentry-holder');
+    // The failed duplicate acquire did not extend or reset the lock.
+    expect(locks.check('reentry').expiresAt).toBe(originalExpiry);
+  });
+
+  test('overlapping extends by the holder are serialized: both succeed, the last write sets the expiry', async () => {
+    // There is no genuine timing race to fabricate at this layer:
+    // better-sqlite3 is synchronous and each route handler runs its lock
+    // mutation to completion, so "overlapping" PUTs resolve as a serial
+    // sequence. The route-level contract is last-write-wins on expiresAt.
+    const holder = mintTestActor(souls, 'serial-extend-holder');
+    await app.inject({
+      method: 'POST',
+      url: '/locks/serial-extend',
+      payload: { owner: 'serial-extend-holder', ttl: 60000 },
+      headers: holder.headers,
+    });
+    const firstExtend = await app.inject({
+      method: 'PUT',
+      url: '/locks/serial-extend',
+      payload: { owner: 'serial-extend-holder', ttl: 60000 },
+      headers: holder.headers,
+    });
+    const secondExtend = await app.inject({
+      method: 'PUT',
+      url: '/locks/serial-extend',
+      payload: { owner: 'serial-extend-holder', ttl: 600000 },
+      headers: holder.headers,
+    });
+    expect(firstExtend.statusCode).toBe(200);
+    expect(secondExtend.statusCode).toBe(200);
+    expect(secondExtend.json().expiresAt).toBeGreaterThanOrEqual(firstExtend.json().expiresAt);
+    expect(locks.check('serial-extend').expiresAt).toBe(secondExtend.json().expiresAt);
+  });
+
+  test("extend-vs-steal: once the lock has changed hands, the ORIGINAL holder's late extend is 403 LOCK_OWNER_MISMATCH", async () => {
+    // The sequential shape of the extension race: holder A loses the lock
+    // (released/expired), soul B acquires it, then A's in-flight extend
+    // lands. Ownership follows the CURRENT stamped actorId, not history —
+    // A's extend must not stretch B's lock.
+    const original = mintTestActor(souls, 'stolen-from');
+    const thief = mintTestActor(souls, 'steal-acquirer');
+    await app.inject({
+      method: 'POST',
+      url: '/locks/steal-race',
+      payload: { owner: 'stolen-from', ttl: 60000 },
+      headers: original.headers,
+    });
+    await app.inject({
+      method: 'DELETE',
+      url: '/locks/steal-race',
+      payload: { owner: 'stolen-from' },
+      headers: original.headers,
+    });
+    await app.inject({
+      method: 'POST',
+      url: '/locks/steal-race',
+      payload: { owner: 'steal-acquirer', ttl: 60000 },
+      headers: thief.headers,
+    });
+
+    const lateExtend = await app.inject({
+      method: 'PUT',
+      url: '/locks/steal-race',
+      payload: { owner: 'stolen-from', ttl: 600000 },
+      headers: original.headers,
+    });
+    expect(lateExtend.statusCode).toBe(403);
+    expect(lateExtend.json().code).toBe('LOCK_OWNER_MISMATCH');
+    expect(locks.check('steal-race').metadata.actorId).toBe(thief.actorId);
+  });
+
   test("extend by another soul is rejected 403; extend by the holder succeeds", async () => {
     const holder = mintTestActor(souls, 'extend-holder');
     const attacker = mintTestActor(souls);
@@ -444,6 +644,20 @@ describe('identity write boundary — salvage routes', () => {
     });
     expect(res.statusCode).toBe(401);
     expect(res.json().code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
+    expect(completions).toHaveLength(0);
+  });
+
+  test('a non-string newAgentId on complete is 400 even with a valid credential — it cannot skip the alias check into the record', async () => {
+    const claimer = mintTestActor(souls, 'typed-claimer');
+    for (const bad of [42, { evil: true }, ['array']]) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/salvage/complete/dead-agent',
+        payload: { newAgentId: bad },
+        headers: claimer.headers,
+      });
+      expect(res.statusCode).toBe(400);
+    }
     expect(completions).toHaveLength(0);
   });
 
