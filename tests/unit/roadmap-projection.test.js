@@ -138,6 +138,42 @@ describe('roadmap-projection', () => {
   beforeEach(() => { db = setupDb(); seedFixture(db); });
   afterEach(() => { db.close(); });
 
+  test('the slug tiebreak is locale-INDEPENDENT — the same order on every host', () => {
+    // This module calls its output canonical, and the item order used
+    // localeCompare, which consults the host's default locale. Two failures
+    // came out of that, and the first alone disqualifies it:
+    //
+    //   1. The same projection could serialize in two different orders on two
+    //      machines — the one thing a canonical serialization may not do.
+    //   2. It disagreed with the consumers. iOS sorts with Swift's `<`, which
+    //      compares code units. localeCompare and `<` invert on case.
+    //
+    // The premise, pinned first so this test cannot pass for the wrong reason
+    // if the runtime's collation ever changes: these two really do disagree.
+    expect('alpha'.localeCompare('Beta')).toBe(-1);
+    expect('alpha' < 'Beta').toBe(false);
+
+    // Same status rank, same priority, same lastTouchedAt — so the slug
+    // tiebreak is the ONLY thing deciding the order of these two.
+    const tie = setupDb();
+    seedFixture(tie);
+    for (const [id, slug] of [['i-upper', 'Beta-item'], ['i-lower', 'alpha-item']]) {
+      tie.prepare(
+        `INSERT INTO roadmap_items (id, slug, summary_md, status, last_touched_at,
+                                    harbor, created_at, priority)
+         VALUES (?, ?, ?, 'backlog', 1755820000, 'port-daddy', 1755810000, 3)`,
+      ).run(id, slug, slug);
+    }
+    const p = buildRoadmapProjection(tie, '/nonexistent/port-daddy', {
+      harbor: 'port-daddy', now: clock,
+    });
+    const order = p.items.map((i) => i.slug).filter((s) => s.endsWith('-item'));
+    // Code-unit order: uppercase 'B' (0x42) sorts before lowercase 'a' (0x61).
+    // localeCompare would have produced the reverse.
+    expect(order).toEqual(['Beta-item', 'alpha-item']);
+    tie.close();
+  });
+
   test('pins the versioned shape over the fixture DB (items + claims + receipts)', () => {
     const p = buildRoadmapProjection(db, '/nonexistent/port-daddy', {
       harbor: 'port-daddy', now: clock,

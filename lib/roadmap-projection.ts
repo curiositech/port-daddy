@@ -545,11 +545,16 @@ export function buildRoadmapProjection(
       });
     }
     // Total receipt order: at, then kind, then detail — deterministic.
+    // Code-unit comparison, not localeCompare, for the reason given at the item
+    // sort below: localeCompare reads the host locale, so it cannot be part of
+    // an order this module calls canonical. `detail` is the one that made this
+    // more than theoretical — it interpolates free-form dispatch state, so it
+    // is the field most likely to carry mixed case or non-ASCII.
     receipts.sort(
       (a, b) =>
         a.at - b.at ||
-        a.kind.localeCompare(b.kind) ||
-        a.detail.localeCompare(b.detail),
+        (a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : 0) ||
+        (a.detail < b.detail ? -1 : a.detail > b.detail ? 1 : 0),
     );
 
     return {
@@ -572,12 +577,30 @@ export function buildRoadmapProjection(
   });
 
   // Total item order: status rank, priority, freshest-first, slug tiebreak.
+  //
+  // The slug tiebreak compares code units, NOT localeCompare. Two reasons, and
+  // the first alone is disqualifying:
+  //
+  //   1. localeCompare consults the host's default locale, so this "canonical"
+  //      order was not actually canonical — the same projection could serialize
+  //      in two different orders on two machines, which is the one thing a
+  //      canonical serialization may not do.
+  //   2. It disagrees with the other consumers of this projection. iOS sorts
+  //      with Swift's `<` and the console with a plain byte compare; only this
+  //      side was locale-aware. Demonstrated: 'alpha'.localeCompare('Beta') is
+  //      -1 while 'alpha' < 'Beta' is false, so a mixed-case pair of slugs came
+  //      out in one order on the web and the opposite order on the phone, from
+  //      one projection that claims to define the order.
+  //
+  // Code-unit comparison is what the Swift and Rust consumers already do, so
+  // this side moves to them rather than asking two other languages to
+  // reimplement ICU collation.
   items.sort(
     (a, b) =>
       STATUS_RANK[a.status] - STATUS_RANK[b.status] ||
       a.priority - b.priority ||
       b.lastTouchedAt - a.lastTouchedAt ||
-      a.slug.localeCompare(b.slug),
+      (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0),
   );
 
   // doThisNext: intent first ('now' items, already sorted), then the popper's
