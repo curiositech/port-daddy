@@ -32,6 +32,17 @@ name: Deploy fleet-executor (Cloudflare Worker)
 #                                (cost + failure events back to the daemon /
 #                                FleetBar). OPTIONAL: unset ⇒ the executor runs
 #                                identically and emits nothing.
+#   - FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX / FLEET_EXECUTOR_HARBOR_CARD
+#                                The executor's cloud-squid publish identity
+#                                (plan N2): Ed25519 seed + the hv:2 card from
+#                                the relay's POST /v1/fleet/executor-identity.
+#                                OPTIONAL: unset ⇒ squid events silently off.
+#                                Provisioning is agent-owned and writes both
+#                                values directly to Wrangler over stdin. Until
+#                                FleetBar exposes this action, an agent handles
+#                                it after explicit operator authorization; the
+#                                operator is never sent to a terminal or given
+#                                copy-paste secret commands.
 
 on:
   push:

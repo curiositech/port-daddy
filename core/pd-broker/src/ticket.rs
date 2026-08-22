@@ -92,8 +92,8 @@ impl TicketSigner {
     }
 
     fn tag(&self, scope: &TicketScope, expires_at_ms: i64, nonce: &str) -> [u8; 32] {
-        let mut mac = HmacSha256::new_from_slice(&self.signing_key)
-            .expect("HMAC accepts any key length");
+        let mut mac =
+            HmacSha256::new_from_slice(&self.signing_key).expect("HMAC accepts any key length");
         mac.update(&Self::preimage(scope, expires_at_ms, nonce));
         mac.finalize().into_bytes().into()
     }

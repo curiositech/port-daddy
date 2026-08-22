@@ -4,6 +4,8 @@ import {
   createOrUpdateBranch,
   openStackedPr,
   retargetPrBase,
+  fetchRepoFileText,
+  fetchRepoTreePaths,
   GitHubApiError,
   MAX_STACKED_FILES,
   MAX_STACKED_FILE_BYTES,
@@ -172,5 +174,37 @@ describe('retargetPrBase', () => {
       title: undefined,
       body: undefined,
     });
+  });
+});
+
+describe('fetchRepoFileText — evidence for the purser executability gate', () => {
+  it('returns the decoded text of a seeded file', async () => {
+    state.files.set('BASESHA:jest.config.js', "module.exports = { testMatch: ['x'] };");
+    const text = await fetchRepoFileText(OWNER, REPO, 'jest.config.js', 'BASESHA', TOKEN);
+    expect(text).toBe("module.exports = { testMatch: ['x'] };");
+  });
+
+  it('returns null on 404 (file absent) rather than throwing', async () => {
+    const text = await fetchRepoFileText(OWNER, REPO, 'nope.config.js', 'BASESHA', TOKEN);
+    expect(text).toBeNull();
+  });
+
+  it('never trusts the PR head — reads whatever ref it is given, verified via contentsRefs', async () => {
+    state.files.set('BASESHA:jest.config.js', 'x');
+    await fetchRepoFileText(OWNER, REPO, 'jest.config.js', 'BASESHA', TOKEN);
+    expect(state.contentsRefs).toContainEqual({ path: 'jest.config.js', ref: 'BASESHA' });
+  });
+});
+
+describe('fetchRepoTreePaths — evidence for the purser executability gate', () => {
+  it('returns the set of paths from a seeded recursive tree', async () => {
+    state.treeFiles.set('BASESHA', ['tests/unit/a.test.ts', 'tests/support.js']);
+    const paths = await fetchRepoTreePaths(OWNER, REPO, 'BASESHA', TOKEN);
+    expect(paths).toEqual(new Set(['tests/unit/a.test.ts', 'tests/support.js']));
+  });
+
+  it('returns null when the tree was never seeded (unknown, not empty)', async () => {
+    const paths = await fetchRepoTreePaths(OWNER, REPO, 'NOSUCHSHA', TOKEN);
+    expect(paths).toBeNull();
   });
 });

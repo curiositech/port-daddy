@@ -34,6 +34,31 @@ compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
 # ---------------------------------------------------------------------------
+# CPU budget per invocation.
+#
+# WHY THIS EXISTS: without a [limits] block a Worker gets the 30-second default
+# CPU budget, and a fleet run does not fit in it. Exceeding it is not a JS
+# exception — the runtime TERMINATES the invocation, so index.ts's try/catch
+# never runs, the message is never acked, and the platform redelivers it. With
+# max_retries = 3 that is four full runs of the same PR (four sets of ship
+# comments, four times the model spend) ending in a dead-letter whose only
+# artifact is "was lost (job exhausted retries / dead-lettered)" — a red gate
+# with no cause attached, because no code in this Worker ever got to see one.
+#
+# Observed 2026-08-19 on PRs #7278, #7339, #7344 and #7377: every attempt ran
+# the ideation ships to completion (each rewrote its own edit-in-place comment,
+# four distinct versions per PR) and then vanished mid-run, ~75s of wall clock
+# apiece — far inside the 15-minute wall-clock budget for a queue consumer, and
+# consistent with hitting the CPU ceiling instead.
+#
+# 300_000 ms (5 minutes) is the platform maximum. It is a CEILING, not a
+# reservation: a run that finishes in two seconds of CPU is billed for two
+# seconds. The queue consumer above is already serialized (max_concurrency = 1),
+# so raising this cannot widen concurrent spend.
+[limits]
+cpu_ms = 300000
+
+# ---------------------------------------------------------------------------
 # Workers AI — runs the analytical ships (code-reviewer, qa, red-team, …).
 [ai]
 binding = "AI"
@@ -107,6 +132,23 @@ queue = "fleet-runs"
 max_batch_size = 1
 max_concurrency = 1
 max_batch_timeout = 30
+# Retries RESUME past checkpointed ships (src/ship-checkpoint.ts), so an extra
+# attempt does not re-spend on finished work and can advance the run from its
+# last durable ship. A kill before the next checkpoint may still repeat
+# unfinished work, so retries remain capped. Thirteen total attempts cover this
+# repository's eleven-ship PR roster even at only one newly checkpointed ship per
+# attempt, with two attempts of bounded headroom for transient failures.
+max_retries = 12
+dead_letter_queue = "fleet-runs-dlq"
+
+# Required merge-group checks are deterministic and make no AI calls. Keep them
+# on an independent FIFO so substantive reviews cannot starve the GitHub merge
+# queue while preserving max_concurrency=1 for each workload.
+[[queues.consumers]]
+queue = "fleet-gates"
+max_batch_size = 1
+max_concurrency = 1
+max_batch_timeout = 5
 max_retries = 3
 dead_letter_queue = "fleet-runs-dlq"
 

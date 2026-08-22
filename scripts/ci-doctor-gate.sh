@@ -19,6 +19,32 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+select_socket_paths() {
+  local socket_root="$1"
+  local pid_token="$2"
+  local short_root="$3"
+
+  SOCK="$socket_root/.pdg.$pid_token.sock"
+  IPC="$socket_root/.pdg.$pid_token.ipc"
+  if [ "${#SOCK}" -ge 96 ] || [ "${#IPC}" -ge 96 ]; then
+    SOCK="$short_root/d.$pid_token.sock"
+    IPC="$short_root/i.$pid_token.sock"
+  fi
+}
+
+# Side-effect-free inspection mode for the component test below. Keeping the
+# selector inside this executable harness proves the exact production logic,
+# rather than maintaining a test-only copy of the threshold calculation.
+if [ "${1:-}" = "--print-socket-paths" ]; then
+  select_socket_paths \
+    "${PD_DOCTOR_GATE_SOCKET_ROOT:-$ROOT_DIR}" \
+    "${PD_DOCTOR_GATE_PID_TOKEN:-$$}" \
+    "${PD_DOCTOR_GATE_SHORT_SOCKET_ROOT:-$HOME/coding/tmp/pd-doctor-sockets}"
+  printf '%s\n%s\n' "$SOCK" "$IPC"
+  exit 0
+fi
+
 DAEMON_BIN="$ROOT_DIR/dist/daemon/port-daddy-daemon"
 CLI_BIN="$ROOT_DIR/dist/port-daddy"
 PORT="${DOCTOR_GATE_PORT:-19890}"
@@ -27,11 +53,26 @@ mkdir -p "$SCRATCH_BASE"
 SCRATCH="$(mktemp -d "$SCRATCH_BASE/pd-doctor-gate.XXXXXX")"
 LOG="$SCRATCH/daemon.log"
 DIAGNOSTIC_REPORT_DIR="$SCRATCH/DiagnosticReports"
+DB_PATH="$SCRATCH/port-daddy.db"
+PID_FILE="$SCRATCH/daemon.pid"
+PORT_FILE="$SCRATCH/daemon.port"
 DAEMON_PID=""
 mkdir -p "$DIAGNOSTIC_REPORT_DIR"
 
+# Unix-domain sockets have a small platform path limit (about 104 bytes on
+# macOS). A valid but deeply named linked worktree previously made this harness
+# exit during daemon boot with ENAMETOOLONG before doctor ran. Keep the ordinary
+# path beside the checkout; fall back to the machine's durable coding scratch
+# root when that path would exceed the stricter 96-byte smoke-test budget.
+SHORT_SOCKET_ROOT="$HOME/coding/tmp/pd-doctor-sockets"
+select_socket_paths "$ROOT_DIR" "$$" "$SHORT_SOCKET_ROOT"
+if [ "${SOCK#"$SHORT_SOCKET_ROOT"/}" != "$SOCK" ]; then
+  mkdir -p "$SHORT_SOCKET_ROOT"
+fi
+
 cleanup() {
   if [ -n "$DAEMON_PID" ]; then kill "$DAEMON_PID" 2>/dev/null || true; fi
+  rm -f "$SOCK" "$IPC" 2>/dev/null || true
   rm -rf "$SCRATCH" 2>/dev/null || true
 }
 trap cleanup EXIT
@@ -47,8 +88,12 @@ fi
 
 echo "Booting compiled daemon for doctor gate: $DAEMON_BIN (port $PORT, scratch $SCRATCH)"
 PORT_DADDY_PORT="$PORT" \
-PORT_DADDY_DB="$SCRATCH/registry.db" \
+PORT_DADDY_DB="$DB_PATH" \
 PORT_DADDY_PREFIX="$SCRATCH" \
+PORT_DADDY_SOCK="$SOCK" \
+PORT_DADDY_IPC="$IPC" \
+PORT_DADDY_PID_FILE="$PID_FILE" \
+PORT_DADDY_PORT_FILE="$PORT_FILE" \
 PORT_DADDY_NO_FLEET=1 \
 PORT_DADDY_NO_FLEETBAR=1 \
 PORT_DADDY_SILENT=1 \
@@ -109,6 +154,11 @@ echo "OK: /health reports the shared severity=ok"
 #    a WARN — that must NOT fail the gate.
 export PORT_DADDY_URL="$BASE"
 export PORT_DADDY_PREFIX="$SCRATCH"
+export PORT_DADDY_DB="$DB_PATH"
+export PORT_DADDY_SOCK="$SOCK"
+export PORT_DADDY_IPC="$IPC"
+export PORT_DADDY_PID_FILE="$PID_FILE"
+export PORT_DADDY_PORT_FILE="$PORT_FILE"
 export PORT_DADDY_DAEMON_LOG_PATHS="$LOG"
 export PORT_DADDY_DIAGNOSTIC_REPORT_DIR="$DIAGNOSTIC_REPORT_DIR"
 echo "Running: pd doctor --json"
@@ -144,16 +194,18 @@ printf '%s' "$DOCTOR_JSON" | node -e '
       for (const c of liars) console.error("  - " + c.name + ": " + c.detail);
       process.exit(1);
     }
-    // The Bosun watchdog is REQUIRED and was built above — it must be present and
-    // must NOT emit the old "binary not built" false-negative on a healthy daemon.
+    // Since v3.28, the external Bosun watchdog is optional: the installed
+    // launchd/systemd service is the sole lifecycle supervisor and the daemon
+    // writes its heartbeat. Doctor must keep the check visible without turning
+    // deliberate binary-free distribution into a critical failure.
     const bosun = r.checks.find(c => c.name === "Bosun watchdog");
     if (!bosun) { console.error("FAIL: no Bosun watchdog check present"); process.exit(1); }
-    if (bosun.severity !== "ok") {
-      console.error("FAIL: Bosun watchdog is REQUIRED but not ok: " + bosun.severity + " — " + bosun.detail);
+    if (bosun.severity === "critical") {
+      console.error("FAIL: optional Bosun watchdog was reported critical: " + bosun.detail);
       process.exit(1);
     }
-    if (/not built/i.test(bosun.detail || "")) {
-      console.error("FAIL: Bosun watchdog reported the false-negative \"not built\" while the watchdog was built");
+    if (bosun.severity === "warn" && !/optional/i.test(bosun.detail || "")) {
+      console.error("FAIL: Bosun warning did not explain its optional status: " + bosun.detail);
       process.exit(1);
     }
     console.log("OK: pd doctor --json severity=" + r.severity +
