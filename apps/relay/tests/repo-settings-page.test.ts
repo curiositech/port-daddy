@@ -131,6 +131,13 @@ describe('renderRepoSettingsPage', () => {
     expect(html).toContain('never');
   });
 
+  it('defaults the add-repository form to enforce (operator doctrine, 2026-08-22)', () => {
+    // The add form's hidden dial pins the operator's chosen default: new repos
+    // arrive with the SITREP contract enforced, matching the compulsion dial.
+    expect(html).toContain('<input type="hidden" name="sitrep" value="enforce">');
+    expect(html).toContain('Add with Sitrep enforced');
+  });
+
   it('teaches with an empty state instead of fabricating rows', () => {
     const emptyHtml = renderRepoSettingsPage(baseUser, []);
     expect(emptyHtml).toContain('No repositories configured yet.');

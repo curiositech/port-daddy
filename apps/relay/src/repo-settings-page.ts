@@ -320,8 +320,8 @@ export function renderRepoSettingsPage(
     <form method="post" action="/account/repos/set">
       <div class="add-row">
         <input type="text" name="repo" placeholder="owner/name" required aria-label="Repository full name">
-        <input type="hidden" name="sitrep" value="suggest">
-        <button class="btn-save" type="submit">Add with Sitrep suggested</button>
+        <input type="hidden" name="sitrep" value="enforce">
+        <button class="btn-save" type="submit">Add with Sitrep enforced</button>
       </div>
     </form>
   </section>
