@@ -36,6 +36,12 @@ export const WORKERS_AI_RATES: Record<string, WorkersAiRate> = {
   '@cf/openai/gpt-oss-20b': { input: 0.2, output: 0.3 },
   '@cf/qwen/qwen3-30b-a3b-fp8': { input: 0.051, output: 0.335 },
   '@cf/moonshotai/kimi-k2.7-code': { input: 0.95, output: 4.0 },
+  '@cf/zai-org/glm-4.7-flash': { input: 0.06, output: 0.4 },
+  '@cf/zai-org/glm-5.2': { input: 1.4, output: 4.4 },
+  '@cf/deepseek-ai/deepseek-v4-flash-0731': { input: 0.44, output: 1.32 },
+  '@cf/deepseek-ai/deepseek-v4-pro-0813': { input: 1.32, output: 3.96 },
+  '@cf/google/gemma-4-26b-a4b-it': { input: 0.1, output: 0.3 },
+  '@cf/nvidia/nemotron-3-120b-a12b': { input: 0.5, output: 1.5 },
 };
 
 /**
@@ -60,9 +66,16 @@ export const MODEL_CONTEXT_TOKENS: Record<string, number> = {
   '@cf/openai/gpt-oss-120b': 128_000,
   '@cf/openai/gpt-oss-20b': 128_000,
   '@cf/qwen/qwen3-30b-a3b-fp8': 32_768,
-  // 262.1k per the model catalog (developers.cloudflare.com/ai/models,
-  // snapshot 2026-08-12 in the internal skill's cloudflare-model-roster).
+  // The entries below were read from each model's own Cloudflare page
+  // (developers.cloudflare.com/ai/models/<id>) on 2026-08-22 — the served
+  // window, not the vendor's marketing number.
   '@cf/moonshotai/kimi-k2.7-code': 262_144,
+  '@cf/zai-org/glm-4.7-flash': 131_072,
+  '@cf/zai-org/glm-5.2': 262_144,
+  '@cf/deepseek-ai/deepseek-v4-flash-0731': 1_048_576,
+  '@cf/deepseek-ai/deepseek-v4-pro-0813': 1_048_576,
+  '@cf/google/gemma-4-26b-a4b-it': 256_000,
+  '@cf/nvidia/nemotron-3-120b-a12b': 256_000,
 };
 
 /**

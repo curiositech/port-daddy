@@ -53,12 +53,19 @@ describe('costUsdForModel', () => {
     // Admission contract: every id fleet.ts honors as a pin must be priced
     // here (verified against the live pricing page, never guessed) — an
     // honored-but-unpriced model meters $0, which is how the purser's
-    // gpt-oss-20b author calls rode invisibly for a week.
+    // gpt-oss-20b author calls rode invisibly for a week. The list is spelled
+    // out (not derived) so a repertoire change is a visible, reviewed diff.
     expect(Object.keys(WORKERS_AI_RATES).sort()).toEqual([
+      '@cf/deepseek-ai/deepseek-v4-flash-0731',
+      '@cf/deepseek-ai/deepseek-v4-pro-0813',
+      '@cf/google/gemma-4-26b-a4b-it',
       '@cf/moonshotai/kimi-k2.7-code',
+      '@cf/nvidia/nemotron-3-120b-a12b',
       '@cf/openai/gpt-oss-120b',
       '@cf/openai/gpt-oss-20b',
       '@cf/qwen/qwen3-30b-a3b-fp8',
+      '@cf/zai-org/glm-4.7-flash',
+      '@cf/zai-org/glm-5.2',
     ]);
   });
 });

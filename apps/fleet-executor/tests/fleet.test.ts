@@ -105,11 +105,16 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     // truthed-up to the cheap id in the same change, so cheap ships stay cheap
     // by CONFIG rather than by a guard overriding config.
     const reviewer = ships!.find(s => s.name === 'code-reviewer');
-    expect(reviewer!.cfModel).toBe('@cf/moonshotai/kimi-k2.7-code');
+    expect(reviewer!.cfModel).toBe('@cf/zai-org/glm-5.2');
+    // qa moved to the agentic 30B specialist (same cost class, 4x context,
+    // 59.2% vs 22% SWE-bench over qwen3-30b) in the 2026-08-22 repertoire
+    // expansion; spark stays on qwen3-30b as the A/B control population.
     const qa = ships!.find(s => s.name === 'qa');
-    expect(qa!.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(qa!.cfModel).toBe('@cf/zai-org/glm-4.7-flash');
+    const spark = ships!.find(s => s.name === 'spark');
+    expect(spark!.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
     const redTeam = ships!.find(s => s.name === 'red-team');
-    expect(redTeam!.cfModel).toBe('@cf/openai/gpt-oss-120b');
+    expect(redTeam!.cfModel).toBe('@cf/deepseek-ai/deepseek-v4-pro-0813');
   });
 });
 
