@@ -528,6 +528,20 @@ See `references/git-discipline-internal.md` for port-daddy-specific
 extensions (release-tag immutability, the v-prefix convention, the brew
 formula update protocol).
 
+## Fleet Model Tiers (never choose from memory)
+
+Every Workers AI model decision — a ship's tier, a purser step model, a new
+admission — is made against `references/cloudflare-model-roster.md` (the
+verified catalog + pricing snapshot, the admission contract, and the standing
+decision record) and the live scoreboard
+(`node scripts/fleet-ship-stats.mjs --days 14`, which reads the relay D1's
+per-ship × per-model spend and broken/repair health). Two standing rules:
+an id is honored only after existence + rate + context are verified (phantom
+ids return silent blanks — #654), and a model-change PR carries its
+before-window stats and gets judged on its after-window. The gpt-oss-20b
+author tier (#8870: 75% repair failure, half the fleet's verdicts washed out)
+is the tombstone for choosing a tier off a price note without a scoreboard.
+
 ## Catalog-First Reflex (windags MCP, internal edition)
 
 Port Daddy contributors are not exempt from the catalog. The 600+ skills
