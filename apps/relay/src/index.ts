@@ -474,9 +474,19 @@ export default {
     else if (pathname === '/account/harbors' && method === 'GET') {
       response = await handleHarborsPage(request, env);
     } else if (pathname.startsWith('/account/harbors/')) {
-      const seg = pathname.slice('/account/harbors/'.length).split('/').filter(Boolean).map(decodeURIComponent);
-      const [hns, hname] = seg;
-      if (hns && hname && seg.length === 2 && method === 'GET') {
+      // decodeURIComponent throws URIError on a malformed escape ("%ZZ"). The
+      // global boundary below would catch it, but it would answer 500 for what
+      // is only a bad URL — and this surface answers 404 for everything it will
+      // not serve, so that a non-member and a nonexistent harbor are one
+      // response. An undecodable segment joins them rather than standing out.
+      let seg: string[] | null = null;
+      try {
+        seg = pathname.slice('/account/harbors/'.length).split('/').filter(Boolean).map(decodeURIComponent);
+      } catch {
+        seg = null;
+      }
+      const [hns, hname] = seg ?? [];
+      if (seg && hns && hname && seg.length === 2 && method === 'GET') {
         response = await handleHarborDetailPage(request, env, hns, hname);
       } else {
         response = new Response('Not Found', { status: 404 });

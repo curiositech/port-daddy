@@ -585,6 +585,31 @@ describe('transport headers', () => {
 // ── Routing through the real worker dispatcher ───────────────────────────────
 
 describe('route wiring (worker.fetch)', () => {
+  it('a malformed percent-escape in the path is a 404, not a 500', async () => {
+    // decodeURIComponent throws URIError on "%ZZ". The worker's global boundary
+    // would turn that into 500 INTERNAL_ERROR — a different answer than every
+    // other unservable harbor URL on this surface gets. The whole point here is
+    // that non-member and nonexistent are one response; a third status for
+    // "your escape sequence was bad" is a distinguishable reply and an infra
+    // error reported for a client mistake.
+    const env = makeEnv(makeParleyDb().db);
+    await seedDock(env);
+
+    const malformed = await worker.fetch(
+      req('/account/harbors/%ZZ/dock', { session: ALICE_SESSION }), env, {} as ExecutionContext,
+    );
+    expect(malformed.status).toBe(404);
+    const body = await malformed.text();
+    expect(body).not.toMatch(/INTERNAL_ERROR/);
+
+    // …and identical to the 404 a well-formed but nonexistent harbor gets, so
+    // the malformed case does not become its own oracle.
+    const ghost = await worker.fetch(
+      req('/account/harbors/alice/ghost', { session: ALICE_SESSION }), env, {} as ExecutionContext,
+    );
+    expect(ghost.status).toBe(404);
+  });
+
   it('dispatches list and detail to the right handlers', async () => {
     const env = makeEnv(makeParleyDb().db);
     await seedDock(env);
