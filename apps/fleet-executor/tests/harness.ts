@@ -101,6 +101,10 @@ export interface GitHubState {
   prPatches: Array<{ number: number; base?: string; title?: string; body?: string }>;
   /** Labels applied via POST /issues/{n}/labels. */
   labelPosts: Array<{ number: number; labels: string[] }>;
+  /** Open issues served to GET /issues?state=open (adjudicator dedupe lookup). */
+  openIssues: Array<{ number: number; title: string; pull_request?: unknown }>;
+  /** Issues created via POST /repos/{o}/{r}/issues (adjudicator + idea capture). */
+  issuesCreated: Array<{ number: number; title: string; body: string; labels: string[] }>;
   /** When true, EVERY Git Data write (blobs/trees/commits/refs) returns 403. */
   failGitWrites403: boolean;
   /**
@@ -139,6 +143,14 @@ export interface GitHubState {
  */
 const DEFAULT_JEST_CONFIG = "module.exports = { testMatch: ['<rootDir>/tests/**/*.test.{js,ts}'] };\n";
 
+/** Match GitHub's Contents API: base64 encodes UTF-8 bytes, not JS code units. */
+function utf8ToBase64(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
 export function freshState(): GitHubState {
   const files = new Map<string, string>();
   files.set('BASESHA:jest.config.js', DEFAULT_JEST_CONFIG);
@@ -175,6 +187,8 @@ export function freshState(): GitHubState {
     stackedPrs: [],
     prPatches: [],
     labelPosts: [],
+    openIssues: [],
+    issuesCreated: [],
     failGitWrites403: false,
     treeFiles: new Map([['BASESHA', []]]),
     appSlug: 'port-daddy',
@@ -245,7 +259,7 @@ export function installGitHubFetch(state: GitHubState): void {
       }
       const fileBody = state.files.get(`${ref}:${path}`);
       if (fileBody === undefined) return text('not found', 404);
-      return json({ type: 'file', encoding: 'base64', content: btoa(fileBody) });
+      return json({ type: 'file', encoding: 'base64', content: utf8ToBase64(fileBody) });
     }
 
     // --- Git Data API (purser stacked-PR machinery) ---
@@ -410,6 +424,18 @@ export function installGitHubFetch(state: GitHubState): void {
       return json({ id: 1 });
     }
 
+    // --- list open issues (adjudicator dedupe lookup) ---
+    if (/\/issues\?state=open/.test(url) && method === 'GET') {
+      return json(state.openIssues);
+    }
+    // --- create issue (adjudicator fleet-fault tracking; ideas auto-issue) ---
+    if (/\/repos\/[^/]+\/[^/]+\/issues$/.test(url) && method === 'POST') {
+      const b = (body ?? {}) as { title?: string; body?: string; labels?: string[] };
+      const number = 9000 + state.issuesCreated.length;
+      state.issuesCreated.push({ number, title: b.title ?? '', body: b.body ?? '', labels: b.labels ?? [] });
+      return json({ number, html_url: `https://github.com/o/r/issues/${number}` });
+    }
+
     // --- create check run ---
     if (/\/check-runs$/.test(url) && method === 'POST') {
       if (state.failCreateCheckRun > 0) {
@@ -504,6 +530,8 @@ export interface CapturedStep {
   ship: unknown;
   title: unknown;
   detail: unknown;
+  /** Epoch seconds; the adjudicator's epidemic window filters on this. */
+  createdAt?: number;
 }
 
 /** Captured fleet_run_spend row (one per ship that ran). */
@@ -626,6 +654,7 @@ export function memoryD1(): D1Capture {
             ship: args[3],
             title: args[4],
             detail: args[5],
+            createdAt: Number(args[6]),
           });
         } else if (/UPDATE fleet_runs/i.test(sql)) {
           const row = runsById.get(String(args[2]));
@@ -641,7 +670,20 @@ export function memoryD1(): D1Capture {
         // ordered by seq (see src/delivery-failure.ts). Served from the same
         // `steps` array the INSERT path above appends to, so a test that writes
         // a failure through the real code can read it back through the real code.
-        if (/FROM fleet_run_steps/i.test(sql)) {
+        // Attempt-start count: COUNT(*) of one kind for one run (issue #7743's
+        // uncatchable-kill evidence). Matched BEFORE the generic step read-back
+        // below, which shares the FROM clause but returns a row, not a count.
+        if (/COUNT\(\*\)/i.test(sql) && /FROM fleet_run_steps/i.test(sql)) {
+          if (cap.failAll) throw new Error('D1 unavailable');
+          const [runId, kind] = args;
+          const n = cap.steps.filter(st => st.runId === runId && st.kind === String(kind)).length;
+          return { n } as unknown as Record<string, unknown>;
+        }
+        // Guarded against JOIN queries: the adjudicator's epidemic-evidence
+        // SELECT (below) also reads fleet_run_steps but joins fleet_runs and
+        // binds a different arg shape — without this guard the generic matcher
+        // would intercept it and misparse (ship, kinds…) as (runId, kind).
+        if (/FROM fleet_run_steps/i.test(sql) && !/JOIN fleet_runs/i.test(sql)) {
           if (cap.failAll) throw new Error('D1 unavailable');
           const [runId, kind] = args;
           const matching = cap.steps
@@ -660,9 +702,42 @@ export function memoryD1(): D1Capture {
           const bal = rows.reduce((acc, r) => acc + r.deltaUsd, 0);
           return { n: rows.length, bal } as unknown as Record<string, unknown>;
         }
+        // Adjudicator epidemic evidence: DISTINCT other PRs with broken-marker
+        // steps for one ship. Bind order mirrors countOtherBrokenPrs:
+        // (ship, ...kinds, sinceSec, repoFullName, prNumber).
+        if (/FROM fleet_run_steps/i.test(sql) && /JOIN fleet_runs/i.test(sql)) {
+          const ship = String(args[0]);
+          const kindCount = (sql.match(/\?/g) ?? []).length - 4; // ship, since, repo, pr
+          const kinds = args.slice(1, 1 + kindCount).map(String);
+          const since = Number(args[1 + kindCount]);
+          const repo = String(args[2 + kindCount]);
+          const prNumber = Number(args[3 + kindCount]);
+          const prs = new Set<number>();
+          for (const s of cap.steps) {
+            if (String(s.ship) !== ship || !kinds.includes(s.kind)) continue;
+            if ((s.createdAt ?? 0) < since) continue;
+            const run = runsById.get(String(s.runId));
+            if (!run || String(run.repo) !== repo) continue;
+            const pr = Number(run.prNumber);
+            if (pr !== prNumber) prs.add(pr);
+          }
+          return { n: prs.size } as unknown as Record<string, unknown>;
+        }
         return null;
       },
       async all() {
+        // Checkpoint read-back (src/ship-checkpoint.ts): every row of one kind
+        // for one run, served from the same `steps` array the INSERT path
+        // appends to — a test that checkpoints through the real code resumes
+        // through the real code.
+        if (/FROM fleet_run_steps/i.test(sql) && !/JOIN fleet_runs/i.test(sql)) {
+          if (cap.failAll) throw new Error('D1 unavailable');
+          const [runId, kind] = args;
+          const results = cap.steps
+            .filter(st => st.runId === runId && st.kind === String(kind))
+            .map(st => ({ ship: st.ship, detail: st.detail }));
+          return { results };
+        }
         return { results: [] };
       },
     }),
@@ -701,6 +776,13 @@ export function aiStub(opts: {
    * tests can assert on it. Omitted by default (existing tests see no usage).
    */
   usage?: { prompt_tokens: number; completion_tokens: number; cached_tokens?: number };
+  /**
+   * Per-ship CALL QUEUE: when present for a ship, each of its calls (map,
+   * reduce, or repair alike) consumes the next entry, falling back to
+   * `perShip` once drained. Lets a test model a ship that emits garbage first
+   * and heals on the repair retry (src/repair.ts).
+   */
+  perShipQueue?: Record<string, string[]>;
 }): AiStub {
   const calls: AiStub['calls'] = [];
   const withUsage = (response: string): Record<string, unknown> =>
@@ -711,6 +793,12 @@ export function aiStub(opts: {
       if (sys.includes(ship)) return ship;
     }
     return null;
+  };
+
+  const shipResponse = (ship: string): string => {
+    const queue = opts.perShipQueue?.[ship];
+    if (queue && queue.length > 0) return queue.shift() as string;
+    return opts.perShip[ship];
   };
 
   const run = async (
@@ -727,14 +815,14 @@ export function aiStub(opts: {
       const mgr = opts.managerOutput;
       const out =
         typeof mgr === 'string' ? mgr : ship && mgr ? mgr[ship] : undefined;
-      return withUsage(out ?? (ship ? opts.perShip[ship] : 'merged\n\nFLEET-VERDICT: PASS'));
+      return withUsage(out ?? (ship ? shipResponse(ship) : 'merged\n\nFLEET-VERDICT: PASS'));
     }
 
     // --- MAP call ---
     calls.push({ model, phase: 'map', ship, temperature: args.temperature });
     if (ship) {
       if (opts.throwForShip === ship) throw new Error('AI exploded');
-      return withUsage(opts.perShip[ship]);
+      return withUsage(shipResponse(ship));
     }
     return withUsage('no match\n\nFLEET-VERDICT: PASS');
   };

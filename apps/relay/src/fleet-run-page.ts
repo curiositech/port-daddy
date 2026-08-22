@@ -28,7 +28,11 @@
  */
 
 import { timingSafeEqual } from './crypto.js';
-import { getFleetRunWithSteps, type FleetRunRow, type FleetRunStepRow } from './db.js';
+import type { FleetRunStepRow } from './db.js';
+import {
+  getFleetRunProjectionWithSteps,
+  type FleetRunProjection,
+} from './fleet-run-intents.js';
 import { resolveSession, userCanReadRepo } from './auth-github.js';
 import type { Env } from './types.js';
 
@@ -93,22 +97,24 @@ function esc(v: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
-function htmlResponse(body: string, status: number): Response {
+function htmlResponse(body: string, status: number, refreshSeconds: number | null = null): Response {
+  const headers: Record<string, string> = {
+    'Content-Type': 'text/html; charset=utf-8',
+    // No scripts, ever: transcript content is model output. Google Fonts is
+    // the only third-party origin (style + font files); nothing else.
+    'Content-Security-Policy':
+      "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; " +
+      "font-src https://fonts.gstatic.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    'Referrer-Policy': 'no-referrer',
+    'X-Content-Type-Options': 'nosniff',
+    // Capability URLs must not end up in caches or search indexes.
+    'Cache-Control': 'no-store',
+    'X-Robots-Tag': 'noindex, nofollow',
+  };
+  if (refreshSeconds !== null) headers.Refresh = String(refreshSeconds);
   return new Response(body, {
     status,
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      // No scripts, ever: transcript content is model output. Google Fonts is
-      // the only third-party origin (style + font files); nothing else.
-      'Content-Security-Policy':
-        "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; " +
-        "font-src https://fonts.gstatic.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
-      'Referrer-Policy': 'no-referrer',
-      'X-Content-Type-Options': 'nosniff',
-      // Capability URLs must not end up in caches or search indexes.
-      'Cache-Control': 'no-store',
-      'X-Robots-Tag': 'noindex, nofollow',
-    },
+    headers,
   });
 }
 
@@ -186,6 +192,10 @@ a{color:var(--cobalt);text-underline-offset:3px}a:hover{color:var(--teal)}
 .badge.success{background:var(--health);color:var(--on-accent)}.badge.success .dot{background:var(--on-accent)}
 .badge.failure{background:var(--error);color:var(--on-accent)}.badge.failure .dot{background:var(--on-accent)}
 .badge.neutral,.badge.other{background:var(--amber);color:var(--ink)}.badge.neutral .dot,.badge.other .dot{background:var(--ink)}
+.badge.running{background:var(--cobalt);color:var(--cream)}.badge.running .dot{background:var(--cream)}
+.badge.queued{background:var(--surface-base);color:var(--text-primary)}.badge.queued .dot{background:var(--amber)}
+.badge.retrying{background:var(--amber);color:var(--ink)}.badge.retrying .dot{background:var(--error)}
+.badge.superseded{background:var(--surface-card);color:var(--text-muted);border-color:var(--hair-strong)}.badge.superseded .dot{background:var(--text-muted)}
 .rid-facts{display:flex;flex-wrap:wrap;gap:10px 12px;padding:16px 22px}
 .fact{display:inline-flex;align-items:baseline;gap:8px;font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:var(--text-secondary);border:1px solid var(--hair-strong);padding:5px 11px;max-width:100%;overflow:hidden}
 .fact .fk{color:var(--text-muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11.5px}
@@ -197,6 +207,10 @@ a{color:var(--cobalt);text-underline-offset:3px}a:hover{color:var(--teal)}
 .stat .k{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted)}
 .stat .v{font-size:26px;font-weight:700;margin-top:6px;letter-spacing:-.01em;line-height:1.05}
 .stat-money .v{color:var(--gold)}
+.live-strip{display:flex;align-items:center;gap:10px;padding:11px 18px;border:2px solid var(--border-strong);border-top:none;background:var(--surface-raised);font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--text-muted)}
+.live-strip .pulse{width:9px;height:9px;background:var(--cobalt);border:2px solid var(--border-strong);animation:fleet-pulse 1.8s ease-in-out infinite}
+@keyframes fleet-pulse{50%{opacity:.28}}
+@media (prefers-reduced-motion:reduce){.live-strip .pulse{animation:none}}
 
 /* transcript */
 .tx-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:4px}
@@ -333,7 +347,17 @@ function badgeClass(conclusion: string): string {
   if (conclusion === 'success') return 'success';
   if (conclusion === 'failure') return 'failure';
   if (conclusion === 'neutral') return 'neutral';
+  if (conclusion === 'running') return 'running';
+  if (conclusion === 'queued' || conclusion === 'admitting') return 'queued';
+  if (conclusion === 'retrying') return 'retrying';
+  if (conclusion === 'superseded') return 'superseded';
+  if (conclusion === 'enqueue_failed') return 'failure';
   return 'other';
+}
+
+function stateLabel(state: string): string {
+  if (state === 'enqueue_failed') return 'needs repair';
+  return state || 'pending';
 }
 
 function fmtUtc(sec: number): string {
@@ -547,6 +571,51 @@ function describeStep(step: FleetRunStepRow, shipLabel: string): StepView {
         headline: `${shipLabel} returned output the fleet could not parse — treated as errored (fail-closed).`,
         bodyHtml: '',
       };
+
+    // The contract-repair pass (fleet-executor src/repair.ts): broken output
+    // gets up to two bounded retries before the broken-ship doctrine engages.
+    case 'ship-repair': {
+      const healed = obj.healed === true;
+      return {
+        icon: '🩹',
+        tone: healed ? 'info' : 'block',
+        headline:
+          title ||
+          (healed
+            ? `${shipLabel} emitted broken output, then healed it on a repair retry.`
+            : `${shipLabel} emitted broken output and the repair retries failed too.`),
+        bodyHtml: '',
+      };
+    }
+
+    // The broken-ship marker (fleet-executor src/adjudicator.ts) — evidence
+    // for the epidemic test; the adjudication step right after it says who
+    // the breakage gates.
+    case 'ship-broken':
+      return {
+        icon: '💥',
+        tone: 'block',
+        headline: title || `${shipLabel} is broken — repair failed; adjudicating who this gates.`,
+        bodyHtml: '',
+      };
+
+    case 'ship-adjudicated': {
+      const fleetWide = (obj as { verdict?: unknown }).verdict === 'fleet';
+      return {
+        icon: '⚖️',
+        tone: fleetWide ? 'neutral' : 'block',
+        headline:
+          title ||
+          (fleetWide
+            ? `${shipLabel}'s breakage was adjudicated a FLEET-WIDE fault — tracked in one issue; not gating this PR.`
+            : `${shipLabel}'s breakage is isolated to this PR — the failure stands.`),
+        bodyHtml: `<p class="meta">${esc(
+          fleetWide
+            ? 'The same ship is broken across other PRs, so the fault gates the fleet (who can fix it), not this author (who cannot). The run resolves neutral — visible, never green.'
+            : 'No evidence of this ship breaking on other PRs, so the breakage is plausibly caused by this diff and fails the run.',
+        )}</p>`,
+      };
+    }
 
     // A ship that produced NO USABLE OUTPUT (fleet-executor's
     // src/usable-output.ts). This must NEVER render as a pass: the ship ran and
@@ -989,15 +1058,39 @@ function renderShips(steps: FleetRunStepRow[], runStartSec: number): string {
   return html;
 }
 
-const EMPTY_TRANSCRIPT = `<div class="empty">
-  <div class="e-title">No transcript steps recorded for this run.</div>
-  <p>This run concluded without emitting per-ship deliberation steps — either it short-circuited
-  before the fleet mapped the diff, or step recording was disabled for this delivery. The verdict
-  above is still authoritative. Re-run with <span class="cmd">pd fleet review</span> to capture a
-  full transcript.</p>
-</div>`;
+function emptyTranscript(run: FleetRunProjection): string {
+  if (['admitting', 'queued'].includes(run.logical_state)) {
+    return `<div class="empty"><div class="e-title">Waiting for a Fleet worker.</div>
+      <p>This generation is durably admitted. No ship has started yet; the page will refresh while
+      it waits${run.queue_ahead_estimate == null ? '' : ` behind approximately ${esc(run.queue_ahead_estimate)} earlier run(s)`}.</p></div>`;
+  }
+  if (run.logical_state === 'superseded') {
+    return `<div class="empty"><div class="e-title">Superseded before execution.</div>
+      <p>A newer commit became the current PR generation, so this queued delivery was acknowledged
+      without model spend.</p></div>`;
+  }
+  if (run.logical_state === 'enqueue_failed') {
+    return `<div class="empty"><div class="e-title">Queue admission needs repair.</div>
+      <p>${esc(run.last_error ?? 'The relay could not hand this generation to a Fleet worker.')}</p></div>`;
+  }
+  return `<div class="empty"><div class="e-title">No transcript steps recorded for this run.</div>
+    <p>The run ended before per-ship deliberation was stored, or step recording was unavailable.
+    The state above remains authoritative.</p></div>`;
+}
 
-function renderRunPage(run: FleetRunRow, steps: FleetRunStepRow[]): string {
+/**
+ * Render one authoritative Fleet receipt from the same projection used by the
+ * JSON operator API. The design intent is to keep visual evidence and deployed
+ * markup on one code path rather than maintaining a screenshot-only facsimile.
+ *
+ * @param run - Logical admission plus eventual transcript header.
+ * @param steps - Ordered, already-authorized transcript steps.
+ * @returns A complete, script-free HTML document.
+ */
+export function renderFleetRunReceiptPage(
+  run: FleetRunProjection,
+  steps: FleetRunStepRow[],
+): string {
   const distinctShips = [
     ...new Set((run.ships_csv ? run.ships_csv.split(',') : []).map(s => s.trim()).filter(Boolean)),
   ];
@@ -1010,24 +1103,39 @@ function renderRunPage(run: FleetRunRow, steps: FleetRunStepRow[]): string {
   const prLink = /^https:\/\//.test(run.pr_url)
     ? `<a href="${esc(run.pr_url)}">${prLabel}</a>`
     : prLabel;
+  const active = ['admitting', 'queued', 'running', 'retrying'].includes(run.logical_state);
+  const timingLabel = active ? 'admitted' : 'finished';
+  const timingValue = active ? run.queued_at : (run.finished_at ?? run.created_at);
+  const expected = run.expected_finish_at == null ? 'calculating' : fmtUtc(run.expected_finish_at);
+  const wallClock = run.ms > 0 ? fmtMs(run.ms) : active ? 'live' : '—';
+  const lede = active
+    ? 'Follow this review from durable admission through every delivery attempt and ship checkpoint. Queue timing is estimated; recorded steps and outcomes are receipts.'
+    : "Every review bot's pass on this PR — the files it read, the problems it raised, and the calls it made — gathered in one verifiable receipt.";
+  const accessNote = run.id.startsWith('intent:')
+    ? 'Signed-in access follows the same GitHub repository permissions as the pull request.'
+    : 'Anyone with this exact capability link can open the receipt; it shows the review, not your source.';
   const inner = `<main class="page">
     <div class="masthead">
       <span class="eyebrow">Port Daddy Fleet · review receipt</span>
       <h1 class="ko">What the fleet <span class="rec">found</span><span class="ko-over" aria-hidden="true">What the fleet <span class="rec">found</span></span></h1>
-      <span class="lede">Every review bot's pass on this PR — the files it read, the problems it raised, the calls it made. It's the same thing they posted in the comments, gathered in one place. Your code never leaves GitHub; the bots only see the diff.</span>
+      <span class="lede">${esc(lede)}</span>
     </div>
 
     <div class="receipt-id">
       <div class="rid-top">
         <div class="rid-repo">${prLink}</div>
-        <span class="badge ${badgeClass(run.conclusion)}"><span class="dot" aria-hidden="true"></span>${esc(run.conclusion || 'pending')}</span>
+        <span class="badge ${badgeClass(run.logical_state)}"><span class="dot" aria-hidden="true"></span>${esc(stateLabel(run.logical_state))}</span>
       </div>
       <div class="rid-facts">
         <span class="fact"><span class="fk">head</span><code>${esc(run.head_sha.slice(0, 12))}</code></span>
-        <span class="fact"><span class="fk">concluded</span><code>${esc(fmtUtc(run.created_at))}</code></span>
+        <span class="fact"><span class="fk">${esc(timingLabel)}</span><code>${esc(fmtUtc(timingValue))}</code></span>
+        <span class="fact"><span class="fk">attempts</span><code>${esc(run.attempt_count)}</code></span>
+        ${active ? `<span class="fact"><span class="fk">expected by</span><code>${esc(expected)}</code></span>` : ''}
         <span class="fact"><span class="fk">ships</span><code>${esc(shipsLabel)}</code></span>
       </div>
     </div>
+
+    ${active ? '<div class="live-strip"><span class="pulse" aria-hidden="true"></span>Live run · this receipt refreshes every 5 seconds while work is active</div>' : ''}
 
     <div class="statrow">
       <div class="stat"><div class="k">Agents</div><div class="v mono">${distinctShips.length}</div></div>
@@ -1035,20 +1143,19 @@ function renderRunPage(run: FleetRunRow, steps: FleetRunStepRow[]): string {
       <div class="stat"><div class="k">Input tokens</div><div class="v mono">${esc(tokenTileValue(inputTokens))}</div></div>
       <div class="stat"><div class="k">Output tokens</div><div class="v mono">${esc(tokenTileValue(outputTokens))}</div></div>
       <div class="stat stat-money"><div class="k">Neurons</div><div class="v mono">${run.neurons == null ? '—' : run.neurons.toLocaleString('en-US')}</div></div>
-      <div class="stat"><div class="k">Wall-clock</div><div class="v mono">${esc(fmtMs(run.ms))}</div></div>
+      <div class="stat"><div class="k">Wall-clock</div><div class="v mono">${esc(wallClock)}</div></div>
     </div>
 
     <div class="tx-head">
       <span class="eyebrow">Deliberation</span>
-      <h2>The transcript</h2>
+      <h2>${active ? 'Live progress' : 'The transcript'}</h2>
     </div>
     <p class="tx-sub">Read it top to bottom. Each bot chunks the diff, weighs it, and files what it found;
     the last rows are what it posted back to GitHub.</p>
-    ${steps.length ? renderShips(steps, run.created_at) : EMPTY_TRANSCRIPT}
+    ${steps.length ? renderShips(steps, run.started_at ?? run.created_at) : emptyTranscript(run)}
 
     <footer class="receipt-foot">Run <code>${esc(run.id)}</code> · delivery <code>${esc(run.delivery_id)}</code>.
-    Anyone with this exact link can open it — it shows the review, not your source. Same contents the
-    fleet posted in the PR.</footer>
+    ${esc(accessNote)}</footer>
   </main>`;
   return shell(`${run.repo_full_name} PR #${run.pr_number} — Port Daddy Fleet`, inner);
 }
@@ -1068,7 +1175,7 @@ export async function handleFleetRunPage(
     // Fast path: operator bearer or capability token authorizes without a DB
     // fetch or GitHub round-trip.
     const tokenOk = await hasTokenAuth(request, env, runId);
-    const found = await getFleetRunWithSteps(env.DB, runId);
+    const found = await getFleetRunProjectionWithSteps(env.DB, runId);
     if (!found) return notFoundPage();
 
     if (!tokenOk) {
@@ -1081,7 +1188,8 @@ export async function handleFleetRunPage(
       if (!(await userCanReadRepo(env, session, owner, repo))) return notFoundPage();
     }
 
-    return htmlResponse(renderRunPage(found.run, found.steps), 200);
+    const active = ['admitting', 'queued', 'running', 'retrying'].includes(found.run.logical_state);
+    return htmlResponse(renderFleetRunReceiptPage(found.run, found.steps), 200, active ? 5 : null);
   } catch {
     return noticePage(
       'Error — Port Daddy Fleet',

@@ -956,13 +956,61 @@ export function createSugar(deps: SugarDeps) {
     const isSubtaskOrNoPr = options.noPr === true || options.subtask === true;
 
     if (status === 'completed') {
+      // Resolve the session worktree once for every completion path. In
+      // particular, `--skip-origin-check` may bypass the push/upstream gate but
+      // it must never bypass the stricter repository claim made by `--no-pr`.
+      const sessionInfo = sessions.get(sessionId);
+      const sessionRow = sessionInfo.success && sessionInfo.session
+        ? sessionInfo.session as Record<string, unknown>
+        : null;
+      const meta = sessionRow && typeof sessionRow.metadata === 'object' && sessionRow.metadata !== null
+        ? sessionRow.metadata as Record<string, unknown>
+        : null;
+      const worktreeMeta = meta && typeof meta.worktree === 'object' && meta.worktree !== null
+        ? meta.worktree as Record<string, unknown>
+        : null;
+      const worktreeRoot = worktreeMeta && typeof worktreeMeta.root === 'string' && worktreeMeta.root.trim()
+        ? worktreeMeta.root
+        : undefined;
+
+      if (options.noPr === true) {
+        const sentinel = checkResultNoteSentinel(effectiveNote);
+        if (!sentinel.ok) {
+          const standardSentinel = 'not-applicable: ledger-only session, no repository artifact';
+          effectiveNote = effectiveNote && effectiveNote.trim()
+            ? `${effectiveNote.trim()}\n\n${standardSentinel}`
+            : standardSentinel;
+        }
+
+        const ledgerOnly = gitOriginChecker.checkLedgerOnly
+          ? gitOriginChecker.checkLedgerOnly(worktreeRoot)
+          : null;
+        if (!ledgerOnly?.ok) {
+          return {
+            success: false,
+            code: 'LEDGER_ONLY_CHECK_FAILED',
+            error: `pd done refused — ${ledgerOnly?.error ?? 'ledger-only repository verification is unavailable'}`,
+            hint: ledgerOnly?.hint ?? 'Run this close through a Port Daddy build that can verify worktree cleanliness and unpublished commits.',
+            branch: null,
+            upstream: null,
+            ahead: null,
+            originCheckCode: null,
+            ledgerOnlyCheckCode: ledgerOnly?.code ?? 'CHECK_UNAVAILABLE',
+            dirtyEntries: ledgerOnly?.dirtyEntries ?? null,
+            unpublishedCommits: ledgerOnly?.unpublishedCommits ?? null,
+          };
+        }
+      }
+
       if (!skipOriginCheck) {
         // 1) Note-sentinel check (cheap, do it first so operators get the most
         //    actionable error when they forget BOTH things).
         const sentinel = checkResultNoteSentinel(effectiveNote);
         if (!sentinel.ok) {
           if (isSubtaskOrNoPr) {
-            const standardSentinel = 'not-applicable: subtask code delivery';
+            const standardSentinel = options.noPr === true
+              ? 'not-applicable: ledger-only session, no repository artifact'
+              : 'not-applicable: subtask code delivery';
             effectiveNote = effectiveNote && effectiveNote.trim()
               ? `${effectiveNote.trim()}\n\n${standardSentinel}`
               : standardSentinel;
@@ -976,34 +1024,26 @@ export function createSugar(deps: SugarDeps) {
           }
         }
 
-        // 2) Origin-push check. The cwd we run git in is the session's
-        //    worktree root when we know it, otherwise the daemon's cwd.
-        const sessionInfo = sessions.get(sessionId);
-        const sessionRow = sessionInfo.success && sessionInfo.session
-          ? sessionInfo.session as Record<string, unknown>
-          : null;
-        const meta = sessionRow && typeof sessionRow.metadata === 'object' && sessionRow.metadata !== null
-          ? sessionRow.metadata as Record<string, unknown>
-          : null;
-        const worktreeMeta = meta && typeof meta.worktree === 'object' && meta.worktree !== null
-          ? meta.worktree as Record<string, unknown>
-          : null;
-        const worktreeRoot = worktreeMeta && typeof worktreeMeta.root === 'string' && worktreeMeta.root.trim()
-          ? worktreeMeta.root
-          : undefined;
-
-        const originCheck = gitOriginChecker.checkBranchOnOrigin(worktreeRoot);
-        if (!originCheck.ok) {
-          return {
-            success: false,
-            code: 'BRANCH_NOT_ON_ORIGIN',
-            error: `pd done refused — ${originCheck.error}`,
-            hint: originCheck.hint,
-            branch: originCheck.branch ?? null,
-            upstream: originCheck.upstream ?? null,
-            ahead: originCheck.ahead ?? null,
-            originCheckCode: originCheck.code,
-          };
+        // 2) Origin-push check. `--no-pr` has already passed its stricter
+        // ledger-only verification above; ordinary completions still require a
+        // published branch unless the operator supplied the loud override.
+        if (options.noPr !== true) {
+          const originCheck = gitOriginChecker.checkBranchOnOrigin(worktreeRoot);
+          if (!originCheck.ok) {
+            return {
+              success: false,
+              code: 'BRANCH_NOT_ON_ORIGIN',
+              error: `pd done refused — ${originCheck.error}`,
+              hint: originCheck.hint,
+              branch: originCheck.branch ?? null,
+              upstream: originCheck.upstream ?? null,
+              ahead: originCheck.ahead ?? null,
+              originCheckCode: originCheck.code,
+              ledgerOnlyCheckCode: null,
+              dirtyEntries: null,
+              unpublishedCommits: null,
+            };
+          }
         }
       } else {
         // Skip-origin-check requested. Require a reason and stamp the note.

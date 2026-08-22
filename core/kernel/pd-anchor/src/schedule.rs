@@ -113,11 +113,7 @@ pub fn schedule(nodes: &[SchedNode], edges: &[SchedEdge]) -> ScheduleResult {
     // Kahn topological sort, id-ordered ready set.
     let ids: Vec<String> = by_id.keys().cloned().collect();
     let mut order: Vec<String> = Vec::new();
-    let mut ready: BTreeSet<String> = ids
-        .iter()
-        .filter(|id| indeg[*id] == 0)
-        .cloned()
-        .collect();
+    let mut ready: BTreeSet<String> = ids.iter().filter(|id| indeg[*id] == 0).cloned().collect();
     let mut work = indeg.clone();
     while let Some(id) = ready.iter().next().cloned() {
         ready.remove(&id);
@@ -286,8 +282,10 @@ pub struct LadderResult {
 
 /// Validate parent edges against the fixed Jira ladder. Deterministic (child-sorted).
 pub fn validate_ladder(nodes: &[LadderNode], parents: &[ParentEdge]) -> LadderResult {
-    let kind_of: BTreeMap<String, String> =
-        nodes.iter().map(|n| (n.id.clone(), n.kind.clone())).collect();
+    let kind_of: BTreeMap<String, String> = nodes
+        .iter()
+        .map(|n| (n.id.clone(), n.kind.clone()))
+        .collect();
 
     let mut sorted: Vec<&ParentEdge> = parents.iter().collect();
     sorted.sort_by(|a, b| a.child.cmp(&b.child).then(a.parent.cmp(&b.parent)));
@@ -332,7 +330,10 @@ pub fn validate_ladder(nodes: &[LadderNode], parents: &[ParentEdge]) -> LadderRe
                 child_kind: Some(ck),
                 parent: Some(e.parent.clone()),
                 parent_kind: Some(pk),
-                reason: format!("{} has more than one parent (a node may have at most one)", e.child),
+                reason: format!(
+                    "{} has more than one parent (a node may have at most one)",
+                    e.child
+                ),
             });
             continue;
         }
@@ -369,15 +370,24 @@ mod tests {
     use super::*;
 
     fn n(id: &str, est: i64) -> SchedNode {
-        SchedNode { id: id.into(), estimate: Some(est) }
+        SchedNode {
+            id: id.into(),
+            estimate: Some(est),
+        }
     }
     fn edge(from: &str, to: &str) -> SchedEdge {
-        SchedEdge { from: from.into(), to: to.into() }
+        SchedEdge {
+            from: from.into(),
+            to: to.into(),
+        }
     }
 
     #[test]
     fn linear_chain_is_all_critical() {
-        let r = schedule(&[n("a", 2), n("b", 3), n("c", 1)], &[edge("a", "b"), edge("b", "c")]);
+        let r = schedule(
+            &[n("a", 2), n("b", 3), n("c", 1)],
+            &[edge("a", "b"), edge("b", "c")],
+        );
         assert!(r.ok);
         assert_eq!(r.makespan, 6);
         assert_eq!(r.critical_path, vec!["a", "b", "c"]);
@@ -394,10 +404,19 @@ mod tests {
     fn ladder_rejects_rank_skip() {
         let r = validate_ladder(
             &[
-                LadderNode { id: "p".into(), kind: "project".into() },
-                LadderNode { id: "t".into(), kind: "task".into() },
+                LadderNode {
+                    id: "p".into(),
+                    kind: "project".into(),
+                },
+                LadderNode {
+                    id: "t".into(),
+                    kind: "task".into(),
+                },
             ],
-            &[ParentEdge { parent: "p".into(), child: "t".into() }],
+            &[ParentEdge {
+                parent: "p".into(),
+                child: "t".into(),
+            }],
         );
         assert!(!r.ok);
         assert_eq!(r.violations[0].child, "t");

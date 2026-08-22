@@ -100,6 +100,7 @@ import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
 import { normalizeSelfSalvage } from './lib/telos-salvage.js';
 import { createOperatorPermissions } from './lib/operator-permissions.js';
 import { createCounters } from './lib/counters.js';
+import { createUsageTelemetry } from './lib/usage-telemetry.js';
 import { createMetricsRegistry } from './lib/metrics-registry.js';
 import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
@@ -199,7 +200,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.28.2';
+const EMBEDDED_PACKAGE_VERSION: string = '3.30.2';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -527,6 +528,11 @@ const tuples = createTupleSpace(db);
 const blobs = createBlobStore();
 const booty = createBootyStore(db);
 const counters = createCounters(db);
+const usageTelemetry = createUsageTelemetry(
+  db,
+  { version: VERSION, codeHash: CODE_HASH, buildDate: new Date(STARTED_AT).toISOString() },
+  { counters },
+);
 const metricsRegistry = createMetricsRegistry();
 const semanticResolver = createSemanticResolver(db, {
   // Stable, daemon-portable cache (~/.port-daddy/transformers-cache) shared with
@@ -652,7 +658,17 @@ const bonds = createBonds(db, {
 // no new budget. HONEST LIMIT: the anti-launder only fully bites once the `door`
 // lane makes the SQLite write-boundary real (a same-UID agent can otherwise
 // write a ledger/pool row directly). This is ADR-0040's explicit non-goal.
-const actorSouls = createActorSouls(db);
+// PORT_DADDY_NEWCOMER_ADMIT_MAX: operational knob for the per-project/day
+// distinct-newcomer admission bound. #8877 made /sugar/begin a mint door, so
+// high-churn fleets (and the integration test harness, which begins hundreds
+// of fresh agents against one ephemeral daemon) need a way to raise the
+// default without patching code. Unset/invalid keeps ADR-0040's default.
+const newcomerAdmitMaxEnv = Number(process.env.PORT_DADDY_NEWCOMER_ADMIT_MAX);
+const actorSouls = createActorSouls(db, {
+  ...(Number.isFinite(newcomerAdmitMaxEnv) && newcomerAdmitMaxEnv > 0
+    ? { newcomerAdmitMax: newcomerAdmitMaxEnv }
+    : {}),
+});
 // Grandfather EXISTING agents (from budget_ledger/bond_escrow/agents) into
 // trusted souls before budgetGuard starts routing spend through the souls
 // choke below -- otherwise every already-running agent looks like a brand
@@ -1485,7 +1501,7 @@ await registerAllRoutes(
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
     harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, booty, fleetDaemon, repoRegistry,
-    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, durableAgentRoster, costTracker, cloudAppTelemetry, counters, metricsRegistry,
+    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, durableAgentRoster, costTracker, cloudAppTelemetry, counters, metricsRegistry, usageTelemetry,
     contextTracker,
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,

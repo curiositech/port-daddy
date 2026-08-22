@@ -4,14 +4,23 @@ import { handleDlqJob } from '../src/dlq.js';
 import { executeFleet } from '../src/execute.js';
 import { DEAD_LETTER_MARKER, isDeadLetteredSummary } from '../src/dead-letter-marker.js';
 import {
+  DELIVERY_ATTEMPT_KIND,
+  DELIVERY_ATTEMPT_SEQ_BASE,
+  DELIVERY_CONTINUATION_KIND,
+  DELIVERY_CONTINUATION_SEQ_BASE,
   DELIVERY_FAILURE_KIND,
   DELIVERY_FAILURE_SEQ_BASE,
+  countDeliveryContinuations,
+  countDeliveryAttemptStarts,
   deadLetterSummary,
   describeDeliveryError,
   readLastDeliveryFailure,
+  recordDeliveryAttemptStart,
+  recordDeliveryContinuation,
   recordDeliveryFailure,
   runIdForDelivery,
 } from '../src/delivery-failure.js';
+import { saveShipCheckpoint } from '../src/ship-checkpoint.js';
 import {
   freshState,
   installGitHubFetch,
@@ -122,6 +131,112 @@ describe('a lost delivery records why it died', () => {
   });
 });
 
+describe('attempt-start markers make uncatchable kills visible (#7743)', () => {
+  it('records successful checkpoint continuations in their own durable band', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    await recordDeliveryAttemptStart(env, makeJob(), 2);
+    await expect(
+      recordDeliveryContinuation(env, makeJob(), 2, 'qa', ['spark', 'spider']),
+    ).resolves.toBe(true);
+
+    const continuation = db.steps.find(step => step.kind === DELIVERY_CONTINUATION_KIND);
+    expect(Number(continuation?.seq)).toBe(DELIVERY_CONTINUATION_SEQ_BASE + 2);
+    expect(String(continuation?.title)).toContain('progress, not a failure');
+    expect(await countDeliveryContinuations(env, runIdForDelivery('delivery-abc'))).toBe(1);
+  });
+
+  it('the consumer records a start marker BEFORE executing, so a platform kill still leaves evidence', async () => {
+    const db = memoryD1();
+    const msg = fakeMessage(makeJob(), 2);
+    // Token mint throws (no seeded token), so this delivery fails — but the
+    // start marker must already be on the transcript from before the work.
+    await handler.queue!(
+      fakeBatch([msg]),
+      makeEnv({ FLEET_TOKENS: memoryKV(), DB: db.db }),
+      {} as ExecutionContext,
+    );
+
+    const starts = db.steps.filter(s => s.kind === DELIVERY_ATTEMPT_KIND);
+    expect(starts).toHaveLength(1);
+    expect(Number(starts[0].seq)).toBe(DELIVERY_ATTEMPT_SEQ_BASE + 2);
+    expect(String(starts[0].title)).toContain('attempt 2 started');
+    // Its band sits above the failure band, so neither overwrites the other.
+    expect(DELIVERY_ATTEMPT_SEQ_BASE).toBeGreaterThan(DELIVERY_FAILURE_SEQ_BASE);
+  });
+
+  it('counts starts per run and degrades to 0 without a DB or on a throwing one', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    await recordDeliveryAttemptStart(env, makeJob(), 1);
+    await recordDeliveryAttemptStart(env, makeJob(), 2);
+    expect(await countDeliveryAttemptStarts(env, runIdForDelivery('delivery-abc'))).toBe(2);
+
+    expect(await countDeliveryAttemptStarts(makeEnv({}), runIdForDelivery('delivery-abc'))).toBe(0);
+    db.failAll = true;
+    expect(await countDeliveryAttemptStarts(env, runIdForDelivery('delivery-abc'))).toBe(0);
+  });
+
+  it('a recorder failure never blocks the delivery', async () => {
+    const db = memoryD1();
+    db.failAll = true;
+    await expect(recordDeliveryAttemptStart(makeEnv({ DB: db.db }), makeJob(), 1)).resolves.toBeUndefined();
+  });
+
+  it('starts-but-no-failure turns the gate summary into a diagnosis, not a shrug', async () => {
+    state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const env = makeEnv({ FLEET_TOKENS: kv, DB: db.db });
+
+    // Three attempts began; none recorded a failure — the uncatchable-kill shape.
+    for (const attempt of [1, 2, 3]) await recordDeliveryAttemptStart(env, makeJob(), attempt);
+    await handleDlqJob(makeJob(), env);
+
+    const summary = String(state.completed[0].summary);
+    expect(summary).toContain('dead-lettered');
+    expect(summary).toContain('3 delivery attempt(s) recorded a start marker but no failure');
+    expect(summary).toContain('terminated without a catchable error');
+    expect(summary).toContain(DEAD_LETTER_MARKER);
+    expect(summary).not.toContain('No per-attempt failure was recorded');
+  });
+
+  it('a recorded failure still wins the summary over start markers — the thrown cause is more specific', async () => {
+    state.existingCheckRuns.push({ id: 77, name: 'Port Daddy Fleet' });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const env = makeEnv({ FLEET_TOKENS: kv, DB: db.db });
+
+    await recordDeliveryAttemptStart(env, makeJob(), 1);
+    await recordDeliveryFailure(env, makeJob(), 1, new Error('token mint failed'));
+    await handleDlqJob(makeJob(), env);
+
+    const summary = String(state.completed[0].summary);
+    expect(summary).toContain('token mint failed');
+    expect(summary).not.toContain('terminated without a catchable error');
+  });
+
+  it('subtracts intentional continuations before diagnosing platform kills', async () => {
+    state.existingCheckRuns.push({ id: 78, name: 'Port Daddy Fleet' });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const env = makeEnv({ FLEET_TOKENS: kv, DB: db.db });
+
+    for (const attempt of [1, 2, 3]) await recordDeliveryAttemptStart(env, makeJob(), attempt);
+    await recordDeliveryContinuation(env, makeJob(), 1, 'qa', ['spark', 'spider']);
+    await recordDeliveryContinuation(env, makeJob(), 2, 'spark', ['spider']);
+    await handleDlqJob(makeJob(), env);
+
+    const summary = String(state.completed[0].summary);
+    expect(summary).toContain('1 delivery attempt(s) recorded a start marker but no failure or intentional continuation');
+    expect(summary).toContain('2 delivery attempt(s) completed as intentional checkpoint continuations');
+    expect(summary).not.toContain('3 delivery attempt(s) recorded a start marker');
+  });
+});
+
 describe('the dead-letter gate names the cause', () => {
   it('puts the last recorded failure in the check-run summary', async () => {
     state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
@@ -179,6 +294,13 @@ describe('deadLetterSummary', () => {
     expect(summary).toContain('the last attempt');
     expect(summary).not.toContain('attempt 0');
   });
+
+  it('reports durable checkpoint progress and promises resume only for that work', () => {
+    const summary = deadLetterSummary('o', 'r', 7, null, 4, 2);
+    expect(summary).toContain('2 ship(s) completed and checkpointed before the loss');
+    expect(summary).toContain('replay of this delivery resumes past them');
+    expect(summary).toContain(DEAD_LETTER_MARKER);
+  });
 });
 
 describe('a dead-lettered check does not strand the head SHA', () => {
@@ -193,6 +315,25 @@ describe('a dead-lettered check does not strand the head SHA', () => {
 
     expect(state.completed[0].summary).toContain(DEAD_LETTER_MARKER);
     expect(isDeadLetteredSummary(state.completed[0].summary)).toBe(true);
+  });
+
+  it('reads checkpoint progress into the DLQ check summary', async () => {
+    state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const env = makeEnv({ FLEET_TOKENS: kv, DB: db.db });
+    await saveShipCheckpoint(env, runIdForDelivery('delivery-abc'), 0, {
+      ship: 'code-reviewer',
+      blocking: true,
+      verdict: 'PASS',
+      errored: false,
+      findings: [],
+    });
+
+    await handleDlqJob(makeJob(), env);
+
+    expect(state.completed[0].summary).toContain('1 ship(s) completed and checkpointed');
   });
 
   it('does not mark a summary ships actually decided', () => {
@@ -386,5 +527,54 @@ describe('the DLQ handler fails the gate even on a malformed job', () => {
     await expect(
       handleDlqJob(makeJob(), makeEnv({ FLEET_TOKENS: memoryKV(), DB: db.db })),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe('checks dead-lettered BEFORE the marker existed are still recoverable', () => {
+  // The exact summary GitHub is holding for #7278/#7339/#7344 — written by the
+  // pre-marker DLQ handler, verbatim from check run 95964283666.
+  const LEGACY_SUMMARY =
+    'pd-fleet: run for curiositech/port-daddy PR #7339 was lost (job exhausted retries / ' +
+    'dead-lettered). This gate is failed rather than left stuck in-progress.';
+
+  it('recognises a legacy dead-letter that carries no marker', () => {
+    expect(LEGACY_SUMMARY).not.toContain(DEAD_LETTER_MARKER);
+    expect(isDeadLetteredSummary(LEGACY_SUMMARY)).toBe(true);
+  });
+
+  it('still recognises a marked one, and still refuses a ship-decided one', () => {
+    expect(isDeadLetteredSummary(deadLetterSummary('o', 'r', 7, null))).toBe(true);
+    expect(isDeadLetteredSummary('- pd-qa: PASS\n\nVerdict: SUCCESS')).toBe(false);
+  });
+
+  it('RE-RUNS the ships on a legacy dead-lettered check', async () => {
+    // Without this, a PR stranded before the marker deployed stays stranded
+    // forever: the guard reads a bare `failure` as decided and returns before
+    // creating a check run. Reproduced live on 2026-08-19 — reopening all three
+    // PRs re-ran every GitHub job and produced no fleet check at all.
+    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      fleetParser: JSON.stringify([
+        { name: 'code-reviewer', trigger: 'pull_request:opened', prompt: 'r', cfModel: null, role: 'r', telos: 't', blocking: true, allowedTools: '' },
+      ]),
+      perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    state.existingCheckRuns.push({
+      id: 4242,
+      name: 'Port Daddy Fleet',
+      status: 'completed',
+      conclusion: 'failure',
+      summary: LEGACY_SUMMARY,
+      headSha: 'HEADSHA',
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: memoryD1().db }));
+
+    const minted = state.existingCheckRuns.filter(c => c.id !== 4242);
+    expect(minted, 'no fresh check run — the legacy SHA is still stranded').toHaveLength(1);
+    expect(state.completed.some(c => c.id === minted[0].id)).toBe(true);
   });
 });

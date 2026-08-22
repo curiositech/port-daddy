@@ -9,13 +9,14 @@
  *
  * Sandbox lives under the repo's .scratch/ — NEVER /tmp.
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync, readFileSync, rmSync, statSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   stageTentacles,
   buildTargets,
   configureTarget,
+  commitCodexConfigMigration,
   isHooksStatusRequest,
   uninstallTarget,
   clearArmedSquidProjects,
@@ -25,8 +26,10 @@ import {
 } from '../../cli/commands/hooks-install.js';
 import {
   TENTACLES,
+  REGISTERED_TENTACLES,
   buildJsonHookMap,
   codexHooksTomlBlock,
+  stripCodexHooksTomlBlock,
   CODEX_PD_MARKER,
   CODEX_TOOL_MATCHER,
   CLAUDE_TOOL_MATCHER,
@@ -35,6 +38,7 @@ import {
   GEMINI_EVENTS,
   upsertJsonHookMap,
 } from '../../lib/squid/hook-shape.js';
+import { readSquidHookHealth } from '../../lib/squid/debug.js';
 
 const SANDBOX = join(process.cwd(), '.scratch', `hooks-test-${process.pid}`);
 const SRC = join(SANDBOX, 'src-bin');
@@ -63,41 +67,58 @@ afterAll(() => rmSync(SANDBOX, { recursive: true, force: true }));
 describe('hook-shape (single source of truth) matches the squid adapter exactly', () => {
   test('tool matchers are the canonical squid values', () => {
     expect(CLAUDE_TOOL_MATCHER).toBe('Edit|Write|MultiEdit|NotebookEdit');
-    expect(GEMINI_TOOL_MATCHER).toBe('replace|write_file|edit|run_shell_command');
+    expect(GEMINI_TOOL_MATCHER).toBe('replace|write_file|edit');
     // agy must include multi_replace_file_content (the bit the installer had forked off)
     expect(AGY_TOOL_MATCHER).toBe(
       'Edit|Write|MultiEdit|write_to_file|replace_file_content|multi_replace_file_content|replace|write_file|edit|apply_patch',
     );
-    expect(CODEX_TOOL_MATCHER).toContain('Bash');
-    expect(CODEX_TOOL_MATCHER).toContain('apply_patch');
-    expect(CODEX_TOOL_MATCHER).toContain('exec_command');
-  });
-
-  test('gemini uses native event names BeforeAgent/BeforeTool/AfterTool', () => {
-    const map = buildJsonHookMap('gemini', (n) => `/x/${n}`);
-    expect(Object.keys(map)).toEqual(['BeforeAgent', 'BeforeTool', 'AfterTool']);
-    expect(GEMINI_EVENTS.preTool).toBe('BeforeTool');
-    expect(map.BeforeTool[0].matcher).toBe(GEMINI_TOOL_MATCHER);
-    expect(map.BeforeAgent[0].matcher).toBeUndefined(); // prompt hook has no matcher
-  });
-
-  test('claude/agy use UserPromptSubmit/PreToolUse/PostToolUse', () => {
-    for (const v of ['claude', 'agy'] as const) {
-      const map = buildJsonHookMap(v, (n) => `/x/${n}`);
-      expect(Object.keys(map)).toEqual(['UserPromptSubmit', 'PreToolUse', 'PostToolUse']);
+    expect(CODEX_TOOL_MATCHER).toBe('apply_patch|Edit|Write|edit|write|str_replace_editor');
+    for (const readOnlyOrOpaque of ['Bash', 'exec_command', 'shell', 'shell_command', 'unified_exec', 'run_shell_command']) {
+      expect(CODEX_TOOL_MATCHER).not.toContain(readOnlyOrOpaque);
     }
   });
 
-  test('codex TOML block keeps every command hook synchronous', () => {
+  test('gemini uses native turn/edit event names without shell or after-tool fan-out', () => {
+    const map = buildJsonHookMap('gemini', (n) => `/x/${n}`);
+    expect(Object.keys(map)).toEqual(['BeforeAgent', 'BeforeTool']);
+    expect(GEMINI_EVENTS.preTool).toBe('BeforeTool');
+    expect(map.BeforeTool[0].matcher).toBe(GEMINI_TOOL_MATCHER);
+    expect(map.BeforeAgent[0].matcher).toBeUndefined(); // prompt hook has no matcher
+    expect(map.BeforeAgent[0].hooks[0].timeout).toBe(1000);
+  });
+
+  test('claude/agy use only UserPromptSubmit and direct PreToolUse', () => {
+    for (const v of ['claude', 'agy'] as const) {
+      const map = buildJsonHookMap(v, (n) => `/x/${n}`);
+      expect(Object.keys(map)).toEqual(['UserPromptSubmit', 'PreToolUse']);
+      expect(JSON.stringify(map)).not.toContain('statusMessage');
+      expect(map.UserPromptSubmit[0].hooks[0].timeout).toBe(1);
+    }
+  });
+
+  test('gemini JSON hooks are also silent unless a tentacle emits actionable output', () => {
+    const map = buildJsonHookMap('gemini', (n) => `/x/${n}`);
+    expect(JSON.stringify(map)).not.toContain('statusMessage');
+  });
+
+  test('codex TOML budgets one turn hook plus direct edits and no per-tool trace', () => {
     const toml = codexHooksTomlBlock((n) => `/abs/${n}`);
     expect(toml).toContain(CODEX_PD_MARKER);
     expect(toml).toContain(`matcher = "${CODEX_TOOL_MATCHER}"`);
-    // Codex parses async handlers but skips them, so post-tool must be sync too.
-    const post = toml.slice(toml.indexOf('[[hooks.PostToolUse]]'));
-    expect(post).toContain('async = false');
+    expect(toml).not.toContain('[[hooks.PostToolUse]]');
+    expect(toml).not.toContain('/abs/pd-hook-post-tool');
     expect(toml).not.toContain('async = true');
-    const pre = toml.slice(toml.indexOf('[[hooks.PreToolUse]]'), toml.indexOf('[[hooks.PostToolUse]]'));
+    const pre = toml.slice(toml.indexOf('[[hooks.PreToolUse]]'));
     expect(pre).toContain('async = false');
+    expect(toml.match(/timeout = 1/g)).toHaveLength(2);
+    expect(toml).not.toContain('statusMessage');
+  });
+
+  test('a read-only six-tool Codex batch schedules zero PD tool hooks', () => {
+    const readOnlyBatch = ['Bash', 'exec_command', 'shell', 'shell_command', 'unified_exec', 'run_shell_command'];
+    const matcher = new RegExp(`^(?:${CODEX_TOOL_MATCHER})$`);
+    expect(readOnlyBatch.filter((tool) => matcher.test(tool))).toEqual([]);
+    expect(REGISTERED_TENTACLES).toEqual(['pd-hook-prompt', 'pd-hook-pre-tool']);
   });
 });
 
@@ -114,6 +135,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
       expect(existsSync(wrapper)).toBe(true);
       expect(statSync(wrapper).mode & 0o100).toBeTruthy(); // executable
     }
+    expect(statSync(join(SANDBOX, 'squid', 'health')).mode & 0o777).toBe(0o700);
   });
 
   test('the gate wrapper checks a fresh heartbeat and a .portdaddy project marker', () => {
@@ -124,9 +146,113 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(wrapper).not.toContain('ps -p');
     expect(wrapper).toContain('.portdaddy');
     expect(wrapper).toContain('squid/projects');
-    expect(wrapper).toContain('grep -Fqx "$project_root"');
-    expect(wrapper).toContain('exec "$PD_HOME/bin/squid/${0##*/}"');
-    expect(wrapper.trim().endsWith('exit 0')).toBe(true); // fail-open default
+    expect(wrapper).toContain('[ "$pd_registered_project" = "$project_root" ]');
+    expect(wrapper).not.toContain('grep -Fqx');
+    expect(wrapper).not.toContain('dirname "$d"');
+    expect(wrapper).toContain('pd_real_hook="$PD_HOME/bin/squid/${0##*/}"');
+    expect(wrapper).toContain('pd_health_record_unhealthy');
+    expect(wrapper).toContain('pd_health_probe_acquire');
+    expect(wrapper).toContain('failure_swallowed');
+    expect(wrapper).not.toContain('pd_hook_retry'); // user-critical hooks are never retried in-process
+    expect(wrapper.trim().endsWith('pd_debug_skip no_project')).toBe(true); // fail-open default
+    expect(wrapper).toContain('debug.enabled');
+    expect(wrapper).toContain('hook-events.log');
+    expect(wrapper).not.toContain('tool_input');
+    expect(wrapper).not.toContain('tool_result');
+  });
+
+  test('debug capture records sanitized no-op timing without retaining stdin or argv', () => {
+    const pdHome = join(SANDBOX, 'debug-gate-home');
+    const binDir = join(pdHome, 'bin');
+    stageTentacles(SRC, binDir);
+    mkdirSync(join(pdHome, 'squid'), { recursive: true });
+    writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
+
+    const secretInput = '{"session_id":"session-abc-123","tool_input":"prompt-secret-that-must-not-land"}';
+    const secretArg = 'argv-secret-that-must-not-land';
+    const out = execFileSync(join(binDir, 'pd-hook-pre-tool'), [secretArg], {
+      cwd: REPO,
+      env: {
+        ...process.env,
+        PD_HOME: pdHome,
+        PD_HOOK_PROVIDER: 'codex',
+        PD_HOOK_DEADLINE_MS: '1000',
+      },
+      input: secretInput,
+      encoding: 'utf8',
+    });
+
+    expect(out).toBe('');
+    const events = readFileSync(join(pdHome, 'squid', 'hook-events.log'), 'utf8');
+    expect(events).toContain('\tcodex:session-abc-123\t');
+    expect(events).toContain('\tcodex\tedit\tpd-hook-pre-tool\t');
+    expect(events).toContain('\theartbeat_missing\t0\t');
+    expect(events).not.toContain(secretInput);
+    expect(events).not.toContain(secretArg);
+  });
+
+  test('debug timing falls back to date when Perl is unavailable', () => {
+    const pdHome = join(SANDBOX, 'debug-no-perl-home');
+    const binDir = join(pdHome, 'bin');
+    stageTentacles(SRC, binDir);
+    mkdirSync(join(pdHome, 'squid'), { recursive: true });
+    writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
+
+    const wrapper = join(binDir, 'pd-hook-pre-tool');
+    writeFileSync(wrapper, readFileSync(wrapper, 'utf8').replaceAll('/usr/bin/perl', '/definitely/missing/perl'));
+    const out = execFileSync(wrapper, [], {
+      cwd: REPO,
+      env: { ...process.env, PD_HOME: pdHome, PD_HOOK_PROVIDER: 'codex' },
+      input: '{"session_id":"must-fall-back-without-json-parser"}',
+      encoding: 'utf8',
+    });
+
+    expect(out).toBe('');
+    const lines = readFileSync(join(pdHome, 'squid', 'hook-events.log'), 'utf8').trim().split('\n');
+    expect(lines).toHaveLength(2);
+    expect(lines.map((line) => line.split('\t')[7])).toEqual([
+      expect.stringMatching(/^\d+000$/),
+      expect.stringMatching(/^\d+000$/),
+    ]);
+    expect(lines.every((line) => line.includes('\theartbeat_missing\t') || line.startsWith('v1\tstart\t'))).toBe(true);
+  });
+
+  test('concurrent debug hooks serialize complete event lines instead of corrupting the timeline', async () => {
+    const pdHome = join(SANDBOX, 'concurrent-debug-home');
+    const binDir = join(pdHome, 'bin');
+    stageTentacles(SRC, binDir);
+    mkdirSync(join(pdHome, 'squid'), { recursive: true });
+    writeFileSync(join(pdHome, 'squid', 'debug.enabled'), new Date().toISOString());
+    const wrapper = join(binDir, 'pd-hook-pre-tool');
+
+    const run = () => new Promise<void>((resolve, reject) => {
+      const child = spawn(wrapper, [], {
+        cwd: REPO,
+        env: {
+          ...process.env,
+          PD_HOME: pdHome,
+          PD_HOOK_PROVIDER: 'codex',
+          PD_HOOK_DEADLINE_MS: '1000',
+        },
+        stdio: ['pipe', 'ignore', 'pipe'],
+      });
+      let stderr = '';
+      child.stderr.setEncoding('utf8');
+      child.stderr.on('data', (chunk) => { stderr += chunk; });
+      child.on('error', reject);
+      child.on('exit', (code) => code === 0 ? resolve() : reject(new Error(`hook exited ${code}: ${stderr}`)));
+      child.stdin.end('{"session_id":"concurrent-session"}');
+    });
+
+    await Promise.all(Array.from({ length: 12 }, run));
+
+    const lines = readFileSync(join(pdHome, 'squid', 'hook-events.log'), 'utf8').trim().split('\n');
+    expect(lines).toHaveLength(24);
+    expect(lines.every((line) => line.split('\t').length === 12)).toBe(true);
+    expect(lines.filter((line) => line.startsWith('v1\tstart\t'))).toHaveLength(12);
+    expect(lines.filter((line) => line.startsWith('v1\tfinish\t'))).toHaveLength(12);
+    expect(lines.every((line) => line.includes('\tcodex:concurrent-session\t'))).toBe(true);
+    expect(existsSync(join(pdHome, 'squid', 'debug-write.lock'))).toBe(false);
   });
 
   test('delegates with a fresh heartbeat and fails open when it becomes stale', () => {
@@ -149,6 +275,229 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     const stale = new Date(Date.now() - 60_000);
     utimesSync(heartbeat, stale, stale);
     expect(run()).toBe('');
+  });
+
+  test('unexpected exits fail open, trip after three calls, and emit one FleetBar remediation', () => {
+    const pdHome = join(SANDBOX, 'breaker-exit-home');
+    const binDir = join(pdHome, 'bin');
+    const count = join(pdHome, 'child-count');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    writeFileSync(join(binDir, 'squid', 'pd-hook-pre-tool'), `#!/bin/sh\nprintf x >> '${count}'\nexit 127\n`, { mode: 0o755 });
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    const env = {
+      ...process.env,
+      PD_HOME: pdHome,
+      PD_HOOK_FAILURE_THRESHOLD: '3',
+      PD_HOOK_SLOW_MS: '10000',
+      PD_HOOK_BREAKER_COOLDOWN_MS: '60000',
+    };
+    const run = () => execFileSync(join(binDir, 'pd-hook-pre-tool'), [], {
+      cwd: REPO, env, input: '{}', encoding: 'utf8',
+    });
+
+    expect(run()).toBe('');
+    expect(run()).toBe('');
+    expect(run()).toBe('');
+    expect(run()).toBe(''); // OPEN: real tentacle is no longer invoked
+    expect(readFileSync(count, 'utf8')).toBe('xxx');
+    const health = readSquidHookHealth(pdHome);
+    expect(health.degraded).toBe(true);
+    expect(health.circuits[0]).toMatchObject({
+      hook: 'pd-hook-pre-tool', state: 'open', consecutiveFailures: 3, lastReason: 'exit_127', lastExitCode: 127,
+    });
+
+    const prompt = () => execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+      cwd: REPO, env, input: '{}', encoding: 'utf8',
+    });
+    expect(prompt()).toContain('Open FleetBar > Giant Squid > Repair');
+    expect(prompt()).not.toContain('Open FleetBar > Giant Squid > Repair');
+  });
+
+  test('concurrent failures account atomically without losing increments', async () => {
+    const pdHome = join(SANDBOX, 'breaker-concurrent-home');
+    const binDir = join(pdHome, 'bin');
+    const count = join(pdHome, 'concurrent-child-count');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    writeFileSync(join(binDir, 'squid', 'pd-hook-pre-tool'), `#!/bin/sh\nprintf x >> '${count}'\nsleep 0.03\nexit 127\n`, { mode: 0o755 });
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    const env = {
+      ...process.env,
+      PD_HOME: pdHome,
+      PD_HOOK_FAILURE_THRESHOLD: '3',
+      PD_HOOK_SLOW_MS: '10000',
+      PD_HOOK_BREAKER_COOLDOWN_MS: '60000',
+    };
+    const wrapper = join(binDir, 'pd-hook-pre-tool');
+    const run = () => new Promise<void>((resolve, reject) => {
+      const child = spawn(wrapper, [], { cwd: REPO, env, stdio: ['pipe', 'ignore', 'pipe'] });
+      child.on('error', reject);
+      child.on('exit', (code) => code === 0 ? resolve() : reject(new Error(`failing hook leaked exit ${code}`)));
+      child.stdin.end('{}');
+    });
+
+    await Promise.all(Array.from({ length: 12 }, run));
+
+    const circuit = readSquidHookHealth(pdHome).circuits[0];
+    const executed = readFileSync(count, 'utf8').length;
+    expect(executed).toBeGreaterThanOrEqual(3);
+    expect(circuit).toMatchObject({ state: 'open', consecutiveFailures: executed, lastReason: 'exit_127' });
+    const receipts = join(pdHome, 'squid', 'health', 'pd-hook-pre-tool.failures');
+    expect(existsSync(receipts)).toBe(true);
+    expect(existsSync(join(pdHome, 'squid', 'health', 'pd-hook-pre-tool.state.lock'))).toBe(false);
+  });
+
+  test('a lock-timeout receipt remains cumulative and is reconciled by the next failure', () => {
+    const pdHome = join(SANDBOX, 'breaker-receipt-home');
+    const binDir = join(pdHome, 'bin');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    writeFileSync(join(binDir, 'squid', 'pd-hook-pre-tool'), '#!/bin/sh\nexit 127\n', { mode: 0o755 });
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    const env = {
+      ...process.env,
+      PD_HOME: pdHome,
+      PD_HOOK_FAILURE_THRESHOLD: '3',
+      PD_HOOK_SLOW_MS: '10000',
+      PD_HOOK_BREAKER_COOLDOWN_MS: '60000',
+    };
+    const wrapper = join(binDir, 'pd-hook-pre-tool');
+
+    expect(execFileSync(wrapper, [], { cwd: REPO, env, input: '{}', encoding: 'utf8' })).toBe('');
+    const statePath = join(pdHome, 'squid', 'health', 'pd-hook-pre-tool.state');
+    const fields = readFileSync(statePath, 'utf8').trim().split('\t');
+    expect(fields[0]).toBe('v2');
+    const receiptDir = join(pdHome, 'squid', 'health', 'pd-hook-pre-tool.failures');
+    mkdirSync(join(receiptDir, '999999-999.failure'));
+
+    expect(readSquidHookHealth(pdHome).circuits[0].consecutiveFailures).toBe(2);
+    expect(execFileSync(wrapper, [], { cwd: REPO, env, input: '{}', encoding: 'utf8' })).toBe('');
+    expect(readSquidHookHealth(pdHome).circuits[0]).toMatchObject({
+      state: 'open', consecutiveFailures: 3, lastReason: 'exit_127',
+    });
+  });
+
+  test('slow hooks open the breaker under POSIX dash and later calls are constant-time no-ops', () => {
+    const pdHome = join(SANDBOX, 'breaker-slow-home');
+    const binDir = join(pdHome, 'bin');
+    const count = join(pdHome, 'slow-count');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    writeFileSync(join(binDir, 'squid', 'pd-hook-prompt'), `#!/bin/sh\nprintf x >> '${count}'\nsleep 0.08\nexit 0\n`, { mode: 0o755 });
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    const env = {
+      ...process.env,
+      PD_HOME: pdHome,
+      PD_HOOK_FAILURE_THRESHOLD: '1',
+      PD_HOOK_SLOW_MS: '20',
+      PD_HOOK_BREAKER_COOLDOWN_MS: '60000',
+    };
+    const wrapper = join(binDir, 'pd-hook-prompt');
+    const shell = existsSync('/bin/dash') ? '/bin/dash' : wrapper;
+    const run = () => execFileSync(shell, shell === wrapper ? [] : [wrapper], {
+      cwd: REPO, env, input: '{}', encoding: 'utf8',
+    });
+
+    expect(run()).toBe('');
+    const started = Date.now();
+    expect(run()).toContain('PD SAFE MODE');
+    expect(Date.now() - started).toBeLessThan(200);
+    expect(readFileSync(count, 'utf8')).toBe('x');
+    expect(readSquidHookHealth(pdHome).circuits[0]).toMatchObject({ state: 'open', lastReason: 'slow' });
+  });
+
+  test('a missing external timer fails open, self-disables, and requests repair', () => {
+    const pdHome = join(SANDBOX, 'breaker-timer-missing-home');
+    const binDir = join(pdHome, 'bin');
+    const count = join(pdHome, 'timer-missing-child-count');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    writeFileSync(join(binDir, 'squid', 'pd-hook-prompt'), `#!/bin/sh\nprintf x >> '${count}'\nexit 0\n`, { mode: 0o755 });
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    const env = {
+      ...process.env,
+      PD_HOME: pdHome,
+      PD_HOOK_FAILURE_THRESHOLD: '1',
+      PD_HOOK_TIME_BIN: join(pdHome, 'missing-time'),
+      PD_HOOK_BREAKER_COOLDOWN_MS: '60000',
+    };
+    const run = () => execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+      cwd: REPO, env, input: '{}', encoding: 'utf8',
+    });
+
+    expect(run()).toBe('');
+    expect(run()).toContain('PD SAFE MODE');
+    expect(existsSync(count)).toBe(false);
+    expect(readSquidHookHealth(pdHome).circuits[0]).toMatchObject({
+      state: 'open', lastReason: 'timer_missing', lastExitCode: 126,
+    });
+  });
+
+  test('intentional edit blocks never count as hook failures', () => {
+    const pdHome = join(SANDBOX, 'breaker-block-home');
+    const binDir = join(pdHome, 'bin');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    writeFileSync(join(binDir, 'squid', 'pd-hook-pre-tool'), '#!/bin/sh\nexit 2\n', { mode: 0o755 });
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    const env = { ...process.env, PD_HOME: pdHome, PD_HOOK_FAILURE_THRESHOLD: '1', PD_HOOK_SLOW_MS: '10000' };
+
+    for (let index = 0; index < 3; index++) {
+      const result = spawnSync(join(binDir, 'pd-hook-pre-tool'), [], { cwd: REPO, env, input: '{}', encoding: 'utf8' });
+      expect(result.status).toBe(2);
+    }
+    expect(readSquidHookHealth(pdHome).circuits).toEqual([]);
+  });
+
+  test('one half-open probe closes the breaker while concurrent callers stay inert', async () => {
+    const pdHome = join(SANDBOX, 'breaker-probe-home');
+    const binDir = join(pdHome, 'bin');
+    const marker = join(pdHome, 'failed-once');
+    const count = join(pdHome, 'probe-count');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    writeFileSync(join(binDir, 'squid', 'pd-hook-prompt'), [
+      '#!/bin/sh',
+      `printf x >> '${count}'`,
+      `if [ ! -f '${marker}' ]; then touch '${marker}'; exit 127; fi`,
+      'sleep 0.08',
+      'exit 0',
+      '',
+    ].join('\n'), { mode: 0o755 });
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    const env = {
+      ...process.env,
+      PD_HOME: pdHome,
+      PD_HOOK_FAILURE_THRESHOLD: '1',
+      PD_HOOK_SLOW_MS: '10000',
+      PD_HOOK_BREAKER_COOLDOWN_MS: '60000',
+    };
+    const wrapper = join(binDir, 'pd-hook-prompt');
+    execFileSync(wrapper, [], { cwd: REPO, env, input: '{}', encoding: 'utf8' });
+    const statePath = join(pdHome, 'squid', 'health', 'pd-hook-prompt.state');
+    const fields = readFileSync(statePath, 'utf8').trim().split('\t');
+    fields[4] = '0'; // cooldown elapsed: next caller may become the sole probe
+    writeFileSync(statePath, `${fields.join('\t')}\n`);
+
+    const run = () => new Promise<void>((resolve, reject) => {
+      const child = spawn(wrapper, [], { cwd: REPO, env, stdio: ['pipe', 'ignore', 'pipe'] });
+      child.on('error', reject);
+      child.on('exit', (code) => code === 0 ? resolve() : reject(new Error(`probe exited ${code}`)));
+      child.stdin.end('{}');
+    });
+    await Promise.all([run(), run()]);
+
+    expect(readFileSync(count, 'utf8')).toBe('xx');
+    expect(readSquidHookHealth(pdHome).circuits).toEqual([]);
+    expect(existsSync(join(pdHome, 'squid', 'health', 'pd-hook-prompt.failures'))).toBe(false);
   });
 
   test('falls back to GNU stat when the BSD probe exits zero with nonnumeric output', () => {
@@ -211,10 +560,14 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
 
   test('reports missing tentacles when the source lacks them', () => {
     const empty = join(SANDBOX, 'empty');
+    const dest = join(SANDBOX, 'pd-bin-2');
     mkdirSync(empty, { recursive: true });
-    const res = stageTentacles(empty, join(SANDBOX, 'pd-bin-2'));
+    mkdirSync(dest, { recursive: true });
+    writeFileSync(join(dest, 'pd-hook-prompt'), 'known-good-wrapper');
+    const res = stageTentacles(empty, dest);
     expect(res.staged).toEqual([]);
     expect(res.missing.sort()).toEqual([...TENTACLES].sort());
+    expect(readFileSync(join(dest, 'pd-hook-prompt'), 'utf8')).toBe('known-good-wrapper');
   });
 });
 
@@ -244,6 +597,36 @@ describe('configureTarget — per-project scope, gate-pointed commands', () => {
     expect(targets.find((t) => t.slug === 'agy')!.projectConfigPath).toBeNull();
   });
 
+  test('uninstall sweeps legacy project-local Codex hooks and preserves user tables', () => {
+    const codex = buildTargets(HOME).find((t) => t.slug === 'codex')!;
+    const projectConfig = join(REPO, '.codex', 'config.toml');
+    mkdirSync(join(REPO, '.codex'), { recursive: true });
+    writeFileSync(projectConfig, [
+      'model = "o3"',
+      '[[hooks.PostToolUse]]',
+      '[[hooks.PostToolUse.hooks]]',
+      'type = "command"',
+      'command = "/opt/homebrew/Cellar/port-daddy/3.27.0/bin/pd-hook-post-tool"',
+      '',
+      '[[hooks.PostToolUse]]',
+      'matcher = "shell"',
+      '[[hooks.PostToolUse.hooks]]',
+      'type = "command"',
+      'command = "/usr/local/bin/user-audit"',
+      '',
+      '[mcp_servers.keep_me]',
+      'command = "server"',
+      '',
+    ].join('\n'));
+
+    const result = uninstallTarget(codex, { scope: 'project', cwd: REPO });
+    expect(result.success).toBe(true);
+    const after = readFileSync(projectConfig, 'utf8');
+    expect(after).not.toContain('pd-hook-post-tool');
+    expect(after).toContain('/usr/local/bin/user-audit');
+    expect(after).toContain('[mcp_servers.keep_me]');
+  });
+
   test('codex user-level TOML is idempotent and preserves user config', () => {
     const codex = buildTargets(HOME).find((t) => t.slug === 'codex')!;
     // seed a user config
@@ -258,6 +641,106 @@ describe('configureTarget — per-project scope, gate-pointed commands', () => {
     uninstallTarget(codex, { scope: 'user' });
     expect(readFileSync(codex.userConfigPath, 'utf-8')).not.toContain(CODEX_PD_MARKER);
     expect(readFileSync(codex.userConfigPath, 'utf-8')).toContain('model = "o3"');
+  });
+
+  test('codex migration removes unmarked TOML and hooks.json duplicates', () => {
+    const codex = buildTargets(HOME).find((t) => t.slug === 'codex')!;
+    const legacyJson = join(HOME, '.codex', 'hooks.json');
+    mkdirSync(join(HOME, '.codex'), { recursive: true });
+    writeFileSync(codex.userConfigPath, [
+      'model = "o3"',
+      '[[hooks.UserPromptSubmit]]',
+      '[[hooks.UserPromptSubmit.hooks]]',
+      'type = "command"',
+      'command = "/old/pd-hook-prompt"',
+      'timeout = 10',
+      '[[hooks.PreToolUse]]',
+      'matcher = "Edit"',
+      '[[hooks.PreToolUse.hooks]]',
+      'type = "command"',
+      'command = "/old/pd-hook-pre-tool"',
+      '',
+      '[shell_environment_policy]',
+      'inherit = "core"',
+      '',
+    ].join('\n'));
+    writeFileSync(legacyJson, JSON.stringify({
+      hooks: {
+        UserPromptSubmit: [
+          { hooks: [{ type: 'command', command: '/old/pd-hook-prompt' }] },
+          { hooks: [{ type: 'command', command: '/usr/local/bin/user-prompt-audit' }] },
+        ],
+        PreToolUse: [{ hooks: [{ type: 'command', command: '/old/pd-hook-pre-tool' }] }],
+      },
+    }, null, 2));
+
+    configureTarget(codex, { scope: 'user' });
+    configureTarget(codex, { scope: 'user' });
+
+    const toml = readFileSync(codex.userConfigPath, 'utf-8');
+    expect(toml).toContain('[shell_environment_policy]');
+    expect(toml).not.toContain('/old/pd-hook-');
+    for (const name of REGISTERED_TENTACLES) {
+      expect(toml.split(`/.port-daddy/bin/${name}`).length - 1).toBe(1);
+    }
+    expect(toml).not.toContain('/.port-daddy/bin/pd-hook-post-tool');
+    expect(toml).toContain('PD_HOOK_PROVIDER=codex');
+    expect(toml.split(CODEX_PD_MARKER).length - 1).toBe(1);
+
+    const json = readFileSync(legacyJson, 'utf-8');
+    expect(json).not.toContain('pd-hook-');
+    const parsedJson = JSON.parse(json) as {
+      hooks: { UserPromptSubmit: Array<{ hooks: Array<{ command: string }> }>; PreToolUse?: unknown };
+    };
+    expect(parsedJson.hooks.UserPromptSubmit).toEqual([
+      { hooks: [{ type: 'command', command: '/usr/local/bin/user-prompt-audit' }] },
+    ]);
+    expect(parsedJson.hooks.PreToolUse).toBeUndefined();
+    expect(existsSync(`${codex.userConfigPath}.tmp`)).toBe(false);
+  });
+
+  test('Codex migration never retires the fallback before the current config is durable', () => {
+    const legacy = { path: '/legacy/hooks.json', content: '{"hooks":{}}\n' };
+    const attempted: string[] = [];
+
+    expect(() => commitCodexConfigMigration(
+      '/current/config.toml',
+      '# current\n',
+      legacy,
+      (path) => {
+        attempted.push(path);
+        if (path === '/current/config.toml') throw new Error('simulated current-config write failure');
+      },
+    )).toThrow('simulated current-config write failure');
+    expect(attempted).toEqual(['/current/config.toml']);
+
+    attempted.length = 0;
+    expect(() => commitCodexConfigMigration(
+      '/current/config.toml',
+      '# current\n',
+      legacy,
+      (path) => {
+        attempted.push(path);
+        if (path === legacy.path) throw new Error('simulated legacy cleanup failure');
+      },
+    )).toThrow('simulated legacy cleanup failure');
+    expect(attempted).toEqual(['/current/config.toml', '/legacy/hooks.json']);
+  });
+
+  test('a malformed retired hooks.json cannot block current Codex repair', () => {
+    const codex = buildTargets(HOME).find((t) => t.slug === 'codex')!;
+    const legacyJson = join(HOME, '.codex', 'hooks.json');
+    const malformed = '{ "hooks": [';
+    mkdirSync(join(HOME, '.codex'), { recursive: true });
+    writeFileSync(codex.userConfigPath, 'model = "o3"\n');
+    writeFileSync(legacyJson, malformed);
+
+    const result = configureTarget(codex, { scope: 'user' });
+
+    expect(result.success).toBe(true);
+    expect(readFileSync(legacyJson, 'utf-8')).toBe(malformed);
+    const toml = readFileSync(codex.userConfigPath, 'utf-8');
+    expect(toml.split(CODEX_PD_MARKER).length - 1).toBe(1);
   });
 
   test('codex strip is end-fenced: user [[hooks.*]] tables AFTER our block survive', () => {
@@ -293,6 +776,16 @@ describe('configureTarget — per-project scope, gate-pointed commands', () => {
       'command = "/old/pd-hook-post-tool"',
       'async = true',
       '',
+      '[[hooks.PostToolUse]]',
+      'matcher = "shell"',
+      '[[hooks.PostToolUse.hooks]]',
+      'type = "command"',
+      'command = "/usr/local/bin/user-audit"',
+      'args = [',
+      '  "--mode",',
+      '  "deep",',
+      ']',
+      '',
       '[mcp_servers.keep_me]',
       'command = "keep-server"',
       'args = ["--stdio"]',
@@ -304,9 +797,30 @@ describe('configureTarget — per-project scope, gate-pointed commands', () => {
     expect(toml).toContain('[mcp_servers.keep_me]');
     expect(toml).toContain('command = "keep-server"');
     expect(toml).toContain('args = ["--stdio"]');
+    expect(toml).toContain('command = "/usr/local/bin/user-audit"');
+    expect(toml).toContain('  "--mode",\n  "deep",');
     expect(toml).not.toContain('/old/pd-hook-post-tool');
     expect(toml).not.toContain('async = true');
     expect(toml.split(CODEX_PD_MARKER).length - 1).toBe(1);
+  });
+
+  test('codex strip preserves a mixed group when a command uses complex TOML', () => {
+    const mixed = [
+      '[[hooks.PostToolUse]]',
+      '[[hooks.PostToolUse.hooks]]',
+      'type = "command"',
+      'command = "/old/pd-hook-post-tool"',
+      '[[hooks.PostToolUse.hooks]]',
+      'type = "command"',
+      'command = """',
+      '/usr/local/bin/user-multiline-audit',
+      '"""',
+      '',
+    ].join('\n');
+
+    const stripped = stripCodexHooksTomlBlock(mixed);
+    expect(stripped).toContain('/old/pd-hook-post-tool');
+    expect(stripped).toContain('/usr/local/bin/user-multiline-audit');
   });
 });
 

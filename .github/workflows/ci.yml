@@ -179,7 +179,15 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Run unit tests
-        run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
+        # `purser` is selected explicitly alongside `unit`: --selectProjects is an
+        # allowlist, so a new jest project is invisible here until it is named.
+        # That is how tests/purser/ stayed inert — see tests/unit/purser-routing.test.js.
+        run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit purser
+
+      - name: Run purser adversarial tests (node:test set)
+        # Routed per-file by tests/purser/ROUTING.json; the jest-shaped ones ran
+        # in the step above, these target node:test.
+        run: npm run test:purser
 
       - name: Daemon backend transcript E2E (hermetic CLI fallback)
         # BIG BROKEN E2E for the launchd-path/stale-Claude-override regression.
@@ -228,6 +236,12 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Run unit tests
+        # Two consecutive required macOS jobs exhausted V8's ~2 GiB default
+        # heap after nearly five minutes of otherwise-passing tests. Keep the
+        # larger budget scoped to Jest so setup-node and every other step retain
+        # their normal process limits.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
 
       - name: Test CLI tools
@@ -636,11 +650,24 @@ jobs:
 
       - name: Install Rust toolchain (stable)
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Cache Rust build artefacts
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: core/kernel
+
+      # fmt/clippy widening (grand-plan node fmt-clippy-widening — ADR-0120's
+      # "mechanical cleanup PR"): pd-anchor is the canonical macaroon discharge
+      # gate, so it gets the same strict-lint treatment rust-harbor-card
+      # pioneered. Scoped to -p pd-anchor on purpose; the sibling kernel crates
+      # join as their sweeps land.
+      - name: cargo fmt --check (pd-anchor)
+        run: cargo fmt -p pd-anchor -- --check
+
+      - name: cargo clippy (pd-anchor)
+        run: cargo clippy -p pd-anchor --all-targets -- -D warnings
 
       - name: cargo check
         run: cargo check --workspace
@@ -667,11 +694,24 @@ jobs:
 
       - name: Install Rust toolchain (stable)
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Cache Rust build artefacts
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: core
+
+      # fmt/clippy widening (grand-plan node fmt-clippy-widening — ADR-0120's
+      # "mechanical cleanup PR"): a TCB slice that mints credentials should not
+      # carry clippy debt. Scoped to -p pd-broker; pd-console's burn-down is a
+      # deliberate follow-up (~40k LOC of GPU code, and an agent is active in
+      # that crate).
+      - name: cargo fmt --check (pd-broker)
+        run: cargo fmt -p pd-broker -- --check
+
+      - name: cargo clippy (pd-broker)
+        run: cargo clippy -p pd-broker --all-targets -- -D warnings
 
       - name: cargo test pd-broker (TCB behavior + DoS isolation + framing)
         run: cargo test -p pd-broker
@@ -750,6 +790,37 @@ jobs:
       - name: vitest (incl. hv:2 harbor-card parity fixture ⇄ core/harbor-card-rs)
         run: npx vitest run
 
+  steward-tests:
+    # apps/steward is the Steward's seat (ADR-0109; docs/plans/THE_FULL_WHEEL.md
+    # P1) — a Cloudflare Worker with its own tsconfig graph and vitest suite
+    # that root jest never compiles or runs. Always-run rather than path-gated
+    # for the same reason relay-tests is: the suite is seconds long, and the
+    # merge-authority scaffold going red only on its own deploy path would be
+    # theater. Wired into ci-gate's needs like every other enforced job.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/steward
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: apps/steward/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: vitest (seat identity, wake inbox, deck-log discipline, ledgers)
+        run: npx vitest run
+
   fleetbar:
     # Build + unit-test the FleetBar Swift menu bar app. Its tests never ran in
     # CI before, so FleetPopoverTests rotted red on main unnoticed (the
@@ -815,6 +886,7 @@ jobs:
       - rust-console-gpui
       - rust-kernel
       - skill-hygiene
+      - steward-tests
       - unit-tests
       - version-drift-guard
       - website-terminal-recordings

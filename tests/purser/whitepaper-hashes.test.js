@@ -1,5 +1,5 @@
-const fs = require('fs');
-const crypto = require('crypto');
+import fs from 'node:fs';
+import crypto from 'node:crypto';
 
 const pdfPaths = {
   'legible-swarm': 'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf',

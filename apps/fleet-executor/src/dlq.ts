@@ -27,10 +27,18 @@ import { emitCloudTelemetry } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
 import { CHECK_NAME, ensureRunRow } from './execute.js';
 import {
+  countDeliveryContinuations,
+  countDeliveryAttemptStarts,
   deadLetterSummary,
   readLastDeliveryFailure,
   runIdForDelivery,
 } from './delivery-failure.js';
+import { countShipCheckpoints } from './ship-checkpoint.js';
+import { markFleetIntentTerminal } from './run-intent.js';
+
+export const DLQ_CHECK_OUTPUT_TITLE = 'Port Daddy Fleet — infrastructure failure (no verdict)';
+const DLQ_NO_VERDICT_PREAMBLE =
+  'Port Daddy Fleet infrastructure failed before review completed. This failed check is not a verdict on your change.';
 
 interface DlqTarget {
   owner: string;
@@ -55,6 +63,12 @@ function targetOf(job: FleetRunJob): DlqTarget | null {
  * Never throws.
  */
 export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+  await markFleetIntentTerminal(
+    env,
+    job?.deliveryId ?? '',
+    'failure',
+    'delivery exhausted queue retries and entered the dead-letter queue',
+  );
   const target = targetOf(job);
   if (!target) {
     console.error(`[fleet-executor] DLQ: unparseable job delivery=${job?.deliveryId}`);
@@ -73,12 +87,15 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
     // max_retries is 1. readLastDeliveryFailure guards itself, but that
     // guarantee should be enforced here rather than borrowed from a second
     // function's discipline.
-    const summary = deadLetterSummary(
+    const summary = `${DLQ_NO_VERDICT_PREAMBLE}\n\n${deadLetterSummary(
       owner,
       repo,
       prNumber,
       await readLastDeliveryFailure(env, runId),
-    );
+      await countDeliveryAttemptStarts(env, runId),
+      await countShipCheckpoints(env, runId),
+      await countDeliveryContinuations(env, runId),
+    )}`;
     const token = await getInstallationTokenCached(
       env.GITHUB_APP_ID,
       env.GITHUB_APP_PRIVATE_KEY,
@@ -92,7 +109,16 @@ export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<
       // details_url it publishes would always 404 ("Run not found") — the
       // DLQ variant of the same gap execute.ts's ensureRunRow closes.
       await ensureRunRow(env, runId, job.deliveryId, job.repoFullName ?? `${owner}/${repo}`, prNumber, headSha);
-      await completeCheckRun(owner, repo, checkRunId, 'failure', summary, token, detailsUrl);
+      await completeCheckRun(
+        owner,
+        repo,
+        checkRunId,
+        'failure',
+        summary,
+        token,
+        detailsUrl,
+        DLQ_CHECK_OUTPUT_TITLE,
+      );
     } else {
       console.error(
         `[fleet-executor] DLQ: no '${CHECK_NAME}' check run found for ${owner}/${repo}@${headSha}`,

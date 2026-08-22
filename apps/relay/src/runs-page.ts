@@ -21,7 +21,11 @@
  */
 
 import type { Env } from './types.js';
-import { listFleetRuns, type FleetRunRow, type UserRow } from './db.js';
+import type { UserRow } from './db.js';
+import {
+  listFleetRunProjections,
+  type FleetRunProjection,
+} from './fleet-run-intents.js';
 import { resolveSession, userCanReadRepo, type ResolvedSession } from './auth-github.js';
 import { HEAD, TOKENS } from './account-page.js';
 
@@ -40,21 +44,23 @@ function esc(v: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
-function htmlResponse(body: string, status: number): Response {
+function htmlResponse(body: string, status: number, refreshSeconds: number | null = null): Response {
+  const headers: Record<string, string> = {
+    'Content-Type': 'text/html; charset=utf-8',
+    // No scripts, ever. Google Fonts is the only third-party origin.
+    'Content-Security-Policy':
+      "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; " +
+      "font-src https://fonts.gstatic.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    'Referrer-Policy': 'no-referrer',
+    'X-Content-Type-Options': 'nosniff',
+    // A per-user authz-filtered page must not land in caches or indexes.
+    'Cache-Control': 'no-store',
+    'X-Robots-Tag': 'noindex, nofollow',
+  };
+  if (refreshSeconds !== null) headers.Refresh = String(refreshSeconds);
   return new Response(body, {
     status,
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      // No scripts, ever. Google Fonts is the only third-party origin.
-      'Content-Security-Policy':
-        "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; " +
-        "font-src https://fonts.gstatic.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
-      'Referrer-Policy': 'no-referrer',
-      'X-Content-Type-Options': 'nosniff',
-      // A per-user authz-filtered page must not land in caches or indexes.
-      'Cache-Control': 'no-store',
-      'X-Robots-Tag': 'noindex, nofollow',
-    },
+    headers,
   });
 }
 
@@ -81,14 +87,34 @@ function badgeClass(conclusion: string): string {
   if (conclusion === 'success') return 'success';
   if (conclusion === 'failure') return 'failure';
   if (conclusion === 'neutral') return 'neutral';
+  if (conclusion === 'running') return 'running';
+  if (conclusion === 'queued' || conclusion === 'admitting') return 'queued';
+  if (conclusion === 'retrying') return 'retrying';
+  if (conclusion === 'superseded') return 'superseded';
+  if (conclusion === 'enqueue_failed') return 'failure';
   return 'other';
+}
+
+function stateLabel(state: string): string {
+  if (state === 'enqueue_failed') return 'needs repair';
+  if (state === 'admitting') return 'admitting';
+  return state || 'pending';
+}
+
+function fmtExpected(epochSec: number | null): string {
+  if (epochSec === null) return 'estimate pending';
+  return `expected ${new Date(epochSec * 1000).toISOString().slice(11, 16)} UTC`;
+}
+
+function normalizedAttemptCount(value: number): number {
+  return Number.isInteger(value) && value > 0 ? value : 1;
 }
 
 // ── authz filter ─────────────────────────────────────────────────────────────
 
 export interface RepoGroup {
   repo: string;
-  runs: FleetRunRow[];
+  runs: FleetRunProjection[];
 }
 
 /**
@@ -101,10 +127,10 @@ export interface RepoGroup {
 export async function filterReadableRuns(
   env: Env,
   session: ResolvedSession,
-  runs: FleetRunRow[],
+  runs: FleetRunProjection[],
 ): Promise<{ groups: RepoGroup[]; truncated: boolean }> {
   const access = new Map<string, boolean | 'unchecked'>();
-  const groups = new Map<string, FleetRunRow[]>();
+  const groups = new Map<string, FleetRunProjection[]>();
   let checks = 0;
   let truncated = false;
 
@@ -172,8 +198,16 @@ ${TOKENS}
 .badge.success{background:var(--health);color:var(--on-accent)}.badge.success .dot{background:var(--on-accent)}
 .badge.failure{background:var(--error);color:var(--on-accent)}.badge.failure .dot{background:var(--on-accent)}
 .badge.neutral,.badge.other{background:var(--amber);color:var(--ink)}.badge.neutral .dot,.badge.other .dot{background:var(--ink)}
+.badge.running{background:var(--cobalt);color:var(--cream)}.badge.running .dot{background:var(--cream)}
+.badge.queued{background:var(--surface-base);color:var(--text-primary)}.badge.queued .dot{background:var(--amber)}
+.badge.retrying{background:var(--amber);color:var(--ink)}.badge.retrying .dot{background:var(--error)}
+.badge.superseded{background:var(--surface-card);color:var(--text-muted);border-color:var(--hair-strong)}.badge.superseded .dot{background:var(--text-muted)}
 .rr-ships{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--text-secondary);min-width:0;word-break:break-word}
 .rr-ms,.rr-when{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--text-muted);white-space:nowrap;text-align:right}
+.live-note{display:flex;align-items:center;gap:10px;margin-top:18px;font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--text-muted)}
+.live-note .pulse{width:9px;height:9px;background:var(--cobalt);border:2px solid var(--border-strong);animation:fleet-pulse 1.8s ease-in-out infinite}
+@keyframes fleet-pulse{50%{opacity:.28}}
+@media (prefers-reduced-motion:reduce){.live-note .pulse{animation:none}}
 .trunc{margin-top:26px;background:var(--surface-card);border:1px solid var(--hair);padding:16px 20px;box-shadow:inset 3px 0 0 var(--amber);font-size:14.5px;color:var(--text-secondary);line-height:1.6;max-width:66ch}
 .trunc b{color:var(--text-primary)}
 .empty{margin-top:34px;border:2px dashed var(--hair-strong);background:transparent;padding:26px 26px}
@@ -215,18 +249,29 @@ const EMPTY_STATE = `<div class="empty">
   can read</strong> ever appear on this page.</p>
 </div>`;
 
-function renderRow(run: FleetRunRow, nowSec: number): string {
+function renderRow(run: FleetRunProjection, nowSec: number): string {
   const ships = [
     ...new Set((run.ships_csv ? run.ships_csv.split(',') : []).map((s) => s.trim()).filter(Boolean)),
   ];
-  const shipsLabel = ships.length ? ships.map((s) => `pd-${s}`).join(', ') : '—';
+  const shipsLabel = ships.length
+    ? ships.map((s) => `pd-${s}`).join(', ')
+    : run.logical_state === 'superseded'
+      ? `generation ${run.generation ?? '—'} · replaced by a newer head`
+      : run.logical_state === 'enqueue_failed'
+        ? run.last_error?.trim() || 'admission record incomplete · queue handoff failed without durable error detail'
+        : run.logical_state === 'running'
+          ? `attempt ${normalizedAttemptCount(run.attempt_count)} · transcript arriving`
+          : `generation ${run.generation ?? '—'} · ${fmtExpected(run.expected_finish_at)}`;
   const href = `/fleet/runs/${encodeURIComponent(run.id)}`;
+  const timing = run.logical_state === 'queued' || run.logical_state === 'admitting'
+    ? fmtExpected(run.expected_start_at)
+    : fmtMs(run.ms);
   return `<li><a class="run-row" href="${esc(href)}">
     <span class="rr-pr">#${esc(run.pr_number)}</span>
-    <span class="badge ${badgeClass(run.conclusion)}"><span class="dot" aria-hidden="true"></span>${esc(run.conclusion || 'pending')}</span>
+    <span class="badge ${badgeClass(run.logical_state)}"><span class="dot" aria-hidden="true"></span>${esc(stateLabel(run.logical_state))}</span>
     <span class="rr-ships">${esc(shipsLabel)}</span>
-    <span class="rr-ms">${esc(fmtMs(run.ms))}</span>
-    <span class="rr-when">${esc(relDate(nowSec, run.created_at))}</span>
+    <span class="rr-ms">${esc(timing)}</span>
+    <span class="rr-when">${esc(relDate(nowSec, run.queued_at))}</span>
   </a></li>`;
 }
 
@@ -254,6 +299,7 @@ export function renderRunsPage(
   opts: { truncated: boolean; nowSec: number },
 ): string {
   const total = groups.reduce((n, g) => n + g.runs.length, 0);
+  const active = groups.some((g) => g.runs.some((r) => ['admitting', 'queued', 'running', 'retrying'].includes(r.logical_state)));
   const body = groups.length
     ? groups.map((g) => renderGroup(g, opts.nowSec)).join('')
     : EMPTY_STATE;
@@ -264,6 +310,7 @@ export function renderRunsPage(
       <span class="lede">The most recent fleet runs in repositories <strong>${esc(user.login)}</strong> can read on
       GitHub — GitHub&rsquo;s own repo ACL decides what appears here. Each row opens the run&rsquo;s full
       receipt: the transcript, the findings, the verdict.</span>
+      ${active ? '<div class="live-note"><span class="pulse" aria-hidden="true"></span>Live view · refreshes every 8 seconds while work is active</div>' : ''}
     </div>
     ${body}
     ${opts.truncated ? renderTruncation() : ''}
@@ -281,11 +328,13 @@ export async function handleRunsPage(request: Request, env: Env): Promise<Respon
     return new Response(null, { status: 302, headers: { Location: '/login' } });
   }
   try {
-    const runs = await listFleetRuns(env.DB, RUNS_LIMIT);
+    const runs = await listFleetRunProjections(env.DB, RUNS_LIMIT);
     const { groups, truncated } = await filterReadableRuns(env, session, runs);
+    const active = groups.some((g) => g.runs.some((r) => ['admitting', 'queued', 'running', 'retrying'].includes(r.logical_state)));
     return htmlResponse(
       renderRunsPage(session.user, groups, { truncated, nowSec: Math.floor(Date.now() / 1000) }),
       200,
+      active ? 8 : null,
     );
   } catch {
     return htmlResponse(

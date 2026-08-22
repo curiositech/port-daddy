@@ -93,8 +93,12 @@ import {
   checkGeneratedTestsExecutable,
   extractJestTestMatch,
   extractPackageJsonTestMatch,
+  extractPackageTypeModule,
   JEST_CONFIG_CANDIDATES,
+  matchesAnyTestMatch,
+  repairMisrootedRelativeImport,
   type ExecutabilityEvidence,
+  type ExecutabilityResult,
 } from './purser-executability.js';
 import {
   decideRerun,
@@ -116,6 +120,7 @@ import {
   type PlannedFile,
 } from './purser-authoring.js';
 import { fleetPrBodyTrailers } from './fleet-pr-body.js';
+import { repairContractOutput } from './repair.js';
 import { emitSquidEvent } from './squid-events.js';
 import { emitInterruption } from './interruptions.js';
 
@@ -307,6 +312,62 @@ function prBlock(prCtx: PRContext): string {
   );
 }
 
+/**
+ * The steel-man output contract, factored so the REPAIR pass (src/repair.ts)
+ * restates EXACTLY the format the original prompt demanded — repair can never
+ * drift from the contract the ship was first held to.
+ */
+const STEELMAN_CONTRACT =
+  'Output EXACTLY one fenced JSON object and nothing else:\n\n' +
+  '```json\n' +
+  '{\n' +
+  '  "purpose": "<one-sentence statement of what this PR is for>",\n' +
+  '  "contract": { "obligations": ["<testable obligation>", "..."] },\n' +
+  '  "testTargets": ["<file/module/behavior the tests should target>", "..."]\n' +
+  '}\n' +
+  '```';
+
+/**
+ * The PLAN output contract for the repair pass — the fenced shape plus the
+ * ship's own testPaths directory constraint, mirroring testPlanSystemPrompt so
+ * a repaired plan is held to the same path rules as an original one.
+ *
+ * @param ship The purser ship (supplies testPaths).
+ * @returns The contract text handed to {@link repairContractOutput}.
+ */
+function discoveryPathNote(testMatchPatterns: string[] | null): string {
+  if (!testMatchPatterns?.length) {
+    return (
+      'No trusted test-discovery patterns were available for this repair. ' +
+      'Correct JSON shape alone does not prove executability; authored tests will still ' +
+      'fail the final gate unless discovery evidence can be read from the base ref.\n'
+    );
+  }
+  return (
+    'Every path MUST ALSO match at least one test-discovery pattern read from the ' +
+    'repository\'s trusted base ref:\n' +
+    `${testMatchPatterns.map(pattern => `- ${pattern}`).join('\n')}\n` +
+    'A file can be inside an allowed directory and still be invisible to the test runner; ' +
+    'an invisible path will be rejected.\n'
+  );
+}
+
+function planContractBlock(ship: ShipConfig, testMatchPatterns: string[] | null = null): string {
+  const pathNote =
+    ship.testPaths.length > 0
+      ? `Every path MUST be INSIDE one of these directories: ` +
+        `${ship.testPaths.map(p => `${p}/`).join(', ')}\n`
+      : '';
+  return (
+    pathNote +
+    discoveryPathNote(testMatchPatterns) +
+    'Output EXACTLY one fenced JSON object and nothing else:\n\n' +
+    '```json\n' +
+    '{ "files": [ { "path": "<repo-relative test file path>", "intent": "<what this file grills>" } ] }\n' +
+    '```'
+  );
+}
+
 function steelManSystemPrompt(ship: ShipConfig, graftText: string): string {
   return (
     graftText +
@@ -315,14 +376,7 @@ function steelManSystemPrompt(ship: ShipConfig, graftText: string): string {
     `description, and diff, and construct the STRONGEST, most complete ` +
     `interpretation of what this change is obligated to do — the contract its ` +
     `author would claim if pressed. Not its laziest reading: its best one.\n\n` +
-    `Output EXACTLY one fenced JSON object and nothing else:\n\n` +
-    '```json\n' +
-    '{\n' +
-    '  "purpose": "<one-sentence statement of what this PR is for>",\n' +
-    '  "contract": { "obligations": ["<testable obligation>", "..."] },\n' +
-    '  "testTargets": ["<file/module/behavior the tests should target>", "..."]\n' +
-    '}\n' +
-    '```\n\n' +
+    `${STEELMAN_CONTRACT}\n\n` +
     `Each obligation must be TESTABLE — a concrete behavior a unit or ` +
     `integration test can verify, including the edge cases the diff implies ` +
     `but may not handle.`
@@ -388,6 +442,40 @@ export function testPlanSystemPrompt(ship: ShipConfig, steel: SteelManContract, 
   );
 }
 
+/** Parse either accepted PLAN response shape into the paths it proposes. */
+function plannedResponsePaths(text: string): string[] | null {
+  const authored = parseAuthoredFiles(text);
+  if (authored) return authored.map(file => file.path);
+  const plan = parseTestPlan(text);
+  return plan ? plan.map(file => file.path) : null;
+}
+
+/**
+ * Is a planned path structurally eligible for a discovery repair?
+ *
+ * Traversal and paths outside the ship's configured directory
+ * belong to the existing per-file validator. Treating those as a testMatch
+ * miss would replan an entire batch and undo partial success for a bad sibling.
+ */
+function discoveryRepairEligible(path: string, ship: ShipConfig): boolean {
+  if (!validateStackedFiles([{ path, contents: '' }]).ok) return false;
+  return ship.testPaths.length === 0 ||
+    ship.testPaths.some(prefix => path === prefix || path.startsWith(`${prefix}/`));
+}
+
+/** Safe, in-scope paths the trusted runner configuration would never discover. */
+function undiscoverablePlannedPaths(
+  text: string,
+  testMatchPatterns: string[] | null,
+  ship: ShipConfig,
+): string[] {
+  if (!testMatchPatterns?.length) return [];
+  const paths = plannedResponsePaths(text);
+  if (!paths) return [];
+  return paths.filter(path =>
+    discoveryRepairEligible(path, ship) && !matchesAnyTestMatch(path, testMatchPatterns));
+}
+
 /**
  * AUTHOR prompt — write ONE file, emitted as a raw code fence.
  *
@@ -402,7 +490,24 @@ function fileAuthorSystemPrompt(
   steel: SteelManContract,
   planned: PlannedFile,
   graftText: string,
+  evidence: ExecutabilityEvidence,
+  repairFailure?: string,
 ): string {
+  const repairNote = repairFailure
+    ? `\nA previous draft for this exact path failed the trusted executability gate:\n` +
+      `${repairFailure}\nRewrite the complete file and fix that failure. Do not move or rename it.\n`
+    : '';
+  const runnerNote = evidence.testMatchPatterns?.length
+    ? `\nTrusted runner evidence (authoritative, not inferred from the PR diff): this ` +
+      `repository routes \`${planned.path}\` through Jest. Its testMatch patterns are: ` +
+      `${evidence.testMatchPatterns.join(', ')}. Use Jest globals such as describe, test/it, ` +
+      `and expect (or the repository's existing Jest imports). Never import from 'vitest', ` +
+      `'bun:test', or 'node:test'; those runners are incompatible with this path.` +
+      (evidence.packageTypeModule === true
+        ? ` The trusted package.json sets type=module, so do not use an unbound __dirname.\n`
+        : '\n')
+    : `\nTrusted test-runner evidence is unavailable. Do not guess or import a runner-specific ` +
+      `API; use only test idioms directly evidenced by repository files.\n`;
   return (
     graftText +
     `You are pd-${ship.name}, running the ADVERSARIAL TEST AUTHORING phase. ` +
@@ -414,7 +519,12 @@ function fileAuthorSystemPrompt(
     `interpretation, not its laziest. Use the repo's existing test framework ` +
     `and idioms as evident from the diff. The file must be complete and ` +
     `runnable on its own: real imports, no placeholders, no "// TODO", no ` +
-    `elisions like "... rest unchanged".\n\n` +
+    `elisions like "... rest unchanged". Relative imports resolve from the ` +
+    `directory containing ${planned.path}; count every required '..' segment ` +
+    `from that directory and never invent a module — imports must name real repository files.\n` +
+    runnerNote +
+    repairNote +
+    `\n` +
     `Output the file as ONE fenced code block and nothing else — no JSON, no ` +
     `commentary before or after:\n\n` +
     '```ts\n' +
@@ -483,18 +593,12 @@ async function purserAiCall(
   return { text, res };
 }
 
-/**
- * Gather the evidence {@link checkGeneratedTestsExecutable} needs, from the PR's
- * BASE sha (the trusted, zero-trust ref — never the PR head): the repo's real
- * jest testMatch patterns and its full file tree. Every fetch degrades to null
- * on failure (network error, 404, unparseable) rather than throwing — the gate
- * itself fails closed on null, so a fetch failure here still ends in rejection,
- * never a silent pass.
- */
-async function gatherExecutabilityEvidence(
+/** Cheap runner evidence used before authoring; deliberately omits the tree. */
+async function gatherTrustedRunnerEvidence(
   prCtx: PRContext,
   token: string,
 ): Promise<ExecutabilityEvidence> {
+  const pkg = await fetchRepoFileText(prCtx.owner, prCtx.repo, 'package.json', prCtx.baseSha, token);
   let testMatchPatterns: string[] | null = null;
   for (const name of JEST_CONFIG_CANDIDATES) {
     const text = await fetchRepoFileText(prCtx.owner, prCtx.repo, name, prCtx.baseSha, token);
@@ -504,11 +608,35 @@ async function gatherExecutabilityEvidence(
     }
   }
   if (!testMatchPatterns) {
-    const pkg = await fetchRepoFileText(prCtx.owner, prCtx.repo, 'package.json', prCtx.baseSha, token);
     if (pkg) testMatchPatterns = extractPackageJsonTestMatch(pkg);
   }
+  return {
+    testMatchPatterns,
+    repoTreePaths: null,
+    packageTypeModule: pkg ? extractPackageTypeModule(pkg) : null,
+  };
+}
+
+/**
+ * Gather the evidence {@link checkGeneratedTestsExecutable} needs, from the PR's
+ * BASE sha (the trusted, zero-trust ref — never the PR head): the repo's real
+ * Jest testMatch patterns and its full file tree. Every fetch degrades to null
+ * on failure (network error, 404, unparseable) rather than throwing — the gate
+ * itself fails closed on null, so a fetch failure here still ends in rejection,
+ * never a silent pass.
+ *
+ * Runner evidence may be supplied from the authoring phase so successful plans
+ * do not refetch package/config files. The expensive recursive tree read stays
+ * deferred until authored files survive local path validation.
+ */
+async function gatherExecutabilityEvidence(
+  prCtx: PRContext,
+  token: string,
+  runnerEvidence?: ExecutabilityEvidence,
+): Promise<ExecutabilityEvidence> {
+  const trustedRunner = runnerEvidence ?? await gatherTrustedRunnerEvidence(prCtx, token);
   const repoTreePaths = await fetchRepoTreePaths(prCtx.owner, prCtx.repo, prCtx.baseSha, token);
-  return { testMatchPatterns, repoTreePaths };
+  return { ...trustedRunner, repoTreePaths };
 }
 
 // ---------------------------------------------------------------------------
@@ -709,7 +837,43 @@ async function rerunExistingTests(
   files: StackedFile[],
   testPr: { number: number; url: string },
   reason: string,
+  verifiedExecutability?: ExecutabilityResult,
 ): Promise<ShipResult> {
+  const executability = verifiedExecutability ?? checkGeneratedTestsExecutable(
+    files,
+    await gatherExecutabilityEvidence(prCtx, token),
+  );
+  if (!executability.ok) {
+    await transcript.step(
+      'purser-tests',
+      ship.name,
+      `pd-${ship.name}: reused tests NON-EXECUTABLE`,
+      {
+        testPrNumber: testPr.number,
+        error: executability.reason,
+        fileCount: files.length,
+      },
+    );
+    await postShipComment(
+      prCtx.owner,
+      prCtx.repo,
+      prCtx.prNumber,
+      ship.name,
+      ship.role,
+      `**Re-run stopped — the existing Purser tests are not executable by this repository's trusted runner.**\n\n` +
+        `The tests in #${testPr.number} (${testPr.url}) were not run and are not evidence that this PR violates its contract. ` +
+        `Purser machinery failed closed before the sandbox: ${executability.reason}\n\n` +
+        `Repair or close the test PR, then re-run Fleet. The implementation PR must not be blamed for a contract file the runner cannot load.`,
+      token,
+    );
+    return {
+      ship: ship.name,
+      blocking: ship.blocking,
+      verdict: ship.blocking ? 'BLOCK' : 'PASS',
+      errored: true,
+      findings: [],
+    };
+  }
   const sandbox = await runTestsInSandbox({
     sandboxBinding: env.SANDBOX,
     owner: prCtx.owner,
@@ -840,6 +1004,37 @@ export async function runPurser(
       rerunNote = `re-run probe failed (${String(err).slice(0, 120)}); authoring fresh`;
     }
 
+    let verifiedReuse: ExecutabilityResult | undefined;
+    if (reused) {
+      verifiedReuse = checkGeneratedTestsExecutable(
+        reused.files,
+        await gatherExecutabilityEvidence(prCtx, token),
+      );
+      if (
+        !verifiedReuse.ok &&
+        (verifiedReuse.kind === 'incompatible-runner' ||
+          verifiedReuse.kind === 'unresolved-import' ||
+          verifiedReuse.kind === 'undiscoverable-path')
+      ) {
+        rerunNote =
+          `re-authoring: existing Purser tests are not executable by the trusted runner ` +
+          `(${verifiedReuse.reason})`;
+        await transcript.step(
+          'purser-rerun',
+          ship.name,
+          `pd-${ship.name}: REJECTED non-executable reused tests from #${reused.testPr.number}; authoring fresh`,
+          {
+            testPrNumber: reused.testPr.number,
+            files: reused.files.map(f => f.path),
+            reason: verifiedReuse.reason,
+            action: 'author-fresh',
+          },
+        );
+        reused = null;
+        verifiedReuse = undefined;
+      }
+    }
+
     if (reused) {
       await transcript.step(
         'purser-rerun',
@@ -861,8 +1056,40 @@ export async function runPurser(
         reused.files,
         reused.testPr,
         rerunNote ?? '',
+        verifiedReuse,
       );
     }
+
+    // One bounded repair pass (src/repair.ts) shared by the two purser call
+    // sites whose failures are model-formatting slips rather than judgment.
+    // The parser passed as `validate` is the only judge of healing.
+    const purserRepair = async (
+      reason: string,
+      priorOutput: string,
+      contract: string,
+      maxTokens: number,
+      validate: (text: string) => boolean,
+    ) => {
+      const outcome = await repairContractOutput({
+        shipLabel: `pd-${ship.name}`,
+        model: ship.cfModel,
+        contract,
+        priorOutput,
+        reason,
+        call: async (model, system, user) =>
+          (await purserAiCall(ship, env, system, user, maxTokens, metrics, model)).text,
+        validate,
+      });
+      await transcript.step(
+        'ship-repair',
+        ship.name,
+        outcome.healed
+          ? `pd-${ship.name}: contract repair HEALED on ${outcome.healedBy} (${reason})`
+          : `pd-${ship.name}: contract repair FAILED after ${outcome.attempts.length} attempt(s) (${reason})`,
+        { healed: outcome.healed, healedBy: outcome.healedBy, reason, attempts: outcome.attempts },
+      );
+      return outcome;
+    };
 
     // --- a. STEEL-MAN -------------------------------------------------------
     const steelCall = await purserAiCall(
@@ -873,12 +1100,26 @@ export async function runPurser(
       STEELMAN_MAX_TOKENS,
       metrics,
     );
-    const steel = parseSteelMan(steelCall.text);
+    let steelText = steelCall.text;
+    let steel = parseSteelMan(steelText);
+    if (!steel) {
+      const repair = await purserRepair(
+        'steel-man output was not the required fenced JSON contract',
+        steelText,
+        STEELMAN_CONTRACT,
+        STEELMAN_MAX_TOKENS,
+        text => parseSteelMan(text) !== null,
+      );
+      if (repair.healed) {
+        steelText = repair.text;
+        steel = parseSteelMan(steelText);
+      }
+    }
     if (!steel) {
       await transcript.step('purser-steelman', ship.name, `pd-${ship.name}: steel-man MALFORMED`, {
-        error: 'steel-man output was not the required fenced JSON contract',
+        error: 'steel-man output was not the required fenced JSON contract (repair also failed)',
         responseShape: steelCall.text ? undefined : describeResponseShape(steelCall.res),
-        outputLength: steelCall.text.length,
+        outputLength: steelText.length,
       });
       return brokenShip;
     }
@@ -933,9 +1174,69 @@ export async function runPurser(
 
     // FAST PATH: a model that ignored "plan only" and returned complete files
     // has already done the work — take it and skip the per-file calls.
-    let files: StackedFile[] = parseAuthoredFiles(planCall.text) ?? [];
+    let planText = planCall.text;
+    let files: StackedFile[] = parseAuthoredFiles(planText) ?? [];
     let authorFailures: AuthorFailure[] = [];
     let plan: PlannedFile[] = [];
+    let evidence: ExecutabilityEvidence | null = null;
+    let authoringEvidence: ExecutabilityEvidence | null = null;
+
+    // A malformed OR provably undiscoverable plan gets one bounded repair pass
+    // before it counts as breakage. A repaired response may come back as either
+    // a plan OR complete files, so both parsers are accepted as proof of
+    // healing. This is semantic repair, not path guessing: the model receives
+    // the exact trusted globs and our existing matcher remains the judge.
+    // Complete files are the deliberate fast path: they have already spent the
+    // authoring tokens, so they keep flowing to the existing per-file and final
+    // executability gates below. A true plan has not authored anything yet;
+    // gather evidence here, then repair bad paths before the per-file calls.
+    const plannedPaths = files.length === 0 ? plannedResponsePaths(planText) : null;
+    const hasRepairEligiblePath =
+      plannedPaths?.some(path => discoveryRepairEligible(path, ship)) ?? false;
+    if (files.length === 0 && hasRepairEligiblePath) {
+      evidence = await gatherExecutabilityEvidence(prCtx, token);
+    }
+    const undiscoverable =
+      files.length === 0
+        ? undiscoverablePlannedPaths(planText, evidence?.testMatchPatterns ?? null, ship)
+        : [];
+    if (files.length === 0 && (plannedPaths === null || undiscoverable.length > 0)) {
+      const reason =
+        plannedPaths === null
+          ? 'plan output was neither a file plan nor a complete files block'
+          : `planned path(s) miss the repository test-discovery patterns: ${undiscoverable.join(', ')}`;
+      const repair = await purserRepair(
+        reason,
+        planText,
+        planContractBlock(ship, evidence?.testMatchPatterns ?? null),
+        PLAN_MAX_TOKENS,
+        text => {
+          const paths = plannedResponsePaths(text);
+          return paths !== null &&
+            undiscoverablePlannedPaths(text, evidence?.testMatchPatterns ?? null, ship).length === 0;
+        },
+      );
+      if (repair.healed) {
+        planText = repair.text;
+        files = parseAuthoredFiles(planText) ?? [];
+      }
+    }
+
+    // A valid-shaped plan that stayed undiscoverable after both bounded repair
+    // attempts must stop BEFORE per-file authoring. Spending more tokens on
+    // files the trusted runner cannot see would recreate #8298 with a clearer
+    // transcript but the same fleet-wide outage.
+    const remainingUndiscoverable =
+      files.length === 0
+        ? undiscoverablePlannedPaths(planText, evidence?.testMatchPatterns ?? null, ship)
+        : [];
+    if (remainingUndiscoverable.length > 0) {
+      await transcript.step('purser-plan', ship.name, `pd-${ship.name}: test plan NON-DISCOVERABLE`, {
+        files: remainingUndiscoverable,
+        testMatchPatterns: evidence?.testMatchPatterns,
+      });
+      return brokenShip;
+    }
 
     if (files.length > 0) {
       await transcript.step(
@@ -945,16 +1246,16 @@ export async function runPurser(
         { files: files.map(f => f.path), aiCallsSaved: files.length },
       );
     } else {
-      const parsedPlan = parseTestPlan(planCall.text);
+      const parsedPlan = parseTestPlan(planText);
       if (!parsedPlan) {
         await transcript.step('purser-plan', ship.name, `pd-${ship.name}: test plan MALFORMED`, {
-          error: 'plan output was neither a file plan nor a complete files block',
-          outputLength: planCall.text.length,
+          error: 'plan output was neither a file plan nor a complete files block (repair also failed)',
+          outputLength: planText.length,
           // The old code recorded ONLY the length, which is unactionable: every
           // past failure was undiagnosable after the fact. The head of the real
           // response is what says whether the model refused, truncated, or
           // simply labelled its fence differently.
-          rawHead: planCall.text.slice(0, RAW_DIAGNOSTIC_CHARS),
+          rawHead: planText.slice(0, RAW_DIAGNOSTIC_CHARS),
           responseShape: planCall.text ? undefined : describeResponseShape(planCall.res),
         });
         return brokenShip;
@@ -968,11 +1269,15 @@ export async function runPurser(
       );
 
       // --- c. AUTHOR EACH FILE (one call per file) --------------------------
+      // The final executability gate already needs this trusted evidence. Pull
+      // it forward so authoring sees the actual Jest contract even when a
+      // release/version diff contains no test-runner clues of its own.
+      authoringEvidence = evidence ?? await gatherTrustedRunnerEvidence(prCtx, token);
       const authored = await authorTestFiles(plan, async (path, intent) => {
         const call = await purserAiCall(
           ship,
           env,
-          fileAuthorSystemPrompt(ship, steel, { path, intent }, graftText),
+          fileAuthorSystemPrompt(ship, steel, { path, intent }, graftText, authoringEvidence!),
           prBlock(prCtx),
           TESTS_MAX_TOKENS,
           metrics,
@@ -1062,6 +1367,7 @@ export async function runPurser(
       {
         files: fileSummaries,
         totalBytes: fileSummaries.reduce((acc, f) => acc + f.bytes, 0),
+        failures: authorFailures,
       },
     );
 
@@ -1075,8 +1381,142 @@ export async function runPurser(
     // reviewed PR onto them anyway. This checks against the repo's ACTUAL
     // evidence (its own jest config + file tree at the PR's base sha), never
     // against configuration the purser only trusts because it wrote it.
-    const evidence = await gatherExecutabilityEvidence(prCtx, token);
-    const executability = checkGeneratedTestsExecutable(files, evidence);
+    evidence ??= await gatherExecutabilityEvidence(prCtx, token, authoringEvidence ?? undefined);
+    let executability = checkGeneratedTestsExecutable(files, evidence);
+    const deterministicRepairs: Array<{
+      path: string;
+      fromSpecifier: string;
+      toSpecifier: string;
+      matchedTreePath: string;
+    }> = [];
+    while (
+      !executability.ok &&
+      executability.kind === 'unresolved-import' &&
+      deterministicRepairs.length < MAX_PLANNED_FILES
+    ) {
+      const repair = repairMisrootedRelativeImport(
+        files,
+        executability,
+        evidence.repoTreePaths,
+      );
+      if (!repair) break;
+      const candidateSafety = validateStackedFiles(repair.files);
+      if (!candidateSafety.ok) break;
+      files = repair.files;
+      deterministicRepairs.push({
+        path: repair.path,
+        fromSpecifier: repair.fromSpecifier,
+        toSpecifier: repair.toSpecifier,
+        matchedTreePath: repair.matchedTreePath,
+      });
+      executability = checkGeneratedTestsExecutable(files, evidence);
+    }
+    if (deterministicRepairs.length > 0) {
+      await transcript.step(
+        'purser-author-repair',
+        ship.name,
+        executability.ok
+          ? `pd-${ship.name}: authored-file repair HEALED ${deterministicRepairs[0].path}`
+          : `pd-${ship.name}: authored-file deterministic repair PARTIAL`,
+        {
+          strategy: 'trusted-tree-relative-import',
+          attempts: 0,
+          repairs: deterministicRepairs,
+          result: executability.ok
+            ? 'trusted executability gate passed after deterministic rewrite'
+            : executability.reason,
+        },
+      );
+    }
+    const authoredRepairPaths = new Set<string>();
+    while (
+      !executability.ok &&
+      (executability.kind === 'unresolved-import' ||
+        executability.kind === 'incompatible-runner') &&
+      executability.path &&
+      authoredRepairPaths.size < MAX_PLANNED_FILES &&
+      !authoredRepairPaths.has(executability.path)
+    ) {
+      // #8313: discovery-aware planning healed the filenames, then an authored
+      // file nested at tests/unit/purser imported ../../scripts/... as though
+      // it lived one directory higher. The trusted gate caught it, but throwing
+      // away every authored file made the fleet-wide outage permanent. Give
+      // Each distinct offending file gets one bounded rewrite with the exact
+      // gate error. Siblings keep their original bytes, and the same safety +
+      // executability validators remain the sole judges of whether healing
+      // occurred. This matters when two independently-authored siblings both
+      // guessed the same foreign runner: healing the first merely reveals the
+      // second failure.
+      const repairPath = executability.path;
+      // Set size is the 1-based repair ordinal recorded in the transcript.
+      authoredRepairPaths.add(repairPath);
+      const repairIntent = plan.find(item => item.path === repairPath)?.intent ??
+        'preserve the authored test intent while fixing its executability failure';
+      const repairError = executability.reason;
+      const repaired = await authorTestFiles(
+        [{ path: repairPath, intent: repairIntent }],
+        async (path, intent) => {
+          const call = await purserAiCall(
+            ship,
+            env,
+            fileAuthorSystemPrompt(
+              ship,
+              steel,
+              { path, intent },
+              graftText,
+              evidence,
+              repairError,
+            ),
+            prBlock(prCtx),
+            TESTS_MAX_TOKENS,
+            metrics,
+            ship.cfAuthorModel,
+          );
+          return call.text;
+        },
+      );
+
+      let repairReason = repaired.failures[0]?.reason ?? 'repair emitted no usable file';
+      let healed = false;
+      if (repaired.files.length === 1) {
+        const candidate = files.map(file =>
+          file.path === repairPath ? repaired.files[0] : file,
+        );
+        const candidateSafety = validateStackedFiles(candidate);
+        if (!candidateSafety.ok) {
+          repairReason = candidateSafety.reason;
+        } else {
+          const candidateExecutability = checkGeneratedTestsExecutable(candidate, evidence);
+          if (
+            candidateExecutability.ok ||
+            (!candidateExecutability.ok && candidateExecutability.path !== repairPath)
+          ) {
+            files = candidate;
+            executability = candidateExecutability;
+            healed = true;
+            repairReason = candidateExecutability.ok
+              ? 'trusted executability gate passed after one rewrite'
+              : `this file passed after one rewrite; next failing sibling: ${candidateExecutability.reason}`;
+          } else {
+            repairReason = candidateExecutability.reason;
+          }
+        }
+      }
+      await transcript.step(
+        'purser-author-repair',
+        ship.name,
+        healed
+          ? `pd-${ship.name}: authored-file repair HEALED ${repairPath}`
+          : `pd-${ship.name}: authored-file repair FAILED ${repairPath}`,
+        {
+          path: repairPath,
+          originalError: repairError,
+          result: repairReason,
+          attempts: 1,
+          repairNumber: authoredRepairPaths.size,
+        },
+      );
+    }
     if (!executability.ok) {
       await transcript.step('purser-tests', ship.name, `pd-${ship.name}: authored tests NON-EXECUTABLE`, {
         error: executability.reason,
