@@ -190,6 +190,7 @@ describe('completeCheckRun (Bug B: no more silently-swallowed PATCH failures)', 
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    const d1 = memoryD1();
 
     const realFetch = globalThis.fetch;
     vi.stubGlobal(
@@ -204,9 +205,10 @@ describe('completeCheckRun (Bug B: no more silently-swallowed PATCH failures)', 
     );
 
     await expect(
-      executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: memoryD1().db })),
+      executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: d1.db })),
     ).rejects.toThrow('Port Daddy Fleet check completion failed after bounded retries');
     expect(state.completed).toHaveLength(0);
     expect(state.reviews).toHaveLength(0);
+    expect(d1.steps.some((step) => step.kind === 'check-completed')).toBe(false);
   });
 });
