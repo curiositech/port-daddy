@@ -15,9 +15,9 @@ Generated papers:
 - `harbor-economy-whitepaper.pdf` — 31 pages, SHA-256
   `7a964cac3fb504d0b2e8c7fe29b241c4548a0690a696843b32c954be4871460c`;
 - `legible-swarm-whitepaper.pdf` — 40 pages, SHA-256
-  `dc20d28fa9158910b89efc3c43353c8e6eb47bb14151545c6ac7682657f8a5c0`;
+  `a8295bb07a3d9287424582de6acd46c9ce00a91a716287447874f0374c6d65f1`;
 - `single-writer-kernel-whitepaper.pdf` — 35 pages, SHA-256
-  `dd0ee0506e721658a21780b6f4d27d6255e5c739d5c826f7275d8bb2144a1a77`.
+  `4b43269f0cdb070cb4852a03506c28a218f51ea24fcfff5667520ae9bc3a16d0`.
 
 Visual evidence:
 

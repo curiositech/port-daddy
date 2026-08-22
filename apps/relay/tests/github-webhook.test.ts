@@ -366,3 +366,126 @@ describe('handleGithubWebhook — ambient-noise event filter', () => {
     expect(cap.audits.every((a) => a.action === 'github_webhook_publish')).toBe(true);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MERGE QUEUE: the fleet must report on the queue branch, or nothing merges.
+//
+// `Port Daddy Fleet` is a REQUIRED context on the merge queue. Until this
+// change the relay enqueued a fleet run only for `pull_request`, so a
+// `merge_group` delivery produced no job, no run and no check — and GitHub sat
+// waiting for a context no code path could ever create. Observed 2026-08-10:
+// `main` had not advanced since 2026-08-06, the queue head had been
+// AWAITING_CHECKS for 9+ hours, and the queue branches carried every Actions
+// check green with `Port Daddy Fleet` simply absent.
+
+describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
+  function envWithQueues(reviewSent: unknown[], gateSent?: unknown[]) {
+    const cap: Captured = { events: [], audits: [] };
+    const env = makeEnv(cap, []) as unknown as Record<string, unknown>;
+    env.FLEET_RUNS = { async send(job: unknown) { reviewSent.push(job); } };
+    if (gateSent) {
+      env.FLEET_GATES = { async send(job: unknown) { gateSent.push(job); } };
+    }
+    return { env: env as unknown as Env, cap };
+  }
+
+  const MERGE_GROUP_BODY = JSON.stringify({
+    action: 'checks_requested',
+    repository: { full_name: 'curiositech/port-daddy', id: 42 },
+    sender: { login: 'octocat', id: 1 },
+    installation: { id: 777 },
+    merge_group: {
+      head_sha: 'b8ae3f4202aeb2b25d7be69b7a3ed6898957c8c1',
+      head_ref: 'refs/heads/gh-readonly-queue/main/pr-6455-b8ae3f42',
+    },
+  });
+
+  it('falls back to the review queue and carries the queue-branch head_sha', async () => {
+    const sent: unknown[] = [];
+    const { env } = envWithQueues(sent);
+    const res = await handleGithubWebhook(
+      webhookReq({
+        body: MERGE_GROUP_BODY,
+        signature: sign(SECRET, MERGE_GROUP_BODY),
+        event: 'merge_group',
+        delivery: 'mg-1',
+      }),
+      env
+    );
+
+    expect(res.status).toBe(204);
+    expect(sent).toHaveLength(1);
+    const job = sent[0] as {
+      eventType: string;
+      action: string;
+      prNumber: number | null;
+      installationId: number | null;
+      payloadMinimal: { merge_group?: { head_sha?: string } };
+    };
+    expect(job.eventType).toBe('merge_group');
+    expect(job.action).toBe('checks_requested');
+    // No pull_request on this payload — the head_sha IS the only thing the
+    // executor can hang a check run on, so losing it loses the whole fix.
+    expect(job.prNumber).toBeNull();
+    expect(job.installationId).toBe(777);
+    expect(job.payloadMinimal.merge_group?.head_sha).toBe(
+      'b8ae3f4202aeb2b25d7be69b7a3ed6898957c8c1'
+    );
+  });
+
+  it('routes deterministic checks to the independent gate queue when bound', async () => {
+    const reviewSent: unknown[] = [];
+    const gateSent: unknown[] = [];
+    const { env } = envWithQueues(reviewSent, gateSent);
+    const res = await handleGithubWebhook(
+      webhookReq({
+        body: MERGE_GROUP_BODY,
+        signature: sign(SECRET, MERGE_GROUP_BODY),
+        event: 'merge_group',
+        delivery: 'mg-fast-lane',
+      }),
+      env
+    );
+
+    expect(res.status).toBe(204);
+    expect(reviewSent).toHaveLength(0);
+    expect(gateSent).toHaveLength(1);
+  });
+
+  it('ignores merge_group actions that are not checks_requested', async () => {
+    const sent: unknown[] = [];
+    const body = JSON.stringify({
+      action: 'destroyed',
+      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      sender: { login: 'octocat', id: 1 },
+      installation: { id: 777 },
+      merge_group: { head_sha: 'deadbeef' },
+    });
+    const res = await handleGithubWebhook(
+      webhookReq({ body, signature: sign(SECRET, body), event: 'merge_group', delivery: 'mg-2' }),
+      envWithQueues(sent).env
+    );
+    expect(res.status).toBe(204);
+    expect(sent).toHaveLength(0);
+  });
+
+  it('still enqueues ordinary pull_request deliveries', async () => {
+    // Regression guard: widening the predicate must not narrow the path that
+    // already worked.
+    const reviewSent: unknown[] = [];
+    const gateSent: unknown[] = [];
+    const res = await handleGithubWebhook(
+      webhookReq({
+        body: PR_BODY,
+        signature: sign(SECRET, PR_BODY),
+        event: 'pull_request',
+        delivery: 'pr-1',
+      }),
+      envWithQueues(reviewSent, gateSent).env
+    );
+    expect(res.status).toBe(204);
+    expect(reviewSent).toHaveLength(1);
+    expect(gateSent).toHaveLength(0);
+    expect((reviewSent[0] as { eventType: string }).eventType).toBe('pull_request');
+  });
+});

@@ -26,7 +26,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use crate::macaroon::{
-    discharge_rent_paid, mint_push_grant, verify, check_caveat, Macaroon, MacaroonError,
+    check_caveat, discharge_rent_paid, mint_push_grant, verify, Macaroon, MacaroonError,
     MintPushGrant, RentVerdict, RequestContext, VerifyOutcome, DISCHARGE_TTL_MS,
 };
 
@@ -121,9 +121,13 @@ pub fn issue_discharge(
     ttl_ms: i64,
 ) -> Result<Option<Macaroon>, MacaroonError> {
     with_store(|m| match m.get(grant_id) {
-        Some(keys) if !keys.revoked => {
-            discharge_rent_paid(&keys.caveat_key, &keys.rent_caveat_id, verdict, now_ms, ttl_ms)
-        }
+        Some(keys) if !keys.revoked => discharge_rent_paid(
+            &keys.caveat_key,
+            &keys.rent_caveat_id,
+            verdict,
+            now_ms,
+            ttl_ms,
+        ),
         _ => Ok(None),
     })
 }
@@ -132,11 +136,7 @@ pub fn issue_discharge(
 /// retained root and caveat keys (looked up by the grant's own identifier). The
 /// daemon supplies only the request context (op/repo/branch/session/clock) — not
 /// the keys.
-pub fn authorize(
-    grant: &Macaroon,
-    discharges: &[Macaroon],
-    ctx: &RequestContext,
-) -> VerifyOutcome {
+pub fn authorize(grant: &Macaroon, discharges: &[Macaroon], ctx: &RequestContext) -> VerifyOutcome {
     with_store(|m| match m.get(&grant.identifier) {
         Some(keys) if !keys.revoked => {
             // Clone what the verify closures need so we don't hold the lock guard
@@ -149,11 +149,23 @@ pub fn authorize(
                 &root,
                 discharges,
                 &|p| check_caveat(p, ctx),
-                &|cid| if cid == rent_id { Some(ckey.clone()) } else { None },
+                &|cid| {
+                    if cid == rent_id {
+                        Some(ckey.clone())
+                    } else {
+                        None
+                    }
+                },
             )
         }
-        Some(_) => VerifyOutcome { ok: false, reason: "grant has been revoked".into() },
-        None => VerifyOutcome { ok: false, reason: "unknown grant".into() },
+        Some(_) => VerifyOutcome {
+            ok: false,
+            reason: "grant has been revoked".into(),
+        },
+        None => VerifyOutcome {
+            ok: false,
+            reason: "unknown grant".into(),
+        },
     })
 }
 
@@ -233,25 +245,29 @@ mod tests {
     #[test]
     fn paid_rent_authorizes_a_push() {
         let now = 1_000_000;
-        let (grant, id) =
-            issue_grant("acme/api", "sess-1", now + 60_000, "main").unwrap();
+        let (grant, id) = issue_grant("acme/api", "sess-1", now + 60_000, "main").unwrap();
         let discharge = issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS)
             .unwrap()
             .expect("paid rent must yield a discharge");
         let bound = grant.prepare_for_request(&discharge).unwrap();
         let out = authorize(&grant, &[bound], &ctx("feat/x", "sess-1", now));
-        assert!(out.ok, "paid + bound discharge must authorize: {}", out.reason);
+        assert!(
+            out.ok,
+            "paid + bound discharge must authorize: {}",
+            out.reason
+        );
     }
 
     #[test]
     fn unpaid_rent_yields_no_discharge_so_push_is_refused() {
         let now = 1_000_000;
-        let (grant, id) =
-            issue_grant("acme/api", "sess-2", now + 60_000, "main").unwrap();
+        let (grant, id) = issue_grant("acme/api", "sess-2", now + 60_000, "main").unwrap();
         // Rent due → no discharge at all.
-        assert!(issue_discharge(&id, RentVerdict::RentDue, now, DISCHARGE_TTL_MS)
-            .unwrap()
-            .is_none());
+        assert!(
+            issue_discharge(&id, RentVerdict::RentDue, now, DISCHARGE_TTL_MS)
+                .unwrap()
+                .is_none()
+        );
         // With no discharge, the third-party rent caveat can't be satisfied.
         let out = authorize(&grant, &[], &ctx("feat/x", "sess-2", now));
         assert!(!out.ok, "no discharge must refuse the push");
@@ -260,10 +276,10 @@ mod tests {
     #[test]
     fn protected_branch_is_refused_even_when_paid() {
         let now = 1_000_000;
-        let (grant, id) =
-            issue_grant("acme/api", "sess-3", now + 60_000, "main").unwrap();
-        let discharge =
-            issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS).unwrap().unwrap();
+        let (grant, id) = issue_grant("acme/api", "sess-3", now + 60_000, "main").unwrap();
+        let discharge = issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS)
+            .unwrap()
+            .unwrap();
         let bound = grant.prepare_for_request(&discharge).unwrap();
         let out = authorize(&grant, &[bound], &ctx("main", "sess-3", now));
         assert!(!out.ok, "push to the protected branch must be refused");
@@ -272,17 +288,28 @@ mod tests {
     #[test]
     fn keys_never_leave_the_kernel_and_revoke_kills_the_grant() {
         let now = 1_000_000;
-        let (grant, id) =
-            issue_grant("acme/api", "sess-4", now + 60_000, "main").unwrap();
-        let discharge =
-            issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS).unwrap().unwrap();
+        let (grant, id) = issue_grant("acme/api", "sess-4", now + 60_000, "main").unwrap();
+        let discharge = issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS)
+            .unwrap()
+            .unwrap();
         let bound = grant.prepare_for_request(&discharge).unwrap();
-        assert!(authorize(&grant, &[bound.clone()], &ctx("feat/x", "sess-4", now)).ok);
+        assert!(
+            authorize(
+                &grant,
+                std::slice::from_ref(&bound),
+                &ctx("feat/x", "sess-4", now)
+            )
+            .ok
+        );
         assert!(revoke(&id));
         // After revocation the root key is gone — the same grant no longer authorizes.
         let out = authorize(&grant, &[bound], &ctx("feat/x", "sess-4", now));
         assert!(!out.ok, "revoked grant must not authorize");
-        assert!(issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS).unwrap().is_none());
+        assert!(
+            issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS)
+                .unwrap()
+                .is_none()
+        );
     }
 
     // Regression for the dead-code fix: `revoke` must leave a tombstone so a revoked
@@ -313,9 +340,11 @@ mod tests {
         assert_eq!(ghost_out.reason, "unknown grant");
 
         // No fresh discharge can be minted for a revoked grant.
-        assert!(issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS)
-            .unwrap()
-            .is_none());
+        assert!(
+            issue_discharge(&id, RentVerdict::Paid, now, DISCHARGE_TTL_MS)
+                .unwrap()
+                .is_none()
+        );
 
         // Revoking is idempotent; revoking an unknown id returns false.
         assert!(revoke(&id), "re-revoking a revoked grant is idempotent");
@@ -340,7 +369,10 @@ mod tests {
 
         // Before expiry the revoked entry is kept as an auditable tombstone.
         let pruned_early = prune_expired(base); // clock < exp → touches nothing here
-        assert_eq!(pruned_early, 0, "no grant in this window is expired at {base}");
+        assert_eq!(
+            pruned_early, 0,
+            "no grant in this window is expired at {base}"
+        );
         assert_eq!(
             authorize(&g_rev, &[], &ctx("feat/x", "sess-gc-rev", base)).reason,
             "grant has been revoked",
@@ -359,8 +391,10 @@ mod tests {
             "unknown grant"
         );
         let _ = g_live;
-        assert!(issue_discharge(&live, RentVerdict::Paid, base, DISCHARGE_TTL_MS)
-            .unwrap()
-            .is_none());
+        assert!(
+            issue_discharge(&live, RentVerdict::Paid, base, DISCHARGE_TTL_MS)
+                .unwrap()
+                .is_none()
+        );
     }
 }

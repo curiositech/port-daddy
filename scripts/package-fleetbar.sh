@@ -135,6 +135,7 @@ FLEETBAR_ENTITLEMENTS="$ROOT_DIR/scripts/entitlements/fleetbar.plist"
 PAYLOAD_ENTITLEMENTS="$ROOT_DIR/scripts/entitlements/port-daddy.plist"
 IDENTITY="${PORT_DADDY_SIGN_IDENTITY:-}"
 SIGNED="false"
+NOTARIZED="false"
 if [[ -z "$IDENTITY" ]]; then
   echo "::warning::PORT_DADDY_SIGN_IDENTITY unset — FleetBar.app is UNSIGNED (ad-hoc). Gatekeeper will quarantine it on download. Set the Developer ID secrets to sign."
 else
@@ -157,6 +158,7 @@ else
     NOTARY_KC=(); [[ -n "${PORT_DADDY_NOTARY_KEYCHAIN:-}" ]] && NOTARY_KC=(--keychain "$PORT_DADDY_NOTARY_KEYCHAIN")
     xcrun notarytool submit "$NOTARY_ZIP" --keychain-profile "$PORT_DADDY_NOTARY_PROFILE" "${NOTARY_KC[@]}" --wait --timeout 20m
     xcrun stapler staple "$APP_BUNDLE"
+    NOTARIZED="true"
     echo "Notarized + stapled $APP_NAME"
   else
     echo "::warning::notary profile absent or skipped — $APP_NAME is signed but NOT notarized."
@@ -195,6 +197,12 @@ BUNDLED_PORT_DADDY_JSON="$(node -e '
   }));
 ' "$PORT_DADDY_PAYLOAD_DIR/port-daddy-manifest.json")"
 
+# `unsigned` records Developer ID signing; `notarized` records that Apple's
+# notary service accepted the .app AND the ticket was stapled. Gatekeeper on a
+# DOWNLOADED app requires BOTH — v3.27.0 shipped signed-but-unnotarized (the
+# notary key failed validation, a fail-soft warning) and latest.json still
+# advertised it signed:true, so users got a quarantined app the feed called
+# good. build-latest-json.mjs now derives the feed flag from both fields.
 UNSIGNED_FLAG="true"; [[ "$SIGNED" == "true" ]] && UNSIGNED_FLAG="false"
 cat > "$OUT_DIR/fleetbar-preview-manifest.json" <<JSON
 {
@@ -205,6 +213,7 @@ cat > "$OUT_DIR/fleetbar-preview-manifest.json" <<JSON
   "artifact": "$ZIP_NAME",
   "sha256": "$SHA",
   "unsigned": $UNSIGNED_FLAG,
+  "notarized": $NOTARIZED,
   "bundledPortDaddy": $BUNDLED_PORT_DADDY_JSON,
   "generatedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
