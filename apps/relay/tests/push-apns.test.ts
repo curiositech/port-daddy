@@ -751,6 +751,31 @@ describe('interruption nag sweep × APNs', () => {
     expect(r.errors).toEqual([]);
   });
 
+  it('a registry READ FAILURE is a silent no-op, not a throw — the nag survives a broken DB', async () => {
+    // The docblock promises "a registry read failure ... come back as
+    // { attempted: false, delivered: false } — a silent no-op, never a throw".
+    // Nothing tested it, so the catch could have been deleted and every push
+    // test would still pass. This is the interruption path: if a SELECT against
+    // apns_device_tokens can propagate, one broken query takes down the whole
+    // nag sweep for every operator, not just the push half of it.
+    const calls = stubFetch([{ status: 200 }]);
+    const f = makeDb();
+    const { kv } = makeKv();
+    const env = makeEnv(f.db, kv, apnsVars());
+    expect(apnsConfigured(env)).toBe(true); // configured, so the read is reached
+
+    const broken = {
+      ...env.DB,
+      prepare: () => {
+        throw new Error('D1_ERROR: no such table: apns_device_tokens');
+      },
+    } as unknown as D1Database;
+
+    const out = await sendInterruptionPushes({ ...env, DB: broken }, 'u1', PUSH);
+    expect(out).toEqual({ attempted: false, delivered: false });
+    expect(calls).toHaveLength(0); // never guesses a token and pushes anyway
+  });
+
   it('an operator with no registered devices delivers nothing via APNs (attempted=false)', async () => {
     const calls = stubFetch([{ status: 200 }]);
     const f = makeDb();
