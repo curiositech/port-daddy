@@ -466,19 +466,21 @@ async fn fetch_json(
         Err(e) => Err(format!("relay unreachable: {e}")),
         Ok(resp) => {
             let status = resp.status();
-            if status.as_u16() == 401 || status.as_u16() == 403 {
-                return Err(
-                    "Cloud Fleet session rejected — renew it from FleetBar Credentials".into(),
-                );
-            }
-            if !status.is_success() {
-                return Err(format!("Cloud Fleet read failed ({status})"));
+            if let Some(error) = fleet_read_status_error(status) {
+                return Err(error);
             }
             resp.json::<Value>()
                 .await
                 .map_err(|e| format!("bad response: {e}"))
         }
     }
+}
+
+fn fleet_read_status_error(status: reqwest::StatusCode) -> Option<String> {
+    if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN {
+        return Some("Cloud Fleet session rejected — renew it from FleetBar Credentials".into());
+    }
+    (!status.is_success()).then(|| format!("Cloud Fleet read failed ({status})"))
 }
 
 fn run_detail_url(base: &str, run_id: &str) -> std::result::Result<String, String> {
@@ -1021,6 +1023,10 @@ mod tests {
         }));
         assert!(!failed.is_active());
         assert!(matches!(run_tone(&failed), Tone::Conflicted));
+
+        let missing_state = FleetRun::from_value(&json!({ "id": "intent:unknown", "state": "" }));
+        assert_eq!(missing_state.state, "unknown");
+        assert!(!missing_state.is_active());
     }
 
     #[test]
@@ -1049,6 +1055,28 @@ mod tests {
             false,
             &run
         ));
+        assert!(transcript_changed(
+            Some("intent:delivery-live"),
+            None,
+            false,
+            &run
+        ));
+    }
+
+    #[test]
+    fn cloud_fleet_http_statuses_distinguish_credentials_from_service_failures() {
+        let unauthorized = fleet_read_status_error(reqwest::StatusCode::UNAUTHORIZED)
+            .expect("401 must require credential remediation");
+        let forbidden = fleet_read_status_error(reqwest::StatusCode::FORBIDDEN)
+            .expect("403 must require credential remediation");
+        assert!(unauthorized.contains("FleetBar Credentials"));
+        assert_eq!(unauthorized, forbidden);
+
+        assert_eq!(
+            fleet_read_status_error(reqwest::StatusCode::INTERNAL_SERVER_ERROR),
+            Some("Cloud Fleet read failed (500 Internal Server Error)".into())
+        );
+        assert_eq!(fleet_read_status_error(reqwest::StatusCode::OK), None);
     }
 
     #[test]

@@ -79,6 +79,28 @@ final class CloudFleetStoreTests: XCTestCase {
         XCTAssertFalse(failed.isActive)
     }
 
+    func testQueuedRetryingAndCompletedStatesMatchTheRelayContract() throws {
+        let cases: [(state: String, conclusion: String?, active: Bool)] = [
+            ("queued", nil, true),
+            ("retrying", nil, true),
+            ("completed", "success", false),
+        ]
+
+        for item in cases {
+            let conclusion = item.conclusion.map { "\"\($0)\"" } ?? "null"
+            let payload = """
+            {"id":"intent:\(item.state)","repo":"curiositech/port-daddy","prNumber":8996,
+             "headSha":"abc1234","state":"\(item.state)","generation":2,"attemptCount":1,
+             "conclusion":\(conclusion)}
+            """.data(using: .utf8)!
+            let run = try JSONDecoder().decode(CloudFleetRun.self, from: payload)
+
+            XCTAssertEqual(run.state, item.state)
+            XCTAssertEqual(run.isActive, item.active)
+            XCTAssertFalse(run.isFailure)
+        }
+    }
+
     func testCloudFleetSectionLabelsLocalCloudAndSafetyCopy() throws {
         let localDaemonURL = "http://127.0.0.1:8080"
         let inspected = try CloudFleetSection(
@@ -143,6 +165,79 @@ final class CloudFleetStoreTests: XCTestCase {
         XCTAssertNil(store.lastError)
     }
 
+    func testEmptyActivityIsAValidCloudFleetState() async {
+        let account = OperatorAccount(
+            token: "pdu_fixture",
+            relayUrl: "https://relay.example",
+            login: "operator"
+        )
+        StubURLProtocol.handler = { request in
+            switch request.url?.path {
+            case "/v1/fleet/health":
+                return StubURLProtocol.Stub(status: 200, body: Self.healthFixture)
+            case "/v1/fleet/activity":
+                return StubURLProtocol.Stub(
+                    status: 200,
+                    body: "{\"code\":\"OK\",\"runs\":[]}".data(using: .utf8)!
+                )
+            default:
+                XCTFail("An empty activity response must not request a transcript.")
+                return StubURLProtocol.Stub(status: 404, body: Data())
+            }
+        }
+        let store = CloudFleetStore(
+            autoStart: false,
+            session: StubURLProtocol.makeSession(),
+            loadAccount: { account }
+        )
+
+        await store.refresh()
+
+        XCTAssertTrue(store.runs.isEmpty)
+        XCTAssertNil(store.selectedRun)
+        XCTAssertTrue(store.steps.isEmpty)
+        XCTAssertNil(store.lastError)
+        XCTAssertNil(store.detailError)
+    }
+
+    func testMalformedTranscriptIsVisibleWithoutDiscardingActivity() async {
+        let account = OperatorAccount(
+            token: "pdu_fixture",
+            relayUrl: "https://relay.example",
+            login: "operator"
+        )
+        StubURLProtocol.handler = { request in
+            switch request.url?.path {
+            case "/v1/fleet/health":
+                return StubURLProtocol.Stub(status: 200, body: Self.healthFixture)
+            case "/v1/fleet/activity":
+                return StubURLProtocol.Stub(status: 200, body: Self.activityFixture)
+            case "/v1/fleet/runs/intent%3Adelivery-live", "/v1/fleet/runs/intent:delivery-live":
+                return StubURLProtocol.Stub(
+                    status: 200,
+                    body: "{\"run\":{\"id\":\"intent:delivery-live\",\"state\":\"running\"}}"
+                        .data(using: .utf8)!
+                )
+            default:
+                XCTFail("Unexpected malformed-transcript path: \(request.url?.absoluteString ?? "nil")")
+                return StubURLProtocol.Stub(status: 404, body: Data())
+            }
+        }
+        let store = CloudFleetStore(
+            autoStart: false,
+            session: StubURLProtocol.makeSession(),
+            loadAccount: { account }
+        )
+
+        await store.refresh()
+
+        XCTAssertEqual(store.runs.count, 1)
+        XCTAssertEqual(store.selectedRun?.id, "intent:delivery-live")
+        XCTAssertTrue(store.steps.isEmpty)
+        XCTAssertTrue(store.detailError?.contains("could not be decoded") == true)
+        XCTAssertNil(store.lastError)
+    }
+
     func testSignedOutRefreshMakesNoRelayRequest() async {
         var requestCount = 0
         StubURLProtocol.handler = { _ in
@@ -186,6 +281,37 @@ final class CloudFleetStoreTests: XCTestCase {
         XCTAssertTrue(store.lastError?.contains("FleetBar Credentials") == true)
     }
 
+    func testHTTPFailuresDistinguishCredentialRejectionFromServiceErrors() async {
+        let account = OperatorAccount(
+            token: "pdu_fixture",
+            relayUrl: "https://relay.example",
+            login: "operator"
+        )
+
+        for status in [403, 404, 500] {
+            StubURLProtocol.handler = { _ in
+                StubURLProtocol.Stub(status: status, body: Data())
+            }
+            let store = CloudFleetStore(
+                autoStart: false,
+                session: StubURLProtocol.makeSession(),
+                loadAccount: { account }
+            )
+
+            await store.refresh()
+
+            if status == 403 {
+                XCTAssertTrue(store.needsReauthentication)
+                XCTAssertEqual(store.consecutiveFailures, 4)
+                XCTAssertTrue(store.lastError?.contains("FleetBar Credentials") == true)
+            } else {
+                XCTAssertFalse(store.needsReauthentication)
+                XCTAssertEqual(store.consecutiveFailures, 1)
+                XCTAssertTrue(store.lastError?.contains("HTTP \(status)") == true)
+            }
+        }
+    }
+
     func testPollCadenceIsFastOnlyForActiveRunsAndBacksOffWithJitter() {
         XCTAssertEqual(
             CloudFleetStore.nextPollDelay(hasActiveRuns: true, consecutiveFailures: 0),
@@ -202,6 +328,32 @@ final class CloudFleetStoreTests: XCTestCase {
                 random: { $0.upperBound }
             ),
             40
+        )
+        XCTAssertEqual(
+            CloudFleetStore.nextPollDelay(
+                hasActiveRuns: true,
+                consecutiveFailures: 10,
+                random: { $0.upperBound }
+            ),
+            80,
+            "Active polling caps the exponent before it can multiply provider load."
+        )
+        XCTAssertEqual(
+            CloudFleetStore.nextPollDelay(
+                hasActiveRuns: false,
+                consecutiveFailures: 10,
+                random: { $0.upperBound }
+            ),
+            CloudFleetStore.failurePollCapSeconds
+        )
+        XCTAssertEqual(
+            CloudFleetStore.nextPollDelay(
+                hasActiveRuns: false,
+                consecutiveFailures: 10,
+                random: { $0.lowerBound }
+            ),
+            0,
+            "Full jitter must retain the whole zero-to-ceiling range."
         )
     }
 
