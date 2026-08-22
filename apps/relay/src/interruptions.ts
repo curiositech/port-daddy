@@ -457,6 +457,18 @@ export async function runInterruptionNagSweep(
   if ((!url && !apnsOn) || candidates.length === 0) {
     // No transport at all ⇒ asks are still recorded, expired, and visible on
     // /account — nobody is paged (the mercy contract). Nothing due ⇒ done.
+    //
+    // Say so when there is something that WOULD have been paged. Inert is the
+    // correct state for a deployment with no secrets set, so logging it on
+    // every empty sweep would be noise; logging it when asks were actually
+    // waiting answers the operator question this silence otherwise raises —
+    // "I have open interruptions and my phone never rang."
+    if (!url && !apnsOn && candidates.length > 0) {
+      console.info(
+        `[interruptions] ${candidates.length} ask(s) due but no transport configured ` +
+          '(MERCY_PAGE_WEBHOOK unset, APNs secrets unset); recording only, nobody paged',
+      );
+    }
     await prune(env, now, result.errors);
     return result;
   }

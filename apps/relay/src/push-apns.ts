@@ -303,8 +303,17 @@ async function markTokenDead(env: Env, deviceToken: string, nowSec: number): Pro
     )
       .bind(nowSec, deviceToken.toLowerCase())
       .run();
-  } catch {
-    // Registry write is best-effort; delivery accounting never depends on it.
+  } catch (err) {
+    // Registry write is best-effort; delivery accounting never depends on it,
+    // and one lost mark costs exactly one more 410 next sweep. But a
+    // PERSISTENT failure here is invisible in the delivery numbers — pushes
+    // keep "working" while the dead-token table stops growing — so it goes to
+    // the Worker log. Deliberately not recordHookEvent: that writes to the
+    // same D1 this call just failed against, so it would swallow the report
+    // for the same reason it swallowed the write.
+    console.warn(
+      `[apns] markTokenDead failed (best-effort, continuing): ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
@@ -370,9 +379,19 @@ export async function sendApnsPush(
     await markTokenDead(env, deviceToken, nowSec);
     return { kind: 'token-gone' };
   }
-  if (res.status === 403) {
-    // Expired/InvalidProviderToken: drop the cached JWT so the next sweep
-    // mints fresh; retryable at the sweep's own cadence.
+  if (res.status === 403 || res.status === 401) {
+    // 403 is the documented provider-token failure — ExpiredProviderToken,
+    // InvalidProviderToken, MissingProviderToken all arrive as 403, and all
+    // three are fixed by minting a new one, so one branch covers the family
+    // rather than switching on {reason}.
+    //
+    // 401 is NOT in Apple's documented status list for this API. It is
+    // included anyway because the cost of being wrong is asymmetric: if APNs
+    // ever answers an auth-shaped status we do not expect, "drop the cached
+    // JWT and retry" self-heals, while falling through to `failed` would stop
+    // every push until someone deploys. An undocumented status we retry once
+    // per sweep is cheap; an undocumented status we treat as terminal is an
+    // outage.
     resetApnsJwtCache();
     return { kind: 'retryable', retryAfterSec: null };
   }
@@ -408,7 +427,14 @@ export async function sendInterruptionPushes(
       .bind(userId, MAX_PUSH_DEVICES)
       .all<{ token: string }>();
     tokens = (r.results ?? []).map((t) => t.token);
-  } catch {
+  } catch (err) {
+    // A registry read failure is indistinguishable from "no devices" in the
+    // return value, on purpose — the sweep must not treat it as a delivery
+    // failure and trip anything. But the two are very different to an
+    // operator wondering why their phone is silent, so the log says which.
+    console.warn(
+      `[apns] device-token read failed for user ${userId}; treating as no devices: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return { attempted: false, delivered: false };
   }
   if (tokens.length === 0) return { attempted: false, delivered: false };

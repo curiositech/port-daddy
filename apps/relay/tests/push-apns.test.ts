@@ -620,6 +620,32 @@ describe('sendApnsPush', () => {
     expect(after).not.toBe(before);
   });
 
+  it('an undocumented 401 self-heals like a 403 rather than failing permanently', async () => {
+    // 401 is not in Apple's documented status list for the provider API, so
+    // this pins a deliberate defensive choice rather than a spec behaviour.
+    // The asymmetry is the argument: if APNs ever answers an auth-shaped
+    // status we do not expect, "drop the JWT and retry" self-heals on the next
+    // sweep, while the old fallthrough to `failed` would have stopped every
+    // push until someone noticed and deployed.
+    stubFetch([{ status: 401, body: '{"reason":"Unauthorized"}' }]);
+    const f = makeDb();
+    const { kv } = makeKv();
+    const env = makeEnv(f.db, kv, apnsVars());
+    const before = await getApnsJwt(env, T0);
+    expect(await sendApnsPush(DEVICE_TOKEN, PUSH, env, T0)).toEqual({ kind: 'retryable', retryAfterSec: null });
+    // Same proof the 403 test uses: a surviving cache would return `before`
+    // byte-for-byte inside the TTL, so a different token means it was dropped.
+    expect(await getApnsJwt(env, T0 + 60_000)).not.toBe(before);
+    // And the device token is NOT marked dead — an auth problem is ours, not
+    // the device's, so nothing about the registry should change. Asserted
+    // against the fixture's actual device row: an earlier draft of this line
+    // read `f.db.deadMarks ?? 0`, and since no such counter exists that was
+    // `undefined ?? 0` — a check that could never fail.
+    f.devices.push({ token: DEVICE_TOKEN.toLowerCase(), user_id: 'u1', dead_at: null } as never);
+    await sendApnsPush(DEVICE_TOKEN, PUSH, env, T0);
+    expect(f.devices.find((d) => d.token === DEVICE_TOKEN.toLowerCase())?.dead_at).toBeNull();
+  });
+
   it('config-missing is a silent no-op: no fetch, no throw', async () => {
     const calls = stubFetch([{ status: 200 }]);
     const f = makeDb();
