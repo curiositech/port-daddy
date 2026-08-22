@@ -100,6 +100,25 @@ describe('Watch Module — createWatch()', () => {
       expect(typeof handle.stop).toBe('function');
       handle.stop(); // clean up
     });
+
+    it('waits fail-open and retries when no daemon endpoint is published', () => {
+      const missingTarget = jest.fn(() => {
+        throw new Error('No selected daemon TCP endpoint is published');
+      });
+      const stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+      const { watch } = createWatch({ resolveTarget: missingTarget });
+
+      const handle = watch('test-channel', { exec: 'echo test' });
+      expect(typeof handle.stop).toBe('function');
+      expect(missingTarget).toHaveBeenCalledTimes(1);
+      expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('Open FleetBar and choose Repair'));
+
+      jest.advanceTimersByTime(1000);
+      expect(missingTarget).toHaveBeenCalledTimes(2);
+      // Identical unavailability is reported once, not on every reconnect.
+      expect(stderrSpy).toHaveBeenCalledTimes(1);
+      handle.stop();
+    });
   });
 
   describe('Retry-After parsing', () => {
