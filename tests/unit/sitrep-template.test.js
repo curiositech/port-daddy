@@ -118,8 +118,12 @@ describe('pd sitrep --template ideas table pre-fill', () => {
     expect(out).toContain(
       '| Re-land the end-of-turn SITREP compulsion | agent-tmpl-1 | claimed | | sitrep-end-of-turn |',
     );
-    // …and the mine-filter drops the foreign session's claim.
+    // …and the mine-filter drops the foreign session's claim entirely: none of
+    // its identifying strings (slug, summary, claimant) may leak into the
+    // template output.
     expect(out).not.toContain('foreign-claim');
+    expect(out).not.toContain('Someone else entirely');
+    expect(out).not.toContain('agent-other');
     // The blank placeholder row is replaced, not appended.
     expect(out).not.toContain('| | | | | |');
     // The contract rules ship with the scaffold.

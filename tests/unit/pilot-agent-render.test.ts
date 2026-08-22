@@ -366,6 +366,16 @@ describe('sessionstart-pilot.mjs hook script', () => {
     expect(compelled.hookSpecificOutput.additionalContext).toContain('SITREP (end-of-turn');
   });
 
+  test('malformed agent.config.json fails toward the default duty (enforce), never silence', () => {
+    // Fail-direction proof at the birth surface: a config the hook cannot
+    // parse must not be treated as an opt-out — the duty still ships.
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    writeFileSync(join(dir, 'agent.config.json'), '{not valid json — deliberately malformed');
+    const out = JSON.parse(run({ cwd: dir }));
+    expect(out.hookSpecificOutput.additionalContext).toContain('SITREP (end-of-turn, per-repo dial)');
+  });
+
   test('.portdaddy/sitrep.json governs the SessionStart duty like the prompt tentacle', () => {
     const dir = makeTmp();
     mkdirSync(join(dir, '.portdaddy'), { recursive: true });
