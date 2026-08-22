@@ -155,7 +155,14 @@ The app's controls are governed by the per-backend verb matrix of
 `skills/agent-control-command-contract/examples/sample-input.json` — the
 supported set is `steer`, `interrupt`, `kill`, and `checkpoint`, each a
 distinct claim with the full `queued`/`delivered`/`acknowledged`/`failed`/
-`expired` lifecycle. `pause` and `fork` render as **honest unsupported
+`expired` lifecycle. A sixth state, `unsupported`, exists for the case this
+paragraph is about — a command issued against a verb the backend does not
+have. It is deliberately its own terminal state rather than a flavour of
+`failed`: "this backend cannot do that" and "this backend tried and could
+not" are different answers, and collapsing them would let an unsupported
+verb read as a transient failure worth retrying.
+
+`pause` and `fork` render as **honest unsupported
 affordances**: visible, disabled, with the stated reason — never hidden,
 never wired to a no-op, never quietly substituted by `kill`. A backend
 gaining a verb re-opens the matrix; a passing contract from last quarter
@@ -163,8 +170,8 @@ is not evidence about today's adapters.
 
 The UI never collapses a command's lifecycle to a single spinner. The
 operator sees whether a control was queued, delivered, acknowledged,
-failed, or expired — the ch15 diagram 2b rule, applied to a surface where
-delivery latency is at its worst.
+failed, expired, or unsupported — the ch15 diagram 2b rule, applied to a
+surface where delivery latency is at its worst.
 
 ### 5. Authorization reads authoritative state only
 
