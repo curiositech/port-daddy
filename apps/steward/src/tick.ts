@@ -1,20 +1,32 @@
 import { buildDocket, renderDocket, type DocketEntry, type PrSnapshot } from './priority.js';
 import { surveyOpenPrs, type FetchLike } from './survey.js';
 import { appendMergeVerdict } from './ledgers.js';
+import {
+  fetchPrFiles,
+  isProtectedPr,
+  landPr,
+  landFailKey,
+  shipItKey,
+  LAND_FAIL_HOLD_AT,
+  PR_FILES_PAGE_SIZE,
+  type SeatStore,
+  type ShipItGrant,
+} from './landing.js';
+import { isFrozen, readClusterfudge, tripClusterfudge } from './clusterfudge.js';
 import type { Env, MergeLedgerEntry } from './types.js';
 
 /**
- * The tick — one bounded deliberation of the Steward's seat (P1 PR 2 of
- * THE_FULL_WHEEL.md §11: survey → priority function → verdict → ledger +
- * deck-log write).
+ * The tick — one bounded deliberation of the Steward's seat (P1 PR 2 + PR 3
+ * of THE_FULL_WHEEL.md §11: survey → priority function → verdict → ledger +
+ * deck-log write, and since PR 3, execution of LAND verdicts).
  *
- * SCOPE, HONESTLY: this tick DECIDES and RECORDS; it does not LAND. A LAND
- * verdict is written to the merge ledger with its evidence and the deck log
- * says so — the landing machinery (merge queue, the land-to-main macaroon,
- * the protected-path "ship it" gate) is P1 PR 3, and until it exists a LAND
- * row is a decision awaiting hands, not a merge. Keeping decision and
- * actuation in separate PRs means the judgment is reviewable and revertible
- * on its own, and the seat's first days in office are observably harmless.
+ * DECISION AND ACTUATION, SEPARATED THEN SEQUENCED: the verdict is decided
+ * and ledgered exactly as in PR 2 — mechanical, evidence-named, mergeable
+ * from survey facts alone. Only THEN does the landing arm run, and only when
+ * the seat holds `STEWARD_LAND_TOKEN`: protected paths await an operator
+ * ship-it grant, repeated novel failures put the PR on hold (the clusterfudge
+ * tripwire), and every outcome — landed, held, awaiting — is a sentence in
+ * the deck log. An unarmed seat behaves exactly as PR 2 shipped it.
  *
  * The verdict policy is deliberately mechanical in this slice — no model in
  * the loop yet. The three-valued vocabulary maps to evidence the survey can
@@ -23,6 +35,18 @@ import type { Env, MergeLedgerEntry } from './types.js';
  * that is always safe to over-issue). Model-graded deliberation joins later,
  * on top of this floor, never instead of it.
  */
+
+/** What the landing arm did with one LAND verdict (deck log prints `reason`). */
+export interface LandingOutcome {
+  /** True when the merge API was actually called. */
+  attempted: boolean;
+  /** True when the PR squash-merged. */
+  landed: boolean;
+  /** The merge commit SHA on success. */
+  sha?: string;
+  /** Why it landed / held / awaited — always a full sentence for the log. */
+  reason: string;
+}
 
 /** What one tick did, folded into the wake's deck-log entry by the caller. */
 export interface TickResult {
@@ -36,6 +60,8 @@ export interface TickResult {
   verdict?: MergeLedgerEntry;
   /** True when the verdict row landed in D1. */
   verdictLedgered?: boolean;
+  /** What the landing arm did, present exactly when the verdict was LAND. */
+  landing?: LandingOutcome;
 }
 
 /**
@@ -54,7 +80,7 @@ export function decideVerdict(top: DocketEntry): { verdict: MergeLedgerEntry['ve
   if (pr.approved && pr.checks === 'green' && pr.mergeable === true) {
     return {
       verdict: 'LAND',
-      evidence: `approved review standing, checks green, mergeable (${top.rationale}); landing executes in P1 PR 3`,
+      evidence: `approved review standing, checks green, mergeable (${top.rationale})`,
     };
   }
   if (pr.checks === 'red') {
@@ -89,11 +115,13 @@ export function decideVerdict(top: DocketEntry): { verdict: MergeLedgerEntry['ve
  * held, rather than the seat guessing blind. A tick never throws: the wake's
  * deck-log write must always be reached (§5.3, the vital sign).
  *
- * @param env - Worker environment (DB for the ledger; token for the survey).
+ * @param env - Worker environment (DB for the ledger; tokens for survey/landing).
  * @param repo - `owner/repo` the seat serves.
  * @param nowMs - Epoch ms for the verdict row's timestamp.
  * @param fetchImpl - Injectable fetch for tests; defaults to global fetch.
  * @param surveyImpl - Injectable survey for tests; defaults to {@link surveyOpenPrs}.
+ * @param store - The seat's hot storage (ship-it grants, land-fail counters);
+ * absent in bare-decision tests, in which case the landing arm holds.
  * @returns What happened, for the deck-log entry.
  */
 export async function runTick(
@@ -102,6 +130,7 @@ export async function runTick(
   nowMs: number,
   fetchImpl: FetchLike = fetch,
   surveyImpl: typeof surveyOpenPrs = surveyOpenPrs,
+  store?: SeatStore,
 ): Promise<TickResult> {
   const token = env.STEWARD_GITHUB_TOKEN;
   if (!token) {
@@ -140,5 +169,132 @@ export async function runTick(
     createdAt: Math.floor(nowMs / 1000),
   };
   const verdictLedgered = await appendMergeVerdict(env.DB, row);
-  return { ran: true, docketText, verdict: row, verdictLedgered };
+  if (verdict !== 'LAND') {
+    return { ran: true, docketText, verdict: row, verdictLedgered };
+  }
+  const landing = await executeLanding(env, owner, name, top.pr.number, nowMs, fetchImpl, store);
+  return { ran: true, docketText, verdict: row, verdictLedgered, landing };
+}
+
+/**
+ * The landing arm — execute one ledgered LAND verdict, or say why not.
+ *
+ * FAILURE POSTURE MIRRORS THE TICK'S: this function never throws — every
+ * path returns a {@link LandingOutcome} whose `reason` reads as a deck-log
+ * sentence. The order of the gates is the safety argument: (1) an unarmed
+ * seat (no `STEWARD_LAND_TOKEN`) never calls GitHub; (2) a PR on land-fail
+ * hold ({@link LAND_FAIL_HOLD_AT} distinct failures) never retries until an
+ * operator ship-it resets it; (3) a protected-path PR without a live grant
+ * awaits the operator; only then does the merge API get called. Failures
+ * accumulate DISTINCT reasons per PR — the same 409 twice is a retry story,
+ * three different failures is the clusterfudge signature and the tick stops
+ * touching that PR.
+ *
+ * @param env - Worker environment (the land token lives here).
+ * @param owner - Repo owner.
+ * @param name - Repo name.
+ * @param prNumber - The PR the LAND verdict names.
+ * @param nowMs - Epoch ms, for grant-consumption bookkeeping.
+ * @param fetchImpl - Injectable fetch shared with the survey.
+ * @param store - The seat's hot storage; without it the arm holds honestly.
+ * @returns The outcome sentence for the deck log; never rejects.
+ */
+async function executeLanding(
+  env: Env,
+  owner: string,
+  name: string,
+  prNumber: number,
+  nowMs: number,
+  fetchImpl: FetchLike,
+  store?: SeatStore,
+): Promise<LandingOutcome> {
+  if (!env.STEWARD_LAND_TOKEN) {
+    return {
+      attempted: false,
+      landed: false,
+      reason: 'LAND recorded; seat holds no landing capability (STEWARD_LAND_TOKEN unset)',
+    };
+  }
+  if (!store) {
+    return {
+      attempted: false,
+      landed: false,
+      reason: 'LAND recorded; no seat store bound — cannot check ship-it grants, holding',
+    };
+  }
+
+  // The breaker outranks every per-PR gate below it: a systemic freeze means
+  // the seat has stopped trusting its own judgment, so no merge may proceed
+  // regardless of how healthy this particular PR looks (§9's freeze semantics
+  // — read-only work continued above; acting stops here).
+  const breaker = await readClusterfudge(store);
+  if (isFrozen(breaker)) {
+    return {
+      attempted: false,
+      landed: false,
+      reason: `CLUSTERFUDGE frozen (${breaker.tripwire ?? 'unknown'}) — no merges until an operator acks; ${breaker.evidence ?? 'no evidence recorded'}`,
+    };
+  }
+
+  const failures = (await store.get<string[]>(landFailKey(prNumber))) ?? [];
+  if (failures.length >= LAND_FAIL_HOLD_AT) {
+    return {
+      attempted: false,
+      landed: false,
+      reason: `land-fail hold on #${prNumber}: ${failures.length} distinct failures — SURFACE; an operator ship-it resets the hold`,
+    };
+  }
+
+  const grant = await store.get<ShipItGrant>(shipItKey(prNumber));
+  let files: string[];
+  try {
+    files = await fetchPrFiles(owner, name, prNumber, env.STEWARD_LAND_TOKEN, fetchImpl);
+  } catch (err) {
+    return {
+      attempted: false,
+      landed: false,
+      reason: `could not read #${prNumber}'s files (${String(err).slice(0, 120)}) — cannot check protected paths, holding`,
+    };
+  }
+  // A full first page means unseen files may exist — fail closed on what the
+  // seat could not fully see, exactly like a protected path.
+  const protectedPr = isProtectedPr(files) || files.length >= PR_FILES_PAGE_SIZE;
+  if (protectedPr && !grant) {
+    return {
+      attempted: false,
+      landed: false,
+      reason: `LAND on protected path awaits operator ship-it: POST /ship-it/${prNumber}`,
+    };
+  }
+
+  const result = await landPr({ owner, repo: name, prNumber, token: env.STEWARD_LAND_TOKEN, fetchImpl });
+  if (result.landed) {
+    // Consume the grant and clear the failure history — both are per-attempt
+    // state and a landed PR's slate is closed.
+    await store.delete(shipItKey(prNumber));
+    await store.delete(landFailKey(prNumber));
+    return { attempted: true, landed: true, sha: result.sha, reason: `LANDED #${prNumber} ${result.reason}` };
+  }
+  if (!failures.includes(result.reason)) {
+    failures.push(result.reason);
+    await store.put(landFailKey(prNumber), failures);
+  }
+  if (failures.length < LAND_FAIL_HOLD_AT) {
+    return { attempted: true, landed: false, reason: `land attempt failed: ${result.reason}` };
+  }
+  // Threshold reached: this is §9's land-fail-loop tripwire, and it freezes
+  // the repo rather than merely holding the PR. One PR failing three distinct
+  // ways is the seat's evidence that something systemic is wrong with its
+  // model of the world — exactly the case where it must stop acting.
+  await tripClusterfudge(
+    store,
+    'land-fail-loop',
+    `#${prNumber} failed to land ${failures.length}× for ${failures.length} distinct causes: ${failures.join(' | ')}`,
+    nowMs,
+  );
+  return {
+    attempted: true,
+    landed: false,
+    reason: `land attempt failed: ${result.reason} — ${failures.length} distinct failures; CLUSTERFUDGE tripped (land-fail-loop), seat frozen pending operator ack`,
+  };
 }

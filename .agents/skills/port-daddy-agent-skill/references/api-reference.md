@@ -17,6 +17,21 @@ present.
 
 All HTTP endpoints accept and return JSON. Rate limited to 100 req/min per IP.
 
+**Identity credentials (#8877 / ADR-0122 — strict):** every ATTRIBUTED write
+boundary — `POST /sessions`, `POST /sessions/:id/takeover`, `POST /notes`,
+`POST /sessions/:id/notes`, `POST|DELETE /sessions/:id/files`,
+`POST|PUT|DELETE /locks/:name`, `/sugar/done`, `/sugar/relink`, salvage
+claim/complete/abandon/dismiss, and `/commitments` writes — REQUIRES a
+daemon-minted ADR-0040 actor credential (`<actor_id>.<secret>`), presented as
+the `x-actor-credential` header or body `credential` field. A self-asserted
+`agentId` with no credential is rejected **401 IDENTITY_CREDENTIAL_REQUIRED**;
+a forged credential is **401 IDENTITY_CREDENTIAL_INVALID**; a valid credential
+asserting a name bound to a different soul is **403 IDENTITY_ALIAS_MISMATCH**.
+Credentials come from the two mint doors: `POST /actors/register`, or
+`POST /sugar/begin` (an uncredentialed begin with unowned names mints a fresh
+soul and returns its `credential` ONCE — persist it). The pd CLI, SDK
+(`lib/client`), and MCP server handle this automatically.
+
 **Transport options:**
 - **HTTP** (TCP or Unix socket) — full API, request-response
 - **Binary IPC** (Unix domain socket) — MessagePack-encoded, 7-byte header, ~3us latency for fire-and-forget. Supports heartbeats, pheromone sprays, pub/sub publish, claims, locks, sessions. The SDK uses IPC automatically when available; falls back to HTTP.
@@ -689,6 +704,13 @@ Wait for multiple services.
 ### POST /sugar/begin
 Register agent + start session atomically. Rolls back agent registration on failure.
 
+This is an ADR-0040 **mint door**: with no `credential`, unowned asserted
+names mint a fresh soul and the response carries `credential` (returned once —
+persist it; `/sugar/done` and all other attributed writes require it). With a
+`credential`, the begin is verified against that soul (401 on forgery, 403 if
+`identity`/`agentId` belong to a different soul); asserting a name that an
+existing soul owns WITHOUT its credential is a 401.
+
 **Body:**
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -713,12 +735,16 @@ Register agent + start session atomically. Rolls back agent registration on fail
   "lifecycle": "durable",
   "agentRegistered": true,
   "sessionStarted": true,
-  "salvageHint": "1 dead agent(s) found in project"
+  "salvageHint": "1 dead agent(s) found in project",
+  "actorId": "01J...",
+  "credential": "01J....<secret>   // ONLY when this begin minted — persist it",
+  "actorIdentity": { "verified": true, "actorId": "01J...", "soulClass": "newcomer" }
 }
 ```
 
 ### POST /sugar/done
-End session + unregister agent atomically.
+End session + unregister agent atomically. Requires the actor credential from
+begin (`x-actor-credential` header or body `credential`).
 
 **Body:**
 | Field | Type | Required | Description |

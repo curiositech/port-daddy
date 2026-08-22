@@ -162,3 +162,72 @@ describe('stage 3 — persistent EPIDEMIC breakage gates the fleet, not the PR',
     expect(state.completed[0].summary).toContain('#5150');
   });
 });
+
+describe('direct provider evidence — exhausted circuit gates the fleet immediately', () => {
+  it('persists the cause, skips remaining ships, and completes neutral after attempt three', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      [
+        'fleet:',
+        '  agents:',
+        '    qa:',
+        '      trigger: pull_request:opened',
+        '      fallbacks:',
+        "        - backend: cloudflare",
+        "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
+        '      prompt: review tests',
+        '    code-reviewer:',
+        '      trigger: pull_request:opened',
+        '      fallbacks:',
+        "        - backend: cloudflare",
+        "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
+        '      prompt: review code',
+        '    lookout:',
+        '      trigger: pull_request:opened',
+        '      fallbacks:',
+        "        - backend: cloudflare",
+        "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
+        '      prompt: review product truth',
+        '',
+      ].join('\n'),
+    );
+    const kv = memoryKV();
+    seedToken(kv);
+    const d1 = memoryD1();
+    const ai = {
+      run: vi.fn(async () => {
+        throw Object.assign(new Error('capacity unavailable'), { status: 429, code: 3040 });
+      }),
+    } as unknown as Ai;
+
+    await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai, DB: d1.db }),
+      { queueAttempt: 3 },
+    );
+
+    expect(ai.run).toHaveBeenCalledTimes(1);
+    expect(state.completed[0]?.conclusion).toBe('neutral');
+    const error = d1.steps.find(step => step.kind === 'ship-error');
+    expect(error?.title).toContain('HTTP 429, code 3040');
+    const circuit = d1.steps.find(step => step.kind === 'provider-circuit-open');
+    expect(circuit?.title).toContain('2 remaining ship(s) skipped');
+    expect(circuit?.title).toContain('fleet-wide dependency fault');
+    expect(circuit?.title).toContain('3/3 provider attempts');
+    expect(JSON.parse(String(circuit?.detail))).toMatchObject({
+      attempt: 3,
+      maxAttempts: 3,
+      skippedShips: ['code-reviewer', 'lookout'],
+      status: 429,
+      code: 3040,
+      retryable: true,
+      brokenAdjudicated: {
+        scope: 'fleet',
+        reason: 'Workers AI dependency circuit remained open through 3/3 provider attempts',
+      },
+    });
+    const adjudicated = d1.steps.find(step => step.kind === 'ship-adjudicated');
+    expect(adjudicated?.title).toContain('FLEET-WIDE');
+    expect(adjudicated?.title).toContain('not gating this PR');
+  });
+});

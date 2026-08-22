@@ -26,7 +26,23 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { DEFAULT_SEMANTIC_MODEL_ID, ensureOnnxRuntimeNativeLibFindable } from '../semantic-resolver.js';
+import {
+  ALLOW_MODEL_DOWNLOAD_ENV,
+  DEFAULT_SEMANTIC_MODEL_ID,
+  ensureOnnxRuntimeNativeLibFindable,
+  resolveRemoteModelPolicy,
+} from '../semantic-resolver.js';
+
+/**
+ * Visibility tier a skill has opted into, from frontmatter `visibility`.
+ *
+ * These skills are not a distributed catalog — they're one operator's, scoped to their own
+ * repos. `'private'` (the default) means nothing beyond that: no export path, no directory
+ * listing, no publish target ever sees the entry. `'listed'` and `'public'` are each a
+ * deliberate, per-skill opt-in a person wrote into their own SKILL.md — never a tier a parser
+ * infers or a default anyone lands in by omission.
+ */
+export type SkillVisibility = 'private' | 'listed' | 'public';
 
 /** One skill entry as parsed from a SKILL.md frontmatter. */
 export interface SkillEntry {
@@ -42,8 +58,58 @@ export interface SkillEntry {
   category: string;
   /** Tags from frontmatter `metadata.tags`. Empty when absent. */
   tags: string[];
+  /**
+   * Owner (a person) from frontmatter `owner`. `undefined` when the frontmatter doesn't declare
+   * one — that's not "unowned" or fair game to surface, it's just a `private`-tier skill with no
+   * attribution recorded. Never treat an undefined owner as license to widen visibility.
+   */
+  owner?: string;
+  /** Repos this skill is scoped to, from frontmatter `repos`. Empty when not declared. */
+  repos: string[];
+  /**
+   * The visibility tier this entry parsed to. Always populated — absent or malformed
+   * frontmatter resolves to `'private'` (see `parseVisibility`), never left blank and never
+   * widened by inference. Read this field yourself only for display; any code deciding whether
+   * to actually show/export/publish a skill to someone besides its owner must go through
+   * `isPublishableSkill` instead of comparing this directly.
+   */
+  visibility: SkillVisibility;
   /** Stable hash over (name + description + category + tags) for cache invalidation. */
   contentHash: string;
+}
+
+/**
+ * The single predicate any future export, publish, or directory-listing path MUST call before
+ * showing a skill entry to anyone beyond its owner's own machine and repos. Never gate a
+ * publish path on `entry.visibility` directly — route it through here so the widening logic
+ * lives in exactly one place.
+ *
+ * Two tiers, two payloads (the derived-index consent doctrine — see
+ * `skills/local-first-tenancy-boundary`'s scope-ladder: private -> repo -> team -> public,
+ * where silent tier crossing is always a critical finding, never a shrug):
+ *
+ * - `tier: 'listed'` authorizes the *smaller* payload — name + description only, the kind of
+ *   thing a directory or search result shows. Satisfied by `visibility` `'listed'` OR
+ *   `'public'` (public implies listed).
+ * - `tier: 'public'` authorizes the *larger* payload — the full SKILL.md body. Satisfied only
+ *   by `visibility === 'public'`.
+ *
+ * Pure and total: decides from the entry's already-parsed `visibility` alone, never reads disk,
+ * never throws.
+ *
+ * @example
+ *   const listable = catalog.filter((s) => isPublishableSkill(s, 'listed'));
+ *   const fullBodyOk = isPublishableSkill(entry, 'public');
+ */
+export function isPublishableSkill(entry: Pick<SkillEntry, 'visibility'>, tier: 'listed' | 'public'): boolean {
+  if (tier === 'public') return entry.visibility === 'public';
+  // Only the exact 'listed' tier earns listed-tier semantics. TS can't stop
+  // a plain-JS caller (or a typo'd cast) from passing some other string, and
+  // falling through to the listed branch would hand that unknown tier the
+  // WIDER grant — a listed skill's payload served for a tier nobody defined.
+  // Unknown narrows, never widens (same law parseVisibility follows).
+  if (tier !== 'listed') return false;
+  return entry.visibility === 'listed' || entry.visibility === 'public';
 }
 
 /** One search result: a skill plus its cosine similarity to the query. */
@@ -177,11 +243,43 @@ function parseSkillMd(path: string, onWarning?: (msg: string) => void): SkillEnt
     : {};
   const category = typeof metadata.category === 'string' ? metadata.category : '';
   const tags = Array.isArray(metadata.tags) ? metadata.tags.filter((t): t is string => typeof t === 'string') : [];
+  const owner = typeof frontmatter.owner === 'string' && frontmatter.owner.trim() ? frontmatter.owner.trim() : undefined;
+  const repos = Array.isArray(frontmatter.repos)
+    ? frontmatter.repos.filter((r): r is string => typeof r === 'string' && r.trim().length > 0).map((r) => r.trim())
+    : [];
+  const visibility = parseVisibility(frontmatter.visibility, path, onWarning);
+  // Deliberately excludes owner/repos/visibility: this hash only guards the embedding cache
+  // (embeddingText() below never reads provenance), so a pure ownership edit shouldn't force a
+  // re-embed. Provenance is metadata about the entry, not content the embedder sees.
   const contentHash = createHash('sha256')
     .update(JSON.stringify({ name, description, category, tags }))
     .digest('hex')
     .slice(0, 16);
-  return { id, sourcePath: path, name, description, category, tags, contentHash };
+  return { id, sourcePath: path, name, description, category, tags, owner, repos, visibility, contentHash };
+}
+
+const KNOWN_VISIBILITIES: ReadonlySet<SkillVisibility> = new Set(['private', 'listed', 'public']);
+
+/**
+ * Parses frontmatter `visibility` defensively. Absence is privacy, never exposure: a missing
+ * field, a non-string value, or a string that isn't exactly one of the three known tiers all
+ * resolve to `'private'` — the narrowest tier, never a guess at something wider. An unrecognized
+ * value warns (when a warning sink is given) so a typo in someone's frontmatter surfaces instead
+ * of silently doing nothing, but it still never coerces upward.
+ */
+function parseVisibility(raw: unknown, path: string, onWarning?: (msg: string) => void): SkillVisibility {
+  if (raw === undefined || raw === null) return 'private';
+  if (typeof raw !== 'string') {
+    // Deliberately doesn't fall through to String(raw): a single-element array
+    // like ['public'] would otherwise stringify to "public" and slip past the
+    // check below as if it were a real string value.
+    onWarning?.(`${path}: visibility must be a string, got ${typeof raw}, defaulting to private`);
+    return 'private';
+  }
+  const normalized = raw.trim().toLowerCase();
+  if (KNOWN_VISIBILITIES.has(normalized as SkillVisibility)) return normalized as SkillVisibility;
+  onWarning?.(`${path}: unknown visibility "${raw}", defaulting to private`);
+  return 'private';
 }
 
 const DEFAULT_DB_DIR = join(homedir(), '.port-daddy');
@@ -330,6 +428,12 @@ export function createSkillIndex(options: SkillIndexOptions = {}): SkillIndex {
             description: row.description,
             category: row.category,
             tags: parseTagsJson(row.tags),
+            // The persisted vector cache predates provenance and doesn't carry
+            // owner/repos/visibility — reconstructing from a cache row falls
+            // back to the same defaults an absent frontmatter would parse to
+            // (private, no owner), never a guess at something wider.
+            repos: [],
+            visibility: 'private',
             contentHash: row.content_hash,
           },
           similarity: sim,
@@ -402,9 +506,32 @@ function ensureSchema(db: DatabaseInstance): void {
  * uses. Kept private to this module so the import of `@huggingface/transformers`
  * only happens for callers that actually run a search; CLI tests with an
  * injected embedder never touch the heavy module.
+ *
+ * Egress design: the same `resolveRemoteModelPolicy` gate as the semantic
+ * resolver's loader — a huggingface.co download happens only under the
+ * explicit `PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1` opt-in. Why here too: this
+ * loader is a deliberate mirror of the resolver's, and leaving it ungated
+ * would let a skill-index search re-open the exact remote fetch the
+ * local-only egress assertion forbids. With no opt-in and no cached model it
+ * throws before importing transformers (no network attempt); a cached model
+ * loads with `allowRemoteModels` pinned to `false`.
+ *
+ * @param cacheDir Persistent transformers cache root shared with the resolver
+ *   and the install-time prefetch.
+ * @param modelId Hugging Face model id to load (normally MiniLM).
+ * @returns A lazily constructed skill embedder mapping texts to normalized vectors.
  */
 async function createDefaultSkillEmbedder(cacheDir: string, modelId: string): Promise<SkillEmbedder> {
   mkdirSync(cacheDir, { recursive: true });
+  const policy = resolveRemoteModelPolicy(cacheDir, modelId);
+  if (policy.mode === 'unavailable') {
+    throw new Error(
+      `skill-index embedder unavailable: model ${modelId} is not cached at ${cacheDir} and remote model ` +
+      'download is disabled by default (local-only egress policy; no network attempt was made). ' +
+      'Prefetch it while online (npx tsx scripts/prefetch-embedding-model.ts) or set ' +
+      `${ALLOW_MODEL_DOWNLOAD_ENV}=1 to opt in to a one-time download from huggingface.co.`,
+    );
+  }
   ensureOnnxRuntimeNativeLibFindable();
   const transformers = await import('@huggingface/transformers');
   const { env, pipeline } = transformers as unknown as {
@@ -413,7 +540,7 @@ async function createDefaultSkillEmbedder(cacheDir: string, modelId: string): Pr
   };
   env.cacheDir = cacheDir;
   env.useFSCache = true;
-  env.allowRemoteModels = true;
+  env.allowRemoteModels = policy.allowRemote;
   const featureExtractor = await pipeline('feature-extraction', modelId);
   return {
     modelId,

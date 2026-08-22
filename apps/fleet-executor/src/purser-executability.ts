@@ -25,7 +25,20 @@
 
 import type { StackedFile } from './stacked-pr.js';
 
-export type ExecutabilityResult = { ok: true } | { ok: false; reason: string };
+export type ExecutabilityResult =
+  | { ok: true }
+  | {
+      ok: false;
+      reason: string;
+      kind:
+        | 'missing-discovery-evidence'
+        | 'undiscoverable-path'
+        | 'missing-tree-evidence'
+        | 'unresolved-import'
+        | 'incompatible-runner';
+      path?: string;
+      specifier?: string;
+    };
 
 /** Jest config file names tried, in order, on the PR's BASE sha. */
 export const JEST_CONFIG_CANDIDATES: readonly string[] = [
@@ -93,6 +106,18 @@ export function extractPackageJsonTestMatch(source: string): string[] | null {
   if (!Array.isArray(testMatch)) return null;
   const out = testMatch.filter((v): v is string => typeof v === 'string');
   return out.length > 0 ? out : null;
+}
+
+/** Does the trusted package manifest put JavaScript in ESM mode? */
+export function extractPackageTypeModule(source: string): boolean | null {
+  let doc: unknown;
+  try {
+    doc = JSON.parse(source);
+  } catch {
+    return null;
+  }
+  const type = (doc as { type?: unknown } | null)?.type;
+  return typeof type === 'string' ? type === 'module' : false;
 }
 
 /**
@@ -165,9 +190,10 @@ export function matchesAnyTestMatch(path: string, patterns: string[]): boolean {
 /**
  * Pull every relative (`./` or `../`) import/require specifier out of a test
  * file's source — the ONLY imports this module verifies. The rationale for that
- * narrow scope: bare specifiers
- * (`from 'vitest'`) are package imports; resolving those would mean walking
- * node_modules, which is not this gate's job and is not what broke #5860.
+ * narrow scope: resolving arbitrary package imports would mean walking
+ * node_modules, which this Cloudflare-side gate cannot do. Known runner
+ * mismatches are checked separately by `extractBareImports` against the
+ * repository's trusted discovery configuration.
  *
  * @param source the authored test file's contents
  * @returns the de-duplicated relative specifiers exactly as written (e.g.
@@ -178,6 +204,7 @@ export function extractRelativeImports(source: string): string[] {
   const patterns = [
     /\brequire\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/g,
     /\bfrom\s+['"](\.\.?\/[^'"]+)['"]/g,
+    /\bimport\s+['"](\.\.?\/[^'"]+)['"]/g,
     /\bimport\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/g,
   ];
   for (const re of patterns) {
@@ -185,6 +212,121 @@ export function extractRelativeImports(source: string): string[] {
     while ((m = re.exec(source))) specs.add(m[1]);
   }
   return [...specs];
+}
+
+/** Bare package imports used by an authored test, in first-seen order. */
+export function extractBareImports(source: string): string[] {
+  const matches: Array<{ index: number; specifier: string }> = [];
+  const patterns = [
+    /\brequire\(\s*['"]([^'"]+)['"]\s*\)/g,
+    /\bfrom\s+['"]([^'"]+)['"]/g,
+    /\bimport\s+['"]([^'"]+)['"]/g,
+    /\bimport\(\s*['"]([^'"]+)['"]\s*\)/g,
+  ];
+  for (const re of patterns) {
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(source))) {
+      const specifier = m[1];
+      if (!specifier.startsWith('.') && !specifier.startsWith('/')) {
+        matches.push({ index: m.index, specifier });
+      }
+    }
+  }
+  matches.sort((a, b) => a.index - b.index);
+  return [...new Set(matches.map(match => match.specifier))];
+}
+
+function maskJsTriviaAndStringText(source: string): string {
+  const out = Array<string>(source.length).fill(' ');
+  let mode: 'code' | 'single' | 'double' | 'template' | 'line-comment' | 'block-comment' = 'code';
+  const templateExpressionDepth: number[] = [];
+
+  for (let i = 0; i < source.length; i += 1) {
+    const ch = source[i];
+    const next = source[i + 1];
+
+    if (mode === 'line-comment') {
+      if (ch === '\n') {
+        out[i] = ch;
+        mode = 'code';
+      }
+      continue;
+    }
+    if (mode === 'block-comment') {
+      if (ch === '*' && next === '/') {
+        i += 1;
+        mode = 'code';
+      }
+      continue;
+    }
+    if (mode === 'single' || mode === 'double') {
+      if (ch === '\\') {
+        i += 1;
+      } else if ((mode === 'single' && ch === "'") || (mode === 'double' && ch === '"')) {
+        mode = 'code';
+      }
+      continue;
+    }
+    if (mode === 'template') {
+      if (ch === '\\') {
+        i += 1;
+      } else if (ch === '`') {
+        mode = 'code';
+      } else if (ch === '$' && next === '{') {
+        templateExpressionDepth.push(1);
+        i += 1;
+        mode = 'code';
+      }
+      continue;
+    }
+
+    if (ch === '/' && next === '/') {
+      i += 1;
+      mode = 'line-comment';
+      continue;
+    }
+    if (ch === '/' && next === '*') {
+      i += 1;
+      mode = 'block-comment';
+      continue;
+    }
+    if (ch === "'") {
+      mode = 'single';
+      continue;
+    }
+    if (ch === '"') {
+      mode = 'double';
+      continue;
+    }
+    if (ch === '`') {
+      mode = 'template';
+      continue;
+    }
+    if (templateExpressionDepth.length > 0 && ch === '{') {
+      templateExpressionDepth[templateExpressionDepth.length - 1] += 1;
+      out[i] = ch;
+      continue;
+    }
+    if (templateExpressionDepth.length > 0 && ch === '}') {
+      const top = templateExpressionDepth.length - 1;
+      templateExpressionDepth[top] -= 1;
+      if (templateExpressionDepth[top] === 0) {
+        templateExpressionDepth.pop();
+        mode = 'template';
+      } else {
+        out[i] = ch;
+      }
+      continue;
+    }
+    out[i] = ch;
+  }
+  return out.join('');
+}
+
+function usesUnboundDirname(source: string): boolean {
+  const code = maskJsTriviaAndStringText(source);
+  if (/\b(?:const|let|var)\s+__dirname\b/.test(code)) return false;
+  return /\b__dirname\b/.test(code);
 }
 
 /**
@@ -217,15 +359,60 @@ const RESOLVE_SUFFIXES = [
   '',
   '.ts',
   '.tsx',
+  '.mts',
+  '.cts',
   '.js',
   '.jsx',
   '.mjs',
   '.cjs',
   '/index.ts',
   '/index.tsx',
+  '/index.mts',
+  '/index.cts',
   '/index.js',
   '/index.jsx',
 ];
+
+/**
+ * TypeScript ESM source intentionally imports the JavaScript path that will
+ * exist after compilation. The trusted GitHub tree contains the source path,
+ * though, so an explicit `./module.js` specifier must also be checked against
+ * `./module.ts` / `./module.tsx` (and the equivalent NodeNext extensions).
+ *
+ * Keep this mapping exact. It is evidence that one runtime spelling maps to a
+ * small set of source spellings, not permission to ignore an arbitrary file
+ * extension or accept a same-basename file of an unrelated type.
+ */
+const RUNTIME_TO_SOURCE_EXTENSIONS: Readonly<Record<string, readonly string[]>> = {
+  '.js': ['.ts', '.tsx'],
+  '.jsx': ['.tsx'],
+  '.mjs': ['.mts'],
+  '.cjs': ['.cts'],
+};
+
+const SOURCE_OR_ASSET_EXTENSIONS = [
+  '.ts',
+  '.tsx',
+  '.mts',
+  '.cts',
+  '.json',
+  '.wasm',
+  '.node',
+] as const;
+
+function resolveJoinedCandidates(joined: string): string[] {
+  for (const [runtimeExtension, sourceExtensions] of Object.entries(
+    RUNTIME_TO_SOURCE_EXTENSIONS,
+  )) {
+    if (!joined.endsWith(runtimeExtension)) continue;
+    const stem = joined.slice(0, -runtimeExtension.length);
+    return [joined, ...sourceExtensions.map(extension => `${stem}${extension}`)];
+  }
+  if (SOURCE_OR_ASSET_EXTENSIONS.some(extension => joined.endsWith(extension))) {
+    return [joined];
+  }
+  return RESOLVE_SUFFIXES.map(suffix => `${joined}${suffix}`);
+}
 
 /**
  * Every path this specifier could plausibly resolve to, from the importer.
@@ -245,7 +432,109 @@ const RESOLVE_SUFFIXES = [
  */
 export function resolveImportCandidates(fromPath: string, spec: string): string[] {
   const joined = joinRelative(fromPath, spec);
-  return RESOLVE_SUFFIXES.map(suf => `${joined}${suf}`);
+  return resolveJoinedCandidates(joined);
+}
+
+export interface TrustedTreeImportRepair {
+  files: StackedFile[];
+  path: string;
+  fromSpecifier: string;
+  toSpecifier: string;
+  matchedTreePath: string;
+}
+
+function relativeModuleSpecifier(fromPath: string, targetPath: string): string {
+  const from = fromPath.split('/').slice(0, -1).filter(Boolean);
+  const target = targetPath.split('/').filter(Boolean);
+  let common = 0;
+  while (common < from.length && common < target.length && from[common] === target[common]) {
+    common++;
+  }
+  const segments = [
+    ...Array.from({ length: from.length - common }, () => '..'),
+    ...target.slice(common),
+  ];
+  const relative = segments.join('/');
+  return relative.startsWith('.') ? relative : `./${relative}`;
+}
+
+function replaceImportSpecifier(source: string, from: string, to: string): string {
+  const escaped = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const patterns = [
+    new RegExp(`(\\brequire\\(\\s*)(['"])${escaped}\\2(\\s*\\))`, 'g'),
+    new RegExp(`(\\bfrom\\s+)(['"])${escaped}\\2()`, 'g'),
+    new RegExp(`(\\bimport\\s+)(['"])${escaped}\\2()`, 'g'),
+    new RegExp(`(\\bimport\\(\\s*)(['"])${escaped}\\2(\\s*\\))`, 'g'),
+  ];
+  return patterns.reduce(
+    (text, pattern) => text.replace(
+      pattern,
+      (_match, prefix: string, quote: string, suffix: string) =>
+        `${prefix}${quote}${to}${quote}${suffix}`,
+    ),
+    source,
+  );
+}
+
+/**
+ * Correct the common generated-test mistake where a relative import climbs the
+ * wrong number of directories but otherwise names one exact root-relative file
+ * in the trusted base tree.
+ *
+ * This is deliberately narrower than module resolution: stripping the leading
+ * `./` and `../` segments must identify exactly one existing path (including
+ * the same extension/index variants used by the executability gate). Ambiguous
+ * or absent targets return null and leave the bounded model rewrite as the
+ * fallback. The caller re-runs both path safety and executability afterward.
+ */
+export function repairMisrootedRelativeImport(
+  files: StackedFile[],
+  failure: ExecutabilityResult,
+  repoTreePaths: Set<string> | null,
+): TrustedTreeImportRepair | null {
+  if (
+    failure.ok ||
+    failure.kind !== 'unresolved-import' ||
+    !failure.path ||
+    !failure.specifier ||
+    !(repoTreePaths instanceof Set)
+  ) {
+    return null;
+  }
+
+  // Only repair the observed wrong-depth shape. A missing `./local` import may
+  // be an omitted generated sibling, not an attempt to reach the repo root.
+  if (!failure.specifier.startsWith('../')) return null;
+  const rootRelative = failure.specifier.replace(/^(?:\.\.\/)+/, '');
+  if (!rootRelative || rootRelative.split('/').some(segment => segment === '.' || segment === '..')) {
+    return null;
+  }
+  const matches = [...new Set(
+    resolveJoinedCandidates(rootRelative)
+      .filter(candidate => repoTreePaths.has(candidate)),
+  )];
+  if (matches.length !== 1) return null;
+
+  const toSpecifier = relativeModuleSpecifier(failure.path, rootRelative);
+  if (toSpecifier === failure.specifier) return null;
+  const filesAfter = files.map(file => {
+    if (file.path !== failure.path) return file;
+    return {
+      ...file,
+      contents: replaceImportSpecifier(file.contents, failure.specifier!, toSpecifier),
+    };
+  });
+  const repaired = filesAfter.find(file => file.path === failure.path);
+  const original = files.find(file => file.path === failure.path);
+  if (!repaired || !original || repaired.contents === original.contents) return null;
+
+  return {
+    files: filesAfter,
+    path: failure.path,
+    fromSpecifier: failure.specifier,
+    toSpecifier,
+    matchedTreePath: matches[0],
+  };
 }
 
 export interface ExecutabilityEvidence {
@@ -253,6 +542,8 @@ export interface ExecutabilityEvidence {
   testMatchPatterns: string[] | null;
   /** Every path in the repo tree at the PR's base sha, or null if unknown (fetch failed/truncated). */
   repoTreePaths: Set<string> | null;
+  /** Whether the trusted package.json sets `type: module`; null when unavailable. */
+  packageTypeModule?: boolean | null;
 }
 
 /**
@@ -278,6 +569,7 @@ export function checkGeneratedTestsExecutable(
   if (!evidence.testMatchPatterns) {
     return {
       ok: false,
+      kind: 'missing-discovery-evidence',
       reason:
         "the repo's test-discovery configuration (jest testMatch) could not be found or parsed — " +
         'cannot verify these files would ever be discovered and run',
@@ -287,15 +579,45 @@ export function checkGeneratedTestsExecutable(
     if (!matchesAnyTestMatch(f.path, evidence.testMatchPatterns)) {
       return {
         ok: false,
+        kind: 'undiscoverable-path',
+        path: f.path,
         reason:
           `${f.path} is outside the repo's configured test discovery path ` +
           `(testMatch: ${evidence.testMatchPatterns.join(', ')}) — the test runner would never find it`,
       };
     }
   }
+  const foreignRunnerImports = new Set(['bun:test', 'node:test', 'vitest']);
+  for (const f of files) {
+    const incompatible = extractBareImports(f.contents).find(specifier =>
+      foreignRunnerImports.has(specifier),
+    );
+    if (incompatible) {
+      return {
+        ok: false,
+        kind: 'incompatible-runner',
+        path: f.path,
+        specifier: incompatible,
+        reason:
+          `${f.path} imports '${incompatible}', but the trusted discovery configuration routes ` +
+          `this file through Jest — the authored contract would fail in the runner before a test case executes`,
+      };
+    }
+    if (evidence.packageTypeModule === true && usesUnboundDirname(f.contents)) {
+      return {
+        ok: false,
+        kind: 'incompatible-runner',
+        path: f.path,
+        reason:
+          `${f.path} uses __dirname without declaring it in a package with type=module — ` +
+          `Jest would fail to load the authored contract before a test case executes`,
+      };
+    }
+  }
   if (!evidence.repoTreePaths) {
     return {
       ok: false,
+      kind: 'missing-tree-evidence',
       reason: "the repository file tree could not be fetched — cannot verify these files' imports resolve",
     };
   }
@@ -307,6 +629,9 @@ export function checkGeneratedTestsExecutable(
       if (!resolves) {
         return {
           ok: false,
+          kind: 'unresolved-import',
+          path: f.path,
+          specifier: spec,
           reason: `${f.path} imports '${spec}', which does not resolve to any file in the repository or in this authored set`,
         };
       }

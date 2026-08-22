@@ -12,7 +12,7 @@
  *   2. pd-hook-pre-tool EXIT 0 on an unlocked path and on the owner's own lock.
  *   3. pd-hook-post-tool flock-appends a PD_PHEROMONE_* into the matrix.
  *   4. pd-hook-prompt emits the seeded PD_ALERT_* + a relevant PD_PHEROMONE_*.
- *   5. ClaudeCliSquidAdapter.injectHooks wires the three tentacles into
+ *   5. ClaudeCliSquidAdapter.injectHooks wires the turn briefing and edit gate into
  *      .claude/settings.json with absolute paths.
  */
 
@@ -39,6 +39,7 @@ import {
   SQUID_HOOK_METADATA,
   SQUID_HOOK_PRIVACY_NOTICE,
   diagnoseSquidHookInstall,
+  hookCommandPath,
   tentaclePath,
 } from '../../lib/squid/adapter.js';
 import { handleSquid, installHeadlessSquidHooks } from '../../cli/commands/squid.js';
@@ -463,13 +464,13 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     const parsed = JSON.parse(r.stdout);
     expect(parsed.hookSpecificOutput.hookEventName).toBe('UserPromptSubmit');
     const ctx = parsed.hookSpecificOutput.additionalContext as string;
-    expect(ctx).toMatch(/STEERING ALERTS/);
+    expect(ctx).toMatch(/ACTIONABLE COORDINATION/);
     expect(ctx).toMatch(/stop and ack/);
     // /repo basename or path appears in the pheromone value → relevant → injected
     expect(ctx).toMatch(/deprecated v1_hook/);
   });
 
-  test('prompt envelope is fresh, exact-project scoped, and bounded to 12 entries / 4 KiB', () => {
+  test('default prompt envelope is fresh, exact-project scoped, and bounded to 2 entries / 512 bytes', () => {
     mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
     const fresh = new Date().toISOString();
     const stale = new Date(Date.now() - 31 * 60_000).toISOString();
@@ -488,8 +489,9 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
         ...process.env,
         PD_MATRIX_FILE: MATRIX,
         PD_HOME: dirname(MATRIX),
-        PD_SQUID_PROMPT_MAX_ENTRIES: '12',
-        PD_SQUID_PROMPT_MAX_BYTES: '4096',
+        // Spell out the documented defaults so this test proves the ordinary path.
+        PD_SQUID_PROMPT_MAX_ENTRIES: '2',
+        PD_SQUID_PROMPT_MAX_BYTES: '512',
       },
       encoding: 'utf8',
     });
@@ -501,13 +503,114 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     };
     expect(parsed.hookSpecificOutput.hookEventName).toBe('UserPromptSubmit');
     const ctx = parsed.hookSpecificOutput.additionalContext;
-    expect(Buffer.byteLength(ctx)).toBeLessThanOrEqual(4096);
-    // 12 matrix entries max; the standing "maintain an active pd plan" directive
-    // line is not a matrix entry and is excluded from the count.
-    const entries = ctx.split('\n').filter((line) => line.startsWith('- ') && !line.includes('pd plan'));
-    expect(entries).toHaveLength(12);
+    expect(Buffer.byteLength(ctx)).toBeLessThanOrEqual(512);
+    expect(Buffer.byteLength(r.stdout)).toBeLessThanOrEqual(640); // JSON framing only
+    const lines = ctx.trimEnd().split('\n');
+    expect(lines).toHaveLength(3); // one heading + two actionable facts
+    const entries = lines.filter((line) => line.startsWith('- '));
+    expect(entries).toHaveLength(2);
     expect(ctx).not.toContain('must-not-appear');
     expect(ctx).not.toContain('wrong-project');
+  });
+
+  test('callers cannot raise the hard prompt budget above 2 entries / 512 bytes', () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    const fresh = new Date().toISOString();
+    const detail = 'x'.repeat(280);
+    for (let i = 0; i < 4; i++) {
+      setKey(
+        `PD_PHEROMONE_RAISE_${i}`,
+        `${WORKSPACE}/src/raise-${i}.ts | ${detail}-${i} | ts:${fresh}`,
+      );
+    }
+
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: {
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        // Adversarial override: the product clamp must win over caller input.
+        PD_SQUID_PROMPT_MAX_ENTRIES: '12',
+        PD_SQUID_PROMPT_MAX_BYTES: '4096',
+      },
+      encoding: 'utf8',
+    });
+
+    expect(r.status).toBe(0);
+    const parsed = JSON.parse(r.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    };
+    const ctx = parsed.hookSpecificOutput.additionalContext;
+    expect(Buffer.byteLength(ctx)).toBeLessThanOrEqual(512);
+    expect(ctx.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(2);
+  });
+
+  test('non-numeric prompt budgets fall back to the hard 2-entry / 512-byte defaults', () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    const fresh = new Date().toISOString();
+    for (let i = 0; i < 4; i++) {
+      setKey(
+        `PD_PHEROMONE_INVALID_BUDGET_${i}`,
+        `${WORKSPACE}/src/invalid-budget-${i}.ts | ${'x'.repeat(280)}-${i} | ts:${fresh}`,
+      );
+    }
+
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: {
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SQUID_PROMPT_MAX_ENTRIES: 'not-a-number',
+        PD_SQUID_PROMPT_MAX_BYTES: 'NaN',
+      },
+      encoding: 'utf8',
+    });
+
+    expect(r.status).toBe(0);
+    const parsed = JSON.parse(r.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    };
+    const ctx = parsed.hookSpecificOutput.additionalContext;
+    expect(Buffer.byteLength(ctx)).toBeLessThanOrEqual(512);
+    expect(ctx.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(2);
+  });
+
+  test('prompt hook emits zero bytes when nothing actionable matches this project', () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    const fresh = new Date().toISOString();
+    writeFileSync(MATRIX, [
+      `PD_PHEROMONE_FOREIGN="${WORKSPACE}-copy/src/nope.ts | wrong-project | ts:${fresh}"`,
+      '',
+    ].join('\n'));
+
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX) },
+      encoding: 'utf8',
+    });
+
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+  });
+
+  test('healthy prompt hook no-op with no alerts or traces emits exactly zero bytes', () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# healthy matrix with no actionable coordination\n');
+
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: { ...process.env, PD_MATRIX_FILE: MATRIX, PD_HOME: dirname(MATRIX) },
+      encoding: 'utf8',
+    });
+
+    expect(r.status).toBe(0);
+    expect(r.signal).toBeNull();
+    expect(r.error).toBeUndefined();
+    expect(Buffer.byteLength(r.stdout)).toBe(0);
+    expect(Buffer.byteLength(r.stderr)).toBe(0);
   });
 
   test('prompt hook stays fast against a large, mostly-stale, mostly-foreign matrix', () => {
@@ -529,7 +632,7 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
       '',
     ];
     // Bulk of the noise: stale entries for an unrelated project, fleet-wide.
-    for (let i = 0; i < 3000; i++) {
+    for (let i = 0; i < 3167; i++) {
       lines.push(
         `PD_PHEROMONE_NOISE_${i}="/repo/other-project/src/file-${i}.ts | churn | intensity:1 | ts:${stale}"`,
       );
@@ -551,11 +654,49 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     const elapsedMs = Date.now() - start;
 
     expect(r.status).toBe(0);
-    expect(elapsedMs).toBeLessThan(5_000);
+    expect(r.signal).toBeNull();
+    expect(r.error).toBeUndefined();
+    expect(elapsedMs).toBeLessThan(2_000);
     const parsed = JSON.parse(r.stdout) as {
       hookSpecificOutput: { additionalContext: string };
     };
     expect(parsed.hookSpecificOutput.additionalContext).toContain('the fresh relevant one');
+    expect(parsed.hookSpecificOutput.additionalContext.trimEnd().split('\n')).toHaveLength(2);
+    expect(Buffer.byteLength(r.stdout)).toBeLessThanOrEqual(640);
+  });
+
+  test('prompt processing only inspects the newest SCAN_CAP matching matrix lines', () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    const fresh = new Date().toISOString();
+    const lines = Array.from({ length: 6 }, (_, index) => {
+      const position = index < 3 ? `outside-scan-cap-${index}` : `inside-scan-cap-${index}`;
+      return `PD_PHEROMONE_SCAN_${index}="${WORKSPACE}/src/${position}.ts | ${position} | ts:${fresh}"`;
+    });
+    writeFileSync(MATRIX, lines.join('\n') + '\n');
+
+    const r = spawnSync(bin('pd-hook-prompt'), [], {
+      input: JSON.stringify({ cwd: WORKSPACE }),
+      env: {
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SQUID_PROMPT_SCAN_CAP: '3',
+        PD_SQUID_PROMPT_MAX_ENTRIES: '2',
+      },
+      encoding: 'utf8',
+      timeout: 2_000,
+    });
+
+    expect(r.status).toBe(0);
+    expect(r.error).toBeUndefined();
+    const parsed = JSON.parse(r.stdout) as {
+      hookSpecificOutput: { additionalContext: string };
+    };
+    const ctx = parsed.hookSpecificOutput.additionalContext;
+    expect(ctx).not.toContain('outside-scan-cap');
+    expect(ctx).toContain('inside-scan-cap-3');
+    expect(ctx).toContain('inside-scan-cap-4');
+    expect(ctx).not.toContain('inside-scan-cap-5'); // output budget, independent of scan budget
   });
 
   test('post-tool compacts the pheromone tail once the matrix crosses MAX_LINES', () => {
@@ -696,7 +837,7 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
 });
 
 describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
-  test('wires the three tentacles into .claude/settings.json with absolute paths', async () => {
+  test('wires only the decision-bearing turn/edit tentacles with absolute paths', async () => {
     const adapter = new ClaudeCliSquidAdapter();
     expect(adapter.verified).toBe(true);
     await adapter.injectHooks(WORKSPACE);
@@ -706,13 +847,14 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     const settings = JSON.parse(readFileSync(settingsPath, 'utf8'));
 
     const cmd = (event: string) => settings.hooks[event][settings.hooks[event].length - 1].hooks[0].command;
-    expect(cmd('UserPromptSubmit')).toBe(tentaclePath('pd-hook-prompt'));
-    expect(cmd('PreToolUse')).toBe(tentaclePath('pd-hook-pre-tool'));
-    expect(cmd('PostToolUse')).toBe(tentaclePath('pd-hook-post-tool'));
+    expect(cmd('UserPromptSubmit')).toBe(hookCommandPath('pd-hook-prompt'));
+    expect(cmd('PreToolUse')).toBe(hookCommandPath('pd-hook-pre-tool'));
+    expect(cmd('UserPromptSubmit')).not.toContain('/Cellar/');
+    expect(settings.hooks.PostToolUse).toBeUndefined();
     // Absolute paths only (the CLI runs hooks from arbitrary cwds).
     expect(cmd('PreToolUse').startsWith('/')).toBe(true);
     const gate = settings.hooks.PreToolUse[settings.hooks.PreToolUse.length - 1];
-    expect(gate.hooks[0].statusMessage).toBe('◆ PD EDIT · checking ownership before mutation');
+    expect(gate.hooks[0].statusMessage).toBeUndefined();
     expect(gate.name).toBe(SQUID_HOOK_METADATA.preTool.displayName);
     expect(gate.description).toBe(SQUID_HOOK_METADATA.preTool.description);
     expect(gate.privacy).toBe(SQUID_HOOK_METADATA.preTool.privacy);
@@ -728,14 +870,43 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     );
     expect(pdEntries.length).toBe(1);
   });
+
+  test('injectHooks removes legacy PD PostToolUse and preserves the user hook beside it', async () => {
+    const settingsPath = join(WORKSPACE, '.claude', 'settings.json');
+    mkdirSync(dirname(settingsPath), { recursive: true });
+    writeFileSync(settingsPath, JSON.stringify({
+      hooks: {
+        PostToolUse: [
+          {
+            matcher: 'Edit|Write',
+            hooks: [{ type: 'command', command: tentaclePath('pd-hook-post-tool') }],
+          },
+          {
+            matcher: 'Write',
+            hooks: [{ type: 'command', command: '/usr/local/bin/user-audit' }],
+          },
+        ],
+      },
+    }));
+
+    await new ClaudeCliSquidAdapter().injectHooks(WORKSPACE);
+    const settings = JSON.parse(readFileSync(settingsPath, 'utf8'));
+    expect(settings.hooks.PostToolUse).toEqual([
+      {
+        matcher: 'Write',
+        hooks: [{ type: 'command', command: '/usr/local/bin/user-audit' }],
+      },
+    ]);
+    expect(JSON.stringify(settings)).not.toContain('pd-hook-post-tool');
+  });
 });
 
 describe('Giant Squid Harness — GeminiSquidAdapter.injectHooks', () => {
   // Gemini CLI (v0.36.0) reads settings.json `hooks` keyed by the GEMINI event
-  // names (BeforeTool/AfterTool/BeforeAgent), same {matcher, hooks:[{type,command}]}
+  // names (BeforeTool/BeforeAgent), same {matcher, hooks:[{type,command}]}
   // shape as Claude, with regex matchers over Gemini tool names. Confirmed by
   // reading the installed gemini bundle's EVENT_MAPPING + TOOL_NAME_MAPPING.
-  test('wires the three tentacles into .gemini/settings.json under Gemini event names', async () => {
+  test('wires only turn/direct-edit tentacles under Gemini event names', async () => {
     const adapter = new GeminiSquidAdapter();
     await adapter.injectHooks(WORKSPACE);
 
@@ -744,17 +915,15 @@ describe('Giant Squid Harness — GeminiSquidAdapter.injectHooks', () => {
     const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'));
 
     const cmd = (event: string) => cfg.hooks[event][cfg.hooks[event].length - 1].hooks[0].command;
-    expect(cmd('BeforeAgent')).toBe(tentaclePath('pd-hook-prompt'));
-    expect(cmd('BeforeTool')).toBe(tentaclePath('pd-hook-pre-tool'));
-    expect(cmd('AfterTool')).toBe(tentaclePath('pd-hook-post-tool'));
-    // The BeforeTool matcher must cover the Gemini edit/shell tool names.
+    expect(cmd('BeforeAgent')).toBe(hookCommandPath('pd-hook-prompt'));
+    expect(cmd('BeforeTool')).toBe(hookCommandPath('pd-hook-pre-tool'));
+    expect(cfg.hooks.AfterTool).toBeUndefined();
+    // The BeforeTool matcher covers direct edits but deliberately excludes shell.
     const matcher = cfg.hooks.BeforeTool[cfg.hooks.BeforeTool.length - 1].matcher as string;
     expect(matcher).toMatch(/replace/);
     expect(matcher).toMatch(/write_file/);
-    expect(matcher).toMatch(/run_shell_command/);
+    expect(matcher).not.toMatch(/run_shell_command/);
     expect(cmd('BeforeTool').startsWith('/')).toBe(true);
-    expect(cfg.hooks.AfterTool[cfg.hooks.AfterTool.length - 1].hooks[0].statusMessage)
-      .toBe('◆ PD TRACE · adding the outcome to fleet context');
     expect(cfg.hooks.BeforeTool[cfg.hooks.BeforeTool.length - 1].name).toBe(SQUID_HOOK_METADATA.preTool.displayName);
   });
 
@@ -764,7 +933,13 @@ describe('Giant Squid Harness — GeminiSquidAdapter.injectHooks', () => {
     // Seed a foreign hook + an unrelated setting that must survive.
     const seeded = {
       theme: 'dark',
-      hooks: { BeforeTool: [{ matcher: 'replace', hooks: [{ type: 'command', command: '/usr/bin/true' }] }] },
+      hooks: {
+        BeforeTool: [{ matcher: 'replace', hooks: [{ type: 'command', command: '/usr/bin/true' }] }],
+        AfterTool: [
+          { matcher: 'replace', hooks: [{ type: 'command', command: tentaclePath('pd-hook-post-tool') }] },
+          { matcher: 'replace', hooks: [{ type: 'command', command: '/usr/local/bin/user-after-tool' }] },
+        ],
+      },
     };
     writeFileSync(cfgPath, JSON.stringify(seeded));
 
@@ -779,6 +954,10 @@ describe('Giant Squid Harness — GeminiSquidAdapter.injectHooks', () => {
     expect(before.some((g: { hooks: { command: string }[] }) => g.hooks.some((h) => h.command === '/usr/bin/true'))).toBe(true);
     const pd = before.filter((g: { hooks: { command: string }[] }) => g.hooks.some((h) => h.command.includes('pd-hook-')));
     expect(pd.length).toBe(1);
+    expect(cfg.hooks.AfterTool).toEqual([
+      { matcher: 'replace', hooks: [{ type: 'command', command: '/usr/local/bin/user-after-tool' }] },
+    ]);
+    expect(JSON.stringify(cfg)).not.toContain('pd-hook-post-tool');
   });
 });
 
@@ -799,19 +978,18 @@ describe('Giant Squid Harness — CodexSquidAdapter.injectHooks', () => {
     expect(toml).toMatch(/\[\[hooks\.PreToolUse\]\]/);
     expect(toml).toMatch(/\[\[hooks\.PreToolUse\.hooks\]\]/);
     expect(toml).toMatch(/async = false/);
-    expect(toml).toMatch(new RegExp(`command = "${tentaclePath('pd-hook-pre-tool')}"`.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')));
-    // PostToolUse + UserPromptSubmit are present and synchronous. Codex skips
-    // command hooks configured with async=true.
-    expect(toml).toMatch(/\[\[hooks\.PostToolUse\]\]/);
+    expect(toml).toMatch(new RegExp(`command = "${hookCommandPath('pd-hook-pre-tool')}"`.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')));
+    expect(toml).not.toContain('/Cellar/');
+    // UserPromptSubmit is present; observational PostToolUse is deliberately absent.
+    expect(toml).not.toMatch(/\[\[hooks\.PostToolUse\]\]/);
     expect(toml).toMatch(/\[\[hooks\.UserPromptSubmit\]\]/);
     expect(toml).not.toMatch(/async = true/);
-    expect(toml).toContain('statusMessage = "◆ PD TURN · adding fresh coordination context"');
-    expect(toml).toContain('statusMessage = "◆ PD EDIT · checking ownership before mutation"');
-    expect(toml).toContain('statusMessage = "◆ PD TRACE · adding the outcome to fleet context"');
+    expect(toml).not.toContain('statusMessage');
+    expect(toml.match(/timeout = 1/g)).toHaveLength(2);
     expect(toml).toContain(SQUID_HOOK_PRIVACY_NOTICE);
     expect(toml).toContain(SQUID_HOOK_METADATA.prompt.displayName);
     expect(toml).toContain(SQUID_HOOK_METADATA.preTool.displayName);
-    expect(toml).toContain(SQUID_HOOK_METADATA.postTool.displayName);
+    expect(toml).not.toContain(SQUID_HOOK_METADATA.postTool.displayName);
   });
 
   test('injectHooks is idempotent (re-run does not duplicate the PD block)', async () => {
@@ -907,7 +1085,7 @@ describe('Giant Squid Harness — AntigravitySquidAdapter.injectHooks', () => {
     else process.env.GEMINI_DIR = savedGeminiDir;
   });
 
-  test('writes hooks.json into GeminiDir with the three tentacles (Claude event names)', async () => {
+  test('writes only turn/direct-edit hooks into GeminiDir', async () => {
     const adapter = new AntigravitySquidAdapter();
     await adapter.injectHooks(WORKSPACE);
 
@@ -915,9 +1093,9 @@ describe('Giant Squid Harness — AntigravitySquidAdapter.injectHooks', () => {
     expect(existsSync(cfgPath)).toBe(true);
     const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'));
     const cmd = (event: string) => cfg.hooks[event][cfg.hooks[event].length - 1].hooks[0].command;
-    expect(cmd('UserPromptSubmit')).toBe(tentaclePath('pd-hook-prompt'));
-    expect(cmd('PreToolUse')).toBe(tentaclePath('pd-hook-pre-tool'));
-    expect(cmd('PostToolUse')).toBe(tentaclePath('pd-hook-post-tool'));
+    expect(cmd('UserPromptSubmit')).toBe(hookCommandPath('pd-hook-prompt'));
+    expect(cmd('PreToolUse')).toBe(hookCommandPath('pd-hook-pre-tool'));
+    expect(cfg.hooks.PostToolUse).toBeUndefined();
     // The matcher must cover agy's edit tool names (write_to_file/replace_file_content).
     const matcher = cfg.hooks.PreToolUse[cfg.hooks.PreToolUse.length - 1].matcher as string;
     expect(matcher).toMatch(/write_to_file/);
@@ -931,7 +1109,13 @@ describe('Giant Squid Harness — AntigravitySquidAdapter.injectHooks', () => {
     mkdirSync(dirname(cfgPath), { recursive: true });
     writeFileSync(
       cfgPath,
-      JSON.stringify({ hooks: { PreToolUse: [{ matcher: 'Write', hooks: [{ type: 'command', command: '/usr/bin/true' }] }] } }),
+      JSON.stringify({ hooks: {
+        PreToolUse: [{ matcher: 'Write', hooks: [{ type: 'command', command: '/usr/bin/true' }] }],
+        PostToolUse: [
+          { matcher: 'Write', hooks: [{ type: 'command', command: tentaclePath('pd-hook-post-tool') }] },
+          { matcher: 'Write', hooks: [{ type: 'command', command: '/usr/local/bin/user-post-tool' }] },
+        ],
+      } }),
     );
     const adapter = new AntigravitySquidAdapter();
     await adapter.injectHooks(WORKSPACE);
@@ -941,6 +1125,10 @@ describe('Giant Squid Harness — AntigravitySquidAdapter.injectHooks', () => {
     expect(pre.some((g: { hooks: { command: string }[] }) => g.hooks.some((h) => h.command === '/usr/bin/true'))).toBe(true);
     const pd = pre.filter((g: { hooks: { command: string }[] }) => g.hooks.some((h) => h.command.includes('pd-hook-')));
     expect(pd.length).toBe(1);
+    expect(cfg.hooks.PostToolUse).toEqual([
+      { matcher: 'Write', hooks: [{ type: 'command', command: '/usr/local/bin/user-post-tool' }] },
+    ]);
+    expect(JSON.stringify(cfg)).not.toContain('pd-hook-post-tool');
   });
 });
 
@@ -1008,6 +1196,24 @@ describe('Giant Squid Harness — headless voyage adapter wiring', () => {
 });
 
 describe('Giant Squid command surface', () => {
+  test('unknown debug subcommands fail with the supported action list', async () => {
+    const log = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const error = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const previous = process.exitCode;
+    process.exitCode = undefined;
+    try {
+      await handleSquid(['debug', 'invalid'], {});
+      expect(process.exitCode).toBe(1);
+      const output = [...log.mock.calls, ...error.mock.calls].flat().join('\n');
+      expect(output).toContain('Unknown squid debug command: invalid');
+      expect(output).toContain('pd squid debug on|off|status|clear');
+    } finally {
+      process.exitCode = previous;
+      log.mockRestore();
+      error.mockRestore();
+    }
+  });
+
   test('removed pd squid hooks command fails and points to the canonical surfaces', async () => {
     const log = jest.spyOn(console, 'log').mockImplementation(() => undefined);
     const error = jest.spyOn(console, 'error').mockImplementation(() => undefined);

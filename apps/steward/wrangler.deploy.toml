@@ -24,6 +24,24 @@
 #       pull_requests:read + checks:read on this repo:
 #        wrangler secret put STEWARD_GITHUB_TOKEN
 #
+#   2c. Arm the landing hand (OPTIONAL — presence of this secret is the
+#       switch; without it every LAND verdict logs "seat holds no landing
+#       capability" and nothing merges). Mint a SEPARATE fine-grained PAT,
+#       scoped to this one repo, with Contents: Read+Write and
+#       Pull requests: Read+Write — and NO admin/bypass rights. Non-admin is
+#       load-bearing: GitHub refuses the merge whenever branch protection
+#       (required checks, reviews) is unsatisfied, so the charter's "never
+#       land over a real red" is enforced by the platform. This token is held
+#       by the seat and by nothing else — revoking it disarms landing without
+#       touching the survey eyes:
+#        wrangler secret put STEWARD_LAND_TOKEN
+#
+#       Protected paths (.github/workflows/, Formula/, core/kernel/,
+#       apps/relay/src/auth.ts, docs/adr/) additionally require a per-PR
+#       operator grant before the seat will land them:
+#        curl -X POST -H "Authorization: Bearer $STEWARD_ADMIN_TOKEN" \
+#          https://<worker>/steward/<owner>/<repo>/ship-it/<prNumber>
+#
 #   3. Deploy:
 #        wrangler deploy --config wrangler.deploy.toml
 
