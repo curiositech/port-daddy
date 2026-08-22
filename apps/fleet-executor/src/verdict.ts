@@ -141,6 +141,12 @@ export interface ShipResult {
    */
   errored: boolean;
   /**
+   * Bounded, redacted cause for an errored ship. This survives checkpoints and
+   * feeds the transcript/check summary; it must never contain prompts, request
+   * bodies, credentials, or a stack trace.
+   */
+  failureReason?: string;
+  /**
    * The ship produced NO USABLE OUTPUT — see src/usable-output.ts. This is a
    * third outcome, distinct from both PASS and BLOCK: the ship ran, but what
    * came back satisfied nothing its contract asked for, so it reviewed nothing.
