@@ -28,6 +28,11 @@
 import type { ExecutorEnv, FleetRunJob } from './env.js';
 import { executeFleet } from './execute.js';
 import { CheckRunCompletionError } from './github.js';
+import {
+  FleetAiDependencyError,
+  providerRetryDelaySeconds,
+  PROVIDER_MAX_DELIVERY_ATTEMPTS,
+} from './ai-resilience.js';
 import { handleDlqJob } from './dlq.js';
 import { recordDeliveryAttemptStart, recordDeliveryFailure } from './delivery-failure.js';
 import { flushSquidEvents } from './squid-events.js';
@@ -63,7 +68,10 @@ export default {
     }
 
     for (const message of batch.messages) {
-      const attempt = (message as unknown as { attempts?: number }).attempts ?? 0;
+      const reportedAttempt = (message as unknown as { attempts?: number }).attempts;
+      const attempt = Number.isInteger(reportedAttempt) && (reportedAttempt ?? 0) > 0
+        ? reportedAttempt as number
+        : 1;
       try {
         const intentDecision = await beginFleetIntentAttempt(env, message.body, attempt);
         if (intentDecision === 'skip') {
@@ -81,7 +89,7 @@ export default {
           message.body,
           attempt,
         );
-        const disposition = await executeFleet(message.body, env);
+        const disposition = await executeFleet(message.body, env, { queueAttempt: attempt });
         if (disposition?.kind === 'stale-head') {
           await markFleetIntentTerminal(
             env,
@@ -122,13 +130,29 @@ export default {
         }
         message.ack();
       } catch (err) {
+        const providerError = err instanceof FleetAiDependencyError ? err : null;
+        const providerDelaySeconds =
+          providerError?.failure.retryable
+            ? providerRetryDelaySeconds(
+                attempt,
+                Math.random,
+                providerError.failure.retryAfterSeconds,
+              )
+            : null;
+        const durableError = providerDelaySeconds == null
+          ? err
+          : new Error(
+              `${providerError?.message ?? 'Workers AI dependency unavailable'}; Workers AI circuit open on attempt ` +
+                `${attempt}/${PROVIDER_MAX_DELIVERY_ATTEMPTS}; queue retry scheduled in ` +
+                `${providerDelaySeconds}s`,
+            );
         // Recoverable infrastructure error — re-deliver. After max_retries the
         // platform routes this to fleet-runs-dlq, where the DLQ handler MUST
         // complete the (already-created) check run as 'failure'. Because the
         // check was created in_progress before any ship ran, a job lost here
         // never leaves a green or absent gate.
         console.error(
-          `[fleet-executor] delivery=${message.body?.deliveryId} retry: ${String(err)}`,
+          `[fleet-executor] delivery=${message.body?.deliveryId} retry: ${String(durableError)}`,
         );
         // Persist WHY before retrying. A Worker console line does not survive
         // the run, so without this the only artifact a dead-lettered job leaves
@@ -138,11 +162,13 @@ export default {
           env,
           message.body,
           attempt,
-          err,
+          durableError,
         );
-        await markFleetIntentRetrying(env, message.body, attempt, err);
+        await markFleetIntentRetrying(env, message.body, attempt, durableError);
         if (err instanceof CheckRunCompletionError && err.retryAfterSeconds) {
           message.retry({ delaySeconds: err.retryAfterSeconds });
+        } else if (providerDelaySeconds != null) {
+          message.retry({ delaySeconds: providerDelaySeconds });
         } else {
           message.retry();
         }

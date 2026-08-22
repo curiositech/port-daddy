@@ -19,8 +19,8 @@ function seedToken(kv: KVNamespace, installationId: number): void {
   );
 }
 
-function fakeMessage(body: FleetRunJob) {
-  return { id: 'm1', timestamp: new Date(), body, ack: vi.fn(), retry: vi.fn() };
+function fakeMessage(body: FleetRunJob, attempts = 1) {
+  return { id: 'm1', timestamp: new Date(), body, attempts, ack: vi.fn(), retry: vi.fn() };
 }
 
 function fakeBatch(messages: ReturnType<typeof fakeMessage>[]) {
@@ -266,6 +266,85 @@ describe('queue consumer', () => {
 
     expect(msg.retry).toHaveBeenCalledWith({ delaySeconds: 120 });
     expect(msg.ack).not.toHaveBeenCalled();
+  });
+
+  it('opens the Workers AI circuit and retries the delivery with bounded jitter', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      [
+        'fleet:',
+        '  agents:',
+        '    qa:',
+        '      trigger: pull_request:opened',
+        '      fallbacks:',
+        "        - backend: cloudflare",
+        "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
+        '      prompt: review this diff',
+        '',
+      ].join('\n'),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = {
+      run: vi.fn(async () => {
+        throw Object.assign(new Error('no capacity'), { status: 429, code: 3040 });
+      }),
+    } as unknown as Ai;
+    const msg = fakeMessage(makeJob(), 1);
+
+    await handler.queue!(
+      fakeBatch([msg]),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai }),
+      capturingCtx(),
+    );
+
+    expect(msg.ack).not.toHaveBeenCalled();
+    expect(msg.retry).toHaveBeenCalledTimes(1);
+    const delay = (msg.retry.mock.calls[0]?.[0] as { delaySeconds?: number })?.delaySeconds;
+    expect(delay).toBeGreaterThanOrEqual(1);
+    expect(delay).toBeLessThanOrEqual(15);
+    // One model call, then the circuit owns the retry. No local retry fan-out.
+    expect(ai.run).toHaveBeenCalledTimes(1);
+    expect(state.completed).toHaveLength(0);
+  });
+
+  it('stops after three provider attempts and completes neutral as a fleet fault', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      [
+        'fleet:',
+        '  agents:',
+        '    qa:',
+        '      trigger: pull_request:opened',
+        '      fallbacks:',
+        "        - backend: cloudflare",
+        "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
+        '      prompt: review this diff',
+        '',
+      ].join('\n'),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = {
+      run: vi.fn(async () => {
+        throw Object.assign(new Error('no capacity'), { status: 429, code: 3040 });
+      }),
+    } as unknown as Ai;
+    const msg = fakeMessage(makeJob(), 3);
+
+    await handler.queue!(
+      fakeBatch([msg]),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai }),
+      capturingCtx(),
+    );
+
+    expect(msg.retry).not.toHaveBeenCalled();
+    expect(msg.ack).toHaveBeenCalledTimes(1);
+    expect(ai.run).toHaveBeenCalledTimes(1);
+    expect(state.completed[0]?.conclusion).toBe('neutral');
+    expect(state.completed[0]?.summary).toContain('HTTP 429, code 3040');
+    expect(state.completed[0]?.summary).toContain('adjudicated FLEET-WIDE fault');
+    expect(state.completed[0]?.summary).toContain('not gating this PR');
   });
 });
 

@@ -162,3 +162,53 @@ describe('stage 3 — persistent EPIDEMIC breakage gates the fleet, not the PR',
     expect(state.completed[0].summary).toContain('#5150');
   });
 });
+
+describe('direct provider evidence — exhausted circuit gates the fleet immediately', () => {
+  it('persists the cause, skips remaining ships, and completes neutral after attempt three', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      [
+        'fleet:',
+        '  agents:',
+        '    qa:',
+        '      trigger: pull_request:opened',
+        '      fallbacks:',
+        "        - backend: cloudflare",
+        "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
+        '      prompt: review tests',
+        '    code-reviewer:',
+        '      trigger: pull_request:opened',
+        '      fallbacks:',
+        "        - backend: cloudflare",
+        "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
+        '      prompt: review code',
+        '',
+      ].join('\n'),
+    );
+    const kv = memoryKV();
+    seedToken(kv);
+    const d1 = memoryD1();
+    const ai = {
+      run: vi.fn(async () => {
+        throw Object.assign(new Error('capacity unavailable'), { status: 429, code: 3040 });
+      }),
+    } as unknown as Ai;
+
+    await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai, DB: d1.db }),
+      { queueAttempt: 3 },
+    );
+
+    expect(ai.run).toHaveBeenCalledTimes(1);
+    expect(state.completed[0]?.conclusion).toBe('neutral');
+    const error = d1.steps.find(step => step.kind === 'ship-error');
+    expect(error?.title).toContain('HTTP 429, code 3040');
+    const circuit = d1.steps.find(step => step.kind === 'provider-circuit-open');
+    expect(circuit?.title).toContain('1 remaining ship(s) skipped');
+    expect(String(circuit?.detail)).toContain('code');
+    const adjudicated = d1.steps.find(step => step.kind === 'ship-adjudicated');
+    expect(adjudicated?.title).toContain('FLEET-WIDE');
+    expect(adjudicated?.title).toContain('not gating this PR');
+  });
+});
