@@ -26,6 +26,9 @@
  *   GET  /account/parleys/:ns/:name             (HTML parley list; session + member)
  *   GET  /account/parleys/:ns/:name/:id         (HTML parley detail; session + member)
  *   POST /account/parleys/:ns/:name/:id/sign    (plain form sign; same-origin)
+ *   GET  /account/harbors                       (HTML harbors list; session; own memberships only)
+ *   GET  /account/harbors/:ns/:name             (HTML harbor detail; session + member;
+ *                                                presence + reachability verdict)
  *   GET  /account/shipwright                    (HTML Shipwright chat; session;
  *                                                the ONE page with inline JS —
  *                                                nonce-scoped CSP)
@@ -121,6 +124,7 @@ import {
   handleParleyDetailPage,
   handleParleySignForm,
 } from './parleys-page.js';
+import { handleHarborsPage, handleHarborDetailPage } from './harbors-page.js';
 import { handleRunsPage } from './runs-page.js';
 import { handleShipwrightPage } from './shipwright-page.js';
 import {
@@ -349,6 +353,21 @@ export default {
         response = await handleParleyDetailPage(request, env, pns, pname, pid);
       } else if (pns && pname && pid && seg.length === 4 && pverb === 'sign' && method === 'POST') {
         response = await handleParleySignForm(request, env, pns, pname, pid);
+      } else {
+        response = new Response('Not Found', { status: 404 });
+      }
+    }
+
+    // ── Harbors HTML surface (session + member gated; harbors-page.ts) ───────
+    // /account/harbors           → every harbor this account belongs to
+    // /account/harbors/:ns/:name → members + presence + reachability verdict
+    else if (pathname === '/account/harbors' && method === 'GET') {
+      response = await handleHarborsPage(request, env);
+    } else if (pathname.startsWith('/account/harbors/')) {
+      const seg = pathname.slice('/account/harbors/'.length).split('/').filter(Boolean).map(decodeURIComponent);
+      const [hns, hname] = seg;
+      if (hns && hname && seg.length === 2 && method === 'GET') {
+        response = await handleHarborDetailPage(request, env, hns, hname);
       } else {
         response = new Response('Not Found', { status: 404 });
       }

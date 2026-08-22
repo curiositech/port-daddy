@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **portdaddy.dev harbors section (WS-E slices E1/E2).** The logged-in account gains a harbors list and per-harbor detail — members, device last-seen, and a reachability verdict (`possible | degraded | impossible | unknown`) derived from HarborChannel presence TTL — server-rendered on the relay origin in the house pattern. Degrades in place with stale chips rather than splash-blocking. Every query is scoped to the viewer's own memberships, and a harbor you are not a member of is indistinguishable from one that does not exist: no existence oracle, pinned by test.
+
 ## [3.28.2] - 2026-08-18
 
 ## [3.28.1] - 2026-08-18
