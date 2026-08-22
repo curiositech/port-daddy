@@ -132,6 +132,46 @@
     "oom-protection.test.ts": {
       "runner": "quarantined",
       "reason": "vitest + apps/fleet-executor/src; belongs in apps/fleet-executor"
+    },
+    "changelog-test.ts": {
+      "runner": "quarantined",
+      "reason": "written for bun:test -- neither the jest purser project nor node --test can load bun: modules; the bun lane is tests/bun (npm run test:bun) and this file was never wired there"
+    },
+    "figure-layout-test.ts": {
+      "runner": "quarantined",
+      "reason": "written for bun:test (unloadable here) and imports website-v2/scripts/check-figure-layout.mjs, a script that does not exist in any commit -- broken by construction"
+    },
+    "figure-palette-test.ts": {
+      "runner": "quarantined",
+      "reason": "written for bun:test -- jest and node --test cannot load bun: modules; the palette contract it targets is enforced by website-v2/scripts/check-figure-palette.mjs in the website build lane"
+    },
+    "metadata-validation-test.ts": {
+      "runner": "quarantined",
+      "reason": "written for bun:test (unloadable under either runner here) against website-v2/scripts/check-whitepaper-metadata.ts, whose contract runs in the website-v2 lane, not the purser runners"
+    },
+    "sha256-validation-test.ts": {
+      "runner": "quarantined",
+      "reason": "written for bun:test -- bun: modules cannot load under jest or node --test; SHA-256 integrity of the whitepaper artifacts is asserted by tests/purser/whitepaper-hashes.test.js, which does run (jest)"
+    },
+    "validate-changelog.test.ts": {
+      "runner": "quarantined",
+      "reason": "written for vitest and imports '../../src/data/whitePapers' -- a repo-root src/ that does not exist (the module lives in website-v2/src/data) -- authored for a website-v2 test root it never lived in"
+    },
+    "validate-figure-maturity.test.ts": {
+      "runner": "quarantined",
+      "reason": "written for vitest (bare `expect` import from vitest) -- belongs in website-v2, which has its own vitest config; neither purser runner provides vitest globals"
+    },
+    "validate-figure-palette.test.ts": {
+      "runner": "quarantined",
+      "reason": "written for vitest -- belongs in website-v2's vitest suite; the same palette rules are enforced by website-v2/scripts/check-figure-palette.mjs in the website build"
+    },
+    "validate-metadata.test.ts": {
+      "runner": "quarantined",
+      "reason": "written for vitest and imports '../../src/data/whitePapers', which resolves to a nonexistent repo-root src/ -- cannot initialize under any runner wired to tests/purser"
+    },
+    "validate-sha256.test.ts": {
+      "runner": "quarantined",
+      "reason": "written for vitest -- vitest is not a purser runner; committed-artifact hash integrity is already asserted by the routed tests/purser/whitepaper-hashes.test.js"
     }
   }
 }
