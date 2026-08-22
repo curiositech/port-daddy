@@ -899,6 +899,62 @@ describe('CLI Integration Tests', () => {
   // Flag Alternatives (v3.6)
   // =========================================================================
   describe('Flag Alternatives (v3.6)', () => {
+    test('pd plan set preserves a quoted Markdown checklist that starts with a dash', async () => {
+      const sessionResult = runCli([
+        'session',
+        'start',
+        'Plan Markdown payload test',
+        '--lifecycle',
+        'durable',
+        '--json',
+      ]);
+      expect(sessionResult.success).toBe(true);
+      const sessionData = JSON.parse(sessionResult.stdout);
+      const checklist = '- [ ] Preserve "quotes" and \\ paths\n- [x] Read it back exactly';
+
+      try {
+        const setResult = runCli(['plan', 'set', checklist, '--session', sessionData.id]);
+        expect(setResult.success).toBe(true);
+        expect(setResult.stdout).toContain('Plan updated');
+
+        const notesResult = await requestWithRetry(`/sessions/${sessionData.id}/notes?type=todo_list`);
+        expect(notesResult.ok).toBe(true);
+        expect(notesResult.data.notes.at(-1).content).toBe(checklist);
+      } finally {
+        runCli(['session', 'rm', sessionData.id]);
+      }
+    });
+
+    test('pd plan set preserves the first checklist positional after preceding flags', async () => {
+      const sessionResult = runCli([
+        'session',
+        'start',
+        'Plan Markdown flags-first test',
+        '--lifecycle',
+        'durable',
+        '--json',
+      ]);
+      expect(sessionResult.success).toBe(true);
+      const sessionData = JSON.parse(sessionResult.stdout);
+      const checklist = '- [ ] Flags may precede this payload';
+
+      try {
+        const setResult = runCli(['plan', 'set', '--session', sessionData.id, checklist]);
+        expect(setResult.success).toBe(true);
+
+        const notesResult = await requestWithRetry(`/sessions/${sessionData.id}/notes?type=todo_list`);
+        expect(notesResult.ok).toBe(true);
+        expect(notesResult.data.notes.at(-1).content).toBe(checklist);
+      } finally {
+        runCli(['session', 'rm', sessionData.id]);
+      }
+    });
+
+    test('pd plan set does not special-case a malformed checklist marker', () => {
+      const result = runCli(['plan', 'set', '- [x]missing-space-after-marker']);
+      expect(result.success).toBe(false);
+    });
+
     test('pd begin --purpose works as flag alternative to positional', () => {
       const result = runCli(['begin', '--purpose', 'Flag alternative test', '--lifecycle', 'durable', '-q']);
       expect(result.success).toBe(true);
@@ -907,6 +963,104 @@ describe('CLI Integration Tests', () => {
       // Cleanup
       const agentId = result.stdout.trim();
       runCli(['done', '--agent', agentId]);
+    });
+
+    test('pd begin --files greedily claims every following path', () => {
+      const slot = `variadic-files-${Date.now()}`;
+      const files = [
+        `coord/${slot}-a.ts`,
+        `coord/${slot}-b.ts`,
+        `coord/${slot}-c.ts`,
+      ];
+      try {
+        const result = runCli([
+          'begin',
+          'Variadic file claim regression',
+          '--identity', 'port-daddy:test:variadic-files',
+          '--files', ...files,
+          '--lifecycle', 'durable',
+          '--sidequest', 'integration parser regression coverage',
+          '--json',
+        ], { env: { PORT_DADDY_CONTEXT_SLOT: slot, PD_RENT_EXEMPT: '' } });
+
+        expect(result.success).toBe(true);
+        const data = JSON.parse(result.stdout);
+        expect(data.fileClaims).toEqual(expect.arrayContaining(files));
+        expect(data.fileClaims).toHaveLength(files.length);
+
+        const done = runCli([
+          'done',
+          'Result: variadic file parsing verified. not-applicable: integration test cleanup',
+          '--session', data.sessionId,
+          '--skip-origin-check', '--reason', 'variadic files integration test',
+          '--json',
+        ], { env: { PORT_DADDY_CONTEXT_SLOT: slot } });
+        expect(done.success).toBe(true);
+      } finally {
+        clearTestCurrentContext(slot);
+      }
+    });
+
+    test('pd begin accumulates repeated --files groups around other options', () => {
+      const slot = `repeated-variadic-files-${Date.now()}`;
+      const files = [
+        `coord/${slot}-a.ts`,
+        `coord/${slot}-b.ts`,
+      ];
+      try {
+        const result = runCli([
+          'begin',
+          'Repeated variadic file claim regression',
+          '--identity', 'port-daddy:test:repeated-variadic-files',
+          '--files', files[0],
+          '--lifecycle', 'durable',
+          '--files', files[1],
+          '--sidequest', 'integration parser regression coverage',
+          '--json',
+        ], { env: { PORT_DADDY_CONTEXT_SLOT: slot, PD_RENT_EXEMPT: '' } });
+
+        expect(result.success).toBe(true);
+        const data = JSON.parse(result.stdout);
+        expect(data.fileClaims).toEqual(expect.arrayContaining(files));
+        expect(data.fileClaims).toHaveLength(files.length);
+
+        const done = runCli([
+          'done',
+          'Result: repeated variadic file parsing verified. not-applicable: integration test cleanup',
+          '--session', data.sessionId,
+          '--skip-origin-check', '--reason', 'repeated variadic files integration test',
+          '--json',
+        ], { env: { PORT_DADDY_CONTEXT_SLOT: slot } });
+        expect(done.success).toBe(true);
+      } finally {
+        clearTestCurrentContext(slot);
+      }
+    });
+
+    test('pd begin --files without a path fails loudly', () => {
+      const result = runCli([
+        'begin',
+        'Missing variadic file value',
+        '--files',
+        '--lifecycle', 'durable',
+        '--sidequest', 'integration parser regression coverage',
+      ]);
+
+      expect(result.success).toBe(false);
+      expect(result.stderr + result.stdout).toContain('--files requires at least one path');
+    });
+
+    test('pd begin --files with an empty path fails loudly', () => {
+      const result = runCli([
+        'begin',
+        'Empty variadic file value',
+        '--files', '',
+        '--lifecycle', 'durable',
+        '--sidequest', 'integration parser regression coverage',
+      ]);
+
+      expect(result.success).toBe(false);
+      expect(result.stderr + result.stdout).toContain('--files requires at least one path');
     });
 
     test('pd begin -P works as short flag', () => {

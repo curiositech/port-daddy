@@ -263,10 +263,27 @@ run_read "hints"             hints       -- hints
 run_ok   "use stable"        use         -- use stable
 run_ok   "dev list"          dev         -- dev list
 
-# --help routing regression (HELP_TOPIC_ALIASES): a messaging-family command must
-# resolve to the messaging TOPIC, not silently fall through to the global help.
-__help_out="$(cli inbox --help 2>&1 || true)"
-if printf '%s' "$__help_out" | grep -q 'Direct durable messages'; then
+# Exercise every help resolution path and require a successful exit. A crash or
+# a fallthrough to the global "Get started:" page is not verb help.
+for __verb in session claim attention roster sitrep squid; do
+  if __help_out="$(cli "$__verb" --help 2>&1)"; then __help_rc=0; else __help_rc=$?; fi
+  __help_first="$(printf '%s' "$__help_out" | head -1)"
+  if [ "$__help_rc" -ne 0 ]; then
+    fail "$__verb --help -> verb help" "exited $__help_rc: $__help_first"
+  elif [ -z "$__help_out" ]; then
+    fail "$__verb --help -> verb help" "printed nothing"
+  elif printf '%s' "$__help_first" | grep -q 'Get started:'; then
+    fail "$__verb --help -> verb help" "fell through to global help: $__help_first"
+  else
+    pass "$__verb --help -> verb help (not global help)"
+  fi
+done
+
+# The messaging topic's reliability warning is important enough to pin exactly.
+if __help_out="$(cli inbox --help 2>&1)"; then __help_rc=0; else __help_rc=$?; fi
+if [ "$__help_rc" -ne 0 ]; then
+  fail "inbox --help -> messaging topic" "exited $__help_rc: $(printf '%s' "$__help_out" | head -1)"
+elif printf '%s' "$__help_out" | grep -q 'Direct durable messages'; then
   pass "inbox --help -> messaging topic (not global help)"
 else
   fail "inbox --help -> messaging topic" "got: $(printf '%s' "$__help_out" | head -1)"

@@ -40,7 +40,7 @@ export interface ClaudeCodexBridgeOptions {
   cwd?: string;
   host?: string;
   port?: number;
-  timeoutMs?: number;
+  deadlineMs?: number;
   authToken?: string | null;
   codexModel?: string;
   modelAliases?: Record<string, string>;
@@ -87,7 +87,6 @@ interface BridgeModelAlias {
   to: string;
 }
 
-const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const BRIDGE_MODEL = 'codex-via-giant-squid';
 const GENERATED_TOKEN_BYTES = 24;
 export const DEFAULT_SQUID_MAX_REQUEST_BYTES = 8 * 1024 * 1024;
@@ -204,7 +203,7 @@ async function runCodex(
     cli: 'codex',
     prompt: invocation.prompt,
     cwd: options.cwd || process.cwd(),
-    timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    timeoutMs: options.deadlineMs,
     env: options.env,
     model: invocation.codexModel,
     codexConfig: invocation.codexConfig,
@@ -317,7 +316,7 @@ async function writeStreamResponse(
       cli: 'codex',
       prompt: invocation.prompt,
       cwd: options.cwd || process.cwd(),
-      timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+      timeoutMs: options.deadlineMs,
       env: options.env,
       model: invocation.codexModel,
       codexConfig: invocation.codexConfig,

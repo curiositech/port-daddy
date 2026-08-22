@@ -159,17 +159,11 @@ files held by which other sessions. Then:
    claim holder, or post in the project channel. Resolve by file
    partition, symbol partition, or merge order — never by force.
 
-`PD_SHIM_OFF=1 git <verb>` exists as an emergency escape (recovery,
-guard debugging, the rare integration commit the user explicitly
-sanctions). Using it without explicit user direction is the same class
-of mistake as `--no-verify` on commit hooks: it bypasses a safety the
-user installed deliberately. If the shim is wrong about your situation,
-fix the guard input (claim more files; release a stale claim; explain
-why with a `pd note`); do not disable the shim.
-
-If you ever catch yourself typing `PD_SHIM_OFF=1` reflexively, stop and
-read the refusal again. It is almost always pointing at a real
-coordination problem, not at itself.
+Agents have no self-authorized in-band escape. If the shim is wrong about
+your situation, fix the guard input (claim more files, release a stale
+claim, or explain the exception with a `pd note`). If the refusal remains
+factually wrong, publish exact evidence to `coordination:inconsistency` and
+surface the blocker to the operator; do not disable or route around the shim.
 
 ## See also
 
