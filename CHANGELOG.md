@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **The Helmsman program is chartered: a planned autonomous roadmap execution agent with an operator experience designed around consent, steering, and honest controls.** `docs/proposals/pd-helmsman.md` plus ADR-0121 (Helmsman charter and trust ladder), ADR-0122 (merge authority reconciled to five authorized landing paths with a detective audit), ADR-0123 (GitHub issue lifecycle: ideation-ship redirect, operator-fired mass closure, batch mining), and ADR-0124 (control-command ingress closing binder CR-1/CR-2, plus a single four-state consent transport with cost on every card). The binder Architect-of-Record ledger restarts as committed files under `docs/architecture/agent-harbor-technical-binder/aor-log/`, and `docs/roadmap/AUTHORITY.md` declares the four additive roadmap-item fields the program rides on. Planning documents only — no runtime behavior changes in this slice.
+
 ### Fixed
 - **Release supervision and promotion now enforce the supported single-supervisor boundary end to end.** `pd doctor` keeps optional legacy Bosun state visible without treating its deliberate v3.28+ absence as a critical defect, while redirected doctor targets no longer borrow canonical launchd or registry evidence. Release CI omits the retired watchdog build, attests both sealed platform archives, and waits for the Homebrew tap's credential-independent, evidence-verified self-promotion instead of relying on a fragile cross-repository write token.
 

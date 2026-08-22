@@ -37,6 +37,30 @@ every narrative mention carries `link:<slug>` or a one-line `optout:<reason>`.
    count = export count (±0) against the table, and every narrative item links
    or opts out. Reconciliation cadence ≤ 14 days.
 
+## Item shape extension (declared 2026-08-22, helmsman lane)
+
+The pd-helmsman program (ADR-0121, `docs/proposals/pd-helmsman.md`) extends the
+registry-authority item with **four additive, nullable fields**, delivered by the
+`roadmap-schema-wiring` item:
+
+| Field | Purpose |
+|-------|---------|
+| `body_md` | long-form rationale/evidence prose (ends the one-paragraph ceiling) |
+| `evidence_json` | progress evidence: `{pr\|commit\|receipt, ref}` entries |
+| `source_refs_json` | typed provenance: `doc:<path>#<anchor>`, `adr:NNNN`, `issue:#N`, `binder:chNN`, `binder:mN` |
+| `execution_json` | the autonomous-execution contract: `acceptanceGate`, `budgetUsd`, `class` — required for Helmsman eligibility |
+
+The same slice fixes two standing integrity defects in this doc's own rules: the
+snapshot exporter's **full-overwrite** (violating rule 1's append-only projection)
+and the **harbor-filter count divergence** (rule 2's counter bug), and stops the
+projection dropping `dependencies`.
+
+Status note: the `link:<slug>` / `optout:<reason>` at-rest mechanism described
+above remains **unimplemented in code** — the only enforced join is still the
+PR-body trailer gate (`lib/roadmap-link-core.ts`). At-rest linkage is tracked by
+`roadmap-schema-wiring` (fields) + `roadmap-doc-harvest` (backfill); do not cite
+this doc as evidence that narrative links are checked at rest today.
+
 ## Ownership boundary
 
 This is a **doc-authority declaration** authored by the docdrift lane. The
