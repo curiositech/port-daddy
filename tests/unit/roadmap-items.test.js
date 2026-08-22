@@ -314,3 +314,93 @@ describe('remove', () => {
     expect(roadmap.get('shared', 'port-daddy')?.summaryMd).toBe('real');
   });
 });
+
+describe('planner columns (ADR-0086)', () => {
+  test('round-trips kind, priority, assignee, description, dates, and estimate', () => {
+    const dueAt = 1_700_900_000_000;
+    const startedAt = 1_700_100_000_000;
+    const item = roadmap.upsert({
+      slug: 'relay-hardening',
+      summaryMd: 'Harden relay reconnect storms.',
+      status: 'now',
+      harbor: 'fleet',
+      kind: 'epic',
+      priority: 2,
+      assigneeId: 'agent-navigator',
+      descriptionMd: 'Full body markdown.\n\nWith paragraphs.',
+      startedAt,
+      dueAt,
+      estimate: 5,
+    });
+    expect(item.kind).toBe('epic');
+    expect(item.priority).toBe(2);
+    expect(item.assigneeId).toBe('agent-navigator');
+    expect(item.descriptionMd).toContain('With paragraphs');
+    expect(item.startedAt).toBe(startedAt);
+    expect(item.dueAt).toBe(dueAt);
+    expect(item.estimate).toBe(5);
+
+    const fetched = roadmap.get('relay-hardening', 'fleet');
+    expect(fetched.kind).toBe('epic');
+    expect(fetched.estimate).toBe(5);
+    expect(fetched.dueAt).toBe(dueAt);
+  });
+
+  test('defaults kind=task and priority=3 when omitted', () => {
+    const item = roadmap.upsert({ slug: 'plain', summaryMd: 'no planner fields', harbor: 'fleet' });
+    expect(item.kind).toBe('task');
+    expect(item.priority).toBe(3);
+    expect(item.estimate).toBeNull();
+    expect(item.assigneeId).toBeNull();
+  });
+
+  test('an upsert that omits planner fields preserves the stored values', () => {
+    roadmap.upsert({
+      slug: 'sized',
+      summaryMd: 'sized item',
+      harbor: 'fleet',
+      kind: 'story',
+      priority: 1,
+      estimate: 8,
+      assigneeId: 'agent-x',
+    });
+    // A partial writer (e.g. promote/import re-touching the row) sends only
+    // slug+summary; sizing recorded by another surface must survive.
+    const after = roadmap.upsert({ slug: 'sized', summaryMd: 'sized item (retitled)', harbor: 'fleet' });
+    expect(after.kind).toBe('story');
+    expect(after.priority).toBe(1);
+    expect(after.estimate).toBe(8);
+    expect(after.assigneeId).toBe('agent-x');
+  });
+
+  test('clamps out-of-band priority and rejects garbage estimates as null', () => {
+    const item = roadmap.upsert({
+      slug: 'weird',
+      summaryMd: 'weird numbers',
+      harbor: 'fleet',
+      priority: 99,
+      estimate: -4,
+    });
+    expect(item.priority).toBe(5); // saturates to the lowest legal rung
+    expect(item.estimate).toBeNull(); // negative effort is absence, not poison
+  });
+
+  test('explicit null clears assignee and estimate on an existing row', () => {
+    roadmap.upsert({
+      slug: 'clearable',
+      summaryMd: 'assigned',
+      harbor: 'fleet',
+      assigneeId: 'agent-y',
+      estimate: 3,
+    });
+    const cleared = roadmap.upsert({
+      slug: 'clearable',
+      summaryMd: 'assigned',
+      harbor: 'fleet',
+      assigneeId: null,
+      estimate: null,
+    });
+    expect(cleared.assigneeId).toBeNull();
+    expect(cleared.estimate).toBeNull();
+  });
+});
