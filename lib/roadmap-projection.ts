@@ -7,7 +7,7 @@
  *
  *   1. web    — the relay account page home (apps/relay/src/account-page.ts)
  *   2. console — pd-console's roadmap-home pane (core/pd-console)
- *   3. iOS    — the Port Daddy iOS app's home screen (apps/ios)
+ *   3. iOS    — the Port Daddy iOS app's home screen (apps/pd-ios)
  *
  * PARSIMONY LAW: those surfaces render THIS projection — they never re-derive
  * roadmap state from roadmap_items / claims / dispatches themselves. One
