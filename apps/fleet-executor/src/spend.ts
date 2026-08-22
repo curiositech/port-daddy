@@ -22,10 +22,20 @@ export interface WorkersAiRate {
   output: number;
 }
 
-/** Cloudflare Workers AI rates, keyed by exact `@cf/...` model id. */
+/**
+ * Cloudflare Workers AI rates, keyed by exact `@cf/...` model id.
+ *
+ * Every id in fleet.ts's KNOWN_GOOD_CF_MODELS must have a row here (admission
+ * contract; map-reduce-invariants.test.ts enforces it) — an honored model
+ * without a rate meters $0, which is how the purser's gpt-oss-20b author
+ * calls rode invisibly for a week. Rates verified against
+ * developers.cloudflare.com/workers-ai/platform/pricing on 2026-08-22.
+ */
 export const WORKERS_AI_RATES: Record<string, WorkersAiRate> = {
   '@cf/openai/gpt-oss-120b': { input: 0.35, output: 0.75 },
+  '@cf/openai/gpt-oss-20b': { input: 0.2, output: 0.3 },
   '@cf/qwen/qwen3-30b-a3b-fp8': { input: 0.051, output: 0.335 },
+  '@cf/moonshotai/kimi-k2.7-code': { input: 0.95, output: 4.0 },
 };
 
 /**
@@ -48,7 +58,11 @@ export const WORKERS_AI_RATES: Record<string, WorkersAiRate> = {
  */
 export const MODEL_CONTEXT_TOKENS: Record<string, number> = {
   '@cf/openai/gpt-oss-120b': 128_000,
+  '@cf/openai/gpt-oss-20b': 128_000,
   '@cf/qwen/qwen3-30b-a3b-fp8': 32_768,
+  // 262.1k per the model catalog (developers.cloudflare.com/ai/models,
+  // snapshot 2026-08-12 in the internal skill's cloudflare-model-roster).
+  '@cf/moonshotai/kimi-k2.7-code': 262_144,
 };
 
 /**

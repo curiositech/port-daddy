@@ -96,16 +96,20 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(lookout!.prompt.toLowerCase()).toContain('branch');
   });
 
-  it('routes the expensive gpt-oss-120b to the CODE REVIEW BOT only; everything else cheap qwen3-30b', () => {
-    // Operator directive: gpt-oss-120b is pricey — review bot only, nothing else.
-    //   - code-reviewer (pins kimi, not honored) → CODER = gpt-oss-120b.
-    //   - qa / red-team (pin gpt-oss, not honored) → the cheap default qwen3-30b.
+  it('honors deliberate premium pins (code-reviewer kimi, red-team 120b); qa stays cheap', () => {
+    // Operator recalibration 2026-08-22: the known-good set guards against
+    // silent-blank ids, not price. A ship's DECLARED verified pin is honored —
+    // code-reviewer's kimi-k2.7-code and red-team's gpt-oss-120b used to be
+    // silently remapped down, which made pd-fleet.yml lie about what ran. The
+    // stale gpt-oss-120b pins on the cheap-tier ships (qa and friends) were
+    // truthed-up to the cheap id in the same change, so cheap ships stay cheap
+    // by CONFIG rather than by a guard overriding config.
     const reviewer = ships!.find(s => s.name === 'code-reviewer');
-    expect(reviewer!.cfModel).toBe('@cf/openai/gpt-oss-120b');
+    expect(reviewer!.cfModel).toBe('@cf/moonshotai/kimi-k2.7-code');
     const qa = ships!.find(s => s.name === 'qa');
     expect(qa!.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
     const redTeam = ships!.find(s => s.name === 'red-team');
-    expect(redTeam!.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(redTeam!.cfModel).toBe('@cf/openai/gpt-oss-120b');
   });
 });
 
@@ -114,11 +118,14 @@ describe('resolveCfModel — the empty-model guard', () => {
     expect(resolveCfModel('@cf/qwen/qwen3-30b-a3b-fp8')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
   });
 
-  it('remaps any non-honored id (gpt-oss/kimi/qwen-coder/unknown) to the cheap fallback', () => {
-    // gpt-oss reaches the review bot by ROLE, never by pin — so a bare pin of it
-    // (or any other id) is remapped to the cheap model, never the pricey one.
-    expect(resolveCfModel('@cf/openai/gpt-oss-120b')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
-    expect(resolveCfModel('@cf/moonshotai/kimi-k2.7-code')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+  it('passes through every verified id; remaps unverified ones to the cheap fallback', () => {
+    // The set guards existence, not price (2026-08-22): a verified premium id
+    // is honored, while an id with no verified catalog + rate + context entry
+    // is remapped — a nonexistent Workers AI id returns blank, not an error,
+    // and a blank reads as "clean" (#654).
+    expect(resolveCfModel('@cf/openai/gpt-oss-120b')).toBe('@cf/openai/gpt-oss-120b');
+    expect(resolveCfModel('@cf/moonshotai/kimi-k2.7-code')).toBe('@cf/moonshotai/kimi-k2.7-code');
+    expect(resolveCfModel('@cf/openai/gpt-oss-20b')).toBe('@cf/openai/gpt-oss-20b');
     expect(resolveCfModel('@cf/qwen/qwen2.5-coder-32b-instruct')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
     expect(resolveCfModel('@cf/some/nonexistent-model')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
   });

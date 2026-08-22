@@ -120,7 +120,7 @@ import {
   type PlannedFile,
 } from './purser-authoring.js';
 import { fleetPrBodyTrailers } from './fleet-pr-body.js';
-import { repairContractOutput } from './repair.js';
+import { repairContractOutput, REPAIR_ESCALATION_MODEL } from './repair.js';
 import { emitSquidEvent } from './squid-events.js';
 import { emitInterruption } from './interruptions.js';
 
@@ -1470,7 +1470,14 @@ export async function runPurser(
             prBlock(prCtx),
             TESTS_MAX_TOKENS,
             metrics,
-            ship.cfAuthorModel,
+            // The rewrite runs on the ESCALATION tier, never the author tier:
+            // a model that just authored a non-executable file is the worst
+            // candidate to fix it (14-day D1 record: 83 of 110 same-model
+            // rewrites FAILED). Same posture as repairContractOutput's second
+            // attempt — when the author tier already IS the escalation model
+            // this is a no-op, but an operator opt-down pin no longer drags
+            // the repair down with it.
+            REPAIR_ESCALATION_MODEL,
           );
           return call.text;
         },

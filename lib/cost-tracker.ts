@@ -40,6 +40,7 @@ const FALLBACK_MODEL_RATES: Record<string, ModelRate> = {
 // List more-specific keys before less-specific ones.
 const MODEL_RATES: Array<[string, ModelRate]> = [
   // Cloudflare Workers AI
+  ['@cf/moonshotai/kimi-k2.7-code',             { input: 0.950, output: 4.000, label: 'Cloudflare Workers AI Kimi K2.7 Code (verified live pricing page 2026-08-22; code-reviewer pin)' }],
   ['@cf/moonshotai/kimi-k2-instruct',           { input: 0.950, cachedInput: 0.160, output: 4.000, label: 'Cloudflare Workers AI Kimi K2 Instruct' }],
   ['@cf/moonshotai/kimi-k2.6',                  { input: 0.950, cachedInput: 0.160, output: 4.000, label: 'Kimi K2.6 (phantom Workers AI id — never existed, retired 2026-07 #654; row kept so historical cost events still price)' }],
   ['@cf/moonshotai/kimi-k2.5',                  { input: 0.600, cachedInput: 0.100, output: 3.000, label: 'Kimi K2.5 (phantom Workers AI id — never existed, retired 2026-07 #654; row kept so historical cost events still price)' }],

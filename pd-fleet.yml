@@ -107,7 +107,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       prompt: |
         You are Gardener. After every commit, audit the worktree's
@@ -149,7 +149,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -196,7 +196,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -233,7 +233,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       cooldown_ms: 900000
       dedupe_window_ms: 43200000
@@ -281,7 +281,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -308,7 +308,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       timeout: 900000
       singleton: true
       allowedTools: "Read,Grep,Glob,Write,Bash(pd feedback*),Bash(pd roadmap*),Bash(pd ideas*),Bash(git*)"
@@ -378,7 +378,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
@@ -453,18 +453,27 @@ fleet:
       #   PLAN   reads the whole diff, emits a handful of paths  → INPUT-heavy
       #   AUTHOR reads the same diff, emits a whole test file     → OUTPUT-heavy
       #
-      # Per M tokens: qwen3-30b $0.051 in / $0.335 out; gpt-oss-20b $0.200 in /
-      # $0.300 out. So the mid tier is ~4x on input and slightly CHEAPER on
-      # output. Planning stays cheap; authoring — the step whose output has to
-      # be a runnable file, and whose failures now block a merge — gets the mid
-      # tier. Both are guarded by the same known-good set as `model:`: an
+      # Per M tokens: qwen3-30b $0.051 in / $0.335 out; gpt-oss-120b $0.350 in
+      # / $0.750 out. Planning stays cheap; authoring — the step whose output
+      # has to be a RUNNABLE file, and whose failures gate the fleet under the
+      # broken-ship doctrine — runs on the strongest verified tier.
+      #
+      # Why not the gpt-oss-20b mid tier anymore (operator ruling 2026-08-22,
+      # from the live D1 record over 14 days): 121 authored sets ended
+      # NON-EXECUTABLE, 83 of 110 author-repairs FAILED, 124 purser
+      # BROKEN-SHIP runs adjudicated the fleet neutral on 249 of 584 runs
+      # (#8870). The author step's total output over that window was ~2.5M
+      # tokens — the tier upgrade costs about a dollar per two weeks against
+      # a fleet whose verdicts were half washed out.
+      #
+      # Both tiers are guarded by the same known-good set as `model:`: an
       # unknown id falls back to the tier default rather than silently
-      # returning blank, and NEITHER can reach the review bot's gpt-oss-120b.
+      # returning blank.
       #
       # Omit both to accept these defaults. `planModel`/`authorModel` and
       # `cfPlanModel`/`cfAuthorModel` are accepted spellings too.
       plan_model: '@cf/qwen/qwen3-30b-a3b-fp8'    # default (cheap)
-      author_model: '@cf/openai/gpt-oss-20b'      # default (mid tier)
+      author_model: '@cf/openai/gpt-oss-120b'     # default (strongest verified tier)
       # THE GATE. `blocking: true` means a sandbox-executed test FAILURE fails
       # the check run, so a PR cannot merge while it contradicts its own
       # best-interpretation contract. Until now the purser authored tests,
@@ -525,7 +534,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
@@ -581,7 +590,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, parley_suggestion, dispatch_command_suggestion]
@@ -623,7 +632,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, skill_proposal, dispatch_command_suggestion]
@@ -739,6 +748,10 @@ fleet:
           # Code-specialized coder model (Moonshot Kimi K2.7 Code, 1T MoE,
           # 262k ctx, native structured outputs) — the right Workers AI tier for
           # a code reviewer that emits JSON findings.
+          # HONORED as of 2026-08-22: this pin used to be silently remapped to
+          # the reviewer default (kimi was outside the known-good set); it is
+          # now verified + priced ($0.950/M in, $4.000/M out — roughly $6 per
+          # two weeks at this ship's live volume) and runs as declared.
           model: '@cf/moonshotai/kimi-k2.7-code'
       # MAP/REDUCE tiering, Cloudflare path only. The executor splits a large
       # diff on file boundaries and scans each chunk independently (MAP), then
@@ -843,7 +856,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: false
@@ -897,7 +910,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false
@@ -950,7 +963,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 3600000
       dedupe_window_ms: 21600000
       singleton: true
@@ -1003,7 +1016,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 3600000
       dedupe_window_ms: 10800000
       singleton: true
@@ -1195,7 +1208,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       prompt: |
         You are the Developer-Onboarding Sentinel. Your mission:

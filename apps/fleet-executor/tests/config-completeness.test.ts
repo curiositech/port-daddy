@@ -159,9 +159,29 @@ describe('the config type and the config parser do not drift', () => {
     expect(ship.cfMapModel).toBeUndefined();
   });
 
-  it('map_model cannot pin a ship ONTO the expensive model', () => {
-    // Only the cheap id is in the honored set, so tiering is one-directional by
-    // construction: it can save money, never spend more.
+  it('a map_model pricier than the ship reduce model is dropped (economically backward)', () => {
+    // MAP repeats per chunk; REDUCE runs once. With premium ids now in the
+    // honored set (2026-08-22), the one-directional economics are enforced by
+    // deriveMapModel's rate comparison instead of the set's price ceiling: a
+    // cheap-reduce ship cannot fan out on the premium tier.
+    const yaml = [
+      'fleet:',
+      '  agents:',
+      '    demo-ship:',
+      '      trigger: pull_request',
+      '      prompt: scan this',
+      '      map_model: "@cf/openai/gpt-oss-120b"',
+      '',
+    ].join('\n');
+    const ship = parseFleetShips(yaml, 'pull_request')![0];
+    expect(ship.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(ship.cfMapModel).toBeUndefined();
+  });
+
+  it('a map_model equal to a premium reduce model is dropped as a no-op, not honored twice', () => {
+    // A reviewer-named ship reduces on the premium tier; pinning MAP to the
+    // same id changes nothing and must not set the field (repo convention:
+    // "does this ship tier?" is answerable by reading cfMapModel).
     const yaml = [
       'fleet:',
       '  agents:',
@@ -172,6 +192,7 @@ describe('the config type and the config parser do not drift', () => {
       '',
     ].join('\n');
     const ship = parseFleetShips(yaml, 'pull_request')![0];
+    expect(ship.cfModel).toBe('@cf/openai/gpt-oss-120b');
     expect(ship.cfMapModel).toBeUndefined();
   });
 
