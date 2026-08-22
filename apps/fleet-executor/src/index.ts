@@ -29,12 +29,19 @@ import type { ExecutorEnv, FleetRunJob } from './env.js';
 import { executeFleet } from './execute.js';
 import { CheckRunCompletionError } from './github.js';
 import {
+  normalizeProviderQueueAttempt,
   FleetAiDependencyError,
   providerRetryDelaySeconds,
   PROVIDER_MAX_DELIVERY_ATTEMPTS,
 } from './ai-resilience.js';
 import { handleDlqJob } from './dlq.js';
-import { recordDeliveryAttemptStart, recordDeliveryFailure } from './delivery-failure.js';
+import {
+  countDeliveryContinuations,
+  recordDeliveryAttemptStart,
+  recordDeliveryContinuation,
+  recordDeliveryFailure,
+  runIdForDelivery,
+} from './delivery-failure.js';
 import { flushSquidEvents } from './squid-events.js';
 import {
   beginFleetIntentAttempt,
@@ -48,6 +55,13 @@ export { executeFleet } from './execute.js';
 
 /** The dead-letter queue name (must match `dead_letter_queue` in wrangler.toml). */
 const DLQ_QUEUE_NAME = 'fleet-runs-dlq';
+
+/**
+ * One provider-heavy ship per isolate. Checkpoints make the logical Fleet run
+ * cumulative across these successful queue slices without depending on an OOM
+ * or CPU kill to end an invocation.
+ */
+export const MAX_NEW_SHIPS_PER_INVOCATION = 1;
 
 export default {
   async queue(
@@ -89,7 +103,35 @@ export default {
           message.body,
           attempt,
         );
-        const disposition = await executeFleet(message.body, env, { queueAttempt: attempt });
+        const disposition = await executeFleet(message.body, env, {
+          queueAttempt: attempt,
+          maxNewShipsPerInvocation: MAX_NEW_SHIPS_PER_INVOCATION,
+        });
+        if (disposition?.kind === 'continuation') {
+          const recorded = await recordDeliveryContinuation(
+            env,
+            message.body,
+            attempt,
+            disposition.completedShip,
+            disposition.remainingShips,
+          );
+          if (!recorded) {
+            throw new Error(
+              `checkpoint continuation could not be recorded after pd-${disposition.completedShip}`,
+            );
+          }
+          // The ship-verdict squid event is already queued. Give it the same
+          // best-effort lifetime extension as a final verdict before returning
+          // this successfully checkpointed message to the queue.
+          const telemetryDrain = flushSquidEvents();
+          try {
+            ctx.waitUntil(telemetryDrain);
+          } catch {
+            void telemetryDrain;
+          }
+          message.retry({ delaySeconds: 1 });
+          continue;
+        }
         if (disposition?.kind === 'stale-head') {
           await markFleetIntentTerminal(
             env,
@@ -131,10 +173,16 @@ export default {
         message.ack();
       } catch (err) {
         const providerError = err instanceof FleetAiDependencyError ? err : null;
+        const providerAttempt = normalizeProviderQueueAttempt(
+          attempt - await countDeliveryContinuations(
+            env,
+            runIdForDelivery(message.body?.deliveryId ?? ''),
+          ),
+        );
         const providerDelaySeconds =
           providerError?.failure.retryable
             ? providerRetryDelaySeconds(
-                attempt,
+                providerAttempt,
                 Math.random,
                 providerError.failure.retryAfterSeconds,
               )
@@ -143,7 +191,7 @@ export default {
           ? err
           : new Error(
               `${providerError?.message ?? 'Workers AI dependency unavailable'}; Workers AI circuit open on attempt ` +
-                `${attempt}/${PROVIDER_MAX_DELIVERY_ATTEMPTS}; queue retry scheduled in ` +
+                `${providerAttempt}/${PROVIDER_MAX_DELIVERY_ATTEMPTS}; queue retry scheduled in ` +
                 `${providerDelaySeconds}s`,
             );
         // Recoverable infrastructure error — re-deliver. After max_retries the

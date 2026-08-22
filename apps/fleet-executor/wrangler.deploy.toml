@@ -138,12 +138,12 @@ queue = "fleet-runs"
 max_batch_size = 1
 max_concurrency = 1
 max_batch_timeout = 30
-# Retries RESUME past checkpointed ships (src/ship-checkpoint.ts), so an extra
-# attempt does not re-spend on finished work and can advance the run from its
-# last durable ship. A kill before the next checkpoint may still repeat
-# unfinished work, so retries remain capped. Thirteen total attempts cover this
-# repository's eleven-ship PR roster even at only one newly checkpointed ship per
-# attempt, with two attempts of bounded headroom for transient failures.
+# The consumer intentionally completes at most one new provider-heavy ship per
+# invocation, checkpoints it, records a delivery-continuation step, and calls
+# message.retry(). These are successful cumulative slices, not platform
+# failures; a start marker without a continuation/failure still diagnoses an
+# uncatchable kill. Thirteen total attempts cover this repository's eleven-ship
+# PR roster with two attempts of bounded transient-failure headroom.
 max_retries = 12
 dead_letter_queue = "fleet-runs-dlq"
 

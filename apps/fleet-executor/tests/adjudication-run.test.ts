@@ -213,7 +213,7 @@ describe('direct provider evidence — exhausted circuit gates the fleet immedia
     const circuit = d1.steps.find(step => step.kind === 'provider-circuit-open');
     expect(circuit?.title).toContain('2 remaining ship(s) skipped');
     expect(circuit?.title).toContain('fleet-wide dependency fault');
-    expect(circuit?.title).toContain('3/3 delivery attempts');
+    expect(circuit?.title).toContain('3/3 provider attempts');
     expect(JSON.parse(String(circuit?.detail))).toMatchObject({
       attempt: 3,
       maxAttempts: 3,
@@ -223,7 +223,7 @@ describe('direct provider evidence — exhausted circuit gates the fleet immedia
       retryable: true,
       brokenAdjudicated: {
         scope: 'fleet',
-        reason: 'Workers AI dependency circuit remained open through 3/3 delivery attempts',
+        reason: 'Workers AI dependency circuit remained open through 3/3 provider attempts',
       },
     });
     const adjudicated = d1.steps.find(step => step.kind === 'ship-adjudicated');
