@@ -269,7 +269,7 @@ export function selectHelpfulPeerSuggestions(
   return hits
     .filter((hit) => hit.agentId !== currentAgentId)
     .filter((hit) => Number.isFinite(hit.score) && Number.isFinite(hit.similarity))
-    .filter((hit) => hit.stage !== 'exact')
+    .filter((hit) => hit.stage === 'semantic' || hit.stage === 'llm')
     .filter((hit) => hit.score >= DEFAULT_SEMANTIC_REVIEW_THRESHOLD)
     .slice(0, HELPFUL_SUGGESTION_LIMIT);
 }

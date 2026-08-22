@@ -141,6 +141,29 @@ test('pins the unified status window to exactly 25 recent steps', () => {
   expect(snapshot.sessions.flatMap((session) => session.steps)).toHaveLength(25);
 });
 
+test('serializes a valid bounded unified status response from multi-thousand event history', () => {
+  const paths = squidHookDebugPaths(PD_HOME);
+  mkdirSync(join(PD_HOME, 'squid'), { recursive: true });
+  writeFileSync(paths.enabled, '2026-08-21T20:00:00.000Z\n');
+  const records = Array.from({ length: 3_500 }, (_, index) =>
+    event({ kind: 'start', run: `large-status-${index}`, at: 1_000 + index }),
+  );
+  writeFileSync(paths.events, `${records.join('\n')}\n`);
+
+  const snapshot = readSquidHookStatusSnapshot({
+    pdHome: PD_HOME,
+    cwd: WORKSPACE,
+    nowMs: 10_000,
+    maxSteps: SQUID_HOOK_STATUS_MAX_STEPS,
+  });
+  const serialized = JSON.stringify(snapshot);
+
+  expect(() => JSON.parse(serialized)).not.toThrow();
+  expect(snapshot.window).toEqual({ totalSteps: 3_500, returnedSteps: 25, truncated: true });
+  expect(snapshot.sessions.flatMap((session) => session.steps)).toHaveLength(25);
+  expect(Buffer.byteLength(serialized)).toBeLessThan(64 * 1024);
+});
+
 test('renders no-op outcomes and drops malformed or out-of-workspace records', () => {
   const paths = squidHookDebugPaths(PD_HOME);
   mkdirSync(join(PD_HOME, 'squid'), { recursive: true });

@@ -25,9 +25,17 @@ describe('pd begin helpful suggestions', () => {
       hit('strong-b', 0.88),
       hit('invalid', Number.NaN),
       hit('lexical-only', 1, 1, 'exact'),
+      hit('bm25-only', 1, 1, 'bm25'),
     ], 'current');
 
     expect(selected.map((candidate) => candidate.agentId)).toEqual(['strong-a', 'strong-b']);
+  });
+
+  test('accepts an LLM-reviewed peer without reopening lexical-only stages', () => {
+    expect(selectHelpfulPeerSuggestions([
+      hit('bm25-only', 1, 1, 'bm25'),
+      hit('reviewed', 0.91, 0.91, 'llm'),
+    ], undefined)).toEqual([hit('reviewed', 0.91, 0.91, 'llm')]);
   });
 
   test('enforces the three-item arrival budget without adding a lexical fallback', () => {
