@@ -55,7 +55,7 @@
  */
 
 import type { ExecutorEnv } from './env.js';
-import { parseFleetMediator, type FleetMediatorConfig } from './fleet.js';
+import { type FleetMediatorConfig } from './fleet.js';
 import { publishChainedEvent, type ChainedPublishResult, type SquidEnv } from './squid-events.js';
 import type { OpenPRDetailed } from './github.js';
 
