@@ -24,8 +24,13 @@ import {
   handleSeamanshipPage,
   handleSeamanshipPublishForm,
   renderPublicDirectory,
+  renderSeamanshipPage,
+  SEAMANSHIP_NOTICES,
   visibilityMarker,
 } from '../src/seamanship-page.js';
+import { readFileSync } from 'node:fs';
+import type { CatalogScan } from '../src/seamanship.js';
+import type { UserRow } from '../src/db.js';
 import { syncSkillListings } from '../src/seamanship.js';
 import { resolveSession } from '../src/auth-github.js';
 import {
@@ -476,5 +481,79 @@ describe('GET /skills/@login/id', () => {
     const { env } = await published();
     const res = await handlePublicSkillPage(req('/skills/not-a-namespace'), env, 'not-a-namespace');
     expect(res.status).toBe(404);
+  });
+});
+
+// ── Form-POST outcomes are reported back ─────────────────────────────────────
+//
+// Every action on this page redirects to /account/seamanship?notice=<key> —
+// approve, dismiss, queue, and every refusal code from snipe-builder's fail().
+// Nothing read that parameter, so a browser operator who clicked Approve got
+// the page back with no indication of whether anything happened: a success and
+// a 403 rendered identically. This is the human-approval gate for a builder
+// that opens pull requests into the operator's repositories, so "did my
+// approval land" must not be left to inference.
+
+describe('seamanship page — the operator is told what happened', () => {
+  const USER = { id: 'u_1', github_user_id: 1, login: LOGIN, created_at: 0, email_verified: 0 } as unknown as UserRow;
+  const EMPTY_SCAN: CatalogScan = {
+    repos: [],
+    reposTruncated: false,
+    skillsTruncated: false,
+    installationsKnown: true,
+    warnings: [],
+  };
+
+  it('renders an allowlisted notice, and says whether it succeeded', () => {
+    const html = renderSeamanshipPage(USER, EMPTY_SCAN, { notice: 'approved' });
+    expect(html).toContain('class="notice"');
+    expect(html).toContain('build grant was minted');
+    expect(html).toContain('<b>Done.</b>');
+  });
+
+  it('distinguishes approved-and-queued from approved-with-no-grant', () => {
+    // The failure this catches: telling the operator a build was queued when
+    // no grant was minted, so no pull request will ever open.
+    const ok = renderSeamanshipPage(USER, EMPTY_SCAN, { notice: 'approved' });
+    const notQueued = renderSeamanshipPage(USER, EMPTY_SCAN, { notice: 'approved_not_queued' });
+    expect(notQueued).toContain('NO build grant was minted');
+    expect(notQueued).toContain('<b>Not done.</b>');
+    expect(ok).not.toContain('NO build grant was minted');
+    expect(ok).not.toBe(notQueued);
+  });
+
+  it('renders refusals, not just successes', () => {
+    // A 403 that renders identically to a success is the original bug.
+    const refused = renderSeamanshipPage(USER, EMPTY_SCAN, { notice: 'cross_origin' });
+    expect(refused).toContain('did not come from this site');
+    expect(refused).toContain('<b>Not done.</b>');
+  });
+
+  it('an unknown notice renders NOTHING, rather than the attacker\'s string escaped', () => {
+    // Allowlist, not interpolation. The query value selects a message we wrote.
+    const hostile = renderSeamanshipPage(USER, EMPTY_SCAN, { notice: '<script>alert(1)</script>' });
+    expect(hostile).not.toContain('class="notice"><b>Done.');
+    expect(hostile).not.toContain('alert(1)');
+    expect(renderSeamanshipPage(USER, EMPTY_SCAN, { notice: 'nope' })).not.toContain('<b>Done.</b>');
+  });
+
+  it('no notice at all renders no banner', () => {
+    const plain = renderSeamanshipPage(USER, EMPTY_SCAN, {});
+    expect(plain).not.toContain('<b>Done.</b>');
+    expect(plain).not.toContain('<b>Not done.</b>');
+  });
+
+  it('every notice snipe-builder can redirect with is in the allowlist', () => {
+    // The manifest half: a redirect key with no message renders silently, which
+    // is the bug this whole block exists to close. This fails if someone adds a
+    // fail() code without adding its message.
+    const src = readFileSync(new URL('../src/snipe-builder.ts', import.meta.url), 'utf8');
+    const keys = new Set<string>();
+    for (const [, k] of src.matchAll(/notice=([a-z_]+)/g)) keys.add(k);
+    for (const [, code] of src.matchAll(/fail\(\s*\d+,\s*'([A-Z_]+)'/g)) keys.add(code.toLowerCase());
+    expect(keys.size).toBeGreaterThan(4);
+    for (const k of keys) {
+      expect(SEAMANSHIP_NOTICES[k], `snipe-builder can redirect ?notice=${k} but no message exists`).toBeTruthy();
+    }
   });
 });

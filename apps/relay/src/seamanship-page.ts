@@ -377,10 +377,42 @@ function renderScanNotices(scan: CatalogScan): string {
 }
 
 /** Render /account/seamanship for a signed-in operator. Pure — no I/O. */
+/**
+ * Outcomes this page will report back after a form POST, keyed by the query
+ * value that selects them.
+ *
+ * Every action on this page redirects here with `?notice=<key>` — approve,
+ * dismiss, queue, and every refusal code from `snipe-builder.ts`'s `fail()`.
+ * Nothing read that parameter, so a browser operator who clicked Approve got
+ * the page back with no indication of whether anything happened: success and
+ * a 403 rendered identically. On the surface that gates a builder which opens
+ * pull requests into the operator's repositories, "did my approval land" is
+ * not a question the UI should leave to inference.
+ *
+ * Allowlisted, not interpolated: the query value selects a message we wrote,
+ * so an attacker-supplied `?notice=` renders nothing at all rather than
+ * rendering their string escaped. Same posture as SNIPE_CHAT_NOTICES.
+ */
+export const SEAMANSHIP_NOTICES: Record<string, string> = {
+  approved: 'Approved. A build grant was minted, and the next sweep will open the pull request.',
+  approved_not_queued:
+    'Approved, but NO build grant was minted, so no pull request will be opened. The approval stands and is recorded; the build did not start. This usually means a grant already existed for this suggestion.',
+  dismissed: 'Dismissed. Any unspent build grant for it has been revoked.',
+  queued: 'Queued. The suggestion job will run on the next sweep.',
+  unauthenticated: 'That action needed a signed-in session.',
+  cross_origin: 'That request did not come from this site, so it was refused.',
+  build_unconfigured: 'This relay has no GitHub App configured, so approvals cannot mint a build grant. Nothing was changed.',
+  forbidden: 'That repository does not belong to the installation you approved under. Nothing was changed.',
+  repo_not_installed: 'The GitHub App is not installed on that repository. Nothing was changed.',
+  illegal_transition: 'The suggestion changed state before your action landed. Nothing was changed.',
+  bad_request: 'That request was missing something it needed. Nothing was changed.',
+  not_found: 'That suggestion no longer exists.',
+};
+
 export function renderSeamanshipPage(
   user: UserRow,
   scan: CatalogScan,
-  opts: { publishedCount?: number | null; publishError?: string | null } = {},
+  opts: { publishedCount?: number | null; publishError?: string | null; notice?: string | null } = {},
 ): string {
   const skills = allSkills(scan);
   const listedCount = skills.filter((s) => isPublishableSkill(s, 'listed')).length;
@@ -398,6 +430,11 @@ export function renderSeamanshipPage(
         repository stays the source of truth, and this page never keeps a copy of the text.</p>
       </div>`;
 
+  const noticeBanner =
+    opts.notice && SEAMANSHIP_NOTICES[opts.notice]
+      ? `<div class="notice"><b>${opts.notice === 'approved' || opts.notice === 'dismissed' || opts.notice === 'queued' ? 'Done.' : 'Not done.'}</b> ${esc(SEAMANSHIP_NOTICES[opts.notice] as string)}</div>`
+      : '';
+
   const publishBanner = opts.publishError
     ? `<div class="notice"><b>Nothing was published.</b> ${esc(opts.publishError)}</div>`
     : typeof opts.publishedCount === 'number'
@@ -413,6 +450,7 @@ export function renderSeamanshipPage(
     <span class="lede">Every skill your agents can reach for, read live from the repositories that
     hold them. ${total} skill${total === 1 ? '' : 's'} across
     ${scan.repos.length} repositor${scan.repos.length === 1 ? 'y' : 'ies'} on this view.</span>
+    ${noticeBanner}
     ${publishBanner}
     ${renderScanNotices(scan)}
   </div>
@@ -516,10 +554,14 @@ export async function handleSeamanshipPage(request: Request, env: Env): Promise<
   const listedParsed = listedRaw === null ? null : Number.parseInt(listedRaw, 10);
   const publishedCount =
     listedParsed !== null && Number.isFinite(listedParsed) && listedParsed >= 0 ? listedParsed : null;
+  // Allowlist lookup, never interpolation: an unknown ?notice= renders nothing.
+  const rawNotice = url.searchParams.get('notice');
+  const notice = rawNotice && SEAMANSHIP_NOTICES[rawNotice] ? rawNotice : null;
   try {
     const scan = await scanOperatorCatalog(env, session);
     return memberHtml(
       renderSeamanshipPage(session.user, scan, {
+        notice,
         publishedCount,
         publishError: url.searchParams.get('publish_error'),
       }),

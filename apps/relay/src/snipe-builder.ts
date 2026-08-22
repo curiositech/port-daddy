@@ -730,7 +730,15 @@ export async function handleSnipeApprove(request: Request, env: Env): Promise<Re
     now,
   });
 
-  if (form) return redirect303('/account/seamanship?notice=approved');
+  // Distinguish "approved AND a grant was minted" from "approved but no grant".
+  // The JSON path already reports this as `queued: grantId !== null`; the form
+  // path used to redirect `notice=approved` either way, telling a browser
+  // operator a build was queued when none was.
+  if (form) {
+    return redirect303(
+      `/account/seamanship?notice=${grantId === null ? 'approved_not_queued' : 'approved'}`,
+    );
+  }
   return json(200, {
     code: 'OK_APPROVED',
     error: null,

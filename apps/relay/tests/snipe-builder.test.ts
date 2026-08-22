@@ -135,6 +135,20 @@ function post(path: string, body: unknown, withCookie = true): Request {
   return new Request(`${BASE}${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
 }
 
+/** A browser form POST (urlencoded), which is what makes isFormPost true. */
+function formPost(path: string, fields: Record<string, string>): Request {
+  const headers = new Headers({
+    'Content-Type': 'application/x-www-form-urlencoded',
+    Cookie: `__Host-pd_session=${COOKIE}`,
+    Origin: BASE,
+  });
+  return new Request(`${BASE}${path}`, {
+    method: 'POST',
+    headers,
+    body: new URLSearchParams(fields).toString(),
+  });
+}
+
 async function seeded(
   status = 'proposed',
   repoBoundTo: number = INSTALL,
@@ -397,6 +411,67 @@ describe('snipe builder — approval is the only thing that queues a build', () 
       expect(readSuggestion(t, 'sug_a1b2')).toMatchObject({ status: 'proposed' });
       const n = t.raw.prepare('SELECT COUNT(*) AS n FROM seamanship_build_grants').get() as { n: number };
       expect(n.n).toBe(0);
+    } finally {
+      restore();
+      t.close();
+    }
+  });
+
+  // ── What the BROWSER is told ──────────────────────────────────────────────
+  //
+  // The JSON path reports `queued: grantId !== null`. The form path used to
+  // redirect `?notice=approved` either way, so a browser operator who clicked
+  // Approve was told a build was queued even when no grant was minted and no
+  // pull request would ever open. These assert the handler CHOOSES the right
+  // notice — the page tests only prove the two notices render differently.
+
+  it('a browser approval that mints a grant says so', async () => {
+    const { t, env } = await seeded();
+    const restore = stubGithub();
+    try {
+      const res = await handleSnipeApprove(
+        formPost('/account/seamanship/approve', { suggestionId: 'sug_a1b2', installationId: String(INSTALL) }),
+        env,
+      );
+      expect(res.status).toBe(303);
+      expect(res.headers.get('Location')).toBe('/account/seamanship?notice=approved');
+      const n = t.raw.prepare('SELECT COUNT(*) AS n FROM seamanship_build_grants').get() as { n: number };
+      expect(n.n).toBe(1);
+    } finally {
+      restore();
+      t.close();
+    }
+  });
+
+  it('a browser approval that mints NO grant does not claim it queued a build', async () => {
+    // Second approval of the same suggestion: the grants table has
+    // suggestion_id as PRIMARY KEY, so issueBuildGrant returns null. The
+    // approval still stands; the build does not start. Saying "approved" flat
+    // would be a false success on the gate that authorizes a PR into the
+    // operator's repo.
+    const { t, env } = await seeded();
+    const restore = stubGithub();
+    try {
+      const first = await handleSnipeApprove(
+        formPost('/account/seamanship/approve', { suggestionId: 'sug_a1b2', installationId: String(INSTALL) }),
+        env,
+      );
+      expect(first.headers.get('Location')).toBe('/account/seamanship?notice=approved');
+
+      // Put it back to 'proposed' so the transition is legal again, leaving the
+      // grant row in place — the exact state where a grant cannot be minted.
+      t.raw.prepare("UPDATE seamanship_suggestions SET status = 'proposed' WHERE id = ?").run('sug_a1b2');
+
+      const second = await handleSnipeApprove(
+        formPost('/account/seamanship/approve', { suggestionId: 'sug_a1b2', installationId: String(INSTALL) }),
+        env,
+      );
+      expect(second.status).toBe(303);
+      expect(second.headers.get('Location')).toBe('/account/seamanship?notice=approved_not_queued');
+
+      // Premise: still exactly one grant, so the second really did mint none.
+      const n = t.raw.prepare('SELECT COUNT(*) AS n FROM seamanship_build_grants').get() as { n: number };
+      expect(n.n).toBe(1);
     } finally {
       restore();
       t.close();
