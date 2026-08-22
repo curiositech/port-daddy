@@ -30,9 +30,15 @@ describe('Concurrency and Idempotency', () => {
     );
 
     const results = await Promise.all(promises);
-    const successful = results.filter(r => r.status === 200);
-
-    expect(successful.length).toBe(1);
+    // Idempotent-POST semantics: a duplicate/racing request is not an error --
+    // every request that reaches the handler gets 200, same as a real retry
+    // would (Stripe/AWS idempotency-key style). The dedup signal is `accepted`
+    // (how many of the 5 actually inserted), not the HTTP status count -- all
+    // 5 legitimately succeed at the HTTP layer.
+    expect(results.every(r => r.status === 200)).toBe(true);
+    const bodies = await Promise.all(results.map(r => r.json()));
+    const totalAccepted = bodies.reduce((sum, b) => sum + b.accepted, 0);
+    expect(totalAccepted).toBe(1); // exactly one of the 5 was the real insert
     expect(db.rows.length).toBe(1);
     expect(db.rows[0].digest_date).toBe(digestDate);
   });
