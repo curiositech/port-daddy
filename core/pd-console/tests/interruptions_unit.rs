@@ -10,6 +10,12 @@
 
 #[path = "../src/agent.rs"]
 mod agent;
+// agent.rs resolves the stable-berth default via crate::berths (daemon
+// discovery's final fallback), so every target hosting agent.rs must also
+// host the berths module.
+#[allow(dead_code)]
+#[path = "../src/berths.rs"]
+mod berths;
 #[allow(dead_code)]
 #[path = "../src/headless_capture.rs"]
 mod headless_capture;

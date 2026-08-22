@@ -4,16 +4,21 @@
 //! Calls `GET /roadmap/items?limit=2000` and derives Project → Epic(per ADR) →
 //! Task from the structured `adr-NNNN-phase-…` slug + `adr:NNNN` note/summary
 //! token (IDs we control — not fuzzy NLP), exactly like `lib/planner-migrate.ts`.
-//! Renders the tree + status/priority chips + a flags banner as render-agnostic
-//! Blocks (GPUI/ratatui paint them; per the gpui-rust-console contract the text is
-//! GPUI's, the bespoke critical-path Gantt is the Track-B Vello surface).
+//! Renders a critical-path Gantt (CPM via the kernel's canonical scheduler,
+//! ADR-0086) as the LEADING section, then the tree + status/priority chips + a
+//! flags banner — all as render-agnostic Blocks (GPUI/ratatui/PNG paint them;
+//! a bespoke Track-B Vello Gantt canvas can later supersede the Block bars
+//! without changing this pane's data derivation).
 //!
-//! Item shape (v3.2x): `{ slug, summaryMd, status, dependencies: [slug], harbor, notes:[{text}] }`.
+//! Item shape (v3.2x): `{ slug, summaryMd, status, dependencies: [slug], harbor,
+//! notes:[{text}], estimate? }` — `estimate` is the ADR-0086 planner column the
+//! daemon now serves; older daemons simply omit it and bars default to one unit.
 
 use crate::agent::DaemonClient;
 use crate::pane::{Block, Pane, Tone};
 use crate::util::{arr, s, trunc};
 use anyhow::Result;
+use pd_anchor::schedule::{schedule, SchedEdge, SchedNode};
 use serde_json::Value;
 
 #[derive(Debug, Clone)]
@@ -25,6 +30,10 @@ struct PlannerItem {
     harbor: String,
     /// Owning ADR number (4-digit) derived from slug/notes/summary, or None (unsorted).
     adr: Option<String>,
+    /// Effort estimate in abstract units (ADR-0086 planner column). None when
+    /// the daemon predates the field or the item was never sized; the Gantt
+    /// defaults such items to one unit so every task still earns a visible bar.
+    estimate: Option<i64>,
 }
 
 impl PlannerItem {
@@ -41,6 +50,7 @@ impl PlannerItem {
             .filter_map(|d| d.as_str().map(|x| x.to_string()))
             .collect();
         let adr = adr_number_of(&slug, &summary, &notes_text);
+        let estimate = v.get("estimate").and_then(|e| e.as_i64()).filter(|e| *e > 0);
         Self {
             slug,
             summary,
@@ -48,6 +58,7 @@ impl PlannerItem {
             deps,
             harbor: s(v, "harbor"),
             adr,
+            estimate,
         }
     }
 }
@@ -221,6 +232,168 @@ impl PlannerPane {
         v.sort_by(|a, b| b.1.cmp(&a.1));
         v
     }
+
+    /// Critical-path schedule over the remaining (not-done) work.
+    ///
+    /// Why forward-looking only: the Gantt answers "what is the plan from here" —
+    /// finished items are history, so they contribute no bars and any dependency
+    /// on a done item is treated as already satisfied (the edge is dropped).
+    /// Dedupes by slug (first occurrence wins, matching `epics()`), defaults an
+    /// unsized item to one effort unit so every task earns visible geometry, and
+    /// drops edges pointing outside the node set because the kernel scheduler
+    /// deliberately fails closed on unknown ids.
+    ///
+    /// Returns the CPM rows sorted for display (earliest start, critical first,
+    /// then slug) plus the makespan, or the scheduler's refusal reason (e.g. a
+    /// dependency cycle) so the pane can report it instead of hiding it.
+    fn gantt(&self) -> Result<(Vec<GanttRow>, i64), String> {
+        let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        let mut nodes: Vec<SchedNode> = Vec::new();
+        let mut est_by_slug: std::collections::HashMap<&str, i64> =
+            std::collections::HashMap::new();
+        for it in &self.items {
+            if it.status == "done" || !seen.insert(it.slug.as_str()) {
+                continue;
+            }
+            let est = it.estimate.unwrap_or(1).max(1);
+            est_by_slug.insert(it.slug.as_str(), est);
+            nodes.push(SchedNode {
+                id: it.slug.clone(),
+                estimate: Some(est),
+            });
+        }
+        if nodes.is_empty() {
+            return Ok((Vec::new(), 0));
+        }
+        let ids: std::collections::HashSet<&str> =
+            nodes.iter().map(|n| n.id.as_str()).collect();
+        let mut edges: Vec<SchedEdge> = Vec::new();
+        let mut edge_seen: std::collections::HashSet<(String, String)> =
+            std::collections::HashSet::new();
+        for it in &self.items {
+            if it.status == "done" || !ids.contains(it.slug.as_str()) {
+                continue;
+            }
+            for dep in &it.deps {
+                if ids.contains(dep.as_str())
+                    && dep != &it.slug
+                    && edge_seen.insert((dep.clone(), it.slug.clone()))
+                {
+                    edges.push(SchedEdge {
+                        from: dep.clone(),
+                        to: it.slug.clone(),
+                    });
+                }
+            }
+        }
+        let sched = schedule(&nodes, &edges);
+        if !sched.ok {
+            return Err(sched.reason);
+        }
+        let mut rows: Vec<GanttRow> = sched
+            .nodes
+            .iter()
+            .map(|n| GanttRow {
+                slug: n.id.clone(),
+                start: n.earliest_start,
+                finish: n.earliest_finish,
+                critical: n.critical,
+                slack: n.slack,
+                estimate: *est_by_slug.get(n.id.as_str()).unwrap_or(&1),
+            })
+            .collect();
+        rows.sort_by(|a, b| {
+            a.start
+                .cmp(&b.start)
+                .then(b.critical.cmp(&a.critical))
+                .then(a.slug.cmp(&b.slug))
+        });
+        Ok((rows, sched.makespan))
+    }
+
+    /// Render the Gantt section: one bar row per remaining task, critical path
+    /// in solid fill, everything else hatched, capped so the pane's first screen
+    /// stays a chart rather than a scroll. The design intent is that this is the
+    /// FIRST thing an operator sees on launch (mux default workspace), so the
+    /// section leads with the makespan/critical-path summary the chart answers.
+    fn gantt_blocks(&self) -> Vec<Block> {
+        const BAR_CELLS: i64 = 40;
+        const MAX_ROWS: usize = 24;
+        let mut blocks = Vec::new();
+        match self.gantt() {
+            Err(reason) => {
+                blocks.push(Block::Header("Gantt — critical path".into()));
+                blocks.push(Block::Chip {
+                    label: format!("schedule unavailable: {}", trunc(&reason, 70)),
+                    tone: Tone::Conflicted,
+                });
+            }
+            Ok((rows, _)) if rows.is_empty() => {
+                blocks.push(Block::Header("Gantt — critical path".into()));
+                blocks.push(Block::KeyVal(
+                    "status".into(),
+                    "no remaining work to schedule".into(),
+                ));
+            }
+            Ok((rows, makespan)) => {
+                let crit_n = rows.iter().filter(|r| r.critical).count();
+                blocks.push(Block::Header(format!(
+                    "Gantt — critical path · {} task(s) · makespan {} unit(s)",
+                    rows.len(),
+                    makespan
+                )));
+                blocks.push(Block::Chip {
+                    label: format!("{crit_n} on the critical path"),
+                    tone: if crit_n > 0 {
+                        Tone::Engaged
+                    } else {
+                        Tone::Resting
+                    },
+                });
+                let span = makespan.max(1);
+                for r in rows.iter().take(MAX_ROWS) {
+                    let lead = (r.start * BAR_CELLS / span) as usize;
+                    let fill = (((r.finish - r.start) * BAR_CELLS + span - 1) / span).max(1) as usize;
+                    let glyph = if r.critical { '█' } else { '▓' };
+                    let bar = format!(
+                        "{}{}",
+                        " ".repeat(lead),
+                        glyph.to_string().repeat(fill)
+                    );
+                    let claim = self
+                        .claims
+                        .get(&r.slug)
+                        .map(|by| format!(" ◆ {}", trunc(by, 18)))
+                        .unwrap_or_default();
+                    let meta = if r.critical {
+                        format!("e{} CRIT{}", r.estimate, claim)
+                    } else {
+                        format!("e{} s{}{}", r.estimate, r.slack, claim)
+                    };
+                    blocks.push(Block::Row(vec![trunc(&r.slug, 30), bar, meta]));
+                }
+                if rows.len() > MAX_ROWS {
+                    blocks.push(Block::KeyVal(
+                        "…".into(),
+                        format!("+{} more scheduled task(s)", rows.len() - MAX_ROWS),
+                    ));
+                }
+            }
+        }
+        blocks
+    }
+}
+
+/// One bar of the Planner Gantt: a task's CPM window plus the fields the
+/// operator reads off the chart (estimate, slack, critical membership).
+#[derive(Debug)]
+struct GanttRow {
+    slug: String,
+    start: i64,
+    finish: i64,
+    critical: bool,
+    slack: i64,
+    estimate: i64,
 }
 
 impl Pane for PlannerPane {
@@ -242,6 +415,11 @@ impl Pane for PlannerPane {
             blocks.push(Block::KeyVal("status".into(), "no roadmap items".into()));
             return blocks;
         }
+
+        // The Gantt leads — the console's first screen answers "what is the
+        // plan and where is the critical path" before any tree or roster.
+        blocks.extend(self.gantt_blocks());
+        blocks.push(Block::Gap);
 
         let epics = self.epics();
         let task_total: usize = epics.iter().map(|e| e.tasks.len()).sum();
@@ -564,6 +742,146 @@ mod tests {
             .filter(|blk| matches!(blk, Block::Chip { label, .. } if label.starts_with("working:")))
             .count();
         assert_eq!(working_chips, 1);
+    }
+
+    fn item_with(slug: &str, status: &str, deps: &[&str], estimate: Option<i64>) -> PlannerItem {
+        PlannerItem::from_value(&json!({
+            "slug": slug, "status": status, "summaryMd": slug,
+            "dependencies": deps, "harbor": "port-daddy", "notes": [],
+            "estimate": estimate,
+        }))
+    }
+
+    #[test]
+    fn gantt_chains_dependencies_and_marks_critical_path() {
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("a", "now", &[], Some(2)),
+            item_with("b", "backlog", &["a"], Some(3)),
+            item_with("c", "backlog", &[], Some(1)),
+        ];
+        let (rows, makespan) = p.gantt().expect("schedules");
+        assert_eq!(makespan, 5); // a(2) then b(3) is the critical chain
+        let b = rows.iter().find(|r| r.slug == "b").unwrap();
+        assert_eq!(b.start, 2);
+        assert_eq!(b.finish, 5);
+        assert!(b.critical);
+        let c = rows.iter().find(|r| r.slug == "c").unwrap();
+        assert!(!c.critical);
+        assert_eq!(c.slack, 4);
+    }
+
+    #[test]
+    fn gantt_excludes_done_items_and_their_edges() {
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("shipped", "done", &[], Some(9)),
+            item_with("next", "now", &["shipped"], Some(1)),
+        ];
+        let (rows, makespan) = p.gantt().expect("schedules");
+        assert_eq!(rows.len(), 1); // done work casts no bar
+        assert_eq!(rows[0].slug, "next");
+        assert_eq!(rows[0].start, 0); // satisfied dep imposes no offset
+        assert_eq!(makespan, 1);
+    }
+
+    #[test]
+    fn gantt_defaults_unsized_items_to_one_unit() {
+        let mut p = PlannerPane::default();
+        p.items = vec![item("unsized", "backlog", "no estimate")];
+        let (rows, makespan) = p.gantt().expect("schedules");
+        assert_eq!(rows[0].estimate, 1);
+        assert_eq!(makespan, 1);
+    }
+
+    #[test]
+    fn gantt_reports_cycles_instead_of_hiding_them() {
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("x", "now", &["y"], Some(1)),
+            item_with("y", "now", &["x"], Some(1)),
+        ];
+        let err = p.gantt().expect_err("cycle must fail closed");
+        assert!(err.contains("cycle"), "reason should name the cycle: {err}");
+        let blocks = p.gantt_blocks();
+        assert!(blocks.iter().any(
+            |b| matches!(b, Block::Chip { label, .. } if label.contains("schedule unavailable"))
+        ));
+    }
+
+    #[test]
+    fn gantt_reports_multi_node_cycles() {
+        // A → B → C → A: the kernel scheduler must refuse the whole schedule,
+        // not silently drop an edge.
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("a", "now", &["c"], Some(1)),
+            item_with("b", "now", &["a"], Some(1)),
+            item_with("c", "now", &["b"], Some(1)),
+        ];
+        let err = p.gantt().expect_err("3-node cycle must fail closed");
+        assert!(err.contains("cycle"), "reason should name the cycle: {err}");
+    }
+
+    #[test]
+    fn gantt_clamps_explicit_zero_estimates_to_one_unit() {
+        // estimate: 0 is "unsized", not "instant" — the parser drops it and the
+        // Gantt sizes the bar at one unit so the task stays visible.
+        let mut p = PlannerPane::default();
+        p.items = vec![item_with("zero", "now", &[], Some(0))];
+        let (rows, makespan) = p.gantt().expect("schedules");
+        assert_eq!(rows[0].estimate, 1);
+        assert_eq!(makespan, 1);
+    }
+
+    #[test]
+    fn gantt_bars_stay_inside_the_cell_budget_and_slugs_truncate() {
+        // One giant estimate must not overflow the 40-cell bar lane, and a slug
+        // longer than the label column truncates instead of shoving the bar.
+        let long = "a-very-long-roadmap-slug-that-exceeds-thirty-characters-easily";
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with(long, "now", &[], Some(500)),
+            item_with("tiny", "now", &[], Some(1)),
+        ];
+        let blocks = p.gantt_blocks();
+        for b in &blocks {
+            if let Block::Row(cols) = b {
+                assert_eq!(cols.len(), 3);
+                assert!(
+                    cols[0].chars().count() <= 31, // 30 label chars + the ellipsis
+                    "label column must truncate: {}",
+                    cols[0]
+                );
+                assert!(
+                    cols[1].chars().count() <= 41,
+                    "bar must stay inside the 40-cell lane (+rounding): {} cells",
+                    cols[1].chars().count()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn view_leads_with_the_gantt_section() {
+        let mut p = PlannerPane::default();
+        p.items = vec![
+            item_with("a", "now", &[], Some(2)),
+            item_with("b", "backlog", &["a"], Some(3)),
+        ];
+        let blocks = p.view();
+        // Block 0 is the pane header; block 1 opens the Gantt — before any
+        // epic tree or fleet roster (the chart is the first screen).
+        assert!(matches!(&blocks[0], Block::Header(h) if h == "Planner"));
+        assert!(
+            matches!(&blocks[1], Block::Header(h) if h.starts_with("Gantt — critical path")),
+            "gantt must lead the view, got {:?}",
+            blocks[1]
+        );
+        // Bar rows render with critical fill for the critical chain.
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::Row(c) if c.len() == 3 && c[1].contains('█'))));
     }
 
     #[test]

@@ -9,6 +9,11 @@
 
 #[path = "../src/agent.rs"]
 mod agent;
+// agent.rs resolves the stable-berth default via crate::berths (daemon
+// discovery's final fallback), so every target hosting agent.rs must also
+// host the berths module.
+#[path = "../src/berths.rs"]
+mod berths;
 #[path = "../src/ledger_pane.rs"]
 mod ledger_pane;
 #[path = "../src/pane.rs"]
