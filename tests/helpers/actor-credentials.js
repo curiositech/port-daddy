@@ -38,6 +38,9 @@ export function createTestActorSouls(db, config = {}) {
  */
 export function mintTestActor(souls, alias) {
   const minted = souls.mint(alias ? { alias } : {});
+  if (!minted || typeof minted.credential !== 'string' || !minted.credential) {
+    throw new Error(`mintTestActor: souls.mint returned no credential${alias ? ` (alias "${alias}")` : ''}`);
+  }
   return {
     actorId: minted.actorId,
     credential: minted.credential,
