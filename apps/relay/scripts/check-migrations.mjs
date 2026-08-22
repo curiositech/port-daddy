@@ -57,6 +57,34 @@ requireColumn('parleys', 'outcome_json');
 requireColumn('harbor_helms', 'parley_expiry_default');
 requireColumn('mercy_health', 'hooks_json');
 
+// repo_settings (/account/repos): the SITREP dial must stay a closed enum at
+// the storage layer — the Worker trusts the CHECK as its last line of defense.
+const repoSettingsSql = requireTable('repo_settings');
+requireColumn('repo_settings', 'sitrep_end_of_turn');
+requireColumn('repo_settings', 'settings_json');
+for (const level of ['off', 'suggest', 'enforce']) {
+  if (!repoSettingsSql.includes(`'${level}'`)) {
+    throw new Error(`repo_settings.sitrep_end_of_turn CHECK is missing level '${level}'`);
+  }
+}
+if (!repoSettingsSql.includes('json_valid')) {
+  throw new Error('repo_settings.settings_json lost its json_valid CHECK');
+}
+// Prove both CHECKs bite at the storage layer, not just parse.
+db.exec("INSERT INTO users (id, github_user_id, login, created_at) VALUES ('u_chk', 1, 'chk', 0)");
+for (const bad of [
+  `INSERT INTO repo_settings (user_id, repo_full_name, sitrep_end_of_turn, created_at, updated_at)
+     VALUES ('u_chk', 'a/b', 'loudly', 0, 0)`,
+  `INSERT INTO repo_settings (user_id, repo_full_name, settings_json, created_at, updated_at)
+     VALUES ('u_chk', 'a/b', 'not json', 0, 0)`,
+]) {
+  let rejected = false;
+  try { db.exec(bad); } catch { rejected = true; }
+  if (!rejected) throw new Error('repo_settings CHECK constraints did not reject an invalid row');
+}
+db.exec("DELETE FROM repo_settings WHERE user_id = 'u_chk'");
+db.exec("DELETE FROM users WHERE id = 'u_chk'");
+
 // Roadmap command-center mirror (operator mandate 2026-08-22, PR 1): the
 // board's lane enum, the edge-type enum, and the JSON bags are all CHECK-
 // enforced at the storage layer — the Worker trusts them as its last line of

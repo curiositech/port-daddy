@@ -198,33 +198,14 @@ function json(status: number, body: unknown): Response {
   });
 }
 
-/**
- * Validate an `owner/name` GitHub repository full name at the door.
- *
- * Why strict, and why this exact shape: the value round-trips into SQL rows
- * and read filters, so ONE closed shape at the entry keeps every downstream
- * surface simple. This is intentionally the same normalization contract as
- * the repo-settings screen (claude/repo-settings-screen's
- * `repo-settings-page.ts`): pasted GitHub URLs are accepted (scheme/host
- * case-insensitive per RFC 3986, `.git` suffix stripped), owner segments are
- * GitHub-legal (alphanumerics + interior hyphens, 1..100 chars), name
- * segments allow word chars, dots, dashes (no leading dot, 1..100 chars),
- * and fragments/queries are rejected — they are not part of a repository's
- * identity. When that module lands on main, the two copies should collapse
- * into one export.
- *
- * @param raw - The client-supplied repository identifier.
- * @returns The trimmed `owner/name`, or null when the shape is invalid.
- */
-export function normalizeRepoFullName(raw: unknown): string | null {
-  if (typeof raw !== 'string') return null;
-  const trimmed = raw.trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\.git$/, '');
-  const m = /^([A-Za-z0-9](?:[A-Za-z0-9-]{0,98}[A-Za-z0-9])?)\/([A-Za-z0-9_-][A-Za-z0-9._-]{0,99})$/.exec(trimmed);
-  const owner = m?.[1];
-  const name = m?.[2];
-  if (!owner || !name) return null;
-  return `${owner}/${name}`;
-}
+// One repo-name shape across the account surfaces, by design: the mirror's
+// door uses the SAME normalization contract as the repo-settings screen
+// (pasted GitHub URLs accepted, `.git` stripped, GitHub-legal owner/name
+// charsets, fragments/queries rejected) — imported, never re-implemented, so
+// the two doors cannot drift (no-duplicate-paths doctrine). Re-exported
+// because it is part of this module's ingest contract too.
+import { normalizeRepoFullName } from './repo-settings-page.js';
+export { normalizeRepoFullName };
 
 /**
  * Split an array into fixed-size chunks for multi-row INSERT statements.
