@@ -13,6 +13,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const { loadSkillCatalog, isPublishableSkill } = await import('../../lib/shipwright/skill-index.js');
+const skillVisibility = await import('../../lib/shipwright/skill-visibility.js');
+const { extractPairsWithTargets } = await import('../../lib/skill-pairs-with.js');
 const { formatVisibilityMarker, formatOwnershipLine } = await import('../../cli/commands/seamanship.js');
 
 let tmpRoot;
@@ -256,5 +258,68 @@ describe('formatOwnershipLine (pd seamanship show)', () => {
     expect(line).toContain('owner: Erich Owens');
     expect(line).toContain('visibility: public');
     expect(line).toContain('repos: port-daddy, pd-seamanship');
+  });
+});
+
+// ── ONE implementation of the visibility law ────────────────────────────────
+//
+// `isPublishableSkill` moved into lib/shipwright/skill-visibility.ts — a module
+// with zero imports — so the Cloudflare Worker publish surfaces (apps/relay's
+// Seamanship page and public listing) can import the SAME function instead of
+// re-implementing it. skill-index.ts imports better-sqlite3 and node:fs and can
+// never be loaded in workerd, which is exactly why a second copy would have
+// been written if the law had stayed there.
+//
+// These tests pin the arrangement itself, not just the behaviour: identity, so
+// a future edit cannot quietly fork the predicate into two look-alikes that
+// drift a tier apart.
+describe('the visibility law has exactly one implementation', () => {
+  test('skill-index re-exports the shared predicate — the same binding, not a copy', () => {
+    expect(isPublishableSkill).toBe(skillVisibility.isPublishableSkill);
+  });
+
+  test('the shared module is importable with no Node or native dependency', () => {
+    // It parsed and evaluated above without better-sqlite3, transformers.js or
+    // node:fs being reachable from it. Its whole exported surface is the law.
+    expect(Object.keys(skillVisibility).sort()).toEqual(['isPublishableSkill', 'parseVisibility']);
+  });
+
+  test('the shared parseVisibility narrows the same way the catalog loader does', () => {
+    expect(skillVisibility.parseVisibility(undefined, 'p')).toBe('private');
+    expect(skillVisibility.parseVisibility(null, 'p')).toBe('private');
+    expect(skillVisibility.parseVisibility(['public'], 'p')).toBe('private');
+    expect(skillVisibility.parseVisibility('publik', 'p')).toBe('private');
+    expect(skillVisibility.parseVisibility('  PUBLIC  ', 'p')).toBe('public');
+    expect(skillVisibility.parseVisibility('listed', 'p')).toBe('listed');
+  });
+});
+
+// ── the curated `pairs-with` edge parser ────────────────────────────────────
+//
+// Also extracted (lib/skill-pairs-with.ts) so the relay's catalog page reads a
+// curated edge by the same law lib/skill-graft.ts does. Same reasoning: two
+// parsers that disagreed about where the field lives would render two different
+// graphs from one catalog.
+describe('extractPairsWithTargets', () => {
+  test('reads both frontmatter locations and both entry shapes', () => {
+    const targets = extractPairsWithTargets(
+      {
+        'pairs-with': [{ skill: 'top-level-object', reason: 'ignored' }, 'top-level-bare'],
+        metadata: { 'pairs-with': [{ skill: 'nested-object' }, 'nested-bare'] },
+      },
+      'self',
+    );
+    expect(targets).toEqual(['top-level-object', 'top-level-bare', 'nested-object', 'nested-bare']);
+  });
+
+  test('drops self-edges, blanks and non-string ids without throwing', () => {
+    expect(extractPairsWithTargets({ 'pairs-with': ['self', '  ', 42, null, { reason: 'no skill' }, ' ok '] }, 'self'))
+      .toEqual(['ok']);
+  });
+
+  test('returns [] for frontmatter that declares nothing', () => {
+    expect(extractPairsWithTargets({}, 'self')).toEqual([]);
+    expect(extractPairsWithTargets({ 'pairs-with': 'not-a-list' }, 'self')).toEqual([]);
+    expect(extractPairsWithTargets({ metadata: 'not-an-object' }, 'self')).toEqual([]);
   });
 });

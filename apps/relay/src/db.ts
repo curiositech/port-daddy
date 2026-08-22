@@ -808,11 +808,35 @@ export async function countUserSessions(db: D1Database, userId: string): Promise
  * how many sessions were purged.
  */
 export async function eraseUser(db: D1Database, userId: string, now: number): Promise<number> {
+  // Read the login BEFORE the soft-delete: it is the key to this user's public
+  // skill namespace (seamanship.ts publishes under '@<login>'), and the users
+  // row is about to be scrubbed.
+  const who = await db.prepare('SELECT login FROM users WHERE id = ?').bind(userId).first<{ login: string }>();
+  const login = who?.login ?? null;
   const sessions = await db.prepare('DELETE FROM web_sessions WHERE user_id = ?').bind(userId).run();
   // Revoke every pdu_ device token too — erasure logs out browsers AND devices.
   await db.prepare('UPDATE user_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').bind(now, userId).run();
   // Shipwright chat content is user-authored PII — it dies NOW, not in 30 days.
   await db.prepare('DELETE FROM shipwright_chats WHERE user_id = ?').bind(userId).run();
+  // Seamanship: the frontmatter cache was read under THIS user's installation
+  // grant, so it dies with the grant. It is only a cache — nothing is lost that
+  // the repo does not still hold.
+  await db.prepare('DELETE FROM seamanship_skill_cache WHERE user_id = ?').bind(userId).run();
+  // The Engineman's chat is user-authored PII on the same footing as the other
+  // conversation store — it dies NOW.
+  await db.prepare('DELETE FROM agent_chats WHERE user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM agent_chat_spend WHERE user_id = ?').bind(userId).run();
+  // Build capabilities die FIRST among the Snipe rows: an unspent grant is a
+  // pull request waiting to happen, and an erased account must not still be
+  // able to author into a repo. Grants before suggestions, because the grant
+  // references the suggestion.
+  await db.prepare('DELETE FROM seamanship_build_grants WHERE user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM seamanship_suggestions WHERE user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM seamanship_suggestion_jobs WHERE user_id = ?').bind(userId).run();
+  // ...and their public skill listing comes down NOW. An erased account must not
+  // keep publishing a directory of its owner's skills for the next 30 days.
+  // Keyed by login, not users.id: the namespace IS the login (seamanship.ts).
+  if (login) await db.prepare('DELETE FROM skill_listings WHERE namespace = ?').bind(login).run();
   await db
     .prepare('UPDATE users SET deleted_at = ?, primary_email = NULL, avatar_url = NULL WHERE id = ?')
     .bind(now, userId)

@@ -76,12 +76,14 @@ import {
   getRepoDefaultBranch,
 } from './github-app.js';
 
-// ── Bounds (protect Workers AI quota + D1 row size) ──────────────────────────
+// ── Bounds ──────────────────────────────────────────────────────────────────
+//
+// Re-exported from the shared turn engine rather than re-declared. Two chat
+// surfaces with two copies of "how long may a message be" is how the copies
+// start to disagree; there is one answer and it lives in chat-engine.ts.
 
-export const MAX_MESSAGE_CHARS = 4_000;
-/** How much conversation the model sees per turn (and the page reloads). */
-export const HISTORY_WINDOW = 40;
-const CHAT_MAX_TOKENS = 2_048;
+export { MAX_MESSAGE_CHARS, HISTORY_WINDOW } from './chat-engine.js';
+import { HISTORY_WINDOW, runChatTurn, type ChatAgent } from './chat-engine.js';
 
 /** Committed default; the SHIPWRIGHT_MODEL var overrides without a deploy. */
 export const SHIPWRIGHT_DEFAULT_MODEL = '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b';
@@ -168,39 +170,12 @@ export async function handleShipwrightClear(request: Request, env: Env): Promise
 
 // ── POST /v1/shipwright/chat ─────────────────────────────────────────────────
 
-interface ChatBody {
-  message?: string;
-  /** false ⇒ buffered JSON reply (tests / non-SSE clients). Default: stream. */
-  stream?: boolean;
-}
-
-/** Workers AI streaming SSE line shapes we accept (defensive across models). */
-function tokenOf(payload: string): string {
-  try {
-    const o = JSON.parse(payload) as {
-      response?: unknown;
-      choices?: Array<{ delta?: { content?: unknown } }>;
-    };
-    if (typeof o.response === 'string') return o.response;
-    const delta = o.choices?.[0]?.delta?.content;
-    return typeof delta === 'string' ? delta : '';
-  } catch {
-    return '';
-  }
-}
-
-/** Reconstruct the full assistant text from raw SSE wire text. */
-export function assembleSseText(raw: string): string {
-  let out = '';
-  for (const line of raw.split('\n')) {
-    const t = line.trim();
-    if (!t.startsWith('data:')) continue;
-    const payload = t.slice(5).trim();
-    if (!payload || payload === '[DONE]') continue;
-    out += tokenOf(payload);
-  }
-  return out;
-}
+/**
+ * Reconstructing assistant text from raw SSE wire text is the turn engine's
+ * job, not this surface's. Re-exported here because the page and the tests
+ * have always imported it from this module — one implementation, two names.
+ */
+export { assembleSseText } from './chat-engine.js';
 
 // ── YAML validation badge (shipwright-yaml-validate) ─────────────────────────
 
@@ -291,116 +266,53 @@ export function validateEmittedYaml(content: string): FleetValidationResult[] {
 }
 
 /**
- * One chat turn. The user message is persisted first (a failed generation
- * never eats operator input), then the model streams; a pass-through
- * TransformStream forwards the SSE bytes to the browser unchanged while
- * accumulating the text, and persists the assistant message on flush.
+ * The Shipwright as the shared turn engine sees it: a prompt, a store, a model
+ * id, and the one thing that is genuinely this surface's own — the roster
+ * verdict that rides the stream.
+ *
+ * Everything else — the session gate, the same-origin check, the message
+ * bound, the unconfigured-binding refusal, the DAILY SPEND CAP, the
+ * persist-before-call ordering and the SSE pass-through — belongs to
+ * chat-engine.ts and is shared byte-for-byte with every other chat surface.
+ * That is deliberate: this surface used to own a private copy of all of it,
+ * and a private copy is exactly how the relay ended up with a chat that could
+ * call a model with no per-user budget in front of it.
+ */
+export const shipwrightAgent: ChatAgent = {
+  id: 'shipwright',
+  systemPrompt: SHIPWRIGHT_SYSTEM_PROMPT,
+  model: shipwrightModel,
+  unconfiguredCode: 'SHIPWRIGHT_UNCONFIGURED',
+  unconfiguredError: 'no model binding is configured on this relay',
+  store: {
+    insert: (db, m) => insertShipwrightMessage(db, m),
+    list: (db, userId, limit) => listShipwrightMessages(db, userId, limit),
+    clear: (db, userId) => clearShipwrightChats(db, userId),
+  },
+  // The verdict is computed server-side from the deterministic parser, never
+  // asked of the model — a roster's validity is a fact, not a claim.
+  bufferedExtras: (reply) => ({ yaml: validateEmittedYaml(reply) }),
+  streamTrailer: (text) => {
+    // One final synthetic line, AFTER every real token and never blended into
+    // the persisted content, so it cannot be mistaken for the model's own
+    // words. The client recognizes the `pdYamlVerdict` marker and never treats
+    // it as a token (see shipwright-page.ts's pump()). Skipped entirely when
+    // the turn emitted no roster — no verdict line, no badge, nothing to lie
+    // about.
+    const verdicts = validateEmittedYaml(text);
+    if (verdicts.length === 0) return null;
+    return `data: ${JSON.stringify({ pdYamlVerdict: verdicts })}\n\n`;
+  },
+};
+
+/**
+ * One chat turn — delegated whole to {@link runChatTurn}. The user message is
+ * persisted after the spend cap clears and before the model call (a failed
+ * generation never eats operator input); the pass-through stream forwards the
+ * bytes unchanged and persists the assistant message on flush.
  */
 export async function handleShipwrightChat(request: Request, env: Env): Promise<Response> {
-  const session = await resolveSession(request, env);
-  if (!session) return json(401, { code: 'UNAUTHENTICATED', error: 'no session' });
-  if (!isSameOrigin(request, env)) return json(403, { code: 'CROSS_ORIGIN', error: 'cross-origin request refused' });
-
-  const body = await readJson<ChatBody>(request);
-  const message = typeof body?.message === 'string' ? body.message.trim() : '';
-  if (!message) return json(400, { code: 'BAD_JSON', error: 'Request body must be JSON {message: string}' });
-  if (message.length > MAX_MESSAGE_CHARS) {
-    return json(400, { code: 'MESSAGE_TOO_LONG', error: `message exceeds ${MAX_MESSAGE_CHARS} chars` });
-  }
-  if (!env.AI) {
-    // Same honest idiom as BILLING_UNCONFIGURED: the relay deploys before the
-    // [ai] binding is provisioned; the feature says so instead of 500ing.
-    return json(503, { code: 'SHIPWRIGHT_UNCONFIGURED', error: 'Workers AI binding not configured' });
-  }
-  const ai = env.AI;
-  const db = env.DB;
-  const userId = session.user.id;
-  const now = Math.floor(Date.now() / 1000);
-
-  await insertShipwrightMessage(db, { userId, role: 'user', content: message, now });
-
-  const history = await listShipwrightMessages(db, userId, HISTORY_WINDOW);
-  const messages = [
-    { role: 'system', content: SHIPWRIGHT_SYSTEM_PROMPT },
-    ...history.map((m) => ({ role: m.role, content: m.content })),
-  ];
-  const model = shipwrightModel(env) as Parameters<typeof ai.run>[0];
-
-  const persistReply = async (content: string): Promise<void> => {
-    const trimmed = content.trim();
-    if (!trimmed) return;
-    await insertShipwrightMessage(db, {
-      userId,
-      role: 'assistant',
-      content: trimmed,
-      now: Math.floor(Date.now() / 1000),
-    });
-  };
-
-  // Buffered mode — one JSON envelope, no SSE.
-  if (body?.stream === false) {
-    try {
-      const res = (await ai.run(model, {
-        messages,
-        max_tokens: CHAT_MAX_TOKENS,
-      })) as { response?: string };
-      const reply = (res.response ?? '').trim();
-      await persistReply(reply);
-      return json(200, { code: 'OK', error: null, reply, yaml: validateEmittedYaml(reply) });
-    } catch (e) {
-      return json(500, { code: 'AI_ERROR', error: `Workers AI request failed: ${publicError(e)}` });
-    }
-  }
-
-  // Streaming mode — pipe the Workers AI SSE stream straight through while
-  // accumulating the text; flush() runs after the last chunk is forwarded and
-  // persists the assistant message (the runtime keeps the request context
-  // alive while the response body is still streaming).
-  let upstream: ReadableStream<Uint8Array>;
-  try {
-    upstream = (await ai.run(model, {
-      messages,
-      max_tokens: CHAT_MAX_TOKENS,
-      stream: true,
-    })) as unknown as ReadableStream<Uint8Array>;
-  } catch (e) {
-    return json(500, { code: 'AI_ERROR', error: `Workers AI request failed: ${publicError(e)}` });
-  }
-
-  const decoder = new TextDecoder();
-  const encoder = new TextEncoder();
-  let raw = '';
-  const tee = new TransformStream<Uint8Array, Uint8Array>({
-    transform(chunk, controller) {
-      raw += decoder.decode(chunk, { stream: true });
-      controller.enqueue(chunk);
-    },
-    async flush(controller) {
-      raw += decoder.decode();
-      const text = assembleSseText(raw);
-      await persistReply(text);
-      // The verdict rides the SAME SSE stream as one final synthetic line,
-      // after every real model token — never blended into `raw`/persisted
-      // content, so it can never be mistaken for the model's own words. The
-      // client recognizes the `pdYamlVerdict` marker and never treats it as
-      // a token (see shipwright-page.ts's pump()). Skipped entirely when the
-      // turn emitted no roster — no verdict line, no badge, nothing to lie
-      // about.
-      const verdicts = validateEmittedYaml(text);
-      if (verdicts.length > 0) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ pdYamlVerdict: verdicts })}\n\n`));
-      }
-    },
-  });
-
-  return new Response(upstream.pipeThrough(tee), {
-    status: 200,
-    headers: {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-store',
-      'X-Accel-Buffering': 'no',
-    },
-  });
+  return runChatTurn(request, env, shipwrightAgent);
 }
 
 // ── POST /v1/shipwright/open-pr (shipwright-pr-open) ─────────────────────────
