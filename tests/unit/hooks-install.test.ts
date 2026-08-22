@@ -10,7 +10,7 @@
  * Sandbox lives under the repo's .scratch/ — NEVER /tmp.
  */
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync, readFileSync, rmSync, statSync, utimesSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   stageTentacles,
@@ -150,6 +150,9 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(wrapper).toContain('PORT_DADDY_READY_FILE');
     expect(wrapper).toContain('PORT_DADDY_PID_FILE');
     expect(wrapper).toContain('PORT_DADDY_HEARTBEAT_FILE');
+    expect(wrapper).toContain('[ ! -L "$ready_file" ]');
+    expect(wrapper).toContain('[ ! -L "$pid_file" ]');
+    expect(wrapper).toContain('[ ! -L "$heartbeat" ]');
     expect(wrapper).toContain('heartbeat');
     expect(wrapper).toContain('stat -f %m');
     expect(wrapper).not.toContain('kill -0');
@@ -344,6 +347,31 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     });
     expect(out).toContain('pd-hook-prompt');
   });
+
+  test.each(['daemon.ready', 'daemon.pid', 'heartbeat'])(
+    'fails open instead of trusting a symlinked %s lease',
+    (leaseName) => {
+      const pdHome = join(SANDBOX, `symlink-${leaseName.replace('.', '-')}-home`);
+      const binDir = join(pdHome, 'bin');
+      mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+      stageTentacles(SRC, binDir);
+      writeFileSync(join(pdHome, 'heartbeat'), '{}');
+      markDaemonReady(pdHome, 7001);
+      registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+      const lease = join(pdHome, leaseName);
+      const target = `${lease}.target`;
+      renameSync(lease, target);
+      symlinkSync(target, lease);
+
+      const out = execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+        cwd: REPO,
+        env: { ...process.env, PD_HOME: pdHome },
+        input: '{}',
+        encoding: 'utf8',
+      });
+      expect(out).toBe('');
+    },
+  );
 
   test('unexpected exits fail open, trip after three calls, and emit one FleetBar remediation', () => {
     const pdHome = join(SANDBOX, 'breaker-exit-home');
