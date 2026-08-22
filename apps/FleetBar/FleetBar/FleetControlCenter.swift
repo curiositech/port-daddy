@@ -151,12 +151,13 @@ struct FleetControlCenter: View {
     }
 
     private var embeddedControlPlaneURL: URL? {
-        guard var components = URLComponents(string: "\(store.daemonURL)/fleet-ui/") else {
+        guard let daemonURL = store.daemonURL,
+              var components = URLComponents(string: "\(daemonURL)/fleet-ui/") else {
             return nil
         }
 
         var queryItems = [
-            URLQueryItem(name: "daemon", value: store.daemonURL),
+            URLQueryItem(name: "daemon", value: daemonURL),
             URLQueryItem(name: "surface", value: selectedSurface.rawValue),
             URLQueryItem(name: "embed", value: "fleetbar"),
             URLQueryItem(name: "theme", value: selectedTheme),
@@ -575,12 +576,16 @@ struct FleetControlCenter: View {
                 .padding(.horizontal, Fleet.Space.l)
                 .padding(.vertical, Fleet.Space.m)
         case .galaxy:
-            FleetControlGalaxySection(
-                daemonURL: store.daemonURL,
-                project: selectedProject?.name ?? selectedProjectId
-            )
-            .padding(.horizontal, Fleet.Space.l)
-            .padding(.vertical, Fleet.Space.m)
+            if let daemonURL = store.daemonURL {
+                FleetControlGalaxySection(
+                    daemonURL: daemonURL,
+                    project: selectedProject?.name ?? selectedProjectId
+                )
+                .padding(.horizontal, Fleet.Space.l)
+                .padding(.vertical, Fleet.Space.m)
+            } else {
+                offlineState
+            }
         default:
             // Fallback should never trigger — every native case must be wired.
             embeddedSurfaceContent
@@ -629,7 +634,7 @@ struct FleetControlCenter: View {
             Text("Control plane unavailable")
                 .font(.title3.weight(.semibold))
 
-                Text("FleetBar is now a native shell for the real `/fleet-ui/` surface. Start the daemon, then this window will load the live flow graph, YAML editor, inbox, sortie workspace, and semantic memory explorer.")
+            Text("FleetBar is now a native shell for the real `/fleet-ui/` surface. Start the daemon, then this window will load the live flow graph, YAML editor, inbox, sortie workspace, and semantic memory explorer.")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

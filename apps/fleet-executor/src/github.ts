@@ -404,6 +404,100 @@ export async function fetchOpenPullRequests(
   }
 }
 
+/** One open PR with the fields the MEDIATOR needs (src/mediator.ts). */
+export interface OpenPRDetailed {
+  number: number;
+  title: string;
+  /** PR author's GitHub login (claim identity for the conflict parley). */
+  author: string;
+  /** unix seconds — decides CLAIM order (earlier-created = first claimant). */
+  createdAt: number;
+  /** unix seconds — the recency the pair cap prioritizes by. */
+  updatedAt: number;
+  /** Head SHA the neutral check run posts against. */
+  headSha: string;
+  draft: boolean;
+}
+
+/**
+ * List the repo's open PRs WITH author/timestamps/head — the mediator's view.
+ *
+ * Separate from {@link fetchOpenPullRequests} (Lookout's slimmer shape) on
+ * purpose: Lookout's callers and prompt renderer depend on the exact OpenPR
+ * shape, and widening it for the mediator would couple two features that
+ * merely share an endpoint. Sorted by GitHub `updated desc`, which IS the
+ * recency prioritization the pair cap consumes — the first N entries are the
+ * N most recently active PRs. Best-effort: [] on any failure.
+ */
+export async function fetchOpenPullRequestsDetailed(
+  owner: string,
+  repo: string,
+  token: string,
+  limit = 100,
+): Promise<OpenPRDetailed[]> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls?state=open&per_page=${Math.min(limit, 100)}&sort=updated&direction=desc`,
+      { headers: ghHeaders(token) },
+    );
+    if (!res.ok) return [];
+    const body = (await res.json()) as Array<{
+      number: number;
+      title: string;
+      draft?: boolean;
+      user?: { login?: string };
+      created_at?: string;
+      updated_at?: string;
+      head?: { sha?: string };
+    }>;
+    const toUnix = (s: string | undefined): number => {
+      const ms = s ? Date.parse(s) : NaN;
+      return Number.isFinite(ms) ? Math.floor(ms / 1000) : 0;
+    };
+    return body.map((p) => ({
+      number: p.number,
+      title: p.title ?? '',
+      author: p.user?.login ?? '',
+      createdAt: toUnix(p.created_at),
+      updatedAt: toUnix(p.updated_at),
+      headSha: p.head?.sha ?? '',
+      draft: p.draft === true,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetch one PR's changed files WITH patches — the mediator's symbol source.
+ *
+ * One page only ({@link PR_FILES_PAGE_SIZE}), same truncation stance as the
+ * main PR-context fetch: a 100+-file PR yields a PARTIAL symbol set, which
+ * can only produce FEWER predicted collisions, never invented ones — the
+ * conservative direction for a feature that convenes people. Best-effort:
+ * [] on any failure.
+ */
+export async function fetchPRFilePatches(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  token: string,
+): Promise<Array<{ filename: string; patch?: string }>> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=${PR_FILES_PAGE_SIZE}`,
+      { headers: ghHeaders(token) },
+    );
+    if (!res.ok) return [];
+    const body = (await res.json()) as Array<{ filename?: string; patch?: string }>;
+    return body
+      .filter((f): f is { filename: string; patch?: string } => typeof f.filename === 'string')
+      .map((f) => (f.patch === undefined ? { filename: f.filename } : { filename: f.filename, patch: f.patch }));
+  } catch {
+    return [];
+  }
+}
+
 /**
  * List recently-updated branches (feature branches + worktree branches). Lookout
  * uses this to notice work-in-flight that isn't a PR yet. Best-effort: [] on
@@ -615,6 +709,49 @@ export async function upsertPrBodySection(
   }
 }
 
+/**
+ * Find an OPEN issue whose title starts with `titlePrefix`.
+ *
+ * MOTIVATION: the adjudicator (src/adjudicator.ts) tracks each fleet-wide
+ * broken-ship fault as exactly ONE issue — the dedupe key is a stable title
+ * prefix, so re-declaring the same epidemic on every affected run refreshes
+ * nothing and spams nobody. Listing is scoped by state to keep the scan small;
+ * a closed issue deliberately does NOT match, so a fault that recurs after a
+ * fix gets a fresh issue (and a fresh page) rather than resurrecting history.
+ *
+ * @param owner Repo owner.
+ * @param repo Repo name.
+ * @param titlePrefix The stable title prefix to match (exact, case-sensitive).
+ * @param token Installation token.
+ * @returns The first matching open issue's number, or null (including on any
+ *   fetch failure — the caller then creates a fresh issue, which at worst
+ *   duplicates once rather than ever losing the tracking issue).
+ */
+export async function findOpenIssueByTitlePrefix(
+  owner: string,
+  repo: string,
+  titlePrefix: string,
+  token: string,
+): Promise<number | null> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/issues?state=open&per_page=100`,
+      { headers: ghHeaders(token) },
+    );
+    if (!res.ok) return null;
+    const issues = (await res.json()) as Array<{ number?: number; title?: string; pull_request?: unknown }>;
+    for (const issue of issues) {
+      if (issue.pull_request) continue; // /issues lists PRs too — skip them
+      if (typeof issue.title === 'string' && issue.title.startsWith(titlePrefix)) {
+        return typeof issue.number === 'number' ? issue.number : null;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Issues (fleet idea capture)
 
@@ -742,14 +879,13 @@ export async function createCheckRun(
  *
  * The completion PATCH is retried locally (bounded, with backoff) on a
  * transient failure (network blip, GitHub 5xx, rate limit) because it is a
- * pure idempotent write. This is deliberately NOT done by throwing and
- * letting the whole job retry via the queue: by the time this is called the
- * ships have already run and `createReview` may have already posted a review
- * comment (not idempotent — a job-level retry would spend AI again and post
- * a duplicate review just to redo one PATCH). Failure is logged internally
- * on every attempt and on final exhaustion — this function never throws, so
- * it can never turn a completion hiccup into an expensive job-level replay.
- * The boolean return is there for callers/tests that want to react further.
+ * pure idempotent write. Failure is logged internally on every attempt and on
+ * final exhaustion; this function returns false rather than throwing so each
+ * caller can apply its own lifecycle policy. The Fleet executor treats false
+ * as a queue-level failure after ship checkpoints are durable and before the
+ * non-idempotent aggregate review is posted. Redelivery therefore resumes
+ * without AI re-spend or duplicate reviews, while the DLQ remains able to
+ * resolve a persistently lost required check honestly.
  */
 export async function completeCheckRun(
   owner: string,
@@ -759,6 +895,7 @@ export async function completeCheckRun(
   summary: string,
   token: string,
   detailsUrl?: string | null,
+  title = 'Port Daddy Fleet',
 ): Promise<boolean> {
   if (!checkRunId) return false;
   // details_url is (re)stamped on completion too, so a run that REUSED an
@@ -767,7 +904,7 @@ export async function completeCheckRun(
     status: 'completed',
     conclusion,
     completed_at: new Date().toISOString(),
-    output: { title: 'Port Daddy Fleet', summary },
+    output: { title, summary },
     ...(detailsUrl ? { details_url: detailsUrl } : {}),
   });
   const MAX_ATTEMPTS = 3;
@@ -855,18 +992,32 @@ export async function findFleetCheckRunState(
   headSha: string,
   name: string,
   token: string,
-): Promise<{ id: number; status: string; conclusion: string | null } | null> {
+): Promise<{ id: number; status: string; conclusion: string | null; summary: string } | null> {
   const res = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/commits/${headSha}/check-runs?per_page=100`,
     { headers: ghHeaders(token) },
   );
   if (!res.ok) return null;
   const body = (await res.json()) as {
-    check_runs?: Array<{ id: number; name: string; status?: string; conclusion?: string | null }>;
+    check_runs?: Array<{
+      id: number;
+      name: string;
+      status?: string;
+      conclusion?: string | null;
+      output?: { summary?: string | null } | null;
+    }>;
   };
   const match = (body.check_runs ?? []).find(c => c.name === name);
   if (!match) return null;
-  return { id: match.id, status: match.status ?? '', conclusion: match.conclusion ?? null };
+  // `summary` comes back on the list endpoint and carries the DLQ handler's
+  // dead-letter marker, which is how the caller tells a gate that ships decided
+  // apart from one a lost job failed — see dead-letter-marker.ts.
+  return {
+    id: match.id,
+    status: match.status ?? '',
+    conclusion: match.conclusion ?? null,
+    summary: match.output?.summary ?? '',
+  };
 }
 
 // ---------------------------------------------------------------------------

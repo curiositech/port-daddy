@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1787086097875,
+  "generatedAt": 1787209306579,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 274,
+  "count": 277,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -890,6 +890,11 @@
       "summaryMd": "feat(fleetbar): add visual task intake"
     },
     {
+      "slug": "frictionless-invisible-port-daddy-agent-experience",
+      "status": "backlog",
+      "summaryMd": "Make Port Daddy agent coordination hooks fast, silent by default, fail-safe, context-relevant, and easy to repair; reconcile and land overlapping open work."
+    },
+    {
       "slug": "gantt-real-estimate-wiring",
       "status": "now",
       "summaryMd": "Wire real roadmap_items.estimate into the Gantt scheduler (routes/roadmap.ts's GET /roadmap/board handler) instead of the hardcoded estimate:1 every task got. lib/roadmap-items.ts now exposes estimate on RoadmapItem/reads it from the DB row; routes/roadmap.ts looks it up per-task with an explicit fallback of 1 only when genuinely unset. started_at/due_at stay unwired — lib/planner-schedule.ts's schedule() is a purely relative CPM engine with no absolute-date anchor concept."
@@ -1170,6 +1175,11 @@
       "summaryMd": "ADR-0119: git-guard has no agent-mintable escape. PD_SHIM_OFF removed from shim + pre-push hook; refusal points only to corrective action. Renumbered from colliding 0102 (salvage-envelope owns 0102). Stale bypass-still-works tests inverted to assert removal; red-team fixture proves no in-band escape. (PR #3145)"
     },
     {
+      "slug": "readme-front-door-and-accuracy-gate",
+      "status": "merge",
+      "summaryMd": "Rewrite the README from a 1046-line feature list into a 268-line front door, and gate it so it stays true. Ships skills/readme-craft (the craft, encoded, with a project-agnostic scorecard and a fence-parser library), scripts/check-readme-accuracy.mjs (release-blocking: every pd verb/flag resolved against cli/permission-tiers.ts, every image/link resolved, length budget enforced, --run executed against a brew-installed daemon in the fresh-install smoke), and a line-scoped docstring ratchet. The documentarian ship owns ongoing upkeep with explicit limits. Open follow-ups: dark-variant GIF placeholders (quickstart/salvage/mayday are 1.4KB stubs), per-verb flag declarations in the CLI (would narrow the corpus-wide flag check), and burning down the pre-existing docstring backlog."
+    },
+    {
       "slug": "release-safety-pipeline",
       "status": "now",
       "summaryMd": "pd batten declarative release-artifact verify+imprint gate (generalizes #3496 test -s); NO gate reports failure as success"
@@ -1283,6 +1293,11 @@
       "slug": "squid-contract-harness-daemon-boot-fix",
       "status": "backlog",
       "summaryMd": "feat(squid): harden bridge and document agent harness"
+    },
+    {
+      "slug": "squid-matrix-parser-consolidation",
+      "status": "now",
+      "summaryMd": "PR1 of the matrix.env elimination plan (docs/proposals/squid-matrix-elimination-plan.md, PR #7685): collapse lib/squid/identity.ts::readMatrixSnapshot() and lib/local-citizen/ink-cloud.ts to call lib/squid/matrix.ts's existing public API instead of independently re-parsing the raw matrix.env file. Zero behavior change, zero schema change, zero hook change — de-risks PR2-PR5 by making 'read the matrix' one call site instead of three before storage changes underneath it. Done when tests/unit/squid-identity.test.ts passes with zero test-file edits and no independent readFileSync/regex parsing of matrix.env remains outside lib/squid/matrix.ts."
     },
     {
       "slug": "squid-on-claude-code-not-wired",

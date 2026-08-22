@@ -12,7 +12,7 @@ import { join, resolve } from 'node:path';
 
 import { PD_HOME } from '../../shared/paths.js';
 import { resolveCliBinary } from '../cli-bin-dirs.js';
-import { PD_HOOK_MARKER, TENTACLES } from './hook-shape.js';
+import { PD_HOOK_MARKER, REGISTERED_TENTACLES, TENTACLES } from './hook-shape.js';
 import {
   SLASH_COMMAND_FILENAME,
   SQUID_DAEMON_HEARTBEAT_STALE_MS,
@@ -141,7 +141,7 @@ function providerStatus(
   commandExists: (binary: string) => boolean,
 ): SquidProviderConformance {
   const config = readText(configPath);
-  const missingTentacles = TENTACLES.filter((tentacle) => !config.includes(tentacle));
+  const missingTentacles = REGISTERED_TENTACLES.filter((tentacle) => !config.includes(tentacle));
   return {
     name,
     slug,
@@ -257,7 +257,9 @@ export function deriveSquidConformance(facts: SquidConformanceFacts): SquidConfo
     capabilities: {
       suggestibility: hooksActive,
       editProtection: hooksActive,
-      trace: hooksActive,
+      // Per-tool observational hooks are intentionally retired. Claims, notes,
+      // and the bounded TURN/EDIT debug projection are the cumulative record.
+      trace: false,
       inbox: facts.daemonAlive && facts.inboxSessionStart,
       parleyDelivery: facts.daemonAlive,
       automatedParley: false,

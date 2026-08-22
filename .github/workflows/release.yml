@@ -238,9 +238,11 @@ jobs:
         # bytes against the dispatch payload. v3.28.0 and v3.28.1 both published
         # green and then failed the roll on exactly these fields.
         run: |
+          # Batten resolves relative archive paths from --staged-dir. Passing
+          # dist/<archive> here asks it to open dist/dist/<archive>.
           ./dist/pd batten imprint --staged-dir dist \
             --release-version "$RELEASE_TAG" \
-            --archive "dist/${{ matrix.artifact }}.tar.gz" \
+            --archive "${{ matrix.artifact }}.tar.gz" \
             --out "dist/${{ matrix.artifact }}-imprint.json"
 
       - name: Upload release imprint to release
@@ -592,9 +594,20 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Update Homebrew formula
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::No RELEASE_TRAIN_TOKEN or HOMEBREW_TAP_TOKEN is available for the tap dispatch."
+            exit 1
+          fi
+          gh api repos/curiositech/homebrew-tap --jq '"Authenticated tap access: \(.full_name)"'
+
+      - name: Dispatch Homebrew formula update
         uses: peter-evans/repository-dispatch@v3
         with:
-          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          token: ${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
           repository: curiositech/homebrew-tap
           event-type: update-formula
           client-payload: |

@@ -87,7 +87,7 @@ final class CloudFleetStoreTests: XCTestCase {
     }
 
     func testCloudFleetSectionLabelsLocalCloudAndSafetyCopy() throws {
-        let localDaemonURL = DaemonLocation.resolveBaseURL()
+        let localDaemonURL = "http://127.0.0.1:8080"
         let inspected = try CloudFleetSection(
             store: CloudFleetStore(autoStart: false),
             localProjects: [],

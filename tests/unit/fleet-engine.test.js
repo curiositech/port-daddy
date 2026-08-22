@@ -85,7 +85,7 @@ const { loadFleetConfig, createFleetRunner, resolveFleetAgentRuntime, validateTo
 const { resolveFleetChannel } = await import('../../lib/fleet-channels.js');
 const { getDaemonTcpUrl } = await import('../../shared/daemon-discovery.js');
 
-const DAEMON_URL = getDaemonTcpUrl();
+const DAEMON_URL = getDaemonTcpUrl('http://127.0.0.1:4319');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -162,6 +162,7 @@ function createMockTupleSpace() {
 beforeEach(() => {
   jest.clearAllMocks();
   jest.useFakeTimers();
+  process.env.PD_URL = DAEMON_URL;
 
   mockExecSync.mockReturnValue('main');
 
@@ -184,6 +185,7 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.useRealTimers();
+  delete process.env.PD_URL;
   delete process.env.PD_FLEET_DEFAULT_BACKEND;
   delete process.env.PD_FLEET_DEFAULT_MODEL;
   delete process.env.PD_MODEL_TIER_CLAUDE_CLI_LOW;

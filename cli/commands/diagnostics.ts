@@ -73,7 +73,7 @@ const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 // Baked-in CLI version. The compiled `pd` binary has no sibling package.json to read, so the
 // version checks below fell back to 'unknown' (reported "CLI vunknown" then advised a pointless
 // restart). Stamped every release by scripts/sync-version.ts — do not hand-edit.
-const EMBEDDED_PACKAGE_VERSION: string = '3.28.2';
+const EMBEDDED_PACKAGE_VERSION: string = '3.30.2';
 
 interface StatusCommandResponse {
   status?: string;
@@ -148,12 +148,14 @@ function getLocalCodeHash(): string {
   return calculateRuntimeCodeHash(join(__dirname, '..', '..'));
 }
 
-function resolveDiagnosticPort(): number {
+function resolveDiagnosticPort(): number | null {
   try {
-    const url = new URL(getDaemonUrl());
-    return Number.parseInt(url.port, 10) || (url.protocol === 'https:' ? 443 : CANONICAL_TCP_PORT);
+    const publishedUrl = getDaemonUrl();
+    if (!publishedUrl) return null;
+    const url = new URL(publishedUrl);
+    return Number.parseInt(url.port, 10) || (url.protocol === 'http:' ? 80 : null);
   } catch {
-    return CANONICAL_TCP_PORT;
+    return null;
   }
 }
 
@@ -209,8 +211,9 @@ function collectDiagnosticRuntimeIdentity(
   health: RuntimeHealthSnapshot | null,
   endpointPort = resolveDiagnosticPort(),
 ): RuntimeIdentityAssessment {
+  const scopedEndpointPort = endpointPort ?? health?.daemon?.port ?? 0;
   const scope = resolveRuntimeIdentityScope(health, {
-    endpointPort,
+    endpointPort: scopedEndpointPort,
     runtimePrefix: process.env.PORT_DADDY_PREFIX,
     canonicalSupervisor: inspectCanonicalLaunchdSupervisor(),
   });
@@ -1653,7 +1656,11 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   let passed: number = 0;
   let total: number = 0;
   const daemonPort = resolveDiagnosticPort();
-  const portLabel = `Daemon TCP port (${daemonPort}${daemonPort === CANONICAL_TCP_PORT ? ' preferred' : ''})`;
+  const doctorDaemonUrl = getDaemonUrl();
+  const doctorDaemonTarget = doctorDaemonUrl || 'the selected Unix socket or published TCP endpoint';
+  const portLabel = daemonPort === null
+    ? 'Daemon TCP endpoint'
+    : `Daemon TCP port (${daemonPort}${daemonPort === CANONICAL_TCP_PORT ? ' preferred' : ''})`;
 
   const libDir: string = join(__dirname, '..', '..');
 
@@ -1801,18 +1808,18 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
       if (parsedHealth && typeof parsedHealth === 'object' && !Array.isArray(parsedHealth)) {
         daemonData = parsedHealth as Record<string, unknown>;
         daemonRunning = true;
-        check('Network', true, `${getDaemonUrl()} is reachable`);
+        check('Network', true, `${doctorDaemonTarget} is reachable`);
       } else {
         // A health check whose SUBJECT is broken must gate the exit code, not warn.
         // `pd doctor --ci/--json` exiting 0 while the daemon is down/broken is the
         // single worst doctor lie (a green build over a dead daemon).
-        criticalFail('Network', `${getDaemonUrl()} returned an invalid /health payload`, 'Run: port-daddy restart');
+        criticalFail('Network', `${doctorDaemonTarget} returned an invalid /health payload`, 'Open FleetBar and choose Restart.');
       }
     } else {
-      criticalFail('Network', `${getDaemonUrl()} returned status ${res.status}`, 'Run: port-daddy start');
+      criticalFail('Network', `${doctorDaemonTarget} returned status ${res.status}`, 'Open FleetBar and choose Restart or Repair.');
     }
   } catch {
-    criticalFail('Network', `Cannot connect to ${getDaemonUrl()}`, 'Run: port-daddy start');
+    criticalFail('Network', `Cannot connect to ${doctorDaemonTarget}`, 'Open FleetBar and choose Restart or Repair.');
   }
 
   // -------------------------------------------------------------------------
@@ -1913,8 +1920,15 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   // 7. Daemon TCP port availability
   // -------------------------------------------------------------------------
   try {
-    if (daemonRunning) {
-      check(portLabel, true, `Bound to Port Daddy daemon at ${getDaemonUrl()}`);
+    if (daemonRunning && daemonPort !== null) {
+      check(portLabel, true, `Bound to Port Daddy daemon at ${doctorDaemonTarget}`);
+    } else if (daemonPort === null) {
+      check(
+        portLabel,
+        false,
+        'No TCP endpoint is published; no preferred-port probe was attempted.',
+        'Open FleetBar and choose Repair if the daemon should be reachable over TCP.',
+      );
     } else {
       // Check if something else is using the currently discovered daemon port.
       const net = await import('node:net');
@@ -1935,7 +1949,10 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
       }
     }
   } catch (err: unknown) {
-    check(portLabel, false, `Error: ${(err as Error).message}`, `Run: lsof -i :${daemonPort} to investigate`);
+    const hint = daemonPort === null
+      ? 'Open FleetBar and choose Repair.'
+      : `Run: lsof -i :${daemonPort} to investigate`;
+    check(portLabel, false, `Error: ${(err as Error).message}`, hint);
   }
 
   // -------------------------------------------------------------------------
@@ -2313,7 +2330,9 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   // -------------------------------------------------------------------------
   // 11. Startup blockers (stale sockets, zombie processes, port conflicts)
   // -------------------------------------------------------------------------
-  const startupIssues = diagnoseStartupBlockers(daemonPort, {
+  // Startup allocation may legitimately inspect the preferred seed; unlike a
+  // connection attempt, this is not evidence that a daemon is listening there.
+  const startupIssues = diagnoseStartupBlockers(daemonPort ?? undefined, {
     healthyDaemonPid: daemonRunning && typeof daemonData?.pid === 'number' ? daemonData.pid as number : null,
   });
   if (startupIssues.length === 0 && !daemonRunning) {

@@ -231,7 +231,24 @@ async function maybeEnqueueFleetRun(
   repoFullName: string | null,
   payload: Record<string, unknown>,
 ): Promise<void> {
-  if (!env.FLEET_RUNS || !shouldEnqueueFleetRun(eventType, action)) return;
+  if (!shouldEnqueueFleetRun(eventType, action)) return;
+  // Preserve the relay's optional-queue boot contract: when neither producer
+  // exists, webhook ingestion remains a quiet no-op exactly as before.
+  if (!env.FLEET_RUNS && !env.FLEET_GATES) return;
+  const queue = eventType === 'merge_group'
+    ? (env.FLEET_GATES ?? env.FLEET_RUNS)
+    : env.FLEET_RUNS;
+  const queueName = eventType === 'merge_group' && env.FLEET_GATES
+    ? 'fleet-gates'
+    : 'fleet-runs';
+  if (!queue) {
+    await appendAudit(env.DB, {
+      action: 'fleet_run_enqueue_failed',
+      target: repoFullName ?? '',
+      detail: `event=${eventType} delivery=${deliveryId} queue=unbound`,
+    }).catch(() => {});
+    return;
+  }
   const installation =
     payload.installation && typeof payload.installation === 'object'
       ? (payload.installation as Record<string, unknown>)
@@ -260,11 +277,11 @@ async function maybeEnqueueFleetRun(
     },
   };
   try {
-    await env.FLEET_RUNS.send(job);
+    await queue.send(job);
     await appendAudit(env.DB, {
       action: 'fleet_run_enqueued',
       target: repoFullName ?? '',
-      detail: `event=${eventType} delivery=${deliveryId}`,
+      detail: `event=${eventType} delivery=${deliveryId} queue=${queueName}`,
     });
   } catch {
     // Best-effort: record and move on. The webhook still succeeds (204);
@@ -273,7 +290,7 @@ async function maybeEnqueueFleetRun(
     await appendAudit(env.DB, {
       action: 'fleet_run_enqueue_failed',
       target: repoFullName ?? '',
-      detail: `event=${eventType} delivery=${deliveryId}`,
+      detail: `event=${eventType} delivery=${deliveryId} queue=${queueName}`,
     }).catch(() => {});
   }
 }
