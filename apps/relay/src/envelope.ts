@@ -191,8 +191,14 @@ export function classifyEnvelope(input: unknown): RelayEnvelopeV1 {
   if (!isPlainObject(e.payload)) {
     fail('BAD_PAYLOAD', 'relay_readable envelope.payload must be a JSON object');
   }
-  if (typeof e.reason !== 'string' || e.reason.length === 0) {
-    fail('MISSING_REASON', 'relay_readable envelope.reason is required — the label is the audit trail, not decoration');
+  // `.trim()` and not just `.length`: a reason of '   ' is non-empty by length
+  // and empty by meaning. The whole point of this field is that a class which
+  // cannot state why it transits unencrypted does not ship as relay_readable,
+  // and a blank that merely has length defeats that while passing the check.
+  // trim() covers Unicode whitespace (NBSP, line/paragraph separators), so a
+  // reason cannot be smuggled past this with a non-ASCII blank either.
+  if (typeof e.reason !== 'string' || e.reason.trim().length === 0) {
+    fail('MISSING_REASON', 'relay_readable envelope.reason is required and must contain a non-whitespace justification — the label is the audit trail, not decoration');
   }
   return e as unknown as RelayReadableEnvelope;
 }

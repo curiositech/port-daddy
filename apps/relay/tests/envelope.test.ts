@@ -269,6 +269,24 @@ describe('envelope schema v1 — rejects the third state', () => {
     }
   });
 
+  it('rejects a reason that is only whitespace — length is not justification', () => {
+    // pd-purser authored a test asserting a whitespace-only reason is ACCEPTED,
+    // which is what the code did: the check was `.length === 0`, so '   ' passed.
+    // That reading makes the field satisfiable without saying anything, and the
+    // schema's own description calls the reason the audit trail. Rejecting it.
+    for (const blank of ['   ', '\t', '\n', '\u00A0', '\u2028 \u2029']) {
+      const e = clone(readableFixture) as Record<string, unknown>;
+      e.reason = blank;
+      expect(() => classifyEnvelope(e), `reason ${JSON.stringify(blank)} must be rejected`)
+        .toThrow(EnvelopeClassificationError);
+    }
+    // A reason with real content surrounded by whitespace is fine — the rule is
+    // "must say something", not "must be pre-trimmed".
+    const padded = clone(readableFixture) as Record<string, unknown>;
+    padded.reason = '  github webhook relay: payload is GitHub-public data  ';
+    expect(() => classifyEnvelope(padded)).not.toThrow();
+  });
+
   it('rejects a missing sig object entirely', () => {
     const noSig = clone(readableFixture) as Record<string, unknown>;
     delete noSig.sig;
