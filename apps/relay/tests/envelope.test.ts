@@ -391,6 +391,53 @@ describe('envelopeBindingMessage — the signature actually binds the tuple', ()
     harbor: 'h', channel: 'c', sender: 's', seq: 1, iat: 1000,
   };
 
+  it('SECURITY: an unpaired surrogate cannot forge a different routing tuple', () => {
+    // The separator fix below made the framing injective over BYTES. This pins
+    // the layer under it: TextEncoder maps every UNPAIRED surrogate to U+FFFD,
+    // so channel="ops\uD800" and channel="ops\uFFFD" are distinct strings that
+    // encode to the same six bytes and take the same length prefix. Before the
+    // well-formedness guard both produced a byte-identical binding message —
+    // one signature valid for two routing tuples, the exact cross-channel
+    // replay length-prefixing was introduced to end.
+    const lone = 'ops\uD800';
+    const replacement = 'ops\uFFFD';
+
+    // Premise, pinned independently: these really are distinct strings whose
+    // UTF-8 encodings collide. Without this the test could pass for the wrong
+    // reason if the encoder ever stopped being lossy.
+    expect(lone).not.toBe(replacement);
+    const enc = new TextEncoder();
+    expect(Array.from(enc.encode(lone))).toEqual(Array.from(enc.encode(replacement)));
+
+    // The binding must now refuse the ill-formed value rather than hash it.
+    expect(() =>
+      envelopeBindingMessage({ ...base, channel: lone, payload: {} } as never),
+    ).toThrow(EnvelopeClassificationError);
+    // The well-formed twin still binds normally — the guard rejects ill-formed
+    // input, it does not reject U+FFFD or non-ASCII generally.
+    expect(
+      envelopeBindingMessage({ ...base, channel: replacement, payload: {} } as never),
+    ).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('SECURITY: classification rejects an unpaired surrogate in routing metadata', () => {
+    // Fail closed at the boundary too: a lone surrogate survives JSON.parse,
+    // so a producer reading routing metadata from a request body can carry one
+    // in. It must not reach the signing path at all.
+    expect(JSON.parse('{"c":"ops\\ud800"}').c).toBe('ops\uD800');
+    for (const field of ['harbor', 'channel', 'sender'] as const) {
+      expect(() =>
+        classifyEnvelope({
+          schema: ENVELOPE_SCHEMA_ID, v: 1, classification: 'relay_readable',
+          harbor: 'h', channel: 'c', sender: 's', seq: 1, iat: 1000,
+          payload: {}, reason: 'a reason long enough to be a real justification',
+          sig: { alg: 'ed25519', key_id: 'k', value: 'v' },
+          [field]: 'ops\uD800',
+        }),
+      ).toThrow(EnvelopeClassificationError);
+    }
+  });
+
   it('SECURITY: a separator inside a field cannot forge a different routing tuple', () => {
     // harbor="a|b" channel="c"  vs  harbor="a" channel="b|c".
     // Under an unprefixed join these produce identical bytes, so one signature

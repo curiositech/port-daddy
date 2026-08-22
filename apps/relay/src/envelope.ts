@@ -117,6 +117,13 @@ function requireNonEmptyString(e: Record<string, unknown>, field: string): void 
   if (typeof value !== 'string' || value.length === 0) {
     fail('BAD_ENVELOPE', `envelope.${field} must be a non-empty string`);
   }
+  // Fail closed at the boundary, not deep inside signing: a field carrying an
+  // unpaired surrogate has no lossless UTF-8 encoding, and two such fields can
+  // share one binding message (see isWellFormedUtf16). lengthPrefixed refuses
+  // it too — this is the layer that names the offending field.
+  if (!isWellFormedUtf16(value)) {
+    fail('BAD_ENVELOPE', `envelope.${field} contains an unpaired surrogate — no lossless UTF-8 encoding`);
+  }
 }
 
 /**
@@ -259,8 +266,47 @@ export function tryDecodeTransitEnvelope(transit: string): RelayEnvelopeV1 | nul
 
 const BINDING_ENCODER = new TextEncoder();
 
-/** `<utf8ByteLength>:<value>` — the injective framing described above. */
+/**
+ * True when every UTF-16 surrogate in `value` is properly paired, i.e. the
+ * string has a lossless UTF-8 encoding.
+ *
+ * WHY THIS GUARD EXISTS. `TextEncoder` is not injective over JS strings: it
+ * replaces each UNPAIRED surrogate with U+FFFD, so `"ops\uD800"` and
+ * `"ops\uFFFD"` — two distinct strings — encode to the same six bytes, take
+ * the same length prefix, and produce a byte-identical binding message. That
+ * is the cross-channel replay the length-prefixing exists to prevent, arriving
+ * one layer further down: the framing is injective over BYTES, but the
+ * string→bytes step upstream of it is not. Point 1 above says this must not
+ * depend on a charset restriction elsewhere — so the framing enforces its own
+ * precondition rather than assuming a caller cleaned the value.
+ *
+ * A lone surrogate is reachable, not theoretical: `JSON.parse` preserves one
+ * verbatim, so any producer whose routing metadata comes from a parsed request
+ * body can carry it into the binding.
+ */
+function isWellFormedUtf16(value: string): boolean {
+  // `String.prototype.isWellFormed` (ES2024) where present; the regex covers
+  // any runtime without it — a lone high surrogate not followed by a low one,
+  // or a low surrogate not preceded by a high one.
+  return typeof (value as { isWellFormed?: () => boolean }).isWellFormed === 'function'
+    ? (value as unknown as { isWellFormed: () => boolean }).isWellFormed()
+    : !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(value);
+}
+
+/**
+ * `<utf8ByteLength>:<value>` — the injective framing described above.
+ *
+ * Throws rather than framing a string with no lossless UTF-8 encoding: a
+ * binding message that cannot be computed is a failure, but one computed over
+ * lossy bytes is a forged-signature vector.
+ */
 function lengthPrefixed(value: string): string {
+  if (!isWellFormedUtf16(value)) {
+    fail(
+      'BAD_ENVELOPE',
+      'envelope routing metadata contains an unpaired surrogate — it has no lossless UTF-8 encoding, so it cannot be bound injectively',
+    );
+  }
   return `${BINDING_ENCODER.encode(value).length}:${value}`;
 }
 
