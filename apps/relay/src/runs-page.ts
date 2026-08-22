@@ -106,6 +106,10 @@ function fmtExpected(epochSec: number | null): string {
   return `expected ${new Date(epochSec * 1000).toISOString().slice(11, 16)} UTC`;
 }
 
+function normalizedAttemptCount(value: number): number {
+  return Number.isInteger(value) && value > 0 ? value : 1;
+}
+
 // ── authz filter ─────────────────────────────────────────────────────────────
 
 export interface RepoGroup {
@@ -254,9 +258,9 @@ function renderRow(run: FleetRunProjection, nowSec: number): string {
     : run.logical_state === 'superseded'
       ? `generation ${run.generation ?? '—'} · replaced by a newer head`
       : run.logical_state === 'enqueue_failed'
-        ? run.last_error ?? 'queue admission failed'
+        ? run.last_error?.trim() || 'admission record incomplete · queue handoff failed without durable error detail'
         : run.logical_state === 'running'
-          ? `attempt ${run.attempt_count || 1} · transcript arriving`
+          ? `attempt ${normalizedAttemptCount(run.attempt_count)} · transcript arriving`
           : `generation ${run.generation ?? '—'} · ${fmtExpected(run.expected_finish_at)}`;
   const href = `/fleet/runs/${encodeURIComponent(run.id)}`;
   const timing = run.logical_state === 'queued' || run.logical_state === 'admitting'

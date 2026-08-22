@@ -125,6 +125,54 @@ describe('queue consumer', () => {
     expect(intent.error).toContain('no longer current');
   });
 
+  it('closes an execution-only fleet as cancelled instead of looking for a missing run', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      `fleet:\n  name: execution-only\n  agents:\n    test-author:\n      trigger: pull_request:opened\n      allowedTools: "Read,Write,Bash(npm test*)"\n      fallbacks:\n        - backend: cloudflare\n          model: '@cf/qwen/qwen3-30b-a3b-fp8'\n      prompt: |\n        test-author ship: execute repository tests.\n`,
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const intent = { state: 'queued', error: null as string | null };
+    const db = {
+      prepare(sql: string) {
+        let bound: unknown[] = [];
+        const stmt = {
+          bind(...values: unknown[]) { bound = values; return stmt; },
+          async first<T>() {
+            if (sql.includes('SELECT state FROM fleet_run_intents')) {
+              return { state: intent.state } as T;
+            }
+            if (sql.includes('SELECT conclusion FROM fleet_runs')) return null;
+            return null;
+          },
+          async all<T>() { return { results: [] as T[] }; },
+          async run() {
+            if (sql.includes("SET state = 'running'")) intent.state = 'running';
+            if (sql.includes('UPDATE fleet_run_intents') && sql.includes('SET state = ?')) {
+              intent.state = String(bound[0]);
+              intent.error = bound[3] == null ? null : String(bound[3]);
+            }
+            return { success: true, meta: { changes: 1 } };
+          },
+        };
+        return stmt;
+      },
+      batch: async () => [],
+    } as unknown as D1Database;
+    const msg = fakeMessage(makeJob());
+
+    await handler.queue!(
+      fakeBatch([msg]),
+      makeEnv({ FLEET_TOKENS: kv, DB: db }),
+      capturingCtx(),
+    );
+
+    expect(msg.ack).toHaveBeenCalledTimes(1);
+    expect(msg.retry).not.toHaveBeenCalled();
+    expect(intent.state).toBe('cancelled');
+    expect(intent.error).toContain('no Cloud-executable review ships');
+  });
+
   it('retries a message when the orchestrator throws (recoverable infra error)', async () => {
     // Force a token mint to fail repeatedly: no seeded KV + token mint 401s,
     // so getInstallationTokenCached throws and executeFleet re-throws.

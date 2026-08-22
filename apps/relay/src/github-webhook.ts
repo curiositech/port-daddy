@@ -329,6 +329,10 @@ async function maybeEnqueueFleetRun(
   try {
     await queue.send(job);
   } catch (queueError) {
+    console.error(
+      `[relay] Fleet queue handoff failed repo=${repoFullName ?? 'unknown'} delivery=${deliveryId}`,
+      queueError,
+    );
     if (reservation) {
       await markFleetRunIntentEnqueueFailed(
         env.DB,
