@@ -195,14 +195,13 @@ describe('buildArgs', () => {
     ]);
   });
 
-  test('codex uses exec + workspace-write sandbox', () => {
+  test('codex uses the auto-reviewed workspace-write mode without incompatible sandbox flags', () => {
     const { args } = buildArgs('codex', 'hello');
     expect(args[0]).toBe('exec');
     expect(args).toContain('--skip-git-repo-check');
     expect(args).toContain('--approve-for-me');
     expect(args).not.toContain('--full-auto');
-    expect(args).toContain('--sandbox');
-    expect(args[args.indexOf('--sandbox') + 1]).toBe('workspace-write');
+    expect(args).not.toContain('--sandbox');
     expect(args).toContain('--json');
   });
 

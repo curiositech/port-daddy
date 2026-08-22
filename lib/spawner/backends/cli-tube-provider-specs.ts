@@ -203,9 +203,11 @@ function buildCliTubeArgsFromSpec(
       return { args, stdin: null };
     }
     case 'codex-exec-json': {
+      // --approve-for-me already selects auto-reviewed workspace-write and is
+      // mutually exclusive with Codex's explicit --sandbox option.
       const args = resumeSessionId
         ? ['exec', '--approve-for-me', 'resume', '--skip-git-repo-check', '--json']
-        : ['exec', '--skip-git-repo-check', '--approve-for-me', '--sandbox', 'workspace-write', '--json'];
+        : ['exec', '--skip-git-repo-check', '--approve-for-me', '--json'];
       if (input.outputPath) args.push('--output-last-message', input.outputPath);
       pushModelArg(args, spec, input.model);
       for (const config of normalizeCodexConfigOverrides(input.codexConfig)) {
