@@ -33,7 +33,6 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
 const MARKER = '<!-- purser-janitor -->';
-const PURSER_BRANCH_RE = /^purser\/pr-(\d+)-tests$/;
 const DRY_RUN = process.argv.includes('--dry-run');
 
 /**
