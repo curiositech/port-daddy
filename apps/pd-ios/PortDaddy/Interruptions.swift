@@ -143,7 +143,11 @@ public struct OperatorInterruption: Codable, Hashable, Sendable, Identifiable {
             return asNumber
         }
         if let asString = try? c.decodeIfPresent(String.self, forKey: .installationId) {
-            return asString.flatMap { Int($0) }
+            // `try?` flattens the optional (SE-0230), so `asString` is a String,
+            // not a String? — `.flatMap` on it would resolve to Sequence.flatMap
+            // and map over Characters, yielding [Int]. Int(_:) is the conversion
+            // that was meant, and it already returns nil for a non-numeric string.
+            return Int(asString)
         }
         return nil
     }
