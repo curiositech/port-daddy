@@ -56,6 +56,22 @@ final class HarborReachabilityTests: XCTestCase {
         XCTAssertNotEqual(reading.verdict, .impossible)
     }
 
+    /// Which guard wins when BOTH "no daemon members" and "presence could not
+    /// be read" hold at once. Two tests covered the halves — (2, nil) and
+    /// (0, presence) — and neither pinned the pair, so the order of the two
+    /// guards in `derive` was free to flip.
+    ///
+    /// Unknown wins, and it has to. `impossible` is the only verdict that gates
+    /// a capability; a membership count read as 0 because the read FAILED would
+    /// otherwise lock the operator out of a harbor that is fine. Swap the
+    /// `guard let presence` at Harbors.swift:209 below the
+    /// `totalDaemonMembers <= 0` check and this is the test that goes red.
+    func testUnreadablePresenceIsUnknownEvenWhenTheMemberCountIsAlsoZero() {
+        let reading = Reachability.derive(totalDaemonMembers: 0, presence: nil)
+        XCTAssertEqual(reading.verdict, .unknown, "a failed read must not masquerade as an empty harbor")
+        XCTAssertFalse(reading.verdict.gatesRemoteCapability)
+    }
+
     /// The consequence that has teeth: only `impossible` may gate a
     /// capability. `unknown` must not, or a flaky network silently becomes an
     /// app-wide lockout.

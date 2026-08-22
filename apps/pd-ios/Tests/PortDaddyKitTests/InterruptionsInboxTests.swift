@@ -81,6 +81,90 @@ final class InterruptionsInboxTests: XCTestCase {
         )
     }
 
+    /// The fixture carries exactly ONE critical ask, so
+    /// `testBlockingCriticalIsFoundAndOnlyWhenOpen` proves the filter and
+    /// nothing about the `.first` in `blockingCritical`. With one candidate,
+    /// every ordering returns the same element — replace `inContractOrder(items)`
+    /// with plain `items` and that test stays green.
+    ///
+    /// Contract point 3 says the blocking ask's TITLE is the stated reason
+    /// dependent work is blocked. Which of several criticals gets quoted is
+    /// therefore operator-visible text, not an implementation detail: oldest
+    /// first, because the ask that has been waiting longest is the one holding
+    /// up the work. The input is deliberately shuffled relative to both
+    /// createdAt and id so neither "already sorted" nor "sorted by id" passes.
+    func testBlockingCriticalIsTheOldestOfSeveralCriticals() throws {
+        func critical(_ id: String, createdAt: Double) -> OperatorInterruption {
+            OperatorInterruption(
+                id: id,
+                sourceAgent: "pd-relay-deploy",
+                title: "critical ask \(id)",
+                urgency: .critical,
+                state: .open,
+                createdAt: createdAt
+            )
+        }
+        let items = [
+            critical("oi_c", createdAt: 1_755_820_300),
+            critical("oi_a", createdAt: 1_755_820_100),
+            critical("oi_b", createdAt: 1_755_820_200),
+        ]
+        let blocking = try XCTUnwrap(InterruptionInbox.blockingCritical(items))
+        XCTAssertEqual(blocking.id, "oi_a", "the oldest open critical is the one blocking dependent work")
+        XCTAssertEqual(blocking.title, "critical ask oi_a", "and its title is the reason the operator is shown")
+    }
+
+    /// The tie-break under it. Two criticals raised in the same second is not
+    /// hypothetical — the relay stamps createdAt in whole seconds — and
+    /// `inContractOrder` falls through to `id` for exactly this case. Without a
+    /// tie-break the choice is whatever `sorted` happened to do, which makes
+    /// the operator-visible reason text non-deterministic.
+    func testCriticalsRaisedInTheSameSecondBreakTheTieOnIdNotArrivalOrder() {
+        func critical(_ id: String) -> OperatorInterruption {
+            OperatorInterruption(
+                id: id,
+                sourceAgent: "pd-relay-deploy",
+                title: "critical ask \(id)",
+                urgency: .critical,
+                state: .open,
+                createdAt: 1_755_820_380
+            )
+        }
+        XCTAssertEqual(
+            InterruptionInbox.blockingCritical([critical("oi_z"), critical("oi_m"), critical("oi_a")])?.id,
+            "oi_a"
+        )
+        XCTAssertEqual(
+            InterruptionInbox.blockingCritical([critical("oi_a"), critical("oi_m"), critical("oi_z")])?.id,
+            "oi_a",
+            "the same set in a different order must name the same ask"
+        )
+    }
+
+    /// An OPEN critical that is not the oldest ask overall still blocks. This
+    /// is the clause ordering that could silently regress into "the oldest ask,
+    /// if it happens to be critical": urgency ranks before createdAt, so a
+    /// critical raised after a normal ask is still the blocker.
+    func testANewerCriticalOutranksAnOlderNonCriticalAsk() {
+        let older = OperatorInterruption(
+            id: "oi_old_normal",
+            sourceAgent: "a",
+            title: "an older ask that is not critical",
+            urgency: .normal,
+            state: .open,
+            createdAt: 1_755_800_000
+        )
+        let newerCritical = OperatorInterruption(
+            id: "oi_new_critical",
+            sourceAgent: "b",
+            title: "a newer ask that is",
+            urgency: .critical,
+            state: .open,
+            createdAt: 1_755_820_000
+        )
+        XCTAssertEqual(InterruptionInbox.blockingCritical([older, newerCritical])?.id, "oi_new_critical")
+    }
+
     // MARK: - The shape gate
 
     private struct FieldShape: Decodable {
