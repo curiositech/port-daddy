@@ -562,6 +562,49 @@ describe('spawnViaCliTube — Coast Guard confinement (ADR-0050, default-on)', (
     expect(res.coastGuardReceipt).toBe(mockCoastGuardReceipt);
     expect(res.error).toBeNull();
   });
+
+  test('a per-spec opt-out is passed through VERBATIM and the honest confined:false receipt is surfaced', async () => {
+    // The opt-out decision itself belongs to withCoastGuard/resolveCoastGuardPolicy
+    // (proven against the real implementations in spawner-coast-guard-runner.test.js
+    // and spawner-coast-guard.test.js); what cli-tube owes the caller is (1) the
+    // spec reaching that authority boundary untouched and (2) the resulting
+    // confined:false receipt reaching the CliTubeResult unlaundered.
+    const optOutReceipt = {
+      tool: 'pd-coast-guard',
+      agentId: 'cli-tube/claude-code',
+      backend: 'cli:claude-code',
+      confined: false,
+      mechanism: 'none',
+    };
+    mockWithCoastGuard.mockImplementationOnce(async (input) => ({
+      cmd: input.cmd, // raw command, no wrapper — the opt-out shape
+      args: input.args,
+      env: input.env,
+      receipt: () => optOutReceipt,
+      dispose: mockCoastGuardDispose,
+    }));
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ran raw', exitCode: 0 }));
+
+    const res = await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'say hi',
+      coastGuard: { spec: { coastGuard: false } },
+    });
+
+    expect(mockWithCoastGuard).toHaveBeenCalledTimes(1);
+    expect(mockWithCoastGuard.mock.calls[0][0]).toEqual(expect.objectContaining({
+      spec: { coastGuard: false },
+    }));
+    // The raw (unwrapped) command is what actually ran.
+    expect(mockSpawn).toHaveBeenCalledWith(
+      join(fakeHome, '.local', 'bin', 'claude'),
+      expect.any(Array),
+      expect.anything(),
+    );
+    expect(res.coastGuardReceipt).toBe(optOutReceipt);
+    expect(res.coastGuardReceipt.confined).toBe(false);
+    expect(res.error).toBeNull();
+  });
 });
 
 describe('spawnViaCliTube — claude-code happy path', () => {

@@ -89,4 +89,43 @@ describe('withCoastGuard — egress-meter cleanup when confineCommand throws', (
     expect(disposeSpy).toHaveBeenCalledTimes(1);
     disposeSpy.mockRestore();
   });
+
+  test('a disabled policy (per-spec opt-out) runs raw: no meter bound, confineCommand never called, receipt honestly confined:false', async () => {
+    // The opt-out is a policy decision, never a silent skip: the run must come
+    // back with the ORIGINAL command (no wrapper), zero side effects (no
+    // loopback listener to leak, no sandbox build), and a receipt that states
+    // plainly that nothing protected this spawn.
+    const listenSpy = jest.spyOn(EgressMeter.prototype, 'listen');
+    mockResolveCoastGuardPolicy.mockReturnValue({
+      enabled: false,
+      maxRequests: 10,
+      maxBytes: null,
+    });
+
+    const run = await withCoastGuard({
+      agentId: 'test-agent',
+      backend: 'cli:test',
+      cmd: 'echo',
+      args: ['hi'],
+      env: { KEEP: '1' },
+    });
+
+    expect(listenSpy).not.toHaveBeenCalled();
+    expect(mockConfineCommand).not.toHaveBeenCalled();
+    expect(run.cmd).toBe('echo');
+    expect(run.args).toEqual(['hi']);
+    expect(run.env).toEqual({ KEEP: '1' });
+    expect(run.confined).toBe(false);
+    expect(run.mechanism).toBe('none');
+
+    const receipt = run.receipt();
+    expect(receipt.confined).toBe(false);
+    expect(receipt.mechanism).toBe('none');
+    expect(receipt.egress).toBeNull();
+    expect(receipt.honestLimits).toMatch(/Coast Guard disabled/);
+
+    // dispose() on the opt-out path is a no-op — nothing was ever started.
+    expect(() => run.dispose()).not.toThrow();
+    listenSpy.mockRestore();
+  });
 });
