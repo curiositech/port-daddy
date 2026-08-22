@@ -288,6 +288,33 @@ export async function preflightInterruptionsGate(action: string): Promise<boolea
 }
 
 /**
+ * Module-owned help page (`pd interruptions --help`), kept beside the flags
+ * it documents and wired into VERB_HELP in bin/port-daddy-cli.ts.
+ */
+export const INTERRUPTIONS_HELP: string = [
+  'Usage: pd interruptions [--json]',
+  '',
+  'List OPEN operator asks (HITL interruptions) for the signed-in operator:',
+  'title, urgency, source agent, age. high/critical render red and bold.',
+  '',
+  'Exit codes are the notice:',
+  '  0  no open asks',
+  '  1  open asks exist',
+  '  2  state UNKNOWN (failed poll, or not signed in via `pd account login`)',
+  '',
+  'Options:',
+  '  --json   Machine-readable { status, openCount, interruptions, accountUrl }',
+  "           with an honest three-valued status: 'open' | 'none' | 'unknown'",
+  '           (a failed poll is NEVER reported as all-clear)',
+  '',
+  'Answer/ack is web-only by design: this command deep-links to',
+  '/account/interruptions instead of silencing asks locally.',
+  '',
+  'Pre-flight: `pd fleet up|run|approve` and `pd dispatch run` refuse to start',
+  'new dependent work while a critical ask is open (non-critical opens warn).',
+].join('\n');
+
+/**
  * `pd interruptions` entry point. Sets `process.exitCode` (0 none · 1 open ·
  * 2 unknown) rather than calling `process.exit`, so stdout flushes.
  */

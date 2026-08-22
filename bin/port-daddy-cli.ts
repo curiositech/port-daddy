@@ -122,7 +122,7 @@ import {
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
   handleSitrep, SITREP_HELP, handleSay, handleLook, handlePheromone, handlePlan,
   // HITL operator interruptions (docs/hitl-interruptions.md §4, surface 3)
-  handleInterruptions,
+  handleInterruptions, INTERRUPTIONS_HELP,
   // Coordination advisor / suggestibility
   handleAdvisor,
   // Maritime actor directory
@@ -682,6 +682,7 @@ export const VERB_HELP: Record<string, string> = {
   sitrep: SITREP_HELP,
   roster: ROSTER_HELP,
   sent: SENT_HELP,
+  interruptions: INTERRUPTIONS_HELP,
 };
 
 /** Heavy lazy-loaded commands whose own handler remains the help authority. */
