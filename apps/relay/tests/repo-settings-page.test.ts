@@ -134,6 +134,27 @@ describe('normalizeRepoFullName', () => {
     }
   });
 
+  // Adopted from the pd-purser round-2 table (the genuinely new cases; casing,
+  // trim, non-strings, and padded levels were already pinned in round 1).
+  it('adopts the purser round-2 boundary, URL-form, and owner-charset table', () => {
+    // 100 chars is the ceiling for BOTH segments — accepted exactly at the
+    // boundary (the 101 rejections are pinned in the length-ceiling test).
+    expect(normalizeRepoFullName(`${'o'.repeat(100)}/name`)).toBe(`${'o'.repeat(100)}/name`);
+    // Pasted GitHub URLs normalize in any scheme/host casing, http included —
+    // scheme and host are case-insensitive per RFC 3986 and GitHub redirects
+    // http to one canonical https repo.
+    expect(normalizeRepoFullName('http://github.com/owner/name')).toBe('owner/name');
+    expect(normalizeRepoFullName('https://GITHUB.COM/owner/name.git')).toBe('owner/name');
+    expect(normalizeRepoFullName('HTTP://GitHub.Com/owner/name')).toBe('owner/name');
+    // URL fragments are not part of a repository's identity.
+    expect(normalizeRepoFullName('https://github.com/owner/name#section')).toBeNull();
+    expect(normalizeRepoFullName('owner/name#readme')).toBeNull();
+    // GitHub user/org names allow only alphanumerics and hyphens — underscore
+    // and dot are name-segment privileges, never owner-segment ones
+    // (owner.name/… rejection is pinned in the round-1 table above).
+    expect(normalizeRepoFullName('owner_name/repo')).toBeNull();
+  });
+
   it('accepts underscores/dots in names and enforces the length ceilings', () => {
     expect(normalizeRepoFullName('owner/name-with-underscore_123')).toBe(
       'owner/name-with-underscore_123',
