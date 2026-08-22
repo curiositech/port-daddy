@@ -354,6 +354,43 @@ For multi-PR ship campaigns, track the state in `TaskCreate` so the merge
 sequence is explicit. The user can interrupt at any boundary; the task
 list is the recovery surface.
 
+### Migration and removal land together (operator directive, 2026-08-22)
+
+**A PR that adds a replacement removes what it replaces, in the same PR, with
+the tests still passing.** Not "addition now, removal in a follow-up." The
+follow-up is what never happens, and two implementations of the same thing is
+the condition every parsimony rule in this file exists to prevent.
+
+Three obligations, all of them before the fact:
+
+1. **Write the tests first, for BOTH sides.** Complete, non-tautological,
+   comprehensive, adversarial tests for the thing being created *and* for the
+   thing being replaced. "The old tests still pass" is not coverage of the old
+   behaviour — old tests were written against the old implementation and often
+   pin its accidents rather than its properties. Write the tests you would want
+   if you had to defend the swap to someone who thinks it is a regression.
+
+2. **Name the losses, plainly, in the PR body.** A replacement almost never
+   does everything the old thing did. **That is allowed.** What is not allowed
+   is discovering it later. List what the old path could do that the new one
+   cannot, and say so as a decision rather than an oversight.
+
+3. **Behavioural identity is NOT required.** Do not contort the new thing into
+   bug-for-bug compatibility with the old one. If the old behaviour was wrong,
+   the new behaviour should be right and the difference should appear under
+   "losses" — or under "fixes". The operator's words: *"Call out losses that
+   are just gone now. Those are OK, too. No need for identity."*
+
+The failure this closes: a PR lands a new module, claims N consumers, and has
+zero — because migrating the consumers was the deferred half. The new module
+then rots beside the old paths it was supposed to retire, and the next agent
+finds two ways to do one thing and picks the wrong one.
+
+If the removal genuinely cannot land in the same PR — the call sites are in
+another language, another repo, or another PR — say so in the body, name every
+site by path, and do not describe the replacement as adopted. A projection with
+no consumers is a projection with no consumers.
+
 ### Respond to every review comment — no silent ignores
 
 A review comment is a question you owe an answer, not a notification you may
