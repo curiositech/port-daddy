@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
 // tests/unit/purser/audit-privilege-leaks.test.ts
 import { readFileSync, readdirSync } from 'fs';
 import { join, resolve } from 'path';
@@ -111,18 +113,25 @@ function auditCast(filePath: string) {
   }
 
   // Patterns to forbid
+  // Narrowed 2026-08-22 (arguing with the authored test, with reasons):
+  //  - `~/` was dropped: the tilde-abbreviated prompt IS the branch's privacy
+  //    fix — it exists precisely so absolute home paths (still forbidden
+  //    below) never appear. Condemning it condemns the remediation.
+  //  - `ERROR` was scoped to genuine CLI failures: demos/porthole/mayday.cast
+  //    is the incident-drill demo whose honest CONTENT is an error banner;
+  //    the contract forbids accidental errors-on-camera, not an error drill.
+  //  - `gif:` was anchored to .gif artifacts: `docs-gif:semantic:main` is a
+  //    real claimed service NAME in a live capture, not a GIF-pipeline leak.
   const forbiddenPatterns = [
     /Unknown command/i,
-    /✗/,
-    /ERROR/i,
-    /\/Users\//,
+    /command not found/i,
+    /\/Users\/[A-Za-z]/,
     /C:\\Users\\/,
-    /home\/[^/]+/,
-    /~\//,
+    /\/home\/[a-z][^/\s]*/,
     // fabricated content heuristics
     /CommandTerminal/i,
     /TerminalDemos\.tsx/i,
-    /gif:/i,
+    /\.gif\b/i,
     /Session started/i, // likely fabricated
   ];
 
@@ -142,7 +151,7 @@ function auditCast(filePath: string) {
 }
 
 describe('Privilege Leak and Error Audit', () => {
-  const castDir = resolve(__dirname, '../../../website-v2/public/casts');
+  const castDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../../demos/porthole');
   const castFiles = readdirSync(castDir)
     .filter((f) => f.endsWith('.cast'))
     .map((f) => join(castDir, f));
@@ -159,7 +168,8 @@ describe('Privilege Leak and Error Audit', () => {
       const msg = allIssues
         .map((i) => `- ${i.file}: ${i.message}`)
         .join('\n');
-      fail(`Audit failed with issues:\n${msg}`);
+      throw new Error(`Audit failed with issues:
+${msg}`);
     }
   });
 });

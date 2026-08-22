@@ -1,7 +1,8 @@
+import { fileURLToPath } from 'node:url';
 // the complete contents of tests/unit/purser/cli-correctness.test.ts
 import fs from 'fs';
 import path from 'path';
-import glob from 'glob';
+import { globSync } from 'glob';
 
 /**
  * Parse an asciicast cast (v2 or v3 NDJSON) and return the concatenated
@@ -32,10 +33,10 @@ function transcriptFromCast(content: string): string {
 describe('CLI correctness – no Unknown command errors', () => {
   test('all committed casts contain no "Unknown command" in their transcript', () => {
     // Locate the cast directory relative to this test file.
-    const castDir = path.join(__dirname, '../../../website-v2/public/casts');
+    const castDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../../demos/porthole');
 
     // Find all .cast files in the directory tree.
-    const castFiles = glob.sync('**/*.cast', { cwd: castDir });
+    const castFiles = globSync('**/*.cast', { cwd: castDir });
 
     const failures: string[] = [];
 

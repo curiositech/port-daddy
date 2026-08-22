@@ -1,24 +1,26 @@
 // tests/unit/purser/asciicast-validation.test.ts
 import { promises as fs } from 'fs';
 import path from 'path';
-import { promisify } from 'util';
-import glob from 'glob';
+import { glob } from 'glob';
+import { fileURLToPath } from 'node:url';
 
-const globAsync = promisify(glob);
+const globAsync = glob;
 
-const CASTS_DIR = path.join(__dirname, '..', '..', '..', 'website-v2', 'public', 'casts');
+const CASTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'demos', 'porthole');
 const EXPECTED_COLS = 100;
 const EXPECTED_ROWS = 28;
 
 type AsciicastV2 = {
   version: 2;
-  term: { cols: number; rows: number };
+  width: number;
+  height: number;
   // other fields omitted
 };
 
 type AsciicastV3Header = {
   version: 3;
-  term: { cols: number; rows: number };
+  width: number;
+  height: number;
   // other fields omitted
 };
 
@@ -38,7 +40,7 @@ function parseHeader(content: string): { cols: number; rows: number; version: nu
   if (v2.version !== 2) {
     throw new Error(`Unexpected asciicast version: ${JSON.stringify(header)}`);
   }
-  return { cols: v2.term.cols, rows: v2.term.rows, version: 2 };
+  return { cols: v2.width, rows: v2.height, version: 2 };
 }
 
 describe('Asciicast files', () => {
