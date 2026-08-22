@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.30.2] - 2026-08-21
+
+### Added
+- **Squid hook execution is inspectable per session without exposing tool payloads.** The debug timeline records each bounded lifecycle step with actual and expected timestamps, elapsed time, outcome, and a short plain-language description, while keeping arguments, prompts, and command contents out of the diagnostic record.
+
+### Fixed
+- **Interactive hooks are fast, cumulative, and self-disabling instead of becoming a turn-by-turn storm.** The installer emits one prompt hook and one edit-time hook with no generic post-tool fan-out, stages version-stable tentacle paths instead of Homebrew Cellar paths, and migrates obsolete Codex registrations. Portable timing works under macOS and Linux `dash`; repeated failures or budget overruns open a no-retry circuit breaker after three cumulative failures, make later calls immediate no-ops, emit one remediation notice, and expose native Repair through Squid/FleetBar. Atomic failure receipts preserve the count even when many hook processes fail concurrently.
+- **Fleet Purser output validation rejects non-source JSON-string bypasses.** The repaired contract tests cover sibling and mixed-fence cases so generated reviewer text cannot masquerade as source evidence.
+
 ## [3.30.1] - 2026-08-21
 
 ### Fixed
