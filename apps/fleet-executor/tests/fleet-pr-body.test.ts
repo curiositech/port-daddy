@@ -113,6 +113,9 @@ function mkCtx(): PRContext {
     installationId: 42,
     files: [],
     diff: 'diff --git a/src/widget.ts b/src/widget.ts\n+frob',
+    diffBytes: 0,
+    diffTruncated: false,
+    filesTruncated: false,
   };
 }
 
