@@ -379,11 +379,14 @@ describe('handleGithubWebhook — ambient-noise event filter', () => {
 // check green with `Port Daddy Fleet` simply absent.
 
 describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
-  function envWithQueue(sent: unknown[]) {
+  function envWithQueues(reviewSent: unknown[], gateSent?: unknown[]) {
     const cap: Captured = { events: [], audits: [] };
     const env = makeEnv(cap, []) as unknown as Record<string, unknown>;
-    env.FLEET_RUNS = { async send(job: unknown) { sent.push(job); } };
-    return env as unknown as Env;
+    env.FLEET_RUNS = { async send(job: unknown) { reviewSent.push(job); } };
+    if (gateSent) {
+      env.FLEET_GATES = { async send(job: unknown) { gateSent.push(job); } };
+    }
+    return { env: env as unknown as Env, cap };
   }
 
   const MERGE_GROUP_BODY = JSON.stringify({
@@ -397,9 +400,9 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     },
   });
 
-  it('enqueues a run and carries the queue-branch head_sha', async () => {
+  it('falls back to the review queue and carries the queue-branch head_sha', async () => {
     const sent: unknown[] = [];
-    const env = envWithQueue(sent);
+    const { env } = envWithQueues(sent);
     const res = await handleGithubWebhook(
       webhookReq({
         body: MERGE_GROUP_BODY,
@@ -430,6 +433,25 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     );
   });
 
+  it('routes deterministic checks to the independent gate queue when bound', async () => {
+    const reviewSent: unknown[] = [];
+    const gateSent: unknown[] = [];
+    const { env } = envWithQueues(reviewSent, gateSent);
+    const res = await handleGithubWebhook(
+      webhookReq({
+        body: MERGE_GROUP_BODY,
+        signature: sign(SECRET, MERGE_GROUP_BODY),
+        event: 'merge_group',
+        delivery: 'mg-fast-lane',
+      }),
+      env
+    );
+
+    expect(res.status).toBe(204);
+    expect(reviewSent).toHaveLength(0);
+    expect(gateSent).toHaveLength(1);
+  });
+
   it('ignores merge_group actions that are not checks_requested', async () => {
     const sent: unknown[] = [];
     const body = JSON.stringify({
@@ -441,7 +463,7 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     });
     const res = await handleGithubWebhook(
       webhookReq({ body, signature: sign(SECRET, body), event: 'merge_group', delivery: 'mg-2' }),
-      envWithQueue(sent)
+      envWithQueues(sent).env
     );
     expect(res.status).toBe(204);
     expect(sent).toHaveLength(0);
@@ -450,7 +472,8 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
   it('still enqueues ordinary pull_request deliveries', async () => {
     // Regression guard: widening the predicate must not narrow the path that
     // already worked.
-    const sent: unknown[] = [];
+    const reviewSent: unknown[] = [];
+    const gateSent: unknown[] = [];
     const res = await handleGithubWebhook(
       webhookReq({
         body: PR_BODY,
@@ -458,10 +481,161 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
         event: 'pull_request',
         delivery: 'pr-1',
       }),
-      envWithQueue(sent)
+      envWithQueues(reviewSent, gateSent).env
     );
     expect(res.status).toBe(204);
+    expect(reviewSent).toHaveLength(1);
+    expect(gateSent).toHaveLength(0);
+    expect((reviewSent[0] as { eventType: string }).eventType).toBe('pull_request');
+  });
+});
+
+describe('fleet enqueue — durable PR generation admission', () => {
+  interface IntentRow {
+    delivery_id: string;
+    repo_full_name: string;
+    pr_number: number;
+    generation: number;
+    state: string;
+    superseded_by: string | null;
+  }
+
+  function envWithIntentLedger(sent: unknown[]) {
+    const cap: Captured = { events: [], audits: [] };
+    const base = makeMockD1(cap);
+    const intents = new Map<string, IntentRow>();
+    const prepare = (sql: string) => {
+      if (!sql.includes('fleet_run_intents')) return base.prepare(sql);
+      let bound: unknown[] = [];
+      const stmt = {
+        bind(...values: unknown[]) {
+          bound = values;
+          return stmt;
+        },
+        async first<T>() {
+          if (sql.includes('delivery_id = ?')) {
+            return (intents.get(String(bound[0])) ?? null) as T | null;
+          }
+          return null;
+        },
+        async all<T>() {
+          return { results: [...intents.values()] as T[] };
+        },
+        async run() {
+          if (sql.includes('INSERT OR IGNORE')) {
+            const deliveryId = String(bound[0]);
+            if (intents.has(deliveryId)) return { success: true, meta: { changes: 0 } };
+            const repo = String(bound[1]);
+            const pr = Number(bound[2]);
+            const generation = 1 + Math.max(
+              0,
+              ...[...intents.values()]
+                .filter((row) => row.repo_full_name === repo && row.pr_number === pr)
+                .map((row) => row.generation),
+            );
+            intents.set(deliveryId, {
+              delivery_id: deliveryId,
+              repo_full_name: repo,
+              pr_number: pr,
+              generation,
+              state: 'admitting',
+              superseded_by: null,
+            });
+            return { success: true, meta: { changes: 1 } };
+          }
+          if (sql.includes("SET state = 'queued'")) {
+            const row = intents.get(String(bound[2]));
+            if (row) row.state = 'queued';
+          } else if (sql.includes("SET state = 'superseded'")) {
+            const newerId = String(bound[2]);
+            const newer = intents.get(newerId);
+            if (newer) {
+              for (const row of intents.values()) {
+                if (
+                  row.repo_full_name === newer.repo_full_name &&
+                  row.pr_number === newer.pr_number &&
+                  row.generation < newer.generation &&
+                  ['admitting', 'queued', 'running', 'retrying'].includes(row.state)
+                ) {
+                  row.state = 'superseded';
+                  row.superseded_by = newerId;
+                }
+              }
+            }
+          }
+          return { success: true, meta: { changes: 1 } };
+        },
+      };
+      return stmt as unknown as D1PreparedStatement;
+    };
+    const db = {
+      ...base,
+      prepare,
+      batch: async (statements: D1PreparedStatement[]) => {
+        for (const statement of statements) await statement.run();
+        return [];
+      },
+    } as unknown as D1Database;
+    const env = makeEnv(cap, []);
+    env.DB = db;
+    env.FLEET_RUNS = { async send(job: unknown) { sent.push(job); } } as Queue;
+    return { env, intents, cap };
+  }
+
+  function prBody(sha: string): string {
+    return JSON.stringify({
+      action: 'synchronize',
+      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      sender: { login: 'octocat', id: 1 },
+      installation: { id: 777 },
+      pull_request: {
+        number: 8889,
+        head: { sha },
+      },
+    });
+  }
+
+  it('coalesces older PR heads only after the newer generation is queued', async () => {
+    const sent: unknown[] = [];
+    const { env, intents } = envWithIntentLedger(sent);
+    const first = prBody('a'.repeat(40));
+    const second = prBody('b'.repeat(40));
+
+    expect((await handleGithubWebhook(webhookReq({
+      body: first,
+      signature: sign(SECRET, first),
+      event: 'pull_request',
+      delivery: 'delivery-a',
+    }), env)).status).toBe(204);
+    expect((await handleGithubWebhook(webhookReq({
+      body: second,
+      signature: sign(SECRET, second),
+      event: 'pull_request',
+      delivery: 'delivery-b',
+    }), env)).status).toBe(204);
+
+    expect(sent).toHaveLength(2);
+    expect(intents.get('delivery-a')).toMatchObject({
+      generation: 1,
+      state: 'superseded',
+      superseded_by: 'delivery-b',
+    });
+    expect(intents.get('delivery-b')).toMatchObject({ generation: 2, state: 'queued' });
+  });
+
+  it('does not enqueue the same GitHub delivery twice', async () => {
+    const sent: unknown[] = [];
+    const { env } = envWithIntentLedger(sent);
+    const body = prBody('c'.repeat(40));
+    const request = () => webhookReq({
+      body,
+      signature: sign(SECRET, body),
+      event: 'pull_request',
+      delivery: 'delivery-once',
+    });
+
+    expect((await handleGithubWebhook(request(), env)).status).toBe(204);
+    expect((await handleGithubWebhook(request(), env)).status).toBe(204);
     expect(sent).toHaveLength(1);
-    expect((sent[0] as { eventType: string }).eventType).toBe('pull_request');
   });
 });

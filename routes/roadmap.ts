@@ -35,6 +35,8 @@ import { importMarkdownRoadmap } from '../lib/roadmap-import.js';
 import { derivePlan, type MigrationItem } from '../lib/planner-migrate.js';
 import { schedule } from '../lib/planner-schedule.js';
 import { renderBoard, type AdrMeta } from '../lib/planner-board.js';
+import { writePlanEdges } from '../lib/planner-edges.js';
+import type { GraphEdges } from '../lib/graph-edges.js';
 import { parseAdrIdentity } from '../lib/adr-matrix.js';
 import { renderMarkdown } from '../lib/mini-markdown.js';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -134,10 +136,13 @@ const STATUS_VALUES = new Set<RoadmapStatus>(['now', 'backlog', 'parked', 'merge
 
 export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (fastify, opts) => {
   const { roadmapItems, roadmapPromote } = opts.deps;
-  // routes/index.ts registers this plugin with the FULL server deps, so repoRoot is present
-  // even though RoadmapDeps only names the two it strictly requires.
+  // routes/index.ts registers this plugin with the FULL server deps, so repoRoot/graphEdges are
+  // present even though RoadmapDeps only names the two it strictly requires. graphEdges is
+  // undefined in unit fixtures that only stand up the roadmap dep pair (see
+  // tests/unit/roadmap-board-route.test.js) — the persistence step below tolerates that.
   const repoRoot = (opts.deps as { repoRoot?: string }).repoRoot;
   const db = (opts.deps as { db?: Database.Database }).db;
+  const graphEdges = (opts.deps as { graphEdges?: GraphEdges }).graphEdges;
 
   // GET /roadmap/projection — the roadmap-is-home read model (operator decision 4:
   // "roadmap is home everywhere"). One deterministic projection that the relay
@@ -172,6 +177,12 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
   // without needing the migration applied), computes the critical-path schedule, enriches epics
   // with their ADR title + inline ADR text (from repoRoot/docs/adr), and serves self-contained
   // HTML. Same-origin, so the board's poll + tube layer goes live (no CORS, unlike file://).
+  //
+  // ADR-0086 §3 designed graph_edges to hold this hierarchy/dependency structure, but
+  // `writePlanEdges` (lib/planner-edges.ts) had zero callers — the table stayed empty forever.
+  // This is the one place a PlannerPlan is already derived from live roadmap_items, so persist it
+  // here: idempotent (replaceScope), so every render converges graph_edges to the current plan
+  // without duplicating rows. Purely a side effect — the returned HTML is unchanged either way.
   fastify.get('/roadmap/board', async (_request: FastifyRequest, reply: FastifyReply) => {
     const rows = roadmapItems.list({ status: 'all', limit: 2000 });
     const items: MigrationItem[] = rows.map((r) => ({
@@ -183,6 +194,13 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
       harbor: r.harbor,
     }));
     const plan = derivePlan(items);
+    if (graphEdges) {
+      try {
+        writePlanEdges(graphEdges, plan);
+      } catch (err) {
+        _request.log?.warn?.({ err }, 'roadmap_board_write_plan_edges_failed');
+      }
+    }
     const sched = schedule(
       plan.tasks.map((t) => ({ id: t.slug as string, estimate: 1 })),
       plan.dependsOnEdges,

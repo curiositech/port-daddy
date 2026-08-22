@@ -91,6 +91,11 @@ export class HarborChannel implements DurableObject {
       }
 
       case 'rate-check': {
+        // LEGACY (X8): the publish path now rate-limits via the per-harbor
+        // HarborQuota DO (src/harbor-quota.ts), which is durable and does not
+        // split per channel. This action remains for (a) the deploy-order
+        // fallback while the HARBOR_QUOTA binding is unprovisioned and
+        // (b) mercy.ts's side-effect-free do_channel echo probe.
         const sender = url.searchParams.get('sender') ?? '';
         const limitPerMin = parseInt(url.searchParams.get('limit') ?? '60', 10);
         const allowed = this.checkRateLimit(sender, limitPerMin);

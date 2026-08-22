@@ -10,6 +10,8 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import Fastify from 'fastify';
 import { resurrectionPlugin } from '../../routes/resurrection.js';
+import { createTestDb } from '../setup-unit.js';
+import { createTestActorSouls, mintTestActor } from '../helpers/actor-credentials.js';
 
 // Build a minimal mock for the route dependencies
 function createMockDeps() {
@@ -54,9 +56,16 @@ function createMockDeps() {
 describe('Salvage Route Aliasing', () => {
   let deps;
   let app;
+  let db;
+  let claimer;
 
   beforeEach(async () => {
     deps = createMockDeps();
+    // #8877 / ADR-0122: salvage mutations require daemon-minted credentials.
+    db = createTestDb();
+    const souls = createTestActorSouls(db);
+    claimer = mintTestActor(souls, 'test-new');
+    deps.actorSouls = souls;
     app = Fastify();
     await app.register(resurrectionPlugin, { deps });
     await app.ready();
@@ -64,6 +73,7 @@ describe('Salvage Route Aliasing', () => {
 
   afterEach(async () => {
     await app.close();
+    db.close();
   });
 
   describe('Primary /salvage routes', () => {
@@ -100,6 +110,7 @@ describe('Salvage Route Aliasing', () => {
         method: 'POST',
         url: '/salvage/claim/dead-agent',
         payload: { newAgentId: 'test-new' },
+        headers: claimer.headers,
       });
       expect(res.statusCode).toBe(200);
       const body = res.json();
@@ -127,6 +138,7 @@ describe('Salvage Route Aliasing', () => {
         method: 'POST',
         url: '/resurrection/claim/dead-agent',
         payload: { newAgentId: 'test-new' },
+        headers: claimer.headers,
       });
       expect(res.statusCode).toBe(200);
       const body = res.json();

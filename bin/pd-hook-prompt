@@ -18,8 +18,16 @@ set -u
 
 PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
 MATRIX="${PD_MATRIX_FILE:-$PD_HOME/matrix.env}"
-MAX_ENTRIES="${PD_SQUID_PROMPT_MAX_ENTRIES:-12}"
-MAX_BYTES="${PD_SQUID_PROMPT_MAX_BYTES:-4096}"
+# Prompt context is a scarce resource. Two actionable facts plus one heading is
+# the hard product budget: three lines / 512 bytes. Callers may lower these
+# limits for a more austere harness, but may not raise them and turn the hook
+# into a briefing dump.
+MAX_ENTRIES="${PD_SQUID_PROMPT_MAX_ENTRIES:-2}"
+MAX_BYTES="${PD_SQUID_PROMPT_MAX_BYTES:-512}"
+case "$MAX_ENTRIES" in ''|*[!0-9]*) MAX_ENTRIES=2 ;; esac
+case "$MAX_BYTES" in ''|*[!0-9]*) MAX_BYTES=512 ;; esac
+[ "$MAX_ENTRIES" -le 2 ] 2>/dev/null || MAX_ENTRIES=2
+[ "$MAX_BYTES" -le 512 ] 2>/dev/null || MAX_BYTES=512
 TTL_SECONDS="${PD_SQUID_PROMPT_TTL_SECONDS:-1800}"
 # Hard cap on candidate lines entering the expensive per-line loop below, no
 # matter how many the cheap grep prefilter still lets through. Without this, a
@@ -88,27 +96,22 @@ is_fresh() {
   [ "$age" -ge 0 ] 2>/dev/null && [ "$age" -le "$TTL_SECONDS" ] 2>/dev/null
 }
 
-OUT=""
+ENTRIES=""
 COUNT=0
-OUT="${OUT}[PORT DADDY — STEERING ALERTS]\n"
-OUT="${OUT}- Agent must maintain an active pd plan and run pd sitrep to synthesize state.\n"
 
 if [ -n "$ALERTS" ]; then
-  SECTION=""
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     [ "$COUNT" -lt "$MAX_ENTRIES" ] 2>/dev/null || break
     val="$(emit_value "$line")"
     is_fresh "$val" || continue
-    SECTION="${SECTION}- ${val}\n"
+    ENTRIES="${ENTRIES}- ${val}\n"
     COUNT=$((COUNT + 1))
   done <<EOF
 $ALERTS
 EOF
-  [ -z "$SECTION" ] || OUT="${OUT}${SECTION}"
 fi
 
-REL=""
 if [ -n "$PHER" ]; then
   while IFS= read -r line; do
     [ -n "$line" ] || continue
@@ -118,7 +121,7 @@ if [ -n "$PHER" ]; then
     subject="${val%% | *}"
     case "$subject" in
       "$PROJECT_ROOT"|"$PROJECT_ROOT"/*)
-        REL="${REL}- ${val}\n"
+        ENTRIES="${ENTRIES}- ${val}\n"
         COUNT=$((COUNT + 1))
         ;;
     esac
@@ -127,9 +130,10 @@ $PHER
 EOF
 fi
 
-if [ -n "$REL" ]; then
-  OUT="${OUT}[PORT DADDY — PHEROMONE TRACES near ${BASENAME}]\n${REL}"
-fi
+# The common case is deliberately zero bytes. Only a fresh alert or an exact-
+# project pheromone earns context, and even then the envelope stays concise.
+OUT=""
+[ -z "$ENTRIES" ] || OUT="[PORT DADDY — ACTIONABLE COORDINATION near ${BASENAME}]\n${ENTRIES}"
 
 # Emit the bounded Suggestibility Envelope (printf interprets the \n we built
 # up; head -c enforces the byte cap). Prefer Claude Code's SANCTIONED structured

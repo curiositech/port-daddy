@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["executionId", "status", "waveResults"],
+  "properties": {
+    "executionId": {
+      "type": "string",
+      "description": "Unique identifier for this execution"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["completed", "failed", "partial", "cancelled"],
+      "description": "Overall execution status"
+    },
+    "waveResults": {
+      "type": "array",
+      "description": "Results from each execution wave",
+      "items": {
+        "type": "object",
+        "properties": {
+          "waveNumber": {
+            "type": "integer",
+            "description": "Wave index"
+          },
+          "taskResults": {
+            "type": "array",
+            "description": "Results from tasks in this wave"
+          }
+        }
+      }
+    },
+    "nodeOutputs": {
+      "type": "object",
+      "description": "Outputs from each DAG node"
+    },
+    "errors": {
+      "type": "array",
+      "description": "Any errors encountered"
+    },
+    "executionTime": {
+      "type": "number",
+      "description": "Total execution time in milliseconds"
+    }
+  },
+  "additionalProperties": false
+}

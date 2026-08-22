@@ -30,7 +30,7 @@
  *     ...
  */
 
-import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
+import { pdFetch } from '../utils/fetch.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
@@ -80,6 +80,15 @@ interface SitrepResponse {
   approvals?: Array<{ id: string; agent: string; trigger: string; tier: string; project: string; timestamp: number }>;
 }
 
+export const SITREP_HELP: string = [
+  'Usage: pd sitrep [--since MINUTES] [--project NAME] [--stack NAME]',
+  '                 [--limit-activity N] [--limit-notes N] [--limit-salvage N]',
+  '                 [--template] [--quiet] [--json]',
+  '',
+  'Synthesize recent activity, notes, salvage, and spawned-agent state.',
+  'Uses the shared daemon resolver, so socket, local TCP, and explicit remote targets behave consistently.',
+].join('\n');
+
 function shortId(id: string | undefined): string {
   if (!id) return '-';
   return id.length > 14 ? `${id.slice(0, 14)}…` : id;
@@ -104,11 +113,20 @@ export async function handleSitrep(options: CLIOptions): Promise<void> {
   if (since !== undefined) params.append('since_minutes', String(since));
   if (options.project) params.append('project', options.project as string);
   if (options.stack) params.append('stack', options.stack as string);
-  if (options.limitActivity) params.append('limit_activity', String(options.limitActivity));
-  if (options.limitNotes) params.append('limit_notes', String(options.limitNotes));
+  const limitActivity = options.limitActivity ?? options['limit-activity'];
+  const limitNotes = options.limitNotes ?? options['limit-notes'];
+  const limitSalvage = options.limitSalvage ?? options['limit-salvage'];
+  const limitSalvageNotes = options.limitSalvageNotes ?? options['limit-salvage-notes'];
+  const limitSpawned = options.limitSpawned ?? options['limit-spawned'];
+  if (limitActivity) params.append('limit_activity', String(limitActivity));
+  if (limitNotes) params.append('limit_notes', String(limitNotes));
+  if (limitSalvage) params.append('limit_salvage', String(limitSalvage));
+  if (limitSalvageNotes) params.append('limit_salvage_notes', String(limitSalvageNotes));
+  if (limitSpawned) params.append('limit_spawned', String(limitSpawned));
+  if (isQuiet(options)) params.append('summary_only', '1');
 
   const qs = params.toString() ? `?${params}` : '';
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sitrep${qs}`);
+  const res: PdFetchResponse = await pdFetch(`/sitrep${qs}`);
   const data = (await res.json()) as unknown as SitrepResponse & { error?: string };
 
   if (!res.ok) {
@@ -132,7 +150,7 @@ export async function handleSitrep(options: CLIOptions): Promise<void> {
       transcriptPath = `file:///Users/erichowens/.gemini/antigravity-cli/brain/${sessionId}/.system_generated/logs/transcript.jsonl`;
 
       try {
-        const sRes = await pdFetch(`${PORT_DADDY_URL}/sessions/${sessionId}`);
+        const sRes = await pdFetch(`/sessions/${sessionId}`);
         if (sRes.ok) {
           const sData = (await sRes.json()) as any;
           if (sData.success && sData.session) {
@@ -146,7 +164,7 @@ export async function handleSitrep(options: CLIOptions): Promise<void> {
       }
 
       try {
-        const pRes = await pdFetch(`${PORT_DADDY_URL}/sessions/${sessionId}/notes?type=todo_list`);
+        const pRes = await pdFetch(`/sessions/${sessionId}/notes?type=todo_list`);
         if (pRes.ok) {
           const pData = (await pRes.json()) as any;
           if (pData.success && pData.notes && pData.notes.length > 0) {

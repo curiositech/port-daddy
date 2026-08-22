@@ -39,7 +39,7 @@ import {
 } from '../lib/editor-claims-mcp.js';
 import { serializeSwarmDigest, serializeLegacySwarmSnapshot } from '../lib/swarm-awareness-digest.js';
 import { governToolOutput } from '../lib/mcp-output-governor.js';
-import { setActiveSession, clearActiveSession, resolveSessionId, resolveAgentId } from '../lib/mcp-session-cache.js';
+import { setActiveSession, clearActiveSession, resolveSessionId, resolveAgentId, resolveActorCredential } from '../lib/mcp-session-cache.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -66,6 +66,16 @@ async function api(
 ): Promise<ApiResponse> {
   const url = new URL(path, DAEMON_URL);
 
+  // #8877 / ADR-0122: attributed daemon writes require the ADR-0040
+  // daemon-minted credential. Present the one begin_session captured (or the
+  // env-injected one) on every request; harmless on reads, required on writes.
+  const actorCredential = resolveActorCredential();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  if (actorCredential) headers['x-actor-credential'] = actorCredential;
+
   return new Promise((resolve, reject) => {
     const req = http.request(
       {
@@ -73,10 +83,7 @@ async function api(
         port: url.port,
         path: url.pathname + url.search,
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
+        headers,
         timeout: options?.timeout ?? REQUEST_TIMEOUT,
       },
       (res) => {
@@ -1138,7 +1145,9 @@ const TOOLS = [
       '[Essential] Add a note to the current session or create a quick standalone note. ' +
       'Notes are immutable — once added, they cannot be edited or deleted. ' +
       'Use liberally: progress updates, decisions made, blockers hit, handoffs to other agents. ' +
-      'Usage: add_note({content: "Switched to PKCE flow for SPAs", type: "decision"})',
+      'If this MCP process has no cached begin_session attachment and multiple sessions are active, ' +
+      'pass agent_id (from your begin_session response) or session_id to avoid AMBIGUOUS_ACTIVE_SESSION. ' +
+      'Usage: add_note({content: "Switched to PKCE flow for SPAs", type: "decision", agent_id: "agent-abc123"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -1154,6 +1163,13 @@ const TOOLS = [
         session_id: {
           type: 'string',
           description: 'Session ID to add note to. Omit to use the session this process attached to via begin_session, if any; otherwise a quick standalone note.',
+        },
+        agent_id: {
+          type: 'string',
+          description:
+            'Your agent ID (from begin_session response). Disambiguates which session to write to ' +
+            'when multiple sessions are active in this worktree — otherwise omitting session_id fails ' +
+            'with AMBIGUOUS_ACTIVE_SESSION.',
         },
       },
       required: ['content'],
@@ -3481,7 +3497,14 @@ async function handleTool(
         const data = res.data as Record<string, unknown>;
         const agentId = typeof data.agentId === 'string' ? data.agentId : undefined;
         const sessionId = typeof data.sessionId === 'string' ? data.sessionId : undefined;
-        if (agentId && sessionId) setActiveSession({ agentId, sessionId });
+        // #8877: begin mints (or verifies) the ADR-0040 soul; the returned
+        // credential must be cached so every later attributed write from this
+        // process presents it. NEVER echo the credential back into the tool
+        // output visible to the model transcript longer than necessary — but
+        // the begin response itself already carries it by design (returned
+        // once); we additionally keep it here for subsequent calls.
+        const mintedCredential = typeof data.credential === 'string' ? data.credential : undefined;
+        if (agentId && sessionId) setActiveSession({ agentId, sessionId, credential: mintedCredential });
       }
       break;
     }
@@ -3913,7 +3936,9 @@ async function handleTool(
       const body: Record<string, unknown> = { content: args.content };
       if (args.type) body.type = args.type;
       const noteSessionId = resolveSessionId(args);
+      const noteAgentId = resolveAgentId(args);
       if (noteSessionId) body.sessionId = noteSessionId;
+      if (noteAgentId) body.agentId = noteAgentId;
 
       res = await POST('/notes', body);
       break;
@@ -5198,7 +5223,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.28.2',
+    version: '3.30.2',
   },
   {
     capabilities: {
