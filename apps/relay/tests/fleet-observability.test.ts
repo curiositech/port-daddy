@@ -150,6 +150,7 @@ describe('handleFleetActivity', () => {
   it('returns runs newest-first with pr_url, short headSha, and ships array', async () => {
     const db = makeMockD1({
       onAll: (q, bound) => {
+        if (q.includes('FROM fleet_run_intents')) return [];
         expect(q).toContain('FROM fleet_runs');
         expect(q).toContain('ORDER BY created_at DESC');
         expect(bound[0]).toBe(50); // default limit
@@ -175,6 +176,10 @@ describe('handleFleetActivity', () => {
   it('clamps the ?limit param to 500', async () => {
     const db = makeMockD1({
       onAll: (_q, bound) => {
+        if (_q.includes('FROM fleet_run_intents')) {
+          expect(bound[0]).toBe(500);
+          return [];
+        }
         expect(bound[0]).toBe(500);
         return [];
       },
@@ -189,6 +194,10 @@ describe('handleFleetActivity', () => {
   it('honours a valid ?limit param', async () => {
     const db = makeMockD1({
       onAll: (_q, bound) => {
+        if (_q.includes('FROM fleet_run_intents')) {
+          expect(bound[0]).toBe(500);
+          return [];
+        }
         expect(bound[0]).toBe(5);
         return [];
       },
@@ -214,6 +223,7 @@ describe('handleFleetRun', () => {
   it('returns the run + ordered transcript with re-hydrated detail JSON', async () => {
     const db = makeMockD1({
       onFirst: (q, bound) => {
+        if (q.includes('FROM fleet_run_intents')) return null;
         expect(q).toContain('FROM fleet_runs WHERE id = ?');
         expect(bound[0]).toBe('run-new');
         return RUN_NEW;
@@ -312,6 +322,17 @@ describe('handleFleetPause + handleFleetHealth', () => {
     const kv = makeKV({ [FLEET_PAUSED_KEY]: JSON.stringify({ paused: true, pausedAt: now - 10 }) });
     const db = makeMockD1({
       onFirst: (q) => {
+        if (q.includes('FROM fleet_run_intents')) {
+          return {
+            known: 0,
+            queued: 0,
+            running: 0,
+            retrying: 0,
+            superseded: 0,
+            failed_admission: 0,
+            oldest_queued_at: null,
+          };
+        }
         expect(q).toContain('ORDER BY created_at DESC LIMIT 1');
         return { created_at: now - 30 };
       },
@@ -357,5 +378,26 @@ describe('handleDeleteFleetRun', () => {
     const db = makeMockD1({ onRun: () => 0 }); // no rows changed
     const res = await handleDeleteFleetRun(req('/v1/fleet/runs/nope', 'DELETE', OPERATOR), makeEnv({ db }), 'nope');
     expect(res.status).toBe(404);
+  });
+
+  it('deletes an intent-only receipt without requiring a transcript row', async () => {
+    const seen: string[] = [];
+    const db = makeMockD1({
+      onFirst: (q) => q.includes('SELECT * FROM fleet_run_intents')
+        ? { delivery_id: 'delivery-queued', state: 'queued' }
+        : null,
+      onRun: (q) => {
+        if (q.includes('DELETE FROM fleet_run_intents')) { seen.push('intent'); return 1; }
+        return 0;
+      },
+    });
+    const res = await handleDeleteFleetRun(
+      req('/v1/fleet/runs/intent:delivery-queued', 'DELETE', OPERATOR),
+      makeEnv({ db }),
+      'intent:delivery-queued',
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json() as { deleted: number }).deleted).toBe(1);
+    expect(seen).toEqual(['intent']);
   });
 });

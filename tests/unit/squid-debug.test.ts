@@ -4,10 +4,12 @@ import {
   clearSquidHookDebugEvents,
   disableSquidHookDebug,
   enableSquidHookDebug,
+  readSquidHookCliDebugSnapshot,
   readSquidHookHealth,
   readSquidHookDebugSnapshot,
   readSquidHookStatusSnapshot,
   resetSquidHookHealth,
+  SQUID_HOOK_DEBUG_CLI_MAX_BYTES,
   SQUID_HOOK_STATUS_MAX_STEPS,
   squidHookHealthDir,
   squidHookDebugPaths,
@@ -162,6 +164,43 @@ test('serializes a valid bounded unified status response from multi-thousand eve
   expect(snapshot.window).toEqual({ totalSteps: 3_500, returnedSteps: 25, truncated: true });
   expect(snapshot.sessions.flatMap((session) => session.steps)).toHaveLength(25);
   expect(Buffer.byteLength(serialized)).toBeLessThan(64 * 1024);
+});
+
+test('bounds explicit debug JSON below the compiled launcher ceiling while preserving newest timestamps', () => {
+  const paths = squidHookDebugPaths(PD_HOME);
+  mkdirSync(join(PD_HOME, 'squid'), { recursive: true });
+  writeFileSync(paths.enabled, '2026-08-21T20:00:00.000Z\n');
+  const nestedWorkspace = join(WORKSPACE, 'nested', 'x'.repeat(180));
+  const records = Array.from({ length: 3_500 }, (_, index) =>
+    event({
+      kind: 'start',
+      run: `large-debug-${index}`,
+      session: `codex:${index}`,
+      at: 1_000 + index,
+      workspace: join(nestedWorkspace, String(index)),
+    }),
+  );
+  writeFileSync(paths.events, `${records.join('\n')}\n`);
+
+  const snapshot = readSquidHookCliDebugSnapshot({
+    pdHome: PD_HOME,
+    cwd: WORKSPACE,
+    nowMs: 10_000,
+  });
+  const serialized = JSON.stringify(snapshot, null, 2);
+
+  expect(() => JSON.parse(serialized)).not.toThrow();
+  expect(Buffer.byteLength(serialized)).toBeLessThanOrEqual(SQUID_HOOK_DEBUG_CLI_MAX_BYTES);
+  expect(snapshot.window.totalSteps).toBe(3_500);
+  expect(snapshot.window.truncated).toBe(true);
+  expect(snapshot.window.returnedSteps).toBeGreaterThan(0);
+  expect(snapshot.window.returnedSteps).toBeLessThan(snapshot.window.totalSteps);
+  const newest = snapshot.sessions.flatMap((session) => session.steps)
+    .find((step) => step.id === 'large-debug-3499');
+  expect(newest).toMatchObject({
+    startedAt: '1970-01-01T00:00:04.499Z',
+    expectedBy: '1970-01-01T00:00:05.499Z',
+  });
 });
 
 test('renders no-op outcomes and drops malformed or out-of-workspace records', () => {

@@ -15,6 +15,12 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import {
+  extractActorCredential,
+  resolveWriteIdentity,
+  type IdentityVerifier,
+  type IdentityWriteVerdict,
+} from '../lib/identity-write-boundary.js';
 import type {
   Commitments,
   CommitmentScope,
@@ -26,6 +32,18 @@ import type { ObligationMonitor } from '../lib/obligation-monitor.js';
 interface CommitmentsDeps {
   commitments: Commitments;
   obligationMonitor: ObligationMonitor;
+  logger?: {
+    info(msg: string, meta?: Record<string, unknown>): void;
+    error(msg: string, meta?: Record<string, unknown>): void;
+  };
+  /**
+   * ADR-0040 souls store (subset). Commitment writes REQUIRE the daemon-minted
+   * credential (#8877 / ADR-0122): a commitment is a durable obligation
+   * attributed to `ownerActorId`, so creating one demands a credential whose
+   * soul IS that owner (403 otherwise — no forging obligations onto a victim),
+   * and closing one demands the owner's credential too.
+   */
+  actorSouls?: IdentityVerifier | null;
 }
 
 const SCOPES = new Set<CommitmentScope>(['claim', 'review', 'standing', 'default']);
@@ -65,7 +83,69 @@ export const commitmentsPlugin: FastifyPluginAsync<{ deps: CommitmentsDeps }> = 
   fastify,
   opts,
 ) => {
-  const { commitments, obligationMonitor } = opts.deps;
+  const { commitments, obligationMonitor, actorSouls, logger } = opts.deps;
+
+  /**
+   * The strict identity gate for commitment writes.
+   *
+   * Purpose: a commitment (ADR-0041) is a durable obligation pinned to an
+   * actor; letting a caller create or close one under an arbitrary
+   * `ownerActorId` string forges obligations onto victims (or closes theirs).
+   * The design requires a verified daemon-minted credential
+   * (`requireIdentity: true` — there is no anonymous commitment), then
+   * requires the owner id in play to resolve to the SAME minted soul as the
+   * credential: owning the display string is not owning the obligation.
+   *
+   * @param request - The incoming Fastify request (credential carriers).
+   * @param ownerActorId - The owner id being written or mutated.
+   * @param route - Route label for structured reject logs.
+   * @returns The verified verdict, or the HTTP status and error body.
+   */
+  const requireCommitmentOwner = (
+    request: FastifyRequest,
+    ownerActorId: string,
+    route: string,
+  ):
+    | { success: true; verdict: Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }> }
+    | { success: false; httpStatus: number; result: Record<string, unknown> } => {
+    const verdict = resolveWriteIdentity({
+      souls: actorSouls,
+      credential: extractActorCredential(request.headers as Record<string, unknown>, request.body),
+      assertedAgentId: null,
+      route,
+      logger,
+      requireIdentity: true,
+    });
+    if (!verdict.ok) {
+      return {
+        success: false,
+        httpStatus: verdict.httpStatus,
+        result: { success: false, error: verdict.error, code: verdict.code },
+      };
+    }
+    const verified = verdict as Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }>;
+    const resolvedOwner = actorSouls
+      ? actorSouls.resolveActor(ownerActorId).actorId
+      : ownerActorId;
+    if (resolvedOwner !== verified.actorId) {
+      logger?.error('identity_write_rejected', {
+        route,
+        code: 'IDENTITY_ALIAS_MISMATCH',
+        actorId: verified.actorId,
+        ownerActorId,
+      });
+      return {
+        success: false,
+        httpStatus: 403,
+        result: {
+          success: false,
+          error: `ownerActorId "${ownerActorId}" does not resolve to the presented credential's actor`,
+          code: 'IDENTITY_ALIAS_MISMATCH',
+        },
+      };
+    }
+    return { success: true, verdict: verified };
+  };
 
   fastify.post('/commitments', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = (request.body ?? {}) as CreateBody;
@@ -74,6 +154,11 @@ export const commitmentsPlugin: FastifyPluginAsync<{ deps: CommitmentsDeps }> = 
     if (!ownerActorId || !objectText) {
       reply.code(400);
       return { success: false, error: 'ownerActorId and objectText are required' };
+    }
+    const owner = requireCommitmentOwner(request, ownerActorId, 'POST /commitments');
+    if (!owner.success) {
+      reply.code(owner.httpStatus);
+      return owner.result;
     }
     const scopeRaw = asString(body.scope);
     const scope = scopeRaw && SCOPES.has(scopeRaw as CommitmentScope)
@@ -140,6 +225,17 @@ export const commitmentsPlugin: FastifyPluginAsync<{ deps: CommitmentsDeps }> = 
     if (!id) {
       reply.code(400);
       return { success: false, error: 'id required in path' };
+    }
+    const existing = commitments.get(id);
+    if (!existing) {
+      reply.code(404);
+      return { success: false, error: `no commitment with id ${id}` };
+    }
+    // #8877: only the owning soul may close its obligation.
+    const owner = requireCommitmentOwner(request, existing.ownerActorId, 'POST /commitments/:id/close');
+    if (!owner.success) {
+      reply.code(owner.httpStatus);
+      return owner.result;
     }
     const body = (request.body ?? {}) as CloseBody;
     const oracleRef = asString(body.oracleRef);

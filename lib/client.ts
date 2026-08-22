@@ -1244,6 +1244,15 @@ class PortDaddy {
   url: string;
   socketPath: string;
   agentId: string | undefined;
+  /**
+   * ADR-0040 daemon-minted actor credential presented on every request as the
+   * `x-actor-credential` header. Attributed writes (#8877 / ADR-0122) —
+   * sessions, notes, file claims, locks, salvage, commitments — are rejected
+   * 401 without it. Set via constructor option `credential`, the
+   * PORT_DADDY_ACTOR_CREDENTIAL env var, or automatically captured from a
+   * `begin()` that minted a fresh soul.
+   */
+  credential: string | undefined;
   pid: number;
   timeout: number;
   private _ipc: ReturnType<typeof createIpcClient> | null = null;
@@ -1266,6 +1275,7 @@ class PortDaddy {
     }
     this.socketPath = options.socketPath || process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
     this.agentId = options.agentId || process.env.PORT_DADDY_AGENT;
+    this.credential = options.credential || process.env.PORT_DADDY_ACTOR_CREDENTIAL;
     this.pid = options.pid || process.pid;
     this.timeout = options.timeout || 5000;
     this._ipcPath = process.env.PORT_DADDY_IPC || DEFAULT_IPC;
@@ -1355,6 +1365,7 @@ class PortDaddy {
     const h: Record<string, string> = {};
     if (hasBody) h['Content-Type'] = 'application/json';
     if (this.agentId) h['X-Agent-Id'] = this.agentId;
+    if (this.credential) h['X-Actor-Credential'] = this.credential;
     if (this.pid) h['X-Pid'] = String(this.pid);
     return h;
   }
@@ -2691,6 +2702,69 @@ class PortDaddy {
    *   files: ['src/auth.ts', 'src/middleware.ts'],
    * });
    */
+  /**
+   * Register this client's actor identity with the daemon's ADR-0040 mint
+   * (`POST /actors/register`) and hold the returned credential.
+   *
+   * Why this exists: #8877 / ADR-0122 made every attributed write boundary
+   * (sessions, notes, file claims, locks, salvage, commitments) REQUIRE a
+   * daemon-minted credential — a bare self-asserted agentId is rejected 401.
+   * `begin()` obtains one automatically through the sugar mint door, but
+   * flows that never call begin (e.g. `startSession` directly) need this
+   * explicit registration step. The plaintext credential is returned by the
+   * daemon exactly once; this method captures it onto the client so every
+   * subsequent request presents it.
+   *
+   * @param options.alias - Display alias to bind to the minted soul
+   *        (typically the agentId this client asserts on writes).
+   * @param options.project - Project scope for the shared newcomer pool.
+   * @returns The mint outcome ({ actorId, credential? }) from the daemon.
+   */
+  async registerActor(options: { alias?: string; project?: string } = {}): Promise<{
+    success: boolean;
+    status: 'minted' | 'resolved';
+    actorId: string;
+    soulClass: string;
+    credential?: string;
+  }> {
+    const body: Record<string, unknown> = {};
+    if (options.alias) body.alias = options.alias;
+    if (options.project) body.project = options.project;
+    if (this.credential) body.credential = this.credential;
+    const result = await this._request('POST', '/actors/register', body) as {
+      success: boolean;
+      status: 'minted' | 'resolved';
+      actorId: string;
+      soulClass: string;
+      credential?: string;
+    };
+    if (result.credential) {
+      this.credential = result.credential;
+    }
+    return result;
+  }
+
+  /**
+   * Ensure this client holds an actor credential, minting one if needed.
+   *
+   * Purpose: convenience wrapper for CLI/SDK flows that are about to perform
+   * an attributed write without having gone through `begin()`. When the
+   * client already holds a credential this is a no-op; otherwise it registers
+   * through {@link registerActor} (binding `alias` when given) and captures
+   * the minted credential.
+   *
+   * @param alias - Display alias to bind when a fresh soul is minted.
+   * @returns The credential now held by the client.
+   */
+  async ensureActorCredential(alias?: string): Promise<string> {
+    if (this.credential) return this.credential;
+    await this.registerActor(alias ? { alias } : {});
+    if (!this.credential) {
+      throw new PortDaddyError('actor registration returned no credential', 0, null);
+    }
+    return this.credential;
+  }
+
   async begin(purpose: string, options: BeginSugarOptions): Promise<BeginSugarResponse> {
     if (!options || (options.lifecycle !== 'durable' && options.lifecycle !== 'ephemeral')) {
       throw new Error('PortDaddy.begin requires options.lifecycle to be "durable" or "ephemeral"');
@@ -2714,6 +2788,14 @@ class PortDaddy {
     // Update client's agentId from server response for subsequent calls
     if (result.agentId && !this.agentId) {
       this.agentId = result.agentId;
+    }
+
+    // #8877 / ADR-0122: an uncredentialed begin MINTS a fresh ADR-0040 soul
+    // and returns its credential exactly once. Capture it so every subsequent
+    // attributed write from this client (done, notes, claims, locks, ...)
+    // presents it — without this, those writes are rejected 401.
+    if (result.credential && !this.credential) {
+      this.credential = result.credential;
     }
 
     return result;
@@ -3774,6 +3856,12 @@ interface BeginSugarResponse {
   fileClaims?: string[];
   fileConflicts?: Array<{ filePath: string; sessionId: string }>;
   salvageHint?: string;
+  /** The minted ADR-0040 principal this begin verified or minted (#8877). */
+  actorId?: string;
+  /** Plaintext soul credential, returned ONCE when this begin minted. */
+  credential?: string;
+  /** The daemon's identity verdict stamped on the session record. */
+  actorIdentity?: { verified: true; actorId: string; soulClass: string };
 }
 
 interface DoneSugarOptions {

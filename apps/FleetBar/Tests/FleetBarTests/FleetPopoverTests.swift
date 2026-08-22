@@ -114,7 +114,7 @@ final class FleetPopoverTests: XCTestCase {
         let cloudFleetPath = String(describing: cloudFleetTitle.pathToRoot)
         XCTAssertTrue(cloudFleetPath.contains("scrollView"), cloudFleetPath)
         XCTAssertNoThrow(try inspected.find(text: "https://active-berth.example"))
-        XCTAssertNoThrow(try inspected.find(text: "writes require approval"))
+        XCTAssertNoThrow(try inspected.find(text: "read-only · account scoped"))
     }
 
     func testFooterControlsStayOutsideScrollView() throws {

@@ -38,7 +38,7 @@ import {
   clearSquidHookDebugEvents,
   disableSquidHookDebug,
   enableSquidHookDebug,
-  readSquidHookDebugSnapshot,
+  readSquidHookCliDebugSnapshot,
   readSquidHookStatusSnapshot,
   resetSquidHookHealth,
   SQUID_HOOK_STATUS_MAX_STEPS,
@@ -143,7 +143,7 @@ export function handleSquidDebug(args: string[], options: CLIOptions): void {
   } else if (sub === 'clear') {
     snapshot = clearSquidHookDebugEvents();
   } else if (sub === 'status' || sub === 'show' || sub === 'list') {
-    snapshot = readSquidHookDebugSnapshot({ cwd });
+    snapshot = readSquidHookCliDebugSnapshot({ cwd });
   } else {
     ui.error(`Unknown squid debug command: ${sub}`);
     console.log('Use `pd squid debug on|off|status|clear`.');
@@ -154,7 +154,7 @@ export function handleSquidDebug(args: string[], options: CLIOptions): void {
   // Mutations return the global snapshot; narrow it to the selected project so
   // FleetBar and the CLI share one stable contract.
   if (sub !== 'status' && sub !== 'show' && sub !== 'list') {
-    snapshot = readSquidHookDebugSnapshot({ cwd });
+    snapshot = readSquidHookCliDebugSnapshot({ cwd });
   }
   if (options.json || options.j) {
     console.log(JSON.stringify(snapshot, null, 2));

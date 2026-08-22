@@ -10,6 +10,7 @@ import type { IncomingMessage, ClientRequest } from 'node:http';
 
 import { DEFAULT_SOCK } from '../../shared/paths.js';
 import { maybeWarnNonProdPlane, isMutatingMethod, PLANE_PROBE_TIMEOUT_MS } from './plane-banner.js';
+import { resolveCliActorCredential } from './actor-credential.js';
 import { resolveDaemonTarget, resolveDaemonTcpTarget, resolvePublishedDaemonUrl } from '../../shared/daemon-discovery.js';
 import type { DaemonTarget } from '../../shared/daemon-discovery.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
@@ -199,6 +200,24 @@ export async function pdFetch(urlOrPath: string, options: FetchOptions = {}): Pr
       },
       daemonUrl: getDaemonUrl,
     });
+  }
+
+  // #8877 / ADR-0122: attributed daemon writes require the ADR-0040
+  // daemon-minted credential. Inject it centrally so every mutating pd
+  // command presents the credential `pd begin` captured — resolution order:
+  // an explicit header set by the caller wins, then the PD_ACTOR_CREDENTIAL /
+  // PORT_DADDY_ACTOR_CREDENTIAL env vars, then the per-worktree context file.
+  if (isMutatingMethod(options.method)) {
+    const existingHeaders = options.headers ?? {};
+    const hasExplicit = Object.keys(existingHeaders).some(
+      (key) => key.toLowerCase() === 'x-actor-credential',
+    );
+    if (!hasExplicit) {
+      const credential = resolveCliActorCredential();
+      if (credential) {
+        options = { ...options, headers: { ...existingHeaders, 'x-actor-credential': credential } };
+      }
+    }
   }
 
   const noRetry = options.retry === false || process.env.PORT_DADDY_NO_RETRY === '1';

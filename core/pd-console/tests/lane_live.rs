@@ -18,6 +18,7 @@ mod agent;
 use agent::{DaemonClient, StreamKind};
 use std::io::{Read, Write};
 use std::net::TcpListener;
+use tokio::sync::oneshot;
 use tokio::time::{timeout, Duration};
 
 /// Spin a one-shot SSE server on an ephemeral port; return its base URL.
@@ -61,6 +62,39 @@ fn spawn_mock_stream() -> String {
     format!("http://127.0.0.1:{port}")
 }
 
+/// Serve a deliberately quiet SSE connection and report both acceptance and
+/// client closure. This models a watched agent/channel that emits no messages:
+/// dropping the UI receiver must still cancel the background task and socket.
+fn spawn_quiet_stream() -> (String, oneshot::Receiver<()>, oneshot::Receiver<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind quiet stream");
+    let port = listener.local_addr().unwrap().port();
+    let (accepted_tx, accepted_rx) = oneshot::channel();
+    let (closed_tx, closed_rx) = oneshot::channel();
+    std::thread::spawn(move || {
+        if let Ok((mut sock, _)) = listener.accept() {
+            let mut buf = [0u8; 1024];
+            let _ = sock.read(&mut buf);
+            let head = "HTTP/1.1 200 OK\r\n\
+                        Content-Type: text/event-stream\r\n\
+                        Cache-Control: no-cache\r\n\
+                        Connection: keep-alive\r\n\r\n\
+                        event: connected\ndata: {}\n\n";
+            sock.write_all(head.as_bytes())
+                .expect("write quiet SSE handshake");
+            sock.flush().expect("flush quiet SSE handshake");
+            let _ = accepted_tx.send(());
+
+            sock.set_read_timeout(Some(std::time::Duration::from_secs(3)))
+                .expect("set quiet socket timeout");
+            let mut probe = [0u8; 1];
+            if matches!(sock.read(&mut probe), Ok(0)) {
+                let _ = closed_tx.send(());
+            }
+        }
+    });
+    (format!("http://127.0.0.1:{port}"), accepted_rx, closed_rx)
+}
+
 #[tokio::test]
 async fn subscribe_agent_streams_typed_envelopes_over_a_socket() {
     let base = spawn_mock_stream();
@@ -98,4 +132,38 @@ async fn subscribe_agent_streams_typed_envelopes_over_a_socket() {
         saw_control,
         "the closed-loop control.interrupt frame reached the channel"
     );
+}
+
+#[tokio::test]
+async fn dropping_quiet_agent_receiver_closes_the_sse_socket() {
+    let (base, accepted, closed) = spawn_quiet_stream();
+    let client = DaemonClient::new(base);
+    let rx = client.subscribe_agent("quiet");
+
+    timeout(Duration::from_secs(2), accepted)
+        .await
+        .expect("quiet agent stream was never accepted")
+        .expect("quiet agent server exited before acceptance");
+    drop(rx);
+    timeout(Duration::from_secs(2), closed)
+        .await
+        .expect("dropping quiet agent receiver leaked its SSE socket")
+        .expect("quiet agent server exited without observing socket close");
+}
+
+#[tokio::test]
+async fn dropping_quiet_channel_receiver_closes_the_sse_socket() {
+    let (base, accepted, closed) = spawn_quiet_stream();
+    let client = DaemonClient::new(base);
+    let rx = client.subscribe_channel("quiet");
+
+    timeout(Duration::from_secs(2), accepted)
+        .await
+        .expect("quiet channel stream was never accepted")
+        .expect("quiet channel server exited before acceptance");
+    drop(rx);
+    timeout(Duration::from_secs(2), closed)
+        .await
+        .expect("dropping quiet channel receiver leaked its SSE socket")
+        .expect("quiet channel server exited without observing socket close");
 }

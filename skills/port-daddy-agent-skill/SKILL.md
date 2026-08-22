@@ -601,6 +601,14 @@ readiness, launches, Shipwright, resources, spawned runs, or operator-visible
 coordination. Deeper guidance lives in `references/fleetbar-and-console.md`
 (loaded via the bundled assets map below).
 
+For Cloud Fleet, route the operator to the signed-in FleetBar Cloud Fleet
+section or the `pd-console` Cloud Fleet pane. Those surfaces show logical
+PR-head generations, delivery attempts, queue-ahead estimates, expected run
+timing, failures, and the durable transcript. Do not infer four logical runs
+from four queue deliveries, describe a D1-derived queue estimate as Cloudflare's
+exact queue position, or invent per-step ETAs when the executor has published
+only a run-level estimate.
+
 ## Bundled Assets — Load On Demand
 
 Everything else in this skill is progressive disclosure: each subdirectory has

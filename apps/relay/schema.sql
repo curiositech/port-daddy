@@ -131,6 +131,41 @@ CREATE TABLE IF NOT EXISTS fleet_runs (
 );
 CREATE INDEX IF NOT EXISTS fleet_runs_created_idx ON fleet_runs (created_at DESC);
 
+-- Durable queue-admission truth, written before the queue consumer starts.
+-- One PR can have many immutable generations as new heads arrive; only the
+-- latest queued/running generation remains active and older work is marked
+-- superseded.  Delivery id is the webhook idempotency key.
+CREATE TABLE IF NOT EXISTS fleet_run_intents (
+  delivery_id        TEXT    PRIMARY KEY,
+  repo_full_name     TEXT    NOT NULL,
+  pr_number          INTEGER NOT NULL,
+  pr_url             TEXT    NOT NULL,
+  head_sha           TEXT    NOT NULL,
+  event_type         TEXT    NOT NULL,
+  action             TEXT,
+  generation         INTEGER NOT NULL,
+  state              TEXT    NOT NULL DEFAULT 'admitting'
+                             CHECK (state IN (
+                               'admitting', 'queued', 'running', 'retrying',
+                               'superseded', 'enqueue_failed',
+                               'success', 'failure', 'neutral', 'cancelled'
+                             )),
+  attempt_count      INTEGER NOT NULL DEFAULT 0,
+  queued_at          INTEGER NOT NULL DEFAULT (unixepoch()),
+  started_at         INTEGER,
+  last_progress_at   INTEGER NOT NULL DEFAULT (unixepoch()),
+  finished_at        INTEGER,
+  superseded_by      TEXT,
+  last_error         TEXT,
+  UNIQUE (repo_full_name, pr_number, generation)
+);
+CREATE INDEX IF NOT EXISTS fleet_run_intents_pr_generation_idx
+  ON fleet_run_intents (repo_full_name, pr_number, generation DESC);
+CREATE INDEX IF NOT EXISTS fleet_run_intents_state_queued_idx
+  ON fleet_run_intents (state, queued_at ASC);
+CREATE INDEX IF NOT EXISTS fleet_run_intents_state_finished_idx
+  ON fleet_run_intents (state, finished_at ASC);
+
 -- Immutable transcript of each step within a run.
 CREATE TABLE IF NOT EXISTS fleet_run_steps (
   run_id             TEXT    NOT NULL,            -- FK to fleet_runs.id
