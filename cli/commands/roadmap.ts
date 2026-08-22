@@ -1,10 +1,10 @@
-import { resolve, basename } from 'node:path';
+import { resolve } from 'node:path';
 
 import type { RoadmapProgress, FeedbackEntry, RoadmapFeedbackStatus } from '../../lib/roadmap-progress.js';
 import type { RoadmapClaim, RoadmapEntry, RoadmapPopKind } from '../../lib/roadmap-pop.js';
 import type { RoadmapItem, RoadmapStatus } from '../../lib/roadmap-items.js';
 import type { ImportMarkdownResult } from '../../lib/roadmap-import.js';
-import { getWorktreeInfo } from '../../lib/worktree.js';
+import { resolveHarbor } from '../../lib/harbor-resolve.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { readCurrentContext } from '../utils/current-context.js';
@@ -598,23 +598,15 @@ async function deleteRoadmapItem(slug: string, harbor?: string): Promise<Roadmap
  * `pd roadmap upsert` silently forked receipts off the project board (which
  * lives in the `<project>` harbor). Resolving the project here keeps writes on
  * the same board the operator reads.
+ *
+ * The actual resolution logic lives in `lib/harbor-resolve.ts` (CLI-free) so
+ * non-CLI callers like `scripts/roadmap-dedup.ts` can reuse it without
+ * pulling in this module's pdFetch/prompt/shell-quote dependency chain. This
+ * function is now a thin CLIOptions-shaped wrapper kept for the existing
+ * `pd roadmap` call sites and the CLI-facing test suite.
  */
 export function resolveRoadmapHarbor(options: CLIOptions): string | undefined {
-  const explicit = readOption(options, 'harbor');
-  if (explicit) return explicit;
-  const env = process.env.PD_HARBOR?.trim();
-  if (env) return env;
-  const worktree = getWorktreeInfo(process.cwd());
-  if (worktree) {
-    const commonDir = resolve(worktree.root, worktree.commonDir);
-    const canonicalRoot = basename(commonDir) === '.git'
-      ? resolve(commonDir, '..')
-      : worktree.root;
-    const projectName = basename(canonicalRoot);
-    if (projectName) return projectName;
-  }
-  const cwdBase = basename(process.cwd());
-  return cwdBase || undefined;
+  return resolveHarbor({ harbor: readOption(options, 'harbor') });
 }
 
 function roadmapNote(actor: string, text: string | undefined): { at: number; by: string; text: string } {
@@ -777,7 +769,13 @@ async function handleRoadmapPromote(args: string[], options: CLIOptions): Promis
 
 async function handleRoadmapImportMarkdown(args: string[], options: CLIOptions): Promise<void> {
   const rootDir = resolve(readOption(options, 'dir', 'root', 'rootDir', 'projectDir') || process.cwd());
-  const harbor = readOption(options, 'harbor');
+  // Same git-worktree-aware canonicalization handleRoadmapUpsert uses. Without
+  // this, an unflagged `pd roadmap import-markdown` fell back to the daemon's
+  // DEFAULT_HARBOR ('fleet') while every other write landed on the real
+  // project harbor — the second of the two root causes behind the Planner
+  // pane's "harbor split" (the biggest bucket: hundreds of import rows
+  // stranded in `fleet` instead of `port-daddy`).
+  const harbor = resolveRoadmapHarbor(options);
   const project = readOption(options, 'project');
   const by = readOption(options, 'as', 'agent', 'by') ?? readCurrentContext()?.agentId;
   const dryRun = Boolean((options['dry-run'] ?? options.dryRun) || args.includes('--dry-run'));

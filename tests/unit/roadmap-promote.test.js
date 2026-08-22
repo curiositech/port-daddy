@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
 import { createTupleSpace } from '../../lib/tuples.js';
 import { createFeedback } from '../../lib/feedback.js';
@@ -156,5 +157,82 @@ describe('promoteFromFeedback', () => {
       promotedBy: 'a',
     });
     expect(roadmapItem.harbor).toBe(fb.harbor);
+  });
+
+  describe('harbor guard — rejects a suspicious harbor override', () => {
+    let warnSpy;
+
+    beforeEach(() => {
+      warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      warnSpy.mockRestore();
+    });
+
+    test('a promote-time harbor override shaped like a PR id is rejected even when it correctly scopes the feedback lookup', () => {
+      // promoteFromFeedback uses `input.harbor` to SCOPE the feedback.get()
+      // lookup itself, so a caller-supplied override must match wherever the
+      // feedback actually lives to be found at all. Simulate a legacy
+      // feedback row that (pre-guard) was dropped under a suspicious harbor,
+      // by writing the tuple directly rather than via feedback.drop().
+      const feedbackId = 'fb-legacy-2';
+      tuples.out(['feedback:dropped', feedbackId, {
+        feedbackId,
+        slug: 'legacy2',
+        summary: 'x',
+        surface: null,
+        severity: 'medium',
+        status: 'open',
+        source: 'unknown',
+        suggested: null,
+        hook: null,
+        droppedBy: 'a',
+        project: null,
+        harbor: 'pr-3143',
+        at: clock,
+        harvestedAt: null,
+        harvestedIntoSlug: null,
+      }], { harbor: 'pr-3143', writtenBy: 'a' });
+
+      const { roadmapItem } = promote.promoteFromFeedback({
+        feedbackId,
+        promotedBy: 'a',
+        harbor: 'pr-3143',
+      });
+      expect(roadmapItem.harbor).toBe('fleet');
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('rejected suspicious harbor'));
+    });
+
+    test('an inherited feedback.harbor that is itself suspicious falls back to the roadmap default', () => {
+      // Simulate a legacy feedback row dropped BEFORE feedback.drop() guarded
+      // its own harbor input, by writing the tuple directly rather than via
+      // feedback.drop() (which would now refuse to persist this harbor at
+      // the source). Covers promotion of pre-existing, unguarded rows.
+      const feedbackId = 'fb-legacy-1';
+      tuples.out(['feedback:dropped', feedbackId, {
+        feedbackId,
+        slug: 'legacy',
+        summary: 'x',
+        surface: null,
+        severity: 'medium',
+        status: 'open',
+        source: 'unknown',
+        suggested: null,
+        hook: null,
+        droppedBy: 'a',
+        project: null,
+        harbor: '17604542',
+        at: clock,
+        harvestedAt: null,
+        harvestedIntoSlug: null,
+      }], { harbor: '17604542', writtenBy: 'a' });
+
+      const { roadmapItem } = promote.promoteFromFeedback({
+        feedbackId,
+        promotedBy: 'a',
+      });
+      expect(roadmapItem.harbor).toBe('fleet');
+    });
   });
 });

@@ -34,6 +34,8 @@ import type {
   RoadmapItems,
   RoadmapStatus,
 } from './roadmap-items.js';
+import { DEFAULT_ROADMAP_HARBOR } from './roadmap-items.js';
+import { isSuspiciousHarbor } from './harbor-guard.js';
 
 export interface PromoteFromFeedbackInput {
   feedbackId: string;
@@ -106,7 +108,23 @@ export function createRoadmapPromote(deps: RoadmapPromoteDeps) {
     }
 
     const promotedAt = now();
-    const harbor = input.harbor ?? fb.harbor;
+    // `input.harbor` is caller-supplied free text (route/MCP body); `fb.harbor`
+    // is inherited from whatever the ORIGINAL feedback.drop() call used — both
+    // are unauthenticated. A value shaped like a session/PR/workflow-run id
+    // (rather than a real project name) must not be allowed to fork the
+    // roadmap into a one-off harbor. Prefer the caller's harbor if it's clean;
+    // otherwise fall back to the feedback's own harbor if THAT is clean;
+    // otherwise the roadmap default. (feedback.drop() now guards new drops at
+    // the source, but this covers promotion of pre-existing, unguarded rows.)
+    let harbor = input.harbor ?? fb.harbor;
+    if (isSuspiciousHarbor(harbor)) {
+      const safeFallback = isSuspiciousHarbor(fb.harbor) ? DEFAULT_ROADMAP_HARBOR : fb.harbor;
+      console.warn(
+        `roadmap.promoteFromFeedback: rejected suspicious harbor '${harbor}' (looks like a ` +
+          `session/PR/workflow-run id, not a project name) — using '${safeFallback}' instead.`,
+      );
+      harbor = safeFallback;
+    }
 
     // Write the roadmap item first. If this throws, the feedback stays
     // open and the caller can retry. If it succeeds, we proceed to mark

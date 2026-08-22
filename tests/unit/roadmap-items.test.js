@@ -304,13 +304,68 @@ describe('remove', () => {
     expect(result).toEqual({ removed: false, item: null });
   });
 
-  test('is harbor-scoped — removing from one harbor leaves the other intact', () => {
-    roadmap.upsert({ slug: 'shared', summaryMd: 'real', status: 'now', harbor: 'port-daddy' });
-    roadmap.upsert({ slug: 'shared', summaryMd: 'stray dupe', status: 'backlog', harbor: 'fleet' });
+  test('is harbor-scoped — removing from one harbor leaves the other intact (pre-existing legacy duplicate)', () => {
+    // Simulate a legacy duplicate that predates the cross-harbor upsert guard
+    // below (scripts/roadmap-dedup.ts cleans these up in bulk) by inserting
+    // directly — going through roadmap.upsert() for both rows would now LINK
+    // the second write onto the first row instead of creating a second one.
+    const insert = db.prepare(`
+      INSERT INTO roadmap_items (id, slug, summary_md, status, last_touched_at, dependencies_json, notes_json, harbor, created_at)
+      VALUES (?, ?, ?, ?, ?, '[]', '[]', ?, ?)
+    `);
+    insert.run('id-real', 'shared', 'real', 'now', clock, 'port-daddy', clock);
+    insert.run('id-dupe', 'shared', 'stray dupe', 'backlog', clock, 'fleet', clock);
 
     const result = roadmap.remove('shared', 'fleet');
     expect(result.removed).toBe(true);
     expect(roadmap.get('shared', 'fleet')).toBeNull();
     expect(roadmap.get('shared', 'port-daddy')?.summaryMd).toBe('real');
+  });
+});
+
+describe('upsert cross-harbor collision guard', () => {
+  test('links a slug that already exists under a DIFFERENT harbor instead of duplicating it', () => {
+    roadmap.upsert({ slug: 'linked-shared', summaryMd: 'real', status: 'now', harbor: 'port-daddy' });
+    const second = roadmap.upsert({
+      slug: 'linked-shared',
+      summaryMd: 'attempted duplicate write',
+      status: 'backlog',
+      harbor: 'fleet',
+    });
+
+    // The write landed on the EXISTING 'port-daddy' row — no new row was
+    // created under 'fleet'. This is the fix for the Planner pane's
+    // duplicate-slug / harbor-split bug: every upsert() caller now gets the
+    // same link-instead-of-insert behavior `pd begin --roadmap-new` already
+    // had via slugExists() (lib/sugar.ts).
+    expect(second.harbor).toBe('port-daddy');
+    expect(roadmap.get('linked-shared', 'fleet')).toBeNull();
+    expect(roadmap.get('linked-shared', 'port-daddy')?.summaryMd).toBe('attempted duplicate write');
+    const rowCount = db.prepare('SELECT COUNT(*) AS c FROM roadmap_items WHERE slug = ?').get('linked-shared').c;
+    expect(rowCount).toBe(1);
+  });
+
+  test('emits a roadmap:cross-harbor-linked tuple when redirecting', () => {
+    roadmap.upsert({ slug: 'warn-me', summaryMd: 'v1', harbor: 'port-daddy' });
+    roadmap.upsert({ slug: 'warn-me', summaryMd: 'v2', harbor: 'fleet' });
+
+    const linked = tuples.rd(['roadmap:cross-harbor-linked', 'warn-me', '*'], { harbor: 'port-daddy' });
+    expect(linked).toHaveLength(1);
+    expect(linked[0].fields[2]).toMatchObject({ requestedHarbor: 'fleet', canonicalHarbor: 'port-daddy' });
+  });
+
+  test('same-harbor upsert is unaffected — plain in-place update, no cross-harbor link', () => {
+    roadmap.upsert({ slug: 'same-harbor', summaryMd: 'v1', harbor: 'fleet' });
+    const second = roadmap.upsert({ slug: 'same-harbor', summaryMd: 'v2', harbor: 'fleet' });
+    expect(second.harbor).toBe('fleet');
+    const linked = tuples.rd(['roadmap:cross-harbor-linked', 'same-harbor', '*'], { harbor: 'fleet' });
+    expect(linked).toHaveLength(0);
+  });
+
+  test('a genuinely new slug still inserts normally (no false-positive link)', () => {
+    roadmap.upsert({ slug: 'existing-one', summaryMd: 'v1', harbor: 'port-daddy' });
+    const fresh = roadmap.upsert({ slug: 'brand-new-slug', summaryMd: 'v1', harbor: 'fleet' });
+    expect(fresh.harbor).toBe('fleet');
+    expect(roadmap.get('brand-new-slug', 'fleet')).not.toBeNull();
   });
 });
