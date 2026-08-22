@@ -364,16 +364,18 @@ function seed(h: Harness): Seeded {
     insertClaim.run(slug, 'next-cut', null, live, h.clock.ms, 'contrast: live', 'roadmap', null, sLive, live);
 
     const drain = reg('fleet-cooper-09', 'Cooper', 'draining', 'winding down on the contrast slice');
-    const sDrain = startSession('contrast-stale', 'wind down the contrast slice', {
+    // Called for its effect, not its id: this session IS the draining agent's
+    // work attachment, and it deliberately gets NO claim row. roadmap_claims
+    // carries a partial UNIQUE index on slug for unreleased claims
+    // (lib/roadmap-pop.ts) — one open claim per item is the real invariant — so
+    // this attachment joins via the rent-at-claim session link
+    // (sessions.metadata.roadmapLink) instead, which is what makes the
+    // per-status stale ladder visible beside an active `busy` agent.
+    startSession('contrast-stale', 'wind down the contrast slice', {
       agentId: drain,
       worktreeId: 'wt-contrast-b',
       metadata: { roadmapLink: slug },
     });
-    // No second claim row: roadmap_claims carries a partial UNIQUE index on
-    // slug for unreleased claims (lib/roadmap-pop.ts) — one open claim per item
-    // is the real invariant. This attachment joins via the rent-at-claim
-    // session link (sessions.metadata.roadmapLink) instead.
-
   }
 
   // ── DONE liveness: an unreleased claim on a COMPLETED session ─────────────
