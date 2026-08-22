@@ -44,7 +44,7 @@ import {
   ChainError,
 } from './db.js';
 import { verifyCard, extractCardSub, extractBearerToken, CardError, matchCapability } from './auth.js';
-import { tryDecodeTransitEnvelope } from './envelope.js';
+import { tryDecodeTransitEnvelope, envelopeFrameMismatch } from './envelope.js';
 import { fetchJwks, verifyOidcToken, invalidateJwksCache, OidcError } from './oidc.js';
 import { harborChannelKey } from './harbor-channel.js';
 import {
@@ -603,13 +603,33 @@ export async function handlePublish(
   // audit row sizes the blast radius before this gate flips to reject.
   // Relay-produced events are gated harder at their producer
   // (github-webhook.ts: assertClassified on egress).
-  if (!tryDecodeTransitEnvelope(event.ciphertext)) {
+  const transitEnvelope = tryDecodeTransitEnvelope(event.ciphertext);
+  if (!transitEnvelope) {
     await appendAudit(env.DB, {
       daemon_fingerprint: sub,
       action: 'publish_unclassified_envelope',
       target: channelName,
       detail: `seq=${event.seq} transit body carries no sealed|relay_readable classification`,
     }).catch(() => {});
+  } else {
+    // A classified body brings its own signed routing tuple. If it disagrees
+    // with the frame it travelled in, the event has two signed answers to
+    // "which channel is this" — the relay files it under one, and every
+    // envelope-trusting consumer files it under the other. Fail closed.
+    const field = envelopeFrameMismatch(transitEnvelope, event);
+    if (field) {
+      await appendAudit(env.DB, {
+        daemon_fingerprint: sub,
+        action: 'publish_envelope_frame_mismatch',
+        target: channelName,
+        detail: `seq=${event.seq} envelope.${field} disagrees with the frame it travelled in`,
+      }).catch(() => {});
+      return err(
+        'ENVELOPE_FRAME_MISMATCH',
+        `envelope.${field} does not match the frame's ${field}`,
+        400
+      );
+    }
   }
 
   // Persist event

@@ -31,6 +31,7 @@ import {
   ENVELOPE_SCHEMA_ID,
   canonicalJson,
   envelopeBindingMessage,
+  envelopeFrameMismatch,
 } from '../src/envelope.js';
 import type { RelayReadableEnvelope, SealedEnvelope } from '../src/envelope.js';
 import { base64UrlEncode, pubKeyFromPrivKey } from '../src/crypto.js';
@@ -586,6 +587,52 @@ describe('envelopeBindingMessage — the signature actually binds the tuple', ()
   it('survives the transit round trip (sign here, verify after parse)', () => {
     const orig = { ...base, payload: { zeta: 1, alpha: { n: [1, 2], m: 'x' } } } as never;
     expect(envelopeBindingMessage(JSON.parse(JSON.stringify(orig)))).toBe(envelopeBindingMessage(orig));
+  });
+});
+
+describe('envelopeFrameMismatch — the inner tuple must match the frame it travelled in', () => {
+  // The envelope type documents harbor/channel/sender/seq/iat as "must equal
+  // the outer frame's". Nothing enforced it on any path, so the words were a
+  // comment rather than a rule. This is the predicate that makes them a rule.
+  //
+  // The attack it closes is not forgery — the frame signature covers the
+  // encoded envelope, so only the authenticated daemon can put these bytes on
+  // the wire. It is disagreement: the envelope carries its own signature over
+  // its own routing tuple, so an event delivered on channel C whose envelope
+  // says channel D gets filed under C by the relay's chain and under D by every
+  // consumer that verifies the envelope. Two signed answers to one question.
+  const envelope = {
+    schema: ENVELOPE_SCHEMA_ID, v: 1, classification: 'relay_readable' as const,
+    harbor: 'h', channel: 'h:ops:deploys', sender: 's'.repeat(64), seq: 4, iat: 1755648000,
+    payload: {}, reason: 'a reason long enough to be a real justification',
+    sig: { alg: 'ed25519' as const, key_id: 'k', value: 'v' },
+  };
+  const frame = { channel: 'h:ops:deploys', sender: 's'.repeat(64), seq: 4, iat: 1755648000 };
+
+  it('agrees when the envelope was built from the frame it ships in', () => {
+    expect(envelopeFrameMismatch(envelope, frame)).toBeNull();
+  });
+
+  it('names each disagreeing field, one at a time', () => {
+    expect(envelopeFrameMismatch(envelope, { ...frame, channel: 'h:ops:secrets' })).toBe('channel');
+    expect(envelopeFrameMismatch(envelope, { ...frame, sender: 'z'.repeat(64) })).toBe('sender');
+    expect(envelopeFrameMismatch(envelope, { ...frame, seq: 5 })).toBe('seq');
+    expect(envelopeFrameMismatch(envelope, { ...frame, iat: frame.iat + 1 })).toBe('iat');
+  });
+
+  it('does not accept a same-prefix channel — the comparison is the whole string', () => {
+    // 'h:ops' is the prefix of 'h:ops:deploys'. A predicate written with
+    // startsWith would pass this and let a broader channel claim a narrower
+    // one's events.
+    expect(envelopeFrameMismatch(envelope, { ...frame, channel: 'h:ops' })).toBe('channel');
+    expect(envelopeFrameMismatch({ ...envelope, channel: 'h:ops' }, frame)).toBe('channel');
+  });
+
+  it('compares seq and iat as numbers, not as loosely-equal strings', () => {
+    // `==` would call '4' equal to 4 and let a string-typed body through a
+    // check that is meant to be exact.
+    expect(envelopeFrameMismatch(envelope, { ...frame, seq: '4' as unknown as number })).toBe('seq');
+    expect(envelopeFrameMismatch(envelope, { ...frame, iat: '1755648000' as unknown as number })).toBe('iat');
   });
 });
 

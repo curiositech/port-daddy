@@ -363,3 +363,33 @@ export async function verifyEnvelopeSig(envelope: RelayEnvelopeV1): Promise<bool
   if (envelope.sig.alg !== 'ed25519') return false;
   return verifyEd25519(envelope.sig.key_id, envelopeBindingMessage(envelope), envelope.sig.value);
 }
+
+/**
+ * The envelope's routing fields are documented above as "must equal the outer
+ * frame's" — until now nothing enforced that, on any path.
+ *
+ * A mismatch is not a forgery: the frame signature covers `this_hash`, which
+ * covers the encoded envelope, so only the authenticated daemon can put these
+ * bytes on the wire. The problem is what a mismatch means downstream. The
+ * envelope carries its OWN signature over its OWN routing tuple, and a consumer
+ * that verifies it — iOS, another device, anything replaying from D1 — files
+ * the event where the envelope says it belongs. So a daemon publishing on
+ * channel C an envelope that says, under a valid signature, that it belongs to
+ * channel D gets that event filed under D by every envelope-trusting consumer
+ * while the relay's own chain has it under C. Two answers to "where does this
+ * event live", both signed.
+ *
+ * Returns the offending field name, or null when the two agree. `harbor` is not
+ * compared: the frame has no harbor field of its own, only the channel prefix
+ * the envelope derives it from.
+ */
+export function envelopeFrameMismatch(
+  envelope: RelayEnvelopeV1,
+  frame: { channel: string; sender: string; seq: number; iat: number }
+): string | null {
+  if (envelope.channel !== frame.channel) return 'channel';
+  if (envelope.sender !== frame.sender) return 'sender';
+  if (envelope.seq !== frame.seq) return 'seq';
+  if (envelope.iat !== frame.iat) return 'iat';
+  return null;
+}
