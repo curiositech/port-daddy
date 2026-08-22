@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`apps/pd-ios` — the iOS operator surface scaffold (WS-D slice D1).** SwiftUI, iOS 17+, the fourth sanctioned operator surface per ADR-0125, landing on the roadmap rather than the fleet. Design law 13 is enforced in the type rather than the view: a projection claiming `live: true` without a dispatch, a timestamp, and an age inside its own `maxAgeMs` renders STALE, so the surface cannot claim freshness its source has not earned. Harbor reachability derives the four verdicts on-device and keeps an `unknown` verdict with its age instead of degrading it to `impossible`. The control-verb matrix renders unsupported verbs visible, disabled, and reasoned rather than hiding them. The maritime-flag port names `lib/maritime-signals.ts` as canonical and is held to it by a generated parity fixture checked in CI, so neither side can move alone. Answer/ack deliberately deep-links to the session-gated web surface: the relay's close path requires a same-origin session, so a bearer token cannot close an interruption, and shipping an in-app button would have shipped a 401.
+
 ### Fixed
 - **Release supervision and promotion now enforce the supported single-supervisor boundary end to end.** `pd doctor` keeps optional legacy Bosun state visible without treating its deliberate v3.28+ absence as a critical defect, while redirected doctor targets no longer borrow canonical launchd or registry evidence. Release CI omits the retired watchdog build, attests both sealed platform archives, and waits for the Homebrew tap's credential-independent, evidence-verified self-promotion instead of relying on a fragile cross-repository write token.
 
