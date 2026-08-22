@@ -132,6 +132,26 @@
     "oom-protection.test.ts": {
       "runner": "quarantined",
       "reason": "vitest + apps/fleet-executor/src; belongs in apps/fleet-executor"
+    },
+    "test_rust_concurrent_access.rs": {
+      "runner": "quarantined",
+      "reason": "Rust module fragment (`use super::*;`) -- compiles only inlined inside pd-console's discovery module; no cargo target includes tests/purser and neither node runner can execute Rust"
+    },
+    "test_rust_explicit_url_precedence.rs": {
+      "runner": "quarantined",
+      "reason": "Rust `use super::*;` fragment for pd-console daemon discovery -- has no crate to live in here; the discovery precedence behaviour ships with #5722's pd-console fix and its in-crate tests"
+    },
+    "test_rust_invalid_ports.rs": {
+      "runner": "quarantined",
+      "reason": "Rust module fragment targeting invalid daemon-port handling -- tests/purser is routed to node-test and jest only, and a bare .rs file outside any cargo target can never compile or run"
+    },
+    "test_script_ignores_legacy_selector.sh": {
+      "runner": "quarantined",
+      "reason": "shell script -- tests/purser has no shell runner; it drives the completion/discovery script against a mktemp fixture HOME, but nothing executes .sh files in this directory today"
+    },
+    "test_script_numeric_prefix_handling.sh": {
+      "runner": "quarantined",
+      "reason": "shell script with no runner in tests/purser; probes numeric-prefix parsing of the daemon.port file from bash, a lane nothing here executes -- the port-file parsing contract lives with #5722's discovery fix"
     }
   }
 }
