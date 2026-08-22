@@ -142,11 +142,25 @@ authoring funnel (authored / non-executable / repair healed vs failed). Model
 changes land WITH a before-window from this script in the PR, and get judged
 on their after-window.
 
+## The product-surface copy: the Shipwright model dossier
+
+`apps/relay/src/model-dossier.json` is this roster as canonical data for
+operators: the signed-in `/account/shipwright` page renders it as the Model
+Board, and the Shipwright's system prompt recommends `model:` ids from it
+(exact-quote rule — any other id is silently remapped or blank on the
+executor). Parity is enforced, not hoped for:
+`apps/fleet-executor/tests/spend.test.ts` reads the same JSON and pins its id
+set to `KNOWN_GOOD_CF_MODELS` and every price/context to
+`WORKERS_AI_RATES`/`MODEL_CONTEXT_TOKENS`. An admission, retirement, or
+re-price that skips the dossier fails that suite.
+
 ## Update procedure
 
 1. Re-fetch the catalog page (`https://developers.cloudflare.com/ai/models/`)
    and the pricing page; update this snapshot's tables and dates.
 2. For a new admission: satisfy the three-part contract above (existence,
    rate, context), extend `KNOWN_GOOD_CF_MODELS`, and mirror the rate into
-   `lib/cost-tracker.ts` so daemon-side pricing agrees.
+   `lib/cost-tracker.ts` so daemon-side pricing agrees — AND add the model to
+   `apps/relay/src/model-dossier.json` (the fleet-executor parity suite
+   enforces this).
 3. Record the decision and its evidence window here, in the decision record.
