@@ -182,6 +182,109 @@ export async function invalidateInstallationToken(
  */
 export const PR_FILES_PAGE_SIZE = 100;
 
+/**
+ * Hard ceiling on the raw unified diff we will hold in memory (#7743).
+ *
+ * WHY THIS EXISTS: `await res.text()` on GitHub's diff endpoint is unbounded,
+ * and a Worker has 128MB. A PR that regenerates a lockfile, vendors a
+ * dependency, or commits generated output can return a diff far larger than
+ * that, and the read dies with `exceededMemory` before any catchable error can
+ * be thrown — which is exactly the signature the dead-letters showed: ~80s of
+ * wall clock, under a second of CPU, no exception. Reading bytes off a socket
+ * costs almost no CPU, so an OOM with a flat CPU line means a large body, not
+ * heavy computation.
+ *
+ * WHY 2MB IS NOT A LOSS: the executor already truncates review input to
+ * MAX_MAP_CHUNKS_PER_SHIP × the chunk ceiling (~384KB) before it calls a
+ * model. Everything past that was being downloaded, parsed, and then thrown
+ * away. This cap discards the same bytes earlier, before they can kill the
+ * isolate.
+ */
+export const MAX_DIFF_BYTES = 2_000_000;
+
+/**
+ * Ceiling on the `/files` JSON body.
+ *
+ * Separate from {@link MAX_DIFF_BYTES} and deliberately larger: this payload
+ * repeats every file's `patch` inside JSON envelopes, so it runs bigger than
+ * the raw diff for the same change — and both are fetched CONCURRENTLY, so the
+ * peak is their sum. Bounding only one of them would leave the other able to
+ * exhaust the isolate on its own.
+ */
+export const MAX_FILES_BYTES = 4_000_000;
+
+/** What a bounded body read actually consumed. */
+export interface CappedRead {
+  /** The decoded text, at most `maxBytes` of source bytes. */
+  text: string;
+  /** Bytes actually read (equals the cap when truncated). */
+  bytes: number;
+  /** True when the body was longer than the cap and the rest was discarded. */
+  truncated: boolean;
+}
+
+/**
+ * Read a response body into text, refusing to exceed `maxBytes`.
+ *
+ * DESIGN: streams and stops, rather than buffering then trimming — trimming
+ * after the fact would require the whole body to exist in memory first, which
+ * is the very failure this prevents. The reader is cancelled on the way out so
+ * the connection is not left draining a body nobody will read.
+ *
+ * Truncation can land mid-UTF-8; `TextDecoder` emits a replacement character
+ * there, which is harmless for diff text and strictly better than an OOM.
+ *
+ * @param res - The response whose body to read.
+ * @param maxBytes - Hard ceiling on bytes consumed.
+ * @returns The text plus how much was read and whether it was cut short.
+ */
+export async function readTextCapped(res: Response, maxBytes: number): Promise<CappedRead> {
+  const body = res.body;
+  // No stream (some fakes, and empty bodies): fall back, but still bound it.
+  if (!body) {
+    const whole = await res.text();
+    const encoded = new TextEncoder().encode(whole);
+    if (encoded.byteLength <= maxBytes) {
+      return { text: whole, bytes: encoded.byteLength, truncated: false };
+    }
+    return {
+      text: new TextDecoder().decode(encoded.subarray(0, maxBytes)),
+      bytes: maxBytes,
+      truncated: true,
+    };
+  }
+
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  let truncated = false;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      if (bytes + value.byteLength > maxBytes) {
+        chunks.push(value.subarray(0, maxBytes - bytes));
+        bytes = maxBytes;
+        truncated = true;
+        break;
+      }
+      chunks.push(value);
+      bytes += value.byteLength;
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+
+  const joined = new Uint8Array(bytes);
+  let at = 0;
+  for (const c of chunks) {
+    joined.set(c, at);
+    at += c.byteLength;
+  }
+  return { text: new TextDecoder().decode(joined), bytes, truncated };
+}
+
 export interface PRFile {
   filename: string;
   status: string;
@@ -244,6 +347,21 @@ export interface PRContext {
   installationId: number;
   files: PRFile[];
   diff: string;
+  /**
+   * Bytes of raw diff actually read (capped at {@link MAX_DIFF_BYTES}).
+   *
+   * INSTRUMENTATION, deliberately on the context rather than in a log line:
+   * #7743 cost two investigation cycles because a platform kill leaves no
+   * catchable error and nothing recorded the input size. Carrying the measured
+   * size forward means the transcript can state it on every run, so the next
+   * memory incident is self-diagnosing the way the delivery-attempt markers
+   * made the dead-letters self-diagnosing.
+   */
+  diffBytes: number;
+  /** True when the diff exceeded the cap and was cut short. */
+  diffTruncated: boolean;
+  /** True when the `/files` body exceeded its cap or failed to parse. */
+  filesTruncated: boolean;
 }
 
 /**
@@ -293,8 +411,33 @@ export async function fetchPRContext(
     throw new Error(`fetch pull request failed ${prRes.status}: ${await prRes.text()}`);
   }
   const livePr = (await prRes.json()) as typeof eventPr;
-  const files: PRFile[] = filesRes.ok ? ((await filesRes.json()) as PRFile[]) : [];
-  const diff = diffRes.ok ? await diffRes.text() : '';
+
+  // Both bodies are bounded (#7743). They arrive concurrently, so the peak is
+  // their sum; an unbounded read of either one can kill the isolate before any
+  // catch block exists to report it.
+  let files: PRFile[] = [];
+  let filesTruncated = false;
+  if (filesRes.ok) {
+    const read = await readTextCapped(filesRes, MAX_FILES_BYTES);
+    if (read.truncated) {
+      // A truncated body is not parseable JSON. Degrade to "no file list"
+      // rather than throwing: the ships review the diff, and the mediator's
+      // line-mapping simply falls back. Silent would be worse than empty, so
+      // the flag rides along on the context.
+      filesTruncated = true;
+    } else {
+      try {
+        files = JSON.parse(read.text) as PRFile[];
+      } catch {
+        filesTruncated = true;
+      }
+    }
+  }
+
+  const diffRead = diffRes.ok
+    ? await readTextCapped(diffRes, MAX_DIFF_BYTES)
+    : { text: '', bytes: 0, truncated: false };
+  const diff = diffRead.text;
 
   return {
     owner,
@@ -323,6 +466,9 @@ export async function fetchPRContext(
     installationId: 0,
     files,
     diff,
+    diffBytes: diffRead.bytes,
+    diffTruncated: diffRead.truncated,
+    filesTruncated,
   };
 }
 
