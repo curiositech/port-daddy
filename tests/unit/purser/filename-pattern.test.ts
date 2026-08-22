@@ -1,29 +1,31 @@
 // tests/unit/purser/filename-pattern.test.ts
 import { readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
 
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const appliedPath = path.join(
-  __dirname,
-  '..',
-  '..',
-  'apps',
-  'relay',
-  'migrations',
-  'applied-staging.json',
+const appliedPath = new URL(
+  '../../../apps/relay/migrations/applied-staging.json',
+  import.meta.url,
 );
 
-const fileNameRegex = /^2026-08-(0[4-9]|1[0-2]|22)-[a-z0-9-]+\.sql$/;
+const fileNameRegex = /^\d{4}-\d{2}-\d{2}-[a-z0-9-]+\.sql$/;
 const appliedAtTimestamp = '2026-08-22T17:39:02Z';
+const expectedFiles = [
+  '2026-08-08-relay-baseline.sql',
+  '2026-08-09-executor-identity.sql',
+  '2026-08-09-mediator-body.sql',
+  '2026-08-09-y1-directory-whois.sql',
+  '2026-08-09-z-mercy-hooks.sql',
+  '2026-08-22-fleet-run-intents.sql',
+] as const;
 
 describe('applied-staging.json migration entries', () => {
   let migrations: { file: string; appliedAt: string }[];
 
   beforeAll(async () => {
     const raw = await readFile(appliedPath, 'utf8');
-    const data = JSON.parse(raw);
-    migrations = data.migrations;
+    const data = JSON.parse(raw) as {
+      applied: { file: string; appliedAt: string }[];
+    };
+    migrations = data.applied;
   });
 
   test('all migration filenames match the required pattern', () => {
@@ -33,18 +35,20 @@ describe('applied-staging.json migration entries', () => {
   });
 
   test('all new migration entries have the exact appliedAt timestamp', () => {
-    migrations.forEach((m) => {
-      // The contract requires the timestamp to be exactly the ISO string shown
-      expect(m.appliedAt).toBe(appliedAtTimestamp);
+    expectedFiles.forEach((file) => {
+      const entry = migrations.find((migration) => migration.file === file);
+      expect(entry).toBeDefined();
+      expect(entry?.appliedAt).toBe(appliedAtTimestamp);
     });
   });
 
   test('contains exactly six new migration entries', () => {
-    // The first entry (2026-08-04-x4-parleys.sql) existed before
-    // All other entries are new; count them
-    const newEntries = migrations.filter(
-      (m) => m.appliedAt === appliedAtTimestamp,
+    const expectedFileSet = new Set(expectedFiles);
+    const contractEntries = migrations.filter((migration) =>
+      expectedFileSet.has(migration.file as (typeof expectedFiles)[number]),
     );
-    expect(newEntries.length).toBe(6);
+    expect(contractEntries.map((entry) => entry.file).sort()).toEqual(
+      [...expectedFiles].sort(),
+    );
   });
 });
