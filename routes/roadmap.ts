@@ -13,6 +13,9 @@
  *   POST   /roadmap/items/:slug/status   — update status (audit-trailed)
  *   POST   /roadmap/items/:slug/touch    — refresh last_touched_at
  *   POST   /roadmap/promote              — atomic feedback→item link
+ *   GET    /roadmap/projection           — read-only roadmap-home projection
+ *                                          (lib/roadmap-projection.ts) for the
+ *                                          web/console/iOS home surfaces
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
@@ -23,6 +26,11 @@ import type {
 } from '../lib/roadmap-items.js';
 import type { RoadmapPromote, PromoteFromFeedbackInput } from '../lib/roadmap-promote.js';
 import { renderNextCutsMarkdown, applyRoadmapMarkdown } from '../lib/roadmap-render.js';
+import {
+  buildRoadmapProjection,
+  serializeRoadmapProjection,
+} from '../lib/roadmap-projection.js';
+import type Database from 'better-sqlite3';
 import { importMarkdownRoadmap } from '../lib/roadmap-import.js';
 import { derivePlan, type MigrationItem } from '../lib/planner-migrate.js';
 import { schedule } from '../lib/planner-schedule.js';
@@ -129,6 +137,35 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
   // routes/index.ts registers this plugin with the FULL server deps, so repoRoot is present
   // even though RoadmapDeps only names the two it strictly requires.
   const repoRoot = (opts.deps as { repoRoot?: string }).repoRoot;
+  const db = (opts.deps as { db?: Database.Database }).db;
+
+  // GET /roadmap/projection — the roadmap-is-home read model (operator decision 4:
+  // "roadmap is home everywhere"). One deterministic projection that the relay
+  // account page, pd-console, and the iOS app all render instead of re-deriving
+  // roadmap state (see lib/roadmap-projection.ts for the parsimony law and the
+  // law-13 live/stale honesty rules). Read-only; the body is the projection's
+  // canonical serialization so consumers can byte-diff successive fetches.
+  // Self-degrades with 503 when a stripped daemon mode carries no DB (popper
+  // route convention).
+  fastify.get('/roadmap/projection', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!db) {
+      reply.code(503);
+      return { success: false, error: 'roadmap projection requires daemon db' };
+    }
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const harbor = asString(q.harbor);
+    try {
+      const projection = buildRoadmapProjection(db, repoRoot ?? process.cwd(), { harbor });
+      reply.type('application/json; charset=utf-8');
+      return serializeRoadmapProjection(projection);
+    } catch (error) {
+      reply.code(500);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'projection failed',
+      };
+    }
+  });
 
   // GET /roadmap/board — the live, browsable planner board (ADR-0086 §5). Derives the
   // Project→Epic→Task hierarchy from roadmap_items on each request (so it reflects live state

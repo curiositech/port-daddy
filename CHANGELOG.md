@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Roadmap-home projection — one projection, three surfaces (WS-F slice F1).** `lib/roadmap-projection.ts` builds a versioned, deterministic view of roadmap items, the do-this-next rail, and their receipts, anchored through `resolveRoadmapHarbor` so every worktree of a repo projects identically. Design law 13 is encoded rather than described: an item renders LIVE only when a real receipt trail backs it, and is marked stale otherwise — the rail cannot fake freshness. Web account home, pd-console, and iOS consume this one projection instead of each re-deriving roadmap state.
+
 ## [3.28.2] - 2026-08-18
 
 ## [3.28.1] - 2026-08-18
