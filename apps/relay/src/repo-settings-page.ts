@@ -120,16 +120,19 @@ function json(status: number, body: unknown): Response {
  * this accepts the practical intersection (word chars, dots, dashes; no
  * leading dot on either segment — the rejection lives in the regex itself so
  * there is exactly one shape to reason about; both segments 1..100 chars).
- * The pasted-URL prefix is matched case-insensitively by design: RFC 3986
- * makes scheme and host case-insensitive, and honoring the URL's own
- * semantics is the honest contract for an input we advertise accepting.
+ * The pasted-URL prefix is matched case-insensitively and accepts both
+ * http and https by design: RFC 3986 makes scheme and host case-insensitive,
+ * GitHub serves one canonical https redirect for http, and honoring the
+ * URL's own semantics is the honest contract for an input we advertise
+ * accepting. URL fragments/queries are rejected — they are not part of a
+ * repository's identity.
  *
  * @param raw - The user-typed repository identifier.
  * @returns The trimmed `owner/name`, or null when the shape is invalid.
  */
 export function normalizeRepoFullName(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
-  const trimmed = raw.trim().replace(/^https:\/\/github\.com\//i, '').replace(/\.git$/, '');
+  const trimmed = raw.trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\.git$/, '');
   const m = /^([A-Za-z0-9](?:[A-Za-z0-9-]{0,98}[A-Za-z0-9])?)\/([A-Za-z0-9_-][A-Za-z0-9._-]{0,99})$/.exec(trimmed);
   const owner = m?.[1];
   const name = m?.[2];
@@ -143,6 +146,10 @@ export function normalizeRepoFullName(raw: unknown): string | null {
  * Why closed: the value lands in a CHECK-constrained column and in rendered
  * agent guidance — an unknown level must collapse to null (reject the write)
  * rather than pass through as free text.
+ *
+ * Casing contract: input is trimmed and lowercased before matching, so
+ * 'ENFORCE', ' Suggest ', and 'off\n' all normalize; the returned (and
+ * stored) value is always the lowercase enum member.
  *
  * @param raw - The form/JSON-supplied level.
  * @returns The level, or null when not one of off|suggest|enforce.
