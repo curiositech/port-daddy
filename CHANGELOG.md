@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Roadmap items are Jira-grade cards with a durable, verified owner.** An item's `assignee_id` now validates against the durable-agent roster on write (a roster agentNodeId or unique slug; unknown owners are rejected with the exact registration path) and reads join the owner's name and status. Items carry free-form tags (`pd roadmap upsert --tag …`, filterable via `pd roadmap --tag` / `GET /roadmap/items?tag=`), typed artifact links pinned as ADR-0086 graph edges (`pd roadmap link <slug> --pr N | --doc <path> | --file <path> | --media <path-or-url>`, plus `unlink`/`links`), and planned-vs-actual time tracking — `--actual` effort next to the estimate, with `completed_at` stamped by the transition into done and cleared on reopen. `GET /roadmap/items/:slug` returns the full card: every field, the owner join, links, blocks/blocked-by in both directions, parent/children hierarchy, tags, and planned-vs-actual.
+
+### Changed
+- **Roadmap dependencies live in the planner graph, not a denormalized JSON column.** Writes author `depends_on` edges in `graph_edges` (ADR-0086 §3) and the legacy `dependencies_json` column is retired: boot backfills remaining JSON into edges, reads bridge both sources so old-replica rows stay correct, the nightshift popper computes readiness from the same union (blocked work can never pop because a column went stale), and the planner board no longer rewrites the authored dependency scope on render.
+
 ### Fixed
 - **Release supervision and promotion now enforce the supported single-supervisor boundary end to end.** `pd doctor` keeps optional legacy Bosun state visible without treating its deliberate v3.28+ absence as a critical defect, while redirected doctor targets no longer borrow canonical launchd or registry evidence. Release CI omits the retired watchdog build, attests both sealed platform archives, and waits for the Homebrew tap's credential-independent, evidence-verified self-promotion instead of relying on a fragile cross-repository write token.
 

@@ -55,6 +55,9 @@ const ROADMAP_DDL = `
     started_at INTEGER,
     due_at INTEGER,
     estimate INTEGER,
+    tags_json TEXT NOT NULL DEFAULT '[]',
+    actual INTEGER,
+    completed_at INTEGER,
     deleted_at INTEGER,
     UNIQUE(slug, harbor)
   );

@@ -1302,11 +1302,23 @@ Commands:
     --estimate <units>      Effort units — the Gantt/CPM node duration
     --start <when>          Actual start: YYYY-MM-DD, +Nd, or epoch ms
     --due <when>            Target finish: YYYY-MM-DD, +Nd, or epoch ms
-    --assignee <id>         Agent/person the item is assigned to
+    --assignee <id>         Durable owner — a roster agentNodeId or slug (validated
+                            against pd roster; unknown owners are rejected)
+    --unassign              Clear the owner (sends explicit null)
+    --actual <units>        Effort actually spent (same units as --estimate)
+    --tag <t>               Add a tag (repeatable); --clear-tags empties the set
     --description <md>      Long-form body markdown (summary stays the headline)
     --as <agentId>          Actor recorded on the receipt
     --note <text>           Receipt note attached to the item
     --harbor <h>            Target harbor (default: repo/project name, then $PD_HARBOR)
+
+  roadmap link <slug>       Pin a typed artifact link to an item's Jira card
+    --pr <number>           Link a pull request (--url/--title optional)
+    --doc <path>            Link a repo doc path
+    --file <path>           Link a file path
+    --media <path-or-url>   Link media (--mime/--caption optional)
+  roadmap unlink <slug>     Remove a typed link (same selector flags)
+  roadmap links <slug>      List an item's typed links
 
   roadmap delete <slug>     Remove a roadmap item (and its status-event audit rows)
     --harbor <h>            Harbor to delete from (default: repo/project name)
@@ -1325,6 +1337,9 @@ Examples:
   pd roadmap --dir /Users/you/coding/port-daddy --json
   pd roadmap upsert swarm-coordination --summary "Governed swarm coordination" --status now
   pd roadmap upsert relay-hardening --summary "Relay retry storms" --kind epic --priority 2 --estimate 5 --due +14d
+  pd roadmap upsert relay-hardening --assignee portdaddy-relay-steward --tag infra --tag reliability
+  pd roadmap link relay-hardening --pr 9340 --title "retry backoff"
+  pd roadmap links relay-hardening
   pd roadmap touch swarm-coordination --note "Phase 0 parley implementation"
   pd roadmap ack 5a8e37de --as cartographer --into coordination-guard`,
 
@@ -2488,7 +2503,7 @@ export async function main(): Promise<void> {
   // Flags whose repeated occurrences should accumulate into an array
   // instead of last-write-wins. Add a key here when a consumer is array-aware
   // (e.g. `--files A --files B`).
-  const REPEATABLE_FLAGS: Set<string> = new Set(['files', 'client-arg', 'codex-config']);
+  const REPEATABLE_FLAGS: Set<string> = new Set(['files', 'client-arg', 'codex-config', 'tag']);
 
   // Greedily consume every following non-option token. This makes the
   // documented `--files a b c` form equivalent to repeating the flag without
