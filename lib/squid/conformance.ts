@@ -12,6 +12,7 @@ import { join, resolve } from 'node:path';
 
 import { PD_HOME } from '../../shared/paths.js';
 import { resolveCliBinary } from '../cli-bin-dirs.js';
+import { readDaemonReadyPid } from '../daemon-ready.js';
 import { PD_HOOK_MARKER, REGISTERED_TENTACLES, TENTACLES } from './hook-shape.js';
 import {
   SLASH_COMMAND_FILENAME,
@@ -49,6 +50,7 @@ export interface SquidConformance {
   projectRoot: string | null;
   projectArmed: boolean;
   daemonAlive: boolean;
+  daemonReady: boolean;
   tentaclesStaged: boolean;
   detectedProviders: number;
   wiredProviders: number;
@@ -76,6 +78,8 @@ export interface SquidConformanceFacts {
   projectRoot: string | null;
   projectArmed: boolean;
   daemonAlive: boolean;
+  /** Optional only for backwards-compatible fact producers; readers set it explicitly. */
+  daemonReady?: boolean;
   tentaclesStaged: boolean;
   statuslineStaged: boolean;
   statuslineVisible: boolean;
@@ -168,6 +172,8 @@ function quoteCliPath(path: string): string {
 }
 
 export function deriveSquidConformance(facts: SquidConformanceFacts): SquidConformance {
+  const daemonReady = facts.daemonReady ?? facts.daemonAlive;
+  const daemonOperational = facts.daemonAlive && daemonReady;
   const ephemeralProjectRoot = Boolean(facts.projectRoot && (
     facts.projectRoot === '/tmp'
     || facts.projectRoot.startsWith('/tmp/')
@@ -197,7 +203,7 @@ export function deriveSquidConformance(facts: SquidConformanceFacts): SquidConfo
     || facts.pilotSessionStart;
 
   const level: SquidConformanceLevel = completeWiring
-    ? (facts.daemonAlive ? 'LIVE' : 'READY')
+    ? (daemonOperational ? 'LIVE' : 'READY')
     : anyProtection
       ? 'PARTIAL'
       : 'UNPROTECTED';
@@ -206,7 +212,7 @@ export function deriveSquidConformance(facts: SquidConformanceFacts): SquidConfo
   const identityParts = [facts.statuslineVisible, facts.slashCommand, facts.pilotSessionStart].filter(Boolean).length;
   const score = Math.round(
     (facts.projectArmed ? 15 : 0)
-      + (facts.daemonAlive ? 15 : 0)
+      + (daemonOperational ? 15 : 0)
       + (facts.tentaclesStaged ? 20 : 0)
       + (providerCoverage * 25)
       + ((identityParts / 3) * 25),
@@ -217,6 +223,7 @@ export function deriveSquidConformance(facts: SquidConformanceFacts): SquidConfo
   if (ephemeralProjectRoot) missing.push('worktree is under an ephemeral system temp root; resume it under ~/coding/tmp');
   if (facts.projectRoot && !facts.projectArmed) missing.push('exact project root is not armed');
   if (!facts.daemonAlive) missing.push('daemon heartbeat is not fresh');
+  else if (!daemonReady) missing.push('daemon readiness lease does not match the current PID');
   if (!facts.tentaclesStaged) missing.push('prompt, pre-tool, or post-tool tentacles are not fully staged');
   if (detected.length === 0) missing.push('no supported interactive agent CLI detected');
   for (const provider of detected.filter((entry) => !entry.configured)) {
@@ -232,8 +239,9 @@ export function deriveSquidConformance(facts: SquidConformanceFacts): SquidConfo
   else if (!facts.projectArmed || !facts.tentaclesStaged || !identityReady) repair = `pd squid on --cwd ${quoteCliPath(facts.projectRoot)}`;
   else if (configured.length < detected.length) repair = `pd hooks install --cwd ${quoteCliPath(facts.projectRoot)}`;
   else if (!facts.daemonAlive) repair = 'port-daddy start';
+  else if (!daemonReady) repair = 'Wait for Port Daddy to finish its boot checks; FleetBar will update automatically.';
 
-  const hooksActive = completeWiring && facts.daemonAlive;
+  const hooksActive = completeWiring && daemonOperational;
   return {
     schemaVersion: 1,
     level,
@@ -241,6 +249,7 @@ export function deriveSquidConformance(facts: SquidConformanceFacts): SquidConfo
     projectRoot: facts.projectRoot,
     projectArmed: facts.projectArmed,
     daemonAlive: facts.daemonAlive,
+    daemonReady,
     tentaclesStaged: facts.tentaclesStaged,
     detectedProviders: detected.length,
     wiredProviders: wired.length,
@@ -260,8 +269,8 @@ export function deriveSquidConformance(facts: SquidConformanceFacts): SquidConfo
       // Per-tool observational hooks are intentionally retired. Claims, notes,
       // and the bounded TURN/EDIT debug projection are the cumulative record.
       trace: false,
-      inbox: facts.daemonAlive && facts.inboxSessionStart,
-      parleyDelivery: facts.daemonAlive,
+      inbox: daemonOperational && facts.inboxSessionStart,
+      parleyDelivery: daemonOperational,
       automatedParley: false,
       skillGrafting: false,
     },
@@ -276,6 +285,7 @@ export function unprotectedSquidConformance(reason = 'agent has no local worktre
     projectRoot: null,
     projectArmed: false,
     daemonAlive: false,
+    daemonReady: false,
     tentaclesStaged: false,
     statuslineStaged: false,
     statuslineVisible: false,
@@ -329,11 +339,14 @@ export function readSquidConformance(
     providerStatus('Gemini CLI', 'gemini', 'gemini', 'project', join(projectRoot, '.gemini', 'settings.json'), commandExists),
     providerStatus('Antigravity (agy)', 'agy', 'agy', 'user', join(home, '.gemini', 'hooks.json'), commandExists),
   ];
+  const readyPid = readDaemonReadyPid(join(pdHome, 'daemon.ready'));
+  const daemonPid = readDaemonReadyPid(join(pdHome, 'daemon.pid'));
 
   return deriveSquidConformance({
     projectRoot,
     projectArmed: readArmedSquidProjectRoots(join(pdHome, 'squid', 'projects')).includes(projectRoot),
     daemonAlive: heartbeatFresh(join(pdHome, 'heartbeat'), now),
+    daemonReady: readyPid !== null && readyPid === daemonPid,
     tentaclesStaged,
     statuslineStaged: existsSync(join(binDir, STATUSLINE_MARKER)),
     statuslineVisible: typeof statusline?.command === 'string' && statusline.command.includes(STATUSLINE_MARKER),
