@@ -375,8 +375,14 @@ real question — the diff is the record, not a running commentary.
 
 `[M]` Machine-flagged, advisory. `scripts/check-pr-comments-answered.mjs` (the
 `pr-comments-guard` check / its own `pr-comments.yml` workflow) inspects the PR's
-review threads and, when a reviewer spoke last on an open, non-outdated thread,
-marks the PR red and applies the `needs-comment-replies` label. It re-runs every
+review threads and, when a reviewer spoke last on an **open** thread, marks the
+PR red and applies the `needs-comment-replies` label. Only two things clear a
+thread: a reply from you, or resolving it. **Outdated does not count.** GitHub
+marks a thread outdated the moment you push a change to the lines it points at —
+that is you *acting on the feedback*, so it is when you most owe the reviewer a
+sentence saying what you changed. The guard lists those separately ("you changed
+these lines — say what you changed, or resolve") precisely so they read as a
+report to file, not as a fresh nit. It re-runs every
 time a comment, review, or reply lands, so the label clears the moment you
 respond. It is **advisory — it does not block the merge** (a genuinely
 bot-only/no-op PR can opt out with `<!-- pr-comments-exempt: <reason> -->`). The
@@ -569,9 +575,9 @@ tracked work instead of vanishing. The mechanism:
 
 These bite every contributor session; they are not theoretical.
 
-- **`git add -A` is refused by the pd-shim.** When you truly mean "stage
-  everything" (rare — prefer explicit paths), set `PD_SHIM_OFF=1 git add`
-  deliberately so the bypass is intentional and visible in the command.
+- **`git add -A` is refused by the pd-shim.** Stage explicit paths. If the
+  refusal is factually wrong, fix the claim/session input and publish the
+  inconsistency; an agent does not disable the guard it is meant to obey.
 - **The `~/.port-daddy/bin/git` shim sets `core.pager=delta`, which falls
   back to `bat`.** If `bat` is not installed, `git log` / `git show` /
   `git commit` emit `command not found: bat` and can swallow output. Run

@@ -50,7 +50,7 @@ import {
   // Sessions
   handleSession, handleSessions, handleNote, handleNotes,
   // Agents & Resurrection
-  handleAgent, handleAgents, handleRoster,
+  handleAgent, handleAgents, handleRoster, ROSTER_HELP,
   handleSalvage,
   // Changelog
   handleChangelog,
@@ -58,7 +58,7 @@ import {
   handleBooty,
   // Inbox
   handleInbox,
-  handleSent,
+  handleSent, SENT_HELP,
   // Tunnel
   handleTunnel,
   // Activity
@@ -83,7 +83,7 @@ import {
   // Sugar commands
   handleBegin, handleDone, handleWhoami, handleWithLock,
   // Attention (inbox + subscribed channels — see docs/RELEASING.md for hook wiring)
-  handleAttention,
+  handleAttention, ATTENTION_HELP,
   // Nudge (suggestibility layer — claim-overlap heads-up, ADR-0039)
   handleNudge,
   // Tutorial
@@ -120,7 +120,7 @@ import {
   handleParley,
   handleFeedback,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
-  handleSitrep, handleSay, handleLook, handlePheromone, handlePlan,
+  handleSitrep, SITREP_HELP, handleSay, handleLook, handlePheromone, handlePlan,
   // Coordination advisor / suggestibility
   handleAdvisor,
   // Maritime actor directory
@@ -180,6 +180,7 @@ import {
   shouldAutoRestartDaemonForFreshness,
   shouldCheckDaemonFreshness,
 } from '../cli/utils/freshness.js';
+import { isDaemonUnavailableError } from '../cli/utils/daemon-unavailable.js';
 import { maybeNudgeStaleness } from '../cli/utils/staleness-nudge.js';
 import { readCurrentContext } from '../cli/utils/current-context.js';
 import {
@@ -653,9 +654,40 @@ export const HELP_TOPIC_ALIASES: Record<string, string> = {
   pub: 'messaging', publish: 'messaging', broadcast: 'messaging',
   sub: 'messaging', subscribe: 'messaging', listen: 'messaging',
   channels: 'messaging', wait: 'messaging',
+  claim: 'ports', c: 'ports', release: 'ports', r: 'ports',
+  find: 'ports', f: 'ports', list: 'ports', l: 'ports', ps: 'ports', services: 'ports',
+  url: 'ports', env: 'ports',
+  lock: 'locks', unlock: 'locks',
+  begin: 'sugar', done: 'sugar', whoami: 'sugar', 'with-lock': 'sugar',
+  n: 'sugar', u: 'sugar', d: 'sugar',
+  session: 'sessions', takeover: 'sessions', note: 'sessions', notes: 'sessions',
+  feedback: 'sessions',
+  agent: 'agents', agents: 'agents', swarm: 'agents', salvage: 'agents', resurrection: 'agents',
+  actor: 'actors', actors: 'actors',
+  up: 'orchestration', down: 'orchestration', scan: 'orchestration', s: 'orchestration',
+  projects: 'orchestration', p: 'orchestration', health: 'orchestration',
+  hooks: 'setup', init: 'setup',
+  memory: 'semantic', graph: 'semantic',
+  advise: 'advisor', preflight: 'advisor', compass: 'advisor',
+  secrets: 'secret',
+  learn: 'tutorial',
   skillgraft: 'skill-graft',
-  done: 'sessions', begin: 'sessions',
 };
+
+/** Precise per-verb help whose source lives beside the flags it documents. */
+export const VERB_HELP: Record<string, string> = {
+  attention: ATTENTION_HELP,
+  sitrep: SITREP_HELP,
+  roster: ROSTER_HELP,
+  sent: SENT_HELP,
+};
+
+/** Heavy lazy-loaded commands whose own handler remains the help authority. */
+export const HANDLER_OWNED_HELP_COMMANDS = new Set(['squid']);
+
+export function shouldDispatchHelpToHandler(command: string): boolean {
+  return HANDLER_OWNED_HELP_COMMANDS.has(command);
+}
 
 /**
  * Build the compact main help output.
@@ -739,7 +771,7 @@ function buildHelp(): string {
  * Topic-specific detailed help maps.
  * Each topic shows relevant commands with flags and examples.
  */
-const TOPIC_HELP: Record<string, string> = {
+export const TOPIC_HELP: Record<string, string> = {
   setup: `Setup — Install the full local Port Daddy environment
 
 Commands:
@@ -1373,13 +1405,18 @@ The tutorial walks you through:
 Run: pd learn`,
 };
 
+/** The exact resolver used by `pd <verb> --help`; null means honest global help. */
+export function resolveVerbHelp(command: string): string | null {
+  return TOPIC_HELP[command] ?? VERB_HELP[command] ?? TOPIC_HELP[HELP_TOPIC_ALIASES[command]] ?? null;
+}
+
 // HELP is built lazily via getHelp() for context-aware output
 
 // =============================================================================
 // Command Suggestion (fuzzy "did you mean?")
 // =============================================================================
 
-const ALL_COMMANDS: string[] = [
+export const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'tube', 'wait', 'lock', 'unlock', 'locks',
   'up', 'down', 'setup', 'init', 'cut', 'batten', 'scan', 's', 'projects', 'p',
@@ -2445,6 +2482,11 @@ export async function main(): Promise<void> {
   // (e.g. `--files A --files B`).
   const REPEATABLE_FLAGS: Set<string> = new Set(['files', 'client-arg', 'codex-config']);
 
+  // Greedily consume every following non-option token. This makes the
+  // documented `--files a b c` form equivalent to repeating the flag without
+  // leaking b/c into positional arguments.
+  const VARIADIC_FLAGS: Set<string> = new Set(['files']);
+
   const assignOption = (key: string, value: string | true): void => {
     if (REPEATABLE_FLAGS.has(key) && key in options) {
       const existing = options[key];
@@ -2463,6 +2505,18 @@ export async function main(): Promise<void> {
   for (let i = 1; i < args.length; i++) {
     const arg: string = args[i];
 
+    // `pd plan set` documents a quoted Markdown checklist whose first line is
+    // normally `- [ ] ...`. Preserve that one argv payload as data instead of
+    // interpreting every character after the leading dash as a short flag.
+    const isPlanChecklistPayload = command === 'plan'
+      && args[1] === 'set'
+      && positional.length === 1
+      && /^- \[(?: |x|X|-)\](?:\s|$)/.test(arg);
+    if (isPlanChecklistPayload) {
+      positional.push(arg);
+      continue;
+    }
+
     if (arg === '--') {
       positional.push(...args.slice(i + 1));
       break;
@@ -2479,8 +2533,15 @@ export async function main(): Promise<void> {
         const key: string = arg.slice(2);
         const next: string | undefined = args[i + 1];
         if (next && !next.startsWith('-')) {
-          assignOption(key, next);
-          i++;
+          if (VARIADIC_FLAGS.has(key)) {
+            while (args[i + 1] !== undefined && args[i + 1] !== '--' && !args[i + 1].startsWith('-')) {
+              assignOption(key, args[i + 1]);
+              i++;
+            }
+          } else {
+            assignOption(key, next);
+            i++;
+          }
         } else {
           assignOption(key, true);
         }
@@ -2556,9 +2617,8 @@ export async function main(): Promise<void> {
   // printed "ERROR: pd done refused …", which also poisoned recorded terminal
   // demos (website-terminal-recordings reviewer flags /ERROR:/). Falls back to
   // the global help for commands without a dedicated topic.
-  if (options.help) {
-    const topicHelp = TOPIC_HELP[command as string] ?? TOPIC_HELP[HELP_TOPIC_ALIASES[command as string]];
-    console.log(topicHelp || buildHelp());
+  if (options.help && !shouldDispatchHelpToHandler(command as string)) {
+    console.log(resolveVerbHelp(command as string) ?? buildHelp());
     process.exit(0);
   }
 
@@ -3337,9 +3397,8 @@ export async function main(): Promise<void> {
     await recordCliUsage(command, positional, options, 'ok', commandStartedAt);
   } catch (err: unknown) {
     await recordCliUsage(command, positional, options, 'error', commandStartedAt, err);
-    const error = err as Error & { code?: string; cause?: { code?: string } };
-    const errCode = error.code || error.cause?.code;
-    if (errCode === 'ECONNREFUSED' || errCode === 'ENOENT') {
+    const error = err as Error;
+    if (isDaemonUnavailableError(error)) {
       // Daemon unreachable — try direct-DB mode for Tier 1 commands
       if (TIER_1_COMMANDS.has(command)) {
         try {

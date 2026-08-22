@@ -145,13 +145,7 @@ impl Broker {
         let check = |predicate: &str| check_caveat(predicate, &rc);
         let resolve = |caveat_id: &str| self.caveat_keys.get(caveat_id).cloned();
 
-        let outcome = verify(
-            grant,
-            &self.macaroon_root_key,
-            discharges,
-            &check,
-            &resolve,
-        );
+        let outcome = verify(grant, &self.macaroon_root_key, discharges, &check, &resolve);
 
         if !outcome.ok {
             // Refusal: point only at the verdict reason. No bypass, no secret.
@@ -167,8 +161,9 @@ impl Broker {
             Some(s) => s,
             None => {
                 return Response::Refused {
-                    reason: "authorized grant lacked required scope fields (op/repo/branch/session)"
-                        .into(),
+                    reason:
+                        "authorized grant lacked required scope fields (op/repo/branch/session)"
+                            .into(),
                 }
             }
         };

@@ -1,0 +1,387 @@
+name: Release Train
+
+# Operator directive (2026-08-09): "we don't cut new daemons enough on
+# homebrew… the backend code changes radically quickly yet we're never using
+# it." The old release-cadence workflow only NAGGED — it filed an issue and
+# waited for a human to walk the 12-step RELEASING.md recipe, which is exactly
+# why v3.27.0 sat unreleased for weeks while main accumulated 150+ commits.
+#
+# This workflow CUTS. Twice a week (and on demand) it:
+#   1. measures unreleased commits on daemon-facing surfaces,
+#   2. proves the tarball layout release.yml will produce is one the tap
+#      formula accepts (scripts/check-formula-compat.mjs — the drift that
+#      silently broke every would-be release after v3.27.0),
+#   3. opens a version-bump PR (conventional-commit-derived bump, every
+#      version surface synced, CHANGELOG stamped) with auto-merge armed, and
+#   4. when the version bump reaches main (directly or through a Purser
+#      carrier), detects that package.json is ahead of the latest tag, tags
+#      the exact merged tree, and publishes the GitHub Release — which
+#      triggers release.yml: build, sign, 180s soak of the exact
+#      packaged binary, batten verify, formula-compat preflight, tap roll.
+#      The fresh-install workflow then smokes the published artifacts AND the
+#      brew install path on pristine runners.
+#
+# The old "releases stay human-triggered because artifacts must be soaked"
+# rationale is retired: the soak IS in CI (scripts/soak-binary.sh gates the
+# release on running the exact packaged binary), and the fresh-install smoke
+# gates the published result. What remains human is fixing what the gates
+# catch — and `brew upgrade` on operator machines.
+#
+# TOKENS: GitHub suppresses events created with the workflow GITHUB_TOKEN, so
+# a bump PR opened with it would never run CI, and a Release published with it
+# would never trigger release.yml. The train therefore uses RELEASE_TRAIN_TOKEN
+# (a PAT with repo scope; falls back to HOMEBREW_TAP_TOKEN which already has
+# cross-repo rights for the tap roll). If neither can push/PR, the run fails
+# loudly with instructions instead of pretending.
+#
+# HOLD SWITCH: open an issue titled exactly "Release train: hold" to pause
+# cutting (the run explains itself and skips). Close it to resume.
+
+on:
+  schedule:
+    - cron: '0 16 * * 1,4' # Mondays + Thursdays 16:00 UTC
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Force bump type (patch/minor). Blank = derive from commits.'
+        required: false
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+env:
+  # Daemon-facing surfaces that make a release worth cutting. Deliberately
+  # broader than the old cadence check's list (server.ts lib/ cli/ shared/
+  # package.json), which was blind to routes/, mcp/, bin/, hooks/, and the
+  # packaging itself — it reported "0 unreleased daemon commits" while the
+  # daemon's route/tooling code churned.
+  DAEMON_PATHSPEC: >-
+    server.ts lib/ cli/ shared/ routes/ mcp/ bin/ hooks/
+    skills/port-daddy-agent-skill/ agents/port-daddy-pilot/
+    package.json release-artifacts.json .github/workflows/release.yml
+
+jobs:
+  cut:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Keep discovery and diagnostics on the workflow GITHUB_TOKEN. An
+      # expired publishing PAT must not prevent the train from checking out
+      # the repository and explaining which credential needs repair.
+
+      # PRESENCE CHECK ONLY — this step must never carry the secret VALUE.
+      # It used to write the resolved token to $GITHUB_OUTPUT and later steps
+      # read it back. GitHub redacts secrets that pass through step outputs, so
+      # the consuming step received an empty string, `git push` silently fell
+      # back to the credential helper actions/checkout installed, and the run
+      # died with "Permission to curiositech/port-daddy.git denied to
+      # github-actions[bot]" — while appearing to use a PAT. Steps that need
+      # the token now read `secrets.X || secrets.Y` directly in their own env,
+      # which is what the tag-and-publish job below always did.
+      - name: Verify a CI-triggering token exists
+        env:
+          HAS_TRAIN_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN != '' }}
+          HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+        run: |
+          set -euo pipefail
+          token_source=$(node scripts/release-workflow-state.mjs require-token \
+            "$HAS_TRAIN_TOKEN" "$HAS_TAP_TOKEN") || {
+            echo "::error::Neither RELEASE_TRAIN_TOKEN nor HOMEBREW_TAP_TOKEN is set. A PAT is REQUIRED: PRs opened and Releases published with the workflow GITHUB_TOKEN do not trigger CI or release.yml, so the train would silently stall. Create a classic PAT with repo scope and save it as RELEASE_TRAIN_TOKEN."
+            exit 1
+          }
+          if [ "$token_source" = "RELEASE_TRAIN_TOKEN" ]; then
+            echo "using RELEASE_TRAIN_TOKEN"
+          else
+            echo "::warning::RELEASE_TRAIN_TOKEN not set — falling back to HOMEBREW_TAP_TOKEN. That PAT was minted to dispatch the Homebrew tap and may not carry push rights to THIS repo; if the bump push 403s, that is why. Set a dedicated RELEASE_TRAIN_TOKEN (classic PAT, repo scope)."
+          fi
+
+      - name: Hold switch — skip when the operator has paused the train
+        id: hold
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          held=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search 'in:title "Release train: hold"' --json number --jq 'length')
+          if [ "$held" != "0" ]; then
+            echo "Release train is HELD (open 'Release train: hold' issue). Skipping."
+            echo "held=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "held=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Measure unreleased daemon-surface commits
+        id: measure
+        if: steps.hold.outputs.held == 'false'
+        run: |
+          set -euo pipefail
+          latest_tag=$(git describe --tags --abbrev=0)
+          # Word-splitting of the pathspec is intentional.
+          commits=$(git rev-list --count "$latest_tag"..HEAD -- $DAEMON_PATHSPEC)
+          echo "latest_tag=$latest_tag" >> "$GITHUB_OUTPUT"
+          echo "commits=$commits" >> "$GITHUB_OUTPUT"
+          echo "$commits unreleased daemon-surface commits since $latest_tag"
+
+      - name: Skip when an open train PR already exists
+        id: existing
+        if: steps.hold.outputs.held == 'false' && steps.measure.outputs.commits != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          open=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --search 'head:release-train/' --json number --jq 'length')
+          echo "open=$open" >> "$GITHUB_OUTPUT"
+          [ "$open" = "0" ] || echo "An open release-train PR already exists — not stacking another."
+
+      - name: Derive the next version
+        id: version
+        if: steps.hold.outputs.held == 'false' && steps.measure.outputs.commits != '0' && steps.existing.outputs.open == '0'
+        env:
+          LATEST_TAG: ${{ steps.measure.outputs.latest_tag }}
+          FORCED_BUMP: ${{ inputs.bump }}
+        run: |
+          set -euo pipefail
+          current=$(node -p "require('./package.json').version")
+          bump="${FORCED_BUMP:-}"
+          if [ -z "$bump" ]; then
+            # feat commits (or breaking markers) on daemon surfaces → minor;
+            # otherwise patch. Majors stay deliberate + human.
+            if git log "$LATEST_TAG"..HEAD --pretty=%s -- $DAEMON_PATHSPEC | grep -qiE '^(feat|[a-z]+!)(\(|:|!)|BREAKING'; then
+              bump=minor
+            else
+              bump=patch
+            fi
+          fi
+          case "$bump" in patch|minor) ;; *) echo "::error::unsupported bump '$bump' (patch/minor only — majors are human-cut)"; exit 1;; esac
+          next=$(node -e "
+            const [ma,mi,pa]=process.argv[1].split('.').map(Number);
+            console.log(process.argv[2]==='minor'?[ma,mi+1,0].join('.'):[ma,mi,pa+1].join('.'));
+          " "$current" "$bump")
+          echo "current=$current"; echo "bump=$bump"; echo "derived=$next"
+
+          # VERSION FLOOR — the formula decides the minimum shippable version.
+          # Without this the train deadlocks permanently: off 3.27.0 it derives
+          # patch → 3.27.1, and the preflight below correctly refuses because
+          # the tap only accepts our current tarball layout from its cutoff
+          # (3.28.0) onward. That is exactly what happened on 2026-08-10 and
+          # 2026-08-13 — two scheduled runs, both dead at the same step, no
+          # release. The constraint had been written as a note in a PR body,
+          # which is not a control. Now the train asks the live formula for the
+          # floor and bumps to it.
+          entries=$(grep -m1 'TARBALL_ENTRIES:' .github/workflows/release.yml | sed 's/.*TARBALL_ENTRIES:[[:space:]]*//')
+          floor=$(node scripts/check-formula-compat.mjs --min-accepted-version --entries "$entries")
+          next=$(node -e "
+            const cmp=(a,b)=>{const p=s=>s.split('.').map(Number);const[x,y]=[p(a),p(b)];
+              for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return (x[i]||0)-(y[i]||0);}return 0;};
+            const [derived,floorV]=process.argv.slice(1);
+            console.log(cmp(derived,floorV)<0?floorV:derived);
+          " "$next" "$floor")
+          echo "floor=$floor"; echo "next=$next"
+          echo "next=$next" >> "$GITHUB_OUTPUT"
+          echo "bump=$bump" >> "$GITHUB_OUTPUT"
+
+      - name: Formula-compat preflight — refuse to cut a version brew would reject
+        if: steps.version.outputs.next != ''
+        env:
+          NEXT: ${{ steps.version.outputs.next }}
+        run: |
+          set -euo pipefail
+          entries=$(grep -m1 'TARBALL_ENTRIES:' .github/workflows/release.yml | sed 's/.*TARBALL_ENTRIES:\s*//')
+          node scripts/check-formula-compat.mjs --version "$NEXT" --entries "$entries"
+
+      - name: Use Node.js 22
+        if: steps.version.outputs.next != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Re-checkout only for the mutating path. This replaces checkout's
+      # read-only extraheader with the PAT-backed credential immediately
+      # before the commit and push that require it.
+      - name: Authenticate release mutation
+        if: steps.version.outputs.next != ''
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Open the version-bump PR with auto-merge armed
+        if: steps.version.outputs.next != ''
+        env:
+          # Read the secret DIRECTLY — never via a step output (redacted).
+          GH_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
+          NEXT: ${{ steps.version.outputs.next }}
+          BUMP: ${{ steps.version.outputs.bump }}
+          LATEST_TAG: ${{ steps.measure.outputs.latest_tag }}
+          COMMITS: ${{ steps.measure.outputs.commits }}
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          branch="release-train/v$NEXT"
+          git checkout -b "$branch"
+          # npm pkg set (not `npm version`) — the repo's postversion hook runs
+          # `git commit --amend`, which on a CI branch would amend main's tip.
+          npm pkg set version="$NEXT"
+          npx tsx scripts/sync-version.ts
+          npm run check:version-drift
+          # Stamp the CHANGELOG: everything under [Unreleased] becomes this
+          # version's section; a fresh empty [Unreleased] stays on top.
+          perl -0pi -e "s/^## \[Unreleased\]/## [Unreleased]\n\n## [$NEXT] - $(date -u +%F)/m" CHANGELOG.md
+          git config user.name "port-daddy-release-train"
+          git config user.email "release-train@portdaddy.dev"
+          git add -A
+          git commit -m "chore(release): bump to $NEXT"
+          # Plain `git push origin` is correct HERE because the authenticated
+          # checkout immediately above persisted the PAT credential. Do not
+          # "fix" this by embedding credentials in a push URL:
+          # checkout's `http.https://github.com/.extraheader` applies to every
+          # github.com request and silently overrides URL userinfo, which is
+          # how three consecutive attempts on 2026-08-15 all failed with
+          # "denied to github-actions[bot]" while looking like they used a PAT.
+          git push origin "HEAD:refs/heads/$branch"
+          body=$(printf '%s\n' \
+            "## Summary" \
+            "Automated release-train bump: \`$LATEST_TAG\` → \`v$NEXT\` ($BUMP). $COMMITS unreleased commits touch daemon-facing surfaces." \
+            "" \
+            "On merge, the train tags \`v$NEXT\` and publishes the GitHub Release; release.yml then builds, signs, soaks the exact packaged binary for 180s, verifies the cargo (batten + formula-compat), and rolls the Homebrew tap. The fresh-install workflow smokes the published artifacts and the \`brew install\` path on pristine runners." \
+            "" \
+            "To stop this release: close this PR, or open an issue titled \"Release train: hold\" to pause the train entirely." \
+            "" \
+            "## Test Plan" \
+            "- CI on this PR (distribution-freshness + version-drift gates prove every version surface moved together)" \
+            "- release.yml's soak + batten + formula-compat gates on the tag" \
+            "- fresh-install smoke (tarball path + brew path) after publish" \
+            "" \
+            "The bump was validated in the run that produced it: \`npm ci\` clean, \`sync-version.ts\` stamped every version surface, and \`check:version-drift\` confirmed all surfaces agree on the new version before this PR was opened. No hand edits were made to the generated commit." \
+            "" \
+            "<!-- visual-exempt: version-bump only. sync-version.ts stamps version STRINGS into core/pd-console/Cargo.toml, public/samples/manifest.json and website-v2/src/data/referenceCatalog.ts; no rendered surface, layout, or asset changes, so there is nothing to screenshot. -->" \
+            "" \
+            "Roadmap-Item: release-safety-pipeline")
+          # --head/--base explicitly: the push above sets no upstream tracking
+          # ref, so gh cannot infer either from the local branch.
+          gh pr create --base main --head "$branch" --title "chore(release): bump to $NEXT" --body "$body"
+          gh pr merge --auto --squash "$branch"
+
+  tag-and-publish:
+    # Every merged PR to main gets a cheap state check. The old head-prefix
+    # predicate silently missed release bumps that arrived through a Purser
+    # carrier because the main-bound head was `purser/pr-...`, not
+    # `release-train/...`. The merged tree is the authority now: a plain
+    # package version newer than every stable tag, with a matching CHANGELOG
+    # section, is an unpublished release regardless of branch topology.
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main'
+    concurrency:
+      group: release-train-tag-and-publish
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+
+      - name: Detect an unpublished merged release version
+        id: release
+        env:
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          if ! node scripts/release-workflow-state.mjs validate-version "$version" >/dev/null; then
+            echo "::error::package.json version '$version' at $MERGE_SHA is not a plain x.y.z."
+            exit 1
+          fi
+          tag="v$version"
+          if git show-ref --verify --quiet "refs/tags/$tag"; then
+            echo "$tag already exists — this merge carries no unpublished release."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          latest=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)
+          if [ -n "$latest" ]; then
+            node scripts/release-workflow-state.mjs newer-than "$version" "${latest#v}" >/dev/null || {
+              echo "::error::untagged package version $version is not newer than latest stable tag $latest."
+              exit 1
+            }
+          fi
+          range="$MERGE_SHA"
+          if [ -n "$latest" ]; then range="$latest..$MERGE_SHA"; fi
+          if ! release_sha=$(node scripts/release-workflow-state.mjs find-transition "$version" "$range"); then
+            echo "::error::could not locate the first commit that transitioned package.json to unpublished version $version."
+            exit 1
+          fi
+          if ! grep -Fq "## [$version] -" CHANGELOG.md; then
+            echo "::error::package version $version is unpublished but CHANGELOG.md has no dated [$version] section."
+            exit 1
+          fi
+          {
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "release_sha=$release_sha"
+            echo "should_publish=true"
+          } >> "$GITHUB_OUTPUT"
+          echo "Unpublished release $tag detected at exact version-transition commit $release_sha (observed by merge $MERGE_SHA)."
+
+      - name: Verify a release-publication token exists
+        if: steps.release.outputs.should_publish == 'true'
+        env:
+          HAS_TRAIN_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN != '' }}
+          HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+        run: |
+          set -euo pipefail
+          if ! node scripts/release-workflow-state.mjs require-token \
+            "$HAS_TRAIN_TOKEN" "$HAS_TAP_TOKEN" >/dev/null; then
+            echo "::error::No RELEASE_TRAIN_TOKEN or HOMEBREW_TAP_TOKEN is available to publish a recursive release event."
+            exit 1
+          fi
+
+      # Re-checkout only for the mutating path. Ordinary main PRs must not
+      # depend on PAT health merely to prove there is no new version to tag.
+      - name: Authenticate release publication
+        if: steps.release.outputs.should_publish == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.release_sha }}
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Tag the merged bump and publish the Release
+        if: steps.release.outputs.should_publish == 'true'
+        env:
+          # A PAT is REQUIRED here: a Release published with GITHUB_TOKEN does
+          # not trigger release.yml (GitHub suppresses recursive events), so
+          # binaries would never build and the tap would never roll.
+          GH_TOKEN: ${{ secrets.RELEASE_TRAIN_TOKEN || secrets.HOMEBREW_TAP_TOKEN }}
+          RELEASE_SHA: ${{ steps.release.outputs.release_sha }}
+          VERSION: ${{ steps.release.outputs.version }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::No PAT available (RELEASE_TRAIN_TOKEN / HOMEBREW_TAP_TOKEN) — cannot publish a Release that triggers release.yml. Publish manually: gh release create v<version> --generate-notes"
+            exit 1
+          fi
+          if git show-ref --verify --quiet "refs/tags/$TAG"; then
+            echo "Tag $TAG appeared while this serialized job waited — nothing to do."
+            exit 0
+          fi
+          git config user.name "port-daddy-release-train"
+          git config user.email "release-train@portdaddy.dev"
+          git tag -a "$TAG" "$RELEASE_SHA" -m "Port Daddy $VERSION — release train"
+          git push origin "$TAG"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$RELEASE_SHA" \
+            --generate-notes --title "$TAG — release train"
+          echo "Release $TAG published — release.yml takes it from here (build → sign → soak → batten → formula-compat → tap roll), then fresh-install smokes the result."

@@ -4,9 +4,9 @@
 # (--mirror via push.default config).
 #
 # This is the second layer of the destructive-git-ban defense. The
-# pd-shim (~/.port-daddy/bin/git) is the first layer; this hook survives
-# PD_SHIM_OFF=1 because git always runs pre-push hooks regardless of which
-# binary called it.
+# pd-shim (~/.port-daddy/bin/git) is the first layer; this hook also covers
+# alternate git invocations. Operator recovery remains audited below, but
+# refusal output never advertises that escape to an agent.
 #
 # Usage:
 #   bash scripts/install-pre-push-hook.sh           # current repo
@@ -44,7 +44,7 @@ cat > "$HOOK" <<'HOOK_EOF'
 #     <remote_sha>, refuse.
 #   - If <local_sha> is all-zeros (deletion push), refuse on protected.
 #
-# Bypass: PD_SHIM_OFF=1 git push ... (will write an audit log entry).
+# Operator recovery is intentionally implemented but not advertised in refusal copy.
 set -euo pipefail
 
 if [ "${PD_SHIM_OFF:-}" = "1" ]; then
@@ -69,7 +69,7 @@ while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
         # path for spinning up a new protected branch.
         echo "pd-pre-push: REFUSED — creating $remote_ref from local ref. Protected branch." >&2
         echo "pd-pre-push:   protected: main|master|release/*" >&2
-        echo "pd-pre-push:   bypass with PD_SHIM_OFF=1 git push ..." >&2
+        echo "pd-pre-push:   use a pull request and the protected merge path" >&2
         refused=1
         continue
       fi
@@ -77,7 +77,7 @@ while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
         echo "pd-pre-push: REFUSED — non-fast-forward push to $remote_ref." >&2
         echo "pd-pre-push:   local=$local_sha remote=$remote_sha" >&2
         echo "pd-pre-push:   protected: main|master|release/*" >&2
-        echo "pd-pre-push:   bypass with PD_SHIM_OFF=1 git push ..." >&2
+        echo "pd-pre-push:   fetch, reconcile, and use the protected merge path" >&2
         refused=1
       fi
       ;;
