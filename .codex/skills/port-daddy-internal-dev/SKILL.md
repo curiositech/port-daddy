@@ -69,6 +69,11 @@ repo-specific mechanics:
   When inheriting stale work, prefer `pd takeover <old-session-id> [reason]`
   (or `pd session takeover <old-session-id> [reason]`) over deleting or silently reusing the old session; notes and claim
   history are append-only evidence.
+- **Supplant, don't migrate.** No users yet (operator directive, 2026-08-22):
+  a new mechanism that overlaps an old one replaces it exhaustively in the same
+  slice — delete the legacy path, fix every caller, no compat shims, no
+  "legacy mode" flags, no downgrade fallbacks, no deprecation windows.
+  Backwards compatibility only when the operator explicitly asks, per surface.
 - **Assume broken; verify both ends.** After any write, read it back from the
   surface that should serve it, and prove cold start (daemon down → elegant
   operator instruction, never a stack trace), worktrees, a second user, and the
