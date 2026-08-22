@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, rmSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   clearDaemonReady,
@@ -19,6 +19,23 @@ describe('daemon readiness generation lease', () => {
     expect(readDaemonReadyPid(READY_FILE)).toBe(4242);
     expect(readFileSync(READY_FILE, 'utf8')).toBe('4242\n');
     expect(statSync(READY_FILE).mode & 0o777).toBe(0o600);
+    expect(readdirSync(join(SANDBOX, 'runtime'))).toEqual(['daemon.ready']);
+  });
+
+  test('refuses a symlinked readiness lease instead of following it', () => {
+    mkdirSync(join(SANDBOX, 'runtime'), { recursive: true });
+    const target = join(SANDBOX, 'runtime', 'attacker-controlled');
+    writeFileSync(target, '4242\n');
+    symlinkSync(target, READY_FILE);
+
+    expect(readDaemonReadyPid(READY_FILE)).toBeNull();
+  });
+
+  test('failed publication removes its private temporary file and publishes no lease', () => {
+    mkdirSync(READY_FILE, { recursive: true });
+
+    expect(() => publishDaemonReady(READY_FILE, 4242)).toThrow();
+    expect(readDaemonReadyPid(READY_FILE)).toBeNull();
     expect(readdirSync(join(SANDBOX, 'runtime'))).toEqual(['daemon.ready']);
   });
 

@@ -1,7 +1,10 @@
 import {
   chmodSync,
+  closeSync,
+  constants,
   existsSync,
   mkdirSync,
+  openSync,
   readFileSync,
   renameSync,
   rmSync,
@@ -18,10 +21,18 @@ function parsePid(value: string): number | null {
 
 /** Read the daemon generation that has completed its service boot gate. */
 export function readDaemonReadyPid(path: string): number | null {
+  let fd: number | null = null;
   try {
-    return parsePid(readFileSync(path, 'utf8'));
+    // O_NOFOLLOW makes the generation lease an authenticated final path rather
+    // than a pointer an adjacent process can swap onto another file.
+    fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    return parsePid(readFileSync(fd, 'utf8'));
   } catch {
     return null;
+  } finally {
+    if (fd !== null) {
+      try { closeSync(fd); } catch {}
+    }
   }
 }
 

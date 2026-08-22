@@ -603,11 +603,14 @@ function failureDescription(outcome: string | null, exitCode: number | null): st
 function outcomeLabel(outcome: string | null): string {
   switch (outcome) {
     case 'daemon_booting': return 'daemon has not finished its boot checks';
+    case 'ready_symlink': return 'daemon readiness lease is a symlink, not an authenticated runtime file';
+    case 'pid_symlink': return 'daemon PID lease is a symlink, not an authenticated runtime file';
     case 'pid_missing': return 'daemon PID lease missing';
     case 'ready_unreadable': return 'daemon readiness lease unreadable';
     case 'pid_unreadable': return 'daemon PID lease unreadable';
     case 'generation_invalid': return 'daemon readiness generation malformed';
     case 'generation_mismatch': return 'readiness lease belongs to another daemon generation';
+    case 'heartbeat_symlink': return 'daemon heartbeat is a symlink, not an authenticated runtime file';
     case 'heartbeat_missing': return 'Port Daddy daemon heartbeat missing';
     case 'heartbeat_unreadable': return 'daemon heartbeat unreadable';
     case 'daemon_stale': return 'daemon heartbeat stale';
