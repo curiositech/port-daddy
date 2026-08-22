@@ -8,6 +8,7 @@ members = [
   "pd-mesh",
   "pd-runtime",
   "pd-tui",
+  "pd-vault",
   "pd-rs",
 ]
 
