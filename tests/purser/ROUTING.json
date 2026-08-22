@@ -132,6 +132,30 @@
     "oom-protection.test.ts": {
       "runner": "quarantined",
       "reason": "vitest + apps/fleet-executor/src; belongs in apps/fleet-executor"
+    },
+    "spawner-cli-tube-backend.test.js": {
+      "runner": "quarantined",
+      "reason": "requires '../../lib/spawner/backends/cli-tube-backend' and '../test-utils', neither of which exists (the backend module is cli-tube.ts) -- cannot initialize; the working rewrite of this suite runs as tests/unit/spawner-cli-tube-backend.test.js"
+    },
+    "spawner-cli-tube-lifecycle-real-child.test.js": {
+      "runner": "quarantined",
+      "reason": "requires the nonexistent '../../lib/spawner/backends/cli-tube-backend' and '../test-utils', and destructures `join` out of fs-extra -- cannot initialize; the working rewrite runs as tests/unit/spawner-cli-tube-lifecycle-real-child.test.js"
+    },
+    "test-error-message.js": {
+      "runner": "quarantined",
+      "reason": "jest.mocks the module under test and imports fakeChild/mockSpawn from the production cli-tube module, which exports neither -- every assertion would run against its own mock, proving nothing about the real timeout error message"
+    },
+    "test-explicit-deadline.js": {
+      "runner": "quarantined",
+      "reason": "jest.mocks '../../lib/spawner/backends/cli-tube' -- the module under test -- and pulls fakeChild/mockSpawn from it though they are not exports; the SIGTERM/SIGKILL deadline path it targets never executes, only the mock does"
+    },
+    "test-no-deadline.js": {
+      "runner": "quarantined",
+      "reason": "same broken shape as test-explicit-deadline.js: the module under test is jest.mocked and fakeChild/mockSpawn are not real exports, so the no-timeout scheduling behaviour it asserts on is the mock's, not cli-tube's"
+    },
+    "test-process-tree.js": {
+      "runner": "quarantined",
+      "reason": "jest.mocks the cli-tube module it is testing and imports helpers (fakeChild, mockSpawn) that cli-tube does not export; the process-tree kill behaviour asserted here is exercised for real by tests/unit/spawner-cli-tube-lifecycle-real-child.test.js"
     }
   }
 }
