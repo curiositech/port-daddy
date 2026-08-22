@@ -86,6 +86,43 @@ describe('agent run receipt admission', () => {
     expect(db.prepare('SELECT COUNT(*) AS n FROM agent_run_receipts').get().n).toBe(1);
   });
 
+  test('same key and request but a different kind fails closed', () => {
+    // The conflict predicate has two arms; the request-drift arm is pinned
+    // above. This pins the kind arm: an idempotency key may never be reused
+    // across run kinds even when the payload is byte-identical.
+    const request = { backend: 'cli:codex', task: 'same-body' };
+    const first = store.accept({ idempotencyKey: 'kind-drift-key', kind: 'spawn', request });
+
+    let conflict;
+    try {
+      store.accept({ idempotencyKey: 'kind-drift-key', kind: 'resume', request });
+    } catch (err) {
+      conflict = err;
+    }
+    expect(conflict).toBeInstanceOf(AgentRunIdempotencyConflictError);
+    expect(conflict.receiptId).toBe(first.receipt.id);
+    expect(db.prepare('SELECT COUNT(*) AS n FROM agent_run_receipts').get().n).toBe(1);
+  });
+
+  test('a non-finite or non-numeric budgetUsd is rejected before admission', () => {
+    for (const bad of ['12.50', Number.NaN, Number.POSITIVE_INFINITY, true]) {
+      expect(() => store.accept({
+        idempotencyKey: `bad-budget-${String(bad)}`,
+        kind: 'spawn',
+        request: { backend: 'cli:codex' },
+        budgetUsd: bad,
+      })).toThrow(/budgetUsd must be a finite number or null/);
+    }
+    // null and absent stay legitimate: no budget cap on this run.
+    expect(store.accept({
+      idempotencyKey: 'null-budget',
+      kind: 'spawn',
+      request: { backend: 'cli:codex' },
+      budgetUsd: null,
+    }).receipt.budgetUsd).toBeNull();
+    expect(db.prepare('SELECT COUNT(*) AS n FROM agent_run_receipts').get().n).toBe(1);
+  });
+
   test('the database enforces idempotency when the store is bypassed', () => {
     const accepted = store.accept({
       idempotencyKey: 'db-unique-key',

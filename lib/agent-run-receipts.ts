@@ -367,6 +367,13 @@ export function createAgentRunReceiptStore(
   }): { receipt: AgentRunReceipt; replayed: boolean } {
     const keyHash = sha256(required(input.idempotencyKey, 'idempotencyKey'));
     const requestHash = sha256(canonicalJson(input.request));
+    // budget_usd is REAL in the schema, but SQLite's dynamic typing would
+    // happily store a string, and NaN binds as NULL — both silently corrupt a
+    // value later used for budget enforcement. Reject anything that is not a
+    // finite number (or null/undefined) before it reaches the statement.
+    if (input.budgetUsd != null && (typeof input.budgetUsd !== 'number' || !Number.isFinite(input.budgetUsd))) {
+      throw new Error(`budgetUsd must be a finite number or null, got ${typeof input.budgetUsd === 'number' ? input.budgetUsd : typeof input.budgetUsd}`);
+    }
     const timestamp = now();
     const id = `run-${randomBytes(8).toString('hex')}`;
     const row = insert.get(
