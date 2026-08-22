@@ -1339,6 +1339,19 @@ export async function executeFleet(
   // FAIL-OPEN: an absent or unrecognised state counts as open. See
   // src/pr-lifecycle.ts — wrongly skipping a live PR silently removes its
   // review gate, which is far worse than wrongly spending on a dead one.
+  // INPUT SIZE, RECORDED (#7743). The bounded reads in #8906 put diffBytes /
+  // diffTruncated on the context but nothing consumed them, which left the
+  // measurement as good as absent — the exact hole that made the OOM take two
+  // investigation cycles. Printing it here, before any ship spends a token,
+  // means every run states the size of what it was handed, and a future memory
+  // kill is attributable from the log line immediately preceding it rather than
+  // from a dashboard round-trip.
+  console.log(
+    `[fleet-executor] pr-context repo=${prCtx.owner}/${prCtx.repo} pr=${prCtx.prNumber} ` +
+      `diffBytes=${prCtx.diffBytes} diffTruncated=${prCtx.diffTruncated} ` +
+      `files=${prCtx.files.length} filesTruncated=${prCtx.filesTruncated}`,
+  );
+
   const lifecycle = classifyPrLifecycle(prCtx);
   if (lifecycle.over) {
     // HUMAN-FACING: this is the entire explanation an author gets for a neutral

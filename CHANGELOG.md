@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Operators can now record per-repo agent settings on their account.** The portdaddy.dev relay gains `/account/repos`, a session-gated, script-free screen where each repository the operator's GitHub identity can read carries its own agent settings — starting with the SITREP end-of-turn dial (off | suggest | enforce). Settings live in a new `repo_settings` D1 table, and paired devices converge through `GET /v1/repo-settings` (device token or session cookie). The page is honest about the enforcement point: each clone's local `agent.config.json` dial, with the exact snippet rendered per repository — the server never reaches into checkouts.
 - **Relay envelope schema v1 — every relay-bound event is classified (WS-A slice A1).** A `sealed | relay_readable` discriminated union (`schemas/relay/v1/envelope.schema.json`, `apps/relay/src/envelope.ts`): sealed carries ciphertext, relay_readable carries structured payload plus a REQUIRED human-readable reason for why that class may transit unencrypted. Both require a real signature. `assertClassified` is the egress boundary — unclassified input throws rather than shipping.
 
 ### Fixed
