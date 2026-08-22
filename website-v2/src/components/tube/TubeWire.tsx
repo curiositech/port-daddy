@@ -9,7 +9,6 @@ import {
 } from 'react'
 import { cn } from '@/lib/utils'
 import {
-  DEFAULT_DAEMON_URL,
   TUBE_KIND,
   isTubeSimulated,
   tubePoll,
@@ -58,7 +57,7 @@ import {
 
 // Canonical definitions live in `tube-transport`; re-exported here for the many
 // callers that historically imported them from TubeWire.
-export { DEFAULT_DAEMON_URL, TUBE_KIND, isTubeSimulated, type TubeMessage }
+export { TUBE_KIND, isTubeSimulated, type TubeMessage }
 
 /** What `fireTube` reports back as it progresses through one round-trip. */
 export type TubePhase =

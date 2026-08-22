@@ -100,7 +100,9 @@ mod tests {
         let json = r#"{"type":"broker-credential","grant":{"location":"loc","identifier":"g","caveats":[],"signature_hex":"00"},"ctx":{"op":"push"}}"#;
         let req: Request = serde_json::from_str(json).unwrap();
         match req {
-            Request::BrokerCredential { ctx, discharges, .. } => {
+            Request::BrokerCredential {
+                ctx, discharges, ..
+            } => {
                 assert_eq!(ctx.op.as_deref(), Some("push"));
                 assert!(discharges.is_empty());
             }

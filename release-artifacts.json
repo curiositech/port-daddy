@@ -1,5 +1,5 @@
 {
-  "_comment": "Declarative manifest of every artifact that MUST ship inside a Port Daddy release tarball. This is the single source of truth for `pd batten verify` (the fail-loud staging gate) and `pd batten imprint` (the content-addressed seal). Populated from the ACTUAL staging steps in .github/workflows/release.yml (job build-binaries). Generalizes the ad-hoc `test -s dist/<name>` checks that #3496 (pd-bosun) and the squid-tentacle step introduced: instead of a scatter of per-binary shell asserts that each silently drift, every required artifact is declared here once and validated together. `buildCmd` is informational (batten VALIDATES staging, it does not build). Paths are relative to the staged dir passed to `pd batten verify --staged-dir <dir>` (dist/ in CI).",
+  "_comment": "Declarative manifest of every artifact that MUST ship inside a Port Daddy release tarball. This is the single source of truth for `pd batten verify` (the fail-loud staging gate) and `pd batten imprint` (the content-addressed seal). Populated from the ACTUAL staging steps in .github/workflows/release.yml (job build-binaries). It replaces the scattered per-binary checks that once drifted around pd-bosun and Squid; pd-bosun itself is deliberately absent from v3.28+ single-supervisor archives. Every current runtime artifact is declared here once and validated together. `buildCmd` is informational (batten VALIDATES staging, it does not build). Paths are relative to the staged dir passed to `pd batten verify --staged-dir <dir>` (dist/ in CI).",
   "version": 1,
   "artifacts": [
     {
@@ -115,11 +115,11 @@
     },
     {
       "id": "native-onnxruntime",
-      "_comment": "onnxruntime-node runtime libs (libonnxruntime.*.dylib / libonnxruntime.so.1) staged by scripts/build-single-binary.mjs (#3561). Filenames are platform-specific, so this asserts the directory exists and is non-empty rather than a single file. required:false — it is a semantic-search perf enhancement, NOT a silent-capability regression of the pd-bosun/tentacle class; a build without onnxruntime-node must still be able to release.",
+      "_comment": "onnxruntime-node runtime libs staged by the shared packaging primitive used by both compiled builders. Filenames are platform-specific, so this asserts the directory exists and is non-empty. Semantic and hybrid search are product capabilities, not optional performance enhancements; supported release targets fail closed when this cargo is absent.",
       "sourcePath": "dist/native",
       "stagedPath": "native",
       "type": "dir",
-      "required": false,
+      "required": true,
       "executable": false
     }
   ]

@@ -45,7 +45,11 @@ export default {
     }
 
     const url = new URL(request.url);
-    const m = url.pathname.match(/^\/steward\/([^/]+)\/([^/]+)\/(wake|status|charter)$/);
+    // ship-it carries its PR number in the path so the grant's target is in
+    // the audit trail (access logs, curl history), never only in a body.
+    const m = url.pathname.match(
+      /^\/steward\/([^/]+)\/([^/]+)\/(wake|status|charter|ship-it\/\d+|clusterfudge\/ack)$/,
+    );
     if (!m) {
       return new Response(JSON.stringify({ error: 'not found' }), {
         status: 404,

@@ -64,6 +64,19 @@ export const DELIVERY_ATTEMPT_KIND = 'delivery-attempt';
  */
 export const DELIVERY_ATTEMPT_SEQ_BASE = 2_000_000;
 
+/** A successful queue slice that deliberately schedules the next ship. */
+export const DELIVERY_CONTINUATION_KIND = 'delivery-continuation';
+
+/**
+ * Seq floor for intentional continuations.
+ *
+ * This band sits between attempt starts and ship checkpoints. A start without
+ * either a caught failure or a continuation is therefore an uncatchable
+ * platform termination; a start with a continuation is ordinary cumulative
+ * progress and must never be presented to the operator as a failed attempt.
+ */
+export const DELIVERY_CONTINUATION_SEQ_BASE = 2_500_000;
+
 /** The deterministic run id both the main consumer and the DLQ handler use. */
 export function runIdForDelivery(deliveryId: string): string {
   return `run:${deliveryId}`;
@@ -194,6 +207,76 @@ export async function recordDeliveryAttemptStart(
 }
 
 /**
+ * Persist that one bounded invocation completed a ship and intentionally
+ * returned the message to the queue for the next checkpointed slice.
+ */
+export async function recordDeliveryContinuation(
+  env: ExecutorEnv,
+  job: FleetRunJob,
+  attempt: number,
+  completedShip: string,
+  remainingShips: string[],
+): Promise<boolean> {
+  try {
+    if (!env.DB) return false;
+    const deliveryId = job?.deliveryId ?? '';
+    if (!deliveryId) return false;
+    const runId = runIdForDelivery(deliveryId);
+    const pr = job.payloadMinimal?.pull_request as { head?: { sha?: string } } | undefined;
+    const headSha = pr?.head?.sha ?? '';
+    await ensureRunRow(env, runId, deliveryId, job.repoFullName ?? null, job.prNumber ?? null, headSha);
+
+    const safeAttempt = Number.isInteger(attempt) && attempt > 0 ? attempt : 0;
+    const boundedRemaining = remainingShips.filter(Boolean).slice(0, 50);
+    await env.DB.prepare(
+      `INSERT OR REPLACE INTO fleet_run_steps (run_id, seq, kind, ship, title, detail, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        runId,
+        DELIVERY_CONTINUATION_SEQ_BASE + safeAttempt,
+        DELIVERY_CONTINUATION_KIND,
+        completedShip || null,
+        `Delivery slice ${safeAttempt || '?'} completed pd-${completedShip || 'unknown'}; ` +
+          `${boundedRemaining.length} ship(s) remain. The next checkpointed slice was scheduled; this is progress, not a failure.`,
+        JSON.stringify({
+          attempt: safeAttempt,
+          completedShip,
+          remainingShips: boundedRemaining,
+        }),
+        Math.floor(Date.now() / 1000),
+      )
+      .run();
+    return true;
+  } catch (recordErr) {
+    console.error(
+      `[fleet-executor] recording delivery continuation failed delivery=${job?.deliveryId}: ${String(recordErr)}`,
+    );
+    return false;
+  }
+}
+
+/** Count intentional checkpoint continuations already completed for a run. */
+export async function countDeliveryContinuations(
+  env: ExecutorEnv,
+  runId: string,
+): Promise<number> {
+  try {
+    if (!env.DB) return 0;
+    const row = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM fleet_run_steps WHERE run_id = ? AND kind = ?`,
+    )
+      .bind(runId, DELIVERY_CONTINUATION_KIND)
+      .first();
+    const n = Number((row as Record<string, unknown> | null)?.n);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch (err) {
+    console.error(`[fleet-executor] counting continuations failed run=${runId}: ${String(err)}`);
+    return 0;
+  }
+}
+
+/**
  * Count the attempt-start markers recorded for a run.
  *
  * PURPOSE: the DLQ handler pairs this with {@link readLastDeliveryFailure} to
@@ -284,10 +367,26 @@ export function deadLetterSummary(
   prNumber: number | null,
   failure: DeliveryFailure | null,
   attemptStarts = 0,
+  checkpointedShips = 0,
+  intentionalContinuations = 0,
 ): string {
   const base =
     `pd-fleet: run for ${owner}/${repo} PR #${prNumber ?? '?'} was lost (job exhausted retries / ` +
     `dead-lettered). This gate is failed rather than left stuck in-progress.`;
+  // Resume progress (src/ship-checkpoint.ts): a dead-letter that completed N
+  // ships before the loss should say so — it tells the operator a DLQ replay
+  // will resume from ship N+1, not restart, and it distinguishes "died at the
+  // first ship" from "died one ship short of done".
+  const progress =
+    checkpointedShips > 0
+      ? `\n\n${checkpointedShips} ship(s) completed and checkpointed before the loss — a DLQ ` +
+        `replay of this delivery resumes past them instead of re-running the whole fleet.`
+      : '';
+  const continuationProgress =
+    intentionalContinuations > 0
+      ? `\n\n${intentionalContinuations} delivery attempt(s) completed as intentional checkpoint ` +
+        `continuations. Those slices succeeded and are not infrastructure failures.`
+      : '';
   // The marker is what lets a later delivery tell this red gate apart from a
   // ship-decided one and run for real — see dead-letter-marker.ts.
   if (!failure) {
@@ -297,16 +396,24 @@ export function deadLetterSummary(
     // instead of the ambiguous old copy, which read the same whether attempts
     // died silently or never ran at all (issue #7743's diagnostic gap).
     if (attemptStarts > 0) {
+      const unaccountedStarts = Math.max(0, attemptStarts - intentionalContinuations);
+      if (unaccountedStarts === 0) {
+        return (
+          `${base}\n\nEvery recorded attempt completed as an intentional checkpoint continuation, ` +
+          `but the queue retry budget ended before a final verdict. The configured slice budget and ` +
+          `fleet roster are inconsistent.${continuationProgress}${progress}\n\n${DEAD_LETTER_MARKER}`
+        );
+      }
       return (
-        `${base}\n\n${attemptStarts} delivery attempt(s) recorded a start marker but no failure — ` +
-        `the attempts began and were terminated without a catchable error (a platform kill: ` +
+        `${base}\n\n${unaccountedStarts} delivery attempt(s) recorded a start marker but no failure or ` +
+        `intentional continuation — those attempts began and were terminated without a catchable error (a platform kill: ` +
         `memory or CPU limit). Check the fleet-executor Worker metrics/logs for the terminator.` +
-        `\n\n${DEAD_LETTER_MARKER}`
+        `${continuationProgress}${progress}\n\n${DEAD_LETTER_MARKER}`
       );
     }
     return (
       `${base}\n\nNo per-attempt failure was recorded for this delivery, so the cause is not in ` +
-      `the transcript — check the fleet-executor Worker logs.\n\n${DEAD_LETTER_MARKER}`
+      `the transcript — check the fleet-executor Worker logs.${continuationProgress}${progress}\n\n${DEAD_LETTER_MARKER}`
     );
   }
   // A blank error would render "Last recorded failure (attempt 2): " — a
@@ -317,9 +424,9 @@ export function deadLetterSummary(
   if (!error) {
     return (
       `${base}\n\nA failure was recorded for this delivery but carried no readable cause.` +
-      `\n\n${DEAD_LETTER_MARKER}`
+      `${continuationProgress}${progress}\n\n${DEAD_LETTER_MARKER}`
     );
   }
   const which = failure.attempt > 0 ? `attempt ${failure.attempt}` : 'the last attempt';
-  return `${base}\n\nLast recorded failure (${which}): ${error}\n\n${DEAD_LETTER_MARKER}`;
+  return `${base}\n\nLast recorded failure (${which}): ${error}${continuationProgress}${progress}\n\n${DEAD_LETTER_MARKER}`;
 }

@@ -8,7 +8,9 @@ import { describe, it, expect } from 'vitest';
 import { buildDocket, classifyPr, renderDocket, type PrSnapshot } from '../src/priority.js';
 import { decideVerdict, runTick } from '../src/tick.js';
 import { surveyOpenPrs, OPERATOR_REQUEST_LABEL } from '../src/survey.js';
-import { makeEnv, memoryD1 } from './harness.js';
+import { landFailKey, shipItKey, LAND_FAIL_HOLD_AT, type SeatStore } from '../src/landing.js';
+import { ackClusterfudge, isFrozen, readClusterfudge, tripClusterfudge } from '../src/clusterfudge.js';
+import { makeEnv, memoryD1, FakeStorage } from './harness.js';
 
 const REPO = 'erichowens/port-daddy';
 const NOW = 1_700_000_000_000;
@@ -69,10 +71,10 @@ describe('priority — the published tier table', () => {
 describe('decideVerdict — mechanical, evidence-named', () => {
   const top = (over: Partial<PrSnapshot>) => buildDocket([pr(over)])[0];
 
-  it('approved + green + mergeable ⇒ LAND, noting landing is PR 3', () => {
+  it('approved + green + mergeable ⇒ LAND with the evidence named', () => {
     const d = decideVerdict(top({ approved: true, checks: 'green', mergeable: true }));
     expect(d.verdict).toBe('LAND');
-    expect(d.evidence).toContain('P1 PR 3');
+    expect(d.evidence).toContain('approved review standing');
   });
 
   it('red checks ⇒ NEEDS-WORK naming the checks', () => {
@@ -130,6 +132,16 @@ describe('runTick — decide and record, never throw, never land', () => {
     expect(r.docketText).toContain('→ #12');
   });
 
+  it('an unarmed seat records LAND but reports it holds no landing capability', async () => {
+    const env = makeEnv({ STEWARD_GITHUB_TOKEN: 'tok', DB: memoryD1().db });
+    const r = await runTick(env, REPO, NOW, undefined as never, async () => [
+      pr({ number: 12, approved: true, checks: 'green', mergeable: true }),
+    ]);
+    expect(r.verdict?.verdict).toBe('LAND');
+    expect(r.landing).toMatchObject({ attempted: false, landed: false });
+    expect(r.landing?.reason).toContain('no landing capability');
+  });
+
   it('reports a failed ledger write instead of pretending it recorded', async () => {
     const d1 = memoryD1();
     d1.failing.value = true;
@@ -137,6 +149,202 @@ describe('runTick — decide and record, never throw, never land', () => {
     const r = await runTick(env, REPO, NOW, undefined as never, async () => [pr({ checks: 'red' })]);
     expect(r.verdict?.verdict).toBe('NEEDS-WORK');
     expect(r.verdictLedgered).toBe(false);
+  });
+});
+
+describe('the landing arm — armed ticks execute LAND, gated and honest', () => {
+  /** A LAND-verdict survey over one PR, the docket's inevitable top. */
+  const landSurvey = (n = 12) => async () => [pr({ number: n, approved: true, checks: 'green', mergeable: true })];
+
+  /**
+   * Fake the two GitHub endpoints the landing arm touches.
+   *
+   * PURPOSE: routes by URL substring so a test declares only what the files
+   * read and the merge PUT should answer — everything else in the tick runs
+   * for real against the injected survey and memory D1.
+   *
+   * @param files - Changed filenames the files endpoint returns.
+   * @param merge - Status + body for the merge PUT.
+   * @returns The fetch fake plus a counter of merge attempts.
+   */
+  function ghLandFake(
+    files: string[],
+    merge: { status: number; body: Record<string, unknown> },
+  ): { fetchImpl: (url: string, init?: RequestInit) => Promise<Response>; merges: { count: number } } {
+    const merges = { count: 0 };
+    return {
+      merges,
+      fetchImpl: async (url: string) => {
+        if (url.includes('/files')) {
+          return new Response(JSON.stringify(files.map(filename => ({ filename }))), { status: 200 });
+        }
+        if (url.includes('/merge')) {
+          merges.count++;
+          return new Response(JSON.stringify(merge.body), { status: merge.status });
+        }
+        return new Response('{}', { status: 404 });
+      },
+    };
+  }
+
+  const armedEnv = () => makeEnv({ STEWARD_GITHUB_TOKEN: 'tok', STEWARD_LAND_TOKEN: 'land', DB: memoryD1().db });
+
+  it('armed + unprotected files ⇒ lands, reports the sha, clears per-PR state', async () => {
+    const store = new FakeStorage();
+    await store.put(shipItKey(12), { grantedBy: 'operator', grantedAt: NOW });
+    const { fetchImpl } = ghLandFake(['src/a.ts'], { status: 200, body: { sha: 'deadbeef' } });
+    const r = await runTick(armedEnv(), REPO, NOW, fetchImpl, landSurvey(), store);
+    expect(r.landing).toMatchObject({ attempted: true, landed: true, sha: 'deadbeef' });
+    expect(r.landing?.reason).toContain('LANDED #12');
+    expect(await store.get(shipItKey(12))).toBeUndefined();
+    expect(await store.get(landFailKey(12))).toBeUndefined();
+  });
+
+  it('a protected path without a grant does not land — it awaits the operator', async () => {
+    const store = new FakeStorage();
+    const { fetchImpl, merges } = ghLandFake(['.github/workflows/ci.yml'], { status: 200, body: { sha: 'x' } });
+    const r = await runTick(armedEnv(), REPO, NOW, fetchImpl, landSurvey(), store);
+    expect(r.landing).toMatchObject({ attempted: false, landed: false });
+    expect(r.landing?.reason).toContain('ship-it/12');
+    expect(merges.count).toBe(0);
+  });
+
+  it('a protected path WITH a grant lands and consumes it', async () => {
+    const store = new FakeStorage();
+    await store.put(shipItKey(12), { grantedBy: 'operator', grantedAt: NOW });
+    const { fetchImpl } = ghLandFake(['docs/adr/0110-x.md'], { status: 200, body: { sha: 'cafe' } });
+    const r = await runTick(armedEnv(), REPO, NOW, fetchImpl, landSurvey(), store);
+    expect(r.landing?.landed).toBe(true);
+    expect(await store.get(shipItKey(12))).toBeUndefined();
+  });
+
+  it('an unreadable files list holds — never lands what it could not inspect', async () => {
+    const store = new FakeStorage();
+    const fetchImpl = async () => new Response('x', { status: 500 });
+    const r = await runTick(armedEnv(), REPO, NOW, fetchImpl, landSurvey(), store);
+    expect(r.landing).toMatchObject({ attempted: false, landed: false });
+    expect(r.landing?.reason).toContain('could not read');
+  });
+
+  it('distinct failures accumulate to the hold; repeats do not; ship-it resets it', async () => {
+    const store = new FakeStorage() as FakeStorage & SeatStore;
+    const env = armedEnv();
+    // Three ticks, three DIFFERENT failure messages ⇒ hold engages.
+    for (const message of ['a', 'b', 'c']) {
+      const { fetchImpl } = ghLandFake(['src/x.ts'], { status: 409, body: { message } });
+      const r = await runTick(env, REPO, NOW, fetchImpl, landSurvey(), store);
+      expect(r.landing?.attempted).toBe(true);
+      expect(r.landing?.landed).toBe(false);
+    }
+    expect(((await store.get(landFailKey(12))) as string[]).length).toBe(LAND_FAIL_HOLD_AT);
+
+    // Held: the merge API is no longer called. At the threshold the breaker
+    // has also tripped (P1 PR 4), and the freeze is the outer gate — so the
+    // reason names the freeze rather than the per-PR hold behind it.
+    const held = ghLandFake(['src/x.ts'], { status: 200, body: { sha: 'y' } });
+    const r = await runTick(env, REPO, NOW, held.fetchImpl, landSurvey(), store);
+    expect(r.landing).toMatchObject({ attempted: false, landed: false });
+    expect(r.landing?.reason).toContain('CLUSTERFUDGE frozen');
+    expect(held.merges.count).toBe(0);
+
+    // Clearing the per-PR hold alone is NOT enough once the repo is frozen:
+    // both the ship-it and the operator's breaker ack are required.
+    await store.put(shipItKey(12), { grantedBy: 'operator', grantedAt: NOW });
+    await store.delete(landFailKey(12));
+    await ackClusterfudge(store, 'operator', 'ack and retry once', NOW + 1000);
+    const retry = ghLandFake(['src/x.ts'], { status: 200, body: { sha: 'z' } });
+    const r2 = await runTick(env, REPO, NOW, retry.fetchImpl, landSurvey(), store);
+    expect(r2.landing?.landed).toBe(true);
+  });
+
+  it('the same failure repeated stays ONE distinct reason — a retry story, not clusterfudge', async () => {
+    const store = new FakeStorage();
+    const env = armedEnv();
+    for (let i = 0; i < 3; i++) {
+      const { fetchImpl } = ghLandFake(['src/x.ts'], { status: 409, body: { message: 'same' } });
+      await runTick(env, REPO, NOW, fetchImpl, landSurvey(), store);
+    }
+    expect(((await store.get(landFailKey(12))) as string[]).length).toBe(1);
+  });
+
+  it('a full files page fails closed — treated as protected', async () => {
+    const store = new FakeStorage();
+    const bigPr = Array.from({ length: 100 }, (_, i) => `src/f${i}.ts`);
+    const { fetchImpl, merges } = ghLandFake(bigPr, { status: 200, body: { sha: 'x' } });
+    const r = await runTick(armedEnv(), REPO, NOW, fetchImpl, landSurvey(), store);
+    expect(r.landing?.landed).toBe(false);
+    expect(merges.count).toBe(0);
+  });
+
+  it('an armed seat with no store bound holds — grants cannot be checked, so nothing lands', async () => {
+    const { fetchImpl, merges } = ghLandFake(['src/a.ts'], { status: 200, body: { sha: 'x' } });
+    const r = await runTick(armedEnv(), REPO, NOW, fetchImpl, landSurvey());
+    expect(r.verdict?.verdict).toBe('LAND');
+    expect(r.landing).toMatchObject({ attempted: false, landed: false });
+    expect(r.landing?.reason).toContain('no seat store');
+    expect(merges.count).toBe(0);
+  });
+
+  it('a frozen breaker stops a perfectly healthy land — the freeze outranks every per-PR gate', async () => {
+    const store = new FakeStorage();
+    await tripClusterfudge(store, 'land-fail-loop', 'something systemic', NOW);
+    const { fetchImpl, merges } = ghLandFake(['src/a.ts'], { status: 200, body: { sha: 'x' } });
+    const r = await runTick(armedEnv(), REPO, NOW, fetchImpl, landSurvey(), store);
+    // Read-only work still happened: the verdict is decided and recorded.
+    expect(r.verdict?.verdict).toBe('LAND');
+    expect(r.landing).toMatchObject({ attempted: false, landed: false });
+    expect(r.landing?.reason).toContain('CLUSTERFUDGE frozen');
+    expect(merges.count).toBe(0);
+  });
+
+  it('the third distinct land failure trips the breaker and freezes the seat', async () => {
+    const store = new FakeStorage();
+    const env = armedEnv();
+    for (const message of ['a', 'b']) {
+      const { fetchImpl } = ghLandFake(['src/x.ts'], { status: 409, body: { message } });
+      const r = await runTick(env, REPO, NOW, fetchImpl, landSurvey(), store);
+      expect(r.landing?.reason).not.toContain('CLUSTERFUDGE');
+    }
+    expect(isFrozen(await readClusterfudge(store))).toBe(false);
+
+    const third = ghLandFake(['src/x.ts'], { status: 409, body: { message: 'c' } });
+    const r = await runTick(env, REPO, NOW, third.fetchImpl, landSurvey(), store);
+    expect(r.landing?.reason).toContain('CLUSTERFUDGE tripped (land-fail-loop)');
+
+    const breaker = await readClusterfudge(store);
+    expect(isFrozen(breaker)).toBe(true);
+    expect(breaker.tripwire).toBe('land-fail-loop');
+    expect(breaker.evidence).toContain('3 distinct causes');
+  });
+
+  it('a ship-it clears the per-PR hold but does NOT release the breaker', async () => {
+    const store = new FakeStorage();
+    await tripClusterfudge(store, 'land-fail-loop', 'systemic', NOW);
+    // Simulate the ship-it route's per-PR effects (see handleShipIt).
+    await store.put(shipItKey(12), { grantedBy: 'operator', grantedAt: NOW });
+    await store.delete(landFailKey(12));
+
+    const { fetchImpl, merges } = ghLandFake(['src/a.ts'], { status: 200, body: { sha: 'x' } });
+    const r = await runTick(armedEnv(), REPO, NOW, fetchImpl, landSurvey(), store);
+    expect(r.landing?.landed).toBe(false);
+    expect(r.landing?.reason).toContain('CLUSTERFUDGE frozen');
+    expect(merges.count).toBe(0);
+  });
+
+  it('an operator ack releases the freeze and landing resumes', async () => {
+    const store = new FakeStorage();
+    await tripClusterfudge(store, 'land-fail-loop', 'systemic', NOW);
+    await ackClusterfudge(store, 'erich', 'ack and retry once', NOW + 1000);
+    const { fetchImpl } = ghLandFake(['src/a.ts'], { status: 200, body: { sha: 'freed' } });
+    const r = await runTick(armedEnv(), REPO, NOW, fetchImpl, landSurvey(), store);
+    expect(r.landing).toMatchObject({ landed: true, sha: 'freed' });
+  });
+
+  it('a non-LAND verdict never grows a landing outcome', async () => {
+    const store = new FakeStorage();
+    const r = await runTick(armedEnv(), REPO, NOW, undefined as never, async () => [pr({ checks: 'red' })], store);
+    expect(r.verdict?.verdict).toBe('NEEDS-WORK');
+    expect(r.landing).toBeUndefined();
   });
 });
 

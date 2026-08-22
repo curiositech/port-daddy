@@ -10,6 +10,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **portdaddy.dev harbors section (WS-E slices E1/E2).** The logged-in account gains a harbors list and per-harbor detail — members, device last-seen, and a reachability verdict (`possible | degraded | impossible | unknown`) derived from HarborChannel presence TTL — server-rendered on the relay origin in the house pattern. Degrades in place with stale chips rather than splash-blocking. Every query is scoped to the viewer's own memberships, and a harbor you are not a member of is indistinguishable from one that does not exist: no existence oracle, pinned by test.
 
+### Fixed
+- **Release supervision and promotion now enforce the supported single-supervisor boundary end to end.** `pd doctor` keeps optional legacy Bosun state visible without treating its deliberate v3.28+ absence as a critical defect, while redirected doctor targets no longer borrow canonical launchd or registry evidence. Release CI omits the retired watchdog build, attests both sealed platform archives, and waits for the Homebrew tap's credential-independent, evidence-verified self-promotion instead of relying on a fragile cross-repository write token.
+
+## [3.30.2] - 2026-08-21
+
+### Added
+- **Squid hook execution is inspectable per session without exposing tool payloads.** The debug timeline records each bounded lifecycle step with actual and expected timestamps, elapsed time, outcome, and a short plain-language description, while keeping arguments, prompts, and command contents out of the diagnostic record.
+
+### Fixed
+- **Interactive hooks are fast, cumulative, and self-disabling instead of becoming a turn-by-turn storm.** The installer emits one prompt hook and one edit-time hook with no generic post-tool fan-out, stages version-stable tentacle paths instead of Homebrew Cellar paths, and migrates obsolete Codex registrations. Portable timing works under macOS and Linux `dash`; repeated failures or budget overruns open a no-retry circuit breaker after three cumulative failures, make later calls immediate no-ops, emit one remediation notice, and expose native Repair through Squid/FleetBar. Atomic failure receipts preserve the count even when many hook processes fail concurrently.
+- **Fleet Purser output validation rejects non-source JSON-string bypasses.** The repaired contract tests cover sibling and mixed-fence cases so generated reviewer text cannot masquerade as source evidence.
+
+## [3.30.1] - 2026-08-21
+
+### Fixed
+- **Plans now follow the documented CLI syntax and close against the newest checklist.** `pd plan set "- [ ] ..."` preserves quoted Markdown without requiring an extra `--`, while `pd plan show` and `pd done` agree on the latest plan revision even when an older checklist was incomplete.
+- **Coordination failures stay safe and observable.** Guard guidance no longer teaches agents the operator escape hatch, every long-lived Bun child receives the JavaScriptCore safe-mode environment, and rejected `pd begin` attempts reach usage telemetry without creating ghost sessions.
+- **Supported Homebrew installs stay quiet on successful commands.** Canonical `pd`, `port-daddy`, and `port-daddy-daemon` executables in a flat `bin/` layout no longer emit the internal unconventional-layout warning; noncanonical binaries still warn and retain the safe fallback.
+
+## [3.30.0] - 2026-08-21
+
+### Added
+- **Trusted executor identity, mediator, and Mercy telemetry complete the remote-fleet control loop.** Relay now provisions operator-approved Fleet Executor identities, verifies signed publish/run reports against the current relay and channel, enforces durable per-harbor daily budgets, predicts mediator conflicts, chains summonses and acknowledgements, and requires a human gate for irreversible actions. The Mercy surface reports hook health and SLO burn with request correlation, bounded identifiers, fail-closed quota errors, and readable mobile evidence.
+
+### Fixed
+- **Agent startup coordination is fast and nonblocking.** Empty `pd attention` calls no longer run channel discovery/history scans inline, and operator-state Guard probes moved behind an asynchronous stale-while-revalidate cache. A fresh current-main daemon now returns real source-CLI attention calls in 0.81–0.94 seconds instead of the observed cold/contention path near 60 seconds, while preserving inbox, channel, and parley delivery semantics.
+- **Fleet and tutorial cleanup paths fail safely.** Executor credentials stay out of transcripts, retryable telemetry drains ride the Worker execution context, generated Purser duplicates no longer masquerade as coverage, and tutorial cleanup preserves its lock owner across retries.
+- **Release publication detects and recovers carrier topology.** Version-transition discovery, token failures, tap polling, and fresh-install contracts are executable tests rather than path-only checks, so a rebased/Purser-carried release can still tag the exact version transition and fail loudly when publication authority is unavailable.
+
+## [3.29.0] - 2026-08-20
+
+### Added
+- **Seamanship slice 1 — the skill layer becomes auditable, owned, and graph-aware.** (1) *Weighted first-hop graft expansion*: `lib/skill-graft.ts` builds a skill-reference graph at scan time (`pairs-with` frontmatter edges outrank prose mentions) and expands the craft() candidate pool one hop from the top fused seeds with decay — ranked entries carry `via`/`hopSeed` provenance so a neighbor never surfaces silently; injection caps unchanged. Transitive closure was measured (median 40, max 145 skills) and rejected in favor of first hop (median 3, max 10). (2) *Skill ownership*: `owner` / `repos` / `visibility` frontmatter parsed catalog-wide, defaulting **private** — absence never widens exposure; `isPublishableSkill()` is the single predicate any future listing/publishing path must call; `pd seamanship list/show` surface the fields. (3) *Auditable grafts*: the fleet's native graft path now records a schema-conformant `skill-graft` transcript event (`lib/skill-graft-events.ts`, per `schemas/agent-harbor/v0/skill-graft.schema.json`) — grafts become auditable facts, not silent prompt injection; recording is fail-open so telemetry can never break a spawn. (4) `docs/research/skills-io-and-composition.md`: skills as typed transforms, the measured composition graph, and the graft/Snipe implications.
+
+### Fixed
+- **Fleet-executor retries resume instead of restarting.** Each completed ship's verdict is checkpointed to the run transcript (own seq band, no migration); a retried delivery — or a DLQ replay of it — reuses those verdicts and spends only on ships that never finished. This makes runs converge when attempts complete at least one ship under the uncatchable platform-kill class (memory/CPU isolate termination), ends the retry treadmill of re-running (and re-paying for) every completed ship, and lets the dead-letter summary report how many ships finished before a loss. `fleet-runs` `max_retries` is raised 3→5 for bounded headroom; a ship that dies before checkpointing can still repeat unfinished work.
+
 ## [3.28.2] - 2026-08-18
 
 ## [3.28.1] - 2026-08-18

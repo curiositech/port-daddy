@@ -15,7 +15,8 @@ import { IS_TTY, relativeTime } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { promptConfirm } from '../utils/prompt.js';
-import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
+import { resolvePublishedDaemonUrl } from '../../shared/daemon-discovery.js';
+import type { DaemonPortDiscoveryOptions } from '../../shared/daemon-discovery.js';
 
 /**
  * Strip terminal control sequences from DB-sourced strings before printing to a
@@ -296,12 +297,21 @@ export async function handleTranscriptsShow(args: string[], options: CLIOptions)
 // watch
 // =============================================================================
 
-export async function handleTranscriptsWatch(_args: string[], options: CLIOptions): Promise<void> {
-  const baseUrl = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
-  const url = `${baseUrl}/transcripts/stream`;
+/**
+ * Resolve the transcript SSE endpoint from explicit or actually published TCP
+ * state. The caller invokes this inside its reconnect loop so a watcher started
+ * before the daemon can recover without manufacturing the preferred port.
+ */
+export function resolveTranscriptStreamUrl(
+  explicitUrl = process.env.PORT_DADDY_URL,
+  discovery: DaemonPortDiscoveryOptions = {},
+): string {
+  return new URL('/transcripts/stream', resolvePublishedDaemonUrl(explicitUrl, discovery)).toString();
+}
 
+export async function handleTranscriptsWatch(_args: string[], options: CLIOptions): Promise<void> {
   if (IS_TTY && !isQuiet(options)) {
-    ui.info(`Tailing new transcripts from ${url}`);
+    ui.info('Tailing new transcripts; waiting for the published daemon endpoint.');
     console.error('  Press Ctrl+C to stop');
     console.error('');
   }
@@ -324,8 +334,14 @@ export async function handleTranscriptsWatch(_args: string[], options: CLIOption
 
   // Reconnect loop with exponential backoff
   let backoff = 1000;
+  let announcedUrl: string | null = null;
   while (!abort) {
     try {
+      const url = resolveTranscriptStreamUrl();
+      if (IS_TTY && !isQuiet(options) && announcedUrl !== url) {
+        ui.info(`Transcript stream target resolved to ${url}`);
+        announcedUrl = url;
+      }
       const res = await fetch(url, { signal: ctrl.signal, headers: { Accept: 'text/event-stream' } });
       if (!res.ok || !res.body) {
         if (!isQuiet(options)) ui.warn(`Stream returned status ${res.status}; retrying in ${backoff}ms`);

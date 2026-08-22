@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1787086097875,
+  "generatedAt": 1787406790046,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 274,
+  "count": 279,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -810,6 +810,16 @@
       "summaryMd": "feat(pd-console): operator chat surface (real tube transport + GPUI text input)"
     },
     {
+      "slug": "fix-fleet-live-introspection-20260822",
+      "status": "backlog",
+      "summaryMd": "Native signed-in Cloud Fleet introspection across FleetBar and pd-console"
+    },
+    {
+      "slug": "fix-fleet-ship-resilience-20260822",
+      "status": "backlog",
+      "summaryMd": "fix(fleet): circuit-break provider failures"
+    },
+    {
       "slug": "fix-skill-graft-tool2vec-vocabulary-gap",
       "status": "merge",
       "summaryMd": "PR #723 skill-graft.ts shipped with a vocabulary-mismatch bug: ranking compared task embeddings to a skill's OWN description embedding (cosine(task, description)), which fails when a task is phrased in user language different from the skill's own description wording. Fix: real Tool2Vec synthetic-query-centroid generation (lib/skill-graft-tool2vec.ts) + BM25/Porter-stemming lexical signal (lib/skill-graft-bm25.ts), fused via reciprocal rank fusion (k=60) in lib/skill-graft.ts. lib/coordination-judge.ts's transportToAdapter helper exported (no behavior change) for reuse by lib/fleet-engine.ts's new skill-graft LLM-backend wiring."
@@ -888,6 +898,11 @@
       "slug": "fleetbar-visual-task-intake",
       "status": "backlog",
       "summaryMd": "feat(fleetbar): add visual task intake"
+    },
+    {
+      "slug": "frictionless-invisible-port-daddy-agent-experience",
+      "status": "now",
+      "summaryMd": "Make Port Daddy agent coordination invisible on the happy path: bounded one-turn context, direct-edit-only protection, self-disabling hook breakers, trustworthy timing introspection, bounded arrival/sitrep surfaces, and fail-closed endpoint discovery."
     },
     {
       "slug": "gantt-real-estimate-wiring",
@@ -1170,6 +1185,11 @@
       "summaryMd": "ADR-0119: git-guard has no agent-mintable escape. PD_SHIM_OFF removed from shim + pre-push hook; refusal points only to corrective action. Renumbered from colliding 0102 (salvage-envelope owns 0102). Stale bypass-still-works tests inverted to assert removal; red-team fixture proves no in-band escape. (PR #3145)"
     },
     {
+      "slug": "readme-front-door-and-accuracy-gate",
+      "status": "merge",
+      "summaryMd": "Rewrite the README from a 1046-line feature list into a 268-line front door, and gate it so it stays true. Ships skills/readme-craft (the craft, encoded, with a project-agnostic scorecard and a fence-parser library), scripts/check-readme-accuracy.mjs (release-blocking: every pd verb/flag resolved against cli/permission-tiers.ts, every image/link resolved, length budget enforced, --run executed against a brew-installed daemon in the fresh-install smoke), and a line-scoped docstring ratchet. The documentarian ship owns ongoing upkeep with explicit limits. Open follow-ups: dark-variant GIF placeholders (quickstart/salvage/mayday are 1.4KB stubs), per-verb flag declarations in the CLI (would narrow the corpus-wide flag check), and burning down the pre-existing docstring backlog."
+    },
+    {
       "slug": "release-safety-pipeline",
       "status": "now",
       "summaryMd": "pd batten declarative release-artifact verify+imprint gate (generalizes #3496 test -s); NO gate reports failure as success"
@@ -1283,6 +1303,11 @@
       "slug": "squid-contract-harness-daemon-boot-fix",
       "status": "backlog",
       "summaryMd": "feat(squid): harden bridge and document agent harness"
+    },
+    {
+      "slug": "squid-matrix-parser-consolidation",
+      "status": "now",
+      "summaryMd": "PR1 of the matrix.env elimination plan (docs/proposals/squid-matrix-elimination-plan.md, PR #7685): collapse lib/squid/identity.ts::readMatrixSnapshot() and lib/local-citizen/ink-cloud.ts to call lib/squid/matrix.ts's existing public API instead of independently re-parsing the raw matrix.env file. Zero behavior change, zero schema change, zero hook change — de-risks PR2-PR5 by making 'read the matrix' one call site instead of three before storage changes underneath it. Done when tests/unit/squid-identity.test.ts passes with zero test-file edits and no independent readFileSync/regex parsing of matrix.env remains outside lib/squid/matrix.ts."
     },
     {
       "slug": "squid-on-claude-code-not-wired",

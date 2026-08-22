@@ -33,6 +33,12 @@ main = "src/index.ts"
 compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Required for operator-grade delivery forensics. Console diagnostics include
+# bounded GitHub response status/request-id/rate-limit evidence; request
+# headers, request bodies, and the GitHub token are never recorded.
+[observability]
+enabled = true
+
 # ---------------------------------------------------------------------------
 # CPU budget per invocation.
 #
@@ -132,6 +138,23 @@ queue = "fleet-runs"
 max_batch_size = 1
 max_concurrency = 1
 max_batch_timeout = 30
+# The consumer intentionally completes at most one new provider-heavy ship per
+# invocation, checkpoints it, records a delivery-continuation step, and calls
+# message.retry(). These are successful cumulative slices, not platform
+# failures; a start marker without a continuation/failure still diagnoses an
+# uncatchable kill. Thirteen total attempts cover this repository's eleven-ship
+# PR roster with two attempts of bounded transient-failure headroom.
+max_retries = 12
+dead_letter_queue = "fleet-runs-dlq"
+
+# Required merge-group checks are deterministic and make no AI calls. Keep them
+# on an independent FIFO so substantive reviews cannot starve the GitHub merge
+# queue while preserving max_concurrency=1 for each workload.
+[[queues.consumers]]
+queue = "fleet-gates"
+max_batch_size = 1
+max_concurrency = 1
+max_batch_timeout = 5
 max_retries = 3
 dead_letter_queue = "fleet-runs-dlq"
 
