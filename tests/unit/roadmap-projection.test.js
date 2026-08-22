@@ -429,6 +429,91 @@ describe('roadmap-projection', () => {
       legacy.close();
     }
   });
+
+  // The tolerance above is deliberately asymmetric, and the asymmetry is the
+  // part worth a test. Three of the four tables the builder reads are guarded
+  // by tableExists() and simply contribute nothing when absent. roadmap_items
+  // is not guarded, and must not be: it is the DB of record, so a database
+  // without it is not a Port Daddy database. Wrapping that query to return an
+  // empty projection would render "you have no roadmap items" — an empty board
+  // that looks legitimately empty — which is the same fake-certainty law 13
+  // forbids for liveness, applied to existence.
+  //
+  // Without this test the asymmetry reads like an oversight next to three
+  // tableExists() calls, and the obvious tidy-up silently converts a broken
+  // database into an empty one.
+
+  test('missing optional tables: dispatches/claims/status-events absent still projects', () => {
+    const bare = new Database(':memory:');
+    bare.exec(`
+      CREATE TABLE roadmap_items (
+        id TEXT PRIMARY KEY, slug TEXT NOT NULL, summary_md TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'backlog',
+        last_touched_at INTEGER NOT NULL,
+        dependencies_json TEXT NOT NULL DEFAULT '[]',
+        harbor TEXT NOT NULL,
+        UNIQUE(slug, harbor));
+    `);
+    bare.prepare(`INSERT INTO roadmap_items
+        (id, slug, summary_md, status, last_touched_at, harbor)
+        VALUES (?, ?, ?, ?, ?, ?)`)
+      .run('b-1', 'bare-item', 'No trail of any kind', 'now', NOW - 1_000, 'port-daddy');
+    try {
+      // Premise: these three really are absent, so the assertions below are
+      // about the guards and not about a database that happens to have them.
+      for (const table of ['dispatches', 'roadmap_claims', 'roadmap_item_status_events']) {
+        const row = bare
+          .prepare(`SELECT 1 AS one FROM sqlite_master WHERE type = 'table' AND name = ?`)
+          .get(table);
+        expect(row).toBeUndefined();
+      }
+
+      const p = buildRoadmapProjection(bare, '/nonexistent/port-daddy', {
+        harbor: 'port-daddy', now: clock,
+      });
+      expect(p.items.map((i) => i.slug)).toEqual(['bare-item']);
+      expect(p.items[0].claim).toBeNull();
+      expect(p.items[0].receipts).toEqual([]);
+      // No dispatches table is no evidence, which is `noEvidence` — never a
+      // silent `live: true` from an absent trail.
+      expect(p.items[0].liveEvidence.live).toBe(false);
+      expect(p.items[0].liveEvidence.dispatchId).toBeNull();
+    } finally {
+      bare.close();
+    }
+  });
+
+  test('missing roadmap_items: the DB of record is required, and its absence throws', () => {
+    const empty = new Database(':memory:');
+    try {
+      expect(() =>
+        buildRoadmapProjection(empty, '/nonexistent/port-daddy', {
+          harbor: 'port-daddy', now: clock,
+        }),
+      ).toThrow(/no such table: roadmap_items/);
+    } finally {
+      empty.close();
+    }
+  });
+
+  test('a missing roadmap_items is NOT reported as an empty board', () => {
+    // The mutation this pins: wrap the roadmap_items query in a tableExists()
+    // guard like its three neighbours and the test above still fails loudly —
+    // but this one states the reason, so the next reader sees that returning
+    // `items: []` is the outcome being refused, not merely a different one.
+    const empty = new Database(':memory:');
+    let projection = null;
+    try {
+      projection = buildRoadmapProjection(empty, '/nonexistent/port-daddy', {
+        harbor: 'port-daddy', now: clock,
+      });
+    } catch {
+      // expected
+    } finally {
+      empty.close();
+    }
+    expect(projection).toBeNull();
+  });
 });
 
 describe('GET /roadmap/projection', () => {
