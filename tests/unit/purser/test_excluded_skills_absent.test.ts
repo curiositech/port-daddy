@@ -1,40 +1,34 @@
-// tests/unit/purser/test_excluded_skills_absent.test.ts
-import { readFileSync } from 'node:fs';
+/**
+ * Purser contract for #8908, obligation 5 — the two platform-specific skills
+ * the PR names as excluded (airflow-dag-orchestrator,
+ * android-background-task-specialist) must actually be absent from the
+ * catalog.
+ *
+ * REPAIRED IN PLACE (argue-with-the-test protocol): the authored draft read
+ * `metadata/audit-report.json` — a file no tooling in this repo produces
+ * (`audit-skills.mjs` prints markdown or `--json` to STDOUT and writes
+ * nothing) — so the suite crashed at import time. The catalog IS the
+ * `skills/` directory; absence is checked there directly, alongside the
+ * positive control that the import itself landed (an absent-because-nothing-
+ * was-imported repo would vacuously pass the exclusion check).
+ */
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { describe, test, expect } from '@jest/globals';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const auditReportPath = join(__dirname, '..', '..', '..', 'metadata', 'audit-report.json');
+const skillsDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'skills');
 
-const auditReportContent = readFileSync(auditReportPath, 'utf-8');
-let auditReport: any;
-try {
-  auditReport = JSON.parse(auditReportContent);
-} catch (e) {
-  throw new Error(`Failed to parse audit report JSON at ${auditReportPath}: ${e}`);
-}
+describe('excluded platform-specific skills are omitted from the catalog', () => {
+  test.each(['airflow-dag-orchestrator', 'android-background-task-specialist'])(
+    '%s is not in skills/',
+    (name) => {
+      expect(existsSync(join(skillsDir, name))).toBe(false);
+    },
+  );
 
-let skillNames: string[] = [];
-
-if (Array.isArray(auditReport.skills)) {
-  // Expected format: [{ name: '...', ... }, ...]
-  skillNames = auditReport.skills.map((s: any) => s.name);
-} else if (auditReport.skills && typeof auditReport.skills === 'object') {
-  // Possible format: { 'skill-name': {...}, ... }
-  skillNames = Object.keys(auditReport.skills);
-} else {
-  // Fallback: attempt to find skill names in the whole report
-  if (auditReport.name) {
-    skillNames = [auditReport.name];
-  }
-}
-
-describe('Excluded platform-specific skills omitted from catalog', () => {
-  it('should not include airflow-dag-orchestrator or android-background-task-specialist', () => {
-    const excluded = ['airflow-dag-orchestrator', 'android-background-task-specialist'];
-    excluded.forEach((skill) => {
-      expect(skillNames).not.toContain(skill);
-    });
+  test('positive control: the import itself is present (exclusion is a choice, not an empty repo)', () => {
+    expect(existsSync(join(skillsDir, 'hypertree-planning', 'SKILL.md'))).toBe(true);
+    expect(existsSync(join(skillsDir, 'dag-chain-decomposition', 'SKILL.md'))).toBe(true);
   });
 });
