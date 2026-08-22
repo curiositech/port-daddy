@@ -316,6 +316,16 @@ describe('cli/utils/fetch pdFetch actor-credential injection', () => {
     });
   });
 
+  test('method matching is case-insensitive: a lowercase "post" still gets the credential', async () => {
+    // isMutatingMethod uppercases before checking, so a caller passing
+    // lowercase (or a harness forwarding a raw string) is not silently
+    // demoted to an unattributed write that the daemon would 401.
+    await pdFetch('/locks/deploy', { method: 'post', body: '{}' });
+    expect(mockRequest.mock.calls[0][0].headers).toMatchObject({
+      'x-actor-credential': 'ENVSOUL.env-secret',
+    });
+  });
+
   test('a GET carries NO credential header — reads are never attributed writes', async () => {
     await pdFetch('/health');
     expect(mockRequest).toHaveBeenCalledTimes(1);

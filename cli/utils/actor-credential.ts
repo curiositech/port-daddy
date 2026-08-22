@@ -13,7 +13,7 @@
  * precedence and on the safety rule below.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { getContextDir, readCurrentContext, resolveContextSlot } from './current-context.js';
 
@@ -105,7 +105,13 @@ export function persistCliActorCredential(credential: string, agentId?: string |
     // only, same posture as an SSH private key and the custody bar ADR-0040
     // sets for plaintext bearer credentials at rest. Other local users must
     // not be able to read (and thus present) this shell's soul.
-    writeFileSync(actorFilePath(), JSON.stringify({ agentId: agentId ?? null, credential }, null, 2), { mode: 0o600 });
+    const path = actorFilePath();
+    writeFileSync(path, JSON.stringify({ agentId: agentId ?? null, credential }, null, 2), { mode: 0o600 });
+    // writeFileSync's `mode` only applies when the file is CREATED; a
+    // pre-existing file (older CLI version, loosened by hand) keeps its old
+    // mode through the overwrite — which would leave a fresh plaintext
+    // credential world-readable. Clamp unconditionally.
+    chmodSync(path, 0o600);
   } catch {
     // Best-effort: an unpersistable credential only costs a re-mint later.
   }
