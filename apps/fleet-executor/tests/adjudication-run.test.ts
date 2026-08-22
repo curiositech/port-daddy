@@ -182,6 +182,12 @@ describe('direct provider evidence — exhausted circuit gates the fleet immedia
         "        - backend: cloudflare",
         "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
         '      prompt: review code',
+        '    lookout:',
+        '      trigger: pull_request:opened',
+        '      fallbacks:',
+        "        - backend: cloudflare",
+        "          model: '@cf/qwen/qwen2.5-coder-32b-instruct'",
+        '      prompt: review product truth',
         '',
       ].join('\n'),
     );
@@ -205,8 +211,21 @@ describe('direct provider evidence — exhausted circuit gates the fleet immedia
     const error = d1.steps.find(step => step.kind === 'ship-error');
     expect(error?.title).toContain('HTTP 429, code 3040');
     const circuit = d1.steps.find(step => step.kind === 'provider-circuit-open');
-    expect(circuit?.title).toContain('1 remaining ship(s) skipped');
-    expect(String(circuit?.detail)).toContain('code');
+    expect(circuit?.title).toContain('2 remaining ship(s) skipped');
+    expect(circuit?.title).toContain('fleet-wide dependency fault');
+    expect(circuit?.title).toContain('3/3 delivery attempts');
+    expect(JSON.parse(String(circuit?.detail))).toMatchObject({
+      attempt: 3,
+      maxAttempts: 3,
+      skippedShips: ['code-reviewer', 'lookout'],
+      status: 429,
+      code: 3040,
+      retryable: true,
+      brokenAdjudicated: {
+        scope: 'fleet',
+        reason: 'Workers AI dependency circuit remained open through 3/3 delivery attempts',
+      },
+    });
     const adjudicated = d1.steps.find(step => step.kind === 'ship-adjudicated');
     expect(adjudicated?.title).toContain('FLEET-WIDE');
     expect(adjudicated?.title).toContain('not gating this PR');

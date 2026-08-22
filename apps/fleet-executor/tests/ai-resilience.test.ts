@@ -3,6 +3,7 @@ import {
   describeAiFailure,
   FleetAiCircuit,
   FleetAiDependencyError,
+  normalizeProviderQueueAttempt,
   providerRetryDelaySeconds,
 } from '../src/ai-resilience.js';
 import { mapWithConcurrency } from '../src/execute.js';
@@ -38,6 +39,47 @@ describe('Workers AI failure classification', () => {
     expect(failure.summary).not.toContain('super-secret');
     expect(failure.summary).not.toContain('ghs_private_value');
     expect(failure.summary.length).toBeLessThanOrEqual(601);
+  });
+
+  it('parses common unstructured Cloudflare labels without confusing later status evidence', () => {
+    const failure = describeAiFailure(new Error(
+      'Workers AI error 3040; HTTP/2 429; upstream status 503',
+    ));
+
+    expect(failure).toMatchObject({ code: 3040, status: 429, retryable: true });
+  });
+
+  it('prefers structured status and code fields over ambiguous message text', () => {
+    const failure = describeAiFailure({
+      status: 400,
+      code: 3003,
+      message: 'HTTP 503 followed by status 429 and Workers AI error 3040',
+    });
+
+    expect(failure).toMatchObject({ code: 3003, status: 400, retryable: false });
+  });
+
+  it('fails closed for an unexpected error object with no provider evidence', () => {
+    const failure = describeAiFailure({ unexpected: { shape: true } });
+
+    expect(failure).toMatchObject({ status: null, code: null, retryable: false });
+    expect(failure.summary).toContain('[object Object]');
+  });
+});
+
+describe('provider delivery counter normalization', () => {
+  it('defaults malformed direct-call counters to the conservative final attempt', () => {
+    expect(normalizeProviderQueueAttempt(undefined)).toBe(3);
+    expect(normalizeProviderQueueAttempt(0)).toBe(3);
+    expect(normalizeProviderQueueAttempt(-1)).toBe(3);
+    expect(normalizeProviderQueueAttempt(1.5)).toBe(3);
+  });
+
+  it('preserves valid attempts and caps counters from older queue configurations', () => {
+    expect(normalizeProviderQueueAttempt(1)).toBe(1);
+    expect(normalizeProviderQueueAttempt(2)).toBe(2);
+    expect(normalizeProviderQueueAttempt(3)).toBe(3);
+    expect(normalizeProviderQueueAttempt(12)).toBe(3);
   });
 });
 
@@ -109,6 +151,9 @@ describe('queue retry jitter', () => {
   it('honors a provider retry-after floor without exceeding the queue limit', () => {
     expect(providerRetryDelaySeconds(1, () => 0, 600)).toBe(600);
     expect(providerRetryDelaySeconds(1, () => 0, 99_999)).toBe(43_200);
+    expect(providerRetryDelaySeconds(2, () => 0.999999, null)).toBe(30);
+    expect(providerRetryDelaySeconds(2, () => 0.999999, undefined)).toBe(30);
+    expect(providerRetryDelaySeconds(2, () => 0.999999, -1)).toBe(30);
   });
 
   it('does not synchronize different random draws', () => {
