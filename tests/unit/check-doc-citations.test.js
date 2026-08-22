@@ -57,26 +57,28 @@ describe('check-doc-citations guard', () => {
   // and "fix them" would mean editing history to make a dead document look
   // current.
 
-  test('a retired document is skipped by the sweeps', () => {
+  test('a retired document is never named by the sweeps', () => {
+    // Asserts the EXEMPTION, not the repo's overall cleanliness. The first
+    // version of this test ran the changed-files sweep and expected exit 0 —
+    // which made it a claim about whatever else happened to be in the branch's
+    // diff, and it duly went red in CI on a document this change never touched.
+    // A unit test must not depend on the rest of the diff.
     const manifest = JSON.parse(
       readFileSync(join(repo, 'docs', 'retirement-manifest.json'), 'utf8'),
     );
-    // Premise: the retired docs really do carry citations this gate would
-    // reject. Without this the test passes for a manifest of clean files.
-    const dirty = Object.keys(manifest.retired).filter((f) => f.endsWith('.md'));
-    expect(dirty.length).toBeGreaterThan(0);
-    const anyRejected = dirty.some((f) => run(f).code !== 0);
-    expect(anyRejected).toBe(true);
+    const retiredMd = Object.keys(manifest.retired).filter((f) => f.endsWith('.md'));
+    expect(retiredMd.length).toBeGreaterThan(0);
 
-    // ...and the sweep the CI job actually runs is clean anyway.
-    const { code } = (() => {
-      try {
-        return { code: 0, stdout: execFileSync('node', [script], { cwd: repo, encoding: 'utf8' }) };
-      } catch (e) {
-        return { code: e.status ?? 1, stdout: (e.stdout?.toString() ?? '') + (e.stderr?.toString() ?? '') };
-      }
-    })();
-    expect(code).toBe(0);
+    // Premise: these documents really would be rejected if the sweep saw them.
+    // Without this the assertion below passes for a manifest of clean files.
+    expect(retiredMd.some((f) => run(f).code !== 0)).toBe(true);
+
+    // The --all sweep is not expected to exit 0 — the repo has pre-existing
+    // citation debt in files this change never touched. What must hold is that
+    // no RETIRED document is among the violations.
+    const { stderr } = run('--all');
+    const leaked = retiredMd.filter((f) => stderr.includes(`${f}:`));
+    expect(leaked).toEqual([]); // any entry here is a retired doc the sweep still reported
   });
 
   test('the exemption is driven by the manifest, not a hardcoded list', () => {
