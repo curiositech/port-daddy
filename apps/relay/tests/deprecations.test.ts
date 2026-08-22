@@ -135,9 +135,20 @@ async function aliasPair(
   return { oldRes, newRes };
 }
 
+/**
+ * x7 (requestId-on-every-response, landed after this suite was written) stamps
+ * a fresh `req_<hex>` into every JSON error envelope, so two separate requests
+ * can never be literally byte-identical. The equivalence this suite pins is
+ * ROUTE equivalence — same handler, same body modulo the request-scoped id —
+ * so the id is normalized to a fixed placeholder before comparing.
+ */
+function normalizeRequestId(text: string): string {
+  return text.replace(/req_[0-9a-f]{16}/g, 'req_NORMALIZED');
+}
+
 async function expectByteIdentical(oldRes: Response, newRes: Response): Promise<void> {
   expect(newRes.status).toBe(oldRes.status);
-  expect(await newRes.text()).toBe(await oldRes.text());
+  expect(normalizeRequestId(await newRes.text())).toBe(normalizeRequestId(await oldRes.text()));
   expect(newRes.headers.get('Content-Type')).toBe(oldRes.headers.get('Content-Type'));
   // The ONLY divergence is the deprecation trio on the bare form.
   expect(oldRes.headers.get('Deprecation')).not.toBeNull();
@@ -202,7 +213,11 @@ describe('X6 structured 410 tombstone', () => {
     setDeprecationsForTesting([{ ...AUTH, tombstoned: true }]);
     const res = await worker.fetch(new Request(`${BASE}/auth/status`), {} as Env, ctx);
     expect(res.status).toBe(410);
-    expect(await res.json()).toEqual(golden.body);
+    // x7 adds a request-scoped requestId to every JSON envelope; the golden
+    // fixture pins the tombstone shape, not the per-request id.
+    const { requestId, ...body } = (await res.json()) as Record<string, unknown>;
+    expect(requestId).toMatch(/^req_[0-9a-f]{16}$/);
+    expect(body).toEqual(golden.body);
     // Tombstones keep the deprecation trio so clients see the full lifecycle.
     expect(res.headers.get('Deprecation')).toBe(`@${AUTH.deprecatedAt}`);
     expect(res.headers.get('Sunset')).toBe(new Date(AUTH.sunsetAt! * 1000).toUTCString());

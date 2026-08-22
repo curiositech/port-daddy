@@ -1822,6 +1822,10 @@ pub struct ConsoleView {
     alerts: Vec<Alert>,
     /// Head-of-queue dispatch the review gate acts on (from the background refresh).
     dispatch_head: Option<DispatchHead>,
+    /// HITL interruptions gate (contract §4): open-ask count, the blocking
+    /// critical ask's title, known/unknown, and the web answer deep link.
+    /// Drives the window-wide banner and the dispatch-gate refusal.
+    hitl_gate: crate::interruptions::HitlGate,
     /// Dispatch id pending a reject reason (set when the operator opens the reject line).
     reject_target: Option<String>,
     /// In-flight pane-divider drag (grab-the-rope resize); `None` when idle.
@@ -2071,6 +2075,7 @@ impl ConsoleView {
             control_flash: None,
             alerts: Vec::new(),
             dispatch_head: None,
+            hitl_gate: crate::interruptions::HitlGate::default(),
             reject_target: None,
             dragging: None,
             split_bounds: Rc::new(RefCell::new(HashMap::new())),
@@ -3171,6 +3176,7 @@ impl ConsoleView {
         dispatch_head: Option<DispatchHead>,
         galaxy: crate::galaxy_pane::GalaxySnapshot,
         daemon_connected: bool,
+        hitl_gate: crate::interruptions::HitlGate,
     ) -> bool {
         // First refresh dismisses the launch splash (a real visual change).
         let mut changed = !self.booted;
@@ -3189,6 +3195,10 @@ impl ConsoleView {
         }
         if self.dispatch_head != dispatch_head {
             self.dispatch_head = dispatch_head;
+            changed = true;
+        }
+        if self.hitl_gate != hitl_gate {
+            self.hitl_gate = hitl_gate;
             changed = true;
         }
 
@@ -3717,6 +3727,11 @@ impl ConsoleView {
         // interrupt). Both read `/agents`, so they share the roster.
         let is_fleet_ops = matches!(nav_id_for_surface(surface), Some("fleet") | Some("cockpit"));
         let dispatch_head = self.dispatch_head.clone();
+        // HITL contract §4.3: an open CRITICAL interruption refuses new
+        // fleet-dispatch work (the review gate's Approve), showing the ask's
+        // title as the reason and deep-linking the web answer surface.
+        let hitl_critical = self.hitl_gate.critical_title.clone();
+        let hitl_link = self.hitl_gate.deep_link.clone();
         let gate_flash = self.control_flash.clone();
         let cond_flash = self.control_flash.clone();
         let fleet_flash = self.control_flash.clone();
@@ -4173,10 +4188,33 @@ impl ConsoleView {
                             .child(
                                 div()
                                     .flex()
+                                    .items_center()
                                     .gap(px(8.0))
-                                    .child(dispatch_gate_btn(
-                                        "approve", "✓ Approve", current_theme().landed, h.id.clone(), cx,
-                                    ))
+                                    // HITL §4.3: while a CRITICAL ask is open, the
+                                    // console refuses to start new fleet work. The
+                                    // Approve affordance is replaced by an honest
+                                    // refusal carrying the ask's title — never a
+                                    // silently dead button.
+                                    .when_some(hitl_critical.clone(), |c, blocked_by| {
+                                        c.child(
+                                            div()
+                                                .px(px(10.0))
+                                                .py(px(4.0))
+                                                .border_1()
+                                                .border_color(rgb(current_theme().gated))
+                                                .text_color(rgb(current_theme().gated))
+                                                .text_size(px(13.0))
+                                                .font_weight(FontWeight::SEMIBOLD)
+                                                .child(format!(
+                                                    "\u{26d4} Approve blocked \u{2014} critical interruption open: {blocked_by}"
+                                                )),
+                                        )
+                                    })
+                                    .when(hitl_critical.is_none(), |c| {
+                                        c.child(dispatch_gate_btn(
+                                            "approve", "✓ Approve", current_theme().landed, h.id.clone(), cx,
+                                        ))
+                                    })
                                     .child(dispatch_gate_btn(
                                         "reject", "✗ Reject…", current_theme().gated, h.id.clone(), cx,
                                     ))
@@ -4184,6 +4222,19 @@ impl ConsoleView {
                                         "cancel", "⊘ Cancel", current_theme().muted, h.id.clone(), cx,
                                     )),
                             )
+                            // Deep-link to the session-gated web answer surface
+                            // (answer/ack is never in-app by design).
+                            .when(hitl_critical.is_some(), |c| {
+                                let link = hitl_link
+                                    .clone()
+                                    .unwrap_or_else(|| "/account/interruptions".into());
+                                c.child(
+                                    div()
+                                        .text_color(rgb(current_theme().muted))
+                                        .text_size(px(13.0))
+                                        .child(format!("answer / ack \u{2192} {link}")),
+                                )
+                            })
                         })
                         .when_some(gate_flash, |c, flash| {
                             c.child(
@@ -6769,6 +6820,9 @@ impl Render for ConsoleView {
         let lit = armed || command.is_some();
         let pane_count = self.ws().pane_count();
         let daemon_connected = self.daemon_connected;
+        // HITL banner data (contract §4.2): surfaced window-wide when any ask
+        // is open; loud red (mayday) when a critical/blocking ask is waiting.
+        let hitl_banner = self.hitl_gate.clone();
         let zoomed = self.zoomed();
         // Tab bar data (index, name, is-active).
         let tabs: Vec<(usize, String, bool)> = self
@@ -7170,6 +7224,55 @@ impl Render for ConsoleView {
                     ),
             )
             .child(render_story_nav_bar(active_nav.as_deref(), cx))
+            // ── HITL interruptions banner (docs/hitl-interruptions.md §4): any
+            // open operator ask is surfaced window-wide within one poll (≤30 s
+            // jittered, so ≤60 s from creation). Critical/blocking asks paint
+            // MAYDAY red; clicking opens the session-gated web answer surface —
+            // answer/ack is never offered in-app by design. ──
+            .when(hitl_banner.open_count > 0, |root| {
+                let critical = hitl_banner.critical_title.clone();
+                let link = hitl_banner
+                    .deep_link
+                    .clone()
+                    .unwrap_or_else(|| "/account/interruptions".into());
+                let n = hitl_banner.open_count;
+                let is_critical = critical.is_some();
+                let text = match &critical {
+                    Some(title) => format!(
+                        "\u{26a0} {n} INTERRUPTION{} \u{2014} critical: {title} \u{2014} fleet dispatch blocked \u{00b7} click to answer",
+                        if n == 1 { "" } else { "S" },
+                    ),
+                    None => format!(
+                        "\u{26a0} {n} interruption{} awaiting a human \u{00b7} click to answer",
+                        if n == 1 { "" } else { "s" },
+                    ),
+                };
+                root.child(
+                    div()
+                        .id("hitl-banner")
+                        .w_full()
+                        .px(px(16.0))
+                        .py(px(6.0))
+                        .bg(rgb(if is_critical {
+                            current_theme().mayday
+                        } else {
+                            current_theme().gated
+                        }))
+                        .text_color(rgb(0xfbf7ef))
+                        .font_family("IBM Plex Mono")
+                        .text_size(px(14.0))
+                        .font_weight(FontWeight::BOLD)
+                        .cursor_pointer()
+                        .child(text)
+                        .on_click(move |_ev, _window, _cx| {
+                            // Deep-link only: the web surface is where a HUMAN
+                            // session answers or acks (bearer tokens can't).
+                            if link.starts_with("http") {
+                                let _ = std::process::Command::new("open").arg(&link).spawn();
+                            }
+                        }),
+                )
+            })
             // ── Body row: clickable NAV rail (the GUI replacement for the
             // Ctrl-A <key> surface switch the operator hates) + the pane tree.
             // Click a surface name to swap the focused pane — no leader key. ──

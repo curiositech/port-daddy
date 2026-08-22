@@ -20,6 +20,7 @@ interface SugarRouteDeps {
   metrics: { errors: number };
   logger: {
     info(msg: string, meta?: Record<string, unknown>): void;
+    warn(msg: string, meta?: Record<string, unknown>): void;
     error(msg: string, meta?: Record<string, unknown>): void;
   };
 }
@@ -63,6 +64,15 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       } = request.body as any;
 
       if (!purpose || typeof purpose !== 'string') {
+        logger.warn('sugar_begin_rejected', {
+          code: 'VALIDATION_ERROR',
+          error: 'purpose must be a non-empty string',
+          identity,
+          lifecycle: rawLifecycle,
+          purpose,
+          fileCount: Array.isArray(files) ? files.length : 0,
+          hasSidequestReason: typeof sidequestReason === 'string' && sidequestReason.length > 0,
+        });
         reply.code(400);
         return {
           success: false,
@@ -73,6 +83,15 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
 
       const lifecycle = parseBeginLifecycle(rawLifecycle);
       if (!lifecycle) {
+        logger.warn('sugar_begin_rejected', {
+          code: 'SESSION_LIFECYCLE_REQUIRED',
+          error: 'lifecycle must be explicitly set to "durable" or "ephemeral"',
+          identity,
+          lifecycle: rawLifecycle,
+          purpose,
+          fileCount: Array.isArray(files) ? files.length : 0,
+          hasSidequestReason: typeof sidequestReason === 'string' && sidequestReason.length > 0,
+        });
         reply.code(400);
         return {
           success: false,
@@ -112,6 +131,15 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
           || result.code === 'ROADMAP_ITEMS_UNAVAILABLE'
           ? 400
           : 500;
+        logger.warn('sugar_begin_rejected', {
+          code: result.code,
+          error: result.error,
+          identity,
+          lifecycle,
+          purpose,
+          fileCount: Array.isArray(files) ? files.length : 0,
+          hasSidequestReason: typeof sidequestReason === 'string' && sidequestReason.length > 0,
+        });
         reply.code(status);
         return result;
       }

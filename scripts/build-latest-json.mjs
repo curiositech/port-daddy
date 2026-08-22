@@ -106,6 +106,16 @@ function fleetbarSignedFromManifest(manifestPath) {
     return null;
   }
 
+  // Gatekeeper accepts a DOWNLOADED .app only when it is Developer ID signed
+  // AND notarized. v3.27.0 shipped signed-but-unnotarized (notary key failed
+  // validation, fail-soft) while the feed said signed:true — the fresh-install
+  // smoke caught Gatekeeper rejecting exactly what the feed advertised as good.
+  // A manifest that carries `notarized` participates in the flag; an older
+  // manifest without it keeps the signing-only semantics it was written with.
+  if (typeof manifest.notarized === 'boolean') {
+    return !manifest.unsigned && manifest.notarized;
+  }
+
   return !manifest.unsigned;
 }
 

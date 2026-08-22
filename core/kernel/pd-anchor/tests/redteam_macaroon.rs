@@ -68,9 +68,15 @@ fn push_ctx() -> RequestContext {
 /// Paid discharge, request-bound to the given grant — the only thing that
 /// legitimately authorizes a push.
 fn bound_paid_discharge(g: &PushGrant) -> Macaroon {
-    let d = discharge_rent_paid(CKEY, &g.rent_caveat_id, RentVerdict::Paid, 1_000_000, DISCHARGE_TTL_MS)
-        .unwrap()
-        .expect("paid rent yields a discharge");
+    let d = discharge_rent_paid(
+        CKEY,
+        &g.rent_caveat_id,
+        RentVerdict::Paid,
+        1_000_000,
+        DISCHARGE_TTL_MS,
+    )
+    .unwrap()
+    .expect("paid rent yields a discharge");
     g.macaroon.prepare_for_request(&d).unwrap()
 }
 
@@ -89,7 +95,11 @@ fn forged_hmac_signature_bitflip_rejected() {
     forged.signature_hex.insert(0, flipped);
     let res = verify(&forged, ROOT, &[], &always, &no_key);
     assert!(!res.ok, "a single-bit signature forgery must be rejected");
-    assert!(res.reason.contains("signature mismatch"), "reason: {}", res.reason);
+    assert!(
+        res.reason.contains("signature mismatch"),
+        "reason: {}",
+        res.reason
+    );
 }
 
 #[test]
@@ -124,7 +134,11 @@ fn oversized_hex_signature_rejected_not_decoded() {
     let mut m = Macaroon::mint(ROOT, "g", "loc");
     m.signature_hex = "ab".repeat(10_000); // 20k hex chars
     let res = verify(&m, ROOT, &[], &always, &no_key);
-    assert!(!res.ok && res.reason.contains("malformed"), "reason: {}", res.reason);
+    assert!(
+        !res.ok && res.reason.contains("malformed"),
+        "reason: {}",
+        res.reason
+    );
 }
 
 // ===========================================================================
@@ -222,15 +236,36 @@ fn discharge_replayed_across_grants_rejected() {
     // to grant A must NOT authorize grant B: the request-binding folds in the root's
     // signature, which differs, so the bound value mismatches.
     let a = grant_with(ROOT, "g", "session-abc", "nonce-1");
-    let b = grant_with(b"OTHER-root-32-bytes-padding-padx", "g", "session-abc", "nonce-1");
-    assert_eq!(a.rent_caveat_id, b.rent_caveat_id, "test setup: shared caveat id");
+    let b = grant_with(
+        b"OTHER-root-32-bytes-padding-padx",
+        "g",
+        "session-abc",
+        "nonce-1",
+    );
+    assert_eq!(
+        a.rent_caveat_id, b.rent_caveat_id,
+        "test setup: shared caveat id"
+    );
 
     let bound_to_a = bound_paid_discharge(&a);
     let check = |p: &str| check_caveat(p, &push_ctx());
     let resolve = |id: &str| (id == b.rent_caveat_id).then(|| CKEY.to_vec());
-    let res = verify(&b.macaroon, b"OTHER-root-32-bytes-padding-padx", &[bound_to_a], &check, &resolve);
-    assert!(!res.ok, "a discharge bound to grant A must not authorize grant B");
-    assert!(res.reason.contains("signature mismatch"), "reason: {}", res.reason);
+    let res = verify(
+        &b.macaroon,
+        b"OTHER-root-32-bytes-padding-padx",
+        &[bound_to_a],
+        &check,
+        &resolve,
+    );
+    assert!(
+        !res.ok,
+        "a discharge bound to grant A must not authorize grant B"
+    );
+    assert!(
+        res.reason.contains("signature mismatch"),
+        "reason: {}",
+        res.reason
+    );
 }
 
 #[test]
@@ -246,8 +281,15 @@ fn discharge_for_near_miss_caveat_id_rejected() {
     let check = |p: &str| check_caveat(p, &push_ctx());
     let resolve = |id: &str| (id == g.rent_caveat_id).then(|| CKEY.to_vec());
     let res = verify(&g.macaroon, ROOT, &[bound], &check, &resolve);
-    assert!(!res.ok, "a near-miss discharge id must not satisfy the caveat");
-    assert!(res.reason.contains("no discharge macaroon"), "reason: {}", res.reason);
+    assert!(
+        !res.ok,
+        "a near-miss discharge id must not satisfy the caveat"
+    );
+    assert!(
+        res.reason.contains("no discharge macaroon"),
+        "reason: {}",
+        res.reason
+    );
 }
 
 #[test]
@@ -277,9 +319,15 @@ fn unbound_discharge_rejected() {
     // A discharge presented WITHOUT prepare_for_request binding must be refused —
     // an unbound discharge is exactly the stolen-and-replayed shape.
     let g = std_grant();
-    let d = discharge_rent_paid(CKEY, &g.rent_caveat_id, RentVerdict::Paid, 1_000_000, DISCHARGE_TTL_MS)
-        .unwrap()
-        .unwrap();
+    let d = discharge_rent_paid(
+        CKEY,
+        &g.rent_caveat_id,
+        RentVerdict::Paid,
+        1_000_000,
+        DISCHARGE_TTL_MS,
+    )
+    .unwrap()
+    .unwrap();
     let check = |p: &str| check_caveat(p, &push_ctx());
     let resolve = |id: &str| (id == g.rent_caveat_id).then(|| CKEY.to_vec());
     assert!(
@@ -295,10 +343,15 @@ fn wrong_caveat_key_at_resolver_rejected() {
     let g = std_grant();
     let bound = bound_paid_discharge(&g);
     let check = |p: &str| check_caveat(p, &push_ctx());
-    let wrong = |id: &str| (id == g.rent_caveat_id).then(|| b"WRONG-key-32-bytes-padding-padxx".to_vec());
+    let wrong =
+        |id: &str| (id == g.rent_caveat_id).then(|| b"WRONG-key-32-bytes-padding-padxx".to_vec());
     let res = verify(&g.macaroon, ROOT, &[bound], &check, &wrong);
     assert!(!res.ok, "a mismatched discharge key must be rejected");
-    assert!(res.reason.contains("key mismatch"), "reason: {}", res.reason);
+    assert!(
+        res.reason.contains("key mismatch"),
+        "reason: {}",
+        res.reason
+    );
 }
 
 #[test]
@@ -308,9 +361,13 @@ fn attacker_forged_discharge_without_caveat_key_rejected() {
     // discharge's own recomputed signature diverges — you cannot forge a discharge
     // without the caveat key the daemon holds.
     let g = std_grant();
-    let forged = Macaroon::mint(b"guessed-key-32-bytes-padding-pad", &g.rent_caveat_id, RENT_LOC)
-        .add_first_party_caveat(expires_caveat(1_000_000 + DISCHARGE_TTL_MS))
-        .unwrap();
+    let forged = Macaroon::mint(
+        b"guessed-key-32-bytes-padding-pad",
+        &g.rent_caveat_id,
+        RENT_LOC,
+    )
+    .add_first_party_caveat(expires_caveat(1_000_000 + DISCHARGE_TTL_MS))
+    .unwrap();
     let bound = g.macaroon.prepare_for_request(&forged).unwrap();
     let check = |p: &str| check_caveat(p, &push_ctx());
     let resolve = |id: &str| (id == g.rent_caveat_id).then(|| CKEY.to_vec());
@@ -420,15 +477,18 @@ fn ffi_verify_raw(bytes: &[u8]) -> Option<String> {
     if ptr.is_null() {
         return None;
     }
-    let out = unsafe { CStr::from_ptr(ptr) }.to_string_lossy().into_owned();
+    let out = unsafe { CStr::from_ptr(ptr) }
+        .to_string_lossy()
+        .into_owned();
     unsafe { pd_string_free(ptr) };
     Some(out)
 }
 
 fn assert_fails_closed(bytes: &[u8], label: &str) {
-    let out = ffi_verify_raw(bytes).unwrap_or_else(|| panic!("null response for {label} — contract says non-null"));
-    let v: serde_json::Value =
-        serde_json::from_str(&out).unwrap_or_else(|e| panic!("response for {label} not JSON: {e}: {out}"));
+    let out = ffi_verify_raw(bytes)
+        .unwrap_or_else(|| panic!("null response for {label} — contract says non-null"));
+    let v: serde_json::Value = serde_json::from_str(&out)
+        .unwrap_or_else(|e| panic!("response for {label} not JSON: {e}: {out}"));
     assert_eq!(v["ok"], false, "input {label} must fail closed, got: {out}");
 }
 
@@ -440,7 +500,10 @@ fn ffi_handpicked_malformed_inputs_all_fail_closed() {
     assert_fails_closed(b"{\"macaroon\":", "truncated-mid-key");
     assert_fails_closed(b"[]", "wrong-top-type-array");
     assert_fails_closed(b"{\"macaroon\": 1234}", "wrong-field-type");
-    assert_fails_closed(b"{\"macaroon\": {}, \"root_key_hex\": \"zzzz\"}", "non-hex-root-key");
+    assert_fails_closed(
+        b"{\"macaroon\": {}, \"root_key_hex\": \"zzzz\"}",
+        "non-hex-root-key",
+    );
     // Interior NUL inside otherwise-valid UTF-8.
     assert_fails_closed(b"{\"macaroon\":\0}", "interior-nul");
     // Non-UTF8 byte sequence.
@@ -456,8 +519,13 @@ fn ffi_handpicked_malformed_inputs_all_fail_closed() {
 #[test]
 fn ffi_null_pointer_fails_closed() {
     let ptr = unsafe { pd_macaroon_verify_json(std::ptr::null(), 0) };
-    assert!(!ptr.is_null(), "null input must still return a sentinel, not null");
-    let out = unsafe { CStr::from_ptr(ptr) }.to_string_lossy().into_owned();
+    assert!(
+        !ptr.is_null(),
+        "null input must still return a sentinel, not null"
+    );
+    let out = unsafe { CStr::from_ptr(ptr) }
+        .to_string_lossy()
+        .into_owned();
     unsafe { pd_string_free(ptr) };
     let v: serde_json::Value = serde_json::from_str(&out).unwrap();
     assert_eq!(v["ok"], false);
@@ -473,7 +541,10 @@ fn ffi_size_guard_at_and_past_the_boundary() {
     let out = ffi_verify_raw(&over_cap).expect("non-null");
     let v: serde_json::Value = serde_json::from_str(&out).unwrap();
     assert_eq!(v["ok"], false, "oversized input must be rejected");
-    assert!(out.contains("oversized"), "oversize should be reported: {out}");
+    assert!(
+        out.contains("oversized"),
+        "oversize should be reported: {out}"
+    );
     // Minimal one-byte input.
     assert_fails_closed(b"x", "one-byte");
 }
@@ -529,5 +600,9 @@ fn positive_control_valid_paid_bound_grant_authorizes() {
     let check = |p: &str| check_caveat(p, &push_ctx());
     let resolve = |id: &str| (id == g.rent_caveat_id).then(|| CKEY.to_vec());
     let res = verify(&g.macaroon, ROOT, &[bound], &check, &resolve);
-    assert!(res.ok, "a valid paid+bound grant must authorize: {}", res.reason);
+    assert!(
+        res.ok,
+        "a valid paid+bound grant must authorize: {}",
+        res.reason
+    );
 }

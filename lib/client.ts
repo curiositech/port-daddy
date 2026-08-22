@@ -18,7 +18,7 @@
 import http from 'node:http';
 import { existsSync } from 'node:fs';
 import type { PortDaddyClientOptions } from '../shared/types.js';
-import { CANONICAL_TCP_PORT, getDaemonTcpUrl } from '../shared/daemon-discovery.js';
+import { resolveDaemonTcpTarget, resolvePublishedDaemonUrl } from '../shared/daemon-discovery.js';
 import type { DaemonTarget as ConnectionTarget } from '../shared/daemon-discovery.js';
 import { createIpcClient } from './ipc-client.js';
 import { IpcAction, Performative } from './ipc-types.js';
@@ -1248,12 +1248,22 @@ class PortDaddy {
   timeout: number;
   private _ipc: ReturnType<typeof createIpcClient> | null = null;
   private _ipcPath: string;
+  private _explicitUrl: string | undefined;
+  private _urlOption: string | undefined;
 
   /**
    * Create a new Port Daddy client.
    */
   constructor(options: PortDaddyClientOptions = {}) {
-    this.url = getDaemonTcpUrl(options.url || process.env.PORT_DADDY_URL).replace(/\/$/, '');
+    this._urlOption = options.url;
+    this._explicitUrl = options.url || process.env.PORT_DADDY_URL;
+    try {
+      this.url = resolvePublishedDaemonUrl(this._explicitUrl).replace(/\/$/, '');
+    } catch {
+      // Preserve lazy connection behavior without publishing a guessed target.
+      // _resolveTarget() repeats strict discovery when the first request runs.
+      this.url = '';
+    }
     this.socketPath = options.socketPath || process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
     this.agentId = options.agentId || process.env.PORT_DADDY_AGENT;
     this.pid = options.pid || process.pid;
@@ -1267,7 +1277,7 @@ class PortDaddy {
    */
   private _getIpc(): ReturnType<typeof createIpcClient> | null {
     if (this._ipc) return this._ipc;
-    if (process.env.PORT_DADDY_URL || process.env.PORT_DADDY_SOCK || this.socketPath !== DEFAULT_SOCK) return null;
+    if (this._explicitUrl || process.env.PORT_DADDY_SOCK || this.socketPath !== DEFAULT_SOCK) return null;
     if (!this.agentId) return null;
     if (!existsSync(this._ipcPath)) return null;
 
@@ -1292,7 +1302,7 @@ class PortDaddy {
       performative?: number;
     } = {},
   ): Promise<T | null> {
-    if (process.env.PORT_DADDY_URL || process.env.PORT_DADDY_SOCK || this.socketPath !== DEFAULT_SOCK) return null;
+    if (this._explicitUrl || process.env.PORT_DADDY_SOCK || this.socketPath !== DEFAULT_SOCK) return null;
 
     const effectiveAgentId = options.agentId || this.agentId;
     if (!effectiveAgentId || !existsSync(this._ipcPath)) return null;
@@ -1352,21 +1362,22 @@ class PortDaddy {
   /** @private - Resolve connection target: prefer socket, fallback to TCP */
   _resolveTarget(): ConnectionTarget {
     if (process.env.PORT_DADDY_FORCE_TCP === '1') {
-      const url = new URL(this.url);
-      return { host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT };
+      return resolveDaemonTcpTarget(this._explicitUrl);
     }
-    // Explicit TCP URL overrides socket
-    if (process.env.PORT_DADDY_URL) {
-      const url = new URL(this.url);
-      return { host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT };
+    // A constructor URL is an unambiguous per-instance selection and must
+    // override any stale/default socket that happens to exist on this machine.
+    if (this._urlOption) {
+      return resolveDaemonTcpTarget(this._explicitUrl);
     }
+    // Preserve canonical environment precedence: SOCK before URL.
+    if (process.env.PORT_DADDY_SOCK) return { socketPath: this.socketPath };
+    if (process.env.PORT_DADDY_URL) return resolveDaemonTcpTarget(this._explicitUrl);
     // Use socket if it exists
     if (existsSync(this.socketPath)) {
       return { socketPath: this.socketPath };
     }
     // Fallback to TCP
-    const url = new URL(this.url);
-    return { host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT };
+    return resolveDaemonTcpTarget();
   }
 
   /** @private */
@@ -1415,9 +1426,12 @@ class PortDaddy {
       });
 
       req.on('error', (err: NodeJS.ErrnoException) => {
-        if (requestTarget.socketPath && !process.env.PORT_DADDY_URL && this._shouldFallbackFromSocket(err)) {
-          const url = new URL(this.url);
-          resolve(makeRequest({ host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT }));
+        if (requestTarget.socketPath && this._shouldFallbackFromSocket(err)) {
+          try {
+            resolve(makeRequest(resolveDaemonTcpTarget(this._explicitUrl)));
+          } catch (targetError) {
+            reject(targetError);
+          }
           return;
         }
         if (err.code === 'ENOENT' || err.code === 'ECONNREFUSED') {
