@@ -173,6 +173,60 @@ describe('pd sitrep --template ideas table pre-fill', () => {
     expect(out).toContain('## Ideas, Suggestions & Remediations');
   });
 
+  test('fail-silent: an ok response with a non-array claims field yields the blank scaffold', async () => {
+    readCurrentContext.mockReturnValue({ sessionId: 'session-tmpl-1', agentId: 'agent-tmpl-1' });
+    routeFetch({
+      '/cartographer/roadmap-claims': jsonResponse({ success: true, claims: 'not-an-array' }),
+    });
+
+    await handleSitrep({ template: true });
+    const out = templateOutput();
+    expect(out).toContain('| | | | | |');
+    expect(out).not.toContain('not-an-array');
+  });
+
+  test('fail-silent: claim entries missing identifying fields are skipped, never rendered as undefined', async () => {
+    readCurrentContext.mockReturnValue({ sessionId: 'session-tmpl-1', agentId: 'agent-tmpl-1' });
+    routeFetch({
+      '/cartographer/roadmap-claims': jsonResponse({
+        success: true,
+        claims: [
+          null,
+          42,
+          {}, // no fields at all
+          { claimedBy: 'agent-tmpl-1', releasedAt: null }, // active, mine — but no slug to link
+          { slug: 12345, summary: 'numeric slug', claimedBy: 'agent-tmpl-1', releasedAt: null },
+        ],
+      }),
+    });
+
+    await handleSitrep({ template: true });
+    const out = templateOutput();
+    // No linkable row survives → blank scaffold, and no literal "undefined"
+    // (or coerced junk) leaks into the table.
+    expect(out).toContain('| | | | | |');
+    expect(out).not.toContain('undefined');
+    expect(out).not.toContain('numeric slug');
+  });
+
+  test('fail-silent: a claims body that fails to parse yields the blank scaffold', async () => {
+    readCurrentContext.mockReturnValue({ sessionId: 'session-tmpl-1', agentId: 'agent-tmpl-1' });
+    routeFetch({
+      '/cartographer/roadmap-claims': {
+        ok: true,
+        status: 200,
+        json: async () => {
+          throw new SyntaxError('Unexpected token < in JSON');
+        },
+      },
+    });
+
+    await handleSitrep({ template: true });
+    const out = templateOutput();
+    expect(out).toContain('# Session Sit-Rep: session-tmpl-1');
+    expect(out).toContain('| | | | | |');
+  });
+
   test('fail-silent: a thrown claims fetch never breaks the template', async () => {
     readCurrentContext.mockReturnValue({ sessionId: 'session-tmpl-1', agentId: 'agent-tmpl-1' });
     pdFetch.mockImplementation(async (url) => {

@@ -217,7 +217,12 @@ export async function handleSitrep(options: CLIOptions): Promise<void> {
       if (cRes.ok) {
         const cData = (await cRes.json()) as any;
         const claims: any[] = Array.isArray(cData?.claims) ? cData.claims : [];
-        const active = claims.filter((c) => c && c.releasedAt == null);
+        // A row is only pre-fillable when it can actually link the roadmap: an
+        // entry without a string slug (malformed or partial daemon payload)
+        // must be skipped, never rendered as a literal "undefined" link.
+        const active = claims.filter(
+          (c) => c && typeof c.slug === 'string' && c.slug && c.releasedAt == null,
+        );
         const mine = active.filter(
           (c) =>
             (sessionId !== 'unknown' && c.sessionId === sessionId) ||

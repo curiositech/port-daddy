@@ -376,6 +376,31 @@ describe('sessionstart-pilot.mjs hook script', () => {
     expect(out.hookSpecificOutput.additionalContext).toContain('SITREP (end-of-turn, per-repo dial)');
   });
 
+  test('conflicting nested configs: the nearest directory wins at session start', () => {
+    // Nearest-wins contract, mirrored from the prompt tentacle: the walk
+    // exhausts all three candidate files per directory before ascending, so a
+    // child repo's opt-out in a lower-ranked file beats the ancestor's
+    // enforce in the highest-ranked file — and the ancestor keeps its own.
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    writeFileSync(
+      join(dir, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'enforce' } }),
+    );
+    const child = join(dir, 'pkg');
+    mkdirSync(join(child, '.portdaddy'), { recursive: true });
+    writeFileSync(
+      join(child, '.portdaddy', 'sitrep.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'off' } }),
+    );
+
+    const fromChild = JSON.parse(run({ cwd: child }));
+    expect(fromChild.hookSpecificOutput.additionalContext).not.toContain('SITREP (end-of-turn');
+
+    const fromParent = JSON.parse(run({ cwd: dir }));
+    expect(fromParent.hookSpecificOutput.additionalContext).toContain('SITREP (end-of-turn, per-repo dial)');
+  });
+
   test('.portdaddy/sitrep.json governs the SessionStart duty like the prompt tentacle', () => {
     const dir = makeTmp();
     mkdirSync(join(dir, '.portdaddy'), { recursive: true });
