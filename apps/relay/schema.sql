@@ -306,7 +306,8 @@ CREATE TABLE IF NOT EXISTS repo_settings (
   repo_full_name     TEXT    NOT NULL,
   sitrep_end_of_turn TEXT    NOT NULL DEFAULT 'off'
     CHECK (sitrep_end_of_turn IN ('off','suggest','enforce')),
-  settings_json      TEXT    NOT NULL DEFAULT '{}',
+  settings_json      TEXT    NOT NULL DEFAULT '{}'
+    CHECK (json_valid(settings_json)),
   created_at         INTEGER NOT NULL,
   updated_at         INTEGER NOT NULL,
   PRIMARY KEY (user_id, repo_full_name)

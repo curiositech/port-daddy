@@ -79,6 +79,8 @@ describe('normalizeRepoFullName', () => {
     expect(normalizeRepoFullName('no-slash')).toBeNull();
     expect(normalizeRepoFullName('a/b/c')).toBeNull();
     expect(normalizeRepoFullName('owner/.dotfirst')).toBeNull();
+    expect(normalizeRepoFullName('owner/.name')).toBeNull();
+    expect(normalizeRepoFullName('.owner/name')).toBeNull();
     expect(normalizeRepoFullName('owner/name with spaces')).toBeNull();
     expect(normalizeRepoFullName('-lead/repo')).toBeNull();
     expect(normalizeRepoFullName(42)).toBeNull();
