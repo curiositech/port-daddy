@@ -87,6 +87,53 @@ describe('normalizeRepoFullName', () => {
     expect(normalizeRepoFullName('owner/<script>')).toBeNull();
   });
 
+  // Adopted from the pd-purser adversarial table on this PR, with its
+  // self-contradictions corrected: 'owner/name.git' appeared in both the valid
+  // and invalid lists (it IS valid — the .git suffix is stripped by contract),
+  // and 'owner.name/name' was listed valid although GitHub owner names cannot
+  // contain dots (only alphanumerics and hyphens) — pinned as a rejection.
+  it('adopts the purser normalization table (corrected)', () => {
+    const valid: Array<[string, string]> = [
+      ['owner/name.git', 'owner/name'],
+      ['https://github.com/owner/name', 'owner/name'],
+      // RFC 3986: scheme and host are case-insensitive; the pasted-URL prefix
+      // honors that, so an uppercase-scheme paste normalizes the same way.
+      ['HTTPS://github.com/owner/name', 'owner/name'],
+      ['owner-name/name', 'owner-name/name'],
+      ['owner/Name123', 'owner/Name123'],
+      ['owner/123name', 'owner/123name'],
+      ['owner/name_with.dots', 'owner/name_with.dots'],
+      ['owner/name-with-dash', 'owner/name-with-dash'],
+      ['OWNER/NAME', 'OWNER/NAME'],
+    ];
+    for (const [input, expected] of valid) {
+      expect(normalizeRepoFullName(input)).toBe(expected);
+    }
+    const invalid = [
+      'owner/name/', // trailing slash
+      '/owner/name', // leading slash
+      'owner//name', // double slash
+      'owner/', // missing repo name
+      '/name', // missing owner
+      'owner/name?foo=bar', // query string
+      'https://github.com/owner/name/', // trailing slash after URL
+      'https://github.com/owner/name/sub', // too many segments
+      'https://github.com/owner', // missing repo
+      'https://github.com/', // missing owner/repo
+      'https://github.com', // bare host (prefix strip needs the slash)
+      'https://github.com/owner/name.git/', // slash after .git
+      'https://github.com/owner/name.git?foo=bar', // query after .git
+      'owner.name/name', // GitHub owners cannot contain dots
+      '', // empty
+      '   ', // whitespace only
+      null,
+      undefined,
+    ];
+    for (const input of invalid) {
+      expect(normalizeRepoFullName(input)).toBeNull();
+    }
+  });
+
   it('accepts underscores/dots in names and enforces the length ceilings', () => {
     expect(normalizeRepoFullName('owner/name-with-underscore_123')).toBe(
       'owner/name-with-underscore_123',
@@ -105,6 +152,20 @@ describe('normalizeSitrepLevel', () => {
     expect(normalizeSitrepLevel('ENFORCE')).toBe('enforce');
     expect(normalizeSitrepLevel('loudly')).toBeNull();
     expect(normalizeSitrepLevel(undefined)).toBeNull();
+  });
+
+  // Adopted from the pd-purser adversarial table, corrected: its invalid list
+  // literally contained the three valid values, and whitespace-padded variants
+  // ('enforce\n', 'off ') — trimming is the advertised contract, so those
+  // normalize rather than reject. The coherent rejections are pinned here.
+  it('adopts the purser sitrep-level table (corrected)', () => {
+    expect(normalizeSitrepLevel(' oFf ')).toBe('off');
+    expect(normalizeSitrepLevel('enforce\n')).toBe('enforce');
+    expect(normalizeSitrepLevel('off ')).toBe('off');
+    expect(normalizeSitrepLevel('suggest\r')).toBe('suggest');
+    for (const bad of ['on', 'enforced', 'suggested', '1', 'o', 'foo', 'foo bar', '', '   ', 123, null]) {
+      expect(normalizeSitrepLevel(bad)).toBeNull();
+    }
   });
 });
 
@@ -461,6 +522,7 @@ describe('GET /account/repos + GET /v1/repo-settings — the two surfaces agree'
     const res = await handleRepoSettingsPage(new Request(`${BASE}/account/repos`, { headers: COOKIE }), env);
     expect(res.status).toBe(200);
     expect(res.headers.get('Cache-Control')).toBe('no-store');
+    expect(res.headers.get('X-Robots-Tag')).toContain('noindex');
     const html = await res.text();
     expect(html).toContain('acme/widgets');
     expect(html).toMatch(/value="enforce"\s+checked/);

@@ -120,13 +120,16 @@ function json(status: number, body: unknown): Response {
  * this accepts the practical intersection (word chars, dots, dashes; no
  * leading dot on either segment — the rejection lives in the regex itself so
  * there is exactly one shape to reason about; both segments 1..100 chars).
+ * The pasted-URL prefix is matched case-insensitively by design: RFC 3986
+ * makes scheme and host case-insensitive, and honoring the URL's own
+ * semantics is the honest contract for an input we advertise accepting.
  *
  * @param raw - The user-typed repository identifier.
  * @returns The trimmed `owner/name`, or null when the shape is invalid.
  */
 export function normalizeRepoFullName(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
-  const trimmed = raw.trim().replace(/^https:\/\/github\.com\//, '').replace(/\.git$/, '');
+  const trimmed = raw.trim().replace(/^https:\/\/github\.com\//i, '').replace(/\.git$/, '');
   const m = /^([A-Za-z0-9](?:[A-Za-z0-9-]{0,98}[A-Za-z0-9])?)\/([A-Za-z0-9_-][A-Za-z0-9._-]{0,99})$/.exec(trimmed);
   const owner = m?.[1];
   const name = m?.[2];
