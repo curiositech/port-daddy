@@ -345,6 +345,10 @@ final class CloudFleetStore: ObservableObject {
                 detailError = nil
                 return
             }
+            // Activity is authoritative for run selection. A malformed or
+            // temporarily unavailable transcript must not erase the run row;
+            // loadDetail owns only the detail panel and may fail independently.
+            selectedRun = chosen
             if chosen.isActive
                 || chosen.id != previousSelectionID
                 || chosen.state != previousState
