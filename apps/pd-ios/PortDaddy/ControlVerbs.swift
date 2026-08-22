@@ -155,8 +155,33 @@ public enum ControlVerbs {
         .hookOnlyObserved: [],
     ]
 
+    /// Text shown when the support matrix and this reasons table disagree —
+    /// i.e. a verb was removed from `supportedVerbs` without anyone writing
+    /// down what the backend actually cannot do.
+    ///
+    /// It exists so that disagreement is LOUD. The alternative, which this
+    /// function used to have, was a `default:` returning "this backend's
+    /// adapter does not implement X" — which reads like a considered answer,
+    /// is the exact phrasing the contract below forbids, and would ship
+    /// silently.
+    static let tablesDisagree = "No reason recorded for this verb on this backend — the support matrix and the reasons table disagree. This is a bug in Port Daddy, not a limit of the backend."
+
     /// Why a verb is unsupported, per backend. Stated in the operator's terms
     /// — what the backend cannot do — not "not implemented".
+    ///
+    /// Every switch here is exhaustive with NO `default:`, deliberately. Adding
+    /// a case to `ControlVerb` or `ControlBackend` then becomes a compile error
+    /// in this function, which is the point: a new verb cannot reach an
+    /// operator's screen wearing a generic apology. That is the same
+    /// compile-time exhaustiveness `Theme.color(for:)` relies on, and it is why
+    /// neither should grow a `default:` — a default converts "the compiler
+    /// makes you answer" into "the user gets a shrug".
+    ///
+    /// The arms for verbs the backend DOES support are unreachable through
+    /// `support(for:on:)`, which only calls this after `supportedVerbs` says
+    /// no. They are spelled out anyway so the exhaustiveness is real, and they
+    /// return `tablesDisagree` because reaching them means exactly that.
+    /// `ControlVerbsTests` pins that no genuinely-unsupported pair returns it.
     static func unsupportedReason(_ verb: ControlVerb, on backend: ControlBackend) -> String {
         switch backend {
         case .cloudflareRemote:
@@ -165,13 +190,21 @@ public enum ControlVerbs {
                 return "Remote bodies cannot be suspended in place — there is no process to stop and resume. Use Checkpoint, then Kill."
             case .fork:
                 return "Remote bodies cannot be duplicated from a running state. Checkpoint first, then start a new body from it."
-            default:
-                return "This backend's adapter does not implement \(verb.rawValue)."
+            case .steer, .interrupt, .kill, .checkpoint:
+                return tablesDisagree
             }
         case .hookOnlyObserved:
-            return "This body is observed through hooks only — Port Daddy can read its transcript but holds no control channel to it."
+            // Every verb, one reason: the backend has no control channel at
+            // all, so the limit is the same whichever verb you reach for.
+            switch verb {
+            case .steer, .interrupt, .pause, .kill, .checkpoint, .fork:
+                return "This body is observed through hooks only — Port Daddy can read its transcript but holds no control channel to it."
+            }
         case .localSameUID:
-            return "This backend's adapter does not implement \(verb.rawValue)."
+            switch verb {
+            case .steer, .interrupt, .pause, .kill, .checkpoint, .fork:
+                return tablesDisagree
+            }
         }
     }
 
@@ -259,6 +292,13 @@ public struct ControlCommand: Identifiable, Equatable, Sendable {
     /// ADR-0122 §5 forbids. The view surfaces this rather than rendering a
     /// blank, so a relay that stops recording reasons is visible immediately.
     public var isMissingRequiredReason: Bool {
-        !state.isInFlight && state != .acknowledged && (failureReason ?? "").isEmpty
+        // `.trimmingCharacters` and not just `.isEmpty`: a reason of "   " is
+        // present by length and absent by meaning, which is the silent
+        // half-control state ADR-0122 §5 forbids wearing a filled-in field's
+        // clothes. Same rule the relay applies to a relay_readable envelope's
+        // `reason` — a justification has to say something.
+        !state.isInFlight
+            && state != .acknowledged
+            && (failureReason ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }

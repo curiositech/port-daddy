@@ -63,6 +63,33 @@ final class ControlVerbsTests: XCTestCase {
         }
     }
 
+    /// Non-empty is not the same as answered. `unsupportedReason` used to end
+    /// in `default:` returning "this backend's adapter does not implement X" —
+    /// non-empty, so the test above passed, and generic, so it told the
+    /// operator nothing and contradicted that function's own stated contract
+    /// ("what the backend cannot do — not 'not implemented'").
+    ///
+    /// The `default:` is gone; the switches are exhaustive, so a new verb is a
+    /// compile error rather than a shrug. What the compiler cannot catch is a
+    /// verb being REMOVED from `supportedVerbs` without a reason being written
+    /// for it — that pair would land on the `tablesDisagree` arm. This is the
+    /// test that catches it.
+    func testNoUnsupportedVerbFallsBackToTheTablesDisagreeMessage() {
+        for backend in ControlBackend.allCases {
+            for availability in ControlVerbs.matrix(for: backend) where !availability.support.isSupported {
+                XCTAssertNotEqual(
+                    availability.support.reason,
+                    ControlVerbs.tablesDisagree,
+                    """
+                    \(availability.verb.rawValue) is unsupported on \(backend.rawValue) but has no reason \
+                    written for it — supportedVerbs and unsupportedReason disagree. Add the real limit to \
+                    unsupportedReason rather than letting the operator read a bug report.
+                    """
+                )
+            }
+        }
+    }
+
     /// The reason must be about the backend, not about Port Daddy's backlog,
     /// and it must not point the operator at a substitute that does something
     /// different. Pause's reason names checkpoint-then-kill explicitly.
@@ -180,6 +207,35 @@ final class ControlVerbsTests: XCTestCase {
     /// Every lifecycle state renders through the shared maritime vocabulary
     /// rather than a private palette — ADR-0125 §7, "no surface hand-picks
     /// letters".
+    /// A reason of "   " is present by length and absent by meaning. The check
+    /// was `(failureReason ?? "").isEmpty`, which let it through — the silent
+    /// half-control state ADR-0122 §5 forbids, wearing a filled-in field's
+    /// clothes. Same rule the relay applies to a relay_readable envelope's
+    /// `reason`: a justification has to say something.
+    func testAWhitespaceOnlyFailureReasonIsStillMissing() {
+        func command(_ reason: String?) -> ControlCommand {
+            ControlCommand(
+                id: "cmd_ws",
+                verb: .interrupt,
+                backend: .cloudflareRemote,
+                state: .failed,
+                failureReason: reason,
+                jti: "jti_ws",
+                authorityEpoch: 7,
+                issuedAt: Date(timeIntervalSince1970: 1_755_820_000)
+            )
+        }
+        for blank in ["   ", "\t", "\n", " \n\t "] {
+            XCTAssertTrue(
+                command(blank).isMissingRequiredReason,
+                "a failure reason of \(blank.debugDescription) is not a reason"
+            )
+        }
+        // Real content with whitespace around it is a reason — the rule is
+        // "must say something", not "must be pre-trimmed".
+        XCTAssertFalse(command("  adapter refused the verb  ").isMissingRequiredReason)
+    }
+
     func testEveryCommandStateHasACoordinationState() {
         for state in CommandState.allCases {
             let coordination = state.coordinationState
