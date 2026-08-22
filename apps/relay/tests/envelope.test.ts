@@ -357,6 +357,45 @@ describe('envelope signing — real signature over the binding', () => {
     expect(await verifyEnvelopeSig(tampered)).toBe(false);
   });
 
+  // The three tamper cases below were added because mutation testing showed the
+  // suite could not tell whether `sender`, `seq`, and `iat` were bound at all:
+  // deleting each from the component list in envelopeBindingMessage left the
+  // whole file green. The channel-splice test above is not transitive — it fails
+  // for channel because the two channel strings differ, and says nothing about
+  // the fields beside it. Each case names the attack the binding is what stops.
+
+  it('verification fails when the sender is swapped (impersonation on the same channel)', async () => {
+    // Unbound sender: one member's signature would validate for an envelope
+    // attributed to another member on their shared channel.
+    const unsigned = unsignedReadable();
+    const envelope: RelayReadableEnvelope = { ...unsigned, sig: await signEnvelope(PRIV, unsigned) };
+    expect(await verifyEnvelopeSig({ ...envelope, sender: 'a'.repeat(64) })).toBe(false);
+  });
+
+  it('verification fails when seq is moved (replay at another chain position)', async () => {
+    // Unbound seq: a captured envelope could be re-injected at any position in
+    // the per-(sender, channel) chain, so the chain would order forgeries.
+    const unsigned = unsignedReadable();
+    const envelope: RelayReadableEnvelope = { ...unsigned, sig: await signEnvelope(PRIV, unsigned) };
+    expect(await verifyEnvelopeSig({ ...envelope, seq: unsigned.seq + 1 })).toBe(false);
+    expect(await verifyEnvelopeSig({ ...envelope, seq: unsigned.seq - 1 })).toBe(false);
+  });
+
+  it('verification fails when iat is moved (replay at another time)', async () => {
+    // Unbound iat: any freshness window built on iat would be advisory, because
+    // the timestamp could be rewritten without invalidating the signature.
+    const unsigned = unsignedReadable();
+    const envelope: RelayReadableEnvelope = { ...unsigned, sig: await signEnvelope(PRIV, unsigned) };
+    expect(await verifyEnvelopeSig({ ...envelope, iat: unsigned.iat + 3600 })).toBe(false);
+  });
+
+  it('verification fails when the harbor is swapped (cross-tenant splice)', async () => {
+    // Unbound harbor: a signature made in one tenant would validate in another.
+    const unsigned = unsignedReadable();
+    const envelope: RelayReadableEnvelope = { ...unsigned, sig: await signEnvelope(PRIV, unsigned) };
+    expect(await verifyEnvelopeSig({ ...envelope, harbor: 'other-harbor' })).toBe(false);
+  });
+
   it('signs and verifies the sealed variant over the AEAD ciphertext', async () => {
     const unsigned: Omit<SealedEnvelope, 'sig'> = {
       schema: ENVELOPE_SCHEMA_ID,
@@ -481,6 +520,67 @@ describe('envelopeBindingMessage — the signature actually binds the tuple', ()
     const a = envelopeBindingMessage({ ...base, payload: { x: 1 } } as never);
     const b = envelopeBindingMessage({ ...base, payload: { x: 2 } } as never);
     expect(a).not.toBe(b);
+  });
+
+  it('SECURITY: every routing field is bound — changing any one alone changes the binding', () => {
+    // A per-field sweep, because the separator tests above are not a substitute
+    // for it: each of them varies TWO fields at once, so it still fails if the
+    // field it is named for is dropped from the binding entirely. Removing
+    // `sender`, `seq`, or `iat` from the component list used to leave the whole
+    // suite green — this is the test that notices.
+    const reference = envelopeBindingMessage({ ...base, payload: {} } as never);
+    const variants: Array<readonly [string, Record<string, unknown>]> = [
+      ['harbor', { harbor: 'h2' }],
+      ['channel', { channel: 'c2' }],
+      ['sender', { sender: 's2' }],
+      ['seq', { seq: 2 }],
+      ['iat', { iat: 1001 }],
+    ];
+    for (const [field, override] of variants) {
+      expect(
+        envelopeBindingMessage({ ...base, payload: {}, ...override } as never),
+        `${field} is not bound into the signature`,
+      ).not.toBe(reference);
+    }
+  });
+
+  it('KNOWN ANSWER: the binding digest is the wire contract, schema tag and classification included', () => {
+    // Two components cannot be reached by varying inputs: ENVELOPE_SCHEMA_ID is
+    // a constant, and `classification` is fixed within each variant. Dropping
+    // either from the component list changes these digests and nothing else in
+    // the suite, so this is where they are pinned.
+    //
+    // What each one stops: the schema tag prevents a signature over some other
+    // pd binding message of the same arity from being replayed as an envelope
+    // signature; `classification` prevents a sealed envelope's signature from
+    // validating against a relay_readable envelope with the same routing tuple
+    // whose payload happens to hash to the same content digest.
+    //
+    // These digests are the wire contract, and any verifier — Swift on device,
+    // Rust in pd-vault, Python in the chain tools — must reproduce them byte for
+    // byte. Changing them is a schema revision (v2), never a refactor: an
+    // in-place edit here silently invalidates every signature already written.
+    const readable = {
+      schema: ENVELOPE_SCHEMA_ID, v: 1, classification: 'relay_readable',
+      harbor: 'github', channel: 'github:webhook:pull_request',
+      sender: 'f'.repeat(64), seq: 3, iat: 1755648000,
+      payload: { event_type: 'pull_request', delivery_id: 'd-3' },
+      reason: 'github webhook relay: payload is GitHub-public data',
+    };
+    expect(envelopeBindingMessage(readable as never)).toBe(
+      'ba742248ad168e4ea4ec3bf3eb017d0657d205cd72f9b29281833446b352b916',
+    );
+
+    const sealed = {
+      schema: ENVELOPE_SCHEMA_ID, v: 1, classification: 'sealed',
+      harbor: 'a'.repeat(64), channel: `${'a'.repeat(64)}:ops:deploys`,
+      sender: 'f'.repeat(64), seq: 9, iat: 1755648000,
+      alg: 'aes-256-gcm', epoch: 1, nonce: 'AAAAAAAAAAAAAAAB',
+      ciphertext: 'kx3fO2ZQm1sVJb9tYc4hRw7nE8pLdAq6uG5iT0XyBjM',
+    };
+    expect(envelopeBindingMessage(sealed as never)).toBe(
+      'd83b2945dba250077672737ca7bb12e5b26490589fce0e00b16df6a73ecadf3a',
+    );
   });
 
   it('survives the transit round trip (sign here, verify after parse)', () => {
