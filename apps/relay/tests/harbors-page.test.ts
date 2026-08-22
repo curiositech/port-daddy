@@ -517,6 +517,46 @@ describe('XSS — member identities are escaped', () => {
     expect(html).not.toContain('onerror="');
     expect(html).toContain('&lt;img src=x onerror=&quot;alert(&#39;m&#39;)&quot;&gt;');
   });
+
+  it('escapes a hostile HARBOR NAME on both the list and the detail page', async () => {
+    // Logins are not the only operator-supplied string on these pages. The
+    // harbor namespace/name reaches the <h1>, the breadcrumb, the <title>, and
+    // the list row link — every one of those must escape, not just the one the
+    // first test happened to cover.
+    const fx = makeParleyDb();
+    const env = makeEnv(fx.db);
+    await seedDock(env);
+    const evil = `dock"><script>alert(1)</script>`;
+    const dock = fx.harbors.find((h) => h.name === 'dock')!;
+    dock.name = evil;
+
+    const listHtml = await (
+      await handleHarborsPage(req(listPath, { session: ALICE_SESSION }), env)
+    ).text();
+    expect(listHtml).not.toMatch(/<script[\s>]/i);
+    expect(listHtml).toContain('&lt;script&gt;');
+
+    const detailHtml = await (
+      await handleHarborDetailPage(req(detailPath, { session: ALICE_SESSION }), env, 'alice', evil)
+    ).text();
+    expect(detailHtml).not.toMatch(/<script[\s>]/i);
+  });
+
+  it('escapes a hostile member_kind label (the other user-shaped column)', async () => {
+    const fx = makeParleyDb();
+    const env = makeEnv(fx.db);
+    await seedDock(env);
+    const dock = fx.harbors.find((h) => h.name === 'dock')!;
+    fx.memberships.push({
+      harbor_id: dock.id, member_kind: `<b>spoofed</b>` as never, member_id: 'u_alice',
+      role: `owner"><script>x</script>` as never, added_at: 2000, added_by: 'u_alice',
+    });
+    const html = await (
+      await handleHarborDetailPage(req(detailPath, { session: ALICE_SESSION }), env, 'alice', 'dock')
+    ).text();
+    expect(html).not.toMatch(/<script[\s>]/i);
+    expect(html).not.toContain('<b>spoofed</b>');
+  });
 });
 
 // ── Transport ────────────────────────────────────────────────────────────────
