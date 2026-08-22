@@ -114,10 +114,12 @@ interface SessionsRouteDeps {
     release(sessionId: string): number;
   };
   /**
-   * ADR-0040 souls store (subset). When wired, session/note/file-claim writes
-   * enforce the daemon-minted credential (#8877 / ADR-0122 slice 1): a
-   * presented credential must verify (401 otherwise), and a bare self-asserted
-   * agentId is admitted only as a flagged, logged legacy downgrade.
+   * ADR-0040 souls store (subset). Session/note/file-claim writes REQUIRE the
+   * daemon-minted credential (#8877 / ADR-0122 slice 1): a self-asserted
+   * agentId without a credential is rejected 401, a presented credential must
+   * verify (401 otherwise), and a verified credential cannot write under
+   * another soul's name (403). Anonymous writes (no identity claim at all)
+   * remain possible only where the route accepts unattributed writes.
    */
   actorSouls?: IdentityVerifier | null;
 }
@@ -211,26 +213,27 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
    * mutation routes.
    *
    * Why it exists: sessions and notes are durable attributed records, and the
-   * legacy `mutationAgentId` helper accepted whatever string the caller
+   * old `mutationAgentId` helper accepted whatever string the caller
    * asserted — the impersonation gap issue #8877 records. This wrapper keeps
-   * the legacy extraction (body `agentId`, `x-agent-id` header) but routes the
-   * result through `resolveWriteIdentity`, whose design is: a presented
-   * daemon-minted credential must verify (invalid ⇒ 401, never a silent
-   * fallback), a valid credential cannot write under another soul's name
-   * (403), and a bare self-asserted agentId is admitted only as a LOGGED,
-   * FLAGGED legacy downgrade so no attributed write is silently unverified.
+   * the extraction points (body `agentId`, `x-agent-id` header) but routes the
+   * result through `resolveWriteIdentity`, whose design is fail-closed with
+   * no middle state: a self-asserted agentId with no credential ⇒ 401, a
+   * presented credential must verify (invalid ⇒ 401, never a silent
+   * fallback), and a valid credential cannot write under another soul's name
+   * (403). Only a request asserting no identity at all resolves anonymous.
    *
    * @param request - The incoming Fastify request (headers + body carriers).
    * @param bodyAgentId - The raw `agentId` field from the request body.
-   * @param route - Route label for structured downgrade/reject logs.
-   * @returns On success, the effective agentId plus the full identity verdict
-   *          (verified / downgraded / anonymous) for stamping records and
-   *          responses; on failure, the HTTP status and error body to return.
+   * @param route - Route label for structured reject logs.
+   * @returns On success, the effective agentId plus the identity verdict
+   *          (verified / anonymous) for stamping records and responses; on
+   *          failure, the HTTP status and error body to return.
    */
   const mutationIdentity = (
     request: FastifyRequest,
     bodyAgentId: unknown,
     route: string,
+    options?: { requireIdentity?: boolean },
   ):
     | { success: true; agentId: string | null; verdict: Extract<IdentityWriteVerdict, { ok: true }> }
     | { success: false; httpStatus: number; result: Record<string, unknown> } => {
@@ -244,6 +247,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       assertedAgentId: base.agentId,
       route,
       logger,
+      requireIdentity: options?.requireIdentity,
     });
     if (!verdict.ok) {
       return {
@@ -255,10 +259,33 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     return { success: true, agentId: verdict.agentId, verdict };
   };
 
+  /**
+   * Authorize a file-claim mutation (claim/release) against the target
+   * session.
+   *
+   * Purpose: file claims are coordination state OWNED by a session; letting
+   * any caller mutate them under the owner's name is the blocking/stealing
+   * attack the #8877 audit records. The design checks, in order: an agentId
+   * is present (claims are always attributed), the session exists and is
+   * active, the asserted agentId matches the session's owner string, and —
+   * when the session was started with a verified identity stamp — that the
+   * caller's VERIFIED minted actor is the same soul that owns the session.
+   * The last check is what makes the string comparison sound: a session
+   * stamped `identity.actorId` can only have its claims mutated by a caller
+   * holding that soul's credential, not by anyone who learned the display
+   * name.
+   *
+   * @param sessionId - Target session id from the route path.
+   * @param agentId - Effective attribution id from the identity verdict.
+   * @param action - Which mutation is being authorized (for error text).
+   * @param verdict - The successful identity verdict for this request.
+   * @returns Success, or the error body (and implied status) to return.
+   */
   const authorizeFileMutationRoute = (
     sessionId: string,
     agentId: string | null,
     action: 'claiming' | 'releasing',
+    verdict?: Extract<IdentityWriteVerdict, { ok: true }>,
   ): { success: true } | { success: false; result: Record<string, unknown> } => {
     if (!agentId) {
       return {
@@ -312,6 +339,28 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       };
     }
 
+    // When the session record carries a verified identity stamp, the caller's
+    // minted actor must be the SAME soul — knowing the owner's display string
+    // is not ownership.
+    const stamped = (session as { metadata?: { identity?: { verified?: unknown; actorId?: unknown } } })
+      ?.metadata?.identity;
+    if (
+      stamped &&
+      stamped.verified === true &&
+      typeof stamped.actorId === 'string' &&
+      verdict?.kind === 'verified' &&
+      verdict.actorId !== stamped.actorId
+    ) {
+      return {
+        success: false,
+        result: {
+          success: false,
+          error: `the presented credential's actor does not own session "${sessionId}"`,
+          code: 'SESSION_AGENT_MISMATCH',
+        },
+      };
+    }
+
     return { success: true };
   };
 
@@ -322,10 +371,11 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
    * Purpose: notes are the durable narrative of record (they feed
    * changelog-from-note, briefings, and roster projections), so this is a
    * security-relevant write boundary. The design enforces, in order: content
-   * validation, the #8877 identity write boundary (forged credentials 401
-   * before anything persists; self-asserted ids admitted only as a visible
-   * downgrade), the adversarial-project envelope guard, and only then the
-   * actual note write — with the identity verdict echoed on the response.
+   * validation, the #8877 identity write boundary (a self-asserted id without
+   * a daemon-minted credential is 401, a forged credential is 401, another
+   * soul's name is 403 — before anything persists), the adversarial-project
+   * envelope guard, and only then the actual note write — with the identity
+   * verdict echoed on the response.
    *
    * @param request - The incoming Fastify request.
    * @param reply - Fastify reply used to set the HTTP status code.
@@ -390,8 +440,8 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       return result;
     }
 
-    // Surface the identity verdict on the response so a downgraded (legacy
-    // self-asserted) note write is visible to the caller, never silent.
+    // Surface the verified identity verdict on the response so the caller
+    // sees which minted actor the note was attributed to.
     if (noteIdentity.verdict.kind !== 'anonymous') {
       result.identity = noteIdentity.verdict.identity;
     }
@@ -488,8 +538,9 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       });
 
       // #8877: the session row is the durable attributed record — stamp the
-      // identity verdict into its metadata so a legacy self-asserted start
-      // stays visibly downgraded on the record itself.
+      // verified identity verdict into its metadata so the record itself
+      // testifies which minted actor started it (and a caller-supplied
+      // `identity` key can never pre-fill the daemon's verdict slot).
       const stampedMetadata = stampIdentityMetadata(mergedMetadata, sessionAgent.verdict);
 
       const result = sessions.start(purpose, {
@@ -642,7 +693,11 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const sessionIdParam = (request.params as any).id;
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
       const body = (request.body || {}) as any;
-      const sessionAgent = mutationIdentity(request, body.agentId, 'POST /sessions/:id/takeover');
+      // Takeover is ALWAYS attributed: when no agentId is asserted the
+      // successor inherits the predecessor's agent id, so an anonymous
+      // takeover would write an attributed record under someone else's name.
+      // requireIdentity turns even a bare no-claim takeover into a 401.
+      const sessionAgent = mutationIdentity(request, body.agentId, 'POST /sessions/:id/takeover', { requireIdentity: true });
       if (!sessionAgent.success) {
         reply.code(sessionAgent.httpStatus);
         return sessionAgent.result;
@@ -893,7 +948,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return requestAgent.result;
       }
 
-      const routeAuth = authorizeFileMutationRoute(sessionId, requestAgent.agentId, 'claiming');
+      const routeAuth = authorizeFileMutationRoute(sessionId, requestAgent.agentId, 'claiming', requestAgent.verdict);
       if (!routeAuth.success) {
         reply.code(errorStatus(routeAuth.result));
         return routeAuth.result;
@@ -1048,7 +1103,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return requestAgent.result;
       }
 
-      const routeAuth = authorizeFileMutationRoute(sessionId, requestAgent.agentId, 'releasing');
+      const routeAuth = authorizeFileMutationRoute(sessionId, requestAgent.agentId, 'releasing', requestAgent.verdict);
       if (!routeAuth.success) {
         reply.code(errorStatus(routeAuth.result));
         return routeAuth.result;

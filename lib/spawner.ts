@@ -287,6 +287,13 @@ interface AgentRecord extends SpawnedAgent {
   childProcess: ChildProcess | null;
   bondId?: number | null;
   bondUsd?: number;
+  /**
+   * ADR-0040 daemon-minted actor credential returned by this agent's
+   * `/sugar/begin` (#8877 / ADR-0122). `/sugar/done` (both the normal
+   * completion path and kill()) must present it — attributed session writes
+   * are rejected 401 without a verified credential.
+   */
+  actorCredential?: string | null;
 }
 
 export interface ResolvedSpawnRuntime {
@@ -367,6 +374,8 @@ function warnTelemetryBypass(approval: TelemetryBypassApproval): void {
 
 interface PdCoordinateOptions {
   pid?: number | null;
+  /** ADR-0040 actor credential to present as `x-actor-credential` (#8877). */
+  credential?: string | null;
 }
 
 function normalizeCoordinationPid(pid: number | null | undefined): number | undefined {
@@ -379,19 +388,44 @@ function registryPidFor(record: Pick<AgentRecord, 'childProcess'>): number {
   return normalizeCoordinationPid(record.childProcess?.pid) ?? 0;
 }
 
-async function pdCoordinate(path: string, body: Record<string, unknown>, options: PdCoordinateOptions = {}): Promise<void> {
+/**
+ * Fire a coordination write at the daemon's own HTTP surface.
+ *
+ * Purpose: the spawner coordinates its child agents through the SAME public
+ * routes external agents use (register, begin, heartbeat, done) so spawned
+ * agents are first-class citizens of the coordination plane, not a side
+ * channel. Failures stay silent by design — coordination must never block a
+ * spawn — but the parsed response body is now RETURNED so the caller can
+ * capture what `/sugar/begin` minted: the ADR-0040 actor credential that
+ * every later attributed write (#8877 / ADR-0122) must present via
+ * `options.credential`.
+ *
+ * @param path - Daemon route path (e.g. '/sugar/begin').
+ * @param body - JSON body to POST.
+ * @param options - Optional child pid (X-Pid) and actor credential
+ *        (x-actor-credential) headers.
+ * @returns The parsed JSON response body, or null on any failure.
+ */
+async function pdCoordinate(path: string, body: Record<string, unknown>, options: PdCoordinateOptions = {}): Promise<Record<string, unknown> | null> {
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     const pid = normalizeCoordinationPid(options.pid);
     if (pid !== undefined) headers['X-Pid'] = String(pid);
+    if (options.credential) headers['x-actor-credential'] = options.credential;
 
-    await fetch(`${getDaemonTcpUrl(process.env.PORT_DADDY_URL)}${path}`, {
+    const res = await fetch(`${getDaemonTcpUrl(process.env.PORT_DADDY_URL)}${path}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
     });
+    try {
+      return await res.json() as Record<string, unknown>;
+    } catch {
+      return null;
+    }
   } catch {
     // Silent — coordination failures never block spawning
+    return null;
   }
 }
 
@@ -2056,8 +2090,11 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       metadata: coordinationMetadata,
     }, { pid: initialRegistryPid });
 
-    // PD coordination: start session
-    await pdCoordinate('/sugar/begin', {
+    // PD coordination: start session. Begin is the ADR-0040 mint door: an
+    // uncredentialed begin mints this agent's soul and returns its credential
+    // ONCE — capture it, because `/sugar/done` (and every other attributed
+    // write) rejects without it (#8877 / ADR-0122).
+    const beginResponse = await pdCoordinate('/sugar/begin', {
       agentId,
       name: displayName,
       type: 'spawned',
@@ -2067,6 +2104,9 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       lifecycle: 'ephemeral',
       metadata: coordinationMetadata,
     }, { pid: initialRegistryPid });
+    record.actorCredential = typeof beginResponse?.credential === 'string'
+      ? beginResponse.credential
+      : null;
 
     // Start heartbeat interval
     record.heartbeatInterval = setInterval(async () => {
@@ -2271,7 +2311,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         note: doneNote,
         skipOriginCheck: true,
         skipOriginCheckReason: 'spawner-managed agent — lifecycle is subprocess, not feature branch',
-      });
+      }, { credential: record.actorCredential });
     }
 
     // Record the conversation + finalize transcript. Order matters: we append
@@ -2459,7 +2499,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       status: 'abandoned',
       skipOriginCheck: true,
       skipOriginCheckReason: 'spawner-managed agent killed by operator',
-    }).catch(() => {});
+    }, { credential: record.actorCredential }).catch(() => {});
 
     // Finalize any open transcript for this agent. We don't keep the
     // transcriptId on the AgentRecord (to avoid a circular type dep on the

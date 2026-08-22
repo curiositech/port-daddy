@@ -1,6 +1,6 @@
 /**
- * lib/identity-write-boundary.ts — enforce daemon-minted identity at write
- * boundaries (Harbor Authority / ADR-0122 slice 1; closes the gap in #8877).
+ * lib/identity-write-boundary.ts — REQUIRE daemon-minted identity at every
+ * attributed write boundary (Harbor Authority / ADR-0122 slice 1; closes #8877).
  *
  * ════════════════════════════════════════════════════════════════════════════
  *  WHY THIS MODULE EXISTS (motivation)
@@ -8,41 +8,46 @@
  * ADR-0040 gave the daemon a mint (`lib/actor-souls.ts`): the only component
  * that issues principals, each bound to a `<actor_id>.<secret>` lookup-token
  * credential. But the mint was only *wired into the economic choke*
- * (budget-guard) — the legacy write routes (sessions, notes, file claims,
- * locks) kept accepting a bare self-asserted `agentId` string from the body or
- * an `x-agent-id` header. Issue #8877 records the consequence: an agent can
- * write durable, attributed records (sessions, notes) under any name it
- * likes — impersonation and reputation-whitewashing via the legacy paths.
+ * (budget-guard) — the write routes (sessions, notes, file claims, locks,
+ * salvage, commitments) kept accepting a bare self-asserted `agentId` string
+ * from the body or an `x-agent-id` header. Issue #8877 records the
+ * consequence: an agent could write durable, attributed records under any
+ * name it liked — impersonation and reputation-whitewashing.
  *
- * This module is the shared verdict function those write routes now call.
- * Its design goal is to make identity at a write boundary a three-state fact
- * that can never be silently wrong:
+ * This module is the shared verdict function every attributed write route
+ * calls. The verdict is deliberately TWO-state plus rejection — there is no
+ * middle "admitted but flagged" state, per operator directive (2026-08-22):
+ * legacy self-asserted acceptance is deleted, not deprecated.
  *
- *   1. VERIFIED   — the caller presented a daemon-minted credential and it
- *                   checked out. The write is attributed to the minted
- *                   actor_id (self-asserted display names must agree).
- *   2. DOWNGRADED — no credential, only a self-asserted string. The write is
- *                   still admitted (hard-rejecting would break every existing
- *                   client), but LOUDLY: a structured
- *                   `legacy_identity_downgrade` log line fires and the
- *                   verdict carries a flag object the route persists on the
- *                   record and echoes in the response. Visible, never silent.
- *   3. ANONYMOUS  — no identity claim at all. Routes that permit anonymous
- *                   writes keep permitting them; nothing to attribute means
- *                   nothing to forge.
+ *   1. VERIFIED  — the caller presented a daemon-minted credential and it
+ *                  checked out. The write is attributed to the minted
+ *                  actor_id (a self-asserted display name must not resolve
+ *                  to a different soul).
+ *   2. ANONYMOUS — no identity claim at all, on a route that legitimately
+ *                  accepts unattributed writes (an anonymous quick note, a
+ *                  session started with no agent). Nothing to attribute
+ *                  means nothing to forge. Routes whose writes are always
+ *                  attributed (locks, file claims, salvage, sugar/done)
+ *                  pass `requireIdentity: true` and never see this state.
  *
- * And two rejection rules that make forgery fail closed:
+ * And the fail-closed rejection rules:
  *
- *   - A credential that is PRESENT but does not verify is a 401 REJECT,
- *     never a downgrade. Failing a credential check must not degrade into
- *     the legacy path, or the enforcement is theater.
+ *   - A self-asserted `agentId` with NO credential is a 401
+ *     `IDENTITY_CREDENTIAL_REQUIRED`. Attribution is never taken on faith.
+ *   - A credential that is PRESENT but does not verify is a 401
+ *     `IDENTITY_CREDENTIAL_INVALID`. A failed check never degrades into
+ *     acceptance.
  *   - A verified credential cannot launder a DIFFERENT soul's name: when the
- *     self-asserted `agentId` resolves (directly or via alias) to a minted
- *     actor other than the credential's, that is a 403 REJECT.
+ *     asserted `agentId` resolves (directly or via alias) to a minted actor
+ *     other than the credential's, that is a 403 `IDENTITY_ALIAS_MISMATCH`.
+ *   - A credential presented while the souls store is unavailable is a 503
+ *     `IDENTITY_VERIFIER_UNAVAILABLE` — never verified by assumption.
  *
  * This EXTENDS actor-souls rather than inventing a parallel mechanism: the
  * credential format, verification, and alias resolution are all ADR-0040's,
- * unchanged. What is new is only the per-write verdict + downgrade flagging.
+ * unchanged. Credentials are obtained from the two mint doors — POST
+ * /actors/register, and POST /sugar/begin (which mints for uncredentialed
+ * callers and returns the credential once).
  */
 
 import type { ActorSouls } from './actor-souls.js';
@@ -51,26 +56,17 @@ import type { SoulClass } from './actor-souls.js';
 /** The subset of the ADR-0040 souls store this boundary needs. */
 export type IdentityVerifier = Pick<ActorSouls, 'verifyCredential' | 'resolveActor'>;
 
-/**
- * Durable flag persisted on a record written through a legacy self-asserted
- * identity. Stored in the record's metadata so the downgrade is visible
- * forever, not just in a log line that rotates away.
- */
-export interface LegacyIdentityDowngrade {
-  /** Discriminator so consumers can find these flags in mixed metadata. */
-  mode: 'legacy-self-asserted';
-  /** The unverified string the caller asserted. */
-  assertedAgentId: string;
-  /** What the souls store knows about that string ('unknown' = no soul). */
-  soulClass: SoulClass;
-  /** When the downgrade was admitted (ms epoch). */
-  downgradedAt: number;
-}
-
 /** Structured logger shape (matches the daemon's route logger). */
 export interface BoundaryLogger {
   info(msg: string, meta?: Record<string, unknown>): void;
   error(msg: string, meta?: Record<string, unknown>): void;
+}
+
+/** Metadata fragment stamped on records written through a verified identity. */
+export interface VerifiedIdentityStamp {
+  verified: true;
+  actorId: string;
+  soulClass: SoulClass;
 }
 
 export type IdentityWriteVerdict =
@@ -83,21 +79,14 @@ export type IdentityWriteVerdict =
       agentId: string;
       soulClass: SoulClass;
       /** Metadata fragment routes persist on the written record. */
-      identity: { verified: true; actorId: string; soulClass: SoulClass };
-    }
-  | {
-      ok: true;
-      kind: 'downgraded';
-      agentId: string;
-      soulClass: SoulClass;
-      downgrade: LegacyIdentityDowngrade;
-      identity: { verified: false; downgrade: LegacyIdentityDowngrade };
+      identity: VerifiedIdentityStamp;
     }
   | { ok: true; kind: 'anonymous'; agentId: null; identity: null }
   | {
       ok: false;
       httpStatus: 401 | 403 | 503;
       code:
+        | 'IDENTITY_CREDENTIAL_REQUIRED'
         | 'IDENTITY_CREDENTIAL_INVALID'
         | 'IDENTITY_ALIAS_MISMATCH'
         | 'IDENTITY_VERIFIER_UNAVAILABLE';
@@ -111,13 +100,17 @@ export interface ResolveWriteIdentityParams {
   credential?: string | null;
   /** Self-asserted display identifier from body/header, already trimmed. */
   assertedAgentId?: string | null;
-  /** Route label for the structured downgrade/reject logs (e.g. 'POST /notes'). */
+  /** Route label for the structured reject logs (e.g. 'POST /notes'). */
   route: string;
   /** Multi-tenant scope; defaults to the souls store's default harbor. */
   harbor?: string;
   logger?: BoundaryLogger;
-  /** Injectable clock for deterministic tests. */
-  now?: () => number;
+  /**
+   * When true the route's writes are ALWAYS attributed (locks, file claims,
+   * salvage, sugar/done): even a request asserting no identity at all is
+   * rejected 401 instead of resolving anonymous.
+   */
+  requireIdentity?: boolean;
 }
 
 /**
@@ -148,33 +141,32 @@ export function extractActorCredential(
 }
 
 /**
- * Resolve the identity a write should be attributed to, enforcing the
- * daemon-minted credential where one is presented and emitting a loud,
- * structured "legacy-identity downgrade" where only a self-asserted string
- * arrived (issue #8877 / ADR-0122 slice 1).
+ * Resolve the identity a write should be attributed to, requiring the
+ * daemon-minted ADR-0040 credential for every attributed write
+ * (#8877 / ADR-0122 slice 1).
  *
  * Design invariants (see the module header for the full rationale):
- * - A presented-but-invalid credential REJECTS 401 — it never falls back to
- *   the legacy path, because a silent fallback would let forgery masquerade
- *   as a downgrade.
+ * - A self-asserted `agentId` with no credential REJECTS 401
+ *   `IDENTITY_CREDENTIAL_REQUIRED` — self-assertion is never attribution.
+ * - A presented-but-invalid credential REJECTS 401
+ *   `IDENTITY_CREDENTIAL_INVALID` — a failed check never falls back to
+ *   acceptance.
  * - A valid credential + an asserted agentId that resolves to a DIFFERENT
  *   minted soul REJECTS 403 — a real credential must not launder another
  *   soul's name onto a durable record.
  * - A credential presented while the souls store is unavailable REJECTS 503 —
  *   fail-closed, mirroring actor-souls' register() posture: never verify by
- *   assumption.
- * - A bare self-asserted id is ADMITTED as a flagged downgrade (hard
- *   enforcement would break every pre-ADR-0122 client), with a structured
- *   `legacy_identity_downgrade` log AND a metadata flag the caller persists
- *   on the record, so the record itself testifies it was legacy-attributed.
+ *   assumption. (An UNCREDENTIALED attributed write while the store is down
+ *   still 401s — it would 401 with the store up, too.)
+ * - No identity claim at all resolves `anonymous` ONLY when the route accepts
+ *   unattributed writes; with `requireIdentity: true` it REJECTS 401.
  *
  * @param params - Souls store, credential, asserted id, route label, logger.
- * @returns A verdict: verified / downgraded / anonymous, or a typed rejection
- *          with the HTTP status the route should return.
+ * @returns A verdict: verified / anonymous, or a typed rejection with the
+ *          HTTP status the route should return.
  */
 export function resolveWriteIdentity(params: ResolveWriteIdentityParams): IdentityWriteVerdict {
   const { souls, credential, assertedAgentId, route, harbor, logger } = params;
-  const now = params.now ?? Date.now;
   const asserted = typeof assertedAgentId === 'string' && assertedAgentId.trim()
     ? assertedAgentId.trim()
     : null;
@@ -203,7 +195,7 @@ export function resolveWriteIdentity(params: ResolveWriteIdentityParams): Identi
         ok: false,
         httpStatus: 401,
         code: 'IDENTITY_CREDENTIAL_INVALID',
-        error: 'actor credential did not verify; forged or stale credentials are rejected, never downgraded',
+        error: 'actor credential did not verify; forged or stale credentials are rejected',
       };
     }
     if (asserted) {
@@ -234,29 +226,19 @@ export function resolveWriteIdentity(params: ResolveWriteIdentityParams): Identi
     };
   }
 
-  if (asserted) {
-    const soulClass: SoulClass = souls ? souls.resolveActor(asserted, harbor).soulClass : 'unknown';
-    const downgrade: LegacyIdentityDowngrade = {
-      mode: 'legacy-self-asserted',
-      assertedAgentId: asserted,
-      soulClass,
-      downgradedAt: now(),
-    };
-    // LOUD by design: one structured line per admitted legacy write, so the
-    // fleet's observability plane can count/alarm on downgrades and the
-    // migration to credentialed writes is measurable, not aspirational.
-    logger?.info('legacy_identity_downgrade', {
+  if (asserted || params.requireIdentity) {
+    logger?.error('identity_write_rejected', {
       route,
+      code: 'IDENTITY_CREDENTIAL_REQUIRED',
       assertedAgentId: asserted,
-      soulClass,
     });
     return {
-      ok: true,
-      kind: 'downgraded',
-      agentId: asserted,
-      soulClass,
-      downgrade,
-      identity: { verified: false, downgrade },
+      ok: false,
+      httpStatus: 401,
+      code: 'IDENTITY_CREDENTIAL_REQUIRED',
+      error: asserted
+        ? `agentId "${asserted}" was asserted without a daemon-minted credential; attributed writes require one (mint via POST /actors/register or POST /sugar/begin, then present it as the x-actor-credential header or body "credential")`
+        : 'this write is always attributed; present a daemon-minted actor credential (x-actor-credential header or body "credential")',
     };
   }
 
@@ -264,24 +246,32 @@ export function resolveWriteIdentity(params: ResolveWriteIdentityParams): Identi
 }
 
 /**
- * Merge an identity verdict's flag fragment into a record's metadata object.
+ * Merge an identity verdict's stamp into a record's metadata object.
  *
  * Purpose: routes persist the verdict on the durable record itself (under the
- * reserved `identity` key) so a downgraded write remains visibly downgraded
- * after every log line has rotated — the record testifies, not the log. The
- * design deliberately overwrites any caller-supplied `identity` key: that key
- * is the daemon's verdict slot, and letting the request body pre-fill it
- * would reopen the self-assertion hole this module closes.
+ * reserved `identity` key) so the record testifies who wrote it — not just a
+ * log line that rotates away. The design deliberately overwrites any
+ * caller-supplied `identity` key IN EVERY CASE, including anonymous writes:
+ * that key is the daemon's verdict slot, and letting the request body pre-fill
+ * it would reopen the self-assertion hole this module closes (an anonymous
+ * caller could otherwise plant `identity: { verified: true, ... }`).
  *
  * @param metadata - Caller-supplied record metadata (may be null/undefined).
  * @param verdict - A successful verdict from resolveWriteIdentity.
- * @returns The metadata with the verdict's `identity` fragment merged in, or
- *          the original metadata untouched for anonymous writes.
+ * @returns The metadata with the verdict's `identity` fragment merged in for
+ *          verified writes, or with the reserved key stripped for anonymous
+ *          writes.
  */
 export function stampIdentityMetadata(
   metadata: Record<string, unknown> | null | undefined,
   verdict: Extract<IdentityWriteVerdict, { ok: true }>,
 ): Record<string, unknown> | null {
-  if (verdict.kind === 'anonymous' || !verdict.identity) return metadata ?? null;
+  if (verdict.kind === 'anonymous' || !verdict.identity) {
+    if (metadata && Object.prototype.hasOwnProperty.call(metadata, 'identity')) {
+      const { identity: _discarded, ...rest } = metadata;
+      return rest;
+    }
+    return metadata ?? null;
+  }
   return { ...(metadata ?? {}), identity: verdict.identity };
 }
