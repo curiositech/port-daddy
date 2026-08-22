@@ -23,6 +23,7 @@
  */
 
 import type { Env } from './types.js';
+import { DIRECTORY_SIGNAL_RETENTION_DAYS } from './directory.js';
 
 const DAY_SECONDS = 24 * 60 * 60;
 const ERASURE_HARD_DELETE_DAYS = 30;
@@ -41,6 +42,10 @@ export interface SweepResult {
   sessionsReaped: number;
   usersHardDeleted: number;
   shipwrightChatsPruned: number;
+  // X5 directory (doctrine D3): derived rows must not exist for unlisted
+  // operators, and every derived signal is retention-bounded.
+  directoryDelistDropped: number;
+  directorySignalsPruned: number;
   errors: string[];
 }
 
@@ -61,6 +66,23 @@ async function deleteOlderThan(
 ): Promise<number> {
   try {
     const res = await db.prepare(sql).bind(horizon).run();
+    return res.meta?.changes ?? 0;
+  } catch (e) {
+    errors.push(`${label}: ${e instanceof Error ? e.message : String(e)}`);
+    return 0;
+  }
+}
+
+/** DELETE with arbitrary binds (0..n); returns rows removed (0 on error). */
+async function deleteWhere(
+  db: D1Database,
+  sql: string,
+  binds: unknown[],
+  errors: string[],
+  label: string,
+): Promise<number> {
+  try {
+    const res = await db.prepare(sql).bind(...binds).run();
     return res.meta?.changes ?? 0;
   } catch (e) {
     errors.push(`${label}: ${e instanceof Error ? e.message : String(e)}`);
@@ -111,6 +133,26 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     'shipwright_chats',
   );
 
+  // R-X5 — directory D3 invariants (src/directory.ts). First the delist-drop:
+  // capability_index rows for unlisted operators MUST NOT EXIST — the delist
+  // write already dropped them, and the sweep re-enforces the invariant so no
+  // code path (crash between writes, a future bug) can leave a shadow index.
+  const directoryDelistDropped = await deleteWhere(
+    env.DB,
+    'DELETE FROM capability_index WHERE daemon_fingerprint NOT IN (SELECT daemon_fingerprint FROM harbor_cards WHERE listed = 1)',
+    [],
+    errors,
+    'capability_index(delist-drop)',
+  );
+  // Then the retention bound: every derived signal ages out.
+  const directorySignalsPruned = await deleteOlderThan(
+    env.DB,
+    'DELETE FROM capability_index WHERE observed_at < ?',
+    now - DIRECTORY_SIGNAL_RETENTION_DAYS * DAY_SECONDS,
+    errors,
+    'capability_index(retention)',
+  );
+
   // R2 — reap expired web sessions (bounded growth; not a security fix).
   const sessionsReaped = await deleteOlderThan(
     env.DB,
@@ -157,6 +199,8 @@ export async function runRetentionSweep(env: Env, now: number): Promise<SweepRes
     sessionsReaped,
     usersHardDeleted,
     shipwrightChatsPruned,
+    directoryDelistDropped,
+    directorySignalsPruned,
     errors,
   };
 }

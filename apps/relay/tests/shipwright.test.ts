@@ -11,7 +11,7 @@
  *     model call never loses the persisted user message.
  *   - STREAMING: the SSE pass-through forwards bytes verbatim and persists the
  *     assembled assistant text after the stream drains.
- *   - PAGE: nonce-scoped CSP (the ONE inline-script page), honest no-PR copy,
+ *   - PAGE: nonce-scoped CSP (the ONE inline-script page), honest PR copy,
  *     story-linework identity, no-store/noindex transport.
  *
  * Idioms follow runs-page.test.ts: hand-rolled D1 mock answering exactly the
@@ -39,6 +39,8 @@ import { hashHex } from '../src/crypto.js';
 import type { Env } from '../src/types.js';
 
 const BASE = 'https://relay.example';
+/** Default page view: degraded installation list, no notice. */
+const NO_VIEW = { installations: null, notice: null };
 const COOKIE_VALUE = 'sess-value-abc';
 const DAY = 24 * 60 * 60;
 
@@ -596,9 +598,12 @@ describe('GET /account/shipwright — page', () => {
     expect(html).toContain(`<script nonce="${nonce}">`);
   });
 
-  it('is honest about the MVP: no PR-opening, stated retention, real endpoints', () => {
-    const html = renderShipwrightPage(baseUser, 'aa'.repeat(16));
-    expect(html).toContain('cannot open a PR');
+  it('is honest about its hands: PR-opening at the user click, stated retention, real endpoints', () => {
+    const html = renderShipwrightPage(baseUser, 'aa'.repeat(16), NO_VIEW);
+    // The old tied-hands claim is GONE — the page now tells the new truth.
+    expect(html).not.toContain('cannot open a PR');
+    expect(html).toContain('open the PR in your own repo');
+    expect(html).toContain('never merges');
     expect(html).toContain(`${SHIPWRIGHT_RETENTION_DAYS} days`);
     expect(html).toContain('/v1/shipwright/chat');
     expect(html).toContain('/v1/shipwright/history');
@@ -606,7 +611,7 @@ describe('GET /account/shipwright — page', () => {
   });
 
   it('keeps the story-linework identity and keyboard UX affordances', () => {
-    const html = renderShipwrightPage(baseUser, 'aa'.repeat(16));
+    const html = renderShipwrightPage(baseUser, 'aa'.repeat(16), NO_VIEW);
     expect(html).toContain('#003fb8'); // cobalt storefront accent (TOKENS)
     expect(html).toContain('IBM Plex Mono');
     expect(html).toContain('Shift+Enter');
@@ -617,6 +622,7 @@ describe('GET /account/shipwright — page', () => {
     const html = renderShipwrightPage(
       { ...baseUser, display_name: '<script>alert(1)</script>' },
       'aa'.repeat(16),
+      NO_VIEW,
     );
     expect(html).not.toContain('<script>alert(1)</script>');
     expect(html).toContain('&lt;script&gt;');
@@ -630,7 +636,10 @@ describe('GET /account/shipwright — page', () => {
     expect(p).toContain('purser');
     expect(p).toContain('graft');
     expect(p).toContain('pd-fleet.yml');
-    expect(p).toContain('cannot open PRs');
+    // The tied-hands claim is gone; the prompt states the click-gated truth.
+    expect(p).not.toContain('cannot open PRs');
+    expect(p).toContain('Open PR');
+    expect(p).toContain('never a push, never a merge');
     expect(p).toContain('yaml');
   });
 });

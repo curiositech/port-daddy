@@ -37,8 +37,9 @@ website-v2/.tmp-og/
 .env.local
 .port-daddy-env
 
-# Internal: analysis, strategy, dev planning
-plans/
+# Internal: analysis, strategy, dev planning (root-level scratch dir only —
+# anchored so it cannot swallow docs/plans/, where tracked program plans live)
+/plans/
 .CLAUDE_LOCK
 .CLAUDE_NOTES.md
 .portdaddyrc

@@ -1,0 +1,206 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1.1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.7em}{}
+
+\newcommand{\lift}[1]{\noindent\textbf{Lift:} #1.}
+\newcommand{\gives}{\paragraph{What it gives.}}
+\newcommand{\form}{\paragraph{Formalization.}}
+\newcommand{\proofpath}{\paragraph{Proof path.}}
+
+\title{\textbf{The Provable-Results Portfolio}\\[4pt]
+\large Eighteen theorems, bounds, and experiments I can carry end-to-end,\\ with lift estimates and working drafts\\[2pt]
+\normalsize For \emph{The Harbor, the Person, and the Economy} (Owens, v1.0)}
+\author{Prepared by Claude for Erich Owens}
+\date{August 15, 2026}
+
+\begin{document}
+\maketitle
+
+\noindent\textbf{Scope and honesty rule.} This document enumerates every result from our exchanges that I judge myself capable of developing \emph{rigorously} --- meaning I can state the model, carry the proof or derivation myself, and tell you exactly which assumptions bear the load --- as opposed to results I could only sketch or survey. Each entry gives the lift (my estimate of focused working time to a polished, checkable draft), a formalization, the actual proof path with its crux, and the payoff to the volume. A closing section lists what I \emph{decline} to claim, in the volume's own spirit. Tier A items are days each; Tier B items are roughly a week each; Tier C items are multi-week. Several Tier A items are independent enough to batch.
+
+\tableofcontents
+
+\section{Tier A --- days each}
+
+\subsection{A1. The Split-Digest Theorem (comonotonicity characterization)}
+\lift{1--2 days; the proof is short, the care is in the definitions}
+
+\form Define a \emph{read-surface} as a triple $(X, \Sigma, \pi)$: substrate items $X$, per-item evidence $\Sigma$, and a projection $\pi$ producing a bounded rendering. A \emph{reader} $r$ is a loss function $L_r(\text{rendered set}, \text{true states})$; a scalar head $h: X \to \mathbb{R}$ \emph{serves} $r$ if rank-ordering by $h$ realizes $r$'s optimal rendering at every budget. Two concrete readers: the \emph{successor} (loss $=$ task-continuation value forgone; fit-shaped) and the \emph{operator} (loss $=$ regret-if-ignored; risk-shaped). The theorem: a single head serves both readers \emph{iff} their induced preference orders are comonotone on the item domain --- i.e., agree on every pair. The negative direction is witnessed by two constructible items: a routine-but-essential working state (high continuation value, negligible regret --- the successor must reload it; the operator need never see it) and an anomalously abandoned dead end with irreversible side effects (zero continuation value --- the successor should \emph{not} reload it --- maximal regret). Non-comonotone; hence no shared head; hence Thm.~I.7.1 is a special case of a general principle over every read-surface: digests, checkpoints, resurrection handoffs, briefings.
+
+\proofpath The order-reversal argument is your Thm.~I.7.1's, generalized: strict monotone transforms preserve pairwise order, so a shared head forces comonotonicity; conversely, comonotone orders admit a common refinement, which any strictly increasing reparameterization serves --- giving the \emph{iff}, which the original theorem lacks. The quantitative addendum is where new content lives: apply Thm.~I.6.1 per reader. Each reader has its own load-bearing set $S_r$; a \emph{joint} zero-miss digest must satisfy the floor for $S_{\mathrm{op}} \cup S_{\mathrm{succ}}$, and when the sets are nearly disjoint the joint floor approaches the \emph{sum} of the individual floors --- a single stored compaction pays both bills at once or silently defaults on one. Corollary: compaction must be computed per reader \emph{from durable artifacts}; storing only one compaction is irreversible information loss for the other reader, which is exactly the ``never compact from the previous summary'' rule, now with a reason.
+
+\gives A one-page theorem that converts an architectural opinion (the SLM sidecar; two digest pipelines) into a mathematical necessity, upgrades Thm.~I.7.1 from an example to a characterization, and quantifies the cost of ignoring it via additive bit floors. Lands in Chapter~I as \S I.8.2's missing second half.
+
+\subsection{A2. Deriving the regret head (and the surfacing threshold) from decision theory}
+\lift{1--2 days}
+
+\form The volume asserts $\mathrm{regret}(x) = \mathrm{stakes}(x)\times\mathrm{irreversibility}(x)\times\mathrm{anomaly}(x)$ as a design choice. It is derivable. Let $C_{\mathrm{miss}}(x) = \mathrm{stakes}(x)\cdot\mathrm{irreversibility}(x)$ be the realized loss if $x$ is bad and unattended, and let the anomaly score be a \emph{calibrated posterior} $\Pr(\mathrm{bad}\mid \text{evidence about } x)$. Then expected loss of not surfacing is exactly $C_{\mathrm{miss}}(x)\cdot\Pr(\mathrm{bad}\mid x)$ --- the multiplicative form, no longer asserted but exact, \emph{iff} anomaly is calibrated probability rather than an arbitrary score.
+
+\proofpath Direct expected-cost minimization: surface $x$ iff $C_{\mathrm{miss}}(x)\Pr(\mathrm{bad}\mid x) \ge c_{\mathrm{att}} + C_{\mathrm{fa}}\Pr(\mathrm{good}\mid x)$, where $c_{\mathrm{att}}$ is the operator's marginal attention cost. Rearranged, this is the classical SDT likelihood-ratio criterion $\beta = \frac{1-\pi}{\pi}\cdot\frac{C_{\mathrm{fa}}}{C_{\mathrm{miss}}}$ that Def.~I.5.1 gestures at --- now derived rather than cited, with the queue's forced-zoom rule falling out as the optimal policy. Two corollaries do real work: (i) \emph{miscalibration correction} --- if the raw anomaly score $s$ is not calibrated, the correct head is $C_{\mathrm{miss}}\cdot g(s)$ with $g$ the empirical calibration map, fittable from the audit log (a measurable object, per Appendix B.3.6); (ii) the Goodhart surface sharpens --- agents attack $g$, not the formula, so the defense budget belongs on calibration integrity, unifying with A6/B2's inspection accounting.
+
+\gives Equation~I.3 stops being a heuristic. The attention queue becomes an optimal alerting policy with a named optimality criterion, a calibration obligation, and a place where the empirical program (instrument false alarms and misses first) plugs directly into the math.
+
+\subsection{A3. $\varepsilon$-conservation for the clean-room release ledger}
+\lift{1 day, plus imports}
+
+\form Model the release ledger as a state machine: state $=$ (cumulative spend $\sigma$, append-only log $\Lambda$); the only spending transition is $\mathrm{release}(\varepsilon_i)$, which atomically appends $(\varepsilon_i, \text{artifact hash}, \text{policy hash})$ and sets $\sigma \mathrel{+}= \varepsilon_i$; the gate refuses when $\sigma + \varepsilon_i > \varepsilon_{\max}$.
+
+\proofpath Induction on the transition sequence gives $\sigma = \sum_{\Lambda} \varepsilon_i$ invariantly --- the identical proof shape as the bond-conservation theorem (VI.10.1), including the concurrent-invocation lemma (no over-spend under two racing releases, by the single-writer serialization the kernel already provides). Then import composition: sequential composition (budgets add) for the baseline, advanced composition ($\varepsilon' = \sqrt{2k\ln(1/\delta')}\,\varepsilon + k\varepsilon(e^\varepsilon - 1)$) when the engagement is long and the tighter accounting is worth its bookkeeping. The one honest caveat to state in-line: conservation governs \emph{recorded} spend; the claim that all spend is recorded is exactly the complete-mediation assumption (B3), which is why the hypervisor is a prerequisite, not a nicety.
+
+\gives The clean-room's headline invariant, proved with machinery the volume already owns --- a structural rhyme (the harbor conserves one more scarce quantity through buckets) that makes the Derek/Erin product auditable rather than promissory.
+
+\subsection{A4. Canary detection power and sequential leak testing}
+\lift{1 day}
+
+\form Plant $c$ canaries (unique sentinel spans) uniformly in Derek's corpus. The gate's verbatim/embedding suppressor has per-canary false-negative rate $\beta$. A leak carrying $k$ canary-bearing spans is detected with probability $\ge 1 - \beta^k$; solve for the canary density needed so that a leak of economic size $V$ carries $k(V)$ canaries in expectation, giving a published operating curve $\Pr(\text{detect}) = f(V)$.
+
+\proofpath Independence across canaries under uniform planting gives the $1-\beta^k$ bound directly; the refinement worth writing is the \emph{sequential} version --- Wald's SPRT on the stream of gate outputs against the permutation null (no-leak), yielding expected time-to-detection as a function of leak rate, with the standard SPRT optimality property. This turns ``we have canaries'' into ``here is the detection-power curve and the expected latency at each leak intensity,'' the same move Chapter~VI makes for bonds.
+
+\gives Assurance as a purchasable quantity on the leakage side: the clean-room contract can \emph{quote} detection probability, and the exfiltration bond (which cannot cover unbounded breach damage) is re-scoped to the honest job of funding detection and response --- the layer ordering the volume already believes, now with numbers.
+
+\subsection{A5. The directory-routed message load bound}
+\lift{2 days}
+
+\form Agents generate messages at rate $\lambda$; relevance of a message to agent $i$ follows a concentration law (Zipf with exponent $\alpha > 1$ over ranked recipients is the natural model, since most coordination messages concern few parties). Broadcast delivers $\Theta(n\bar{s})$ tokens per agent per epoch. Directory-routed delivery with fan-out cap $f$ delivers $O(f\bar{s})$; the theorem quantifies the recall price: to guarantee expected relevant-message recall $\ge 1-\epsilon$, the required fan-out is $f^\star = \Theta(\epsilon^{-1/(\alpha-1)})$ --- a constant in $n$.
+
+\proofpath Tail-mass computation on the Zipf law (the mass beyond rank $f$ is $\Theta(f^{1-\alpha})$; invert). The honest bookkeeping: the $\log n$ in my earlier note belongs to directory \emph{lookup} cost, not delivered load; separate the two lines. Add the adversarial rider from the review: since inbound messages are attacker-influenced context, the bound should be stated over \emph{provenance-labeled} tokens, and the injection defense (quoted-channel rendering) costs a constant factor, not asymptotics.
+
+\gives Chapter II's bus gets its missing scaling claim: messaging that stays $O(1)$ in swarm size at fixed recall, with the recall/fan-out dial exposed --- the read-poverty thesis extended from discovery to communication, in one page.
+
+\subsection{A6. Reputation-inheritance conservation for distilled skills (the no-mint theorem)}
+\lift{2--3 days; the design choice is the content}
+
+\form Let witnessed outcomes form the leaves of an evidence DAG whose internal nodes are derived artifacts (CDM-distilled skills, revisions, merges). Assign each outcome $e$ a graded value $q(e)$ and a \emph{derivation budget}: weights $w(e \to a) \ge 0$ over all artifacts $a$ derived from $e$, constrained by $\sum_a w(e\to a) \le 1$. An artifact's inherited prior is $\iota(a) = \sum_e w(e\to a)\, q(e)$, recursively through the DAG with budgets consumed at each hop.
+
+\proofpath The theorem: total inherited prior over the DAG's closure never exceeds total witnessed value, $\sum_a \iota(a) \le \sum_e q(e)$, and no distillation cycle mints value. Proof by a potential function --- each outcome carries at most unit budget, each derivation strictly consumes it, so the sum is a supermartingale under any sequence of distillations; cycles are safe because re-derivation from an artifact draws on the artifact's (already-discounted) budget, not the leaf's. The crux is the design decision the proof forces into the open: budgets are \emph{per outcome, split across all derivations}, not per derivation --- otherwise the distill-loop mints arbitrarily (derive $k$ skills from one episode, each inheriting full value).
+
+\gives Closes Gap~\#4 (skill versioning cold-start) safely: v2 warm-starts from provenance, fraud cannot amplify through distillation chains, and the CDM pipeline (Mechanism~6) gets its economic safety proof. Also the estate's export/import ceremony inherits the same conservation for free.
+
+\subsection{A7. The Theorem I.6.1 falsification experiment (executable)}
+\lift{hours to a first figure; 1--2 days to a clean writeup --- I can run this in the container on request}
+
+\form Simulate $N$ artifacts with a hidden load-bearing set of size $k$; construct digests at token budgets $B$ sweeping through the information floor $\log_2\binom{N}{k} - \log_2\binom{m}{k}$: (i) an optimal covering-design digest at small $N$, (ii) greedy set-cover digests, (iii) a learned scorer over noisy features. Measure empirical miss rate versus $B$ and overlay the floor.
+
+\proofpath Not a proof --- a falsification apparatus. The prediction is sharp: zero-miss is unattainable below the floor for \emph{any} digest scheme, and the empirical curves should hug it from above, with the gap between greedy/learned and the floor measuring the price of realistic (non-oracle) digest construction. The second panel is the adversarial variant from Solution 6.5$^\star$: corrupt a fraction $\phi$ of features and watch the effective floor inflate --- the first empirical trace of the mimicry/inflation attack. The third panel closes the loop with A1: measure the joint-digest penalty when two readers' load-bearing sets are disjoint versus overlapping.
+
+\gives The volume's first datum, its best figure, and a public artifact (the beginning of the coordination benchmark the review argued you should own). It also stress-tests the theorem's modeling: if real digests systematically beat the floor, the load-bearing formalization is wrong, and finding that out cheaply is the point of having stated a falsifiable bound.
+
+\section{Tier B --- roughly a week each}
+
+\subsection{B1. The digest--zoom Pareto frontier: two-stage group testing and one-sided rate--distortion}
+\lift{1 week; the derivations are standard in technique, the assembly is new}
+
+\form The digest writer knows the state $X^N$ ($X_i \in \{$load-bearing, inert$\}$, i.i.d.\ Bernoulli$(p)$ in the average-case model); the operator does not. A digest is $B$ bits about $X^N$; the operator opens the flagged set and may then \emph{zoom} adaptively. Total operator cost: $c_{\mathrm{read}}B + c_{\mathrm{open}}\mathbb{E}|\hat S| + c_{\mathrm{miss}}\mathbb{E}|S\setminus\hat S|$. The right information-theoretic object is a \emph{two-constraint} rate--distortion program:
+\[ R(\delta, f) \;=\; \min_{P_{\hat X\mid X}} I(X;\hat X) \quad \text{s.t.}\quad \Pr(X{=}1, \hat X{=}0) \le \delta,\;\; \Pr(\hat X{=}1) \le f, \]
+false negatives priced by $\delta$ (misses), false positives priced only through the open budget $f$. Your Thm.~I.6.1 is the $(\delta{=}0, f{=}m/N)$ worst-case corner of this program.
+
+\proofpath Three deliverables. (i) Solve $R(\delta,f)$ in closed form for the binary source via the Lagrangian/test-channel method --- a finite convex program whose KKT conditions I can carry by hand; verify the corners ($f{=}1 \Rightarrow R{=}0$: flag everything; $\delta{=}0, f{=}p \Rightarrow R \to h(p)$-scale: the digest must localize). (ii) The \emph{zoom advantage theorem}: adaptive second-stage inspection with group-level summaries (zooming a directory before its files) is Hwang-style generalized binary splitting inside the flagged region, reducing expected opens from $fN$ to $k\log_2(fN/k) + O(k)$ whenever group verification is available --- quantifying, for the first time, what the ``zoom'' in digest-with-zoom is mathematically worth over a flat digest. (iii) Assemble (i)+(ii) into the Pareto frontier (digest bits) $\times$ (expected opens) at fixed miss tolerance, with the operator's optimum at the price-ratio tangent point $c_{\mathrm{read}}/c_{\mathrm{open}}$.
+
+\gives Chapter I's \S I.6 grows from one worst-case bound into a small theory: average-case floors, the formal value of adaptivity, and a knob (the tangent point) that turns operator time-accounting into digest sizing. It also gives A7's experiment its second axis, and it is the strongest single candidate for a standalone paper --- the mathematical identity of ``summarize the state, link to the work.''
+
+\subsection{B2. The inspection tower: critical audit rates, contraction, and reputation as amortized verification}
+\lift{1--1.5 weeks}
+
+\form Level $k$ is an inspection game: the judge cheats with probability $q$ for one-shot gain $G_k$; the inspector audits with probability $\rho_k$ at cost $a$ per audit, detecting with probability $d_k$ and slashing bond $B_k$. Levels stack: level $k{+}1$ audits level-$k$ auditors, sampled sealed from a pool spanning $\ge q_{\mathrm{cl}}$ disjoint principal-cliques. Above the tower sits a reputation model in the Kreps--Wilson/Fudenberg--Levine mold: a fraction $\mu_0$ of judges are commitment (honest) types; strategic types decide whether to mimic.
+
+\proofpath Four steps, each standard in technique. (i) The stage game's committed-inspection solution: deterrence at $\rho_k^\star = G_k/(d_k B_k)$, minimal audit spend $a\,G_k/(d_k B_k)$ per judged outcome --- Becker's condition, now with the audit \emph{cost} accounted, which the conjecture omits. (ii) Contraction: under sealed sampling from $q_{\mathrm{cl}}$ cliques, a briber corrupting level-$k{+}1$ must in expectation pay off order $q_{\mathrm{cl}}$ independent auditors' expected forfeitures before capturing the audit, so $G_{k+1} \le G_k\lambda$ with $\lambda = O(1/q_{\mathrm{cl}})$; then required bonds $B_k \gtrsim G_0\lambda^k/(\rho d)$ sum geometrically --- \emph{finite total bond capitalization certifies an infinite tower}, which is the contraction Conj.~III.11.1 asks for, with its two assumptions (non-shrinking stakes, sealed multi-clique sampling) named as the load-bearers. (iii) Termination alternative: a finite tower rooted at an exogenously honest oracle (the operator at $n{=}1$) with the same inequality at each level. (iv) The reputation layer: derive the declining audit schedule $\rho_t$ that keeps the strategic type's IC binding as the posterior $\mu_t \to 1$ --- audits fall as continuation value rises --- and prove lifetime audit spend per honest judge is $O(1)$ versus $\Theta(T)$ under flat auditing. That last result \emph{is} ``reputation is amortized verification,'' stated as a theorem.
+
+\gives The volume's central open conjecture becomes a parameterized theorem plus a measurement obligation (does the deployed pool satisfy sealed multi-clique sampling?), the audit budget becomes a designed quantity rather than a hope, and Chapter III gains its deepest one-liner with a proof behind it.
+
+\subsection{B3. Hypervisor enforceability is Ramadge--Wonham controllability}
+\lift{1 week}
+
+\form Model agent behavior as a prefix-closed language $L$ over an alphabet $\Sigma = \Sigma_c \cup \Sigma_u$: \emph{controllable} events $\Sigma_c$ are those the hypervisor mediates pre-commit (fs writes, network egress, exec), \emph{uncontrollable} events $\Sigma_u$ are everything it cannot intercept (model-internal steps, in-context content). A policy is a safety specification $K \subseteq L$.
+
+\proofpath Direct adaptation of supervisory control theory: a supervisor achieving exactly $K$ exists iff $K$ is controllable --- $\overline{K}\Sigma_u \cap \overline{L} \subseteq \overline{K}$, i.e., no uncontrollable event escapes the specification's closure. The theorem for the volume: \textbf{Port Daddy's hypervisor can \emph{regiment} policy $P$ iff $P$ is a prefix-closed safety language controllable with respect to $\Sigma_u$}; everything else is detect-and-compensate, by your own Thm.~II.8.1. The proof is the Ramadge--Wonham construction specialized to the daemon's mediation map, plus one wrinkle I will treat honestly: policies referencing unmediated \emph{state} (not just events) need the partial-observation extension (observability/normality conditions), which strictly shrinks the regimentable set and should be stated as such. The corollary is a table the ledger has been missing: force-push (network event) --- regimentable; out-of-scope write, deleting a failing test (fs events over policy-expressible paths) --- regimentable; ``confident lie in a report'' (semantic content, uncontrollable) --- forever detect-and-compensate. Re-grade every affected ledger row against the alphabet.
+
+\gives The hypervisor stops being an engineering preference and becomes a theorem about which promises the product may make: an exact, citable boundary between \emph{regimented} and \emph{enforced}, resolving \S I.4.4's open problem (footgun guards as structural authority) for every policy inside the controllable set --- and honestly fencing what stays outside it.
+
+\subsection{B4. A tractable deontic-conflict fragment for the condominium harbor}
+\lift{1 week}
+
+\form Commitment language $\mathcal{L}_c$: (a) ground Horn clauses over a finite atom vocabulary (invariants, accepted obligations); (b) interval resource claims $(\mathrm{res}, [t_1,t_2], \mathrm{owner}, \mathrm{excl})$; (c) difference constraints linking commitment deadlines. A \emph{conflict} is a deontic inconsistency: derivable $\bot$, overlapping exclusive intervals, or an infeasible constraint cycle.
+
+\proofpath Three results. (i) Membership: consistency in $\mathcal{L}_c$ is decidable in polynomial time and \emph{incrementally} --- Horn by watched-literal unit propagation (linear in occurrence size per update), intervals by interval trees ($O(\log n)$ per insert), difference constraints by negative-cycle detection on the constraint graph; I will write the combined incremental algorithm and its amortized bound. (ii) The frontier: one step outside --- arbitrary clauses, or disjunctive obligations $O(a \vee b)$ --- makes consistency NP-complete (reduction from SAT, immediate), so the language design is not taste but the exact price of staying detectable-at-proposal-time. (iii) Completeness-with-regimentation: within $\mathcal{L}_c$, every conflict is detected \emph{before} acceptance, and since acceptance is a mediated write, B3 makes conflicting acceptances \emph{regimentable} --- rejected pre-commit, extending Thm.~VI.5.1's advisory completeness to structural prevention in the shared-harbor setting.
+
+\gives The condominium chapter's algorithmic core: the lookout's contradiction-scan becomes a polynomial incremental checker with a proved completeness property, ``who decides what conflicts are'' splits cleanly into mechanical detection and chartered resolution, and the schema designer gets a theorem telling them exactly which expressive conveniences would forfeit tractability.
+
+\subsection{B5. Engine substitution: Akerlof unraveling inside one identity, and resurrection soundness}
+\lift{4--6 days}
+
+\form Two engine qualities $\theta_H > \theta_L$ with costs $c_H > c_L$; an identity carries reputation $r$ earned under some engine history; buyers observe $r$ but, absent attestation, not the current engine. A strategic principal may substitute $\theta_L$ after building $r$ on $\theta_H$.
+
+\proofpath Two-period model, standard lemons technique. Without attestation, buyer beliefs price the identity at $\mathbb{E}[\theta \mid r, \text{equilibrium strategy}]$; substitution is profitable at any pooled price above $\theta_L$'s cost, so pooling on $\theta_H$ cannot survive: either prices discount to the mixture (taxing honest $\theta_H$ sellers, who exit or substitute --- the ratchet to $\theta_L$) or the market unravels --- Akerlof's argument run \emph{within} a single identity, which is the novel framing. With daemon-attested engine identifiers on every witnessed outcome, reputation conditions on $(\text{person}, \text{engine class})$, the information asymmetry closes, and I then prove \emph{resurrection soundness}: under (i) credential and continuity-witness verification, (ii) engine attestation recorded in successor outcomes, and (iii) open commitments closed or renegotiated with escrow delta, the sanction-respecting property (Def.~III.6.1) is preserved across provider migration --- the migration cannot be used to shed either sanctions or engine history. The same theorem, read sideways, closes skill-versioning Gap~\#4: reputation attaches to (identity, substrate) pairs with disclosed substrate, one rule for both holes.
+
+\gives The resume-button feature ships with its own security theorem and its own named attack; Chapter III gains the market-microstructure result it currently lacks; and the buyer-facing story becomes crisp: reputation you can trust \emph{because} the engine behind it is attested.
+
+\subsection{B6. The newcomer ramp as screening: the front-loaded probation theorem}
+\lift{3--5 days; the result is a short exchange argument with a surprising sign}
+
+\form Two types enter as newcomers: honest (discount $\delta_h$) and fraud-planning (effective discount $\delta_f < \delta_h$, since their horizon truncates at the planned reset). The designer chooses the ceiling schedule $\{\kappa_t\}$, equivalently the per-period surplus gaps $g_t = \pi(\kappa^\star) - \pi(\kappa_t) \ge 0$. Deterrence requires the \emph{fraudster's} discounted ramp cost to exceed the maximal one-shot gain: $\sum_t \delta_f^t g_t \ge G_{\max}$. The design objective: minimize the \emph{honest} newcomer's discounted burden $\sum_t \delta_h^t g_t$ subject to that constraint.
+
+\proofpath The ratio of deterrence-value to honest-cost of a unit gap at time $t$ is $(\delta_f/\delta_h)^t$, strictly decreasing in $t$. An exchange argument --- move gap mass from any later period to any earlier one, holding the deterrence constraint tight --- strictly lowers honest cost; iterate to the corner. Conclusion: the optimal schedule is \emph{maximally front-loaded}: the deepest ceiling restriction immediately, released as fast as the deterrence constraint permits --- a probation cliff, not a long slow ramp. The result is mildly counter-intuitive (deferred-compensation instincts, \`a la Lazear, suggest back-loading) and the resolution is instructive to write out: here the punishment \emph{is} the ramp re-paid after reset, so it must land where the short-horizon type still feels it --- early. Extensions I can carry in the same draft: continuum of types (the cliff persists), and the comparative static that as fraud gains $G_{\max}$ grow, the cliff deepens before it lengthens.
+
+\gives Theorem III.6.2 currently says ``choose the schedule so $W$ exceeds the fraud gain''; this pins down \emph{which} schedule, with a clean behavioral prediction (probation cliffs dominate gradual ramps) that a deployment can implement tomorrow and A/B against churn.
+
+\subsection{B7. The costly-escalation signaling equilibrium and the tuning band for the debit}
+\lift{4--6 days}
+
+\form Agents privately observe urgency $u \sim F$; escalating surfaces the item; the operator validates iff genuinely urgent (revealed on attention). A dismissed escalation debits standing by $\delta$, worth $w$ per unit in future surfacing weight; escalating when urgent yields benefit $b(u)$, increasing.
+
+\proofpath Single-crossing: expected payoff of escalating, $b(u) - \delta w\,(1 - V(u))$ with validation probability $V(u)$ increasing, crosses zero once, so the equilibrium is a threshold $u^\star(\delta)$ solving $b(u^\star) = \delta w (1 - V(u^\star))$ --- a separating equilibrium in the Spence mold, with the queue's ``crying wolf is costly'' realized as money-burning that only high types rationally risk. Comparative statics give the tuning band: $u^\star$ increases in $\delta$; alarm load is $1 - F(u^\star)$; false silence (genuine distress suppressed) is $F(u_{\mathrm{crit}}) - F(u^\star)$ truncated at zero. The deliverable is the two-sided constraint $\delta \in [\delta_{\min}, \delta_{\max}]$: below $\delta_{\min}$ the operator's alarm-fatigue budget (from A2's attention accounting) is violated; above $\delta_{\max}$ the miss-risk on the distress lane exceeds the SDT criterion. Both endpoints are computable from instrumented quantities the roadmap already plans to collect.
+
+\gives Section I.7.3's mechanism gets an equilibrium existence proof, an explicit operating band for its one free parameter, and a bridge to the empirical program: $\delta$ is fit from measured validation rates, not chosen by vibes.
+
+\subsection{B8. The specialization boundary for sole-responsibility roles}
+\lift{3--4 days}
+
+\form Function-$F$ requests arrive Poisson($\lambda_F$). Option S: a sole specialist, M/M/1 with service rate $\mu_s$. Option P: fold the traffic into a pool of $c$ generalists, M/M/$c$ at rate $\mu_g \le \mu_s$ each (the specialist's rate advantage is the skill premium). Sole ownership additionally yields accountability value $A$ per period (clean attribution, per-role ledger, succession clarity).
+
+\proofpath Exact comparison via Erlang-C: closed form for $c=2$, the general condition as an inequality in the Erlang-C delay probability. The theorem is the boundary: sole ownership dominates iff $\mu_s/\mu_g \ge g(\rho, c)$ or the latency deficit is smaller than $A$ priced at the delay cost --- with $g$ explicit, and the known queueing folklore (pooling wins on variance) now carrying its exceptions in the open: high skill premia, low utilization, or high attribution value. A worked corner I will include because it matters operationally: the specialist as single point of failure --- M/M/1 with breakdowns (the death/heartbeat model the volume already has) --- which quantifies the succession-rule requirement rather than leaving it as hygiene.
+
+\gives Mechanism 2 (calendar avatar, test writer, roadmap owner) gets an honest boundary instead of an aesthetic: when the pattern pays, when it silently costs latency, and what the succession rule is worth --- all in quantities the daemon already meters.
+
+\subsection{B9. Context paging with an untrusted pin oracle}
+\lift{4--5 days; mostly a disciplined import with one new term}
+
+\form Resident context is a cache of size $k$ tokens over spans in the durable buffer; span requests follow the agent's action sequence; eviction is online. Load-bearing spans are \emph{pinned} by a feature oracle that an adversary corrupts at rate $\phi$ (mis-pin or missed pin).
+
+\proofpath Import the weighted-caching result (Landlord): $k/(k-h+1)$-competitive against offline with cache $h$, applied to the unpinned region --- variable span sizes are exactly why the weighted/file-caching version is needed rather than vanilla LRU's Sleator--Tarjan bound, and I will keep that distinction honest. The new content is the degradation term: a charging argument that mis-pins cost at most their carried size (wasted residency) and missed pins cost at most one re-fetch each, giving total cost $\le$ Landlord bound on the honest region $+\ \phi N \cdot c_{\mathrm{refetch}}$ --- linear, graceful, and tied by the same $\phi$ to Solution 6.5$^\star$'s forgeable-feature budget, so the paging layer and the digest layer share one adversarial parameter.
+
+\gives Mechanism 3's buffer stops being plumbing: a competitive guarantee for ``what stays in context,'' a single named adversarial knob shared with the legibility theory, and the formal restatement of the effective-context trap --- paying for tokens that competitive analysis says should have been evicted.
+
+\section{Tier C --- multi-week}
+
+\subsection{C1. Conditional noninterference for the clean room via unwinding}
+\lift{2--3 weeks; standard technique, but the system model must be built with care}
+
+\form Domains $\{D, E, G_{\to E}, G_{\to D}, \mathrm{pub}\}$ with an \emph{intransitive} flow policy: $D \rightsquigarrow G_{\to E} \rightsquigarrow E$ and $E \rightsquigarrow G_{\to D} \rightsquigarrow D$, with the direct edges $D \rightsquigarrow E$ and $E \rightsquigarrow D$ absent. The system is the hypervisor-mediated transition machine: agent steps, gate steps, ledger steps.
+
+\proofpath Rushby's intransitive-noninterference framework: define the purge function for the policy, state the security condition (observations of $E$ depend only on sources permitted via the gate chain), and discharge it by the three unwinding conditions --- output consistency, weak step consistency, and local respect --- proved per transition class. Complete mediation (B3) discharges the ``no other edges'' premise; gate correctness is assumed, and I will state it as the residual oracle it is (the clean room \emph{relocates} trust into two auditable declassifiers; it does not eliminate it). The honest scope paragraph writes itself and must be written: the guarantee is possibilistic --- timing, token-count, and termination channels are outside the model, as is a human reading gate output and remembering it; the theorem bounds \emph{channels}, not minds.
+
+\gives The Derek/Erin design's central promise as a theorem with named unwinding obligations --- each one a checkable property of a concrete daemon transition --- which is precisely the form in which a security claim can later be mechanized (the same ProVerif-adjacent discipline Chapter V already practices, extended from secrecy of keys to flow of labeled data).
+
+\subsection{C2. Buying your way out of the Myerson--Satterthwaite corner: the minimum viable take-rate}
+\lift{2 weeks in a stylized type model}
+
+\form The harbor is not a bilateral mechanism: it has an insurer/platform side with fee income $\Phi$ (bond carry, listing, settlement fees). With an outside budget, ex-post efficient trade is implementable (subsidize the VCG deficit); the question MS actually leaves open here is \emph{how much} budget.
+
+\proofpath In the canonical uniform-types model, compute the expected VCG deficit of efficient bilateral trade in closed form (a standard exercise I can carry, and one worth re-deriving cleanly rather than citing), then state the theorem: the platform escapes the MS corner iff expected fee income per trade weakly exceeds expected deficit, giving a \emph{minimum viable take-rate} $\tau^\star$ as an explicit function of the value distributions. Corollaries: (i) the take-rate is the price of ex-post efficiency, a sentence Chapter IV can put on a slide; (ii) with the common-value contamination the review flagged (shared grading oracle correlates values), the relevant distortion shifts from MS to lemons, and the same fee budget is better spent on information design --- disclosure of reputation vectors --- than on subsidies, which I will state as a scoped comparison rather than a grand unification.
+
+\gives Chapter IV's most cited impossibility stops being a corner the design nervously respects and becomes a budget line the platform prices --- and the analysis says when subsidy is the right instrument and when disclosure is.
+
+\section{What I decline to claim}
+In the ledger's spirit: \textbf{gossip convergence under real partitions} is an empirical distribution, not a theorem worth having beyond the stated model (the volume already grades this correctly). \textbf{Cross-operator attestation} is a deployment-and-hardware problem; I can specify the TEE/key-transparency evaluation, not prove the gap closed. \textbf{Folk-theorem cartel bounds at the federation layer} are provable only in monitoring models stylized past usefulness; I would write the model-selection memo, not claim the bound. \textbf{The categorical/sheaf program} beyond the toy gluing model (already solved in the prior document) adds vocabulary, not power, at current scale --- I stand by commit-or-cut. And every result above that touches deployment parameters ($d$, $\beta$, $\phi$, calibration maps, validation rates) is a theorem \emph{conditional on measurement}; the instrumentation plan of Appendix B.3.6 is the co-requisite, not an afterthought.
+
+\section{Suggested batching}
+Week 1: A1 $+$ A2 $+$ A7 (the theorem, its decision-theoretic twin, and the experiment --- one coherent legibility package). Week 2: B3 (hypervisor characterization; unblocks the most ledger rows and C1). Week 3: B2 (inspection tower). Week 4: B1 (the frontier paper). Then B5$+$B6 as the Chapter III pair, B4 for the condominium, and C1/C2 as the long arcs. A1$+$A2$+$A7$+$B1 together are a self-contained paper: \emph{``The Price of a Summary: Information Floors, Adaptive Zoom, and Split Heads for Operator Legibility.''}
+
+\end{document}

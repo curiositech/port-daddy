@@ -991,7 +991,7 @@ async function handleInstallShim(options: CLIOptions): Promise<void> {
     ui.success(`git shim installed at ${result.path}`);
   }
   ui.info(result.pathHint);
-  ui.info('Disable temporarily with PD_SHIM_OFF=1 git ...');
+  ui.info('If a refusal is wrong, repair the active session, claims, or notes; otherwise escalate through the operator surface.');
 }
 
 async function handleUninstallShim(options: CLIOptions): Promise<void> {

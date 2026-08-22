@@ -51,13 +51,25 @@ struct FleetBarApp: App {
     @StateObject private var dispatchStore = DispatchStore()
     @StateObject private var proposalStore = FleetProposalStore()
     @StateObject private var backendStore = BackendStore()
+    @StateObject private var interruptionsStore = InterruptionsStore()
 
     var body: some Scene {
         MenuBarExtra {
-            FleetPopover(store: store, costStore: costStore, secretsStore: secretsStore, backendStore: backendStore)
+            FleetPopover(
+                store: store,
+                costStore: costStore,
+                secretsStore: secretsStore,
+                backendStore: backendStore,
+                interruptionsStore: interruptionsStore
+            )
                 .frame(width: 440, height: 760)
         } label: {
-            FleetMenuBarLabel(icon: store.menuBarIcon, color: store.menuBarColor)
+            FleetMenuBarLabel(
+                icon: store.menuBarIcon,
+                color: store.menuBarColor,
+                interruptionCount: interruptionsStore.openCount,
+                interruptionIsCritical: interruptionsStore.openCritical != nil
+            )
         }
         .menuBarExtraStyle(.window)
 
@@ -97,6 +109,12 @@ struct FleetMenuBarLabel: View {
     /// installed one. `nil` on the shipped app.
     var devBadge: String? = AppChannel.current.menuBarBadge
 
+    /// Open operator-interruption count (nil = unknowable: signed out or a
+    /// failed poll — the badge stays hidden rather than claiming zero).
+    /// Non-zero renders a count badge; critical turns it red (HITL §4.2).
+    var interruptionCount: Int? = nil
+    var interruptionIsCritical: Bool = false
+
     /// Per-channel accent so a dev FleetBar is a visibly different colour in the
     /// menu bar; `nil` on production, where we keep the daemon-state colour.
     private var channelAccent: Color? {
@@ -109,6 +127,12 @@ struct FleetMenuBarLabel: View {
             Image(systemName: icon)
                 .symbolRenderingMode(.monochrome)
                 .foregroundStyle(tint)
+            if let interruptionCount, interruptionCount > 0 {
+                Text("\(interruptionCount)")
+                    .font(.system(size: 11, weight: .heavy))
+                    .foregroundStyle(interruptionIsCritical ? Color.red : tint)
+                    .accessibilityLabel("\(interruptionCount) open operator interruptions")
+            }
             if let devBadge {
                 // Uppercase, bold, tracked-out tag — reads larger than its point
                 // size, the only sanctioned small-label form.
