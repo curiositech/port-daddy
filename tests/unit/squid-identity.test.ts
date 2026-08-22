@@ -132,6 +132,23 @@ describe('readMatrixSnapshot (the non-diegetic readout source)', () => {
     expect(snap.alerts).toEqual(['ship the harness']);
     expect(snap.pheromones).toEqual(['edited cli/commands/squid.ts']);
     expect(snap.locks).toEqual(['held by session-x']);
+    expect(snap.window.truncated.any).toBe(false);
+  });
+
+  test('bounds adversarial legacy history and publishes explicit truncation metadata', () => {
+    const matrix = join(FAKE_PD_HOME, 'matrix.env');
+    const longValue = 'x'.repeat(2_000);
+    writeFileSync(matrix, Array.from({ length: 3_500 }, (_, index) =>
+      `PD_PHEROMONE_${String(index).padStart(4, '0')}="${longValue}-${index}"`,
+    ).join('\n'));
+
+    const snap = readMatrixSnapshot(matrix);
+    expect(snap.window.totals.pheromones).toBe(3_500);
+    expect(snap.pheromones).toHaveLength(20);
+    expect(snap.window.returned.pheromones).toBe(20);
+    expect(snap.window.truncated).toMatchObject({ pheromones: true, any: true });
+    expect(Math.max(...snap.pheromones.map((value) => value.length))).toBeLessThanOrEqual(512);
+    expect(Buffer.byteLength(JSON.stringify(snap))).toBeLessThan(16 * 1024);
   });
 });
 

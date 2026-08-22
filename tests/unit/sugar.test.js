@@ -783,6 +783,52 @@ describe('pd done origin rule', () => {
     expect(result.hint).toMatch(/git push -u origin/);
   });
 
+  test('--no-pr closes only a verified clean ledger-only branch without an upstream', () => {
+    const checker = {
+      ...noUpstreamChecker(),
+      checkLedgerOnly: () => ({ ok: true, dirtyEntries: 0, unpublishedCommits: 0 }),
+    };
+    const { sugar, sessions } = setup({ gitOriginChecker: checker });
+    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Ledger-only close', agentId: 'ledger-only-agent' });
+
+    const result = sugar.done({
+      agentId: 'ledger-only-agent',
+      sessionId: begin.sessionId,
+      note: 'Result: reconciliation notes recorded; no repository changes were made.',
+      noPr: true,
+    });
+
+    expect(result.success).toBe(true);
+    const handoff = sessions.getNotes(begin.sessionId).notes.find((note) => note.type === 'handoff');
+    expect(handoff.content).toContain('not-applicable: ledger-only session, no repository artifact');
+  });
+
+  test('--no-pr still refuses dirty or unpublished repository work', () => {
+    const checker = {
+      ...noUpstreamChecker(),
+      checkLedgerOnly: () => ({
+        ok: false,
+        code: 'DIRTY_WORKTREE',
+        error: 'Worktree has 1 uncommitted or untracked entry.',
+        hint: 'Preserve the work first.',
+        dirtyEntries: 1,
+      }),
+    };
+    const { sugar } = setup({ gitOriginChecker: checker });
+    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Dirty no-pr close', agentId: 'dirty-no-pr-agent' });
+    const result = sugar.done({
+      agentId: 'dirty-no-pr-agent',
+      sessionId: begin.sessionId,
+      note: 'Result: attempted ledger close.',
+      noPr: true,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('LEDGER_ONLY_CHECK_FAILED');
+    expect(result.ledgerOnlyCheckCode).toBe('DIRTY_WORKTREE');
+    expect(result.dirtyEntries).toBe(1);
+  });
+
   test('refuses pd done when result note lacks a sentinel', () => {
     const checker = spyingChecker();
     const { sugar, sessions } = setup({ gitOriginChecker: checker });
@@ -859,7 +905,7 @@ describe('pd done origin rule', () => {
     const notes_no_pr = sessions.getNotes(b_no_pr.sessionId).notes;
     const handoff_no_pr = notes_no_pr.find((n) => n.type === 'handoff');
     expect(handoff_no_pr).toBeTruthy();
-    expect(handoff_no_pr.content).toContain('not-applicable: subtask code delivery');
+    expect(handoff_no_pr.content).toContain('not-applicable: ledger-only session, no repository artifact');
 
     const b_subtask = sugar.begin({ lifecycle: 'ephemeral', purpose: 'subtask flag case', agentId: 'subtask-flag-agent' });
     const r_subtask = sugar.done({

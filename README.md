@@ -36,7 +36,7 @@ pd pub api:ready '{"endpoints": ["/login", "/register"]}'
 pd done "Auth complete"
 ```
 
-Examples in this README assume the default local daemon URL `http://localhost:9876`. If your daemon is on a different port, check `pd status` or set `PORT_DADDY_URL` before copying the HTTP examples.
+HTTP examples in this README show the preferred local berth at `http://localhost:9876`. Runtime clients do not guess that port: they use an explicit URL, the Unix socket, or the selected daemon's published port file, and fail closed when none exists. If your daemon is elsewhere, FleetBar and `pd status` show the selected endpoint.
 
 ### ⚓ Key Primitives
 
@@ -183,6 +183,11 @@ pd begin "Fix flaky auth tests" --identity myapp:api --lifecycle durable --sideq
 
 The same requirement applies to `pd session start` and the MCP `begin_session` tool.
 
+After registration, `pd begin` may print up to three semantically matched live
+peers. This optional arrival hint has a 75 ms budget, excludes the new agent,
+uses no lexical fallback, and disappears silently when semantic lookup is slow
+or unavailable. It must never turn session admission into a coordination dump.
+
 ### `pd begin` charges roadmap rent
 
 Every session must say where it sits on the roadmap — one line, at start, not at PR time. Pass exactly one of:
@@ -209,6 +214,11 @@ pd add lib/auth.ts                      # claim-aware git add (refuses files hel
 # …work…
 pd done "Auth fixed; tests green"
 ```
+
+`pd done --no-pr` is only for a genuinely ledger-only session: the worktree
+must be clean and `HEAD` must contain no commit absent from every remote ref.
+Dirty or unpublished repository work still fails closed; the flag cannot hide
+an unpushed change behind a “no artifact” receipt.
 
 Every session progresses through **phases** for swarm visibility: `planning`, `in_progress`, `testing`, `reviewing`, `completed` / `abandoned`.
 
@@ -265,6 +275,11 @@ pd morning                # the overnight dispatch report
 pd advise lib/sessions.ts --task "fix symbol claim conflict"
 pd preflight docs/recovery/CURRENT-WORK.md --tuples
 ```
+
+Sitrep is a bounded projection, not a database dump. Each collection reports
+its limit, returned count, and truncation state; salvage histories and text
+fields are capped. `pd sitrep --quiet` asks the daemon for the summary-only
+projection so session-start and launcher paths stay small.
 
 `pd advise` / `pd preflight` return deterministic recommendations with evidence and executable actions: session/context integrity, active claims, symbol freshness, stale salvage, declared channels, tuple-worthy facts, and true lock candidates.
 
@@ -639,13 +654,20 @@ Pilot SessionStart steering, and `/squid` control inside Claude Code:
 
 ```bash
 pd squid on                 # full harness: Claude, Codex, Gemini, and agy
-pd squid status             # LIVE / READY / PARTIAL / DEGRADED readout
-pd squid status --json      # stable FleetBar/automation contract
+pd squid status             # state plus bounded recent timing and matrix windows
+pd squid status --json      # stable, size-bounded FleetBar/automation contract
 pd squid tap                # exact bounded context entering the next turn
 pd squid debug status       # sanitized per-session hook timing and deadlines
 pd squid off                # disarm this project without breaking other repos
 pd hooks install            # hook-only repair surface
 ```
+
+`pd squid status` and `pd squid debug status` share one diagnostic source.
+Status returns at most 25 recent hook steps and 20 recent values per matrix
+kind, with total/returned/truncated metadata; every step carries actual start,
+expected-by and finish times plus its short description. A large retained
+matrix or timeline therefore cannot truncate the JSON contract or queue more
+hook work merely because an operator asked what is running.
 
 Claude and Gemini use project config; Codex and agy require user config because
 their interactive hook engines do not honor a project-local equivalent. Those

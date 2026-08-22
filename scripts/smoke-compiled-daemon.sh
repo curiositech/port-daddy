@@ -25,6 +25,8 @@ SCRATCH_BASE="${SMOKE_SCRATCH_BASE:-$ROOT_DIR/.smoke-tmp}"
 mkdir -p "$SCRATCH_BASE"
 SCRATCH="$(mktemp -d "$SCRATCH_BASE/pd-smoke.XXXXXX")"
 LOG="$SCRATCH/daemon.log"
+SOCK="$SCRATCH/pd.sock"
+IPC="$SCRATCH/pd.ipc"
 DAEMON_PID=""
 
 cleanup() {
@@ -42,6 +44,8 @@ echo "Booting compiled daemon: $BIN (port $PORT, scratch $SCRATCH)"
 PORT_DADDY_PORT="$PORT" \
 PORT_DADDY_DB="$SCRATCH/registry.db" \
 PORT_DADDY_PREFIX="$SCRATCH" \
+PORT_DADDY_SOCK="$SOCK" \
+PORT_DADDY_IPC="$IPC" \
 PORT_DADDY_NO_FLEET=1 \
 PORT_DADDY_NO_FLEETBAR=1 \
 PORT_DADDY_SILENT=1 \
@@ -169,9 +173,13 @@ echo "Re-booting with PD_DAEMON_TIER=dev-latest to verify env-driven berth ident
 kill "$DAEMON_PID" 2>/dev/null || true
 wait "$DAEMON_PID" 2>/dev/null || true
 PORT2="$((PORT + 10))"
+SOCK2="$SCRATCH/p2.sock"
+IPC2="$SCRATCH/p2.ipc"
 PORT_DADDY_PORT="$PORT2" \
 PORT_DADDY_DB="$SCRATCH/registry2.db" \
 PORT_DADDY_PREFIX="$SCRATCH/p2" \
+PORT_DADDY_SOCK="$SOCK2" \
+PORT_DADDY_IPC="$IPC2" \
 PORT_DADDY_NO_FLEET=1 \
 PORT_DADDY_NO_FLEETBAR=1 \
 PORT_DADDY_SILENT=1 \

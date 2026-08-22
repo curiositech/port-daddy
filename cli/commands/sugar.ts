@@ -4,9 +4,7 @@
  * Handles: begin, done, whoami, with-lock
  */
 
-import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { spawn } from 'node:child_process';
 import { highlightChannel } from '../../lib/maritime.js';
 import PortDaddy from '../../lib/client.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
@@ -25,6 +23,7 @@ import {
 import { initDatabase } from '../../lib/db.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 import { checkAndCompleteDispatch } from '../../lib/dispatch/auto-merge.js';
+import { DEFAULT_SEMANTIC_REVIEW_THRESHOLD } from '../../lib/semantic-resolver.js';
 
 type BeginLifecycle = 'durable' | 'ephemeral';
 
@@ -239,181 +238,76 @@ async function promptBeginRent(): Promise<BeginRentResolution> {
   return resolveBeginRent({ sidequest: reason || '' }, {}, false);
 }
 
-function formatTimeAgo(timestamp: number | null): string {
-  if (!timestamp) return 'unknown';
-  const diff = Date.now() - timestamp;
-  if (diff < 60_000) return 'just now';
-  if (diff < 60_000 * 60) return Math.floor(diff / 60_000) + 'm ago';
-  if (diff < 60_000 * 60 * 24) return Math.floor(diff / (60_000 * 60)) + 'h ago';
-  return Math.floor(diff / (60_000 * 60 * 24)) + 'd ago';
+const HELPFUL_SUGGESTION_LIMIT = 3;
+const HELPFUL_SUGGESTION_TIMEOUT_MS = 75;
+
+export interface HelpfulPeerSuggestion {
+  agentId: string;
+  agentName?: string | null;
+  phrase: string;
+  score: number;
+  similarity: number;
+  stage: 'exact' | 'bm25' | 'semantic' | 'llm';
 }
 
-async function showHelpfulSuggestions(purpose: string, identity: string | undefined): Promise<void> {
-  const suggestions: string[] = [];
+/**
+ * Keep arrival guidance genuinely selective. The daemon's whois service owns
+ * the shared BM25 + MiniLM cascade; this client only applies the published
+ * semantic review threshold, removes the just-created session, and enforces a
+ * hard display cap. The design intent is to make `pd begin` quiet unless a
+ * semantically reviewed peer is unusually relevant; there is deliberately no
+ * lexical or substring fallback.
+ *
+ * @param hits - Ranked candidates returned by the daemon's hybrid resolver.
+ * @param currentAgentId - Agent created by this begin call, which must not be suggested to itself.
+ * @returns At most three semantically reviewed peers in daemon rank order.
+ */
+export function selectHelpfulPeerSuggestions(
+  hits: HelpfulPeerSuggestion[],
+  currentAgentId: string | undefined,
+): HelpfulPeerSuggestion[] {
+  return hits
+    .filter((hit) => hit.agentId !== currentAgentId)
+    .filter((hit) => Number.isFinite(hit.score) && Number.isFinite(hit.similarity))
+    .filter((hit) => hit.stage !== 'exact')
+    .filter((hit) => hit.score >= DEFAULT_SEMANTIC_REVIEW_THRESHOLD)
+    .slice(0, HELPFUL_SUGGESTION_LIMIT);
+}
 
-  // 1. Salvageable sessions
+/**
+ * Render optional live-peer guidance after a successful begin. The purpose of
+ * the short deadline and silent catch is failure containment: coordination
+ * enrichment must never delay or invalidate session creation.
+ *
+ * @param purpose - Natural-language purpose used by the daemon's hybrid resolver.
+ * @param currentAgentId - Newly created agent excluded from its own suggestions.
+ * @returns A promise that settles after printing useful guidance or a silent no-op.
+ */
+async function showHelpfulSuggestions(purpose: string, currentAgentId: string | undefined): Promise<void> {
   try {
-    const res = await pdFetch(`${PORT_DADDY_URL}/salvage/pending`);
-    if (res.ok) {
-      const data = await res.json();
-      const agents = (data.agents || []) as any[];
-      const terms = purpose.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-      
-      const matched = agents.filter((a: any) => {
-        const p = (a.purpose || '').toLowerCase();
-        return terms.some(t => p.includes(t));
-      });
+    const params = new URLSearchParams({
+      q: purpose,
+      kind: 'agent',
+      limit: String(HELPFUL_SUGGESTION_LIMIT + 1),
+    });
+    const res = await pdFetch(`/whois?${params.toString()}`, { timeout: HELPFUL_SUGGESTION_TIMEOUT_MS });
+    if (!res.ok) return;
+    const data = await res.json();
+    const hits = selectHelpfulPeerSuggestions(
+      Array.isArray(data.hits) ? data.hits as unknown as HelpfulPeerSuggestion[] : [],
+      currentAgentId,
+    );
+    if (hits.length === 0) return;
 
-      if (matched.length > 0) {
-        suggestions.push(
-          `♻️  ${ui.fmtCyan('Salvageable Sessions')}: Found ${matched.length} stale agent(s) with similar purpose:\n` +
-          matched.map((a: any) => `     - ${ui.fmtYellow(a.id)}: "${a.purpose}" (run \`pd salvage claim ${a.id}\`)`).join('\n')
-        );
-      }
+    console.error(`\n${ui.fmtCyan('Useful live peers for this session:')}`);
+    for (const hit of hits) {
+      const label = hit.agentName ? `${hit.agentName} (${hit.agentId})` : hit.agentId;
+      console.error(`  - ${ui.fmtYellow(label)}: "${hit.phrase}" (semantic fit ${hit.similarity.toFixed(2)})`);
     }
-  } catch (err) {
-    // Fail silently
-  }
-
-  // 2. Roadmap items
-  try {
-    const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/items`);
-    if (res.ok) {
-      const data = await res.json();
-      const items = (Array.isArray(data) ? data : (data.items || [])) as any[];
-      const terms = purpose.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-
-      const matched = items.filter((item: any) => {
-        const title = (item.title || '').toLowerCase();
-        const slug = (item.slug || '').toLowerCase();
-        const summary = (item.summary || '').toLowerCase();
-        return terms.some(t => title.includes(t) || slug.includes(t) || summary.includes(t));
-      });
-
-      if (matched.length > 0) {
-        suggestions.push(
-          `🗺️  ${ui.fmtCyan('Roadmap Items')}: Found matching items to link/take on:\n` +
-          matched.map((item: any) => `     - ${ui.fmtYellow(item.slug)}: "${item.title}"`).join('\n')
-        );
-      }
-    }
-  } catch (err) {
-    // Fail silently
-  }
-
-  // 3. Staged/modified files to claim
-  try {
-    const gitStatus = spawnSync('git', ['status', '--porcelain'], { encoding: 'utf-8' });
-    if (gitStatus.status === 0 && gitStatus.stdout) {
-      const lines = gitStatus.stdout.split('\n').filter(Boolean);
-      const files = lines.map(line => line.substring(3).trim());
-      const terms = purpose.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-
-      const matchedFiles = files.filter(f => {
-        const lower = f.toLowerCase();
-        return terms.some(t => lower.includes(t));
-      });
-
-      const filesToShow = matchedFiles.length > 0 ? matchedFiles : files.slice(0, 3);
-      if (filesToShow.length > 0) {
-        suggestions.push(
-          `📂  ${ui.fmtCyan('Suggested Files to Claim')}:\n` +
-          filesToShow.map(f => `     - ${f} (run \`pd session files add ${f}\`)`).join('\n')
-        );
-      }
-    }
-  } catch (err) {
-    // Fail silently
-  }
-
-  // 4. Docs and Skills to read
-  try {
-    const docFiles: string[] = [];
-    const scanDirs = ['docs', 'skills'];
-    for (const dir of scanDirs) {
-      if (existsSync(dir)) {
-        const list = readdirSync(dir, { recursive: true });
-        for (const entry of list) {
-          const entryStr = String(entry);
-          if (entryStr.endsWith('.md')) {
-            docFiles.push(join(dir, entryStr));
-          }
-        }
-      }
-    }
-
-    const terms = purpose.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-    const matchedDocs = docFiles.filter(df => {
-      const lower = df.toLowerCase();
-      return terms.some(t => lower.includes(t));
-    }).slice(0, 3);
-
-    if (matchedDocs.length > 0) {
-      suggestions.push(
-        `📖  ${ui.fmtCyan('Recommended Docs/Skills to Read')}:\n` +
-        matchedDocs.map(df => `     - [${basename(df)}](${df})`).join('\n')
-      );
-    }
-  } catch (err) {
-    // Fail silently
-  }
-
-  // 5. Active/Skillful Agents to Talk To (from talent phonebook, falling back to active sessions)
-  let foundAgents = false;
-  try {
-    const params = new URLSearchParams();
-    params.set('q', purpose);
-    params.set('kind', 'any');
-    params.set('limit', '3');
-    const res = await pdFetch(`${PORT_DADDY_URL}/whois?${params.toString()}`);
-    if (res.ok) {
-      const data = await res.json();
-      const hits = (data.hits || []) as any[];
-      if (hits.length > 0) {
-        suggestions.push(
-          `💬  ${ui.fmtCyan('Active/Skillful Agents to Talk To')}:\n` +
-          hits.map((h: any) => {
-            const timeStr = h.lastHeartbeat ? `last active ${formatTimeAgo(h.lastHeartbeat)}` : 'active';
-            return `     - ${ui.fmtYellow(h.agentId)}: "${h.phrase}" (similarity: ${h.similarity.toFixed(2)}, ${timeStr})`;
-          }).join('\n')
-        );
-        foundAgents = true;
-      }
-    }
-  } catch (err) {
-    // Fail silently, fallback below
-  }
-
-  if (!foundAgents) {
-    try {
-      const res = await pdFetch(`${PORT_DADDY_URL}/sessions?status=active&all=true`);
-      if (res.ok) {
-        const data = await res.json();
-        const sessions = (Array.isArray(data) ? data : (data.sessions || [])) as any[];
-        const otherActive = sessions.filter((s: any) => s.status === 'active');
-        
-        if (otherActive.length > 0) {
-          const terms = purpose.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-          const matched = otherActive.filter((s: any) => {
-            const p = (s.purpose || '').toLowerCase();
-            return terms.some(t => p.includes(t));
-          });
-
-          const toShow = matched.length > 0 ? matched : otherActive.slice(0, 3);
-          suggestions.push(
-            `💬  ${ui.fmtCyan('Active Agents/Sessions to Talk To')}:\n` +
-            toShow.map((s: any) => `     - ${ui.fmtYellow(s.agent_id || s.id)}: "${s.purpose}" (active in worktree: ${s.worktree_id || 'default'})`).join('\n')
-          );
-        }
-      }
-    } catch (err) {
-      // Fail silently
-    }
-  }
-
-  if (suggestions.length > 0) {
-    console.error(`\n${ui.fmtCyan('💡 HELPFUL SUGGESTIONS FOR YOUR SESSION:')}`);
-    console.error(suggestions.join('\n\n') + '\n');
+    console.error('');
+  } catch {
+    // Optional guidance is fail-open and silent. Session creation already
+    // succeeded, and onboarding must never wait behind a cold embedder.
   }
 }
 
@@ -696,7 +590,7 @@ export async function handleBegin(
       footer: 'claim files next with pd session files add <path>',
       colorLevel: ui.lineworkColorLevel('stderr'),
     }));
-    await showHelpfulSuggestions(purpose, identity);
+    await showHelpfulSuggestions(purpose, data.agentId as string | undefined);
     return;
   }
   ui.success(`Agent ${highlightChannel(agentLabel)} ready`);
@@ -736,7 +630,7 @@ export async function handleBegin(
     console.error('');
     ui.warn(String(data.approvalsHint));
   }
-  await showHelpfulSuggestions(purpose, identity);
+  await showHelpfulSuggestions(purpose, data.agentId as string | undefined);
 }
 
 // =============================================================================

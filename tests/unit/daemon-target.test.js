@@ -13,14 +13,20 @@
  *   1. PORT_DADDY_SOCK env    -> explicit Unix socket
  *   2. PORT_DADDY_URL env     -> explicit TCP URL
  *   3. the daemon's socket file exists -> Unix socket
- *   4. TCP from the port file (or the canonical preferred port)
+ *   4. TCP from the selected daemon's published port file
+ *   5. no publication -> fail closed (never guess the preferred port)
  *
  * env + fileExists are injectable so this is deterministic regardless of
  * whether a real ~/.port-daddy/daemon.sock happens to exist on the test box.
  */
 
 import { describe, test, expect } from '@jest/globals';
-import { resolveDaemonTarget } from '../../shared/daemon-discovery.js';
+import {
+  DaemonEndpointDiscoveryError,
+  discoverPublishedDaemonPort,
+  resolveDaemonTarget,
+  resolvePublishedDaemonUrl,
+} from '../../shared/daemon-discovery.js';
 
 const NEVER = () => false;
 const ALWAYS = () => true;
@@ -68,26 +74,82 @@ describe('resolveDaemonTarget (the one canonical resolver)', () => {
     expect(t.socketPath).toMatch(/daemon\.sock$/);
   });
 
-  test('4. no env, no socket file -> loopback TCP from the port file', () => {
-    const t = resolveDaemonTarget({}, NEVER);
+  test('4. no env, no socket file -> loopback TCP from the published port file', () => {
+    const t = resolveDaemonTarget({}, NEVER, {
+      portFile: '/state/daemon.port',
+      readTextFile: () => '4312\n',
+    });
     expect(t.socketPath).toBeUndefined();
     expect(t.host).toBe('127.0.0.1');
-    expect(typeof t.port).toBe('number');
-    expect(t.port).toBeGreaterThanOrEqual(1024);
+    expect(t.port).toBe(4312);
   });
 
-  test('URL without explicit port falls back to the canonical preferred port', () => {
+  test('URL without explicit port honors the protocol default', () => {
     const t = resolveDaemonTarget({ PORT_DADDY_URL: 'http://myhost' }, NEVER);
     expect(t.host).toBe('myhost');
-    expect(t.port).toBe(9876);
+    expect(t.port).toBe(80);
+    expect(resolveDaemonTarget({ PORT_DADDY_URL: 'https://myhost' }, NEVER).port).toBe(443);
   });
 
-  test('defaults to process.env + real existsSync when called with no args', () => {
-    // Just assert it returns a structurally valid target — no throw, one transport.
-    const t = resolveDaemonTarget();
-    const isSocket = typeof t.socketPath === 'string';
-    const isTcp = typeof t.host === 'string' && typeof t.port === 'number';
-    expect(isSocket || isTcp).toBe(true);
-    expect(isSocket && isTcp).toBe(false);
+  test('no URL, socket, env port, or published port file fails closed', () => {
+    const missing = Object.assign(new Error('missing'), { code: 'ENOENT' });
+    expect(() => resolveDaemonTarget({}, NEVER, {
+      portFile: '/state/daemon.port',
+      readTextFile: () => { throw missing; },
+    })).toThrow(expect.objectContaining({ code: 'ENDPOINT_NOT_PUBLISHED' }));
+  });
+});
+
+describe('published daemon endpoint discovery', () => {
+  test('prefers an exact environment publication over the selected port file', () => {
+    expect(discoverPublishedDaemonPort({
+      env: { PORT_DADDY_PORT: '4317' },
+      portFile: '/ignored',
+      readTextFile: () => { throw new Error('must not read'); },
+    })).toEqual({ port: 4317, source: 'env', portFile: null });
+  });
+
+  test('accepts one exact decimal port plus surrounding whitespace', () => {
+    expect(discoverPublishedDaemonPort({
+      env: {},
+      portFile: '/state/daemon.port',
+      readTextFile: () => ' 4318\n',
+    })).toEqual({ port: 4318, source: 'port-file', portFile: '/state/daemon.port' });
+  });
+
+  test.each(['4318junk', '4318 4319', '0x10de', '0', '65536', ''])
+  ('rejects malformed or out-of-range publication %j', (raw) => {
+    expect(() => discoverPublishedDaemonPort({
+      env: {},
+      portFile: '/state/daemon.port',
+      readTextFile: () => raw,
+    })).toThrow(DaemonEndpointDiscoveryError);
+  });
+
+  test('returns null only when the selected port file is absent', () => {
+    const missing = Object.assign(new Error('missing'), { code: 'ENOENT' });
+    expect(discoverPublishedDaemonPort({
+      env: {},
+      portFile: '/state/daemon.port',
+      readTextFile: () => { throw missing; },
+    })).toBeNull();
+  });
+
+  test('does not disguise unreadable state as an absent endpoint', () => {
+    const denied = Object.assign(new Error('denied'), { code: 'EACCES' });
+    expect(() => discoverPublishedDaemonPort({
+      env: {},
+      portFile: '/state/daemon.port',
+      readTextFile: () => { throw denied; },
+    })).toThrow(expect.objectContaining({ code: 'INVALID_PUBLISHED_PORT' }));
+  });
+
+  test('strict URL discovery fails closed instead of returning the preferred seed', () => {
+    const missing = Object.assign(new Error('missing'), { code: 'ENOENT' });
+    expect(() => resolvePublishedDaemonUrl(undefined, {
+      env: {},
+      portFile: '/state/daemon.port',
+      readTextFile: () => { throw missing; },
+    })).toThrow(expect.objectContaining({ code: 'ENDPOINT_NOT_PUBLISHED' }));
   });
 });

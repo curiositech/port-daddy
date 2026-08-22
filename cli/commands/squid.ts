@@ -37,9 +37,9 @@ import {
   clearSquidHookDebugEvents,
   disableSquidHookDebug,
   enableSquidHookDebug,
-  readSquidHookHealth,
   readSquidHookDebugSnapshot,
   resetSquidHookHealth,
+  SQUID_HOOK_STATUS_MAX_STEPS,
   type SquidHookDebugSnapshot,
   type SquidHookStepState,
 } from '../../lib/squid/debug.js';
@@ -631,7 +631,8 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   const home = process.env.HOME || process.env.USERPROFILE || '';
   const { tentacleBinDir } = await import('./hooks-install.js');
   const conformance = readSquidConformance(cwd, { home });
-  const health = readSquidHookHealth();
+  const debug = readSquidHookDebugSnapshot({ cwd, maxSteps: SQUID_HOOK_STATUS_MAX_STEPS });
+  const health = debug.health;
   const matrix = readMatrixSnapshot();
   // Preserve the FleetBar lifecycle enum while publishing the richer shared
   // conformance level used by the roster and pd-console.
@@ -657,6 +658,7 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
     truth: conformance.truth,
     health,
     matrix,
+    debug,
     value: {
       beforeTurn: 'Inject only fresh, project-relevant coordination context.',
       beforeEdit: 'Warn or block when another agent owns the target.',
@@ -684,6 +686,20 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
       console.log(`  Circuit       ${c.bad(`✗ ${circuit.label} ${circuit.state.toUpperCase()}`)} — ${circuit.lastReason}; retry ${circuit.retryAt ?? 'after repair'}`);
     }
     console.log(`  Remediation   ${health.remediation}`);
+  }
+  console.log(`  Debug timeline ${debug.enabled ? c.ok('✓ enabled') : c.dim('off')} — ${debug.window.returnedSteps}/${debug.window.totalSteps} recent step${debug.window.totalSteps === 1 ? '' : 's'}${debug.window.truncated ? c.dim(' (bounded window)') : ''}`);
+  if (debug.enabled && debug.sessions.length > 0) {
+    const latestSteps = debug.sessions
+      .flatMap((session) => session.steps.map((step) => ({ session, step })))
+      .sort((left, right) => Date.parse(right.step.startedAt) - Date.parse(left.step.startedAt))
+      .slice(0, 5);
+    for (const { session, step } of latestSteps) {
+      const finished = step.finishedAt ? ` finished ${step.finishedAt}` : '';
+      const duration = step.durationMs === null ? '' : ` · ${step.durationMs}ms`;
+      console.log(`    ${step.label} ${session.providerLabel} ${step.state}${duration}`);
+      console.log(`      started ${step.startedAt} · expected by ${step.expectedBy}${finished}`);
+      console.log(`      ${step.description}`);
+    }
   }
   console.log('');
   console.log('  Interactive hook wiring (config carries the pd-hook- marker):');
@@ -714,9 +730,9 @@ async function handleSquidStatus(options: CLIOptions): Promise<void> {
   if (!matrix.exists) {
     console.log(`    ${c.dim('no matrix yet — nothing is being injected')}`);
   } else {
-    console.log(`    steering alerts   ${matrix.alerts.length}${matrix.alerts.map((a) => `\n      ${c.bad('!')} ${a}`).join('')}`);
-    console.log(`    pheromone traces  ${matrix.pheromones.length}${matrix.pheromones.slice(0, 5).map((p) => `\n      ${c.dim(`· ${p}`)}`).join('')}${matrix.pheromones.length > 5 ? `\n      ${c.dim(`… ${matrix.pheromones.length - 5} more`)}` : ''}`);
-    console.log(`    locks             ${matrix.locks.length}${matrix.locks.map((l) => `\n      ${c.dim(`⊘ ${l}`)}`).join('')}`);
+    console.log(`    steering alerts   ${matrix.window.totals.alerts}${matrix.alerts.map((a) => `\n      ${c.bad('!')} ${a}`).join('')}${matrix.window.truncated.alerts ? `\n      ${c.dim(`… showing ${matrix.alerts.length} most recent`)}` : ''}`);
+    console.log(`    pheromone traces  ${matrix.window.totals.pheromones}${matrix.pheromones.slice(-5).map((p) => `\n      ${c.dim(`· ${p}`)}`).join('')}${matrix.window.totals.pheromones > 5 ? `\n      ${c.dim(`… showing 5 most recent`)}` : ''}`);
+    console.log(`    locks             ${matrix.window.totals.locks}${matrix.locks.map((l) => `\n      ${c.dim(`⊘ ${l}`)}`).join('')}${matrix.window.truncated.locks ? `\n      ${c.dim(`… showing ${matrix.locks.length} most recent`)}` : ''}`);
   }
   console.log('');
   await printBridgeProbe(options);

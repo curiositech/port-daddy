@@ -962,7 +962,9 @@ export function createSugar(deps: SugarDeps) {
         const sentinel = checkResultNoteSentinel(effectiveNote);
         if (!sentinel.ok) {
           if (isSubtaskOrNoPr) {
-            const standardSentinel = 'not-applicable: subtask code delivery';
+            const standardSentinel = options.noPr === true
+              ? 'not-applicable: ledger-only session, no repository artifact'
+              : 'not-applicable: subtask code delivery';
             effectiveNote = effectiveNote && effectiveNote.trim()
               ? `${effectiveNote.trim()}\n\n${standardSentinel}`
               : standardSentinel;
@@ -994,16 +996,28 @@ export function createSugar(deps: SugarDeps) {
 
         const originCheck = gitOriginChecker.checkBranchOnOrigin(worktreeRoot);
         if (!originCheck.ok) {
-          return {
-            success: false,
-            code: 'BRANCH_NOT_ON_ORIGIN',
-            error: `pd done refused — ${originCheck.error}`,
-            hint: originCheck.hint,
-            branch: originCheck.branch ?? null,
-            upstream: originCheck.upstream ?? null,
-            ahead: originCheck.ahead ?? null,
-            originCheckCode: originCheck.code,
-          };
+          const ledgerOnly = options.noPr === true && gitOriginChecker.checkLedgerOnly
+            ? gitOriginChecker.checkLedgerOnly(worktreeRoot)
+            : null;
+          if (ledgerOnly?.ok) {
+            // A clean worktree with zero commits absent from all remotes has no
+            // repository artifact to orphan. `--no-pr` may close this ledger
+            // session without manufacturing an upstream branch.
+          } else {
+            return {
+              success: false,
+              code: ledgerOnly ? 'LEDGER_ONLY_CHECK_FAILED' : 'BRANCH_NOT_ON_ORIGIN',
+              error: `pd done refused — ${ledgerOnly?.error ?? originCheck.error}`,
+              hint: ledgerOnly?.hint ?? originCheck.hint,
+              branch: originCheck.branch ?? null,
+              upstream: originCheck.upstream ?? null,
+              ahead: originCheck.ahead ?? null,
+              originCheckCode: originCheck.code,
+              ledgerOnlyCheckCode: ledgerOnly?.code ?? null,
+              dirtyEntries: ledgerOnly?.dirtyEntries ?? null,
+              unpublishedCommits: ledgerOnly?.unpublishedCommits ?? null,
+            };
+          }
         }
       } else {
         // Skip-origin-check requested. Require a reason and stamp the note.
