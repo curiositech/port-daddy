@@ -57,6 +57,17 @@ requireColumn('parleys', 'outcome_json');
 requireColumn('harbor_helms', 'parley_expiry_default');
 requireColumn('mercy_health', 'hooks_json');
 
+// repo_settings (/account/repos): the SITREP dial must stay a closed enum at
+// the storage layer — the Worker trusts the CHECK as its last line of defense.
+const repoSettingsSql = requireTable('repo_settings');
+requireColumn('repo_settings', 'sitrep_end_of_turn');
+requireColumn('repo_settings', 'settings_json');
+for (const level of ['off', 'suggest', 'enforce']) {
+  if (!repoSettingsSql.includes(`'${level}'`)) {
+    throw new Error(`repo_settings.sitrep_end_of_turn CHECK is missing level '${level}'`);
+  }
+}
+
 const tableCount = Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_schema WHERE type = 'table'").get().n);
 console.log(`relay migration chain PASS: ${migrations.length} files, ${tableCount} tables`);
 
