@@ -138,12 +138,14 @@ describe('PortDaddy constructor', () => {
     }
   });
 
-  test.each([
-    ['http://custom', 80],
-    ['https://custom', 443],
-  ])('uses the protocol default for an explicit URL without a port: %s', (url, port) => {
-    const pd = new PortDaddy({ url, socketPath: '/nonexistent/port-daddy.sock' });
-    expect(pd._resolveTarget()).toEqual({ host: 'custom', port });
+  test('uses the HTTP protocol default for an explicit URL without a port', () => {
+    const pd = new PortDaddy({ url: 'http://custom', socketPath: '/nonexistent/port-daddy.sock' });
+    expect(pd._resolveTarget()).toEqual({ host: 'custom', port: 80 });
+  });
+
+  test('fails closed when an explicit URL requests unsupported TLS transport', () => {
+    const pd = new PortDaddy({ url: 'https://custom', socketPath: '/nonexistent/port-daddy.sock' });
+    expect(() => pd._resolveTarget()).toThrow(expect.objectContaining({ code: 'UNSUPPORTED_DAEMON_URL' }));
   });
 
   test('reads PORT_DADDY_URL from environment', () => {

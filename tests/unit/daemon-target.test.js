@@ -24,6 +24,7 @@ import { describe, test, expect } from '@jest/globals';
 import {
   DaemonEndpointDiscoveryError,
   discoverPublishedDaemonPort,
+  getDaemonTcpUrl,
   resolveDaemonTarget,
   resolvePublishedDaemonUrl,
 } from '../../shared/daemon-discovery.js';
@@ -69,9 +70,8 @@ describe('resolveDaemonTarget (the one canonical resolver)', () => {
   });
 
   test('3. no env, socket file present -> Unix socket', () => {
-    const t = resolveDaemonTarget({}, ALWAYS);
-    expect(t.socketPath).toBeTruthy();
-    expect(t.socketPath).toMatch(/daemon\.sock$/);
+    const t = resolveDaemonTarget({}, ALWAYS, { socketPath: '/state/daemon.sock' });
+    expect(t.socketPath).toBe('/state/daemon.sock');
   });
 
   test('4. no env, no socket file -> loopback TCP from the published port file', () => {
@@ -84,11 +84,12 @@ describe('resolveDaemonTarget (the one canonical resolver)', () => {
     expect(t.port).toBe(4312);
   });
 
-  test('URL without explicit port honors the protocol default', () => {
+  test('HTTP URL without explicit port uses port 80 and unsupported TLS fails closed', () => {
     const t = resolveDaemonTarget({ PORT_DADDY_URL: 'http://myhost' }, NEVER);
     expect(t.host).toBe('myhost');
     expect(t.port).toBe(80);
-    expect(resolveDaemonTarget({ PORT_DADDY_URL: 'https://myhost' }, NEVER).port).toBe(443);
+    expect(() => resolveDaemonTarget({ PORT_DADDY_URL: 'https://myhost' }, NEVER))
+      .toThrow(expect.objectContaining({ code: 'UNSUPPORTED_DAEMON_URL' }));
   });
 
   test('no URL, socket, env port, or published port file fails closed', () => {
@@ -160,5 +161,21 @@ describe('published daemon endpoint discovery', () => {
       portFile: '/state/daemon.port',
       readTextFile: () => { throw missing; },
     })).toThrow(expect.objectContaining({ code: 'ENDPOINT_NOT_PUBLISHED' }));
+  });
+
+  test('legacy TCP URL helper is strict and uses only explicit or published endpoints', () => {
+    expect(getDaemonTcpUrl('http://127.0.0.1:4319')).toBe('http://127.0.0.1:4319');
+    expect(getDaemonTcpUrl(undefined, {
+      env: {},
+      portFile: '/state/daemon.port',
+      readTextFile: () => '4320\n',
+    })).toBe('http://127.0.0.1:4320');
+
+    const missing = Object.assign(new Error('missing'), { code: 'ENOENT' });
+    expect(getDaemonTcpUrl(undefined, {
+      env: {},
+      portFile: '/state/daemon.port',
+      readTextFile: () => { throw missing; },
+    })).toBe('');
   });
 });
