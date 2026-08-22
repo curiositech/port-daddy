@@ -49,6 +49,12 @@
  *   POST /billing/portal                       (session; Stripe Billing Portal link)
  *   GET  /auth/status                          (session cookie → {login, avatarUrl};
  *                                               credentialed CORS for portdaddy.dev)
+ *   PUT  /v1/roadmap/snapshot                  (session/pdu; daemon pushes one
+ *                                               repo's roadmap mirror — full
+ *                                               replace; operator mandate
+ *                                               2026-08-22, PR 1)
+ *   GET  /v1/roadmap/mirror?repo=              (session/pdu; own mirror read —
+ *                                               board / item detail / activity)
  *   POST /v1/harbors                           (session/pdu; create a remote harbor — client-supplied pubkey)
  *   GET  /v1/harbors                           (session/pdu; harbors I belong to)
  *   GET  /v1/harbors/:namespace/:name          (member-gated; detail + members)
@@ -187,6 +193,7 @@ import {
   handleGetParley,
   handleRespondParley,
 } from './parleys.js';
+import { handleRoadmapSnapshotPut, handleRoadmapMirrorGet } from './roadmap-mirror.js';
 
 // Re-export Durable Object classes for wrangler to pick up
 export { HarborChannel };
@@ -547,6 +554,15 @@ export default {
     }
     else if (pathname === '/v1/harbor/whois' && method === 'GET') {
       response = await handleWhois(request, env);
+    }
+
+    // ── Roadmap command-center mirror (operator mandate 2026-08-22, PR 1;
+    // src/roadmap-mirror.ts). The daemon pushes; the account reads its own. ──
+    else if (pathname === '/v1/roadmap/snapshot' && method === 'PUT') {
+      response = await handleRoadmapSnapshotPut(request, env);
+    }
+    else if (pathname === '/v1/roadmap/mirror' && method === 'GET') {
+      response = await handleRoadmapMirrorGet(request, env);
     }
 
     // ── Remote harbors (grand-plan X2 v1; src/harbors.ts) ────────────────────

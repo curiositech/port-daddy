@@ -541,6 +541,88 @@ CREATE INDEX IF NOT EXISTS harbor_memberships_member_idx
   ON harbor_memberships (member_kind, member_id);
 
 -- ──────────────────────────────────────────────────────────────────────────
+-- Roadmap command-center mirror (operator mandate 2026-08-22; PR 1)
+--
+-- A daemon PUSHES its per-repo roadmap into these tables via
+-- PUT /v1/roadmap/snapshot (pdu_ bearer); the relay stores a REPLICA the
+-- operator can read anywhere — never a second source of truth (the daemon
+-- stays the single writer). Every ingest is a FULL REPLACE per
+-- (user_id, repo_full_name) in one transactional batch. The watermark is
+-- honest: generated_at is the DAEMON's clock (unix ms, verbatim),
+-- received_at is the RELAY's clock (unix seconds). Tombstoned items
+-- (deleted_at set) are INCLUDED — a tombstone is data in a union-merged
+-- registry. Item timestamps and activity `at` are daemon-clock unix ms,
+-- passed through verbatim.
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS roadmap_mirrors (
+  user_id        TEXT    NOT NULL REFERENCES users(id),
+  repo_full_name TEXT    NOT NULL,
+  harbor         TEXT    NOT NULL,               -- daemon-declared harbor label
+  daemon_label   TEXT,                            -- which daemon pushed (display only)
+  generated_at   INTEGER NOT NULL,               -- DAEMON clock, unix ms (watermark)
+  received_at    INTEGER NOT NULL,               -- RELAY clock, unix seconds
+  item_count     INTEGER NOT NULL,
+  edge_count     INTEGER NOT NULL,
+  harbor_id      TEXT    REFERENCES harbors(id), -- resolved remote harbor, when one matches
+  PRIMARY KEY (user_id, repo_full_name)
+);
+
+-- Mirrored roadmap items, tombstones included. status mirrors the daemon's
+-- closed lane enum and is CHECK-enforced; kind/priority stay open-shaped (a
+-- newer daemon may grow the ladder — the mirror's job is fidelity).
+CREATE TABLE IF NOT EXISTS roadmap_mirror_items (
+  user_id           TEXT    NOT NULL REFERENCES users(id),
+  repo_full_name    TEXT    NOT NULL,
+  slug              TEXT    NOT NULL,
+  harbor            TEXT    NOT NULL,
+  status            TEXT    NOT NULL
+    CHECK (status IN ('now','backlog','parked','merge','done')),
+  kind              TEXT    NOT NULL DEFAULT 'task',
+  priority          INTEGER NOT NULL DEFAULT 3,
+  summary_md        TEXT    NOT NULL,
+  description_md    TEXT,
+  assignee_id       TEXT,
+  started_at        INTEGER,
+  due_at            INTEGER,
+  estimate          INTEGER,
+  last_touched_at   INTEGER NOT NULL,
+  created_at        INTEGER NOT NULL,
+  deleted_at        INTEGER,                      -- tombstone; off the board, queryable as deleted
+  dependencies_json TEXT    NOT NULL DEFAULT '[]'
+    CHECK (json_valid(dependencies_json)),
+  notes_json        TEXT    NOT NULL DEFAULT '[]'
+    CHECK (json_valid(notes_json)),
+  PRIMARY KEY (user_id, repo_full_name, harbor, slug)
+);
+CREATE INDEX IF NOT EXISTS idx_roadmap_mirror_items_board
+  ON roadmap_mirror_items(user_id, repo_full_name, status, last_touched_at DESC);
+
+-- Mirrored graph edges: hierarchy + dependency structure between items.
+CREATE TABLE IF NOT EXISTS roadmap_mirror_edges (
+  user_id        TEXT NOT NULL REFERENCES users(id),
+  repo_full_name TEXT NOT NULL,
+  scope          TEXT NOT NULL,
+  source_id      TEXT NOT NULL,
+  edge_type      TEXT NOT NULL
+    CHECK (edge_type IN ('parent_of','depends_on')),
+  target_id      TEXT NOT NULL,
+  PRIMARY KEY (user_id, repo_full_name, scope, source_id, edge_type, target_id)
+);
+
+-- Recent roadmap activity tail — capped (~200 per repo) at ingest AND by the
+-- retention sweep; the mirrors themselves persist (state, not history).
+CREATE TABLE IF NOT EXISTS roadmap_mirror_activity (
+  user_id        TEXT    NOT NULL REFERENCES users(id),
+  repo_full_name TEXT    NOT NULL,
+  at             INTEGER NOT NULL,               -- daemon clock, unix ms
+  slug           TEXT    NOT NULL,
+  kind           TEXT    NOT NULL,               -- e.g. 'touch' | 'promote' | 'status'
+  by_id          TEXT,                            -- daemon-side actor id, when known
+  detail_json    TEXT,
+  PRIMARY KEY (user_id, repo_full_name, at, slug, kind)
+);
+
+-- ──────────────────────────────────────────────────────────────────────────
 -- X3 PRESENCE + HELM v1 — presence first, the Helm without ballots
 -- (docs/proposals/relay-grand-plan.md §X3, D5/D6; src/presence.ts; migration
 -- 2026-08-04-x3-presence-helm.sql).
