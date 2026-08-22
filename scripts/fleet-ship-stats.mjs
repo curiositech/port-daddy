@@ -180,26 +180,62 @@ export function parseArgs(argv) {
  * @returns {Array<object>} result rows
  */
 function runQuery(opts, sql) {
-  const raw = execFileSync(
-    'npx',
-    ['wrangler', 'd1', 'execute', opts.database, '--remote', '--json', '--config', opts.config, '--command', sql],
-    { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
-  );
-  const parsed = JSON.parse(raw);
+  let raw;
+  try {
+    raw = execFileSync(
+      'npx',
+      ['wrangler', 'd1', 'execute', opts.database, '--remote', '--json', '--config', opts.config, '--command', sql],
+      { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+    );
+  } catch (err) {
+    // Fail with the OPERATOR's next action, not a stack trace: the three ways
+    // this dies in practice are missing wrangler auth, a wrong database name,
+    // and a wrong/missing --config path — name all three and surface
+    // wrangler's own last words.
+    const tail =
+      err && typeof err === 'object' && err.stderr
+        ? String(err.stderr).trim().split('\n').slice(-4).join('\n')
+        : String(err instanceof Error ? err.message : err);
+    throw new Error(
+      `wrangler d1 execute failed for database '${opts.database}' (config: ${opts.config}). ` +
+        `Check Cloudflare auth (CLOUDFLARE_API_TOKEN or \`wrangler login\`), the database name, ` +
+        `and the config path.\n${tail}`,
+    );
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      `wrangler returned non-JSON output for database '${opts.database}' — ` +
+        `re-run the command manually to inspect: npx wrangler d1 execute ${opts.database} --remote --json --config ${opts.config} --command "<sql>"`,
+    );
+  }
   return parsed?.[0]?.results ?? [];
 }
 
 function main() {
-  const opts = parseArgs(process.argv.slice(2));
-  const q = buildQueries(opts.days);
-  const data = {
-    days: opts.days,
-    spend: runQuery(opts, q.spend),
-    health: runQuery(opts, q.health),
-    purser: runQuery(opts, q.purser),
-    runs: runQuery(opts, q.runs),
-  };
-  console.log(renderShipStats(data));
+  let opts;
+  try {
+    opts = parseArgs(process.argv.slice(2));
+  } catch (err) {
+    console.error(`fleet-ship-stats: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(2);
+  }
+  try {
+    const q = buildQueries(opts.days);
+    const data = {
+      days: opts.days,
+      spend: runQuery(opts, q.spend),
+      health: runQuery(opts, q.health),
+      purser: runQuery(opts, q.purser),
+      runs: runQuery(opts, q.runs),
+    };
+    console.log(renderShipStats(data));
+  } catch (err) {
+    console.error(`fleet-ship-stats: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

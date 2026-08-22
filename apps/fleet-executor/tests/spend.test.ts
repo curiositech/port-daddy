@@ -3,7 +3,14 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { costUsdForModel, isPricedModel, WORKERS_AI_RATES } from '../src/spend.js';
+import {
+  costUsdForModel,
+  isPricedModel,
+  hasKnownContextWindow,
+  WORKERS_AI_RATES,
+  MODEL_CONTEXT_TOKENS,
+} from '../src/spend.js';
+import { KNOWN_GOOD_CF_MODELS } from '../src/fleet.js';
 
 describe('costUsdForModel', () => {
   it('prices gpt-oss-120b at $0.35/$0.75 per M', () => {
@@ -24,6 +31,22 @@ describe('costUsdForModel', () => {
   it('rounds to 6 decimals so sub-cent costs do not vanish', () => {
     // 1 in / 1 out on gpt-oss ≈ 1.1e-6 → rounds to 0.000001, not 0.
     expect(costUsdForModel('@cf/openai/gpt-oss-120b', 1, 1)).toBe(0.000001);
+  });
+
+  it('ADMISSION CONTRACT: every honored model is priced AND has a known context window', () => {
+    // The roster's three-part admission contract as an executable invariant
+    // (pd-qa HIGH on #9249): an honored-but-unpriced model meters $0 and
+    // rides invisibly; an honored model without a context row breaks derived
+    // chunk budgets. Membership in KNOWN_GOOD_CF_MODELS therefore REQUIRES
+    // both rows — adding an id to fleet.ts without spend.ts fails here.
+    for (const model of KNOWN_GOOD_CF_MODELS) {
+      expect({ model, priced: isPricedModel(model) }).toEqual({ model, priced: true });
+      expect({ model, ctx: hasKnownContextWindow(model) }).toEqual({ model, ctx: true });
+    }
+    // Bijection both ways: a rate or context row for an UN-honored id is dead
+    // config that silently prices nothing — the tables and the set move together.
+    expect(Object.keys(WORKERS_AI_RATES).sort()).toEqual([...KNOWN_GOOD_CF_MODELS].sort());
+    expect(Object.keys(MODEL_CONTEXT_TOKENS).sort()).toEqual([...KNOWN_GOOD_CF_MODELS].sort());
   });
 
   it('the rate table contains exactly the known-good models the fleet routes to', () => {
