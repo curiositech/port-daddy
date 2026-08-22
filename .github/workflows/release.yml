@@ -8,6 +8,11 @@ on:
       tag:
         description: 'Release tag to build binaries for (e.g. v3.14.0)'
         required: true
+      force_console:
+        description: 'Build pd-console.app even if core/pd-console is unchanged since the previous tag (e.g. after a signing-cert rotation)'
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   build-binaries:
@@ -377,6 +382,19 @@ jobs:
     # locally verified 2026-06-20 (the real pd-console binary bundles to a valid
     # hardened-runtime Developer ID .app). Same APPLE_* secrets; no-ops unsigned
     # if the cert secret is absent so the build never breaks.
+    #
+    # CONDITIONAL since 2026-08-22 (operator ask): a release where the console's
+    # application code did not change must NOT re-cut a console binary — the
+    # rebuild would differ only in its embedded version string, costing a full
+    # Rust build + signing + notarization round to pretend something shipped.
+    # The `gate` step below compares core/pd-console (+ the packaging script)
+    # against the previous v* tag, ignoring the pure `version = "…"` churn that
+    # postversion/sync-version.ts stamps into Cargo.toml on EVERY release. When
+    # unchanged, every later step is skipped, the job still succeeds (so
+    # build-latest-json / update-homebrew gating is untouched), this release
+    # ships no console .zip, and latest.json simply omits the console entry —
+    # already a supported feed shape ("best-effort and may be absent").
+    # Consumers keep the newest console from the last release that cut one.
     runs-on: macos-latest
     permissions:
       contents: write
@@ -384,20 +402,70 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          # Full history + tags: the gate step diffs this tag against the
+          # previous release tag, so both trees must be present.
+          fetch-depth: 0
+
+      - name: Decide whether the console changed since the previous release
+        id: gate
+        env:
+          CURR_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          FORCE: ${{ inputs.force_console && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+          if [ "$FORCE" = "true" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "force_console=true — building pd-console unconditionally." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Previous release tag = the v* tag immediately below CURR_TAG in
+          # semver order. Diffing against the immediate predecessor is
+          # transitive: if several consecutive releases skip the console, each
+          # skip proved its own tag-to-tag interval clean.
+          PREV_TAG="$(git tag -l 'v*' --sort=-v:refname | awk -v c="$CURR_TAG" 'found { print; exit } $0 == c { found=1 }')"
+          if [ -z "$PREV_TAG" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "No previous v* tag below $CURR_TAG — building the console."
+            exit 0
+          fi
+          # -I'^version = ': postversion (scripts/sync-version.ts) stamps the
+          # release version into core/pd-console/Cargo.toml on EVERY release,
+          # so a bare path diff is non-empty every time. Ignoring pure
+          # `version = "…"` lines leaves only real application/packaging
+          # changes; a genuine dependency change still shows through its
+          # `checksum = …` / `source = …` lines in Cargo.lock.
+          if git diff --quiet -I'^version = ' "$PREV_TAG" "$CURR_TAG" -- core/pd-console scripts/package-pd-console.sh; then
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### pd-console NOT re-cut"
+              echo ""
+              echo "\`core/pd-console\` and \`scripts/package-pd-console.sh\` are unchanged between \`$PREV_TAG\` and \`$CURR_TAG\` (version-string churn aside)."
+              echo "The newest console binary remains the one attached to the last release that built it; this release's \`latest.json\` carries no console entry."
+              echo "To cut one anyway (e.g. after a signing-cert rotation), re-run release.yml via workflow_dispatch with \`force_console: true\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "pd-console unchanged $PREV_TAG..$CURR_TAG — skipping the console build."
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "pd-console changed since $PREV_TAG — building."
+          fi
 
       - name: Install Rust toolchain (stable)
+        if: steps.gate.outputs.build == 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust build artefacts
+        if: steps.gate.outputs.build == 'true'
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: core/pd-console
 
       - name: Build pd-console (--release --features gpui)
+        if: steps.gate.outputs.build == 'true'
         run: cargo build --release --features gpui --bin pd-console
         working-directory: core/pd-console
 
       - name: Package + sign + notarize pd-console.app
+        if: steps.gate.outputs.build == 'true'
         env:
           APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
           APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
@@ -443,10 +511,15 @@ jobs:
         # artifact (the .app's CFBundleShortVersionString and the binary's build
         # stamp) and fails the release if it disagrees with package.json.
         # --require-artifacts: the .app was just built here, so its absence is a
-        # real failure, not a skip.
+        # real failure, not a skip. (Skipped with the build when the gate says
+        # the console is unchanged — there is no fresh artifact to interrogate,
+        # and the carried-forward console legitimately embeds its own release's
+        # version, not this one's.)
+        if: steps.gate.outputs.build == 'true'
         run: node scripts/check-version-drift.mjs --deep --require-artifacts
 
       - name: Upload pd-console.app to release
+        if: steps.gate.outputs.build == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
@@ -462,7 +535,10 @@ jobs:
     # `releases/latest/download/latest.json` always resolves to the newest feed
     # that `pd upgrade` (and the GUI apps) poll. Gated on the daemon + FleetBar
     # builds succeeding (the same ESSENTIAL gate update-homebrew uses); the
-    # console job is best-effort and may be absent from the feed if it failed.
+    # console job is best-effort and may be absent from the feed if it failed —
+    # or if its gate deliberately skipped the build because core/pd-console was
+    # unchanged since the previous tag (the console then stays on the last
+    # release that cut one).
     needs: [build-binaries, build-fleetbar-preview, build-pd-console-app]
     if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest

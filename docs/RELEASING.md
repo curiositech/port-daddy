@@ -91,7 +91,13 @@ gh run watch $(gh run list --workflow=release.yml --limit 1 --json databaseId --
 # Confirm the daemon/CLI binaries land on the release:
 #   pd-darwin-arm64.tar.gz
 #   pd-linux-x64.tar.gz
-# plus the FleetBar preview .zip and pd-console artifact.
+# plus the FleetBar preview .zip. The pd-console .zip is CONDITIONAL: it is
+# only attached when core/pd-console (or scripts/package-pd-console.sh)
+# actually changed since the previous tag — version-string churn aside. An
+# unchanged console is deliberately not re-cut; the newest console stays on
+# the last release that built one, and that release's latest.json simply
+# omits the console entry. To force a rebuild (e.g. signing-cert rotation),
+# dispatch release.yml with force_console=true.
 # Confirm both archives have provenance bound to this repository, release.yml,
 # the exact tag ref, and the tag commit (the tap enforces the same boundary).
 
