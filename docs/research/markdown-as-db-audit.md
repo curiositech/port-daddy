@@ -37,12 +37,13 @@ legitimately the source — e.g. `pd-fleet.yml`, `.cartographer/config.yml`) are
   table could diverge; promoted items in the table were invisible to
   `pd roadmap`, and the ~41 markdown "next cuts" were never in the table.
 - **Status:** **FIXED.** `pd roadmap` now lists from `GET /roadmap/items`
-  (the table). A one-time idempotent backfill (`pd roadmap import-markdown`,
-  now served by the general chomper in `lib/roadmap-chomp.ts`, which
-  supplanted the fixed-source `lib/roadmap-import.ts`) folds the existing
-  markdown piles into the table so
-  nothing is lost. `docs/ROADMAP.md` remains a render output of
-  `pd roadmap render --write`.
+  (the table). An idempotent backfill folds the existing markdown piles into
+  the table so nothing is lost: `pd roadmap import-markdown` is now an alias
+  over the general document chomper in `lib/roadmap-chomp.ts`, which parses
+  the three curated piles as content-detected formats. (The original
+  fixed-three-source importer module was deleted when the chomper supplanted
+  it — one ingestion path, no parallel parser.) `docs/ROADMAP.md` remains a
+  render output of `pd roadmap render --write`.
 
 ### 2. `pd roadmap pop` chooses candidates from the markdown piles — FOLLOW-UP
 
@@ -78,8 +79,8 @@ legitimately the source — e.g. `pd-fleet.yml`, `.cartographer/config.yml`) are
 ### 4. DOGFOOD-FEEDBACK.md is a stale mirror of feedback tuples — FOLLOW-UP
 
 - **Where:** parsed by `parseFeedbackEntries()` in `lib/roadmap-progress.ts`
-  (and now also as an import input in `lib/roadmap-chomp.ts`, which
-  supplanted `lib/roadmap-import.ts`).
+  (and now also as an ingestion input in `lib/roadmap-chomp.ts`, the single
+  document chomper that replaced the earlier fixed-source importer module).
 - **What it is:** `docs/recovery/DOGFOOD-FEEDBACK.md` is a human-curated markdown
   mirror of feedback, while the actual feedback source of truth is the
   `feedback:dropped` / `feedback:harvested` **tuples** (`lib/feedback.ts`).

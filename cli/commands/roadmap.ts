@@ -879,10 +879,11 @@ ${tree}
 - \`${input.snapshotRelPath}\` regenerated from the live daemon via the export machinery
   (\`lib/roadmap-snapshot.ts\`) and committed alongside the doc removal; the roadmap-link
   gate reads this mirror.
-- \`docs/roadmap/receipts/chomp-receipt.json\` (committed with this PR) is the machine-readable
-  work receipt: docs read (+ source commit), items derived, rows protected, deps skipped as
-  dangling, and warnings. Each derived row also carries \`source_refs_json\` pointing at its
-  source doc + commit.
+- The machine-readable work receipt — docs read (+ source commit), items derived, rows
+  protected, deps skipped as dangling, and warnings — lands at
+  \`docs/roadmap/receipts/chomp-receipt.json\` when it lands with this PR (the path is
+  created by this PR, so it does not exist yet on the base branch). Each derived row also
+  carries \`source_refs_json\` pointing at its source doc + commit.
 
 <!-- visual-exempt: roadmap data + doc removal only; no visual surface changed -->
 

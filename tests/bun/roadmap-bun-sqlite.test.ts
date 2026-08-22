@@ -46,6 +46,19 @@ const ROADMAP_DDL = `
     notes_json TEXT NOT NULL DEFAULT '[]',
     harbor TEXT NOT NULL,
     created_at INTEGER NOT NULL,
+    -- PD Planner (ADR-0086 / migration 085) + derived-item provenance. Mirrors
+    -- CORE_SCHEMA_SQL in lib/db.ts; roadmap-items.ts writes these columns, so a
+    -- stale mirror here fails only under bun:sqlite (the compiled-daemon gate).
+    kind TEXT NOT NULL DEFAULT 'task'
+      CHECK(kind IN ('project','epic','story','task','subtask','bug','chore')),
+    priority INTEGER NOT NULL DEFAULT 3
+      CHECK(priority BETWEEN 1 AND 5),
+    assignee_id TEXT,
+    description_md TEXT,
+    started_at INTEGER,
+    due_at INTEGER,
+    estimate INTEGER,
+    source_refs_json TEXT,
     deleted_at INTEGER,
     UNIQUE(slug, harbor)
   );
