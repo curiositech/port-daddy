@@ -209,6 +209,30 @@ export const KNOWN_GOOD_CF_MODELS: ReadonlySet<string> = new Set([
   '@cf/deepseek-ai/deepseek-v4-pro-0813', // 80.6% SWE-bench Verified; 1M ctx reasoning
   '@cf/google/gemma-4-26b-a4b-it', // cheap-class diversity; best speed/reliability balance
   '@cf/nvidia/nemotron-3-120b-a12b', // strongest agentic tool-reliability profile in class
+  // FULL-UNIVERSE admission (operator directive, PR #9249 comment): the set
+  // now honors EVERY current, non-deprecated, Cloudflare-hosted
+  // text-generation model with a published price and a served context window.
+  // Being honored is not an endorsement — assignments are chosen on evidence
+  // and judged on the scoreboard; the set only guards against silent-blank
+  // ids. Excluded, as documented rulings in the roster reference: the
+  // catalog's Deprecated tier (retirable ⇒ blank risk), llama-3.1-8b-fast
+  // (no published price ⇒ unmeterable), llama-guard-3-8b (safety classifier,
+  // not a generator), kimi-k2.6 (the #654 phantom id tombstone — needs one
+  // witnessed live call), and everything non-text (image/video/audio/
+  // embeddings — physically not coding agents).
+  '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+  '@cf/meta/llama-3.1-8b-instruct-fp8',
+  '@cf/meta/llama-3.2-1b-instruct',
+  '@cf/meta/llama-3.2-3b-instruct',
+  '@cf/meta/llama-3.2-11b-vision-instruct',
+  '@cf/meta/llama-4-scout-17b-16e-instruct',
+  '@cf/mistralai/mistral-small-3.1-24b-instruct',
+  '@cf/qwen/qwen2.5-coder-32b-instruct',
+  '@cf/qwen/qwq-32b',
+  '@cf/qwen/qwen3.8-27b',
+  '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
+  '@cf/ibm-granite/granite-4.0-h-micro',
+  '@cf/aisingapore/gemma-sea-lion-v4-27b-it',
 ]);
 
 /**
@@ -376,6 +400,16 @@ function deriveMapModel(agent: RawAgent, cfModel: string): string | undefined {
   // pin is dropped to an untiered run, matching the unusable-pin posture.
   // Blend weighted toward input (diffs are input-heavy), the same shape
   // map-reduce-invariants.test.ts asserts over the default ships.
+  //
+  // Unpriced-id semantics (pd-code-reviewer HIGH on #9249, examined): an
+  // unpriced id blends to +Infinity. For the PIN that is deliberate — an
+  // unpriced pin can never pass as "cheaper" and is dropped. For the REDUCE
+  // model the Infinity case is UNREACHABLE by construction: cfModel is always
+  // either a KNOWN_GOOD id or a role default, and the admission-contract test
+  // (spend.test.ts) forces every KNOWN_GOOD id to have a rate row. Were that
+  // invariant ever broken, blended(cfModel)=Infinity makes this guard KEEP
+  // the pin (fail-open tiering), not drop it — the opposite of the reported
+  // failure mode, and the safe direction.
   /**
    * Blended $/M for one model — the comparison currency for the direction
    * guard above; an unpriced id blends to +Infinity by design so it can never
