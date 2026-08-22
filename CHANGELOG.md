@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`pd-vault` — the harbor key kernel (WS-A slice A2).** New `core/kernel/pd-vault/` crate: Ed25519 harbor identity with a deterministic X25519 counterpart derived from the same seed (so key agreement needs no second secret with its own custody story), HKDF-SHA256 per-channel/per-epoch channel keys, and XChaCha20-Poly1305 seal/open that binds harbor, channel, epoch and sequence into the AEAD tag — making cross-channel, cross-epoch, cross-harbor and sequence replay all decryption failures. Custody is enforced by construction: no accessor returns a private key, channel keys redact in `Debug` and zeroize on drop, and the crate is an rlib with no FFI surface, because an FFI export is the moment a kernel key becomes reachable from a process the kernel does not control. `open()` has exactly one failure value with one message, so a caller that logs it gets no oracle. Epoch rotation derives forward into unrelated keys while past epochs stay derivable for backfill — an explicit trade, and explicitly not forward secrecy.
+
 ### Fixed
 - **Release supervision and promotion now enforce the supported single-supervisor boundary end to end.** `pd doctor` keeps optional legacy Bosun state visible without treating its deliberate v3.28+ absence as a critical defect, while redirected doctor targets no longer borrow canonical launchd or registry evidence. Release CI omits the retired watchdog build, attests both sealed platform archives, and waits for the Homebrew tap's credential-independent, evidence-verified self-promotion instead of relying on a fragile cross-repository write token.
 
