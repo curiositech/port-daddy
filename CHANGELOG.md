@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Roadmap planner columns are live end to end (ADR-0086).** `kind`, `priority`, `assignee_id`, `description_md`, `started_at`, `due_at`, and `estimate` now flow through `RoadmapItem`, `POST/GET /roadmap/items`, and `pd roadmap upsert` (`--kind --priority --estimate --start --due --assignee --description`, with `YYYY-MM-DD` / `+Nd` / epoch-ms date parsing); the flat `pd roadmap` list renders them inline so it reads as a plan.
+- **pd-console opens on the roadmap Gantt.** The Planner pane renders a critical-path Gantt (kernel `pd-anchor` CPM scheduler — one canonical implementation) as its leading section, and the default no-arg workspace is now Roadmap | (Fleet / Lane) with the Gantt focused. The headless repl gains `:planner` / `:gantt` / `:roadmap` and `--capture-planner <path.png>` for CI-grade visual evidence on Linux.
+
+### Changed
+- **`GET /roadmap/board` schedules with real estimates** instead of the hardcoded `estimate: 1` — the board's Gantt is a duration chart now (`gantt-real-estimate-wiring`).
+- **pd-console daemon discovery defaults to the stable berth** (`http://127.0.0.1:9876`) when no `PORT_DADDY_URL`, `console-daemon.url`, or `daemon.port` is present, instead of failing before the window opens.
+
 ### Fixed
 - **Release supervision and promotion now enforce the supported single-supervisor boundary end to end.** `pd doctor` keeps optional legacy Bosun state visible without treating its deliberate v3.28+ absence as a critical defect, while redirected doctor targets no longer borrow canonical launchd or registry evidence. Release CI omits the retired watchdog build, attests both sealed platform archives, and waits for the Homebrew tap's credential-independent, evidence-verified self-promotion instead of relying on a fragile cross-repository write token.
 
