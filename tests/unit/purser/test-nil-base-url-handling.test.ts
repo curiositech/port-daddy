@@ -35,11 +35,6 @@ const requestContracts = [
     failClosed: /guard let baseURL,[\s\S]*else \{ return \}/,
   },
   {
-    path: 'apps/FleetBar/FleetBar/CloudFleetStore.swift',
-    signature: /func refresh\(\) async/,
-    failClosed: /guard let baseURL,[\s\S]*else \{ return \}/,
-  },
-  {
     path: 'apps/FleetBar/FleetBar/CostStore.swift',
     signature: /private func fetchCost\(\) async -> CostResponse\?/,
     failClosed: /guard let baseURL,[\s\S]*else \{ return nil \}/,
@@ -79,9 +74,28 @@ describe('FleetBar nil endpoint handling', () => {
     expect(body).toMatch(/guard let baseURL, let encoded = encodeKey\(key\) else \{ return nil \}/);
   });
 
+  test('CloudFleetStore rejects missing accounts and invalid Relay origins before networking', () => {
+    const source = readSource('apps/FleetBar/FleetBar/CloudFleetStore.swift');
+    const refresh = swiftFunction(source, /func refresh\(\) async/);
+    const request = swiftFunction(
+      source,
+      /private func request\(path: String, account: OperatorAccount\) async throws -> Data/,
+    );
+
+    expect(refresh).toMatch(/guard let nextAccount = loadAccount\(\) else \{[\s\S]*isSignedOut = true[\s\S]*return/);
+    expect(refresh.indexOf('guard let nextAccount')).toBeLessThan(refresh.indexOf('request(path:'));
+    expect(request).toContain('guard let url = URL(string: "\\(account.relayUrl)\\(path)") else');
+    expect(request).toContain('throw CloudFleetTransportError.invalidRelay');
+    expect(request.indexOf('guard let url')).toBeLessThan(request.indexOf('URLRequest(url: url)'));
+  });
+
   test('runtime request counter proves the fail-closed assertion is live', () => {
     const harness = readSource('apps/FleetBar/Tests/FleetBarTests/EndpointFailClosedTests.swift');
     expect(harness).toContain('XCTAssertEqual(RequestCountingProtocol.total(), 0');
     expect(harness).toContain('XCTAssertGreaterThan(RequestCountingProtocol.total(), 0)');
+
+    const cloudHarness = readSource('apps/FleetBar/Tests/FleetBarTests/CloudFleetStoreTests.swift');
+    expect(cloudHarness).toContain('func testSignedOutRefreshMakesNoRelayRequest()');
+    expect(cloudHarness).toContain('XCTAssertEqual(requestCount, 0)');
   });
 });

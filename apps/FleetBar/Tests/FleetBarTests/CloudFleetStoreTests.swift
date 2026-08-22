@@ -143,6 +143,26 @@ final class CloudFleetStoreTests: XCTestCase {
         XCTAssertNil(store.lastError)
     }
 
+    func testSignedOutRefreshMakesNoRelayRequest() async {
+        var requestCount = 0
+        StubURLProtocol.handler = { _ in
+            requestCount += 1
+            return StubURLProtocol.Stub(status: 500, body: Data())
+        }
+        let store = CloudFleetStore(
+            autoStart: false,
+            session: StubURLProtocol.makeSession(),
+            loadAccount: { nil }
+        )
+
+        await store.refresh()
+
+        XCTAssertEqual(requestCount, 0)
+        XCTAssertTrue(store.isSignedOut)
+        XCTAssertNil(store.lastError)
+        XCTAssertTrue(store.runs.isEmpty)
+    }
+
     func testRejectedTokenStopsFastPollingAndPointsToCredentials() async {
         let account = OperatorAccount(
             token: "pdu_expired_fixture",
