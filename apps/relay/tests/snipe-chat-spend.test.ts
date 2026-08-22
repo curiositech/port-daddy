@@ -19,6 +19,7 @@
  *     it now runs on the same engine rather than its own copy of it.
  */
 
+import { parse as parseYaml } from 'yaml';
 import { describe, it, expect } from 'vitest';
 import {
   DAILY_MESSAGES_DEFAULT,
@@ -44,7 +45,7 @@ import {
 } from '../src/snipe-chat.js';
 import { handleShipwrightChat } from '../src/shipwright.js';
 import { hashHex } from '../src/crypto.js';
-import { makeTestD1, seedSession, type TestD1 } from './support/d1-sqlite.js';
+import { makeTestD1, seedSession, seedSuggestion, type TestD1 } from './support/d1-sqlite.js';
 import type { Env } from '../src/types.js';
 
 const BASE = 'https://relay.example';
@@ -402,7 +403,81 @@ describe('snipe chat — the proposal verdict is computed, not claimed', () => {
   it('finds fenced skill blocks and parses their three keys', () => {
     const blocks = extractProposalBlocks(reply);
     expect(blocks).toHaveLength(1);
-    expect(parseProposalBlock(blocks[0] as string)).toMatchObject({ name: 'migration-backfill-verify' });
+    expect(parseProposalBlock(blocks[0] as string)).toMatchObject({
+      ok: true,
+      proposal: { name: 'migration-backfill-verify' },
+    });
+  });
+
+  // ── Prose in a YAML field ─────────────────────────────────────────────────
+  //
+  // The block's three values are sentences the model wrote, and YAML rejects
+  // sentences: an unquoted scalar containing ": " parses as a nested mapping
+  // and throws. The system prompt's own template asked for exactly that shape
+  // ("description: One or two sentences: what the skill does..."), so a model
+  // following instructions produced a block the parser refused — and refused
+  // with "it needs name, description and rationale" about a block that had all
+  // three. Both halves are fixed: the template no longer contains an inner
+  // colon, and a block YAML cannot read is re-read as the three-key shape it is
+  // documented to be.
+
+  it('a description containing a colon is a proposal, not a parse error', () => {
+    const block = [
+      'name: migration-backfill-verify',
+      'description: Verifies a backfill: rows match the source of truth. NOT for schema changes (use d1-and-supabase-migrations).',
+      'rationale: Three PRs hand-rolled it.',
+    ].join('\n');
+
+    // Premise: this really is the case YAML refuses. Without this the test
+    // could pass because the parser never had a problem with it.
+    expect(() => parseYaml(block)).toThrow();
+
+    expect(parseProposalBlock(block)).toMatchObject({
+      ok: true,
+      proposal: {
+        name: 'migration-backfill-verify',
+        description:
+          'Verifies a backfill: rows match the source of truth. NOT for schema changes (use d1-and-supabase-migrations).',
+      },
+    });
+  });
+
+  it('the fallback never overrides a block YAML can read', () => {
+    // The line reader takes values literally, so it would keep the quotes YAML
+    // strips. Reading this back unquoted is what proves YAML still wins when it
+    // succeeds.
+    const quoted = 'name: a\ndescription: "Verifies a backfill: rows match."\nrationale: r';
+    expect(parseProposalBlock(quoted)).toMatchObject({
+      ok: true,
+      proposal: { description: 'Verifies a backfill: rows match.' },
+    });
+  });
+
+  it('a value spanning several lines keeps its continuation lines', () => {
+    const block = [
+      'name: a',
+      'description: Verifies a backfill: rows match.',
+      '  It also checks counts.',
+      'rationale: r',
+    ].join('\n');
+    const parsed = parseProposalBlock(block);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.ok && parsed.proposal.description).toContain('It also checks counts.');
+  });
+
+  it('an unreadable block is not reported as an incomplete one', () => {
+    // The two failures used to share a message, so an operator holding a
+    // complete proposal was told it was missing keys.
+    const unreadable = snipeProposalVerdicts(
+      '```skill\nname: a\ndescription: Verifies a backfill: rows match.\n```',
+      [],
+    );
+    expect(unreadable[0]?.ok).toBe(false);
+    expect(unreadable[0]?.message).toMatch(/could not be read/);
+
+    const incomplete = snipeProposalVerdicts('```skill\nname: only-a-name\n```', []);
+    expect(incomplete[0]?.message).toMatch(/needs name, description and rationale/);
+    expect(incomplete[0]?.message).not.toBe(unreadable[0]?.message);
   });
 
   it('a reasoning trace is never a source of proposals', () => {
@@ -426,6 +501,47 @@ describe('snipe chat — the proposal verdict is computed, not claimed', () => {
     const v = snipeProposalVerdicts('```skill\nname: only-a-name\n```', []);
     expect(v[0]?.ok).toBe(false);
     expect(v[0]?.slug).toBeNull();
+  });
+
+  // Every verdict test above hands `knownNames` to the pure function as a
+  // literal, so none of them touches the query that produces it. That query is
+  // the whole novelty claim: `knownSuggestionNames` is scoped by user_id, and
+  // if it returns [] — a real failure, or the wrong user — every proposal is
+  // badged "is new to this account", asserting novelty nothing verified.
+
+  it('the novelty verdict is computed from this user\'s own stored suggestions', async () => {
+    const { t, env, userId } = withSession();
+    try {
+      // Stored under a differently-shaped id than the reply proposes, so the
+      // fold through normalizeSkillName is part of what this pins.
+      seedSuggestion(t, { id: 'sug_seen01', userId, repo: 'octocat/port-daddy', skillName: 'Migration Backfill Verify' });
+      (env as { AI?: Ai }).AI = mockAi({ response: reply }).ai;
+      const res = await handleSnipeChat(chatReq('/v1/snipe/chat', { message: 'propose', stream: false }), env);
+      const body = (await res.json()) as { proposals: { ok: boolean; message: string }[] };
+      expect(body.proposals[0]?.ok).toBe(false);
+      expect(body.proposals[0]?.message).toMatch(/already been proposed/);
+    } finally {
+      t.close();
+    }
+  });
+
+  it('another account\'s suggestion does not make this account\'s proposal old', async () => {
+    const { t, env } = withSession();
+    try {
+      // Same skill name, different owner. Without the user_id scope this comes
+      // back "already proposed" and leaks that some other account was offered
+      // it — the reason the query is scoped rather than global.
+      t.raw
+        .prepare('INSERT INTO users (id, github_user_id, login, created_at, email_verified) VALUES (?, ?, ?, ?, 0)')
+        .run('u_other', 987654, 'someone-else', Math.floor(Date.now() / 1000));
+      seedSuggestion(t, { id: 'sug_other1', userId: 'u_other', repo: 'other/repo', skillName: 'migration-backfill-verify' });
+      (env as { AI?: Ai }).AI = mockAi({ response: reply }).ai;
+      const res = await handleSnipeChat(chatReq('/v1/snipe/chat', { message: 'propose', stream: false }), env);
+      const body = (await res.json()) as { proposals: { ok: boolean; slug: string }[] };
+      expect(body.proposals[0]).toMatchObject({ ok: true, slug: 'migration-backfill-verify' });
+    } finally {
+      t.close();
+    }
   });
 
   it('the buffered envelope carries the verdicts alongside the reply', async () => {

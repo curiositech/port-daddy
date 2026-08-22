@@ -96,11 +96,11 @@ YOUR PROCESS:
 
 \`\`\`skill
 name: lower-kebab-id
-description: One or two sentences: what the skill does, and the boundary of what it is NOT for.
+description: What the skill covers in one or two sentences, then an explicit "NOT for X (use Y)" boundary.
 rationale: The recurring friction in this repo that this skill ends, and what the next piece of work would look like with it.
 \`\`\`
 
-Write \`description\` the way the catalog writes descriptions: what it covers, then an explicit "NOT for X (use Y)" boundary. Those boundaries are load-bearing — they are how the catalog stops proposing the same thing twice.
+Write \`description\` the way the catalog writes descriptions: what it covers, then the boundary. Those boundaries are how the catalog stops proposing the same thing twice — a later run reads them back and drops a proposal that lands inside one.
 
 5. AFTER the block, say plainly what happens next: this proposal is stored for the operator to APPROVE or DISMISS. Approving is what authorizes a pull request that authors the skill into their repo, private by default, under their own name. Nothing is written to any catalog until they merge that pull request.
 
@@ -141,21 +141,74 @@ export function extractProposalBlocks(content: string): string[] {
   return out;
 }
 
-/** Parse one block's three keys. Returns null when it is not a usable proposal. */
-export function parseProposalBlock(block: string): ParsedProposal | null {
-  let parsed: unknown;
-  try {
-    parsed = parseYaml(block);
-  } catch {
-    return null;
+const PROPOSAL_KEY_RE = /^(name|description|rationale)[ \t]*:[ \t]*/;
+
+/**
+ * Read the block as the three-key shape it is documented to be: a line opening
+ * a known key starts that key's value, and every line until the next such line
+ * belongs to it, taken literally.
+ *
+ * This exists because the values are prose and YAML rejects prose. An unquoted
+ * scalar containing ": " parses as a nested mapping and throws, so
+ * `description: Verifies a backfill: rows match the source of truth.` is a
+ * parse error rather than a description — and that is the exact shape the
+ * system prompt asks for. Telling the model to quote is not a fix: descriptions
+ * are sentences, sentences contain colons, and a proposal that is otherwise
+ * complete should not be refused over punctuation.
+ *
+ * Only consulted after the YAML parse has already failed, so it can accept
+ * blocks YAML rejects and can never change one YAML accepts.
+ */
+function parseProposalKeyLines(block: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  let key: string | null = null;
+  for (const line of block.split(/\r?\n/)) {
+    const m = PROPOSAL_KEY_RE.exec(line);
+    if (m) {
+      key = m[1] as string;
+      out[key] = line.slice(m[0].length);
+    } else if (key) {
+      out[key] = `${out[key]}\n${line}`;
+    }
   }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-  const o = parsed as Record<string, unknown>;
-  const name = typeof o.name === 'string' ? o.name.trim() : '';
-  const description = typeof o.description === 'string' ? o.description.trim() : '';
-  const rationale = typeof o.rationale === 'string' ? o.rationale.trim() : '';
-  if (!name || !description || !rationale) return null;
-  return { name, description, rationale };
+  return out;
+}
+
+/**
+ * Why the block was refused. The two cases used to be one `null` and therefore
+ * one message, which told an operator holding a complete proposal that it was
+ * missing keys.
+ */
+export type ProposalParseFailure = 'unparseable' | 'incomplete';
+
+export type ProposalParse =
+  | { ok: true; proposal: ParsedProposal }
+  | { ok: false; reason: ProposalParseFailure };
+
+/** Parse one block's three keys. */
+export function parseProposalBlock(block: string): ProposalParse {
+  let fields: Record<string, unknown>;
+  let yamlFailed = false;
+  try {
+    const parsed = parseYaml(block);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { ok: false, reason: 'unparseable' };
+    }
+    fields = parsed as Record<string, unknown>;
+  } catch {
+    yamlFailed = true;
+    fields = parseProposalKeyLines(block);
+  }
+  const name = typeof fields.name === 'string' ? fields.name.trim() : '';
+  const description = typeof fields.description === 'string' ? fields.description.trim() : '';
+  const rationale = typeof fields.rationale === 'string' ? fields.rationale.trim() : '';
+  if (!name || !description || !rationale) {
+    // A block YAML could not read AND the line reader could not complete is
+    // unreadable, not incomplete — saying "it needs three keys" about it would
+    // be a guess.
+    return { ok: false, reason: yamlFailed ? 'unparseable' : 'incomplete' };
+  }
+  return { ok: true, proposal: { name, description, rationale } };
 }
 
 export interface ProposalVerdict {
@@ -187,15 +240,19 @@ export function snipeProposalVerdicts(
 ): ProposalVerdict[] {
   const known = new Set(knownNames.map(normalizeSkillName).filter(Boolean));
   return extractProposalBlocks(replyText).map((block, index) => {
-    const parsed = parseProposalBlock(block);
-    if (!parsed) {
+    const result = parseProposalBlock(block);
+    if (!result.ok) {
       return {
         index,
         ok: false,
         slug: null,
-        message: 'This block is not a usable proposal — it needs name, description and rationale.',
+        message:
+          result.reason === 'unparseable'
+            ? 'This block could not be read as a proposal — it is not name, description and rationale, one per line.'
+            : 'This block is not a usable proposal — it needs name, description and rationale.',
       };
     }
+    const parsed = result.proposal;
     const slug = normalizeSkillName(parsed.name);
     if (!slug) {
       return { index, ok: false, slug: null, message: `'${parsed.name}' is not a usable skill id.` };
@@ -220,10 +277,15 @@ async function knownSuggestionNames(db: D1Database, userId: string): Promise<str
       .bind(userId)
       .all<{ skill_name: string }>();
     return (rows.results ?? []).map((r) => r.skill_name);
-  } catch {
-    // A verdict is an enhancement, not a gate. Failing to compute one must
-    // never cost the operator their turn — the reply still streams, just
-    // without the "already proposed" badge.
+  } catch (err) {
+    // A verdict is an enhancement, not a gate: failing to compute one must
+    // never cost the operator their turn, so the reply still streams.
+    //
+    // But be honest about what the degraded state is. Returning [] does not
+    // omit a badge — every proposal comes back "is new to this account", which
+    // asserts novelty nothing checked. That is a wrong answer rather than a
+    // missing one, so it gets logged instead of passing silently.
+    console.warn('snipe: known-suggestion lookup failed, novelty verdicts are unverified', err);
     return [];
   }
 }

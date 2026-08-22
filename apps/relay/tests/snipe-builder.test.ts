@@ -382,6 +382,17 @@ describe('snipe builder — approval is the only thing that queues a build', () 
       expect(notOwned.status).toBe(403);
       expect(((await notOwned.json()) as { code: string }).code).toBe('FORBIDDEN');
 
+      // A relay with no GitHub App refuses here rather than minting a grant it
+      // could never spend. The guard sits AFTER session and same-origin, so it
+      // never tells an anonymous caller whether this relay is provisioned; the
+      // two checks above are what prove that ordering.
+      const unconfigured = await handleSnipeApprove(
+        post('/account/seamanship/approve', { suggestionId: 'sug_a1b2', installationId: INSTALL }),
+        makeEnv(t, { GITHUB_APP_ID: '' }),
+      );
+      expect(unconfigured.status).toBe(503);
+      expect(((await unconfigured.json()) as { code: string }).code).toBe('BUILD_UNCONFIGURED');
+
       // Nothing moved and nothing was minted by any of those.
       expect(readSuggestion(t, 'sug_a1b2')).toMatchObject({ status: 'proposed' });
       const n = t.raw.prepare('SELECT COUNT(*) AS n FROM seamanship_build_grants').get() as { n: number };

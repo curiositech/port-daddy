@@ -14,7 +14,7 @@
  * feature, and it lives HERE, in one place, so a second chat surface cannot be
  * added without one.
  *
- * That is the load-bearing design decision: the cap is not a helper each
+ * That is the design decision worth stating: the cap is not a helper each
  * surface may choose to call, it is a step inside the shared turn engine
  * (src/chat-engine.ts) that no surface can route around. Adding a third chat
  * means implementing the store interface; it does not mean remembering to

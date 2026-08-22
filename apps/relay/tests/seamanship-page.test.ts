@@ -1,9 +1,11 @@
 /**
  * Tests for the Seamanship HTML surfaces (src/seamanship-page.ts):
  *   - /account/seamanship auth-gates anonymously (302 /login, like /account).
- *   - PRIVATE RENDERS UNMARKED — the load-bearing design law of this page.
- *     `listed` and `public` are the only tiers that get a badge, because they
- *     are the only tiers anyone chose.
+ *   - EVERY TIER RENDERS, PRIVATE INCLUDED. Private used to render as an empty
+ *     marker on the reasoning that a badge should mean someone chose it; the
+ *     operator's answer was that he wants to see his private skills in his own
+ *     tool, so absence of a badge is now indistinguishable from absence of a
+ *     skill. `visibilityMarker` returns a badge for all three tiers.
  *   - the public directory never shows a private skill, never shows a body, and
  *     never shows which repository a skill lives in.
  *   - a listed skill's body page renders the listed payload and refuses the body;

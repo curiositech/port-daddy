@@ -286,8 +286,8 @@ const REDIRECT_RE = /\(\s*use\s+([^)]+)\)/gi;
 /**
  * Read every NOT-FOR boundary the catalog declares about itself.
  *
- * These clauses are load-bearing, not decoration: a corpus that says "NOT for
- * generic ML tutorials" has already weighed that skill and declined it. A
+ * These clauses are read, not decoration: a corpus that says "NOT for generic
+ * ML tutorials" has already weighed that skill and declined it. A
  * proposer that cannot see the refusal proposes it again on the next run, and
  * the operator dismisses it again, forever. Reading the refusals is what makes
  * the job converge.
