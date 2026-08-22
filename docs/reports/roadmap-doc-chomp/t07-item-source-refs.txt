@@ -3,7 +3,7 @@ $ sh -c curl -s "http://127.0.0.1:9899/roadmap/items/port-daddy-v4-implementatio
 {
     "success": true,
     "item": {
-        "id": "9a4b1085-3039-4f5f-81b2-554e3a3bf058",
+        "id": "17fce185-8c38-44ea-9a1d-235421fc34d0",
         "slug": "port-daddy-v4-implementation-dag",
         "summaryMd": "Port Daddy V4: Implementation DAG",
         "status": "backlog",
@@ -13,17 +13,17 @@ $ sh -c curl -s "http://127.0.0.1:9899/roadmap/items/port-daddy-v4-implementatio
             {
                 "type": "doc",
                 "path": "V4-DAG.md",
-                "commit": "5d7dedc61798bdf2e193f9a5f10481bcbedfa9e8"
+                "commit": "9821dc45465a670ff1fd73730fd3a39af7cebbcd"
             }
         ],
         "promotedFromFeedbackId": null,
         "promotedByAgentId": "chomp-evidence",
         "promotedAt": null,
-        "lastTouchedAt": 1787441328354,
+        "lastTouchedAt": 1787442984839,
         "dependencies": [],
         "notes": [
             {
-                "at": 1787441326189,
+                "at": 1787442982753,
                 "by": "chomp-evidence",
                 "text": "chomped from V4-DAG.md (tags: v4-dag)"
             }

@@ -10,9 +10,12 @@ headless; zero desktop footprint, no windows opened).
 ## Capture context
 
 - **Branch:** `claude/roadmap-doc-chomp`
-- **Commit at capture:** `5d7dedc61798bdf2e193f9a5f10481bcbedfa9e8` (this SHA is
+- **Commit at capture:** `9821dc45465a670ff1fd73730fd3a39af7cebbcd` (this SHA is
   also visible *inside* the evidence — it is the `source_refs_json.commit`
-  the chomp stamped on every derived row)
+  the chomp stamped on every derived row). Re-captured at this commit after
+  the generator fix below; `t01`–`t05` regenerated **byte-identical** to the
+  first capture (only the three commit/receipt-dependent artifacts moved),
+  which is itself evidence the extraction is deterministic.
 - **Pipeline label:** REAL-PIPELINE / EPHEMERAL-DAEMON — the real CLI
   (`bin/port-daddy-cli.ts` via tsx) against a real daemon (`server.ts`,
   isolated `PORT_DADDY_PREFIX` sandbox DB on port 9899) chomping the repo's
@@ -34,7 +37,7 @@ headless; zero desktop footprint, no windows opened).
 | `t04-write-emit-pr-plan.txt/.png` | THE write act: 121 rows upserted through the daemon + the emitted PR-plan artifact paths + duplicate-slug warnings + 119 `parent_of` edges written | `pd roadmap chomp … --as chomp-evidence --emit-pr-plan <dir>` | REAL |
 | `t05-idempotent-rerun.txt/.png` | Idempotent re-run: `0 new, 121 existing/protected`; every row marked `protected` (never clobbered) | same command, second run | REAL |
 | `t06-roadmap-list.txt/.png` | The derived items read back from the `roadmap_items` DB-of-record | `pd roadmap --status all --harbor port-daddy --limit 200` | REAL |
-| `t07-item-source-refs.txt/.png` | One derived row's full JSON: `kind`, `descriptionMd`, provenance note, and `sourceRefs: [{type:doc, path:V4-DAG.md, commit:5d7dedc6…}]` | `curl /roadmap/items/port-daddy-v4-implementation-dag?harbor=port-daddy` | REAL |
+| `t07-item-source-refs.txt/.png` | One derived row's full JSON: `kind`, `descriptionMd`, provenance note, and `sourceRefs: [{type:doc, path:V4-DAG.md, commit:9821dc45…}]` | `curl /roadmap/items/port-daddy-v4-implementation-dag?harbor=port-daddy` | REAL |
 | `t08-pr-plan-artifacts.txt/.png` | What the emitted doc-removal PR contains: `remove-docs.txt` (git rm list), the work receipt head, the regenerated snapshot head | `cat`/`head` of the emit dir | REAL |
 | `chomp-receipt.json` | The FULL machine-readable work receipt from the write run (docs read + formats + counts, all 121 items with actions, dangling deps, warnings, `sourceCommit`) | copied verbatim from the emit dir | REAL |
 | `emitted-pr-body.md` | The ready PR body the emit produced for the doc-removal PR | copied verbatim from the emit dir | REAL |
@@ -49,6 +52,12 @@ headless; zero desktop footprint, no windows opened).
   CLI really printed.
 - PNGs clamp transcripts longer than 120 lines and say so in-image; the full
   text is always the committed `.txt` beside the PNG.
+- `emitted-pr-body.md` cites the receipt path a future chomp PR creates,
+  which by definition does not exist on the base branch. That line carries the
+  doc-citation guard's sanctioned "when it lands" proposal marker, emitted by
+  the GENERATOR (`buildChompPrBody` in `cli/commands/roadmap.ts`) — not
+  hand-edited into the artifact — so every future emitted body is green by
+  construction and artifact and generator never drift apart.
 - The evidence deliberately does NOT delete `V4-DAG.md` /
   `port-daddy-asciinema-skills-plan.md` from this branch: filing the emitted
   doc-removal PR is the operator's explicit act (the PR-only write doctrine

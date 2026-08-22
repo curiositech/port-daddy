@@ -5,6 +5,10 @@ ROADMAP · 121 item(s) · status=all · harbor=port-daddy
 --------------------------------------------------------------------------------
 source: roadmap_items SQL table (docs/ROADMAP.md is a render of this)
 
+  - add-copy-paste-snippets-from-each-video [backlog]
+    Add copy-paste snippets from each video
+  - github-promotion [backlog]
+    GitHub Promotion
   - add-skills-sh-badge-to-readme [backlog]
     Add skills.sh badge to README
   - link-to-asciinema-videos-from-quick-start [backlog]
@@ -13,6 +17,8 @@ source: roadmap_items SQL table (docs/ROADMAP.md is a render of this)
     Mention "Use as Claude/Cursor agent skill"
   - timeline [backlog]
     Timeline
+  - write-compelling-2-3-paragraph-description [backlog]
+    Write compelling 2-3 paragraph description
   - add-6-asciinema-video-links [backlog]
     Add 6 asciinema video links
   - tag-with-port-management-multi-agent-agent-coordination [backlog]
@@ -29,16 +35,8 @@ source: roadmap_items SQL table (docs/ROADMAP.md is a render of this)
     Add "Use as Agent Skill" CTA
   - link-to-skills-sh-profile [backlog]
     Link to skills.sh profile
-  - add-copy-paste-snippets-from-each-video [backlog]
-    Add copy-paste snippets from each video
-  - github-promotion [backlog]
-    GitHub Promotion
   - create-account-and-list-port-daddy [backlog]
     Create account and list Port Daddy
-  - write-compelling-2-3-paragraph-description [backlog]
-    Write compelling 2-3 paragraph description
-  - asciinema-videos-6 [backlog]
-    Asciinema Videos (6)
   - 1-port-conflict-hell-90s-problem-hook [backlog]
     1. Port Conflict Hell (90s) — Problem hook
   - 2-enter-port-daddy-60s-solution [backlog]
@@ -53,12 +51,6 @@ source: roadmap_items SQL table (docs/ROADMAP.md is a render of this)
     6. Dashboard (90s) — Visibility
   - skills-sh-profile [backlog]
     skills.sh Profile
-  - faq-why-video-marketing-works-for-port-daddy [backlog]
-    FAQ: Why Video Marketing Works for Port Daddy
-  - message-clarity-check-for-big-tech [backlog]
-    Message Clarity Check (For Big Tech)
-  - don-t-say [backlog]
-    ❌ DON'T Say
   - do-say [backlog]
     ✅ DO Say
   - don-t-say-2 [backlog]
@@ -73,12 +65,28 @@ source: roadmap_items SQL table (docs/ROADMAP.md is a render of this)
     The Pitch in 30 Seconds (For Skills.sh Profile)
   - deliverables-checklist [backlog]
     Deliverables Checklist
+  - asciinema-videos-6 [backlog]
+    Asciinema Videos (6)
   - video-1-the-port-conflict-hell-90-seconds [backlog]
     Video 1: The Port Conflict Hell (90 seconds)
   - video-2-enter-port-daddy-60-seconds [backlog]
     Video 2: Enter Port Daddy (60 seconds)
   - website-integration-skills-sh-promotion [backlog]
     Website Integration (Skills.sh Promotion)
+  - faq-why-video-marketing-works-for-port-daddy [backlog]
+    FAQ: Why Video Marketing Works for Port Daddy
+  - message-clarity-check-for-big-tech [backlog]
+    Message Clarity Check (For Big Tech)
+  - don-t-say [backlog]
+    ❌ DON'T Say
+  - asciinema-script-details-ready-to-record [backlog]
+    Asciinema Script Details (Ready to Record)
+  - link-from-readme [backlog]
+    Link from README
+  - reference-in-tutorials [backlog]
+    Reference in tutorials
+  - skills-sh-integration-agentic-skill-listing [backlog]
+    skills.sh Integration (Agentic Skill Listing)
   - what-is-skills-sh [backlog]
     What is skills.sh?
   - port-daddy-skill-listing [backlog]
@@ -91,8 +99,12 @@ source: roadmap_items SQL table (docs/ROADMAP.md is a render of this)
     Why It's Necessary (Not Just Nice)
   - the-ask-what-we-need [backlog]
     The Ask (What We Need)
-  - asciinema-script-details-ready-to-record [backlog]
-    Asciinema Script Details (Ready to Record)
+  - no-terminal-bloat-clean-prompt-no-git-branches [backlog]
+    No terminal bloat (clean prompt, no git branches)
+  - recording-quality [backlog]
+    Recording Quality
+  - each-video-2-min-attention-span-for-engineers [backlog]
+    Each video <2 min (attention span for engineers)
   - clear-loud-typing-sounds-satisfying [backlog]
     Clear, loud typing sounds (satisfying)
   - strategic-pauses-let-output-sink-in [backlog]
@@ -109,22 +121,6 @@ source: roadmap_items SQL table (docs/ROADMAP.md is a render of this)
     Embed on portdaddy.dev
   - include-in-skills-sh-listing [backlog]
     Include in skills.sh listing
-  - link-from-readme [backlog]
-    Link from README
-  - reference-in-tutorials [backlog]
-    Reference in tutorials
-  - skills-sh-integration-agentic-skill-listing [backlog]
-    skills.sh Integration (Agentic Skill Listing)
-  - speed-0-5x-0-8x-slow-enough-to-read-fast-enough-to-not-bore [backlog]
-    Speed: 0.5x-0.8x (slow enough to read, fast enough to not bore)
-  - no-terminal-bloat-clean-prompt-no-git-branches [backlog]
-    No terminal bloat (clean prompt, no git branches)
-  - recording-quality [backlog]
-    Recording Quality
-  - each-video-2-min-attention-span-for-engineers [backlog]
-    Each video <2 min (attention span for engineers)
-  - video-6-the-dashboard-real-time-coordination-1-min-30-sec [backlog]
-    Video 6: "The Dashboard: Real-Time Coordination" (1 min 30 sec)
   - asciinema-recording-checklist [backlog]
     Asciinema Recording Checklist
   - technical-setup [backlog]
@@ -135,6 +131,8 @@ source: roadmap_items SQL table (docs/ROADMAP.md is a render of this)
     Theme: Use Port Daddy colors (navy #1e3a5f, teal #4a7c7e, cream bg)
   - font-monospace-16px-for-readability [backlog]
     Font: Monospace, 16px for readability
+  - speed-0-5x-0-8x-slow-enough-to-read-fast-enough-to-not-bore [backlog]
+    Speed: 0.5x-0.8x (slow enough to read, fast enough to not bore)
   - port-daddy-asciinema-skills-sh-distribution-strategy [backlog]
     Port Daddy: Asciinema + skills.sh Distribution Strategy
   - the-core-problem-we-re-solving-for-big-tech-ai-engineers [backlog]
@@ -151,8 +149,8 @@ source: roadmap_items SQL table (docs/ROADMAP.md is a render of this)
     Video 4: "From Chaos Monorepo to Orchestrated Symphony" (2 min)
   - video-5-tunneling-share-localhost-with-the-internet-1-min-30-sec [backlog]
     Video 5: "Tunneling: Share Localhost with the Internet" (1 min 30 sec)
-  - part-i-sub-dag-harbor-enforcement [backlog]
-    Part I Sub-DAG: Harbor Enforcement
+  - video-6-the-dashboard-real-time-coordination-1-min-30-sec [backlog]
+    Video 6: "The Dashboard: Real-Time Coordination" (1 min 30 sec)
   - part-xvii-sub-dag-distributed-state-sync-protocol [backlog]
     Part XVII Sub-DAG: Distributed State & Sync Protocol
   - parts-ii-iii-sub-dag-remote-harbors-lighthouse [backlog]
@@ -177,6 +175,10 @@ source: roadmap_items SQL table (docs/ROADMAP.md is a render of this)
     Dependency Matrix (Adjacency List)
   - sub-dags-for-complex-nodes [backlog]
     Sub-DAGs for Complex Nodes
+  - part-i-sub-dag-harbor-enforcement [backlog]
+    Part I Sub-DAG: Harbor Enforcement
+  - part-ix-dashboard-v4-1-partial-v4-2-full [backlog]
+    Part IX: Dashboard `[V4.1 partial, V4.2 full]`
   - part-xxvii-anchors-v4-1-layer-1-v4-2-layer-2-v4-3-layer-3 [backlog]
     Part XXVII: Anchors `[V4.1 Layer 1, V4.2 Layer 2, V4.3 Layer 3]`
   - tier-6-external-documentation [backlog]
@@ -195,16 +197,24 @@ source: roadmap_items SQL table (docs/ROADMAP.md is a render of this)
     Implementation Phases
   - phase-a-foundation-build-first-in-parallel [backlog]
     Phase A: Foundation (Build First, In Parallel)
-  - tier-5-advanced-features-v4-1 [backlog]
-    Tier 5: Advanced Features (V4.1+)
   - part-viii-socket-transport-v4-1 [backlog]
     Part VIII: Socket Transport `[V4.1]`
   - part-xiv-regions-v4-0-manual-v4-1-auto-v4-2-ast [backlog]
     Part XIV: Regions `[V4.0 manual, V4.1 auto, V4.2 AST]`
   - part-xxiii-storage-lifecycle-v4-0-basic-v4-1-full [backlog]
     Part XXIII: Storage Lifecycle `[V4.0 basic, V4.1 full]`
-  - part-ix-dashboard-v4-1-partial-v4-2-full [backlog]
-    Part IX: Dashboard `[V4.1 partial, V4.2 full]`
+  - part-xii-trust-tiers-v4-0-schema-v4-1-enforcement [backlog]
+    Part XII: Trust Tiers `[V4.0 schema, V4.1 enforcement]`
+  - parts-ii-iii-remote-harbors-lighthouse-v4-0-basic-v4-1-full [backlog]
+    Parts II/III: Remote Harbors & Lighthouse `[V4.0 basic, V4.1 full]`
+  - tier-5-advanced-features-v4-1 [backlog]
+    Tier 5: Advanced Features (V4.1+)
+  - tier-2-data-layer-can-parallel-with-tier-1-after-xviii [backlog]
+    Tier 2: Data Layer (Can Parallel with Tier 1 After XVIII)
+  - part-xiii-harbor-kv-v4-0 [backlog]
+    Part XIII: Harbor KV `[V4.0]`
+  - part-xv-stigmergic-coordination-pheromones-v4-0 [backlog]
+    Part XV: Stigmergic Coordination (Pheromones) `[V4.0]`
   - part-xxvi-invariants-cross-pollination-v4-0-partial-v4-1-full [backlog]
     Part XXVI: Invariants (Cross-Pollination) `[V4.0 partial, V4.1 full]`
   - tier-3-mcp-cli-surface [backlog]
@@ -217,10 +227,12 @@ source: roadmap_items SQL table (docs/ROADMAP.md is a render of this)
     Tier 4: Sync & Networking (V4.0 Foundation, V4.1 Full)
   - part-xvii-distributed-state-sync-protocol-v4-0-critical-path [backlog]
     Part XVII: Distributed State & Sync Protocol `[V4.0]` ★ CRITICAL PATH
-  - part-xii-trust-tiers-v4-0-schema-v4-1-enforcement [backlog]
-    Part XII: Trust Tiers `[V4.0 schema, V4.1 enforcement]`
-  - parts-ii-iii-remote-harbors-lighthouse-v4-0-basic-v4-1-full [backlog]
-    Parts II/III: Remote Harbors & Lighthouse `[V4.0 basic, V4.1 full]`
+  - notation [backlog]
+    Notation
+  - tier-0-foundations-no-v4-dependencies [backlog]
+    Tier 0: Foundations (No V4 Dependencies)
+  - part-xviii-key-management-v4-0 [backlog]
+    Part XVIII: Key Management `[V4.0]`
   - part-vii-semantic-trie-v4-0 [backlog]
     Part VII: Semantic Trie `[V4.0]`
   - part-vi-adrs-v4-0 [backlog]
@@ -233,18 +245,6 @@ source: roadmap_items SQL table (docs/ROADMAP.md is a render of this)
     Part I: Harbor-First Architecture (Local) `[V4.0]` ★ CRITICAL PATH
   - part-xxi-ux-error-catalog-v4-0 [backlog]
     Part XXI: UX & Error Catalog `[V4.0]`
-  - tier-2-data-layer-can-parallel-with-tier-1-after-xviii [backlog]
-    Tier 2: Data Layer (Can Parallel with Tier 1 After XVIII)
-  - part-xiii-harbor-kv-v4-0 [backlog]
-    Part XIII: Harbor KV `[V4.0]`
-  - part-xv-stigmergic-coordination-pheromones-v4-0 [backlog]
-    Part XV: Stigmergic Coordination (Pheromones) `[V4.0]`
-  - notation [backlog]
-    Notation
-  - tier-0-foundations-no-v4-dependencies [backlog]
-    Tier 0: Foundations (No V4 Dependencies)
-  - part-xviii-key-management-v4-0 [backlog]
-    Part XVIII: Key Management `[V4.0]`
   - port-daddy-v4-implementation-dag [backlog]
     Port Daddy V4: Implementation DAG
 
