@@ -92,6 +92,27 @@ test('groups steps by runtime session with actual and expected timestamps', () =
   expect(overdue.description).toMatch(/No completion arrived by the deadline/);
 });
 
+test('publishes an explicit bounded step window for unified Squid status', () => {
+  const paths = squidHookDebugPaths(PD_HOME);
+  mkdirSync(join(PD_HOME, 'squid'), { recursive: true });
+  const records: string[] = [];
+  for (let index = 0; index < 40; index += 1) {
+    records.push(event({ kind: 'start', run: `run-${index}`, at: 1_000 + index * 10 }));
+    records.push(event({ kind: 'finish', run: `run-${index}`, at: 1_005 + index * 10, outcome: 'executed', exit: '0' }));
+  }
+  writeFileSync(paths.events, `${records.join('\n')}\n`);
+
+  const snapshot = readSquidHookDebugSnapshot({
+    pdHome: PD_HOME,
+    cwd: WORKSPACE,
+    nowMs: 5_000,
+    maxSteps: 5,
+  });
+  expect(snapshot.window).toEqual({ totalSteps: 40, returnedSteps: 5, truncated: true });
+  expect(snapshot.retention.maxSteps).toBe(5);
+  expect(snapshot.sessions.flatMap((session) => session.steps)).toHaveLength(5);
+});
+
 test('renders no-op outcomes and drops malformed or out-of-workspace records', () => {
   const paths = squidHookDebugPaths(PD_HOME);
   mkdirSync(join(PD_HOME, 'squid'), { recursive: true });

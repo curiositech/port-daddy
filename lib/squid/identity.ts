@@ -173,25 +173,86 @@ export interface MatrixSnapshot {
   alerts: string[];
   pheromones: string[];
   locks: string[];
+  window: {
+    limitPerKind: number;
+    maxValueChars: number;
+    totals: { alerts: number; pheromones: number; locks: number };
+    returned: { alerts: number; pheromones: number; locks: number };
+    truncated: { alerts: boolean; pheromones: boolean; locks: boolean; any: boolean };
+  };
+}
+
+export const SQUID_MATRIX_STATUS_LIMIT_PER_KIND = 20;
+export const SQUID_MATRIX_STATUS_MAX_VALUE_CHARS = 512;
+
+/**
+ * Retain only the newest matrix values and cap each diagnostic string. The
+ * design keeps operator status proportional to the display budget even when
+ * the cumulative matrix contains thousands of historical pheromones.
+ *
+ * @param values - Matrix values in file order.
+ * @param limit - Maximum newest values to retain.
+ * @param maxValueChars - Maximum characters retained per value.
+ * @returns The bounded newest-value window.
+ */
+function boundedMatrixValues(values: string[], limit: number, maxValueChars: number): string[] {
+  return values.slice(-limit).map((value) => value.length > maxValueChars
+    ? `${value.slice(0, Math.max(0, maxValueChars - 1))}…`
+    : value);
 }
 
 /**
  * Read the Ink Cloud matrix the tentacles steer from. Values only, no parsing
  * risk — delegates line-parsing to `lib/squid/matrix.ts`'s `parseMatrix`, the
  * single source of truth for the `KEY="value"` format (ADR-0091 PR1: parser
- * consolidation), instead of re-implementing it here.
+ * consolidation), instead of re-implementing it here. The purpose of the
+ * window metadata is to make cumulative state honest without serializing it all.
+ *
+ * @param path - Matrix file to inspect.
+ * @param options - Per-kind and per-value display bounds.
+ * @returns A bounded snapshot with exact totals and truncation markers.
  */
-export function readMatrixSnapshot(path = join(PD_HOME, 'matrix.env')): MatrixSnapshot {
-  const snap: MatrixSnapshot = { path, exists: false, alerts: [], pheromones: [], locks: [] };
+export function readMatrixSnapshot(
+  path = join(PD_HOME, 'matrix.env'),
+  options: { limitPerKind?: number; maxValueChars?: number } = {},
+): MatrixSnapshot {
+  const limitPerKind = Math.max(1, Math.min(100, Math.floor(options.limitPerKind ?? SQUID_MATRIX_STATUS_LIMIT_PER_KIND)));
+  const maxValueChars = Math.max(32, Math.min(2_048, Math.floor(options.maxValueChars ?? SQUID_MATRIX_STATUS_MAX_VALUE_CHARS)));
+  const emptyWindow: MatrixSnapshot['window'] = {
+    limitPerKind,
+    maxValueChars,
+    totals: { alerts: 0, pheromones: 0, locks: 0 },
+    returned: { alerts: 0, pheromones: 0, locks: 0 },
+    truncated: { alerts: false, pheromones: false, locks: false, any: false },
+  };
+  const snap: MatrixSnapshot = { path, exists: false, alerts: [], pheromones: [], locks: [], window: emptyWindow };
   if (!existsSync(path)) return snap;
   snap.exists = true;
   const text = readFileSync(path, 'utf8');
   const kv = parseMatrix(text);
+  const alerts: string[] = [];
+  const pheromones: string[] = [];
+  const locks: string[] = [];
   for (const [key, value] of Object.entries(kv)) {
-    if (key.startsWith('PD_ALERT_')) snap.alerts.push(value);
-    else if (key.startsWith('PD_PHEROMONE_')) snap.pheromones.push(value);
-    else if (key.startsWith('PD_LOCK_')) snap.locks.push(value);
+    if (key.startsWith('PD_ALERT_')) alerts.push(value);
+    else if (key.startsWith('PD_PHEROMONE_')) pheromones.push(value);
+    else if (key.startsWith('PD_LOCK_')) locks.push(value);
   }
+  snap.alerts = boundedMatrixValues(alerts, limitPerKind, maxValueChars);
+  snap.pheromones = boundedMatrixValues(pheromones, limitPerKind, maxValueChars);
+  snap.locks = boundedMatrixValues(locks, limitPerKind, maxValueChars);
+  snap.window.totals = { alerts: alerts.length, pheromones: pheromones.length, locks: locks.length };
+  snap.window.returned = {
+    alerts: snap.alerts.length,
+    pheromones: snap.pheromones.length,
+    locks: snap.locks.length,
+  };
+  snap.window.truncated = {
+    alerts: alerts.length > snap.alerts.length,
+    pheromones: pheromones.length > snap.pheromones.length,
+    locks: locks.length > snap.locks.length,
+    any: alerts.length > snap.alerts.length || pheromones.length > snap.pheromones.length || locks.length > snap.locks.length,
+  };
   return snap;
 }
 

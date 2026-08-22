@@ -78,15 +78,19 @@ wrapper requires the exact project root in the arm registry. `pd squid off`
 removes that root while preserving other projects.
 
 When hook behavior is slow or confusing, use `pd squid debug on` only for the
-diagnostic window, reproduce the turn, then read `pd squid debug status` (or
-`--json`). It groups PD TURN and direct PD EDIT invocations by runtime agent
-session and shows actual start/finish, the one-second expected-by timestamp,
-duration, gate outcome, and a short explanation. A start with no completion by
-its deadline is `OVERDUE`. `pd squid debug off` stops capture while preserving
-the bounded local timeline; `clear` removes it. The format cannot retain argv,
-environment snapshots, prompts, tool inputs/results, stdout, or stderr. Operators use the
-FleetBar Squid strip's Inspect button for this same surface. Retained PD TRACE
-rows are legacy history; current installs do not schedule a PostToolUse process.
+diagnostic window, reproduce the turn, then read `pd squid status` or the
+focused `pd squid debug status` (`--json` works on either). They share one
+diagnostic source. Status returns at most 25 recent hook steps and 20 recent
+matrix values per kind, with total/returned/truncated metadata, so retained
+history cannot cut JSON in half or turn introspection into more hook work. Each
+step shows actual start/finish, the one-second expected-by timestamp, duration,
+gate outcome, and a short explanation. A start with no completion by its
+deadline is `OVERDUE`. `pd squid debug off` stops capture while preserving the
+bounded local timeline; `clear` removes it. The format cannot retain argv,
+environment snapshots, prompts, tool inputs/results, stdout, or stderr.
+Operators use the FleetBar Squid strip's Inspect button for this same surface.
+Retained PD TRACE rows are legacy history; current installs do not schedule a
+PostToolUse process.
 
 Every staged hook command is a stable `~/.port-daddy/bin/pd-hook-*` shim; a
 provider config that names a Homebrew Cellar version is stale and must be
@@ -114,6 +118,11 @@ The operator drives this through FleetBar's selected-project `◆ GIANT SQUID`
 strip. It exposes state, provider count, Arm/Repair/Disarm, and the hook timeline
 without asking the operator to run these agent-facing commands.
 
+Daemon connection code follows published truth. Port `9876` is an allocator
+preference, not a liveness witness: clients use an explicit URL, an existing
+Unix socket, or the selected daemon's published port file. Missing, malformed,
+or unreadable publication fails closed instead of guessing a listener.
+
 ## Default Agent Happy Path
 
 Use this path before you reach for advanced coordination. It is the normal
@@ -137,13 +146,23 @@ pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
 ```
 
+After admission, `pd begin` may show at most three semantically matched live
+peers. That optional hint has a 75 ms budget, excludes the new agent, never
+falls back to lexical matching, and fails open without output. A long list of
+salvage, roadmap, docs, files, or sessions during begin is a regression, not an
+arrival brief.
+
+`pd sitrep` is similarly a bounded projection: collections expose limits,
+returned counts, and truncation; nested salvage histories and strings are
+capped. Use `pd sitrep --quiet` when only the summary is needed.
+
 ## Plan & Todo List Tracking
 
 Every agent must establish a versioned todo checklist using `pd plan set`.
 - **Set a plan**: Run `pd plan set` with markdown checklist items.
 - **View latest plan**: Run `pd plan show` or `pd plan`.
 - **Mark item completed**: Run `pd plan check <index>` (e.g., `pd plan check 1` or `pd plan check "step one"`).
-- **Close session gate**: `pd done` checks your active plan. If any unchecked `[ ]` items remain, the close operation fails closed. Bypass with `pd done --force-incomplete --reason "<why>"` if incomplete work is intentionally handshaked or deferred.
+- **Close session gate**: `pd done` checks your active plan. If any unchecked `[ ]` items remain, the close operation fails closed. Bypass with `pd done --force-incomplete --reason "<why>"` if incomplete work is intentionally handshaked or deferred. `pd done --no-pr` is narrower than “I chose not to open a PR”: it succeeds only for a clean worktree whose `HEAD` has no commit absent from every remote ref. Dirty or unpublished repository work remains blocked.
 
 ## Session Continuity
 

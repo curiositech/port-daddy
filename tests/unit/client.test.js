@@ -116,6 +116,14 @@ describe('PortDaddy constructor', () => {
     expect(pd.url).toBe('http://custom:1234'); // Trailing slash stripped
   });
 
+  test.each([
+    ['http://custom', 80],
+    ['https://custom', 443],
+  ])('uses the protocol default for an explicit URL without a port: %s', (url, port) => {
+    const pd = new PortDaddy({ url, socketPath: '/nonexistent/port-daddy.sock' });
+    expect(pd._resolveTarget()).toEqual({ host: 'custom', port });
+  });
+
   test('reads PORT_DADDY_URL from environment', () => {
     const prev = process.env.PORT_DADDY_URL;
     process.env.PORT_DADDY_URL = 'http://env:5555';

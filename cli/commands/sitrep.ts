@@ -82,6 +82,7 @@ interface SitrepResponse {
 
 export const SITREP_HELP: string = [
   'Usage: pd sitrep [--since MINUTES] [--project NAME] [--stack NAME]',
+  '                 [--limit-activity N] [--limit-notes N] [--limit-salvage N]',
   '                 [--template] [--quiet] [--json]',
   '',
   'Synthesize recent activity, notes, salvage, and spawned-agent state.',
@@ -112,8 +113,17 @@ export async function handleSitrep(options: CLIOptions): Promise<void> {
   if (since !== undefined) params.append('since_minutes', String(since));
   if (options.project) params.append('project', options.project as string);
   if (options.stack) params.append('stack', options.stack as string);
-  if (options.limitActivity) params.append('limit_activity', String(options.limitActivity));
-  if (options.limitNotes) params.append('limit_notes', String(options.limitNotes));
+  const limitActivity = options.limitActivity ?? options['limit-activity'];
+  const limitNotes = options.limitNotes ?? options['limit-notes'];
+  const limitSalvage = options.limitSalvage ?? options['limit-salvage'];
+  const limitSalvageNotes = options.limitSalvageNotes ?? options['limit-salvage-notes'];
+  const limitSpawned = options.limitSpawned ?? options['limit-spawned'];
+  if (limitActivity) params.append('limit_activity', String(limitActivity));
+  if (limitNotes) params.append('limit_notes', String(limitNotes));
+  if (limitSalvage) params.append('limit_salvage', String(limitSalvage));
+  if (limitSalvageNotes) params.append('limit_salvage_notes', String(limitSalvageNotes));
+  if (limitSpawned) params.append('limit_spawned', String(limitSpawned));
+  if (isQuiet(options)) params.append('summary_only', '1');
 
   const qs = params.toString() ? `?${params}` : '';
   const res: PdFetchResponse = await pdFetch(`/sitrep${qs}`);

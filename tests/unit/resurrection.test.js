@@ -290,6 +290,26 @@ describe('Resurrection Module', () => {
       expect(result.count).toBe(3);
       expect(result.agents).toHaveLength(3);
     });
+
+    it('applies row and note limits before formatting salvage entries', () => {
+      const sessions = {
+        getNotes: jest.fn(() => ({
+          success: true,
+          notes: [{ content: 'one' }, { content: 'two' }],
+        })),
+      };
+      resurrection = createResurrection(db, { sessions });
+      for (let i = 0; i < 10; i++) {
+        queueDeadAgent(`agent-${i}`, { sessionId: `session-${i}` });
+      }
+      sessions.getNotes.mockClear();
+
+      const result = resurrection.pending({ limit: 3, noteLimit: 2 });
+
+      expect(result.agents).toHaveLength(3);
+      expect(sessions.getNotes).toHaveBeenCalledTimes(3);
+      expect(sessions.getNotes).toHaveBeenCalledWith(expect.any(String), { limit: 2 });
+    });
   });
 
   // ======================================================================

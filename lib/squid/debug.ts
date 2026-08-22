@@ -34,6 +34,7 @@ export const SQUID_HOOK_BREAKER_SLOW_MS = 250;
 export const SQUID_HOOK_BREAKER_COOLDOWN_MS = 5 * 60 * 1_000;
 const SQUID_HOOK_DEBUG_MAX_READ_BYTES = SQUID_HOOK_DEBUG_MAX_BYTES * 2;
 const SQUID_HOOK_DEBUG_MAX_STEPS = 2_000;
+export const SQUID_HOOK_STATUS_MAX_STEPS = 25;
 
 export type SquidHookProvider = 'claude' | 'codex' | 'gemini' | 'agy' | 'unknown';
 export type SquidHookPhase = 'turn' | 'edit' | 'trace';
@@ -106,7 +107,8 @@ export interface SquidHookDebugSnapshot {
   capturedAt: string;
   workspace: string | null;
   privacy: string;
-  retention: { maxBytes: number; eventPath: string };
+  retention: { maxBytes: number; eventPath: string; maxSteps: number };
+  window: { totalSteps: number; returnedSteps: number; truncated: boolean };
   health: SquidHookHealthSnapshot;
   sessions: SquidHookDebugSession[];
 }
@@ -269,6 +271,7 @@ export function readSquidHookDebugSnapshot(options: {
   pdHome?: string;
   cwd?: string;
   nowMs?: number;
+  maxSteps?: number;
 } = {}): SquidHookDebugSnapshot {
   const pdHome = options.pdHome ?? PD_HOME;
   const paths = squidHookDebugPaths(pdHome);
@@ -286,9 +289,13 @@ export function readSquidHookDebugSnapshot(options: {
     else finishes.set(event.runId, event);
   }
 
-  const paired = [...starts.values()]
-    .sort((a, b) => b.atMs - a.atMs)
-    .slice(0, SQUID_HOOK_DEBUG_MAX_STEPS)
+  const maxSteps = Math.max(1, Math.min(
+    SQUID_HOOK_DEBUG_MAX_STEPS,
+    Math.floor(options.maxSteps ?? SQUID_HOOK_DEBUG_MAX_STEPS),
+  ));
+  const allStarts = [...starts.values()].sort((a, b) => b.atMs - a.atMs);
+  const paired = allStarts
+    .slice(0, maxSteps)
     .map((start) => ({ start, finish: finishes.get(start.runId) ?? null }));
   const sessionsByKey = new Map<string, SquidHookDebugSession>();
 
@@ -329,7 +336,12 @@ export function readSquidHookDebugSnapshot(options: {
     capturedAt: iso(nowMs),
     workspace,
     privacy: 'Sanitized timing only: no argv, environment snapshot, prompts, tool inputs, tool results, stdout, or stderr are captured.',
-    retention: { maxBytes: SQUID_HOOK_DEBUG_MAX_BYTES, eventPath: paths.events },
+    retention: { maxBytes: SQUID_HOOK_DEBUG_MAX_BYTES, eventPath: paths.events, maxSteps },
+    window: {
+      totalSteps: allStarts.length,
+      returnedSteps: paired.length,
+      truncated: allStarts.length > paired.length,
+    },
     health: readSquidHookHealth(pdHome, nowMs),
     sessions: [...sessionsByKey.values()].sort((a, b) => Date.parse(b.lastActivityAt) - Date.parse(a.lastActivityAt)),
   };
