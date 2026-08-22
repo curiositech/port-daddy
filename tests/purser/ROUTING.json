@@ -132,6 +132,9 @@
     "oom-protection.test.ts": {
       "runner": "quarantined",
       "reason": "vitest + apps/fleet-executor/src; belongs in apps/fleet-executor"
+    },
+    "completions-daemon-endpoint-adversarial.test.js": {
+      "runner": "jest"
     }
   }
 }
